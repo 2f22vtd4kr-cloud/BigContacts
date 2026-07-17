@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { seedMockData, seedExtendedData } from "./lib/mock-data";
+import { connectRedis, disconnectRedis } from "./lib/redis";
 
 const rawPort = process.env["PORT"];
 
@@ -16,7 +17,12 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-app.listen(port, (err) => {
+// Connect Redis before accepting traffic (non-blocking — server still starts on failure)
+connectRedis()
+  .then(() => logger.info("Redis connection initiated"))
+  .catch((e) => logger.warn({ err: e }, "Redis connect error (non-fatal)"));
+
+const server = app.listen(port, (err) => {
   if (err) {
     logger.error({ err }, "Error listening on port");
     process.exit(1);
@@ -31,3 +37,14 @@ app.listen(port, (err) => {
     .then(() => logger.info("Extended mock data seeded (or already present)"))
     .catch((e) => logger.warn({ err: e }, "Mock data seed failed (non-fatal)"));
 });
+
+// Graceful shutdown
+async function shutdown(signal: string) {
+  logger.info({ signal }, "Shutting down");
+  server.close();
+  await disconnectRedis();
+  process.exit(0);
+}
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT",  () => shutdown("SIGINT"));

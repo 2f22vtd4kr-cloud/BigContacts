@@ -9,6 +9,7 @@ import {
   UpdateEntityBody,
   DeleteEntityParams,
 } from "@workspace/api-zod";
+import { getCache, setCache, delCachePattern } from "../lib/redis";
 
 const router: IRouter = Router();
 
@@ -20,6 +21,14 @@ router.get("/entities", async (req, res): Promise<void> => {
     return;
   }
   const { type, minScore, search, limit = 50, offset = 0 } = parsed.data;
+
+  // Cache key encodes all query params — 30 s TTL (short, data changes frequently)
+  const cacheKey = `entities:list:${type ?? ""}:${minScore ?? ""}:${search ?? ""}:${limit}:${offset}`;
+  const cached = await getCache<unknown[]>(cacheKey);
+  if (cached) {
+    res.json(cached);
+    return;
+  }
 
   const conditions = [];
   if (type) conditions.push(eq(entitiesTable.type, type));
@@ -59,6 +68,7 @@ router.get("/entities", async (req, res): Promise<void> => {
     assetCount: assetCounts[e.id] ?? 0,
   }));
 
+  await setCache(cacheKey, entities, 30);
   res.json(entities);
 });
 
@@ -70,6 +80,11 @@ router.post("/entities", async (req, res): Promise<void> => {
     return;
   }
   const [entity] = await db.insert(entitiesTable).values(parsed.data).returning();
+  // Invalidate all entity list caches and dashboard stats
+  await Promise.all([
+    delCachePattern("entities:list:*"),
+    delCachePattern("dashboard:*"),
+  ]);
   res.status(201).json({ ...entity!, createdAt: entity!.createdAt.toISOString(), assetCount: 0 });
 });
 
@@ -131,6 +146,10 @@ router.patch("/entities/:id", async (req, res): Promise<void> => {
     .from(assetsTable)
     .where(eq(assetsTable.ownerEntityId, entity.id));
 
+  await Promise.all([
+    delCachePattern("entities:list:*"),
+    delCachePattern("dashboard:*"),
+  ]);
   res.json({ ...entity, createdAt: entity.createdAt.toISOString(), assetCount: cnt?.cnt ?? 0 });
 });
 
@@ -150,6 +169,10 @@ router.delete("/entities/:id", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Entity not found" });
     return;
   }
+  await Promise.all([
+    delCachePattern("entities:list:*"),
+    delCachePattern("dashboard:*"),
+  ]);
   res.sendStatus(204);
 });
 

@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { desc, isNotNull, eq, sql, and } from "drizzle-orm";
 import { db, entitiesTable, assetsTable, relationshipsTable, researchSessionsTable } from "@workspace/db";
 import { GetHotLeadsQueryParams } from "@workspace/api-zod";
+import { getCache, setCache } from "../lib/redis";
 
 const router: IRouter = Router();
 
@@ -172,6 +173,9 @@ router.get("/dashboard/hot-leads", async (req, res): Promise<void> => {
 
 // GET /dashboard/stats
 router.get("/dashboard/stats", async (_req, res): Promise<void> => {
+  const cached = await getCache<object>("dashboard:stats");
+  if (cached) { res.json(cached); return; }
+
   const [
     [entityCount],
     [assetCount],
@@ -229,7 +233,7 @@ router.get("/dashboard/stats", async (_req, res): Promise<void> => {
     }
   }
 
-  res.json({
+  const payload = {
     totalEntities: entityCount?.cnt ?? 0,
     totalAssets: assetCount?.cnt ?? 0,
     totalRelationships: relCount?.cnt ?? 0,
@@ -247,11 +251,16 @@ router.get("/dashboard/stats", async (_req, res): Promise<void> => {
       createdAt: e.createdAt.toISOString(),
       assetCount: topAssetCounts[e.id] ?? 0,
     })),
-  });
+  };
+  await setCache("dashboard:stats", payload, 60);
+  res.json(payload);
 });
 
 // GET /dashboard/map-data
 router.get("/dashboard/map-data", async (_req, res): Promise<void> => {
+  const cached = await getCache<object[]>("dashboard:map");
+  if (cached) { res.json(cached); return; }
+
   const rows = await db
     .select({
       asset: assetsTable,
@@ -281,6 +290,7 @@ router.get("/dashboard/map-data", async (_req, res): Promise<void> => {
       sourceRegistry: asset.sourceRegistry,
     }));
 
+  await setCache("dashboard:map", mapData, 120);
   res.json(mapData);
 });
 

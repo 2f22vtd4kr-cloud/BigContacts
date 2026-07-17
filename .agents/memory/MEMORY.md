@@ -1,3 +1,4 @@
 - [AI model preference](ai-model-preference.md) — Use Fable 5 High effort (built-in agent) NOT external AI APIs; implement AI features as server-side TypeScript logic
 - [Artifact workflow setup](artifact-workflow-setup.md) — All 4 artifacts are registered with managed workflows; old manual workflows were removed; port 8080 conflict resolution required killing leftover PID
 - [Registry search routing](registry-search-routing.md) — Live registry search is at POST /api/registry-search (not /ingest/); placed before adminOnly middleware in ingest.ts
+- [Redis integration](redis-integration.md) — ioredis on REDIS_URL; cache-aside on entities/dashboard/registry; graceful degradation on Redis outage

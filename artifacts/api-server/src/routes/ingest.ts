@@ -14,6 +14,7 @@ import { Router, type IRouter, type Request, type Response, type NextFunction } 
 import { db, assetsTable, entitiesTable, relationshipsTable } from "@workspace/db";
 import { seedExtendedData } from "../lib/mock-data";
 import { searchRegistry } from "../lib/registry-client";
+import { getCache, setCache } from "../lib/redis";
 import { sql, eq } from "drizzle-orm";
 
 const router: IRouter = Router();
@@ -41,15 +42,34 @@ router.post("/registry-search", async (req: Request, res: Response): Promise<voi
     return;
   }
 
+  const normalizedLimit = Math.min(Number(limit) || 10, 20);
+  const cacheKey = `registry:${registry}:${query.trim().toLowerCase()}:${normalizedLimit}`;
+
   try {
+    // Check cache first (1-hour TTL — public registry data changes rarely)
+    const cached = await getCache<ReturnType<typeof searchRegistry> extends Promise<infer T> ? T : never>(cacheKey);
+    if (cached) {
+      res.json({
+        results: cached,
+        message: `Found ${cached.length} result${cached.length !== 1 ? "s" : ""} from ${registry}.`,
+        cached: true,
+      });
+      return;
+    }
+
     const results = await searchRegistry({
       query: query.trim(),
       registry: registry as "opencorporates" | "companies-house" | "sec-edgar",
-      limit: Math.min(Number(limit) || 10, 20),
+      limit: normalizedLimit,
     });
+
+    // Store in Redis for 1 hour
+    await setCache(cacheKey, results, 3_600);
+
     res.json({
       results,
       message: `Found ${results.length} result${results.length !== 1 ? "s" : ""} from ${registry}.`,
+      cached: false,
     });
   } catch (err: any) {
     const status = err?.message?.includes("API_KEY") ? 422 : 500;
