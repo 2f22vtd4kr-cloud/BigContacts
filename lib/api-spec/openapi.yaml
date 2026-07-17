@@ -3,20 +3,32 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: ApexFinder Pro - Enterprise OSINT & HNWI Intelligence Platform
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: entities
+    description: Entity (HNWI / Corporation / Trust / Gatekeeper) management
+  - name: assets
+    description: Asset (Real Estate / Aviation / Marine / Club) management
+  - name: relationships
+    description: Graph relationship edges
+  - name: research
+    description: MCTS research sessions and CRM
+  - name: dashboard
+    description: Dashboard aggregates, hot leads, and map data
+  - name: graph
+    description: Graph analysis and path finding
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +36,454 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # ── ENTITIES ──────────────────────────────────────────────────────────────
+  /entities:
+    get:
+      operationId: listEntities
+      tags: [entities]
+      summary: List all entities with optional filters
+      parameters:
+        - name: type
+          in: query
+          schema: { type: string }
+          description: Filter by entity type (HNWI, Corporation, Trust, Gatekeeper)
+        - name: minScore
+          in: query
+          schema: { type: number }
+          description: Minimum Bayesian investor score
+        - name: search
+          in: query
+          schema: { type: string }
+          description: Full-text search on name
+        - name: limit
+          in: query
+          schema: { type: integer, default: 50 }
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0 }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Entity"
+    post:
+      operationId: createEntity
+      tags: [entities]
+      summary: Create a new entity
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EntityInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Entity"
+
+  /entities/{id}:
+    get:
+      operationId: getEntity
+      tags: [entities]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Entity"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateEntity
+      tags: [entities]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EntityUpdate"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Entity"
+    delete:
+      operationId: deleteEntity
+      tags: [entities]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "204":
+          description: Deleted
+
+  # ── ASSETS ────────────────────────────────────────────────────────────────
+  /assets:
+    get:
+      operationId: listAssets
+      tags: [assets]
+      summary: List all assets
+      parameters:
+        - name: category
+          in: query
+          schema: { type: string }
+        - name: entityId
+          in: query
+          schema: { type: integer }
+        - name: jurisdiction
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Asset"
+    post:
+      operationId: createAsset
+      tags: [assets]
+      summary: Create a new asset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssetInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Asset"
+
+  /assets/{id}:
+    get:
+      operationId: getAsset
+      tags: [assets]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Asset"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateAsset
+      tags: [assets]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssetUpdate"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Asset"
+    delete:
+      operationId: deleteAsset
+      tags: [assets]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "204":
+          description: Deleted
+
+  # ── RELATIONSHIPS ─────────────────────────────────────────────────────────
+  /relationships:
+    get:
+      operationId: listRelationships
+      tags: [relationships]
+      summary: List relationship edges
+      parameters:
+        - name: entityId
+          in: query
+          schema: { type: integer }
+          description: Filter by source entity ID
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Relationship"
+    post:
+      operationId: createRelationship
+      tags: [relationships]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RelationshipInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Relationship"
+
+  /relationships/{id}:
+    delete:
+      operationId: deleteRelationship
+      tags: [relationships]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "204":
+          description: Deleted
+
+  # ── RESEARCH / MCTS ───────────────────────────────────────────────────────
+  /research/run:
+    post:
+      operationId: runResearch
+      tags: [research]
+      summary: Run MCTS autonomous research on an entity
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResearchRunInput"
+      responses:
+        "201":
+          description: Research session created with MCTS path
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResearchSession"
+
+  /research/sessions:
+    get:
+      operationId: listResearchSessions
+      tags: [research]
+      parameters:
+        - name: entityId
+          in: query
+          schema: { type: integer }
+        - name: status
+          in: query
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 50 }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ResearchSession"
+
+  /research/sessions/{id}:
+    get:
+      operationId: getResearchSession
+      tags: [research]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResearchSession"
+        "404":
+          description: Not found
+
+  /research/sessions/{id}/status:
+    patch:
+      operationId: updateResearchStatus
+      tags: [research]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SessionStatusUpdate"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResearchSession"
+
+  /research/sessions/{id}/pitch:
+    post:
+      operationId: generatePitch
+      tags: [research]
+      summary: Generate an AI-personalized outreach pitch for the winning MCTS path
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResearchSession"
+        "404":
+          description: Not found
+
+  # ── DASHBOARD ─────────────────────────────────────────────────────────────
+  /dashboard/hot-leads:
+    get:
+      operationId: getHotLeads
+      tags: [dashboard]
+      summary: Real-time hot leads feed ranked by Bayesian score and recent activity
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, default: 10 }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/HotLead"
+
+  /dashboard/stats:
+    get:
+      operationId: getDashboardStats
+      tags: [dashboard]
+      summary: Overall platform statistics and breakdowns
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
+  /dashboard/map-data:
+    get:
+      operationId: getMapData
+      tags: [dashboard]
+      summary: All geolocated assets for the Leaflet map view
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MapAsset"
+
+  # ── GRAPH ─────────────────────────────────────────────────────────────────
+  /graph/entity/{id}:
+    get:
+      operationId: getEntityGraph
+      tags: [graph]
+      summary: Get entity graph with all connected nodes and edges
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: depth
+          in: query
+          schema: { type: integer, default: 2 }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EntityGraph"
+        "404":
+          description: Not found
+
+  /graph/path:
+    get:
+      operationId: getConnectionPath
+      tags: [graph]
+      summary: Find shortest warm-introduction path between two entities
+      parameters:
+        - name: sourceId
+          in: query
+          required: true
+          schema: { type: integer }
+        - name: targetId
+          in: query
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectionPath"
+
 components:
   schemas:
     HealthStatus:
@@ -31,6 +491,298 @@ components:
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
 
+    # ── ENTITY ───────────────────────────────────────────────────────────────
+    Entity:
+      type: object
+      required: [id, name, type, bayesianScore, isHot, assetCount, createdAt]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        type: { type: string }
+        bayesianScore: { type: number }
+        nationality: { type: ["string", "null"] }
+        estimatedNetWorth: { type: ["number", "null"] }
+        knownResidences: { type: ["string", "null"] }
+        linkedinUrl: { type: ["string", "null"] }
+        phone: { type: ["string", "null"] }
+        email: { type: ["string", "null"] }
+        contactMethod: { type: ["string", "null"] }
+        notes: { type: ["string", "null"] }
+        sourceRegistries: { type: ["string", "null"] }
+        metadata: { type: ["string", "null"] }
+        isHot: { type: boolean }
+        assetCount: { type: integer }
+        createdAt: { type: string }
+
+    EntityInput:
+      type: object
+      required: [name, type]
+      properties:
+        name: { type: string, minLength: 1 }
+        type: { type: string }
+        nationality: { type: string }
+        estimatedNetWorth: { type: number }
+        knownResidences: { type: string }
+        linkedinUrl: { type: string }
+        phone: { type: string }
+        email: { type: string }
+        contactMethod: { type: string }
+        notes: { type: string }
+        sourceRegistries: { type: string }
+        metadata: { type: string }
+
+    EntityUpdate:
+      type: object
+      properties:
+        name: { type: string }
+        type: { type: string }
+        bayesianScore: { type: number }
+        nationality: { type: string }
+        estimatedNetWorth: { type: number }
+        knownResidences: { type: string }
+        linkedinUrl: { type: string }
+        phone: { type: string }
+        email: { type: string }
+        contactMethod: { type: string }
+        notes: { type: string }
+        sourceRegistries: { type: string }
+        metadata: { type: string }
+        isHot: { type: boolean }
+
+    # ── ASSET ────────────────────────────────────────────────────────────────
+    Asset:
+      type: object
+      required: [id, category, identifier, jurisdiction, createdAt]
+      properties:
+        id: { type: integer }
+        category: { type: string }
+        identifier: { type: string }
+        jurisdiction: { type: string }
+        latitude: { type: ["number", "null"] }
+        longitude: { type: ["number", "null"] }
+        estimatedValue: { type: ["number", "null"] }
+        address: { type: ["string", "null"] }
+        description: { type: ["string", "null"] }
+        lastActivityDate: { type: ["string", "null"] }
+        sourceRegistry: { type: ["string", "null"] }
+        ownerEntityId: { type: ["integer", "null"] }
+        ownerName: { type: ["string", "null"] }
+        createdAt: { type: string }
+
+    AssetInput:
+      type: object
+      required: [category, identifier, jurisdiction]
+      properties:
+        category: { type: string }
+        identifier: { type: string }
+        jurisdiction: { type: string }
+        latitude: { type: number }
+        longitude: { type: number }
+        estimatedValue: { type: number }
+        address: { type: string }
+        description: { type: string }
+        lastActivityDate: { type: string }
+        sourceRegistry: { type: string }
+        ownerEntityId: { type: integer }
+
+    AssetUpdate:
+      type: object
+      properties:
+        category: { type: string }
+        identifier: { type: string }
+        jurisdiction: { type: string }
+        latitude: { type: number }
+        longitude: { type: number }
+        estimatedValue: { type: number }
+        address: { type: string }
+        description: { type: string }
+        lastActivityDate: { type: string }
+        sourceRegistry: { type: string }
+        ownerEntityId: { type: integer }
+
+    # ── RELATIONSHIP ──────────────────────────────────────────────────────────
+    Relationship:
+      type: object
+      required: [id, sourceEntityId, targetId, targetType, relationshipType, createdAt]
+      properties:
+        id: { type: integer }
+        sourceEntityId: { type: integer }
+        targetId: { type: integer }
+        targetType: { type: string }
+        relationshipType: { type: string }
+        strength: { type: ["number", "null"] }
+        notes: { type: ["string", "null"] }
+        sourceEntityName: { type: ["string", "null"] }
+        targetName: { type: ["string", "null"] }
+        createdAt: { type: string }
+
+    RelationshipInput:
+      type: object
+      required: [sourceEntityId, targetId, targetType, relationshipType]
+      properties:
+        sourceEntityId: { type: integer }
+        targetId: { type: integer }
+        targetType: { type: string }
+        relationshipType: { type: string }
+        strength: { type: number }
+        notes: { type: string }
+
+    # ── RESEARCH SESSION ──────────────────────────────────────────────────────
+    ResearchSession:
+      type: object
+      required: [id, targetEntityId, crmStatus, createdAt]
+      properties:
+        id: { type: integer }
+        targetEntityId: { type: integer }
+        targetEntityName: { type: ["string", "null"] }
+        winningPath: { type: ["string", "null"] }
+        mctsSteps: { type: ["string", "null"] }
+        generatedPitch: { type: ["string", "null"] }
+        crmStatus: { type: string }
+        lastContactDate: { type: ["string", "null"] }
+        bayesianScoreAtRuntime: { type: ["number", "null"] }
+        pathScore: { type: ["number", "null"] }
+        createdAt: { type: string }
+
+    ResearchRunInput:
+      type: object
+      required: [entityId]
+      properties:
+        entityId: { type: integer }
+        depth: { type: integer }
+        focusRegistries: { type: string }
+
+    SessionStatusUpdate:
+      type: object
+      required: [crmStatus]
+      properties:
+        crmStatus: { type: string }
+        lastContactDate: { type: string }
+        notes: { type: string }
+
+    # ── DASHBOARD ─────────────────────────────────────────────────────────────
+    HotLead:
+      type: object
+      required: [entityId, entityName, entityType, bayesianScore, signal, signalDate, assetCount, hasResearchSession]
+      properties:
+        entityId: { type: integer }
+        entityName: { type: string }
+        entityType: { type: string }
+        bayesianScore: { type: number }
+        signal: { type: string }
+        signalDate: { type: string }
+        assetCount: { type: integer }
+        estimatedNetWorth: { type: ["number", "null"] }
+        crmStatus: { type: ["string", "null"] }
+        hasResearchSession: { type: boolean }
+        nationality: { type: ["string", "null"] }
+
+    DashboardStats:
+      type: object
+      required: [totalEntities, totalAssets, totalRelationships, avgBayesianScore, hotLeadsCount, activeResearchSessions, crmBreakdown, assetsByCategory, topScorers]
+      properties:
+        totalEntities: { type: integer }
+        totalAssets: { type: integer }
+        totalRelationships: { type: integer }
+        avgBayesianScore: { type: number }
+        hotLeadsCount: { type: integer }
+        activeResearchSessions: { type: integer }
+        crmBreakdown:
+          type: array
+          items:
+            type: object
+            required: [status, count]
+            properties:
+              status: { type: string }
+              count: { type: integer }
+        assetsByCategory:
+          type: array
+          items:
+            type: object
+            required: [category, count, totalValue]
+            properties:
+              category: { type: string }
+              count: { type: integer }
+              totalValue: { type: number }
+        topScorers:
+          type: array
+          items:
+            $ref: "#/components/schemas/Entity"
+
+    MapAsset:
+      type: object
+      required: [id, category, identifier, jurisdiction, latitude, longitude]
+      properties:
+        id: { type: integer }
+        category: { type: string }
+        identifier: { type: string }
+        jurisdiction: { type: string }
+        latitude: { type: number }
+        longitude: { type: number }
+        estimatedValue: { type: ["number", "null"] }
+        address: { type: ["string", "null"] }
+        description: { type: ["string", "null"] }
+        ownerEntityId: { type: ["integer", "null"] }
+        ownerName: { type: ["string", "null"] }
+        ownerBayesianScore: { type: ["number", "null"] }
+        lastActivityDate: { type: ["string", "null"] }
+        sourceRegistry: { type: ["string", "null"] }
+
+    # ── GRAPH ─────────────────────────────────────────────────────────────────
+    GraphNode:
+      type: object
+      required: [id, label, nodeType, isTarget, isCentral]
+      properties:
+        id: { type: string }
+        label: { type: string }
+        nodeType: { type: string }
+        bayesianScore: { type: ["number", "null"] }
+        estimatedValue: { type: ["number", "null"] }
+        metadata: { type: ["string", "null"] }
+        nationality: { type: ["string", "null"] }
+        isTarget: { type: boolean }
+        isCentral: { type: boolean }
+
+    GraphEdge:
+      type: object
+      required: [id, source, target, label]
+      properties:
+        id: { type: string }
+        source: { type: string }
+        target: { type: string }
+        label: { type: string }
+        strength: { type: ["number", "null"] }
+
+    EntityGraph:
+      type: object
+      required: [nodes, edges, centralNodeId, depth]
+      properties:
+        nodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/GraphNode"
+        edges:
+          type: array
+          items:
+            $ref: "#/components/schemas/GraphEdge"
+        centralNodeId: { type: string }
+        depth: { type: integer }
+
+    ConnectionPath:
+      type: object
+      required: [found, path, edges, hops]
+      properties:
+        found: { type: boolean }
+        path:
+          type: array
+          items:
+            $ref: "#/components/schemas/GraphNode"
+        edges:
+          type: array
+          items:
+            $ref: "#/components/schemas/GraphEdge"
+        hops: { type: integer }
+        pathScore: { type: ["number", "null"] }
+        recommendation: { type: ["string", "null"] }

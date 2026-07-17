@@ -1,0 +1,156 @@
+import { Router, type IRouter } from "express";
+import { eq, ilike, and, gte, sql } from "drizzle-orm";
+import { db, entitiesTable, assetsTable } from "@workspace/db";
+import {
+  ListEntitiesQueryParams,
+  CreateEntityBody,
+  GetEntityParams,
+  UpdateEntityParams,
+  UpdateEntityBody,
+  DeleteEntityParams,
+} from "@workspace/api-zod";
+
+const router: IRouter = Router();
+
+// GET /entities
+router.get("/entities", async (req, res): Promise<void> => {
+  const parsed = ListEntitiesQueryParams.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const { type, minScore, search, limit = 50, offset = 0 } = parsed.data;
+
+  const conditions = [];
+  if (type) conditions.push(eq(entitiesTable.type, type));
+  if (minScore !== undefined) conditions.push(gte(entitiesTable.bayesianScore, minScore));
+  if (search) conditions.push(ilike(entitiesTable.name, `%${search}%`));
+
+  const rows = await db
+    .select()
+    .from(entitiesTable)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .orderBy(sql`${entitiesTable.bayesianScore} DESC`)
+    .limit(limit)
+    .offset(offset);
+
+  // Attach asset counts
+  const ids = rows.map((r) => r.id);
+  const assetCounts: Record<number, number> = {};
+  if (ids.length > 0) {
+    const counts = await db
+      .select({
+        ownerId: assetsTable.ownerEntityId,
+        cnt: sql<number>`count(*)::int`,
+      })
+      .from(assetsTable)
+      .where(sql`${assetsTable.ownerEntityId} = ANY(${sql.raw(`ARRAY[${ids.join(",")}]::int[]`)})`)
+      .groupBy(assetsTable.ownerEntityId);
+    for (const c of counts) {
+      if (c.ownerId) assetCounts[c.ownerId] = c.cnt;
+    }
+  }
+
+  const entities = rows.map((e) => ({
+    ...e,
+    bayesianScore: e.bayesianScore,
+    estimatedNetWorth: e.estimatedNetWorth,
+    createdAt: e.createdAt.toISOString(),
+    assetCount: assetCounts[e.id] ?? 0,
+  }));
+
+  res.json(entities);
+});
+
+// POST /entities
+router.post("/entities", async (req, res): Promise<void> => {
+  const parsed = CreateEntityBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const [entity] = await db.insert(entitiesTable).values(parsed.data).returning();
+  res.status(201).json({ ...entity!, createdAt: entity!.createdAt.toISOString(), assetCount: 0 });
+});
+
+// GET /entities/:id
+router.get("/entities/:id", async (req, res): Promise<void> => {
+  const params = GetEntityParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const [entity] = await db
+    .select()
+    .from(entitiesTable)
+    .where(eq(entitiesTable.id, params.data.id));
+
+  if (!entity) {
+    res.status(404).json({ error: "Entity not found" });
+    return;
+  }
+
+  const [cnt] = await db
+    .select({ cnt: sql<number>`count(*)::int` })
+    .from(assetsTable)
+    .where(eq(assetsTable.ownerEntityId, entity.id));
+
+  res.json({
+    ...entity,
+    createdAt: entity.createdAt.toISOString(),
+    assetCount: cnt?.cnt ?? 0,
+  });
+});
+
+// PATCH /entities/:id
+router.patch("/entities/:id", async (req, res): Promise<void> => {
+  const params = UpdateEntityParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const body = UpdateEntityBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: body.error.message });
+    return;
+  }
+
+  const [entity] = await db
+    .update(entitiesTable)
+    .set({ ...body.data, updatedAt: new Date() })
+    .where(eq(entitiesTable.id, params.data.id))
+    .returning();
+
+  if (!entity) {
+    res.status(404).json({ error: "Entity not found" });
+    return;
+  }
+
+  const [cnt] = await db
+    .select({ cnt: sql<number>`count(*)::int` })
+    .from(assetsTable)
+    .where(eq(assetsTable.ownerEntityId, entity.id));
+
+  res.json({ ...entity, createdAt: entity.createdAt.toISOString(), assetCount: cnt?.cnt ?? 0 });
+});
+
+// DELETE /entities/:id
+router.delete("/entities/:id", async (req, res): Promise<void> => {
+  const params = DeleteEntityParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const [deleted] = await db
+    .delete(entitiesTable)
+    .where(eq(entitiesTable.id, params.data.id))
+    .returning({ id: entitiesTable.id });
+
+  if (!deleted) {
+    res.status(404).json({ error: "Entity not found" });
+    return;
+  }
+  res.sendStatus(204);
+});
+
+export default router;

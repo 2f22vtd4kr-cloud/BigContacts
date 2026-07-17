@@ -1,5 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { seedMockData } from "./lib/mock-data";
 
 const rawPort = process.env["PORT"];
 
@@ -22,4 +23,9 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
+
+  // Seed mock data on first boot (no-op if data already exists)
+  seedMockData()
+    .then(() => logger.info("Mock data seeded (or already present)"))
+    .catch((e) => logger.warn({ err: e }, "Mock data seed failed (non-fatal)"));
 });

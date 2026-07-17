@@ -1,0 +1,1 @@
+- [AI model preference](ai-model-preference.md) — Use Fable 5 High effort (built-in agent) NOT external AI APIs; implement AI features as server-side TypeScript logic

@@ -1,0 +1,312 @@
+import { Router, type IRouter } from "express";
+import { eq, desc } from "drizzle-orm";
+import { db, entitiesTable, assetsTable, relationshipsTable, researchSessionsTable } from "@workspace/db";
+import {
+  RunResearchBody,
+  ListResearchSessionsQueryParams,
+  GetResearchSessionParams,
+  UpdateResearchStatusParams,
+  UpdateResearchStatusBody,
+  GeneratePitchParams,
+} from "@workspace/api-zod";
+import { buildGraph, findShortestPath } from "../lib/graph-engine";
+import { computeBayesianScore } from "../lib/bayesian-scorer";
+import { runMcts } from "../lib/mcts-agent";
+import { generatePitch } from "../lib/pitch-generator";
+
+const router: IRouter = Router();
+
+// POST /research/run
+router.post("/research/run", async (req, res): Promise<void> => {
+  const parsed = RunResearchBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const { entityId, depth = 3 } = parsed.data;
+
+  const [targetEntity] = await db
+    .select()
+    .from(entitiesTable)
+    .where(eq(entitiesTable.id, entityId));
+
+  if (!targetEntity) {
+    res.status(404).json({ error: "Entity not found" });
+    return;
+  }
+
+  // Load full graph data
+  const [allEntities, allAssets, allRelationships] = await Promise.all([
+    db.select().from(entitiesTable),
+    db.select().from(assetsTable),
+    db.select().from(relationshipsTable),
+  ]);
+
+  // Build in-memory graph
+  const graph = buildGraph(allEntities, allAssets, allRelationships);
+
+  // Compute Bayesian score for target
+  const targetAssets = allAssets.filter((a) => a.ownerEntityId === entityId);
+  const targetRelationships = allRelationships.filter((r) => r.sourceEntityId === entityId);
+  const hasGatekeeperConn = targetRelationships.some((r) => {
+    if (r.targetType !== "Entity") return false;
+    const connEntity = allEntities.find((e) => e.id === r.targetId);
+    return connEntity?.type === "Gatekeeper";
+  });
+  const hasKnownInvestorConn = targetRelationships.some((r) => {
+    if (r.targetType !== "Entity") return false;
+    const connEntity = allEntities.find((e) => e.id === r.targetId);
+    return connEntity?.type === "HNWI" && connEntity.bayesianScore > 0.6;
+  });
+  const assetCategories = [...new Set(targetAssets.map((a) => a.category))];
+  const totalAssetValue = targetAssets.reduce((sum, a) => sum + (a.estimatedValue ?? 0), 0);
+  const latestActivity = targetAssets
+    .map((a) => a.lastActivityDate)
+    .filter(Boolean)
+    .sort()
+    .reverse()[0];
+  const daysSinceActivity = latestActivity
+    ? Math.floor((Date.now() - new Date(latestActivity).getTime()) / 86400000)
+    : 999;
+
+  const updatedScore = computeBayesianScore(targetEntity.bayesianScore ?? 0.05, {
+    entityType: targetEntity.type,
+    assetCount: targetAssets.length,
+    assetCategories,
+    totalAssetValue,
+    hasRecentActivity: daysSinceActivity < 180,
+    recentActivityDays: daysSinceActivity,
+    networkDegree: targetRelationships.length,
+    hasGatekeeperConnection: hasGatekeeperConn,
+    hasKnownInvestorConnection: hasKnownInvestorConn,
+    hasShellCompany: allEntities.some(
+      (e) => e.type === "Corporation" && allRelationships.some((r) => r.sourceEntityId === entityId && r.targetId === e.id),
+    ),
+    hasAviationAsset: assetCategories.includes("Aviation"),
+    hasMarineAsset: assetCategories.includes("Marine"),
+    hasClubMembership: assetCategories.includes("PrivateClub"),
+    hasLuxuryRealEstate: assetCategories.includes("RealEstate") && totalAssetValue > 1_000_000,
+    jurisdictionCount: new Set(targetAssets.map((a) => a.jurisdiction)).size,
+  });
+
+  // Update Bayesian score in DB
+  await db
+    .update(entitiesTable)
+    .set({ bayesianScore: updatedScore, updatedAt: new Date() })
+    .where(eq(entitiesTable.id, entityId));
+
+  // Find BFS path from a gatekeeper to the target
+  const targetVertexId = `e:${entityId}`;
+  const gatekeeperVertices = allEntities
+    .filter((e) => e.type === "Gatekeeper")
+    .map((e) => `e:${e.id}`);
+
+  let bestBfsPath: string[] | null = null;
+  for (const gkId of gatekeeperVertices) {
+    const result = findShortestPath(graph, gkId, targetVertexId);
+    if (result && (!bestBfsPath || result.path.length < bestBfsPath.length)) {
+      bestBfsPath = result.path;
+    }
+  }
+
+  // Run MCTS
+  const mctsResult = runMcts(graph, targetVertexId, bestBfsPath, depth);
+
+  // Persist research session
+  const [session] = await db
+    .insert(researchSessionsTable)
+    .values({
+      targetEntityId: entityId,
+      winningPath: JSON.stringify(mctsResult.winningPath),
+      mctsSteps: JSON.stringify(mctsResult.mctsSteps),
+      crmStatus: mctsResult.crmStatus,
+      bayesianScoreAtRuntime: updatedScore,
+      pathScore: mctsResult.pathScore,
+    })
+    .returning();
+
+  res.status(201).json({
+    ...session!,
+    targetEntityName: targetEntity.name,
+    createdAt: session!.createdAt.toISOString(),
+  });
+});
+
+// GET /research/sessions
+router.get("/research/sessions", async (req, res): Promise<void> => {
+  const parsed = ListResearchSessionsQueryParams.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const { entityId, status, limit = 50 } = parsed.data;
+
+  const rows = await db
+    .select({ session: researchSessionsTable, entityName: entitiesTable.name })
+    .from(researchSessionsTable)
+    .leftJoin(entitiesTable, eq(researchSessionsTable.targetEntityId, entitiesTable.id))
+    .orderBy(desc(researchSessionsTable.createdAt))
+    .limit(limit);
+
+  const sessions = rows
+    .filter((r) => {
+      if (entityId && r.session.targetEntityId !== entityId) return false;
+      if (status && r.session.crmStatus !== status) return false;
+      return true;
+    })
+    .map(({ session, entityName }) => ({
+      ...session,
+      targetEntityName: entityName ?? null,
+      createdAt: session.createdAt.toISOString(),
+    }));
+
+  res.json(sessions);
+});
+
+// GET /research/sessions/:id
+router.get("/research/sessions/:id", async (req, res): Promise<void> => {
+  const params = GetResearchSessionParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+
+  const [row] = await db
+    .select({ session: researchSessionsTable, entityName: entitiesTable.name })
+    .from(researchSessionsTable)
+    .leftJoin(entitiesTable, eq(researchSessionsTable.targetEntityId, entitiesTable.id))
+    .where(eq(researchSessionsTable.id, params.data.id));
+
+  if (!row) {
+    res.status(404).json({ error: "Research session not found" });
+    return;
+  }
+
+  res.json({
+    ...row.session,
+    targetEntityName: row.entityName ?? null,
+    createdAt: row.session.createdAt.toISOString(),
+  });
+});
+
+// PATCH /research/sessions/:id/status
+router.patch("/research/sessions/:id/status", async (req, res): Promise<void> => {
+  const params = UpdateResearchStatusParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const body = UpdateResearchStatusBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: body.error.message });
+    return;
+  }
+
+  const updateData: Record<string, unknown> = {
+    crmStatus: body.data.crmStatus,
+    updatedAt: new Date(),
+  };
+  if (body.data.lastContactDate) updateData.lastContactDate = body.data.lastContactDate;
+
+  const [session] = await db
+    .update(researchSessionsTable)
+    .set(updateData)
+    .where(eq(researchSessionsTable.id, params.data.id))
+    .returning();
+
+  if (!session) {
+    res.status(404).json({ error: "Research session not found" });
+    return;
+  }
+
+  const [entityRow] = await db
+    .select({ name: entitiesTable.name })
+    .from(entitiesTable)
+    .where(eq(entitiesTable.id, session.targetEntityId));
+
+  res.json({
+    ...session,
+    targetEntityName: entityRow?.name ?? null,
+    createdAt: session.createdAt.toISOString(),
+  });
+});
+
+// POST /research/sessions/:id/pitch
+router.post("/research/sessions/:id/pitch", async (req, res): Promise<void> => {
+  const params = GeneratePitchParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+
+  const [row] = await db
+    .select({ session: researchSessionsTable, entity: entitiesTable })
+    .from(researchSessionsTable)
+    .leftJoin(entitiesTable, eq(researchSessionsTable.targetEntityId, entitiesTable.id))
+    .where(eq(researchSessionsTable.id, params.data.id));
+
+  if (!row || !row.entity) {
+    res.status(404).json({ error: "Research session not found" });
+    return;
+  }
+
+  const { session, entity } = row;
+
+  // Load target's assets
+  const targetAssets = await db
+    .select()
+    .from(assetsTable)
+    .where(eq(assetsTable.ownerEntityId, entity.id));
+
+  // Parse winning path
+  let winningPath = [];
+  try {
+    winningPath = session.winningPath ? JSON.parse(session.winningPath) : [];
+  } catch {
+    winningPath = [];
+  }
+
+  const gatekeeper = winningPath.find(
+    (p: { role: string }) => p.role === "GATEKEEPER",
+  ) ?? null;
+
+  // Generate pitch
+  const pitch = generatePitch({
+    targetEntity: {
+      name: entity.name,
+      type: entity.type,
+      nationality: entity.nationality,
+      estimatedNetWorth: entity.estimatedNetWorth,
+      knownResidences: entity.knownResidences,
+    },
+    gatekeeper,
+    assets: targetAssets.map((a) => ({
+      category: a.category,
+      identifier: a.identifier,
+      jurisdiction: a.jurisdiction,
+      estimatedValue: a.estimatedValue,
+      address: a.address,
+    })),
+    winningPath,
+    pathScore: session.pathScore ?? 0,
+  });
+
+  // Update session with pitch
+  const [updated] = await db
+    .update(researchSessionsTable)
+    .set({
+      generatedPitch: pitch,
+      crmStatus: "Pitch Generated",
+      updatedAt: new Date(),
+    })
+    .where(eq(researchSessionsTable.id, params.data.id))
+    .returning();
+
+  res.json({
+    ...updated!,
+    targetEntityName: entity.name,
+    createdAt: updated!.createdAt.toISOString(),
+  });
+});
+
+export default router;
