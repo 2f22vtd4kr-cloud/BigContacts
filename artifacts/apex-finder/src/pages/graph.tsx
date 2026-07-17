@@ -28,7 +28,7 @@ export default function GraphViewer() {
   const [targetId, setTargetId] = useState<number>(1);
   const { data: graphData, isLoading } = useGetEntityGraph(targetId);
   const [width, height] = useWindowSize();
-  const fgRef = useRef<ForceGraphMethods>();
+  const fgRef = useRef<ForceGraphMethods | undefined>(undefined);
   
   const [selectedNode, setSelectedNode] = useState<any>(null);
 

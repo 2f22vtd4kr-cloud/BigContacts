@@ -38,7 +38,9 @@ _Populate as you build — explicit user instructions worth remembering across s
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- **Fresh environment / first boot:** run `pnpm --filter @workspace/db run push` before starting the API server. Without it the server starts but every API route fails with "relation does not exist". The `scripts/post-merge.sh` handles this automatically after task merges.
+- **Lib packages must be built before typechecking artifacts:** run `pnpm run typecheck:libs` (or `pnpm run build`) from the workspace root first. The frontend and API server reference `lib/*/dist/index.d.ts` which only exists after a build.
+- **Mock seed is idempotent:** the server seeds mock data on every startup; it safely skips if data already exists.
 
 ## Pointers
 
