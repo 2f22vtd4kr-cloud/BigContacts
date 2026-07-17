@@ -13,9 +13,49 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { db, assetsTable, entitiesTable, relationshipsTable } from "@workspace/db";
 import { seedExtendedData } from "../lib/mock-data";
+import { searchRegistry } from "../lib/registry-client";
 import { sql, eq } from "drizzle-orm";
 
 const router: IRouter = Router();
+
+// ── Public: Live registry search (no admin token required — personal use) ─────
+// POST /registry-search
+// Body: { query: string, registry: "opencorporates" | "companies-house", limit?: number }
+// Returns search results from real public registries, ready for Entity ingestion.
+router.post("/registry-search", async (req: Request, res: Response): Promise<void> => {
+  const { query, registry = "opencorporates", limit = 10 } = req.body as {
+    query?: string;
+    registry?: string;
+    limit?: number;
+  };
+
+  if (!query || typeof query !== "string" || !query.trim()) {
+    res.status(400).json({ error: "query is required and must be a non-empty string." });
+    return;
+  }
+
+  if (!["opencorporates", "companies-house"].includes(registry)) {
+    res.status(400).json({
+      error: `registry must be "opencorporates" or "companies-house". Got: "${registry}"`,
+    });
+    return;
+  }
+
+  try {
+    const results = await searchRegistry({
+      query: query.trim(),
+      registry: registry as "opencorporates" | "companies-house",
+      limit: Math.min(Number(limit) || 10, 20),
+    });
+    res.json({
+      results,
+      message: `Found ${results.length} result${results.length !== 1 ? "s" : ""} from ${registry}.`,
+    });
+  } catch (err: any) {
+    const status = err?.message?.includes("API_KEY") ? 422 : 500;
+    res.status(status).json({ error: err?.message ?? "Registry search failed." });
+  }
+});
 
 // ── Admin authorization middleware ────────────────────────────────────────────
 // Requires Authorization: Bearer <token> where token matches ADMIN_TOKEN env var

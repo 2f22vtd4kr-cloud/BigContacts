@@ -423,6 +423,22 @@ A group approached me through a professional contact. Very professional, very di
 
 I have no stake in this whatsoever — I simply thought it worth mentioning. Happy to make an introduction if you're curious, or drop it entirely if not. Your call completely.
     `.trim();
+  } else if (gkClass === "CLUB_MEMBER") {
+    scriptBody = `
+${targetFirst}, something I wanted to mention in passing — nothing that needs to go further than this conversation.
+
+I was approached recently by a very discreet group — clearly well-connected people who do their homework properly. They expressed interest in a quiet conversation with someone of your profile about a private investment matter.
+
+I wouldn't ordinarily pass this kind of thing along, but they struck me as genuinely serious and they were emphatic about discretion. I told them nothing — I'm simply relaying that the interest exists. If you're curious, I can make a brief introduction. If you'd rather I let it drop, I completely understand — and it stops here.
+    `.trim();
+  } else if (gkClass === "CORPORATE") {
+    scriptBody = `
+${targetFirst}, I wanted to flag something informally before it goes through any formal channel.
+
+A private group has reached out — they have a time-sensitive interest in a discreet conversation about an investment matter that aligns with your professional network. They approached me because of our connection, and specifically asked that any introduction be made through someone with direct access rather than through the usual channels.
+
+If there's any appetite on your side, I'm happy to facilitate a brief introductory call. No paperwork, no pressure — purely exploratory. If this isn't the right moment, absolutely understood and I won't raise it again.
+    `.trim();
   } else if (gkClass === "FAMILY_OFFICE") {
     scriptBody = `
 I wanted to mention something informally before putting it through the formal channel.

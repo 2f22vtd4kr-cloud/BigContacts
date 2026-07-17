@@ -270,27 +270,47 @@ router.post("/research/sessions/:id/pitch", async (req, res): Promise<void> => {
     (p: { role: string }) => p.role === "GATEKEEPER",
   ) ?? null;
 
-  // Generate full outreach sequence (initial + follow-up + intro script)
-  const sequence = generateOutreachSequence({
-    targetEntity: {
-      name: entity.name,
-      type: entity.type,
-      nationality: entity.nationality,
-      estimatedNetWorth: entity.estimatedNetWorth,
-      knownResidences: entity.knownResidences,
-      notes: entity.notes,
-    },
-    gatekeeper,
-    assets: targetAssets.map((a) => ({
-      category: a.category,
-      identifier: a.identifier,
-      jurisdiction: a.jurisdiction,
-      estimatedValue: a.estimatedValue,
-      address: a.address,
-    })),
-    winningPath,
-    pathScore: session.pathScore ?? 0,
-  });
+  // Validate gatekeeper shape before passing to pitch generator
+  const safeGatekeeper =
+    gatekeeper &&
+    typeof gatekeeper === "object" &&
+    typeof (gatekeeper as any).label === "string"
+      ? gatekeeper
+      : null;
+
+  // Generate full outreach sequence — wrapped in try/catch so an unexpected
+  // gatekeeper type never crashes the server with an unhandled exception.
+  let sequence: ReturnType<typeof generateOutreachSequence>;
+  try {
+    sequence = generateOutreachSequence({
+      targetEntity: {
+        name: entity.name,
+        type: entity.type,
+        nationality: entity.nationality,
+        estimatedNetWorth: entity.estimatedNetWorth,
+        knownResidences: entity.knownResidences,
+        notes: entity.notes,
+      },
+      gatekeeper: safeGatekeeper,
+      assets: targetAssets.map((a) => ({
+        category: a.category,
+        identifier: a.identifier,
+        jurisdiction: a.jurisdiction,
+        estimatedValue: a.estimatedValue,
+        address: a.address,
+      })),
+      winningPath,
+      pathScore: session.pathScore ?? 0,
+    });
+  } catch (pitchErr: any) {
+    console.error("[pitch-generator] Uncaught error:", pitchErr?.message ?? pitchErr);
+    res.status(500).json({
+      error:
+        `Pitch generation failed: ${pitchErr?.message ?? "Unknown error"}. ` +
+        "Check gatekeeper type and winning path data.",
+    });
+    return;
+  }
 
   // Update session with full sequence as JSON
   const [updated] = await db
