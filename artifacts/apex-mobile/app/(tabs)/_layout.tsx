@@ -24,6 +24,10 @@ function NativeTabLayout() {
         <Icon sf={{ default: 'arrow.triangle.branch', selected: 'arrow.triangle.branch' }} />
         <Label>Approach</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="manual">
+        <Icon sf={{ default: 'book.pages', selected: 'book.pages.fill' }} />
+        <Label>Manual</Label>
+      </NativeTabs.Trigger>
     </NativeTabs>
   );
 }
@@ -95,6 +99,18 @@ function ClassicTabLayout() {
               <SymbolView name="arrow.triangle.branch" tintColor={color} size={22} />
             ) : (
               <Feather name="map" size={20} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="manual"
+        options={{
+          title: 'Manual',
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="book.pages" tintColor={color} size={22} />
+            ) : (
+              <Feather name="book-open" size={20} color={color} />
             ),
         }}
       />
