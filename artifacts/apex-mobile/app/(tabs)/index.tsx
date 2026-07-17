@@ -130,8 +130,8 @@ export default function TargetsScreen() {
     [setSelectedEntity, router],
   );
 
-  const webTopPadding = Platform.OS === 'web' ? 67 : 0;
-  const webBottomPadding = Platform.OS === 'web' ? 34 : 0;
+  const webTopPadding = 0;
+  const webBottomPadding = 0;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>

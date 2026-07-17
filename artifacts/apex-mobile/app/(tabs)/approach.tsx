@@ -180,8 +180,8 @@ export default function ApproachScreen() {
   const [pitchVisible, setPitchVisible] = useState(false);
   const [pitchError, setPitchError] = useState<string | null>(null);
 
-  const webTopPadding = Platform.OS === 'web' ? 67 : 0;
-  const webBottomPadding = Platform.OS === 'web' ? 34 : 0;
+  const webTopPadding = 0;
+  const webBottomPadding = 0;
 
   const handleGeneratePitch = async () => {
     if (!latestSession || isGeneratingPitch) return;
