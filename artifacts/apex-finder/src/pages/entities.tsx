@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useListEntities, useCreateEntity, useDeleteEntity } from "@workspace/api-client-react";
 import { formatCurrency, ScoreBadge } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import {
-  Plus, Search, Trash2, Edit2, ShieldAlert,
-  Globe, ChevronDown, ChevronUp, X, Loader2,
-  ChevronRight, Network, Target as TargetIcon,
+  Plus, Search, Trash2, Globe, ChevronDown, ChevronUp, X, Loader2,
+  ChevronRight, Network, Target as TargetIcon, Download, ShieldAlert,
+  Filter, UserCheck, Building2, Briefcase, Shield,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -48,17 +48,51 @@ const TYPE_COLORS: Record<string, string> = {
   Gatekeeper: "#F59E0B",
 };
 
-// ─── Mobile entity detail overlay ────────────────────────────────────────────
+const TYPE_ICONS: Record<string, React.ReactNode> = {
+  HNWI:        <UserCheck className="w-3 h-3" />,
+  Corporation: <Building2 className="w-3 h-3" />,
+  Trust:       <Briefcase className="w-3 h-3" />,
+  Gatekeeper:  <Shield className="w-3 h-3" />,
+};
+
+// ─── CSV export ───────────────────────────────────────────────────────────────
+
+function exportToCsv(entities: any[]) {
+  const cols = [
+    "id","name","type","nationality","bayesianScore","estimatedNetWorth",
+    "knownResidences","contactMethod","isHot","notes","sourceRegistries","createdAt",
+  ];
+  const rows = [
+    cols.join(","),
+    ...entities.map((e) =>
+      cols.map((c) => {
+        const v = e[c];
+        if (v === null || v === undefined) return "";
+        const s = String(v).replace(/"/g, '""');
+        return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s}"` : s;
+      }).join(",")
+    ),
+  ];
+  const blob = new Blob([rows.join("\n")], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `apex-entities-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ─── Mobile entity detail ─────────────────────────────────────────────────────
 
 function MobileEntityDetail({ entity, onClose }: { entity: any; onClose: () => void }) {
   const typeColor = TYPE_COLORS[entity.type] ?? "#64748B";
-
   let registries: string[] = [];
   try { registries = JSON.parse(entity.sourceRegistries ?? "[]"); } catch { registries = []; }
+  let meta: any = {};
+  try { meta = JSON.parse(entity.metadata ?? "{}"); } catch { /* */ }
 
   return (
     <div className="fixed inset-0 bg-background z-50 flex flex-col md:hidden">
-      {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card flex-shrink-0">
         <span className="text-xs font-mono text-muted-foreground uppercase tracking-widest">Entity Detail</span>
         <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-1">
@@ -67,7 +101,6 @@ function MobileEntityDetail({ entity, onClose }: { entity: any; onClose: () => v
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        {/* Hero */}
         <div className="px-4 py-4 border-b border-border">
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
@@ -80,19 +113,28 @@ function MobileEntityDetail({ entity, onClose }: { entity: any; onClose: () => v
               <h2 className="text-lg font-bold text-foreground">{entity.name}</h2>
               <div className="flex items-center gap-2 mt-1 flex-wrap">
                 <span
-                  className="text-[10px] font-mono font-bold px-2 py-0.5 rounded"
+                  className="text-[10px] font-mono font-bold px-2 py-0.5 rounded flex items-center gap-1"
                   style={{ color: typeColor, backgroundColor: typeColor + "18" }}
                 >
-                  {entity.type.toUpperCase()}
+                  {TYPE_ICONS[entity.type]} {entity.type}
                 </span>
                 {entity.nationality && <span className="text-xs text-muted-foreground">{entity.nationality}</span>}
+                {meta.proximityScore && (
+                  <span className={cn(
+                    "text-[10px] font-mono font-bold px-1.5 py-0.5 rounded",
+                    meta.proximityScore >= 8 ? "text-emerald-400 bg-emerald-400/10"
+                    : meta.proximityScore >= 5 ? "text-amber-400 bg-amber-400/10"
+                    : "text-muted-foreground bg-muted/50"
+                  )}>
+                    PROX {meta.proximityScore}/10
+                  </span>
+                )}
               </div>
             </div>
             <ScoreBadge score={entity.bayesianScore} />
           </div>
         </div>
 
-        {/* Fields */}
         <div className="divide-y divide-border">
           {entity.estimatedNetWorth && (
             <div className="px-4 py-3">
@@ -108,45 +150,44 @@ function MobileEntityDetail({ entity, onClose }: { entity: any; onClose: () => v
           )}
           {entity.contactMethod && (
             <div className="px-4 py-3">
-              <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1">Best Contact Vector</div>
-              <div className="text-sm text-foreground">{entity.contactMethod}</div>
-            </div>
-          )}
-          {registries.length > 0 && (
-            <div className="px-4 py-3">
-              <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-2">Source Registries</div>
-              <div className="flex flex-wrap gap-1">
-                {registries.map((r, i) => (
-                  <span key={i} className="text-[10px] font-mono px-2 py-0.5 rounded bg-secondary/10 text-secondary border border-secondary/20">
-                    {r}
-                  </span>
-                ))}
-              </div>
+              <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1">Contact Vector</div>
+              <div className="text-sm text-foreground font-mono">{entity.contactMethod}</div>
             </div>
           )}
           {entity.notes && (
             <div className="px-4 py-3">
-              <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1">Intel Notes</div>
-              <div className="text-sm text-foreground/80 leading-relaxed">{entity.notes}</div>
+              <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1">Intelligence Notes</div>
+              <div className="text-sm text-foreground leading-relaxed">{entity.notes}</div>
             </div>
           )}
-          <div className="px-4 py-3">
-            <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1">Registry ID</div>
-            <div className="text-xs font-mono text-muted-foreground">#{entity.id.toString().padStart(6, "0")}</div>
-          </div>
+          {registries.length > 0 && (
+            <div className="px-4 py-3">
+              <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1">Source Registries</div>
+              <div className="flex flex-wrap gap-1">
+                {registries.map((r) => (
+                  <span key={r} className="text-[10px] font-mono px-1.5 py-0.5 bg-muted border border-border rounded text-muted-foreground">{r}</span>
+                ))}
+              </div>
+            </div>
+          )}
+          {meta.clubs?.length > 0 && (
+            <div className="px-4 py-3">
+              <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1">Club Memberships</div>
+              <div className="text-sm text-foreground">{meta.clubs.join(" · ")}</div>
+            </div>
+          )}
         </div>
 
-        {/* Actions */}
-        <div className="px-4 py-4 space-y-2">
+        <div className="p-4 space-y-2">
           <a
             href={`/graph?entity=${entity.id}`}
-            className="flex w-full py-3 items-center justify-center gap-2 rounded text-xs font-mono font-bold text-primary border border-primary/30 bg-primary/8 uppercase tracking-wider"
+            className="flex items-center justify-center gap-2 w-full py-2.5 bg-primary text-primary-foreground rounded font-mono text-xs uppercase tracking-wider"
           >
-            <Network className="w-3.5 h-3.5" /> View Network Graph
+            <Network className="w-3.5 h-3.5" /> View Network
           </a>
           <a
-            href="/research"
-            className="flex w-full py-3 items-center justify-center gap-2 rounded text-xs font-mono font-bold text-secondary border border-secondary/30 bg-secondary/8 uppercase tracking-wider"
+            href={`/research?entity=${entity.id}`}
+            className="flex items-center justify-center gap-2 w-full py-2.5 bg-muted border border-border text-foreground rounded font-mono text-xs uppercase tracking-wider"
           >
             <TargetIcon className="w-3.5 h-3.5" /> Run MCTS Analysis
           </a>
@@ -156,14 +197,17 @@ function MobileEntityDetail({ entity, onClose }: { entity: any; onClose: () => v
   );
 }
 
-// ─── Mobile entity card ───────────────────────────────────────────────────────
+// ─── Mobile card ──────────────────────────────────────────────────────────────
 
 function MobileEntityCard({ entity, onSelect }: { entity: any; onSelect: () => void }) {
   const typeColor = TYPE_COLORS[entity.type] ?? "#64748B";
+  let meta: any = {};
+  try { meta = JSON.parse(entity.metadata ?? "{}"); } catch { /* */ }
+
   return (
     <button
       onClick={onSelect}
-      className="w-full text-left px-4 py-3 flex items-center gap-3 active:bg-muted/20 transition-colors"
+      className="w-full text-left px-4 py-3 flex items-center gap-3 active:bg-muted/20 transition-colors border-b border-border"
     >
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 mb-1">
@@ -172,14 +216,20 @@ function MobileEntityCard({ entity, onSelect }: { entity: any; onSelect: () => v
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <span
-            className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded"
+            className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5"
             style={{ color: typeColor, backgroundColor: typeColor + "18" }}
           >
-            {entity.type.toUpperCase()}
+            {TYPE_ICONS[entity.type]} {entity.type}
           </span>
           {entity.nationality && <span className="text-[11px] text-muted-foreground">{entity.nationality}</span>}
           {entity.estimatedNetWorth && (
             <span className="text-[11px] text-muted-foreground">{formatCurrency(entity.estimatedNetWorth)}</span>
+          )}
+          {meta.proximityScore && (
+            <span className={cn(
+              "text-[10px] font-mono px-1 rounded",
+              meta.proximityScore >= 7 ? "text-emerald-400" : "text-muted-foreground"
+            )}>P{meta.proximityScore}</span>
           )}
         </div>
       </div>
@@ -191,10 +241,13 @@ function MobileEntityCard({ entity, onSelect }: { entity: any; onSelect: () => v
   );
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
+// ─── Main component ───────────────────────────────────────────────────────────
 
 export default function EntityLedger() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [typeFilter, setTypeFilter] = useState<string | null>(null);
+  const [proximityMin, setProximityMin] = useState<number>(0);
+  const [showFilters, setShowFilters] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [addForm, setAddForm] = useState<AddEntityForm>(EMPTY_FORM);
 
@@ -206,15 +259,28 @@ export default function EntityLedger() {
   const [registryError, setRegistryError] = useState<string | null>(null);
   const [searchedOnce, setSearchedOnce] = useState(false);
 
-  // Mobile state
   const [mobileSelectedEntity, setMobileSelectedEntity] = useState<any>(null);
   const [mobileTypeFilter, setMobileTypeFilter] = useState<string | null>(null);
 
-  const { data: entities, refetch } = useListEntities({
+  const { data: rawEntities, refetch } = useListEntities({
     search: searchTerm.length > 2 ? searchTerm : undefined,
+    type: typeFilter ?? undefined,
+    limit: 500,
   });
   const deleteEntity = useDeleteEntity();
   const createEntity = useCreateEntity();
+
+  // Client-side proximity filter
+  const entities = useMemo(() => {
+    if (!rawEntities) return [];
+    if (proximityMin === 0) return rawEntities;
+    return rawEntities.filter((e: any) => {
+      try {
+        const meta = JSON.parse((e as any).metadata ?? "{}");
+        return (meta.proximityScore ?? 0) >= proximityMin;
+      } catch { return false; }
+    });
+  }, [rawEntities, proximityMin]);
 
   const handleDelete = (id: number) => {
     if (confirm("Purge entity from registry?")) {
@@ -229,10 +295,7 @@ export default function EntityLedger() {
 
   const handleAddEntity = () => {
     if (!addForm.name.trim()) return;
-    const body: Record<string, unknown> = {
-      name: addForm.name.trim(),
-      type: addForm.type,
-    };
+    const body: Record<string, unknown> = { name: addForm.name.trim(), type: addForm.type };
     if (addForm.nationality.trim()) body.nationality = addForm.nationality.trim();
     if (addForm.estimatedNetWorth) body.estimatedNetWorth = parseFloat(addForm.estimatedNetWorth);
     if (addForm.knownResidences.trim()) body.knownResidences = addForm.knownResidences.trim();
@@ -246,20 +309,13 @@ export default function EntityLedger() {
       );
     }
     createEntity.mutate({ data: body as any }, {
-      onSuccess: () => {
-        setShowAddModal(false);
-        setAddForm(EMPTY_FORM);
-        refetch();
-      },
+      onSuccess: () => { setShowAddModal(false); setAddForm(EMPTY_FORM); refetch(); },
     });
   };
 
   const handleRegistrySearch = async () => {
     if (!registryQuery.trim()) return;
-    setIsSearching(true);
-    setRegistryError(null);
-    setRegistryResults([]);
-    setSearchedOnce(true);
+    setIsSearching(true); setRegistryError(null); setRegistryResults([]); setSearchedOnce(true);
     try {
       const resp = await fetch("/api/registry-search", {
         method: "POST",
@@ -278,10 +334,8 @@ export default function EntityLedger() {
 
   const handleIngestResult = (r: RegistryResult) => {
     let regsStr = "";
-    try {
-      const parsed: string[] = JSON.parse(r.sourceRegistries ?? "[]");
-      regsStr = parsed.join(", ");
-    } catch { regsStr = r.sourceRegistries ?? ""; }
+    try { regsStr = JSON.parse(r.sourceRegistries ?? "[]").join(", "); }
+    catch { regsStr = r.sourceRegistries ?? ""; }
     openAddModal({
       name: r.name,
       type: r.type === "Corporation" ? "Corporation" : r.type === "Gatekeeper" ? "Gatekeeper" : "HNWI",
@@ -292,283 +346,320 @@ export default function EntityLedger() {
     });
   };
 
-  // Filtered entities for mobile type filter
-  const mobileEntities = mobileTypeFilter
-    ? entities?.filter((e) => e.type === mobileTypeFilter)
-    : entities;
-
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // Mobile filtered list
+  const mobileEntities = useMemo(() => {
+    if (!entities) return [];
+    return mobileTypeFilter ? entities.filter((e: any) => e.type === mobileTypeFilter) : entities;
+  }, [entities, mobileTypeFilter]);
 
   return (
-    <div className="flex h-full flex-col relative">
-
-      {/* ── Desktop Header ── */}
-      <div className="hidden md:flex px-6 py-3 border-b border-border bg-card justify-between items-center flex-shrink-0">
-        <div>
-          <h1 className="text-xl font-bold font-mono tracking-widest text-foreground uppercase">Entity Ledger</h1>
-          <p className="text-sm text-muted-foreground font-mono mt-1">Classified Intelligence Registry</p>
-        </div>
-        <div className="flex items-center space-x-3">
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+    <div className="flex flex-col h-full overflow-hidden">
+      {/* ── Desktop ── */}
+      <div className="hidden md:flex flex-col h-full overflow-hidden">
+        {/* Header toolbar */}
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-border bg-card/30 flex-shrink-0">
+          <div className="flex items-center gap-2 flex-1 px-3 py-1.5 rounded bg-background border border-border">
+            <Search className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
             <input
-              type="text"
-              placeholder="Search registry..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="bg-background border border-border rounded pl-9 pr-4 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-primary w-64"
+              type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search entities…"
+              className="flex-1 bg-transparent text-sm font-mono text-foreground outline-none placeholder:text-muted-foreground/50"
             />
+            {searchTerm && <button onClick={() => setSearchTerm("")}><X className="w-3.5 h-3.5 text-muted-foreground" /></button>}
           </div>
+
+          {/* Type filter */}
+          <div className="flex items-center gap-1">
+            {[null, "HNWI", "Gatekeeper", "Corporation", "Trust"].map((t) => {
+              const c = t ? (TYPE_COLORS[t] ?? "#64748B") : "#10B981";
+              return (
+                <button
+                  key={t ?? "all"}
+                  onClick={() => setTypeFilter(t)}
+                  className="px-2.5 py-1 rounded text-[10px] font-mono font-bold uppercase transition-all"
+                  style={{
+                    backgroundColor: typeFilter === t ? c : c + "18",
+                    color: typeFilter === t ? "#000" : c,
+                    border: `1px solid ${c}44`,
+                  }}
+                >
+                  {t ?? "ALL"}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Proximity filter */}
+          <div className="flex items-center gap-1.5">
+            <Filter className="w-3 h-3 text-muted-foreground" />
+            <select
+              value={proximityMin}
+              onChange={(e) => setProximityMin(Number(e.target.value))}
+              className="bg-background border border-border rounded px-2 py-1 text-[11px] font-mono text-foreground focus:outline-none focus:border-primary"
+            >
+              <option value={0}>Proximity: Any</option>
+              <option value={4}>≥ Gatekeeper (4+)</option>
+              <option value={7}>≥ Near-personal (7+)</option>
+              <option value={9}>Personal only (9+)</option>
+            </select>
+          </div>
+
+          {/* Action buttons */}
           <button
-            onClick={() => setShowRegistry((v) => !v)}
-            className={`px-4 py-2 rounded font-mono text-sm flex items-center border transition-colors uppercase tracking-wider ${
-              showRegistry
-                ? "bg-secondary/20 text-secondary border-secondary/50"
-                : "bg-muted text-muted-foreground border-border hover:border-secondary/50 hover:text-secondary"
-            }`}
+            onClick={() => setShowRegistry(!showRegistry)}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 rounded border font-mono text-[11px] uppercase tracking-wider transition-all",
+              showRegistry ? "bg-secondary/20 border-secondary text-secondary" : "border-border text-muted-foreground hover:text-foreground",
+            )}
           >
-            <Globe className="w-4 h-4 mr-2" />
-            Live Intel
-            {showRegistry ? <ChevronUp className="w-3 h-3 ml-1.5" /> : <ChevronDown className="w-3 h-3 ml-1.5" />}
+            <Globe className="w-3 h-3" /> Live Intel
           </button>
+
+          {entities && entities.length > 0 && (
+            <button
+              onClick={() => exportToCsv(entities)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-border text-muted-foreground hover:text-foreground font-mono text-[11px] uppercase tracking-wider transition-all"
+            >
+              <Download className="w-3 h-3" /> CSV
+            </button>
+          )}
+
           <button
             onClick={() => openAddModal()}
-            className="bg-primary text-primary-foreground px-4 py-2 rounded font-mono text-sm flex items-center hover:bg-primary/90 transition-colors uppercase tracking-wider"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-primary text-primary-foreground font-mono text-[11px] uppercase tracking-wider hover:bg-primary/90 transition-colors"
           >
-            <Plus className="w-4 h-4 mr-2" /> Add Entity
+            <Plus className="w-3 h-3" /> Add
           </button>
         </div>
-      </div>
 
-      {/* ── Mobile Header ── */}
-      <div className="flex md:hidden flex-shrink-0 flex-col border-b border-border bg-card px-4 pt-3 pb-2 space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-mono font-bold text-muted-foreground uppercase tracking-widest">Entity Ledger</span>
-          <span className="text-[10px] font-mono text-muted-foreground">{mobileEntities?.length ?? 0} / {entities?.length ?? 0}</span>
-        </div>
-
-        {/* Mobile search */}
-        <div className="flex items-center gap-2 px-3 py-2 rounded bg-background border border-border">
-          <Search className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search entities…"
-            className="flex-1 bg-transparent text-sm font-mono text-foreground outline-none placeholder:text-muted-foreground/50"
-          />
-          {searchTerm && (
-            <button onClick={() => setSearchTerm("")}>
-              <X className="w-3.5 h-3.5 text-muted-foreground" />
-            </button>
-          )}
-        </div>
-
-        {/* Mobile type filter chips */}
-        <div className="flex gap-2 overflow-x-auto pb-0.5">
-          {[null, "HNWI", "Gatekeeper", "Corporation", "Trust"].map((t) => {
-            const c = t ? TYPE_COLORS[t] ?? "#64748B" : "#10B981";
-            return (
-              <button
-                key={t ?? "all"}
-                onClick={() => setMobileTypeFilter(t)}
-                className="px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase whitespace-nowrap flex-shrink-0 transition-all"
-                style={{
-                  backgroundColor: mobileTypeFilter === t ? c : c + "18",
-                  color: mobileTypeFilter === t ? "#000" : c,
-                  border: `1px solid ${c}44`,
-                }}
+        {/* Live Intel panel */}
+        {showRegistry && (
+          <div className="border-b border-border bg-card/50 p-4 flex-shrink-0">
+            <div className="flex items-center gap-3 mb-3">
+              <span className="text-xs font-mono text-secondary uppercase tracking-widest flex items-center">
+                <Globe className="w-3.5 h-3.5 mr-1.5" /> Live Registry Query
+              </span>
+              <div className="flex-1 h-px bg-border/50" />
+              <span className="text-[10px] font-mono text-muted-foreground/60 uppercase tracking-widest">
+                OpenCorporates · Companies House · SEC EDGAR
+              </span>
+            </div>
+            <div className="flex gap-3">
+              <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded bg-background border border-border">
+                <Search className="w-3.5 h-3.5 text-muted-foreground" />
+                <input
+                  type="text" value={registryQuery} onChange={(e) => setRegistryQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleRegistrySearch()}
+                  placeholder="Search name, company, or filing…"
+                  className="flex-1 bg-transparent text-sm font-mono text-foreground outline-none placeholder:text-muted-foreground/50"
+                />
+              </div>
+              <select
+                value={registrySource} onChange={(e) => setRegistrySource(e.target.value as any)}
+                className="bg-background border border-border rounded px-3 text-xs font-mono text-foreground focus:outline-none focus:border-primary"
               >
-                {t ?? "ALL"}
+                <option value="opencorporates">OpenCorporates</option>
+                <option value="companies-house">Companies House UK</option>
+                <option value="sec-edgar">SEC EDGAR</option>
+              </select>
+              <button
+                onClick={handleRegistrySearch} disabled={isSearching}
+                className="px-4 py-2 bg-secondary text-secondary-foreground rounded font-mono text-xs uppercase tracking-wider hover:bg-secondary/90 disabled:opacity-50 flex items-center gap-2"
+              >
+                {isSearching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
+                Search
               </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ── Desktop: Live Registry Panel ── */}
-      {showRegistry && (
-        <div className="hidden md:block border-b border-border bg-card/50 p-5 flex-shrink-0">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="text-xs font-mono text-secondary uppercase tracking-widest flex items-center">
-              <Globe className="w-3.5 h-3.5 mr-1.5" />
-              Live Registry Query
             </div>
-            <div className="flex-1 h-px bg-border/50" />
-            <span className="text-[10px] font-mono text-muted-foreground/60 uppercase tracking-widest">
-              OpenCorporates · Companies House UK
-            </span>
-          </div>
 
-          <div className="flex gap-3">
-            <input
-              type="text"
-              placeholder="e.g. Castellani Holdings, James Kariuki, FitzWilliam..."
-              value={registryQuery}
-              onChange={(e) => setRegistryQuery(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleRegistrySearch()}
-              className="flex-1 bg-background border border-border rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-secondary"
-            />
-            <select
-              value={registrySource}
-              onChange={(e) => setRegistrySource(e.target.value as "opencorporates" | "companies-house")}
-              className="bg-background border border-border rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-secondary"
-            >
-              <option value="opencorporates">OpenCorporates (Global, Free)</option>
-              <option value="sec-edgar">SEC EDGAR (US Large Holders &amp; Directors, Free)</option>
-              <option value="companies-house">Companies House (UK, Needs API Key)</option>
-            </select>
-            <button
-              onClick={handleRegistrySearch}
-              disabled={isSearching || !registryQuery.trim()}
-              className="px-5 py-2 bg-secondary/20 text-secondary border border-secondary/40 rounded font-mono text-sm uppercase tracking-wider hover:bg-secondary/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-            >
-              {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-              Search
-            </button>
-          </div>
-
-          {registryError && (
-            <div className="mt-3 text-sm font-mono text-destructive bg-destructive/10 border border-destructive/30 rounded px-3 py-2">
-              ⚠ {registryError}
-            </div>
-          )}
-
-          {registryResults.length > 0 && (
-            <div className="mt-4 space-y-2 max-h-72 overflow-y-auto pr-1">
-              {registryResults.map((r, i) => (
-                <div key={i} className="flex items-start justify-between bg-background border border-border rounded px-4 py-3 hover:border-border/80 transition-colors">
-                  <div className="flex-1 min-w-0 mr-4">
-                    <div className="font-mono text-sm font-bold text-foreground">{r.name}</div>
-                    <div className="flex items-center gap-2 mt-1 flex-wrap">
-                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-secondary/10 text-secondary border border-secondary/20">
-                        {r.type}
-                      </span>
-                      {r.nationality && <span className="text-xs text-muted-foreground font-mono">{r.nationality}</span>}
-                      {r.knownResidences && <span className="text-xs text-muted-foreground font-mono truncate max-w-xs">{r.knownResidences}</span>}
+            {registryError && (
+              <div className="mt-3 text-xs font-mono text-destructive bg-destructive/10 border border-destructive/20 rounded px-3 py-2">{registryError}</div>
+            )}
+            {registryResults.length > 0 && (
+              <div className="mt-3 border border-border rounded overflow-hidden max-h-48 overflow-y-auto">
+                {registryResults.map((r, i) => (
+                  <div key={i} className="flex items-center justify-between px-3 py-2 border-b border-border last:border-b-0 hover:bg-muted/20">
+                    <div>
+                      <div className="text-xs font-mono font-bold text-foreground">{r.name}</div>
+                      <div className="text-[10px] font-mono text-muted-foreground">{r.nationality} · {r.type}</div>
                     </div>
-                    {r.notes && <div className="text-[11px] text-muted-foreground font-mono mt-1.5 truncate">{r.notes}</div>}
+                    <button
+                      onClick={() => handleIngestResult(r)}
+                      className="text-[10px] font-mono text-primary hover:underline px-2 py-1 border border-primary/30 rounded"
+                    >
+                      + Ingest
+                    </button>
                   </div>
-                  <button
-                    onClick={() => handleIngestResult(r)}
-                    className="flex-shrink-0 px-3 py-1.5 bg-primary/20 text-primary border border-primary/40 rounded font-mono text-xs uppercase tracking-wider hover:bg-primary/30 transition-colors"
-                  >
-                    + Add
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {!isSearching && searchedOnce && registryResults.length === 0 && !registryError && (
-            <div className="mt-3 text-xs font-mono text-muted-foreground italic">
-              No results — try broader terms or check the registry selection.
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── Mobile: card list ── */}
-      <div className="flex-1 overflow-y-auto md:hidden divide-y divide-border">
-        {mobileEntities?.map((entity) => (
-          <MobileEntityCard
-            key={entity.id}
-            entity={entity}
-            onSelect={() => setMobileSelectedEntity(entity)}
-          />
-        ))}
-        {(!mobileEntities || mobileEntities.length === 0) && (
-          <div className="flex flex-col items-center justify-center h-40 text-muted-foreground text-xs font-mono">
-            No entities found.
+                ))}
+              </div>
+            )}
+            {searchedOnce && !isSearching && registryResults.length === 0 && !registryError && (
+              <div className="mt-3 text-xs font-mono text-muted-foreground">No results found.</div>
+            )}
           </div>
         )}
-      </div>
 
-      {/* ── Desktop: Entity Table ── */}
-      <div className="hidden md:block flex-1 overflow-auto p-4">
-        <div className="border border-border rounded bg-card overflow-hidden">
-          <table className="w-full text-sm text-left">
-            <thead className="text-xs text-muted-foreground uppercase bg-muted/50 font-mono border-b border-border">
-              <tr>
-                <th className="px-4 py-3">Name / ID</th>
-                <th className="px-4 py-3">Classification</th>
-                <th className="px-4 py-3">Signal Score</th>
-                <th className="px-4 py-3">Net Worth</th>
-                <th className="px-4 py-3">Assets</th>
-                <th className="px-4 py-3 text-right">Actions</th>
+        {/* Entity table */}
+        <div className="flex-1 overflow-auto">
+          <table className="w-full border-collapse">
+            <thead className="sticky top-0 z-10">
+              <tr className="bg-card/90 backdrop-blur-sm border-b border-border">
+                {["Name & Classification","Nationality","Net Worth","Score","Contact Vector","Assets","Actions"].map((h) => (
+                  <th key={h} className="px-4 py-3 text-left text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">
+                    {h}
+                  </th>
+                ))}
               </tr>
             </thead>
-            <tbody className="divide-y border-border">
-              {entities?.map((entity) => (
-                <tr key={entity.id} className="hover:bg-muted/20 transition-colors group">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center">
-                      {entity.isHot && <ShieldAlert className="w-4 h-4 text-amber-500 mr-2 animate-pulse" />}
-                      <div>
-                        <div className="font-bold text-foreground">{entity.name}</div>
-                        <div className="text-xs text-muted-foreground font-mono mt-1">
-                          ID: #{entity.id.toString().padStart(6, "0")}
+            <tbody className="divide-y divide-border/50">
+              {entities?.map((entity: any) => {
+                let meta: any = {};
+                try { meta = JSON.parse((entity as any).metadata ?? "{}"); } catch { /* */ }
+                const typeColor = TYPE_COLORS[entity.type] ?? "#64748B";
+                return (
+                  <tr key={entity.id} className={cn(
+                    "group hover:bg-muted/20 transition-colors",
+                    entity.isHot && "bg-amber-500/5",
+                  )}>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        {entity.isHot && <ShieldAlert className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />}
+                        <div>
+                          <div className="font-semibold text-sm text-foreground">{entity.name}</div>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span
+                              className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5"
+                              style={{ color: typeColor, backgroundColor: typeColor + "18" }}
+                            >
+                              {TYPE_ICONS[entity.type]} {entity.type}
+                            </span>
+                            {meta.proximityScore && (
+                              <span className={cn(
+                                "text-[9px] font-mono font-bold px-1 py-0.5 rounded",
+                                meta.proximityScore >= 8 ? "text-emerald-400 bg-emerald-400/10"
+                                : meta.proximityScore >= 5 ? "text-amber-400 bg-amber-400/10"
+                                : "text-muted-foreground/50 bg-muted/30"
+                              )}>
+                                PROX {meta.proximityScore}/10
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-col space-y-1.5">
-                      <div className="flex items-center space-x-2">
-                        <span className="bg-muted px-2 py-1 rounded text-xs font-mono text-muted-foreground border border-border">
-                          {entity.type}
-                        </span>
-                        {entity.nationality && (
-                          <span className="text-xs text-muted-foreground">{entity.nationality}</span>
-                        )}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-muted-foreground font-mono">{entity.nationality ?? "—"}</td>
+                    <td className="px-4 py-3 text-sm font-mono text-foreground">
+                      {entity.estimatedNetWorth ? formatCurrency(entity.estimatedNetWorth) : "—"}
+                    </td>
+                    <td className="px-4 py-3"><ScoreBadge score={entity.bayesianScore} /></td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground max-w-[200px]">
+                      <span className="truncate block" title={entity.contactMethod ?? undefined}>
+                        {entity.contactMethod ?? "—"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-muted-foreground font-mono text-center">
+                      {(entity as any).assetCount ?? 0}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <a
+                          href={`/graph?entity=${entity.id}`}
+                          className="p-1.5 text-muted-foreground hover:text-primary transition-colors"
+                          title="View network"
+                        >
+                          <Network className="w-3.5 h-3.5" />
+                        </a>
+                        <a
+                          href={`/research?entity=${entity.id}`}
+                          className="p-1.5 text-muted-foreground hover:text-secondary transition-colors"
+                          title="MCTS analysis"
+                        >
+                          <TargetIcon className="w-3.5 h-3.5" />
+                        </a>
+                        <button
+                          onClick={() => handleDelete(entity.id)}
+                          className="p-1.5 text-muted-foreground hover:text-destructive transition-colors"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
-                      {entity.sourceRegistries && (() => {
-                        try {
-                          const regs: string[] = JSON.parse(entity.sourceRegistries);
-                          return (
-                            <div className="flex flex-wrap gap-1">
-                              {regs.slice(0, 2).map((r, i) => (
-                                <span key={i} className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-secondary/10 text-secondary border border-secondary/20 leading-tight" title={r}>
-                                  {r.length > 22 ? r.slice(0, 20) + "…" : r}
-                                </span>
-                              ))}
-                            </div>
-                          );
-                        } catch { return null; }
-                      })()}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3"><ScoreBadge score={entity.bayesianScore} /></td>
-                  <td className="px-4 py-3 text-foreground font-mono">{formatCurrency(entity.estimatedNetWorth)}</td>
-                  <td className="px-4 py-3 text-foreground font-mono">{entity.assetCount}</td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex justify-end space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button className="p-1.5 text-muted-foreground hover:text-secondary bg-muted rounded border border-border">
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(entity.id)}
-                        className="p-1.5 text-muted-foreground hover:text-destructive bg-muted rounded border border-border"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                  </tr>
+                );
+              })}
               {(!entities || entities.length === 0) && (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-muted-foreground font-mono">
-                    No entities found matching criteria.
+                  <td colSpan={7} className="px-6 py-8 text-center text-muted-foreground font-mono text-sm">
+                    No entities found.
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
+
+        {/* Footer count */}
+        {entities && entities.length > 0 && (
+          <div className="border-t border-border px-4 py-2 flex items-center justify-between bg-card/30 flex-shrink-0">
+            <span className="text-[10px] font-mono text-muted-foreground">
+              {entities.length.toLocaleString()} entities
+              {proximityMin > 0 && ` · proximity ≥ ${proximityMin}`}
+              {typeFilter && ` · ${typeFilter}`}
+            </span>
+            <button
+              onClick={() => exportToCsv(entities)}
+              className="text-[10px] font-mono text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+            >
+              <Download className="w-3 h-3" /> Export CSV
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* ── Mobile FAB ── */}
+      {/* ── Mobile ── */}
+      <div className="flex md:hidden flex-col h-full overflow-hidden">
+        <div className="px-3 py-2 border-b border-border bg-card/30 flex-shrink-0 space-y-2">
+          <div className="flex items-center gap-2 px-3 py-2 rounded bg-background border border-border">
+            <Search className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+            <input
+              type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search entities…"
+              className="flex-1 bg-transparent text-sm font-mono text-foreground outline-none placeholder:text-muted-foreground/50"
+            />
+            {searchTerm && <button onClick={() => setSearchTerm("")}><X className="w-3.5 h-3.5 text-muted-foreground" /></button>}
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-0.5">
+            {[null, "HNWI", "Gatekeeper", "Corporation", "Trust"].map((t) => {
+              const c = t ? (TYPE_COLORS[t] ?? "#64748B") : "#10B981";
+              return (
+                <button
+                  key={t ?? "all"}
+                  onClick={() => setMobileTypeFilter(t)}
+                  className="px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase whitespace-nowrap flex-shrink-0 transition-all"
+                  style={{
+                    backgroundColor: mobileTypeFilter === t ? c : c + "18",
+                    color: mobileTypeFilter === t ? "#000" : c,
+                    border: `1px solid ${c}44`,
+                  }}
+                >
+                  {t ?? "ALL"}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto">
+          {mobileEntities.map((entity: any) => (
+            <MobileEntityCard key={entity.id} entity={entity} onSelect={() => setMobileSelectedEntity(entity)} />
+          ))}
+          {mobileEntities.length === 0 && (
+            <div className="text-center p-8 text-muted-foreground text-sm font-mono">No entities found.</div>
+          )}
+        </div>
+      </div>
+
+      {/* Mobile FAB */}
       <button
         onClick={() => openAddModal()}
         className="fixed bottom-6 right-5 w-12 h-12 rounded-full flex items-center justify-center shadow-lg z-40 md:hidden"
@@ -577,176 +668,91 @@ export default function EntityLedger() {
         <Plus className="w-5 h-5 text-black" />
       </button>
 
-      {/* ── Mobile entity detail overlay ── */}
       {mobileSelectedEntity && (
-        <MobileEntityDetail
-          entity={mobileSelectedEntity}
-          onClose={() => setMobileSelectedEntity(null)}
-        />
+        <MobileEntityDetail entity={mobileSelectedEntity} onClose={() => setMobileSelectedEntity(null)} />
       )}
 
-      {/* ── Add Entity Modal (shared) ── */}
+      {/* Add entity modal */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex">
           <div className="flex-1 bg-black/60 backdrop-blur-sm" onClick={() => setShowAddModal(false)} />
-
           <div className="w-full max-w-[480px] bg-card border-l border-border flex flex-col shadow-2xl animate-in slide-in-from-right-full duration-300">
             <div className="p-5 border-b border-border flex items-center justify-between flex-shrink-0">
               <div>
-                <h2 className="text-sm font-bold font-mono tracking-widest uppercase text-foreground">
-                  New Intelligence Target
-                </h2>
-                <p className="text-xs text-muted-foreground font-mono mt-0.5">
-                  Register entity in classified registry
-                </p>
+                <h2 className="text-sm font-bold font-mono tracking-widest uppercase text-foreground">New Intelligence Target</h2>
+                <p className="text-xs text-muted-foreground font-mono mt-0.5">Register entity in classified registry</p>
               </div>
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="p-1.5 text-muted-foreground hover:text-foreground rounded bg-muted border border-border transition-colors"
-              >
+              <button onClick={() => setShowAddModal(false)} className="p-1.5 text-muted-foreground hover:text-foreground rounded bg-muted border border-border">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              {[
+                { label: "Full Name *", field: "name", placeholder: "e.g. James Worthington III" },
+              ].map(({ label, field, placeholder }) => (
+                <div key={field}>
+                  <label className="block text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">{label}</label>
+                  <input
+                    type="text" value={(addForm as any)[field]} placeholder={placeholder}
+                    onChange={(e) => setAddForm((f) => ({ ...f, [field]: e.target.value }))}
+                    className="w-full bg-background border border-border rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-primary"
+                  />
+                </div>
+              ))}
               <div>
-                <label className="block text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">
-                  Full Name <span className="text-destructive">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={addForm.name}
-                  onChange={(e) => setAddForm((f) => ({ ...f, name: e.target.value }))}
-                  placeholder="e.g. Lorenzo Castellani"
-                  className="w-full bg-background border border-border rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-primary"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">
-                  Classification <span className="text-destructive">*</span>
-                </label>
-                <select
-                  value={addForm.type}
-                  onChange={(e) => setAddForm((f) => ({ ...f, type: e.target.value as EntityType }))}
-                  className="w-full bg-background border border-border rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-primary"
-                >
+                <label className="block text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">Classification *</label>
+                <select value={addForm.type} onChange={(e) => setAddForm((f) => ({ ...f, type: e.target.value as EntityType }))}
+                  className="w-full bg-background border border-border rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-primary">
                   <option value="HNWI">HNWI — High Net Worth Individual</option>
                   <option value="Corporation">Corporation — Company / Shell</option>
                   <option value="Trust">Trust — Offshore / Fiduciary</option>
                   <option value="Gatekeeper">Gatekeeper — Contact / Introducer</option>
                 </select>
               </div>
-
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">Nationality</label>
-                  <input
-                    type="text"
-                    value={addForm.nationality}
-                    onChange={(e) => setAddForm((f) => ({ ...f, nationality: e.target.value }))}
-                    placeholder="e.g. Italian, British"
-                    className="w-full bg-background border border-border rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-primary"
-                  />
+                {[
+                  { label: "Nationality", field: "nationality", placeholder: "e.g. British" },
+                  { label: "Net Worth (USD)", field: "estimatedNetWorth", placeholder: "e.g. 50000000" },
+                ].map(({ label, field, placeholder }) => (
+                  <div key={field}>
+                    <label className="block text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">{label}</label>
+                    <input type={field === "estimatedNetWorth" ? "number" : "text"} value={(addForm as any)[field]} placeholder={placeholder}
+                      onChange={(e) => setAddForm((f) => ({ ...f, [field]: e.target.value }))}
+                      className="w-full bg-background border border-border rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-primary" />
+                  </div>
+                ))}
+              </div>
+              {[
+                { label: "Known Residences", field: "knownResidences", placeholder: "London, UK / Monaco / Dubai" },
+                { label: "Contact Vector", field: "contactMethod", placeholder: "Personal WhatsApp / Family Office / Gatekeeper…" },
+                { label: "Phone", field: "phone", placeholder: "+44 7..." },
+                { label: "Email", field: "email", placeholder: "private@..." },
+                { label: "Source Registries", field: "sourceRegistries", placeholder: "Companies House, OpenCorporates, FAA…" },
+              ].map(({ label, field, placeholder }) => (
+                <div key={field}>
+                  <label className="block text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">{label}</label>
+                  <input type="text" value={(addForm as any)[field]} placeholder={placeholder}
+                    onChange={(e) => setAddForm((f) => ({ ...f, [field]: e.target.value }))}
+                    className="w-full bg-background border border-border rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-primary" />
                 </div>
-                <div>
-                  <label className="block text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">Est. Net Worth (€)</label>
-                  <input
-                    type="number"
-                    value={addForm.estimatedNetWorth}
-                    onChange={(e) => setAddForm((f) => ({ ...f, estimatedNetWorth: e.target.value }))}
-                    placeholder="250000000"
-                    className="w-full bg-background border border-border rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-primary"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">Known Residences</label>
-                <input
-                  type="text"
-                  value={addForm.knownResidences}
-                  onChange={(e) => setAddForm((f) => ({ ...f, knownResidences: e.target.value }))}
-                  placeholder="e.g. Tuscany, Monaco, Belgravia"
-                  className="w-full bg-background border border-border rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-primary"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">Phone / WhatsApp</label>
-                  <input
-                    type="text"
-                    value={addForm.phone}
-                    onChange={(e) => setAddForm((f) => ({ ...f, phone: e.target.value }))}
-                    placeholder="+39 055..."
-                    className="w-full bg-background border border-border rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-primary"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">Email</label>
-                  <input
-                    type="email"
-                    value={addForm.email}
-                    onChange={(e) => setAddForm((f) => ({ ...f, email: e.target.value }))}
-                    placeholder="private@..."
-                    className="w-full bg-background border border-border rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-primary"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">Best Contact Method</label>
-                <input
-                  type="text"
-                  value={addForm.contactMethod}
-                  onChange={(e) => setAddForm((f) => ({ ...f, contactMethod: e.target.value }))}
-                  placeholder="e.g. WhatsApp, Signal, personal email"
-                  className="w-full bg-background border border-border rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-primary"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">Source Registries</label>
-                <input
-                  type="text"
-                  value={addForm.sourceRegistries}
-                  onChange={(e) => setAddForm((f) => ({ ...f, sourceRegistries: e.target.value }))}
-                  placeholder="Companies House, OpenCorporates, Catasto..."
-                  className="w-full bg-background border border-border rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-primary"
-                />
-                <p className="text-[10px] font-mono text-muted-foreground/60 mt-1">Comma-separated list</p>
-              </div>
-
+              ))}
               <div>
                 <label className="block text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">Intelligence Notes</label>
-                <textarea
-                  value={addForm.notes}
-                  onChange={(e) => setAddForm((f) => ({ ...f, notes: e.target.value }))}
-                  rows={4}
-                  placeholder="Background, approach angles, personal context, seasonal windows..."
-                  className="w-full bg-background border border-border rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-primary resize-none"
-                />
+                <textarea value={addForm.notes} onChange={(e) => setAddForm((f) => ({ ...f, notes: e.target.value }))}
+                  rows={4} placeholder="Background, approach angles, personal context, seasonal windows…"
+                  className="w-full bg-background border border-border rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-primary resize-none" />
               </div>
             </div>
 
             <div className="p-5 border-t border-border flex items-center justify-between flex-shrink-0 bg-muted/20">
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="px-4 py-2 bg-muted text-muted-foreground border border-border rounded font-mono text-sm hover:text-foreground transition-colors"
-              >
+              <button onClick={() => setShowAddModal(false)}
+                className="px-4 py-2 bg-muted text-muted-foreground border border-border rounded font-mono text-sm hover:text-foreground transition-colors">
                 Cancel
               </button>
-              <button
-                onClick={handleAddEntity}
-                disabled={!addForm.name.trim() || createEntity.isPending}
-                className="px-5 py-2 bg-primary text-primary-foreground rounded font-mono text-sm uppercase tracking-wider hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-              >
-                {createEntity.isPending ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Plus className="w-4 h-4" />
-                )}
+              <button onClick={handleAddEntity} disabled={!addForm.name.trim() || createEntity.isPending}
+                className="px-5 py-2 bg-primary text-primary-foreground rounded font-mono text-sm uppercase tracking-wider hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-2">
+                {createEntity.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                 Register Entity
               </button>
             </div>

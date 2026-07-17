@@ -2,3 +2,4 @@
 - [Artifact workflow setup](artifact-workflow-setup.md) — All 4 artifacts are registered with managed workflows; old manual workflows were removed; port 8080 conflict resolution required killing leftover PID
 - [Registry search routing](registry-search-routing.md) — Live registry search is at POST /api/registry-search (not /ingest/); placed before adminOnly middleware in ingest.ts
 - [Redis integration](redis-integration.md) — ioredis on REDIS_URL; cache-aside on entities/dashboard/registry; graceful degradation on Redis outage
+- [Western HNWI ingestion](western-hnwi-ingestion.md) — Dual Redis (local cache + Upstash permanent); background job at POST /ingest/western-hnwi; poll at GET /ingest/job/:jobId; no auth required (personal use)

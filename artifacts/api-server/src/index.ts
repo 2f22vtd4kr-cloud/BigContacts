@@ -1,7 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { seedMockData, seedExtendedData } from "./lib/mock-data";
-import { connectRedis, disconnectRedis } from "./lib/redis";
+import { connectRedis, connectPermanentRedis, disconnectRedis } from "./lib/redis";
 
 const rawPort = process.env["PORT"];
 
@@ -17,10 +17,14 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-// Connect Redis before accepting traffic (non-blocking — server still starts on failure)
+// Connect local Redis cache (non-blocking)
 connectRedis()
   .then(() => logger.info("Redis connection initiated"))
   .catch((e) => logger.warn({ err: e }, "Redis connect error (non-fatal)"));
+
+// Connect permanent Upstash Redis clients (REDIS_URL_1, REDIS_URL_2, …)
+connectPermanentRedis()
+  .catch((e) => logger.warn({ err: e }, "Permanent Redis connect error (non-fatal)"));
 
 const server = app.listen(port, (err) => {
   if (err) {

@@ -26,6 +26,9 @@ Enterprise OSINT and HNWI intelligence platform — identifies, scores, and buil
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
 - Required env: `DATABASE_URL` — Postgres connection string (Replit-managed, auto-provided)
+- Required env: `REDIS_URL` — local Redis (`redis://localhost:6379`, ephemeral API cache)
+- Required secret: `REDIS_URL_1` — Upstash TCP URL (permanent dedup, job state, HNWI index)
+- Optional secret: `SESSION_SECRET` — used as admin token fallback for protected ingest ops
 
 ## Stack
 

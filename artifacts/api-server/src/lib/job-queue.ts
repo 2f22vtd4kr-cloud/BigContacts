@@ -1,12 +1,15 @@
 /**
- * Redis-backed background job queue for long-running ingestion tasks.
+ * Redis-backed background job queue — uses PERMANENT client (Upstash)
+ * so job state survives container restarts.
  *
- * Jobs are stored as Redis hashes: apex:job:<jobId>
- * Progress lists: apex:job:<jobId>:log (LPUSH, capped at 200 entries)
+ * Jobs: apex:job:<jobId>  (HASH)
+ * Log:  apex:job:<jobId>:log  (LIST, newest first, capped at 200)
+ * Active job per type: apex:activejob:<type>  (STRING)
+ * Dedup set: apex:dedup:hnwi  (SET — stored on Upstash for permanence)
  */
 
 import { randomUUID } from "crypto";
-import { getRedisClient } from "./redis";
+import { getPermanentClient, permSadd, permSismember, permScard } from "./redis";
 import { logger } from "./logger";
 
 export type JobStatus = "queued" | "running" | "done" | "failed";
@@ -25,11 +28,11 @@ export interface JobState {
   message: string;
 }
 
-const JOB_TTL = 60 * 60 * 24; // 24 h
+const JOB_TTL = 60 * 60 * 24 * 7; // 7 days on Upstash
 const LOG_CAP = 200;
 
-function jobKey(jobId: string) { return `apex:job:${jobId}`; }
-function logKey(jobId: string) { return `apex:job:${jobId}:log`; }
+function jk(jobId: string) { return `apex:job:${jobId}`; }
+function lk(jobId: string) { return `apex:job:${jobId}:log`; }
 
 export async function createJob(type: string): Promise<string> {
   const jobId = randomUUID();
@@ -39,95 +42,95 @@ export async function createJob(type: string): Promise<string> {
     startedAt: new Date().toISOString(),
     message: "Queued",
   };
-  const rc = getRedisClient();
+  const rc = getPermanentClient();
   if (rc) {
-    await rc.hset(jobKey(jobId), state as any);
-    await rc.expire(jobKey(jobId), JOB_TTL);
+    await rc.hset(jk(jobId), state as any);
+    await rc.expire(jk(jobId), JOB_TTL);
   }
   return jobId;
 }
 
 export async function updateJob(jobId: string, patch: Partial<JobState>): Promise<void> {
-  const rc = getRedisClient();
+  const rc = getPermanentClient();
   if (!rc) return;
   const flat: Record<string, string> = {};
-  for (const [k, v] of Object.entries(patch)) flat[k] = String(v);
-  await rc.hset(jobKey(jobId), flat);
-  await rc.expire(jobKey(jobId), JOB_TTL);
+  for (const [k, v] of Object.entries(patch)) if (v !== undefined) flat[k] = String(v);
+  await rc.hset(jk(jobId), flat);
+  await rc.expire(jk(jobId), JOB_TTL);
 }
 
 export async function appendJobLog(jobId: string, line: string): Promise<void> {
-  const rc = getRedisClient();
+  const rc = getPermanentClient();
   if (!rc) return;
-  await rc.lpush(logKey(jobId), `${new Date().toISOString()} ${line}`);
-  await rc.ltrim(logKey(jobId), 0, LOG_CAP - 1);
-  await rc.expire(logKey(jobId), JOB_TTL);
+  await rc.lpush(lk(jobId), `${new Date().toISOString()} ${line}`);
+  await rc.ltrim(lk(jobId), 0, LOG_CAP - 1);
+  await rc.expire(lk(jobId), JOB_TTL);
 }
 
 export async function getJob(jobId: string): Promise<JobState | null> {
-  const rc = getRedisClient();
+  const rc = getPermanentClient();
   if (!rc) return null;
-  const raw = await rc.hgetall(jobKey(jobId));
+  const raw = await rc.hgetall(jk(jobId));
   if (!raw || Object.keys(raw).length === 0) return null;
   return {
-    jobId: raw.jobId ?? jobId,
-    type: raw.type ?? "unknown",
-    status: (raw.status ?? "queued") as JobStatus,
-    progress: Number(raw.progress ?? 0),
-    inserted: Number(raw.inserted ?? 0),
-    skipped: Number(raw.skipped ?? 0),
-    errors: Number(raw.errors ?? 0),
-    total: Number(raw.total ?? 0),
-    startedAt: raw.startedAt ?? "",
-    finishedAt: raw.finishedAt,
-    message: raw.message ?? "",
+    jobId: raw["jobId"] ?? jobId,
+    type: raw["type"] ?? "unknown",
+    status: (raw["status"] ?? "queued") as JobStatus,
+    progress: Number(raw["progress"] ?? 0),
+    inserted: Number(raw["inserted"] ?? 0),
+    skipped: Number(raw["skipped"] ?? 0),
+    errors: Number(raw["errors"] ?? 0),
+    total: Number(raw["total"] ?? 0),
+    startedAt: raw["startedAt"] ?? "",
+    finishedAt: raw["finishedAt"],
+    message: raw["message"] ?? "",
   };
 }
 
 export async function getJobLog(jobId: string): Promise<string[]> {
-  const rc = getRedisClient();
+  const rc = getPermanentClient();
   if (!rc) return [];
-  const lines = await rc.lrange(logKey(jobId), 0, LOG_CAP - 1);
-  return lines.reverse();
+  const lines = await rc.lrange(lk(jobId), 0, LOG_CAP - 1);
+  return lines; // already newest-first (LPUSH)
 }
 
-/** Deduplication: SHA-like key stored in a Redis set */
-const DEDUP_SET = "apex:dedup:hnwi";
+// ── Deduplication (Upstash SET — permanent across restarts) ──────────────────
 
+const DEDUP_KEY = "apex:dedup:hnwi";
+
+/** Returns true if this key has already been ingested */
 export async function isDuplicate(key: string): Promise<boolean> {
-  const rc = getRedisClient();
-  if (!rc) return false;
-  return (await rc.sismember(DEDUP_SET, key)) === 1;
+  return permSismember(DEDUP_KEY, key);
 }
 
+/** Mark a key as ingested */
 export async function markSeen(key: string): Promise<void> {
-  const rc = getRedisClient();
-  if (!rc) return;
-  await rc.sadd(DEDUP_SET, key);
+  await permSadd(DEDUP_KEY, key);
 }
 
+/** How many unique records have been seen */
 export async function getDedupCount(): Promise<number> {
-  const rc = getRedisClient();
-  if (!rc) return 0;
-  return rc.scard(DEDUP_SET);
+  return permScard(DEDUP_KEY);
 }
 
+/** Clear dedup set — use before a full re-ingest */
 export async function clearDedup(): Promise<void> {
-  const rc = getRedisClient();
+  const rc = getPermanentClient();
   if (!rc) return;
-  await rc.del(DEDUP_SET);
+  await rc.del(DEDUP_KEY);
   logger.info("Dedup set cleared");
 }
 
-/** Track active job ID for each type (only one at a time) */
+// ── Active job tracking ───────────────────────────────────────────────────────
+
 export async function setActiveJob(type: string, jobId: string): Promise<void> {
-  const rc = getRedisClient();
+  const rc = getPermanentClient();
   if (!rc) return;
   await rc.set(`apex:activejob:${type}`, jobId, "EX", JOB_TTL);
 }
 
 export async function getActiveJob(type: string): Promise<string | null> {
-  const rc = getRedisClient();
+  const rc = getPermanentClient();
   if (!rc) return null;
   return rc.get(`apex:activejob:${type}`);
 }

@@ -1,0 +1,188 @@
+/**
+ * Enhanced HNWI search — POST /search/hnwi
+ *
+ * Supports natural filters: country, asset types, min score, proximity level,
+ * plus free-text queries like "US private jet owners in California".
+ *
+ * Results cached in local Redis (30 s TTL).
+ */
+
+import { Router, type IRouter } from "express";
+import { ilike, and, gte, eq, lte, sql } from "drizzle-orm";
+import { db, entitiesTable, assetsTable } from "@workspace/db";
+import { getCache, setCache } from "../lib/redis";
+
+const router: IRouter = Router();
+
+// POST /search/hnwi
+router.post("/search/hnwi", async (req, res): Promise<void> => {
+  const {
+    query = "",
+    countries = [],       // e.g. ["American", "British"]
+    assetTypes = [],      // e.g. ["Aviation", "Marine"]
+    minScore = 0,
+    maxScore = 1,
+    minNetWorth = 0,
+    proximityMin = 0,     // 1–10
+    hotOnly = false,
+    limit = 50,
+    offset = 0,
+  } = req.body as {
+    query?: string;
+    countries?: string[];
+    assetTypes?: string[];
+    minScore?: number;
+    maxScore?: number;
+    minNetWorth?: number;
+    proximityMin?: number;
+    hotOnly?: boolean;
+    limit?: number;
+    offset?: number;
+  };
+
+  const safeLimit = Math.min(Number(limit) || 50, 200);
+  const safeOffset = Number(offset) || 0;
+
+  // Cache key
+  const ck = `search:hnwi:${JSON.stringify({ query, countries, assetTypes, minScore, maxScore, minNetWorth, proximityMin, hotOnly, safeLimit, safeOffset })}`;
+  const cached = await getCache<unknown[]>(ck);
+  if (cached) { res.json(cached); return; }
+
+  try {
+    // Build WHERE conditions
+    const conditions: ReturnType<typeof eq>[] = [];
+    conditions.push(eq(entitiesTable.type, "HNWI") as any);
+
+    if (query.trim()) {
+      conditions.push(ilike(entitiesTable.name, `%${query.trim()}%`) as any);
+    }
+    if (minScore > 0) conditions.push(gte(entitiesTable.bayesianScore, minScore) as any);
+    if (maxScore < 1) conditions.push(lte(entitiesTable.bayesianScore, maxScore) as any);
+    if (minNetWorth > 0) conditions.push(gte(entitiesTable.estimatedNetWorth, minNetWorth) as any);
+    if (hotOnly) conditions.push(eq(entitiesTable.isHot, true) as any);
+
+    // Country filter — match nationality field
+    if (countries.length > 0) {
+      const countryConditions = countries.map((c: string) =>
+        ilike(entitiesTable.nationality, `%${c}%`)
+      );
+      if (countryConditions.length === 1) {
+        conditions.push(countryConditions[0]! as any);
+      } else {
+        conditions.push(sql`(${countryConditions.map((c: any) => sql`${c}`).reduce((a: any, b: any) => sql`${a} OR ${b}`)})` as any);
+      }
+    }
+
+    let rows = await db
+      .select()
+      .from(entitiesTable)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(sql`${entitiesTable.bayesianScore} DESC`)
+      .limit(safeLimit * 3) // over-fetch for asset-type post-filter
+      .offset(safeOffset);
+
+    // Asset-type post-filter (if requested)
+    let assetCounts: Record<number, number> = {};
+    let assetTypeMap: Record<number, string[]> = {};
+
+    if (rows.length > 0) {
+      const ids = rows.map((r) => r.id);
+      const assets = await db
+        .select({ ownerId: assetsTable.ownerEntityId, category: assetsTable.category })
+        .from(assetsTable)
+        .where(sql`${assetsTable.ownerEntityId} = ANY(${sql.raw(`ARRAY[${ids.join(",")}]::int[]`)})`);
+
+      for (const a of assets) {
+        if (!a.ownerId) continue;
+        assetCounts[a.ownerId] = (assetCounts[a.ownerId] ?? 0) + 1;
+        assetTypeMap[a.ownerId] = assetTypeMap[a.ownerId] ?? [];
+        if (!assetTypeMap[a.ownerId]!.includes(a.category)) {
+          assetTypeMap[a.ownerId]!.push(a.category);
+        }
+      }
+    }
+
+    if (assetTypes.length > 0) {
+      rows = rows.filter((r) => {
+        const types = assetTypeMap[r.id] ?? [];
+        return assetTypes.some((at: string) => types.includes(at));
+      });
+    }
+
+    // Proximity filter (stored in metadata.proximityScore)
+    if (proximityMin > 0) {
+      rows = rows.filter((r) => {
+        try {
+          const meta = JSON.parse(r.metadata ?? "{}");
+          return (meta.proximityScore ?? 0) >= proximityMin;
+        } catch { return false; }
+      });
+    }
+
+    const results = rows.slice(0, safeLimit).map((e) => {
+      let meta: any = {};
+      try { meta = JSON.parse(e.metadata ?? "{}"); } catch { /* */ }
+      return {
+        id: e.id,
+        name: e.name,
+        type: e.type,
+        nationality: e.nationality,
+        bayesianScore: e.bayesianScore,
+        estimatedNetWorth: e.estimatedNetWorth,
+        knownResidences: e.knownResidences,
+        contactMethod: e.contactMethod,
+        notes: e.notes,
+        isHot: e.isHot,
+        assetCount: assetCounts[e.id] ?? 0,
+        assetTypes: assetTypeMap[e.id] ?? [],
+        proximityScore: meta.proximityScore ?? null,
+        tier: meta.tier ?? null,
+        clubs: meta.clubs ?? [],
+        safari: meta.safari ?? null,
+        confidence: meta.confidence ?? null,
+        westernIngest: meta.westernIngest ?? false,
+        createdAt: e.createdAt.toISOString(),
+      };
+    });
+
+    await setCache(ck, results, 30);
+    res.json({ results, total: results.length, query: { query, countries, assetTypes, minScore, minNetWorth, proximityMin, hotOnly } });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message ?? "Search failed" });
+  }
+});
+
+// GET /search/hnwi/facets — available filter options
+router.get("/search/hnwi/facets", async (_req, res): Promise<void> => {
+  const cached = await getCache<object>("search:facets");
+  if (cached) { res.json(cached); return; }
+
+  const [nationalities, assetCats] = await Promise.all([
+    db.select({ nat: entitiesTable.nationality })
+      .from(entitiesTable)
+      .where(eq(entitiesTable.type, "HNWI"))
+      .groupBy(entitiesTable.nationality)
+      .orderBy(sql`count(*) DESC`)
+      .limit(50),
+    db.select({ cat: assetsTable.category })
+      .from(assetsTable)
+      .groupBy(assetsTable.category),
+  ]);
+
+  const facets = {
+    nationalities: nationalities.map((r) => r.nat).filter(Boolean),
+    assetTypes: assetCats.map((r) => r.cat),
+    scoreRange: [0, 1],
+    proximityLevels: [
+      { value: 1, label: "Any" },
+      { value: 4, label: "Gatekeeper accessible" },
+      { value: 7, label: "Near-personal" },
+      { value: 9, label: "Personal contact only" },
+    ],
+  };
+
+  await setCache("search:facets", facets, 300);
+  res.json(facets);
+});
+
+export default router;

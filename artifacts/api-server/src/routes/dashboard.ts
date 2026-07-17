@@ -233,12 +233,19 @@ router.get("/dashboard/stats", async (_req, res): Promise<void> => {
     }
   }
 
+  // Count western-ingested HNWIs (metadata text contains the flag)
+  const [westernCount] = await db
+    .select({ cnt: sql<number>`count(*)::int` })
+    .from(entitiesTable)
+    .where(sql`${entitiesTable.metadata} LIKE '%"westernIngest":true%'`);
+
   const payload = {
     totalEntities: entityCount?.cnt ?? 0,
     totalAssets: assetCount?.cnt ?? 0,
     totalRelationships: relCount?.cnt ?? 0,
     avgBayesianScore: avgScore?.avg ?? 0,
     hotLeadsCount: hotCount?.cnt ?? 0,
+    westernHnwiCount: westernCount?.cnt ?? 0,
     activeResearchSessions: sessionCount?.cnt ?? 0,
     crmBreakdown: crmBreakdown.map((r) => ({ status: r.status, count: r.count })),
     assetsByCategory: assetsByCategory.map((r) => ({

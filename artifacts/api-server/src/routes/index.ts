@@ -7,6 +7,7 @@ import researchRouter from "./research";
 import dashboardRouter from "./dashboard";
 import graphRouter from "./graph";
 import ingestRouter from "./ingest";
+import searchRouter from "./search";
 
 const router: IRouter = Router();
 
@@ -18,5 +19,6 @@ router.use(researchRouter);
 router.use(dashboardRouter);
 router.use(graphRouter);
 router.use(ingestRouter);
+router.use(searchRouter);
 
 export default router;
