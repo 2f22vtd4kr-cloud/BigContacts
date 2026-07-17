@@ -140,7 +140,7 @@ export default function TargetsScreen() {
         style={[
           styles.header,
           {
-            paddingTop: insets.top + 16 + webTopPadding,
+            paddingTop: insets.top + 6 + webTopPadding,
             borderBottomColor: colors.border,
             backgroundColor: colors.card,
           },
@@ -175,7 +175,7 @@ export default function TargetsScreen() {
           keyExtractor={(item) => String(item.id)}
           contentContainerStyle={[
             styles.list,
-            { paddingBottom: insets.bottom + 100 + webBottomPadding },
+            { paddingBottom: insets.bottom + 60 + webBottomPadding },
           ]}
           renderItem={({ item }) => (
             <EntityCard entity={item} onPress={() => handleSelect(item)} />
@@ -212,7 +212,7 @@ const styles = StyleSheet.create({
   // Header
   header: {
     paddingHorizontal: 20,
-    paddingBottom: 16,
+    paddingBottom: 10,
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',

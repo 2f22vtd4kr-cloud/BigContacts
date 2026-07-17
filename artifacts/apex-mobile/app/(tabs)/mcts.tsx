@@ -164,7 +164,7 @@ export default function MctsScreen() {
         style={[
           styles.header,
           {
-            paddingTop: insets.top + 16 + webTopPadding,
+            paddingTop: insets.top + 6 + webTopPadding,
             borderBottomColor: colors.border,
             backgroundColor: colors.card,
           },
@@ -249,7 +249,7 @@ export default function MctsScreen() {
         style={[
           styles.controls,
           {
-            paddingBottom: insets.bottom + 16 + webBottomPadding,
+            paddingBottom: insets.bottom + 58 + webBottomPadding,
             borderTopColor: colors.border,
             backgroundColor: colors.card,
           },
@@ -318,7 +318,7 @@ const styles = StyleSheet.create({
 
   header: {
     paddingHorizontal: 20,
-    paddingBottom: 14,
+    paddingBottom: 10,
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',

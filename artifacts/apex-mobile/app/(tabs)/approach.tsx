@@ -242,7 +242,7 @@ export default function ApproachScreen() {
         style={[
           styles.header,
           {
-            paddingTop: insets.top + 16 + webTopPadding,
+            paddingTop: insets.top + 6 + webTopPadding,
             borderBottomColor: colors.border,
             backgroundColor: colors.card,
           },
@@ -288,7 +288,7 @@ export default function ApproachScreen() {
       <ScrollView
         contentContainerStyle={[
           styles.pathList,
-          { paddingBottom: insets.bottom + 120 + webBottomPadding },
+          { paddingBottom: insets.bottom + 58 + webBottomPadding },
         ]}
       >
         {winningPath.map((step, i) => (
@@ -359,7 +359,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   header: {
     paddingHorizontal: 20,
-    paddingBottom: 14,
+    paddingBottom: 10,
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
