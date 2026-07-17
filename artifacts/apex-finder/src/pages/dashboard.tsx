@@ -70,7 +70,7 @@ export default function Dashboard() {
   const [mobileTab, setMobileTab] = useState<"map" | "signals">("signals");
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col md:h-full">
       <StatsBar />
 
       {/* Mobile tab bar */}
@@ -95,11 +95,11 @@ export default function Dashboard() {
         ))}
       </div>
 
-      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+      <div className="flex-1 flex flex-col md:flex-row md:overflow-hidden">
         {/* Map Section */}
         <div className={cn(
-          "flex-1 relative bg-muted/20",
-          mobileTab !== "map" ? "hidden md:block" : "flex flex-col"
+          "relative bg-muted/20",
+          mobileTab !== "map" ? "hidden md:block" : "flex flex-col h-[60vh] md:flex-1"
         )}>
           {mapData && (
             <MapContainer
@@ -151,10 +151,10 @@ export default function Dashboard() {
         {/* Hot Leads Feed */}
         <div className={cn(
           "border-border bg-card/50 backdrop-blur-sm flex flex-col z-20",
-          "md:w-96 md:border-l md:flex",
-          mobileTab !== "signals" ? "hidden md:flex" : "flex flex-1"
+          "md:w-96 md:border-l md:overflow-hidden",
+          mobileTab !== "signals" ? "hidden md:flex" : "flex flex-col"
         )}>
-          <div className="p-4 border-b border-border flex justify-between items-center">
+          <div className="p-4 border-b border-border flex justify-between items-center flex-shrink-0">
             <h2 className="text-sm font-bold font-mono tracking-wider flex items-center uppercase text-amber-500">
               <ShieldAlert className="w-4 h-4 mr-2" /> Live Signals
             </h2>
@@ -164,7 +164,7 @@ export default function Dashboard() {
             </span>
           </div>
 
-          <div className="flex-1 overflow-y-auto divide-y divide-border">
+          <div className="md:flex-1 md:overflow-y-auto divide-y divide-border">
             {hotLeads?.map((lead) => (
               <div key={lead.entityId} className="p-4 hover:bg-muted/30 transition-colors cursor-pointer group">
                 <div className="flex justify-between items-start mb-2">

@@ -132,10 +132,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
         {/* Compliance Disclaimer Banner */}
         {!bannerDismissed && (
-          <div className="flex-shrink-0 bg-amber-950/40 border-b border-amber-600/25 px-3 md:px-4 py-2 flex items-center justify-between z-30">
-            <div className="flex items-center space-x-2 min-w-0">
-              <ShieldAlert className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
-              <span className="text-[10px] md:text-[11px] font-mono text-amber-400/80 truncate">
+          <div className="flex-shrink-0 bg-amber-950/40 border-b border-amber-600/25 px-3 md:px-4 py-2 flex items-start justify-between z-30 gap-2">
+            <div className="flex items-start gap-2 min-w-0">
+              <ShieldAlert className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
+              <span className="text-[10px] md:text-[11px] font-mono text-amber-400/80 leading-relaxed">
                 <span className="text-amber-500 font-bold">COMPLIANCE NOTICE:</span>{" "}
                 For professional networking and public-data research only. All data sourced
                 exclusively from public registries and OSINT. Comply with GDPR, CCPA, and all
@@ -144,7 +144,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </div>
             <button
               onClick={() => setBannerDismissed(true)}
-              className="ml-3 text-amber-600/60 hover:text-amber-400 flex-shrink-0 transition-colors"
+              className="text-amber-600/60 hover:text-amber-400 flex-shrink-0 transition-colors mt-0.5"
             >
               <X className="w-3.5 h-3.5" />
             </button>
