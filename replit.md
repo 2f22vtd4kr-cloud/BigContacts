@@ -88,6 +88,21 @@ Five tabs in the sidebar:
 - **Graph page uses `?entity=<id>` query param** — link to `/graph?entity=5` to open any entity's network directly.
 - **React 19 `useRef` requires initial value** — `useRef<T>()` is invalid; use `useRef<T | undefined>(undefined)`.
 
+## Session log (most recent first)
+
+### Session 2 — Master prompt implementation, graph navigation, pitch engine
+- Saved master prompt permanently to replit.md
+- Fixed duplicate `cn` in `layout.tsx`, `dashboard.tsx`, `research.tsx` — all now import from `@/lib/utils`
+- Graph page: entity selector dropdown (search/filter all entities), reads `?entity=N` from URL, "Set as Target" from node panel
+- Dashboard "View Network" links now route to `/graph?entity=<entityId>`
+- Pitch generator completely rewritten: gatekeeper classification (Geometra/Safari PH/Yacht Broker/Club/Family Office), Italian-language template for geometri, seasonal timing advice (safari Oct–Nov pre-season), commission structure by type, APEX INTELLIGENCE BRIEF block
+- Mock data: replaced all placeholder phone numbers with realistic ones; enriched gatekeeper metadata with approach vectors and seasonal windows
+
+### Session 1 — Setup and baseline
+- Fixed React 19 `useRef` type error in `graph.tsx`
+- Built lib packages, pushed DB schema, seeded mock data
+- Both workflows running (API server port 8080, frontend port 23695)
+
 ## Pointers
 
 - See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
