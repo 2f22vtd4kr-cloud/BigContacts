@@ -1,0 +1,41 @@
+New Session — Scale HNWI Data Engine with Redis + Massive Western Registry Ingestion
+Master prompt + previous sessions remain fully active. We now have Redis for caching, deduplication, queues, and fast lookups.
+Core Mission: Rapidly expand the database to tens of thousands (target 20k–50k+ initially) of high-net-worth individuals (actual wealthy people, not intermediaries) and their relevant contacts/gatekeepers from Western world countries only (USA, Canada, UK, Western Europe, Switzerland, Norway, Australia, New Zealand, etc.).
+Your Italy geometra story was simply an example of creative networking and incentive-based outreach. Do not treat geometri or similar local professionals as the main targets — they are not the HNWIs. Focus on actual rich individuals (jet/yacht owners, major asset holders, high-value business owners, etc.) and the real gatekeepers who have direct personal access to them (family offices, private bankers, elite brokers, club secretaries, etc.).
+Key Requirements:
+•  Prioritize personal proximity (“get close to the body”): personal phones, WhatsApp/Signal, private introductions, trusted advisors with direct access. Company emails and PR staff are low-value.
+•  Use Redis aggressively for deduplication, fast entity/contact lookups, and background job queuing.
+•  All data Western-focused. High-quality public/semi-public sources only.
+Immediate Tasks:
+1.  Redis Integration
+	•  Add Redis client to the API server.
+	•  Use it for entity deduplication (by name + country + asset hash), caching scores/contacts, and ingestion queues.
+	•  Implement background job processing for large-scale data loading.
+2.  Massive Western HNWI Ingestion Pipeline
+	•  Fully ingest and process latest FAA Aircraft Registry → filter for private/high-value aircraft owners (individuals and family-linked companies) in Western countries.
+	•  Expand to other Western asset classes: yachts (IMO/public maritime data), luxury property where accessible, business registries (Companies House, etc.), public high-net-worth lists and filings.
+	•  Enrich each HNWI record with:
+		•  Bayesian investor score (asset volume, multiple holdings, etc.).
+		•  Proximity score (strength of personal access paths).
+		•  Contact vectors (personal channels > trusted gatekeepers > others).
+	•  Aim for tens of thousands of records in the first major ingestion run. Use Redis to prevent duplicates and track progress.
+	•  Create a robust /api/ingest/western-hnwi endpoint + background jobs.
+3.  Search & Discovery
+	•  Enhance /api/search/hnwi with strong filters: country/region, asset types, min score, proximity level.
+	•  Support natural queries like “US private jet owners in California with strong personal networks”.
+4.  MCTS & Warm Paths
+	•  Bias MCTS toward high-value Western HNWIs and realistic warm introduction paths (private clubs, family offices, elite brokers, etc.).
+	•  Surface best personal-proximity approaches with concrete next steps and incentive ideas (creative, personalized bonuses as in your original networking style).
+5.  UI / CRM Updates
+	•  Intelligence HQ: Show Western HNWI count, asset heat map, live ingestion stats.
+	•  Entity views: Clear distinction between the wealthy target and their gatekeepers/contacts.
+	•  Ledger + Export: Easy CSV export with scores, contacts, and suggested warm outreach notes.
+	•  Maintain the stunning dark obsidian + neon aesthetic.
+Ethical Guardrails:
+•  Only public Western data. Strong disclaimers on all screens.
+•  Respect privacy and anti-spam laws. Include opt-out language in all generated pitches.
+After Execution:
+•  Report ingestion results (total HNWIs loaded, high-proximity targets, etc.).
+•  Update replit.md with Redis usage details and current scale.
+•  Provide a few example high-value Western targets with their top warm paths.
+Execute this at full power. Focus on actual wealthy individuals and creative, high-proximity access. Build the no-brainer tool. Go.
