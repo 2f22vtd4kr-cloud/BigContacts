@@ -155,11 +155,11 @@ export default function MCTSTerminal() {
           ))}
         </div>
 
-        <div className="p-4 border-t border-border bg-muted/20 space-y-2">
+        <div className="p-3 border-t border-border bg-muted/20 space-y-2">
           <button
             disabled={!selectedEntityId || isComputing}
             onClick={startSimulation}
-            className="w-full py-3 bg-primary/20 hover:bg-primary/30 disabled:bg-muted disabled:text-muted-foreground text-primary border border-primary/50 disabled:border-border font-mono text-sm uppercase tracking-widest transition-all flex items-center justify-center"
+            className="w-full py-2 bg-primary/20 hover:bg-primary/30 disabled:bg-muted disabled:text-muted-foreground text-primary border border-primary/50 disabled:border-border font-mono text-sm uppercase tracking-widest transition-all flex items-center justify-center"
           >
             {isComputing ? (
               <span className="animate-pulse flex items-center">

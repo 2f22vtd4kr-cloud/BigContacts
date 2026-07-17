@@ -182,7 +182,7 @@ export default function PipelineCRM() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden relative">
-      <div className="p-6 border-b border-border bg-card flex-shrink-0">
+      <div className="px-6 py-3 border-b border-border bg-card flex-shrink-0">
         <h1 className="text-xl font-bold font-mono tracking-widest text-foreground uppercase">
           Pipeline CRM
         </h1>
@@ -190,7 +190,7 @@ export default function PipelineCRM() {
 
       {/* ── Kanban Board ── */}
       <div className="flex-1 overflow-x-auto overflow-y-hidden">
-        <div className="flex h-full p-6 space-x-4 min-w-max">
+        <div className="flex h-full p-4 space-x-4 min-w-max">
           {CRM_COLUMNS.map((column) => {
             const columnSessions = sessions?.filter((s) => s.crmStatus === column) ?? [];
 

@@ -20,7 +20,7 @@ export interface RegistryResult {
 
 export interface RegistrySearchParams {
   query: string;
-  registry: "opencorporates" | "companies-house";
+  registry: "opencorporates" | "companies-house" | "sec-edgar";
   limit?: number;
 }
 
@@ -206,6 +206,93 @@ async function searchCompaniesHouse(
   return results;
 }
 
+// ─── SEC EDGAR ───────────────────────────────────────────────────────────────
+// Free, no API key required.
+// Searches EDGAR full-text for a person/company name across:
+//   - SC 13D / SC 13G  (large shareholders >5% — high net worth indicator)
+//   - DEF 14A          (proxy statements listing directors & executives)
+// Returns both Corporation and HNWI results.
+
+async function searchSecEdgar(
+  query: string,
+  limit: number,
+): Promise<RegistryResult[]> {
+  const forms = "SC+13D,SC+13G,DEF+14A";
+  const url =
+    `https://efts.sec.gov/LATEST/search-index?q=${encodeURIComponent(`"${query}"`)}&forms=${forms}&dateRange=custom&startdt=2018-01-01&_source=file_date,entity_name,file_num,period_of_report,form_type,biz_states,biz_location,inc_states&hits.hits.total.value=true&hits.hits._source=true&hits.hits.highlight=true&hits.hits._source.includes=entity_name,file_date,form_type,period_of_report,biz_location,inc_states&hits.hits.total.relation=eq&hits.hits.sort=score&hits.hits._source.excludes=&category=form-type&dateRange=custom`;
+
+  // Simpler URL:
+  const searchUrl =
+    `https://efts.sec.gov/LATEST/search-index?q=${encodeURIComponent(`"${query}"`)}&forms=SC+13D,SC+13G,DEF+14A&dateRange=custom&startdt=2018-01-01`;
+
+  const resp = await fetch(searchUrl, {
+    headers: {
+      Accept: "application/json",
+      "User-Agent": "ApexFinder/1.0 OSINT-Research research@apexfinder.private",
+    },
+    signal: AbortSignal.timeout(12_000),
+  });
+
+  if (!resp.ok) {
+    const body = await resp.text().catch(() => "");
+    throw new Error(`SEC EDGAR ${resp.status}: ${body.slice(0, 200) || resp.statusText}`);
+  }
+
+  const data = (await resp.json()) as any;
+  const hits: any[] = data?.hits?.hits ?? [];
+
+  // Deduplicate by entity name
+  const seen = new Set<string>();
+  const results: RegistryResult[] = [];
+
+  for (const hit of hits) {
+    if (results.length >= limit) break;
+    const src = hit?._source ?? {};
+    const entityName: string = src?.entity_name ?? src?.display_names?.[0]?.name ?? "Unknown";
+    const formType: string = src?.form_type ?? "";
+    const fileDate: string = src?.file_date ?? "";
+    const biz: string = src?.biz_location ?? src?.inc_states ?? "US";
+
+    const key = entityName.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    // SC 13D/G filers are large shareholders — likely HNWI or fund
+    const isLargeholder = formType.startsWith("SC 13") || formType.startsWith("SC13");
+    // DEF 14A lists directors/executives — treat as potential HNWI gatekeepers
+    const isProxy = formType === "DEF 14A" || formType === "DEF14A";
+
+    const type: RegistryResult["type"] =
+      isLargeholder ? "HNWI" : isProxy ? "Gatekeeper" : "Corporation";
+
+    results.push({
+      name: entityName,
+      type,
+      nationality: "US",
+      knownResidences: biz || undefined,
+      sourceRegistries: JSON.stringify(["SEC EDGAR", `Form ${formType}`]),
+      notes: [
+        formType ? `Filing: ${formType}` : null,
+        fileDate ? `Date: ${fileDate}` : null,
+        src?.period_of_report ? `Period: ${src.period_of_report}` : null,
+      ]
+        .filter(Boolean)
+        .join(" | "),
+      metadata: JSON.stringify({
+        source: "sec-edgar",
+        formType,
+        fileDate,
+        entityName,
+        bizLocation: src?.biz_location,
+        incStates: src?.inc_states,
+        cik: src?.entity_id,
+      }),
+    });
+  }
+
+  return results;
+}
+
 // ─── Public entry point ───────────────────────────────────────────────────────
 
 export async function searchRegistry(
@@ -231,5 +318,9 @@ export async function searchRegistry(
     return searchCompaniesHouse(query.trim(), apiKey, limit);
   }
 
-  throw new Error(`Unknown registry: "${registry}". Use "opencorporates" or "companies-house".`);
+  if (registry === "sec-edgar") {
+    return searchSecEdgar(query.trim(), limit);
+  }
+
+  throw new Error(`Unknown registry: "${registry}". Use "opencorporates", "companies-house", or "sec-edgar".`);
 }

@@ -48,7 +48,7 @@ export default function EntityLedger() {
 
   const [showRegistry, setShowRegistry] = useState(false);
   const [registryQuery, setRegistryQuery] = useState("");
-  const [registrySource, setRegistrySource] = useState<"opencorporates" | "companies-house">("opencorporates");
+  const [registrySource, setRegistrySource] = useState<"opencorporates" | "companies-house" | "sec-edgar">("opencorporates");
   const [registryResults, setRegistryResults] = useState<RegistryResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [registryError, setRegistryError] = useState<string | null>(null);
@@ -108,7 +108,7 @@ export default function EntityLedger() {
       const resp = await fetch("/api/registry-search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: registryQuery.trim(), registry: registrySource, limit: 10 }),
+        body: JSON.stringify({ query: registryQuery.trim(), registry: registrySource, limit: 15 }),
       });
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.error ?? "Registry search failed.");
@@ -142,7 +142,7 @@ export default function EntityLedger() {
     <div className="flex h-full flex-col">
 
       {/* ── Header ── */}
-      <div className="p-6 border-b border-border bg-card flex justify-between items-center flex-shrink-0">
+      <div className="px-6 py-3 border-b border-border bg-card flex justify-between items-center flex-shrink-0">
         <div>
           <h1 className="text-xl font-bold font-mono tracking-widest text-foreground uppercase">Entity Ledger</h1>
           <p className="text-sm text-muted-foreground font-mono mt-1">Classified Intelligence Registry</p>
@@ -208,6 +208,7 @@ export default function EntityLedger() {
               className="bg-background border border-border rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-secondary"
             >
               <option value="opencorporates">OpenCorporates (Global, Free)</option>
+              <option value="sec-edgar">SEC EDGAR (US Large Holders &amp; Directors, Free)</option>
               <option value="companies-house">Companies House (UK, Needs API Key)</option>
             </select>
             <button
@@ -267,23 +268,23 @@ export default function EntityLedger() {
       )}
 
       {/* ── Entity Table ── */}
-      <div className="flex-1 overflow-auto p-6">
+      <div className="flex-1 overflow-auto p-4">
         <div className="border border-border rounded bg-card overflow-hidden">
           <table className="w-full text-sm text-left">
             <thead className="text-xs text-muted-foreground uppercase bg-muted/50 font-mono border-b border-border">
               <tr>
-                <th className="px-6 py-4">Name / ID</th>
-                <th className="px-6 py-4">Classification</th>
-                <th className="px-6 py-4">Signal Score</th>
-                <th className="px-6 py-4">Net Worth</th>
-                <th className="px-6 py-4">Assets</th>
-                <th className="px-6 py-4 text-right">Actions</th>
+                <th className="px-4 py-3">Name / ID</th>
+                <th className="px-4 py-3">Classification</th>
+                <th className="px-4 py-3">Signal Score</th>
+                <th className="px-4 py-3">Net Worth</th>
+                <th className="px-4 py-3">Assets</th>
+                <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y border-border">
               {entities?.map((entity) => (
                 <tr key={entity.id} className="hover:bg-muted/20 transition-colors group">
-                  <td className="px-6 py-4">
+                  <td className="px-4 py-3">
                     <div className="flex items-center">
                       {entity.isHot && <ShieldAlert className="w-4 h-4 text-amber-500 mr-2 animate-pulse" />}
                       <div>
@@ -294,7 +295,7 @@ export default function EntityLedger() {
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 py-3">
                     <div className="flex flex-col space-y-1.5">
                       <div className="flex items-center space-x-2">
                         <span className="bg-muted px-2 py-1 rounded text-xs font-mono text-muted-foreground border border-border">
@@ -320,10 +321,10 @@ export default function EntityLedger() {
                       })()}
                     </div>
                   </td>
-                  <td className="px-6 py-4"><ScoreBadge score={entity.bayesianScore} /></td>
-                  <td className="px-6 py-4 text-foreground font-mono">{formatCurrency(entity.estimatedNetWorth)}</td>
-                  <td className="px-6 py-4 text-foreground font-mono">{entity.assetCount}</td>
-                  <td className="px-6 py-4 text-right">
+                  <td className="px-4 py-3"><ScoreBadge score={entity.bayesianScore} /></td>
+                  <td className="px-4 py-3 text-foreground font-mono">{formatCurrency(entity.estimatedNetWorth)}</td>
+                  <td className="px-4 py-3 text-foreground font-mono">{entity.assetCount}</td>
+                  <td className="px-4 py-3 text-right">
                     <div className="flex justify-end space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button className="p-1.5 text-muted-foreground hover:text-secondary bg-muted rounded border border-border">
                         <Edit2 className="w-4 h-4" />
@@ -340,7 +341,7 @@ export default function EntityLedger() {
               ))}
               {(!entities || entities.length === 0) && (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-muted-foreground font-mono">
+                  <td colSpan={6} className="px-6 py-8 text-center text-muted-foreground font-mono">
                     No entities found matching criteria.
                   </td>
                 </tr>

@@ -35,7 +35,7 @@ function StatsBar() {
   if (!stats) return null;
 
   return (
-    <div className="grid grid-cols-4 gap-4 p-6 border-b border-border bg-card/50 backdrop-blur-md sticky top-0 z-20">
+    <div className="grid grid-cols-4 gap-4 px-6 py-3 border-b border-border bg-card/50 backdrop-blur-md sticky top-0 z-20">
       <div className="flex flex-col">
         <span className="text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1 flex items-center">
           <Database className="w-3 h-3 mr-1" /> Entities Tracked

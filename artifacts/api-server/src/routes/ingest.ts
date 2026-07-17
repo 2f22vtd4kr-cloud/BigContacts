@@ -34,9 +34,9 @@ router.post("/registry-search", async (req: Request, res: Response): Promise<voi
     return;
   }
 
-  if (!["opencorporates", "companies-house"].includes(registry)) {
+  if (!["opencorporates", "companies-house", "sec-edgar"].includes(registry)) {
     res.status(400).json({
-      error: `registry must be "opencorporates" or "companies-house". Got: "${registry}"`,
+      error: `registry must be "opencorporates", "companies-house", or "sec-edgar". Got: "${registry}"`,
     });
     return;
   }
@@ -44,7 +44,7 @@ router.post("/registry-search", async (req: Request, res: Response): Promise<voi
   try {
     const results = await searchRegistry({
       query: query.trim(),
-      registry: registry as "opencorporates" | "companies-house",
+      registry: registry as "opencorporates" | "companies-house" | "sec-edgar",
       limit: Math.min(Number(limit) || 10, 20),
     });
     res.json({

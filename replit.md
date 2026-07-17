@@ -90,6 +90,16 @@ Five tabs in the sidebar:
 
 ## Session log (most recent first)
 
+### Session 3 — Spacing tightened, SEC EDGAR live source added
+- All page headers reduced: `p-6` → `px-6 py-3` across Dashboard stats bar, CRM header, Entity Ledger header
+- CRM kanban gutter reduced: `p-6` → `p-4`
+- Entity table cells: `px-6 py-4` → `px-4 py-3` (fits more rows on screen)
+- Entity empty state: `py-12` → `py-8`
+- MCTS Terminal button area: `p-4` + `py-3` → `p-3` + `py-2`
+- Added **SEC EDGAR** as third live data source (free, no key): searches SC 13D/G (large shareholders >5%) and DEF 14A (directors/executives) filings since 2018. Available in Entity Ledger → LIVE INTEL dropdown as "SEC EDGAR (US Large Holders & Directors, Free)"
+- Live registry routes now accept `"sec-edgar"` in addition to `"opencorporates"` and `"companies-house"`
+- Artifact workflows re-registered after GitHub import; managed workflows now drive all four services
+
 ### Session 2 — Master prompt implementation, graph navigation, pitch engine
 - Saved master prompt permanently to replit.md
 - Fixed duplicate `cn` in `layout.tsx`, `dashboard.tsx`, `research.tsx` — all now import from `@/lib/utils`
