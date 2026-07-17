@@ -383,7 +383,7 @@ export default function FieldManual() {
             <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-widest mt-7 mb-4">
               Your 5-step playbook
             </h3>
-            <div className="flex items-start gap-2 overflow-x-auto pb-4">
+            <div className="flex items-start gap-2 overflow-x-auto pt-3 pb-4">
               {WORKFLOW.map((step, i) => (
                 <div key={step.n} className="flex items-center gap-2 shrink-0">
                   <WorkflowStep {...step} />
