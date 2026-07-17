@@ -266,36 +266,37 @@ export default function FieldManual() {
   const [activeLevel, setActiveLevel] = useState(1);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Update active level as user scrolls
+  // IntersectionObserver — works regardless of which ancestor scrolls
   useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const onScroll = () => {
-      const positions = [1, 2, 3, 4].map((n) => {
-        const sec = el.querySelector(`#section-${n}`);
-        if (!sec) return { n, top: 9999 };
-        return { n, top: (sec as HTMLElement).getBoundingClientRect().top };
-      });
-      const visible = positions.filter((p) => p.top <= 200);
-      if (visible.length > 0) {
-        setActiveLevel(visible[visible.length - 1].n);
-      }
-    };
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => el.removeEventListener("scroll", onScroll);
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            const n = parseInt(entry.target.id.replace("section-", ""), 10);
+            if (!isNaN(n)) setActiveLevel(n);
+          }
+        }
+      },
+      { threshold: 0.25 }
+    );
+    [1, 2, 3, 4].forEach((n) => {
+      const el = document.getElementById(`section-${n}`);
+      if (el) observer.observe(el);
+    });
+    return () => observer.disconnect();
   }, []);
 
   const scrollToSection = (n: number) => {
-    const sec = scrollRef.current?.querySelector(`#section-${n}`);
-    sec?.scrollIntoView({ behavior: "smooth", block: "start" });
+    // scrollIntoView bubbles to the nearest scrollable ancestor automatically
+    document.getElementById(`section-${n}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
     setActiveLevel(n);
   };
 
   return (
-    <div className="flex h-full bg-[#0B0F19] font-mono text-[#E2E8F0] overflow-hidden">
+    <div className="flex flex-col md:flex-row md:h-full bg-[#0B0F19] font-mono text-[#E2E8F0] md:overflow-hidden">
 
-      {/* ── Left Sidebar ─────────────────────────────────────────────────── */}
-      <div className="w-52 shrink-0 bg-[#0F172A] border-r border-[#1E293B] flex flex-col">
+      {/* ── Left Sidebar — desktop only ──────────────────────────────────── */}
+      <div className="hidden md:flex w-52 shrink-0 bg-[#0F172A] border-r border-[#1E293B] flex-col">
         <div className="p-5 border-b border-[#1E293B]">
           <div className="flex items-center gap-2 text-[#10B981] mb-1">
             <Crosshair size={16} className="animate-pulse" />
@@ -324,9 +325,35 @@ export default function FieldManual() {
         </div>
       </div>
 
+      {/* ── Mobile level tab bar ─────────────────────────────────────────── */}
+      <div className="md:hidden flex-shrink-0 flex border-b border-[#1E293B] bg-[#0F172A] overflow-x-auto">
+        {LEVELS.map((level) => {
+          const active = activeLevel === level.id;
+          return (
+            <button
+              key={level.id}
+              onClick={() => scrollToSection(level.id)}
+              className="flex items-center gap-2 px-4 py-3 whitespace-nowrap border-b-2 transition-colors flex-shrink-0"
+              style={{
+                borderBottomColor: active ? level.color : "transparent",
+                color: active ? level.color : "#475569",
+              }}
+            >
+              <span
+                className="w-5 h-5 rounded-full border flex items-center justify-center text-[9px] font-bold"
+                style={{ borderColor: active ? level.color : "#1E293B" }}
+              >
+                {level.numeral}
+              </span>
+              <span className="text-[11px] font-bold tracking-wider">{level.title}</span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* ── Scrollable Content ────────────────────────────────────────────── */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto">
-        <div className="max-w-4xl mx-auto p-8 space-y-8 pb-32">
+      <div ref={scrollRef} className="flex-1 md:overflow-y-auto">
+        <div className="max-w-4xl mx-auto p-4 md:p-8 space-y-6 md:space-y-8 pb-20">
 
           {/* ══════════════════════════════════════════════════════
               LEVEL I — BASICS
