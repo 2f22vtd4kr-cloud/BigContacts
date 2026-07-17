@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import {
   FileText, UserCircle, ChevronRight, Copy,
   MessageSquare, Clock, Users, Shield, Target,
+  ChevronDown, Zap,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -22,6 +23,17 @@ const CRM_COLUMNS = [
   "Follow-Up",
   "Closed",
 ];
+
+const STAGE_COLORS: Record<string, string> = {
+  "Lead Gen": "#475569",
+  "Identified": "#64748B",
+  "Graph Mapped": "#3B82F6",
+  "MCTS Path Selected": "#A855F7",
+  "Pitch Generated": "#F59E0B",
+  "Contacted": "#10B981",
+  "Follow-Up": "#F97316",
+  "Closed": "#10B981",
+};
 
 // ── Pitch sequence display with tab switching ─────────────────────────────────
 
@@ -37,13 +49,11 @@ function PitchSequenceDisplay({ pitch }: { pitch: string }) {
   let sequence: PitchSequence | null = null;
   try {
     sequence = JSON.parse(pitch) as PitchSequence;
-    // Validate it actually has the expected keys
     if (!sequence.initial) sequence = null;
   } catch {
     sequence = null;
   }
 
-  // Legacy plain-text pitch (pre-sequence format)
   if (!sequence) {
     return (
       <div className="relative group">
@@ -156,6 +166,142 @@ function WinningPathDisplay({ raw }: { raw: string }) {
   );
 }
 
+// ── Mobile session accordion card ─────────────────────────────────────────────
+
+function MobileSessionCard({
+  session,
+  expanded,
+  onToggle,
+  onGeneratePitch,
+  generatingId,
+  moveCard,
+}: {
+  session: any;
+  expanded: boolean;
+  onToggle: () => void;
+  onGeneratePitch: (id: number) => void;
+  generatingId: number | null;
+  moveCard: (id: number, status: string, dir: 1 | -1) => void;
+}) {
+  const stageColor = STAGE_COLORS[session.crmStatus] ?? "#64748B";
+
+  return (
+    <div className="border-b border-border last:border-0">
+      <button
+        onClick={onToggle}
+        className="w-full text-left px-4 py-3 flex items-center gap-3"
+      >
+        <div className="flex-1 min-w-0">
+          <div className="font-semibold text-sm text-foreground truncate mb-1">
+            {session.targetEntityName ?? "Unknown Target"}
+          </div>
+          <span
+            className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded"
+            style={{ color: stageColor, backgroundColor: stageColor + "18" }}
+          >
+            {session.crmStatus.toUpperCase()}
+          </span>
+        </div>
+        <div className="flex flex-col items-end gap-1 flex-shrink-0">
+          <ScoreBadge score={session.bayesianScoreAtRuntime} />
+          {session.createdAt && (
+            <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+              <Clock className="w-2.5 h-2.5" />
+              {format(new Date(session.createdAt), "MM/dd")}
+            </span>
+          )}
+        </div>
+        <ChevronDown
+          className="w-4 h-4 text-muted-foreground flex-shrink-0 transition-transform"
+          style={{ transform: expanded ? "rotate(180deg)" : undefined }}
+        />
+      </button>
+
+      {expanded && (
+        <div className="mx-4 mb-3 rounded border border-border bg-muted/10 overflow-hidden">
+          {/* Stage progress chips */}
+          <div className="px-3 py-2.5 border-b border-border">
+            <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-2">Pipeline</div>
+            <div className="flex gap-1 flex-wrap">
+              {CRM_COLUMNS.map((col) => {
+                const idx = CRM_COLUMNS.indexOf(col);
+                const cur = CRM_COLUMNS.indexOf(session.crmStatus);
+                const isCurrent = idx === cur;
+                const isPast = idx < cur;
+                const c = isCurrent ? stageColor : isPast ? "#334155" : "#1E293B";
+                return (
+                  <span
+                    key={col}
+                    className="text-[9px] px-1.5 py-0.5 rounded font-mono font-bold"
+                    style={{
+                      color: isCurrent ? stageColor : isPast ? "#64748B" : "#334155",
+                      backgroundColor: c + (isCurrent ? "22" : "33"),
+                      border: `1px solid ${c}44`,
+                    }}
+                  >
+                    {col.replace(" ", "\u00A0")}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Approach vector */}
+          {session.winningPath && (
+            <div className="px-3 py-2.5 border-b border-border">
+              <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-2">Approach Vector</div>
+              <WinningPathDisplay raw={session.winningPath} />
+            </div>
+          )}
+
+          {/* Move stage */}
+          <div className="px-3 py-2.5 border-b border-border flex items-center justify-between">
+            <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">Move Stage</span>
+            <div className="flex gap-2">
+              <button
+                disabled={CRM_COLUMNS.indexOf(session.crmStatus) === 0}
+                onClick={() => moveCard(session.id, session.crmStatus, -1)}
+                className="w-7 h-7 flex items-center justify-center rounded border border-border text-muted-foreground hover:text-primary disabled:opacity-30 transition-colors"
+              >
+                <ChevronRight className="w-4 h-4 rotate-180" />
+              </button>
+              <button
+                disabled={CRM_COLUMNS.indexOf(session.crmStatus) === CRM_COLUMNS.length - 1}
+                onClick={() => moveCard(session.id, session.crmStatus, 1)}
+                className="w-7 h-7 flex items-center justify-center rounded border border-border text-muted-foreground hover:text-primary disabled:opacity-30 transition-colors"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="px-3 py-2.5 flex gap-2">
+            {!session.generatedPitch && (
+              <button
+                onClick={() => onGeneratePitch(session.id)}
+                disabled={generatingId === session.id}
+                className="flex-1 py-2 rounded text-[11px] font-mono font-bold flex items-center justify-center gap-1 border border-amber-500/30 bg-amber-500/8 text-amber-500 disabled:opacity-50 transition-colors"
+              >
+                <Zap className="w-3 h-3" />
+                {generatingId === session.id ? "GENERATING..." : "GEN PITCH"}
+              </button>
+            )}
+          </div>
+
+          {/* Pitch display */}
+          {session.generatedPitch && (
+            <div className="px-3 pb-3">
+              <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-2">Outreach Sequence</div>
+              <PitchSequenceDisplay pitch={session.generatedPitch} />
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main CRM component ────────────────────────────────────────────────────────
 
 export default function PipelineCRM() {
@@ -164,6 +310,11 @@ export default function PipelineCRM() {
   const generatePitch = useGeneratePitch();
 
   const [selectedSession, setSelectedSession] = useState<any>(null);
+
+  // Mobile state
+  const [mobileExpandedId, setMobileExpandedId] = useState<number | null>(null);
+  const [mobileStageFilter, setMobileStageFilter] = useState<string | null>(null);
+  const [generatingId, setGeneratingId] = useState<number | null>(null);
 
   const moveCard = (sessionId: number, currentStatus: string, direction: 1 | -1) => {
     const currentIndex = CRM_COLUMNS.indexOf(currentStatus);
@@ -177,19 +328,89 @@ export default function PipelineCRM() {
   };
 
   const handleGeneratePitch = (id: number) => {
-    generatePitch.mutate({ id }, { onSuccess: () => refetch() });
+    setGeneratingId(id);
+    generatePitch.mutate({ id }, {
+      onSuccess: () => { refetch(); setGeneratingId(null); },
+      onError: () => setGeneratingId(null),
+    });
   };
+
+  // Unique stages that have sessions
+  const activeStages = CRM_COLUMNS.filter((col) => sessions?.some((s) => s.crmStatus === col));
+  const mobileSessions = mobileStageFilter
+    ? sessions?.filter((s) => s.crmStatus === mobileStageFilter)
+    : sessions;
 
   return (
     <div className="flex h-full flex-col overflow-hidden relative">
-      <div className="px-6 py-3 border-b border-border bg-card flex-shrink-0">
-        <h1 className="text-xl font-bold font-mono tracking-widest text-foreground uppercase">
+      <div className="px-4 md:px-6 py-3 border-b border-border bg-card flex-shrink-0 flex items-center justify-between">
+        <h1 className="text-base md:text-xl font-bold font-mono tracking-widest text-foreground uppercase">
           Pipeline CRM
         </h1>
+        <span className="text-[10px] font-mono text-muted-foreground md:hidden">
+          {sessions?.length ?? 0} sessions
+        </span>
       </div>
 
-      {/* ── Kanban Board ── */}
-      <div className="flex-1 overflow-x-auto overflow-y-hidden">
+      {/* ── Mobile: stage filter chips + accordion list ── */}
+      <div className="flex flex-col flex-1 overflow-hidden md:hidden">
+        {/* Stage filter chips */}
+        <div className="px-4 py-2.5 border-b border-border overflow-x-auto flex-shrink-0">
+          <div className="flex gap-2 min-w-max">
+            <button
+              onClick={() => setMobileStageFilter(null)}
+              className="px-3 py-1.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wide transition-all"
+              style={{
+                backgroundColor: mobileStageFilter === null ? "hsl(160,84%,39%)" : "hsl(160,84%,39%,0.1)",
+                color: mobileStageFilter === null ? "#000" : "hsl(160,84%,39%)",
+                border: "1px solid hsl(160,84%,39%,0.3)",
+              }}
+            >
+              ALL
+            </button>
+            {activeStages.map((stage) => {
+              const c = STAGE_COLORS[stage] ?? "#64748B";
+              return (
+                <button
+                  key={stage}
+                  onClick={() => setMobileStageFilter(mobileStageFilter === stage ? null : stage)}
+                  className="px-3 py-1.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wide whitespace-nowrap transition-all"
+                  style={{
+                    backgroundColor: mobileStageFilter === stage ? c : c + "18",
+                    color: mobileStageFilter === stage ? "#000" : c,
+                    border: `1px solid ${c}44`,
+                  }}
+                >
+                  {stage}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Accordion session list */}
+        <div className="flex-1 overflow-y-auto bg-background divide-y divide-border">
+          {mobileSessions?.map((session) => (
+            <MobileSessionCard
+              key={session.id}
+              session={session}
+              expanded={mobileExpandedId === session.id}
+              onToggle={() => setMobileExpandedId(mobileExpandedId === session.id ? null : session.id)}
+              onGeneratePitch={handleGeneratePitch}
+              generatingId={generatingId}
+              moveCard={moveCard}
+            />
+          ))}
+          {(!mobileSessions || mobileSessions.length === 0) && (
+            <div className="flex flex-col items-center justify-center h-40 text-muted-foreground text-sm font-mono">
+              No sessions in this stage.
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Desktop: Kanban Board ── */}
+      <div className="hidden md:flex flex-1 overflow-x-auto overflow-y-hidden">
         <div className="flex h-full p-4 space-x-4 min-w-max">
           {CRM_COLUMNS.map((column) => {
             const columnSessions = sessions?.filter((s) => s.crmStatus === column) ?? [];
@@ -252,9 +473,9 @@ export default function PipelineCRM() {
         </div>
       </div>
 
-      {/* ── Session Detail Panel ── */}
+      {/* ── Desktop Session Detail Panel ── */}
       {selectedSession && (
-        <div className="absolute top-0 right-0 bottom-0 w-[42%] bg-card border-l border-border shadow-2xl z-30 flex flex-col animate-in slide-in-from-right duration-200">
+        <div className="hidden md:flex absolute top-0 right-0 bottom-0 w-[42%] bg-card border-l border-border shadow-2xl z-30 flex-col animate-in slide-in-from-right duration-200">
           <div className="p-4 border-b border-border flex justify-between items-center bg-muted/20 flex-shrink-0">
             <h2 className="font-bold text-sm font-mono tracking-wider flex items-center text-foreground">
               <FileText className="w-4 h-4 mr-2 text-primary" />
@@ -269,7 +490,6 @@ export default function PipelineCRM() {
           </div>
 
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
-            {/* Header */}
             <div>
               <h3 className="text-2xl font-bold text-foreground mb-2">
                 {selectedSession.targetEntityName}
@@ -291,7 +511,6 @@ export default function PipelineCRM() {
               </div>
             </div>
 
-            {/* Approach Vector */}
             <div>
               <h4 className="text-xs font-mono text-muted-foreground uppercase tracking-wider mb-3 border-b border-border pb-1">
                 Approach Vector
@@ -305,7 +524,6 @@ export default function PipelineCRM() {
               )}
             </div>
 
-            {/* Outreach Sequence */}
             <div>
               <h4 className="text-xs font-mono text-muted-foreground uppercase tracking-wider mb-3 border-b border-border pb-1 flex justify-between items-center">
                 <span>Outreach Sequence</span>
@@ -329,7 +547,6 @@ export default function PipelineCRM() {
               )}
             </div>
 
-            {/* Footer timestamps */}
             <div className="pt-2 border-t border-border flex justify-between items-center text-xs font-mono text-muted-foreground">
               <span>Created: {format(new Date(selectedSession.createdAt), "yyyy-MM-dd HH:mm")}</span>
               {selectedSession.lastContactDate && (

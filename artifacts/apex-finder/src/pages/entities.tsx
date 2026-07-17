@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { useListEntities, useCreateEntity, useDeleteEntity } from "@workspace/api-client-react";
 import { formatCurrency, ScoreBadge } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import {
   Plus, Search, Trash2, Edit2, ShieldAlert,
   Globe, ChevronDown, ChevronUp, X, Loader2,
+  ChevronRight, Network, Target as TargetIcon,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -39,6 +41,156 @@ const EMPTY_FORM: AddEntityForm = {
   notes: "", sourceRegistries: "",
 };
 
+const TYPE_COLORS: Record<string, string> = {
+  HNWI: "#10B981",
+  Corporation: "#3B82F6",
+  Trust: "#A855F7",
+  Gatekeeper: "#F59E0B",
+};
+
+// ─── Mobile entity detail overlay ────────────────────────────────────────────
+
+function MobileEntityDetail({ entity, onClose }: { entity: any; onClose: () => void }) {
+  const typeColor = TYPE_COLORS[entity.type] ?? "#64748B";
+
+  let registries: string[] = [];
+  try { registries = JSON.parse(entity.sourceRegistries ?? "[]"); } catch { registries = []; }
+
+  return (
+    <div className="fixed inset-0 bg-background z-50 flex flex-col md:hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card flex-shrink-0">
+        <span className="text-xs font-mono text-muted-foreground uppercase tracking-widest">Entity Detail</span>
+        <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-1">
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto">
+        {/* Hero */}
+        <div className="px-4 py-4 border-b border-border">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              {entity.isHot && (
+                <div className="flex items-center gap-1.5 mb-2">
+                  <ShieldAlert className="w-3.5 h-3.5 text-amber-500" />
+                  <span className="text-[10px] font-mono font-bold text-amber-500 uppercase tracking-wider">Hot Lead</span>
+                </div>
+              )}
+              <h2 className="text-lg font-bold text-foreground">{entity.name}</h2>
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                <span
+                  className="text-[10px] font-mono font-bold px-2 py-0.5 rounded"
+                  style={{ color: typeColor, backgroundColor: typeColor + "18" }}
+                >
+                  {entity.type.toUpperCase()}
+                </span>
+                {entity.nationality && <span className="text-xs text-muted-foreground">{entity.nationality}</span>}
+              </div>
+            </div>
+            <ScoreBadge score={entity.bayesianScore} />
+          </div>
+        </div>
+
+        {/* Fields */}
+        <div className="divide-y divide-border">
+          {entity.estimatedNetWorth && (
+            <div className="px-4 py-3">
+              <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1">Net Worth / AUM</div>
+              <div className="text-sm text-foreground font-mono">{formatCurrency(entity.estimatedNetWorth)}</div>
+            </div>
+          )}
+          {entity.knownResidences && (
+            <div className="px-4 py-3">
+              <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1">Known Residences</div>
+              <div className="text-sm text-foreground">{entity.knownResidences}</div>
+            </div>
+          )}
+          {entity.contactMethod && (
+            <div className="px-4 py-3">
+              <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1">Best Contact Vector</div>
+              <div className="text-sm text-foreground">{entity.contactMethod}</div>
+            </div>
+          )}
+          {registries.length > 0 && (
+            <div className="px-4 py-3">
+              <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-2">Source Registries</div>
+              <div className="flex flex-wrap gap-1">
+                {registries.map((r, i) => (
+                  <span key={i} className="text-[10px] font-mono px-2 py-0.5 rounded bg-secondary/10 text-secondary border border-secondary/20">
+                    {r}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          {entity.notes && (
+            <div className="px-4 py-3">
+              <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1">Intel Notes</div>
+              <div className="text-sm text-foreground/80 leading-relaxed">{entity.notes}</div>
+            </div>
+          )}
+          <div className="px-4 py-3">
+            <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1">Registry ID</div>
+            <div className="text-xs font-mono text-muted-foreground">#{entity.id.toString().padStart(6, "0")}</div>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="px-4 py-4 space-y-2">
+          <a
+            href={`/graph?entity=${entity.id}`}
+            className="flex w-full py-3 items-center justify-center gap-2 rounded text-xs font-mono font-bold text-primary border border-primary/30 bg-primary/8 uppercase tracking-wider"
+          >
+            <Network className="w-3.5 h-3.5" /> View Network Graph
+          </a>
+          <a
+            href="/research"
+            className="flex w-full py-3 items-center justify-center gap-2 rounded text-xs font-mono font-bold text-secondary border border-secondary/30 bg-secondary/8 uppercase tracking-wider"
+          >
+            <TargetIcon className="w-3.5 h-3.5" /> Run MCTS Analysis
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Mobile entity card ───────────────────────────────────────────────────────
+
+function MobileEntityCard({ entity, onSelect }: { entity: any; onSelect: () => void }) {
+  const typeColor = TYPE_COLORS[entity.type] ?? "#64748B";
+  return (
+    <button
+      onClick={onSelect}
+      className="w-full text-left px-4 py-3 flex items-center gap-3 active:bg-muted/20 transition-colors"
+    >
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5 mb-1">
+          {entity.isHot && <ShieldAlert className="w-3 h-3 text-amber-500 flex-shrink-0" />}
+          <span className="font-semibold text-sm text-foreground truncate">{entity.name}</span>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span
+            className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded"
+            style={{ color: typeColor, backgroundColor: typeColor + "18" }}
+          >
+            {entity.type.toUpperCase()}
+          </span>
+          {entity.nationality && <span className="text-[11px] text-muted-foreground">{entity.nationality}</span>}
+          {entity.estimatedNetWorth && (
+            <span className="text-[11px] text-muted-foreground">{formatCurrency(entity.estimatedNetWorth)}</span>
+          )}
+        </div>
+      </div>
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <ScoreBadge score={entity.bayesianScore} />
+        <ChevronRight className="w-4 h-4 text-muted-foreground" />
+      </div>
+    </button>
+  );
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function EntityLedger() {
@@ -53,6 +205,10 @@ export default function EntityLedger() {
   const [isSearching, setIsSearching] = useState(false);
   const [registryError, setRegistryError] = useState<string | null>(null);
   const [searchedOnce, setSearchedOnce] = useState(false);
+
+  // Mobile state
+  const [mobileSelectedEntity, setMobileSelectedEntity] = useState<any>(null);
+  const [mobileTypeFilter, setMobileTypeFilter] = useState<string | null>(null);
 
   const { data: entities, refetch } = useListEntities({
     search: searchTerm.length > 2 ? searchTerm : undefined,
@@ -136,13 +292,18 @@ export default function EntityLedger() {
     });
   };
 
+  // Filtered entities for mobile type filter
+  const mobileEntities = mobileTypeFilter
+    ? entities?.filter((e) => e.type === mobileTypeFilter)
+    : entities;
+
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col relative">
 
-      {/* ── Header ── */}
-      <div className="px-6 py-3 border-b border-border bg-card flex justify-between items-center flex-shrink-0">
+      {/* ── Desktop Header ── */}
+      <div className="hidden md:flex px-6 py-3 border-b border-border bg-card justify-between items-center flex-shrink-0">
         <div>
           <h1 className="text-xl font-bold font-mono tracking-widest text-foreground uppercase">Entity Ledger</h1>
           <p className="text-sm text-muted-foreground font-mono mt-1">Classified Intelligence Registry</p>
@@ -179,9 +340,55 @@ export default function EntityLedger() {
         </div>
       </div>
 
-      {/* ── Live Registry Panel ── */}
+      {/* ── Mobile Header ── */}
+      <div className="flex md:hidden flex-shrink-0 flex-col border-b border-border bg-card px-4 pt-3 pb-2 space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-mono font-bold text-muted-foreground uppercase tracking-widest">Entity Ledger</span>
+          <span className="text-[10px] font-mono text-muted-foreground">{mobileEntities?.length ?? 0} / {entities?.length ?? 0}</span>
+        </div>
+
+        {/* Mobile search */}
+        <div className="flex items-center gap-2 px-3 py-2 rounded bg-background border border-border">
+          <Search className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Search entities…"
+            className="flex-1 bg-transparent text-sm font-mono text-foreground outline-none placeholder:text-muted-foreground/50"
+          />
+          {searchTerm && (
+            <button onClick={() => setSearchTerm("")}>
+              <X className="w-3.5 h-3.5 text-muted-foreground" />
+            </button>
+          )}
+        </div>
+
+        {/* Mobile type filter chips */}
+        <div className="flex gap-2 overflow-x-auto pb-0.5">
+          {[null, "HNWI", "Gatekeeper", "Corporation", "Trust"].map((t) => {
+            const c = t ? TYPE_COLORS[t] ?? "#64748B" : "#10B981";
+            return (
+              <button
+                key={t ?? "all"}
+                onClick={() => setMobileTypeFilter(t)}
+                className="px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase whitespace-nowrap flex-shrink-0 transition-all"
+                style={{
+                  backgroundColor: mobileTypeFilter === t ? c : c + "18",
+                  color: mobileTypeFilter === t ? "#000" : c,
+                  border: `1px solid ${c}44`,
+                }}
+              >
+                {t ?? "ALL"}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Desktop: Live Registry Panel ── */}
       {showRegistry && (
-        <div className="border-b border-border bg-card/50 p-5 flex-shrink-0">
+        <div className="hidden md:block border-b border-border bg-card/50 p-5 flex-shrink-0">
           <div className="flex items-center gap-3 mb-4">
             <div className="text-xs font-mono text-secondary uppercase tracking-widest flex items-center">
               <Globe className="w-3.5 h-3.5 mr-1.5" />
@@ -237,16 +444,10 @@ export default function EntityLedger() {
                       <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-secondary/10 text-secondary border border-secondary/20">
                         {r.type}
                       </span>
-                      {r.nationality && (
-                        <span className="text-xs text-muted-foreground font-mono">{r.nationality}</span>
-                      )}
-                      {r.knownResidences && (
-                        <span className="text-xs text-muted-foreground font-mono truncate max-w-xs">{r.knownResidences}</span>
-                      )}
+                      {r.nationality && <span className="text-xs text-muted-foreground font-mono">{r.nationality}</span>}
+                      {r.knownResidences && <span className="text-xs text-muted-foreground font-mono truncate max-w-xs">{r.knownResidences}</span>}
                     </div>
-                    {r.notes && (
-                      <div className="text-[11px] text-muted-foreground font-mono mt-1.5 truncate">{r.notes}</div>
-                    )}
+                    {r.notes && <div className="text-[11px] text-muted-foreground font-mono mt-1.5 truncate">{r.notes}</div>}
                   </div>
                   <button
                     onClick={() => handleIngestResult(r)}
@@ -267,8 +468,24 @@ export default function EntityLedger() {
         </div>
       )}
 
-      {/* ── Entity Table ── */}
-      <div className="flex-1 overflow-auto p-4">
+      {/* ── Mobile: card list ── */}
+      <div className="flex-1 overflow-y-auto md:hidden divide-y divide-border">
+        {mobileEntities?.map((entity) => (
+          <MobileEntityCard
+            key={entity.id}
+            entity={entity}
+            onSelect={() => setMobileSelectedEntity(entity)}
+          />
+        ))}
+        {(!mobileEntities || mobileEntities.length === 0) && (
+          <div className="flex flex-col items-center justify-center h-40 text-muted-foreground text-xs font-mono">
+            No entities found.
+          </div>
+        )}
+      </div>
+
+      {/* ── Desktop: Entity Table ── */}
+      <div className="hidden md:block flex-1 overflow-auto p-4">
         <div className="border border-border rounded bg-card overflow-hidden">
           <table className="w-full text-sm text-left">
             <thead className="text-xs text-muted-foreground uppercase bg-muted/50 font-mono border-b border-border">
@@ -351,15 +568,29 @@ export default function EntityLedger() {
         </div>
       </div>
 
-      {/* ── Add Entity Modal ── */}
+      {/* ── Mobile FAB ── */}
+      <button
+        onClick={() => openAddModal()}
+        className="fixed bottom-6 right-5 w-12 h-12 rounded-full flex items-center justify-center shadow-lg z-40 md:hidden"
+        style={{ backgroundColor: "#10B981", boxShadow: "0 0 20px rgba(16,185,129,0.4)" }}
+      >
+        <Plus className="w-5 h-5 text-black" />
+      </button>
+
+      {/* ── Mobile entity detail overlay ── */}
+      {mobileSelectedEntity && (
+        <MobileEntityDetail
+          entity={mobileSelectedEntity}
+          onClose={() => setMobileSelectedEntity(null)}
+        />
+      )}
+
+      {/* ── Add Entity Modal (shared) ── */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex">
-          {/* Backdrop */}
           <div className="flex-1 bg-black/60 backdrop-blur-sm" onClick={() => setShowAddModal(false)} />
 
-          {/* Slide-over panel */}
-          <div className="w-[480px] bg-card border-l border-border flex flex-col shadow-2xl animate-in slide-in-from-right-full duration-300">
-            {/* Panel header */}
+          <div className="w-full max-w-[480px] bg-card border-l border-border flex flex-col shadow-2xl animate-in slide-in-from-right-full duration-300">
             <div className="p-5 border-b border-border flex items-center justify-between flex-shrink-0">
               <div>
                 <h2 className="text-sm font-bold font-mono tracking-widest uppercase text-foreground">
@@ -377,10 +608,7 @@ export default function EntityLedger() {
               </button>
             </div>
 
-            {/* Form fields */}
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
-
-              {/* Name */}
               <div>
                 <label className="block text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">
                   Full Name <span className="text-destructive">*</span>
@@ -394,7 +622,6 @@ export default function EntityLedger() {
                 />
               </div>
 
-              {/* Classification */}
               <div>
                 <label className="block text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">
                   Classification <span className="text-destructive">*</span>
@@ -411,7 +638,6 @@ export default function EntityLedger() {
                 </select>
               </div>
 
-              {/* Nationality + Net Worth */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">Nationality</label>
@@ -435,7 +661,6 @@ export default function EntityLedger() {
                 </div>
               </div>
 
-              {/* Known Residences */}
               <div>
                 <label className="block text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">Known Residences</label>
                 <input
@@ -447,7 +672,6 @@ export default function EntityLedger() {
                 />
               </div>
 
-              {/* Phone + Email */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">Phone / WhatsApp</label>
@@ -471,7 +695,6 @@ export default function EntityLedger() {
                 </div>
               </div>
 
-              {/* Contact Method */}
               <div>
                 <label className="block text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">Best Contact Method</label>
                 <input
@@ -483,7 +706,6 @@ export default function EntityLedger() {
                 />
               </div>
 
-              {/* Source Registries */}
               <div>
                 <label className="block text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">Source Registries</label>
                 <input
@@ -496,7 +718,6 @@ export default function EntityLedger() {
                 <p className="text-[10px] font-mono text-muted-foreground/60 mt-1">Comma-separated list</p>
               </div>
 
-              {/* Notes */}
               <div>
                 <label className="block text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">Intelligence Notes</label>
                 <textarea
@@ -509,7 +730,6 @@ export default function EntityLedger() {
               </div>
             </div>
 
-            {/* Footer */}
             <div className="p-5 border-t border-border flex items-center justify-between flex-shrink-0 bg-muted/20">
               <button
                 onClick={() => setShowAddModal(false)}

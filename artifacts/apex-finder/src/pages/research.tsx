@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useListEntities, useRunResearch } from "@workspace/api-client-react";
-import { Terminal, Play, Cpu, ChevronRight, Hash, CheckCircle2, GitBranch, Target, Shield } from "lucide-react";
+import { Terminal, Play, Cpu, ChevronRight, Hash, CheckCircle2, GitBranch, Target, Shield, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScoreBadge } from "@/lib/utils";
 
@@ -66,13 +66,18 @@ export default function MCTSTerminal() {
   const [sessionId, setSessionId] = useState<number | null>(null);
   const logEndRef = useRef<HTMLDivElement | null>(null);
 
-  const startSimulation = () => {
+  // Mobile entity picker state
+  const [mobilePickerOpen, setMobilePickerOpen] = useState(false);
+  const selectedEntity = entities?.find((e) => e.id === selectedEntityId);
+
+  const startAnalysis = () => {
     if (!selectedEntityId) return;
 
     setTerminalLog([]);
     setWinningPath([]);
     setPathScore(0);
     setIsComputing(true);
+    setMobilePickerOpen(false);
 
     runResearch.mutate(
       { data: { entityId: selectedEntityId, depth: 4 } },
@@ -88,7 +93,6 @@ export default function MCTSTerminal() {
 
           setPathScore(data.pathScore ?? 0);
 
-          // Stream steps into terminal
           let i = 0;
           const interval = setInterval(() => {
             if (i < steps.length) {
@@ -123,9 +127,89 @@ export default function MCTSTerminal() {
   }, [terminalLog]);
 
   return (
-    <div className="flex h-full w-full bg-background overflow-hidden">
-      {/* ── Left Panel: Entity Selector ── */}
-      <div className="w-80 border-r border-border bg-card flex flex-col flex-shrink-0 z-10 shadow-xl">
+    <div className="flex h-full w-full bg-background overflow-hidden flex-col md:flex-row">
+
+      {/* ── Mobile header: compact entity picker + run button ── */}
+      <div className="md:hidden flex-shrink-0 border-b border-border bg-card/80 backdrop-blur p-3 space-y-2 z-20">
+        <div className="flex items-center gap-2 mb-1">
+          <Cpu className="w-3.5 h-3.5 text-primary" />
+          <span className="text-[10px] font-mono text-primary uppercase tracking-widest">Target Selection</span>
+          {pathScore > 0 && (
+            <span className={cn(
+              "ml-auto text-[10px] font-mono px-2 py-0.5 rounded border",
+              pathScore >= 0.7 ? "text-primary border-primary/40 bg-primary/5" : "text-amber-500 border-amber-500/30 bg-amber-500/5"
+            )}>
+              PATH: {(pathScore * 100).toFixed(0)}/100
+            </span>
+          )}
+        </div>
+
+        {/* Entity dropdown trigger */}
+        <button
+          onClick={() => setMobilePickerOpen((o) => !o)}
+          disabled={isComputing}
+          className="w-full flex items-center justify-between px-3 py-2.5 rounded border border-border bg-background text-sm font-mono text-foreground disabled:opacity-50"
+        >
+          <span className={selectedEntityId ? "text-foreground" : "text-muted-foreground"}>
+            {selectedEntity?.name ?? "Select HNWI target..."}
+          </span>
+          <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+            {selectedEntity && <ScoreBadge score={selectedEntity.bayesianScore} />}
+            <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform", mobilePickerOpen && "rotate-180")} />
+          </div>
+        </button>
+
+        {/* Mobile dropdown list */}
+        {mobilePickerOpen && (
+          <div className="border border-border rounded bg-card overflow-hidden max-h-48 overflow-y-auto">
+            {entities?.map((ent) => (
+              <button
+                key={ent.id}
+                onClick={() => { setSelectedEntityId(ent.id); setMobilePickerOpen(false); }}
+                className={cn(
+                  "w-full flex items-center justify-between px-3 py-2.5 text-sm font-mono border-b border-border last:border-0 hover:bg-muted/50 transition-colors text-left",
+                  selectedEntityId === ent.id && "bg-primary/10 text-primary"
+                )}
+              >
+                <span className="truncate pr-2">{ent.name}</span>
+                <ScoreBadge score={ent.bayesianScore} />
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* UCT formula */}
+        <div className="bg-background/60 border border-border/60 rounded px-2 py-1.5">
+          <div className="text-[9px] font-mono text-muted-foreground/50 uppercase tracking-widest mb-0.5">UCT Formula</div>
+          <div className="text-[10px] font-mono text-primary/70">{UCT_FORMULA}</div>
+        </div>
+
+        {/* Run button */}
+        <button
+          disabled={!selectedEntityId || isComputing}
+          onClick={startAnalysis}
+          className="w-full py-2.5 bg-primary/20 hover:bg-primary/30 disabled:bg-muted disabled:text-muted-foreground text-primary border border-primary/50 disabled:border-border font-mono text-sm uppercase tracking-widest transition-all flex items-center justify-center rounded"
+        >
+          {isComputing ? (
+            <span className="animate-pulse flex items-center">
+              <Hash className="w-4 h-4 mr-2 animate-spin" /> Computing...
+            </span>
+          ) : (
+            <span className="flex items-center">
+              <Play className="w-4 h-4 mr-2" /> Initialize MCTS
+            </span>
+          )}
+        </button>
+
+        {sessionId && !isComputing && (
+          <div className="text-[10px] font-mono text-muted-foreground text-center">
+            Session #{sessionId} saved → Pipeline CRM
+          </div>
+        )}
+      </div>
+
+      {/* ── Desktop Left Panel: Entity Selector ── */}
+      <div className="hidden md:flex w-80 border-r border-border bg-card flex-col flex-shrink-0 z-10 shadow-xl">
         <div className="p-4 border-b border-border space-y-2">
           <h2 className="text-sm font-bold font-mono tracking-wider flex items-center uppercase text-foreground">
             <Cpu className="w-4 h-4 mr-2 text-primary" /> Target Selection
@@ -158,7 +242,7 @@ export default function MCTSTerminal() {
         <div className="p-3 border-t border-border bg-muted/20 space-y-2">
           <button
             disabled={!selectedEntityId || isComputing}
-            onClick={startSimulation}
+            onClick={startAnalysis}
             className="w-full py-2 bg-primary/20 hover:bg-primary/30 disabled:bg-muted disabled:text-muted-foreground text-primary border border-primary/50 disabled:border-border font-mono text-sm uppercase tracking-widest transition-all flex items-center justify-center"
           >
             {isComputing ? (
@@ -180,35 +264,36 @@ export default function MCTSTerminal() {
       </div>
 
       {/* ── Right Panel: MCTS Terminal ── */}
-      <div className="flex-1 flex flex-col bg-[#050810] relative min-w-0">
+      <div className="flex-1 flex flex-col bg-[#050810] relative min-w-0 overflow-hidden">
         <div className="p-3 border-b border-border/50 bg-[#0B0F19] flex items-center justify-between text-xs font-mono text-muted-foreground flex-shrink-0">
-          <div className="flex items-center space-x-2">
-            <Terminal className="w-4 h-4" />
-            <span>
+          <div className="flex items-center space-x-2 min-w-0">
+            <Terminal className="w-4 h-4 flex-shrink-0" />
+            <span className="truncate hidden sm:block">
               root@apexfinder:~# /opt/intel/mcts --target={selectedEntityId ?? "NULL"} --depth=4 --sims=120
             </span>
+            <span className="sm:hidden text-[10px]">MCTS --target={selectedEntityId ?? "NULL"}</span>
           </div>
           {pathScore > 0 && (
             <div
               className={cn(
-                "px-2 py-0.5 rounded border text-[10px] font-mono",
+                "px-2 py-0.5 rounded border text-[10px] font-mono flex-shrink-0 ml-2",
                 pathScore >= 0.7
                   ? "text-primary border-primary/40 bg-primary/5"
                   : "text-amber-500 border-amber-500/30 bg-amber-500/5"
               )}
             >
-              PATH SCORE: {(pathScore * 100).toFixed(0)}/100
+              {(pathScore * 100).toFixed(0)}/100
             </div>
           )}
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 font-mono text-sm space-y-2 min-h-0">
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 font-mono text-sm space-y-2 min-h-0">
           {terminalLog.length === 0 && !isComputing && (
             <div className="text-muted-foreground/50 h-full flex flex-col items-center justify-center space-y-3 select-none">
               <Terminal className="w-8 h-8 opacity-20" />
               <span className="italic text-sm">Awaiting target selection...</span>
               <div className="text-[11px] text-center opacity-60 max-w-sm leading-relaxed">
-                MCTS explores the entity graph using the UCT formula to identify the optimal warm-introduction path to the HNWI target. 120 simulations per run.
+                MCTS traverses the entity graph using the UCT formula to identify the optimal warm-introduction path to the HNWI target. 120 rollouts per run.
               </div>
             </div>
           )}
@@ -234,7 +319,7 @@ export default function MCTSTerminal() {
 
           {isComputing && (
             <div className="text-primary animate-pulse font-mono text-sm">
-              {">"} Simulating paths... {terminalLog.length} steps explored
+              {">"} Traversing graph... {terminalLog.length} nodes explored
             </div>
           )}
 
@@ -243,38 +328,51 @@ export default function MCTSTerminal() {
 
         {/* ── Winning Path Visualization ── */}
         {winningPath.length > 0 && !isComputing && (
-          <div className="border-t border-border/50 bg-[#0B0F19] p-5 animate-in slide-in-from-bottom-10 flex-shrink-0">
+          <div className="border-t border-border/50 bg-[#0B0F19] p-4 md:p-5 animate-in slide-in-from-bottom-10 flex-shrink-0">
             <h3 className="text-xs font-mono text-primary uppercase tracking-widest mb-4 flex items-center">
               <CheckCircle2 className="w-4 h-4 mr-2" />
-              Optimal Approach Vector — {winningPath.length} nodes identified
+              Optimal Approach Vector — {winningPath.length} nodes
             </h3>
 
-            <div className="flex items-start overflow-x-auto pb-3 space-x-3">
+            {/* Mobile: vertical stack */}
+            <div className="flex md:hidden flex-col space-y-2">
               {winningPath.map((node, i) => (
-                <div key={i} className="flex items-center flex-shrink-0">
-                  <div
-                    className={cn(
-                      "flex flex-col border p-3 rounded min-w-[160px] max-w-[220px]",
-                      roleColor(node.role)
-                    )}
-                  >
+                <div key={i}>
+                  <div className={cn("flex flex-col border p-3 rounded", roleColor(node.role))}>
                     <div className="flex items-center mb-1.5 space-x-1">
                       {roleIcon(node.role)}
-                      <span className="text-[9px] font-mono uppercase tracking-widest opacity-60">
-                        {node.role}
-                      </span>
+                      <span className="text-[9px] font-mono uppercase tracking-widest opacity-60">{node.role}</span>
                     </div>
-                    <div className="font-bold text-foreground text-sm leading-tight mb-1">
-                      {node.label}
-                    </div>
+                    <div className="font-bold text-foreground text-sm leading-tight mb-1">{node.label}</div>
                     <div className="text-[10px] opacity-50">{node.nodeType}</div>
                     {node.actionRequired && (
-                      <div className="mt-2 text-[10px] leading-snug opacity-75 border-t border-current/20 pt-1.5">
-                        {node.actionRequired}
-                      </div>
+                      <div className="mt-2 text-[10px] leading-snug opacity-75 border-t border-current/20 pt-1.5">{node.actionRequired}</div>
                     )}
                   </div>
+                  {i < winningPath.length - 1 && (
+                    <div className="flex justify-center py-1">
+                      <ChevronRight className="w-4 h-4 text-muted-foreground rotate-90" />
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
 
+            {/* Desktop: horizontal */}
+            <div className="hidden md:flex items-start overflow-x-auto pb-3 space-x-3">
+              {winningPath.map((node, i) => (
+                <div key={i} className="flex items-center flex-shrink-0">
+                  <div className={cn("flex flex-col border p-3 rounded min-w-[160px] max-w-[220px]", roleColor(node.role))}>
+                    <div className="flex items-center mb-1.5 space-x-1">
+                      {roleIcon(node.role)}
+                      <span className="text-[9px] font-mono uppercase tracking-widest opacity-60">{node.role}</span>
+                    </div>
+                    <div className="font-bold text-foreground text-sm leading-tight mb-1">{node.label}</div>
+                    <div className="text-[10px] opacity-50">{node.nodeType}</div>
+                    {node.actionRequired && (
+                      <div className="mt-2 text-[10px] leading-snug opacity-75 border-t border-current/20 pt-1.5">{node.actionRequired}</div>
+                    )}
+                  </div>
                   {i < winningPath.length - 1 && (
                     <div className="flex items-center mx-2 flex-shrink-0">
                       <div className="w-4 h-px bg-border/60" />

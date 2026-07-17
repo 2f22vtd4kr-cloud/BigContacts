@@ -29,7 +29,6 @@ export default function GraphViewer() {
     entityIdFromUrl ? parseInt(entityIdFromUrl, 10) : 1
   );
 
-  // Sync URL → state when URL changes externally
   useEffect(() => {
     if (entityIdFromUrl) {
       const parsed = parseInt(entityIdFromUrl, 10);
@@ -71,11 +70,8 @@ export default function GraphViewer() {
     if (!graphData) return { nodes: [], links: [] };
     const ASSET_TYPES = new Set(["RealEstate", "Aviation", "Marine", "PrivateClub"]);
     const filteredNodes = graphData.nodes.filter((n) => {
-      // Always show the target
       if (n.isTarget) return true;
-      // Score filter (applies to non-asset nodes)
       if (minScore > 0 && !ASSET_TYPES.has(n.nodeType) && n.bayesianScore != null && n.bayesianScore * 100 < minScore) return false;
-      // Asset type filter
       if (assetTypeFilter && ASSET_TYPES.has(n.nodeType) && n.nodeType !== assetTypeFilter) return false;
       return true;
     });
@@ -105,10 +101,32 @@ export default function GraphViewer() {
   }
 
   return (
-    <div className="flex h-full w-full bg-background relative overflow-hidden" id="graph-container">
+    <div className="flex h-full w-full bg-background relative overflow-hidden flex-col md:block" id="graph-container">
 
-      {/* ── Top toolbar ── */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex items-center space-x-2">
+      {/* ── Mobile top bar (entity selector + controls) ── */}
+      <div className="flex md:hidden items-center gap-2 px-3 py-2.5 border-b border-border bg-card/90 backdrop-blur z-30 flex-shrink-0">
+        <button
+          onClick={() => setSelectorOpen((o) => !o)}
+          className="flex-1 flex items-center justify-between px-3 py-2 rounded bg-background border border-border text-left"
+        >
+          <div className="min-w-0 flex-1">
+            <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">Target</div>
+            <div className="text-sm font-mono text-foreground truncate font-semibold">
+              {currentEntity?.name ?? `Entity #${targetId}`}
+            </div>
+          </div>
+          <ChevronDown className={cn("w-4 h-4 text-muted-foreground ml-2 flex-shrink-0 transition-transform", selectorOpen && "rotate-180")} />
+        </button>
+        <button
+          onClick={() => fgRef.current?.zoomToFit(400, 50)}
+          className="w-9 h-9 flex items-center justify-center rounded bg-muted border border-border text-muted-foreground hover:text-foreground flex-shrink-0"
+        >
+          <Maximize className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* ── Desktop floating toolbar ── */}
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 hidden md:flex items-center space-x-2">
         {/* Entity selector */}
         <div className="relative">
           <button
@@ -121,42 +139,6 @@ export default function GraphViewer() {
             </span>
             <ChevronDown className={cn("w-3.5 h-3.5 text-muted-foreground transition-transform", selectorOpen && "rotate-180")} />
           </button>
-
-          {selectorOpen && (
-            <div className="absolute top-full mt-1 left-0 w-80 bg-card border border-border rounded shadow-2xl z-50 flex flex-col max-h-72">
-              <div className="p-2 border-b border-border flex items-center space-x-2">
-                <Search className="w-3.5 h-3.5 text-muted-foreground" />
-                <input
-                  autoFocus
-                  value={selectorQuery}
-                  onChange={(e) => setSelectorQuery(e.target.value)}
-                  placeholder="Search entity…"
-                  className="flex-1 bg-transparent text-sm font-mono text-foreground outline-none placeholder:text-muted-foreground/50"
-                />
-              </div>
-              <div className="overflow-y-auto flex-1">
-                {filteredEntities.map((e) => (
-                  <button
-                    key={e.id}
-                    onClick={() => selectEntity(e.id)}
-                    className={cn(
-                      "w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-muted/50 transition-colors text-left",
-                      e.id === targetId && "bg-primary/10 text-primary"
-                    )}
-                  >
-                    <div>
-                      <div className="font-medium font-mono text-foreground">{e.name}</div>
-                      <div className="text-xs text-muted-foreground">{e.type}</div>
-                    </div>
-                    <ScoreBadge score={e.bayesianScore} />
-                  </button>
-                ))}
-                {filteredEntities.length === 0 && (
-                  <div className="p-4 text-xs text-muted-foreground text-center">No results</div>
-                )}
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Zoom controls */}
@@ -252,13 +234,56 @@ export default function GraphViewer() {
         </div>
       </div>
 
+      {/* ── Entity selector dropdown (shared mobile + desktop) ── */}
+      {selectorOpen && (
+        <div className={cn(
+          "bg-card border border-border shadow-2xl z-50 flex flex-col",
+          // Mobile: full-width below top bar
+          "md:absolute md:top-auto md:left-auto md:w-80 md:max-h-72",
+          // Positioned differently per context
+          "absolute left-3 right-3 top-[57px] md:top-16 md:left-4 max-h-64 rounded"
+        )}>
+          <div className="p-2 border-b border-border flex items-center space-x-2">
+            <Search className="w-3.5 h-3.5 text-muted-foreground" />
+            <input
+              autoFocus
+              value={selectorQuery}
+              onChange={(e) => setSelectorQuery(e.target.value)}
+              placeholder="Search entity…"
+              className="flex-1 bg-transparent text-sm font-mono text-foreground outline-none placeholder:text-muted-foreground/50"
+            />
+          </div>
+          <div className="overflow-y-auto flex-1">
+            {filteredEntities.map((e) => (
+              <button
+                key={e.id}
+                onClick={() => selectEntity(e.id)}
+                className={cn(
+                  "w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-muted/50 transition-colors text-left",
+                  e.id === targetId && "bg-primary/10 text-primary"
+                )}
+              >
+                <div>
+                  <div className="font-medium font-mono text-foreground">{e.name}</div>
+                  <div className="text-xs text-muted-foreground">{e.type}</div>
+                </div>
+                <ScoreBadge score={e.bayesianScore} />
+              </button>
+            ))}
+            {filteredEntities.length === 0 && (
+              <div className="p-4 text-xs text-muted-foreground text-center">No results</div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ── Legend ── */}
-      <div className="absolute bottom-4 left-4 z-10 flex flex-col space-y-1 bg-card/80 backdrop-blur border border-border p-3 rounded text-xs font-mono">
-        <div className="flex items-center"><div className="w-3 h-3 rounded-full bg-primary mr-2" /> HNWI Target</div>
-        <div className="flex items-center"><div className="w-3 h-3 rounded-full bg-blue-500 mr-2" /> Corporation</div>
-        <div className="flex items-center"><div className="w-3 h-3 rounded-full bg-purple-500 mr-2" /> Trust</div>
-        <div className="flex items-center"><div className="w-3 h-3 rounded-full bg-amber-500 mr-2" /> Gatekeeper</div>
-        <div className="flex items-center"><div className="w-3 h-3 rounded-full bg-muted-foreground mr-2" /> Asset</div>
+      <div className="absolute bottom-4 left-4 z-10 flex flex-col space-y-1 bg-card/80 backdrop-blur border border-border p-2 md:p-3 rounded text-[10px] md:text-xs font-mono">
+        <div className="flex items-center"><div className="w-2.5 h-2.5 rounded-full bg-primary mr-1.5 md:mr-2" /> HNWI</div>
+        <div className="flex items-center"><div className="w-2.5 h-2.5 rounded-full bg-blue-500 mr-1.5 md:mr-2" /> Corp</div>
+        <div className="flex items-center"><div className="w-2.5 h-2.5 rounded-full bg-purple-500 mr-1.5 md:mr-2" /> Trust</div>
+        <div className="flex items-center"><div className="w-2.5 h-2.5 rounded-full bg-amber-500 mr-1.5 md:mr-2" /> Gatekeeper</div>
+        <div className="flex items-center"><div className="w-2.5 h-2.5 rounded-full bg-muted-foreground mr-1.5 md:mr-2" /> Asset</div>
       </div>
 
       {/* ── Loading ── */}
@@ -312,9 +337,15 @@ export default function GraphViewer() {
         />
       )}
 
-      {/* ── Node detail sidebar ── */}
+      {/* ── Node detail panel — right sidebar on desktop, bottom sheet on mobile ── */}
       {selectedNode && (
-        <div className="absolute top-0 right-0 bottom-0 w-96 bg-card/95 backdrop-blur-md border-l border-border z-20 flex flex-col animate-in slide-in-from-right">
+        <div className={cn(
+          "absolute bg-card/95 backdrop-blur-md border-border z-20 flex flex-col animate-in",
+          // Mobile: bottom sheet
+          "bottom-0 left-0 right-0 border-t max-h-[60vh] slide-in-from-bottom",
+          // Desktop: right sidebar
+          "md:top-0 md:right-0 md:bottom-0 md:left-auto md:w-96 md:border-t-0 md:border-l md:max-h-none md:slide-in-from-right"
+        )}>
           <div className="p-4 border-b border-border flex justify-between items-center bg-muted/20">
             <h2 className="font-bold text-sm font-mono tracking-wider flex items-center">
               <Network className="w-4 h-4 mr-2 text-secondary" /> Node Intelligence
@@ -324,12 +355,12 @@ export default function GraphViewer() {
             </button>
           </div>
 
-          <div className="p-6 flex-1 overflow-y-auto space-y-4">
+          <div className="p-4 md:p-6 flex-1 overflow-y-auto space-y-4">
             <div>
               <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1 font-mono">
                 {selectedNode.nodeType}
               </div>
-              <h3 className="text-xl font-bold text-foreground">{selectedNode.label}</h3>
+              <h3 className="text-lg md:text-xl font-bold text-foreground">{selectedNode.label}</h3>
               {selectedNode.nationality && (
                 <div className="text-sm text-muted-foreground mt-1">{selectedNode.nationality}</div>
               )}
