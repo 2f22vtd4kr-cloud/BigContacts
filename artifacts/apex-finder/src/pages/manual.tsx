@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import {
   Crosshair, Database, Globe, Network, Terminal, KanbanSquare,
   ChevronDown, ChevronRight, ShieldAlert, TrendingUp, Users,
-  Briefcase, Building2, Anchor, Gem,
+  Briefcase, Building2, Anchor, Gem, Zap, Play, Filter,
+  Download, UserCheck, Shield, Map, BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -216,10 +217,11 @@ function Section({
 /* ─── Sidebar level item ─────────────────────────────────────────────────── */
 
 const LEVELS = [
-  { id: 1, color: "#10B981", numeral: "I",   title: "BASICS",    subtitle: "Start here" },
-  { id: 2, color: "#3B82F6", numeral: "II",  title: "DATA",      subtitle: "Scores & search" },
-  { id: 3, color: "#F59E0B", numeral: "III", title: "NETWORK",   subtitle: "Graph intelligence" },
-  { id: 4, color: "#EF4444", numeral: "IV",  title: "ENGINE",    subtitle: "How it thinks" },
+  { id: 1, color: "#10B981", numeral: "I",   title: "BASICS",      subtitle: "Start here" },
+  { id: 2, color: "#3B82F6", numeral: "II",  title: "DATA",        subtitle: "Scores & search" },
+  { id: 3, color: "#F59E0B", numeral: "III", title: "NETWORK",     subtitle: "Graph intelligence" },
+  { id: 4, color: "#EF4444", numeral: "IV",  title: "ENGINE",      subtitle: "How it thinks" },
+  { id: 5, color: "#A855F7", numeral: "V",   title: "MASS INGEST", subtitle: "Western HNWI engine" },
 ];
 
 function SidebarItem({
@@ -279,7 +281,7 @@ export default function FieldManual() {
       },
       { threshold: 0.25 }
     );
-    [1, 2, 3, 4].forEach((n) => {
+    [1, 2, 3, 4, 5].forEach((n) => {
       const el = document.getElementById(`section-${n}`);
       if (el) observer.observe(el);
     });
@@ -522,6 +524,82 @@ export default function FieldManual() {
 
             <ScreenshotBlock src={ss("entities.jpg")} caption="Entity Ledger — Live Intel search & Signal Scores" />
 
+            {/* Entity Ledger enhancements */}
+            <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-widest mt-8 mb-4">
+              Entity Ledger — filters, proximity & export
+            </h3>
+            <p className="text-sm text-[#94A3B8] leading-relaxed mb-4">
+              The Entity Ledger gained three powerful tools that turn a raw list of names into a
+              ranked, actionable hit-list.
+            </p>
+            <div className="space-y-3 mb-5">
+              {[
+                {
+                  icon: <Filter size={13} />,
+                  color: "#3B82F6",
+                  label: "Proximity Filter",
+                  desc: 'Filter by how reachable the target is. "Any" shows everyone. "Gatekeeper accessible (4+)" means a reliable intermediary is known. "Near-personal (7+)" means one degree of separation with a confirmed personal channel. "Personal only (9+)" means you have, or can directly obtain, a personal phone or WhatsApp.',
+                },
+                {
+                  icon: <UserCheck size={13} />,
+                  color: "#10B981",
+                  label: "Type Chips",
+                  desc: "Filter instantly to HNWI / Gatekeeper / Corporation / Trust. Gatekeepers are your real targets in the first phase — find the inner circle before trying to reach the principal.",
+                },
+                {
+                  icon: <Download size={13} />,
+                  color: "#A855F7",
+                  label: "CSV Export",
+                  desc: 'The "CSV" button (top-right toolbar) and the "Export CSV" link (footer) download every visible entity — with all applied filters — as a spreadsheet. Useful for offline briefings or loading into another tool.',
+                },
+              ].map((item) => (
+                <div
+                  key={item.label}
+                  className="flex gap-3 p-4 rounded border"
+                  style={{ borderColor: `${item.color}30`, backgroundColor: `${item.color}07` }}
+                >
+                  <div
+                    className="w-7 h-7 rounded-full border flex items-center justify-center shrink-0"
+                    style={{ borderColor: item.color, backgroundColor: `${item.color}20`, color: item.color }}
+                  >
+                    {item.icon}
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold mb-0.5" style={{ color: item.color }}>{item.label}</p>
+                    <p className="text-xs text-[#94A3B8] leading-relaxed">{item.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Proximity score table */}
+            <div className="bg-[#050A14] border border-[#3B82F6]/25 rounded-lg p-5 mb-5">
+              <p className="text-[10px] font-bold text-[#3B82F6] uppercase tracking-widest mb-3">
+                Proximity Score Scale (1 – 10)
+              </p>
+              <div className="space-y-2">
+                {[
+                  { range: "9–10", label: "Personal contact", color: "#10B981", desc: "Direct personal phone, WhatsApp, or Signal — confirmed reachable by you or one trusted person." },
+                  { range: "7–8",  label: "Near-personal",    color: "#3B82F6", desc: "One warm handshake away. A gatekeeper with confirmed private access can make the intro." },
+                  { range: "4–6",  label: "Gatekeeper path",  color: "#F59E0B", desc: "A reliable intermediary is known but personal access is not yet confirmed." },
+                  { range: "1–3",  label: "Cold / sparse",    color: "#EF4444", desc: "Limited data. Company secretary or PR is the only known contact. Needs enrichment." },
+                ].map((row) => (
+                  <div key={row.range} className="flex gap-3 items-start text-xs">
+                    <span
+                      className="font-bold font-mono shrink-0 w-10 text-right mt-0.5"
+                      style={{ color: row.color }}
+                    >
+                      {row.range}
+                    </span>
+                    <div>
+                      <span className="font-bold text-[#E2E8F0]">{row.label}</span>
+                      <span className="text-[#64748B] ml-2">{row.desc}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             {/* CRM Pipeline */}
             <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-widest mt-8 mb-4">
               The CRM Pipeline — tracking your outreach
@@ -742,6 +820,197 @@ export default function FieldManual() {
             </Callout>
 
             <ScreenshotBlock src={ss("mcts.jpg")} caption="MCTS Terminal — simulation in progress" />
+          </Section>
+
+          {/* ══════════════════════════════════════════════════════
+              LEVEL V — MASS INGEST
+          ══════════════════════════════════════════════════════ */}
+          <Section
+            id="section-5"
+            level="V"
+            levelColor="#A855F7"
+            levelLabel="LEVEL V — MASS INGEST"
+            title="Western HNWI Engine"
+          >
+            <p className="text-sm text-[#94A3B8] leading-relaxed mb-6">
+              Instead of adding targets one at a time, the Western HNWI Engine generates tens of
+              thousands of realistic investor profiles from public wealth registries, aviation records,
+              marina slips, and club memberships — all pre-scored and deduplicated — in a single
+              background job. Your Entity Ledger goes from dozens to tens of thousands of searchable
+              targets in minutes.
+            </p>
+
+            <Callout icon={<Zap size={14} />} color="#A855F7" title="What the engine generates">
+              Each record includes: full name, nationality, wealth tier, estimated net worth, known
+              residences, registered aircraft (FAA/CAA tail number), yacht (IMO), real estate parcels,
+              club memberships, Bayesian signal score, and — critically — a Proximity Score (1–10)
+              indicating how reachable they are via confirmed personal channels.
+            </Callout>
+
+            {/* How to trigger */}
+            <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-widest mt-7 mb-4">
+              How to run an ingestion
+            </h3>
+            <div className="space-y-4 mb-6">
+              {[
+                {
+                  n: "1",
+                  title: "Open Intelligence HQ",
+                  body: 'Navigate to the main dashboard. The "Western HNWI Engine" panel is at the bottom of the Live Signals sidebar.',
+                },
+                {
+                  n: "2",
+                  title: "Choose your target count",
+                  body: 'Use the TARGET dropdown to select how many records to generate: 500 (quick test), 5,000 (default), up to 50,000 (full dataset). Larger runs take longer but produce a richer corpus.',
+                },
+                {
+                  n: "3",
+                  title: "Hit INGEST",
+                  body: 'Click the green INGEST button. The job starts immediately in the background. A progress bar appears. You can navigate elsewhere — the job continues running server-side.',
+                },
+                {
+                  n: "4",
+                  title: "Watch the progress bar",
+                  body: 'The bar updates every 1.5 seconds by polling the job status endpoint. Click "log" to see a rolling tail of what\'s being inserted. When done, the stats bar at the top of the page auto-refreshes.',
+                },
+                {
+                  n: "5",
+                  title: "Filter by proximity in Entity Ledger",
+                  body: 'After ingestion, go to Entity Ledger → set the Proximity filter to "≥ Near-personal (7+)". This surfaces only the targets with confirmed warm-access paths. Start there.',
+                },
+              ].map((step) => (
+                <div key={step.n} className="flex gap-4">
+                  <div className="w-6 h-6 rounded-full bg-[#A855F7]/15 border border-[#A855F7]/40 text-[#A855F7] text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+                    {step.n}
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-[#E2E8F0] mb-0.5">{step.title}</p>
+                    <p className="text-sm text-[#64748B] leading-relaxed">{step.body}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Country distribution */}
+            <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-widest mt-7 mb-4">
+              Country distribution
+            </h3>
+            <p className="text-sm text-[#94A3B8] leading-relaxed mb-4">
+              The engine targets Western jurisdictions with the highest density of investable capital
+              and the most accessible personal-contact infrastructure (private clubs, FBOs, marinas).
+            </p>
+            <div className="bg-[#050A14] border border-[#A855F7]/25 rounded-lg p-5 mb-5">
+              <div className="space-y-2.5">
+                {[
+                  { country: "United States",    pct: 35, color: "#10B981" },
+                  { country: "United Kingdom",   pct: 18, color: "#3B82F6" },
+                  { country: "Switzerland",      pct: 10, color: "#F59E0B" },
+                  { country: "Germany",          pct:  9, color: "#F59E0B" },
+                  { country: "France",           pct:  7, color: "#64748B" },
+                  { country: "Australia",        pct:  6, color: "#64748B" },
+                  { country: "Canada",           pct:  6, color: "#64748B" },
+                  { country: "Norway",           pct:  4, color: "#475569" },
+                  { country: "Netherlands",      pct:  3, color: "#475569" },
+                  { country: "New Zealand",      pct:  2, color: "#475569" },
+                ].map((row) => (
+                  <div key={row.country} className="flex items-center gap-3 text-xs">
+                    <span className="text-[#94A3B8] w-28 shrink-0">{row.country}</span>
+                    <div className="flex-1 h-1.5 bg-[#1E293B] rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full"
+                        style={{ width: `${row.pct * 2.8}%`, backgroundColor: row.color }}
+                      />
+                    </div>
+                    <span className="font-mono font-bold w-8 text-right" style={{ color: row.color }}>
+                      {row.pct}%
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Wealth tiers */}
+            <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-widest mt-7 mb-4">
+              Wealth tiers
+            </h3>
+            <div className="grid grid-cols-2 gap-3 mb-6">
+              {[
+                { tier: "Billionaire",      range: "$1B+",       color: "#10B981", pct: "5%" },
+                { tier: "Ultra-HNWI",       range: "$100M–$1B",  color: "#3B82F6", pct: "15%" },
+                { tier: "Very High",        range: "$30M–$100M", color: "#F59E0B", pct: "30%" },
+                { tier: "HNWI Standard",    range: "$5M–$30M",   color: "#64748B", pct: "50%" },
+              ].map((row) => (
+                <div
+                  key={row.tier}
+                  className="p-3 rounded border"
+                  style={{ borderColor: `${row.color}30`, backgroundColor: `${row.color}08` }}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-bold" style={{ color: row.color }}>{row.tier}</span>
+                    <span className="text-[10px] font-mono text-[#475569]">{row.pct}</span>
+                  </div>
+                  <span className="text-[11px] font-mono text-[#64748B]">{row.range}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Dedup system */}
+            <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-widest mt-7 mb-4">
+              Deduplication — never double-count
+            </h3>
+            <p className="text-sm text-[#94A3B8] leading-relaxed mb-4">
+              Every generated record is fingerprinted by name + nationality + wealth tier and stored
+              in a permanent Upstash Redis set. Running INGEST twice with the same target count will
+              insert new records, not duplicates — the engine automatically skips any fingerprint it
+              has already seen. The "deduplicated" counter in the job log shows how many were skipped.
+            </p>
+            <div className="bg-[#050A14] border border-[#A855F7]/25 rounded-lg p-5 mb-5 text-xs font-mono">
+              <div className="text-[#475569] mb-2 uppercase tracking-wider text-[10px]">Job output example</div>
+              <div className="space-y-1 text-[#94A3B8]">
+                <div><span className="text-[#A855F7]">[running]</span> Batch 1/50 — inserting 100 records…</div>
+                <div><span className="text-[#A855F7]">[running]</span> Batch 2/50 — 3 skipped (dedup), 97 inserted</div>
+                <div><span className="text-[#A855F7]">[running]</span> Batch 12/50 — progress 24%</div>
+                <div><span className="text-[#10B981]">[done]</span> 4,871 records inserted · 129 deduped · 8.4s</div>
+              </div>
+            </div>
+
+            <Callout icon={<Shield size={14} />} color="#A855F7" title="Re-ingesting from scratch">
+              If you want a completely fresh dataset — for example after changing the country weights
+              or wealth tier distribution — call DELETE /api/ingest/dedup to wipe the dedup set, then
+              run INGEST again. Everything will be treated as new. The existing database records are
+              not deleted automatically; clear the entities table manually if needed.
+            </Callout>
+
+            {/* Stats bar */}
+            <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-widest mt-7 mb-4">
+              Dashboard stats bar
+            </h3>
+            <p className="text-sm text-[#94A3B8] leading-relaxed mb-4">
+              The top of Intelligence HQ shows five live counters. After ingestion, the "Western HNWIs"
+              stat will climb to reflect exactly how many engine-generated records are in the database.
+            </p>
+            <div className="grid grid-cols-5 gap-0 bg-[#0F172A] border border-[#1E293B] rounded-lg overflow-hidden mb-4">
+              {[
+                { icon: <Database size={11} />, label: "ENTITIES",       color: "#94A3B8", value: "31"     },
+                { icon: <Map size={11} />,      label: "ASSETS",         color: "#94A3B8", value: "35"     },
+                { icon: <Globe size={11} />,    label: "WESTERN HNWIs",  color: "#60A5FA", value: "5,000"  },
+                { icon: <BarChart3 size={11} />,label: "SIGNAL AVG",     color: "#10B981", value: "61.6%"  },
+                { icon: <ShieldAlert size={11} />,label:"HOT LEADS",     color: "#F59E0B", value: "9"      },
+              ].map((s, i) => (
+                <div
+                  key={s.label}
+                  className="flex flex-col px-3 py-2.5"
+                  style={{ borderRight: i < 4 ? "1px solid #1E293B" : "none" }}
+                >
+                  <div className="flex items-center gap-1 mb-1" style={{ color: s.color }}>
+                    {s.icon}
+                    <span className="text-[9px] font-mono uppercase tracking-wider">{s.label}</span>
+                  </div>
+                  <span className="text-sm font-bold font-mono" style={{ color: s.color }}>{s.value}</span>
+                </div>
+              ))}
+            </div>
+
           </Section>
 
         </div>

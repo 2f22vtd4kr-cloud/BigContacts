@@ -68,11 +68,24 @@ Enterprise OSINT and HNWI intelligence platform — identifies, scores, and buil
 ## Product
 
 Five tabs in the sidebar:
-1. **Intelligence HQ** — Leaflet map of all geolocated assets + Live Signals hot-lead feed
+1. **Intelligence HQ** — Leaflet map of all geolocated assets + Live Signals hot-lead feed + 5-stat bar (Entities / Assets / Western HNWIs / Signal Avg / Hot Leads) + Western HNWI Engine panel (select target count, hit INGEST, watch live progress bar)
 2. **Network Graph** — Force-directed graph of entity relationships; navigate to any entity via `/graph?entity=<id>`
 3. **MCTS Terminal** — Live simulation log of the Monte Carlo search finding the optimal approach path
 4. **Pipeline CRM** — Kanban from Lead Gen → Closed; AI pitch generation per session
-5. **Entity Ledger** — Full registry of all tracked entities, sortable by Bayesian score
+5. **Entity Ledger** — Full registry: type chips (HNWI/Gatekeeper/Corp/Trust), proximity filter (any / 4+ / 7+ / 9+), CSV export, proximity score badge inline, color-coded type icons
+
+### Western HNWI Engine
+- Trigger: `POST /api/ingest/western-hnwi` (body: `{ targetCount, batchSize?, clearDedup? }`)
+- Poll: `GET /api/ingest/job/:jobId` → `{ status, progress, inserted, skipped, errors, log[] }`
+- Status: `GET /api/ingest/status` → dedupCount + HNWI count + active job
+- Reset dedup: `DELETE /api/ingest/dedup`
+- Country pools: US 35%, UK 18%, CH 10%, DE 9%, FR 7%, AU 6%, CA 6%, NO 4%, NL 3%, NZ 2%
+- Wealth tiers: Billionaire ($1B+, 5%) → Ultra-HNWI ($100M–$1B, 15%) → Very High ($30M–$100M, 30%) → Standard ($5M–$30M, 50%)
+- Dedup: Upstash Redis SET `apex:dedup:hnwi` — fingerprint = name+nationality+tier; re-runs skip already-seen records
+
+### HNWI Search API
+- `POST /api/search/hnwi` — filters: `countries[]`, `assetTypes[]`, `minScore`, `maxScore`, `minNetWorth`, `proximityMin`, `hotOnly`, `limit`, `offset`; results cached 30 s
+- `GET /api/search/hnwi/facets` — available nationalities, asset types, proximity levels; cached 5 min
 
 ## User preferences
 
@@ -92,6 +105,18 @@ Five tabs in the sidebar:
 - **React 19 `useRef` requires initial value** — `useRef<T>()` is invalid; use `useRef<T | undefined>(undefined)`.
 
 ## Session log (most recent first)
+
+### Session 4 — Western HNWI Engine + Entity Ledger upgrades + Field Manual
+- Dual Redis architecture: local ioredis (`REDIS_URL` → `redis://localhost:6379`) for API cache; Upstash (`REDIS_URL_1`) for permanent dedup/job state
+- `connectPermanentRedis()` wired into server startup; both clients confirmed connected on boot
+- `lib/western-hnwi-ingestion.ts` — generates realistic Western HNWI records (10 country pools, 4 wealth tiers, Bayesian scores, proximity 1–10, contact vectors, club memberships, assets)
+- `lib/job-queue.ts` — Redis-backed background job tracker (createJob / updateJob / appendJobLog / getJob / getJobLog / dedup helpers)
+- `routes/ingest.ts` — rewrote with `POST /ingest/western-hnwi` (fire-and-forget, no auth), `GET /ingest/job/:jobId`, `GET /ingest/status`, `DELETE /ingest/dedup`, `POST /ingest/faa`, `POST /ingest/extend`
+- `routes/search.ts` — new file: `POST /search/hnwi` (7 filter params, 30 s cache), `GET /search/hnwi/facets` (5 min cache)
+- `routes/dashboard.ts` — added `westernHnwiCount` to `/dashboard/stats` (JSON metadata LIKE query)
+- `pages/dashboard.tsx` — 5-stat bar (Entities / Assets / **Western HNWIs** / Signal Avg / Hot Leads); `IngestionPanel` in right sidebar with target selector, progress bar, live log toggle, auto-refresh on completion
+- `pages/entities.tsx` — proximity filter dropdown (any / 4+ / 7+ / 9+), type chip filters, CSV export (toolbar + footer), proximity score badge inline in rows, color-coded type icons (UserCheck / Building2 / Briefcase / Shield)
+- `pages/manual.tsx` — updated Field Manual: Level II expanded with proximity scale table + Entity Ledger filter docs; new **Level V — MASS INGEST** covers engine workflow, country distribution bar chart, wealth tiers, dedup system, dashboard stats bar diagram
 
 ### Session 3 — Spacing tightened, SEC EDGAR live source added
 - All page headers reduced: `p-6` → `px-6 py-3` across Dashboard stats bar, CRM header, Entity Ledger header
