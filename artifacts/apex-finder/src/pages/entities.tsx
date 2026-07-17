@@ -67,12 +67,36 @@ export default function EntityLedger() {
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <span className="bg-muted px-2 py-1 rounded text-xs font-mono text-muted-foreground border border-border">
-                      {entity.type}
-                    </span>
-                    {entity.nationality && (
-                      <span className="ml-2 text-xs text-muted-foreground">{entity.nationality}</span>
-                    )}
+                    <div className="flex flex-col space-y-1.5">
+                      <div className="flex items-center space-x-2">
+                        <span className="bg-muted px-2 py-1 rounded text-xs font-mono text-muted-foreground border border-border">
+                          {entity.type}
+                        </span>
+                        {entity.nationality && (
+                          <span className="text-xs text-muted-foreground">{entity.nationality}</span>
+                        )}
+                      </div>
+                      {entity.sourceRegistries && (() => {
+                        try {
+                          const regs: string[] = JSON.parse(entity.sourceRegistries);
+                          return (
+                            <div className="flex flex-wrap gap-1">
+                              {regs.slice(0, 2).map((r, i) => (
+                                <span
+                                  key={i}
+                                  className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-secondary/10 text-secondary border border-secondary/20 leading-tight"
+                                  title={r}
+                                >
+                                  {r.length > 22 ? r.slice(0, 20) + "…" : r}
+                                </span>
+                              ))}
+                            </div>
+                          );
+                        } catch {
+                          return null;
+                        }
+                      })()}
+                    </div>
                   </td>
                   <td className="px-6 py-4">
                     <ScoreBadge score={entity.bayesianScore} />

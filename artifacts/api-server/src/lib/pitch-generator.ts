@@ -189,7 +189,11 @@ function intelBlock(
     timing ? `\n${timing}` : null,
   ].filter(Boolean);
 
-  return `\n\n---\nAPEX INTELLIGENCE BRIEF\n${lines.join("\n")}`;
+  const guardrails = [
+    `\n[PUBLIC DATA: All intelligence sourced exclusively from public registries, open corporate filings, and OSINT. No private or protected data was accessed.]`,
+    `[OPT-OUT: To cease all contact regarding this matter, reply "REMOVE" — no further approach will be made and your details will be purged.]`,
+  ].join("\n");
+  return `\n\n---\nAPEX INTELLIGENCE BRIEF\n${lines.join("\n")}\n\n${guardrails}`;
 }
 
 // ─── Template builder ─────────────────────────────────────────────────────────
@@ -321,7 +325,8 @@ ${ts}${intel}
     `.trim();
   }
 
-  // ── CORPORATE / GENERIC fallback ──────────────────────────────────────────
+  // ── CORPORATE / GENERIC fallback (also serves as the exported generatePitch
+  //    entry-point — guardrails are embedded in the intel block above) ──────
   const pathDesc = winningPath
     .filter((p) => p.role !== "TARGET")
     .map((p) => p.label)
@@ -343,4 +348,112 @@ Respectfully,
 ApexFinder Intelligence Division
 ${ts}${intel}
   `.trim();
+}
+
+// ── Outreach Sequence ─────────────────────────────────────────────────────────
+
+export interface OutreachSequence {
+  initial: string;
+  followUp: string;
+  introScript: string;
+}
+
+/**
+ * Generate a complete 3-step outreach sequence:
+ *  1. initial     — first message to gatekeeper (uses generatePitch)
+ *  2. followUp    — 7-day follow-up if no response
+ *  3. introScript — what the gatekeeper says to the HNWI in person
+ */
+export function generateOutreachSequence(ctx: PitchContext): OutreachSequence {
+  const initial = generatePitch(ctx);
+  const { targetEntity, gatekeeper, pathScore } = ctx;
+  const gkClass = classifyGatekeeper(gatekeeper);
+  const ts = new Date().toISOString().split("T")[0];
+  const gkFirst = gatekeeper?.label?.split(" ")[0] ?? "there";
+  const confidence = pathScore >= 0.75 ? "APEX" : "HIGH";
+  const scoreStr = (pathScore * 100).toFixed(0);
+  const targetFirst = targetEntity.name.split(" ").slice(-1)[0];
+  const targetFull = targetEntity.name;
+
+  // ── Follow-up message ─────────────────────────────────────────────────────
+  const followUp = `
+Following up on my note from last week, ${gkFirst}.
+
+I appreciate that you receive many such approaches and guard your relationships carefully — that is precisely why you were identified as the right person.
+
+Our interest in ${targetFull} remains active. If there is a more convenient format or timing for this conversation, we are entirely flexible — a call, a brief WhatsApp exchange, or even a written note to pass along is all we would need.
+
+If this simply isn't the right moment, a brief word to that effect is all we ask and we will close our file without any further contact.
+
+With respect,
+[Your name]
+ApexFinder Intelligence Division
+${ts}
+
+---
+[APEX PATH SCORE: ${scoreStr}/100 — Confidence: ${confidence}]
+[OPT-OUT: Reply "REMOVE" to cease all contact. Your details will be immediately purged.]
+[PUBLIC DATA: All intelligence sourced exclusively from public registries and OSINT.]
+  `.trim();
+
+  // ── Introduction script ───────────────────────────────────────────────────
+  let scriptBody = "";
+
+  if (gkClass === "GEOMETRA") {
+    scriptBody = `
+Signor ${targetFirst}, approfitto di un momento tranquillo per dirle una cosa in via del tutto informale.
+
+Mi hanno contattato — attraverso una referenza discreta — dei professionisti che gestiscono un'operazione d'investimento riservata. Non mi hanno fornito dettagli specifici, ma il profilo che cercano corrisponde a quello di persone con una visione di lungo periodo e capacità reali.
+
+Non le sto chiedendo niente — le sto semplicemente dicendo che esiste questo contatto, nel caso volesse saperne di più. Se preferisce ignorarlo, capisco perfettamente e non ne parliamo più. Assoluta riservatezza, da parte mia.
+    `.trim();
+  } else if (gkClass === "SAFARI_PH") {
+    scriptBody = `
+${targetFirst}, there's something I wanted to mention — absolutely off the record, no agenda.
+
+Some people reached out to me a few weeks back. Very discreet, clearly well-connected, did their homework. They expressed interest in a quiet conversation with someone matching your profile regarding a private investment matter.
+
+I told them I couldn't promise anything — but I said I'd mention it if the moment felt right. This felt like the right moment. Entirely your call what you do with it. I won't raise it again.
+    `.trim();
+  } else if (gkClass === "YACHT_BROKER" || gkClass === "MARINA") {
+    scriptBody = `
+${targetFirst}, a word when you have a moment — nothing formal.
+
+A group approached me through a professional contact. Very professional, very discreet. They had clearly done their research. They're interested in a brief, confidential conversation with you about a private investment opportunity — no pressure, no agenda beyond an introductory call.
+
+I have no stake in this whatsoever — I simply thought it worth mentioning. Happy to make an introduction if you're curious, or drop it entirely if not. Your call completely.
+    `.trim();
+  } else if (gkClass === "FAMILY_OFFICE") {
+    scriptBody = `
+I wanted to mention something informally before putting it through the formal channel.
+
+A private group has reached out expressing interest in a conversation with your principal regarding a confidential investment matter. They've been very proper about it — offered full documentation, NDA, everything channelled through the office.
+
+I wanted to flag it informally first before sending anything formal — just to see whether it's worth the paperwork.
+    `.trim();
+  } else {
+    scriptBody = `
+${targetFirst}, I wanted to mention something informally.
+
+A private group reached out to me — they were looking for a discreet introduction to someone of your profile regarding a confidential investment matter. Brief — just an exploratory conversation, no commitment.
+
+I thought of you. Entirely your call. I won't raise it again if you'd prefer.
+    `.trim();
+  }
+
+  const introScript = `
+=== GATEKEEPER INTRODUCTION SCRIPT ===
+Deliver in person, casual setting — end of dinner, walking, a brief phone call.
+Tone: warm, curious, zero pressure. Never read aloud — adapt naturally.
+======================================
+
+${scriptBody}
+
+---
+[APEX PATH: ${gkClass} vector — Score ${scoreStr}/100]
+[TIMING: ${new Date().toLocaleDateString("en-GB", { month: "long", year: "numeric" })}]
+[All data sourced from public registries only]
+  `.trim();
+
+  return { initial, followUp, introScript };
 }

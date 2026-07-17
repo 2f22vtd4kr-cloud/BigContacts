@@ -1,0 +1,44 @@
+New Session Task — Extend ApexFinder Pro with Rich Data, Enhanced Graph/MCTS, Pitch Polish & Ethical Guardrails
+Master prompt remains active at all times. Continue building ApexFinder Pro — the enterprise OSINT + HNWI intelligence platform.
+Immediate Priorities (implement in this order):
+1.  Data Pipeline Enhancements (Registry-First)
+	•  Add automated ingestion for public FAA Aircraft Registry (download latest ReleasableAircraft.zip, parse MASTER.txt + ACFTREF.txt using existing Drizzle schema or new tables if needed).
+	•  Create API endpoint /api/ingest/faa (POST, admin-only) that seeds/updates Aircraft entities linked to Owners.
+	•  Expand mock data with 10-15 realistic private jet owners (mix US/EU, link to existing entities where possible).
+	•  Add basic Yacht/Superyacht stub (using public IMO patterns or mock) — expandable later.
+	•  Ensure all new assets appear on Intelligence HQ map (Leaflet clusters by type: jet/yacht/car) and feed into the Network Graph.
+2.  Network Graph Upgrades
+	•  Improve force-graph interactivity: clickable nodes open entity sidebar with proximityScore, contact vectors (“Personal WhatsApp via geometra X”), and “Set as Target” button.
+	•  Add edge labels/types (e.g., “Owns Aircraft”, “Club Member”, “Gatekeeper Relationship”).
+	•  Filter controls: by proximityScore (>70), asset type, location.
+	•  URL support: /graph?entity=ID auto-focuses and highlights shortest warm paths.
+3.  MCTS Terminal Improvements
+	•  Make simulation more visual and step-by-step (use UCT formula visibly in logs).
+	•  Show branching: “Exploring club path → +warmth via personal introduction” vs “cold company email → -score”.
+	•  Add “Run Full Research” button that runs MCTS on selected target and saves top-3 approach paths to the session in DB.
+	•  Display final “warmest path” summary with recommended pitch template.
+4.  Pitch & Outreach Engine Polish
+	•  Extend pitch generator with new templates inspired by user’s Italy success: personal bonus/commission for intermediaries (geometri, yacht brokers, FBO staff, hunting PHs).
+	•  Include seasonal/contextual advice (e.g., “Approach pre-safari season”, “Reference shared aviation interest”).
+	•  Generate full outreach sequence: Initial warm message → Follow-up → Introduction script.
+	•  Add ethical guardrails: Every pitch must include easy opt-out + “Public data sourced” note. Log all generated pitches.
+5.  UI/Visual & Performance
+	•  Enforce Palantir/Bloomberg aesthetic: dark obsidian background (#0B0F19), neon green signals (#10B981), electric blue connections (#3B82F6), clean Shadcn components.
+	•  Optimize: Lazy-load heavy graph, cache registry data, add loading states.
+	•  Dashboard live signals: mock “N172SP just landed in Monaco — owner active” style alerts.
+6.  Ethical & Compliance Layer (Critical)
+	•  Add global disclaimer banner: “For networking and public data research only. Comply with all privacy laws. Respect opt-outs.”
+	•  In Entity views, clearly mark data sources (Public Registry / Mock / User-added).
+	•  Prevent any scraping of non-public personal data.
+Tech Rules (strict)
+•  Use existing stack: TypeScript, Drizzle, OpenAPI-first (update openapi.yaml then run codegen).
+•  Update replit.md with this session summary + any new gotchas after completion.
+•  Keep everything runnable in Replit (pnpm commands, DB push).
+•  No external AI APIs — pure TS logic + Fable 5 style reasoning.
+•  Prioritize “get close to the body”: always surface and score personal contact paths highest.
+Success Criteria
+•  FAA data loads and appears in map/graph/ledger.
+•  End-to-end flow works: Select target → Run MCTS → View warm path → Generate personalized pitch with bonus incentive.
+•  App remains visually stunning and fast.
+After implementing core items, summarize what was done, any issues, and suggest next session focus (e.g., real yacht data, export tools, subscription prep).
+Let’s ship this powerful tool. Maximum effectiveness. Go.

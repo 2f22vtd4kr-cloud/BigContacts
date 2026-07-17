@@ -6,6 +6,7 @@ import relationshipsRouter from "./relationships";
 import researchRouter from "./research";
 import dashboardRouter from "./dashboard";
 import graphRouter from "./graph";
+import ingestRouter from "./ingest";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use(relationshipsRouter);
 router.use(researchRouter);
 router.use(dashboardRouter);
 router.use(graphRouter);
+router.use(ingestRouter);
 
 export default router;

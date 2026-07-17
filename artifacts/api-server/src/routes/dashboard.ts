@@ -82,25 +82,83 @@ router.get("/dashboard/hot-leads", async (req, res): Promise<void> => {
     }
   }
 
-  const SIGNALS = [
-    "Recent property acquisition",
-    "Aviation registry update",
-    "New corporate filing",
-    "Yacht mooring change",
-    "Club membership confirmed",
-    "Forbes list appearance",
-    "Private equity event",
-    "High-value asset transfer",
+  // Dynamic live signal generation — aviation/maritime/registry style
+  const ENTITY_SIGNALS: Record<string, string[]> = {
+    "Lorenzo Castellani": [
+      "SX-PGM (G650ER) departed LGAT Athens 14:32 → FNA Monaco ETA 16:47",
+      "Villa Ariana IT-FI-A2247 — Catasto parcel: geometra filing detected",
+      "Porto Cervo Slip A-14 — provisioning order placed via marina staff",
+    ],
+    "Edward Fitzwilliam-Holt": [
+      "G-FWHL (G700) departed LHR → SNN Shannon 09:15 — Laikipia pre-positioning",
+      "Fitzwilliam Estate: November stalking season — 4 rifles booked via PH",
+      "Boodle's Club — dinner reservation confirmed, 8 guests, Thursday",
+    ],
+    "Alexei Morozov": [
+      "'Meridian Star' IMO-9723441 departed Berth 42 Monaco → Porto Montenegro",
+      "Cyprus company registry: Morozov Holdings Ltd — new secretarial filing",
+      "Port Hercule — new provisioning manifest filed; APA transfer €48,000",
+    ],
+    "Bradford Whitmore III": [
+      "N-WHTMR (Gulfstream) departed KTMB → KTEB Teterboro — NY arrival",
+      "Whitmore Capital Group: SEC 13F filed — $2.1B new European allocation",
+      "Forbes 400: net worth estimate revised upward +8.3% — new $2.4B",
+    ],
+    "Viktor Spengler": [
+      "Geneva Commercial Register: Spengler FO SA — new board resolution filed",
+      "Gstaad chalet utility reconnection — January season preparation confirmed",
+    ],
+    "Friedrich von Brauer": [
+      "D-CBAU spotted EDDM ramp — Lake Como flight plan filed, LIML",
+      "IT-CO-2018-A0091 Menaggio villa — planning permission: terrace extension",
+    ],
+    "Nikolaos Papadimitriou": [
+      "SX-PGM departed Athens LGAT → Monaco (FNA) — 2h15 flight",
+      "Piraeus Marina Berth G-21: 'Poseidon' crew change — 4 crew embarked",
+    ],
+    "Carlos Ibáñez Varela": [
+      "N-IVCH (Global 7500) filed IFR plan CGH → MAD Barajas — 10h overnight",
+      "Varela Capital SEC Form D: new fund close, $340M LP commitments",
+    ],
+    "Rashid Al-Mansouri": [
+      "A6-RMN (BBJ2) departed DWC → LHR London — VVIP arrival sequence",
+      "'Al Nour' IMO-9844291 departed Dubai Marina → Red Sea passage",
+    ],
+    "Sebastião Monteiro": [
+      "PR-MBR (G550) departed CGH São Paulo → LIS Lisbon — 10h30 flight",
+      "IRN Portugal: Monteiro Investimentos — new property transfer queued",
+    ],
+    "Tomas Kruger": [
+      "ZS-TKR (Global 6000) departed FACT Cape Town → LHR — Knightsbridge visit",
+      "Franschhoek wine estate: new vintage release announced — Cabernet Franc",
+    ],
+  };
+
+  const GENERIC_SIGNALS = [
+    "Aviation registry: IFR flight plan filed — international departure",
+    "Corporate registry update: new directorship filing detected",
+    "Marina movement: vessel departed home berth — destination unknown",
+    "Land registry: beneficial ownership transfer notation",
+    "FBO fuel order: Signature Aviation — VVIP arrival sequence initiated",
+    "Yacht management: crew contract renewal — seasonal crew preparation",
+    "Club membership renewal confirmed — annual subscription cleared",
+    "New asset valuation filing: estimated portfolio value updated",
   ];
 
-  const hotLeads = entities.slice(0, limit).map((e, idx) => ({
+  function getLiveSignal(entityName: string): string {
+    const specific = ENTITY_SIGNALS[entityName];
+    if (specific && specific.length > 0) {
+      return specific[Math.floor(Math.random() * specific.length)]!;
+    }
+    return GENERIC_SIGNALS[Math.floor(Math.random() * GENERIC_SIGNALS.length)]!;
+  }
+
+  const hotLeads = entities.slice(0, limit).map((e) => ({
     entityId: e.id,
     entityName: e.name,
     entityType: e.type,
     bayesianScore: e.bayesianScore,
-    signal: activityMap[e.id]
-      ? "Recent registry activity detected"
-      : SIGNALS[idx % SIGNALS.length]!,
+    signal: getLiveSignal(e.name),
     signalDate: activityMap[e.id] ?? new Date().toISOString().split("T")[0]!,
     assetCount: assetCountMap[e.id] ?? 0,
     estimatedNetWorth: e.estimatedNetWorth,

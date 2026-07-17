@@ -12,7 +12,7 @@ import {
 import { buildGraph, findShortestPath } from "../lib/graph-engine";
 import { computeBayesianScore } from "../lib/bayesian-scorer";
 import { runMcts } from "../lib/mcts-agent";
-import { generatePitch } from "../lib/pitch-generator";
+import { generateOutreachSequence } from "../lib/pitch-generator";
 
 const router: IRouter = Router();
 
@@ -270,14 +270,15 @@ router.post("/research/sessions/:id/pitch", async (req, res): Promise<void> => {
     (p: { role: string }) => p.role === "GATEKEEPER",
   ) ?? null;
 
-  // Generate pitch
-  const pitch = generatePitch({
+  // Generate full outreach sequence (initial + follow-up + intro script)
+  const sequence = generateOutreachSequence({
     targetEntity: {
       name: entity.name,
       type: entity.type,
       nationality: entity.nationality,
       estimatedNetWorth: entity.estimatedNetWorth,
       knownResidences: entity.knownResidences,
+      notes: entity.notes,
     },
     gatekeeper,
     assets: targetAssets.map((a) => ({
@@ -291,11 +292,11 @@ router.post("/research/sessions/:id/pitch", async (req, res): Promise<void> => {
     pathScore: session.pathScore ?? 0,
   });
 
-  // Update session with pitch
+  // Update session with full sequence as JSON
   const [updated] = await db
     .update(researchSessionsTable)
     .set({
-      generatedPitch: pitch,
+      generatedPitch: JSON.stringify(sequence),
       crmStatus: "Pitch Generated",
       updatedAt: new Date(),
     })

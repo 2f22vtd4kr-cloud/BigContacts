@@ -2,7 +2,7 @@ import { useGetEntityGraph, useListEntities } from "@workspace/api-client-react"
 import { useEffect, useRef, useState, useMemo } from "react";
 import { useSearch, useLocation } from "wouter";
 import ForceGraph2D, { ForceGraphMethods } from "react-force-graph-2d";
-import { Network, ZoomIn, ZoomOut, Maximize, X, Search, ChevronDown } from "lucide-react";
+import { Network, ZoomIn, ZoomOut, Maximize, X, Search, ChevronDown, Filter, Shield } from "lucide-react";
 import { cn, formatCurrency, ScoreBadge } from "@/lib/utils";
 
 function useWindowSize() {
@@ -45,6 +45,9 @@ export default function GraphViewer() {
   const [selectedNode, setSelectedNode] = useState<any>(null);
   const [selectorOpen, setSelectorOpen] = useState(false);
   const [selectorQuery, setSelectorQuery] = useState("");
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [minScore, setMinScore] = useState(0);
+  const [assetTypeFilter, setAssetTypeFilter] = useState<string | null>(null);
 
   const currentEntity = allEntities?.find((e) => e.id === targetId);
 
@@ -66,18 +69,24 @@ export default function GraphViewer() {
 
   const gData = useMemo(() => {
     if (!graphData) return { nodes: [], links: [] };
+    const ASSET_TYPES = new Set(["RealEstate", "Aviation", "Marine", "PrivateClub"]);
+    const filteredNodes = graphData.nodes.filter((n) => {
+      // Always show the target
+      if (n.isTarget) return true;
+      // Score filter (applies to non-asset nodes)
+      if (minScore > 0 && !ASSET_TYPES.has(n.nodeType) && n.bayesianScore != null && n.bayesianScore * 100 < minScore) return false;
+      // Asset type filter
+      if (assetTypeFilter && ASSET_TYPES.has(n.nodeType) && n.nodeType !== assetTypeFilter) return false;
+      return true;
+    });
+    const filteredIds = new Set(filteredNodes.map((n) => n.id));
     return {
-      nodes: graphData.nodes.map((n) => ({
-        ...n,
-        val: n.isTarget ? 3 : n.isCentral ? 2 : 1,
-      })),
-      links: graphData.edges.map((e) => ({
-        source: e.source,
-        target: e.target,
-        label: e.label,
-      })),
+      nodes: filteredNodes.map((n) => ({ ...n, val: n.isTarget ? 3 : n.isCentral ? 2 : 1 })),
+      links: graphData.edges
+        .filter((e) => filteredIds.has(e.source) && filteredIds.has(e.target))
+        .map((e) => ({ source: e.source, target: e.target, label: e.label, strength: e.strength })),
     };
-  }, [graphData]);
+  }, [graphData, minScore, assetTypeFilter]);
 
   useEffect(() => {
     if (gData.nodes.length && fgRef.current) {
@@ -174,6 +183,73 @@ export default function GraphViewer() {
             <Maximize className="w-4 h-4" />
           </button>
         </div>
+
+        {/* Filter panel */}
+        <div className="relative">
+          <button
+            onClick={() => setFilterOpen((o) => !o)}
+            className={cn(
+              "flex items-center space-x-1.5 bg-card/90 backdrop-blur border px-3 py-2 rounded text-xs font-mono transition-colors",
+              filterOpen || minScore > 0 || assetTypeFilter
+                ? "border-primary/60 text-primary"
+                : "border-border text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Filter className="w-3.5 h-3.5" />
+            <span>Filter</span>
+            {(minScore > 0 || assetTypeFilter) && (
+              <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+            )}
+          </button>
+
+          {filterOpen && (
+            <div className="absolute top-full mt-2 right-0 w-64 bg-card border border-border rounded shadow-2xl z-50 p-4 space-y-4">
+              <div>
+                <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-2 block">
+                  Min Signal Score: {minScore}%
+                </label>
+                <input
+                  type="range" min={0} max={90} step={5}
+                  value={minScore}
+                  onChange={(e) => setMinScore(Number(e.target.value))}
+                  className="w-full accent-primary"
+                />
+                <div className="flex justify-between text-[9px] text-muted-foreground mt-1">
+                  <span>0%</span><span>90%</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-2 block">
+                  Asset Type
+                </label>
+                <div className="grid grid-cols-2 gap-1">
+                  {["Aviation", "Marine", "RealEstate", "PrivateClub"].map((type) => (
+                    <button
+                      key={type}
+                      onClick={() => setAssetTypeFilter((f) => (f === type ? null : type))}
+                      className={cn(
+                        "text-[10px] font-mono px-2 py-1 rounded border transition-colors",
+                        assetTypeFilter === type
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border text-muted-foreground hover:border-primary/50"
+                      )}
+                    >
+                      {type === "RealEstate" ? "Real Estate" : type}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <button
+                onClick={() => { setMinScore(0); setAssetTypeFilter(null); setFilterOpen(false); }}
+                className="w-full text-[10px] font-mono text-muted-foreground hover:text-foreground border border-border rounded py-1 transition-colors"
+              >
+                Clear Filters
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ── Legend ── */}
@@ -216,6 +292,23 @@ export default function GraphViewer() {
           linkDirectionalArrowRelPos={1}
           onNodeClick={(node) => setSelectedNode(node)}
           backgroundColor="transparent"
+          linkCanvasObjectMode={() => "after"}
+          linkCanvasObject={(link: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
+            if (!link.label || globalScale < 1.8) return;
+            const start = link.source;
+            const end = link.target;
+            if (!start || !end || typeof start !== "object" || typeof end !== "object") return;
+            const midX = ((start as any).x + (end as any).x) / 2;
+            const midY = ((start as any).y + (end as any).y) / 2;
+            const fontSize = Math.min(3.5, 14 / globalScale);
+            ctx.save();
+            ctx.font = `${fontSize}px monospace`;
+            ctx.fillStyle = "rgba(148,163,184,0.65)";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText((link.label as string).replace(/_/g, " "), midX, midY);
+            ctx.restore();
+          }}
         />
       )}
 
@@ -269,7 +362,25 @@ export default function GraphViewer() {
               )}
             </div>
 
-            {selectedNode.metadata && (
+            {selectedNode.nodeType === "Gatekeeper" && (() => {
+              let approachVector = "Professional introduction via shared network";
+              try {
+                const m = JSON.parse(selectedNode.metadata ?? "{}");
+                if (m.approachVector) approachVector = m.approachVector;
+              } catch { /* noop */ }
+              return (
+                <div className="border-t border-border pt-4">
+                  <div className="text-xs text-muted-foreground mb-2 font-mono uppercase tracking-wider flex items-center">
+                    <Shield className="w-3 h-3 mr-1.5 text-amber-500" /> Approach Vector
+                  </div>
+                  <div className="text-xs font-mono text-amber-400 bg-amber-500/5 border border-amber-500/20 p-3 rounded leading-relaxed">
+                    {approachVector}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {selectedNode.metadata && selectedNode.nodeType !== "Gatekeeper" && (
               <div className="border-t border-border pt-4">
                 <div className="text-xs text-muted-foreground mb-2 font-mono uppercase tracking-wider">
                   Raw Intel
