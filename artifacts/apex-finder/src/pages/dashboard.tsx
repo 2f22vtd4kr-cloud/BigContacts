@@ -3,7 +3,8 @@ import { ShieldAlert, Crosshair, Users, MapPin, Database, ChevronRight, Activity
 import { useEffect, useState, useRef } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
-import { cn } from "@/components/layout";
+import { cn } from "@/lib/utils";
+import { Link } from "wouter";
 import { formatCurrency, ScoreBadge } from "@/lib/utils";
 
 // Fix Leaflet icons
@@ -155,9 +156,12 @@ export default function Dashboard() {
                 </div>
                 
                 <div className="mt-3 flex justify-end">
-                  <button className="text-xs font-mono text-primary flex items-center hover:underline">
+                  <Link
+                    href={`/graph?entity=${lead.entityId}`}
+                    className="text-xs font-mono text-primary flex items-center hover:underline"
+                  >
                     View Network <ChevronRight className="w-3 h-3 ml-1" />
-                  </button>
+                  </Link>
                 </div>
               </div>
             ))}

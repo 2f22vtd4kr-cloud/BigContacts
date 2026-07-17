@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useListEntities, useRunResearch } from "@workspace/api-client-react";
 import { Terminal, Play, Cpu, AlertTriangle, ChevronRight, Hash, CheckCircle2 } from "lucide-react";
-import { cn } from "@/components/layout";
+import { cn } from "@/lib/utils";
 import { ScoreBadge } from "@/lib/utils";
 
 // Mock JSON parser for mcts steps. We assume the API returns stringified array of step objects
