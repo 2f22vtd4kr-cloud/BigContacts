@@ -1,0 +1,113 @@
+# Project Specification: ApexFinder Pro (Enterprise OSINT, MCTS & Bayesian CRM Platform)
+You are an elite principal engineer and AI researcher. Build a highly advanced, enterprise-grade OSINT and CRM web application designed to identify, research, track, and score high-net-worth individual (HNWI) investors. This tool leverages international public registries (Catasto, HM Land Registry, Aviation/Marine registers, Corporate filings) and processes them using advanced mathematics (Monte Carlo Tree Search, Bayesian Inference, and Graph Theory) to discover optimal "warm introduction" paths via central nodes (e.g., local *geometri*, wealth managers, shell company directors).
+## 🛠️ Tech Stack & Libraries
+ * **Backend:** Python (FastAPI for async performance)
+ * **Frontend:** HTML5, Tailwind CSS, Vanilla JavaScript, Lucide-icons
+ * **Mapping:** Leaflet.js (for geospatial asset visualization)
+ * **Math & AI:**
+   * networkx (for in-memory Graph Analysis/Entity Resolution)
+   * scipy / numpy (for Bayesian probability scoring)
+   * OpenAI API / Anthropic API (for heuristic node evaluation and pitch generation)
+ * **Database:** SQLite (Relational structure acting as an edge/node store for the graph)
+## 🚀 Core Platform Modules & UI Tabs
+### 1. Unified Intelligence Dashboard & Map View
+ * **Geospatial Asset Map (Leaflet.js):** A full-width interactive map plotting real estate parcels (UK/Italy/US), last-known private jet pings, and yacht moorings.
+ * **"Hot Leads" Engine:** A real-time feed prioritizing targets based on recent activity (e.g., recent property purchase, corporate filing update, or plane movement).
+ * **Visual Style:** "Palantir meets Bloomberg". Dark obsidian background (#0B0F19), neon green (#10B981) for live signals, and deep electric blue (#3B82F6) for graph connections.
+### 2. Graph Analysis & Entity Resolution
+ * **The Logic:** Use networkx to map relationships: [Owner Entity] -> (OWNS) -> [Multiple Assets] -> (MANAGED BY) -> [Central Node / Geometra].
+ * **Graph Visualization:** A UI tab displaying a force-directed graph of the target's ecosystem, revealing hidden cross-pollination (e.g., Target A and Target B share the same property management firm).
+### 3. Bayesian "Likely Investor" Scoring
+ * **The Math:** Implement a Bayesian inference engine to dynamically update a target's "Investor Score" as new assets or public signals are discovered.
+   
+   
+   *Where signals include: High-velocity asset acquisition, liquidity events (company sales found in registries), or sharing a node with known investors.*
+ * **Output:** Each lead in the CRM is ranked 0-100 based on this Bayesian posterior probability.
+### 4. MCTS-Guided Autonomous Research Agent
+ * **The Concept:** The Monte Carlo Tree Search algorithm doesn't just guess paths; it actively guides an agent to explore *LinkedIn* graphs, *corporate registries*, and *Catasto* records.
+ * **The Math (UCT for Path Selection):**
+   
+ * **Execution:** The MCTS engine branches through:
+   1. Public property records (identifying the *Geometra*/Broker).
+   2. Corporate structures (identifying board members).
+   3. LinkedIn/Social presence (identifying alumni/philanthropic overlaps).
+ * **Result:** A fully optimized "Connection Pathway" (e.g., *Path of least resistance: Reach out to Geometra Marco via WhatsApp with a 5% vendor commission offer to access Owner X*).
+### 5. Pro CRM & Follow-Up Automation
+ * **Advanced Lead Tracker:** Sortable by Bayesian Score and "Hot Lead" activity.
+ * **Columns:** Identified ➡️ Graph Mapped ➡️ MCTS Path Selected ➡️ Pitch Generated ➡️ Contacted ➡️ Follow-Up ➡️ Closed.
+ * **Creative Pitch Generation:** AI consumes the exact MCTS winning path and the Graph nodes to draft hyper-personalized WhatsApp/Email outreach targeting the *Central Node* (gatekeeper), not just cold-emailing the HNWI.
+## 🗄️ Relational Graph Database Schema (SQLite)
+```sql
+-- Core Entities (Can be HNWIs, Companies, or Gatekeepers like Geometri)
+CREATE TABLE entities (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    type TEXT, -- 'Person', 'Corporation', 'Trust', 'Gatekeeper'
+    bayesian_investor_score REAL DEFAULT 0.05, -- Prior probability
+    metadata TEXT, -- JSON holding LinkedIn, emails, phone numbers
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Assets (Properties, Jets, Yachts)
+CREATE TABLE assets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    category TEXT, -- 'Real Estate', 'Aviation', 'Marine'
+    identifier TEXT, -- Parcel ID, Tail Number, IMO
+    jurisdiction TEXT, -- 'Italy SISTER', 'UK HMLR', 'FAA'
+    latitude REAL,
+    longitude REAL,
+    estimated_value REAL,
+    last_activity_date DATE
+);
+
+-- Edges (The Graph Connections)
+CREATE TABLE relationships (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source_entity_id INTEGER,
+    target_id INTEGER,
+    target_type TEXT, -- 'Entity' or 'Asset'
+    relationship_type TEXT, -- 'OWNS', 'MANAGES', 'BOARD_MEMBER_OF', 'GEOMETRA_FOR'
+    FOREIGN KEY(source_entity_id) REFERENCES entities(id)
+);
+
+-- MCTS & CRM Tracking
+CREATE TABLE research_sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    target_entity_id INTEGER,
+    winning_path TEXT, -- JSON of the MCTS generated route
+    generated_pitch TEXT,
+    crm_status TEXT DEFAULT 'Lead Gen',
+    last_contact_date DATE,
+    FOREIGN KEY(target_entity_id) REFERENCES entities(id)
+);
+
+```
+## 🛠️ Step-by-Step Implementation Guide for Replit Agent
+### Step 1: Initialize Project & Architecture
+Create the directory structure:
+```text
+├── app.py                  # FastAPI server and route definitions
+├── graph_engine.py         # NetworkX logic for entity resolution
+├── bayesian_scorer.py      # Probability scoring algorithms
+├── mcts_agent.py           # Monte Carlo Tree Search branching logic
+├── mock_registries.py      # Simulated APIs (Catasto, HMLR, FAA, LinkedIn)
+├── database.py             # SQLite setup and edge/node querying
+├── templates/
+│   └── index.html          # SPA interface
+├── static/
+│   ├── css/style.css       # Tailwind config
+│   └── js/main.js          # Leaflet map init, D3/NetworkX viz, logic
+└── requirements.txt        # fastapi, uvicorn, networkx, scipy, openai
+
+```
+### Step 2: Implement the Math & Graph Engines
+ * **bayesian_scorer.py:** Write a function that takes an entity, pulls its edges (assets, recent activity), and updates its prior probability using Bayesian inference.
+ * **graph_engine.py:** Write a function that converts SQLite entities and relationships into a networkx.DiGraph to find the shortest path between the User and the HNWI via a Gatekeeper.
+### Step 3: Build the MCTS Research Agent
+ * In mcts_agent.py, write the logic for the AI to simulate branching outreach paths. It must ingest the networkx graph data and mock registry data, evaluate the UCT formula, and use an LLM prompt to grade the "warmth" and viability of the approach.
+### Step 4: Develop the Frontend (Map + Dashboard)
+ * Integrate Leaflet.js in main.js to fetch asset coordinates from the backend and plot them.
+ * Build the dashboard UI with Tailwind, creating distinct views for the Map, the Network Graph, the MCTS logic terminal (showing real-time AI thought processes), and the CRM table sorted by Bayesian score.
+### Step 5: Wire Mock Registries
+ * Ensure mock_registries.py provides rich, interconnected fake data (e.g., an Italian Villa owned by a UK Shell Company, managed by an Italian *Geometra* with a WhatsApp number) so the graph and MCTS engines have complex data to traverse.
+**Start building the platform immediately. Begin by initializing the file structure, database schema, and dependency installations. Then proceed to backend logic (Graph/Bayes/MCTS) before hooking up the Leaflet and Tailwind frontend.**
