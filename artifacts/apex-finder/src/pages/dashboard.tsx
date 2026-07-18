@@ -38,6 +38,7 @@ function MapInvalidator({ active }: { active: boolean }) {
       const t = setTimeout(() => map.invalidateSize(), 50);
       return () => clearTimeout(t);
     }
+    return undefined;
   }, [active, map]);
   return null;
 }
