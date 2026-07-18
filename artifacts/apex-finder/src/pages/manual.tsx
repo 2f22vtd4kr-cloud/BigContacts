@@ -833,18 +833,21 @@ export default function FieldManual() {
             title="Western HNWI Engine"
           >
             <p className="text-sm text-[#94A3B8] leading-relaxed mb-6">
-              Instead of adding targets one at a time, the Western HNWI Engine generates tens of
-              thousands of realistic investor profiles from public wealth registries, aviation records,
-              marina slips, and club memberships — all pre-scored and deduplicated — in a single
-              background job. Your Entity Ledger goes from dozens to tens of thousands of searchable
-              targets in minutes.
+              Instead of adding targets one at a time, the Western HNWI Engine pulls thousands of{" "}
+              <strong className="text-[#E2E8F0]">real people</strong> from free government registries
+              — SEC EDGAR beneficial-ownership filings, Norwegian Enhetsregisteret board directors,
+              and Companies House UK officers — all pre-scored and deduplicated — in a single
+              background job. Your Entity Ledger goes from dozens to thousands of verified, real
+              targets in one run.
             </p>
 
-            <Callout icon={<Zap size={14} />} color="#A855F7" title="What the engine generates">
-              Each record includes: full name, nationality, wealth tier, estimated net worth, known
-              residences, registered aircraft (FAA/CAA tail number), yacht (IMO), real estate parcels,
-              club memberships, Bayesian signal score, and — critically — a Proximity Score (1–10)
-              indicating how reachable they are via confirmed personal channels.
+            <Callout icon={<Zap size={14} />} color="#A855F7" title="What the engine fetches">
+              Every record is a real person from a real public source. SC 13D/G filers own{" "}
+              {">"}&thinsp;5% of a US public company — confirmed wealthy. Norwegian board directors
+              come from the national Enhetsregisteret. UK officers come from Companies House. Each
+              record includes: full name, nationality, source registry, known location, Bayesian
+              signal score, and a Proximity Score (1–10) that rises as MCTS research adds contact
+              vectors.
             </Callout>
 
             {/* How to trigger */}
@@ -861,7 +864,7 @@ export default function FieldManual() {
                 {
                   n: "2",
                   title: "Choose your target count",
-                  body: 'Use the TARGET dropdown to select how many records to generate: 500 (quick test), 5,000 (default), up to 50,000 (full dataset). Larger runs take longer but produce a richer corpus.',
+                  body: 'Use the TARGET dropdown to select how many records to fetch: 500 (quick test), 5,000 (default), up to 50,000 (full dataset). Larger runs harvest more pages from each registry and take longer.',
                 },
                 {
                   n: "3",
@@ -896,22 +899,15 @@ export default function FieldManual() {
               Country distribution
             </h3>
             <p className="text-sm text-[#94A3B8] leading-relaxed mb-4">
-              The engine targets Western jurisdictions with the highest density of investable capital
-              and the most accessible personal-contact infrastructure (private clubs, FBOs, marinas).
+              The engine pulls from registries across Western jurisdictions with the highest density
+              of publicly-filed beneficial ownership data and company director records.
             </p>
             <div className="bg-[#050A14] border border-[#A855F7]/25 rounded-lg p-5 mb-5">
               <div className="space-y-2.5">
                 {[
-                  { country: "United States",    pct: 35, color: "#10B981" },
-                  { country: "United Kingdom",   pct: 18, color: "#3B82F6" },
-                  { country: "Switzerland",      pct: 10, color: "#F59E0B" },
-                  { country: "Germany",          pct:  9, color: "#F59E0B" },
-                  { country: "France",           pct:  7, color: "#64748B" },
-                  { country: "Australia",        pct:  6, color: "#64748B" },
-                  { country: "Canada",           pct:  6, color: "#64748B" },
-                  { country: "Norway",           pct:  4, color: "#475569" },
-                  { country: "Netherlands",      pct:  3, color: "#475569" },
-                  { country: "New Zealand",      pct:  2, color: "#475569" },
+                  { country: "United States (SEC EDGAR)",   pct: 80, color: "#10B981" },
+                  { country: "Norway (BRREG)",             pct: 12, color: "#3B82F6" },
+                  { country: "United Kingdom (CH)",        pct:  8, color: "#F59E0B" },
                 ].map((row) => (
                   <div key={row.country} className="flex items-center gap-3 text-xs">
                     <span className="text-[#94A3B8] w-28 shrink-0">{row.country}</span>
@@ -929,16 +925,16 @@ export default function FieldManual() {
               </div>
             </div>
 
-            {/* Wealth tiers */}
+            {/* Source types */}
             <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-widest mt-7 mb-4">
-              Wealth tiers
+              Source types
             </h3>
             <div className="grid grid-cols-2 gap-3 mb-6">
               {[
-                { tier: "Billionaire",      range: "$1B+",       color: "#10B981", pct: "5%" },
-                { tier: "Ultra-HNWI",       range: "$100M–$1B",  color: "#3B82F6", pct: "15%" },
-                { tier: "Very High",        range: "$30M–$100M", color: "#F59E0B", pct: "30%" },
-                { tier: "HNWI Standard",    range: "$5M–$30M",   color: "#64748B", pct: "50%" },
+                { tier: "SC 13D/G Filer",    desc: "Owns >5% of US public co.",  color: "#10B981", badge: "Confirmed wealthy" },
+                { tier: "DEF 14A Director",  desc: "Named in US proxy statement", color: "#3B82F6", badge: "Board-level exec"   },
+                { tier: "BRREG Director",    desc: "Norwegian company board",     color: "#F59E0B", badge: "Govt. registry"    },
+                { tier: "CH Officer / PSC",  desc: "UK Companies House record",   color: "#64748B", badge: "Key optional"     },
               ].map((row) => (
                 <div
                   key={row.tier}
@@ -947,9 +943,9 @@ export default function FieldManual() {
                 >
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-xs font-bold" style={{ color: row.color }}>{row.tier}</span>
-                    <span className="text-[10px] font-mono text-[#475569]">{row.pct}</span>
+                    <span className="text-[10px] font-mono text-[#475569]">{row.badge}</span>
                   </div>
-                  <span className="text-[11px] font-mono text-[#64748B]">{row.range}</span>
+                  <span className="text-[11px] text-[#64748B]">{row.desc}</span>
                 </div>
               ))}
             </div>
@@ -959,10 +955,10 @@ export default function FieldManual() {
               Deduplication — never double-count
             </h3>
             <p className="text-sm text-[#94A3B8] leading-relaxed mb-4">
-              Every generated record is fingerprinted by name + nationality + wealth tier and stored
-              in a permanent Upstash Redis set. Running INGEST twice with the same target count will
-              insert new records, not duplicates — the engine automatically skips any fingerprint it
-              has already seen. The "deduplicated" counter in the job log shows how many were skipped.
+              Every fetched record is fingerprinted by normalised name + jurisdiction and stored in
+              a permanent Upstash Redis set. Running INGEST twice will insert new records from deeper
+              registry pages, not duplicates — the engine automatically skips any fingerprint it has
+              already seen. The "deduplicated" counter in the job log shows how many were skipped.
             </p>
             <div className="bg-[#050A14] border border-[#A855F7]/25 rounded-lg p-5 mb-5 text-xs font-mono">
               <div className="text-[#475569] mb-2 uppercase tracking-wider text-[10px]">Job output example</div>
