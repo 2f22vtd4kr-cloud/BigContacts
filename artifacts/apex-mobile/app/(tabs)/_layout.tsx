@@ -24,6 +24,10 @@ function NativeTabLayout() {
         <Icon sf={{ default: 'arrow.triangle.branch', selected: 'arrow.triangle.branch' }} />
         <Label>Approach</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="connections">
+        <Icon sf={{ default: 'share.fill', selected: 'share.fill' }} />
+        <Label>Connections</Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="manual">
         <Icon sf={{ default: 'book.pages', selected: 'book.pages.fill' }} />
         <Label>Manual</Label>
@@ -99,6 +103,18 @@ function ClassicTabLayout() {
               <SymbolView name="arrow.triangle.branch" tintColor={color} size={22} />
             ) : (
               <Feather name="map" size={20} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="connections"
+        options={{
+          title: 'Connections',
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="share" tintColor={color} size={22} />
+            ) : (
+              <Feather name="share-2" size={20} color={color} />
             ),
         }}
       />

@@ -34,8 +34,15 @@ import {
   Layers,
   Route,
   Target,
+  Plus,
+  Trash2,
+  Link2,
 } from "lucide-react";
 import { cn, formatCurrency, ScoreBadge } from "@/lib/utils";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+  DialogFooter, DialogClose,
+} from "@/components/ui/dialog";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -238,7 +245,7 @@ export default function ApexProfile() {
 
   const { data: entity, isLoading, refetch: refetchEntity } = useGetEntity(entityId);
   const { data: assets = []       } = useListAssets({ entityId });
-  const { data: relationships = [] } = useListRelationships({ entityId });
+  const { data: relationships = [], refetch: refetchRelationships } = useListRelationships({ entityId });
   const { data: sessions = [],  refetch: refetchSessions } = useListResearchSessions({ entityId, limit: 10 });
 
   const runResearch  = useRunResearch();
@@ -250,6 +257,19 @@ export default function ApexProfile() {
   const [isEnriching, setIsEnriching]     = useState(false);
   const [enrichError, setEnrichError]     = useState<string | null>(null);
   const [enrichDone, setEnrichDone]       = useState(false);
+  // ── Relationship modal ─────────────────────────────────────────────────────
+  const [addRelOpen, setAddRelOpen]             = useState(false);
+  const [relTargetType, setRelTargetType]       = useState<"Entity" | "Asset">("Entity");
+  const [relTargetId, setRelTargetId]           = useState<number | null>(null);
+  const [relTargetName, setRelTargetName]       = useState("");
+  const [relType, setRelType]                   = useState("KNOWS");
+  const [relStrength, setRelStrength]           = useState(0.5);
+  const [relNotes, setRelNotes]                 = useState("");
+  const [relSaving, setRelSaving]               = useState(false);
+  const [relError, setRelError]                 = useState<string | null>(null);
+  const [relSearchQ, setRelSearchQ]             = useState("");
+  const [relSearchResults, setRelSearchResults] = useState<{ id: number; name: string }[]>([]);
+  const [deletingRelId, setDeletingRelId]       = useState<number | null>(null);
 
   // ── Loading / error states ─────────────────────────────────────────────────
 

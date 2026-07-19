@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { eq, isNotNull } from "drizzle-orm";
 import { db, relationshipsTable, entitiesTable, assetsTable } from "@workspace/db";
 import {
   ListRelationshipsQueryParams,
@@ -81,6 +81,63 @@ router.delete("/relationships/:id", async (req, res): Promise<void> => {
     return;
   }
   res.sendStatus(204);
+});
+
+// POST /api/relationships/auto-detect — shared-address co-ownership detection
+router.post("/relationships/auto-detect", async (_req, res): Promise<void> => {
+  // Load entities with known residences
+  const entities = await db
+    .select({ id: entitiesTable.id, name: entitiesTable.name, knownResidences: entitiesTable.knownResidences })
+    .from(entitiesTable)
+    .where(isNotNull(entitiesTable.knownResidences));
+
+  // Build address → entityId[] index
+  const addressIndex = new Map<string, number[]>();
+  for (const e of entities) {
+    let addrs: string[] = [];
+    try { addrs = JSON.parse(e.knownResidences ?? "[]"); } catch {}
+    for (const addr of addrs) {
+      const key = addr.toLowerCase().replace(/\s+/g, " ").trim();
+      if (!key) continue;
+      if (!addressIndex.has(key)) addressIndex.set(key, []);
+      addressIndex.get(key)!.push(e.id);
+    }
+  }
+
+  // Load existing relationships to stay idempotent
+  const existing = await db
+    .select({ sourceEntityId: relationshipsTable.sourceEntityId, targetId: relationshipsTable.targetId, relationshipType: relationshipsTable.relationshipType })
+    .from(relationshipsTable);
+  const seen = new Set(existing.map((r) => `${r.sourceEntityId}:${r.targetId}:${r.relationshipType}`));
+
+  let created = 0;
+  let skipped = 0;
+
+  for (const [, ids] of addressIndex) {
+    const unique = [...new Set(ids)];
+    if (unique.length < 2) continue;
+    for (let i = 0; i < unique.length; i++) {
+      for (let j = i + 1; j < unique.length; j++) {
+        const a = unique[i]!;
+        const b = unique[j]!;
+        const fwd = `${a}:${b}:KNOWN_ASSOCIATE`;
+        const rev = `${b}:${a}:KNOWN_ASSOCIATE`;
+        if (seen.has(fwd) || seen.has(rev)) { skipped++; continue; }
+        await db.insert(relationshipsTable).values({
+          sourceEntityId: a,
+          targetId: b,
+          targetType: "Entity",
+          relationshipType: "KNOWN_ASSOCIATE",
+          strength: 0.6,
+          notes: "Auto-detected: shared correspondence address",
+        });
+        seen.add(fwd);
+        created++;
+      }
+    }
+  }
+
+  res.json({ created, skipped, message: `Auto-detect complete: ${created} new relationships, ${skipped} already existed.` });
 });
 
 export default router;

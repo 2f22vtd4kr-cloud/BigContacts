@@ -2,7 +2,7 @@ import { useGetEntityGraph, useListEntities } from "@workspace/api-client-react"
 import { useEffect, useRef, useState, useMemo } from "react";
 import { useSearch, useLocation } from "wouter";
 import ForceGraph2D, { ForceGraphMethods } from "react-force-graph-2d";
-import { Network, ZoomIn, ZoomOut, Maximize, X, Search, ChevronDown, Filter, Shield } from "lucide-react";
+import { Network, ZoomIn, ZoomOut, Maximize, X, Search, ChevronDown, Filter, Shield, Plus, Link2 } from "lucide-react";
 import { cn, formatCurrency, ScoreBadge } from "@/lib/utils";
 
 function useWindowSize() {
