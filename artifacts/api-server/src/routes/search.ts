@@ -11,6 +11,7 @@ import { Router, type IRouter } from "express";
 import { ilike, and, gte, eq, lte, sql } from "drizzle-orm";
 import { db, entitiesTable, assetsTable } from "@workspace/db";
 import { getCache, setCache } from "../lib/redis";
+import { orchestrate } from "../lib/agent-orchestrator";
 
 const router: IRouter = Router();
 
@@ -183,6 +184,30 @@ router.get("/search/hnwi/facets", async (_req, res): Promise<void> => {
 
   await setCache("search:facets", facets, 300);
   res.json(facets);
+});
+
+// POST /search/intelligent — hybrid BM25 + TF-IDF + Graph + RRF with multi-agent pipeline
+router.post("/search/intelligent", async (req, res): Promise<void> => {
+  const { query = "", limit = 20 } = req.body as { query?: string; limit?: number };
+
+  if (!query.trim()) {
+    res.status(400).json({ error: "query is required." });
+    return;
+  }
+
+  const safeLimit = Math.min(Number(limit) || 20, 50);
+  const cacheKey = `search:intelligent:${query.trim().toLowerCase()}:${safeLimit}`;
+
+  const cached = await getCache<object>(cacheKey);
+  if (cached) { res.json({ ...cached, cached: true }); return; }
+
+  try {
+    const result = await orchestrate(query.trim(), safeLimit);
+    await setCache(cacheKey, result, 60); // 60 s cache
+    res.json({ ...result, cached: false });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message ?? "Intelligent search failed" });
+  }
 });
 
 export default router;

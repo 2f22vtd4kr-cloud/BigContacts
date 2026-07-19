@@ -6,6 +6,7 @@ import PipelineCRM from "@/pages/crm";
 import MCTSTerminal from "@/pages/research";
 import EntityLedger from "@/pages/entities";
 import FieldManual from "@/pages/manual";
+import DeepSearch from "@/pages/deep-search";
 import NotFound from "@/pages/not-found";
 
 export default function AppRouter() {
@@ -17,6 +18,7 @@ export default function AppRouter() {
         <Route path="/crm" component={PipelineCRM} />
         <Route path="/research" component={MCTSTerminal} />
         <Route path="/entities" component={EntityLedger} />
+        <Route path="/deep-search" component={DeepSearch} />
         <Route path="/manual" component={FieldManual} />
         <Route component={NotFound} />
       </Switch>
