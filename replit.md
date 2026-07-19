@@ -66,12 +66,15 @@ Schema push: `pnpm --filter @workspace/db run push`
 
 ## Current Data State (as of 2026-07-19)
 
+> ⚠️ The figures below are from a prior fully-ingested session. The current live environment has ~110 entities and 0 assets. Re-run the ingestion pipelines to repopulate (clear Upstash dedup first for a clean slate).
+
 | Source | Entities | Assets | Notes |
 |---|---|---|---|
 | FAA Releasable Aircraft Registry | 12,902 | 12,902 | Turbine/multi-engine/rotorcraft owners. Real N-numbers. 37,110 skipped (already in Upstash dedup from prior session). Cached at `/tmp/apexfinder-faa/`. |
 | HMLR Price Paid Data (PPD) | 50,000 | 50,000 | £1M+ UK property from 2023–2025 PPD CSVs. 50,000 skipped (dedup). Cached at `/tmp/apexfinder-hmlr/`. |
 | Western HNWI (SEC EDGAR + BRREG) | 600+ | 0 | Still ingesting — SEC EDGAR rate-limited at ~1 req/s. Runs in background. Target: 5,000. |
-| **Total** | **~63,500+** | **~62,900** | Hot leads: 5,151 · Avg Bayesian score: 62.3% |
+| **Prior session total** | **~63,500+** | **~62,900** | Hot leads: 5,151 · Avg Bayesian score: 62.3% |
+| **Current live DB** | **~110** | **0** | 102 western HNWI partial + 8 seeded. Ingestors not yet run this session. |
 
 ---
 
@@ -165,6 +168,7 @@ GET  /api/improve/logs                 improvement suggestions (filterable by pe
 | 6 | FAA aircraft registry ingestor, Western HNWI engine (SEC EDGAR + BRREG + Companies House) |
 | 7 | Persona improvement loop (6 deterministic personas), `improvement_logs` table, `/improvements` UI page |
 | 8 | OCCRP Aleph enricher, HMLR OCOD ingestor (replaced by PPD CSV), OpenSky live-flight enricher, Data Sources dashboard |
+| 9 (UX) | Single-pass query expansion (`expandQuery` in agent-orchestrator.ts); Entity Ledger clickable contact vectors (mailto/tel/LinkedIn); Profile page Direct Contact Vectors action bar; MCTS Terminal search bar + 500-entity limit + `?entity=` URL pre-selection; CRM empty-state guidance; `improve/run` inArray SQL fix; Intel Systems Analyst persona text updated to reflect expansion mechanics |
 
 ---
 

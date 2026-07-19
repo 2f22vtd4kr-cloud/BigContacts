@@ -21,29 +21,35 @@
 | Workflow | Status |
 |---|---|
 | Redis | ✅ Running |
-| `artifacts/api-server: API Server` | ✅ Running |
-| `artifacts/apex-finder: web` | ✅ Running |
+| `artifacts/api-server: API Server` | ✅ Running (port 8080) |
+| `artifacts/apex-finder: web` | ✅ Running (port 23695) |
 | `artifacts/apex-mobile: expo` | Not started (optional) |
 | `artifacts/mockup-sandbox: Component Preview Server` | Not started (optional) |
 
 ### Database
-- Schema pushed ✅ (`pnpm --filter @workspace/db run push`)
-- **FAA**: ✅ Done — 12,902 inserted, 37,110 skipped (dedup — prior session keys in Upstash)
-- **Land Registry**: ✅ Done — 50,000 inserted, 50,000 skipped (dedup)
-- **Western HNWI**: 🔄 Running in background — ~600+ inserted so far, target 5,000. SEC EDGAR rate-limited (~1 req/s). Will continue until job completes.
-- **Dashboard totals**: ~63,500 entities · ~62,900 assets · 5,151 hot leads · avg score 62.3%
+- Schema pushed ✅
+- **Entities**: ~110 (102 from prior western HNWI partial ingest + 8 manually seeded this session for persona simulation)
+- **Assets**: 0 — large ingestors (FAA, HMLR) have NOT been run yet in this environment
+- **Research sessions**: 1 (Viktor Aldenmoor, MCTS Path Selected, pathScore 0.427)
+- **Improvement logs**: 67 (25 high · 27 medium · 15 low — all pending)
+- **Hot leads**: 16 · avg Bayesian score ~92% (old ingested entities all share default 0.9434 score)
 
-> **Note on FAA count:** Only 12,902 of the prior 30,000 FAA records were re-inserted because 37,110 N-numbers from the previous session are still in the Upstash dedup set. The FAA registry itself is updated daily — the 12,902 are records not seen in the prior run. To get back to ~30,000 FAA records, run `DELETE /api/ingest/dedup` (clears Upstash), truncate the `entities` + `assets` tables, then re-ingest.
+> **Note:** The DB figures (63,500 entities, 62,900 assets) in replit.md's "Current Data State" table are from a previous fully-ingested session. The current live environment has ~110 entities and 0 assets. Run the ingestion pipelines (FAA, HMLR, Western HNWI) to repopulate — clear Upstash dedup first if you want a clean slate.
 
-### What was done this session
-1. `pnpm install` — 1,128 packages installed
-2. DB schema pushed via `pnpm --filter @workspace/db run push`
-3. All four artifacts registered with Replit platform
-4. `postgresql-16` Nix module restored (platform had removed it during import)
-5. API server and web frontend verified running — dashboard loads at `/`
+### What was done this session (persona simulation + fixes)
+1. Fixed `improve/run` SQL crash: `ANY(${entityIds})` → `inArray(entityIds)` in `improve.ts`
+2. Seeded 8 representative test entities covering the full quality spectrum
+3. Ran all 6 personas → 67 improvement suggestions generated (0 errors)
+4. **Entity Ledger**: Contact Vector column now shows clickable `mailto:` / `tel:` / LinkedIn links; "No contact" shown in muted italic when empty (was: raw 80-char SEC prose)
+5. **MCTS Terminal**: Added search bar + raised entity limit 30 → 500; `?entity=ID` URL param now correctly pre-selects target via `window.location.search`
+6. **Profile page**: Prominent "Direct Contact Vectors" action bar added below header — email, phone, LinkedIn as separate clickable buttons
+7. **CRM**: Lead Gen empty state now shows "→ Run MCTS on a target" prompt (both desktop and mobile)
+8. **Persona engine**: Updated Intel Systems Analyst — file header, Layer 2 block comment, and "query expansion stalled" suggestion text to accurately reflect single-pass `expandQuery()` mechanics
 
 ### What's pending
-- **Re-ingest data** — DB is empty after GitHub import. Run FAA, HMLR, and Western HNWI pipelines to repopulate. See replit.md → Ingestion Endpoints. Clear Upstash dedup first (`DELETE /api/ingest/dedup`) if you want a clean slate.
+- **Ingest data**: Run FAA (`POST /api/ingest/faa`), HMLR (`POST /api/ingest/land-registry`), Western HNWI (`POST /api/ingest/western-hnwi`) to populate entities and assets. Optionally clear Upstash dedup first.
+- **Relationship creation UI**: No widget exists to add entity→entity or entity→asset relationships from the frontend — critical gap for MCTS pathfinding and Business Engineer workflow.
+- **Contact enrichment pipeline**: 98% of ingested entities have no phone/email. A Companies House officer lookup or LinkedIn enrichment ingestor is needed to close the last-mile outreach gap.
 
 ---
 
