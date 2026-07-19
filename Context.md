@@ -43,8 +43,7 @@
 5. API server and web frontend verified running — dashboard loads at `/`
 
 ### What's pending
-- **Set `REDIS_URL_1`** — Upstash Redis URL for persistent dedup (user providing)
-- **Re-ingest data** — FAA, HMLR, and Western HNWI pipelines need to run to repopulate DB
+- **Re-ingest data** — DB is empty after GitHub import. Run FAA, HMLR, and Western HNWI pipelines to repopulate. See replit.md → Ingestion Endpoints. Clear Upstash dedup first (`DELETE /api/ingest/dedup`) if you want a clean slate.
 
 ---
 
@@ -57,6 +56,7 @@
 | 2026-07-19 | Synthetic data purge: removed Math.random() jitter from graph path score (graph.ts), removed hardcoded "James"/"Captain" name fallbacks (pitch-generator.ts), replaced random skeleton widths with fixed value (sidebar.tsx). Added scripts/check-no-synthetic-data.sh — bans faker libs, Math.random() outside MCTS, lorem ipsum, seeding functions. Wired into post-merge.sh so every future merge is checked automatically. |
 | 2026-07-19 | Ingestion run: FAA ✅ 12,902 inserted (37,110 deduped from prior Upstash session). LR ✅ 50,000 inserted (50,000 deduped). Western HNWI 🔄 running in background (~600+ so far, SEC EDGAR rate-limited). Dashboard live: ~63,500 entities, ~62,900 assets, 5,151 hot leads. |
 | 2026-07-19 | Replaced MCTS Expert persona with Intel Systems Analyst (`intel_systems_analyst`). New persona covers the full hybrid stack: MCTS path coverage (Layer 1), hybrid search signal coverage / BM25+RRF anchors (Layer 2), agent orchestration pipeline completeness / Planner→Retriever→Analyst→Critic (Layer 3), Bayesian-UCB convergence / score-frozen detection (Layer 4). Updated persona-engine.ts, improvements.tsx, improvement_logs.ts schema comment. |
+| 2026-07-19 | GitHub import re-setup: pnpm install, DB schema pushed, all 4 artifacts re-registered (verifyAndReplaceArtifactToml), API server + apex-finder web workflows running. Dashboard loads. DB empty — needs re-ingestion. |
 
 ---
 
