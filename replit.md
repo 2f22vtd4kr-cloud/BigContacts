@@ -1,67 +1,176 @@
 # ApexFinder Pro
 
-A private OSINT intelligence platform for researching high-net-worth individuals (HNWIs) via real public registries. Zero synthetic data — every record derives from a validated public source.
+A private OSINT intelligence platform for researching high-net-worth individuals (HNWIs) via real public registries. **Zero synthetic data — every record is sourced from a validated public registry.**
+
+---
 
 ## Architecture
 
-pnpm monorepo with four artifacts:
+pnpm monorepo (`pnpm-workspace.yaml` at root). Four registered artifacts:
 
-| Artifact | Path | Port | URL |
+| Artifact | Path | Port env | Preview path |
 |---|---|---|---|
-| API Server (Express 5) | `artifacts/api-server` | 8080 | `/api` |
-| Web Frontend (React 19 + Vite) | `artifacts/apex-finder` | 23695 | `/` |
-| Mobile (Expo) | `artifacts/apex-mobile` | 22796 | `/apex-mobile/` |
-| Mockup Sandbox | `artifacts/mockup-sandbox` | 8081 | `/__mockup` |
+| API Server (Express 5) | `artifacts/api-server` | `PORT` (8080) | `/api` |
+| Web Frontend (React 19 + Vite) | `artifacts/apex-finder` | `PORT` (23695) | `/` |
+| Mobile (Expo) | `artifacts/apex-mobile` | `PORT` (22796) | `/apex-mobile/` |
+| Mockup Sandbox | `artifacts/mockup-sandbox` | `PORT` (8081) | `/__mockup` |
 
-Shared libraries:
-- `lib/db` — Drizzle ORM + PostgreSQL schema (`drizzle-kit push` to migrate)
-- `lib/api-zod` — shared Zod schemas
+Shared libraries (under `lib/`):
+- `lib/db` — Drizzle ORM + PostgreSQL schema. Run `pnpm --filter @workspace/db run push` to apply migrations.
+- `lib/api-zod` — shared Zod request/response schemas
 
-## Running the Project
+---
 
-Workflows (managed by Replit):
-- **Redis** — `redis-server --port 6379` (always running; local cache)
-- **artifacts/api-server: API Server** — builds + starts the Express API
-- **artifacts/apex-finder: web** — Vite dev server for the frontend
+## Workflows (Replit-managed)
 
-To start after import: Redis, API Server, and apex-finder web workflows must all be running.
-
-## Environment Variables
-
-| Variable | Where set | Purpose |
+| Workflow | Command | Must run? |
 |---|---|---|
-| `DATABASE_URL` | Replit DB (auto) | PostgreSQL connection string |
-| `REDIS_URL` | `.replit` userenv | Local Redis (`redis://localhost:6379`) |
+| Redis | `redis-server --port 6379 --save '' --appendonly no` | Yes — local cache |
+| `artifacts/api-server: API Server` | `pnpm --filter @workspace/api-server run dev` | Yes |
+| `artifacts/apex-finder: web` | `pnpm --filter @workspace/apex-finder run dev` | Yes |
+| `artifacts/apex-mobile: expo` | `pnpm --filter @workspace/apex-mobile run dev` | Optional |
+| `artifacts/mockup-sandbox` | `pnpm --filter @workspace/mockup-sandbox run dev` | Optional |
+
+The API server `dev` script runs `build` then `start` every time (esbuild, ~1.5s).
+
+---
+
+## Environment Variables & Secrets
+
+| Variable | Where | Purpose |
+|---|---|---|
+| `DATABASE_URL` | Replit PostgreSQL (auto) | PostgreSQL connection |
+| `REDIS_URL` | `.replit` userenv | Local Redis — `redis://localhost:6379` |
 | `SESSION_SECRET` | Replit Secret | Express session signing |
-| `COMPANIES_HOUSE_API_KEY` | Replit Secret (optional) | UK Companies House harvester |
-| `REDIS_URL_1`, `REDIS_URL_2` | Replit Secrets (optional) | Upstash permanent Redis for dedup |
+| `REDIS_URL_1` | Replit Secret | **Upstash permanent Redis** — dedup set lives here. Required for dedup to persist across restarts. |
+| `REDIS_URL_2` | Replit Secret (optional) | Second Upstash slot |
+| `COMPANIES_HOUSE_API_KEY` | Replit Secret (optional) | UK Companies House officer harvester |
 
-## Database
+---
 
-Schema managed by Drizzle ORM in `lib/db/src/schema/`. To push schema changes:
+## Database Schema
 
-```bash
-pnpm --filter @workspace/db run push
-```
+Tables (all in `lib/db/src/schema/`):
 
-Database starts empty — use the ingestion endpoints to load real data:
-- `POST /api/ingest/western-hnwi` — SEC EDGAR + Companies House + BRREG
-- `POST /api/ingest/faa` — FAA Releasable Aircraft Database
+| Table | Purpose |
+|---|---|
+| `entities` | Core HNWI/Corp/Trust/Gatekeeper profiles |
+| `assets` | Aviation, RealEstate, Marine, PrivateClub assets |
+| `relationships` | Entity→Entity and Entity→Asset edges |
+| `research_sessions` | MCTS outreach path results + CRM status |
+| `improvement_logs` | Persona-loop suggestions per entity |
+
+Schema push: `pnpm --filter @workspace/db run push`
+
+---
+
+## Current Data State (as of 2026-07-19)
+
+| Source | Entities | Assets | Notes |
+|---|---|---|---|
+| FAA Releasable Aircraft Registry | 30,000 | 30,000 | Turbine/multi-engine/rotorcraft owners. Real N-numbers. Downloaded from registry.faa.gov. Cached at `/tmp/apexfinder-faa/`. |
+| HMLR Price Paid Data (PPD) | 50,000 | 50,000 | £1M+ UK property transactions. Real HMLR data. Entity name = property address. Cached at `/tmp/apexfinder-hmlr/`. |
+| Western HNWI (SEC EDGAR + BRREG) | 200 | 0 | Real public-registry persons from SEC SC 13D/G, DEF 14A, and Norway Enhetsregisteret. |
+| **Total** | **80,900** | **80,700** | Hot leads: 9,176 · Avg Bayesian score: 63% |
+
+---
+
+## Ingestion Endpoints
+
+All jobs are background — POST returns `{jobId}`, poll with `GET /api/ingest/job/:jobId`.
+
+| Endpoint | Source | Notes |
+|---|---|---|
+| `POST /api/ingest/faa` | FAA ReleasableAircraft.zip | Downloads ~70MB ZIP, extracts MASTER.txt (314,848 lines). Uses in-memory dedup + batch Upstash writes. ~73s for 30,000 records. |
+| `POST /api/ingest/land-registry` | HMLR PPD bulk CSV (S3) | Downloads `pp-YYYY.csv` (~160MB/year) via `curl -L`. Streams, filters £1M+. Uses in-memory dedup. ~8min for 50,000 records. |
+| `POST /api/ingest/western-hnwi` | SEC EDGAR + BRREG Norway + Companies House | Live API calls. Slow (~1 req/s rate limit). |
+| `POST /api/ingest/occrp` | OCCRP Aleph API | Enrichment only — cross-references existing entities against aleph.occrp.org. |
+| `POST /api/ingest/opensky` | OpenSky Network API | Live flight enrichment. |
+| `DELETE /api/ingest/dedup` | — | Clears the Upstash dedup set. Use before full re-ingest. |
+
+Body params (all optional): `{ "force": true }` — bypasses cache and re-downloads source files.
+
+---
+
+## Dedup Architecture
+
+**Critical:** dedup is what prevents duplicate rows across runs.
+
+- Dedup set lives in **Upstash** (permanent Redis, `REDIS_URL_1`). Key: `apex:apex:dedup:hnwi` (double-prefix is a historical artifact — do not change).
+- During ingestion, `preloadDedupPrefix(prefix)` in `lib/job-queue.ts` scans existing keys for a given prefix (e.g. `"faa:"`) into a local `Set<string>` — **one Upstash round-trip at start, not one per record**.
+- After each batch flush, `batchMarkSeen(keys[])` writes new keys to Upstash in one `SADD` call.
+- **Never use the old `isDuplicate()` / `markSeen()` pattern inside a parse loop** — at 75ms/call × 865 matches per 5k lines it stalls indefinitely.
+- The Western HNWI ingestor still uses the old per-record pattern (acceptable at 200 records; fix if volume scales).
+
+FAA dedup key format: `faa:NNUMBER` (e.g. `faa:N12345`)
+Land Registry dedup key format: `lr:{transaction-uuid}`
+Western HNWI dedup key format: `{normalizedname}:{jurisdiction}` (e.g. `johnsmith:us`)
+
+---
 
 ## Key API Endpoints
 
-- `POST /api/registry-search` — live OSINT search (OpenCorporates, EDGAR, GLEIF, Companies House)
-- `POST /api/search/intelligent` — hybrid BM25 + TF-IDF + Bayesian search
-- `POST /api/improve/run` — trigger persona improvement loop
-- `GET /api/improve/stats` — improvement log summary
-- `GET /api/healthz` — health check
+```
+GET  /api/healthz                      health check
+GET  /api/dashboard/stats              aggregate counts, top scorers, asset breakdown
+GET  /api/dashboard/hot-leads          top entities by Bayesian score + real asset signals
+GET  /api/dashboard/map-data           assets with lat/lng for map
+POST /api/search/intelligent           hybrid BM25 + TF-IDF + Bayesian search
+POST /api/registry-search              live OSINT search (GLEIF, EDGAR, OpenCorporates, Companies House)
+POST /api/research/run                 MCTS path-finding for an entity
+GET  /api/research/sessions            CRM research session list
+POST /api/improve/run                  run persona improvement loop (50 entities at a time)
+GET  /api/improve/stats                persona loop summary stats
+GET  /api/improve/logs                 improvement suggestions (filterable by persona/priority/status)
+```
+
+---
+
+## Data Integrity Rules
+
+1. **No synthetic data anywhere.** If a field is unknown, it is `null` or omitted — never filled with plausible-sounding invented values.
+2. `mock-data.ts` has been deleted. It contained 27 fictional profiles and was dead code, but posed a risk.
+3. The Live Signals panel on the dashboard uses **real asset data** from the database — the most recent asset description + source registry for each entity. No random strings.
+4. The MCTS agent (`lib/mcts-agent.ts`) does pure graph traversal on real DB relationships — it invents no data.
+5. The persona engine (`lib/persona-engine.ts`) runs deterministic TypeScript rules against real entity fields — no AI APIs.
+
+---
+
+## Land Registry Notes
+
+- **SPARQL is dead for bulk queries.** The HMLR PPD SPARQL endpoint at `https://landregistry.data.gov.uk/landregistry/query` returns empty results or HTTP 000 timeouts for any `pricePaid >= 1000000` filter. Use the bulk CSV instead.
+- CSV URL: `http://prod.publicdata.landregistry.gov.uk.s3-website-eu-west-1.amazonaws.com/pp-YYYY.csv` (redirects to `prod2`). Use `curl -L`.
+- PPD CSV has no header row. Fields: `[0]` tx UUID, `[1]` price, `[2]` date (`YYYY-MM-DD 00:00`), `[3]` postcode, `[4]` property type, `[6]` tenure, `[7-13]` address components, `[14]` PPD category (skip `B`), `[15]` record status (skip `D`).
+- **Buyer identity is not in the PPD CSV.** Entities are named by property address, not buyer name.
+
+---
+
+## FAA Registry Notes
+
+- ZIP downloaded from `https://registry.faa.gov/database/ReleasableAircraft.zip` (~70MB). Cached at `/tmp/apexfinder-faa/`.
+- MASTER.txt: comma-delimited, 35 fields, latin1 encoding, Windows line endings (`\r\n`). Header row on line 1 — skip it.
+- Field indices (0-based): `[0]` N-number, `[5]` typeReg, `[6]` name, `[9]` city, `[10]` state, `[14]` country, `[18]` typeAircraft, `[19]` typeEngine, `[20]` status.
+- Status `V` = valid/registered. Filter: status ∈ {V,A}, typeReg ∈ {1,2,4,7,9} (non-government/non-airline), typeEngine ∈ {2,3,4,5} (turbine) OR typeAircraft ∈ {5=multi,6=rotorcraft}.
+- ~865 qualifying records per 5,000 lines = ~51,000 total qualifying records in the full file.
+
+---
 
 ## Phases Implemented
 
-8 phases complete — see `IMPLEMENTATION.md` for full details. No mocked or synthetic data anywhere.
+| Phase | Feature |
+|---|---|
+| 1–3 | Core DB schema, Bayesian scorer, Express API, React frontend |
+| 4 | MCTS research agent (UCT graph traversal), research sessions, CRM pipeline |
+| 5 | Hybrid BM25 + TF-IDF + Bayesian search, network graph |
+| 6 | FAA aircraft registry ingestor, Western HNWI engine (SEC EDGAR + BRREG + Companies House) |
+| 7 | Persona improvement loop (6 deterministic personas), `improvement_logs` table, `/improvements` UI page |
+| 8 | OCCRP Aleph enricher, HMLR OCOD ingestor (replaced by PPD CSV), OpenSky live-flight enricher, Data Sources dashboard |
+
+---
 
 ## User Preferences
 
-- Zero synthetic/fake/hallucinated data at all times. Missing data = "Unverified" or blank.
-- Use deterministic TypeScript logic for AI-like features (no external AI APIs).
+- Zero synthetic/fake/hallucinated data at all times. Missing data = `null` or blank field.
+- Deterministic TypeScript for AI-like features — no external AI APIs.
 - Maintain existing pnpm monorepo structure.
+- Use Fable 5 High Effort (built-in agent model) for any AI feature implementation — not external OpenAI/Anthropic calls.
