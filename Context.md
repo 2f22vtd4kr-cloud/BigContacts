@@ -9,7 +9,7 @@
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically
 - **Local Redis** running on `redis://localhost:6379` — workflow `Redis` must be running
-- **Upstash Redis (`REDIS_URL_1`)** — **NOT YET SET** — dedup state will not persist across restarts until this is configured
+- **Upstash Redis (`REDIS_URL_1`)** — ✅ Set — dedup state will persist across restarts
 - **SESSION_SECRET** — set ✅
 - **COMPANIES_HOUSE_API_KEY** — not set (optional)
 
@@ -45,6 +45,7 @@
 | Date | What changed |
 |---|---|
 | 2026-07-19 | Fresh GitHub import. Environment bootstrapped. DB empty. Upstash not connected. |
+| 2026-07-19 | REDIS_URL_1 (Upstash) set and verified connected (`[upstash-1] Redis ready`). Dedup now persists across restarts. Ready for ingestion. |
 
 ---
 
