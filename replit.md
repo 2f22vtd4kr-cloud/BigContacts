@@ -68,10 +68,10 @@ Schema push: `pnpm --filter @workspace/db run push`
 
 | Source | Entities | Assets | Notes |
 |---|---|---|---|
-| FAA Releasable Aircraft Registry | 30,000 | 30,000 | Turbine/multi-engine/rotorcraft owners. Real N-numbers. Downloaded from registry.faa.gov. Cached at `/tmp/apexfinder-faa/`. |
-| HMLR Price Paid Data (PPD) | 50,000 | 50,000 | £1M+ UK property transactions. Real HMLR data. Entity name = property address. Cached at `/tmp/apexfinder-hmlr/`. |
-| Western HNWI (SEC EDGAR + BRREG) | 200 | 0 | Real public-registry persons from SEC SC 13D/G, DEF 14A, and Norway Enhetsregisteret. |
-| **Total** | **80,900** | **80,700** | Hot leads: 9,176 · Avg Bayesian score: 63% |
+| FAA Releasable Aircraft Registry | 12,902 | 12,902 | Turbine/multi-engine/rotorcraft owners. Real N-numbers. 37,110 skipped (already in Upstash dedup from prior session). Cached at `/tmp/apexfinder-faa/`. |
+| HMLR Price Paid Data (PPD) | 50,000 | 50,000 | £1M+ UK property from 2023–2025 PPD CSVs. 50,000 skipped (dedup). Cached at `/tmp/apexfinder-hmlr/`. |
+| Western HNWI (SEC EDGAR + BRREG) | 600+ | 0 | Still ingesting — SEC EDGAR rate-limited at ~1 req/s. Runs in background. Target: 5,000. |
+| **Total** | **~63,500+** | **~62,900** | Hot leads: 5,151 · Avg Bayesian score: 62.3% |
 
 ---
 
