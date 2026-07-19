@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
+import { useLocation } from "wouter";
 import { useListEntities, useRunResearch } from "@workspace/api-client-react";
-import { Terminal, Play, Cpu, ChevronRight, Hash, CheckCircle2, GitBranch, Target, Shield, ChevronDown } from "lucide-react";
+import { Terminal, Play, Cpu, ChevronRight, Hash, CheckCircle2, GitBranch, Target, Shield, ChevronDown, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScoreBadge } from "@/lib/utils";
 
@@ -55,8 +56,22 @@ function getActionColor(action: string) {
 }
 
 export default function MCTSTerminal() {
-  const [selectedEntityId, setSelectedEntityId] = useState<number | null>(null);
-  const { data: entities } = useListEntities({ type: "HNWI", limit: 30 });
+  // wouter's useLocation only returns pathname; read query string from window
+  useLocation(); // subscribe to route changes
+  const urlEntityId = (() => {
+    const params = new URLSearchParams(
+      typeof window !== "undefined" ? window.location.search : ""
+    );
+    const v = params.get("entity");
+    return v ? parseInt(v, 10) : null;
+  })();
+
+  const [selectedEntityId, setSelectedEntityId] = useState<number | null>(urlEntityId);
+  const [entitySearch, setEntitySearch] = useState("");
+  const { data: allEntities } = useListEntities({ limit: 500 });
+  const entities = allEntities?.filter((e) =>
+    !entitySearch || e.name.toLowerCase().includes(entitySearch.toLowerCase())
+  );
   const runResearch = useRunResearch();
 
   const [terminalLog, setTerminalLog] = useState<MctsStep[]>([]);
@@ -220,6 +235,25 @@ export default function MCTSTerminal() {
           </div>
         </div>
 
+        {/* Search input */}
+        <div className="px-3 pb-2 flex-shrink-0">
+          <div className="flex items-center gap-2 px-2.5 py-1.5 rounded bg-background border border-border">
+            <Search className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+            <input
+              type="text"
+              value={entitySearch}
+              onChange={(e) => setEntitySearch(e.target.value)}
+              placeholder="Filter targets…"
+              className="flex-1 bg-transparent text-xs font-mono text-foreground outline-none placeholder:text-muted-foreground/50"
+            />
+            {entitySearch && (
+              <button onClick={() => setEntitySearch("")}>
+                <X className="w-3 h-3 text-muted-foreground hover:text-foreground" />
+              </button>
+            )}
+          </div>
+        </div>
+
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
           {entities?.map((ent) => (
             <div
@@ -237,6 +271,9 @@ export default function MCTSTerminal() {
               <ScoreBadge score={ent.bayesianScore} />
             </div>
           ))}
+          {entities?.length === 0 && (
+            <div className="text-[10px] font-mono text-muted-foreground/50 text-center py-4">No matches</div>
+          )}
         </div>
 
         <div className="p-3 border-t border-border bg-muted/20 space-y-2">

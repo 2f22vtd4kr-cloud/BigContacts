@@ -402,8 +402,11 @@ export default function PipelineCRM() {
             />
           ))}
           {(!mobileSessions || mobileSessions.length === 0) && (
-            <div className="flex flex-col items-center justify-center h-40 text-muted-foreground text-sm font-mono">
-              No sessions in this stage.
+            <div className="flex flex-col items-center justify-center h-40 gap-3 text-center px-6">
+              <div className="text-muted-foreground text-sm font-mono">No sessions in this stage.</div>
+              <a href="/research" className="text-[11px] font-mono text-primary border border-primary/30 px-3 py-1.5 rounded hover:bg-primary/10 transition-colors">
+                → Run MCTS on a target
+              </a>
             </div>
           )}
         </div>
@@ -430,6 +433,17 @@ export default function PipelineCRM() {
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-2 space-y-2">
+                  {columnSessions.length === 0 && column === "Lead Gen" && (
+                    <div className="flex flex-col items-center justify-center h-32 gap-2 text-center">
+                      <p className="text-[10px] font-mono text-muted-foreground/50">No leads yet</p>
+                      <a
+                        href="/research"
+                        className="text-[10px] font-mono text-primary border border-primary/20 px-2.5 py-1 rounded hover:bg-primary/10 transition-colors"
+                      >
+                        → Run MCTS on a target
+                      </a>
+                    </div>
+                  )}
                   {columnSessions.map((session) => (
                     <div
                       key={session.id}

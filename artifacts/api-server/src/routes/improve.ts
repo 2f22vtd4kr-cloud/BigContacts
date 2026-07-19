@@ -11,7 +11,7 @@
 
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, entitiesTable, improvementLogsTable } from "@workspace/db";
-import { eq, desc, and, sql } from "drizzle-orm";
+import { eq, desc, and, inArray, sql } from "drizzle-orm";
 import { runPersonasForEntity } from "../lib/persona-engine";
 import {
   createJob, updateJob, getJob, appendJobLog, setActiveJob, getActiveJob,
@@ -45,7 +45,7 @@ router.post("/improve/run", async (req: Request, res: Response): Promise<void> =
     entities = await db
       .select()
       .from(entitiesTable)
-      .where(sql`${entitiesTable.id} = ANY(${entityIds})`);
+      .where(inArray(entitiesTable.id, entityIds));
   } else {
     const safeLimit = Math.min(Math.max(Number(limit) || 50, 1), 500);
     entities = await db
