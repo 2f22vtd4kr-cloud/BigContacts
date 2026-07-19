@@ -144,9 +144,9 @@ router.get("/graph/path", async (req, res): Promise<void> => {
 
   const pathEdges = pathResult.arcs.map(arcToEdge);
 
-  // Calculate path score: weighted by warmth and hops
+  // Calculate path score: deterministic — weighted by hops only. No random noise.
   const hops = pathResult.path.length - 1;
-  const pathScore = Math.max(0.1, 1 - hops * 0.15 + Math.random() * 0.05);
+  const pathScore = Math.max(0.1, 1 - hops * 0.15);
 
   // Build recommendation
   const gatekeeperNode = pathNodes.find((n) => n.nodeType === "Gatekeeper");

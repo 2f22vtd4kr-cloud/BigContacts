@@ -238,7 +238,7 @@ ${ts}${intel}
 
   // ── SAFARI / HUNTING PH ───────────────────────────────────────────────────
   if (gkClass === "SAFARI_PH") {
-    const phFirst = gatekeeper?.label?.split(" ")[0] ?? "James";
+    const phFirst = gatekeeper?.label?.split(" ")[0] ?? "";
     return `
 Hi ${phFirst},
 
@@ -264,7 +264,7 @@ ${ts}${intel}
   // ── YACHT BROKER / CAPTAIN ────────────────────────────────────────────────
   if (gkClass === "YACHT_BROKER" || gkClass === "MARINA") {
     return `
-Dear ${gatekeeper?.label ?? "Captain"},
+Dear ${gatekeeper?.label ?? ""},
 
 I am contacting you discreetly in connection with ${targetEntity.name}${residence}, a beneficial owner with documented interests in ${assetSummary.primary}.
 
