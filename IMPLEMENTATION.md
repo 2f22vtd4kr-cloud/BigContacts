@@ -46,12 +46,13 @@ Original master prompt lives in `attached_assets/Pasted-You-are-a-world-class-pr
 - [x] Entity Ledger: table with proximity/type filters, CSV export
 - [x] Field Manual: operational documentation
 
-### 🔲 Phase 5 — Hybrid Search Engine
-- [ ] BM25 keyword search (rank-bm25 equivalent in TS or Python)
-- [ ] Semantic embeddings (sentence-transformers `all-MiniLM-L6-v2`)
-- [ ] Reciprocal Rank Fusion (RRF) combining BM25 + vector + graph scores
-- [ ] Agentic multi-agent reasoning: Planner → Retriever → Analyst → Critic
-- [ ] "Intelligent Deep Search" tab with visual process steps
+### ✅ Phase 5 — Hybrid Search Engine
+- [x] BM25 keyword search — pure TypeScript inverted index, name boosted 3×, Robertson-Sparck Jones IDF
+- [x] TF-IDF cosine similarity — bigram-aware vector space model (semantic-like, no neural model/external API)
+- [x] Reciprocal Rank Fusion (RRF, k=60) combining BM25 + TF-IDF + Bayesian graph signal
+- [x] Agentic multi-agent reasoning: Planner → Retriever → Analyst → Critic (all deterministic TypeScript)
+- [x] POST /search/intelligent — orchestrator entry point, 60 s Redis cache
+- [x] "Deep Search" tab — visual pipeline cards, per-signal score bars, expandable analyst reasoning
 
 ### 🔲 Phase 6 — Apex Profile Card (Complete)
 - [ ] Leaflet mini-map on entity profile (showing all owned assets with coordinates)
