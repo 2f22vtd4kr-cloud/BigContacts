@@ -6,3 +6,5 @@
 - [Real OSINT data pipeline](real-osint-pipeline.md) — FAA ingestor uses curl+unzip (no npm pkg); mock seeding removed from startup; DB must be cleared after import
 - [Persona Improvement Loop](persona-loop.md) — Phase 7: 6 deterministic TypeScript personas, improvement_logs table, /improve/* routes, Persona Loop page at /improvements
 - [Extended Sources](extended-sources.md) — Phase 8: OCCRP Aleph enricher, UK Land Registry OCOD ingestor, OpenSky live-flight enricher; Data Sources dashboard at /data-sources
+- [FAA dedup batching](faa-dedup-batching.md) — Per-record Upstash sismember kills FAA throughput; fixed with preloadDedupPrefix + batchMarkSeen; progress update must fire unconditionally (not inside filter chain)
+- [HMLR PPD CSV ingestor](hmlr-ppd-csv.md) — HMLR SPARQL endpoint times out/returns 0 results for price+date queries; use bulk CSV from S3 instead (pp-YYYY.csv redirects to prod2 bucket, ~160MB/year)

@@ -121,6 +121,48 @@ export async function clearDedup(): Promise<void> {
   logger.info("Dedup set cleared");
 }
 
+/**
+ * Pre-load dedup set members matching a prefix into a local in-memory Set.
+ * Use this at the start of an ingestor to avoid per-record Upstash round-trips.
+ * The caller can then check/update the returned Set locally and call batchMarkSeen()
+ * after each batch flush.
+ */
+export async function preloadDedupPrefix(prefix: string): Promise<Set<string>> {
+  const seen = new Set<string>();
+  const rc = getPermanentClient();
+  if (!rc) return seen;
+  try {
+    // The actual Redis key has the PERM_PREFIX applied by permSadd/permSismember
+    const fullKey = `apex:${DEDUP_KEY}`;
+    let cursor = "0";
+    do {
+      const [next, members] = await rc.sscan(fullKey, cursor, "MATCH", `${prefix}*`, "COUNT", 2000);
+      cursor = next;
+      for (const m of members) seen.add(m);
+    } while (cursor !== "0");
+    logger.info({ prefix, count: seen.size }, "Dedup prefix pre-loaded");
+  } catch (err: any) {
+    logger.warn({ err: err.message }, "preloadDedupPrefix failed (non-fatal)");
+  }
+  return seen;
+}
+
+/**
+ * Batch-write multiple keys into the permanent dedup set in one round-trip.
+ * Use after each successful batch flush.
+ */
+export async function batchMarkSeen(keys: string[]): Promise<void> {
+  if (keys.length === 0) return;
+  const rc = getPermanentClient();
+  if (!rc) return;
+  try {
+    const fullKey = `apex:${DEDUP_KEY}`;
+    await rc.sadd(fullKey, ...keys);
+  } catch (err: any) {
+    logger.warn({ err: err.message }, "batchMarkSeen failed (non-fatal)");
+  }
+}
+
 // ── Active job tracking ───────────────────────────────────────────────────────
 
 export async function setActiveJob(type: string, jobId: string): Promise<void> {

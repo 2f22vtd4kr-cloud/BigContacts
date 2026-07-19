@@ -22,7 +22,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { db, entitiesTable, assetsTable, relationshipsTable } from "@workspace/db";
 import type { InsertEntity, InsertAsset, InsertRelationship } from "@workspace/db";
-import { isDuplicate, markSeen, updateJob, appendJobLog } from "./job-queue";
+import { preloadDedupPrefix, batchMarkSeen, updateJob, appendJobLog } from "./job-queue";
 import { logger } from "./logger";
 
 const execAsync = promisify(exec);
@@ -212,6 +212,11 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
     totalLines = parseInt(countResult.stdout.trim(), 10) || 0;
   } catch { /* non-fatal */ }
 
+  // Pre-load existing FAA dedup keys into memory (one Upstash scan instead of per-record calls)
+  await updateJob(jobId, { message: "Loading FAA dedup index…", progress: 7 });
+  const seenKeys = await preloadDedupPrefix("faa:");
+  await appendJobLog(jobId, `📋 ${seenKeys.size.toLocaleString()} previously-ingested FAA records in dedup set. Starting parse…`);
+
   await updateJob(jobId, { message: `Parsing MASTER.txt (${totalLines.toLocaleString()} records)…`, progress: 8 });
 
   const rl = createInterface({
@@ -223,11 +228,25 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
   let lastProgressLine = 0;
   const entityBatch: InsertEntity[] = [];
   const assetBatch: InsertAsset[] = [];
+  const pendingDedup: string[] = [];
 
   for await (const line of rl) {
     lineNum++;
     if (lineNum === 1) continue; // skip header row
     if (inserted + entityBatch.length >= maxRecords) break;
+
+    // ── Unconditional progress heartbeat every 5,000 lines ───────────────────
+    if (lineNum - lastProgressLine >= 5_000) {
+      lastProgressLine = lineNum;
+      const pct = totalLines > 0
+        ? Math.min(8 + Math.floor((lineNum / totalLines) * 87), 94)
+        : Math.min(8 + Math.floor((inserted / maxRecords) * 87), 94);
+      await updateJob(jobId, {
+        message: `Scanned ${lineNum.toLocaleString()} / ${totalLines.toLocaleString()} lines — ${inserted.toLocaleString()} aircraft owners matched…`,
+        progress: pct,
+        inserted,
+      });
+    }
 
     const f = line.split(",");
     if (f.length < 21) continue;
@@ -246,7 +265,7 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
     const serial       = f[F_SERIAL]?.trim() ?? "";
 
     // ── Filters ──────────────────────────────────────────────────────────────
-    if (status !== "V" && status !== "A") continue;        // active only (V=valid/registered, A=active)
+    if (status !== "V" && status !== "A") continue;        // active only
     if (!INDIVIDUAL_TYPES.has(typeReg)) continue;          // individuals, LLCs, partnerships
     if (!rawName || rawName.length < 3) continue;          // valid name
     if (!nNumber) continue;                                // needs N-number
@@ -256,9 +275,11 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
     const isRotor      = typeAircraft === ROTORCRAFT;
     if (!isTurbine && !isMulti && !isRotor) continue;      // valuable aircraft only
 
-    // ── Dedup via Redis ───────────────────────────────────────────────────────
+    // ── Dedup via in-memory Set (no Upstash per-record call) ─────────────────
     const dkey = `faa:${nNumber}`;
-    if (await isDuplicate(dkey)) { skipped++; continue; }
+    if (seenKeys.has(dkey)) { skipped++; continue; }
+    seenKeys.add(dkey);
+    pendingDedup.push(dkey);
 
     // ── Build records ─────────────────────────────────────────────────────────
     const name = titleCase(rawName);
@@ -274,7 +295,7 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
       knownResidences: address || undefined,
       sourceRegistries: JSON.stringify(["FAA Releasable Aircraft Database"]),
       bayesianScore: score,
-      isHot: isJet, // jet owners are hot leads
+      isHot: isJet,
       notes: `${label} owner. Tail: N${nNumber}.${yearMfr ? ` MFR year: ${yearMfr}.` : ""}`,
       metadata: JSON.stringify({
         source: "faa-aircraft-registry",
@@ -303,20 +324,7 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
     entityBatch.push(entity);
     assetBatch.push(asset);
 
-    // ── Progress update every 5,000 lines (keeps UI alive regardless of filter rate) ─
-    if (lineNum - lastProgressLine >= 5_000) {
-      lastProgressLine = lineNum;
-      const lineProgress = totalLines > 0
-        ? Math.min(8 + Math.floor((lineNum / totalLines) * 87), 94)
-        : Math.min(8 + Math.floor((inserted / maxRecords) * 87), 94);
-      await updateJob(jobId, {
-        message: `Scanned ${lineNum.toLocaleString()} lines — ${inserted.toLocaleString()} aircraft owners matched…`,
-        progress: lineProgress,
-        inserted,
-      });
-    }
-
-    // ── Flush every 100 records ───────────────────────────────────────────────
+    // ── Flush every 100 records; batch-write dedup to Upstash in one call ────
     if (entityBatch.length >= 100) {
       const res = await flushBatch(entityBatch, assetBatch);
       inserted += res.inserted;
@@ -324,17 +332,18 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
       entityBatch.length = 0;
       assetBatch.length = 0;
 
+      // One Upstash call per flush instead of one per record
+      await batchMarkSeen(pendingDedup);
+      pendingDedup.length = 0;
+
       if (inserted % 1_000 === 0 && inserted > 0) {
-        await appendJobLog(
-          jobId,
-          `✈️  ${inserted.toLocaleString()} turbine/multi-engine aircraft owners ingested…`,
-        );
+        await appendJobLog(jobId, `✈️  ${inserted.toLocaleString()} turbine/multi-engine aircraft owners ingested…`);
       }
     }
-
-    // Mark as seen immediately (before batch flush to catch partial failures)
-    await markSeen(dkey);
   }
+
+  // Flush remaining and write final dedup batch
+  if (pendingDedup.length > 0) await batchMarkSeen(pendingDedup);
 
   // ── Flush remaining ────────────────────────────────────────────────────────
   if (entityBatch.length > 0) {

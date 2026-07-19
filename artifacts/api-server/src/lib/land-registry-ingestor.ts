@@ -1,24 +1,59 @@
 /**
- * UK Land Registry — Price Paid Data (PPD) SPARQL Ingestor
+ * UK Land Registry — Price Paid Data (PPD) CSV Ingestor
  *
- * Source: HM Land Registry Linked Data SPARQL endpoint
- * https://landregistry.data.gov.uk/landregistry/query
+ * Source: HM Land Registry bulk CSV (open data, OGL licence)
+ * https://www.gov.uk/government/statistical-data-sets/price-paid-data-downloads
  *
- * Queries for high-value property transactions (£1M+) involving company buyers.
- * The PPD dataset covers England & Wales transactions from 1995–present.
- * Free under OGL licence — no auth required.
+ * Downloads the annual PPD CSV files, filters for £1M+ transactions, and
+ * inserts them as Corporation entities + Real Estate assets.
  *
- * Note: The OCOD (Overseas Companies) bulk CSV is Cloudflare-protected from
- * cloud server IPs. This SPARQL approach uses the same underlying HMLR data
- * via their official linked-data endpoint.
+ * The SPARQL endpoint is unreliable for bulk queries; the S3-hosted CSV is
+ * the official download route and supports streaming at ~160MB/year.
  *
- * Entities → Corporation; Assets → Real Estate
+ * NO synthetic data. Every record is a real HMLR transaction.
  */
 
+import { exec } from "node:child_process";
+import { promisify } from "node:util";
+import { createReadStream, existsSync } from "node:fs";
+import { mkdir, stat, unlink } from "node:fs/promises";
+import { createInterface } from "node:readline";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { db, entitiesTable, assetsTable } from "@workspace/db";
 import type { InsertEntity, InsertAsset } from "@workspace/db";
-import { isDuplicate, markSeen, updateJob, appendJobLog } from "./job-queue";
+import { preloadDedupPrefix, batchMarkSeen, updateJob, appendJobLog } from "./job-queue";
 import { logger } from "./logger";
+
+const execAsync = promisify(exec);
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+// Annual PPD CSV — redirects to prod2 S3 bucket
+const PPD_BASE_URL = "http://prod.publicdata.landregistry.gov.uk.s3-website-eu-west-1.amazonaws.com";
+const TMP_DIR = join(tmpdir(), "apexfinder-hmlr");
+
+// Cache TTL — re-download if file is older than 30 days
+const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
+const MIN_PRICE_GBP = 1_000_000; // £1M+
+
+// PPD CSV column indices (0-based, comma-delimited, no header row)
+const F_TX_ID        = 0;   // {GUID}
+const F_PRICE        = 1;   // numeric string
+const F_DATE         = 2;   // "YYYY-MM-DD 00:00"
+const F_POSTCODE     = 3;
+const F_PROP_TYPE    = 4;   // D/S/T/F/O
+const F_DURATION     = 6;   // F=Freehold, L=Leasehold, U=Unknown
+const F_PAON         = 7;   // primary addressable object name
+const F_SAON         = 8;   // secondary addressable object name
+const F_STREET       = 9;
+const F_LOCALITY     = 10;
+const F_TOWN         = 11;
+const F_DISTRICT     = 12;
+const F_COUNTY       = 13;
+const F_PPD_CAT      = 14;  // A=standard, B=additional (skip B for cleaner data)
+const F_REC_STATUS   = 15;  // A=Addition, C=Change, D=Delete
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -26,7 +61,7 @@ export interface LandRegIngestionParams {
   jobId: string;
   maxRecords?: number;
   forceRefresh?: boolean;
-  downloadUrl?: string; // legacy — unused but kept for API compat
+  downloadUrl?: string; // legacy — unused
 }
 
 export interface LandRegIngestionResult {
@@ -36,126 +71,30 @@ export interface LandRegIngestionResult {
   durationMs: number;
 }
 
-// ── SPARQL helpers ────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-const SPARQL_ENDPOINT = "https://landregistry.data.gov.uk/landregistry/query";
-const SPARQL_HEADERS = {
-  "Accept": "application/sparql-results+json",
-  "Content-Type": "application/sparql-query",
-  "User-Agent": "ApexFinder HNWI Research Tool (public data)",
-};
-
-// High-value thresholds — proxy for HNWI / corporate wealth
-const MIN_PRICE_GBP = 1_000_000; // £1M+
-
-// Number of results per SPARQL page
-const PAGE_SIZE = 50;
-
-interface PropertyRecord {
-  titleNum: string;
-  address: string;
-  price: number;
-  tenure: string;
-  county: string;
-  postcode: string;
-  date: string;
+function csvPath(year: number): string {
+  return join(TMP_DIR, `pp-${year}.csv`);
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
+async function isCacheStale(path: string): Promise<boolean> {
+  if (!existsSync(path)) return true;
+  try {
+    const s = await stat(path);
+    return Date.now() - s.mtimeMs > CACHE_TTL_MS;
+  } catch { return true; }
 }
 
-/** Query PPD for high-value transactions, paginated */
-async function* sparqlPPD(maxRecords: number): AsyncGenerator<PropertyRecord> {
-  let yielded = 0;
-  const seen = new Set<string>();
-
-  // Pages through years to get diverse coverage
-  const years = [2024, 2023, 2022, 2021, 2020, 2019, 2018, 2017, 2016];
-
-  for (const year of years) {
-    if (yielded >= maxRecords) break;
-
-    for (let offset = 0; offset < 500 && yielded < maxRecords; offset += PAGE_SIZE) {
-      // Use date-range FILTER instead of YEAR() — the HMLR SPARQL endpoint
-      // stores dates as xsd:date (not xsd:dateTime), so YEAR() returns no
-      // results. A string-comparable ISO range is universally supported.
-      const sparql = `
-PREFIX ppi: <http://landregistry.data.gov.uk/def/ppi/>
-PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
-
-SELECT ?transRecord ?amount ?street ?paon ?saon ?postcode ?county ?town ?tenure ?date
-WHERE {
-  ?transRecord a ppi:TransactionRecord ;
-    ppi:pricePaid ?amount ;
-    ppi:transactionDate ?date ;
-    ppi:propertyAddress ?addr .
-  ?addr ppi:postcode ?postcode .
-  OPTIONAL { ?addr ppi:street ?street }
-  OPTIONAL { ?addr ppi:paon ?paon }
-  OPTIONAL { ?addr ppi:saon ?saon }
-  OPTIONAL { ?addr ppi:county ?county }
-  OPTIONAL { ?addr ppi:town ?town }
-  OPTIONAL { ?transRecord ppi:estateType ?tenure }
-  FILTER(?amount >= ${MIN_PRICE_GBP})
-  FILTER(?date >= "${year}-01-01"^^xsd:date && ?date < "${year + 1}-01-01"^^xsd:date)
+function bayesianFromPrice(price: number): number {
+  if (price >= 10_000_000) return 0.88;
+  if (price >= 5_000_000)  return 0.78;
+  if (price >= 2_000_000)  return 0.68;
+  return 0.58;
 }
-ORDER BY DESC(?amount)
-LIMIT ${PAGE_SIZE}
-OFFSET ${offset}
-`.trim();
 
-      let data: any;
-      try {
-        // HMLR SPARQL requires GET with ?query= param (POST body is not supported)
-        const url = `${SPARQL_ENDPOINT}?query=${encodeURIComponent(sparql)}`;
-        const resp = await fetch(url, {
-          method: "GET",
-          headers: SPARQL_HEADERS,
-          signal: AbortSignal.timeout(30_000),
-        });
-        if (!resp.ok) {
-          logger.warn({ status: resp.status }, "SPARQL query failed");
-          break;
-        }
-        data = await resp.json();
-      } catch (err: any) {
-        logger.warn({ err: err.message }, "SPARQL fetch error");
-        break;
-      }
-
-      const bindings: any[] = data?.results?.bindings ?? [];
-      if (bindings.length === 0) break;
-
-      for (const b of bindings) {
-        if (yielded >= maxRecords) break;
-
-        const transUri: string = b.transRecord?.value ?? "";
-        // URI form: .../transaction/<UUID>/current — take the UUID (index -2)
-        const parts = transUri.split("/");
-        const titleNum = parts[parts.length - 2] ?? parts[parts.length - 1] ?? transUri;
-        if (!titleNum || titleNum === "current" || seen.has(titleNum)) continue;
-        seen.add(titleNum);
-
-        const price = Number(b.amount?.value ?? 0);
-        if (price < MIN_PRICE_GBP) continue;
-
-        const street = [b.saon?.value, b.paon?.value, b.street?.value].filter(Boolean).join(", ");
-        const town = b.town?.value ?? "";
-        const county = b.county?.value ?? "";
-        const postcode = b.postcode?.value ?? "";
-        const address = [street, town, county, postcode].filter(Boolean).join(", ");
-        const date = b.date?.value?.split("T")[0] ?? "";
-        const tenureUri = b.tenure?.value ?? "";
-        const tenure = tenureUri.includes("freehold") ? "Freehold" : tenureUri.includes("leasehold") ? "Leasehold" : "Unknown";
-
-        yielded++;
-        yield { titleNum, address, price, tenure, county, postcode, date };
-      }
-
-      await sleep(200); // be polite to SPARQL endpoint
-    }
-  }
+/** Strip surrounding quotes from a CSV field (PPD uses "" quoting) */
+function unquote(s: string): string {
+  return s.replace(/^"(.*)"$/, "$1").trim();
 }
 
 // ── Batch flush ───────────────────────────────────────────────────────────────
@@ -172,7 +111,7 @@ async function flushBatch(
       .onConflictDoNothing()
       .returning({ id: entitiesTable.id });
 
-    const assetRows = rows.map((r, i) => ({ ...assets[i], entityId: r.id })).filter((a) => a.entityId);
+    const assetRows = rows.map((r, i) => ({ ...assets[i]!, ownerEntityId: r.id })).filter((a) => a.ownerEntityId);
     if (assetRows.length > 0) {
       await db.insert(assetsTable).values(assetRows).onConflictDoNothing();
     }
@@ -183,102 +122,198 @@ async function flushBatch(
   }
 }
 
-// ── Bayesian score from price ─────────────────────────────────────────────────
-
-function bayesianFromPrice(price: number): number {
-  if (price >= 10_000_000) return 0.88;
-  if (price >= 5_000_000)  return 0.78;
-  if (price >= 2_000_000)  return 0.68;
-  return 0.58;
-}
-
 // ── Main ingestion function ───────────────────────────────────────────────────
 
 export async function runLandRegistryIngestion(params: LandRegIngestionParams): Promise<LandRegIngestionResult> {
-  const { jobId, maxRecords = 2_000 } = params;
+  const { jobId, maxRecords = 2_000, forceRefresh = false } = params;
   const startTime = Date.now();
   let inserted = 0;
   let skipped = 0;
   let errors = 0;
 
-  await updateJob(jobId, { message: "Connecting to HMLR SPARQL endpoint…", progress: 2 });
-  await appendJobLog(jobId, "🔗 Querying HM Land Registry Price Paid Data via SPARQL…");
-  await appendJobLog(jobId, `🎯 Target: £1M+ transactions — proxy for HNWI property ownership`);
+  await mkdir(TMP_DIR, { recursive: true });
 
-  const entityBatch: InsertEntity[] = [];
-  const assetBatch: InsertAsset[] = [];
-  let pageCount = 0;
+  // Process years newest-first until we hit maxRecords
+  const years = [2025, 2024, 2023, 2022];
 
-  for await (const record of sparqlPPD(maxRecords)) {
-    // Dedup by transaction URI
-    const dkey = `lr:${record.titleNum}`;
-    if (await isDuplicate(dkey)) { skipped++; continue; }
+  // Pre-load existing dedup keys into memory (avoids per-record Upstash calls)
+  await updateJob(jobId, { message: "Loading dedup index…", progress: 2 });
+  const seenKeys = await preloadDedupPrefix("lr:");
+  await appendJobLog(jobId, `📋 ${seenKeys.size.toLocaleString()} previously-ingested Land Registry records in dedup set.`);
 
-    const score = bayesianFromPrice(record.price);
-    const isHot = record.price >= 5_000_000;
-    const priceStr = `£${record.price.toLocaleString("en-GB")}`;
+  for (const year of years) {
+    if (inserted >= maxRecords) break;
 
-    // Use address as entity name (property ownership proxy)
-    const entityName = record.address
-      ? `UK Property — ${record.address.split(",")[0].trim()}`
-      : `UK Property — ${record.postcode}`;
+    const filePath = csvPath(year);
+    const csvUrl = `${PPD_BASE_URL}/pp-${year}.csv`;
 
-    const entity: InsertEntity = {
-      name: entityName,
-      type: "Corp",
-      nationality: "UK",
-      knownResidences: record.address || undefined,
-      sourceRegistries: JSON.stringify(["UK HM Land Registry (PPD)"]),
-      bayesianScore: score,
-      isHot,
-      notes: `High-value UK property transaction. ${record.tenure} title. Paid ${priceStr} on ${record.date}.`,
-      metadata: JSON.stringify({
-        source: "hmlr-ppd-sparql",
-        titleNum: record.titleNum,
-        price: record.price,
-        tenure: record.tenure,
-        county: record.county,
-        postcode: record.postcode,
-        date: record.date,
-      }),
-    };
+    // ── Download if needed ────────────────────────────────────────────────────
+    const needsDownload = forceRefresh || await isCacheStale(filePath);
+    if (needsDownload) {
+      await updateJob(jobId, { message: `Downloading HMLR PPD ${year} CSV…`, progress: 5 });
+      await appendJobLog(jobId, `⬇️  Fetching ${csvUrl}`);
+      try {
+        // -L follows the S3 redirect; --max-time 600 allows for large files
+        await execAsync(
+          `curl -L --max-time 600 --retry 2 --retry-delay 5 \
+            -H "User-Agent: Mozilla/5.0" \
+            -o "${filePath}" "${csvUrl}"`,
+          { timeout: 620_000 },
+        );
+        const sizeMB = ((await stat(filePath)).size / 1_048_576).toFixed(1);
+        await appendJobLog(jobId, `✅ Download complete (${sizeMB} MB). Scanning records…`);
+      } catch (err: any) {
+        await appendJobLog(jobId, `⚠️  Download failed for ${year}: ${err.message}. Trying next year.`);
+        try { await unlink(filePath); } catch { /* ignore */ }
+        continue;
+      }
+    } else {
+      await appendJobLog(jobId, `📦 Using cached PPD ${year} CSV.`);
+    }
 
-    const asset: InsertAsset = {
-      category: "RealEstate",
-      identifier: record.titleNum,
-      jurisdiction: record.county ? `${record.county}, England & Wales` : "England & Wales",
-      description: `${record.tenure} property — ${priceStr} (${record.date})`,
-      address: record.address || undefined,
-      sourceRegistry: "UK HM Land Registry (PPD)",
-      lastActivityDate: record.date || undefined,
-      estimatedValue: record.price,
-    };
+    // ── Count lines for progress ──────────────────────────────────────────────
+    let totalLines = 0;
+    try {
+      const r = await execAsync(`wc -l < "${filePath}"`, { timeout: 10_000 });
+      totalLines = parseInt(r.stdout.trim(), 10) || 0;
+    } catch { /* non-fatal */ }
 
-    entityBatch.push(entity);
-    assetBatch.push(asset);
-    await markSeen(dkey);
+    await updateJob(jobId, { message: `Parsing PPD ${year} (${totalLines.toLocaleString()} records)…`, progress: 8 });
 
-    if (entityBatch.length >= 50) {
+    // ── Stream parse CSV ──────────────────────────────────────────────────────
+    const rl = createInterface({
+      input: createReadStream(filePath, { encoding: "utf8" }),
+      crlfDelay: Infinity,
+    });
+
+    const entityBatch: InsertEntity[] = [];
+    const assetBatch: InsertAsset[] = [];
+    const pendingDedup: string[] = [];
+    let lineNum = 0;
+    let lastProgressLine = 0;
+
+    for await (const line of rl) {
+      lineNum++;
+      if (inserted + entityBatch.length >= maxRecords) break;
+
+      // Unconditional progress heartbeat every 10,000 lines
+      if (lineNum - lastProgressLine >= 10_000) {
+        lastProgressLine = lineNum;
+        const pct = totalLines > 0
+          ? Math.min(8 + Math.floor((lineNum / totalLines) * 85), 94)
+          : Math.min(8 + Math.floor((inserted / maxRecords) * 85), 94);
+        await updateJob(jobId, {
+          message: `PPD ${year}: scanned ${lineNum.toLocaleString()} lines — ${inserted.toLocaleString()} records matched…`,
+          progress: pct,
+          inserted,
+        });
+      }
+
+      // PPD CSV: fields are quoted with "" — split by comma then unquote
+      const raw = line.split(",");
+      if (raw.length < 15) continue;
+
+      const txId       = unquote(raw[F_TX_ID] ?? "");
+      const priceStr   = unquote(raw[F_PRICE] ?? "");
+      const date       = unquote(raw[F_DATE] ?? "").split(" ")[0] ?? "";
+      const postcode   = unquote(raw[F_POSTCODE] ?? "");
+      const propType   = unquote(raw[F_PROP_TYPE] ?? "");
+      const duration   = unquote(raw[F_DURATION] ?? "");
+      const paon       = unquote(raw[F_PAON] ?? "");
+      const saon       = unquote(raw[F_SAON] ?? "");
+      const street     = unquote(raw[F_STREET] ?? "");
+      const locality   = unquote(raw[F_LOCALITY] ?? "");
+      const town       = unquote(raw[F_TOWN] ?? "");
+      const county     = unquote(raw[F_COUNTY] ?? "");
+      const ppdCat     = unquote(raw[F_PPD_CAT] ?? "");
+      const recStatus  = unquote(raw[F_REC_STATUS] ?? "");
+
+      // Skip deletes and additional category (B = repo/auction sales)
+      if (recStatus === "D" || ppdCat === "B") continue;
+
+      const price = parseInt(priceStr, 10);
+      if (isNaN(price) || price < MIN_PRICE_GBP) continue;
+      if (!txId || !date) continue;
+
+      // Dedup by transaction ID (in-memory — no Upstash per-record call)
+      const dkey = `lr:${txId}`;
+      if (seenKeys.has(dkey)) { skipped++; continue; }
+      seenKeys.add(dkey);
+      pendingDedup.push(dkey);
+
+      const tenureLabel = duration === "F" ? "Freehold" : duration === "L" ? "Leasehold" : "Unknown";
+      const propLabel   = { D: "Detached", S: "Semi-Detached", T: "Terraced", F: "Flat/Maisonette", O: "Other" }[propType] ?? "Property";
+      const address     = [paon, saon, street, locality, town, county, postcode].filter(Boolean).join(", ");
+      const priceStr2   = `£${price.toLocaleString("en-GB")}`;
+      const score       = bayesianFromPrice(price);
+
+      const entityName = address
+        ? `UK Property — ${[paon, street, town].filter(Boolean).join(", ")}`
+        : `UK Property — ${postcode}`;
+
+      const entity: InsertEntity = {
+        name: entityName,
+        type: "Corp",
+        nationality: "UK",
+        knownResidences: address || undefined,
+        sourceRegistries: JSON.stringify(["UK HM Land Registry (PPD)"]),
+        bayesianScore: score,
+        isHot: price >= 5_000_000,
+        notes: `High-value UK property: ${propLabel} (${tenureLabel}). Paid ${priceStr2} on ${date}.`,
+        metadata: JSON.stringify({
+          source: "hmlr-ppd-csv",
+          txId,
+          price,
+          propType,
+          tenure: tenureLabel,
+          county,
+          postcode,
+          date,
+          year,
+        }),
+      };
+
+      const asset: InsertAsset = {
+        category: "RealEstate",
+        identifier: txId,
+        jurisdiction: county ? `${county}, England & Wales` : "England & Wales",
+        description: `${propLabel} ${tenureLabel} — ${priceStr2} (${date})`,
+        address: address || undefined,
+        sourceRegistry: "UK HM Land Registry (PPD)",
+        lastActivityDate: date || undefined,
+        estimatedValue: price,
+      };
+
+      entityBatch.push(entity);
+      assetBatch.push(asset);
+
+      if (entityBatch.length >= 50) {
+        const res = await flushBatch(entityBatch, assetBatch);
+        inserted += res.inserted;
+        errors += res.errors;
+        entityBatch.length = 0;
+        assetBatch.length = 0;
+
+        // Batch-write dedup keys to Upstash (one round-trip per flush)
+        await batchMarkSeen(pendingDedup);
+        pendingDedup.length = 0;
+
+        const pct = Math.min(8 + Math.floor((inserted / maxRecords) * 85), 95);
+        await updateJob(jobId, { message: `${inserted.toLocaleString()} high-value UK properties matched…`, progress: pct, inserted });
+
+        if (inserted % 500 === 0) {
+          await appendJobLog(jobId, `🏠 ${inserted.toLocaleString()} £1M+ UK property records ingested…`);
+        }
+      }
+    }
+
+    // Flush remaining
+    if (entityBatch.length > 0) {
       const res = await flushBatch(entityBatch, assetBatch);
       inserted += res.inserted;
       errors += res.errors;
-      entityBatch.length = 0;
-      assetBatch.length = 0;
-
-      pageCount++;
-      const progress = Math.min(2 + Math.floor((inserted / maxRecords) * 93), 95);
-      await updateJob(jobId, { message: `${inserted} high-value properties ingested…`, progress, inserted });
-
-      if (pageCount % 4 === 0) {
-        await appendJobLog(jobId, `🏠 ${inserted.toLocaleString()} high-value UK property records ingested…`);
-      }
+      await batchMarkSeen(pendingDedup);
     }
-  }
-
-  if (entityBatch.length > 0) {
-    const res = await flushBatch(entityBatch, assetBatch);
-    inserted += res.inserted;
-    errors += res.errors;
   }
 
   await appendJobLog(
