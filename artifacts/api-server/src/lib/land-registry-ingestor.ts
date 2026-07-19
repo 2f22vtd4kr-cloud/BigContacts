@@ -77,6 +77,9 @@ async function* sparqlPPD(maxRecords: number): AsyncGenerator<PropertyRecord> {
     if (yielded >= maxRecords) break;
 
     for (let offset = 0; offset < 500 && yielded < maxRecords; offset += PAGE_SIZE) {
+      // Use date-range FILTER instead of YEAR() — the HMLR SPARQL endpoint
+      // stores dates as xsd:date (not xsd:dateTime), so YEAR() returns no
+      // results. A string-comparable ISO range is universally supported.
       const sparql = `
 PREFIX ppi: <http://landregistry.data.gov.uk/def/ppi/>
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
@@ -95,7 +98,7 @@ WHERE {
   OPTIONAL { ?addr ppi:town ?town }
   OPTIONAL { ?transRecord ppi:estateType ?tenure }
   FILTER(?amount >= ${MIN_PRICE_GBP})
-  FILTER(YEAR(?date) = ${year})
+  FILTER(?date >= "${year}-01-01"^^xsd:date && ?date < "${year + 1}-01-01"^^xsd:date)
 }
 ORDER BY DESC(?amount)
 LIMIT ${PAGE_SIZE}

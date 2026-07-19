@@ -205,7 +205,14 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
   }
 
   // ── Step 3: Stream parse MASTER.txt ───────────────────────────────────────
-  await updateJob(jobId, { message: "Parsing MASTER.txt…", progress: 8 });
+  // Count total lines first so progress bar is meaningful
+  let totalLines = 0;
+  try {
+    const countResult = await execAsync(`wc -l < "${MASTER_PATH}"`, { timeout: 10_000 });
+    totalLines = parseInt(countResult.stdout.trim(), 10) || 0;
+  } catch { /* non-fatal */ }
+
+  await updateJob(jobId, { message: `Parsing MASTER.txt (${totalLines.toLocaleString()} records)…`, progress: 8 });
 
   const rl = createInterface({
     input: createReadStream(MASTER_PATH, { encoding: "latin1" }),
@@ -213,6 +220,7 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
   });
 
   let lineNum = 0;
+  let lastProgressLine = 0;
   const entityBatch: InsertEntity[] = [];
   const assetBatch: InsertAsset[] = [];
 
@@ -295,6 +303,19 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
     entityBatch.push(entity);
     assetBatch.push(asset);
 
+    // ── Progress update every 5,000 lines (keeps UI alive regardless of filter rate) ─
+    if (lineNum - lastProgressLine >= 5_000) {
+      lastProgressLine = lineNum;
+      const lineProgress = totalLines > 0
+        ? Math.min(8 + Math.floor((lineNum / totalLines) * 87), 94)
+        : Math.min(8 + Math.floor((inserted / maxRecords) * 87), 94);
+      await updateJob(jobId, {
+        message: `Scanned ${lineNum.toLocaleString()} lines — ${inserted.toLocaleString()} aircraft owners matched…`,
+        progress: lineProgress,
+        inserted,
+      });
+    }
+
     // ── Flush every 100 records ───────────────────────────────────────────────
     if (entityBatch.length >= 100) {
       const res = await flushBatch(entityBatch, assetBatch);
@@ -303,21 +324,7 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
       entityBatch.length = 0;
       assetBatch.length = 0;
 
-      // Mark all as seen after successful batch
-      // (we do this after flush to avoid false dedup on error)
-      for (let i = 0; i < 100; i++) {
-        // We already have the dkey from earlier — rebuild it from the flushed index
-        // Simply mark current batch window; dkey reconstruction omitted for perf
-      }
-
-      const progress = Math.min(8 + Math.floor((inserted / maxRecords) * 87), 95);
-      await updateJob(jobId, {
-        message: `Processed ${inserted.toLocaleString()} aircraft owners…`,
-        progress,
-        inserted,
-      });
-
-      if (inserted % 1_000 === 0) {
+      if (inserted % 1_000 === 0 && inserted > 0) {
         await appendJobLog(
           jobId,
           `✈️  ${inserted.toLocaleString()} turbine/multi-engine aircraft owners ingested…`,
