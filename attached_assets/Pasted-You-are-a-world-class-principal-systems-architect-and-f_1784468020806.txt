@@ -1,0 +1,236 @@
+You are a world-class principal systems architect and full-stack engineer. Build ApexFinder Pro, a secure, high-performance, fully deterministic web application that processes only authentic public registry data (corporate filings, land titles, aviation/marine records, etc.) to map high-net-worth individuals and networks, primarily in Western countries.
+
+Immediately read this prompt entirely and since we won’t be able to implement everything in one go - you gotta keep it saved in repo so when I import an updated repo into a new fresh Replit session - you have this task, divided in planned implementation phases , tracking how much had been already done at each new repo import in previous sessions. So save it in a separate .md file and update it after each new step done. Also you have full rights on rewriting this prompt for your comfort and/or because you can improve it or add things or make it better in general - you can and should. Let’s go. 
+
+You are suggesting in the manul to manually-first add targets. That's a way but only as a secondary option. Of course all the data must be real, no generation bullshit you gotta set it as a strict rule that can't be broken never ever. Our ultimate research and analysis app does two things: research and analysis. So its primary two steps deep search and analysis. Firsts - the sources research and evaluation. Then parsing of those sources for apex finding, evaluation, estimation and then personal card creation with full and usefull ui for user to know all the valuable info on that apex.
+
+Non-Negotiable Rules (Enforce at every step):
+•  Zero synthetic, fake, or hallucinated data ever. Never generate, approximate, or invent profiles, contacts, relationships, or attributes. All information must derive exclusively from validated uploaded public registry files. Missing data = explicitly marked “Unverified” or left blank.
+•  Focus on real public sources only. Support large-scale ingestion (tens of thousands of records).
+•  Prioritize Western jurisdictions (USA, Canada, UK, EU, Switzerland, Australia, etc.).
+•  Continuous ethical guardrails: include disclaimers, source attribution, and compliance reminders everywhere.
+Self-Evolving Architecture (Autonomous Persona Improvement Loop): Implement a background Persona Simulation Engine that runs autonomously after every major action (ingestion, analysis, UI update) without user input:
+•  Personas (the agent internally role-plays these experts in sequence for critique + implementation):
+	•  Senior Data Engineer: Optimizes pipelines, validation, scalability, and Redis usage.
+	•  Senior Data Analyst: Audits data quality, suggests new valid public sources, and enrichment strategies.
+	•  Senior Algorithm / MCTS Expert: Refines Monte Carlo Tree Search, heuristics, scoring, and pathfinding math.
+	•  Senior Business & Social Engineer: Enhances outreach logic, creative incentive models (inspired by real networking creativity), and warm-path strategies.
+	•  Senior UX/UI Designer: Iterates on visual excellence (dark Bloomberg/Palantir aesthetic), usability, and responsiveness.
+	•  Senior Architect & Critic: Performs rigorous self-review, identifies flaws, and applies concrete code/schema/UI patches.
+•  Loop Behavior: After changes, automatically trigger “Review Cycle” → personas debate weaknesses → implement prioritized improvements → log everything transparently in a dedicated improvements dashboard/log.
+•  Goal: The application continuously evolves into the absolute top tool in its category through self-driven iterations.
+Tech Stack:
+•  Backend: FastAPI (Python 3.11+) + async background tasks + Redis (caching, queues, deduplication).
+•  Frontend: Tailwind CSS SPA (dark professional theme with neon accents), Leaflet.js maps, interactive graphs.
+•  Graph: NetworkX for entity relationships and path analysis.
+•  Database: SQLite (WAL mode) + Redis for speed.
+•  Support large datasets efficiently.
+Core Two-Phase Pipeline + UI:
+1.  Deep Search & Ingestion:
+	•  Robust upload/processing for real CSV/JSON/XML registry exports.
+	•  Strict validation layer (schema checks, source tagging, deduplication via Redis).
+	•  Dashboard: ingestion status, record counts, data integrity scores, job history.
+2.  Analysis & Apex Profiling:
+	•  Deterministic entity resolution using real identifiers.
+	•  Build relational graph with NetworkX.
+	•  MCTS-powered pathfinding to discover optimal leverage points and warm approaches.
+	•  Apex Profile Card (core UI view):
+		•  Verified identity + full source ledger.
+		•  Confidence scoring based solely on real data density.
+		•  Asset portfolio table + interactive Leaflet map with real coordinates.
+		•  Clickable network graph showing relationships.
+		•  Outreach Strategy panel: MCTS-derived best paths + personalized, creative outreach suggestions (no spam; focus on value/incentives).
+Database Schema (Enhance the provided one with indexes, Redis integration points, and job logging tables).
+Implementation Order:
+1.  Create project structure, database models (SQLite + Redis), and FastAPI setup with Persona Loop foundation.
+2.  Build secure ingestion engine with strict no-fake-data enforcement.
+3.  Implement graph analysis + MCTS.
+4.  Develop polished Apex Profile UI.
+5.  Activate full autonomous improvement loop and run initial self-review.
+6.  Demonstrate end-to-end with sample public registry files (guide user on formats).
+Start immediately by setting up the folder structure, database, FastAPI server, Redis integration, and Persona Improvement Loop. Proceed iteratively, applying self-criticism at each milestone. Log all improvements clearly.
+Make ApexFinder Pro the definitive, self-improving platform for deterministic public data intelligence. Execute with excellence.
+
+Imperative is integrating real OSINT tools and public data sources will make ApexFinder Pro far more powerful while staying strictly compliant with “no fake data” rules. Here’s a focused investigation into relevant OSINT tools and public records sources for Western countries, emphasizing aircraft, property, corporate filings, and beneficial ownership. I prioritized reliable, public or semi-public options suitable for ingestion pipelines.53
+Top Recommended Public Data Sources & Tools
+1. Aircraft Ownership (FAA & Similar)
+    * FAA Releasable Aircraft Database (daily CSV download) — core for US private jets. Parse MASTER.txt for owners, tail numbers, etc.
+    * ADS-B Exchange / OpenSky Network — for flight tracking (public feeds).
+    * International: EASA or national aviation registries where available.
+2. Corporate & Beneficial Ownership
+    * OpenCorporates — Best aggregator (164M+ companies from 129 registries). Free API for permitted users (journalists/NGOs). Excellent for Western filings (UK Companies House, US states, EU).58
+    * UK Companies House (PSC register) — Direct beneficial ownership data.
+    * SEC EDGAR (US) — Corporate filings, insider ownership.
+    * Open Ownership Register & OCCRP Aleph — Beneficial ownership and investigative aggregates.53
+3. Property / Land Records
+    * UK HM Land Registry (HMLR) extracts.
+    * US county-level assessor records (varies by state; some bulk downloads).
+    * EU national land registries (limited public access in some countries).
+4. General OSINT Platforms & Tools
+    * Maltego — Excellent for graphing entities, relationships, and public records (transform-based).
+    * Tracers / Spokeo — Public records aggregators (people, assets, addresses) — use cautiously for bulk.
+    * Censys — Internet-wide asset discovery (IPs, certificates) as supplementary.
+    * LEI Search (GLEIF) — Global Legal Entity Identifiers for companies.59
+These sources provide verifiable, structured data perfect for your ingestion engine.
+Recommendations for ApexFinder Integration
+* Ingestion Priority: Start with FAA CSV (easy bulk) + OpenCorporates API → build entity resolution on top.
+* Graph Enhancements: Use NetworkX to link owners → assets → shared directors/gatekeepers.
+* Self-Improvement Tip: Have your Data Engineer persona add modules for these sources iteratively.
+* Legal Note: Always attribute sources, respect terms of use, and add disclaimers. Bulk scraping may have limits — prefer official downloads/APIs.
+
+Additional Specification: Implement Hybrid Multi-Layered Intelligence Search Engine
+Enhance ApexFinder Pro with a state-of-the-art Hybrid Search & Reasoning System for superior discovery of high-net-worth Western individuals (≥ $1M wealth proxies via verified assets) and direct/personal contact paths derived strictly from public registry data.
+Core Hybrid Architecture (All Layers Deterministic):
+1.  Hybrid Semantic + Keyword + Graph Search (Fast Retrieval Layer)
+	•  Combine BM25 keyword search, semantic embeddings (sentence-transformers all-MiniLM-L6-v2), and direct NetworkX graph traversal.
+	•  Fusion via Reciprocal Rank Fusion (RRF) or weighted scoring.
+	•  Cache results in Redis.
+2.  Agentic Multi-Agent Reasoning (Coordination & Planning)
+	•  Implement lightweight autonomous agents (Planner, Retriever, Analyst, Critic) that coordinate via hand-off logic.
+	•  Planner decomposes complex queries (e.g., “Western private jet owners with strong proximity paths”).
+	•  Analyst validates all outputs against real ingested data only.
+3.  Iterative Query Expansion + Relevance Feedback
+	•  Automatically expand queries using graph neighbors and entity attributes.
+	•  Support relevance feedback loop (mark results good/bad → refine embeddings/weights).
+4.  Monte Carlo Tree Search (MCTS) — Deep Path Exploration
+	•  Use the previously defined ProximityMCTS to explore multi-hop outreach paths.
+	•  Reward function based solely on real relationship types and personal identifiers from registries (direct ownership > shared assets > gatekeepers).
+5.  Bayesian Optimization / UCB — Smart Direction Selection
+	•  Leverage UCB (already in MCTS) and add lightweight Bayesian Optimization to tune search parameters, heuristic weights, and exploration depth across runs.
+Orchestration Flow (for any search or analysis request):
+•  Hybrid Search → Initial candidates.
+•  Agentic Planner coordinates sub-tasks.
+•  MCTS + UCB deeply explores promising branches for proximity scoring.
+•  Iterative refinement + feedback.
+•  Final output: Ranked targets with best warm paths, confidence scores, and full source citations.
+Implementation Requirements:
+•  Add sentence-transformers, rank-bm25, and any needed dependencies.
+•  Create hybrid_search.py and agent_orchestrator.py.
+•  Integrate into existing FastAPI endpoints (e.g., /search/intelligent).
+•  Persona Improvement Loop must review and optimize this hybrid system after initial implementation (Data Engineer + MCTS Expert + Architect personas).
+•  Ensure zero synthetic data — every result traces back to uploaded registry records.
+•  UI: Add “Intelligent Deep Search” tab that showcases the hybrid process (visual steps, top paths, MCTS simulation log).
+Activate this hybrid engine immediately. Make searches feel magical yet fully transparent and deterministic. Run self-improvement cycles and report enhancements.
+
+Here are my thoughts on MCTS (Use you head and approach it with a grain of salt since we must have already been working on it): 
+Core Concept
+MCTS explores possible “outreach paths” in the entity graph (HNWI → Gatekeeper → Asset → Intermediary, etc.). It scores proximity (how “close to the body” a path gets) using heuristics based only on real registry data:
+* Personal identifiers (direct phone/address in filings) = highest reward.
+* Trusted gatekeeper with multiple shared assets = medium.
+* Company/PR only = low.
+Key Files to Add/Update
+1. mcts.py (new file in analysis module)
+import random
+import math
+from collections import defaultdict
+import networkx as nx
+from typing import Dict, List, Tuple, Optional
+
+class MCTSNode:
+    def __init__(self, entity_id: str, path: List[str] = None):
+        self.entity_id = entity_id
+        self.path = path or [entity_id]
+        self.visits = 0
+        self.value = 0.0  # Cumulative proximity score
+        self.children: Dict[str, MCTSNode] = {}
+
+class ProximityMCTS:
+    def __init__(self, graph: nx.DiGraph, max_depth: int = 4, c_param: float = 1.414):
+        self.graph = graph  # NetworkX graph from real registry data
+        self.max_depth = max_depth
+        self.c_param = c_param  # Exploration constant
+
+    def proximity_heuristic(self, current: str, target: str) -> float:
+        """Score based ONLY on real data attributes (0.0 - 1.0)"""
+        score = 0.0
+        if self.graph.has_edge(current, target):
+            edge_data = self.graph.edges[current, target]
+            rel_type = edge_data.get('relationship_type', '')
+            
+            # Higher reward for closer/personal links from real data
+            if rel_type in ['DIRECT_OWNER', 'PERSONAL_CONTACT']:
+                score += 0.9
+            elif rel_type in ['TRUSTED_GATEKEEPER', 'SHARED_ASSET']:
+                score += 0.6
+            elif rel_type in ['DIRECTOR_OF', 'BENEFICIAL_OWNER']:
+                score += 0.4
+            else:
+                score += 0.2
+        return min(1.0, score)
+
+    def select(self, node: MCTSNode) -> MCTSNode:
+        """UCT selection"""
+        while node.children:
+            node = max(node.children.values(), 
+                      key=lambda n: (n.value / (n.visits + 1e-6)) + 
+                                    self.c_param * math.sqrt(math.log(node.visits + 1) / (n.visits + 1e-6)))
+        return node
+
+    def expand(self, node: MCTSNode):
+        """Add children from real graph neighbors"""
+        if len(node.path) >= self.max_depth:
+            return
+        for neighbor in self.graph.successors(node.entity_id):
+            if neighbor not in node.path:  # Avoid cycles
+                child = MCTSNode(neighbor, node.path + [neighbor])
+                node.children[neighbor] = child
+
+    def simulate(self, node: MCTSNode, target_id: str) -> float:
+        """Random rollout with heuristic scoring"""
+        current = node.entity_id
+        score = 0.0
+        depth = len(node.path)
+        
+        for _ in range(self.max_depth - depth):
+            neighbors = list(self.graph.successors(current))
+            if not neighbors:
+                break
+            current = random.choice(neighbors)
+            score += self.proximity_heuristic(current, target_id)
+        
+        return score / max(1, self.max_depth - depth)  # Average proximity
+
+    def backpropagate(self, node: MCTSNode, reward: float):
+        while node:
+            node.visits += 1
+            node.value += reward
+            # Move to parent would require parent tracking; simplified here
+
+    def search(self, start_id: str, target_id: str, iterations: int = 1000) -> List[Dict]:
+        root = MCTSNode(start_id)
+        for _ in range(iterations):
+            leaf = self.select(root)
+            self.expand(leaf)
+            reward = self.simulate(leaf, target_id)
+            self.backpropagate(leaf, reward)
+        
+        # Return top paths sorted by average value
+        best_paths = []
+        for child in root.children.values():
+            if child.visits > 0:
+                best_paths.append({
+                    "path": child.path,
+                    "proximity_score": child.value / child.visits,
+                    "confidence": min(1.0, child.visits / 100)
+                })
+        return sorted(best_paths, key=lambda x: x["proximity_score"], reverse=True)[:5]
+2. Integrate into FastAPI (analysis endpoint example)
+# In your analysis router
+from fastapi import APIRouter
+from .mcts import ProximityMCTS
+import networkx as nx
+
+router = APIRouter()
+
+@router.post("/mcts/proximity")
+async def compute_proximity(start_entity_id: str, target_entity_id: str, iterations: int = 500):
+    # Load real graph from DB/Redis cache
+    G = load_graph_from_db()  # Your NetworkX builder from registry data
+    mcts = ProximityMCTS(G)
+    results = mcts.search(start_entity_id, target_entity_id, iterations)
+    return {"paths": results, "target": target_entity_id}
+Next Steps Recommendations
+* Persona Loop Integration: Let the MCTS Expert persona review and tune the heuristic weights after runs.
+* Caching: Store top paths in Redis for fast UI retrieval.
+* UI: Display ranked paths with highlighted “direct” links and source citations.
+
