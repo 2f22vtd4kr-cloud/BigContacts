@@ -339,7 +339,7 @@ At the start of each session, the agent must:
 | Phase | Status | Completed date |
 |---|---|---|
 | Phase 1 — Contact Enrichment Pipeline | `[ PENDING ]` | — |
-| Phase 2 — Relationship Graph Builder | `[ PENDING ]` | — |
+| Phase 2 — Relationship Graph Builder | `[ IN PROGRESS — 4/5 done ]` | 2026-07-19 |
 | Phase 3 — MCTS & Outreach Upgrade | `[ PENDING ]` | — |
 | Phase 4 — Operator UX Polish | `[ PENDING ]` | — |
 | Phase 5 — Intelligence & Reliability Hardening | `[ PENDING ]` | — |

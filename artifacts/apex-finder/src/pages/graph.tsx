@@ -1,9 +1,12 @@
-import { useGetEntityGraph, useListEntities } from "@workspace/api-client-react";
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useGetEntityGraph, useListEntities, useCreateRelationship } from "@workspace/api-client-react";
+import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { useSearch, useLocation } from "wouter";
 import ForceGraph2D, { ForceGraphMethods } from "react-force-graph-2d";
-import { Network, ZoomIn, ZoomOut, Maximize, X, Search, ChevronDown, Filter, Shield, Plus, Link2 } from "lucide-react";
+import { Network, ZoomIn, ZoomOut, Maximize, X, Search, ChevronDown, Filter, Shield, Plus, Link2, Loader2 } from "lucide-react";
 import { cn, formatCurrency, ScoreBadge } from "@/lib/utils";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose,
+} from "@/components/ui/dialog";
 
 function useWindowSize() {
   const [size, setSize] = useState([0, 0]);
@@ -48,6 +51,23 @@ export default function GraphViewer() {
   const [minScore, setMinScore] = useState(0);
   const [assetTypeFilter, setAssetTypeFilter] = useState<string | null>(null);
 
+  // ── Relationship modal state ────────────────────────────────────────────────
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; nodeId: string; nodeName: string } | null>(null);
+  const [addRelOpen, setAddRelOpen] = useState(false);
+  const [relSourceId, setRelSourceId] = useState<number | null>(null);
+  const [relSourceName, setRelSourceName] = useState("");
+  const [relTargetId, setRelTargetId] = useState<number | null>(null);
+  const [relTargetName, setRelTargetName] = useState("");
+  const [relType, setRelType] = useState("KNOWS");
+  const [relStrength, setRelStrength] = useState(0.5);
+  const [relNotes, setRelNotes] = useState("");
+  const [relSaving, setRelSaving] = useState(false);
+  const [relError, setRelError] = useState<string | null>(null);
+  const [relSearchQ, setRelSearchQ] = useState("");
+  const [relSearchResults, setRelSearchResults] = useState<{ id: number; name: string }[]>([]);
+
+  const createRelationship = useCreateRelationship();
+
   const currentEntity = allEntities?.find((e) => e.id === targetId);
 
   const filteredEntities = useMemo(() => {
@@ -65,6 +85,43 @@ export default function GraphViewer() {
     setSelectorQuery("");
     setLocation(`/graph?entity=${id}`);
   }
+
+  // ── Relationship handlers ────────────────────────────────────────────────
+  const openRelModal = useCallback((nodeId: string, nodeName: string) => {
+    const numId = nodeId.startsWith("e:") ? parseInt(nodeId.slice(2), 10) : null;
+    if (!numId) return; // only entity nodes can be sources
+    setRelSourceId(numId);
+    setRelSourceName(nodeName);
+    setRelTargetId(null); setRelTargetName(""); setRelType("KNOWS");
+    setRelStrength(0.5); setRelNotes(""); setRelSearchQ(""); setRelSearchResults([]);
+    setRelError(null);
+    setCtxMenu(null);
+    setAddRelOpen(true);
+  }, []);
+
+  const handleRelSearch = async (q: string) => {
+    setRelSearchQ(q);
+    if (!q.trim()) { setRelSearchResults([]); return; }
+    try {
+      const base = (import.meta as any).env.BASE_URL.replace(/\/$/, "");
+      const r = await fetch(`${base}/api/entities?search=${encodeURIComponent(q)}&limit=20`);
+      const d = await r.json();
+      const list: any[] = Array.isArray(d) ? d : (d.entities ?? []);
+      setRelSearchResults(list.map((e: any) => ({ id: e.id, name: e.name })));
+    } catch { setRelSearchResults([]); }
+  };
+
+  const handleSaveRel = () => {
+    if (!relSourceId || !relTargetId) { setRelError("Select a target entity"); return; }
+    setRelSaving(true); setRelError(null);
+    createRelationship.mutate(
+      { data: { sourceEntityId: relSourceId, targetId: relTargetId, targetType: "Entity", relationshipType: relType, strength: relStrength, notes: relNotes || undefined } },
+      {
+        onSuccess: () => { setRelSaving(false); setAddRelOpen(false); },
+        onError: (err: any) => { setRelSaving(false); setRelError(err?.message ?? "Failed to save"); },
+      }
+    );
+  };
 
   const gData = useMemo(() => {
     if (!graphData) return { nodes: [], links: [] };
@@ -101,7 +158,9 @@ export default function GraphViewer() {
   }
 
   return (
-    <div className="flex h-full w-full bg-background relative overflow-hidden flex-col md:block" id="graph-container">
+    <div className="flex h-full w-full bg-background relative overflow-hidden flex-col md:block" id="graph-container"
+      onContextMenu={(e) => e.preventDefault()}
+    >
 
       {/* ── Mobile top bar (entity selector + controls) ── */}
       <div className="flex md:hidden items-center gap-2 px-3 py-2.5 border-b border-border bg-card/90 backdrop-blur z-30 flex-shrink-0">
@@ -315,7 +374,13 @@ export default function GraphViewer() {
           linkWidth={1.2}
           linkDirectionalArrowLength={4}
           linkDirectionalArrowRelPos={1}
-          onNodeClick={(node) => setSelectedNode(node)}
+          onNodeClick={(node) => { setSelectedNode(node); setCtxMenu(null); }}
+          onNodeRightClick={(node, event) => {
+            event.preventDefault();
+            const n = node as any;
+            if (!n.id?.startsWith("e:")) return; // only entity nodes
+            setCtxMenu({ x: event.clientX, y: event.clientY, nodeId: n.id, nodeName: n.label ?? n.id });
+          }}
           backgroundColor="transparent"
           linkCanvasObjectMode={() => "after"}
           linkCanvasObject={(link: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
@@ -434,10 +499,131 @@ export default function GraphViewer() {
               >
                 Set as Target
               </button>
+              <button
+                onClick={() => openRelModal(selectedNode.id, selectedNode.label)}
+                disabled={!selectedNode.id?.startsWith("e:")}
+                className="w-full py-2 flex items-center justify-center gap-1.5 bg-muted/20 hover:bg-muted/40 text-muted-foreground hover:text-foreground border border-border text-xs font-mono uppercase tracking-wider transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <Link2 className="w-3 h-3" /> Add Relationship From Here
+              </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* ── Right-click context menu ── */}
+      {ctxMenu && (
+        <div
+          className="fixed z-50 bg-card border border-border rounded shadow-2xl py-1 min-w-[180px]"
+          style={{ left: ctxMenu.x, top: ctxMenu.y }}
+          onMouseLeave={() => setCtxMenu(null)}
+        >
+          <div className="px-3 py-1.5 border-b border-border/50">
+            <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-widest">Node</div>
+            <div className="text-xs font-mono text-foreground font-semibold truncate max-w-[160px]">{ctxMenu.nodeName}</div>
+          </div>
+          <button
+            onClick={() => openRelModal(ctxMenu.nodeId, ctxMenu.nodeName)}
+            className="w-full flex items-center gap-2 px-3 py-2 text-xs font-mono text-foreground hover:bg-muted/50 transition-colors"
+          >
+            <Link2 className="w-3.5 h-3.5 text-primary" /> Add Relationship From Here
+          </button>
+          <button
+            onClick={() => { selectEntity(parseInt(ctxMenu.nodeId.slice(2), 10)); setCtxMenu(null); }}
+            className="w-full flex items-center gap-2 px-3 py-2 text-xs font-mono text-foreground hover:bg-muted/50 transition-colors"
+          >
+            <Network className="w-3.5 h-3.5 text-secondary" /> Set as Graph Target
+          </button>
+        </div>
+      )}
+
+      {/* ── Dismiss context menu on outside click ── */}
+      {ctxMenu && <div className="fixed inset-0 z-40" onClick={() => setCtxMenu(null)} />}
+
+      {/* ── Add Relationship Modal ── */}
+      <Dialog open={addRelOpen} onOpenChange={(o) => { setAddRelOpen(o); if (!o) { setRelError(null); setRelSearchResults([]); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-mono text-sm tracking-widest uppercase flex items-center gap-2">
+              <Link2 className="w-4 h-4 text-primary" /> Add Relationship
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            {/* Source (pre-filled, read-only) */}
+            <div>
+              <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1.5 block">From (Source)</label>
+              <div className="px-3 py-2 bg-muted/20 border border-border rounded text-sm font-mono text-foreground/70">
+                {relSourceName}
+              </div>
+            </div>
+
+            {/* Target entity search */}
+            <div className="relative">
+              <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1.5 block">To (Target Entity)</label>
+              <input
+                value={relTargetId ? relTargetName : relSearchQ}
+                onChange={(e) => { setRelTargetId(null); setRelTargetName(""); handleRelSearch(e.target.value); }}
+                placeholder="Search entities…"
+                className="w-full px-3 py-2 bg-background border border-border rounded text-sm font-mono text-foreground placeholder:text-muted-foreground/40 focus:border-primary/50 focus:outline-none"
+              />
+              {relSearchResults.length > 0 && !relTargetId && (
+                <div className="absolute left-0 right-0 top-full mt-1 bg-card border border-border rounded shadow-xl z-50 max-h-48 overflow-y-auto">
+                  {relSearchResults.map((r) => (
+                    <button key={r.id} onClick={() => { setRelTargetId(r.id); setRelTargetName(r.name); setRelSearchResults([]); }}
+                      className="w-full text-left px-3 py-2 text-sm font-mono text-foreground hover:bg-muted/50 transition-colors border-b border-border/30 last:border-0">
+                      {r.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Relationship type */}
+            <div>
+              <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1.5 block">Relationship Type</label>
+              <select value={relType} onChange={(e) => setRelType(e.target.value)}
+                className="w-full px-3 py-2 bg-background border border-border rounded text-sm font-mono text-foreground focus:border-primary/50 focus:outline-none">
+                {["KNOWS","OWNS","CONTROLS","ASSOCIATES_WITH","EMPLOYED_BY","DIRECTS","FAMILY_OF"].map((t) => (
+                  <option key={t} value={t}>{t.replace(/_/g, " ")}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Strength */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">Strength</label>
+                <span className="text-[10px] font-mono text-foreground font-bold">{(relStrength * 100).toFixed(0)}%</span>
+              </div>
+              <input type="range" min={0.1} max={1.0} step={0.05} value={relStrength}
+                onChange={(e) => setRelStrength(Number(e.target.value))} className="w-full accent-primary" />
+              <div className="flex justify-between text-[9px] text-muted-foreground mt-0.5"><span>Weak</span><span>Strong</span></div>
+            </div>
+
+            {/* Notes */}
+            <div>
+              <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1.5 block">Notes (optional)</label>
+              <textarea value={relNotes} onChange={(e) => setRelNotes(e.target.value)} rows={2}
+                placeholder="Source or evidence for this link…"
+                className="w-full px-3 py-2 bg-background border border-border rounded text-sm font-mono text-foreground placeholder:text-muted-foreground/40 focus:border-primary/50 focus:outline-none resize-none" />
+            </div>
+
+            {relError && <p className="text-xs font-mono text-red-400">{relError}</p>}
+          </div>
+
+          <DialogFooter className="gap-2">
+            <DialogClose asChild>
+              <button className="px-4 py-2 rounded border border-border text-muted-foreground font-mono text-xs uppercase tracking-wider hover:text-foreground transition-colors">Cancel</button>
+            </DialogClose>
+            <button onClick={handleSaveRel} disabled={relSaving || !relTargetId}
+              className="flex items-center gap-2 px-4 py-2 rounded bg-primary/20 border border-primary/40 text-primary font-mono text-xs uppercase tracking-wider hover:bg-primary/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+              {relSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+              {relSaving ? "Saving…" : "Save"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

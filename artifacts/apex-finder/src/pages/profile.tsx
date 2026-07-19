@@ -7,6 +7,8 @@ import {
   useListResearchSessions,
   useRunResearch,
   useGeneratePitch,
+  useCreateRelationship,
+  useDeleteRelationship,
 } from "@workspace/api-client-react";
 import { MapContainer, TileLayer, CircleMarker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
@@ -248,8 +250,10 @@ export default function ApexProfile() {
   const { data: relationships = [], refetch: refetchRelationships } = useListRelationships({ entityId });
   const { data: sessions = [],  refetch: refetchSessions } = useListResearchSessions({ entityId, limit: 10 });
 
-  const runResearch  = useRunResearch();
-  const generatePitch = useGeneratePitch();
+  const runResearch       = useRunResearch();
+  const generatePitch     = useGeneratePitch();
+  const createRelationship = useCreateRelationship();
+  const deleteRelationship = useDeleteRelationship();
 
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [pitchingId, setPitchingId]   = useState<number | null>(null);
@@ -372,6 +376,50 @@ export default function ApexProfile() {
     }
   };
 
+  // ── Relationship handlers ──────────────────────────────────────────────────
+
+  const handleRelSearch = async (q: string) => {
+    setRelSearchQ(q);
+    if (!q.trim()) { setRelSearchResults([]); return; }
+    try {
+      const base = (import.meta as any).env.BASE_URL.replace(/\/$/, "");
+      const r = await fetch(`${base}/api/entities?search=${encodeURIComponent(q)}&limit=20`);
+      const d = await r.json();
+      const list: any[] = Array.isArray(d) ? d : (d.entities ?? []);
+      setRelSearchResults(list.map((e: any) => ({ id: e.id, name: e.name })));
+    } catch { setRelSearchResults([]); }
+  };
+
+  const handleSaveRelationship = () => {
+    if (!relTargetId) { setRelError("Please select a target"); return; }
+    setRelSaving(true);
+    setRelError(null);
+    createRelationship.mutate(
+      { data: { sourceEntityId: entityId, targetId: relTargetId, targetType: relTargetType, relationshipType: relType, strength: relStrength, notes: relNotes || undefined } },
+      {
+        onSuccess: () => {
+          setRelSaving(false);
+          setAddRelOpen(false);
+          setRelTargetId(null); setRelTargetName(""); setRelType("KNOWS"); setRelStrength(0.5);
+          setRelNotes(""); setRelSearchQ(""); setRelSearchResults([]);
+          refetchRelationships();
+        },
+        onError: (err: any) => { setRelSaving(false); setRelError(err?.message ?? "Failed to save"); },
+      }
+    );
+  };
+
+  const handleDeleteRelationship = (id: number) => {
+    setDeletingRelId(id);
+    deleteRelationship.mutate(
+      { id },
+      {
+        onSuccess: () => { setDeletingRelId(null); refetchRelationships(); },
+        onError:   () => setDeletingRelId(null),
+      }
+    );
+  };
+
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
@@ -445,6 +493,12 @@ export default function ApexProfile() {
               >
                 <KanbanSquare className="w-3 h-3" /> CRM
               </Link>
+              <button
+                onClick={() => setAddRelOpen(true)}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded border border-border text-muted-foreground hover:text-primary hover:border-primary/40 font-mono text-[10px] uppercase tracking-wider transition-colors"
+              >
+                <Link2 className="w-3 h-3" /> Connect
+              </button>
             </div>
           </div>
         </div>
@@ -724,6 +778,89 @@ export default function ApexProfile() {
           )}
         </div>
 
+        {/* Row 2.5: Connections */}
+        <div className="border border-border rounded-lg bg-card/30">
+          <SectionHeader
+            icon={<Link2 className="w-3.5 h-3.5" />}
+            title="Connections"
+            badge={`${(relationships as any[]).length} linked`}
+            action={
+              <button
+                onClick={() => setAddRelOpen(true)}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-border text-muted-foreground hover:text-primary hover:border-primary/40 font-mono text-[10px] uppercase tracking-wider transition-colors"
+              >
+                <Plus className="w-3 h-3" /> Add
+              </button>
+            }
+          />
+          {(relationships as any[]).length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 gap-2 text-muted-foreground/40">
+              <Network className="w-8 h-8 opacity-20" />
+              <p className="text-xs font-mono">No connections yet</p>
+              <p className="text-[10px] font-mono text-center max-w-xs leading-relaxed">
+                Click "Add" to link this entity to another, or run Auto-detect from Data Sources to surface co-ownership signals.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="border-b border-border/50 bg-card/30">
+                    {["Target", "Type", "Relationship", "Strength", ""].map((h) => (
+                      <th key={h} className="px-4 py-2 text-left text-[9px] font-mono font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/30">
+                  {(relationships as any[]).map((rel: any) => (
+                    <tr key={rel.id} className="hover:bg-muted/10 transition-colors group">
+                      <td className="px-4 py-2.5">
+                        {rel.targetType === "Entity" ? (
+                          <Link href={`/profile/${rel.targetId}`} className="text-xs font-mono text-primary hover:underline">
+                            {rel.targetName ?? `#${rel.targetId}`}
+                          </Link>
+                        ) : (
+                          <span className="text-xs font-mono text-foreground/70">{rel.targetName ?? `Asset #${rel.targetId}`}</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-muted text-muted-foreground uppercase">
+                          {rel.targetType}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5 text-xs font-mono text-foreground/80">
+                        {(rel.relationshipType as string).replace(/_/g, " ")}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center gap-2">
+                          <div className="h-1.5 w-16 rounded-full bg-muted/30 overflow-hidden">
+                            <div className="h-full rounded-full bg-primary/60" style={{ width: `${(rel.strength ?? 0.5) * 100}%` }} />
+                          </div>
+                          <span className="text-[10px] font-mono text-muted-foreground">{((rel.strength ?? 0.5) * 100).toFixed(0)}%</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-2.5 text-right">
+                        <button
+                          onClick={() => handleDeleteRelationship(rel.id)}
+                          disabled={deletingRelId === rel.id}
+                          className="opacity-0 group-hover:opacity-100 p-1 rounded text-muted-foreground hover:text-red-400 transition-all disabled:opacity-50"
+                          title="Remove relationship"
+                        >
+                          {deletingRelId === rel.id
+                            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            : <Trash2 className="w-3.5 h-3.5" />}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
         {/* Row 3: Outreach Strategy Panel */}
         <div className="border border-border rounded-lg bg-card/30">
           <SectionHeader
@@ -973,6 +1110,93 @@ export default function ApexProfile() {
         </div>
 
       </div>
+
+    {/* ── Add Relationship Dialog ─────────────────────────────────────────── */}
+    <Dialog open={addRelOpen} onOpenChange={(o) => { setAddRelOpen(o); if (!o) { setRelError(null); setRelSearchResults([]); setRelTargetId(null); setRelTargetName(""); setRelSearchQ(""); } }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="font-mono text-sm tracking-widest uppercase flex items-center gap-2">
+            <Link2 className="w-4 h-4 text-primary" /> Add Relationship
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          <div>
+            <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1.5 block">Target Type</label>
+            <div className="flex gap-2">
+              {(["Entity", "Asset"] as const).map((t) => (
+                <button key={t}
+                  onClick={() => { setRelTargetType(t); setRelTargetId(null); setRelTargetName(""); setRelSearchResults([]); setRelSearchQ(""); }}
+                  className={cn("flex-1 py-1.5 rounded border font-mono text-[11px] uppercase tracking-wider transition-colors",
+                    relTargetType === t ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/40"
+                  )}
+                >{t}</button>
+              ))}
+            </div>
+          </div>
+
+          <div className="relative">
+            <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1.5 block">Target {relTargetType}</label>
+            <input
+              value={relTargetId ? relTargetName : relSearchQ}
+              onChange={(e) => { setRelTargetId(null); setRelTargetName(""); handleRelSearch(e.target.value); }}
+              placeholder={`Search ${relTargetType.toLowerCase()}s…`}
+              className="w-full px-3 py-2 bg-background border border-border rounded text-sm font-mono text-foreground placeholder:text-muted-foreground/40 focus:border-primary/50 focus:outline-none"
+            />
+            {relSearchResults.length > 0 && !relTargetId && (
+              <div className="absolute left-0 right-0 top-full mt-1 bg-card border border-border rounded shadow-xl z-50 max-h-48 overflow-y-auto">
+                {relSearchResults.map((r) => (
+                  <button key={r.id} onClick={() => { setRelTargetId(r.id); setRelTargetName(r.name); setRelSearchResults([]); }}
+                    className="w-full text-left px-3 py-2 text-sm font-mono text-foreground hover:bg-muted/50 transition-colors border-b border-border/30 last:border-0">
+                    {r.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1.5 block">Relationship Type</label>
+            <select value={relType} onChange={(e) => setRelType(e.target.value)}
+              className="w-full px-3 py-2 bg-background border border-border rounded text-sm font-mono text-foreground focus:border-primary/50 focus:outline-none">
+              {["KNOWS","OWNS","CONTROLS","ASSOCIATES_WITH","EMPLOYED_BY","DIRECTS","FAMILY_OF"].map((t) => (
+                <option key={t} value={t}>{t.replace(/_/g, " ")}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">Strength</label>
+              <span className="text-[10px] font-mono text-foreground font-bold">{(relStrength * 100).toFixed(0)}%</span>
+            </div>
+            <input type="range" min={0.1} max={1.0} step={0.05} value={relStrength}
+              onChange={(e) => setRelStrength(Number(e.target.value))} className="w-full accent-primary" />
+            <div className="flex justify-between text-[9px] text-muted-foreground mt-0.5"><span>Weak</span><span>Strong</span></div>
+          </div>
+
+          <div>
+            <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1.5 block">Notes (optional)</label>
+            <textarea value={relNotes} onChange={(e) => setRelNotes(e.target.value)} rows={2}
+              placeholder="Source of this relationship, evidence…"
+              className="w-full px-3 py-2 bg-background border border-border rounded text-sm font-mono text-foreground placeholder:text-muted-foreground/40 focus:border-primary/50 focus:outline-none resize-none" />
+          </div>
+
+          {relError && <p className="text-xs font-mono text-red-400">{relError}</p>}
+        </div>
+
+        <DialogFooter className="gap-2">
+          <DialogClose asChild>
+            <button className="px-4 py-2 rounded border border-border text-muted-foreground font-mono text-xs uppercase tracking-wider hover:text-foreground transition-colors">Cancel</button>
+          </DialogClose>
+          <button onClick={handleSaveRelationship} disabled={relSaving || !relTargetId}
+            className="flex items-center gap-2 px-4 py-2 rounded bg-primary/20 border border-primary/40 text-primary font-mono text-xs uppercase tracking-wider hover:bg-primary/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+            {relSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+            {relSaving ? "Saving…" : "Save"}
+          </button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
     </div>
   );
 }
