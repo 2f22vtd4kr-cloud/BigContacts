@@ -1,11 +1,12 @@
 import { useState, useMemo } from "react";
+import { Link } from "wouter";
 import { useListEntities, useCreateEntity, useDeleteEntity } from "@workspace/api-client-react";
 import { formatCurrency, ScoreBadge } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import {
   Plus, Search, Trash2, Globe, ChevronDown, ChevronUp, X, Loader2,
   ChevronRight, Network, Target as TargetIcon, Download, ShieldAlert,
-  Filter, UserCheck, Building2, Briefcase, Shield,
+  Filter, UserCheck, Building2, Briefcase, Shield, IdCard,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -179,18 +180,24 @@ function MobileEntityDetail({ entity, onClose }: { entity: any; onClose: () => v
         </div>
 
         <div className="p-4 space-y-2">
-          <a
-            href={`/graph?entity=${entity.id}`}
+          <Link
+            href={`/profile/${entity.id}`}
             className="flex items-center justify-center gap-2 w-full py-2.5 bg-primary text-primary-foreground rounded font-mono text-xs uppercase tracking-wider"
           >
+            <IdCard className="w-3.5 h-3.5" /> Apex Profile Card
+          </Link>
+          <Link
+            href={`/graph?entity=${entity.id}`}
+            className="flex items-center justify-center gap-2 w-full py-2.5 bg-muted border border-border text-foreground rounded font-mono text-xs uppercase tracking-wider"
+          >
             <Network className="w-3.5 h-3.5" /> View Network
-          </a>
-          <a
+          </Link>
+          <Link
             href={`/research?entity=${entity.id}`}
             className="flex items-center justify-center gap-2 w-full py-2.5 bg-muted border border-border text-foreground rounded font-mono text-xs uppercase tracking-wider"
           >
             <TargetIcon className="w-3.5 h-3.5" /> Run MCTS Analysis
-          </a>
+          </Link>
         </div>
       </div>
     </div>
@@ -561,20 +568,27 @@ export default function EntityLedger() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <a
+                        <Link
+                          href={`/profile/${entity.id}`}
+                          className="p-1.5 text-muted-foreground hover:text-primary transition-colors"
+                          title="Apex Profile Card"
+                        >
+                          <IdCard className="w-3.5 h-3.5" />
+                        </Link>
+                        <Link
                           href={`/graph?entity=${entity.id}`}
                           className="p-1.5 text-muted-foreground hover:text-primary transition-colors"
                           title="View network"
                         >
                           <Network className="w-3.5 h-3.5" />
-                        </a>
-                        <a
+                        </Link>
+                        <Link
                           href={`/research?entity=${entity.id}`}
                           className="p-1.5 text-muted-foreground hover:text-secondary transition-colors"
                           title="MCTS analysis"
                         >
                           <TargetIcon className="w-3.5 h-3.5" />
-                        </a>
+                        </Link>
                         <button
                           onClick={() => handleDelete(entity.id)}
                           className="p-1.5 text-muted-foreground hover:text-destructive transition-colors"

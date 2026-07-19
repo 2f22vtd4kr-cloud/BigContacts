@@ -54,11 +54,11 @@ Original master prompt lives in `attached_assets/Pasted-You-are-a-world-class-pr
 - [x] POST /search/intelligent — orchestrator entry point, 60 s Redis cache
 - [x] "Deep Search" tab — visual pipeline cards, per-signal score bars, expandable analyst reasoning
 
-### 🔲 Phase 6 — Apex Profile Card (Complete)
-- [ ] Leaflet mini-map on entity profile (showing all owned assets with coordinates)
-- [ ] Full source ledger (every data point traced to registry + filing)
-- [ ] Confidence breakdown by data category
-- [ ] Outreach strategy panel with MCTS-derived best paths + personalized approach suggestions
+### ✅ Phase 6 — Apex Profile Card (Complete)
+- [x] Leaflet mini-map on entity profile (showing all owned assets with coordinates)
+- [x] Full source ledger (every data point traced to registry + filing)
+- [x] Confidence breakdown by data category
+- [x] Outreach strategy panel with MCTS-derived best paths + personalized approach suggestions
 
 ### 🔲 Phase 7 — Persona Improvement Loop
 - [ ] Autonomous background agent triggered after ingestion/analysis
@@ -107,6 +107,16 @@ Original master prompt lives in `attached_assets/Pasted-You-are-a-world-class-pr
 ---
 
 ## Session Log
+
+### Session 6 — Phase 6: Apex Profile Card
+- Created `artifacts/apex-finder/src/pages/profile.tsx` — full-page entity profile with 4 panels
+- **Asset mini-map:** Leaflet/react-leaflet with CartoDB dark tiles, CircleMarker per asset (colored by category: Aviation=#3B82F6, RealEstate=#10B981, Marine=#06B6D4, PrivateClub=#A855F7), legend, empty state
+- **Confidence breakdown:** 5-category scoring (Identity/Financial/Network/Registry/Assets) + overall SVG ring; derived from entity fields + assets + relationships
+- **Source ledger:** Full-width table tracing every data point to its source registry; categories: Identity, Financial, Network, Asset, Registry; verified/unverified badges
+- **Outreach strategy:** MCTS session selector, winning path chain visualization, MCTS iterations table, pitch generation button, collapsible multi-message pitch display
+- Wired to existing hooks: `useGetEntity`, `useListAssets`, `useListRelationships`, `useListResearchSessions`, `useRunResearch`, `useGeneratePitch`
+- Added `/profile/:id` route in `router.tsx`
+- Added profile icon (IdCard) to entity ledger desktop action column + mobile detail view
 
 ### Session 5 — Kill mock data; wire real OSINT sources
 - Removed `seedMockData()` + `seedExtendedData()` auto-seeding from server startup
