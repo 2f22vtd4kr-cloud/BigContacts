@@ -3,3 +3,4 @@
 - [Registry search routing](registry-search-routing.md) — Live registry search is at POST /api/registry-search (not /ingest/); placed before adminOnly middleware in ingest.ts
 - [Redis integration](redis-integration.md) — ioredis on REDIS_URL; cache-aside on entities/dashboard/registry; graceful degradation on Redis outage
 - [Western HNWI ingestion](western-hnwi-ingestion.md) — Dual Redis (local cache + Upstash permanent); background job at POST /ingest/western-hnwi; poll at GET /ingest/job/:jobId; no auth required (personal use)
+- [Real OSINT data pipeline](real-osint-pipeline.md) — FAA ingestor uses curl+unzip (no npm pkg); mock seeding removed from startup; DB must be cleared after import

@@ -2,18 +2,17 @@
  * Data Ingest Routes
  *
  * POST /registry-search         — live registry lookup (public, no auth)
- * POST /ingest/western-hnwi    — launch mass Western HNWI ingestion (admin, background)
+ * POST /ingest/western-hnwi    — launch mass Western HNWI ingestion (background job)
+ * POST /ingest/faa              — launch real FAA Releasable Aircraft DB ingestion (background job)
  * GET  /ingest/job/:jobId       — poll job status + log tail
+ * GET  /ingest/status           — overall ingestion status
  * DELETE /ingest/dedup          — clear Redis dedup set for re-ingest
- * POST /ingest/faa              — seed aviation mock data (admin)
- * POST /ingest/extend           — seed extended mock dataset (admin)
  *
- * Admin routes require Authorization: Bearer <ADMIN_TOKEN | SESSION_SECRET>
+ * All data comes exclusively from public registries. Zero synthetic data.
  */
 
-import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
+import { Router, type IRouter, type Request, type Response } from "express";
 import { db, assetsTable, entitiesTable, relationshipsTable } from "@workspace/db";
-import { seedExtendedData } from "../lib/mock-data";
 import { searchRegistry } from "../lib/registry-client";
 import { getCache, setCache } from "../lib/redis";
 import { sql, eq } from "drizzle-orm";
@@ -22,6 +21,7 @@ import {
   setActiveJob, getActiveJob, clearDedup, getDedupCount,
 } from "../lib/job-queue";
 import { runWesternHnwiIngestion } from "../lib/western-hnwi-ingestion";
+import { runFaaIngestion } from "../lib/faa-ingestor";
 import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
@@ -38,8 +38,9 @@ router.post("/registry-search", async (req: Request, res: Response): Promise<voi
     res.status(400).json({ error: "query is required and must be a non-empty string." });
     return;
   }
-  if (!["opencorporates", "companies-house", "sec-edgar"].includes(registry)) {
-    res.status(400).json({ error: `registry must be "opencorporates", "companies-house", or "sec-edgar".` });
+  const validRegistries = ["opencorporates", "companies-house", "sec-edgar", "gleif"];
+  if (!validRegistries.includes(registry)) {
+    res.status(400).json({ error: `registry must be one of: ${validRegistries.join(", ")}.` });
     return;
   }
 
@@ -54,7 +55,7 @@ router.post("/registry-search", async (req: Request, res: Response): Promise<voi
   try {
     const results = await searchRegistry({
       query: query.trim(),
-      registry: registry as "opencorporates" | "companies-house" | "sec-edgar",
+      registry: registry as "opencorporates" | "companies-house" | "sec-edgar" | "gleif",
       limit: normalizedLimit,
     });
     await setCache(cacheKey, results, 3_600);
@@ -64,22 +65,7 @@ router.post("/registry-search", async (req: Request, res: Response): Promise<voi
   }
 });
 
-// ── Admin auth middleware (used only for destructive/rare ops) ────────────────
-function adminOnly(req: Request, res: Response, next: NextFunction): void {
-  const adminToken = process.env["ADMIN_TOKEN"] ?? process.env["SESSION_SECRET"];
-  if (!adminToken) {
-    res.status(503).json({ error: "Ingest routes unavailable: ADMIN_TOKEN or SESSION_SECRET must be set." });
-    return;
-  }
-  const [scheme, token] = (req.headers["authorization"] ?? "").split(" ");
-  if (scheme !== "Bearer" || token !== adminToken) {
-    res.status(403).json({ error: "Forbidden. Requires Authorization: Bearer <ADMIN_TOKEN>." });
-    return;
-  }
-  next();
-}
-
-// ── POST /ingest/western-hnwi — personal use, no auth required ───────────────
+// ── POST /ingest/western-hnwi — SEC EDGAR, Companies House, BRREG ─────────────
 router.post("/ingest/western-hnwi", async (req, res): Promise<void> => {
   const {
     targetCount = 5_000,
@@ -131,6 +117,59 @@ router.post("/ingest/western-hnwi", async (req, res): Promise<void> => {
   });
 });
 
+// ── POST /ingest/faa — FAA Releasable Aircraft Database (real data) ───────────
+router.post("/ingest/faa", async (req, res): Promise<void> => {
+  const {
+    maxRecords = 30_000,
+    forceRefresh = false,
+    clearDedup: doClean = false,
+  } = req.body as { maxRecords?: number; forceRefresh?: boolean; clearDedup?: boolean };
+
+  const safeMax = Math.min(Math.max(Number(maxRecords) || 30_000, 100), 100_000);
+
+  // Prevent duplicate concurrent jobs
+  const existingJobId = await getActiveJob("faa");
+  if (existingJobId) {
+    const existing = await getJob(existingJobId);
+    if (existing && existing.status === "running") {
+      res.status(409).json({ error: "An FAA ingestion job is already running.", jobId: existingJobId });
+      return;
+    }
+  }
+
+  if (doClean) await clearDedup();
+
+  const jobId = await createJob("faa");
+  await setActiveJob("faa", jobId);
+
+  // Fire-and-forget background job
+  (async () => {
+    try {
+      await updateJob(jobId, { status: "running", total: safeMax, message: "Starting FAA ingestion…" });
+      const result = await runFaaIngestion({ jobId, maxRecords: safeMax, forceRefresh });
+      await updateJob(jobId, {
+        status: "done",
+        progress: 100,
+        inserted: result.inserted,
+        skipped: result.skipped,
+        errors: result.errors,
+        finishedAt: new Date().toISOString(),
+        message: `Done — ${result.inserted.toLocaleString()} aircraft owners from FAA registry in ${(result.durationMs / 1000).toFixed(1)}s`,
+      });
+    } catch (err: any) {
+      logger.error({ err: err.message }, "FAA ingestion job failed");
+      await updateJob(jobId, { status: "failed", message: err.message ?? "FAA ingestion failed" });
+    }
+  })();
+
+  res.status(202).json({
+    jobId,
+    message: `FAA aircraft registry ingestion started (up to ${safeMax.toLocaleString()} records).`,
+    pollUrl: `/api/ingest/job/${jobId}`,
+    note: "Downloads ~70MB from registry.faa.gov. First run takes ~2-3 minutes; subsequent runs use cached ZIP.",
+  });
+});
+
 // ── GET /ingest/job/:jobId — poll status (no auth, read-only) ────────────────
 router.get("/ingest/job/:jobId", async (req, res): Promise<void> => {
   const { jobId } = req.params as { jobId: string };
@@ -145,48 +184,39 @@ router.get("/ingest/job/:jobId", async (req, res): Promise<void> => {
 
 // ── GET /ingest/status — overall ingestion status (no auth) ──────────────────
 router.get("/ingest/status", async (_req, res): Promise<void> => {
-  const [dedupCount, entityCount, assetCount] = await Promise.all([
+  const [dedupCount, entityCount, assetCount, faaCount] = await Promise.all([
     getDedupCount(),
     db.select({ cnt: sql<number>`count(*)::int` }).from(entitiesTable)
       .where(eq(entitiesTable.type, "HNWI")).then(r => r[0]?.cnt ?? 0),
     db.select({ cnt: sql<number>`count(*)::int` }).from(assetsTable)
       .then(r => r[0]?.cnt ?? 0),
+    db.select({ cnt: sql<number>`count(*)::int` }).from(assetsTable)
+      .where(eq(assetsTable.category, "Aviation")).then(r => r[0]?.cnt ?? 0),
   ]);
-  const activeJobId = await getActiveJob("western-hnwi");
-  const activeJob = activeJobId ? await getJob(activeJobId) : null;
-  res.json({ dedupCount, hnwiCount: entityCount, assetCount, activeJob, activeJobId });
+  const [activeWhnwi, activeFaa] = await Promise.all([
+    getActiveJob("western-hnwi"),
+    getActiveJob("faa"),
+  ]);
+  const [activeWJob, activeFJob] = await Promise.all([
+    activeWhnwi ? getJob(activeWhnwi) : Promise.resolve(null),
+    activeFaa ? getJob(activeFaa) : Promise.resolve(null),
+  ]);
+  res.json({
+    dedupCount,
+    hnwiCount: entityCount,
+    assetCount,
+    faaAircraftCount: faaCount,
+    jobs: {
+      westernHnwi: activeWJob,
+      faa: activeFJob,
+    },
+  });
 });
 
-// ── DELETE /ingest/dedup — clear dedup set (no auth for personal use) ─────────
+// ── DELETE /ingest/dedup — clear dedup set ────────────────────────────────────
 router.delete("/ingest/dedup", async (_req, res): Promise<void> => {
   await clearDedup();
   res.json({ status: "ok", message: "Dedup set cleared. Next ingestion will re-insert all records." });
-});
-
-// ── POST /ingest/faa — seed aviation data ─────────────────────────────────────
-router.post("/ingest/faa", async (_req, res): Promise<void> => {
-  try {
-    await seedExtendedData();
-    const aviation = await db.select().from(assetsTable).where(eq(assetsTable.category, "Aviation"));
-    res.json({ status: "ok", message: `FAA ingest complete. ${aviation.length} aircraft records.`, aircraftCount: aviation.length });
-  } catch (err: any) {
-    res.status(500).json({ error: err?.message ?? "Ingest failed" });
-  }
-});
-
-// ── POST /ingest/extend ────────────────────────────────────────────────────────
-router.post("/ingest/extend", async (_req, res): Promise<void> => {
-  try {
-    await seedExtendedData();
-    const [entityCount, assetCount, relCount] = await Promise.all([
-      db.select({ cnt: sql<number>`count(*)::int` }).from(entitiesTable).then(r => r[0]?.cnt ?? 0),
-      db.select({ cnt: sql<number>`count(*)::int` }).from(assetsTable).then(r => r[0]?.cnt ?? 0),
-      db.select({ cnt: sql<number>`count(*)::int` }).from(relationshipsTable).then(r => r[0]?.cnt ?? 0),
-    ]);
-    res.json({ status: "ok", message: "Extended seed complete.", totals: { entities: entityCount, assets: assetCount, relationships: relCount } });
-  } catch (err: any) {
-    res.status(500).json({ error: err?.message ?? "Extended seed failed" });
-  }
 });
 
 export default router;

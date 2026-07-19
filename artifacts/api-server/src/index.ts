@@ -1,6 +1,5 @@
 import app from "./app";
 import { logger } from "./lib/logger";
-import { seedMockData, seedExtendedData } from "./lib/mock-data";
 import { connectRedis, connectPermanentRedis, disconnectRedis } from "./lib/redis";
 
 const rawPort = process.env["PORT"];
@@ -31,15 +30,9 @@ const server = app.listen(port, (err) => {
     logger.error({ err }, "Error listening on port");
     process.exit(1);
   }
-
   logger.info({ port }, "Server listening");
-
-  // Seed base mock data on first boot (no-op if data already exists)
-  seedMockData()
-    .then(() => logger.info("Base mock data seeded (or already present)"))
-    .then(() => seedExtendedData())
-    .then(() => logger.info("Extended mock data seeded (or already present)"))
-    .catch((e) => logger.warn({ err: e }, "Mock data seed failed (non-fatal)"));
+  // NOTE: No synthetic data seeding. Database starts empty.
+  // Use POST /ingest/western-hnwi or POST /ingest/faa to load real registry data.
 });
 
 // Graceful shutdown

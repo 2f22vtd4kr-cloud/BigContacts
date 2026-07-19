@@ -4,9 +4,13 @@
  * Supported registries:
  *   - OpenCorporates  (free, no key, ~50 req/day)
  *   - Companies House UK (free API key required: COMPANIES_HOUSE_API_KEY)
+ *   - SEC EDGAR (free, no key)
+ *   - GLEIF LEI Register (free, no key)
  *
  * Returns normalised RegistryResult[] ready to be inserted as EntityInput.
  */
+
+import { searchGleif } from "./gleif-client";
 
 export interface RegistryResult {
   name: string;
@@ -20,7 +24,7 @@ export interface RegistryResult {
 
 export interface RegistrySearchParams {
   query: string;
-  registry: "opencorporates" | "companies-house" | "sec-edgar";
+  registry: "opencorporates" | "companies-house" | "sec-edgar" | "gleif";
   limit?: number;
 }
 
@@ -322,5 +326,18 @@ export async function searchRegistry(
     return searchSecEdgar(query.trim(), limit);
   }
 
-  throw new Error(`Unknown registry: "${registry}". Use "opencorporates", "companies-house", or "sec-edgar".`);
+  if (registry === "gleif") {
+    const results = await searchGleif(query.trim(), limit);
+    return results.map((r) => ({
+      name: r.name,
+      type: r.type,
+      nationality: r.nationality,
+      knownResidences: r.knownResidences,
+      sourceRegistries: r.sourceRegistries,
+      notes: r.notes,
+      metadata: r.metadata,
+    }));
+  }
+
+  throw new Error(`Unknown registry: "${registry}". Use "opencorporates", "companies-house", "sec-edgar", or "gleif".`);
 }

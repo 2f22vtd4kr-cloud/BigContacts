@@ -62,11 +62,19 @@ const EMPTY_JOB: JobState = {
   message: "", log: [], dedupCount: 0,
 };
 
-function IngestionPanel({ onComplete }: { onComplete: () => void }) {
+interface IngestionPanelProps {
+  onComplete: () => void;
+  source?: "western-hnwi" | "faa";
+  /** If set, auto-starts ingestion for this source on mount (when panel first mounts in empty-state mode) */
+  autoStart?: "western-hnwi" | "faa";
+}
+
+function IngestionPanel({ onComplete, source = "western-hnwi", autoStart }: IngestionPanelProps) {
   const [job, setJob] = useState<JobState>(EMPTY_JOB);
   const [targetCount, setTargetCount] = useState(5000);
   const [showLog, setShowLog] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const autoStartedRef = useRef(false);
 
   const stopPolling = () => {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
@@ -96,13 +104,18 @@ function IngestionPanel({ onComplete }: { onComplete: () => void }) {
     } catch { /* non-fatal */ }
   }, [onComplete]);
 
-  const startIngestion = async () => {
+  const startIngestion = async (overrideSource?: "western-hnwi" | "faa") => {
+    const activeSource = overrideSource ?? source;
     setJob({ ...EMPTY_JOB, status: "queued", message: "Starting…" });
     try {
-      const resp = await fetch("/api/ingest/western-hnwi", {
+      const endpoint = activeSource === "faa" ? "/api/ingest/faa" : "/api/ingest/western-hnwi";
+      const body = activeSource === "faa"
+        ? { maxRecords: targetCount }
+        : { targetCount };
+      const resp = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ targetCount }),
+        body: JSON.stringify(body),
       });
       const data = await resp.json();
       if (!resp.ok) {
@@ -118,6 +131,15 @@ function IngestionPanel({ onComplete }: { onComplete: () => void }) {
     }
   };
 
+  // Auto-start when launched from EmptyState
+  useEffect(() => {
+    if (autoStart && !autoStartedRef.current) {
+      autoStartedRef.current = true;
+      startIngestion(autoStart);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoStart]);
+
   useEffect(() => () => stopPolling(), []);
 
   const isRunning = job.status === "queued" || job.status === "running";
@@ -129,7 +151,9 @@ function IngestionPanel({ onComplete }: { onComplete: () => void }) {
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <Zap className="w-3.5 h-3.5 text-primary" />
-          <span className="text-xs font-mono font-bold uppercase tracking-widest text-primary">Western HNWI Engine</span>
+          <span className="text-xs font-mono font-bold uppercase tracking-widest text-primary">
+            {source === "faa" ? "FAA Aircraft Registry" : "Western HNWI Engine"}
+          </span>
           {isDone && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />}
           {isFailed && <XCircle className="w-3.5 h-3.5 text-destructive" />}
         </div>
@@ -168,7 +192,7 @@ function IngestionPanel({ onComplete }: { onComplete: () => void }) {
 
         {/* Launch button */}
         <button
-          onClick={startIngestion}
+          onClick={() => startIngestion()}
           disabled={isRunning}
           className={cn(
             "flex items-center gap-1.5 px-3 py-1.5 rounded font-mono text-xs uppercase tracking-wider transition-all",
@@ -226,6 +250,66 @@ function IngestionPanel({ onComplete }: { onComplete: () => void }) {
   );
 }
 
+// ── Empty state ───────────────────────────────────────────────────────────────
+
+function EmptyState({ onIngest }: { onIngest: (mode: "western-hnwi" | "faa") => void }) {
+  return (
+    <div className="flex flex-col items-center justify-center flex-1 px-6 py-16 text-center">
+      <div className="w-16 h-16 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center mb-6">
+        <Database className="w-7 h-7 text-primary" />
+      </div>
+      <h2 className="text-lg font-bold font-mono text-foreground mb-2 uppercase tracking-widest">
+        Database Empty
+      </h2>
+      <p className="text-sm text-muted-foreground font-mono max-w-md mb-2">
+        No synthetic data. All records must come from real public registries.
+      </p>
+      <p className="text-xs text-muted-foreground/60 font-mono max-w-md mb-8">
+        Choose a source to begin ingesting verified public registry data.
+      </p>
+
+      <div className="grid sm:grid-cols-2 gap-4 w-full max-w-xl">
+        <button
+          onClick={() => onIngest("faa")}
+          className="flex flex-col items-start gap-2 p-4 border border-border rounded-lg bg-card/50 hover:border-primary hover:bg-card transition-all text-left group"
+        >
+          <div className="flex items-center gap-2 text-primary">
+            <Globe className="w-4 h-4" />
+            <span className="text-xs font-mono font-bold uppercase tracking-wider">FAA Aircraft Registry</span>
+          </div>
+          <p className="text-xs font-mono text-muted-foreground leading-relaxed">
+            Ingest real US private jet &amp; helicopter owners from the FAA Releasable Aircraft Database.
+            Turbine-powered aircraft = highest HNWI signal.
+          </p>
+          <div className="text-[10px] font-mono text-primary/60 group-hover:text-primary transition-colors">
+            ~70MB · daily updated · 30k+ records →
+          </div>
+        </button>
+
+        <button
+          onClick={() => onIngest("western-hnwi")}
+          className="flex flex-col items-start gap-2 p-4 border border-border rounded-lg bg-card/50 hover:border-primary hover:bg-card transition-all text-left group"
+        >
+          <div className="flex items-center gap-2 text-primary">
+            <Users className="w-4 h-4" />
+            <span className="text-xs font-mono font-bold uppercase tracking-wider">Western HNWI Engine</span>
+          </div>
+          <p className="text-xs font-mono text-muted-foreground leading-relaxed">
+            Harvest real individuals from SEC EDGAR (SC 13D/G, DEF 14A), UK Companies House, and BRREG Norway.
+          </p>
+          <div className="text-[10px] font-mono text-primary/60 group-hover:text-primary transition-colors">
+            Live API · no download · beneficial owners →
+          </div>
+        </button>
+      </div>
+
+      <p className="text-[10px] font-mono text-muted-foreground/40 mt-8 max-w-xs">
+        COMPLIANCE: All data from public registries only. Source attribution included on every record.
+      </p>
+    </div>
+  );
+}
+
 // ── Stats bar ─────────────────────────────────────────────────────────────────
 
 function StatsBar() {
@@ -278,13 +362,36 @@ function StatsBar() {
 export default function Dashboard() {
   const { data: mapData } = useGetMapData();
   const { data: hotLeads, refetch: refetchLeads } = useGetHotLeads({ limit: 10 });
-  const { refetch: refetchStats } = useGetDashboardStats();
+  const { data: stats, refetch: refetchStats } = useGetDashboardStats();
   const [mobileTab, setMobileTab] = useState<"map" | "signals">("signals");
+  const [ingestionSource, setIngestionSource] = useState<"western-hnwi" | "faa">("western-hnwi");
+
+  const s = stats as any;
+  const isEmpty = s != null && (s.totalEntities ?? 0) === 0;
 
   const handleIngestionComplete = useCallback(() => {
     // Refresh stats and hot leads after ingestion finishes
-    setTimeout(() => { refetchStats(); refetchLeads(); }, 500);
+    setTimeout(() => { refetchStats(); refetchLeads(); }, 1_000);
   }, [refetchStats, refetchLeads]);
+
+  const handleEmptyStateIngest = useCallback((mode: "western-hnwi" | "faa") => {
+    setIngestionSource(mode);
+  }, []);
+
+  // ── Empty state (no real data yet) ───────────────────────────────────────
+  if (isEmpty) {
+    return (
+      <div className="flex flex-col h-full overflow-hidden">
+        <StatsBar />
+        <EmptyState onIngest={handleEmptyStateIngest} />
+        <IngestionPanel
+          onComplete={handleIngestionComplete}
+          source={ingestionSource}
+          autoStart={ingestionSource}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
