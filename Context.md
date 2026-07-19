@@ -48,8 +48,7 @@
 
 ### What's pending
 - **Ingest data**: Run FAA (`POST /api/ingest/faa`), HMLR (`POST /api/ingest/land-registry`), Western HNWI (`POST /api/ingest/western-hnwi`) to populate entities and assets. Optionally clear Upstash dedup first.
-- **Relationship creation UI**: No widget exists to add entity→entity or entity→asset relationships from the frontend — critical gap for MCTS pathfinding and Business Engineer workflow.
-- **Contact enrichment pipeline**: 98% of ingested entities have no phone/email. A Companies House officer lookup or LinkedIn enrichment ingestor is needed to close the last-mile outreach gap.
+- **Road to 10/10**: See `improvements.md` for the 5-phase improvement plan. Phase 1 (Contact Enrichment) is next.
 
 ---
 
