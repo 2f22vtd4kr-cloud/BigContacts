@@ -1,4 +1,4 @@
-import { pgTable, serial, text, doublePrecision, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, doublePrecision, boolean, timestamp, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -18,6 +18,7 @@ export const entitiesTable = pgTable("entities", {
   sourceRegistries: text("source_registries"), // JSON array stored as text
   metadata: text("metadata"), // JSON blob
   isHot: boolean("is_hot").notNull().default(false),
+  contactConfidence: integer("contact_confidence").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

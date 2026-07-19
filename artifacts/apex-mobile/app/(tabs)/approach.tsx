@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ActivityIndicator,
+  Linking,
   Modal,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -169,12 +171,116 @@ function PitchModal({
   );
 }
 
+// ─── Contact vectors strip ────────────────────────────────────────────────────
+
+function ContactVectorsStrip({ entityId, colors }: {
+  entityId: number | null;
+  colors: ReturnType<typeof useColors>;
+}) {
+  const [contact, setContact] = useState<{
+    email?: string | null;
+    phone?: string | null;
+    linkedinUrl?: string | null;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!entityId) return;
+    const domain = process.env.EXPO_PUBLIC_DOMAIN;
+    if (!domain) return;
+    fetch(`https://${domain}/api/entities/${entityId}`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => {
+        if (d) setContact({ email: d.email, phone: d.phone, linkedinUrl: d.linkedinUrl });
+      })
+      .catch(() => {/* ignore */});
+  }, [entityId]);
+
+  const hasContact = contact && (contact.email || contact.phone || contact.linkedinUrl);
+
+  if (!entityId) return null;
+
+  return (
+    <View style={[cvStyles.strip, { borderBottomColor: colors.border, backgroundColor: colors.card }]}>
+      <Text style={[cvStyles.label, { color: colors.primary, fontFamily: 'Inter_700Bold' }]}>
+        DIRECT CONTACT
+      </Text>
+      {!contact ? (
+        <Text style={[cvStyles.muted, { color: colors.mutedForeground, fontFamily: 'Inter_400Regular' }]}>
+          Loading…
+        </Text>
+      ) : !hasContact ? (
+        <Text style={[cvStyles.muted, { color: colors.mutedForeground, fontFamily: 'Inter_400Regular' }]}>
+          No contact data — run Enrich from the web app profile.
+        </Text>
+      ) : (
+        <View style={cvStyles.row}>
+          {contact.email && (
+            <TouchableOpacity
+              onPress={() => Linking.openURL(`mailto:${contact.email}`)}
+              style={[cvStyles.pill, { borderColor: colors.primary + '44', backgroundColor: colors.primary + '15' }]}
+            >
+              <Feather name="mail" size={11} color={colors.primary} />
+              <Text style={[cvStyles.pillText, { color: colors.primary, fontFamily: 'Inter_500Medium' }]} numberOfLines={1}>
+                {contact.email}
+              </Text>
+            </TouchableOpacity>
+          )}
+          {contact.phone && (
+            <TouchableOpacity
+              onPress={() => Linking.openURL(`tel:${contact.phone}`)}
+              style={[cvStyles.pill, { borderColor: colors.secondary + '44', backgroundColor: colors.secondary + '15' }]}
+            >
+              <Feather name="phone" size={11} color={colors.secondary} />
+              <Text style={[cvStyles.pillText, { color: colors.secondary, fontFamily: 'Inter_500Medium' }]}>
+                {contact.phone}
+              </Text>
+            </TouchableOpacity>
+          )}
+          {contact.linkedinUrl && (
+            <TouchableOpacity
+              onPress={() => Linking.openURL(contact.linkedinUrl!)}
+              style={[cvStyles.pill, { borderColor: '#60A5FA44', backgroundColor: '#60A5FA15' }]}
+            >
+              <Feather name="linkedin" size={11} color="#60A5FA" />
+              <Text style={[cvStyles.pillText, { color: '#60A5FA', fontFamily: 'Inter_500Medium' }]}>
+                LinkedIn
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+    </View>
+  );
+}
+
+const cvStyles = StyleSheet.create({
+  strip: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 6,
+    borderBottomWidth: 1,
+  },
+  label: { fontSize: 9, letterSpacing: 2, marginBottom: 4 },
+  muted: { fontSize: 12 },
+  row: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  pillText: { fontSize: 12 },
+});
+
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function ApproachScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { latestSession } = useSelection();
+  const { latestSession, selectedEntityId } = useSelection();
   const [isGeneratingPitch, setIsGeneratingPitch] = useState(false);
   const [pitchText, setPitchText] = useState<string | null>(null);
   const [pitchVisible, setPitchVisible] = useState(false);
@@ -267,6 +373,9 @@ export default function ApproachScreen() {
           </Text>
         </View>
       </View>
+
+      {/* Contact vectors strip */}
+      <ContactVectorsStrip entityId={selectedEntityId} colors={colors} />
 
       {/* Gatekeeper highlight strip */}
       {gatekeeper && (

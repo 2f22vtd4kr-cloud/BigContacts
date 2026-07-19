@@ -25,6 +25,7 @@ import { runFaaIngestion } from "../lib/faa-ingestor";
 import { runOccrpEnrichment } from "../lib/occrp-enricher";
 import { runLandRegistryIngestion } from "../lib/land-registry-ingestor";
 import { runOpenSkyEnrichment } from "../lib/opensky-ingestor";
+import { runCompaniesHouseEnrichment } from "../lib/companies-house-enricher";
 import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
@@ -355,6 +356,60 @@ router.post("/ingest/opensky", async (req, res): Promise<void> => {
     message: "OpenSky live flight enrichment started.",
     pollUrl: `/api/ingest/job/${jobId}`,
     note: "Fetches ~9000 live aircraft state vectors from opensky-network.org and matches against your aviation assets.",
+  });
+});
+
+// ── POST /ingest/companies-house-enrich — contact enrichment ─────────────────
+router.post("/ingest/companies-house-enrich", async (req, res): Promise<void> => {
+  const {
+    entityIds,
+    batchSize = 50,
+    force = false,
+  } = req.body as { entityIds?: number[]; batchSize?: number; force?: boolean };
+
+  if (!force) {
+    const existingJobId = await getActiveJob("companies-house-enrich");
+    if (existingJobId) {
+      const existing = await getJob(existingJobId);
+      if (existing && existing.status === "running") {
+        res.status(409).json({ error: "A Companies House enrichment job is already running.", jobId: existingJobId });
+        return;
+      }
+    }
+  }
+
+  const safeEntityIds = Array.isArray(entityIds) ? entityIds.slice(0, 1_000) : undefined;
+  const safeBatch = Math.min(Math.max(Number(batchSize) || 50, 1), 500);
+
+  const jobId = await createJob("companies-house-enrich");
+  await setActiveJob("companies-house-enrich", jobId);
+
+  (async () => {
+    try {
+      await updateJob(jobId, { status: "running", message: "Starting Companies House contact enrichment…" });
+      const result = await runCompaniesHouseEnrichment({ jobId, entityIds: safeEntityIds, batchSize: safeBatch });
+      await updateJob(jobId, {
+        status: "done",
+        progress: 100,
+        inserted: result.enriched,
+        skipped: result.skipped,
+        errors: result.errors,
+        finishedAt: new Date().toISOString(),
+        message: `Done — ${result.enriched} entities enriched in ${(result.durationMs / 1000).toFixed(1)}s`,
+      });
+    } catch (err: any) {
+      logger.error({ err: err.message }, "Companies House enrichment failed");
+      await updateJob(jobId, { status: "failed", message: err.message ?? "Enrichment failed" });
+    }
+  })();
+
+  res.status(202).json({
+    jobId,
+    message: `Contact enrichment started for ${safeEntityIds ? safeEntityIds.length : "all un-enriched"} entities.`,
+    pollUrl: `/api/ingest/job/${jobId}`,
+    note: process.env.COMPANIES_HOUSE_API_KEY
+      ? "COMPANIES_HOUSE_API_KEY detected — will query CH officer search for addresses."
+      : "COMPANIES_HOUSE_API_KEY not set — will recompute contactConfidence only.",
   });
 });
 

@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { desc, isNotNull, eq, sql, and } from "drizzle-orm";
+import { desc, isNotNull, eq, sql, and, or, gte } from "drizzle-orm";
 import { db, entitiesTable, assetsTable, relationshipsTable, researchSessionsTable } from "@workspace/db";
 import { GetHotLeadsQueryParams } from "@workspace/api-zod";
 import { getCache, setCache } from "../lib/redis";
@@ -203,14 +203,33 @@ router.get("/dashboard/stats", async (_req, res): Promise<void> => {
     .from(entitiesTable)
     .where(sql`${entitiesTable.metadata} LIKE '%"westernIngest":true%'`);
 
+  // Enrichment coverage
+  const [[contactableCount], [anyContactCount]] = await Promise.all([
+    db.select({ cnt: sql<number>`count(*)::int` }).from(entitiesTable)
+      .where(gte(entitiesTable.contactConfidence, 50)),
+    db.select({ cnt: sql<number>`count(*)::int` }).from(entitiesTable)
+      .where(or(
+        isNotNull(entitiesTable.email),
+        isNotNull(entitiesTable.phone),
+        isNotNull(entitiesTable.linkedinUrl),
+      )),
+  ]);
+
+  const total = entityCount?.cnt ?? 0;
+  const enrichmentCoverage = total > 0
+    ? Math.round(((anyContactCount?.cnt ?? 0) / total) * 100)
+    : 0;
+
   const payload = {
-    totalEntities: entityCount?.cnt ?? 0,
+    totalEntities: total,
     totalAssets: assetCount?.cnt ?? 0,
     totalRelationships: relCount?.cnt ?? 0,
     avgBayesianScore: avgScore?.avg ?? 0,
     hotLeadsCount: hotCount?.cnt ?? 0,
     westernHnwiCount: westernCount?.cnt ?? 0,
     activeResearchSessions: sessionCount?.cnt ?? 0,
+    contactableCount: contactableCount?.cnt ?? 0,
+    enrichmentCoverage,
     crmBreakdown: crmBreakdown.map((r) => ({ status: r.status, count: r.count })),
     assetsByCategory: assetsByCategory.map((r) => ({
       category: r.category,

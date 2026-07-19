@@ -9,3 +9,4 @@
 - [Extended Sources](extended-sources.md) — Phase 8: OCCRP Aleph enricher, UK Land Registry OCOD ingestor, OpenSky live-flight enricher; Data Sources dashboard at /data-sources
 - [FAA dedup batching](faa-dedup-batching.md) — Per-record Upstash sismember kills FAA throughput; fixed with preloadDedupPrefix + batchMarkSeen; progress update must fire unconditionally (not inside filter chain)
 - [HMLR PPD CSV ingestor](hmlr-ppd-csv.md) — HMLR SPARQL endpoint times out/returns 0 results for price+date queries; use bulk CSV from S3 instead (pp-YYYY.csv redirects to prod2 bucket, ~160MB/year)
+- [Contact Enrichment Phase 1](contact-enrichment-phase1.md) — contactConfidence column (camelCase in Drizzle!), CH officer lookup at 2/s, always recompute even without API key

@@ -236,7 +236,7 @@ export default function ApexProfile() {
   const params = useParams<{ id: string }>();
   const entityId = parseInt(params.id ?? "0", 10);
 
-  const { data: entity, isLoading } = useGetEntity(entityId);
+  const { data: entity, isLoading, refetch: refetchEntity } = useGetEntity(entityId);
   const { data: assets = []       } = useListAssets({ entityId });
   const { data: relationships = [] } = useListRelationships({ entityId });
   const { data: sessions = [],  refetch: refetchSessions } = useListResearchSessions({ entityId, limit: 10 });
@@ -247,6 +247,9 @@ export default function ApexProfile() {
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [pitchingId, setPitchingId]   = useState<number | null>(null);
   const [pitchExpanded, setPitchExpanded] = useState(false);
+  const [isEnriching, setIsEnriching]     = useState(false);
+  const [enrichError, setEnrichError]     = useState<string | null>(null);
+  const [enrichDone, setEnrichDone]       = useState(false);
 
   // ── Loading / error states ─────────────────────────────────────────────────
 
@@ -310,6 +313,43 @@ export default function ApexProfile() {
         onError:   () => setPitchingId(null),
       },
     );
+  };
+
+  const handleEnrich = async () => {
+    setIsEnriching(true);
+    setEnrichError(null);
+    setEnrichDone(false);
+    try {
+      const base = (import.meta as any).env.BASE_URL.replace(/\/$/, "");
+      const r = await fetch(`${base}/api/ingest/companies-house-enrich`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entityIds: [entityId], batchSize: 1 }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error ?? "Request failed");
+      const { jobId } = data;
+      let attempts = 0;
+      const poll = async () => {
+        if (attempts > 30) { setIsEnriching(false); setEnrichError("Timed out"); return; }
+        attempts++;
+        try {
+          const jr = await fetch(`${base}/api/ingest/job/${jobId}`);
+          const job = await jr.json();
+          if (job.status === "done") {
+            setIsEnriching(false); setEnrichDone(true); refetchEntity(); return;
+          }
+          if (job.status === "failed") {
+            setIsEnriching(false); setEnrichError(job.message ?? "Enrichment failed"); return;
+          }
+        } catch { /* ignore poll errors */ }
+        setTimeout(poll, 2_000);
+      };
+      setTimeout(poll, 2_000);
+    } catch (err: any) {
+      setIsEnriching(false);
+      setEnrichError(err.message ?? "Enrichment failed");
+    }
   };
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -390,56 +430,84 @@ export default function ApexProfile() {
         </div>
       </div>
 
-      {/* ── Direct Contact Bar ────────────────────────────────────────────── */}
-      {((entity as any).email || (entity as any).phone || (entity as any).linkedinUrl) && (
-        <div className="flex-shrink-0 border-b border-border bg-primary/5 px-4 md:px-6 py-3">
-          <div className="flex items-center gap-1.5 mb-2">
-            <span className="text-[9px] font-mono font-bold text-primary uppercase tracking-widest">Direct Contact Vectors</span>
+      {/* ── Direct Contact Bar (always visible) ──────────────────────────── */}
+      {(() => {
+        const e = entity as any;
+        const hasContact = !!(e.email || e.phone || e.linkedinUrl);
+        const conf =
+          (e.email    ? 40 : 0) +
+          (e.phone    ? 30 : 0) +
+          (e.linkedinUrl ? 20 : 0) +
+          (e.knownResidences && e.knownResidences !== "[]" ? 10 : 0);
+        const confCls =
+          conf >= 60 ? "text-primary border-primary/30 bg-primary/10"
+          : conf >= 30 ? "text-amber-500 border-amber-500/30 bg-amber-500/10"
+          : "text-muted-foreground border-border bg-muted/20";
+        return (
+          <div className={cn("flex-shrink-0 border-b border-border px-4 md:px-6 py-3", hasContact && "bg-primary/5")}>
+            <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
+              <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                <span className="text-[9px] font-mono font-bold text-primary uppercase tracking-widest whitespace-nowrap">Direct Contact Vectors</span>
+                <span className={cn("text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border whitespace-nowrap", confCls)}>
+                  {conf}% confidence
+                </span>
+              </div>
+              <button
+                onClick={handleEnrich}
+                disabled={isEnriching}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-border text-muted-foreground hover:text-primary hover:border-primary/40 font-mono text-[10px] uppercase tracking-wider transition-colors disabled:opacity-50 flex-shrink-0"
+              >
+                {isEnriching ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                {isEnriching ? "Enriching…" : enrichDone ? "Re-enrich" : "Enrich"}
+              </button>
+            </div>
+            {hasContact ? (
+              <div className="flex items-center gap-2 flex-wrap">
+                {e.email && (
+                  <a href={`mailto:${e.email}`} className="flex items-center gap-2 px-3 py-1.5 rounded border border-primary/30 bg-primary/10 text-primary font-mono text-xs hover:bg-primary/20 transition-colors">
+                    <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    {e.email}
+                  </a>
+                )}
+                {e.phone && (
+                  <a href={`tel:${e.phone}`} className="flex items-center gap-2 px-3 py-1.5 rounded border border-secondary/30 bg-secondary/10 text-secondary font-mono text-xs hover:bg-secondary/20 transition-colors">
+                    <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                    </svg>
+                    {e.phone}
+                  </a>
+                )}
+                {e.linkedinUrl && (
+                  <a href={e.linkedinUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-3 py-1.5 rounded border border-blue-400/30 bg-blue-400/10 text-blue-400 font-mono text-xs hover:bg-blue-400/20 transition-colors">
+                    <svg className="w-3.5 h-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                    </svg>
+                    LinkedIn Profile
+                  </a>
+                )}
+                {e.contactMethod && (
+                  <span className="px-2.5 py-1.5 rounded border border-border text-muted-foreground font-mono text-[10px] uppercase tracking-wider">
+                    Preferred: {e.contactMethod}
+                  </span>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs font-mono text-muted-foreground/50 italic">
+                {isEnriching
+                  ? "Querying Companies House officer records…"
+                  : enrichDone
+                  ? "Enrichment complete — no public contact data found for this entity."
+                  : "No direct contact data. Click Enrich to query Companies House officer records."}
+              </p>
+            )}
+            {enrichError && (
+              <p className="text-xs font-mono text-red-400 mt-1.5">{enrichError}</p>
+            )}
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            {(entity as any).email && (
-              <a
-                href={`mailto:${(entity as any).email}`}
-                className="flex items-center gap-2 px-3 py-1.5 rounded border border-primary/30 bg-primary/10 text-primary font-mono text-xs hover:bg-primary/20 transition-colors"
-              >
-                <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                </svg>
-                {(entity as any).email}
-              </a>
-            )}
-            {(entity as any).phone && (
-              <a
-                href={`tel:${(entity as any).phone}`}
-                className="flex items-center gap-2 px-3 py-1.5 rounded border border-secondary/30 bg-secondary/10 text-secondary font-mono text-xs hover:bg-secondary/20 transition-colors"
-              >
-                <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                </svg>
-                {(entity as any).phone}
-              </a>
-            )}
-            {(entity as any).linkedinUrl && (
-              <a
-                href={(entity as any).linkedinUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 px-3 py-1.5 rounded border border-blue-400/30 bg-blue-400/10 text-blue-400 font-mono text-xs hover:bg-blue-400/20 transition-colors"
-              >
-                <svg className="w-3.5 h-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
-                </svg>
-                LinkedIn Profile
-              </a>
-            )}
-            {(entity as any).contactMethod && (
-              <span className="px-2.5 py-1.5 rounded border border-border text-muted-foreground font-mono text-[10px] uppercase tracking-wider">
-                Preferred: {(entity as any).contactMethod}
-              </span>
-            )}
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ── Body ─────────────────────────────────────────────────────────── */}
       <div className="flex-1 p-4 md:p-6 space-y-4 md:space-y-6">

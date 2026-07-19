@@ -3,7 +3,7 @@ import {
   Plane, Building2, Globe, Shield, Landmark, FileSearch,
   Search, Scale, Network, Activity, CheckCircle2, XCircle,
   Clock, AlertTriangle, Play, RefreshCw, ChevronDown, ChevronUp,
-  ExternalLink, Zap, Database,
+  ExternalLink, Zap, Database, UserCheck, BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -128,6 +128,21 @@ const SOURCES: SourceDef[] = [
     homepage: "https://opencorporates.com",
     note: "Available via live registry search — 50 req/day free tier",
   },
+  {
+    id: "ch-enrich",
+    label: "Companies House Contact Enricher",
+    description: "Enriches existing entities with officer correspondence addresses from UK Companies House PSC filings. Also recomputes contact confidence scores for all entities.",
+    kind: "enricher",
+    Icon: UserCheck,
+    color: "#10B981",
+    bg: "rgba(16,185,129,0.1)",
+    phase: 1,
+    homepage: "https://developer-specs.company-information.service.gov.uk",
+    endpoint: "/api/ingest/companies-house-enrich",
+    jobType: "companies-house-enrich",
+    bodyParams: { batchSize: 50 },
+    note: "Requires COMPANIES_HOUSE_API_KEY secret. Without it, still recomputes contactConfidence for all entities.",
+  },
 
   // ── Phase 8: new extended sources ─────────────────────────────────────────
   {
@@ -209,6 +224,73 @@ async function apiGet(path: string) {
   const res = await fetch(`${BASE}${path}`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
+}
+
+// ─── Enrichment Coverage Stats ───────────────────────────────────────────────
+
+function EnrichmentCoverageStats() {
+  const [stats, setStats] = useState<{
+    totalEntities: number;
+    contactableCount: number;
+    enrichmentCoverage: number;
+  } | null>(null);
+
+  useEffect(() => {
+    apiGet("/api/dashboard/stats")
+      .then((d: any) => setStats({
+        totalEntities: d.totalEntities ?? 0,
+        contactableCount: d.contactableCount ?? 0,
+        enrichmentCoverage: d.enrichmentCoverage ?? 0,
+      }))
+      .catch(() => {/* ignore */});
+  }, []);
+
+  if (!stats) return null;
+
+  const coverageBarCls =
+    stats.enrichmentCoverage >= 50 ? "bg-emerald-500"
+    : stats.enrichmentCoverage >= 20 ? "bg-amber-500"
+    : "bg-muted-foreground/40";
+
+  return (
+    <div className="rounded-xl border border-border bg-card/60 p-4 flex flex-col gap-3">
+      <div className="flex items-center gap-2">
+        <BarChart3 className="h-4 w-4 text-primary" />
+        <span className="text-sm font-semibold font-mono uppercase tracking-widest text-primary">Enrichment Coverage</span>
+      </div>
+      <div className="grid grid-cols-3 gap-4 text-center">
+        <div>
+          <div className="text-2xl font-bold font-mono text-foreground">{stats.totalEntities.toLocaleString()}</div>
+          <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mt-0.5">Total Entities</div>
+        </div>
+        <div>
+          <div className="text-2xl font-bold font-mono text-primary">{stats.contactableCount.toLocaleString()}</div>
+          <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mt-0.5">Contactable</div>
+        </div>
+        <div>
+          <div className="text-2xl font-bold font-mono text-foreground">{stats.enrichmentCoverage}%</div>
+          <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mt-0.5">Coverage</div>
+        </div>
+      </div>
+      <div className="space-y-1">
+        <div className="flex justify-between text-[10px] font-mono text-muted-foreground">
+          <span>Entities with any contact data</span>
+          <span>{stats.enrichmentCoverage}%</span>
+        </div>
+        <div className="h-1.5 rounded-full bg-muted/40 overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all duration-700 ${coverageBarCls}`}
+            style={{ width: `${stats.enrichmentCoverage}%` }}
+          />
+        </div>
+        {stats.enrichmentCoverage < 10 && (
+          <p className="text-[10px] font-mono text-amber-500 mt-1">
+            ↑ Run "Companies House Contact Enricher" below to improve coverage.
+          </p>
+        )}
+      </div>
+    </div>
+  );
 }
 
 // ─── Per-source card ──────────────────────────────────────────────────────────
@@ -438,6 +520,9 @@ export default function DataSources() {
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 md:px-6 py-5 space-y-8">
+
+        {/* ── Enrichment Coverage Stats ─────────────────────────────────────── */}
+        <EnrichmentCoverageStats />
 
         {/* ── Phase 8 — Extended Sources ───────────────────────────────────── */}
         <section>
