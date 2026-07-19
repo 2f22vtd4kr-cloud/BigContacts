@@ -18,7 +18,10 @@
  * The hybrid intelligence stack this system runs:
  *  - Hybrid Semantic + Keyword + Graph Search  (hybrid-search.ts — BM25 + TF-IDF + graph via RRF)
  *  - Agentic Multi-Agent Reasoning             (agent-orchestrator.ts — Planner, Retriever, Analyst, Critic)
- *  - Iterative Query Expansion                 (agent-orchestrator.ts — intent/geo/asset plan + SQL pre-filter)
+ *  - Single-pass query expansion                (agent-orchestrator.ts — expandQuery() appends ASSET_EXPANSION
+ *                                               synonyms, canonical location forms, name hints, and INTENT_EXPANSION
+ *                                               background terms to the raw query before hybridSearch; one
+ *                                               deterministic transformation per request, no feedback loop)
  *  - Monte Carlo Tree Search                   (mcts-agent.ts — UCT selection, expansion, simulation, backprop)
  *  - Bayesian Optimization / UCB               (bayesian-scorer.ts + mcts-agent.ts UCT constant)
  */
@@ -272,18 +275,25 @@ async function runDataAnalyst(entity: Entity): Promise<ImprovementSuggestion[]> 
 //    is blind. Stale sessions may route through intermediaries displaced by new
 //    ingestion. Low UCT scores indicate the graph hasn't surfaced a warm path.
 //
-//  Layer 2 — Hybrid search signal coverage
-//    hybrid-search.ts fuses BM25 (keyword), semantic (TF-IDF cosine), and graph
-//    centrality scores via Reciprocal Rank Fusion (RRF). Entities with thin
-//    metadata or a single source registry produce weak BM25 and graph signals,
-//    meaning the hybrid search cannot surface this entity in cross-entity queries.
+//  Layer 2 — Hybrid search signal coverage + single-pass query expansion
+//    Before hitting hybridSearch, the Retriever calls expandQuery(rawQuery, plan)
+//    which appends asset synonyms (ASSET_EXPANSION — e.g. "jet" → "aircraft
+//    turbofan turboprop helicopter rotorcraft tail"), canonical location forms from
+//    GEO_MAP (e.g. "texas" → also "TX"), name hints not already in the query, and
+//    intent background terms (INTENT_EXPANSION — e.g. person → "owner individual
+//    HNWI director beneficial officer"). This enriched string then hits BM25 +
+//    TF-IDF cosine in hybridSearch. Separately, the SQL pre-filter narrows the
+//    candidate pool by is_hot, bayesian_score, and location ILIKE before RRF fusion.
+//    Entities with no nationality, no linked assets, and no notes are invisible to
+//    all three mechanisms: location ILIKE misses them, asset synonyms produce no
+//    hits (no linked records), and TF-IDF cosine has no text tokens to match.
 //
 //  Layer 3 — Agent orchestration pipeline completeness
 //    agent-orchestrator.ts runs four deterministic agents in sequence:
-//    Planner (intent/geo/asset extraction) → Retriever (hybrid search + SQL filter)
-//    → Analyst (RRF scoring + Bayesian weighting) → Critic (relevance pruning).
-//    A complete pipeline ends with a generated pitch. Incomplete pipelines leave
-//    the entity without a synthesised outreach strategy.
+//    Planner (intent/geo/asset extraction) → Retriever (expandQuery + hybridSearch
+//    + SQL pre-filter) → Analyst (RRF score fusion + Bayesian weighting) → Critic
+//    (relevance pruning). A complete pipeline ends with a generated pitch.
+//    Incomplete pipelines leave the entity without a synthesised outreach strategy.
 //
 //  Layer 4 — Bayesian-UCB convergence
 //    bayesian-scorer.ts uses Bayesian log-odds updates on registry signals.
@@ -412,7 +422,13 @@ async function runIntelSystemsAnalyst(entity: Entity): Promise<ImprovementSugges
     });
   }
 
-  // Sparse metadata + no notes = query expansion has nothing to expand from
+  // Sparse metadata + no notes + no assets = invisible to all three expansion paths
+  //
+  // expandQuery() operates on the *search query*, not entity fields — but this entity
+  // still needs to be *findable* via the expanded query. It won't be if:
+  //   • no nationality  → SQL pre-filter (location ILIKE) never includes it
+  //   • no linked assets → ASSET_EXPANSION synonyms produce no matching records
+  //   • no notes/metadata → TF-IDF cosine vector is near-zero; BM25 matches only bare name
   const hasRichMetadata = Object.keys(metadata).length > 3;
   const hasNotes        = entity.notes && entity.notes.trim().length >= 50;
   if (!hasRichMetadata && !hasNotes && assetCount === 0) {
@@ -421,15 +437,18 @@ async function runIntelSystemsAnalyst(entity: Entity): Promise<ImprovementSugges
       persona: "intel_systems_analyst",
       category: "data_quality",
       priority: "medium",
-      title: "Query expansion stalled — insufficient signal anchors for the Planner agent",
+      title: "Invisible to query expansion — no asset, location, or text anchors",
       description:
-        "The Planner agent (agent-orchestrator.ts) expands queries by extracting intent, geographic focus, " +
-        "and asset class from the entity's metadata, notes, and asset register. This entity has sparse metadata, " +
-        "no notes, and no linked assets — the Planner has no tokens to expand from. " +
-        "As a result, the Retriever agent falls back to a bare name-match query, missing related entities " +
-        "that share corporate structure, geographic cluster, or asset class. " +
-        "Enrich metadata (jurisdiction, source filing IDs, asset class) and add at least 50 chars of briefing notes.",
-      actionTaken: "Zero-anchor flag — Planner agent query expansion is effectively disabled for this entity.",
+        "The Retriever's single-pass expandQuery() enriches the search string with asset synonyms " +
+        "(ASSET_EXPANSION: e.g. 'jet' → 'aircraft turbofan helicopter…'), canonical location forms from GEO_MAP, " +
+        "name hints, and intent background terms (INTENT_EXPANSION: e.g. 'owner HNWI director…'). " +
+        "However, this entity is still unreachable via any of those paths: " +
+        "(1) no nationality — the SQL pre-filter's location ILIKE clause never selects it; " +
+        "(2) no linked assets — ASSET_EXPANSION synonyms match no records in the assets table; " +
+        "(3) no notes and sparse metadata — TF-IDF cosine vector is near-zero and BM25 can only match the bare name. " +
+        "To surface this entity in operator deep-search and agent retrieval passes, set nationality, " +
+        "link at least one asset (or run the relevant ingestor), and add ≥50 chars of briefing notes.",
+      actionTaken: "Zero-anchor flag — entity unreachable via asset synonym, location, and semantic expansion paths.",
     });
   }
 
