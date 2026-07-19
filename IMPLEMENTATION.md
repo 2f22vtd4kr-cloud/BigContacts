@@ -60,11 +60,15 @@ Original master prompt lives in `attached_assets/Pasted-You-are-a-world-class-pr
 - [x] Confidence breakdown by data category
 - [x] Outreach strategy panel with MCTS-derived best paths + personalized approach suggestions
 
-### 🔲 Phase 7 — Persona Improvement Loop
-- [ ] Autonomous background agent triggered after ingestion/analysis
-- [ ] Personas: Data Engineer, Data Analyst, MCTS Expert, Business Engineer, UX Designer, Architect
-- [ ] Improvements dashboard/log visible in UI
-- [ ] Self-review cycle with concrete patch application
+### ✅ Phase 7 — Persona Improvement Loop
+- [x] Autonomous background agent triggered via POST /improve/run (fire-and-forget, Redis job tracking)
+- [x] Single-entity sync run via POST /improve/run/:entityId
+- [x] Personas: Data Engineer, Data Analyst, MCTS Expert, Business Engineer, UX Designer, Architect (all deterministic TypeScript)
+- [x] improvement_logs DB table (entity_id, persona, category, priority, title, description, action_taken, status)
+- [x] Persona Loop page (`/improvements`): persona cards, priority/status filters, expandable log cards, apply/dismiss actions
+- [x] GET /improve/stats — summary counts by persona + priority
+- [x] GET /improve/logs — paginated, filterable list with entity name join
+- [x] PATCH /improve/logs/:logId — status update (pending → applied / dismissed)
 
 ### 🔲 Phase 8 — Extended Real Sources
 - [ ] OCCRP Aleph (beneficial ownership, investigative aggregates)
@@ -107,6 +111,15 @@ Original master prompt lives in `attached_assets/Pasted-You-are-a-world-class-pr
 ---
 
 ## Session Log
+
+### Session 7 — Phase 7: Persona Improvement Loop
+- Added `improvement_logs` table (`lib/db/src/schema/improvement_logs.ts`) — FK → entities, cascade delete
+- Built `artifacts/api-server/src/lib/persona-engine.ts` — 6 deterministic persona runners (Data Engineer, Data Analyst, MCTS Expert, Business Engineer, UX Designer, Architect), each queries DB and produces typed `ImprovementSuggestion[]`
+- Added `artifacts/api-server/src/routes/improve.ts` — POST /improve/run (background job), POST /improve/run/:entityId (sync), GET /improve/jobs/:jobId, GET /improve/logs, GET /improve/logs/:entityId, PATCH /improve/logs/:logId, GET /improve/stats
+- Added OpenAPI spec paths + schemas (ImprovementLog, ImprovementJobState, ImprovementStats) + ran codegen
+- Built `artifacts/apex-finder/src/pages/improvements.tsx` — full Persona Loop dashboard with persona summary cards, job progress bar with live polling, filterable log list, expandable cards with apply/dismiss, empty-state CTA
+- Added "Persona Loop" nav item (Bot icon) to `layout.tsx`, route `/improvements` to `router.tsx`
+- Switched from manual workflows to managed artifact workflows (artifacts/api-server: API Server, artifacts/apex-finder: web)
 
 ### Session 6 — Phase 6: Apex Profile Card
 - Created `artifacts/apex-finder/src/pages/profile.tsx` — full-page entity profile with 4 panels

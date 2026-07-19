@@ -27,6 +27,7 @@ import type {
   DashboardStats,
   Entity,
   EntityGraph,
+  EntityImprovementResult,
   EntityInput,
   EntityUpdate,
   GetConnectionPathParams,
@@ -34,8 +35,14 @@ import type {
   GetHotLeadsParams,
   HealthStatus,
   HotLead,
+  ImprovementJobStarted,
+  ImprovementJobState,
+  ImprovementLog,
+  ImprovementStats,
   ListAssetsParams,
   ListEntitiesParams,
+  ListImprovementLogs200,
+  ListImprovementLogsParams,
   ListRelationshipsParams,
   ListResearchSessionsParams,
   MapAsset,
@@ -43,7 +50,9 @@ import type {
   RelationshipInput,
   ResearchRunInput,
   ResearchSession,
-  SessionStatusUpdate
+  RunImprovementLoopBody,
+  SessionStatusUpdate,
+  UpdateImprovementLogBody
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -1834,6 +1843,535 @@ export function useGetConnectionPath<TData = Awaited<ReturnType<typeof getConnec
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetConnectionPathQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRunImprovementLoopUrl = () => {
+
+
+
+
+  return `/api/improve/run`
+}
+
+/**
+ * @summary Trigger persona improvement loop for all entities (or a filtered subset)
+ */
+export const runImprovementLoop = async (runImprovementLoopBody?: RunImprovementLoopBody, options?: RequestInit): Promise<ImprovementJobStarted> => {
+
+  return customFetch<ImprovementJobStarted>(getRunImprovementLoopUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(runImprovementLoopBody)
+  }
+);}
+
+
+
+
+
+export const getRunImprovementLoopMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runImprovementLoop>>, TError,{data?: BodyType<RunImprovementLoopBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof runImprovementLoop>>, TError,{data?: BodyType<RunImprovementLoopBody>}, TContext> => {
+
+const mutationKey = ['runImprovementLoop'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof runImprovementLoop>>, {data?: BodyType<RunImprovementLoopBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  runImprovementLoop(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RunImprovementLoopMutationResult = NonNullable<Awaited<ReturnType<typeof runImprovementLoop>>>
+    export type RunImprovementLoopMutationBody = BodyType<RunImprovementLoopBody> | undefined
+    export type RunImprovementLoopMutationError = ErrorType<void>
+
+    /**
+ * @summary Trigger persona improvement loop for all entities (or a filtered subset)
+ */
+export const useRunImprovementLoop = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runImprovementLoop>>, TError,{data?: BodyType<RunImprovementLoopBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof runImprovementLoop>>,
+        TError,
+        {data?: BodyType<RunImprovementLoopBody>},
+        TContext
+      > => {
+      return useMutation(getRunImprovementLoopMutationOptions(options));
+    }
+
+export const getRunImprovementLoopForEntityUrl = (entityId: number,) => {
+
+
+
+
+  return `/api/improve/run/${entityId}`
+}
+
+/**
+ * @summary Run persona loop for a single entity (synchronous)
+ */
+export const runImprovementLoopForEntity = async (entityId: number, options?: RequestInit): Promise<EntityImprovementResult> => {
+
+  return customFetch<EntityImprovementResult>(getRunImprovementLoopForEntityUrl(entityId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRunImprovementLoopForEntityMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runImprovementLoopForEntity>>, TError,{entityId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof runImprovementLoopForEntity>>, TError,{entityId: number}, TContext> => {
+
+const mutationKey = ['runImprovementLoopForEntity'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof runImprovementLoopForEntity>>, {entityId: number}> = (props) => {
+          const {entityId} = props ?? {};
+
+          return  runImprovementLoopForEntity(entityId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RunImprovementLoopForEntityMutationResult = NonNullable<Awaited<ReturnType<typeof runImprovementLoopForEntity>>>
+
+    export type RunImprovementLoopForEntityMutationError = ErrorType<void>
+
+    /**
+ * @summary Run persona loop for a single entity (synchronous)
+ */
+export const useRunImprovementLoopForEntity = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runImprovementLoopForEntity>>, TError,{entityId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof runImprovementLoopForEntity>>,
+        TError,
+        {entityId: number},
+        TContext
+      > => {
+      return useMutation(getRunImprovementLoopForEntityMutationOptions(options));
+    }
+
+export const getGetImprovementJobUrl = (jobId: string,) => {
+
+
+
+
+  return `/api/improve/jobs/${jobId}`
+}
+
+/**
+ * @summary Poll improvement loop job status
+ */
+export const getImprovementJob = async (jobId: string, options?: RequestInit): Promise<ImprovementJobState> => {
+
+  return customFetch<ImprovementJobState>(getGetImprovementJobUrl(jobId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetImprovementJobQueryKey = (jobId: string,) => {
+    return [
+    `/api/improve/jobs/${jobId}`
+    ] as const;
+    }
+
+
+export const getGetImprovementJobQueryOptions = <TData = Awaited<ReturnType<typeof getImprovementJob>>, TError = ErrorType<unknown>>(jobId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getImprovementJob>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetImprovementJobQueryKey(jobId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getImprovementJob>>> = ({ signal }) => getImprovementJob(jobId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: jobId !== null && jobId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getImprovementJob>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetImprovementJobQueryResult = NonNullable<Awaited<ReturnType<typeof getImprovementJob>>>
+export type GetImprovementJobQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Poll improvement loop job status
+ */
+
+export function useGetImprovementJob<TData = Awaited<ReturnType<typeof getImprovementJob>>, TError = ErrorType<unknown>>(
+ jobId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getImprovementJob>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetImprovementJobQueryOptions(jobId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListImprovementLogsUrl = (params?: ListImprovementLogsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/improve/logs?${stringifiedParams}` : `/api/improve/logs`
+}
+
+/**
+ * @summary List improvement logs with optional filters
+ */
+export const listImprovementLogs = async (params?: ListImprovementLogsParams, options?: RequestInit): Promise<ListImprovementLogs200> => {
+
+  return customFetch<ListImprovementLogs200>(getListImprovementLogsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListImprovementLogsQueryKey = (params?: ListImprovementLogsParams,) => {
+    return [
+    `/api/improve/logs`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListImprovementLogsQueryOptions = <TData = Awaited<ReturnType<typeof listImprovementLogs>>, TError = ErrorType<unknown>>(params?: ListImprovementLogsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listImprovementLogs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListImprovementLogsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listImprovementLogs>>> = ({ signal }) => listImprovementLogs(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listImprovementLogs>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListImprovementLogsQueryResult = NonNullable<Awaited<ReturnType<typeof listImprovementLogs>>>
+export type ListImprovementLogsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List improvement logs with optional filters
+ */
+
+export function useListImprovementLogs<TData = Awaited<ReturnType<typeof listImprovementLogs>>, TError = ErrorType<unknown>>(
+ params?: ListImprovementLogsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listImprovementLogs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListImprovementLogsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListEntityImprovementLogsUrl = (entityId: number,) => {
+
+
+
+
+  return `/api/improve/logs/${entityId}`
+}
+
+/**
+ * @summary List improvement logs for a specific entity
+ */
+export const listEntityImprovementLogs = async (entityId: number, options?: RequestInit): Promise<ImprovementLog[]> => {
+
+  return customFetch<ImprovementLog[]>(getListEntityImprovementLogsUrl(entityId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListEntityImprovementLogsQueryKey = (entityId: number,) => {
+    return [
+    `/api/improve/logs/${entityId}`
+    ] as const;
+    }
+
+
+export const getListEntityImprovementLogsQueryOptions = <TData = Awaited<ReturnType<typeof listEntityImprovementLogs>>, TError = ErrorType<unknown>>(entityId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listEntityImprovementLogs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListEntityImprovementLogsQueryKey(entityId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listEntityImprovementLogs>>> = ({ signal }) => listEntityImprovementLogs(entityId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: entityId !== null && entityId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listEntityImprovementLogs>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListEntityImprovementLogsQueryResult = NonNullable<Awaited<ReturnType<typeof listEntityImprovementLogs>>>
+export type ListEntityImprovementLogsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List improvement logs for a specific entity
+ */
+
+export function useListEntityImprovementLogs<TData = Awaited<ReturnType<typeof listEntityImprovementLogs>>, TError = ErrorType<unknown>>(
+ entityId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listEntityImprovementLogs>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListEntityImprovementLogsQueryOptions(entityId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateImprovementLogUrl = (logId: number,) => {
+
+
+
+
+  return `/api/improve/logs/${logId}`
+}
+
+/**
+ * @summary Update improvement log status (applied / dismissed / pending)
+ */
+export const updateImprovementLog = async (logId: number,
+    updateImprovementLogBody: UpdateImprovementLogBody, options?: RequestInit): Promise<ImprovementLog> => {
+
+  return customFetch<ImprovementLog>(getUpdateImprovementLogUrl(logId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateImprovementLogBody)
+  }
+);}
+
+
+
+
+
+export const getUpdateImprovementLogMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateImprovementLog>>, TError,{logId: number;data: BodyType<UpdateImprovementLogBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateImprovementLog>>, TError,{logId: number;data: BodyType<UpdateImprovementLogBody>}, TContext> => {
+
+const mutationKey = ['updateImprovementLog'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateImprovementLog>>, {logId: number;data: BodyType<UpdateImprovementLogBody>}> = (props) => {
+          const {logId,data} = props ?? {};
+
+          return  updateImprovementLog(logId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateImprovementLogMutationResult = NonNullable<Awaited<ReturnType<typeof updateImprovementLog>>>
+    export type UpdateImprovementLogMutationBody = BodyType<UpdateImprovementLogBody>
+    export type UpdateImprovementLogMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Update improvement log status (applied / dismissed / pending)
+ */
+export const useUpdateImprovementLog = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateImprovementLog>>, TError,{logId: number;data: BodyType<UpdateImprovementLogBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateImprovementLog>>,
+        TError,
+        {logId: number;data: BodyType<UpdateImprovementLogBody>},
+        TContext
+      > => {
+      return useMutation(getUpdateImprovementLogMutationOptions(options));
+    }
+
+export const getGetImprovementStatsUrl = () => {
+
+
+
+
+  return `/api/improve/stats`
+}
+
+/**
+ * @summary Summary counts by persona, priority, and status
+ */
+export const getImprovementStats = async ( options?: RequestInit): Promise<ImprovementStats> => {
+
+  return customFetch<ImprovementStats>(getGetImprovementStatsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetImprovementStatsQueryKey = () => {
+    return [
+    `/api/improve/stats`
+    ] as const;
+    }
+
+
+export const getGetImprovementStatsQueryOptions = <TData = Awaited<ReturnType<typeof getImprovementStats>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getImprovementStats>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetImprovementStatsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getImprovementStats>>> = ({ signal }) => getImprovementStats({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getImprovementStats>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetImprovementStatsQueryResult = NonNullable<Awaited<ReturnType<typeof getImprovementStats>>>
+export type GetImprovementStatsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Summary counts by persona, priority, and status
+ */
+
+export function useGetImprovementStats<TData = Awaited<ReturnType<typeof getImprovementStats>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getImprovementStats>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetImprovementStatsQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

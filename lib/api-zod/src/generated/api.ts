@@ -621,3 +621,165 @@ export const GetConnectionPathResponse = zod.object({
 })
 
 
+/**
+ * @summary Trigger persona improvement loop for all entities (or a filtered subset)
+ */
+export const runImprovementLoopBodyLimitDefault = 50;
+
+export const RunImprovementLoopBody = zod.object({
+  "limit": zod.number().default(runImprovementLoopBodyLimitDefault),
+  "entityIds": zod.array(zod.number()).optional()
+})
+
+export const RunImprovementLoopResponse = zod.object({
+  "jobId": zod.string(),
+  "entityCount": zod.number(),
+  "message": zod.string(),
+  "pollUrl": zod.string()
+})
+
+
+/**
+ * @summary Run persona loop for a single entity (synchronous)
+ */
+export const RunImprovementLoopForEntityParams = zod.object({
+  "entityId": zod.coerce.number()
+})
+
+export const RunImprovementLoopForEntityResponse = zod.object({
+  "entityId": zod.number(),
+  "entityName": zod.string(),
+  "inserted": zod.number(),
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Poll improvement loop job status
+ */
+export const GetImprovementJobParams = zod.object({
+  "jobId": zod.coerce.string()
+})
+
+export const GetImprovementJobResponse = zod.object({
+  "jobId": zod.string(),
+  "type": zod.string(),
+  "status": zod.string(),
+  "progress": zod.number(),
+  "inserted": zod.number(),
+  "skipped": zod.number(),
+  "errors": zod.number(),
+  "total": zod.number(),
+  "startedAt": zod.string(),
+  "finishedAt": zod.string().nullish(),
+  "message": zod.string()
+})
+
+
+/**
+ * @summary List improvement logs with optional filters
+ */
+export const listImprovementLogsQueryLimitDefault = 100;
+export const listImprovementLogsQueryOffsetDefault = 0;
+
+export const ListImprovementLogsQueryParams = zod.object({
+  "limit": zod.coerce.number().default(listImprovementLogsQueryLimitDefault),
+  "offset": zod.coerce.number().default(listImprovementLogsQueryOffsetDefault),
+  "persona": zod.coerce.string().optional(),
+  "status": zod.coerce.string().optional(),
+  "priority": zod.coerce.string().optional(),
+  "entityId": zod.coerce.number().optional()
+})
+
+export const ListImprovementLogsResponse = zod.object({
+  "logs": zod.array(zod.object({
+  "id": zod.number(),
+  "entityId": zod.number(),
+  "entityName": zod.string().nullish(),
+  "entityType": zod.string().nullish(),
+  "persona": zod.string(),
+  "category": zod.string(),
+  "priority": zod.string(),
+  "title": zod.string(),
+  "description": zod.string(),
+  "actionTaken": zod.string().nullish(),
+  "status": zod.string(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string().optional()
+})),
+  "total": zod.number(),
+  "limit": zod.number(),
+  "offset": zod.number()
+})
+
+
+/**
+ * @summary List improvement logs for a specific entity
+ */
+export const ListEntityImprovementLogsParams = zod.object({
+  "entityId": zod.coerce.number()
+})
+
+export const ListEntityImprovementLogsResponseItem = zod.object({
+  "id": zod.number(),
+  "entityId": zod.number(),
+  "entityName": zod.string().nullish(),
+  "entityType": zod.string().nullish(),
+  "persona": zod.string(),
+  "category": zod.string(),
+  "priority": zod.string(),
+  "title": zod.string(),
+  "description": zod.string(),
+  "actionTaken": zod.string().nullish(),
+  "status": zod.string(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string().optional()
+})
+export const ListEntityImprovementLogsResponse = zod.array(ListEntityImprovementLogsResponseItem)
+
+
+/**
+ * @summary Update improvement log status (applied / dismissed / pending)
+ */
+export const UpdateImprovementLogParams = zod.object({
+  "logId": zod.coerce.number()
+})
+
+export const UpdateImprovementLogBody = zod.object({
+  "status": zod.string()
+})
+
+export const UpdateImprovementLogResponse = zod.object({
+  "id": zod.number(),
+  "entityId": zod.number(),
+  "entityName": zod.string().nullish(),
+  "entityType": zod.string().nullish(),
+  "persona": zod.string(),
+  "category": zod.string(),
+  "priority": zod.string(),
+  "title": zod.string(),
+  "description": zod.string(),
+  "actionTaken": zod.string().nullish(),
+  "status": zod.string(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string().optional()
+})
+
+
+/**
+ * @summary Summary counts by persona, priority, and status
+ */
+export const GetImprovementStatsResponse = zod.object({
+  "total": zod.number(),
+  "byPersona": zod.array(zod.object({
+  "persona": zod.string(),
+  "status": zod.string(),
+  "count": zod.number()
+})),
+  "byPriority": zod.array(zod.object({
+  "priority": zod.string(),
+  "count": zod.number()
+}))
+})
+
+

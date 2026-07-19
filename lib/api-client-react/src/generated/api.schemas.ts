@@ -293,6 +293,71 @@ export interface ConnectionPath {
   recommendation?: string | null;
 }
 
+export interface ImprovementLog {
+  id: number;
+  entityId: number;
+  /** @nullable */
+  entityName?: string | null;
+  /** @nullable */
+  entityType?: string | null;
+  persona: string;
+  category: string;
+  priority: string;
+  title: string;
+  description: string;
+  /** @nullable */
+  actionTaken?: string | null;
+  status: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface ImprovementJobStarted {
+  jobId: string;
+  entityCount: number;
+  message: string;
+  pollUrl: string;
+}
+
+export interface EntityImprovementResult {
+  entityId: number;
+  entityName: string;
+  inserted: number;
+  message: string;
+}
+
+export interface ImprovementJobState {
+  jobId: string;
+  type: string;
+  status: string;
+  progress: number;
+  inserted: number;
+  skipped: number;
+  errors: number;
+  total: number;
+  startedAt: string;
+  /** @nullable */
+  finishedAt?: string | null;
+  message: string;
+}
+
+export type ImprovementStatsByPersonaItem = {
+  persona: string;
+  status: string;
+  count: number;
+};
+
+export type ImprovementStatsByPriorityItem = {
+  priority: string;
+  count: number;
+};
+
+export interface ImprovementStats {
+  total: number;
+  byPersona: ImprovementStatsByPersonaItem[];
+  byPriority: ImprovementStatsByPriorityItem[];
+}
+
 export type ListEntitiesParams = {
 /**
  * Filter by entity type (HNWI, Corporation, Trust, Gatekeeper)
@@ -340,5 +405,30 @@ depth?: number;
 export type GetConnectionPathParams = {
 sourceId: number;
 targetId: number;
+};
+
+export type RunImprovementLoopBody = {
+  limit?: number;
+  entityIds?: number[];
+};
+
+export type ListImprovementLogsParams = {
+limit?: number;
+offset?: number;
+persona?: string;
+status?: string;
+priority?: string;
+entityId?: number;
+};
+
+export type ListImprovementLogs200 = {
+  logs: ImprovementLog[];
+  total: number;
+  limit: number;
+  offset: number;
+};
+
+export type UpdateImprovementLogBody = {
+  status: string;
 };
 

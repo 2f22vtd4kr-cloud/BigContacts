@@ -8,6 +8,7 @@ import dashboardRouter from "./dashboard";
 import graphRouter from "./graph";
 import ingestRouter from "./ingest";
 import searchRouter from "./search";
+import improveRouter from "./improve";
 
 const router: IRouter = Router();
 
@@ -20,5 +21,6 @@ router.use(dashboardRouter);
 router.use(graphRouter);
 router.use(ingestRouter);
 router.use(searchRouter);
+router.use(improveRouter);
 
 export default router;

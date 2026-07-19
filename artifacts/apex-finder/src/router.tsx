@@ -8,6 +8,7 @@ import EntityLedger from "@/pages/entities";
 import ApexProfile from "@/pages/profile";
 import FieldManual from "@/pages/manual";
 import DeepSearch from "@/pages/deep-search";
+import Improvements from "@/pages/improvements";
 import NotFound from "@/pages/not-found";
 
 export default function AppRouter() {
@@ -21,6 +22,7 @@ export default function AppRouter() {
         <Route path="/entities" component={EntityLedger} />
         <Route path="/profile/:id" component={ApexProfile} />
         <Route path="/deep-search" component={DeepSearch} />
+        <Route path="/improvements" component={Improvements} />
         <Route path="/manual" component={FieldManual} />
         <Route component={NotFound} />
       </Switch>
