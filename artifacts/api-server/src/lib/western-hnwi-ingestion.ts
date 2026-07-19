@@ -121,41 +121,50 @@ async function* harvestSecEdgar13DG(maxCount: number): AsyncGenerator<HarvestedP
         if (yielded >= maxCount) break;
         const src = hit?._source ?? {};
 
-        // entity_name is the actual filer — the beneficial owner
-        const rawName: string = (src?.entity_name ?? "").trim();
-        if (!rawName || rawName.toLowerCase() === "unknown") continue;
+        // EDGAR EFTS API uses display_names array: ["COMPANY (CIK xxx)", "PERSON NAME (CIK xxx)"]
+        // Extract all person-like names from the array
+        const displayNames: string[] = src?.display_names ?? [];
+        const personNames = displayNames
+          .map((d: string) => d.replace(/\s*\(CIK\s*\d+\)\s*$/i, "").trim())
+          .filter((n: string) => n && n.toLowerCase() !== "unknown" && looksLikePerson(n));
 
-        const nameKey = rawName.toLowerCase();
-        if (seen.has(nameKey)) continue;
-        seen.add(nameKey);
+        if (personNames.length === 0) continue;
 
-        const formType: string = src?.form_type ?? "SC 13D";
+        const formType: string = (src?.root_forms?.[0] ?? src?.form ?? "SC 13D").trim();
         const fileDate: string = src?.file_date ?? "";
-        const bizLocation: string = src?.biz_location ?? src?.inc_states ?? "US";
+        const bizLocation: string =
+          (src?.biz_locations?.[0] ?? src?.inc_states?.[0] ?? "US").trim() || "US";
 
-        yielded++;
-        yield {
-          name: rawName,
-          nationality: "American",
-          location: bizLocation || "United States",
-          sourceRegistry: `SEC EDGAR — ${formType}`,
-          filingType: formType,
-          rawMetadata: {
-            source: "sec-edgar",
-            formType,
-            fileDate,
-            bizLocation,
-            entityName: rawName,
-            edgarUrl: `https://www.sec.gov/cgi-bin/browse-edgar?company=${encodeURIComponent(rawName)}&CIK=&type=${formType}&dateb=&owner=include&count=10&search_text=&action=getcompany`,
-          },
-          signals: {
-            isLargeShareholder: true,
-            isBoardDirector: false,
-            isCompanyOfficer: false,
-            hasRecentFiling: fileDate >= "2022-01-01",
-            jurisdiction: "US",
-          },
-        };
+        for (const rawName of personNames) {
+          if (yielded >= maxCount) break;
+          const nameKey = rawName.toLowerCase();
+          if (seen.has(nameKey)) continue;
+          seen.add(nameKey);
+
+          yielded++;
+          yield {
+            name: rawName,
+            nationality: "American",
+            location: bizLocation,
+            sourceRegistry: `SEC EDGAR — ${formType}`,
+            filingType: formType,
+            rawMetadata: {
+              source: "sec-edgar",
+              formType,
+              fileDate,
+              bizLocation,
+              entityName: rawName,
+              edgarUrl: `https://www.sec.gov/cgi-bin/browse-edgar?company=${encodeURIComponent(rawName)}&CIK=&type=${formType}&dateb=&owner=include&count=10&search_text=&action=getcompany`,
+            },
+            signals: {
+              isLargeShareholder: true,
+              isBoardDirector: false,
+              isCompanyOfficer: false,
+              hasRecentFiling: fileDate >= "2022-01-01",
+              jurisdiction: "US",
+            },
+          };
+        }
       }
 
       await sleep(120); // respect EDGAR's 10 req/s limit
@@ -209,17 +218,20 @@ async function* harvestSecEdgarDEF14A(maxCount: number): AsyncGenerator<Harveste
         if (yielded >= maxCount) break;
         const src = hit?._source ?? {};
 
-        const rawName: string = (src?.entity_name ?? "").trim();
+        // DEF 14A filer is the company — display_names[0] is the registrant.
+        // We store as Corporation type. Individual directors require full-text parsing.
+        const displayNames: string[] = src?.display_names ?? [];
+        const rawName: string = (displayNames[0] ?? "")
+          .replace(/\s*\(CIK\s*\d+\)\s*$/i, "")
+          .trim();
         if (!rawName || rawName.toLowerCase() === "unknown") continue;
-        // DEF 14A filer is the company, not the person — but the entity_name is
-        // the registrant company. We store as Corporation type for now.
-        // (Individual directors require full-text parsing which is out of scope here.)
         const nameKey = rawName.toLowerCase();
         if (seen.has(nameKey)) continue;
         seen.add(nameKey);
 
         const fileDate: string = src?.file_date ?? "";
-        const bizLocation: string = src?.biz_location ?? "US";
+        const bizLocation: string =
+          (src?.biz_locations?.[0] ?? src?.inc_states?.[0] ?? "US").trim() || "US";
 
         yielded++;
         yield {

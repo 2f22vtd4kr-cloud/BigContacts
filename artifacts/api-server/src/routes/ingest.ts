@@ -74,17 +74,20 @@ router.post("/ingest/western-hnwi", async (req, res): Promise<void> => {
     targetCount = 5_000,
     batchSize = 100,
     clearDedup: doClean = false,
-  } = req.body as { targetCount?: number; batchSize?: number; clearDedup?: boolean };
+    force = false,
+  } = req.body as { targetCount?: number; batchSize?: number; clearDedup?: boolean; force?: boolean };
 
   const safeTarget = Math.min(Math.max(Number(targetCount) || 5_000, 100), 50_000);
 
-  // Prevent duplicate concurrent jobs
-  const existingJobId = await getActiveJob("western-hnwi");
-  if (existingJobId) {
-    const existing = await getJob(existingJobId);
-    if (existing && existing.status === "running") {
-      res.status(409).json({ error: "A western-hnwi ingestion job is already running.", jobId: existingJobId });
-      return;
+  // Prevent duplicate concurrent jobs (unless force=true to clear stale locks)
+  if (!force) {
+    const existingJobId = await getActiveJob("western-hnwi");
+    if (existingJobId) {
+      const existing = await getJob(existingJobId);
+      if (existing && existing.status === "running") {
+        res.status(409).json({ error: "A western-hnwi ingestion job is already running.", jobId: existingJobId });
+        return;
+      }
     }
   }
 
@@ -126,17 +129,20 @@ router.post("/ingest/faa", async (req, res): Promise<void> => {
     maxRecords = 30_000,
     forceRefresh = false,
     clearDedup: doClean = false,
-  } = req.body as { maxRecords?: number; forceRefresh?: boolean; clearDedup?: boolean };
+    force = false,
+  } = req.body as { maxRecords?: number; forceRefresh?: boolean; clearDedup?: boolean; force?: boolean };
 
   const safeMax = Math.min(Math.max(Number(maxRecords) || 30_000, 100), 100_000);
 
-  // Prevent duplicate concurrent jobs
-  const existingJobId = await getActiveJob("faa");
-  if (existingJobId) {
-    const existing = await getJob(existingJobId);
-    if (existing && existing.status === "running") {
-      res.status(409).json({ error: "An FAA ingestion job is already running.", jobId: existingJobId });
-      return;
+  // Prevent duplicate concurrent jobs (unless force=true to clear stale locks)
+  if (!force) {
+    const existingJobId = await getActiveJob("faa");
+    if (existingJobId) {
+      const existing = await getJob(existingJobId);
+      if (existing && existing.status === "running") {
+        res.status(409).json({ error: "An FAA ingestion job is already running.", jobId: existingJobId });
+        return;
+      }
     }
   }
 
@@ -261,20 +267,23 @@ router.post("/ingest/occrp", async (req, res): Promise<void> => {
 
 // ── POST /ingest/land-registry — UK OCOD Property Data ───────────────────────
 router.post("/ingest/land-registry", async (req, res): Promise<void> => {
-  const { maxRecords = 50_000, forceRefresh = false, downloadUrl } = req.body as {
+  const { maxRecords = 50_000, forceRefresh = false, downloadUrl, force = false } = req.body as {
     maxRecords?: number;
     forceRefresh?: boolean;
     downloadUrl?: string;
+    force?: boolean;
   };
 
   const safeMax = Math.min(Math.max(Number(maxRecords) || 50_000, 100), 500_000);
 
-  const existingJobId = await getActiveJob("land-registry");
-  if (existingJobId) {
-    const existing = await getJob(existingJobId);
-    if (existing && existing.status === "running") {
-      res.status(409).json({ error: "A Land Registry ingestion job is already running.", jobId: existingJobId });
-      return;
+  if (!force) {
+    const existingJobId = await getActiveJob("land-registry");
+    if (existingJobId) {
+      const existing = await getJob(existingJobId);
+      if (existing && existing.status === "running") {
+        res.status(409).json({ error: "A Land Registry ingestion job is already running.", jobId: existingJobId });
+        return;
+      }
     }
   }
 

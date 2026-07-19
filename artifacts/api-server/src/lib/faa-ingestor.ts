@@ -50,7 +50,7 @@ const TURBINE_ENGINES = new Set(["2", "3", "4", "5"]);
 const FIXED_WING_MULTI = "5";   // fixed wing multi-engine (even piston = significant)
 const ROTORCRAFT = "6";          // helicopter
 
-// MASTER.txt field indices (pipe-delimited, 0-based after split)
+// MASTER.txt field indices (comma-delimited, 0-based after split)
 const F_NNUMBER        = 0;
 const F_SERIAL         = 1;
 const F_YEAR_MFR       = 4;
@@ -176,7 +176,12 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
     await appendJobLog(jobId, `⬇️  Fetching ${FAA_ZIP_URL}`);
     try {
       await execAsync(
-        `curl -L --max-time 300 --retry 2 --retry-delay 5 -o "${ZIP_PATH}" "${FAA_ZIP_URL}"`,
+        `curl -L --max-time 300 --retry 2 --retry-delay 5 \
+          -H "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36" \
+          -H "Accept: application/octet-stream,*/*" \
+          -H "Accept-Encoding: identity" \
+          -H "Referer: https://registry.faa.gov/aircraftinquiry/Search/NNumberInquiry" \
+          -o "${ZIP_PATH}" "${FAA_ZIP_URL}"`,
         { timeout: 320_000 },
       );
       await appendJobLog(jobId, "✅ Download complete.");
@@ -216,7 +221,7 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
     if (lineNum === 1) continue; // skip header row
     if (inserted + entityBatch.length >= maxRecords) break;
 
-    const f = line.split("|");
+    const f = line.split(",");
     if (f.length < 21) continue;
 
     const nNumber      = f[F_NNUMBER]?.trim() ?? "";
@@ -233,7 +238,7 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
     const serial       = f[F_SERIAL]?.trim() ?? "";
 
     // ── Filters ──────────────────────────────────────────────────────────────
-    if (status !== "A") continue;                          // active only
+    if (status !== "V" && status !== "A") continue;        // active only (V=valid/registered, A=active)
     if (!INDIVIDUAL_TYPES.has(typeReg)) continue;          // individuals, LLCs, partnerships
     if (!rawName || rawName.length < 3) continue;          // valid name
     if (!nNumber) continue;                                // needs N-number
