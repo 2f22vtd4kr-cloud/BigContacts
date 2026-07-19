@@ -9,7 +9,7 @@ export const improvementLogsTable = pgTable("improvement_logs", {
     .notNull()
     .references(() => entitiesTable.id, { onDelete: "cascade" }),
   persona: text("persona").notNull(),
-  // 'data_engineer' | 'data_analyst' | 'mcts_expert' | 'business_engineer' | 'ux_designer' | 'architect'
+  // 'data_engineer' | 'data_analyst' | 'intel_systems_analyst' | 'business_engineer' | 'ux_designer' | 'architect'
   category: text("category").notNull(),
   // 'data_quality' | 'scoring' | 'outreach' | 'structure' | 'display' | 'classification'
   priority: text("priority").notNull().default("medium"),

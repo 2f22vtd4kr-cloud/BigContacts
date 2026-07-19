@@ -6,12 +6,21 @@
  * external AI APIs are used.
  *
  * Personas:
- *  1. Data Engineer   — data completeness & source quality
- *  2. Data Analyst    — Bayesian score accuracy & financial signals
- *  3. MCTS Expert     — outreach path quality & research coverage
- *  4. Business Engineer — corporate structure & relationship depth
- *  5. UX Designer     — profile display completeness
- *  6. Architect       — entity classification & deduplication
+ *  1. Data Engineer              — data completeness & source quality
+ *  2. Data Analyst               — Bayesian score accuracy & financial signals
+ *  3. Intelligence Systems Analyst — full hybrid stack: MCTS paths, hybrid search
+ *                                    signal coverage, agent orchestration pipeline
+ *                                    completeness, and Bayesian-UCB convergence
+ *  4. Business Engineer          — corporate structure & relationship depth
+ *  5. UX Designer                — profile display completeness
+ *  6. Architect                  — entity classification & deduplication
+ *
+ * The hybrid intelligence stack this system runs:
+ *  - Hybrid Semantic + Keyword + Graph Search  (hybrid-search.ts — BM25 + TF-IDF + graph via RRF)
+ *  - Agentic Multi-Agent Reasoning             (agent-orchestrator.ts — Planner, Retriever, Analyst, Critic)
+ *  - Iterative Query Expansion                 (agent-orchestrator.ts — intent/geo/asset plan + SQL pre-filter)
+ *  - Monte Carlo Tree Search                   (mcts-agent.ts — UCT selection, expansion, simulation, backprop)
+ *  - Bayesian Optimization / UCB               (bayesian-scorer.ts + mcts-agent.ts UCT constant)
  */
 
 import { db, entitiesTable, assetsTable, relationshipsTable, researchSessionsTable } from "@workspace/db";
@@ -22,7 +31,7 @@ import { logger } from "./logger";
 export type PersonaId =
   | "data_engineer"
   | "data_analyst"
-  | "mcts_expert"
+  | "intel_systems_analyst"
   | "business_engineer"
   | "ux_designer"
   | "architect";
@@ -253,49 +262,94 @@ async function runDataAnalyst(entity: Entity): Promise<ImprovementSuggestion[]> 
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Persona 3 — MCTS Expert
-// Focuses on outreach path quality and research session coverage
+// Persona 3 — Intelligence Systems Analyst
+//
+// Evaluates the entity across the full hybrid intelligence stack:
+//
+//  Layer 1 — MCTS path coverage
+//    MCTS (mcts-agent.ts) uses UCT tree search to find optimal warm-introduction
+//    paths through the relationship graph. Without sessions, the outreach layer
+//    is blind. Stale sessions may route through intermediaries displaced by new
+//    ingestion. Low UCT scores indicate the graph hasn't surfaced a warm path.
+//
+//  Layer 2 — Hybrid search signal coverage
+//    hybrid-search.ts fuses BM25 (keyword), semantic (TF-IDF cosine), and graph
+//    centrality scores via Reciprocal Rank Fusion (RRF). Entities with thin
+//    metadata or a single source registry produce weak BM25 and graph signals,
+//    meaning the hybrid search cannot surface this entity in cross-entity queries.
+//
+//  Layer 3 — Agent orchestration pipeline completeness
+//    agent-orchestrator.ts runs four deterministic agents in sequence:
+//    Planner (intent/geo/asset extraction) → Retriever (hybrid search + SQL filter)
+//    → Analyst (RRF scoring + Bayesian weighting) → Critic (relevance pruning).
+//    A complete pipeline ends with a generated pitch. Incomplete pipelines leave
+//    the entity without a synthesised outreach strategy.
+//
+//  Layer 4 — Bayesian-UCB convergence
+//    bayesian-scorer.ts uses Bayesian log-odds updates on registry signals.
+//    mcts-agent.ts uses UCB1 (UCT) to balance exploitation of high-scoring paths
+//    vs. exploration of unvisited nodes. If an entity's score hasn't been updated
+//    since creation, neither the Bayesian update loop nor the UCB explorer has
+//    acted on it — the entity is stuck at its prior estimate.
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function runMctsExpert(entity: Entity): Promise<ImprovementSuggestion[]> {
+async function runIntelSystemsAnalyst(entity: Entity): Promise<ImprovementSuggestion[]> {
   const suggestions: ImprovementSuggestion[] = [];
 
-  const sessions = await db
-    .select()
-    .from(researchSessionsTable)
-    .where(eq(researchSessionsTable.targetEntityId, entity.id))
-    .orderBy(sql`${researchSessionsTable.createdAt} desc`)
-    .limit(5);
+  // ── Fetch data needed across all four layers ────────────────────────────────
+  const [sessions, relRow, assetRow] = await Promise.all([
+    db.select()
+      .from(researchSessionsTable)
+      .where(eq(researchSessionsTable.targetEntityId, entity.id))
+      .orderBy(sql`${researchSessionsTable.createdAt} desc`)
+      .limit(5),
+    db.select({ count: count() })
+      .from(relationshipsTable)
+      .where(eq(relationshipsTable.sourceEntityId, entity.id)),
+    db.select({ count: count() })
+      .from(assetsTable)
+      .where(eq(assetsTable.ownerEntityId, entity.id)),
+  ]);
+
+  const relCount   = Number(relRow[0]?.count ?? 0);
+  const assetCount = Number(assetRow[0]?.count ?? 0);
+  const sources    = parseJsonSafe<string[]>(entity.sourceRegistries, []);
+  const metadata   = parseJsonSafe<Record<string, unknown>>(entity.metadata, {});
+  const score      = entity.bayesianScore;
+
+  // ── Layer 1: MCTS path coverage ────────────────────────────────────────────
 
   if (sessions.length === 0) {
     suggestions.push({
       entityId: entity.id,
-      persona: "mcts_expert",
+      persona: "intel_systems_analyst",
       category: "outreach",
       priority: "high",
-      title: "No MCTS research session run — outreach path unknown",
+      title: "Hybrid stack not activated — no intelligence session exists",
       description:
-        "This entity has never been through an MCTS path-finding simulation. Without a research session, " +
-        "optimal introduction routes, warm-contact vectors, and UCT-ranked paths are unavailable. " +
-        "The Pipeline CRM card has no path data and pitch generation is blocked.",
-      actionTaken: "Queued for MCTS run at next available cycle.",
+        "This entity has never been processed by the full hybrid pipeline. Without an MCTS research session, " +
+        "the UCT path-finder, agent orchestrator, and pitch synthesiser have no baseline to work from. " +
+        "The Pipeline CRM card is empty, the graph layer has no path scores, and outreach is unguided. " +
+        "Start a session via the MCTS Terminal to activate the Planner → Retriever → Analyst → Critic → Pitch pipeline.",
+      actionTaken: "Entity flagged as pipeline-cold. Queued for MCTS session at next cycle.",
     });
   } else {
-    const latest = sessions[0];
+    const latest  = sessions[0];
     const ageDays = ageInDays(latest.createdAt.toISOString());
 
     if (ageDays > 30) {
       suggestions.push({
         entityId: entity.id,
-        persona: "mcts_expert",
+        persona: "intel_systems_analyst",
         category: "outreach",
         priority: "medium",
-        title: `MCTS path data is ${Math.floor(ageDays)} days old — refresh recommended`,
+        title: `Intelligence session is ${Math.floor(ageDays)}d stale — hybrid re-run recommended`,
         description:
-          `Last research session ran ${Math.floor(ageDays)} days ago. Network positions shift as new entities and ` +
-          "relationships are ingested. Paths that were optimal may now route through stale intermediaries. " +
-          "A fresh MCTS run will incorporate new registry data and recalculate UCT-optimal approach vectors.",
-        actionTaken: `Session age: ${Math.floor(ageDays)}d. Flagged for re-run.`,
+          `Last pipeline run was ${Math.floor(ageDays)} days ago. The hybrid search index, graph centrality scores, ` +
+          "and MCTS tree are all anchored to the entity graph at that point in time. New FAA, HMLR, and HNWI " +
+          "ingestion runs will have added nodes and edges that the current session never evaluated. " +
+          "A fresh run will re-execute BM25 + graph RRF fusion and recalculate UCT-optimal paths through the updated graph.",
+        actionTaken: `Session age ${Math.floor(ageDays)}d logged. Flagged for hybrid re-run.`,
       });
     }
 
@@ -303,33 +357,125 @@ async function runMctsExpert(entity: Entity): Promise<ImprovementSuggestion[]> {
     if (pathScore < 0.3 && sessions.length < 3) {
       suggestions.push({
         entityId: entity.id,
-        persona: "mcts_expert",
+        persona: "intel_systems_analyst",
         category: "outreach",
         priority: "medium",
-        title: "Winning path score is low — deeper simulation needed",
+        title: "UCT path score below threshold — Bayesian-UCB exploration needed",
         description:
-          `Best path UCT score is ${pathScore.toFixed(3)}, indicating no strong warm-introduction route has been found. ` +
-          `Only ${sessions.length} simulation(s) run. Increasing MCTS iterations and graph depth may surface ` +
-          "a higher-confidence path through shared board memberships, club affiliations, or aviation/marina contacts.",
-        actionTaken: `Low UCT score (${pathScore.toFixed(3)}) logged — recommend depth-first re-run.`,
+          `Best UCT path score is ${pathScore.toFixed(3)} across ${sessions.length} simulation(s). ` +
+          "The UCB1 exploration term (√(ln N / n)) favours unvisited branches — but only if more simulations run. " +
+          "With fewer than 3 sessions, the Monte Carlo estimate has high variance and may have converged on a local optimum. " +
+          "Increasing simulation depth and running the hybrid graph search on neighbouring nodes " +
+          "(board co-members, club affiliates, aviation FBO contacts) may surface a higher-confidence warm path.",
+        actionTaken: `UCT score ${pathScore.toFixed(3)} < 0.30 threshold. Depth-first re-run recommended.`,
       });
     }
 
+    // Agent orchestrator pipeline completeness — pitch is the final synthesis step
     const noGeneratedPitch = sessions.every(s => !s.generatedPitch);
     if (noGeneratedPitch) {
       suggestions.push({
         entityId: entity.id,
-        persona: "mcts_expert",
+        persona: "intel_systems_analyst",
         category: "outreach",
-        priority: "low",
-        title: "Outreach pitch not yet generated",
+        priority: "medium",
+        title: "Agent pipeline incomplete — Critic stage has no synthesised output",
         description:
-          "MCTS sessions exist but no personalised pitch has been generated. " +
-          "The pitch synthesises winning path context, mutual-interest signals, and contact preferences into a " +
-          "ready-to-deploy opening message. Generate via the MCTS Terminal.",
-        actionTaken: "Pitch generation flagged as next step.",
+          "MCTS sessions exist but the Critic agent has not produced a final outreach pitch. " +
+          "The pipeline runs: Planner (query intent) → Retriever (BM25 + graph hybrid search) → " +
+          "Analyst (RRF score fusion + Bayesian weighting) → Critic (relevance pruning) → Pitch synthesis. " +
+          "The last stage converts the winning path context and mutual-interest signals into a ready-to-deploy " +
+          "opening message. Complete the pipeline via the MCTS Terminal → Generate Pitch.",
+        actionTaken: "Pipeline incomplete — pitch synthesis stage not reached.",
       });
     }
+  }
+
+  // ── Layer 2: Hybrid search signal coverage ─────────────────────────────────
+
+  // Thin source registry = weak BM25 + graph anchor for cross-entity search
+  if (sources.length <= 1 && score < 0.5) {
+    suggestions.push({
+      entityId: entity.id,
+      persona: "intel_systems_analyst",
+      category: "data_quality",
+      priority: "medium",
+      title: "Weak hybrid search anchor — single source limits BM25 and graph signals",
+      description:
+        `Entity has ${sources.length === 0 ? "no source registries" : `only one source (${sources[0]})`} ` +
+        "and a sub-0.5 Bayesian score. The hybrid search layer (BM25 + TF-IDF cosine + graph centrality via RRF) " +
+        "relies on registry metadata, name tokens, and graph edges to rank this entity in cross-entity queries. " +
+        "With sparse anchors, this entity scores near zero in BM25 and has low graph centrality — " +
+        "it will be invisible in operator deep-search and agent retrieval passes. " +
+        "Add a second registry source (GLEIF, BRREG, SEC EDGAR, or Companies House) to strengthen all three layers.",
+      actionTaken: "Thin-anchor flag set. Cross-registry enrichment recommended to improve hybrid search recall.",
+    });
+  }
+
+  // Sparse metadata + no notes = query expansion has nothing to expand from
+  const hasRichMetadata = Object.keys(metadata).length > 3;
+  const hasNotes        = entity.notes && entity.notes.trim().length >= 50;
+  if (!hasRichMetadata && !hasNotes && assetCount === 0) {
+    suggestions.push({
+      entityId: entity.id,
+      persona: "intel_systems_analyst",
+      category: "data_quality",
+      priority: "medium",
+      title: "Query expansion stalled — insufficient signal anchors for the Planner agent",
+      description:
+        "The Planner agent (agent-orchestrator.ts) expands queries by extracting intent, geographic focus, " +
+        "and asset class from the entity's metadata, notes, and asset register. This entity has sparse metadata, " +
+        "no notes, and no linked assets — the Planner has no tokens to expand from. " +
+        "As a result, the Retriever agent falls back to a bare name-match query, missing related entities " +
+        "that share corporate structure, geographic cluster, or asset class. " +
+        "Enrich metadata (jurisdiction, source filing IDs, asset class) and add at least 50 chars of briefing notes.",
+      actionTaken: "Zero-anchor flag — Planner agent query expansion is effectively disabled for this entity.",
+    });
+  }
+
+  // ── Layer 3 + 4: Bayesian-UCB convergence ──────────────────────────────────
+
+  // Hot lead with no pipeline run — UCB exploitation hasn't started
+  if (score >= 0.7 && sessions.length === 0) {
+    suggestions.push({
+      entityId: entity.id,
+      persona: "intel_systems_analyst",
+      category: "outreach",
+      priority: "high",
+      title: "High-probability target — UCB exploitation not yet initiated",
+      description:
+        `Bayesian score ${score.toFixed(3)} places this entity in the top tier, ` +
+        "but no MCTS session has been run. The UCB1 formula rewards exploitation of high-scoring nodes " +
+        "(high reward / low visit count = maximum UCB value). This entity has the highest possible UCB score " +
+        "— it should be the first target the MCTS tree expands. " +
+        "Running a session will immediately anchor the tree at this node and begin path scoring " +
+        "through its relationship graph.",
+      actionTaken: `UCB exploitation flag: score ${score.toFixed(3)} with 0 visits. Immediate MCTS run recommended.`,
+    });
+  }
+
+  // Score frozen since creation — feedback loop never ran
+  const neverUpdated =
+    entity.updatedAt &&
+    entity.createdAt &&
+    Math.abs(new Date(entity.updatedAt).getTime() - new Date(entity.createdAt).getTime()) < 60_000;
+
+  if (neverUpdated && score > 0 && relCount > 0) {
+    suggestions.push({
+      entityId: entity.id,
+      persona: "intel_systems_analyst",
+      category: "scoring",
+      priority: "low",
+      title: "Bayesian score frozen at ingestion prior — no feedback loop has run",
+      description:
+        "Entity has relationship edges in the graph but its Bayesian score has never been updated since creation. " +
+        "The Bayesian scorer (bayesian-scorer.ts) applies log-odds updates for each signal: asset count, " +
+        "registry corroboration, relationship depth, and contact vectors. With graph edges present, " +
+        "a score update pass should shift the posterior meaningfully. " +
+        "Run the persona improvement loop to trigger a re-score, or update the entity record to force a " +
+        "Bayesian recalculation with current evidence.",
+      actionTaken: "Score-frozen flag: updatedAt ≈ createdAt despite graph edges. Bayesian re-score recommended.",
+    });
   }
 
   return suggestions;
@@ -568,12 +714,12 @@ async function runArchitect(entity: Entity): Promise<ImprovementSuggestion[]> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const PERSONA_RUNNERS: Record<PersonaId, (e: Entity) => Promise<ImprovementSuggestion[]>> = {
-  data_engineer: runDataEngineer,
-  data_analyst: runDataAnalyst,
-  mcts_expert: runMctsExpert,
-  business_engineer: runBusinessEngineer,
-  ux_designer: runUxDesigner,
-  architect: runArchitect,
+  data_engineer:         runDataEngineer,
+  data_analyst:          runDataAnalyst,
+  intel_systems_analyst: runIntelSystemsAnalyst,
+  business_engineer:     runBusinessEngineer,
+  ux_designer:           runUxDesigner,
+  architect:             runArchitect,
 };
 
 export const ALL_PERSONAS: PersonaId[] = Object.keys(PERSONA_RUNNERS) as PersonaId[];
@@ -592,10 +738,10 @@ export async function runPersonasForEntity(entity: Entity): Promise<ImprovementS
 }
 
 export const PERSONA_META: Record<PersonaId, { label: string; icon: string; color: string }> = {
-  data_engineer:    { label: "Data Engineer",    icon: "Database",      color: "#3B82F6" },
-  data_analyst:     { label: "Data Analyst",     icon: "TrendingUp",    color: "#10B981" },
-  mcts_expert:      { label: "MCTS Expert",      icon: "GitBranch",     color: "#A855F7" },
-  business_engineer:{ label: "Business Engineer",icon: "Briefcase",     color: "#F59E0B" },
-  ux_designer:      { label: "UX Designer",      icon: "Palette",       color: "#EC4899" },
-  architect:        { label: "Architect",         icon: "Layers",        color: "#06B6D4" },
+  data_engineer:         { label: "Data Engineer",            icon: "Database",  color: "#3B82F6" },
+  data_analyst:          { label: "Data Analyst",             icon: "TrendingUp",color: "#10B981" },
+  intel_systems_analyst: { label: "Intel Systems Analyst",    icon: "Network",   color: "#A855F7" },
+  business_engineer:     { label: "Business Engineer",        icon: "Briefcase", color: "#F59E0B" },
+  ux_designer:           { label: "UX Designer",              icon: "Palette",   color: "#EC4899" },
+  architect:             { label: "Architect",                 icon: "Layers",    color: "#06B6D4" },
 };
