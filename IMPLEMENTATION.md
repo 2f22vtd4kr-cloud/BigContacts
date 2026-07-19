@@ -70,13 +70,14 @@ Original master prompt lives in `attached_assets/Pasted-You-are-a-world-class-pr
 - [x] GET /improve/logs — paginated, filterable list with entity name join
 - [x] PATCH /improve/logs/:logId — status update (pending → applied / dismissed)
 
-### 🔲 Phase 8 — Extended Real Sources
-- [ ] OCCRP Aleph (beneficial ownership, investigative aggregates)
-- [ ] UK HM Land Registry bulk extracts (property ownership)
-- [ ] US county-level property assessor records
-- [ ] OpenSky Network / ADS-B Exchange (live flight tracking)
-- [ ] EASA/national aviation registries (non-US aircraft)
-- [ ] GLEIF bulk download (full LEI dataset, millions of entities)
+### ✅ Phase 8 — Extended Real Sources
+- [x] OCCRP Aleph enricher — cross-references all entities against aleph.occrp.org; flags sanctions/investigation hits; sets isHot=true on sanctions matches
+- [x] UK HM Land Registry OCOD ingestor — bulk CSV download of overseas companies owning UK property; creates Corporation entities + Real Estate assets
+- [x] OpenSky Network enricher — live ADS-B state vectors matched against FAA aviation assets; marks jets actively airborne + enriches with position/altitude/speed
+- [x] EASA / national aviation registers — noted as "coming soon" (no standardised bulk API across European registries)
+- [x] Data Sources dashboard page (`/data-sources`) — all sources displayed with type badge, run button, live job progress, log tail, and external links
+- [ ] US county-level property assessor records (skipped — no standardised API)
+- [ ] GLEIF bulk download (skipped — existing live GLEIF search already integrated)
 
 ---
 
@@ -91,9 +92,9 @@ Original master prompt lives in `attached_assets/Pasted-You-are-a-world-class-pr
 | FAA Releasable Aircraft DB | Aircraft owners (private jets) | None | ✅ Live |
 | OpenCorporates | Corporate search | None | ✅ Live (50 req/day free) |
 | GLEIF LEI Register | Legal entities | None | ✅ Live |
-| OCCRP Aleph | Beneficial ownership | None | 🔲 Planned |
-| UK HM Land Registry | Property | None | 🔲 Planned |
-| OpenSky / ADS-B Exchange | Live flights | None | 🔲 Planned |
+| OCCRP Aleph | Beneficial ownership | None | ✅ Live |
+| UK HM Land Registry (OCOD) | Property | None | ✅ Live |
+| OpenSky / ADS-B Exchange | Live flights | None | ✅ Live |
 
 ---
 
@@ -111,6 +112,15 @@ Original master prompt lives in `attached_assets/Pasted-You-are-a-world-class-pr
 ---
 
 ## Session Log
+
+### Session 8 — Phase 8: Extended Real Sources
+- Built `artifacts/api-server/src/lib/occrp-enricher.ts` — Aleph REST API (1 req/s rate limit), name-overlap match (≥75% word overlap), sanctions-dataset flagging, isHot escalation
+- Built `artifacts/api-server/src/lib/land-registry-ingestor.ts` — streaming CSV download + parse (handles quoted fields), dual-URL fallback, 30-day cache, dedup by Title Number, Bayesian score from price paid
+- Built `artifacts/api-server/src/lib/opensky-ingestor.ts` — live state vectors from opensky-network.org, callsign→N-number matching, altitude/speed/position enrichment, marks owners as hot leads
+- Added POST /ingest/occrp, POST /ingest/land-registry, POST /ingest/opensky to ingest.ts routes
+- Added OpenAPI paths + IngestJobStarted schema, ran codegen (typecheck clean)
+- Built `artifacts/apex-finder/src/pages/data-sources.tsx` — full Data Sources dashboard with per-source cards, phase badges, enricher/ingestor type labels, live job polling, log tails, external links
+- Added "Data Sources" nav item (Radio icon) to layout.tsx, route `/data-sources` to router.tsx
 
 ### Session 7 — Phase 7: Persona Improvement Loop
 - Added `improvement_logs` table (`lib/db/src/schema/improvement_logs.ts`) — FK → entities, cascade delete

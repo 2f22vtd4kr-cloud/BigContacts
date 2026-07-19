@@ -9,6 +9,13 @@ export interface HealthStatus {
   status: string;
 }
 
+export interface IngestJobStarted {
+  jobId: string;
+  message: string;
+  pollUrl: string;
+  note?: string;
+}
+
 export interface Entity {
   id: number;
   name: string;
@@ -430,5 +437,17 @@ export type ListImprovementLogs200 = {
 
 export type UpdateImprovementLogBody = {
   status: string;
+};
+
+export type RunOccrpEnrichmentBody = {
+  /** Max entities to enrich */
+  limit?: number;
+};
+
+export type RunLandRegistryIngestionBody = {
+  maxRecords?: number;
+  forceRefresh?: boolean;
+  /** Override HMLR CSV download URL */
+  downloadUrl?: string;
 };
 

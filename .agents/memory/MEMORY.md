@@ -5,3 +5,4 @@
 - [Western HNWI ingestion](western-hnwi-ingestion.md) — Dual Redis (local cache + Upstash permanent); background job at POST /ingest/western-hnwi; poll at GET /ingest/job/:jobId; no auth required (personal use)
 - [Real OSINT data pipeline](real-osint-pipeline.md) — FAA ingestor uses curl+unzip (no npm pkg); mock seeding removed from startup; DB must be cleared after import
 - [Persona Improvement Loop](persona-loop.md) — Phase 7: 6 deterministic TypeScript personas, improvement_logs table, /improve/* routes, Persona Loop page at /improvements
+- [Extended Sources](extended-sources.md) — Phase 8: OCCRP Aleph enricher, UK Land Registry OCOD ingestor, OpenSky live-flight enricher; Data Sources dashboard at /data-sources

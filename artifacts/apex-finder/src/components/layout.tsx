@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import {
   Crosshair, Activity, Network, FileTerminal,
-  KanbanSquare, Database, ShieldAlert, X, BookOpen, Menu, BrainCircuit, Bot,
+  KanbanSquare, Database, ShieldAlert, X, BookOpen, Menu, BrainCircuit, Bot, Radio,
 } from "lucide-react";
 
 const navItems = [
@@ -13,8 +13,9 @@ const navItems = [
   { name: "MCTS Terminal",     href: "/research",     icon: FileTerminal },
   { name: "Pipeline CRM",      href: "/crm",          icon: KanbanSquare },
   { name: "Entity Ledger",     href: "/entities",     icon: Database },
-  { name: "Persona Loop",      href: "/improvements", icon: Bot },
-  { name: "Field Manual",      href: "/manual",       icon: BookOpen },
+  { name: "Persona Loop",      href: "/improvements",  icon: Bot },
+  { name: "Data Sources",      href: "/data-sources",  icon: Radio },
+  { name: "Field Manual",      href: "/manual",        icon: BookOpen },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {

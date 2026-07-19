@@ -22,6 +22,9 @@ import {
 } from "../lib/job-queue";
 import { runWesternHnwiIngestion } from "../lib/western-hnwi-ingestion";
 import { runFaaIngestion } from "../lib/faa-ingestor";
+import { runOccrpEnrichment } from "../lib/occrp-enricher";
+import { runLandRegistryIngestion } from "../lib/land-registry-ingestor";
+import { runOpenSkyEnrichment } from "../lib/opensky-ingestor";
 import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
@@ -210,6 +213,139 @@ router.get("/ingest/status", async (_req, res): Promise<void> => {
       westernHnwi: activeWJob,
       faa: activeFJob,
     },
+  });
+});
+
+// ── POST /ingest/occrp — OCCRP Aleph enricher ────────────────────────────────
+router.post("/ingest/occrp", async (req, res): Promise<void> => {
+  const { limit = 500 } = req.body as { limit?: number };
+  const safeLimit = Math.min(Math.max(Number(limit) || 500, 10), 5_000);
+
+  const existingJobId = await getActiveJob("occrp");
+  if (existingJobId) {
+    const existing = await getJob(existingJobId);
+    if (existing && existing.status === "running") {
+      res.status(409).json({ error: "An OCCRP enrichment job is already running.", jobId: existingJobId });
+      return;
+    }
+  }
+
+  const jobId = await createJob("occrp");
+  await setActiveJob("occrp", jobId);
+
+  (async () => {
+    try {
+      await updateJob(jobId, { status: "running", total: safeLimit, message: "OCCRP Aleph enrichment running…" });
+      const result = await runOccrpEnrichment({ jobId, limit: safeLimit });
+      await updateJob(jobId, {
+        status: "done",
+        progress: 100,
+        inserted: result.inserted,
+        skipped: result.skipped,
+        errors: result.errors,
+        finishedAt: new Date().toISOString(),
+        message: `Done — ${result.inserted} entities enriched from OCCRP Aleph in ${(result.durationMs / 1000).toFixed(1)}s`,
+      });
+    } catch (err: any) {
+      logger.error({ err: err.message }, "OCCRP enrichment job failed");
+      await updateJob(jobId, { status: "failed", message: err.message ?? "OCCRP enrichment failed" });
+    }
+  })();
+
+  res.status(202).json({
+    jobId,
+    message: `OCCRP Aleph enrichment started for up to ${safeLimit} entities.`,
+    pollUrl: `/api/ingest/job/${jobId}`,
+  });
+});
+
+// ── POST /ingest/land-registry — UK OCOD Property Data ───────────────────────
+router.post("/ingest/land-registry", async (req, res): Promise<void> => {
+  const { maxRecords = 50_000, forceRefresh = false, downloadUrl } = req.body as {
+    maxRecords?: number;
+    forceRefresh?: boolean;
+    downloadUrl?: string;
+  };
+
+  const safeMax = Math.min(Math.max(Number(maxRecords) || 50_000, 100), 500_000);
+
+  const existingJobId = await getActiveJob("land-registry");
+  if (existingJobId) {
+    const existing = await getJob(existingJobId);
+    if (existing && existing.status === "running") {
+      res.status(409).json({ error: "A Land Registry ingestion job is already running.", jobId: existingJobId });
+      return;
+    }
+  }
+
+  const jobId = await createJob("land-registry");
+  await setActiveJob("land-registry", jobId);
+
+  (async () => {
+    try {
+      await updateJob(jobId, { status: "running", total: safeMax, message: "Starting UK Land Registry ingestion…" });
+      const result = await runLandRegistryIngestion({ jobId, maxRecords: safeMax, forceRefresh, downloadUrl });
+      await updateJob(jobId, {
+        status: "done",
+        progress: 100,
+        inserted: result.inserted,
+        skipped: result.skipped,
+        errors: result.errors,
+        finishedAt: new Date().toISOString(),
+        message: `Done — ${result.inserted.toLocaleString()} overseas property owners ingested in ${(result.durationMs / 1000).toFixed(1)}s`,
+      });
+    } catch (err: any) {
+      logger.error({ err: err.message }, "Land Registry ingestion failed");
+      await updateJob(jobId, { status: "failed", message: err.message ?? "Land Registry ingestion failed" });
+    }
+  })();
+
+  res.status(202).json({
+    jobId,
+    message: `UK Land Registry OCOD ingestion started (up to ${safeMax.toLocaleString()} records).`,
+    pollUrl: `/api/ingest/job/${jobId}`,
+    note: "Downloads HMLR OCOD CSV (~300MB). First run may take several minutes; subsequent runs use the cached file for 30 days.",
+  });
+});
+
+// ── POST /ingest/opensky — OpenSky live flight enricher ───────────────────────
+router.post("/ingest/opensky", async (req, res): Promise<void> => {
+  const existingJobId = await getActiveJob("opensky");
+  if (existingJobId) {
+    const existing = await getJob(existingJobId);
+    if (existing && existing.status === "running") {
+      res.status(409).json({ error: "An OpenSky enrichment job is already running.", jobId: existingJobId });
+      return;
+    }
+  }
+
+  const jobId = await createJob("opensky");
+  await setActiveJob("opensky", jobId);
+
+  (async () => {
+    try {
+      await updateJob(jobId, { status: "running", message: "Querying OpenSky live aircraft positions…" });
+      const result = await runOpenSkyEnrichment({ jobId });
+      await updateJob(jobId, {
+        status: "done",
+        progress: 100,
+        inserted: result.inserted,
+        skipped: result.skipped,
+        errors: result.errors,
+        finishedAt: new Date().toISOString(),
+        message: `Done — ${result.inserted} jets tracked live out of ${result.liveAircraft.toLocaleString()} airborne globally in ${(result.durationMs / 1000).toFixed(1)}s`,
+      });
+    } catch (err: any) {
+      logger.error({ err: err.message }, "OpenSky enrichment failed");
+      await updateJob(jobId, { status: "failed", message: err.message ?? "OpenSky enrichment failed" });
+    }
+  })();
+
+  res.status(202).json({
+    jobId,
+    message: "OpenSky live flight enrichment started.",
+    pollUrl: `/api/ingest/job/${jobId}`,
+    note: "Fetches ~9000 live aircraft state vectors from opensky-network.org and matches against your aviation assets.",
   });
 });
 

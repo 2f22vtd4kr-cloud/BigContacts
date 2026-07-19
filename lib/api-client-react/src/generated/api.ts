@@ -39,6 +39,7 @@ import type {
   ImprovementJobState,
   ImprovementLog,
   ImprovementStats,
+  IngestJobStarted,
   ListAssetsParams,
   ListEntitiesParams,
   ListImprovementLogs200,
@@ -51,6 +52,8 @@ import type {
   ResearchRunInput,
   ResearchSession,
   RunImprovementLoopBody,
+  RunLandRegistryIngestionBody,
+  RunOccrpEnrichmentBody,
   SessionStatusUpdate,
   UpdateImprovementLogBody
 } from './api.schemas';
@@ -2383,4 +2386,217 @@ export function useGetImprovementStats<TData = Awaited<ReturnType<typeof getImpr
 
 
 
+
+export const getRunOccrpEnrichmentUrl = () => {
+
+
+
+
+  return `/api/ingest/occrp`
+}
+
+/**
+ * @summary Enrich existing entities via OCCRP Aleph investigative database
+ */
+export const runOccrpEnrichment = async (runOccrpEnrichmentBody?: RunOccrpEnrichmentBody, options?: RequestInit): Promise<IngestJobStarted> => {
+
+  return customFetch<IngestJobStarted>(getRunOccrpEnrichmentUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(runOccrpEnrichmentBody)
+  }
+);}
+
+
+
+
+
+export const getRunOccrpEnrichmentMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runOccrpEnrichment>>, TError,{data?: BodyType<RunOccrpEnrichmentBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof runOccrpEnrichment>>, TError,{data?: BodyType<RunOccrpEnrichmentBody>}, TContext> => {
+
+const mutationKey = ['runOccrpEnrichment'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof runOccrpEnrichment>>, {data?: BodyType<RunOccrpEnrichmentBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  runOccrpEnrichment(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RunOccrpEnrichmentMutationResult = NonNullable<Awaited<ReturnType<typeof runOccrpEnrichment>>>
+    export type RunOccrpEnrichmentMutationBody = BodyType<RunOccrpEnrichmentBody> | undefined
+    export type RunOccrpEnrichmentMutationError = ErrorType<void>
+
+    /**
+ * @summary Enrich existing entities via OCCRP Aleph investigative database
+ */
+export const useRunOccrpEnrichment = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runOccrpEnrichment>>, TError,{data?: BodyType<RunOccrpEnrichmentBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof runOccrpEnrichment>>,
+        TError,
+        {data?: BodyType<RunOccrpEnrichmentBody>},
+        TContext
+      > => {
+      return useMutation(getRunOccrpEnrichmentMutationOptions(options));
+    }
+
+export const getRunLandRegistryIngestionUrl = () => {
+
+
+
+
+  return `/api/ingest/land-registry`
+}
+
+/**
+ * @summary Ingest UK HM Land Registry OCOD (overseas companies owning UK property)
+ */
+export const runLandRegistryIngestion = async (runLandRegistryIngestionBody?: RunLandRegistryIngestionBody, options?: RequestInit): Promise<IngestJobStarted> => {
+
+  return customFetch<IngestJobStarted>(getRunLandRegistryIngestionUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(runLandRegistryIngestionBody)
+  }
+);}
+
+
+
+
+
+export const getRunLandRegistryIngestionMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runLandRegistryIngestion>>, TError,{data?: BodyType<RunLandRegistryIngestionBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof runLandRegistryIngestion>>, TError,{data?: BodyType<RunLandRegistryIngestionBody>}, TContext> => {
+
+const mutationKey = ['runLandRegistryIngestion'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof runLandRegistryIngestion>>, {data?: BodyType<RunLandRegistryIngestionBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  runLandRegistryIngestion(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RunLandRegistryIngestionMutationResult = NonNullable<Awaited<ReturnType<typeof runLandRegistryIngestion>>>
+    export type RunLandRegistryIngestionMutationBody = BodyType<RunLandRegistryIngestionBody> | undefined
+    export type RunLandRegistryIngestionMutationError = ErrorType<void>
+
+    /**
+ * @summary Ingest UK HM Land Registry OCOD (overseas companies owning UK property)
+ */
+export const useRunLandRegistryIngestion = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runLandRegistryIngestion>>, TError,{data?: BodyType<RunLandRegistryIngestionBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof runLandRegistryIngestion>>,
+        TError,
+        {data?: BodyType<RunLandRegistryIngestionBody>},
+        TContext
+      > => {
+      return useMutation(getRunLandRegistryIngestionMutationOptions(options));
+    }
+
+export const getRunOpenSkyEnrichmentUrl = () => {
+
+
+
+
+  return `/api/ingest/opensky`
+}
+
+/**
+ * @summary Enrich aviation assets with live flight positions from OpenSky Network
+ */
+export const runOpenSkyEnrichment = async ( options?: RequestInit): Promise<IngestJobStarted> => {
+
+  return customFetch<IngestJobStarted>(getRunOpenSkyEnrichmentUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRunOpenSkyEnrichmentMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runOpenSkyEnrichment>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof runOpenSkyEnrichment>>, TError,void, TContext> => {
+
+const mutationKey = ['runOpenSkyEnrichment'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof runOpenSkyEnrichment>>, void> = () => {
+
+
+          return  runOpenSkyEnrichment(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RunOpenSkyEnrichmentMutationResult = NonNullable<Awaited<ReturnType<typeof runOpenSkyEnrichment>>>
+
+    export type RunOpenSkyEnrichmentMutationError = ErrorType<void>
+
+    /**
+ * @summary Enrich aviation assets with live flight positions from OpenSky Network
+ */
+export const useRunOpenSkyEnrichment = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runOpenSkyEnrichment>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof runOpenSkyEnrichment>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getRunOpenSkyEnrichmentMutationOptions(options));
+    }
 

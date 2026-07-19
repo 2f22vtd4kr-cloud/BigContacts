@@ -783,3 +783,51 @@ export const GetImprovementStatsResponse = zod.object({
 })
 
 
+/**
+ * @summary Enrich existing entities via OCCRP Aleph investigative database
+ */
+export const runOccrpEnrichmentBodyLimitDefault = 500;
+
+export const RunOccrpEnrichmentBody = zod.object({
+  "limit": zod.number().default(runOccrpEnrichmentBodyLimitDefault).describe('Max entities to enrich')
+})
+
+export const RunOccrpEnrichmentResponse = zod.object({
+  "jobId": zod.string(),
+  "message": zod.string(),
+  "pollUrl": zod.string(),
+  "note": zod.string().optional()
+})
+
+
+/**
+ * @summary Ingest UK HM Land Registry OCOD (overseas companies owning UK property)
+ */
+export const runLandRegistryIngestionBodyMaxRecordsDefault = 50000;
+export const runLandRegistryIngestionBodyForceRefreshDefault = false;
+
+export const RunLandRegistryIngestionBody = zod.object({
+  "maxRecords": zod.number().default(runLandRegistryIngestionBodyMaxRecordsDefault),
+  "forceRefresh": zod.boolean().default(runLandRegistryIngestionBodyForceRefreshDefault),
+  "downloadUrl": zod.string().optional().describe('Override HMLR CSV download URL')
+})
+
+export const RunLandRegistryIngestionResponse = zod.object({
+  "jobId": zod.string(),
+  "message": zod.string(),
+  "pollUrl": zod.string(),
+  "note": zod.string().optional()
+})
+
+
+/**
+ * @summary Enrich aviation assets with live flight positions from OpenSky Network
+ */
+export const RunOpenSkyEnrichmentResponse = zod.object({
+  "jobId": zod.string(),
+  "message": zod.string(),
+  "pollUrl": zod.string(),
+  "note": zod.string().optional()
+})
+
+

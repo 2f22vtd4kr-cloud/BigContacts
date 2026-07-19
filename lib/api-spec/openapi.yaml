@@ -652,6 +652,68 @@ paths:
               schema:
                 $ref: "#/components/schemas/ImprovementStats"
 
+  # ── EXTENDED SOURCES (Phase 8) ─────────────────────────────────────────────
+  /ingest/occrp:
+    post:
+      operationId: runOccrpEnrichment
+      tags: [ingest]
+      summary: Enrich existing entities via OCCRP Aleph investigative database
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                limit: { type: integer, default: 500, description: "Max entities to enrich" }
+      responses:
+        "202":
+          description: Job started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IngestJobStarted"
+        "409":
+          description: Job already running
+
+  /ingest/land-registry:
+    post:
+      operationId: runLandRegistryIngestion
+      tags: [ingest]
+      summary: Ingest UK HM Land Registry OCOD (overseas companies owning UK property)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                maxRecords: { type: integer, default: 50000 }
+                forceRefresh: { type: boolean, default: false }
+                downloadUrl: { type: string, description: "Override HMLR CSV download URL" }
+      responses:
+        "202":
+          description: Job started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IngestJobStarted"
+        "409":
+          description: Job already running
+
+  /ingest/opensky:
+    post:
+      operationId: runOpenSkyEnrichment
+      tags: [ingest]
+      summary: Enrich aviation assets with live flight positions from OpenSky Network
+      responses:
+        "202":
+          description: Job started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IngestJobStarted"
+        "409":
+          description: Job already running
+
 components:
   schemas:
     HealthStatus:
@@ -660,6 +722,15 @@ components:
         status:
           type: string
       required: [status]
+
+    IngestJobStarted:
+      type: object
+      required: [jobId, message, pollUrl]
+      properties:
+        jobId: { type: string }
+        message: { type: string }
+        pollUrl: { type: string }
+        note: { type: string }
 
     # ── ENTITY ───────────────────────────────────────────────────────────────
     Entity:
