@@ -37,13 +37,14 @@ interface SearchResult {
 
 interface PipelineStep {
   planner:   { reasoning: string; intent: string; assetFocus?: string; locations: string[]; strategy: string; durationMs: number };
-  retriever: { bm25Hits: number; semanticHits: number; graphHits: number; totalCandidates: number; sqlPrefilter: number; durationMs: number };
+  retriever: { bm25Hits: number; semanticHits: number; graphHits: number; totalCandidates: number; sqlPrefilter: number; expandedQuery: string; durationMs: number };
   analyst:   { candidateCount: number; durationMs: number };
   critic:    { finalCount: number; removed: number; durationMs: number };
 }
 
 interface SearchResponse {
   query: string;
+  expandedQuery: string;
   pipeline: PipelineStep;
   results: SearchResult[];
   isEmpty: boolean;
@@ -402,11 +403,17 @@ export default function DeepSearch() {
               <StepCard
                 icon={Search}
                 name="Retriever"
-                description="Runs BM25 + TF-IDF cosine + SQL pre-filter in parallel, merges candidates."
+                description="Expands query terms, runs BM25 + TF-IDF cosine + SQL pre-filter, merges candidates."
                 status={steps.retriever as StepStatus}
                 durationMs={p?.retriever.durationMs}
                 metric={p ? `BM25: ${p.retriever.bm25Hits} · Semantic: ${p.retriever.semanticHits} · ${p.retriever.totalCandidates} candidates` : undefined}
-                detail={p ? `BM25: ${p.retriever.bm25Hits} hits · TF-IDF: ${p.retriever.semanticHits} hits · Graph: ${p.retriever.graphHits} hits · SQL pre-filter: ${p.retriever.sqlPrefilter < 0 ? "none" : p.retriever.sqlPrefilter + " entities"}` : undefined}
+                detail={p ? [
+                  p.retriever.expandedQuery && p.retriever.expandedQuery !== result?.query
+                    ? `Expanded: "${p.retriever.expandedQuery}"`
+                    : "No expansion (query already specific)",
+                  `BM25: ${p.retriever.bm25Hits} hits · TF-IDF: ${p.retriever.semanticHits} hits · Graph: ${p.retriever.graphHits} hits`,
+                  `SQL pre-filter: ${p.retriever.sqlPrefilter < 0 ? "none" : p.retriever.sqlPrefilter + " entities"}`,
+                ].join(" · ") : undefined}
               />
 
               <StepCard

@@ -55,6 +55,68 @@ const ASSET_MAP: Record<string, string> = {
   mansion: "RealEstate", house: "RealEstate",
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// QUERY EXPANSION
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Canonical synonyms appended when the planner detects a specific asset category. */
+const ASSET_EXPANSION: Record<string, string[]> = {
+  Aviation:   ["aircraft", "airplane", "jet", "turbofan", "turboprop", "helicopter", "rotorcraft", "tail"],
+  Marine:     ["yacht", "vessel", "boat", "ship", "marina"],
+  RealEstate: ["property", "estate", "villa", "mansion", "residence", "freehold"],
+};
+
+/** Intent background terms that improve recall for person/company queries. */
+const INTENT_EXPANSION: Record<string, string[]> = {
+  person:  ["owner", "individual", "HNWI", "director", "beneficial", "officer"],
+  company: ["corporation", "trust", "fund", "LLC", "Ltd", "Inc", "group"],
+  asset:   [],
+  mixed:   [],
+};
+
+/**
+ * Single-pass query expansion.
+ *
+ * Takes the raw query string and the Planner's extracted plan, then returns an
+ * enriched query by appending (without duplicating):
+ *   1. Asset-category synonyms (e.g. "jet" → also "aircraft turbofan helicopter …")
+ *   2. Canonical location forms extracted by the planner (e.g. "TX", "British")
+ *   3. Name hints not already present in the raw query
+ *   4. Intent-level background terms (e.g. "owner HNWI director" for person intent)
+ *
+ * The result is passed to hybridSearch (BM25 + TF-IDF) in a single pass.
+ * No iterative feedback — one deterministic transformation per query.
+ */
+export function expandQuery(query: string, plan: PlannerOutput): string {
+  const ql = query.toLowerCase();
+  const extra: string[] = [];
+
+  // 1. Asset synonyms
+  if (plan.assetFocus) {
+    for (const s of (ASSET_EXPANSION[plan.assetFocus] ?? [])) {
+      if (!ql.includes(s.toLowerCase())) extra.push(s);
+    }
+  }
+
+  // 2. Canonical location forms (planner maps e.g. "texas" → "TX";
+  //    appending "TX" ensures the abbreviated form also hits BM25)
+  for (const loc of plan.locations) {
+    if (!ql.includes(loc.toLowerCase())) extra.push(loc);
+  }
+
+  // 3. Name hints not already present verbatim
+  for (const hint of plan.nameHints) {
+    if (!ql.includes(hint.toLowerCase())) extra.push(hint);
+  }
+
+  // 4. Intent background terms
+  for (const t of (INTENT_EXPANSION[plan.intent] ?? [])) {
+    if (!ql.includes(t.toLowerCase())) extra.push(t);
+  }
+
+  return extra.length > 0 ? `${query} ${extra.join(" ")}` : query;
+}
+
 export function planQuery(query: string): PlannerOutput {
   const t0 = Date.now();
   const ql = query.toLowerCase();
@@ -129,6 +191,7 @@ export interface RetrieverMeta {
   graphHits: number;
   totalCandidates: number;
   sqlPrefilter: number;
+  expandedQuery: string;
   durationMs: number;
 }
 
@@ -195,13 +258,15 @@ export async function retrieve(
     }
   }
 
-  const { results, meta } = await hybridSearch(query, filterIds, 50);
+  const expandedQuery = expandQuery(query, plan);
+  const { results, meta } = await hybridSearch(expandedQuery, filterIds, 50);
 
   return {
     candidates: results,
     meta: {
       ...meta,
       sqlPrefilter: filterIds?.length ?? -1,
+      expandedQuery,
       durationMs: Date.now() - t0,
     },
   };
@@ -332,6 +397,7 @@ export function critique(
 
 export interface OrchestrationResult {
   query: string;
+  expandedQuery: string;
   pipeline: {
     planner: PlannerOutput;
     retriever: RetrieverMeta;
@@ -356,6 +422,7 @@ export async function orchestrate(
 
   return {
     query,
+    expandedQuery: retrieverMeta.expandedQuery,
     pipeline: {
       planner: plan,
       retriever: retrieverMeta,
