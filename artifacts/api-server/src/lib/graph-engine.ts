@@ -12,6 +12,9 @@ export interface GraphVertex {
   estimatedValue?: number | null;
   nationality?: string | null;
   metadata?: string | null;
+  contactConfidence?: number | null;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
 }
 
 export interface GraphArc {
@@ -35,6 +38,9 @@ export interface EntityRow {
   nationality?: string | null;
   estimatedNetWorth?: number | null;
   metadata?: string | null;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
+  contactConfidence?: number | null;
 }
 
 export interface AssetRow {
@@ -88,6 +94,9 @@ export function buildGraph(
       nationality: e.nationality,
       estimatedValue: e.estimatedNetWorth,
       metadata: e.metadata,
+      contactConfidence: e.contactConfidence,
+      contactEmail: e.contactEmail,
+      contactPhone: e.contactPhone,
     });
   }
 

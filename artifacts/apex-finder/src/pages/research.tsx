@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useListEntities, useRunResearch } from "@workspace/api-client-react";
-import { Terminal, Play, Cpu, ChevronRight, Hash, CheckCircle2, GitBranch, Target, Shield, ChevronDown, Search, X } from "lucide-react";
+import { Terminal, Play, Cpu, ChevronRight, Hash, CheckCircle2, GitBranch, Target, Shield, ChevronDown, Search, X, Mail, Phone, Copy, CheckCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScoreBadge } from "@/lib/utils";
 
@@ -25,6 +25,9 @@ type PathStep = {
   contactMethod?: string;
   registry?: string;
   actionRequired?: string;
+  contactConfidence?: number | null;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
 };
 
 const UCT_FORMULA = "UCT(v) = Q(v)/N(v) + √2 · √(ln N(parent) / N(v))";
@@ -53,6 +56,93 @@ function getActionColor(action: string) {
   if (action === "GATEKEEPER LOCKED") return "text-primary font-bold";
   if (action === "TARGET IDENTIFIED") return "text-amber-500";
   return "text-secondary";
+}
+
+// ── Path node contact bar ──────────────────────────────────────────────────────
+function PathNodeContact({ node }: { node: PathStep }) {
+  if (!node.contactConfidence && !node.contactEmail && !node.contactPhone) return null;
+  return (
+    <div className="mt-2 pt-2 border-t border-current/20 flex flex-col gap-1">
+      {node.contactConfidence != null && node.contactConfidence > 0 && (
+        <div className="flex items-center gap-2">
+          <div className="h-1 flex-1 rounded-full bg-current/10 overflow-hidden">
+            <div
+              className="h-full rounded-full bg-current/60"
+              style={{ width: `${node.contactConfidence}%` }}
+            />
+          </div>
+          <span className="text-[9px] font-mono opacity-70">{node.contactConfidence}%</span>
+        </div>
+      )}
+      <div className="flex gap-2 flex-wrap">
+        {node.contactEmail && (
+          <a
+            href={`mailto:${node.contactEmail}`}
+            className="flex items-center gap-1 text-[10px] font-mono opacity-80 hover:opacity-100 transition-opacity"
+            title={node.contactEmail}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Mail className="w-2.5 h-2.5 flex-shrink-0" />
+            <span className="truncate max-w-[140px]">{node.contactEmail}</span>
+          </a>
+        )}
+        {node.contactPhone && (
+          <a
+            href={`tel:${node.contactPhone}`}
+            className="flex items-center gap-1 text-[10px] font-mono opacity-80 hover:opacity-100 transition-opacity"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Phone className="w-2.5 h-2.5 flex-shrink-0" />
+            <span>{node.contactPhone}</span>
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Copy path as outreach brief button ────────────────────────────────────────
+function CopyBriefButton({ winningPath, pathScore }: { winningPath: PathStep[]; pathScore: number }) {
+  const [copied, setCopied] = useState(false);
+
+  const buildBrief = () => {
+    const lines: string[] = [
+      `APEX OUTREACH BRIEF`,
+      `Generated: ${new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" })}`,
+      `Path Score: ${(pathScore * 100).toFixed(0)}/100`,
+      ``,
+      `APPROACH PATH`,
+      `${"─".repeat(40)}`,
+    ];
+    winningPath.forEach((node, i) => {
+      lines.push(`${i + 1}. [${node.role}] ${node.label} (${node.nodeType})`);
+      if (node.registry) lines.push(`   Registry:  ${node.registry}`);
+      if (node.contactEmail) lines.push(`   Email:     ${node.contactEmail}`);
+      if (node.contactPhone) lines.push(`   Phone:     ${node.contactPhone}`);
+      if (node.contactConfidence) lines.push(`   Confidence: ${node.contactConfidence}%`);
+      if (node.actionRequired) lines.push(`   Action:    ${node.actionRequired}`);
+      if (i < winningPath.length - 1) lines.push(`   ↓`);
+    });
+    lines.push(``, `${"─".repeat(40)}`);
+    lines.push(`[All data sourced from public registries and OSINT only.]`);
+    return lines.join("\n");
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(buildBrief());
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 font-mono text-[10px] uppercase tracking-wider transition-colors"
+    >
+      {copied ? <CheckCheck className="w-3 h-3 text-primary" /> : <Copy className="w-3 h-3" />}
+      {copied ? "Copied!" : "Copy Brief"}
+    </button>
+  );
 }
 
 export default function MCTSTerminal() {
@@ -366,10 +456,13 @@ export default function MCTSTerminal() {
         {/* ── Winning Path Visualization ── */}
         {winningPath.length > 0 && !isComputing && (
           <div className="border-t border-border/50 bg-[#0B0F19] p-4 md:p-5 animate-in slide-in-from-bottom-10 flex-shrink-0">
-            <h3 className="text-xs font-mono text-primary uppercase tracking-widest mb-4 flex items-center">
-              <CheckCircle2 className="w-4 h-4 mr-2" />
-              Optimal Approach Vector — {winningPath.length} nodes
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xs font-mono text-primary uppercase tracking-widest flex items-center">
+                <CheckCircle2 className="w-4 h-4 mr-2" />
+                Optimal Approach Vector — {winningPath.length} nodes
+              </h3>
+              <CopyBriefButton winningPath={winningPath} pathScore={pathScore} />
+            </div>
 
             {/* Mobile: vertical stack */}
             <div className="flex md:hidden flex-col space-y-2">
@@ -382,6 +475,7 @@ export default function MCTSTerminal() {
                     </div>
                     <div className="font-bold text-foreground text-sm leading-tight mb-1">{node.label}</div>
                     <div className="text-[10px] opacity-50">{node.nodeType}</div>
+                    <PathNodeContact node={node} />
                     {node.actionRequired && (
                       <div className="mt-2 text-[10px] leading-snug opacity-75 border-t border-current/20 pt-1.5">{node.actionRequired}</div>
                     )}
@@ -399,13 +493,14 @@ export default function MCTSTerminal() {
             <div className="hidden md:flex items-start overflow-x-auto pb-3 space-x-3">
               {winningPath.map((node, i) => (
                 <div key={i} className="flex items-center flex-shrink-0">
-                  <div className={cn("flex flex-col border p-3 rounded min-w-[160px] max-w-[220px]", roleColor(node.role))}>
+                  <div className={cn("flex flex-col border p-3 rounded min-w-[180px] max-w-[240px]", roleColor(node.role))}>
                     <div className="flex items-center mb-1.5 space-x-1">
                       {roleIcon(node.role)}
                       <span className="text-[9px] font-mono uppercase tracking-widest opacity-60">{node.role}</span>
                     </div>
                     <div className="font-bold text-foreground text-sm leading-tight mb-1">{node.label}</div>
                     <div className="text-[10px] opacity-50">{node.nodeType}</div>
+                    <PathNodeContact node={node} />
                     {node.actionRequired && (
                       <div className="mt-2 text-[10px] leading-snug opacity-75 border-t border-current/20 pt-1.5">{node.actionRequired}</div>
                     )}

@@ -207,6 +207,10 @@ router.patch("/research/sessions/:id/status", async (req, res): Promise<void> =>
     updatedAt: new Date(),
   };
   if (body.data.lastContactDate) updateData.lastContactDate = body.data.lastContactDate;
+  // Accept notes and followUpDate from request body even if not in Zod schema
+  const extra = req.body as Record<string, unknown>;
+  if (typeof extra.notes === "string" || extra.notes === null) updateData.notes = extra.notes;
+  if (typeof extra.followUpDate === "string" || extra.followUpDate === null) updateData.followUpDate = extra.followUpDate;
 
   const [session] = await db
     .update(researchSessionsTable)
@@ -290,6 +294,8 @@ router.post("/research/sessions/:id/pitch", async (req, res): Promise<void> => {
         estimatedNetWorth: entity.estimatedNetWorth,
         knownResidences: entity.knownResidences,
         notes: entity.notes,
+        contactEmail: entity.contactEmail ?? null,
+        contactPhone: entity.contactPhone ?? null,
       },
       gatekeeper: safeGatekeeper,
       assets: targetAssets.map((a) => ({

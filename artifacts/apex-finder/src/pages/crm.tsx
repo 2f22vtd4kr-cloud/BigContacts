@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
   useListResearchSessions,
   useUpdateResearchStatus,
@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import {
   FileText, UserCircle, ChevronRight, Copy,
   MessageSquare, Clock, Users, Shield, Target,
-  ChevronDown, Zap,
+  ChevronDown, Zap, Printer, CalendarDays, StickyNote, Check,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -316,6 +316,39 @@ export default function PipelineCRM() {
   const [mobileStageFilter, setMobileStageFilter] = useState<string | null>(null);
   const [generatingId, setGeneratingId] = useState<number | null>(null);
 
+  // Notes + follow-up date state
+  const [notesValue, setNotesValue] = useState("");
+  const [followUpDate, setFollowUpDate] = useState("");
+  const [notesSaving, setNotesSaving] = useState(false);
+  const [notesSaved, setNotesSaved] = useState(false);
+  const notesTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // When selected session changes, pre-fill notes + followUpDate
+  const selectSession = (s: any) => {
+    setSelectedSession(s);
+    setNotesValue(s?.notes ?? "");
+    setFollowUpDate(s?.followUpDate ?? "");
+    setNotesSaved(false);
+  };
+
+  const saveNotesAndDate = async (sessionId: number, notes: string, date: string) => {
+    setNotesSaving(true);
+    try {
+      const base = (import.meta as any).env.BASE_URL.replace(/\/$/, "");
+      await fetch(`${base}/api/research/sessions/${sessionId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ crmStatus: selectedSession?.crmStatus ?? "Lead Gen", notes, followUpDate: date || null }),
+      });
+      setNotesSaved(true);
+      if (notesTimer.current) clearTimeout(notesTimer.current);
+      notesTimer.current = setTimeout(() => setNotesSaved(false), 2500);
+      refetch();
+    } finally {
+      setNotesSaving(false);
+    }
+  };
+
   const moveCard = (sessionId: number, currentStatus: string, direction: 1 | -1) => {
     const currentIndex = CRM_COLUMNS.indexOf(currentStatus);
     const newIndex = currentIndex + direction;
@@ -448,7 +481,7 @@ export default function PipelineCRM() {
                     <div
                       key={session.id}
                       className="bg-card border border-border p-3 rounded shadow-sm hover:border-primary/50 transition-colors cursor-pointer group"
-                      onClick={() => setSelectedSession(session)}
+                      onClick={() => selectSession(session)}
                     >
                       <div className="flex justify-between items-start mb-2">
                         <div className="font-bold text-sm text-foreground truncate mr-2">
@@ -560,6 +593,68 @@ export default function PipelineCRM() {
                 </div>
               )}
             </div>
+
+            {/* Notes */}
+            <div>
+              <h4 className="text-xs font-mono text-muted-foreground uppercase tracking-wider mb-2 border-b border-border pb-1 flex items-center gap-1.5">
+                <StickyNote className="w-3 h-3" /> Notes
+              </h4>
+              <textarea
+                value={notesValue}
+                onChange={(e) => setNotesValue(e.target.value)}
+                rows={3}
+                placeholder="Add context, intelligence notes, last conversation summary…"
+                className="w-full px-3 py-2 bg-background border border-border rounded text-xs font-mono text-foreground placeholder:text-muted-foreground/40 focus:border-primary/50 focus:outline-none resize-none"
+              />
+            </div>
+
+            {/* Follow-up date */}
+            <div className="flex items-end gap-3">
+              <div className="flex-1">
+                <h4 className="text-xs font-mono text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <CalendarDays className="w-3 h-3" /> Follow-up Date
+                </h4>
+                <input
+                  type="date"
+                  value={followUpDate}
+                  onChange={(e) => setFollowUpDate(e.target.value)}
+                  className="w-full px-3 py-2 bg-background border border-border rounded text-xs font-mono text-foreground focus:border-primary/50 focus:outline-none"
+                />
+              </div>
+              <button
+                onClick={() => saveNotesAndDate(selectedSession.id, notesValue, followUpDate)}
+                disabled={notesSaving}
+                className="flex items-center gap-1.5 px-3 py-2 rounded border border-primary/40 bg-primary/10 text-primary font-mono text-[10px] uppercase tracking-wider hover:bg-primary/20 transition-colors disabled:opacity-40 whitespace-nowrap"
+              >
+                {notesSaved ? <Check className="w-3 h-3" /> : null}
+                {notesSaving ? "Saving…" : notesSaved ? "Saved" : "Save"}
+              </button>
+            </div>
+
+            {/* Export PDF */}
+            {selectedSession.generatedPitch && (
+              <div className="flex justify-end">
+                <button
+                  onClick={() => {
+                    const seq = (() => { try { return JSON.parse(selectedSession.generatedPitch); } catch { return null; } })();
+                    if (!seq) return;
+                    const w = window.open("", "_blank")!;
+                    w.document.write(`<!DOCTYPE html><html><head><title>Outreach — ${selectedSession.targetEntityName}</title><style>body{font-family:monospace;padding:40px;max-width:800px;margin:0 auto;color:#000;background:#fff}h1{font-size:18px;border-bottom:2px solid #000;padding-bottom:8px;margin-bottom:24px}h2{font-size:13px;text-transform:uppercase;letter-spacing:2px;margin-top:32px;margin-bottom:12px;color:#333}pre{white-space:pre-wrap;font-size:12px;line-height:1.7;border:1px solid #ddd;padding:16px;border-radius:4px;background:#f9f9f9}footer{margin-top:40px;font-size:10px;color:#999;border-top:1px solid #ddd;padding-top:12px}@media print{button{display:none}}</style></head><body>`);
+                    w.document.write(`<h1>Outreach Sequence — ${selectedSession.targetEntityName ?? "Target"}</h1>`);
+                    w.document.write(`<p style="font-size:11px;color:#666">Generated ${new Date().toLocaleDateString("en-GB", { day:"2-digit", month:"long", year:"numeric" })} · Path score: ${selectedSession.pathScore ? (selectedSession.pathScore * 100).toFixed(0) + "/100" : "—"}</p>`);
+                    if (seq.initial) { w.document.write(`<h2>Initial Contact</h2><pre>${seq.initial}</pre>`); }
+                    if (seq.followUp) { w.document.write(`<h2>Follow-Up</h2><pre>${seq.followUp}</pre>`); }
+                    if (seq.introScript) { w.document.write(`<h2>Introduction Script</h2><pre>${seq.introScript}</pre>`); }
+                    w.document.write(`<footer>[All intelligence sourced exclusively from public registries and OSINT. Confidential — for authorised use only.]</footer></body></html>`);
+                    w.document.close();
+                    w.print();
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 font-mono text-[10px] uppercase tracking-wider transition-colors"
+                >
+                  <Printer className="w-3 h-3" /> Export PDF
+                </button>
+              </div>
+            )}
 
             <div className="pt-2 border-t border-border flex justify-between items-center text-xs font-mono text-muted-foreground">
               <span>Created: {format(new Date(selectedSession.createdAt), "yyyy-MM-dd HH:mm")}</span>

@@ -6,6 +6,7 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -122,6 +123,13 @@ function PathStepCard({ step, index, total, colors }: {
 
 // ─── Pitch modal ──────────────────────────────────────────────────────────────
 
+type PitchSequence = { initial: string; followUp: string; introScript: string };
+const PITCH_TABS: { key: keyof PitchSequence; label: string; icon: string }[] = [
+  { key: 'initial',     label: 'Initial',      icon: 'message-square' },
+  { key: 'followUp',   label: 'Follow-Up',    icon: 'clock' },
+  { key: 'introScript',label: 'Intro Script', icon: 'users' },
+];
+
 function PitchModal({
   visible,
   pitch,
@@ -134,6 +142,23 @@ function PitchModal({
   colors: ReturnType<typeof useColors>;
 }) {
   const insets = useSafeAreaInsets();
+  const [activeTab, setActiveTab] = useState<keyof PitchSequence>('initial');
+
+  const sequence: PitchSequence | null = (() => {
+    try {
+      const p = JSON.parse(pitch) as PitchSequence;
+      return p.initial ? p : null;
+    } catch { return null; }
+  })();
+
+  const activeContent = sequence ? sequence[activeTab] : pitch;
+
+  const handleShare = async () => {
+    try {
+      await Share.share({ message: activeContent ?? pitch });
+    } catch { /* ignore */ }
+  };
+
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <View style={[pitchStyles.modal, { backgroundColor: colors.card, paddingBottom: insets.bottom + 16 }]}>
@@ -142,30 +167,77 @@ function PitchModal({
           <Text style={[pitchStyles.modalTitle, { color: colors.foreground, fontFamily: 'Inter_700Bold' }]}>
             OUTREACH SEQUENCE
           </Text>
-          <Pressable onPress={onClose} style={[pitchStyles.closeBtn, { backgroundColor: colors.muted, borderColor: colors.border }]}>
-            <Feather name="x" size={16} color={colors.mutedForeground} />
-          </Pressable>
+          <View style={pitchStyles.headerActions}>
+            <Pressable onPress={handleShare} style={[pitchStyles.iconBtn, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+              <Feather name="share" size={15} color={colors.primary} />
+            </Pressable>
+            <Pressable onPress={onClose} style={[pitchStyles.iconBtn, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+              <Feather name="x" size={15} color={colors.mutedForeground} />
+            </Pressable>
+          </View>
         </View>
+
+        {/* Tab bar (only when sequence parsed) */}
+        {sequence && (
+          <View style={[pitchStyles.tabBar, { borderBottomColor: colors.border, backgroundColor: colors.background }]}>
+            {PITCH_TABS.map((tab) => {
+              const active = activeTab === tab.key;
+              return (
+                <TouchableOpacity
+                  key={tab.key}
+                  onPress={() => setActiveTab(tab.key)}
+                  style={[
+                    pitchStyles.tab,
+                    active && { borderBottomColor: colors.primary, borderBottomWidth: 2 },
+                  ]}
+                >
+                  <Feather name={tab.icon as any} size={12} color={active ? colors.primary : colors.mutedForeground} />
+                  <Text style={[
+                    pitchStyles.tabText,
+                    { color: active ? colors.primary : colors.mutedForeground,
+                      fontFamily: active ? 'Inter_600SemiBold' : 'Inter_400Regular' }
+                  ]}>
+                    {tab.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
 
         {/* Pitch content */}
         <ScrollView style={{ flex: 1 }} contentContainerStyle={pitchStyles.pitchContent}>
           <Text style={[pitchStyles.pitchText, { color: colors.foreground, fontFamily: 'Inter_400Regular' }]}>
-            {pitch}
+            {activeContent}
           </Text>
         </ScrollView>
 
-        {/* Close */}
-        <Pressable
-          onPress={onClose}
-          style={({ pressed }) => [
-            pitchStyles.closeButton,
-            { backgroundColor: pressed ? colors.muted : colors.border, marginHorizontal: 20 },
-          ]}
-        >
-          <Text style={[pitchStyles.closeButtonText, { color: colors.foreground, fontFamily: 'Inter_600SemiBold' }]}>
-            CLOSE
-          </Text>
-        </Pressable>
+        {/* Footer: share + close */}
+        <View style={pitchStyles.footer}>
+          <Pressable
+            onPress={handleShare}
+            style={({ pressed }) => [
+              pitchStyles.shareButton,
+              { backgroundColor: pressed ? colors.primary + 'CC' : colors.primary + 'DD', borderColor: colors.primary },
+            ]}
+          >
+            <Feather name="share-2" size={14} color="#fff" />
+            <Text style={[pitchStyles.shareButtonText, { fontFamily: 'Inter_600SemiBold' }]}>
+              SHARE THIS PITCH
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={onClose}
+            style={({ pressed }) => [
+              pitchStyles.closeButton,
+              { backgroundColor: pressed ? colors.muted : colors.border },
+            ]}
+          >
+            <Text style={[pitchStyles.closeButtonText, { color: colors.foreground, fontFamily: 'Inter_600SemiBold' }]}>
+              CLOSE
+            </Text>
+          </Pressable>
+        </View>
       </View>
     </Modal>
   );
@@ -571,9 +643,35 @@ const pitchStyles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   modalTitle: { fontSize: 14, letterSpacing: 3 },
-  closeBtn: { padding: 8, borderRadius: 6, borderWidth: 1 },
+  headerActions: { flexDirection: 'row', gap: 8 },
+  iconBtn: { padding: 8, borderRadius: 6, borderWidth: 1 },
+  tabBar: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    paddingHorizontal: 16,
+  },
+  tab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: -1,
+  },
+  tabText: { fontSize: 11, letterSpacing: 0.5 },
   pitchContent: { padding: 20 },
   pitchText: { fontSize: 14, lineHeight: 24 },
-  closeButton: { paddingVertical: 14, borderRadius: 6, alignItems: 'center', marginTop: 8 },
+  footer: { paddingHorizontal: 16, paddingTop: 8, gap: 8 },
+  shareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 13,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  shareButtonText: { fontSize: 13, color: '#fff', letterSpacing: 1.5 },
+  closeButton: { paddingVertical: 12, borderRadius: 6, alignItems: 'center' },
   closeButtonText: { fontSize: 14, letterSpacing: 1 },
 });

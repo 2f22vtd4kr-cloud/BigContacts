@@ -25,6 +25,8 @@ export interface PitchContext {
     estimatedNetWorth?: number | null;
     knownResidences?: string | null;
     notes?: string | null;
+    contactEmail?: string | null;
+    contactPhone?: string | null;
   };
   gatekeeper: PathStep | null;
   assets: Array<{
@@ -182,6 +184,8 @@ function intelBlock(
     `TARGET:       ${ctx.targetEntity.name} (${ctx.targetEntity.type})`,
     `CONFIDENCE:   ${confidence} — ${score}/100`,
     `CHANNEL:      ${channel}`,
+    ctx.targetEntity.contactEmail ? `CONTACT:      ${ctx.targetEntity.contactEmail}` : null,
+    ctx.targetEntity.contactPhone ? `PHONE:        ${ctx.targetEntity.contactPhone}` : null,
     ctx.gatekeeper ? `GATEKEEPER:   ${ctx.gatekeeper.label} via ${ctx.gatekeeper.registry ?? "Intel"}` : null,
     `PATH:         ${pathDesc}`,
     assets.detail ? `ASSETS:\n${assets.detail.split("\n").map((l) => `  ${l}`).join("\n")}` : null,

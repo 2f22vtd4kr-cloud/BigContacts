@@ -55,6 +55,9 @@ export interface PathStep {
   contactMethod?: string;
   registry?: string;
   actionRequired?: string;
+  contactConfidence?: number | null;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
 }
 
 function uctScore(node: MctsNode, parentVisits: number): number {
@@ -87,6 +90,10 @@ function evaluateWarmth(vertex: GraphVertex, depth: number): number {
 
   // Score-based: high Bayesian score means confirmed HNWI = harder direct approach
   if (vertex.bayesianScore && vertex.bayesianScore > 0.7) warmth -= 0.15;
+
+  // +0.15 UCB bonus for reachable nodes — direct contact details make the path actionable
+  if (vertex.contactConfidence != null && vertex.contactConfidence >= 50) warmth += 0.15;
+  else if (vertex.contactEmail || vertex.contactPhone) warmth += 0.1;
 
   return Math.max(0.05, Math.min(0.99, warmth + (Math.random() - 0.5) * 0.1));
 }
@@ -167,7 +174,11 @@ function getReasoning(vertex: GraphVertex, step: number, depth: number, warmth: 
     ],
     HNWI: [
       `Target confirmed: ${vertex.label}. Bayesian score ${vertex.bayesianScore ? (vertex.bayesianScore * 100).toFixed(0) + "%" : "—"}. ` +
-      `Direct approach is NOT recommended at this stage — gatekeeper contact must precede any HNWI touchpoint.`,
+      (vertex.contactEmail
+        ? `Contact VERIFIED: ${vertex.contactEmail}. Direct outreach pathway open — gatekeeper step may be skippable.`
+        : vertex.contactConfidence && vertex.contactConfidence >= 50
+          ? `Contact confidence: ${vertex.contactConfidence}% — enriched entity. Proceed via gatekeeper until direct contact confirmed.`
+          : `Direct approach is NOT recommended at this stage — gatekeeper contact must precede any HNWI touchpoint.`),
     ],
   };
 
@@ -326,6 +337,9 @@ export function runMcts(
       role,
       registry: vertex ? getRegistry(vertex) : undefined,
       actionRequired: vertex ? getActionRequired(vertex, role) : undefined,
+      contactConfidence: vertex?.contactConfidence ?? null,
+      contactEmail: vertex?.contactEmail ?? null,
+      contactPhone: vertex?.contactPhone ?? null,
     };
   });
 

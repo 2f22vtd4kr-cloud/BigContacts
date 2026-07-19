@@ -15,6 +15,8 @@ export const researchSessionsTable = pgTable("research_sessions", {
   // 'Lead Gen' | 'Identified' | 'Graph Mapped' | 'MCTS Path Selected'
   // | 'Pitch Generated' | 'Contacted' | 'Follow-Up' | 'Closed'
   lastContactDate: date("last_contact_date", { mode: "string" }),
+  followUpDate: date("follow_up_date", { mode: "string" }),
+  notes: text("notes"),
   bayesianScoreAtRuntime: doublePrecision("bayesian_score_at_runtime"),
   pathScore: doublePrecision("path_score"), // MCTS UCT score of winning path
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
