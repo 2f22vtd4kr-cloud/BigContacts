@@ -1,6 +1,10 @@
 # ApexFinder Pro — Session Context
 
-> **Rule for agents:** Read `replit.md` AND this file at the start of every session (especially after a GitHub import). Update this file after every meaningful iteration before finishing your turn.
+> **ABSOLUTE RULE — no exceptions:**
+> 1. Read `replit.md` AND `Context.md` at the start of every session (especially after any GitHub import).
+> 2. Update `Context.md` after every meaningful iteration — update Current State + append to Iteration Log.
+> 3. Update `replit.md` whenever env vars, DB counts, schema, or phases change.
+> 4. Both files must be committed to the repo as part of any task that changes project state.
 
 ---
 

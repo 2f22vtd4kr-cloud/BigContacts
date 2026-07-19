@@ -174,3 +174,21 @@ GET  /api/improve/logs                 improvement suggestions (filterable by pe
 - Deterministic TypeScript for AI-like features — no external AI APIs.
 - Maintain existing pnpm monorepo structure.
 - Use Fable 5 High Effort (built-in agent model) for any AI feature implementation — not external OpenAI/Anthropic calls.
+
+---
+
+## Agent Rules (Absolute — apply every session)
+
+1. **Read `replit.md` AND `Context.md` at the start of every session**, especially after any GitHub import. These two files together define current environment state and project intent. Never skip this step.
+
+2. **Update `Context.md` after every meaningful iteration** before finishing a turn:
+   - Update the "Current State" section (env vars, workflow status, DB counts)
+   - Append a row to the Iteration Log with today's date and a one-line summary of what changed
+
+3. **Update `replit.md` whenever** project-level facts change:
+   - New environment variables or secrets added → update the table
+   - DB record counts change after ingestion → update "Current Data State"
+   - New phases/features implemented → append to "Phases Implemented"
+   - Schema changes → update "Database Schema"
+
+4. **Both files must be committed to the repo** as part of any task that changes project state. They are the permanent record of how this project runs.
