@@ -1,0 +1,25 @@
+
+Last time we run a user experience simulation from point of view of every persona. “The goal of course is to have direct contacts of many businessmen to reach them personally for investment opportunities. Then give a rating on the current app version from the perspectives of each persona.” - said the request prompt. You saw it from the Replit.md and the Context.md. 
+
+I remind you their assessment anyway: 
+
+“Overall App Rating for Investment Outreach Goal
+Goal: obtain direct personal contacts of many businessmen to reach them for investment opportunities
+5.2 / 10
+Dimension	Score	Reason
+Entity discovery	7/10	SEC EDGAR ingest surfaces 100+ real HNWIs; query expansion finds relevant ones
+Contact quality	3/10	98% of entities have no phone/email; contact bar excellent but mostly empty
+Approach path finding	4/10	MCTS architecture is correct but fires on an empty graph = synthetic paths
+Outreach generation	5/10	Pitch generator exists and CRM kanban works; needs relationship graph to be meaningful
+Operator workflow	5/10	Deep Search → Profile → MCTS → CRM → Pitch is the right flow; navigation between steps is functional
+Data enrichment	2/10	No pipeline for email/phone/LinkedIn enrichment; no relationship creation UI
+Reliability	7/10	Two bugs found and fixed this session (SQL crash, URL param); core routes stable
+The critical gap
+The app is excellent at telling you who a businessman is and what assets they own (when the ingestors have run). It has no answer for the last mile: how to actually reach them. The 102 ingested entities are names from beneficial ownership filings — they disclose that "PETER THIEL" holds >5% of company X, but not his email address or LinkedIn. Bridging that gap requires either: (1) a Companies House / LinkedIn / Lusha enrichment ingestor, or (2) an OSINT workflow for manually tracing contact vectors with the app as the workspace. The Business Engineer and Data Engineer personas both pointed directly at this, and the app currently has no answer for it.
+What's working at a high level
+* The hybrid search + query expansion is genuinely strong and differentiated
+* The MCTS terminal is architecturally interesting and the session → CRM flow is coherent
+* The persona loop is now fully operational (67 concrete, accurate suggestions)
+* The profile page contact bar makes it immediately clear when a target is reachable vs. opaque”.
+
+Today you improve, planning to bring the app to 10/10. Update the improvements.md file with this new task. Break this task in phases so we can work across multiple repo imports in different Replit sessions. Watch out for UX/UI for both website views: desktop and mobile. 
