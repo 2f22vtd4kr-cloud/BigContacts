@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 import { db, entitiesTable, assetsTable, relationshipsTable, researchSessionsTable } from "@workspace/db";
 import {
   RunResearchBody,
@@ -211,16 +211,57 @@ router.post("/research/run", async (req, res): Promise<void> => {
     },
   ];
 
-  // Persist research session
+  // ── Layer 2 Critic synthesis — generate full outreach pitch immediately ──────
+  // The Critic stage's final output is the pitch. Generating it here ensures
+  // every session has a generatedPitch (persona engine checks this field).
+  const entityAssets = await db
+    .select()
+    .from(assetsTable)
+    .where(eq(assetsTable.ownerEntityId, entityId));
+
+  const gatekeeper = mctsResult.winningPath.find((p) => p.role === "GATEKEEPER") ?? null;
+  const pitchCtx = {
+    targetEntity: {
+      name: targetEntity.name,
+      type: targetEntity.type,
+      nationality: targetEntity.nationality,
+      estimatedNetWorth: targetEntity.estimatedNetWorth,
+      knownResidences: targetEntity.knownResidences,
+      notes: targetEntity.notes,
+      contactEmail: targetEntity.email,
+      contactPhone: targetEntity.phone,
+    },
+    gatekeeper,
+    assets: entityAssets.map((a) => ({
+      category: a.category,
+      identifier: a.identifier,
+      jurisdiction: a.jurisdiction,
+      estimatedValue: a.estimatedValue,
+      address: a.address,
+    })),
+    winningPath: mctsResult.winningPath,
+    pathScore: mctsResult.pathScore,
+  };
+  const outreach = generateOutreachSequence(pitchCtx);
+  const pitchText = [
+    outreach.initial,
+    "---\n**7-day follow-up:**",
+    outreach.followUp,
+    "---\n**Intro script for gatekeeper:**",
+    outreach.introScript,
+  ].join("\n\n");
+
+  // Persist research session with generated pitch
   const [session] = await db
     .insert(researchSessionsTable)
     .values({
       targetEntityId: entityId,
       winningPath: JSON.stringify(mctsResult.winningPath),
       mctsSteps: JSON.stringify(mctsResult.mctsSteps),
-      crmStatus: mctsResult.crmStatus,
+      crmStatus: "Pitch Generated",
       bayesianScoreAtRuntime: updatedScore,
       pathScore: mctsResult.pathScore,
+      generatedPitch: pitchText,
     })
     .returning();
 
@@ -434,6 +475,60 @@ router.post("/research/sessions/:id/pitch", async (req, res): Promise<void> => {
     targetEntityName: entity.name,
     createdAt: updated!.createdAt.toISOString(),
   });
+});
+
+// POST /research/backfill-pitches — generate pitches for all sessions that lack one
+router.post("/research/backfill-pitches", async (_req, res): Promise<void> => {
+  const sessions = await db
+    .select()
+    .from(researchSessionsTable)
+    .where(sql`${researchSessionsTable.generatedPitch} IS NULL`);
+
+  let updated = 0;
+  let errors = 0;
+
+  for (const s of sessions) {
+    try {
+      const [entity] = await db.select().from(entitiesTable).where(eq(entitiesTable.id, s.targetEntityId));
+      if (!entity) { errors++; continue; }
+
+      const entityAssets = await db.select().from(assetsTable).where(eq(assetsTable.ownerEntityId, s.targetEntityId));
+      const winningPath = (() => { try { return JSON.parse(s.winningPath ?? "[]"); } catch { return []; } })();
+      const gatekeeper = winningPath.find((p: { role: string }) => p.role === "GATEKEEPER") ?? null;
+
+      const outreach = generateOutreachSequence({
+        targetEntity: {
+          name: entity.name, type: entity.type, nationality: entity.nationality,
+          estimatedNetWorth: entity.estimatedNetWorth, knownResidences: entity.knownResidences,
+          notes: entity.notes, contactEmail: entity.email, contactPhone: entity.phone,
+        },
+        gatekeeper,
+        assets: entityAssets.map((a) => ({
+          category: a.category, identifier: a.identifier, jurisdiction: a.jurisdiction,
+          estimatedValue: a.estimatedValue, address: a.address,
+        })),
+        winningPath,
+        pathScore: s.pathScore ?? 0,
+      });
+
+      const pitchText = [
+        outreach.initial,
+        "---\n**7-day follow-up:**",
+        outreach.followUp,
+        "---\n**Intro script for gatekeeper:**",
+        outreach.introScript,
+      ].join("\n\n");
+
+      await db.update(researchSessionsTable)
+        .set({ generatedPitch: pitchText, crmStatus: "Pitch Generated", updatedAt: new Date() })
+        .where(eq(researchSessionsTable.id, s.id));
+      updated++;
+    } catch {
+      errors++;
+    }
+  }
+
+  res.json({ updated, errors, message: `Backfilled pitches for ${updated} sessions (${errors} errors).` });
 });
 
 export default router;

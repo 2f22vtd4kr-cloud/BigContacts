@@ -239,4 +239,72 @@ router.post("/relationships/auto-detect-clusters", async (_req, res): Promise<vo
   });
 });
 
+// ── POST /relationships/auto-detect-ch-codirectors ────────────────────────────
+// Reads chOfficers stored in entity metadata (populated by POST /ingest/ch-company-officers)
+// and creates SHARED_DIRECTOR edges between entities that share at least one director.
+router.post("/relationships/auto-detect-ch-codirectors", async (_req: Request, res: Response): Promise<void> => {
+  // Load all entities that have chOfficers in metadata
+  const entities = await db
+    .select({ id: entitiesTable.id, name: entitiesTable.name, metadata: entitiesTable.metadata })
+    .from(entitiesTable)
+    .where(sql`${entitiesTable.metadata} LIKE '%chOfficers%'`);
+
+  // Build officer-name → entity-id index
+  const officerIndex = new Map<string, number[]>();
+  for (const e of entities) {
+    let meta: Record<string, any> = {};
+    try { meta = JSON.parse(e.metadata ?? "{}"); } catch {}
+    const officers: Array<{ name: string }> = meta.chOfficers ?? [];
+    for (const o of officers) {
+      const key = (o.name ?? "").toLowerCase().trim();
+      if (!key || key.length < 4) continue;
+      if (!officerIndex.has(key)) officerIndex.set(key, []);
+      officerIndex.get(key)!.push(e.id);
+    }
+  }
+
+  // Load existing relationships for idempotency check
+  const existing = await db
+    .select({ sourceEntityId: relationshipsTable.sourceEntityId, targetId: relationshipsTable.targetId, relationshipType: relationshipsTable.relationshipType })
+    .from(relationshipsTable);
+  const seen = new Set(existing.map((r) => `${r.sourceEntityId}:${r.targetId}:${r.relationshipType}`));
+
+  let created = 0; let skipped = 0; let sharedOfficers = 0;
+  const pending: Array<{
+    sourceEntityId: number; targetId: number; targetType: "Entity";
+    relationshipType: string; strength: number; notes: string;
+  }> = [];
+
+  for (const [officerName, ids] of officerIndex) {
+    const unique = [...new Set(ids)];
+    if (unique.length < 2) continue;
+    sharedOfficers++;
+    for (let i = 0; i < unique.length; i++) {
+      for (let j = i + 1; j < unique.length; j++) {
+        const a = unique[i]!; const b = unique[j]!;
+        const fwd = `${a}:${b}:SHARED_DIRECTOR`;
+        const rev = `${b}:${a}:SHARED_DIRECTOR`;
+        if (seen.has(fwd) || seen.has(rev)) { skipped++; continue; }
+        pending.push({
+          sourceEntityId: a, targetId: b, targetType: "Entity" as const,
+          relationshipType: "SHARED_DIRECTOR", strength: 0.9,
+          notes: `Shared CH director: ${officerName}`,
+        });
+        seen.add(fwd);
+        created++;
+      }
+    }
+  }
+
+  const CHUNK = 500;
+  for (let i = 0; i < pending.length; i += CHUNK) {
+    await db.insert(relationshipsTable).values(pending.slice(i, i + CHUNK));
+  }
+
+  res.json({
+    created, skipped, sharedOfficers,
+    message: `Co-director detect: ${created} SHARED_DIRECTOR edges across ${sharedOfficers} shared officers, ${skipped} already existed.`,
+  });
+});
+
 export default router;

@@ -97,6 +97,98 @@ async function fetchChOfficer(
   }
 }
 
+// ── Company officers lookup ───────────────────────────────────────────────────
+
+interface ChCompanyOfficer {
+  name: string;
+  officer_role: string;
+}
+
+/** Search CH companies register, then fetch officer list for best match. */
+async function fetchChCompanyOfficers(
+  companyName: string,
+  auth: string,
+): Promise<ChCompanyOfficer[]> {
+  try {
+    // Step 1: search companies
+    const searchUrl = `${CH_BASE}/search/companies?q=${encodeURIComponent(companyName)}&items_per_page=5`;
+    const searchResp = await fetch(searchUrl, {
+      headers: { Authorization: auth, Accept: "application/json" },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!searchResp.ok) return [];
+    const searchData = (await searchResp.json()) as {
+      items?: Array<{ company_number?: string; title?: string }>;
+    };
+    const items = searchData.items ?? [];
+    if (items.length === 0) return [];
+
+    let bestNum: string | null = null;
+    let bestScore = 0;
+    for (const item of items) {
+      const sim = nameSim(companyName, item.title ?? "");
+      if (sim > bestScore) { bestScore = sim; bestNum = item.company_number ?? null; }
+    }
+    if (!bestNum || bestScore < 0.4) return [];
+
+    // Step 2: fetch officers
+    const officersUrl = `${CH_BASE}/company/${bestNum}/officers?items_per_page=20`;
+    const officersResp = await fetch(officersUrl, {
+      headers: { Authorization: auth, Accept: "application/json" },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!officersResp.ok) return [];
+    const officersData = (await officersResp.json()) as { items?: ChCompanyOfficer[] };
+    return (officersData.items ?? []).filter((o) => o.name && o.officer_role);
+  } catch {
+    return [];
+  }
+}
+
+/** Background job: for Corporation entities, fetch CH officers and store in metadata. */
+export async function runCompanyOfficersEnrichment(opts: {
+  jobId: string;
+  batchSize?: number;
+}): Promise<{ enriched: number; skipped: number; errors: number }> {
+  const { jobId, batchSize = 100 } = opts;
+  const auth = chAuthHeader();
+  if (!auth) {
+    await appendJobLog(jobId, "⚠ COMPANIES_HOUSE_API_KEY not set — skipping company officers enrichment.");
+    return { enriched: 0, skipped: 0, errors: 0 };
+  }
+
+  const entities = await db
+    .select({ id: entitiesTable.id, name: entitiesTable.name, metadata: entitiesTable.metadata })
+    .from(entitiesTable)
+    .where(sql`${entitiesTable.type} = 'Corporation' AND (${entitiesTable.metadata} IS NULL OR ${entitiesTable.metadata} NOT LIKE '%chOfficers%')`)
+    .limit(Math.min(batchSize, 500));
+
+  await updateJob(jobId, { total: entities.length, message: `Fetching CH officers for ${entities.length} corporations…` });
+
+  let enriched = 0; let skipped = 0; let errors = 0;
+
+  for (let i = 0; i < entities.length; i++) {
+    const entity = entities[i]!;
+    try {
+      const officers = await fetchChCompanyOfficers(entity.name, auth);
+      if (officers.length === 0) { skipped++; }
+      else {
+        const existingMeta: Record<string, unknown> = (() => { try { return JSON.parse(entity.metadata ?? "{}"); } catch { return {}; } })();
+        existingMeta.chOfficers = officers.map((o) => ({ name: o.name, role: o.officer_role }));
+        await db.update(entitiesTable)
+          .set({ metadata: JSON.stringify(existingMeta) })
+          .where(eq(entitiesTable.id, entity.id));
+        enriched++;
+        await appendJobLog(jobId, `✓ ${entity.name} — ${officers.length} officer(s): ${officers.slice(0, 3).map((o) => o.name).join(", ")}`);
+      }
+      // Rate limit: 600ms between each set of 2 CH API calls
+      await new Promise((r) => setTimeout(r, 600));
+    } catch { errors++; }
+    await updateJob(jobId, { progress: Math.round(((i + 1) / entities.length) * 100), inserted: enriched, skipped, errors });
+  }
+  return { enriched, skipped, errors };
+}
+
 // ── Main export ───────────────────────────────────────────────────────────────
 
 export interface EnrichmentResult {

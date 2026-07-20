@@ -550,6 +550,135 @@ router.post("/ingest/companies-house-enrich", async (req, res): Promise<void> =>
   });
 });
 
+// ── POST /ingest/ch-company-officers — fetch CH company officers for Corp entities ──
+router.post("/ingest/ch-company-officers", async (req: Request, res: Response): Promise<void> => {
+  const { batchSize = 100 } = req.body as { batchSize?: number };
+  const existingJobId = await getActiveJob("ch-officers");
+  if (existingJobId) {
+    const existing = await getJob(existingJobId);
+    if (existing?.status === "running") {
+      res.status(409).json({ error: "CH officers job already running.", jobId: existingJobId });
+      return;
+    }
+  }
+  const jobId = await createJob("ch-officers");
+  await setActiveJob("ch-officers", jobId);
+  await updateJob(jobId, { status: "running", total: 0, message: "CH company officers enrichment starting…" });
+
+  (async () => {
+    try {
+      const { runCompanyOfficersEnrichment } = await import("../lib/companies-house-enricher");
+      const result = await runCompanyOfficersEnrichment({ jobId, batchSize });
+      await updateJob(jobId, {
+        status: "done", progress: 100, inserted: result.enriched,
+        message: `Done — ${result.enriched} corps enriched with officer data, ${result.skipped} skipped.`,
+      });
+    } catch (err: any) {
+      await updateJob(jobId, { status: "failed", message: err.message ?? "Unknown error" });
+    }
+  })();
+
+  res.status(202).json({ jobId, message: `CH company officers job started.`, pollUrl: `/api/ingest/job/${jobId}` });
+});
+
+// ── POST /ingest/populate-notes — enrich entity notes from metadata ───────────
+router.post("/ingest/populate-notes", async (_req: Request, res: Response): Promise<void> => {
+  const rows = await db
+    .select({ id: entitiesTable.id, notes: entitiesTable.notes, metadata: entitiesTable.metadata, sourceRegistries: entitiesTable.sourceRegistries, type: entitiesTable.type, nationality: entitiesTable.nationality, knownResidences: entitiesTable.knownResidences })
+    .from(entitiesTable)
+    .where(sql`${entitiesTable.metadata} IS NOT NULL AND ${entitiesTable.metadata} != '{}'`);
+
+  let updated = 0;
+  const CHUNK = 500;
+  const updates: Array<{ id: number; notes: string }> = [];
+
+  for (const row of rows) {
+    let meta: Record<string, any> = {};
+    try { meta = JSON.parse(row.metadata ?? "{}"); } catch {}
+    const sources: string[] = (() => { try { return JSON.parse(row.sourceRegistries ?? "[]"); } catch { return []; } })();
+
+    const parts: string[] = [];
+    if (sources.length > 0) parts.push(`Source: ${sources.join("; ")}.`);
+    if (meta.formType) parts.push(`Filing: ${meta.formType}${meta.fileDate ? ` (${meta.fileDate})` : ""}.`);
+    if (meta.companyName) parts.push(`Company: ${meta.companyName}.`);
+    if (meta.orgnr) parts.push(`Org number: ${meta.orgnr}.`);
+    if (meta.roleDesc) parts.push(`Role: ${meta.roleDesc}.`);
+    if (meta.chOfficers && Array.isArray(meta.chOfficers) && meta.chOfficers.length > 0) {
+      parts.push(`CH directors: ${meta.chOfficers.slice(0, 5).map((o: any) => o.name).join(", ")}.`);
+    }
+    if (row.nationality) parts.push(`Nationality: ${row.nationality}.`);
+    if (row.knownResidences) {
+      const loc = (() => { try { const r = JSON.parse(row.knownResidences!); return Array.isArray(r) ? r[0] : r; } catch { return row.knownResidences; } })();
+      if (loc) parts.push(`Location: ${loc}.`);
+    }
+    if (row.type) parts.push(`Entity type: ${row.type}.`);
+    if (meta.edgarUrl) parts.push(`EDGAR: ${meta.edgarUrl}.`);
+
+    const newNotes = parts.join(" ");
+    if (newNotes && newNotes !== row.notes) {
+      updates.push({ id: row.id, notes: newNotes });
+    }
+  }
+
+  for (let i = 0; i < updates.length; i += CHUNK) {
+    for (const u of updates.slice(i, i + CHUNK)) {
+      await db.update(entitiesTable).set({ notes: u.notes }).where(eq(entitiesTable.id, u.id));
+    }
+    updated += Math.min(CHUNK, updates.length - i);
+  }
+
+  res.json({ updated, total: rows.length, message: `Notes enriched for ${updated} entities.` });
+});
+
+// ── POST /ingest/create-edgar-stock-assets — create StockHolding assets ───────
+// For each Western HNWI from SEC EDGAR that has no assets yet, create a
+// StockHolding asset representing their large-shareholder filing position.
+router.post("/ingest/create-edgar-stock-assets", async (_req: Request, res: Response): Promise<void> => {
+  // Find EDGAR entities without any assets
+  const edgarEntities = await db
+    .select({ id: entitiesTable.id, name: entitiesTable.name, metadata: entitiesTable.metadata, knownResidences: entitiesTable.knownResidences })
+    .from(entitiesTable)
+    .where(sql`${entitiesTable.metadata} LIKE '%sec-edgar%' AND ${entitiesTable.metadata} NOT LIKE '%sec-edgar-def14a%'`);
+
+  // Find which ones already have assets
+  const existingAssetEntityIds = new Set(
+    (await db.select({ ownerEntityId: assetsTable.ownerEntityId }).from(assetsTable).where(sql`${assetsTable.ownerEntityId} IS NOT NULL`))
+      .map((r) => r.ownerEntityId!)
+  );
+
+  const toCreate = edgarEntities.filter((e) => !existingAssetEntityIds.has(e.id));
+
+  let created = 0;
+  const CHUNK = 500;
+  const assetRows: (typeof assetsTable.$inferInsert)[] = [];
+
+  for (const e of toCreate) {
+    let meta: Record<string, any> = {};
+    try { meta = JSON.parse(e.metadata ?? "{}"); } catch {}
+    const formType: string = meta.formType ?? "SC 13G";
+    const fileDate: string = meta.fileDate ?? null;
+    const location: string = meta.bizLocation ?? ((() => { try { const r = JSON.parse(e.knownResidences ?? "null"); return Array.isArray(r) ? r[0] : r; } catch { return null; } })()) ?? "US";
+
+    assetRows.push({
+      category: "StockHolding",
+      identifier: `EDGAR-${formType.replace(/\s/g, "")}-${e.id}`,
+      jurisdiction: "SEC EDGAR",
+      description: `Large-shareholder position per ${formType} filing${fileDate ? ` (${fileDate})` : ""}. Beneficial owner: ${e.name}.`,
+      address: location || null,
+      sourceRegistry: `SEC EDGAR — ${formType}`,
+      ownerEntityId: e.id,
+      lastActivityDate: fileDate || null,
+    });
+  }
+
+  for (let i = 0; i < assetRows.length; i += CHUNK) {
+    await db.insert(assetsTable).values(assetRows.slice(i, i + CHUNK));
+    created += Math.min(CHUNK, assetRows.length - i);
+  }
+
+  res.json({ created, skipped: edgarEntities.length - toCreate.length, total: edgarEntities.length, message: `Created ${created} StockHolding assets for SEC EDGAR entities.` });
+});
+
 // ── DELETE /ingest/dedup — clear dedup set ────────────────────────────────────
 router.delete("/ingest/dedup", async (_req, res): Promise<void> => {
   await clearDedup();
