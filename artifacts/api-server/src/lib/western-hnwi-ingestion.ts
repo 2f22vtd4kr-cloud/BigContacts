@@ -513,6 +513,27 @@ async function* harvestCompaniesHouseOfficers(maxCount: number): AsyncGenerator<
   }
 }
 
+// ── Entity type classifier — prevents SEC filers being blindly tagged HNWI ───
+
+/**
+ * Classify an entity as HNWI, Corporation, or Trust based on name patterns.
+ * SEC 13D/13G filers include individuals, LPs, funds, and public companies —
+ * we must not tag all of them as HNWI or the hot-leads feed fills with noise.
+ */
+export function classifyEntityType(name: string): "HNWI" | "Corporation" | "Trust" {
+  const n = name.trim();
+  // Trusts and foundations first (highest specificity)
+  if (/\b(Trust|Trustee|Foundation|Fiduciary|Settlement|Estate\s+of)\b/i.test(n)) return "Trust";
+  // Explicit partnership / LP forms
+  if (/\b(L\.?P\.?|LLP|Limited\s+Partnership|General\s+Partnership)\b/i.test(n)) return "Corporation";
+  // Corporate-suffix identifiers
+  if (/\b(Inc\.?|Corp\.?|Ltd\.?|LLC|L\.?L\.?C\.?|PLC|S\.A\.|S\.p\.A\.|GmbH|B\.V\.|N\.V\.)\b/i.test(n)) return "Corporation";
+  if (/\bCo\b\.?(\s|$)/i.test(n) && !/^[A-Z][a-z]+ [A-Z][a-z]+ Co\b/.test(n)) return "Corporation"; // "Callon Petroleum Co" not "Smith Brown Co"
+  // Industry / fund / financial keywords — never an individual
+  if (/\b(Fund|Capital\s+(?:Partners|Management|Advisors|Group)|Venture\s+Capital|Ventures|Holdings|Management|Advisors|Consulting|Partners|Acquisition|Petroleum|Energy|Pharmaceutical|Biotechnology|Technologies|Solutions|Sciences|Industries|Properties|Realty|Entertainment|Media|Analytics|Logistics|Transportation|Enterprises|Associates|Financial\s+(?:Group|Partners|Services)|Investments|Aeronautica|Aeronautics)\b/i.test(n)) return "Corporation";
+  return "HNWI";
+}
+
 // ── Record builder — HarvestedPerson → InsertEntity ──────────────────────────
 
 function buildEntity(person: HarvestedPerson): { entity: InsertEntity; key: string } {
@@ -525,8 +546,9 @@ function buildEntity(person: HarvestedPerson): { entity: InsertEntity; key: stri
   else if (person.signals.isCompanyOfficer) prior = 0.25;
   if (person.signals.hasRecentFiling) prior = Math.min(prior + 0.05, 0.92);
 
+  const entityType = classifyEntityType(person.name);
   const bayesianScore = computeBayesianScore(prior, {
-    entityType: "HNWI",
+    entityType,
     assetCount: 0,
     assetCategories: [],
     totalAssetValue: 0,
@@ -578,7 +600,7 @@ function buildEntity(person: HarvestedPerson): { entity: InsertEntity; key: stri
 
   const entity: InsertEntity = {
     name: person.name,
-    type: "HNWI",
+    type: entityType,
     bayesianScore,
     nationality: person.nationality,
     estimatedNetWorth: null, // unknown until enriched via MCTS research

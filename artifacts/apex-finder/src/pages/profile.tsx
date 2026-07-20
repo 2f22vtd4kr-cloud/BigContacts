@@ -498,7 +498,10 @@ export default function ApexProfile() {
           </div>
 
           <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
-            <ScoreBadge score={entity.bayesianScore} />
+            <div className="flex flex-col items-center gap-0.5">
+              <ScoreBadge score={entity.bayesianScore} />
+              <span className="text-[8px] font-mono text-muted-foreground/50 uppercase tracking-widest">Signal</span>
+            </div>
             <div className="flex items-center gap-1.5">
               <Link
                 href={`/graph?entity=${entity.id}`}
@@ -510,9 +513,9 @@ export default function ApexProfile() {
               <Link
                 href={`/research?entity=${entity.id}`}
                 className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded border border-border text-muted-foreground hover:text-foreground font-mono text-[10px] uppercase tracking-wider transition-colors"
-                title="MCTS Terminal"
+                title="Intel Terminal"
               >
-                <TargetIcon className="w-3 h-3" /> <span className="hidden sm:inline">MCTS</span>
+                <TargetIcon className="w-3 h-3" /> <span className="hidden sm:inline">Intel</span>
               </Link>
               <Link
                 href="/crm"
@@ -697,11 +700,11 @@ export default function ApexProfile() {
             )}
           </div>
 
-          {/* ── Confidence Breakdown ────────────────────────────────────── */}
+          {/* ── Profile Depth ───────────────────────────────────────────── */}
           <div className="border border-border rounded-lg bg-card/30 flex flex-col">
             <SectionHeader
               icon={<BarChart2 className="w-3.5 h-3.5" />}
-              title="Confidence Breakdown"
+              title="Profile Depth"
             />
             <div className="flex-1 p-4 flex flex-col gap-4">
               {/* Overall ring */}

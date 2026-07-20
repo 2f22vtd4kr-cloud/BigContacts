@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useListEntities, useRunResearch } from "@workspace/api-client-react";
-import { Terminal, Play, Cpu, ChevronRight, Hash, CheckCircle2, GitBranch, Target, Shield, ChevronDown, Search, X, Mail, Phone, Copy, CheckCheck } from "lucide-react";
+import { Terminal, Play, Cpu, ChevronRight, Hash, CheckCircle2, GitBranch, Target, Shield, ChevronDown, Search, X, Mail, Phone, Copy, CheckCheck, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScoreBadge } from "@/lib/utils";
 
@@ -30,7 +30,7 @@ type PathStep = {
   contactPhone?: string | null;
 };
 
-const UCT_FORMULA = "UCT(v) = Q(v)/N(v) + √2 · √(ln N(parent) / N(v))";
+const HYBRID_PIPELINE = "Bayesian-UCB → Hybrid Search (BM25+TF-IDF+RRF) → BFS → MCTS → Agent Critique";
 
 function roleIcon(role: string) {
   if (role === "TARGET") return <Target className="w-3 h-3 text-primary" />;
@@ -145,7 +145,7 @@ function CopyBriefButton({ winningPath, pathScore }: { winningPath: PathStep[]; 
   );
 }
 
-export default function MCTSTerminal() {
+export default function IntelTerminal() {
   // wouter's useLocation only returns pathname; read query string from window
   useLocation(); // subscribe to route changes
   const urlEntityId = (() => {
@@ -169,6 +169,7 @@ export default function MCTSTerminal() {
   const [winningPath, setWinningPath] = useState<PathStep[]>([]);
   const [pathScore, setPathScore] = useState<number>(0);
   const [sessionId, setSessionId] = useState<number | null>(null);
+  const [algorithmPipeline, setAlgorithmPipeline] = useState<Array<{ algo: string; contribution: string; status: string }> | null>(null);
   const logEndRef = useRef<HTMLDivElement | null>(null);
 
   // Mobile entity picker state
@@ -181,6 +182,7 @@ export default function MCTSTerminal() {
     setTerminalLog([]);
     setWinningPath([]);
     setPathScore(0);
+    setAlgorithmPipeline(null);
     setIsComputing(true);
     setMobilePickerOpen(false);
 
@@ -197,6 +199,7 @@ export default function MCTSTerminal() {
           try { path = data.winningPath ? JSON.parse(data.winningPath) : []; } catch { path = []; }
 
           setPathScore(data.pathScore ?? 0);
+          if ((data as any).algorithmPipeline) setAlgorithmPipeline((data as any).algorithmPipeline);
 
           let i = 0;
           const interval = setInterval(() => {
@@ -220,7 +223,7 @@ export default function MCTSTerminal() {
             targetType: "System",
             uctScore: 0,
             warmthScore: 0,
-            reasoning: "MCTS engine returned an error. Check API server logs.",
+            reasoning: "Intel pipeline returned an error. Check API server logs.",
           }]);
         },
       }
@@ -283,10 +286,10 @@ export default function MCTSTerminal() {
           </div>
         )}
 
-        {/* UCT formula */}
+        {/* Hybrid pipeline */}
         <div className="bg-background/60 border border-border/60 rounded px-2 py-1.5">
-          <div className="text-[9px] font-mono text-muted-foreground/50 uppercase tracking-widest mb-0.5">UCT Formula</div>
-          <div className="text-[10px] font-mono text-primary/70">{UCT_FORMULA}</div>
+          <div className="text-[9px] font-mono text-muted-foreground/50 uppercase tracking-widest mb-0.5">Pipeline</div>
+          <div className="text-[9px] font-mono text-primary/70 leading-relaxed">{HYBRID_PIPELINE}</div>
         </div>
 
         {/* Run button */}
@@ -297,11 +300,11 @@ export default function MCTSTerminal() {
         >
           {isComputing ? (
             <span className="animate-pulse flex items-center">
-              <Hash className="w-4 h-4 mr-2 animate-spin" /> Computing...
+              <Hash className="w-4 h-4 mr-2 animate-spin" /> Running Pipeline...
             </span>
           ) : (
             <span className="flex items-center">
-              <Play className="w-4 h-4 mr-2" /> Initialize MCTS
+              <Play className="w-4 h-4 mr-2" /> Run Analysis
             </span>
           )}
         </button>
@@ -320,8 +323,8 @@ export default function MCTSTerminal() {
             <Cpu className="w-4 h-4 mr-2 text-primary" /> Target Selection
           </h2>
           <div className="bg-background/60 border border-border/60 rounded px-2 py-1.5">
-            <div className="text-[9px] font-mono text-muted-foreground/50 uppercase tracking-widest mb-0.5">UCT Formula</div>
-            <div className="text-[10px] font-mono text-primary/70">{UCT_FORMULA}</div>
+            <div className="text-[9px] font-mono text-muted-foreground/50 uppercase tracking-widest mb-0.5">5-Algorithm Pipeline</div>
+            <div className="text-[9px] font-mono text-primary/70 leading-relaxed">{HYBRID_PIPELINE}</div>
           </div>
         </div>
 
@@ -374,11 +377,11 @@ export default function MCTSTerminal() {
           >
             {isComputing ? (
               <span className="animate-pulse flex items-center">
-                <Hash className="w-4 h-4 mr-2 animate-spin" /> Computing...
+                <Hash className="w-4 h-4 mr-2 animate-spin" /> Running Pipeline...
               </span>
             ) : (
               <span className="flex items-center">
-                <Play className="w-4 h-4 mr-2" /> Initialize MCTS
+                <Play className="w-4 h-4 mr-2" /> Run Analysis
               </span>
             )}
           </button>
@@ -396,9 +399,9 @@ export default function MCTSTerminal() {
           <div className="flex items-center space-x-2 min-w-0">
             <Terminal className="w-4 h-4 flex-shrink-0" />
             <span className="truncate hidden sm:block">
-              root@apexfinder:~# /opt/intel/mcts --target={selectedEntityId ?? "NULL"} --depth=4 --sims=120
+              root@apexfinder:~# /opt/intel/pipeline --target={selectedEntityId ?? "NULL"} --algos=5 --sims=120
             </span>
-            <span className="sm:hidden text-[10px]">MCTS --target={selectedEntityId ?? "NULL"}</span>
+            <span className="sm:hidden text-[10px]">INTEL --target={selectedEntityId ?? "NULL"}</span>
           </div>
           {pathScore > 0 && (
             <div
@@ -420,7 +423,7 @@ export default function MCTSTerminal() {
               <Terminal className="w-8 h-8 opacity-20" />
               <span className="italic text-sm">Awaiting target selection...</span>
               <div className="text-[11px] text-center opacity-60 max-w-sm leading-relaxed">
-                MCTS traverses the entity graph using the UCT formula to identify the optimal warm-introduction path to the HNWI target. 120 rollouts per run.
+                5-algorithm hybrid pipeline: Bayesian-UCB scores the target, Hybrid Search surfaces related entities, BFS seeds the shortest path, MCTS runs 120 rollouts to find the optimal warm-introduction route, Agent Critique validates the result.
               </div>
             </div>
           )}
@@ -452,6 +455,27 @@ export default function MCTSTerminal() {
 
           <div ref={(el) => { logEndRef.current = el; }} />
         </div>
+
+        {/* ── Algorithm Pipeline Summary ── */}
+        {algorithmPipeline && !isComputing && (
+          <div className="border-t border-border/50 bg-[#080C14] px-4 md:px-5 py-3 flex-shrink-0 animate-in slide-in-from-bottom-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Layers className="w-3.5 h-3.5 text-primary/70" />
+              <span className="text-[9px] font-mono text-muted-foreground/50 uppercase tracking-widest">Algorithm Pipeline</span>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-1.5 sm:gap-2 flex-wrap">
+              {algorithmPipeline.map((stage, i) => (
+                <div key={i} className="flex items-start gap-1.5 bg-muted/10 border border-border/40 rounded px-2 py-1.5 min-w-0 flex-1">
+                  <span className="text-[9px] font-mono text-muted-foreground/40 mt-0.5 flex-shrink-0">{String(i + 1).padStart(2, "0")}</span>
+                  <div className="min-w-0">
+                    <div className="text-[9px] font-mono font-bold text-primary/80 truncate">{stage.algo}</div>
+                    <div className="text-[9px] font-mono text-muted-foreground/60 leading-snug mt-0.5">{stage.contribution}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ── Winning Path Visualization ── */}
         {winningPath.length > 0 && !isComputing && (

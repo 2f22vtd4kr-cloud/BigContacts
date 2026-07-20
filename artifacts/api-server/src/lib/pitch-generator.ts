@@ -336,12 +336,16 @@ ${ts}${intel}
     .map((p) => p.label)
     .join(" → ");
 
+  const introLine = pathDesc
+    ? `We have identified your professional connection to ${targetEntity.name}'s network (via ${pathDesc}) and are approaching you as the most appropriate introduction point for a confidential investment opportunity.`
+    : `We have identified you as the most appropriate introduction point for a confidential investment opportunity involving ${targetEntity.name}.`;
+
   return `
-Dear ${gatekeeper?.label ?? ""},
+Dear ${gatekeeper?.label ?? "Sir/Madam"},
 
 I am reaching out discreetly regarding ${targetEntity.name}${residence}, ${netWorth}, holding ${assetSummary.primary}.
 
-Our platform is a private intelligence and deal origination service. We have identified your professional connection to ${targetEntity.name}'s network (via ${pathDesc}) and are approaching you as the most appropriate introduction point for a confidential investment opportunity.
+Our platform is a private intelligence and deal origination service. ${introLine}
 
 We are seeking a brief, private introduction — handled entirely through you, with no unsolicited direct contact — to explore whether there is appetite for a conversation.${commission}
 

@@ -438,7 +438,7 @@ export default function PipelineCRM() {
             <div className="flex flex-col items-center justify-center h-40 gap-3 text-center px-6">
               <div className="text-muted-foreground text-sm font-mono">No sessions in this stage.</div>
               <a href="/research" className="text-[11px] font-mono text-primary border border-primary/30 px-3 py-1.5 rounded hover:bg-primary/10 transition-colors">
-                → Run MCTS on a target
+                → Run Intel Analysis
               </a>
             </div>
           )}
@@ -473,7 +473,7 @@ export default function PipelineCRM() {
                         href="/research"
                         className="text-[10px] font-mono text-primary border border-primary/20 px-2.5 py-1 rounded hover:bg-primary/10 transition-colors"
                       >
-                        → Run MCTS on a target
+                        → Run Intel Analysis
                       </a>
                     </div>
                   )}

@@ -15,13 +15,14 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { db, assetsTable, entitiesTable, relationshipsTable } from "@workspace/db";
 import { searchRegistry } from "../lib/registry-client";
 import { getCache, setCache } from "../lib/redis";
-import { sql, eq } from "drizzle-orm";
+import { sql, eq, and, gte, inArray } from "drizzle-orm";
+import { classifyEntityType } from "../lib/western-hnwi-ingestion";
 import {
   createJob, updateJob, getJob, getJobLog,
   setActiveJob, getActiveJob, clearDedup, getDedupCount,
 } from "../lib/job-queue";
 import { runWesternHnwiIngestion } from "../lib/western-hnwi-ingestion";
-import { runFaaIngestion } from "../lib/faa-ingestor";
+import { runFaaIngestion, US_STATE_CENTROIDS } from "../lib/faa-ingestor";
 import { runOccrpEnrichment } from "../lib/occrp-enricher";
 import { runLandRegistryIngestion } from "../lib/land-registry-ingestor";
 import { runOpenSkyEnrichment } from "../lib/opensky-ingestor";
@@ -29,6 +30,116 @@ import { runCompaniesHouseEnrichment } from "../lib/companies-house-enricher";
 import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
+
+// POST /ingest/sync-faa-coordinates — backfill latitude/longitude for FAA
+// aviation assets that were ingested before the state-centroid lookup was added.
+// Uses the jurisdiction field (e.g. "TX, US") to derive state code → centroid.
+router.post("/ingest/sync-faa-coordinates", async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const rows = await db
+      .select({ id: assetsTable.id, jurisdiction: assetsTable.jurisdiction })
+      .from(assetsTable)
+      .where(and(
+        eq(assetsTable.category, "Aviation"),
+        sql`${assetsTable.latitude} IS NULL`,
+      ));
+
+    let updated = 0;
+    // Group by state to minimise round-trips — batch all assets for each state in one UPDATE
+    const byState = new Map<string, number[]>();
+    for (const row of rows) {
+      const stateCode = row.jurisdiction?.split(",")[0]?.trim().toUpperCase() ?? "";
+      if (!US_STATE_CENTROIDS[stateCode]) continue;
+      const arr = byState.get(stateCode) ?? [];
+      arr.push(row.id);
+      byState.set(stateCode, arr);
+    }
+    for (const [stateCode, ids] of byState.entries()) {
+      const c = US_STATE_CENTROIDS[stateCode]!;
+      const CHUNK = 500;
+      for (let i = 0; i < ids.length; i += CHUNK) {
+        await db.update(assetsTable)
+          .set({ latitude: c[0], longitude: c[1] })
+          .where(inArray(assetsTable.id, ids.slice(i, i + CHUNK)));
+      }
+      updated += ids.length;
+    }
+    res.json({ total: rows.length, updated, message: `${updated}/${rows.length} FAA assets now have coordinates.` });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message ?? "Coordinate sync failed" });
+  }
+});
+
+// POST /ingest/reclassify-entity-types — one-time migration that re-runs the
+// classifyEntityType() logic over all existing entities and sets their type to
+// Corporation or Trust where the name pattern matches, replacing the blanket
+// "HNWI" that was hardcoded before Phase 10.
+router.post("/ingest/reclassify-entity-types", async (_req: Request, res: Response): Promise<void> => {
+  try {
+    // Fetch all entity names + ids (only need these two fields)
+    const rows = await db
+      .select({ id: entitiesTable.id, name: entitiesTable.name })
+      .from(entitiesTable);
+
+    const corps: number[] = [];
+    const trusts: number[] = [];
+
+    for (const row of rows) {
+      const t = classifyEntityType(row.name);
+      if (t === "Corporation") corps.push(row.id);
+      else if (t === "Trust") trusts.push(row.id);
+    }
+
+    // Batch update in chunks of 500 to avoid massive IN clauses
+    const CHUNK = 500;
+    let corpUpdated = 0;
+    let trustUpdated = 0;
+
+    for (let i = 0; i < corps.length; i += CHUNK) {
+      const chunk = corps.slice(i, i + CHUNK);
+      await db.update(entitiesTable)
+        .set({ type: "Corporation", updatedAt: new Date() })
+        .where(inArray(entitiesTable.id, chunk));
+      corpUpdated += chunk.length;
+    }
+    for (let i = 0; i < trusts.length; i += CHUNK) {
+      const chunk = trusts.slice(i, i + CHUNK);
+      await db.update(entitiesTable)
+        .set({ type: "Trust", updatedAt: new Date() })
+        .where(inArray(entitiesTable.id, chunk));
+      trustUpdated += chunk.length;
+    }
+
+    const hnwiCount = rows.length - corpUpdated - trustUpdated;
+    res.json({
+      total: rows.length,
+      corporations: corpUpdated,
+      trusts: trustUpdated,
+      hnwi: hnwiCount,
+      message: `Reclassified ${corpUpdated} → Corporation, ${trustUpdated} → Trust, ${hnwiCount} remain HNWI.`,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message ?? "Reclassification failed" });
+  }
+});
+
+// POST /ingest/sync-hot-flags — batch-set isHot=true for all entities with
+// bayesianScore >= 0.70 whose flag was never propagated after ingestion.
+router.post("/ingest/sync-hot-flags", async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const result = await db
+      .update(entitiesTable)
+      .set({ isHot: true, updatedAt: new Date() })
+      .where(and(gte(entitiesTable.bayesianScore, 0.70), eq(entitiesTable.isHot, false)))
+      .returning({ id: entitiesTable.id });
+    res.json({
+      updated: result.length,
+      message: `${result.length} entit${result.length === 1 ? "y" : "ies"} flagged as hot lead${result.length === 1 ? "" : "s"}.`,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message ?? "Sync failed" });
+  }
+});
 
 // ── Public: Live registry search ──────────────────────────────────────────────
 // Accepts either:

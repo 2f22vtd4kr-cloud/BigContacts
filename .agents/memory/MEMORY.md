@@ -14,3 +14,4 @@
 - [Phase 5 Intelligence Hardening](phase5-intelligence.md) — OCCRP/OpenSky endpoints, graph contact rings, Bayesian contact signal, smoke tests (12/12), entity pagination
 - [Dedup key bug](dedup-key-bug.md) — clearDedup() was deleting wrong Upstash key; fix uses `apex:${DEDUP_KEY}` to match batchMarkSeen/preloadDedupPrefix
 - [Cold-start auto-recovery](cold-start-auto-recovery.md) — startup.ts clears ghost jobs + auto-starts ingestion; edge case when DB is partial but dedup stale
+- [Phase 10 Simulation Fixes](phase10-simulation-fixes.md) — all 11 simulation issues fixed; entity reclassification, isHot sync, hybrid branding, FAA coords, pitch fallbacks

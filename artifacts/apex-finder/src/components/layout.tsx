@@ -10,7 +10,7 @@ const navItems = [
   { name: "Intelligence HQ",   href: "/",             icon: Activity },
   { name: "Deep Search",       href: "/deep-search",  icon: BrainCircuit },
   { name: "Network Graph",     href: "/graph",        icon: Network },
-  { name: "MCTS Terminal",     href: "/research",     icon: FileTerminal },
+  { name: "Intel Terminal",     href: "/research",     icon: FileTerminal },
   { name: "Pipeline CRM",      href: "/crm",          icon: KanbanSquare },
   { name: "Entity Ledger",     href: "/entities",     icon: Database },
   { name: "Persona Loop",      href: "/improvements",  icon: Bot },
