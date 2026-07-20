@@ -6,10 +6,8 @@ import { defineConfig } from 'vite';
 import runtimeErrorOverlay from '@replit/vite-plugin-runtime-error-modal';
 
 const rawPort = process.env.PORT ?? "23695";
-const port = Number(rawPort);
-if (Number.isNaN(port) || port <= 0) {
-  throw new Error(`Invalid PORT value: "${rawPort}"`);
-}
+const parsedPort = Number(rawPort);
+const port = (Number.isNaN(parsedPort) || parsedPort <= 0) ? 23695 : parsedPort;
 
 const basePath = process.env.BASE_PATH ?? "/";
 

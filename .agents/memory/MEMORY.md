@@ -20,3 +20,6 @@
 - [MCTS parallel limit](mcts-parallel-limit.md) — max 5 parallel MCTS sessions; 20 parallel triggers OOM crash (--max-old-space-size=3072 hit); run sequentially or in batches of 5
 - [Persona engine Corp-Trust scoping](persona-corp-trust-scoping.md) — Corp/Trust are property vehicles; isolation and geo flags should be LOW/skipped for them; HNWI/Gatekeeper = HIGH; also backfill-net-worth endpoint is POST /api/ingest/backfill-net-worth
 - [CH co-directors vs US DB](ch-codirectors-us-db.md) — CH co-director detection always returns 0 for FAA/EDGAR entities (US-based); only activates when UK Companies House entities are in the DB; do not expect SHARED_DIRECTOR edges from current dataset
+- [Hunter/Apollo enrichment constraints](hunter-apollo-constraints.md) — Apollo people/match = paid plan only (403 free); Hunter = 25/mo free; FAA names ALL CAPS LAST FIRST fixed in normalizeName()
+- [Build fragility fixes applied](build-fragility-fixes.md) — PORT throw→fallback in api-server + apex-finder + mockup-sandbox; coldStartRecovery inner catch added
+- [Mobile web UI review results](mobile-ui-review-results.md) — all 10 pages load OK at 390×844; /intel and /ledger are wrong slugs (use /research and /entities)

@@ -218,7 +218,7 @@ const SOURCES: SourceDef[] = [
     endpoint: "/api/ingest/hunter-enrich",
     jobType: "hunter-enrich",
     bodyParams: { batchSize: 200 },
-    note: "Requires HUNTER_API_KEY (hunter.io) and/or APOLLO_API_KEY (apollo.io). Free tiers: Hunter 25 searches/mo · Apollo 50 exports/mo.",
+    note: "Requires HUNTER_API_KEY (hunter.io) and/or APOLLO_API_KEY (apollo.io). Hunter free tier: 25 searches/mo. Apollo people/match requires a paid plan — free plan returns 403. Best results: Hunter Basic ($49/mo) + Apollo Basic ($49/mo).",
   },
 ];
 

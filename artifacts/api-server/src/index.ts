@@ -4,10 +4,8 @@ import { connectRedis, connectPermanentRedis, disconnectRedis } from "./lib/redi
 import { coldStartRecovery } from "./lib/startup";
 
 const rawPort = process.env["PORT"] ?? "8080";
-const port = Number(rawPort);
-if (Number.isNaN(port) || port <= 0) {
-  throw new Error(`Invalid PORT value: "${rawPort}"`);
-}
+const parsedPort = Number(rawPort);
+const port = (Number.isNaN(parsedPort) || parsedPort <= 0) ? 8080 : parsedPort;
 
 // Connect local Redis cache (non-blocking)
 connectRedis()
@@ -18,7 +16,11 @@ connectRedis()
 //   • clears ghost active-job locks left by a killed process
 //   • auto-starts ingestion if the DB is empty
 connectPermanentRedis()
-  .then(() => coldStartRecovery())
+  .then(() =>
+    coldStartRecovery().catch((e) =>
+      logger.warn({ err: e }, "Cold-start recovery error (non-fatal)"),
+    ),
+  )
   .catch((e) => logger.warn({ err: e }, "Permanent Redis connect error (non-fatal)"));
 
 const server = app.listen(port, (err) => {
