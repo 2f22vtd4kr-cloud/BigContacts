@@ -22,6 +22,9 @@ export interface PathStep {
   contactMethod?: string;
   registry?: string;
   actionRequired?: string;
+  contactConfidence?: number | null;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
 }
 
 export interface SessionData {
