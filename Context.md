@@ -8,35 +8,53 @@
 
 ---
 
-## Current State (2026-07-19)
+## Current State (2026-07-20)
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically
 - **Local Redis** running on `redis://localhost:6379` — workflow `Redis` must be running
 - **Upstash Redis (`REDIS_URL_1`)** — ✅ Set & connected (`[upstash-1] Redis ready`) — dedup state persists across restarts
 - **SESSION_SECRET** — set ✅
-- **COMPANIES_HOUSE_API_KEY** — not set (optional)
+- **COMPANIES_HOUSE_API_KEY** — ✅ Set (CH officer address enrichment enabled)
+
+### ⚠️ Workflow Note (post-GitHub-import)
+Artifact registrations are NOT preserved through GitHub imports. After re-import, managed artifact workflows (`artifacts/api-server: API Server` etc.) no longer exist. **Manual workflows** are now configured in `.replit` instead:
+- `API Server` → `PORT=8080 pnpm --filter @workspace/api-server run dev`
+- `Web Frontend` → `PORT=23695 BASE_PATH=/ pnpm --filter @workspace/apex-finder run dev`
+
+If artifact re-registration is needed in future, the artifact.toml files at `artifacts/*/. replit-artifact/artifact.toml` still contain the original config.
 
 ### Workflows running
 | Workflow | Status |
 |---|---|
 | Redis | ✅ Running |
-| `artifacts/api-server: API Server` | ✅ Running (port 8080) |
-| `artifacts/apex-finder: web` | ✅ Running (port 23695) |
-| `artifacts/apex-mobile: expo` | Not started (optional) |
-| `artifacts/mockup-sandbox: Component Preview Server` | Not started (optional) |
+| `API Server` | ✅ Running (port 8080) |
+| `Web Frontend` | ✅ Running (port 23695) |
+| Expo mobile | Not started (optional) |
+| Mockup sandbox | Not started (optional) |
 
 ### Database
-- Schema pushed ✅
-- **Entities**: ~110 (102 from prior western HNWI partial ingest + 8 manually seeded this session for persona simulation)
-- **Assets**: 0 — large ingestors (FAA, HMLR) have NOT been run yet in this environment
-- **Research sessions**: 1 (Viktor Aldenmoor, MCTS Path Selected, pathScore 0.427)
-- **Improvement logs**: 67 (25 high · 27 medium · 15 low — all pending)
-- **Hot leads**: 16 · avg Bayesian score ~92% (old ingested entities all share default 0.9434 score)
+- Schema pushed ✅ (2026-07-20)
+- **Entities**: 0 — fresh import, DB is empty. Must re-run ingestion pipelines.
+- **Assets**: 0
+- **Research sessions**: 0
+- **Improvement logs**: 0
 
-> **Note:** The DB figures (63,500 entities, 62,900 assets) in replit.md's "Current Data State" table are from a previous fully-ingested session. The current live environment has ~110 entities and 0 assets. Run the ingestion pipelines (FAA, HMLR, Western HNWI) to repopulate — clear Upstash dedup first if you want a clean slate.
+> **Action required:** Run ingestion pipelines to populate data:
+> 1. (Optional) Clear Upstash dedup: `DELETE /api/ingest/dedup`
+> 2. FAA: `POST /api/ingest/faa` — ~73s for 30k records
+> 3. HMLR: `POST /api/ingest/land-registry` — ~8min for 50k records  
+> 4. Western HNWI: `POST /api/ingest/western-hnwi` — slow, background job
+> 5. Companies House enrichment: `POST /api/ingest/companies-house-enrich`
 
-### What was done this session (persona simulation + fixes)
+### What was done this session (2026-07-20 import setup)
+1. Imported from GitHub — pnpm install, DB schema push
+2. Set secrets: `REDIS_URL_1` (Upstash dedup) and `COMPANIES_HOUSE_API_KEY`
+3. Configured manual workflows for API Server (port 8080) and Web Frontend (port 23695)
+4. All services verified: Redis ✅, Upstash ✅, API healthz ✅, Vite ✅
+5. DB schema current — ready for ingestion
+
+### What was done in prior sessions (persona simulation + fixes)
 1. Fixed `improve/run` SQL crash: `ANY(${entityIds})` → `inArray(entityIds)` in `improve.ts`
 2. Seeded 8 representative test entities covering the full quality spectrum
 3. Ran all 6 personas → 67 improvement suggestions generated (0 errors)
