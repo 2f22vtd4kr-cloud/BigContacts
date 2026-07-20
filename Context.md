@@ -8,7 +8,7 @@
 
 ---
 
-## Current State (2026-07-20 — re-import #2) — Running, DB Re-populating
+## Current State (2026-07-20 — re-import #3) — Running, DB Re-populating
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically
@@ -17,13 +17,14 @@
 - **SESSION_SECRET** — ✅ Set
 - **COMPANIES_HOUSE_API_KEY** — not set this import (CH enricher will be skipped)
 
-### Post-GitHub-Import Setup (2026-07-20 — second import)
+### Post-GitHub-Import Setup (2026-07-20 — third import)
 - `pnpm install --frozen-lockfile` ran cleanly
 - `pnpm --filter @workspace/db run push` — schema applied (no migrations needed)
-- All 4 artifacts re-registered via `verifyAndReplaceArtifactToml` (platform didn't auto-detect this time)
-- Managed workflows created by platform after registration
-- API Server + Web frontend started; DB was empty → cold-start auto-recovery triggered FAA + Land Registry + Western HNWI ingestion
-- No port conflicts (ports 8080/23695 were free)
+- All 4 artifacts auto-registered by platform after secrets were set
+- Managed workflows created automatically: Redis, API Server, apex-finder web, apex-mobile, mockup-sandbox
+- Secrets set: SESSION_SECRET ✅, REDIS_URL_1 ✅, COMPANIES_HOUSE_API_KEY ✅
+- API Server + Web frontend started; DB was empty → cold-start auto-recovery cleared stale dedup (32,871 entries) → auto-started FAA + Land Registry + Western HNWI ingestion
+- No port conflicts
 
 ### Workflows running
 | Workflow | Status |
@@ -189,7 +190,7 @@
 | 2026-07-19 | Query expansion (single-pass): added `expandQuery(query, plan)` to agent-orchestrator.ts. Appends asset synonyms (ASSET_EXPANSION), canonical location forms, name hints, and intent background terms to the raw query before hybridSearch. `expandedQuery` surfaced in RetrieverMeta + OrchestrationResult + UI Retriever step card. No iterative loop. |
 | 2026-07-19 | Intel Systems Analyst persona updated: file header "Iterative Query Expansion" → "Single-pass query expansion"; Layer 2 block comment rewritten to describe expandQuery() mechanics (ASSET_EXPANSION, INTENT_EXPANSION, location forms, name hints); "query expansion stalled" suggestion retitled and description rewritten to explain the three concrete paths (SQL location ILIKE, asset synonym matching, TF-IDF cosine) through which sparse entities remain invisible. |
 | 2026-07-19 | Full persona simulation run. Seeded 8 representative entities (Viktor Aldenmoor, Dominic Harcastle, Lars Eriksen, Brant Kellerman, Meridian Apex, Pierre-Henri Lascaux, Kestrel Trust, Chen). Fixed improve/run SQL bug (ANY→inArray). Ran all 6 personas → 67 suggestions (25 high, 27 medium, 15 low). Fixes applied: (1) entity ledger Contact Vector column now shows clickable mailto/tel/LinkedIn instead of raw prose, (2) MCTS terminal now has search bar + 500-entity limit instead of 30, (3) MCTS reads ?entity= URL param via window.location.search, (4) Profile page has prominent Direct Contact Vectors action bar with clickable email/phone/LinkedIn, (5) CRM Lead Gen empty state guides user to MCTS terminal. |
-| 2026-07-20 | **GitHub import re-setup**: pnpm install, DB schema pushed, all 4 artifacts re-registered (managed workflows active), SESSION_SECRET + REDIS_URL_1 (Upstash, 153k dedup entries) + COMPANIES_HOUSE_API_KEY set. FAA + Land Registry + Western HNWI ingestion jobs started. App live at `/` and `/api`. |
+| 2026-07-20 | **GitHub import re-setup (3rd)**: pnpm install, DB schema pushed, all 4 artifacts auto-registered by platform, SESSION_SECRET + REDIS_URL_1 + COMPANIES_HOUSE_API_KEY set. Stale dedup cleared (32,871 entries). FAA + LR + Western HNWI ingestion auto-started. App live at `/` and `/api`. Persona score at ~6.0 — Task #2 proposed to reach 9.2. |
 | 2026-07-20 | **Phase 3 — MCTS & Outreach Upgrade complete**: contactConfidence/contactEmail/contactPhone flow from GraphVertex → PathStep → MCTS UCT bonus → pitch context → CRM intel block. research.tsx gains PathNodeContact bars + CopyBriefButton. crm.tsx gains notes textarea + follow-up date picker + Export PDF (window.open print). DB schema: notes + followUpDate columns added + pushed. approach.tsx PitchModal upgraded to tabbed view (Initial/Follow-Up/Intro Script) with Share.share() button. |
 | 2026-07-19 | **Phase 1 — Contact Enrichment Pipeline complete**: (1) `contactConfidence` column added to entities schema + DB migrated; (2) `contact-confidence.ts` pure utility; (3) `companies-house-enricher.ts` — CH officer lookup + confidence recompute; (4) `POST /api/ingest/companies-house-enrich` background route with 409 conflict guard; (5) dashboard/stats now returns `contactableCount` + `enrichmentCoverage`; (6) profile page — contact bar always visible, confidence badge, Enrich button with job polling + entity refetch; (7) data-sources page — Enrichment Coverage Stats panel + CH enricher source card; (8) mobile approach screen — ContactVectorsStrip with Linking.openURL tappable email/phone/linkedin pills. |
 
