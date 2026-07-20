@@ -140,4 +140,103 @@ router.post("/relationships/auto-detect", async (_req, res): Promise<void> => {
   res.json({ created, skipped, message: `Auto-detect complete: ${created} new relationships, ${skipped} already existed.` });
 });
 
+// POST /api/relationships/auto-detect-clusters — corporate-series name clustering
+// Finds entities whose names share the same root after stripping legal suffixes and
+// series indicators (e.g. "Bateleur Eagle Holdings I LLC" + "Bateleur Eagle Holdings II LLC").
+router.post("/relationships/auto-detect-clusters", async (_req, res): Promise<void> => {
+  // Legal entity suffixes to strip (longest first to avoid partial matches)
+  const LEGAL_SUFFIXES = [
+    "international", "investments", "enterprises", "management",
+    "properties", "associates", "ventures", "advisors", "holdings",
+    "partners", "services", "aviation", "capital", "realty", "aircraft",
+    "trust", "group", "fund", "corp", "jets", "air", "llp", "inc",
+    "ltd", "llc", "lp", "pc", "plc", "na", "nt", "co",
+  ];
+
+  // Roman numerals and Arabic numbers (trailing series indicator)
+  const SERIES_RE = /\b(xii|xi|x|ix|viii|vii|vi|v|iv|iii|ii|i|\d{1,3})\s*$/i;
+
+  function clusterKey(name: string): string {
+    let s = name.toLowerCase().replace(/[.,&']/g, " ").replace(/\s+/g, " ").trim();
+    // Iteratively strip suffixes + trailing series until stable
+    let prev = "";
+    while (s !== prev) {
+      prev = s;
+      for (const suf of LEGAL_SUFFIXES) {
+        const re = new RegExp("\\b" + suf + "\\s*$", "i");
+        s = s.replace(re, "").trim();
+      }
+      s = s.replace(SERIES_RE, "").trim();
+    }
+    return s;
+  }
+
+  const entities = await db
+    .select({ id: entitiesTable.id, name: entitiesTable.name })
+    .from(entitiesTable);
+
+  // Build cluster key → entity IDs index
+  const clusterIndex = new Map<string, number[]>();
+  for (const e of entities) {
+    const key = clusterKey(e.name);
+    // Require at least 2 words and 8 chars to avoid spurious matches on short/generic names
+    const words = key.split(/\s+/).filter(Boolean);
+    if (key.length < 8 || words.length < 2) continue;
+    if (!clusterIndex.has(key)) clusterIndex.set(key, []);
+    clusterIndex.get(key)!.push(e.id);
+  }
+
+  // Load existing relationships for idempotency
+  const existing = await db
+    .select({ sourceEntityId: relationshipsTable.sourceEntityId, targetId: relationshipsTable.targetId, relationshipType: relationshipsTable.relationshipType })
+    .from(relationshipsTable);
+  const seen = new Set(existing.map((r) => `${r.sourceEntityId}:${r.targetId}:${r.relationshipType}`));
+
+  let created = 0;
+  let skipped = 0;
+  let clusters = 0;
+  const pending: Array<{
+    sourceEntityId: number; targetId: number; targetType: "Entity";
+    relationshipType: string; strength: number; notes: string;
+  }> = [];
+
+  for (const [key, ids] of clusterIndex) {
+    const unique = [...new Set(ids)];
+    if (unique.length < 2) continue;
+    clusters++;
+    for (let i = 0; i < unique.length; i++) {
+      for (let j = i + 1; j < unique.length; j++) {
+        const a = unique[i]!;
+        const b = unique[j]!;
+        const fwd = `${a}:${b}:CORPORATE_SERIES`;
+        const rev = `${b}:${a}:CORPORATE_SERIES`;
+        if (seen.has(fwd) || seen.has(rev)) { skipped++; continue; }
+        pending.push({
+          sourceEntityId: a,
+          targetId: b,
+          targetType: "Entity" as const,
+          relationshipType: "CORPORATE_SERIES",
+          strength: 0.85,
+          notes: "Auto-detected: corporate name series cluster [" + key + "]",
+        });
+        seen.add(fwd);
+        created++;
+      }
+    }
+  }
+
+  // Batch insert in chunks of 500 to avoid parameter limits
+  const CHUNK = 500;
+  for (let i = 0; i < pending.length; i += CHUNK) {
+    await db.insert(relationshipsTable).values(pending.slice(i, i + CHUNK));
+  }
+
+  res.json({
+    created,
+    skipped,
+    clusters,
+    message: "Name-cluster detect: " + created + " new edges across " + clusters + " clusters, " + skipped + " already existed.",
+  });
+});
+
 export default router;

@@ -294,6 +294,10 @@ function EnrichmentCoverageStats() {
         <AutoDetectButton />
       </div>
       <div className="flex items-center justify-between border-t border-border/40 pt-2.5">
+        <span className="text-[10px] font-mono text-muted-foreground/60">Detect corporate name series (e.g. "Tannjets I / II LLC") — builds relationship graph</span>
+        <ClusterDetectButton />
+      </div>
+      <div className="flex items-center justify-between border-t border-border/40 pt-2.5">
         <span className="text-[10px] font-mono text-muted-foreground/60">Sync isHot flag for all entities with Bayesian score ≥ 0.70</span>
         <SyncHotFlagsButton />
       </div>
@@ -333,6 +337,43 @@ function SyncHotFlagsButton() {
       >
         {status === "running" ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Activity className="w-3 h-3" />}
         {status === "running" ? "Syncing…" : "Sync Hot Flags"}
+      </button>
+    </div>
+  );
+}
+
+function ClusterDetectButton() {
+  const [status, setStatus] = useState<"idle" | "running" | "done" | "error">("idle");
+  const [msg, setMsg] = useState("");
+
+  const run = async () => {
+    setStatus("running");
+    setMsg("");
+    try {
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const r = await fetch(`${base}/api/relationships/auto-detect-clusters`, { method: "POST" });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error ?? "Failed");
+      setMsg(d.message ?? "Done");
+      setStatus("done");
+    } catch (err: any) {
+      setMsg(err.message ?? "Error");
+      setStatus("error");
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2 flex-shrink-0">
+      {msg && (
+        <span className={`text-[10px] font-mono ${status === "error" ? "text-red-400" : "text-emerald-400"} max-w-[200px] truncate`} title={msg}>{msg}</span>
+      )}
+      <button
+        onClick={run}
+        disabled={status === "running"}
+        className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-border text-muted-foreground hover:text-primary hover:border-primary/40 font-mono text-[10px] uppercase tracking-wider transition-colors disabled:opacity-50 flex-shrink-0"
+      >
+        {status === "running" ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Network className="w-3 h-3" />}
+        {status === "running" ? "Clustering…" : "Name Clusters"}
       </button>
     </div>
   );

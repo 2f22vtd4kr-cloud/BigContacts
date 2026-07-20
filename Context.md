@@ -8,7 +8,7 @@
 
 ---
 
-## Current State (2026-07-20) — Re-imported from GitHub, Fully Running
+## Current State (2026-07-20) — Re-imported, Fully Running + Relationship Graph Live
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically
@@ -17,15 +17,8 @@
 - **SESSION_SECRET** — ✅ Set
 - **COMPANIES_HOUSE_API_KEY** — ✅ Set (CH officer address enrichment enabled)
 
-### Post-GitHub-Import Setup (2026-07-20)
-Project re-imported from GitHub. Workflows configured as plain Replit workflows (not artifact-managed, since artifact registration is not persisted across GitHub imports). Commands include inlined PORT/BASE_PATH env vars.
-
-- **API Server** workflow: `PORT=8080 pnpm --filter @workspace/api-server run dev`
-- **Web Frontend** workflow: `PORT=23695 BASE_PATH=/ pnpm --filter @workspace/apex-finder run dev`
-- **Redis** workflow: unchanged
-- Schema pushed: `pnpm --filter @workspace/db run push`
-
-> ⚠️ Note: `waitForPort` must NOT be set in `configureWorkflow` for these workflows — the port check times out even though the servers start fine. Verify health via `curl localhost:8080/api/healthz` instead.
+### Post-GitHub-Import Setup (2026-07-20 — this session)
+All 4 artifacts re-registered (managed workflows restored automatically after artifact.toml files were detected). Port conflicts from orphaned processes cleared with `kill -9 $(lsof -ti:8080 -ti:23695)`.
 
 ### Workflows running
 | Workflow | Status |
@@ -33,19 +26,25 @@ Project re-imported from GitHub. Workflows configured as plain Replit workflows 
 | Redis | ✅ Running |
 | `artifacts/api-server: API Server` | ✅ Running (port 8080) — artifact-managed |
 | `artifacts/apex-finder: web` | ✅ Running (port 23695) — artifact-managed |
-| `artifacts/apex-mobile: expo` | ✅ Running (optional) |
-| `artifacts/mockup-sandbox: Component Preview Server` | ✅ Running (optional) |
+| `artifacts/apex-mobile: expo` | Optional — not started |
+| `artifacts/mockup-sandbox: Component Preview Server` | Optional — not started |
 
-### Database
-- Schema pushed ✅ (2026-07-20)
-- **Entities**: 32,000 (FAA + Land Registry from prior session — DB survived the import)
+### Database (2026-07-20 — post ingestion)
+- Schema pushed ✅
+- **Entities**: 32,100 (FAA 30k + Land Registry 2k + Western HNWI 100+, still ingesting)
 - **Assets**: 32,000
-- **Hot leads**: 7,452
-- **Research sessions**: 0
-- **Improvement logs**: 0
-- **Contact vectors**: 174+ updated (CH enricher running — adds addresses; email/phone still 0 for FAA entities)
-- **Relationship edges**: 0 (auto-detect ran but FAA addresses are unique — needs non-address signal)
-- **Research sessions**: 5 (MCTS run on top hot leads · path scores 0.415–0.488)
+- **Hot leads**: 14,814 (synced with Bayesian ≥ 0.70)
+- **Relationship edges**: 113,946 — **corporate name-series clustering (NEW)**
+- **Contact vectors**: CH enricher running (~44% complete as of session end)
+- **Research sessions**: 0 (ready for MCTS run)
+
+### What's new this session
+1. **Corporate name-series relationship graph** — `POST /api/relationships/auto-detect-clusters` added to `artifacts/api-server/src/routes/relationships.ts`. Strips legal suffixes (LLC, Inc, Holdings, etc.) and series indicators (I, II, III…) iteratively to find same-root clusters. Creates `CORPORATE_SERIES` edges (strength 0.85). Batch-inserts in chunks of 500. Generated 113,946 edges across 32k entities.
+2. **Name Clusters button** in `artifacts/apex-finder/src/pages/data-sources.tsx` — `ClusterDetectButton` component in the Enrichment Coverage Stats panel.
+3. **CH enrichment running** — COMPANIES_HOUSE_API_KEY set, background job active.
+4. **Western HNWI running** — targeting 5,000 records (100 inserted so far, SEC EDGAR rate-limited).
+
+> **Post-import port-conflict pattern**: After killing the old "Start application" manual workflow, the Node/Vite processes linger. Always run `kill -9 $(lsof -ti:8080 -ti:23695)` before restarting artifact-managed workflows.
 
 > DB was populated in a prior session and persisted through the GitHub import. Cold-start auto-recovery detected the populated DB and skipped auto-ingestion. To re-ingest, clear Upstash dedup first (`DELETE /api/ingest/dedup`) then POST to the ingest endpoints.
 
@@ -146,6 +145,7 @@ Project re-imported from GitHub. Workflows configured as plain Replit workflows 
 
 | Date | What changed |
 |---|---|
+| 2026-07-20 | **Post-import setup + relationship graph**: secrets set (REDIS_URL_1, COMPANIES_HOUSE_API_KEY), artifact-managed workflows restored, schema pushed, FAA 30k + LR 2k ingested, Western HNWI restarted (5k target), hot flags synced (14,814), name-clustering endpoint built (113,946 CORPORATE_SERIES edges), CH enrichment running. |
 | 2026-07-20 | **Hybrid architecture correction + 4 operational steps**: (1) Entity reclassification ran — 22,741→Corp, 585→Trust, 8,674 remain HNWI. (2) CH enricher started (500 entities, addresses added). (3) Relationship auto-detect ran — 0 found (FAA addresses are unique; need different signal). (4) MCTS run on top 5 hot leads — sessions 1–5 created, path scores 0.415–0.488. Code: algorithmPipeline in research.ts now labels L1–L5; persona-engine layer numbering corrected (MCTS=L4); research.tsx HYBRID_PIPELINE string updated; improvements.md Core Hybrid Architecture section added. |
 | 2026-07-20 | **Sim run (post-import)**: 6 persona batches × 50 entities = 300 entities. 2,376 suggestions (1,284 high / 498 medium / 594 low). Top flags: 100% zero contact vectors, 100% isolated nodes (0 relationships), 100% no MCTS sessions. App rating updated: **6.0/10** (up from 5.2 baseline). All 5 code phases complete; gap is purely operational — trigger CH enricher + relationship auto-detect + entity reclassification. improvements.md updated with full breakdown. |
 | 2026-07-19 | GitHub import re-setup: pnpm install, DB schema pushed, REDIS_URL set, REDIS_URL_1 (Upstash) set and verified connected (`[upstash-1] Redis ready`). Workflows running: Redis, API Server (port 8080), apex-finder web (port 23695). App loads. DB empty — needs ingestion. |
