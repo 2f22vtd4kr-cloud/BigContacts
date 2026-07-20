@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, isNotNull } from "drizzle-orm";
+import { eq, isNotNull, sql } from "drizzle-orm";
 import { db, relationshipsTable, entitiesTable, assetsTable } from "@workspace/db";
 import {
   ListRelationshipsQueryParams,

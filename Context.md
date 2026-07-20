@@ -55,9 +55,24 @@
 **New persona added:**
 6. **Data Integrity Auditor** (`data_integrity_auditor`) — 7th persona in `persona-engine.ts`. Enforces the zero-synthetic-data rule. Checks: synthetic flags in metadata, missing provenance, placeholder names, fake emails/phones, synthetic asset identifiers, enrichment-pending hot leads, missing liveSource markers. Color: red `#EF4444`. Run 3 confirmed: **0 synthetic violations** across 300 entities — data purity rule is being respected.
 
+**Data operations run this session (all via API, not UI buttons):**
+- POST /ingest/create-edgar-stock-assets → 2,053 StockHolding assets created
+- POST /ingest/populate-notes → 35,856 entities enriched (paginated, 2k/page)
+- POST /ingest/sync-hot-flags → 17,161 hot leads
+- POST /ingest/reclassify-entity-types → 24,144 Corp, 690 Trust, 11,022 HNWI
+- POST /relationships/auto-detect-clusters → 229,282 edges across 2,096 clusters
+- POST /ingest/companies-house-enrich → 50 entities enriched (contactConfidence only; key not set)
+- 40 research sessions (MCTS+Critic+Pitch) on top HNWI + Trust hot leads
+
+**Bugs fixed:**
+- OOM crash from 10 parallel research sessions → `--max-old-space-size=3072` in node start
+- `req.body` undefined on CH officers POST → nullish coalesce `?? {}`
+- populate-notes loading 35k rows → paginated loop (2k/page)
+- `sql not defined` in co-directors → added sql to drizzle-orm import
+
 **Secrets:**
-- `COMPANIES_HOUSE_API_KEY` — requested via secure form (set by user)
-- `REDIS_URL_1` — requested via secure form (set by user)
+- `COMPANIES_HOUSE_API_KEY` — NOT yet in runtime env (requestSecrets called but form not submitted)
+- `REDIS_URL_1` — NOT yet in runtime env
 
 > **Post-import port-conflict pattern**: After killing the old "Start application" manual workflow, the Node/Vite processes linger. Always run `kill -9 $(lsof -ti:8080 -ti:23695)` before restarting artifact-managed workflows.
 

@@ -38,6 +38,72 @@ This is the canonical definition of the intelligence pipeline. **MCTS is Layer 4
 
 ---
 
+## Simulation Run 4 — 2026-07-20 (Post All Data Operations — Pre-CH-Key)
+
+**Data state at time of run:**
+- 35,856 entities (FAA 30k + Land Registry 2k + Western HNWI 3,856)
+- 34,053 assets (FAA aviation + HMLR real estate + 2,053 new EDGAR StockHolding)
+- **229,282 relationship edges** (name-cluster rebuild complete)
+- **40 research sessions** (MCTS + Critic synthesis, sessions 1–40)
+- Entity reclassification done: 24,144 Corps, 690 Trusts, 11,022 HNWI
+- Notes enriched for all 35,856 entities
+- 17,161 hot leads (sync done)
+- CH key still NOT in runtime env — CH officers/contact enrichment blocked
+
+**Sample:** 300 entities · **7 personas** · **1,919 suggestions** (↓27% vs Run 3's 2,633)
+**Avg per entity:** 6.40 (↓ from 8.78) · **0 errors**
+**Breakdown:** 2,170 high · 1,554 medium · 828 low *(cumulative queue)*
+
+### Per-persona flag delta: Run 3 → Run 4
+
+| Persona | Run 3 (per 300) | Run 4 (per 300) | Δ | Root cause |
+|---|---|---|---|---|
+| data_engineer | 600 (2.0/e) | 600 (2.0/e) | → | No contact data — CH key needed |
+| intel_systems_analyst | 469 (1.56/e) | 427 (1.42/e) | ↓ | 40 sessions cover ~13% of entities |
+| business_engineer | 431 (1.44/e) | 286 (0.95/e) | **↓↓** | Reclassification removed Corp "isolated node" penalty |
+| data_analyst | 469 (1.56/e) | **25 (0.08/e)** | **↓↓↓↓** | EDGAR stock assets + sync-hot-flags eliminated 98% of flags |
+| ux_designer | 300 (1.0/e) | **110 (0.37/e)** | **↓↓** | EDGAR StockHolding assets have geo data |
+| architect | 195 (0.65/e) | 206 (0.69/e) | ↑ | Reclassification exposed new cross-type boundary flags |
+| data_integrity_auditor | 169 (0.56/e) | 265 (0.88/e) | ↑ | 94 new liveSource provenance flags (LOW priority); hot lead count ↑ |
+
+### Updated score (Run 4)
+
+| Dimension | Baseline | Run 2 | Run 3 | Run 4 | Δ Run3→4 | Notes |
+|---|---|---|---|---|---|---|
+| Entity discovery | 7 | 9 | 7 | **9** | ↑↑ | Reclassify ✅ · notes enriched ✅ · 17k hot leads |
+| Contact quality | 3 | 4 | 4 | **4** | → | 0 contactable; CH key needed |
+| Approach path finding | 4 | 7 | 3 | **7** | ↑↑↑↑ | 229,282 edges; MCTS paths exist |
+| Outreach generation | 5 | 6 | 5 | **8** | ↑↑↑ | 40 sessions; rich Critic synthesis; pitches generated |
+| Operator workflow | 5 | 8 | 7 | **9** | ↑↑ | All 7 action buttons; all data ops complete |
+| Data enrichment | 2 | 4 | 5 | **7** | ↑↑ | 34k assets; all notes enriched; 17k hot leads |
+| Reliability | 7 | 8 | 9 | **9** | → | 7 personas, 0 errors, robust pipeline |
+| Data integrity | N/A | N/A | 10 | **10** | → | 0 synthetic violations confirmed |
+| **Overall** | **5.2** | **6.6** | **6.0** | **~7.9** | **↑↑** | One blocker remaining: CH key |
+
+### Remaining gap to 9.2 — single blocker
+
+| Action | Unblocked by | Impact |
+|---|---|---|
+| CH officers enrichment | `COMPANIES_HOUSE_API_KEY` set as Replit Secret | ~4,000 UK Corporation entities get officer address data |
+| CH co-directors | CH officers done | SHARED_DIRECTOR edges for individual HNWIs |
+| contact confidence recompute | CH officers done | contactable count rises from 0 → ~800+ |
+| Run 50+ more research sessions | Already available | Intel score: "no session" flag from 96%→85% of entities |
+| **Projected score after above** | | **~8.8/10** |
+| | | |
+| Email / phone enrichment API | Hunter.io / Apollo / Clearbit | Contact quality 4→9 |
+| **Projected score after email API** | | **~9.3/10** |
+
+### OOM + bugs fixed this session
+
+| Bug | Fix | File |
+|---|---|---|
+| Server crashes with 10 parallel research sessions | `--max-old-space-size=3072` added to node start | `package.json` |
+| `req.body` undefined on POST without JSON body | `(req.body as ...) ?? {}` nullish coalesce | `ingest.ts:555` |
+| `populate-notes` loads all 35k rows at once | Paginated loop (2k/page, discards after each page) | `ingest.ts:585` |
+| `sql not defined` in co-directors route | Added `sql` to drizzle-orm import | `relationships.ts:2` |
+
+---
+
 ## Simulation Run 3 — 2026-07-20 (Post Re-import + 5 Improvements + New Integrity Persona)
 
 **Data state at time of run:**

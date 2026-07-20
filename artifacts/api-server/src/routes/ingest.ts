@@ -552,7 +552,7 @@ router.post("/ingest/companies-house-enrich", async (req, res): Promise<void> =>
 
 // ── POST /ingest/ch-company-officers — fetch CH company officers for Corp entities ──
 router.post("/ingest/ch-company-officers", async (req: Request, res: Response): Promise<void> => {
-  const { batchSize = 100 } = req.body as { batchSize?: number };
+  const { batchSize = 100 } = (req.body as { batchSize?: number } | undefined) ?? {};
   const existingJobId = await getActiveJob("ch-officers");
   if (existingJobId) {
     const existing = await getJob(existingJobId);
@@ -583,51 +583,69 @@ router.post("/ingest/ch-company-officers", async (req: Request, res: Response): 
 
 // ── POST /ingest/populate-notes — enrich entity notes from metadata ───────────
 router.post("/ingest/populate-notes", async (_req: Request, res: Response): Promise<void> => {
-  const rows = await db
-    .select({ id: entitiesTable.id, notes: entitiesTable.notes, metadata: entitiesTable.metadata, sourceRegistries: entitiesTable.sourceRegistries, type: entitiesTable.type, nationality: entitiesTable.nationality, knownResidences: entitiesTable.knownResidences })
-    .from(entitiesTable)
-    .where(sql`${entitiesTable.metadata} IS NOT NULL AND ${entitiesTable.metadata} != '{}'`);
-
+  // Paginated processing — never load all 35k rows into memory at once.
+  const PAGE = 2000;
+  let offset = 0;
   let updated = 0;
-  const CHUNK = 500;
-  const updates: Array<{ id: number; notes: string }> = [];
+  let total = 0;
 
-  for (const row of rows) {
-    let meta: Record<string, any> = {};
-    try { meta = JSON.parse(row.metadata ?? "{}"); } catch {}
-    const sources: string[] = (() => { try { return JSON.parse(row.sourceRegistries ?? "[]"); } catch { return []; } })();
+  while (true) {
+    const rows = await db
+      .select({
+        id: entitiesTable.id,
+        notes: entitiesTable.notes,
+        metadata: entitiesTable.metadata,
+        sourceRegistries: entitiesTable.sourceRegistries,
+        type: entitiesTable.type,
+        nationality: entitiesTable.nationality,
+        knownResidences: entitiesTable.knownResidences,
+      })
+      .from(entitiesTable)
+      .where(sql`${entitiesTable.metadata} IS NOT NULL AND ${entitiesTable.metadata} != '{}'`)
+      .limit(PAGE)
+      .offset(offset);
 
-    const parts: string[] = [];
-    if (sources.length > 0) parts.push(`Source: ${sources.join("; ")}.`);
-    if (meta.formType) parts.push(`Filing: ${meta.formType}${meta.fileDate ? ` (${meta.fileDate})` : ""}.`);
-    if (meta.companyName) parts.push(`Company: ${meta.companyName}.`);
-    if (meta.orgnr) parts.push(`Org number: ${meta.orgnr}.`);
-    if (meta.roleDesc) parts.push(`Role: ${meta.roleDesc}.`);
-    if (meta.chOfficers && Array.isArray(meta.chOfficers) && meta.chOfficers.length > 0) {
-      parts.push(`CH directors: ${meta.chOfficers.slice(0, 5).map((o: any) => o.name).join(", ")}.`);
+    if (rows.length === 0) break;
+    total += rows.length;
+    offset += PAGE;
+
+    const updates: Array<{ id: number; notes: string }> = [];
+    for (const row of rows) {
+      let meta: Record<string, any> = {};
+      try { meta = JSON.parse(row.metadata ?? "{}"); } catch {}
+      const sources: string[] = (() => { try { return JSON.parse(row.sourceRegistries ?? "[]"); } catch { return []; } })();
+
+      const parts: string[] = [];
+      if (sources.length > 0) parts.push(`Source: ${sources.join("; ")}.`);
+      if (meta.formType) parts.push(`Filing: ${meta.formType}${meta.fileDate ? ` (${meta.fileDate})` : ""}.`);
+      if (meta.companyName) parts.push(`Company: ${meta.companyName}.`);
+      if (meta.orgnr) parts.push(`Org number: ${meta.orgnr}.`);
+      if (meta.roleDesc) parts.push(`Role: ${meta.roleDesc}.`);
+      if (meta.chOfficers && Array.isArray(meta.chOfficers) && meta.chOfficers.length > 0) {
+        parts.push(`CH directors: ${meta.chOfficers.slice(0, 5).map((o: any) => o.name).join(", ")}.`);
+      }
+      if (row.nationality) parts.push(`Nationality: ${row.nationality}.`);
+      if (row.knownResidences) {
+        const loc = (() => { try { const r = JSON.parse(row.knownResidences!); return Array.isArray(r) ? r[0] : r; } catch { return row.knownResidences; } })();
+        if (loc) parts.push(`Location: ${loc}.`);
+      }
+      if (row.type) parts.push(`Entity type: ${row.type}.`);
+      if (meta.edgarUrl) parts.push(`EDGAR: ${meta.edgarUrl}.`);
+
+      const newNotes = parts.join(" ");
+      if (newNotes && newNotes !== row.notes) {
+        updates.push({ id: row.id, notes: newNotes });
+      }
     }
-    if (row.nationality) parts.push(`Nationality: ${row.nationality}.`);
-    if (row.knownResidences) {
-      const loc = (() => { try { const r = JSON.parse(row.knownResidences!); return Array.isArray(r) ? r[0] : r; } catch { return row.knownResidences; } })();
-      if (loc) parts.push(`Location: ${loc}.`);
-    }
-    if (row.type) parts.push(`Entity type: ${row.type}.`);
-    if (meta.edgarUrl) parts.push(`EDGAR: ${meta.edgarUrl}.`);
 
-    const newNotes = parts.join(" ");
-    if (newNotes && newNotes !== row.notes) {
-      updates.push({ id: row.id, notes: newNotes });
-    }
-  }
-
-  for (let i = 0; i < updates.length; i += CHUNK) {
-    for (const u of updates.slice(i, i + CHUNK)) {
+    // Batch-update this page
+    for (const u of updates) {
       await db.update(entitiesTable).set({ notes: u.notes }).where(eq(entitiesTable.id, u.id));
     }
-    updated += Math.min(CHUNK, updates.length - i);
+    updated += updates.length;
   }
 
-  res.json({ updated, total: rows.length, message: `Notes enriched for ${updated} entities.` });
+  res.json({ updated, total, message: `Notes enriched for ${updated} entities.` });
 });
 
 // ── POST /ingest/create-edgar-stock-assets — create StockHolding assets ───────
