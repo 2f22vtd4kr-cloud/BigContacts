@@ -11,6 +11,7 @@ import {
   Search, Cpu, Network, Microscope, ShieldCheck,
   ChevronRight, Zap, Clock, Loader2, AlertCircle,
   Star, TrendingUp, Globe, Database, CheckCircle2,
+  SlidersHorizontal, Mail, GitBranch, X as XIcon,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -250,12 +251,47 @@ function ResultCard({ result }: { result: SearchResult }) {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
+const ASSET_TYPE_OPTIONS = ["Aviation", "RealEstate", "Marine", "PrivateClub"];
+const JURISDICTION_OPTIONS = [
+  { label: "United States", value: "american" },
+  { label: "United Kingdom", value: "british" },
+  { label: "Norway",         value: "norwegian" },
+  { label: "Other",          value: "other" },
+];
+
 export default function DeepSearch() {
   const [query, setQuery]     = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState<string | null>(null);
   const [result, setResult]   = useState<SearchResponse | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // ── Filter state ────────────────────────────────────────────────────────────
+  const [filtersOpen,         setFiltersOpen]         = useState(false);
+  const [filterAssetTypes,    setFilterAssetTypes]    = useState<string[]>([]);
+  const [filterJurisdictions, setFilterJurisdictions] = useState<string[]>([]);
+  const [filterMinScore,      setFilterMinScore]      = useState(0);
+  const [filterMaxScore,      setFilterMaxScore]      = useState(100);
+  const [filterHasContact,    setFilterHasContact]    = useState(false);
+  const [filterHasRelationship, setFilterHasRelationship] = useState(false);
+
+  const activeFilterCount =
+    filterAssetTypes.length +
+    filterJurisdictions.length +
+    (filterMinScore > 0 || filterMaxScore < 100 ? 1 : 0) +
+    (filterHasContact ? 1 : 0) +
+    (filterHasRelationship ? 1 : 0);
+
+  const toggleAssetType = (t: string) =>
+    setFilterAssetTypes((prev) => prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]);
+  const toggleJurisdiction = (v: string) =>
+    setFilterJurisdictions((prev) => prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]);
+
+  const resetFilters = () => {
+    setFilterAssetTypes([]); setFilterJurisdictions([]);
+    setFilterMinScore(0); setFilterMaxScore(100);
+    setFilterHasContact(false); setFilterHasRelationship(false);
+  };
 
   // Derive step statuses from loading / result state
   const steps: Record<string, StepStatus> = {
@@ -277,7 +313,16 @@ export default function DeepSearch() {
       const resp = await fetch("/api/search/intelligent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: trimmed, limit: 20 }),
+        body: JSON.stringify({
+          query: trimmed,
+          limit: 20,
+          filterAssetTypes,
+          filterJurisdictions,
+          filterMinScore: filterMinScore / 100,
+          filterMaxScore: filterMaxScore / 100,
+          filterHasContact,
+          filterHasRelationship,
+        }),
       });
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({}));
@@ -342,6 +387,117 @@ export default function DeepSearch() {
             {loading ? "Running…" : "Search"}
           </button>
         </form>
+
+        {/* Filter toggle row */}
+        <div className="flex items-center gap-2 mt-3">
+          <button
+            onClick={() => setFiltersOpen((v) => !v)}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border font-mono text-[11px] uppercase tracking-wider transition-all",
+              filtersOpen || activeFilterCount > 0
+                ? "bg-primary/10 border-primary/50 text-primary"
+                : "border-border text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <SlidersHorizontal className="w-3 h-3" />
+            Filters
+            {activeFilterCount > 0 && (
+              <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-primary text-primary-foreground text-[9px] font-bold leading-none">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
+          {activeFilterCount > 0 && (
+            <button
+              onClick={resetFilters}
+              className="flex items-center gap-1 text-[10px] font-mono text-muted-foreground hover:text-destructive transition-colors"
+            >
+              <XIcon className="w-3 h-3" /> Reset
+            </button>
+          )}
+        </div>
+
+        {/* Filter panel */}
+        {filtersOpen && (
+          <div className="mt-3 p-4 bg-background border border-border rounded-lg space-y-4">
+            {/* Asset types */}
+            <div>
+              <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-2">Asset Type</div>
+              <div className="flex flex-wrap gap-2">
+                {ASSET_TYPE_OPTIONS.map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => toggleAssetType(t)}
+                    className={cn(
+                      "px-2.5 py-1 rounded border text-[10px] font-mono font-bold uppercase transition-all",
+                      filterAssetTypes.includes(t)
+                        ? "bg-secondary/20 border-secondary text-secondary"
+                        : "border-border text-muted-foreground hover:border-secondary/50",
+                    )}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Jurisdictions */}
+            <div>
+              <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-2">Jurisdiction</div>
+              <div className="flex flex-wrap gap-2">
+                {JURISDICTION_OPTIONS.map((j) => (
+                  <button
+                    key={j.value}
+                    onClick={() => toggleJurisdiction(j.value)}
+                    className={cn(
+                      "px-2.5 py-1 rounded border text-[10px] font-mono font-bold uppercase transition-all",
+                      filterJurisdictions.includes(j.value)
+                        ? "bg-blue-500/20 border-blue-500 text-blue-400"
+                        : "border-border text-muted-foreground hover:border-blue-500/50",
+                    )}
+                  >
+                    {j.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Score range */}
+            <div>
+              <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-2">
+                Bayesian Score: {filterMinScore}% – {filterMaxScore}%
+              </div>
+              <div className="flex items-center gap-3">
+                <input type="range" min={0} max={100} value={filterMinScore}
+                  onChange={(e) => setFilterMinScore(Math.min(Number(e.target.value), filterMaxScore))}
+                  className="flex-1 accent-primary" />
+                <input type="range" min={0} max={100} value={filterMaxScore}
+                  onChange={(e) => setFilterMaxScore(Math.max(Number(e.target.value), filterMinScore))}
+                  className="flex-1 accent-primary" />
+              </div>
+            </div>
+
+            {/* Toggles */}
+            <div className="flex flex-wrap gap-3">
+              <label className="flex items-center gap-2 cursor-pointer group">
+                <input type="checkbox" checked={filterHasContact} onChange={(e) => setFilterHasContact(e.target.checked)}
+                  className="w-3.5 h-3.5 accent-primary rounded" />
+                <Mail className="w-3 h-3 text-primary" />
+                <span className="text-[11px] font-mono text-muted-foreground group-hover:text-foreground transition-colors">
+                  Has direct contact
+                </span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer group">
+                <input type="checkbox" checked={filterHasRelationship} onChange={(e) => setFilterHasRelationship(e.target.checked)}
+                  className="w-3.5 h-3.5 accent-primary rounded" />
+                <GitBranch className="w-3 h-3 text-secondary" />
+                <span className="text-[11px] font-mono text-muted-foreground group-hover:text-foreground transition-colors">
+                  Has mapped relationships
+                </span>
+              </label>
+            </div>
+          </div>
+        )}
 
         {/* Example chips */}
         {!result && !loading && (

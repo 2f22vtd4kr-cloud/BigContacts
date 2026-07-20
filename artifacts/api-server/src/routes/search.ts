@@ -8,8 +8,8 @@
  */
 
 import { Router, type IRouter } from "express";
-import { ilike, and, gte, eq, lte, sql } from "drizzle-orm";
-import { db, entitiesTable, assetsTable } from "@workspace/db";
+import { ilike, and, gte, eq, lte, sql, inArray } from "drizzle-orm";
+import { db, entitiesTable, assetsTable, relationshipsTable } from "@workspace/db";
 import { getCache, setCache } from "../lib/redis";
 import { orchestrate } from "../lib/agent-orchestrator";
 
@@ -188,7 +188,22 @@ router.get("/search/hnwi/facets", async (_req, res): Promise<void> => {
 
 // POST /search/intelligent — hybrid BM25 + TF-IDF + Graph + RRF with multi-agent pipeline
 router.post("/search/intelligent", async (req, res): Promise<void> => {
-  const { query = "", limit = 20 } = req.body as { query?: string; limit?: number };
+  const {
+    query = "",
+    limit = 20,
+    // Post-filters applied after orchestration
+    filterAssetTypes = [],
+    filterJurisdictions = [],
+    filterMinScore,
+    filterMaxScore,
+    filterHasContact = false,
+    filterHasRelationship = false,
+  } = req.body as {
+    query?: string; limit?: number;
+    filterAssetTypes?: string[]; filterJurisdictions?: string[];
+    filterMinScore?: number; filterMaxScore?: number;
+    filterHasContact?: boolean; filterHasRelationship?: boolean;
+  };
 
   if (!query.trim()) {
     res.status(400).json({ error: "query is required." });
@@ -196,15 +211,65 @@ router.post("/search/intelligent", async (req, res): Promise<void> => {
   }
 
   const safeLimit = Math.min(Number(limit) || 20, 50);
-  const cacheKey = `search:intelligent:${query.trim().toLowerCase()}:${safeLimit}`;
+  const filterKey = JSON.stringify({ filterAssetTypes, filterJurisdictions, filterMinScore, filterMaxScore, filterHasContact, filterHasRelationship });
+  const cacheKey = `search:intelligent:${query.trim().toLowerCase()}:${safeLimit}:${filterKey}`;
 
   const cached = await getCache<object>(cacheKey);
   if (cached) { res.json({ ...cached, cached: true }); return; }
 
   try {
     const result = await orchestrate(query.trim(), safeLimit);
-    await setCache(cacheKey, result, 60); // 60 s cache
-    res.json({ ...result, cached: false });
+    let filteredResults: typeof result.results = result.results;
+
+    // Asset type filter
+    if (filterAssetTypes.length > 0) {
+      filteredResults = filteredResults.filter((r: any) =>
+        (r.assetTypes as string[] ?? []).some((t) => filterAssetTypes.includes(t))
+      );
+    }
+
+    // Jurisdiction / nationality filter
+    if (filterJurisdictions.length > 0) {
+      filteredResults = filteredResults.filter((r: any) =>
+        filterJurisdictions.some((j) =>
+          (r.nationality ?? "").toLowerCase().includes(j.toLowerCase())
+        )
+      );
+    }
+
+    // Score range filter
+    if (filterMinScore !== undefined) {
+      filteredResults = filteredResults.filter((r: any) => ((r.bayesianScore as number) ?? 0) >= filterMinScore);
+    }
+    if (filterMaxScore !== undefined) {
+      filteredResults = filteredResults.filter((r: any) => ((r.bayesianScore as number) ?? 0) <= filterMaxScore);
+    }
+
+    // Has-contact filter — supplemental DB lookup
+    if (filterHasContact && filteredResults.length > 0) {
+      const ids = filteredResults.map((r: any) => r.id as number);
+      const rows = await db
+        .select({ id: entitiesTable.id })
+        .from(entitiesTable)
+        .where(and(inArray(entitiesTable.id, ids), sql`(${entitiesTable.email} IS NOT NULL OR ${entitiesTable.phone} IS NOT NULL)`));
+      const contactSet = new Set(rows.map((r) => r.id));
+      filteredResults = filteredResults.filter((r: any) => contactSet.has(r.id as number));
+    }
+
+    // Has-relationship filter — supplemental DB lookup
+    if (filterHasRelationship && filteredResults.length > 0) {
+      const ids = filteredResults.map((r: any) => r.id as number);
+      const rows = await db
+        .select({ id: relationshipsTable.fromEntityId })
+        .from(relationshipsTable)
+        .where(inArray(relationshipsTable.fromEntityId, ids));
+      const relSet = new Set(rows.map((r) => r.id));
+      filteredResults = filteredResults.filter((r: any) => relSet.has(r.id as number));
+    }
+
+    const final = { ...result, results: filteredResults, cached: false };
+    await setCache(cacheKey, final, 60);
+    res.json(final);
   } catch (err: any) {
     res.status(500).json({ error: err?.message ?? "Intelligent search failed" });
   }

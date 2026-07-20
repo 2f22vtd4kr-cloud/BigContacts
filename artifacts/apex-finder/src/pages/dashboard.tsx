@@ -2,6 +2,7 @@ import { useGetDashboardStats, useGetMapData, useGetHotLeads } from "@workspace/
 import {
   ShieldAlert, MapPin, Database, ChevronRight, Activity, AlertTriangle,
   Globe, Radio, Zap, Users, Play, Loader2, CheckCircle2, XCircle, RefreshCw,
+  Mail, Phone,
 } from "lucide-react";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
@@ -318,40 +319,54 @@ function StatsBar() {
   const s = stats as any;
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-5 gap-0 border-b border-border bg-card/50 backdrop-blur-md sticky top-0 z-20">
-      <div className="flex flex-col px-4 py-3 border-r border-border border-b md:border-b-0">
-        <span className="text-[10px] md:text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1 flex items-center">
-          <Database className="w-3 h-3 mr-1" /> Entities
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-7 gap-0 border-b border-border bg-card/50 backdrop-blur-md sticky top-0 z-20">
+      <div className="flex flex-col px-3 py-2.5 border-r border-border border-b md:border-b-0">
+        <span className="text-[9px] md:text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1">
+          <Database className="w-2.5 h-2.5" /> Entities
         </span>
-        <span className="text-xl md:text-2xl font-bold text-foreground">{s.totalEntities?.toLocaleString()}</span>
+        <span className="text-lg md:text-xl font-bold text-foreground">{s.totalEntities?.toLocaleString()}</span>
       </div>
-      <div className="flex flex-col px-4 py-3 border-b md:border-b-0 md:border-r md:border-border">
-        <span className="text-[10px] md:text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1 flex items-center">
-          <MapPin className="w-3 h-3 mr-1" /> Assets
+      <div className="flex flex-col px-3 py-2.5 border-r border-border border-b md:border-b-0">
+        <span className="text-[9px] md:text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1">
+          <MapPin className="w-2.5 h-2.5" /> Assets
         </span>
-        <span className="text-xl md:text-2xl font-bold text-foreground">{s.totalAssets?.toLocaleString()}</span>
+        <span className="text-lg md:text-xl font-bold text-foreground">{s.totalAssets?.toLocaleString()}</span>
       </div>
-      <div className="flex flex-col px-4 py-3 border-r border-border border-b md:border-b-0">
-        <span className="text-[10px] md:text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1 flex items-center">
-          <Globe className="w-3 h-3 mr-1" /> Western HNWIs
+      <div className="flex flex-col px-3 py-2.5 border-r border-border border-b md:border-b-0">
+        <span className="text-[9px] md:text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1">
+          <Globe className="w-2.5 h-2.5 text-blue-400" /> W-HNWIs
         </span>
-        <span className="text-xl md:text-2xl font-bold text-blue-400">
+        <span className="text-lg md:text-xl font-bold text-blue-400">
           {(s.westernHnwiCount ?? 0).toLocaleString()}
         </span>
       </div>
-      <div className="flex flex-col px-4 py-3 border-r border-border">
-        <span className="text-[10px] md:text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1 flex items-center">
-          <Activity className="w-3 h-3 mr-1" /> Signal Avg
+      <div className="flex flex-col px-3 py-2.5 border-r border-border border-b sm:border-b-0">
+        <span className="text-[9px] md:text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1">
+          <Activity className="w-2.5 h-2.5" /> Signal Avg
         </span>
-        <span className="text-xl md:text-2xl font-bold text-primary">
+        <span className="text-lg md:text-xl font-bold text-primary">
           {((s.avgBayesianScore ?? 0) * 100).toFixed(1)}%
         </span>
       </div>
-      <div className="flex flex-col px-4 py-3">
-        <span className="text-[10px] md:text-xs font-mono text-amber-500 uppercase tracking-wider mb-1 flex items-center">
-          <AlertTriangle className="w-3 h-3 mr-1" /> Hot Leads
+      <div className="flex flex-col px-3 py-2.5 border-r border-border">
+        <span className="text-[9px] md:text-[10px] font-mono text-amber-500 uppercase tracking-wider mb-1 flex items-center gap-1">
+          <AlertTriangle className="w-2.5 h-2.5" /> Hot Leads
         </span>
-        <span className="text-xl md:text-2xl font-bold text-amber-500">{s.hotLeadsCount?.toLocaleString()}</span>
+        <span className="text-lg md:text-xl font-bold text-amber-500">{s.hotLeadsCount?.toLocaleString()}</span>
+      </div>
+      <div className="flex flex-col px-3 py-2.5 border-r border-border">
+        <span className="text-[9px] md:text-[10px] font-mono text-emerald-400 uppercase tracking-wider mb-1 flex items-center gap-1">
+          <Mail className="w-2.5 h-2.5" /> Contactable
+        </span>
+        <span className="text-lg md:text-xl font-bold text-emerald-400">{(s.contactableCount ?? 0).toLocaleString()}</span>
+      </div>
+      <div className="flex flex-col px-3 py-2.5">
+        <span className="text-[9px] md:text-[10px] font-mono text-cyan-400 uppercase tracking-wider mb-1 flex items-center gap-1">
+          <Phone className="w-2.5 h-2.5" /> Enriched %
+        </span>
+        <span className="text-lg md:text-xl font-bold text-cyan-400">
+          {((s.enrichmentCoverage ?? 0) * 100).toFixed(1)}%
+        </span>
       </div>
     </div>
   );
@@ -472,8 +487,20 @@ export default function Dashboard() {
                     <h3 className="font-bold text-foreground group-hover:text-primary transition-colors truncate text-sm">
                       {lead.entityName}
                     </h3>
-                    <div className="text-xs font-mono text-muted-foreground mt-0.5">
-                      {lead.entityType} · {lead.nationality || "Unknown"}
+                    <div className="text-xs font-mono text-muted-foreground mt-0.5 flex items-center gap-2">
+                      <span>{lead.entityType} · {lead.nationality || "Unknown"}</span>
+                      {(lead.contactEmail || lead.email) && (
+                        <span className="flex items-center gap-0.5 text-emerald-400">
+                          <Mail className="w-2.5 h-2.5" />
+                          <span className="text-[9px] font-mono">EMAIL</span>
+                        </span>
+                      )}
+                      {(lead.contactPhone || lead.phone) && (
+                        <span className="flex items-center gap-0.5 text-emerald-400">
+                          <Phone className="w-2.5 h-2.5" />
+                          <span className="text-[9px] font-mono">PHONE</span>
+                        </span>
+                      )}
                     </div>
                   </div>
                   <ScoreBadge score={lead.bayesianScore} />
@@ -489,12 +516,18 @@ export default function Dashboard() {
                   <span className="text-foreground/80">{lead.signal}</span>
                 </div>
 
-                <div className="mt-2.5 flex justify-end">
+                <div className="mt-2.5 flex items-center justify-between">
+                  <Link
+                    href={`/profile/${lead.entityId}`}
+                    className="text-xs font-mono text-muted-foreground flex items-center hover:text-primary transition-colors"
+                  >
+                    Profile <ChevronRight className="w-3 h-3 ml-0.5" />
+                  </Link>
                   <Link
                     href={`/graph?entity=${lead.entityId}`}
                     className="text-xs font-mono text-primary flex items-center hover:underline"
                   >
-                    View Network <ChevronRight className="w-3 h-3 ml-1" />
+                    Network <ChevronRight className="w-3 h-3 ml-0.5" />
                   </Link>
                 </div>
               </div>

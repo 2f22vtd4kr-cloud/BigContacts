@@ -3,7 +3,7 @@ import {
   Crosshair, Database, Globe, Network, Terminal, KanbanSquare,
   ChevronDown, ChevronRight, ShieldAlert, TrendingUp, Users,
   Briefcase, Building2, Anchor, Gem, Zap, Play, Filter,
-  Download, UserCheck, Shield, Map, BarChart3,
+  Download, UserCheck, Shield, Map, BarChart3, Target, Activity,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -222,6 +222,8 @@ const LEVELS = [
   { id: 3, color: "#F59E0B", numeral: "III", title: "NETWORK",     subtitle: "Graph intelligence" },
   { id: 4, color: "#EF4444", numeral: "IV",  title: "ENGINE",      subtitle: "How it thinks" },
   { id: 5, color: "#A855F7", numeral: "V",   title: "MASS INGEST", subtitle: "Western HNWI engine" },
+  { id: 6, color: "#10B981", numeral: "VI",  title: "OUTREACH",    subtitle: "Investment playbook" },
+  { id: 7, color: "#3B82F6", numeral: "VII", title: "SCORES",      subtitle: "Reading the signals" },
 ];
 
 function SidebarItem({
@@ -281,7 +283,7 @@ export default function FieldManual() {
       },
       { threshold: 0.25 }
     );
-    [1, 2, 3, 4, 5].forEach((n) => {
+    [1, 2, 3, 4, 5, 6, 7].forEach((n) => {
       const el = document.getElementById(`section-${n}`);
       if (el) observer.observe(el);
     });
@@ -1007,6 +1009,181 @@ export default function FieldManual() {
               ))}
             </div>
 
+          </Section>
+
+          {/* ══════════════════════════════════════════════════════
+              LEVEL VI — OUTREACH PLAYBOOK
+          ══════════════════════════════════════════════════════ */}
+          <Section
+            id="section-6"
+            level="VI"
+            levelColor="#10B981"
+            levelLabel="LEVEL VI — OUTREACH"
+            title="Investment Outreach Playbook"
+          >
+            <p className="text-sm text-[#94A3B8] leading-relaxed mb-6">
+              This is the complete end-to-end workflow for identifying, researching, and reaching a
+              high-net-worth individual for investment conversations. Follow these steps in order.
+              Each step unlocks the next — skipping ahead wastes effort.
+            </p>
+
+            <Callout icon={<Target size={14} />} color="#10B981" title="One session per target">
+              Every target gets its own Research Session — this is the unit of work in the CRM.
+              A session stores the MCTS path, the outreach pitch, your notes, and the follow-up date
+              in one place. Open Pipeline CRM at any point to see every session's status.
+            </Callout>
+
+            <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-widest mt-7 mb-4">
+              The 6-step playbook
+            </h3>
+            <div className="space-y-0 mb-6">
+              {[
+                {
+                  n: "1", color: "#10B981",
+                  title: "Run ingestion",
+                  body: "Go to Intelligence HQ. Run Western HNWI Engine (target 5,000+ records). Optionally run FAA (aviation owners) and Land Registry (UK property). This populates your Entity Ledger with real verified targets from public registries. You only need to do this once — subsequent runs add new pages.",
+                },
+                {
+                  n: "2", color: "#10B981",
+                  title: "Run contact enrichment",
+                  body: "From the Data Sources page, trigger Companies House Contact Enricher. This performs officer lookups for UK entities and computes the Contact Confidence score for all entities. After this run, the Dashboard will show non-zero Contactable and Enriched % counters.",
+                },
+                {
+                  n: "3", color: "#10B981",
+                  title: "Filter for reachable targets",
+                  body: 'Open Deep Search. Click Filters and enable "Has direct contact". Run your query (e.g. "British directors with aviation assets"). The results will be limited to entities where email or phone is confirmed. Alternatively, open Entity Ledger and use the "Has Contact" proximity filter.',
+                },
+                {
+                  n: "4", color: "#10B981",
+                  title: "Review target profile",
+                  body: "Click a result → View Profile. Review the Direct Contact Vectors bar (email/phone/LinkedIn), the asset breakdown, and the Bayesian signal score. If no contact is present, click Enrich to trigger a targeted Companies House lookup for that entity. Confirm you want to pursue this target.",
+                },
+                {
+                  n: "5", color: "#10B981",
+                  title: "Run MCTS → choose approach path",
+                  body: "Click Run MCTS from the profile, or open MCTS Terminal and select the entity. The engine runs 120 simulations and surfaces the optimal warm-introduction path. Each path node shows the entity's contact details, confidence bar, and action required. Copy the path as an Outreach Brief using the Copy Brief button.",
+                },
+                {
+                  n: "6", color: "#10B981",
+                  title: "Generate pitch → move to CRM → outreach",
+                  body: "After MCTS, the session is created in Pipeline CRM at Lead Gen stage. Open the session detail panel and click Generate to create the full three-part outreach sequence (Initial → Follow-Up → Intro Script). Set a follow-up date and add notes. Move the card through stages as the conversation progresses. Export as PDF to share with a co-investor or EA.",
+                },
+              ].map((step) => (
+                <div key={step.n} className="flex gap-4 pb-5 relative">
+                  <div className="flex flex-col items-center">
+                    <div className="w-6 h-6 rounded-full border text-xs font-bold flex items-center justify-center shrink-0 z-10"
+                      style={{ borderColor: step.color + "60", color: step.color, backgroundColor: step.color + "15" }}>
+                      {step.n}
+                    </div>
+                    {parseInt(step.n) < 6 && (
+                      <div className="w-px flex-1 mt-1" style={{ backgroundColor: step.color + "25" }} />
+                    )}
+                  </div>
+                  <div className="pb-1">
+                    <p className="text-sm font-bold text-[#E2E8F0] mb-1">{step.title}</p>
+                    <p className="text-sm text-[#64748B] leading-relaxed">{step.body}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <Callout icon={<Shield size={14} />} color="#10B981" title="Compliance reminder">
+              All data displayed by ApexFinder Pro is sourced exclusively from public government
+              registries and OSINT. You are responsible for complying with GDPR, CCPA, and all
+              applicable privacy legislation in your jurisdiction. Always respect opt-outs and
+              do not use contact information for unsolicited commercial communications where
+              prohibited.
+            </Callout>
+          </Section>
+
+          {/* ══════════════════════════════════════════════════════
+              LEVEL VII — READING THE SCORES
+          ══════════════════════════════════════════════════════ */}
+          <Section
+            id="section-7"
+            level="VII"
+            levelColor="#3B82F6"
+            levelLabel="LEVEL VII — SCORES"
+            title="Reading the Signals"
+          >
+            <p className="text-sm text-[#94A3B8] leading-relaxed mb-6">
+              Every number in ApexFinder Pro is a probability, not a rank. Understanding what each
+              score measures — and what its limits are — helps you prioritise correctly and avoid
+              chasing false positives.
+            </p>
+
+            <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-widest mt-2 mb-4">
+              Bayesian signal score (0–100%)
+            </h3>
+            <p className="text-sm text-[#94A3B8] leading-relaxed mb-4">
+              Measures the <strong className="text-[#E2E8F0]">probability that the entity is genuinely wealthy</strong>,
+              based on the volume, variety, and quality of their public registry footprint. It is{" "}
+              <em>not</em> a wealth estimate — a 90% score does not mean $90M; it means 90% confidence
+              that significant wealth exists. The score uses a Bayesian update formula: each new signal
+              (an asset registration, a directorship, a filing) shifts the posterior upward.
+            </p>
+            <div className="bg-[#050A14] border border-[#3B82F6]/25 rounded-lg p-4 mb-6">
+              {[
+                { range: "80–100%", color: "#10B981", label: "Confirmed HNWI",    desc: "Multiple independent registry signals. Strong asset base. High confidence." },
+                { range: "60–79%",  color: "#3B82F6", label: "High confidence",   desc: "Two or more signal types. Likely HNWI — proceed to profile review." },
+                { range: "40–59%",  color: "#F59E0B", label: "Medium confidence", desc: "Single registry source. Verify before prioritising outreach." },
+                { range: "0–39%",   color: "#EF4444", label: "Low signal",        desc: "Sparse or indirect evidence only. May be a gatekeeper, not a principal." },
+              ].map((row) => (
+                <div key={row.range} className="flex items-start gap-3 py-2.5 border-b border-[#1E293B] last:border-0">
+                  <div className="w-14 shrink-0 text-xs font-bold font-mono" style={{ color: row.color }}>{row.range}</div>
+                  <div>
+                    <div className="text-xs font-bold text-[#E2E8F0] mb-0.5">{row.label}</div>
+                    <div className="text-[11px] text-[#64748B]">{row.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-widest mt-7 mb-4">
+              Contact confidence score (0–100%)
+            </h3>
+            <p className="text-sm text-[#94A3B8] leading-relaxed mb-4">
+              Measures how many contact vectors are confirmed for this entity. The formula is additive:
+              email verified (+40), phone confirmed (+30), LinkedIn profile (+20), address on record (+10).
+              A score of ≥50 means at least one high-value contact method is available.
+              This score powers the "Has direct contact" filter in Deep Search and the Contactable counter
+              on the Dashboard.
+            </p>
+            <div className="bg-[#050A14] border border-[#3B82F6]/25 rounded-lg p-4 mb-6">
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { field: "Email", pts: "+40", color: "#10B981" },
+                  { field: "Phone", pts: "+30", color: "#10B981" },
+                  { field: "LinkedIn", pts: "+20", color: "#3B82F6" },
+                  { field: "Address", pts: "+10", color: "#64748B" },
+                ].map((row) => (
+                  <div key={row.field} className="flex items-center justify-between p-2 rounded border border-[#1E293B]">
+                    <span className="text-xs text-[#94A3B8]">{row.field}</span>
+                    <span className="text-xs font-bold font-mono" style={{ color: row.color }}>{row.pts}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-widest mt-7 mb-4">
+              Path score (MCTS)
+            </h3>
+            <p className="text-sm text-[#94A3B8] leading-relaxed mb-4">
+              The MCTS path score is the{" "}
+              <strong className="text-[#E2E8F0]">warmth of the best introduction route</strong>{" "}
+              found after 120 simulations, normalised 0–1. It combines three factors via the UCT formula:
+              the visit-weighted warmth of each node (Q/N), the exploration bonus (√ln N(parent)/N(v)),
+              and a +0.15 bonus for nodes with confirmed direct contact details. A path score above 0.7
+              means a warm route exists — someone on the path is reachable without cold-calling.
+              Below 0.4 means all paths go through unverified intermediaries.
+            </p>
+
+            <Callout icon={<Activity size={14} />} color="#3B82F6" title="Scores refresh automatically">
+              Bayesian scores recompute each time new assets or relationships are linked to an entity.
+              Contact confidence recomputes on every enrichment run. Path scores recompute each time you
+              run MCTS. There is no manual refresh needed — all scores reflect the current state of the
+              database.
+            </Callout>
           </Section>
 
         </div>

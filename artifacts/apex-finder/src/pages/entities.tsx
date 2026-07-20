@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useListEntities, useCreateEntity, useDeleteEntity } from "@workspace/api-client-react";
 import { formatCurrency, ScoreBadge } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -7,6 +7,7 @@ import {
   Plus, Search, Trash2, Globe, ChevronDown, ChevronUp, X, Loader2,
   ChevronRight, Network, Target as TargetIcon, Download, ShieldAlert,
   Filter, UserCheck, Building2, Briefcase, Shield, IdCard,
+  CheckSquare, Square, Users2, ListPlus, CheckCheck,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -251,12 +252,55 @@ function MobileEntityCard({ entity, onSelect }: { entity: any; onSelect: () => v
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function EntityLedger() {
+  const [, navigate] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
   const [proximityMin, setProximityMin] = useState<number>(0);
   const [showFilters, setShowFilters] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [addForm, setAddForm] = useState<AddEntityForm>(EMPTY_FORM);
+
+  // Bulk selection state
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkDone, setBulkDone] = useState<string | null>(null);
+
+  const toggleSelect = (id: number) =>
+    setSelectedIds((prev) => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
+
+  const toggleSelectAll = (list: any[]) =>
+    setSelectedIds((prev) => prev.size === list.length ? new Set() : new Set(list.map((e: any) => e.id)));
+
+  const handleBulkExportCsv = () => {
+    const sel = (entities ?? []).filter((e: any) => selectedIds.has(e.id));
+    exportToCsv(sel);
+  };
+
+  const handleBulkAddToCrm = async () => {
+    if (selectedIds.size === 0) return;
+    setBulkLoading(true);
+    setBulkDone(null);
+    let added = 0;
+    const base = (import.meta as any).env.BASE_URL.replace(/\/$/, "");
+    for (const id of selectedIds) {
+      try {
+        await fetch(`${base}/api/research/lead`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ targetEntityId: id }),
+        });
+        added++;
+      } catch { /* non-fatal */ }
+    }
+    setBulkLoading(false);
+    setBulkDone(`${added} lead${added !== 1 ? "s" : ""} added to CRM`);
+    setTimeout(() => setBulkDone(null), 3000);
+  };
+
+  const handleBulkMcts = () => {
+    const first = [...selectedIds][0];
+    if (first) navigate(`/research?entity=${first}`);
+  };
 
   const [showRegistry, setShowRegistry] = useState(false);
   const [registryQuery, setRegistryQuery] = useState("");
@@ -505,11 +549,68 @@ export default function EntityLedger() {
           </div>
         )}
 
+        {/* Bulk action bar */}
+        {selectedIds.size > 0 && (
+          <div className="flex-shrink-0 flex items-center gap-3 px-4 py-2.5 border-b border-primary/30 bg-primary/5">
+            <span className="text-xs font-mono text-primary font-bold">
+              {selectedIds.size} selected
+            </span>
+            <div className="flex-1" />
+            {bulkDone ? (
+              <span className="text-xs font-mono text-primary flex items-center gap-1.5">
+                <CheckCheck className="w-3.5 h-3.5" /> {bulkDone}
+              </span>
+            ) : (
+              <>
+                <button
+                  onClick={handleBulkExportCsv}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-border text-muted-foreground hover:text-foreground font-mono text-[11px] uppercase tracking-wider transition-all"
+                >
+                  <Download className="w-3 h-3" /> Export CSV
+                </button>
+                <button
+                  onClick={handleBulkAddToCrm}
+                  disabled={bulkLoading}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-secondary/40 bg-secondary/10 text-secondary font-mono text-[11px] uppercase tracking-wider hover:bg-secondary/20 disabled:opacity-40 transition-all"
+                >
+                  {bulkLoading
+                    ? <Loader2 className="w-3 h-3 animate-spin" />
+                    : <ListPlus className="w-3 h-3" />}
+                  {bulkLoading ? "Adding…" : "Add to CRM"}
+                </button>
+                <button
+                  onClick={handleBulkMcts}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-primary/40 bg-primary/10 text-primary font-mono text-[11px] uppercase tracking-wider hover:bg-primary/20 transition-all"
+                >
+                  <TargetIcon className="w-3 h-3" /> Run MCTS
+                </button>
+                <button
+                  onClick={() => setSelectedIds(new Set())}
+                  className="text-[10px] font-mono text-muted-foreground hover:text-foreground transition-colors ml-1"
+                >
+                  ✕ Clear
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
         {/* Entity table */}
         <div className="flex-1 overflow-auto">
           <table className="w-full border-collapse">
             <thead className="sticky top-0 z-10">
               <tr className="bg-card/90 backdrop-blur-sm border-b border-border">
+                <th className="px-3 py-3 w-8">
+                  <button
+                    onClick={() => toggleSelectAll(entities ?? [])}
+                    className="flex items-center justify-center text-muted-foreground hover:text-primary transition-colors"
+                    title="Select all"
+                  >
+                    {entities && selectedIds.size === entities.length && entities.length > 0
+                      ? <CheckSquare className="w-3.5 h-3.5 text-primary" />
+                      : <Square className="w-3.5 h-3.5" />}
+                  </button>
+                </th>
                 {["Name & Classification","Nationality","Net Worth","Score","Contact Vector","Assets","Actions"].map((h) => (
                   <th key={h} className="px-4 py-3 text-left text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">
                     {h}
@@ -522,11 +623,23 @@ export default function EntityLedger() {
                 let meta: any = {};
                 try { meta = JSON.parse((entity as any).metadata ?? "{}"); } catch { /* */ }
                 const typeColor = TYPE_COLORS[entity.type] ?? "#64748B";
+                const isSelected = selectedIds.has(entity.id);
                 return (
                   <tr key={entity.id} className={cn(
                     "group hover:bg-muted/20 transition-colors",
                     entity.isHot && "bg-amber-500/5",
+                    isSelected && "bg-primary/5 hover:bg-primary/8",
                   )}>
+                    <td className="px-3 py-3 w-8">
+                      <button
+                        onClick={() => toggleSelect(entity.id)}
+                        className="flex items-center justify-center text-muted-foreground hover:text-primary transition-colors"
+                      >
+                        {isSelected
+                          ? <CheckSquare className="w-3.5 h-3.5 text-primary" />
+                          : <Square className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />}
+                      </button>
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         {entity.isHot && <ShieldAlert className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />}
@@ -641,7 +754,7 @@ export default function EntityLedger() {
               })}
               {(!entities || entities.length === 0) && (
                 <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-muted-foreground font-mono text-sm">
+                  <td colSpan={8} className="px-6 py-8 text-center text-muted-foreground font-mono text-sm">
                     No entities found.
                   </td>
                 </tr>

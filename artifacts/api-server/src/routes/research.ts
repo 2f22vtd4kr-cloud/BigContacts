@@ -16,6 +16,36 @@ import { generateOutreachSequence } from "../lib/pitch-generator";
 
 const router: IRouter = Router();
 
+// POST /research/lead — create a bare Lead Gen session without running MCTS
+router.post("/research/lead", async (req, res): Promise<void> => {
+  const { targetEntityId } = req.body as { targetEntityId?: number };
+  if (!targetEntityId || typeof targetEntityId !== "number") {
+    res.status(400).json({ error: "targetEntityId is required" });
+    return;
+  }
+  const [entity] = await db.select({ id: entitiesTable.id, score: entitiesTable.bayesianScore })
+    .from(entitiesTable).where(eq(entitiesTable.id, targetEntityId));
+  if (!entity) { res.status(404).json({ error: "Entity not found" }); return; }
+
+  // Upsert: if a session already exists for this entity, just return it
+  const [existing] = await db.select().from(researchSessionsTable)
+    .where(eq(researchSessionsTable.targetEntityId, targetEntityId))
+    .orderBy(desc(researchSessionsTable.createdAt))
+    .limit(1);
+  if (existing) { res.json(existing); return; }
+
+  const [session] = await db.insert(researchSessionsTable).values({
+    targetEntityId,
+    crmStatus: "Lead Gen",
+    bayesianScoreAtRuntime: entity.score ?? 0,
+    pathScore: 0,
+    mctsSimulations: 0,
+    winningPath: null,
+    mctsSteps: null,
+  }).returning();
+  res.status(201).json(session);
+});
+
 // POST /research/run
 router.post("/research/run", async (req, res): Promise<void> => {
   const parsed = RunResearchBody.safeParse(req.body);
