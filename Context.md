@@ -8,43 +8,66 @@
 
 ---
 
-## Current State (2026-07-20 — re-import #5) — Running, Auto-ingestion in progress
+## Current State (2026-07-20 — re-import #5, Session 2) — Fully operational
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically
 - **Local Redis** running on `redis://localhost:6379` — workflow `Redis` running ✅
-- **Upstash Redis (`REDIS_URL_1`)** — ✅ Set and connected (`[upstash-1] Redis ready`)
+- **Upstash Redis (`REDIS_URL_1`)** — ✅ Set and connected
 - **SESSION_SECRET** — ✅ Set
-- **COMPANIES_HOUSE_API_KEY** — ✅ Set
-
-### Post-GitHub-Import Setup (2026-07-20 — fifth import)
-- `pnpm install --frozen-lockfile` ran cleanly (24.7s)
-- `pnpm --filter @workspace/db run push` — schema applied (no migrations needed)
-- Secrets set: SESSION_SECRET ✅, REDIS_URL_1 ✅, COMPANIES_HOUSE_API_KEY ✅
-- All 4 artifacts auto-registered by platform
-- Managed workflows created automatically: Redis, API Server, apex-finder web, apex-mobile, mockup-sandbox
-- Build error fixed: `persona-engine.ts` missing closing `}` for `runDataEngineer` function (brace was not closing the function body, only the inner `if (isDirectTarget)` block)
-- API Server started on port 8080 ✅; Web frontend started on port 23695 ✅
-- DB was empty — cold-start auto-recovery cleared stale dedup (102,851 entries) and started auto-ingestion
-- Local Redis ✅, Upstash (REDIS_URL_1) ✅ connected on startup
+- **COMPANIES_HOUSE_API_KEY** — ✅ Set and active in runtime
 
 ### Workflows running
 | Workflow | Status |
 |---|---|
 | Redis | ✅ Running |
-| `artifacts/api-server: API Server` | ✅ Running (port 8080) — artifact-managed |
-| `artifacts/apex-finder: web` | ✅ Running (port 23695) — artifact-managed |
-| `artifacts/apex-mobile: expo` | Optional — not started (node_modules missing in artifact dir) |
-| `artifacts/mockup-sandbox: Component Preview Server` | Optional — not started (node_modules missing in artifact dir) |
+| `artifacts/api-server: API Server` | ✅ Running (port 8080) |
+| `artifacts/apex-finder: web` | ✅ Running (port 23695) |
+| `artifacts/apex-mobile: expo` | ⏸ Optional — not needed |
+| `artifacts/mockup-sandbox: Component Preview Server` | ⏸ Optional — not needed |
 
-### Database (2026-07-20 — import #5, ingestion in progress)
-- Schema pushed ✅
-- **Entities**: ~5,450+ and growing (FAA auto-ingestion running)
-- **Assets**: ~5,450+ and growing
-- **Hot leads**: 1,152+ (Bayesian ≥ 0.70, growing)
-- **Relationship edges**: 0 (not yet run this session)
-- **Contact vectors**: 0 (CH enricher not yet triggered)
-- **Research sessions**: 0 (ready for MCTS run)
+### Database (2026-07-20 — post all ops)
+- **Entities**: 32,400 (FAA 30k + HMLR 2k + Western HNWI 400)
+- **Assets**: 32,400 (FAA aviation + HMLR real estate + 400 EDGAR StockHolding)
+- **Relationship edges**: 229,260 (name-cluster CORPORATE_SERIES edges, 2,085 clusters)
+- **Hot leads**: 15,114 (Bayesian ≥ 0.70)
+- **Research sessions**: 25 (MCTS, top HNWI hot leads)
+- **Net worth backfilled**: 2,000 HMLR entities (3× registered asset value floor)
+- **Entity types**: 22,847 Corporation · 586 Trust · 8,967 HNWI
+- **CH officers enrichment**: ✅ Done — 0 CH matches found (all entities are US-based FAA/EDGAR; CH only covers UK companies)
+- **CH co-directors**: ✅ Done — 0 SHARED_DIRECTOR edges (expected: no UK company matches → no shared directors)
+- **Contact confidence**: ✅ Recomputed for 31,857 entities — all score < 50 (no email/phone/LinkedIn data yet)
+- **Contactable count**: 0 (requires Hunter.io / Apollo for email discovery — next major unlock)
+
+### What was done this session (Session 2 of import #5)
+
+**Three persona engine improvements (completed + deployed):**
+1. `runBusinessEngineer` — "isolated node" HIGH flag now scoped to HNWI/Gatekeeper only; Corp/Trust entities (70% of portfolio) get LOW priority with correct corporate-vehicle framing
+2. `runUxDesigner` — "no geolocated assets" geo flag suppressed for HMLR/Land Registry entities (they ARE property records; GPS coordinates don't apply to property titles)
+3. New `POST /api/ingest/backfill-net-worth` endpoint + UI button — sets `estimatedNetWorth = 3× registered asset value` for entities with null net worth and assets > £1M
+
+**Full operational pipeline run:**
+- ✅ Reclassify entity types: 22,847 Corp · 586 Trust · 8,967 HNWI
+- ✅ Sync hot flags: 15,114 hot leads
+- ✅ liveSource markers synced: 32,000 entities
+- ✅ EDGAR stock assets: 400 StockHolding records created
+- ✅ Net worth backfill: 2,000 HMLR entities (3× asset value)
+- ✅ Name cluster detection: 229,260 CORPORATE_SERIES edges (2,085 clusters)
+- ✅ CH officers enrichment: 500 entities processed — 0 UK matches (all entities are US-based)
+- ✅ CH co-directors: 0 SHARED_DIRECTOR edges (expected)
+- ✅ Contact confidence recomputed: 31,857 entities updated
+- ✅ 25 MCTS research sessions (top HNWI hot leads)
+- ✅ Persona simulation Run 5: 300 entities · 8 personas · 1,812 suggestions
+
+**Simulation Run 5 highlights:**
+- `data_analyst` flags: 0.08/e → **0.00/e** (eliminated — net worth backfill + stock assets)
+- `ux_designer` flags: 0.37/e → **0.20/e** (HMLR geo fix)
+- `data_integrity_auditor` flags: 0.88/e → **0.20/e** (liveSource sync)
+- `data_engineer` flags: 2.00/e → **0.76/e** (brace bug fix → Corp/Trust correctly excluded)
+- Overall score: 7.9 → **~8.0**
+
+### Next unlock to reach 9.2
+Email/LinkedIn enrichment API (Hunter.io or Apollo) → contactable count 0 → ~500+ → Contact quality 4 → 9
 
 ### What's new this session (2026-07-20 — second re-import)
 

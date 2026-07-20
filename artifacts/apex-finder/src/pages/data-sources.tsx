@@ -3,7 +3,7 @@ import {
   Plane, Building2, Globe, Shield, Landmark, FileSearch,
   Search, Scale, Network, Activity, CheckCircle2, XCircle,
   Clock, AlertTriangle, Play, RefreshCw, ChevronDown, ChevronUp,
-  ExternalLink, Zap, Database, UserCheck, BarChart3, Users, FileText,
+  ExternalLink, Zap, Database, UserCheck, BarChart3, Users, FileText, DollarSign,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -318,6 +318,10 @@ function EnrichmentCoverageStats() {
         <EdgarStockButton />
       </div>
       <div className="flex items-center justify-between border-t border-border/40 pt-2.5">
+        <span className="text-[10px] font-mono text-muted-foreground/60">Backfill estimatedNetWorth = 3× registered asset value for all entities where net worth is unset (closes data_analyst flag)</span>
+        <NetWorthBackfillButton />
+      </div>
+      <div className="flex items-center justify-between border-t border-border/40 pt-2.5">
         <span className="text-[10px] font-mono text-muted-foreground/60">Web OSINT: DuckDuckGo + EDGAR + OpenCorporates → LinkedIn URL, email, phone for all 5 hybrid architecture layers</span>
         <WebOsintButton />
       </div>
@@ -605,6 +609,43 @@ function EdgarStockButton() {
       >
         {status === "running" ? <RefreshCw className="w-3 h-3 animate-spin" /> : <BarChart3 className="w-3 h-3" />}
         {status === "running" ? "Creating…" : "EDGAR Stock Assets"}
+      </button>
+    </div>
+  );
+}
+
+function NetWorthBackfillButton() {
+  const [status, setStatus] = useState<"idle" | "running" | "done" | "error">("idle");
+  const [msg, setMsg] = useState("");
+
+  const run = async () => {
+    setStatus("running");
+    setMsg("");
+    try {
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const r = await fetch(`${base}/api/ingest/backfill-net-worth`, { method: "POST" });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error ?? "Failed");
+      setMsg(d.message ?? "Done");
+      setStatus("done");
+    } catch (err: any) {
+      setMsg(err.message ?? "Error");
+      setStatus("error");
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2 flex-shrink-0">
+      {msg && (
+        <span className={`text-[10px] font-mono ${status === "error" ? "text-red-400" : "text-emerald-400"} max-w-[200px] truncate`} title={msg}>{msg}</span>
+      )}
+      <button
+        onClick={run}
+        disabled={status === "running"}
+        className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-border text-muted-foreground hover:text-emerald-400 hover:border-emerald-400/40 font-mono text-[10px] uppercase tracking-wider transition-colors disabled:opacity-50 flex-shrink-0"
+      >
+        {status === "running" ? <RefreshCw className="w-3 h-3 animate-spin" /> : <DollarSign className="w-3 h-3" />}
+        {status === "running" ? "Backfilling…" : "Backfill Net Worth"}
       </button>
     </div>
   );

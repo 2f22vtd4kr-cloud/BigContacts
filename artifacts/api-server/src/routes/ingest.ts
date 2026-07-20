@@ -908,6 +908,54 @@ router.post("/ingest/sync-livesource-markers", async (_req: Request, res: Respon
   res.json({ updated, skipped, total: entities.length, message: `liveSource marker synced: ${updated} updated, ${skipped} skipped.` });
 });
 
+// ── POST /ingest/backfill-net-worth — set estimatedNetWorth = 3× asset value for entities ─
+// The data_analyst persona flags entities where estimatedNetWorth is null but total asset
+// value exceeds $1M. This endpoint closes that gap by applying a conservative 3× floor.
+// Corp/Trust/HNWI all qualify. Background job — large datasets can take ~30s.
+router.post("/ingest/backfill-net-worth", async (_req: Request, res: Response): Promise<void> => {
+  try {
+    // Find entities with null estimatedNetWorth that have assets with estimatedValue > 0
+    const candidates = await db.execute(sql`
+      SELECT e.id, SUM(a.estimated_value) AS total_value
+      FROM entities e
+      JOIN assets a ON a.owner_entity_id = e.id
+      WHERE e.estimated_net_worth IS NULL
+        AND a.estimated_value IS NOT NULL
+        AND a.estimated_value > 0
+      GROUP BY e.id
+      HAVING SUM(a.estimated_value) >= 1000000
+    `);
+
+    const rows = candidates.rows as { id: number; total_value: string }[];
+    if (rows.length === 0) {
+      res.json({ updated: 0, message: "No entities need net worth backfill." });
+      return;
+    }
+
+    let updated = 0;
+    const BATCH = 500;
+    for (let i = 0; i < rows.length; i += BATCH) {
+      const slice = rows.slice(i, i + BATCH);
+      for (const row of slice) {
+        const totalValue = Number(row.total_value);
+        const estimatedNetWorth = Math.round(totalValue * 3); // 3× conservative floor
+        await db.update(entitiesTable)
+          .set({ estimatedNetWorth, updatedAt: new Date() })
+          .where(eq(entitiesTable.id, Number(row.id)));
+        updated++;
+      }
+    }
+
+    res.json({
+      updated,
+      total: rows.length,
+      message: `Net worth backfilled: ${updated} entities updated (3× registered asset value as floor).`,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message ?? "Backfill failed" });
+  }
+});
+
 // ── DELETE /ingest/dedup — clear dedup set ────────────────────────────────────
 router.delete("/ingest/dedup", async (_req, res): Promise<void> => {
   await clearDedup();

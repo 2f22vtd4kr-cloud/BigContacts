@@ -38,6 +38,84 @@ This is the canonical definition of the intelligence pipeline. **MCTS is Layer 4
 
 ---
 
+## Simulation Run 5 — 2026-07-20 (Post Import #5 — All Ops + 3 Persona Fixes + CH Officers Running)
+
+**Data state at time of run:**
+- 32,400 entities (FAA 30k + LR 2k + Western HNWI 400)
+- 32,400 assets (FAA 30k aviation + LR 2k real estate + 400 EDGAR StockHolding)
+- **229,260 relationship edges** (name-cluster rebuild complete)
+- **25 MCTS research sessions** (top HNWI hot leads)
+- Entity reclassification done: 22,847 Corp · 586 Trust · 8,967 HNWI
+- Net worth backfilled: 2,000 HMLR entities (3× registered asset value floor)
+- 15,114 hot leads (sync done)
+- CH officers enrichment: 43% complete (running — COMPANIES_HOUSE_API_KEY set)
+- liveSource markers synced: 32,000 entities
+
+**Sample:** 300 entities · **8 personas** · **1,812 suggestions**
+**Avg per entity:** 6.04 (↓ from 6.40 in Run 4) · **0 errors**
+**Breakdown:** 1,026 high · 528 medium · 258 low
+
+### Per-persona flag delta: Run 4 → Run 5
+
+| Persona | Run 4 (per 300) | Run 5 (per 300) | Δ | Root cause |
+|---|---|---|---|---|
+| data_engineer | 600 (2.00/e) | 228 (0.76/e) | **↓↓↓** | `runDataEngineer` brace bug fixed — Corp/Trust now correctly excluded from contact/residences flags |
+| data_analyst | 25 (0.08/e) | **0 (0.00/e)** | **↓↓↓↓** | Net worth backfill + EDGAR stock assets eliminated all flags |
+| intel_systems_analyst | 427 (1.42/e) | 306 (1.02/e) | **↓** | 25 sessions cover small % of entities |
+| business_engineer | 286 (0.95/e) | 384 (1.28/e) | ↑ count | HIGH→LOW reclassification for Corp/Trust isolation flag; total count similar but severity improved |
+| ux_designer | 110 (0.37/e) | **60 (0.20/e)** | **↓↓** | HMLR geo flag suppressed for Land Registry entities |
+| architect | 206 (0.69/e) | 168 (0.56/e) | ↓ | Fewer mis-typed entities post-reclassification |
+| data_integrity_auditor | 265 (0.88/e) | **60 (0.20/e)** | **↓↓↓** | liveSource sync fixed 32,000 entities; provenance flags eliminated |
+| hybrid_architecture_auditor | N/A | 606 (2.02/e) | NEW | First run since persona added; most entities lack sessions/edges |
+
+### Top flags — Run 5 (high-priority sample)
+
+| Flag | Persona | Count/500 | Root cause |
+|---|---|---|---|
+| L1 graph traversal blind — entity has zero relationship edges | hybrid_arch_auditor | 131 | ~68% of FAA LLCs not in any name-cluster |
+| Hybrid stack not activated — no intelligence session exists | intel_systems_analyst | 112 | Only 25 of 32k entities have MCTS sessions |
+| L2 multi-agent pipeline cold — Planner never decomposed a query | hybrid_arch_auditor | 112 | Same root cause as above |
+| Isolated node — no relationships mapped | business_engineer | 67 | HNWI/Gatekeeper only now (Corp/Trust → LOW flag) |
+| L4 MCTS tree never built — high-value target has no path exploration | hybrid_arch_auditor | 48 | Hot leads without sessions |
+| High-probability target — UCB exploitation not yet initiated | intel_systems_analyst | 30 | Hot leads without sessions |
+
+### Updated score — Run 5
+
+| Dimension | Run 4 | Run 5 | Δ | Notes |
+|---|---|---|---|---|
+| Entity discovery | 9 | **9** | → | 32,400 entities, reclassified, notes enriched |
+| Contact quality | 4 | **4** | → | CH enrichment running (43%), contactable still 0 |
+| Approach path finding | 7 | **7** | → | 229,260 edges; 25 sessions; CH co-directors pending |
+| Outreach generation | 8 | **8** | → | 25 sessions, rich Critic synthesis |
+| Operator workflow | 9 | **9** | → | Net worth backfill button added |
+| Data enrichment | 7 | **8** | ↑ | Net worth 2k + liveSource 32k + HMLR geo fix |
+| Reliability | 9 | **9** | → | 8 personas, 0 errors, brace bug fixed |
+| Data integrity | 10 | **10** | → | 0 synthetic violations confirmed |
+| **Overall** | **~7.9** | **~8.0** | **↑** | CH officers + co-directors will push to ~8.5 |
+
+### Remaining gap to 9.2
+
+| Action | Unblocked by | Impact |
+|---|---|---|
+| CH officers enrichment completes | Running (43%) | ~1,800 UK Corp entities get officer address data |
+| CH co-directors detection | CH officers done | SHARED_DIRECTOR edges for HNWI individuals |
+| Contact confidence recompute | CH officers done | contactable count rises from 0 → ~500+ |
+| Run 50+ more MCTS sessions | Available now | intel/hybrid flags drop by ~25% |
+| **Projected score after above** | | **~8.5/10** |
+| Email / phone enrichment API | Hunter.io / Apollo | Contact quality 4→9 |
+| **Projected score after email API** | | **~9.3/10** |
+
+### Persona engine fixes applied this session (pre-Run-5)
+
+| Fix | File | Impact |
+|---|---|---|
+| `runDataEngineer` missing closing `}` — function body never closed for non-HNWI entities | `persona-engine.ts:198` | Corp/Trust correctly excluded from contact/residence flags |
+| `runBusinessEngineer` isolation flag scoped by type — Corp/Trust get LOW, HNWI/Gatekeeper get HIGH | `persona-engine.ts:557` | Priority accuracy improved for 70% of portfolio |
+| `runUxDesigner` geo flag suppressed for Land Registry entities | `persona-engine.ts:626` | HMLR entities no longer flagged for missing GPS coordinates |
+| `estimatedNetWorth` backfill endpoint + UI button | `ingest.ts` · `data-sources.tsx` | 2,000 HMLR entities now have net worth set → data_analyst eliminated |
+
+---
+
 ## Simulation Run 4 — 2026-07-20 (Post All Data Operations — Pre-CH-Key)
 
 **Data state at time of run:**

@@ -554,20 +554,41 @@ async function runBusinessEngineer(entity: Entity): Promise<ImprovementSuggestio
   const relCount = Number(relRow?.count ?? 0);
   const metadata = parseJsonSafe<Record<string, unknown>>(entity.metadata, {});
 
+  // Corp/Trust are property vehicles — their graph edges come from CH co-director detection,
+  // not personal networking. Flag isolation differently by type.
+  const isDirectOutreachTarget = entity.type === "HNWI" || entity.type === "Gatekeeper";
+
   if (relCount === 0) {
-    suggestions.push({
-      entityId: entity.id,
-      persona: "business_engineer",
-      category: "structure",
-      priority: "high",
-      title: "Isolated node — no relationships mapped",
-      description:
-        "Entity has no relationship edges in the graph. Isolated nodes cannot benefit from MCTS path-finding " +
-        "and are invisible in the Network Graph view. " +
-        "Immediate actions: link to known employers/directorships (SEC DEF 14A, Companies House); " +
-        "map to private-club memberships; connect to asset-management vehicles (trusts, SPVs).",
-      actionTaken: "Zero-relationship flag set — graph integration required.",
-    });
+    if (isDirectOutreachTarget) {
+      suggestions.push({
+        entityId: entity.id,
+        persona: "business_engineer",
+        category: "structure",
+        priority: "high",
+        title: "Isolated node — no relationships mapped",
+        description:
+          "Entity has no relationship edges in the graph. Isolated nodes cannot benefit from MCTS path-finding " +
+          "and are invisible in the Network Graph view. " +
+          "Immediate actions: link to known employers/directorships (SEC DEF 14A, Companies House); " +
+          "map to private-club memberships; connect to asset-management vehicles (trusts, SPVs).",
+        actionTaken: "Zero-relationship flag set — graph integration required.",
+      });
+    } else {
+      // Corporation / Trust — edges come from CH co-director detection, not individual networking
+      suggestions.push({
+        entityId: entity.id,
+        persona: "business_engineer",
+        category: "structure",
+        priority: "low",
+        title: "Corporate vehicle has no relationship edges yet",
+        description:
+          `${entity.type} entity has no graph edges. Edges for corporate vehicles are built by the ` +
+          "CH Co-Directors detection pass (shared directors → SHARED_DIRECTOR edges) and the " +
+          "corporate name-series clustering (CORPORATE_SERIES edges). " +
+          "Run both passes from the Data Sources page to populate the graph.",
+        actionTaken: "Corporate vehicle edge-gap logged — run CH co-directors + name cluster detection.",
+      });
+    }
   } else if (relCount < 3) {
     suggestions.push({
       entityId: entity.id,
@@ -623,7 +644,15 @@ async function runUxDesigner(entity: Entity): Promise<ImprovementSuggestion[]> {
     )
     .limit(1);
 
-  if (mappableAssets.length === 0) {
+  // HMLR / Land Registry entities ARE the property record — their address is the asset.
+  // Flagging them for missing GPS coordinates is noise: HMLR bulk CSV has no coordinates,
+  // and the property address IS shown on the profile. Skip geo flag for these entities.
+  const entitySources: string[] = parseJsonSafe(entity.sourceRegistries, []);
+  const isLandRegistryEntity = entitySources.some(
+    s => s.toLowerCase().includes("land registry") || s.toLowerCase().includes("hmlr") || s.toLowerCase().includes("price paid")
+  );
+
+  if (mappableAssets.length === 0 && !isLandRegistryEntity) {
     suggestions.push({
       entityId: entity.id,
       persona: "ux_designer",
