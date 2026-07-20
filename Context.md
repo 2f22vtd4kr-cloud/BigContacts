@@ -31,10 +31,10 @@ Project re-imported from GitHub. Workflows configured as plain Replit workflows 
 | Workflow | Status |
 |---|---|
 | Redis | ✅ Running |
-| API Server | ✅ Running (port 8080) |
-| Web Frontend | ✅ Running (port 23695) |
-| Expo mobile | Not started (optional) |
-| Mockup sandbox | Not started (optional) |
+| `artifacts/api-server: API Server` | ✅ Running (port 8080) — artifact-managed |
+| `artifacts/apex-finder: web` | ✅ Running (port 23695) — artifact-managed |
+| `artifacts/apex-mobile: expo` | ✅ Running (optional) |
+| `artifacts/mockup-sandbox: Component Preview Server` | ✅ Running (optional) |
 
 ### Database
 - Schema pushed ✅ (2026-07-20)
@@ -43,8 +43,9 @@ Project re-imported from GitHub. Workflows configured as plain Replit workflows 
 - **Hot leads**: 7,452
 - **Research sessions**: 0
 - **Improvement logs**: 0
-- **Contact vectors**: 0 (requires Companies House Contact Enricher to be triggered)
-- **Relationship edges**: 0 (same — populated by the CH enricher)
+- **Contact vectors**: 174+ updated (CH enricher running — adds addresses; email/phone still 0 for FAA entities)
+- **Relationship edges**: 0 (auto-detect ran but FAA addresses are unique — needs non-address signal)
+- **Research sessions**: 5 (MCTS run on top hot leads · path scores 0.415–0.488)
 
 > DB was populated in a prior session and persisted through the GitHub import. Cold-start auto-recovery detected the populated DB and skipped auto-ingestion. To re-ingest, clear Upstash dedup first (`DELETE /api/ingest/dedup`) then POST to the ingest endpoints.
 
@@ -145,6 +146,7 @@ Project re-imported from GitHub. Workflows configured as plain Replit workflows 
 
 | Date | What changed |
 |---|---|
+| 2026-07-20 | **Hybrid architecture correction + 4 operational steps**: (1) Entity reclassification ran — 22,741→Corp, 585→Trust, 8,674 remain HNWI. (2) CH enricher started (500 entities, addresses added). (3) Relationship auto-detect ran — 0 found (FAA addresses are unique; need different signal). (4) MCTS run on top 5 hot leads — sessions 1–5 created, path scores 0.415–0.488. Code: algorithmPipeline in research.ts now labels L1–L5; persona-engine layer numbering corrected (MCTS=L4); research.tsx HYBRID_PIPELINE string updated; improvements.md Core Hybrid Architecture section added. |
 | 2026-07-20 | **Sim run (post-import)**: 6 persona batches × 50 entities = 300 entities. 2,376 suggestions (1,284 high / 498 medium / 594 low). Top flags: 100% zero contact vectors, 100% isolated nodes (0 relationships), 100% no MCTS sessions. App rating updated: **6.0/10** (up from 5.2 baseline). All 5 code phases complete; gap is purely operational — trigger CH enricher + relationship auto-detect + entity reclassification. improvements.md updated with full breakdown. |
 | 2026-07-19 | GitHub import re-setup: pnpm install, DB schema pushed, REDIS_URL set, REDIS_URL_1 (Upstash) set and verified connected (`[upstash-1] Redis ready`). Workflows running: Redis, API Server (port 8080), apex-finder web (port 23695). App loads. DB empty — needs ingestion. |
 | 2026-07-19 | Fresh GitHub import. Environment bootstrapped. DB empty. Upstash not connected. |

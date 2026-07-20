@@ -15,3 +15,4 @@
 - [Dedup key bug](dedup-key-bug.md) — clearDedup() was deleting wrong Upstash key; fix uses `apex:${DEDUP_KEY}` to match batchMarkSeen/preloadDedupPrefix
 - [Cold-start auto-recovery](cold-start-auto-recovery.md) — startup.ts clears ghost jobs + auto-starts ingestion; edge case when DB is partial but dedup stale
 - [Phase 10 Simulation Fixes](phase10-simulation-fixes.md) — all 11 simulation issues fixed; entity reclassification, isHot sync, hybrid branding, FAA coords, pitch fallbacks
+- [Relationship graph gap](relationship-gap.md) — auto-detect always returns 0 on FAA data; need name-clustering or CH director co-appointments instead

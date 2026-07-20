@@ -5,6 +5,22 @@
 
 ---
 
+## Core Hybrid Architecture (All Layers Deterministic)
+
+This is the canonical definition of the intelligence pipeline. **MCTS is Layer 4 — it is not a standalone algorithm separate from the hybrid stack.** All five layers run as a unified pipeline on every `POST /api/research/run` call.
+
+| Layer | Name | Implementation | Status |
+|---|---|---|---|
+| L1 | **Hybrid Retrieval** — BM25 + Semantic (TF-IDF) + Graph BFS, fused via RRF, cached in Redis | `hybrid-search.ts` · `graph-engine.ts` | ✅ Complete |
+| L2 | **Multi-Agent Reasoning** — Planner → Retriever → Analyst → Critic, deterministic TypeScript | `agent-orchestrator.ts` | ✅ Complete |
+| L3 | **Query Expansion** — single-pass `expandQuery()` using ASSET_EXPANSION, GEO_MAP, INTENT_EXPANSION | `agent-orchestrator.ts` (expandQuery) | ✅ Complete (single-pass; iterative loop = future work) |
+| L4 | **MCTS Deep Path Exploration** — UCT tree search, 120 rollouts, seeded by L1 BFS path; reward from real registry relationships only | `mcts-agent.ts` | ✅ Complete |
+| L5 | **Bayesian-UCB Optimization** — Bayesian log-odds prior per entity; UCB1 inside MCTS (L4) tunes exploration vs. exploitation | `bayesian-scorer.ts` · `mcts-agent.ts` | ✅ Complete |
+
+> **Sentence-transformer embeddings (all-MiniLM-L6-v2):** Layer 1 currently uses TF-IDF cosine as the semantic component. True sentence-transformer embeddings would improve recall quality and are the natural L1 upgrade path.
+
+---
+
 ## Baseline Assessment (2026-07-19)
 
 | Dimension | Score | Root cause |
@@ -53,16 +69,30 @@ All 5 code phases are complete. Scores reflect the **live data state**, not just
 | Reliability | 7/10 | 8/10 | ↑ | 12/12 smoke tests pass. Upstash dedup solid. Cold-start auto-recovery working. Schema stable. |
 | **Overall** | **5.2/10** | **6.0/10** | **↑** | |
 
-### Gap to 10/10 — purely operational, no code needed
+### Operational steps executed (2026-07-20)
 
-The remaining gap is **workflow execution**, not missing features:
+| Step | Endpoint | Result |
+|---|---|---|
+| 1. Entity reclassification | `POST /ingest/reclassify-entity-types` | ✅ 22,741 → Corporation · 585 → Trust · 8,674 remain HNWI |
+| 2. CH Contact Enricher | `POST /api/ingest/companies-house-enrich` | ✅ Started · 174/500 processed · adds address data to entities |
+| 3. Relationship auto-detect | `POST /api/relationships/auto-detect` | ⚠️ 0 relationships found — FAA entities all have unique addresses (expected) |
+| 4. MCTS on top hot leads | `POST /api/research/run` × 5 | ✅ 5 sessions created · path scores 0.415–0.488 |
 
-1. **Run Companies House Contact Enricher** (Data Sources page) → contacts populate → Contact quality 3→7, Data enrichment 4→8
-2. **Run relationship auto-detect** (`POST /api/relationships/auto-detect`) → edges populate → Approach path finding 4→8
-3. **Re-run entity type reclassification** (`POST /ingest/reclassify-entity-types`) → Entity discovery 7→8
-4. **Run MCTS on top hot leads** → intel sessions populate → Outreach generation 6→9
+### Key findings from operational run
 
-Projected score after those 4 operational steps: **~9.2/10**
+- **Relationship gap is structural, not a bug.** The auto-detect heuristic (shared correspondence address) doesn't work for FAA data because each aircraft registrant has a unique address. Building a relationship graph for FAA data requires a different signal: same company name prefix, same LLC series, SEC co-filers, or UK Companies House director co-appointments.
+- **Contact quality from CH enricher is address-only.** CH officer search adds `knownResidences` (address +10 pts confidence) but not email/phone. `contactableCount` (≥50 threshold = requires email) stays 0 for FAA entities. UK entities from HMLR with a CH officer match can reach higher confidence.
+- **MCTS path scores are 0.4–0.49** because all entities are isolated nodes (0 edges). The architecture is correct; data density is the limiter.
+
+### Revised gap to 10/10 — remaining work
+
+| Priority | Action | Impact |
+|---|---|---|
+| 🔴 Critical | Build relationship edges via a non-address signal (CH director co-appointments, SEC co-filers, company name clustering) | Approach path finding 4→8 |
+| 🔴 Critical | Enrich UK entities (HMLR/CH match) — these are more likely to yield CH officer email/address cross-reference | Contact quality 3→6 |
+| 🟡 High | Run sentence-transformers (all-MiniLM-L6-v2) for L1 semantic layer — currently TF-IDF | Search recall improvement |
+| 🟡 High | Run MCTS on all 7,452 hot leads (not just top 5) once relationship graph has edges | Outreach generation 6→9 |
+| 🟢 Medium | Iterative query expansion loop (currently single-pass) | L3 query expansion completeness |
 
 ---
 

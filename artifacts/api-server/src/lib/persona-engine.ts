@@ -267,40 +267,43 @@ async function runDataAnalyst(entity: Entity): Promise<ImprovementSuggestion[]> 
 // ─────────────────────────────────────────────────────────────────────────────
 // Persona 3 — Intelligence Systems Analyst
 //
-// Evaluates the entity across the full hybrid intelligence stack:
+// Evaluates the entity across the full 5-layer Core Hybrid Architecture:
 //
-//  Layer 1 — MCTS path coverage
-//    MCTS (mcts-agent.ts) uses UCT tree search to find optimal warm-introduction
-//    paths through the relationship graph. Without sessions, the outreach layer
-//    is blind. Stale sessions may route through intermediaries displaced by new
-//    ingestion. Low UCT scores indicate the graph hasn't surfaced a warm path.
+//  Layer 1 — Hybrid Retrieval (BM25 + Semantic + Graph)
+//    Fast retrieval layer combining BM25 keyword search, TF-IDF semantic search,
+//    and direct graph traversal (BFS shortest-path). Results fused via RRF.
+//    Cached in Redis. Entities with no nationality, no linked assets, and no notes
+//    are invisible to all three mechanisms and cannot be surfaced by any query.
 //
-//  Layer 2 — Hybrid search signal coverage + single-pass query expansion
-//    Before hitting hybridSearch, the Retriever calls expandQuery(rawQuery, plan)
-//    which appends asset synonyms (ASSET_EXPANSION — e.g. "jet" → "aircraft
-//    turbofan turboprop helicopter rotorcraft tail"), canonical location forms from
-//    GEO_MAP (e.g. "texas" → also "TX"), name hints not already in the query, and
-//    intent background terms (INTENT_EXPANSION — e.g. person → "owner individual
-//    HNWI director beneficial officer"). This enriched string then hits BM25 +
-//    TF-IDF cosine in hybridSearch. Separately, the SQL pre-filter narrows the
-//    candidate pool by is_hot, bayesian_score, and location ILIKE before RRF fusion.
-//    Entities with no nationality, no linked assets, and no notes are invisible to
-//    all three mechanisms: location ILIKE misses them, asset synonyms produce no
-//    hits (no linked records), and TF-IDF cosine has no text tokens to match.
-//
-//  Layer 3 — Agent orchestration pipeline completeness
+//  Layer 2 — Multi-Agent Reasoning (Planner→Retriever→Analyst→Critic)
 //    agent-orchestrator.ts runs four deterministic agents in sequence:
 //    Planner (intent/geo/asset extraction) → Retriever (expandQuery + hybridSearch
 //    + SQL pre-filter) → Analyst (RRF score fusion + Bayesian weighting) → Critic
-//    (relevance pruning). A complete pipeline ends with a generated pitch.
-//    Incomplete pipelines leave the entity without a synthesised outreach strategy.
+//    (relevance pruning + final re-ranking). A complete pipeline ends with a
+//    generated pitch. Incomplete pipelines leave the entity without an outreach
+//    strategy. MCTS is Layer 4, not a sub-component of the Critic.
 //
-//  Layer 4 — Bayesian-UCB convergence
-//    bayesian-scorer.ts uses Bayesian log-odds updates on registry signals.
-//    mcts-agent.ts uses UCB1 (UCT) to balance exploitation of high-scoring paths
-//    vs. exploration of unvisited nodes. If an entity's score hasn't been updated
-//    since creation, neither the Bayesian update loop nor the UCB explorer has
-//    acted on it — the entity is stuck at its prior estimate.
+//  Layer 3 — Iterative Query Expansion + Relevance Feedback
+//    expandQuery(rawQuery, plan) appends asset synonyms (ASSET_EXPANSION — e.g.
+//    "jet" → "aircraft turbofan turboprop helicopter rotorcraft tail"), canonical
+//    location forms from GEO_MAP (e.g. "texas" → also "TX"), name hints, and
+//    intent background terms (INTENT_EXPANSION). This enriched string then hits
+//    BM25 + TF-IDF cosine in hybridSearch. Single-pass (no iterative loop yet).
+//
+//  Layer 4 — MCTS Deep Path Exploration (UCT · 120 rollouts)
+//    mcts-agent.ts uses UCT tree search to find optimal warm-introduction paths
+//    through the relationship graph. Reward function based solely on real
+//    relationship types and personal identifiers from registries (direct ownership
+//    > shared assets > gatekeepers). Seeded by BFS path from Layer 1. Without
+//    sessions, the outreach layer is blind. Stale sessions may route through
+//    intermediaries displaced by new ingestion.
+//
+//  Layer 5 — Bayesian-UCB Optimization
+//    bayesian-scorer.ts uses Bayesian log-odds updates on registry signals to
+//    produce a prior estimate per entity. UCB1 inside MCTS (Layer 4) balances
+//    exploitation of high-scoring paths vs. exploration of unvisited nodes.
+//    If an entity's score hasn't been updated since creation, neither the Bayesian
+//    update loop nor the UCB explorer has acted on it.
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function runIntelSystemsAnalyst(entity: Entity): Promise<ImprovementSuggestion[]> {
@@ -327,7 +330,7 @@ async function runIntelSystemsAnalyst(entity: Entity): Promise<ImprovementSugges
   const metadata   = parseJsonSafe<Record<string, unknown>>(entity.metadata, {});
   const score      = entity.bayesianScore;
 
-  // ── Layer 1: MCTS path coverage ────────────────────────────────────────────
+  // ── Layer 4: MCTS Deep Path Exploration ────────────────────────────────────
 
   if (sessions.length === 0) {
     suggestions.push({
@@ -401,7 +404,7 @@ async function runIntelSystemsAnalyst(entity: Entity): Promise<ImprovementSugges
     }
   }
 
-  // ── Layer 2: Hybrid search signal coverage ─────────────────────────────────
+  // ── Layer 1: Hybrid Retrieval signal coverage ──────────────────────────────
 
   // Thin source registry = weak BM25 + graph anchor for cross-entity search
   if (sources.length <= 1 && score < 0.5) {
@@ -452,7 +455,7 @@ async function runIntelSystemsAnalyst(entity: Entity): Promise<ImprovementSugges
     });
   }
 
-  // ── Layer 3 + 4: Bayesian-UCB convergence ──────────────────────────────────
+  // ── Layer 5: Bayesian-UCB convergence ──────────────────────────────────────
 
   // Hot lead with no pipeline run — UCB exploitation hasn't started
   if (score >= 0.7 && sessions.length === 0) {

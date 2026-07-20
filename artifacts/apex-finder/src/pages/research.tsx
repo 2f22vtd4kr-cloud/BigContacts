@@ -30,7 +30,7 @@ type PathStep = {
   contactPhone?: string | null;
 };
 
-const HYBRID_PIPELINE = "Bayesian-UCB → Hybrid Search (BM25+TF-IDF+RRF) → BFS → MCTS → Agent Critique";
+const HYBRID_PIPELINE = "L1: BM25+Semantic+Graph · L2: Planner→Retriever→Analyst→Critic · L3: QueryExpansion · L4: MCTS(UCT·120) · L5: Bayesian-UCB";
 
 function roleIcon(role: string) {
   if (role === "TARGET") return <Target className="w-3 h-3 text-primary" />;
@@ -423,7 +423,7 @@ export default function IntelTerminal() {
               <Terminal className="w-8 h-8 opacity-20" />
               <span className="italic text-sm">Awaiting target selection...</span>
               <div className="text-[11px] text-center opacity-60 max-w-sm leading-relaxed">
-                5-algorithm hybrid pipeline: Bayesian-UCB scores the target, Hybrid Search surfaces related entities, BFS seeds the shortest path, MCTS runs 120 rollouts to find the optimal warm-introduction route, Agent Critique validates the result.
+                5-layer hybrid architecture: L1 Hybrid Retrieval (BM25+Semantic+Graph) surfaces candidates · L2 Multi-Agent Reasoning (Planner→Retriever→Analyst→Critic) coordinates · L3 Query Expansion enriches the search · L4 MCTS Deep Path Exploration (UCT · 120 rollouts) finds the optimal warm-introduction route · L5 Bayesian-UCB tunes scoring and direction.
               </div>
             </div>
           )}
