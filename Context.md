@@ -39,35 +39,42 @@
 - **Contact confidence**: ✅ Recomputed for 31,857 entities — all score < 50 (no email/phone/LinkedIn data yet)
 - **Contactable count**: 0 (requires Hunter.io / Apollo for email discovery — next major unlock)
 
-### What was done this session (Session 2 of import #5)
+### What was done this session (re-import #6, Session 1 — 2026-07-20)
 
-**Three persona engine improvements (completed + deployed):**
-1. `runBusinessEngineer` — "isolated node" HIGH flag now scoped to HNWI/Gatekeeper only; Corp/Trust entities (70% of portfolio) get LOW priority with correct corporate-vehicle framing
-2. `runUxDesigner` — "no geolocated assets" geo flag suppressed for HMLR/Land Registry entities (they ARE property records; GPS coordinates don't apply to property titles)
-3. New `POST /api/ingest/backfill-net-worth` endpoint + UI button — sets `estimatedNetWorth = 3× registered asset value` for entities with null net worth and assets > £1M
+**1. Field Manual mobile view fixes:**
+- Fixed 5-step workflow grid: replaced inline `borderRight` with responsive Tailwind `border-b md:border-b-0 md:border-r` — items now stack cleanly as vertical cards on mobile
+- Fixed Level IV edge types grid: changed `grid-cols-2` → `grid-cols-1 sm:grid-cols-2` — was too narrow (185px columns) on 390px screens
+- Updated Level VIII enrichers list: replaced "Hunter.io + Apollo.io (email/LinkedIn — paid)" with "In-House OSINT (Wikidata · Gravatar · GitHub · pattern gen)"
+- Updated Level VIII Hunter/Apollo callout → describes the in-house engine
+- Updated Level X contact confidence scoring text → references In-House Enricher instead of Hunter/Apollo
+- All changes hot-reloaded via Vite HMR
 
-**Full operational pipeline run:**
-- ✅ Reclassify entity types: 22,847 Corp · 586 Trust · 8,967 HNWI
-- ✅ Sync hot flags: 15,114 hot leads
-- ✅ liveSource markers synced: 32,000 entities
-- ✅ EDGAR stock assets: 400 StockHolding records created
-- ✅ Net worth backfill: 2,000 HMLR entities (3× asset value)
-- ✅ Name cluster detection: 229,260 CORPORATE_SERIES edges (2,085 clusters)
-- ✅ CH officers enrichment: 500 entities processed — 0 UK matches (all entities are US-based)
-- ✅ CH co-directors: 0 SHARED_DIRECTOR edges (expected)
-- ✅ Contact confidence recomputed: 31,857 entities updated
-- ✅ 25 MCTS research sessions (top HNWI hot leads)
-- ✅ Persona simulation Run 5: 300 entities · 8 personas · 1,812 suggestions
+**2. In-House OSINT Enrichment Engine (replaces Hunter.io + Apollo):**
+- New file: `artifacts/api-server/src/lib/in-house-enricher.ts`
+  - **Source 1: Wikidata SPARQL** — structured data for public figures (email, website, LinkedIn URL)
+  - **Source 2: Wikipedia API** — article extract scraping for email/LinkedIn
+  - **Source 3: GitHub API** — search by full name, extract public profile email (60 req/hr, no auth)
+  - **Source 4: Email pattern generation + Gravatar MD5 verification** — generates first.last/flast/f.last/etc. patterns, verifies each against Gravatar hash (200 = confirmed email)
+  - **Source 5: Company domain resolver + DNS MX validation** — company name → .com heuristic, validates with `dns.resolveMx`
+  - **Source 6: RDAP domain contact** — ICANN RDAP registrant email for corporate domains
+  - **Source 7: ProPublica 990 Finder** — US nonprofit executive contacts + website scrape
+- New route: `POST /api/ingest/in-house-enrich` (batchSize, force, entityIds params; same job/poll pattern as web-osint-enrich)
+- New route: `DELETE /api/ingest/in-house-enrich-lock` — manual ghost-lock clear
+- Updated `data-sources.tsx`:
+  - Phase 9 source definition: replaced "Hunter.io + Apollo.io" card with "In-House OSINT Enricher" (green, free-tier, no paid API)
+  - Added `InHouseEnrichButton` component (polls job progress, same UX as `WebOsintButton`)
+  - Added quick-action button row in the controls panel
+  - Updated Phase 9 section heading: "Commercial Enrichment" → "In-House OSINT Engine"
+- Verified endpoint works: `POST /api/ingest/in-house-enrich` → returns jobId, runs in background, job completes cleanly
 
-**Simulation Run 5 highlights:**
-- `data_analyst` flags: 0.08/e → **0.00/e** (eliminated — net worth backfill + stock assets)
-- `ux_designer` flags: 0.37/e → **0.20/e** (HMLR geo fix)
-- `data_integrity_auditor` flags: 0.88/e → **0.20/e** (liveSource sync)
-- `data_engineer` flags: 2.00/e → **0.76/e** (brace bug fix → Corp/Trust correctly excluded)
-- Overall score: 7.9 → **~8.0**
+**Re-import setup:**
+- pnpm install (fresh), db schema push, secrets set (SESSION_SECRET, REDIS_URL_1, COMPANIES_HOUSE_API_KEY)
+- Workflows: Redis ✅ · API Server ✅ (manual workflow) · Web Frontend ✅ (manual workflow)
+- Note: managed artifact workflows (artifacts/api-server: API Server, etc.) also registered but not started — manual "API Server" and "Web Frontend" workflows are the active ones
+- DB already had 32,600 entities from prior session (cold-start auto-recovery detected populated DB)
 
 ### Next unlock to reach 9.2
-Email/LinkedIn enrichment API (Hunter.io or Apollo) → contactable count 0 → ~500+ → Contact quality 4 → 9
+Run **IN-HOUSE ENRICH** on HNWI/Gatekeeper entities — Wikidata SPARQL will hit well-known public figures; Gravatar verification will confirm email patterns for executives with corporate domains. Contactable count: 0 → target ~200+ with in-house engine alone.
 
 ### What's new this session (2026-07-20 — second re-import)
 

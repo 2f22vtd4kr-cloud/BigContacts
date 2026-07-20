@@ -273,8 +273,7 @@ export default function FieldManual() {
                 { n: "04", icon: <Terminal size={13} />, color: "#EF4444", label: "Intel Terminal",  hint: "Simulate warm path" },
                 { n: "05", icon: <KanbanSquare size={13} />, color: "#8B5CF6", label: "Pipeline CRM", hint: "Track & execute outreach" },
               ].map((step, i) => (
-                <div key={step.n} className="flex flex-row md:flex-col items-center md:text-center gap-3 md:gap-2 p-4"
-                  style={{ borderRight: i < 4 ? "1px solid #1E293B" : "none" }}>
+                <div key={step.n} className={`flex flex-row md:flex-col items-center md:text-center gap-3 md:gap-2 p-4${i < 4 ? " border-b md:border-b-0 md:border-r border-[#1E293B]" : ""}`}>
                   <div className="w-10 h-10 rounded-full flex items-center justify-center border-2 shrink-0 relative"
                     style={{ borderColor: step.color + "60", backgroundColor: step.color + "15", color: step.color }}>
                     {step.icon}
@@ -476,7 +475,7 @@ export default function FieldManual() {
             ]} />
 
             <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-widest mt-6 mb-4">Edge (relationship) types</h3>
-            <div className="grid grid-cols-2 gap-3 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
               {[
                 { label: "OWNS",            desc: "Direct legal ownership or beneficial interest",         color: "#10B981" },
                 { label: "MANAGES",         desc: "Appointed director, trustee, or fund manager",          color: "#3B82F6" },
@@ -688,7 +687,7 @@ export default function FieldManual() {
                 { n: 4, x: 60,  y: 25, color: "#EF4444", label: "0 contactable — entities with verified email or phone (run CH Contact Enricher or Hunter/Apollo to increase)" },
                 { n: 5, x: 85,  y: 25, color: "#F59E0B", label: "0% coverage — percentage of entities with any contact data; your enrichment target" },
                 { n: 6, x: 94,  y: 41, color: "#A855F7", label: "Quick-action buttons — AUTO-DETECT, NAME CLUSTERS, CH OFFICERS, etc. Each fires a background job" },
-                { n: 7, x: 45,  y: 96, color: "#F97316", label: "Phase 9 — Commercial Enrichment: Hunter.io + Apollo.io email/LinkedIn enricher (requires paid API plan)" },
+                { n: 7, x: 45,  y: 96, color: "#10B981", label: "Phase 9 — In-House OSINT Enricher: Wikidata + Gravatar + GitHub + pattern generation (no paid API required)" },
               ]}
             />
 
@@ -707,7 +706,7 @@ export default function FieldManual() {
                 <p className="text-xs font-bold text-[#10B981] mb-2 uppercase tracking-wider flex items-center gap-1.5"><Zap size={11} /> Enricher</p>
                 <p className="text-xs text-[#94A3B8] leading-relaxed mb-3">Queries external APIs against entities already in your DB to add contact data, edges, or verification. Does not create new entities.</p>
                 <div className="space-y-1 text-xs text-[#64748B]">
-                  {["OCCRP Aleph (sanctions, beneficial ownership)", "OpenSky Network (live flight tracking)", "Companies House Contact Enricher", "Hunter.io + Apollo.io (email/LinkedIn — paid)", "Web OSINT (DuckDuckGo + EDGAR + OpenCorporates)"].map((s) => (
+                  {["OCCRP Aleph (sanctions, beneficial ownership)", "OpenSky Network (live flight tracking)", "Companies House Contact Enricher", "In-House OSINT (Wikidata · Gravatar · GitHub · pattern gen)", "Web OSINT (DuckDuckGo + EDGAR + OpenCorporates)"].map((s) => (
                     <div key={s} className="flex items-center gap-1.5"><CheckCircle size={9} className="text-[#10B981] shrink-0" />{s}</div>
                   ))}
                 </div>
@@ -735,11 +734,15 @@ export default function FieldManual() {
               ))}
             </div>
 
-            <Callout icon={<Mail size={14} />} color="#F97316" title="Hunter.io + Apollo.io — requires paid plans">
-              The Phase 9 Commercial Enricher is the single highest-impact enrichment — it pushes contact
-              confidence from near-zero to 40–90 per entity. However, Apollo's <Code>people/match</Code> API requires
-              a paid plan (Apollo Basic ~$49/mo). Hunter.io's free tier covers 25 searches/month; Hunter Basic
-              ($49/mo) gives 500. Both keys are set — upgrade your plans to activate.
+            <Callout icon={<Mail size={14} />} color="#10B981" title="Phase 9 — In-House OSINT Engine (no paid API)">
+              The Phase 9 In-House Enricher is fully self-contained — no Hunter.io, no Apollo, no paid plans.
+              It runs 6 free sources in sequence: <strong className="text-[#E2E8F0]">Wikidata SPARQL</strong> for public figures,{" "}
+              <strong className="text-[#E2E8F0]">GitHub API</strong> for founders and tech execs,{" "}
+              <strong className="text-[#E2E8F0]">email pattern generation</strong> (first.last / flast / f.last)
+              verified by <strong className="text-[#E2E8F0]">Gravatar MD5 hash</strong>,{" "}
+              <strong className="text-[#E2E8F0]">domain resolution</strong> with DNS MX validation, and{" "}
+              <strong className="text-[#E2E8F0]">RDAP registrant lookup</strong> for corporate domains.
+              Click <Code>IN-HOUSE ENRICH</Code> in Data Sources to run it.
             </Callout>
           </Section>
 
@@ -873,13 +876,13 @@ export default function FieldManual() {
               from confirmed contact signals:
             </p>
             <div className="bg-[#050A14] border border-[#EC4899]/20 rounded-lg p-5 mb-5 text-xs font-mono text-[#64748B] space-y-1">
-              <div><span className="text-[#10B981]">+40pts</span>  Verified work email (Hunter.io confidence ≥ 50 or Apollo)</div>
-              <div><span className="text-[#10B981]">+25pts</span>  Confirmed phone number (Apollo people/match)</div>
-              <div><span className="text-[#3B82F6]">+20pts</span>  LinkedIn URL confirmed</div>
-              <div><span className="text-[#3B82F6]">+10pts</span>  CH officer correspondence address on file</div>
-              <div><span className="text-[#F59E0B]">+5pts</span>   Company website domain known</div>
+              <div><span className="text-[#10B981]">+40pts</span>  Verified work email (In-House Enricher: Gravatar-confirmed ≥ 90% confidence)</div>
+              <div><span className="text-[#10B981]">+30pts</span>  Confirmed phone number (via OSINT sources)</div>
+              <div><span className="text-[#3B82F6]">+20pts</span>  LinkedIn URL confirmed (Wikidata / GitHub / Web OSINT)</div>
+              <div><span className="text-[#3B82F6]">+10pts</span>  CH officer correspondence address or known residence on file</div>
               <div className="mt-3 pt-3 border-t border-[#1E293B] text-[#94A3B8]">
-                <p>Score is always recomputed — even without API keys — from whatever signals exist in the DB.</p>
+                <p>Score is always recomputed from whatever signals exist in the DB — no paid API required.</p>
+                <p className="mt-1">Run <strong className="text-[#E2E8F0]">IN-HOUSE ENRICH</strong> in Data Sources to push contact confidence from 0 to 40–90 per entity.</p>
               </div>
             </div>
 

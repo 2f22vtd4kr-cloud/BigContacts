@@ -29,10 +29,15 @@ import { runOpenSkyEnrichment } from "../lib/opensky-ingestor";
 import { runCompaniesHouseEnrichment } from "../lib/companies-house-enricher";
 import { enrichEntityOsint } from "../lib/web-osint-enricher";
 import { enrichWithHunterApollo } from "../lib/hunter-enricher";
+import { enrichInHouse } from "../lib/in-house-enricher";
 import { computeContactConfidence } from "../lib/contact-confidence";
 import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
+
+function safeParseJson<T>(str: string | null | undefined, fallback: T): T {
+  try { return str ? JSON.parse(str) as T : fallback; } catch { return fallback; }
+}
 
 // POST /ingest/sync-faa-coordinates — backfill latitude/longitude for FAA
 // aviation assets that were ingested before the state-centroid lookup was added.
@@ -830,6 +835,145 @@ router.delete("/ingest/web-osint-lock", async (_req: Request, res: Response): Pr
   } as any);
   await setActiveJob("web-osint", "");
   res.json({ cleared: true, jobId, message: "Web-OSINT lock cleared. You can now restart the enrichment." });
+});
+
+// ── POST /ingest/in-house-enrich — in-house OSINT email/LinkedIn enricher ────
+router.post("/ingest/in-house-enrich", async (req: Request, res: Response): Promise<void> => {
+  const existing = await getActiveJob("in-house-enrich");
+  if (existing) {
+    res.status(409).json({ error: "An in-house enrichment job is already running.", jobId: existing });
+    return;
+  }
+
+  const body = req.body ?? {};
+  const batchSize = Math.min(Number(body.batchSize) || 100, 500);
+  const force = Boolean(body.force);
+  const entityIds: number[] | undefined = Array.isArray(body.entityIds) ? body.entityIds : undefined;
+
+  // Select entities: HNWI + Gatekeeper with zero or low contact confidence
+  const conditions = [
+    sql`${entitiesTable.type} IN ('HNWI', 'Gatekeeper', 'Corporation')`,
+  ];
+  if (!force) conditions.push(sql`${entitiesTable.contactConfidence} < 40`);
+  if (entityIds?.length) conditions.push(inArray(entitiesTable.id, entityIds));
+
+  const entities = await db
+    .select({
+      id: entitiesTable.id, name: entitiesTable.name, type: entitiesTable.type,
+      nationality: entitiesTable.nationality,
+      sourceRegistries: entitiesTable.sourceRegistries,
+      knownResidences: entitiesTable.knownResidences,
+      metadata: entitiesTable.metadata,
+      notes: entitiesTable.notes,
+    })
+    .from(entitiesTable)
+    .where(and(...conditions))
+    .limit(batchSize);
+
+  if (!entities.length) {
+    res.json({ message: "No entities need in-house enrichment.", jobId: null });
+    return;
+  }
+
+  const jobId = await createJob("in-house-enrich");
+  await setActiveJob("in-house-enrich", jobId);
+  await updateJob(jobId, { status: "running", total: entities.length, message: "In-house OSINT enrichment starting…" });
+
+  res.json({
+    jobId, total: entities.length,
+    message: `In-house OSINT enrichment started for ${entities.length} entities.`,
+  });
+
+  // Background loop
+  (async () => {
+    let enriched = 0, skipped = 0, errors = 0;
+    for (const entity of entities) {
+      try {
+        const result = await enrichInHouse(entity);
+        const hasSignal = result.email || result.linkedinUrl || result.phone || result.website;
+        if (!hasSignal) { skipped++; continue; }
+
+        const updates: Record<string, unknown> = { updatedAt: new Date() };
+        if (result.email    && !entity.metadata?.includes(result.email))    updates["email"]      = result.email;
+        if (result.linkedinUrl) updates["linkedinUrl"] = result.linkedinUrl;
+        if (result.phone)    updates["phone"]     = result.phone;
+        if (result.website)  {
+          const meta = safeParseJson<Record<string, unknown>>(entity.metadata, {});
+          if (!meta["website"]) {
+            meta["website"] = result.website;
+            updates["metadata"] = JSON.stringify(meta);
+          }
+        }
+
+        // Recompute contact confidence with enriched signals
+        const confidence = computeContactConfidence({
+          email:           (updates["email"] as string | null) ?? null,
+          phone:           (updates["phone"] as string | null) ?? null,
+          linkedinUrl:     (updates["linkedinUrl"] as string | null) ?? null,
+          knownResidences: entity.knownResidences,
+        });
+        updates["contactConfidence"] = confidence;
+
+        // Tag provenance in metadata
+        const meta = safeParseJson<Record<string, unknown>>(entity.metadata ?? updates["metadata"] as string ?? null, {});
+        meta["enrichmentSources"] = [
+          ...(Array.isArray(meta["enrichmentSources"]) ? meta["enrichmentSources"] : []),
+          ...result.sources,
+        ];
+        meta["enrichedAt"] = new Date().toISOString();
+        meta["emailConfidence"] = result.emailConfidence;
+        updates["metadata"] = JSON.stringify(meta);
+        updates["liveSource"] = true;
+
+        await db.update(entitiesTable)
+          .set(updates as any)
+          .where(eq(entitiesTable.id, entity.id));
+
+        enriched++;
+        logger.info(
+          { entityId: entity.id, name: entity.name, confidence, sources: result.sources, emailConf: result.emailConfidence },
+          "In-house OSINT enriched",
+        );
+      } catch (err: any) {
+        errors++;
+        logger.warn({ entityId: entity.id, err: err.message }, "In-house enrichment failed");
+      }
+
+      // Progress update every 10 entities
+      if ((enriched + skipped + errors) % 10 === 0) {
+        await updateJob(jobId, {
+          status: "running",
+          progress: enriched + skipped + errors,
+          total: entities.length,
+          inserted: enriched,
+          message: `In-house OSINT: ${enriched} enriched, ${skipped} no-match, ${errors} errors…`,
+        });
+      }
+    }
+
+    await updateJob(jobId, {
+      status: "done",
+      progress: entities.length,
+      total: entities.length,
+      inserted: enriched,
+      message: `Done — ${enriched} entities enriched, ${skipped} no-match, ${errors} errors.`,
+    });
+    await setActiveJob("in-house-enrich", "");
+    logger.info({ enriched, skipped, errors }, "In-house OSINT enrichment complete");
+  })().catch(async err => {
+    logger.error({ err: err.message }, "In-house enrichment crashed");
+    await updateJob(jobId, { status: "failed", message: err.message ?? "Crashed" });
+    await setActiveJob("in-house-enrich", "");
+  });
+});
+
+// ── DELETE /ingest/in-house-enrich-lock — clear ghost lock ───────────────────
+router.delete("/ingest/in-house-enrich-lock", async (_req: Request, res: Response): Promise<void> => {
+  const jobId = await getActiveJob("in-house-enrich");
+  if (!jobId) { res.json({ cleared: false, message: "No active lock." }); return; }
+  await updateJob(jobId, { status: "failed", message: "Lock cleared manually.", finishedAt: new Date().toISOString() } as any);
+  await setActiveJob("in-house-enrich", "");
+  res.json({ cleared: true, jobId, message: "In-house-enrich lock cleared." });
 });
 
 // ── POST /ingest/recompute-contact-confidence — recompute contactConfidence for all entities ──

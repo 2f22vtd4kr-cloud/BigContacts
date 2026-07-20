@@ -203,22 +203,22 @@ const SOURCES: SourceDef[] = [
     note: "No standardised bulk download available across European registries yet.",
   },
 
-  // ── Phase 9: commercial email/LinkedIn enrichment ─────────────────────────
+  // ── Phase 9: In-House OSINT enrichment (no paid API) ─────────────────────
   {
-    id: "hunter-apollo",
-    label: "Hunter.io + Apollo.io Email Enricher",
+    id: "in-house-enrich",
+    label: "In-House OSINT Enricher",
     description:
-      "Finds verified work emails and LinkedIn URLs for HNWI and Gatekeeper entities using commercial enrichment APIs. The single highest-impact enrichment — pushes contact confidence from near-zero to 40–90 per entity.",
+      "Finds emails, LinkedIn URLs, and websites for HNWI and Gatekeeper entities using 6 free public sources: Wikidata SPARQL, GitHub API, email pattern generation verified by Gravatar MD5, DNS MX validation, RDAP domain contacts, and ProPublica 990 filings. No paid API required.",
     kind: "enricher",
     Icon: Mail,
-    color: "#F97316",
-    bg: "rgba(249,115,22,0.1)",
+    color: "#10B981",
+    bg: "rgba(16,185,129,0.1)",
     phase: 9,
-    homepage: "https://hunter.io",
-    endpoint: "/api/ingest/hunter-enrich",
-    jobType: "hunter-enrich",
+    homepage: "https://query.wikidata.org",
+    endpoint: "/api/ingest/in-house-enrich",
+    jobType: "in-house-enrich",
     bodyParams: { batchSize: 200 },
-    note: "Requires HUNTER_API_KEY (hunter.io) and/or APOLLO_API_KEY (apollo.io). Hunter free tier: 25 searches/mo. Apollo people/match requires a paid plan — free plan returns 403. Best results: Hunter Basic ($49/mo) + Apollo Basic ($49/mo).",
+    note: "Fully in-house — no Hunter.io, no Apollo.io, no paid plans. Wikidata covers public figures; GitHub covers founders/tech execs; Gravatar-verified email patterns work for most corporate emails. Run after Web OSINT Enrich for best coverage.",
   },
 ];
 
@@ -343,6 +343,10 @@ function EnrichmentCoverageStats() {
       <div className="flex items-center justify-between border-t border-border/40 pt-2.5">
         <span className="text-[10px] font-mono text-muted-foreground/60">Web OSINT: DuckDuckGo + EDGAR + OpenCorporates → LinkedIn URL, email, phone for all 5 hybrid architecture layers</span>
         <WebOsintButton />
+      </div>
+      <div className="flex items-center justify-between border-t border-border/40 pt-2.5">
+        <span className="text-[10px] font-mono text-muted-foreground/60">In-House OSINT: Wikidata · GitHub · Gravatar MD5 pattern verification · RDAP · ProPublica 990 → email, LinkedIn, phone (no paid API)</span>
+        <InHouseEnrichButton />
       </div>
     </div>
   );
@@ -724,6 +728,61 @@ function WebOsintButton() {
   );
 }
 
+function InHouseEnrichButton() {
+  const [status, setStatus] = useState<"idle" | "running" | "done" | "error">("idle");
+  const [msg, setMsg]       = useState("");
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const run = async () => {
+    setStatus("running");
+    setMsg("Starting…");
+    try {
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const r = await fetch(`${base}/api/ingest/in-house-enrich`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ batchSize: 200 }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error ?? "Failed");
+      if (!d.jobId) { setMsg(d.message ?? "Nothing to enrich"); setStatus("done"); return; }
+      const jobId: string = d.jobId;
+      setMsg(`Enriching ${d.total} entities…`);
+      pollRef.current = setInterval(async () => {
+        try {
+          const p = await fetch(`${base}/api/ingest/job/${jobId}`);
+          const pj = await p.json();
+          setMsg(`${pj.progress ?? 0}/${pj.total ?? 0} — ${pj.inserted ?? 0} enriched`);
+          if (pj.status === "done" || pj.status === "failed") {
+            clearInterval(pollRef.current!);
+            setMsg(pj.message ?? "Done");
+            setStatus(pj.status === "done" ? "done" : "error");
+          }
+        } catch { /* ignore */ }
+      }, 3000);
+    } catch (err: any) {
+      setMsg(err.message ?? "Error");
+      setStatus("error");
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2 flex-shrink-0">
+      {msg && (
+        <span className={`text-[10px] font-mono max-w-[220px] truncate ${status === "error" ? "text-red-400" : status === "done" ? "text-emerald-400" : "text-amber-400"}`} title={msg}>{msg}</span>
+      )}
+      <button
+        onClick={run}
+        disabled={status === "running"}
+        className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-border text-muted-foreground hover:text-emerald-400 hover:border-emerald-400/40 font-mono text-[10px] uppercase tracking-wider transition-colors disabled:opacity-50 flex-shrink-0"
+      >
+        {status === "running" ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Mail className="w-3 h-3" />}
+        {status === "running" ? "Enriching…" : "In-House Enrich"}
+      </button>
+    </div>
+  );
+}
+
 // ─── Per-source card ──────────────────────────────────────────────────────────
 
 function SourceCard({ src }: { src: SourceDef }) {
@@ -956,13 +1015,13 @@ export default function DataSources() {
         {/* ── Enrichment Coverage Stats ─────────────────────────────────────── */}
         <EnrichmentCoverageStats />
 
-        {/* ── Phase 9 — Commercial Enrichment ─────────────────────────────── */}
+        {/* ── Phase 9 — In-House OSINT Engine ──────────────────────────────── */}
         {phase9Sources.length > 0 && (
           <section>
             <div className="flex items-center gap-2 mb-4">
-              <Mail className="h-4 w-4 text-orange-400" />
-              <h2 className="text-sm font-semibold font-mono uppercase tracking-widest text-orange-400">
-                Phase 9 — Commercial Enrichment
+              <Mail className="h-4 w-4 text-emerald-400" />
+              <h2 className="text-sm font-semibold font-mono uppercase tracking-widest text-emerald-400">
+                Phase 9 — In-House OSINT Engine
               </h2>
               <div className="flex-1 h-px bg-border" />
             </div>
