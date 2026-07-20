@@ -14,7 +14,7 @@ import { db, entitiesTable, improvementLogsTable } from "@workspace/db";
 import { eq, desc, and, inArray, sql } from "drizzle-orm";
 import { runPersonasForEntity } from "../lib/persona-engine";
 import {
-  createJob, updateJob, getJob, appendJobLog, setActiveJob, getActiveJob,
+  createJob, updateJob, getJob, appendJobLog, setActiveJob, getActiveJob, clearActiveJob,
 } from "../lib/job-queue";
 import { logger } from "../lib/logger";
 
@@ -309,6 +309,17 @@ router.get("/improve/stats", async (_req: Request, res: Response): Promise<void>
     byPersona: byPersona.map(r => ({ ...r, count: Number(r.count) })),
     byPriority: byPriority.map(r => ({ ...r, count: Number(r.count) })),
   });
+});
+
+// ── DELETE /improve/lock — manually clear ghost active-job lock ──────────────
+router.delete("/improve/lock", async (_req: Request, res: Response): Promise<void> => {
+  const jobId = await getActiveJob("improve");
+  if (!jobId) {
+    res.json({ cleared: false, message: "No active improve lock found." });
+    return;
+  }
+  await clearActiveJob("improve");
+  res.json({ cleared: true, jobId, message: "Ghost improve lock cleared. You can now restart the persona loop." });
 });
 
 export default router;

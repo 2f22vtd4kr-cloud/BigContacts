@@ -20,7 +20,7 @@ import { runLandRegistryIngestion } from "./land-registry-ingestor";
 import { runWesternHnwiIngestion } from "./western-hnwi-ingestion";
 import { logger } from "./logger";
 
-const INGESTOR_TYPES = ["faa", "land-registry", "western-hnwi", "companies-house-enrich", "occrp", "opensky"] as const;
+const INGESTOR_TYPES = ["faa", "land-registry", "western-hnwi", "companies-house-enrich", "occrp", "opensky", "improve", "web-osint"] as const;
 
 /** Mark any "running" job whose process is dead as failed, clear its lock. */
 async function clearGhostJobs(): Promise<void> {

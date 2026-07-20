@@ -4,7 +4,7 @@ import {
   Bot, Database, TrendingUp, Network, Briefcase,
   Palette, Layers, Play, CheckCircle2, XCircle, Clock,
   AlertTriangle, ChevronDown, ChevronUp, RefreshCw, Filter,
-  User, Zap,
+  User, Zap, ShieldCheck, GitBranch,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -12,7 +12,8 @@ import { cn } from "@/lib/utils";
 
 type PersonaId =
   | "data_engineer" | "data_analyst" | "intel_systems_analyst"
-  | "business_engineer" | "ux_designer" | "architect";
+  | "business_engineer" | "ux_designer" | "architect"
+  | "data_integrity_auditor" | "hybrid_architecture_auditor";
 
 type Priority = "high" | "medium" | "low";
 type LogStatus = "pending" | "applied" | "dismissed";
@@ -57,12 +58,14 @@ interface JobState {
 // ─── Persona config ───────────────────────────────────────────────────────────
 
 const PERSONA_META: Record<PersonaId, { label: string; Icon: React.FC<any>; color: string; bg: string }> = {
-  data_engineer:         { label: "Data Engineer",         Icon: Database,   color: "#3B82F6", bg: "rgba(59,130,246,0.1)"  },
-  data_analyst:          { label: "Data Analyst",          Icon: TrendingUp, color: "#10B981", bg: "rgba(16,185,129,0.1)"  },
-  intel_systems_analyst: { label: "Intel Systems Analyst", Icon: Network,    color: "#A855F7", bg: "rgba(168,85,247,0.1)"  },
-  business_engineer:     { label: "Business Engineer",     Icon: Briefcase,  color: "#F59E0B", bg: "rgba(245,158,11,0.1)"  },
-  ux_designer:           { label: "UX Designer",           Icon: Palette,    color: "#EC4899", bg: "rgba(236,72,153,0.1)"  },
-  architect:             { label: "Architect",              Icon: Layers,     color: "#06B6D4", bg: "rgba(6,182,212,0.1)"   },
+  data_engineer:               { label: "Data Engineer",               Icon: Database,    color: "#3B82F6", bg: "rgba(59,130,246,0.1)"   },
+  data_analyst:                { label: "Data Analyst",                Icon: TrendingUp,  color: "#10B981", bg: "rgba(16,185,129,0.1)"   },
+  intel_systems_analyst:       { label: "Intel Systems Analyst",       Icon: Network,     color: "#A855F7", bg: "rgba(168,85,247,0.1)"   },
+  business_engineer:           { label: "Business Engineer",           Icon: Briefcase,   color: "#F59E0B", bg: "rgba(245,158,11,0.1)"   },
+  ux_designer:                 { label: "UX Designer",                 Icon: Palette,     color: "#EC4899", bg: "rgba(236,72,153,0.1)"   },
+  architect:                   { label: "Architect",                   Icon: Layers,      color: "#06B6D4", bg: "rgba(6,182,212,0.1)"    },
+  data_integrity_auditor:      { label: "Data Integrity Auditor",      Icon: ShieldCheck, color: "#EF4444", bg: "rgba(239,68,68,0.1)"    },
+  hybrid_architecture_auditor: { label: "Hybrid Architecture Auditor", Icon: GitBranch,   color: "#F97316", bg: "rgba(249,115,22,0.1)"   },
 };
 
 const ALL_PERSONAS = Object.keys(PERSONA_META) as PersonaId[];

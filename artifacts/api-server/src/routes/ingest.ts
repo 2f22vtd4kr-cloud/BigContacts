@@ -27,6 +27,8 @@ import { runOccrpEnrichment } from "../lib/occrp-enricher";
 import { runLandRegistryIngestion } from "../lib/land-registry-ingestor";
 import { runOpenSkyEnrichment } from "../lib/opensky-ingestor";
 import { runCompaniesHouseEnrichment } from "../lib/companies-house-enricher";
+import { enrichEntityOsint } from "../lib/web-osint-enricher";
+import { computeContactConfidence } from "../lib/contact-confidence";
 import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
@@ -695,6 +697,138 @@ router.post("/ingest/create-edgar-stock-assets", async (_req: Request, res: Resp
   }
 
   res.json({ created, skipped: edgarEntities.length - toCreate.length, total: edgarEntities.length, message: `Created ${created} StockHolding assets for SEC EDGAR entities.` });
+});
+
+// ── POST /ingest/web-osint-enrich — web OSINT contact discovery ───────────────
+// Uses DuckDuckGo, SEC EDGAR full-text search, and OpenCorporates to surface
+// LinkedIn URLs, emails, and phone numbers for entities missing contact data.
+// Runs as a background job; respects a 400ms polite delay between requests.
+router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Promise<void> => {
+  const existing = await getActiveJob("web-osint");
+  if (existing) {
+    res.status(409).json({ error: "A web OSINT enrichment job is already running.", jobId: existing });
+    return;
+  }
+
+  const batchSize  = Math.min(parseInt((req.body as any)?.batchSize ?? "100", 10), 500);
+  const entityType = (req.body as any)?.entityType as string | undefined; // "HNWI" | "Corporation" | undefined
+  const force      = Boolean((req.body as any)?.force);
+
+  // Select entities missing contact data
+  const conditions: any[] = [];
+  if (!force) conditions.push(sql`${entitiesTable.contactConfidence} = 0`);
+  if (entityType) conditions.push(eq(entitiesTable.type, entityType as any));
+
+  const entities = await db
+    .select({
+      id: entitiesTable.id,
+      name: entitiesTable.name,
+      type: entitiesTable.type,
+      nationality: entitiesTable.nationality,
+      sourceRegistries: entitiesTable.sourceRegistries,
+      knownResidences: entitiesTable.knownResidences,
+      metadata: entitiesTable.metadata,
+    })
+    .from(entitiesTable)
+    .where(conditions.length ? and(...conditions) : undefined)
+    .orderBy(sql`${entitiesTable.bayesianScore} desc`)
+    .limit(batchSize);
+
+  if (entities.length === 0) {
+    res.json({ message: "No entities to enrich.", jobId: null });
+    return;
+  }
+
+  const jobId = await createJob("web-osint");
+  await setActiveJob("web-osint", jobId);
+
+  res.status(202).json({
+    jobId,
+    pollUrl: `/api/ingest/job/${jobId}`,
+    total: entities.length,
+    message: `Web OSINT enrichment started for ${entities.length} entities.`,
+  });
+
+  // Background enrichment loop
+  (async () => {
+    let enriched = 0;
+    let skipped  = 0;
+    let errors   = 0;
+
+    for (let i = 0; i < entities.length; i++) {
+      const entity = entities[i];
+      try {
+        await updateJob(jobId, {
+          progress: i,
+          total: entities.length,
+          inserted: enriched,
+          skipped,
+          errors,
+          message: `Enriching ${entity.name}…`,
+        });
+
+        const result = await enrichEntityOsint(entity);
+
+        if (!result.linkedinUrl && !result.email && !result.phone && !result.website) {
+          skipped++;
+          continue;
+        }
+
+        const confidence = computeContactConfidence({
+          email: result.email,
+          phone: result.phone,
+          linkedinUrl: result.linkedinUrl,
+          knownResidences: entity.knownResidences,
+        });
+
+        await db.update(entitiesTable)
+          .set({
+            ...(result.email        ? { email: result.email }               : {}),
+            ...(result.phone        ? { phone: result.phone }               : {}),
+            ...(result.linkedinUrl  ? { linkedinUrl: result.linkedinUrl }   : {}),
+            contactConfidence: confidence,
+            updatedAt: new Date(),
+          })
+          .where(eq(entitiesTable.id, entity.id));
+
+        enriched++;
+        logger.info({ entityId: entity.id, name: entity.name, confidence, sources: result.sources }, "Web OSINT enriched");
+      } catch (err: any) {
+        errors++;
+        logger.warn({ entityId: entity.id, err: err.message }, "Web OSINT enrichment failed");
+      }
+    }
+
+    await updateJob(jobId, {
+      progress: entities.length,
+      total: entities.length,
+      inserted: enriched,
+      skipped,
+      errors,
+      status: "done",
+      message: `Done — ${enriched} entities enriched, ${skipped} no-match, ${errors} errors.`,
+    });
+
+    await setActiveJob("web-osint", "");
+    logger.info({ enriched, skipped, errors }, "Web OSINT enrichment complete");
+  })().catch(err => logger.error({ err: err.message }, "Web OSINT enrichment crashed"));
+});
+
+// ── DELETE /ingest/web-osint-lock — manually clear ghost web-osint lock ───────
+router.delete("/ingest/web-osint-lock", async (_req: Request, res: Response): Promise<void> => {
+  const jobId = await getActiveJob("web-osint");
+  if (!jobId) {
+    res.json({ cleared: false, message: "No active web-osint lock found." });
+    return;
+  }
+  // Mark the stuck job as failed so UI reflects reality
+  await updateJob(jobId, {
+    status: "failed",
+    message: "Process was killed (server restart). Clear the lock and restart.",
+    finishedAt: new Date().toISOString(),
+  } as any);
+  await setActiveJob("web-osint", "");
+  res.json({ cleared: true, jobId, message: "Web-OSINT lock cleared. You can now restart the enrichment." });
 });
 
 // ── DELETE /ingest/dedup — clear dedup set ────────────────────────────────────

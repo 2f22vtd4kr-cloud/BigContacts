@@ -317,6 +317,10 @@ function EnrichmentCoverageStats() {
         <span className="text-[10px] font-mono text-muted-foreground/60">Create StockHolding asset records for SEC EDGAR large-shareholder entities that have no assets yet</span>
         <EdgarStockButton />
       </div>
+      <div className="flex items-center justify-between border-t border-border/40 pt-2.5">
+        <span className="text-[10px] font-mono text-muted-foreground/60">Web OSINT: DuckDuckGo + EDGAR + OpenCorporates → LinkedIn URL, email, phone for all 5 hybrid architecture layers</span>
+        <WebOsintButton />
+      </div>
     </div>
   );
 }
@@ -601,6 +605,60 @@ function EdgarStockButton() {
       >
         {status === "running" ? <RefreshCw className="w-3 h-3 animate-spin" /> : <BarChart3 className="w-3 h-3" />}
         {status === "running" ? "Creating…" : "EDGAR Stock Assets"}
+      </button>
+    </div>
+  );
+}
+
+function WebOsintButton() {
+  const [status, setStatus] = useState<"idle" | "running" | "done" | "error">("idle");
+  const [msg, setMsg]       = useState("");
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const run = async () => {
+    setStatus("running");
+    setMsg("Starting…");
+    try {
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const r = await fetch(`${base}/api/ingest/web-osint-enrich`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ batchSize: 200 }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error ?? "Failed");
+      const jobId: string = d.jobId;
+      setMsg(`Enriching ${d.total} entities…`);
+      pollRef.current = setInterval(async () => {
+        try {
+          const p = await fetch(`${base}/api/ingest/job/${jobId}`);
+          const pj = await p.json();
+          setMsg(`${pj.progress}/${pj.total} — ${pj.inserted} enriched`);
+          if (pj.status === "done" || pj.status === "failed") {
+            clearInterval(pollRef.current!);
+            setMsg(pj.message ?? "Done");
+            setStatus(pj.status === "done" ? "done" : "error");
+          }
+        } catch { /* ignore */ }
+      }, 3000);
+    } catch (err: any) {
+      setMsg(err.message ?? "Error");
+      setStatus("error");
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2 flex-shrink-0">
+      {msg && (
+        <span className={`text-[10px] font-mono max-w-[220px] truncate ${status === "error" ? "text-red-400" : status === "done" ? "text-emerald-400" : "text-amber-400"}`} title={msg}>{msg}</span>
+      )}
+      <button
+        onClick={run}
+        disabled={status === "running"}
+        className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-border text-muted-foreground hover:text-orange-400 hover:border-orange-400/40 font-mono text-[10px] uppercase tracking-wider transition-colors disabled:opacity-50 flex-shrink-0"
+      >
+        {status === "running" ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Globe className="w-3 h-3" />}
+        {status === "running" ? "Searching…" : "Web OSINT Enrich"}
       </button>
     </div>
   );
