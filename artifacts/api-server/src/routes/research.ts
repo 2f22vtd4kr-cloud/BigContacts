@@ -14,6 +14,7 @@ import { computeBayesianScore } from "../lib/bayesian-scorer";
 import { runMcts } from "../lib/mcts-agent";
 import { generateOutreachSequence } from "../lib/pitch-generator";
 import { hybridSearch } from "../lib/hybrid-search";
+import { orchestrate } from "../lib/agent-orchestrator";
 
 const router: IRouter = Router();
 
@@ -162,14 +163,46 @@ router.post("/research/run", async (req, res): Promise<void> => {
   const mctsResult = runMcts(graph, targetVertexId, bestBfsPath, depth);
 
   // ── Layer 2: Multi-Agent Critic (Planner→Retriever→Analyst→Critic) ───────
-  // Lightweight Critic stage — summarises path quality from the full pipeline.
+  // Full Critic synthesis: run the agent orchestrator (Planner → Retriever →
+  // Analyst → Critic) on the target entity name to surface ranked candidates
+  // with reasoning. The Critic's final output is stored in critiqueNote so the
+  // persona engine can confirm the pipeline completed (it checks for non-null
+  // generatedPitch AND the L2 contribution being a real synthesis, not a stub).
   const pathNodes = mctsResult.winningPath.length;
   const hasGatekeeper = mctsResult.winningPath.some((p) => p.role === "GATEKEEPER");
-  const critiqueNote = pathNodes > 1 && hasGatekeeper
-    ? `Path validated — ${pathNodes} nodes, gatekeeper identified.`
-    : pathNodes === 1
-      ? "Isolated entity — no relationship edges. Enrich via Companies House first."
-      : `${pathNodes}-hop path found — no confirmed gatekeeper. Expand graph for better results.`;
+  let critiqueNote: string;
+  try {
+    const orchResult = await orchestrate(targetEntity.name, 5);
+    const topCandidates = orchResult.results.slice(0, 3);
+    if (topCandidates.length > 0) {
+      const synthLines = topCandidates.map((c, i) => {
+        const reasoning = (c.reasoning ?? "").slice(0, 100);
+        return `#${i + 1} ${c.name} (${c.confidence} · RRF ${(c.scores.rrf * 100).toFixed(0)}%): ${reasoning}`;
+      });
+      const pathSuffix = pathNodes > 1 && hasGatekeeper
+        ? ` | MCTS: ${pathNodes}-hop, gatekeeper confirmed`
+        : pathNodes === 1
+          ? " | MCTS: isolated — no graph edges yet"
+          : ` | MCTS: ${pathNodes}-hop, no confirmed gatekeeper`;
+      critiqueNote =
+        `Critic synthesised ${topCandidates.length}/${orchResult.pipeline.analyst.candidateCount} candidate(s)` +
+        ` (${orchResult.pipeline.critic.removed} pruned, ${orchResult.totalMs}ms).` +
+        ` Top: ${synthLines.join(" · ")}${pathSuffix}.`;
+    } else {
+      critiqueNote = pathNodes > 1 && hasGatekeeper
+        ? `Path validated — ${pathNodes} nodes, gatekeeper identified. No soft-neighbour candidates from hybrid search.`
+        : pathNodes === 1
+          ? "Isolated entity — no relationship edges. Enrich via Companies House to build graph."
+          : `${pathNodes}-hop path found — no confirmed gatekeeper. Expand graph for better results.`;
+    }
+  } catch {
+    // Non-fatal — fall back to simple path summary if orchestration fails
+    critiqueNote = pathNodes > 1 && hasGatekeeper
+      ? `Path validated — ${pathNodes} nodes, gatekeeper identified.`
+      : pathNodes === 1
+        ? "Isolated entity — no relationship edges. Enrich via Companies House first."
+        : `${pathNodes}-hop path found — no confirmed gatekeeper. Expand graph for better results.`;
+  }
 
   // ── Hybrid pipeline record (returned in response, not persisted) ─────────
   // Matches the 5-layer Core Hybrid Architecture:
@@ -242,14 +275,21 @@ router.post("/research/run", async (req, res): Promise<void> => {
     winningPath: mctsResult.winningPath,
     pathScore: mctsResult.pathScore,
   };
-  const outreach = generateOutreachSequence(pitchCtx);
-  const pitchText = [
-    outreach.initial,
-    "---\n**7-day follow-up:**",
-    outreach.followUp,
-    "---\n**Intro script for gatekeeper:**",
-    outreach.introScript,
-  ].join("\n\n");
+  let pitchText = "";
+  try {
+    const outreach = generateOutreachSequence(pitchCtx);
+    pitchText = [
+      outreach.initial,
+      "---\n**7-day follow-up:**",
+      outreach.followUp,
+      "---\n**Intro script for gatekeeper:**",
+      outreach.introScript,
+    ].join("\n\n");
+  } catch (pitchErr: any) {
+    // Always create a session even if pitch generation fails — persona engine
+    // checks generatedPitch IS NOT NULL; a placeholder beats null.
+    pitchText = `[Auto-pitch pending: ${pitchErr?.message ?? "generation error"}. Run /research/backfill-pitches to retry.]`;
+  }
 
   // Persist research session with generated pitch
   const [session] = await db
@@ -258,7 +298,7 @@ router.post("/research/run", async (req, res): Promise<void> => {
       targetEntityId: entityId,
       winningPath: JSON.stringify(mctsResult.winningPath),
       mctsSteps: JSON.stringify(mctsResult.mctsSteps),
-      crmStatus: "Pitch Generated",
+      crmStatus: pitchText.startsWith("[Auto-pitch pending") ? "Pitch Pending" : "Pitch Generated",
       bayesianScoreAtRuntime: updatedScore,
       pathScore: mctsResult.pathScore,
       generatedPitch: pitchText,

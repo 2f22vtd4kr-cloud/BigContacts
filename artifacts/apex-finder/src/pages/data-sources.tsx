@@ -3,7 +3,7 @@ import {
   Plane, Building2, Globe, Shield, Landmark, FileSearch,
   Search, Scale, Network, Activity, CheckCircle2, XCircle,
   Clock, AlertTriangle, Play, RefreshCw, ChevronDown, ChevronUp,
-  ExternalLink, Zap, Database, UserCheck, BarChart3,
+  ExternalLink, Zap, Database, UserCheck, BarChart3, Users, FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -301,6 +301,22 @@ function EnrichmentCoverageStats() {
         <span className="text-[10px] font-mono text-muted-foreground/60">Sync isHot flag for all entities with Bayesian score ≥ 0.70</span>
         <SyncHotFlagsButton />
       </div>
+      <div className="flex items-center justify-between border-t border-border/40 pt-2.5">
+        <span className="text-[10px] font-mono text-muted-foreground/60">Fetch CH company officers for all corporations and store in entity metadata (required for co-director edges)</span>
+        <ChOfficersButton />
+      </div>
+      <div className="flex items-center justify-between border-t border-border/40 pt-2.5">
+        <span className="text-[10px] font-mono text-muted-foreground/60">Build SHARED_DIRECTOR edges between entities sharing a common CH director — links individual HNWIs across companies</span>
+        <ChCodirectorsButton />
+      </div>
+      <div className="flex items-center justify-between border-t border-border/40 pt-2.5">
+        <span className="text-[10px] font-mono text-muted-foreground/60">Enrich entity notes from filing metadata — filing type, company, role, CH directors, location (improves profile briefings)</span>
+        <PopulateNotesButton />
+      </div>
+      <div className="flex items-center justify-between border-t border-border/40 pt-2.5">
+        <span className="text-[10px] font-mono text-muted-foreground/60">Create StockHolding asset records for SEC EDGAR large-shareholder entities that have no assets yet</span>
+        <EdgarStockButton />
+      </div>
     </div>
   );
 }
@@ -411,6 +427,180 @@ function AutoDetectButton() {
       >
         {status === "running" ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3" />}
         {status === "running" ? "Detecting…" : "Auto-detect"}
+      </button>
+    </div>
+  );
+}
+
+function ChOfficersButton() {
+  const [status, setStatus] = useState<"idle" | "running" | "done" | "error">("idle");
+  const [msg, setMsg] = useState("");
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const pollJob = (jobId: string, base: string) => {
+    intervalRef.current = setInterval(async () => {
+      try {
+        const r = await fetch(`${base}/api/ingest/job/${jobId}`);
+        const d = await r.json();
+        if (d.status === "done") {
+          clearInterval(intervalRef.current!);
+          setMsg(`✓ ${d.inserted ?? 0} enriched`);
+          setStatus("done");
+        } else if (d.status === "failed") {
+          clearInterval(intervalRef.current!);
+          setMsg(d.message ?? "Failed");
+          setStatus("error");
+        } else {
+          setMsg(d.message ? d.message.slice(0, 60) : `${d.progress ?? 0}%`);
+        }
+      } catch {
+        clearInterval(intervalRef.current!);
+        setStatus("error");
+        setMsg("Polling failed");
+      }
+    }, 2500);
+  };
+
+  const run = async () => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    setStatus("running");
+    setMsg("Starting…");
+    try {
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const r = await fetch(`${base}/api/ingest/ch-company-officers`, { method: "POST" });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error ?? "Failed");
+      setMsg("Running…");
+      pollJob(d.jobId, base);
+    } catch (err: any) {
+      setMsg(err.message ?? "Error");
+      setStatus("error");
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2 flex-shrink-0">
+      {msg && (
+        <span className={`text-[10px] font-mono ${status === "error" ? "text-red-400" : "text-emerald-400"} max-w-[200px] truncate`} title={msg}>{msg}</span>
+      )}
+      <button
+        onClick={run}
+        disabled={status === "running"}
+        className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-border text-muted-foreground hover:text-blue-400 hover:border-blue-400/40 font-mono text-[10px] uppercase tracking-wider transition-colors disabled:opacity-50 flex-shrink-0"
+      >
+        {status === "running" ? <RefreshCw className="w-3 h-3 animate-spin" /> : <UserCheck className="w-3 h-3" />}
+        {status === "running" ? "Enriching…" : "CH Officers"}
+      </button>
+    </div>
+  );
+}
+
+function ChCodirectorsButton() {
+  const [status, setStatus] = useState<"idle" | "running" | "done" | "error">("idle");
+  const [msg, setMsg] = useState("");
+
+  const run = async () => {
+    setStatus("running");
+    setMsg("");
+    try {
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const r = await fetch(`${base}/api/relationships/auto-detect-ch-codirectors`, { method: "POST" });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error ?? "Failed");
+      setMsg(d.message ?? "Done");
+      setStatus("done");
+    } catch (err: any) {
+      setMsg(err.message ?? "Error");
+      setStatus("error");
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2 flex-shrink-0">
+      {msg && (
+        <span className={`text-[10px] font-mono ${status === "error" ? "text-red-400" : "text-emerald-400"} max-w-[200px] truncate`} title={msg}>{msg}</span>
+      )}
+      <button
+        onClick={run}
+        disabled={status === "running"}
+        className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-border text-muted-foreground hover:text-violet-400 hover:border-violet-400/40 font-mono text-[10px] uppercase tracking-wider transition-colors disabled:opacity-50 flex-shrink-0"
+      >
+        {status === "running" ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Users className="w-3 h-3" />}
+        {status === "running" ? "Building…" : "CH Co-directors"}
+      </button>
+    </div>
+  );
+}
+
+function PopulateNotesButton() {
+  const [status, setStatus] = useState<"idle" | "running" | "done" | "error">("idle");
+  const [msg, setMsg] = useState("");
+
+  const run = async () => {
+    setStatus("running");
+    setMsg("");
+    try {
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const r = await fetch(`${base}/api/ingest/populate-notes`, { method: "POST" });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error ?? "Failed");
+      setMsg(d.message ?? "Done");
+      setStatus("done");
+    } catch (err: any) {
+      setMsg(err.message ?? "Error");
+      setStatus("error");
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2 flex-shrink-0">
+      {msg && (
+        <span className={`text-[10px] font-mono ${status === "error" ? "text-red-400" : "text-emerald-400"} max-w-[200px] truncate`} title={msg}>{msg}</span>
+      )}
+      <button
+        onClick={run}
+        disabled={status === "running"}
+        className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-border text-muted-foreground hover:text-amber-400 hover:border-amber-400/40 font-mono text-[10px] uppercase tracking-wider transition-colors disabled:opacity-50 flex-shrink-0"
+      >
+        {status === "running" ? <RefreshCw className="w-3 h-3 animate-spin" /> : <FileText className="w-3 h-3" />}
+        {status === "running" ? "Populating…" : "Populate Notes"}
+      </button>
+    </div>
+  );
+}
+
+function EdgarStockButton() {
+  const [status, setStatus] = useState<"idle" | "running" | "done" | "error">("idle");
+  const [msg, setMsg] = useState("");
+
+  const run = async () => {
+    setStatus("running");
+    setMsg("");
+    try {
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const r = await fetch(`${base}/api/ingest/create-edgar-stock-assets`, { method: "POST" });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error ?? "Failed");
+      setMsg(d.message ?? "Done");
+      setStatus("done");
+    } catch (err: any) {
+      setMsg(err.message ?? "Error");
+      setStatus("error");
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2 flex-shrink-0">
+      {msg && (
+        <span className={`text-[10px] font-mono ${status === "error" ? "text-red-400" : "text-emerald-400"} max-w-[200px] truncate`} title={msg}>{msg}</span>
+      )}
+      <button
+        onClick={run}
+        disabled={status === "running"}
+        className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-border text-muted-foreground hover:text-emerald-400 hover:border-emerald-400/40 font-mono text-[10px] uppercase tracking-wider transition-colors disabled:opacity-50 flex-shrink-0"
+      >
+        {status === "running" ? <RefreshCw className="w-3 h-3 animate-spin" /> : <BarChart3 className="w-3 h-3" />}
+        {status === "running" ? "Creating…" : "EDGAR Stock Assets"}
       </button>
     </div>
   );
