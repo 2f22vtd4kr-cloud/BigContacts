@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { useListEntities, useCreateEntity, useDeleteEntity } from "@workspace/api-client-react";
 import { formatCurrency, ScoreBadge } from "@/lib/utils";
@@ -287,7 +287,11 @@ export default function EntityLedger() {
   // Bulk selection state
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
-  const [bulkDone, setBulkDone] = useState<string | null>(null);
+  const [bulkDone, setBulkDone]   = useState<string | null>(null);
+  const [page, setPage]           = useState(0);
+
+  // Reset to page 0 when filters change
+  useEffect(() => { setPage(0); }, [searchTerm, typeFilter, proximityMin]);
 
   const toggleSelect = (id: number) =>
     setSelectedIds((prev) => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
@@ -340,7 +344,8 @@ export default function EntityLedger() {
   const { data: rawEntities, refetch } = useListEntities({
     search: searchTerm.length > 2 ? searchTerm : undefined,
     type: typeFilter ?? undefined,
-    limit: 500,
+    limit: 50,
+    offset: page * 50,
   });
   const deleteEntity = useDeleteEntity();
   const createEntity = useCreateEntity();
@@ -787,22 +792,37 @@ export default function EntityLedger() {
           </table>
         </div>
 
-        {/* Footer count */}
-        {entities && entities.length > 0 && (
-          <div className="border-t border-border px-4 py-2 flex items-center justify-between bg-card/30 flex-shrink-0">
+        {/* Footer: pagination + count */}
+        <div className="border-t border-border px-4 py-2 flex items-center justify-between bg-card/30 flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <button
+              disabled={page === 0}
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              className="flex items-center gap-1 px-2.5 py-1 rounded border border-border text-[10px] font-mono text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
+            >
+              ← Prev
+            </button>
             <span className="text-[10px] font-mono text-muted-foreground">
-              {entities.length.toLocaleString()} entities
+              Page {page + 1}
+              {entities && ` · ${entities.length} shown`}
               {proximityMin > 0 && ` · proximity ≥ ${proximityMin}`}
               {typeFilter && ` · ${typeFilter}`}
             </span>
             <button
-              onClick={() => exportToCsv(entities)}
-              className="text-[10px] font-mono text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+              disabled={!entities || entities.length < 50}
+              onClick={() => setPage((p) => p + 1)}
+              className="flex items-center gap-1 px-2.5 py-1 rounded border border-border text-[10px] font-mono text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
             >
-              <Download className="w-3 h-3" /> Export CSV
+              Next →
             </button>
           </div>
-        )}
+          <button
+            onClick={() => exportToCsv(entities ?? [])}
+            className="text-[10px] font-mono text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+          >
+            <Download className="w-3 h-3" /> Export CSV
+          </button>
+        </div>
       </div>
 
       {/* ── Mobile ── */}

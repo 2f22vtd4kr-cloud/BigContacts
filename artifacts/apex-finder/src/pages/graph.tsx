@@ -157,6 +157,38 @@ export default function GraphViewer() {
     return "hsl(215, 16%, 65%)";
   }
 
+  /** Draw a contact-confidence ring around HNWI / Gatekeeper nodes */
+  function drawContactRing(node: any, ctx: CanvasRenderingContext2D, globalScale: number) {
+    const ENTITY_TYPES = new Set(["HNWI", "Corporation", "Trust", "Gatekeeper"]);
+    if (!ENTITY_TYPES.has(node.nodeType) && !node.isTarget) return;
+    const conf: number = node.contactConfidence ?? 0;
+    if (conf <= 0) return;
+
+    const baseR = node.isTarget ? 3 : node.isCentral ? 2 : 1;
+    const r = (baseR * 6) / globalScale + 2.5 / globalScale;
+
+    const color = conf >= 70 ? "rgba(16,185,129,0.85)"  // green — high confidence
+                : conf >= 30 ? "rgba(245,158,11,0.70)"  // amber — partial
+                :              "rgba(100,116,139,0.45)"; // grey — low
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(node.x, node.y, r, 0, 2 * Math.PI);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.4 / globalScale;
+    ctx.stroke();
+
+    // Tiny contact-confidence label at high zoom
+    if (globalScale > 2.5) {
+      ctx.font = `${3 / globalScale}px monospace`;
+      ctx.fillStyle = color;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "bottom";
+      ctx.fillText(`C${conf}`, node.x, node.y - r - 0.5 / globalScale);
+    }
+    ctx.restore();
+  }
+
   return (
     <div className="flex h-full w-full bg-background relative overflow-hidden flex-col md:block" id="graph-container"
       onContextMenu={(e) => e.preventDefault()}
@@ -386,6 +418,8 @@ export default function GraphViewer() {
             setCtxMenu({ x: event.clientX, y: event.clientY, nodeId: n.id, nodeName: n.label ?? n.id });
           }}
           backgroundColor="transparent"
+          nodeCanvasObjectMode={() => "after"}
+          nodeCanvasObject={(node, ctx, globalScale) => drawContactRing(node as any, ctx, globalScale)}
           linkCanvasObjectMode={() => "after"}
           linkCanvasObject={(link: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
             if (!link.label || globalScale < 1.8) return;

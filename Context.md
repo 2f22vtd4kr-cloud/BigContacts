@@ -42,6 +42,34 @@ If artifact re-registration is needed in future, the artifact.toml files at `art
 
 > Ingestion jobs started automatically after import. FAA and HMLR are long-running — let them complete to reach ~63k+ entities. Monitor via `GET /api/ingest/job/:jobId`.
 
+### Phase 5 — What was built (2026-07-20) ✅ COMPLETE
+
+**5.1 OCCRP Adverse Media on Profile**
+- Backend: `GET /api/entities/:id/occrp` — reads `entity.metadata.aleph`, returns sanctions/watchlist flags and dataset list.
+- Frontend: "Adverse Media" card on Profile shows sanctions badge (red/green), dataset tags, Aleph URL, enriched-at timestamp.
+
+**5.2 OpenSky Live Flights on Profile**
+- Backend: `GET /api/entities/:id/opensky` — reads aviation assets with `metadata.opensky` flight data.
+- Frontend: "Live Flight Intel" card on Profile shows per-aircraft callsign, altitude (ft), speed (knots), origin country, and ground/airborne status.
+
+**5.3 Network Graph — contact encoding**
+- `vertexToNode` in graph.ts now includes `contactConfidence` and `contactEmail` in each node.
+- `drawContactRing` in graph.tsx draws a colored glow ring around entity nodes: green (≥70), amber (30–69), hidden (0). Wired via `nodeCanvasObjectMode="after"`.
+
+**5.4 Bayesian Score — contact signals**
+- Added `contactConfidence?: number` to `EntityScoringInput` in bayesian-scorer.ts.
+- `buildSignals` adds `contact_high` (weight 0.7, LR 3.0) for ≥70% confidence and `contact_partial` (weight 0.4, LR 1.6) for ≥30%.
+- `research.ts` passes `targetEntity.contactConfidence ?? 0` to `computeBayesianScore`.
+
+**5.5 Smoke tests**
+- vitest + supertest installed in api-server. 12/12 tests pass.
+- Test file: `artifacts/api-server/src/test/smoke.test.ts` covers: healthz, entity list shape, entity list filters, dashboard KPIs, GET /occrp (valid + 400 + 404), GET /opensky (valid + 400), registry-search reachability.
+
+**5.6 Entity Ledger pagination**
+- `useListEntities` now uses `limit: 50, offset: page * 50`.
+- Page state resets on filter/search changes.
+- Desktop table footer replaced with Prev/Next pagination controls (Next disabled when fewer than 50 results returned).
+
 ### Phase 4 — What was built (2026-07-20) ✅ COMPLETE
 
 **4.1–4.4 already implemented from prior sessions.** Phase 4 work this session = 4.5 responsive polish:

@@ -72,6 +72,46 @@ router.get("/entities", async (req, res): Promise<void> => {
   res.json(entities);
 });
 
+// GET /entities/:id/occrp  — return Aleph adverse-media metadata for one entity
+router.get("/entities/:id/occrp", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  const [entity] = await db
+    .select({ name: entitiesTable.name, metadata: entitiesTable.metadata })
+    .from(entitiesTable)
+    .where(eq(entitiesTable.id, id));
+  if (!entity) { res.status(404).json({ error: "Not found" }); return; }
+  let meta: Record<string, unknown> = {};
+  try { meta = JSON.parse(entity.metadata ?? "{}") as Record<string, unknown>; } catch { /* */ }
+  res.json({ entityName: entity.name, aleph: (meta.aleph ?? null) as unknown });
+});
+
+// GET /entities/:id/opensky  — return live-flight enrichment from aviation assets
+router.get("/entities/:id/opensky", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  const assets = await db
+    .select()
+    .from(assetsTable)
+    .where(and(eq(assetsTable.ownerEntityId, id), eq(assetsTable.category, "Aviation")));
+  const flights = assets
+    .map((a) => {
+      let meta: Record<string, unknown> = {};
+      try { meta = JSON.parse(a.metadata ?? "{}") as Record<string, unknown>; } catch { /* */ }
+      const osky = meta.opensky as Record<string, unknown> | undefined;
+      if (!osky) return null;
+      return {
+        id: a.id,
+        name: a.name,
+        identifier: a.identifier,
+        lastActivityDate: a.lastActivityDate,
+        opensky: osky,
+      };
+    })
+    .filter(Boolean);
+  res.json({ flights });
+});
+
 // POST /entities
 router.post("/entities", async (req, res): Promise<void> => {
   const parsed = CreateEntityBody.safeParse(req.body);

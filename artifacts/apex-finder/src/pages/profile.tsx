@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useParams } from "wouter";
 import {
   useGetEntity,
@@ -274,6 +274,31 @@ export default function ApexProfile() {
   const [relSearchQ, setRelSearchQ]             = useState("");
   const [relSearchResults, setRelSearchResults] = useState<{ id: number; name: string }[]>([]);
   const [deletingRelId, setDeletingRelId]       = useState<number | null>(null);
+
+  // ── OCCRP adverse-media state ──────────────────────────────────────────────
+  const [occrpData, setOccrpData]         = useState<any>(null);
+  const [occrpLoading, setOccrpLoading]   = useState(false);
+
+  // ── OpenSky live-flights state ─────────────────────────────────────────────
+  const [skyFlights, setSkyFlights]       = useState<any[]>([]);
+  const [skyLoading, setSkyLoading]       = useState(false);
+
+  useEffect(() => {
+    if (!entityId) return;
+    const base = (import.meta as any).env.BASE_URL.replace(/\/$/, "");
+    setOccrpLoading(true);
+    fetch(`${base}/api/entities/${entityId}/occrp`)
+      .then((r) => r.json())
+      .then((d) => { setOccrpData(d.aleph ?? null); })
+      .catch(() => {})
+      .finally(() => setOccrpLoading(false));
+    setSkyLoading(true);
+    fetch(`${base}/api/entities/${entityId}/opensky`)
+      .then((r) => r.json())
+      .then((d) => { setSkyFlights(d.flights ?? []); })
+      .catch(() => {})
+      .finally(() => setSkyLoading(false));
+  }, [entityId]);
 
   // ── Loading / error states ─────────────────────────────────────────────────
 
@@ -723,6 +748,155 @@ export default function ApexProfile() {
             </div>
           </div>
         </div>
+
+        {/* Row 1.5: Intelligence Signals — OCCRP Adverse Media + OpenSky Live Flights */}
+        {(occrpData || skyFlights.length > 0 || occrpLoading || skyLoading) && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+
+            {/* ── OCCRP Adverse Media ──────────────────────────────────────── */}
+            <div className="border border-border rounded-lg bg-card/30 flex flex-col">
+              <SectionHeader
+                icon={<AlertCircle className="w-3.5 h-3.5" />}
+                title="Adverse Media"
+                badge={occrpData ? (occrpData.datasets?.length > 0 ? `${occrpData.datasets.length} datasets` : "No flags") : undefined}
+              />
+              <div className="p-4">
+                {occrpLoading ? (
+                  <div className="flex items-center gap-2 text-muted-foreground text-xs font-mono">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" /> Querying OCCRP Aleph…
+                  </div>
+                ) : occrpData ? (
+                  <div className="space-y-3">
+                    {/* Sanctions / watchlist flag */}
+                    {(() => {
+                      const SANCTIONS_RE = /sanction|watchlist|ofac|interpol|fatf|pep|oligarch/i;
+                      const flagged = occrpData.datasets?.some((d: string) => SANCTIONS_RE.test(d));
+                      return (
+                        <div className={cn(
+                          "flex items-center gap-2 px-3 py-2 rounded border text-xs font-mono font-bold",
+                          flagged
+                            ? "border-red-500/40 bg-red-500/10 text-red-400"
+                            : "border-primary/30 bg-primary/5 text-primary"
+                        )}>
+                          {flagged
+                            ? <><AlertCircle className="w-3.5 h-3.5" /> SANCTIONS / WATCHLIST HIT</>
+                            : <><CheckCircle2 className="w-3.5 h-3.5" /> No sanctions flags found</>}
+                        </div>
+                      );
+                    })()}
+                    {/* Dataset list */}
+                    {occrpData.datasets?.length > 0 && (
+                      <div>
+                        <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-2">
+                          Aleph Datasets ({occrpData.datasets.length})
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {occrpData.datasets.slice(0, 8).map((d: string) => (
+                            <span key={d} className="text-[9px] font-mono px-1.5 py-0.5 bg-muted border border-border rounded text-muted-foreground">
+                              {d.replace(/_/g, " ")}
+                            </span>
+                          ))}
+                          {occrpData.datasets.length > 8 && (
+                            <span className="text-[9px] font-mono text-muted-foreground">+{occrpData.datasets.length - 8} more</span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    {/* Aleph link */}
+                    {occrpData.url && (
+                      <a
+                        href={occrpData.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-[10px] font-mono text-primary hover:underline"
+                      >
+                        <Globe className="w-3 h-3" /> View on OCCRP Aleph
+                      </a>
+                    )}
+                    {occrpData.enrichedAt && (
+                      <p className="text-[9px] font-mono text-muted-foreground/50">
+                        Last enriched: {new Date(occrpData.enrichedAt).toLocaleDateString()}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-xs font-mono text-muted-foreground/50 italic">
+                    No OCCRP Aleph data — run the OCCRP enrichment job from Data Sources.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* ── OpenSky Live Flights ──────────────────────────────────────── */}
+            <div className="border border-border rounded-lg bg-card/30 flex flex-col">
+              <SectionHeader
+                icon={<Route className="w-3.5 h-3.5" />}
+                title="Live Flight Intel"
+                badge={skyFlights.length > 0 ? `${skyFlights.length} aircraft tracked` : undefined}
+              />
+              <div className="p-4">
+                {skyLoading ? (
+                  <div className="flex items-center gap-2 text-muted-foreground text-xs font-mono">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" /> Querying OpenSky…
+                  </div>
+                ) : skyFlights.length > 0 ? (
+                  <div className="space-y-3">
+                    {skyFlights.map((flight: any) => (
+                      <div key={flight.id} className="border border-border rounded p-3 bg-muted/10 space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-sm font-mono font-bold text-foreground truncate">{flight.name}</span>
+                          <span className="text-[10px] font-mono text-blue-400 flex-shrink-0 border border-blue-400/30 bg-blue-400/10 px-1.5 py-0.5 rounded">
+                            {flight.identifier}
+                          </span>
+                        </div>
+                        {flight.opensky && (
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                            {flight.opensky.altitudeFt != null && (
+                              <div>
+                                <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">Altitude</div>
+                                <div className="text-xs font-mono text-foreground">{flight.opensky.altitudeFt.toLocaleString()} ft</div>
+                              </div>
+                            )}
+                            {flight.opensky.speedKnots != null && (
+                              <div>
+                                <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">Speed</div>
+                                <div className="text-xs font-mono text-foreground">{flight.opensky.speedKnots} kts</div>
+                              </div>
+                            )}
+                            {flight.opensky.originCountry && (
+                              <div>
+                                <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">Origin</div>
+                                <div className="text-xs font-mono text-foreground">{flight.opensky.originCountry}</div>
+                              </div>
+                            )}
+                            {flight.opensky.onGround != null && (
+                              <div>
+                                <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">Status</div>
+                                <div className={cn("text-xs font-mono", flight.opensky.onGround ? "text-muted-foreground" : "text-primary")}>
+                                  {flight.opensky.onGround ? "On ground" : "Airborne ✈"}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {flight.lastActivityDate && (
+                          <p className="text-[9px] font-mono text-muted-foreground/50">
+                            Last seen: {new Date(flight.lastActivityDate).toLocaleDateString()}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs font-mono text-muted-foreground/50 italic">
+                    No live flight data — run the OpenSky enrichment job from Data Sources.
+                  </p>
+                )}
+              </div>
+            </div>
+
+          </div>
+        )}
 
         {/* Row 2: Source Ledger */}
         <div className="border border-border rounded-lg bg-card/30">

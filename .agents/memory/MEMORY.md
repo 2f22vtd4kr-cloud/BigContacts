@@ -11,3 +11,4 @@
 - [HMLR PPD CSV ingestor](hmlr-ppd-csv.md) — HMLR SPARQL endpoint times out/returns 0 results for price+date queries; use bulk CSV from S3 instead (pp-YYYY.csv redirects to prod2 bucket, ~160MB/year)
 - [Contact Enrichment Phase 1](contact-enrichment-phase1.md) — contactConfidence column (camelCase in Drizzle!), CH officer lookup at 2/s, always recompute even without API key
 - [Phase 4 Responsive Polish](phase4-responsive.md) — 4.1–4.4 were pre-built; 4.5 fixed profile nav, email truncation, graph legend, MCTS terminal wrapping, entity ledger mobile bulk select
+- [Phase 5 Intelligence Hardening](phase5-intelligence.md) — OCCRP/OpenSky endpoints, graph contact rings, Bayesian contact signal, smoke tests (12/12), entity pagination

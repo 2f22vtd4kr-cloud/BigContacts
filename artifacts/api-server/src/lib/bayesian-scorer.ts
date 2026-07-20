@@ -33,6 +33,7 @@ export interface EntityScoringInput {
   hasClubMembership: boolean;
   hasLuxuryRealEstate: boolean;
   jurisdictionCount: number; // number of different jurisdictions
+  contactConfidence?: number; // 0–100: how reachable is the target via direct contact vectors
 }
 
 function logit(p: number): number {
@@ -165,6 +166,19 @@ function buildSignals(input: EntityScoringInput): ScoringSignal[] {
   if (input.hasRecentActivity) {
     const activityLR = input.recentActivityDays < 30 ? 2.5 : input.recentActivityDays < 90 ? 1.8 : 1.3;
     signals.push({ name: "recent_activity", value: input.recentActivityDays, weight: 0.6, likelihood: activityLR });
+  }
+
+  // ── Contact reachability signal ────────────────────────────────────
+  // A confirmed direct contact vector (email/phone/LinkedIn) is strong
+  // evidence of a real HNWI, not a ghost company or stale record.
+  if (input.contactConfidence != null && input.contactConfidence > 0) {
+    if (input.contactConfidence >= 70) {
+      // High-confidence contact data: multiple vectors confirmed
+      signals.push({ name: "contact_high", value: input.contactConfidence, weight: 0.7, likelihood: 3.0 });
+    } else if (input.contactConfidence >= 30) {
+      // Partial contact data: single vector or low-confidence
+      signals.push({ name: "contact_partial", value: input.contactConfidence, weight: 0.4, likelihood: 1.6 });
+    }
   }
 
   return signals;

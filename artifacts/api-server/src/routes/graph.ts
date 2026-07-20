@@ -22,6 +22,8 @@ function vertexToNode(v: GraphVertex, centralSet: Set<string>, targetId: string)
     estimatedValue: v.estimatedValue ?? null,
     metadata: v.metadata ?? null,
     nationality: v.nationality ?? null,
+    contactConfidence: v.contactConfidence ?? null,
+    contactEmail: v.contactEmail ?? null,
     isTarget: v.id === targetId,
     isCentral: centralSet.has(v.id),
   };

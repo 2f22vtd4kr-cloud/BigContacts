@@ -117,6 +117,7 @@ router.post("/research/run", async (req, res): Promise<void> => {
     hasClubMembership: assetCategories.includes("PrivateClub"),
     hasLuxuryRealEstate: assetCategories.includes("RealEstate") && totalAssetValue > 1_000_000,
     jurisdictionCount: new Set(targetAssets.map((a) => a.jurisdiction)).size,
+    contactConfidence: targetEntity.contactConfidence ?? 0,
   });
 
   // Update Bayesian score in DB
