@@ -427,18 +427,18 @@ export default function MCTSTerminal() {
 
           {terminalLog.map((log, i) => (
             <div key={i} className="animate-in fade-in slide-in-from-bottom-1 duration-150">
-              <div className="flex items-start flex-wrap gap-x-2 gap-y-0.5">
-                <span className="text-blue-400">[{log.step.toString().padStart(4, "0")}]</span>
-                <span className={getActionColor(log.action)}>[{log.action}]</span>
-                <span className="text-purple-400">[{log.registry}]</span>
-                <span className="text-foreground">{log.target}</span>
-                <span className="text-xs text-muted-foreground">({log.targetType})</span>
-                <span className="text-amber-500">UCT={log.uctScore.toFixed(3)}</span>
-                <span className={getWarmthColor(log.warmthScore)}>
+              <div className="flex items-start gap-x-2 overflow-x-auto pb-0.5 scrollbar-none">
+                <span className="text-blue-400 whitespace-nowrap flex-shrink-0">[{log.step.toString().padStart(4, "0")}]</span>
+                <span className={cn(getActionColor(log.action), "whitespace-nowrap flex-shrink-0")}>[{log.action}]</span>
+                <span className="text-purple-400 whitespace-nowrap flex-shrink-0">[{log.registry}]</span>
+                <span className="text-foreground whitespace-nowrap flex-shrink-0">{log.target}</span>
+                <span className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">({log.targetType})</span>
+                <span className="text-amber-500 whitespace-nowrap flex-shrink-0">UCT={log.uctScore.toFixed(3)}</span>
+                <span className={cn(getWarmthColor(log.warmthScore), "whitespace-nowrap flex-shrink-0")}>
                   W={Math.round(log.warmthScore * 100)}%
                 </span>
               </div>
-              <div className="text-muted-foreground text-xs pl-8 border-l border-muted-foreground/20 mt-0.5 mb-2">
+              <div className="text-muted-foreground text-xs pl-8 border-l border-muted-foreground/20 mt-0.5 mb-2 leading-relaxed">
                 {">"} {log.reasoning}
               </div>
             </div>

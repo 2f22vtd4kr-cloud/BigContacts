@@ -474,30 +474,34 @@ export default function ApexProfile() {
 
           <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
             <ScoreBadge score={entity.bayesianScore} />
-            <div className="hidden md:flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5">
               <Link
                 href={`/graph?entity=${entity.id}`}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded border border-border text-muted-foreground hover:text-foreground font-mono text-[10px] uppercase tracking-wider transition-colors"
+                className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded border border-border text-muted-foreground hover:text-foreground font-mono text-[10px] uppercase tracking-wider transition-colors"
+                title="Network Graph"
               >
-                <Network className="w-3 h-3" /> Graph
+                <Network className="w-3 h-3" /> <span className="hidden sm:inline">Graph</span>
               </Link>
               <Link
                 href={`/research?entity=${entity.id}`}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded border border-border text-muted-foreground hover:text-foreground font-mono text-[10px] uppercase tracking-wider transition-colors"
+                className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded border border-border text-muted-foreground hover:text-foreground font-mono text-[10px] uppercase tracking-wider transition-colors"
+                title="MCTS Terminal"
               >
-                <TargetIcon className="w-3 h-3" /> MCTS
+                <TargetIcon className="w-3 h-3" /> <span className="hidden sm:inline">MCTS</span>
               </Link>
               <Link
                 href="/crm"
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded border border-border text-muted-foreground hover:text-foreground font-mono text-[10px] uppercase tracking-wider transition-colors"
+                className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded border border-border text-muted-foreground hover:text-foreground font-mono text-[10px] uppercase tracking-wider transition-colors"
+                title="Pipeline CRM"
               >
-                <KanbanSquare className="w-3 h-3" /> CRM
+                <KanbanSquare className="w-3 h-3" /> <span className="hidden sm:inline">CRM</span>
               </Link>
               <button
                 onClick={() => setAddRelOpen(true)}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded border border-border text-muted-foreground hover:text-primary hover:border-primary/40 font-mono text-[10px] uppercase tracking-wider transition-colors"
+                className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded border border-border text-muted-foreground hover:text-primary hover:border-primary/40 font-mono text-[10px] uppercase tracking-wider transition-colors"
+                title="Add Connection"
               >
-                <Link2 className="w-3 h-3" /> Connect
+                <Link2 className="w-3 h-3" /> <span className="hidden sm:inline">Connect</span>
               </button>
             </div>
           </div>
@@ -538,11 +542,11 @@ export default function ApexProfile() {
             {hasContact ? (
               <div className="flex items-center gap-2 flex-wrap">
                 {e.email && (
-                  <a href={`mailto:${e.email}`} className="flex items-center gap-2 px-3 py-1.5 rounded border border-primary/30 bg-primary/10 text-primary font-mono text-xs hover:bg-primary/20 transition-colors">
+                  <a href={`mailto:${e.email}`} className="flex items-center gap-2 px-3 py-1.5 rounded border border-primary/30 bg-primary/10 text-primary font-mono text-xs hover:bg-primary/20 transition-colors min-w-0 max-w-[220px] sm:max-w-none">
                     <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                     </svg>
-                    {e.email}
+                    <span className="truncate">{e.email}</span>
                   </a>
                 )}
                 {e.phone && (

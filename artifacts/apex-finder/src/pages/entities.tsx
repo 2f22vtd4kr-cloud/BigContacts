@@ -207,45 +207,69 @@ function MobileEntityDetail({ entity, onClose }: { entity: any; onClose: () => v
 
 // ─── Mobile card ──────────────────────────────────────────────────────────────
 
-function MobileEntityCard({ entity, onSelect }: { entity: any; onSelect: () => void }) {
+function MobileEntityCard({
+  entity, onSelect, selected, onToggleSelect,
+}: {
+  entity: any;
+  onSelect: () => void;
+  selected: boolean;
+  onToggleSelect: (e: React.MouseEvent) => void;
+}) {
   const typeColor = TYPE_COLORS[entity.type] ?? "#64748B";
   let meta: any = {};
   try { meta = JSON.parse(entity.metadata ?? "{}"); } catch { /* */ }
 
   return (
-    <button
-      onClick={onSelect}
-      className="w-full text-left px-4 py-3 flex items-center gap-3 active:bg-muted/20 transition-colors border-b border-border"
-    >
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5 mb-1">
-          {entity.isHot && <ShieldAlert className="w-3 h-3 text-amber-500 flex-shrink-0" />}
-          <span className="font-semibold text-sm text-foreground truncate">{entity.name}</span>
+    <div className={cn(
+      "flex items-center gap-1 border-b border-border transition-colors",
+      selected && "bg-primary/5",
+    )}>
+      {/* Checkbox tap zone */}
+      <button
+        onClick={onToggleSelect}
+        className="flex-shrink-0 px-3 py-4 text-muted-foreground active:bg-muted/20"
+        aria-label={selected ? "Deselect" : "Select"}
+      >
+        {selected
+          ? <CheckSquare className="w-4 h-4 text-primary" />
+          : <Square className="w-4 h-4" />}
+      </button>
+
+      {/* Main row — tap to open detail */}
+      <button
+        onClick={onSelect}
+        className="flex-1 min-w-0 text-left pr-4 py-3 flex items-center gap-3 active:bg-muted/20 transition-colors"
+      >
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 mb-1">
+            {entity.isHot && <ShieldAlert className="w-3 h-3 text-amber-500 flex-shrink-0" />}
+            <span className="font-semibold text-sm text-foreground truncate">{entity.name}</span>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span
+              className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5"
+              style={{ color: typeColor, backgroundColor: typeColor + "18" }}
+            >
+              {TYPE_ICONS[entity.type]} {entity.type}
+            </span>
+            {entity.nationality && <span className="text-[11px] text-muted-foreground">{entity.nationality}</span>}
+            {entity.estimatedNetWorth && (
+              <span className="text-[11px] text-muted-foreground">{formatCurrency(entity.estimatedNetWorth)}</span>
+            )}
+            {meta.proximityScore && (
+              <span className={cn(
+                "text-[10px] font-mono px-1 rounded",
+                meta.proximityScore >= 7 ? "text-emerald-400" : "text-muted-foreground"
+              )}>P{meta.proximityScore}</span>
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <span
-            className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5"
-            style={{ color: typeColor, backgroundColor: typeColor + "18" }}
-          >
-            {TYPE_ICONS[entity.type]} {entity.type}
-          </span>
-          {entity.nationality && <span className="text-[11px] text-muted-foreground">{entity.nationality}</span>}
-          {entity.estimatedNetWorth && (
-            <span className="text-[11px] text-muted-foreground">{formatCurrency(entity.estimatedNetWorth)}</span>
-          )}
-          {meta.proximityScore && (
-            <span className={cn(
-              "text-[10px] font-mono px-1 rounded",
-              meta.proximityScore >= 7 ? "text-emerald-400" : "text-muted-foreground"
-            )}>P{meta.proximityScore}</span>
-          )}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <ScoreBadge score={entity.bayesianScore} />
+          <ChevronRight className="w-4 h-4 text-muted-foreground" />
         </div>
-      </div>
-      <div className="flex items-center gap-2 flex-shrink-0">
-        <ScoreBadge score={entity.bayesianScore} />
-        <ChevronRight className="w-4 h-4 text-muted-foreground" />
-      </div>
-    </button>
+      </button>
+    </div>
   );
 }
 
@@ -814,9 +838,50 @@ export default function EntityLedger() {
           </div>
         </div>
 
+        {/* Mobile bulk action bar */}
+        {selectedIds.size > 0 && (
+          <div className="flex-shrink-0 flex items-center gap-2 px-3 py-2 border-b border-primary/30 bg-primary/5">
+            <span className="text-xs font-mono text-primary font-bold flex-shrink-0">
+              {selectedIds.size} selected
+            </span>
+            <div className="flex-1" />
+            {bulkDone ? (
+              <span className="text-xs font-mono text-primary flex items-center gap-1">
+                <CheckCheck className="w-3.5 h-3.5" /> {bulkDone}
+              </span>
+            ) : (
+              <>
+                <button onClick={handleBulkExportCsv}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded border border-border text-muted-foreground font-mono text-[10px] uppercase tracking-wider">
+                  <Download className="w-3 h-3" /> CSV
+                </button>
+                <button onClick={handleBulkAddToCrm} disabled={bulkLoading}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded border border-secondary/40 bg-secondary/10 text-secondary font-mono text-[10px] uppercase tracking-wider disabled:opacity-40">
+                  {bulkLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <ListPlus className="w-3 h-3" />}
+                  CRM
+                </button>
+                <button onClick={handleBulkMcts}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded border border-primary/40 bg-primary/10 text-primary font-mono text-[10px] uppercase tracking-wider">
+                  <TargetIcon className="w-3 h-3" /> MCTS
+                </button>
+                <button onClick={() => setSelectedIds(new Set())}
+                  className="text-[10px] font-mono text-muted-foreground hover:text-foreground ml-1">
+                  ✕
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
         <div className="flex-1 overflow-y-auto">
           {mobileEntities.map((entity: any) => (
-            <MobileEntityCard key={entity.id} entity={entity} onSelect={() => setMobileSelectedEntity(entity)} />
+            <MobileEntityCard
+              key={entity.id}
+              entity={entity}
+              onSelect={() => setMobileSelectedEntity(entity)}
+              selected={selectedIds.has(entity.id)}
+              onToggleSelect={(e) => { e.stopPropagation(); toggleSelect(entity.id); }}
+            />
           ))}
           {mobileEntities.length === 0 && (
             <div className="text-center p-8 text-muted-foreground text-sm font-mono">No entities found.</div>

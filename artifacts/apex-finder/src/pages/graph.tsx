@@ -337,7 +337,11 @@ export default function GraphViewer() {
       )}
 
       {/* ── Legend ── */}
-      <div className="absolute bottom-4 left-4 z-10 flex flex-col space-y-1 bg-card/80 backdrop-blur border border-border p-2 md:p-3 rounded text-[10px] md:text-xs font-mono">
+      <div className={cn(
+        "absolute bottom-4 left-4 z-10 flex-col space-y-1 bg-card/80 backdrop-blur border border-border p-2 md:p-3 rounded text-[10px] md:text-xs font-mono",
+        // Hide on mobile when node detail bottom sheet is open (it sits at bottom-0 and would overlap)
+        selectedNode ? "hidden md:flex" : "flex"
+      )}>
         <div className="flex items-center"><div className="w-2.5 h-2.5 rounded-full bg-primary mr-1.5 md:mr-2" /> HNWI</div>
         <div className="flex items-center"><div className="w-2.5 h-2.5 rounded-full bg-blue-500 mr-1.5 md:mr-2" /> Corp</div>
         <div className="flex items-center"><div className="w-2.5 h-2.5 rounded-full bg-purple-500 mr-1.5 md:mr-2" /> Trust</div>

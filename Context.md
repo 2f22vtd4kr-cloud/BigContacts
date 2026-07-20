@@ -8,7 +8,7 @@
 
 ---
 
-## Current State (2026-07-20)
+## Current State (2026-07-20) — Phase 4 Complete
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically
@@ -35,24 +35,22 @@ If artifact re-registration is needed in future, the artifact.toml files at `art
 
 ### Database
 - Schema pushed ✅ (2026-07-20)
-- **Entities**: 0 — fresh import, DB is empty. Must re-run ingestion pipelines.
-- **Assets**: 0
+- **Entities**: ~2,200 (from background ingestion jobs running post-import; FAA + HMLR + Western HNWI still running)
+- **Assets**: ~2,200
 - **Research sessions**: 0
 - **Improvement logs**: 0
 
-> **Action required:** Run ingestion pipelines to populate data:
-> 1. (Optional) Clear Upstash dedup: `DELETE /api/ingest/dedup`
-> 2. FAA: `POST /api/ingest/faa` — ~73s for 30k records
-> 3. HMLR: `POST /api/ingest/land-registry` — ~8min for 50k records  
-> 4. Western HNWI: `POST /api/ingest/western-hnwi` — slow, background job
-> 5. Companies House enrichment: `POST /api/ingest/companies-house-enrich`
+> Ingestion jobs started automatically after import. FAA and HMLR are long-running — let them complete to reach ~63k+ entities. Monitor via `GET /api/ingest/job/:jobId`.
 
-### What was done this session (2026-07-20 import setup)
-1. Imported from GitHub — pnpm install, DB schema push
-2. Set secrets: `REDIS_URL_1` (Upstash dedup) and `COMPANIES_HOUSE_API_KEY`
-3. Configured manual workflows for API Server (port 8080) and Web Frontend (port 23695)
-4. All services verified: Redis ✅, Upstash ✅, API healthz ✅, Vite ✅
-5. DB schema current — ready for ingestion
+### Phase 4 — What was built (2026-07-20) ✅ COMPLETE
+
+**4.1–4.4 already implemented from prior sessions.** Phase 4 work this session = 4.5 responsive polish:
+
+1. **Profile header nav** — Graph / MCTS / CRM / Connect buttons now visible on mobile as icon-only (removed `hidden md:flex`, added `hidden sm:inline` to text labels). `title` attrs added for touch accessibility.
+2. **Profile contact bar** — Email button gets `max-w-[220px] truncate` + `min-w-0` so long email addresses don't overflow at 375px.
+3. **Graph legend** — Hidden on mobile (`hidden md:flex`) when a node detail bottom sheet is open, preventing the legend from being obscured/overlapping.
+4. **MCTS Terminal** — Terminal log entries changed from `flex-wrap` to `overflow-x-auto` with `whitespace-nowrap flex-shrink-0` on each token — preserves terminal aesthetic on narrow screens.
+5. **Entity Ledger mobile** — `MobileEntityCard` now has a checkbox tap zone (left) + detail tap zone (right). Mobile bulk action bar added above card list when ≥1 row selected (Export CSV · Add to CRM · Run MCTS). Shared `selectedIds` / `toggleSelect` state with desktop table.
 
 ### What was done in prior sessions (persona simulation + fixes)
 1. Fixed `improve/run` SQL crash: `ANY(${entityIds})` → `inArray(entityIds)` in `improve.ts`
