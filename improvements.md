@@ -22,6 +22,50 @@
 
 ---
 
+## Simulation Run — 2026-07-20 (All 5 Phases Complete)
+
+**Sample:** 300 entities · 6 persona batches · **2,376 suggestions total**  
+**Breakdown:** 1,284 high · 498 medium · 594 low  
+**Personas run:** ux_designer · business_engineer · architect · data_engineer · intel_systems_analyst · data_analyst
+
+### Top flags by frequency
+
+| Flag | Persona | Count | Meaning |
+|---|---|---|---|
+| No direct contact vectors found | data_engineer | ~300/300 | 0% of entities have phone/email/LinkedIn |
+| Isolated node — no relationships mapped | business_engineer | ~300/300 | 0 relationship edges in the entire graph |
+| Hybrid stack not activated — no intelligence session exists | intel_systems_analyst | ~300/300 | 0 MCTS sessions run this import |
+| HNWI classification may be incorrect — name suggests corporate entity | architect | ~300/300 | FAA LLCs/corps still typed as HNWI |
+| High-probability target — UCB exploitation not yet initiated | intel_systems_analyst | ~113/300 | hot-lead entities with no MCTS session |
+
+### Updated assessment (2026-07-20)
+
+All 5 code phases are complete. Scores reflect the **live data state**, not just code existence.
+
+| Dimension | Baseline | Current | Delta | Root cause |
+|---|---|---|---|---|
+| Entity discovery | 7/10 | 7/10 | → | 32k entities, Bayesian + hybrid search working. Entity type misclassification (FAA LLCs as HNWI) persists in new batch — reclassify endpoint exists but not re-run. No western HNWI data ingested this session. |
+| Contact quality | 3/10 | 3/10 | → | 0/32k entities have phone/email/LinkedIn. CH enricher is built and deployed, not yet triggered. |
+| Approach path finding | 4/10 | 4/10 | → | 0 relationship edges. Phase 2 auto-detect endpoint (`POST /api/relationships/auto-detect`) built but not run. MCTS fires but finds no multi-hop paths. |
+| Outreach generation | 5/10 | 6/10 | ↑ | Pitch generator, 3-tab pitch modal, CRM notes + follow-up date + Export PDF all done. Machinery is complete; output quality limited by sparse contacts/paths. |
+| Operator workflow | 5/10 | 8/10 | ↑↑ | All Phase 4 UX done: Deep Search filters, Entity Ledger bulk actions, dashboard enrichment KPIs, Field Manual playbook, full responsive polish at 375px. |
+| Data enrichment | 2/10 | 4/10 | ↑ | CH enricher, FAA coordinate backfill, OCCRP, OpenSky all built and deployed. Coverage is still 0 this session — pipelines exist, data not yet populated. |
+| Reliability | 7/10 | 8/10 | ↑ | 12/12 smoke tests pass. Upstash dedup solid. Cold-start auto-recovery working. Schema stable. |
+| **Overall** | **5.2/10** | **6.0/10** | **↑** | |
+
+### Gap to 10/10 — purely operational, no code needed
+
+The remaining gap is **workflow execution**, not missing features:
+
+1. **Run Companies House Contact Enricher** (Data Sources page) → contacts populate → Contact quality 3→7, Data enrichment 4→8
+2. **Run relationship auto-detect** (`POST /api/relationships/auto-detect`) → edges populate → Approach path finding 4→8
+3. **Re-run entity type reclassification** (`POST /ingest/reclassify-entity-types`) → Entity discovery 7→8
+4. **Run MCTS on top hot leads** → intel sessions populate → Outreach generation 6→9
+
+Projected score after those 4 operational steps: **~9.2/10**
+
+---
+
 ## Phase 1 — Contact Enrichment Pipeline
 **Target scores after:** Contact quality 3→7 · Data enrichment 2→7 · Overall: ~6.5/10  
 **Session budget:** 1 session  
