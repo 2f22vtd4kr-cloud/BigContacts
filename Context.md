@@ -8,19 +8,23 @@
 
 ---
 
-## Current State (2026-07-20) — Phase 5 Complete, Ingestion Running
+## Current State (2026-07-20) — Phase 5 Complete, Post-Import Setup Done
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically
 - **Local Redis** running on `redis://localhost:6379` — workflow `Redis` must be running
-- **Upstash Redis (`REDIS_URL_1`)** — ✅ Set & connected (`[upstash-1] Redis ready`) — dedup state persists across restarts (153,651 entries loaded from prior session)
-- **SESSION_SECRET** — set ✅
+- **Upstash Redis (`REDIS_URL_1`)** — ✅ Set & connected (`[upstash-1] Redis ready`)
+- **SESSION_SECRET** — ✅ Set
 - **COMPANIES_HOUSE_API_KEY** — ✅ Set (CH officer address enrichment enabled)
 
-### ⚠️ Workflow Note (post-GitHub-import)
-Artifacts were re-registered on 2026-07-20 via the Replit artifact system. Managed artifact workflows are now active:
-- `artifacts/api-server: API Server`
-- `artifacts/apex-finder: web`
+### Post-GitHub-Import Setup (2026-07-20)
+All 4 artifacts re-registered in Replit system after GitHub import. All managed workflows active:
+- `artifacts/api-server: API Server` (port 8080)
+- `artifacts/apex-finder: web` (port 23695)
+- `artifacts/apex-mobile: expo` (port 22796, optional)
+- `artifacts/mockup-sandbox: Component Preview Server` (port 8081, optional)
+
+Cold-start auto-recovery fired on startup: cleared ghost job locks, detected empty DB, auto-started FAA + Land Registry + Western HNWI ingestion.
 
 ### Workflows running
 | Workflow | Status |
@@ -33,15 +37,12 @@ Artifacts were re-registered on 2026-07-20 via the Replit artifact system. Manag
 
 ### Database
 - Schema pushed ✅ (2026-07-20)
-- **Entities**: ~2,200+ and growing (FAA + Land Registry + Western HNWI ingestion running in background)
-- **Assets**: ~2,200+ and growing
+- **Entities**: 18,100+ and growing (FAA + Land Registry + Western HNWI auto-ingestion running)
+- **Assets**: 18,100+ and growing
 - **Research sessions**: 0
 - **Improvement logs**: 0
 
-> Ingestion jobs started 2026-07-20. FAA and HMLR are long-running — let them complete to reach ~63k+ entities. Monitor via `GET /api/ingest/job/:jobId`.
-> - FAA job: `010e3d61-970d-46c9-8a13-7fa5f08d57f8` (downloading ZIP, 153k Upstash dedup entries loaded)
-> - Land Registry job: `11795b03-188f-4ff6-8b80-0d84cd5b1c54` (2,200+ inserted, running)
-> - Western HNWI job: `ace1c1e2-daca-46e6-a668-70a83c307276` (running)
+> Cold-start auto-ingestion running as of 2026-07-20. FAA is long-running — let it complete to reach ~63k+ entities. Monitor via `GET /api/ingest/job/:jobId`.
 
 ### Phase 5 — What was built (2026-07-20) ✅ COMPLETE
 
