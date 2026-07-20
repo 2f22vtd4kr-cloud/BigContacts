@@ -8,39 +8,40 @@
 
 ---
 
-## Current State (2026-07-20) — Phase 4 Complete
+## Current State (2026-07-20) — Phase 5 Complete, Ingestion Running
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically
 - **Local Redis** running on `redis://localhost:6379` — workflow `Redis` must be running
-- **Upstash Redis (`REDIS_URL_1`)** — ✅ Set & connected (`[upstash-1] Redis ready`) — dedup state persists across restarts
+- **Upstash Redis (`REDIS_URL_1`)** — ✅ Set & connected (`[upstash-1] Redis ready`) — dedup state persists across restarts (153,651 entries loaded from prior session)
 - **SESSION_SECRET** — set ✅
 - **COMPANIES_HOUSE_API_KEY** — ✅ Set (CH officer address enrichment enabled)
 
 ### ⚠️ Workflow Note (post-GitHub-import)
-Artifact registrations are NOT preserved through GitHub imports. After re-import, managed artifact workflows (`artifacts/api-server: API Server` etc.) no longer exist. **Manual workflows** are now configured in `.replit` instead:
-- `API Server` → `PORT=8080 pnpm --filter @workspace/api-server run dev`
-- `Web Frontend` → `PORT=23695 BASE_PATH=/ pnpm --filter @workspace/apex-finder run dev`
-
-If artifact re-registration is needed in future, the artifact.toml files at `artifacts/*/. replit-artifact/artifact.toml` still contain the original config.
+Artifacts were re-registered on 2026-07-20 via the Replit artifact system. Managed artifact workflows are now active:
+- `artifacts/api-server: API Server`
+- `artifacts/apex-finder: web`
 
 ### Workflows running
 | Workflow | Status |
 |---|---|
 | Redis | ✅ Running |
-| `API Server` | ✅ Running (port 8080) |
-| `Web Frontend` | ✅ Running (port 23695) |
+| `artifacts/api-server: API Server` | ✅ Running (port 8080) |
+| `artifacts/apex-finder: web` | ✅ Running (port 23695) |
 | Expo mobile | Not started (optional) |
 | Mockup sandbox | Not started (optional) |
 
 ### Database
 - Schema pushed ✅ (2026-07-20)
-- **Entities**: ~2,200 (from background ingestion jobs running post-import; FAA + HMLR + Western HNWI still running)
-- **Assets**: ~2,200
+- **Entities**: ~2,200+ and growing (FAA + Land Registry + Western HNWI ingestion running in background)
+- **Assets**: ~2,200+ and growing
 - **Research sessions**: 0
 - **Improvement logs**: 0
 
-> Ingestion jobs started automatically after import. FAA and HMLR are long-running — let them complete to reach ~63k+ entities. Monitor via `GET /api/ingest/job/:jobId`.
+> Ingestion jobs started 2026-07-20. FAA and HMLR are long-running — let them complete to reach ~63k+ entities. Monitor via `GET /api/ingest/job/:jobId`.
+> - FAA job: `010e3d61-970d-46c9-8a13-7fa5f08d57f8` (downloading ZIP, 153k Upstash dedup entries loaded)
+> - Land Registry job: `11795b03-188f-4ff6-8b80-0d84cd5b1c54` (2,200+ inserted, running)
+> - Western HNWI job: `ace1c1e2-daca-46e6-a668-70a83c307276` (running)
 
 ### Phase 5 — What was built (2026-07-20) ✅ COMPLETE
 
@@ -148,6 +149,7 @@ If artifact re-registration is needed in future, the artifact.toml files at `art
 | 2026-07-19 | Query expansion (single-pass): added `expandQuery(query, plan)` to agent-orchestrator.ts. Appends asset synonyms (ASSET_EXPANSION), canonical location forms, name hints, and intent background terms to the raw query before hybridSearch. `expandedQuery` surfaced in RetrieverMeta + OrchestrationResult + UI Retriever step card. No iterative loop. |
 | 2026-07-19 | Intel Systems Analyst persona updated: file header "Iterative Query Expansion" → "Single-pass query expansion"; Layer 2 block comment rewritten to describe expandQuery() mechanics (ASSET_EXPANSION, INTENT_EXPANSION, location forms, name hints); "query expansion stalled" suggestion retitled and description rewritten to explain the three concrete paths (SQL location ILIKE, asset synonym matching, TF-IDF cosine) through which sparse entities remain invisible. |
 | 2026-07-19 | Full persona simulation run. Seeded 8 representative entities (Viktor Aldenmoor, Dominic Harcastle, Lars Eriksen, Brant Kellerman, Meridian Apex, Pierre-Henri Lascaux, Kestrel Trust, Chen). Fixed improve/run SQL bug (ANY→inArray). Ran all 6 personas → 67 suggestions (25 high, 27 medium, 15 low). Fixes applied: (1) entity ledger Contact Vector column now shows clickable mailto/tel/LinkedIn instead of raw prose, (2) MCTS terminal now has search bar + 500-entity limit instead of 30, (3) MCTS reads ?entity= URL param via window.location.search, (4) Profile page has prominent Direct Contact Vectors action bar with clickable email/phone/LinkedIn, (5) CRM Lead Gen empty state guides user to MCTS terminal. |
+| 2026-07-20 | **GitHub import re-setup**: pnpm install, DB schema pushed, all 4 artifacts re-registered (managed workflows active), SESSION_SECRET + REDIS_URL_1 (Upstash, 153k dedup entries) + COMPANIES_HOUSE_API_KEY set. FAA + Land Registry + Western HNWI ingestion jobs started. App live at `/` and `/api`. |
 | 2026-07-20 | **Phase 3 — MCTS & Outreach Upgrade complete**: contactConfidence/contactEmail/contactPhone flow from GraphVertex → PathStep → MCTS UCT bonus → pitch context → CRM intel block. research.tsx gains PathNodeContact bars + CopyBriefButton. crm.tsx gains notes textarea + follow-up date picker + Export PDF (window.open print). DB schema: notes + followUpDate columns added + pushed. approach.tsx PitchModal upgraded to tabbed view (Initial/Follow-Up/Intro Script) with Share.share() button. |
 | 2026-07-19 | **Phase 1 — Contact Enrichment Pipeline complete**: (1) `contactConfidence` column added to entities schema + DB migrated; (2) `contact-confidence.ts` pure utility; (3) `companies-house-enricher.ts` — CH officer lookup + confidence recompute; (4) `POST /api/ingest/companies-house-enrich` background route with 409 conflict guard; (5) dashboard/stats now returns `contactableCount` + `enrichmentCoverage`; (6) profile page — contact bar always visible, confidence badge, Enrich button with job polling + entity refetch; (7) data-sources page — Enrichment Coverage Stats panel + CH enricher source card; (8) mobile approach screen — ContactVectorsStrip with Linking.openURL tappable email/phone/linkedin pills. |
 
