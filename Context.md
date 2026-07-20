@@ -8,17 +8,22 @@
 
 ---
 
-## Current State (2026-07-20) — Re-imported, Fully Running + Relationship Graph Live
+## Current State (2026-07-20 — re-import #2) — Running, DB Re-populating
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically
 - **Local Redis** running on `redis://localhost:6379` — workflow `Redis` must be running
-- **Upstash Redis (`REDIS_URL_1`)** — ✅ Set & connected (`[upstash-1] Redis ready`)
+- **Upstash Redis (`REDIS_URL_1`)** — set (not verified this session; dedup Upstash)
 - **SESSION_SECRET** — ✅ Set
-- **COMPANIES_HOUSE_API_KEY** — ✅ Set (CH officer address enrichment enabled)
+- **COMPANIES_HOUSE_API_KEY** — not set this import (CH enricher will be skipped)
 
-### Post-GitHub-Import Setup (2026-07-20 — this session)
-All 4 artifacts re-registered (managed workflows restored automatically after artifact.toml files were detected). Port conflicts from orphaned processes cleared with `kill -9 $(lsof -ti:8080 -ti:23695)`.
+### Post-GitHub-Import Setup (2026-07-20 — second import)
+- `pnpm install --frozen-lockfile` ran cleanly
+- `pnpm --filter @workspace/db run push` — schema applied (no migrations needed)
+- All 4 artifacts re-registered via `verifyAndReplaceArtifactToml` (platform didn't auto-detect this time)
+- Managed workflows created by platform after registration
+- API Server + Web frontend started; DB was empty → cold-start auto-recovery triggered FAA + Land Registry + Western HNWI ingestion
+- No port conflicts (ports 8080/23695 were free)
 
 ### Workflows running
 | Workflow | Status |
