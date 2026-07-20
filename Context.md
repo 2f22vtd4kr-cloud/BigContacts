@@ -43,8 +43,12 @@ Project re-imported from GitHub. Workflows configured as plain Replit workflows 
 - **Hot leads**: 7,452
 - **Research sessions**: 0
 - **Improvement logs**: 0
+- **Contact vectors**: 0 (requires Companies House Contact Enricher to be triggered)
+- **Relationship edges**: 0 (same — populated by the CH enricher)
 
 > DB was populated in a prior session and persisted through the GitHub import. Cold-start auto-recovery detected the populated DB and skipped auto-ingestion. To re-ingest, clear Upstash dedup first (`DELETE /api/ingest/dedup`) then POST to the ingest endpoints.
+
+> To populate contact vectors and relationship edges: go to **Data Sources → Companies House Contact Enricher** and trigger it. The "Sync Hot Flags" button is also on that page alongside the enrichment coverage widget.
 
 ### Phase 5 — What was built (2026-07-20) ✅ COMPLETE
 
