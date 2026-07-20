@@ -8,7 +8,7 @@
 
 ---
 
-## Current State (2026-07-20 — re-import #3) — Running, DB Re-populating
+## Current State (2026-07-20 — re-import #4) — Running, DB Populated (23,500 entities)
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically
@@ -17,13 +17,15 @@
 - **SESSION_SECRET** — ✅ Set
 - **COMPANIES_HOUSE_API_KEY** — not set this import (CH enricher will be skipped)
 
-### Post-GitHub-Import Setup (2026-07-20 — third import)
+### Post-GitHub-Import Setup (2026-07-20 — fourth import)
 - `pnpm install --frozen-lockfile` ran cleanly
 - `pnpm --filter @workspace/db run push` — schema applied (no migrations needed)
-- All 4 artifacts auto-registered by platform after secrets were set
-- Managed workflows created automatically: Redis, API Server, apex-finder web, apex-mobile, mockup-sandbox
 - Secrets set: SESSION_SECRET ✅, REDIS_URL_1 ✅, COMPANIES_HOUSE_API_KEY ✅
-- API Server + Web frontend started; DB was empty → cold-start auto-recovery cleared stale dedup (32,871 entries) → auto-started FAA + Land Registry + Western HNWI ingestion
+- All 4 artifacts auto-registered by platform after TOML files were re-validated
+- Managed workflows created automatically: Redis, API Server, apex-finder web, apex-mobile, mockup-sandbox
+- API Server started on port 8080; Web frontend started on port 23695
+- DB had 23,500 entities — cold-start auto-recovery skipped auto-ingestion (DB populated)
+- Local Redis ✅, Upstash (REDIS_URL_1) ✅ connected on startup
 - No port conflicts
 
 ### Workflows running
