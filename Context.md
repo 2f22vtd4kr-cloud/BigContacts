@@ -8,7 +8,7 @@
 
 ---
 
-## Current State (2026-07-20) — Phase 5 Complete, Post-Import Setup Done
+## Current State (2026-07-20) — Re-imported from GitHub, Fully Running
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically
@@ -18,31 +18,33 @@
 - **COMPANIES_HOUSE_API_KEY** — ✅ Set (CH officer address enrichment enabled)
 
 ### Post-GitHub-Import Setup (2026-07-20)
-All 4 artifacts re-registered in Replit system after GitHub import. All managed workflows active:
-- `artifacts/api-server: API Server` (port 8080)
-- `artifacts/apex-finder: web` (port 23695)
-- `artifacts/apex-mobile: expo` (port 22796, optional)
-- `artifacts/mockup-sandbox: Component Preview Server` (port 8081, optional)
+Project re-imported from GitHub. Workflows configured as plain Replit workflows (not artifact-managed, since artifact registration is not persisted across GitHub imports). Commands include inlined PORT/BASE_PATH env vars.
 
-Cold-start auto-recovery fired on startup: cleared ghost job locks, detected empty DB, auto-started FAA + Land Registry + Western HNWI ingestion.
+- **API Server** workflow: `PORT=8080 pnpm --filter @workspace/api-server run dev`
+- **Web Frontend** workflow: `PORT=23695 BASE_PATH=/ pnpm --filter @workspace/apex-finder run dev`
+- **Redis** workflow: unchanged
+- Schema pushed: `pnpm --filter @workspace/db run push`
+
+> ⚠️ Note: `waitForPort` must NOT be set in `configureWorkflow` for these workflows — the port check times out even though the servers start fine. Verify health via `curl localhost:8080/api/healthz` instead.
 
 ### Workflows running
 | Workflow | Status |
 |---|---|
 | Redis | ✅ Running |
-| `artifacts/api-server: API Server` | ✅ Running (port 8080) |
-| `artifacts/apex-finder: web` | ✅ Running (port 23695) |
+| API Server | ✅ Running (port 8080) |
+| Web Frontend | ✅ Running (port 23695) |
 | Expo mobile | Not started (optional) |
 | Mockup sandbox | Not started (optional) |
 
 ### Database
 - Schema pushed ✅ (2026-07-20)
-- **Entities**: 18,100+ and growing (FAA + Land Registry + Western HNWI auto-ingestion running)
-- **Assets**: 18,100+ and growing
+- **Entities**: 32,000 (FAA + Land Registry from prior session — DB survived the import)
+- **Assets**: 32,000
+- **Hot leads**: 7,452
 - **Research sessions**: 0
 - **Improvement logs**: 0
 
-> Cold-start auto-ingestion running as of 2026-07-20. FAA is long-running — let it complete to reach ~63k+ entities. Monitor via `GET /api/ingest/job/:jobId`.
+> DB was populated in a prior session and persisted through the GitHub import. Cold-start auto-recovery detected the populated DB and skipped auto-ingestion. To re-ingest, clear Upstash dedup first (`DELETE /api/ingest/dedup`) then POST to the ingest endpoints.
 
 ### Phase 5 — What was built (2026-07-20) ✅ COMPLETE
 

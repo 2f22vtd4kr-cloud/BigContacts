@@ -24,6 +24,10 @@ args = "Redis"
 task = "workflow.run"
 args = "API Server"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Web Frontend"
+
 [[workflows.workflow]]
 name = "Redis"
 author = "agent"
@@ -40,13 +44,20 @@ outputType = "console"
 name = "API Server"
 author = "agent"
 
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "pnpm --filter @workspace/api-server run dev"
-waitForPort = 8080
-
 [workflows.workflow.metadata]
 outputType = "console"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "PORT=8080 pnpm --filter @workspace/api-server run dev"
+
+[[workflows.workflow]]
+name = "Web Frontend"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "PORT=23695 BASE_PATH=/ pnpm --filter @workspace/apex-finder run dev"
 
 [agent]
 stack = "PNPM_WORKSPACE"
