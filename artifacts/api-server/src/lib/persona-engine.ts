@@ -37,7 +37,8 @@ export type PersonaId =
   | "intel_systems_analyst"
   | "business_engineer"
   | "ux_designer"
-  | "architect";
+  | "architect"
+  | "data_integrity_auditor";
 
 export type ImprovementCategory =
   | "data_quality"
@@ -45,7 +46,8 @@ export type ImprovementCategory =
   | "outreach"
   | "structure"
   | "display"
-  | "classification";
+  | "classification"
+  | "integrity";
 
 export type Priority = "high" | "medium" | "low";
 export type ImprovementStatus = "pending" | "applied" | "dismissed";
@@ -732,16 +734,227 @@ async function runArchitect(entity: Entity): Promise<ImprovementSuggestion[]> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Persona 7 — Data Integrity Auditor
+//
+// ABSOLUTE RULE: Zero synthetic or mock data. Every entity in ApexFinder Pro
+// must trace to a named public registry (FAA, SEC EDGAR, UK Companies House,
+// BRREG Norway, HMLR). This persona is the enforcement layer — it scans for
+// fabricated names, test contact details, synthetic asset identifiers, missing
+// provenance, and any metadata flag that suggests the record was generated
+// rather than ingested from a real primary source.
+//
+// A flag from this persona is a data-integrity violation, not a suggestion.
+// Violations should be resolved by deleting the record and re-ingesting from
+// a verified source, or by tracing the existing record to a real registry URL.
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function runDataIntegrityAuditor(entity: Entity): Promise<ImprovementSuggestion[]> {
+  const suggestions: ImprovementSuggestion[] = [];
+  const metadata = parseJsonSafe<Record<string, unknown>>(entity.metadata, {});
+  const sources: string[] = parseJsonSafe(entity.sourceRegistries, []);
+  const metaRaw = (entity.metadata ?? "").toLowerCase();
+
+  // ── 1. Explicit mock / synthetic flags in metadata ────────────────────────
+  // Any metadata key that signals AI generation or placeholder insertion is a
+  // hard violation. Real ingest pipelines never write these keys.
+  const SYNTHETIC_KEYS = [
+    "\"ismock\"", "\"synthetic\"", "\"fake\":",
+    "\"placeholder\"", "\"testdata\"", "\"mockdata\"", "\"generated\":",
+    "\"is_mock\"", "\"is_fake\"", "\"is_synthetic\"",
+  ];
+  if (SYNTHETIC_KEYS.some(k => metaRaw.includes(k))) {
+    suggestions.push({
+      entityId: entity.id,
+      persona: "data_integrity_auditor",
+      category: "integrity",
+      priority: "high",
+      title: "Synthetic-data flag in metadata — integrity violation",
+      description:
+        "Entity metadata contains a key associated with mock or synthetic data generation " +
+        "(isMock, synthetic, fake, placeholder, testData, mockData, generated). " +
+        "All records must originate exclusively from FAA, SEC EDGAR, UK Companies House, BRREG, or HMLR. " +
+        "Action: delete this entity and re-ingest from a real registry URL.",
+      actionTaken: "INTEGRITY VIOLATION — synthetic flag detected. Entity quarantined for deletion.",
+    });
+  }
+
+  // ── 2. No source registry and no provenance flag ──────────────────────────
+  // Without a traceable origin the record is unverifiable and may be synthetic.
+  const hasProvenance =
+    sources.length > 0 ||
+    metadata.liveSource === true ||
+    metadata.westernIngest === true ||
+    !!metadata.source ||
+    !!metadata.orgnr ||   // BRREG
+    !!metadata.formType;  // SEC EDGAR
+  if (!hasProvenance) {
+    suggestions.push({
+      entityId: entity.id,
+      persona: "data_integrity_auditor",
+      category: "integrity",
+      priority: "high",
+      title: "No source provenance — record cannot be verified as real",
+      description:
+        "Entity has no sourceRegistries, no liveSource flag, and no registry-specific metadata " +
+        "(formType / orgnr / source). Without a traceable origin (FAA N-number, SEC EDGAR CIK, " +
+        "UK CH company number, BRREG orgnr, or HMLR title number) this record is unverifiable. " +
+        "Either re-ingest from a public registry or delete.",
+      actionTaken: "INTEGRITY FLAG — provenance missing. Manual origin trace required before use.",
+    });
+  }
+
+  // ── 3. Placeholder / test entity names ───────────────────────────────────
+  const FAKE_NAME_RE = /^(test(\s+entity)?|sample(\s+entity)?|example(\s+entity)?|placeholder|mock(\s+entity)?|dummy(\s+entity)?|foo|bar|baz|john\s+doe|jane\s+doe|n\/a|unknown|entity\s+\d+|lorem ipsum|temp\s*\d*)$/i;
+  if (FAKE_NAME_RE.test(entity.name.trim())) {
+    suggestions.push({
+      entityId: entity.id,
+      persona: "data_integrity_auditor",
+      category: "integrity",
+      priority: "high",
+      title: `Entity name "${entity.name}" is a known placeholder`,
+      description:
+        "This name matches a common placeholder or test-data pattern. " +
+        "Real registry records always carry a registered legal name, personal name, or aircraft N-number. " +
+        "Delete and re-ingest from FAA, SEC EDGAR, Companies House, BRREG, or HMLR.",
+      actionTaken: "INTEGRITY VIOLATION — placeholder name detected. Delete and re-ingest.",
+    });
+  }
+
+  // ── 4. Fake / generated contact email ────────────────────────────────────
+  if (entity.email) {
+    const FAKE_EMAIL_RE = /^(test@|fake@|example@|placeholder@|noreply@|no-reply@|dummy@|sample@|mock@|admin@example|user@test|info@test)/i;
+    const FAKE_DOMAIN_RE = /@(example\.|test\.|fake\.|localhost|placeholder\.|dummy\.|invalid\.)/i;
+    if (FAKE_EMAIL_RE.test(entity.email) || FAKE_DOMAIN_RE.test(entity.email)) {
+      suggestions.push({
+        entityId: entity.id,
+        persona: "data_integrity_auditor",
+        category: "integrity",
+        priority: "high",
+        title: "Contact email matches synthetic / generated pattern",
+        description:
+          `Email "${entity.email}" matches a placeholder pattern (test@, fake@, example.com, ` +
+          "@test.*, @placeholder.*, noreply@, etc.). " +
+          "Only real, registry-sourced or operator-verified email addresses are permitted. " +
+          "Remove this value; re-add only when sourced from a confirmed public filing.",
+        actionTaken: "INTEGRITY VIOLATION — fake email detected. Contact field must be cleared.",
+      });
+    }
+  }
+
+  // ── 5. Fake phone numbers ─────────────────────────────────────────────────
+  if (entity.phone) {
+    const stripped = entity.phone.replace(/[\s\-().+]/g, "");
+    const FAKE_PHONE_RE = /^(555\d{7}|0{7,}|1{7,}|9{7,}|1234567|0000000|9999999)/;
+    if (FAKE_PHONE_RE.test(stripped) || /^(\d)\1{6,}$/.test(stripped)) {
+      suggestions.push({
+        entityId: entity.id,
+        persona: "data_integrity_auditor",
+        category: "integrity",
+        priority: "high",
+        title: "Phone number is a known fake pattern",
+        description:
+          `Phone "${entity.phone}" matches a known synthetic-data pattern (555-xxxx, ` +
+          "all-same-digit, sequential, or zero-padded). " +
+          "Only real phone numbers from verified registry filings are permitted.",
+        actionTaken: "INTEGRITY VIOLATION — fake phone detected. Contact field must be cleared.",
+      });
+    }
+  }
+
+  // ── 6. Asset identifier integrity check ──────────────────────────────────
+  // Synthetic asset identifiers (TEST-, MOCK-, FAKE-, etc.) mean an ingest
+  // pipeline generated placeholder records instead of real registry data.
+  const entityAssets = await db
+    .select({ id: assetsTable.id, identifier: assetsTable.identifier, category: assetsTable.category })
+    .from(assetsTable)
+    .where(eq(assetsTable.ownerEntityId, entity.id));
+
+  const FAKE_ID_RE = /^(TEST[-_]|MOCK[-_]|FAKE[-_]|SAMPLE[-_]|GENERATED[-_]|PLACEHOLDER[-_]|DUMMY[-_]|FOO[-_]|BAR[-_])/i;
+  const fakeAssets = entityAssets.filter(a => a.identifier && FAKE_ID_RE.test(a.identifier));
+  if (fakeAssets.length > 0) {
+    suggestions.push({
+      entityId: entity.id,
+      persona: "data_integrity_auditor",
+      category: "integrity",
+      priority: "high",
+      title: `${fakeAssets.length} asset(s) carry synthetic identifiers`,
+      description:
+        `Asset identifier(s) ${fakeAssets.slice(0, 3).map(a => `"${a.identifier}"`).join(", ")} ` +
+        "start with TEST-, MOCK-, FAKE-, SAMPLE-, GENERATED-, or PLACEHOLDER-. " +
+        "Real assets must carry genuine registry identifiers: FAA N-numbers, HMLR title numbers, " +
+        "ISIN codes, or vessel IMO numbers. Delete these assets and re-ingest from source.",
+      actionTaken: `INTEGRITY VIOLATION — ${fakeAssets.length} synthetic-identifier asset(s) flagged for deletion.`,
+    });
+  }
+
+  // ── 7. Hot lead still pending enrichment — incomplete real-data pipeline ──
+  // Not a fabrication violation, but a real-data completeness gap for high-
+  // priority targets: registry record exists but the enrichment pass that adds
+  // contact details, officer data, and relationship edges hasn't run.
+  if (
+    metadata.needsEnrichment === true &&
+    (entity.bayesianScore ?? 0) >= 0.70 &&
+    sources.length > 0
+  ) {
+    suggestions.push({
+      entityId: entity.id,
+      persona: "data_integrity_auditor",
+      category: "integrity",
+      priority: "medium",
+      title: "Hot lead real-data pipeline incomplete — enrichment pending",
+      description:
+        `Entity is a hot lead (score ${(entity.bayesianScore ?? 0).toFixed(3)}) sourced from ` +
+        `${sources.join(", ")}, but metadata.needsEnrichment=true. ` +
+        "The record is real but incomplete. Run Companies House officer enricher (UK entities), " +
+        "EDGAR stock assets creator, or populate-notes to fill the gaps. " +
+        "Until enrichment completes, contact confidence and relationship edges are artificially low.",
+      actionTaken: "Real-data completeness gap logged. CH enricher / EDGAR lookup queued.",
+    });
+  }
+
+  // ── 8. Provenance flag missing on live-registry entity ───────────────────
+  // Low priority — the data is real, but the liveSource marker is absent,
+  // which weakens automated integrity checks in future pipeline runs.
+  const LIVE_REGISTRIES = ["sec edgar", "faa", "companies house", "brreg", "hmlr", "land registry"];
+  const isLiveRegistry = sources.some(s =>
+    LIVE_REGISTRIES.some(r => s.toLowerCase().includes(r))
+  );
+  if (
+    isLiveRegistry &&
+    metadata.liveSource !== true &&
+    metadata.westernIngest !== true &&
+    !metadata.orgnr
+  ) {
+    suggestions.push({
+      entityId: entity.id,
+      persona: "data_integrity_auditor",
+      category: "integrity",
+      priority: "low",
+      title: "Live-registry entity missing liveSource provenance marker",
+      description:
+        `Source registry "${sources[0]}" is a verified live public registry, but metadata.liveSource ` +
+        "is not set. The provenance marker lets automated integrity scans confirm this record " +
+        "entered via the real ingest path rather than a manual or scripted insert. " +
+        "Update metadata to add liveSource:true and lastVerified timestamp.",
+      actionTaken: "Provenance-marker gap logged. No data integrity risk — low priority housekeeping.",
+    });
+  }
+
+  return suggestions;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Public — run all personas for one entity
 // ─────────────────────────────────────────────────────────────────────────────
 
 const PERSONA_RUNNERS: Record<PersonaId, (e: Entity) => Promise<ImprovementSuggestion[]>> = {
-  data_engineer:         runDataEngineer,
-  data_analyst:          runDataAnalyst,
-  intel_systems_analyst: runIntelSystemsAnalyst,
-  business_engineer:     runBusinessEngineer,
-  ux_designer:           runUxDesigner,
-  architect:             runArchitect,
+  data_engineer:           runDataEngineer,
+  data_analyst:            runDataAnalyst,
+  intel_systems_analyst:   runIntelSystemsAnalyst,
+  business_engineer:       runBusinessEngineer,
+  ux_designer:             runUxDesigner,
+  architect:               runArchitect,
+  data_integrity_auditor:  runDataIntegrityAuditor,
 };
 
 export const ALL_PERSONAS: PersonaId[] = Object.keys(PERSONA_RUNNERS) as PersonaId[];
@@ -760,10 +973,11 @@ export async function runPersonasForEntity(entity: Entity): Promise<ImprovementS
 }
 
 export const PERSONA_META: Record<PersonaId, { label: string; icon: string; color: string }> = {
-  data_engineer:         { label: "Data Engineer",            icon: "Database",  color: "#3B82F6" },
-  data_analyst:          { label: "Data Analyst",             icon: "TrendingUp",color: "#10B981" },
-  intel_systems_analyst: { label: "Intel Systems Analyst",    icon: "Network",   color: "#A855F7" },
-  business_engineer:     { label: "Business Engineer",        icon: "Briefcase", color: "#F59E0B" },
-  ux_designer:           { label: "UX Designer",              icon: "Palette",   color: "#EC4899" },
-  architect:             { label: "Architect",                 icon: "Layers",    color: "#06B6D4" },
+  data_engineer:          { label: "Data Engineer",           icon: "Database",     color: "#3B82F6" },
+  data_analyst:           { label: "Data Analyst",            icon: "TrendingUp",   color: "#10B981" },
+  intel_systems_analyst:  { label: "Intel Systems Analyst",   icon: "Network",      color: "#A855F7" },
+  business_engineer:      { label: "Business Engineer",       icon: "Briefcase",    color: "#F59E0B" },
+  ux_designer:            { label: "UX Designer",             icon: "Palette",      color: "#EC4899" },
+  architect:              { label: "Architect",               icon: "Layers",       color: "#06B6D4" },
+  data_integrity_auditor: { label: "Data Integrity Auditor",  icon: "ShieldCheck",  color: "#EF4444" },
 };

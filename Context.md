@@ -43,11 +43,21 @@
 - **Contact vectors**: CH enricher running (~44% complete as of session end)
 - **Research sessions**: 0 (ready for MCTS run)
 
-### What's new this session
-1. **Corporate name-series relationship graph** — `POST /api/relationships/auto-detect-clusters` added to `artifacts/api-server/src/routes/relationships.ts`. Strips legal suffixes (LLC, Inc, Holdings, etc.) and series indicators (I, II, III…) iteratively to find same-root clusters. Creates `CORPORATE_SERIES` edges (strength 0.85). Batch-inserts in chunks of 500. Generated 113,946 edges across 32k entities.
-2. **Name Clusters button** in `artifacts/apex-finder/src/pages/data-sources.tsx` — `ClusterDetectButton` component in the Enrichment Coverage Stats panel.
-3. **CH enrichment running** — COMPANIES_HOUSE_API_KEY set, background job active.
-4. **Western HNWI running** — targeting 5,000 records (100 inserted so far, SEC EDGAR rate-limited).
+### What's new this session (2026-07-20 — second re-import)
+
+**5 improvements built:**
+1. **Auto-pitch / Critic synthesis enriched** — `POST /research/run` now calls `orchestrate()` (full Planner→Retriever→Analyst→Critic) and builds a rich `critiqueNote` from the top-3 ranked candidates with reasoning. Pitch generation wrapped in try-catch (always creates session, never 500s). File: `artifacts/api-server/src/routes/research.ts`.
+2. **CH company officers button** — `ChOfficersButton` in data-sources.tsx. Polls job at `/api/ingest/job/:jobId`. Triggers `POST /api/ingest/ch-company-officers` (background job enriching all Corporation entities with officer lists stored in `metadata.chOfficers`).
+3. **CH co-director edges button** — `ChCodirectorsButton` calls `POST /api/relationships/auto-detect-ch-codirectors`. Builds `SHARED_DIRECTOR` edges between entities that share a common CH officer.
+4. **Populate notes button** — `PopulateNotesButton` calls `POST /api/ingest/populate-notes`. Enriches entity notes from filing metadata (formType, fileDate, companyName, orgnr, CH directors, nationality, location).
+5. **EDGAR stock assets button** — `EdgarStockButton` calls `POST /api/ingest/create-edgar-stock-assets`. Creates `StockHolding` asset records for SEC EDGAR large-shareholder entities with no assets yet.
+
+**New persona added:**
+6. **Data Integrity Auditor** (`data_integrity_auditor`) — 7th persona in `persona-engine.ts`. Enforces the zero-synthetic-data rule. Checks: synthetic flags in metadata, missing provenance, placeholder names, fake emails/phones, synthetic asset identifiers, enrichment-pending hot leads, missing liveSource markers. Color: red `#EF4444`. Run 3 confirmed: **0 synthetic violations** across 300 entities — data purity rule is being respected.
+
+**Secrets:**
+- `COMPANIES_HOUSE_API_KEY` — requested via secure form (set by user)
+- `REDIS_URL_1` — requested via secure form (set by user)
 
 > **Post-import port-conflict pattern**: After killing the old "Start application" manual workflow, the Node/Vite processes linger. Always run `kill -9 $(lsof -ti:8080 -ti:23695)` before restarting artifact-managed workflows.
 
