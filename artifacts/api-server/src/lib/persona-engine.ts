@@ -195,6 +195,9 @@ async function runDataEngineer(entity: Entity): Promise<ImprovementSuggestion[]>
   }
 
   return suggestions;
+  }
+
+  return suggestions;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
