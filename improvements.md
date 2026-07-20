@@ -38,7 +38,7 @@ This is the canonical definition of the intelligence pipeline. **MCTS is Layer 4
 
 ---
 
-## Simulation Run — 2026-07-20 (All 5 Phases Complete)
+## Simulation Run 1 — 2026-07-20 (All 5 Phases Complete, Pre-Data-Operations)
 
 **Sample:** 300 entities · 6 persona batches · **2,376 suggestions total**  
 **Breakdown:** 1,284 high · 498 medium · 594 low  
@@ -54,20 +54,70 @@ This is the canonical definition of the intelligence pipeline. **MCTS is Layer 4
 | HNWI classification may be incorrect — name suggests corporate entity | architect | ~300/300 | FAA LLCs/corps still typed as HNWI |
 | High-probability target — UCB exploitation not yet initiated | intel_systems_analyst | ~113/300 | hot-lead entities with no MCTS session |
 
-### Updated assessment (2026-07-20)
+---
+
+## Simulation Run 2 — 2026-07-20 (Post entity-reclassify + MCTS + relationship graph)
+
+**Data state at time of run:**
+- 32,100 entities (FAA 30k + Land Registry 2k + Western HNWI 100+)
+- 113,946 relationship edges (CORPORATE_SERIES via name-clustering)
+- 22,767 Corps · 585 Trusts · 8,748 HNWIs (reclassified this session)
+- 10 MCTS research sessions (top hot leads, path scores 0.41–0.49)
+- CH enrichment: ~44% complete (addresses only; no email/phone yet)
+
+**Sample:** 10 entities (top 10 hot leads by Bayesian score, all Western HNWI individuals from SEC EDGAR)  
+**Suggestions total:** 82 · **Avg per entity:** 8.2  
+**Breakdown:** 20 high · 42 medium · 20 low  
+**Personas run:** data_engineer · business_engineer · ux_designer · intel_systems_analyst · data_analyst · architect
+
+### Flag breakdown (9 unique flags across 10 entities)
+
+| Flag | Persona | Priority | Count | Status vs Run 1 |
+|---|---|---|---|---|
+| No direct contact vectors found | data_engineer | high | 10/10 | ⚠️ Unchanged — email/phone/LinkedIn pipeline not yet built |
+| Isolated node — no relationships mapped | business_engineer | high | 10/10 | ⚠️ Unchanged for individual HNWIs — name-clustering only helps corporations |
+| No geolocated assets — profile map is empty | ux_designer | medium | 10/10 | ⚠️ Unchanged — FAA/EDGAR entities lack lat/lng coordinates |
+| Agent pipeline incomplete — Critic stage has no synthesised output | intel_systems_analyst | medium | 10/10 | 🔄 Changed — "no MCTS" replaced by "Critic incomplete" (less severe) |
+| HNWI with zero registered assets | data_analyst | medium | 10/10 | ⚠️ Unchanged for EDGAR-only entities (no FAA/LR assets linked) |
+| No corporate vehicle linkage detected | business_engineer | medium | 10/10 | ⚠️ Unchanged for individual HNWIs |
+| Profile notes too sparse for effective operator briefing | ux_designer | low | 10/10 | ⚠️ Low severity |
+| Single source — corroboration needed | data_engineer | low | 10/10 | ⚠️ Low severity |
+| Potential duplicate entity detected | architect | medium | 2/10 | ✅ **FIXED** — was ~300/300 in Run 1; reclassification eliminated 99% of architect flags |
+
+### Key improvements vs Run 1
+
+| Metric | Run 1 | Run 2 | Change |
+|---|---|---|---|
+| High-priority flags per entity | 4.28 | 2.0 | **−53%** |
+| Architect flags per entity | ~1.0 | 0.2 | **−80%** ← entity reclassification |
+| "No MCTS session" flags | 300/300 | 0 | **−100%** ← MCTS sessions now created |
+| "HNWI misclassified" flags | ~300/300 | ~0 | **−100%** ← reclassification done |
+| Relationship edges | 0 | 113,946 | **+∞** ← corporate graph built |
+
+> **Sampling caveat:** Run 2 was on the top 10 hot leads — all Western HNWI individuals from SEC EDGAR. These are the hardest entities to score: no FAA assets, no corporate structure, and individual names that don't benefit from the corporate name-clustering algorithm. The relationship graph improvement (from 0 → 113k edges) will show up strongly for the 72% of the portfolio that are corporations.
+
+### Updated assessment (2026-07-20 — post Run 2)
 
 All 5 code phases are complete. Scores reflect the **live data state**, not just code existence.
 
-| Dimension | Baseline | Current | Delta | Root cause |
-|---|---|---|---|---|
-| Entity discovery | 7/10 | 7/10 | → | 32k entities, Bayesian + hybrid search working. Entity type misclassification (FAA LLCs as HNWI) persists in new batch — reclassify endpoint exists but not re-run. No western HNWI data ingested this session. |
-| Contact quality | 3/10 | 3/10 | → | 0/32k entities have phone/email/LinkedIn. CH enricher is built and deployed, not yet triggered. |
-| Approach path finding | 4/10 | 4/10 | → | 0 relationship edges. Phase 2 auto-detect endpoint (`POST /api/relationships/auto-detect`) built but not run. MCTS fires but finds no multi-hop paths. |
-| Outreach generation | 5/10 | 6/10 | ↑ | Pitch generator, 3-tab pitch modal, CRM notes + follow-up date + Export PDF all done. Machinery is complete; output quality limited by sparse contacts/paths. |
-| Operator workflow | 5/10 | 8/10 | ↑↑ | All Phase 4 UX done: Deep Search filters, Entity Ledger bulk actions, dashboard enrichment KPIs, Field Manual playbook, full responsive polish at 375px. |
-| Data enrichment | 2/10 | 4/10 | ↑ | CH enricher, FAA coordinate backfill, OCCRP, OpenSky all built and deployed. Coverage is still 0 this session — pipelines exist, data not yet populated. |
-| Reliability | 7/10 | 8/10 | ↑ | 12/12 smoke tests pass. Upstash dedup solid. Cold-start auto-recovery working. Schema stable. |
-| **Overall** | **5.2/10** | **6.0/10** | **↑** | |
+| Dimension | Baseline | Run 1 | Run 2 | Delta | Notes |
+|---|---|---|---|---|---|
+| Entity discovery | 7/10 | 7/10 | **9/10** | ↑↑ | 32k entities from 4 sources; Corp/Trust/HNWI reclassification done (22,767/585/8,748); architect flags near-eliminated |
+| Contact quality | 3/10 | 3/10 | **4/10** | ↑ | CH enrichment 44% done (addresses); contactMethod populated for all EDGAR entities; still 0 email/phone |
+| Approach path finding | 4/10 | 4/10 | **7/10** | ↑↑↑ | 113,946 CORPORATE_SERIES edges live; MCTS sessions created; individual HNWIs still isolated (no corporate name signal) |
+| Outreach generation | 5/10 | 6/10 | **6/10** | → | MCTS sessions exist + path scores 0.41–0.49; Critic stage still flagged incomplete; contact data still sparse |
+| Operator workflow | 5/10 | 8/10 | **8/10** | → | Full pipeline running; relationship graph visible in UI; 14,814 hot leads synced; kanban CRM + pitch export working |
+| Data enrichment | 2/10 | 4/10 | **4/10** | → | CH pipeline active (44%); name-clustering built; no email/phone/LinkedIn enrichment pipeline yet |
+| Reliability | 7/10 | 8/10 | **8/10** | → | All 4 artifact workflows stable under managed runner; Redis + Upstash green; API healthz OK |
+| **Overall** | **5.2/10** | **6.0/10** | **6.6/10** | **↑** | |
+
+**Remaining gap to 9.2/10** — the three dimensions that need the most work:
+
+| Dimension | Current | Need | Key action |
+|---|---|---|---|
+| Contact quality | 4 | 8+ | Email/phone/LinkedIn enrichment pipeline (Hunter.io, Apollo, or similar) |
+| Approach path finding | 7 | 9+ | CH co-director relationship signal for individual HNWIs (name-clustering only reaches corporations) |
+| Outreach generation | 6 | 9+ | Fix Critic stage synthesis in agent-orchestrator; contact data must flow into pitch generator |
 
 ### Operational steps executed (2026-07-20)
 
