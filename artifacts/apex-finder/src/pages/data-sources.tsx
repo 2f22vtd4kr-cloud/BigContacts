@@ -21,7 +21,7 @@ interface SourceDef {
   Icon: React.FC<any>;
   color: string;
   bg: string;
-  phase: 1 | 8;
+  phase: 1 | 8 | 9;
   homepage?: string;
   endpoint?: string;      // POST endpoint to trigger
   jobType?: string;       // type key for job polling
@@ -928,6 +928,7 @@ function SourceCard({ src }: { src: SourceDef }) {
 export default function DataSources() {
   const phase1Sources = SOURCES.filter((s) => s.phase === 1);
   const phase8Sources = SOURCES.filter((s) => s.phase === 8);
+  const phase9Sources = SOURCES.filter((s) => s.phase === 9);
 
   return (
     <div className="flex flex-col h-full">
@@ -954,6 +955,24 @@ export default function DataSources() {
 
         {/* ── Enrichment Coverage Stats ─────────────────────────────────────── */}
         <EnrichmentCoverageStats />
+
+        {/* ── Phase 9 — Commercial Enrichment ─────────────────────────────── */}
+        {phase9Sources.length > 0 && (
+          <section>
+            <div className="flex items-center gap-2 mb-4">
+              <Mail className="h-4 w-4 text-orange-400" />
+              <h2 className="text-sm font-semibold font-mono uppercase tracking-widest text-orange-400">
+                Phase 9 — Commercial Enrichment
+              </h2>
+              <div className="flex-1 h-px bg-border" />
+            </div>
+            <div className="grid gap-3 grid-cols-1 lg:grid-cols-2">
+              {phase9Sources.map((src) => (
+                <SourceCard key={src.id} src={src} />
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* ── Phase 8 — Extended Sources ───────────────────────────────────── */}
         <section>
