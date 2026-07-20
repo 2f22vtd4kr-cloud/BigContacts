@@ -672,8 +672,9 @@ export default function FieldManual() {
 
             <p className="text-sm text-[#94A3B8] leading-relaxed mb-5">
               Data Sources is the control panel for every pipeline that feeds ApexFinder. Ingestors pull
-              bulk datasets from public registries. Enrichers query external APIs against entities already in
-              your database to add contact data, relationship edges, and asset detail.
+              bulk datasets from public registries. Enrichers run against entities already in your database
+              to add contact data, relationship edges, and asset detail — all using free public sources,
+              no paid APIs required.
             </p>
 
             <AnnotatedScreenshot
@@ -684,7 +685,7 @@ export default function FieldManual() {
                 { n: 1, x: 30,  y: 11, color: "#14B8A6", label: "Page header — '9 live sources · 1 coming soon' shows how many pipelines are active" },
                 { n: 2, x: 93,  y: 11, color: "#10B981", label: "Registries online indicator — green pulse = all registry endpoints reachable" },
                 { n: 3, x: 35,  y: 25, color: "#3B82F6", label: "32,300 entities — total records currently in the database" },
-                { n: 4, x: 60,  y: 25, color: "#EF4444", label: "0 contactable — entities with verified email or phone (run CH Contact Enricher or Hunter/Apollo to increase)" },
+                { n: 4, x: 60,  y: 25, color: "#EF4444", label: "0 contactable — entities with verified email or phone (run IN-HOUSE ENRICH or WEB OSINT ENRICH to increase)" },
                 { n: 5, x: 85,  y: 25, color: "#F59E0B", label: "0% coverage — percentage of entities with any contact data; your enrichment target" },
                 { n: 6, x: 94,  y: 41, color: "#A855F7", label: "Quick-action buttons — AUTO-DETECT, NAME CLUSTERS, CH OFFICERS, etc. Each fires a background job" },
                 { n: 7, x: 45,  y: 96, color: "#10B981", label: "Phase 9 — In-House OSINT Enricher: Wikidata + Gravatar + GitHub + pattern generation (no paid API required)" },
@@ -724,7 +725,8 @@ export default function FieldManual() {
                 { label: "POPULATE NOTES",   color: "#06B6D4", desc: "Enriches entity notes from filing metadata: filing type, company, role, CH directors, and location — improves Intel Terminal briefings." },
                 { label: "EDGAR STOCK ASSETS",color: "#EF4444",desc: "Creates StockHolding asset records for SEC EDGAR large-shareholder entities that don't yet have assets." },
                 { label: "BACKFILL NET WORTH",color: "#EC4899", desc: "Sets estimatedNetWorth = 3× registered asset value for all entities where net worth is unset." },
-                { label: "WEB OSINT ENRICH", color: "#8B5CF6", desc: "Runs DuckDuckGo + EDGAR + OpenCorporates search for all 5 hybrid architecture layers. Adds LinkedIn URL, email, and phone where found." },
+                { label: "WEB OSINT ENRICH",   color: "#8B5CF6", desc: "Runs DuckDuckGo + EDGAR + OpenCorporates search across all entity layers. Adds LinkedIn URL, email, and phone where found. Run this first." },
+                { label: "IN-HOUSE ENRICH",    color: "#10B981", desc: "Seven-source in-house OSINT pipeline: Wikidata SPARQL, Wikipedia, GitHub API, email pattern generation verified by Gravatar MD5 hash, company domain resolver with DNS MX validation, RDAP registrant lookup, and ProPublica 990 nonprofit filings. No paid API required. Run after WEB OSINT ENRICH for maximum coverage." },
               ].map((a) => (
                 <div key={a.label} className="flex gap-3 items-start p-3 rounded-lg border border-[#1E293B] bg-[#0B0F19]">
                   <span className="text-[10px] font-black font-mono px-2 py-0.5 rounded shrink-0 mt-0.5"
@@ -734,15 +736,41 @@ export default function FieldManual() {
               ))}
             </div>
 
-            <Callout icon={<Mail size={14} />} color="#10B981" title="Phase 9 — In-House OSINT Engine (no paid API)">
-              The Phase 9 In-House Enricher is fully self-contained — no Hunter.io, no Apollo, no paid plans.
-              It runs 6 free sources in sequence: <strong className="text-[#E2E8F0]">Wikidata SPARQL</strong> for public figures,{" "}
-              <strong className="text-[#E2E8F0]">GitHub API</strong> for founders and tech execs,{" "}
-              <strong className="text-[#E2E8F0]">email pattern generation</strong> (first.last / flast / f.last)
-              verified by <strong className="text-[#E2E8F0]">Gravatar MD5 hash</strong>,{" "}
-              <strong className="text-[#E2E8F0]">domain resolution</strong> with DNS MX validation, and{" "}
-              <strong className="text-[#E2E8F0]">RDAP registrant lookup</strong> for corporate domains.
-              Click <Code>IN-HOUSE ENRICH</Code> in Data Sources to run it.
+            <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-widest mb-4">In-House OSINT Engine — source breakdown</h3>
+            <p className="text-sm text-[#94A3B8] leading-relaxed mb-4">
+              The engine runs 7 free sources in priority order, stopping early on a high-confidence hit.
+              Each source writes its provenance into the entity's metadata alongside the email confidence score.
+            </p>
+            <div className="space-y-2 mb-5">
+              {([
+                { n: "1", label: "Wikidata SPARQL", color: "#F59E0B", conf: 85, scope: "All", desc: "Queries the Wikidata knowledge graph by person name. Returns email (P968), website (P856), and LinkedIn URL (P6634) when structured data exists. Best coverage for public figures — politicians, executives, Forbes-listed individuals." },
+                { n: "2", label: "Wikipedia API", color: "#94A3B8", conf: 40, scope: "All", desc: "Fetches the article summary for the entity name and scans the plain-text extract for email addresses and LinkedIn URLs. Useful for CEOs and fund managers who have Wikipedia articles." },
+                { n: "3", label: "GitHub API", color: "#6366F1", conf: 75, scope: "HNWI · Gatekeeper", desc: "Searches GitHub users by full name (60 req/hr, no auth key required). Founders, CTOs, and tech-sector HNWIs frequently expose their work email and personal site in their public profile." },
+                { n: "4", label: "ProPublica 990", color: "#EC4899", conf: 50, scope: "Corporation · Trust", desc: "Searches ProPublica's Nonprofit Explorer for the company name, retrieves the website from IRS 990 filings, and scrapes the contact page for a staff email. Covers US nonprofits, foundations, and charitable trusts." },
+                { n: "5", label: "Email Pattern + Gravatar MD5", color: "#10B981", conf: 90, scope: "HNWI · Gatekeeper", desc: "Generates the 9 most common corporate email patterns (first.last, flast, f.last, firstl…) for the entity's domain, then verifies each by checking the Gravatar avatar endpoint: gravatar.com/avatar/{md5(email)}?d=404. A 200 response means the email is registered and real. This is the highest-confidence signal short of direct confirmation." },
+                { n: "6", label: "Domain Resolver + DNS MX", color: "#3B82F6", conf: 55, scope: "All", desc: "Strips legal suffixes (Inc / LLC / Ltd / Holdings…), lowercases the remainder, and tries .com, .co, .io, .org variants. Validates each candidate with a real DNS MX record lookup — if no mail server exists, the domain is discarded. Provides the domain for step 5 when it isn't already in the entity metadata." },
+                { n: "7", label: "RDAP Domain Contact", color: "#F97316", conf: 50, scope: "Corporation · Trust", desc: "Queries the ICANN RDAP bootstrap to find the correct registrar endpoint, then fetches the domain registration record and extracts the registrant email from the vCard. Excludes abuse@ and privacy@ addresses. Often the only contact vector for holding companies and shell corps." },
+              ] as Array<{n:string;label:string;color:string;conf:number;scope:string;desc:string}>).map((s) => (
+                <div key={s.n} className="flex gap-3 items-start p-3 rounded-lg border border-[#1E293B] bg-[#0B0F19]">
+                  <span className="text-[10px] font-black font-mono w-4 shrink-0 mt-0.5" style={{ color: s.color }}>{s.n}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                      <span className="text-[10px] font-black font-mono" style={{ color: s.color }}>{s.label}</span>
+                      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded" style={{ color: s.color, backgroundColor: s.color + "20", border: `1px solid ${s.color}40` }}>conf≥{s.conf}</span>
+                      <span className="text-[9px] font-mono text-[#475569] px-1.5 py-0.5 rounded border border-[#1E293B]">{s.scope}</span>
+                    </div>
+                    <p className="text-xs text-[#64748B] leading-relaxed">{s.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <Callout icon={<Mail size={14} />} color="#10B981" title="Recommended enrichment order">
+              Run <Code>WEB OSINT ENRICH</Code> first — it casts the widest net via DuckDuckGo and EDGAR full-text
+              search. Then run <Code>IN-HOUSE ENRICH</Code> — it picks up what Web OSINT missed using structured
+              Wikidata and Gravatar-verified email patterns. Finally, click <Code>RECOMPUTE</Code> to update all
+              contact confidence scores. Most HNWI and Gatekeeper entities will move from 0 to 40–90 across
+              two passes.
             </Callout>
           </Section>
 
@@ -843,7 +871,7 @@ export default function FieldManual() {
               <ScoreBar name="80–89 — Strong signal, gatekeeper identified, ready for MCTS" score={85} />
               <ScoreBar name="70–79 — Good data, some gaps — run enrichment then MCTS" score={75} />
               <ScoreBar name="60–69 — Moderate data — needs CH Contact Enricher first" score={65} />
-              <ScoreBar name="Below 60 — Sparse data — run Web OSINT Enrich to populate" score={45} />
+              <ScoreBar name="Below 60 — Sparse data — run Web OSINT Enrich → In-House Enrich to populate" score={45} />
             </div>
 
             <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-widest mt-7 mb-4">MCTS — UCT formula explained</h3>
