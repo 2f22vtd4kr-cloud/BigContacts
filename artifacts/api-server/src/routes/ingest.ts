@@ -831,6 +831,83 @@ router.delete("/ingest/web-osint-lock", async (_req: Request, res: Response): Pr
   res.json({ cleared: true, jobId, message: "Web-OSINT lock cleared. You can now restart the enrichment." });
 });
 
+// ── POST /ingest/recompute-contact-confidence — recompute contactConfidence for all entities ──
+// Entities ingested before the confidence scorer existed have contactConfidence = 0 even when
+// they have addresses, emails, or phones. This endpoint fixes all stale rows.
+router.post("/ingest/recompute-contact-confidence", async (_req: Request, res: Response): Promise<void> => {
+  const entities = await db
+    .select({
+      id: entitiesTable.id,
+      email: entitiesTable.email,
+      phone: entitiesTable.phone,
+      linkedinUrl: entitiesTable.linkedinUrl,
+      knownResidences: entitiesTable.knownResidences,
+      contactConfidence: entitiesTable.contactConfidence,
+    })
+    .from(entitiesTable);
+
+  let updated = 0;
+  let skipped = 0;
+  const BATCH = 1000;
+
+  for (let i = 0; i < entities.length; i += BATCH) {
+    const batch = entities.slice(i, i + BATCH);
+    for (const e of batch) {
+      const confidence = computeContactConfidence({
+        email: e.email,
+        phone: e.phone,
+        linkedinUrl: e.linkedinUrl,
+        knownResidences: e.knownResidences,
+      });
+      if (confidence === (e.contactConfidence ?? 0)) { skipped++; continue; }
+      await db.update(entitiesTable)
+        .set({ contactConfidence: confidence })
+        .where(eq(entitiesTable.id, e.id));
+      updated++;
+    }
+  }
+
+  res.json({ updated, skipped, total: entities.length, message: `Contact confidence recomputed: ${updated} updated, ${skipped} already correct.` });
+});
+
+// ── POST /ingest/sync-livesource-markers — backfill liveSource:true for FAA/HMLR entities ──
+// The data_integrity_auditor flags entities from live registries that are missing the
+// liveSource provenance marker. This one-time endpoint fixes that across all ingested rows.
+router.post("/ingest/sync-livesource-markers", async (_req: Request, res: Response): Promise<void> => {
+  const LIVE_REGISTRY_PATTERNS = [
+    "faa", "land registry", "hmlr", "sec edgar", "companies house", "brreg"
+  ];
+
+  const entities = await db
+    .select({ id: entitiesTable.id, sourceRegistries: entitiesTable.sourceRegistries, metadata: entitiesTable.metadata })
+    .from(entitiesTable);
+
+  let updated = 0;
+  let skipped = 0;
+  const BATCH = 500;
+
+  for (let i = 0; i < entities.length; i += BATCH) {
+    const batch = entities.slice(i, i + BATCH);
+    for (const e of batch) {
+      const sources: string[] = (() => { try { return JSON.parse(e.sourceRegistries ?? "[]"); } catch { return []; } })();
+      const meta: Record<string, unknown> = (() => { try { return JSON.parse(e.metadata ?? "{}"); } catch { return {}; } })();
+
+      const isLive = sources.some(s => LIVE_REGISTRY_PATTERNS.some(p => s.toLowerCase().includes(p)))
+        || !!meta.source || !!meta.nNumber || !!meta.formType || !!meta.orgnr || !!meta.titleNumber;
+
+      if (!isLive || meta.liveSource === true) { skipped++; continue; }
+
+      meta.liveSource = true;
+      await db.update(entitiesTable)
+        .set({ metadata: JSON.stringify(meta) })
+        .where(eq(entitiesTable.id, e.id));
+      updated++;
+    }
+  }
+
+  res.json({ updated, skipped, total: entities.length, message: `liveSource marker synced: ${updated} updated, ${skipped} skipped.` });
+});
+
 // ── DELETE /ingest/dedup — clear dedup set ────────────────────────────────────
 router.delete("/ingest/dedup", async (_req, res): Promise<void> => {
   await clearDedup();

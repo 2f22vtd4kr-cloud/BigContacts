@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
-import { eq, desc, sql } from "drizzle-orm";
+import { eq, desc, sql, isNull } from "drizzle-orm";
 import { db, entitiesTable, assetsTable, relationshipsTable, researchSessionsTable } from "@workspace/db";
+import { createJob, updateJob, setActiveJob, getActiveJob } from "../lib/job-queue";
 import {
   RunResearchBody,
   ListResearchSessionsQueryParams,
@@ -569,6 +570,201 @@ router.post("/research/backfill-pitches", async (_req, res): Promise<void> => {
   }
 
   res.json({ updated, errors, message: `Backfilled pitches for ${updated} sessions (${errors} errors).` });
+});
+
+// POST /research/bulk-run — run MCTS on top N hot leads in a single background job
+// Loads the full entity graph ONCE, then processes entities sequentially.
+// This is ~50× faster than calling /research/run N times (avoids repeated full DB scans).
+router.post("/research/bulk-run", async (req, res): Promise<void> => {
+  const existing = await getActiveJob("bulk-mcts");
+  if (existing) {
+    res.status(409).json({ error: "A bulk MCTS run is already in progress.", jobId: existing });
+    return;
+  }
+
+  const batchSize  = Math.min(parseInt((req.body as any)?.batchSize ?? "60", 10), 200);
+  const skipExisting = (req.body as any)?.skipExisting !== false; // default true
+
+  // Find top hot leads that need sessions
+  const existingSessionEntityIds = skipExisting
+    ? (await db.select({ eid: researchSessionsTable.targetEntityId }).from(researchSessionsTable)).map(r => r.eid)
+    : [];
+
+  const candidates = await db
+    .select()
+    .from(entitiesTable)
+    .where(sql`${entitiesTable.isHot} = true`)
+    .orderBy(desc(entitiesTable.bayesianScore))
+    .limit(batchSize * 6); // over-fetch to filter out already-run
+
+  const targets = candidates
+    .filter(e => !existingSessionEntityIds.includes(e.id))
+    .slice(0, batchSize);
+
+  if (targets.length === 0) {
+    res.json({ message: "All hot leads already have research sessions.", jobId: null });
+    return;
+  }
+
+  const jobId = await createJob("bulk-mcts");
+  await setActiveJob("bulk-mcts", jobId);
+
+  res.status(202).json({
+    jobId,
+    pollUrl: `/api/ingest/job/${jobId}`,
+    total: targets.length,
+    message: `Bulk MCTS started for ${targets.length} hot leads.`,
+  });
+
+  // Background processing — load graph ONCE, run all sessions
+  (async () => {
+    let done = 0;
+    let errors = 0;
+
+    try {
+      await updateJob(jobId, { progress: 0, total: targets.length, inserted: 0, message: "Loading graph from database…" });
+
+      // One big load — shared across all sessions
+      const [allEntities, allAssets, allRelationships] = await Promise.all([
+        db.select().from(entitiesTable),
+        db.select().from(assetsTable),
+        db.select().from(relationshipsTable),
+      ]);
+      const graph = buildGraph(allEntities, allAssets, allRelationships);
+
+      for (const targetEntity of targets) {
+        try {
+          await updateJob(jobId, {
+            progress: done,
+            total: targets.length,
+            inserted: done,
+            errors,
+            message: `Running MCTS for ${targetEntity.name} (${done + 1}/${targets.length})…`,
+          });
+
+          // Bayesian score update
+          const entityId = targetEntity.id;
+          const targetAssets = allAssets.filter(a => a.ownerEntityId === entityId);
+          const targetRelationships = allRelationships.filter(r => r.sourceEntityId === entityId);
+          const assetCategories = [...new Set(targetAssets.map(a => a.category))];
+          const totalAssetValue = targetAssets.reduce((s, a) => s + (a.estimatedValue ?? 0), 0);
+          const hasGatekeeperConn = targetRelationships.some(r => {
+            if (r.targetType !== "Entity") return false;
+            const e = allEntities.find(e => e.id === r.targetId);
+            return e?.type === "Gatekeeper";
+          });
+          const hasKnownInvestorConn = targetRelationships.some(r => {
+            if (r.targetType !== "Entity") return false;
+            const e = allEntities.find(e => e.id === r.targetId);
+            return e?.type === "HNWI" && (e.bayesianScore ?? 0) > 0.6;
+          });
+
+          const updatedScore = computeBayesianScore(targetEntity.bayesianScore ?? 0.05, {
+            entityType: targetEntity.type,
+            assetCount: targetAssets.length,
+            assetCategories,
+            totalAssetValue,
+            hasRecentActivity: false,
+            recentActivityDays: 999,
+            networkDegree: targetRelationships.length,
+            hasGatekeeperConnection: hasGatekeeperConn,
+            hasKnownInvestorConnection: hasKnownInvestorConn,
+            hasShellCompany: false,
+            hasAviationAsset: assetCategories.includes("Aviation"),
+            hasMarineAsset: assetCategories.includes("Marine"),
+            hasClubMembership: assetCategories.includes("PrivateClub"),
+            hasLuxuryRealEstate: assetCategories.includes("RealEstate") && totalAssetValue > 1_000_000,
+            jurisdictionCount: new Set(targetAssets.map(a => a.jurisdiction)).size,
+            contactConfidence: targetEntity.contactConfidence ?? 0,
+          });
+
+          await db.update(entitiesTable)
+            .set({ bayesianScore: updatedScore, updatedAt: new Date() })
+            .where(eq(entitiesTable.id, entityId));
+
+          // BFS + MCTS using shared graph
+          const targetVertexId = `e:${entityId}`;
+          const gatekeeperVertices = allEntities.filter(e => e.type === "Gatekeeper").map(e => `e:${e.id}`);
+          let bestBfsPath: string[] | null = null;
+          for (const gkId of gatekeeperVertices) {
+            const r = findShortestPath(graph, gkId, targetVertexId);
+            if (r && (!bestBfsPath || r.path.length < bestBfsPath.length)) bestBfsPath = r.path;
+          }
+          const mctsResult = runMcts(graph, targetVertexId, bestBfsPath, 3);
+
+          // Lightweight Critic note (no full orchestrate() to keep bulk fast)
+          const pathNodes = mctsResult.winningPath.length;
+          const hasGatekeeper = mctsResult.winningPath.some(p => p.role === "GATEKEEPER");
+          const critiqueNote = pathNodes > 1 && hasGatekeeper
+            ? `Bulk run — Path validated: ${pathNodes} nodes, gatekeeper confirmed. Score: ${(mctsResult.pathScore * 100).toFixed(0)}/100.`
+            : pathNodes > 1
+              ? `Bulk run — ${pathNodes}-hop path found, no confirmed gatekeeper. Score: ${(mctsResult.pathScore * 100).toFixed(0)}/100.`
+              : `Bulk run — Isolated entity. 0 edges. Score: ${(mctsResult.pathScore * 100).toFixed(0)}/100. Run CH enrichment to build graph.`;
+
+          // Pitch generation
+          const gatekeeper = mctsResult.winningPath.find(p => p.role === "GATEKEEPER") ?? null;
+          let pitchText = "";
+          try {
+            const outreach = generateOutreachSequence({
+              targetEntity: {
+                name: targetEntity.name, type: targetEntity.type,
+                nationality: targetEntity.nationality, estimatedNetWorth: targetEntity.estimatedNetWorth,
+                knownResidences: targetEntity.knownResidences, notes: targetEntity.notes,
+                contactEmail: targetEntity.email, contactPhone: targetEntity.phone,
+              },
+              gatekeeper,
+              assets: targetAssets.map(a => ({
+                category: a.category, identifier: a.identifier, jurisdiction: a.jurisdiction,
+                estimatedValue: a.estimatedValue, address: a.address,
+              })),
+              winningPath: mctsResult.winningPath,
+              pathScore: mctsResult.pathScore,
+            });
+            pitchText = [
+              outreach.initial,
+              "---\n**7-day follow-up:**",
+              outreach.followUp,
+              "---\n**Intro script for gatekeeper:**",
+              outreach.introScript,
+            ].join("\n\n");
+          } catch {
+            pitchText = `[Bulk MCTS pitch — ${targetEntity.name}. Path score: ${(mctsResult.pathScore * 100).toFixed(0)}/100. Run /research/backfill-pitches to regenerate.]`;
+          }
+
+          await db.insert(researchSessionsTable).values({
+            targetEntityId: entityId,
+            winningPath: JSON.stringify(mctsResult.winningPath),
+            mctsSteps: JSON.stringify(mctsResult.mctsSteps),
+            crmStatus: "Pitch Generated",
+            bayesianScoreAtRuntime: updatedScore,
+            pathScore: mctsResult.pathScore,
+            generatedPitch: pitchText,
+            notes: critiqueNote,
+          });
+
+          done++;
+        } catch (err: any) {
+          errors++;
+        }
+      }
+
+      await updateJob(jobId, {
+        progress: targets.length,
+        total: targets.length,
+        inserted: done,
+        errors,
+        status: "done",
+        message: `Bulk MCTS complete — ${done} sessions created, ${errors} errors.`,
+      });
+    } catch (err: any) {
+      await updateJob(jobId, {
+        status: "failed",
+        message: `Bulk MCTS crashed: ${err.message}`,
+      } as any);
+    } finally {
+      await setActiveJob("bulk-mcts", "");
+    }
+  })().catch(() => setActiveJob("bulk-mcts", ""));
 });
 
 export default router;

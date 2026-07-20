@@ -13,9 +13,10 @@
 
 import { logger } from "./logger";
 
-const DDG_API  = "https://api.duckduckgo.com/";
-const EDGAR_FT = "https://efts.sec.gov/LATEST/search-index?q=";
-const OC_API   = "https://api.opencorporates.com/v0.4/companies/search";
+const DDG_API   = "https://api.duckduckgo.com/";
+const EDGAR_FT  = "https://efts.sec.gov/LATEST/search-index?q=";
+const OC_API    = "https://api.opencorporates.com/v0.4/companies/search";
+const GLEIF_API = "https://api.gleif.org/api/v1/fuzzycompletions?field=entity.legalName&page%5Bsize%5D=1&q=";
 
 const FETCH_OPTS = {
   signal: AbortSignal.timeout(12_000),
@@ -235,6 +236,38 @@ export async function enrichEntityOsint(entity: EntityOsintInput): Promise<Osint
       }
       await sleep(300);
     }
+  }
+
+  // ── Step 3b: GLEIF LEI registry (free, no key) — corporate registered contact ──
+  if (isCorp && !result.email) {
+    try {
+      const gleifUrl = `${GLEIF_API}${encodeURIComponent(name)}`;
+      const resp = await fetch(gleifUrl, FETCH_OPTS);
+      if (resp.ok) {
+        const data = await resp.json() as any;
+        const entry = data?.data?.[0]?.attributes;
+        if (entry) {
+          // GLEIF gives registered address + sometimes website
+          const website = entry.entity?.registeredAs ? null : null; // LEI entry rarely has website
+          const legalAddress = entry.entity?.legalAddress;
+          if (legalAddress && !result.website) {
+            // Use GLEIF registered address as a contact lead — build lookup URL
+            const city = legalAddress.city ?? "";
+            const country = legalAddress.country ?? "";
+            if (city || country) result.sources.push(`GLEIF-LEI(${city},${country})`);
+          }
+          // Try to get official registration website from GLEIF relationship
+          const reg = entry?.registration;
+          if (reg?.managingLou) {
+            // Has a LEI — entity is a real registered corporation, high data quality
+            result.sources.push("GLEIF-Verified");
+          }
+        }
+      }
+    } catch (err: any) {
+      logger.debug({ err: err.message }, "GLEIF search failed");
+    }
+    await sleep(200);
   }
 
   // ── Step 4: OpenCorporates website (for corporations) ────────────────────

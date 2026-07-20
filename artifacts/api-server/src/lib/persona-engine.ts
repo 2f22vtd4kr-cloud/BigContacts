@@ -93,20 +93,41 @@ async function runDataEngineer(entity: Entity): Promise<ImprovementSuggestion[]>
   const suggestions: ImprovementSuggestion[] = [];
   const sources: string[] = parseJsonSafe(entity.sourceRegistries, []);
 
-  if (!entity.phone && !entity.email && !entity.linkedinUrl) {
-    suggestions.push({
-      entityId: entity.id,
-      persona: "data_engineer",
-      category: "data_quality",
-      priority: "high",
-      title: "No direct contact vectors found",
-      description:
-        "Entity has no phone, email, or LinkedIn on record. Proximity-to-body score is critically low. " +
-        "Suggested sources: SEC DEF 14A director filings, UK Companies House officer submissions, " +
-        "yacht club membership records, aviation FBO logs.",
-      actionTaken: "Flagged for enrichment from SEC, Companies House, and club registers.",
-    });
-  } else if (!entity.phone) {
+  const hasPhysicalAddress = !!(entity.knownResidences && entity.knownResidences.length > 2 && entity.knownResidences !== "[]");
+  // Contact-vector flags only apply to HNWI and Gatekeeper — individual direct outreach targets.
+  // Corporation/Trust entities are reached via their officers/directors (a separate enrichment path).
+  const isDirectTarget = entity.type === "HNWI" || entity.type === "Gatekeeper";
+
+  if (isDirectTarget) {
+    if (!entity.phone && !entity.email && !entity.linkedinUrl && !hasPhysicalAddress) {
+      // Truly contactless — no digital OR physical vector at all
+      suggestions.push({
+        entityId: entity.id,
+        persona: "data_engineer",
+        category: "data_quality",
+        priority: "high",
+        title: "No contact vectors whatsoever — physical or digital",
+        description:
+          "Entity has no phone, email, LinkedIn, or known physical address on record. Proximity-to-body score is critically low. " +
+          "Suggested sources: SEC DEF 14A director filings, UK Companies House officer submissions, " +
+          "yacht club membership records, aviation FBO logs.",
+        actionTaken: "Flagged for enrichment from SEC, Companies House, and club registers.",
+      });
+    } else if (!entity.phone && !entity.email && !entity.linkedinUrl && hasPhysicalAddress) {
+      // Has physical address — usable via physical mail / skip tracing
+      suggestions.push({
+        entityId: entity.id,
+        persona: "data_engineer",
+        category: "data_quality",
+        priority: "medium",
+        title: "Digital contact vectors missing — physical address only",
+        description:
+          "Entity has a known physical address but no email, phone, or LinkedIn on record. " +
+          "Physical mail and skip-tracing services can reach this entity, but a digital channel would " +
+          "significantly increase outreach velocity. Run Companies House officer lookup or web OSINT to find digital vectors.",
+        actionTaken: "Physical-address-only flag: email/phone enrichment queued at medium priority.",
+      });
+    } else if (!entity.phone) {
     suggestions.push({
       entityId: entity.id,
       persona: "data_engineer",
@@ -1200,7 +1221,12 @@ async function runHybridArchitectureAuditor(entity: Entity): Promise<Improvement
     });
   }
 
-  if (entity.contactConfidence === 0 && score >= 0.65 && sessions.length >= 2) {
+  const hasAnyContactVector = !!(
+    entity.email || entity.phone || entity.linkedinUrl ||
+    (entity.knownResidences && entity.knownResidences.length > 2 && entity.knownResidences !== "[]")
+  );
+  // Only fire HIGH if truly contactless (no address either) AND high-value with sessions
+  if (entity.contactConfidence === 0 && !hasAnyContactVector && score >= 0.65 && sessions.length >= 2) {
     suggestions.push({
       entityId: entity.id,
       persona: "hybrid_architecture_auditor",
@@ -1208,15 +1234,27 @@ async function runHybridArchitectureAuditor(entity: Entity): Promise<Improvement
       priority: "high",
       title: "L5 UCB cannot exploit contact signal — zero contact confidence on high-value target",
       description:
-        `Bayesian score ${score.toFixed(3)}, ${sessions.length} research sessions, but contactConfidence = 0. ` +
+        `Bayesian score ${score.toFixed(3)}, ${sessions.length} research sessions, but contactConfidence = 0 ` +
+        "and no physical address on record. " +
         "The L5 UCB layer assigns a +0.15 warmth bonus in the MCTS UCT formula for nodes with contactConfidence ≥ 50 " +
-        "and +0.10 for any known email/phone. With confidence at 0, this entity gets no UCB exploitation bonus — " +
+        "and +0.10 for any known email/phone. With all contact vectors absent, this entity gets no UCB exploitation bonus — " +
         "the tree treats it as a cold target even though the Bayesian score says it is high-value. " +
-        "The UCB formula (Q/N + C√(ln N_parent / N)) over-explores low-confidence nodes instead of " +
-        "exploiting this confirmed high-score target. " +
-        "Fix: run Companies House enrichment (POST /ingest/companies-house-enrich) to populate " +
-        "contactEmail, contactPhone, or knownResidences — any one field raises contactConfidence ≥ 10.",
-      actionTaken: `L5 UCB: contactConfidence 0 on score-${score.toFixed(3)} target. UCB exploitation blocked.`,
+        "Fix: run Companies House enrichment or web OSINT to populate email, phone, or known address — " +
+        "any one field raises contactConfidence ≥ 10 and unlocks the UCB warmth bonus.",
+      actionTaken: `L5 UCB: fully contactless (score ${score.toFixed(3)}, ${sessions.length} sessions). UCB exploitation blocked.`,
+    });
+  } else if (entity.contactConfidence === 0 && hasAnyContactVector && score >= 0.65 && sessions.length >= 2) {
+    suggestions.push({
+      entityId: entity.id,
+      persona: "hybrid_architecture_auditor",
+      category: "scoring",
+      priority: "low",
+      title: "L5 contactConfidence stale — physical address exists but score not recomputed",
+      description:
+        `Bayesian score ${score.toFixed(3)}, ${sessions.length} session(s), physical address present, but contactConfidence = 0. ` +
+        "Run POST /ingest/recompute-contact-confidence to update the column from existing address and contact fields. " +
+        "Once updated, the UCB warmth bonus (≥10 confidence) will flow into MCTS node selection.",
+      actionTaken: "L5 contactConfidence: stale at 0 despite address on record. Recompute queued.",
     });
   }
 
