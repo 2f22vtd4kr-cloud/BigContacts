@@ -28,6 +28,7 @@ import { runLandRegistryIngestion } from "../lib/land-registry-ingestor";
 import { runOpenSkyEnrichment } from "../lib/opensky-ingestor";
 import { runCompaniesHouseEnrichment } from "../lib/companies-house-enricher";
 import { enrichEntityOsint } from "../lib/web-osint-enricher";
+import { enrichWithHunterApollo } from "../lib/hunter-enricher";
 import { computeContactConfidence } from "../lib/contact-confidence";
 import { logger } from "../lib/logger";
 
@@ -960,6 +961,157 @@ router.post("/ingest/backfill-net-worth", async (_req: Request, res: Response): 
 router.delete("/ingest/dedup", async (_req, res): Promise<void> => {
   await clearDedup();
   res.json({ status: "ok", message: "Dedup set cleared. Next ingestion will re-insert all records." });
+});
+
+// ── POST /ingest/hunter-enrich — Hunter.io + Apollo.io email/LinkedIn enrichment
+// Uses HUNTER_API_KEY and/or APOLLO_API_KEY to find verified emails and LinkedIn
+// URLs. Far higher precision than free web OSINT (~40pt contact confidence gain).
+// Accepts: { batchSize?: number, entityType?: "HNWI"|"Gatekeeper", force?: boolean }
+router.post("/ingest/hunter-enrich", async (req: Request, res: Response): Promise<void> => {
+  const hunterKey = process.env["HUNTER_API_KEY"];
+  const apolloKey = process.env["APOLLO_API_KEY"];
+
+  if (!hunterKey && !apolloKey) {
+    res.status(400).json({
+      error: "Neither HUNTER_API_KEY nor APOLLO_API_KEY is set. Add at least one to use this enricher.",
+    });
+    return;
+  }
+
+  const existing = await getActiveJob("hunter-enrich");
+  if (existing) {
+    res.status(409).json({ error: "A Hunter/Apollo enrichment job is already running.", jobId: existing });
+    return;
+  }
+
+  const batchSize  = Math.min(parseInt((req.body as any)?.batchSize  ?? "200", 10), 1000);
+  const entityType = (req.body as any)?.entityType as string | undefined;
+  const force      = Boolean((req.body as any)?.force);
+
+  const conditions: any[] = [];
+  if (!force) conditions.push(sql`${entitiesTable.contactConfidence} < 40`);
+  if (entityType) conditions.push(eq(entitiesTable.type, entityType as any));
+
+  const entities = await db
+    .select({
+      id:       entitiesTable.id,
+      name:     entitiesTable.name,
+      type:     entitiesTable.type,
+      metadata: entitiesTable.metadata,
+    })
+    .from(entitiesTable)
+    .where(conditions.length ? and(...conditions) : undefined)
+    .orderBy(sql`${entitiesTable.bayesianScore} desc`)
+    .limit(batchSize);
+
+  if (entities.length === 0) {
+    res.json({ message: "No entities need enrichment.", jobId: null });
+    return;
+  }
+
+  const jobId = await createJob("hunter-enrich");
+  await setActiveJob("hunter-enrich", jobId);
+
+  const activeKeys = [hunterKey && "Hunter.io", apolloKey && "Apollo.io"].filter(Boolean).join(" + ");
+
+  res.status(202).json({
+    jobId,
+    pollUrl:  `/api/ingest/job/${jobId}`,
+    total:    entities.length,
+    message:  `Hunter/Apollo enrichment started for ${entities.length} entities using ${activeKeys}.`,
+    keys:     activeKeys,
+  });
+
+  // Background enrichment loop
+  (async () => {
+    let enriched = 0;
+    let skipped  = 0;
+    let errors   = 0;
+
+    for (let i = 0; i < entities.length; i++) {
+      const entity = entities[i]!;
+      try {
+        await updateJob(jobId, {
+          progress: i,
+          total:    entities.length,
+          inserted: enriched,
+          skipped,
+          errors,
+          message:  `Enriching ${entity.name}…`,
+        });
+
+        const result = await enrichWithHunterApollo({
+          id:       entity.id,
+          name:     entity.name,
+          type:     entity.type ?? "HNWI",
+          metadata: entity.metadata,
+        });
+
+        if (!result || (!result.email && !result.linkedinUrl && !result.phone)) {
+          skipped++;
+          continue;
+        }
+
+        // Merge with existing contact data to preserve any prior signals
+        const existing = await db
+          .select({ email: entitiesTable.email, phone: entitiesTable.phone, linkedinUrl: entitiesTable.linkedinUrl, knownResidences: entitiesTable.knownResidences })
+          .from(entitiesTable)
+          .where(eq(entitiesTable.id, entity.id))
+          .limit(1);
+
+        const cur = existing[0];
+        const merged = {
+          email:       result.email       ?? cur?.email       ?? null,
+          phone:       result.phone       ?? cur?.phone       ?? null,
+          linkedinUrl: result.linkedinUrl ?? cur?.linkedinUrl ?? null,
+        };
+
+        const confidence = computeContactConfidence({
+          ...merged,
+          knownResidences: cur?.knownResidences,
+        });
+
+        await db.update(entitiesTable)
+          .set({ ...merged, contactConfidence: confidence, updatedAt: new Date() })
+          .where(eq(entitiesTable.id, entity.id));
+
+        enriched++;
+        logger.info({ entityId: entity.id, name: entity.name, confidence, source: result.source }, "Hunter/Apollo enriched");
+      } catch (err: any) {
+        errors++;
+        logger.warn({ entityId: entity.id, err: err.message }, "Hunter/Apollo enrichment failed");
+      }
+
+      // Polite rate limit: Hunter free = 25 req/mo, paid = 500/mo
+      // 300ms gap → ~3 req/s; well within API limits
+      await new Promise(r => setTimeout(r, 300));
+    }
+
+    await updateJob(jobId, {
+      progress: entities.length,
+      total:    entities.length,
+      inserted: enriched,
+      skipped,
+      errors,
+      status:   "done",
+      message:  `Done — ${enriched} entities enriched via ${activeKeys}, ${skipped} no-match, ${errors} errors.`,
+    });
+
+    await setActiveJob("hunter-enrich", "");
+    logger.info({ enriched, skipped, errors }, "Hunter/Apollo enrichment complete");
+  })().catch(err => logger.error({ err: err.message }, "Hunter/Apollo enrichment crashed"));
+});
+
+// ── DELETE /ingest/hunter-enrich-lock — clear ghost Hunter/Apollo lock ────────
+router.delete("/ingest/hunter-enrich-lock", async (_req: Request, res: Response): Promise<void> => {
+  const jobId = await getActiveJob("hunter-enrich");
+  if (!jobId) {
+    res.json({ cleared: false, message: "No active hunter-enrich lock." });
+    return;
+  }
+  await updateJob(jobId, { status: "failed", message: "Process killed (server restart).", finishedAt: new Date().toISOString() } as any);
+  await setActiveJob("hunter-enrich", "");
+  res.json({ cleared: true, jobId });
 });
 
 export default router;

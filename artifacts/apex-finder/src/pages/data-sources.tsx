@@ -4,6 +4,7 @@ import {
   Search, Scale, Network, Activity, CheckCircle2, XCircle,
   Clock, AlertTriangle, Play, RefreshCw, ChevronDown, ChevronUp,
   ExternalLink, Zap, Database, UserCheck, BarChart3, Users, FileText, DollarSign,
+  Mail,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -200,6 +201,24 @@ const SOURCES: SourceDef[] = [
     homepage: "https://www.easa.europa.eu",
     comingSoon: true,
     note: "No standardised bulk download available across European registries yet.",
+  },
+
+  // ── Phase 9: commercial email/LinkedIn enrichment ─────────────────────────
+  {
+    id: "hunter-apollo",
+    label: "Hunter.io + Apollo.io Email Enricher",
+    description:
+      "Finds verified work emails and LinkedIn URLs for HNWI and Gatekeeper entities using commercial enrichment APIs. The single highest-impact enrichment — pushes contact confidence from near-zero to 40–90 per entity.",
+    kind: "enricher",
+    Icon: Mail,
+    color: "#F97316",
+    bg: "rgba(249,115,22,0.1)",
+    phase: 9,
+    homepage: "https://hunter.io",
+    endpoint: "/api/ingest/hunter-enrich",
+    jobType: "hunter-enrich",
+    bodyParams: { batchSize: 200 },
+    note: "Requires HUNTER_API_KEY (hunter.io) and/or APOLLO_API_KEY (apollo.io). Free tiers: Hunter 25 searches/mo · Apollo 50 exports/mo.",
   },
 ];
 
