@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { connectRedis, connectPermanentRedis, disconnectRedis } from "./lib/redis";
+import { coldStartRecovery } from "./lib/startup";
 
 const rawPort = process.env["PORT"];
 
@@ -21,8 +22,11 @@ connectRedis()
   .then(() => logger.info("Redis connection initiated"))
   .catch((e) => logger.warn({ err: e }, "Redis connect error (non-fatal)"));
 
-// Connect permanent Upstash Redis clients (REDIS_URL_1, REDIS_URL_2, …)
+// Connect permanent Upstash Redis clients then run cold-start recovery:
+//   • clears ghost active-job locks left by a killed process
+//   • auto-starts ingestion if the DB is empty
 connectPermanentRedis()
+  .then(() => coldStartRecovery())
   .catch((e) => logger.warn({ err: e }, "Permanent Redis connect error (non-fatal)"));
 
 const server = app.listen(port, (err) => {

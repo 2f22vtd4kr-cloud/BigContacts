@@ -157,9 +157,33 @@ Artifacts were re-registered on 2026-07-20 via the Replit artifact system. Manag
 
 ## Quick-Start Checklist (after any import)
 
-1. `pnpm install`
-2. `pnpm --filter @workspace/db run push`
-3. Start workflows: Redis → API Server → apex-finder web
-4. Verify `DATABASE_URL`, `REDIS_URL`, `SESSION_SECRET` are set
-5. Set `REDIS_URL_1` (Upstash) before running any large ingestion
-6. Run ingestion endpoints (see `replit.md` → Ingestion Endpoints)
+> **Most of this is now automatic.** After import, the only manual step is confirming secrets are set.
+
+1. Confirm Replit Secrets are set: `SESSION_SECRET`, `REDIS_URL_1`, `COMPANIES_HOUSE_API_KEY`
+2. Start workflows: `Redis` → `artifacts/api-server: API Server` → `artifacts/apex-finder: web`
+3. API server startup auto-handles the rest:
+   - Clears ghost active-job locks from any prior killed process
+   - Detects empty DB → auto-starts FAA + Land Registry + Western HNWI ingestion
+   - Upstash dedup persists across imports; FAA will insert 0 if prior session deduped it all
+   - If FAA inserts 0: call `DELETE /api/ingest/dedup` to reset, then `POST /api/ingest/faa`
+
+## Cold-Start Notes (for repeated GitHub imports)
+
+### What persists across imports (lives in Replit, not the repo)
+| What | Where | Notes |
+|---|---|---|
+| `SESSION_SECRET`, `REDIS_URL_1`, `COMPANIES_HOUSE_API_KEY` | Replit Secrets | Set once, survive every import |
+| Upstash dedup set (`apex:dedup:hnwi`) | Upstash Redis | ~153k entries from prior sessions; blocks re-ingestion if not cleared |
+| Upstash job state (`apex:job:*`) | Upstash Redis | Ghost jobs auto-cleared by startup.ts on each boot |
+| PostgreSQL data | Replit DB | Survives imports but `drizzle-kit push` can wipe tables if schema drifts — push is additive for new columns/tables, destructive for removed ones |
+
+### What does NOT persist (lost on each import)
+| What | Notes |
+|---|---|
+| Artifact workflow registration | Re-registered automatically by Replit on import now |
+| In-process ingestion jobs | Killed with old process; startup.ts detects and clears ghost locks |
+| Local Redis cache | Ephemeral; rebuilt automatically on next API call |
+
+### If FAA inserts 0 (all deduped)
+The Upstash dedup set from prior sessions covers all 50k+ FAA records.
+Fix: `curl -X DELETE http://localhost:8080/api/ingest/dedup` then restart API server (auto-ingestion fires again).

@@ -381,15 +381,24 @@ export default function GraphViewer() {
         <div className="flex items-center"><div className="w-2.5 h-2.5 rounded-full bg-muted-foreground mr-1.5 md:mr-2" /> Asset</div>
       </div>
 
+      {/* ── No entities at all (DB empty) ── */}
+      {allEntities !== undefined && allEntities.length === 0 && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center z-20 text-muted-foreground font-mono space-y-3">
+          <Network className="w-12 h-12 opacity-20" />
+          <span className="text-sm tracking-widest uppercase">No entities yet</span>
+          <span className="text-xs opacity-60">Run ingestion from Data Sources to populate the graph</span>
+        </div>
+      )}
+
       {/* ── Loading ── */}
-      {isLoading && (
+      {isLoading && allEntities !== undefined && allEntities.length > 0 && (
         <div className="absolute inset-0 flex items-center justify-center z-0 text-primary font-mono text-sm tracking-widest uppercase animate-pulse">
           Mapping Graph...
         </div>
       )}
 
-      {/* ── Empty state ── */}
-      {!isLoading && gData.nodes.length === 0 && (
+      {/* ── Empty state — entity exists but has no graph connections ── */}
+      {!isLoading && allEntities !== undefined && allEntities.length > 0 && gData.nodes.length === 0 && (
         <div className="absolute inset-0 flex flex-col items-center justify-center z-0 text-muted-foreground font-mono text-sm space-y-2">
           <Network className="w-10 h-10 opacity-20" />
           <span>No graph data for this entity.</span>

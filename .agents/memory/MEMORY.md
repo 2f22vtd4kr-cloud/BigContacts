@@ -12,3 +12,5 @@
 - [Contact Enrichment Phase 1](contact-enrichment-phase1.md) — contactConfidence column (camelCase in Drizzle!), CH officer lookup at 2/s, always recompute even without API key
 - [Phase 4 Responsive Polish](phase4-responsive.md) — 4.1–4.4 were pre-built; 4.5 fixed profile nav, email truncation, graph legend, MCTS terminal wrapping, entity ledger mobile bulk select
 - [Phase 5 Intelligence Hardening](phase5-intelligence.md) — OCCRP/OpenSky endpoints, graph contact rings, Bayesian contact signal, smoke tests (12/12), entity pagination
+- [Dedup key bug](dedup-key-bug.md) — clearDedup() was deleting wrong Upstash key; fix uses `apex:${DEDUP_KEY}` to match batchMarkSeen/preloadDedupPrefix
+- [Cold-start auto-recovery](cold-start-auto-recovery.md) — startup.ts clears ghost jobs + auto-starts ingestion; edge case when DB is partial but dedup stale

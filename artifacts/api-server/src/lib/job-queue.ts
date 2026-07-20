@@ -117,8 +117,14 @@ export async function getDedupCount(): Promise<number> {
 export async function clearDedup(): Promise<void> {
   const rc = getPermanentClient();
   if (!rc) return;
-  await rc.del(DEDUP_KEY);
-  logger.info("Dedup set cleared");
+  // batchMarkSeen and preloadDedupPrefix both use `apex:${DEDUP_KEY}` as the raw key
+  // (because the permanent client adds the "apex:" prefix automatically via permSadd/permScard,
+  //  but those functions were NOT used for the raw writes — so the actual Upstash key is
+  //  "apex:" + DEDUP_KEY = "apex:apex:dedup:hnwi").
+  // We must delete that same raw key, not the un-prefixed DEDUP_KEY.
+  const FULL_KEY = `apex:${DEDUP_KEY}`;
+  await rc.del(FULL_KEY);
+  logger.info({ key: FULL_KEY }, "Dedup set cleared");
 }
 
 /**
@@ -175,4 +181,10 @@ export async function getActiveJob(type: string): Promise<string | null> {
   const rc = getPermanentClient();
   if (!rc) return null;
   return rc.get(`apex:activejob:${type}`);
+}
+
+export async function clearActiveJob(type: string): Promise<void> {
+  const rc = getPermanentClient();
+  if (!rc) return;
+  await rc.del(`apex:activejob:${type}`);
 }

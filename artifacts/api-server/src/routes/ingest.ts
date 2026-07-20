@@ -31,10 +31,14 @@ import { logger } from "../lib/logger";
 const router: IRouter = Router();
 
 // ── Public: Live registry search ──────────────────────────────────────────────
+// Accepts either:
+//   { query, registry: "gleif" }          — single registry (legacy)
+//   { query, sources: ["gleif","edgar"] } — multiple registries, errors isolated per-source
 router.post("/registry-search", async (req: Request, res: Response): Promise<void> => {
-  const { query, registry = "opencorporates", limit = 10 } = req.body as {
+  const { query, registry, sources, limit = 10 } = req.body as {
     query?: string;
     registry?: string;
+    sources?: string[];
     limit?: number;
   };
 
@@ -42,31 +46,53 @@ router.post("/registry-search", async (req: Request, res: Response): Promise<voi
     res.status(400).json({ error: "query is required and must be a non-empty string." });
     return;
   }
-  const validRegistries = ["opencorporates", "companies-house", "sec-edgar", "gleif"];
-  if (!validRegistries.includes(registry)) {
-    res.status(400).json({ error: `registry must be one of: ${validRegistries.join(", ")}.` });
+
+  const validRegistries = ["opencorporates", "companies-house", "sec-edgar", "gleif"] as const;
+  type ValidRegistry = typeof validRegistries[number];
+
+  // Normalise: prefer `sources` array; fall back to single `registry`; default to opencorporates
+  const requested: ValidRegistry[] = (
+    sources?.length ? sources : registry ? [registry] : ["opencorporates"]
+  ).filter((s): s is ValidRegistry => (validRegistries as readonly string[]).includes(s));
+
+  if (requested.length === 0) {
+    res.status(400).json({ error: `sources must contain at least one of: ${validRegistries.join(", ")}.` });
     return;
   }
 
   const normalizedLimit = Math.min(Number(limit) || 10, 20);
-  const cacheKey = `registry:${registry}:${query.trim().toLowerCase()}:${normalizedLimit}`;
-  const cached = await getCache<unknown[]>(cacheKey);
-  if (cached) {
-    res.json({ results: cached, message: `${cached.length} results from ${registry}.`, cached: true });
+  const q = query.trim();
+
+  // Query each source independently — one failure must NOT kill the rest
+  const allResults: unknown[] = [];
+  const sourceErrors: Record<string, string> = {};
+
+  await Promise.all(requested.map(async (reg) => {
+    const cacheKey = `registry:${reg}:${q.toLowerCase()}:${normalizedLimit}`;
+    const cached = await getCache<unknown[]>(cacheKey);
+    if (cached) { allResults.push(...cached); return; }
+    try {
+      const results = await searchRegistry({ query: q, registry: reg, limit: normalizedLimit });
+      await setCache(cacheKey, results, 3_600);
+      allResults.push(...results);
+    } catch (err: any) {
+      sourceErrors[reg] = err?.message ?? "Unknown error";
+      logger.warn({ reg, err: err?.message }, "Registry source error (non-fatal)");
+    }
+  }));
+
+  // Only fail the whole request if EVERY requested source errored and we got nothing
+  if (allResults.length === 0 && Object.keys(sourceErrors).length === requested.length) {
+    const firstMsg = Object.values(sourceErrors)[0];
+    res.status(500).json({ error: firstMsg, sourceErrors });
     return;
   }
 
-  try {
-    const results = await searchRegistry({
-      query: query.trim(),
-      registry: registry as "opencorporates" | "companies-house" | "sec-edgar" | "gleif",
-      limit: normalizedLimit,
-    });
-    await setCache(cacheKey, results, 3_600);
-    res.json({ results, message: `${results.length} results from ${registry}.`, cached: false });
-  } catch (err: any) {
-    res.status(err?.message?.includes("API_KEY") ? 422 : 500).json({ error: err?.message ?? "Registry search failed." });
-  }
+  res.json({
+    results: allResults,
+    message: `${allResults.length} result(s) from ${requested.join(", ")}.`,
+    ...(Object.keys(sourceErrors).length ? { sourceErrors } : {}),
+  });
 });
 
 // ── POST /ingest/western-hnwi — SEC EDGAR, Companies House, BRREG ─────────────
