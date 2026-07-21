@@ -8,7 +8,7 @@
 
 ---
 
-## Current State (2026-07-21 — re-import #22) — Fully operational
+## Current State (2026-07-21 — re-import #23) — Fully operational
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically
@@ -21,19 +21,16 @@
 | Workflow | Status |
 |---|---|
 | Redis | ✅ Running |
-| `API Server` (manual) | ✅ Running (port 8080) |
-| `Web Frontend` (manual) | ✅ Running (port 23695) |
-| `artifacts/api-server: API Server` | ⏸ Not started (manual workflow owns port 8080) |
-| `artifacts/apex-finder: web` | ⏸ Not started (manual workflow owns port 23695) |
+| `API Server` | ✅ Running (port 8080) |
+| `Web Frontend` | ✅ Running (port 23695) |
 | `artifacts/apex-mobile: expo` | ⏸ Optional — not needed |
-| `artifacts/mockup-sandbox: Component Preview Server` | ⏸ Optional — not needed |
+| `artifacts/mockup-sandbox` | ⏸ Optional — not needed |
 
-> **Import #22 note:** pnpm install ran fresh. DB schema pushed (additive). Manual workflows (API Server, Web Frontend) are active. All 4 artifacts re-registered via verifyAndReplaceArtifactToml (apex-finder) — platform auto-detected the others. Auto-ingestion kicked off on empty DB — FAA (30,000) + LR (2,000) complete; Western HNWI running in background. REDIS_URL_1 and COMPANIES_HOUSE_API_KEY not set.
-> **Port conflict fix (if needed):** kill -9 $(lsof -ti:8080 -ti:23695) then restart artifact-managed workflows to switch ownership.
+> **Import #23 note:** pnpm install ran fresh (~16s). DB schema pushed (additive, no changes). Redis + API Server + Web Frontend workflows started. Cold-start auto-recovery detected empty DB → FAA (30,000) + HMLR (2,000) auto-ingested; Western HNWI background job started. REDIS_URL_1 and COMPANIES_HOUSE_API_KEY not set.
+> **Port conflict fix (if needed):** kill -9 $(lsof -ti:8080 -ti:23695) then restart workflows.
 
-### Database (2026-07-21 — re-import #22, post-auto-ingestion)
-- **Entities**: 32,000 · **Assets**: 32,000 · **Relationships**: 0 (relationship edges built by startup triggers after populate)
-- **Hot leads**: 7,454 synced by startup maintenance
+### Database (2026-07-21 — re-import #23, post-auto-ingestion)
+- **Entities**: 32,000+ · **Assets**: 32,000+ · **Relationships**: 0 (built by startup triggers after full populate)
 - Auto-ingestion: FAA ✅ 30,000 · HMLR ✅ 2,000 · Western HNWI 🔄 running in background
 
 ### What was done this session (re-import #22, session 2 — 2026-07-21)
