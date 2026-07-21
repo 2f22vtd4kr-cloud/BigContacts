@@ -500,7 +500,7 @@ export default function ApexProfile() {
           <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
             <div className="flex flex-col items-center gap-0.5">
               <ScoreBadge score={entity.bayesianScore} />
-              <span className="text-[8px] font-mono text-muted-foreground/50 uppercase tracking-widest">Signal</span>
+              <span className="text-[8px] font-mono text-muted-foreground/50 uppercase tracking-widest">HNWI Signal</span>
             </div>
             <div className="flex items-center gap-1.5">
               <Link
@@ -540,7 +540,9 @@ export default function ApexProfile() {
       {(() => {
         const e = entity as any;
         const hasContact = !!(e.email || e.phone || e.linkedinUrl);
-        const conf =
+        // Use DB contactConfidence if available (set by in-house enricher), else compute from presence
+        const dbConf = typeof (e as any).contactConfidence === "number" ? (e as any).contactConfidence : null;
+        const conf = dbConf !== null ? dbConf :
           (e.email    ? 40 : 0) +
           (e.phone    ? 30 : 0) +
           (e.linkedinUrl ? 20 : 0) +
@@ -554,9 +556,12 @@ export default function ApexProfile() {
             <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
               <div className="flex items-center gap-2 min-w-0 flex-wrap">
                 <span className="text-[9px] font-mono font-bold text-primary uppercase tracking-widest whitespace-nowrap">Direct Contact Vectors</span>
-                <span className={cn("text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border whitespace-nowrap", confCls)}>
-                  {conf}% confidence
-                </span>
+                {hasContact && (
+                  <span className={cn("text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border whitespace-nowrap", confCls)}
+                    title="How complete / verified the contact data is — separate from HNWI Signal score">
+                    {conf}% contact data
+                  </span>
+                )}
               </div>
               <button
                 onClick={handleEnrich}

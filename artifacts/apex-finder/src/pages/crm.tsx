@@ -573,7 +573,7 @@ export default function PipelineCRM() {
 
             <div>
               <h4 className="text-xs font-mono text-muted-foreground uppercase tracking-wider mb-3 border-b border-border pb-1 flex justify-between items-center">
-                <span>Outreach Sequence</span>
+                <span>Outreach Template</span>
                 {!selectedSession.generatedPitch && (
                   <button
                     onClick={() => handleGeneratePitch(selectedSession.id)}
@@ -586,10 +586,15 @@ export default function PipelineCRM() {
               </h4>
 
               {selectedSession.generatedPitch ? (
-                <PitchSequenceDisplay pitch={selectedSession.generatedPitch} />
+                <>
+                  <div className="mb-2 px-3 py-2 rounded border border-amber-500/20 bg-amber-500/5 text-[10px] font-mono text-amber-400/80 leading-relaxed">
+                    ⚠ Structural template only — rewrite with your specific purpose, relationship angle, and tone before sending.
+                  </div>
+                  <PitchSequenceDisplay pitch={selectedSession.generatedPitch} />
+                </>
               ) : (
                 <div className="text-sm text-muted-foreground italic bg-muted/30 p-4 rounded border border-border border-dashed text-center text-xs font-mono">
-                  Generate outreach sequence to synthesize Initial → Follow-Up → Intro Script
+                  Generate a structural outreach template — then customise with your specific purpose before use
                 </div>
               )}
             </div>

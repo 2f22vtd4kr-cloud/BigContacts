@@ -20,8 +20,8 @@ interface APin { n: number; x: number; y: number; color?: string; label: string 
 function Pin({ n, color }: { n: number; color: string }) {
   return (
     <div
-      className="w-6 h-6 rounded-full border-2 border-white/70 flex items-center justify-center text-[10px] font-black select-none"
-      style={{ backgroundColor: color, color: "#000", boxShadow: `0 0 0 3px ${color}50, 0 3px 10px rgba(0,0,0,0.9)` }}
+      className="w-4 h-4 rounded-full border border-white/60 flex items-center justify-center text-[8px] font-black select-none"
+      style={{ backgroundColor: color, color: "#000", boxShadow: `0 0 0 1.5px ${color}50, 0 2px 6px rgba(0,0,0,0.9)` }}
     >
       {n}
     </div>
@@ -49,7 +49,7 @@ function AnnotatedScreenshot({ src, alt, pins, caption }: { src: string; alt: st
       <div className="p-4 border-t border-[#1E293B] grid grid-cols-1 md:grid-cols-2 gap-2 bg-[#0B0F19]">
         {pins.map((p) => (
           <div key={p.n} className="flex items-start gap-2.5">
-            <div className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5" style={{ backgroundColor: p.color ?? def, color: "#000" }}>{p.n}</div>
+            <div className="w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-black shrink-0 mt-0.5" style={{ backgroundColor: p.color ?? def, color: "#000" }}>{p.n}</div>
             <span className="text-xs text-[#94A3B8] leading-snug">{p.label}</span>
           </div>
         ))}
@@ -270,7 +270,7 @@ export default function FieldManual() {
                 { n: "01", icon: <Database size={13} />, color: "#10B981", label: "Entity Ledger",   hint: "Your roster of targets" },
                 { n: "02", icon: <Search size={13} />,   color: "#06B6D4", label: "Deep Search",     hint: "Find by natural language" },
                 { n: "03", icon: <Network size={13} />,  color: "#F59E0B", label: "Network Graph",   hint: "Map connections & assets" },
-                { n: "04", icon: <Terminal size={13} />, color: "#EF4444", label: "Intel Terminal",  hint: "Simulate warm path" },
+                { n: "04", icon: <Terminal size={13} />, color: "#EF4444", label: "Intel Terminal",  hint: "Find warm path" },
                 { n: "05", icon: <KanbanSquare size={13} />, color: "#8B5CF6", label: "Pipeline CRM", hint: "Track & execute outreach" },
               ].map((step, i) => (
                 <div key={step.n} className={`flex flex-row md:flex-col items-center md:text-center gap-3 md:gap-2 p-4${i < 4 ? " border-b md:border-b-0 md:border-r border-[#1E293B]" : ""}`}>
@@ -496,7 +496,7 @@ export default function FieldManual() {
               { title: "Select your target", body: "Use the dropdown at the top. The entire graph re-renders around that individual. Larger nodes = higher Bayesian score = more data found." },
               { title: "Spot the Gatekeepers", body: "Amber nodes are inner-circle members: private bankers, family office managers, art dealers. They sit between you and the target — they are your real first objective." },
               { title: "Find your closest gatekeeper", body: "Look for gatekeepers also connected to entities or people you already know. That shared connection is your warm introduction angle." },
-              { title: "Don't guess — simulate", body: "Once you've visually scanned the graph, open the Intel Terminal to run a full Hybrid Research simulation. Human intuition and the algorithm together beat either one alone." },
+              { title: "Don't guess — map it", body: "Once you've visually scanned the graph, open the Intel Terminal to run a full Hybrid Research path analysis. Human intuition and the algorithm together beat either one alone." },
             ]} />
           </Section>
 
@@ -519,7 +519,7 @@ export default function FieldManual() {
                 { n: 3, x: 21,  y: 26, color: "#06B6D4", label: "Filter targets — search the target list by name to find a specific entity quickly" },
                 { n: 4, x: 42,  y: 33, color: "#10B981", label: "Signal score badge — shown next to each target (94 = high Bayesian confidence)" },
                 { n: 5, x: 21,  y: 96, color: "#EF4444", label: "RUN ANALYSIS — starts the Hybrid Research pipeline; results stream into the terminal on the right" },
-                { n: 6, x: 75,  y: 12, color: "#F59E0B", label: "Terminal window — live simulation output streams here; shows path nodes, scores, and the final recommended approach route" },
+                { n: 6, x: 75,  y: 12, color: "#F59E0B", label: "Terminal window — live analysis output streams here; shows path nodes, scores, and the final recommended approach route" },
               ]}
             />
 
@@ -527,11 +527,11 @@ export default function FieldManual() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               <div className="bg-[#050A14] border border-[#3B82F6]/25 rounded-lg p-4">
                 <p className="text-xs font-bold text-[#3B82F6] mb-2 uppercase tracking-wider">Exploitation</p>
-                <p className="text-xs text-[#94A3B8] leading-relaxed">Keeps exploring paths that have already scored well in earlier simulations. Doubles down on what's working.</p>
+                <p className="text-xs text-[#94A3B8] leading-relaxed">Keeps exploring paths that have already scored well in earlier runs. Doubles down on what's working.</p>
               </div>
               <div className="bg-[#050A14] border border-[#F59E0B]/25 rounded-lg p-4">
                 <p className="text-xs font-bold text-[#F59E0B] mb-2 uppercase tracking-wider">Exploration</p>
-                <p className="text-xs text-[#94A3B8] leading-relaxed">Occasionally tries paths that haven't been simulated much yet — a hidden shortcut might score higher than anything found so far.</p>
+                <p className="text-xs text-[#94A3B8] leading-relaxed">Occasionally tries paths that haven't been explored much yet — a hidden shortcut might score higher than anything found so far.</p>
               </div>
             </div>
 
@@ -588,7 +588,7 @@ export default function FieldManual() {
                 { stage: "Lead Gen",        color: "#8B5CF6", action: "Run ingestion → target appears here automatically" },
                 { stage: "Identified",      color: "#3B82F6", action: "Confirm target viability, review Entity Profile" },
                 { stage: "Graph Mapped",    color: "#06B6D4", action: "Open Network Graph, identify all gatekeeper nodes" },
-                { stage: "Research Path Found", color: "#F59E0B", action: "Run Intel Terminal simulation, copy the path brief" },
+                { stage: "Research Path Found", color: "#F59E0B", action: "Run Intel Terminal analysis, copy the path brief" },
                 { stage: "Pitch Generated", color: "#F97316", action: "Generate 3-part outreach sequence in the session panel" },
                 { stage: "Contacted",       color: "#EF4444", action: "First message sent — set follow-up date" },
                 { stage: "Follow-Up",       color: "#EC4899", action: "Awaiting response — track touchpoints in notes" },
@@ -609,7 +609,7 @@ export default function FieldManual() {
             <Callout icon={<Gem size={14} />} color="#8B5CF6" title="Stage discipline — the golden rule">
               Never move a target past <strong className="text-[#06B6D4]">Graph Mapped</strong> without actually
               opening the Network Graph. Never move past <strong className="text-[#F59E0B]">Research Path Found</strong> without
-              a completed simulation. The pipeline is a quality gate, not just a label. Shortcuts here mean
+              a completed path analysis. The pipeline is a quality gate, not just a label. Shortcuts here mean
               cold outreach that damages your reputation with the gatekeeper.
             </Callout>
           </Section>
@@ -887,7 +887,7 @@ export default function FieldManual() {
                 {[
                   ["Q(v)/N(v)",         "Average warmth score of paths through this node — the exploitation term"],
                   ["√2",                "Exploration constant — controls how aggressively to try under-visited nodes"],
-                  ["ln N(parent)/N(v)", "Log ratio of parent visits to child visits — boosts nodes that haven't been simulated much yet"],
+                  ["ln N(parent)/N(v)", "Log ratio of parent visits to child visits — boosts nodes that haven't been explored much yet"],
                 ].map(([term, def]) => (
                   <div key={term} className="flex gap-3">
                     <span className="font-mono text-[#6366F1] shrink-0 w-32">{term}</span>

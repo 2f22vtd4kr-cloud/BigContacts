@@ -365,7 +365,7 @@ function StatsBar() {
           <Phone className="w-2.5 h-2.5" /> Enriched %
         </span>
         <span className="text-lg md:text-xl font-bold text-cyan-400">
-          {((s.enrichmentCoverage ?? 0) * 100).toFixed(1)}%
+          {(s.enrichmentCoverage ?? 0).toFixed(1)}%
         </span>
       </div>
     </div>
@@ -590,30 +590,31 @@ export default function Dashboard() {
           <IngestionPanel onComplete={handleIngestionComplete} />
         </div>
 
-        {/* Map tab */}
+        {/* Map tab — only mount when active so Leaflet gets a real container size */}
         <div className={cn("flex-1 relative", mobileTab !== "map" && "hidden")}>
-          <MapContainer
-            center={[30, 10]} zoom={2}
-            style={{ height: "100%", width: "100%", background: "#0B0F19" }}
-            zoomControl={false}
-          >
-            <TileLayer
-              url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-              attribution='&copy; CARTO'
-            />
-            <MapInvalidator active={mobileTab === "map"} />
-            {Array.isArray(mapData) && mapData.map((point: any) => (
-              <Marker key={point.id} position={[point.latitude, point.longitude]} icon={createCustomIcon(point.category)}>
-                <Popup>
-                  <div className="text-xs font-mono p-1">
-                    <div className="font-bold">{point.identifier}</div>
-                    <div className="text-muted-foreground">{point.category}</div>
-                    {point.ownerName && <div>↳ {point.ownerName}</div>}
-                  </div>
-                </Popup>
-              </Marker>
-            ))}
-          </MapContainer>
+          {mobileTab === "map" && (
+            <MapContainer
+              center={[30, 10]} zoom={2}
+              style={{ height: "100%", width: "100%", background: "#0B0F19" }}
+              zoomControl={false}
+            >
+              <TileLayer
+                url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                attribution='&copy; CARTO'
+              />
+              {Array.isArray(mapData) && mapData.map((point: any) => (
+                <Marker key={point.id} position={[point.latitude, point.longitude]} icon={createCustomIcon(point.category)}>
+                  <Popup>
+                    <div className="text-xs font-mono p-1">
+                      <div className="font-bold">{point.identifier}</div>
+                      <div className="text-muted-foreground">{point.category}</div>
+                      {point.ownerName && <div>↳ {point.ownerName}</div>}
+                    </div>
+                  </Popup>
+                </Marker>
+              ))}
+            </MapContainer>
+          )}
         </div>
       </div>
     </div>

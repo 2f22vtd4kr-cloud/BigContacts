@@ -132,6 +132,40 @@ function bayesianScore(typeEngine: string, typeAircraft: string): number {
   return 0.52; // multi-engine piston
 }
 
+// Corporate name suffixes / keywords that reliably indicate a legal entity, not a person.
+// Applied after titleCase() so we match normal capitalisation.
+const COMPANY_INDICATORS = [
+  /\bLlc\b/, /\bL\.L\.C\./, /\bLlp\b/, /\bL\.L\.P\./,
+  /\bInc\.?\b/, /\bCorp\.?\b/, /\bLtd\.?\b/, /\bLimited\b/,
+  /\bPlc\b/, /\bGmbh\b/, /\bS\.A\.\b/, /\bB\.V\.\b/, /\bN\.V\.\b/,
+  /\bL\.P\.\b/, /\bPartners\b/, /\bPartnership\b/,
+  /\bHoldings\b/, /\bHolding\b/,
+  /\bTrust\b/, /\bTrustee\b/, /\bFoundation\b/,
+  /\bCapital\b/, /\bFund\b/, /\bGroup\b/,
+  /\bManagement\b/, /\bAdvisors\b/, /\bAdvisory\b/,
+  /\bProperties\b/, /\bRealty\b/, /\bEstate\b(?!s of)/,
+  /\bVentures\b/, /\bEnterprises\b/, /\bIndustries\b/,
+  /\bTechnologies\b/, /\bSolutions\b/, /\bServices\b/,
+  /\bAeronautics?\b/, /\bAviation\b/, /\bAircraft\b/,
+  /\bAssociates\b/, /\bConsulting\b/, /\bInvestments\b/,
+  /\bFinancial\b/, /\bAcquisition\b/, /\bCo\.\b/,
+  /\bFamily Office\b/, /\bFam Ofc\b/,
+];
+
+/**
+ * Classify FAA registrant as HNWI or Corporation based on:
+ * - typeReg=7 (LLC) → always Corporation
+ * - typeReg=1 (Individual) → always HNWI
+ * - typeReg=2/4/9 → Corporation if name has corporate indicators, HNWI otherwise
+ */
+function classifyFaaEntityType(typeReg: string, name: string): "HNWI" | "Corporation" {
+  if (typeReg === "1") return "HNWI";           // FAA-confirmed individual
+  if (typeReg === "7") return "Corporation";    // LLC = legal entity, always
+  // For partnerships (2), co-owned (4), non-citizen co-owned (9):
+  const hasCorporateIndicator = COMPANY_INDICATORS.some((re) => re.test(name));
+  return hasCorporateIndicator ? "Corporation" : "HNWI";
+}
+
 async function isCacheStale(): Promise<boolean> {
   if (!existsSync(ZIP_PATH)) return true;
   try {
@@ -318,9 +352,10 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
     const score = bayesianScore(typeEngine, typeAircraft);
     const isJet = typeEngine === "4" || typeEngine === "5";
 
+    const entityType = classifyFaaEntityType(typeReg, name);
     const entity: InsertEntity = {
       name,
-      type: "HNWI",
+      type: entityType,
       nationality: country === "US" || !country.trim() ? "US" : country,
       knownResidences: address || undefined,
       sourceRegistries: JSON.stringify(["FAA Releasable Aircraft Database"]),
