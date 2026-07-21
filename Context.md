@@ -8,14 +8,14 @@
 
 ---
 
-## Current State (2026-07-21 — re-import #15) — Fully operational
+## Current State (2026-07-21 — re-import #16) — Fully operational
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically
 - **Local Redis** running on `redis://localhost:6379` — workflow `Redis` running ✅
-- **Upstash Redis (`REDIS_URL_1`)** — ✅ Set and connected (`[upstash-1] Redis ready`)
+- **Upstash Redis (`REDIS_URL_1`)** — ⚠️ NOT SET in current import — set via Replit Secrets to re-enable dedup persistence
 - **SESSION_SECRET** — ✅ Set
-- **COMPANIES_HOUSE_API_KEY** — ✅ Set
+- **COMPANIES_HOUSE_API_KEY** — ⚠️ NOT SET — optional, needed for UK Companies House enrichment
 
 ### Workflows running
 | Workflow | Status |
@@ -26,11 +26,10 @@
 | `artifacts/apex-mobile: expo` | ⏸ Optional — not needed |
 | `artifacts/mockup-sandbox: Component Preview Server` | ⏸ Optional — not needed |
 
-### Database (2026-07-21 — re-import #15, post-cold-start)
-- **Entities**: 32,000 · **Assets**: 32,000 · **Relationships**: 0 (relationship auto-detect not yet run)
-- **Hot leads**: 7,454 · **Avg Bayesian score**: 0.6697
-- **Contactable**: 0 · **Enrichment coverage**: 0%
-- FAA auto-ingestion running in background (dedup empty — all records being freshly inserted)
+### Database (2026-07-21 — re-import #16)
+- **Entities**: 0 · **Assets**: 0 · **Relationships**: 0
+- DB schema applied (drizzle push). Data cleared between imports — run ingestion pipelines to repopulate.
+- Run `POST /api/ingest/faa` and `POST /api/ingest/land-registry` to reload ~63k entities/assets
 
 ### What was done this session (re-import #6, Session 1 — 2026-07-20)
 
@@ -262,3 +261,11 @@ Run **IN-HOUSE ENRICH** on HNWI/Gatekeeper entities — Wikidata SPARQL will hit
 ### If FAA inserts 0 (all deduped)
 The Upstash dedup set from prior sessions covers all 50k+ FAA records.
 Fix: `curl -X DELETE http://localhost:8080/api/ingest/dedup` then restart API server (auto-ingestion fires again).
+
+---
+
+## Iteration Log
+
+| Date | Summary |
+|---|---|
+| 2026-07-21 | Re-import #16: pnpm install, drizzle push, Redis+API+Frontend workflows running. REDIS_URL_1 + COMPANIES_HOUSE_API_KEY missing from this import's secrets — set them to restore full functionality. DB empty — re-run ingestion pipelines. |
