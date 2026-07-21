@@ -679,7 +679,7 @@ router.post("/research/bulk-run", async (req, res): Promise<void> => {
           });
 
           await db.update(entitiesTable)
-            .set({ bayesianScore: updatedScore, updatedAt: new Date() })
+            .set({ bayesianScore: updatedScore, isHot: updatedScore >= 0.70, updatedAt: new Date() })
             .where(eq(entitiesTable.id, entityId));
 
           // BFS + MCTS using shared graph

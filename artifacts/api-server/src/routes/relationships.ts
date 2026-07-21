@@ -546,5 +546,76 @@ SELECT DISTINCT ?associateLabel ?relType WHERE {
   });
 });
 
+// ── POST /relationships/auto-detect-edgar-cofilers ───────────────────────────
+// Groups all SEC EDGAR entities by the company they reported on (entityName field
+// in metadata). Entities co-reporting on the same company get EDGAR_CO_FILER edges.
+// Runs entirely from the local DB — no external API calls.
+router.post("/relationships/auto-detect-edgar-cofilers", async (_req: Request, res: Response): Promise<void> => {
+  // Load all entities from SEC EDGAR source
+  const edgarEntities = await db
+    .select({ id: entitiesTable.id, name: entitiesTable.name, metadata: entitiesTable.metadata })
+    .from(entitiesTable)
+    .where(sql`${entitiesTable.metadata}::text LIKE '%sec-edgar%'`);
+
+  if (edgarEntities.length < 2) {
+    res.json({ created: 0, groups: 0, message: "Not enough EDGAR entities to detect co-filers." });
+    return;
+  }
+
+  // Build targetCompany → [entityId, ...] index from metadata.entityName
+  const groupIndex = new Map<string, number[]>();
+  for (const e of edgarEntities) {
+    let meta: Record<string, unknown> = {};
+    try { meta = JSON.parse(e.metadata ?? "{}"); } catch {}
+    const targetCompany = (meta.entityName as string ?? "").trim().toLowerCase();
+    if (!targetCompany || targetCompany.length < 3) continue;
+    if (!groupIndex.has(targetCompany)) groupIndex.set(targetCompany, []);
+    groupIndex.get(targetCompany)!.push(e.id);
+  }
+
+  // Load existing EDGAR_CO_FILER edges for idempotency
+  const existing = await db
+    .select({ sourceEntityId: relationshipsTable.sourceEntityId, targetId: relationshipsTable.targetId })
+    .from(relationshipsTable)
+    .where(eq(relationshipsTable.relationshipType, "EDGAR_CO_FILER"));
+  const seen = new Set(existing.map(r => `${Math.min(r.sourceEntityId, r.targetId)}:${Math.max(r.sourceEntityId, r.targetId)}`));
+
+  let created = 0; let skipped = 0; let groups = 0;
+  const pending: Array<{
+    sourceEntityId: number; targetId: number; targetType: "Entity";
+    relationshipType: string; strength: number; notes: string;
+  }> = [];
+
+  for (const [company, ids] of groupIndex) {
+    const unique = [...new Set(ids)];
+    if (unique.length < 2) continue;
+    groups++;
+    for (let i = 0; i < unique.length; i++) {
+      for (let j = i + 1; j < unique.length; j++) {
+        const a = unique[i]!; const b = unique[j]!;
+        const pairKey = `${Math.min(a, b)}:${Math.max(a, b)}`;
+        if (seen.has(pairKey)) { skipped++; continue; }
+        seen.add(pairKey);
+        pending.push({
+          sourceEntityId: a, targetId: b, targetType: "Entity" as const,
+          relationshipType: "EDGAR_CO_FILER", strength: 0.75,
+          notes: `EDGAR co-filer: both reported on ${company}`,
+        });
+        created++;
+      }
+    }
+  }
+
+  const CHUNK = 500;
+  for (let i = 0; i < pending.length; i += CHUNK) {
+    await db.insert(relationshipsTable).values(pending.slice(i, i + CHUNK));
+  }
+
+  res.json({
+    created, skipped, groups,
+    message: `EDGAR co-filer detect: ${created} EDGAR_CO_FILER edges across ${groups} shared-company groups, ${skipped} already existed.`,
+  });
+});
+
 export default router;
 
