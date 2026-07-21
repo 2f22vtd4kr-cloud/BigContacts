@@ -8,13 +8,13 @@
 
 ---
 
-## Current State (2026-07-21 — re-import #23) — Fully operational
+## Current State (2026-07-21 — re-import #24) — Fully operational
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically
 - **Local Redis** running on `redis://localhost:6379` — workflow `Redis` running ✅
-- **Upstash Redis (`REDIS_URL_1`)** — ✅ Set — permanent dedup (close-turkey-174793.upstash.io)
-- **Upstash Redis (`REDIS_URL_2`)** — ✅ Set — permanent contact cache (enabled-martin-179147.upstash.io)
+- **Upstash Redis (`REDIS_URL_1`)** — ✅ Set — permanent dedup
+- **Upstash Redis (`REDIS_URL_2`)** — ✅ Set — permanent contact cache
 - **SESSION_SECRET** — ✅ Set
 - **COMPANIES_HOUSE_API_KEY** — ✅ Set — CH officer enrichment enabled
 
@@ -22,17 +22,17 @@
 | Workflow | Status |
 |---|---|
 | Redis | ✅ Running |
-| `API Server` | ✅ Running (port 8080) |
-| `Web Frontend` | ✅ Running (port 23695) |
+| `artifacts/api-server: API Server` | ✅ Running (port 8080) — **use this, not the old manual one** |
+| `artifacts/apex-finder: web` | ✅ Running (port 23695) — **use this, not the old manual one** |
 | `artifacts/apex-mobile: expo` | ⏸ Optional — not needed |
-| `artifacts/mockup-sandbox` | ⏸ Optional — not needed |
+| `artifacts/mockup-sandbox: Component Preview Server` | ⏸ Optional — not needed |
 
-> **Import #23 note:** pnpm install ran fresh (~16s). DB schema pushed (additive, no changes). Redis + API Server + Web Frontend workflows started. Cold-start auto-recovery detected empty DB → FAA (30,000) + HMLR (2,000) auto-ingested; Western HNWI background job started. REDIS_URL_1 and COMPANIES_HOUSE_API_KEY not set.
-> **Port conflict fix (if needed):** kill -9 $(lsof -ti:8080 -ti:23695) then restart workflows.
+> **Import #24 note:** pnpm install (~18s). DB schema pushed (additive). All 4 artifacts re-registered via verifyAndReplaceArtifactToml (apex-finder) + platform auto-detect (api-server, apex-mobile, mockup-sandbox). Old manual "API Server" and "Web Frontend" workflows killed; managed artifact workflows started. DB had 32,200 entities from previous session auto-ingestion — maintenance ran (228,828 CORPORATE_SERIES edges, 7,432 hot flags synced, bulk Hybrid Research triggered for 300 leads).
+> **Port conflict fix (if needed):** kill -9 $(lsof -ti:8080 -ti:23695) then start managed artifact workflows.
 
-### Database (2026-07-21 — re-import #23, post-auto-ingestion)
-- **Entities**: 32,000+ · **Assets**: 32,000+ · **Relationships**: 0 (built by startup triggers after full populate)
-- Auto-ingestion: FAA ✅ 30,000 · HMLR ✅ 2,000 · Western HNWI 🔄 running in background
+### Database (2026-07-21 — re-import #24)
+- **Entities**: 32,200 · **Assets**: 32,000+ · **Relationships**: 228,828 CORPORATE_SERIES edges
+- Data: FAA ✅ 30,000 · HMLR ✅ 2,000 · Western HNWI ✅ 200 (partial from previous session)
 
 ### What was done this session (re-import #22, session 2 — 2026-07-21)
 
