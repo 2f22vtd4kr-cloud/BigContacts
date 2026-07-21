@@ -28,9 +28,13 @@
 | `artifacts/apex-mobile: expo` | ⏸ Optional — not needed |
 | `artifacts/mockup-sandbox: Component Preview Server` | ⏸ Optional — not needed |
 
-### Database (2026-07-21 — re-import #14)
-- **Entities**: 0 at startup — auto-ingestion (FAA + LR + Western HNWI) auto-started by cold-start recovery
-- Auto-ingestion running in background; check `/api/dashboard/stats` for live counts
+### Database (2026-07-21 — re-import #14, post-simulation)
+- **Entities**: 32,200 · **Assets**: 32,000 · **Relationships**: 228,828 edges across 2,085 clusters
+- **Hot leads**: 14,916 · **Avg Bayesian score**: 0.6712
+- **Contactable**: 0 (in-house enrichment 61/500 enriched — none hit ≥50 confidence threshold)
+- **Research sessions**: 25 (20 MCTS runs across 4 waves)
+- **Persona suggestions**: 2,169 total (1,056 high / 573 medium / 540 low)
+- **Enrichment coverage**: 0% — CH enriched 200 entities (addresses only, no email/phone hit)
 
 ### What was done this session (re-import #6, Session 1 — 2026-07-20)
 
