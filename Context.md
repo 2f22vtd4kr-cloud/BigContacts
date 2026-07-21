@@ -8,7 +8,7 @@
 
 ---
 
-## Current State (2026-07-21 — re-import #13) — Fully operational
+## Current State (2026-07-21 — re-import #14) — Fully operational
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically
@@ -21,20 +21,16 @@
 | Workflow | Status |
 |---|---|
 | Redis | ✅ Running |
-| `API Server` | ✅ Running (port 8080) |
-| `Web Frontend` | ✅ Running (port 23695) |
+| `API Server` (manual) | ✅ Running (port 8080) |
+| `Web Frontend` (manual) | ✅ Running (port 23695) |
+| `artifacts/api-server: API Server` | ⏸ Registered, not started (manual workflow takes precedence) |
+| `artifacts/apex-finder: web` | ⏸ Registered, not started (manual workflow takes precedence) |
 | `artifacts/apex-mobile: expo` | ⏸ Optional — not needed |
-| `artifacts/mockup-sandbox` | ⏸ Optional — not needed |
+| `artifacts/mockup-sandbox: Component Preview Server` | ⏸ Optional — not needed |
 
-### Database (2026-07-21 — re-import #12, DB data persisted from prior session)
-- **Entities**: 32,000 (persisted — FAA + HMLR + EDGAR from prior session)
-- **Assets**: 32,000 (persisted)
-- **Relationship edges**: 0 (name-cluster detection not yet run)
-- **Hot leads**: 7,454
-- **Research sessions**: 0
-- **Avg Bayesian score**: 0.6697
-- **Contactable count**: 0
-- **Enrichment coverage**: 0%
+### Database (2026-07-21 — re-import #14)
+- **Entities**: 0 at startup — auto-ingestion (FAA + LR + Western HNWI) auto-started by cold-start recovery
+- Auto-ingestion running in background; check `/api/dashboard/stats` for live counts
 
 ### What was done this session (re-import #6, Session 1 — 2026-07-20)
 
@@ -205,6 +201,7 @@ Run **IN-HOUSE ENRICH** on HNWI/Gatekeeper entities — Wikidata SPARQL will hit
 
 | Date | What changed |
 |---|---|
+| 2026-07-21 | **Re-import #14 setup**: pnpm install, DB schema pushed, all 4 artifacts re-registered via verifyAndReplaceArtifactToml. Redis ✅ · API Server ✅ (manual workflow, port 8080) · Web Frontend ✅ (manual workflow, port 23695). SESSION_SECRET ✅. REDIS_URL_1 ⚠️ NOT SET · COMPANIES_HOUSE_API_KEY ⚠️ NOT SET. DB empty (0 entities) — auto-ingestion (FAA + LR + Western HNWI) kicked off automatically by cold-start recovery. App loads and API healthy. |
 | 2026-07-21 | **Re-import #13 setup**: pnpm install, DB schema pushed, all 4 artifacts registered via verifyAndReplaceArtifactToml. Redis ✅ · API Server ✅ (manual workflow, port 8080) · Web Frontend ✅ (manual workflow, port 23695). SESSION_SECRET ✅. REDIS_URL_1 ⚠️ NOT SET · COMPANIES_HOUSE_API_KEY ⚠️ NOT SET. DB empty (0 entities) — cold-start entity count query failed (non-fatal), auto-ingestion did not fire. App loads and API healthy. |
 | 2026-07-21 | **Re-import #12 setup**: pnpm install, DB schema pushed, all 4 artifacts auto-registered by platform. Redis ✅ · artifacts/api-server: API Server ✅ · artifacts/apex-finder: web ✅. SESSION_SECRET ✅. REDIS_URL_1 ⚠️ NOT SET · COMPANIES_HOUSE_API_KEY ⚠️ NOT SET. DB retained 32,000 entities + 32,000 assets from prior session. Old manual workflows killed; managed artifact workflows started. |
 | 2026-07-21 | **Re-import #11 setup + Persona Run 6**: pnpm install, DB schema pushed, all 4 artifacts registered. Redis ✅ · artifacts/api-server: API Server ✅ · artifacts/apex-finder: web ✅. SESSION_SECRET ✅ · REDIS_URL_1 ✅ · COMPANIES_HOUSE_API_KEY ✅. Western HNWI auto-ingested (100 entities). isHot sync run → 100 hot leads. Persona run 6 complete: 1,392 suggestions / 100 entities, 13.92 avg, 0 errors. App rating: **4.5/10** (cold start — code architecture ~8/10, data gap is entire deficit). improvements.md updated with full Run 6 breakdown + ops checklist. |
