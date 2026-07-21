@@ -15,7 +15,7 @@
 - **Local Redis** running on `redis://localhost:6379` — workflow `Redis` running ✅
 - **Upstash Redis (`REDIS_URL_1`)** — ✅ Set — dedup persists across restarts
 - **SESSION_SECRET** — ✅ Set
-- **COMPANIES_HOUSE_API_KEY** — ⚠️ NOT SET this import — CH officer enrichment disabled
+- **COMPANIES_HOUSE_API_KEY** — ✅ Set — CH officer enrichment enabled
 
 ### Workflows running
 | Workflow | Status |
