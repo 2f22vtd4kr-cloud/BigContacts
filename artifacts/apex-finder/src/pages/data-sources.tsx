@@ -4,7 +4,7 @@ import {
   Search, Scale, Network, Activity, CheckCircle2, XCircle,
   Clock, AlertTriangle, Play, RefreshCw, ChevronDown, ChevronUp,
   ExternalLink, Zap, Database, UserCheck, BarChart3, Users, FileText, DollarSign,
-  Mail,
+  Mail, Rocket, GitMerge, AlertCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -355,6 +355,10 @@ function EnrichmentCoverageStats() {
       <div className="flex items-center justify-between border-t border-border/40 pt-2.5">
         <span className="text-[10px] font-mono text-muted-foreground/60">Wikidata associates: spouse · partner · sibling · parent relationships for enriched public figures → KNOWN_ASSOCIATE / FAMILY_OF edges</span>
         <WikidataAssociatesButton />
+      </div>
+      <div className="flex items-center justify-between border-t border-border/40 pt-2.5">
+        <span className="text-[10px] font-mono text-muted-foreground/60">Run full 5-layer hybrid research pipeline (L1 BM25+TF-IDF · L2 multi-agent · L3 query expansion · L4 UCT path-finding · L5 Bayesian-UCB) on top hot leads without sessions</span>
+        <BulkMctsButton />
       </div>
     </div>
   );
@@ -865,6 +869,245 @@ function InHouseEnrichButton() {
   );
 }
 
+function BulkMctsButton() {
+  const [status, setStatus] = useState<"idle" | "running" | "done" | "error">("idle");
+  const [msg, setMsg]       = useState("");
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const run = async () => {
+    if (pollRef.current) clearInterval(pollRef.current);
+    setStatus("running");
+    setMsg("Starting…");
+    try {
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const r = await fetch(`${base}/api/research/bulk-run`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ batchSize: 60, skipExisting: true }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error ?? "Failed");
+      if (!d.jobId) { setMsg(d.message ?? "All sessions exist"); setStatus("done"); return; }
+      setMsg(`Running MCTS on ${d.total} hot leads…`);
+      pollRef.current = setInterval(async () => {
+        try {
+          const p = await fetch(`${base}/api/ingest/job/${d.jobId}`);
+          const pj = await p.json();
+          setMsg(`${pj.inserted ?? 0}/${pj.total ?? d.total} sessions done`);
+          if (pj.status === "done" || pj.status === "failed") {
+            clearInterval(pollRef.current!);
+            setMsg(pj.message ?? "Done");
+            setStatus(pj.status === "done" ? "done" : "error");
+          }
+        } catch { /* ignore */ }
+      }, 3000);
+    } catch (err: any) {
+      setMsg(err.message ?? "Error");
+      setStatus("error");
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2 flex-shrink-0">
+      {msg && (
+        <span className={`text-[10px] font-mono max-w-[240px] truncate ${status === "error" ? "text-red-400" : status === "done" ? "text-emerald-400" : "text-amber-400"}`} title={msg}>{msg}</span>
+      )}
+      <button
+        onClick={run}
+        disabled={status === "running"}
+        className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-border text-muted-foreground hover:text-violet-400 hover:border-violet-400/40 font-mono text-[10px] uppercase tracking-wider transition-colors disabled:opacity-50 flex-shrink-0"
+      >
+        {status === "running" ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Rocket className="w-3 h-3" />}
+        {status === "running" ? "Running…" : "Bulk Research"}
+      </button>
+    </div>
+  );
+}
+
+// ─── Pipeline Status Panel ────────────────────────────────────────────────────
+
+interface PipelineStatus {
+  totalEntities: number;
+  hotLeads: number;
+  coldMcts: number;
+  needsEnrichment: number;
+  zeroContact: number;
+  sparseNotes: number;
+  zeroRelationships: number;
+}
+
+function PipelineStatusPanel() {
+  const [status, setStatus] = useState<PipelineStatus | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [running, setRunning] = useState(false);
+  const [runMsg, setRunMsg] = useState("");
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const refresh = () => {
+    const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+    fetch(`${base}/api/pipeline/status`)
+      .then(r => r.json())
+      .then(d => { setStatus(d); setLoading(false); })
+      .catch(() => setLoading(false));
+  };
+
+  useEffect(() => { refresh(); }, []);
+
+  const runFullPipeline = async () => {
+    if (running) return;
+    setRunning(true);
+    setRunMsg("Step 1/4: Populating notes…");
+    const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+    const step = async (label: string, url: string, body?: unknown) => {
+      setRunMsg(label);
+      try {
+        const r = await fetch(`${base}${url}`, {
+          method: "POST",
+          headers: body ? { "Content-Type": "application/json" } : {},
+          body: body ? JSON.stringify(body) : undefined,
+        });
+        const d = await r.json();
+        // If it returns a jobId, wait for completion
+        if (d.jobId) {
+          await new Promise<void>((resolve) => {
+            const iv = setInterval(async () => {
+              try {
+                const p = await fetch(`${base}/api/ingest/job/${d.jobId}`);
+                const pj = await p.json();
+                if (pj.status === "done" || pj.status === "failed") {
+                  clearInterval(iv);
+                  resolve();
+                }
+              } catch { clearInterval(iv); resolve(); }
+            }, 3000);
+          });
+        }
+      } catch { /* non-fatal */ }
+    };
+
+    await step("Step 1/4: Populating notes…",          "/api/ingest/populate-notes");
+    await step("Step 2/4: Creating EDGAR stock assets…", "/api/ingest/create-edgar-stock-assets");
+    await step("Step 3/4: Detecting relationship clusters…", "/api/relationships/auto-detect-clusters");
+    await step("Step 4/4: Running MCTS on hot leads…", "/api/research/bulk-run",
+               { batchSize: 60, skipExisting: true });
+
+    setRunMsg("Pipeline complete ✓");
+    setRunning(false);
+    refresh();
+  };
+
+  if (loading) return null;
+  if (!status) return null;
+
+  const items = [
+    {
+      label: "Pipeline-cold hot leads",
+      count: status.coldMcts,
+      total: status.hotLeads,
+      color: status.coldMcts === 0 ? "text-emerald-400" : "text-red-400",
+      dot: status.coldMcts === 0 ? "bg-emerald-500" : "bg-red-500 animate-pulse",
+      tip: "Hot leads with no MCTS research session — use Bulk MCTS to activate them",
+    },
+    {
+      label: "Pending enrichment",
+      count: status.needsEnrichment,
+      total: status.totalEntities,
+      color: status.needsEnrichment === 0 ? "text-emerald-400" : "text-amber-400",
+      dot: status.needsEnrichment === 0 ? "bg-emerald-500" : "bg-amber-500",
+      tip: "Entities flagged needsEnrichment=true — run In-House Enrich to clear",
+    },
+    {
+      label: "Zero contact confidence",
+      count: status.zeroContact,
+      total: status.totalEntities,
+      color: status.zeroContact < status.totalEntities * 0.1 ? "text-emerald-400" : "text-amber-400",
+      dot: status.zeroContact < status.totalEntities * 0.1 ? "bg-emerald-500" : "bg-amber-500",
+      tip: "HNWI/Gatekeeper entities with no email, phone, or LinkedIn discovered",
+    },
+    {
+      label: "Sparse notes (< 50 chars)",
+      count: status.sparseNotes,
+      total: status.totalEntities,
+      color: status.sparseNotes === 0 ? "text-emerald-400" : "text-muted-foreground",
+      dot: status.sparseNotes === 0 ? "bg-emerald-500" : "bg-muted-foreground/40",
+      tip: "Entities with missing or very short briefing notes — run Populate Notes to fix",
+    },
+    {
+      label: "Isolated nodes (0 edges)",
+      count: status.zeroRelationships,
+      total: status.totalEntities,
+      color: status.zeroRelationships === 0 ? "text-emerald-400" : "text-muted-foreground",
+      dot: status.zeroRelationships === 0 ? "bg-emerald-500" : "bg-muted-foreground/40",
+      tip: "Entities with no relationship edges — run Name Clusters to link them",
+    },
+  ];
+
+  const allClear = items.every(i => i.count === 0);
+
+  return (
+    <div className="rounded-xl border border-border bg-card/60 p-4 flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <GitMerge className="h-4 w-4 text-primary" />
+          <span className="text-sm font-semibold font-mono uppercase tracking-widest text-primary">Pipeline Status</span>
+        </div>
+        <button
+          onClick={refresh}
+          className="text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+          title="Refresh"
+        >
+          <RefreshCw className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      {allClear ? (
+        <div className="flex items-center gap-2 text-emerald-400 text-sm font-mono">
+          <CheckCircle2 className="h-4 w-4" />
+          All pipeline steps complete — database fully operational
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {items.map(item => (
+            <div key={item.label} className="flex items-center justify-between" title={item.tip}>
+              <div className="flex items-center gap-2">
+                <span className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${item.dot}`} />
+                <span className="text-[11px] font-mono text-muted-foreground">{item.label}</span>
+              </div>
+              <span className={`text-[11px] font-mono font-bold tabular-nums ${item.color}`}>
+                {item.count.toLocaleString()}
+                <span className="text-muted-foreground/40 font-normal"> / {item.total.toLocaleString()}</span>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Run Full Pipeline button */}
+      <div className="border-t border-border/40 pt-3 flex flex-col gap-2">
+        {runMsg && (
+          <p className={`text-[10px] font-mono ${running ? "text-amber-400" : "text-emerald-400"}`}>{runMsg}</p>
+        )}
+        <button
+          onClick={runFullPipeline}
+          disabled={running || allClear}
+          className="flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold transition-all bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {running
+            ? <><RefreshCw className="h-3.5 w-3.5 animate-spin" />Running pipeline…</>
+            : allClear
+            ? <><CheckCircle2 className="h-3.5 w-3.5" />Pipeline complete</>
+            : <><Rocket className="h-3.5 w-3.5" />Run Full Pipeline</>
+          }
+        </button>
+        <p className="text-[10px] font-mono text-muted-foreground/50 text-center">
+          Chains: Populate Notes → EDGAR Stock Assets → Cluster Detection → Hybrid Research
+        </p>
+      </div>
+    </div>
+  );
+}
+
 // ─── Per-source card ──────────────────────────────────────────────────────────
 
 function SourceCard({ src }: { src: SourceDef }) {
@@ -1093,6 +1336,9 @@ export default function DataSources() {
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 md:px-6 py-5 space-y-8">
+
+        {/* ── Pipeline Status ───────────────────────────────────────────────── */}
+        <PipelineStatusPanel />
 
         {/* ── Enrichment Coverage Stats ─────────────────────────────────────── */}
         <EnrichmentCoverageStats />

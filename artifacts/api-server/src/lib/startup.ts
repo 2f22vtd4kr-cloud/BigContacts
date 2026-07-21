@@ -177,7 +177,152 @@ async function runPopulatedDbMaintenance(): Promise<void> {
     logger.warn({ err: err?.message }, "Maintenance: liveSource sync failed (non-fatal)");
   }
 
-  logger.info("Populated-DB maintenance complete");
+  logger.info("Populated-DB maintenance complete (steps 1-4). Steps 5-7 running in background…");
+
+  // Steps 5-7 run in parallel as true background tasks — heavy write work,
+  // don't block the main maintenance chain or the delayed HTTP triggers.
+  Promise.all([
+
+    // 5. Populate sparse notes from filing metadata (batch: 2000 per boot to avoid OOM)
+    (async () => {
+      try {
+        const sparseRows = await db
+          .select({ id: entitiesTable.id, notes: entitiesTable.notes, metadata: entitiesTable.metadata,
+                    sourceRegistries: entitiesTable.sourceRegistries, type: entitiesTable.type,
+                    nationality: entitiesTable.nationality, knownResidences: entitiesTable.knownResidences })
+          .from(entitiesTable)
+          .where(sql`(${entitiesTable.notes} IS NULL OR length(${entitiesTable.notes}) < 50) AND ${entitiesTable.metadata} IS NOT NULL AND ${entitiesTable.metadata} != '{}'`)
+          .limit(2000); // cap per-boot to avoid long-running lock
+
+        let notesUpdated = 0;
+        for (const row of sparseRows) {
+          let meta: Record<string, any> = {};
+          try { meta = JSON.parse(row.metadata ?? "{}"); } catch {}
+          const sources: string[] = (() => { try { return JSON.parse(row.sourceRegistries ?? "[]"); } catch { return []; } })();
+          const parts: string[] = [];
+          if (sources.length > 0) parts.push(`Source: ${sources.join("; ")}.`);
+          if (meta.formType) parts.push(`Filing: ${meta.formType}${meta.fileDate ? ` (${meta.fileDate})` : ""}.`);
+          if (meta.companyName) parts.push(`Company: ${meta.companyName}.`);
+          if (meta.orgnr) parts.push(`Org number: ${meta.orgnr}.`);
+          if (meta.roleDesc) parts.push(`Role: ${meta.roleDesc}.`);
+          if (row.nationality) parts.push(`Nationality: ${row.nationality}.`);
+          if (row.knownResidences) {
+            const loc = (() => { try { const r = JSON.parse(row.knownResidences!); return Array.isArray(r) ? r[0] : r; } catch { return row.knownResidences; } })();
+            if (loc) parts.push(`Location: ${loc}.`);
+          }
+          if (row.type) parts.push(`Entity type: ${row.type}.`);
+          const newNotes = parts.join(" ");
+          if (newNotes && newNotes !== row.notes) {
+            await db.update(entitiesTable).set({ notes: newNotes }).where(eq(entitiesTable.id, row.id));
+            notesUpdated++;
+          }
+        }
+        logger.info({ updated: notesUpdated, total: sparseRows.length }, "Maintenance bg: sparse notes populated");
+      } catch (err: any) {
+        logger.warn({ err: err?.message }, "Maintenance bg: sparse notes population failed (non-fatal)");
+      }
+    })(),
+
+    // 6. Create StockHolding assets for EDGAR entities that have none
+    (async () => {
+      try {
+        const edgarEntities = await db
+          .select({ id: entitiesTable.id, name: entitiesTable.name, metadata: entitiesTable.metadata, knownResidences: entitiesTable.knownResidences })
+          .from(entitiesTable)
+          .where(sql`${entitiesTable.metadata}::text LIKE '%sec-edgar%' AND ${entitiesTable.metadata}::text NOT LIKE '%sec-edgar-def14a%'`);
+
+        const existingIds = new Set(
+          (await db.select({ ownerEntityId: assetsTable.ownerEntityId }).from(assetsTable)
+            .where(sql`${assetsTable.ownerEntityId} IS NOT NULL`)).map(r => r.ownerEntityId!)
+        );
+        const toCreate = edgarEntities.filter(e => !existingIds.has(e.id));
+        if (toCreate.length === 0) { logger.info("Maintenance bg: all EDGAR entities already have assets"); return; }
+
+        const assetRows: (typeof assetsTable.$inferInsert)[] = toCreate.map(e => {
+          let meta: Record<string, any> = {};
+          try { meta = JSON.parse(e.metadata ?? "{}"); } catch {}
+          const formType = meta.formType ?? "SC 13G";
+          const fileDate = meta.fileDate ?? null;
+          const location = meta.bizLocation
+            ?? ((() => { try { const r = JSON.parse(e.knownResidences ?? "null"); return Array.isArray(r) ? r[0] : r; } catch { return null; } })())
+            ?? "US";
+          return {
+            category: "StockHolding" as const,
+            identifier: `EDGAR-${formType.replace(/\s/g, "")}-${e.id}`,
+            jurisdiction: "SEC EDGAR",
+            description: `Large-shareholder position per ${formType} filing${fileDate ? ` (${fileDate})` : ""}. Beneficial owner: ${e.name}.`,
+            address: location || null,
+            sourceRegistry: `SEC EDGAR — ${formType}`,
+            ownerEntityId: e.id,
+            lastActivityDate: fileDate || null,
+          };
+        });
+        const CHUNK = 500;
+        for (let i = 0; i < assetRows.length; i += CHUNK) {
+          await db.insert(assetsTable).values(assetRows.slice(i, i + CHUNK));
+        }
+        logger.info({ created: toCreate.length }, "Maintenance bg: EDGAR StockHolding assets created");
+      } catch (err: any) {
+        logger.warn({ err: err?.message }, "Maintenance bg: EDGAR stock asset creation failed (non-fatal)");
+      }
+    })(),
+
+    // 7. Clear needsEnrichment=true flags for entities that have been enriched
+    (async () => {
+      try {
+        const flagged = await db
+          .select({ id: entitiesTable.id, metadata: entitiesTable.metadata })
+          .from(entitiesTable)
+          .where(sql`${entitiesTable.metadata}::text LIKE '%"needsEnrichment":true%'`);
+        let cleared = 0;
+        for (const row of flagged) {
+          const meta: Record<string, unknown> = (() => { try { return JSON.parse(row.metadata ?? "{}"); } catch { return {}; } })();
+          if (meta.needsEnrichment !== true) continue;
+          const enriched = !!meta.enricherVersion || !!meta.enrichedAt || !!meta.enrichmentSources;
+          if (enriched) {
+            meta.needsEnrichment = false;
+            await db.update(entitiesTable).set({ metadata: JSON.stringify(meta) }).where(eq(entitiesTable.id, row.id));
+            cleared++;
+          }
+        }
+        logger.info({ cleared, total: flagged.length }, "Maintenance bg: needsEnrichment flags cleared");
+      } catch (err: any) {
+        logger.warn({ err: err?.message }, "Maintenance bg: needsEnrichment clear failed (non-fatal)");
+      }
+    })(),
+
+  ]).catch(err => logger.warn({ err: err?.message }, "Maintenance bg tasks error (non-fatal)"));
+
+  // 8. After maintenance — fire delayed HTTP triggers for graph clustering and bulk MCTS.
+  //    Server is already listening by this point (coldStartRecovery runs fire-and-forget).
+  const port = process.env["PORT"] ?? "8080";
+  setTimeout(async () => {
+    try {
+      const clusterRes = await fetch(`http://localhost:${port}/api/relationships/auto-detect-clusters`, { method: "POST" });
+      if (clusterRes.ok) {
+        const d = await clusterRes.json();
+        logger.info({ message: d.message }, "Maintenance: cluster auto-detection triggered");
+      }
+    } catch (err: any) {
+      logger.warn({ err: err?.message }, "Maintenance: cluster auto-detection trigger failed (non-fatal)");
+    }
+  }, 15_000); // 15s after boot — server is stable by then
+
+  setTimeout(async () => {
+    try {
+      const researchRes = await fetch(`http://localhost:${port}/api/research/bulk-run`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ batchSize: 60, skipExisting: true }),
+      });
+      if (researchRes.ok) {
+        const d = await researchRes.json();
+        logger.info({ message: d.message, jobId: d.jobId }, "Maintenance: auto hybrid-research bulk run triggered");
+      }
+    } catch (err: any) {
+      logger.warn({ err: err?.message }, "Maintenance: auto hybrid-research trigger failed (non-fatal)");
+    }
+  }, 45_000); // 45s after boot — after cluster detection has a head start
 }
 
 /** Main cold-start entry point — call once after Upstash connects. */

@@ -15,7 +15,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { db, assetsTable, entitiesTable, relationshipsTable } from "@workspace/db";
 import { searchRegistry } from "../lib/registry-client";
 import { getCache, setCache } from "../lib/redis";
-import { sql, eq, and, gte, inArray, desc, type SQL } from "drizzle-orm";
+import { sql, eq, and, gte, inArray, desc, count, type SQL } from "drizzle-orm";
 import { classifyEntityType } from "../lib/western-hnwi-ingestion";
 import {
   createJob, updateJob, getJob, getJobLog,
@@ -950,7 +950,8 @@ router.post("/ingest/in-house-enrich", async (req: Request, res: Response): Prom
         meta["emailConfidence"] = result.emailConfidence;
         meta["phoneConfidence"] = result.phoneConfidence;
         meta["sourceHits"]      = { ...(meta["sourceHits"] as object ?? {}), ...result.sourceHits };
-        meta["enricherVersion"] = "v2";
+        meta["enricherVersion"]  = "v2";
+        meta["needsEnrichment"] = false;  // mark enrichment complete
         updates["metadata"]     = JSON.stringify(meta);
         updates["liveSource"]   = true;
 
@@ -1296,6 +1297,64 @@ router.delete("/ingest/hunter-enrich-lock", async (_req: Request, res: Response)
   await updateJob(jobId, { status: "failed", message: "Process killed (server restart).", finishedAt: new Date().toISOString() } as any);
   await setActiveJob("hunter-enrich", "");
   res.json({ cleared: true, jobId });
+});
+
+// ── GET /api/pipeline/status — real-time counts for the pipeline status panel ──
+// Returns counts of entities in each "problem" state so the UI can show
+// how many entities still need each pipeline step.
+router.get("/pipeline/status", async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const [
+      totalRow,
+      hotRow,
+      coldMctsRow,
+      needsEnrichmentRow,
+      zeroContactRow,
+      sparseNotesRow,
+      zeroRelRow,
+    ] = await Promise.all([
+      db.select({ count: count() }).from(entitiesTable),
+      db.select({ count: count() }).from(entitiesTable).where(eq(entitiesTable.isHot, true)),
+      // Hot entities with no research sessions
+      db.execute(sql`
+        SELECT COUNT(*)::int AS count FROM entities e
+        WHERE e.is_hot = true
+        AND NOT EXISTS (SELECT 1 FROM research_sessions rs WHERE rs.target_entity_id = e.id)
+      `),
+      // Entities where metadata contains needsEnrichment:true
+      db.select({ count: count() }).from(entitiesTable)
+        .where(sql`${entitiesTable.metadata}::text LIKE '%needsEnrichment%:true%'`),
+      // Entities with zero contact confidence
+      db.select({ count: count() }).from(entitiesTable)
+        .where(sql`${entitiesTable.contactConfidence} = 0 AND ${entitiesTable.type} IN ('HNWI', 'Gatekeeper')`),
+      // Entities with sparse notes (< 50 chars)
+      db.select({ count: count() }).from(entitiesTable)
+        .where(sql`${entitiesTable.notes} IS NULL OR length(${entitiesTable.notes}) < 50`),
+      // Entities with zero relationship edges
+      db.execute(sql`
+        SELECT COUNT(*)::int AS count FROM entities e
+        WHERE NOT EXISTS (
+          SELECT 1 FROM relationships r
+          WHERE r.source_entity_id = e.id OR (r.target_type = 'Entity' AND r.target_id = e.id)
+        )
+      `),
+    ]);
+
+    const coldMcts   = Number((coldMctsRow.rows[0] as any)?.count   ?? 0);
+    const zeroRel    = Number((zeroRelRow.rows[0] as any)?.count     ?? 0);
+
+    res.json({
+      totalEntities:     Number(totalRow[0]?.count            ?? 0),
+      hotLeads:          Number(hotRow[0]?.count              ?? 0),
+      coldMcts,
+      needsEnrichment:   Number(needsEnrichmentRow[0]?.count  ?? 0),
+      zeroContact:       Number(zeroContactRow[0]?.count      ?? 0),
+      sparseNotes:       Number(sparseNotesRow[0]?.count      ?? 0),
+      zeroRelationships: zeroRel,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message ?? "Failed to fetch pipeline status" });
+  }
 });
 
 export default router;
