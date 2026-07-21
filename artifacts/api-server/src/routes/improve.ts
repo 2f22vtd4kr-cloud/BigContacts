@@ -311,6 +311,180 @@ router.get("/improve/stats", async (_req: Request, res: Response): Promise<void>
   });
 });
 
+// ── POST /improve/run-all — self-chaining full sweep (server-side daemon) ─────
+//
+// Processes ALL entities not yet in improvement_logs, in chunks of 500, entirely
+// within this process. Survives shell/session exits because it runs in the API
+// server's own event loop (managed workflow).
+//
+// Poll: GET /improve/jobs/:jobId  (same as normal batches)
+// The returned jobId is the "meta" job that tracks overall progress.
+router.post("/improve/run-all", async (req: Request, res: Response): Promise<void> => {
+  const { chunkSize = 500, resume = true } = (req.body ?? {}) as {
+    chunkSize?: number;
+    resume?: boolean; // default true = skip already-processed entities
+  };
+
+  // Check no active improve job
+  const existingJobId = await getActiveJob("improve");
+  if (existingJobId) {
+    const existing = await getJob(existingJobId);
+    if (existing && existing.status === "running") {
+      res.status(409).json({
+        error: "An improvement loop job is already running.",
+        jobId: existingJobId,
+      });
+      return;
+    }
+  }
+
+  const safeChunk = Math.min(Math.max(Number(chunkSize) || 500, 50), 500);
+
+  // Count total scope
+  const [totalRow] = await db.select({ count: sql<number>`count(*)` }).from(entitiesTable);
+  const totalEntities = Number(totalRow?.count ?? 0);
+
+  if (totalEntities === 0) {
+    res.status(400).json({ error: "No entities found. Ingest data first." });
+    return;
+  }
+
+  const metaJobId = await createJob("improve");
+  await setActiveJob("improve", metaJobId);
+  await updateJob(metaJobId, {
+    status: "running",
+    total: totalEntities,
+    progress: 0,
+    message: "Full sweep starting…",
+  });
+
+  res.status(202).json({
+    jobId: metaJobId,
+    totalEntities,
+    chunkSize: safeChunk,
+    message: `Full persona sweep started for up to ${totalEntities} entities (chunk=${safeChunk}, resume=${resume}).`,
+    pollUrl: `/api/improve/jobs/${metaJobId}`,
+  });
+
+  // ── Fire-and-forget: runs entirely within this process ──────────────────────
+  (async () => {
+    let totalInserted = 0;
+    let totalErrors = 0;
+    let batchNum = 0;
+
+    try {
+      await appendJobLog(metaJobId, `Sweep starting. Total entities: ${totalEntities}, chunkSize: ${safeChunk}, resume: ${resume}`);
+
+      while (true) {
+        // Always re-query to get the next unprocessed chunk (skip if resume=true)
+        let chunkEntities;
+        if (resume) {
+          chunkEntities = await db
+            .select()
+            .from(entitiesTable)
+            .where(
+              sql`${entitiesTable.id} NOT IN (
+                SELECT DISTINCT entity_id FROM improvement_logs
+              )`
+            )
+            .orderBy(entitiesTable.id)
+            .limit(safeChunk);
+        } else {
+          chunkEntities = await db
+            .select()
+            .from(entitiesTable)
+            .orderBy(entitiesTable.id)
+            .limit(safeChunk)
+            .offset(batchNum * safeChunk);
+        }
+
+        if (chunkEntities.length === 0) {
+          await appendJobLog(metaJobId, `✓ All entities processed. Total inserted: ${totalInserted}, errors: ${totalErrors}`);
+          break;
+        }
+
+        batchNum++;
+        const [doneRow] = await db
+          .select({ count: sql<number>`count(distinct entity_id)` })
+          .from(improvementLogsTable);
+        const doneCount = Number(doneRow?.count ?? 0);
+        const pct = Math.round((doneCount / totalEntities) * 100);
+
+        await appendJobLog(
+          metaJobId,
+          `Batch #${batchNum}: ${chunkEntities.length} entities (${doneCount}/${totalEntities} done, ${pct}%)`
+        );
+        await updateJob(metaJobId, {
+          progress: pct,
+          inserted: totalInserted,
+          errors: totalErrors,
+          message: `Batch #${batchNum}: ${chunkEntities.length} entities (${pct}% complete)`,
+        });
+
+        let batchInserted = 0;
+        let batchErrors = 0;
+
+        for (let i = 0; i < chunkEntities.length; i++) {
+          const entity = chunkEntities[i];
+          try {
+            const suggestions = await runPersonasForEntity(entity);
+            if (suggestions.length > 0) {
+              await db.insert(improvementLogsTable).values(
+                suggestions.map(s => ({
+                  entityId: s.entityId,
+                  persona: s.persona,
+                  category: s.category,
+                  priority: s.priority,
+                  title: s.title,
+                  description: s.description,
+                  actionTaken: s.actionTaken,
+                  status: "pending",
+                }))
+              );
+              batchInserted += suggestions.length;
+              totalInserted += suggestions.length;
+            }
+          } catch (err: any) {
+            batchErrors++;
+            totalErrors++;
+            logger.error({ err: err.message, entityId: entity.id }, "Persona sweep entity error");
+          }
+
+          // Update progress every 50 entities within batch
+          if ((i + 1) % 50 === 0) {
+            const innerPct = Math.round(((doneCount + i + 1) / totalEntities) * 100);
+            await updateJob(metaJobId, {
+              progress: innerPct,
+              inserted: totalInserted,
+              errors: totalErrors,
+              message: `Batch #${batchNum} [${i + 1}/${chunkEntities.length}]: ${entity.name}`,
+            });
+          }
+        }
+
+        await appendJobLog(
+          metaJobId,
+          `Batch #${batchNum} done: ${batchInserted} logs, ${batchErrors} errors`
+        );
+      }
+
+      await updateJob(metaJobId, {
+        status: "done",
+        progress: 100,
+        inserted: totalInserted,
+        errors: totalErrors,
+        finishedAt: new Date().toISOString(),
+        message: `Full sweep complete — ${totalInserted} suggestions across all entities`,
+      });
+      await clearActiveJob("improve");
+    } catch (err: any) {
+      logger.error({ err: err.message }, "Full persona sweep failed");
+      await updateJob(metaJobId, { status: "failed", message: err.message ?? "Unknown error" });
+      await clearActiveJob("improve");
+    }
+  })();
+});
+
 // ── DELETE /improve/lock — manually clear ghost active-job lock ──────────────
 router.delete("/improve/lock", async (_req: Request, res: Response): Promise<void> => {
   const jobId = await getActiveJob("improve");
