@@ -385,8 +385,8 @@ async function runIntelSystemsAnalyst(entity: Entity): Promise<ImprovementSugges
         "Start a session via the Intel Terminal to activate the Planner → Retriever → Analyst → Critic → Pitch pipeline.",
       actionTaken: "Entity flagged as pipeline-cold. Queued for Hybrid Research session at next cycle.",
     });
-  } else {
-    const latest  = sessions[0];
+  } else if (sessions.length > 0) {
+    const latest  = sessions[0]!;
     const ageDays = ageInDays(latest.createdAt.toISOString());
 
     if (ageDays > 30) {

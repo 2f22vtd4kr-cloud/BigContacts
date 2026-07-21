@@ -846,13 +846,13 @@ router.post("/ingest/in-house-enrich", async (req: Request, res: Response): Prom
   }
 
   const body = req.body ?? {};
-  const batchSize = Math.min(Number(body.batchSize) || 100, 500);
+  const batchSize = Math.min(Number(body.batchSize) || 100, 10_000);  // raised cap: auto-triggers send 5000
   const force = Boolean(body.force);
   const entityIds: number[] | undefined = Array.isArray(body.entityIds) ? body.entityIds : undefined;
   // targetMode: "edgar" = only EDGAR/western-ingest entities (high-value, recognizable names)
   //             "faa"   = only FAA entities (individual aircraft owners)
-  //             "all"   = all types (default)
-  const targetMode: string = (body.targetMode as string) ?? "edgar";
+  //             "all"   = all HNWI/Gatekeeper/Corp (default — try everything)
+  const targetMode: string = (body.targetMode as string) ?? "all";
 
   // Select entities: prioritise by Bayesian score so high-value targets are always processed first.
   // Exclude HMLR/address-named Corp entities (type 'Corp') — they have no contact enrichment surface.

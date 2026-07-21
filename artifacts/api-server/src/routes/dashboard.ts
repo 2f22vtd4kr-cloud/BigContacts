@@ -206,7 +206,7 @@ router.get("/dashboard/stats", async (_req, res): Promise<void> => {
   // Enrichment coverage
   const [[contactableCount], [anyContactCount]] = await Promise.all([
     db.select({ cnt: sql<number>`count(*)::int` }).from(entitiesTable)
-      .where(gte(entitiesTable.contactConfidence, 50)),
+      .where(gte(entitiesTable.contactConfidence, 30)),  // phone alone (30pts) counts as contactable
     db.select({ cnt: sql<number>`count(*)::int` }).from(entitiesTable)
       .where(or(
         isNotNull(entitiesTable.email),

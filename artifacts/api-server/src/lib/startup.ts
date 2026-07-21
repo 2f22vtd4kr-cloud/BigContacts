@@ -467,30 +467,35 @@ async function runPopulatedDbMaintenance(): Promise<void> {
     setTimeout(() => trigger("auto CH enrichment (needsEnrichment)", "/api/ingest/companies-house-enrich", { batchSize: 500 }), 90_000);
   }
 
-  // 120s: in-house enricher — fills email/LinkedIn for zero-contact HNWI & Gatekeeper entities
-  // Large batch (2000) to cover all HNWI/Gatekeeper in one pass
-  setTimeout(() => trigger("auto in-house enricher (pass 1)", "/api/ingest/in-house-enrich", { batchSize: 2000 }), 120_000);
+  // 120s: in-house enricher pass 1 — EDGAR/Western HNWI entities first (public figures: highest hit rate)
+  setTimeout(() => trigger("auto in-house enricher (pass 1 — edgar)", "/api/ingest/in-house-enrich", { batchSize: 5000, targetMode: "edgar" }), 120_000);
 
   // 150s: OCCRP Aleph enrichment — cross-references existing entities for single-source corroboration
   setTimeout(() => trigger("auto OCCRP enrichment", "/api/ingest/occrp", { batchSize: 300 }), 150_000);
 
-  // 3 min: persona improvement loop — score 500 entities for quality gaps
-  setTimeout(() => trigger("auto persona improvement loop (pass 1)", "/api/improve/run", { batchSize: 500 }), 180_000);
+  // 3 min: persona improvement loop — full sweep, all entities
+  setTimeout(() => trigger("auto persona improvement loop (full sweep)", "/api/improve/run-all", { chunkSize: 500, resume: true }), 180_000);
+
+  // 5 min: in-house enricher pass 2 — FAA individual owners (DuckDuckGo/LinkedIn/GitHub for private HNWIs)
+  setTimeout(() => trigger("auto in-house enricher (pass 2 — faa)", "/api/ingest/in-house-enrich", { batchSize: 5000, targetMode: "faa" }), 300_000);
 
   // 8 min: second bulk Hybrid Research pass — cover the next 300 cold sessions
   setTimeout(() => trigger("auto Hybrid Research bulk run (pass 2)", "/api/research/bulk-run", { batchSize: 300, skipExisting: true }), 480_000);
 
-  // 10 min: second in-house enricher pass — pick up entities missed or added since pass 1
-  setTimeout(() => trigger("auto in-house enricher (pass 2)", "/api/ingest/in-house-enrich", { batchSize: 2000 }), 600_000);
+  // 10 min: in-house enricher pass 3 — force re-run on EDGAR entities (may surface new signals)
+  setTimeout(() => trigger("auto in-house enricher (pass 3 — edgar force)", "/api/ingest/in-house-enrich", { batchSize: 5000, targetMode: "edgar", force: true }), 600_000);
 
   // 15 min: third bulk Hybrid Research pass — long-tail coverage
   setTimeout(() => trigger("auto Hybrid Research bulk run (pass 3)", "/api/research/bulk-run", { batchSize: 300, skipExisting: true }), 900_000);
 
-  // 20 min: persona improvement loop pass 2 — catches entities enriched after pass 1
-  setTimeout(() => trigger("auto persona improvement loop (pass 2)", "/api/improve/run", { batchSize: 500 }), 1_200_000);
+  // 20 min: persona improvement loop pass 2 — re-sweep after enrichment completes
+  setTimeout(() => trigger("auto persona improvement loop (pass 2 — force)", "/api/improve/run-all", { chunkSize: 500, resume: false }), 1_200_000);
 
-  // 25 min: fourth bulk Hybrid Research pass — final coverage sweep
-  setTimeout(() => trigger("auto Hybrid Research bulk run (pass 4)", "/api/research/bulk-run", { batchSize: 300, skipExisting: true }), 1_500_000);
+  // 25 min: in-house enricher pass 4 — FAA force re-run (second sweep on private owners)
+  setTimeout(() => trigger("auto in-house enricher (pass 4 — faa force)", "/api/ingest/in-house-enrich", { batchSize: 5000, targetMode: "faa", force: true }), 1_500_000);
+
+  // 30 min: fourth bulk Hybrid Research pass — final coverage sweep
+  setTimeout(() => trigger("auto Hybrid Research bulk run (pass 4)", "/api/research/bulk-run", { batchSize: 300, skipExisting: true }), 1_800_000);
 }
 
 /** Main cold-start entry point — call once after Upstash connects. */
