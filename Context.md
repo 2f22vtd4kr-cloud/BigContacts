@@ -8,14 +8,14 @@
 
 ---
 
-## Current State (2026-07-21 — re-import #19, session 1) — Fully operational
+## Current State (2026-07-21 — re-import #19, session 2) — Fully operational
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically
 - **Local Redis** running on `redis://localhost:6379` — workflow `Redis` running ✅
-- **Upstash Redis (`REDIS_URL_1`)** — ✅ Set — dedup persists across restarts
+- **Upstash Redis (`REDIS_URL_1`)** — ⚠️ NOT SET — dedup will not persist across restarts
 - **SESSION_SECRET** — ✅ Set
-- **COMPANIES_HOUSE_API_KEY** — ✅ Set — CH officer enrichment enabled
+- **COMPANIES_HOUSE_API_KEY** — ⚠️ NOT SET — CH officer enrichment disabled
 
 ### Workflows running
 | Workflow | Status |
@@ -28,7 +28,7 @@
 | `artifacts/apex-mobile: expo` | ⏸ Optional — not needed |
 | `artifacts/mockup-sandbox: Component Preview Server` | ⏸ Optional — not needed |
 
-> **Import #18 note:** `pnpm install` ran fresh (no node_modules). DB schema pushed. All 4 artifacts re-registered via verifyAndReplaceArtifactToml. Manual workflows (API Server, Web Frontend) are active; artifact-managed workflows registered but not started — port conflict would occur if both run. Auto-ingestion kicked off 30k FAA records at startup (DB was empty).
+> **Import #19 note:** `pnpm install` ran fresh. DB schema pushed. All 4 artifacts re-registered via verifyAndReplaceArtifactToml. Manual workflows (API Server, Web Frontend) are active; artifact-managed workflows registered but not started — port conflict would occur if both run. Auto-ingestion kicked off (DB had ~2,000 entities from Western HNWI partial). FAA failed (no cached ZIP). Western HNWI running in background.
 > **Port conflict fix:** kill -9 $(lsof -ti:8080 -ti:23695) then restart artifact-managed workflows to switch ownership.
 
 ### Database (2026-07-21 — re-import #17, post-maintenance)
@@ -264,6 +264,7 @@ Run **IN-HOUSE ENRICH** on HNWI/Gatekeeper entities — Wikidata SPARQL will hit
 
 | Date | What changed |
 |---|---|
+| 2026-07-21 | **Re-import #19 setup**: pnpm install, DB schema pushed, all 4 artifacts re-registered (verifyAndReplaceArtifactToml). Redis ✅ · API Server ✅ (manual, port 8080) · Web Frontend ✅ (manual, port 23695). SESSION_SECRET ✅. REDIS_URL_1 ⚠️ NOT SET · COMPANIES_HOUSE_API_KEY ⚠️ NOT SET. DB had ~2,000 entities (Western HNWI partial from prior boot); FAA auto-ingest failed (no cached ZIP); Western HNWI running in background. API healthy: /healthz ✅ · /dashboard/stats ✅. |
 | 2026-07-21 | **Re-import #18 setup**: pnpm install, DB schema pushed, all 4 artifacts re-registered (verifyAndReplaceArtifactToml). Redis ✅ · artifacts/api-server: API Server ✅ (port 8080) · artifacts/apex-finder: web ✅ (port 23695). SESSION_SECRET ✅. REDIS_URL_1 ⚠️ NOT SET · COMPANIES_HOUSE_API_KEY ⚠️ NOT SET. DB retained 32,000 entities — cold-start maintenance ran (7,262 hot flags, 22,748 Corp + 581 Trust reclassified). API healthy. |
 | 2026-07-21 | **Re-import #15 setup**: pnpm install, DB schema pushed. Redis ✅ · API Server ✅ (manual workflow, port 8080) · Web Frontend ✅ (manual workflow, port 23695). SESSION_SECRET ✅. REDIS_URL_1 ⚠️ NOT SET · COMPANIES_HOUSE_API_KEY ⚠️ NOT SET. DB retained 32,000 entities + 32,000 assets from prior session — FAA auto-ingestion kicked off (dedup empty). API healthy: /healthz ✅ · /dashboard/stats ✅. |
 | 2026-07-21 | **Re-import #14 setup**: pnpm install, DB schema pushed, all 4 artifacts re-registered via verifyAndReplaceArtifactToml. Redis ✅ · API Server ✅ (manual workflow, port 8080) · Web Frontend ✅ (manual workflow, port 23695). SESSION_SECRET ✅. REDIS_URL_1 ⚠️ NOT SET · COMPANIES_HOUSE_API_KEY ⚠️ NOT SET. DB empty (0 entities) — auto-ingestion (FAA + LR + Western HNWI) kicked off automatically by cold-start recovery. App loads and API healthy. |
