@@ -344,6 +344,10 @@ async function runDataAnalyst(entity: Entity): Promise<ImprovementSuggestion[]> 
 async function runIntelSystemsAnalyst(entity: Entity): Promise<ImprovementSuggestion[]> {
   const suggestions: ImprovementSuggestion[] = [];
 
+  // Corp/Trust are property vehicles — they don't get MCTS sessions.
+  // Only HNWI and Gatekeeper are direct outreach targets.
+  const isDirectOutreachTarget = entity.type === "HNWI" || entity.type === "Gatekeeper";
+
   // ── Fetch data needed across all four layers ────────────────────────────────
   const [sessions, relRow, assetRow] = await Promise.all([
     db.select()
@@ -367,7 +371,7 @@ async function runIntelSystemsAnalyst(entity: Entity): Promise<ImprovementSugges
 
   // ── Layer 4: MCTS Deep Path Exploration ────────────────────────────────────
 
-  if (sessions.length === 0) {
+  if (sessions.length === 0 && isDirectOutreachTarget) {
     suggestions.push({
       entityId: entity.id,
       persona: "intel_systems_analyst",
@@ -493,7 +497,7 @@ async function runIntelSystemsAnalyst(entity: Entity): Promise<ImprovementSugges
   // ── Layer 5: Bayesian-UCB convergence ──────────────────────────────────────
 
   // Hot lead with no pipeline run — UCB exploitation hasn't started
-  if (score >= 0.7 && sessions.length === 0) {
+  if (score >= 0.7 && sessions.length === 0 && isDirectOutreachTarget) {
     suggestions.push({
       entityId: entity.id,
       persona: "intel_systems_analyst",
@@ -605,7 +609,7 @@ async function runBusinessEngineer(entity: Entity): Promise<ImprovementSuggestio
   }
 
   // Check for corporate vehicle relationships
-  const corporateKeys = ["employer", "board", "directorship", "trustee", "nominee"];
+  const corporateKeys = ["employer", "board", "directorship", "trustee", "nominee", "orgnr", "companyname", "rolecode", "groupcode"];
   const hasCorporateHint = corporateKeys.some(
     k => JSON.stringify(metadata).toLowerCase().includes(k)
   );
@@ -748,7 +752,7 @@ async function runArchitect(entity: Entity): Promise<ImprovementSuggestion[]> {
 
   // Check for potential near-duplicate by name fragment
   const firstWord = entity.name.split(" ")[0];
-  if (firstWord && firstWord.length > 3) {
+  if (firstWord && firstWord.length > 5) {
     const potentialDuplicates = await db
       .select({ id: entitiesTable.id, name: entitiesTable.name })
       .from(entitiesTable)
@@ -1037,6 +1041,9 @@ async function runHybridArchitectureAuditor(entity: Entity): Promise<Improvement
   const score      = entity.bayesianScore;
   const hasNotes   = !!entity.notes && entity.notes.trim().length >= 50;
   const hasNat     = !!entity.nationality && entity.nationality.trim().length > 0;
+  const hasRichMetadata = Object.keys(metadata).length > 3;
+  // Corp/Trust are property vehicles — they don't get MCTS sessions.
+  const isDirectOutreachTarget = entity.type === "HNWI" || entity.type === "Gatekeeper";
 
   // ── L1: Hybrid Semantic + Keyword + Graph Search ───────────────────────────
   // Three components: BM25 keyword · TF-IDF cosine · graph traversal (RRF fusion)
@@ -1059,7 +1066,7 @@ async function runHybridArchitectureAuditor(entity: Entity): Promise<Improvement
     });
   }
 
-  if (assetCount === 0 && !hasNotes) {
+  if (assetCount === 0 && !hasNotes && !hasRichMetadata) {
     suggestions.push({
       entityId: entity.id,
       persona: "hybrid_architecture_auditor",
@@ -1097,7 +1104,7 @@ async function runHybridArchitectureAuditor(entity: Entity): Promise<Improvement
 
   // ── L2: Agentic Multi-Agent Reasoning (Planner → Retriever → Analyst → Critic) ──
 
-  if (sessions.length === 0) {
+  if (sessions.length === 0 && isDirectOutreachTarget) {
     suggestions.push({
       entityId: entity.id,
       persona: "hybrid_architecture_auditor",
@@ -1184,7 +1191,7 @@ async function runHybridArchitectureAuditor(entity: Entity): Promise<Improvement
   // UCT selection · expansion · simulation · backpropagation
   // Reward = real relationship types + personal identifiers from registries
 
-  if (sessions.length === 0 && score >= 0.6) {
+  if (sessions.length === 0 && score >= 0.6 && isDirectOutreachTarget) {
     suggestions.push({
       entityId: entity.id,
       persona: "hybrid_architecture_auditor",

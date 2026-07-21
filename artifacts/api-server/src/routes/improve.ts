@@ -40,6 +40,8 @@ router.post("/improve/run", async (req: Request, res: Response): Promise<void> =
   }
 
   // Fetch entities to process
+  // Default: HNWI and Gatekeeper only — Corp/Trust are property vehicles that never get
+  // MCTS sessions or contact enrichment, and would dominate suggestions with unfixable noise.
   let entities;
   if (Array.isArray(entityIds) && entityIds.length > 0) {
     entities = await db
@@ -51,7 +53,8 @@ router.post("/improve/run", async (req: Request, res: Response): Promise<void> =
     entities = await db
       .select()
       .from(entitiesTable)
-      .orderBy(desc(entitiesTable.updatedAt))
+      .where(inArray(entitiesTable.type, ["HNWI", "Gatekeeper"]))
+      .orderBy(desc(entitiesTable.bayesianScore))
       .limit(safeLimit);
   }
 
