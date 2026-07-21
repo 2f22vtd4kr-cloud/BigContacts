@@ -19,16 +19,16 @@
 
 This entity has never been processed by the full hybrid pipeline. Without an MCTS research session, the UCT path-finder, agent orchestrator, and pitch synthesiser have no baseline to work from. The Pipeline CRM card is empty, the graph layer has no path scores, and outreach is unguided. Start a session via the MCTS Terminal to activate the Planner → Retriever → Analyst → Critic → Pitch pipeline.
 
-**Action:** ✅ Fixed — `startup.ts` now auto-triggers `POST /api/research/bulk-run` at 45s after boot (batchSize: 200, skipExisting: true) and again at 8 min for the next 200 cold sessions. `bulk-mcts` added to INGESTOR_TYPES so ghost locks are cleared on every boot.
+**Action:** ✅ Fixed — `startup.ts` now auto-triggers `POST /api/research/bulk-run` at 45s after boot (batchSize: 200, skipExisting: true) and again at 8 min for the next 200 cold sessions. `bulk-mcts` key added to INGESTOR_TYPES so ghost locks are cleared on every boot.
 
 **Affected entities:** Callon Petroleum Co, LEEDS RICHARD BRIAN ET AL, Farmer Richard F, LIBERTY MEDIA CORPORATION, INGRAM MARTHA R, STAPLETON CRAIG R, Hamilton Beach Brands Holding Co  (HBB), EASTMAN KODAK CO  (KODK), SILVERMAN MORRIS, Van Ness Kenneth … +190 more
 
 #### ✅ High-probability target — UCB exploitation not yet initiated
 **Category:** outreach · **Affects:** 200 entities
 
-Bayesian score 0.872 places this entity in the top tier, but no MCTS session has been run. The UCB1 formula rewards exploitation of high-scoring nodes (high reward / low visit count = maximum UCB value). This entity has the highest possible UCB score — it should be the first target the MCTS tree expands. Running a session will immediately anchor the tree at this node and begin path scoring through its relationship graph.
+Bayesian score 0.872 places this entity in the top tier, but no Hybrid Research session has been run. The UCB1 formula rewards exploitation of high-scoring nodes (high reward / low visit count = maximum UCB value). This entity has the highest possible UCB score — it should be the first target the L4 UCT tree expands. Running a session will immediately anchor the tree at this node and begin path scoring through its relationship graph.
 
-**Action:** ✅ Fixed — covered by the `startup.ts` bulk MCTS auto-trigger (45s + 8 min passes, batchSize: 200 each, ordered by descending bayesianScore so highest-UCB entities run first).
+**Action:** ✅ Fixed — covered by the `startup.ts` bulk Hybrid Research auto-trigger (45s + 8 min passes, batchSize: 200 each, ordered by descending bayesianScore so highest-UCB entities run first).
 
 **Affected entities:** Callon Petroleum Co, LEEDS RICHARD BRIAN ET AL, Farmer Richard F, LIBERTY MEDIA CORPORATION, INGRAM MARTHA R, STAPLETON CRAIG R, Hamilton Beach Brands Holding Co  (HBB), EASTMAN KODAK CO  (KODK), SILVERMAN MORRIS, Van Ness Kenneth … +190 more
 
@@ -39,16 +39,16 @@ Bayesian score 0.872 places this entity in the top tier, but no MCTS session has
 
 The L2 pipeline runs four agents in sequence: Planner (decomposes query intent into asset/geo/name filters), Retriever (runs L1 hybrid search with expanded query), Analyst (validates against real ingested data, applies signal boosts), Critic (re-ranks, removes noise, produces final output). None of these agents have been invoked for this entity. The CRM has no pitch, the graph has no path score, and the Bayesian-UCB layer (L5) has no session evidence to exploit. Fix: trigger a research session from the Intel Terminal to activate all four agents.
 
-**Action:** ✅ Fixed — covered by the `startup.ts` bulk MCTS auto-trigger (two passes of 200 entities each, starting at 45s and 8 min after boot).
+**Action:** ✅ Fixed — covered by the `startup.ts` bulk Hybrid Research auto-trigger (two passes of 200 entities each, starting at 45s and 8 min after boot).
 
 **Affected entities:** Callon Petroleum Co, LEEDS RICHARD BRIAN ET AL, Farmer Richard F, LIBERTY MEDIA CORPORATION, INGRAM MARTHA R, STAPLETON CRAIG R, Hamilton Beach Brands Holding Co  (HBB), EASTMAN KODAK CO  (KODK), SILVERMAN MORRIS, Van Ness Kenneth … +190 more
 
-#### ✅ L4 MCTS tree never built — high-value target has no path exploration
+#### ✅ L4 UCT path-finding never run — high-value target has no path exploration
 **Category:** outreach · **Affects:** 200 entities
 
-Bayesian score 0.872 places this entity in the high-value tier, but the L4 MCTS engine (mcts-agent.ts) has never run a UCT tree search for this target. L4 uses ProximityMCTS with UCT formula: Q(v)/N(v) + C√(ln N_parent / N(v)). The reward function scores path steps on real relationship types from registries (direct ownership > shared assets > gatekeeper proximity > corporate co-membership). Without a tree, there is no ranked warm-introduction path, no winning route to the CRM, and the Bayesian-UCB layer (L5) has no visit counts to exploit. Fix: run a research session from the Intel Terminal.
+Bayesian score 0.872 places this entity in the high-value tier, but the L4 engine has never run a UCT tree search for this target. L4 uses ProximityMCTS with UCT formula: Q(v)/N(v) + C√(ln N_parent / N(v)). The reward function scores path steps on real relationship types from registries (direct ownership > shared assets > gatekeeper proximity > corporate co-membership). Without a tree, there is no ranked warm-introduction path, no winning route to the CRM, and the Bayesian-UCB layer (L5) has no visit counts to exploit. Fix: run a Hybrid Research session from the Intel Terminal.
 
-**Action:** ✅ Fixed — covered by the `startup.ts` bulk MCTS auto-trigger (two passes of 200 entities each, starting at 45s and 8 min after boot).
+**Action:** ✅ Fixed — covered by the `startup.ts` bulk Hybrid Research auto-trigger (two passes of 200 entities each, starting at 45s and 8 min after boot).
 
 **Affected entities:** Callon Petroleum Co, LEEDS RICHARD BRIAN ET AL, Farmer Richard F, LIBERTY MEDIA CORPORATION, INGRAM MARTHA R, STAPLETON CRAIG R, Hamilton Beach Brands Holding Co  (HBB), EASTMAN KODAK CO  (KODK), SILVERMAN MORRIS, Van Ness Kenneth … +190 more
 

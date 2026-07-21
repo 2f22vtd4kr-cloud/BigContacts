@@ -259,7 +259,7 @@ async function runDataAnalyst(entity: Entity): Promise<ImprovementSuggestion[]> 
       title: "Net worth unset despite significant asset holdings",
       description:
         `Asset register shows ~$${(totalAssetValue / 1_000_000).toFixed(1)}M in registered assets, but ` +
-        "estimatedNetWorth is null. Net worth is a key signal for prospect prioritisation and MCTS path scoring. " +
+        "estimatedNetWorth is null. Net worth is a key signal for prospect prioritisation and L4 path scoring. " +
         "Minimum estimate: set to 3× total registered asset value as a conservative floor.",
       actionTaken: `Recommended estimatedNetWorth floor: $${(totalAssetValue * 3 / 1_000_000).toFixed(1)}M.`,
     });
@@ -375,11 +375,11 @@ async function runIntelSystemsAnalyst(entity: Entity): Promise<ImprovementSugges
       priority: "high",
       title: "Hybrid stack not activated — no intelligence session exists",
       description:
-        "This entity has never been processed by the full hybrid pipeline. Without an MCTS research session, " +
+        "This entity has never been processed by the full hybrid pipeline. Without a Hybrid Research session, " +
         "the UCT path-finder, agent orchestrator, and pitch synthesiser have no baseline to work from. " +
         "The Pipeline CRM card is empty, the graph layer has no path scores, and outreach is unguided. " +
-        "Start a session via the MCTS Terminal to activate the Planner → Retriever → Analyst → Critic → Pitch pipeline.",
-      actionTaken: "Entity flagged as pipeline-cold. Queued for MCTS session at next cycle.",
+        "Start a session via the Intel Terminal to activate the Planner → Retriever → Analyst → Critic → Pitch pipeline.",
+      actionTaken: "Entity flagged as pipeline-cold. Queued for Hybrid Research session at next cycle.",
     });
   } else {
     const latest  = sessions[0];
@@ -394,7 +394,7 @@ async function runIntelSystemsAnalyst(entity: Entity): Promise<ImprovementSugges
         title: `Intelligence session is ${Math.floor(ageDays)}d stale — hybrid re-run recommended`,
         description:
           `Last pipeline run was ${Math.floor(ageDays)} days ago. The hybrid search index, graph centrality scores, ` +
-          "and MCTS tree are all anchored to the entity graph at that point in time. New FAA, HMLR, and HNWI " +
+          "and UCT tree are all anchored to the entity graph at that point in time. New FAA, HMLR, and HNWI " +
           "ingestion runs will have added nodes and edges that the current session never evaluated. " +
           "A fresh run will re-execute BM25 + graph RRF fusion and recalculate UCT-optimal paths through the updated graph.",
         actionTaken: `Session age ${Math.floor(ageDays)}d logged. Flagged for hybrid re-run.`,
@@ -429,11 +429,11 @@ async function runIntelSystemsAnalyst(entity: Entity): Promise<ImprovementSugges
         priority: "medium",
         title: "Agent pipeline incomplete — Critic stage has no synthesised output",
         description:
-          "MCTS sessions exist but the Critic agent has not produced a final outreach pitch. " +
+          "Research sessions exist but the Critic agent has not produced a final outreach pitch. " +
           "The pipeline runs: Planner (query intent) → Retriever (BM25 + graph hybrid search) → " +
           "Analyst (RRF score fusion + Bayesian weighting) → Critic (relevance pruning) → Pitch synthesis. " +
           "The last stage converts the winning path context and mutual-interest signals into a ready-to-deploy " +
-          "opening message. Complete the pipeline via the MCTS Terminal → Generate Pitch.",
+          "opening message. Complete the pipeline via the Intel Terminal → Generate Pitch.",
         actionTaken: "Pipeline incomplete — pitch synthesis stage not reached.",
       });
     }
@@ -502,12 +502,12 @@ async function runIntelSystemsAnalyst(entity: Entity): Promise<ImprovementSugges
       title: "High-probability target — UCB exploitation not yet initiated",
       description:
         `Bayesian score ${score.toFixed(3)} places this entity in the top tier, ` +
-        "but no MCTS session has been run. The UCB1 formula rewards exploitation of high-scoring nodes " +
+        "but no Hybrid Research session has been run. The UCB1 formula rewards exploitation of high-scoring nodes " +
         "(high reward / low visit count = maximum UCB value). This entity has the highest possible UCB score " +
-        "— it should be the first target the MCTS tree expands. " +
+        "— it should be the first target the L4 UCT tree expands. " +
         "Running a session will immediately anchor the tree at this node and begin path scoring " +
         "through its relationship graph.",
-      actionTaken: `UCB exploitation flag: score ${score.toFixed(3)} with 0 visits. Immediate MCTS run recommended.`,
+      actionTaken: `UCB exploitation flag: score ${score.toFixed(3)} with 0 visits. Immediate Hybrid Research run recommended.`,
     });
   }
 
@@ -567,7 +567,7 @@ async function runBusinessEngineer(entity: Entity): Promise<ImprovementSuggestio
         priority: "high",
         title: "Isolated node — no relationships mapped",
         description:
-          "Entity has no relationship edges in the graph. Isolated nodes cannot benefit from MCTS path-finding " +
+          "Entity has no relationship edges in the graph. Isolated nodes cannot benefit from Hybrid Research path-finding " +
           "and are invisible in the Network Graph view. " +
           "Immediate actions: link to known employers/directorships (SEC DEF 14A, Companies House); " +
           "map to private-club memberships; connect to asset-management vehicles (trusts, SPVs).",
@@ -724,7 +724,7 @@ async function runArchitect(entity: Entity): Promise<ImprovementSuggestion[]> {
       title: "HNWI classification may be incorrect — name suggests corporate entity",
       description:
         `Entity name "${entity.name}" contains corporate/legal suffixes but is typed as HNWI. ` +
-        "Misclassification affects MCTS weighting, graph clustering, and CRM track assignment. " +
+        "Misclassification affects L4 path weighting, graph clustering, and CRM track assignment. " +
         "Review the original registry filing to determine whether this is an individual or a legal vehicle.",
       actionTaken: "Classification anomaly flag: name pattern inconsistent with HNWI type.",
     });
@@ -1171,7 +1171,7 @@ async function runHybridArchitectureAuditor(entity: Entity): Promise<Improvement
           "Relevance feedback in L3 works by using high-scoring paths (≥0.45) as anchors for subsequent " +
           "query expansion — they add confirmed graph neighbours and entity attributes to the next retrieval pass. " +
           "With all sessions below 0.45, the feedback loop has no positive signal to feed forward. " +
-          "Root causes: (a) entity is isolated (0 graph edges), making the MCTS reward function always low; " +
+          "Root causes: (a) entity is isolated (0 graph edges), making the L4 reward function always low; " +
           "(b) entity has no contact vectors, reducing UCT warmth scores; " +
           "(c) asset-type synonyms are not matching any graph neighbours. " +
           "Fix: add relationship edges (cluster detect) and run CH enrichment to add contact vectors.",
@@ -1190,17 +1190,17 @@ async function runHybridArchitectureAuditor(entity: Entity): Promise<Improvement
       persona: "hybrid_architecture_auditor",
       category: "outreach",
       priority: "high",
-      title: "L4 MCTS tree never built — high-value target has no path exploration",
+      title: "L4 UCT path-finding never run — high-value target has no path exploration",
       description:
         `Bayesian score ${score.toFixed(3)} places this entity in the high-value tier, ` +
-        "but the L4 MCTS engine (mcts-agent.ts) has never run a UCT tree search for this target. " +
-        "L4 uses ProximityMCTS with UCT formula: Q(v)/N(v) + C√(ln N_parent / N(v)). " +
+        "but the L4 engine has never run a UCT tree search for this target. " +
+        "L4 uses UCT formula: Q(v)/N(v) + C√(ln N_parent / N(v)). " +
         "The reward function scores path steps on real relationship types from registries " +
         "(direct ownership > shared assets > gatekeeper proximity > corporate co-membership). " +
         "Without a tree, there is no ranked warm-introduction path, no winning route to the CRM, " +
         "and the Bayesian-UCB layer (L5) has no visit counts to exploit. " +
-        "Fix: run a research session from the Intel Terminal.",
-      actionTaken: `L4 MCTS: 0 UCT trees built. Score ${score.toFixed(3)} → immediate session recommended.`,
+        "Fix: run a Hybrid Research session from the Intel Terminal.",
+      actionTaken: `L4: 0 UCT trees built. Score ${score.toFixed(3)} → immediate Hybrid Research session recommended.`,
     });
   } else if (sessions.length > 0) {
     const bestPath = Math.max(...sessions.map(s => s.pathScore ?? 0));
@@ -1210,12 +1210,12 @@ async function runHybridArchitectureAuditor(entity: Entity): Promise<Improvement
         persona: "hybrid_architecture_auditor",
         category: "outreach",
         priority: "medium",
-        title: "L4 MCTS reward always near-zero — isolated entity has no real relationship paths",
+        title: "L4 UCT reward always near-zero — isolated entity has no real relationship paths",
         description:
           `Path score ${bestPath.toFixed(3)} across ${sessions.length} session(s). ` +
           "The L4 reward function assigns value based solely on real relationship types from ingested registries: " +
           "CORPORATE_SERIES (name-cluster), SHARED_DIRECTOR (CH co-directors), ASSET_CO_OWNER, GATEKEEPER_LINK. " +
-          `This entity has ${relCount} edges — the MCTS tree expands into empty space and the simulation ` +
+          `This entity has ${relCount} edges — the L4 UCT tree expands into empty space and the simulation ` +
           "always backtracks to the root with near-zero reward. UCT selection cannot improve. " +
           "Fix: run 'Detect Relationship Clusters' to build CORPORATE_SERIES edges from name tokens, " +
           "then re-run the research session. Even 2–3 graph edges unlock multi-hop path finding.",
@@ -1246,7 +1246,7 @@ async function runHybridArchitectureAuditor(entity: Entity): Promise<Improvement
         "for each signal: asset count (weight 0.8, LR 2.5), registry corroboration (0.6, 2.0), " +
         "relationship depth (0.5, 1.8), contact vectors (0.7, 3.0 / 0.4, 1.6). " +
         `With ${relCount} edges on record and score frozen at ${score.toFixed(3)}, the posterior has ` +
-        "never incorporated the relationship evidence. UCB1 inside MCTS uses this score as the prior — " +
+        "never incorporated the relationship evidence. UCB1 in L5 uses this score as the prior — " +
         "a stale prior biases the exploration tree toward or away from this entity incorrectly. " +
         "Fix: trigger a Bayesian re-score by re-running the persona improvement loop or syncing hot flags.",
       actionTaken: `L5 posterior: frozen at ${score.toFixed(3)} since creation despite ${relCount} graph edges.`,
@@ -1268,7 +1268,7 @@ async function runHybridArchitectureAuditor(entity: Entity): Promise<Improvement
       description:
         `Bayesian score ${score.toFixed(3)}, ${sessions.length} research sessions, but contactConfidence = 0 ` +
         "and no physical address on record. " +
-        "The L5 UCB layer assigns a +0.15 warmth bonus in the MCTS UCT formula for nodes with contactConfidence ≥ 50 " +
+        "The L5 UCB layer assigns a +0.15 warmth bonus in the L4 UCT formula for nodes with contactConfidence ≥ 50 " +
         "and +0.10 for any known email/phone. With all contact vectors absent, this entity gets no UCB exploitation bonus — " +
         "the tree treats it as a cold target even though the Bayesian score says it is high-value. " +
         "Fix: run Companies House enrichment or web OSINT to populate email, phone, or known address — " +
@@ -1285,7 +1285,7 @@ async function runHybridArchitectureAuditor(entity: Entity): Promise<Improvement
       description:
         `Bayesian score ${score.toFixed(3)}, ${sessions.length} session(s), physical address present, but contactConfidence = 0. ` +
         "Run POST /ingest/recompute-contact-confidence to update the column from existing address and contact fields. " +
-        "Once updated, the UCB warmth bonus (≥10 confidence) will flow into MCTS node selection.",
+        "Once updated, the UCB warmth bonus (≥10 confidence) will flow into L4 UCT node selection.",
       actionTaken: "L5 contactConfidence: stale at 0 despite address on record. Recompute queued.",
     });
   }

@@ -57,7 +57,7 @@ Tables (all in `lib/db/src/schema/`):
 | `entities` | Core HNWI/Corp/Trust/Gatekeeper profiles |
 | `assets` | Aviation, RealEstate, Marine, PrivateClub assets |
 | `relationships` | Entity→Entity and Entity→Asset edges |
-| `research_sessions` | MCTS outreach path results + CRM status |
+| `research_sessions` | Hybrid Research outreach path results + CRM status |
 | `improvement_logs` | Persona-loop suggestions per entity |
 
 Schema push: `pnpm --filter @workspace/db run push`
@@ -120,7 +120,7 @@ GET  /api/dashboard/hot-leads          top entities by Bayesian score + real ass
 GET  /api/dashboard/map-data           assets with lat/lng for map
 POST /api/search/intelligent           hybrid BM25 + TF-IDF + Bayesian search
 POST /api/registry-search              live OSINT search (GLEIF, EDGAR, OpenCorporates, Companies House)
-POST /api/research/run                 MCTS path-finding for an entity
+POST /api/research/run                 Hybrid Research path-finding for an entity
 GET  /api/research/sessions            CRM research session list
 POST /api/improve/run                  run persona improvement loop (50 entities at a time)
 GET  /api/improve/stats                persona loop summary stats
@@ -163,12 +163,12 @@ GET  /api/improve/logs                 improvement suggestions (filterable by pe
 | Phase | Feature |
 |---|---|
 | 1–3 | Core DB schema, Bayesian scorer, Express API, React frontend |
-| 4 | MCTS research agent (UCT graph traversal), research sessions, CRM pipeline |
+| 4 | Hybrid Research agent (L4 UCT graph traversal), research sessions, CRM pipeline |
 | 5 | Hybrid BM25 + TF-IDF + Bayesian search, network graph |
 | 6 | FAA aircraft registry ingestor, Western HNWI engine (SEC EDGAR + BRREG + Companies House) |
 | 7 | Persona improvement loop (6 deterministic personas), `improvement_logs` table, `/improvements` UI page |
 | 8 | OCCRP Aleph enricher, HMLR OCOD ingestor (replaced by PPD CSV), OpenSky live-flight enricher, Data Sources dashboard |
-| 9 (UX) | Single-pass query expansion (`expandQuery` in agent-orchestrator.ts); Entity Ledger clickable contact vectors (mailto/tel/LinkedIn); Profile page Direct Contact Vectors action bar; MCTS Terminal search bar + 500-entity limit + `?entity=` URL pre-selection; CRM empty-state guidance; `improve/run` inArray SQL fix; Intel Systems Analyst persona text updated to reflect expansion mechanics |
+| 9 (UX) | Single-pass query expansion (`expandQuery` in agent-orchestrator.ts); Entity Ledger clickable contact vectors (mailto/tel/LinkedIn); Profile page Direct Contact Vectors action bar; Intel Terminal search bar + 500-entity limit + `?entity=` URL pre-selection; CRM empty-state guidance; `improve/run` inArray SQL fix; Intel Systems Analyst persona text updated to reflect expansion mechanics |
 
 ---
 

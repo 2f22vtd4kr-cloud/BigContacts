@@ -30,7 +30,7 @@ type PathStep = {
   contactPhone?: string | null;
 };
 
-const HYBRID_PIPELINE = "L1: BM25+Semantic+Graph · L2: Planner→Retriever→Analyst→Critic · L3: QueryExpansion · L4: MCTS(UCT·120) · L5: Bayesian-UCB";
+const HYBRID_PIPELINE = "L1: BM25+Semantic+Graph · L2: Planner→Retriever→Analyst→Critic · L3: QueryExpansion · L4: UCT(120 rollouts) · L5: Bayesian-UCB";
 
 function roleIcon(role: string) {
   if (role === "TARGET") return <Target className="w-3 h-3 text-primary" />;
@@ -393,7 +393,7 @@ export default function IntelTerminal() {
         </div>
       </div>
 
-      {/* ── Right Panel: MCTS Terminal ── */}
+      {/* ── Right Panel: Intel Terminal ── */}
       <div className="flex-1 flex flex-col bg-[#050810] relative min-w-0 overflow-hidden">
         <div className="p-3 border-b border-border/50 bg-[#0B0F19] flex items-center justify-between text-xs font-mono text-muted-foreground flex-shrink-0">
           <div className="flex items-center space-x-2 min-w-0">

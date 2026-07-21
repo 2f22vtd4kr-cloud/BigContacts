@@ -888,7 +888,7 @@ function BulkMctsButton() {
       const d = await r.json();
       if (!r.ok) throw new Error(d.error ?? "Failed");
       if (!d.jobId) { setMsg(d.message ?? "All sessions exist"); setStatus("done"); return; }
-      setMsg(`Running MCTS on ${d.total} hot leads…`);
+      setMsg(`Running Hybrid Research on ${d.total} hot leads…`);
       pollRef.current = setInterval(async () => {
         try {
           const p = await fetch(`${base}/api/ingest/job/${d.jobId}`);
@@ -989,7 +989,7 @@ function PipelineStatusPanel() {
     await step("Step 1/4: Populating notes…",          "/api/ingest/populate-notes");
     await step("Step 2/4: Creating EDGAR stock assets…", "/api/ingest/create-edgar-stock-assets");
     await step("Step 3/4: Detecting relationship clusters…", "/api/relationships/auto-detect-clusters");
-    await step("Step 4/4: Running MCTS on hot leads…", "/api/research/bulk-run",
+    await step("Step 4/4: Running Hybrid Research on hot leads…", "/api/research/bulk-run",
                { batchSize: 60, skipExisting: true });
 
     setRunMsg("Pipeline complete ✓");
@@ -1007,7 +1007,7 @@ function PipelineStatusPanel() {
       total: status.hotLeads,
       color: status.coldMcts === 0 ? "text-emerald-400" : "text-red-400",
       dot: status.coldMcts === 0 ? "bg-emerald-500" : "bg-red-500 animate-pulse",
-      tip: "Hot leads with no MCTS research session — use Bulk MCTS to activate them",
+      tip: "Hot leads with no Hybrid Research session — use Bulk Research to activate them",
     },
     {
       label: "Pending enrichment",

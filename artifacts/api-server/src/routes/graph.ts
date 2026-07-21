@@ -131,7 +131,7 @@ router.get("/graph/path", async (req, res): Promise<void> => {
       edges: [],
       hops: 0,
       pathScore: null,
-      recommendation: "No direct connection path found. Consider expanding the entity registry or running MCTS to discover indirect routes via asset cross-ownership.",
+      recommendation: "No direct connection path found. Consider expanding the entity registry or running Hybrid Research to discover indirect routes via asset cross-ownership.",
     });
     return;
   }
@@ -158,7 +158,7 @@ router.get("/graph/path", async (req, res): Promise<void> => {
           ? "WhatsApp/Email with referral commission offer (5%)"
           : "Professional introduction"
       }. Path confidence: ${(pathScore * 100).toFixed(0)}%.`
-    : `${hops}-hop path identified. Run MCTS for gatekeeper identification and optimal approach strategy.`;
+    : `${hops}-hop path identified. Run Hybrid Research for gatekeeper identification and optimal approach strategy.`;
 
   res.json({
     found: true,

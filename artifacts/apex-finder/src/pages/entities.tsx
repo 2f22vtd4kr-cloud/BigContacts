@@ -197,7 +197,7 @@ function MobileEntityDetail({ entity, onClose }: { entity: any; onClose: () => v
             href={`/research?entity=${entity.id}`}
             className="flex items-center justify-center gap-2 w-full py-2.5 bg-muted border border-border text-foreground rounded font-mono text-xs uppercase tracking-wider"
           >
-            <TargetIcon className="w-3.5 h-3.5" /> Run MCTS Analysis
+            <TargetIcon className="w-3.5 h-3.5" /> Run Hybrid Research
           </Link>
         </div>
       </div>
@@ -611,7 +611,7 @@ export default function EntityLedger() {
                   onClick={handleBulkMcts}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-primary/40 bg-primary/10 text-primary font-mono text-[11px] uppercase tracking-wider hover:bg-primary/20 transition-all"
                 >
-                  <TargetIcon className="w-3 h-3" /> Run MCTS
+                  <TargetIcon className="w-3 h-3" /> Run Research
                 </button>
                 <button
                   onClick={() => setSelectedIds(new Set())}
@@ -765,7 +765,7 @@ export default function EntityLedger() {
                         <Link
                           href={`/research?entity=${entity.id}`}
                           className="p-1.5 text-muted-foreground hover:text-secondary transition-colors"
-                          title="MCTS analysis"
+                          title="Hybrid Research"
                         >
                           <TargetIcon className="w-3.5 h-3.5" />
                         </Link>
@@ -882,7 +882,7 @@ export default function EntityLedger() {
                 </button>
                 <button onClick={handleBulkMcts}
                   className="flex items-center gap-1 px-2.5 py-1.5 rounded border border-primary/40 bg-primary/10 text-primary font-mono text-[10px] uppercase tracking-wider">
-                  <TargetIcon className="w-3 h-3" /> MCTS
+                  <TargetIcon className="w-3 h-3" /> Research
                 </button>
                 <button onClick={() => setSelectedIds(new Set())}
                   className="text-[10px] font-mono text-muted-foreground hover:text-foreground ml-1">

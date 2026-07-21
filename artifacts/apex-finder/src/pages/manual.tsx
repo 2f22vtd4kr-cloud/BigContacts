@@ -152,12 +152,12 @@ const LEVELS = [
   { id: 2,  color: "#3B82F6", numeral: "II",   title: "ENTITY LEDGER", subtitle: "Target registry" },
   { id: 3,  color: "#06B6D4", numeral: "III",  title: "DEEP SEARCH",  subtitle: "NL intelligence" },
   { id: 4,  color: "#F59E0B", numeral: "IV",   title: "NETWORK GRAPH", subtitle: "Relationship map" },
-  { id: 5,  color: "#EF4444", numeral: "V",    title: "INTEL TERMINAL", subtitle: "MCTS analysis" },
+  { id: 5,  color: "#EF4444", numeral: "V",    title: "INTEL TERMINAL", subtitle: "Hybrid analysis" },
   { id: 6,  color: "#8B5CF6", numeral: "VI",   title: "PIPELINE CRM", subtitle: "Outreach tracking" },
   { id: 7,  color: "#EC4899", numeral: "VII",  title: "PERSONA LOOP", subtitle: "AI improvement" },
   { id: 8,  color: "#14B8A6", numeral: "VIII", title: "DATA SOURCES", subtitle: "Registry feeds" },
   { id: 9,  color: "#F97316", numeral: "IX",   title: "ENTITY PROFILE", subtitle: "Deep-dive view" },
-  { id: 10, color: "#6366F1", numeral: "X",    title: "THE ENGINE",   subtitle: "Scoring & MCTS" },
+  { id: 10, color: "#6366F1", numeral: "X",    title: "THE ENGINE",   subtitle: "Scoring & Pipeline" },
 ];
 
 function SidebarItem({ level, active, onClick }: { level: typeof LEVELS[0]; active: boolean; onClick: () => void }) {
@@ -296,7 +296,7 @@ export default function FieldManual() {
                 { icon: <Database size={12} />, color: "#3B82F6", name: "Entity Ledger", path: "/entities", desc: "Full sortable/filterable list of all 32,300+ targets with scores and contact vectors." },
                 { icon: <Search size={12} />,   color: "#06B6D4", name: "Deep Search", path: "/deep-search", desc: "Natural language search fusing BM25, TF-IDF, and Bayesian graph signals." },
                 { icon: <Network size={12} />,  color: "#F59E0B", name: "Network Graph", path: "/graph", desc: "Interactive D3 graph of relationships: owns, directs, shares addresses, co-investors." },
-                { icon: <Terminal size={12} />, color: "#EF4444", name: "Intel Terminal", path: "/research", desc: "MCTS simulation — 120 rollouts to find the optimal warm-introduction path." },
+                { icon: <Terminal size={12} />, color: "#EF4444", name: "Intel Terminal", path: "/research", desc: "Hybrid Research — 5-layer pipeline with 120 UCT rollouts to find the optimal warm-introduction path." },
                 { icon: <KanbanSquare size={12} />, color: "#8B5CF6", name: "Pipeline CRM", path: "/crm", desc: "8-stage Kanban board tracking every target from Lead Gen to Closed." },
                 { icon: <Bot size={12} />,      color: "#EC4899", name: "Persona Loop", path: "/improvements", desc: "6 AI agents that continuously scan entities and log concrete enrichment actions." },
                 { icon: <Layers size={12} />,   color: "#14B8A6", name: "Data Sources", path: "/data-sources", desc: "Registry ingestion panel — run enrichers, track coverage, trigger background jobs." },
@@ -496,15 +496,15 @@ export default function FieldManual() {
               { title: "Select your target", body: "Use the dropdown at the top. The entire graph re-renders around that individual. Larger nodes = higher Bayesian score = more data found." },
               { title: "Spot the Gatekeepers", body: "Amber nodes are inner-circle members: private bankers, family office managers, art dealers. They sit between you and the target — they are your real first objective." },
               { title: "Find your closest gatekeeper", body: "Look for gatekeepers also connected to entities or people you already know. That shared connection is your warm introduction angle." },
-              { title: "Don't guess — simulate", body: "Once you've visually scanned the graph, open the Intel Terminal to run a full MCTS simulation. Human intuition and the algorithm together beat either one alone." },
+              { title: "Don't guess — simulate", body: "Once you've visually scanned the graph, open the Intel Terminal to run a full Hybrid Research simulation. Human intuition and the algorithm together beat either one alone." },
             ]} />
           </Section>
 
           {/* ══ LEVEL V — INTEL TERMINAL ════════════════════════════════════════ */}
-          <Section id="section-5" level="V" levelColor="#EF4444" levelLabel="LEVEL V — INTEL TERMINAL" title="MCTS Path Simulation">
+          <Section id="section-5" level="V" levelColor="#EF4444" levelLabel="LEVEL V — INTEL TERMINAL" title="Hybrid Research & Path Finding">
 
             <p className="text-sm text-[#94A3B8] leading-relaxed mb-5">
-              The Intel Terminal runs a Monte Carlo Tree Search (MCTS) simulation to find the optimal
+              The Intel Terminal runs the full 5-layer Hybrid Intelligence Pipeline to find the optimal
               warm-introduction path to your target. It tests 120 possible approach routes through the
               relationship graph and returns a ranked, scored playbook — not a guess.
             </p>
@@ -518,12 +518,12 @@ export default function FieldManual() {
                 { n: 2, x: 21,  y: 17, color: "#A855F7", label: "5-Algorithm pipeline summary: L1 BM25 → L2 Planner-Retriever-Analyst-Critic → L3 QueryExpansion → L4 MCTS(UCT-120) → L5 Bayesian-UCB" },
                 { n: 3, x: 21,  y: 26, color: "#06B6D4", label: "Filter targets — search the target list by name to find a specific entity quickly" },
                 { n: 4, x: 42,  y: 33, color: "#10B981", label: "Signal score badge — shown next to each target (94 = high Bayesian confidence)" },
-                { n: 5, x: 21,  y: 96, color: "#EF4444", label: "RUN ANALYSIS — starts the MCTS simulation; results stream into the terminal on the right" },
+                { n: 5, x: 21,  y: 96, color: "#EF4444", label: "RUN ANALYSIS — starts the Hybrid Research pipeline; results stream into the terminal on the right" },
                 { n: 6, x: 75,  y: 12, color: "#F59E0B", label: "Terminal window — live simulation output streams here; shows path nodes, scores, and the final recommended approach route" },
               ]}
             />
 
-            <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-widest mt-6 mb-4">What MCTS does</h3>
+            <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-widest mt-6 mb-4">How L4 path-finding works</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               <div className="bg-[#050A14] border border-[#3B82F6]/25 rounded-lg p-4">
                 <p className="text-xs font-bold text-[#3B82F6] mb-2 uppercase tracking-wider">Exploitation</p>
@@ -540,21 +540,21 @@ export default function FieldManual() {
               <div><span className="text-[#EF4444]">[L1]</span> BM25 retrieval: 47 candidates surfaced</div>
               <div><span className="text-[#A855F7]">[L2]</span> Planner decomposed query → 3 sub-goals</div>
               <div><span className="text-[#06B6D4]">[L3]</span> QueryExpansion added 8 synonym variants</div>
-              <div><span className="text-[#F59E0B]">[L4]</span> MCTS rollout 001/120 → path via Gatekeeper A (score: 0.61)</div>
-              <div><span className="text-[#F59E0B]">[L4]</span> MCTS rollout 045/120 → path via Gatekeeper B (score: 0.78) ←best so far</div>
-              <div><span className="text-[#F59E0B]">[L4]</span> MCTS rollout 120/120 → converged</div>
+              <div><span className="text-[#F59E0B]">[L4]</span> UCT rollout 001/120 → path via Gatekeeper A (score: 0.61)</div>
+              <div><span className="text-[#F59E0B]">[L4]</span> UCT rollout 045/120 → path via Gatekeeper B (score: 0.78) ←best so far</div>
+              <div><span className="text-[#F59E0B]">[L4]</span> UCT rollout 120/120 → converged</div>
               <div><span className="text-[#10B981]">[L5]</span> Bayesian-UCB final score: 0.83 — WARM PATH FOUND</div>
               <div><span className="text-[#10B981]">[done]</span> Recommended: HNWI → Corp A → Gatekeeper B → You (3 hops)</div>
             </div>
 
             <Callout icon={<AlertCircle size={14} />} color="#EF4444" title="When to override the algorithm">
-              The MCTS path is a probabilistic recommendation, not an order. If you personally know a lower-ranked
+              The research path is a probabilistic recommendation, not an order. If you personally know a lower-ranked
               gatekeeper, that human relationship outweighs any warmth score. Use the algorithm to discover paths
               you didn't know existed — use your judgment to pick the one you'll act on.
             </Callout>
 
             <Callout icon={<Cpu size={14} />} color="#A855F7" title="Session limit — run max 5 in parallel">
-              The MCTS simulation is memory-intensive. Running more than 5 parallel sessions simultaneously can
+              The Hybrid Research pipeline is memory-intensive. Running more than 5 parallel sessions simultaneously can
               exhaust the 3GB server heap. Run targets sequentially or in batches of 5 maximum.
             </Callout>
           </Section>
@@ -565,7 +565,7 @@ export default function FieldManual() {
             <p className="text-sm text-[#94A3B8] leading-relaxed mb-5">
               Every target you decide to pursue gets a Research Session in Pipeline CRM. Sessions move
               through 8 stages from first identification to a closed conversation. The CRM is the paper
-              trail — it stores the MCTS path, the pitch, your notes, and the follow-up date in one place.
+              trail — it stores the research path, the pitch, your notes, and the follow-up date in one place.
             </p>
 
             <AnnotatedScreenshot
@@ -588,7 +588,7 @@ export default function FieldManual() {
                 { stage: "Lead Gen",        color: "#8B5CF6", action: "Run ingestion → target appears here automatically" },
                 { stage: "Identified",      color: "#3B82F6", action: "Confirm target viability, review Entity Profile" },
                 { stage: "Graph Mapped",    color: "#06B6D4", action: "Open Network Graph, identify all gatekeeper nodes" },
-                { stage: "MCTS Path Found", color: "#F59E0B", action: "Run Intel Terminal simulation, copy the path brief" },
+                { stage: "Research Path Found", color: "#F59E0B", action: "Run Intel Terminal simulation, copy the path brief" },
                 { stage: "Pitch Generated", color: "#F97316", action: "Generate 3-part outreach sequence in the session panel" },
                 { stage: "Contacted",       color: "#EF4444", action: "First message sent — set follow-up date" },
                 { stage: "Follow-Up",       color: "#EC4899", action: "Awaiting response — track touchpoints in notes" },
@@ -608,7 +608,7 @@ export default function FieldManual() {
 
             <Callout icon={<Gem size={14} />} color="#8B5CF6" title="Stage discipline — the golden rule">
               Never move a target past <strong className="text-[#06B6D4]">Graph Mapped</strong> without actually
-              opening the Network Graph. Never move past <strong className="text-[#F59E0B]">MCTS Path Found</strong> without
+              opening the Network Graph. Never move past <strong className="text-[#F59E0B]">Research Path Found</strong> without
               a completed simulation. The pipeline is a quality gate, not just a label. Shortcuts here mean
               cold outreach that damages your reputation with the gatekeeper.
             </Callout>
@@ -829,7 +829,7 @@ export default function FieldManual() {
           </Section>
 
           {/* ══ LEVEL X — THE ENGINE ════════════════════════════════════════════ */}
-          <Section id="section-10" level="X" levelColor="#6366F1" levelLabel="LEVEL X — THE ENGINE" title="Bayesian Scoring & MCTS Deep Dive">
+          <Section id="section-10" level="X" levelColor="#6366F1" levelLabel="LEVEL X — THE ENGINE" title="Bayesian Scoring & Pipeline Deep Dive">
 
             <div className="flex items-center gap-2 mb-5">
               <ShieldAlert size={14} className="text-[#6366F1]" />
@@ -868,15 +868,15 @@ export default function FieldManual() {
             <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-widest mt-7 mb-4">Score thresholds — what they mean operationally</h3>
             <div className="space-y-2 mb-6">
               <ScoreBar name="90–100 — Iron-clad data, warm path confirmed, act immediately" score={95} />
-              <ScoreBar name="80–89 — Strong signal, gatekeeper identified, ready for MCTS" score={85} />
-              <ScoreBar name="70–79 — Good data, some gaps — run enrichment then MCTS" score={75} />
+              <ScoreBar name="80–89 — Strong signal, gatekeeper identified, ready for Hybrid Research" score={85} />
+              <ScoreBar name="70–79 — Good data, some gaps — run enrichment then Hybrid Research" score={75} />
               <ScoreBar name="60–69 — Moderate data — needs CH Contact Enricher first" score={65} />
               <ScoreBar name="Below 60 — Sparse data — run Web OSINT Enrich → In-House Enrich to populate" score={45} />
             </div>
 
-            <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-widest mt-7 mb-4">MCTS — UCT formula explained</h3>
+            <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-widest mt-7 mb-4">L4 — UCT path-finding formula explained</h3>
             <p className="text-sm text-[#94A3B8] leading-relaxed mb-4">
-              Each node in the MCTS tree represents an entity on a potential approach path. The UCT algorithm
+              Each node in the L4 UCT tree represents an entity on a potential approach path. The UCT algorithm
               selects which node to explore next using this formula:
             </p>
             <div className="bg-[#050A14] border border-[#1E293B] rounded-lg p-5 mb-5">

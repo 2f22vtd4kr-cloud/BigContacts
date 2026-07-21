@@ -17,7 +17,7 @@ const CRM_COLUMNS = [
   "Lead Gen",
   "Identified",
   "Graph Mapped",
-  "MCTS Path Selected",
+  "Research Path Found",
   "Pitch Generated",
   "Contacted",
   "Follow-Up",
@@ -28,7 +28,7 @@ const STAGE_COLORS: Record<string, string> = {
   "Lead Gen": "#475569",
   "Identified": "#64748B",
   "Graph Mapped": "#3B82F6",
-  "MCTS Path Selected": "#A855F7",
+  "Research Path Found": "#A855F7",
   "Pitch Generated": "#F59E0B",
   "Contacted": "#10B981",
   "Follow-Up": "#F97316",
@@ -566,7 +566,7 @@ export default function PipelineCRM() {
                 <WinningPathDisplay raw={selectedSession.winningPath} />
               ) : (
                 <div className="text-sm text-muted-foreground italic">
-                  No path generated. Run MCTS analysis first.
+                  No path generated. Run Hybrid Research first.
                 </div>
               )}
             </div>

@@ -309,7 +309,7 @@ async function runPopulatedDbMaintenance(): Promise<void> {
 
   ]).catch(err => logger.warn({ err: err?.message }, "Maintenance bg tasks error (non-fatal)"));
 
-  // 8. After maintenance — fire delayed HTTP triggers for graph clustering and bulk MCTS.
+  // 8. After maintenance — fire delayed HTTP triggers for graph clustering and bulk Hybrid Research.
   //    Server is already listening by this point (coldStartRecovery runs fire-and-forget).
   const port = process.env["PORT"] ?? "8080";
   setTimeout(async () => {
@@ -324,7 +324,7 @@ async function runPopulatedDbMaintenance(): Promise<void> {
     }
   }, 15_000); // 15s after boot — server is stable by then
 
-  // 45s: first bulk MCTS pass — 200 hot leads, skip already-run sessions
+  // 45s: first bulk Hybrid Research pass — 200 hot leads, skip already-run sessions
   setTimeout(async () => {
     try {
       const researchRes = await fetch(`http://localhost:${port}/api/research/bulk-run`, {
@@ -334,7 +334,7 @@ async function runPopulatedDbMaintenance(): Promise<void> {
       });
       if (researchRes.ok) {
         const d = await researchRes.json();
-        logger.info({ message: d.message, jobId: d.jobId }, "Maintenance: auto hybrid-research bulk run triggered (pass 1)");
+        logger.info({ message: d.message, jobId: d.jobId }, "Maintenance: auto Hybrid Research bulk run triggered (pass 1)");
       }
     } catch (err: any) {
       logger.warn({ err: err?.message }, "Maintenance: auto hybrid-research trigger failed (non-fatal)");
@@ -360,7 +360,7 @@ async function runPopulatedDbMaintenance(): Promise<void> {
     }
   }, 120_000);
 
-  // 8 min: second bulk MCTS pass — cover the next 200 cold sessions
+  // 8 min: second bulk Hybrid Research pass — cover the next 200 cold sessions
   setTimeout(async () => {
     try {
       const researchRes = await fetch(`http://localhost:${port}/api/research/bulk-run`, {
@@ -370,10 +370,10 @@ async function runPopulatedDbMaintenance(): Promise<void> {
       });
       if (researchRes.ok) {
         const d = await researchRes.json();
-        logger.info({ message: d.message, jobId: d.jobId }, "Maintenance: auto hybrid-research bulk run triggered (pass 2)");
+        logger.info({ message: d.message, jobId: d.jobId }, "Maintenance: auto Hybrid Research bulk run triggered (pass 2)");
       }
     } catch (err: any) {
-      logger.warn({ err: err?.message }, "Maintenance: auto hybrid-research trigger failed pass 2 (non-fatal)");
+      logger.warn({ err: err?.message }, "Maintenance: auto Hybrid Research trigger failed pass 2 (non-fatal)");
     }
   }, 480_000);
 }

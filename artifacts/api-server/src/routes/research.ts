@@ -181,10 +181,10 @@ router.post("/research/run", async (req, res): Promise<void> => {
         return `#${i + 1} ${c.name} (${c.confidence} · RRF ${(c.scores.rrf * 100).toFixed(0)}%): ${reasoning}`;
       });
       const pathSuffix = pathNodes > 1 && hasGatekeeper
-        ? ` | MCTS: ${pathNodes}-hop, gatekeeper confirmed`
+        ? ` | L4: ${pathNodes}-hop, gatekeeper confirmed`
         : pathNodes === 1
-          ? " | MCTS: isolated — no graph edges yet"
-          : ` | MCTS: ${pathNodes}-hop, no confirmed gatekeeper`;
+          ? " | L4: isolated — no graph edges yet"
+          : ` | L4: ${pathNodes}-hop, no confirmed gatekeeper`;
       critiqueNote =
         `Critic synthesised ${topCandidates.length}/${orchResult.pipeline.analyst.candidateCount} candidate(s)` +
         ` (${orchResult.pipeline.critic.removed} pruned, ${orchResult.totalMs}ms).` +
@@ -234,7 +234,7 @@ router.post("/research/run", async (req, res): Promise<void> => {
       status: "done",
     },
     {
-      algo: "L4 — MCTS Deep Path Exploration (UCT · 120 rollouts)",
+      algo: "L4 — UCT Deep Path Exploration (120 rollouts)",
       contribution: `Path score: ${(mctsResult.pathScore * 100).toFixed(0)}/100 · ${mctsResult.mctsSteps.length} step${mctsResult.mctsSteps.length !== 1 ? "s" : ""}`,
       status: "done",
     },
@@ -572,13 +572,13 @@ router.post("/research/backfill-pitches", async (_req, res): Promise<void> => {
   res.json({ updated, errors, message: `Backfilled pitches for ${updated} sessions (${errors} errors).` });
 });
 
-// POST /research/bulk-run — run MCTS on top N hot leads in a single background job
+// POST /research/bulk-run — run Hybrid Research on top N hot leads in a single background job
 // Loads the full entity graph ONCE, then processes entities sequentially.
 // This is ~50× faster than calling /research/run N times (avoids repeated full DB scans).
 router.post("/research/bulk-run", async (req, res): Promise<void> => {
   const existing = await getActiveJob("bulk-mcts");
   if (existing) {
-    res.status(409).json({ error: "A bulk MCTS run is already in progress.", jobId: existing });
+    res.status(409).json({ error: "A bulk Hybrid Research run is already in progress.", jobId: existing });
     return;
   }
 
@@ -613,7 +613,7 @@ router.post("/research/bulk-run", async (req, res): Promise<void> => {
     jobId,
     pollUrl: `/api/ingest/job/${jobId}`,
     total: targets.length,
-    message: `Bulk MCTS started for ${targets.length} hot leads.`,
+    message: `Bulk Hybrid Research started for ${targets.length} hot leads.`,
   });
 
   // Background processing — load graph ONCE, run all sessions
@@ -639,7 +639,7 @@ router.post("/research/bulk-run", async (req, res): Promise<void> => {
             total: targets.length,
             inserted: done,
             errors,
-            message: `Running MCTS for ${targetEntity.name} (${done + 1}/${targets.length})…`,
+            message: `Running Hybrid Research for ${targetEntity.name} (${done + 1}/${targets.length})…`,
           });
 
           // Bayesian score update
@@ -728,7 +728,7 @@ router.post("/research/bulk-run", async (req, res): Promise<void> => {
               outreach.introScript,
             ].join("\n\n");
           } catch {
-            pitchText = `[Bulk MCTS pitch — ${targetEntity.name}. Path score: ${(mctsResult.pathScore * 100).toFixed(0)}/100. Run /research/backfill-pitches to regenerate.]`;
+            pitchText = `[Bulk Research pitch — ${targetEntity.name}. Path score: ${(mctsResult.pathScore * 100).toFixed(0)}/100. Run /research/backfill-pitches to regenerate.]`;
           }
 
           await db.insert(researchSessionsTable).values({
@@ -754,12 +754,12 @@ router.post("/research/bulk-run", async (req, res): Promise<void> => {
         inserted: done,
         errors,
         status: "done",
-        message: `Bulk MCTS complete — ${done} sessions created, ${errors} errors.`,
+        message: `Bulk Hybrid Research complete — ${done} sessions created, ${errors} errors.`,
       });
     } catch (err: any) {
       await updateJob(jobId, {
         status: "failed",
-        message: `Bulk MCTS crashed: ${err.message}`,
+        message: `Bulk Hybrid Research crashed: ${err.message}`,
       } as any);
     } finally {
       await setActiveJob("bulk-mcts", "");

@@ -1057,7 +1057,7 @@ export default function ApexProfile() {
                 {runResearch.isPending
                   ? <Loader2 className="w-3 h-3 animate-spin" />
                   : <Play className="w-3 h-3" />}
-                {runResearch.isPending ? "Computing…" : "Run MCTS"}
+                {runResearch.isPending ? "Computing…" : "Run Research"}
               </button>
             }
           />
@@ -1068,7 +1068,7 @@ export default function ApexProfile() {
               <TargetIcon className="w-10 h-10 opacity-20" />
               <p className="text-sm font-mono">No research sessions yet</p>
               <p className="text-[11px] font-mono text-center max-w-sm leading-relaxed">
-                Run an MCTS analysis to compute the optimal approach path, gatekeeper mapping,
+                Run Hybrid Research to compute the optimal approach path, gatekeeper mapping,
                 and personalized outreach sequence for this entity.
               </p>
             </div>
@@ -1078,7 +1078,7 @@ export default function ApexProfile() {
           {runResearch.isPending && (
             <div className="flex items-center justify-center py-12 gap-3 text-primary/60">
               <Loader2 className="w-5 h-5 animate-spin" />
-              <span className="text-sm font-mono">Running MCTS path computation…</span>
+              <span className="text-sm font-mono">Running Hybrid Research…</span>
             </div>
           )}
 
@@ -1167,11 +1167,11 @@ export default function ApexProfile() {
                     </div>
                   )}
 
-                  {/* MCTS steps table */}
+                  {/* UCT steps table */}
                   {mctsSteps.length > 0 && (
                     <div>
                       <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-2">
-                        {mctsSteps.length} MCTS Iterations
+                        {mctsSteps.length} UCT Iterations
                       </div>
                       <div className="border border-border/50 rounded overflow-hidden">
                         <div className="grid grid-cols-4 border-b border-border/50 bg-card/60">
