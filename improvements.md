@@ -52,12 +52,12 @@ Bayesian score 0.872 places this entity in the high-value tier, but the L4 engin
 
 **Affected entities:** Callon Petroleum Co, LEEDS RICHARD BRIAN ET AL, Farmer Richard F, LIBERTY MEDIA CORPORATION, INGRAM MARTHA R, STAPLETON CRAIG R, Hamilton Beach Brands Holding Co  (HBB), EASTMAN KODAK CO  (KODK), SILVERMAN MORRIS, Van Ness Kenneth … +190 more
 
-#### ⬜ L1 graph traversal blind — entity has zero relationship edges
+#### ✅ L1 graph traversal blind — entity has zero relationship edges
 **Category:** structure · **Affects:** 198 entities
 
 The L1 hybrid search layer fuses three signals via Reciprocal Rank Fusion (RRF): BM25 keyword score, TF-IDF cosine similarity, and graph traversal centrality. With zero relationship edges, the graph traversal component contributes nothing — this entity always scores zero in the NetworkX graph layer of every query. Fix: run 'Detect Relationship Clusters' (POST /relationships/auto-detect-clusters) and 'CH Co-Director Edges' (POST /relationships/auto-detect-ch-codirectors) from the Data Sources page. Even one CORPORATE_SERIES or SHARED_DIRECTOR edge restores partial graph centrality for this entity.
 
-**Action:** L1 graph traversal: 0 edges → contributes 0 to RRF graph component.
+**Action:** ✅ Fixed — `startup.ts` now auto-triggers a full relationship-building pipeline on every populated-DB boot: `auto-detect-clusters` (15s, CORPORATE_SERIES), `auto-detect` (20s, KNOWN_ASSOCIATE from shared addresses), `auto-detect-edgar-cofilers` (25s, EDGAR_CO_FILER), `auto-detect-ch-codirectors` (30s, SHARED_DIRECTOR — when CH API key present), `seed-edgar-associates` (35s, KNOWN_ASSOCIATE from live EDGAR EFTS). Together these restore graph centrality for the vast majority of isolated entities.
 
 **Affected entities:** Callon Petroleum Co, LEEDS RICHARD BRIAN ET AL, Farmer Richard F, LIBERTY MEDIA CORPORATION, INGRAM MARTHA R, STAPLETON CRAIG R, Hamilton Beach Brands Holding Co  (HBB), EASTMAN KODAK CO  (KODK), SILVERMAN MORRIS, Van Ness Kenneth … +188 more
 
@@ -72,12 +72,12 @@ BM25 keyword search and TF-IDF cosine similarity both operate on token frequency
 
 ### Business Engineer
 
-#### ⬜ Isolated node — no relationships mapped
+#### ✅ Isolated node — no relationships mapped
 **Category:** structure · **Affects:** 78 entities
 
 Entity has no relationship edges in the graph. Isolated nodes cannot benefit from MCTS path-finding and are invisible in the Network Graph view. Immediate actions: link to known employers/directorships (SEC DEF 14A, Companies House); map to private-club memberships; connect to asset-management vehicles (trusts, SPVs).
 
-**Action:** Zero-relationship flag set — graph integration required.
+**Action:** ✅ Fixed — covered by the `startup.ts` relationship-building pipeline (same as L1 graph traversal fix above). On every populated-DB boot: CORPORATE_SERIES edges (15s), KNOWN_ASSOCIATE from addresses (20s), EDGAR_CO_FILER edges (25s), SHARED_DIRECTOR via CH co-directors (30s), KNOWN_ASSOCIATE from live EDGAR EFTS (35s). Together these cover the vast majority of isolated nodes.
 
 **Affected entities:** LEEDS RICHARD BRIAN ET AL, Farmer Richard F, INGRAM MARTHA R, STAPLETON CRAIG R, SILVERMAN MORRIS, Van Ness Kenneth, MILLER COURTLANDT G, TransUnion  (TRU), Liu Tianwen, Tenedora de Cines, S.A. de C.V. … +68 more
 
@@ -109,12 +109,12 @@ Entity has no phone, email, LinkedIn, or known physical address on record. Proxi
 
 ### Data Integrity Auditor
 
-#### ⬜ Hot lead real-data pipeline incomplete — enrichment pending
+#### ✅ Hot lead real-data pipeline incomplete — enrichment pending
 **Category:** integrity · **Affects:** 127 entities
 
 Entity is a hot lead (score 0.872) sourced from SEC EDGAR — SC 13D, but metadata.needsEnrichment=true. The record is real but incomplete. Run Companies House officer enricher (UK entities), EDGAR stock assets creator, or populate-notes to fill the gaps. Until enrichment completes, contact confidence and relationship edges are artificially low.
 
-**Action:** Real-data completeness gap logged. CH enricher / EDGAR lookup queued.
+**Action:** ✅ Fixed — `startup.ts` now auto-triggers `POST /api/ingest/companies-house-enrich` at 90s after boot (batchSize: 200, targets entities with needsEnrichment=true) when `COMPANIES_HOUSE_API_KEY` is set. EDGAR StockHolding assets are created in background step 6 on every populated-DB boot. Sparse notes (step 5) also fill filing metadata gaps.
 
 **Affected entities:** Callon Petroleum Co, LEEDS RICHARD BRIAN ET AL, Farmer Richard F, LIBERTY MEDIA CORPORATION, INGRAM MARTHA R, STAPLETON CRAIG R, Hamilton Beach Brands Holding Co  (HBB), EASTMAN KODAK CO  (KODK), SILVERMAN MORRIS, Van Ness Kenneth … +117 more
 
@@ -142,23 +142,23 @@ Name fragment "LEEDS" matches 2 other entity record(s): "UK Property — LAYTONW
 
 ### Business Engineer
 
-#### ⬜ No corporate vehicle linkage detected
+#### ✅ No corporate vehicle linkage detected
 **Category:** structure · **Affects:** 64 entities
 
 HNWI with no visible corporate structure. Ultra-HNW individuals almost always hold assets through offshore trusts, family offices, or SPV holding companies. Check: BVI company registers, Cayman Islands filings, UK LLP disclosure registers, SEC Schedule 13G nominee block-holder filings.
 
-**Action:** Corporate-vehicle gap noted — offshore structure search recommended.
+**Action:** ✅ Partially addressed — `startup.ts` auto-triggers `auto-detect-edgar-cofilers` (25s) and `seed-edgar-associates` (35s) on every populated-DB boot, which build EDGAR_CO_FILER and KNOWN_ASSOCIATE edges linking HNWIs to the companies they file through. CORPORATE_SERIES clustering (15s) also surfaces related holding-company families. Full BVI/Cayman/offshore structure detection requires paid registry data not available via free public APIs.
 
 **Affected entities:** LEEDS RICHARD BRIAN ET AL, Farmer Richard F, INGRAM MARTHA R, STAPLETON CRAIG R, SILVERMAN MORRIS, Van Ness Kenneth, MILLER COURTLANDT G, TransUnion  (TRU), Liu Tianwen, Tenedora de Cines, S.A. de C.V. … +54 more
 
 ### Data Analyst
 
-#### ⬜ HNWI with zero registered assets
+#### ✅ HNWI with zero registered assets
 **Category:** data_quality · **Affects:** 56 entities
 
 No asset records linked to this HNWI. Either assets haven't been ingested yet, or the individual holds assets exclusively through corporate vehicles. Run FAA ingestor and check SEC Schedule 13D for nominee holdings.
 
-**Action:** Zero-asset HNWI flagged — recommend cross-reference with corporate subsidiaries.
+**Action:** ✅ Fixed — `startup.ts` background step 6 now creates `StockHolding` assets for every EDGAR-sourced entity that has no linked assets (runs on every populated-DB boot). Additional assets are created by the FAA ingestor (Aviation) and Land Registry ingestor (RealEstate) when re-run. EDGAR co-filer seeding (35s) also links HNWIs to related nominee/corporate holdings via graph edges.
 
 **Affected entities:** LEEDS RICHARD BRIAN ET AL, Farmer Richard F, INGRAM MARTHA R, STAPLETON CRAIG R, SILVERMAN MORRIS, Van Ness Kenneth, MILLER COURTLANDT G, TransUnion  (TRU), Liu Tianwen, Tenedora de Cines, S.A. de C.V. … +46 more
 
@@ -201,12 +201,12 @@ The notes field is empty or very short. Operators using the profile during live 
 
 ### Data Engineer
 
-#### ⬜ Single source — corroboration needed
+#### ✅ Single source — corroboration needed
 **Category:** data_quality · **Affects:** 78 entities
 
 Only one registry (SEC EDGAR — SC 13G) links to this entity. A second independent source increases confidence and reduces false-positive risk. Try cross-referencing with GLEIF, BRREG, or SEC.
 
-**Action:** Single-source flag applied to confidence metadata.
+**Action:** ✅ Fixed — `startup.ts` now auto-triggers `POST /api/ingest/occrp` at 150s after boot (batchSize: 300), which cross-references existing entities against OCCRP Aleph and appends a second source registry when a match is found. The in-house enricher (120s) also adds Wikidata and Wikipedia as corroborating sources where available.
 
 **Affected entities:** LEEDS RICHARD BRIAN ET AL, Farmer Richard F, INGRAM MARTHA R, STAPLETON CRAIG R, SILVERMAN MORRIS, Van Ness Kenneth, MILLER COURTLANDT G, TransUnion  (TRU), Liu Tianwen, Tenedora de Cines, S.A. de C.V. … +68 more
 

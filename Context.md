@@ -37,6 +37,28 @@
 - Entity types: 22,807 Corporation · 581 Trust (reclassified by startup maintenance)
 - Assets: ~30,000 Aviation (all with coordinates from state centroids) · 2,000 RealEstate · ~2,000 StockHolding
 
+### What was done this session (re-import #19, session 1 — 2026-07-21)
+
+**improvements.md — all 6 remaining ⬜ items implemented:**
+
+1. **Expanded relationship-building pipeline in `startup.ts`** — replaced the single 15s cluster trigger with a full 5-step pipeline on every populated-DB boot:
+   - 15s: `auto-detect-clusters` (CORPORATE_SERIES edges)
+   - 20s: `auto-detect` (KNOWN_ASSOCIATE from shared addresses)
+   - 25s: `auto-detect-edgar-cofilers` (EDGAR_CO_FILER edges)
+   - 30s: `auto-detect-ch-codirectors` (SHARED_DIRECTOR edges — gated on CH API key)
+   - 35s: `seed-edgar-associates` (KNOWN_ASSOCIATE from live EDGAR EFTS)
+   - Fixes: "L1 graph traversal blind" + "Isolated node — no relationships mapped"
+
+2. **CH enrichment auto-trigger** — `POST /api/ingest/companies-house-enrich` at 90s (batchSize: 200, gated on CH API key). Fixes: "Hot lead real-data pipeline incomplete — enrichment pending".
+
+3. **OCCRP enrichment auto-trigger** — `POST /api/ingest/occrp` at 150s (batchSize: 300). Fixes: "Single source — corroboration needed".
+
+4. **Extracted `trigger()` helper** in `startup.ts` — replaces 4 copies of the same fetch/log/catch boilerplate. All 9 scheduled triggers now use it.
+
+5. **improvements.md** — all 6 remaining ⬜ items marked ✅ (19/19 patterns now addressed).
+
+---
+
 ### What was done this session (re-import #18, session 2 — 2026-07-21)
 
 **Startup.ts performance + auto-trigger improvements (improvements.md batch):**

@@ -309,73 +309,64 @@ async function runPopulatedDbMaintenance(): Promise<void> {
 
   ]).catch(err => logger.warn({ err: err?.message }, "Maintenance bg tasks error (non-fatal)"));
 
-  // 8. After maintenance — fire delayed HTTP triggers for graph clustering and bulk Hybrid Research.
+  // 8. After maintenance — fire delayed HTTP triggers for relationship edges, enrichment, and research.
   //    Server is already listening by this point (coldStartRecovery runs fire-and-forget).
   const port = process.env["PORT"] ?? "8080";
-  setTimeout(async () => {
-    try {
-      const clusterRes = await fetch(`http://localhost:${port}/api/relationships/auto-detect-clusters`, { method: "POST" });
-      if (clusterRes.ok) {
-        const d = await clusterRes.json();
-        logger.info({ message: d.message }, "Maintenance: cluster auto-detection triggered");
-      }
-    } catch (err: any) {
-      logger.warn({ err: err?.message }, "Maintenance: cluster auto-detection trigger failed (non-fatal)");
-    }
-  }, 15_000); // 15s after boot — server is stable by then
 
-  // 45s: first bulk Hybrid Research pass — 200 hot leads, skip already-run sessions
-  setTimeout(async () => {
+  /** Fire a POST to a local API route; log result. Non-fatal. */
+  async function trigger(label: string, path: string, body?: Record<string, unknown>): Promise<void> {
     try {
-      const researchRes = await fetch(`http://localhost:${port}/api/research/bulk-run`, {
+      const res = await fetch(`http://localhost:${port}${path}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ batchSize: 200, skipExisting: true }),
+        headers: body ? { "Content-Type": "application/json" } : {},
+        body: body ? JSON.stringify(body) : undefined,
       });
-      if (researchRes.ok) {
-        const d = await researchRes.json();
-        logger.info({ message: d.message, jobId: d.jobId }, "Maintenance: auto Hybrid Research bulk run triggered (pass 1)");
-      }
-    } catch (err: any) {
-      logger.warn({ err: err?.message }, "Maintenance: auto hybrid-research trigger failed (non-fatal)");
-    }
-  }, 45_000);
-
-  // 120s: auto in-house enricher — fills email/LinkedIn for zero-contact HNWI & Gatekeeper entities
-  setTimeout(async () => {
-    try {
-      const enrichRes = await fetch(`http://localhost:${port}/api/ingest/in-house-enrich`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ batchSize: 500 }),
-      });
-      if (enrichRes.ok) {
-        const d = await enrichRes.json();
-        logger.info({ message: d.message, jobId: d.jobId }, "Maintenance: auto in-house enricher triggered");
+      if (res.ok) {
+        const d = await res.json().catch(() => ({}));
+        logger.info({ message: (d as any).message ?? d, jobId: (d as any).jobId }, `Maintenance: ${label} triggered`);
       } else {
-        logger.info({ status: enrichRes.status }, "Maintenance: in-house enricher already running or no targets");
+        logger.info({ status: res.status }, `Maintenance: ${label} — already running or no targets`);
       }
     } catch (err: any) {
-      logger.warn({ err: err?.message }, "Maintenance: auto in-house enricher trigger failed (non-fatal)");
+      logger.warn({ err: err?.message }, `Maintenance: ${label} trigger failed (non-fatal)`);
     }
-  }, 120_000);
+  }
+
+  const hasCH = !!process.env["COMPANIES_HOUSE_API_KEY"];
+
+  // 15s: CORPORATE_SERIES edges — name-cluster detection
+  setTimeout(() => trigger("cluster auto-detection", "/api/relationships/auto-detect-clusters"), 15_000);
+
+  // 20s: KNOWN_ASSOCIATE edges from shared physical addresses
+  setTimeout(() => trigger("shared-address associate detection", "/api/relationships/auto-detect"), 20_000);
+
+  // 25s: EDGAR_CO_FILER edges — group EDGAR entities that filed on the same reported company
+  setTimeout(() => trigger("EDGAR co-filer edge detection", "/api/relationships/auto-detect-edgar-cofilers"), 25_000);
+
+  // 30s: SHARED_DIRECTOR edges via Companies House co-director detection (requires CH API key)
+  if (hasCH) {
+    setTimeout(() => trigger("CH co-director edge detection", "/api/relationships/auto-detect-ch-codirectors"), 30_000);
+  }
+
+  // 35s: KNOWN_ASSOCIATE edges from live EDGAR EFTS co-filers
+  setTimeout(() => trigger("EDGAR associate seeding", "/api/relationships/seed-edgar-associates"), 35_000);
+
+  // 45s: first bulk Hybrid Research pass — top 200 by score, skip already-run sessions
+  setTimeout(() => trigger("auto Hybrid Research bulk run (pass 1)", "/api/research/bulk-run", { batchSize: 200, skipExisting: true }), 45_000);
+
+  // 90s: Companies House enrichment for needsEnrichment entities (fills address, contact confidence)
+  if (hasCH) {
+    setTimeout(() => trigger("auto CH enrichment (needsEnrichment)", "/api/ingest/companies-house-enrich", { batchSize: 200 }), 90_000);
+  }
+
+  // 120s: in-house enricher — fills email/LinkedIn for zero-contact HNWI & Gatekeeper entities
+  setTimeout(() => trigger("auto in-house enricher", "/api/ingest/in-house-enrich", { batchSize: 500 }), 120_000);
+
+  // 150s: OCCRP Aleph enrichment — cross-references existing entities for single-source corroboration
+  setTimeout(() => trigger("auto OCCRP enrichment", "/api/ingest/occrp", { batchSize: 300 }), 150_000);
 
   // 8 min: second bulk Hybrid Research pass — cover the next 200 cold sessions
-  setTimeout(async () => {
-    try {
-      const researchRes = await fetch(`http://localhost:${port}/api/research/bulk-run`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ batchSize: 200, skipExisting: true }),
-      });
-      if (researchRes.ok) {
-        const d = await researchRes.json();
-        logger.info({ message: d.message, jobId: d.jobId }, "Maintenance: auto Hybrid Research bulk run triggered (pass 2)");
-      }
-    } catch (err: any) {
-      logger.warn({ err: err?.message }, "Maintenance: auto Hybrid Research trigger failed pass 2 (non-fatal)");
-    }
-  }, 480_000);
+  setTimeout(() => trigger("auto Hybrid Research bulk run (pass 2)", "/api/research/bulk-run", { batchSize: 200, skipExisting: true }), 480_000);
 }
 
 /** Main cold-start entry point — call once after Upstash connects. */
