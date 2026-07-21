@@ -43,7 +43,7 @@ The API server `dev` script runs `build` then `start` every time (esbuild, ~1.5s
 | `REDIS_URL` | `.replit` userenv | Local Redis — `redis://localhost:6379` |
 | `SESSION_SECRET` | Replit Secret | Express session signing |
 | `REDIS_URL_1` | Replit Secret | **Upstash permanent Redis** — dedup set lives here. Required for dedup to persist across restarts. |
-| `REDIS_URL_2` | Replit Secret (optional) | Second Upstash slot |
+| `REDIS_URL_2` | Replit Secret | **Upstash permanent contact cache** — enriched contact data (email/phone/LinkedIn) lives here. Survives DB resets. Required for contact persistence across GitHub imports. |
 | `COMPANIES_HOUSE_API_KEY` | Replit Secret (optional) | UK Companies House officer harvester |
 
 ---
@@ -64,17 +64,16 @@ Schema push: `pnpm --filter @workspace/db run push`
 
 ---
 
-## Current Data State (as of 2026-07-19)
-
-> ⚠️ The figures below are from a prior fully-ingested session. The current live environment has ~110 entities and 0 assets. Re-run the ingestion pipelines to repopulate (clear Upstash dedup first for a clean slate).
+## Current Data State (as of 2026-07-21, re-import #22)
 
 | Source | Entities | Assets | Notes |
 |---|---|---|---|
-| FAA Releasable Aircraft Registry | 12,902 | 12,902 | Turbine/multi-engine/rotorcraft owners. Real N-numbers. 37,110 skipped (already in Upstash dedup from prior session). Cached at `/tmp/apexfinder-faa/`. |
-| HMLR Price Paid Data (PPD) | 50,000 | 50,000 | £1M+ UK property from 2023–2025 PPD CSVs. 50,000 skipped (dedup). Cached at `/tmp/apexfinder-hmlr/`. |
-| Western HNWI (SEC EDGAR + BRREG) | 600+ | 0 | Still ingesting — SEC EDGAR rate-limited at ~1 req/s. Runs in background. Target: 5,000. |
-| **Prior session total** | **~63,500+** | **~62,900** | Hot leads: 5,151 · Avg Bayesian score: 62.3% |
-| **Current live DB** | **~110** | **0** | 102 western HNWI partial + 8 seeded. Ingestors not yet run this session. |
+| FAA Releasable Aircraft Registry | 30,000 | 30,000 | Auto-ingested on cold start. Turbine/multi-engine owners. |
+| HMLR Price Paid Data (PPD) | 2,000 | 2,000 | Auto-ingested on cold start. £1M+ UK properties. |
+| Western HNWI (SEC EDGAR + BRREG) | 500 | 0 | Running in background. |
+| **Live total** | **32,500** | **32,000** | Hot leads: 15,216 · Entities with contact data: **114+** |
+
+Contact cache (Upstash slot 2): **115+ entries** — all enriched contacts persist here across imports.
 
 ---
 
@@ -92,6 +91,18 @@ All jobs are background — POST returns `{jobId}`, poll with `GET /api/ingest/j
 | `DELETE /api/ingest/dedup` | — | Clears the Upstash dedup set. Use before full re-ingest. |
 
 Body params (all optional): `{ "force": true }` — bypasses cache and re-downloads source files.
+
+---
+
+## Contact Cache Architecture
+
+**Purpose:** persist enriched contact data (email / phone / LinkedIn) across GitHub imports and DB resets.
+
+- Contact cache lives in **Upstash slot 2** (`REDIS_URL_2`). Key format: `contact:v1:{stableKey}` where `stableKey = sourceRegistries[0]` (e.g. `contact:v1:edgar:cik12345`, `contact:v1:faa:N12345`). Keys are derived from source registry IDs — stable and collision-free across any import.
+- **Write path (ingest.ts):** after every successful in-house enrichment DB write, `contactCacheSet(stableKey, data)` mirrors the same `CachedContact` payload to Redis. Fire-and-forget — no latency impact.
+- **Restore path (startup.ts, step 0a):** on every boot, `contactCacheScanAll()` fetches all `contact:v1:*` keys, matches each to an entity via `sourceRegistries LIKE %stableKey%`, and backfills contact fields for any entity that currently has none. This restores prior enrichment into a freshly reset DB.
+- **Backfill path (startup.ts, step 0b):** on every boot, reads all PostgreSQL entities with existing contact data and writes them to Redis if not already cached. Captures enrichments done before the Redis-mirror code was deployed.
+- Helpers live in `artifacts/api-server/src/lib/redis.ts`: `contactCacheSet`, `contactCacheGet`, `contactCacheScanAll`, `contactCacheCount`, `getContactCacheClient`.
 
 ---
 
@@ -169,6 +180,7 @@ GET  /api/improve/logs                 improvement suggestions (filterable by pe
 | 7 | Persona improvement loop (6 deterministic personas), `improvement_logs` table, `/improvements` UI page |
 | 8 | OCCRP Aleph enricher, HMLR OCOD ingestor (replaced by PPD CSV), OpenSky live-flight enricher, Data Sources dashboard |
 | 9 (UX) | Single-pass query expansion (`expandQuery` in agent-orchestrator.ts); Entity Ledger clickable contact vectors (mailto/tel/LinkedIn); Profile page Direct Contact Vectors action bar; Intel Terminal search bar + 500-entity limit + `?entity=` URL pre-selection; CRM empty-state guidance; `improve/run` inArray SQL fix; Intel Systems Analyst persona text updated to reflect expansion mechanics |
+| 10 | **Redis contact cache** — enriched contacts now persist across GitHub imports and DB resets. `REDIS_URL_2` (Upstash slot 2) stores `contact:v1:{stableKey}` entries permanently. Startup restore (Redis → PG) and backfill (PG → Redis) steps run on every boot. Enricher mirrors to Redis after every DB write. 114+ HNWIs with contact data as of 2026-07-21. |
 
 ---
 
