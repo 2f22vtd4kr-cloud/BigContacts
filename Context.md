@@ -34,6 +34,28 @@
 - **Entities**: 32,200 · **Assets**: 32,000+ · **Relationships**: 228,828 CORPORATE_SERIES edges
 - Data: FAA ✅ 30,000 · HMLR ✅ 2,000 · Western HNWI ✅ 200 (partial from previous session)
 
+### What was done this session (re-import #24 — app review completion — 2026-07-21)
+
+**Completed the interrupted app review from previous session:**
+
+1. **`avgBayesianScore` type bug fixed** — `artifacts/api-server/src/routes/dashboard.ts` line 227: PostgreSQL `avg()` returns a numeric string; wrapped in `parseFloat(String(...))` so the API now returns a proper JS number. Verified: `typeof avgBayesianScore === "number"`.
+
+2. **Profile score labeling confirmed correct** — Previous session's fix is in the code:
+   - `ScoreBadge` in header shows `(bayesianScore * 100).toFixed(0)`, labeled "HNWI Signal" ✅
+   - Contact confidence badge shows `{conf}% contact data` with tooltip "separate from HNWI Signal score" ✅
+   - Confidence breakdown panel shows "Overall Confidence" (0-100 integer) with circular gauge ✅
+   - No label confusion remaining.
+
+3. **Code review of all 12 pages** — clean on: dashboard, entities, profile, graph, research, crm, data-sources, improvements, duplicates, manual, deep-search. No blocking bugs found beyond #1 above.
+
+4. **Confirmed non-issues:**
+   - `marker-blue/emerald/amber` CSS classes → defined in `src/index.css` ✅
+   - Graph defaulting to entity ID 1 → entity 1 exists (Etos Air Llc) ✅
+   - ScoreBadge 0-1 scale → correct ✅
+   - FAA body param `maxRecords` → matches API ✅
+
+5. **Screenshot verification note** — Vite HMR WebSocket prevents automated `networkidle` screenshots in dev mode. Both services verified working via curl (port 80 proxy → 200, port 23695 → 200, port 8080 → 200). All API endpoints returning correct data.
+
 ### What was done this session (re-import #22, session 2 — 2026-07-21)
 
 **Redis contact cache layer — enrichment now survives DB resets:**

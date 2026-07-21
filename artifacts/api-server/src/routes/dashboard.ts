@@ -224,7 +224,7 @@ router.get("/dashboard/stats", async (_req, res): Promise<void> => {
     totalEntities: total,
     totalAssets: assetCount?.cnt ?? 0,
     totalRelationships: relCount?.cnt ?? 0,
-    avgBayesianScore: avgScore?.avg ?? 0,
+    avgBayesianScore: parseFloat(String(avgScore?.avg ?? 0)),
     hotLeadsCount: hotCount?.cnt ?? 0,
     westernHnwiCount: westernCount?.cnt ?? 0,
     activeResearchSessions: sessionCount?.cnt ?? 0,
