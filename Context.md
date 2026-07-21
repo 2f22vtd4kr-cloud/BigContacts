@@ -8,34 +8,33 @@
 
 ---
 
-## Current State (2026-07-21 — re-import #11) — Fully operational
+## Current State (2026-07-21 — re-import #12) — Fully operational
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically
 - **Local Redis** running on `redis://localhost:6379` — workflow `Redis` running ✅
-- **Upstash Redis (`REDIS_URL_1`)** — ✅ Set and connected
+- **Upstash Redis (`REDIS_URL_1`)** — ⚠️ NOT SET this session — dedup won't persist across restarts
 - **SESSION_SECRET** — ✅ Set
-- **COMPANIES_HOUSE_API_KEY** — ✅ Set and active in runtime
+- **COMPANIES_HOUSE_API_KEY** — ⚠️ NOT SET this session — UK CH enricher skipped
 
 ### Workflows running
 | Workflow | Status |
 |---|---|
 | Redis | ✅ Running |
-| `artifacts/api-server: API Server` | ✅ Running (port 8080) |
-| `artifacts/apex-finder: web` | ✅ Running (port 23695) |
+| `API Server` | ✅ Running (port 8080) |
+| `Web Frontend` | ✅ Running (port 23695) |
 | `artifacts/apex-mobile: expo` | ⏸ Optional — not needed |
-| `artifacts/mockup-sandbox: Component Preview Server` | ⏸ Optional — not needed |
+| `artifacts/mockup-sandbox` | ⏸ Optional — not needed |
 
-### Database (2026-07-21 — cold start, re-import #11)
-- **Entities**: 100 (Western HNWI auto-ingest — SEC EDGAR SC 13D/G + DEF 14A)
-- **Assets**: 0 (FAA + HMLR ingestion not yet run)
+### Database (2026-07-21 — re-import #12, DB data persisted from prior session)
+- **Entities**: 32,000 (persisted — FAA + HMLR + EDGAR from prior session)
+- **Assets**: 32,000 (persisted)
 - **Relationship edges**: 0 (name-cluster detection not yet run)
-- **Hot leads**: 100 (isHot sync run mid-persona-review — all 100 EDGAR entities qualify at avg score 0.897)
+- **Hot leads**: 7,454
 - **Research sessions**: 0
-- **Avg Bayesian score**: 0.897
+- **Avg Bayesian score**: 0.6697
 - **Contactable count**: 0
 - **Enrichment coverage**: 0%
-- **Persona review Run 6**: 1,392 suggestions / 100 entities = 13.92 avg · 765 high · 427 medium · 200 low · 0 errors · **App rating: 4.5/10** (cold-start — all regression is data/ops, not code)
 
 ### What was done this session (re-import #6, Session 1 — 2026-07-20)
 
@@ -206,6 +205,7 @@ Run **IN-HOUSE ENRICH** on HNWI/Gatekeeper entities — Wikidata SPARQL will hit
 
 | Date | What changed |
 |---|---|
+| 2026-07-21 | **Re-import #12 setup**: pnpm install, DB schema pushed, all 4 artifacts auto-registered by platform. Redis ✅ · artifacts/api-server: API Server ✅ · artifacts/apex-finder: web ✅. SESSION_SECRET ✅. REDIS_URL_1 ⚠️ NOT SET · COMPANIES_HOUSE_API_KEY ⚠️ NOT SET. DB retained 32,000 entities + 32,000 assets from prior session. Old manual workflows killed; managed artifact workflows started. |
 | 2026-07-21 | **Re-import #11 setup + Persona Run 6**: pnpm install, DB schema pushed, all 4 artifacts registered. Redis ✅ · artifacts/api-server: API Server ✅ · artifacts/apex-finder: web ✅. SESSION_SECRET ✅ · REDIS_URL_1 ✅ · COMPANIES_HOUSE_API_KEY ✅. Western HNWI auto-ingested (100 entities). isHot sync run → 100 hot leads. Persona run 6 complete: 1,392 suggestions / 100 entities, 13.92 avg, 0 errors. App rating: **4.5/10** (cold start — code architecture ~8/10, data gap is entire deficit). improvements.md updated with full Run 6 breakdown + ops checklist. |
 | 2026-07-21 | **Re-import #10 setup**: pnpm install, DB schema pushed, all 4 artifacts re-registered (verifyAndReplaceArtifactToml). Managed workflows started: Redis ✅ · artifacts/api-server: API Server ✅ · artifacts/apex-finder: web ✅. DB retained 32,100 entities — cold-start auto-recovery skipped ingestion. SESSION_SECRET ✅ · REDIS_URL_1 ✅ · COMPANIES_HOUSE_API_KEY ✅. |
 | 2026-07-21 | **Re-import #9 setup**: pnpm install, DB schema pushed, all 4 artifacts re-registered. Redis ✅ · API Server ✅ · Web Frontend ✅. SESSION_SECRET ✅ · REDIS_URL_1 ✅ (Upstash connected) · COMPANIES_HOUSE_API_KEY ✅. DB retained 32,200 entities — cold-start skipped auto-ingestion. |
