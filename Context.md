@@ -8,7 +8,7 @@
 
 ---
 
-## Current State (2026-07-21 — re-import #25) — Fully operational
+## Current State (2026-07-21 — re-import #26) — Fully operational
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically
@@ -27,7 +27,7 @@
 | `artifacts/apex-mobile: expo` | ⏸ Optional — not needed |
 | `artifacts/mockup-sandbox: Component Preview Server` | ⏸ Optional — not needed |
 
-> **Import #25 note:** pnpm install (~15s). DB schema pushed (additive). Redis ✅, API Server ✅ (port 8080), Web Frontend ✅ (port 23695). Cold-start auto-recovery detected empty DB → FAA + Land Registry + Western HNWI ingestion auto-started. SESSION_SECRET ✅. REDIS_URL_1/REDIS_URL_2 — not confirmed set (dedup counts showed 0 at boot; check if Upstash secrets need to be re-added).
+> **Import #26 note:** pnpm install (~22s). DB schema pushed (additive). Redis ✅, API Server ✅ (port 8080), Web Frontend ✅ (port 23695). Cold-start auto-recovery detected empty DB → FAA (30k) + HMLR (2k) auto-ingested; Western HNWI running in background. SESSION_SECRET ✅. REDIS_URL_1 ⚠️ NOT SET — dedup won't persist. REDIS_URL_2 ⚠️ NOT SET — contact cache unavailable. COMPANIES_HOUSE_API_KEY ⚠️ NOT SET.
 > **Port conflict fix (if needed):** kill -9 $(lsof -ti:8080 -ti:23695) then start managed artifact workflows.
 
 ### Database (2026-07-21 — re-import #24)
@@ -238,6 +238,7 @@ Run **IN-HOUSE ENRICH** on HNWI/Gatekeeper entities — Wikidata SPARQL will hit
 
 | Date | What changed |
 |---|---|
+| 2026-07-21 | **Re-import #26 setup**: pnpm install, DB schema pushed. Redis ✅ · API Server ✅ (port 8080) · Web Frontend ✅ (port 23695). SESSION_SECRET ✅. REDIS_URL_1 ⚠️ NOT SET · REDIS_URL_2 ⚠️ NOT SET · COMPANIES_HOUSE_API_KEY ⚠️ NOT SET. DB empty at boot → FAA 30k + HMLR 2k auto-ingested; Western HNWI running in background. |
 | 2026-07-21 | **Re-import #25 setup**: pnpm install, DB schema pushed. Redis ✅ · artifacts/api-server: API Server ✅ (port 8080) · artifacts/apex-finder: web ✅ (port 23695). SESSION_SECRET ✅. REDIS_URL_1/REDIS_URL_2 not confirmed set (contact cache count=0 at boot). DB retained 32,100 entities — cold-start maintenance ran (7,346 hot flags, 22,774 Corp + 581 Trust reclassified). Port conflict resolved: killed old manual API Server/Web Frontend, started managed artifact workflows. |
 | 2026-07-21 | **Redis contact cache (Phase 10)**: `REDIS_URL_2` (Upstash slot 2) now stores permanent contact cache (`contact:v1:{stableKey}`). Enricher mirrors to Redis after every DB write. Startup runs restore (Redis→PG) + backfill (PG→Redis) on every boot. On first boot: 89 entities backfilled from PG → Redis; enricher run added 27+ more. Total: **114+ entities with contact data**, 115+ Redis entries. Enricher auto-trigger at 120s was blocked (409) by manual job already running; persona loop passes 1 & 2 auto-fired; Hybrid Research bulk run pass 3 blocked (409). |
 | 2026-07-21 | **Re-import #22 setup**: pnpm install, DB schema pushed, Redis ✅, API Server ✅ (manual, port 8080), Web Frontend ✅ (manual, port 23695). SESSION_SECRET ✅. REDIS_URL_1 ⚠️ NOT SET · COMPANIES_HOUSE_API_KEY ⚠️ NOT SET. Cold-start auto-ingested FAA (30k) + HMLR (2k); Western HNWI running in background. All 4 artifacts registered. API healthy: 32,000 entities · 32,000 assets · 7,454 hot leads. |
