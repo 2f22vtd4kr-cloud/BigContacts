@@ -8,7 +8,7 @@
 
 ---
 
-## Current State (2026-07-21 — re-import #17, session 2) — Fully operational
+## Current State (2026-07-21 — re-import #18, session 1) — Fully operational
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically
@@ -225,6 +225,7 @@ Run **IN-HOUSE ENRICH** on HNWI/Gatekeeper entities — Wikidata SPARQL will hit
 
 | Date | What changed |
 |---|---|
+| 2026-07-21 | **Re-import #18 setup**: pnpm install, DB schema pushed, all 4 artifacts re-registered (verifyAndReplaceArtifactToml). Redis ✅ · artifacts/api-server: API Server ✅ (port 8080) · artifacts/apex-finder: web ✅ (port 23695). SESSION_SECRET ✅. REDIS_URL_1 ⚠️ NOT SET · COMPANIES_HOUSE_API_KEY ⚠️ NOT SET. DB retained 32,000 entities — cold-start maintenance ran (7,262 hot flags, 22,748 Corp + 581 Trust reclassified). API healthy. |
 | 2026-07-21 | **Re-import #15 setup**: pnpm install, DB schema pushed. Redis ✅ · API Server ✅ (manual workflow, port 8080) · Web Frontend ✅ (manual workflow, port 23695). SESSION_SECRET ✅. REDIS_URL_1 ⚠️ NOT SET · COMPANIES_HOUSE_API_KEY ⚠️ NOT SET. DB retained 32,000 entities + 32,000 assets from prior session — FAA auto-ingestion kicked off (dedup empty). API healthy: /healthz ✅ · /dashboard/stats ✅. |
 | 2026-07-21 | **Re-import #14 setup**: pnpm install, DB schema pushed, all 4 artifacts re-registered via verifyAndReplaceArtifactToml. Redis ✅ · API Server ✅ (manual workflow, port 8080) · Web Frontend ✅ (manual workflow, port 23695). SESSION_SECRET ✅. REDIS_URL_1 ⚠️ NOT SET · COMPANIES_HOUSE_API_KEY ⚠️ NOT SET. DB empty (0 entities) — auto-ingestion (FAA + LR + Western HNWI) kicked off automatically by cold-start recovery. App loads and API healthy. |
 | 2026-07-21 | **Re-import #13 setup**: pnpm install, DB schema pushed, all 4 artifacts registered via verifyAndReplaceArtifactToml. Redis ✅ · API Server ✅ (manual workflow, port 8080) · Web Frontend ✅ (manual workflow, port 23695). SESSION_SECRET ✅. REDIS_URL_1 ⚠️ NOT SET · COMPANIES_HOUSE_API_KEY ⚠️ NOT SET. DB empty (0 entities) — cold-start entity count query failed (non-fatal), auto-ingestion did not fire. App loads and API healthy. |
