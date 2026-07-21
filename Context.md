@@ -8,7 +8,7 @@
 
 ---
 
-## Current State (2026-07-21 — re-import #14) — Fully operational
+## Current State (2026-07-21 — re-import #15) — Fully operational
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically
@@ -23,18 +23,14 @@
 | Redis | ✅ Running |
 | `API Server` (manual) | ✅ Running (port 8080) |
 | `Web Frontend` (manual) | ✅ Running (port 23695) |
-| `artifacts/api-server: API Server` | ⏸ Registered, not started (manual workflow takes precedence) |
-| `artifacts/apex-finder: web` | ⏸ Registered, not started (manual workflow takes precedence) |
 | `artifacts/apex-mobile: expo` | ⏸ Optional — not needed |
 | `artifacts/mockup-sandbox: Component Preview Server` | ⏸ Optional — not needed |
 
-### Database (2026-07-21 — re-import #14, post-simulation)
-- **Entities**: 32,200 · **Assets**: 32,000 · **Relationships**: 228,828 edges across 2,085 clusters
-- **Hot leads**: 14,916 · **Avg Bayesian score**: 0.6712
-- **Contactable**: 0 (in-house enrichment 61/500 enriched — none hit ≥50 confidence threshold)
-- **Research sessions**: 25 (20 MCTS runs across 4 waves)
-- **Persona suggestions**: 2,169 total (1,056 high / 573 medium / 540 low)
-- **Enrichment coverage**: 0% — CH enriched 200 entities (addresses only, no email/phone hit)
+### Database (2026-07-21 — re-import #15, post-cold-start)
+- **Entities**: 32,000 · **Assets**: 32,000 · **Relationships**: 0 (relationship auto-detect not yet run)
+- **Hot leads**: 7,454 · **Avg Bayesian score**: 0.6697
+- **Contactable**: 0 · **Enrichment coverage**: 0%
+- FAA auto-ingestion running in background (dedup empty — all records being freshly inserted)
 
 ### What was done this session (re-import #6, Session 1 — 2026-07-20)
 
@@ -205,6 +201,7 @@ Run **IN-HOUSE ENRICH** on HNWI/Gatekeeper entities — Wikidata SPARQL will hit
 
 | Date | What changed |
 |---|---|
+| 2026-07-21 | **Re-import #15 setup**: pnpm install, DB schema pushed. Redis ✅ · API Server ✅ (manual workflow, port 8080) · Web Frontend ✅ (manual workflow, port 23695). SESSION_SECRET ✅. REDIS_URL_1 ⚠️ NOT SET · COMPANIES_HOUSE_API_KEY ⚠️ NOT SET. DB retained 32,000 entities + 32,000 assets from prior session — FAA auto-ingestion kicked off (dedup empty). API healthy: /healthz ✅ · /dashboard/stats ✅. |
 | 2026-07-21 | **Re-import #14 setup**: pnpm install, DB schema pushed, all 4 artifacts re-registered via verifyAndReplaceArtifactToml. Redis ✅ · API Server ✅ (manual workflow, port 8080) · Web Frontend ✅ (manual workflow, port 23695). SESSION_SECRET ✅. REDIS_URL_1 ⚠️ NOT SET · COMPANIES_HOUSE_API_KEY ⚠️ NOT SET. DB empty (0 entities) — auto-ingestion (FAA + LR + Western HNWI) kicked off automatically by cold-start recovery. App loads and API healthy. |
 | 2026-07-21 | **Re-import #13 setup**: pnpm install, DB schema pushed, all 4 artifacts registered via verifyAndReplaceArtifactToml. Redis ✅ · API Server ✅ (manual workflow, port 8080) · Web Frontend ✅ (manual workflow, port 23695). SESSION_SECRET ✅. REDIS_URL_1 ⚠️ NOT SET · COMPANIES_HOUSE_API_KEY ⚠️ NOT SET. DB empty (0 entities) — cold-start entity count query failed (non-fatal), auto-ingestion did not fire. App loads and API healthy. |
 | 2026-07-21 | **Re-import #12 setup**: pnpm install, DB schema pushed, all 4 artifacts auto-registered by platform. Redis ✅ · artifacts/api-server: API Server ✅ · artifacts/apex-finder: web ✅. SESSION_SECRET ✅. REDIS_URL_1 ⚠️ NOT SET · COMPANIES_HOUSE_API_KEY ⚠️ NOT SET. DB retained 32,000 entities + 32,000 assets from prior session. Old manual workflows killed; managed artifact workflows started. |
