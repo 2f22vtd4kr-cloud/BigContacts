@@ -8,14 +8,14 @@
 
 ---
 
-## Current State (2026-07-21 — re-import #10) — Fully operational
+## Current State (2026-07-21 — re-import #11) — Fully operational
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically
 - **Local Redis** running on `redis://localhost:6379` — workflow `Redis` running ✅
-- **Upstash Redis (`REDIS_URL_1`)** — ✅ Set and connected
+- **Upstash Redis (`REDIS_URL_1`)** — ⚠️ NOT SET — dedup won't persist across restarts; set this secret to restore
 - **SESSION_SECRET** — ✅ Set
-- **COMPANIES_HOUSE_API_KEY** — ✅ Set and active in runtime
+- **COMPANIES_HOUSE_API_KEY** — ⚠️ NOT SET — CH enricher skipped at runtime
 
 ### Workflows running
 | Workflow | Status |
