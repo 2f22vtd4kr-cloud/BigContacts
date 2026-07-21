@@ -351,22 +351,38 @@ async function runPopulatedDbMaintenance(): Promise<void> {
   // 35s: KNOWN_ASSOCIATE edges from live EDGAR EFTS co-filers
   setTimeout(() => trigger("EDGAR associate seeding", "/api/relationships/seed-edgar-associates"), 35_000);
 
-  // 45s: first bulk Hybrid Research pass — top 200 by score, skip already-run sessions
-  setTimeout(() => trigger("auto Hybrid Research bulk run (pass 1)", "/api/research/bulk-run", { batchSize: 200, skipExisting: true }), 45_000);
+  // 45s: first bulk Hybrid Research pass — top 300 by score, skip already-run sessions
+  setTimeout(() => trigger("auto Hybrid Research bulk run (pass 1)", "/api/research/bulk-run", { batchSize: 300, skipExisting: true }), 45_000);
 
   // 90s: Companies House enrichment for needsEnrichment entities (fills address, contact confidence)
   if (hasCH) {
-    setTimeout(() => trigger("auto CH enrichment (needsEnrichment)", "/api/ingest/companies-house-enrich", { batchSize: 200 }), 90_000);
+    setTimeout(() => trigger("auto CH enrichment (needsEnrichment)", "/api/ingest/companies-house-enrich", { batchSize: 500 }), 90_000);
   }
 
   // 120s: in-house enricher — fills email/LinkedIn for zero-contact HNWI & Gatekeeper entities
-  setTimeout(() => trigger("auto in-house enricher", "/api/ingest/in-house-enrich", { batchSize: 500 }), 120_000);
+  // Large batch (2000) to cover all HNWI/Gatekeeper in one pass
+  setTimeout(() => trigger("auto in-house enricher (pass 1)", "/api/ingest/in-house-enrich", { batchSize: 2000 }), 120_000);
 
   // 150s: OCCRP Aleph enrichment — cross-references existing entities for single-source corroboration
   setTimeout(() => trigger("auto OCCRP enrichment", "/api/ingest/occrp", { batchSize: 300 }), 150_000);
 
-  // 8 min: second bulk Hybrid Research pass — cover the next 200 cold sessions
-  setTimeout(() => trigger("auto Hybrid Research bulk run (pass 2)", "/api/research/bulk-run", { batchSize: 200, skipExisting: true }), 480_000);
+  // 3 min: persona improvement loop — score 500 entities for quality gaps
+  setTimeout(() => trigger("auto persona improvement loop (pass 1)", "/api/improve/run", { batchSize: 500 }), 180_000);
+
+  // 8 min: second bulk Hybrid Research pass — cover the next 300 cold sessions
+  setTimeout(() => trigger("auto Hybrid Research bulk run (pass 2)", "/api/research/bulk-run", { batchSize: 300, skipExisting: true }), 480_000);
+
+  // 10 min: second in-house enricher pass — pick up entities missed or added since pass 1
+  setTimeout(() => trigger("auto in-house enricher (pass 2)", "/api/ingest/in-house-enrich", { batchSize: 2000 }), 600_000);
+
+  // 15 min: third bulk Hybrid Research pass — long-tail coverage
+  setTimeout(() => trigger("auto Hybrid Research bulk run (pass 3)", "/api/research/bulk-run", { batchSize: 300, skipExisting: true }), 900_000);
+
+  // 20 min: persona improvement loop pass 2 — catches entities enriched after pass 1
+  setTimeout(() => trigger("auto persona improvement loop (pass 2)", "/api/improve/run", { batchSize: 500 }), 1_200_000);
+
+  // 25 min: fourth bulk Hybrid Research pass — final coverage sweep
+  setTimeout(() => trigger("auto Hybrid Research bulk run (pass 4)", "/api/research/bulk-run", { batchSize: 300, skipExisting: true }), 1_500_000);
 }
 
 /** Main cold-start entry point — call once after Upstash connects. */

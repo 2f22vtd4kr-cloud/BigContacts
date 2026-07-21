@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, desc, sql, isNull } from "drizzle-orm";
+import { eq, desc, sql, isNull, and, inArray } from "drizzle-orm";
 import { db, entitiesTable, assetsTable, relationshipsTable, researchSessionsTable } from "@workspace/db";
 import { createJob, updateJob, setActiveJob, getActiveJob } from "../lib/job-queue";
 import {
@@ -582,10 +582,11 @@ router.post("/research/bulk-run", async (req, res): Promise<void> => {
     return;
   }
 
-  const batchSize  = Math.min(parseInt((req.body as any)?.batchSize ?? "60", 10), 200);
+  const batchSize  = Math.min(parseInt((req.body as any)?.batchSize ?? "60", 10), 300);
   const skipExisting = (req.body as any)?.skipExisting !== false; // default true
 
-  // Find top hot leads that need sessions
+  // Find top hot leads that need sessions — only HNWI and Gatekeeper entities are actionable
+  // (Corporation/Trust are property vehicles; address-named HMLR/FAA entities are not researchable)
   const existingSessionEntityIds = skipExisting
     ? (await db.select({ eid: researchSessionsTable.targetEntityId }).from(researchSessionsTable)).map(r => r.eid)
     : [];
@@ -593,7 +594,14 @@ router.post("/research/bulk-run", async (req, res): Promise<void> => {
   const candidates = await db
     .select()
     .from(entitiesTable)
-    .where(sql`${entitiesTable.isHot} = true`)
+    .where(
+      and(
+        sql`${entitiesTable.isHot} = true`,
+        inArray(entitiesTable.type, ["HNWI", "Gatekeeper"]),
+        // Exclude address-named entities (HMLR property addresses start with a number)
+        sql`${entitiesTable.name} !~ '^[0-9]'`,
+      )
+    )
     .orderBy(desc(entitiesTable.bayesianScore))
     .limit(batchSize * 6); // over-fetch to filter out already-run
 

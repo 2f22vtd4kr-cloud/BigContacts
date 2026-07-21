@@ -929,7 +929,6 @@ async function smtpVerifyEmail(
 // ── Source 17: DuckDuckGo HTML search for LinkedIn URL ────────────────────────
 async function duckduckgoLinkedIn(name: string, location?: string | null): Promise<string | null> {
   try {
-    // Try with location for precision, fallback to name-only
     const queries = location
       ? [`site:linkedin.com/in/ "${name}" "${location}"`, `site:linkedin.com/in/ "${name}"`]
       : [`site:linkedin.com/in/ "${name}"`];
@@ -939,7 +938,11 @@ async function duckduckgoLinkedIn(name: string, location?: string | null): Promi
       const resp = await fetch(url, { signal: timeout(12_000), headers: BROWSER_HEADERS });
       if (!resp.ok) continue;
       const html = await resp.text();
-      const liMatch = html.match(/https?:\/\/(www\.)?linkedin\.com\/in\/[a-zA-Z0-9\-_%]+/i);
+      // Try href extraction first (most reliable — DDG puts URLs in href attrs)
+      const liHrefMatch = html.match(/href=["'](https?:\/\/(?:www\.)?linkedin\.com\/in\/[a-zA-Z0-9\-_%]{3,})[^"']*/i);
+      if (liHrefMatch) return liHrefMatch[1]!.replace(/\/$/, "");
+      // Fallback: plain text regex
+      const liMatch = html.match(/https?:\/\/(www\.)?linkedin\.com\/in\/[a-zA-Z0-9\-_%]{3,}/i);
       if (liMatch) return liMatch[0]!.replace(/\/$/, "");
       await sleep(300);
     }
@@ -1002,8 +1005,10 @@ async function duckduckgoNewsEmail(name: string): Promise<{ email: string | null
 }
 
 // ── Source 20: Company contact page scraper ────────────────────────────────────
-async function scrapeContactPage(domain: string): Promise<{ email: string | null; phone: string | null }> {
-  const paths = ["/contact", "/about", "/team", "/contact-us", "/about-us", "/"];
+async function scrapeContactPage(domain: string): Promise<{ email: string | null; phone: string | null; linkedinUrl: string | null }> {
+  const paths = ["/contact", "/about", "/team", "/contact-us", "/about-us",
+                 "/leadership", "/our-team", "/executive-team", "/management-team",
+                 "/people", "/who-we-are", "/"];
   for (const path of paths) {
     try {
       const resp = await fetch(`https://${domain}${path}`, {
@@ -1012,15 +1017,38 @@ async function scrapeContactPage(domain: string): Promise<{ email: string | null
         redirect: "follow",
       });
       if (!resp.ok) continue;
-      const html = await resp.text();
-      const text = html.replace(/<[^>]+>/g, " ").replace(/&[a-z]+;/g, " ").replace(/\s+/g, " ").slice(0, 12_000);
-      const email = extractEmail(text);
+      const html = await resp.text().then(h => h.slice(0, 60_000));
+
+      // ── Extract from raw HTML attributes BEFORE stripping tags ──
+      // mailto: hrefs are the most reliable source of real email addresses
+      let email: string | null = null;
+      const mailtoRe = /href=["']mailto:([^"'?\s]+)/gi;
+      for (const m of html.matchAll(mailtoRe)) {
+        const addr = m[1]!.toLowerCase().trim();
+        const domain_ = addr.split("@")[1] ?? "";
+        if (addr.includes("@") && !EMAIL_BLOCK.has(domain_) && !domain_.includes("privacy") && addr.length < 80) {
+          email = addr;
+          break;
+        }
+      }
+
+      // LinkedIn href extraction
+      let linkedinUrl: string | null = null;
+      const liHrefRe = /href=["'](https?:\/\/(?:www\.)?linkedin\.com\/in\/[a-zA-Z0-9\-_%]{3,})[^"']*/i;
+      const liHrefMatch = html.match(liHrefRe);
+      if (liHrefMatch) linkedinUrl = liHrefMatch[1]!.replace(/\/$/, "");
+
+      // ── Fall back to plain-text extraction ──
+      const text = html.replace(/<[^>]+>/g, " ").replace(/&[a-z#0-9]+;/g, " ").replace(/\s+/g, " ").slice(0, 12_000);
+      if (!email) email = extractEmail(text);
       const phone = extractPhone(text);
-      if (email || phone) return { email, phone };
+      if (!linkedinUrl) linkedinUrl = extractLinkedIn(text);
+
+      if (email || phone || linkedinUrl) return { email, phone, linkedinUrl };
     } catch { /* try next path */ }
     await sleep(200);
   }
-  return { email: null, phone: null };
+  return { email: null, phone: null, linkedinUrl: null };
 }
 
 
@@ -1268,7 +1296,7 @@ export async function enrichInHouse(entity: InHouseEnrichInput): Promise<InHouse
     }
 
     // Source 20: Live contact page scraper
-    if (!result.email || result.emailConfidence < 50) {
+    if (!result.email || result.emailConfidence < 50 || !result.linkedinUrl) {
       g2Promises.push((async () => {
         const scraped = await scrapeContactPage(knownDomain!);
         if (scraped.email) {
@@ -1276,6 +1304,11 @@ export async function enrichInHouse(entity: InHouseEnrichInput): Promise<InHouse
           setEmail(scraped.email, 60, "ContactPage-Email");
         }
         if (scraped.phone) setPhone(scraped.phone, 55, "ContactPage-Phone");
+        if (scraped.linkedinUrl && !result.linkedinUrl) {
+          result.linkedinUrl = scraped.linkedinUrl;
+          addSource("ContactPage-LinkedIn");
+          result.sourceHits["ContactPage-LinkedIn"] = true;
+        }
       })());
     }
 
