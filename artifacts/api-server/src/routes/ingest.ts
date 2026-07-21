@@ -276,7 +276,7 @@ router.post("/ingest/faa", async (req, res): Promise<void> => {
     forceRefresh = false,
     clearDedup: doClean = false,
     force = false,
-  } = req.body as { maxRecords?: number; forceRefresh?: boolean; clearDedup?: boolean; force?: boolean };
+  } = (req.body ?? {}) as { maxRecords?: number; forceRefresh?: boolean; clearDedup?: boolean; force?: boolean };
 
   const safeMax = Math.min(Math.max(Number(maxRecords) || 30_000, 100), 100_000);
 
@@ -413,7 +413,7 @@ router.post("/ingest/occrp", async (req, res): Promise<void> => {
 
 // ── POST /ingest/land-registry — UK OCOD Property Data ───────────────────────
 router.post("/ingest/land-registry", async (req, res): Promise<void> => {
-  const { maxRecords = 50_000, forceRefresh = false, downloadUrl, force = false } = req.body as {
+  const { maxRecords = 50_000, forceRefresh = false, downloadUrl, force = false } = (req.body ?? {}) as {
     maxRecords?: number;
     forceRefresh?: boolean;
     downloadUrl?: string;
