@@ -26,10 +26,13 @@
 | `artifacts/apex-mobile: expo` | ⏸ Optional — not needed |
 | `artifacts/mockup-sandbox: Component Preview Server` | ⏸ Optional — not needed |
 
-### Database (2026-07-21 — re-import #16)
-- **Entities**: 0 · **Assets**: 0 · **Relationships**: 0
-- DB schema applied (drizzle push). Data cleared between imports — run ingestion pipelines to repopulate.
-- Run `POST /api/ingest/faa` and `POST /api/ingest/land-registry` to reload ~63k entities/assets
+### Database (2026-07-21 — re-import #16, post-pipeline)
+- **Entities**: 32,300 · **Assets**: 32,100 · **Relationships**: 228,828
+- **Hot leads**: 14,845 · **Avg Bayesian score**: 0.6719
+- **Contactable**: 6 · **Enrichment coverage**: ~50/100 first batch (50% hit rate)
+- **Persona suggestions**: 2,178 across 200 entities (1,241 HIGH · 614 medium · 323 low)
+- Entity types: 22,774 Corporation · 581 Trust · 8,745 HNWI
+- Assets: 30,000 Aviation · 2,000 RealEstate · 100 StockHolding
 
 ### What was done this session (re-import #6, Session 1 — 2026-07-20)
 
