@@ -15,7 +15,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { db, assetsTable, entitiesTable, relationshipsTable } from "@workspace/db";
 import { searchRegistry } from "../lib/registry-client";
 import { getCache, setCache } from "../lib/redis";
-import { sql, eq, and, gte, inArray } from "drizzle-orm";
+import { sql, eq, and, gte, inArray, desc, type SQL } from "drizzle-orm";
 import { classifyEntityType } from "../lib/western-hnwi-ingestion";
 import {
   createJob, updateJob, getJob, getJobLog,
@@ -849,13 +849,27 @@ router.post("/ingest/in-house-enrich", async (req: Request, res: Response): Prom
   const batchSize = Math.min(Number(body.batchSize) || 100, 500);
   const force = Boolean(body.force);
   const entityIds: number[] | undefined = Array.isArray(body.entityIds) ? body.entityIds : undefined;
+  // targetMode: "edgar" = only EDGAR/western-ingest entities (high-value, recognizable names)
+  //             "faa"   = only FAA entities (individual aircraft owners)
+  //             "all"   = all types (default)
+  const targetMode: string = (body.targetMode as string) ?? "edgar";
 
-  // Select entities: HNWI + Gatekeeper with zero or low contact confidence
-  const conditions = [
+  // Select entities: prioritise by Bayesian score so high-value targets are always processed first.
+  // Exclude HMLR/address-named Corp entities (type 'Corp') — they have no contact enrichment surface.
+  const conditions: SQL[] = [
     sql`${entitiesTable.type} IN ('HNWI', 'Gatekeeper', 'Corporation')`,
   ];
   if (!force) conditions.push(sql`${entitiesTable.contactConfidence} < 40`);
   if (entityIds?.length) conditions.push(inArray(entitiesTable.id, entityIds));
+  // Target mode filters
+  if (targetMode === "edgar") {
+    // EDGAR/western-ingest entities only: have recognizable names suitable for OSINT
+    conditions.push(sql`${entitiesTable.metadata}::text LIKE '%westernIngest%'`);
+  } else if (targetMode === "faa") {
+    conditions.push(sql`${entitiesTable.metadata}::text NOT LIKE '%westernIngest%'`);
+  }
+  // Skip previously attempted enrichment unless forced
+  if (!force) conditions.push(sql`${entitiesTable.metadata}::text NOT LIKE '%enricherVersion%'`);
 
   const entities = await db
     .select({
@@ -865,9 +879,13 @@ router.post("/ingest/in-house-enrich", async (req: Request, res: Response): Prom
       knownResidences: entitiesTable.knownResidences,
       metadata: entitiesTable.metadata,
       notes: entitiesTable.notes,
+      email: entitiesTable.email,
+      phone: entitiesTable.phone,
+      linkedinUrl: entitiesTable.linkedinUrl,
     })
     .from(entitiesTable)
     .where(and(...conditions))
+    .orderBy(desc(entitiesTable.bayesianScore))  // highest-value targets first
     .limit(batchSize);
 
   if (!entities.length) {
@@ -884,72 +902,94 @@ router.post("/ingest/in-house-enrich", async (req: Request, res: Response): Prom
     message: `In-house OSINT enrichment started for ${entities.length} entities.`,
   });
 
-  // Background loop
+  // Background loop — 5 concurrent workers for ~5× throughput
   (async () => {
     let enriched = 0, skipped = 0, errors = 0;
-    for (const entity of entities) {
-      try {
-        const result = await enrichInHouse(entity);
-        const hasSignal = result.email || result.linkedinUrl || result.phone || result.website;
-        if (!hasSignal) { skipped++; continue; }
+    const globalSourceHits: Record<string, number> = {};
+    const CONCURRENCY = 5;
 
-        const updates: Record<string, unknown> = { updatedAt: new Date() };
-        if (result.email    && !entity.metadata?.includes(result.email))    updates["email"]      = result.email;
-        if (result.linkedinUrl) updates["linkedinUrl"] = result.linkedinUrl;
-        if (result.phone)    updates["phone"]     = result.phone;
-        if (result.website)  {
-          const meta = safeParseJson<Record<string, unknown>>(entity.metadata, {});
-          if (!meta["website"]) {
-            meta["website"] = result.website;
-            updates["metadata"] = JSON.stringify(meta);
-          }
+    /** Process one entity and persist results — returns "enriched" | "skipped" | "error" */
+    const processEntity = async (entity: typeof entities[number]): Promise<"enriched" | "skipped" | "error"> => {
+      try {
+        const entityMeta = safeParseJson<Record<string, unknown>>(entity.metadata, {});
+        const enrichInput = {
+          ...entity,
+          bizLocation: (entityMeta["bizLocation"] as string | null) ?? null,
+          entityName:  (entityMeta["entityName"] as string | null) ?? null,
+        };
+        const result = await enrichInHouse(enrichInput);
+        const hasSignal = result.email || result.linkedinUrl || result.phone || result.website || result.twitter;
+        if (!hasSignal) return "skipped";
+
+        // Thread-safe source accumulation
+        for (const [src, hit] of Object.entries(result.sourceHits)) {
+          if (hit) globalSourceHits[src] = (globalSourceHits[src] ?? 0) + 1;
         }
 
-        // Recompute contact confidence with enriched signals
+        const updates: Record<string, unknown> = { updatedAt: new Date() };
+        if (result.email && !entity.email) updates["email"] = result.email;
+        if (result.linkedinUrl && !entity.linkedinUrl) updates["linkedinUrl"] = result.linkedinUrl;
+        if (result.phone && !entity.phone) updates["phone"] = result.phone;
+
         const confidence = computeContactConfidence({
-          email:           (updates["email"] as string | null) ?? null,
-          phone:           (updates["phone"] as string | null) ?? null,
-          linkedinUrl:     (updates["linkedinUrl"] as string | null) ?? null,
+          email:           (updates["email"] as string | null) ?? entity.email ?? null,
+          phone:           (updates["phone"] as string | null) ?? entity.phone ?? null,
+          linkedinUrl:     (updates["linkedinUrl"] as string | null) ?? entity.linkedinUrl ?? null,
           knownResidences: entity.knownResidences,
         });
         updates["contactConfidence"] = confidence;
 
-        // Tag provenance in metadata
-        const meta = safeParseJson<Record<string, unknown>>(entity.metadata ?? updates["metadata"] as string ?? null, {});
+        const meta = safeParseJson<Record<string, unknown>>(entity.metadata, {});
+        if (result.website && !meta["website"]) meta["website"] = result.website;
+        if (result.twitter && !meta["twitter"]) meta["twitter"] = result.twitter;
         meta["enrichmentSources"] = [
-          ...(Array.isArray(meta["enrichmentSources"]) ? meta["enrichmentSources"] : []),
-          ...result.sources,
+          ...(Array.isArray(meta["enrichmentSources"]) ? meta["enrichmentSources"] as string[] : []),
+          ...result.sources.filter(s => !(meta["enrichmentSources"] as string[] | undefined)?.includes(s)),
         ];
-        meta["enrichedAt"] = new Date().toISOString();
+        meta["enrichedAt"]      = new Date().toISOString();
         meta["emailConfidence"] = result.emailConfidence;
-        updates["metadata"] = JSON.stringify(meta);
-        updates["liveSource"] = true;
+        meta["phoneConfidence"] = result.phoneConfidence;
+        meta["sourceHits"]      = { ...(meta["sourceHits"] as object ?? {}), ...result.sourceHits };
+        meta["enricherVersion"] = "v2";
+        updates["metadata"]     = JSON.stringify(meta);
+        updates["liveSource"]   = true;
 
         await db.update(entitiesTable)
           .set(updates as any)
           .where(eq(entitiesTable.id, entity.id));
 
-        enriched++;
         logger.info(
-          { entityId: entity.id, name: entity.name, confidence, sources: result.sources, emailConf: result.emailConfidence },
-          "In-house OSINT enriched",
+          { entityId: entity.id, name: entity.name, confidence, sources: result.sources },
+          "In-house OSINT v2 enriched",
         );
+        return "enriched";
       } catch (err: any) {
-        errors++;
         logger.warn({ entityId: entity.id, err: err.message }, "In-house enrichment failed");
+        return "error";
       }
+    };
 
-      // Progress update every 10 entities
-      if ((enriched + skipped + errors) % 10 === 0) {
-        await updateJob(jobId, {
-          status: "running",
-          progress: enriched + skipped + errors,
-          total: entities.length,
-          inserted: enriched,
-          message: `In-house OSINT: ${enriched} enriched, ${skipped} no-match, ${errors} errors…`,
-        });
+    // Fan out across CONCURRENCY workers, processing entities in parallel batches
+    for (let i = 0; i < entities.length; i += CONCURRENCY) {
+      const batch = entities.slice(i, i + CONCURRENCY);
+      const outcomes = await Promise.allSettled(batch.map(e => processEntity(e)));
+      for (const o of outcomes) {
+        const outcome = o.status === "fulfilled" ? o.value : "error";
+        if (outcome === "enriched")  enriched++;
+        else if (outcome === "skipped") skipped++;
+        else errors++;
       }
+      // Progress update after every batch
+      await updateJob(jobId, {
+        status: "running",
+        progress: enriched + skipped + errors,
+        total: entities.length,
+        inserted: enriched,
+        message: `In-house OSINT v2: ${enriched} enriched, ${skipped} no-match, ${errors} errors | Sources: ${JSON.stringify(globalSourceHits)}`,
+      });
     }
+
+    logger.info({ globalSourceHits }, "In-house OSINT v2 source hit breakdown");
 
     await updateJob(jobId, {
       status: "done",

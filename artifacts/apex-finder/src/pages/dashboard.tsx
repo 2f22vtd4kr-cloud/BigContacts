@@ -426,7 +426,7 @@ export default function Dashboard() {
               url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
               attribution='&copy; <a href="https://carto.com/">CARTO</a>'
             />
-            {mapData?.map((point: any) => (
+            {Array.isArray(mapData) && mapData.map((point: any) => (
               <Marker
                 key={point.id}
                 position={[point.latitude, point.longitude]}
@@ -602,7 +602,7 @@ export default function Dashboard() {
               attribution='&copy; CARTO'
             />
             <MapInvalidator active={mobileTab === "map"} />
-            {mapData?.map((point: any) => (
+            {Array.isArray(mapData) && mapData.map((point: any) => (
               <Marker key={point.id} position={[point.latitude, point.longitude]} icon={createCustomIcon(point.category)}>
                 <Popup>
                   <div className="text-xs font-mono p-1">
