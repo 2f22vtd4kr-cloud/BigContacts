@@ -216,3 +216,99 @@ export async function pingRedis(): Promise<number | null> {
     return Date.now() - t0;
   } catch { return null; }
 }
+
+// ── CONTACT CACHE — slot 2 (REDIS_URL_2) ─────────────────────────────────────
+//
+// Persists enrichment results (email, phone, LinkedIn, etc.) across DB resets.
+// Key format: "contact:v1:{sourceRegistries[0]}"  e.g. "contact:v1:faa:N12345"
+// Stable across GitHub imports because sourceRegistry IDs come from source data.
+
+const CONTACT_PREFIX = "contact:v1:";
+
+/** Returns the second permanent client (slot 2 / REDIS_URL_2) for contact cache writes. */
+export function getContactCacheClient(): Redis | null {
+  // Prefer slot 2; fall back to slot 1 if slot 2 unavailable
+  const slot2 = _permanentClients[1];
+  if (slot2?.status === "ready") return slot2;
+  const slot1 = _permanentClients[0];
+  return slot1?.status === "ready" ? slot1 : null;
+}
+
+export interface CachedContact {
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  linkedinUrl?: string | null;
+  website?: string | null;
+  twitter?: string | null;
+  contactConfidence: number;
+  enrichmentSources: string[];
+  enrichedAt: string;
+  emailConfidence?: number;
+  phoneConfidence?: number;
+  sourceHits?: Record<string, number>;
+}
+
+/** Write contact data to Redis slot 2. No TTL — permanent. */
+export async function contactCacheSet(stableKey: string, data: CachedContact): Promise<void> {
+  const c = getContactCacheClient();
+  if (!c) return;
+  try {
+    await c.set(CONTACT_PREFIX + stableKey, JSON.stringify(data));
+  } catch { /* non-fatal */ }
+}
+
+/** Read contact data from Redis slot 2. */
+export async function contactCacheGet(stableKey: string): Promise<CachedContact | null> {
+  const c = getContactCacheClient();
+  if (!c) return null;
+  try {
+    const raw = await c.get(CONTACT_PREFIX + stableKey);
+    return raw ? (JSON.parse(raw) as CachedContact) : null;
+  } catch { return null; }
+}
+
+/**
+ * Scan all contact cache keys and return them as [stableKey, data] pairs.
+ * Used by startup restore to backfill PostgreSQL from Redis.
+ */
+export async function contactCacheScanAll(): Promise<Array<{ key: string; data: CachedContact }>> {
+  const c = getContactCacheClient();
+  if (!c) return [];
+  const results: Array<{ key: string; data: CachedContact }> = [];
+  try {
+    let cursor = "0";
+    do {
+      const [next, keys] = await c.scan(cursor, "MATCH", CONTACT_PREFIX + "*", "COUNT", 200);
+      cursor = next;
+      if (keys.length > 0) {
+        const values = await c.mget(...keys);
+        for (let i = 0; i < keys.length; i++) {
+          const raw = values[i];
+          if (!raw) continue;
+          try {
+            const stableKey = keys[i]!.slice(CONTACT_PREFIX.length);
+            results.push({ key: stableKey, data: JSON.parse(raw) as CachedContact });
+          } catch { /* malformed entry — skip */ }
+        }
+      }
+    } while (cursor !== "0");
+  } catch { /* non-fatal */ }
+  return results;
+}
+
+/** Count how many contact cache entries exist in slot 2. */
+export async function contactCacheCount(): Promise<number> {
+  const c = getContactCacheClient();
+  if (!c) return 0;
+  try {
+    let count = 0;
+    let cursor = "0";
+    do {
+      const [next, keys] = await c.scan(cursor, "MATCH", CONTACT_PREFIX + "*", "COUNT", 200);
+      cursor = next;
+      count += keys.length;
+    } while (cursor !== "0");
+    return count;
+  } catch { return 0; }
+}

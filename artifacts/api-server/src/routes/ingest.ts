@@ -14,7 +14,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, assetsTable, entitiesTable, relationshipsTable } from "@workspace/db";
 import { searchRegistry } from "../lib/registry-client";
-import { getCache, setCache } from "../lib/redis";
+import { getCache, setCache, contactCacheSet } from "../lib/redis";
 import { sql, eq, and, gte, inArray, desc, count, type SQL } from "drizzle-orm";
 import { classifyEntityType } from "../lib/western-hnwi-ingestion";
 import {
@@ -958,6 +958,25 @@ router.post("/ingest/in-house-enrich", async (req: Request, res: Response): Prom
         await db.update(entitiesTable)
           .set(updates as any)
           .where(eq(entitiesTable.id, entity.id));
+
+        // Mirror to Redis contact cache (slot 2 / REDIS_URL_2) so data survives DB resets.
+        // Keyed by first sourceRegistry — stable across GitHub imports.
+        const regs = safeParseJson<string[]>(entity.sourceRegistries ?? "[]", []);
+        const stableKey = regs[0] ?? `name:${entity.name}`;
+        await contactCacheSet(stableKey, {
+          name:               entity.name,
+          email:              (updates["email"] as string | null | undefined) ?? entity.email ?? undefined,
+          phone:              (updates["phone"] as string | null | undefined) ?? entity.phone ?? undefined,
+          linkedinUrl:        (updates["linkedinUrl"] as string | null | undefined) ?? entity.linkedinUrl ?? undefined,
+          website:            result.website ?? undefined,
+          twitter:            result.twitter ?? undefined,
+          contactConfidence:  confidence,
+          enrichmentSources:  meta["enrichmentSources"] as string[] ?? result.sources,
+          enrichedAt:         new Date().toISOString(),
+          emailConfidence:    result.emailConfidence ?? undefined,
+          phoneConfidence:    result.phoneConfidence ?? undefined,
+          sourceHits:         result.sourceHits as Record<string, number> ?? undefined,
+        });
 
         logger.info(
           { entityId: entity.id, name: entity.name, confidence, sources: result.sources },

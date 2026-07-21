@@ -36,6 +36,30 @@
 - **Hot leads**: 7,454 synced by startup maintenance
 - Auto-ingestion: FAA ✅ 30,000 · HMLR ✅ 2,000 · Western HNWI 🔄 running in background
 
+### What was done this session (re-import #22, session 2 — 2026-07-21)
+
+**Redis contact cache layer — enrichment now survives DB resets:**
+
+1. **`artifacts/api-server/src/lib/redis.ts`** — Added slot-2-specific contact cache helpers:
+   - `getContactCacheClient()` — returns `_permanentClients[1]` (REDIS_URL_2) with slot-1 fallback
+   - `contactCacheSet(stableKey, data)` — writes `CachedContact` JSON to Redis, no TTL (permanent)
+   - `contactCacheGet(stableKey)` — reads a single entry
+   - `contactCacheScanAll()` — full scan of `contact:v1:*` keys (used by startup restore)
+   - `contactCacheCount()` — counts cache entries
+   - Stable key format: `contact:v1:{sourceRegistries[0]}` (e.g. `contact:v1:edgar:cik123`) — derived from source data, stable across GitHub imports
+
+2. **`artifacts/api-server/src/routes/ingest.ts`** — After every enrichment DB write, also mirrors to Redis slot 2. Derives stable key from `entity.sourceRegistries[0]`; falls back to `name:{name}` if no registry ID.
+
+3. **`artifacts/api-server/src/lib/startup.ts`** — Two new maintenance steps (run before isHot sync on every boot):
+   - **Step 0a: Redis → PostgreSQL restore** — scans slot 2 for `contact:v1:*` keys, matches each entity by sourceRegistries pattern, backfills contact fields if entity currently has none
+   - **Step 0b: PostgreSQL → Redis backfill** — reads all entities with contact data from PostgreSQL and writes to slot 2 if not already cached; captures enrichments done before Redis mirroring was deployed
+
+4. **Enrichment run results** (2026-07-21):
+   - 89 entities backfilled from PostgreSQL → Redis on first boot after deploy
+   - 26+ new entities enriched with new Redis-mirroring code (enricher still running)
+   - **Total: 114 entities with contact data** (email/phone/LinkedIn in PostgreSQL + mirrored to Redis)
+   - Redis slot 2 now has 115+ `contact:v1:` entries — permanent, survives imports
+
 ### What was done this session (re-import #22 — 2026-07-21)
 
 **Standard re-import setup:**

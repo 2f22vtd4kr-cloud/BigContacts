@@ -19,6 +19,7 @@ import { runFaaIngestion, US_STATE_CENTROIDS } from "./faa-ingestor";
 import { runLandRegistryIngestion } from "./land-registry-ingestor";
 import { runWesternHnwiIngestion, classifyEntityType } from "./western-hnwi-ingestion";
 import { logger } from "./logger";
+import { contactCacheScanAll, contactCacheCount, contactCacheSet, type CachedContact } from "./redis";
 
 const INGESTOR_TYPES = ["faa", "land-registry", "western-hnwi", "companies-house-enrich", "occrp", "opensky", "improve", "web-osint", "bulk-mcts", "in-house-enrich"] as const;
 
@@ -80,6 +81,113 @@ function startIngestor(
  */
 async function runPopulatedDbMaintenance(): Promise<void> {
   logger.info("Running populated-DB maintenance tasks…");
+
+  // 0. Restore contact data from Redis slot 2 (REDIS_URL_2) — runs first so downstream
+  //    steps (isHot sync, enricher, etc.) see the restored contact confidence values.
+  try {
+    const cacheCount = await contactCacheCount();
+    logger.info({ cacheCount }, "Maintenance: contact cache entries in Redis slot 2");
+    if (cacheCount > 0) {
+      const cached = await contactCacheScanAll();
+      logger.info({ total: cached.length }, "Maintenance: restoring contacts from Redis cache…");
+      let restored = 0;
+      const CHUNK = 100;
+      for (let i = 0; i < cached.length; i += CHUNK) {
+        await Promise.all(cached.slice(i, i + CHUNK).map(async ({ key, data }) => {
+          try {
+            // Match by first sourceRegistry string — e.g. "faa:N12345"
+            const entity = await db
+              .select({ id: entitiesTable.id, email: entitiesTable.email, phone: entitiesTable.phone, linkedinUrl: entitiesTable.linkedinUrl, metadata: entitiesTable.metadata })
+              .from(entitiesTable)
+              .where(sql`${entitiesTable.sourceRegistries}::text LIKE ${`%${key}%`}`)
+              .limit(1)
+              .then(r => r[0]);
+            if (!entity) return;
+            // Only restore if entity has no contact data currently
+            if (entity.email || entity.phone || entity.linkedinUrl) return;
+            const updates: Record<string, unknown> = { updatedAt: new Date() };
+            if (data.email)      updates["email"]      = data.email;
+            if (data.phone)      updates["phone"]      = data.phone;
+            if (data.linkedinUrl) updates["linkedinUrl"] = data.linkedinUrl;
+            updates["contactConfidence"] = data.contactConfidence;
+            // Restore metadata fields
+            let meta: Record<string, unknown> = {};
+            try { meta = JSON.parse(entity.metadata ?? "{}"); } catch { /* */ }
+            if (data.website)    meta["website"]    = data.website;
+            if (data.twitter)    meta["twitter"]    = data.twitter;
+            if (data.enrichmentSources?.length) meta["enrichmentSources"] = data.enrichmentSources;
+            if (data.enrichedAt) meta["enrichedAt"] = data.enrichedAt;
+            if (data.emailConfidence != null) meta["emailConfidence"] = data.emailConfidence;
+            if (data.phoneConfidence != null) meta["phoneConfidence"] = data.phoneConfidence;
+            if (data.sourceHits) meta["sourceHits"] = data.sourceHits;
+            meta["enricherVersion"] = "v2";
+            meta["needsEnrichment"] = false;
+            meta["restoredFromCache"] = true;
+            updates["metadata"] = JSON.stringify(meta);
+            updates["liveSource"] = true;
+            await db.update(entitiesTable).set(updates as any).where(eq(entitiesTable.id, entity.id));
+            restored++;
+          } catch { /* skip malformed entry */ }
+        }));
+      }
+      logger.info({ restored, total: cached.length }, "Maintenance: contact cache restore complete");
+    }
+  } catch (err: any) {
+    logger.warn({ err: err?.message }, "Maintenance: contact cache restore failed (non-fatal)");
+  }
+
+  // 0b. Backfill Redis contact cache from PostgreSQL — captures enrichments done before
+  //     the Redis-mirror code was deployed. Skips keys already present in cache.
+  try {
+    const enriched = await db
+      .select({
+        id: entitiesTable.id,
+        name: entitiesTable.name,
+        email: entitiesTable.email,
+        phone: entitiesTable.phone,
+        linkedinUrl: entitiesTable.linkedinUrl,
+        sourceRegistries: entitiesTable.sourceRegistries,
+        contactConfidence: entitiesTable.contactConfidence,
+        metadata: entitiesTable.metadata,
+      })
+      .from(entitiesTable)
+      .where(sql`(${entitiesTable.email} IS NOT NULL OR ${entitiesTable.phone} IS NOT NULL OR ${entitiesTable.linkedinUrl} IS NOT NULL) AND ${entitiesTable.contactConfidence} > 0`);
+
+    if (enriched.length > 0) {
+      logger.info({ count: enriched.length }, "Maintenance: backfilling Redis contact cache from PostgreSQL…");
+      let backfilled = 0;
+      const BCHUNK = 50;
+      for (let i = 0; i < enriched.length; i += BCHUNK) {
+        await Promise.all(enriched.slice(i, i + BCHUNK).map(async (e) => {
+          try {
+            const regs = (() => { try { return JSON.parse(e.sourceRegistries ?? "[]") as string[]; } catch { return [] as string[]; } })();
+            const stableKey = regs[0] ?? `name:${e.name}`;
+            let meta: Record<string, unknown> = {};
+            try { meta = JSON.parse(e.metadata ?? "{}"); } catch { /* */ }
+            const data: CachedContact = {
+              name: e.name,
+              email: e.email ?? undefined,
+              phone: e.phone ?? undefined,
+              linkedinUrl: e.linkedinUrl ?? undefined,
+              website: meta["website"] as string | undefined,
+              twitter: meta["twitter"] as string | undefined,
+              contactConfidence: e.contactConfidence ?? 0,
+              enrichmentSources: Array.isArray(meta["enrichmentSources"]) ? meta["enrichmentSources"] as string[] : [],
+              enrichedAt: meta["enrichedAt"] as string ?? new Date().toISOString(),
+              emailConfidence: meta["emailConfidence"] as number | undefined,
+              phoneConfidence: meta["phoneConfidence"] as number | undefined,
+              sourceHits: meta["sourceHits"] as Record<string, number> | undefined,
+            };
+            await contactCacheSet(stableKey, data);
+            backfilled++;
+          } catch { /* skip */ }
+        }));
+      }
+      logger.info({ backfilled, total: enriched.length }, "Maintenance: Redis contact cache backfill complete");
+    }
+  } catch (err: any) {
+    logger.warn({ err: err?.message }, "Maintenance: Redis contact cache backfill failed (non-fatal)");
+  }
 
   // 1. Sync isHot flags for entities with score ≥ 0.70 that aren't flagged yet
   try {
