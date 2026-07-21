@@ -1,0 +1,39 @@
+
+
+I remind you my previous last prompt: “With all the enrichment tools, Hybrid engine, online OSINT, no restrictions browser DuckDuckGo, AI, personas etc we only have 13 contacts?! What?! You know what to do, get serious, cause we are preparing going into production and if you can't make app really delivering its core objective - we are doomed. Also I don't see it working in the background on auto-trigger. Run realistic and brutally honest persona loop, no compromises - only really useful results delivery.”
+
+Here are you last logs: “Only 7 contactable out of 32,100. Let me do a full diagnostic first — understand exactly why enrichment is failing, what's running, and then fix it properly.
+Let me get a full picture of what's actually happening right now.
+Good — enrichment IS running. EDGAR entities are getting enriched right now (Icahn, Ansari, Advent International at confidence 100). The brutal truth: only 100 Western HNWI entities in the DB means the enrichable pool is tiny. I need to understand the contactableCount threshold, then fix the pipeline to maximize yield. Let me diagnose and run simultaneously.
+The threshold is contactConfidence >= 50. EDGAR-Phone alone gives 40 — just below the bar. And the enricher is processing FAA entities (IDs 1-30,000) before the 100 Western HNWI entities (IDs 32,000+). That's the core problem. Let me fix all of this.
+Now I see the full picture. Key bugs:
+1. batchSize is capped at 500 — auto-trigger sends 2000, gets silently truncated
+2. Default targetMode is "edgar" — 100 entities only, FAA's 30,000 never touched
+3. contactableCount threshold is 50; EDGAR-Phone alone scores 40 — just below the bar
+4. Second enrichment pass at 600s finds nothing (all EDGAR entities already have enricherVersionmarker, no force)
+Let me check the confidence scorer and fix everything simultaneously.
+I have the full diagnosis. Let me fix everything in parallel:
+Root causes:
+1. contactableCount threshold is 50 — but phone-only = 30, email-only = 40, both just below the bar
+2. batchSize hard-capped at 500 in ingest.ts (auto-trigger sends 2000, silently truncated)
+3. Default targetMode: "edgar" → only 100 entities ever tried; FAA's 30k never touched
+4. Second enrichment pass at 600s hits enricherVersion marker → finds 0 entities, does nothing
+5. Only 100 Western HNWI — need to run more ingestion to get the real public figures
+Now I'll fix everything in parallel: lower the contactable threshold, remove the batch cap, fix auto-trigger modes, and add FAA enrichment pass. Then immediately trigger western-hnwi ingestion and the persona loop.
+Good — now fix the startup triggers to add FAA pass and fix batchSizes:
+Now rebuild with the fixes, then simultaneously fire western-hnwi ingestion, FAA enrichment, and persona loop.
+Built cleanly — 50 contacts backfilled from PostgreSQL to Redis. Now fire everything simultaneously. No waiting for auto-triggers.
+Good progress. Contactable jumped from 7 → 50 with the threshold fix. EDGAR enrichment running, western HNWI at 200 inserted. OCCRP is rate-limiting on everything — need to check if it's a burst issue or fully blocked. Let me poll everything and get the real persona results.
+The persona loop reveals the brutal truth: every FAA entity is an "isolated node" with zero relationships. EDGAR enrichment at 33/70 enriched (47% hit rate). Let me now check the persona loop's batch limit, fix it, and run a full honest sweep while ingestion continues.
+Found a critical bug — the persona loop startup trigger sends { batchSize: 500 } but the endpoint parameter is { limit }. Every auto-trigger has been running with only 50 entities (the default). Let me fix this and run the real full sweep simultaneously.
+Three things in parallel: fix the startup trigger bug, run the full persona sweep, and check enrichment status.
+EDGAR enrichment nearly done (90/100, 45 enriched). Let me fire FAA enrichment and the full persona sweep now, then monitor all active jobs.
+EDGAR done (50 enriched). Full persona sweep running across 32,400 entities. Now fire FAA enrichment while monitoring everything.
+Critical bug — intel_systems_analyst is crashing on every FAA entity with Cannot read properties of undefined (reading 'createdAt'). The full persona sweep is poisoned. Let me fix this immediately while monitoring the other jobs.
+The intel_systems_analyst crash is on latest.createdAt — latest is undefined when an entity has no research sessions. Let me read the exact context and fix it.
+Found the bug. When sessions.length === 0 but isDirectOutreachTarget === false (Corp/Trust), it falls into the else branch where sessions[0] is undefined. Let me find all instances and fix them all at once.
+The bug: when sessions.length === 0 AND entity is Corp/Trust (not a direct outreach target), it falls into the else branch with sessions[0] = undefined then crashes on .createdAt. Fixing both in runIntelSystemsAnalyst now.
+The API server auto-restarted with my code changes. Let me check the fix is live and monitor all running jobs simultaneously.
+The fix is in the code but the API server needs a rebuild to pick it up. The persona sweep is still running on old binary. Let me rebuild.”
+
+So, continue 
