@@ -348,6 +348,14 @@ function EnrichmentCoverageStats() {
         <span className="text-[10px] font-mono text-muted-foreground/60">In-House OSINT: Wikidata · GitHub · Gravatar MD5 pattern verification · RDAP · ProPublica 990 → email, LinkedIn, phone (no paid API)</span>
         <InHouseEnrichButton />
       </div>
+      <div className="flex items-center justify-between border-t border-border/40 pt-2.5">
+        <span className="text-[10px] font-mono text-muted-foreground/60">EDGAR co-filers: scan SC 13D/G group filings — pairs of entities that filed together are KNOWN_ASSOCIATEs (human network data)</span>
+        <EdgarAssociatesButton />
+      </div>
+      <div className="flex items-center justify-between border-t border-border/40 pt-2.5">
+        <span className="text-[10px] font-mono text-muted-foreground/60">Wikidata associates: spouse · partner · sibling · parent relationships for enriched public figures → KNOWN_ASSOCIATE / FAMILY_OF edges</span>
+        <WikidataAssociatesButton />
+      </div>
     </div>
   );
 }
@@ -669,6 +677,80 @@ function NetWorthBackfillButton() {
       >
         {status === "running" ? <RefreshCw className="w-3 h-3 animate-spin" /> : <DollarSign className="w-3 h-3" />}
         {status === "running" ? "Backfilling…" : "Backfill Net Worth"}
+      </button>
+    </div>
+  );
+}
+
+function EdgarAssociatesButton() {
+  const [status, setStatus] = useState<"idle" | "running" | "done" | "error">("idle");
+  const [msg, setMsg] = useState("");
+
+  const run = async () => {
+    setStatus("running");
+    setMsg("Scanning EDGAR filings…");
+    try {
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const r = await fetch(`${base}/api/relationships/seed-edgar-associates`, { method: "POST" });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error ?? "Failed");
+      setMsg(d.message ?? "Done");
+      setStatus("done");
+    } catch (err: any) {
+      setMsg(err.message ?? "Error");
+      setStatus("error");
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2 flex-shrink-0">
+      {msg && (
+        <span className={`text-[10px] font-mono max-w-[240px] truncate ${status === "error" ? "text-red-400" : status === "done" ? "text-emerald-400" : "text-amber-400"}`} title={msg}>{msg}</span>
+      )}
+      <button
+        onClick={run}
+        disabled={status === "running"}
+        className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-border text-muted-foreground hover:text-cyan-400 hover:border-cyan-400/40 font-mono text-[10px] uppercase tracking-wider transition-colors disabled:opacity-50 flex-shrink-0"
+      >
+        {status === "running" ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Users className="w-3 h-3" />}
+        {status === "running" ? "Scanning…" : "EDGAR Co-filers"}
+      </button>
+    </div>
+  );
+}
+
+function WikidataAssociatesButton() {
+  const [status, setStatus] = useState<"idle" | "running" | "done" | "error">("idle");
+  const [msg, setMsg] = useState("");
+
+  const run = async () => {
+    setStatus("running");
+    setMsg("Querying Wikidata…");
+    try {
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const r = await fetch(`${base}/api/relationships/seed-wikidata-associates`, { method: "POST" });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error ?? "Failed");
+      setMsg(d.message ?? "Done");
+      setStatus("done");
+    } catch (err: any) {
+      setMsg(err.message ?? "Error");
+      setStatus("error");
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2 flex-shrink-0">
+      {msg && (
+        <span className={`text-[10px] font-mono max-w-[240px] truncate ${status === "error" ? "text-red-400" : status === "done" ? "text-emerald-400" : "text-amber-400"}`} title={msg}>{msg}</span>
+      )}
+      <button
+        onClick={run}
+        disabled={status === "running"}
+        className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-border text-muted-foreground hover:text-violet-400 hover:border-violet-400/40 font-mono text-[10px] uppercase tracking-wider transition-colors disabled:opacity-50 flex-shrink-0"
+      >
+        {status === "running" ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Network className="w-3 h-3" />}
+        {status === "running" ? "Querying…" : "Wikidata Associates"}
       </button>
     </div>
   );

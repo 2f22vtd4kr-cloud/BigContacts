@@ -307,4 +307,244 @@ router.post("/relationships/auto-detect-ch-codirectors", async (_req: Request, r
   });
 });
 
+// ── POST /relationships/seed-edgar-associates ────────────────────────────────
+// Paginates EDGAR EFTS for recent SC 13D/G filings, extracts display_names from
+// each filing, matches against entities in our DB, and creates KNOWN_ASSOCIATE
+// edges for any pair of DB entities that appear together in the same filing.
+// Uses the filing-centric approach: O(pages) API calls instead of O(entities).
+router.post("/relationships/seed-edgar-associates", async (_req: Request, res: Response): Promise<void> => {
+  // 1. Build name → entity ID index for all DB entities
+  const allEntities = await db
+    .select({ id: entitiesTable.id, name: entitiesTable.name, metadata: entitiesTable.metadata })
+    .from(entitiesTable);
+
+  function normForMatch(n: string): string {
+    // Strip CIK suffix "(CIK 12345)" common in EDGAR display_names
+    return n.replace(/\s*\(CIK\s*\d+\)\s*$/i, "")
+      .toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+  }
+
+  const nameIndex = new Map<string, Set<number>>();
+  const addToIndex = (key: string, id: number) => {
+    if (!key || key.length < 4) return;
+    if (!nameIndex.has(key)) nameIndex.set(key, new Set());
+    nameIndex.get(key)!.add(id);
+  };
+
+  for (const e of allEntities) {
+    addToIndex(normForMatch(e.name), e.id);
+    try {
+      const meta = JSON.parse(e.metadata ?? "{}");
+      if (typeof meta.entityName === "string") addToIndex(normForMatch(meta.entityName), e.id);
+    } catch { /* ignore */ }
+  }
+
+  // 2. Load existing KNOWN_ASSOCIATE pairs for idempotency
+  const existingRows = await db
+    .select({ sourceEntityId: relationshipsTable.sourceEntityId, targetId: relationshipsTable.targetId })
+    .from(relationshipsTable)
+    .where(eq(relationshipsTable.relationshipType, "KNOWN_ASSOCIATE"));
+  const seen = new Set(existingRows.map(r => `${Math.min(r.sourceEntityId, r.targetId)}:${Math.max(r.sourceEntityId, r.targetId)}`));
+
+  // 3. Paginate EDGAR EFTS for recent SC 13D/G filings
+  const EDGAR_HEADERS = {
+    Accept: "application/json",
+    "User-Agent": "ApexFinder/1.0 OSINT-Research research@apexfinder.private",
+  };
+  // Use multiple search anchors to cover different filing styles
+  const SEARCH_TERMS = [
+    '"aggregate beneficial ownership"',
+    '"beneficial owner of"',
+    '"shares of common stock beneficially"',
+  ];
+
+  const pending: Array<{
+    sourceEntityId: number; targetId: number; targetType: "Entity";
+    relationshipType: string; strength: number; notes: string;
+  }> = [];
+  let apiCalls = 0;
+  let filingMatches = 0;
+
+  for (const term of SEARCH_TERMS) {
+    for (let from = 0; from < 1000; from += 10) {
+      try {
+        await new Promise(r => setTimeout(r, 200)); // stay well under 10 req/s
+        const url = `https://efts.sec.gov/LATEST/search-index?q=${encodeURIComponent(term)}&forms=SC+13D,SC+13G&dateRange=custom&startdt=2018-01-01&from=${from}`;
+        const resp = await fetch(url, { headers: EDGAR_HEADERS, signal: AbortSignal.timeout(15_000) });
+        if (!resp.ok) break;
+        const data = await resp.json() as any;
+        const hits: any[] = data?.hits?.hits ?? [];
+        if (hits.length === 0) break;
+        apiCalls++;
+
+        for (const hit of hits) {
+          const rawNames: string[] = hit?._source?.display_names ?? [];
+          if (rawNames.length < 2) continue;
+
+          // Find all DB entity IDs present in this filing's display_names
+          const matchedIds = new Set<number>();
+          for (const rawName of rawNames) {
+            const key = normForMatch(rawName);
+            const ids = nameIndex.get(key);
+            if (ids) for (const id of ids) matchedIds.add(id);
+          }
+          if (matchedIds.size < 2) continue;
+
+          filingMatches++;
+          const idArr = [...matchedIds];
+          const formType: string = (hit?._source?.root_forms?.[0] ?? "SC 13D").trim();
+          for (let i = 0; i < idArr.length; i++) {
+            for (let j = i + 1; j < idArr.length; j++) {
+              const a = idArr[i]!, b = idArr[j]!;
+              const pairKey = `${Math.min(a, b)}:${Math.max(a, b)}`;
+              if (seen.has(pairKey)) continue;
+              seen.add(pairKey);
+              pending.push({
+                sourceEntityId: a, targetId: b, targetType: "Entity" as const,
+                relationshipType: "KNOWN_ASSOCIATE", strength: 0.85,
+                notes: `EDGAR ${formType} co-filer group`,
+              });
+            }
+          }
+        }
+      } catch { break; }
+    }
+  }
+
+  // 4. Batch insert
+  const CHUNK = 500;
+  for (let i = 0; i < pending.length; i += CHUNK) {
+    await db.insert(relationshipsTable).values(pending.slice(i, i + CHUNK));
+  }
+
+  res.json({
+    created: pending.length,
+    apiCalls,
+    filingMatches,
+    message: `EDGAR co-filer: ${pending.length} KNOWN_ASSOCIATE edges from ${filingMatches} group filings (${apiCalls} EFTS pages scanned)`,
+  });
+});
+
+// ── POST /relationships/seed-wikidata-associates ─────────────────────────────
+// For every entity that had a Wikidata hit during in-house enrichment, queries
+// Wikidata SPARQL for known personal relationships (P26 spouse, P451 partner,
+// P3373 sibling, P22/P25 parent) and creates KNOWN_ASSOCIATE / FAMILY_OF edges
+// whenever the named associate also exists in our DB.
+router.post("/relationships/seed-wikidata-associates", async (_req: Request, res: Response): Promise<void> => {
+  // Find entities that had a Wikidata hit (sourceHits.Wikidata = true in metadata)
+  const wikidataEntities = await db
+    .select({ id: entitiesTable.id, name: entitiesTable.name, metadata: entitiesTable.metadata })
+    .from(entitiesTable)
+    .where(sql`${entitiesTable.metadata}::text LIKE '%"Wikidata":true%'`);
+
+  if (!wikidataEntities.length) {
+    res.json({ created: 0, message: "No entities with Wikidata hits. Run In-House Enrich first." });
+    return;
+  }
+
+  // Build name → entity ID lookup
+  const allEntities = await db.select({ id: entitiesTable.id, name: entitiesTable.name }).from(entitiesTable);
+  function normKey(n: string): string {
+    return n.toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+  }
+  const nameIndex = new Map<string, number[]>();
+  for (const e of allEntities) {
+    const k = normKey(e.name);
+    if (!nameIndex.has(k)) nameIndex.set(k, []);
+    nameIndex.get(k)!.push(e.id);
+  }
+
+  // Load existing relationships for idempotency
+  const existingRows = await db
+    .select({ sourceEntityId: relationshipsTable.sourceEntityId, targetId: relationshipsTable.targetId, relationshipType: relationshipsTable.relationshipType })
+    .from(relationshipsTable);
+  const seen = new Set(existingRows.map(r => `${r.sourceEntityId}:${r.targetId}:${r.relationshipType}`));
+
+  const pending: Array<{
+    sourceEntityId: number; targetId: number; targetType: "Entity";
+    relationshipType: string; strength: number; notes: string;
+  }> = [];
+  let apiCalls = 0;
+  let associatesFound = 0;
+
+  for (const entity of wikidataEntities) {
+    // Normalise ALL-CAPS EDGAR names (e.g. "SMITH JOHN" → "John Smith")
+    const displayName = entity.name.trim();
+
+    try {
+      await new Promise(r => setTimeout(r, 1500)); // ~40 req/min Wikidata limit
+
+      const sparql = `
+SELECT DISTINCT ?associateLabel ?relType WHERE {
+  ?person wdt:P31 wd:Q5;
+          rdfs:label "${displayName.replace(/"/g, "")}"@en.
+  {
+    ?person wdt:P26 ?associate. BIND("spouse" AS ?relType)
+  } UNION {
+    ?person wdt:P451 ?associate. BIND("partner" AS ?relType)
+  } UNION {
+    ?person wdt:P3373 ?associate. BIND("sibling" AS ?relType)
+  } UNION {
+    ?person wdt:P22 ?associate. BIND("parent" AS ?relType)
+  } UNION {
+    ?person wdt:P25 ?associate. BIND("parent" AS ?relType)
+  }
+  ?associate rdfs:label ?associateLabel. FILTER(LANG(?associateLabel)="en")
+} LIMIT 20`;
+
+      const url = `https://query.wikidata.org/sparql?query=${encodeURIComponent(sparql)}&format=json`;
+      const resp = await fetch(url, {
+        signal: AbortSignal.timeout(15_000),
+        headers: {
+          Accept: "application/sparql-results+json",
+          "User-Agent": "ApexFinder/1.0 research@apexfinder.private",
+        },
+      });
+      if (!resp.ok) continue;
+
+      const data = await resp.json() as any;
+      const bindings: any[] = data?.results?.bindings ?? [];
+      apiCalls++;
+
+      for (const b of bindings) {
+        const associateName: string = b?.associateLabel?.value ?? "";
+        const relType: string = b?.relType?.value ?? "associate";
+        if (!associateName) continue;
+
+        const key = normKey(associateName);
+        const targetIds = nameIndex.get(key) ?? [];
+
+        for (const targetId of targetIds) {
+          if (targetId === entity.id) continue;
+          const relLabel = (relType === "sibling" || relType === "parent") ? "FAMILY_OF" : "KNOWN_ASSOCIATE";
+          const fwd = `${entity.id}:${targetId}:${relLabel}`;
+          const rev = `${targetId}:${entity.id}:${relLabel}`;
+          if (seen.has(fwd) || seen.has(rev)) continue;
+          seen.add(fwd);
+          associatesFound++;
+          pending.push({
+            sourceEntityId: entity.id, targetId, targetType: "Entity" as const,
+            relationshipType: relLabel, strength: 0.9,
+            notes: `Wikidata ${relType}: ${displayName} ↔ ${associateName}`,
+          });
+        }
+      }
+    } catch { /* network/timeout — continue to next entity */ }
+  }
+
+  const CHUNK = 500;
+  for (let i = 0; i < pending.length; i += CHUNK) {
+    await db.insert(relationshipsTable).values(pending.slice(i, i + CHUNK));
+  }
+
+  res.json({
+    created: pending.length,
+    wikidataEntities: wikidataEntities.length,
+    apiCalls,
+    associatesFound,
+    message: `Wikidata associates: ${pending.length} edges created for ${wikidataEntities.length} enriched entities (${associatesFound} associates found in DB)`,
+  });
+});
+
 export default router;
+
