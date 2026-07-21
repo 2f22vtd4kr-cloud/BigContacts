@@ -8,14 +8,14 @@
 
 ---
 
-## Current State (2026-07-21 — re-import #20) — Fully operational
+## Current State (2026-07-21 — re-import #21) — Fully operational
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically
 - **Local Redis** running on `redis://localhost:6379` — workflow `Redis` running ✅
-- **Upstash Redis (`REDIS_URL_1`)** — ✅ Set — `[upstash-1] Redis ready` confirmed
+- **Upstash Redis (`REDIS_URL_1`)** — ⚠️ NOT SET this import — dedup won't persist across restarts
 - **SESSION_SECRET** — ✅ Set
-- **COMPANIES_HOUSE_API_KEY** — ✅ Set — CH officer enrichment enabled
+- **COMPANIES_HOUSE_API_KEY** — ⚠️ NOT SET this import — CH officer enrichment skipped
 
 ### Workflows running
 | Workflow | Status |
@@ -28,7 +28,7 @@
 | `artifacts/apex-mobile: expo` | ⏸ Optional — not needed |
 | `artifacts/mockup-sandbox: Component Preview Server` | ⏸ Optional — not needed |
 
-> **Import #20 note:** `pnpm install` ran fresh. DB schema pushed. All 4 artifacts re-registered via verifyAndReplaceArtifactToml. Manual workflows (API Server, Web Frontend) are active; artifact-managed workflows registered but not started — port conflict would occur if both run. Auto-ingestion kicked off (DB empty — Western HNWI running in background; FAA failed, no cached ZIP). DB has ~2,600 entities / 2,000 assets at session start.
+> **Import #21 note:** `pnpm install` ran fresh. DB schema pushed (additive). Manual workflows (API Server, Web Frontend) are active. All 4 artifacts auto-registered by platform. Auto-ingestion kicked off on empty DB — 32,100 entities already populated (Western HNWI + FAA). REDIS_URL_1 and COMPANIES_HOUSE_API_KEY missing; set them to restore full functionality.
 > **Port conflict fix:** kill -9 $(lsof -ti:8080 -ti:23695) then restart artifact-managed workflows to switch ownership.
 
 ### Database (2026-07-21 — re-import #17, post-maintenance)
