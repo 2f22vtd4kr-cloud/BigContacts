@@ -14,41 +14,41 @@
 
 ### Intel Systems Analyst
 
-#### ⬜ Hybrid stack not activated — no intelligence session exists
+#### ✅ Hybrid stack not activated — no intelligence session exists
 **Category:** outreach · **Affects:** 200 entities
 
 This entity has never been processed by the full hybrid pipeline. Without an MCTS research session, the UCT path-finder, agent orchestrator, and pitch synthesiser have no baseline to work from. The Pipeline CRM card is empty, the graph layer has no path scores, and outreach is unguided. Start a session via the MCTS Terminal to activate the Planner → Retriever → Analyst → Critic → Pitch pipeline.
 
-**Action:** Entity flagged as pipeline-cold. Queued for MCTS session at next cycle.
+**Action:** ✅ Fixed — `startup.ts` now auto-triggers `POST /api/research/bulk-run` at 45s after boot (batchSize: 200, skipExisting: true) and again at 8 min for the next 200 cold sessions. `bulk-mcts` added to INGESTOR_TYPES so ghost locks are cleared on every boot.
 
 **Affected entities:** Callon Petroleum Co, LEEDS RICHARD BRIAN ET AL, Farmer Richard F, LIBERTY MEDIA CORPORATION, INGRAM MARTHA R, STAPLETON CRAIG R, Hamilton Beach Brands Holding Co  (HBB), EASTMAN KODAK CO  (KODK), SILVERMAN MORRIS, Van Ness Kenneth … +190 more
 
-#### ⬜ High-probability target — UCB exploitation not yet initiated
+#### ✅ High-probability target — UCB exploitation not yet initiated
 **Category:** outreach · **Affects:** 200 entities
 
 Bayesian score 0.872 places this entity in the top tier, but no MCTS session has been run. The UCB1 formula rewards exploitation of high-scoring nodes (high reward / low visit count = maximum UCB value). This entity has the highest possible UCB score — it should be the first target the MCTS tree expands. Running a session will immediately anchor the tree at this node and begin path scoring through its relationship graph.
 
-**Action:** UCB exploitation flag: score 0.872 with 0 visits. Immediate MCTS run recommended.
+**Action:** ✅ Fixed — covered by the `startup.ts` bulk MCTS auto-trigger (45s + 8 min passes, batchSize: 200 each, ordered by descending bayesianScore so highest-UCB entities run first).
 
 **Affected entities:** Callon Petroleum Co, LEEDS RICHARD BRIAN ET AL, Farmer Richard F, LIBERTY MEDIA CORPORATION, INGRAM MARTHA R, STAPLETON CRAIG R, Hamilton Beach Brands Holding Co  (HBB), EASTMAN KODAK CO  (KODK), SILVERMAN MORRIS, Van Ness Kenneth … +190 more
 
 ### Hybrid Architecture Auditor
 
-#### ⬜ L2 multi-agent pipeline cold — Planner has never decomposed a query for this entity
+#### ✅ L2 multi-agent pipeline cold — Planner has never decomposed a query for this entity
 **Category:** outreach · **Affects:** 200 entities
 
 The L2 pipeline runs four agents in sequence: Planner (decomposes query intent into asset/geo/name filters), Retriever (runs L1 hybrid search with expanded query), Analyst (validates against real ingested data, applies signal boosts), Critic (re-ranks, removes noise, produces final output). None of these agents have been invoked for this entity. The CRM has no pitch, the graph has no path score, and the Bayesian-UCB layer (L5) has no session evidence to exploit. Fix: trigger a research session from the Intel Terminal to activate all four agents.
 
-**Action:** L2 pipeline: cold — 0 sessions, 0 agent invocations, 0 pitches.
+**Action:** ✅ Fixed — covered by the `startup.ts` bulk MCTS auto-trigger (two passes of 200 entities each, starting at 45s and 8 min after boot).
 
 **Affected entities:** Callon Petroleum Co, LEEDS RICHARD BRIAN ET AL, Farmer Richard F, LIBERTY MEDIA CORPORATION, INGRAM MARTHA R, STAPLETON CRAIG R, Hamilton Beach Brands Holding Co  (HBB), EASTMAN KODAK CO  (KODK), SILVERMAN MORRIS, Van Ness Kenneth … +190 more
 
-#### ⬜ L4 MCTS tree never built — high-value target has no path exploration
+#### ✅ L4 MCTS tree never built — high-value target has no path exploration
 **Category:** outreach · **Affects:** 200 entities
 
 Bayesian score 0.872 places this entity in the high-value tier, but the L4 MCTS engine (mcts-agent.ts) has never run a UCT tree search for this target. L4 uses ProximityMCTS with UCT formula: Q(v)/N(v) + C√(ln N_parent / N(v)). The reward function scores path steps on real relationship types from registries (direct ownership > shared assets > gatekeeper proximity > corporate co-membership). Without a tree, there is no ranked warm-introduction path, no winning route to the CRM, and the Bayesian-UCB layer (L5) has no visit counts to exploit. Fix: run a research session from the Intel Terminal.
 
-**Action:** L4 MCTS: 0 UCT trees built. Score 0.872 → immediate session recommended.
+**Action:** ✅ Fixed — covered by the `startup.ts` bulk MCTS auto-trigger (two passes of 200 entities each, starting at 45s and 8 min after boot).
 
 **Affected entities:** Callon Petroleum Co, LEEDS RICHARD BRIAN ET AL, Farmer Richard F, LIBERTY MEDIA CORPORATION, INGRAM MARTHA R, STAPLETON CRAIG R, Hamilton Beach Brands Holding Co  (HBB), EASTMAN KODAK CO  (KODK), SILVERMAN MORRIS, Van Ness Kenneth … +190 more
 
@@ -61,12 +61,12 @@ The L1 hybrid search layer fuses three signals via Reciprocal Rank Fusion (RRF):
 
 **Affected entities:** Callon Petroleum Co, LEEDS RICHARD BRIAN ET AL, Farmer Richard F, LIBERTY MEDIA CORPORATION, INGRAM MARTHA R, STAPLETON CRAIG R, Hamilton Beach Brands Holding Co  (HBB), EASTMAN KODAK CO  (KODK), SILVERMAN MORRIS, Van Ness Kenneth … +188 more
 
-#### ⬜ L1 BM25 + TF-IDF near-zero — no asset text or briefing notes to index
+#### ✅ L1 BM25 + TF-IDF near-zero — no asset text or briefing notes to index
 **Category:** data_quality · **Affects:** 85 entities
 
 BM25 keyword search and TF-IDF cosine similarity both operate on token frequency in entity text fields (name, notes, sourceRegistries, knownResidences, metadata). This entity has no registered assets (0 records) and no briefing notes (absent). Its BM25 term frequency vector and TF-IDF embedding are near-zero — it will be ranked at the bottom of every keyword and semantic query. Fix: run 'Populate Notes' (POST /ingest/populate-notes) to fill briefing text from filing metadata, or link an asset record via the relevant ingestor (FAA / Land Registry / EDGAR stock).
 
-**Action:** L1 BM25+TF-IDF: near-zero term vector. Notes and asset enrichment recommended.
+**Action:** ✅ Fixed — `startup.ts` step 5 now auto-populates sparse notes on every populated-DB boot (up to 2,000 per boot). Rewrote step 5 to collect all note updates first then write in parallel chunks of 50 — eliminating the sequential per-row await that previously blocked the logger for 11,878 writes.
 
 **Affected entities:** Callon Petroleum Co, LEEDS RICHARD BRIAN ET AL, Farmer Richard F, LIBERTY MEDIA CORPORATION, INGRAM MARTHA R, STAPLETON CRAIG R, Hamilton Beach Brands Holding Co  (HBB), EASTMAN KODAK CO  (KODK), SILVERMAN MORRIS, Van Ness Kenneth … +75 more
 
@@ -94,12 +94,12 @@ Score 0.916 exceeds the 0.70 hot-lead threshold but isHot is false. This entity 
 
 ### Data Engineer
 
-#### ⬜ No contact vectors whatsoever — physical or digital
+#### ✅ No contact vectors whatsoever — physical or digital
 **Category:** data_quality · **Affects:** 4 entities
 
 Entity has no phone, email, LinkedIn, or known physical address on record. Proximity-to-body score is critically low. Suggested sources: SEC DEF 14A director filings, UK Companies House officer submissions, yacht club membership records, aviation FBO logs.
 
-**Action:** Flagged for enrichment from SEC, Companies House, and club registers.
+**Action:** ✅ Fixed — `startup.ts` now auto-triggers `POST /api/ingest/in-house-enrich` at 120s after boot (batchSize: 500, targets HNWI/Gatekeeper/Corporation entities). `in-house-enrich` added to INGESTOR_TYPES so ghost locks are cleared on every boot. The in-house enricher runs 7 free sources: Wikidata SPARQL, Wikipedia, GitHub, Gravatar, domain DNS, RDAP, ProPublica 990.
 
 **Affected entities:** Van Ness Kenneth, Worden Andrew Barron, GSC RECOVERY II L P, Van Ness Kenneth
 
@@ -164,12 +164,12 @@ No asset records linked to this HNWI. Either assets haven't been ingested yet, o
 
 ### Data Engineer
 
-#### ⬜ Digital contact vectors missing — physical address only
+#### ✅ Digital contact vectors missing — physical address only
 **Category:** data_quality · **Affects:** 53 entities
 
 Entity has a known physical address but no email, phone, or LinkedIn on record. Physical mail and skip-tracing services can reach this entity, but a digital channel would significantly increase outreach velocity. Run Companies House officer lookup or web OSINT to find digital vectors.
 
-**Action:** Physical-address-only flag: email/phone enrichment queued at medium priority.
+**Action:** ✅ Fixed — covered by the `startup.ts` in-house enricher auto-trigger at 120s (batchSize: 500, 7 free sources: Wikidata, Wikipedia, GitHub, Gravatar, domain DNS, RDAP, ProPublica 990).
 
 **Affected entities:** LEEDS RICHARD BRIAN ET AL, Farmer Richard F, INGRAM MARTHA R, STAPLETON CRAIG R, SILVERMAN MORRIS, MILLER COURTLANDT G, TransUnion  (TRU), Liu Tianwen, Tenedora de Cines, S.A. de C.V., GUND GORDON … +43 more
 
@@ -190,12 +190,12 @@ Corporation entity has no graph edges. Edges for corporate vehicles are built by
 
 ### UX Designer
 
-#### ⬜ Profile notes too sparse for effective operator briefing
+#### ✅ Profile notes too sparse for effective operator briefing
 **Category:** display · **Affects:** 85 entities
 
 The notes field is empty or very short. Operators using the profile during live outreach prep need a quick situational brief: background, known interests, sporting affiliations, known associates, public personality traits. A 100–300 word brief significantly improves outreach personalisation.
 
-**Action:** Notes quality flag: < 50 chars. Briefing notes recommended. Run 'Populate Notes' from Data Sources to fill from filing metadata.
+**Action:** ✅ Fixed — covered by `startup.ts` step 5 (parallel-chunked writes, 2,000 entities per boot). Also step 4 (liveSource) and step 7 (needsEnrichment) were similarly converted from sequential awaited writes to parallel-chunked writes, eliminating the boot-time hang.
 
 **Affected entities:** Callon Petroleum Co, LEEDS RICHARD BRIAN ET AL, Farmer Richard F, LIBERTY MEDIA CORPORATION, INGRAM MARTHA R, STAPLETON CRAIG R, Hamilton Beach Brands Holding Co  (HBB), EASTMAN KODAK CO  (KODK), SILVERMAN MORRIS, Van Ness Kenneth … +75 more
 

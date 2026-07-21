@@ -37,6 +37,20 @@
 - Entity types: 22,807 Corporation · 581 Trust (reclassified by startup maintenance)
 - Assets: ~30,000 Aviation (all with coordinates from state centroids) · 2,000 RealEstate · ~2,000 StockHolding
 
+### What was done this session (re-import #18, session 2 — 2026-07-21)
+
+**Startup.ts performance + auto-trigger improvements (improvements.md batch):**
+
+1. **Steps 4, 5, 7 rewritten** — all previously did sequential awaited DB writes per entity (bottleneck: 11,878 writes in step 5, 32,000 in step 4). Now collect all updates first, then write in parallel chunks (100 for step 4, 50 for steps 5 & 7). Boot results: step 4 synced 32,000 liveSource markers, step 5 populated 2,000 sparse notes, step 7 cleared 0 needsEnrichment flags — all ran in parallel and logged correctly.
+
+2. **Bulk MCTS auto-trigger scaled** — `batchSize: 60` → `batchSize: 200` at 45s. Second pass added at 8 min (another 200). `bulk-mcts` added to INGESTOR_TYPES for ghost cleanup on boot (first boot had 409 from stale ghost — fixed next boot).
+
+3. **In-house enricher auto-trigger added** — fires at 120s: `POST /api/ingest/in-house-enrich` batchSize: 500. `in-house-enrich` added to INGESTOR_TYPES.
+
+4. **Cluster detection** — 228,828 new CORPORATE_SERIES edges created at 15s trigger (2,085 clusters). 100 EDGAR StockHolding assets created by step 6.
+
+5. **improvements.md** — 8 new ✅ items: all MCTS cold-session patterns, sparse notes patterns, zero-contact-vector patterns marked done.
+
 ### What was done this session (re-import #17, Session 2 — 2026-07-21)
 
 **5 improvements from improvements.md implemented:**

@@ -20,7 +20,7 @@ import { runLandRegistryIngestion } from "./land-registry-ingestor";
 import { runWesternHnwiIngestion, classifyEntityType } from "./western-hnwi-ingestion";
 import { logger } from "./logger";
 
-const INGESTOR_TYPES = ["faa", "land-registry", "western-hnwi", "companies-house-enrich", "occrp", "opensky", "improve", "web-osint"] as const;
+const INGESTOR_TYPES = ["faa", "land-registry", "western-hnwi", "companies-house-enrich", "occrp", "opensky", "improve", "web-osint", "bulk-mcts", "in-house-enrich"] as const;
 
 /** Mark any "running" job whose process is dead as failed, clear its lock. */
 async function clearGhostJobs(): Promise<void> {
@@ -155,24 +155,26 @@ async function runPopulatedDbMaintenance(): Promise<void> {
     const entities = await db
       .select({ id: entitiesTable.id, sourceRegistries: entitiesTable.sourceRegistries, metadata: entitiesTable.metadata })
       .from(entitiesTable);
-    let liveUpdated = 0;
-    const BATCH = 500;
-    for (let i = 0; i < entities.length; i += BATCH) {
-      const batch = entities.slice(i, i + BATCH);
-      for (const e of batch) {
-        const sources: string[] = (() => { try { return JSON.parse(e.sourceRegistries ?? "[]"); } catch { return []; } })();
-        const meta: Record<string, unknown> = (() => { try { return JSON.parse(e.metadata ?? "{}"); } catch { return {}; } })();
-        const isLive = sources.some(s => LIVE_PATTERNS.some(p => s.toLowerCase().includes(p)))
-          || !!meta.source || !!meta.nNumber || !!meta.formType || !!meta.orgnr || !!meta.titleNumber;
-        if (!isLive || meta.liveSource === true) continue;
-        meta.liveSource = true;
-        await db.update(entitiesTable)
-          .set({ metadata: JSON.stringify(meta) })
-          .where(eq(entitiesTable.id, e.id));
-        liveUpdated++;
-      }
+    // Collect all updates first, then write in parallel chunks (avoids sequential awaits per row)
+    const liveUpdates: Array<{ id: number; metadata: string }> = [];
+    for (const e of entities) {
+      const sources: string[] = (() => { try { return JSON.parse(e.sourceRegistries ?? "[]"); } catch { return []; } })();
+      const meta: Record<string, unknown> = (() => { try { return JSON.parse(e.metadata ?? "{}"); } catch { return {}; } })();
+      const isLive = sources.some(s => LIVE_PATTERNS.some(p => s.toLowerCase().includes(p)))
+        || !!meta.source || !!meta.nNumber || !!meta.formType || !!meta.orgnr || !!meta.titleNumber;
+      if (!isLive || meta.liveSource === true) continue;
+      meta.liveSource = true;
+      liveUpdates.push({ id: e.id, metadata: JSON.stringify(meta) });
     }
-    logger.info({ updated: liveUpdated, total: entities.length }, "Maintenance: liveSource markers synced");
+    const PCHUNK = 100;
+    for (let i = 0; i < liveUpdates.length; i += PCHUNK) {
+      await Promise.all(
+        liveUpdates.slice(i, i + PCHUNK).map(u =>
+          db.update(entitiesTable).set({ metadata: u.metadata }).where(eq(entitiesTable.id, u.id))
+        )
+      );
+    }
+    logger.info({ updated: liveUpdates.length, total: entities.length }, "Maintenance: liveSource markers synced");
   } catch (err: any) {
     logger.warn({ err: err?.message }, "Maintenance: liveSource sync failed (non-fatal)");
   }
@@ -194,7 +196,8 @@ async function runPopulatedDbMaintenance(): Promise<void> {
           .where(sql`(${entitiesTable.notes} IS NULL OR length(${entitiesTable.notes}) < 50) AND ${entitiesTable.metadata} IS NOT NULL AND ${entitiesTable.metadata} != '{}'`)
           .limit(2000); // cap per-boot to avoid long-running lock
 
-        let notesUpdated = 0;
+        // Collect all note updates first, then write in parallel chunks
+        const noteUpdates: Array<{ id: number; notes: string }> = [];
         for (const row of sparseRows) {
           let meta: Record<string, any> = {};
           try { meta = JSON.parse(row.metadata ?? "{}"); } catch {}
@@ -212,12 +215,17 @@ async function runPopulatedDbMaintenance(): Promise<void> {
           }
           if (row.type) parts.push(`Entity type: ${row.type}.`);
           const newNotes = parts.join(" ");
-          if (newNotes && newNotes !== row.notes) {
-            await db.update(entitiesTable).set({ notes: newNotes }).where(eq(entitiesTable.id, row.id));
-            notesUpdated++;
-          }
+          if (newNotes && newNotes !== row.notes) noteUpdates.push({ id: row.id, notes: newNotes });
         }
-        logger.info({ updated: notesUpdated, total: sparseRows.length }, "Maintenance bg: sparse notes populated");
+        const PCHUNK = 50;
+        for (let i = 0; i < noteUpdates.length; i += PCHUNK) {
+          await Promise.all(
+            noteUpdates.slice(i, i + PCHUNK).map(u =>
+              db.update(entitiesTable).set({ notes: u.notes }).where(eq(entitiesTable.id, u.id))
+            )
+          );
+        }
+        logger.info({ updated: noteUpdates.length, total: sparseRows.length }, "Maintenance bg: sparse notes populated");
       } catch (err: any) {
         logger.warn({ err: err?.message }, "Maintenance bg: sparse notes population failed (non-fatal)");
       }
@@ -274,18 +282,26 @@ async function runPopulatedDbMaintenance(): Promise<void> {
           .select({ id: entitiesTable.id, metadata: entitiesTable.metadata })
           .from(entitiesTable)
           .where(sql`${entitiesTable.metadata}::text LIKE '%"needsEnrichment":true%'`);
-        let cleared = 0;
+        // Collect updates first, then write in parallel chunks
+        const toUpdate: Array<{ id: number; metadata: string }> = [];
         for (const row of flagged) {
           const meta: Record<string, unknown> = (() => { try { return JSON.parse(row.metadata ?? "{}"); } catch { return {}; } })();
           if (meta.needsEnrichment !== true) continue;
           const enriched = !!meta.enricherVersion || !!meta.enrichedAt || !!meta.enrichmentSources;
           if (enriched) {
             meta.needsEnrichment = false;
-            await db.update(entitiesTable).set({ metadata: JSON.stringify(meta) }).where(eq(entitiesTable.id, row.id));
-            cleared++;
+            toUpdate.push({ id: row.id, metadata: JSON.stringify(meta) });
           }
         }
-        logger.info({ cleared, total: flagged.length }, "Maintenance bg: needsEnrichment flags cleared");
+        const PCHUNK = 50;
+        for (let i = 0; i < toUpdate.length; i += PCHUNK) {
+          await Promise.all(
+            toUpdate.slice(i, i + PCHUNK).map(u =>
+              db.update(entitiesTable).set({ metadata: u.metadata }).where(eq(entitiesTable.id, u.id))
+            )
+          );
+        }
+        logger.info({ cleared: toUpdate.length, total: flagged.length }, "Maintenance bg: needsEnrichment flags cleared");
       } catch (err: any) {
         logger.warn({ err: err?.message }, "Maintenance bg: needsEnrichment clear failed (non-fatal)");
       }
@@ -308,21 +324,58 @@ async function runPopulatedDbMaintenance(): Promise<void> {
     }
   }, 15_000); // 15s after boot — server is stable by then
 
+  // 45s: first bulk MCTS pass — 200 hot leads, skip already-run sessions
   setTimeout(async () => {
     try {
       const researchRes = await fetch(`http://localhost:${port}/api/research/bulk-run`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ batchSize: 60, skipExisting: true }),
+        body: JSON.stringify({ batchSize: 200, skipExisting: true }),
       });
       if (researchRes.ok) {
         const d = await researchRes.json();
-        logger.info({ message: d.message, jobId: d.jobId }, "Maintenance: auto hybrid-research bulk run triggered");
+        logger.info({ message: d.message, jobId: d.jobId }, "Maintenance: auto hybrid-research bulk run triggered (pass 1)");
       }
     } catch (err: any) {
       logger.warn({ err: err?.message }, "Maintenance: auto hybrid-research trigger failed (non-fatal)");
     }
-  }, 45_000); // 45s after boot — after cluster detection has a head start
+  }, 45_000);
+
+  // 120s: auto in-house enricher — fills email/LinkedIn for zero-contact HNWI & Gatekeeper entities
+  setTimeout(async () => {
+    try {
+      const enrichRes = await fetch(`http://localhost:${port}/api/ingest/in-house-enrich`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ batchSize: 500 }),
+      });
+      if (enrichRes.ok) {
+        const d = await enrichRes.json();
+        logger.info({ message: d.message, jobId: d.jobId }, "Maintenance: auto in-house enricher triggered");
+      } else {
+        logger.info({ status: enrichRes.status }, "Maintenance: in-house enricher already running or no targets");
+      }
+    } catch (err: any) {
+      logger.warn({ err: err?.message }, "Maintenance: auto in-house enricher trigger failed (non-fatal)");
+    }
+  }, 120_000);
+
+  // 8 min: second bulk MCTS pass — cover the next 200 cold sessions
+  setTimeout(async () => {
+    try {
+      const researchRes = await fetch(`http://localhost:${port}/api/research/bulk-run`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ batchSize: 200, skipExisting: true }),
+      });
+      if (researchRes.ok) {
+        const d = await researchRes.json();
+        logger.info({ message: d.message, jobId: d.jobId }, "Maintenance: auto hybrid-research bulk run triggered (pass 2)");
+      }
+    } catch (err: any) {
+      logger.warn({ err: err?.message }, "Maintenance: auto hybrid-research trigger failed pass 2 (non-fatal)");
+    }
+  }, 480_000);
 }
 
 /** Main cold-start entry point — call once after Upstash connects. */
