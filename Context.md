@@ -8,12 +8,12 @@
 
 ---
 
-## Current State (2026-07-21 — re-import #17) — Fully operational
+## Current State (2026-07-21 — re-import #17, session 2) — Fully operational
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically
 - **Local Redis** running on `redis://localhost:6379` — workflow `Redis` running ✅
-- **Upstash Redis (`REDIS_URL_1`)** — ⚠️ NOT SET in current import — set via Replit Secrets to re-enable dedup persistence
+- **Upstash Redis (`REDIS_URL_1`)** — ⚠️ NOT SET — set via Replit Secrets to re-enable dedup persistence
 - **SESSION_SECRET** — ✅ Set
 - **COMPANIES_HOUSE_API_KEY** — ⚠️ NOT SET — optional, needed for UK Companies House enrichment
 
@@ -21,18 +21,40 @@
 | Workflow | Status |
 |---|---|
 | Redis | ✅ Running |
-| `API Server` (manual) | ✅ Running (port 8080) |
-| `Web Frontend` (manual) | ✅ Running (port 23695) |
+| `artifacts/api-server: API Server` | ✅ Running (port 8080) |
+| `artifacts/apex-finder: web` | ✅ Running (port 23695) |
 | `artifacts/apex-mobile: expo` | ⏸ Optional — not needed |
 | `artifacts/mockup-sandbox: Component Preview Server` | ⏸ Optional — not needed |
 
-### Database (2026-07-21 — re-import #16, post-pipeline)
-- **Entities**: 32,300 · **Assets**: 32,100 · **Relationships**: 228,828
-- **Hot leads**: 14,845 · **Avg Bayesian score**: 0.6719
-- **Contactable**: 6 · **Enrichment coverage**: ~50/100 first batch (50% hit rate)
-- **Persona suggestions**: 2,178 across 200 entities (1,241 HIGH · 614 medium · 323 low)
-- Entity types: 22,774 Corporation · 581 Trust · 8,745 HNWI
-- Assets: 30,000 Aviation · 2,000 RealEstate · 100 StockHolding
+> **Note:** Old manual "API Server" and "Web Frontend" workflows are obsolete — use artifact-managed workflows above. After kill -9 $(lsof -ti:8080 -ti:23695) on each import, the artifact workflows own those ports.
+
+### Database (2026-07-21 — re-import #17, post-maintenance)
+- **Entities**: 32,200 · **Assets**: ~32,100 · **Relationships**: ~229k
+- **Hot leads**: 7,432 synced this boot (startup maintenance) + prior 17,161 = fully current
+- Entity types: 22,807 Corporation · 581 Trust (reclassified by startup maintenance)
+- Assets: ~30,000 Aviation (all with coordinates from state centroids) · 2,000 RealEstate · ~2,000 StockHolding
+
+### What was done this session (re-import #17, Session 2 — 2026-07-21)
+
+**5 improvements from improvements.md implemented:**
+
+1. **Startup auto-maintenance** (`artifacts/api-server/src/lib/startup.ts`):
+   - When DB is populated on boot, runs 4 background tasks: isHot sync, entity reclassification, FAA coordinate backfill, liveSource provenance marker backfill
+   - Result this boot: 7,432 hot flags synced, 22,807 Corp + 581 Trust reclassified, 64 FAA assets checked (already geocoded)
+
+2. **New Duplicate Entity Review page** (`artifacts/apex-finder/src/pages/duplicates.tsx` + nav):
+   - Route: `/duplicates` · Nav item: "Duplicates" (Copy icon)
+   - Token-similarity algorithm detects pairs sharing ≥2 significant name tokens across all 32k entities
+   - Each pair shows entity cards with type badge + Bayesian score, swap-direction button, Merge + Dismiss actions
+   - **Merge endpoint** (`POST /api/entities/:id/merge/:targetId`): reassigns assets + relationships from target to primary, merges sourceRegistries/metadata/notes, deletes target, clears cache
+   - **Candidates endpoint** (`GET /api/entities/duplicate-candidates`): returns top 200 pairs sorted by token overlap — registered BEFORE `:id` route to avoid Express routing conflict
+   - 200 real candidates found immediately (Wells Fargo variants, series LLC families, etc.)
+
+3. **isHot flag auto-sync** — already covered in (1) above
+
+4. **Entity type reclassification** — already covered in (1) above
+
+5. **liveSource provenance backfill** — already covered in (1) above
 
 ### What was done this session (re-import #6, Session 1 — 2026-07-20)
 

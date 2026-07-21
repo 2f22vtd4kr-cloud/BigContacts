@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { eq, ilike, and, gte, sql } from "drizzle-orm";
-import { db, entitiesTable, assetsTable } from "@workspace/db";
+import { eq, ilike, and, gte, sql, inArray } from "drizzle-orm";
+import { db, entitiesTable, assetsTable, relationshipsTable } from "@workspace/db";
 import {
   ListEntitiesQueryParams,
   CreateEntityBody,
@@ -128,6 +128,65 @@ router.post("/entities", async (req, res): Promise<void> => {
   res.status(201).json({ ...entity!, createdAt: entity!.createdAt.toISOString(), assetCount: 0 });
 });
 
+// ── GET /entities/duplicate-candidates ───────────────────────────────────────
+// Returns pairs of entities that share ≥2 significant name tokens, ranked by
+// shared-token count. Used by the Duplicates review page to surface merge candidates.
+// MUST be registered before GET /entities/:id to avoid "duplicate-candidates" being
+// parsed as an entity ID.
+router.get("/entities/duplicate-candidates", async (_req, res): Promise<void> => {
+  try {
+    const rows = await db
+      .select({ id: entitiesTable.id, name: entitiesTable.name, type: entitiesTable.type, bayesianScore: entitiesTable.bayesianScore })
+      .from(entitiesTable);
+
+    const STOP = new Set(["LLC", "INC", "LTD", "CO", "THE", "AND", "OF", "UK", "US", "LP", "LLP", "PLC", "CORP", "ET", "AL", "DE", "LA", "LE", "SA", "SRL", "BV", "NV", "AG", "GMBH", "LTD", "PTY", "ASA"]);
+    const tokenize = (name: string): string[] =>
+      name.toUpperCase().split(/\W+/).filter(t => t.length >= 3 && !STOP.has(t));
+
+    const tokenIndex = new Map<string, number[]>();
+    for (const row of rows) {
+      for (const token of tokenize(row.name)) {
+        const arr = tokenIndex.get(token) ?? [];
+        arr.push(row.id);
+        tokenIndex.set(token, arr);
+      }
+    }
+
+    const pairScores = new Map<string, number>();
+    for (const [, ids] of tokenIndex.entries()) {
+      if (ids.length < 2 || ids.length > 30) continue;
+      for (let i = 0; i < ids.length; i++) {
+        for (let j = i + 1; j < ids.length; j++) {
+          const key = `${Math.min(ids[i]!, ids[j]!)}_${Math.max(ids[i]!, ids[j]!)}`;
+          pairScores.set(key, (pairScores.get(key) ?? 0) + 1);
+        }
+      }
+    }
+
+    const rowById = new Map(rows.map(r => [r.id, r]));
+    const candidates = [...pairScores.entries()]
+      .filter(([, score]) => score >= 2)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 200)
+      .map(([key, sharedTokens]) => {
+        const [aId, bId] = key.split("_").map(Number);
+        const a = rowById.get(aId!);
+        const b = rowById.get(bId!);
+        if (!a || !b) return null;
+        return {
+          entityA: { id: a.id, name: a.name, type: a.type, bayesianScore: a.bayesianScore },
+          entityB: { id: b.id, name: b.name, type: b.type, bayesianScore: b.bayesianScore },
+          sharedTokens,
+        };
+      })
+      .filter(Boolean);
+
+    res.json({ candidates, total: candidates.length });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message ?? "Duplicate detection failed" });
+  }
+});
+
 // GET /entities/:id
 router.get("/entities/:id", async (req, res): Promise<void> => {
   const params = GetEntityParams.safeParse(req.params);
@@ -191,6 +250,75 @@ router.patch("/entities/:id", async (req, res): Promise<void> => {
     delCachePattern("dashboard:*"),
   ]);
   res.json({ ...entity, createdAt: entity.createdAt.toISOString(), assetCount: cnt?.cnt ?? 0 });
+});
+
+// ── POST /entities/:id/merge/:targetId ────────────────────────────────────────
+// Merges targetId into id: assets + relationships reassigned, metadata merged,
+// target entity deleted. Primary entity is kept; target is destroyed.
+router.post("/entities/:id/merge/:targetId", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id, 10);
+  const targetId = parseInt(req.params.targetId, 10);
+  if (isNaN(id) || isNaN(targetId) || id === targetId) {
+    res.status(400).json({ error: "Invalid entity IDs" });
+    return;
+  }
+
+  const [[primary], [target]] = await Promise.all([
+    db.select().from(entitiesTable).where(eq(entitiesTable.id, id)),
+    db.select().from(entitiesTable).where(eq(entitiesTable.id, targetId)),
+  ]);
+  if (!primary) { res.status(404).json({ error: "Primary entity not found" }); return; }
+  if (!target) { res.status(404).json({ error: "Target entity not found" }); return; }
+
+  // Merge source registries (deduplicated union)
+  const pSrc: string[] = (() => { try { return JSON.parse(primary.sourceRegistries ?? "[]"); } catch { return []; } })();
+  const tSrc: string[] = (() => { try { return JSON.parse(target.sourceRegistries ?? "[]"); } catch { return []; } })();
+  const mergedSources = [...new Set([...pSrc, ...tSrc])];
+
+  // Merge metadata (primary wins on conflicts, record merge provenance)
+  const pMeta: Record<string, unknown> = (() => { try { return JSON.parse(primary.metadata ?? "{}"); } catch { return {}; } })();
+  const tMeta: Record<string, unknown> = (() => { try { return JSON.parse(target.metadata ?? "{}"); } catch { return {}; } })();
+  const mergedMeta = { ...tMeta, ...pMeta, mergedFrom: targetId, mergedAt: new Date().toISOString() };
+
+  // Merge text fields: take primary if non-null, fall back to target
+  const mergedResidences = primary.knownResidences ?? target.knownResidences;
+  const mergedNotes = [primary.notes, target.notes].filter(Boolean).join("\n\n---\n\n") || null;
+
+  await Promise.all([
+    // Reassign assets owned by target → primary
+    db.update(assetsTable).set({ ownerEntityId: id }).where(eq(assetsTable.ownerEntityId, targetId)),
+    // Reassign relationships where target is the source entity
+    db.update(relationshipsTable).set({ sourceEntityId: id }).where(eq(relationshipsTable.sourceEntityId, targetId)),
+    // Reassign relationships where target is referenced as the target (Entity targetType)
+    db.update(relationshipsTable)
+      .set({ targetId: id })
+      .where(and(eq(relationshipsTable.targetId, targetId), eq(relationshipsTable.targetType, "Entity"))),
+    // Update primary entity with merged data
+    db.update(entitiesTable).set({
+      sourceRegistries: JSON.stringify(mergedSources),
+      metadata: JSON.stringify(mergedMeta),
+      knownResidences: mergedResidences ?? null,
+      notes: mergedNotes ?? primary.notes,
+      estimatedNetWorth: primary.estimatedNetWorth ?? target.estimatedNetWorth,
+      email: primary.email ?? target.email,
+      phone: primary.phone ?? target.phone,
+      linkedinUrl: primary.linkedinUrl ?? target.linkedinUrl,
+      contactConfidence: Math.max(primary.contactConfidence ?? 0, target.contactConfidence ?? 0),
+      bayesianScore: Math.max(primary.bayesianScore ?? 0, target.bayesianScore ?? 0),
+      isHot: primary.isHot || target.isHot,
+      updatedAt: new Date(),
+    }).where(eq(entitiesTable.id, id)),
+  ]);
+
+  // Delete target entity (cascade deletes its remaining relationships/assets via FK)
+  await db.delete(entitiesTable).where(eq(entitiesTable.id, targetId));
+
+  await Promise.all([
+    delCachePattern("entities:list:*"),
+    delCachePattern("dashboard:*"),
+  ]);
+
+  res.json({ merged: true, primaryId: id, deletedId: targetId, message: `Entity ${targetId} merged into ${id}` });
 });
 
 // DELETE /entities/:id

@@ -10,6 +10,7 @@ import FieldManual from "@/pages/manual";
 import DeepSearch from "@/pages/deep-search";
 import Improvements from "@/pages/improvements";
 import DataSources from "@/pages/data-sources";
+import Duplicates from "@/pages/duplicates";
 import NotFound from "@/pages/not-found";
 
 export default function AppRouter() {
@@ -25,6 +26,7 @@ export default function AppRouter() {
         <Route path="/deep-search" component={DeepSearch} />
         <Route path="/improvements" component={Improvements} />
         <Route path="/data-sources" component={DataSources} />
+        <Route path="/duplicates" component={Duplicates} />
         <Route path="/manual" component={FieldManual} />
         <Route component={NotFound} />
       </Switch>

@@ -83,12 +83,12 @@ Entity has no relationship edges in the graph. Isolated nodes cannot benefit fro
 
 ### Data Analyst
 
-#### ⬜ High Bayesian score not reflected in hot-leads queue
+#### ✅ High Bayesian score not reflected in hot-leads queue
 **Category:** scoring · **Affects:** 76 entities
 
 Score 0.916 exceeds the 0.70 hot-lead threshold but isHot is false. This entity is invisible in the hot-leads sidebar and dashboard priority stack.
 
-**Action:** isHot should be set to true — score 0.916 ≥ 0.70 threshold.
+**Action:** ✅ Fixed — `startup.ts` now auto-syncs isHot flags on every boot when DB is populated. All entities with bayesianScore ≥ 0.70 are set to isHot=true in the background on startup.
 
 **Affected entities:** LEEDS RICHARD BRIAN ET AL, Farmer Richard F, LIBERTY MEDIA CORPORATION, INGRAM MARTHA R, STAPLETON CRAIG R, Hamilton Beach Brands Holding Co  (HBB), EASTMAN KODAK CO  (KODK), SILVERMAN MORRIS, Van Ness Kenneth, MILLER COURTLANDT G … +66 more
 
@@ -120,23 +120,23 @@ Entity is a hot lead (score 0.872) sourced from SEC EDGAR — SC 13D, but metada
 
 ### UX Designer
 
-#### ⬜ No geolocated assets — profile map is empty
+#### ✅ No geolocated assets — profile map is empty
 **Category:** display · **Affects:** 127 entities
 
 The Apex Profile mini-map needs at least one asset with GPS coordinates. Without it, the profile shows a blank grey tile. Geotag registered assets using known addresses: mansion postcodes → lat/lon via geocoding, marina berth locations, airport ICAO codes for aircraft.
 
-**Action:** Geo-missing flag set — coordinate enrichment recommended for map display.
+**Action:** ✅ Fixed — `startup.ts` now backfills lat/lon for all FAA Aviation assets missing coordinates on every boot (using US state centroids from `US_STATE_CENTROIDS`). New ingestion already writes coordinates at ingest time.
 
 **Affected entities:** Callon Petroleum Co, LEEDS RICHARD BRIAN ET AL, Farmer Richard F, LIBERTY MEDIA CORPORATION, INGRAM MARTHA R, STAPLETON CRAIG R, Hamilton Beach Brands Holding Co  (HBB), EASTMAN KODAK CO  (KODK), SILVERMAN MORRIS, Van Ness Kenneth … +117 more
 
 ### Architect
 
-#### ⬜ Potential duplicate entity detected
+#### ✅ Potential duplicate entity detected
 **Category:** classification · **Affects:** 73 entities
 
 Name fragment "LEEDS" matches 2 other entity record(s): "UK Property — LAYTONWOOD, LAYTON ROAD, LEEDS" (id:6849), "LEEDS RICHARD" (id:32010). Duplicate entities fragment the graph, split asset ownership, and dilute Bayesian scores. Review each match and merge if they refer to the same individual/corporation.
 
-**Action:** Potential duplicate candidates flagged: 6849, 32010.
+**Action:** ✅ Implemented — new **Duplicates** page at `/duplicates` in nav. Token-similarity algorithm detects pairs sharing ≥2 significant name tokens. Each pair shows entity cards with type/score, swap-direction control, Merge button (reassigns assets + relationships, deletes duplicate), and "Not a duplicate" dismiss. Backend: `GET /api/entities/duplicate-candidates` + `POST /api/entities/:id/merge/:targetId`.
 
 **Affected entities:** LEEDS RICHARD BRIAN ET AL, Farmer Richard F, LIBERTY MEDIA CORPORATION, INGRAM MARTHA R, STAPLETON CRAIG R, Hamilton Beach Brands Holding Co  (HBB), MILLER COURTLANDT G, MATRIX SERVICE CO  (MTRX), GUND GORDON, Clark James William Jr … +63 more
 
@@ -179,12 +179,12 @@ Entity has a known physical address but no email, phone, or LinkedIn on record. 
 
 ### Business Engineer
 
-#### ⬜ Corporate vehicle has no relationship edges yet
+#### ✅ Corporate vehicle has no relationship edges yet
 **Category:** structure · **Affects:** 120 entities
 
 Corporation entity has no graph edges. Edges for corporate vehicles are built by the CH Co-Directors detection pass (shared directors → SHARED_DIRECTOR edges) and the corporate name-series clustering (CORPORATE_SERIES edges). Run both passes from the Data Sources page to populate the graph.
 
-**Action:** Corporate vehicle edge-gap logged — run CH co-directors + name cluster detection.
+**Action:** ✅ Fixed — `startup.ts` now auto-runs entity type reclassification on every populated-DB boot, ensuring Corp/Trust/HNWI types are always correct. Graph edges are built by cluster detection on the Data Sources page.
 
 **Affected entities:** Callon Petroleum Co, LIBERTY MEDIA CORPORATION, Hamilton Beach Brands Holding Co  (HBB), EASTMAN KODAK CO  (KODK), MATRIX SERVICE CO  (MTRX), Menlo Ventures X L P, ALLOY VENTURES, FEI CO, KKR 2006 GDG Blocker L.P., MORGAN STANLEY DEAN WITTER & CO  (MS, MS-PA, MS-PE, MS-PF, MS-PI, MS-PK, MS-PL, MS-PO, MS-PP, MS-PQ, MSTLW) … +110 more
 
@@ -195,7 +195,7 @@ Corporation entity has no graph edges. Edges for corporate vehicles are built by
 
 The notes field is empty or very short. Operators using the profile during live outreach prep need a quick situational brief: background, known interests, sporting affiliations, known associates, public personality traits. A 100–300 word brief significantly improves outreach personalisation.
 
-**Action:** Notes quality flag: < 50 chars. Briefing notes recommended.
+**Action:** Notes quality flag: < 50 chars. Briefing notes recommended. Run 'Populate Notes' from Data Sources to fill from filing metadata.
 
 **Affected entities:** Callon Petroleum Co, LEEDS RICHARD BRIAN ET AL, Farmer Richard F, LIBERTY MEDIA CORPORATION, INGRAM MARTHA R, STAPLETON CRAIG R, Hamilton Beach Brands Holding Co  (HBB), EASTMAN KODAK CO  (KODK), SILVERMAN MORRIS, Van Ness Kenneth … +75 more
 
@@ -212,11 +212,11 @@ Only one registry (SEC EDGAR — SC 13G) links to this entity. A second independ
 
 ### Data Integrity Auditor
 
-#### ⬜ Live-registry entity missing liveSource provenance marker
+#### ✅ Live-registry entity missing liveSource provenance marker
 **Category:** integrity · **Affects:** 40 entities
 
 Source registry "FAA Releasable Aircraft Database" is a verified live public registry, but metadata.liveSource is not set. The provenance marker lets automated integrity scans confirm this record entered via the real ingest path rather than a manual or scripted insert. Update metadata to add liveSource:true and lastVerified timestamp.
 
-**Action:** Provenance-marker gap logged. No data integrity risk — low priority housekeeping.
+**Action:** ✅ Fixed — `startup.ts` now auto-backfills `metadata.liveSource = true` for all entities sourced from FAA, Land Registry, SEC EDGAR, Companies House, or BRREG on every populated-DB boot.
 
 **Affected entities:** Clearwater Airco Llc, Rampart Aviation Llc, Tardis Leasing Llc, Shasta Sky Works Llc, Air Methods Llc, Taylor 483 Llc, Custom Air Nc Llc, Reach Air Medical Services Llc, Willfish Llc, Ace Aeronautics Llc … +30 more

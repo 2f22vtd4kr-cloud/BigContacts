@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import {
   Crosshair, Activity, Network, FileTerminal,
-  KanbanSquare, Database, ShieldAlert, X, BookOpen, Menu, BrainCircuit, Bot, Radio,
+  KanbanSquare, Database, ShieldAlert, X, BookOpen, Menu, BrainCircuit, Bot, Radio, Copy,
 } from "lucide-react";
 
 const navItems = [
@@ -14,6 +14,7 @@ const navItems = [
   { name: "Pipeline CRM",      href: "/crm",          icon: KanbanSquare },
   { name: "Entity Ledger",     href: "/entities",     icon: Database },
   { name: "Persona Loop",      href: "/improvements",  icon: Bot },
+  { name: "Duplicates",        href: "/duplicates",    icon: Copy },
   { name: "Data Sources",      href: "/data-sources",  icon: Radio },
   { name: "Field Manual",      href: "/manual",        icon: BookOpen },
 ];
