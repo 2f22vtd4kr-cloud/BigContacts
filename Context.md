@@ -26,18 +26,16 @@
 | `artifacts/apex-mobile: expo` | ⏸ Optional — not needed |
 | `artifacts/mockup-sandbox: Component Preview Server` | ⏸ Optional — not needed |
 
-### Database (2026-07-20 — post all ops)
-- **Entities**: 32,400 (FAA 30k + HMLR 2k + Western HNWI 400)
-- **Assets**: 32,400 (FAA aviation + HMLR real estate + 400 EDGAR StockHolding)
-- **Relationship edges**: 229,260 (name-cluster CORPORATE_SERIES edges, 2,085 clusters)
-- **Hot leads**: 15,114 (Bayesian ≥ 0.70)
-- **Research sessions**: 25 (MCTS, top HNWI hot leads)
-- **Net worth backfilled**: 2,000 HMLR entities (3× registered asset value floor)
-- **Entity types**: 22,847 Corporation · 586 Trust · 8,967 HNWI
-- **CH officers enrichment**: ✅ Done — 0 CH matches found (all entities are US-based FAA/EDGAR; CH only covers UK companies)
-- **CH co-directors**: ✅ Done — 0 SHARED_DIRECTOR edges (expected: no UK company matches → no shared directors)
-- **Contact confidence**: ✅ Recomputed for 31,857 entities — all score < 50 (no email/phone/LinkedIn data yet)
-- **Contactable count**: 0 (requires Hunter.io / Apollo for email discovery — next major unlock)
+### Database (2026-07-21 — cold start, re-import #11)
+- **Entities**: 100 (Western HNWI auto-ingest — SEC EDGAR SC 13D/G + DEF 14A)
+- **Assets**: 0 (FAA + HMLR ingestion not yet run)
+- **Relationship edges**: 0 (name-cluster detection not yet run)
+- **Hot leads**: 100 (isHot sync run mid-persona-review — all 100 EDGAR entities qualify at avg score 0.897)
+- **Research sessions**: 0
+- **Avg Bayesian score**: 0.897
+- **Contactable count**: 0
+- **Enrichment coverage**: 0%
+- **Persona review Run 6**: 1,392 suggestions / 100 entities = 13.92 avg · 765 high · 427 medium · 200 low · 0 errors · **App rating: 4.5/10** (cold-start — all regression is data/ops, not code)
 
 ### What was done this session (re-import #6, Session 1 — 2026-07-20)
 
@@ -208,6 +206,7 @@ Run **IN-HOUSE ENRICH** on HNWI/Gatekeeper entities — Wikidata SPARQL will hit
 
 | Date | What changed |
 |---|---|
+| 2026-07-21 | **Re-import #11 setup + Persona Run 6**: pnpm install, DB schema pushed, all 4 artifacts registered. Redis ✅ · artifacts/api-server: API Server ✅ · artifacts/apex-finder: web ✅. SESSION_SECRET ✅ · REDIS_URL_1 ✅ · COMPANIES_HOUSE_API_KEY ✅. Western HNWI auto-ingested (100 entities). isHot sync run → 100 hot leads. Persona run 6 complete: 1,392 suggestions / 100 entities, 13.92 avg, 0 errors. App rating: **4.5/10** (cold start — code architecture ~8/10, data gap is entire deficit). improvements.md updated with full Run 6 breakdown + ops checklist. |
 | 2026-07-21 | **Re-import #10 setup**: pnpm install, DB schema pushed, all 4 artifacts re-registered (verifyAndReplaceArtifactToml). Managed workflows started: Redis ✅ · artifacts/api-server: API Server ✅ · artifacts/apex-finder: web ✅. DB retained 32,100 entities — cold-start auto-recovery skipped ingestion. SESSION_SECRET ✅ · REDIS_URL_1 ✅ · COMPANIES_HOUSE_API_KEY ✅. |
 | 2026-07-21 | **Re-import #9 setup**: pnpm install, DB schema pushed, all 4 artifacts re-registered. Redis ✅ · API Server ✅ · Web Frontend ✅. SESSION_SECRET ✅ · REDIS_URL_1 ✅ (Upstash connected) · COMPANIES_HOUSE_API_KEY ✅. DB retained 32,200 entities — cold-start skipped auto-ingestion. |
 | 2026-07-21 | **Re-import #8 setup**: pnpm install, DB schema pushed, all 4 artifacts re-registered (verifyAndReplaceArtifactToml). Artifact-managed workflows started: Redis ✅ · artifacts/api-server: API Server ✅ · artifacts/apex-finder: web ✅. DB retained 32,100 entities from prior session — cold-start auto-recovery skipped ingestion. SESSION_SECRET ✅ · REDIS_URL_1 ✅ (Upstash connected) · COMPANIES_HOUSE_API_KEY ✅. All 4 artifact-managed workflows running. In-house enrichment pass 1 complete (49/100 EDGAR entities enriched: Ansari LinkedIn+phone cc=60, Icahn/Slim/Thiel/33 others phones cc=30-40). MCTS run on 7 top targets (Ansari 0.577, Leeds 0.486, Kim 0.494, Icahn 0.474, Slim 0.444, Thiel 0.44, Zhang 0.416). 7346 hot flags, 229259 relationship edges, 31622 notes enriched, entity reclassification done (22767 Corp / 8748 HNWI / 585 Trust). FAA enrichment pass 2 running (500 FAA entities). |

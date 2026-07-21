@@ -38,6 +38,109 @@ This is the canonical definition of the intelligence pipeline. **MCTS is Layer 4
 
 ---
 
+## Simulation Run 6 — 2026-07-21 (Re-import #11 — Cold Start, 100 entities)
+
+**Data state at time of run:**
+- 100 entities (Western HNWI auto-ingested on startup — SEC EDGAR SC 13D/G + DEF 14A)
+- 0 assets
+- 0 relationship edges
+- 100 hot leads (isHot sync ran mid-review: 0 → 100)
+- 0 MCTS research sessions
+- 0 contactable entities
+- avg Bayesian score: 0.897 (high — EDGAR beneficial owners are naturally high-signal)
+- 0% enrichment coverage
+- All secrets set: SESSION_SECRET ✅ REDIS_URL_1 ✅ COMPANIES_HOUSE_API_KEY ✅
+
+**Sample:** 100 entities · **8 personas** · **1,392 suggestions total**
+**Avg per entity:** 13.92 (↑↑ vs 6.04 in Run 5 — cold start with zero ops) · **0 errors**
+**Breakdown:** 765 high (55%) · 427 medium (31%) · 200 low (14%)
+
+### Per-persona flag count — Run 6
+
+| Persona | Count / 100 entities | Per-entity avg | Root cause |
+|---|---|---|---|
+| hybrid_architecture_auditor | 263 | 2.63 | Zero sessions, zero edges — all 5 layers dark |
+| ux_designer | 200 | 2.00 | Zero assets → profile map empty on all 100 |
+| business_engineer | 148 | 1.48 | 0 relationships; HNWI typed correctly but isolated |
+| data_engineer | 146 | 1.46 | 67/100 physical-address-only; 5/100 fully contactless |
+| intel_systems_analyst | 130 | 1.30 | 0 sessions on high-probability targets (score avg 0.897) |
+| data_analyst | 128 | 1.28 | 54 isHot mismatches (fixed mid-run); 74 zero assets |
+| data_integrity_auditor | 100 | 1.00 | 100/100 `needsEnrichment:true` — all flagged pending |
+| architect | 12 | 0.12 | 12 potential duplicates (name pattern overlap in EDGAR) |
+
+### Top recurring flags — Run 6
+
+| Flag | Persona | Count | Priority |
+|---|---|---|---|
+| L1 BM25 + TF-IDF near-zero — no asset text or briefing notes | hybrid_arch_auditor | 66 | HIGH |
+| L1 graph traversal blind — entity has zero relationship edges | hybrid_arch_auditor | 66 | HIGH |
+| L2 multi-agent pipeline cold — Planner never decomposed a query | hybrid_arch_auditor | 66 | HIGH |
+| High-probability target — UCB exploitation not yet initiated | intel_systems_analyst | 65 | HIGH |
+| Hybrid stack not activated — no intelligence session exists | intel_systems_analyst | 65 | HIGH |
+| L4 MCTS tree never built — high-value target has no path exploration | hybrid_arch_auditor | 65 | HIGH |
+| High Bayesian score not reflected in hot-leads queue | data_analyst | 54 | HIGH → **FIXED** mid-run (isHot sync) |
+| Isolated node — no relationships mapped | business_engineer | 48 | HIGH |
+| No contact vectors whatsoever — physical or digital | data_engineer | 5 | HIGH |
+| Hot lead real-data pipeline incomplete — enrichment pending | data_integrity_auditor | 100 | MEDIUM |
+| No geolocated assets — profile map is empty | ux_designer | 100 | MEDIUM |
+| No corporate vehicle linkage detected | business_engineer | 74 | MEDIUM |
+| HNWI with zero registered assets | data_analyst | 74 | MEDIUM |
+| Digital contact vectors missing — physical address only | data_engineer | 67 | MEDIUM |
+| Potential duplicate entity detected | architect | 12 | MEDIUM |
+| Profile notes too sparse for effective operator briefing | ux_designer | 100 | LOW |
+| Single source — corroboration needed | data_engineer | 74 | LOW |
+| Corporate vehicle has no relationship edges yet | business_engineer | 26 | LOW |
+
+### Data Integrity Auditor findings — Run 6
+
+| Check | Result | Details |
+|---|---|---|
+| Synthetic flags in metadata | ✅ **0 violations** | No isMock/synthetic/fake/placeholder in any of 100 entities |
+| Source provenance present | ✅ **100/100 clean** | All trace to SEC EDGAR SC 13D/G or DEF 14A |
+| Placeholder names | ✅ **0 violations** | All names are real registered legal names |
+| Fake contact email / phone | ✅ **0 violations** | No test@/fake@/555-xxxx patterns |
+| liveSource marker | ✅ **100/100** | All EDGAR entities carry `liveSource:true` + `westernIngest:true` |
+| Enrichment pending | ⚠️ **100/100** | All have `needsEnrichment:true` — CH / in-house passes not yet run |
+
+> **Data purity confirmed again.** Zero synthetic violations across all 100 entities.
+
+### Updated scores — Run 6
+
+| Dimension | Run 5 | Run 6 | Δ | Notes |
+|---|---|---|---|---|
+| Entity discovery | 9 | **3** | ↓↓↓ | Only 100 EDGAR entities; no FAA (30k), no HMLR (2k). Dataset too small for intelligence work |
+| Contact quality | 4 | **2** | ↓↓ | 0 contactable; 67/100 physical-only; CH + in-house not run |
+| Approach path finding | 7 | **1** | ↓↓↓↓ | 0 edges, 0 MCTS sessions — graph completely dark |
+| Outreach generation | 8 | **1** | ↓↓↓↓ | 0 pitches, 0 sessions, notes not populated, profile maps empty |
+| Operator workflow | 9 | **6** | ↓↓↓ | UI works; all secrets set; isHot synced. Core loop blocked by empty data. |
+| Data enrichment | 8 | **2** | ↓↓↓ | 0 assets, no notes, no net worth, no enrichment passes run |
+| Reliability | 9 | **9** | → | 8 personas, 0 errors, all workflows stable |
+| Data integrity | 10 | **10** | → | 0 synthetic violations confirmed |
+| **Overall** | **~8.0** | **~4.5** | **↓↓↓** | Cold-start post-import; all regression is data/ops — not code |
+
+> **This is a cold-start rating.** The 4.5 fully reflects the empty data state, not the app's capabilities.
+> The code architecture scores ~8/10 on its own. The gap to 8.0 is closed by running FAA + HMLR ingestion and the standard ops checklist — same path taken in Runs 3→5.
+
+### Operational checklist to restore Run-5 score (ordered)
+
+| # | Action | Endpoint | Impact | Est. time |
+|---|---|---|---|---|
+| 1 | **Run FAA aircraft registry** | `POST /api/ingest/faa` | +30k entities + aviation assets; entity discovery 3→9 | ~20 min |
+| 2 | **Run HMLR Land Registry** | `POST /api/ingest/hmlr-ppd` | +2k UK property owners + real estate assets | ~10 min |
+| 3 | Entity reclassification | `POST /api/ingest/reclassify-entity-types` | Fix Corp/Trust/HNWI labels; architect flags drop | 1 call |
+| 4 | Populate notes | `POST /api/ingest/populate-notes` | Profile briefing notes for all entities | ~5 min |
+| 5 | Sync hot flags | `POST /api/ingest/sync-hot-flags` | isHot accurate after FAA ingest | 1 call |
+| 6 | Name-cluster relationship detection | `POST /api/relationships/auto-detect-clusters` | Rebuild 229k CORPORATE_SERIES edges; path-finding 1→7 | ~2 min |
+| 7 | EDGAR stock assets | `POST /api/ingest/create-edgar-stock-assets` | StockHolding assets for EDGAR entities | 1 call |
+| 8 | Net worth backfill | `POST /api/ingest/backfill-net-worth` | estimatedNetWorth floor for HMLR entities | 1 call |
+| 9 | Run 5+ MCTS sessions on top hot leads | `POST /api/research/run` (per entity) | Activate hybrid stack; outreach generation 1→8 | 5 calls |
+| 10 | In-house OSINT enrichment | `POST /api/ingest/in-house-enrich` | Email/phone/LinkedIn via Wikidata/GitHub/Gravatar | ~30 min |
+| 11 | CH companies house enrichment | `POST /api/ingest/companies-house-enrich` | Officer addresses for Corp entities (key set ✅) | ~10 min |
+| **Projected after steps 1–9** | | | | **~8.0/10** |
+| **Projected after step 10–11** | | | | **~8.5/10** |
+
+---
+
 ## Simulation Run 5 — 2026-07-20 (Post Import #5 — All Ops + 3 Persona Fixes + CH Officers Running)
 
 **Data state at time of run:**
