@@ -8,14 +8,14 @@
 
 ---
 
-## Current State (2026-07-21 — re-import #21) — Fully operational
+## Current State (2026-07-21 — re-import #22) — Fully operational
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically
 - **Local Redis** running on `redis://localhost:6379` — workflow `Redis` running ✅
-- **Upstash Redis (`REDIS_URL_1`)** — ✅ Set — `[upstash-1] Redis ready` confirmed
+- **Upstash Redis (`REDIS_URL_1`)** — ⚠️ NOT SET — dedup will not persist across restarts; set this secret to re-enable permanent dedup
 - **SESSION_SECRET** — ✅ Set
-- **COMPANIES_HOUSE_API_KEY** — ✅ Set — CH officer enrichment enabled
+- **COMPANIES_HOUSE_API_KEY** — ⚠️ NOT SET — CH officer enrichment skipped
 
 ### Workflows running
 | Workflow | Status |
@@ -23,21 +23,32 @@
 | Redis | ✅ Running |
 | `API Server` (manual) | ✅ Running (port 8080) |
 | `Web Frontend` (manual) | ✅ Running (port 23695) |
-| `artifacts/api-server: API Server` | ⏸ Not started (artifact-managed; manual workflow owns port 8080) |
-| `artifacts/apex-finder: web` | ⏸ Not started (artifact-managed; manual workflow owns port 23695) |
+| `artifacts/api-server: API Server` | ⏸ Not started (manual workflow owns port 8080) |
+| `artifacts/apex-finder: web` | ⏸ Not started (manual workflow owns port 23695) |
 | `artifacts/apex-mobile: expo` | ⏸ Optional — not needed |
 | `artifacts/mockup-sandbox: Component Preview Server` | ⏸ Optional — not needed |
 
-> **Import #21 note:** `pnpm install` ran fresh. DB schema pushed (additive). Manual workflows (API Server, Web Frontend) are active. All 4 artifacts auto-registered by platform. Auto-ingestion kicked off on empty DB — 32,100 entities already populated (Western HNWI + FAA). REDIS_URL_1 and COMPANIES_HOUSE_API_KEY missing; set them to restore full functionality.
-> **Port conflict fix:** kill -9 $(lsof -ti:8080 -ti:23695) then restart artifact-managed workflows to switch ownership.
+> **Import #22 note:** pnpm install ran fresh. DB schema pushed (additive). Manual workflows (API Server, Web Frontend) are active. All 4 artifacts re-registered via verifyAndReplaceArtifactToml (apex-finder) — platform auto-detected the others. Auto-ingestion kicked off on empty DB — FAA (30,000) + LR (2,000) complete; Western HNWI running in background. REDIS_URL_1 and COMPANIES_HOUSE_API_KEY not set.
+> **Port conflict fix (if needed):** kill -9 $(lsof -ti:8080 -ti:23695) then restart artifact-managed workflows to switch ownership.
 
-### Database (2026-07-21 — re-import #17, post-maintenance)
-- **Entities**: 32,200 · **Assets**: ~32,100 · **Relationships**: ~229k
-- **Hot leads**: 7,432 synced this boot (startup maintenance) + prior 17,161 = fully current
-- Entity types: 22,807 Corporation · 581 Trust (reclassified by startup maintenance)
-- Assets: ~30,000 Aviation (all with coordinates from state centroids) · 2,000 RealEstate · ~2,000 StockHolding
+### Database (2026-07-21 — re-import #22, post-auto-ingestion)
+- **Entities**: 32,000 · **Assets**: 32,000 · **Relationships**: 0 (relationship edges built by startup triggers after populate)
+- **Hot leads**: 7,454 synced by startup maintenance
+- Auto-ingestion: FAA ✅ 30,000 · HMLR ✅ 2,000 · Western HNWI 🔄 running in background
 
-### What was done this session (re-import #19, session 1 — 2026-07-21)
+### What was done this session (re-import #22 — 2026-07-21)
+
+**Standard re-import setup:**
+1. `pnpm install` — fresh install, completed in ~15s
+2. `pnpm --filter @workspace/db run push` — schema applied (additive, no changes)
+3. Redis workflow started ✅
+4. API Server (manual) started ✅ — port 8080
+5. Web Frontend (manual) started ✅ — port 23695
+6. Cold-start auto-recovery detected empty DB → FAA (30k) + HMLR (2k) auto-ingested; Western HNWI background job started
+7. All 4 artifacts re-registered (apex-finder via verifyAndReplaceArtifactToml; api-server, apex-mobile, mockup-sandbox auto-detected by platform)
+8. API healthy: /healthz ✅ · /dashboard/stats ✅ (32,000 entities, 32,000 assets, 7,454 hot leads)
+
+### What was done this session (re-import #21 — 2026-07-21)
 
 **improvements.md — all 6 remaining ⬜ items implemented:**
 
@@ -59,7 +70,7 @@
 
 ---
 
-### What was done this session (re-import #18, session 2 — 2026-07-21)
+### What was done this session (re-import #20, session 2 — 2026-07-21)
 
 **Startup.ts performance + auto-trigger improvements (improvements.md batch):**
 
@@ -159,82 +170,14 @@ Run **IN-HOUSE ENRICH** on HNWI/Gatekeeper entities — Wikidata SPARQL will hit
 - populate-notes loading 35k rows → paginated loop (2k/page)
 - `sql not defined` in co-directors → added sql to drizzle-orm import
 
-**Secrets:**
-- `COMPANIES_HOUSE_API_KEY` — NOT yet in runtime env (requestSecrets called but form not submitted)
-- `REDIS_URL_1` — NOT yet in runtime env
-
-> **Post-import port-conflict pattern**: After killing the old "Start application" manual workflow, the Node/Vite processes linger. Always run `kill -9 $(lsof -ti:8080 -ti:23695)` before restarting artifact-managed workflows.
-
-> DB was populated in a prior session and persisted through the GitHub import. Cold-start auto-recovery detected the populated DB and skipped auto-ingestion. To re-ingest, clear Upstash dedup first (`DELETE /api/ingest/dedup`) then POST to the ingest endpoints.
-
-> To populate contact vectors and relationship edges: go to **Data Sources → Companies House Contact Enricher** and trigger it. The "Sync Hot Flags" button is also on that page alongside the enrichment coverage widget.
-
-### Phase 5 — What was built (2026-07-20) ✅ COMPLETE
-
-**5.1 OCCRP Adverse Media on Profile**
-- Backend: `GET /api/entities/:id/occrp` — reads `entity.metadata.aleph`, returns sanctions/watchlist flags and dataset list.
-- Frontend: "Adverse Media" card on Profile shows sanctions badge (red/green), dataset tags, Aleph URL, enriched-at timestamp.
-
-**5.2 OpenSky Live Flights on Profile**
-- Backend: `GET /api/entities/:id/opensky` — reads aviation assets with `metadata.opensky` flight data.
-- Frontend: "Live Flight Intel" card on Profile shows per-aircraft callsign, altitude (ft), speed (knots), origin country, and ground/airborne status.
-
-**5.3 Network Graph — contact encoding**
-- `vertexToNode` in graph.ts now includes `contactConfidence` and `contactEmail` in each node.
-- `drawContactRing` in graph.tsx draws a colored glow ring around entity nodes: green (≥70), amber (30–69), hidden (0). Wired via `nodeCanvasObjectMode="after"`.
-
-**5.4 Bayesian Score — contact signals**
-- Added `contactConfidence?: number` to `EntityScoringInput` in bayesian-scorer.ts.
-- `buildSignals` adds `contact_high` (weight 0.7, LR 3.0) for ≥70% confidence and `contact_partial` (weight 0.4, LR 1.6) for ≥30%.
-- `research.ts` passes `targetEntity.contactConfidence ?? 0` to `computeBayesianScore`.
-
-**5.5 Smoke tests**
-- vitest + supertest installed in api-server. 12/12 tests pass.
-- Test file: `artifacts/api-server/src/test/smoke.test.ts` covers: healthz, entity list shape, entity list filters, dashboard KPIs, GET /occrp (valid + 400 + 404), GET /opensky (valid + 400), registry-search reachability.
-
-**5.6 Entity Ledger pagination**
-- `useListEntities` now uses `limit: 50, offset: page * 50`.
-- Page state resets on filter/search changes.
-- Desktop table footer replaced with Prev/Next pagination controls (Next disabled when fewer than 50 results returned).
-
-### Phase 4 — What was built (2026-07-20) ✅ COMPLETE
-
-**4.1–4.4 already implemented from prior sessions.** Phase 4 work this session = 4.5 responsive polish:
-
-1. **Profile header nav** — Graph / MCTS / CRM / Connect buttons now visible on mobile as icon-only (removed `hidden md:flex`, added `hidden sm:inline` to text labels). `title` attrs added for touch accessibility.
-2. **Profile contact bar** — Email button gets `max-w-[220px] truncate` + `min-w-0` so long email addresses don't overflow at 375px.
-3. **Graph legend** — Hidden on mobile (`hidden md:flex`) when a node detail bottom sheet is open, preventing the legend from being obscured/overlapping.
-4. **MCTS Terminal** — Terminal log entries changed from `flex-wrap` to `overflow-x-auto` with `whitespace-nowrap flex-shrink-0` on each token — preserves terminal aesthetic on narrow screens.
-5. **Entity Ledger mobile** — `MobileEntityCard` now has a checkbox tap zone (left) + detail tap zone (right). Mobile bulk action bar added above card list when ≥1 row selected (Export CSV · Add to CRM · Run MCTS). Shared `selectedIds` / `toggleSelect` state with desktop table.
-
-### What was done in prior sessions (persona simulation + fixes)
-1. Fixed `improve/run` SQL crash: `ANY(${entityIds})` → `inArray(entityIds)` in `improve.ts`
-2. Seeded 8 representative test entities covering the full quality spectrum
-3. Ran all 6 personas → 67 improvement suggestions generated (0 errors)
-4. **Entity Ledger**: Contact Vector column now shows clickable `mailto:` / `tel:` / LinkedIn links; "No contact" shown in muted italic when empty (was: raw 80-char SEC prose)
-5. **MCTS Terminal**: Added search bar + raised entity limit 30 → 500; `?entity=ID` URL param now correctly pre-selects target via `window.location.search`
-6. **Profile page**: Prominent "Direct Contact Vectors" action bar added below header — email, phone, LinkedIn as separate clickable buttons
-7. **CRM**: Lead Gen empty state now shows "→ Run MCTS on a target" prompt (both desktop and mobile)
-8. **Persona engine**: Updated Intel Systems Analyst — file header, Layer 2 block comment, and "query expansion stalled" suggestion text to accurately reflect single-pass `expandQuery()` mechanics
-
-### What was done — Phase 1 (Contact Enrichment Pipeline) ✅ COMPLETE
-1. **Schema**: `contactConfidence integer default 0` added to entities table; migration pushed via `pnpm --filter @workspace/db run push`
-2. **`contact-confidence.ts`**: Pure utility — email+40, phone+30, linkedinUrl+20, knownResidences+10 → 0–100
-3. **`companies-house-enricher.ts`**: Full enricher — CH `/search/officers` lookup (with API key) → extracts officer correspondence addresses → updates `knownResidences` + `nationality` + `contactConfidence`; gracefully skips CH if no key, still recomputes confidence
-4. **`POST /api/ingest/companies-house-enrich`**: Background job route — `entityIds?`, `batchSize`, `force` params; 409 on duplicate; returns `{ jobId, pollUrl, note }`
-5. **`GET /api/dashboard/stats`**: Now returns `contactableCount` (confidence ≥ 50) and `enrichmentCoverage` (% with any contact field)
-6. **Profile page** (`profile.tsx`): Contact bar always visible (not conditional); contact confidence badge (0-100%) colour-coded; "Enrich" button → POST enrichment → polls job → refetches entity on done
-7. **Data sources page** (`data-sources.tsx`): Enrichment Coverage Stats panel at top (live stats from dashboard); new "Companies House Contact Enricher" source card in Phase 1 section
-8. **Mobile approach** (`approach.tsx`): `ContactVectorsStrip` component added — fetches entity contact data, renders email/phone/linkedin as `Linking.openURL()` tappable pills; graceful "No contact data" empty state
-
 ### What's pending
 - **Ingest data**: Run FAA (`POST /api/ingest/faa`), HMLR (`POST /api/ingest/land-registry`), Western HNWI (`POST /api/ingest/western-hnwi`) to populate entities and assets. Optionally clear Upstash dedup first.
 - **COMPANIES_HOUSE_API_KEY**: Set this secret in Replit to enable CH officer address lookups. Without it, the enricher still recomputes `contactConfidence` for all entities.
-- **Road to 10/10**: Phase 1 ✅ Phase 2 ✅ Phase 3 ✅ → Phase 4 next (see `improvements.md`).
+- **REDIS_URL_1**: Set this Upstash secret to persist dedup across restarts.
 
 ---
 
-## Phase 3 — MCTS & Outreach Upgrade (2026-07-20)
+## Phase 3 — MCTS & Outreach Upgrade (2026-07-20) ✅ COMPLETE
 
 ### What was built
 
@@ -245,31 +188,16 @@ Run **IN-HOUSE ENRICH** on HNWI/Gatekeeper entities — Wikidata SPARQL will hit
 5. **DB schema** (`research_sessions.ts`): Added `notes text` and `followUpDate date` columns; `pnpm --filter @workspace/db run push` applied.
 6. **Mobile approach — tabbed pitch modal** (`approach.tsx`): `PitchModal` replaced with a three-tab version (Initial / Follow-Up / Intro Script) that parses the stored JSON sequence; each tab shows its section in a `ScrollView`; header gains a Share icon button and a footer **SHARE THIS PITCH** button both wired to `Share.share()`; `SelectionContext.PathStep` updated with the new contact fields.
 
-### Key file changes
-| File | Change |
-|---|---|
-| `lib/db/src/schema/research_sessions.ts` | `+notes text +followUpDate date` |
-| `artifacts/api-server/src/lib/graph-engine.ts` | Contact fields in GraphVertex + EntityRow + buildGraph |
-| `artifacts/api-server/src/lib/mcts-agent.ts` | PathStep contact fields + UCT warmth bonus + HNWI reasoning |
-| `artifacts/api-server/src/lib/pitch-generator.ts` | contactEmail/contactPhone in PitchContext + intelBlock |
-| `artifacts/api-server/src/routes/research.ts` | Contact pass-through to pitch + notes/followUpDate in PATCH |
-| `artifacts/apex-finder/src/pages/research.tsx` | PathNodeContact + CopyBriefButton components |
-| `artifacts/apex-finder/src/pages/crm.tsx` | Notes textarea + follow-up date + Export PDF + selectSession() |
-| `artifacts/apex-mobile/app/(tabs)/approach.tsx` | Tabbed PitchModal + Share.share() |
-| `artifacts/apex-mobile/context/SelectionContext.tsx` | PathStep contact fields |
-
 ---
 
 ## Iteration Log
 
 | Date | What changed |
 |---|---|
-| 2026-07-21 | **Re-import #19 setup**: pnpm install, DB schema pushed, all 4 artifacts re-registered (verifyAndReplaceArtifactToml). Redis ✅ · API Server ✅ (manual, port 8080) · Web Frontend ✅ (manual, port 23695). SESSION_SECRET ✅. REDIS_URL_1 ⚠️ NOT SET · COMPANIES_HOUSE_API_KEY ⚠️ NOT SET. DB had ~2,000 entities (Western HNWI partial from prior boot); FAA auto-ingest failed (no cached ZIP); Western HNWI running in background. API healthy: /healthz ✅ · /dashboard/stats ✅. |
+| 2026-07-21 | **Re-import #22 setup**: pnpm install, DB schema pushed, Redis ✅, API Server ✅ (manual, port 8080), Web Frontend ✅ (manual, port 23695). SESSION_SECRET ✅. REDIS_URL_1 ⚠️ NOT SET · COMPANIES_HOUSE_API_KEY ⚠️ NOT SET. Cold-start auto-ingested FAA (30k) + HMLR (2k); Western HNWI running in background. All 4 artifacts registered. API healthy: 32,000 entities · 32,000 assets · 7,454 hot leads. |
+| 2026-07-21 | **Re-import #21 setup**: pnpm install, DB schema pushed, all 4 artifacts re-registered (verifyAndReplaceArtifactToml). Redis ✅ · API Server ✅ (manual, port 8080) · Web Frontend ✅ (manual, port 23695). SESSION_SECRET ✅. REDIS_URL_1 ⚠️ NOT SET · COMPANIES_HOUSE_API_KEY ⚠️ NOT SET. DB had ~2,000 entities (Western HNWI partial from prior boot); FAA auto-ingest failed (no cached ZIP); Western HNWI running in background. API healthy: /healthz ✅ · /dashboard/stats ✅. |
 | 2026-07-21 | **Re-import #18 setup**: pnpm install, DB schema pushed, all 4 artifacts re-registered (verifyAndReplaceArtifactToml). Redis ✅ · artifacts/api-server: API Server ✅ (port 8080) · artifacts/apex-finder: web ✅ (port 23695). SESSION_SECRET ✅. REDIS_URL_1 ⚠️ NOT SET · COMPANIES_HOUSE_API_KEY ⚠️ NOT SET. DB retained 32,000 entities — cold-start maintenance ran (7,262 hot flags, 22,748 Corp + 581 Trust reclassified). API healthy. |
 | 2026-07-21 | **Re-import #15 setup**: pnpm install, DB schema pushed. Redis ✅ · API Server ✅ (manual workflow, port 8080) · Web Frontend ✅ (manual workflow, port 23695). SESSION_SECRET ✅. REDIS_URL_1 ⚠️ NOT SET · COMPANIES_HOUSE_API_KEY ⚠️ NOT SET. DB retained 32,000 entities + 32,000 assets from prior session — FAA auto-ingestion kicked off (dedup empty). API healthy: /healthz ✅ · /dashboard/stats ✅. |
-| 2026-07-21 | **Re-import #14 setup**: pnpm install, DB schema pushed, all 4 artifacts re-registered via verifyAndReplaceArtifactToml. Redis ✅ · API Server ✅ (manual workflow, port 8080) · Web Frontend ✅ (manual workflow, port 23695). SESSION_SECRET ✅. REDIS_URL_1 ⚠️ NOT SET · COMPANIES_HOUSE_API_KEY ⚠️ NOT SET. DB empty (0 entities) — auto-ingestion (FAA + LR + Western HNWI) kicked off automatically by cold-start recovery. App loads and API healthy. |
-| 2026-07-21 | **Re-import #13 setup**: pnpm install, DB schema pushed, all 4 artifacts registered via verifyAndReplaceArtifactToml. Redis ✅ · API Server ✅ (manual workflow, port 8080) · Web Frontend ✅ (manual workflow, port 23695). SESSION_SECRET ✅. REDIS_URL_1 ⚠️ NOT SET · COMPANIES_HOUSE_API_KEY ⚠️ NOT SET. DB empty (0 entities) — cold-start entity count query failed (non-fatal), auto-ingestion did not fire. App loads and API healthy. |
-| 2026-07-21 | **Re-import #12 setup**: pnpm install, DB schema pushed, all 4 artifacts auto-registered by platform. Redis ✅ · artifacts/api-server: API Server ✅ · artifacts/apex-finder: web ✅. SESSION_SECRET ✅. REDIS_URL_1 ⚠️ NOT SET · COMPANIES_HOUSE_API_KEY ⚠️ NOT SET. DB retained 32,000 entities + 32,000 assets from prior session. Old manual workflows killed; managed artifact workflows started. |
 | 2026-07-21 | **Re-import #11 setup + Persona Run 6**: pnpm install, DB schema pushed, all 4 artifacts registered. Redis ✅ · artifacts/api-server: API Server ✅ · artifacts/apex-finder: web ✅. SESSION_SECRET ✅ · REDIS_URL_1 ✅ · COMPANIES_HOUSE_API_KEY ✅. Western HNWI auto-ingested (100 entities). isHot sync run → 100 hot leads. Persona run 6 complete: 1,392 suggestions / 100 entities, 13.92 avg, 0 errors. App rating: **4.5/10** (cold start — code architecture ~8/10, data gap is entire deficit). improvements.md updated with full Run 6 breakdown + ops checklist. |
 | 2026-07-21 | **Re-import #10 setup**: pnpm install, DB schema pushed, all 4 artifacts re-registered (verifyAndReplaceArtifactToml). Managed workflows started: Redis ✅ · artifacts/api-server: API Server ✅ · artifacts/apex-finder: web ✅. DB retained 32,100 entities — cold-start auto-recovery skipped ingestion. SESSION_SECRET ✅ · REDIS_URL_1 ✅ · COMPANIES_HOUSE_API_KEY ✅. |
 | 2026-07-21 | **Re-import #9 setup**: pnpm install, DB schema pushed, all 4 artifacts re-registered. Redis ✅ · API Server ✅ · Web Frontend ✅. SESSION_SECRET ✅ · REDIS_URL_1 ✅ (Upstash connected) · COMPANIES_HOUSE_API_KEY ✅. DB retained 32,200 entities — cold-start skipped auto-ingestion. |
@@ -285,53 +213,3 @@ Run **IN-HOUSE ENRICH** on HNWI/Gatekeeper entities — Wikidata SPARQL will hit
 | 2026-07-19 | Replaced MCTS Expert persona with Intel Systems Analyst (`intel_systems_analyst`). New persona covers the full hybrid stack: MCTS path coverage (Layer 1), hybrid search signal coverage / BM25+RRF anchors (Layer 2), agent orchestration pipeline completeness / Planner→Retriever→Analyst→Critic (Layer 3), Bayesian-UCB convergence / score-frozen detection (Layer 4). Updated persona-engine.ts, improvements.tsx, improvement_logs.ts schema comment. |
 | 2026-07-19 | GitHub import re-setup: pnpm install, DB schema pushed, all 4 artifacts re-registered (verifyAndReplaceArtifactToml), API server + apex-finder web workflows running. Dashboard loads. DB empty — needs re-ingestion. |
 | 2026-07-19 | REDIS_URL_1 (Upstash) set and verified connected (`[upstash-1] Redis ready`). Dedup state from prior sessions is live. Ready for ingestion. |
-| 2026-07-19 | Query expansion (single-pass): added `expandQuery(query, plan)` to agent-orchestrator.ts. Appends asset synonyms (ASSET_EXPANSION), canonical location forms, name hints, and intent background terms to the raw query before hybridSearch. `expandedQuery` surfaced in RetrieverMeta + OrchestrationResult + UI Retriever step card. No iterative loop. |
-| 2026-07-19 | Intel Systems Analyst persona updated: file header "Iterative Query Expansion" → "Single-pass query expansion"; Layer 2 block comment rewritten to describe expandQuery() mechanics (ASSET_EXPANSION, INTENT_EXPANSION, location forms, name hints); "query expansion stalled" suggestion retitled and description rewritten to explain the three concrete paths (SQL location ILIKE, asset synonym matching, TF-IDF cosine) through which sparse entities remain invisible. |
-| 2026-07-19 | Full persona simulation run. Seeded 8 representative entities (Viktor Aldenmoor, Dominic Harcastle, Lars Eriksen, Brant Kellerman, Meridian Apex, Pierre-Henri Lascaux, Kestrel Trust, Chen). Fixed improve/run SQL bug (ANY→inArray). Ran all 6 personas → 67 suggestions (25 high, 27 medium, 15 low). Fixes applied: (1) entity ledger Contact Vector column now shows clickable mailto/tel/LinkedIn instead of raw prose, (2) MCTS terminal now has search bar + 500-entity limit instead of 30, (3) MCTS reads ?entity= URL param via window.location.search, (4) Profile page has prominent Direct Contact Vectors action bar with clickable email/phone/LinkedIn, (5) CRM Lead Gen empty state guides user to MCTS terminal. |
-| 2026-07-20 | **GitHub import re-setup (5th)**: pnpm install, DB schema pushed, all 4 artifacts auto-registered. Secrets set: SESSION_SECRET ✅ REDIS_URL_1 ✅ COMPANIES_HOUSE_API_KEY ✅. Fixed build error: missing closing `}` in `runDataEngineer` (persona-engine.ts line ~198 — function body wasn't closed, only the inner if block). Stale Upstash dedup cleared (102,851 entries). FAA + LR + Western HNWI auto-ingestion started. App live at `/` and `/api`. |
-| 2026-07-20 | **GitHub import re-setup (3rd)**: pnpm install, DB schema pushed, all 4 artifacts auto-registered by platform, SESSION_SECRET + REDIS_URL_1 + COMPANIES_HOUSE_API_KEY set. Stale dedup cleared (32,871 entries). FAA + LR + Western HNWI ingestion auto-started. App live at `/` and `/api`. Persona score at ~6.0 — Task #2 proposed to reach 9.2. |
-| 2026-07-20 | **Phase 3 — MCTS & Outreach Upgrade complete**: contactConfidence/contactEmail/contactPhone flow from GraphVertex → PathStep → MCTS UCT bonus → pitch context → CRM intel block. research.tsx gains PathNodeContact bars + CopyBriefButton. crm.tsx gains notes textarea + follow-up date picker + Export PDF (window.open print). DB schema: notes + followUpDate columns added + pushed. approach.tsx PitchModal upgraded to tabbed view (Initial/Follow-Up/Intro Script) with Share.share() button. |
-| 2026-07-19 | **Phase 1 — Contact Enrichment Pipeline complete**: (1) `contactConfidence` column added to entities schema + DB migrated; (2) `contact-confidence.ts` pure utility; (3) `companies-house-enricher.ts` — CH officer lookup + confidence recompute; (4) `POST /api/ingest/companies-house-enrich` background route with 409 conflict guard; (5) dashboard/stats now returns `contactableCount` + `enrichmentCoverage`; (6) profile page — contact bar always visible, confidence badge, Enrich button with job polling + entity refetch; (7) data-sources page — Enrichment Coverage Stats panel + CH enricher source card; (8) mobile approach screen — ContactVectorsStrip with Linking.openURL tappable email/phone/linkedin pills. |
-
----
-
-## Quick-Start Checklist (after any import)
-
-> **Most of this is now automatic.** After import, the only manual step is confirming secrets are set.
-
-1. Confirm Replit Secrets are set: `SESSION_SECRET`, `REDIS_URL_1`, `COMPANIES_HOUSE_API_KEY`
-2. Start workflows: `Redis` → `artifacts/api-server: API Server` → `artifacts/apex-finder: web`
-3. API server startup auto-handles the rest:
-   - Clears ghost active-job locks from any prior killed process
-   - Detects empty DB → auto-starts FAA + Land Registry + Western HNWI ingestion
-   - Upstash dedup persists across imports; FAA will insert 0 if prior session deduped it all
-   - If FAA inserts 0: call `DELETE /api/ingest/dedup` to reset, then `POST /api/ingest/faa`
-
-## Cold-Start Notes (for repeated GitHub imports)
-
-### What persists across imports (lives in Replit, not the repo)
-| What | Where | Notes |
-|---|---|---|
-| `SESSION_SECRET`, `REDIS_URL_1`, `COMPANIES_HOUSE_API_KEY` | Replit Secrets | Set once, survive every import |
-| Upstash dedup set (`apex:dedup:hnwi`) | Upstash Redis | ~153k entries from prior sessions; blocks re-ingestion if not cleared |
-| Upstash job state (`apex:job:*`) | Upstash Redis | Ghost jobs auto-cleared by startup.ts on each boot |
-| PostgreSQL data | Replit DB | Survives imports but `drizzle-kit push` can wipe tables if schema drifts — push is additive for new columns/tables, destructive for removed ones |
-
-### What does NOT persist (lost on each import)
-| What | Notes |
-|---|---|
-| Artifact workflow registration | Re-registered automatically by Replit on import now |
-| In-process ingestion jobs | Killed with old process; startup.ts detects and clears ghost locks |
-| Local Redis cache | Ephemeral; rebuilt automatically on next API call |
-
-### If FAA inserts 0 (all deduped)
-The Upstash dedup set from prior sessions covers all 50k+ FAA records.
-Fix: `curl -X DELETE http://localhost:8080/api/ingest/dedup` then restart API server (auto-ingestion fires again).
-
----
-
-## Iteration Log
-
-| Date | Summary |
-|---|---|
-| 2026-07-21 | Re-import #16: pnpm install, drizzle push, Redis+API+Frontend workflows running. REDIS_URL_1 + COMPANIES_HOUSE_API_KEY missing from this import's secrets — set them to restore full functionality. DB empty — re-run ingestion pipelines. |
