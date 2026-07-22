@@ -325,9 +325,9 @@ function StatsBar() {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-3 md:grid-cols-7 border-b border-border bg-card/50 backdrop-blur-md sticky top-0 z-20">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-px bg-border border-b border-border sticky top-0 z-20">
         {Array.from({ length: 7 }).map((_, i) => (
-          <div key={i} className="flex flex-col px-3 py-2.5 border-r border-b md:border-b-0 border-border min-w-0">
+          <div key={i} className="flex flex-col items-center justify-center py-3 px-2 bg-card/50 backdrop-blur-md min-w-0">
             <div className="h-3 w-16 bg-[#1E2332] animate-pulse rounded mb-2" />
             <div className="h-6 w-20 bg-[#1E2332] animate-pulse rounded" />
           </div>
@@ -340,52 +340,52 @@ function StatsBar() {
   const s = stats as any;
 
   return (
-    <div className="grid grid-cols-3 md:grid-cols-7 border-b border-border bg-card/50 backdrop-blur-md sticky top-0 z-20">
-      <div className="flex flex-col px-3 py-2.5 border-r border-b md:border-b-0 border-border min-w-0">
-        <span className="text-[9px] md:text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1 truncate">
-          <Database className="w-2.5 h-2.5 shrink-0" /> <span className="truncate">Entities</span>
+    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-px bg-border border-b border-border sticky top-0 z-20">
+      <div className="flex flex-col items-center justify-center py-3 px-2 bg-card/90 backdrop-blur-md min-w-0">
+        <span className="text-xs font-mono text-muted-foreground uppercase tracking-wide mb-1 flex items-center gap-1.5 truncate">
+          <Database className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">Entities</span>
         </span>
-        <span className="text-lg md:text-xl font-bold text-foreground truncate">{s.totalEntities?.toLocaleString()}</span>
+        <span className="text-lg font-bold text-foreground truncate">{s.totalEntities?.toLocaleString()}</span>
       </div>
-      <div className="flex flex-col px-3 py-2.5 border-r border-b md:border-b-0 border-border min-w-0">
-        <span className="text-[9px] md:text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1 truncate">
-          <MapPin className="w-2.5 h-2.5 shrink-0" /> <span className="truncate">Assets</span>
+      <div className="flex flex-col items-center justify-center py-3 px-2 bg-card/90 backdrop-blur-md min-w-0">
+        <span className="text-xs font-mono text-muted-foreground uppercase tracking-wide mb-1 flex items-center gap-1.5 truncate">
+          <MapPin className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">Assets</span>
         </span>
-        <span className="text-lg md:text-xl font-bold text-foreground truncate">{s.totalAssets?.toLocaleString()}</span>
+        <span className="text-lg font-bold text-foreground truncate">{s.totalAssets?.toLocaleString()}</span>
       </div>
-      <div className="flex flex-col px-3 py-2.5 border-r border-b md:border-b-0 border-border min-w-0">
-        <span className="text-[9px] md:text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1 truncate">
-          <Globe className="w-2.5 h-2.5 text-blue-400 shrink-0" /> <span className="truncate">W-HNWIs</span>
+      <div className="flex flex-col items-center justify-center py-3 px-2 bg-card/90 backdrop-blur-md min-w-0">
+        <span className="text-xs font-mono text-muted-foreground uppercase tracking-wide mb-1 flex items-center gap-1.5 truncate">
+          <Globe className="w-3.5 h-3.5 text-blue-400 shrink-0" /> <span className="truncate">W-HNWIs</span>
         </span>
-        <span className="text-lg md:text-xl font-bold text-blue-400 truncate">
+        <span className="text-lg font-bold text-blue-400 truncate">
           {(s.westernHnwiCount ?? 0).toLocaleString()}
         </span>
       </div>
-      <div className="flex flex-col px-3 py-2.5 border-r border-b md:border-b-0 border-border min-w-0">
-        <span className="text-[9px] md:text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1 truncate">
-          <Activity className="w-2.5 h-2.5 shrink-0" /> <span className="truncate">Signal Avg</span>
+      <div className="flex flex-col items-center justify-center py-3 px-2 bg-card/90 backdrop-blur-md min-w-0">
+        <span className="text-xs font-mono text-muted-foreground uppercase tracking-wide mb-1 flex items-center gap-1.5 truncate">
+          <Activity className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">Signal Avg</span>
         </span>
-        <span className="text-lg md:text-xl font-bold text-primary truncate">
+        <span className="text-lg font-bold text-primary truncate">
           {((s.avgBayesianScore ?? 0) * 100).toFixed(1)}%
         </span>
       </div>
-      <div className="flex flex-col px-3 py-2.5 border-r border-b sm:border-b-0 border-border min-w-0">
-        <span className="text-[9px] md:text-[10px] font-mono text-amber-500 uppercase tracking-wider mb-1 flex items-center gap-1 truncate">
-          <AlertTriangle className="w-2.5 h-2.5 shrink-0" /> <span className="truncate">Hot Leads</span>
+      <div className="flex flex-col items-center justify-center py-3 px-2 bg-card/90 backdrop-blur-md min-w-0">
+        <span className="text-xs font-mono text-amber-500 uppercase tracking-wide mb-1 flex items-center gap-1.5 truncate">
+          <AlertTriangle className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">Hot Leads</span>
         </span>
-        <span className="text-lg md:text-xl font-bold text-amber-500 truncate">{s.hotLeadsCount?.toLocaleString()}</span>
+        <span className="text-lg font-bold text-amber-500 truncate">{s.hotLeadsCount?.toLocaleString()}</span>
       </div>
-      <div className="flex flex-col px-3 py-2.5 border-r border-border min-w-0">
-        <span className="text-[9px] md:text-[10px] font-mono text-emerald-400 uppercase tracking-wider mb-1 flex items-center gap-1 truncate">
-          <Mail className="w-2.5 h-2.5 shrink-0" /> <span className="truncate">Contactable</span>
+      <div className="flex flex-col items-center justify-center py-3 px-2 bg-card/90 backdrop-blur-md min-w-0">
+        <span className="text-xs font-mono text-emerald-400 uppercase tracking-wide mb-1 flex items-center gap-1.5 truncate">
+          <Mail className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">Contactable</span>
         </span>
-        <span className="text-lg md:text-xl font-bold text-emerald-400 truncate">{(s.contactableCount ?? 0).toLocaleString()}</span>
+        <span className="text-lg font-bold text-emerald-400 truncate">{(s.contactableCount ?? 0).toLocaleString()}</span>
       </div>
-      <div className="flex flex-col px-3 py-2.5 min-w-0">
-        <span className="text-[9px] md:text-[10px] font-mono text-cyan-400 uppercase tracking-wider mb-1 flex items-center gap-1 truncate">
-          <Phone className="w-2.5 h-2.5 shrink-0" /> <span className="truncate">Enriched %</span>
+      <div className="flex flex-col items-center justify-center py-3 px-2 bg-card/90 backdrop-blur-md min-w-0">
+        <span className="text-xs font-mono text-cyan-400 uppercase tracking-wide mb-1 flex items-center gap-1.5 truncate">
+          <Phone className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">Enriched %</span>
         </span>
-        <span className="text-lg md:text-xl font-bold text-cyan-400 truncate">
+        <span className="text-lg font-bold text-cyan-400 truncate">
           {(s.enrichmentCoverage ?? 0).toFixed(1)}%
         </span>
       </div>

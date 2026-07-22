@@ -218,7 +218,7 @@ export default function FieldManual() {
             <Crosshair size={16} className="animate-pulse" />
             <span className="text-xs font-bold tracking-widest">FIELD MANUAL</span>
           </div>
-          <div className="text-[10px] text-[#475569] tracking-wider uppercase">v1.0 · Updated Jul 2026</div>
+          <div className="text-[10px] text-[#475569] tracking-wider uppercase">v1.1 · Updated Jul 2026</div>
         </div>
         <nav className="flex-1 py-2 flex flex-col overflow-y-auto">
           {LEVELS.map((level) => (
@@ -255,8 +255,9 @@ export default function FieldManual() {
 
             <p className="text-sm text-[#94A3B8] leading-relaxed mb-5 max-w-2xl">
               ApexFinder Pro is a private intelligence platform for reaching ultra-high-net-worth individuals (HNWIs).
-              It ingests 32,000+ verified identities from public government registries, maps their asset portfolios
-              and corporate connections, then uses a 5-layer AI engine to find the warmest introduction path to any target.
+              It ingests 32,000+ verified identities from public government registries (FAA, SEC EDGAR, UK Companies House, BRREG, UK Land Registry),
+              maps their asset portfolios and corporate connections, then uses a 5-layer AI engine plus semantic embeddings
+              to find the warmest introduction path to any target — with zero synthetic data, zero paid APIs.
             </p>
 
             <Callout icon={<TrendingUp size={14} />} color="#10B981" title="The core idea">
@@ -303,7 +304,7 @@ export default function FieldManual() {
                 { icon: <Bot size={12} />,      color: "#EC4899", name: "Persona Loop", path: "/improvements", desc: "6 AI agents that continuously scan entities and log concrete enrichment actions." },
                 { icon: <Layers size={12} />,   color: "#14B8A6", name: "Data Sources", path: "/data-sources", desc: "Registry ingestion panel — run enrichers, track coverage, trigger background jobs." },
                 { icon: <Copy size={12} />,     color: "#A855F7", name: "Duplicates", path: "/duplicates", desc: "Cross-registry deduplication — detects entities appearing in multiple registries under different names via semantic cosine similarity." },
-                { icon: <Telescope size={12} />,color: "#0EA5E9", name: "OSINT Tools Directory", path: "/osint-tools", desc: "8,000+ open-source intelligence tools curated from the OSINT Tool Database — searchable by keyword and category." },
+                { icon: <Telescope size={12} />,color: "#0EA5E9", name: "OSINT Tools Directory", path: "/osint-tools", desc: "4,400+ open-source intelligence tools curated from the OSINT Tool Database — searchable by keyword and filterable by 21 categories. 24-hour Redis cache." },
               ].map((p) => (
                 <div key={p.name} className="flex gap-3 p-3 rounded-lg border border-[#1E293B] bg-[#0B0F19]">
                   <div className="w-6 h-6 rounded flex items-center justify-center shrink-0 mt-0.5" style={{ backgroundColor: p.color + "20", color: p.color }}>{p.icon}</div>
@@ -377,15 +378,25 @@ export default function FieldManual() {
               as <strong className="text-[#F59E0B]">Hot Leads</strong> and shown with an amber indicator in the dashboard counter.
               These are your immediate-action targets.
             </Callout>
+
+            <Callout icon={<Copy size={14} />} color="#A855F7" title="Duplicates page — cross-registry deduplication">
+              The <strong className="text-[#A855F7]">Duplicates</strong> page (sidebar → Duplicates) surfaces entities that appear in multiple
+              registries under different name formats — e.g. <code className="bg-[#1E293B] text-[#A855F7] text-xs px-1 rounded font-mono">SMITH JOHN R</code> in FAA
+              and <code className="bg-[#1E293B] text-[#A855F7] text-xs px-1 rounded font-mono">John Richard Smith</code> in SEC EDGAR.
+              Pairs are detected by Phase G semantic cosine similarity (&gt;0.93) and flagged as
+              <strong className="text-[#0EA5E9]"> LIKELY_SAME_PERSON</strong> edges. Run <strong className="text-[#0EA5E9]">SEMANTIC DEDUP</strong> in
+              Data Sources → Phase G first to populate this view. Merging duplicates consolidates their assets and relationships into a single unified profile.
+            </Callout>
           </Section>
 
           {/* ══ LEVEL III — DEEP SEARCH ═════════════════════════════════════════ */}
           <Section id="section-3" level="III" levelColor="#06B6D4" levelLabel="LEVEL III — DEEP SEARCH" title="Natural Language Intelligence Search">
 
             <p className="text-sm text-[#94A3B8] leading-relaxed mb-5">
-              Deep Search lets you query the entire 32,000-entity database in plain English. You don't need to know
-              the exact name — just describe what you're looking for. The engine decomposes your query through four
-              algorithms and fuses the results.
+              Deep Search lets you query the entire 32,000+ entity database in plain English. You don't need to know
+              the exact name — just describe what you're looking for. The engine runs four parallel signals and fuses
+              the results via Reciprocal Rank Fusion. With Phase G active, a semantic embedding signal (purple bar) is
+              added as a 5th signal — enabling conceptual queries like "aviation billionaire Texas" even without those exact words in any record.
             </p>
 
             <AnnotatedScreenshot
@@ -431,6 +442,8 @@ export default function FieldManual() {
                 "turbofan aircraft owners California",
                 "SEC EDGAR large shareholders",
                 "hot leads UK helicopters",
+                "aviation billionaire Texas (semantic — finds FAA registrations near Dallas)",
+                "fund manager Cayman Islands trust structure",
               ].map((q) => (
                 <div key={q} className="flex items-center gap-2 text-xs">
                   <ChevronRight size={11} className="text-[#06B6D4] shrink-0" />
@@ -441,8 +454,15 @@ export default function FieldManual() {
 
             <Callout icon={<Filter size={14} />} color="#06B6D4" title="Using the Filters panel">
               Click <strong className="text-[#06B6D4]">FILTERS</strong> to narrow results to entities with confirmed
-              contact data, above a minimum signal score, or from a specific source registry (FAA, SEC EDGAR, Companies House, BRREG).
+              contact data, above a minimum signal score, or from a specific source registry (FAA, SEC EDGAR, Companies House, BRREG, UK Land Registry).
               Combine with a natural language query for surgical targeting.
+            </Callout>
+
+            <Callout icon={<Sparkles size={14} />} color="#8B5CF6" title="Phase G — Semantic signal active">
+              Once Phase G embeddings are computed (run <strong className="text-[#0EA5E9]">COMPUTE EMBEDDINGS</strong> in Data Sources), every search result
+              gains a purple <strong className="text-[#8B5CF6]">Embed</strong> score bar showing how conceptually similar the entity is to your query —
+              independent of exact word matching. This is the most powerful signal for finding entities described differently
+              across registries. The semantic signal activates automatically when ≥ 100 embeddings are cached in Redis.
             </Callout>
           </Section>
 
@@ -487,7 +507,9 @@ export default function FieldManual() {
                 { label: "MEMBER_OF",       desc: "Shareholder, club member, board seat",                  color: "#A855F7" },
                 { label: "KNOWN_ASSOCIATE", desc: "Co-signatory, co-investor, known social tie",           color: "#F59E0B" },
                 { label: "SHARED_ADDRESS",  desc: "Registered at the same correspondence address",         color: "#06B6D4" },
-                { label: "CORPORATE_SERIES",desc: "Same corporate name series (e.g. Tannjete I / II LLC)", color: "#EF4444" },
+                { label: "CORPORATE_SERIES",  desc: "Same corporate name series (e.g. Tannjete I / II LLC)", color: "#EF4444" },
+                { label: "SHARED_DIRECTOR",  desc: "UK Companies House entities sharing a common registered director (CH data only)", color: "#EC4899" },
+                { label: "LIKELY_SAME_PERSON",desc: "Semantic dedup: cosine similarity > 0.93 across different registries — resolves cross-registry name variants", color: "#0EA5E9" },
               ].map((e) => (
                 <div key={e.label} className="bg-[#0B0F19] border border-[#1E293B] rounded-lg p-3">
                   <p className="text-xs font-bold font-mono mb-1" style={{ color: e.color }}>{e.label}</p>

@@ -71,14 +71,14 @@ function PathNodeContact({ node }: { node: PathStep }) {
               style={{ width: `${node.contactConfidence}%` }}
             />
           </div>
-          <span className="text-[9px] font-mono opacity-70">{node.contactConfidence}%</span>
+          <span className="text-[10px] font-mono opacity-70">{node.contactConfidence}%</span>
         </div>
       )}
       <div className="flex gap-2 flex-wrap">
         {node.contactEmail && (
           <a
             href={`mailto:${node.contactEmail}`}
-            className="flex items-center gap-1 text-[10px] font-mono opacity-80 hover:opacity-100 transition-opacity"
+            className="flex items-center gap-1 text-xs font-mono opacity-80 hover:opacity-100 transition-opacity"
             title={node.contactEmail}
             onClick={(e) => e.stopPropagation()}
           >
@@ -89,7 +89,7 @@ function PathNodeContact({ node }: { node: PathStep }) {
         {node.contactPhone && (
           <a
             href={`tel:${node.contactPhone}`}
-            className="flex items-center gap-1 text-[10px] font-mono opacity-80 hover:opacity-100 transition-opacity"
+            className="flex items-center gap-1 text-xs font-mono opacity-80 hover:opacity-100 transition-opacity"
             onClick={(e) => e.stopPropagation()}
           >
             <Phone className="w-2.5 h-2.5 flex-shrink-0" />
@@ -288,8 +288,8 @@ export default function IntelTerminal() {
 
         {/* Hybrid pipeline */}
         <div className="bg-background/60 border border-border/60 rounded px-2 py-1.5">
-          <div className="text-[9px] font-mono text-muted-foreground/50 uppercase tracking-widest mb-0.5">Pipeline</div>
-          <div className="text-[9px] font-mono text-primary/70 leading-relaxed">{HYBRID_PIPELINE}</div>
+          <div className="text-[10px] font-mono text-muted-foreground/50 uppercase tracking-widest mb-0.5">Pipeline</div>
+          <div className="text-[10px] font-mono text-primary/70 leading-relaxed">{HYBRID_PIPELINE}</div>
         </div>
 
         {/* Run button */}
@@ -323,8 +323,8 @@ export default function IntelTerminal() {
             <Cpu className="w-4 h-4 mr-2 text-primary" /> Target Selection
           </h2>
           <div className="bg-background/60 border border-border/60 rounded px-2 py-1.5">
-            <div className="text-[9px] font-mono text-muted-foreground/50 uppercase tracking-widest mb-0.5">5-Algorithm Pipeline</div>
-            <div className="text-[9px] font-mono text-primary/70 leading-relaxed">{HYBRID_PIPELINE}</div>
+            <div className="text-[10px] font-mono text-muted-foreground/50 uppercase tracking-widest mb-0.5">5-Algorithm Pipeline</div>
+            <div className="text-[10px] font-mono text-primary/70 leading-relaxed">{HYBRID_PIPELINE}</div>
           </div>
         </div>
 
@@ -461,15 +461,15 @@ export default function IntelTerminal() {
           <div className="border-t border-border/50 bg-[#080C14] px-4 md:px-5 py-3 flex-shrink-0 animate-in slide-in-from-bottom-4">
             <div className="flex items-center gap-2 mb-2">
               <Layers className="w-3.5 h-3.5 text-primary/70" />
-              <span className="text-[9px] font-mono text-muted-foreground/50 uppercase tracking-widest">Algorithm Pipeline</span>
+              <span className="text-[10px] font-mono text-muted-foreground/50 uppercase tracking-widest">Algorithm Pipeline</span>
             </div>
             <div className="flex flex-col sm:flex-row gap-1.5 sm:gap-2 flex-wrap">
               {algorithmPipeline.map((stage, i) => (
                 <div key={i} className="flex items-start gap-1.5 bg-muted/10 border border-border/40 rounded px-2 py-1.5 min-w-0 flex-1">
-                  <span className="text-[9px] font-mono text-muted-foreground/40 mt-0.5 flex-shrink-0">{String(i + 1).padStart(2, "0")}</span>
+                  <span className="text-[10px] font-mono text-muted-foreground/40 mt-0.5 flex-shrink-0">{String(i + 1).padStart(2, "0")}</span>
                   <div className="min-w-0">
-                    <div className="text-[9px] font-mono font-bold text-primary/80 truncate">{stage.algo}</div>
-                    <div className="text-[9px] font-mono text-muted-foreground/60 leading-snug mt-0.5">{stage.contribution}</div>
+                    <div className="text-[10px] font-mono font-bold text-primary/80 truncate">{stage.algo}</div>
+                    <div className="text-[10px] font-mono text-muted-foreground/60 leading-snug mt-0.5">{stage.contribution}</div>
                   </div>
                 </div>
               ))}
@@ -495,13 +495,13 @@ export default function IntelTerminal() {
                   <div className={cn("flex flex-col border p-3 rounded", roleColor(node.role))}>
                     <div className="flex items-center mb-1.5 space-x-1">
                       {roleIcon(node.role)}
-                      <span className="text-[9px] font-mono uppercase tracking-widest opacity-60">{node.role}</span>
+                      <span className="text-[10px] font-mono uppercase tracking-widest opacity-60">{node.role}</span>
                     </div>
                     <div className="font-bold text-foreground text-sm leading-tight mb-1">{node.label}</div>
-                    <div className="text-[10px] opacity-50">{node.nodeType}</div>
+                    <div className="text-xs opacity-50">{node.nodeType}</div>
                     <PathNodeContact node={node} />
                     {node.actionRequired && (
-                      <div className="mt-2 text-[10px] leading-snug opacity-75 border-t border-current/20 pt-1.5">{node.actionRequired}</div>
+                      <div className="mt-2 text-xs leading-snug opacity-75 border-t border-current/20 pt-1.5">{node.actionRequired}</div>
                     )}
                   </div>
                   {i < winningPath.length - 1 && (
@@ -520,13 +520,13 @@ export default function IntelTerminal() {
                   <div className={cn("flex flex-col border p-3 rounded min-w-[180px] max-w-[240px]", roleColor(node.role))}>
                     <div className="flex items-center mb-1.5 space-x-1">
                       {roleIcon(node.role)}
-                      <span className="text-[9px] font-mono uppercase tracking-widest opacity-60">{node.role}</span>
+                      <span className="text-[10px] font-mono uppercase tracking-widest opacity-60">{node.role}</span>
                     </div>
                     <div className="font-bold text-foreground text-sm leading-tight mb-1">{node.label}</div>
-                    <div className="text-[10px] opacity-50">{node.nodeType}</div>
+                    <div className="text-xs opacity-50">{node.nodeType}</div>
                     <PathNodeContact node={node} />
                     {node.actionRequired && (
-                      <div className="mt-2 text-[10px] leading-snug opacity-75 border-t border-current/20 pt-1.5">{node.actionRequired}</div>
+                      <div className="mt-2 text-xs leading-snug opacity-75 border-t border-current/20 pt-1.5">{node.actionRequired}</div>
                     )}
                   </div>
                   {i < winningPath.length - 1 && (

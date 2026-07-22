@@ -67,6 +67,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <Link
               key={item.href}
               href={item.href}
+              aria-current={isActive ? "page" : undefined}
               className={cn(
                 "flex items-center px-3 py-2.5 text-sm font-medium transition-colors gap-2.5 border-l-2 rounded-r-md",
                 isActive
@@ -88,7 +89,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       <div className="p-4 border-t border-border shrink-0">
         <div className="px-3 py-2 text-xs font-mono text-muted-foreground/40 uppercase tracking-widest">
-          v0.2 · Private Build
+          v0.2 · 32k entities
         </div>
       </div>
     </aside>
@@ -130,8 +131,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <Menu className="h-5 w-5" />
           </button>
           <Crosshair className="h-4 w-4 text-primary mr-2 shrink-0" />
-          <span className="text-sm font-bold tracking-widest text-primary uppercase font-mono truncate">
+          <span className="text-sm font-bold tracking-widest text-primary uppercase font-mono truncate mr-2">
             ApexFinder Pro
+          </span>
+          <span className="text-muted-foreground/30 mr-2 shrink-0">·</span>
+          <span className="text-xs font-mono text-muted-foreground truncate uppercase mt-0.5">
+            {navItems.find(item => 
+              location === item.href || (item.href !== "/" && location.startsWith(item.href))
+            )?.name || "Dashboard"}
           </span>
         </div>
 

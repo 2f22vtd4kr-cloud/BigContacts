@@ -86,7 +86,7 @@ function PitchSequenceDisplay({ pitch }: { pitch: string }) {
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
             className={cn(
-              "flex items-center space-x-1 px-2.5 py-1 rounded text-[10px] font-mono border transition-colors",
+              "flex items-center space-x-1 px-2.5 py-1 rounded text-xs font-mono border transition-colors",
               activeTab === tab.key
                 ? "border-primary/40 bg-primary/10 text-primary"
                 : "border-border text-muted-foreground hover:border-border/60 hover:text-foreground"
@@ -155,9 +155,9 @@ function WinningPathDisplay({ raw }: { raw: string }) {
           <div className="min-w-0">
             <div className="text-[9px] uppercase tracking-widest opacity-50 mb-0.5">{node.role}</div>
             <div className="font-bold text-foreground leading-tight">{node.label}</div>
-            {node.nodeType && <div className="text-[10px] opacity-50 mt-0.5">{node.nodeType}</div>}
+            {node.nodeType && <div className="text-xs opacity-50 mt-0.5">{node.nodeType}</div>}
             {node.actionRequired && (
-              <div className="text-[10px] opacity-70 mt-1 leading-snug">{node.actionRequired}</div>
+              <div className="text-xs opacity-70 mt-1 leading-snug">{node.actionRequired}</div>
             )}
           </div>
         </div>
@@ -196,7 +196,7 @@ function MobileSessionCard({
             {session.targetEntityName ?? "Unknown Target"}
           </div>
           <span
-            className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded"
+            className="text-xs font-mono font-bold px-1.5 py-0.5 rounded"
             style={{ color: stageColor, backgroundColor: stageColor + "18" }}
           >
             {session.crmStatus.toUpperCase()}
@@ -205,7 +205,7 @@ function MobileSessionCard({
         <div className="flex flex-col items-end gap-1 flex-shrink-0">
           <ScoreBadge score={session.bayesianScoreAtRuntime} />
           {session.createdAt && (
-            <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+            <span className="text-xs text-muted-foreground flex items-center gap-1">
               <Clock className="w-2.5 h-2.5" />
               {format(new Date(session.createdAt), "MM/dd")}
             </span>
@@ -221,7 +221,7 @@ function MobileSessionCard({
         <div className="mx-4 mb-3 rounded border border-border bg-muted/10 overflow-hidden">
           {/* Stage progress chips */}
           <div className="px-3 py-2.5 border-b border-border">
-            <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-2">Pipeline</div>
+            <div className="text-xs font-mono text-muted-foreground uppercase tracking-wider mb-2">Pipeline</div>
             <div className="flex gap-1 flex-wrap">
               {CRM_COLUMNS.map((col) => {
                 const idx = CRM_COLUMNS.indexOf(col);
@@ -249,14 +249,14 @@ function MobileSessionCard({
           {/* Approach vector */}
           {session.winningPath && (
             <div className="px-3 py-2.5 border-b border-border">
-              <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-2">Approach Vector</div>
+              <div className="text-xs font-mono text-muted-foreground uppercase tracking-wider mb-2">Approach Vector</div>
               <WinningPathDisplay raw={session.winningPath} />
             </div>
           )}
 
           {/* Move stage */}
           <div className="px-3 py-2.5 border-b border-border flex items-center justify-between">
-            <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">Move Stage</span>
+            <span className="text-xs font-mono text-muted-foreground uppercase tracking-wider">Move Stage</span>
             <div className="flex gap-2">
               <button
                 disabled={CRM_COLUMNS.indexOf(session.crmStatus) === 0}
@@ -292,7 +292,7 @@ function MobileSessionCard({
           {/* Pitch display */}
           {session.generatedPitch && (
             <div className="px-3 pb-3">
-              <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-2">Outreach Sequence</div>
+              <div className="text-xs font-mono text-muted-foreground uppercase tracking-wider mb-2">Outreach Sequence</div>
               <PitchSequenceDisplay pitch={session.generatedPitch} />
             </div>
           )}
@@ -313,7 +313,16 @@ export default function PipelineCRM() {
 
   // Mobile state
   const [mobileExpandedId, setMobileExpandedId] = useState<number | null>(null);
-  const [mobileStageFilter, setMobileStageFilter] = useState<string | null>(null);
+  
+  const activeStages = CRM_COLUMNS.filter((col) => sessions?.some((s) => s.crmStatus === col));
+  const [selectedStage, setSelectedStage] = useState<string>(CRM_COLUMNS[0]);
+  
+  useEffect(() => {
+    if (sessions && selectedStage === CRM_COLUMNS[0] && activeStages.length > 0 && !activeStages.includes(CRM_COLUMNS[0])) {
+      setSelectedStage(activeStages[0]);
+    }
+  }, [sessions, selectedStage]);
+
   const [generatingId, setGeneratingId] = useState<number | null>(null);
 
   // Notes + follow-up date state
@@ -369,10 +378,7 @@ export default function PipelineCRM() {
   };
 
   // Unique stages that have sessions
-  const activeStages = CRM_COLUMNS.filter((col) => sessions?.some((s) => s.crmStatus === col));
-  const mobileSessions = mobileStageFilter
-    ? sessions?.filter((s) => s.crmStatus === mobileStageFilter)
-    : sessions;
+  const mobileSessions = sessions?.filter((s) => s.crmStatus === selectedStage) || [];
 
   // Auto-scroll desktop kanban to first populated column
   const kanbanRef = useRef<HTMLDivElement>(null);
@@ -380,8 +386,8 @@ export default function PipelineCRM() {
     if (!sessions?.length || !kanbanRef.current) return;
     const firstPopulatedIdx = CRM_COLUMNS.findIndex((col) => sessions.some((s) => s.crmStatus === col));
     if (firstPopulatedIdx <= 0) return;
-    // Each column is w-80 (320px) + gap 16px = 336px per column
-    kanbanRef.current.scrollLeft = firstPopulatedIdx * 336;
+    // Each column is ~200px + gap 16px = 216px per column
+    kanbanRef.current.scrollLeft = firstPopulatedIdx * 216;
   }, [sessions]);
 
   // Stage counts for summary strip
@@ -396,7 +402,7 @@ export default function PipelineCRM() {
         <h1 className="text-base md:text-xl font-bold font-mono tracking-widest text-foreground uppercase">
           Pipeline CRM
         </h1>
-        <span className="text-[10px] font-mono text-muted-foreground">
+        <span className="text-xs font-mono text-muted-foreground">
           {sessions?.length ?? 0} sessions
         </span>
       </div>
@@ -413,7 +419,7 @@ export default function PipelineCRM() {
                 const idx = CRM_COLUMNS.indexOf(col);
                 if (kanbanRef.current) kanbanRef.current.scrollLeft = idx * 336;
               }}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded text-[10px] font-mono font-bold uppercase tracking-wide border transition-all flex-shrink-0"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-mono font-bold uppercase tracking-wide border transition-all flex-shrink-0"
               style={{
                 borderColor: hasData ? color : color + "30",
                 color: hasData ? color : color + "60",
@@ -423,7 +429,7 @@ export default function PipelineCRM() {
               {col}
               {hasData && (
                 <span
-                  className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                  className="text-xs font-bold px-1.5 py-0.5 rounded-full"
                   style={{ backgroundColor: color, color: "#000" }}
                 >
                   {count}
@@ -439,27 +445,17 @@ export default function PipelineCRM() {
         {/* Stage filter chips */}
         <div className="px-4 py-2.5 border-b border-border overflow-x-auto flex-shrink-0">
           <div className="flex gap-2 min-w-max">
-            <button
-              onClick={() => setMobileStageFilter(null)}
-              className="px-3 py-1.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wide transition-all"
-              style={{
-                backgroundColor: mobileStageFilter === null ? "hsl(160,84%,39%)" : "hsl(160,84%,39%,0.1)",
-                color: mobileStageFilter === null ? "#000" : "hsl(160,84%,39%)",
-                border: "1px solid hsl(160,84%,39%,0.3)",
-              }}
-            >
-              ALL
-            </button>
-            {activeStages.map((stage) => {
+            {CRM_COLUMNS.map((stage) => {
               const c = STAGE_COLORS[stage] ?? "#64748B";
+              const isSelected = selectedStage === stage;
               return (
                 <button
                   key={stage}
-                  onClick={() => setMobileStageFilter(mobileStageFilter === stage ? null : stage)}
-                  className="px-3 py-1.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wide whitespace-nowrap transition-all"
+                  onClick={() => setSelectedStage(stage)}
+                  className="px-3 py-1.5 rounded-full text-xs font-mono font-bold uppercase tracking-wide whitespace-nowrap transition-all"
                   style={{
-                    backgroundColor: mobileStageFilter === stage ? c : c + "18",
-                    color: mobileStageFilter === stage ? "#000" : c,
+                    backgroundColor: isSelected ? c : c + "18",
+                    color: isSelected ? "#000" : c,
                     border: `1px solid ${c}44`,
                   }}
                 >
@@ -503,7 +499,7 @@ export default function PipelineCRM() {
             return (
               <div
                 key={column}
-                className="w-80 flex flex-col h-full bg-muted/10 border border-border rounded-md"
+                className="min-w-[160px] max-w-[200px] flex-shrink-0 flex flex-col h-full bg-muted/10 border border-border rounded-md"
               >
                 <div className="p-3 border-b border-border flex justify-between items-center bg-card flex-shrink-0">
                   <h3 className="font-mono text-sm font-bold text-muted-foreground uppercase tracking-wider">
@@ -517,10 +513,10 @@ export default function PipelineCRM() {
                 <div className="flex-1 overflow-y-auto p-2 space-y-2">
                   {columnSessions.length === 0 && column === "Lead Gen" && (
                     <div className="flex flex-col items-center justify-center h-32 gap-2 text-center">
-                      <p className="text-[10px] font-mono text-muted-foreground/50">No leads yet</p>
+                      <p className="text-xs font-mono text-muted-foreground/50">No leads yet</p>
                       <a
                         href="/research"
-                        className="text-[10px] font-mono text-primary border border-primary/20 px-2.5 py-1 rounded hover:bg-primary/10 transition-colors"
+                        className="text-xs font-mono text-primary border border-primary/20 px-2.5 py-1 rounded hover:bg-primary/10 transition-colors"
                       >
                         → Run Intel Analysis
                       </a>
@@ -551,7 +547,7 @@ export default function PipelineCRM() {
                         >
                           <ChevronRight className="w-4 h-4 rotate-180" />
                         </button>
-                        <span className="text-[10px] uppercase text-muted-foreground tracking-wider">Move</span>
+                        <span className="text-xs uppercase text-muted-foreground tracking-wider">Move</span>
                         <button
                           className="p-1 hover:text-primary disabled:opacity-30 transition-colors"
                           disabled={CRM_COLUMNS.indexOf(column) === CRM_COLUMNS.length - 1}
@@ -569,9 +565,9 @@ export default function PipelineCRM() {
         </div>
       </div>
 
-      {/* ── Desktop Session Detail Panel ── */}
+      {/* ── Session Detail Panel ── */}
       {selectedSession && (
-        <div className="hidden md:flex absolute top-0 right-0 bottom-0 w-[42%] bg-card border-l border-border shadow-2xl z-30 flex-col animate-in slide-in-from-right duration-200">
+        <div className="flex fixed md:absolute inset-0 md:inset-y-0 md:right-0 md:left-auto w-full md:w-[420px] lg:w-[480px] bg-card md:border-l border-border shadow-2xl z-50 md:z-30 flex-col animate-in slide-in-from-bottom md:slide-in-from-right duration-200">
           <div className="p-4 border-b border-border flex justify-between items-center bg-muted/20 flex-shrink-0">
             <h2 className="font-bold text-sm font-mono tracking-wider flex items-center text-foreground">
               <FileText className="w-4 h-4 mr-2 text-primary" />
@@ -627,7 +623,7 @@ export default function PipelineCRM() {
                   <button
                     onClick={() => handleGeneratePitch(selectedSession.id)}
                     disabled={generatePitch.isPending}
-                    className="text-primary hover:bg-primary/10 px-2 py-0.5 rounded transition-colors text-[10px] border border-primary/30"
+                    className="text-primary hover:bg-primary/10 px-2 py-0.5 rounded transition-colors text-xs border border-primary/30"
                   >
                     {generatePitch.isPending ? "GENERATING..." : "GENERATE"}
                   </button>
@@ -636,7 +632,7 @@ export default function PipelineCRM() {
 
               {selectedSession.generatedPitch ? (
                 <>
-                  <div className="mb-2 px-3 py-2 rounded border border-amber-500/20 bg-amber-500/5 text-[10px] font-mono text-amber-400/80 leading-relaxed">
+                  <div className="mb-2 px-3 py-2 rounded border border-amber-500/20 bg-amber-500/5 text-xs font-mono text-amber-400/80 leading-relaxed">
                     ⚠ Structural template only — rewrite with your specific purpose, relationship angle, and tone before sending.
                   </div>
                   <PitchSequenceDisplay pitch={selectedSession.generatedPitch} />
@@ -678,7 +674,7 @@ export default function PipelineCRM() {
               <button
                 onClick={() => saveNotesAndDate(selectedSession.id, notesValue, followUpDate)}
                 disabled={notesSaving}
-                className="flex items-center gap-1.5 px-3 py-2 rounded border border-primary/40 bg-primary/10 text-primary font-mono text-[10px] uppercase tracking-wider hover:bg-primary/20 transition-colors disabled:opacity-40 whitespace-nowrap"
+                className="flex items-center gap-1.5 px-3 py-2 rounded border border-primary/40 bg-primary/10 text-primary font-mono text-xs uppercase tracking-wider hover:bg-primary/20 transition-colors disabled:opacity-40 whitespace-nowrap"
               >
                 {notesSaved ? <Check className="w-3 h-3" /> : null}
                 {notesSaving ? "Saving…" : notesSaved ? "Saved" : "Save"}
@@ -703,7 +699,7 @@ export default function PipelineCRM() {
                     w.document.close();
                     w.print();
                   }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 font-mono text-[10px] uppercase tracking-wider transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 font-mono text-xs uppercase tracking-wider transition-colors"
                 >
                   <Printer className="w-3 h-3" /> Export PDF
                 </button>
