@@ -8,7 +8,7 @@
 
 ---
 
-## Current State (2026-07-22 — re-import #43) — Fully operational
+## Current State (2026-07-22 — re-import #44) — Fully operational
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically
@@ -36,6 +36,26 @@
 - **Contactable**: 29 (contact cache restore running; will grow as in-house enricher runs)
 - **Wealth Tiers**: Ultra >$100M: 7,392 · Very $30-100M: 4,616 · HNW $4-30M: 24,568 · Unknown: 200
 - **Research Sessions**: 0 (MCTS bulk-run fires at 90s after each boot)
+
+### What was done this session (re-import #44 — Phase 2 Mobile Pass + Phase 3 Field Manual — 2026-07-22)
+
+**Direct source-file changes across 4 files — no canvas, no sandbox. All changes survive re-imports.**
+
+Changes made:
+- `manual.tsx`: Fixed "5th signal" → "4th signal" in Level III (semantic embedding is the 4th, not 5th signal); "5-layer search" heading → "4-signal search"; pin label updated to match. Fixed "Phase 9 — In-House OSINT Enricher" → "Phase F" (correct phase naming). Updated persona count "6" → "8" in 3 places (Level I nav list, Level VII intro, Level VII pin); replaced stale 6-persona FeatureGrid with accurate 8-persona grid (Data Engineer, Data Analyst, Intel Systems Analyst, Business Engineer, UX Designer, Architect, Data Integrity Auditor, Hybrid Architecture Auditor). Added missing `Palette` icon import.
+- `osint-tools.tsx`: Pagination control now mobile-safe — page count text hidden on mobile (`hidden sm:block`), compact `{page}/{totalPages}` shown instead; page number buttons reduced to 3 (always fits 390px); `flex-wrap` on button row.
+- `data-sources.tsx`: All 15 action button rows now mobile-safe — added `gap-3 min-w-0 line-clamp-2` to description spans, wrapped buttons in `flex-shrink-0` divs so they never get pushed off-screen. Descriptions trimmed to be concise.
+
+**Confirmed clean:**
+- All 11 pages mobile-safe at 390px: desktop-only tables/toolbars are `hidden md:flex`; profile contact bar uses `flex-wrap` + `max-w-[220px] sm:max-w-none`; graph entity selector is `absolute left-3 right-3` (full-width on mobile).
+- API Server + Web Frontend both running, /healthz → OK.
+- Maintenance pipeline running: 279 contact cache entries restoring, embeddings computing, persona loop sweeping.
+
+**Next session:**
+- No further mobile or Field Manual work needed — both phases complete.
+- Optional: screenshot verification pass if desired.
+
+---
 
 ### What was done this session (re-import #42 — UI/UX Polish Pass 1 — 2026-07-22)
 

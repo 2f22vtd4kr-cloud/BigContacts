@@ -5,7 +5,7 @@ import {
   Gem, Zap, Play, Filter, Download, UserCheck, Shield, Map,
   BarChart3, Target, Activity, Search, Bot, Layers, ChevronRight,
   FileText, Cpu, GitBranch, AlertCircle, CheckCircle, Info, Mail,
-  Telescope, Copy, BrainCircuit, Sparkles, Radio,
+  Telescope, Copy, BrainCircuit, Sparkles, Radio, Palette,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -304,7 +304,7 @@ export default function FieldManual() {
                 { icon: <Network size={12} />,  color: "#F59E0B", name: "Network Graph", path: "/graph", desc: "Interactive D3 graph of relationships: owns, directs, shares addresses, co-investors." },
                 { icon: <Terminal size={12} />, color: "#EF4444", name: "Intel Terminal", path: "/research", desc: "Hybrid Research — 5-layer pipeline with 120 UCT rollouts to find the optimal warm-introduction path." },
                 { icon: <KanbanSquare size={12} />, color: "#8B5CF6", name: "Pipeline CRM", path: "/crm", desc: "8-stage Kanban board tracking every target from Lead Gen to Closed." },
-                { icon: <Bot size={12} />,      color: "#EC4899", name: "Persona Loop", path: "/improvements", desc: "6 AI agents that continuously scan entities and log concrete enrichment actions." },
+                { icon: <Bot size={12} />,      color: "#EC4899", name: "Persona Loop", path: "/improvements", desc: "8 AI agents that continuously scan entities and log concrete enrichment actions." },
                 { icon: <Layers size={12} />,   color: "#14B8A6", name: "Data Sources", path: "/data-sources", desc: "Registry ingestion panel — run enrichers, track coverage, trigger background jobs." },
                 { icon: <Copy size={12} />,     color: "#A855F7", name: "Duplicates", path: "/duplicates", desc: "Cross-registry deduplication — detects entities appearing in multiple registries under different names via semantic cosine similarity." },
                 { icon: <Telescope size={12} />,color: "#0EA5E9", name: "OSINT Tools Directory", path: "/osint-tools", desc: "4,400+ open-source intelligence tools curated from the OSINT Tool Database — searchable by keyword and filterable by 21 categories. 24-hour Redis cache." },
@@ -397,9 +397,9 @@ export default function FieldManual() {
 
             <p className="text-sm text-[#94A3B8] leading-relaxed mb-5">
               Deep Search lets you query the entire 32,500+ entity database in plain English. You don't need to know
-              the exact name — just describe what you're looking for. The engine runs four parallel signals and fuses
-              the results via Reciprocal Rank Fusion. With Phase G active, a semantic embedding signal (purple bar) is
-              added as a 5th signal — enabling conceptual queries like "aviation billionaire Texas" even without those exact words in any record.
+              the exact name — just describe what you're looking for. The engine fuses four parallel signals — BM25,
+              TF-IDF, Bayesian graph, and Phase G semantic embeddings — via Reciprocal Rank Fusion. The semantic signal
+              (purple bar) enables conceptual queries like "aviation billionaire Texas" even without those exact words in any record.
             </p>
 
             <AnnotatedScreenshot
@@ -408,14 +408,14 @@ export default function FieldManual() {
               caption="Deep Search — annotated"
               pins={[
                 { n: 1, x: 55,  y: 18, color: "#06B6D4", label: "Query input — type any natural language query, e.g. 'US private jet owners in Texas'" },
-                { n: 2, x: 95,  y: 18, color: "#10B981", label: "SEARCH button — executes the 5-layer hybrid search" },
+                { n: 2, x: 95,  y: 18, color: "#10B981", label: "SEARCH button — executes the 4-signal hybrid search (BM25 · TF-IDF · Bayesian graph · Semantic)" },
                 { n: 3, x: 26,  y: 24, color: "#F59E0B", label: "FILTERS — open advanced filters: has contact, score threshold, entity type, source registry" },
                 { n: 4, x: 26,  y: 29, color: "#3B82F6", label: "Preset query chips — one-click example searches to get started" },
                 { n: 5, x: 60,  y: 12, color: "#A855F7", label: "Pipeline indicator — shows which algorithms are active: BM25 · TF-IDF · Graph/Bayesian · RRF" },
               ]}
             />
 
-            <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-widest mt-6 mb-4">How the 5-layer search works</h3>
+            <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-widest mt-6 mb-4">How the 4-signal search works</h3>
             <div className="space-y-3 mb-6">
               {[
                 { layer: "L1", name: "BM25 Keyword Retrieval",       color: "#10B981", desc: "Classic full-text search over entity names, notes, and tags. Fast and precise for exact-match queries." },
@@ -648,7 +648,7 @@ export default function FieldManual() {
           <Section id="section-7" level="VII" levelColor="#EC4899" levelLabel="LEVEL VII — PERSONA LOOP" title="AI Improvement Engine">
 
             <p className="text-sm text-[#94A3B8] leading-relaxed mb-5">
-              The Persona Loop runs 6 specialist AI agents in sequence over every entity in your database
+              The Persona Loop runs 8 specialist AI agents in sequence over every entity in your database
               and logs concrete, actionable enrichment opportunities. Think of it as a 24/7 analyst that
               reviews your entire roster and tells you what to do next.
             </p>
@@ -658,21 +658,23 @@ export default function FieldManual() {
               alt="Persona Loop"
               caption="Persona Loop — annotated"
               pins={[
-                { n: 1, x: 27,  y: 10, color: "#EC4899", label: "PERSONA LOOP header — '6 specialist AI agents analyse every entity'" },
+                { n: 1, x: 27,  y: 10, color: "#EC4899", label: "PERSONA LOOP header — '8 specialist AI agents analyse every entity'" },
                 { n: 2, x: 93,  y: 10, color: "#10B981", label: "Run Loop button — starts the improvement cycle across all entities in the DB" },
                 { n: 3, x: 60,  y: 36, color: "#64748B", label: "Empty state — shows 'No improvement logs yet' until the first loop is run" },
                 { n: 4, x: 60,  y: 44, color: "#EC4899", label: "Run First Loop — primary CTA when no logs exist" },
               ]}
             />
 
-            <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-widest mt-6 mb-4">The 6 personas</h3>
+            <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-widest mt-6 mb-4">The 8 personas</h3>
             <FeatureGrid items={[
-              { icon: <Users size={13} />,     color: "#10B981", label: "HNWI Analyst",       desc: "Scans high-signal individuals for missing asset data, stale registry hits, and unverified contact fields." },
-              { icon: <Shield size={13} />,    color: "#3B82F6", label: "Gatekeeper Scout",   desc: "Identifies new potential gatekeepers in the relationship graph and scores their accessibility." },
-              { icon: <Building2 size={13} />, color: "#A855F7", label: "Corp Intelligence",  desc: "Audits corporate entities for directors that haven't been ingested yet, and flags name-series clusters." },
-              { icon: <Briefcase size={13} />, color: "#F59E0B", label: "Trust Analyst",      desc: "Reviews offshore vehicle chains for beneficial ownership gaps and cross-entity address matches." },
-              { icon: <Anchor size={13} />,    color: "#06B6D4", label: "Asset Tracker",      desc: "Checks aviation, maritime, and real estate asset records for valuation gaps and geo-coordinates." },
-              { icon: <Target size={13} />,    color: "#EF4444", label: "Outreach Critic",    desc: "Reviews entities in the CRM pipeline and flags stale follow-ups, missing pitches, or low-confidence paths." },
+              { icon: <Database size={13} />,  color: "#3B82F6", label: "Data Engineer",              desc: "Audits ingestion pipelines — missing geo-coordinates, zero-asset entities, and stale dedup sets that need a refresh." },
+              { icon: <TrendingUp size={13} />,color: "#10B981", label: "Data Analyst",               desc: "Reviews signal quality across the entity roster, flags score anomalies, and surfaces entities that need enrichment." },
+              { icon: <Network size={13} />,   color: "#A855F7", label: "Intel Systems Analyst",      desc: "Checks relationship graph completeness — missing edges, low-coverage registries, and co-director gaps." },
+              { icon: <Briefcase size={13} />, color: "#F59E0B", label: "Business Engineer",          desc: "Analyses corporate structure depth — beneficial ownership chains, SEC filings, and holding vehicle hierarchies." },
+              { icon: <Palette size={13} />,   color: "#EC4899", label: "UX Designer",               desc: "Flags entities with poor presentation data — missing names, broken residence strings, or malformed registry tags." },
+              { icon: <Layers size={13} />,    color: "#06B6D4", label: "Architect",                  desc: "Reviews system-level health — embedding coverage, MCTS session counts, and semantic dedup run frequency." },
+              { icon: <Shield size={13} />,    color: "#EF4444", label: "Data Integrity Auditor",     desc: "Catches data quality violations — duplicate records, conflicting registry data, and type misclassifications." },
+              { icon: <GitBranch size={13} />, color: "#F97316", label: "Hybrid Architecture Auditor",desc: "Validates the full hybrid pipeline end-to-end — search signal coverage, RRF weight balance, and cache freshness." },
             ]} />
 
             <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-widest mt-6 mb-4">Reading the improvement log</h3>
@@ -718,7 +720,7 @@ export default function FieldManual() {
                 { n: 4, x: 60,  y: 25, color: "#EF4444", label: "114+ contactable — entities with verified email or phone (run IN-HOUSE ENRICH or DEEP WEB OSINT to increase)" },
                 { n: 5, x: 85,  y: 25, color: "#F59E0B", label: "0.3%+ coverage — percentage of entities with verified contact data; grows with each enrichment pass" },
                 { n: 6, x: 94,  y: 41, color: "#A855F7", label: "Quick-action buttons — AUTO-DETECT, NAME CLUSTERS, CH OFFICERS, etc. Each fires a background job" },
-                { n: 7, x: 45,  y: 96, color: "#10B981", label: "Phase 9 — In-House OSINT Enricher: Wikidata + Gravatar + GitHub + pattern generation (no paid API required)" },
+                { n: 7, x: 45,  y: 96, color: "#10B981", label: "Phase F — In-House OSINT Enricher: Wikidata + Gravatar + GitHub + pattern generation (no paid API required)" },
               ]}
             />
 

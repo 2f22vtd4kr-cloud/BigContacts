@@ -375,69 +375,69 @@ function EnrichmentCoverageStats() {
         })}
       </div>
 
-      <div className="flex items-center justify-between pt-1">
-        <span className="text-[10px] font-mono text-muted-foreground/60">Auto-detect shared-address co-ownership links across all entities</span>
-        <AutoDetectButton />
+      <div className="flex items-center justify-between gap-3 pt-1">
+        <span className="text-[10px] font-mono text-muted-foreground/60 min-w-0 line-clamp-2">Auto-detect shared-address co-ownership links across all entities</span>
+        <div className="flex-shrink-0"><AutoDetectButton /></div>
       </div>
-      <div className="flex items-center justify-between border-t border-border/40 pt-2.5">
-        <span className="text-[10px] font-mono text-muted-foreground/60">Detect corporate name series (e.g. "Tannjets I / II LLC") — builds relationship graph</span>
-        <ClusterDetectButton />
+      <div className="flex items-center justify-between gap-3 border-t border-border/40 pt-2.5">
+        <span className="text-[10px] font-mono text-muted-foreground/60 min-w-0 line-clamp-2">Detect corporate name series (e.g. "Tannjets I / II LLC") — builds relationship graph</span>
+        <div className="flex-shrink-0"><ClusterDetectButton /></div>
       </div>
-      <div className="flex items-center justify-between border-t border-border/40 pt-2.5">
-        <span className="text-[10px] font-mono text-muted-foreground/60">Sync isHot flag for all entities with Bayesian score ≥ 0.70</span>
-        <SyncHotFlagsButton />
+      <div className="flex items-center justify-between gap-3 border-t border-border/40 pt-2.5">
+        <span className="text-[10px] font-mono text-muted-foreground/60 min-w-0 line-clamp-2">Sync isHot flag for all entities with Bayesian score ≥ 0.70</span>
+        <div className="flex-shrink-0"><SyncHotFlagsButton /></div>
       </div>
-      <div className="flex items-center justify-between border-t border-border/40 pt-2.5">
-        <span className="text-[10px] font-mono text-muted-foreground/60">Fetch CH company officers for all corporations and store in entity metadata (required for co-director edges)</span>
-        <ChOfficersButton />
+      <div className="flex items-center justify-between gap-3 border-t border-border/40 pt-2.5">
+        <span className="text-[10px] font-mono text-muted-foreground/60 min-w-0 line-clamp-2">Fetch CH company officers for all corporations and store in entity metadata (required for co-director edges)</span>
+        <div className="flex-shrink-0"><ChOfficersButton /></div>
       </div>
-      <div className="flex items-center justify-between border-t border-border/40 pt-2.5">
-        <span className="text-[10px] font-mono text-muted-foreground/60">Build SHARED_DIRECTOR edges between entities sharing a common CH director — links individual HNWIs across companies</span>
-        <ChCodirectorsButton />
+      <div className="flex items-center justify-between gap-3 border-t border-border/40 pt-2.5">
+        <span className="text-[10px] font-mono text-muted-foreground/60 min-w-0 line-clamp-2">Build SHARED_DIRECTOR edges between entities sharing a common CH director — links individual HNWIs across companies</span>
+        <div className="flex-shrink-0"><ChCodirectorsButton /></div>
       </div>
-      <div className="flex items-center justify-between border-t border-border/40 pt-2.5">
-        <span className="text-[10px] font-mono text-muted-foreground/60">Enrich entity notes from filing metadata — filing type, company, role, CH directors, location (improves profile briefings)</span>
-        <PopulateNotesButton />
+      <div className="flex items-center justify-between gap-3 border-t border-border/40 pt-2.5">
+        <span className="text-[10px] font-mono text-muted-foreground/60 min-w-0 line-clamp-2">Enrich entity notes from filing metadata — filing type, company, role, CH directors, location (improves profile briefings)</span>
+        <div className="flex-shrink-0"><PopulateNotesButton /></div>
       </div>
-      <div className="flex items-center justify-between border-t border-border/40 pt-2.5">
-        <span className="text-[10px] font-mono text-muted-foreground/60">Create StockHolding asset records for SEC EDGAR large-shareholder entities that have no assets yet</span>
-        <EdgarStockButton />
+      <div className="flex items-center justify-between gap-3 border-t border-border/40 pt-2.5">
+        <span className="text-[10px] font-mono text-muted-foreground/60 min-w-0 line-clamp-2">Create StockHolding asset records for SEC EDGAR large-shareholder entities that have no assets yet</span>
+        <div className="flex-shrink-0"><EdgarStockButton /></div>
       </div>
-      <div className="flex items-center justify-between border-t border-border/40 pt-2.5">
-        <span className="text-[10px] font-mono text-muted-foreground/60">Backfill estimatedNetWorth = 3× registered asset value for all entities where net worth is unset (closes data_analyst flag)</span>
-        <NetWorthBackfillButton />
+      <div className="flex items-center justify-between gap-3 border-t border-border/40 pt-2.5">
+        <span className="text-[10px] font-mono text-muted-foreground/60 min-w-0 line-clamp-2">Backfill estimatedNetWorth = 3× registered asset value for all entities where net worth is unset</span>
+        <div className="flex-shrink-0"><NetWorthBackfillButton /></div>
       </div>
-      <div className="flex items-center justify-between border-t border-border/40 pt-2.5">
-        <span className="text-[10px] font-mono text-muted-foreground/60">Web OSINT: DuckDuckGo + EDGAR + OpenCorporates → LinkedIn URL, email, phone for all 5 hybrid architecture layers</span>
-        <WebOsintButton />
+      <div className="flex items-center justify-between gap-3 border-t border-border/40 pt-2.5">
+        <span className="text-[10px] font-mono text-muted-foreground/60 min-w-0 line-clamp-2">Web OSINT: DuckDuckGo + EDGAR + OpenCorporates → LinkedIn URL, email, phone for all entities</span>
+        <div className="flex-shrink-0"><WebOsintButton /></div>
       </div>
-      <div className="flex items-center justify-between border-t border-border/40 pt-2.5">
-        <span className="text-[10px] font-mono text-muted-foreground/60">In-House OSINT: Wikidata · GitHub · Gravatar MD5 pattern verification · RDAP · ProPublica 990 → email, LinkedIn, phone (no paid API)</span>
-        <InHouseEnrichButton />
+      <div className="flex items-center justify-between gap-3 border-t border-border/40 pt-2.5">
+        <span className="text-[10px] font-mono text-muted-foreground/60 min-w-0 line-clamp-2">In-House OSINT: Wikidata · GitHub · Gravatar MD5 · RDAP · ProPublica 990 → email, LinkedIn, phone (no paid API)</span>
+        <div className="flex-shrink-0"><InHouseEnrichButton /></div>
       </div>
-      <div className="flex items-center justify-between border-t border-border/40 pt-2.5">
-        <span className="text-[10px] font-mono text-muted-foreground/60">Deep Web OSINT: DuckDuckGo HTML + Bing · 12 rotating browser fingerprints · 4–7 context-aware queries per entity · page scraping · cross-validation scoring</span>
-        <DeepWebOsintButton />
+      <div className="flex items-center justify-between gap-3 border-t border-border/40 pt-2.5">
+        <span className="text-[10px] font-mono text-muted-foreground/60 min-w-0 line-clamp-2">Deep Web OSINT: DuckDuckGo HTML + Bing · 12 rotating browser fingerprints · 4–7 context-aware queries per entity</span>
+        <div className="flex-shrink-0"><DeepWebOsintButton /></div>
       </div>
-      <div className="flex items-center justify-between border-t border-border/40 pt-2.5">
-        <span className="text-[10px] font-mono text-muted-foreground/60">EDGAR co-filers: scan SC 13D/G group filings — pairs of entities that filed together are KNOWN_ASSOCIATEs (human network data)</span>
-        <EdgarAssociatesButton />
+      <div className="flex items-center justify-between gap-3 border-t border-border/40 pt-2.5">
+        <span className="text-[10px] font-mono text-muted-foreground/60 min-w-0 line-clamp-2">EDGAR co-filers: scan SC 13D/G group filings — pairs that filed together are KNOWN_ASSOCIATEs</span>
+        <div className="flex-shrink-0"><EdgarAssociatesButton /></div>
       </div>
-      <div className="flex items-center justify-between border-t border-border/40 pt-2.5">
-        <span className="text-[10px] font-mono text-muted-foreground/60">Wikidata associates: spouse · partner · sibling · parent relationships for enriched public figures → KNOWN_ASSOCIATE / FAMILY_OF edges</span>
-        <WikidataAssociatesButton />
+      <div className="flex items-center justify-between gap-3 border-t border-border/40 pt-2.5">
+        <span className="text-[10px] font-mono text-muted-foreground/60 min-w-0 line-clamp-2">Wikidata associates: spouse · partner · sibling · parent relationships → KNOWN_ASSOCIATE / FAMILY_OF edges</span>
+        <div className="flex-shrink-0"><WikidataAssociatesButton /></div>
       </div>
-      <div className="flex items-center justify-between border-t border-border/40 pt-2.5">
-        <span className="text-[10px] font-mono text-muted-foreground/60">Run full 5-layer hybrid research pipeline (L1 BM25+TF-IDF · L2 multi-agent · L3 query expansion · L4 UCT path-finding · L5 Bayesian-UCB) on top hot leads without sessions</span>
-        <BulkMctsButton />
+      <div className="flex items-center justify-between gap-3 border-t border-border/40 pt-2.5">
+        <span className="text-[10px] font-mono text-muted-foreground/60 min-w-0 line-clamp-2">Run full hybrid research pipeline (L1 BM25+TF-IDF · L2 multi-agent · L3 query expansion · L4 UCT · L5 Bayesian-UCB) on top hot leads</span>
+        <div className="flex-shrink-0"><BulkMctsButton /></div>
       </div>
-      <div className="flex items-center justify-between border-t border-border/40 pt-2.5">
-        <span className="text-[10px] font-mono text-muted-foreground/60">G1 Semantic embeddings: compute all-MiniLM-L6-v2 (384-dim ONNX) embeddings for all entities — powers semantic search signal 4 and cross-registry entity resolution</span>
-        <ComputeEmbeddingsButton />
+      <div className="flex items-center justify-between gap-3 border-t border-border/40 pt-2.5">
+        <span className="text-[10px] font-mono text-muted-foreground/60 min-w-0 line-clamp-2">G1 Semantic embeddings: all-MiniLM-L6-v2 (384-dim ONNX) — powers 4-signal hybrid search and cross-registry deduplication</span>
+        <div className="flex-shrink-0"><ComputeEmbeddingsButton /></div>
       </div>
-      <div className="flex items-center justify-between border-t border-border/40 pt-2.5">
-        <span className="text-[10px] font-mono text-muted-foreground/60">G2b Semantic entity resolution: compare embeddings across registries (FAA × EDGAR × HMLR) — creates LIKELY_SAME_PERSON edges for cosine sim &gt; 0.93 cross-registry pairs</span>
-        <SemanticDedupButton />
+      <div className="flex items-center justify-between gap-3 border-t border-border/40 pt-2.5">
+        <span className="text-[10px] font-mono text-muted-foreground/60 min-w-0 line-clamp-2">G2b Semantic entity resolution: compare embeddings across registries — creates LIKELY_SAME_PERSON edges for cosine sim &gt; 0.93</span>
+        <div className="flex-shrink-0"><SemanticDedupButton /></div>
       </div>
     </div>
   );

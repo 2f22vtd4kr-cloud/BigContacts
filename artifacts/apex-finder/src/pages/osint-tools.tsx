@@ -237,11 +237,14 @@ export default function OsintToolsDirectory() {
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-between border-t border-border pt-4">
-                <span className="text-xs font-mono text-muted-foreground">
+              <div className="flex items-center justify-between border-t border-border pt-4 gap-2">
+                <span className="text-xs font-mono text-muted-foreground hidden sm:block shrink-0">
                   Page {page} of {totalPages} · {totalTools.toLocaleString()} tools
                 </span>
-                <div className="flex gap-2">
+                <span className="text-xs font-mono text-muted-foreground sm:hidden shrink-0">
+                  {page}/{totalPages}
+                </span>
+                <div className="flex gap-1.5 flex-wrap justify-end">
                   <button
                     onClick={() => setPage(p => Math.max(1, p - 1))}
                     disabled={page === 1}
@@ -249,9 +252,9 @@ export default function OsintToolsDirectory() {
                   >
                     ← Prev
                   </button>
-                  {/* Page numbers */}
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    const start = Math.max(1, Math.min(page - 2, totalPages - 4));
+                  {/* Page numbers — 3 visible (fits any screen) */}
+                  {Array.from({ length: Math.min(3, totalPages) }, (_, i) => {
+                    const start = Math.max(1, Math.min(page - 1, totalPages - 2));
                     const p = start + i;
                     return (
                       <button
