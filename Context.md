@@ -16,7 +16,7 @@
 - **SESSION_SECRET** — ✅ Set
 - **Upstash Redis (`REDIS_URL_1`)** — ✅ Set
 - **Upstash Redis (`REDIS_URL_2`)** — ✅ Set
-- **COMPANIES_HOUSE_API_KEY** — ⚠️ Not confirmed set this import (COMPANIES_HOUSE_API_KEY not detected in env)
+- **COMPANIES_HOUSE_API_KEY** — ✅ Set
 
 ### Workflows running
 | Workflow | Status |
