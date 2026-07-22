@@ -1721,4 +1721,109 @@ router.delete("/ingest/deep-web-osint-lock", async (_req: Request, res: Response
   res.json({ cleared: true, jobId, message: "Deep-web-OSINT lock cleared." });
 });
 
+// ── POST /ingest/compute-embeddings — Phase G1 semantic embedding background job ─
+// Embeds all entities using all-MiniLM-L6-v2 (local ONNX, no API key needed).
+// Stores Float32Array embeddings in Redis (emb:v1:{id}) + in-memory cache.
+// Progressively activates the 4th RRF signal in hybrid search.
+router.post("/ingest/compute-embeddings", async (req: Request, res: Response): Promise<void> => {
+  const { batchSize: _batchSize = 500, force = false } = req.body ?? {};
+  const batchSize = Math.min(Math.max(Number(_batchSize) || 500, 1), 2000);
+
+  const existing = await getActiveJob("compute-embeddings");
+  if (existing && !force) {
+    res.status(409).json({ error: "compute-embeddings already running", jobId: existing });
+    return;
+  }
+  if (existing && force) {
+    await updateJob(existing, { status: "failed", message: "Superseded by force restart.", finishedAt: new Date().toISOString() } as any);
+    await setActiveJob("compute-embeddings", "");
+  }
+
+  const jobId = await createJob("compute-embeddings");
+  await setActiveJob("compute-embeddings", jobId);
+  await updateJob(jobId, { status: "running", message: "Loading semantic embedding model (all-MiniLM-L6-v2)…" });
+  res.json({ jobId, message: "Semantic embedding computation started." });
+
+  (async () => {
+    // Lazy-import semantic engine (loads ONNX model on first use)
+    const {
+      embedText, entityToEmbedText, storeEmbedding, getEmbeddingCacheSize,
+    } = await import("../lib/semantic-engine");
+
+    const rows = await db.select({
+      id: entitiesTable.id,
+      name: entitiesTable.name,
+      notes: entitiesTable.notes,
+      nationality: entitiesTable.nationality,
+      knownResidences: entitiesTable.knownResidences,
+      metadata: entitiesTable.metadata,
+    }).from(entitiesTable).limit(batchSize);
+
+    const total = rows.length;
+    await updateJob(jobId, { status: "running", total, progress: 0, message: `Embedding ${total} entities…` });
+
+    let processed = 0;
+    let skipped = 0;
+    const CHUNK = 10; // parallel embed chunk (each ~15 ms → 10 × 15 ms ≈ 150 ms/chunk)
+    for (let i = 0; i < rows.length; i += CHUNK) {
+      const chunk = rows.slice(i, i + CHUNK);
+      await Promise.all(chunk.map(async (e) => {
+        try {
+          const text = entityToEmbedText(e);
+          const emb = await embedText(text);
+          await storeEmbedding(e.id, emb);
+          processed++;
+        } catch {
+          skipped++;
+        }
+      }));
+      if (i % 200 === 0) {
+        await updateJob(jobId, {
+          progress: processed + skipped,
+          total,
+          inserted: processed,
+          skipped,
+          message: `Embedded ${processed}/${total} (cache: ${getEmbeddingCacheSize()})`,
+        });
+      }
+    }
+
+    await updateJob(jobId, {
+      status: "done", progress: total, total,
+      inserted: processed, skipped,
+      message: `Done — ${processed} embeddings computed and cached. Semantic search now active.`,
+      finishedAt: new Date().toISOString(),
+    } as any);
+    await setActiveJob("compute-embeddings", "");
+    logger.info({ processed, skipped, total }, "Semantic embedding computation complete");
+  })().catch(async (err: any) => {
+    logger.error({ err: err?.message }, "Semantic embedding computation crashed");
+    await updateJob(jobId, { status: "failed", message: err?.message ?? "Crashed", finishedAt: new Date().toISOString() } as any);
+    await setActiveJob("compute-embeddings", "");
+  });
+});
+
+// ── DELETE /ingest/compute-embeddings-lock — clear ghost lock ────────────────
+router.delete("/ingest/compute-embeddings-lock", async (_req: Request, res: Response): Promise<void> => {
+  const jobId = await getActiveJob("compute-embeddings");
+  if (!jobId) { res.json({ cleared: false, message: "No active compute-embeddings lock." }); return; }
+  await updateJob(jobId, { status: "failed", message: "Killed (manual clear).", finishedAt: new Date().toISOString() } as any);
+  await setActiveJob("compute-embeddings", "");
+  res.json({ cleared: true, jobId, message: "compute-embeddings lock cleared." });
+});
+
+// ── GET /ingest/semantic-engine-status — Phase G1 embedding cache status ─────
+router.get("/ingest/semantic-engine-status", async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const { getEmbeddingCacheSize, isModelLoaded } = await import("../lib/semantic-engine");
+    res.json({
+      cacheSize: getEmbeddingCacheSize(),
+      modelLoaded: isModelLoaded(),
+      semanticActive: getEmbeddingCacheSize() >= 100,
+    });
+  } catch {
+    res.json({ cacheSize: 0, modelLoaded: false, semanticActive: false });
+  }
+});
+
 export default router;

@@ -4,7 +4,7 @@ import {
   Search, Scale, Network, Activity, CheckCircle2, XCircle,
   Clock, AlertTriangle, Play, RefreshCw, ChevronDown, ChevronUp,
   ExternalLink, Zap, Database, UserCheck, BarChart3, Users, FileText, DollarSign,
-  Mail, Rocket, GitMerge, AlertCircle,
+  Mail, Rocket, GitMerge, AlertCircle, Brain, BookOpen, Filter,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 

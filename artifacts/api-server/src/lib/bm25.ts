@@ -51,6 +51,11 @@ async function buildIndex(): Promise<BM25Index> {
       knownResidences: entitiesTable.knownResidences,
       sourceRegistries: entitiesTable.sourceRegistries,
       metadata: entitiesTable.metadata,
+      // G2: contact fields — let users search "john smith email" or "tel texas"
+      contactEmail: entitiesTable.contactEmail,
+      contactPhone: entitiesTable.contactPhone,
+      linkedinUrl: entitiesTable.linkedinUrl,
+      estimatedNetWorth: entitiesTable.estimatedNetWorth,
     })
     .from(entitiesTable);
 
@@ -58,7 +63,16 @@ async function buildIndex(): Promise<BM25Index> {
     let meta: any = {};
     try { meta = JSON.parse(e.metadata ?? "{}"); } catch { /* */ }
 
+    // Net worth tier token so searches like "ultra hnw" or "100m" surface right entities
+    let nwToken = "";
+    if (e.estimatedNetWorth) {
+      if (e.estimatedNetWorth >= 100_000_000) nwToken = "ultrahnw";
+      else if (e.estimatedNetWorth >= 30_000_000) nwToken = "veryhnw";
+      else if (e.estimatedNetWorth >= 4_000_000) nwToken = "hnw";
+    }
+
     // Name weighted 3× — strongest identity signal
+    // G2: also index contact fields so "john email" / "tech founder linkedin" queries work
     const text = [
       e.name, e.name, e.name,
       e.notes ?? "",
@@ -68,6 +82,13 @@ async function buildIndex(): Promise<BM25Index> {
       meta.engineLabel ?? "",
       meta.state ?? "",
       meta.nNumber ?? "",
+      meta.formType ?? "",
+      meta.bizLocation ?? "",
+      // Contact vector tokens
+      e.contactEmail ? e.contactEmail.split("@")[0] ?? "" : "",
+      e.contactPhone ? "phone mobile tel" : "",
+      e.linkedinUrl  ? "linkedin profile" : "",
+      nwToken,
     ].join(" ");
 
     return { id: e.id, tokens: tokenize(text) };

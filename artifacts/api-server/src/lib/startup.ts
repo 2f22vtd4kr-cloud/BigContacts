@@ -20,8 +20,9 @@ import { runLandRegistryIngestion } from "./land-registry-ingestor";
 import { runWesternHnwiIngestion, classifyEntityType } from "./western-hnwi-ingestion";
 import { logger } from "./logger";
 import { contactCacheScanAll, contactCacheCount, contactCacheSet, type CachedContact } from "./redis";
+import { warmUpSemanticEngine } from "./semantic-engine";
 
-const INGESTOR_TYPES = ["faa", "land-registry", "western-hnwi", "companies-house-enrich", "occrp", "opensky", "improve", "web-osint", "bulk-mcts", "in-house-enrich", "deep-web-osint"] as const;
+const INGESTOR_TYPES = ["faa", "land-registry", "western-hnwi", "companies-house-enrich", "occrp", "opensky", "improve", "web-osint", "bulk-mcts", "in-house-enrich", "deep-web-osint", "compute-embeddings"] as const;
 
 /** Mark any "running" job whose process is dead as failed, clear its lock. */
 async function clearGhostJobs(): Promise<void> {
@@ -622,12 +623,24 @@ async function runPopulatedDbMaintenance(): Promise<void> {
 
   // 45 min: deep web OSINT pass 2 — wider net (all HNWI/Gatekeeper, not just hot)
   setTimeout(() => trigger("auto deep web OSINT (pass 2 — all HNWI)", "/api/ingest/deep-web-osint", { batchSize: 1_000, hotOnly: false }), 2_700_000);
+
+  // G1: 4 min — semantic embedding computation (all-MiniLM-L6-v2, local ONNX)
+  // Fires after notes are populated (110s) so embeddings capture rich entity text.
+  // batchSize 2000 = first batch; subsequent boots pick up incrementally.
+  setTimeout(() => trigger("auto semantic embeddings (G1 — pass 1)", "/api/ingest/compute-embeddings", { batchSize: 2_000 }), 240_000);
+
+  // G1: 32 min — semantic embedding pass 2 (catches entities added/updated since pass 1)
+  setTimeout(() => trigger("auto semantic embeddings (G1 — pass 2)", "/api/ingest/compute-embeddings", { batchSize: 5_000, force: true }), 1_920_000);
 }
 
 /** Main cold-start entry point — call once after Upstash connects. */
 export async function coldStartRecovery(): Promise<void> {
   logger.info("Cold-start recovery: checking for ghost jobs…");
   await clearGhostJobs();
+
+  // G1: Pre-warm the semantic embedding model and load Redis embedding cache in background.
+  // Non-blocking — starts model download (~23 MB on first boot) and cache hydration.
+  warmUpSemanticEngine();
 
   // Check entity count
   let entityCount = 0;

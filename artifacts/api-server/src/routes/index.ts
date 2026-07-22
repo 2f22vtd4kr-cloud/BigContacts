@@ -9,6 +9,7 @@ import graphRouter from "./graph";
 import ingestRouter from "./ingest";
 import searchRouter from "./search";
 import improveRouter from "./improve";
+import osintToolsRouter from "./osint-tools";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use(graphRouter);
 router.use(ingestRouter);
 router.use(searchRouter);
 router.use(improveRouter);
+router.use(osintToolsRouter);
 
 export default router;

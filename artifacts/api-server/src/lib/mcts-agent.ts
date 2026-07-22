@@ -70,8 +70,11 @@ function uctScore(node: MctsNode, parentVisits: number): number {
 /**
  * Evaluate the "warmth" of a vertex as an outreach point.
  * Higher warmth = easier to approach = better path step.
+ *
+ * G3: degree centrality bonus — well-connected entities have more paths to
+ *     the target and are therefore higher-value intermediaries.
  */
-function evaluateWarmth(vertex: GraphVertex, depth: number): number {
+function evaluateWarmth(vertex: GraphVertex, depth: number, degree = 0): number {
   let warmth = 0.3; // base warmth
 
   // Gatekeepers are more approachable than HNWIs
@@ -94,6 +97,10 @@ function evaluateWarmth(vertex: GraphVertex, depth: number): number {
   // +0.15 UCB bonus for reachable nodes — direct contact details make the path actionable
   if (vertex.contactConfidence != null && vertex.contactConfidence >= 50) warmth += 0.15;
   else if (vertex.contactEmail || vertex.contactPhone) warmth += 0.1;
+
+  // G3: degree centrality — each additional connection adds a small bonus (capped at +0.12)
+  // High-degree nodes are hub entities: more paths through them → more outreach options
+  if (degree > 0) warmth += Math.min(0.12, degree * 0.008);
 
   return Math.max(0.05, Math.min(0.99, warmth + (Math.random() - 0.5) * 0.1));
 }
@@ -286,9 +293,10 @@ export function runMcts(
       node = newChild;
     }
 
-    // Simulation: evaluate warmth of this node
+    // Simulation: evaluate warmth of this node (G3: pass degree for centrality bonus)
     const vertex = graph.vertices.get(node.vertexId);
-    const reward = vertex ? evaluateWarmth(vertex, node.depth) : 0.1;
+    const degree = graph.adjacency.get(node.vertexId)?.length ?? 0;
+    const reward = vertex ? evaluateWarmth(vertex, node.depth, degree) : 0.1;
 
     // Backpropagation
     let backNode: MctsNode | null = node;
@@ -308,7 +316,8 @@ export function runMcts(
     const vertex = graph.vertices.get(vId);
     if (!vertex) continue;
 
-    const warmth = evaluateWarmth(vertex, i);
+    const vDegree = graph.adjacency.get(vId)?.length ?? 0;
+    const warmth = evaluateWarmth(vertex, i, vDegree);
     const uctVal = i === 0 ? 1.0 : Math.min(0.99, warmth + Math.random() * 0.15);
 
     steps.push({

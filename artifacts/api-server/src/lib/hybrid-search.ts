@@ -1,10 +1,14 @@
 /**
- * Hybrid Search Engine — Phase 5
+ * Hybrid Search Engine — Phase 5 + G1
  *
- * Combines three independent relevance signals via Reciprocal Rank Fusion (RRF):
+ * Combines four independent relevance signals via Reciprocal Rank Fusion (RRF):
  *   1. BM25 keyword search
- *   2. TF-IDF cosine similarity (semantic-like, bigram-aware)
+ *   2. TF-IDF cosine similarity (bigram-aware, bag-of-words)
  *   3. Graph/Bayesian signal (existing score + asset count + hot flag)
+ *   4. TRUE Semantic embeddings (all-MiniLM-L6-v2 via @huggingface/transformers)
+ *
+ * Signal 4 is progressive — activates when ≥100 entity embeddings are cached.
+ * Embeddings are computed by POST /api/ingest/compute-embeddings and cached in Redis.
  *
  * RRF formula: score(d) = Σ 1/(k + rank(d, signal))    k=60 (standard)
  *
@@ -15,6 +19,7 @@ import { db, entitiesTable, assetsTable } from "@workspace/db";
 import { inArray } from "drizzle-orm";
 import { bm25Search } from "./bm25";
 import { semanticSearch } from "./tfidf-embedder";
+import { semanticEngineSearch, getEmbeddingCacheSize } from "./semantic-engine";
 
 const RRF_K = 60;
 
@@ -35,10 +40,11 @@ export interface HybridResult {
   sourceRegistries: string[];
   metadata: Record<string, unknown>;
   scores: {
-    bm25: number;   // normalised 0–1
-    semantic: number; // cosine similarity 0–1
-    graph: number;  // normalised 0–1
-    rrf: number;    // final RRF score
+    bm25: number;       // normalised 0–1
+    semantic: number;   // TF-IDF cosine similarity 0–1
+    graph: number;      // normalised 0–1
+    embedding: number;  // true semantic similarity 0–1 (all-MiniLM-L6-v2)
+    rrf: number;        // final RRF score
   };
   rank: number;
 }
@@ -46,7 +52,9 @@ export interface HybridResult {
 export interface HybridSearchMeta {
   bm25Hits: number;
   semanticHits: number;
+  embeddingHits: number;
   graphHits: number;
+  embeddingCacheSize: number;
   totalCandidates: number;
   durationMs: number;
 }
@@ -66,16 +74,18 @@ export async function hybridSearch(
 ): Promise<{ results: HybridResult[]; meta: HybridSearchMeta }> {
   const t0 = Date.now();
 
-  // ── Signal 1 + 2 in parallel ──────────────────────────────────────────────
-  const [bm25Results, semanticResults] = await Promise.all([
+  // ── Signals 1, 2, 4 in parallel ──────────────────────────────────────────
+  const [bm25Results, semanticResults, embeddingResults] = await Promise.all([
     bm25Search(query, 100),
     semanticSearch(query, 100),
+    semanticEngineSearch(query, 100), // signal 4: true sentence embeddings
   ]);
 
   // Collect all candidate IDs
   const allIds = new Set<number>();
   for (const r of bm25Results) allIds.add(r.id);
   for (const r of semanticResults) allIds.add(r.id);
+  for (const r of embeddingResults) allIds.add(r.id);
 
   let candidateIds = [...allIds];
   if (filterIds && filterIds.length > 0) {
@@ -129,13 +139,17 @@ export async function hybridSearch(
     .sort((a, b) => b.score - a.score);
 
   // ── Build rank maps ───────────────────────────────────────────────────────
-  const bm25RankMap = new Map(bm25Results.map((r, i) => [r.id, i]));
-  const semRankMap  = new Map(semanticResults.map((r, i) => [r.id, i]));
-  const graphRankMap = new Map(graphSignal.map((r, i) => [r.id, i]));
+  const bm25RankMap    = new Map(bm25Results.map((r, i) => [r.id, i]));
+  const semRankMap     = new Map(semanticResults.map((r, i) => [r.id, i]));
+  const graphRankMap   = new Map(graphSignal.map((r, i) => [r.id, i]));
+  const embRankMap     = new Map(embeddingResults.map((r, i) => [r.id, i]));
 
-  const bm25ScoreMap  = new Map(bm25Results.map((r) => [r.id, r.score]));
-  const semScoreMap   = new Map(semanticResults.map((r) => [r.id, r.score]));
-  const graphScoreMap = new Map(graphSignal.map((r) => [r.id, r.score]));
+  const bm25ScoreMap   = new Map(bm25Results.map((r) => [r.id, r.score]));
+  const semScoreMap    = new Map(semanticResults.map((r) => [r.id, r.score]));
+  const graphScoreMap  = new Map(graphSignal.map((r) => [r.id, r.score]));
+  const embScoreMap    = new Map(embeddingResults.map((r) => [r.id, r.score]));
+
+  const hasEmbeddings = embeddingResults.length > 0;
 
   // ── RRF fusion ────────────────────────────────────────────────────────────
   const entityMap = new Map(entities.map((e) => [e.id, e]));
@@ -145,13 +159,16 @@ export async function hybridSearch(
   const fused = candidateIds
     .map((id) => ({
       id,
-      bm25: bm25ScoreMap.get(id) ?? 0,
-      semantic: semScoreMap.get(id) ?? 0,
-      graph: graphScoreMap.get(id) ?? 0,
+      bm25:      bm25ScoreMap.get(id) ?? 0,
+      semantic:  semScoreMap.get(id) ?? 0,
+      graph:     graphScoreMap.get(id) ?? 0,
+      embedding: embScoreMap.get(id) ?? 0,
       rrf:
         rrfScore(bm25RankMap.get(id) ?? 9999) +
-        rrfScore(semRankMap.get(id) ?? 9999) +
-        rrfScore(graphRankMap.get(id) ?? 9999),
+        rrfScore(semRankMap.get(id)  ?? 9999) +
+        rrfScore(graphRankMap.get(id) ?? 9999) +
+        // Signal 4 only contributes when embedding cache is populated
+        (hasEmbeddings ? rrfScore(embRankMap.get(id) ?? 9999) : 0),
     }))
     .sort((a, b) => b.rrf - a.rrf)
     .slice(0, topK);
@@ -180,10 +197,11 @@ export async function hybridSearch(
         sourceRegistries: srcs,
         metadata: meta,
         scores: {
-          bm25: r.bm25 / maxBm25,
-          semantic: r.semantic,
-          graph: r.graph / maxGraph,
-          rrf: r.rrf,
+          bm25:      r.bm25 / maxBm25,
+          semantic:  r.semantic,
+          graph:     r.graph / maxGraph,
+          embedding: r.embedding,
+          rrf:       r.rrf,
         },
         rank: i + 1,
       };
@@ -193,11 +211,13 @@ export async function hybridSearch(
   return {
     results,
     meta: {
-      bm25Hits: bm25Results.length,
-      semanticHits: semanticResults.length,
-      graphHits: graphSignal.length,
-      totalCandidates: candidateIds.length,
-      durationMs: Date.now() - t0,
+      bm25Hits:          bm25Results.length,
+      semanticHits:      semanticResults.length,
+      embeddingHits:     embeddingResults.length,
+      graphHits:         graphSignal.length,
+      embeddingCacheSize: getEmbeddingCacheSize(),
+      totalCandidates:   candidateIds.length,
+      durationMs:        Date.now() - t0,
     },
   };
 }
