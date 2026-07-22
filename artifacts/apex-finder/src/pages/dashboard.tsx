@@ -359,7 +359,7 @@ function StatsBar() {
           </span>
           <span className="text-2xl font-bold text-foreground tabular-nums">{s.totalEntities?.toLocaleString()}</span>
         </div>
-        <div className="flex flex-col px-5 py-4 bg-card/90 ring-2 ring-inset ring-amber-500/20">
+        <div className="flex flex-col px-5 py-4 bg-card/90">
           <span className="text-[10px] font-mono text-amber-500 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
             <AlertTriangle className="w-3 h-3 shrink-0" /> Hot Leads
           </span>
@@ -641,9 +641,9 @@ export default function Dashboard() {
                   <span>Assets: <span className="text-foreground">{lead.assetCount}</span></span>
                 </div>
 
-                <div className="bg-background rounded p-2 text-xs font-mono border border-border truncate">
+                <div className="bg-background rounded p-2 text-xs font-mono border border-border">
                   <span className="text-primary mr-2">SIGNAL:</span>
-                  <span className="text-foreground/80">{lead.signal}</span>
+                  <span className="text-foreground/80 line-clamp-2">{lead.signal}</span>
                 </div>
 
                 <div className="mt-2.5 flex items-center justify-between">
@@ -726,9 +726,9 @@ export default function Dashboard() {
                     <ScoreBadge score={lead.bayesianScore} />
                   </div>
                 </div>
-                <div className="bg-background rounded p-2 text-xs font-mono border border-border truncate mt-3">
+                <div className="bg-background rounded p-2 text-xs font-mono border border-border mt-3">
                   <span className="text-primary mr-2">SIGNAL:</span>
-                  <span className="text-foreground/80">{lead.signal}</span>
+                  <span className="text-foreground/80 line-clamp-2">{lead.signal}</span>
                 </div>
               </div>
             ))}

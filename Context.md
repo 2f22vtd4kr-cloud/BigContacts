@@ -37,6 +37,30 @@
 - **Wealth Tiers**: Ultra >$100M: 7,392 · Very $30-100M: 4,616 · HNW $4-30M: 24,568 · Unknown: 200
 - **Research Sessions**: 0 (MCTS bulk-run fires at 90s after each boot)
 
+### What was done this session (re-import #42 — UI/UX Polish Pass 1 — 2026-07-22)
+
+**Direct source-file polish across 14 files — no canvas, no sandbox. All changes committed to git.**
+
+Changes made:
+- `layout.tsx`: Updated version label `v0.2 · 32.5k entities` → `Phase G · v0.3`
+- `dashboard.tsx`: Removed `ring-2 ring-inset ring-amber-500/20` inconsistency from Hot Leads card; changed signal text from `truncate` → `line-clamp-2` in both desktop and mobile signal panels
+- `crm.tsx`: Added `overflow-x-auto` to desktop Kanban board container for mid-size screens
+- `research.tsx`: Added `break-words` to MCTS reasoning text div; added `sm:min-w-[140px]` to algorithm pipeline stage cards
+- `deep-search.tsx`: `truncate` → `line-clamp-1` on entity name h3 in search results
+- `graph.tsx`: Added `max-w-[90vw]` to desktop floating toolbar to prevent overflow
+- `improvements.tsx`: `bg-muted/30` → `bg-primary/5 border border-primary/10` for action taken block; persona grid `grid-cols-2 md:grid-cols-3 lg:grid-cols-6` → `grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6`
+- `osint-tools.tsx`: Category chips scrollable on mobile (`overflow-x-auto flex-nowrap sm:flex-wrap`); scroll-to-top on pagination change
+- `entities.tsx`: Live Intel slide-over width `w-[380px]` → `w-[min(380px,100vw)]` for full mobile coverage
+- `profile.tsx`: Source Ledger table `min-w-[600px]` prevents column squash on mobile; MCTS steps `max-h-40` → `max-h-80`; removed `line-through` on missing completeness fields (replaced with `opacity-40`)
+- `duplicates.tsx`: Entity comparison panel stacks vertically on mobile (`flex-col md:flex-row`)
+- `data-sources.tsx`: Status message text hidden on mobile (`hidden sm:inline`) to prevent button overflow
+
+**Phase plan for next session:**
+- Phase 2: Full mobile pass (screenshot all 11 pages at 390px, fix remaining layout breaks)
+- Phase 3: Field Manual — verify all level content is accurate, update data counts
+
+---
+
 ### What was done this session (re-import #36 — Phase G nav link + session resume — 2026-07-22)
 
 Added missing OSINT Tools sidebar nav link (`Telescope` icon, `/osint-tools`) between Data Sources and Field Manual in `artifacts/apex-finder/src/components/layout.tsx`. This was the one incomplete piece from the prior session — the page (331 lines), router entry, and API backend were all already built. Page loads 8,000 tools with category chips, search, and pagination. Phase G now fully visible and navigable.

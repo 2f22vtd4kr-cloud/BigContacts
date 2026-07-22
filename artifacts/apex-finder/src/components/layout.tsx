@@ -89,7 +89,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       <div className="p-4 border-t border-border shrink-0">
         <div className="px-3 py-2 flex flex-col gap-1 text-xs font-mono text-muted-foreground/60 uppercase tracking-widest">
-          <div>v0.2 · 32.5k entities</div>
+          <div>Phase G · v0.3</div>
           <div className="text-[10px] opacity-70">PRIVATE INTELLIGENCE</div>
         </div>
       </div>

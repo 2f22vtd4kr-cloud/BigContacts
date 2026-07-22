@@ -271,7 +271,7 @@ function ProfileCompleteness({ entity, assets, relationships, sessions }: {
               "text-[9px] font-mono px-1.5 py-0.5 rounded border transition-colors",
               f.done
                 ? "border-primary/30 bg-primary/10 text-primary"
-                : "border-border/40 bg-muted/10 text-muted-foreground/30 line-through"
+                : "border-border/40 bg-muted/10 text-muted-foreground/30 opacity-40"
             )}
           >
             {f.done ? "✓ " : ""}{f.label}
@@ -978,7 +978,7 @@ export default function ApexProfile() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
+              <table className="w-full min-w-[600px] border-collapse">
                 <thead>
                   <tr className="border-b border-border/50 bg-card/30">
                     {["Category", "Data Point", "Value", "Source Registry", "Status"].map((h) => (
@@ -1245,7 +1245,7 @@ export default function ApexProfile() {
                             </div>
                           ))}
                         </div>
-                        <div className="max-h-40 overflow-y-auto divide-y divide-border/30">
+                        <div className="max-h-80 overflow-y-auto divide-y divide-border/30">
                           {mctsSteps.map((step: any, i: number) => (
                             <div key={i} className="grid grid-cols-4 hover:bg-muted/10">
                               <div className="px-3 py-2 text-[10px] font-mono text-muted-foreground">{step.step}</div>

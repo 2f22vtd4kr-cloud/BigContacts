@@ -243,7 +243,7 @@ function LogCard({ log, onStatusChange }: {
         <div className="px-4 pb-4 border-t border-border pt-3 space-y-3">
           <p className="text-xs text-muted-foreground leading-relaxed">{log.description}</p>
           {log.actionTaken && (
-            <div className="flex items-start gap-2 rounded bg-muted/30 p-3">
+            <div className="flex items-start gap-2 rounded bg-primary/5 border border-primary/10 p-3">
               <Zap className="h-3.5 w-3.5 text-primary flex-shrink-0 mt-0.5" />
               <p className="text-xs font-mono text-primary/80">{log.actionTaken}</p>
             </div>
@@ -480,7 +480,7 @@ export default function ImprovementsPage() {
           <>
             <div>
               <p className="text-xs font-mono text-muted-foreground uppercase tracking-widest mb-3">Personas</p>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
                 {ALL_PERSONAS.map(pid => (
                   <PersonaCard
                     key={pid}

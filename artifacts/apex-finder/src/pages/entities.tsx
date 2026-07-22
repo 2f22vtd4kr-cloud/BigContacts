@@ -514,7 +514,7 @@ export default function EntityLedger() {
 
         {/* Live Intel slide-over sidebar */}
         <div className={cn(
-          "fixed top-0 right-0 h-full w-[380px] bg-card border-l border-border shadow-2xl z-40 flex flex-col transition-transform duration-300 ease-in-out",
+          "fixed top-0 right-0 h-full w-[min(380px,100vw)] bg-card border-l border-border shadow-2xl z-40 flex flex-col transition-transform duration-300 ease-in-out",
           showRegistry ? "translate-x-0" : "translate-x-full"
         )}>
           <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card/80 backdrop-blur-sm flex-shrink-0">

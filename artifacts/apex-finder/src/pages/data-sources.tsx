@@ -503,7 +503,7 @@ function ClusterDetectButton() {
   return (
     <div className="flex items-center gap-2 flex-shrink-0">
       {msg && (
-        <span className={`text-[10px] font-mono ${status === "error" ? "text-red-400" : "text-emerald-400"} max-w-[200px] truncate`} title={msg}>{msg}</span>
+        <span className={`hidden sm:inline text-[10px] font-mono ${status === "error" ? "text-red-400" : "text-emerald-400"} max-w-[200px] truncate`} title={msg}>{msg}</span>
       )}
       <button
         onClick={run}

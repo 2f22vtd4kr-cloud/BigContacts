@@ -113,7 +113,10 @@ export default function OsintToolsDirectory() {
 
   // Fetch on query/category/page change (debounced for text)
   useEffect(() => {
-    const t = setTimeout(() => fetchTools(query, category, page), query ? 300 : 0);
+    const t = setTimeout(() => {
+      fetchTools(query, category, page);
+      if (page > 1) window.scrollTo({ top: 0, behavior: "smooth" });
+    }, query ? 300 : 0);
     return () => clearTimeout(t);
   }, [query, category, page, fetchTools]);
 
@@ -178,7 +181,7 @@ export default function OsintToolsDirectory() {
         </div>
 
         {/* Category chips (top 7 by count) */}
-        <div className="flex flex-wrap gap-1.5 items-center">
+        <div className="flex gap-1.5 items-center overflow-x-auto pb-1 scrollbar-none flex-nowrap sm:flex-wrap">
           {categories.slice(0, 7).map(c => (
             <button
               key={c.name}

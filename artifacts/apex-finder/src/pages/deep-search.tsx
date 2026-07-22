@@ -175,7 +175,7 @@ function ResultCard({ result }: { result: SearchResult }) {
           <div className="flex items-center gap-2 mb-1 min-w-0">
             <span className="text-xs font-mono text-muted-foreground shrink-0">#{result.rank}</span>
             {result.isHot && <Zap className="w-3 h-3 text-amber-500 shrink-0" />}
-            <h3 className="font-bold text-sm text-foreground truncate">{result.name}</h3>
+            <h3 className="font-bold text-sm text-foreground line-clamp-1">{result.name}</h3>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {result.nationality && (

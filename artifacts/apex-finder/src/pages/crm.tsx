@@ -498,7 +498,7 @@ export default function PipelineCRM() {
 
       {/* ── Desktop: Kanban Board ── */}
       <div className="hidden md:flex flex-1 overflow-hidden">
-        <div className="flex h-full p-4 gap-3 w-full">
+        <div className="flex h-full p-4 gap-3 w-full overflow-x-auto">
           {CRM_COLUMNS.map((column) => {
             const columnSessions = sessions?.filter((s) => s.crmStatus === column) ?? [];
 

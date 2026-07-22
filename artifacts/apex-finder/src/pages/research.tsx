@@ -441,7 +441,7 @@ export default function IntelTerminal() {
                   W={Math.round(log.warmthScore * 100)}%
                 </span>
               </div>
-              <div className="text-muted-foreground text-xs pl-8 border-l border-muted-foreground/20 mt-0.5 mb-2 leading-relaxed">
+              <div className="text-muted-foreground text-xs pl-8 border-l border-muted-foreground/20 mt-0.5 mb-2 leading-relaxed break-words">
                 {">"} {log.reasoning}
               </div>
             </div>
@@ -465,7 +465,7 @@ export default function IntelTerminal() {
             </div>
             <div className="flex flex-col sm:flex-row gap-1.5 sm:gap-2 flex-wrap">
               {algorithmPipeline.map((stage, i) => (
-                <div key={i} className="flex items-start gap-1.5 bg-muted/10 border border-border/40 rounded px-2 py-1.5 min-w-0 flex-1">
+                <div key={i} className="flex items-start gap-1.5 bg-muted/10 border border-border/40 rounded px-2 py-1.5 min-w-0 flex-1 sm:min-w-[140px]">
                   <span className="text-[10px] font-mono text-muted-foreground/40 mt-0.5 flex-shrink-0">{String(i + 1).padStart(2, "0")}</span>
                   <div className="min-w-0">
                     <div className="text-[10px] font-mono font-bold text-primary/80 truncate">{stage.algo}</div>

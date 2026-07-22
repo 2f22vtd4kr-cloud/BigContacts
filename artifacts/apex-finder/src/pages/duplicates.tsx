@@ -130,10 +130,10 @@ function CandidateRow({
       {expanded && (
         <div className="px-4 pb-4 border-t border-border pt-4 space-y-4">
           {/* Entity comparison */}
-          <div className="flex items-stretch gap-2">
+          <div className="flex flex-col md:flex-row items-stretch gap-2">
             <EntityCard entity={keepA ? candidate.entityA : candidate.entityB} role="primary" />
-            <div className="flex flex-col items-center justify-center px-1">
-              <ArrowRight className="h-4 w-4 text-muted-foreground" />
+            <div className="flex md:flex-col items-center justify-center px-1">
+              <ArrowRight className="h-4 w-4 text-muted-foreground md:rotate-0 rotate-90" />
             </div>
             <EntityCard entity={keepA ? candidate.entityB : candidate.entityA} role="target" />
           </div>

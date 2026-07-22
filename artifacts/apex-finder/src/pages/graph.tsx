@@ -228,7 +228,7 @@ export default function GraphViewer() {
       </div>
 
       {/* ── Desktop floating toolbar ── */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 hidden md:flex items-center space-x-2">
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 hidden md:flex items-center space-x-2 max-w-[90vw]">
         {/* Entity selector */}
         <div className="relative">
           <button
