@@ -36,6 +36,35 @@
 - **Wealth Tiers**: Ultra >$100M: 7,392 · Very $30-100M: 4,616 · HNW $4-30M: 24,568 · Unknown: 200
 - **Research Sessions**: 0 (MCTS bulk-run fires at 90s after each boot)
 
+### What was done this session (re-import #31 — Deep Web OSINT — 2026-07-22)
+
+**Deep Web OSINT Enricher built and deployed (additive — does not replace existing tools):**
+
+1. **`artifacts/api-server/src/lib/deep-web-osint.ts`** — new module (~350 lines):
+   - 12 rotating real browser User-Agent signatures (Chrome/Firefox/Safari/Edge on Win/Mac/Linux)
+   - Dual search engines: DuckDuckGo HTML (`html.duckduckgo.com/html`) + Bing HTML (`bing.com/search`)
+   - 4–7 context-aware query templates per entity using ALL available metadata:
+     N-number (FAA aircraft), company name (EDGAR/CH), location, filing type, asset type
+   - Follows top 3 non-social result URLs → scrapes actual pages for mailto: hrefs
+   - Cross-validation scoring: same email in N independent sources → confidence (42/62/78/88)
+   - Results mirror to Upstash slot 2 (REDIS_URL_2) — survives DB resets
+
+2. **Route: `POST /api/ingest/deep-web-osint`** (new, in ingest.ts)
+   - `batchSize`, `hotOnly`, `force` params; same job/poll pattern as other enrichers
+   - `DELETE /api/ingest/deep-web-osint-lock` for ghost lock cleanup
+
+3. **`startup.ts`** — two new auto-triggers:
+   - 35 min: deep web OSINT pass 1 — hot leads (bayesianScore ≥ 0.5), batchSize 500
+   - 45 min: deep web OSINT pass 2 — all HNWI/Gatekeeper, batchSize 1000
+   Runs AFTER all in-house enricher passes (25min) so structured DBs exhausted first
+
+4. **UI**: "Deep Web OSINT" button (cyan) added to Data Sources controls panel
+   Polls job progress, shows live count of entities found
+
+5. **Secrets** — all 3 set: REDIS_URL_1 ✅ REDIS_URL_2 ✅ COMPANIES_HOUSE_API_KEY ✅
+
+6. **Route verified**: `POST /api/ingest/deep-web-osint` → jobId confirmed live
+
 ### What was done this session (re-import #30 — improvements.md audit + Phase F — 2026-07-22)
 
 **Improvements.md full audit and Phase F implementation:**

@@ -385,6 +385,10 @@ function EnrichmentCoverageStats() {
         <InHouseEnrichButton />
       </div>
       <div className="flex items-center justify-between border-t border-border/40 pt-2.5">
+        <span className="text-[10px] font-mono text-muted-foreground/60">Deep Web OSINT: DuckDuckGo HTML + Bing · 12 rotating browser fingerprints · 4–7 context-aware queries per entity · page scraping · cross-validation scoring</span>
+        <DeepWebOsintButton />
+      </div>
+      <div className="flex items-center justify-between border-t border-border/40 pt-2.5">
         <span className="text-[10px] font-mono text-muted-foreground/60">EDGAR co-filers: scan SC 13D/G group filings — pairs of entities that filed together are KNOWN_ASSOCIATEs (human network data)</span>
         <EdgarAssociatesButton />
       </div>
@@ -900,6 +904,62 @@ function InHouseEnrichButton() {
       >
         {status === "running" ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Mail className="w-3 h-3" />}
         {status === "running" ? "Enriching…" : "In-House Enrich"}
+      </button>
+    </div>
+  );
+}
+
+function DeepWebOsintButton() {
+  const [status, setStatus] = useState<"idle" | "running" | "done" | "error">("idle");
+  const [msg, setMsg]       = useState("");
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const run = async () => {
+    if (pollRef.current) clearInterval(pollRef.current);
+    setStatus("running");
+    setMsg("Starting…");
+    try {
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const r = await fetch(`${base}/api/ingest/deep-web-osint`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ batchSize: 300, hotOnly: true }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error ?? "Failed");
+      if (!d.jobId) { setMsg(d.message ?? "Nothing to search"); setStatus("done"); return; }
+      const jobId: string = d.jobId;
+      setMsg(`Searching ${d.total} entities…`);
+      pollRef.current = setInterval(async () => {
+        try {
+          const p = await fetch(`${base}/api/ingest/job/${jobId}`);
+          const pj = await p.json();
+          setMsg(`${pj.progress ?? 0}/${pj.total ?? 0} — ${pj.inserted ?? 0} found`);
+          if (pj.status === "done" || pj.status === "failed") {
+            clearInterval(pollRef.current!);
+            setMsg(pj.message ?? "Done");
+            setStatus(pj.status === "done" ? "done" : "error");
+          }
+        } catch { /* ignore */ }
+      }, 4000);
+    } catch (err: any) {
+      setMsg(err.message ?? "Error");
+      setStatus("error");
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2 flex-shrink-0">
+      {msg && (
+        <span className={`text-[10px] font-mono max-w-[220px] truncate ${status === "error" ? "text-red-400" : status === "done" ? "text-emerald-400" : "text-cyan-400"}`} title={msg}>{msg}</span>
+      )}
+      <button
+        onClick={run}
+        disabled={status === "running"}
+        className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-border text-muted-foreground hover:text-cyan-400 hover:border-cyan-400/40 font-mono text-[10px] uppercase tracking-wider transition-colors disabled:opacity-50 flex-shrink-0"
+      >
+        {status === "running" ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Search className="w-3 h-3" />}
+        {status === "running" ? "Searching…" : "Deep Web OSINT"}
       </button>
     </div>
   );

@@ -21,7 +21,7 @@ import { runWesternHnwiIngestion, classifyEntityType } from "./western-hnwi-inge
 import { logger } from "./logger";
 import { contactCacheScanAll, contactCacheCount, contactCacheSet, type CachedContact } from "./redis";
 
-const INGESTOR_TYPES = ["faa", "land-registry", "western-hnwi", "companies-house-enrich", "occrp", "opensky", "improve", "web-osint", "bulk-mcts", "in-house-enrich"] as const;
+const INGESTOR_TYPES = ["faa", "land-registry", "western-hnwi", "companies-house-enrich", "occrp", "opensky", "improve", "web-osint", "bulk-mcts", "in-house-enrich", "deep-web-osint"] as const;
 
 /** Mark any "running" job whose process is dead as failed, clear its lock. */
 async function clearGhostJobs(): Promise<void> {
@@ -593,6 +593,14 @@ async function runPopulatedDbMaintenance(): Promise<void> {
 
   // 30 min: fourth bulk Hybrid Research pass — final coverage sweep
   setTimeout(() => trigger("auto Hybrid Research bulk run (pass 4)", "/api/research/bulk-run", { batchSize: 300, skipExisting: true }), 1_800_000);
+
+  // 35 min: deep web OSINT pass 1 — multi-engine (DDG + Bing) + UA rotation on hot leads
+  // Targets entities still at contactConfidence=0 after all in-house enricher passes complete.
+  // Runs AFTER in-house pass 4 (25min) so structured DB sources are exhausted first.
+  setTimeout(() => trigger("auto deep web OSINT (pass 1 — hot leads)", "/api/ingest/deep-web-osint", { batchSize: 500, hotOnly: true }), 2_100_000);
+
+  // 45 min: deep web OSINT pass 2 — wider net (all HNWI/Gatekeeper, not just hot)
+  setTimeout(() => trigger("auto deep web OSINT (pass 2 — all HNWI)", "/api/ingest/deep-web-osint", { batchSize: 1_000, hotOnly: false }), 2_700_000);
 }
 
 /** Main cold-start entry point — call once after Upstash connects. */

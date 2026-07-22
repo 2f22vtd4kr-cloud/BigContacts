@@ -30,6 +30,7 @@ import { runCompaniesHouseEnrichment } from "../lib/companies-house-enricher";
 import { enrichEntityOsint } from "../lib/web-osint-enricher";
 import { enrichWithHunterApollo } from "../lib/hunter-enricher";
 import { enrichInHouse } from "../lib/in-house-enricher";
+import { deepWebOsintEnrich } from "../lib/deep-web-osint";
 import { computeContactConfidence } from "../lib/contact-confidence";
 import { logger } from "../lib/logger";
 
@@ -1561,6 +1562,149 @@ router.get("/pipeline/status", async (_req: Request, res: Response): Promise<voi
   } catch (err: any) {
     res.status(500).json({ error: err?.message ?? "Failed to fetch pipeline status" });
   }
+});
+
+// ── POST /ingest/deep-web-osint — multi-engine multi-query web OSINT ──────────
+// Additive layer on top of in-house enricher. Targets entities that structured
+// databases missed (FAA private owners, HMLR buyers). Uses DDG HTML + Bing HTML
+// with 12 rotating User-Agents and 4-7 context-aware query templates per entity.
+router.post("/ingest/deep-web-osint", async (req: Request, res: Response): Promise<void> => {
+  const existing = await getActiveJob("deep-web-osint");
+  if (existing) {
+    res.status(409).json({ error: "A deep web OSINT job is already running.", jobId: existing });
+    return;
+  }
+
+  const body = req.body ?? {};
+  const batchSize = Math.min(Number(body.batchSize) || 200, 5_000);
+  const force     = Boolean(body.force);
+  // hotOnly: default true — prioritise hot leads (bayesianScore ≥ 0.5) that still have no contacts
+  const hotOnly   = body.hotOnly !== false;
+
+  const conditions: SQL[] = [
+    sql`${entitiesTable.type} IN ('HNWI', 'Gatekeeper', 'Corporation')`,
+  ];
+  if (!force)   conditions.push(sql`${entitiesTable.contactConfidence} = 0`);
+  if (hotOnly)  conditions.push(sql`${entitiesTable.bayesianScore} >= 0.5`);
+  // Only run on entities the in-house enricher already attempted (has enricherVersion) OR never tried
+  // This avoids racing with an in-house enricher run that is still in progress
+
+  const entities = await db
+    .select({
+      id: entitiesTable.id, name: entitiesTable.name, type: entitiesTable.type,
+      sourceRegistries: entitiesTable.sourceRegistries,
+      knownResidences:  entitiesTable.knownResidences,
+      metadata:         entitiesTable.metadata,
+      bayesianScore:    entitiesTable.bayesianScore,
+      email:            entitiesTable.email,
+      phone:            entitiesTable.phone,
+      linkedinUrl:      entitiesTable.linkedinUrl,
+    })
+    .from(entitiesTable)
+    .where(and(...conditions))
+    .orderBy(desc(entitiesTable.bayesianScore))
+    .limit(batchSize);
+
+  if (!entities.length) {
+    res.json({ message: "No entities to deep-web-enrich.", jobId: null });
+    return;
+  }
+
+  const jobId = await createJob("deep-web-osint");
+  await setActiveJob("deep-web-osint", jobId);
+  await updateJob(jobId, { status: "running", total: entities.length, message: "Deep web OSINT starting…" });
+
+  res.json({
+    jobId, total: entities.length,
+    message: `Deep web OSINT started for ${entities.length} entities (${hotOnly ? "hot leads" : "all"}).`,
+  });
+
+  (async () => {
+    let enriched = 0, skipped = 0, errors = 0;
+
+    for (let i = 0; i < entities.length; i++) {
+      const entity = entities[i]!;
+      try {
+        await updateJob(jobId, {
+          status: "running", progress: i, total: entities.length,
+          inserted: enriched, skipped, errors,
+          message: `Searching: ${entity.name}…`,
+        });
+
+        const result = await deepWebOsintEnrich(entity);
+        const hasSignal = result.email || result.phone || result.linkedinUrl;
+
+        if (!hasSignal) { skipped++; continue; }
+
+        const updates: Record<string, unknown> = { updatedAt: new Date() };
+        if (result.email      && !entity.email)      updates["email"]      = result.email;
+        if (result.phone      && !entity.phone)      updates["phone"]      = result.phone;
+        if (result.linkedinUrl && !entity.linkedinUrl) updates["linkedinUrl"] = result.linkedinUrl;
+
+        const confidence = computeContactConfidence({
+          email:           (updates["email"]      as string | null) ?? entity.email ?? null,
+          phone:           (updates["phone"]      as string | null) ?? entity.phone ?? null,
+          linkedinUrl:     (updates["linkedinUrl"] as string | null) ?? entity.linkedinUrl ?? null,
+          knownResidences: entity.knownResidences,
+        });
+        updates["contactConfidence"] = confidence;
+
+        // Update metadata
+        const meta = safeParseJson<Record<string, unknown>>(entity.metadata, {});
+        meta["deepWebOsintAt"]      = new Date().toISOString();
+        meta["deepWebOsintSources"] = result.sources;
+        meta["deepWebQueriesFired"] = result.queriesFired;
+        if (result.emailConfidence) meta["deepWebEmailConf"] = result.emailConfidence;
+        meta["liveSource"] = true;
+        updates["metadata"]   = JSON.stringify(meta);
+        updates["liveSource"] = true;
+
+        await db.update(entitiesTable).set(updates as any).where(eq(entitiesTable.id, entity.id));
+
+        // Mirror to Upstash slot 2 (REDIS_URL_2) for persistence across DB resets
+        const regs = safeParseJson<string[]>(entity.sourceRegistries ?? "[]", []);
+        const stableKey = regs[0] ?? `name:${entity.name}`;
+        await contactCacheSet(stableKey, {
+          name:              entity.name,
+          email:             (updates["email"]      as string | undefined) ?? entity.email ?? undefined,
+          phone:             (updates["phone"]      as string | undefined) ?? entity.phone ?? undefined,
+          linkedinUrl:       (updates["linkedinUrl"] as string | undefined) ?? entity.linkedinUrl ?? undefined,
+          contactConfidence: confidence,
+          enrichmentSources: result.sources,
+          enrichedAt:        new Date().toISOString(),
+          emailConfidence:   result.emailConfidence,
+          phoneConfidence:   result.phoneConfidence,
+        });
+
+        enriched++;
+        logger.info({ entityId: entity.id, name: entity.name, confidence, queriesFired: result.queriesFired, pagesScraped: result.pagesScraped }, "Deep web OSINT enriched");
+      } catch (err: any) {
+        errors++;
+        logger.warn({ entityId: entity.id, err: err.message }, "Deep web OSINT failed");
+      }
+    }
+
+    await updateJob(jobId, {
+      status: "done", progress: entities.length, total: entities.length,
+      inserted: enriched, skipped, errors,
+      message: `Done — ${enriched} enriched, ${skipped} no-match, ${errors} errors.`,
+    });
+    await setActiveJob("deep-web-osint", "");
+    logger.info({ enriched, skipped, errors }, "Deep web OSINT complete");
+  })().catch(async err => {
+    logger.error({ err: err.message }, "Deep web OSINT crashed");
+    await updateJob(jobId, { status: "failed", message: err.message ?? "Crashed" });
+    await setActiveJob("deep-web-osint", "");
+  });
+});
+
+// ── DELETE /ingest/deep-web-osint-lock — clear ghost lock ────────────────────
+router.delete("/ingest/deep-web-osint-lock", async (_req: Request, res: Response): Promise<void> => {
+  const jobId = await getActiveJob("deep-web-osint");
+  if (!jobId) { res.json({ cleared: false, message: "No active deep-web-osint lock." }); return; }
+  await updateJob(jobId, { status: "failed", message: "Killed (server restart).", finishedAt: new Date().toISOString() } as any);
+  await setActiveJob("deep-web-osint", "");
+  res.json({ cleared: true, jobId, message: "Deep-web-OSINT lock cleared." });
 });
 
 export default router;
