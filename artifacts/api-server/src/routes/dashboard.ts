@@ -203,8 +203,8 @@ router.get("/dashboard/stats", async (_req, res): Promise<void> => {
     .from(entitiesTable)
     .where(sql`${entitiesTable.metadata} LIKE '%"westernIngest":true%'`);
 
-  // Enrichment coverage
-  const [[contactableCount], [anyContactCount]] = await Promise.all([
+  // Enrichment coverage + F3 wealth tier segmentation (parallel queries)
+  const [[contactableCount], [anyContactCount], [wealthTiersRow]] = await Promise.all([
     db.select({ cnt: sql<number>`count(*)::int` }).from(entitiesTable)
       .where(gte(entitiesTable.contactConfidence, 30)),  // phone alone (30pts) counts as contactable
     db.select({ cnt: sql<number>`count(*)::int` }).from(entitiesTable)
@@ -213,6 +213,13 @@ router.get("/dashboard/stats", async (_req, res): Promise<void> => {
         isNotNull(entitiesTable.phone),
         isNotNull(entitiesTable.linkedinUrl),
       )),
+    // F3: bucket estimatedNetWorth into 4 tiers for dashboard wealth distribution widget
+    db.select({
+      ultraHnw: sql<number>`count(*) filter (where ${entitiesTable.estimatedNetWorth} > 100000000)::int`,
+      veryHnw:  sql<number>`count(*) filter (where ${entitiesTable.estimatedNetWorth} between 30000000 and 100000000)::int`,
+      hnw:      sql<number>`count(*) filter (where ${entitiesTable.estimatedNetWorth} between 4000000 and 30000000)::int`,
+      unknown:  sql<number>`count(*) filter (where ${entitiesTable.estimatedNetWorth} is null or ${entitiesTable.estimatedNetWorth} < 4000000)::int`,
+    }).from(entitiesTable),
   ]);
 
   const total = entityCount?.cnt ?? 0;
@@ -230,6 +237,13 @@ router.get("/dashboard/stats", async (_req, res): Promise<void> => {
     activeResearchSessions: sessionCount?.cnt ?? 0,
     contactableCount: contactableCount?.cnt ?? 0,
     enrichmentCoverage,
+    // F3: wealth tier segmentation
+    wealthTiers: {
+      ultraHnw: wealthTiersRow?.ultraHnw ?? 0,  // >$100M
+      veryHnw:  wealthTiersRow?.veryHnw  ?? 0,  // $30M–$100M
+      hnw:      wealthTiersRow?.hnw      ?? 0,  // $4M–$30M
+      unknown:  wealthTiersRow?.unknown  ?? 0,  // null or <$4M
+    },
     crmBreakdown: crmBreakdown.map((r) => ({ status: r.status, count: r.count })),
     assetsByCategory: assetsByCategory.map((r) => ({
       category: r.category,

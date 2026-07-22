@@ -28,9 +28,31 @@
 > **Import #30 note (2026-07-22):** pnpm install (~15s, 1181 packages). DB schema pushed (no changes — `[✓] Changes applied`). All 3 workflows restarted and running. API /healthz → `{"status":"ok","redis":{"status":"ok","latencyMs":0}}`. DB is empty (fresh import — trigger ingestion via /ingest routes to populate). Cold-start auto-recovery will attempt FAA/HMLR ingestion on first boot if Upstash secrets are set.
 > **Port conflict fix (if needed):** kill -9 $(lsof -ti:8080 -ti:23695) then restart workflows.
 
-### Database (2026-07-22 — re-import #30)
-- **Entities**: 0 (fresh import — trigger ingestion via /ingest routes to populate)
-- **Relationships**: 0
+### Database (2026-07-22 — re-import #30, post-maintenance)
+- **Entities**: 32,200 (30,000 FAA + 2,000 HMLR — auto-ingested on cold start)
+- **Relationships**: 231,002 (maintenance pipeline ran: cluster + geo-proximity + co-filer + co-shareholder edges)
+- **Hot Leads**: 14,911
+- **Contactable**: 29 (contact cache restore running; will grow as in-house enricher runs)
+- **Wealth Tiers**: Ultra >$100M: 7,392 · Very $30-100M: 4,616 · HNW $4-30M: 24,568 · Unknown: 200
+- **Research Sessions**: 0 (MCTS bulk-run fires at 90s after each boot)
+
+### What was done this session (re-import #30 — improvements.md audit + Phase F — 2026-07-22)
+
+**Improvements.md full audit and Phase F implementation:**
+
+1. **Audited all phases A–E** — all items already implemented in codebase (B2, B3, C1–C3, D1–D2, D3, E1, E3, E4). Updated all status markers to ✅ 2026-07-22.
+
+2. **F1: Wikidata associate seeding** — `POST /api/relationships/seed-wikidata-associates` existed but was never auto-triggered. Added startup trigger at **360s (6 min)**, fires after in-house EDGAR enricher so Wikidata hits exist before SPARQL queries run. Creates `FAMILY_OF` / `KNOWN_ASSOCIATE` edges.
+
+3. **F2: Pitch backfill auto-trigger** — `POST /api/research/backfill-pitches` existed but never scheduled. Added startup trigger at **660s (11 min)**, fires after MCTS pass 2 (8 min). Retries placeholder pitches.
+
+4. **F4: Populate-notes auto-trigger** — `POST /api/ingest/populate-notes` existed but never scheduled. Added startup trigger at **110s**. Auto-fills entity notes from top asset description for entities with blank notes — improves BM25 recall.
+
+5. **Added Phase F** to improvements.md (F1–F5) covering Wikidata seeding, pitch backfill, wealth tier segmentation, notes auto-populate, and MCTS gatekeeper routing bias.
+
+6. **All 3 secrets confirmed** — REDIS_URL_1, REDIS_URL_2, COMPANIES_HOUSE_API_KEY set via secure form.
+
+---
 
 ### What was done this session (re-import #24 — app review completion — 2026-07-21)
 

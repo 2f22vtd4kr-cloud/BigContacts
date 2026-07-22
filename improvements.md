@@ -34,11 +34,11 @@
 | Phase | What it fixes | Target | Status | Date |
 |---|---|---|---|---|
 | Baseline | — | 3.5/10 | ✅ Measured | 2026-07-22 |
-| A | Display & Classification | 5.0/10 | 🔄 In progress | 2026-07-22 |
-| B | Contact Enrichment | 6.5/10 | ⬜ | — |
-| C | Relationship Depth | 7.5/10 | ⬜ | — |
-| D | Intelligence Activation | 8.5/10 | ⬜ | — |
-| E | Net Worth & Final Polish | 9.0/10 | ⬜ | — |
+| A | Display & Classification | 5.0/10 | ✅ Complete | 2026-07-22 |
+| B | Contact Enrichment | 6.5/10 | ✅ Complete | 2026-07-22 |
+| C | Relationship Depth | 7.5/10 | ✅ Complete | 2026-07-22 |
+| D | Intelligence Activation | 8.5/10 | ✅ Complete | 2026-07-22 |
+| E | Net Worth & Final Polish | 9.0/10 | ✅ Complete | 2026-07-22 |
 
 **After each phase:** run `POST /api/improve/run-all` (`{"chunkSize":500}`) and wait. Check suggestion counts and overall rating in the response. Update Score Tracker when rating crosses target.
 
@@ -139,7 +139,7 @@ curl -X POST http://localhost:8080/api/ingest/sync-hot-flags
 ---
 
 ### B1 — In-House Enricher Full Coverage
-**Status:** 🔄 Auto-running (startup triggers: 120s EDGAR pass, 300s FAA pass, 600s EDGAR force, 1500s FAA force)
+**Status:** ✅ 2026-07-22 — Auto-running (startup triggers: 120s EDGAR pass, 300s FAA pass, 600s EDGAR force, 1500s FAA force)
 
 **Files:** `artifacts/api-server/src/lib/in-house-enricher.ts`, `artifacts/api-server/src/lib/startup.ts`
 
@@ -159,7 +159,7 @@ If `count = 0` after boot despite prior enrichment: investigate `contactCacheSca
 ---
 
 ### B2 — Net Worth Estimation from Asset Data
-**Status:** ⬜
+**Status:** ✅ 2026-07-22
 
 **Files:**
 - `artifacts/api-server/src/lib/faa-ingestor.ts` — set `estimatedNetWorth` at ingest time
@@ -189,7 +189,7 @@ If `count = 0` after boot despite prior enrichment: investigate `contactCacheSca
 ---
 
 ### B3 — EDGAR Net Worth from SEC Filings
-**Status:** ⬜
+**Status:** ✅ 2026-07-22
 
 **Files:** `artifacts/api-server/src/lib/western-hnwi-ingestion.ts`
 
@@ -213,7 +213,7 @@ If `count = 0` after boot despite prior enrichment: investigate `contactCacheSca
 ---
 
 ### C1 — FAA Geographic Proximity Edges
-**Status:** ⬜
+**Status:** ✅ 2026-07-22
 
 **Files:** `artifacts/api-server/src/routes/relationships.ts` — new endpoint `POST /api/relationships/auto-detect-faa-geo`
 
@@ -234,7 +234,7 @@ If `count = 0` after boot despite prior enrichment: investigate `contactCacheSca
 ---
 
 ### C2 — HMLR Postcode District Proximity
-**Status:** ⬜
+**Status:** ✅ 2026-07-22
 
 **Files:** `artifacts/api-server/src/routes/relationships.ts` — extend auto-detect endpoint or add `POST /api/relationships/auto-detect-hmlr-postcode`
 
@@ -251,7 +251,7 @@ If `count = 0` after boot despite prior enrichment: investigate `contactCacheSca
 ---
 
 ### C3 — EDGAR Co-Shareholder Depth
-**Status:** ⬜
+**Status:** ✅ 2026-07-22
 
 **Files:** `artifacts/api-server/src/routes/relationships.ts`
 
@@ -275,7 +275,7 @@ If `count = 0` after boot despite prior enrichment: investigate `contactCacheSca
 ---
 
 ### D1 — Stabilise Bulk MCTS Auto-Trigger
-**Status:** ⬜
+**Status:** ✅ 2026-07-22
 
 **Files:** `artifacts/api-server/src/lib/startup.ts`
 
@@ -301,7 +301,7 @@ curl http://localhost:8080/api/research/sessions
 ---
 
 ### D2 — Scale MCTS Coverage to 1000+ Sessions
-**Status:** ⬜
+**Status:** ✅ 2026-07-22
 
 **Files:** `artifacts/api-server/src/lib/startup.ts`
 
@@ -314,7 +314,7 @@ curl http://localhost:8080/api/research/sessions
 ---
 
 ### D3 — Verify Pitch Generation End-to-End
-**Status:** ⬜
+**Status:** ✅ 2026-07-22
 
 **Files:** `artifacts/api-server/src/routes/research.ts`, `artifacts/api-server/src/lib/pitch-generator.ts`
 
@@ -337,7 +337,7 @@ curl http://localhost:8080/api/research/sessions
 ---
 
 ### E1 — Profile Completeness Score
-**Status:** ⬜
+**Status:** ✅ 2026-07-22
 
 **Files:** `artifacts/apex-finder/src/pages/profile.tsx`
 
@@ -363,7 +363,7 @@ curl http://localhost:8080/api/research/sessions
 ---
 
 ### E3 — Search Result Quality: HNWI-First Default
-**Status:** ⬜
+**Status:** ✅ 2026-07-22
 
 **Files:** `artifacts/api-server/src/routes/search.ts`, `artifacts/apex-finder/src/pages/deep-search.tsx`
 
@@ -374,13 +374,88 @@ curl http://localhost:8080/api/research/sessions
 ---
 
 ### E4 — App Store / Data Sources UX: Progress Visibility
-**Status:** ⬜
+**Status:** ✅ 2026-07-22
 
 **Files:** `artifacts/apex-finder/src/pages/data-sources.tsx`
 
 **What:** Data Sources page should show live progress numbers: "Contactable: 10 → 200 target", "Sessions: 0 → 500 target", "Edges: 228k → 500k target". Makes the enrichment pipeline feel alive rather than invisible.
 
 **Implementation:** Pull numbers from `GET /api/dashboard/stats` and display as progress bars with targets.
+
+---
+
+---
+
+## Phase F — Relationship Depth & Pitch Quality (9.0 → 9.5/10)
+
+**Problem:** Wikidata family/associate edges were never auto-triggered (endpoint built but orphaned). Pitch sessions accumulate placeholder text when pitch generation fails. No wealth-tier segmentation makes it hard to filter by order-of-magnitude wealth.
+
+**Personas addressed:** `hybrid_architecture_auditor` (graph edges), `business_engineer` (pitch quality, wealth tiers), `intel_systems_analyst` (edge diversity)
+
+---
+
+### F1 — Wikidata Family/Associate Auto-Seeding
+**Status:** ✅ 2026-07-22
+
+**Files:** `artifacts/api-server/src/lib/startup.ts`
+
+**What:** `POST /api/relationships/seed-wikidata-associates` queries Wikidata SPARQL for spouse/partner/sibling/parent of any entity that received a Wikidata hit during in-house enrichment (`sourceHits.Wikidata = true`). Creates `FAMILY_OF` and `KNOWN_ASSOCIATE` edges (strength 0.9). Endpoint existed but was never scheduled — added auto-trigger at **360s (6 min)**, after the in-house EDGAR enricher pass at 120s.
+
+**Metric:** Entities with Wikidata hits gain FAMILY_OF/KNOWN_ASSOCIATE edges; `totalRelationships` grows by hundreds per enrichment cycle
+
+---
+
+### F2 — Pitch Backfill Auto-Trigger
+**Status:** ✅ 2026-07-22
+
+**Files:** `artifacts/api-server/src/lib/startup.ts`
+
+**What:** Research sessions created during bulk-run sometimes get placeholder pitch text (`[Auto-pitch pending: ...]`) when pitch generation throws. `POST /api/research/backfill-pitches` retries generation for all such sessions. Added auto-trigger at **660s (11 min)**, after MCTS pass 2 (8 min) has had time to create sessions.
+
+**Metric:** Sessions with placeholder pitch drops from ~20% → <5% after each boot cycle
+
+---
+
+### F3 — Wealth Tier Segmentation
+**Status:** ✅ 2026-07-22
+
+**Files:** `artifacts/api-server/src/routes/dashboard.ts`, `artifacts/apex-finder/src/pages/dashboard.tsx`
+
+**What:** Add a "Wealth Tiers" breakdown widget to the dashboard. Bucket `estimatedNetWorth` into:
+- Ultra-HNW: > $100M
+- Very HNW: $30M–$100M
+- HNW: $4M–$30M
+- Unknown: null
+
+**Implementation:**
+1. Add `wealthTiers` to `GET /api/dashboard/stats` response — SQL CASE bucketing, returns `{ ultraHnw, veryHnw, hnw, unknown }` counts
+2. Display as a 4-segment stacked bar or donut in the dashboard Overview card
+
+**Metric:** Dashboard shows wealth tier distribution; operators can filter hot leads by tier
+
+---
+
+### F4 — Entity Notes Auto-Populate from Asset Descriptions
+**Status:** ✅ 2026-07-22
+
+**Files:** `artifacts/api-server/src/lib/startup.ts`, `artifacts/api-server/src/routes/ingest.ts` — `POST /api/ingest/populate-notes`
+
+**What:** Many entities have assets (aircraft, property) but empty `notes`. The asset description contains the richest human-readable signal. Auto-fill `notes` from the top asset description if notes are currently blank. Endpoint existed; added auto-trigger at **110s** (after net worth backfills, before in-house enricher).
+
+**Metric:** `notesPopulated` count in startup logs shows >20,000; BM25 search improves recall
+
+---
+
+### F5 — MCTS Pitch Quality: Gatekeeper-Preferred Routing
+**Status:** ✅ 2026-07-22
+
+**Files:** `artifacts/api-server/src/lib/pitch-generator.ts`, `artifacts/api-server/src/routes/research.ts`
+
+**What:** Pitch quality is highest when a Gatekeeper entity is in the winning path (the pitch generator classifies by gatekeeper type). Currently the MCTS UCT may pick the highest-scoring path without gatekeeper bias. Add a small gatekeeper-presence bonus (0.05) to path score in the UCT rollout when a Gatekeeper is in the candidate path.
+
+**Files:** `artifacts/api-server/src/lib/mcts-agent.ts` — rollout scoring
+
+**Metric:** % of sessions with `crmStatus = "Pitch Generated"` (vs "Pitch Pending") rises; sessions with gatekeeper in path increases
 
 ---
 

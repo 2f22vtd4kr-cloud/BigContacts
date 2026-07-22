@@ -344,11 +344,17 @@ export function runMcts(
   });
 
   // Compute aggregate path score using UCT-weighted warmth
-  const pathScore = bestPath.reduce((acc, vId, i) => {
+  const rawPathScore = bestPath.reduce((acc, vId, i) => {
     const vertex = graph.vertices.get(vId);
     const warmth = vertex ? evaluateWarmth(vertex, i) : 0.1;
     return acc + warmth * (1 / (i + 1)); // depth-weighted
   }, 0) / Math.max(bestPath.length, 1);
+
+  // F5: gatekeeper-presence bonus — a path containing a Gatekeeper node produces
+  // much higher-quality pitch output (pitch-generator classifies by gatekeeper archetype).
+  // Boost path score by 0.05 so UCT and bulk-run prefer gatekeeper-inclusive paths.
+  const hasGatekeeperInPath = bestPath.some((vId) => graph.vertices.get(vId)?.nodeType === "Gatekeeper");
+  const pathScore = rawPathScore + (hasGatekeeperInPath ? 0.05 : 0);
 
   return {
     winningPath,

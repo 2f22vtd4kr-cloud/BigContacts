@@ -372,6 +372,39 @@ function StatsBar() {
   );
 }
 
+// ── Wealth Tier Bar (F3) ──────────────────────────────────────────────────────
+function WealthTierBar() {
+  const { data: stats } = useGetDashboardStats();
+  const s = stats as any;
+  const tiers = s?.wealthTiers;
+  if (!tiers || (tiers.ultraHnw + tiers.veryHnw + tiers.hnw + tiers.unknown) === 0) return null;
+  const total = tiers.ultraHnw + tiers.veryHnw + tiers.hnw + tiers.unknown;
+  const pct = (n: number) => total > 0 ? Math.max((n / total) * 100, n > 0 ? 1 : 0) : 0;
+  const segments = [
+    { label: "Ultra >$100M", val: tiers.ultraHnw, cls: "bg-violet-500", textCls: "text-violet-400" },
+    { label: "Very $30–100M", val: tiers.veryHnw,  cls: "bg-primary",   textCls: "text-primary" },
+    { label: "HNW $4–30M",    val: tiers.hnw,      cls: "bg-amber-500", textCls: "text-amber-400" },
+    { label: "Unknown",        val: tiers.unknown,   cls: "bg-muted/60",  textCls: "text-muted-foreground" },
+  ];
+  return (
+    <div className="px-3 py-2 border-b border-border bg-card/30 flex items-center gap-3">
+      <span className="text-[9px] font-mono text-muted-foreground/60 uppercase tracking-widest whitespace-nowrap hidden sm:block">Wealth Tiers</span>
+      <div className="flex h-1.5 rounded-full overflow-hidden flex-1 gap-px">
+        {segments.map((seg) => (
+          <div key={seg.label} className={cn("h-full transition-all duration-700", seg.cls)} style={{ width: `${pct(seg.val)}%` }} />
+        ))}
+      </div>
+      <div className="flex items-center gap-3 flex-shrink-0">
+        {segments.filter(s => s.val > 0).map((seg) => (
+          <span key={seg.label} className={cn("text-[9px] font-mono whitespace-nowrap hidden md:inline", seg.textCls)}>
+            {seg.label.split(" ")[0]}: {seg.val.toLocaleString()}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Main dashboard ────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
@@ -398,6 +431,7 @@ export default function Dashboard() {
     return (
       <div className="flex flex-col h-full overflow-hidden">
         <StatsBar />
+        <WealthTierBar />
         <EmptyState onIngest={handleEmptyStateIngest} />
         <IngestionPanel
           onComplete={handleIngestionComplete}
@@ -411,6 +445,7 @@ export default function Dashboard() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <StatsBar />
+      <WealthTierBar />
 
       {/* ── Desktop layout ── */}
       <div className="hidden md:flex flex-1 overflow-hidden">

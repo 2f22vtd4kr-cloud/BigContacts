@@ -550,6 +550,9 @@ async function runPopulatedDbMaintenance(): Promise<void> {
   // 105s: EDGAR net worth backfill — shares × Yahoo Finance closing price (B3)
   setTimeout(() => trigger("auto EDGAR net worth backfill (shares × price)", "/api/ingest/backfill-edgar-net-worth"), 105_000);
 
+  // 110s: auto-populate entity notes from asset descriptions for entities with blank notes (F4)
+  setTimeout(() => trigger("auto populate-notes from asset descriptions", "/api/ingest/populate-notes"), 110_000);
+
   // 120s: in-house enricher pass 1 — EDGAR/Western HNWI entities first (public figures: highest hit rate)
   setTimeout(() => trigger("auto in-house enricher (pass 1 — edgar)", "/api/ingest/in-house-enrich", { batchSize: 5000, targetMode: "edgar" }), 120_000);
 
@@ -562,11 +565,19 @@ async function runPopulatedDbMaintenance(): Promise<void> {
   // 5 min: in-house enricher pass 2 — FAA individual owners (DuckDuckGo/LinkedIn/GitHub for private HNWIs)
   setTimeout(() => trigger("auto in-house enricher (pass 2 — faa)", "/api/ingest/in-house-enrich", { batchSize: 5000, targetMode: "faa" }), 300_000);
 
+  // 6 min: Wikidata family/associate edge seeding — fires after in-house enricher so Wikidata hits exist (F1)
+  // Queries SPARQL for spouse/partner/sibling/parent of entities with sourceHits.Wikidata = true
+  setTimeout(() => trigger("auto Wikidata associate seeding", "/api/relationships/seed-wikidata-associates"), 360_000);
+
   // 8 min: second bulk Hybrid Research pass — cover the next 300 cold sessions
   setTimeout(() => trigger("auto Hybrid Research bulk run (pass 2)", "/api/research/bulk-run", { batchSize: 300, skipExisting: true }), 480_000);
 
   // 10 min: in-house enricher pass 3 — force re-run on EDGAR entities (may surface new signals)
   setTimeout(() => trigger("auto in-house enricher (pass 3 — edgar force)", "/api/ingest/in-house-enrich", { batchSize: 5000, targetMode: "edgar", force: true }), 600_000);
+
+  // 11 min: backfill pitches for sessions that got placeholder text (F2)
+  // Fires after MCTS pass 2 (8 min) to catch any sessions where pitch generation failed
+  setTimeout(() => trigger("auto pitch backfill", "/api/research/backfill-pitches"), 660_000);
 
   // 15 min: third bulk Hybrid Research pass — long-tail coverage
   setTimeout(() => trigger("auto Hybrid Research bulk run (pass 3)", "/api/research/bulk-run", { batchSize: 300, skipExisting: true }), 900_000);
