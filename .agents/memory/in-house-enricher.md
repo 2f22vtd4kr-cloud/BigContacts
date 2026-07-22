@@ -30,4 +30,6 @@ description: Replaces Hunter.io/Apollo with free in-house algorithms for email/L
 - Sleep 150-400ms between requests — polite rate limiting
 - All sources fail gracefully (try/catch) — never crashes the whole enrichment run
 
+**BRREG integration (complete):** `queryBRREG(orgnr)` hits `https://data.brreg.no/enhetsregisteret/api/enheter/{orgnr}` — free, no auth. Returns phone + website + address for Norwegian registered entities. Wired into Group 1 alongside other corporate sources. `orgnr` extracted from `entity.metadata`. `InHouseEnrichResult` now has an `address` field; ingest.ts persists it to `meta["bizLocation"]` and includes it in `hasSignal`.
+
 **Why Gravatar works:** The MD5 check `gravatar.com/avatar/{hash}?d=404` returns 200 if a Gravatar exists for that exact email (lowercase). Many professionals have set up Gravatars via WordPress/GitHub/Atlassian. A 200 response is strong confirmation the email is real.
