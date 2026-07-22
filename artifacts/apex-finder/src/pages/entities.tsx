@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { Link, useLocation } from "wouter";
+import { Link, useLocation, useSearch } from "wouter";
 import { useListEntities, useCreateEntity, useDeleteEntity } from "@workspace/api-client-react";
 import { formatCurrency, ScoreBadge } from "@/lib/utils";
 import { cn } from "@/lib/utils";
@@ -277,9 +277,14 @@ function MobileEntityCard({
 
 export default function EntityLedger() {
   const [, navigate] = useLocation();
+  const searchStr = useSearch();
+  const urlParams = new URLSearchParams(searchStr);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
   const [proximityMin, setProximityMin] = useState<number>(0);
+  const [hotOnly, setHotOnly] = useState(() => urlParams.get("hot") === "1");
+  const [contactableOnly, setContactableOnly] = useState(() => urlParams.get("contactable") === "1");
   const [showFilters, setShowFilters] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [addForm, setAddForm] = useState<AddEntityForm>(EMPTY_FORM);
@@ -291,7 +296,7 @@ export default function EntityLedger() {
   const [page, setPage]           = useState(0);
 
   // Reset to page 0 when filters change
-  useEffect(() => { setPage(0); }, [searchTerm, typeFilter, proximityMin]);
+  useEffect(() => { setPage(0); }, [searchTerm, typeFilter, proximityMin, hotOnly, contactableOnly]);
 
   const toggleSelect = (id: number) =>
     setSelectedIds((prev) => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
@@ -341,26 +346,33 @@ export default function EntityLedger() {
   const [mobileSelectedEntity, setMobileSelectedEntity] = useState<any>(null);
   const [mobileTypeFilter, setMobileTypeFilter] = useState<string | null>(null);
 
+  const isSpecialFilter = hotOnly || contactableOnly;
+
   const { data: rawEntities, refetch } = useListEntities({
     search: searchTerm.length > 2 ? searchTerm : undefined,
     type: typeFilter ?? undefined,
-    limit: 50,
-    offset: page * 50,
+    limit: isSpecialFilter ? 500 : 50,
+    offset: isSpecialFilter ? 0 : page * 50,
   });
   const deleteEntity = useDeleteEntity();
   const createEntity = useCreateEntity();
 
-  // Client-side proximity filter
+  // Client-side filters: proximity + hot + contactable
   const entities = useMemo(() => {
     if (!rawEntities) return [];
-    if (proximityMin === 0) return rawEntities;
-    return rawEntities.filter((e: any) => {
+    let list = rawEntities as any[];
+    if (hotOnly) list = list.filter((e: any) => e.isHot);
+    if (contactableOnly) list = list.filter((e: any) =>
+      e.contactEmail || e.contactPhone || e.contactMethod
+    );
+    if (proximityMin > 0) list = list.filter((e: any) => {
       try {
         const meta = JSON.parse((e as any).metadata ?? "{}");
         return (meta.proximityScore ?? 0) >= proximityMin;
       } catch { return false; }
     });
-  }, [rawEntities, proximityMin]);
+    return list;
+  }, [rawEntities, proximityMin, hotOnly, contactableOnly]);
 
   const handleDelete = (id: number) => {
     if (confirm("Purge entity from registry?")) {
@@ -436,6 +448,27 @@ export default function EntityLedger() {
     <div className="flex flex-col h-full overflow-hidden">
       {/* ── Desktop ── */}
       <div className="hidden md:flex flex-col h-full overflow-hidden">
+        {/* Active filter banner */}
+        {(hotOnly || contactableOnly) && (
+          <div className={cn(
+            "flex items-center justify-between px-4 py-2 border-b text-xs font-mono flex-shrink-0",
+            hotOnly ? "bg-amber-500/10 border-amber-500/30 text-amber-400" : "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+          )}>
+            <div className="flex items-center gap-2">
+              <Filter className="w-3 h-3 shrink-0" />
+              <span className="font-bold uppercase tracking-wider">
+                {hotOnly ? "Filtered: Hot Leads only" : "Filtered: Contactable only"}
+              </span>
+              <span className="opacity-60">— {entities.length} shown</span>
+            </div>
+            <button
+              onClick={() => { setHotOnly(false); setContactableOnly(false); }}
+              className="flex items-center gap-1 opacity-70 hover:opacity-100 transition-opacity"
+            >
+              <X className="w-3 h-3" /> Clear filter
+            </button>
+          </div>
+        )}
         {/* Header toolbar */}
         <div className="flex items-center gap-3 px-4 py-3 border-b border-border bg-card/30 flex-shrink-0">
           <div className="flex items-center gap-2 flex-1 px-3 py-1.5 rounded bg-background border border-border">
@@ -846,6 +879,20 @@ export default function EntityLedger() {
 
       {/* ── Mobile ── */}
       <div className="flex md:hidden flex-col h-full overflow-hidden">
+        {/* Mobile active filter banner */}
+        {(hotOnly || contactableOnly) && (
+          <div className={cn(
+            "flex items-center justify-between px-3 py-2 border-b text-xs font-mono flex-shrink-0",
+            hotOnly ? "bg-amber-500/10 border-amber-500/30 text-amber-400" : "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+          )}>
+            <span className="font-bold uppercase tracking-wider truncate">
+              {hotOnly ? "Hot Leads only" : "Contactable only"} — {entities.length} shown
+            </span>
+            <button onClick={() => { setHotOnly(false); setContactableOnly(false); }} className="flex items-center gap-1 ml-2 shrink-0 opacity-70">
+              <X className="w-3 h-3" /> Clear
+            </button>
+          </div>
+        )}
         <div className="px-3 py-2 border-b border-border bg-card/30 flex-shrink-0 space-y-2">
           <div className="flex items-center gap-2 px-3 py-2 rounded bg-background border border-border">
             <Search className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />

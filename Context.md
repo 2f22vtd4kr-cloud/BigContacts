@@ -37,6 +37,16 @@
 - **Wealth Tiers**: Ultra >$100M: 7,392 · Very $30-100M: 4,616 · HNW $4-30M: 24,568 · Unknown: 200
 - **Research Sessions**: 0 (MCTS bulk-run fires at 90s after each boot)
 
+### What was done this session (2026-07-22 — UI/UX overhaul: clickable stats, Reach Score, nav reorder, manual Intel HQ)
+
+**5 targeted UX fixes across 5 files — no backend changes, all live via Vite HMR:**
+
+1. **`utils.tsx`**: ScoreBadge now shows "Reach 82" instead of a bare number — users immediately understand what the score means. Tooltip: "how reachable this person is".
+2. **`dashboard.tsx`**: Hot Leads and Contactable stat tiles are now clickable Links (→ /entities?hot=1 and /entities?contactable=1). "W-HNWIs" → "HNWI Profiles". "Signal Avg" → "Avg Reach". "Live Signals" → "Top Hot Leads". "View all →" link added to panel header. Each lead card is now a full Link to the profile page (not just the footer buttons).
+3. **`entities.tsx`**: URL param filtering — `?hot=1` and `?contactable=1` now activate a filter mode with a colored banner and clear button. Loads 500 records when filtering so the list is complete.
+4. **`layout.tsx`**: Nav reordered to match investigation workflow (HQ → Ledger → Search → Graph → Terminal → CRM → [Tools & Admin separator] → Persona Loop → Data Sources → OSINT Tools → Duplicates → Field Manual). Group label "Tools & Admin" added.
+5. **`manual.tsx`**: Level I renamed "INTEL HQ" (was "BASICS"). Content completely rewritten to explain Intelligence HQ — stat tiles, Reach Score scale, Top Hot Leads panel, daily workflow steps. LEVELS sidebar titles updated to match sidebar nav order.
+
 ### What was done this session (re-import #44 — Phase 2 Mobile Pass + Phase 3 Field Manual — 2026-07-22)
 
 **Direct source-file changes across 4 files — no canvas, no sandbox. All changes survive re-imports.**

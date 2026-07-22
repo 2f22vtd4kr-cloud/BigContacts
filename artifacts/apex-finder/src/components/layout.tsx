@@ -7,17 +7,17 @@ import {
 } from "lucide-react";
 
 const navItems = [
-  { name: "Intelligence HQ",   href: "/",             icon: Activity },
-  { name: "Deep Search",       href: "/deep-search",  icon: BrainCircuit },
-  { name: "Network Graph",     href: "/graph",        icon: Network },
-  { name: "Intel Terminal",    href: "/research",     icon: FileTerminal },
-  { name: "Pipeline CRM",      href: "/crm",          icon: KanbanSquare },
-  { name: "Entity Ledger",     href: "/entities",     icon: Database },
-  { name: "Persona Loop",      href: "/improvements", icon: Bot },
-  { name: "Duplicates",        href: "/duplicates",   icon: Copy },
-  { name: "Data Sources",      href: "/data-sources", icon: Radio },
-  { name: "OSINT Tools",       href: "/osint-tools",  icon: Telescope },
-  { name: "Field Manual",      href: "/manual",       icon: BookOpen },
+  { name: "Intelligence HQ",   href: "/",             icon: Activity,      group: "main" },
+  { name: "Entity Ledger",     href: "/entities",     icon: Database,      group: "main" },
+  { name: "Deep Search",       href: "/deep-search",  icon: BrainCircuit,  group: "main" },
+  { name: "Network Graph",     href: "/graph",        icon: Network,       group: "main" },
+  { name: "Intel Terminal",    href: "/research",     icon: FileTerminal,  group: "main" },
+  { name: "Pipeline CRM",      href: "/crm",          icon: KanbanSquare,  group: "main" },
+  { name: "Persona Loop",      href: "/improvements", icon: Bot,           group: "tools" },
+  { name: "Data Sources",      href: "/data-sources", icon: Radio,         group: "tools" },
+  { name: "OSINT Tools",       href: "/osint-tools",  icon: Telescope,     group: "tools" },
+  { name: "Duplicates",        href: "/duplicates",   icon: Copy,          group: "tools" },
+  { name: "Field Manual",      href: "/manual",       icon: BookOpen,      group: "tools" },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -58,33 +58,44 @@ export function Layout({ children }: { children: React.ReactNode }) {
         )}
       </div>
 
-      <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-track-transparent scrollbar-thumb-[#2A3045]">
-        {navItems.map((item) => {
-          const isActive =
-            location === item.href ||
-            (item.href !== "/" && location.startsWith(item.href));
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              aria-current={isActive ? "page" : undefined}
-              className={cn(
-                "flex items-center px-3 py-2.5 text-sm font-medium transition-colors gap-2.5 border-l-2 rounded-r-md",
-                isActive
-                  ? "bg-primary/10 text-primary border-primary"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground border-transparent"
-              )}
-            >
-              <item.icon
-                className={cn(
-                  "h-4 w-4 shrink-0",
-                  isActive ? "text-primary" : "text-muted-foreground"
+      <nav className="flex-1 py-3 px-3 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-track-transparent scrollbar-thumb-[#2A3045]">
+        <div className="space-y-0.5">
+          {navItems.map((item, i) => {
+            const isActive =
+              location === item.href ||
+              (item.href !== "/" && location.startsWith(item.href));
+            const showGroupLabel = i === 0
+              ? null
+              : item.group !== navItems[i - 1].group;
+            return (
+              <div key={item.href}>
+                {showGroupLabel && (
+                  <div className="px-3 pt-4 pb-1">
+                    <span className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground/40">Tools &amp; Admin</span>
+                  </div>
                 )}
-              />
-              <span className="truncate">{item.name}</span>
-            </Link>
-          );
-        })}
+                <Link
+                  href={item.href}
+                  aria-current={isActive ? "page" : undefined}
+                  className={cn(
+                    "flex items-center px-3 py-2.5 text-sm font-medium transition-colors gap-2.5 border-l-2 rounded-r-md",
+                    isActive
+                      ? "bg-primary/10 text-primary border-primary"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground border-transparent"
+                  )}
+                >
+                  <item.icon
+                    className={cn(
+                      "h-4 w-4 shrink-0",
+                      isActive ? "text-primary" : "text-muted-foreground"
+                    )}
+                  />
+                  <span className="truncate">{item.name}</span>
+                </Link>
+              </div>
+            );
+          })}
+        </div>
       </nav>
 
       <div className="p-4 border-t border-border shrink-0">

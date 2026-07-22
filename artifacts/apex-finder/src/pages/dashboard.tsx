@@ -351,29 +351,33 @@ function StatsBar() {
 
   return (
     <div className="border-b border-border bg-card/90 backdrop-blur-md sticky top-0 z-20">
-      {/* Row 1 — 4 hero stats */}
+      {/* Row 1 — 4 hero stats (Contactable + Hot Leads are clickable) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-border">
         <div className="flex flex-col px-5 py-4 bg-card/90">
           <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
-            <Database className="w-3 h-3 shrink-0" /> Entities
+            <Database className="w-3 h-3 shrink-0" /> All Profiles
           </span>
           <span className="text-2xl font-bold text-foreground tabular-nums">{s.totalEntities?.toLocaleString()}</span>
         </div>
-        <div className="flex flex-col px-5 py-4 bg-card/90">
+        <Link href="/entities?hot=1" className="flex flex-col px-5 py-4 bg-card/90 hover:bg-amber-500/5 transition-colors group cursor-pointer">
           <span className="text-[10px] font-mono text-amber-500 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
             <AlertTriangle className="w-3 h-3 shrink-0" /> Hot Leads
+            <ChevronRight className="w-3 h-3 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
           </span>
           <span className="text-2xl font-bold text-amber-500 tabular-nums">{s.hotLeadsCount?.toLocaleString()}</span>
-        </div>
-        <div className="flex flex-col px-5 py-4 bg-card/90">
+          <span className="text-[9px] font-mono text-amber-500/50 mt-1 group-hover:text-amber-500/80 transition-colors">click to browse →</span>
+        </Link>
+        <Link href="/entities?contactable=1" className="flex flex-col px-5 py-4 bg-card/90 hover:bg-emerald-400/5 transition-colors group cursor-pointer">
           <span className="text-[10px] font-mono text-emerald-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
             <Mail className="w-3 h-3 shrink-0" /> Contactable
+            <ChevronRight className="w-3 h-3 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
           </span>
           <span className="text-2xl font-bold text-emerald-400 tabular-nums">{(s.contactableCount ?? 0).toLocaleString()}</span>
-        </div>
+          <span className="text-[9px] font-mono text-emerald-400/50 mt-1 group-hover:text-emerald-400/80 transition-colors">click to browse →</span>
+        </Link>
         <div className="flex flex-col px-5 py-4 bg-card/90">
           <span className="text-[10px] font-mono text-blue-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
-            <Globe className="w-3 h-3 shrink-0" /> W-HNWIs
+            <Globe className="w-3 h-3 shrink-0" /> HNWI Profiles
           </span>
           <span className="text-2xl font-bold text-blue-400 tabular-nums">{(s.westernHnwiCount ?? 0).toLocaleString()}</span>
         </div>
@@ -388,9 +392,9 @@ function StatsBar() {
         </div>
         <div className="flex items-center justify-between px-4 py-2 bg-card/60">
           <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
-            <Activity className="w-3 h-3 shrink-0" /> Signal Avg
+            <Activity className="w-3 h-3 shrink-0" /> Avg Reach
           </span>
-          <span className="text-xs font-bold text-primary tabular-nums">{((s.avgBayesianScore ?? 0) * 100).toFixed(1)}%</span>
+          <span className="text-xs font-bold text-primary tabular-nums">{((s.avgBayesianScore ?? 0) * 100).toFixed(1)}</span>
         </div>
         <div className="flex items-center justify-between px-4 py-2 bg-card/60">
           <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
@@ -580,12 +584,17 @@ export default function Dashboard() {
             <div className="flex items-center gap-2 min-w-0">
               <ShieldAlert className="w-4 h-4 text-amber-500 shrink-0" />
               <span className="text-xs font-mono font-bold uppercase tracking-widest text-foreground truncate">
-                Live Signals
+                Top Hot Leads
               </span>
             </div>
-            <div className="flex items-center gap-1.5 text-[10px] font-mono text-primary shrink-0">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-              LIVE
+            <div className="flex items-center gap-3 shrink-0">
+              <Link href="/entities?hot=1" className="text-[10px] font-mono text-primary/60 hover:text-primary transition-colors flex items-center gap-0.5">
+                View all <ChevronRight className="w-3 h-3" />
+              </Link>
+              <div className="flex items-center gap-1.5 text-[10px] font-mono text-primary">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                LIVE
+              </div>
             </div>
           </div>
 
@@ -604,11 +613,16 @@ export default function Dashboard() {
                 </div>
               ))
             ) : hotLeads?.map((lead: any) => (
-              <div key={lead.entityId} className="p-4 hover:bg-muted/30 transition-colors cursor-pointer group">
+              <Link
+                key={lead.entityId}
+                href={`/profile/${lead.entityId}`}
+                className="block p-4 hover:bg-muted/30 transition-colors group border-b border-border last:border-0"
+              >
                 <div className="flex justify-between items-start mb-2 gap-2">
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-foreground group-hover:text-primary transition-colors truncate text-sm">
+                    <h3 className="font-bold text-foreground group-hover:text-primary transition-colors truncate text-sm flex items-center gap-1">
                       {lead.entityName}
+                      <ChevronRight className="w-3 h-3 shrink-0 opacity-0 group-hover:opacity-60 transition-opacity" />
                     </h3>
                     <div className="text-xs font-mono mt-1.5 flex items-center gap-1.5 flex-wrap">
                       <span className={cn("px-1.5 py-0.5 rounded border text-[9px] uppercase whitespace-nowrap", getTypeBadgeStyles(lead.entityType))}>
@@ -646,21 +660,19 @@ export default function Dashboard() {
                   <span className="text-foreground/80 line-clamp-2">{lead.signal}</span>
                 </div>
 
-                <div className="mt-2.5 flex items-center justify-between">
-                  <Link
-                    href={`/profile/${lead.entityId}`}
-                    className="text-xs font-mono text-muted-foreground flex items-center hover:text-primary transition-colors"
-                  >
-                    Profile <ChevronRight className="w-3 h-3 ml-0.5" />
-                  </Link>
+                <div className="mt-2.5 flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
+                  <span className="text-xs font-mono text-muted-foreground flex items-center gap-0.5 group-hover:text-primary transition-colors">
+                    Open Profile <ChevronRight className="w-3 h-3" />
+                  </span>
                   <Link
                     href={`/graph?entity=${lead.entityId}`}
-                    className="text-xs font-mono text-primary flex items-center hover:underline"
+                    onClick={(e) => e.stopPropagation()}
+                    className="text-xs font-mono text-muted-foreground/60 flex items-center hover:text-primary transition-colors"
                   >
                     Network <ChevronRight className="w-3 h-3 ml-0.5" />
                   </Link>
                 </div>
-              </div>
+              </Link>
             ))}
 
             {!isLoadingLeads && (!hotLeads || hotLeads.length === 0) && (

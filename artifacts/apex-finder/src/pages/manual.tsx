@@ -149,17 +149,17 @@ function Section({ id, level, levelColor, levelLabel, title, children }: {
 
 /* ─── Sidebar levels ────────────────────────────────────────────────────────── */
 const LEVELS = [
-  { id: 1,  color: "#10B981", numeral: "I",    title: "BASICS",       subtitle: "Start here" },
-  { id: 2,  color: "#3B82F6", numeral: "II",   title: "ENTITY LEDGER", subtitle: "Target registry" },
-  { id: 3,  color: "#06B6D4", numeral: "III",  title: "DEEP SEARCH",  subtitle: "NL intelligence" },
+  { id: 1,  color: "#10B981", numeral: "I",    title: "INTEL HQ",      subtitle: "Your starting page" },
+  { id: 2,  color: "#3B82F6", numeral: "II",   title: "ENTITY LEDGER", subtitle: "All targets" },
+  { id: 3,  color: "#06B6D4", numeral: "III",  title: "DEEP SEARCH",   subtitle: "NL intelligence" },
   { id: 4,  color: "#F59E0B", numeral: "IV",   title: "NETWORK GRAPH", subtitle: "Relationship map" },
-  { id: 5,  color: "#EF4444", numeral: "V",    title: "INTEL TERMINAL", subtitle: "Hybrid analysis" },
-  { id: 6,  color: "#8B5CF6", numeral: "VI",   title: "PIPELINE CRM", subtitle: "Outreach tracking" },
-  { id: 7,  color: "#EC4899", numeral: "VII",  title: "PERSONA LOOP", subtitle: "AI improvement" },
-  { id: 8,  color: "#14B8A6", numeral: "VIII", title: "DATA SOURCES", subtitle: "Registry feeds" },
-  { id: 9,  color: "#F97316", numeral: "IX",   title: "ENTITY PROFILE", subtitle: "Deep-dive view" },
-  { id: 10, color: "#6366F1", numeral: "X",    title: "THE ENGINE",   subtitle: "Scoring & Pipeline" },
-  { id: 11, color: "#0EA5E9", numeral: "XI",   title: "PHASE G",      subtitle: "Semantic Intelligence" },
+  { id: 5,  color: "#EF4444", numeral: "V",    title: "INTEL TERMINAL",subtitle: "Path finding" },
+  { id: 6,  color: "#8B5CF6", numeral: "VI",   title: "PIPELINE CRM",  subtitle: "Outreach tracking" },
+  { id: 7,  color: "#EC4899", numeral: "VII",  title: "PERSONA LOOP",  subtitle: "AI improvement" },
+  { id: 8,  color: "#14B8A6", numeral: "VIII", title: "DATA SOURCES",  subtitle: "Registry feeds" },
+  { id: 9,  color: "#F97316", numeral: "IX",   title: "ENTITY PROFILE",subtitle: "Deep-dive view" },
+  { id: 10, color: "#6366F1", numeral: "X",    title: "THE ENGINE",    subtitle: "Scoring & pipeline" },
+  { id: 11, color: "#0EA5E9", numeral: "XI",   title: "PHASE G",       subtitle: "Semantic layer" },
 ];
 
 function SidebarItem({ level, active, onClick }: { level: typeof LEVELS[0]; active: boolean; onClick: () => void }) {
@@ -250,64 +250,102 @@ export default function FieldManual() {
       <div className="flex-1 md:overflow-y-auto">
         <div className="max-w-4xl mx-auto p-4 md:p-8 space-y-6 md:space-y-8 pb-24">
 
-          {/* ══ LEVEL I — BASICS ══════════════════════════════════════════════ */}
-          <Section id="section-1" level="I" levelColor="#10B981" levelLabel="LEVEL I — BASICS" title="What ApexFinder Pro Does">
+          {/* ══ LEVEL I — INTEL HQ ════════════════════════════════════════════ */}
+          <Section id="section-1" level="I" levelColor="#10B981" levelLabel="LEVEL I — INTELLIGENCE HQ" title="Your Starting Page">
 
             <p className="text-sm text-[#94A3B8] leading-relaxed mb-5 max-w-2xl">
-              ApexFinder Pro is a private intelligence platform for reaching ultra-high-net-worth individuals (HNWIs).
-              It ingests 32,500+ verified identities from public government registries (FAA, SEC EDGAR, UK Companies House, BRREG, UK Land Registry),
-              maps their asset portfolios and corporate connections, then uses a 5-layer AI engine plus semantic embeddings
-              to find the warmest introduction path to any target — with zero synthetic data, zero paid APIs.
-              Development Phases A through G are fully integrated into this build: registry ingestion (A–C), enrichment
-              pipelines (D–E), Deep Web OSINT (F), and the Semantic Intelligence layer with all-MiniLM-L6-v2 WASM
-              embeddings and 4-signal hybrid search (G). All 11 levels of this manual are relevant to the current build.
+              Intelligence HQ is the first page you see. It shows a live overview of your entire target database —
+              who's in it, which leads are hottest, who you can already contact, and where their assets are on a map.
+              Every number is clickable and leads somewhere useful.
             </p>
 
-            <Callout icon={<TrendingUp size={14} />} color="#10B981" title="The core idea">
-              HNWIs don't respond to strangers. They respond to warm introductions through people they already
-              trust — their private banker, their art dealer, their family office manager. ApexFinder maps those
-              relationships from public data so you know <em>exactly</em> who to reach first, and what to say.
+            <Callout icon={<TrendingUp size={14} />} color="#10B981" title="What ApexFinder Pro does">
+              It ingests verified identities from public government registries (FAA aircraft, SEC EDGAR filings,
+              UK Land Registry, Companies House, BRREG Norway), maps their asset portfolios and corporate connections,
+              then calculates the warmest introduction path to any target — with zero synthetic data.
             </Callout>
 
-            {/* 5-step workflow */}
-            <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-widest mt-7 mb-4">The 5-step playbook</h3>
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-0 bg-[#0B0F19] border border-[#1E293B] rounded-xl overflow-hidden mb-6">
+            {/* Stat tiles explanation */}
+            <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-widest mt-7 mb-4">The four headline numbers</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
               {[
-                { n: "01", icon: <Database size={13} />, color: "#10B981", label: "Entity Ledger",   hint: "Your roster of targets" },
-                { n: "02", icon: <Search size={13} />,   color: "#06B6D4", label: "Deep Search",     hint: "Find by natural language" },
-                { n: "03", icon: <Network size={13} />,  color: "#F59E0B", label: "Network Graph",   hint: "Map connections & assets" },
-                { n: "04", icon: <Terminal size={13} />, color: "#EF4444", label: "Intel Terminal",  hint: "Find warm path" },
-                { n: "05", icon: <KanbanSquare size={13} />, color: "#8B5CF6", label: "Pipeline CRM", hint: "Track & execute outreach" },
-              ].map((step, i) => (
-                <div key={step.n} className={`flex flex-row md:flex-col items-center md:text-center gap-3 md:gap-2 p-4${i < 4 ? " border-b md:border-b-0 md:border-r border-[#1E293B]" : ""}`}>
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center border-2 shrink-0 relative"
-                    style={{ borderColor: step.color + "60", backgroundColor: step.color + "15", color: step.color }}>
-                    {step.icon}
-                    <span className="absolute -top-2 -right-2 w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-black text-black"
-                      style={{ backgroundColor: step.color }}>{step.n}</span>
-                  </div>
+                { color: "#94A3B8", label: "All Profiles", desc: "Total entities in the database — individuals, corporations, trusts, and gatekeepers across all ingested registries.", clickable: false },
+                { color: "#F59E0B", label: "Hot Leads", desc: "Entities with a Reach Score ≥ 70 AND at least one confirmed asset. These are your immediate-action targets. Click to open the full filtered list.", clickable: true },
+                { color: "#10B981", label: "Contactable", desc: "Entities with a confirmed email address, phone number, or LinkedIn URL found through the In-House OSINT enricher. Click to open the full contactable list — this is the most important view.", clickable: true },
+                { color: "#3B82F6", label: "HNWI Profiles", desc: "Entities harvested specifically from the Western HNWI engine (SEC EDGAR SC 13D/G, DEF 14A, UK Companies House, BRREG Norway) — named individuals with beneficial ownership filings.", clickable: false },
+              ].map((s) => (
+                <div key={s.label} className="flex gap-3 p-4 rounded-lg border" style={{ borderColor: `${s.color}25`, backgroundColor: `${s.color}08` }}>
+                  <div className="w-2 shrink-0 rounded-full mt-1.5 self-start" style={{ backgroundColor: s.color, height: "8px", width: "8px", marginTop: "5px" }} />
                   <div>
-                    <p className="text-xs font-bold text-[#E2E8F0]">{step.label}</p>
-                    <p className="text-[10px] text-[#475569] mt-0.5">{step.hint}</p>
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="text-xs font-bold" style={{ color: s.color }}>{s.label}</p>
+                      {s.clickable && <span className="text-[9px] font-mono px-1.5 py-0.5 rounded border" style={{ color: s.color, borderColor: `${s.color}40`, backgroundColor: `${s.color}15` }}>CLICKABLE</span>}
+                    </div>
+                    <p className="text-xs text-[#94A3B8] leading-relaxed">{s.desc}</p>
                   </div>
                 </div>
               ))}
             </div>
 
+            {/* Reach Score explanation */}
+            <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-widest mb-4">What is the Reach Score?</h3>
+            <div className="bg-[#050A14] border border-[#1E293B] rounded-lg p-5 mb-5">
+              <p className="text-xs text-[#94A3B8] leading-relaxed mb-4">
+                Every entity shows a <strong className="text-[#E2E8F0]">Reach Score</strong> (0–100) next to their name.
+                This is a Bayesian probability score representing how reachable this person is based on the public signals available:
+                number of assets, registry presence, relationship density, and enrichment data found.
+                It does <em>not</em> mean wealth — it means reachability.
+              </p>
+              <div className="space-y-2">
+                {[
+                  { range: "80–100", label: "Highly reachable", color: "#10B981", desc: "Strong public footprint — multiple assets, rich registry data, likely has contactable gatekeepers nearby." },
+                  { range: "50–79",  label: "Moderately reachable", color: "#F59E0B", desc: "Confirmed public presence but gaps in the data. Run the OSINT enricher and Intel Terminal to fill in the path." },
+                  { range: "0–49",   label: "Low signal", color: "#64748B", desc: "Sparse data. May still be a valid target — run Deep Search and check their Network Graph before dismissing." },
+                ].map((row) => (
+                  <div key={row.range} className="flex gap-3 items-start text-xs py-2 border-b border-[#1E293B] last:border-0">
+                    <span className="font-bold font-mono w-14 shrink-0 text-right mt-0.5" style={{ color: row.color }}>{row.range}</span>
+                    <div>
+                      <span className="font-bold text-[#E2E8F0]">{row.label}</span>
+                      <span className="text-[#64748B] ml-2">{row.desc}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Top Hot Leads panel */}
+            <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-widest mb-4">Top Hot Leads panel</h3>
+            <p className="text-sm text-[#94A3B8] leading-relaxed mb-4">
+              The right side of Intelligence HQ shows your top 10 hot leads ranked by Reach Score. Each card is
+              fully clickable — tap anywhere on it to open that entity's full Profile page. The "View all →" link
+              at the top takes you to the complete hot leads list. Green <strong className="text-[#10B981]">EMAIL</strong> and
+              cyan <strong className="text-[#06B6D4]">PHONE</strong> badges mean contact data is already available.
+            </p>
+
+            {/* Workflow overview */}
+            <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-widest mt-7 mb-4">Daily workflow — 5 steps</h3>
+            <Steps color="#10B981" items={[
+              { title: "Check Contactable count", body: "Click the green Contactable number. If it's non-zero, those are your warmest targets — they have confirmed contact data. Start there." },
+              { title: "Review Hot Leads", body: "Click the amber Hot Leads number or a card in the Top Hot Leads panel. Open their Profile, then run Intel Terminal to find the best introduction path." },
+              { title: "Browse all targets", body: "Go to Entity Ledger (second item in the sidebar) to see every entity. Filter by type, use Deep Search for natural language queries, or sort by Reach Score." },
+              { title: "Map the network", body: "Once you've chosen a target, open Network Graph to see who they're connected to. Gatekeepers (amber nodes) are your real entry point." },
+              { title: "Track outreach in CRM", body: "Run Intel Terminal → Pipeline CRM captures the research path and pitch. Move the card through the 8 stages as you make contact." },
+            ]} />
+
             {/* Navigation overview */}
-            <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-widest mt-7 mb-4">Every page at a glance</h3>
+            <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-widest mt-7 mb-4">All pages at a glance</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {[
-                { icon: <Activity size={12} />, color: "#10B981", name: "Intelligence HQ", path: "/", desc: "Live signal dashboard — entity counts, hot leads, asset map, ingestion controls." },
-                { icon: <Database size={12} />, color: "#3B82F6", name: "Entity Ledger", path: "/entities", desc: "Full sortable/filterable list of all 32,500+ targets with scores and contact vectors." },
-                { icon: <Search size={12} />,   color: "#06B6D4", name: "Deep Search", path: "/deep-search", desc: "Natural language search: 4-signal hybrid fusing BM25, TF-IDF, Bayesian graph, and Phase G semantic embeddings." },
-                { icon: <Network size={12} />,  color: "#F59E0B", name: "Network Graph", path: "/graph", desc: "Interactive D3 graph of relationships: owns, directs, shares addresses, co-investors." },
-                { icon: <Terminal size={12} />, color: "#EF4444", name: "Intel Terminal", path: "/research", desc: "Hybrid Research — 5-layer pipeline with 120 UCT rollouts to find the optimal warm-introduction path." },
-                { icon: <KanbanSquare size={12} />, color: "#8B5CF6", name: "Pipeline CRM", path: "/crm", desc: "8-stage Kanban board tracking every target from Lead Gen to Closed." },
-                { icon: <Bot size={12} />,      color: "#EC4899", name: "Persona Loop", path: "/improvements", desc: "8 AI agents that continuously scan entities and log concrete enrichment actions." },
-                { icon: <Layers size={12} />,   color: "#14B8A6", name: "Data Sources", path: "/data-sources", desc: "Registry ingestion panel — run enrichers, track coverage, trigger background jobs." },
-                { icon: <Copy size={12} />,     color: "#A855F7", name: "Duplicates", path: "/duplicates", desc: "Cross-registry deduplication — detects entities appearing in multiple registries under different names via semantic cosine similarity." },
-                { icon: <Telescope size={12} />,color: "#0EA5E9", name: "OSINT Tools Directory", path: "/osint-tools", desc: "4,400+ open-source intelligence tools curated from the OSINT Tool Database — searchable by keyword and filterable by 21 categories. 24-hour Redis cache." },
+                { icon: <Activity size={12} />,      color: "#10B981", name: "Intelligence HQ",      path: "/",            desc: "Live dashboard — stat tiles (hot leads + contactable are clickable), top leads panel, asset map." },
+                { icon: <Database size={12} />,      color: "#3B82F6", name: "Entity Ledger",         path: "/entities",    desc: "Full list of all targets with Reach Scores, type filters, bulk export, and live registry lookup." },
+                { icon: <Search size={12} />,        color: "#06B6D4", name: "Deep Search",           path: "/deep-search", desc: "Natural language search across 32,500+ entities using 4-signal hybrid AI (BM25 + semantic)." },
+                { icon: <Network size={12} />,       color: "#F59E0B", name: "Network Graph",         path: "/graph",       desc: "Interactive relationship graph — HNWI nodes, gatekeeper paths, asset links, edge types." },
+                { icon: <Terminal size={12} />,      color: "#EF4444", name: "Intel Terminal",        path: "/research",    desc: "Hybrid Research — 120 UCT rollouts to find the warmest introduction path to any target." },
+                { icon: <KanbanSquare size={12} />,  color: "#8B5CF6", name: "Pipeline CRM",          path: "/crm",         desc: "8-stage Kanban tracking every target from first identification to closed deal." },
+                { icon: <Bot size={12} />,           color: "#EC4899", name: "Persona Loop",          path: "/improvements",desc: "8 AI analyst personas scan your database and log concrete enrichment actions." },
+                { icon: <Radio size={12} />,         color: "#14B8A6", name: "Data Sources",          path: "/data-sources",desc: "Ingestion control panel — trigger registry downloads, enrichers, and background jobs." },
+                { icon: <Telescope size={12} />,     color: "#0EA5E9", name: "OSINT Tools Directory", path: "/osint-tools", desc: "4,400+ curated open-source intelligence tools, filterable by 21 categories." },
+                { icon: <Copy size={12} />,          color: "#A855F7", name: "Duplicates",            path: "/duplicates",  desc: "Detects the same person appearing under different names across registries. Merge to unify." },
               ].map((p) => (
                 <div key={p.name} className="flex gap-3 p-3 rounded-lg border border-[#1E293B] bg-[#0B0F19]">
                   <div className="w-6 h-6 rounded flex items-center justify-center shrink-0 mt-0.5" style={{ backgroundColor: p.color + "20", color: p.color }}>{p.icon}</div>
