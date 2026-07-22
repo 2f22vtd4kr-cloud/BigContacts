@@ -1,0 +1,40 @@
+Here I attach our logs from the previous session. Keep working from where left.
+Let me pick up exactly where the session left off — fixing the hub-entity endpoint to return a moderate hub, then doing the full app review.
+Good state — 32,100 entities, 231,002 edges, 300 sessions, entity #343 has 340 edges (fine). The hub-entity fix is already working. Let me do the full app review now across all major pages in parallel to find what's still blocking 9.0.
+Clear picture now. Two critical bugs to fix for 9.0:
+1. CRM shows 0 sessions despite 300 existing in DB — query/status mismatch
+2. Graph is a solid blob — hub entity #343 has 340 relationships but they all share the same 340 corp nodes (one CORPORATE_SERIES cluster), rendering as a wall of circles
+Let me diagnose both simultaneously.
+Good diagnostics. Two clear fixes needed:
+1. CRM empty — useListResearchSessions() API is returning nothing (curl got no output); all 300 sessions exist with crm_status = 'Pitch Generated'which IS in CRM_COLUMNS
+2. Graph blob — hub endpoint targets highest-edge entity but all top hubs are CORPORATE_SERIES star graphs; need one with KNOWN_ASSOCIATE/GEOGRAPHIC_PEER diversity
+Let me check both simultaneously:
+The API returns 300 sessions fine. The issue is in the frontend hook. Let me find useListResearchSessionsand also check the data-sources research session counter:
+I have the full picture. Three fixes needed for 9.0:
+1. Graph blob — hub endpoint returns entity #343 (340 pure CORPORATE_SERIES star, renders as solid circle). Need hub with mixed relationship types
+2. Data Sources research sessions shows 0 — stat reads d.totalCount (undefined), should read d.activeResearchSessions
+3. CRM: "Pitch Generated" column off-screen — all 300 sessions are in the rightmost column; need to see all columns at once
+Let me read the CRM columns array and the hub SQL together:
+Good data. Now I have everything I need. Three targeted fixes:
+1. Graph hub → update SQL to prefer PROPERTY_AREA_PEER hubs (geographic network, not CORPORATE_SERIES star blob)
+2. Data Sources sessions counter → d.totalCount → d.activeResearchSessions
+3. CRM off-screen sessions → add stage-count summary bar + auto-scroll to first populated column
+All three in parallel:
+Now fix the CRM — add a stage summary bar and auto-scroll to first populated column:
+Good - managed workflows running. Now fix the CRM. Let me check imports first, then make the edit:
+Both managed workflows are running. Now make the CRM edit (auto-scroll + stage summary), then restart the API server for the graph fix:
+Continuing — making the remaining CRM edits in parallel with restarting the API server:
+Now wire the kanbanRef to the kanban scroll container, then restart both services:
+Both services running cleanly. Let me verify all three fixes with screenshots:
+All three fixes confirmed working:
+* Graph ✅ Entity #18063 — readable geographic cluster with ~20 nodes
+* CRM ✅ Stage strip shows "PITCH GENERATED 50" highlighted, auto-scrolled, sessions visible
+* Data Sources ✅ Research Sessions now shows "300 / 500"
+Let me now screenshot the dashboard and remaining pages, and check improvements.md for what the 9.0 target specifically requires:
+The /intel nav link 404s (correct route is /research). Let me read Phase E requirements while checking the nav routing issue:
+Good state — DB healthy, all three fixes working. Two more issues to address: /intel nav link 404s, and the dashboard needs investigation. Let me tackle both in parallel with triggering the Phase E data operations:
+Good — /intel is correctly wired in the nav (/research); the 404 was my test. The dashboard timeout is the remaining concern. Let me check it and trigger the persona simulation in parallel:
+Persona simulation already running. Let me poll it and check the dashboard loading issue:
+The map-data endpoint returns 11.9MB — that's why the dashboard times out. The browser is downloading 12MB of JSON just to render markers. I need to add a limit to that endpoint. Let me fix it while polling the simulation:
+Fixing the 12MB map-data payload by limiting to the 1,000 highest-scoring assets, then rebuilding:
+The simulation failed (server restarted mid-run) and map-data is still returning the cached 11.9MB. Let me address all of this in parallel:

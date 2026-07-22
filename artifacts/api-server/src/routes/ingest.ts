@@ -1527,11 +1527,11 @@ router.get("/pipeline/status", async (_req: Request, res: Response): Promise<voi
     ] = await Promise.all([
       db.select({ count: count() }).from(entitiesTable),
       db.select({ count: count() }).from(entitiesTable).where(eq(entitiesTable.isHot, true)),
-      // Hot entities with no research sessions
+      // Hot entities with no research sessions — use NOT IN on pre-aggregated set (fast)
       db.execute(sql`
         SELECT COUNT(*)::int AS count FROM entities e
         WHERE e.is_hot = true
-        AND NOT EXISTS (SELECT 1 FROM research_sessions rs WHERE rs.target_entity_id = e.id)
+        AND e.id NOT IN (SELECT DISTINCT target_entity_id FROM research_sessions)
       `),
       // Entities where metadata contains needsEnrichment:true
       db.select({ count: count() }).from(entitiesTable)
@@ -1542,13 +1542,16 @@ router.get("/pipeline/status", async (_req: Request, res: Response): Promise<voi
       // Entities with sparse notes (< 50 chars)
       db.select({ count: count() }).from(entitiesTable)
         .where(sql`${entitiesTable.notes} IS NULL OR length(${entitiesTable.notes}) < 50`),
-      // Entities with zero relationship edges
+      // Entities with zero relationship edges — aggregate relationships first, then subtract (fast)
       db.execute(sql`
-        SELECT COUNT(*)::int AS count FROM entities e
-        WHERE NOT EXISTS (
-          SELECT 1 FROM relationships r
-          WHERE r.source_entity_id = e.id OR (r.target_type = 'Entity' AND r.target_id = e.id)
-        )
+        SELECT (
+          (SELECT COUNT(*) FROM entities) -
+          (SELECT COUNT(DISTINCT e_id) FROM (
+            SELECT source_entity_id AS e_id FROM relationships
+            UNION
+            SELECT target_id AS e_id FROM relationships WHERE target_type = 'Entity'
+          ) t)
+        )::int AS count
       `),
     ]);
 

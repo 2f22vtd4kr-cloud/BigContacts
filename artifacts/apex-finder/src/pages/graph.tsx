@@ -51,7 +51,7 @@ export default function GraphViewer() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entityIdFromUrl]);
 
-  const { data: graphData, isLoading } = useGetEntityGraph(targetId);
+  const { data: graphData, isLoading } = useGetEntityGraph(targetId, undefined, { query: { enabled: targetId > 0 } });
   const { data: allEntities } = useListEntities({ limit: 200 });
   const [width, height] = useWindowSize();
   const fgRef = useRef<ForceGraphMethods | undefined>(undefined);
