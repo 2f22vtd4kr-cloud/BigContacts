@@ -11,6 +11,7 @@ import DeepSearch from "@/pages/deep-search";
 import Improvements from "@/pages/improvements";
 import DataSources from "@/pages/data-sources";
 import Duplicates from "@/pages/duplicates";
+import OsintToolsDirectory from "@/pages/osint-tools";
 import NotFound from "@/pages/not-found";
 
 export default function AppRouter() {
@@ -28,6 +29,7 @@ export default function AppRouter() {
         <Route path="/data-sources" component={DataSources} />
         <Route path="/duplicates" component={Duplicates} />
         <Route path="/manual" component={FieldManual} />
+        <Route path="/osint-tools" component={OsintToolsDirectory} />
         <Route component={NotFound} />
       </Switch>
     </Layout>

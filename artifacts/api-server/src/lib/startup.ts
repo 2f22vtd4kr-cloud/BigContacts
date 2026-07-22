@@ -629,8 +629,16 @@ async function runPopulatedDbMaintenance(): Promise<void> {
   // batchSize 2000 = first batch; subsequent boots pick up incrementally.
   setTimeout(() => trigger("auto semantic embeddings (G1 — pass 1)", "/api/ingest/compute-embeddings", { batchSize: 2_000 }), 240_000);
 
+  // G2b: 8 min — semantic entity resolution (cross-registry LIKELY_SAME_PERSON edges)
+  // Fires after embeddings are computed (4 min) so the cache is populated.
+  // Compares FAA × EDGAR × HMLR × BRREG entity pairs, cosine sim > 0.93.
+  setTimeout(() => trigger("auto semantic entity resolution (G2b)", "/api/relationships/semantic-dedup"), 480_000);
+
   // G1: 32 min — semantic embedding pass 2 (catches entities added/updated since pass 1)
   setTimeout(() => trigger("auto semantic embeddings (G1 — pass 2)", "/api/ingest/compute-embeddings", { batchSize: 5_000, force: true }), 1_920_000);
+
+  // G2b: 34 min — second semantic dedup pass (after pass 2 embeddings cover all entities)
+  setTimeout(() => trigger("auto semantic entity resolution (G2b — pass 2)", "/api/relationships/semantic-dedup"), 2_040_000);
 }
 
 /** Main cold-start entry point — call once after Upstash connects. */

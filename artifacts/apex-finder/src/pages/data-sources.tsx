@@ -21,7 +21,7 @@ interface SourceDef {
   Icon: React.FC<any>;
   color: string;
   bg: string;
-  phase: 1 | 8 | 9;
+  phase: 1 | 8 | 9 | 10;
   homepage?: string;
   endpoint?: string;      // POST endpoint to trigger
   jobType?: string;       // type key for job polling
@@ -220,6 +220,37 @@ const SOURCES: SourceDef[] = [
     bodyParams: { batchSize: 200 },
     note: "Fully in-house — no Hunter.io, no Apollo.io, no paid plans. Wikidata covers public figures; GitHub covers founders/tech execs; Gravatar-verified email patterns work for most corporate emails. Run after Web OSINT Enrich for best coverage.",
   },
+
+  // ── Phase G (10): Semantic Intelligence Layer ─────────────────────────────
+  {
+    id: "semantic-embeddings",
+    label: "Semantic Embedding Engine",
+    description:
+      "Generates sentence-level embeddings for all 32,000+ entities using all-MiniLM-L6-v2 (384-dim, ~23 MB ONNX model). Embeddings power true semantic search, cross-registry entity resolution, and MCTS path scoring. Runs fully server-side — no external AI API.",
+    kind: "enricher",
+    Icon: Brain,
+    color: "#8B5CF6",
+    bg: "rgba(139,92,246,0.1)",
+    phase: 10,
+    homepage: "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2",
+    endpoint: "/api/ingest/compute-embeddings",
+    jobType: "compute-embeddings",
+    bodyParams: { batchSize: 5000, force: true },
+    note: "Auto-triggered at 4 min and 32 min after boot. Run manually to force a full recompute.",
+  },
+  {
+    id: "osint-tools-directory",
+    label: "OSINT Tools Directory",
+    description:
+      "12,500+ categorised OSINT tools sourced from tomvaillant/osint-tool-database on Hugging Face. Search by keyword or filter by category (Social Media, Company Research, Geolocation, Dark Web, etc.). Cached 24h in Redis.",
+    kind: "enricher",
+    Icon: BookOpen,
+    color: "#06B6D4",
+    bg: "rgba(6,182,212,0.1)",
+    phase: 10,
+    homepage: "https://huggingface.co/datasets/tomvaillant/osint-tool-database",
+    note: "Browse at /osint-tools — no ingest trigger needed; data fetched on-demand.",
+  },
 ];
 
 // ─── API helpers ──────────────────────────────────────────────────────────────
@@ -399,6 +430,14 @@ function EnrichmentCoverageStats() {
       <div className="flex items-center justify-between border-t border-border/40 pt-2.5">
         <span className="text-[10px] font-mono text-muted-foreground/60">Run full 5-layer hybrid research pipeline (L1 BM25+TF-IDF · L2 multi-agent · L3 query expansion · L4 UCT path-finding · L5 Bayesian-UCB) on top hot leads without sessions</span>
         <BulkMctsButton />
+      </div>
+      <div className="flex items-center justify-between border-t border-border/40 pt-2.5">
+        <span className="text-[10px] font-mono text-muted-foreground/60">G1 Semantic embeddings: compute all-MiniLM-L6-v2 (384-dim ONNX) embeddings for all entities — powers semantic search signal 4 and cross-registry entity resolution</span>
+        <ComputeEmbeddingsButton />
+      </div>
+      <div className="flex items-center justify-between border-t border-border/40 pt-2.5">
+        <span className="text-[10px] font-mono text-muted-foreground/60">G2b Semantic entity resolution: compare embeddings across registries (FAA × EDGAR × HMLR) — creates LIKELY_SAME_PERSON edges for cosine sim &gt; 0.93 cross-registry pairs</span>
+        <SemanticDedupButton />
       </div>
     </div>
   );
@@ -1020,6 +1059,116 @@ function BulkMctsButton() {
   );
 }
 
+// ─── G: Compute Embeddings Button ────────────────────────────────────────────
+
+function ComputeEmbeddingsButton() {
+  const [status, setStatus] = useState<"idle" | "running" | "done" | "error">("idle");
+  const [msg, setMsg]       = useState("");
+  const [cacheSize, setCacheSize] = useState<number | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Load embedding cache size on mount
+  useEffect(() => {
+    const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+    fetch(`${base}/api/search/embedding-status`).then(r => r.json()).then((d: any) => {
+      if (d?.cacheSize !== undefined) setCacheSize(d.cacheSize);
+    }).catch(() => {});
+  }, []);
+
+  const run = async () => {
+    if (pollRef.current) clearInterval(pollRef.current);
+    setStatus("running");
+    setMsg("Loading model…");
+    try {
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const r = await fetch(`${base}/api/ingest/compute-embeddings`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ batchSize: 5000, force: true }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error ?? "Failed");
+      if (!d.jobId) { setMsg(d.message ?? "Nothing to embed"); setStatus("done"); return; }
+      const jobId: string = d.jobId;
+      setMsg(`Computing embeddings…`);
+      pollRef.current = setInterval(async () => {
+        try {
+          const p = await fetch(`${base}/api/ingest/job/${jobId}`);
+          const pj = await p.json();
+          setMsg(`${pj.progress ?? 0}/${pj.total ?? 0} embedded`);
+          if (pj.status === "done" || pj.status === "failed") {
+            clearInterval(pollRef.current!);
+            setMsg(pj.message ?? "Done");
+            setStatus(pj.status === "done" ? "done" : "error");
+            if (pj.status === "done" && pj.total) setCacheSize(pj.total);
+          }
+        } catch { /* ignore */ }
+      }, 3000);
+    } catch (err: any) {
+      setMsg(err.message ?? "Error");
+      setStatus("error");
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2 flex-shrink-0">
+      {cacheSize !== null && status === "idle" && (
+        <span className="text-[10px] font-mono text-violet-400/70">{cacheSize.toLocaleString()} cached</span>
+      )}
+      {msg && (
+        <span className={`text-[10px] font-mono max-w-[220px] truncate ${status === "error" ? "text-red-400" : status === "done" ? "text-emerald-400" : "text-violet-400"}`} title={msg}>{msg}</span>
+      )}
+      <button
+        onClick={run}
+        disabled={status === "running"}
+        className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-border text-muted-foreground hover:text-violet-400 hover:border-violet-400/40 font-mono text-[10px] uppercase tracking-wider transition-colors disabled:opacity-50 flex-shrink-0"
+      >
+        {status === "running" ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Brain className="w-3 h-3" />}
+        {status === "running" ? "Embedding…" : "Compute Embeddings"}
+      </button>
+    </div>
+  );
+}
+
+// ─── G: Semantic Dedup Button ─────────────────────────────────────────────────
+
+function SemanticDedupButton() {
+  const [status, setStatus] = useState<"idle" | "running" | "done" | "error">("idle");
+  const [msg, setMsg] = useState("");
+
+  const run = async () => {
+    setStatus("running");
+    setMsg("Comparing embeddings…");
+    try {
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const r = await fetch(`${base}/api/relationships/semantic-dedup`, { method: "POST" });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error ?? "Failed");
+      setMsg(d.message ?? "Done");
+      setStatus("done");
+    } catch (err: any) {
+      setMsg(err.message ?? "Error");
+      setStatus("error");
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2 flex-shrink-0">
+      {msg && (
+        <span className={`text-[10px] font-mono max-w-[260px] truncate ${status === "error" ? "text-red-400" : status === "done" ? "text-emerald-400" : "text-violet-400"}`} title={msg}>{msg}</span>
+      )}
+      <button
+        onClick={run}
+        disabled={status === "running"}
+        className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-border text-muted-foreground hover:text-violet-400 hover:border-violet-400/40 font-mono text-[10px] uppercase tracking-wider transition-colors disabled:opacity-50 flex-shrink-0"
+      >
+        {status === "running" ? <RefreshCw className="w-3 h-3 animate-spin" /> : <GitMerge className="w-3 h-3" />}
+        {status === "running" ? "Resolving…" : "Semantic Dedup"}
+      </button>
+    </div>
+  );
+}
+
 // ─── Pipeline Status Panel ────────────────────────────────────────────────────
 
 interface PipelineStatus {
@@ -1406,9 +1555,10 @@ function SourceCard({ src }: { src: SourceDef }) {
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function DataSources() {
-  const phase1Sources = SOURCES.filter((s) => s.phase === 1);
-  const phase8Sources = SOURCES.filter((s) => s.phase === 8);
-  const phase9Sources = SOURCES.filter((s) => s.phase === 9);
+  const phase1Sources  = SOURCES.filter((s) => s.phase === 1);
+  const phase8Sources  = SOURCES.filter((s) => s.phase === 8);
+  const phase9Sources  = SOURCES.filter((s) => s.phase === 9);
+  const phaseGSources  = SOURCES.filter((s) => s.phase === 10);
 
   return (
     <div className="flex flex-col h-full">
@@ -1438,6 +1588,24 @@ export default function DataSources() {
 
         {/* ── Enrichment Coverage Stats ─────────────────────────────────────── */}
         <EnrichmentCoverageStats />
+
+        {/* ── Phase G — Semantic Intelligence Layer ────────────────────────── */}
+        {phaseGSources.length > 0 && (
+          <section>
+            <div className="flex items-center gap-2 mb-4">
+              <Brain className="h-4 w-4 text-violet-400" />
+              <h2 className="text-sm font-semibold font-mono uppercase tracking-widest text-violet-400">
+                Phase G — Semantic Intelligence
+              </h2>
+              <div className="flex-1 h-px bg-border" />
+            </div>
+            <div className="grid gap-3 grid-cols-1 lg:grid-cols-2">
+              {phaseGSources.map((src) => (
+                <SourceCard key={src.id} src={src} />
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* ── Phase 9 — In-House OSINT Engine ──────────────────────────────── */}
         {phase9Sources.length > 0 && (

@@ -1726,8 +1726,10 @@ router.delete("/ingest/deep-web-osint-lock", async (_req: Request, res: Response
 // Stores Float32Array embeddings in Redis (emb:v1:{id}) + in-memory cache.
 // Progressively activates the 4th RRF signal in hybrid search.
 router.post("/ingest/compute-embeddings", async (req: Request, res: Response): Promise<void> => {
-  const { batchSize: _batchSize = 500, force = false } = req.body ?? {};
-  const batchSize = Math.min(Math.max(Number(_batchSize) || 500, 1), 2000);
+  const { batchSize: _batchSize = 2000, force = false, offset: _offset = 0 } = req.body ?? {};
+  // Raised cap: allow up to 50,000 so a single call can cover all entities
+  const batchSize = Math.min(Math.max(Number(_batchSize) || 2000, 1), 50_000);
+  const offset    = Math.max(Number(_offset) || 0, 0);
 
   const existing = await getActiveJob("compute-embeddings");
   if (existing && !force) {
@@ -1745,11 +1747,11 @@ router.post("/ingest/compute-embeddings", async (req: Request, res: Response): P
   res.json({ jobId, message: "Semantic embedding computation started." });
 
   (async () => {
-    // Lazy-import semantic engine (loads ONNX model on first use)
     const {
-      embedText, entityToEmbedText, storeEmbedding, getEmbeddingCacheSize,
+      embedText, entityToEmbedText, storeEmbedding, getEmbeddingCacheSize, getAllEmbeddings,
     } = await import("../lib/semantic-engine");
 
+    // Fetch all entities in the requested window (offset + batchSize)
     const rows = await db.select({
       id: entitiesTable.id,
       name: entitiesTable.name,
@@ -1757,16 +1759,20 @@ router.post("/ingest/compute-embeddings", async (req: Request, res: Response): P
       nationality: entitiesTable.nationality,
       knownResidences: entitiesTable.knownResidences,
       metadata: entitiesTable.metadata,
-    }).from(entitiesTable).limit(batchSize);
+    }).from(entitiesTable).offset(offset).limit(batchSize);
 
-    const total = rows.length;
-    await updateJob(jobId, { status: "running", total, progress: 0, message: `Embedding ${total} entities…` });
+    // When force=false, skip entities already in the in-memory cache (saves time on repeat runs)
+    const existingCache = getAllEmbeddings();
+    const toEmbed = force ? rows : rows.filter(e => !existingCache.has(e.id));
+
+    const total = toEmbed.length;
+    await updateJob(jobId, { status: "running", total, progress: 0, message: `Embedding ${total} entities (${rows.length - total} already cached)…` });
 
     let processed = 0;
     let skipped = 0;
     const CHUNK = 10; // parallel embed chunk (each ~15 ms → 10 × 15 ms ≈ 150 ms/chunk)
-    for (let i = 0; i < rows.length; i += CHUNK) {
-      const chunk = rows.slice(i, i + CHUNK);
+    for (let i = 0; i < toEmbed.length; i += CHUNK) {
+      const chunk = toEmbed.slice(i, i + CHUNK);
       await Promise.all(chunk.map(async (e) => {
         try {
           const text = entityToEmbedText(e);
@@ -1791,11 +1797,11 @@ router.post("/ingest/compute-embeddings", async (req: Request, res: Response): P
     await updateJob(jobId, {
       status: "done", progress: total, total,
       inserted: processed, skipped,
-      message: `Done — ${processed} embeddings computed and cached. Semantic search now active.`,
+      message: `Done — ${processed} embeddings computed, ${skipped} skipped. Cache: ${getEmbeddingCacheSize()} total. Semantic search active.`,
       finishedAt: new Date().toISOString(),
     } as any);
     await setActiveJob("compute-embeddings", "");
-    logger.info({ processed, skipped, total }, "Semantic embedding computation complete");
+    logger.info({ processed, skipped, total, cacheSize: getEmbeddingCacheSize() }, "Semantic embedding computation complete");
   })().catch(async (err: any) => {
     logger.error({ err: err?.message }, "Semantic embedding computation crashed");
     await updateJob(jobId, { status: "failed", message: err?.message ?? "Crashed", finishedAt: new Date().toISOString() } as any);

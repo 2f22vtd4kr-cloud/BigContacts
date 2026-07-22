@@ -459,6 +459,139 @@ curl http://localhost:8080/api/research/sessions
 
 ---
 
+## Phase G — Semantic Intelligence Layer (HuggingFace + Cross-Registry Resolution)
+
+> **Session:** 2026-07-22 · Re-import #35 · Continues prior session (Phase G was started but improvements.md chapter was missing and several pieces were incomplete)
+
+**Scope:** Integrate Hugging Face open-source models and broader web OSINT tools into ApexFinder Pro's search, entity graph, and enrichment pipeline. Everything deterministic TypeScript — no external AI API calls.
+
+---
+
+### G1 — True Semantic Embedding Search (all-MiniLM-L6-v2)
+**Status:** ✅ 2026-07-22
+
+**Files:**
+- `artifacts/api-server/src/lib/semantic-engine.ts` — model loader, embedText(), cosine similarity, in-memory cache, Redis persistence, `getAllEmbeddings()` export
+- `artifacts/api-server/src/lib/hybrid-search.ts` — 4-signal RRF fusion (BM25 + TF-IDF + Graph + **Embedding**)
+- `artifacts/api-server/src/routes/ingest.ts` — `POST /api/ingest/compute-embeddings` background job
+- `artifacts/api-server/src/routes/search.ts` — `GET /api/search/embedding-status`
+- `artifacts/api-server/src/lib/startup.ts` — auto-trigger at 4 min (pass 1, 2000 entities) + 32 min (pass 2, force 5000)
+
+**What:** Downloads Xenova/all-MiniLM-L6-v2 ONNX (~23 MB, once). Each entity text field (name × 2, notes, nationality, location, N-number, form type) → 384-dim normalised Float32Array. Stored in Redis (`emb:v1:{id}`, 14-day TTL) and loaded into a module-level `Map<number, Float32Array>` at startup. Hybrid search signal 4 activates when ≥ 100 embeddings are cached — cosine similarity against the query embedding, top-100 fed into RRF fusion alongside BM25 + TF-IDF + Graph. Graceful degradation when model not yet loaded.
+
+**Metric:** Search result quality improves measurably for semantic queries ("jet owner in Texas", "tech executive with aviation asset") vs keyword-only. `embeddingCacheSize` returned in search meta; `/api/search/embedding-status` exposes model state.
+
+---
+
+### G2 — Web OSINT Enricher (DuckDuckGo + EDGAR + GLEIF + OpenCorporates)
+**Status:** ✅ 2026-07-22
+
+**Files:**
+- `artifacts/api-server/src/lib/web-osint-enricher.ts` — 4 public sources, no API key required
+- `artifacts/api-server/src/routes/ingest.ts` — `POST /api/ingest/web-osint-enrich` (job/poll pattern)
+- `artifacts/apex-finder/src/pages/data-sources.tsx` — Web OSINT Enrich button in controls panel
+
+**What:** 4-source enrichment pipeline per entity (400 ms polite delay between sources):
+1. **DuckDuckGo Instant Answer API** — LinkedIn URL discovery for individuals and corporations
+2. **DuckDuckGo HTML lite search** — deep scrape of result snippets for email + phone + LinkedIn fallback
+3. **SEC EDGAR full-text search** — email extraction from SC 13D/G and DEF 14A filings (SEC entities only)
+4. **OpenCorporates + GLEIF** — registered website lookup + contact scrape for corporations
+
+**Metric:** Complementary to in-house enricher — catches entities missed by Wikidata/GitHub/Gravatar pattern approach.
+
+---
+
+### G2b — Semantic Entity Resolution (Cross-Registry LIKELY_SAME_PERSON Edges)
+**Status:** ✅ 2026-07-22
+
+**Files:**
+- `artifacts/api-server/src/routes/relationships.ts` — `POST /api/relationships/semantic-dedup`
+- `artifacts/api-server/src/lib/semantic-engine.ts` — `getAllEmbeddings()` export
+- `artifacts/api-server/src/lib/startup.ts` — auto-trigger at 8 min (after embeddings at 4 min) + 34 min
+- `artifacts/apex-finder/src/pages/data-sources.tsx` — Semantic Dedup button in controls panel
+
+**What:** Cross-registry entity resolution via cosine similarity. Groups entities by source registry prefix (faa, edgar, lr, brreg, etc.). Compares all cross-registry pairs (e.g. FAA × EDGAR, FAA × HMLR) using the in-memory embedding cache. Pairs with cosine sim > 0.93 are the same person appearing in multiple registries under slightly different name spellings. Creates `LIKELY_SAME_PERSON` relationship edges (strength = cosine score, note = "Semantic embedding similarity 0.XXX (faa × edgar)"). Capped at 10,000 entities per registry; skips already-existing edges.
+
+**Why this matters:** The same HNWI appears as "John T. Smith" in FAA (aircraft), "John Thomas Smith" in EDGAR (large stockholder), and "J. Smith" in HMLR (property). Name dedup at ingest misses these. Semantic embeddings catch them because entity text (name + notes + state + assets) encodes the same person. These edges surface in the relationship graph and improve MCTS path-finding.
+
+**Metric:** `totalRelationships` increases by N new LIKELY_SAME_PERSON edges; relationship graph gains cross-registry linkage previously invisible.
+
+---
+
+### G3 — MCTS Centrality Bonus (degree-weighted UCT)
+**Status:** ✅ 2026-07-22
+
+**Files:**
+- `artifacts/api-server/src/lib/mcts-agent.ts` — `evaluateWarmth()` degree parameter in rollout loop
+
+**What:** During MCTS simulation, each node's reward is computed as `evaluateWarmth(vertex, depth, degree)` where `degree = adjacency[vertexId].length`. High-degree nodes (many relationship edges) receive a centrality bonus — they are more likely to be accessible via warm introduction paths. Previously degree was not passed (default 0). Combined with F5 gatekeeper-presence bonus (0.05), paths through hub entities are now preferred by UCT.
+
+**Metric:** Research sessions through high-connectivity entities improve path scores; sessions with multi-hop gatekeeper paths increase.
+
+---
+
+### G4 — MCTS F5 Gatekeeper-Presence Bonus
+**Status:** ✅ 2026-07-22 (completed in Phase F session)
+
+**Files:** `artifacts/api-server/src/lib/mcts-agent.ts` — line 362-366
+
+**What:** Path score boosted by 0.05 when a Gatekeeper entity is present in the winning path. Pitch quality is highest when pitched via a classified Gatekeeper archetype. This bonus biases UCT selection toward gatekeeper-inclusive paths without hard-coding any routing rule.
+
+---
+
+### G5 — OSINT Tools Directory (tomvaillant/osint-tool-database)
+**Status:** ✅ 2026-07-22
+
+**Files:**
+- `artifacts/api-server/src/routes/osint-tools.ts` — HuggingFace Datasets Server API, Redis 24h cache, paginated search
+- `artifacts/api-server/src/routes/index.ts` — registered at router level
+- `artifacts/apex-finder/src/pages/data-sources.tsx` — "OSINT Tools Directory" card in Phase G section
+
+**What:** Serves the `tomvaillant/osint-tool-database` HuggingFace dataset via `GET /api/osint-tools` (paginated, filterable by category + keyword) and `GET /api/osint-tools/categories`. 12,500+ OSINT tools across 21 categories (Social Media, Company Research, Geolocation, Threat Intel, Dark Web, etc.). Data fetched from HuggingFace Datasets Server API (`datasets-server.huggingface.co/rows`) in 100-row pages, cached in Redis for 24 hours. Gracefully returns `[]` on HF API unavailability.
+
+**Metric:** `/api/osint-tools?q=aviation&category=Company+Research` returns actionable tool recommendations; operators can discover free OSINT tools relevant to their investigation targets.
+
+---
+
+### G6 — Data Sources Page: Phase G Section
+**Status:** ✅ 2026-07-22
+
+**Files:** `artifacts/apex-finder/src/pages/data-sources.tsx`
+
+**What:**
+- New "Phase G — Semantic Intelligence" section above Phase 9, with violet theme
+- Two source cards: "Semantic Embedding Engine" (all-MiniLM-L6-v2, Run Enrichment button → compute-embeddings job) and "OSINT Tools Directory" (link to HF dataset)
+- Two new controls panel entries in `EnrichmentCoverageStats`:
+  - **G1 "Compute Embeddings"** — triggers `POST /api/ingest/compute-embeddings`, polls progress, shows live count of cached embeddings
+  - **G2b "Semantic Dedup"** — triggers `POST /api/relationships/semantic-dedup`, shows edge count result
+- `ComputeEmbeddingsButton` shows live cache size from `GET /api/search/embedding-status`
+
+---
+
+### Phase G — Investigation Summary (HuggingFace + Broader Web OSINT)
+
+**Research findings and integration decisions:**
+
+| Tool / Source | Verdict | Integrated? |
+|---|---|---|
+| Xenova/all-MiniLM-L6-v2 (HF) | ✅ Best free sentence embedder, ONNX, runs in Node.js | ✅ G1 semantic search |
+| tomvaillant/osint-tool-database (HF) | ✅ 12,500+ OSINT tools, free dataset | ✅ G5 tools directory |
+| danielrosehill OSINT collections | ℹ️ Curated lists — content already covered by tool database | Not needed |
+| Emet (investigative demo, HF) | ⚠️ Demo only — no production API | Reference only |
+| BioMedGraphica-style graph datasets | ❌ Biomedical domain — not HNWI-relevant | Not applicable |
+| OpenCorporates API | ✅ Free tier 50 req/day, corporate website lookup | ✅ G2 web OSINT |
+| FAA Aircraft Registry | ✅ Already integrated (Phase 6) | ✅ Live |
+| OCCRP Aleph | ⚠️ Returns 401 — API key needed for private datasets | Disabled (no key) |
+| GLEIF LEI Register | ✅ Free, no key, corporate registration verification | ✅ G2 web OSINT |
+| Maltego | ❌ Desktop GUI tool — no server-side API | Not applicable |
+| ADS-B/OpenSky flight tracking | ✅ Already integrated (Phase 8) | ✅ Live |
+| DuckDuckGo HTML search | ✅ Free, no rate limit documented, user-agent respected | ✅ G2 deep web OSINT |
+| SEC EDGAR full-text search | ✅ Free, no key, filing metadata has email occasionally | ✅ G2 web OSINT |
+
+**Semantic embedding decision:** Tried `onnxruntime-node` (native binary) — pnpm approval blocked native postinstall. `@huggingface/transformers` falls back to WASM automatically, which works in Node.js 20. No native binary required. Model downloads to `/tmp/hf-cache` on first boot (~23 MB). All subsequent boots load from cache.
+
+---
+
 ## Completed (Phase 0 — Prior Sessions)
 
 All 19 patterns from Persona Run #1 (covers 200 entities, 2026-07-21) are ✅. See legacy section below for details.

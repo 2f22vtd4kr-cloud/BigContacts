@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, isNotNull, sql, and } from "drizzle-orm";
 import { db, relationshipsTable, entitiesTable, assetsTable } from "@workspace/db";
+import { getAllEmbeddings } from "../lib/semantic-engine";
 import {
   ListRelationshipsQueryParams,
   CreateRelationshipBody,
@@ -773,6 +774,128 @@ router.post("/relationships/auto-detect-edgar-coshareholder", async (_req, res):
     await db.insert(relationshipsTable).values(pending.slice(i, i + CHUNK));
   }
   res.json({ created, skipped, groups, message: `EDGAR co-shareholder: ${created} EDGAR_CO_SHAREHOLDER edges across ${groups} companies, ${skipped} skipped.` });
+});
+
+// ── POST /relationships/semantic-dedup — G2b semantic entity resolution ────────
+//
+// Finds entity pairs from DIFFERENT source registries whose sentence embeddings
+// are highly similar (cosine > 0.93), indicating the same person appears in
+// multiple registries under slightly different name spellings.
+// Creates LIKELY_SAME_PERSON relationship edges for each matching pair.
+//
+// Algorithm: O(|FAA| × |EDGAR|) cross-registry cosine — fast because EDGAR is
+// small (~500). Skips within-registry pairs (already deduped at ingest).
+// Capped at 10,000 entities per registry for safety.
+router.post("/relationships/semantic-dedup", async (_req, res): Promise<void> => {
+  const embCache = getAllEmbeddings();
+  if (embCache.size < 50) {
+    res.json({ created: 0, skipped: 0, message: "Embedding cache is empty — run compute-embeddings first." });
+    return;
+  }
+
+  // Load all entities with sourceRegistries so we can group by registry
+  const entities = await db
+    .select({ id: entitiesTable.id, name: entitiesTable.name, sourceRegistries: entitiesTable.sourceRegistries })
+    .from(entitiesTable)
+    .where(isNotNull(entitiesTable.sourceRegistries));
+
+  // Normalise a sourceRegistries string to a short stable key
+  function registryPrefix(src: string): string {
+    const s = src.toLowerCase();
+    if (s.includes("faa") || s.includes("aircraft"))     return "faa";
+    if (s.includes("edgar") || s.includes("sec "))       return "edgar";
+    if (s.includes("hmlr") || s.includes("land registry") || s.includes("price paid")) return "hmlr";
+    if (s.includes("brreg") || s.includes("norway"))     return "brreg";
+    if (s.includes("companies house") || s.includes("ch "))  return "ch";
+    if (s.includes("gleif") || s.includes("lei"))        return "gleif";
+    if (s.includes("occrp") || s.includes("aleph"))      return "occrp";
+    return s.split(/[\s\-—:]/)[0]!.slice(0, 20);
+  }
+
+  // Group entity IDs by their first source registry prefix
+  const byRegistry = new Map<string, number[]>();
+  for (const e of entities) {
+    if (!embCache.has(e.id)) continue; // no embedding yet
+    let srcs: string[] = [];
+    try { srcs = JSON.parse(e.sourceRegistries ?? "[]"); } catch { /* */ }
+    const prefix = registryPrefix(srcs[0] ?? "unknown");
+    const arr = byRegistry.get(prefix) ?? [];
+    arr.push(e.id);
+    byRegistry.set(prefix, arr);
+  }
+
+  // Registry pairs to cross-compare (skip same-registry pairs)
+  const registries = [...byRegistry.keys()];
+
+  // Load existing LIKELY_SAME_PERSON edges to avoid duplicates
+  const existing = await db
+    .select({ src: relationshipsTable.sourceEntityId, tgt: relationshipsTable.targetId })
+    .from(relationshipsTable)
+    .where(sql`${relationshipsTable.relationshipType} = 'LIKELY_SAME_PERSON'`);
+  const existingSet = new Set(existing.map((r) => `${r.src}-${r.tgt}`));
+
+  const SIMILARITY_THRESHOLD = 0.93;
+  const MAX_PER_REGISTRY = 10_000;
+
+  let created = 0;
+  let compared = 0;
+  const pending: (typeof relationshipsTable.$inferInsert)[] = [];
+
+  // Compare each registry pair (i < j to avoid double-comparison)
+  for (let i = 0; i < registries.length; i++) {
+    for (let j = i + 1; j < registries.length; j++) {
+      const regA = registries[i]!;
+      const regB = registries[j]!;
+      const idsA = (byRegistry.get(regA) ?? []).slice(0, MAX_PER_REGISTRY);
+      const idsB = (byRegistry.get(regB) ?? []).slice(0, MAX_PER_REGISTRY);
+
+      for (const idA of idsA) {
+        const embA = embCache.get(idA);
+        if (!embA) continue;
+        for (const idB of idsB) {
+          if (pending.length >= 50_000) break;
+          const embB = embCache.get(idB);
+          if (!embB) continue;
+          compared++;
+
+          // Cosine similarity (both vectors are already normalized by semantic-engine)
+          let dot = 0;
+          for (let k = 0; k < embA.length; k++) dot += embA[k]! * embB[k]!;
+
+          if (dot < SIMILARITY_THRESHOLD) continue;
+
+          const src = Math.min(idA, idB);
+          const tgt = Math.max(idA, idB);
+          if (existingSet.has(`${src}-${tgt}`)) continue;
+          existingSet.add(`${src}-${tgt}`); // prevent dupes in this run
+
+          pending.push({
+            sourceEntityId: src,
+            targetId: tgt,
+            targetType: "Entity",
+            relationshipType: "LIKELY_SAME_PERSON",
+            strength: parseFloat(dot.toFixed(3)),
+            notes: `Semantic embedding similarity ${dot.toFixed(3)} (${regA} × ${regB}) — same person across registries`,
+          });
+          created++;
+        }
+      }
+    }
+  }
+
+  // Batch insert
+  const CHUNK = 500;
+  for (let i = 0; i < pending.length; i += CHUNK) {
+    await db.insert(relationshipsTable).values(pending.slice(i, i + CHUNK));
+  }
+
+  res.json({
+    created,
+    compared,
+    embeddingsCached: embCache.size,
+    registries: Object.fromEntries([...byRegistry.entries()].map(([k, v]) => [k, v.length])),
+    message: `Semantic dedup: ${created} LIKELY_SAME_PERSON edges from ${compared.toLocaleString()} cross-registry comparisons (${embCache.size} embeddings cached).`,
+  });
 });
 
 export default router;

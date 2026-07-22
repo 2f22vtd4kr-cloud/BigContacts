@@ -38,7 +38,7 @@ interface SearchResult {
 
 interface PipelineStep {
   planner:   { reasoning: string; intent: string; assetFocus?: string; locations: string[]; strategy: string; durationMs: number };
-  retriever: { bm25Hits: number; semanticHits: number; graphHits: number; totalCandidates: number; sqlPrefilter: number; expandedQuery: string; durationMs: number };
+  retriever: { bm25Hits: number; semanticHits: number; graphHits: number; embeddingHits?: number; embeddingCacheSize?: number; totalCandidates: number; sqlPrefilter: number; expandedQuery: string; durationMs: number };
   analyst:   { candidateCount: number; durationMs: number };
   critic:    { finalCount: number; removed: number; durationMs: number };
 }
@@ -217,10 +217,11 @@ function ResultCard({ result }: { result: SearchResult }) {
 
       {/* Score breakdown */}
       <div className="space-y-1.5 mb-3">
-        <ScoreBar label="BM25"     value={result.scores.bm25}     color="bg-blue-500" />
-        <ScoreBar label="Semantic" value={result.scores.semantic}  color="bg-violet-500" />
-        <ScoreBar label="Graph"    value={result.scores.graph}     color="bg-emerald-500" />
-        <ScoreBar label="Final"    value={result.scores.rrf * 10}  color="bg-primary" />
+        <ScoreBar label="BM25"     value={result.scores.bm25}      color="bg-blue-500" />
+        <ScoreBar label="Semantic" value={result.scores.semantic}   color="bg-violet-500" />
+        <ScoreBar label="Graph"    value={result.scores.graph}      color="bg-emerald-500" />
+        <ScoreBar label="Embed"    value={result.scores.embedding ?? 0} color="bg-purple-400" />
+        <ScoreBar label="Final"    value={result.scores.rrf * 10}   color="bg-primary" />
       </div>
 
       {/* Reasoning (expandable) */}
@@ -562,12 +563,12 @@ export default function DeepSearch() {
                 description="Expands query terms, runs BM25 + TF-IDF cosine + SQL pre-filter, merges candidates."
                 status={steps.retriever as StepStatus}
                 durationMs={p?.retriever.durationMs}
-                metric={p ? `BM25: ${p.retriever.bm25Hits} · Semantic: ${p.retriever.semanticHits} · ${p.retriever.totalCandidates} candidates` : undefined}
+                metric={p ? `BM25: ${p.retriever.bm25Hits} · Semantic: ${p.retriever.semanticHits} · Embed: ${p.retriever.embeddingHits ?? 0} · ${p.retriever.totalCandidates} candidates` : undefined}
                 detail={p ? [
                   p.retriever.expandedQuery && p.retriever.expandedQuery !== result?.query
                     ? `Expanded: "${p.retriever.expandedQuery}"`
                     : "No expansion (query already specific)",
-                  `BM25: ${p.retriever.bm25Hits} hits · TF-IDF: ${p.retriever.semanticHits} hits · Graph: ${p.retriever.graphHits} hits`,
+                  `BM25: ${p.retriever.bm25Hits} hits · TF-IDF: ${p.retriever.semanticHits} hits · Graph: ${p.retriever.graphHits} hits · Embedding: ${p.retriever.embeddingHits ?? 0} hits (${p.retriever.embeddingCacheSize ?? 0} cached)`,
                   `SQL pre-filter: ${p.retriever.sqlPrefilter < 0 ? "none" : p.retriever.sqlPrefilter + " entities"}`,
                 ].join(" · ") : undefined}
               />

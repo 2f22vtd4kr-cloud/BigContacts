@@ -220,6 +220,16 @@ export async function semanticEngineSearch(
     .slice(0, topK);
 }
 
+// ── Expose embedding cache for cross-module use (e.g. entity resolution) ─────
+
+/**
+ * Returns the full in-memory embedding cache (entityId → Float32Array).
+ * Callers must not mutate the map.
+ */
+export function getAllEmbeddings(): ReadonlyMap<number, Float32Array> {
+  return _embCache;
+}
+
 // ── Warm-up: preload model in background (non-blocking) ───────────────────────
 
 export function warmUpSemanticEngine(): void {

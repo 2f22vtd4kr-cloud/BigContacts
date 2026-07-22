@@ -1,0 +1,30 @@
+New Task: Investigate Hugging Face + Broader Web OSINT Tools & Integrate Best Resources Conduct a deep investigation into open-source resources for ApexFinder Pro. Cover: Hugging Face (Models, Datasets, Spaces): • Entity resolution/linking, knowledge graph construction, semantic embeddings, OSINT/investigative tools, graph-related models. • From my prior analysis: Look at tomvaillant/osint-tool-database, OSINT collections by danielrosehill, Emet (investigative corporate ownership demo), graph datasets (entity resolution, BioMedGraphica-style for adaptation), and sentence-transformers like all-MiniLM-L6-v2. Broader Web OSINT Tools & Public Records Sources: • OpenCorporates (company registries aggregator with API). • FAA Aircraft Registry (daily CSV downloads). • OCCRP Aleph (investigative dashboard with public/leaked records). • Companies House (UK beneficial ownership). • Maltego (graph-based OSINT). • Tracers / Spokeo-style public records aggregators (use ethically). • ADS-B / flight tracking for asset verification. • Other registries (land, LEI/GLEIF, etc.). After Investigation: • Summarize the most promising items with links and why they fit (focus on Western public records, entity graphs, proximity/contact mapping). • Propose concrete integration plans for our hybrid search (semantic + keyword + graph), MCTS proximity scoring, agentic reasoning, and self-improvement loop. Implementation Steps: • Add top resources (e.g., load sentence-transformers, parse OpenCorporates/FAA data, adapt graph datasets). • Enhance the Hybrid Search layer and MCTS with these. • Ensure everything stays strictly deterministic — process only real uploaded public data. No synthetic generation. • Trigger Persona review cycle (Data Engineer, Analyst, MCTS Expert, Architect) to evaluate and patch. Execute the investigation immediately, report detailed findings, and start integrating the highest-value items. Log all changes transparently.
+Transcribe this new task and further work on it into new chapter of the improvements.md. Don't wait for my approval - once you went through thoughtful research and evaluation on what really would enhance our app - implement it autonomously, fitting it perfectly in our app. That's of course if you find anything that would really make our app better.
+This is a large task. Let me break it down:
+1. Research phase: Investigate Hugging Face, broader web OSINT tools, and public records sources
+2. Evaluation phase: Determine what would genuinely enhance ApexFinder Pro
+3. Implementation phase: Integrate the highest-value items
+4. Documentation: Update improvements.md with a new chapter
+Let me start by:
+1. Reading the current improvements.md to understand what's already there
+2. Reading the current hybrid search, MCTS, and in-house enricher code to understand what exists
+3. Doing web searches on the key tools mentioned
+I should do these in parallel to save time.
+Let me start with parallel research and codebase exploration.
+Now let me do focused web research on the specific tools.
+Good research data. Now I have a clear picture. Let me read the exact files I need to modify before implementing.
+I have everything I need. Let me now read the exact sections of files to edit in parallel.
+I have everything I need. Let me install the package and implement all changes in parallel across multiple tracks.
+Now I have full context. Let me implement Phase G in parallel — semantic engine, BM25 enhancement, MCTS improvements, and OSINT tools directory all at once.
+Continuing implementation in parallel — editing existing files and reading what I still need.
+Let me continue in parallel — reading remaining code sections while making edits simultaneously.
+Good — artifact-managed workflows running fine. Continuing implementation in one large parallel batch.
+Good — artifact-managed workflows healthy. Let me read app.ts and continue all remaining edits in parallel.
+All artifact-managed workflows healthy. Now doing the final parallel implementation batch.
+Good — artifact-managed workflows running. Let me check for build errors and finish the remaining UI and documentation in parallel.
+Artifact-managed workflows are running correctly. The API server needs a restart to pick up all the code changes. Let me restart it and finish the remaining edits in parallel.
+onnxruntime-node is missing — it's a native addon required by @huggingface/transformers. Let me fix the build in parallel with finishing the UI edits.
+The build succeeded but onnxruntime-node (the native ONNX backend for @huggingface/transformers) isn't installed. Need to install it and also mark @huggingface/transformersas external in the build to avoid bundling conflicts.
+onnxruntime-node is installed but native build scripts are blocked. Let me check the pnpm approval config and fix the WASM fallback in parallel.
+onnxruntime-node is installed but the native binary postinstall was blocked. Let me check the root package.json and try approving the native build, then rebuild.
+The napi-v6 dir exists — let me check if the binary is there, add pnpm approval, and continue the remaining edits in parallel.

@@ -12,6 +12,7 @@ import { ilike, and, gte, eq, lte, sql, inArray } from "drizzle-orm";
 import { db, entitiesTable, assetsTable, relationshipsTable } from "@workspace/db";
 import { getCache, setCache } from "../lib/redis";
 import { orchestrate } from "../lib/agent-orchestrator";
+import { getEmbeddingCacheSize, isModelLoaded } from "../lib/semantic-engine";
 
 const router: IRouter = Router();
 
@@ -282,6 +283,16 @@ router.post("/search/intelligent", async (req, res): Promise<void> => {
   } catch (err: any) {
     res.status(500).json({ error: err?.message ?? "Intelligent search failed" });
   }
+});
+
+// ── GET /search/embedding-status — G1 semantic engine status ─────────────────
+router.get("/search/embedding-status", (_req, res): void => {
+  res.json({
+    modelLoaded: isModelLoaded(),
+    cacheSize: getEmbeddingCacheSize(),
+    model: "Xenova/all-MiniLM-L6-v2",
+    dimensions: 384,
+  });
 });
 
 export default router;

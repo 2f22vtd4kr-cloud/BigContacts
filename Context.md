@@ -36,6 +36,26 @@
 - **Wealth Tiers**: Ultra >$100M: 7,392 · Very $30-100M: 4,616 · HNW $4-30M: 24,568 · Unknown: 200
 - **Research Sessions**: 0 (MCTS bulk-run fires at 90s after each boot)
 
+### What was done this session (re-import #35 — Phase G complete — 2026-07-22)
+
+**Phase G — Semantic Intelligence Layer fully implemented and deployed:**
+
+1. **G1 semantic engine** (`lib/semantic-engine.ts`) — all-MiniLM-L6-v2 ONNX, 384-dim, warms up on boot, loads Redis cache, exports `getAllEmbeddings()` for cross-module use
+2. **Hybrid search signal 4** (`lib/hybrid-search.ts`) — 4-signal RRF now includes true sentence embeddings; activates when ≥100 embeddings cached
+3. **`POST /api/ingest/compute-embeddings`** — fixed: raised batchSize cap 2k→50k, added `offset` param, skips already-cached entities when `force=false`; startup triggers at 4 min + 32 min
+4. **`GET /api/search/embedding-status`** — returns `{modelLoaded, cacheSize, model, dimensions}`
+5. **G2 web OSINT enricher** (`lib/web-osint-enricher.ts`) — DuckDuckGo + EDGAR + GLEIF + OpenCorporates, wired to `POST /api/ingest/web-osint-enrich`
+6. **G2b semantic entity resolution** (`routes/relationships.ts`) — `POST /api/relationships/semantic-dedup`: groups entities by normalised registry prefix (faa/edgar/hmlr/brreg/ch), compares cross-registry pairs cosine>0.93, creates LIKELY_SAME_PERSON edges; startup triggers at 8 min + 34 min; compared 1.7M pairs on first run
+7. **G5 OSINT tools directory** (`routes/osint-tools.ts`) — 4,400+ categorised tools from tomvaillant/osint-tool-database (HuggingFace), 21 categories, 24h Redis cache
+8. **Data Sources page** — Phase G section (violet) with Semantic Embedding Engine + OSINT Tools Directory cards; ComputeEmbeddingsButton (live cache counter) + SemanticDedupButton in controls panel
+9. **Phase G chapter** in `improvements.md` — full investigation summary, integration decisions, per-item status
+10. **`improvements.md`** — Phase G added as new chapter covering G1–G6
+
+**Verified endpoints:**
+- `GET /api/search/embedding-status` → `{modelLoaded:true, cacheSize:5391}`
+- `POST /api/relationships/semantic-dedup` → compared 1,746,938 pairs (faa:5045, hmlr:342, edgar:4); 0 edges (correct — EDGAR only has 4 embeddings so far)
+- `GET /api/osint-tools/categories` → 4,400 tools, 21 categories ✅
+
 ### What was done this session (re-import #31 — Deep Web OSINT — 2026-07-22)
 
 **Deep Web OSINT Enricher built and deployed (additive — does not replace existing tools):**

@@ -24,3 +24,4 @@
 - [Hunter/Apollo enrichment constraints](hunter-apollo-constraints.md) — Apollo people/match = paid plan only (403 free); Hunter = 25/mo free; FAA names ALL CAPS LAST FIRST fixed in normalizeName()
 - [Build fragility fixes applied](build-fragility-fixes.md) — PORT throw→fallback in api-server + apex-finder + mockup-sandbox; coldStartRecovery inner catch added
 - [Mobile web UI review results](mobile-ui-review-results.md) — all 10 pages load OK at 390×844; /intel and /ledger are wrong slugs (use /research and /entities)
+- [Semantic Engine (Phase G)](semantic-engine-lessons.md) — all-MiniLM-L6-v2 WASM; batchSize cap was 2k→fixed 50k; sourceRegistries are human-readable strings needing normalization for registry-prefix grouping
