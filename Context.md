@@ -8,7 +8,7 @@
 
 ---
 
-## Current State (2026-07-22 — re-import #30) — Fully operational
+## Current State (2026-07-22 — re-import #31) — Fully operational
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically
@@ -25,7 +25,7 @@
 | API Server | ✅ Running (port 8080) |
 | Web Frontend | ✅ Running (port 23695) |
 
-> **Import #30 note (2026-07-22):** pnpm install (~15s, 1181 packages). DB schema pushed (no changes — `[✓] Changes applied`). All 3 workflows restarted and running. API /healthz → `{"status":"ok","redis":{"status":"ok","latencyMs":0}}`. DB is empty (fresh import — trigger ingestion via /ingest routes to populate). Cold-start auto-recovery will attempt FAA/HMLR ingestion on first boot if Upstash secrets are set.
+> **Import #31 note (2026-07-22):** pnpm install (~13s). DB schema pushed (no changes — `[✓] Changes applied`). All 3 workflows restarted and running. API /healthz → `{"status":"ok","redis":{"status":"ok","latencyMs":1}}`. DB has 32,000 entities / 32,000 assets / 7,453 hot leads (cold-start auto-recovery populated on prior boot). SESSION_SECRET ✅. REDIS_URL_1/REDIS_URL_2/COMPANIES_HOUSE_API_KEY — check secrets panel.
 > **Port conflict fix (if needed):** kill -9 $(lsof -ti:8080 -ti:23695) then restart workflows.
 
 ### Database (2026-07-22 — re-import #30, post-maintenance)
@@ -258,6 +258,7 @@ Run **IN-HOUSE ENRICH** on HNWI/Gatekeeper entities — Wikidata SPARQL will hit
 
 | Date | What changed |
 |---|---|
+| 2026-07-22 | **Re-import #31 setup**: pnpm install (~13s), DB schema pushed (no changes). Redis ✅ · API Server ✅ (port 8080) · Web Frontend ✅ (port 23695). SESSION_SECRET ✅. DB had 32,000 entities / 32,000 assets / 7,453 hot leads from cold-start auto-recovery. API healthy: /healthz `{"status":"ok","redis":{"status":"ok","latencyMs":1}}`. Contactable: 0 (contact cache restore running in background if REDIS_URL_2 set). |
 | 2026-07-22 | **Re-import #28 setup**: pnpm install (~17s), DB schema pushed. Redis ✅ · artifacts/api-server: API Server ✅ (port 8080) · artifacts/apex-finder: web ✅ (port 23695). SESSION_SECRET ✅ · REDIS_URL_1 ⚠️ NOT SET · REDIS_URL_2 ⚠️ NOT SET · COMPANIES_HOUSE_API_KEY ⚠️ NOT SET. DB empty at boot → FAA 30k + HMLR 2k auto-ingested; Western HNWI running in background. API healthy: 32k entities · 32k assets · 7,454 hot leads. |
 | 2026-07-22 | **BRREG enricher fix**: `address` field added to `InHouseEnrichResult`; `result.address` initialised to null in orchestrator; persisted to `meta["bizLocation"]` in `processEntity`; included in `hasSignal` check so BRREG address-only hits are no longer silently dropped. Memory updated. |
 | 2026-07-22 | **Re-import #27 setup**: pnpm install (~16s), DB schema pushed. Redis ✅ · artifacts/api-server: API Server ✅ (port 8080) · artifacts/apex-finder: web ✅ (port 23695). SESSION_SECRET ✅ · REDIS_URL_1 ✅ (upstash-1 ready) · REDIS_URL_2 ✅ (upstash-2 ready) · COMPANIES_HOUSE_API_KEY ✅. DB empty at boot → FAA 30k + HMLR 2k auto-ingested; Western HNWI running in background. Port conflict resolved after artifact workflows registered (killed old PIDs on 8080/23695). Fully operational. |
