@@ -255,7 +255,7 @@ export default function FieldManual() {
 
             <p className="text-sm text-[#94A3B8] leading-relaxed mb-5 max-w-2xl">
               ApexFinder Pro is a private intelligence platform for reaching ultra-high-net-worth individuals (HNWIs).
-              It ingests 32,000+ verified identities from public government registries (FAA, SEC EDGAR, UK Companies House, BRREG, UK Land Registry),
+              It ingests 32,500+ verified identities from public government registries (FAA, SEC EDGAR, UK Companies House, BRREG, UK Land Registry),
               maps their asset portfolios and corporate connections, then uses a 5-layer AI engine plus semantic embeddings
               to find the warmest introduction path to any target — with zero synthetic data, zero paid APIs.
             </p>
@@ -296,7 +296,7 @@ export default function FieldManual() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {[
                 { icon: <Activity size={12} />, color: "#10B981", name: "Intelligence HQ", path: "/", desc: "Live signal dashboard — entity counts, hot leads, asset map, ingestion controls." },
-                { icon: <Database size={12} />, color: "#3B82F6", name: "Entity Ledger", path: "/entities", desc: "Full sortable/filterable list of all 32,300+ targets with scores and contact vectors." },
+                { icon: <Database size={12} />, color: "#3B82F6", name: "Entity Ledger", path: "/entities", desc: "Full sortable/filterable list of all 32,500+ targets with scores and contact vectors." },
                 { icon: <Search size={12} />,   color: "#06B6D4", name: "Deep Search", path: "/deep-search", desc: "Natural language search fusing BM25, TF-IDF, and Bayesian graph signals." },
                 { icon: <Network size={12} />,  color: "#F59E0B", name: "Network Graph", path: "/graph", desc: "Interactive D3 graph of relationships: owns, directs, shares addresses, co-investors." },
                 { icon: <Terminal size={12} />, color: "#EF4444", name: "Intel Terminal", path: "/research", desc: "Hybrid Research — 5-layer pipeline with 120 UCT rollouts to find the optimal warm-introduction path." },
@@ -325,7 +325,7 @@ export default function FieldManual() {
 
             <p className="text-sm text-[#94A3B8] leading-relaxed mb-5">
               The Entity Ledger is the backbone of everything — every HNWI, gatekeeper, corporation, and trust
-              the system knows about lives here. After a Western HNWI Engine run you'll have 32,000+ verified
+              the system knows about lives here. After a Western HNWI Engine run you'll have 32,500+ verified
               records, all pre-scored and ready to filter.
             </p>
 
@@ -393,7 +393,7 @@ export default function FieldManual() {
           <Section id="section-3" level="III" levelColor="#06B6D4" levelLabel="LEVEL III — DEEP SEARCH" title="Natural Language Intelligence Search">
 
             <p className="text-sm text-[#94A3B8] leading-relaxed mb-5">
-              Deep Search lets you query the entire 32,000+ entity database in plain English. You don't need to know
+              Deep Search lets you query the entire 32,500+ entity database in plain English. You don't need to know
               the exact name — just describe what you're looking for. The engine runs four parallel signals and fuses
               the results via Reciprocal Rank Fusion. With Phase G active, a semantic embedding signal (purple bar) is
               added as a 5th signal — enabling conceptual queries like "aviation billionaire Texas" even without those exact words in any record.
@@ -711,9 +711,9 @@ export default function FieldManual() {
               pins={[
                 { n: 1, x: 30,  y: 11, color: "#14B8A6", label: "Page header — '9 live sources · 1 coming soon' shows how many pipelines are active" },
                 { n: 2, x: 93,  y: 11, color: "#10B981", label: "Registries online indicator — green pulse = all registry endpoints reachable" },
-                { n: 3, x: 35,  y: 25, color: "#3B82F6", label: "32,300 entities — total records currently in the database" },
-                { n: 4, x: 60,  y: 25, color: "#EF4444", label: "0 contactable — entities with verified email or phone (run IN-HOUSE ENRICH or WEB OSINT ENRICH to increase)" },
-                { n: 5, x: 85,  y: 25, color: "#F59E0B", label: "0% coverage — percentage of entities with any contact data; your enrichment target" },
+                { n: 3, x: 35,  y: 25, color: "#3B82F6", label: "32,500+ entities — total records currently in the database" },
+                { n: 4, x: 60,  y: 25, color: "#EF4444", label: "114+ contactable — entities with verified email or phone (run IN-HOUSE ENRICH or DEEP WEB OSINT to increase)" },
+                { n: 5, x: 85,  y: 25, color: "#F59E0B", label: "0.3%+ coverage — percentage of entities with verified contact data; grows with each enrichment pass" },
                 { n: 6, x: 94,  y: 41, color: "#A855F7", label: "Quick-action buttons — AUTO-DETECT, NAME CLUSTERS, CH OFFICERS, etc. Each fires a background job" },
                 { n: 7, x: 45,  y: 96, color: "#10B981", label: "Phase 9 — In-House OSINT Enricher: Wikidata + Gravatar + GitHub + pattern generation (no paid API required)" },
               ]}
@@ -1003,9 +1003,9 @@ export default function FieldManual() {
             <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-widest mt-7 mb-4">Triggering embeddings (first run)</h3>
             <Steps color="#0EA5E9" items={[
               { title: "Navigate to Data Sources → Phase G panel", body: "The Phase G section (sky blue) shows the Semantic Embedding Engine card with a live cache counter. It shows 0 embeddings until your first run." },
-              { title: 'Click "Compute Embeddings"', body: "Fires POST /api/ingest/compute-embeddings in the background. Processes all entities in batches of 50,000. Progress is shown in the job log. For 32,000 entities this takes ~2–4 minutes." },
+              { title: 'Click "Compute Embeddings"', body: "Fires POST /api/ingest/compute-embeddings in the background. Processes all entities in batches of 50,000. Progress is shown in the job log. For 32,500 entities this takes ~2–4 minutes." },
               { title: "Check embedding status", body: "GET /api/search/embedding-status returns { modelLoaded, cacheSize, model, dimensions }. Once cacheSize ≥ 100 the 4-signal hybrid search activates automatically." },
-              { title: "Run Semantic Dedup (optional)", body: 'Click "Semantic Dedup" to compare all entity pairs. The engine groups by registry prefix first (prevents intra-registry false matches), then compares cross-registry pairs. Any cosine similarity > 0.93 creates a LIKELY_SAME_PERSON edge. On a 32,000-entity DB this compares ~1.7M pairs in < 60 seconds.' },
+              { title: "Run Semantic Dedup (optional)", body: 'Click "Semantic Dedup" to compare all entity pairs. The engine groups by registry prefix first (prevents intra-registry false matches), then compares cross-registry pairs. Any cosine similarity > 0.93 creates a LIKELY_SAME_PERSON edge. On a 32,500-entity DB this compares ~1.7M pairs in < 60 seconds.' },
             ]} />
 
             <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-widest mt-7 mb-4">Auto-trigger schedule</h3>
