@@ -8,7 +8,7 @@
 
 ---
 
-## Current State (2026-07-22 — re-import #37) — Fully operational
+## Current State (2026-07-22 — re-import #38) — Fully operational
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically
@@ -16,7 +16,7 @@
 - **SESSION_SECRET** — ✅ Set
 - **Upstash Redis (`REDIS_URL_1`)** — ✅ Set
 - **Upstash Redis (`REDIS_URL_2`)** — ✅ Set
-- **COMPANIES_HOUSE_API_KEY** — ✅ Set
+- **COMPANIES_HOUSE_API_KEY** — not set (CH harvester skipped)
 
 ### Workflows running
 | Workflow | Status |
@@ -25,8 +25,9 @@
 | artifacts/api-server: API Server | ✅ Running (port 8080) — managed |
 | artifacts/apex-finder: web | ✅ Running (port 23695) — managed |
 
-> **Import #37 note (2026-07-22):** pnpm install (~22s). DB schema pushed (`[✓] Changes applied`). Redis workflow started. All 4 artifacts re-registered via verifyAndReplaceArtifactToml (apex-finder, api-server, apex-mobile, mockup-sandbox). Old manual API Server/Web Frontend workflows killed (port conflict on 8080/23695), managed artifact workflows started: `artifacts/api-server: API Server` ✅ + `artifacts/apex-finder: web` ✅. API /healthz → `{"status":"ok","redis":{"status":"ok","latencyMs":1}}`. DB has 32,100 entities (populated via cold-start auto-recovery, hot leads: 14,811). SESSION_SECRET ✅. REDIS_URL_1/REDIS_URL_2 ✅. COMPANIES_HOUSE_API_KEY — not set (CH harvester skipped).
+> **Import #38 note (2026-07-22):** pnpm install (~16s). DB schema pushed (`[✓] Changes applied`). Redis workflow started. All 4 artifacts re-registered via verifyAndReplaceArtifactToml (apex-finder, api-server, apex-mobile, mockup-sandbox). Fixed syntax error in `artifacts/apex-finder/src/pages/manual.tsx` lines 984+986 (curly/smart quotes inside JSX string props — changed to single-quote outer delimiters). Killed port conflicts on 8080/23695 from old manual workflows, started managed artifact workflows: `artifacts/api-server: API Server` ✅ + `artifacts/apex-finder: web` ✅. API /healthz → `{"status":"ok","redis":{"status":"ok","latencyMs":0}}`. DB has 32,100 entities (populated via cold-start auto-recovery, hot leads: 14,811).
 > **Port conflict fix (if needed):** kill -9 $(lsof -ti:8080 -ti:23695) then restart `artifacts/api-server: API Server` and `artifacts/apex-finder: web`.
+> **Recurring import gotcha:** `manual.tsx` has smart/curly quotes in JSX string props (lines ~984-986). Each import may re-introduce this bug if the file reverts from git. Fix: change outer quote delimiter to single-quotes on those lines.
 
 ### Database (2026-07-22 — re-import #30, post-maintenance)
 - **Entities**: 32,200 (30,000 FAA + 2,000 HMLR — auto-ingested on cold start)

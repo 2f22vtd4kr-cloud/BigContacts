@@ -981,9 +981,9 @@ export default function FieldManual() {
             <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-widest mt-7 mb-4">Triggering embeddings (first run)</h3>
             <Steps color="#0EA5E9" items={[
               { title: "Navigate to Data Sources → Phase G panel", body: "The Phase G section (sky blue) shows the Semantic Embedding Engine card with a live cache counter. It shows 0 embeddings until your first run." },
-              { title: "Click "Compute Embeddings"", body: "Fires POST /api/ingest/compute-embeddings in the background. Processes all entities in batches of 50,000. Progress is shown in the job log. For 32,000 entities this takes ~2–4 minutes." },
+              { title: 'Click "Compute Embeddings"', body: "Fires POST /api/ingest/compute-embeddings in the background. Processes all entities in batches of 50,000. Progress is shown in the job log. For 32,000 entities this takes ~2–4 minutes." },
               { title: "Check embedding status", body: "GET /api/search/embedding-status returns { modelLoaded, cacheSize, model, dimensions }. Once cacheSize ≥ 100 the 4-signal hybrid search activates automatically." },
-              { title: "Run Semantic Dedup (optional)", body: "Click "Semantic Dedup" to compare all entity pairs. The engine groups by registry prefix first (prevents intra-registry false matches), then compares cross-registry pairs. Any cosine similarity > 0.93 creates a LIKELY_SAME_PERSON edge. On a 32,000-entity DB this compares ~1.7M pairs in < 60 seconds." },
+              { title: "Run Semantic Dedup (optional)", body: 'Click "Semantic Dedup" to compare all entity pairs. The engine groups by registry prefix first (prevents intra-registry false matches), then compares cross-registry pairs. Any cosine similarity > 0.93 creates a LIKELY_SAME_PERSON edge. On a 32,000-entity DB this compares ~1.7M pairs in < 60 seconds.' },
             ]} />
 
             <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-widest mt-7 mb-4">Auto-trigger schedule</h3>
