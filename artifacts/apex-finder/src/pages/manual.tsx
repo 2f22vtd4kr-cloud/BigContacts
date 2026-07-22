@@ -703,7 +703,7 @@ export default function FieldManual() {
                 <p className="text-xs font-bold text-[#3B82F6] mb-2 uppercase tracking-wider flex items-center gap-1.5"><Download size={11} /> Ingestor</p>
                 <p className="text-xs text-[#94A3B8] leading-relaxed mb-3">Downloads a bulk dataset and creates new Entity + Asset records. Deduplication via Upstash Redis — safe to run multiple times.</p>
                 <div className="space-y-1 text-xs text-[#64748B]">
-                  {["SEC EDGAR (SC 13D/G beneficial owners)", "FAA Aircraft Registry (~70MB)", "UK Companies House (PSC)", "BRREG Norway (board directors)", "UK Land Registry OCOD"].map((s) => (
+                  {["SEC EDGAR (SC 13D/G beneficial owners + DEF 14A board directors)", "FAA Aircraft Registry (~70MB, turbine/multi-engine owners)", "UK Companies House (PSC, officer harvester)", "BRREG Norway (board directors)", "UK Land Registry PPD bulk CSV (£1M+ properties)"].map((s) => (
                     <div key={s} className="flex items-center gap-1.5"><CheckCircle size={9} className="text-[#3B82F6] shrink-0" />{s}</div>
                   ))}
                 </div>
@@ -712,7 +712,7 @@ export default function FieldManual() {
                 <p className="text-xs font-bold text-[#10B981] mb-2 uppercase tracking-wider flex items-center gap-1.5"><Zap size={11} /> Enricher</p>
                 <p className="text-xs text-[#94A3B8] leading-relaxed mb-3">Queries external APIs against entities already in your DB to add contact data, edges, or verification. Does not create new entities.</p>
                 <div className="space-y-1 text-xs text-[#64748B]">
-                  {["OCCRP Aleph (sanctions, beneficial ownership)", "OpenSky Network (live flight tracking)", "Companies House Contact Enricher", "In-House OSINT (Wikidata · Gravatar · GitHub · pattern gen)", "Web OSINT (DuckDuckGo + EDGAR + OpenCorporates)"].map((s) => (
+                  {["OCCRP Aleph (sanctions, beneficial ownership)", "OpenSky Network (live flight tracking)", "Companies House Contact Enricher", "In-House OSINT (Wikidata · Gravatar · GitHub · pattern gen)", "Web OSINT (DuckDuckGo + EDGAR + OpenCorporates)", "Deep Web OSINT (DuckDuckGo + Bing HTML, 12 rotating UA signatures)", "Semantic Embedding Engine (all-MiniLM-L6-v2 WASM, Phase G)"].map((s) => (
                     <div key={s} className="flex items-center gap-1.5"><CheckCircle size={9} className="text-[#10B981] shrink-0" />{s}</div>
                   ))}
                 </div>
@@ -732,8 +732,9 @@ export default function FieldManual() {
                 { label: "BACKFILL NET WORTH",color: "#EC4899", desc: "Sets estimatedNetWorth = 3× registered asset value for all entities where net worth is unset." },
                 { label: "WEB OSINT ENRICH",   color: "#8B5CF6", desc: "Runs DuckDuckGo + EDGAR + OpenCorporates search across all entity layers. Adds LinkedIn URL, email, and phone where found. Run this first." },
                 { label: "IN-HOUSE ENRICH",    color: "#10B981", desc: "Seven-source in-house OSINT pipeline: Wikidata SPARQL, Wikipedia, GitHub API, email pattern generation verified by Gravatar MD5 hash, company domain resolver with DNS MX validation, RDAP registrant lookup, and ProPublica 990 nonprofit filings. No paid API required. Run after WEB OSINT ENRICH for maximum coverage." },
-                { label: "COMPUTE EMBEDDINGS", color: "#0EA5E9", desc: "Phase G — generates all-MiniLM-L6-v2 semantic embedding vectors for all entities and caches them in Redis. Run after a large ingestion pass. Enables the Embed signal bar in Deep Search and powers Semantic Dedup." },
-                { label: "SEMANTIC DEDUP",     color: "#8B5CF6", desc: "Phase G — computes cosine similarity between every pair of entity embeddings. Pairs scoring above 0.93 receive a LIKELY_SAME_PERSON relationship edge, resolving cross-registry name variants (e.g. 'JOHN R SMITH' in FAA vs 'John Richard Smith' in EDGAR)." },
+                { label: "DEEP WEB OSINT",     color: "#06B6D4", desc: "Searches DuckDuckGo HTML and Bing with 12 rotating browser User-Agent signatures. Generates 4–7 context-aware query templates per entity (N-number, company name, location, filing type). Follows the top 3 non-social result URLs and scrapes for mailto: hrefs. Cross-validates: same email in N independent sources scores 42/62/78/88% confidence. Results mirror permanently to Upstash slot 2 and survive DB resets." },
+                { label: "COMPUTE EMBEDDINGS", color: "#0EA5E9", desc: "Phase G — generates all-MiniLM-L6-v2 semantic embedding vectors for all entities and caches them in Redis. Run after a large ingestion pass. Enables the Embed signal in Deep Search and powers Semantic Dedup. Auto-triggers at 4 min and 32 min after boot." },
+                { label: "SEMANTIC DEDUP",     color: "#8B5CF6", desc: "Phase G — computes cosine similarity between every pair of entity embeddings across registries (FAA / EDGAR / HMLR / BRREG / CH). Pairs scoring above 0.93 receive a LIKELY_SAME_PERSON relationship edge, resolving cross-registry name variants (e.g. 'JOHN R SMITH' in FAA vs 'John Richard Smith' in EDGAR). Auto-triggers at 8 min and 34 min after boot." },
               ].map((a) => (
                 <div key={a.label} className="flex gap-3 items-start p-3 rounded-lg border border-[#1E293B] bg-[#0B0F19]">
                   <span className="text-[10px] font-black font-mono px-2 py-0.5 rounded shrink-0 mt-0.5"
@@ -945,6 +946,92 @@ export default function FieldManual() {
               responsible for complying with GDPR, CCPA, and all applicable privacy legislation in your
               jurisdiction. Always respect opt-outs and do not use contact data for unsolicited commercial
               communications where prohibited.
+            </Callout>
+          </Section>
+
+          {/* ══ LEVEL XI — PHASE G ══════════════════════════════════════════════ */}
+          <Section id="section-11" level="XI" levelColor="#0EA5E9" levelLabel="LEVEL XI — PHASE G" title="Semantic Intelligence Layer">
+
+            <div className="flex items-center gap-2 mb-5">
+              <Sparkles size={14} className="text-[#0EA5E9]" />
+              <span className="text-xs text-[#0EA5E9] font-bold uppercase tracking-widest">Phase G — added Jul 2026</span>
+            </div>
+
+            <p className="text-sm text-[#94A3B8] leading-relaxed mb-5 max-w-2xl">
+              Phase G adds a semantic intelligence layer on top of the existing BM25 + TF-IDF + Bayesian pipeline.
+              It loads a 384-dimensional sentence embedding model (all-MiniLM-L6-v2) directly in the server process,
+              caches entity vectors in Redis, and uses cosine similarity to power a 4th search signal and
+              cross-registry entity resolution — no external AI APIs, no cloud calls, no cost.
+            </p>
+
+            <Callout icon={<Cpu size={14} />} color="#0EA5E9" title="What runs locally">
+              The embedding model (all-MiniLM-L6-v2 ONNX, ~23 MB) runs entirely in the API server via the
+              <Code>@xenova/transformers</Code> WASM runtime. It warms up on boot, loads its Redis cache,
+              and is ready within ~5 seconds. No GPU required, no rate limits, no API key.
+            </Callout>
+
+            <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-widest mt-7 mb-4">What Phase G adds</h3>
+            <FeatureGrid items={[
+              { icon: <Cpu size={13} />,        color: "#0EA5E9", label: "Sentence Embeddings",    desc: "all-MiniLM-L6-v2 WASM (384-dim). Warms up on boot. Encodes entity name + notes + registry IDs into a dense vector. Cached in Redis — survives restarts. Check status at GET /api/search/embedding-status." },
+              { icon: <BrainCircuit size={13} />,color: "#8B5CF6", label: "4-Signal Hybrid Search", desc: "Deep Search now runs 4 signals in a Reciprocal Rank Fusion (RRF): BM25 lexical, TF-IDF weighted, Bayesian graph prior, and semantic cosine similarity. Activates automatically when ≥ 100 embeddings are cached." },
+              { icon: <GitBranch size={13} />,   color: "#10B981", label: "Semantic Entity Dedup",  desc: "Compares entity embeddings across registry prefixes (FAA / EDGAR / HMLR / BRREG / CH). Pairs with cosine > 0.93 receive a LIKELY_SAME_PERSON edge — resolving the same person appearing under different name formats in multiple registries." },
+              { icon: <Telescope size={13} />,   color: "#F59E0B", label: "OSINT Tools Directory",  desc: "4,400+ curated OSINT tools from the OSINT Tool Database (HuggingFace). Searchable by keyword, filterable by 21 categories. 24-hour Redis cache. Navigate to the OSINT Tools page from the sidebar." },
+            ]} />
+
+            <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-widest mt-7 mb-4">Triggering embeddings (first run)</h3>
+            <Steps color="#0EA5E9" items={[
+              { title: "Navigate to Data Sources → Phase G panel", body: "The Phase G section (sky blue) shows the Semantic Embedding Engine card with a live cache counter. It shows 0 embeddings until your first run." },
+              { title: "Click "Compute Embeddings"", body: "Fires POST /api/ingest/compute-embeddings in the background. Processes all entities in batches of 50,000. Progress is shown in the job log. For 32,000 entities this takes ~2–4 minutes." },
+              { title: "Check embedding status", body: "GET /api/search/embedding-status returns { modelLoaded, cacheSize, model, dimensions }. Once cacheSize ≥ 100 the 4-signal hybrid search activates automatically." },
+              { title: "Run Semantic Dedup (optional)", body: "Click "Semantic Dedup" to compare all entity pairs. The engine groups by registry prefix first (prevents intra-registry false matches), then compares cross-registry pairs. Any cosine similarity > 0.93 creates a LIKELY_SAME_PERSON edge. On a 32,000-entity DB this compares ~1.7M pairs in < 60 seconds." },
+            ]} />
+
+            <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-widest mt-7 mb-4">Auto-trigger schedule</h3>
+            <div className="bg-[#050A14] border border-[#0EA5E9]/20 rounded-lg p-5 mb-5 text-xs font-mono space-y-2">
+              {[
+                ["4 min",  "#0EA5E9", "compute-embeddings pass 1 — all entities, offset 0"],
+                ["8 min",  "#8B5CF6", "semantic-dedup pass 1 — compare all cross-registry pairs"],
+                ["32 min", "#0EA5E9", "compute-embeddings pass 2 — catches entities ingested after boot"],
+                ["34 min", "#8B5CF6", "semantic-dedup pass 2 — resolves new entities from later ingestion"],
+              ].map(([time, color, desc]) => (
+                <div key={time} className="flex gap-3">
+                  <span className="font-bold shrink-0 w-14" style={{ color }}>{time}</span>
+                  <span className="text-[#64748B] leading-relaxed">{desc}</span>
+                </div>
+              ))}
+            </div>
+
+            <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-widest mt-7 mb-4">Phase G API endpoints</h3>
+            <div className="bg-[#050A14] border border-[#1E293B] rounded-lg p-5 mb-5">
+              <div className="space-y-3 text-[11px]">
+                {[
+                  { method: "POST", path: "/api/ingest/compute-embeddings", color: "#10B981", desc: "Trigger background embedding computation. Params: { offset?, force? }. Safe to run multiple times — skips already-cached entities unless force=true." },
+                  { method: "GET",  path: "/api/search/embedding-status",    color: "#3B82F6", desc: "Returns { modelLoaded, cacheSize, model, dimensions }. Check this to verify Phase G is active before running dedup." },
+                  { method: "POST", path: "/api/relationships/semantic-dedup",color: "#8B5CF6", desc: "Compare entity embeddings cross-registry. Creates LIKELY_SAME_PERSON edges for cosine > 0.93. Returns { comparedPairs, edgesCreated }." },
+                  { method: "GET",  path: "/api/osint-tools/categories",      color: "#F59E0B", desc: "Returns all OSINT tool categories with tool counts. Use to discover available tool categories for the directory." },
+                  { method: "POST", path: "/api/ingest/deep-web-osint",        color: "#06B6D4", desc: "Run deep web OSINT enricher. Params: { batchSize?, hotOnly?, force? }. Fires DuckDuckGo + Bing scraping pipeline." },
+                ].map((ep) => (
+                  <div key={ep.path} className="flex gap-3 items-start">
+                    <span className="font-bold shrink-0 w-10 font-mono" style={{ color: ep.color }}>{ep.method}</span>
+                    <span className="font-mono text-[#E2E8F0] shrink-0 mr-2">{ep.path}</span>
+                    <span className="text-[#64748B] leading-relaxed">{ep.desc}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <Callout icon={<Sparkles size={14} />} color="#0EA5E9" title="The Semantic Intelligence advantage">
+              Semantic search catches entities that lexical search misses — someone searching "aviation billionaire Texas" 
+              now finds FAA registrations near Dallas even if the entity name contains neither word. The LIKELY_SAME_PERSON 
+              edges from semantic dedup connect the same individual appearing across FAA (ALL CAPS LAST FIRST), EDGAR 
+              (Title Case Full Name), and HMLR (address-based) into a single unified profile cluster.
+            </Callout>
+
+            <Callout icon={<Shield size={14} />} color="#10B981" title="No external APIs, no data leaves the system">
+              The embedding model, the vector comparisons, and the OSINT tools directory all run entirely within
+              the API server. No entity data is sent to any external service for Phase G features.
+              The OSINT Tools Directory is fetched once from HuggingFace and cached for 24 hours — after that, 
+              tool queries are served from Redis.
             </Callout>
           </Section>
 
