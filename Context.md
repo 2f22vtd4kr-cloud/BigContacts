@@ -13,9 +13,9 @@
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically
 - **Local Redis** running on `redis://localhost:6379` — workflow `Redis` running ✅
+- **SESSION_SECRET** — ✅ Set
 - **Upstash Redis (`REDIS_URL_1`)** — ✅ Set
 - **Upstash Redis (`REDIS_URL_2`)** — ✅ Set
-- **SESSION_SECRET** — ✅ Set
 - **COMPANIES_HOUSE_API_KEY** — ✅ Set
 
 ### Workflows running
