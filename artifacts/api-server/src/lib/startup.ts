@@ -95,13 +95,28 @@ async function runPopulatedDbMaintenance(): Promise<void> {
       for (let i = 0; i < cached.length; i += CHUNK) {
         await Promise.all(cached.slice(i, i + CHUNK).map(async ({ key, data }) => {
           try {
-            // Match by first sourceRegistry string — e.g. "faa:N12345"
-            const entity = await db
-              .select({ id: entitiesTable.id, email: entitiesTable.email, phone: entitiesTable.phone, linkedinUrl: entitiesTable.linkedinUrl, metadata: entitiesTable.metadata })
-              .from(entitiesTable)
-              .where(sql`${entitiesTable.sourceRegistries}::text LIKE ${`%${key}%`}`)
-              .limit(1)
-              .then(r => r[0]);
+            // Match by entity-unique stable key prefix → targeted JSONB lookup per source
+            type EntityRow = { id: number; email: string | null; phone: string | null; linkedinUrl: string | null; metadata: string | null };
+            const SEL = { id: entitiesTable.id, email: entitiesTable.email, phone: entitiesTable.phone, linkedinUrl: entitiesTable.linkedinUrl, metadata: entitiesTable.metadata };
+            let entity: EntityRow | undefined;
+            if (key.startsWith("faa:")) {
+              const nNum = key.slice(4);
+              entity = await db.select(SEL).from(entitiesTable).where(sql`${entitiesTable.metadata}::jsonb->>'nNumber' = ${nNum}`).limit(1).then(r => r[0]);
+            } else if (key.startsWith("edgar:")) {
+              const slug = key.slice(6);
+              entity = await db.select(SEL).from(entitiesTable).where(sql`regexp_replace(lower(coalesce(${entitiesTable.metadata}::jsonb->>'entityName','')), '[^a-z0-9]+', '_', 'g') = ${slug}`).limit(1).then(r => r[0]);
+            } else if (key.startsWith("brreg:")) {
+              const orgnr = key.slice(6);
+              entity = await db.select(SEL).from(entitiesTable).where(sql`${entitiesTable.metadata}::jsonb->>'orgnr' = ${orgnr}`).limit(1).then(r => r[0]);
+            } else if (key.startsWith("ch:")) {
+              const num = key.slice(3);
+              entity = await db.select(SEL).from(entitiesTable).where(sql`${entitiesTable.metadata}::jsonb->>'companyNumber' = ${num}`).limit(1).then(r => r[0]);
+            } else if (key.startsWith("name:")) {
+              const normalized = key.slice(5).replace(/_/g, " ");
+              entity = await db.select(SEL).from(entitiesTable).where(sql`lower(${entitiesTable.name}) = ${normalized}`).limit(1).then(r => r[0]);
+            } else {
+              return; // Legacy key format (e.g. "FAA Releasable Aircraft Database") — skip
+            }
             if (!entity) return;
             // Only restore if entity has no contact data currently
             if (entity.email || entity.phone || entity.linkedinUrl) return;
@@ -160,10 +175,16 @@ async function runPopulatedDbMaintenance(): Promise<void> {
       for (let i = 0; i < enriched.length; i += BCHUNK) {
         await Promise.all(enriched.slice(i, i + BCHUNK).map(async (e) => {
           try {
-            const regs = (() => { try { return JSON.parse(e.sourceRegistries ?? "[]") as string[]; } catch { return [] as string[]; } })();
-            const stableKey = regs[0] ?? `name:${e.name}`;
             let meta: Record<string, unknown> = {};
             try { meta = JSON.parse(e.metadata ?? "{}"); } catch { /* */ }
+            // Entity-unique stable key — survives DB resets; same logic as ingest.ts enrichers
+            const stableKey = (() => {
+              if (meta["nNumber"])       return `faa:${meta["nNumber"]}`;
+              if (meta["entityName"])    return `edgar:${String(meta["entityName"]).toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "")}`;
+              if (meta["orgnr"])         return `brreg:${meta["orgnr"]}`;
+              if (meta["companyNumber"]) return `ch:${meta["companyNumber"]}`;
+              return `name:${e.name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "")}`;
+            })();
             const data: CachedContact = {
               name: e.name,
               email: e.email ?? undefined,
@@ -641,4 +662,37 @@ export async function coldStartRecovery(): Promise<void> {
   startIngestor("faa",            runFaaIngestion,           { force: false });
   startIngestor("land-registry",  runLandRegistryIngestion,  { force: false });
   startIngestor("western-hnwi",   runWesternHnwiIngestion,   { targetCount: 5_000, batchSize: 100 });
+
+  // Post-ingestion watcher: polls until data arrives, then fires the full maintenance +
+  // relationship pipeline. This fixes the cold-start sequencing bug where all relationship
+  // triggers (15s–42s) fired on an empty table because the DB takes ~90s to populate.
+  (async () => {
+    const MAX_WAIT_MS   = 20 * 60 * 1_000; // 20 min ceiling
+    const POLL_INTERVAL = 30_000;           // check every 30s
+    const THRESHOLD     = 1_000;            // FAA alone inserts 30k — 1k means ingest is well underway
+    const started       = Date.now();
+    logger.info("Post-ingestion watcher started — maintenance will fire once data arrives");
+
+    while (Date.now() - started < MAX_WAIT_MS) {
+      await new Promise<void>(r => setTimeout(r, POLL_INTERVAL));
+      try {
+        const [row] = await db.select({ count: count() }).from(entitiesTable);
+        const current = Number(row?.count ?? 0);
+        logger.info(
+          { entityCount: current, elapsedSec: Math.round((Date.now() - started) / 1_000) },
+          "Post-ingestion watcher: checking…"
+        );
+        if (current >= THRESHOLD) {
+          logger.info({ entityCount: current }, "Cold-start: data arrived — running post-ingestion maintenance & pipeline");
+          await runPopulatedDbMaintenance();
+          return;
+        }
+      } catch (err: any) {
+        logger.warn({ err: err?.message }, "Post-ingestion watcher: DB check failed (non-fatal)");
+      }
+    }
+    logger.warn("Post-ingestion watcher timed out — manual relationship trigger may be needed");
+  })().catch((err: any) =>
+    logger.warn({ err: err?.message }, "Post-ingestion watcher error (non-fatal)")
+  );
 }

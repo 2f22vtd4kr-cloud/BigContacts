@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db, entitiesTable, assetsTable, relationshipsTable } from "@workspace/db";
 import { GetEntityGraphParams, GetEntityGraphQueryParams, GetConnectionPathQueryParams } from "@workspace/api-zod";
 import {
@@ -39,6 +39,29 @@ function arcToEdge(arc: GraphArc) {
     strength: arc.strength ?? null,
   };
 }
+
+// GET /graph/hub-entity — returns a well-connected entity ID for use as graph default.
+// Targets 10–500 edges to avoid overloading the force-directed renderer.
+router.get("/graph/hub-entity", async (_req, res): Promise<void> => {
+  try {
+    const rows = await db.execute<{ id: number; cnt: string }>(sql`
+      SELECT from_e AS id, COUNT(*) AS cnt
+      FROM (
+        SELECT source_entity_id AS from_e FROM relationships
+        UNION ALL
+        SELECT target_id AS from_e FROM relationships WHERE target_type = 'Entity'
+      ) t
+      GROUP BY from_e
+      HAVING COUNT(*) BETWEEN 10 AND 500
+      ORDER BY cnt DESC
+      LIMIT 1
+    `);
+    const topId = (rows as any).rows?.[0]?.id ?? (rows as any)[0]?.id;
+    res.json({ entityId: topId ? Number(topId) : 1 });
+  } catch {
+    res.json({ entityId: 1 });
+  }
+});
 
 // GET /graph/entity/:id
 router.get("/graph/entity/:id", async (req, res): Promise<void> => {

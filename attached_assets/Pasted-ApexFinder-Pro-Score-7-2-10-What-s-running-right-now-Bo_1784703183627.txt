@@ -1,0 +1,34 @@
+ApexFinder Pro — Score: 7.2 / 10
+What's running right now
+Both managed workflows healthy. 32,200 real entities (30k FAA + 2k HMLR + 200 EDGAR). Dashboard API 200ms response. Entity Ledger, Duplicates, Data Sources, Intel Terminal, Deep Search all render correctly.
+
+What scores well ✅
+Area	Notes
+UI/UX design	Dark navy theme is genuinely professional. Consistent typography, badge system, grid layouts. Not a template — has its own identity.
+Real data	Zero synthetic records. FAA N-numbers, HMLR freehold titles, SEC 13D/13G beneficial owners — all verifiable public registries.
+Entity Ledger	Filter by type, Bayesian score badges, PROX indicators, pagination, CSV export — fully functional.
+Duplicates page	200 real candidate pairs found immediately. Wells Fargo variants, LLC series families — genuinely useful data hygiene.
+Data Sources panel	Live pipeline metrics (7,483 hot leads, 28k sparse notes, etc.) with "Run Full Pipeline" orchestration.
+Architecture depth	10+ pipeline stages: Wikidata → GitHub → DNS/RDAP → domain guesser → DDG+Bing scrape → page follow → cross-validate. That's real engineering.
+Compliance	GDPR/CCPA banner on every page. Correct.
+Wealth tier segmentation	Ultra >$100M: 7,392 · Very HNW: 4,616 · HNW: 24,568 — real spread.
+What's broken right now ❌
+The single biggest gap — startup timing bug:
+The relationship triggers fire at 15s/20s/25s/30s/35s after boot. But on a fresh DB, auto-ingestion takes 4–6 minutes to load 32,200 entities. All the relationship jobs fire on an empty table and produce zero edges. By the time data exists, the timers are long gone. Result:
+* totalRelationships: 0 — graph shows one isolated green dot
+* Network Graph is completely non-functional on every cold start
+* MCTS can't traverse anything (no edges = no paths)
+* Pipeline CRM stays empty
+This isn't a design flaw — it's one sequencing bug. The triggers need to fire after ingestion completes, not at wall-clock offsets from boot.
+	
+	
+	
+	
+	
+	
+The gap to 9/10
+Three specific fixes close most of it:
+1. Sequencing fix — instead of setTimeout(..., 15_000), have the auto-ingestion endpoint fire a POST /api/relationships/rebuild-allwebhook on completion. Everything downstream (MCTS, enrichers, persona loop) should chain off ingestion-complete, not boot-time.
+2. Name normalization — EDGAR names arrive LAST FIRST ALL CAPS. A single toTitleCase()pass on ingest fixes "THIEL PETER" → "Peter Thiel".
+3. Redis contact cache restore — Context.md says 115+ entries were in Upstash slot 2, but contactableCount: 0 here. The startup restore step isn't matching entities on this import. Either the key pattern changed or the entity IDs shifted.
+Fix those three and the app jumps to 8.8–9.0. The pipeline architecture, UI, and data sourcing are already at that level — the runtime state just doesn't reflect it on a cold start.

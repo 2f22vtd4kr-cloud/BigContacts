@@ -29,8 +29,19 @@ export default function GraphViewer() {
   const entityIdFromUrl = params.get("entity");
 
   const [targetId, setTargetId] = useState<number>(
-    entityIdFromUrl ? parseInt(entityIdFromUrl, 10) : 1
+    entityIdFromUrl ? parseInt(entityIdFromUrl, 10) : 0
   );
+
+  // On initial load with no ?entity= param, pick the most-connected entity instead of #1
+  useEffect(() => {
+    if (!entityIdFromUrl && targetId === 0) {
+      fetch(`${import.meta.env.BASE_URL}api/graph/hub-entity`)
+        .then(r => r.json())
+        .then((d: { entityId: number }) => setTargetId(d.entityId ?? 1))
+        .catch(() => setTargetId(1));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (entityIdFromUrl) {

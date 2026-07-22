@@ -1085,9 +1085,14 @@ router.post("/ingest/in-house-enrich", async (req: Request, res: Response): Prom
           .where(eq(entitiesTable.id, entity.id));
 
         // Mirror to Redis contact cache (slot 2 / REDIS_URL_2) so data survives DB resets.
-        // Keyed by first sourceRegistry — stable across GitHub imports.
-        const regs = safeParseJson<string[]>(entity.sourceRegistries ?? "[]", []);
-        const stableKey = regs[0] ?? `name:${entity.name}`;
+        // Keyed by entity-unique stable ID derived from metadata (not registry display name).
+        const stableKey = (() => {
+          if (meta["nNumber"])      return `faa:${meta["nNumber"]}`;
+          if (meta["entityName"])   return `edgar:${String(meta["entityName"]).toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "")}`;
+          if (meta["orgnr"])        return `brreg:${meta["orgnr"]}`;
+          if (meta["companyNumber"]) return `ch:${meta["companyNumber"]}`;
+          return `name:${entity.name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "")}`;
+        })();
         await contactCacheSet(stableKey, {
           name:               entity.name,
           email:              (updates["email"] as string | null | undefined) ?? entity.email ?? undefined,
@@ -1662,8 +1667,14 @@ router.post("/ingest/deep-web-osint", async (req: Request, res: Response): Promi
         await db.update(entitiesTable).set(updates as any).where(eq(entitiesTable.id, entity.id));
 
         // Mirror to Upstash slot 2 (REDIS_URL_2) for persistence across DB resets
-        const regs = safeParseJson<string[]>(entity.sourceRegistries ?? "[]", []);
-        const stableKey = regs[0] ?? `name:${entity.name}`;
+        const deepWebMeta = safeParseJson<Record<string, unknown>>(entity.metadata ?? "{}", {});
+        const stableKey = (() => {
+          if (deepWebMeta["nNumber"])       return `faa:${deepWebMeta["nNumber"]}`;
+          if (deepWebMeta["entityName"])    return `edgar:${String(deepWebMeta["entityName"]).toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "")}`;
+          if (deepWebMeta["orgnr"])         return `brreg:${deepWebMeta["orgnr"]}`;
+          if (deepWebMeta["companyNumber"]) return `ch:${deepWebMeta["companyNumber"]}`;
+          return `name:${entity.name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "")}`;
+        })();
         await contactCacheSet(stableKey, {
           name:              entity.name,
           email:             (updates["email"]      as string | undefined) ?? entity.email ?? undefined,
