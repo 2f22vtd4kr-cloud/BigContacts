@@ -297,7 +297,7 @@ export default function FieldManual() {
               {[
                 { icon: <Activity size={12} />, color: "#10B981", name: "Intelligence HQ", path: "/", desc: "Live signal dashboard — entity counts, hot leads, asset map, ingestion controls." },
                 { icon: <Database size={12} />, color: "#3B82F6", name: "Entity Ledger", path: "/entities", desc: "Full sortable/filterable list of all 32,500+ targets with scores and contact vectors." },
-                { icon: <Search size={12} />,   color: "#06B6D4", name: "Deep Search", path: "/deep-search", desc: "Natural language search fusing BM25, TF-IDF, and Bayesian graph signals." },
+                { icon: <Search size={12} />,   color: "#06B6D4", name: "Deep Search", path: "/deep-search", desc: "Natural language search: 4-signal hybrid fusing BM25, TF-IDF, Bayesian graph, and Phase G semantic embeddings." },
                 { icon: <Network size={12} />,  color: "#F59E0B", name: "Network Graph", path: "/graph", desc: "Interactive D3 graph of relationships: owns, directs, shares addresses, co-investors." },
                 { icon: <Terminal size={12} />, color: "#EF4444", name: "Intel Terminal", path: "/research", desc: "Hybrid Research — 5-layer pipeline with 120 UCT rollouts to find the optimal warm-introduction path." },
                 { icon: <KanbanSquare size={12} />, color: "#8B5CF6", name: "Pipeline CRM", path: "/crm", desc: "8-stage Kanban board tracking every target from Lead Gen to Closed." },

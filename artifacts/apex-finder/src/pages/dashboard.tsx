@@ -325,13 +325,23 @@ function StatsBar() {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-px bg-border border-b border-border sticky top-0 z-20">
-        {Array.from({ length: 7 }).map((_, i) => (
-          <div key={i} className="flex flex-col items-center justify-center py-3 px-2 bg-card/50 backdrop-blur-md min-w-0">
-            <div className="h-3 w-16 bg-[#1E2332] animate-pulse rounded mb-2" />
-            <div className="h-6 w-20 bg-[#1E2332] animate-pulse rounded" />
-          </div>
-        ))}
+      <div className="border-b border-border bg-card/90 backdrop-blur-md sticky top-0 z-20">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-border">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="flex flex-col px-5 py-4 bg-card/90">
+              <div className="h-2.5 w-16 bg-[#1E2332] animate-pulse rounded mb-3" />
+              <div className="h-7 w-24 bg-[#1E2332] animate-pulse rounded" />
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-4 gap-px bg-border/50">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-2.5 px-4 py-2 bg-card/60">
+              <div className="h-2.5 w-12 bg-[#1E2332] animate-pulse rounded" />
+              <div className="h-3.5 w-10 bg-[#1E2332] animate-pulse rounded ml-auto" />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -340,54 +350,60 @@ function StatsBar() {
   const s = stats as any;
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-px bg-border border-b border-border sticky top-0 z-20">
-      <div className="flex flex-col items-center justify-center py-3 px-2 bg-card/90 backdrop-blur-md min-w-0">
-        <span className="text-xs font-mono text-muted-foreground uppercase tracking-wide mb-1 flex items-center gap-1.5 truncate">
-          <Database className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">Entities</span>
-        </span>
-        <span className="text-lg font-bold text-foreground truncate">{s.totalEntities?.toLocaleString()}</span>
+    <div className="border-b border-border bg-card/90 backdrop-blur-md sticky top-0 z-20">
+      {/* Row 1 — 4 hero stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-border">
+        <div className="flex flex-col px-5 py-4 bg-card/90">
+          <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+            <Database className="w-3 h-3 shrink-0" /> Entities
+          </span>
+          <span className="text-2xl font-bold text-foreground tabular-nums">{s.totalEntities?.toLocaleString()}</span>
+        </div>
+        <div className="flex flex-col px-5 py-4 bg-card/90 ring-2 ring-inset ring-amber-500/20">
+          <span className="text-[10px] font-mono text-amber-500 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+            <AlertTriangle className="w-3 h-3 shrink-0" /> Hot Leads
+          </span>
+          <span className="text-2xl font-bold text-amber-500 tabular-nums">{s.hotLeadsCount?.toLocaleString()}</span>
+        </div>
+        <div className="flex flex-col px-5 py-4 bg-card/90">
+          <span className="text-[10px] font-mono text-emerald-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+            <Mail className="w-3 h-3 shrink-0" /> Contactable
+          </span>
+          <span className="text-2xl font-bold text-emerald-400 tabular-nums">{(s.contactableCount ?? 0).toLocaleString()}</span>
+        </div>
+        <div className="flex flex-col px-5 py-4 bg-card/90">
+          <span className="text-[10px] font-mono text-blue-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+            <Globe className="w-3 h-3 shrink-0" /> W-HNWIs
+          </span>
+          <span className="text-2xl font-bold text-blue-400 tabular-nums">{(s.westernHnwiCount ?? 0).toLocaleString()}</span>
+        </div>
       </div>
-      <div className="flex flex-col items-center justify-center py-3 px-2 bg-card/90 backdrop-blur-md min-w-0">
-        <span className="text-xs font-mono text-muted-foreground uppercase tracking-wide mb-1 flex items-center gap-1.5 truncate">
-          <MapPin className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">Assets</span>
-        </span>
-        <span className="text-lg font-bold text-foreground truncate">{s.totalAssets?.toLocaleString()}</span>
-      </div>
-      <div className="flex flex-col items-center justify-center py-3 px-2 bg-card/90 backdrop-blur-md min-w-0">
-        <span className="text-xs font-mono text-muted-foreground uppercase tracking-wide mb-1 flex items-center gap-1.5 truncate">
-          <Globe className="w-3.5 h-3.5 text-blue-400 shrink-0" /> <span className="truncate">W-HNWIs</span>
-        </span>
-        <span className="text-lg font-bold text-blue-400 truncate">
-          {(s.westernHnwiCount ?? 0).toLocaleString()}
-        </span>
-      </div>
-      <div className="flex flex-col items-center justify-center py-3 px-2 bg-card/90 backdrop-blur-md min-w-0">
-        <span className="text-xs font-mono text-muted-foreground uppercase tracking-wide mb-1 flex items-center gap-1.5 truncate">
-          <Activity className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">Signal Avg</span>
-        </span>
-        <span className="text-lg font-bold text-primary truncate">
-          {((s.avgBayesianScore ?? 0) * 100).toFixed(1)}%
-        </span>
-      </div>
-      <div className="flex flex-col items-center justify-center py-3 px-2 bg-card/90 backdrop-blur-md min-w-0">
-        <span className="text-xs font-mono text-amber-500 uppercase tracking-wide mb-1 flex items-center gap-1.5 truncate">
-          <AlertTriangle className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">Hot Leads</span>
-        </span>
-        <span className="text-lg font-bold text-amber-500 truncate">{s.hotLeadsCount?.toLocaleString()}</span>
-      </div>
-      <div className="flex flex-col items-center justify-center py-3 px-2 bg-card/90 backdrop-blur-md min-w-0">
-        <span className="text-xs font-mono text-emerald-400 uppercase tracking-wide mb-1 flex items-center gap-1.5 truncate">
-          <Mail className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">Contactable</span>
-        </span>
-        <span className="text-lg font-bold text-emerald-400 truncate">{(s.contactableCount ?? 0).toLocaleString()}</span>
-      </div>
-      <div className="flex flex-col items-center justify-center py-3 px-2 bg-card/90 backdrop-blur-md min-w-0">
-        <span className="text-xs font-mono text-cyan-400 uppercase tracking-wide mb-1 flex items-center gap-1.5 truncate">
-          <Phone className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">Enriched %</span>
-        </span>
-        <span className="text-lg font-bold text-cyan-400 truncate">
-          {(s.enrichmentCoverage ?? 0).toFixed(1)}%
-        </span>
+      {/* Row 2 — 4 secondary stats compact */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-border/50 bg-card/60">
+        <div className="flex items-center justify-between px-4 py-2">
+          <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
+            <MapPin className="w-3 h-3 shrink-0" /> Assets
+          </span>
+          <span className="text-xs font-bold text-foreground tabular-nums">{s.totalAssets?.toLocaleString()}</span>
+        </div>
+        <div className="flex items-center justify-between px-4 py-2">
+          <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
+            <Activity className="w-3 h-3 shrink-0" /> Signal Avg
+          </span>
+          <span className="text-xs font-bold text-primary tabular-nums">{((s.avgBayesianScore ?? 0) * 100).toFixed(1)}%</span>
+        </div>
+        <div className="flex items-center justify-between px-4 py-2">
+          <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
+            <Phone className="w-3 h-3 shrink-0" /> Enriched
+          </span>
+          <span className="text-xs font-bold text-cyan-400 tabular-nums">{(s.enrichmentCoverage ?? 0).toFixed(1)}%</span>
+        </div>
+        <div className="flex items-center justify-between px-4 py-2">
+          <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
+            <Database className="w-3 h-3 shrink-0" /> Registries
+          </span>
+          <span className="text-xs font-bold text-foreground tabular-nums">{s.registryCount ?? "6"}</span>
+        </div>
       </div>
     </div>
   );

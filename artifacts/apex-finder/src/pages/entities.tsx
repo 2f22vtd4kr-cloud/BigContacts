@@ -512,21 +512,26 @@ export default function EntityLedger() {
           </button>
         </div>
 
-        {/* Live Intel panel */}
-        {showRegistry && (
-          <div className="border-b border-border bg-card/50 p-4 flex-shrink-0">
-            <div className="flex items-center gap-3 mb-3">
-              <span className="text-xs font-mono text-secondary uppercase tracking-widest flex items-center">
-                <Globe className="w-3.5 h-3.5 mr-1.5" /> Live Registry Query
-              </span>
-              <div className="flex-1 h-px bg-border/50" />
-              <span className="text-[10px] font-mono text-muted-foreground/60 uppercase tracking-widest">
-                OpenCorporates · Companies House · SEC EDGAR
-              </span>
-            </div>
-            <div className="flex gap-3">
-              <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded bg-background border border-border">
-                <Search className="w-3.5 h-3.5 text-muted-foreground" />
+        {/* Live Intel slide-over sidebar */}
+        <div className={cn(
+          "fixed top-0 right-0 h-full w-[380px] bg-card border-l border-border shadow-2xl z-40 flex flex-col transition-transform duration-300 ease-in-out",
+          showRegistry ? "translate-x-0" : "translate-x-full"
+        )}>
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card/80 backdrop-blur-sm flex-shrink-0">
+            <span className="text-xs font-mono text-secondary uppercase tracking-widest flex items-center gap-1.5">
+              <Globe className="w-3.5 h-3.5" /> Live Registry Query
+            </span>
+            <button onClick={() => setShowRegistry(false)} className="text-muted-foreground hover:text-foreground transition-colors">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="p-4 flex-1 overflow-y-auto flex flex-col gap-4">
+            <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">
+              OpenCorporates · Companies House · SEC EDGAR
+            </p>
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2 px-3 py-2 rounded bg-background border border-border focus-within:border-secondary/60 transition-colors">
+                <Search className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
                 <input
                   type="text" value={registryQuery} onChange={(e) => setRegistryQuery(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleRegistrySearch()}
@@ -534,37 +539,39 @@ export default function EntityLedger() {
                   className="flex-1 bg-transparent text-sm font-mono text-foreground outline-none placeholder:text-muted-foreground/50"
                 />
               </div>
-              <select
-                value={registrySource} onChange={(e) => setRegistrySource(e.target.value as any)}
-                className="bg-background border border-border rounded px-3 text-xs font-mono text-foreground focus:outline-none focus:border-primary"
-              >
-                <option value="opencorporates">OpenCorporates</option>
-                <option value="companies-house">Companies House UK</option>
-                <option value="sec-edgar">SEC EDGAR</option>
-              </select>
-              <button
-                onClick={handleRegistrySearch} disabled={isSearching}
-                className="px-4 py-2 bg-secondary text-secondary-foreground rounded font-mono text-xs uppercase tracking-wider hover:bg-secondary/90 disabled:opacity-50 flex items-center gap-2"
-              >
-                {isSearching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
-                Search
-              </button>
+              <div className="flex gap-2">
+                <select
+                  value={registrySource} onChange={(e) => setRegistrySource(e.target.value as any)}
+                  className="flex-1 bg-background border border-border rounded px-3 py-2 text-xs font-mono text-foreground focus:outline-none focus:border-secondary/60"
+                >
+                  <option value="opencorporates">OpenCorporates</option>
+                  <option value="companies-house">Companies House UK</option>
+                  <option value="sec-edgar">SEC EDGAR</option>
+                </select>
+                <button
+                  onClick={handleRegistrySearch} disabled={isSearching}
+                  className="px-4 py-2 bg-secondary text-secondary-foreground rounded font-mono text-xs uppercase tracking-wider hover:bg-secondary/90 disabled:opacity-50 flex items-center gap-2 flex-shrink-0"
+                >
+                  {isSearching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
+                  Search
+                </button>
+              </div>
             </div>
 
             {registryError && (
-              <div className="mt-3 text-xs font-mono text-destructive bg-destructive/10 border border-destructive/20 rounded px-3 py-2">{registryError}</div>
+              <div className="text-xs font-mono text-destructive bg-destructive/10 border border-destructive/20 rounded px-3 py-2">{registryError}</div>
             )}
             {registryResults.length > 0 && (
-              <div className="mt-3 border border-border rounded overflow-hidden max-h-48 overflow-y-auto">
+              <div className="border border-border rounded overflow-hidden">
                 {registryResults.map((r, i) => (
-                  <div key={i} className="flex items-center justify-between px-3 py-2 border-b border-border last:border-b-0 hover:bg-muted/20">
+                  <div key={i} className="flex items-center justify-between px-3 py-2.5 border-b border-border last:border-b-0 hover:bg-muted/20">
                     <div>
                       <div className="text-xs font-mono font-bold text-foreground">{r.name}</div>
                       <div className="text-[10px] font-mono text-muted-foreground">{r.nationality} · {r.type}</div>
                     </div>
                     <button
                       onClick={() => handleIngestResult(r)}
-                      className="text-[10px] font-mono text-primary hover:underline px-2 py-1 border border-primary/30 rounded"
+                      className="text-[10px] font-mono text-primary hover:underline px-2 py-1 border border-primary/30 rounded flex-shrink-0 ml-2"
                     >
                       + Ingest
                     </button>
@@ -572,11 +579,19 @@ export default function EntityLedger() {
                 ))}
               </div>
             )}
+            {registryResults.length === 0 && !isSearching && !registryError && (
+              <div className="flex-1 border border-border/50 border-dashed rounded-lg flex flex-col items-center justify-center p-8 text-center">
+                <Globe className="w-8 h-8 text-muted-foreground/20 mb-3" />
+                <p className="text-xs font-mono text-muted-foreground/60 leading-relaxed">
+                  Connect to global registries to instantly ingest entity data, directors, and proxy connections.
+                </p>
+              </div>
+            )}
             {searchedOnce && !isSearching && registryResults.length === 0 && !registryError && (
-              <div className="mt-3 text-xs font-mono text-muted-foreground">No results found.</div>
+              <div className="text-xs font-mono text-muted-foreground">No results found.</div>
             )}
           </div>
-        )}
+        </div>
 
         {/* Bulk action bar */}
         {selectedIds.size > 0 && (
