@@ -36,6 +36,12 @@
 - **Wealth Tiers**: Ultra >$100M: 7,392 · Very $30-100M: 4,616 · HNW $4-30M: 24,568 · Unknown: 200
 - **Research Sessions**: 0 (MCTS bulk-run fires at 90s after each boot)
 
+### What was done this session (re-import #36 — Phase G nav link + session resume — 2026-07-22)
+
+Added missing OSINT Tools sidebar nav link (`Telescope` icon, `/osint-tools`) between Data Sources and Field Manual in `artifacts/apex-finder/src/components/layout.tsx`. This was the one incomplete piece from the prior session — the page (331 lines), router entry, and API backend were all already built. Page loads 8,000 tools with category chips, search, and pagination. Phase G now fully visible and navigable.
+
+---
+
 ### What was done this session (re-import #35 — Phase G complete — 2026-07-22)
 
 **Phase G — Semantic Intelligence Layer fully implemented and deployed:**

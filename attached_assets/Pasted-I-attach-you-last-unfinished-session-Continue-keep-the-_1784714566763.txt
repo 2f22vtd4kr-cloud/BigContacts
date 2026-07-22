@@ -1,0 +1,47 @@
+I attach you last unfinished session. Continue, keep the stakes high - work more intensively:
+
+“Let me get a full picture of the current state fast — reading the key files and logs in parallel.
+Excellent state: semantic model is loading, 32,100 entities in DB, 169 contacts restored. Phase G files exist but improvements.md has no Phase G chapter. Let me check what's wired vs what's missing in parallel.
+Core Phase G is built and wired. The semantic model loads at startup. Now let me identify the exact gaps — what was started but not finished.
+Good — startup triggers ✅, MCTS gatekeeper bonus ✅, compute-embeddings route ✅. The one dead-code gap: osint-tools route is not registered in index.ts. Let me read data-sources page + index.ts + mcts-agent to plan the full Phase G completion push.
+I have a crystal-clear picture of the gaps. Let me read app.ts and the bottom of data-sources.tsx in parallel, then build everything.
+I have the full picture. Let me check routes/index.ts and the rest of data-sources.tsx, then implement everything in parallel.
+osint-tools route IS registered. All infrastructure is complete. Now I'll implement Phase G's three missing pieces in parallel:
+1. G2b — Semantic entity resolution (find cross-registry same-person via embeddings → LIKELY_SAME_PERSON edges)
+2. Data Sources UI — add Semantic Embeddings + Compute Embeddings button to controls panel
+3. Phase G chapter in improvements.md
+I have everything. Now implementing all Phase G pieces in parallel across all files.
+Now implementing all remaining Phase G pieces in one parallel batch.
+Now updating data-sources.tsx (Phase G section + new buttons) and improvements.md in parallel.
+Now adding the new button components and controls panel entries to data-sources.tsx, plus Phase G in improvements.md.
+Adding the two new button components, controls panel entries, Phase G render section, and improvements.md chapter — all in parallel.
+Now adding the Phase G render section, embedding-status endpoint, and improvements.md chapter — all in parallel.
+Adding the embedding-status endpoint to search.ts and writing the Phase G improvements.md chapter — all in parallel.
+Continuing Phase G implementation — adding the embedding-status API endpoint and Phase G improvements.md chapter simultaneously.
+Continuing — adding embedding-status endpoint and Phase G chapter in parallel.
+Writing the Phase G chapter in improvements.md and building in parallel to verify all edits compile cleanly.
+Build clean ✅. Restarting API server to pick up all Phase G changes, verifying the new endpoints, and updating Context.md — all in parallel.
+Both builds clean. Verifying the new Phase G endpoints and updating Context.md in parallel.
+Everything works! But I see a registry prefix parsing issue — the dedup grouped all 2000 under "FAA Releasable Aircraft Database" instead of "faa". Let me check the sourceRegistries format fast and fix it.
+The sourceRegistries are human-readable strings — need to normalize them to short prefixes. Fixing the dedup endpoint while simultaneously triggering a full embedding computation for all 32k entities.
+The embedding job was killed by the restart (expected). Let me take a screenshot to verify the Phase G UI, trigger a fresh embedding run on the new server, and verify the registry fix — all in parallel.
+Page is live — "10 live sources · 1 coming soon" confirms Phase G entries loaded. Polling the embedding job and verifying the registry normalization fix in parallel.
+5,391 embeddings cached. Now triggering the full 32k embedding pass (force=true) and semantic-dedup with the registry fix, while taking a Phase G screenshot — all in parallel.
+Phase G is fully deployed and working beautifully:
+* 5,394 embeddings cached showing live in the controls panel
+* 1,746,938 cross-registry comparisons ran correctly (faa × hmlr × edgar groups)
+* Phase G — Semantic Intelligence section visible at bottom with violet theme
+* Compute Embeddings + Semantic Dedup buttons fully wired
+Let me scroll to see the Phase G source cards and then update Context.md.
+The embedding job capped at 2000 again despite requesting 32000. Let me check the compute-embeddings route to fix the batch cap, and update Context.md in parallel.
+Found the bug: batchSize is capped at 2000 and the query has no WHERE clause to skip already-embedded entities. Fixing both now while updating Context.md in parallel.
+Restarting API Server with the fixed compute-embeddings route and updating Context.md in parallel.
+Triggering the full 32k embedding run with the fixed route, checking logs, and verifying the healthz in parallel.
+7,374 embeddings loaded from Redis on boot — growing perfectly. Polling the full 32k embedding job and updating memory in parallel.
+Embedding job running (3,410/32,000). While it computes, let me check the deep search UI for embedding signal display and see if there's a frontend OSINT tools page — then add any gaps.
+Deep search shows BM25/Semantic/Graph bars but is missing the Embedding signal 4 bar. Also no frontend OSINT tools page. Building both in parallel — reading the relevant files first.
+Embedding job running (8,010/32,000). Now adding the Embedding signal bar to Deep Search and building the OSINT Tools browser page — all in parallel.
+Now implementing the Embedding signal bar in Deep Search and building the full OSINT Tools browser page — all in parallel.
+Adding the OSINT Tools route to router.tsx and sidebar, then building frontend — all in parallel...”
+
+

@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import {
   Crosshair, Activity, Network, FileTerminal,
-  KanbanSquare, Database, ShieldAlert, X, BookOpen, Menu, BrainCircuit, Bot, Radio, Copy,
+  KanbanSquare, Database, ShieldAlert, X, BookOpen, Menu, BrainCircuit, Bot, Radio, Copy, Telescope,
 } from "lucide-react";
 
 const navItems = [
@@ -16,6 +16,7 @@ const navItems = [
   { name: "Persona Loop",      href: "/improvements",  icon: Bot },
   { name: "Duplicates",        href: "/duplicates",    icon: Copy },
   { name: "Data Sources",      href: "/data-sources",  icon: Radio },
+  { name: "OSINT Tools",       href: "/osint-tools",   icon: Telescope },
   { name: "Field Manual",      href: "/manual",        icon: BookOpen },
 ];
 
