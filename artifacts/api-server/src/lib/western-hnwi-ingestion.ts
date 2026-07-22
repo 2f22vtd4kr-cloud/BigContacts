@@ -526,11 +526,23 @@ export function classifyEntityType(name: string): "HNWI" | "Corporation" | "Trus
   if (/\b(Trust|Trustee|Foundation|Fiduciary|Settlement|Estate\s+of)\b/i.test(n)) return "Trust";
   // Explicit partnership / LP forms
   if (/\b(L\.?P\.?|LLP|Limited\s+Partnership|General\s+Partnership)\b/i.test(n)) return "Corporation";
-  // Corporate-suffix identifiers
-  if (/\b(Inc\.?|Corp\.?|Ltd\.?|LLC|L\.?L\.?C\.?|PLC|S\.A\.|S\.p\.A\.|GmbH|B\.V\.|N\.V\.)\b/i.test(n)) return "Corporation";
+  // Corporate-suffix identifiers (trailing \b removed for dot-ending suffixes like S.A., B.V.)
+  if (/\b(Inc\.?|Corp\.?|Ltd\.?|LLC|L\.?L\.?C\.?|PLC|S\.A\.|S\.p\.A\.|GmbH|B\.V\.|N\.V\.)(?:[^a-zA-Z0-9]|$)/i.test(n)) return "Corporation";
   if (/\bCo\b\.?(\s|$)/i.test(n) && !/^[A-Z][a-z]+ [A-Z][a-z]+ Co\b/.test(n)) return "Corporation"; // "Callon Petroleum Co" not "Smith Brown Co"
   // Industry / fund / financial keywords — never an individual
-  if (/\b(Fund|Capital\s+(?:Partners|Management|Advisors|Group)|Venture\s+Capital|Ventures|Holdings|Management|Advisors|Consulting|Partners|Acquisition|Petroleum|Energy|Pharmaceutical|Biotechnology|Technologies|Solutions|Sciences|Industries|Properties|Realty|Entertainment|Media|Analytics|Logistics|Transportation|Enterprises|Associates|Financial\s+(?:Group|Partners|Services)|Investments|Aeronautica|Aeronautics)\b/i.test(n)) return "Corporation";
+  if (/\b(Fund|Capital\s+(?:Partners|Management|Advisors|Group)|Venture\s+Capital|Ventures|Holdings|Management|Advisors|Consulting|Partners|Acquisition|Petroleum|Energy|Pharmaceutical|Biotechnology|Technologies|Solutions|Sciences|Industries|Properties|Realty|Entertainment|Media|Analytics|Logistics|Transportation|Enterprises|Associates|Financial\s+(?:Group|Partners|Services)|Investments|Aeronautica|Aeronautics|Crossover|Participacoes|Participations|Beteiligungen|Inversiones|Rentas)\b/i.test(n)) return "Corporation";
+  // Banks and financial institutions
+  if (/\b(Banc(?:orp|shares?|o)?|Bancshares|Bank(?:ers?|corp|shares)?)\b/i.test(n)) return "Corporation";
+  // Committee / political / governance entities
+  if (/\b(Committee|Commission|Shareholders?|Congressional|Pension\s+(?:Fund|Plan|Board))\b/i.test(n)) return "Corporation";
+  // SEC state-of-incorporation suffixes: "/DE/", "/NV/", "/MD/" etc.
+  if (/\/[A-Z]{2}\/$/.test(n)) return "Corporation";
+  // Ticker symbol pattern: name ends with "(ABC)", "(ABC, DEF)", "(MS, MS-PA, MS-PE)" — SEC company names
+  if (/\s+\([A-Z]{1,5}(?:-[A-Z]{1,3})?(?:,\s*[A-Z]{1,5}(?:-[A-Z]{1,3})?)*\)\s*$/.test(n)) return "Corporation";
+  // Government, regulatory, public agency
+  if (/\b(Federal|Municipal|County\s+of|City\s+of|State\s+of|Department\s+of|Dept\.?\s+of|Authority|Administration|Agency)\b/i.test(n)) return "Corporation";
+  // University / academic / non-profit markers
+  if (/\b(University|College|Institute|Hospital|Medical\s+Center|Health\s+System|Church|Diocese|Synagogue|Mosque)\b/i.test(n)) return "Corporation";
   return "HNWI";
 }
 

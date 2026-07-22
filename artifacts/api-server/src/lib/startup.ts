@@ -15,7 +15,7 @@ import {
   createJob, updateJob, setActiveJob, getActiveJob, getJob, clearActiveJob,
   clearDedup, getDedupCount,
 } from "./job-queue";
-import { runFaaIngestion, US_STATE_CENTROIDS } from "./faa-ingestor";
+import { runFaaIngestion, US_STATE_CENTROIDS, normalizeFaaName } from "./faa-ingestor";
 import { runLandRegistryIngestion } from "./land-registry-ingestor";
 import { runWesternHnwiIngestion, classifyEntityType } from "./western-hnwi-ingestion";
 import { logger } from "./logger";
@@ -199,6 +199,73 @@ async function runPopulatedDbMaintenance(): Promise<void> {
     logger.info({ updated: hotResult.length }, "Maintenance: hot flags synced");
   } catch (err: any) {
     logger.warn({ err: err?.message }, "Maintenance: hot flag sync failed (non-fatal)");
+  }
+
+  // 1a. Normalize FAA individual names: stored as "Last First" → fix to "First Last"
+  // Idempotent — skips records where metadata.nameMigrated === true
+  try {
+    const faaRows = await db
+      .select({ id: entitiesTable.id, name: entitiesTable.name, metadata: entitiesTable.metadata })
+      .from(entitiesTable)
+      .where(sql`${entitiesTable.sourceRegistries}::text LIKE '%FAA%' AND (${entitiesTable.metadata}::jsonb->>'nameMigrated') IS NULL`);
+    const faaUpdates: { id: number; name: string }[] = [];
+    for (const row of faaRows) {
+      const meta = (typeof row.metadata === "string" ? JSON.parse(row.metadata) : (row.metadata ?? {})) as Record<string, unknown>;
+      const typeReg = (meta["typeRegistrant"] as string) ?? "";
+      const newName = normalizeFaaName(row.name, typeReg);
+      if (newName !== row.name) faaUpdates.push({ id: row.id, name: newName });
+    }
+    const FCHUNK = 100;
+    for (let i = 0; i < faaUpdates.length; i += FCHUNK) {
+      const chunk = faaUpdates.slice(i, i + FCHUNK);
+      await Promise.all(chunk.map(u =>
+        db.update(entitiesTable)
+          .set({ name: u.name, metadata: sql`jsonb_set(COALESCE(${entitiesTable.metadata}::jsonb, '{}'::jsonb), '{nameMigrated}', 'true'::jsonb)`, updatedAt: new Date() })
+          .where(eq(entitiesTable.id, u.id))
+      ));
+    }
+    // Mark all remaining FAA records as migrated (those that didn't need renaming)
+    await db.execute(sql`UPDATE entities SET metadata = jsonb_set(COALESCE(metadata::jsonb, '{}'::jsonb), '{nameMigrated}', 'true'::jsonb) WHERE metadata::text LIKE '%FAA%' AND (metadata::jsonb->>'nameMigrated') IS NULL`);
+    logger.info({ renamed: faaUpdates.length, total: faaRows.length }, "Maintenance: FAA names normalized to First Last order");
+  } catch (err: any) {
+    logger.warn({ err: err?.message }, "Maintenance: FAA name normalization failed (non-fatal)");
+  }
+
+  // 1b. Normalize EDGAR ALL-CAPS "LAST FIRST" names to "First Last" (title-cased)
+  // Targets HNWI/Gatekeeper entities where name is ≥85% uppercase characters.
+  // Idempotent — skips records where metadata.edgarNameMigrated === true
+  try {
+    const edgarRows = await db
+      .select({ id: entitiesTable.id, name: entitiesTable.name, metadata: entitiesTable.metadata })
+      .from(entitiesTable)
+      .where(sql`${entitiesTable.type} IN ('HNWI', 'Gatekeeper') AND (${entitiesTable.metadata}::jsonb->>'edgarNameMigrated') IS NULL`);
+    const edgarUpdates: { id: number; name: string }[] = [];
+    for (const row of edgarRows) {
+      const name = row.name.trim();
+      const letters = name.replace(/[^a-zA-Z]/g, "");
+      const upperRatio = letters.length > 0 ? (name.match(/[A-Z]/g) ?? []).length / letters.length : 0;
+      if (upperRatio < 0.85 || !name.includes(" ")) continue;
+      const stripped = name.replace(/\s+ET\s+AL\.?\s*$/i, "").trim();
+      const titled = stripped.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+      const spaceIdx = titled.indexOf(" ");
+      if (spaceIdx === -1) continue;
+      const normalized = `${titled.slice(spaceIdx + 1)} ${titled.slice(0, spaceIdx)}`;
+      if (normalized !== row.name) edgarUpdates.push({ id: row.id, name: normalized });
+    }
+    const ECHUNK = 100;
+    for (let i = 0; i < edgarUpdates.length; i += ECHUNK) {
+      const chunk = edgarUpdates.slice(i, i + ECHUNK);
+      await Promise.all(chunk.map(u =>
+        db.update(entitiesTable)
+          .set({ name: u.name, metadata: sql`jsonb_set(COALESCE(${entitiesTable.metadata}::jsonb, '{}'::jsonb), '{edgarNameMigrated}', 'true'::jsonb)`, updatedAt: new Date() })
+          .where(eq(entitiesTable.id, u.id))
+      ));
+    }
+    // Mark all remaining HNWI/Gatekeeper as migrated
+    await db.execute(sql`UPDATE entities SET metadata = jsonb_set(COALESCE(metadata::jsonb, '{}'::jsonb), '{edgarNameMigrated}', 'true'::jsonb) WHERE type IN ('HNWI', 'Gatekeeper') AND (metadata::jsonb->>'edgarNameMigrated') IS NULL`);
+    logger.info({ renamed: edgarUpdates.length, total: edgarRows.length }, "Maintenance: EDGAR names normalized to First Last order");
+  } catch (err: any) {
+    logger.warn({ err: err?.message }, "Maintenance: EDGAR name normalization failed (non-fatal)");
   }
 
   // 2. Reclassify entity types (Corporation/Trust by name pattern)

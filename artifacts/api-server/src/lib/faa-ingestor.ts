@@ -115,6 +115,29 @@ function titleCase(s: string): string {
   return s.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+/**
+ * FAA MASTER.txt stores ALL person names as "LASTNAME FIRSTNAME [MIDDLE...]" in ALL-CAPS.
+ * For individual registrants (typeReg === "1") we reverse to "First [Middle] Last" and
+ * apply title-case. Corporate registrants (LLCs, governments, etc.) are title-cased only.
+ *
+ * Examples (typeReg="1"):
+ *   "SCHEUER WALTER"       → "Walter Scheuer"
+ *   "LEEDS RICHARD BRIAN"  → "Richard Brian Leeds"
+ *   "VAN DEN BERG JOHN"    → "John Van Den Berg"
+ *
+ * Examples (typeReg="7"):
+ *   "WELLS FARGO BANK NA"  → "Wells Fargo Bank Na"  (untouched — not a person)
+ */
+export function normalizeFaaName(rawName: string, typeReg: string): string {
+  const titled = titleCase(rawName.trim());
+  if (typeReg !== "1") return titled;           // non-individual — title-case only
+  const spaceIdx = titled.indexOf(" ");
+  if (spaceIdx === -1) return titled;            // single-word name — leave as-is
+  const lastName = titled.slice(0, spaceIdx);
+  const rest     = titled.slice(spaceIdx + 1);
+  return `${rest} ${lastName}`;
+}
+
 function aircraftLabel(typeEngine: string, typeAircraft: string): string {
   if (typeEngine === "4") return "Jet";
   if (typeEngine === "5") return "Turbofan";
@@ -346,7 +369,7 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
     pendingDedup.push(dkey);
 
     // ── Build records ─────────────────────────────────────────────────────────
-    const name = titleCase(rawName);
+    const name = normalizeFaaName(rawName, typeReg);
     const label = aircraftLabel(typeEngine, typeAircraft);
     const address = [street, city, state, country !== "US" ? country : ""].filter(Boolean).join(", ");
     const score = bayesianScore(typeEngine, typeAircraft);

@@ -22,7 +22,7 @@ import {
   setActiveJob, getActiveJob, clearDedup, getDedupCount,
 } from "../lib/job-queue";
 import { runWesternHnwiIngestion } from "../lib/western-hnwi-ingestion";
-import { runFaaIngestion, US_STATE_CENTROIDS } from "../lib/faa-ingestor";
+import { runFaaIngestion, US_STATE_CENTROIDS, normalizeFaaName } from "../lib/faa-ingestor";
 import { runOccrpEnrichment } from "../lib/occrp-enricher";
 import { runLandRegistryIngestion } from "../lib/land-registry-ingestor";
 import { runOpenSkyEnrichment } from "../lib/opensky-ingestor";
@@ -128,6 +128,129 @@ router.post("/ingest/reclassify-entity-types", async (_req: Request, res: Respon
     });
   } catch (err: any) {
     res.status(500).json({ error: err?.message ?? "Reclassification failed" });
+  }
+});
+
+// POST /ingest/fix-faa-names — one-time migration: rewrite existing FAA individual
+// entity names from "Last First" → "First Last" order using normalizeFaaName().
+// Safe to call multiple times — skips entities already marked nameMigrated=true.
+router.post("/ingest/fix-faa-names", async (_req: Request, res: Response): Promise<void> => {
+  try {
+    // Fetch all FAA-sourced entities (sourceRegistries contains "FAA")
+    const rows = await db
+      .select({ id: entitiesTable.id, name: entitiesTable.name, metadata: entitiesTable.metadata })
+      .from(entitiesTable)
+      .where(sql`${entitiesTable.sourceRegistries}::text LIKE '%FAA%'`);
+
+    const updates: { id: number; name: string }[] = [];
+
+    for (const row of rows) {
+      const meta = (typeof row.metadata === "string" ? JSON.parse(row.metadata) : row.metadata) as Record<string, unknown> ?? {};
+      // Skip already-migrated records
+      if (meta["nameMigrated"] === true) continue;
+      const typeReg = (meta["typeRegistrant"] as string) ?? "";
+      const newName = normalizeFaaName(row.name, typeReg);
+      if (newName !== row.name) {
+        updates.push({ id: row.id, name: newName });
+      }
+    }
+
+    // Apply updates in chunks of 100
+    const CHUNK = 100;
+    let updated = 0;
+    for (let i = 0; i < updates.length; i += CHUNK) {
+      const chunk = updates.slice(i, i + CHUNK);
+      await Promise.all(chunk.map(u =>
+        db.update(entitiesTable)
+          .set({ name: u.name, metadata: sql`jsonb_set(COALESCE(${entitiesTable.metadata}::jsonb, '{}'::jsonb), '{nameMigrated}', 'true'::jsonb)`, updatedAt: new Date() })
+          .where(eq(entitiesTable.id, u.id))
+      ));
+      updated += chunk.length;
+    }
+
+    // Mark all skipped (already correct) records as migrated too
+    await db.execute(
+      sql`UPDATE entities SET metadata = jsonb_set(COALESCE(metadata::jsonb, '{}'::jsonb), '{nameMigrated}', 'true'::jsonb) WHERE metadata::text LIKE '%FAA%' AND (metadata::jsonb->>'nameMigrated') IS NULL`
+    );
+
+    res.json({
+      total: rows.length,
+      renamed: updated,
+      skipped: rows.length - updated,
+      message: `FAA name migration: ${updated} entities renamed to First Last order.`,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message ?? "FAA name migration failed" });
+  }
+});
+
+// POST /ingest/fix-edgar-names — normalize ALL-CAPS LAST FIRST names from SEC EDGAR filings.
+// Targets HNWI entities whose stored name is entirely uppercase (SEC EDGAR stores names as
+// "LASTNAME FIRSTNAME" in filings). Converts to "First [Middle] Last" order + title case.
+// Safe to call multiple times — skips entities already marked edgarNameMigrated=true.
+router.post("/ingest/fix-edgar-names", async (_req: Request, res: Response): Promise<void> => {
+  try {
+    // Fetch all HNWI/Gatekeeper entities — only these are individuals
+    const rows = await db
+      .select({ id: entitiesTable.id, name: entitiesTable.name, metadata: entitiesTable.metadata })
+      .from(entitiesTable)
+      .where(sql`${entitiesTable.type} IN ('HNWI', 'Gatekeeper')`);
+
+    const updates: { id: number; name: string }[] = [];
+
+    for (const row of rows) {
+      const meta = (typeof row.metadata === "string" ? JSON.parse(row.metadata) : row.metadata ?? {}) as Record<string, unknown>;
+      if (meta["edgarNameMigrated"] === true) continue;
+
+      const name = row.name.trim();
+      // Only normalize ALL-CAPS names (SEC EDGAR LAST FIRST format)
+      // Allow single lowercase letters (initials like "D" or "J") to still qualify
+      const upperRatio = (name.match(/[A-Z]/g) ?? []).length / (name.replace(/[^a-zA-Z]/g, "").length || 1);
+      if (upperRatio < 0.85) continue;  // already title-cased — skip
+      if (!name.includes(" ")) continue; // single word — skip
+
+      // Strip "ET AL" suffix before normalizing
+      const stripped = name.replace(/\s+ET\s+AL\.?\s*$/i, "").trim();
+
+      // Apply title case
+      const titled = stripped.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+
+      // Reverse LAST FIRST → FIRST LAST
+      const spaceIdx = titled.indexOf(" ");
+      if (spaceIdx === -1) continue;
+      const lastName = titled.slice(0, spaceIdx);
+      const rest = titled.slice(spaceIdx + 1);
+      const normalized = `${rest} ${lastName}`;
+
+      if (normalized !== row.name) {
+        updates.push({ id: row.id, name: normalized });
+      }
+    }
+
+    const CHUNK = 100;
+    let updated = 0;
+    for (let i = 0; i < updates.length; i += CHUNK) {
+      const chunk = updates.slice(i, i + CHUNK);
+      await Promise.all(chunk.map(u =>
+        db.update(entitiesTable)
+          .set({
+            name: u.name,
+            metadata: sql`jsonb_set(COALESCE(${entitiesTable.metadata}::jsonb, '{}'::jsonb), '{edgarNameMigrated}', 'true'::jsonb)`,
+            updatedAt: new Date(),
+          })
+          .where(eq(entitiesTable.id, u.id))
+      ));
+      updated += chunk.length;
+    }
+
+    res.json({
+      total: rows.length,
+      renamed: updated,
+      skipped: rows.length - updated,
+      message: `EDGAR name migration: ${updated} entities normalized to First Last order.`,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message ?? "EDGAR name migration failed" });
   }
 });
 
