@@ -218,7 +218,7 @@ export default function FieldManual() {
             <Crosshair size={16} className="animate-pulse" />
             <span className="text-xs font-bold tracking-widest">FIELD MANUAL</span>
           </div>
-          <div className="text-[10px] text-[#475569] tracking-wider uppercase">v1.1 · Updated Jul 2026</div>
+          <div className="text-[10px] text-[#475569] tracking-wider uppercase">v1.2 · Phases A–G Complete</div>
         </div>
         <nav className="flex-1 py-2 flex flex-col overflow-y-auto">
           {LEVELS.map((level) => (
@@ -258,6 +258,9 @@ export default function FieldManual() {
               It ingests 32,500+ verified identities from public government registries (FAA, SEC EDGAR, UK Companies House, BRREG, UK Land Registry),
               maps their asset portfolios and corporate connections, then uses a 5-layer AI engine plus semantic embeddings
               to find the warmest introduction path to any target — with zero synthetic data, zero paid APIs.
+              Development Phases A through G are fully integrated into this build: registry ingestion (A–C), enrichment
+              pipelines (D–E), Deep Web OSINT (F), and the Semantic Intelligence layer with all-MiniLM-L6-v2 WASM
+              embeddings and 4-signal hybrid search (G). All 11 levels of this manual are relevant to the current build.
             </p>
 
             <Callout icon={<TrendingUp size={14} />} color="#10B981" title="The core idea">
@@ -796,11 +799,10 @@ export default function FieldManual() {
             </div>
 
             <Callout icon={<Mail size={14} />} color="#10B981" title="Recommended enrichment order">
-              Run <Code>WEB OSINT ENRICH</Code> first — it casts the widest net via DuckDuckGo and EDGAR full-text
-              search. Then run <Code>IN-HOUSE ENRICH</Code> — it picks up what Web OSINT missed using structured
-              Wikidata and Gravatar-verified email patterns. Finally, click <Code>RECOMPUTE</Code> to update all
-              contact confidence scores. Most HNWI and Gatekeeper entities will move from 0 to 40–90 across
-              two passes.
+              <strong className="text-[#E2E8F0]">1. WEB OSINT ENRICH</strong> — widest net via DuckDuckGo and EDGAR full-text.{" "}
+              <strong className="text-[#E2E8F0]">2. IN-HOUSE ENRICH</strong> — Wikidata, Gravatar-verified patterns, GitHub, ProPublica 990, RDAP.{" "}
+              <strong className="text-[#E2E8F0]">3. DEEP WEB OSINT</strong> — DuckDuckGo + Bing HTML with 12 rotating UA signatures; scrapes top result pages for mailto hrefs; cross-validates across sources.{" "}
+              <strong className="text-[#E2E8F0]">4. COMPUTE EMBEDDINGS</strong> — Phase G; run after ingestion is complete so all new entities get vectors. After two full passes most HNWI and Gatekeeper entities move from contact confidence 0 to 40–90+.
             </Callout>
           </Section>
 

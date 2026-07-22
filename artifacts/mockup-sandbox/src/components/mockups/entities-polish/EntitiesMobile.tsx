@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React from "react";
 import { 
-  Search, Filter, ShieldAlert, UserCheck, Building2, 
-  Briefcase, Shield, Mail, Phone, Linkedin, ChevronRight
-} from 'lucide-react';
+  Search, X, Plus, Square, CheckSquare, ChevronRight, ShieldAlert,
+  UserCheck, Building2, Briefcase, Shield
+} from "lucide-react";
 
 const TYPE_COLORS: Record<string, string> = {
   HNWI: "#10B981",
@@ -12,165 +12,135 @@ const TYPE_COLORS: Record<string, string> = {
 };
 
 const TYPE_ICONS: Record<string, React.ReactNode> = {
-  HNWI: <UserCheck className="w-3 h-3" />,
+  HNWI:        <UserCheck className="w-3 h-3" />,
   Corporation: <Building2 className="w-3 h-3" />,
-  Trust: <Briefcase className="w-3 h-3" />,
-  Gatekeeper: <Shield className="w-3 h-3" />,
+  Trust:       <Briefcase className="w-3 h-3" />,
+  Gatekeeper:  <Shield className="w-3 h-3" />,
 };
 
-const MOCK_ENTITIES = [
+const mockEntities = [
   {
     id: 1,
-    name: "Alexander V. Petrov",
+    name: "Alexander von Hapsburg",
     type: "HNWI",
-    bayesianScore: 92,
-    location: "London, UK / Dubai, UAE",
-    contact: ["email", "phone"],
+    nationality: "Switzerland",
+    netWorth: "$1.4B",
+    score: 0.92,
     isHot: true,
   },
   {
     id: 2,
-    name: "Crescent Horizon Holdings Ltd",
+    name: "Vanguard Global Holdings Ltd.",
     type: "Corporation",
-    bayesianScore: 84,
-    location: "British Virgin Islands",
-    contact: ["email"],
+    nationality: "Cayman Islands",
+    netWorth: "$4.2B",
+    score: 0.85,
     isHot: false,
   },
   {
     id: 3,
-    name: "Eleanor Vance-Sterling",
-    type: "HNWI",
-    bayesianScore: 78,
-    location: "New York, USA",
-    contact: ["phone"],
-    isHot: false,
-  },
-  {
-    id: 4,
-    name: "Oakhaven Family Trust",
-    type: "Trust",
-    bayesianScore: 88,
-    location: "Delaware, USA",
-    contact: [],
-    isHot: true,
-  },
-  {
-    id: 5,
-    name: "Marcus G. Thorne",
+    name: "Eleanor Sterling",
     type: "Gatekeeper",
-    bayesianScore: 65,
-    location: "Geneva, Switzerland",
-    contact: ["email", "phone", "linkedin"],
+    nationality: "United Kingdom",
+    netWorth: null,
+    score: 0.68,
     isHot: false,
   }
 ];
 
-function TypeBadge({ type }: { type: string }) {
-  const color = TYPE_COLORS[type] || "#64748B";
-  return (
-    <span 
-      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono font-bold uppercase tracking-wider"
-      style={{ color: color, backgroundColor: `${color}15`, border: `1px solid ${color}30` }}
-    >
-      {TYPE_ICONS[type]} {type}
-    </span>
-  );
-}
-
-function ScoreBadge({ score }: { score: number }) {
-  const color = score >= 85 ? "text-[#10B981] border-[#10B981]/30 bg-[#10B981]/10" 
-              : score >= 70 ? "text-[#F59E0B] border-[#F59E0B]/30 bg-[#F59E0B]/10" 
-              : "text-[#EF4444] border-[#EF4444]/30 bg-[#EF4444]/10";
-  return (
-    <div className={`px-2 py-0.5 rounded border font-mono text-xs font-bold ${color}`}>
-      {score}
-    </div>
-  );
-}
-
-export function EntitiesMobile() {
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
-  const [searchValue, setSearchValue] = useState("");
+export default function EntitiesMobile() {
+  const mobileTypeFilter = null;
+  const selectedIds = new Set<number>();
 
   return (
-    <div className="min-h-screen bg-[#0B0F19] text-slate-300 font-sans flex flex-col mx-auto max-w-[390px] border-x border-[#2A3045] relative overflow-hidden">
-      
-      {/* Header */}
-      <div className="px-3 pt-4 pb-2 sticky top-0 bg-[#0B0F19]/90 backdrop-blur-md z-10">
-        <div className="flex justify-between items-center gap-2">
-          <div 
-            className={`flex items-center bg-[#141824] border border-[#2A3045] rounded-full transition-all duration-300 ease-in-out ${
-              isSearchFocused || searchValue ? 'flex-1 px-3 py-2' : 'w-10 h-10 justify-center cursor-pointer hover:bg-[#2A3045]/50'
-            }`}
-            onClick={() => !isSearchFocused && setIsSearchFocused(true)}
-          >
-             <Search className="w-4 h-4 text-slate-400 flex-shrink-0" />
-             {(isSearchFocused || searchValue) && (
-               <input 
-                 className="ml-2 bg-transparent outline-none text-sm text-slate-200 w-full font-mono placeholder:text-slate-500" 
-                 autoFocus={isSearchFocused} 
-                 value={searchValue}
-                 onChange={(e) => setSearchValue(e.target.value)}
-                 onBlur={() => !searchValue && setIsSearchFocused(false)} 
-                 placeholder="Search entities..." 
-               />
-             )}
-          </div>
-          
-          {(!isSearchFocused && !searchValue) && (
-            <div className="text-sm font-mono font-bold text-slate-200 uppercase tracking-widest flex-1 text-center">
-              Ledger
-            </div>
-          )}
-          
-          <button className="w-10 h-10 flex-shrink-0 flex items-center justify-center bg-[#141824] border border-[#2A3045] rounded-full text-slate-400 hover:text-white transition-colors">
-            <Filter className="w-4 h-4" />
-          </button>
+    <div className="w-[390px] h-[844px] bg-[#0B0F19] text-white flex flex-col font-sans overflow-hidden">
+      {/* Mobile top toolbar */}
+      <div className="px-3 py-2 border-b border-white/10 bg-black/20 flex-shrink-0 space-y-2">
+        <div className="flex items-center gap-2 px-3 py-2 rounded bg-black/40 border border-white/10">
+          <Search className="w-3.5 h-3.5 text-white/50 flex-shrink-0" />
+          <input
+            type="text" 
+            placeholder="Search entities…"
+            className="flex-1 bg-transparent text-sm font-mono text-white outline-none placeholder:text-white/30"
+          />
         </div>
-      </div>
-
-      {/* List */}
-      <div className="flex-1 overflow-auto px-3 py-2 flex flex-col gap-3 pb-8">
-        {MOCK_ENTITIES.map(entity => (
-          <div 
-            key={entity.id} 
-            className="bg-[#141824] border border-[#2A3045] rounded-xl p-4 flex flex-col gap-3 active:scale-[0.98] transition-transform cursor-pointer"
-          >
-            <div className="flex justify-between items-start gap-3">
-              <div className="flex-1 min-w-0">
-                {entity.isHot && (
-                  <div className="flex items-center gap-1 text-amber-500 mb-1.5">
-                    <ShieldAlert className="w-3 h-3" />
-                    <span className="text-[9px] uppercase font-bold tracking-wider">Hot Lead</span>
-                  </div>
-                )}
-                <h3 className="text-sm font-bold text-slate-100 leading-tight truncate">{entity.name}</h3>
-                <div className="text-[11px] text-slate-400 mt-1 truncate">{entity.location}</div>
-              </div>
-              <div className="flex flex-col items-end flex-shrink-0 gap-2">
-                 <ScoreBadge score={entity.bayesianScore} />
-              </div>
-            </div>
-            
-            <div className="flex items-center justify-between mt-1 pt-3 border-t border-[#2A3045]/50">
-               <TypeBadge type={entity.type} />
-               <div className="flex items-center gap-3 text-slate-500">
-                  {entity.contact.includes('email') && <Mail className="w-3.5 h-3.5" />}
-                  {entity.contact.includes('phone') && <Phone className="w-3.5 h-3.5" />}
-                  {entity.contact.includes('linkedin') && <Linkedin className="w-3.5 h-3.5" />}
-                  <div className="w-px h-3 bg-[#2A3045] mx-1"></div>
-                  <ChevronRight className="w-4 h-4 text-slate-600" />
-               </div>
-            </div>
-          </div>
-        ))}
         
-        <div className="text-center mt-4">
-          <p className="text-[10px] font-mono text-slate-500 uppercase tracking-widest">End of results</p>
+        {/* Scroll indicator fix applied here */}
+        <div className="relative">
+          <div className="flex gap-2 overflow-x-auto pb-0.5 scrollbar-none">
+            {[null, "HNWI", "Gatekeeper", "Corporation", "Trust"].map((t) => {
+              const c = t ? (TYPE_COLORS[t] ?? "#64748B") : "#10B981";
+              return (
+                <button
+                  key={t ?? "all"}
+                  className="px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase whitespace-nowrap flex-shrink-0 transition-all"
+                  style={{
+                    backgroundColor: mobileTypeFilter === t ? c : c + "18",
+                    color: mobileTypeFilter === t ? "#000" : c,
+                    border: `1px solid ${c}44`,
+                  }}
+                >
+                  {t ?? "ALL"}
+                </button>
+              );
+            })}
+          </div>
+          <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-[#0B0F19] to-transparent pointer-events-none" />
         </div>
       </div>
-      
+
+      <div className="flex-1 overflow-y-auto">
+        <div className="divide-y divide-white/10 border-b border-white/10">
+          {mockEntities.map((entity) => {
+            const typeColor = TYPE_COLORS[entity.type] ?? "#64748B";
+            
+            return (
+              <div key={entity.id} className="flex items-center gap-1 transition-colors hover:bg-white/5">
+                <button className="flex-shrink-0 px-3 py-4 text-white/50">
+                  <Square className="w-4 h-4" />
+                </button>
+
+                <button className="flex-1 min-w-0 text-left pr-4 py-3 flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      {entity.isHot && <ShieldAlert className="w-3 h-3 text-amber-500 flex-shrink-0" />}
+                      <span className="font-semibold text-sm text-white truncate">{entity.name}</span>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span
+                        className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5"
+                        style={{ color: typeColor, backgroundColor: typeColor + "18" }}
+                      >
+                        {TYPE_ICONS[entity.type]} {entity.type}
+                      </span>
+                      {entity.nationality && <span className="text-[11px] text-white/50">{entity.nationality}</span>}
+                      {entity.netWorth && (
+                        <span className="text-[11px] text-white/50">{entity.netWorth}</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <div 
+                      className="px-2 py-0.5 rounded inline-block text-[10px] font-mono font-bold"
+                      style={{ 
+                        backgroundColor: entity.score >= 0.8 ? "rgba(16, 185, 129, 0.1)" : "rgba(245, 158, 11, 0.1)",
+                        color: entity.score >= 0.8 ? "#10B981" : "#F59E0B"
+                      }}
+                    >
+                      {(entity.score * 100).toFixed(0)}
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-white/30" />
+                  </div>
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <button className="fixed bottom-6 right-5 w-12 h-12 rounded-full flex items-center justify-center shadow-lg z-40 bg-emerald-500 hover:bg-emerald-600 transition-colors" style={{ boxShadow: "0 0 20px rgba(16,185,129,0.4)" }}>
+        <Plus className="w-6 h-6 text-white" />
+      </button>
     </div>
   );
 }

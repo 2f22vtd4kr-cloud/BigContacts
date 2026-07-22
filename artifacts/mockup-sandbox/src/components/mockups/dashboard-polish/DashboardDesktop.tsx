@@ -1,205 +1,166 @@
-import { Database, MapPin, TrendingUp, Mail, Phone, Zap, AlertTriangle, Globe, DollarSign, Users, Activity } from "lucide-react";
+import React from 'react';
+import { Database, AlertTriangle, Mail, Globe, MapPin, Activity, Phone } from 'lucide-react';
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 
-export function DashboardDesktop() {
-  // Mock data
-  const heroStats = [
-    { label: "Total Entities", value: "47,392", icon: Database, color: "text-foreground" },
-    { label: "Hot Leads", value: "1,847", icon: AlertTriangle, color: "text-amber-400", highlight: true },
-    { label: "Contactable", value: "12,394", icon: Mail, color: "text-emerald-400" },
-    { label: "Net Worth Tracked", value: "$84.2B", icon: DollarSign, color: "text-violet-400" },
-  ];
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
 
-  const secondaryStats = [
-    { label: "Assets", value: "89,473", icon: MapPin },
-    { label: "Signal Avg", value: "73.4%", icon: Activity },
-    { label: "W-HNWIs", value: "8,942", icon: Globe },
-    { label: "Enriched", value: "67.2%", icon: Zap },
-  ];
-
-  const wealthTiers = [
-    { label: "Ultra >$100M", count: 284, pct: 12, color: "bg-violet-500" },
-    { label: "Very $30–100M", count: 892, pct: 38, color: "bg-emerald-500" },
-    { label: "HNW $4–30M", count: 671, pct: 28, color: "bg-amber-500" },
-    { label: "Unknown", count: 521, pct: 22, color: "bg-muted" },
-  ];
-
-  const hotLeads = [
-    { name: "Marcus Hjelm", type: "HNWI", nationality: "NOR", score: 94, netWorth: "$47.2M", email: true, phone: true, assets: "Real Estate, Marine" },
-    { name: "Offshore Holding AS", type: "Corp", nationality: "NOR", score: 91, netWorth: "$120M", email: true, phone: false, assets: "Marine, Aviation" },
-    { name: "Sarah Chen", type: "HNWI", nationality: "USA", score: 89, netWorth: "$68.5M", email: true, phone: true, assets: "Aviation" },
-    { name: "Nordic Trust III", type: "Trust", nationality: "SWE", score: 87, netWorth: "$215M", email: false, phone: false, assets: "Real Estate" },
-    { name: "James Westbrook", type: "HNWI", nationality: "GBR", score: 84, netWorth: "$52.8M", email: true, phone: false, assets: "Marine, Real Estate" },
-  ];
-
-  const liveSignals = [
-    { entity: "Alexandra Morrison", event: "New asset registered", category: "Aviation", location: "London, UK", time: "2m ago" },
-    { entity: "Omega Capital Ltd", event: "Directorship change", category: "Corporate", location: "Oslo, NO", time: "8m ago" },
-    { entity: "Robert Lindgren", event: "Property transfer", category: "Real Estate", location: "Stockholm, SE", time: "14m ago" },
-    { entity: "Pacific Holdings", event: "Vessel registration", category: "Marine", location: "Miami, US", time: "22m ago" },
-    { entity: "Emma Johannsen", event: "SEC filing update", category: "Corporate", location: "New York, US", time: "31m ago" },
-    { entity: "Nordic Marine AS", event: "Ownership change", category: "Marine", location: "Bergen, NO", time: "38m ago" },
-  ];
+function StatsBar() {
+  const s = {
+    totalEntities: 32542,
+    hotLeadsCount: 142,
+    contactableCount: 8943,
+    westernHnwiCount: 12450,
+    totalAssets: 4892,
+    avgBayesianScore: 0.784,
+    enrichmentCoverage: 84.2,
+    registryCount: 8
+  };
 
   return (
-    <div className="min-h-screen bg-[#0B0F19] p-6">
-      <div className="max-w-[1280px] mx-auto space-y-4">
-        {/* Hero Stats - 2x2 Grid */}
-        <div className="grid grid-cols-4 gap-4">
-          {heroStats.map((stat, i) => (
-            <div
-              key={i}
-              className={`bg-[#141824] border border-[#2A3045] rounded-lg p-6 ${
-                stat.highlight ? "ring-2 ring-amber-500/30" : ""
-              }`}
-            >
-              <div className="flex items-start justify-between mb-3">
-                <stat.icon className={`w-5 h-5 ${stat.color}`} />
-                {stat.highlight && (
-                  <span className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 rounded text-[9px] font-mono text-amber-400 uppercase tracking-wider">
-                    Priority
-                  </span>
-                )}
-              </div>
-              <div className={`text-3xl font-bold mb-1 ${stat.color}`}>
-                {stat.value}
-              </div>
-              <div className="text-xs font-mono text-muted-foreground uppercase tracking-wider">
-                {stat.label}
-              </div>
-            </div>
-          ))}
+    <div className="border-b border-border bg-card/90 backdrop-blur-md sticky top-0 z-20">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-border">
+        <div className="flex flex-col px-5 py-4 bg-card/90">
+          <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+            <Database className="w-3 h-3 shrink-0" /> Entities
+          </span>
+          <span className="text-2xl font-bold text-foreground tabular-nums">{s.totalEntities.toLocaleString()}</span>
         </div>
-
-        {/* Secondary Stats - Compact Row */}
-        <div className="grid grid-cols-4 gap-3">
-          {secondaryStats.map((stat, i) => (
-            <div key={i} className="bg-[#141824]/50 border border-[#2A3045]/50 rounded px-4 py-3 flex items-center gap-3">
-              <stat.icon className="w-4 h-4 text-[#10B981] shrink-0" />
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-bold text-foreground">{stat.value}</div>
-                <div className="text-[10px] font-mono text-muted-foreground uppercase">{stat.label}</div>
-              </div>
-            </div>
-          ))}
+        <div className="flex flex-col px-5 py-4 bg-card/90 ring-2 ring-inset ring-amber-500/20">
+          <span className="text-[10px] font-mono text-amber-500 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+            <AlertTriangle className="w-3 h-3 shrink-0" /> Hot Leads
+          </span>
+          <span className="text-2xl font-bold text-amber-500 tabular-nums">{s.hotLeadsCount.toLocaleString()}</span>
         </div>
-
-        {/* Wealth Distribution */}
-        <div className="bg-[#141824] border border-[#2A3045] rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <TrendingUp className="w-4 h-4 text-[#10B981]" />
-            <span className="text-xs font-mono font-bold uppercase tracking-widest text-foreground">Wealth Distribution</span>
-          </div>
-          <div className="flex h-2 rounded-full overflow-hidden mb-3 bg-[#0B0F19]">
-            {wealthTiers.map((tier, i) => (
-              <div
-                key={i}
-                className={tier.color}
-                style={{ width: `${tier.pct}%` }}
-                title={tier.label}
-              />
-            ))}
-          </div>
-          <div className="grid grid-cols-4 gap-3">
-            {wealthTiers.map((tier, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full shrink-0 ${tier.color}`} />
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-mono text-foreground">{tier.count.toLocaleString()}</div>
-                  <div className="text-[9px] font-mono text-muted-foreground truncate">{tier.label}</div>
-                </div>
-              </div>
-            ))}
-          </div>
+        <div className="flex flex-col px-5 py-4 bg-card/90">
+          <span className="text-[10px] font-mono text-emerald-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+            <Mail className="w-3 h-3 shrink-0" /> Contactable
+          </span>
+          <span className="text-2xl font-bold text-emerald-400 tabular-nums">{s.contactableCount.toLocaleString()}</span>
         </div>
-
-        <div className="grid grid-cols-3 gap-4">
-          {/* Hot Leads Table */}
-          <div className="col-span-2 bg-[#141824] border border-[#2A3045] rounded-lg overflow-hidden">
-            <div className="px-4 py-3 border-b border-[#2A3045] flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-amber-500" />
-                <span className="text-xs font-mono font-bold uppercase tracking-widest text-foreground">Top Hot Leads</span>
-              </div>
-              <span className="text-[10px] font-mono text-amber-500">PRIORITY TARGETS</span>
-            </div>
-            <div className="divide-y divide-[#2A3045]">
-              {hotLeads.map((lead, i) => (
-                <div key={i} className="px-4 py-3 hover:bg-[#1E2332] transition-colors cursor-pointer group">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-bold text-foreground group-hover:text-[#10B981] transition-colors truncate">
-                          {lead.name}
-                        </span>
-                        <span className="px-1.5 py-0.5 bg-violet-500/10 border border-violet-500/20 rounded text-[9px] font-mono text-violet-400 uppercase shrink-0">
-                          {lead.type}
-                        </span>
-                        <span className="px-1.5 py-0.5 bg-[#141824] border border-[#2A3045] rounded text-[9px] font-mono text-muted-foreground uppercase shrink-0">
-                          {lead.nationality}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-3 text-xs font-mono text-muted-foreground">
-                        <span className="text-[#10B981]">{lead.netWorth}</span>
-                        <span>•</span>
-                        <span className="truncate">{lead.assets}</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      {lead.email && (
-                        <div className="w-6 h-6 rounded bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-                          <Mail className="w-3 h-3 text-emerald-400" />
-                        </div>
-                      )}
-                      {lead.phone && (
-                        <div className="w-6 h-6 rounded bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center">
-                          <Phone className="w-3 h-3 text-cyan-400" />
-                        </div>
-                      )}
-                      <div className="px-2 py-1 bg-amber-500/10 border border-amber-500/20 rounded">
-                        <span className="text-xs font-bold text-amber-400">{lead.score}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Live Signals Feed */}
-          <div className="bg-[#141824] border border-[#2A3045] rounded-lg overflow-hidden">
-            <div className="px-4 py-3 border-b border-[#2A3045] flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Zap className="w-4 h-4 text-[#10B981]" />
-                <span className="text-xs font-mono font-bold uppercase tracking-widest text-foreground">Live Signals</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse" />
-                <span className="text-[9px] font-mono text-[#10B981]">LIVE</span>
-              </div>
-            </div>
-            <div className="divide-y divide-[#2A3045] max-h-[400px] overflow-y-auto">
-              {liveSignals.map((signal, i) => (
-                <div key={i} className="px-4 py-3 hover:bg-[#1E2332] transition-colors cursor-pointer">
-                  <div className="font-mono text-xs text-foreground mb-1 truncate">
-                    {signal.entity}
-                  </div>
-                  <div className="text-[11px] font-mono text-muted-foreground mb-2 truncate">
-                    {signal.event}
-                  </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="px-1.5 py-0.5 bg-[#10B981]/10 border border-[#10B981]/20 rounded text-[9px] font-mono text-[#10B981] uppercase truncate">
-                      {signal.category}
-                    </span>
-                    <span className="text-[9px] font-mono text-muted-foreground whitespace-nowrap">
-                      {signal.time}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+        <div className="flex flex-col px-5 py-4 bg-card/90">
+          <span className="text-[10px] font-mono text-blue-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+            <Globe className="w-3 h-3 shrink-0" /> W-HNWIs
+          </span>
+          <span className="text-2xl font-bold text-blue-400 tabular-nums">{s.westernHnwiCount.toLocaleString()}</span>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-border/50">
+        <div className="flex items-center justify-between px-4 py-2 bg-card/60">
+          <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
+            <MapPin className="w-3 h-3 shrink-0" /> Assets
+          </span>
+          <span className="text-xs font-bold text-foreground tabular-nums">{s.totalAssets.toLocaleString()}</span>
+        </div>
+        <div className="flex items-center justify-between px-4 py-2 bg-card/60">
+          <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
+            <Activity className="w-3 h-3 shrink-0" /> Signal Avg
+          </span>
+          <span className="text-xs font-bold text-primary tabular-nums">{(s.avgBayesianScore * 100).toFixed(1)}%</span>
+        </div>
+        <div className="flex items-center justify-between px-4 py-2 bg-card/60">
+          <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
+            <Phone className="w-3 h-3 shrink-0" /> Enriched
+          </span>
+          <span className="text-xs font-bold text-cyan-400 tabular-nums">{s.enrichmentCoverage.toFixed(1)}%</span>
+        </div>
+        <div className="flex items-center justify-between px-4 py-2 bg-card/60">
+          <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
+            <Database className="w-3 h-3 shrink-0" /> Registries
+          </span>
+          <span className="text-xs font-bold text-foreground tabular-nums">{s.registryCount}</span>
         </div>
       </div>
     </div>
+  );
+}
+
+function WealthTierBar() {
+  const tiers = {
+    ultraHnw: 7392,
+    veryHnw: 12503,
+    hnw: 8402,
+    unknown: 4245
+  };
+  const total = tiers.ultraHnw + tiers.veryHnw + tiers.hnw + tiers.unknown;
+  const pct = (n: number) => total > 0 ? Math.max((n / total) * 100, n > 0 ? 1 : 0) : 0;
+  
+  const segments = [
+    { label: "Ultra >$100M", val: tiers.ultraHnw, cls: "bg-violet-500", textCls: "text-violet-400" },
+    { label: "Very $30–100M", val: tiers.veryHnw,  cls: "bg-primary",   textCls: "text-primary" },
+    { label: "HNW $4–30M",    val: tiers.hnw,      cls: "bg-amber-500", textCls: "text-amber-400" },
+    { label: "Unknown",        val: tiers.unknown,   cls: "bg-muted/60",  textCls: "text-muted-foreground" },
+  ];
+
+  return (
+    <div className="px-3 py-2 border-b border-border bg-card/30 flex items-center gap-3 min-w-0">
+      <span className="text-[9px] font-mono text-muted-foreground/60 uppercase tracking-widest whitespace-nowrap hidden sm:block shrink-0">Wealth Tiers</span>
+      <div className="flex h-1.5 rounded-full overflow-hidden flex-1 gap-px">
+        {segments.map((seg) => (
+          <div key={seg.label} className={cn("h-full transition-all duration-700", seg.cls)} style={{ width: `${pct(seg.val)}%` }} />
+        ))}
+      </div>
+      <div className="flex items-center gap-x-4 gap-y-1 flex-wrap shrink-0">
+        {segments.filter(s => s.val > 0).map((seg) => (
+          <div key={seg.label} className={cn("flex items-center gap-1.5 text-[9px] font-mono whitespace-nowrap", seg.textCls)}>
+            <div className={cn("w-1.5 h-1.5 rounded-full", seg.cls)} />
+            <span className="sm:hidden">{seg.val.toLocaleString()}</span>
+            <span className="hidden sm:inline-flex">{seg.label.split(" ")[0]}: {seg.val.toLocaleString()}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export default function DashboardDesktop() {
+  return (
+    <>
+      <style dangerouslySetInnerHTML={{__html: `
+        .mockup-dark {
+          --background: 223 39% 7%;
+          --foreground: 215 19% 89%;
+          --card: 225 29% 11%;
+          --card-foreground: 215 19% 89%;
+          --card-border: 227 24% 22%;
+          --popover: 225 29% 11%;
+          --popover-foreground: 215 19% 89%;
+          --popover-border: 227 24% 22%;
+          --primary: 160 84% 39%;
+          --primary-foreground: 0 0% 100%;
+          --secondary: 217 91% 60%;
+          --secondary-foreground: 0 0% 100%;
+          --muted: 225 25% 16%;
+          --muted-foreground: 215 16% 65%;
+          --accent: 217 91% 60%;
+          --accent-foreground: 0 0% 100%;
+          --destructive: 0 62.8% 30.6%;
+          --destructive-foreground: 210 40% 98%;
+          --border: 227 24% 22%;
+          --input: 227 24% 22%;
+          --ring: 160 84% 39%;
+        }
+      `}} />
+      <div className="w-[1280px] h-[800px] flex bg-[#0B0F19] text-foreground font-sans mockup-dark dark overflow-hidden border border-border/50 shadow-2xl mx-auto my-8 rounded-xl" style={{ colorScheme: 'dark' }}>
+        <aside className="w-64 flex-shrink-0 h-full border-r border-border bg-card flex flex-col justify-end">
+          <div className="p-4 border-t border-border shrink-0">
+            <div className="px-3 py-2 flex flex-col gap-1 text-xs font-mono text-muted-foreground/60 uppercase tracking-widest">
+              <div>v0.2 · 32.5k entities</div>
+              <div className="text-[10px] opacity-70">PRIVATE INTELLIGENCE</div>
+            </div>
+          </div>
+        </aside>
+        <main className="flex-1 flex flex-col min-w-0 bg-[#0B0F19]">
+          <StatsBar />
+          <WealthTierBar />
+          <div className="flex-1 p-8 flex items-center justify-center relative overflow-hidden">
+            <div className="absolute inset-0 pointer-events-none opacity-[0.03]" style={{ backgroundImage: "linear-gradient(rgba(255,255,255,1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,1) 1px, transparent 1px)", backgroundSize: "32px 32px" }} />
+            <span className="text-muted-foreground/20 text-sm font-mono tracking-widest uppercase">Content Area</span>
+          </div>
+        </main>
+      </div>
+    </>
   );
 }

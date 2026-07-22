@@ -408,62 +408,68 @@ export default function PipelineCRM() {
       </div>
 
       {/* ── Stage summary strip (desktop) ── */}
-      <div className="hidden md:flex px-4 py-2 border-b border-border bg-card/50 flex-shrink-0 gap-2 overflow-x-auto">
-        {stageCounts.map(({ col, count }) => {
-          const color = STAGE_COLORS[col] ?? "#64748B";
-          const hasData = count > 0;
-          return (
-            <button
-              key={col}
-              onClick={() => {
-                const idx = CRM_COLUMNS.indexOf(col);
-                if (kanbanRef.current) kanbanRef.current.scrollLeft = idx * 336;
-              }}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-mono font-bold uppercase tracking-wide border transition-all flex-shrink-0"
-              style={{
-                borderColor: hasData ? color : color + "30",
-                color: hasData ? color : color + "60",
-                backgroundColor: hasData ? color + "15" : "transparent",
-              }}
-            >
-              {col}
-              {hasData && (
-                <span
-                  className="text-xs font-bold px-1.5 py-0.5 rounded-full"
-                  style={{ backgroundColor: color, color: "#000" }}
-                >
-                  {count}
-                </span>
-              )}
-            </button>
-          );
-        })}
+      <div className="relative hidden md:block border-b border-border bg-card/50 flex-shrink-0">
+        <div className="flex px-4 py-2 gap-2 overflow-x-auto pb-px">
+          {stageCounts.map(({ col, count }) => {
+            const color = STAGE_COLORS[col] ?? "#64748B";
+            const hasData = count > 0;
+            return (
+              <button
+                key={col}
+                onClick={() => {
+                  const idx = CRM_COLUMNS.indexOf(col);
+                  if (kanbanRef.current) kanbanRef.current.scrollLeft = idx * 336;
+                }}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-mono font-bold uppercase tracking-wide border transition-all flex-shrink-0"
+                style={{
+                  borderColor: hasData ? color : color + "30",
+                  color: hasData ? color : color + "60",
+                  backgroundColor: hasData ? color + "15" : "transparent",
+                }}
+              >
+                {col}
+                {hasData && (
+                  <span
+                    className="text-xs font-bold px-1.5 py-0.5 rounded-full"
+                    style={{ backgroundColor: color, color: "#000" }}
+                  >
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+        <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent pointer-events-none z-10" />
       </div>
 
       {/* ── Mobile: stage filter chips + accordion list ── */}
       <div className="flex flex-col flex-1 overflow-hidden md:hidden">
         {/* Stage filter chips */}
-        <div className="px-4 py-2.5 border-b border-border overflow-x-auto flex-shrink-0">
-          <div className="flex gap-2 min-w-max">
-            {CRM_COLUMNS.map((stage) => {
-              const c = STAGE_COLORS[stage] ?? "#64748B";
-              const isSelected = selectedStage === stage;
-              return (
-                <button
-                  key={stage}
-                  onClick={() => setSelectedStage(stage)}
-                  className="px-3 py-1.5 rounded-full text-xs font-mono font-bold uppercase tracking-wide whitespace-nowrap transition-all"
-                  style={{
-                    backgroundColor: isSelected ? c : c + "18",
-                    color: isSelected ? "#000" : c,
-                    border: `1px solid ${c}44`,
-                  }}
-                >
-                  {stage}
-                </button>
-              );
-            })}
+        <div className="relative border-b border-border flex-shrink-0">
+          <div className="px-4 py-2.5 overflow-x-auto pb-px">
+            <div className="flex gap-2 min-w-max">
+              {CRM_COLUMNS.map((stage) => {
+                const c = STAGE_COLORS[stage] ?? "#64748B";
+                const isSelected = selectedStage === stage;
+                return (
+                  <button
+                    key={stage}
+                    onClick={() => setSelectedStage(stage)}
+                    className="px-3 py-1.5 rounded-full text-xs font-mono font-bold uppercase tracking-wide whitespace-nowrap transition-all"
+                    style={{
+                      backgroundColor: isSelected ? c : c + "18",
+                      color: isSelected ? "#000" : c,
+                      border: `1px solid ${c}44`,
+                    }}
+                  >
+                    {stage}
+                  </button>
+                );
+              })}
+            </div>
           </div>
+          <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent pointer-events-none z-10" />
         </div>
 
         {/* Accordion session list */}
@@ -512,7 +518,7 @@ export default function PipelineCRM() {
 
                 <div className="flex-1 overflow-y-auto p-2 space-y-2">
                   {columnSessions.length === 0 && column === "Lead Gen" && (
-                    <div className="flex flex-col items-center justify-center h-32 gap-2 text-center">
+                    <div className="flex flex-col items-center justify-center h-32 gap-2 text-center border border-dashed border-border/60 rounded bg-muted/5">
                       <p className="text-xs font-mono text-muted-foreground/50">No leads yet</p>
                       <a
                         href="/research"
@@ -520,6 +526,11 @@ export default function PipelineCRM() {
                       >
                         → Run Intel Analysis
                       </a>
+                    </div>
+                  )}
+                  {columnSessions.length === 0 && column !== "Lead Gen" && (
+                    <div className="flex flex-col items-center justify-center h-24 border border-dashed border-border/60 rounded bg-muted/5">
+                      <span className="text-xs font-mono text-muted-foreground/50">No leads in this stage</span>
                     </div>
                   )}
                   {columnSessions.map((session) => (

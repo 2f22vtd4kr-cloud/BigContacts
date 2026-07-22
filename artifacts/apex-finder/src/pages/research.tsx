@@ -514,29 +514,32 @@ export default function IntelTerminal() {
             </div>
 
             {/* Desktop: horizontal */}
-            <div className="hidden md:flex items-start overflow-x-auto pb-3 space-x-3">
-              {winningPath.map((node, i) => (
-                <div key={i} className="flex items-center flex-shrink-0">
-                  <div className={cn("flex flex-col border p-3 rounded min-w-[180px] max-w-[240px]", roleColor(node.role))}>
-                    <div className="flex items-center mb-1.5 space-x-1">
-                      {roleIcon(node.role)}
-                      <span className="text-[10px] font-mono uppercase tracking-widest opacity-60">{node.role}</span>
+            <div className="hidden md:block relative">
+              <div className="flex items-start overflow-x-auto pb-3 space-x-3 scrollbar-none">
+                {winningPath.map((node, i) => (
+                  <div key={i} className="flex items-center flex-shrink-0">
+                    <div className={cn("flex flex-col border p-3 rounded min-w-[180px] max-w-[240px]", roleColor(node.role))}>
+                      <div className="flex items-center mb-1.5 space-x-1">
+                        {roleIcon(node.role)}
+                        <span className="text-[10px] font-mono uppercase tracking-widest opacity-60">{node.role}</span>
+                      </div>
+                      <div className="font-bold text-foreground text-sm leading-tight mb-1">{node.label}</div>
+                      <div className="text-xs opacity-50">{node.nodeType}</div>
+                      <PathNodeContact node={node} />
+                      {node.actionRequired && (
+                        <div className="mt-2 text-xs leading-snug opacity-75 border-t border-current/20 pt-1.5">{node.actionRequired}</div>
+                      )}
                     </div>
-                    <div className="font-bold text-foreground text-sm leading-tight mb-1">{node.label}</div>
-                    <div className="text-xs opacity-50">{node.nodeType}</div>
-                    <PathNodeContact node={node} />
-                    {node.actionRequired && (
-                      <div className="mt-2 text-xs leading-snug opacity-75 border-t border-current/20 pt-1.5">{node.actionRequired}</div>
+                    {i < winningPath.length - 1 && (
+                      <div className="flex items-center mx-2 flex-shrink-0">
+                        <div className="w-4 h-px bg-border/60" />
+                        <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                      </div>
                     )}
                   </div>
-                  {i < winningPath.length - 1 && (
-                    <div className="flex items-center mx-2 flex-shrink-0">
-                      <div className="w-4 h-px bg-border/60" />
-                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                    </div>
-                  )}
-                </div>
-              ))}
+                ))}
+              </div>
+              <div className="absolute right-0 top-0 bottom-3 w-16 bg-gradient-to-l from-[#0B0F19] to-transparent pointer-events-none" />
             </div>
           </div>
         )}

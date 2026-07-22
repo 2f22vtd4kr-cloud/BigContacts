@@ -379,26 +379,26 @@ function StatsBar() {
         </div>
       </div>
       {/* Row 2 — 4 secondary stats compact */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-border/50 bg-card/60">
-        <div className="flex items-center justify-between px-4 py-2">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-border/50">
+        <div className="flex items-center justify-between px-4 py-2 bg-card/60">
           <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
             <MapPin className="w-3 h-3 shrink-0" /> Assets
           </span>
           <span className="text-xs font-bold text-foreground tabular-nums">{s.totalAssets?.toLocaleString()}</span>
         </div>
-        <div className="flex items-center justify-between px-4 py-2">
+        <div className="flex items-center justify-between px-4 py-2 bg-card/60">
           <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
             <Activity className="w-3 h-3 shrink-0" /> Signal Avg
           </span>
           <span className="text-xs font-bold text-primary tabular-nums">{((s.avgBayesianScore ?? 0) * 100).toFixed(1)}%</span>
         </div>
-        <div className="flex items-center justify-between px-4 py-2">
+        <div className="flex items-center justify-between px-4 py-2 bg-card/60">
           <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
             <Phone className="w-3 h-3 shrink-0" /> Enriched
           </span>
           <span className="text-xs font-bold text-cyan-400 tabular-nums">{(s.enrichmentCoverage ?? 0).toFixed(1)}%</span>
         </div>
-        <div className="flex items-center justify-between px-4 py-2">
+        <div className="flex items-center justify-between px-4 py-2 bg-card/60">
           <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
             <Database className="w-3 h-3 shrink-0" /> Registries
           </span>
@@ -447,9 +447,11 @@ function WealthTierBar() {
       </div>
       <div className="flex items-center gap-x-4 gap-y-1 flex-wrap shrink-0">
         {segments.filter(s => s.val > 0).map((seg) => (
-          <span key={seg.label} className={cn("text-[9px] font-mono whitespace-nowrap", seg.textCls)}>
-            {seg.label.split(" ")[0]}: {seg.val.toLocaleString()}
-          </span>
+          <div key={seg.label} className={cn("flex items-center gap-1.5 text-[9px] font-mono whitespace-nowrap", seg.textCls)}>
+            <div className={cn("w-1.5 h-1.5 rounded-full", seg.cls)} />
+            <span className="sm:hidden">{seg.val.toLocaleString()}</span>
+            <span className="hidden sm:inline-flex">{seg.label.split(" ")[0]}: {seg.val.toLocaleString()}</span>
+          </div>
         ))}
       </div>
     </div>
