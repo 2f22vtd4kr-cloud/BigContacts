@@ -470,8 +470,8 @@ async function runPopulatedDbMaintenance(): Promise<void> {
   // 120s: in-house enricher pass 1 — EDGAR/Western HNWI entities first (public figures: highest hit rate)
   setTimeout(() => trigger("auto in-house enricher (pass 1 — edgar)", "/api/ingest/in-house-enrich", { batchSize: 5000, targetMode: "edgar" }), 120_000);
 
-  // 150s: OCCRP Aleph enrichment — cross-references existing entities for single-source corroboration
-  setTimeout(() => trigger("auto OCCRP enrichment", "/api/ingest/occrp", { batchSize: 300 }), 150_000);
+  // 150s: OCCRP Aleph enrichment — DISABLED: Aleph API now returns 401 (requires paid API key)
+  // setTimeout(() => trigger("auto OCCRP enrichment", "/api/ingest/occrp", { batchSize: 300 }), 150_000);
 
   // 3 min: persona improvement loop — full sweep, all entities
   setTimeout(() => trigger("auto persona improvement loop (full sweep)", "/api/improve/run-all", { chunkSize: 500, resume: true }), 180_000);

@@ -619,6 +619,7 @@ function buildEntity(person: HarvestedPerson): { entity: InsertEntity; key: stri
       westernIngest: true,
       liveSource: true,   // real person from real public registry — not synthetic
       needsEnrichment: true, // flag for MCTS enrichment queue
+      ...(person.companyName ? { companyName: person.companyName } : {}),
       ...person.rawMetadata,
     }),
     isHot: person.signals.isLargeShareholder && person.signals.hasRecentFiling,

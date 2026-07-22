@@ -564,6 +564,32 @@ async function queryCompaniesHouse(companyName: string): Promise<CHResult | null
   }
 }
 
+// ── Source 7b: BRREG Enhetsregisteret — Norwegian company registry ────────────
+// For BRREG-ingested individuals, orgnr is stored in entity metadata.
+// Free API, no auth, returns phone + website for any Norwegian registered entity.
+interface BRREGResult {
+  phone: string | null;
+  website: string | null;
+  address: string | null;
+}
+
+async function queryBRREG(orgnr: string): Promise<BRREGResult | null> {
+  try {
+    const url = `https://data.brreg.no/enhetsregisteret/api/enheter/${orgnr.replace(/\D/g, "")}`;
+    const resp = await fetch(url, { signal: timeout(10_000), headers: { Accept: "application/json", "User-Agent": HEADERS["User-Agent"] } });
+    if (!resp.ok) return null;
+    const d = await resp.json() as any;
+    const phone: string | null = d?.telefon ?? null;
+    const website: string | null = d?.hjemmeside ?? null;
+    const pa = d?.postadresse ?? d?.forretningsadresse ?? null;
+    const addrParts = [(pa?.adresse?.[0] ?? null), pa?.poststed, pa?.landkode].filter(Boolean);
+    return { phone, website, address: addrParts.length ? addrParts.join(", ") : null };
+  } catch (err: any) {
+    logger.debug({ err: err.message }, "BRREG lookup failed");
+    return null;
+  }
+}
+
 // ── Source 8: ProPublica Nonprofit Explorer ───────────────────────────────────
 async function queryProPublica(name: string): Promise<{ email: string | null; website: string | null; phone: string | null } | null> {
   try {
@@ -1227,6 +1253,26 @@ export async function enrichInHouse(entity: InHouseEnrichInput): Promise<InHouse
     })());
   }
 
+  // Source 8b: BRREG Enhetsregisteret — Norwegian company directors
+  // orgnr is stored in entity metadata when ingested via the BRREG harvester.
+  // Returns phone + website for the director's registered company, free, no auth.
+  {
+    const entityMeta8 = safeJson<Record<string, unknown>>(entity.metadata, {});
+    const orgnr = typeof entityMeta8["orgnr"] === "string" ? (entityMeta8["orgnr"] as string).trim()
+      : typeof entityMeta8["orgnr"] === "number" ? String(entityMeta8["orgnr"]) : null;
+    if (orgnr && orgnr.length >= 8) {
+      g1Promises.push((async () => {
+        const brreg = await queryBRREG(orgnr);
+        if (brreg) {
+          result.sourceHits["BRREG"] = true;
+          setPhone(brreg.phone, 55, "BRREG-Phone");
+          if (!result.website && brreg.website) { result.website = brreg.website; addSource("BRREG-Website"); }
+          if (!result.address && brreg.address) { result.address = brreg.address; addSource("BRREG-Address"); }
+        }
+      })());
+    }
+  }
+
   await Promise.allSettled(g1Promises);
   await sleep(150);
 
@@ -1250,6 +1296,21 @@ export async function enrichInHouse(entity: InHouseEnrichInput): Promise<InHouse
     for (const candidate of candidates) {
       if (await hasMxRecord(candidate)) { knownDomain = candidate; break; }
       await sleep(80);
+    }
+  }
+
+  // For individuals from western HNWI: try their employer's domain for email pattern generation.
+  // DEF 14A directors (e.g. "Tim Cook" + "Apple Inc") → apple.com → tim.cook@apple.com
+  // Companies House officers (e.g. "Jane Smith" + "Tesco PLC") → tesco.com → j.smith@tesco.com
+  if (!knownDomain && (isIndividual || looksLikeIndividual) && hasNameParts) {
+    const entityMeta = safeJson<Record<string, unknown>>(entity.metadata, {});
+    const cn = typeof entityMeta["companyName"] === "string" ? (entityMeta["companyName"] as string).trim() : null;
+    if (cn && cn.length > 3) {
+      const candidates = guessCompanyDomain(cn);
+      for (const candidate of candidates) {
+        if (await hasMxRecord(candidate)) { knownDomain = candidate; break; }
+        await sleep(80);
+      }
     }
   }
 
