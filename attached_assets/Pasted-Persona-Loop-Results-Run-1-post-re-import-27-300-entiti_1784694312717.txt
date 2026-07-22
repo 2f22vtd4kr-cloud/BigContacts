@@ -1,0 +1,51 @@
+Persona Loop Results — Run #1 (post re-import #27)
+300 entities · 48,281 suggestions · 161 avg/entity
+Persona	Suggestions
+hybrid_architecture_auditor	20,007 (41%)
+business_engineer	11,753 (24%)
+data_engineer	5,166 (11%)
+ux_designer	4,204 (9%)
+architect	3,611 (7%)
+intel_systems_analyst	3,438 (7%)
+data_integrity_auditor	102 (<1%)
+Top HIGH-priority flags (18,305 total):
+* 100% of targets: No Hybrid Research session / UCT never run / L2 pipeline cold / L1 graph blind
+* 97%: Isolated node — zero relationships
+* <1%: No contact vectors at all
+Top MEDIUM-priority flags (17,637 total):
+* 58%: No corporate vehicle linkage
+* 58%: No geolocated assets
+* 20%: Hot lead enrichment pending
+* 19%: Digital contact vectors missing — physical only
+* 9%: Potential duplicate
+
+App Rating: 3.5 / 10
+Brutally honest breakdown:
+What's actually good
+		
+		
+		
+		
+		
+		
+What's broken for production
+		
+		
+		
+		
+		
+		
+		
+		
+The core problem in one sentence
+The architecture is production-ready; the product is not — the app correctly identifies interesting targets but can't actually help you reach any of them (no contact data, no net worth, no outreach paths).
+
+Top 5 fixes before production, ranked by impact
+1. Auth gate (P0 — must-have) — Add a simple session-based login. One username/password env var is fine for private use. Without it, deploying this publicly exposes all OSINT data to anyone.
+2. Fix name display (P1 — high visibility) — Normalise ALL-CAPS LAST FIRST → Title Case First Last at read time (display layer, not DB). "SCHEUER WALTER" → "Walter Scheuer". Every profile page, every list, every export.
+3. Fix HNWI type contamination (P1) — Add a name-based secondary classifier: if name contains BANCORP, BANCSHARES, COMMITTEE, /IN/, \DE\, ticker symbols in parens like (USB) → reclassify to Corporation at ingest. Currently ~100+ banks and committees are your "top hot leads".
+4. Run in-house enricher at scale (P1) — 300 entities covered out of 32k. Even at 200/batch daily you'd cover the full HNWI set in ~30 runs. The enricher is built; it just needs to run.
+5. Run MCTS on top 20 leads (P2) — The Hybrid Research pipeline is the product's strongest claim and it's completely cold. Even running 20 sessions gives the dashboard, CRM, and persona loop something real to evaluate.
+
+
+Okay, that's really bad. Write a further perfectly structured plan into the improvements.md file so it survives future multiple repo imports and we can gradually bring the app to 9/10 at each category (except authentication, for now it's only for my personal use). And you gotta work really hard because it's one time planning and document with improvements writing and then we just focus on implementation, so don't fuck up. Once done - begin implementation, making it an obligatory rule to constantly save progress and mark progress for future repo imports in which the job will be immediately continued. Good luck!

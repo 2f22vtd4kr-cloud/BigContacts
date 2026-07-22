@@ -13,10 +13,10 @@
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically
 - **Local Redis** running on `redis://localhost:6379` — workflow `Redis` running ✅
-- **Upstash Redis (`REDIS_URL_1`)** — ⚠️ NOT SET — dedup will not persist across restarts
-- **Upstash Redis (`REDIS_URL_2`)** — ⚠️ NOT SET — contact cache will not persist across restarts
+- **Upstash Redis (`REDIS_URL_1`)** — ✅ Set — permanent dedup (`[upstash-1] Redis ready`)
+- **Upstash Redis (`REDIS_URL_2`)** — ✅ Set — permanent contact cache (`[upstash-2] Redis ready`)
 - **SESSION_SECRET** — ✅ Set
-- **COMPANIES_HOUSE_API_KEY** — ⚠️ NOT SET — CH officer enrichment skipped
+- **COMPANIES_HOUSE_API_KEY** — ✅ Set — CH officer enrichment enabled
 
 ### Workflows running
 | Workflow | Status |
