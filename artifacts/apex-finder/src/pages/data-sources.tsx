@@ -267,7 +267,7 @@ function EnrichmentCoverageStats() {
         contactableCount:   d.contactableCount   ?? 0,
         enrichmentCoverage: d.enrichmentCoverage ?? 0,
         totalRelationships: d.totalRelationships ?? 0,
-        researchSessions:   d.totalCount ?? sess?.total ?? sess?.count ?? 0,
+        researchSessions:   d.activeResearchSessions ?? d.totalCount ?? sess?.total ?? sess?.count ?? 0,
       });
     }).catch(() => {/* ignore */});
   }, []);

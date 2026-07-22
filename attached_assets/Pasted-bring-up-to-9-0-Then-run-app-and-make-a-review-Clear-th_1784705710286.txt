@@ -1,0 +1,27 @@
+bring up to 9.0. Then run app and make a review.
+Clear — three specific fixes to reach 9.0. Let me read the relevant files in parallel.
+Now I have the full picture. The core fix is clear: on cold starts, runPopulatedDbMaintenance() (which contains all the relationship/MCTS/enrichment triggers) is never called because it only fires when entityCount > 0 at boot. After auto-ingestion completes (~73s for FAA), nothing schedules the relationship pipeline. Let me also check the contact cache key format issue.
+Good. The root cause is clear: on cold starts, runPopulatedDbMaintenance() (which schedules all the relationship/MCTS/enrichment triggers) is never called because entityCount = 0 at boot. The timers fire at 15–42s into an empty table, produce zero edges, and then expire. FAA finishes at ~90s. Everything is dead.
+Fix: add a post-ingestion watcher in the empty-DB path that polls for entities ≥ 1,000, then fires runPopulatedDbMaintenance().
+Now let me rebuild the API server to pick up the sequencing fix, while simultaneously investigating the contact cache key format issue (why restore shows 0):
+Found the cache key bug — sourceRegistries[0] is "FAA Releasable Aircraft Database" for every FAA entity, so all 30k records hash to the same cache key. Need entity-unique stable keys (N-number for FAA, CIK for EDGAR). Let me check both enricher write sites and fix them:
+The bug is confirmed: sourceRegistries[0] = "FAA Releasable Aircraft Database" for every FAA entity → all 30k records collide to one cache key. Need entity-unique keys using JSONB metadata (N-number, CIK, orgnr) and matching restore logic. Let me check the EDGAR metadata fields quickly then fix all three sites atomically:
+Good — the sequencing fix is deployed and running. Logs show 228,740 CORPORATE_SERIES edges already exist. Now let me fix the contact cache key bug and check current stats simultaneously:
+Current state is actually good — relationships: 231,002, contacts: 17, hot: 14,811. Now let me fix the contact cache stableKey (FAA/EDGAR entity-unique) and update the restore matching logic, then do the app review:
+Now I'll apply all contact cache key fixes in parallel — both ingest.ts write sites, plus startup.ts backfill and restore:
+Now fix both startup.ts sites — backfill write and restore read — in parallel:
+The entity type annotation in startup.ts will cause a build error — let me fix that to a simple type, then rebuild:
+Build clean. Let me wait for maintenance to finish, grab stats, then do the full app review:
+Contacts grew to 26 (new keys working). Now running the full app review — all major pages in parallel:
+I have a clear picture now. Two remaining issues:
+1. Graph defaults to entity #1 (isolated FAA corp with no edges) — frontend hardcodes id=1
+2. CRM/MCTS cold — 0 sessions (90s trigger may have missed this boot since the server was just restarted)
+Let me fix the graph default and trigger MCTS, while screenshotting the remaining pages:
+MCTS is already running. Good. Now let me fix the graph default entity (query top scorer instead of hardcoding 1), find a valid profile entity, and screenshot the remaining pages:
+Every entity returns 0 edges despite 231,002 in the DB. The graph engine must be failing to match entity IDs — probably because relationships were written with old IDs (from a prior session) and the DB was reset. Let me verify:
+The graph works — entity #1 is just isolated (no cluster match). The 231,002 edges are CORPORATE_SERIES on entities like #4619. I need to fix the graph to default to a connected entity. Let me add a hub-entity endpoint and fix the graph default, then write the review:
+Adding the hub-entity endpoint to the backend and fixing the graph default simultaneously:
+The require("drizzle-orm").sql in graph.ts will fail — let me fix the import and simplify the SQL, then restart both services and do the final review:
+Build clean. Cache now has 46 entries (restored: 0is correct — entities already have contact data in DB). Now taking the final verification screenshots:
+Entity #343 (Amazon.com Services LLC) has 57,970 edges — that's too heavy for the graph renderer and causing timeouts. Need a moderate hub (50-200 edges). Let me find one and also retry screenshots:
+Entity #29747 (Corsair Two LLC, 325 edges, 26 nodes) is the right balance. Let me fix the hub-entity endpoint to return a moderate hub instead of the absolute maximum, then take the final screenshots:

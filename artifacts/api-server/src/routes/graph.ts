@@ -41,10 +41,28 @@ function arcToEdge(arc: GraphArc) {
 }
 
 // GET /graph/hub-entity — returns a well-connected entity ID for use as graph default.
-// Targets 10–500 edges to avoid overloading the force-directed renderer.
+// Prefers PROPERTY_AREA_PEER hubs (geographic clusters, visually meaningful networks).
+// Falls back to any moderate hub (10–150 edges) if no geographic hub exists.
 router.get("/graph/hub-entity", async (_req, res): Promise<void> => {
   try {
-    const rows = await db.execute<{ id: number; cnt: string }>(sql`
+    // First: prefer a geographic-peer hub (UK property area clusters) with 5–80 edges
+    const geoRows = await db.execute<{ id: number; cnt: string }>(sql`
+      SELECT source_entity_id AS id, COUNT(*) AS cnt
+      FROM relationships
+      WHERE relationship_type = 'PROPERTY_AREA_PEER'
+      GROUP BY source_entity_id
+      HAVING COUNT(*) BETWEEN 5 AND 80
+      ORDER BY cnt DESC
+      LIMIT 1
+    `);
+    const geoId = (geoRows as any).rows?.[0]?.id ?? (geoRows as any)[0]?.id;
+    if (geoId) {
+      res.json({ entityId: Number(geoId) });
+      return;
+    }
+
+    // Fallback: any hub with 10–150 edges
+    const fallbackRows = await db.execute<{ id: number; cnt: string }>(sql`
       SELECT from_e AS id, COUNT(*) AS cnt
       FROM (
         SELECT source_entity_id AS from_e FROM relationships
@@ -52,12 +70,12 @@ router.get("/graph/hub-entity", async (_req, res): Promise<void> => {
         SELECT target_id AS from_e FROM relationships WHERE target_type = 'Entity'
       ) t
       GROUP BY from_e
-      HAVING COUNT(*) BETWEEN 10 AND 500
+      HAVING COUNT(*) BETWEEN 10 AND 150
       ORDER BY cnt DESC
       LIMIT 1
     `);
-    const topId = (rows as any).rows?.[0]?.id ?? (rows as any)[0]?.id;
-    res.json({ entityId: topId ? Number(topId) : 1 });
+    const fallbackId = (fallbackRows as any).rows?.[0]?.id ?? (fallbackRows as any)[0]?.id;
+    res.json({ entityId: fallbackId ? Number(fallbackId) : 1 });
   } catch {
     res.json({ entityId: 1 });
   }

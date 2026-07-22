@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   useListResearchSessions,
   useUpdateResearchStatus,
@@ -374,15 +374,64 @@ export default function PipelineCRM() {
     ? sessions?.filter((s) => s.crmStatus === mobileStageFilter)
     : sessions;
 
+  // Auto-scroll desktop kanban to first populated column
+  const kanbanRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!sessions?.length || !kanbanRef.current) return;
+    const firstPopulatedIdx = CRM_COLUMNS.findIndex((col) => sessions.some((s) => s.crmStatus === col));
+    if (firstPopulatedIdx <= 0) return;
+    // Each column is w-80 (320px) + gap 16px = 336px per column
+    kanbanRef.current.scrollLeft = firstPopulatedIdx * 336;
+  }, [sessions]);
+
+  // Stage counts for summary strip
+  const stageCounts = CRM_COLUMNS.map((col) => ({
+    col,
+    count: sessions?.filter((s) => s.crmStatus === col).length ?? 0,
+  }));
+
   return (
     <div className="flex h-full flex-col overflow-hidden relative">
       <div className="px-4 md:px-6 py-3 border-b border-border bg-card flex-shrink-0 flex items-center justify-between">
         <h1 className="text-base md:text-xl font-bold font-mono tracking-widest text-foreground uppercase">
           Pipeline CRM
         </h1>
-        <span className="text-[10px] font-mono text-muted-foreground md:hidden">
+        <span className="text-[10px] font-mono text-muted-foreground">
           {sessions?.length ?? 0} sessions
         </span>
+      </div>
+
+      {/* ── Stage summary strip (desktop) ── */}
+      <div className="hidden md:flex px-4 py-2 border-b border-border bg-card/50 flex-shrink-0 gap-2 overflow-x-auto">
+        {stageCounts.map(({ col, count }) => {
+          const color = STAGE_COLORS[col] ?? "#64748B";
+          const hasData = count > 0;
+          return (
+            <button
+              key={col}
+              onClick={() => {
+                const idx = CRM_COLUMNS.indexOf(col);
+                if (kanbanRef.current) kanbanRef.current.scrollLeft = idx * 336;
+              }}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded text-[10px] font-mono font-bold uppercase tracking-wide border transition-all flex-shrink-0"
+              style={{
+                borderColor: hasData ? color : color + "30",
+                color: hasData ? color : color + "60",
+                backgroundColor: hasData ? color + "15" : "transparent",
+              }}
+            >
+              {col}
+              {hasData && (
+                <span
+                  className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                  style={{ backgroundColor: color, color: "#000" }}
+                >
+                  {count}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* ── Mobile: stage filter chips + accordion list ── */}
@@ -446,7 +495,7 @@ export default function PipelineCRM() {
       </div>
 
       {/* ── Desktop: Kanban Board ── */}
-      <div className="hidden md:flex flex-1 overflow-x-auto overflow-y-hidden">
+      <div ref={kanbanRef} className="hidden md:flex flex-1 overflow-x-auto overflow-y-hidden">
         <div className="flex h-full p-4 space-x-4 min-w-max">
           {CRM_COLUMNS.map((column) => {
             const columnSessions = sessions?.filter((s) => s.crmStatus === column) ?? [];

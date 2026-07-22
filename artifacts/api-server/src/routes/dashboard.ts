@@ -273,7 +273,9 @@ router.get("/dashboard/map-data", async (_req, res): Promise<void> => {
     })
     .from(assetsTable)
     .leftJoin(entitiesTable, eq(assetsTable.ownerEntityId, entitiesTable.id))
-    .where(and(isNotNull(assetsTable.latitude), isNotNull(assetsTable.longitude)));
+    .where(and(isNotNull(assetsTable.latitude), isNotNull(assetsTable.longitude)))
+    .orderBy(desc(entitiesTable.bayesianScore))
+    .limit(1000);
 
   const mapData = rows
     .filter((r) => r.asset.latitude !== null && r.asset.longitude !== null)
