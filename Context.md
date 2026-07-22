@@ -8,15 +8,15 @@
 
 ---
 
-## Current State (2026-07-22 — re-import #27) — Fully operational
+## Current State (2026-07-22 — re-import #28) — Fully operational
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically
 - **Local Redis** running on `redis://localhost:6379` — workflow `Redis` running ✅
-- **Upstash Redis (`REDIS_URL_1`)** — ✅ Set — permanent dedup (`[upstash-1] Redis ready`)
-- **Upstash Redis (`REDIS_URL_2`)** — ✅ Set — permanent contact cache (`[upstash-2] Redis ready`)
+- **Upstash Redis (`REDIS_URL_1`)** — ⚠️ NOT SET — dedup will not persist across restarts
+- **Upstash Redis (`REDIS_URL_2`)** — ⚠️ NOT SET — contact cache will not persist across restarts
 - **SESSION_SECRET** — ✅ Set
-- **COMPANIES_HOUSE_API_KEY** — ✅ Set — CH officer enrichment enabled
+- **COMPANIES_HOUSE_API_KEY** — ⚠️ NOT SET — CH officer enrichment skipped
 
 ### Workflows running
 | Workflow | Status |
@@ -27,10 +27,10 @@
 | `artifacts/apex-mobile: expo` | ⏸ Optional — not needed |
 | `artifacts/mockup-sandbox: Component Preview Server` | ⏸ Optional — not needed |
 
-> **Import #27 note:** pnpm install (~16s). DB schema pushed (additive). Redis ✅, API Server ✅ (port 8080), Web Frontend ✅ (port 23695). Cold-start auto-recovery detected empty DB → FAA (30k) + HMLR (2k) auto-ingested; Western HNWI running in background. SESSION_SECRET ✅ · REDIS_URL_1 ✅ (upstash-1 ready) · REDIS_URL_2 ✅ (upstash-2 ready) · COMPANIES_HOUSE_API_KEY ✅. Port conflict resolved after artifact workflows registered (killed old PIDs on 8080/23695). Fully operational.
+> **Import #28 note:** pnpm install (~17s). DB schema pushed (additive). Redis ✅, API Server ✅ (port 8080), Web Frontend ✅ (port 23695). Cold-start auto-recovery detected empty DB → FAA (30k) + HMLR (2k) auto-ingested; Western HNWI running in background. SESSION_SECRET ✅ · REDIS_URL_1 ⚠️ NOT SET · REDIS_URL_2 ⚠️ NOT SET · COMPANIES_HOUSE_API_KEY ⚠️ NOT SET. API healthy: /healthz ✅ · /dashboard/stats ✅ (32k entities, 32k assets, 7,454 hot leads). Fully operational — Upstash secrets needed for dedup/contact cache persistence.
 > **Port conflict fix (if needed):** kill -9 $(lsof -ti:8080 -ti:23695) then start managed artifact workflows.
 
-### Database (2026-07-22 — re-import #27)
+### Database (2026-07-22 — re-import #28)
 - **Entities**: 30,000 (FAA) + 2,000 (HMLR) auto-ingested · Western HNWI running in background
 - **Relationships**: 0 (fresh import, will rebuild after ingestion completes)
 
@@ -238,6 +238,7 @@ Run **IN-HOUSE ENRICH** on HNWI/Gatekeeper entities — Wikidata SPARQL will hit
 
 | Date | What changed |
 |---|---|
+| 2026-07-22 | **Re-import #28 setup**: pnpm install (~17s), DB schema pushed. Redis ✅ · artifacts/api-server: API Server ✅ (port 8080) · artifacts/apex-finder: web ✅ (port 23695). SESSION_SECRET ✅ · REDIS_URL_1 ⚠️ NOT SET · REDIS_URL_2 ⚠️ NOT SET · COMPANIES_HOUSE_API_KEY ⚠️ NOT SET. DB empty at boot → FAA 30k + HMLR 2k auto-ingested; Western HNWI running in background. API healthy: 32k entities · 32k assets · 7,454 hot leads. |
 | 2026-07-22 | **BRREG enricher fix**: `address` field added to `InHouseEnrichResult`; `result.address` initialised to null in orchestrator; persisted to `meta["bizLocation"]` in `processEntity`; included in `hasSignal` check so BRREG address-only hits are no longer silently dropped. Memory updated. |
 | 2026-07-22 | **Re-import #27 setup**: pnpm install (~16s), DB schema pushed. Redis ✅ · artifacts/api-server: API Server ✅ (port 8080) · artifacts/apex-finder: web ✅ (port 23695). SESSION_SECRET ✅ · REDIS_URL_1 ✅ (upstash-1 ready) · REDIS_URL_2 ✅ (upstash-2 ready) · COMPANIES_HOUSE_API_KEY ✅. DB empty at boot → FAA 30k + HMLR 2k auto-ingested; Western HNWI running in background. Port conflict resolved after artifact workflows registered (killed old PIDs on 8080/23695). Fully operational. |
 | 2026-07-21 | **Re-import #26 setup**: pnpm install, DB schema pushed. Redis ✅ · API Server ✅ (port 8080) · Web Frontend ✅ (port 23695). SESSION_SECRET ✅ · REDIS_URL_1 ✅ · REDIS_URL_2 ✅ · COMPANIES_HOUSE_API_KEY ✅. DB empty at boot → FAA 30k + HMLR 2k auto-ingested; Western HNWI running in background. Upstash slot 1 (dedup) + slot 2 (contact cache) both connected on restart. |
