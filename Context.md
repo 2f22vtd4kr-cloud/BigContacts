@@ -13,10 +13,10 @@
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically
 - **Local Redis** running on `redis://localhost:6379` — workflow `Redis` running ✅
-- **Upstash Redis (`REDIS_URL_1`)** — status depends on secret being set (see replit.md)
-- **Upstash Redis (`REDIS_URL_2`)** — status depends on secret being set (see replit.md)
+- **Upstash Redis (`REDIS_URL_1`)** — ✅ Set
+- **Upstash Redis (`REDIS_URL_2`)** — ✅ Set
 - **SESSION_SECRET** — ✅ Set
-- **COMPANIES_HOUSE_API_KEY** — depends on secret being set
+- **COMPANIES_HOUSE_API_KEY** — ✅ Set
 
 ### Workflows running
 | Workflow | Status |
