@@ -918,7 +918,7 @@ router.post("/ingest/in-house-enrich", async (req: Request, res: Response): Prom
           entityName:  (entityMeta["entityName"] as string | null) ?? null,
         };
         const result = await enrichInHouse(enrichInput);
-        const hasSignal = result.email || result.linkedinUrl || result.phone || result.website || result.twitter;
+        const hasSignal = result.email || result.linkedinUrl || result.phone || result.website || result.twitter || result.address;
         if (!hasSignal) return "skipped";
 
         // Thread-safe source accumulation
@@ -942,6 +942,7 @@ router.post("/ingest/in-house-enrich", async (req: Request, res: Response): Prom
         const meta = safeParseJson<Record<string, unknown>>(entity.metadata, {});
         if (result.website && !meta["website"]) meta["website"] = result.website;
         if (result.twitter && !meta["twitter"]) meta["twitter"] = result.twitter;
+        if (result.address && !meta["bizLocation"]) meta["bizLocation"] = result.address;
         meta["enrichmentSources"] = [
           ...(Array.isArray(meta["enrichmentSources"]) ? meta["enrichmentSources"] as string[] : []),
           ...result.sources.filter(s => !(meta["enrichmentSources"] as string[] | undefined)?.includes(s)),

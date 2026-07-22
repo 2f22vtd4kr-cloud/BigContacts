@@ -49,6 +49,7 @@ export interface InHouseEnrichResult {
   phone:           string | null;
   website:         string | null;
   twitter:         string | null;
+  address:         string | null;  // business/registered address (BRREG, EDGAR, CH)
   sources:         string[];
   emailConfidence: number;   // 0-100
   phoneConfidence: number;   // 0-100
@@ -1085,6 +1086,7 @@ async function scrapeContactPage(domain: string): Promise<{ email: string | null
 export async function enrichInHouse(entity: InHouseEnrichInput): Promise<InHouseEnrichResult> {
   const result: InHouseEnrichResult = {
     email: null, linkedinUrl: null, phone: null, website: null, twitter: null,
+    address: null,
     sources: [], emailConfidence: 0, phoneConfidence: 0,
     sourceHits: {},
   };
