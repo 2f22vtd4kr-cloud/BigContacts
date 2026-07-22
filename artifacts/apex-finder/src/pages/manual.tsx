@@ -5,6 +5,7 @@ import {
   Gem, Zap, Play, Filter, Download, UserCheck, Shield, Map,
   BarChart3, Target, Activity, Search, Bot, Layers, ChevronRight,
   FileText, Cpu, GitBranch, AlertCircle, CheckCircle, Info, Mail,
+  Telescope, Copy, BrainCircuit, Sparkles, Radio,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -158,6 +159,7 @@ const LEVELS = [
   { id: 8,  color: "#14B8A6", numeral: "VIII", title: "DATA SOURCES", subtitle: "Registry feeds" },
   { id: 9,  color: "#F97316", numeral: "IX",   title: "ENTITY PROFILE", subtitle: "Deep-dive view" },
   { id: 10, color: "#6366F1", numeral: "X",    title: "THE ENGINE",   subtitle: "Scoring & Pipeline" },
+  { id: 11, color: "#0EA5E9", numeral: "XI",   title: "PHASE G",      subtitle: "Semantic Intelligence" },
 ];
 
 function SidebarItem({ level, active, onClick }: { level: typeof LEVELS[0]; active: boolean; onClick: () => void }) {
@@ -194,7 +196,7 @@ export default function FieldManual() {
       },
       { threshold: 0.15 }
     );
-    for (let i = 1; i <= 10; i++) {
+    for (let i = 1; i <= 11; i++) {
       const el = document.getElementById(`section-${i}`);
       if (el) observer.observe(el);
     }
@@ -300,6 +302,8 @@ export default function FieldManual() {
                 { icon: <KanbanSquare size={12} />, color: "#8B5CF6", name: "Pipeline CRM", path: "/crm", desc: "8-stage Kanban board tracking every target from Lead Gen to Closed." },
                 { icon: <Bot size={12} />,      color: "#EC4899", name: "Persona Loop", path: "/improvements", desc: "6 AI agents that continuously scan entities and log concrete enrichment actions." },
                 { icon: <Layers size={12} />,   color: "#14B8A6", name: "Data Sources", path: "/data-sources", desc: "Registry ingestion panel — run enrichers, track coverage, trigger background jobs." },
+                { icon: <Copy size={12} />,     color: "#A855F7", name: "Duplicates", path: "/duplicates", desc: "Cross-registry deduplication — detects entities appearing in multiple registries under different names via semantic cosine similarity." },
+                { icon: <Telescope size={12} />,color: "#0EA5E9", name: "OSINT Tools Directory", path: "/osint-tools", desc: "8,000+ open-source intelligence tools curated from the OSINT Tool Database — searchable by keyword and category." },
               ].map((p) => (
                 <div key={p.name} className="flex gap-3 p-3 rounded-lg border border-[#1E293B] bg-[#0B0F19]">
                   <div className="w-6 h-6 rounded flex items-center justify-center shrink-0 mt-0.5" style={{ backgroundColor: p.color + "20", color: p.color }}>{p.icon}</div>
@@ -404,6 +408,7 @@ export default function FieldManual() {
                 { layer: "L2", name: "TF-IDF Semantic Similarity",   color: "#3B82F6", desc: "Vector similarity over enriched text fields. Catches synonyms and paraphrases that BM25 misses." },
                 { layer: "L3", name: "Bayesian Graph Signals",        color: "#F59E0B", desc: "Uses the relationship graph — entities connected to high-signal targets score higher in graph-aware queries." },
                 { layer: "L4", name: "RRF Score Fusion",              color: "#A855F7", desc: "Reciprocal Rank Fusion combines the L1–L3 ranked lists into a single merged ranking with no weight tuning needed." },
+                { layer: "L4b",name: "Semantic Embedding Signal",     color: "#8B5CF6", desc: "Phase G: all-MiniLM-L6-v2 WASM model embeds each entity name+notes into a 384-dimensional vector. Cosine similarity against the query embedding is surfaced as the purple 'Embed' score bar in results. Cached in Redis per entity." },
                 { layer: "L5", name: "Planner → Retriever → Analyst → Critic", color: "#EF4444", desc: "Multi-agent chain: the Planner decomposes the query, the Retriever fetches candidates, the Analyst scores them, and the Critic validates the result before it reaches the UI." },
               ].map((l) => (
                 <div key={l.layer} className="flex gap-3 p-3.5 rounded-lg border" style={{ borderColor: `${l.color}25`, backgroundColor: `${l.color}07` }}>
@@ -727,6 +732,8 @@ export default function FieldManual() {
                 { label: "BACKFILL NET WORTH",color: "#EC4899", desc: "Sets estimatedNetWorth = 3× registered asset value for all entities where net worth is unset." },
                 { label: "WEB OSINT ENRICH",   color: "#8B5CF6", desc: "Runs DuckDuckGo + EDGAR + OpenCorporates search across all entity layers. Adds LinkedIn URL, email, and phone where found. Run this first." },
                 { label: "IN-HOUSE ENRICH",    color: "#10B981", desc: "Seven-source in-house OSINT pipeline: Wikidata SPARQL, Wikipedia, GitHub API, email pattern generation verified by Gravatar MD5 hash, company domain resolver with DNS MX validation, RDAP registrant lookup, and ProPublica 990 nonprofit filings. No paid API required. Run after WEB OSINT ENRICH for maximum coverage." },
+                { label: "COMPUTE EMBEDDINGS", color: "#0EA5E9", desc: "Phase G — generates all-MiniLM-L6-v2 semantic embedding vectors for all entities and caches them in Redis. Run after a large ingestion pass. Enables the Embed signal bar in Deep Search and powers Semantic Dedup." },
+                { label: "SEMANTIC DEDUP",     color: "#8B5CF6", desc: "Phase G — computes cosine similarity between every pair of entity embeddings. Pairs scoring above 0.93 receive a LIKELY_SAME_PERSON relationship edge, resolving cross-registry name variants (e.g. 'JOHN R SMITH' in FAA vs 'John Richard Smith' in EDGAR)." },
               ].map((a) => (
                 <div key={a.label} className="flex gap-3 items-start p-3 rounded-lg border border-[#1E293B] bg-[#0B0F19]">
                   <span className="text-[10px] font-black font-mono px-2 py-0.5 rounded shrink-0 mt-0.5"
