@@ -8,7 +8,7 @@
 
 ---
 
-## Current State (2026-07-22 — re-import #46) — Fully operational
+## Current State (2026-07-22 — re-import #46, Apex Atlas Refactor session) — Fully operational
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically
@@ -29,13 +29,13 @@
 > **Port conflict fix (if needed):** kill -9 $(lsof -ti:8080 -ti:23695) then restart `API Server` and `Web Frontend`.
 > **Recurring import gotcha:** `manual.tsx` has smart/curly quotes in JSX string props (lines ~984-986). Each import may re-introduce this bug if the file reverts from git. Fix: change outer quote delimiter to single-quotes on those lines.
 
-### Database (2026-07-22 — re-import #30, post-maintenance)
-- **Entities**: 32,200 (30,000 FAA + 2,000 HMLR — auto-ingested on cold start)
-- **Relationships**: 231,002 (maintenance pipeline ran: cluster + geo-proximity + co-filer + co-shareholder edges)
-- **Hot Leads**: 14,911
-- **Contactable**: 29 (contact cache restore running; will grow as in-house enricher runs)
-- **Wealth Tiers**: Ultra >$100M: 7,392 · Very $30-100M: 4,616 · HNW $4-30M: 24,568 · Unknown: 200
-- **Research Sessions**: 0 (MCTS bulk-run fires at 90s after each boot)
+### Database (2026-07-22 — re-import #46, post-Apex Atlas session)
+- **Entities**: 33,100 (FAA + HMLR + EDGAR — auto-ingested on cold start)
+- **Relationships**: 229k+ (cluster + co-filer + semantic dedup edges)
+- **Hot Leads**: 15,811
+- **Contactable**: 180 (in-house enricher running continuously)
+- **Wealth Tiers**: Ultra >$100M: 7,392 · Very $30-100M: 4,016 · HNW: 24,568 · Unknown: 1,100
+- **Research Sessions**: many (MCTS bulk-run has run multiple passes)
 
 ### What was done this session (2026-07-22 — UI/UX overhaul: clickable stats, Reach Score, nav reorder, manual Intel HQ)
 
@@ -379,6 +379,7 @@ Run **IN-HOUSE ENRICH** on HNWI/Gatekeeper entities — Wikidata SPARQL will hit
 | 2026-07-21 | **Re-import #26 setup**: pnpm install, DB schema pushed. Redis ✅ · API Server ✅ (port 8080) · Web Frontend ✅ (port 23695). SESSION_SECRET ✅ · REDIS_URL_1 ✅ · REDIS_URL_2 ✅ · COMPANIES_HOUSE_API_KEY ✅. DB empty at boot → FAA 30k + HMLR 2k auto-ingested; Western HNWI running in background. Upstash slot 1 (dedup) + slot 2 (contact cache) both connected on restart. |
 | 2026-07-21 | **Re-import #25 setup**: pnpm install, DB schema pushed. Redis ✅ · artifacts/api-server: API Server ✅ (port 8080) · artifacts/apex-finder: web ✅ (port 23695). SESSION_SECRET ✅. REDIS_URL_1/REDIS_URL_2 not confirmed set (contact cache count=0 at boot). DB retained 32,100 entities — cold-start maintenance ran (7,346 hot flags, 22,774 Corp + 581 Trust reclassified). Port conflict resolved: killed old manual API Server/Web Frontend, started managed artifact workflows. |
 | 2026-07-21 | **Redis contact cache (Phase 10)**: `REDIS_URL_2` (Upstash slot 2) now stores permanent contact cache (`contact:v1:{stableKey}`). Enricher mirrors to Redis after every DB write. Startup runs restore (Redis→PG) + backfill (PG→Redis) on every boot. On first boot: 89 entities backfilled from PG → Redis; enricher run added 27+ more. Total: **114+ entities with contact data**, 115+ Redis entries. Enricher auto-trigger at 120s was blocked (409) by manual job already running; persona loop passes 1 & 2 auto-fired; Hybrid Research bulk run pass 3 blocked (409). |
+| 2026-07-22 | **Apex Atlas Refactor (re-import #46)**: Brand rename ApexFinder → **Apex Atlas**. Sidebar rewritten as 3-tier collapsible (Main/Workspace/System). Router: /search /profiles /network /pipeline /outreach /jobs added; old routes redirect. Dashboard: IngestionPanel removed, BackgroundActivityCard added, `<a>`-inside-`<a>` fixed via HotLeadCard sub-component. New page: **jobs.tsx** — 4-tab (Live Activity / Sources / Persona Loop / Duplicates) consolidating data-sources + improvements + duplicates. New page: **outreach.tsx** — 4-step Outreach Assistant. API: GET /api/ingest/jobs endpoint added (20 job types, polls Redis job queue). hunter-enricher.ts deleted; POST /ingest/hunter-enrich returns 410. API Server rebuild clean (build 944ms). App healthy: 33,100 entities, 15,811 hot leads, 180 contactable. |
 | 2026-07-22 | **Re-import #37 setup**: pnpm install (~22s), DB schema pushed. Redis ✅ · artifacts/api-server: API Server ✅ (port 8080) · artifacts/apex-finder: web ✅ (port 23695). SESSION_SECRET ✅ · REDIS_URL_1 ✅ · REDIS_URL_2 ✅ · COMPANIES_HOUSE_API_KEY not set. All 4 artifacts re-registered. DB: 32,100 entities / 32,100 assets / 14,811 hot leads (cold-start auto-recovery). API healthy: /healthz `{"status":"ok","redis":{"status":"ok","latencyMs":1}}`. |
 | 2026-07-22 | **Re-import #36 setup**: pnpm install (~17s). DB schema pushed (`[✓] Changes applied`). All 4 artifacts re-registered (verifyAndReplaceArtifactToml). Port conflict on 8080/23695 resolved (kill -9). Managed workflows started: Redis ✅ · artifacts/api-server: API Server ✅ (port 8080) · artifacts/apex-finder: web ✅ (port 23695). SESSION_SECRET ✅ · REDIS_URL_1 ✅ · REDIS_URL_2 ✅ · COMPANIES_HOUSE_API_KEY — check secrets panel. DB populated: 32,100 entities (cold-start auto-recovery). API /healthz → `{"status":"ok","redis":{"status":"ok","latencyMs":0}}`. App screenshot verified. |
 | 2026-07-21 | **Re-import #22 setup**: pnpm install, DB schema pushed, Redis ✅, API Server ✅ (manual, port 8080), Web Frontend ✅ (manual, port 23695). SESSION_SECRET ✅. REDIS_URL_1 ⚠️ NOT SET · COMPANIES_HOUSE_API_KEY ⚠️ NOT SET. Cold-start auto-ingested FAA (30k) + HMLR (2k); Western HNWI running in background. All 4 artifacts registered. API healthy: 32,000 entities · 32,000 assets · 7,454 hot leads. |

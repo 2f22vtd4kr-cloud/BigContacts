@@ -8,7 +8,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import { cn } from "@/lib/utils";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { formatCurrency, ScoreBadge } from "@/lib/utils";
 
 // Fix Leaflet icons
@@ -260,7 +260,7 @@ function IngestionPanel({ onComplete, source = "western-hnwi", autoStart }: Inge
 
 // ── Empty state ───────────────────────────────────────────────────────────────
 
-function EmptyState({ onIngest }: { onIngest: (mode: "western-hnwi" | "faa") => void }) {
+function EmptyState() {
   return (
     <div className="flex flex-col items-center justify-center flex-1 px-6 py-16 text-center">
       <div className="w-16 h-16 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center mb-6">
@@ -270,50 +270,62 @@ function EmptyState({ onIngest }: { onIngest: (mode: "western-hnwi" | "faa") => 
         Database Empty
       </h2>
       <p className="text-sm text-muted-foreground font-mono max-w-md mb-2">
-        No synthetic data. All records must come from real public registries.
+        No synthetic data. All records come from real public registries and open-web discovery.
       </p>
       <p className="text-xs text-muted-foreground/60 font-mono max-w-md mb-8">
-        Choose a source to begin ingesting verified public registry data.
+        The background pipeline runs automatically. Launch it from Background Jobs to start broad web discovery and registry ingestion.
       </p>
-
-      <div className="grid sm:grid-cols-2 gap-4 w-full max-w-xl">
-        <button
-          onClick={() => onIngest("faa")}
-          className="flex flex-col items-start gap-2 p-4 border border-border rounded-lg bg-card/50 hover:border-primary hover:bg-card transition-all text-left group min-w-0"
-        >
-          <div className="flex items-center gap-2 text-primary w-full">
-            <Globe className="w-4 h-4 shrink-0" />
-            <span className="text-xs font-mono font-bold uppercase tracking-wider truncate">FAA Aircraft Registry</span>
-          </div>
-          <p className="text-xs font-mono text-muted-foreground leading-relaxed">
-            Ingest real US private jet &amp; helicopter owners from the FAA Releasable Aircraft Database.
-            Turbine-powered aircraft = highest HNWI signal.
-          </p>
-          <div className="text-[10px] font-mono text-primary/60 group-hover:text-primary transition-colors mt-auto pt-2 truncate w-full">
-            ~70MB · daily updated · 30k+ records →
-          </div>
-        </button>
-
-        <button
-          onClick={() => onIngest("western-hnwi")}
-          className="flex flex-col items-start gap-2 p-4 border border-border rounded-lg bg-card/50 hover:border-primary hover:bg-card transition-all text-left group min-w-0"
-        >
-          <div className="flex items-center gap-2 text-primary w-full">
-            <Users className="w-4 h-4 shrink-0" />
-            <span className="text-xs font-mono font-bold uppercase tracking-wider truncate">Western HNWI Engine</span>
-          </div>
-          <p className="text-xs font-mono text-muted-foreground leading-relaxed">
-            Harvest real individuals from SEC EDGAR (SC 13D/G, DEF 14A), UK Companies House, and BRREG Norway.
-          </p>
-          <div className="text-[10px] font-mono text-primary/60 group-hover:text-primary transition-colors mt-auto pt-2 truncate w-full">
-            Live API · no download · beneficial owners →
-          </div>
-        </button>
-      </div>
-
+      <Link
+        href="/jobs"
+        className="flex items-center gap-2 px-6 py-3 rounded-lg bg-primary/10 border border-primary/30 text-primary font-mono text-sm uppercase tracking-widest hover:bg-primary/20 transition-colors"
+      >
+        <Radio className="w-4 h-4 shrink-0" />
+        Open Background Jobs →
+      </Link>
       <p className="text-[10px] font-mono text-muted-foreground/40 mt-8 max-w-xs">
         COMPLIANCE: All data from public registries only. Source attribution included on every record.
       </p>
+    </div>
+  );
+}
+
+// ── Background Activity card ──────────────────────────────────────────────────
+
+function BackgroundActivityCard() {
+  const [jobCount, setJobCount] = useState(0);
+  const [lastActivity, setLastActivity] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/ingest/jobs")
+      .then(r => r.ok ? r.json() : null)
+      .then((data: any) => {
+        if (!data) return;
+        const running = (data.jobs ?? []).filter((j: any) => j.status === "running" || j.status === "queued").length;
+        setJobCount(running);
+        const latest = (data.jobs ?? [])
+          .filter((j: any) => j.lastRunAt)
+          .sort((a: any, b: any) => new Date(b.lastRunAt).getTime() - new Date(a.lastRunAt).getTime())[0];
+        if (latest) setLastActivity(latest.label);
+      })
+      .catch(() => {});
+  }, []);
+
+  return (
+    <div className="border-t border-border bg-card/30 px-4 py-3 flex-shrink-0">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className={cn("w-1.5 h-1.5 rounded-full shrink-0", jobCount > 0 ? "bg-primary animate-pulse" : "bg-muted-foreground/30")} />
+          <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest truncate">
+            {jobCount > 0 ? `${jobCount} job${jobCount > 1 ? "s" : ""} running` : lastActivity ? `Last: ${lastActivity}` : "Background pipeline idle"}
+          </span>
+        </div>
+        <Link
+          href="/jobs"
+          className="text-[10px] font-mono text-primary/60 hover:text-primary transition-colors whitespace-nowrap ml-2 flex items-center gap-0.5"
+        >
+          View Jobs <ChevronRight className="w-3 h-3" />
+        </Link>
+      </div>
     </div>
   );
 }
@@ -462,26 +474,82 @@ function WealthTierBar() {
   );
 }
 
+// ── Hot lead card (own component so useLocation works without nesting <a>) ────
+function HotLeadCard({ lead }: { lead: any }) {
+  const [, navigate] = useLocation();
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => navigate(`/profile/${lead.entityId}`)}
+      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && navigate(`/profile/${lead.entityId}`)}
+      className="block p-4 hover:bg-muted/30 transition-colors group border-b border-border last:border-0 cursor-pointer"
+    >
+      <div className="flex justify-between items-start mb-2 gap-2">
+        <div className="flex-1 min-w-0">
+          <h3 className="font-bold text-foreground group-hover:text-primary transition-colors truncate text-sm flex items-center gap-1">
+            {lead.entityName}
+            <ChevronRight className="w-3 h-3 shrink-0 opacity-0 group-hover:opacity-60 transition-opacity" />
+          </h3>
+          <div className="text-xs font-mono mt-1.5 flex items-center gap-1.5 flex-wrap">
+            <span className={cn("px-1.5 py-0.5 rounded border text-[9px] uppercase whitespace-nowrap", getTypeBadgeStyles(lead.entityType))}>
+              {lead.entityType}
+            </span>
+            <span className="px-1.5 py-0.5 rounded border border-border bg-card text-[9px] uppercase text-muted-foreground whitespace-nowrap">
+              {lead.nationality || "Unk"}
+            </span>
+            {(lead.contactEmail || lead.email) && (
+              <span className="flex items-center gap-0.5 text-emerald-400 border border-emerald-400/20 bg-emerald-400/10 px-1.5 py-0.5 rounded">
+                <Mail className="w-2.5 h-2.5" />
+                <span className="text-[9px] font-mono">EMAIL</span>
+              </span>
+            )}
+            {(lead.contactPhone || lead.phone) && (
+              <span className="flex items-center gap-0.5 text-cyan-400 border border-cyan-400/20 bg-cyan-400/10 px-1.5 py-0.5 rounded">
+                <Phone className="w-2.5 h-2.5" />
+                <span className="text-[9px] font-mono">PHONE</span>
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="shrink-0">
+          <ScoreBadge score={lead.bayesianScore} />
+        </div>
+      </div>
+      <div className="text-xs text-muted-foreground mb-2.5 flex items-center justify-between">
+        <span>Net Worth: <span className="text-foreground">{formatCurrency(lead.estimatedNetWorth)}</span></span>
+        <span>Assets: <span className="text-foreground">{lead.assetCount}</span></span>
+      </div>
+      <div className="bg-background rounded p-2 text-xs font-mono border border-border">
+        <span className="text-primary mr-2">SIGNAL:</span>
+        <span className="text-foreground/80 line-clamp-2">{lead.signal}</span>
+      </div>
+      <div className="mt-2.5 flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
+        <span className="text-xs font-mono text-muted-foreground flex items-center gap-0.5 group-hover:text-primary transition-colors">
+          Open Profile <ChevronRight className="w-3 h-3" />
+        </span>
+        <Link
+          href={`/network?entity=${lead.entityId}`}
+          onClick={(e) => e.stopPropagation()}
+          className="text-xs font-mono text-muted-foreground/60 flex items-center hover:text-primary transition-colors"
+        >
+          Network <ChevronRight className="w-3 h-3 ml-0.5" />
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 // ── Main dashboard ────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
   const { data: mapData, isLoading: isLoadingMap } = useGetMapData();
-  const { data: hotLeads, refetch: refetchLeads, isLoading: isLoadingLeads } = useGetHotLeads({ limit: 10 });
-  const { data: stats, refetch: refetchStats, isLoading: isLoadingStats } = useGetDashboardStats();
+  const { data: hotLeads, isLoading: isLoadingLeads } = useGetHotLeads({ limit: 10 });
+  const { data: stats, isLoading: isLoadingStats } = useGetDashboardStats();
   const [mobileTab, setMobileTab] = useState<"map" | "signals">("signals");
-  const [ingestionSource, setIngestionSource] = useState<"western-hnwi" | "faa">("western-hnwi");
 
   const s = stats as any;
   const isEmpty = s != null && (s.totalEntities ?? 0) === 0 && !isLoadingStats;
-
-  const handleIngestionComplete = useCallback(() => {
-    // Refresh stats and hot leads after ingestion finishes
-    setTimeout(() => { refetchStats(); refetchLeads(); }, 1_000);
-  }, [refetchStats, refetchLeads]);
-
-  const handleEmptyStateIngest = useCallback((mode: "western-hnwi" | "faa") => {
-    setIngestionSource(mode);
-  }, []);
 
   // ── Empty state (no real data yet) ───────────────────────────────────────
   if (isEmpty) {
@@ -489,12 +557,7 @@ export default function Dashboard() {
       <div className="flex flex-col h-full overflow-hidden">
         <StatsBar />
         <WealthTierBar />
-        <EmptyState onIngest={handleEmptyStateIngest} />
-        <IngestionPanel
-          onComplete={handleIngestionComplete}
-          source={ingestionSource}
-          autoStart={ingestionSource}
-        />
+        <EmptyState />
       </div>
     );
   }
@@ -613,66 +676,7 @@ export default function Dashboard() {
                 </div>
               ))
             ) : hotLeads?.map((lead: any) => (
-              <Link
-                key={lead.entityId}
-                href={`/profile/${lead.entityId}`}
-                className="block p-4 hover:bg-muted/30 transition-colors group border-b border-border last:border-0"
-              >
-                <div className="flex justify-between items-start mb-2 gap-2">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-foreground group-hover:text-primary transition-colors truncate text-sm flex items-center gap-1">
-                      {lead.entityName}
-                      <ChevronRight className="w-3 h-3 shrink-0 opacity-0 group-hover:opacity-60 transition-opacity" />
-                    </h3>
-                    <div className="text-xs font-mono mt-1.5 flex items-center gap-1.5 flex-wrap">
-                      <span className={cn("px-1.5 py-0.5 rounded border text-[9px] uppercase whitespace-nowrap", getTypeBadgeStyles(lead.entityType))}>
-                        {lead.entityType}
-                      </span>
-                      <span className="px-1.5 py-0.5 rounded border border-border bg-card text-[9px] uppercase text-muted-foreground whitespace-nowrap">
-                        {lead.nationality || "Unk"}
-                      </span>
-                      {(lead.contactEmail || lead.email) && (
-                        <span className="flex items-center gap-0.5 text-emerald-400 border border-emerald-400/20 bg-emerald-400/10 px-1.5 py-0.5 rounded">
-                          <Mail className="w-2.5 h-2.5" />
-                          <span className="text-[9px] font-mono">EMAIL</span>
-                        </span>
-                      )}
-                      {(lead.contactPhone || lead.phone) && (
-                        <span className="flex items-center gap-0.5 text-cyan-400 border border-cyan-400/20 bg-cyan-400/10 px-1.5 py-0.5 rounded">
-                          <Phone className="w-2.5 h-2.5" />
-                          <span className="text-[9px] font-mono">PHONE</span>
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="shrink-0">
-                    <ScoreBadge score={lead.bayesianScore} />
-                  </div>
-                </div>
-
-                <div className="text-xs text-muted-foreground mb-2.5 flex items-center justify-between">
-                  <span>Net Worth: <span className="text-foreground">{formatCurrency(lead.estimatedNetWorth)}</span></span>
-                  <span>Assets: <span className="text-foreground">{lead.assetCount}</span></span>
-                </div>
-
-                <div className="bg-background rounded p-2 text-xs font-mono border border-border">
-                  <span className="text-primary mr-2">SIGNAL:</span>
-                  <span className="text-foreground/80 line-clamp-2">{lead.signal}</span>
-                </div>
-
-                <div className="mt-2.5 flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
-                  <span className="text-xs font-mono text-muted-foreground flex items-center gap-0.5 group-hover:text-primary transition-colors">
-                    Open Profile <ChevronRight className="w-3 h-3" />
-                  </span>
-                  <Link
-                    href={`/graph?entity=${lead.entityId}`}
-                    onClick={(e) => e.stopPropagation()}
-                    className="text-xs font-mono text-muted-foreground/60 flex items-center hover:text-primary transition-colors"
-                  >
-                    Network <ChevronRight className="w-3 h-3 ml-0.5" />
-                  </Link>
-                </div>
-              </Link>
+              <HotLeadCard key={lead.entityId} lead={lead} />
             ))}
 
             {!isLoadingLeads && (!hotLeads || hotLeads.length === 0) && (
@@ -686,8 +690,8 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* Ingestion engine */}
-          <IngestionPanel onComplete={handleIngestionComplete} />
+          {/* Background activity link */}
+          <BackgroundActivityCard />
         </div>
       </div>
 
@@ -753,7 +757,7 @@ export default function Dashboard() {
               </div>
             )}
           </div>
-          <IngestionPanel onComplete={handleIngestionComplete} />
+          <BackgroundActivityCard />
         </div>
 
         {/* Map tab — only mount when active so Leaflet gets a real container size */}
