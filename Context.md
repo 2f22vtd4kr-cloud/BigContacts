@@ -8,27 +8,27 @@
 
 ---
 
-## Current State (2026-07-22 — re-import #29) — Fully operational
+## Current State (2026-07-22 — re-import #30) — Fully operational
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically
 - **Local Redis** running on `redis://localhost:6379` — workflow `Redis` running ✅
-- **Upstash Redis (`REDIS_URL_1`)** — ✅ Set — `[upstash-1] Redis ready`
-- **Upstash Redis (`REDIS_URL_2`)** — ✅ Set — `[upstash-2] Redis ready`
+- **Upstash Redis (`REDIS_URL_1`)** — status depends on secret being set (see replit.md)
+- **Upstash Redis (`REDIS_URL_2`)** — status depends on secret being set (see replit.md)
 - **SESSION_SECRET** — ✅ Set
-- **COMPANIES_HOUSE_API_KEY** — ✅ Set
+- **COMPANIES_HOUSE_API_KEY** — depends on secret being set
 
 ### Workflows running
 | Workflow | Status |
 |---|---|
-| Redis | ✅ Running |
-| API Server (manual) | ✅ Running (port 8080) |
-| Web Frontend (manual) | ✅ Running (port 23695) |
+| Redis | ✅ Running (port 6379) |
+| API Server | ✅ Running (port 8080) |
+| Web Frontend | ✅ Running (port 23695) |
 
-> **Import #29 note (2026-07-22):** pnpm install (~20s). DB schema pushed (no changes). Redis ✅, API Server ✅ (port 8080), Web Frontend ✅ (port 23695). API /healthz → `{"status":"ok","redis":{"status":"ok","latencyMs":0}}`. Artifacts not re-registered in Replit system (listArtifacts returns []); manual workflows are running fine. SESSION_SECRET ✅ · REDIS_URL_1 ⚠️ NOT SET · REDIS_URL_2 ⚠️ NOT SET · COMPANIES_HOUSE_API_KEY ⚠️ NOT SET. DB is empty (fresh import — cold-start auto-recovery will ingest on first API server boot if configured).
+> **Import #30 note (2026-07-22):** pnpm install (~15s, 1181 packages). DB schema pushed (no changes — `[✓] Changes applied`). All 3 workflows restarted and running. API /healthz → `{"status":"ok","redis":{"status":"ok","latencyMs":0}}`. DB is empty (fresh import — trigger ingestion via /ingest routes to populate). Cold-start auto-recovery will attempt FAA/HMLR ingestion on first boot if Upstash secrets are set.
 > **Port conflict fix (if needed):** kill -9 $(lsof -ti:8080 -ti:23695) then restart workflows.
 
-### Database (2026-07-22 — re-import #29)
+### Database (2026-07-22 — re-import #30)
 - **Entities**: 0 (fresh import — trigger ingestion via /ingest routes to populate)
 - **Relationships**: 0
 
