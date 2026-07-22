@@ -259,6 +259,8 @@ export async function runLandRegistryIngestion(params: LandRegIngestionParams): 
         sourceRegistries: JSON.stringify(["UK HM Land Registry (PPD)"]),
         bayesianScore: score,
         isHot: price >= 5_000_000,
+        // B2: net worth heuristic — property price × 5 (conservative wealth floor)
+        estimatedNetWorth: price * 5,
         notes: `High-value UK property: ${propLabel} (${tenureLabel}). Paid ${priceStr2} on ${date}.`,
         metadata: JSON.stringify({
           source: "hmlr-ppd-csv",

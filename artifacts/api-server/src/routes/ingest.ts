@@ -1285,6 +1285,69 @@ router.post("/ingest/backfill-net-worth", async (_req: Request, res: Response): 
   }
 });
 
+// ── POST /ingest/backfill-edgar-net-worth — B3: EDGAR net worth from SEC filings ─
+// For entities with metadata.sharesOwned and metadata.ticker, fetch current price
+// from Yahoo Finance (no API key) and set estimatedNetWorth = shares × price.
+router.post("/ingest/backfill-edgar-net-worth", async (_req: Request, res: Response): Promise<void> => {
+  try {
+    // Find EDGAR entities with sharesOwned but no estimatedNetWorth
+    const candidates = await db
+      .select({ id: entitiesTable.id, name: entitiesTable.name, metadata: entitiesTable.metadata })
+      .from(entitiesTable)
+      .where(sql`${entitiesTable.estimatedNetWorth} IS NULL
+        AND ${entitiesTable.metadata}::text LIKE '%sec-edgar%'
+        AND ${entitiesTable.metadata}::text LIKE '%sharesOwned%'
+        AND ${entitiesTable.metadata}::text LIKE '%ticker%'`);
+
+    if (candidates.length === 0) {
+      res.json({ updated: 0, errors: 0, message: "No EDGAR entities with sharesOwned+ticker found." });
+      return;
+    }
+
+    let updated = 0;
+    let errors = 0;
+    const priceCache = new Map<string, number>();
+
+    for (const entity of candidates) {
+      try {
+        let meta: Record<string, any> = {};
+        try { meta = JSON.parse(entity.metadata ?? "{}"); } catch {}
+        const sharesOwned = Number(meta.sharesOwned ?? 0);
+        const ticker = (meta.ticker as string | undefined)?.trim().toUpperCase();
+        if (!sharesOwned || !ticker) continue;
+
+        // Fetch price from Yahoo Finance (free, no key)
+        let price = priceCache.get(ticker);
+        if (!price) {
+          try {
+            const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?range=1d&interval=1d`;
+            const r = await fetch(url, { signal: AbortSignal.timeout(8_000), headers: { "User-Agent": "Mozilla/5.0" } });
+            if (r.ok) {
+              const d = await r.json() as any;
+              const closes: number[] = d?.chart?.result?.[0]?.indicators?.quote?.[0]?.close ?? [];
+              const lastClose = closes.filter(Boolean).at(-1);
+              if (lastClose && lastClose > 0) { price = lastClose; priceCache.set(ticker, price); }
+            }
+          } catch { /* ignore — skip this ticker */ }
+        }
+        if (!price) continue;
+
+        const estimatedNetWorth = Math.round(sharesOwned * price);
+        if (estimatedNetWorth <= 0) continue;
+        await db.update(entitiesTable).set({ estimatedNetWorth, updatedAt: new Date() }).where(eq(entitiesTable.id, entity.id));
+        updated++;
+      } catch { errors++; }
+    }
+
+    res.json({
+      updated, errors, candidates: candidates.length,
+      message: `EDGAR net worth backfill: ${updated}/${candidates.length} entities updated (${errors} errors). Uses Yahoo Finance closing price × sharesOwned.`,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message ?? "EDGAR net worth backfill failed" });
+  }
+});
+
 // ── DELETE /ingest/dedup — clear dedup set ────────────────────────────────────
 router.delete("/ingest/dedup", async (_req, res): Promise<void> => {
   await clearDedup();

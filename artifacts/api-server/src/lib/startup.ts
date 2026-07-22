@@ -526,13 +526,29 @@ async function runPopulatedDbMaintenance(): Promise<void> {
   // 35s: KNOWN_ASSOCIATE edges from live EDGAR EFTS co-filers
   setTimeout(() => trigger("EDGAR associate seeding", "/api/relationships/seed-edgar-associates"), 35_000);
 
-  // 45s: first bulk Hybrid Research pass — top 300 by score, skip already-run sessions
-  setTimeout(() => trigger("auto Hybrid Research bulk run (pass 1)", "/api/research/bulk-run", { batchSize: 300, skipExisting: true }), 45_000);
+  // 40s: GEOGRAPHIC_PEER edges — FAA individual owners in the same city+state (C1)
+  setTimeout(() => trigger("FAA geo-proximity edges", "/api/relationships/auto-detect-faa-geo"), 40_000);
 
-  // 90s: Companies House enrichment for needsEnrichment entities (fills address, contact confidence)
+  // 41s: PROPERTY_AREA_PEER edges — HMLR buyers in the same postcode district (C2)
+  setTimeout(() => trigger("HMLR postcode-proximity edges", "/api/relationships/auto-detect-hmlr-postcode"), 41_000);
+
+  // 42s: EDGAR_CO_SHAREHOLDER edges — EDGAR entities holding shares in the same company (C3)
+  setTimeout(() => trigger("EDGAR co-shareholder edges", "/api/relationships/auto-detect-edgar-coshareholder"), 42_000);
+
+  // 90s: first bulk Hybrid Research pass — top 300 by score, skip already-run sessions
+  // (moved from 45s → 90s so FAA ingest [~73s] is complete before MCTS fires — D1)
+  setTimeout(() => trigger("auto Hybrid Research bulk run (pass 1)", "/api/research/bulk-run", { batchSize: 300, skipExisting: true }), 90_000);
+
+  // 95s: Companies House enrichment for needsEnrichment entities (fills address, contact confidence)
   if (hasCH) {
-    setTimeout(() => trigger("auto CH enrichment (needsEnrichment)", "/api/ingest/companies-house-enrich", { batchSize: 500 }), 90_000);
+    setTimeout(() => trigger("auto CH enrichment (needsEnrichment)", "/api/ingest/companies-house-enrich", { batchSize: 500 }), 95_000);
   }
+
+  // 100s: backfill estimatedNetWorth from asset values (entities with assets but no net worth set yet)
+  setTimeout(() => trigger("auto net worth backfill (asset-based)", "/api/ingest/backfill-net-worth"), 100_000);
+
+  // 105s: EDGAR net worth backfill — shares × Yahoo Finance closing price (B3)
+  setTimeout(() => trigger("auto EDGAR net worth backfill (shares × price)", "/api/ingest/backfill-edgar-net-worth"), 105_000);
 
   // 120s: in-house enricher pass 1 — EDGAR/Western HNWI entities first (public figures: highest hit rate)
   setTimeout(() => trigger("auto in-house enricher (pass 1 — edgar)", "/api/ingest/in-house-enrich", { batchSize: 5000, targetMode: "edgar" }), 120_000);
@@ -557,6 +573,9 @@ async function runPopulatedDbMaintenance(): Promise<void> {
 
   // 20 min: persona improvement loop pass 2 — re-sweep after enrichment completes
   setTimeout(() => trigger("auto persona improvement loop (pass 2 — force)", "/api/improve/run-all", { chunkSize: 500, resume: false }), 1_200_000);
+
+  // 21 min: fifth bulk Hybrid Research pass — D2 extra coverage after enrichment completes
+  setTimeout(() => trigger("auto Hybrid Research bulk run (pass 5)", "/api/research/bulk-run", { batchSize: 300, skipExisting: true }), 1_260_000);
 
   // 25 min: in-house enricher pass 4 — FAA force re-run (second sweep on private owners)
   setTimeout(() => trigger("auto in-house enricher (pass 4 — faa force)", "/api/ingest/in-house-enrich", { batchSize: 5000, targetMode: "faa", force: true }), 1_500_000);

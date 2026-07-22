@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, isNotNull, sql } from "drizzle-orm";
+import { eq, isNotNull, sql, and } from "drizzle-orm";
 import { db, relationshipsTable, entitiesTable, assetsTable } from "@workspace/db";
 import {
   ListRelationshipsQueryParams,
@@ -615,6 +615,164 @@ router.post("/relationships/auto-detect-edgar-cofilers", async (_req: Request, r
     created, skipped, groups,
     message: `EDGAR co-filer detect: ${created} EDGAR_CO_FILER edges across ${groups} shared-company groups, ${skipped} already existed.`,
   });
+});
+
+// POST /api/relationships/auto-detect-faa-geo — C1: geographic peer edges for FAA individual owners
+// Groups FAA HNWI entities by city+state; creates GEOGRAPHIC_PEER edges for groups of 2–15.
+router.post("/relationships/auto-detect-faa-geo", async (_req, res): Promise<void> => {
+  const entities = await db
+    .select({ id: entitiesTable.id, knownResidences: entitiesTable.knownResidences })
+    .from(entitiesTable)
+    .where(and(
+      eq(entitiesTable.type, "HNWI"),
+      isNotNull(entitiesTable.knownResidences),
+      sql`${entitiesTable.metadata}::text LIKE '%faa-aircraft-registry%'`
+    ));
+
+  // Parse city+state from "street, city, STATE" address string stored as plain text
+  const geoIndex = new Map<string, number[]>();
+  for (const e of entities) {
+    const parts = (e.knownResidences ?? "").split(",").map((s: string) => s.trim());
+    if (parts.length < 2) continue;
+    // Address is "STREET, CITY, STATE, [COUNTRY]" — state is 2nd-to-last non-country part
+    const state = parts[parts.length - 2] ?? "";
+    const city  = parts[parts.length - 3] ?? parts[parts.length - 2] ?? "";
+    if (!city || !state || state.length > 3) continue;
+    const key = `${city.toLowerCase()},${state.toUpperCase()}`;
+    const arr = geoIndex.get(key) ?? [];
+    arr.push(e.id);
+    geoIndex.set(key, arr);
+  }
+
+  const existing = await db
+    .select({ src: relationshipsTable.sourceEntityId, tgt: relationshipsTable.targetId })
+    .from(relationshipsTable)
+    .where(sql`${relationshipsTable.relationshipType} = 'GEOGRAPHIC_PEER'`);
+  const existingSet = new Set(existing.map((r) => `${r.src}-${r.tgt}`));
+
+  const pending: (typeof relationshipsTable.$inferInsert)[] = [];
+  let created = 0; let skipped = 0; let groups = 0;
+
+  for (const [geoKey, ids] of geoIndex.entries()) {
+    if (ids.length < 2 || ids.length > 15) continue; // skip singletons and over-generic groups
+    groups++;
+    const [city, state] = geoKey.split(",");
+    for (let i = 0; i < ids.length; i++) {
+      for (let j = i + 1; j < ids.length; j++) {
+        if (pending.length >= 500_000) break;
+        const src = ids[i]!; const tgt = ids[j]!;
+        if (existingSet.has(`${src}-${tgt}`) || existingSet.has(`${tgt}-${src}`)) { skipped++; continue; }
+        pending.push({ sourceEntityId: src, targetId: tgt, targetType: "Entity", relationshipType: "GEOGRAPHIC_PEER", strength: 0.3, notes: `FAA geo-cluster: ${city}, ${state}` });
+        created++;
+      }
+    }
+  }
+
+  const CHUNK = 500;
+  for (let i = 0; i < pending.length; i += CHUNK) {
+    await db.insert(relationshipsTable).values(pending.slice(i, i + CHUNK));
+  }
+  res.json({ created, skipped, groups, message: `FAA geo-proximity: ${created} GEOGRAPHIC_PEER edges across ${groups} city+state groups, ${skipped} skipped.` });
+});
+
+// POST /api/relationships/auto-detect-hmlr-postcode — C2: postcode district peer edges for HMLR buyers
+// Groups HMLR entities by postcode district (3–4 char prefix); creates PROPERTY_AREA_PEER edges for groups 2–10.
+router.post("/relationships/auto-detect-hmlr-postcode", async (_req, res): Promise<void> => {
+  const entities = await db
+    .select({ id: entitiesTable.id, metadata: entitiesTable.metadata })
+    .from(entitiesTable)
+    .where(sql`${entitiesTable.metadata}::text LIKE '%hmlr-ppd-csv%'`);
+
+  const postcodeIndex = new Map<string, number[]>();
+  for (const e of entities) {
+    let meta: Record<string, any> = {};
+    try { meta = JSON.parse(e.metadata ?? "{}"); } catch {}
+    const postcode = (meta.postcode as string | undefined) ?? "";
+    if (!postcode) continue;
+    const district = postcode.split(" ")[0] ?? postcode.slice(0, 4); // e.g. "SW1W" from "SW1W 0NY"
+    if (!district || district.length < 2) continue;
+    const arr = postcodeIndex.get(district) ?? [];
+    arr.push(e.id);
+    postcodeIndex.set(district, arr);
+  }
+
+  const existing = await db
+    .select({ src: relationshipsTable.sourceEntityId, tgt: relationshipsTable.targetId })
+    .from(relationshipsTable)
+    .where(sql`${relationshipsTable.relationshipType} = 'PROPERTY_AREA_PEER'`);
+  const existingSet = new Set(existing.map((r) => `${r.src}-${r.tgt}`));
+
+  const pending: (typeof relationshipsTable.$inferInsert)[] = [];
+  let created = 0; let skipped = 0; let groups = 0;
+
+  for (const [district, ids] of postcodeIndex.entries()) {
+    if (ids.length < 2 || ids.length > 10) continue;
+    groups++;
+    for (let i = 0; i < ids.length; i++) {
+      for (let j = i + 1; j < ids.length; j++) {
+        if (pending.length >= 500_000) break;
+        const src = ids[i]!; const tgt = ids[j]!;
+        if (existingSet.has(`${src}-${tgt}`) || existingSet.has(`${tgt}-${src}`)) { skipped++; continue; }
+        pending.push({ sourceEntityId: src, targetId: tgt, targetType: "Entity", relationshipType: "PROPERTY_AREA_PEER", strength: 0.4, notes: `HMLR postcode district: ${district}` });
+        created++;
+      }
+    }
+  }
+
+  const CHUNK = 500;
+  for (let i = 0; i < pending.length; i += CHUNK) {
+    await db.insert(relationshipsTable).values(pending.slice(i, i + CHUNK));
+  }
+  res.json({ created, skipped, groups, message: `HMLR postcode: ${created} PROPERTY_AREA_PEER edges across ${groups} postcode districts, ${skipped} skipped.` });
+});
+
+// POST /api/relationships/auto-detect-edgar-coshareholder — C3: co-shareholder edges via shared company
+// Groups EDGAR entities by metadata.companyName; creates EDGAR_CO_SHAREHOLDER edges for groups 2–20.
+router.post("/relationships/auto-detect-edgar-coshareholder", async (_req, res): Promise<void> => {
+  const entities = await db
+    .select({ id: entitiesTable.id, metadata: entitiesTable.metadata })
+    .from(entitiesTable)
+    .where(sql`${entitiesTable.metadata}::text LIKE '%sec-edgar%' AND ${entitiesTable.metadata}::text NOT LIKE '%sec-edgar-def14a%'`);
+
+  const companyIndex = new Map<string, number[]>();
+  for (const e of entities) {
+    let meta: Record<string, any> = {};
+    try { meta = JSON.parse(e.metadata ?? "{}"); } catch {}
+    const company = ((meta.companyName as string | undefined) ?? "").trim().toLowerCase();
+    if (!company) continue;
+    const arr = companyIndex.get(company) ?? [];
+    arr.push(e.id);
+    companyIndex.set(company, arr);
+  }
+
+  const existing = await db
+    .select({ src: relationshipsTable.sourceEntityId, tgt: relationshipsTable.targetId })
+    .from(relationshipsTable)
+    .where(sql`${relationshipsTable.relationshipType} = 'EDGAR_CO_SHAREHOLDER'`);
+  const existingSet = new Set(existing.map((r) => `${r.src}-${r.tgt}`));
+
+  const pending: (typeof relationshipsTable.$inferInsert)[] = [];
+  let created = 0; let skipped = 0; let groups = 0;
+
+  for (const [company, ids] of companyIndex.entries()) {
+    if (ids.length < 2 || ids.length > 20) continue;
+    groups++;
+    for (let i = 0; i < ids.length; i++) {
+      for (let j = i + 1; j < ids.length; j++) {
+        if (pending.length >= 500_000) break;
+        const src = ids[i]!; const tgt = ids[j]!;
+        if (existingSet.has(`${src}-${tgt}`) || existingSet.has(`${tgt}-${src}`)) { skipped++; continue; }
+        pending.push({ sourceEntityId: src, targetId: tgt, targetType: "Entity", relationshipType: "EDGAR_CO_SHAREHOLDER", strength: 0.5, notes: `EDGAR co-shareholder: both hold ${company}` });
+        created++;
+      }
+    }
+  }
+
+  const CHUNK = 500;
+  for (let i = 0; i < pending.length; i += CHUNK) {
+    await db.insert(relationshipsTable).values(pending.slice(i, i + CHUNK));
+  }
+  res.json({ created, skipped, groups, message: `EDGAR co-shareholder: ${created} EDGAR_CO_SHAREHOLDER edges across ${groups} companies, ${skipped} skipped.` });
 });
 
 export default router;

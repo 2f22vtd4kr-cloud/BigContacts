@@ -585,6 +585,15 @@ router.post("/research/bulk-run", async (req, res): Promise<void> => {
   const batchSize  = Math.min(parseInt((req.body as any)?.batchSize ?? "60", 10), 300);
   const skipExisting = (req.body as any)?.skipExisting !== false; // default true
 
+  // D1: entity count guard — if DB is near-empty (FAA ingest still running), skip this pass.
+  // The scheduled triggers at 8min/15min/etc. will retry automatically.
+  const ecResult = await db.execute(sql`SELECT COUNT(*) AS c FROM entities`);
+  const entityCount = Number((ecResult.rows[0] as any)?.c ?? 0);
+  if (entityCount < 500) {
+    res.json({ message: `Skipped — only ${entityCount} entities in DB. Retry once ingestion completes.`, jobId: null, skippedReason: "insufficient_entities" });
+    return;
+  }
+
   // Find top hot leads that need sessions — only HNWI and Gatekeeper entities are actionable
   // (Corporation/Trust are property vehicles; address-named HMLR/FAA entities are not researchable)
   const existingSessionEntityIds = skipExisting

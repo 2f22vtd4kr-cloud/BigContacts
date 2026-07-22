@@ -267,6 +267,15 @@ router.post("/search/intelligent", async (req, res): Promise<void> => {
       filteredResults = filteredResults.filter((r: any) => relSet.has(r.id as number));
     }
 
+    // E3: HNWI-first bias — surface individuals before corporations in results
+    // Preserve relative score order within each tier
+    filteredResults = [...filteredResults].sort((a: any, b: any) => {
+      const aTop = a.type === "HNWI" || a.type === "Gatekeeper" ? 1 : 0;
+      const bTop = b.type === "HNWI" || b.type === "Gatekeeper" ? 1 : 0;
+      if (aTop !== bTop) return bTop - aTop;
+      return ((b.bayesianScore as number) ?? 0) - ((a.bayesianScore as number) ?? 0);
+    });
+
     const final = { ...result, results: filteredResults, cached: false };
     await setCache(cacheKey, final, 60);
     res.json(final);

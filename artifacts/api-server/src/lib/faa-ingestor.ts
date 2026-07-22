@@ -375,6 +375,16 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
     const score = bayesianScore(typeEngine, typeAircraft);
     const isJet = typeEngine === "4" || typeEngine === "5";
 
+    // ── Net worth heuristic (B2): 10× median market value by aircraft class ────
+    function faaNetWorth(eng: string, acft: string): number {
+      if (eng === "5") return 180_000_000; // Turbofan  — $18M × 10
+      if (eng === "4") return 120_000_000; // Jet       — $12M × 10
+      if (eng === "2") return  30_000_000; // Turboprop — $3M  × 10
+      if (eng === "3") return  15_000_000; // Turboshaft/Helo — $1.5M × 10
+      if (acft === ROTORCRAFT)     return   8_000_000; // Rotorcraft — $800k × 10
+      return 4_000_000;                                // Multi-engine fixed wing — $400k × 10
+    }
+
     const entityType = classifyFaaEntityType(typeReg, name);
     const entity: InsertEntity = {
       name,
@@ -384,6 +394,7 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
       sourceRegistries: JSON.stringify(["FAA Releasable Aircraft Database"]),
       bayesianScore: score,
       isHot: isJet,
+      estimatedNetWorth: faaNetWorth(typeEngine, typeAircraft),
       notes: `${label} owner. Tail: N${nNumber}.${yearMfr ? ` MFR year: ${yearMfr}.` : ""}`,
       metadata: JSON.stringify({
         source: "faa-aircraft-registry",

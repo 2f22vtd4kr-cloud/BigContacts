@@ -252,16 +252,24 @@ function EnrichmentCoverageStats() {
     totalEntities: number;
     contactableCount: number;
     enrichmentCoverage: number;
+    totalRelationships: number;
+    researchSessions: number;
   } | null>(null);
 
   useEffect(() => {
-    apiGet("/api/dashboard/stats")
-      .then((d: any) => setStats({
-        totalEntities: d.totalEntities ?? 0,
-        contactableCount: d.contactableCount ?? 0,
+    const base = (import.meta as any).env.BASE_URL?.replace(/\/$/, "") ?? "";
+    Promise.all([
+      apiGet("/api/dashboard/stats").catch(() => ({})),
+      fetch(`${base}/api/research/sessions?limit=1`).then(r => r.json()).catch(() => ({})),
+    ]).then(([d, sess]: any[]) => {
+      setStats({
+        totalEntities:      d.totalEntities      ?? 0,
+        contactableCount:   d.contactableCount   ?? 0,
         enrichmentCoverage: d.enrichmentCoverage ?? 0,
-      }))
-      .catch(() => {/* ignore */});
+        totalRelationships: d.totalRelationships ?? 0,
+        researchSessions:   d.totalCount ?? sess?.total ?? sess?.count ?? 0,
+      });
+    }).catch(() => {/* ignore */});
   }, []);
 
   if (!stats) return null;
@@ -308,6 +316,34 @@ function EnrichmentCoverageStats() {
           </p>
         )}
       </div>
+
+      {/* E4: Pipeline progress bars with targets */}
+      <div className="space-y-3 border-t border-border/40 pt-3">
+        {(
+          [
+            { label: "Contactable Entities",  current: stats.contactableCount,   target: 200,     color: "bg-primary" },
+            { label: "Research Sessions",     current: stats.researchSessions,   target: 500,     color: "bg-secondary" },
+            { label: "Relationship Edges",    current: stats.totalRelationships, target: 500_000, color: "bg-amber-500" },
+          ] as const
+        ).map(({ label, current, target, color }) => {
+          const pct  = Math.min(Math.round((current / target) * 100), 100);
+          const done = current >= target;
+          return (
+            <div key={label} className="space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono text-muted-foreground">{label}</span>
+                <span className={cn("text-[10px] font-mono font-bold", done ? "text-emerald-400" : "text-foreground")}>
+                  {current.toLocaleString()} / {target.toLocaleString()}{done ? " ✓" : ""}
+                </span>
+              </div>
+              <div className="h-1.5 rounded-full bg-muted/40 overflow-hidden">
+                <div className={cn("h-full rounded-full transition-all duration-700", color)} style={{ width: `${pct}%` }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
       <div className="flex items-center justify-between pt-1">
         <span className="text-[10px] font-mono text-muted-foreground/60">Auto-detect shared-address co-ownership links across all entities</span>
         <AutoDetectButton />

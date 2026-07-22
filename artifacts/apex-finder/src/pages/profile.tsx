@@ -231,6 +231,57 @@ function ConfidenceBar({ label, score, icon }: { label: string; score: number; i
   );
 }
 
+// E1: Profile Completeness — 10-field progress indicator surfaced on every profile
+function ProfileCompleteness({ entity, assets, relationships, sessions }: {
+  entity: any; assets: any[]; relationships: any[]; sessions: any[];
+}) {
+  const fields = [
+    { key: "name",        label: "Name",         done: !!entity.name },
+    { key: "type",        label: "Type",         done: !!entity.type },
+    { key: "nationality", label: "Nationality",  done: !!entity.nationality },
+    { key: "networth",    label: "Net Worth",    done: entity.estimatedNetWorth != null },
+    { key: "email",       label: "Email",        done: !!(entity.email ?? entity.contactEmail) },
+    { key: "phone",       label: "Phone",        done: !!(entity.phone ?? entity.contactPhone) },
+    { key: "linkedin",    label: "LinkedIn",     done: !!entity.linkedinUrl },
+    { key: "asset",       label: "Asset ≥1",     done: assets.length >= 1 },
+    { key: "rel",         label: "Connection",   done: relationships.length >= 1 },
+    { key: "session",     label: "Research",     done: sessions.length >= 1 },
+  ];
+  const completed = fields.filter((f) => f.done).length;
+  const pct       = Math.round((completed / fields.length) * 100);
+  const barCls    = pct >= 80 ? "bg-primary" : pct >= 50 ? "bg-amber-500" : "bg-orange-600";
+  const txtCls    = pct >= 80 ? "text-primary" : pct >= 50 ? "text-amber-500" : "text-orange-400";
+
+  return (
+    <div className="border-b border-border px-4 md:px-6 py-3 bg-card/20 flex-shrink-0">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-[9px] font-mono font-bold text-muted-foreground/70 uppercase tracking-widest">Profile Completeness</span>
+        <span className={cn("text-[10px] font-mono font-bold", txtCls)}>
+          {pct}% · {completed}/{fields.length}
+        </span>
+      </div>
+      <div className="h-1.5 rounded-full bg-muted/30 overflow-hidden mb-2.5">
+        <div className={cn("h-full rounded-full transition-all duration-700", barCls)} style={{ width: `${pct}%` }} />
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {fields.map((f) => (
+          <span
+            key={f.key}
+            className={cn(
+              "text-[9px] font-mono px-1.5 py-0.5 rounded border transition-colors",
+              f.done
+                ? "border-primary/30 bg-primary/10 text-primary"
+                : "border-border/40 bg-muted/10 text-muted-foreground/30 line-through"
+            )}
+          >
+            {f.done ? "✓ " : ""}{f.label}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function CategoryBadge({ category }: { category: string }) {
   return (
     <span className={cn("text-[9px] font-mono font-bold px-1.5 py-0.5 rounded uppercase tracking-wider whitespace-nowrap", CAT_COLORS[category] ?? "text-muted-foreground bg-muted")}>
@@ -619,6 +670,14 @@ export default function ApexProfile() {
           </div>
         );
       })()}
+
+      {/* ── Profile Completeness (E1) ─────────────────────────────────────── */}
+      <ProfileCompleteness
+        entity={entity}
+        assets={assets as any[]}
+        relationships={relationships as any[]}
+        sessions={sessions as any[]}
+      />
 
       {/* ── Body ─────────────────────────────────────────────────────────── */}
       <div className="flex-1 p-4 md:p-6 space-y-4 md:space-y-6">
