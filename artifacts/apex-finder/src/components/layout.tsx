@@ -10,14 +10,14 @@ const navItems = [
   { name: "Intelligence HQ",   href: "/",             icon: Activity },
   { name: "Deep Search",       href: "/deep-search",  icon: BrainCircuit },
   { name: "Network Graph",     href: "/graph",        icon: Network },
-  { name: "Intel Terminal",     href: "/research",     icon: FileTerminal },
+  { name: "Intel Terminal",    href: "/research",     icon: FileTerminal },
   { name: "Pipeline CRM",      href: "/crm",          icon: KanbanSquare },
   { name: "Entity Ledger",     href: "/entities",     icon: Database },
-  { name: "Persona Loop",      href: "/improvements",  icon: Bot },
-  { name: "Duplicates",        href: "/duplicates",    icon: Copy },
-  { name: "Data Sources",      href: "/data-sources",  icon: Radio },
-  { name: "OSINT Tools",       href: "/osint-tools",   icon: Telescope },
-  { name: "Field Manual",      href: "/manual",        icon: BookOpen },
+  { name: "Persona Loop",      href: "/improvements", icon: Bot },
+  { name: "Duplicates",        href: "/duplicates",   icon: Copy },
+  { name: "Data Sources",      href: "/data-sources", icon: Radio },
+  { name: "OSINT Tools",       href: "/osint-tools",  icon: Telescope },
+  { name: "Field Manual",      href: "/manual",       icon: BookOpen },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -39,26 +39,26 @@ export function Layout({ children }: { children: React.ReactNode }) {
       className={cn(
         "flex flex-col bg-card border-r border-border",
         mobile
-          ? "w-72 h-full"
+          ? "w-[min(288px,85vw)] h-full"
           : "w-64 flex-shrink-0 h-full"
       )}
     >
-      <div className="h-14 md:h-16 flex items-center px-5 border-b border-border">
+      <div className="h-14 md:h-16 flex items-center px-5 border-b border-border shrink-0">
         <Crosshair className="h-5 w-5 text-primary mr-3 flex-shrink-0" />
-        <h1 className="text-base md:text-lg font-bold tracking-widest text-primary uppercase font-mono leading-tight">
+        <h1 className="text-base md:text-lg font-bold tracking-widest text-primary uppercase font-mono leading-tight truncate">
           ApexFinder Pro
         </h1>
         {mobile && (
           <button
             onClick={() => setSidebarOpen(false)}
-            className="ml-auto text-muted-foreground hover:text-foreground transition-colors"
+            className="ml-auto text-muted-foreground hover:text-foreground transition-colors shrink-0"
           >
             <X className="h-5 w-5" />
           </button>
         )}
       </div>
 
-      <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
+      <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-track-transparent scrollbar-thumb-[#2A3045]">
         {navItems.map((item) => {
           const isActive =
             location === item.href ||
@@ -68,25 +68,25 @@ export function Layout({ children }: { children: React.ReactNode }) {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center px-3 py-2.5 text-sm font-medium rounded-md transition-colors",
+                "flex items-center px-3 py-2.5 text-sm font-medium transition-colors gap-2.5 border-l-2 rounded-r-md",
                 isActive
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  ? "bg-primary/10 text-primary border-primary"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground border-transparent"
               )}
             >
               <item.icon
                 className={cn(
-                  "h-4 w-4 mr-3 flex-shrink-0",
+                  "h-4 w-4 shrink-0",
                   isActive ? "text-primary" : "text-muted-foreground"
                 )}
               />
-              {item.name}
+              <span className="truncate">{item.name}</span>
             </Link>
           );
         })}
       </nav>
 
-      <div className="p-4 border-t border-border">
+      <div className="p-4 border-t border-border shrink-0">
         <div className="px-3 py-2 text-xs font-mono text-muted-foreground/40 uppercase tracking-widest">
           v0.2 · Private Build
         </div>
@@ -121,16 +121,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
 
         {/* Mobile top bar */}
-        <div className="md:hidden flex items-center h-14 px-4 border-b border-border bg-card flex-shrink-0 z-40">
+        <div className="md:hidden flex items-center h-12 px-4 border-b border-border bg-card flex-shrink-0 z-40">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="text-muted-foreground hover:text-foreground transition-colors mr-3"
+            className="text-muted-foreground hover:text-foreground transition-colors mr-3 shrink-0"
             aria-label="Open menu"
           >
             <Menu className="h-5 w-5" />
           </button>
-          <Crosshair className="h-4 w-4 text-primary mr-2" />
-          <span className="text-sm font-bold tracking-widest text-primary uppercase font-mono">
+          <Crosshair className="h-4 w-4 text-primary mr-2 shrink-0" />
+          <span className="text-sm font-bold tracking-widest text-primary uppercase font-mono truncate">
             ApexFinder Pro
           </span>
         </div>
@@ -140,7 +140,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <div className="flex-shrink-0 bg-amber-950/40 border-b border-amber-600/25 px-3 md:px-4 py-2 flex items-start justify-between z-30 gap-2">
             <div className="flex items-start gap-2 min-w-0">
               <ShieldAlert className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
-              <span className="text-[10px] md:text-[11px] font-mono text-amber-400/80 leading-relaxed">
+              <span className="text-xs font-mono text-amber-400/80 leading-snug">
                 <span className="text-amber-500 font-bold">COMPLIANCE NOTICE:</span>{" "}
                 For professional networking and public-data research only. All data sourced
                 exclusively from public registries and OSINT. Comply with GDPR, CCPA, and all
@@ -166,7 +166,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           }}
         />
 
-        <div className="flex-1 flex flex-col relative z-10 overflow-y-auto min-h-0">
+        <div className="flex-1 flex flex-col relative z-10 overflow-y-auto overflow-x-hidden min-h-0">
           {children}
         </div>
       </main>

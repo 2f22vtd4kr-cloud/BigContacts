@@ -10,13 +10,13 @@ import { cn } from "@/lib/utils";
 import {
   Search, Cpu, Network, Microscope, ShieldCheck,
   ChevronRight, Zap, Clock, Loader2, AlertCircle,
-  Star, TrendingUp, Globe, Database, CheckCircle2,
+  Globe, Database, CheckCircle2,
   SlidersHorizontal, Mail, GitBranch, X as XIcon,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-interface ScoreBreakdown { bm25: number; semantic: number; graph: number; rrf: number; }
+interface ScoreBreakdown { bm25: number; semantic: number; graph: number; embedding?: number; rrf: number; }
 
 interface SearchResult {
   id: number;
@@ -69,14 +69,14 @@ const EXAMPLES = [
 function ScoreBar({ label, value, color }: { label: string; value: number; color: string }) {
   return (
     <div className="flex items-center gap-2">
-      <span className="text-[10px] font-mono text-muted-foreground w-16 flex-shrink-0">{label}</span>
-      <div className="flex-1 h-1 rounded-full bg-muted overflow-hidden">
+      <span className="text-xs font-mono text-muted-foreground w-16 flex-shrink-0">{label}</span>
+      <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
         <div
           className={cn("h-full rounded-full transition-all duration-700", color)}
           style={{ width: `${Math.min(100, value * 100)}%` }}
         />
       </div>
-      <span className="text-[10px] font-mono text-muted-foreground w-8 text-right">
+      <span className="text-xs font-mono text-muted-foreground w-8 text-right shrink-0">
         {(value * 100).toFixed(0)}%
       </span>
     </div>
@@ -100,15 +100,15 @@ interface StepCardProps {
 function StepCard({ icon: Icon, name, description, status, metric, detail, durationMs }: StepCardProps) {
   return (
     <div className={cn(
-      "border rounded-lg p-4 transition-all duration-300",
+      "border rounded-lg p-3 sm:p-4 transition-all duration-300",
       status === "idle"    && "border-border bg-card/20 opacity-50",
       status === "running" && "border-primary/50 bg-primary/5 shadow-[0_0_15px_rgba(16,185,129,0.1)]",
       status === "done"    && "border-emerald-500/30 bg-emerald-500/5",
     )}>
-      <div className="flex items-start justify-between mb-2">
-        <div className="flex items-center gap-2">
+      <div className="flex items-start justify-between mb-2 gap-2">
+        <div className="flex items-center gap-2 min-w-0">
           <div className={cn(
-            "w-6 h-6 rounded flex items-center justify-center flex-shrink-0",
+            "w-6 h-6 rounded flex items-center justify-center shrink-0",
             status === "idle"    && "bg-muted",
             status === "running" && "bg-primary/20",
             status === "done"    && "bg-emerald-500/20",
@@ -122,7 +122,7 @@ function StepCard({ icon: Icon, name, description, status, metric, detail, durat
             )}
           </div>
           <span className={cn(
-            "text-xs font-mono font-bold uppercase tracking-wider",
+            "text-xs font-mono font-bold uppercase tracking-wider truncate",
             status === "idle"    && "text-muted-foreground",
             status === "running" && "text-primary",
             status === "done"    && "text-emerald-400",
@@ -131,18 +131,18 @@ function StepCard({ icon: Icon, name, description, status, metric, detail, durat
           </span>
         </div>
         {durationMs != null && status === "done" && (
-          <span className="text-[10px] font-mono text-muted-foreground flex items-center gap-1">
+          <span className="text-xs font-mono text-muted-foreground flex items-center gap-1 shrink-0">
             <Clock className="w-3 h-3" />{durationMs}ms
           </span>
         )}
       </div>
 
-      <p className="text-[11px] text-muted-foreground font-mono mb-2 leading-relaxed">
+      <p className="hidden sm:block text-xs text-muted-foreground font-mono mb-2 leading-relaxed">
         {status === "idle" ? description : detail ?? description}
       </p>
 
       {metric && status === "done" && (
-        <div className="text-[10px] font-mono text-primary/80 bg-primary/5 rounded px-2 py-1 inline-block">
+        <div className="text-xs font-mono text-primary/80 bg-primary/5 rounded px-2 py-1 inline-block mt-1">
           {metric}
         </div>
       )}
@@ -154,6 +154,7 @@ function StepCard({ icon: Icon, name, description, status, metric, detail, durat
 
 function ResultCard({ result }: { result: SearchResult }) {
   const [expanded, setExpanded] = useState(false);
+  const [expandedScores, setExpandedScores] = useState(false);
 
   const confColor =
     result.confidence === "high"   ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/10" :
@@ -171,25 +172,25 @@ function ResultCard({ result }: { result: SearchResult }) {
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1 min-w-0 mr-3">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-[10px] font-mono text-muted-foreground">#{result.rank}</span>
-            {result.isHot && <Zap className="w-3 h-3 text-amber-500 flex-shrink-0" />}
+          <div className="flex items-center gap-2 mb-1 min-w-0">
+            <span className="text-xs font-mono text-muted-foreground shrink-0">#{result.rank}</span>
+            {result.isHot && <Zap className="w-3 h-3 text-amber-500 shrink-0" />}
             <h3 className="font-bold text-sm text-foreground truncate">{result.name}</h3>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {result.nationality && (
-              <span className="flex items-center gap-1 text-[10px] font-mono text-muted-foreground">
+              <span className="flex items-center gap-1 text-xs font-mono text-muted-foreground">
                 <Globe className="w-3 h-3" />{result.nationality}
               </span>
             )}
             {result.assetCount > 0 && (
-              <span className="flex items-center gap-1 text-[10px] font-mono text-muted-foreground">
+              <span className="flex items-center gap-1 text-xs font-mono text-muted-foreground">
                 <Database className="w-3 h-3" />{result.assetCount} asset{result.assetCount !== 1 ? "s" : ""}
               </span>
             )}
           </div>
         </div>
-        <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+        <div className="flex flex-col items-end gap-1.5 shrink-0">
           <div className={cn(
             "text-xs font-mono font-bold rounded px-2 py-0.5",
             score >= 75 ? "text-emerald-400 bg-emerald-500/10 border border-emerald-500/30" :
@@ -198,7 +199,7 @@ function ResultCard({ result }: { result: SearchResult }) {
           )}>
             {score.toFixed(0)}
           </div>
-          <span className={cn("text-[10px] font-mono rounded border px-1.5 py-0.5", confColor)}>
+          <span className={cn("text-xs font-mono rounded border px-1.5 py-0.5 shrink-0", confColor)}>
             {result.confidence}
           </span>
         </div>
@@ -208,7 +209,7 @@ function ResultCard({ result }: { result: SearchResult }) {
       {result.sourceFlags.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mb-3">
           {result.sourceFlags.map((flag) => (
-            <span key={flag} className="text-[9px] font-mono bg-primary/10 text-primary border border-primary/20 rounded px-1.5 py-0.5 uppercase tracking-wider">
+            <span key={flag} className="text-xs font-mono bg-primary/10 text-primary border border-primary/20 rounded px-1.5 py-0.5 uppercase tracking-wider">
               {flag}
             </span>
           ))}
@@ -219,22 +220,29 @@ function ResultCard({ result }: { result: SearchResult }) {
       <div className="space-y-1.5 mb-3">
         <ScoreBar label="BM25"     value={result.scores.bm25}      color="bg-blue-500" />
         <ScoreBar label="Semantic" value={result.scores.semantic}   color="bg-violet-500" />
-        <ScoreBar label="Graph"    value={result.scores.graph}      color="bg-emerald-500" />
-        <ScoreBar label="Embed"    value={result.scores.embedding ?? 0} color="bg-purple-400" />
-        <ScoreBar label="Final"    value={result.scores.rrf * 10}   color="bg-primary" />
+        <div className={cn("space-y-1.5", !expandedScores && "hidden sm:block")}>
+          <ScoreBar label="Graph"    value={result.scores.graph}      color="bg-emerald-500" />
+          <ScoreBar label="Embed"    value={result.scores.embedding ?? 0} color="bg-purple-400" />
+          <ScoreBar label="Final"    value={result.scores.rrf * 10}   color="bg-primary" />
+        </div>
+        {!expandedScores && (
+          <button onClick={() => setExpandedScores(true)} className="sm:hidden text-xs font-mono text-primary hover:underline">
+            + Show 3 more signals
+          </button>
+        )}
       </div>
 
       {/* Reasoning (expandable) */}
       <button
         onClick={() => setExpanded(!expanded)}
-        className="text-[10px] font-mono text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
+        className="text-xs font-mono text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
       >
         <ChevronRight className={cn("w-3 h-3 transition-transform", expanded && "rotate-90")} />
         Analyst reasoning
       </button>
 
       {expanded && (
-        <div className="mt-2 text-[11px] font-mono text-muted-foreground bg-background/50 border border-border rounded p-2 leading-relaxed">
+        <div className="mt-2 text-xs font-mono text-muted-foreground bg-background/50 border border-border rounded p-2 leading-relaxed">
           {result.reasoning}
         </div>
       )}
@@ -242,7 +250,7 @@ function ResultCard({ result }: { result: SearchResult }) {
       {result.assetTypes.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1">
           {result.assetTypes.map((t) => (
-            <span key={t} className="text-[9px] font-mono bg-muted text-muted-foreground rounded px-1.5 py-0.5">{t}</span>
+            <span key={t} className="text-xs font-mono bg-muted text-muted-foreground rounded px-1.5 py-0.5">{t}</span>
           ))}
         </div>
       )}
@@ -253,11 +261,11 @@ function ResultCard({ result }: { result: SearchResult }) {
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 const ASSET_TYPE_OPTIONS = ["Aviation", "RealEstate", "Marine", "PrivateClub"];
-const JURISDICTION_OPTIONS = [
-  { label: "United States", value: "american" },
-  { label: "United Kingdom", value: "british" },
-  { label: "Norway",         value: "norwegian" },
-  { label: "Other",          value: "other" },
+const SOURCE_OPTIONS = [
+  { label: "FAA Registry", value: "faa" },
+  { label: "SEC EDGAR",    value: "edgar" },
+  { label: "Companies House", value: "ch" },
+  { label: "OpenCorporates", value: "oc" },
 ];
 
 export default function DeepSearch() {
@@ -270,7 +278,7 @@ export default function DeepSearch() {
   // ── Filter state ────────────────────────────────────────────────────────────
   const [filtersOpen,         setFiltersOpen]         = useState(false);
   const [filterAssetTypes,    setFilterAssetTypes]    = useState<string[]>([]);
-  const [filterJurisdictions, setFilterJurisdictions] = useState<string[]>([]);
+  const [filterSources,       setFilterSources]       = useState<string[]>([]);
   const [filterMinScore,      setFilterMinScore]      = useState(0);
   const [filterMaxScore,      setFilterMaxScore]      = useState(100);
   const [filterHasContact,    setFilterHasContact]    = useState(false);
@@ -278,18 +286,18 @@ export default function DeepSearch() {
 
   const activeFilterCount =
     filterAssetTypes.length +
-    filterJurisdictions.length +
+    filterSources.length +
     (filterMinScore > 0 || filterMaxScore < 100 ? 1 : 0) +
     (filterHasContact ? 1 : 0) +
     (filterHasRelationship ? 1 : 0);
 
   const toggleAssetType = (t: string) =>
     setFilterAssetTypes((prev) => prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]);
-  const toggleJurisdiction = (v: string) =>
-    setFilterJurisdictions((prev) => prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]);
+  const toggleSource = (v: string) =>
+    setFilterSources((prev) => prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]);
 
   const resetFilters = () => {
-    setFilterAssetTypes([]); setFilterJurisdictions([]);
+    setFilterAssetTypes([]); setFilterSources([]);
     setFilterMinScore(0); setFilterMaxScore(100);
     setFilterHasContact(false); setFilterHasRelationship(false);
   };
@@ -318,7 +326,7 @@ export default function DeepSearch() {
           query: trimmed,
           limit: 20,
           filterAssetTypes,
-          filterJurisdictions,
+          filterSources,
           filterMinScore: filterMinScore / 100,
           filterMaxScore: filterMaxScore / 100,
           filterHasContact,
@@ -352,7 +360,7 @@ export default function DeepSearch() {
             Intelligent Deep Search
           </h1>
           {result && (
-            <span className="text-[10px] font-mono text-muted-foreground ml-auto flex items-center gap-1">
+            <span className="text-xs font-mono text-muted-foreground ml-auto flex items-center gap-1">
               <Clock className="w-3 h-3" />{result.totalMs}ms total
               {result.cached && " · cached"}
             </span>
@@ -363,14 +371,14 @@ export default function DeepSearch() {
         </p>
 
         {/* Search bar */}
-        <form onSubmit={handleSubmit} className="flex gap-3">
-          <div className="flex-1 relative">
+        <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3">
+          <div className="flex-1 relative w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
             <input
               ref={inputRef}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="e.g. US private jet owners in Texas, British directors, SEC 13D filers…"
+              placeholder="e.g. US private jet owners in Texas, British directors…"
               className="w-full bg-background border border-border rounded-lg pl-10 pr-4 py-2.5 text-sm font-mono text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary transition-colors"
             />
           </div>
@@ -378,7 +386,7 @@ export default function DeepSearch() {
             type="submit"
             disabled={loading || !query.trim()}
             className={cn(
-              "flex items-center gap-2 px-5 py-2.5 rounded-lg font-mono text-xs uppercase tracking-wider font-bold transition-all",
+              "flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-mono text-xs uppercase tracking-wider font-bold transition-all shrink-0",
               loading || !query.trim()
                 ? "bg-muted text-muted-foreground cursor-not-allowed"
                 : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_15px_rgba(16,185,129,0.3)]",
@@ -394,7 +402,7 @@ export default function DeepSearch() {
           <button
             onClick={() => setFiltersOpen((v) => !v)}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border font-mono text-[11px] uppercase tracking-wider transition-all",
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border font-mono text-xs uppercase tracking-wider transition-all",
               filtersOpen || activeFilterCount > 0
                 ? "bg-primary/10 border-primary/50 text-primary"
                 : "border-border text-muted-foreground hover:text-foreground",
@@ -403,7 +411,7 @@ export default function DeepSearch() {
             <SlidersHorizontal className="w-3 h-3" />
             Filters
             {activeFilterCount > 0 && (
-              <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-primary text-primary-foreground text-[9px] font-bold leading-none">
+              <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold leading-none">
                 {activeFilterCount}
               </span>
             )}
@@ -411,7 +419,7 @@ export default function DeepSearch() {
           {activeFilterCount > 0 && (
             <button
               onClick={resetFilters}
-              className="flex items-center gap-1 text-[10px] font-mono text-muted-foreground hover:text-destructive transition-colors"
+              className="flex items-center gap-1 text-xs font-mono text-muted-foreground hover:text-destructive transition-colors"
             >
               <XIcon className="w-3 h-3" /> Reset
             </button>
@@ -423,14 +431,14 @@ export default function DeepSearch() {
           <div className="mt-3 p-4 bg-background border border-border rounded-lg space-y-4">
             {/* Asset types */}
             <div>
-              <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-2">Asset Type</div>
+              <div className="text-xs font-mono text-muted-foreground uppercase tracking-widest mb-2">Asset Type</div>
               <div className="flex flex-wrap gap-2">
                 {ASSET_TYPE_OPTIONS.map((t) => (
                   <button
                     key={t}
                     onClick={() => toggleAssetType(t)}
                     className={cn(
-                      "px-2.5 py-1 rounded border text-[10px] font-mono font-bold uppercase transition-all",
+                      "px-2.5 py-1 rounded border text-xs font-mono font-bold uppercase transition-all",
                       filterAssetTypes.includes(t)
                         ? "bg-secondary/20 border-secondary text-secondary"
                         : "border-border text-muted-foreground hover:border-secondary/50",
@@ -442,17 +450,17 @@ export default function DeepSearch() {
               </div>
             </div>
 
-            {/* Jurisdictions */}
+            {/* Sources */}
             <div>
-              <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-2">Jurisdiction</div>
+              <div className="text-xs font-mono text-muted-foreground uppercase tracking-widest mb-2">Sources</div>
               <div className="flex flex-wrap gap-2">
-                {JURISDICTION_OPTIONS.map((j) => (
+                {SOURCE_OPTIONS.map((j) => (
                   <button
                     key={j.value}
-                    onClick={() => toggleJurisdiction(j.value)}
+                    onClick={() => toggleSource(j.value)}
                     className={cn(
-                      "px-2.5 py-1 rounded border text-[10px] font-mono font-bold uppercase transition-all",
-                      filterJurisdictions.includes(j.value)
+                      "px-2.5 py-1 rounded border text-xs font-mono font-bold uppercase transition-all",
+                      filterSources.includes(j.value)
                         ? "bg-blue-500/20 border-blue-500 text-blue-400"
                         : "border-border text-muted-foreground hover:border-blue-500/50",
                     )}
@@ -465,7 +473,7 @@ export default function DeepSearch() {
 
             {/* Score range */}
             <div>
-              <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-2">
+              <div className="text-xs font-mono text-muted-foreground uppercase tracking-widest mb-2">
                 Bayesian Score: {filterMinScore}% – {filterMaxScore}%
               </div>
               <div className="flex items-center gap-3">
@@ -484,7 +492,7 @@ export default function DeepSearch() {
                 <input type="checkbox" checked={filterHasContact} onChange={(e) => setFilterHasContact(e.target.checked)}
                   className="w-3.5 h-3.5 accent-primary rounded" />
                 <Mail className="w-3 h-3 text-primary" />
-                <span className="text-[11px] font-mono text-muted-foreground group-hover:text-foreground transition-colors">
+                <span className="text-xs font-mono text-muted-foreground group-hover:text-foreground transition-colors">
                   Has direct contact
                 </span>
               </label>
@@ -492,7 +500,7 @@ export default function DeepSearch() {
                 <input type="checkbox" checked={filterHasRelationship} onChange={(e) => setFilterHasRelationship(e.target.checked)}
                   className="w-3.5 h-3.5 accent-primary rounded" />
                 <GitBranch className="w-3 h-3 text-secondary" />
-                <span className="text-[11px] font-mono text-muted-foreground group-hover:text-foreground transition-colors">
+                <span className="text-xs font-mono text-muted-foreground group-hover:text-foreground transition-colors">
                   Has mapped relationships
                 </span>
               </label>
@@ -507,7 +515,7 @@ export default function DeepSearch() {
               <button
                 key={ex}
                 onClick={() => { setQuery(ex); run(ex); }}
-                className="text-[10px] font-mono text-muted-foreground border border-border rounded-full px-3 py-1 hover:border-primary hover:text-primary transition-colors"
+                className="text-xs font-mono text-muted-foreground border border-border rounded-full px-3 py-1 hover:border-primary hover:text-primary transition-colors"
               >
                 {ex}
               </button>
@@ -543,7 +551,7 @@ export default function DeepSearch() {
 
             {/* Left: pipeline steps */}
             <div className="w-80 xl:w-96 flex-shrink-0 border-r border-border p-5 overflow-y-auto space-y-3">
-              <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-4">
+              <div className="text-xs font-mono text-muted-foreground uppercase tracking-widest mb-4">
                 Agent Pipeline
               </div>
 
@@ -595,7 +603,7 @@ export default function DeepSearch() {
 
               {result && (
                 <div className="pt-3 border-t border-border">
-                  <div className="text-[10px] font-mono text-muted-foreground space-y-1">
+                  <div className="text-xs font-mono text-muted-foreground space-y-1">
                     <div className="flex justify-between">
                       <span>Total time</span>
                       <span className="text-foreground">{result.totalMs}ms</span>
@@ -616,25 +624,41 @@ export default function DeepSearch() {
             {/* Right: results */}
             <div className="flex-1 overflow-y-auto p-5">
               {loading && !result && (
-                <div className="flex flex-col items-center justify-center h-full text-center">
-                  <Loader2 className="w-8 h-8 text-primary animate-spin mb-4" />
-                  <p className="text-sm font-mono text-muted-foreground">
-                    Building BM25 index · Running TF-IDF cosine · Fusing signals…
-                  </p>
+                <div className="space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="border border-border bg-card/30 rounded-lg p-4 animate-pulse">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2 w-1/2">
+                          <div className="w-6 h-4 bg-muted rounded shrink-0"></div>
+                          <div className="h-4 bg-muted rounded w-full max-w-[200px]"></div>
+                        </div>
+                        <div className="w-10 h-5 bg-muted rounded shrink-0"></div>
+                      </div>
+                      <div className="flex gap-2 mb-4">
+                        <div className="w-16 h-3 bg-muted rounded"></div>
+                        <div className="w-20 h-3 bg-muted rounded"></div>
+                      </div>
+                      <div className="space-y-2 mb-4">
+                        <div className="w-full h-1.5 bg-muted rounded-full"></div>
+                        <div className="w-full h-1.5 bg-muted rounded-full"></div>
+                        <div className="w-full h-1.5 bg-muted rounded-full"></div>
+                      </div>
+                      <div className="w-32 h-3 bg-muted rounded mt-2"></div>
+                    </div>
+                  ))}
                 </div>
               )}
 
               {result && result.results.length > 0 && (
                 <>
                   <div className="flex items-center justify-between mb-4">
-                    <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">
+                    <div className="text-xs font-mono text-muted-foreground uppercase tracking-widest">
                       {result.results.length} result{result.results.length !== 1 ? "s" : ""} — ranked by RRF fusion
                     </div>
-                    <div className="flex items-center gap-3 text-[10px] font-mono text-muted-foreground">
+                    <div className="flex items-center gap-3 text-xs font-mono text-muted-foreground">
                       <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />BM25</span>
                       <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-violet-500 inline-block" />Semantic</span>
-                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />Graph</span>
-                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-primary inline-block" />Final</span>
+                      <span className="hidden sm:flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />Graph</span>
                     </div>
                   </div>
 
@@ -652,14 +676,9 @@ export default function DeepSearch() {
         {/* Initial state */}
         {!loading && !result && !error && (
           <div className="flex flex-col items-center justify-center h-full text-center px-8">
-            <Network className="w-12 h-12 text-primary/20 mb-4" />
-            <h2 className="text-sm font-mono font-bold text-foreground mb-2 uppercase tracking-widest">
-              Hybrid Intelligence Search
-            </h2>
-            <p className="text-xs font-mono text-muted-foreground max-w-md leading-relaxed">
-              Type a natural-language query above. The engine decomposes it through four agents,
-              fuses BM25 keyword, TF-IDF semantic, and Bayesian graph signals via RRF,
-              and returns ranked results with per-signal score breakdown.
+            <Search className="w-12 h-12 text-muted-foreground mb-4 opacity-30" />
+            <p className="text-sm font-mono text-muted-foreground">
+              Run a search to find entities
             </p>
           </div>
         )}

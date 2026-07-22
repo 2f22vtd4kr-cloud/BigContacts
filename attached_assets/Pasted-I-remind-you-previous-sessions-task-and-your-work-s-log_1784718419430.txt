@@ -1,0 +1,21 @@
+I remind you previous sessions task and your work’s logs:
+“Good. Now, go with Canvas and update UI/UX and also update the field manual. In these recent re-imports we worked quite a lot and website is becoming messy and needs brushing and polishing. As well as updated info on new stuff in field manual. Make sure everything looks clean, sharp and intuitive especially on mobile view website. Use full capacity of Canvas.
+Canvas is empty. Placing building placeholders first, then reading the design skill and exploring the codebase in parallel.
+Starting mockup sandbox and reading the key source files in parallel.
+Good, sandbox is running. Let me verify the mockup directory and get a quick read of the Profile and Manual before launching 3 parallel design subagents.
+Everything I need is clear. Launching 3 parallel DESIGN subagents for the canvas rows while I read the Field Manual sections that need updating.
+Subagents are building. I'll update the Field Manual now while they run — reading the later sections first to understand the full scope.
+I now have the full picture. Let me update the Field Manual with all the new content while the design subagents continue building. Batching all the edits.
+Old manual workflows failing is expected — managed workflows are fine. Continuing Field Manual edits in parallel batches. Placing canvas building placeholders first, then launching everything in parallel.
+6 placeholders live. Now reading key files and mockup-sandbox skill in parallel.
+Good picture. Starting mockup sandbox and reading profile/entities in parallel while I finalize the design briefs.
+I have everything. Domain is 4c8c2275-1c1a-4cf0-9276-e3ccd317c564-00-2ggx0i8d4rax4.spock.replit.dev. Launching 3 parallel DESIGN subagents and reading Field Manual middle sections simultaneously.
+All 3 subagents running. Now updating the Field Manual — adding Level XI Phase G section and improving Level VIII with Deep Web OSINT while the subagents build.
+Now doing all Field Manual edits in parallel — adding Level XI Phase G section, Deep Web OSINT to Level VIII, and data count updates.
+Subagent B done — nav and ledger are live. Fixing the failed edit and adding Level XI Section now, while waiting for A and C.
+All 3 subagents finished. Now checking that the manual.tsx imports cover everything I added in Level XI, and verifying the web app builds cleanly.
+Good — web frontend HMR is applying cleanly, API server healthy with embeddings running. Now I need to verify the Steps and Code helper components exist in manual.tsx since I used them in Level XI.”
+
+
+Keep going doubling down on work quality
+

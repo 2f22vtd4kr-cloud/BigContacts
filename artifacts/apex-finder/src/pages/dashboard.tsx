@@ -44,6 +44,15 @@ function MapInvalidator({ active }: { active: boolean }) {
   return null;
 }
 
+function getTypeBadgeStyles(type: string) {
+  const t = type?.toLowerCase() || "";
+  if (t.includes("hnwi") || t.includes("person")) return "text-violet-400 border-violet-400/20 bg-violet-400/10";
+  if (t.includes("corp") || t.includes("company")) return "text-blue-400 border-blue-400/20 bg-blue-400/10";
+  if (t.includes("trust")) return "text-amber-400 border-amber-400/20 bg-amber-400/10";
+  if (t.includes("american")) return "text-rose-400 border-rose-400/20 bg-rose-400/10";
+  return "text-muted-foreground border-border bg-card";
+}
+
 // ── Ingestion Engine Panel ────────────────────────────────────────────────────
 
 interface JobState {
@@ -66,7 +75,6 @@ const EMPTY_JOB: JobState = {
 interface IngestionPanelProps {
   onComplete: () => void;
   source?: "western-hnwi" | "faa";
-  /** If set, auto-starts ingestion for this source on mount (when panel first mounts in empty-state mode) */
   autoStart?: "western-hnwi" | "faa";
 }
 
@@ -132,7 +140,6 @@ function IngestionPanel({ onComplete, source = "western-hnwi", autoStart }: Inge
     }
   };
 
-  // Auto-start when launched from EmptyState
   useEffect(() => {
     if (autoStart && !autoStartedRef.current) {
       autoStartedRef.current = true;
@@ -150,37 +157,37 @@ function IngestionPanel({ onComplete, source = "western-hnwi", autoStart }: Inge
   return (
     <div className="border-t border-border bg-card/30 px-4 py-3 flex-shrink-0">
       <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <Zap className="w-3.5 h-3.5 text-primary" />
-          <span className="text-xs font-mono font-bold uppercase tracking-widest text-primary">
+        <div className="flex items-center gap-2 min-w-0">
+          <Zap className="w-3.5 h-3.5 text-primary shrink-0" />
+          <span className="text-xs font-mono font-bold uppercase tracking-widest text-primary truncate">
             {source === "faa" ? "FAA Aircraft Registry" : "Western HNWI Engine"}
           </span>
-          {isDone && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />}
-          {isFailed && <XCircle className="w-3.5 h-3.5 text-destructive" />}
+          {isDone && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />}
+          {isFailed && <XCircle className="w-3.5 h-3.5 text-destructive shrink-0" />}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0 ml-2">
           {isDone && (
-            <span className="text-[10px] font-mono text-emerald-500">
-              +{job.inserted.toLocaleString()} records
+            <span className="text-[10px] font-mono text-emerald-500 whitespace-nowrap">
+              +{job.inserted.toLocaleString()}
             </span>
           )}
           {job.dedupCount > 0 && (
-            <span className="text-[10px] font-mono text-muted-foreground">
+            <span className="text-[10px] font-mono text-muted-foreground whitespace-nowrap">
               {job.dedupCount.toLocaleString()} deduped
             </span>
           )}
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
         {/* Target selector */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 w-full sm:w-auto">
           <span className="text-[10px] font-mono text-muted-foreground">TARGET</span>
           <select
             value={targetCount}
             onChange={(e) => setTargetCount(Number(e.target.value))}
             disabled={isRunning}
-            className="bg-background border border-border rounded px-2 py-1 text-xs font-mono text-foreground focus:outline-none focus:border-primary disabled:opacity-50"
+            className="bg-background border border-border rounded px-2 py-1 text-xs font-mono text-foreground focus:outline-none focus:border-primary disabled:opacity-50 flex-1 sm:flex-none"
           >
             <option value={500}>500</option>
             <option value={1000}>1,000</option>
@@ -196,19 +203,19 @@ function IngestionPanel({ onComplete, source = "western-hnwi", autoStart }: Inge
           onClick={() => startIngestion()}
           disabled={isRunning}
           className={cn(
-            "flex items-center gap-1.5 px-3 py-1.5 rounded font-mono text-xs uppercase tracking-wider transition-all",
+            "flex items-center justify-center sm:justify-start gap-1.5 px-3 py-1.5 rounded font-mono text-xs uppercase tracking-wider transition-all w-full sm:w-auto",
             isRunning
               ? "bg-muted text-muted-foreground cursor-not-allowed"
               : "bg-primary text-primary-foreground hover:bg-primary/90",
           )}
         >
-          {isRunning ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
-          {isRunning ? "Running…" : "Ingest"}
+          {isRunning ? <Loader2 className="w-3 h-3 animate-spin shrink-0" /> : <Play className="w-3 h-3 shrink-0" />}
+          <span className="truncate">{isRunning ? "Running…" : "Ingest"}</span>
         </button>
 
         {/* Progress bar */}
         {(isRunning || isDone) && (
-          <div className="flex-1 flex items-center gap-2">
+          <div className="w-full sm:flex-1 flex items-center gap-2">
             <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
               <div
                 className="h-full rounded-full bg-primary transition-all duration-500"
@@ -223,7 +230,7 @@ function IngestionPanel({ onComplete, source = "western-hnwi", autoStart }: Inge
 
         {/* Status message */}
         {job.message && !isRunning && (
-          <span className={cn("text-[10px] font-mono", isFailed ? "text-destructive" : "text-muted-foreground")}>
+          <span className={cn("text-[10px] font-mono truncate w-full sm:w-auto", isFailed ? "text-destructive" : "text-muted-foreground")}>
             {job.message}
           </span>
         )}
@@ -232,7 +239,7 @@ function IngestionPanel({ onComplete, source = "western-hnwi", autoStart }: Inge
         {job.log.length > 0 && (
           <button
             onClick={() => setShowLog(!showLog)}
-            className="text-[10px] font-mono text-muted-foreground hover:text-foreground underline"
+            className="text-[10px] font-mono text-muted-foreground hover:text-foreground underline whitespace-nowrap"
           >
             {showLog ? "hide log" : "log"}
           </button>
@@ -272,33 +279,33 @@ function EmptyState({ onIngest }: { onIngest: (mode: "western-hnwi" | "faa") => 
       <div className="grid sm:grid-cols-2 gap-4 w-full max-w-xl">
         <button
           onClick={() => onIngest("faa")}
-          className="flex flex-col items-start gap-2 p-4 border border-border rounded-lg bg-card/50 hover:border-primary hover:bg-card transition-all text-left group"
+          className="flex flex-col items-start gap-2 p-4 border border-border rounded-lg bg-card/50 hover:border-primary hover:bg-card transition-all text-left group min-w-0"
         >
-          <div className="flex items-center gap-2 text-primary">
-            <Globe className="w-4 h-4" />
-            <span className="text-xs font-mono font-bold uppercase tracking-wider">FAA Aircraft Registry</span>
+          <div className="flex items-center gap-2 text-primary w-full">
+            <Globe className="w-4 h-4 shrink-0" />
+            <span className="text-xs font-mono font-bold uppercase tracking-wider truncate">FAA Aircraft Registry</span>
           </div>
           <p className="text-xs font-mono text-muted-foreground leading-relaxed">
             Ingest real US private jet &amp; helicopter owners from the FAA Releasable Aircraft Database.
             Turbine-powered aircraft = highest HNWI signal.
           </p>
-          <div className="text-[10px] font-mono text-primary/60 group-hover:text-primary transition-colors">
+          <div className="text-[10px] font-mono text-primary/60 group-hover:text-primary transition-colors mt-auto pt-2 truncate w-full">
             ~70MB · daily updated · 30k+ records →
           </div>
         </button>
 
         <button
           onClick={() => onIngest("western-hnwi")}
-          className="flex flex-col items-start gap-2 p-4 border border-border rounded-lg bg-card/50 hover:border-primary hover:bg-card transition-all text-left group"
+          className="flex flex-col items-start gap-2 p-4 border border-border rounded-lg bg-card/50 hover:border-primary hover:bg-card transition-all text-left group min-w-0"
         >
-          <div className="flex items-center gap-2 text-primary">
-            <Users className="w-4 h-4" />
-            <span className="text-xs font-mono font-bold uppercase tracking-wider">Western HNWI Engine</span>
+          <div className="flex items-center gap-2 text-primary w-full">
+            <Users className="w-4 h-4 shrink-0" />
+            <span className="text-xs font-mono font-bold uppercase tracking-wider truncate">Western HNWI Engine</span>
           </div>
           <p className="text-xs font-mono text-muted-foreground leading-relaxed">
             Harvest real individuals from SEC EDGAR (SC 13D/G, DEF 14A), UK Companies House, and BRREG Norway.
           </p>
-          <div className="text-[10px] font-mono text-primary/60 group-hover:text-primary transition-colors">
+          <div className="text-[10px] font-mono text-primary/60 group-hover:text-primary transition-colors mt-auto pt-2 truncate w-full">
             Live API · no download · beneficial owners →
           </div>
         </button>
@@ -314,57 +321,71 @@ function EmptyState({ onIngest }: { onIngest: (mode: "western-hnwi" | "faa") => 
 // ── Stats bar ─────────────────────────────────────────────────────────────────
 
 function StatsBar() {
-  const { data: stats } = useGetDashboardStats();
+  const { data: stats, isLoading } = useGetDashboardStats();
+
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-3 md:grid-cols-7 border-b border-border bg-card/50 backdrop-blur-md sticky top-0 z-20">
+        {Array.from({ length: 7 }).map((_, i) => (
+          <div key={i} className="flex flex-col px-3 py-2.5 border-r border-b md:border-b-0 border-border min-w-0">
+            <div className="h-3 w-16 bg-[#1E2332] animate-pulse rounded mb-2" />
+            <div className="h-6 w-20 bg-[#1E2332] animate-pulse rounded" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   if (!stats) return null;
   const s = stats as any;
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-7 gap-0 border-b border-border bg-card/50 backdrop-blur-md sticky top-0 z-20">
-      <div className="flex flex-col px-3 py-2.5 border-r border-border border-b md:border-b-0">
-        <span className="text-[9px] md:text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1">
-          <Database className="w-2.5 h-2.5" /> Entities
+    <div className="grid grid-cols-3 md:grid-cols-7 border-b border-border bg-card/50 backdrop-blur-md sticky top-0 z-20">
+      <div className="flex flex-col px-3 py-2.5 border-r border-b md:border-b-0 border-border min-w-0">
+        <span className="text-[9px] md:text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1 truncate">
+          <Database className="w-2.5 h-2.5 shrink-0" /> <span className="truncate">Entities</span>
         </span>
-        <span className="text-lg md:text-xl font-bold text-foreground">{s.totalEntities?.toLocaleString()}</span>
+        <span className="text-lg md:text-xl font-bold text-foreground truncate">{s.totalEntities?.toLocaleString()}</span>
       </div>
-      <div className="flex flex-col px-3 py-2.5 border-r border-border border-b md:border-b-0">
-        <span className="text-[9px] md:text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1">
-          <MapPin className="w-2.5 h-2.5" /> Assets
+      <div className="flex flex-col px-3 py-2.5 border-r border-b md:border-b-0 border-border min-w-0">
+        <span className="text-[9px] md:text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1 truncate">
+          <MapPin className="w-2.5 h-2.5 shrink-0" /> <span className="truncate">Assets</span>
         </span>
-        <span className="text-lg md:text-xl font-bold text-foreground">{s.totalAssets?.toLocaleString()}</span>
+        <span className="text-lg md:text-xl font-bold text-foreground truncate">{s.totalAssets?.toLocaleString()}</span>
       </div>
-      <div className="flex flex-col px-3 py-2.5 border-r border-border border-b md:border-b-0">
-        <span className="text-[9px] md:text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1">
-          <Globe className="w-2.5 h-2.5 text-blue-400" /> W-HNWIs
+      <div className="flex flex-col px-3 py-2.5 border-r border-b md:border-b-0 border-border min-w-0">
+        <span className="text-[9px] md:text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1 truncate">
+          <Globe className="w-2.5 h-2.5 text-blue-400 shrink-0" /> <span className="truncate">W-HNWIs</span>
         </span>
-        <span className="text-lg md:text-xl font-bold text-blue-400">
+        <span className="text-lg md:text-xl font-bold text-blue-400 truncate">
           {(s.westernHnwiCount ?? 0).toLocaleString()}
         </span>
       </div>
-      <div className="flex flex-col px-3 py-2.5 border-r border-border border-b sm:border-b-0">
-        <span className="text-[9px] md:text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1">
-          <Activity className="w-2.5 h-2.5" /> Signal Avg
+      <div className="flex flex-col px-3 py-2.5 border-r border-b md:border-b-0 border-border min-w-0">
+        <span className="text-[9px] md:text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1 truncate">
+          <Activity className="w-2.5 h-2.5 shrink-0" /> <span className="truncate">Signal Avg</span>
         </span>
-        <span className="text-lg md:text-xl font-bold text-primary">
+        <span className="text-lg md:text-xl font-bold text-primary truncate">
           {((s.avgBayesianScore ?? 0) * 100).toFixed(1)}%
         </span>
       </div>
-      <div className="flex flex-col px-3 py-2.5 border-r border-border">
-        <span className="text-[9px] md:text-[10px] font-mono text-amber-500 uppercase tracking-wider mb-1 flex items-center gap-1">
-          <AlertTriangle className="w-2.5 h-2.5" /> Hot Leads
+      <div className="flex flex-col px-3 py-2.5 border-r border-b sm:border-b-0 border-border min-w-0">
+        <span className="text-[9px] md:text-[10px] font-mono text-amber-500 uppercase tracking-wider mb-1 flex items-center gap-1 truncate">
+          <AlertTriangle className="w-2.5 h-2.5 shrink-0" /> <span className="truncate">Hot Leads</span>
         </span>
-        <span className="text-lg md:text-xl font-bold text-amber-500">{s.hotLeadsCount?.toLocaleString()}</span>
+        <span className="text-lg md:text-xl font-bold text-amber-500 truncate">{s.hotLeadsCount?.toLocaleString()}</span>
       </div>
-      <div className="flex flex-col px-3 py-2.5 border-r border-border">
-        <span className="text-[9px] md:text-[10px] font-mono text-emerald-400 uppercase tracking-wider mb-1 flex items-center gap-1">
-          <Mail className="w-2.5 h-2.5" /> Contactable
+      <div className="flex flex-col px-3 py-2.5 border-r border-border min-w-0">
+        <span className="text-[9px] md:text-[10px] font-mono text-emerald-400 uppercase tracking-wider mb-1 flex items-center gap-1 truncate">
+          <Mail className="w-2.5 h-2.5 shrink-0" /> <span className="truncate">Contactable</span>
         </span>
-        <span className="text-lg md:text-xl font-bold text-emerald-400">{(s.contactableCount ?? 0).toLocaleString()}</span>
+        <span className="text-lg md:text-xl font-bold text-emerald-400 truncate">{(s.contactableCount ?? 0).toLocaleString()}</span>
       </div>
-      <div className="flex flex-col px-3 py-2.5">
-        <span className="text-[9px] md:text-[10px] font-mono text-cyan-400 uppercase tracking-wider mb-1 flex items-center gap-1">
-          <Phone className="w-2.5 h-2.5" /> Enriched %
+      <div className="flex flex-col px-3 py-2.5 min-w-0">
+        <span className="text-[9px] md:text-[10px] font-mono text-cyan-400 uppercase tracking-wider mb-1 flex items-center gap-1 truncate">
+          <Phone className="w-2.5 h-2.5 shrink-0" /> <span className="truncate">Enriched %</span>
         </span>
-        <span className="text-lg md:text-xl font-bold text-cyan-400">
+        <span className="text-lg md:text-xl font-bold text-cyan-400 truncate">
           {(s.enrichmentCoverage ?? 0).toFixed(1)}%
         </span>
       </div>
@@ -374,7 +395,21 @@ function StatsBar() {
 
 // ── Wealth Tier Bar (F3) ──────────────────────────────────────────────────────
 function WealthTierBar() {
-  const { data: stats } = useGetDashboardStats();
+  const { data: stats, isLoading } = useGetDashboardStats();
+  
+  if (isLoading) {
+    return (
+      <div className="px-3 py-2 border-b border-border bg-card/30 flex items-center gap-3">
+        <div className="h-2.5 w-24 bg-[#1E2332] animate-pulse rounded hidden sm:block" />
+        <div className="flex h-1.5 rounded-full flex-1 gap-px bg-[#1E2332] animate-pulse" />
+        <div className="flex items-center gap-x-4 gap-y-1 flex-wrap flex-shrink-0">
+          <div className="h-2.5 w-16 bg-[#1E2332] animate-pulse rounded" />
+          <div className="h-2.5 w-16 bg-[#1E2332] animate-pulse rounded" />
+        </div>
+      </div>
+    );
+  }
+
   const s = stats as any;
   const tiers = s?.wealthTiers;
   if (!tiers || (tiers.ultraHnw + tiers.veryHnw + tiers.hnw + tiers.unknown) === 0) return null;
@@ -387,16 +422,16 @@ function WealthTierBar() {
     { label: "Unknown",        val: tiers.unknown,   cls: "bg-muted/60",  textCls: "text-muted-foreground" },
   ];
   return (
-    <div className="px-3 py-2 border-b border-border bg-card/30 flex items-center gap-3">
-      <span className="text-[9px] font-mono text-muted-foreground/60 uppercase tracking-widest whitespace-nowrap hidden sm:block">Wealth Tiers</span>
+    <div className="px-3 py-2 border-b border-border bg-card/30 flex items-center gap-3 min-w-0">
+      <span className="text-[9px] font-mono text-muted-foreground/60 uppercase tracking-widest whitespace-nowrap hidden sm:block shrink-0">Wealth Tiers</span>
       <div className="flex h-1.5 rounded-full overflow-hidden flex-1 gap-px">
         {segments.map((seg) => (
           <div key={seg.label} className={cn("h-full transition-all duration-700", seg.cls)} style={{ width: `${pct(seg.val)}%` }} />
         ))}
       </div>
-      <div className="flex items-center gap-3 flex-shrink-0">
+      <div className="flex items-center gap-x-4 gap-y-1 flex-wrap shrink-0">
         {segments.filter(s => s.val > 0).map((seg) => (
-          <span key={seg.label} className={cn("text-[9px] font-mono whitespace-nowrap hidden md:inline", seg.textCls)}>
+          <span key={seg.label} className={cn("text-[9px] font-mono whitespace-nowrap", seg.textCls)}>
             {seg.label.split(" ")[0]}: {seg.val.toLocaleString()}
           </span>
         ))}
@@ -408,14 +443,14 @@ function WealthTierBar() {
 // ── Main dashboard ────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
-  const { data: mapData } = useGetMapData();
-  const { data: hotLeads, refetch: refetchLeads } = useGetHotLeads({ limit: 10 });
-  const { data: stats, refetch: refetchStats } = useGetDashboardStats();
+  const { data: mapData, isLoading: isLoadingMap } = useGetMapData();
+  const { data: hotLeads, refetch: refetchLeads, isLoading: isLoadingLeads } = useGetHotLeads({ limit: 10 });
+  const { data: stats, refetch: refetchStats, isLoading: isLoadingStats } = useGetDashboardStats();
   const [mobileTab, setMobileTab] = useState<"map" | "signals">("signals");
   const [ingestionSource, setIngestionSource] = useState<"western-hnwi" | "faa">("western-hnwi");
 
   const s = stats as any;
-  const isEmpty = s != null && (s.totalEntities ?? 0) === 0;
+  const isEmpty = s != null && (s.totalEntities ?? 0) === 0 && !isLoadingStats;
 
   const handleIngestionComplete = useCallback(() => {
     // Refresh stats and hot leads after ingestion finishes
@@ -442,6 +477,8 @@ export default function Dashboard() {
     );
   }
 
+  const mapHasData = Array.isArray(mapData) && mapData.length > 0;
+
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <StatsBar />
@@ -451,94 +488,134 @@ export default function Dashboard() {
       <div className="hidden md:flex flex-1 overflow-hidden">
         {/* Left: global asset map */}
         <div className="flex-1 relative">
-          <MapContainer
-            center={[30, 10]}
-            zoom={2}
-            style={{ height: "100%", width: "100%", background: "#0B0F19" }}
-            zoomControl={false}
-          >
-            <TileLayer
-              url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-              attribution='&copy; <a href="https://carto.com/">CARTO</a>'
-            />
-            {Array.isArray(mapData) && mapData.map((point: any) => (
-              <Marker
-                key={point.id}
-                position={[point.latitude, point.longitude]}
-                icon={createCustomIcon(point.category)}
-              >
-                <Popup className="apex-popup">
-                  <div className="text-xs font-mono bg-card text-foreground p-2 rounded min-w-[200px]">
-                    <div className="font-bold text-primary mb-1">{point.identifier}</div>
-                    <div className="text-muted-foreground">{point.category} · {point.jurisdiction}</div>
-                    {point.ownerName && <div className="mt-1 text-foreground/80">↳ {point.ownerName}</div>}
-                    {point.estimatedValue && (
-                      <div className="text-primary mt-1">{formatCurrency(point.estimatedValue)}</div>
-                    )}
-                  </div>
-                </Popup>
-              </Marker>
-            ))}
-          </MapContainer>
-
-          {/* Map legend */}
-          <div className="absolute bottom-6 left-4 bg-card/90 border border-border rounded-lg px-3 py-2 backdrop-blur-sm z-[1000]">
-            <div className="flex items-center gap-4">
-              {[
-                { label: "Real Estate", color: "#10B981" },
-                { label: "Marine",      color: "#F59E0B" },
-                { label: "Aviation",    color: "#A855F7" },
-                { label: "Other",       color: "#3B82F6" },
-              ].map(({ label, color }) => (
-                <div key={label} className="flex items-center gap-1.5">
-                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
-                  <span className="text-[10px] font-mono text-muted-foreground">{label}</span>
-                </div>
-              ))}
+          {isLoadingMap ? (
+            <div className="w-full h-full min-h-[300px] flex flex-col items-center justify-center bg-[#0B0F19]">
+              <div className="w-16 h-16 rounded-full bg-[#1E2332] animate-pulse flex items-center justify-center mb-4">
+                <MapPin className="w-6 h-6 text-muted-foreground/30" />
+              </div>
+              <div className="h-4 w-48 bg-[#1E2332] animate-pulse rounded mb-2" />
+              <div className="h-3 w-64 bg-[#1E2332] animate-pulse rounded" />
             </div>
-          </div>
+          ) : !mapHasData ? (
+            <div className="w-full h-full min-h-[300px] flex flex-col items-center justify-center bg-[#0B0F19]">
+              <div className="w-16 h-16 rounded-full bg-card border border-border flex items-center justify-center mb-4">
+                <MapPin className="w-6 h-6 text-muted-foreground/50" />
+              </div>
+              <p className="text-sm font-mono text-muted-foreground">Awaiting geospatial points</p>
+              <p className="text-xs font-mono text-muted-foreground/50 mt-1">Map will render when data is available</p>
+            </div>
+          ) : (
+            <>
+              <MapContainer
+                center={[30, 10]}
+                zoom={2}
+                style={{ height: "100%", width: "100%", minHeight: "300px", background: "#0B0F19" }}
+                zoomControl={false}
+              >
+                <TileLayer
+                  url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                  attribution='&copy; <a href="https://carto.com/">CARTO</a>'
+                />
+                {mapData.map((point: any) => (
+                  <Marker
+                    key={point.id}
+                    position={[point.latitude, point.longitude]}
+                    icon={createCustomIcon(point.category)}
+                  >
+                    <Popup className="apex-popup">
+                      <div className="text-xs font-mono bg-card text-foreground p-2 rounded min-w-[200px]">
+                        <div className="font-bold text-primary mb-1 truncate">{point.identifier}</div>
+                        <div className="text-muted-foreground truncate">{point.category} · {point.jurisdiction}</div>
+                        {point.ownerName && <div className="mt-1 text-foreground/80 truncate">↳ {point.ownerName}</div>}
+                        {point.estimatedValue && (
+                          <div className="text-primary mt-1">{formatCurrency(point.estimatedValue)}</div>
+                        )}
+                      </div>
+                    </Popup>
+                  </Marker>
+                ))}
+              </MapContainer>
+
+              {/* Map legend */}
+              <div className="absolute bottom-6 left-4 bg-card/90 border border-border rounded-lg px-3 py-2 backdrop-blur-sm z-[1000]">
+                <div className="flex items-center gap-4">
+                  {[
+                    { label: "Real Estate", color: "#10B981" },
+                    { label: "Marine",      color: "#F59E0B" },
+                    { label: "Aviation",    color: "#A855F7" },
+                    { label: "Other",       color: "#3B82F6" },
+                  ].map(({ label, color }) => (
+                    <div key={label} className="flex items-center gap-1.5">
+                      <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                      <span className="text-[10px] font-mono text-muted-foreground truncate">{label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Right: signals + ingestion engine */}
-        <div className="w-[340px] xl:w-[400px] border-l border-border bg-card/20 flex flex-col overflow-hidden">
+        <div className="w-[340px] xl:w-[400px] border-l border-border bg-card/20 flex flex-col overflow-hidden shrink-0">
           <div className="flex items-center justify-between px-4 py-3 border-b border-border flex-shrink-0">
-            <div className="flex items-center gap-2">
-              <ShieldAlert className="w-4 h-4 text-amber-500" />
-              <span className="text-xs font-mono font-bold uppercase tracking-widest text-foreground">
+            <div className="flex items-center gap-2 min-w-0">
+              <ShieldAlert className="w-4 h-4 text-amber-500 shrink-0" />
+              <span className="text-xs font-mono font-bold uppercase tracking-widest text-foreground truncate">
                 Live Signals
               </span>
             </div>
-            <div className="flex items-center gap-1.5 text-[10px] font-mono text-primary">
+            <div className="flex items-center gap-1.5 text-[10px] font-mono text-primary shrink-0">
               <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
               LIVE
             </div>
           </div>
 
           <div className="flex-1 overflow-y-auto divide-y divide-border">
-            {hotLeads?.map((lead: any) => (
+            {isLoadingLeads ? (
+              Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="p-4">
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex-1 mr-3">
+                      <div className="h-4 w-3/4 bg-[#1E2332] animate-pulse rounded mb-2" />
+                      <div className="h-3 w-1/2 bg-[#1E2332] animate-pulse rounded" />
+                    </div>
+                    <div className="h-5 w-8 bg-[#1E2332] animate-pulse rounded shrink-0" />
+                  </div>
+                  <div className="h-8 w-full bg-[#1E2332] animate-pulse rounded" />
+                </div>
+              ))
+            ) : hotLeads?.map((lead: any) => (
               <div key={lead.entityId} className="p-4 hover:bg-muted/30 transition-colors cursor-pointer group">
-                <div className="flex justify-between items-start mb-2">
-                  <div className="flex-1 min-w-0 mr-3">
+                <div className="flex justify-between items-start mb-2 gap-2">
+                  <div className="flex-1 min-w-0">
                     <h3 className="font-bold text-foreground group-hover:text-primary transition-colors truncate text-sm">
                       {lead.entityName}
                     </h3>
-                    <div className="text-xs font-mono text-muted-foreground mt-0.5 flex items-center gap-2">
-                      <span>{lead.entityType} · {lead.nationality || "Unknown"}</span>
+                    <div className="text-xs font-mono mt-1.5 flex items-center gap-1.5 flex-wrap">
+                      <span className={cn("px-1.5 py-0.5 rounded border text-[9px] uppercase whitespace-nowrap", getTypeBadgeStyles(lead.entityType))}>
+                        {lead.entityType}
+                      </span>
+                      <span className="px-1.5 py-0.5 rounded border border-border bg-card text-[9px] uppercase text-muted-foreground whitespace-nowrap">
+                        {lead.nationality || "Unk"}
+                      </span>
                       {(lead.contactEmail || lead.email) && (
-                        <span className="flex items-center gap-0.5 text-emerald-400">
+                        <span className="flex items-center gap-0.5 text-emerald-400 border border-emerald-400/20 bg-emerald-400/10 px-1.5 py-0.5 rounded">
                           <Mail className="w-2.5 h-2.5" />
                           <span className="text-[9px] font-mono">EMAIL</span>
                         </span>
                       )}
                       {(lead.contactPhone || lead.phone) && (
-                        <span className="flex items-center gap-0.5 text-emerald-400">
+                        <span className="flex items-center gap-0.5 text-cyan-400 border border-cyan-400/20 bg-cyan-400/10 px-1.5 py-0.5 rounded">
                           <Phone className="w-2.5 h-2.5" />
                           <span className="text-[9px] font-mono">PHONE</span>
                         </span>
                       )}
                     </div>
                   </div>
-                  <ScoreBadge score={lead.bayesianScore} />
+                  <div className="shrink-0">
+                    <ScoreBadge score={lead.bayesianScore} />
+                  </div>
                 </div>
 
                 <div className="text-xs text-muted-foreground mb-2.5 flex items-center justify-between">
@@ -546,7 +623,7 @@ export default function Dashboard() {
                   <span>Assets: <span className="text-foreground">{lead.assetCount}</span></span>
                 </div>
 
-                <div className="bg-background rounded p-2 text-xs font-mono border border-border">
+                <div className="bg-background rounded p-2 text-xs font-mono border border-border truncate">
                   <span className="text-primary mr-2">SIGNAL:</span>
                   <span className="text-foreground/80">{lead.signal}</span>
                 </div>
@@ -568,9 +645,13 @@ export default function Dashboard() {
               </div>
             ))}
 
-            {(!hotLeads || hotLeads.length === 0) && (
-              <div className="text-center p-8 text-muted-foreground text-sm font-mono">
-                No active signals detected.
+            {!isLoadingLeads && (!hotLeads || hotLeads.length === 0) && (
+              <div className="flex flex-col items-center justify-center p-8 text-center min-h-[200px]">
+                <div className="w-12 h-12 rounded-full bg-card border border-border flex items-center justify-center mb-3">
+                  <ShieldAlert className="w-5 h-5 text-muted-foreground/50" />
+                </div>
+                <p className="text-sm font-mono text-muted-foreground">No active signals detected.</p>
+                <p className="text-xs font-mono text-muted-foreground/50 mt-1">Start ingestion to generate signals.</p>
               </div>
             )}
           </div>
@@ -599,56 +680,91 @@ export default function Dashboard() {
         </div>
 
         {/* Signals tab */}
-        <div className={cn("flex-1 overflow-y-auto", mobileTab !== "signals" && "hidden")}>
-          {hotLeads?.map((lead: any) => (
-            <div key={lead.entityId} className="p-4 border-b border-border">
-              <div className="flex justify-between items-start mb-2">
-                <div className="flex-1 min-w-0 mr-2">
-                  <h3 className="font-bold text-sm text-foreground truncate">{lead.entityName}</h3>
-                  <div className="text-xs font-mono text-muted-foreground mt-0.5">
-                    {lead.entityType} · {lead.nationality || "Unk"}
+        <div className={cn("flex-1 overflow-y-auto flex flex-col", mobileTab !== "signals" && "hidden")}>
+          <div className="flex-1 divide-y divide-border">
+            {isLoadingLeads ? (
+              Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="p-4">
+                  <div className="h-4 w-2/3 bg-[#1E2332] animate-pulse rounded mb-2" />
+                  <div className="h-3 w-1/3 bg-[#1E2332] animate-pulse rounded mb-3" />
+                  <div className="h-8 w-full bg-[#1E2332] animate-pulse rounded" />
+                </div>
+              ))
+            ) : hotLeads?.map((lead: any) => (
+              <div key={lead.entityId} className="p-4">
+                <div className="flex justify-between items-start mb-2 gap-2">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-sm text-foreground truncate">{lead.entityName}</h3>
+                    <div className="text-xs font-mono mt-1.5 flex items-center gap-1.5 flex-wrap">
+                      <span className={cn("px-1.5 py-0.5 rounded border text-[9px] uppercase whitespace-nowrap", getTypeBadgeStyles(lead.entityType))}>
+                        {lead.entityType}
+                      </span>
+                      <span className="px-1.5 py-0.5 rounded border border-border bg-card text-[9px] uppercase text-muted-foreground whitespace-nowrap">
+                        {lead.nationality || "Unk"}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="shrink-0">
+                    <ScoreBadge score={lead.bayesianScore} />
                   </div>
                 </div>
-                <ScoreBadge score={lead.bayesianScore} />
+                <div className="bg-background rounded p-2 text-xs font-mono border border-border truncate mt-3">
+                  <span className="text-primary mr-2">SIGNAL:</span>
+                  <span className="text-foreground/80">{lead.signal}</span>
+                </div>
               </div>
-              <div className="bg-background rounded p-2 text-xs font-mono border border-border">
-                <span className="text-primary mr-2">SIGNAL:</span>
-                <span className="text-foreground/80">{lead.signal}</span>
+            ))}
+            {!isLoadingLeads && (!hotLeads || hotLeads.length === 0) && (
+              <div className="flex flex-col items-center justify-center p-8 text-center min-h-[200px]">
+                <div className="w-12 h-12 rounded-full bg-card border border-border flex items-center justify-center mb-3">
+                  <ShieldAlert className="w-5 h-5 text-muted-foreground/50" />
+                </div>
+                <p className="text-sm font-mono text-muted-foreground">No active signals detected.</p>
               </div>
-            </div>
-          ))}
-          {(!hotLeads || hotLeads.length === 0) && (
-            <div className="text-center p-8 text-muted-foreground text-sm font-mono">
-              No active signals detected.
-            </div>
-          )}
+            )}
+          </div>
           <IngestionPanel onComplete={handleIngestionComplete} />
         </div>
 
         {/* Map tab — only mount when active so Leaflet gets a real container size */}
-        <div className={cn("flex-1 relative", mobileTab !== "map" && "hidden")}>
+        <div className={cn("flex-1 relative bg-[#0B0F19]", mobileTab !== "map" && "hidden")}>
           {mobileTab === "map" && (
-            <MapContainer
-              center={[30, 10]} zoom={2}
-              style={{ height: "100%", width: "100%", background: "#0B0F19" }}
-              zoomControl={false}
-            >
-              <TileLayer
-                url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-                attribution='&copy; CARTO'
-              />
-              {Array.isArray(mapData) && mapData.map((point: any) => (
-                <Marker key={point.id} position={[point.latitude, point.longitude]} icon={createCustomIcon(point.category)}>
-                  <Popup>
-                    <div className="text-xs font-mono p-1">
-                      <div className="font-bold">{point.identifier}</div>
-                      <div className="text-muted-foreground">{point.category}</div>
-                      {point.ownerName && <div>↳ {point.ownerName}</div>}
-                    </div>
-                  </Popup>
-                </Marker>
-              ))}
-            </MapContainer>
+            isLoadingMap ? (
+              <div className="w-full h-full min-h-[300px] flex flex-col items-center justify-center">
+                <div className="w-16 h-16 rounded-full bg-[#1E2332] animate-pulse flex items-center justify-center mb-4">
+                  <MapPin className="w-6 h-6 text-muted-foreground/30" />
+                </div>
+              </div>
+            ) : !mapHasData ? (
+              <div className="w-full h-full min-h-[300px] flex flex-col items-center justify-center">
+                <div className="w-16 h-16 rounded-full bg-card border border-border flex items-center justify-center mb-4">
+                  <MapPin className="w-6 h-6 text-muted-foreground/50" />
+                </div>
+                <p className="text-sm font-mono text-muted-foreground">Awaiting geospatial points</p>
+              </div>
+            ) : (
+              <MapContainer
+                center={[30, 10]} zoom={2}
+                style={{ height: "100%", width: "100%", minHeight: "300px", background: "#0B0F19" }}
+                zoomControl={false}
+              >
+                <TileLayer
+                  url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                  attribution='&copy; CARTO'
+                />
+                {mapData.map((point: any) => (
+                  <Marker key={point.id} position={[point.latitude, point.longitude]} icon={createCustomIcon(point.category)}>
+                    <Popup>
+                      <div className="text-xs font-mono p-1">
+                        <div className="font-bold truncate">{point.identifier}</div>
+                        <div className="text-muted-foreground truncate">{point.category}</div>
+                        {point.ownerName && <div className="truncate">↳ {point.ownerName}</div>}
+                      </div>
+                    </Popup>
+                  </Marker>
+                ))}
+              </MapContainer>
+            )
           )}
         </div>
       </div>
