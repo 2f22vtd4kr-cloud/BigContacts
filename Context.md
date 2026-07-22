@@ -8,7 +8,7 @@
 
 ---
 
-## Current State (2026-07-22 — re-import #33) — Fully operational
+## Current State (2026-07-22 — re-import #34) — Fully operational
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically
@@ -287,6 +287,7 @@ Run **IN-HOUSE ENRICH** on HNWI/Gatekeeper entities — Wikidata SPARQL will hit
 
 | Date | What changed |
 |---|---|
+| 2026-07-22 | **Re-import #34 setup**: pnpm install (~16s), DB schema pushed (no changes — `[✓] Changes applied`). Redis ✅ · API Server ✅ (port 8080) · Web Frontend ✅ (port 23695). SESSION_SECRET ✅. DB had 32,000 entities / 32,000 assets / 7,453 hot leads from cold-start auto-recovery. API healthy: /healthz `{"status":"ok","redis":{"status":"ok","latencyMs":0}}`. Contactable: 0 (contact cache restore running in background). |
 | 2026-07-22 | **Re-import #33 setup + 3 bug fixes**: pnpm install (~20s), DB schema pushed. Redis ✅ · API Server ✅ (port 8080) · Web Frontend ✅ (port 23695). Secrets set: REDIS_URL_1 ✅ REDIS_URL_2 ✅ COMPANIES_HOUSE_API_KEY ✅. All 4 artifacts re-registered. DB empty → FAA 30k + HMLR 2k auto-ingested. **Fixes:** (1) Graph `useGetEntityGraph(0)` 404 on init — added `enabled: targetId > 0`; (2) `/api/pipeline/status` timing out (O(n×m) NOT EXISTS correlated subqueries over 32k×231k) — replaced with aggregate UNION subqueries, now <100ms; (3) Persona simulation re-run: 529 suggestions / 50 entities. Pipeline Status panel now rendering in Data Sources with live counts. Contactable: 75 and growing (in-house enricher running). |
 | 2026-07-22 | **Re-import #32 setup**: pnpm install (~19s), DB schema pushed (no changes — `[✓] Changes applied`). Redis ✅ · API Server ✅ (port 8080) · Web Frontend ✅ (port 23695). SESSION_SECRET ✅. DB had 32,000 entities / 32,000 assets / 7,453 hot leads from cold-start auto-recovery. API healthy: /healthz `{"status":"ok","redis":{"status":"ok","latencyMs":1}}`. Contactable: 0 (contact cache restore running in background if REDIS_URL_2 set). |
 | 2026-07-22 | **Re-import #31 setup**: pnpm install (~13s), DB schema pushed (no changes). Redis ✅ · API Server ✅ (port 8080) · Web Frontend ✅ (port 23695). SESSION_SECRET ✅. DB had 32,000 entities / 32,000 assets / 7,453 hot leads from cold-start auto-recovery. API healthy: /healthz `{"status":"ok","redis":{"status":"ok","latencyMs":1}}`. Contactable: 0 (contact cache restore running in background if REDIS_URL_2 set). |
