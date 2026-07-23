@@ -1,0 +1,250 @@
+The files were created. Let me verify the actual implementation quality — did the pipeline actually invert, did the recurring scheduler get added, are the new enrichment modules real?
+The pipeline is inverted — web discovery at 15s, registries at 180s. Let me verify the remaining pieces.
+All 5 items from the plan are verified implemented:
+- ✅ Pipeline inverted (web at 15s, registries at 180s)
+- ✅ Recurring scheduler (6 jobs, 30min to 24h intervals)
+- ✅ 3 new enrichment modules (social-discovery 211 lines, messenger-discovery 134 lines, foundation-filings 126 lines)
+- ✅ 9 new DB schema fields
+- ✅ Profile UI shows all 8 contact vectors with deep links
+
+Now let me check the remaining gaps before writing the improvements prompt.
+I found the remaining gaps. Here's the verified status and the improvements prompt:
+
+---
+
+## Verification Summary
+
+| Item | Status | Evidence |
+|------|--------|----------|
+| Pipeline inverted (web-first) | ✅ | `startup.ts` line 550: deep-web-osint at 15s, registries at 180s |
+| Recurring scheduler | ✅ | `startup.ts` lines 608-622: 6 recurring jobs with intervals |
+| Social discovery module | ✅ | `enrichment/social-discovery.ts` — 211 lines, DDG + Nitter |
+| Messenger discovery module | ✅ | `enrichment/messenger-discovery.ts` — 134 lines, t.me lookup |
+| Foundation filings module | ✅ | `enrichment/foundation-filings.ts` — 126 lines, ProPublica API |
+| DB schema (9 new fields) | ✅ | `entities.ts` lines 13-21: linkedinUrl through foundationName |
+| Profile UI (8 contact vectors) | ✅ | `profile.tsx` lines 658-693: LinkedIn, Twitter, Instagram, Telegram deep links |
+| Routes for new endpoints | ✅ | `ingest-enrichment.ts` lines 736-826: all 3 new routes |
+| INGESTOR_TYPES updated | ✅ | `startup.ts` line 25: includes social-discovery, messenger-discovery, foundation-filings |
+
+**3 remaining gaps found:**
+
+1. **Cold-start still goes registry-first** (line 660): when DB is empty, it fires FAA + HMLR + Western HNWI ingestion, NOT broad web discovery. The pipeline phases are inverted, but the cold-start path is not.
+
+2. **No broad discovery engine**: `deep-web-osint.ts` enriches EXISTING entities (requires entity IDs). There is no module that fires broad web searches to DISCOVER NEW HNWIs from scratch — the "search people everywhere" core. On a cold start with empty DB, the 15s deep-web-osint trigger fires but has no entities to process.
+
+3. **No query template rotation**: the recurring scheduler re-runs deep-web-osint on hot leads, but doesn't cycle through different discovery query sets. Each run searches the same entities.
+
+---
+
+## Replit Prompt — Improvements (v3)
+
+```text
+3 critical improvements to Apex Atlas. The pipeline inversion and contact discovery modules are working, but 3 gaps remain that prevent the app from truly being "web-OSINT-first." Fix them in this order.
+
+═══════════════════════════════════════════════════════════
+IMPROVEMENT 1: Broad HNWI Discovery Engine (the missing core)
+═══════════════════════════════════════════════════════════
+
+The current deep-web-osint.ts enriches EXISTING entities — it requires entity IDs as input. This means on a cold start with an empty DB, the 15s "web discovery" trigger fires but has nothing to process. The app needs a module that discovers NEW HNWIs from the open web WITHOUT requiring existing entities.
+
+Create: artifacts/api-server/src/lib/enrichment/broad-discovery.ts
+
+This module fires broad search queries against DuckDuckGo and Bing to find HNWI signals. It does NOT take entity IDs as input. It generates entities FROM search results.
+
+50+ query templates organized in 5 categories (10+ each):
+
+Category 1 — "Family Office & Private Wealth":
+  - "family office" + "director" + "London"
+  - "family office" + "principal" + "Switzerland"
+  - "private wealth" + "manager" + "Singapore"
+  - "single family office" + "founder" + "New York"
+  - "multi family office" + "CEO" + "Dubai"
+  - "private office" + "investment" + "Hong Kong"
+  - "wealth management" + "partner" + "Geneva"
+  - "private banking" + "director" + "Luxembourg"
+  - "family investment" + "office" + "Monaco"
+  - "private trust" + "beneficiary" + "Jersey"
+
+Category 2 — "Luxury Assets & Aviation":
+  - "yacht registration" + "owner" + "Mediterranean"
+  - "private jet" + "registered owner" + "N-number"
+  - "superyacht" + "beneficial owner" + "Cayman"
+  - "aircraft registration" + "owner" + "Bermuda"
+  - "luxury real estate" + "buyer" + "Monaco"
+  - "penthouse" + "sale" + "New York" + "LLC"
+  - "estate" + "acquisition" + "Belgravia"
+  - "villa" + "purchase" + "Cote d'Azur"
+  - "private island" + "sale" + "Caribbean"
+  - "art collection" + "collector" + "auction"
+
+Category 3 — "SEC Filings & Corporate":
+  - "Schedule 13D" + "beneficial owner" + "filing"
+  - "Schedule 13G" + "5% owner" + "public company"
+  - "DEF 14A" + "executive compensation" + "director"
+  - "Form 4" + "insider" + "transaction"
+  - "10-K" + "CEO" + "total compensation"
+  - "beneficial ownership" + "5 percent" + "Schedule"
+  - "control person" + "public company" + "SEC"
+  - "major shareholder" + "10 percent" + "filing"
+  - "acquisition" + "beneficial owner" + "Schedule D"
+  - "private equity" + "partner" + "fund manager"
+
+Category 4 — "Philanthropy & Foundations":
+  - "private foundation" + "trustee" + "990"
+  - "charitable trust" + "donor" + "philanthropy"
+  - "family foundation" + "board" + "grant"
+  - "donor advised fund" + "advisor"
+  - "philanthropic" + "donor" + "foundation"
+  - "charity commission" + "trustee" + "registration"
+  - "nonprofit" + "officer" + "compensation"
+  - "endowment" + "chair" + "board"
+  - "gift agreement" + "donor" + "university"
+  - "naming gift" + "donor" + "pledge"
+
+Category 5 — "Public Mentions & Networks":
+  - "billionaire" + "interview" + "portfolio"
+  - "HNWI" + "profile" + "investment"
+  - "angel investor" + "portfolio" + "companies"
+  - "board member" + "Fortune 500" + "director"
+  - "venture capitalist" + "partner" + "fund"
+  - "hedge fund" + "manager" + "portfolio"
+  - "private equity" + "managing partner"
+  - "real estate developer" + "portfolio" + "million"
+  - "art dealer" + "collection" + "private"
+  - "luxury brand" + "founder" + "CEO"
+
+Each query is fired against DuckDuckGo HTML (html.duckduckgo.com/html). The module:
+
+1. Picks 5-10 queries from a rotating set (cycle through categories so each run covers different ground)
+2. Fires each query, parses top 10 results
+3. From each result snippet, extracts: person names (NER — use a simple regex pattern for "Mr/Mrs/Dr First Last" or "First Last, [title]"), company names, locations
+4. For each extracted name, creates a NEW entity in the DB with:
+   - name = extracted name
+   - type = "person" (classifyEntityType)
+   - sourceRegistries = ["web-discovery"]
+   - bayesianScore = 0.3 (initial — will be re-scored by Hybrid Engine)
+   - notes = the search snippet that found them
+   - liveSource = "broad-web-discovery"
+5. Dedup against existing entities (name similarity check — if >0.85 cosine on name embeddings, skip)
+
+The module exports:
+
+export interface BroadDiscoveryResult {
+  queriesFired: number;
+  resultsScraped: number;
+  entitiesDiscovered: number;
+  entitiesSkipped: number;  // duplicates
+  newEntities: Array<{ name: string; snippet: string; query: string }>;
+}
+
+export async function runBroadDiscovery(options: {
+  templateSet?: number;      // 1-5, selects which category to pull from
+  rotateTemplates?: boolean;  // cycle to next category each run
+  maxQueries?: number;       // default 10
+}): Promise<BroadDiscoveryResult>
+
+Add route: POST /api/ingest/broad-discovery in routes/ingest-enrichment.ts
+- Same job/poll pattern as other enrichers
+- Accepts: { templateSet?, rotateTemplates?, maxQueries? }
+- Job type: "broad-discovery"
+- Add "broad-discovery" to INGESTOR_TYPES in startup.ts
+
+═══════════════════════════════════════════════════════════
+IMPROVEMENT 2: Fix Cold-Start Ordering (broad discovery first)
+═══════════════════════════════════════════════════════════
+
+File: artifacts/api-server/src/lib/startup.ts
+
+Current cold-start (line ~660) fires FAA + HMLR + Western HNWI when DB is empty. This is registry-first. Fix it to fire broad discovery FIRST.
+
+Replace the cold-start block (the section after "DB empty — auto-starting FAA...") with:
+
+  // DB is empty — fire broad web discovery FIRST, then registries as verification anchors
+  logger.info("DB empty — starting broad web discovery (web-first cold start)…");
+
+  // Phase 0: Broad discovery — find HNWIs from the open web
+  trigger("broad discovery (cold-start)", "/api/ingest/broad-discovery", { maxQueries: 15, rotateTemplates: true });
+  
+  // Phase 1: Registry ingestion (runs in parallel — provides verification data)
+  startIngestor("faa",            runFaaIngestion,           { force: false });
+  startIngestor("land-registry",  runLandRegistryIngestion,  { force: false });
+  startIngestor("western-hnwi",   runWesternHnwiIngestion,   { targetCount: 5_000, batchSize: 100 });
+
+This way: broad discovery fires immediately (finds HNWIs from web searches), FAA/HMLR/EDGAR run in parallel (provides verification data). The pipeline phases (15s web discovery, 180s registry verification) now have entities to work with because broad discovery already ran.
+
+═══════════════════════════════════════════════════════════
+IMPROVEMENT 3: Query Template Rotation in Recurring Scheduler
+═══════════════════════════════════════════════════════════
+
+File: artifacts/api-server/src/lib/startup.ts
+
+The recurring scheduler (line ~608) re-runs deep-web-osint on hot leads. But it doesn't discover NEW HNWIs. Add broad discovery to the recurring schedule with template rotation.
+
+Add to the RECURRING_JOBS array:
+
+  { intervalMs: 30 * 60 * 1_000, label: "recurring broad discovery (rotated templates)", path: "/api/ingest/broad-discovery", body: { maxQueries: 10, rotateTemplates: true } },
+
+This fires every 30 minutes. Each run calls broad-discovery with rotateTemplates: true, which cycles to the next query category (1→2→3→4→5→1→...). Over 2.5 hours, all 5 categories are covered. Over 5 hours, all 50+ templates fire.
+
+Also update the broad-discovery module to track which template set was last used (store in Redis key "broad-discovery:last-template-set"). When rotateTemplates is true, read the last set, increment, wrap at 5, use the next set.
+
+═══════════════════════════════════════════════════════════
+IMPROVEMENT 4: Contact Confidence Weighting
+═══════════════════════════════════════════════════════════
+
+File: artifacts/apex-finder/src/pages/profile.tsx (lines 599-608)
+
+The current contact confidence calculation (lines 606-608) adds points linearly:
+  (e.linkedinUrl ? 20 : 0) + (e.twitterHandle ? 10 : 0) + (e.telegramHandle ? 10 : 0) + ...
+
+This doesn't weight by source quality. An IRS 990 filing (foundation-filings) is far more reliable than a Gravatar email guess. Replace with weighted scoring:
+
+  const contactScore = 
+    (e.email && e.emailConfidence >= 80 ? 35 : e.email ? 15 : 0) +
+    (e.phone ? 25 : 0) +
+    (e.linkedinUrl ? 20 : 0) +
+    (e.telegramHandle ? 15 : 0) +
+    (e.twitterHandle ? 10 : 0) +
+    (e.instagramHandle ? 5 : 0) +
+    (e.personalWebsite ? 10 : 0) +
+    (e.foundationName ? 20 : 0);  // IRS filing = high confidence
+  const conf = Math.min(100, contactScore);
+
+This weights: verified email (35) > phone (25) > LinkedIn (20) > foundation filing (20) > Telegram (15) > Twitter (10) > website (10) > Instagram (5). Max = 140, clamped to 100.
+
+═══════════════════════════════════════════════════════════
+VERIFICATION
+═══════════════════════════════════════════════════════════
+
+After all 4 improvements:
+
+1. Cold-start with empty DB → broad discovery fires FIRST (not FAA)
+2. Broad discovery creates NEW entities from web search results (no entity ID input needed)
+3. Recurring scheduler discovers NEW HNWIs every 30 min with rotated query templates
+4. Contact confidence reflects source quality (IRS > LinkedIn > Telegram > Instagram)
+5. The 15s pipeline phase has entities to work with (from broad discovery at cold-start)
+
+Test:
+- Empty DB → boot → check logs for "broad web discovery (web-first cold start)"
+- After 30 min → check logs for "recurring broad discovery (rotated templates)"
+- Query DB for entities with sourceRegistries = '["web-discovery"]' → should have new rows
+- Check profile page → contact confidence should show weighted values
+
+Report: files created/modified, broad discovery entity count after first run, recurring scheduler confirmation.
+```
+
+---
+
+**What this delivers:**
+
+The 3 remaining gaps are closed:
+
+1. **Broad discovery engine** — a module that finds NEW HNWIs from the open web without needing existing entities. 50+ query templates across 5 categories (family offices, luxury assets, SEC filings, philanthropy, public mentions). This is the true "search people everywhere" core.
+
+2. **Cold-start inversion** — when DB is empty, broad web discovery fires FIRST, not FAA. Registries run in parallel as verification anchors.
+
+3. **Query template rotation** — the recurring scheduler discovers new ground every 30 minutes by cycling through 5 categories. Over 5 hours, all 50+ templates fire, systematically covering the HNWI discovery surface.
+
+Plus: contact confidence now weights sources by reliability (IRS filing = 20 pts, Instagram = 5 pts).
+
+Send this to Replit. After it lands, the app truly operates web-first: it discovers HNWIs from the open internet, verifies them via registries, and enriches their contact vectors (LinkedIn, Twitter, Telegram, Instagram, email, phone, foundation filings, personal website) — all running continuously in the background.

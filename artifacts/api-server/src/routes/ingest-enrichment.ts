@@ -33,6 +33,7 @@ import { enrichInHouse } from "../lib/enrichment/contact-enrichment";
 import { discoverSocialPresence } from "../lib/enrichment/social-discovery";
 import { discoverMessengerPresence } from "../lib/enrichment/messenger-discovery";
 import { discoverViaFoundationFilings } from "../lib/enrichment/foundation-filings";
+import { runBroadDiscovery } from "../lib/enrichment/broad-discovery";
 import { computeContactConfidence } from "../lib/contact-confidence";
 import { contactCacheSet } from "../lib/redis";
 import { logger } from "../lib/logger";
@@ -951,6 +952,47 @@ router.delete("/ingest/foundation-filings-lock", async (_req: Request, res: Resp
   if (!jobId) { res.json({ cleared: false, message: "No active foundation-filings lock." }); return; }
   await updateJob(jobId, { status: "failed", message: "Process killed (server restart).", finishedAt: new Date().toISOString() } as any);
   await setActiveJob("foundation-filings", "");
+  res.json({ cleared: true, jobId });
+});
+
+// ── POST /ingest/broad-discovery ──────────────────────────────────────────────
+// Discovers NEW HNWIs from the open web without requiring existing entity IDs.
+// Fires broad DuckDuckGo queries across 5 HNWI-signal categories and creates
+// new entity rows from extracted names. Template rotation tracked in Redis.
+router.post("/ingest/broad-discovery", async (req: Request, res: Response): Promise<void> => {
+  const { templateSet, rotateTemplates = true, maxQueries = 10 } = req.body ?? {};
+  const existing = await getActiveJob("broad-discovery");
+  if (existing) { res.json({ jobId: existing, status: "already_running" }); return; }
+  const jobId = await createJob("broad-discovery", { templateSet, rotateTemplates, maxQueries });
+  await setActiveJob("broad-discovery", jobId);
+  res.json({ jobId });
+
+  (async () => {
+    try {
+      await updateJob(jobId, { status: "running", message: "Broad discovery: querying open web…" } as any);
+      const result = await runBroadDiscovery({ templateSet, rotateTemplates, maxQueries });
+      await updateJob(jobId, {
+        status: "completed",
+        message: `Broad discovery complete: ${result.entitiesDiscovered} new entities from ${result.queriesFired} queries (${result.entitiesSkipped} duplicates skipped)`,
+        progress: result.queriesFired,
+        total: result.queriesFired,
+        finishedAt: new Date().toISOString(),
+        result,
+      } as any);
+    } catch (err: any) {
+      await updateJob(jobId, { status: "failed", message: err?.message ?? "Unknown error", finishedAt: new Date().toISOString() } as any);
+    } finally {
+      await setActiveJob("broad-discovery", "");
+    }
+  })();
+});
+
+// ── DELETE /ingest/broad-discovery-lock ───────────────────────────────────────
+router.delete("/ingest/broad-discovery-lock", async (_req: Request, res: Response): Promise<void> => {
+  const jobId = await getActiveJob("broad-discovery");
+  if (!jobId) { res.json({ cleared: false, message: "No active broad-discovery lock." }); return; }
+  await updateJob(jobId, { status: "failed", message: "Process killed (server restart).", finishedAt: new Date().toISOString() } as any);
+  await setActiveJob("broad-discovery", "");
   res.json({ cleared: true, jobId });
 });
 

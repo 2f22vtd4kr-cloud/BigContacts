@@ -22,7 +22,7 @@ import { logger } from "./logger";
 import { contactCacheScanAll, contactCacheCount, contactCacheSet, type CachedContact } from "./redis";
 import { warmUpSemanticEngine } from "./semantic-engine";
 
-const INGESTOR_TYPES = ["faa", "land-registry", "western-hnwi", "companies-house-enrich", "occrp", "opensky", "improve", "web-osint", "bulk-mcts", "in-house-enrich", "deep-web-osint", "compute-embeddings", "social-discovery", "messenger-discovery", "foundation-filings"] as const;
+const INGESTOR_TYPES = ["faa", "land-registry", "western-hnwi", "companies-house-enrich", "occrp", "opensky", "improve", "web-osint", "bulk-mcts", "in-house-enrich", "deep-web-osint", "compute-embeddings", "social-discovery", "messenger-discovery", "foundation-filings", "broad-discovery"] as const;
 
 /** Mark any "running" job whose process is dead as failed, clear its lock. */
 async function clearGhostJobs(): Promise<void> {
@@ -606,12 +606,13 @@ async function runPopulatedDbMaintenance(): Promise<void> {
   // After the one-shot pipeline finishes (~45 min), enter continuous mode.
   // 5 recurring jobs keep the app searching for new HNWIs forever.
   const RECURRING_JOBS = [
-    { intervalMs:  30 * 60 * 1_000, label: "recurring deep web OSINT (hot leads)",      path: "/api/ingest/deep-web-osint",      body: { batchSize: 300, hotOnly: true } },
-    { intervalMs:  30 * 60 * 1_000, label: "recurring social discovery (gap-fill)",     path: "/api/ingest/social-discovery",    body: { batchSize: 300, onlyMissingContact: true } },
-    { intervalMs:   2 * 60 * 60 * 1_000, label: "recurring Hybrid Engine re-score",     path: "/api/research/bulk-run",          body: { batchSize: 200, skipExisting: false } },
-    { intervalMs:   4 * 60 * 60 * 1_000, label: "recurring messenger discovery",        path: "/api/ingest/messenger-discovery", body: { batchSize: 200, onlyMissingContact: true } },
-    { intervalMs:   6 * 60 * 60 * 1_000, label: "recurring registry re-verification",  path: "/api/ingest/western-hnwi",        body: { targetCount: 500 } },
-    { intervalMs:  24 * 60 * 60 * 1_000, label: "recurring persona loop",              path: "/api/improve/run-all",            body: { chunkSize: 500, resume: true } },
+    { intervalMs:  30 * 60 * 1_000, label: "recurring broad discovery (rotated templates)", path: "/api/ingest/broad-discovery",     body: { maxQueries: 10, rotateTemplates: true } },
+    { intervalMs:  30 * 60 * 1_000, label: "recurring deep web OSINT (hot leads)",          path: "/api/ingest/deep-web-osint",      body: { batchSize: 300, hotOnly: true } },
+    { intervalMs:  30 * 60 * 1_000, label: "recurring social discovery (gap-fill)",         path: "/api/ingest/social-discovery",    body: { batchSize: 300, onlyMissingContact: true } },
+    { intervalMs:   2 * 60 * 60 * 1_000, label: "recurring Hybrid Engine re-score",         path: "/api/research/bulk-run",          body: { batchSize: 200, skipExisting: false } },
+    { intervalMs:   4 * 60 * 60 * 1_000, label: "recurring messenger discovery",            path: "/api/ingest/messenger-discovery", body: { batchSize: 200, onlyMissingContact: true } },
+    { intervalMs:   6 * 60 * 60 * 1_000, label: "recurring registry re-verification",      path: "/api/ingest/western-hnwi",        body: { targetCount: 500 } },
+    { intervalMs:  24 * 60 * 60 * 1_000, label: "recurring persona loop",                  path: "/api/improve/run-all",            body: { chunkSize: 500, resume: true } },
   ];
 
   setTimeout(() => {
@@ -661,8 +662,13 @@ export async function coldStartRecovery(): Promise<void> {
     await clearDedup();
   }
 
-  logger.info("DB empty — auto-starting FAA, Land Registry, and Western HNWI ingestion…");
+  // DB is empty — fire broad web discovery FIRST, then registries as verification anchors
+  logger.info("DB empty — starting broad web discovery (web-first cold start)…");
 
+  // Phase 0: Broad discovery — find HNWIs from the open web immediately
+  trigger("broad discovery (cold-start)", "/api/ingest/broad-discovery", { maxQueries: 15, rotateTemplates: true });
+
+  // Phase 1: Registry ingestion (runs in parallel — provides verification data)
   startIngestor("faa",            runFaaIngestion,           { force: false });
   startIngestor("land-registry",  runLandRegistryIngestion,  { force: false });
   startIngestor("western-hnwi",   runWesternHnwiIngestion,   { targetCount: 5_000, batchSize: 100 });

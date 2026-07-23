@@ -30,9 +30,9 @@ export const modules: ModuleMap = {
   "./components/mockups/nav/BottomTabs.tsx": () => import("../components/mockups/nav/BottomTabs.tsx"),
   "./components/mockups/nav/CompactSidebar.tsx": () => import("../components/mockups/nav/CompactSidebar.tsx"),
   "./components/mockups/nav/Current.tsx": () => import("../components/mockups/nav/Current.tsx"),
+  "./components/mockups/nav-search-preview/NavSearchPreview.tsx": () => import("../components/mockups/nav-search-preview/NavSearchPreview.tsx"),
   "./components/mockups/pages/DeepSearchMobile.tsx": () => import("../components/mockups/pages/DeepSearchMobile.tsx"),
   "./components/mockups/pages/ProfileMobile.tsx": () => import("../components/mockups/pages/ProfileMobile.tsx"),
-  "./components/mockups/nav-search-preview/NavSearchPreview.tsx": () => import("../components/mockups/nav-search-preview/NavSearchPreview.tsx"),
   "./components/mockups/research/Desktop.tsx": () => import("../components/mockups/research/Desktop.tsx"),
   "./components/mockups/research/Mobile.tsx": () => import("../components/mockups/research/Mobile.tsx")
 };

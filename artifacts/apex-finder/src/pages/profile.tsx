@@ -601,12 +601,16 @@ export default function ApexProfile() {
         );
         const dbConf = typeof e.contactConfidence === "number" ? e.contactConfidence : null;
         const conf = dbConf !== null ? dbConf :
-          (e.email           ? 40 : 0) +
-          (e.phone           ? 30 : 0) +
-          (e.linkedinUrl     ? 20 : 0) +
-          (e.twitterHandle   ? 10 : 0) +
-          (e.telegramHandle  ? 10 : 0) +
-          (e.knownResidences && e.knownResidences !== "[]" ? 10 : 0);
+          Math.min(100,
+            (e.email && (e as any).emailConfidence >= 80 ? 35 : e.email ? 15 : 0) +
+            (e.phone           ? 25 : 0) +
+            (e.linkedinUrl     ? 20 : 0) +
+            (e.foundationName  ? 20 : 0) +   // IRS 990 filing = high-confidence anchor
+            (e.telegramHandle  ? 15 : 0) +
+            (e.twitterHandle   ? 10 : 0) +
+            (e.personalWebsite ? 10 : 0) +
+            (e.instagramHandle ?  5 : 0)
+          );
         const confCls =
           conf >= 60 ? "text-primary border-primary/30 bg-primary/10"
           : conf >= 30 ? "text-amber-500 border-amber-500/30 bg-amber-500/10"
