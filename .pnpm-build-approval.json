@@ -1,0 +1,1 @@
+{"allowBuild": ["onnxruntime-node", "protobufjs", "sharp"]}

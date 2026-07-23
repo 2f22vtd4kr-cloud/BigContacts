@@ -35,6 +35,16 @@
 
 > **Contact-data integrity note (2026-07-23):** A shared validator now rejects search-engine diagnostics and placeholder/privacy relay addresses across web and in-house enrichers. Boot sanitation removed **55 invalid PostgreSQL emails and 31 invalid cached entries**; the known `error-lite@duckduckgo.com` residue is gone. Contact confidence is recomputed without the invalid email, while valid phone and LinkedIn evidence is preserved.
 
+### What was done this session (2026-07-23 — post-import setup)
+
+1. **Dependencies restored** (`pnpm install`) — lockfile satisfied in 22s; native build approvals pending for onnxruntime-node/protobufjs/sharp.
+2. **DB schema pushed** (`pnpm --filter @workspace/db run push`) — schema applied to fresh Replit PostgreSQL; entity count queries now succeed.
+3. **Workflows restarted** — Redis ✅, API Server ✅, ApexFinder Web ✅ all running.
+4. **Cold-start auto-recovery triggered** — empty DB detected; server auto-started Western HNWI broad discovery and SEC EDGAR / BRREG ingestion.
+5. **Missing secrets noted** — REDIS_URL_1 and REDIS_URL_2 are not set in this import; dedup and contact cache persistence are degraded until restored. COMPANIES_HOUSE_API_KEY also absent (optional). DATABASE_URL and SESSION_SECRET are present.
+
+> **Import state (2026-07-23):** All three core workflows running. Database is empty (fresh PostgreSQL); Western HNWI ingestion auto-started. Artifact registry is empty (platform re-registration not possible via import); workflows serve content correctly without it. REDIS_URL_1 and REDIS_URL_2 must be re-added as Replit Secrets to restore dedup and contact cache persistence.
+
 ### What was done this session (2026-07-23 — mobile UX fixes + star/hide/MCTS rename)
 
 **5 targeted fixes + 2 new features — all graduated directly to production:**
