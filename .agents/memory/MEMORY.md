@@ -28,3 +28,4 @@
 - [Atlas Refactor v2 state](atlas-refactor-v2.md) — Apex Atlas Refactor v2 complete; profile tabs, research.ts split, enrichment barrel pattern; remaining: Field Manual content update only
 - [Access score separation](access-score.md) — Contactability/directness must be scored separately from wealth and registry signal
 - [Dashboard data fallback](dashboard-data-fallback.md) — Distinguish unavailable PostgreSQL-backed dashboard data from an empty dataset; keep live jobs visible when healthy
+- [Public contact evidence validation](contact-evidence-validation.md) — Validate extracted contacts before PostgreSQL writes, Redis mirroring, and cache restore

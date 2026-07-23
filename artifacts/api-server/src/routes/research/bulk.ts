@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { eq, desc, sql, and, inArray } from "drizzle-orm";
 import { db, entitiesTable, assetsTable, relationshipsTable, researchSessionsTable } from "@workspace/db";
-import { createJob, updateJob, setActiveJob, getActiveJob } from "../../lib/job-queue";
+import { createJob, updateJob, setActiveJob, getActiveJob, getJob, clearActiveJob } from "../../lib/job-queue";
 import { buildGraph, findShortestPath } from "../../lib/graph-engine";
 import { computeBayesianScore } from "../../lib/bayesian-scorer";
 import { runMcts } from "../../lib/mcts-agent";
@@ -43,8 +43,31 @@ router.post("/research/lead", async (req, res): Promise<void> => {
 router.post("/research/bulk-run", async (req, res): Promise<void> => {
   const existing = await getActiveJob("bulk-mcts");
   if (existing) {
-    res.status(409).json({ error: "A bulk Hybrid Research run is already in progress.", jobId: existing });
-    return;
+    const existingJob = await getJob(existing);
+    if (existingJob?.status === "running") {
+      res.status(409).json({ error: "A bulk Hybrid Research run is already in progress.", jobId: existing });
+      return;
+    }
+
+    // A queued job can only be legitimate for the few milliseconds between
+    // createJob() and the worker's first update. Older queued jobs are ghosts
+    // left by a killed process and must not block every future research pass.
+    if (existingJob?.status === "queued") {
+      const ageMs = existingJob.startedAt
+        ? Date.now() - new Date(existingJob.startedAt).getTime()
+        : Number.POSITIVE_INFINITY;
+      if (ageMs < 5 * 60 * 1_000) {
+        res.status(409).json({ error: "A bulk Hybrid Research run is being started.", jobId: existing });
+        return;
+      }
+      await updateJob(existing, {
+        status: "failed",
+        message: "Stale queued job superseded by a new research pass.",
+        finishedAt: new Date().toISOString(),
+      });
+    }
+
+    await clearActiveJob("bulk-mcts");
   }
 
   const batchSize  = Math.min(parseInt((req.body as any)?.batchSize ?? "60", 10), 300);

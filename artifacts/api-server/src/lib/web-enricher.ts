@@ -9,6 +9,7 @@
  */
 
 import { logger } from "./logger";
+import { isValidPublicEmail, sanitizePublicEmail } from "./contact-validation";
 
 // ── Shared utilities ──────────────────────────────────────────────────────────
 
@@ -49,14 +50,9 @@ export interface OsintResult {
   sources:      string[];
 }
 
-const EMAIL_BLOCKLIST = new Set(["example.com", "domain.com", "email.com", "test.com", "foo.com", "noreply", "no-reply"]);
-
 function extractEmailSimple(text: string): string | null {
   const matches = [...text.matchAll(EMAIL_RE)].map(m => m[0].toLowerCase());
-  const filtered = matches.filter(e => {
-    const domain = e.split("@")[1] ?? "";
-    return !EMAIL_BLOCKLIST.has(domain) && !domain.startsWith("example") && e.length < 80;
-  });
+  const filtered = matches.filter(e => isValidPublicEmail(e) && e.length < 80);
   return filtered[0] ?? null;
 }
 
@@ -376,7 +372,7 @@ function extractEmails(text: string): string[] {
   const all = [...text.matchAll(EMAIL_RE)].map(m => m[0]!.toLowerCase());
   return [...new Set(all.filter(e => {
     const d = e.split("@")[1] ?? "";
-    return !EMAIL_BLOCK.has(d) && !d.includes("privacy") && !d.includes("proxy") && e.length < 80;
+    return isValidPublicEmail(e) && e.length < 80;
   }))];
 }
 
@@ -495,8 +491,9 @@ async function scrapePage(url: string): Promise<{ email: string | null; phone: s
     for (const m of html.matchAll(mailtoRe)) {
       const addr = m[1]!.toLowerCase().trim();
       const domain = addr.split("@")[1] ?? "";
-      if (addr.includes("@") && !EMAIL_BLOCK.has(domain) && addr.length < 80) {
-        email = addr;
+      const clean = sanitizePublicEmail(addr);
+      if (clean && clean.length < 80 && !EMAIL_BLOCK.has(domain)) {
+        email = clean;
         break;
       }
     }

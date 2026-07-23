@@ -266,6 +266,13 @@ export async function contactCacheSet(stableKey: string, data: CachedContact): P
   } catch { /* non-fatal */ }
 }
 
+/** Remove one permanent contact-cache entry. */
+export async function contactCacheDelete(stableKey: string): Promise<void> {
+  const c = getContactCacheClient();
+  if (!c) return;
+  try { await c.del(CONTACT_PREFIX + stableKey); } catch { /* non-fatal */ }
+}
+
 /** Read contact data from Redis slot 2. */
 export async function contactCacheGet(stableKey: string): Promise<CachedContact | null> {
   const c = getContactCacheClient();

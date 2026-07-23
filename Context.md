@@ -8,7 +8,7 @@
 
 ---
 
-## Current State (2026-07-23 — persona loop completed) — Redis + API + Web running
+## Current State (2026-07-23 — pipeline recovery verified) — Redis + canonical API + Web running
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically
@@ -25,11 +25,15 @@
 | API Server | ✅ Running (port 8080) |
 | ApexFinder Web | ✅ Running (port 23695) |
 
-> **Re-import setup note (2026-07-23):** pnpm install (~20s). DB schema pushed (`[✓] Changes applied`). All 3 secrets re-entered (REDIS_URL_1, REDIS_URL_2, COMPANIES_HOUSE_API_KEY — lost on import). API /healthz → `{"status":"ok","redis":{"status":"ok","latencyMs":0}}`. Cold-start auto-recovery will trigger FAA + HMLR + Western HNWI ingestion on first populated-DB boot.
+> **Verified pipeline recovery (2026-07-23):** canonical artifact workflows are running and `/api/healthz` returns Redis `ok`. Live database state: **81,528 entities, 80,305 assets, 264,253 relationships, 16,305 hot leads, 767 contactable entities, 600 research sessions**. FAA and HMLR jobs completed with 0 errors. Deep-web OSINT remains active as a background enrichment pass; its records are validated by a shared public-email sanitizer.
 
 > **Contact filtering completion note (2026-07-23):** Finished the interrupted contactability UI/UX task. Entity Ledger contact filtering is now server-side and paginated, so it no longer stops at the old 500-row client-side cap or checks nonexistent `contactEmail`/`contactPhone` fields. Added Any Contact, Email, Phone, WhatsApp, Telegram, and Instagram filters to desktop and mobile, documented the query contract in OpenAPI, and regenerated the typed React/Zod clients. Web/API builds and frontend typecheck pass. Filter requests reach the API correctly; entity responses remain unavailable in this import because PostgreSQL is not responding, while Redis and both persistent Redis connections are healthy.
 
-> **Persona loop completion note (2026-07-23):** Repaired the provisioned PostgreSQL development database after discovering the schema was absent, pushed the existing Drizzle schema, cleared stale dedup state because the repaired DB was empty, and restarted real FAA, HMLR, and Western HNWI ingestion. A live persona run then completed successfully for 100 real HNWI/Gatekeeper entities: **1,180 suggestions, 0 errors**. Breakdown: 644 high, 241 medium, 295 low; all 1,180 are pending. Current database counts: 39,000 entities, 38,900 assets, 0 relationships, 6,772 direct-target entities, 0 contact vectors. The UI subtitle now accurately says 8 deterministic personas rather than 6 AI agents.
+> **Persona loop completion note (2026-07-23):** The original live run completed successfully for 100 real HNWI/Gatekeeper entities with **1,180 suggestions and 0 errors** (644 high / 241 medium / 295 low). After the pipeline recovery and enrichment stages, a fresh 100-entity run also reached `done` with **489 suggestions and 0 errors**. The database currently contains **1,669 improvement logs across all 8 deterministic personas**.
+
+> **Hybrid Research verification note (2026-07-23):** Two fresh scheduled bulk passes reached `done`, each with **300/300 sessions created and 0 errors**, for **600 persisted `Pitch Generated` research sessions**. Sample sessions contain non-empty winning paths, MCTS/UCT steps, path scores, and generated outreach pitches. The stale queued `bulk-mcts` lock is repaired on startup and stale queued jobs are superseded by the bulk route.
+
+> **Contact-data integrity note (2026-07-23):** A shared validator now rejects search-engine diagnostics and placeholder/privacy relay addresses across web and in-house enrichers. Boot sanitation removed **55 invalid PostgreSQL emails and 31 invalid cached entries**; the known `error-lite@duckduckgo.com` residue is gone. Contact confidence is recomputed without the invalid email, while valid phone and LinkedIn evidence is preserved.
 
 ### What was done this session (2026-07-23 — mobile UX fixes + star/hide/MCTS rename)
 
@@ -452,6 +456,7 @@ Run **IN-HOUSE ENRICH** on HNWI/Gatekeeper entities — Wikidata SPARQL will hit
 | 2026-07-23 | **Contact-channel filtering completed**: finished the interrupted Entity Ledger fix by moving Any Contact, Email, Phone, WhatsApp, Telegram, and Instagram filtering server-side with blank-value guards; added desktop/mobile channel chips; removed the client-side dataset cap and stale field checks; updated OpenAPI and regenerated React/Zod clients. Web build, API build, frontend typecheck, shared-library typecheck, and diff checks pass. PostgreSQL remains the only runtime blocker for live entity responses in this import. |
 | 2026-07-23 | **Persona loop review**: attempted a bounded live persona run and reviewed the `/improvements` page from an operator perspective. PostgreSQL failed on the initial entities query, so the run, stats, and logs all return 500. Redis/API health and the web shell are healthy, but the UI leaks an HTML-to-JSON parse error instead of explaining database unavailability. No persona results were invented. |
 | 2026-07-23 | **Persona loop recovered and completed**: PostgreSQL was reachable but had no project tables, so the existing Drizzle schema was pushed; stale dedup state was cleared only because the repaired DB was empty; FAA, HMLR, and Western HNWI real ingestion restarted. Persona loop completed for 100 HNWI/Gatekeeper entities with 1,180 suggestions and 0 errors (644 high / 241 medium / 295 low). Updated stale Persona Loop copy from 6 AI agents to 8 deterministic personas. |
+| 2026-07-23 | **Full real-data pipeline recovery verified**: canonical API/web workflows restarted; stale queued Hybrid Research locks now clear on restart; live state reached 81,528 entities / 80,305 assets / 264,253 relationships / 767 contactable / 600 research sessions. Two 300-target Hybrid Research passes and a fresh 100-target Persona Loop pass reached `done` with 0 errors. Added shared public-email validation plus boot-time PostgreSQL/Redis sanitation, removing 55 invalid DB emails and 31 invalid cache entries. |
 | 2026-07-23 | Re-import #49: pnpm install, db schema push, artifact-managed workflows started (ports 8080/23695), 4 improvements implemented (broad-discovery engine, cold-start inversion, recurring scheduler rotation, weighted contact confidence) |
 | 2026-07-23 | Re-import #48: pnpm install, db schema push, all workflows started, cold-start auto-recovery triggered |
 | 2026-07-23 | Phase H complete (H1–H5 in one session): pipeline inverted (web-first), recurring scheduler, 3 new enrichment modules (social/messenger/foundation), 9 new schema columns, 8-vector contact panel UI, SKIP_DOMAINS fix |

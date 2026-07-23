@@ -66,16 +66,16 @@ Schema push: `pnpm --filter @workspace/db run push`
 
 ---
 
-## Current Data State (as of 2026-07-23 — persona loop recovery)
+## Current Data State (verified 2026-07-23 — real-data pipeline recovery)
 
 | Source | Entities | Assets | Notes |
 |---|---|---|---|
-| FAA Releasable Aircraft Registry | 30,000 | 30,000 | Real registry records restored after the development schema was pushed. |
-| HMLR Price Paid Data (PPD) | 2,000 | 2,000 | Real property records restored after the development schema was pushed. |
-| Western HNWI (SEC EDGAR + BRREG) | 7,000 | 0 | Live ingestion is continuing; current DB total includes 7,000 Western HNWI records. |
-| **Live total** | **39,000** | **38,900** | Direct targets: 6,772 · Relationships: 0 · Contact vectors: 0 · Persona logs: 1,180 |
+| FAA Releasable Aircraft Registry | 30,000 | 30,000 | Real FAA registry records; ingestion completed with 0 errors. |
+| HMLR Price Paid Data (PPD) | 50,000 | 50,000 | Real bulk PPD records; ingestion completed with 0 errors. |
+| Western HNWI + SEC/BRREG/other live sources | 1,528+ | 305+ | Included in the live database totals; enrichment and relationship maintenance continue. |
+| **Live total** | **81,528** | **80,305** | Relationships: **264,253** · Hot leads: **16,305** · Contactable: **767** · Research sessions: **600** · Persona logs: **1,669** |
 
-Contact cache (Upstash slot 2): available and connected; current development database has **0 contact vectors** after the fresh real-data recovery.
+Contact cache (Upstash slot 2): available and connected; the current database has **767 contactable entities** mirrored through the permanent cache. Boot-time sanitation removed invalid search-engine diagnostic addresses before restore.
 
 ---
 
@@ -179,10 +179,11 @@ GET  /api/improve/logs                 improvement suggestions (filterable by pe
 | 4 | Hybrid Research agent (L4 UCT graph traversal), research sessions, CRM pipeline |
 | 5 | Hybrid BM25 + TF-IDF + Bayesian search, network graph |
 | 6 | FAA aircraft registry ingestor, Western HNWI engine (SEC EDGAR + BRREG + Companies House) |
-| 7 | Persona improvement loop (6 deterministic personas), `improvement_logs` table, `/improvements` UI page |
+| 7 | Persona improvement loop (8 deterministic personas), `improvement_logs` table, `/improvements` UI page |
 | 8 | OCCRP Aleph enricher, HMLR OCOD ingestor (replaced by PPD CSV), OpenSky live-flight enricher, Data Sources dashboard |
 | 9 (UX) | Single-pass query expansion (`expandQuery` in agent-orchestrator.ts); Entity Ledger clickable contact vectors (mailto/tel/LinkedIn); Profile page Direct Contact Vectors action bar; Intel Terminal search bar + 500-entity limit + `?entity=` URL pre-selection; CRM empty-state guidance; `improve/run` inArray SQL fix; Intel Systems Analyst persona text updated to reflect expansion mechanics |
-| 10 | **Redis contact cache** — enriched contacts now persist across GitHub imports and DB resets. `REDIS_URL_2` (Upstash slot 2) stores `contact:v1:{stableKey}` entries permanently. Startup restore (Redis → PG) and backfill (PG → Redis) steps run on every boot. Enricher mirrors to Redis after every DB write. 114+ HNWIs with contact data as of 2026-07-21. |
+| 10 | **Redis contact cache** — enriched contacts now persist across GitHub imports and DB resets. `REDIS_URL_2` (Upstash slot 2) stores `contact:v1:{stableKey}` entries permanently. Startup restore (Redis → PG) and backfill (PG → Redis) steps run on every boot. Enricher mirrors to Redis after every DB write. |
+| 11 | **Pipeline recovery hardening** — stale queued Hybrid Research locks are invalidated safely; shared public-email validation rejects search-engine diagnostics/placeholders; boot sanitation repairs PostgreSQL and Redis contact records; verified two 300-session research passes plus a fresh 100-entity Persona Loop pass with 0 errors. |
 
 ---
 

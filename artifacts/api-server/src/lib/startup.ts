@@ -10,7 +10,7 @@
  */
 
 import { db, entitiesTable, assetsTable } from "@workspace/db";
-import { count, gte, eq, and, inArray, sql } from "drizzle-orm";
+import { count, gte, eq, and, inArray, isNotNull, sql } from "drizzle-orm";
 import {
   createJob, updateJob, setActiveJob, getActiveJob, getJob, clearActiveJob,
   clearDedup, getDedupCount,
@@ -19,22 +19,31 @@ import { runFaaIngestion, US_STATE_CENTROIDS, normalizeFaaName } from "./faa-ing
 import { runLandRegistryIngestion } from "./land-registry-ingestor";
 import { runWesternHnwiIngestion, classifyEntityType } from "./western-hnwi-ingestion";
 import { logger } from "./logger";
-import { contactCacheScanAll, contactCacheCount, contactCacheSet, type CachedContact } from "./redis";
+import { contactCacheScanAll, contactCacheCount, contactCacheSet, type CachedContact, delCachePattern } from "./redis";
 import { warmUpSemanticEngine } from "./semantic-engine";
+import { computeContactConfidence } from "./contact-confidence";
+import { isValidPublicEmail, sanitizePublicEmail } from "./contact-validation";
 
 const INGESTOR_TYPES = ["faa", "land-registry", "western-hnwi", "companies-house-enrich", "occrp", "opensky", "improve", "web-osint", "bulk-mcts", "in-house-enrich", "deep-web-osint", "compute-embeddings", "social-discovery", "messenger-discovery", "foundation-filings", "broad-discovery"] as const;
 
-/** Mark any "running" job whose process is dead as failed, clear its lock. */
+/**
+ * Mark jobs whose worker process is dead as failed, clear their locks.
+ *
+ * A queued job is also stale after a restart: the bulk research route creates
+ * its Redis job before entering the async worker, so a process killed in that
+ * tiny window leaves a queued lock forever. Treat both queued and running
+ * active jobs as process-owned state that cannot survive a server restart.
+ */
 async function clearGhostJobs(): Promise<void> {
   for (const type of INGESTOR_TYPES) {
     try {
       const jobId = await getActiveJob(type);
       if (!jobId) continue;
       const job = await getJob(jobId);
-      if (job?.status === "running") {
+      if (job?.status === "running" || job?.status === "queued") {
         await updateJob(jobId, {
           status: "failed",
-          message: "Process was killed — restart job to continue.",
+          message: "Process was killed before the job completed — restart job to continue.",
           finishedAt: new Date().toISOString(),
         });
         await clearActiveJob(type);
@@ -44,6 +53,72 @@ async function clearGhostJobs(): Promise<void> {
       logger.warn({ type, err: err?.message }, "Error clearing ghost job (non-fatal)");
     }
   }
+}
+
+/**
+ * Remove search-engine diagnostics and placeholder emails that were persisted
+ * before the shared public-contact validator existed. This is intentionally
+ * idempotent and runs before Redis restore so the cache cannot reintroduce a
+ * known false positive after a database re-import.
+ */
+async function sanitizePersistedContactEmails(): Promise<void> {
+  let scrubbedCache = 0;
+  let scrubbedEntities = 0;
+
+  try {
+    const cached = await contactCacheScanAll();
+    for (const { key, data } of cached) {
+      if (!data.email || isValidPublicEmail(data.email)) continue;
+      const cleaned: CachedContact = {
+        ...data,
+        email: null,
+        contactConfidence: computeContactConfidence({
+          phone: data.phone,
+          linkedinUrl: data.linkedinUrl,
+        }),
+      };
+      await contactCacheSet(key, cleaned);
+      scrubbedCache++;
+    }
+  } catch (err: any) {
+    logger.warn({ err: err?.message }, "Contact cache email sanitation failed (non-fatal)");
+  }
+
+  try {
+    const rows = await db
+      .select({
+        id: entitiesTable.id,
+        email: entitiesTable.email,
+        phone: entitiesTable.phone,
+        linkedinUrl: entitiesTable.linkedinUrl,
+        knownResidences: entitiesTable.knownResidences,
+      })
+      .from(entitiesTable)
+      .where(isNotNull(entitiesTable.email));
+
+    for (const entity of rows) {
+      const email = sanitizePublicEmail(entity.email);
+      if (email === entity.email) continue;
+      const contactConfidence = computeContactConfidence({
+        email,
+        phone: entity.phone,
+        linkedinUrl: entity.linkedinUrl,
+        knownResidences: entity.knownResidences,
+      });
+      await db.update(entitiesTable)
+        .set({ email, contactConfidence, updatedAt: new Date() })
+        .where(eq(entitiesTable.id, entity.id));
+      scrubbedEntities++;
+    }
+  } catch (err: any) {
+    logger.warn({ err: err?.message }, "PostgreSQL email sanitation failed (non-fatal)");
+  }
+
+  if (scrubbedCache || scrubbedEntities) {
+    await delCachePattern("entities:list:*");
+    await delCachePattern("dashboard:*");
+  }
+  logger.info({ scrubbedCache, scrubbedEntities }, "Persisted contact email sanitation complete");
 }
 
 /** Fire-and-forget background ingestor. */
@@ -82,6 +157,9 @@ function startIngestor(
  */
 async function runPopulatedDbMaintenance(): Promise<void> {
   logger.info("Running populated-DB maintenance tasks…");
+
+  // Remove known false positives before Redis restore and cache backfill.
+  await sanitizePersistedContactEmails();
 
   // 0. Restore contact data from Redis slot 2 (REDIS_URL_2) — runs first so downstream
   //    steps (isHot sync, enricher, etc.) see the restored contact confidence values.

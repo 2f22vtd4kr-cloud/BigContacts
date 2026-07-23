@@ -40,6 +40,7 @@ import { createHash } from "crypto";
 import { promises as dns } from "dns";
 import * as net from "net";
 import { logger } from "./logger";
+import { isValidPublicEmail, sanitizePublicEmail } from "./contact-validation";
 
 // ─── Result / Input types ─────────────────────────────────────────────────────
 
@@ -110,11 +111,12 @@ function splitName(full: string): { first: string; last: string } {
 
 // Email blocklist — domains that are never real contact emails
 const EMAIL_BLOCK = new Set([
-  "example.com","domain.com","email.com","test.com","foo.com","bar.com",
-  "noreply.com","no-reply.com","invalid.com","localhost","sample.com",
-  "placeholder.com","yourname.com","company.com","yourdomain.com",
-  "privacy.com","domains.com","registrant.com","whoisguard.com",
-  "domainsbyproxy.com","privacyprotect.org","whoisprivacycorp.com",
+  "example.com", "domain.com", "email.com", "test.com", "foo.com", "bar.com",
+  "noreply.com", "no-reply.com", "invalid.com", "localhost", "sample.com",
+  "placeholder.com", "yourname.com", "company.com", "yourdomain.com",
+  "privacy.com", "domains.com", "registrant.com", "whoisguard.com",
+  "domainsbyproxy.com", "privacyprotect.org", "whoisprivacycorp.com",
+  "duckduckgo.com", "bing.com", "google.com", "search.yahoo.com",
 ]);
 const EMAIL_RE = /\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b/g;
 
@@ -122,8 +124,7 @@ function extractEmail(text: string): string | null {
   const matches = [...text.matchAll(EMAIL_RE)].map(m => m[0]!.toLowerCase());
   return matches.find(e => {
     const d = e.split("@")[1] ?? "";
-    return !EMAIL_BLOCK.has(d) && !d.startsWith("example") &&
-           !d.includes("privacy") && !d.includes("proxy") && e.length < 80;
+    return isValidPublicEmail(e) && !EMAIL_BLOCK.has(d) && e.length < 80;
   }) ?? null;
 }
 
@@ -131,7 +132,7 @@ function extractAllEmails(text: string): string[] {
   const matches = [...text.matchAll(EMAIL_RE)].map(m => m[0]!.toLowerCase());
   return [...new Set(matches.filter(e => {
     const d = e.split("@")[1] ?? "";
-    return !EMAIL_BLOCK.has(d) && !d.includes("privacy") && !d.includes("proxy") && e.length < 80;
+    return isValidPublicEmail(e) && !EMAIL_BLOCK.has(d) && e.length < 80;
   }))];
 }
 
@@ -1053,8 +1054,9 @@ async function scrapeContactPage(domain: string): Promise<{ email: string | null
       for (const m of html.matchAll(mailtoRe)) {
         const addr = m[1]!.toLowerCase().trim();
         const domain_ = addr.split("@")[1] ?? "";
-        if (addr.includes("@") && !EMAIL_BLOCK.has(domain_) && !domain_.includes("privacy") && addr.length < 80) {
-          email = addr;
+        const clean = sanitizePublicEmail(addr);
+        if (clean && !EMAIL_BLOCK.has(domain_) && clean.length < 80) {
+          email = clean;
           break;
         }
       }
