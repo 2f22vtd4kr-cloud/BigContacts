@@ -8,7 +8,7 @@
 
 ---
 
-## Current State (2026-07-23 — re-import setup) — Redis + API + Web running
+## Current State (2026-07-23 — UX v3 canvas mockups live) — Redis + API + Web running
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically
