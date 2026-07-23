@@ -17,7 +17,7 @@
 - [Cold-start auto-recovery](cold-start-auto-recovery.md) — startup.ts clears ghost jobs + auto-starts ingestion; edge case when DB is partial but dedup stale
 - [Phase 10 Simulation Fixes](phase10-simulation-fixes.md) — all 11 simulation issues fixed; entity reclassification, isHot sync, hybrid branding, FAA coords, pitch fallbacks
 - [Relationship graph gap](relationship-gap.md) — SOLVED: name-clustering endpoint built; 229k CORPORATE_SERIES edges; CH co-directors returns 0 for US-entity DB (FAA/EDGAR are US — CH is UK only)
-- [Post-import port conflicts](post-import-ports.md) — orphaned processes hold 8080/23695 after killing manual workflows; fix with kill -9 $(lsof -ti:8080 -ti:23695)
+- [Post-import port conflicts](post-import-ports.md) — orphaned processes hold 8080/23695 after killing manual workflows; fix with kill -9 $(lsof -ti:8080 -ti:23695); trigger scoping bug in startup.ts fixed (trigger→triggerHttp at module level)
 - [MCTS parallel limit](mcts-parallel-limit.md) — max 5 parallel MCTS sessions; 20 parallel triggers OOM crash (--max-old-space-size=3072 hit); run sequentially or in batches of 5
 - [Persona engine Corp-Trust scoping](persona-corp-trust-scoping.md) — Corp/Trust are property vehicles; isolation and geo flags should be LOW/skipped for them; HNWI/Gatekeeper = HIGH; also backfill-net-worth endpoint is POST /api/ingest/backfill-net-worth
 - [CH co-directors vs US DB](ch-codirectors-us-db.md) — CH co-director detection always returns 0 for FAA/EDGAR entities (US-based); only activates when UK Companies House entities are in the DB; do not expect SHARED_DIRECTOR edges from current dataset

@@ -508,27 +508,6 @@ async function runPopulatedDbMaintenance(): Promise<void> {
 
   // 8. After maintenance — fire delayed HTTP triggers for relationship edges, enrichment, and research.
   //    Server is already listening by this point (coldStartRecovery runs fire-and-forget).
-  const port = process.env["PORT"] ?? "8080";
-
-  /** Fire a POST to a local API route; log result. Non-fatal. */
-  async function trigger(label: string, path: string, body?: Record<string, unknown>): Promise<void> {
-    try {
-      const res = await fetch(`http://localhost:${port}${path}`, {
-        method: "POST",
-        headers: body ? { "Content-Type": "application/json" } : {},
-        body: body ? JSON.stringify(body) : undefined,
-      });
-      if (res.ok) {
-        const d = await res.json().catch(() => ({}));
-        logger.info({ message: (d as any).message ?? d, jobId: (d as any).jobId }, `Maintenance: ${label} triggered`);
-      } else {
-        logger.info({ status: res.status }, `Maintenance: ${label} — already running or no targets`);
-      }
-    } catch (err: any) {
-      logger.warn({ err: err?.message }, `Maintenance: ${label} trigger failed (non-fatal)`);
-    }
-  }
-
   const hasCH = !!process.env["COMPANIES_HOUSE_API_KEY"];
 
   // ─── Phase-based pipeline scheduler ───────────────────────────────────────
@@ -599,7 +578,7 @@ async function runPopulatedDbMaintenance(): Promise<void> {
 
   for (const phase of phases) {
     if (phase.onlyIf === false) continue;
-    setTimeout(() => trigger(phase.label, phase.path, phase.body), phase.delayMs);
+    setTimeout(() => triggerHttp(phase.label, phase.path, phase.body), phase.delayMs);
   }
 
   // ── H2: Recurring background scheduler ───────────────────────────────────────
@@ -618,11 +597,31 @@ async function runPopulatedDbMaintenance(): Promise<void> {
   setTimeout(() => {
     for (const job of RECURRING_JOBS) {
       // Fire once immediately when scheduler activates, then on interval
-      trigger(job.label, job.path, job.body);
-      setInterval(() => trigger(job.label, job.path, job.body), job.intervalMs);
+      triggerHttp(job.label, job.path, job.body);
+      setInterval(() => triggerHttp(job.label, job.path, job.body), job.intervalMs);
     }
     logger.info("Recurring background scheduler activated (H2)");
   }, 2_800_000); // 46 min — after initial pipeline completes
+}
+
+/** Fire a POST to a local API route; log result. Non-fatal. */
+async function triggerHttp(label: string, path: string, body?: Record<string, unknown>): Promise<void> {
+  const port = process.env["PORT"] ?? "8080";
+  try {
+    const res = await fetch(`http://localhost:${port}${path}`, {
+      method: "POST",
+      headers: body ? { "Content-Type": "application/json" } : {},
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    if (res.ok) {
+      const d = await res.json().catch(() => ({}));
+      logger.info({ message: (d as any).message ?? d, jobId: (d as any).jobId }, `Maintenance: ${label} triggered`);
+    } else {
+      logger.info({ status: res.status }, `Maintenance: ${label} — already running or no targets`);
+    }
+  } catch (err: any) {
+    logger.warn({ err: err?.message }, `Maintenance: ${label} trigger failed (non-fatal)`);
+  }
 }
 
 /** Main cold-start entry point — call once after Upstash connects. */
@@ -666,7 +665,7 @@ export async function coldStartRecovery(): Promise<void> {
   logger.info("DB empty — starting broad web discovery (web-first cold start)…");
 
   // Phase 0: Broad discovery — find HNWIs from the open web immediately
-  trigger("broad discovery (cold-start)", "/api/ingest/broad-discovery", { maxQueries: 15, rotateTemplates: true });
+   triggerHttp("broad discovery (cold-start)", "/api/ingest/broad-discovery", { maxQueries: 15, rotateTemplates: true });
 
   // Phase 1: Registry ingestion (runs in parallel — provides verification data)
   startIngestor("faa",            runFaaIngestion,           { force: false });

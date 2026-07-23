@@ -1,0 +1,26 @@
+The Intelligence HQ page is a mess. Look at it from a regular user eyes perspective - many numbers and so little of what user actually needs to see and be able to quickly navigate to for further info. The same goes for map which is just a set of dots without any obvious visual and other forms of straight clear communication. The same goes for graphs representation - just make a screenshot of one and you will see what a mess it is. A UI/UX polishing and improvements need to be done across the whole app to be honest both desktop and mobile views.
+Let me screenshot the key pages simultaneously to see exactly what the user sees.
+I can see the major problems clearly. Let me read the key source files to understand the full scope.
+I can see the full picture now. Let me read the key files to plan targeted fixes:
+Let me read the graph rendering section and dashboard layout sections I need to fix.
+Now I have a complete picture. Let me read the graph's node-paint code and the router to plan fixes precisely.
+I have enough context. Let me read the CRM card and router, then implement all fixes in parallel.
+Let me read the kanban card and then implement all fixes simultaneously.
+I now have a complete picture. Here are the critical problems:
+* Graph: Edge labels cover everything at default zoom; node names invisible (only color-coded blobs)
+* Dashboard: Map centered on world with all dots in US blob; Hot Lead cards have redundant nav; stat tiles lack hierarchy
+* CRM Pipeline: Each of 8 kanban columns gets flex-1 min-w-0 → names truncate to a single letter
+* Layout: Compliance banner wraps to 3 lines on mobile eating screen space; WORKSPACE collapses hiding key nav
+I'll fix all of these in parallel now.
+Good — API Server and Web Frontend are running. Let me continue with the remaining fixes in parallel.
+Old manual workflows failed as expected — artifact-managed ones are running. Let me continue fixing dashboard, layout, and entities in parallel.
+The artifact-managed workflows are running. Let me continue with dashboard improvements and then verify with screenshots.
+Workflows are good. Let me continue with the remaining dashboard + entities fixes in parallel.
+The artifact-managed workflows are running. Let me continue with the remaining dashboard and entities fixes.
+Let me batch all remaining changes — dashboard map center, hot lead card cleanup, and then verify everything with screenshots.
+The old manual workflows failing is expected — artifact-managed ones (artifacts/apex-finder: web and artifacts/api-server: API Server) are both running and Vite hot-reloads the changes. Let me take screenshots to verify all fixes.
+The CRM is completely fixed — full names are showing instead of single initials. The compliance banner is compact. WORKSPACE is expanded. Let me now check the graph node colors more carefully and also verify the dashboard map.
+The dashboard is dramatically improved — map now shows the full continental US with individual aviation assets scattered across cities, compliance banner is a single line, hot lead cards show "Network map >" only. Let me verify the graph node color fix:
+The surrounding nodes are still showing as muted gray-blue. The nodeType field may not be matching. Let me check what the graph API actually returns and also zoom into the graph to see if the labels are rendering.
+
+
