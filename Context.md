@@ -8,7 +8,7 @@
 
 ---
 
-## Current State (2026-07-23 — contact-channel filtering completed) — Redis + API + Web running
+## Current State (2026-07-23 — persona loop completed) — Redis + API + Web running
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically
@@ -29,7 +29,7 @@
 
 > **Contact filtering completion note (2026-07-23):** Finished the interrupted contactability UI/UX task. Entity Ledger contact filtering is now server-side and paginated, so it no longer stops at the old 500-row client-side cap or checks nonexistent `contactEmail`/`contactPhone` fields. Added Any Contact, Email, Phone, WhatsApp, Telegram, and Instagram filters to desktop and mobile, documented the query contract in OpenAPI, and regenerated the typed React/Zod clients. Web/API builds and frontend typecheck pass. Filter requests reach the API correctly; entity responses remain unavailable in this import because PostgreSQL is not responding, while Redis and both persistent Redis connections are healthy.
 
-> **Persona loop review note (2026-07-23):** Attempted a live bounded run (`POST /api/improve/run` with limit 50), plus stats/log reads and a visual review of `/improvements`. The run could not start because PostgreSQL fails on the initial `entities` query; stats and logs also return 500. Redis, API health, and the web shell are healthy. The Persona Loop page currently exposes the backend HTML error as `Unexpected token '<', "<!DOCTYPE "... is not valid JSON`, so this is a truthful product blocker rather than a persona score. No persona findings were fabricated or written.
+> **Persona loop completion note (2026-07-23):** Repaired the provisioned PostgreSQL development database after discovering the schema was absent, pushed the existing Drizzle schema, cleared stale dedup state because the repaired DB was empty, and restarted real FAA, HMLR, and Western HNWI ingestion. A live persona run then completed successfully for 100 real HNWI/Gatekeeper entities: **1,180 suggestions, 0 errors**. Breakdown: 644 high, 241 medium, 295 low; all 1,180 are pending. Current database counts: 39,000 entities, 38,900 assets, 0 relationships, 6,772 direct-target entities, 0 contact vectors. The UI subtitle now accurately says 8 deterministic personas rather than 6 AI agents.
 
 ### What was done this session (2026-07-23 — mobile UX fixes + star/hide/MCTS rename)
 
@@ -451,6 +451,7 @@ Run **IN-HOUSE ENRICH** on HNWI/Gatekeeper entities — Wikidata SPARQL will hit
 | 2026-07-23 | **Imported project setup**: restored pnpm dependencies from the lockfile; confirmed SESSION_SECRET, REDIS_URL_1, REDIS_URL_2, and COMPANIES_HOUSE_API_KEY are set; started Redis, API Server, and ApexFinder Web. API `/api/healthz` and web HTTP checks pass, production web build passes. PostgreSQL is unavailable in this workspace, and existing frontend/mobile typecheck errors remain documented above. |
 | 2026-07-23 | **Contact-channel filtering completed**: finished the interrupted Entity Ledger fix by moving Any Contact, Email, Phone, WhatsApp, Telegram, and Instagram filtering server-side with blank-value guards; added desktop/mobile channel chips; removed the client-side dataset cap and stale field checks; updated OpenAPI and regenerated React/Zod clients. Web build, API build, frontend typecheck, shared-library typecheck, and diff checks pass. PostgreSQL remains the only runtime blocker for live entity responses in this import. |
 | 2026-07-23 | **Persona loop review**: attempted a bounded live persona run and reviewed the `/improvements` page from an operator perspective. PostgreSQL failed on the initial entities query, so the run, stats, and logs all return 500. Redis/API health and the web shell are healthy, but the UI leaks an HTML-to-JSON parse error instead of explaining database unavailability. No persona results were invented. |
+| 2026-07-23 | **Persona loop recovered and completed**: PostgreSQL was reachable but had no project tables, so the existing Drizzle schema was pushed; stale dedup state was cleared only because the repaired DB was empty; FAA, HMLR, and Western HNWI real ingestion restarted. Persona loop completed for 100 HNWI/Gatekeeper entities with 1,180 suggestions and 0 errors (644 high / 241 medium / 295 low). Updated stale Persona Loop copy from 6 AI agents to 8 deterministic personas. |
 | 2026-07-23 | Re-import #49: pnpm install, db schema push, artifact-managed workflows started (ports 8080/23695), 4 improvements implemented (broad-discovery engine, cold-start inversion, recurring scheduler rotation, weighted contact confidence) |
 | 2026-07-23 | Re-import #48: pnpm install, db schema push, all workflows started, cold-start auto-recovery triggered |
 | 2026-07-23 | Phase H complete (H1–H5 in one session): pipeline inverted (web-first), recurring scheduler, 3 new enrichment modules (social/messenger/foundation), 9 new schema columns, 8-vector contact panel UI, SKIP_DOMAINS fix |

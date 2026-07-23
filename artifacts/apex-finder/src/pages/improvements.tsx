@@ -405,7 +405,7 @@ export default function ImprovementsPage() {
               Persona Loop
             </h1>
             <p className="text-xs text-muted-foreground hidden md:block">
-              6 specialist AI agents analyse every entity and surface concrete improvements
+              8 deterministic personas analyse every entity and surface concrete improvements
             </p>
           </div>
         </div>

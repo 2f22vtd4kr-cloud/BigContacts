@@ -66,16 +66,16 @@ Schema push: `pnpm --filter @workspace/db run push`
 
 ---
 
-## Current Data State (as of 2026-07-21, re-import #22)
+## Current Data State (as of 2026-07-23 — persona loop recovery)
 
 | Source | Entities | Assets | Notes |
 |---|---|---|---|
-| FAA Releasable Aircraft Registry | 30,000 | 30,000 | Auto-ingested on cold start. Turbine/multi-engine owners. |
-| HMLR Price Paid Data (PPD) | 2,000 | 2,000 | Auto-ingested on cold start. £1M+ UK properties. |
-| Western HNWI (SEC EDGAR + BRREG) | 500 | 0 | Running in background. |
-| **Live total** | **32,500** | **32,000** | Hot leads: 15,216 · Entities with contact data: **114+** |
+| FAA Releasable Aircraft Registry | 30,000 | 30,000 | Real registry records restored after the development schema was pushed. |
+| HMLR Price Paid Data (PPD) | 2,000 | 2,000 | Real property records restored after the development schema was pushed. |
+| Western HNWI (SEC EDGAR + BRREG) | 7,000 | 0 | Live ingestion is continuing; current DB total includes 7,000 Western HNWI records. |
+| **Live total** | **39,000** | **38,900** | Direct targets: 6,772 · Relationships: 0 · Contact vectors: 0 · Persona logs: 1,180 |
 
-Contact cache (Upstash slot 2): **115+ entries** — all enriched contacts persist here across imports.
+Contact cache (Upstash slot 2): available and connected; current development database has **0 contact vectors** after the fresh real-data recovery.
 
 ---
 
