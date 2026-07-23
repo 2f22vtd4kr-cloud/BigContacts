@@ -846,6 +846,8 @@ Each button shows a confidence badge (`contactConfidence`) beside it.
 2. Add a **name-exact dedup pass** that runs at boot: find entity pairs where `LOWER(TRIM(name)) = LOWER(TRIM(name))` across different source registries — these are guaranteed same-name duplicates and deserve a `LIKELY_SAME_PERSON` edge regardless of embedding similarity
 3. Surface the "Riley Jacob" class of duplicates on `/duplicates` — identical names within the same source registry are probably two registrations (two aircraft), not two people; add a "same-source name cluster" tab
 
+**Implementation status (2026-07-23):** ✅ Complete. `/api/entities/same-source-name-clusters` returns up to 200 exact-name clusters grouped by normalized registry, and `/duplicates` now has a review-only Same-source clusters tab alongside the existing cross-registry candidate flow. Manual merge and dismiss actions remain unchanged; no records are auto-deleted.
+
 **Files:**
 - `artifacts/api-server/src/routes/relationships.ts` — lower threshold, add token overlap guard
 - `artifacts/api-server/src/lib/startup.ts` — add name-exact dedup pass at ~300s
@@ -924,6 +926,8 @@ Each button shows a confidence badge (`contactConfidence`) beside it.
 - Added `hasEnoughSharedTokens()` token overlap guard (≥2 shared significant tokens) to prevent false positives at the lower threshold
 - Added `POST /api/relationships/name-exact-dedup` — guaranteed same-name cross-registry matches (strength 0.95)
 - Auto-triggered at 310s in startup.ts Phase 4
+- Added `GET /api/entities/same-source-name-clusters` and a review-only Same-source clusters tab on `/duplicates`; exact-name records are grouped within each normalized registry and are never auto-merged
+- Fixed duplicate candidate token indexing so repeated words in one entity name cannot produce self-pairs
 
 **I3 — Warm-Path Edge Quality** (`relationships.ts`)
 - Added `POST /api/relationships/auto-detect-edgar-coinvestor` (I3-A) — EDGAR_CO_INVESTOR edges between HNWI/Gatekeeper co-shareholders (strength 0.75); higher quality than existing EDGAR_CO_SHAREHOLDER (all types)

@@ -29,3 +29,4 @@
 - [Access score separation](access-score.md) — Contactability/directness must be scored separately from wealth and registry signal
 - [Dashboard data fallback](dashboard-data-fallback.md) — Distinguish unavailable PostgreSQL-backed dashboard data from an empty dataset; keep live jobs visible when healthy
 - [Public contact evidence validation](contact-evidence-validation.md) — Validate extracted contacts before PostgreSQL writes, Redis mirroring, and cache restore
+- [Duplicate review guardrails](duplicate-review-guardrails.md) — Deduplicate name tokens before pairing; same-source matches remain review-only

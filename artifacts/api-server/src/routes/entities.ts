@@ -220,7 +220,9 @@ router.get("/entities/duplicate-candidates", async (_req, res): Promise<void> =>
 
     const tokenIndex = new Map<string, number[]>();
     for (const row of rows) {
-      for (const token of tokenize(row.name)) {
+      // Count each entity once per token. Repeated words in a single name
+      // must not create a self-pair such as entity 26419 × entity 26419.
+      for (const token of new Set(tokenize(row.name))) {
         const arr = tokenIndex.get(token) ?? [];
         arr.push(row.id);
         tokenIndex.set(token, arr);
@@ -232,6 +234,7 @@ router.get("/entities/duplicate-candidates", async (_req, res): Promise<void> =>
       if (ids.length < 2 || ids.length > 30) continue;
       for (let i = 0; i < ids.length; i++) {
         for (let j = i + 1; j < ids.length; j++) {
+          if (ids[i] === ids[j]) continue;
           const key = `${Math.min(ids[i]!, ids[j]!)}_${Math.max(ids[i]!, ids[j]!)}`;
           pairScores.set(key, (pairScores.get(key) ?? 0) + 1);
         }
@@ -259,6 +262,92 @@ router.get("/entities/duplicate-candidates", async (_req, res): Promise<void> =>
     res.json({ candidates, total: candidates.length });
   } catch (err: any) {
     res.status(500).json({ error: err?.message ?? "Duplicate detection failed" });
+  }
+});
+
+// ── GET /entities/same-source-name-clusters ───────────────────────────────────
+// Returns exact-name clusters that occur more than once within the same source
+// registry. These are usually multiple records for one name (for example,
+// multiple FAA registrations), not cross-registry identity matches. Keep this
+// review-only: operators decide whether any records should be merged.
+router.get("/entities/same-source-name-clusters", async (_req, res): Promise<void> => {
+  try {
+    const rows = await db
+      .select({
+        id: entitiesTable.id,
+        name: entitiesTable.name,
+        type: entitiesTable.type,
+        bayesianScore: entitiesTable.bayesianScore,
+        sourceRegistries: entitiesTable.sourceRegistries,
+      })
+      .from(entitiesTable);
+
+    const registryPrefix = (source: string): string => {
+      const value = source.toLowerCase();
+      if (value.includes("faa") || value.includes("aircraft") || value.includes("n-number")) return "FAA";
+      if (value.includes("edgar") || value.includes("sec ")) return "EDGAR";
+      if (value.includes("hmlr") || value.includes("land registry") || value.includes("price paid")) return "HMLR";
+      if (value.includes("brreg") || value.includes("norway")) return "BRREG";
+      if (value.includes("companies house") || value.includes("ch ")) return "Companies House";
+      if (value.includes("gleif") || value.includes("lei")) return "GLEIF";
+      if (value.includes("occrp") || value.includes("aleph")) return "OCCRP";
+      return source.trim().split(/[\s\-—:]/)[0]?.slice(0, 20) || "Unknown";
+    };
+
+    const clusters = new Map<string, {
+      name: string;
+      registry: string;
+      entities: Array<{ id: number; name: string; type: string; bayesianScore: number }>;
+    }>();
+
+    for (const row of rows) {
+      const normalizedName = row.name.trim().toLowerCase().replace(/\s+/g, " ");
+      if (!normalizedName || normalizedName.length < 4 || /^\d+\s/.test(normalizedName)) continue;
+
+      let sources: string[] = [];
+      try {
+        const parsed = JSON.parse(row.sourceRegistries ?? "[]");
+        sources = Array.isArray(parsed) ? parsed.map(String) : [];
+      } catch {
+        sources = [];
+      }
+      const registries = new Set((sources.length > 0 ? sources : ["Unknown"]).map(registryPrefix));
+      for (const registry of registries) {
+        const key = `${registry}:${normalizedName}`;
+        const cluster = clusters.get(key) ?? {
+          name: row.name.trim(),
+          registry,
+          entities: [],
+        };
+        if (!cluster.entities.some(entity => entity.id === row.id)) {
+          cluster.entities.push({
+            id: row.id,
+            name: row.name,
+            type: row.type,
+            bayesianScore: row.bayesianScore,
+          });
+        }
+        clusters.set(key, cluster);
+      }
+    }
+
+    const result = [...clusters.values()]
+      .filter((cluster) => cluster.entities.length > 1)
+      .sort((a, b) => {
+        const countDelta = b.entities.length - a.entities.length;
+        return countDelta || a.name.localeCompare(b.name);
+      })
+      .slice(0, 200)
+      .map((cluster) => ({
+        name: cluster.name,
+        registry: cluster.registry,
+        count: cluster.entities.length,
+        entities: cluster.entities.sort((a, b) => b.bayesianScore - a.bayesianScore),
+      }));
+
+    res.json({ clusters: result, total: result.length });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message ?? "Same-source cluster detection failed" });
   }
 });
 

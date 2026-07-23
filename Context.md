@@ -42,6 +42,8 @@ All 4 Phase I items implemented and live. Build clean (esbuild ⚡ 1183ms). All 
 - **I3-B** `POST /api/relationships/foundation-colleagues` — FOUNDATION_COLLEAGUE edges (shared IRS 990 foundation name, strength 0.85)
 - **I4** `enrichmentTier()` classifier — Tier 2 (FAA individuals) skips Wikidata/Wikipedia/ORCID/GitHub to focus budget on DDG-LinkedIn/DNS/RDAP
 - Startup triggers added: edgar-coinvestor at 305s, name-exact-dedup at 310s, foundation-colleagues at 425s
+- **Same-source duplicate review** — `GET /api/entities/same-source-name-clusters` groups exact names within normalized registries; `/duplicates` has a separate review-only tab and preserves manual merge/dismiss behavior
+- Duplicate candidate token indexing now deduplicates tokens per entity, preventing self-pairs from repeated words in one name
 
 ### Iteration Log
 | Date | Summary |
@@ -50,6 +52,7 @@ All 4 Phase I items implemented and live. Build clean (esbuild ⚡ 1183ms). All 
 | 2026-07-23 | All Upstash secrets restored; API Server restarted with both slots confirmed live |
 | 2026-07-23 | Import setup completed: locked dependencies restored, Drizzle schema applied, artifact-managed API/Web workflows restarted, endpoint checks and browser preview passed; live ingestion is active |
 | 2026-07-23 | Phase I (road to 9/10) fully implemented: I1 beneficial owner resolution, I2 dedup tuning, I3 warm-path edges, I4 tiered enrichment |
+| 2026-07-23 | Same-source duplicate review implemented: new cluster endpoint and `/duplicates` tab verified against live data; duplicate candidate self-pair regression fixed; API smoke tests 14/14 passed; API/Web production builds passed |
 
 ---
 

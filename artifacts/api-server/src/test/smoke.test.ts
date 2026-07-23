@@ -160,3 +160,29 @@ describe("POST /api/registry-search", () => {
     expect(res.status).toBe(400);
   });
 });
+
+// ── 7. Duplicate review endpoints ────────────────────────────────────────────
+
+describe("Duplicate review endpoints", () => {
+  it("returns cross-registry candidates without self-pairs", async () => {
+    const { status, body } = await get("/api/entities/duplicate-candidates");
+    expect(status).toBe(200);
+    expect(typeof body).toBe("object");
+    expect(Array.isArray((body as any).candidates)).toBe(true);
+    for (const candidate of (body as any).candidates) {
+      expect(candidate.entityA.id).not.toBe(candidate.entityB.id);
+    }
+  });
+
+  it("returns same-source name clusters for review", async () => {
+    const { status, body } = await get("/api/entities/same-source-name-clusters");
+    expect(status).toBe(200);
+    expect(typeof body).toBe("object");
+    expect(Array.isArray((body as any).clusters)).toBe(true);
+    for (const cluster of (body as any).clusters) {
+      expect(cluster.count).toBeGreaterThan(1);
+      expect(cluster.entities.length).toBe(cluster.count);
+      expect(new Set(cluster.entities.map((entity: any) => entity.id)).size).toBe(cluster.count);
+    }
+  });
+});
