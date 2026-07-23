@@ -554,10 +554,15 @@ export default function ApexProfile() {
           </div>
 
           <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
-            <div className="flex flex-col items-center gap-0.5">
-              <AccessScoreBadge score={entity.accessScore} />
-              <ScoreBadge score={entity.bayesianScore} />
-              <span className="text-[8px] font-mono text-muted-foreground/50 uppercase tracking-widest">HNWI Signal</span>
+            <div className="flex items-center gap-2">
+              <div className="flex flex-col items-center gap-0.5">
+                <AccessScoreBadge score={entity.accessScore} />
+                <span className="text-[8px] font-mono text-muted-foreground/50 uppercase tracking-widest">Access</span>
+              </div>
+              <div className="flex flex-col items-center gap-0.5">
+                <ScoreBadge score={entity.bayesianScore} />
+                <span className="text-[8px] font-mono text-muted-foreground/50 uppercase tracking-widest">Wealth</span>
+              </div>
             </div>
             <div className="flex items-center gap-1.5">
               <Link
@@ -575,7 +580,7 @@ export default function ApexProfile() {
                 <TargetIcon className="w-3 h-3" /> <span className="hidden sm:inline">Intel</span>
               </Link>
               <Link
-                href="/crm"
+                href="/pipeline"
                 className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded border border-border text-muted-foreground hover:text-foreground font-mono text-[10px] uppercase tracking-wider transition-colors"
                 title="Pipeline CRM"
               >

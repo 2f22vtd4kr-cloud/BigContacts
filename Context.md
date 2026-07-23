@@ -27,6 +27,16 @@
 
 > **Current import verification note (2026-07-23):** The web server returns HTTP 200 and `/api/healthz` reports Redis healthy. Dashboard data endpoints currently fail because PostgreSQL is unavailable in this imported workspace; do not interpret that as an empty database. Frontend typecheck/build pass cleanly.
 
+### What was done this session (2026-07-23 — re-import #51 nav + UX fixes)
+
+1. **Nav reordered** (`layout.tsx`): Intel HQ → Entity Ledger → Search → Network Graph → Intel Terminal → CRM Pipeline → Outreach, then collapsible "Tools & Admin" (Persona Loop, Data Sources, OSINT Tools, Duplicates, Background Jobs, Field Manual). Footer → "Phase G · v0.3".
+2. **Router secondary routes** (`router.tsx`): /improvements, /data-sources, /osint-tools, /duplicates exposed directly instead of `/_` prefixes.
+3. **BackgroundActivityCard** (`dashboard.tsx`): upgraded from one-liner ticker to live panel — polls /api/ingest/jobs every 15s, shows each running job name + progress bar (up to 3 visible).
+4. **"Avg Signal" → "Wealth Signal"** in stats bar — clearly distinct from the Access score concept.
+5. **Profile dual badges** (`profile.tsx`): Access and Wealth badges now side-by-side with clear "Access" / "Wealth" labels instead of stacked with a single "HNWI Signal" caption.
+6. **Profile CRM link** fixed: `/crm` → `/pipeline` (direct route, no redirect needed).
+7. **All 4 artifacts registered** + secrets set (REDIS_URL_1, REDIS_URL_2, COMPANIES_HOUSE_API_KEY).
+
 ### What was done this session (2026-07-23 — re-import #51 nav restore)
 
 1. **Nav reordered and restored** (`layout.tsx`): renamed mainNav items to correct Atlas labels (Intel HQ, Entity Ledger, Search, Network Graph, Intel Terminal, CRM Pipeline, Outreach). Added "Tools & Admin" collapsible section (Persona Loop, Data Sources, OSINT Tools, Duplicates, Background Jobs, Field Manual). Footer updated to "Phase G · v0.3".

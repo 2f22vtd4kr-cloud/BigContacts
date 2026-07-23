@@ -295,42 +295,74 @@ function EmptyState() {
 
 // ── Background Activity card ──────────────────────────────────────────────────
 
-function BackgroundActivityCard() {
-  const [jobCount, setJobCount] = useState(0);
-  const [lastActivity, setLastActivity] = useState<string | null>(null);
+interface LiveJob { label: string; progress: number; status: string; }
 
-  useEffect(() => {
+function BackgroundActivityCard() {
+  const [running, setRunning] = useState<LiveJob[]>([]);
+  const [lastLabel, setLastLabel] = useState<string | null>(null);
+
+  const poll = useCallback(() => {
     fetch("/api/ingest/jobs")
       .then(r => r.ok ? r.json() : null)
       .then((data: any) => {
         if (!data) return;
-        const running = (data.jobs ?? []).filter((j: any) => j.status === "running" || j.status === "queued").length;
-        setJobCount(running);
-        const latest = (data.jobs ?? [])
-          .filter((j: any) => j.lastRunAt)
-          .sort((a: any, b: any) => new Date(b.lastRunAt).getTime() - new Date(a.lastRunAt).getTime())[0];
-        if (latest) setLastActivity(latest.label);
+        const active: LiveJob[] = (data.jobs ?? [])
+          .filter((j: any) => j.status === "running" || j.status === "queued")
+          .map((j: any) => ({ label: j.label, progress: j.progress ?? 0, status: j.status }));
+        setRunning(active);
+        if (active.length === 0) {
+          const latest = (data.jobs ?? [])
+            .filter((j: any) => j.lastRunAt)
+            .sort((a: any, b: any) => new Date(b.lastRunAt).getTime() - new Date(a.lastRunAt).getTime())[0];
+          if (latest) setLastLabel(latest.label);
+        }
       })
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    poll();
+    const id = setInterval(poll, 15_000);
+    return () => clearInterval(id);
+  }, [poll]);
+
+  const isActive = running.length > 0;
+
   return (
-    <div className="border-t border-border bg-card/30 px-4 py-3 flex-shrink-0" data-testid="card-background-activity">
-      <div className="flex items-center justify-between">
+    <div className="border-t border-border bg-card/30 px-4 py-2.5 flex-shrink-0" data-testid="card-background-activity">
+      <div className="flex items-center justify-between mb-1.5">
         <div className="flex items-center gap-2 min-w-0">
-          <div className={cn("w-1.5 h-1.5 rounded-full shrink-0", jobCount > 0 ? "bg-primary animate-pulse" : "bg-muted-foreground/30")} />
-          <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest truncate" data-testid="text-pipeline-status">
-            {jobCount > 0 ? `${jobCount} task${jobCount > 1 ? "s" : ""} running` : lastActivity ? `Last: ${lastActivity}` : "Background tasks idle"}
+          <div className={cn("w-1.5 h-1.5 rounded-full shrink-0", isActive ? "bg-primary animate-pulse" : "bg-muted-foreground/30")} />
+          <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground" data-testid="text-pipeline-status">
+            {isActive ? `${running.length} task${running.length > 1 ? "s" : ""} running` : lastLabel ? `Last: ${lastLabel}` : "Background tasks idle"}
           </span>
         </div>
-        <Link
-          href="/jobs"
-          data-testid="link-background-jobs"
-          className="text-[10px] font-mono text-primary/60 hover:text-primary transition-colors whitespace-nowrap ml-2 flex items-center gap-0.5"
-        >
+        <Link href="/jobs" data-testid="link-background-jobs"
+          className="text-[10px] font-mono text-primary/60 hover:text-primary transition-colors whitespace-nowrap ml-2 flex items-center gap-0.5">
           View Tasks <ChevronRight className="w-3 h-3" />
         </Link>
       </div>
+      {isActive && (
+        <div className="space-y-1">
+          {running.slice(0, 3).map((job, i) => (
+            <div key={i} className="flex items-center gap-2 min-w-0">
+              <Loader2 className="w-2.5 h-2.5 animate-spin text-primary shrink-0" />
+              <span className="text-[9px] font-mono text-foreground/70 truncate flex-1">{job.label}</span>
+              {job.progress > 0 && (
+                <div className="flex items-center gap-1 shrink-0">
+                  <div className="w-16 h-1 rounded-full bg-muted overflow-hidden">
+                    <div className="h-full bg-primary transition-all duration-500" style={{ width: `${Math.min(100, job.progress)}%` }} />
+                  </div>
+                  <span className="text-[8px] font-mono text-primary/60 w-6 text-right">{Math.round(job.progress)}%</span>
+                </div>
+              )}
+            </div>
+          ))}
+          {running.length > 3 && (
+            <span className="text-[9px] font-mono text-muted-foreground/50">+{running.length - 3} more…</span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -409,7 +441,7 @@ function StatsBar() {
         </div>
         <div className="flex items-center justify-between px-4 py-2 bg-card/60" data-testid="stat-avg-reach">
           <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
-            <Activity className="w-3 h-3 shrink-0" /> Avg Signal
+            <Activity className="w-3 h-3 shrink-0" /> Wealth Signal
           </span>
           <span className="text-xs font-bold text-primary tabular-nums">{((s.avgBayesianScore ?? 0) * 100).toFixed(1)}</span>
         </div>
