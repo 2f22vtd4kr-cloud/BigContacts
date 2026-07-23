@@ -15,9 +15,9 @@
 - **Local Redis** running on `redis://localhost:6379` — workflow `Redis` running ✅
 - **SESSION_SECRET** — ✅ Set
 - **REDIS_URL** — ✅ Set (local Redis)
-- **Upstash Redis (`REDIS_URL_1`)** — ❌ NOT SET — dedup will not persist across restarts
-- **Upstash Redis (`REDIS_URL_2`)** — ❌ NOT SET — contact cache will not restore on boot
-- **COMPANIES_HOUSE_API_KEY** — ❌ NOT SET (optional — UK CH harvester skipped)
+- **Upstash Redis (`REDIS_URL_1`)** — ✅ Set (permanent dedup set)
+- **Upstash Redis (`REDIS_URL_2`)** — ✅ Set (permanent contact cache)
+- **COMPANIES_HOUSE_API_KEY** — ✅ Set
 
 ### Workflows running
 | Workflow | Status |
