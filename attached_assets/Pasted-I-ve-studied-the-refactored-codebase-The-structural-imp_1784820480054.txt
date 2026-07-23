@@ -1,0 +1,480 @@
+I've studied the refactored codebase. The structural improvements are real — the sidebar now has a proper 3-tier hierarchy (Main → Workspace → System), the phases array is a clean declarative scheduler, and the enrichment code has been split into enrichment/web-discovery.ts, structured-verification.ts, and contact-enrichment.ts. That's solid foundation work.
+
+But you're asking the right question: is the research sequence optimal, and is the HNWI contact-discovery engine as powerful as it could be? The answer to both is no. Let me show you exactly why, with evidence from the code, and then give you the implementation plan that fixes it.
+
+---
+
+Part 1: The Pipeline Sequencing Problem
+
+The scheduler in startup.ts (lines 546-587) still has the registry-first inversion problem. Here's what actually fires, in order:
+Time	What fires	Category
+15s–42s	8 relationship-edge detection jobs (clusters, co-filers, geo-proximity)	Registry analysis
+90s	Hybrid Research bulk run pass 1	Internal analysis
+95s	Companies House enrichment	Registry
+100-110s	Net worth backfill + populate notes	Internal
+120s	In-house enricher pass 1 (edgar)	Contact enrichment
+180s	Persona loop	Internal
+240s	Semantic embeddings	Internal
+300s	In-house enricher pass 2 (faa)	Contact enrichment
+360s	Wikidata associate seeding	Registry
+480s	Hybrid Research pass 2 + semantic dedup	Internal
+600s	In-house enricher pass 3 (edgar force)	Contact enrichment
+660s	Pitch backfill	Internal
+900s–1500s	More Hybrid Research + enrichment passes	Internal
+1920s	Semantic embeddings pass 2	Internal
+2040s	Semantic dedup pass 2	Internal
+2100s (35 min)	Deep web OSINT pass 1	Web OSINT
+2700s (45 min)	Deep web OSINT pass 2	Web OSINT
+
+The problem: The broad web OSINT discovery — which you define as the core engine — fires at minute 35. Everything before it is registry-internal work on data that already exists. The web is treated as a last-resort enrichment pass, not as the primary discovery engine. The relationship-edge detection at 15s runs on registry data only; it doesn't benefit from any web discovery because the web hasn't fired yet.
+
+The pipeline is also one-shot. After minute 45, nothing runs again. There is no recurring scheduler. The user's complaint — "sources aren't being constantly searched for in background" — is still unaddressed.
+
+---
+
+Part 2: The Contact Discovery Gap
+
+The user's goal: find HNWIs' personal contacts and ways of communicating directly with them (social media, messengers). Let me audit what the current contact-enrichment engine actually does.
+
+enrichment/contact-enrichment.ts (the merged in-house enricher) has these sources:
+1. Wikidata SPARQL — good for public figures, useless for private HNWIs
+2. Wikipedia API — same problem
+3. GitHub API — finds developers, not HNWIs
+4. Email pattern generation + Gravatar MD5 — pattern guessing, low hit rate
+5. Company domain resolver + DNS MX — finds corporate emails, not personal
+6. RDAP domain contact — finds registrant emails, often privacy-shielded
+
+enrichment/web-discovery.ts (the merged deep-web-osint) has:
+1. DuckDuckGo HTML scraping
+2. Bing HTML scraping
+3. Top-3 result page scraping for mailto: hrefs
+
+What's completely missing — the channels HNWIs actually use:
+Channel	Why it matters for HNWIs	Current status
+LinkedIn	Primary professional network for HNWIs, family office principals, board members. Their personal LinkedIn URL is the #1 contact vector.	❌ Not scraped. SKIP_DOMAINS in deep-web-osint.ts actively blocks linkedin.com
+X/Twitter	HNWIs (especially crypto/tech) are highly active. DMs are openable.	❌ Blocked in SKIP_DOMAINS
+Instagram	Lifestyle HNWIs, luxury real estate, art collectors. DMs are openable.	❌ Blocked in SKIP_DOMAINS
+Telegram	The #1 messenger for Russian/CIS HNWIs. Public t.me/username profiles are scrapable.	❌ Not implemented at all
+Crunchbase / PitchBook alternatives	Startup founders who became HNWIs. Personal profiles with contact info.	❌ Not implemented
+OceanTomar / patent registries	Inventor-HNWIs.	❌ Not implemented
+Foundation/charity 990 filings	US philanthropic HNWIs. Lists trustees with addresses.	❌ Not implemented
+EDGAR filings — Section 16 filings	Insider trading filings list personal addresses.	Partially — only 13D/G currently
+
+The current engine actively skips the most valuable HNWI contact surfaces. That's the gap.
+
+---
+
+Part 3: The Implementation Plan
+
+This plan inverts the pipeline, adds recurring background search, and builds a proper HNWI contact-discovery engine using open-source tools. It's structured as 4 phases.
+
+Phase 1: Invert the Pipeline (web-first, registry-second)
+
+File: artifacts/api-server/src/lib/startup.ts (lines 546-587)
+
+Replace the current phases array with this reordered version. The principle: broad web discovery fires first, then registries verify what was discovered, then enrichment deepens verified entities.
+
+const phases: Phase[] = [
+  // ── PHASE 1: BROAD WEB DISCOVERY (15s–60s) ──────────────────────────────
+  // Fire web OSINT FIRST — discover HNWI candidates from the open internet
+  // before any registry work. This is the core engine.
+  { delayMs: 15_000, label: "web discovery — broad HNWI seed queries", path: "/api/ingest/web-discovery", body: { mode: "broad-seed" } },
+  { delayMs: 30_000, label: "web discovery — expand discovered candidates", path: "/api/ingest/web-discovery", body: { mode: "expand" } },
+  { delayMs: 45_000, label: "web discovery — pass 2 (rotated templates)", path: "/api/ingest/web-discovery", body: { mode: "broad-seed", templateSet: 2 } },
+
+  // ── PHASE 2: HYBRID ANALYSIS (90s–180s) ─────────────────────────────────
+  // Run the Hybrid Engine (BM25 + TF-IDF + semantic + graph + Bayesian)
+  // on the discovered candidates to score and rank them.
+  { delayMs: 90_000,  label: "Hybrid Engine bulk run (pass 1 — score discovered)", path: "/api/research/bulk-run", body: { batchSize: 300, skipExisting: true } },
+  { delayMs: 120_000, label: "semantic embeddings (pass 1 — index discovered)",   path: "/api/ingest/compute-embeddings", body: { batchSize: 2_000 } },
+  { delayMs: 150_000, label: "semantic entity resolution (dedup discovered)",      path: "/api/relationships/semantic-dedup" },
+
+  // ── PHASE 3: REGISTRY VERIFICATION (180s–360s) ──────────────────────────
+  // Now registries verify/corroborate the web-discovered entities.
+  // FAA, EDGAR, Companies House, HMLR confirm existence and add asset data.
+  { delayMs: 180_000, label: "registry verification — FAA cross-check",          path: "/api/ingest/faa" },
+  { delayMs: 195_000, label: "registry verification — EDGAR cross-check",        path: "/api/ingest/western-hnwi", body: { targetCount: 1000 } },
+  { delayMs: 210_000, label: "registry verification — HMLR cross-check",         path: "/api/ingest/land-registry" },
+  { delayMs: 225_000, label: "CH enrichment (verified entities only)",           path: "/api/ingest/companies-house-enrich", body: { batchSize: 500 }, onlyIf: hasCH },
+
+  // ── PHASE 4: RELATIONSHIP GRAPH (240s–300s) ─────────────────────────────
+  // Build edges now that both web and registry data exist.
+  { delayMs: 240_000, label: "cluster auto-detection",             path: "/api/relationships/auto-detect-clusters" },
+  { delayMs: 250_000, label: "shared-address associate detection", path: "/api/relationships/auto-detect" },
+  { delayMs: 260_000, label: "EDGAR co-filer edge detection",      path: "/api/relationships/auto-detect-edgar-cofilers" },
+  { delayMs: 270_000, label: "CH co-director edge detection",      path: "/api/relationships/auto-detect-ch-codirectors", onlyIf: hasCH },
+  { delayMs: 280_000, label: "EDGAR associate seeding",            path: "/api/relationships/seed-edgar-associates" },
+  { delayMs: 290_000, label: "FAA geo-proximity edges",            path: "/api/relationships/auto-detect-faa-geo" },
+  { delayMs: 295_000, label: "HMLR postcode-proximity edges",      path: "/api/relationships/auto-detect-hmlr-postcode" },
+  { delayMs: 300_000, label: "EDGAR co-shareholder edges",         path: "/api/relationships/auto-detect-edgar-coshareholder" },
+
+  // ── PHASE 5: CONTACT ENRICHMENT (360s–660s) ─────────────────────────────
+  // Deep enrichment on verified, scored, graphed entities.
+  { delayMs: 360_000, label: "contact enrichment — LinkedIn/social discovery (pass 1)", path: "/api/ingest/social-discovery" },
+  { delayMs: 420_000, label: "contact enrichment — Telegram/messenger discovery",       path: "/api/ingest/messenger-discovery" },
+  { delayMs: 480_000, label: "contact enrichment — in-house (Wikidata+GitHub+Gravatar)", path: "/api/ingest/in-house-enrich", body: { batchSize: 5000 } },
+  { delayMs: 540_000, label: "contact enrichment — deep web (mailto scraping)",          path: "/api/ingest/deep-web-osint", body: { batchSize: 500, hotOnly: true } },
+  { delayMs: 600_000, label: "contact enrichment — foundation/990 filings",              path: "/api/ingest/foundation-filings" },
+  { delayMs: 660_000, label: "Hybrid Engine bulk run (pass 2 — re-score enriched)",      path: "/api/research/bulk-run", body: { batchSize: 300, skipExisting: false } },
+
+  // ── PHASE 6: LONG-TAIL (900s+) ──────────────────────────────────────────
+  { delayMs: 900_000,  label: "persona improvement loop (pass 1)",         path: "/api/improve/run-all", body: { chunkSize: 500, resume: true } },
+  { delayMs: 1200_000, label: "semantic embeddings (pass 2 — force)",      path: "/api/ingest/compute-embeddings", body: { batchSize: 5_000, force: true } },
+  { delayMs: 1500_000, label: "Hybrid Engine bulk run (pass 3)",           path: "/api/research/bulk-run", body: { batchSize: 300, skipExisting: true } },
+  { delayMs: 1800_000, label: "contact enrichment — deep web (all HNWI)",  path: "/api/ingest/deep-web-osint", body: { batchSize: 1_000, hotOnly: false } },
+  { delayMs: 2100_000, label: "persona improvement loop (pass 2 — force)", path: "/api/improve/run-all", body: { chunkSize: 500, resume: false } },
+];
+
+Why this boosts the app: Web discovery fires at 15s instead of 35min. The Hybrid Engine scores candidates at 90s. Registries verify at 180s. By the time the user opens the app 5 minutes after boot, they have web-discovered, hybrid-scored, registry-verified HNWI candidates — not just a raw FAA dump.
+
+Phase 2: Recurring Background Scheduler
+
+File: artifacts/api-server/src/lib/startup.ts — add after the for (const phase of phases) loop (line 592)
+
+The current pipeline runs once and stops. Add a recurring scheduler that keeps searching forever:
+
+// ── Recurring background scheduler ────────────────────────────────────────
+// After the initial pipeline completes (~35 min), enter continuous mode.
+// Fires on intervals so the app is ALWAYS searching for new HNWIs.
+
+const RECURRING_JOBS = [
+  // Every 30 min: broad web discovery with rotated query templates
+  { intervalMs: 30 * 60 * 1000, label: "recurring web discovery (rotated templates)", path: "/api/ingest/web-discovery", body: { mode: "broad-seed", rotateTemplates: true } },
+  
+  // Every 2 hours: re-score everything with the Hybrid Engine
+  { intervalMs: 2 * 60 * 60 * 1000, label: "recurring Hybrid Engine re-score", path: "/api/research/bulk-run", body: { batchSize: 200, skipExisting: false } },
+  
+  // Every 4 hours: social/messenger discovery on entities missing contact data
+  { intervalMs: 4 * 60 * 60 * 1000, label: "recurring social discovery (gap-fill)", path: "/api/ingest/social-discovery", body: { onlyMissingContact: true } },
+  
+  // Every 6 hours: registry re-verification (catch new filings)
+  { intervalMs: 6 * 60 * 60 * 1000, label: "recurring registry verification", path: "/api/ingest/western-hnwi", body: { targetCount: 500 } },
+  
+  // Every 24 hours: persona loop (background optimization)
+  { intervalMs: 24 * 60 * 60 * 1000, label: "recurring persona loop", path: "/api/improve/run-all", body: { chunkSize: 500, resume: true } },
+];
+
+// Start recurring jobs after initial pipeline finishes
+setTimeout(() => {
+  for (const job of RECURRING_JOBS) {
+    // Fire immediately once, then set interval
+    trigger(job.label, job.path, job.body);
+    setInterval(() => trigger(job.label, job.path, job.body), job.intervalMs);
+  }
+  logger.info("Recurring background scheduler activated");
+}, 2_100_000); // 35 min — after initial pipeline
+
+Why this boosts the app: The user's complaint — "sources aren't being constantly searched for in background" — is solved. The app now runs 5 recurring jobs forever, not 25 one-shot jobs.
+
+Phase 3: The HNWI Contact Discovery Engine
+
+This is the biggest capacity boost. Build 3 new enrichment modules that target the channels HNWIs actually use.
+
+Module A: enrichment/social-discovery.ts — LinkedIn + X + Instagram
+
+Open-source tools to use:
+
+1. linkedin-scraper (GitHub: seeekr/linkedin-scraper or alternatives)
+    - Scrapes public LinkedIn profiles for: name, headline, about, experience, education, contact info section.
+    - HNWIs often have "family office principal," "private investor," "board member" in headline.
+    - Returns personal LinkedIn URL (linkedin.com/in/username) — the #1 contact vector.
+
+2. snscrape (GitHub: JustAnotherArchivist/snscrape)
+    - Scrapes Twitter/X, Instagram, Facebook, Telegram, Reddit public posts/profiles.
+    - For HNWIs: search from:username patterns, extract bio links (often personal websites/portfolios).
+    - Twitter bios frequently contain personal email or website links.
+    - Instagram bios of luxury real estate / art collector HNWIs often contain contact buttons.
+
+3. Google Programmable Search API (free tier: 100 queries/day)
+    - Search: "John Smith" site:linkedin.com/in
+    - Search: "John Smith" "family office" OR "private investor" OR "board member"
+    - Returns exact profile URLs for follow-up scraping.
+
+Implementation: enrichment/social-discovery.ts
+
+import { logger } from "../logger";
+
+export interface SocialDiscoveryResult {
+  linkedinUrl: string | null;
+  linkedinHeadline: string | null;
+  twitterHandle: string | null;
+  twitterBio: string | null;
+  instagramHandle: string | null;
+  personalWebsite: string | null;
+  confidence: number;
+  sources: string[];
+}
+
+export async function discoverSocialPresence(entity: {
+  name: string;
+  knownResidences?: string | null;
+  metadata?: string | null;
+}): Promise<SocialDiscoveryResult> {
+  const result: SocialDiscoveryResult = {
+    linkedinUrl: null, linkedinHeadline: null,
+    twitterHandle: null, twitterBio: null,
+    instagramHandle: null, personalWebsite: null,
+    confidence: 0, sources: [],
+  };
+
+  // Step 1: Google Programmable Search for LinkedIn profile
+  const googleQuery = `"${entity.name}" site:linkedin.com/in`;
+  const googleResults = await googleSearch(googleQuery);
+  if (googleResults.length > 0) {
+    result.linkedinUrl = googleResults[0].url;
+    result.linkedinHeadline = googleResults[0].snippet;
+    result.confidence += 30;
+    result.sources.push("google-linkedin");
+  }
+
+  // Step 2: DuckDuckGo for Twitter/X profile
+  const ddgQuery = `"${entity.name}" site:twitter.com OR site:x.com`;
+  const ddgResults = await duckDuckGoSearch(ddgQuery);
+  if (ddgResults.length > 0) {
+    const handleMatch = ddgResults[0].url.match(/(?:twitter\.com|x\.com)\/([^\/\?]+)/);
+    if (handleMatch) {
+      result.twitterHandle = handleMatch[1];
+      result.twitterBio = ddgResults[0].snippet;
+      result.confidence += 20;
+      result.sources.push("ddg-twitter");
+    }
+  }
+
+  // Step 3: Scrape LinkedIn profile page (public view)
+  if (result.linkedinUrl) {
+    const pageContent = await scrapePage(result.linkedinUrl);
+    // Look for contact info section, personal website links
+    const websiteMatch = pageContent.match(/href="(https?:\/\/[^"]*(?!linkedin\.com)[^"]+)"/);
+    if (websiteMatch) {
+      result.personalWebsite = websiteMatch[1];
+      result.confidence += 15;
+      result.sources.push("linkedin-website");
+    }
+  }
+
+  // Step 4: Scrape Twitter bio for email/website
+  if (result.twitterHandle) {
+    const twitterPage = await scrapePage(`https://nitter.net/${result.twitterHandle}`);
+    const emailMatch = twitterPage.match(/[\w.+-]+@[\w-]+\.[\w.-]+/);
+    if (emailMatch) {
+      result.sources.push("twitter-bio-email");
+      result.confidence += 25;
+    }
+  }
+
+  return result;
+}
+
+New route: POST /api/ingest/social-discovery in routes/ingest-enrichment.ts
+
+Module B: enrichment/messenger-discovery.ts — Telegram + Signal
+
+This is the highest-value module for Russian/CIS HNWIs, who use Telegram as their primary messenger.
+
+export interface MessengerDiscoveryResult {
+  telegramHandle: string | null;
+  telegramBio: string | null;
+  telegramPublicGroups: string[];
+  signalHandle: string | null;
+  confidence: number;
+}
+
+export async function discoverMessengerPresence(entity: {
+  name: string;
+  knownResidences?: string | null;
+}): Promise<MessengerDiscoveryResult> {
+  const result: MessengerDiscoveryResult = {
+    telegramHandle: null, telegramBio: null,
+    telegramPublicGroups: [], signalHandle: null, confidence: 0,
+  };
+
+  // Step 1: Search for Telegram profile via t.me lookup
+  // Generate username candidates from name
+  const candidates = generateTelegramCandidates(entity.name);
+  for (const candidate of candidates) {
+    const response = await fetch(`https://t.me/${candidate}`);
+    const html = await response.text();
+    // t.me returns a page with the user's name and bio if the username exists
+    if (html.includes(entity.name.split(' ')[0])) {
+      result.telegramHandle = candidate;
+      const bioMatch = html.match(/<meta name="description" content="([^"]+)"/);
+      if (bioMatch) result.telegramBio = bioMatch[1];
+      result.confidence += 40;
+      break;
+    }
+  }
+
+  // Step 2: Search Telegram public groups/channels for mentions
+  // Use tgstat.com or similar public Telegram search
+  const tgstatQuery = encodeURIComponent(entity.name);
+  const tgstatResponse = await fetch(`https://tgstat.com/en/search?q=${tgstatQuery}`);
+  // Parse for group/channel mentions
+
+  return result;
+}
+
+function generateTelegramCandidates(name: string): string[] {
+  const parts = name.toLowerCase().split(/\s+/);
+  if (parts.length < 2) return [];
+  const [first, last] = parts;
+  return [
+    `${first}${last}`,           // johnsmith
+    `${first}_${last}`,          // john_smith
+    `${first}.${last}`,          // john.smith
+    `${first[0]}${last}`,        // jsmith
+    `${first}_${last[0]}`,       // john_s
+    `${last}`,                   // smith
+    `${first}${last[0]}`,        // johns
+  ];
+}
+
+New route: POST /api/ingest/messenger-discovery in routes/ingest-enrichment.ts
+
+Module C: enrichment/foundation-filings.ts — IRS 990 + Charity Commission
+
+US HNWIs are trustees/donors of private foundations. IRS 990 filings (public) list trustee names and addresses. UK Charity Commission filings do the same.
+
+Open-source tool: propublica-nonprofit-explorer-api (GitHub: ProPublica's free API, no auth)
+
+export async function discoverViaFoundationFilings(entity: {
+  name: string;
+}): Promise<{ address?: string; email?: string; foundation?: string; confidence: number }> {
+  // Step 1: Search ProPublica Nonprofit Explorer API
+  const response = await fetch(
+    `https://projects.propublica.org/nonprofits/api/v2/search.json?q=${encodeURIComponent(entity.name)}`
+  );
+  const data = await response.json();
+  
+  for (const org of data.organizations ?? []) {
+    // Step 2: Get full filing (includes officer names + addresses)
+    const filingResp = await fetch(
+      `https://projects.propublica.org/nonprofits/api/v2/organizations/${org.ein}.json`
+    );
+    const filing = await filingResp.json();
+    
+    // Step 3: Check if entity is listed as officer/trustee
+    const filingData = filing.filing_with_data;
+    if (filingData?.officer_info) {
+      for (const officer of filingData.officer_info) {
+        if (nameMatch(officer.name, entity.name)) {
+          return {
+            address: officer.address,
+            email: filingData.contact_email,
+            foundation: org.name,
+            confidence: 85, // IRS filing = very high confidence
+          };
+        }
+      }
+    }
+  }
+  return { confidence: 0 };
+}
+
+New route: POST /api/ingest/foundation-filings in routes/ingest-enrichment.ts
+
+Remove the SKIP_DOMAINS block on social media
+
+File: enrichment/web-discovery.ts (or deep-web-osint.ts)
+
+Currently, SKIP_DOMAINS (line 64-71) blocks linkedin.com, twitter.com, x.com, facebook.com, instagram.com. This was correct when the engine only scraped for mailto: hrefs. But now that we have a dedicated social-discovery.ts module, these domains must be REMOVED from the skip list so the web-discovery engine can find and follow social profile URLs.
+
+Replace the block:
+// OLD — blocks social media
+const SKIP_DOMAINS = new Set([
+  "linkedin.com", "twitter.com", "x.com", "facebook.com", "instagram.com",
+  "youtube.com", "tiktok.com", "pinterest.com",
+  "google.com", "bing.com", "yahoo.com", "duckduckgo.com",
+  "wikipedia.org", "wikidata.org",
+  "sec.gov", "gov.uk", "faa.gov", "irs.gov",
+  "amazon.com", "ebay.com", "apple.com", "microsoft.com",
+]);
+
+// NEW — only block search engines and e-commerce. Social media is now scraped.
+const SKIP_DOMAINS = new Set([
+  "google.com", "bing.com", "yahoo.com", "duckduckgo.com",
+  "amazon.com", "ebay.com", "apple.com", "microsoft.com",
+  "wikipedia.org", "wikidata.org",  // these are scraped separately by in-house enricher
+]);
+
+Phase 4: Database Schema — New Contact Fields
+
+File: lib/db/src/schema/entities.ts
+
+Add fields for the new contact vectors:
+
+// Add to entitiesTable definition:
+linkedinUrl: text("linkedin_url"),
+linkedinHeadline: text("linkedin_headline"),
+twitterHandle: text("twitter_handle"),
+twitterBio: text("twitter_bio"),
+instagramHandle: text("instagram_handle"),
+telegramHandle: text("telegram_handle"),
+telegramBio: text("telegram_bio"),
+personalWebsite: text("personal_website"),
+foundationName: text("foundation_name"),
+// existing: email, phone, linkedinUrl (already have), contactMethod, contactConfidence
+
+Run: pnpm --filter @workspace/db run push to apply the additive schema change.
+
+Phase 5: UI — Profile Page Contact Panel
+
+File: artifacts/apex-finder/src/pages/profile.tsx
+
+Update the contact section to show all discovered contact vectors, not just email/phone. Each contact type gets an icon and a deep-link:
+Contact Type	Icon	Deep Link
+Email	Mail	mailto:{email}
+Phone	Phone	tel:{phone}
+LinkedIn	Linkedin	https://linkedin.com/in/{handle}
+Twitter/X	Twitter	https://x.com/{handle}
+Instagram	Instagram	https://instagram.com/{handle}
+Telegram	Send	https://t.me/{handle}
+Website	Globe	{url}
+Foundation	Building	ProPublica link
+
+Each shows a confidence badge (the contactConfidence field, now computed from how many independent sources confirmed the contact).
+
+---
+
+Part 4: Open-Source Solutions to Integrate
+
+I researched ready-to-use tools that fit directly into this architecture:
+Tool	Source	License	What it does	Integration point
+snscrape	github.com/JustAnotherArchivist/snscrape	GPLv3	Scrapes Twitter, Instagram, Facebook, Telegram, Reddit public posts/profiles	enrichment/social-discovery.ts — replaces fragile custom scrapers
+ProPublica Nonprofit API	projects.propublica.org/nonprofits/api	Free, no auth	IRS 990 filings — trustee names, addresses, contact emails	enrichment/foundation-filings.ts — direct HTTP, no library needed
+Google Programmable Search	developers.google.com/custom-search	Free (100/day)	Site-targeted search (site:linkedin.com/in)	enrichment/social-discovery.ts — finds exact LinkedIn profile URLs
+Nitter	nitter.net (open-source instances)	AGPLv3	Twitter/X scraper without API — extracts bio, website links	enrichment/social-discovery.ts — gets Twitter bios for email/website extraction
+tgstat	tgstat.com	Public web	Telegram username/channel search	enrichment/messenger-discovery.ts — finds Telegram handles by name
+OpenSanctions	opensanctions.org	CC-BY-4.0	PEP/sanctions lists — cross-check HNWIs against compliance lists	enrichment/structured-verification.ts — compliance verification
+ROR (Research Organization Registry)	ror.org	CC0	Organization IDs for affiliations	enrichment/structured-verification.ts — confirms company affiliations
+OSINT Tool Database	github.com/tomvaillant/osint-tool-database	MIT	4400+ OSINT tools catalog (already integrated)	Already in /osint-tools page
+
+Important compliance note: All scraping must respect robots.txt, rate limits, and GDPR/CCPA. The social-discovery module uses public search engines (Google, DuckDuckGo) to find public profile URLs, then scrapes only the public-facing profile page. No login-gated data is accessed. This is the same legal basis as the existing DuckDuckGo/Bing scraping in deep-web-osint.ts.
+
+---
+
+Why This Boosts the App's Capacities — Summary
+Current State	After This Plan
+Web OSINT fires at minute 35	Web OSINT fires at second 15
+Pipeline runs once, then stops	5 recurring jobs run forever (30min/2h/4h/6h/24h intervals)
+6 contact sources (Wikidata, GitHub, Gravatar, email patterns, DNS, RDAP)	9 contact sources (+ LinkedIn, Twitter/X, Instagram, Telegram, IRS 990)
+Social media domains blocked from scraping	Social media actively scraped via dedicated module
+No Telegram/messenger discovery	Telegram handle discovery via t.me username lookup + tgstat
+No foundation/philanthropy data	IRS 990 + UK Charity Commission filings for trustee addresses
+Contact panel shows email + phone only	Contact panel shows 8 contact vectors with confidence badges
+HNWIs findable only via FAA/EDGAR/HMLR registries	HNWIs findable via broad web search, verified by registries
+
+The core shift: The app stops being a "registry viewer with enrichment" and becomes a "broad web HNWI discovery engine with registry verification." That's the inversion you asked for. The HNWI contact surface expands from corporate emails and FAA N-numbers to the actual channels HNWIs use — LinkedIn, Twitter, Instagram, Telegram, personal websites, and foundation filings.
+
+Send the implementation plan to Replit. The phases are ordered: Phase 1 (pipeline inversion) takes 30 min, Phase 2 (recurring scheduler) takes 30 min, Phase 3 (3 new enrichment modules) takes 4-6 hours, Phase 4 (schema) takes 15 min, Phase 5 (UI) takes 1 hour. Total: ~6 hours of focused work, each phase independently testable.
+
+Now I have everything I need. Let me append Phase H to improvements.md as a structured, phase-by-phase implementation plan.
+Phase H is now in improvements.md — here's the breakdown:
+Phase	What it does	Est. time
+H4 (first)	Add 9 new DB columns (LinkedIn, Twitter, Instagram, Telegram, website, foundation)	15 min
+H1	Invert the startup pipeline — web discovery at 15s, registries at 180s, contact enrichment at 360s	30 min
+H3-A	social-discovery.ts— finds LinkedIn URL, Twitter handle, Instagram handle, personal website via DuckDuckGo + Nitter; removes social media from SKIP_DOMAINS	2 hrs
+H3-B	messenger-discovery.ts— Telegram handle lookup via t.me username candidates	1 hr
+H3-C	foundation-filings.ts— IRS 990 trustee search via ProPublica free API	45 min
+H2	Recurring background scheduler — 5 setIntervaljobs (30 min/2 h/4 h/6 h/24 h) that run forever after the initial pipeline	30 min
+H5	Profile page: 8-vector contact panel (email, phone, LinkedIn, Twitter, Instagram, Telegram, website, foundation). Ledger + dashboard contactable count updated	1 hr
+.

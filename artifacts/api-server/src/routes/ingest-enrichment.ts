@@ -940,7 +940,12 @@ router.post("/ingest/foundation-filings", async (req: Request, res: Response): P
       const rows = await db.select({
         id: entitiesTable.id, name: entitiesTable.name,
         type: entitiesTable.type, sourceRegistries: entitiesTable.sourceRegistries,
-        email: entitiesTable.email, knownResidences: entitiesTable.knownResidences,
+        email: entitiesTable.email, phone: entitiesTable.phone,
+        linkedinUrl: entitiesTable.linkedinUrl,
+        twitterHandle: entitiesTable.twitterHandle,
+        instagramHandle: entitiesTable.instagramHandle,
+        telegramHandle: entitiesTable.telegramHandle,
+        knownResidences: entitiesTable.knownResidences,
       }).from(entitiesTable).where(and(...conditions as [SQL, ...SQL[]])).limit(Number(batchSize));
 
       await updateJob(jobId, { status: "running", message: `Foundation filings: 0/${rows.length} processing`, progress: 0, total: rows.length } as any);

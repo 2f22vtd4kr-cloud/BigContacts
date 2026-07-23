@@ -1,0 +1,89 @@
+So, in the previous to this re-import you came up with a horrendous news - saying that basically nothing in the backend works. I attach our conversation on it which began with persona loop which found this fuck up. So then you proceed to restore all the capacities. In the second attachment I remind you our architecture (don't mind frontend since we changed it since then but the main backend principles on web-OSINT going first since internet is the biggest source by definition and then basically everything else processes data found during web OSINT research. This goes for both stages: search of sources of HNWIs and their processing and enrichment and processing of found HNWI's contacts.
+So make sure now everything works according to how intended. I see you are still making a mistake of referencing MCTS algorithm alone when it's Hybrid where MCTS is only one of (L4) algorithms. So be aware and stop driving me crazy with referencing MCTS all the time despite obligatory restriction of doing so!
+Again - check everything, run loop, run bug hunts, run tests do the complete check up, solve immediately if found something and transcribe as you go your work and overall workflow into the context.md for future re-imports. Godspeed !
+Let me read both attached files to understand what happened in the previous session and what needs to be fixed.
+Let me digest what I've read:
+1. Attachment 1 (persona loop result conversation): Shows the history of what happened - the persona loop found 0 relationships, 0 contacts. Then fixes were made. The final state was 81,528 entities, 80,305 assets, 264,253 relationships, 767 contactable entities, 600 research sessions. Pipeline hardening was done.
+2. Attachment 2 (architecture/improvement plan): This is a detailed analysis that the user shared. Key points:
+    * The startup pipeline has web OSINT firing at minute 35 - it should fire at second 15 (web-first principle)
+    * The pipeline needs to be restructured: Web Discovery → Hybrid Analysis → Registry Verification → Relationship Graph → Contact Enrichment
+    * Contact discovery is missing dedicated modules for LinkedIn, social platforms, Telegram, and foundation filings
+    * The SKIP_DOMAINS filter is blocking social media unnecessarily and should be removed now that we have dedicated social discovery
+    * I need to add new database columns for social handles and personal websites
+    * A recurring background scheduler with five persistent setInterval jobs is required
+    * The Hybrid Engine is a multi-layered system combining BM25, TF-IDF, semantic search, graph analysis, and Bayesian methods—not just MCTS
+, which is only the L4 component
+The user is frustrated because I've been mischaracterizing the algorithm as MCTS when it's actually a hybrid system, the pipeline had web-OSINT in the wrong position, and there was a previous complete failure. I need to do a thorough audit of the codebase to verify the current state against what should exist: checking the startup sequence, examining the discovery modules for SKIP_DOMAINS issues, confirming whether the social and messenger discovery modules are implemented, and reviewing the database schema.
+Now I'm planning a systematic approach: first explore the codebase in parallel to understand what's actually there, identify what's broken or missing, fix issues immediately, then start the ingestion pipeline and run comprehensive checks before updating the documentation.
+Read. Got it. The core mandate: web OSINT fires first, the Hybrid Engine (not "MCTS" — fixed in my vocabulary permanently) runs second, registries verify third. The attachment is the Phase H blueprint. Let me do a full codebase audit in parallel before touching anything.
+Good picture. The architecture is largely implemented — Phase H columns exist, all 3 enrichment modules (social, messenger, foundation) exist, SKIP_DOMAINS no longer blocks social media, recurring scheduler is in. The DB is empty from the fresh import so cold-start should have fired ingestion. Let me check actual runtime state and dig into the specific files that need scrutiny.
+Found the root bug. Log shows: Could not query entity count (non-fatal) — err: "Failed query: select count(*) from \"entities\"\nparams: "— then return. PostgreSQL had a transient startup failure so coldStartRecovery bailed immediately, triggering zero ingestion. The DB is empty because cold start aborted.
+Let me fix that retry logic, audit the enrichment modules for other bugs, and manually kick off ingestion — all in parallel.
+Clear picture. Three fixes needed immediately + manual ingestion trigger. Doing everything in parallel:
+The ingestion jobs ARE running — the curl triggers in the previous block fired successfully (curl ran even though python3 wasn't found). Now fix the three bugs while monitoring ingestion progress.
+New artifact workflows registered but not started — the old API Server is still running with active ingestion jobs. I'll leave it running and let ingestion complete before switching to canonical artifact workflows. Let me fix the foundation address bug and check progress.
+FAA done (20,032 records), land-registry running (3,700 so far). Let me fix the foundation-filings bugs properly — need to see the actual return type — and prepare the full rebuild while ingestion continues.
+28k entities loaded, land-registry and western-hnwi still running. Fixing the foundation-filings address bug now, then will monitor until ingestion is complete before consolidating to artifact-managed workflows.
+Three more bugs to fix simultaneously:
+1. contactConfidence ignores Twitter/Instagram/Telegram — adds 0 for those signals
+2. Social/messenger discovery never recomputes contactConfidence in DB after enriching
+3. bulk-mcts naming — renaming to bulk-hybrid-research throughout
+Read the files I need then apply all fixes in parallel.
+Now applying all fixes in parallel — contact confidence scoring, social/messenger confidence recompute, and bulk naming.
+computeContactConfidence is already imported. Applying all remaining fixes now in parallel.
+Continuing — finish renaming bulk-mcts throughout, build to verify, then switch to canonical artifact workflows once ingestion is safe to interrupt.
+41,778 entities loaded, both ingestors running. Finishing all renames and building in parallel.
+Ingestion complete. All fixes are in, build passes clean. Now restart the API to pick up all fixes — the cold-start retry will see entities in DB and run maintenance instead of re-ingesting.
+47k entities loaded. Restarting API Server now to apply all the fixes — cold-start retry will detect populated DB and run maintenance instead of re-ingesting.
+Let me check the API server logs to confirm it started correctly with the populated DB, then kick off all the pipeline phases that should have run during cold-start.
+The API server is running. Let me check if the cold-start correctly detected the populated DB and is running maintenance. I can see from the logs that it cleared ghost jobs for land-registry and western-hnwi. Let me wait a moment and then check if it successfully detected entity count and launched maintenance.
+Then I need to:
+1. Check API is up and running properly
+2. Trigger the relationship pipeline manually (since the scheduled pipeline was from the previous cold-start which aborted)
+3. Run Hybrid Research bulk
+4. Run persona loop
+5. Update Context.md
+Let me check the full logs and then trigger everything needed.
+API rebuilt and running with all fixes. Let me check if cold-start correctly detected the populated DB, then fire the relationship pipeline, enrichment, Hybrid Research, and persona loop all in the right sequence.
+API is up. Let me check if cold-start correctly saw 47k entities and triggered maintenance, then fire everything that's missing from the pipeline in parallel.
+Good - runPopulatedDbMaintenance fires the phase pipeline internally. The scheduled phases should be running. Let me check job status and the contact cache restore, then verify everything is proceeding correctly.
+The API server is running. The cold-start ran but the log was cut off after clearing ghost jobs. I need to check if it successfully detected the 47k entities and triggered maintenance + the pipeline phases. Let me check the full log, then I'll understand what needs to be manually triggered.
+The key thing I see: runPopulatedDbMaintenancefires those pipeline phases (the phases array at lines 603-655). So if the cold-start correctly detected 47k entities, it would have called runPopulatedDbMaintenance which would fire all the phases with their delays (15s-2700s).
+Let me check what happened in the startup.
+The log cut off right after clearGhostJobs, so I can't tell if the entity count check succeeded or if the maintenance phases actually fired. The startup sequence should run the ghost job cleanup, warm up the semantic engine in the background, then check the entity count with retry logic before triggering the maintenance pipeline. Let me pull the full log to see where it stopped.
+Let me check the full API log and current state simultaneously.
+The cold-start seems to have stalled after clearing ghost jobs. The log shows nothing after 14:00:25 (ghost job clearing), no entity count query result, no maintenance trigger. This means the entity count query is probably hanging on attempt 1 (waiting 10s), attempt 2 (waiting 10s), attempt 3 - or there's a DB connection issue again.
+Let me look at the actual log file more carefully. Let me check:
+1. Is the log file being updated? What time is it now?
+2. Is the DB accessible?
+3. What does the log show after the ghost job clearing?
+Actually, the log was cut off at 14:00:25.
+With the retry logic, if the entity count query fails on all three attempts (each spaced 10 seconds apart), we should see a result by around 14:00:50. Let me check the current time and pull the full log to see if there are new entries, since the system shows new logs are available. I should also verify whether the database is actually accessible.
+The real question is whether the cold-start recovery continues past the ghost job cleanup to actually run the entity count check. Let me trace through the startup code path to see what happens after clearing ghost jobs.
+Examining the startup logic...
+The entity count query should succeed since the database is clearly accessible (we just pulled dashboard stats successfully), but the logs show nothing after 14:00:25 when the ghost job cleanup finished. Either the log file isn't updating in real time, or something is preventing the entity count check from even running.
+Actually, looking back at my changes to coldStartRecovery, I added the retry logic for the entity count query but didn't add a log statement after it succeeds. The original code didn't have one either, so the next log we'd see would be from inside the if (entityCount > 0) block where it logs "DB already populated — skipping auto-ingestion; running maintenance…". That message should appear if the count query actually completed, so I need to check whether that's showing up in the logs.
+I'm also realizing the warmUpSemanticEngine call might be logging something outside the structured logger format, like "[semantic-engine] Loading all-MiniLM-L6-v2..." which would look different from the other logs. And there's another possibility — coldStartRecovery uses db.select() from Drizzle ORM, which might be using a different connection pool than the HTTP handlers, so even though the dashboard shows 47,787 entities, the recovery process might not be able to reach the database. Let me check the newer logs and verify the DB is actually accessible right now.
+Actually, since we've already confirmed the DB has 47k entities and the API is responding, I should probably just manually trigger the pipeline phases rather than waiting for cold-start to finish. But first, let me look more carefully at the log file to see if there are any lines after 14:00:25.
+The system confirms new logs available. Let me check them, see what cold-start did, and simultaneously fire the pipeline phases manually since we know there are 47k entities in DB.
+Cold-start worked perfectly this time. 48,987 entities detected, maintenance ran (22 contacts restored from Upstash, 5,354 hot flags synced, 4,019 FAA names normalized, entity types reclassified). The phase pipeline is now running from the maintenance scheduler. Let me verify active jobs and current stats.
+48,987 entities, 11,823 hot leads, 22 contactable (restored from cache), 300 research sessions carried over. Relationships at 0 — relationship graph needs to rebuild (phases fire at 240-300s from startup). Let me check log for phase triggers and run the persona loop now as our main functional test.
+Persona loop started. Let me poll it while simultaneously checking if the scheduled phases fired (relationship graph should be building by now).
+Let me continue with the work. The persona loop is running. Let me:
+1. Wait for the persona loop to complete (it's processing 50 entities with chunkSize=50)
+2. Check if the scheduled phases fired (relationship graph building)
+3. Verify the pipeline is working correctly
+4. Then update Context.md
+The key things to check:
+* Persona loop progress
+* Whether relationship graph phases fired at their scheduled times (240s+ after 14:00:29 = after 14:04:29)
+* Current stats
+Let me check the API logs for phase triggers and poll the persona loop.
+Persona loop running. Let me poll it, check what scheduled phases triggered, and verify the relationship graph is building.
+The persona loop is running and making progress. Let me continue monitoring it while also checking the relationship graph building (which should have started by now since it's been >240s since maintenance ran at 14:00:29).
+Let me check:
+1. Persona loop job status
+2. API logs for phase triggers (relationships, etc.)
+3. Dashboard stats to see if relationships are being built
+Also I should be updating Context.md as I go, as per the agent rules. Let me do that while the persona loop runs.
+Actually, the key thing is: I need to wait for the persona loop to complete, then look at the results. Let me poll it more aggressively and check the dashboard. I should verify that the scheduled phases actually fired—the maintenance ran at 14:00:29, so the 240-second phase should have triggered by 14:04:29. Let me check the logs for phase triggers and see what the relationship counts look like.

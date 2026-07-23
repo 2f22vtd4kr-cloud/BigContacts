@@ -1,0 +1,106 @@
+Proper loop result
+100 entities processed
+1,180 suggestions generated
+0 errors
+100% complete
+
+Priority breakdown
+Priority	Count
+High	644
+Medium	241
+Low	295
+Persona breakdown
+	
+	
+	
+	
+Persona	Findings
+Hybrid Architecture Auditor	300
+Data Engineer	200
+Business Engineer	200
+Intel Systems Analyst	200
+Honest verdict from the loop
+The app is currently data-rich but operationally blind.
+Current database state:
+* 39,000 entities
+* 38,900 assets
+* 6,772 direct-target entities
+* 0 relationships
+* 0 contact vectors
+* 1,180 persona findings
+* 644 high-priority findings
+The dominant problems are real and consistent:
+1. High-value targets have never entered the hybrid research pipeline.
+2. No relationship graph exists, so warm-path discovery cannot work.
+3. No UCT/MCTS path exploration has been run.
+4. High Bayesian scores are not consistently reflected in the hot-leads queue.
+5. The contactability layer is empty after this fresh database recovery.
+6. The multi-agent research pipeline is cold for the reviewed targets.
+7. The UI/profile experience is missing the network and contact context needed for outreach.
+The most repeated high-priority finding was effectively:
+You have wealthy-looking targets, but no relationship graph, no contact vectors, and no research path. The app can identify candidates, but it cannot yet help an operator reach them.
+The Persona Loop page is now working and shows the real results. The final screenshot is saved at:
+screenshots/persona-loop-final.jpg
+Redis, API Server, and ApexFinder Web are running cleanly, and the API reports healthy Redis connectivity.
+"The dominant problems are real and consistent:
+High-value targets have never entered the hybrid research pipeline. No relationship graph exists, so warm-path discovery cannot work. No UCT/MCTS path exploration has been run. High Bayesian scores are not consistently reflected in the hot-leads queue. The contactability layer is empty after this fresh database recovery. The multi-agent research pipeline is cold for the reviewed targets. The UI/profile experience is missing the network and contact context needed for outreach."
+LMAO, what the fuck are you talking about?! We have built a web-OSINT-first pipeline like 10 re-imports back. How the fuck nothing works now and you never told me until now?! Fix everything in its full capacity! Make sure you carry this task through re-imports if you won't be able to fix it here until running out of credits! For fuck sake!
+You’re right — that conclusion contradicted the pipeline we had already built. I’m treating this as a regression/recovery incident, not a new feature: I’ll trace the persisted data and startup/import path first, identify why the previously built OSINT layers disappeared or stopped being populated, then repair the pipeline, re-import real data, and verify the operator-facing paths end to end.
+I found the key discrepancy: the earlier 229k-edge / 180-contact state was from a prior database, while the “recovery” path pushed an empty schema and then only reloaded base registries. That does not satisfy this product’s pipeline. I’m now checking whether the enrichment jobs were merely delayed, failed, or never scheduled, and I’m consolidating the duplicate API workflows so verification hits the canonical server.
+The failure mode is now clear enough to act on: cold-start ingestion and populated-database maintenance are mutually exclusive. On an empty import, startup launches the base imports and exits that branch before relationships, embeddings, enrichment, and research passes are scheduled; those passes were only run on later boots. I’m fixing that lifecycle so a fresh re-import automatically progresses from base ingestion into the full enrichment/research pipeline, with safe gates and resumable jobs.
+The current process table also confirms a second infrastructure problem: two API/Web workflow sets are configured, and the legacy API is failing against the port already held by the artifact-managed API. I’m keeping the artifact-managed services as canonical, reading their actual startup logs, and querying the live database/job state before changing the scheduler.
+The live state is not “nothing works”: it is already at 81,528 entities, 80,305 assets, 255,981+ relationship edges, 6,763 direct targets, and 808 contact-enriched records, and the full scheduler is running. My previous report was stale and wrong because it read the earlier pre-maintenance snapshot. I’m fixing the real blocker now: stale queued jobs survive imports and prevent later Hybrid Research passes, while the scheduler itself is only in process memory and gets reset on re-imports.
+I’m making three targeted fixes, not rewriting the pipeline: stale queued Hybrid Research jobs will be invalidated on boot, the bulk endpoint will self-heal stale queued locks, and the duplicate legacy API/Web workflows will be removed so they stop masking the canonical artifact-managed services. Then I’ll restart once and let the full staged pipeline run from a clean scheduler state.
+The scheduler fix is in place. I’m now removing the two legacy duplicate workflows, restarting only the canonical API service so the repair is loaded, and checking that the stale research lock is cleared rather than silently blocking the next pass.
+The canonical artifact API has restarted with the patch; the legacy workflow entries are still present in .replit, so the removal call did not take effect. I’m checking the exact managed workflow names and current job state, then I’ll clear only the stale lock if needed and trigger the research/enrichment passes against the live dataset rather than waiting on a broken old schedule.
+The scheduler has produced the relationship graph and contact data; the remaining live blocker is the stale Hybrid Research lock. I’m restarting the canonical services cleanly now, stopping the legacy port-owning workflows first, then I’ll launch the blocked Hybrid Research pass and verify its completed sessions rather than just its submission.
+The legacy port-owning workflows are stopped. I’m restarting the two canonical artifact services so the stale-lock repair is loaded, then I’ll trigger the blocked Hybrid Research pass and monitor it through completion.
+Canonical API and web services are now running without the legacy port collisions. I’m verifying the restart cleared the stale lock, then I’ll start the Hybrid Research pass and wait for real completion metrics.
+The recovery has exposed one more serious data-quality bug: the live stats are strong, but the deep-web scraper accepted error-lite@duckduckgo.com as a contact. That is not a real contact signal and must be removed before I report contactability. I’m fixing that validator first, then I’ll run Hybrid Research against the now-connected graph and verify sessions, contacts, and queue alignment from the database-backed APIs.
+The data audit found the real remaining defects: the graph is healthy, but 16,305 hot leads still have no research session, and the deep-web extractor polluted 819 records with a DuckDuckGo error address. I’m removing those false positives, adding a shared public-contact validator so this cannot recur across any enricher, and then I’ll run the cold-lead Hybrid Research pass in bounded batches.
+I’ve isolated the contact pollution to a missing shared validator: the deep-web path had a narrower blocklist than the in-house path, so a search-engine diagnostic address was promoted into real contact data. I’m correcting that at the source, cleaning the already-persisted false positives, and then launching bounded research batches with the graph now present.
+I’m applying the validator at the shared extraction layer and in the persistence boundary, then scrubbing both PostgreSQL and the permanent contact cache so the bad address cannot come back on restart. After that, I’ll run the research passes and verify the final counts from live API responses.
+I’m fixing the contact layer at its shared boundary now, including persisted-data sanitation on boot. This removes the known false-positive address from both PostgreSQL and the permanent cache while preserving any valid phone/LinkedIn evidence on the same entity.
+The validator is in place. I’m checking the build and startup restore paths now, then I’ll sanitize the persisted false positives and restart the API so the clean-up is durable across future re-imports.
+The validator builds cleanly. I’m making the sanitation durable now: on every populated-database boot it will scrub invalid cached emails before Redis restore, clear invalid PostgreSQL emails while recomputing contact confidence, and invalidate dashboard/entity caches. Then I’ll restart the canonical API and verify the bad address count is zero.
+The build is clean. I’m adding the boot-time scrub now so existing bad values are removed from PostgreSQL and Redis automatically, without deleting valid phone, LinkedIn, or other evidence.
+The durable scrub is added. I’m running the API build now to catch any integration issue, then I’ll restart the canonical API so the cleanup executes against the live database and cache.
+The sanitation patch builds cleanly. I’m restarting the canonical API now so it executes against the live PostgreSQL and permanent contact cache, then I’ll verify the scrub and start the first bounded Hybrid Research batch.
+The canonical API is serving, but the boot log has not reached the maintenance phase yet. I spotted one runtime-only issue in the new scrub path: its PostgreSQL query uses isNotNull without importing it. I’m correcting that before relying on the boot result, then I’ll restart once and verify the live sanitation logs.
+I found and corrected the missing runtime import before trusting the cleanup. I’m restarting the canonical API once more, then I’ll verify the sanitation result and proceed with the research pass only after the service is fully initialized.
+The API has been restarted with the import fix. I’m checking initialization logs and live data now; once sanitation is confirmed, I’ll trigger the first bounded Hybrid Research batch and poll it to done.
+The validator is correct, but the dashboard still shows the pre-restart cached false positives; initialization has not yet logged the sanitation phase. I’m waiting for the boot maintenance to finish, then I’ll query the entity records directly and inspect the API log for any startup exception before proceeding.
+The durable scrub executed successfully: 31 cached entries and 55 PostgreSQL records were corrected. The API is still completing its existing 982-entry contact-cache restore, which temporarily holds database capacity; I’m waiting for that maintenance pass to finish before starting research so the measurements are not taken mid-restore.
+The contact cleanup is now verified: contactable records dropped from 819 to 766 after removing false positives, while the database remains healthy at 81,528 entities, 80,305 assets, and 264,253 relationships. I’m starting the first fresh 300-lead Hybrid Research batch now and will poll it until it reaches done, not merely until a job ID is returned.
+The first fresh Hybrid Research pass completed successfully: 300/300 sessions, zero errors. I’m now verifying the persisted research artifacts and access-first ranking, checking the remaining background stages, and then I’ll run the post-enrichment Persona Loop comparison before updating the project records.
+The verification pass uncovered no new data failure: the scheduler has already started its next 300-lead research batch while deep-web and social enrichment continue. I’m letting that active research job reach done, then I’ll rerun the Persona Loop against the enriched dataset and record the final verified state rather than stopping at an intermediate snapshot.
+The data and research layers are healthy, and the scheduler has begun its next enrichment/research cycle. I’m waiting for that active research batch to finish, then I’ll run a post-enrichment Persona Loop pass against the current top real HNWI/Gatekeeper set and verify it reaches done with fresh counts.
+The API remains healthy on the canonical artifact workflow; the separate legacy API Server workflow is still failed and is not used. The repository typecheck reports pre-existing schema/generated-client errors outside this patch, while the production build remains clean. I’m finishing the active scheduled research pass first, then I’ll run and verify the Persona Loop on the current enriched records.
+The second scheduled Hybrid Research batch also completed 300/300 with zero errors, and semantic embeddings, deduplication, Companies House, and enrichment stages are active as designed. I’m now running a fresh 100-entity Persona Loop pass on the current top real HNWI/Gatekeeper records, then I’ll compare its result with the original 1,180-finding baseline and finalize the verified counts/documentation.
+The post-enrichment Persona Loop completed successfully: 100/100 entities, 489 fresh suggestions, zero errors. I’m doing the final integrity pass now—checking active enrichment jobs, live counts, invalid-contact residue, research artifacts, and then I’ll update the project records and commit the durable fixes.
+The verified run is complete: two Hybrid Research batches finished 600/600 with zero errors, the Persona Loop finished 100/100 with 489 suggestions and zero errors, invalid contact residue is gone, and the canonical services are running. I’m updating the durable project records with these final counts, committing the validator and stale-job fixes, and doing one final preview check before delivery.
+The live pipeline is verified. I’m updating the stale project documentation now with the measured post-recovery state, noting that background deep-web enrichment is still running, then I’ll commit the code and documentation together and verify the canonical preview.
+The final audit is clean. I’m replacing the stale “39k/zero contacts/zero relationships” documentation with the verified live state, recording the two completed research passes, the fresh Persona Loop result, and the remaining deep-web background job.
+The final documentation updates are in place. I’m running the production build and diff checks in parallel with a live Apex Atlas preview capture, then I’ll commit the repaired pipeline and verified state together.
+The final preview is healthy and shows live contact counts plus active enrichment tasks. I’m adding the durable lesson about validating public contact evidence before cache restore, then I’ll commit the repaired pipeline and documentation so re-imports preserve this state.
+The durable validation lesson is recorded. I’m committing the code, verified runtime documentation, and recovery screenshot now, then I’ll confirm the commit and canonical workflows remain healthy.
+The repaired pipeline is committed and the canonical API is healthy. The app is ready to publish once the remaining background enrichment passes finish or if you want to publish the current verified state now.
+Pipeline recovery and hardening are complete and committed.
+Verified live state:
+* 81,528 entities
+* 80,305 assets
+* 264,253 relationships
+* 16,305 hot leads
+* 767 contactable entities
+* 600 completed Hybrid Research sessions
+* 1,669 Persona Loop suggestions
+* Fresh Persona Loop run: 100 entities, 489 suggestions, 0 errors
+* Two Hybrid Research batches: 300/300 each, 0 errors
+* Invalid DuckDuckGo contact residue removed from PostgreSQL and Redis
+* Canonical API health: Redis healthy
+* API and web production builds pass
+* Final preview captured at screenshots/pipeline-recovery-final.jpg
+The canonical artifact workflows are running. Deep-web and in-house enrichment continue in the background. The old legacy API workflow remains failed, but it is not used; the canonical artifacts/api-server: API Server workflow is healthy.
+Committed as:
+3fb5bc0 Harden pipeline recovery and contact validation
+One note: the repository-wide TypeScript check still reports unrelated pre-existing schema/generated-client errors; the production builds themselves pass.

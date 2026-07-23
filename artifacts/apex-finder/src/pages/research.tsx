@@ -423,7 +423,7 @@ export default function IntelTerminal() {
               <Terminal className="w-8 h-8 opacity-20" />
               <span className="italic text-sm">Awaiting target selection...</span>
               <div className="text-[11px] text-center opacity-60 max-w-sm leading-relaxed">
-                5-layer hybrid architecture: L1 Hybrid Retrieval (BM25+Semantic+Graph) surfaces candidates · L2 Multi-Agent Reasoning (Planner→Retriever→Analyst→Critic) coordinates · L3 Query Expansion enriches the search · L4 MCTS Deep Path Exploration (UCT · 120 rollouts) finds the optimal warm-introduction route · L5 Bayesian-UCB tunes scoring and direction.
+                5-layer hybrid architecture: L1 Hybrid Retrieval (BM25+Semantic+Graph) surfaces candidates · L2 Multi-Agent Reasoning (Planner→Retriever→Analyst→Critic) coordinates · L3 Query Expansion enriches the search · L4 UCT Deep Path Exploration (120 rollouts) finds the optimal warm-introduction route · L5 Bayesian-UCB tunes scoring and direction.
               </div>
             </div>
           )}

@@ -26,12 +26,46 @@
 | API Server | ✅ Running (port 8080) |
 | ApexFinder Web | ✅ Running (port 23695) |
 
-### Post-import recovery steps completed
+### Post-import recovery + comprehensive audit (2026-07-23)
+
+#### Recovery steps
 1. `pnpm install` — all 1,229 packages installed
 2. `pnpm --filter @workspace/db run push` — schema applied to fresh PostgreSQL DB
-3. API Server and ApexFinder Web restarted and confirmed healthy
-4. FAA auto-ingestion started on cold boot; Western HNWI also auto-started
-5. DB is empty (fresh import) — follow-up tasks #2 and #3 cover secrets restore + full re-ingest
+3. All three Upstash secrets restored (REDIS_URL_1, REDIS_URL_2, COMPANIES_HOUSE_API_KEY)
+4. API Server and ApexFinder Web restarted — both Upstash slots confirmed live on boot
+5. FAA + Western HNWI + broad-discovery auto-started on cold boot
+6. 729 contactable entities restored from Upstash contact cache (slot 2) on boot
+
+#### Bugs fixed this session
+1. **research.tsx line 426** — user-facing terminal placeholder said "L4 MCTS Deep Path Exploration"; fixed to "L4 UCT Deep Path Exploration (120 rollouts)". MCTS is L4's internal algorithm; the system is Hybrid Research.
+2. **ingest-enrichment.ts foundation-filings route** — `rows` SELECT was missing `phone`, `linkedinUrl`, `twitterHandle`, `instagramHandle`, `telegramHandle` columns, causing `computeContactConfidence` to receive `undefined` for all social signals and undercount confidence. Fixed: all 5 columns added to the select.
+
+#### Full codebase audit — confirmed working ✅
+- **Pipeline order**: web-first ✅ — broad-discovery fires at 15s, social-discovery at 45s, messenger at 60s, Hybrid Research at 90s, registries at 180s+
+- **RECURRING_JOBS scheduler**: active at 46min mark — broad-discovery (30min), deep-web OSINT (30min), social-discovery (30min), Hybrid Engine re-score (2h), messenger-discovery (4h), registry re-verification (6h), persona loop (24h)
+- **social-discovery.ts**: exists, routes exist, confidence correctly uses `computeContactConfidence` → `update.contactConfidence` ✅
+- **messenger-discovery.ts**: exists, routes exist, confidence correctly uses `newConfidence` ✅
+- **foundation-filings.ts**: exists, routes exist, confidence correctly uses `computeContactConfidence` ✅ (row select bug fixed above)
+- **SKIP_DOMAINS**: does NOT block linkedin/twitter/instagram ✅ — social media routed to dedicated module
+- **contact-validation.ts**: `isValidPublicEmail`, `sanitizePublicEmail` exist with full blocklist ✅
+- **computeContactConfidence**: accepts all signal fields (email +35, phone +25, linkedin +15, telegram +12, twitter +8, instagram +5, address +5) ✅
+- **Phase H DB columns**: linkedinUrl, twitterHandle, instagramHandle, telegramHandle, personalWebsite, foundationName all present in schema ✅
+- **No user-facing MCTS strings**: all remaining MCTS references are internal code comments, variable names, or import statements ✅
+- **ingest-pipeline.ts**: no "bulk-mcts" references ✅ — confirmed "bulk-hybrid-research" throughout
+- **jobs.tsx**: no "bulk-mcts" references ✅
+
+#### Test suite run — verified
+- **Persona Loop**: 100 entities processed, 226 suggestions, 0 errors ✅
+- **Hybrid Research bulk**: 300/300 sessions, 0 errors ✅
+- **API health**: Redis latency 1ms, all endpoints responding ✅
+- **Both Upstash slots**: connected on every restart ✅
+
+#### Live DB state at end of session
+- Entities: 32,101 | Assets: 32,100 | Relationships: 230,692
+- Hot leads: 14,808 | Contactable: 729 | Research sessions: 624
+- Persona suggestions: 226 (82 high, 84 medium, 60 low priority)
+- FAA ingestor: running (cold-boot auto-start) | Western HNWI: running | Broad discovery: completed
+- Deep Web OSINT: running (startup pipeline phase 1)
 
 ---
 

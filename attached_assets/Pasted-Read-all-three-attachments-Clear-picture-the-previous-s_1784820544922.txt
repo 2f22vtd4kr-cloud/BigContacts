@@ -1,0 +1,42 @@
+Read all three attachments. Clear picture: the previous session was mid-repair when it ended. Let me do a full parallel codebase audit before touching anything.
+Good picture. Three bugs to fix immediately in parallel while checking runtime state:
+1. deep-web-osint.ts still blocks social media in SKIP_DOMAINS
+2. ingest-pipeline.ts line 345 still has "bulk-mcts"
+3. jobs.tsx line 38 still has "bulk-mcts"
+DB has 32k entities (FAA loaded, 728 contacts restored from cache, 0 relationships). Three bugs to fix now in parallel, then check pipeline state:
+Good - artifacts registered. Three fixes applied. Now checking MCTS references in user-facing UI, current pipeline state, and active jobs simultaneously:
+Good — relationships are at 228,456 already (pipeline fired correctly). One more MCTS reference to fix, then build both server and frontend while triggering the missing pipeline jobs:
+Build clean, ingestions started, persona loop running. Now fix the last MCTS reference, audit enrichment module quality, and poll progress simultaneously:
+Clear bugs found. Fixing them in parallel — reading the exact sections I need to patch:
+Persona loop: ✅ 223 suggestions from 50 entities, 0 errors. Now applying the three enricher bugs while ingestion runs:
+Need to verify computeContactConfidence accepts foundationName and fix the cache entry too:
+computeContactConfidence doesn't take foundationName — fix that call and the cache confidence bug in the same route, then build:
+Build clean. Checking job progress to find safe restart window, while also auditing startup pipeline ordering and any remaining critical bugs in parallel:
+Startup audit confirms: pipeline is web-first ✅, no MCTS in scheduler ✅. All three enricher bugs fixed and built. Now restarting API server to load the new build with all fixes (dedup in Upstash prevents any duplicate inserts on re-run):
+API back up — 37,951 entities detected, all 3 Upstash slots live, maintenance running. Let me kick off the full test suite and trigger the interrupted ingestion jobs simultaneously:
+Persona loop almost done, Hybrid Research at 80/300. Land-registry scanning PPD 2024 with 0 matches — that's suspicious. Let me check that ingestor's filter logic while polling jobs to completion:
+Let me continue with the work. I have several things running simultaneously. Let me:
+1. Poll persona loop and hybrid research to completion
+2. Find and check the land-registry ingestor for the 0-records bug
+3. Check other things
+Let me find the land-registry ingestor file.
+Persona loop done: 223 suggestions from 100 entities (tracked as 100/50 due to chunking), 0 errors. Hybrid Research at 162/300. Let me now:
+1. Check the land-registry ingestor for the 0-records bug
+2. Poll Hybrid Research to completion
+3. Keep checking progress
+Let me read the land-registry ingestor to understand why it's getting 0 matches.
+Persona loop ✅ 223 suggestions, 0 errors. Hybrid Research at 162/300. Checking the land-registry ingestor bug and polling in parallel:
+Hybrid Research close to done. Let me dig into why land-registry finds 0 records — I suspect the Upstash dedup set still has the 50k keys from before, so all records are being skipped (not inserted) while the message only shows inserted:
+Excellent! Great news on multiple fronts:
+1. CSV format verified: Looking at the sample lines from pp-2023.csv:
+    * "B","A" at the end - field 14 is PPD category "B" (additional/auction sales) → ALL THREE sample lines are PPD category B, which means they're being filtered out (ppdCat === "B" → skip)
+    * The PPD category field at index 14 IS "B" for these records
+    * But wait — now the status shows inserted=4500 skipped=0 — so it IS finding records now!
+2. Hybrid Research completed successfully with all 300 records inserted and no errors, and Land-registry is now processing properly with 4,500 records matched. The Persona loop also finished with 223 suggestions generated.
+Now I need to check the progress on land-registry and western-hnwi, grab an updated dashboard snapshot, and document all these fixes and verifications in Context.md before running the full pipeline.
+I realize the land-registry filter is working as intended — it's correctly skipping category B records and looking for category A records with prices ≥ £1M. The initial zero matches were just because the CSV started with a section of category B records, but once it moved past those, it began finding matching records. So the system is functioning correctly.
+Now I need to wrap up by polling the remaining jobs to completion, checking the final statistics, updating the Context.md file with today's work, and taking a final verification screenshot. Let me also review what's been fixed so far: the SKIP_DOMAINS list in deep-web-osint.ts, the bulk-mcts references changed to bulk-hybrid-research in the ingest pipeline and jobs components, and the MCTS label updated to Hybrid Research across multiple files. I've got several jobs still running—Web OSINT, social discovery, messenger discovery, and foundation filings are all in progress. Now I need to check the current stats, poll these jobs to see how far they've gotten, update the Context.md file with all the fixes and current status, and then run a final comprehensive check to make sure everything's working correctly.
+Land-registry working — 4,500 records matched. Hybrid Research ✅ 300/300. Let me get a complete status picture and update Context.md with everything done:
+44,901 entities, 844 sessions, bulk-hybrid-researchcorrectly named in live jobs. Updating Context.md with everything done this session while final jobs run:
+Land-registry at 8,750. Updating Context.md and polling final stats in parallel:
+Land-registry at 12,150 and climbing. Let me keep polling while doing final verification — checking for any remaining MCTS strings in the API server routes and updating replit.md:
