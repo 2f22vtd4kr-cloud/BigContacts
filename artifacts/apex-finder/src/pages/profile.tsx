@@ -837,25 +837,27 @@ export default function ApexProfile() {
       />
 
       {/* ── Tab Bar ──────────────────────────────────────────────────────── */}
-      <div className="flex-shrink-0 border-b border-border bg-card/60 px-4 md:px-6">
-        <div className="flex items-center">
+      <div className="flex-shrink-0 border-b border-border bg-card/60 px-4 md:px-6 sticky top-0 md:static z-10">
+        <div className="flex items-center overflow-x-auto" style={{ scrollbarWidth: "none" }}>
           {([
-            { id: "assets"   as const, label: "Assets & Sources", icon: <Layers    className="w-3.5 h-3.5" /> },
-            { id: "network"  as const, label: "Network",          icon: <Network   className="w-3.5 h-3.5" /> },
-            { id: "research" as const, label: "Research Threads", icon: <Route     className="w-3.5 h-3.5" /> },
-            { id: "outreach" as const, label: "Outreach Drafts",  icon: <Sparkles  className="w-3.5 h-3.5" /> },
+            { id: "assets"   as const, label: "Assets & Sources", mobileLabel: "Assets", icon: <Layers    className="w-3.5 h-3.5" /> },
+            { id: "network"  as const, label: "Network",          mobileLabel: "Network", icon: <Network   className="w-3.5 h-3.5" /> },
+            { id: "research" as const, label: "Research Threads", mobileLabel: "Research", icon: <Route     className="w-3.5 h-3.5" /> },
+            { id: "outreach" as const, label: "Outreach Drafts",  mobileLabel: "Outreach", icon: <Sparkles  className="w-3.5 h-3.5" /> },
           ]).map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                "flex items-center gap-1.5 px-4 py-3 font-mono text-[11px] uppercase tracking-widest border-b-2 transition-colors whitespace-nowrap",
+                "flex items-center gap-1.5 px-3 sm:px-4 py-3 min-h-[44px] font-mono text-[10px] sm:text-[11px] uppercase tracking-widest border-b-2 transition-colors whitespace-nowrap",
                 activeTab === tab.id
                   ? "border-primary text-primary"
                   : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
               )}
             >
-              {tab.icon} {tab.label}
+              {tab.icon}
+              <span className="sm:hidden">{tab.mobileLabel}</span>
+              <span className="hidden sm:inline">{tab.label}</span>
             </button>
           ))}
         </div>

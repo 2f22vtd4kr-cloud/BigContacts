@@ -353,10 +353,10 @@ export default function DeepSearch() {
     <div className="flex flex-col h-full overflow-hidden">
 
       {/* ── Header ── */}
-      <div className="flex-shrink-0 border-b border-border bg-card/50 px-6 py-4">
+      <div className="flex-shrink-0 border-b border-border bg-card/50 px-4 sm:px-6 py-4">
         <div className="flex items-center gap-3 mb-1">
-          <Network className="w-5 h-5 text-primary" />
-          <h1 className="text-sm font-mono font-bold uppercase tracking-widest text-primary">
+          <Network className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" />
+          <h1 className="text-xs sm:text-sm font-mono font-bold uppercase tracking-widest text-primary">
             Intelligent Deep Search
           </h1>
           {result && (
@@ -366,8 +366,9 @@ export default function DeepSearch() {
             </span>
           )}
         </div>
-        <p className="text-xs font-mono text-muted-foreground mb-4">
-          BM25 · TF-IDF cosine · Graph/Bayesian · RRF fusion · Planner → Retriever → Analyst → Critic
+        <p className="text-[11px] sm:text-xs font-mono text-muted-foreground mb-4">
+          <span className="sm:hidden">Search public registry intelligence with ranked evidence.</span>
+          <span className="hidden sm:inline">BM25 · TF-IDF cosine · Graph/Bayesian · RRF fusion · Planner → Retriever → Analyst → Critic</span>
         </p>
 
         {/* Search bar */}
@@ -547,10 +548,10 @@ export default function DeepSearch() {
 
         {/* Two-column layout: pipeline + results */}
         {(loading || result) && (
-          <div className="flex h-full overflow-hidden">
+          <div className="flex flex-col md:flex-row h-full overflow-hidden">
 
             {/* Left: pipeline steps */}
-            <div className="w-full md:w-80 xl:w-96 flex-shrink-0 md:border-r border-border p-5 overflow-y-auto">
+            <div className="w-full md:w-80 xl:w-96 flex-shrink-0 max-h-[270px] md:max-h-none md:border-r border-border p-4 sm:p-5 overflow-y-auto">
               <div className="text-xs font-mono text-muted-foreground uppercase tracking-widest mb-4">
                 Agent Pipeline
               </div>
@@ -624,7 +625,7 @@ export default function DeepSearch() {
             </div>
 
             {/* Right: results */}
-            <div className="flex-1 overflow-y-auto p-5">
+            <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-5">
               {loading && !result && (
                 <div className="space-y-3">
                   {[1, 2, 3].map((i) => (

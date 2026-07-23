@@ -942,42 +942,10 @@ function MobileContactView() {
   const { data: hotLeads, isLoading, isError } = useGetHotLeads({ limit: 10 });
   const leads = (hotLeads as any[]) ?? [];
 
-  // Job polling (reuse existing pattern)
-  const [jobs, setJobs] = useState<any[]>([]);
-  const poll = useCallback(() => {
-    fetch("/api/ingest/jobs")
-      .then(r => r.json())
-      .then(d => {
-        const running = (d.jobs ?? []).filter((j: any) => j.status === "running" || j.status === "queued");
-        setJobs(running.slice(0, 3));
-      })
-      .catch(() => {});
-  }, []);
-  useEffect(() => {
-    poll();
-    const t = setInterval(poll, 5000);
-    return () => clearInterval(t);
-  }, [poll]);
-
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
-      {/* Activity strip */}
-      {jobs.length > 0 && (
-        <div className="flex items-center gap-2 px-4 py-2 overflow-x-auto border-b border-border bg-card/50 shrink-0"
-             style={{ scrollbarWidth: "none" }}>
-          {jobs.map((job, i) => (
-            <div key={i}
-                 className="shrink-0 flex items-center gap-2 h-7 bg-card border border-border rounded px-2.5 relative overflow-hidden">
-              <div className="absolute inset-y-0 left-0 bg-primary/10 transition-all"
-                   style={{ width: `${job.progress ?? 0}%` }} />
-              <span className="text-[11px] font-mono text-foreground relative z-10">
-                {job.label} <span className="text-muted-foreground mx-1">·</span>
-                <span className="text-primary">{Math.round(job.progress ?? 0)}%</span>
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
+      {/* Activity and context strip — remains useful even when PostgreSQL data is unavailable */}
+      <MobileActivityFeed />
 
       {/* Section header */}
       <div className="flex items-center justify-between px-4 pt-4 pb-2 shrink-0">

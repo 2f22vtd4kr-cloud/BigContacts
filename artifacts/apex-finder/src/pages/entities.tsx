@@ -7,7 +7,7 @@ import {
   Plus, Search, Trash2, Globe, ChevronDown, ChevronUp, X, Loader2,
   ChevronRight, Network, Target as TargetIcon, Download, ShieldAlert,
   Filter, UserCheck, Building2, Briefcase, Shield, IdCard,
-  CheckSquare, Square, Users2, ListPlus, CheckCheck, Database,
+  CheckSquare, Square, Users2, ListPlus, CheckCheck, Database, XCircle,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -266,6 +266,44 @@ function MobileEntityCard({
   );
 }
 
+function MobileLedgerState({ kind }: { kind: "loading" | "unavailable" | "empty" }) {
+  if (kind === "loading") {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 px-6 py-16 text-center text-muted-foreground">
+        <Loader2 className="w-6 h-6 text-primary animate-spin" aria-hidden="true" />
+        <p className="text-xs font-mono uppercase tracking-wider">Loading entity ledger</p>
+      </div>
+    );
+  }
+
+  if (kind === "unavailable") {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 px-6 py-14 text-center text-muted-foreground">
+        <XCircle className="w-7 h-7 text-amber-400/80" aria-hidden="true" />
+        <div>
+          <p className="text-sm font-mono text-foreground">Entity data is temporarily unavailable.</p>
+          <p className="text-xs leading-relaxed mt-1">
+            The registry database did not respond. Try again shortly or review active tasks.
+          </p>
+        </div>
+        <Link href="/jobs" className="text-xs font-mono text-primary hover:underline">
+          View background tasks →
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center justify-center gap-3 px-6 py-14 text-center text-muted-foreground">
+      <Database className="w-8 h-8 opacity-30" aria-hidden="true" />
+      <div>
+        <p className="text-sm font-mono text-foreground">No entities match these filters.</p>
+        <p className="text-xs leading-relaxed mt-1">Clear a filter or run ingestion to populate the ledger.</p>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function EntityLedger() {
@@ -341,7 +379,7 @@ export default function EntityLedger() {
 
   const isSpecialFilter = hotOnly || contactableOnly;
 
-  const { data: rawEntities, refetch } = useListEntities({
+  const { data: rawEntities, isLoading: isLoadingEntities, isError: isEntitiesError, refetch } = useListEntities({
     search: searchTerm.length > 2 ? searchTerm : undefined,
     type: typeFilter ?? undefined,
     limit: isSpecialFilter ? 500 : 50,
@@ -887,7 +925,7 @@ export default function EntityLedger() {
           </div>
         )}
         <div className="px-3 py-2 border-b border-border bg-card/30 flex-shrink-0">
-          <div className="flex items-center gap-2 px-3 py-2 rounded bg-background border border-border">
+          <div className="flex items-center gap-2 px-3 py-2.5 rounded bg-background border border-border">
             <Search className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
             <input
               type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
@@ -967,7 +1005,9 @@ export default function EntityLedger() {
         )}
 
         <div className="flex-1 overflow-y-auto">
-          {mobileEntities.map((entity: any) => (
+          {isLoadingEntities && <MobileLedgerState kind="loading" />}
+          {!isLoadingEntities && isEntitiesError && <MobileLedgerState kind="unavailable" />}
+          {!isLoadingEntities && !isEntitiesError && mobileEntities.map((entity: any) => (
             <MobileEntityCard
               key={entity.id}
               entity={entity}
@@ -976,13 +1016,7 @@ export default function EntityLedger() {
               onToggleSelect={(e) => { e.stopPropagation(); toggleSelect(entity.id); }}
             />
           ))}
-          {mobileEntities.length === 0 && (
-            <div className="flex flex-col items-center justify-center p-12 text-muted-foreground text-center">
-              <Database className="w-8 h-8 mb-3 opacity-20" />
-              <div className="font-mono text-sm mb-1">No entities found.</div>
-              <div className="text-xs opacity-60">Run ingestion from Data Sources to populate the database</div>
-            </div>
-          )}
+          {!isLoadingEntities && !isEntitiesError && mobileEntities.length === 0 && <MobileLedgerState kind="empty" />}
         </div>
       </div>
 
