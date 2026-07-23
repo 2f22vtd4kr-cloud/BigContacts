@@ -1,0 +1,67 @@
+/* ── Atlas Dashboard group CSS ──────────────────────────────────────────────
+   Scoped theme tokens for the ApexFinder / Apex Atlas dark-emerald/blue palette.
+   Imported by every component in this mockup group; NOT added to the global index.css.
+*/
+
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
+
+/* Override sandbox defaults with ApexFinder's dark atlas palette */
+:root {
+  --background: 223 39% 7%;
+  --foreground: 215 19% 89%;
+  --card: 225 29% 11%;
+  --card-foreground: 215 19% 89%;
+  --card-border: 227 24% 22%;
+  --popover: 225 29% 11%;
+  --popover-foreground: 215 19% 89%;
+  --popover-border: 227 24% 22%;
+  --primary: 160 84% 39%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 217 91% 60%;
+  --secondary-foreground: 0 0% 100%;
+  --muted: 225 25% 16%;
+  --muted-foreground: 215 16% 65%;
+  --accent: 217 91% 60%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 227 24% 22%;
+  --input: 227 24% 22%;
+  --ring: 160 84% 39%;
+
+  --sidebar: 225 29% 11%;
+  --sidebar-foreground: 215 19% 89%;
+  --sidebar-border: 227 24% 22%;
+  --sidebar-primary: 160 84% 39%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 225 25% 16%;
+  --sidebar-accent-foreground: 215 19% 89%;
+  --sidebar-ring: 160 84% 39%;
+
+  --font-sans: 'Inter', sans-serif;
+  --font-mono: 'Space Mono', monospace;
+  --radius: 0.25rem;
+}
+
+/* Marker dot colours matching main app index.css */
+.marker-emerald {
+  background-color: hsl(160 84% 39%);
+  box-shadow: 0 0 10px hsl(160 84% 39% / 0.5);
+}
+.marker-blue {
+  background-color: hsl(217 91% 60%);
+  box-shadow: 0 0 10px hsl(217 91% 60% / 0.5);
+}
+.marker-amber {
+  background-color: hsl(38, 92%, 50%);
+  box-shadow: 0 0 10px hsl(38 92% 50% / 0.5);
+}
+
+.pulsing-node {
+  animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+}
+@keyframes pulse-ring {
+  0%   { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7); }
+  70%  { transform: scale(1);    box-shadow: 0 0 0 10px rgba(245, 158, 11, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+}

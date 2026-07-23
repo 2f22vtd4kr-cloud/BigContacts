@@ -8,7 +8,7 @@
 
 ---
 
-## Current State (2026-07-23 — imported project setup) — Redis + API + Web running
+## Current State (2026-07-23 — Research Command Center frontend) — Redis + API + Web running
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically
@@ -36,6 +36,14 @@
 5. **Profile dual badges** (`profile.tsx`): Access and Wealth badges now side-by-side with clear "Access" / "Wealth" labels instead of stacked with a single "HNWI Signal" caption.
 6. **Profile CRM link** fixed: `/crm` → `/pipeline` (direct route, no redirect needed).
 7. **All 4 artifacts registered** + secrets set (REDIS_URL_1, REDIS_URL_2, COMPANIES_HOUSE_API_KEY).
+
+### What was done this session (2026-07-23 — Research Command Center frontend)
+
+1. **Canvas design direction**: extracted the real dashboard into the mockup sandbox and created one responsive Research Command Center direction. Desktop and mobile previews are live on Canvas; the mockup keeps the Atlas dark emerald/blue language while foregrounding contactability and visible research progress.
+2. **Dashboard hierarchy** (`artifacts/apex-finder/src/pages/dashboard.tsx`): replaced the map-first Intel HQ with a responsive Best Next Contacts queue and Background Activity rail. Access/contactability is primary; wealth, assets, and registry context are secondary.
+3. **Live research visibility**: the dashboard polls `/api/ingest/jobs` every 5 seconds, showing queued/running task labels, progress, messages, completed results, retry state, and a real `/jobs` activity link. Mobile uses a horizontal activity feed before the contact queue.
+4. **Production navigation and states**: lead cards link to real profile/network routes, show only contact evidence available from the API contract, remove manual target-count ingestion controls from the dashboard, and preserve a compact global context section.
+5. **Verification**: ApexFinder production build passes; dashboard-specific TypeScript is clean. Existing typecheck failures remain in shared `button-group.tsx` and `calendar.tsx`. PostgreSQL-backed dashboard requests still return 500 in this import, so the new UI renders an explicit recoverable unavailable-data state rather than an unexplained empty database.
 
 ### What was done this session (2026-07-23 — re-import #51 nav restore)
 
@@ -397,6 +405,7 @@ Run **IN-HOUSE ENRICH** on HNWI/Gatekeeper entities — Wikidata SPARQL will hit
 
 | Date | What changed |
 |---|---|
+| 2026-07-23 | **Research Command Center frontend**: extracted and live-previewed one responsive Canvas direction, graduated the hierarchy into the production dashboard, added 5-second live activity polling with progress/results and `/jobs` navigation, made contactability the primary queue signal, demoted map/wealth context, removed dashboard manual-ingestion controls, and added explicit PostgreSQL-unavailable fallback states. Production build passes; shared UI typecheck errors remain pre-existing. |
 | 2026-07-23 | **Imported project setup**: restored pnpm dependencies from the lockfile; confirmed SESSION_SECRET, REDIS_URL_1, REDIS_URL_2, and COMPANIES_HOUSE_API_KEY are set; started Redis, API Server, and ApexFinder Web. API `/api/healthz` and web HTTP checks pass, production web build passes. PostgreSQL is unavailable in this workspace, and existing frontend/mobile typecheck errors remain documented above. |
 | 2026-07-23 | Re-import #49: pnpm install, db schema push, artifact-managed workflows started (ports 8080/23695), 4 improvements implemented (broad-discovery engine, cold-start inversion, recurring scheduler rotation, weighted contact confidence) |
 | 2026-07-23 | Re-import #48: pnpm install, db schema push, all workflows started, cold-start auto-recovery triggered |

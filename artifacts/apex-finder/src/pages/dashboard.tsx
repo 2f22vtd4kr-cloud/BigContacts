@@ -1,264 +1,38 @@
-import { useGetDashboardStats, useGetMapData, useGetHotLeads } from "@workspace/api-client-react";
+import { useGetDashboardStats, useGetHotLeads } from "@workspace/api-client-react";
 import {
-  ShieldAlert, MapPin, Database, ChevronRight, Activity, AlertTriangle,
-  Globe, Radio, Zap, Users, Play, Loader2, CheckCircle2, XCircle, RefreshCw,
-  Mail, Phone, Network,
+  Database, ChevronRight, Activity, Globe, Radio, Users,
+  Loader2, CheckCircle2, XCircle, Mail, Phone, Network,
+  MapPin, ShieldCheck, BookOpen, ArrowRight,
 } from "lucide-react";
 import { useEffect, useState, useRef, useCallback } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
-import L from "leaflet";
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "wouter";
 import { formatCurrency, formatEntityName, formatSignal, AccessScoreBadge } from "@/lib/utils";
 
-// Fix Leaflet icons
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
-  iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
-  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
-});
-
-function createCustomIcon(category: string) {
-  let colorClass = "marker-blue";
-  if (category === "RealEstate") colorClass = "marker-emerald";
-  else if (category === "Marine") colorClass = "marker-amber";
-  else if (category === "Aviation") colorClass = "bg-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.5)]";
-  return L.divIcon({
-    className: "bg-transparent",
-    html: `<div class="w-3 h-3 rounded-full ${colorClass} border border-background"></div>`,
-    iconSize: [12, 12],
-    iconAnchor: [6, 6],
-  });
-}
-
-function MapInvalidator({ active }: { active: boolean }) {
-  const map = useMap();
-  useEffect(() => {
-    if (active) {
-      const t = setTimeout(() => map.invalidateSize(), 50);
-      return () => clearTimeout(t);
-    }
-    return undefined;
-  }, [active, map]);
-  return null;
-}
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function getTypeBadgeStyles(type: string) {
   const t = type?.toLowerCase() || "";
   if (t.includes("hnwi") || t.includes("person")) return "text-violet-400 border-violet-400/20 bg-violet-400/10";
   if (t.includes("corp") || t.includes("company")) return "text-blue-400 border-blue-400/20 bg-blue-400/10";
   if (t.includes("trust")) return "text-amber-400 border-amber-400/20 bg-amber-400/10";
-  if (t.includes("american")) return "text-rose-400 border-rose-400/20 bg-rose-400/10";
   return "text-muted-foreground border-border bg-card";
 }
 
-// ── Ingestion Engine Panel ────────────────────────────────────────────────────
-
-interface JobState {
-  jobId?: string;
-  status: "idle" | "queued" | "running" | "done" | "failed";
-  progress: number;
-  inserted: number;
-  skipped: number;
-  errors: number;
-  message: string;
-  log: string[];
-  dedupCount: number;
-}
-
-const EMPTY_JOB: JobState = {
-  status: "idle", progress: 0, inserted: 0, skipped: 0, errors: 0,
-  message: "", log: [], dedupCount: 0,
-};
-
-interface IngestionPanelProps {
-  onComplete: () => void;
-  source?: "western-hnwi" | "faa";
-  autoStart?: "western-hnwi" | "faa";
-}
-
-function IngestionPanel({ onComplete, source = "western-hnwi", autoStart }: IngestionPanelProps) {
-  const [job, setJob] = useState<JobState>(EMPTY_JOB);
-  const [targetCount, setTargetCount] = useState(5000);
-  const [showLog, setShowLog] = useState(false);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const autoStartedRef = useRef(false);
-
-  const stopPolling = () => {
-    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
-  };
-
-  const pollJob = useCallback(async (jobId: string) => {
-    try {
-      const resp = await fetch(`/api/ingest/job/${jobId}`);
-      if (!resp.ok) return;
-      const data = await resp.json();
-      setJob((prev) => ({
-        ...prev,
-        jobId,
-        status: data.status,
-        progress: data.progress ?? 0,
-        inserted: data.inserted ?? 0,
-        skipped: data.skipped ?? 0,
-        errors: data.errors ?? 0,
-        message: data.message ?? "",
-        log: data.log ?? [],
-        dedupCount: data.dedupCount ?? 0,
-      }));
-      if (data.status === "done" || data.status === "failed") {
-        stopPolling();
-        onComplete();
-      }
-    } catch { /* non-fatal */ }
-  }, [onComplete]);
-
-  const startIngestion = async (overrideSource?: "western-hnwi" | "faa") => {
-    const activeSource = overrideSource ?? source;
-    setJob({ ...EMPTY_JOB, status: "queued", message: "Starting…" });
-    try {
-      const endpoint = activeSource === "faa" ? "/api/ingest/faa" : "/api/ingest/western-hnwi";
-      const body = activeSource === "faa"
-        ? { maxRecords: targetCount }
-        : { targetCount };
-      const resp = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const data = await resp.json();
-      if (!resp.ok) {
-        setJob((p) => ({ ...p, status: "failed", message: data.error ?? "Failed to start" }));
-        return;
-      }
-      const { jobId } = data;
-      setJob((p) => ({ ...p, jobId, status: "running", message: "Running…" }));
-      stopPolling();
-      pollRef.current = setInterval(() => pollJob(jobId), 1500);
-    } catch (err: any) {
-      setJob((p) => ({ ...p, status: "failed", message: err.message ?? "Error" }));
-    }
-  };
-
-  useEffect(() => {
-    if (autoStart && !autoStartedRef.current) {
-      autoStartedRef.current = true;
-      startIngestion(autoStart);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoStart]);
-
-  useEffect(() => () => stopPolling(), []);
-
-  const isRunning = job.status === "queued" || job.status === "running";
-  const isDone = job.status === "done";
-  const isFailed = job.status === "failed";
-
-  return (
-    <div className="border-t border-border bg-card/30 px-4 py-3 flex-shrink-0" data-testid="panel-active-discovery">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <Zap className="w-3.5 h-3.5 text-primary shrink-0" />
-          <span className="text-xs font-mono font-bold uppercase tracking-widest text-primary truncate" data-testid="text-discovery-title">
-            {source === "faa" ? "Aircraft Registry Search" : "Wealth Profile Search"}
-          </span>
-          {isDone && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" data-testid="icon-discovery-done" />}
-          {isFailed && <XCircle className="w-3.5 h-3.5 text-destructive shrink-0" data-testid="icon-discovery-failed" />}
-        </div>
-        <div className="flex items-center gap-2 shrink-0 ml-2">
-          {isDone && (
-            <span className="text-[10px] font-mono text-emerald-500 whitespace-nowrap" data-testid="text-discovery-inserted">
-              +{job.inserted.toLocaleString()} found
-            </span>
-          )}
-          {job.dedupCount > 0 && (
-            <span className="text-[10px] font-mono text-muted-foreground whitespace-nowrap" data-testid="text-discovery-deduped">
-              {job.dedupCount.toLocaleString()} duplicates skipped
-            </span>
-          )}
-        </div>
-      </div>
-
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-        {/* Target selector */}
-        <div className="flex items-center gap-1.5 w-full sm:w-auto">
-          <span className="text-[10px] font-mono text-muted-foreground">FIND</span>
-          <select
-            value={targetCount}
-            onChange={(e) => setTargetCount(Number(e.target.value))}
-            disabled={isRunning}
-            data-testid="select-target-count"
-            className="bg-background border border-border rounded px-2 py-1 text-xs font-mono text-foreground focus:outline-none focus:border-primary disabled:opacity-50 flex-1 sm:flex-none"
-          >
-            <option value={500}>500 profiles</option>
-            <option value={1000}>1,000 profiles</option>
-            <option value={5000}>5,000 profiles</option>
-            <option value={10000}>10,000 profiles</option>
-            <option value={25000}>25,000 profiles</option>
-            <option value={50000}>50,000 profiles</option>
-          </select>
-        </div>
-
-        {/* Launch button */}
-        <button
-          onClick={() => startIngestion()}
-          disabled={isRunning}
-          data-testid="button-start-search"
-          className={cn(
-            "flex items-center justify-center sm:justify-start gap-1.5 px-3 py-1.5 rounded font-mono text-xs uppercase tracking-wider transition-all w-full sm:w-auto",
-            isRunning
-              ? "bg-muted text-muted-foreground cursor-not-allowed"
-              : "bg-primary text-primary-foreground hover:bg-primary/90",
-          )}
-        >
-          {isRunning ? <Loader2 className="w-3 h-3 animate-spin shrink-0" /> : <Play className="w-3 h-3 shrink-0" />}
-          <span className="truncate">{isRunning ? "Searching…" : "Start Search"}</span>
-        </button>
-
-        {/* Progress bar */}
-        {(isRunning || isDone) && (
-          <div className="w-full sm:flex-1 flex items-center gap-2" data-testid="progress-discovery">
-            <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-              <div
-                className="h-full rounded-full bg-primary transition-all duration-500"
-                style={{ width: `${job.progress}%` }}
-              />
-            </div>
-            <span className="text-[10px] font-mono text-muted-foreground whitespace-nowrap">
-              {job.progress}%
-            </span>
-          </div>
-        )}
-
-        {/* Status message */}
-        {job.message && !isRunning && (
-          <span className={cn("text-[10px] font-mono truncate w-full sm:w-auto", isFailed ? "text-destructive" : "text-muted-foreground")} data-testid="text-discovery-message">
-            {job.message}
-          </span>
-        )}
-
-        {/* Log toggle */}
-        {job.log.length > 0 && (
-          <button
-            onClick={() => setShowLog(!showLog)}
-            data-testid="button-toggle-log"
-            className="text-[10px] font-mono text-muted-foreground hover:text-foreground underline whitespace-nowrap"
-          >
-            {showLog ? "hide log" : "log"}
-          </button>
-        )}
-      </div>
-
-      {/* Live log */}
-      {showLog && job.log.length > 0 && (
-        <div className="mt-2 bg-background border border-border rounded p-2 max-h-24 overflow-y-auto" data-testid="container-discovery-log">
-          {job.log.map((line, i) => (
-            <div key={i} className="text-[10px] font-mono text-muted-foreground leading-5">{line}</div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+/** Derive a concise "why ranked" explanation from real HotLead fields */
+function buildWhyRanked(lead: any): string {
+  const parts: string[] = [];
+  const score = lead.accessScore ?? 0;
+  if (score >= 0.8) parts.push("High public contact evidence");
+  else if (score >= 0.5) parts.push("Moderate contact evidence");
+  else parts.push("Registry-only trace");
+  if (lead.hasResearchSession) parts.push("active research session");
+  if ((lead.assetCount ?? 0) >= 3) parts.push(`${lead.assetCount} registered assets`);
+  if (lead.signal && lead.signal.length > 4) {
+    const short = formatSignal(lead.signal).split("·")[0]?.trim().slice(0, 60);
+    if (short) parts.push(short);
+  }
+  return parts.join(" · ");
 }
 
 // ── Empty state ───────────────────────────────────────────────────────────────
@@ -267,7 +41,7 @@ function EmptyState() {
   return (
     <div className="flex flex-col items-center justify-center flex-1 px-6 py-16 text-center" data-testid="empty-state-container">
       <div className="w-16 h-16 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center mb-6">
-        <Database className="w-7 h-7 text-primary" />
+        <Database className="w-7 h-7 text-primary" aria-hidden="true" />
       </div>
       <h2 className="text-lg font-bold font-mono text-foreground mb-2 uppercase tracking-widest" data-testid="text-empty-state-title">
         No Profiles Found Yet
@@ -281,10 +55,12 @@ function EmptyState() {
       <Link
         href="/jobs"
         data-testid="link-jobs-from-empty"
+        aria-label="Open search tasks"
         className="flex items-center gap-2 px-6 py-3 rounded-lg bg-primary/10 border border-primary/30 text-primary font-mono text-sm uppercase tracking-widest hover:bg-primary/20 transition-colors"
       >
-        <Radio className="w-4 h-4 shrink-0" />
-        Open Search Tasks →
+        <Radio className="w-4 h-4 shrink-0" aria-hidden="true" />
+        Open Search Tasks
+        <ArrowRight className="w-4 h-4 shrink-0" aria-hidden="true" />
       </Link>
       <p className="text-[10px] font-mono text-muted-foreground/40 mt-8 max-w-xs">
         COMPLIANCE: All data from public registries only. Source attribution included on every record.
@@ -293,259 +69,420 @@ function EmptyState() {
   );
 }
 
-// ── Background Activity card ──────────────────────────────────────────────────
+function DataUnavailable({ compact = false }: { compact?: boolean }) {
+  return (
+    <div className={cn(
+      "flex items-center gap-2 text-muted-foreground",
+      compact ? "px-4 py-3 text-[10px]" : "justify-center px-6 py-10 text-center text-xs",
+    )}>
+      <XCircle className="w-3.5 h-3.5 text-amber-400 shrink-0" aria-hidden="true" />
+      <span>
+        Dashboard data is temporarily unavailable.
+        {!compact && (
+          <>
+            {" "}
+            <Link href="/jobs" className="text-primary/80 hover:text-primary underline">
+              View research tasks
+            </Link>
+            {" "}or try again shortly.
+          </>
+        )}
+      </span>
+    </div>
+  );
+}
 
-interface LiveJob { label: string; progress: number; status: string; }
+// ── Background Activity Rail ──────────────────────────────────────────────────
 
-function BackgroundActivityCard() {
-  const [running, setRunning] = useState<LiveJob[]>([]);
-  const [lastLabel, setLastLabel] = useState<string | null>(null);
+interface LiveJob {
+  id?: string;
+  label: string;
+  progress: number;
+  status: string;
+  message?: string;
+}
+
+interface CompletedJob {
+  label: string;
+  inserted?: number;
+  message?: string;
+  lastRunAt?: string;
+}
+
+function BackgroundActivityRail({ className }: { className?: string }) {
+  const [jobs, setJobs] = useState<LiveJob[]>([]);
+  const [completed, setCompleted] = useState<CompletedJob | null>(null);
+  const [fetchError, setFetchError] = useState(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const poll = useCallback(() => {
     fetch("/api/ingest/jobs")
-      .then(r => r.ok ? r.json() : null)
+      .then((r) => {
+        if (!r.ok) throw new Error("fetch failed");
+        return r.json();
+      })
       .then((data: any) => {
-        if (!data) return;
-        const active: LiveJob[] = (data.jobs ?? [])
+        setFetchError(false);
+        const all: any[] = data.jobs ?? [];
+        const active = all
           .filter((j: any) => j.status === "running" || j.status === "queued")
-          .map((j: any) => ({ label: j.label, progress: j.progress ?? 0, status: j.status }));
-        setRunning(active);
+          .slice(0, 3)
+          .map((j: any) => ({
+            id: j.jobId ?? j.id,
+            label: j.label ?? j.type ?? "Task",
+            progress: j.progress ?? 0,
+            status: j.status,
+            message: j.message ?? "",
+          }));
+        setJobs(active);
+
         if (active.length === 0) {
-          const latest = (data.jobs ?? [])
-            .filter((j: any) => j.lastRunAt)
-            .sort((a: any, b: any) => new Date(b.lastRunAt).getTime() - new Date(a.lastRunAt).getTime())[0];
-          if (latest) setLastLabel(latest.label);
+          const done = all
+            .filter((j: any) => j.lastRunAt || j.status === "done" || j.status === "failed")
+            .sort((a: any, b: any) => {
+              const at = a.lastRunAt ? new Date(a.lastRunAt).getTime() : 0;
+              const bt = b.lastRunAt ? new Date(b.lastRunAt).getTime() : 0;
+              return bt - at;
+            })[0];
+          if (done) {
+            setCompleted({
+              label: done.label ?? done.type ?? "Task",
+              inserted: done.inserted,
+              message: done.message,
+              lastRunAt: done.lastRunAt,
+            });
+          }
+        } else {
+          setCompleted(null);
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        setFetchError(true);
+      });
   }, []);
 
   useEffect(() => {
     poll();
-    const id = setInterval(poll, 15_000);
-    return () => clearInterval(id);
+    pollRef.current = setInterval(poll, 5_000);
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
   }, [poll]);
 
-  const isActive = running.length > 0;
+  const hasActive = jobs.length > 0;
 
   return (
-    <div className="border-t border-border bg-card/30 px-4 py-2.5 flex-shrink-0" data-testid="card-background-activity">
-      <div className="flex items-center justify-between mb-1.5">
-        <div className="flex items-center gap-2 min-w-0">
-          <div className={cn("w-1.5 h-1.5 rounded-full shrink-0", isActive ? "bg-primary animate-pulse" : "bg-muted-foreground/30")} />
-          <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground" data-testid="text-pipeline-status">
-            {isActive ? `${running.length} task${running.length > 1 ? "s" : ""} running` : lastLabel ? `Last: ${lastLabel}` : "Background tasks idle"}
+    <section
+      aria-label="Background activity"
+      className={cn("flex flex-col gap-2", className)}
+      data-testid="background-activity-rail"
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 pt-3 pb-1">
+        <div className="flex items-center gap-2">
+          <div
+            className={cn(
+              "w-1.5 h-1.5 rounded-full shrink-0",
+              fetchError
+                ? "bg-destructive"
+                : hasActive
+                ? "bg-primary animate-pulse"
+                : "bg-muted-foreground/30",
+            )}
+            aria-hidden="true"
+          />
+          <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+            {fetchError
+              ? "Activity unavailable"
+              : hasActive
+              ? `${jobs.length} task${jobs.length !== 1 ? "s" : ""} running`
+              : "Background tasks idle"}
           </span>
         </div>
-        <Link href="/jobs" data-testid="link-background-jobs"
-          className="text-[10px] font-mono text-primary/60 hover:text-primary transition-colors whitespace-nowrap ml-2 flex items-center gap-0.5">
-          View Tasks <ChevronRight className="w-3 h-3" />
+        <Link
+          href="/jobs"
+          data-testid="link-view-all-activity"
+          aria-label="View all background activity"
+          className="text-[10px] font-mono text-primary/60 hover:text-primary transition-colors flex items-center gap-0.5 whitespace-nowrap"
+        >
+          View all activity <ChevronRight className="w-3 h-3" aria-hidden="true" />
         </Link>
       </div>
-      {isActive && (
-        <div className="space-y-1">
-          {running.slice(0, 3).map((job, i) => (
-            <div key={i} className="flex items-center gap-2 min-w-0">
-              <Loader2 className="w-2.5 h-2.5 animate-spin text-primary shrink-0" />
-              <span className="text-[9px] font-mono text-foreground/70 truncate flex-1">{job.label}</span>
+
+      {/* Active jobs */}
+      {hasActive && (
+        <div className="px-4 space-y-2.5" data-testid="active-jobs-list">
+          {jobs.map((job, i) => (
+            <div key={job.id ?? i} className="flex flex-col gap-1">
+              <div className="flex items-center gap-2 min-w-0">
+                <Loader2 className="w-3 h-3 animate-spin text-primary shrink-0" aria-hidden="true" />
+                <span className="text-xs font-mono text-foreground/80 truncate flex-1">{job.label}</span>
+                <span
+                  className={cn(
+                    "text-[9px] font-mono uppercase shrink-0",
+                    job.status === "running" ? "text-primary" : "text-amber-400",
+                  )}
+                >
+                  {job.status}
+                </span>
+              </div>
               {job.progress > 0 && (
-                <div className="flex items-center gap-1 shrink-0">
-                  <div className="w-16 h-1 rounded-full bg-muted overflow-hidden">
-                    <div className="h-full bg-primary transition-all duration-500" style={{ width: `${Math.min(100, job.progress)}%` }} />
+                <div className="flex items-center gap-2 pl-5">
+                  <div className="flex-1 h-1 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full bg-primary transition-all duration-500 rounded-full"
+                      style={{ width: `${Math.min(100, job.progress)}%` }}
+                      role="progressbar"
+                      aria-valuenow={Math.round(job.progress)}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                    />
                   </div>
-                  <span className="text-[8px] font-mono text-primary/60 w-6 text-right">{Math.round(job.progress)}%</span>
+                  <span className="text-[9px] font-mono text-muted-foreground w-7 text-right tabular-nums">
+                    {Math.round(job.progress)}%
+                  </span>
                 </div>
+              )}
+              {job.message && (
+                <p className="text-[9px] font-mono text-muted-foreground/70 pl-5 truncate">{job.message}</p>
               )}
             </div>
           ))}
-          {running.length > 3 && (
-            <span className="text-[9px] font-mono text-muted-foreground/50">+{running.length - 3} more…</span>
-          )}
         </div>
+      )}
+
+      {/* Completed result */}
+      {!hasActive && completed && !fetchError && (
+        <div className="px-4 flex items-start gap-2" data-testid="completed-job-result">
+          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" aria-hidden="true" />
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-mono text-foreground/80 truncate">{completed.label}</p>
+            {completed.inserted != null && (
+              <p className="text-[10px] font-mono text-emerald-500">
+                +{completed.inserted.toLocaleString()} profiles added
+              </p>
+            )}
+            {completed.message && !completed.inserted && (
+              <p className="text-[10px] font-mono text-muted-foreground truncate">{completed.message}</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {fetchError && (
+        <div className="px-4 flex items-center gap-2" data-testid="activity-fetch-error">
+          <XCircle className="w-3.5 h-3.5 text-destructive shrink-0" aria-hidden="true" />
+          <p className="text-[10px] font-mono text-muted-foreground">Could not load activity — retrying</p>
+        </div>
+      )}
+    </section>
+  );
+}
+
+// ── Compact Summary Header ────────────────────────────────────────────────────
+
+function DashboardHeader() {
+  const { data: stats, isLoading, isError } = useGetDashboardStats();
+  const s = stats as any;
+
+  return (
+    <header
+      className="border-b border-border bg-card/90 backdrop-blur-md sticky top-0 z-20"
+      data-testid="dashboard-header"
+    >
+      {isLoading ? (
+        <div className="flex items-center gap-6 px-4 sm:px-6 py-3 overflow-x-auto">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="flex flex-col gap-1 shrink-0">
+              <div className="h-2 w-16 bg-muted animate-pulse rounded" />
+              <div className="h-5 w-12 bg-muted animate-pulse rounded" />
+            </div>
+          ))}
+        </div>
+      ) : isError ? (
+        <DataUnavailable compact />
+      ) : !s ? null : (
+        <div className="flex items-center gap-0 overflow-x-auto divide-x divide-border">
+          {/* Title */}
+          <div className="px-4 sm:px-6 py-3 shrink-0">
+            <h1 className="text-xs font-mono font-bold uppercase tracking-widest text-foreground whitespace-nowrap">
+              Research Command Center
+            </h1>
+            <p className="text-[10px] font-mono text-muted-foreground/60 mt-0.5 whitespace-nowrap hidden sm:block">
+              Public registry intelligence
+            </p>
+          </div>
+
+          {/* Reachable / Contactable — PRIMARY metric */}
+          <Link
+            href="/profiles?contactable=1"
+            aria-label={`${(s.contactableCount ?? 0).toLocaleString()} contactable profiles — click to browse`}
+            className="flex flex-col px-4 py-3 shrink-0 hover:bg-primary/5 transition-colors group"
+            data-testid="header-stat-contactable"
+          >
+            <span className="text-[9px] font-mono text-emerald-400 uppercase tracking-widest flex items-center gap-1">
+              <Mail className="w-2.5 h-2.5" aria-hidden="true" />
+              Reachable
+            </span>
+            <span className="text-xl font-bold text-emerald-400 tabular-nums leading-tight">
+              {(s.contactableCount ?? 0).toLocaleString()}
+            </span>
+          </Link>
+
+          {/* Active research */}
+          <div
+            className="flex flex-col px-4 py-3 shrink-0"
+            data-testid="header-stat-sessions"
+          >
+            <span className="text-[9px] font-mono text-blue-400 uppercase tracking-widest flex items-center gap-1">
+              <BookOpen className="w-2.5 h-2.5" aria-hidden="true" />
+              Sessions
+            </span>
+            <span className="text-xl font-bold text-blue-400 tabular-nums leading-tight">
+              {(s.activeResearchSessions ?? 0).toLocaleString()}
+            </span>
+          </div>
+
+          {/* Total profiles */}
+          <div
+            className="flex flex-col px-4 py-3 shrink-0"
+            data-testid="header-stat-profiles"
+          >
+            <span className="text-[9px] font-mono text-muted-foreground uppercase tracking-widest flex items-center gap-1">
+              <Database className="w-2.5 h-2.5" aria-hidden="true" />
+              Profiles
+            </span>
+            <span className="text-xl font-bold text-foreground tabular-nums leading-tight">
+              {(s.totalEntities ?? 0).toLocaleString()}
+            </span>
+          </div>
+
+          {/* Coverage — hidden on smallest mobile */}
+          <div
+            className="flex-col px-4 py-3 shrink-0 hidden sm:flex"
+            data-testid="header-stat-coverage"
+          >
+            <span className="text-[9px] font-mono text-muted-foreground uppercase tracking-widest flex items-center gap-1">
+              <Activity className="w-2.5 h-2.5" aria-hidden="true" />
+              Coverage
+            </span>
+            <span className="text-xl font-bold text-cyan-400 tabular-nums leading-tight">
+              {(s.enrichmentCoverage ?? 0).toFixed(0)}%
+            </span>
+          </div>
+
+          {/* Spacer + compliance badge */}
+          <div className="flex items-center gap-1.5 px-4 py-3 ml-auto shrink-0 hidden md:flex">
+            <ShieldCheck className="w-3 h-3 text-muted-foreground/40" aria-hidden="true" />
+            <span className="text-[9px] font-mono text-muted-foreground/40 uppercase tracking-widest whitespace-nowrap">
+              Public registry data only
+            </span>
+          </div>
+        </div>
+      )}
+    </header>
+  );
+}
+
+// ── Contact evidence chips ────────────────────────────────────────────────────
+
+function ContactChips({ lead }: { lead: any }) {
+  const hasEmail = Boolean(lead.email || lead.contactEmail);
+  const hasPhone = Boolean(lead.phone || lead.contactPhone);
+  const hasLinkedin = Boolean(lead.linkedinUrl);
+  const hasSession = Boolean(lead.hasResearchSession);
+  const score = lead.accessScore ?? 0;
+
+  const none = !hasEmail && !hasPhone && !hasLinkedin && !hasSession && score < 0.3;
+
+  return (
+    <div className="flex items-center gap-1.5 flex-wrap" aria-label="Contact evidence">
+      {hasEmail && (
+        <span
+          className="flex items-center gap-0.5 text-emerald-400 border border-emerald-400/20 bg-emerald-400/10 px-1.5 py-0.5 rounded text-[9px] font-mono"
+          title="Email evidence in registry"
+        >
+          <Mail className="w-2.5 h-2.5" aria-hidden="true" />
+          EMAIL
+        </span>
+      )}
+      {hasPhone && (
+        <span
+          className="flex items-center gap-0.5 text-cyan-400 border border-cyan-400/20 bg-cyan-400/10 px-1.5 py-0.5 rounded text-[9px] font-mono"
+          title="Phone evidence in registry"
+        >
+          <Phone className="w-2.5 h-2.5" aria-hidden="true" />
+          PHONE
+        </span>
+      )}
+      {hasLinkedin && (
+        <span
+          className="flex items-center gap-0.5 text-blue-400 border border-blue-400/20 bg-blue-400/10 px-1.5 py-0.5 rounded text-[9px] font-mono"
+          title="LinkedIn profile found"
+        >
+          <Network className="w-2.5 h-2.5" aria-hidden="true" />
+          NETWORK
+        </span>
+      )}
+      {hasSession && (
+        <span
+          className="flex items-center gap-0.5 text-violet-400 border border-violet-400/20 bg-violet-400/10 px-1.5 py-0.5 rounded text-[9px] font-mono"
+          title="Active research session exists"
+        >
+          <BookOpen className="w-2.5 h-2.5" aria-hidden="true" />
+          SESSION
+        </span>
+      )}
+      {none && (
+        <span
+          className="flex items-center gap-0.5 text-muted-foreground border border-border bg-muted/30 px-1.5 py-0.5 rounded text-[9px] font-mono"
+          title="No direct contact evidence found in public registries"
+        >
+          Registry trace only
+        </span>
       )}
     </div>
   );
 }
 
-// ── Stats bar ─────────────────────────────────────────────────────────────────
+// ── Contact queue card ────────────────────────────────────────────────────────
 
-function StatsBar() {
-  const { data: stats, isLoading } = useGetDashboardStats();
-
-  if (isLoading) {
-    return (
-      <div className="border-b border-border bg-card/90 backdrop-blur-md sticky top-0 z-20" data-testid="stats-bar-loading">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-border">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="flex flex-col px-5 py-4 bg-card/90">
-              <div className="h-2.5 w-16 bg-[#1E2332] animate-pulse rounded mb-3" />
-              <div className="h-7 w-24 bg-[#1E2332] animate-pulse rounded" />
-            </div>
-          ))}
-        </div>
-        <div className="grid grid-cols-4 gap-px bg-border/50">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-2.5 px-4 py-2 bg-card/60">
-              <div className="h-2.5 w-12 bg-[#1E2332] animate-pulse rounded" />
-              <div className="h-3.5 w-10 bg-[#1E2332] animate-pulse rounded ml-auto" />
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (!stats) return null;
-  const s = stats as any;
-
-  return (
-    <div className="border-b border-border bg-card/90 backdrop-blur-md sticky top-0 z-20" data-testid="stats-bar">
-      {/* Row 1 — 4 hero stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-border">
-        <div className="flex flex-col px-5 py-4 bg-card/90" data-testid="stat-total-profiles">
-          <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
-            <Database className="w-3 h-3 shrink-0" /> All Profiles
-          </span>
-          <span className="text-2xl font-bold text-foreground tabular-nums">{s.totalEntities?.toLocaleString()}</span>
-        </div>
-        <Link href="/entities?hot=1" data-testid="stat-hot-leads" className="flex flex-col px-5 py-4 bg-card/90 hover:bg-amber-500/5 transition-colors group cursor-pointer">
-          <span className="text-[10px] font-mono text-amber-500 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
-            <AlertTriangle className="w-3 h-3 shrink-0" /> Hot Leads
-            <ChevronRight className="w-3 h-3 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
-          </span>
-          <span className="text-2xl font-bold text-amber-500 tabular-nums">{s.hotLeadsCount?.toLocaleString()}</span>
-          <span className="text-[9px] font-mono text-amber-500/50 mt-1 group-hover:text-amber-500/80 transition-colors">click to browse →</span>
-        </Link>
-        <Link href="/entities?contactable=1" data-testid="stat-contactable" className="flex flex-col px-5 py-4 bg-card/90 hover:bg-emerald-400/5 transition-colors group cursor-pointer">
-          <span className="text-[10px] font-mono text-emerald-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
-            <Mail className="w-3 h-3 shrink-0" /> Contactable
-            <ChevronRight className="w-3 h-3 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
-          </span>
-          <span className="text-2xl font-bold text-emerald-400 tabular-nums">{(s.contactableCount ?? 0).toLocaleString()}</span>
-          <span className="text-[9px] font-mono text-emerald-400/50 mt-1 group-hover:text-emerald-400/80 transition-colors">click to browse →</span>
-        </Link>
-        <div className="flex flex-col px-5 py-4 bg-card/90" data-testid="stat-hnwi-profiles">
-          <span className="text-[10px] font-mono text-blue-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
-            <Globe className="w-3 h-3 shrink-0" /> Wealth Profiles
-          </span>
-          <span className="text-2xl font-bold text-blue-400 tabular-nums">{(s.westernHnwiCount ?? 0).toLocaleString()}</span>
-        </div>
-      </div>
-      {/* Row 2 — 4 secondary stats compact */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-border/50">
-        <div className="flex items-center justify-between px-4 py-2 bg-card/60" data-testid="stat-total-assets">
-          <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
-            <MapPin className="w-3 h-3 shrink-0" /> Assets
-          </span>
-          <span className="text-xs font-bold text-foreground tabular-nums">{s.totalAssets?.toLocaleString()}</span>
-        </div>
-        <div className="flex items-center justify-between px-4 py-2 bg-card/60" data-testid="stat-avg-reach">
-          <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
-            <Activity className="w-3 h-3 shrink-0" /> Wealth Signal
-          </span>
-          <span className="text-xs font-bold text-primary tabular-nums">{((s.avgBayesianScore ?? 0) * 100).toFixed(1)}</span>
-        </div>
-        <div className="flex items-center justify-between px-4 py-2 bg-card/60" data-testid="stat-enrichment-coverage">
-          <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
-            <Phone className="w-3 h-3 shrink-0" /> Profile Coverage
-          </span>
-          <span className="text-xs font-bold text-cyan-400 tabular-nums">{(s.enrichmentCoverage ?? 0).toFixed(1)}%</span>
-        </div>
-        <div className="flex items-center justify-between px-4 py-2 bg-card/60" data-testid="stat-registry-count">
-          <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
-            <Database className="w-3 h-3 shrink-0" /> Data Sources
-          </span>
-          <span className="text-xs font-bold text-foreground tabular-nums">{s.registryCount ?? "6"}</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Wealth Tier Bar (F3) ──────────────────────────────────────────────────────
-function WealthTierBar() {
-  const { data: stats, isLoading } = useGetDashboardStats();
-  
-  if (isLoading) {
-    return (
-      <div className="px-3 py-2 border-b border-border bg-card/30 flex items-center gap-3" data-testid="wealth-tier-loading">
-        <div className="h-2.5 w-24 bg-[#1E2332] animate-pulse rounded hidden sm:block" />
-        <div className="flex h-1.5 rounded-full flex-1 gap-px bg-[#1E2332] animate-pulse" />
-        <div className="flex items-center gap-x-4 gap-y-1 flex-wrap flex-shrink-0">
-          <div className="h-2.5 w-16 bg-[#1E2332] animate-pulse rounded" />
-          <div className="h-2.5 w-16 bg-[#1E2332] animate-pulse rounded" />
-        </div>
-      </div>
-    );
-  }
-
-  const s = stats as any;
-  const tiers = s?.wealthTiers;
-  if (!tiers || (tiers.ultraHnw + tiers.veryHnw + tiers.hnw + tiers.unknown) === 0) return null;
-  const total = tiers.ultraHnw + tiers.veryHnw + tiers.hnw + tiers.unknown;
-  const pct = (n: number) => total > 0 ? Math.max((n / total) * 100, n > 0 ? 1 : 0) : 0;
-  const segments = [
-    { label: "Ultra >$100M", val: tiers.ultraHnw, cls: "bg-violet-500", textCls: "text-violet-400" },
-    { label: "Very $30–100M", val: tiers.veryHnw,  cls: "bg-primary",   textCls: "text-primary" },
-    { label: "HNW $4–30M",    val: tiers.hnw,      cls: "bg-amber-500", textCls: "text-amber-400" },
-    { label: "Unknown",        val: tiers.unknown,   cls: "bg-muted/60",  textCls: "text-muted-foreground" },
-  ];
-  return (
-    <div className="px-3 py-2 border-b border-border bg-card/30 flex items-center gap-3 min-w-0" data-testid="wealth-tier-bar">
-      <span className="text-[9px] font-mono text-muted-foreground/60 uppercase tracking-widest whitespace-nowrap hidden sm:block shrink-0">Wealth Tiers</span>
-      <div className="flex h-1.5 rounded-full overflow-hidden flex-1 gap-px">
-        {segments.map((seg) => (
-          <div key={seg.label} className={cn("h-full transition-all duration-700", seg.cls)} style={{ width: `${pct(seg.val)}%` }} />
-        ))}
-      </div>
-      <div className="flex items-center gap-x-4 gap-y-1 flex-wrap shrink-0">
-        {segments.filter(s => s.val > 0).map((seg) => (
-          <div key={seg.label} className={cn("flex items-center gap-1.5 text-[9px] font-mono whitespace-nowrap", seg.textCls)}>
-            <div className={cn("w-1.5 h-1.5 rounded-full", seg.cls)} />
-            <span className="sm:hidden">{seg.val.toLocaleString()}</span>
-            <span className="hidden sm:inline-flex">{seg.label.split(" ")[0]}: {seg.val.toLocaleString()}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ── Hot lead card (own component so useLocation works without nesting <a>) ────
-function HotLeadCard({ lead }: { lead: any }) {
+function LeadCard({ lead }: { lead: any }) {
   const [, navigate] = useLocation();
+
   return (
-    <div
+    <article
       role="button"
       tabIndex={0}
-      data-testid={`card-hot-lead-${lead.entityId}`}
+      aria-label={`Profile: ${formatEntityName(lead.entityName)}`}
+      data-testid={`card-lead-${lead.entityId}`}
       onClick={() => navigate(`/profile/${lead.entityId}`)}
       onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && navigate(`/profile/${lead.entityId}`)}
-      className="block p-4 hover:bg-muted/30 transition-colors group border-b border-border last:border-0 cursor-pointer"
+      className="p-4 hover:bg-muted/20 transition-colors group border-b border-border last:border-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
     >
-      <div className="flex justify-between items-start mb-2 gap-2">
+      {/* Name row */}
+      <div className="flex justify-between items-start gap-2 mb-2">
         <div className="flex-1 min-w-0">
-          <h3 className="font-bold text-foreground group-hover:text-primary transition-colors truncate text-sm flex items-center gap-1">
+          <h3 className="font-bold text-sm text-foreground group-hover:text-primary transition-colors truncate flex items-center gap-1">
             {formatEntityName(lead.entityName)}
-            <ChevronRight className="w-3 h-3 shrink-0 opacity-0 group-hover:opacity-60 transition-opacity" />
+            <ChevronRight
+              className="w-3 h-3 shrink-0 opacity-0 group-hover:opacity-60 transition-opacity"
+              aria-hidden="true"
+            />
           </h3>
-          <div className="text-xs font-mono mt-1.5 flex items-center gap-1.5 flex-wrap">
-            <span className={cn("px-1.5 py-0.5 rounded border text-[9px] uppercase whitespace-nowrap", getTypeBadgeStyles(lead.entityType))}>
+          {/* Type / nationality */}
+          <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+            <span
+              className={cn(
+                "px-1.5 py-0.5 rounded border text-[9px] uppercase font-mono whitespace-nowrap",
+                getTypeBadgeStyles(lead.entityType),
+              )}
+            >
               {lead.entityType}
             </span>
-            <span className="px-1.5 py-0.5 rounded border border-border bg-card text-[9px] uppercase text-muted-foreground whitespace-nowrap">
-              {lead.nationality || "Unk"}
-            </span>
-            {(lead.contactEmail || lead.email) && (
-              <span className="flex items-center gap-0.5 text-emerald-400 border border-emerald-400/20 bg-emerald-400/10 px-1.5 py-0.5 rounded">
-                <Mail className="w-2.5 h-2.5" />
-                <span className="text-[9px] font-mono">EMAIL</span>
-              </span>
-            )}
-            {(lead.contactPhone || lead.phone) && (
-              <span className="flex items-center gap-0.5 text-cyan-400 border border-cyan-400/20 bg-cyan-400/10 px-1.5 py-0.5 rounded">
-                <Phone className="w-2.5 h-2.5" />
-                <span className="text-[9px] font-mono">PHONE</span>
+            {lead.nationality && (
+              <span className="px-1.5 py-0.5 rounded border border-border bg-card text-[9px] uppercase font-mono text-muted-foreground whitespace-nowrap">
+                {lead.nationality}
               </span>
             )}
           </div>
@@ -554,23 +491,378 @@ function HotLeadCard({ lead }: { lead: any }) {
           <AccessScoreBadge score={lead.accessScore} />
         </div>
       </div>
-      <div className="text-xs text-muted-foreground mb-2.5 flex items-center justify-between">
-        <span>Net Worth: <span className="text-foreground">{formatCurrency(lead.estimatedNetWorth)}</span></span>
-        <span>Assets: <span className="text-foreground">{lead.assetCount}</span></span>
+
+      {/* Contact evidence */}
+      <ContactChips lead={lead} />
+
+      {/* Why ranked */}
+      <p className="mt-2 text-[10px] font-mono text-muted-foreground/80 line-clamp-2" aria-label="Why ranked">
+        <span className="text-primary/70 mr-1">WHY:</span>
+        {buildWhyRanked(lead)}
+      </p>
+
+      {/* Supporting context */}
+      <div className="mt-2 flex items-center gap-3 text-[10px] font-mono text-muted-foreground">
+        {lead.estimatedNetWorth != null && (
+          <span>
+            Net worth:{" "}
+            <span className="text-foreground/80">{formatCurrency(lead.estimatedNetWorth)}</span>
+          </span>
+        )}
+        {(lead.assetCount ?? 0) > 0 && (
+          <span>
+            Assets: <span className="text-foreground/80">{lead.assetCount}</span>
+          </span>
+        )}
       </div>
-      <div className="bg-background rounded p-2 text-xs font-mono border border-border">
-        <span className="text-primary mr-2">SIGNAL:</span>
-        <span className="text-foreground/80 line-clamp-2">{formatSignal(lead.signal)}</span>
-      </div>
-      <div className="mt-2.5 flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
+
+      {/* Actions */}
+      <div
+        className="mt-3 flex items-center gap-2"
+        onClick={(e) => e.stopPropagation()}
+        role="group"
+        aria-label="Profile actions"
+      >
+        <Link
+          href={`/profile/${lead.entityId}`}
+          data-testid={`link-profile-${lead.entityId}`}
+          aria-label={`Open profile for ${formatEntityName(lead.entityName)}`}
+          onClick={(e) => e.stopPropagation()}
+          className="flex items-center gap-1 px-2.5 py-1 rounded border border-border text-[10px] font-mono text-muted-foreground hover:text-primary hover:border-primary/40 hover:bg-primary/5 transition-colors"
+        >
+          <BookOpen className="w-2.5 h-2.5" aria-hidden="true" />
+          Profile
+        </Link>
         <Link
           href={`/network?entity=${lead.entityId}`}
-          onClick={(e) => e.stopPropagation()}
           data-testid={`link-network-${lead.entityId}`}
-          className="text-[10px] font-mono text-muted-foreground/50 flex items-center gap-0.5 hover:text-primary transition-colors px-2 py-1 rounded border border-border/0 hover:border-border"
+          aria-label={`Open network map for ${formatEntityName(lead.entityName)}`}
+          onClick={(e) => e.stopPropagation()}
+          className="flex items-center gap-1 px-2.5 py-1 rounded border border-border text-[10px] font-mono text-muted-foreground hover:text-blue-400 hover:border-blue-400/40 hover:bg-blue-400/5 transition-colors"
         >
-          Network map <ChevronRight className="w-3 h-3" />
+          <Network className="w-2.5 h-2.5" aria-hidden="true" />
+          Network
         </Link>
+      </div>
+    </article>
+  );
+}
+
+// ── Lead queue skeleton ───────────────────────────────────────────────────────
+
+function LeadSkeleton() {
+  return (
+    <div className="p-4 border-b border-border" aria-hidden="true">
+      <div className="flex justify-between items-start mb-3">
+        <div className="flex-1 mr-3 space-y-2">
+          <div className="h-4 w-3/4 bg-muted animate-pulse rounded" />
+          <div className="h-3 w-1/3 bg-muted animate-pulse rounded" />
+        </div>
+        <div className="h-5 w-12 bg-muted animate-pulse rounded shrink-0" />
+      </div>
+      <div className="h-3 w-1/2 bg-muted animate-pulse rounded mb-2" />
+      <div className="h-8 w-full bg-muted animate-pulse rounded" />
+    </div>
+  );
+}
+
+// ── Best Next Contacts queue ──────────────────────────────────────────────────
+
+function ContactQueue({ className }: { className?: string }) {
+  const { data: hotLeads, isLoading, isError } = useGetHotLeads({ limit: 10 });
+  const leads = hotLeads as any[] | undefined;
+
+  return (
+    <section
+      aria-label="Best next contacts"
+      className={cn("flex flex-col overflow-hidden", className)}
+      data-testid="contact-queue"
+    >
+      {/* Queue header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <Users className="w-4 h-4 text-emerald-400 shrink-0" aria-hidden="true" />
+          <h2 className="text-xs font-mono font-bold uppercase tracking-widest text-foreground">
+            Best Next Contacts
+          </h2>
+          <span className="text-[9px] font-mono text-muted-foreground/60 hidden sm:inline">
+            ranked by access score
+          </span>
+        </div>
+        <Link
+          href="/profiles"
+          aria-label="Browse all profiles"
+          className="text-[10px] font-mono text-primary/60 hover:text-primary transition-colors flex items-center gap-0.5 whitespace-nowrap"
+          data-testid="link-all-profiles"
+        >
+          All profiles <ChevronRight className="w-3 h-3" aria-hidden="true" />
+        </Link>
+      </div>
+
+      {/* List */}
+      <div className="flex-1 overflow-y-auto divide-y divide-border" role="list" aria-label="Contact queue">
+        {isLoading
+          ? Array.from({ length: 5 }).map((_, i) => <LeadSkeleton key={i} />)
+          : isError
+          ? <DataUnavailable />
+          : leads && leads.length > 0
+          ? leads.map((lead: any) => <LeadCard key={lead.entityId} lead={lead} />)
+          : (
+            <div className="flex flex-col items-center justify-center p-8 text-center min-h-[180px]">
+              <div className="w-10 h-10 rounded-full bg-card border border-border flex items-center justify-center mb-3">
+                <Users className="w-4 h-4 text-muted-foreground/50" aria-hidden="true" />
+              </div>
+              <p className="text-sm font-mono text-muted-foreground">No contacts in queue</p>
+              <p className="text-xs font-mono text-muted-foreground/50 mt-1">
+                Ingest profiles to populate this list
+              </p>
+              <Link
+                href="/jobs"
+                aria-label="Go to search tasks"
+                className="mt-4 text-[10px] font-mono text-primary hover:underline flex items-center gap-1"
+              >
+                Go to search tasks <ArrowRight className="w-3 h-3" aria-hidden="true" />
+              </Link>
+            </div>
+          )}
+      </div>
+    </section>
+  );
+}
+
+// ── Global context (compact map/wealth placeholder) ──────────────────────────
+
+function GlobalContextSection({ className }: { className?: string }) {
+  const { data: stats } = useGetDashboardStats();
+  const s = stats as any;
+
+  const tiers = s?.wealthTiers;
+  const total = tiers
+    ? tiers.ultraHnw + tiers.veryHnw + tiers.hnw + tiers.unknown
+    : 0;
+  const pct = (n: number) =>
+    total > 0 ? Math.max((n / total) * 100, n > 0 ? 1 : 0) : 0;
+
+  return (
+    <section
+      aria-label="Global context"
+      className={cn("border-t border-border pt-3 pb-4 px-4", className)}
+      data-testid="global-context"
+    >
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <Globe className="w-3.5 h-3.5 text-muted-foreground" aria-hidden="true" />
+          <h3 className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+            Global context
+          </h3>
+        </div>
+        <Link
+          href="/network"
+          aria-label="Open asset map"
+          data-testid="link-open-asset-map"
+          className="text-[10px] font-mono text-primary/60 hover:text-primary transition-colors flex items-center gap-0.5 whitespace-nowrap"
+        >
+          <MapPin className="w-3 h-3" aria-hidden="true" />
+          Open asset map
+        </Link>
+      </div>
+
+      {tiers && total > 0 ? (
+        <>
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="text-[9px] font-mono text-muted-foreground/60 uppercase tracking-widest whitespace-nowrap shrink-0">
+              Wealth tiers
+            </span>
+            <div className="flex h-1.5 rounded-full overflow-hidden flex-1 gap-px" role="img" aria-label="Wealth tier distribution">
+              {[
+                { val: tiers.ultraHnw, cls: "bg-violet-500" },
+                { val: tiers.veryHnw, cls: "bg-primary" },
+                { val: tiers.hnw, cls: "bg-amber-500" },
+                { val: tiers.unknown, cls: "bg-muted/60" },
+              ].map((seg, i) => (
+                <div
+                  key={i}
+                  className={cn("h-full transition-all duration-700", seg.cls)}
+                  style={{ width: `${pct(seg.val)}%` }}
+                />
+              ))}
+            </div>
+          </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            {[
+              { label: "Ultra >$100M", val: tiers.ultraHnw, cls: "text-violet-400" },
+              { label: "Very $30–100M", val: tiers.veryHnw, cls: "text-primary" },
+              { label: "HNW $4–30M", val: tiers.hnw, cls: "text-amber-400" },
+            ]
+              .filter((t) => t.val > 0)
+              .map((t) => (
+                <span key={t.label} className={cn("text-[9px] font-mono whitespace-nowrap", t.cls)}>
+                  {t.label.split(" ")[0]}: {t.val.toLocaleString()}
+                </span>
+              ))}
+            {s?.totalAssets > 0 && (
+              <span className="text-[9px] font-mono text-muted-foreground whitespace-nowrap ml-auto">
+                {s.totalAssets.toLocaleString()} assets registered
+              </span>
+            )}
+          </div>
+        </>
+      ) : (
+        <p className="text-[10px] font-mono text-muted-foreground/50">
+          No asset distribution data yet.{" "}
+          <Link href="/jobs" className="text-primary/60 hover:text-primary underline">
+            Start ingestion
+          </Link>
+        </p>
+      )}
+    </section>
+  );
+}
+
+// ── Desktop activity rail (right column) ─────────────────────────────────────
+
+function DesktopActivityRail() {
+  return (
+    <aside
+      aria-label="Background activity and context"
+      className="w-[300px] xl:w-[340px] shrink-0 border-l border-border bg-card/20 flex flex-col overflow-hidden"
+      data-testid="desktop-activity-rail"
+    >
+      {/* Section header */}
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-border flex-shrink-0">
+        <Activity className="w-4 h-4 text-muted-foreground shrink-0" aria-hidden="true" />
+        <h2 className="text-xs font-mono font-bold uppercase tracking-widest text-foreground">
+          Background Activity
+        </h2>
+      </div>
+
+      {/* Quick navigation links */}
+      <nav aria-label="Quick navigation" className="flex gap-1.5 px-3 py-2 border-b border-border flex-shrink-0">
+        <Link
+          href="/research"
+          aria-label="Run intelligence session"
+          className="flex-1 flex items-center justify-center gap-1 py-1.5 text-[9px] font-mono uppercase tracking-wider border border-border rounded hover:border-primary/60 hover:text-primary hover:bg-primary/5 transition-colors text-muted-foreground"
+        >
+          <BookOpen className="w-2.5 h-2.5 shrink-0" aria-hidden="true" />
+          Research
+        </Link>
+        <Link
+          href="/profiles"
+          aria-label="Browse all profiles"
+          className="flex-1 flex items-center justify-center gap-1 py-1.5 text-[9px] font-mono uppercase tracking-wider border border-border rounded hover:border-primary/60 hover:text-primary hover:bg-primary/5 transition-colors text-muted-foreground"
+        >
+          <Users className="w-2.5 h-2.5 shrink-0" aria-hidden="true" />
+          Profiles
+        </Link>
+        <Link
+          href="/network"
+          aria-label="Open network map"
+          className="flex-1 flex items-center justify-center gap-1 py-1.5 text-[9px] font-mono uppercase tracking-wider border border-border rounded hover:border-primary/60 hover:text-primary hover:bg-primary/5 transition-colors text-muted-foreground"
+        >
+          <Network className="w-2.5 h-2.5 shrink-0" aria-hidden="true" />
+          Network
+        </Link>
+      </nav>
+
+      {/* Live activity */}
+      <div className="flex-1 overflow-y-auto">
+        <BackgroundActivityRail className="py-1" />
+        <GlobalContextSection />
+      </div>
+
+      {/* Compliance footer */}
+      <div className="px-4 py-2 border-t border-border flex-shrink-0">
+        <p className="text-[9px] font-mono text-muted-foreground/40 flex items-center gap-1.5">
+          <ShieldCheck className="w-2.5 h-2.5 shrink-0" aria-hidden="true" />
+          Public registry sources only · Source attribution on every record
+        </p>
+      </div>
+    </aside>
+  );
+}
+
+// ── Mobile swipeable activity feed ────────────────────────────────────────────
+
+function MobileActivityFeed() {
+  const { data: stats, isError: statsError } = useGetDashboardStats();
+  const s = stats as any;
+
+  return (
+    <div
+      className="overflow-x-auto flex gap-3 px-4 py-3 border-b border-border scroll-smooth snap-x snap-mandatory"
+      aria-label="Background activity feed"
+      data-testid="mobile-activity-feed"
+      style={{ WebkitOverflowScrolling: "touch" }}
+    >
+      {/* Activity card */}
+      <div className="w-72 shrink-0 snap-start rounded-lg border border-border bg-card/60 p-3 flex flex-col gap-2">
+        <BackgroundActivityRail className="gap-1.5" />
+      </div>
+
+      {/* Stats snapshot card */}
+      {s && !statsError && (
+        <div className="w-56 shrink-0 snap-start rounded-lg border border-border bg-card/60 p-3 flex flex-col gap-2">
+          <span className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground flex items-center gap-1">
+            <Database className="w-2.5 h-2.5" aria-hidden="true" />
+            Snapshot
+          </span>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <p className="text-[9px] font-mono text-muted-foreground">Profiles</p>
+              <p className="text-base font-bold text-foreground tabular-nums">
+                {(s.totalEntities ?? 0).toLocaleString()}
+              </p>
+            </div>
+            <div>
+              <p className="text-[9px] font-mono text-emerald-400">Reachable</p>
+              <p className="text-base font-bold text-emerald-400 tabular-nums">
+                {(s.contactableCount ?? 0).toLocaleString()}
+              </p>
+            </div>
+            <div>
+              <p className="text-[9px] font-mono text-blue-400">Sessions</p>
+              <p className="text-base font-bold text-blue-400 tabular-nums">
+                {(s.activeResearchSessions ?? 0).toLocaleString()}
+              </p>
+            </div>
+            <div>
+              <p className="text-[9px] font-mono text-muted-foreground">Coverage</p>
+              <p className="text-base font-bold text-cyan-400 tabular-nums">
+                {(s.enrichmentCoverage ?? 0).toFixed(0)}%
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+      {statsError && (
+        <div className="w-56 shrink-0 snap-start rounded-lg border border-border bg-card/60 p-3">
+          <span className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground">
+            Snapshot
+          </span>
+          <DataUnavailable compact />
+        </div>
+      )}
+
+      {/* Global context card */}
+      <div className="w-64 shrink-0 snap-start rounded-lg border border-border bg-card/60 p-3 flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <span className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground flex items-center gap-1">
+            <Globe className="w-2.5 h-2.5" aria-hidden="true" />
+            Global context
+          </span>
+          <Link href="/network" aria-label="Open asset map" className="text-[9px] font-mono text-primary/60 hover:text-primary flex items-center gap-0.5">
+            <MapPin className="w-2.5 h-2.5" aria-hidden="true" />
+            Map
+          </Link>
+        </div>
+        {s?.totalAssets > 0 ? (
+          <p className="text-xs font-mono text-muted-foreground">
+            <span className="text-foreground font-bold">{s.totalAssets.toLocaleString()}</span> assets across public registries.
+            Tap &ldquo;Map&rdquo; to explore geospatially.
+          </p>
+        ) : (
+          <p className="text-xs font-mono text-muted-foreground/50">No asset data yet.</p>
+        )}
       </div>
     </div>
   );
@@ -579,304 +871,38 @@ function HotLeadCard({ lead }: { lead: any }) {
 // ── Main dashboard ────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
-  const { data: mapData, isLoading: isLoadingMap } = useGetMapData();
-  const { data: hotLeads, isLoading: isLoadingLeads } = useGetHotLeads({ limit: 10 });
   const { data: stats, isLoading: isLoadingStats } = useGetDashboardStats();
-  const [mobileTab, setMobileTab] = useState<"map" | "signals">("signals");
-
   const s = stats as any;
   const isEmpty = s != null && (s.totalEntities ?? 0) === 0 && !isLoadingStats;
 
-  // ── Empty state (no real data yet) ───────────────────────────────────────
   if (isEmpty) {
     return (
       <div className="flex flex-col h-full overflow-hidden">
-        <StatsBar />
-        <WealthTierBar />
+        <DashboardHeader />
         <EmptyState />
       </div>
     );
   }
 
-  const mapHasData = Array.isArray(mapData) && mapData.length > 0;
-
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      <StatsBar />
-      <WealthTierBar />
+      <DashboardHeader />
 
-      {/* ── Desktop layout ── */}
-      <div className="hidden md:flex flex-1 overflow-hidden">
-        {/* Left: global asset map */}
-        <div className="flex-1 relative">
-          {isLoadingMap ? (
-            <div className="w-full h-full min-h-[300px] flex flex-col items-center justify-center bg-[#0B0F19]">
-              <div className="w-16 h-16 rounded-full bg-[#1E2332] animate-pulse flex items-center justify-center mb-4">
-                <MapPin className="w-6 h-6 text-muted-foreground/30" />
-              </div>
-              <div className="h-4 w-48 bg-[#1E2332] animate-pulse rounded mb-2" />
-              <div className="h-3 w-64 bg-[#1E2332] animate-pulse rounded" />
-            </div>
-          ) : !mapHasData ? (
-            <div className="w-full h-full min-h-[300px] flex flex-col items-center justify-center bg-[#0B0F19]">
-              <div className="w-16 h-16 rounded-full bg-card border border-border flex items-center justify-center mb-4">
-                <MapPin className="w-6 h-6 text-muted-foreground/50" />
-              </div>
-              <p className="text-sm font-mono text-muted-foreground">Awaiting geospatial points</p>
-              <p className="text-xs font-mono text-muted-foreground/50 mt-1">Map will render when data is available</p>
-            </div>
-          ) : (
-            <>
-              <MapContainer
-                center={[38, -95]}
-                zoom={4}
-                style={{ height: "100%", width: "100%", minHeight: "300px", background: "#0B0F19" }}
-                zoomControl={false}
-              >
-                <TileLayer
-                  url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-                  attribution='&copy; <a href="https://carto.com/">CARTO</a>'
-                />
-                {mapData.map((point: any) => (
-                  <Marker
-                    key={point.id}
-                    position={[point.latitude, point.longitude]}
-                    icon={createCustomIcon(point.category)}
-                  >
-                    <Popup className="apex-popup">
-                      <div className="text-xs font-mono bg-card text-foreground p-2 rounded min-w-[200px]">
-                        <div className="font-bold text-primary mb-1 truncate">{point.identifier}</div>
-                        <div className="text-muted-foreground truncate">{point.category} · {point.jurisdiction}</div>
-                        {point.ownerName && <div className="mt-1 text-foreground/80 truncate">↳ {point.ownerName}</div>}
-                        {point.estimatedValue && (
-                          <div className="text-primary mt-1">{formatCurrency(point.estimatedValue)}</div>
-                        )}
-                      </div>
-                    </Popup>
-                  </Marker>
-                ))}
-              </MapContainer>
-
-              {/* Map context bar — tells the user what they're looking at */}
-              <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[1001] flex items-center gap-2.5 bg-card/90 backdrop-blur-md border border-border/70 rounded-full px-3.5 py-1.5 pointer-events-none shadow-lg">
-                <Globe className="w-3 h-3 text-muted-foreground shrink-0" />
-                <span className="text-[9px] font-mono text-muted-foreground uppercase tracking-widest whitespace-nowrap">
-                  Asset Atlas
-                </span>
-                <div className="w-px h-3 bg-border" />
-                <span className="text-[9px] font-mono text-foreground/70 whitespace-nowrap">
-                  {mapData.length.toLocaleString()} plotted of {(s?.totalAssets ?? 0).toLocaleString()} total
-                </span>
-              </div>
-
-              {/* Map legend with live asset counts */}
-              <div className="absolute bottom-6 left-4 bg-card/90 border border-border rounded-lg px-3 py-2 backdrop-blur-sm z-[1000]">
-                <div className="flex items-center gap-4 flex-wrap">
-                  {[
-                    { label: "Real Estate", color: "#10B981", category: "RealEstate" },
-                    { label: "Marine",      color: "#F59E0B", category: "Marine" },
-                    { label: "Aviation",    color: "#A855F7", category: "Aviation" },
-                    { label: "Other",       color: "#3B82F6", category: null },
-                  ].map(({ label, color, category }) => {
-                    const count = (s?.assetsByCategory as any[] | undefined)?.find(
-                      (c: any) => c.category === category
-                    )?.count as number | undefined;
-                    return (
-                      <div key={label} className="flex items-center gap-1.5">
-                        <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                        <span className="text-[10px] font-mono text-muted-foreground whitespace-nowrap">
-                          {label}{count != null && count > 0 ? ` · ${count.toLocaleString()}` : ""}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* Right: signals + ingestion engine */}
-        <div className="w-[340px] xl:w-[400px] border-l border-border bg-card/20 flex flex-col overflow-hidden shrink-0">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border flex-shrink-0">
-            <div className="flex items-center gap-2 min-w-0">
-              <ShieldAlert className="w-4 h-4 text-amber-500 shrink-0" />
-              <span className="text-xs font-mono font-bold uppercase tracking-widest text-foreground truncate">
-                Top Hot Leads
-              </span>
-            </div>
-            <div className="flex items-center gap-3 shrink-0">
-              <Link href="/entities?hot=1" className="text-[10px] font-mono text-primary/60 hover:text-primary transition-colors flex items-center gap-0.5">
-                View all <ChevronRight className="w-3 h-3" />
-              </Link>
-              <div className="flex items-center gap-1.5 text-[10px] font-mono text-primary">
-                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                LIVE
-              </div>
-            </div>
-          </div>
-          {/* Quick-action strip — guide the user's next step */}
-          <div className="flex gap-1.5 px-3 py-2 border-b border-border bg-muted/5 flex-shrink-0">
-            <Link
-              href="/research"
-              className="flex-1 flex items-center justify-center gap-1 py-1.5 text-[9px] font-mono uppercase tracking-wider border border-border rounded hover:border-primary/60 hover:text-primary hover:bg-primary/5 transition-colors text-muted-foreground"
-            >
-              <Play className="w-2.5 h-2.5 shrink-0" /> Run Intel
-            </Link>
-            <Link
-              href="/profiles"
-              className="flex-1 flex items-center justify-center gap-1 py-1.5 text-[9px] font-mono uppercase tracking-wider border border-border rounded hover:border-primary/60 hover:text-primary hover:bg-primary/5 transition-colors text-muted-foreground"
-            >
-              <Users className="w-2.5 h-2.5 shrink-0" /> All Profiles
-            </Link>
-            <Link
-              href="/network"
-              className="flex-1 flex items-center justify-center gap-1 py-1.5 text-[9px] font-mono uppercase tracking-wider border border-border rounded hover:border-primary/60 hover:text-primary hover:bg-primary/5 transition-colors text-muted-foreground"
-            >
-              <Network className="w-2.5 h-2.5 shrink-0" /> Network
-            </Link>
-          </div>
-
-          <div className="flex-1 overflow-y-auto divide-y divide-border">
-            {isLoadingLeads ? (
-              Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="p-4">
-                  <div className="flex justify-between items-start mb-3">
-                    <div className="flex-1 mr-3">
-                      <div className="h-4 w-3/4 bg-[#1E2332] animate-pulse rounded mb-2" />
-                      <div className="h-3 w-1/2 bg-[#1E2332] animate-pulse rounded" />
-                    </div>
-                    <div className="h-5 w-8 bg-[#1E2332] animate-pulse rounded shrink-0" />
-                  </div>
-                  <div className="h-8 w-full bg-[#1E2332] animate-pulse rounded" />
-                </div>
-              ))
-            ) : hotLeads?.map((lead: any) => (
-              <HotLeadCard key={lead.entityId} lead={lead} />
-            ))}
-
-            {!isLoadingLeads && (!hotLeads || hotLeads.length === 0) && (
-              <div className="flex flex-col items-center justify-center p-8 text-center min-h-[200px]">
-                <div className="w-12 h-12 rounded-full bg-card border border-border flex items-center justify-center mb-3">
-                  <ShieldAlert className="w-5 h-5 text-muted-foreground/50" />
-                </div>
-                <p className="text-sm font-mono text-muted-foreground">No active signals detected.</p>
-                <p className="text-xs font-mono text-muted-foreground/50 mt-1">Start ingestion to generate signals.</p>
-              </div>
-            )}
-          </div>
-
-          {/* Background activity link */}
-          <BackgroundActivityCard />
-        </div>
+      {/* ── Desktop: two-column layout ── */}
+      <div className="hidden md:flex flex-1 overflow-hidden" role="main">
+        {/* Left: contact queue */}
+        <ContactQueue className="flex-1 border-r border-border" />
+        {/* Right: activity rail */}
+        <DesktopActivityRail />
       </div>
 
-      {/* ── Mobile layout ── */}
-      <div className="flex md:hidden flex-col flex-1 overflow-hidden">
-        {/* Tab switcher */}
-        <div className="flex border-b border-border flex-shrink-0">
-          {(["signals", "map"] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setMobileTab(tab)}
-              className={cn(
-                "flex-1 py-2.5 text-xs font-mono uppercase tracking-wider transition-colors",
-                mobileTab === tab ? "text-primary border-b-2 border-primary" : "text-muted-foreground",
-              )}
-            >
-              {tab === "signals" ? "Live Signals" : "Asset Map"}
-            </button>
-          ))}
-        </div>
+      {/* ── Mobile: activity feed first, then contact queue ── */}
+      <div className="flex md:hidden flex-col flex-1 overflow-hidden" role="main">
+        {/* Swipeable background activity feed */}
+        <MobileActivityFeed />
 
-        {/* Signals tab */}
-        <div className={cn("flex-1 overflow-y-auto flex flex-col", mobileTab !== "signals" && "hidden")}>
-          <div className="flex-1 divide-y divide-border">
-            {isLoadingLeads ? (
-              Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="p-4">
-                  <div className="h-4 w-2/3 bg-[#1E2332] animate-pulse rounded mb-2" />
-                  <div className="h-3 w-1/3 bg-[#1E2332] animate-pulse rounded mb-3" />
-                  <div className="h-8 w-full bg-[#1E2332] animate-pulse rounded" />
-                </div>
-              ))
-            ) : hotLeads?.map((lead: any) => (
-              <div key={lead.entityId} className="p-4">
-                <div className="flex justify-between items-start mb-2 gap-2">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-sm text-foreground truncate">{lead.entityName}</h3>
-                    <div className="text-xs font-mono mt-1.5 flex items-center gap-1.5 flex-wrap">
-                      <span className={cn("px-1.5 py-0.5 rounded border text-[9px] uppercase whitespace-nowrap", getTypeBadgeStyles(lead.entityType))}>
-                        {lead.entityType}
-                      </span>
-                      <span className="px-1.5 py-0.5 rounded border border-border bg-card text-[9px] uppercase text-muted-foreground whitespace-nowrap">
-                        {lead.nationality || "Unk"}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="shrink-0">
-                    <AccessScoreBadge score={lead.accessScore} />
-                  </div>
-                </div>
-                <div className="bg-background rounded p-2 text-xs font-mono border border-border mt-3">
-                  <span className="text-primary mr-2">SIGNAL:</span>
-                  <span className="text-foreground/80 line-clamp-2">{formatSignal(lead.signal)}</span>
-                </div>
-              </div>
-            ))}
-            {!isLoadingLeads && (!hotLeads || hotLeads.length === 0) && (
-              <div className="flex flex-col items-center justify-center p-8 text-center min-h-[200px]">
-                <div className="w-12 h-12 rounded-full bg-card border border-border flex items-center justify-center mb-3">
-                  <ShieldAlert className="w-5 h-5 text-muted-foreground/50" />
-                </div>
-                <p className="text-sm font-mono text-muted-foreground">No active signals detected.</p>
-              </div>
-            )}
-          </div>
-          <BackgroundActivityCard />
-        </div>
-
-        {/* Map tab — only mount when active so Leaflet gets a real container size */}
-        <div className={cn("flex-1 relative bg-[#0B0F19]", mobileTab !== "map" && "hidden")}>
-          {mobileTab === "map" && (
-            isLoadingMap ? (
-              <div className="w-full h-full min-h-[300px] flex flex-col items-center justify-center">
-                <div className="w-16 h-16 rounded-full bg-[#1E2332] animate-pulse flex items-center justify-center mb-4">
-                  <MapPin className="w-6 h-6 text-muted-foreground/30" />
-                </div>
-              </div>
-            ) : !mapHasData ? (
-              <div className="w-full h-full min-h-[300px] flex flex-col items-center justify-center">
-                <div className="w-16 h-16 rounded-full bg-card border border-border flex items-center justify-center mb-4">
-                  <MapPin className="w-6 h-6 text-muted-foreground/50" />
-                </div>
-                <p className="text-sm font-mono text-muted-foreground">Awaiting geospatial points</p>
-              </div>
-            ) : (
-              <MapContainer
-                center={[38, -95]} zoom={4}
-                style={{ height: "100%", width: "100%", minHeight: "300px", background: "#0B0F19" }}
-                zoomControl={false}
-              >
-                <TileLayer
-                  url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-                  attribution='&copy; CARTO'
-                />
-                {mapData.map((point: any) => (
-                  <Marker key={point.id} position={[point.latitude, point.longitude]} icon={createCustomIcon(point.category)}>
-                    <Popup>
-                      <div className="text-xs font-mono p-1">
-                        <div className="font-bold truncate">{point.identifier}</div>
-                        <div className="text-muted-foreground truncate">{point.category}</div>
-                        {point.ownerName && <div className="truncate">↳ {point.ownerName}</div>}
-                      </div>
-                    </Popup>
-                  </Marker>
-                ))}
-              </MapContainer>
-            )
-          )}
-        </div>
+        {/* Contact queue below */}
+        <ContactQueue className="flex-1 overflow-hidden" />
       </div>
     </div>
   );
