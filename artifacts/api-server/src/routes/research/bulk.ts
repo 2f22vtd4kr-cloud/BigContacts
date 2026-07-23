@@ -41,7 +41,7 @@ router.post("/research/lead", async (req, res): Promise<void> => {
 
 // POST /research/bulk-run — run Hybrid Research on top N hot leads in a single background job
 router.post("/research/bulk-run", async (req, res): Promise<void> => {
-  const existing = await getActiveJob("bulk-mcts");
+  const existing = await getActiveJob("bulk-hybrid-research");
   if (existing) {
     const existingJob = await getJob(existing);
     if (existingJob?.status === "running") {
@@ -67,7 +67,7 @@ router.post("/research/bulk-run", async (req, res): Promise<void> => {
       });
     }
 
-    await clearActiveJob("bulk-mcts");
+    await clearActiveJob("bulk-hybrid-research");
   }
 
   const batchSize  = Math.min(parseInt((req.body as any)?.batchSize ?? "60", 10), 300);
@@ -107,8 +107,8 @@ router.post("/research/bulk-run", async (req, res): Promise<void> => {
     return;
   }
 
-  const jobId = await createJob("bulk-mcts");
-  await setActiveJob("bulk-mcts", jobId);
+  const jobId = await createJob("bulk-hybrid-research");
+  await setActiveJob("bulk-hybrid-research", jobId);
 
   res.status(202).json({
     jobId,
@@ -257,9 +257,9 @@ router.post("/research/bulk-run", async (req, res): Promise<void> => {
         message: `Bulk Hybrid Research crashed: ${err.message}`,
       } as any);
     } finally {
-      await setActiveJob("bulk-mcts", "");
+      await setActiveJob("bulk-hybrid-research", "");
     }
-  })().catch(() => setActiveJob("bulk-mcts", ""));
+  })().catch(() => setActiveJob("bulk-hybrid-research", ""));
 });
 
 export default router;

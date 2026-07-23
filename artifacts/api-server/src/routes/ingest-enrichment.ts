@@ -759,13 +759,19 @@ router.post("/ingest/social-discovery", async (req: Request, res: Response): Pro
       const rows = await db.select({
         id: entitiesTable.id, name: entitiesTable.name,
         type: entitiesTable.type, sourceRegistries: entitiesTable.sourceRegistries,
+        email: entitiesTable.email, phone: entitiesTable.phone,
         linkedinUrl: entitiesTable.linkedinUrl,
+        twitterHandle: entitiesTable.twitterHandle,
+        instagramHandle: entitiesTable.instagramHandle,
+        telegramHandle: entitiesTable.telegramHandle,
+        knownResidences: entitiesTable.knownResidences,
       }).from(entitiesTable).where(and(...conditions as [SQL, ...SQL[]])).limit(Number(batchSize));
 
       await updateJob(jobId, { status: "running", message: `Social discovery: 0/${rows.length} processed`, progress: 0, total: rows.length } as any);
 
       for (const row of rows) {
-        if (!force && (row as any).linkedinUrl) { processed++; continue; }
+        // Skip only if ALL social fields are already populated (not just LinkedIn)
+        if (!force && row.linkedinUrl && row.twitterHandle && row.instagramHandle) { processed++; continue; }
         try {
           const result = await discoverSocialPresence({ name: row.name, type: row.type });
           if (result.confidence > 0) {
@@ -777,6 +783,15 @@ router.post("/ingest/social-discovery", async (req: Request, res: Response): Pro
             if (result.instagramHandle)  update.instagramHandle  = result.instagramHandle;
             if (result.personalWebsite)  update.personalWebsite  = result.personalWebsite;
             if (Object.keys(update).length) {
+              // Recompute contactConfidence with newly discovered social signals
+              update.contactConfidence = computeContactConfidence({
+                email: row.email, phone: row.phone,
+                linkedinUrl: result.linkedinUrl ?? row.linkedinUrl,
+                twitterHandle: result.twitterHandle ?? row.twitterHandle,
+                instagramHandle: result.instagramHandle ?? row.instagramHandle,
+                telegramHandle: row.telegramHandle,
+                knownResidences: row.knownResidences,
+              });
               await db.update(entitiesTable).set(update).where(eq(entitiesTable.id, row.id));
               // Mirror to Redis contact cache
               const stableKey = (() => { try { return JSON.parse(row.sourceRegistries ?? "[]")[0] ?? `name:${row.name}`; } catch { return `name:${row.name}`; } })();
@@ -840,19 +855,33 @@ router.post("/ingest/messenger-discovery", async (req: Request, res: Response): 
       const rows = await db.select({
         id: entitiesTable.id, name: entitiesTable.name,
         type: entitiesTable.type, sourceRegistries: entitiesTable.sourceRegistries,
+        email: entitiesTable.email, phone: entitiesTable.phone,
+        linkedinUrl: entitiesTable.linkedinUrl,
+        twitterHandle: entitiesTable.twitterHandle,
+        instagramHandle: entitiesTable.instagramHandle,
         telegramHandle: entitiesTable.telegramHandle,
+        knownResidences: entitiesTable.knownResidences,
       }).from(entitiesTable).where(and(...conditions as [SQL, ...SQL[]])).limit(Number(batchSize));
 
       await updateJob(jobId, { status: "running", message: `Messenger discovery: 0/${rows.length} processing`, progress: 0, total: rows.length } as any);
 
       for (const row of rows) {
-        if (!force && (row as any).telegramHandle) { processed++; continue; }
+        if (!force && row.telegramHandle) { processed++; continue; }
         try {
           const result = await discoverMessengerPresence({ name: row.name, type: row.type });
           if (result.telegramHandle) {
-            await db.update(entitiesTable).set({
+            // Recompute contactConfidence with newly found Telegram signal
+            const newConfidence = computeContactConfidence({
+              email: row.email, phone: row.phone,
+              linkedinUrl: row.linkedinUrl, twitterHandle: row.twitterHandle,
+              instagramHandle: row.instagramHandle,
               telegramHandle: result.telegramHandle,
-              telegramBio:    result.telegramBio,
+              knownResidences: row.knownResidences,
+            });
+            await db.update(entitiesTable).set({
+              telegramHandle:    result.telegramHandle,
+              telegramBio:       result.telegramBio,
+              contactConfidence: newConfidence,
             }).where(eq(entitiesTable.id, row.id));
             const stableKey = (() => { try { return JSON.parse(row.sourceRegistries ?? "[]")[0] ?? `name:${row.name}`; } catch { return `name:${row.name}`; } })();
             await contactCacheSet(stableKey, {
@@ -909,7 +938,7 @@ router.post("/ingest/foundation-filings", async (req: Request, res: Response): P
       const rows = await db.select({
         id: entitiesTable.id, name: entitiesTable.name,
         type: entitiesTable.type, sourceRegistries: entitiesTable.sourceRegistries,
-        email: entitiesTable.email,
+        email: entitiesTable.email, knownResidences: entitiesTable.knownResidences,
       }).from(entitiesTable).where(and(...conditions as [SQL, ...SQL[]])).limit(Number(batchSize));
 
       await updateJob(jobId, { status: "running", message: `Foundation filings: 0/${rows.length} processing`, progress: 0, total: rows.length } as any);
@@ -921,6 +950,13 @@ router.post("/ingest/foundation-filings", async (req: Request, res: Response): P
             const update: Record<string, any> = { foundationName: result.foundationName };
             // Only fill email if entity has none
             if (result.email && !row.email) update.email = result.email;
+            // Persist address into knownResidences JSON array (was previously dropped)
+            if (result.address) {
+              const existing: string[] = (() => { try { const r = JSON.parse(row.knownResidences ?? "[]"); return Array.isArray(r) ? r : [String(r)]; } catch { return []; } })();
+              if (!existing.some(r => r === result.address)) {
+                update.knownResidences = JSON.stringify([...existing, result.address]);
+              }
+            }
             await db.update(entitiesTable).set(update).where(eq(entitiesTable.id, row.id));
             const stableKey = (() => { try { return JSON.parse(row.sourceRegistries ?? "[]")[0] ?? `name:${row.name}`; } catch { return `name:${row.name}`; } })();
             await contactCacheSet(stableKey, {

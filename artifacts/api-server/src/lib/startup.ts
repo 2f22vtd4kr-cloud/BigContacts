@@ -24,7 +24,7 @@ import { warmUpSemanticEngine } from "./semantic-engine";
 import { computeContactConfidence } from "./contact-confidence";
 import { isValidPublicEmail, sanitizePublicEmail } from "./contact-validation";
 
-const INGESTOR_TYPES = ["faa", "land-registry", "western-hnwi", "companies-house-enrich", "occrp", "opensky", "improve", "web-osint", "bulk-mcts", "in-house-enrich", "deep-web-osint", "compute-embeddings", "social-discovery", "messenger-discovery", "foundation-filings", "broad-discovery"] as const;
+const INGESTOR_TYPES = ["faa", "land-registry", "western-hnwi", "companies-house-enrich", "occrp", "opensky", "improve", "web-osint", "bulk-hybrid-research", "in-house-enrich", "deep-web-osint", "compute-embeddings", "social-discovery", "messenger-discovery", "foundation-filings", "broad-discovery"] as const;
 
 /**
  * Mark jobs whose worker process is dead as failed, clear their locks.
@@ -711,15 +711,23 @@ export async function coldStartRecovery(): Promise<void> {
   // Non-blocking — starts model download (~23 MB on first boot) and cache hydration.
   warmUpSemanticEngine();
 
-  // Check entity count
+  // Check entity count — retry up to 3× with backoff to handle transient PG startup lag.
+  // Previously this returned immediately on any error, causing cold-start to abort
+  // and leaving the DB empty with no ingestion triggered.
   let entityCount = 0;
-  try {
-    const [row] = await db.select({ count: count() }).from(entitiesTable);
-    entityCount = Number(row?.count ?? 0);
-  } catch (err: any) {
-    logger.warn({ err: err?.message }, "Could not query entity count (non-fatal)");
-    return;
+  let countFetched = false;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const [row] = await db.select({ count: count() }).from(entitiesTable);
+      entityCount = Number(row?.count ?? 0);
+      countFetched = true;
+      break;
+    } catch (err: any) {
+      logger.warn({ err: err?.message, attempt }, `Entity count query failed (attempt ${attempt}/3)${attempt < 3 ? " — retrying in 10s" : " — aborting cold start"}`);
+      if (attempt < 3) await new Promise(r => setTimeout(r, 10_000));
+    }
   }
+  if (!countFetched) return;
 
   if (entityCount > 0) {
     logger.info({ entityCount }, "DB already populated — skipping auto-ingestion; running maintenance…");
