@@ -1,0 +1,21 @@
+Honest assessment, no flattery:
+7.5 / 10
+
+What genuinely earns that score:
+* Architecture is legitimately sophisticated. BM25 + TF-IDF + all-MiniLM semantic + graph traversal + UCT + Bayesian-UCB as a 5-layer pipeline with no external AI API is real engineering, not a wrapper around GPT.
+* Zero synthetic data is a rare discipline and makes every number in the UI trustworthy. Most "intelligence" tools fail this immediately.
+* Persistence resilience — dual-Upstash design (dedup + contact cache) surviving GitHub imports and DB resets is elegant and operationally mature.
+* Recurring scheduler running 7 jobs forever after boot means the app is genuinely always searching, not just processing a one-shot batch.
+* UI is clean, professional, and all pages serve a purpose. The CRM pipeline, Outreach Assistant, Intel Terminal, and Persona Loop page are all real operator tools.
+
+What holds it back:
+* Contact hit rate: 2.3% — 729 contactable out of 32,101 entities. Most profiles are "registry trace only." The social-discovery and messenger-discovery modules are correct in design but FAA/HMLR registrants (corporate LLCs, property addresses) are not the same people as the HNWIs — so the enrichment often fires at a company name, not a person.
+* Graph edge quality — 230k edges sounds impressive but the majority are CORPORATE_SERIES (name-token clustering) and FAA geo-proximity, not warm-introduction paths. The UCT path-finder works, but most paths dead-end at registrations rather than people you can actually reach through.
+* Duplicate surface — "Riley Jacob" appeared twice on the dashboard today. The semantic dedup found 0 LIKELY_SAME_PERSON edges across 67k comparisons, which suggests the similarity threshold is too conservative.
+* Data quality gap — FAA entities are often registered to aviation LLCs ("John Smith Aviation LLC"), not the individual. You're enriching the LLC, not the person. This is a structural limitation of the FAA source that no amount of enrichment fixes.
+
+What would push it to 9+:
+1. A people-resolution layer that maps LLC → beneficial owner before enriching (SEC Schedule 13D/G does this partially but you'd need more cross-referencing).
+2. Higher-confidence Telegram/LinkedIn yield — the current pattern-guessing approach hits ~1–3% of targets. A curated list of known HNWI usernames or a paid data source for the top 1,000 targets would change that dramatically.
+3. Tighter dedup — the semantic similarity threshold should be tuned so FAA "SMITH JOHN AVIATION LLC" and EDGAR "John Smith" collapse to one person where the evidence supports it.
+Solid private tool with genuine technical ambition. The foundation is the right one — it just needs more targeted data coverage to reach its potential.
