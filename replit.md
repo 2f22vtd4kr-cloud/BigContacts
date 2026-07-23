@@ -66,16 +66,18 @@ Schema push: `pnpm --filter @workspace/db run push`
 
 ---
 
-## Current Data State (verified 2026-07-23 — real-data pipeline recovery)
+## Current Data State (verified 2026-07-23 — post-audit)
 
 | Source | Entities | Assets | Notes |
 |---|---|---|---|
 | FAA Releasable Aircraft Registry | 30,000 | 30,000 | Real FAA registry records; ingestion completed with 0 errors. |
 | HMLR Price Paid Data (PPD) | 50,000 | 50,000 | Real bulk PPD records; ingestion completed with 0 errors. |
 | Western HNWI + SEC/BRREG/other live sources | 1,528+ | 305+ | Included in the live database totals; enrichment and relationship maintenance continue. |
-| **Live total** | **81,528** | **80,305** | Relationships: **264,253** · Hot leads: **16,305** · Contactable: **767** · Research sessions: **600** · Persona logs: **1,669** |
+| **Full pipeline target** | **81,528** | **80,305** | Relationships: **264,253** · Hot leads: **16,305** · Contactable: **767** · Research sessions: **834** |
 
-Contact cache (Upstash slot 2): available and connected; the current database has **767 contactable entities** mirrored through the permanent cache. Boot-time sanitation removed invalid search-engine diagnostic addresses before restore.
+**Post-import cold-start state:** FAA auto-ingest fires first (~73s, ~30k entities). HMLR must be triggered manually once FAA completes: `POST /api/ingest/land-registry`. Western HNWI runs in background. Contact cache restores from Upstash slot 2 on every boot (729 contactable entities as of last full run).
+
+**Honest rating as of 2026-07-23 full audit: 7.5/10.** Architecture strong; contact hit rate (2.3%) and warm-path graph edge quality are the main gaps. See `improvements.md` Phase I for the concrete steps to reach 9+.
 
 ---
 
@@ -184,6 +186,7 @@ GET  /api/improve/logs                 improvement suggestions (filterable by pe
 | 9 (UX) | Single-pass query expansion (`expandQuery` in agent-orchestrator.ts); Entity Ledger clickable contact vectors (mailto/tel/LinkedIn); Profile page Direct Contact Vectors action bar; Intel Terminal search bar + 500-entity limit + `?entity=` URL pre-selection; CRM empty-state guidance; `improve/run` inArray SQL fix; Intel Systems Analyst persona text updated to reflect expansion mechanics |
 | 10 | **Redis contact cache** — enriched contacts now persist across GitHub imports and DB resets. `REDIS_URL_2` (Upstash slot 2) stores `contact:v1:{stableKey}` entries permanently. Startup restore (Redis → PG) and backfill (PG → Redis) steps run on every boot. Enricher mirrors to Redis after every DB write. |
 | 11 | **Pipeline recovery hardening** — stale queued Hybrid Research locks are invalidated safely; shared public-email validation rejects search-engine diagnostics/placeholders; boot sanitation repairs PostgreSQL and Redis contact records; verified two 300-session research passes plus a fresh 100-entity Persona Loop pass with 0 errors. |
+| 12 | **Phase H complete + full audit** — pipeline inverted (web-first), recurring scheduler (7 jobs forever), 3 enrichment modules (social-discovery, messenger-discovery, foundation-filings), 9 new schema columns, 8-vector contact panel UI. Full audit pass: confirmed all Phase H modules exist and route correctly; fixed 2 bugs: (1) `research.tsx` terminal placeholder "MCTS" → "UCT" (user-facing string); (2) `ingest-enrichment.ts` foundation-filings `db.select()` was missing all 5 social columns, causing `computeContactConfidence` to systematically undercount social signals. No other user-facing MCTS strings exist. All 300/300 Hybrid Research sessions and 100-entity Persona Loop pass with 0 errors verified. |
 
 ---
 

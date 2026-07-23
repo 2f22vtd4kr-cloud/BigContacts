@@ -806,6 +806,114 @@ Each button shows a confidence badge (`contactConfidence`) beside it.
 
 ---
 
+## Phase I — Road to 9+ (current rating: 7.5/10, target: 9.0/10)
+
+> **Session:** 2026-07-23 · Established during comprehensive post-audit rating review.
+> **Gap summary:** Architecture is genuinely strong (Hybrid L1–L5 pipeline, zero synthetic data, Upstash persistence). The two gaps holding it at 7.5 are (1) low contact hit rate — 2.3% contactable — and (2) graph edge quality — most edges are CORPORATE_SERIES name-clusters, not warm-path introductions.
+
+---
+
+### I1 — People-Resolution Layer: LLC → Beneficial Owner
+
+**Priority:** 🔴 High — fixes the structural root cause of the 2.3% contact hit rate
+
+**Problem:** FAA entities are often registered to aviation LLCs ("John Smith Aviation LLC"), not the individual. The enricher fires against the LLC name, not the person. Wikidata/GitHub/LinkedIn pattern-guessing on "John Smith Aviation LLC" never finds a person because no person's profile is named that.
+
+**Fix:** Before enrichment, attempt to resolve the LLC to its beneficial owner using two free sources:
+1. **SEC EDGAR** — search `company_search_company.json?company={name}&type=SC+13D` for entities that share a name token with the LLC (the filer behind the LLC is often the HNWI)
+2. **OpenCorporates** — `GET https://api.opencorporates.com/v0.4/companies/search?q={name}&fields=registered_agent_name,directors` — extract director/officer names from the free tier (50 req/day)
+3. **FAA MASTER.txt cross-reference** — if the LLC has a registered agent in MASTER.txt field `[6]`, store it as `metadata.beneficialOwner`
+
+**Implementation:**
+- Add `resolveBeneficialOwner(entity)` in `artifacts/api-server/src/lib/enrichment/in-house-enricher.ts` — runs before the 7-source enrichment pass
+- If a person name is found, store as `metadata.beneficialOwner` and use it as the search query for all subsequent enrichment steps (Wikidata, GitHub, Gravatar, etc.)
+- Rate limit: 1 req/s (OpenCorporates free tier)
+
+**Expected impact:** Contact hit rate for FAA Corporate entities lifts from ~0% toward 5–15%. Unlocks Wikidata/LinkedIn hits for the person behind the LLC rather than the LLC itself.
+
+**Metric:** `contactableCount` rises for entities whose `entityType = "Corporation"` and `sourceRegistries LIKE '%faa%'`.
+
+---
+
+### I2 — Semantic Dedup Threshold Tuning
+
+**Priority:** 🟠 Medium — fixes the duplicate surface problem without data loss risk
+
+**Problem:** The semantic dedup pass compared 67k pairs and found 0 LIKELY_SAME_PERSON edges. The cosine similarity threshold of 0.93 is too conservative for cross-registry matching where name spellings differ substantially ("John T. Smith" in FAA vs "John Thomas Smith" in EDGAR). Separately, "Riley Jacob" appeared twice on the dashboard — suggesting two distinct FAA registration records for the same name that escaped dedup entirely.
+
+**Fix:**
+1. Lower the cosine similarity threshold from `0.93` → `0.87` in `artifacts/api-server/src/routes/relationships.ts` (`POST /api/relationships/semantic-dedup`) — but **add a name-token overlap guard**: require ≥2 shared significant tokens between the two entity names before creating an edge (prevents false positives from different people in the same city/state)
+2. Add a **name-exact dedup pass** that runs at boot: find entity pairs where `LOWER(TRIM(name)) = LOWER(TRIM(name))` across different source registries — these are guaranteed same-name duplicates and deserve a `LIKELY_SAME_PERSON` edge regardless of embedding similarity
+3. Surface the "Riley Jacob" class of duplicates on `/duplicates` — identical names within the same source registry are probably two registrations (two aircraft), not two people; add a "same-source name cluster" tab
+
+**Files:**
+- `artifacts/api-server/src/routes/relationships.ts` — lower threshold, add token overlap guard
+- `artifacts/api-server/src/lib/startup.ts` — add name-exact dedup pass at ~300s
+
+**Metric:** `totalRelationships` gains LIKELY_SAME_PERSON edges; `/duplicates` page shows cross-registry matches.
+
+---
+
+### I3 — Warm-Path Edge Quality: Introduce Co-Event and Co-Investment Signals
+
+**Priority:** 🟠 Medium — transforms graph from "registry clustering" to "warm introduction network"
+
+**Problem:** 230k edges but 97%+ are CORPORATE_SERIES (name-token clustering) or FAA GEOGRAPHIC_PEER. These are weak signals for warm introduction routing — the UCT path-finder traverses them but they don't represent real human connection. A path that goes HNWI → CORPORATE_SERIES_CLUSTER → CORPORATE_SERIES_CLUSTER → Target is not a warm introduction.
+
+**Fix — add two high-quality edge types:**
+
+#### I3-A: EDGAR Co-Investor Edges (same company, different filers)
+- Two EDGAR entities that filed SC 13D/G for the same company are co-investors — they sit on the same cap table and likely know each other
+- Already partially spec'd in C3 but focus on **same-company, different-person** pairs (not same-filing pairs)
+- Implementation: group EDGAR entities by `metadata.companyName`, create `EDGAR_CO_INVESTOR` edges for pairs where both have HNWI/Gatekeeper type, cap at 20 per company to avoid hub explosion
+- **This is the highest-quality warm-path signal available from current data**
+
+#### I3-B: ProPublica 990 Co-Director/Co-Trustee Edges
+- IRS 990 filings list every officer/director of a nonprofit foundation
+- Two entities that appear as officers of the same foundation know each other well
+- Implementation: extend `foundation-filings.ts` — after finding a foundation match, query its officer list and create `FOUNDATION_COLLEAGUE` edges between all entities in the DB who appear as officers of the same EIN
+- `GET https://projects.propublica.org/nonprofits/api/v2/organizations/{EIN}.json` → `filing.officers[]`
+
+**Files:**
+- `artifacts/api-server/src/routes/relationships.ts` — new `POST /api/relationships/auto-detect-edgar-coinvestor`
+- `artifacts/api-server/src/lib/enrichment/foundation-filings.ts` — extend to emit co-director edges
+- `artifacts/api-server/src/lib/startup.ts` — trigger both at Phase 4 (300s)
+
+**Metric:** UCT path sessions that traverse EDGAR_CO_INVESTOR or FOUNDATION_COLLEAGUE edges increase; path scores improve because warmth evaluator gives bonus to nodes with contact confidence.
+
+---
+
+### I4 — Contact Hit Rate: Targeted High-Value Enrichment
+
+**Priority:** 🟡 Lower — complements I1 but requires more infrastructure
+
+**Problem:** The 9 enrichment sources (Wikidata, Wikipedia, GitHub, Gravatar, DNS, RDAP, ProPublica, social-discovery, messenger-discovery) have high hit rates for public figures (Wikidata/Wikipedia) but near-zero for the FAA private individuals who make up 95% of the DB. Private HNWI aircraft owners are not on Wikidata. They may be on LinkedIn but the pattern-guessing approach only lands ~1–3%.
+
+**Fix:** Tier the enrichment by entity quality rather than running the same pass over all 32k entities:
+
+1. **Tier 1 — Public figures** (entities with `sourceRegistries` containing `edgar` or with `estimatedNetWorth > 30M`): run full 9-source enrichment pass every boot cycle. These have the highest Wikidata/Wikipedia hit probability.
+2. **Tier 2 — FAA individuals** (typeReg=1, estimatedNetWorth $4M–$30M): focus on DNS domain guessing + RDAP + LinkedIn DuckDuckGo pattern. Skip Wikidata (no results). Run on 500 entities per boot cycle.
+3. **Tier 3 — FAA corporations**: run people-resolution (I1) first, then enrich the resolved person name. Don't run Wikidata/GitHub against the LLC name.
+
+**Implementation:** Add `enrichmentTier(entity): 1|2|3` function in `in-house-enricher.ts`. Route each entity to the appropriate source subset. Reduces wasted API calls and improves hit rate per call.
+
+**Metric:** `contactableCount` per boot cycle rises without increasing enrichment run time.
+
+---
+
+### Phase I — Score Tracker
+
+| Step | What it fixes | Expected lift | Status |
+|---|---|---|---|
+| Baseline (post-audit) | — | **7.5/10** | ✅ Measured 2026-07-23 |
+| I1 — People-resolution | LLC → beneficial owner before enrichment | +0.5 (contact hit rate) | ⬜ Pending |
+| I2 — Dedup threshold | 0 LIKELY_SAME_PERSON edges → cross-registry links | +0.3 (graph quality) | ⬜ Pending |
+| I3 — Warm-path edges | CORPORATE_SERIES → co-investor/co-director edges | +0.5 (UCT path quality) | ⬜ Pending |
+| I4 — Tiered enrichment | Private HNWI contact rate improvement | +0.2 (contact hit rate) | ⬜ Pending |
+| **Target** | | **9.0/10** | ⬜ |
+
+---
+
 ## Legacy Patterns (all ✅ — do not re-implement)
 
 > See git history for full details. All 19 patterns implemented 2026-07-19 to 2026-07-21.
