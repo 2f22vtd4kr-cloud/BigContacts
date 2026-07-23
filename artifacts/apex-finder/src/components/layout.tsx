@@ -220,6 +220,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             backgroundImage:
               "linear-gradient(rgba(255,255,255,1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,1) 1px, transparent 1px)",
             backgroundSize: "32px 32px",
+            backgroundPosition: "center",
           }}
         />
 
