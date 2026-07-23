@@ -8,7 +8,7 @@
 
 ---
 
-## Current State (2026-07-23 — re-import #51) — All 4 artifacts registered; Redis + API + Web running
+## Current State (2026-07-23 — imported project setup) — Redis + API + Web running
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically
@@ -25,7 +25,7 @@
 | API Server | ✅ Running (port 8080) |
 | ApexFinder Web | ✅ Running (port 23695) |
 
-> **Current import verification note (2026-07-23):** The web server returns HTTP 200 and `/api/healthz` reports Redis healthy. Dashboard data endpoints currently fail because PostgreSQL is unavailable in this imported workspace; do not interpret that as an empty database. Frontend typecheck/build pass cleanly.
+> **Current import verification note (2026-07-23):** Fresh dependencies were restored from the lockfile. The web server returns HTTP 200 and `/api/healthz` reports Redis healthy; both Upstash Redis connections also initialize successfully. Dashboard data endpoints currently fail because PostgreSQL is unavailable in this imported workspace; do not interpret that as an empty database. The production web build passes. Typecheck still reports pre-existing imported-project errors in shared UI typings/generated client declarations and the optional Expo artifact.
 
 ### What was done this session (2026-07-23 — re-import #51 nav + UX fixes)
 
@@ -397,6 +397,7 @@ Run **IN-HOUSE ENRICH** on HNWI/Gatekeeper entities — Wikidata SPARQL will hit
 
 | Date | What changed |
 |---|---|
+| 2026-07-23 | **Imported project setup**: restored pnpm dependencies from the lockfile; confirmed SESSION_SECRET, REDIS_URL_1, REDIS_URL_2, and COMPANIES_HOUSE_API_KEY are set; started Redis, API Server, and ApexFinder Web. API `/api/healthz` and web HTTP checks pass, production web build passes. PostgreSQL is unavailable in this workspace, and existing frontend/mobile typecheck errors remain documented above. |
 | 2026-07-23 | Re-import #49: pnpm install, db schema push, artifact-managed workflows started (ports 8080/23695), 4 improvements implemented (broad-discovery engine, cold-start inversion, recurring scheduler rotation, weighted contact confidence) |
 | 2026-07-23 | Re-import #48: pnpm install, db schema push, all workflows started, cold-start auto-recovery triggered |
 | 2026-07-23 | Phase H complete (H1–H5 in one session): pipeline inverted (web-first), recurring scheduler, 3 new enrichment modules (social/messenger/foundation), 9 new schema columns, 8-vector contact panel UI, SKIP_DOMAINS fix |
