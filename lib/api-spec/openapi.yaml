@@ -64,6 +64,38 @@ paths:
         - name: offset
           in: query
           schema: { type: integer, default: 0 }
+        - name: starred
+          in: query
+          schema: { type: boolean }
+          description: Show only starred entities
+        - name: hidden
+          in: query
+          schema: { type: boolean }
+          description: Show only hidden entities
+        - name: contactable
+          in: query
+          schema: { type: boolean }
+          description: Show only entities with at least one public contact channel
+        - name: hasEmail
+          in: query
+          schema: { type: boolean }
+          description: Show only entities with an email address
+        - name: hasPhone
+          in: query
+          schema: { type: boolean }
+          description: Show only entities with a phone number
+        - name: hasWhatsapp
+          in: query
+          schema: { type: boolean }
+          description: Show only entities with a WhatsApp contact vector
+        - name: hasTelegram
+          in: query
+          schema: { type: boolean }
+          description: Show only entities with a Telegram handle
+        - name: hasInstagram
+          in: query
+          schema: { type: boolean }
+          description: Show only entities with an Instagram handle
       responses:
         "200":
           description: OK
@@ -749,6 +781,8 @@ components:
         phone: { type: ["string", "null"] }
         email: { type: ["string", "null"] }
         contactMethod: { type: ["string", "null"] }
+        instagramHandle: { type: ["string", "null"] }
+        telegramHandle: { type: ["string", "null"] }
         notes: { type: ["string", "null"] }
         sourceRegistries: { type: ["string", "null"] }
         metadata: { type: ["string", "null"] }

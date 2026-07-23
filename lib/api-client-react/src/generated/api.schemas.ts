@@ -39,6 +39,10 @@ export interface Entity {
   /** @nullable */
   contactMethod?: string | null;
   /** @nullable */
+  instagramHandle?: string | null;
+  /** @nullable */
+  telegramHandle?: string | null;
+  /** @nullable */
   notes?: string | null;
   /** @nullable */
   sourceRegistries?: string | null;
@@ -385,6 +389,38 @@ minScore?: number;
 search?: string;
 limit?: number;
 offset?: number;
+/**
+ * Show only starred entities
+ */
+starred?: boolean;
+/**
+ * Show only hidden entities
+ */
+hidden?: boolean;
+/**
+ * Show only entities with at least one public contact channel
+ */
+contactable?: boolean;
+/**
+ * Show only entities with an email address
+ */
+hasEmail?: boolean;
+/**
+ * Show only entities with a phone number
+ */
+hasPhone?: boolean;
+/**
+ * Show only entities with a WhatsApp contact vector
+ */
+hasWhatsapp?: boolean;
+/**
+ * Show only entities with a Telegram handle
+ */
+hasTelegram?: boolean;
+/**
+ * Show only entities with an Instagram handle
+ */
+hasInstagram?: boolean;
 };
 
 export type ListAssetsParams = {

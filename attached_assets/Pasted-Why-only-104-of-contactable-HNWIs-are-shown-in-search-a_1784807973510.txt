@@ -1,0 +1,36 @@
+Why only 104 of contactable HNWIs are shown in search and also why there is no filter for contactable in the search tab (and pushing further: phone number, email, what's app, telegram, instagram...) ? Fix and apply
+Let me explore the search backend and frontend in parallel to understand the current state.
+Good — let me read the key files and restart the workflows in parallel.
+Now I have a clear picture. Let me read the schema and api-zod to confirm field names, and check logs in parallel.
+Two issues are clear:
+1. Wrong field names in the client-side filter — it checks e.contactEmail / e.contactPhone which don't exist (the real fields are e.email / e.phone), so only contactMethod ever matches — that's why you only see ~104
+2. Cap of 500 rows fetched for client-side filtering — any DB larger than 500 entities will miss records even after the field name is fixed
+The fix: move all contactable filtering server-side so pagination works correctly and add channel-specific sub-filters. Let me kill the port conflict and implement everything in parallel.
+Now update the backend route and frontend in parallel:
+Now I'll add the server-side filter conditions to the backend, and make all the frontend changes in sequence:
+Now making all the frontend changes — adding contactChannel state, fixing the server-side API call, removing the broken client-side filter, adding channel chips, and updating banners. These are sequential edits to the same file:
+Continuing the sequential frontend edits:
+Continuing all remaining frontend edits in parallel (different non-overlapping sections):
+I need to continue with the remaining sequential edits to entities.tsx, and also restart the workflows after all edits are done. Let me continue making the edits and also restart the workflows in parallel where possible.
+Let me make all the remaining edits to entities.tsx now. I need to:
+1. Update useListEntities call
+2. Remove client-side contactable filter from useMemo
+3. Update desktop filter banner
+4. Add desktop contact channel chips row
+5. Update mobile filter banner
+6. Add contact channel chips to mobile chip row
+Let me do these in batch where they don't conflict (different line ranges).
+Current edits applied so far:
+* Added CONTACT_CHANNELS constant and ContactChannel type
+* Added contactChannel state
+* Updated useEffect deps
+* Changed isSpecialFilter
+Now I need to check the current file structure for the remaining sections, starting with the useListEntities call to update the limit and offset logic based on the new isSpecialFilter condition.
+Updating the filter banners and mobile chip row...
+Making all remaining edits in parallel — they target clearly different sections of the file:
+Continuing the remaining frontend edits while killing port conflicts and restarting workflows in parallel:
+All remaining entities.tsx edits + workflow kill-and-restart in parallel:
+Finishing remaining edits and restarting workflows in parallel:
+Finishing the last two mobile edits and restarting workflows all in parallel:
+
+

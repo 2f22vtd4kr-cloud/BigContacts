@@ -339,7 +339,6 @@ export default function EntityLedger() {
   const [searchedOnce, setSearchedOnce] = useState(false);
 
   const [mobileSelectedEntity, setMobileSelectedEntity] = useState<any>(null);
-  const [mobileTypeFilter, setMobileTypeFilter] = useState<string | null>(null);
 
   // contactable/channel filters are now server-side; only hotOnly remains client-side
   const isSpecialFilter = hotOnly;
@@ -359,7 +358,7 @@ export default function EntityLedger() {
     hasWhatsapp:  contactChannel === "whatsapp"  ? true : undefined,
     hasTelegram:  contactChannel === "telegram"  ? true : undefined,
     hasInstagram: contactChannel === "instagram" ? true : undefined,
-  } as any);
+  });
   const deleteEntity = useDeleteEntity();
   const createEntity = useCreateEntity();
 
@@ -388,7 +387,7 @@ export default function EntityLedger() {
     } catch { /* non-fatal */ }
   };
 
-  // Client-side filters: proximity + hot + contactable + local overrides merged in
+  // Client-side filters: proximity + hot + local overrides merged in
   const entities = useMemo(() => {
     if (!rawEntities) return [];
     let list = (rawEntities as any[]).map((e: any) => {
@@ -1027,6 +1026,30 @@ export default function EntityLedger() {
             >
               🔥 Hot
             </button>
+          </div>
+          {/* Contact channel chips */}
+          <div className="flex items-center gap-2 px-3 pb-2 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+            <span className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground shrink-0 mr-1">
+              Contact
+            </span>
+            {CONTACT_CHANNELS.map(({ value, label, icon }) => (
+              <button
+                key={value}
+                onClick={() => {
+                  const next = contactChannel === value ? null : value;
+                  setContactChannel(next);
+                  setContactableOnly(next !== null);
+                }}
+                className="shrink-0 h-7 px-2.5 rounded text-[10px] font-mono border transition-colors flex items-center gap-1"
+                style={{
+                  background: contactChannel === value ? "rgba(16,185,129,0.12)" : "hsl(var(--card))",
+                  color: contactChannel === value ? "#10B981" : "hsl(var(--muted-foreground))",
+                  borderColor: contactChannel === value ? "rgba(16,185,129,0.4)" : "hsl(var(--border))",
+                }}
+              >
+                <span className="text-[9px]">{icon}</span> {label}
+              </button>
+            ))}
           </div>
         </div>
 

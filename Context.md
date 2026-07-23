@@ -8,7 +8,7 @@
 
 ---
 
-## Current State (2026-07-23 — mobile UX fixes + star/hide features) — Redis + API + Web running
+## Current State (2026-07-23 — contact-channel filtering completed) — Redis + API + Web running
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically
@@ -26,6 +26,8 @@
 | ApexFinder Web | ✅ Running (port 23695) |
 
 > **Re-import setup note (2026-07-23):** pnpm install (~20s). DB schema pushed (`[✓] Changes applied`). All 3 secrets re-entered (REDIS_URL_1, REDIS_URL_2, COMPANIES_HOUSE_API_KEY — lost on import). API /healthz → `{"status":"ok","redis":{"status":"ok","latencyMs":0}}`. Cold-start auto-recovery will trigger FAA + HMLR + Western HNWI ingestion on first populated-DB boot.
+
+> **Contact filtering completion note (2026-07-23):** Finished the interrupted contactability UI/UX task. Entity Ledger contact filtering is now server-side and paginated, so it no longer stops at the old 500-row client-side cap or checks nonexistent `contactEmail`/`contactPhone` fields. Added Any Contact, Email, Phone, WhatsApp, Telegram, and Instagram filters to desktop and mobile, documented the query contract in OpenAPI, and regenerated the typed React/Zod clients. Web/API builds and frontend typecheck pass. Filter requests reach the API correctly; entity responses remain unavailable in this import because PostgreSQL is not responding, while Redis and both persistent Redis connections are healthy.
 
 ### What was done this session (2026-07-23 — mobile UX fixes + star/hide/MCTS rename)
 
@@ -445,6 +447,7 @@ Run **IN-HOUSE ENRICH** on HNWI/Gatekeeper entities — Wikidata SPARQL will hit
 | 2026-07-23 | **Responsive mobile polish pass**: mounted the approved activity/context feed in the mobile dashboard, removed duplicate mobile job polling, added explicit Entity Ledger loading/unavailable/empty states, tightened mobile profile tabs and touch targets, simplified Deep Search mobile copy and stacked its pipeline/results layout, restarted the web workflow, verified 390px mobile and 1440px desktop screenshots, and confirmed the production build passes. |
 | 2026-07-23 | **Research Command Center frontend**: extracted and live-previewed one responsive Canvas direction, graduated the hierarchy into the production dashboard, added 5-second live activity polling with progress/results and `/jobs` navigation, made contactability the primary queue signal, demoted map/wealth context, removed dashboard manual-ingestion controls, and added explicit PostgreSQL-unavailable fallback states. Production build passes; shared UI typecheck errors remain pre-existing. |
 | 2026-07-23 | **Imported project setup**: restored pnpm dependencies from the lockfile; confirmed SESSION_SECRET, REDIS_URL_1, REDIS_URL_2, and COMPANIES_HOUSE_API_KEY are set; started Redis, API Server, and ApexFinder Web. API `/api/healthz` and web HTTP checks pass, production web build passes. PostgreSQL is unavailable in this workspace, and existing frontend/mobile typecheck errors remain documented above. |
+| 2026-07-23 | **Contact-channel filtering completed**: finished the interrupted Entity Ledger fix by moving Any Contact, Email, Phone, WhatsApp, Telegram, and Instagram filtering server-side with blank-value guards; added desktop/mobile channel chips; removed the client-side dataset cap and stale field checks; updated OpenAPI and regenerated React/Zod clients. Web build, API build, frontend typecheck, shared-library typecheck, and diff checks pass. PostgreSQL remains the only runtime blocker for live entity responses in this import. |
 | 2026-07-23 | Re-import #49: pnpm install, db schema push, artifact-managed workflows started (ports 8080/23695), 4 improvements implemented (broad-discovery engine, cold-start inversion, recurring scheduler rotation, weighted contact confidence) |
 | 2026-07-23 | Re-import #48: pnpm install, db schema push, all workflows started, cold-start auto-recovery triggered |
 | 2026-07-23 | Phase H complete (H1–H5 in one session): pipeline inverted (web-first), recurring scheduler, 3 new enrichment modules (social/messenger/foundation), 9 new schema columns, 8-vector contact panel UI, SKIP_DOMAINS fix |

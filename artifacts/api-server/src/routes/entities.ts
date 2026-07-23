@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, ilike, and, gte, sql, inArray, isNotNull, or } from "drizzle-orm";
+import { eq, ilike, and, gte, sql, inArray, or } from "drizzle-orm";
 import { db, entitiesTable, assetsTable, relationshipsTable } from "@workspace/db";
 import {
   ListEntitiesQueryParams,
@@ -46,25 +46,29 @@ router.get("/entities", async (req, res): Promise<void> => {
     conditions.push(eq(entitiesTable.isHidden, false));
   }
 
-  // Contact channel filters — server-side so pagination works correctly
+  // Contact channel filters — server-side so pagination works correctly.
+  // Treat blank strings as missing contact evidence; ingestion can leave empty
+  // placeholders in nullable text columns.
+  const hasValue = (column: typeof entitiesTable.email) =>
+    sql`${column} IS NOT NULL AND btrim(${column}) <> ''`;
   if (hasEmail) {
-    conditions.push(isNotNull(entitiesTable.email));
+    conditions.push(hasValue(entitiesTable.email));
   } else if (hasPhone) {
-    conditions.push(isNotNull(entitiesTable.phone));
+    conditions.push(hasValue(entitiesTable.phone));
   } else if (hasWhatsapp) {
-    conditions.push(eq(entitiesTable.contactMethod, "WhatsApp"));
+    conditions.push(ilike(entitiesTable.contactMethod, "%whatsapp%"));
   } else if (hasTelegram) {
-    conditions.push(isNotNull(entitiesTable.telegramHandle));
+    conditions.push(hasValue(entitiesTable.telegramHandle));
   } else if (hasInstagram) {
-    conditions.push(isNotNull(entitiesTable.instagramHandle));
+    conditions.push(hasValue(entitiesTable.instagramHandle));
   } else if (contactable) {
     // Any contact channel
     conditions.push(or(
-      isNotNull(entitiesTable.email),
-      isNotNull(entitiesTable.phone),
-      isNotNull(entitiesTable.contactMethod),
-      isNotNull(entitiesTable.telegramHandle),
-      isNotNull(entitiesTable.instagramHandle),
+      hasValue(entitiesTable.email),
+      hasValue(entitiesTable.phone),
+      hasValue(entitiesTable.contactMethod),
+      hasValue(entitiesTable.telegramHandle),
+      hasValue(entitiesTable.instagramHandle),
     )!);
   }
 
