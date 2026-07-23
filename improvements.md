@@ -616,7 +616,7 @@ After Phase H the app will: fire web discovery at 15s, run 5 recurring backgroun
 
 ---
 
-### H1 — Pipeline Inversion ⬜
+### H1 — Pipeline Inversion ✅ 2026-07-23
 
 **File:** `artifacts/api-server/src/lib/startup.ts` — replace the `phases` array (lines ~546–587)
 
@@ -647,7 +647,7 @@ Phase 6 (900s+):    Persona loop pass 1, semantic embeddings pass 2 (force),
 
 ---
 
-### H2 — Recurring Background Scheduler ⬜
+### H2 — Recurring Background Scheduler ✅ 2026-07-23
 
 **File:** `artifacts/api-server/src/lib/startup.ts` — add `RECURRING_JOBS` block after the initial `phases` loop
 
@@ -673,7 +673,7 @@ Each job fires immediately once when the recurring block activates, then repeats
 
 Three new modules + routes, implemented and tested independently.
 
-#### H3-A: `enrichment/social-discovery.ts` — LinkedIn + Twitter/X + Instagram
+#### H3-A: `enrichment/social-discovery.ts` — LinkedIn + Twitter/X + Instagram ✅ 2026-07-23
 
 **File:** `artifacts/api-server/src/enrichment/social-discovery.ts`
 
@@ -695,7 +695,7 @@ Returns `SocialDiscoveryResult`: `{ linkedinUrl, linkedinHeadline, twitterHandle
 
 **Done when:** `POST /api/ingest/social-discovery` returns `{ jobId }`, job completes, at least 1 entity gains a `linkedinUrl` or `twitterHandle` in the DB.
 
-#### H3-B: `enrichment/messenger-discovery.ts` — Telegram
+#### H3-B: `enrichment/messenger-discovery.ts` — Telegram ✅ 2026-07-23
 
 **File:** `artifacts/api-server/src/enrichment/messenger-discovery.ts`
 
@@ -714,7 +714,7 @@ Returns `MessengerDiscoveryResult`: `{ telegramHandle, telegramBio, telegramPubl
 
 **Done when:** Route returns `{ jobId }`, job runs clean. Even 0 matches is acceptable — confirm no crashes.
 
-#### H3-C: `enrichment/foundation-filings.ts` — IRS 990 via ProPublica
+#### H3-C: `enrichment/foundation-filings.ts` — IRS 990 via ProPublica ✅ 2026-07-23
 
 **File:** `artifacts/api-server/src/enrichment/foundation-filings.ts`
 
@@ -735,7 +735,7 @@ Note: ProPublica already partially implemented in `enrichment/contact-enrichment
 
 ---
 
-### H4 — Database Schema: New Contact Fields ⬜
+### H4 — Database Schema: New Contact Fields ✅ 2026-07-23
 
 **File:** `lib/db/src/schema/entities.ts`
 
@@ -763,7 +763,7 @@ Note: check if `linkedinUrl` already exists before adding (it may already be in 
 
 ---
 
-### H5 — UI: Expanded Contact Panel ⬜
+### H5 — UI: Expanded Contact Panel ✅ 2026-07-23
 
 **File:** `artifacts/apex-finder/src/pages/profile.tsx`
 
@@ -792,15 +792,15 @@ Each button shows a confidence badge (`contactConfidence`) beside it.
 
 ### Phase H — Implementation Order
 
-| Phase | Re-import # | Work | Est. time |
+| Phase | Re-import # | Work | Status |
 |---|---|---|---|
-| H4 | Next | Schema first (everything downstream depends on new columns) | 15 min |
-| H1 | Next+1 | Pipeline inversion (existing routes only) | 30 min |
-| H3-A | Next+2 | social-discovery module + SKIP_DOMAINS fix | 2 hours |
-| H3-B | Next+3 | messenger-discovery module | 1 hour |
-| H3-C | Next+4 | foundation-filings module | 45 min |
-| H2 | Next+5 | Recurring background scheduler | 30 min |
-| H5 | Next+6 | UI contact panel expansion | 1 hour |
+| H4 | 48 | Schema — 9 new contact columns | ✅ 2026-07-23 |
+| H1 | 48 | Pipeline inversion (web-first, registry-second) | ✅ 2026-07-23 |
+| H2 | 48 | Recurring background scheduler (5 jobs, forever) | ✅ 2026-07-23 |
+| H3-A | 48 | social-discovery module + SKIP_DOMAINS fix | ✅ 2026-07-23 |
+| H3-B | 48 | messenger-discovery (Telegram t.me lookup) | ✅ 2026-07-23 |
+| H3-C | 48 | foundation-filings (IRS 990 via ProPublica) | ✅ 2026-07-23 |
+| H5 | 48 | UI — 8-vector contact panel on profile page | ✅ 2026-07-23 |
 
 > **Rule:** complete and verify each phase before moving to the next. Each phase is independently testable. Do not implement H3 routes in startup.ts until the routes exist (use conditional guards).
 

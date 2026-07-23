@@ -11,6 +11,14 @@ export const entitiesTable = pgTable("entities", {
   estimatedNetWorth: doublePrecision("estimated_net_worth"),
   knownResidences: text("known_residences"), // JSON array stored as text
   linkedinUrl: text("linkedin_url"),
+  linkedinHeadline: text("linkedin_headline"),
+  twitterHandle: text("twitter_handle"),
+  twitterBio: text("twitter_bio"),
+  instagramHandle: text("instagram_handle"),
+  telegramHandle: text("telegram_handle"),
+  telegramBio: text("telegram_bio"),
+  personalWebsite: text("personal_website"),
+  foundationName: text("foundation_name"),
   phone: text("phone"),
   email: text("email"),
   contactMethod: text("contact_method"), // 'WhatsApp' | 'Email' | 'LinkedIn' | 'Signal'

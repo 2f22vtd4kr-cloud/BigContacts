@@ -368,7 +368,8 @@ Run **IN-HOUSE ENRICH** on HNWI/Gatekeeper entities — Wikidata SPARQL will hit
 
 | Date | What changed |
 |---|---|
-| 2026-07-23 | Re-import #48: pnpm install, db schema push (no changes), all 3 workflows started, /healthz ✅ — cold-start auto-recovery triggered FAA + HMLR + Western HNWI ingestion |
+| 2026-07-23 | Re-import #48: pnpm install, db schema push, all workflows started, cold-start auto-recovery triggered |
+| 2026-07-23 | Phase H complete (H1–H5 in one session): pipeline inverted (web-first), recurring scheduler, 3 new enrichment modules (social/messenger/foundation), 9 new schema columns, 8-vector contact panel UI, SKIP_DOMAINS fix |
 
 | Date | What changed |
 |---|---|

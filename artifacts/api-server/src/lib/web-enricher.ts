@@ -322,12 +322,17 @@ const USER_AGENTS = [
 ];
 
 const SKIP_DOMAINS = new Set([
-  "linkedin.com", "twitter.com", "x.com", "facebook.com", "instagram.com",
-  "youtube.com", "tiktok.com", "pinterest.com",
+  // Search engines and aggregators — no useful HNWI data to scrape
   "google.com", "bing.com", "yahoo.com", "duckduckgo.com",
-  "wikipedia.org", "wikidata.org",
-  "sec.gov", "gov.uk", "faa.gov", "irs.gov",
+  // E-commerce — irrelevant
   "amazon.com", "ebay.com", "apple.com", "microsoft.com",
+  // Encyclopaedias — scraped separately by in-house enricher
+  "wikipedia.org", "wikidata.org",
+  // Video / image platforms — no email/contact data
+  "youtube.com", "tiktok.com", "pinterest.com",
+  // NOTE: linkedin.com, twitter.com, x.com, instagram.com intentionally
+  // REMOVED so that social profile URLs found in search results are followed.
+  // Dedicated social-discovery module handles structured extraction from these domains.
 ]);
 
 const EMAIL_BLOCK = new Set([

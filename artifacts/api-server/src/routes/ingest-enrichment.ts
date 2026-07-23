@@ -30,6 +30,9 @@ import {
 import { runCompaniesHouseEnrichment } from "../lib/enrichment/structured-verification";
 import { enrichEntityOsint } from "../lib/enrichment/web-discovery";
 import { enrichInHouse } from "../lib/enrichment/contact-enrichment";
+import { discoverSocialPresence } from "../lib/enrichment/social-discovery";
+import { discoverMessengerPresence } from "../lib/enrichment/messenger-discovery";
+import { discoverViaFoundationFilings } from "../lib/enrichment/foundation-filings";
 import { computeContactConfidence } from "../lib/contact-confidence";
 import { contactCacheSet } from "../lib/redis";
 import { logger } from "../lib/logger";
@@ -727,6 +730,227 @@ router.delete("/ingest/hunter-enrich-lock", async (_req: Request, res: Response)
   if (!jobId) { res.json({ cleared: false, message: "No active hunter-enrich lock." }); return; }
   await updateJob(jobId, { status: "failed", message: "Process killed (server restart).", finishedAt: new Date().toISOString() } as any);
   await setActiveJob("hunter-enrich", "");
+  res.json({ cleared: true, jobId });
+});
+
+// ── POST /ingest/social-discovery (H3-A) ──────────────────────────────────────
+// Discovers LinkedIn URL, Twitter handle, Instagram handle, personal website via
+// DuckDuckGo HTML search + Nitter. No API key required.
+router.post("/ingest/social-discovery", async (req: Request, res: Response): Promise<void> => {
+  const { batchSize = 200, hotOnly = false, onlyMissingContact = false, force = false, entityIds } = req.body ?? {};
+  const existing = await getActiveJob("social-discovery");
+  if (existing) { res.json({ jobId: existing, status: "already_running" }); return; }
+  const jobId = await createJob("social-discovery", { batchSize, hotOnly, onlyMissingContact });
+  await setActiveJob("social-discovery", jobId);
+  res.json({ jobId });
+
+  (async () => {
+    try {
+      let processed = 0; let enriched = 0;
+      const safeIds: number[] | undefined = Array.isArray(entityIds) ? entityIds.map(Number) : undefined;
+
+      // Build query conditions
+      const conditions = [sql`${entitiesTable.type} IN ('HNWI', 'Gatekeeper')`];
+      if (hotOnly) conditions.push(sql`${entitiesTable.isHot} = true`);
+      if (onlyMissingContact && !force) conditions.push(sql`${entitiesTable.linkedinUrl} IS NULL AND ${entitiesTable.twitterHandle} IS NULL AND ${entitiesTable.instagramHandle} IS NULL`);
+      if (safeIds?.length) conditions.push(inArray(entitiesTable.id, safeIds));
+
+      const rows = await db.select({
+        id: entitiesTable.id, name: entitiesTable.name,
+        type: entitiesTable.type, sourceRegistries: entitiesTable.sourceRegistries,
+        linkedinUrl: entitiesTable.linkedinUrl,
+      }).from(entitiesTable).where(and(...conditions as [SQL, ...SQL[]])).limit(Number(batchSize));
+
+      await updateJob(jobId, { status: "running", message: `Social discovery: 0/${rows.length} processed`, progress: 0, total: rows.length } as any);
+
+      for (const row of rows) {
+        if (!force && (row as any).linkedinUrl) { processed++; continue; }
+        try {
+          const result = await discoverSocialPresence({ name: row.name, type: row.type });
+          if (result.confidence > 0) {
+            const update: Record<string, any> = {};
+            if (result.linkedinUrl)      update.linkedinUrl      = result.linkedinUrl;
+            if (result.linkedinHeadline) update.linkedinHeadline = result.linkedinHeadline;
+            if (result.twitterHandle)    update.twitterHandle    = result.twitterHandle;
+            if (result.twitterBio)       update.twitterBio       = result.twitterBio;
+            if (result.instagramHandle)  update.instagramHandle  = result.instagramHandle;
+            if (result.personalWebsite)  update.personalWebsite  = result.personalWebsite;
+            if (Object.keys(update).length) {
+              await db.update(entitiesTable).set(update).where(eq(entitiesTable.id, row.id));
+              // Mirror to Redis contact cache
+              const stableKey = (() => { try { return JSON.parse(row.sourceRegistries ?? "[]")[0] ?? `name:${row.name}`; } catch { return `name:${row.name}`; } })();
+              await contactCacheSet(stableKey, {
+                name: row.name, linkedinUrl: result.linkedinUrl,
+                linkedinHeadline: result.linkedinHeadline,
+                twitterHandle: result.twitterHandle, twitterBio: result.twitterBio,
+                instagramHandle: result.instagramHandle, personalWebsite: result.personalWebsite,
+                contactConfidence: result.confidence, enrichmentSources: result.sources,
+                enrichedAt: new Date().toISOString(),
+              } as any);
+              enriched++;
+            }
+          }
+        } catch (err: any) { logger.warn({ err: err?.message, name: row.name }, "social-discovery entity error"); }
+        processed++;
+        if (processed % 10 === 0) await updateJob(jobId, { message: `Social discovery: ${processed}/${rows.length} processed, ${enriched} enriched`, progress: processed, total: rows.length } as any);
+        // Polite delay between entities
+        await new Promise(r => setTimeout(r, 3_500));
+      }
+
+      await updateJob(jobId, { status: "completed", message: `Social discovery complete: ${enriched}/${rows.length} entities enriched`, progress: rows.length, total: rows.length, finishedAt: new Date().toISOString() } as any);
+    } catch (err: any) {
+      await updateJob(jobId, { status: "failed", message: err?.message ?? "Unknown error", finishedAt: new Date().toISOString() } as any);
+    } finally {
+      await setActiveJob("social-discovery", "");
+    }
+  })();
+});
+
+// ── DELETE /ingest/social-discovery-lock ──────────────────────────────────────
+router.delete("/ingest/social-discovery-lock", async (_req: Request, res: Response): Promise<void> => {
+  const jobId = await getActiveJob("social-discovery");
+  if (!jobId) { res.json({ cleared: false, message: "No active social-discovery lock." }); return; }
+  await updateJob(jobId, { status: "failed", message: "Process killed (server restart).", finishedAt: new Date().toISOString() } as any);
+  await setActiveJob("social-discovery", "");
+  res.json({ cleared: true, jobId });
+});
+
+// ── POST /ingest/messenger-discovery (H3-B) ───────────────────────────────────
+// Finds Telegram handles via t.me public username lookup.
+// Most valuable for Russian/CIS HNWIs who use Telegram as primary messenger.
+router.post("/ingest/messenger-discovery", async (req: Request, res: Response): Promise<void> => {
+  const { batchSize = 100, hotOnly = false, onlyMissingContact = false, force = false, entityIds } = req.body ?? {};
+  const existing = await getActiveJob("messenger-discovery");
+  if (existing) { res.json({ jobId: existing, status: "already_running" }); return; }
+  const jobId = await createJob("messenger-discovery", { batchSize, hotOnly });
+  await setActiveJob("messenger-discovery", jobId);
+  res.json({ jobId });
+
+  (async () => {
+    try {
+      let processed = 0; let enriched = 0;
+      const safeIds: number[] | undefined = Array.isArray(entityIds) ? entityIds.map(Number) : undefined;
+
+      const conditions = [sql`${entitiesTable.type} IN ('HNWI', 'Gatekeeper')`];
+      if (hotOnly) conditions.push(sql`${entitiesTable.isHot} = true`);
+      if (onlyMissingContact && !force) conditions.push(sql`${entitiesTable.telegramHandle} IS NULL`);
+      if (safeIds?.length) conditions.push(inArray(entitiesTable.id, safeIds));
+
+      const rows = await db.select({
+        id: entitiesTable.id, name: entitiesTable.name,
+        type: entitiesTable.type, sourceRegistries: entitiesTable.sourceRegistries,
+        telegramHandle: entitiesTable.telegramHandle,
+      }).from(entitiesTable).where(and(...conditions as [SQL, ...SQL[]])).limit(Number(batchSize));
+
+      await updateJob(jobId, { status: "running", message: `Messenger discovery: 0/${rows.length} processing`, progress: 0, total: rows.length } as any);
+
+      for (const row of rows) {
+        if (!force && (row as any).telegramHandle) { processed++; continue; }
+        try {
+          const result = await discoverMessengerPresence({ name: row.name, type: row.type });
+          if (result.telegramHandle) {
+            await db.update(entitiesTable).set({
+              telegramHandle: result.telegramHandle,
+              telegramBio:    result.telegramBio,
+            }).where(eq(entitiesTable.id, row.id));
+            const stableKey = (() => { try { return JSON.parse(row.sourceRegistries ?? "[]")[0] ?? `name:${row.name}`; } catch { return `name:${row.name}`; } })();
+            await contactCacheSet(stableKey, {
+              name: row.name, telegramHandle: result.telegramHandle, telegramBio: result.telegramBio,
+              contactConfidence: result.confidence, enrichmentSources: result.sources,
+              enrichedAt: new Date().toISOString(),
+            } as any);
+            enriched++;
+          }
+        } catch (err: any) { logger.warn({ err: err?.message, name: row.name }, "messenger-discovery entity error"); }
+        processed++;
+        if (processed % 10 === 0) await updateJob(jobId, { message: `Messenger discovery: ${processed}/${rows.length} processed, ${enriched} found`, progress: processed, total: rows.length } as any);
+        await new Promise(r => setTimeout(r, 1_000));
+      }
+
+      await updateJob(jobId, { status: "completed", message: `Messenger discovery complete: ${enriched}/${rows.length} Telegram handles found`, progress: rows.length, total: rows.length, finishedAt: new Date().toISOString() } as any);
+    } catch (err: any) {
+      await updateJob(jobId, { status: "failed", message: err?.message ?? "Unknown error", finishedAt: new Date().toISOString() } as any);
+    } finally {
+      await setActiveJob("messenger-discovery", "");
+    }
+  })();
+});
+
+// ── DELETE /ingest/messenger-discovery-lock ───────────────────────────────────
+router.delete("/ingest/messenger-discovery-lock", async (_req: Request, res: Response): Promise<void> => {
+  const jobId = await getActiveJob("messenger-discovery");
+  if (!jobId) { res.json({ cleared: false, message: "No active messenger-discovery lock." }); return; }
+  await updateJob(jobId, { status: "failed", message: "Process killed (server restart).", finishedAt: new Date().toISOString() } as any);
+  await setActiveJob("messenger-discovery", "");
+  res.json({ cleared: true, jobId });
+});
+
+// ── POST /ingest/foundation-filings (H3-C) ────────────────────────────────────
+// IRS 990 filings via ProPublica Nonprofit Explorer API (free, no auth).
+// Finds HNWIs listed as trustees/officers of private foundations.
+router.post("/ingest/foundation-filings", async (req: Request, res: Response): Promise<void> => {
+  const { batchSize = 200, force = false, entityIds } = req.body ?? {};
+  const existing = await getActiveJob("foundation-filings");
+  if (existing) { res.json({ jobId: existing, status: "already_running" }); return; }
+  const jobId = await createJob("foundation-filings", { batchSize });
+  await setActiveJob("foundation-filings", jobId);
+  res.json({ jobId });
+
+  (async () => {
+    try {
+      let processed = 0; let enriched = 0;
+      const safeIds: number[] | undefined = Array.isArray(entityIds) ? entityIds.map(Number) : undefined;
+
+      const conditions = [sql`${entitiesTable.type} IN ('HNWI', 'Gatekeeper')`];
+      if (!force) conditions.push(sql`${entitiesTable.foundationName} IS NULL`);
+      if (safeIds?.length) conditions.push(inArray(entitiesTable.id, safeIds));
+
+      const rows = await db.select({
+        id: entitiesTable.id, name: entitiesTable.name,
+        type: entitiesTable.type, sourceRegistries: entitiesTable.sourceRegistries,
+        email: entitiesTable.email,
+      }).from(entitiesTable).where(and(...conditions as [SQL, ...SQL[]])).limit(Number(batchSize));
+
+      await updateJob(jobId, { status: "running", message: `Foundation filings: 0/${rows.length} processing`, progress: 0, total: rows.length } as any);
+
+      for (const row of rows) {
+        try {
+          const result = await discoverViaFoundationFilings({ name: row.name, type: row.type });
+          if (result.foundationName) {
+            const update: Record<string, any> = { foundationName: result.foundationName };
+            // Only fill email if entity has none
+            if (result.email && !row.email) update.email = result.email;
+            await db.update(entitiesTable).set(update).where(eq(entitiesTable.id, row.id));
+            const stableKey = (() => { try { return JSON.parse(row.sourceRegistries ?? "[]")[0] ?? `name:${row.name}`; } catch { return `name:${row.name}`; } })();
+            await contactCacheSet(stableKey, {
+              name: row.name, email: result.email ?? undefined,
+              foundationName: result.foundationName,
+              contactConfidence: result.confidence, enrichmentSources: result.sources,
+              enrichedAt: new Date().toISOString(),
+            } as any);
+            enriched++;
+          }
+        } catch (err: any) { logger.warn({ err: err?.message, name: row.name }, "foundation-filings entity error"); }
+        processed++;
+        if (processed % 10 === 0) await updateJob(jobId, { message: `Foundation filings: ${processed}/${rows.length} processed, ${enriched} found`, progress: processed, total: rows.length } as any);
+        await new Promise(r => setTimeout(r, 600));
+      }
+
+      await updateJob(jobId, { status: "completed", message: `Foundation filings complete: ${enriched}/${rows.length} foundations found`, progress: rows.length, total: rows.length, finishedAt: new Date().toISOString() } as any);
+    } catch (err: any) {
+      await updateJob(jobId, { status: "failed", message: err?.message ?? "Unknown error", finishedAt: new Date().toISOString() } as any);
+    } finally {
+      await setActiveJob("foundation-filings", "");
+    }
+  })();
+});
+
+// ── DELETE /ingest/foundation-filings-lock ────────────────────────────────────
+router.delete("/ingest/foundation-filings-lock", async (_req: Request, res: Response): Promise<void> => {
+  const jobId = await getActiveJob("foundation-filings");
+  if (!jobId) { res.json({ cleared: false, message: "No active foundation-filings lock." }); return; }
+  await updateJob(jobId, { status: "failed", message: "Process killed (server restart).", finishedAt: new Date().toISOString() } as any);
+  await setActiveJob("foundation-filings", "");
   res.json({ cleared: true, jobId });
 });
 

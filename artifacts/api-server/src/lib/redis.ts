@@ -239,6 +239,14 @@ export interface CachedContact {
   email?: string | null;
   phone?: string | null;
   linkedinUrl?: string | null;
+  linkedinHeadline?: string | null;
+  twitterHandle?: string | null;
+  twitterBio?: string | null;
+  instagramHandle?: string | null;
+  telegramHandle?: string | null;
+  telegramBio?: string | null;
+  personalWebsite?: string | null;
+  foundationName?: string | null;
   website?: string | null;
   twitter?: string | null;
   contactConfidence: number;

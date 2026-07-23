@@ -22,7 +22,7 @@ import { logger } from "./logger";
 import { contactCacheScanAll, contactCacheCount, contactCacheSet, type CachedContact } from "./redis";
 import { warmUpSemanticEngine } from "./semantic-engine";
 
-const INGESTOR_TYPES = ["faa", "land-registry", "western-hnwi", "companies-house-enrich", "occrp", "opensky", "improve", "web-osint", "bulk-mcts", "in-house-enrich", "deep-web-osint", "compute-embeddings"] as const;
+const INGESTOR_TYPES = ["faa", "land-registry", "western-hnwi", "companies-house-enrich", "occrp", "opensky", "improve", "web-osint", "bulk-mcts", "in-house-enrich", "deep-web-osint", "compute-embeddings", "social-discovery", "messenger-discovery", "foundation-filings"] as const;
 
 /** Mark any "running" job whose process is dead as failed, clear its lock. */
 async function clearGhostJobs(): Promise<void> {
@@ -544,52 +544,84 @@ async function runPopulatedDbMaintenance(): Promise<void> {
   };
 
   const phases: Phase[] = [
-    // ── Relationship edges (15–42 s) ──────────────────────────────────────────
-    { delayMs:    15_000, label: "cluster auto-detection",             path: "/api/relationships/auto-detect-clusters" },
-    { delayMs:    20_000, label: "shared-address associate detection", path: "/api/relationships/auto-detect" },
-    { delayMs:    25_000, label: "EDGAR co-filer edge detection",      path: "/api/relationships/auto-detect-edgar-cofilers" },
-    { delayMs:    30_000, label: "CH co-director edge detection",      path: "/api/relationships/auto-detect-ch-codirectors",  onlyIf: hasCH },
-    { delayMs:    35_000, label: "EDGAR associate seeding",            path: "/api/relationships/seed-edgar-associates" },
-    { delayMs:    40_000, label: "FAA geo-proximity edges",            path: "/api/relationships/auto-detect-faa-geo" },
-    { delayMs:    41_000, label: "HMLR postcode-proximity edges",      path: "/api/relationships/auto-detect-hmlr-postcode" },
-    { delayMs:    42_000, label: "EDGAR co-shareholder edges",         path: "/api/relationships/auto-detect-edgar-coshareholder" },
+    // ── PHASE 1: BROAD WEB DISCOVERY (15s–60s) ──────────────────────────────
+    // Web OSINT fires FIRST — discover HNWIs from the open internet before any
+    // registry work. Social media domains are no longer blocked (web-enricher.ts).
+    { delayMs:    15_000, label: "web discovery — deep web (hot leads pass 1)",      path: "/api/ingest/deep-web-osint",        body: { batchSize: 500,  hotOnly: true } },
+    { delayMs:    45_000, label: "web discovery — social presence (pass 1)",         path: "/api/ingest/social-discovery",      body: { batchSize: 500,  hotOnly: true } },
+    { delayMs:    60_000, label: "web discovery — messenger/Telegram (pass 1)",      path: "/api/ingest/messenger-discovery",   body: { batchSize: 200,  hotOnly: true } },
 
-    // ── First enrichment wave (90 s – 2 min) ──────────────────────────────────
-    { delayMs:    90_000, label: "auto Hybrid Research bulk run (pass 1)",         path: "/api/research/bulk-run",             body: { batchSize: 300, skipExisting: true } },
-    { delayMs:    95_000, label: "auto CH enrichment (needsEnrichment)",           path: "/api/ingest/companies-house-enrich", body: { batchSize: 500 }, onlyIf: hasCH },
-    { delayMs:   100_000, label: "auto net worth backfill (asset-based)",          path: "/api/ingest/backfill-net-worth" },
-    { delayMs:   105_000, label: "auto EDGAR net worth backfill (shares × price)", path: "/api/ingest/backfill-edgar-net-worth" },
-    { delayMs:   110_000, label: "auto populate-notes from asset descriptions",    path: "/api/ingest/populate-notes" },
-    { delayMs:   120_000, label: "auto in-house enricher (pass 1 — edgar)",        path: "/api/ingest/in-house-enrich",        body: { batchSize: 5000, targetMode: "edgar" } },
+    // ── PHASE 2: HYBRID ANALYSIS (90s–150s) ─────────────────────────────────
+    // Score and rank the discovered candidates.
+    { delayMs:    90_000, label: "auto Hybrid Research bulk run (pass 1)",            path: "/api/research/bulk-run",            body: { batchSize: 300, skipExisting: true } },
+    { delayMs:   120_000, label: "auto semantic embeddings (G1 — pass 1)",            path: "/api/ingest/compute-embeddings",    body: { batchSize: 2_000 } },
+    { delayMs:   150_000, label: "auto semantic entity resolution (dedup pass 1)",    path: "/api/relationships/semantic-dedup" },
 
-    // ── Persona + semantic wave (3–6 min) ─────────────────────────────────────
-    { delayMs:   180_000, label: "auto persona improvement loop (full sweep)",     path: "/api/improve/run-all",               body: { chunkSize: 500, resume: true } },
-    { delayMs:   240_000, label: "auto semantic embeddings (G1 — pass 1)",         path: "/api/ingest/compute-embeddings",     body: { batchSize: 2_000 } },
-    { delayMs:   300_000, label: "auto in-house enricher (pass 2 — faa)",          path: "/api/ingest/in-house-enrich",        body: { batchSize: 5000, targetMode: "faa" } },
-    { delayMs:   360_000, label: "auto Wikidata associate seeding",                path: "/api/relationships/seed-wikidata-associates" },
+    // ── PHASE 3: REGISTRY ENRICHMENT (180s–200s) ────────────────────────────
+    // Registry data verifies and augments discovered entities.
+    { delayMs:   180_000, label: "auto CH enrichment (needsEnrichment)",              path: "/api/ingest/companies-house-enrich", body: { batchSize: 500 }, onlyIf: hasCH },
+    { delayMs:   185_000, label: "auto net worth backfill (asset-based)",             path: "/api/ingest/backfill-net-worth" },
+    { delayMs:   190_000, label: "auto EDGAR net worth backfill (shares × price)",    path: "/api/ingest/backfill-edgar-net-worth" },
+    { delayMs:   195_000, label: "auto populate-notes from asset descriptions",       path: "/api/ingest/populate-notes" },
+    { delayMs:   200_000, label: "auto Wikidata associate seeding",                   path: "/api/relationships/seed-wikidata-associates" },
 
-    // ── Research + semantic wave (8–15 min) ───────────────────────────────────
-    { delayMs:   480_000, label: "auto Hybrid Research bulk run (pass 2)",         path: "/api/research/bulk-run",             body: { batchSize: 300, skipExisting: true } },
-    { delayMs:   480_000, label: "auto semantic entity resolution (G2b)",          path: "/api/relationships/semantic-dedup" },
-    { delayMs:   600_000, label: "auto in-house enricher (pass 3 — edgar force)",  path: "/api/ingest/in-house-enrich",        body: { batchSize: 5000, targetMode: "edgar", force: true } },
-    { delayMs:   660_000, label: "auto pitch backfill",                            path: "/api/research/backfill-pitches" },
-    { delayMs:   900_000, label: "auto Hybrid Research bulk run (pass 3)",         path: "/api/research/bulk-run",             body: { batchSize: 300, skipExisting: true } },
+    // ── PHASE 4: RELATIONSHIP GRAPH (240s–300s) ──────────────────────────────
+    // Build edges now that both web and registry data exist.
+    { delayMs:   240_000, label: "cluster auto-detection",              path: "/api/relationships/auto-detect-clusters" },
+    { delayMs:   250_000, label: "shared-address associate detection",  path: "/api/relationships/auto-detect" },
+    { delayMs:   260_000, label: "EDGAR co-filer edge detection",       path: "/api/relationships/auto-detect-edgar-cofilers" },
+    { delayMs:   270_000, label: "CH co-director edge detection",       path: "/api/relationships/auto-detect-ch-codirectors", onlyIf: hasCH },
+    { delayMs:   280_000, label: "EDGAR associate seeding",             path: "/api/relationships/seed-edgar-associates" },
+    { delayMs:   290_000, label: "FAA geo-proximity edges",             path: "/api/relationships/auto-detect-faa-geo" },
+    { delayMs:   295_000, label: "HMLR postcode-proximity edges",       path: "/api/relationships/auto-detect-hmlr-postcode" },
+    { delayMs:   300_000, label: "EDGAR co-shareholder edges",          path: "/api/relationships/auto-detect-edgar-coshareholder" },
 
-    // ── Long-tail sweep (20–45 min) ───────────────────────────────────────────
-    { delayMs: 1_200_000, label: "auto persona improvement loop (pass 2 — force)", path: "/api/improve/run-all",               body: { chunkSize: 500, resume: false } },
-    { delayMs: 1_260_000, label: "auto Hybrid Research bulk run (pass 5)",         path: "/api/research/bulk-run",             body: { batchSize: 300, skipExisting: true } },
-    { delayMs: 1_500_000, label: "auto in-house enricher (pass 4 — faa force)",    path: "/api/ingest/in-house-enrich",        body: { batchSize: 5000, targetMode: "faa", force: true } },
-    { delayMs: 1_800_000, label: "auto Hybrid Research bulk run (pass 4)",         path: "/api/research/bulk-run",             body: { batchSize: 300, skipExisting: true } },
-    { delayMs: 1_920_000, label: "auto semantic embeddings (G1 — pass 2)",         path: "/api/ingest/compute-embeddings",     body: { batchSize: 5_000, force: true } },
-    { delayMs: 2_040_000, label: "auto semantic entity resolution (G2b — pass 2)", path: "/api/relationships/semantic-dedup" },
-    { delayMs: 2_100_000, label: "auto deep web OSINT (pass 1 — hot leads)",       path: "/api/ingest/deep-web-osint",         body: { batchSize: 500, hotOnly: true } },
-    { delayMs: 2_700_000, label: "auto deep web OSINT (pass 2 — all HNWI)",        path: "/api/ingest/deep-web-osint",         body: { batchSize: 1_000, hotOnly: false } },
+    // ── PHASE 5: DEEP CONTACT ENRICHMENT (360s–660s) ─────────────────────────
+    // In-depth enrichment on verified, scored, graphed entities.
+    { delayMs:   360_000, label: "auto in-house enricher (pass 1 — edgar)",           path: "/api/ingest/in-house-enrich",       body: { batchSize: 5000, targetMode: "edgar" } },
+    { delayMs:   420_000, label: "auto foundation filings (IRS 990 — pass 1)",        path: "/api/ingest/foundation-filings",    body: { batchSize: 500 } },
+    { delayMs:   480_000, label: "auto in-house enricher (pass 2 — faa)",             path: "/api/ingest/in-house-enrich",       body: { batchSize: 5000, targetMode: "faa" } },
+    { delayMs:   540_000, label: "auto social discovery (pass 2 — all HNWI)",         path: "/api/ingest/social-discovery",      body: { batchSize: 1000, hotOnly: false } },
+    { delayMs:   600_000, label: "auto in-house enricher (pass 3 — edgar force)",     path: "/api/ingest/in-house-enrich",       body: { batchSize: 5000, targetMode: "edgar", force: true } },
+    { delayMs:   660_000, label: "auto pitch backfill",                               path: "/api/research/backfill-pitches" },
+
+    // ── PHASE 6: RESEARCH + SCORING (900s–2700s) ─────────────────────────────
+    { delayMs:   900_000, label: "auto persona improvement loop (pass 1)",            path: "/api/improve/run-all",              body: { chunkSize: 500, resume: true } },
+    { delayMs: 1_200_000, label: "auto semantic embeddings (G1 — pass 2)",            path: "/api/ingest/compute-embeddings",    body: { batchSize: 5_000, force: true } },
+    { delayMs: 1_260_000, label: "auto Hybrid Research bulk run (pass 2)",            path: "/api/research/bulk-run",            body: { batchSize: 300, skipExisting: true } },
+    { delayMs: 1_500_000, label: "auto Hybrid Research bulk run (pass 3)",            path: "/api/research/bulk-run",            body: { batchSize: 300, skipExisting: true } },
+    { delayMs: 1_800_000, label: "auto semantic entity resolution (G2b — pass 2)",   path: "/api/relationships/semantic-dedup" },
+    { delayMs: 1_920_000, label: "auto in-house enricher (pass 4 — faa force)",      path: "/api/ingest/in-house-enrich",       body: { batchSize: 5000, targetMode: "faa", force: true } },
+    { delayMs: 2_100_000, label: "auto deep web OSINT (pass 2 — hot leads)",         path: "/api/ingest/deep-web-osint",        body: { batchSize: 500,  hotOnly: true } },
+    { delayMs: 2_700_000, label: "auto deep web OSINT (pass 3 — all HNWI)",          path: "/api/ingest/deep-web-osint",        body: { batchSize: 1_000, hotOnly: false } },
+    { delayMs: 2_700_000, label: "auto persona improvement loop (pass 2 — force)",   path: "/api/improve/run-all",              body: { chunkSize: 500, resume: false } },
   ];
 
   for (const phase of phases) {
     if (phase.onlyIf === false) continue;
     setTimeout(() => trigger(phase.label, phase.path, phase.body), phase.delayMs);
   }
+
+  // ── H2: Recurring background scheduler ───────────────────────────────────────
+  // After the one-shot pipeline finishes (~45 min), enter continuous mode.
+  // 5 recurring jobs keep the app searching for new HNWIs forever.
+  const RECURRING_JOBS = [
+    { intervalMs:  30 * 60 * 1_000, label: "recurring deep web OSINT (hot leads)",      path: "/api/ingest/deep-web-osint",      body: { batchSize: 300, hotOnly: true } },
+    { intervalMs:  30 * 60 * 1_000, label: "recurring social discovery (gap-fill)",     path: "/api/ingest/social-discovery",    body: { batchSize: 300, onlyMissingContact: true } },
+    { intervalMs:   2 * 60 * 60 * 1_000, label: "recurring Hybrid Engine re-score",     path: "/api/research/bulk-run",          body: { batchSize: 200, skipExisting: false } },
+    { intervalMs:   4 * 60 * 60 * 1_000, label: "recurring messenger discovery",        path: "/api/ingest/messenger-discovery", body: { batchSize: 200, onlyMissingContact: true } },
+    { intervalMs:   6 * 60 * 60 * 1_000, label: "recurring registry re-verification",  path: "/api/ingest/western-hnwi",        body: { targetCount: 500 } },
+    { intervalMs:  24 * 60 * 60 * 1_000, label: "recurring persona loop",              path: "/api/improve/run-all",            body: { chunkSize: 500, resume: true } },
+  ];
+
+  setTimeout(() => {
+    for (const job of RECURRING_JOBS) {
+      // Fire once immediately when scheduler activates, then on interval
+      trigger(job.label, job.path, job.body);
+      setInterval(() => trigger(job.label, job.path, job.body), job.intervalMs);
+    }
+    logger.info("Recurring background scheduler activated (H2)");
+  }, 2_800_000); // 46 min — after initial pipeline completes
 }
 
 /** Main cold-start entry point — call once after Upstash connects. */

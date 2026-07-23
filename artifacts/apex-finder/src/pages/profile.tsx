@@ -39,6 +39,9 @@ import {
   Plus,
   Trash2,
   Link2,
+  Send,
+  Twitter,
+  Instagram,
 } from "lucide-react";
 import { cn, formatCurrency, ScoreBadge } from "@/lib/utils";
 import {
@@ -589,15 +592,20 @@ export default function ApexProfile() {
         </div>
       </div>
 
-      {/* ── Direct Contact Bar (always visible) ──────────────────────────── */}
+      {/* ── Direct Contact Vectors (8-vector panel — H5) ───────────────────── */}
       {(() => {
         const e = entity as any;
-        const hasContact = !!(e.email || e.phone || e.linkedinUrl);
-        const dbConf = typeof (e as any).contactConfidence === "number" ? (e as any).contactConfidence : null;
+        const hasContact = !!(
+          e.email || e.phone || e.linkedinUrl || e.twitterHandle ||
+          e.instagramHandle || e.telegramHandle || e.personalWebsite || e.foundationName
+        );
+        const dbConf = typeof e.contactConfidence === "number" ? e.contactConfidence : null;
         const conf = dbConf !== null ? dbConf :
-          (e.email    ? 40 : 0) +
-          (e.phone    ? 30 : 0) +
-          (e.linkedinUrl ? 20 : 0) +
+          (e.email           ? 40 : 0) +
+          (e.phone           ? 30 : 0) +
+          (e.linkedinUrl     ? 20 : 0) +
+          (e.twitterHandle   ? 10 : 0) +
+          (e.telegramHandle  ? 10 : 0) +
           (e.knownResidences && e.knownResidences !== "[]" ? 10 : 0);
         const confCls =
           conf >= 60 ? "text-primary border-primary/30 bg-primary/10"
@@ -610,7 +618,7 @@ export default function ApexProfile() {
                 <span className="text-[9px] font-mono font-bold text-primary uppercase tracking-widest whitespace-nowrap">Direct Contact Vectors</span>
                 {hasContact && (
                   <span className={cn("text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border whitespace-nowrap", confCls)}
-                    title="How complete / verified the contact data is — separate from HNWI Signal score">
+                    title="Contact completeness score — separate from HNWI Signal score">
                     {conf}% contact data
                   </span>
                 )}
@@ -626,30 +634,84 @@ export default function ApexProfile() {
             </div>
             {hasContact ? (
               <div className="flex items-center gap-2 flex-wrap">
+                {/* Email */}
                 {e.email && (
-                  <a href={`mailto:${e.email}`} className="flex items-center gap-2 px-3 py-1.5 rounded border border-primary/30 bg-primary/10 text-primary font-mono text-xs hover:bg-primary/20 transition-colors min-w-0 max-w-[220px] sm:max-w-none">
+                  <a href={`mailto:${e.email}`} title={e.email}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded border border-primary/30 bg-primary/10 text-primary font-mono text-xs hover:bg-primary/20 transition-colors min-w-0 max-w-[220px] sm:max-w-none">
                     <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                     </svg>
                     <span className="truncate">{e.email}</span>
                   </a>
                 )}
+                {/* Phone */}
                 {e.phone && (
-                  <a href={`tel:${e.phone}`} className="flex items-center gap-2 px-3 py-1.5 rounded border border-secondary/30 bg-secondary/10 text-secondary font-mono text-xs hover:bg-secondary/20 transition-colors">
+                  <a href={`tel:${e.phone}`}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded border border-secondary/30 bg-secondary/10 text-secondary font-mono text-xs hover:bg-secondary/20 transition-colors">
                     <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                     </svg>
                     {e.phone}
                   </a>
                 )}
+                {/* LinkedIn */}
                 {e.linkedinUrl && (
-                  <a href={e.linkedinUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-3 py-1.5 rounded border border-blue-400/30 bg-blue-400/10 text-blue-400 font-mono text-xs hover:bg-blue-400/20 transition-colors">
+                  <a href={e.linkedinUrl} target="_blank" rel="noopener noreferrer"
+                    title={e.linkedinHeadline ?? "LinkedIn Profile"}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded border border-blue-400/30 bg-blue-400/10 text-blue-400 font-mono text-xs hover:bg-blue-400/20 transition-colors">
                     <svg className="w-3.5 h-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
                       <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
                     </svg>
-                    LinkedIn Profile
+                    {e.linkedinHeadline ? (
+                      <span className="truncate max-w-[160px]">{e.linkedinHeadline.slice(0, 40)}</span>
+                    ) : "LinkedIn"}
                   </a>
                 )}
+                {/* Twitter/X */}
+                {e.twitterHandle && (
+                  <a href={`https://x.com/${e.twitterHandle}`} target="_blank" rel="noopener noreferrer"
+                    title={e.twitterBio ?? `@${e.twitterHandle} on X/Twitter`}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded border border-sky-400/30 bg-sky-400/10 text-sky-400 font-mono text-xs hover:bg-sky-400/20 transition-colors">
+                    <Twitter className="w-3.5 h-3.5 flex-shrink-0" />
+                    @{e.twitterHandle}
+                  </a>
+                )}
+                {/* Instagram */}
+                {e.instagramHandle && (
+                  <a href={`https://instagram.com/${e.instagramHandle}`} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-2 px-3 py-1.5 rounded border border-pink-400/30 bg-pink-400/10 text-pink-400 font-mono text-xs hover:bg-pink-400/20 transition-colors">
+                    <Instagram className="w-3.5 h-3.5 flex-shrink-0" />
+                    @{e.instagramHandle}
+                  </a>
+                )}
+                {/* Telegram */}
+                {e.telegramHandle && (
+                  <a href={`https://t.me/${e.telegramHandle}`} target="_blank" rel="noopener noreferrer"
+                    title={e.telegramBio ?? `@${e.telegramHandle} on Telegram`}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded border border-cyan-400/30 bg-cyan-400/10 text-cyan-400 font-mono text-xs hover:bg-cyan-400/20 transition-colors">
+                    <Send className="w-3.5 h-3.5 flex-shrink-0" />
+                    t.me/{e.telegramHandle}
+                  </a>
+                )}
+                {/* Personal website */}
+                {e.personalWebsite && (
+                  <a href={e.personalWebsite} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-2 px-3 py-1.5 rounded border border-violet-400/30 bg-violet-400/10 text-violet-400 font-mono text-xs hover:bg-violet-400/20 transition-colors max-w-[200px]">
+                    <Globe className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span className="truncate">{e.personalWebsite.replace(/^https?:\/\//, "")}</span>
+                  </a>
+                )}
+                {/* Foundation / IRS 990 */}
+                {e.foundationName && (
+                  <a href={`https://projects.propublica.org/nonprofits/search?q=${encodeURIComponent(e.foundationName)}`}
+                    target="_blank" rel="noopener noreferrer"
+                    title={`IRS 990 filing: ${e.foundationName}`}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded border border-amber-400/30 bg-amber-400/10 text-amber-400 font-mono text-xs hover:bg-amber-400/20 transition-colors max-w-[200px]">
+                    <Building2 className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span className="truncate">{e.foundationName}</span>
+                  </a>
+                )}
+                {/* Preferred contact method badge */}
                 {e.contactMethod && (
                   <span className="px-2.5 py-1.5 rounded border border-border text-muted-foreground font-mono text-[10px] uppercase tracking-wider">
                     Preferred: {e.contactMethod}
@@ -659,10 +721,10 @@ export default function ApexProfile() {
             ) : (
               <p className="text-xs font-mono text-muted-foreground/50 italic">
                 {isEnriching
-                  ? "Querying Companies House officer records…"
+                  ? "Running enrichment pipeline…"
                   : enrichDone
                   ? "Enrichment complete — no public contact data found for this entity."
-                  : "No direct contact data. Click Enrich to query Companies House officer records."}
+                  : "No direct contact data. Click Enrich to search public sources."}
               </p>
             )}
             {enrichError && (
