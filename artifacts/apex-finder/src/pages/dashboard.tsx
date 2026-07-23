@@ -868,6 +868,159 @@ function MobileActivityFeed() {
   );
 }
 
+// ── Mobile lead card ──────────────────────────────────────────────────────────
+
+function MobileLeadCard({ lead }: { lead: any }) {
+  const typeColors: Record<string, string> = {
+    HNWI: "text-emerald-400", Corporation: "text-blue-400",
+    Trust: "text-purple-400", Gatekeeper: "text-amber-400",
+  };
+  const typeDot: Record<string, string> = {
+    HNWI: "bg-emerald-400", Corporation: "bg-blue-400",
+    Trust: "bg-purple-400", Gatekeeper: "bg-amber-400",
+  };
+  const score = lead.accessScore ?? 0;
+  const scoreLabel = score >= 0.8 ? "A" : score >= 0.65 ? "B" : score >= 0.5 ? "C" : "D";
+  const wealthDots = Math.round((lead.bayesianScore ?? 0) * 5);
+
+  const hasEmail    = !!(lead.contactEmail || lead.email);
+  const hasPhone    = !!(lead.contactPhone || lead.phone);
+  const hasLinkedin = !!lead.linkedinUrl;
+
+  return (
+    <div className="bg-card border border-border rounded-sm p-4 flex flex-col gap-3">
+      {/* Row 1: name + access */}
+      <div className="flex items-start justify-between gap-2">
+        <h3 className="font-semibold text-[16px] text-foreground leading-tight">
+          {formatEntityName(lead.name)}
+        </h3>
+        <div className="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono
+                        bg-primary/10 text-primary border border-primary/20">
+          {scoreLabel} {score.toFixed(2)}
+        </div>
+      </div>
+      {/* Row 2: type + wealth */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <div className={cn("w-2 h-2 rounded-full shrink-0", typeDot[lead.type] ?? "bg-muted-foreground")} />
+          <span className={cn("text-[11px] font-mono", typeColors[lead.type] ?? "text-muted-foreground")}>
+            {lead.type}
+          </span>
+        </div>
+        <div className="flex gap-0.5">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className={cn("w-2 h-2 rounded-full",
+              i < wealthDots ? "bg-primary" : "bg-muted")} />
+          ))}
+        </div>
+      </div>
+      {/* Row 3: contact chips */}
+      {(hasEmail || hasPhone || hasLinkedin) && (
+        <div className="flex gap-1.5 flex-wrap">
+          {hasEmail    && <span className="flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20"><Mail className="w-3 h-3" />Email</span>}
+          {hasLinkedin && <span className="flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20"><Network className="w-3 h-3" />LinkedIn</span>}
+          {hasPhone    && <span className="flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"><Phone className="w-3 h-3" />Phone</span>}
+        </div>
+      )}
+      {/* Row 4: reason + arrow */}
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[12px] text-muted-foreground italic truncate">{buildWhyRanked(lead)}</p>
+        <Link href={`/profile/${lead.id}`}
+              className="shrink-0 w-8 h-8 rounded flex items-center justify-center bg-primary/10 text-primary border border-primary/20">
+          <ChevronRight className="w-4 h-4" />
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+// ── Mobile contact view ────────────────────────────────────────────────────────
+
+function MobileContactView() {
+  const { data: stats } = useGetDashboardStats();
+  const s = stats as any;
+  const { data: hotLeads, isLoading, isError } = useGetHotLeads({ limit: 10 });
+  const leads = (hotLeads as any[]) ?? [];
+
+  // Job polling (reuse existing pattern)
+  const [jobs, setJobs] = useState<any[]>([]);
+  const poll = useCallback(() => {
+    fetch("/api/ingest/jobs")
+      .then(r => r.json())
+      .then(d => {
+        const running = (d.jobs ?? []).filter((j: any) => j.status === "running" || j.status === "queued");
+        setJobs(running.slice(0, 3));
+      })
+      .catch(() => {});
+  }, []);
+  useEffect(() => {
+    poll();
+    const t = setInterval(poll, 5000);
+    return () => clearInterval(t);
+  }, [poll]);
+
+  return (
+    <div className="flex flex-col flex-1 overflow-hidden">
+      {/* Activity strip */}
+      {jobs.length > 0 && (
+        <div className="flex items-center gap-2 px-4 py-2 overflow-x-auto border-b border-border bg-card/50 shrink-0"
+             style={{ scrollbarWidth: "none" }}>
+          {jobs.map((job, i) => (
+            <div key={i}
+                 className="shrink-0 flex items-center gap-2 h-7 bg-card border border-border rounded px-2.5 relative overflow-hidden">
+              <div className="absolute inset-y-0 left-0 bg-primary/10 transition-all"
+                   style={{ width: `${job.progress ?? 0}%` }} />
+              <span className="text-[11px] font-mono text-foreground relative z-10">
+                {job.label} <span className="text-muted-foreground mx-1">·</span>
+                <span className="text-primary">{Math.round(job.progress ?? 0)}%</span>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Section header */}
+      <div className="flex items-center justify-between px-4 pt-4 pb-2 shrink-0">
+        <h2 className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">Best Next Contacts</h2>
+        <Link href="/profiles?hot=1" className="text-[13px] text-primary flex items-center gap-0.5">
+          View all <ChevronRight className="w-4 h-4" />
+        </Link>
+      </div>
+
+      {/* Contact cards */}
+      <div className="flex-1 overflow-y-auto px-4 pb-4 flex flex-col gap-2" style={{ scrollbarWidth: "none" }}>
+        {isLoading && (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-5 h-5 animate-spin text-primary" />
+          </div>
+        )}
+        {isError && <DataUnavailable />}
+        {!isLoading && !isError && leads.length === 0 && <EmptyState />}
+        {leads.map((lead: any) => (
+          <MobileLeadCard key={lead.id} lead={lead} />
+        ))}
+      </div>
+
+      {/* Stats strip */}
+      {s && (
+        <div className="shrink-0 grid grid-cols-4 border-t border-border bg-card">
+          {[
+            { val: s.totalEntities?.toLocaleString() ?? "—", label: "Entities" },
+            { val: s.totalAssets?.toLocaleString() ?? "—",   label: "Assets" },
+            { val: s.hotLeads?.toLocaleString() ?? "—",      label: "Hot Leads" },
+            { val: s.avgAccessScore != null ? s.avgAccessScore.toFixed(2) : "—", label: "Avg Access" },
+          ].map(({ val, label }) => (
+            <div key={label} className="flex flex-col items-center justify-center py-3 border-r border-border last:border-r-0">
+              <span className="text-[15px] font-mono font-bold text-primary tabular-nums">{val}</span>
+              <span className="text-[9px] uppercase tracking-wider text-muted-foreground mt-0.5">{label}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main dashboard ────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
@@ -896,13 +1049,9 @@ export default function Dashboard() {
         <DesktopActivityRail />
       </div>
 
-      {/* ── Mobile: activity feed first, then contact queue ── */}
+      {/* ── Mobile: polished redesign ── */}
       <div className="flex md:hidden flex-col flex-1 overflow-hidden" role="main">
-        {/* Swipeable background activity feed */}
-        <MobileActivityFeed />
-
-        {/* Contact queue below */}
-        <ContactQueue className="flex-1 overflow-hidden" />
+        <MobileContactView />
       </div>
     </div>
   );

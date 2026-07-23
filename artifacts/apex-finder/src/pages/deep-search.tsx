@@ -373,13 +373,13 @@ export default function DeepSearch() {
         {/* Search bar */}
         <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3">
           <div className="flex-1 relative w-full">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-primary pointer-events-none" />
             <input
               ref={inputRef}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="e.g. US private jet owners in Texas, British directors…"
-              className="w-full bg-background border border-border rounded-lg pl-10 pr-4 py-2.5 text-sm font-mono text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary transition-colors"
+              className="w-full bg-background border border-border rounded-lg pl-10 pr-4 h-[48px] md:h-auto md:py-2.5 text-sm font-mono text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary transition-colors"
             />
           </div>
           <button
@@ -550,11 +550,12 @@ export default function DeepSearch() {
           <div className="flex h-full overflow-hidden">
 
             {/* Left: pipeline steps */}
-            <div className="w-80 xl:w-96 flex-shrink-0 border-r border-border p-5 overflow-y-auto space-y-3">
+            <div className="w-full md:w-80 xl:w-96 flex-shrink-0 md:border-r border-border p-5 overflow-y-auto">
               <div className="text-xs font-mono text-muted-foreground uppercase tracking-widest mb-4">
                 Agent Pipeline
               </div>
 
+              <div className="grid grid-cols-2 md:grid-cols-1 gap-2 lg:grid-cols-2">
               <StepCard
                 icon={Cpu}
                 name="Planner"
@@ -600,6 +601,7 @@ export default function DeepSearch() {
                 metric={p ? `${p.critic.finalCount} final · ${p.critic.removed} removed` : undefined}
                 detail={p ? `${p.critic.finalCount} results surfaced. ${p.critic.removed} low-signal candidates filtered.` : undefined}
               />
+              </div>
 
               {result && (
                 <div className="pt-3 border-t border-border">

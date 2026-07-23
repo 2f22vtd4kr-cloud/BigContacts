@@ -42,6 +42,9 @@ import {
   Send,
   Twitter,
   Instagram,
+  Mail,
+  Phone,
+  Crosshair,
 } from "lucide-react";
 import { cn, formatCurrency, formatEntityName, AccessScoreBadge, ScoreBadge } from "@/lib/utils";
 import {
@@ -507,7 +510,7 @@ export default function ApexProfile() {
     <div className="flex flex-col h-full overflow-hidden">
 
       {/* ── Header ───────────────────────────────────────────────────────── */}
-      <div className="flex-shrink-0 border-b border-border bg-card/60 px-4 md:px-6 py-4">
+      <div className="hidden md:block flex-shrink-0 border-b border-border bg-card/60 px-4 md:px-6 py-4">
         <div className="flex items-start gap-3 md:gap-4">
           <Link
             href="/entities"
@@ -595,6 +598,87 @@ export default function ApexProfile() {
               </button>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Mobile Hero - md:hidden */}
+      <div className="md:hidden bg-card border-b border-border flex-shrink-0">
+        {/* Nav bar */}
+        <div className="h-[52px] flex items-center justify-between px-4 border-b border-border">
+          <Link href="/profiles" className="p-2 -ml-2 text-foreground">
+            <ArrowLeft className="w-5 h-5" />
+          </Link>
+          <span className="font-mono text-[13px] uppercase text-muted-foreground tracking-wider">Profile</span>
+          <div className="w-9" />
+        </div>
+        {/* Hero content */}
+        <div className="px-4 pt-4 pb-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-semibold px-2 py-0.5 rounded border"
+                  style={{ color: TYPE_COLORS[(entity as any).type] ?? "#64748B",
+                           backgroundColor: (TYPE_COLORS[(entity as any).type] ?? "#64748B") + "18",
+                           borderColor: (TYPE_COLORS[(entity as any).type] ?? "#64748B") + "30" }}>
+              {(entity as any).type}
+            </span>
+            {(entity as any).isHot && (
+              <span className="text-xs font-bold px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                🔥 HOT
+              </span>
+            )}
+          </div>
+          <h1 className="text-[22px] font-bold text-foreground leading-tight mb-1">
+            {formatEntityName(entity.name)}
+          </h1>
+          {((entity as any).nationality || (entity as any).knownResidences) && (
+            <p className="text-[13px] text-muted-foreground">
+              {(entity as any).nationality}{(entity as any).knownResidences ? ` · ${(entity as any).knownResidences.split(",")[0]?.trim()}` : ""}
+            </p>
+          )}
+          {/* Score cards */}
+          <div className="mt-4 flex gap-3">
+            <div className="flex-1 bg-background rounded border border-border/50 p-2.5 flex flex-col">
+              <span className="font-mono text-[9px] text-muted-foreground uppercase tracking-wider mb-1">Access</span>
+              <span className="font-mono text-[20px] text-primary font-bold leading-none mb-1">
+                {entity.accessScore != null ? entity.accessScore.toFixed(2) : "—"}
+              </span>
+              <span className="text-[9px] text-muted-foreground">
+                {(entity.accessScore ?? 0) >= 0.8 ? "Highly Reachable" : (entity.accessScore ?? 0) >= 0.5 ? "Reachable" : "Low Access"}
+              </span>
+            </div>
+            <div className="flex-1 bg-background rounded border border-border/50 p-2.5 flex flex-col">
+              <span className="font-mono text-[9px] text-muted-foreground uppercase tracking-wider mb-1">Wealth</span>
+              <div className="flex gap-1 my-1">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className={cn("w-2.5 h-2.5 rounded-full",
+                    i < Math.round((entity.bayesianScore ?? 0) * 5) ? "bg-primary" : "bg-muted")} />
+                ))}
+              </div>
+              <span className="text-[9px] text-muted-foreground">
+                {(entity.bayesianScore ?? 0) >= 0.7 ? "Strong Signal" : (entity.bayesianScore ?? 0) >= 0.4 ? "Moderate" : "Low Signal"}
+              </span>
+            </div>
+          </div>
+          {/* Contact evidence row */}
+          {((entity as any).contactEmail || (entity as any).email || (entity as any).contactPhone || (entity as any).phone || (entity as any).linkedinUrl) && (
+            <div className="flex gap-2 flex-wrap mt-3">
+              {((entity as any).contactEmail || (entity as any).email) && (
+                <button className="flex items-center gap-1.5 text-[11px] font-mono px-2.5 py-1.5 rounded bg-primary/10 text-primary border border-primary/20 max-w-[160px] truncate">
+                  <Mail className="w-3 h-3 shrink-0" />
+                  <span className="truncate">{(entity as any).contactEmail || (entity as any).email}</span>
+                </button>
+              )}
+              {(entity as any).linkedinUrl && (
+                <span className="flex items-center gap-1.5 text-[11px] font-mono px-2.5 py-1.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                  <Network className="w-3 h-3" />LinkedIn
+                </span>
+              )}
+              {((entity as any).contactPhone || (entity as any).phone) && (
+                <span className="flex items-center gap-1.5 text-[11px] font-mono px-2.5 py-1.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                  <Phone className="w-3 h-3" />Phone
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -1446,6 +1530,28 @@ export default function ApexProfile() {
           </div>
         )}
 
+      </div>
+
+      {/* Mobile Action Bar */}
+      <div className="md:hidden shrink-0 h-[72px] bg-background border-t border-border px-4 flex items-center gap-3 z-20">
+        <Link
+          href={`/research?entity=${entity.id}`}
+          className="flex-1 h-[44px] bg-primary text-primary-foreground rounded font-semibold text-[14px] flex items-center justify-center gap-2"
+        >
+          <Crosshair className="w-4 h-4" /> Research
+        </Link>
+        <Link
+          href="/pipeline"
+          className="flex-1 h-[44px] bg-card border border-border text-foreground rounded font-semibold text-[14px] flex items-center justify-center gap-2"
+        >
+          <KanbanSquare className="w-4 h-4" /> CRM
+        </Link>
+        <Link
+          href={`/graph?entity=${entity.id}`}
+          className="w-[44px] h-[44px] shrink-0 bg-card border border-border text-foreground rounded flex items-center justify-center"
+        >
+          <Network className="w-5 h-5" />
+        </Link>
       </div>
 
     {/* ── Add Relationship Dialog ─────────────────────────────────────────── */}

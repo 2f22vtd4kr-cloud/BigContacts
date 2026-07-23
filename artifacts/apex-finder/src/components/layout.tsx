@@ -31,6 +31,49 @@ const toolsNav = [
 // All nav items flattened (used for mobile top bar active-page lookup)
 const allNav = [...mainNav, ...toolsNav];
 
+// ─── Bottom nav items ─────────────────────────────────────────────────────────
+const bottomNavItems = [
+  { href: "/",         icon: Activity, label: "Home" },
+  { href: "/search",   icon: Search,   label: "Search" },
+  { href: "/profiles", icon: List,     label: "Profiles" },
+  { href: "/network",  icon: Network,  label: "Graph" },
+];
+
+function MobileBottomNav({ onMoreClick }: { onMoreClick: () => void }) {
+  const [location] = useLocation();
+  const isActive = (href: string) =>
+    location === href || (href !== "/" && location.startsWith(href));
+  return (
+    <nav
+      className="fixed bottom-0 left-0 right-0 h-[60px] bg-background border-t border-border flex items-center md:hidden z-50"
+      aria-label="Mobile navigation"
+    >
+      {bottomNavItems.map(({ href, icon: Icon, label }) => (
+        <Link
+          key={href}
+          href={href}
+          className={cn(
+            "flex-1 flex flex-col items-center justify-center gap-1 h-full transition-colors",
+            isActive(href) ? "text-primary" : "text-muted-foreground"
+          )}
+          aria-current={isActive(href) ? "page" : undefined}
+        >
+          <Icon className="w-5 h-5" strokeWidth={isActive(href) ? 2.5 : 2} />
+          <span className="text-[9px] font-medium">{label}</span>
+        </Link>
+      ))}
+      <button
+        onClick={onMoreClick}
+        className="flex-1 flex flex-col items-center justify-center gap-1 h-full text-muted-foreground"
+        aria-label="More navigation options"
+      >
+        <Menu className="w-5 h-5" />
+        <span className="text-[9px] font-medium">More</span>
+      </button>
+    </nav>
+  );
+}
+
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const [bannerDismissed, setBannerDismissed] = useState(false);
@@ -162,28 +205,31 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
         {/* Mobile top bar */}
         <div className="md:hidden flex items-center h-12 px-4 border-b border-border bg-card flex-shrink-0 z-40">
+          {sidebarOpen ? (
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="text-muted-foreground hover:text-foreground transition-colors mr-3 shrink-0"
+              aria-label="Close menu"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          ) : null}
+          <Crosshair className="h-4 w-4 text-primary mr-2 shrink-0" />
+          <span className="text-sm font-bold tracking-widest text-primary uppercase font-mono truncate">
+            APEX ATLAS
+          </span>
           <button
             onClick={() => setSidebarOpen(true)}
-            className="text-muted-foreground hover:text-foreground transition-colors mr-3 shrink-0"
+            className="ml-auto text-muted-foreground hover:text-foreground transition-colors shrink-0"
             aria-label="Open menu"
           >
             <Menu className="h-5 w-5" />
           </button>
-          <Crosshair className="h-4 w-4 text-primary mr-2 shrink-0" />
-          <span className="text-sm font-bold tracking-widest text-primary uppercase font-mono truncate mr-2">
-            APEX ATLAS
-          </span>
-          <span className="text-muted-foreground/30 mr-2 shrink-0">·</span>
-          <span className="text-xs font-mono text-muted-foreground truncate uppercase mt-0.5">
-            {allNav.find(item =>
-              location === item.href || (item.href !== "/" && location.startsWith(item.href))
-            )?.name || "Intel HQ"}
-          </span>
         </div>
 
-        {/* Compliance Disclaimer Banner */}
+        {/* Compliance Disclaimer Banner — desktop only */}
         {!bannerDismissed && (
-          <div className="flex-shrink-0 bg-amber-950/40 border-b border-amber-600/25 px-3 md:px-4 py-2 flex items-start justify-between z-30 gap-2">
+          <div className="hidden md:flex flex-shrink-0 bg-amber-950/40 border-b border-amber-600/25 px-3 md:px-4 py-2 items-start justify-between z-30 gap-2">
             <div className="flex items-start gap-2 min-w-0">
               <ShieldAlert className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
               <span className="text-xs font-mono text-amber-400/80 leading-snug">
@@ -211,10 +257,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
           }}
         />
 
-        <div className="flex-1 flex flex-col relative z-10 overflow-y-auto overflow-x-hidden min-h-0">
+        <div className="flex-1 flex flex-col relative z-10 overflow-y-auto overflow-x-hidden min-h-0 pb-[60px] md:pb-0">
           {children}
         </div>
       </main>
+
+      <MobileBottomNav onMoreClick={() => setSidebarOpen(true)} />
     </div>
   );
 }

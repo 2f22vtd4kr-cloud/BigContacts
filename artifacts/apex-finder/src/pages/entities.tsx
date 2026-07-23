@@ -210,64 +210,57 @@ function MobileEntityDetail({ entity, onClose }: { entity: any; onClose: () => v
 function MobileEntityCard({
   entity, onSelect, selected, onToggleSelect,
 }: {
-  entity: any;
-  onSelect: () => void;
-  selected: boolean;
+  entity: any; onSelect: () => void; selected: boolean;
   onToggleSelect: (e: React.MouseEvent) => void;
 }) {
-  const typeColor = TYPE_COLORS[entity.type] ?? "#64748B";
-  let meta: any = {};
-  try { meta = JSON.parse(entity.metadata ?? "{}"); } catch { /* */ }
+  const typeColors: Record<string, string> = {
+    HNWI: "#10B981", Corporation: "#3B82F6", Trust: "#A855F7", Gatekeeper: "#F59E0B",
+  };
+  const typeBg: Record<string, string> = {
+    HNWI: "bg-emerald-900", Corporation: "bg-blue-900", Trust: "bg-purple-900", Gatekeeper: "bg-amber-900",
+  };
+  const accessScore = entity.accessScore ?? 0;
+  const grade = accessScore >= 0.8 ? "A" : accessScore >= 0.65 ? "B" : accessScore >= 0.5 ? "C" : "D";
+  const gradeColor = accessScore >= 0.8 ? "text-emerald-400" : accessScore >= 0.65 ? "text-blue-400"
+    : accessScore >= 0.5 ? "text-amber-400" : "text-muted-foreground";
+  const letter = (entity.name ?? "?")[0]?.toUpperCase() ?? "?";
+  const color = typeColors[entity.type] ?? "#64748B";
+  const bg = typeBg[entity.type] ?? "bg-muted";
+  const flag = entity.nationality ? entity.nationality.slice(0, 2) : "";
 
   return (
-    <div className={cn(
-      "flex items-center gap-1 border-b border-border transition-colors",
-      selected && "bg-primary/5",
-    )}>
-      {/* Checkbox tap zone */}
-      <button
-        onClick={onToggleSelect}
-        className="flex-shrink-0 px-3 py-4 text-muted-foreground active:bg-muted/20"
-        aria-label={selected ? "Deselect" : "Select"}
-      >
-        {selected
-          ? <CheckSquare className="w-4 h-4 text-primary" />
-          : <Square className="w-4 h-4" />}
+    <div
+      className={cn("flex items-center px-4 h-[64px] border-b border-border transition-colors active:bg-card/50",
+        selected && "bg-primary/5")}
+    >
+      {/* Avatar */}
+      <button onClick={onToggleSelect} className="shrink-0 mr-3" aria-label={selected ? "Deselect" : "Select"}>
+        <div className={cn("w-9 h-9 rounded-full flex items-center justify-center font-bold text-[14px] text-white", bg)}
+             style={{ backgroundColor: color + "33", color }}>
+          {letter}
+        </div>
       </button>
 
-      {/* Main row — tap to open detail */}
-      <button
-        onClick={onSelect}
-        className="flex-1 min-w-0 text-left pr-4 py-3 flex items-center gap-3 active:bg-muted/20 transition-colors"
-      >
+      {/* Main content */}
+      <button onClick={onSelect} className="flex-1 min-w-0 text-left flex items-center gap-2">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 mb-1">
-            {entity.isHot && <ShieldAlert className="w-3 h-3 text-amber-500 flex-shrink-0" />}
-            <span className="font-semibold text-sm text-foreground truncate">{formatEntityName(entity.name)}</span>
+          <div className="font-semibold text-[14px] text-foreground truncate leading-snug">
+            {formatEntityName(entity.name)}
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <span
-              className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5"
-              style={{ color: typeColor, backgroundColor: typeColor + "18" }}
-            >
-              {TYPE_ICONS[entity.type]} {entity.type}
+          <div className="text-[11px] text-muted-foreground font-mono">
+            {entity.type}{entity.nationality ? ` · ${entity.nationality}` : ""}
+          </div>
+        </div>
+        {/* Right: grade + net worth */}
+        <div className="shrink-0 flex flex-col items-end gap-0.5">
+          <span className={`text-[13px] font-mono font-bold ${gradeColor}`}>{grade}</span>
+          {entity.estimatedNetWorth ? (
+            <span className="text-[10px] font-mono text-muted-foreground">
+              ↗ {formatCurrency(entity.estimatedNetWorth)}
             </span>
-            {entity.nationality && <span className="text-[11px] text-muted-foreground">{entity.nationality}</span>}
-            {entity.estimatedNetWorth && (
-              <span className="text-[11px] text-muted-foreground">{formatCurrency(entity.estimatedNetWorth)}</span>
-            )}
-            {meta.proximityScore && (
-              <span className={cn(
-                "text-[10px] font-mono px-1 rounded",
-                meta.proximityScore >= 7 ? "text-emerald-400" : "text-muted-foreground"
-              )}>P{meta.proximityScore}</span>
-            )}
-          </div>
+          ) : <span className="text-[10px] text-muted-foreground">—</span>}
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <AccessScoreBadge score={entity.accessScore} />
-          <ChevronRight className="w-4 h-4 text-muted-foreground" />
-        </div>
+        <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 ml-1" />
       </button>
     </div>
   );
@@ -438,11 +431,11 @@ export default function EntityLedger() {
     });
   };
 
-  // Mobile filtered list
+  // Mobile filtered list (typeFilter already applied server-side; hotOnly applied client-side in entities)
   const mobileEntities = useMemo(() => {
     if (!entities) return [];
-    return mobileTypeFilter ? entities.filter((e: any) => e.type === mobileTypeFilter) : entities;
-  }, [entities, mobileTypeFilter]);
+    return entities;
+  }, [entities]);
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -893,7 +886,7 @@ export default function EntityLedger() {
             </button>
           </div>
         )}
-        <div className="px-3 py-2 border-b border-border bg-card/30 flex-shrink-0 space-y-2">
+        <div className="px-3 py-2 border-b border-border bg-card/30 flex-shrink-0">
           <div className="flex items-center gap-2 px-3 py-2 rounded bg-background border border-border">
             <Search className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
             <input
@@ -903,28 +896,39 @@ export default function EntityLedger() {
             />
             {searchTerm && <button onClick={() => setSearchTerm("")}><X className="w-3.5 h-3.5 text-muted-foreground" /></button>}
           </div>
-          <div className="relative">
-            <div className="flex gap-2 overflow-x-auto pb-0.5">
-              {[null, "HNWI", "Gatekeeper", "Corporation", "Trust"].map((t) => {
-                const c = t ? (TYPE_COLORS[t] ?? "#64748B") : "#10B981";
-                return (
-                  <button
-                    key={t ?? "all"}
-                    onClick={() => setMobileTypeFilter(t)}
-                    className="px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase whitespace-nowrap flex-shrink-0 transition-all"
-                    style={{
-                      backgroundColor: mobileTypeFilter === t ? c : c + "18",
-                      color: mobileTypeFilter === t ? "#000" : c,
-                      border: `1px solid ${c}44`,
-                    }}
-                  >
-                    {t ?? "ALL"}
-                  </button>
-                );
-              })}
-            </div>
-            <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent pointer-events-none" />
-          </div>
+        </div>
+        {/* Mobile filter chips */}
+        <div className="flex md:hidden items-center gap-2 px-4 py-2 overflow-x-auto border-b border-border bg-card/30 shrink-0"
+             style={{ scrollbarWidth: "none" }}>
+          {[
+            { label: `All (${entities.length})`, value: null },
+            { label: "HNWI",        value: "HNWI" },
+            { label: "Corp",        value: "Corporation" },
+            { label: "Trust",       value: "Trust" },
+            { label: "Gatekeeper",  value: "Gatekeeper" },
+          ].map(({ label, value }) => (
+            <button
+              key={label}
+              onClick={() => setTypeFilter(value)}
+              className={cn(
+                "shrink-0 h-8 px-3 rounded text-[12px] font-mono border transition-colors",
+                typeFilter === value
+                  ? "bg-primary/10 text-primary border-primary/30"
+                  : "bg-card text-muted-foreground border-border"
+              )}
+            >
+              {label}
+            </button>
+          ))}
+          <button
+            onClick={() => setHotOnly(!hotOnly)}
+            className={cn(
+              "shrink-0 h-8 px-3 rounded text-[12px] font-mono border transition-colors",
+              hotOnly ? "bg-amber-500/10 text-amber-400 border-amber-500/30" : "bg-card text-muted-foreground border-border"
+            )}
+          >
+            🔥 Hot
+          </button>
         </div>
 
         {/* Mobile bulk action bar */}
