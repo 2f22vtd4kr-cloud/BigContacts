@@ -14,8 +14,8 @@
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically
 - **Local Redis** running on `redis://localhost:6379` — workflow `Redis` running ✅
 - **SESSION_SECRET** — ✅ Set
-- **Upstash Redis (`REDIS_URL_1`)** — ✅ Set
-- **Upstash Redis (`REDIS_URL_2`)** — ✅ Set
+- **Upstash Redis (`REDIS_URL_1`)** — ✅ Set (permanent dedup set)
+- **Upstash Redis (`REDIS_URL_2`)** — ✅ Set (permanent contact cache)
 - **COMPANIES_HOUSE_API_KEY** — ✅ Set
 
 ### Workflows running
