@@ -27,6 +27,15 @@
 
 > **Current import verification note (2026-07-23):** The web server returns HTTP 200 and `/api/healthz` reports Redis healthy. Dashboard data endpoints currently fail because PostgreSQL is unavailable in this imported workspace; do not interpret that as an empty database. Frontend typecheck/build pass cleanly.
 
+### What was done this session (2026-07-23 — re-import #51 nav restore)
+
+1. **Nav reordered and restored** (`layout.tsx`): renamed mainNav items to correct Atlas labels (Intel HQ, Entity Ledger, Search, Network Graph, Intel Terminal, CRM Pipeline, Outreach). Added "Tools & Admin" collapsible section (Persona Loop, Data Sources, OSINT Tools, Duplicates, Background Jobs, Field Manual). Footer updated to "Phase G · v0.3".
+2. **Router secondary routes restored** (`router.tsx`): `/improvements`, `/data-sources`, `/osint-tools`, `/duplicates` exposed directly instead of `/_` prefixes. Legacy redirects updated (/intel→/research, /ledger→/profiles).
+3. **All 4 artifacts registered** via verifyAndReplaceArtifactToml — platform auto-detected api-server, apex-mobile, mockup-sandbox. Artifact-managed workflows are now canonical.
+4. **Secrets set**: REDIS_URL_1, REDIS_URL_2, COMPANIES_HOUSE_API_KEY all confirmed.
+
+> **Root cause of missing UI changes:** previous sessions' layout/router changes were never committed to GitHub. Only Context.md docs were pushed. On each import, origin/main is the source of truth. Fix: commit code changes before ending each session.
+
 ### What was done this session (2026-07-23 — access-first UX and live task visibility)
 
 1. **Access Score separated from wealth signal**: added a contactability-first `accessScore` based on public contact evidence, confidence, and directness. The existing Bayesian score remains labeled as signal context and is no longer presented as reachability.

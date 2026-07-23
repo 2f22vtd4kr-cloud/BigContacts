@@ -32,21 +32,19 @@ export default function AppRouter() {
         <Route path="/manual" component={FieldManual} />
         <Route path="/profile/:id" component={ApexProfile} />
 
+        {/* ── Tools & Admin pages ── */}
+        <Route path="/improvements" component={Improvements} />
+        <Route path="/data-sources" component={DataSources} />
+        <Route path="/duplicates" component={Duplicates} />
+        <Route path="/osint-tools" component={OsintToolsDirectory} />
+
         {/* ── Legacy route aliases (keep old URLs working) ── */}
         <Route path="/entities">{() => <Redirect to="/profiles" />}</Route>
         <Route path="/graph">{() => <Redirect to="/network" />}</Route>
         <Route path="/crm">{() => <Redirect to="/pipeline" />}</Route>
         <Route path="/deep-search">{() => <Redirect to="/search" />}</Route>
-        <Route path="/data-sources">{() => <Redirect to="/jobs" />}</Route>
-        <Route path="/improvements">{() => <Redirect to="/jobs" />}</Route>
-        <Route path="/duplicates">{() => <Redirect to="/jobs" />}</Route>
-        <Route path="/osint-tools">{() => <Redirect to="/jobs" />}</Route>
-
-        {/* ── Internal pages (still accessible directly) ── */}
-        <Route path="/_improvements" component={Improvements} />
-        <Route path="/_data-sources" component={DataSources} />
-        <Route path="/_duplicates" component={Duplicates} />
-        <Route path="/_osint-tools" component={OsintToolsDirectory} />
+        <Route path="/intel">{() => <Redirect to="/research" />}</Route>
+        <Route path="/ledger">{() => <Redirect to="/profiles" />}</Route>
 
         <Route component={NotFound} />
       </Switch>

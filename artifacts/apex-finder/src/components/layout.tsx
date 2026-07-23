@@ -2,53 +2,50 @@ import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import {
-  Crosshair, Network, FileTerminal,
+  Crosshair, Network, Terminal,
   KanbanSquare, X, BookOpen, Menu, MessageSquare,
-  Search, Users, Activity, ChevronDown, ChevronRight, Cog, ShieldAlert,
+  Search, Users, Activity, Cog, Telescope,
+  Copy, Database, Bot, ChevronDown, ChevronRight, ShieldAlert, List,
 } from "lucide-react";
 
-// ─── Navigation structure (3-tier) ───────────────────────────────────────────
+// ─── Navigation structure ─────────────────────────────────────────────────────
 const mainNav = [
-  { name: "Atlas",    href: "/",          icon: Activity },
-  { name: "Search",   href: "/search",    icon: Search },
-  { name: "Profiles", href: "/profiles",  icon: Users },
-  { name: "Network",  href: "/network",   icon: Network },
+  { name: "Intel HQ",      href: "/",          icon: Activity },
+  { name: "Entity Ledger", href: "/profiles",  icon: List },
+  { name: "Search",        href: "/search",    icon: Search },
+  { name: "Network Graph", href: "/network",   icon: Network },
+  { name: "Intel Terminal",href: "/research",  icon: Terminal },
+  { name: "CRM Pipeline",  href: "/pipeline",  icon: KanbanSquare },
+  { name: "Outreach",      href: "/outreach",  icon: MessageSquare },
 ];
 
-const workspaceNav = [
-  { name: "Research Sessions",  href: "/research",  icon: FileTerminal },
-  { name: "Outreach Assistant", href: "/outreach",  icon: MessageSquare },
-  { name: "Pipeline",           href: "/pipeline",  icon: KanbanSquare },
-];
-
-const systemNav = [
-  { name: "Background Jobs", href: "/jobs",   icon: Cog },
-  { name: "Field Manual",    href: "/manual", icon: BookOpen },
+const toolsNav = [
+  { name: "Persona Loop",  href: "/improvements",  icon: Bot },
+  { name: "Data Sources",  href: "/data-sources",  icon: Database },
+  { name: "OSINT Tools",   href: "/osint-tools",   icon: Telescope },
+  { name: "Duplicates",    href: "/duplicates",    icon: Copy },
+  { name: "Background Jobs", href: "/jobs",        icon: Cog },
+  { name: "Field Manual",  href: "/manual",        icon: BookOpen },
 ];
 
 // All nav items flattened (used for mobile top bar active-page lookup)
-const allNav = [...mainNav, ...workspaceNav, ...systemNav];
+const allNav = [...mainNav, ...toolsNav];
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [workspaceOpen, setWorkspaceOpen] = useState(true);
-  const [systemOpen, setSystemOpen] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(false);
 
   useEffect(() => {
     document.documentElement.classList.add("dark");
   }, []);
 
-  // Close mobile sidebar on route change
+  // Close mobile sidebar on route change; auto-expand section for active route
   useEffect(() => {
     setSidebarOpen(false);
-    // Auto-expand section if current route lives inside it
-    if (workspaceNav.some(i => location === i.href || location.startsWith(i.href))) {
-      setWorkspaceOpen(true);
-    }
-    if (systemNav.some(i => location === i.href || location.startsWith(i.href))) {
-      setSystemOpen(true);
+    if (toolsNav.some(i => location === i.href || location.startsWith(i.href))) {
+      setToolsOpen(true);
     }
   }, [location]);
 
@@ -115,24 +112,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       {/* Nav */}
       <nav className="flex-1 py-3 px-3 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-track-transparent scrollbar-thumb-[#2A3045]">
-        {/* Main */}
+        {/* Main investigation flow */}
         <div className="space-y-0.5">
           {mainNav.map(item => <NavLink key={item.href} item={item} />)}
         </div>
 
-        {/* Workspace (collapsible) */}
-        <SectionToggle label="Workspace" open={workspaceOpen} onToggle={() => setWorkspaceOpen(o => !o)} />
-        {workspaceOpen && (
+        {/* Tools & Admin (collapsible) */}
+        <SectionToggle label="Tools & Admin" open={toolsOpen} onToggle={() => setToolsOpen(o => !o)} />
+        {toolsOpen && (
           <div className="space-y-0.5">
-            {workspaceNav.map(item => <NavLink key={item.href} item={item} />)}
-          </div>
-        )}
-
-        {/* System (collapsible) */}
-        <SectionToggle label="System" open={systemOpen} onToggle={() => setSystemOpen(o => !o)} />
-        {systemOpen && (
-          <div className="space-y-0.5">
-            {systemNav.map(item => <NavLink key={item.href} item={item} />)}
+            {toolsNav.map(item => <NavLink key={item.href} item={item} />)}
           </div>
         )}
       </nav>
@@ -140,7 +129,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {/* Footer */}
       <div className="p-4 border-t border-border shrink-0">
         <div className="px-3 py-2 flex flex-col gap-1 text-xs font-mono text-muted-foreground/60 uppercase tracking-widest">
-          <div>Atlas · v1.0</div>
+          <div>Phase G · v0.3</div>
           <div className="text-[10px] opacity-70">PRIVATE INTELLIGENCE</div>
         </div>
       </div>
@@ -188,7 +177,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <span className="text-xs font-mono text-muted-foreground truncate uppercase mt-0.5">
             {allNav.find(item =>
               location === item.href || (item.href !== "/" && location.startsWith(item.href))
-            )?.name || "Atlas"}
+            )?.name || "Intel HQ"}
           </span>
         </div>
 
