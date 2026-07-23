@@ -30,6 +30,13 @@ export const ListEntitiesQueryParams = zod.object({
   "offset": zod.coerce.number().default(listEntitiesQueryOffsetDefault),
   "starred": zod.coerce.boolean().optional().describe('Show only starred entities'),
   "hidden": zod.coerce.boolean().optional().describe('Show only hidden entities'),
+  // Contact channel filters — all server-side
+  "contactable": zod.coerce.boolean().optional().describe('Show only entities with any contact info'),
+  "hasEmail": zod.coerce.boolean().optional().describe('Show only entities with an email address'),
+  "hasPhone": zod.coerce.boolean().optional().describe('Show only entities with a phone number'),
+  "hasWhatsapp": zod.coerce.boolean().optional().describe("Show only entities where contactMethod = 'WhatsApp'"),
+  "hasTelegram": zod.coerce.boolean().optional().describe('Show only entities with a Telegram handle'),
+  "hasInstagram": zod.coerce.boolean().optional().describe('Show only entities with an Instagram handle'),
 })
 
 export const ListEntitiesResponseItem = zod.object({

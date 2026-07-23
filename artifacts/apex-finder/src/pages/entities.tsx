@@ -58,6 +58,16 @@ const TYPE_ICONS: Record<string, React.ReactNode> = {
   Gatekeeper:  <Shield className="w-3 h-3" />,
 };
 
+type ContactChannel = null | "any" | "email" | "phone" | "whatsapp" | "telegram" | "instagram";
+const CONTACT_CHANNELS: { value: Exclude<ContactChannel, null>; label: string; icon: string }[] = [
+  { value: "any",       label: "Any Contact", icon: "◎" },
+  { value: "email",     label: "Email",       icon: "✉" },
+  { value: "phone",     label: "Phone",       icon: "☎" },
+  { value: "whatsapp",  label: "WhatsApp",    icon: "W" },
+  { value: "telegram",  label: "Telegram",    icon: "T" },
+  { value: "instagram", label: "Instagram",   icon: "IG" },
+];
+
 // ─── CSV export ───────────────────────────────────────────────────────────────
 
 function exportToCsv(entities: any[]) {
@@ -262,6 +272,7 @@ export default function EntityLedger() {
   const [proximityMin, setProximityMin] = useState<number>(0);
   const [hotOnly, setHotOnly] = useState(() => urlParams.get("hot") === "1");
   const [contactableOnly, setContactableOnly] = useState(() => urlParams.get("contactable") === "1");
+  const [contactChannel, setContactChannel] = useState<ContactChannel>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [addForm, setAddForm] = useState<AddEntityForm>(EMPTY_FORM);
@@ -280,7 +291,7 @@ export default function EntityLedger() {
   const [page, setPage]           = useState(0);
 
   // Reset to page 0 when filters change
-  useEffect(() => { setPage(0); }, [searchTerm, typeFilter, proximityMin, hotOnly, contactableOnly, viewMode]);
+  useEffect(() => { setPage(0); }, [searchTerm, typeFilter, proximityMin, hotOnly, contactableOnly, contactChannel, viewMode]);
 
   const toggleSelect = (id: number) =>
     setSelectedIds((prev) => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
@@ -330,15 +341,24 @@ export default function EntityLedger() {
   const [mobileSelectedEntity, setMobileSelectedEntity] = useState<any>(null);
   const [mobileTypeFilter, setMobileTypeFilter] = useState<string | null>(null);
 
-  const isSpecialFilter = hotOnly || contactableOnly || viewMode !== "all";
+  // contactable/channel filters are now server-side; only hotOnly remains client-side
+  const isSpecialFilter = hotOnly;
+  const anyContactFilter = contactableOnly || contactChannel !== null;
 
   const { data: rawEntities, isLoading: isLoadingEntities, isError: isEntitiesError, refetch } = useListEntities({
     search: searchTerm.length > 2 ? searchTerm : undefined,
     type: typeFilter ?? undefined,
-    limit: isSpecialFilter ? 500 : 50,
+    limit: isSpecialFilter ? 500 : 50,   // hotOnly still client-side; all others server-side
     offset: isSpecialFilter ? 0 : page * 50,
     starred: viewMode === "starred" ? true : undefined,
     hidden: viewMode === "hidden" ? true : undefined,
+    // Contact channel filters — server-side (fixes the 104-entity cap issue)
+    contactable: anyContactFilter ? true : undefined,
+    hasEmail:     contactChannel === "email"     ? true : undefined,
+    hasPhone:     contactChannel === "phone"     ? true : undefined,
+    hasWhatsapp:  contactChannel === "whatsapp"  ? true : undefined,
+    hasTelegram:  contactChannel === "telegram"  ? true : undefined,
+    hasInstagram: contactChannel === "instagram" ? true : undefined,
   } as any);
   const deleteEntity = useDeleteEntity();
   const createEntity = useCreateEntity();
@@ -376,9 +396,7 @@ export default function EntityLedger() {
       return overrides ? { ...e, ...overrides } : e;
     });
     if (hotOnly) list = list.filter((e: any) => e.isHot);
-    if (contactableOnly) list = list.filter((e: any) =>
-      e.contactEmail || e.contactPhone || e.contactMethod
-    );
+    // contactableOnly + contactChannel are now server-side — no client filter needed
     if (proximityMin > 0) list = list.filter((e: any) => {
       try {
         const meta = JSON.parse((e as any).metadata ?? "{}");
@@ -390,7 +408,7 @@ export default function EntityLedger() {
     // In starred view, filter out any optimistically-unstarred entities
     if (viewMode === "starred") list = list.filter((e: any) => e.isStarred !== false);
     return list;
-  }, [rawEntities, proximityMin, hotOnly, contactableOnly, viewMode, localOverrides]);
+  }, [rawEntities, proximityMin, hotOnly, viewMode, localOverrides]);
 
   const handleDelete = (id: number) => {
     if (confirm("Purge entity from registry?")) {
@@ -467,7 +485,7 @@ export default function EntityLedger() {
       {/* ── Desktop ── */}
       <div className="hidden md:flex flex-col h-full overflow-hidden">
         {/* Active filter banner */}
-        {(hotOnly || contactableOnly) && (
+        {(hotOnly || anyContactFilter) && (
           <div className={cn(
             "flex items-center justify-between px-4 py-2 border-b text-xs font-mono flex-shrink-0",
             hotOnly ? "bg-amber-500/10 border-amber-500/30 text-amber-400" : "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
@@ -475,12 +493,15 @@ export default function EntityLedger() {
             <div className="flex items-center gap-2">
               <Filter className="w-3 h-3 shrink-0" />
               <span className="font-bold uppercase tracking-wider">
-                {hotOnly ? "Filtered: Hot Leads only" : "Filtered: Contactable only"}
+                {hotOnly ? "Filtered: Hot Leads only"
+                  : contactChannel && contactChannel !== "any"
+                    ? `Contact channel: ${CONTACT_CHANNELS.find(c => c.value === contactChannel)?.label ?? contactChannel}`
+                    : "Filtered: Contactable only"}
               </span>
               <span className="opacity-60">— {entities.length} shown</span>
             </div>
             <button
-              onClick={() => { setHotOnly(false); setContactableOnly(false); }}
+              onClick={() => { setHotOnly(false); setContactableOnly(false); setContactChannel(null); }}
               className="flex items-center gap-1 opacity-70 hover:opacity-100 transition-opacity"
             >
               <X className="w-3 h-3" /> Clear filter
@@ -568,6 +589,25 @@ export default function EntityLedger() {
           >
             <Plus className="w-3 h-3" /> Add
           </button>
+        </div>
+
+        {/* Contact channel filter chips row */}
+        <div className="flex items-center gap-2 px-4 py-1.5 border-b border-border/40 bg-card/5 flex-shrink-0 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+          <span className="text-[9px] font-mono text-muted-foreground uppercase tracking-widest shrink-0 mr-1">Channel:</span>
+          {CONTACT_CHANNELS.map(({ value, label, icon }) => (
+            <button
+              key={value}
+              onClick={() => { const next = contactChannel === value ? null : value; setContactChannel(next); setContactableOnly(next !== null); }}
+              className="shrink-0 h-6 px-2.5 rounded text-[10px] font-mono border transition-all flex items-center gap-1.5 whitespace-nowrap"
+              style={{
+                background: contactChannel === value ? "rgba(16,185,129,0.12)" : "transparent",
+                color: contactChannel === value ? "#10B981" : "hsl(var(--muted-foreground))",
+                borderColor: contactChannel === value ? "rgba(16,185,129,0.4)" : "hsl(var(--border))",
+              }}
+            >
+              <span className="text-[9px]">{icon}</span> {label}
+            </button>
+          ))}
         </div>
 
         {/* Live Intel slide-over sidebar */}
@@ -906,15 +946,18 @@ export default function EntityLedger() {
       {/* ── Mobile ── */}
       <div className="flex md:hidden flex-col h-full overflow-hidden">
         {/* Mobile active filter banner */}
-        {(hotOnly || contactableOnly) && (
+        {(hotOnly || anyContactFilter) && (
           <div className={cn(
             "flex items-center justify-between px-3 py-2 border-b text-xs font-mono flex-shrink-0",
             hotOnly ? "bg-amber-500/10 border-amber-500/30 text-amber-400" : "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
           )}>
             <span className="font-bold uppercase tracking-wider truncate">
-              {hotOnly ? "Hot Leads only" : "Contactable only"} — {entities.length} shown
+              {hotOnly ? "Hot Leads only"
+                : contactChannel && contactChannel !== "any"
+                  ? `${CONTACT_CHANNELS.find(c => c.value === contactChannel)?.label ?? contactChannel} only`
+                  : "Contactable only"} — {entities.length} shown
             </span>
-            <button onClick={() => { setHotOnly(false); setContactableOnly(false); }} className="flex items-center gap-1 ml-2 shrink-0 opacity-70">
+            <button onClick={() => { setHotOnly(false); setContactableOnly(false); setContactChannel(null); }} className="flex items-center gap-1 ml-2 shrink-0 opacity-70">
               <X className="w-3 h-3" /> Clear
             </button>
           </div>

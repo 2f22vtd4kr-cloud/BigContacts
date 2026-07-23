@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, ilike, and, gte, sql, inArray } from "drizzle-orm";
+import { eq, ilike, and, gte, sql, inArray, isNotNull, or } from "drizzle-orm";
 import { db, entitiesTable, assetsTable, relationshipsTable } from "@workspace/db";
 import {
   ListEntitiesQueryParams,
@@ -21,10 +21,11 @@ router.get("/entities", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const { type, minScore, search, limit = 50, offset = 0, starred, hidden } = parsed.data;
+  const { type, minScore, search, limit = 50, offset = 0, starred, hidden,
+    contactable, hasEmail, hasPhone, hasWhatsapp, hasTelegram, hasInstagram } = parsed.data;
 
   // Cache key encodes all query params — 30 s TTL (short, data changes frequently)
-  const cacheKey = `entities:list:${type ?? ""}:${minScore ?? ""}:${search ?? ""}:${limit}:${offset}:${starred ?? ""}:${hidden ?? ""}`;
+  const cacheKey = `entities:list:${type ?? ""}:${minScore ?? ""}:${search ?? ""}:${limit}:${offset}:${starred ?? ""}:${hidden ?? ""}:${contactable ?? ""}:${hasEmail ?? ""}:${hasPhone ?? ""}:${hasWhatsapp ?? ""}:${hasTelegram ?? ""}:${hasInstagram ?? ""}`;
   const cached = await getCache<unknown[]>(cacheKey);
   if (cached) {
     res.json(cached);
@@ -43,6 +44,28 @@ router.get("/entities", async (req, res): Promise<void> => {
     conditions.push(eq(entitiesTable.isHidden, true));
   } else {
     conditions.push(eq(entitiesTable.isHidden, false));
+  }
+
+  // Contact channel filters — server-side so pagination works correctly
+  if (hasEmail) {
+    conditions.push(isNotNull(entitiesTable.email));
+  } else if (hasPhone) {
+    conditions.push(isNotNull(entitiesTable.phone));
+  } else if (hasWhatsapp) {
+    conditions.push(eq(entitiesTable.contactMethod, "WhatsApp"));
+  } else if (hasTelegram) {
+    conditions.push(isNotNull(entitiesTable.telegramHandle));
+  } else if (hasInstagram) {
+    conditions.push(isNotNull(entitiesTable.instagramHandle));
+  } else if (contactable) {
+    // Any contact channel
+    conditions.push(or(
+      isNotNull(entitiesTable.email),
+      isNotNull(entitiesTable.phone),
+      isNotNull(entitiesTable.contactMethod),
+      isNotNull(entitiesTable.telegramHandle),
+      isNotNull(entitiesTable.instagramHandle),
+    )!);
   }
 
   const rows = await db
