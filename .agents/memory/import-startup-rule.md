@@ -35,3 +35,18 @@ Before finishing any turn that makes a meaningful change:
 - After schema changes: update `replit.md` Database Schema table.
 - After persona/feature changes: update `replit.md` Phases Implemented.
 - After synthetic-data fixes or guard additions: log in Context.md Iteration Log.
+
+## Fresh database check
+
+On a fresh GitHub import, a successful dependency install does not imply that the
+Replit PostgreSQL schema exists. Apply the repository's existing Drizzle schema
+before judging dashboard/API behavior; otherwise the services can start while
+database-backed routes return 500.
+
+**Why:** The imported project can retain code and lockfiles while receiving a new
+empty development database. Preview checks against an uninitialized database
+produce misleading application errors.
+
+**How to apply:** Run the existing `@workspace/db` schema push, restart the
+artifact-managed API service, then verify health, dashboard, job-polling, and
+browser-preview responses.

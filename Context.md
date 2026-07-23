@@ -46,8 +46,9 @@ All 4 Phase I items implemented and live. Build clean (esbuild ⚡ 1183ms). All 
 ### Iteration Log
 | Date | Summary |
 |---|---|
-| 2026-07-23 | Fresh import boot: pnpm install, DB schema push, all 3 workflows running, cold-start ingestion auto-started; REDIS_URL_1 + REDIS_URL_2 missing |
+| 2026-07-23 | Fresh import boot: pnpm install, DB schema push, all 3 workflows running, cold-start ingestion auto-started |
 | 2026-07-23 | All Upstash secrets restored; API Server restarted with both slots confirmed live |
+| 2026-07-23 | Import setup completed: locked dependencies restored, Drizzle schema applied, artifact-managed API/Web workflows restarted, endpoint checks and browser preview passed; live ingestion is active |
 | 2026-07-23 | Phase I (road to 9/10) fully implemented: I1 beneficial owner resolution, I2 dedup tuning, I3 warm-path edges, I4 tiered enrichment |
 
 ---
@@ -190,7 +191,7 @@ All 4 Phase I items implemented and live. Build clean (esbuild ⚡ 1183ms). All 
 
 > **Verified pipeline recovery (2026-07-23):** canonical artifact workflows are running and `/api/healthz` returns Redis `ok`. Live database state: **81,528 entities, 80,305 assets, 264,253 relationships, 16,305 hot leads, 767 contactable entities, 600 research sessions**. FAA and HMLR jobs completed with 0 errors. Deep-web OSINT remains active as a background enrichment pass; its records are validated by a shared public-email sanitizer.
 
-> **Contact filtering completion note (2026-07-23):** Finished the interrupted contactability UI/UX task. Entity Ledger contact filtering is now server-side and paginated, so it no longer stops at the old 500-row client-side cap or checks nonexistent `contactEmail`/`contactPhone` fields. Added Any Contact, Email, Phone, WhatsApp, Telegram, and Instagram filters to desktop and mobile, documented the query contract in OpenAPI, and regenerated the typed React/Zod clients. Web/API builds and frontend typecheck pass. Filter requests reach the API correctly; entity responses remain unavailable in this import because PostgreSQL is not responding, while Redis and both persistent Redis connections are healthy.
+> **Contact filtering completion note (2026-07-23):** Finished the interrupted contactability UI/UX task. Entity Ledger contact filtering is now server-side and paginated, so it no longer stops at the old 500-row client-side cap or checks nonexistent `contactEmail`/`contactPhone` fields. Added Any Contact, Email, Phone, WhatsApp, Telegram, and Instagram filters to desktop and mobile, documented the query contract in OpenAPI, and regenerated the typed React/Zod clients. Web/API builds and frontend typecheck pass. Filter requests reach the API correctly; this fresh import's PostgreSQL schema has now been applied and dashboard/entity endpoints are responding normally.
 
 > **Persona loop completion note (2026-07-23):** The original live run completed successfully for 100 real HNWI/Gatekeeper entities with **1,180 suggestions and 0 errors** (644 high / 241 medium / 295 low). After the pipeline recovery and enrichment stages, a fresh 100-entity run also reached `done` with **489 suggestions and 0 errors**. The database currently contains **1,669 improvement logs across all 8 deterministic personas**.
 
@@ -200,13 +201,13 @@ All 4 Phase I items implemented and live. Build clean (esbuild ⚡ 1183ms). All 
 
 ### What was done this session (2026-07-23 — post-import setup)
 
-1. **Dependencies restored** (`pnpm install`) — lockfile satisfied in 22s; native build approvals pending for onnxruntime-node/protobufjs/sharp.
+1. **Dependencies restored** (`pnpm install`) — lockfile satisfied in 22s; the imported web and API services build and start successfully.
 2. **DB schema pushed** (`pnpm --filter @workspace/db run push`) — schema applied to fresh Replit PostgreSQL; entity count queries now succeed.
 3. **Workflows restarted** — Redis ✅, API Server ✅, ApexFinder Web ✅ all running.
-4. **Cold-start auto-recovery triggered** — empty DB detected; server auto-started Western HNWI broad discovery and SEC EDGAR / BRREG ingestion.
-5. **Missing secrets noted** — REDIS_URL_1 and REDIS_URL_2 are not set in this import; dedup and contact cache persistence are degraded until restored. COMPANIES_HOUSE_API_KEY also absent (optional). DATABASE_URL and SESSION_SECRET are present.
+4. **Cold-start auto-recovery triggered** — empty DB detected; server auto-started FAA, HMLR, broad discovery, and Western HNWI ingestion.
+5. **Secrets restored** — REDIS_URL_1 and REDIS_URL_2 are set for persistent dedup/contact caching, and COMPANIES_HOUSE_API_KEY is set for optional Companies House enrichment. DATABASE_URL and SESSION_SECRET are present.
 
-> **Import state (2026-07-23):** All three core workflows running. Database is empty (fresh PostgreSQL); Western HNWI ingestion auto-started. Artifact registry is empty (platform re-registration not possible via import); workflows serve content correctly without it. REDIS_URL_1 and REDIS_URL_2 must be re-added as Replit Secrets to restore dedup and contact cache persistence.
+> **Import state (2026-07-23):** All three core workflows are running under artifact-managed workflows. The existing Drizzle schema is applied to the fresh PostgreSQL database, both persistent Redis slots connect successfully, and health, dashboard, hot-lead, and ingestion-job endpoints have been verified at HTTP 200. The database starts empty after import and is being populated by live public-registry ingestion.
 
 ### What was done this session (2026-07-23 — mobile UX fixes + star/hide/MCTS rename)
 

@@ -1,0 +1,12 @@
+Phase I is fully implemented and live. Here's what changed:
+I1 — LLC Beneficial Owner Resolution (in-house-enricher.ts)resolveBeneficialOwner() fires for any FAA Corporation entity before enrichment — queries SEC EDGAR EFTS and OpenCorporates free tier for the person behind the aviation LLC. If a name is found (e.g. "John Smith" behind "Smith Aviation LLC"), the entire enrichment pass runs against the person, unlocking Wikidata/LinkedIn/email-pattern hits that the LLC name would never produce.
+I2 — Semantic Dedup Tuning (relationships.ts)
+* Threshold lowered 0.93 → 0.87 with a hasEnoughSharedTokens() guard (≥2 shared significant tokens) to prevent false positives at the lower threshold
+* New POST /api/relationships/name-exact-dedup — creates LIKELY_SAME_PERSON edges (strength 0.95) for exact name matches across different registries; auto-triggers at 310s
+I3 — Warm-Path Edge Quality (relationships.ts)
+* POST /api/relationships/auto-detect-edgar-coinvestor— EDGAR_CO_INVESTOR edges (strength 0.75) between HNWI/Gatekeeper entities that co-hold shares in the same company; stronger quality signal than the existing EDGAR_CO_SHAREHOLDER (which covers all entity types). Auto-triggers at 305s.
+* POST /api/relationships/foundation-colleagues— FOUNDATION_COLLEAGUE edges (strength 0.85) between entities sharing the same IRS 990 foundation name. Auto-triggers at 425s.
+I4 — Tiered Enrichment (in-house-enricher.ts)enrichmentTier() classifies every entity as Tier 1 (EDGAR/public), Tier 2 (FAA individual), or Tier 3 (FAA corp). Tier 2 now skips Wikidata, Wikipedia, ORCID, and GitHub — private aircraft owners are almost never on knowledge graphs. API budget is redirected to DDG-LinkedIn, DNS/RDAP, and email-pattern generation where FAA individual hit rates are actually meaningful.
+Build: ⚡ clean in 1183ms. All 3 new endpoints returning 200. The edge counts are 0 right now because the DB only has partial FAA data from this cold start — they'll populate as HMLR ingest runs and the graph pipeline fires at its scheduled delays.
+
+
