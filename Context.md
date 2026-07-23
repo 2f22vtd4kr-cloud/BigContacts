@@ -8,7 +8,40 @@
 
 ---
 
-## Current State (2026-07-23 — GitHub import recovery) — All core workflows running, ingestion auto-started
+## Current State (2026-07-23 — fresh import boot) — All core workflows running, ingestion auto-started
+
+### Environment
+- **Replit PostgreSQL** connected — `DATABASE_URL` set automatically ✅
+- **Local Redis** running on `redis://localhost:6379` — workflow `Redis` running ✅
+- **SESSION_SECRET** — ✅ Set
+- **REDIS_URL** — ✅ Set (local Redis)
+- **Upstash Redis (`REDIS_URL_1`)** — ❌ NOT SET — dedup will not persist across restarts
+- **Upstash Redis (`REDIS_URL_2`)** — ❌ NOT SET — contact cache will not restore on boot
+- **COMPANIES_HOUSE_API_KEY** — ❌ NOT SET (optional — UK CH harvester skipped)
+
+### Workflows running
+| Workflow | Status |
+|---|---|
+| Redis | ✅ Running (port 6379) |
+| API Server | ✅ Running (port 8080) |
+| ApexFinder Web | ✅ Running (port 23695) |
+
+### Post-import setup (2026-07-23)
+1. `pnpm install` — all packages installed (esbuild, vite, all deps)
+2. `pnpm --filter @workspace/db run push` — schema applied to fresh PostgreSQL DB (`[✓] Changes applied`)
+3. All three workflows restarted and confirmed running
+4. `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":1}}` ✅
+5. DB was empty → cold-start auto-recovery triggered: broad-discovery + FAA + Western HNWI ingestion auto-started
+6. **Action required:** Set REDIS_URL_1 and REDIS_URL_2 as Replit Secrets to restore dedup and contact cache persistence
+
+### Iteration Log
+| Date | Summary |
+|---|---|
+| 2026-07-23 | Fresh import boot: pnpm install, DB schema push, all 3 workflows running, cold-start ingestion auto-started; REDIS_URL_1 + REDIS_URL_2 missing |
+
+---
+
+## Previous State (2026-07-23 — GitHub import recovery) — All core workflows running, ingestion auto-started
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically ✅
