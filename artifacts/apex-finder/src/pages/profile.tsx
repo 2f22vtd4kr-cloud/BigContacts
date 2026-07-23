@@ -43,7 +43,7 @@ import {
   Twitter,
   Instagram,
 } from "lucide-react";
-import { cn, formatCurrency, ScoreBadge } from "@/lib/utils";
+import { cn, formatCurrency, formatEntityName, ScoreBadge } from "@/lib/utils";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
   DialogFooter, DialogClose,
@@ -529,7 +529,7 @@ export default function ApexProfile() {
             </div>
 
             <h1 className="text-xl md:text-2xl font-bold text-foreground tracking-tight leading-none mb-2">
-              {entity.name}
+              {formatEntityName(entity.name)}
             </h1>
 
             <div className="flex items-center gap-2 flex-wrap">
@@ -1479,7 +1479,7 @@ export default function ApexProfile() {
                 {relSearchResults.map((r) => (
                   <button key={r.id} onClick={() => { setRelTargetId(r.id); setRelTargetName(r.name); setRelSearchResults([]); }}
                     className="w-full text-left px-3 py-2 text-sm font-mono text-foreground hover:bg-muted/50 transition-colors border-b border-border/30 last:border-0">
-                    {r.name}
+                    {formatEntityName(r.name)}
                   </button>
                 ))}
               </div>

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useListEntities, useRunResearch } from "@workspace/api-client-react";
 import { Terminal, Play, Cpu, ChevronRight, Hash, CheckCircle2, GitBranch, Target, Shield, ChevronDown, Search, X, Mail, Phone, Copy, CheckCheck, Layers } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatEntityName } from "@/lib/utils";
 import { ScoreBadge } from "@/lib/utils";
 
 // ── Correct types matching the API ──────────────────────────────────────────
@@ -279,7 +279,7 @@ export default function IntelTerminal() {
                   selectedEntityId === ent.id && "bg-primary/10 text-primary"
                 )}
               >
-                <span className="truncate pr-2">{ent.name}</span>
+                <span className="truncate pr-2">{formatEntityName(ent.name)}</span>
                 <ScoreBadge score={ent.bayesianScore} />
               </button>
             ))}
@@ -360,7 +360,7 @@ export default function IntelTerminal() {
                 isComputing && selectedEntityId !== ent.id && "opacity-30 cursor-not-allowed"
               )}
             >
-              <div className="truncate pr-2">{ent.name}</div>
+              <div className="truncate pr-2">{formatEntityName(ent.name)}</div>
               <ScoreBadge score={ent.bayesianScore} />
             </div>
           ))}

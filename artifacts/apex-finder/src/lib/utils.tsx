@@ -39,3 +39,31 @@ export function formatRegistry(source: string | null | undefined) {
   if (!source) return "Unknown";
   return source.split(',').map(s => s.trim()).join(' / ');
 }
+
+/**
+ * Display-formats entity names stored as ALL CAPS (FAA/EDGAR style).
+ * "THIEL PETER" → "Thiel Peter"  |  "Chadwick John Huston" → unchanged
+ */
+export function formatEntityName(name: string | null | undefined): string {
+  if (!name) return "Unknown";
+  // Already mixed-case → leave as-is
+  if (/[a-z]/.test(name)) return name;
+  // ALL CAPS → title-case each word
+  return name
+    .toLowerCase()
+    .replace(/\b([a-z])/g, c => c.toUpperCase());
+}
+
+/**
+ * Cleans up verbose raw signal text from SEC EDGAR / FAA ingestors.
+ * "Source: SEC EDGAR — SC 13G. Filing type: SC 13G." → "SEC EDGAR — SC 13G filing"
+ * "Aviation: Jet — N112AE · FAA Releasable Aircraft Database" → unchanged
+ */
+export function formatSignal(signal: string | null | undefined): string {
+  if (!signal) return "No signal";
+  return signal
+    .replace(/^Source:\s*/i, "")                          // strip "Source: " prefix
+    .replace(/\.\s*Filing type:\s*[\w\s\d]+\./gi, " filing") // collapse duplicate filing type
+    .replace(/\.$/, "")                                   // trailing period
+    .trim();
+}

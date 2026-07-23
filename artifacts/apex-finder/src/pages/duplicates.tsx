@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Copy, Merge, AlertTriangle, CheckCircle2, XCircle, RefreshCw, ChevronRight, ArrowRight } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatEntityName } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -113,9 +113,9 @@ function CandidateRow({
         <Copy className="h-3.5 w-3.5 text-amber-400 flex-shrink-0" />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium truncate">
-            {candidate.entityA.name}
+            {formatEntityName(candidate.entityA.name)}
             <span className="text-muted-foreground mx-1.5">×</span>
-            {candidate.entityB.name}
+            {formatEntityName(candidate.entityB.name)}
           </p>
           <p className="text-xs text-muted-foreground mt-0.5">
             <span className={cn("font-mono", color)}>{label}</span>

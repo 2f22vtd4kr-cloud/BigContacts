@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { Link, useLocation, useSearch } from "wouter";
 import { useListEntities, useCreateEntity, useDeleteEntity } from "@workspace/api-client-react";
-import { formatCurrency, ScoreBadge } from "@/lib/utils";
+import { formatCurrency, formatEntityName, ScoreBadge } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import {
   Plus, Search, Trash2, Globe, ChevronDown, ChevronUp, X, Loader2,
@@ -112,7 +112,7 @@ function MobileEntityDetail({ entity, onClose }: { entity: any; onClose: () => v
                   <span className="text-[10px] font-mono font-bold text-amber-500 uppercase tracking-wider">Hot Lead</span>
                 </div>
               )}
-              <h2 className="text-lg font-bold text-foreground">{entity.name}</h2>
+              <h2 className="text-lg font-bold text-foreground">{formatEntityName(entity.name)}</h2>
               <div className="flex items-center gap-2 mt-1 flex-wrap">
                 <span
                   className="text-[10px] font-mono font-bold px-2 py-0.5 rounded flex items-center gap-1"
@@ -243,7 +243,7 @@ function MobileEntityCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 mb-1">
             {entity.isHot && <ShieldAlert className="w-3 h-3 text-amber-500 flex-shrink-0" />}
-            <span className="font-semibold text-sm text-foreground truncate">{entity.name}</span>
+            <span className="font-semibold text-sm text-foreground truncate">{formatEntityName(entity.name)}</span>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <span
@@ -721,7 +721,7 @@ export default function EntityLedger() {
                       <div className="flex items-center gap-2">
                         {entity.isHot && <ShieldAlert className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />}
                         <div>
-                          <div className="font-semibold text-sm text-foreground">{entity.name}</div>
+                          <div className="font-semibold text-sm text-foreground">{formatEntityName(entity.name)}</div>
                           <div className="flex items-center gap-1.5 mt-0.5">
                             <span
                               className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5"

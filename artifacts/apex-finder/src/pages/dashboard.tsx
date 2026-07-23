@@ -9,7 +9,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "wouter";
-import { formatCurrency, ScoreBadge } from "@/lib/utils";
+import { formatCurrency, formatEntityName, formatSignal, ScoreBadge } from "@/lib/utils";
 
 // Fix Leaflet icons
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -488,7 +488,7 @@ function HotLeadCard({ lead }: { lead: any }) {
       <div className="flex justify-between items-start mb-2 gap-2">
         <div className="flex-1 min-w-0">
           <h3 className="font-bold text-foreground group-hover:text-primary transition-colors truncate text-sm flex items-center gap-1">
-            {lead.entityName}
+            {formatEntityName(lead.entityName)}
             <ChevronRight className="w-3 h-3 shrink-0 opacity-0 group-hover:opacity-60 transition-opacity" />
           </h3>
           <div className="text-xs font-mono mt-1.5 flex items-center gap-1.5 flex-wrap">
@@ -522,7 +522,7 @@ function HotLeadCard({ lead }: { lead: any }) {
       </div>
       <div className="bg-background rounded p-2 text-xs font-mono border border-border">
         <span className="text-primary mr-2">SIGNAL:</span>
-        <span className="text-foreground/80 line-clamp-2">{lead.signal}</span>
+        <span className="text-foreground/80 line-clamp-2">{formatSignal(lead.signal)}</span>
       </div>
       <div className="mt-2.5 flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
         <Link
@@ -781,7 +781,7 @@ export default function Dashboard() {
                 </div>
                 <div className="bg-background rounded p-2 text-xs font-mono border border-border mt-3">
                   <span className="text-primary mr-2">SIGNAL:</span>
-                  <span className="text-foreground/80 line-clamp-2">{lead.signal}</span>
+                  <span className="text-foreground/80 line-clamp-2">{formatSignal(lead.signal)}</span>
                 </div>
               </div>
             ))}

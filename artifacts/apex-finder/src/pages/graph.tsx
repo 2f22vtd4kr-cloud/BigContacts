@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { useSearch, useLocation } from "wouter";
 import ForceGraph2D, { ForceGraphMethods } from "react-force-graph-2d";
 import { Network, ZoomIn, ZoomOut, Maximize, X, Search, ChevronDown, Filter, Shield, Plus, Link2, Loader2 } from "lucide-react";
-import { cn, formatCurrency, ScoreBadge } from "@/lib/utils";
+import { cn, formatCurrency, formatEntityName, ScoreBadge } from "@/lib/utils";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose,
 } from "@/components/ui/dialog";
@@ -470,6 +470,19 @@ export default function GraphViewer() {
         </div>
       )}
 
+      {/* ── Single-node state — target loaded but no edges/neighbours yet ── */}
+      {!isLoading && gData.nodes.length === 1 && gData.links.length === 0 && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center z-10 pointer-events-none">
+          <div className="bg-card/90 border border-border rounded-lg px-6 py-5 flex flex-col items-center gap-3 max-w-xs text-center shadow-xl">
+            <Network className="w-8 h-8 text-muted-foreground opacity-40" />
+            <p className="text-sm font-mono text-foreground">No connections mapped yet</p>
+            <p className="text-xs font-mono text-muted-foreground/70 leading-relaxed">
+              Run the relationship auto-detect or CH enricher to build edges for this entity.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* ── Force Graph ── */}
       {width > 0 && gData.nodes.length > 0 && (
         <ForceGraph2D
@@ -687,7 +700,7 @@ export default function GraphViewer() {
                   {relSearchResults.map((r) => (
                     <button key={r.id} onClick={() => { setRelTargetId(r.id); setRelTargetName(r.name); setRelSearchResults([]); }}
                       className="w-full text-left px-3 py-2 text-sm font-mono text-foreground hover:bg-muted/50 transition-colors border-b border-border/30 last:border-0">
-                      {r.name}
+                      {formatEntityName(r.name)}
                     </button>
                   ))}
                 </div>
