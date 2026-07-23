@@ -1,0 +1,46 @@
+Keep going from where you left:
+
+The Intelligence HQ page is a mess. Look at it from a regular user eyes perspective - many numbers and so little of what user actually needs to see and be able to quickly navigate to for further info. The same goes for map which is just a set of dots without any obvious visual and other forms of straight clear communication. The same goes for graphs representation - just make a screenshot of one and you will see what a mess it is. A UI/UX polishing and improvements need to be done across the whole app to be honest both desktop and mobile views.
+Let me screenshot the key pages simultaneously to see exactly what the user sees.
+I can see the major problems clearly. Let me read the key source files to understand the full scope.
+I can see the full picture now. Let me read the key files to plan targeted fixes:
+Let me read the graph rendering section and dashboard layout sections I need to fix.
+Now I have a complete picture. Let me read the graph's node-paint code and the router to plan fixes precisely.
+I have enough context. Let me read the CRM card and router, then implement all fixes in parallel.
+Let me read the kanban card and then implement all fixes simultaneously.
+I now have a complete picture. Here are the critical problems:
+* Graph: Edge labels cover everything at default zoom; node names invisible (only color-coded blobs)
+* Dashboard: Map centered on world with all dots in US blob; Hot Lead cards have redundant nav; stat tiles lack hierarchy
+* CRM Pipeline: Each of 8 kanban columns gets flex-1 min-w-0 → names truncate to a single letter
+* Layout: Compliance banner wraps to 3 lines on mobile eating screen space; WORKSPACE collapses hiding key nav
+I'll fix all of these in parallel now.
+Good — API Server and Web Frontend are running. Let me continue with the remaining fixes in parallel.
+Old manual workflows failed as expected — artifact-managed ones are running. Let me continue fixing dashboard, layout, and entities in parallel.
+The artifact-managed workflows are running. Let me continue with dashboard improvements and then verify with screenshots.
+Workflows are good. Let me continue with the remaining dashboard + entities fixes in parallel.
+The artifact-managed workflows are running. Let me continue with the remaining dashboard and entities fixes.
+Let me batch all remaining changes — dashboard map center, hot lead card cleanup, and then verify everything with screenshots.
+The old manual workflows failing is expected — artifact-managed ones (artifacts/apex-finder: web and artifacts/api-server: API Server) are both running and Vite hot-reloads the changes. Let me take screenshots to verify all fixes.
+The CRM is completely fixed — full names are showing instead of single initials. The compliance banner is compact. WORKSPACE is expanded. Let me now check the graph node colors more carefully and also verify the dashboard map.
+The dashboard is dramatically improved — map now shows the full continental US with individual aviation assets scattered across cities, compliance banner is a single line, hot lead cards show "Network map >" only. Let me verify the graph node color fix:
+The surrounding nodes are still showing as muted gray-blue. The nodeType field may not be matching. Let me check what the graph API actually returns and also zoom into the graph to see if the labels are rendering.
+
+Let me see the current state of the app and identify what still needs fixing from the previous session.
+Let me take screenshots of the graph and other key pages simultaneously while reading the relevant code.
+Good picture of current state. The previous session fixed CRM columns, compliance banner, map centering, and hot lead cards. The remaining gap is graph node colors for non-target nodes. Let me also look at what else still needs polish across the app.
+Let me check the graph API for entities that actually have connections, and read a few more key pages in parallel.
+Let me get the full picture efficiently — query for connected entities and read the remaining key pages.
+Found the root cause: the API returns "Corp" but the graph color functions check "Corporation". I also need to fix the entity name display in the dropdown, and several other UX issues. Let me read a couple more files then implement everything in parallel.
+Now I have the full picture. The core bug is confirmed: API returns "Corp" but color functions check "Corporation". All surrounding nodes fall through to gray. I'll fix this plus the entity name display issue and several other UX improvements in parallel.
+Now I have everything I need. Time to implement all fixes in parallel:
+1. Graph color bug: "Corp" → blue, fix in nodeColor, drawNodeLabel, drawContactRing
+2. Entity name fallback: get name from graph data's target node label
+3. Dashboard map overlay: asset category counts so the map tells a story
+4. Dashboard quick-action CTAs: help users navigate from the home screen
+Now fix the entity name display and add dashboard improvements.
+Now update both places in graph.tsx that show the entity name, and add the dashboard map overlay in parallel.
+Now I'll improve the dashboard map with a context overlay and quick-action strip, all in one batch.
+Need to add Network to the dashboard imports since I used it in the quick-action strip. Let me fix that and verify all changes.
+Vite hot-reloaded the changes. Let me verify everything looks correct now.
+
+
