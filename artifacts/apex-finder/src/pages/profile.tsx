@@ -312,6 +312,8 @@ export default function ApexProfile() {
   const [isEnriching, setIsEnriching]     = useState(false);
   const [enrichError, setEnrichError]     = useState<string | null>(null);
   const [enrichDone, setEnrichDone]       = useState(false);
+  // ── Tab state ──────────────────────────────────────────────────────────────
+  const [activeTab, setActiveTab] = useState<"intel" | "network" | "strategy">("intel");
   // ── Relationship modal ─────────────────────────────────────────────────────
   const [addRelOpen, setAddRelOpen]             = useState(false);
   const [relTargetType, setRelTargetType]       = useState<"Entity" | "Asset">("Entity");
@@ -499,7 +501,7 @@ export default function ApexProfile() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto">
+    <div className="flex flex-col h-full overflow-hidden">
 
       {/* ── Header ───────────────────────────────────────────────────────── */}
       <div className="flex-shrink-0 border-b border-border bg-card/60 px-4 md:px-6 py-4">
@@ -519,7 +521,7 @@ export default function ApexProfile() {
                 </span>
               )}
               <span className="text-[10px] font-mono text-muted-foreground/40 uppercase tracking-widest">
-                Apex Profile Card
+                Atlas Profile Card
               </span>
             </div>
 
@@ -591,7 +593,6 @@ export default function ApexProfile() {
       {(() => {
         const e = entity as any;
         const hasContact = !!(e.email || e.phone || e.linkedinUrl);
-        // Use DB contactConfidence if available (set by in-house enricher), else compute from presence
         const dbConf = typeof (e as any).contactConfidence === "number" ? (e as any).contactConfidence : null;
         const conf = dbConf !== null ? dbConf :
           (e.email    ? 40 : 0) +
@@ -679,680 +680,664 @@ export default function ApexProfile() {
         sessions={sessions as any[]}
       />
 
-      {/* ── Body ─────────────────────────────────────────────────────────── */}
-      <div className="flex-1 p-4 md:p-6 space-y-4 md:space-y-6">
+      {/* ── Tab Bar ──────────────────────────────────────────────────────── */}
+      <div className="flex-shrink-0 border-b border-border bg-card/60 px-4 md:px-6">
+        <div className="flex items-center">
+          {([
+            { id: "intel" as const,    label: "Intel",    icon: <BarChart2 className="w-3.5 h-3.5" /> },
+            { id: "network" as const,  label: "Network",  icon: <Network   className="w-3.5 h-3.5" /> },
+            { id: "strategy" as const, label: "Strategy", icon: <Route     className="w-3.5 h-3.5" /> },
+          ]).map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                "flex items-center gap-1.5 px-4 py-3 font-mono text-[11px] uppercase tracking-widest border-b-2 transition-colors whitespace-nowrap",
+                activeTab === tab.id
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+              )}
+            >
+              {tab.icon} {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
-        {/* Row 1: Mini-map + Confidence */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+      {/* ── Tab Content ─────────────────────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6">
 
-          {/* ── Asset Mini-Map ──────────────────────────────────────────── */}
-          <div className="border border-border rounded-lg overflow-hidden bg-card/30 flex flex-col">
-            <SectionHeader
-              icon={<MapPin className="w-3.5 h-3.5" />}
-              title="Asset Footprint"
-              badge={`${geoAssets.length} geolocated`}
-            />
-            <div className="relative flex-1" style={{ minHeight: "300px", height: "300px" }}>
-              {geoAssets.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full gap-2 text-muted-foreground/40 px-4 text-center">
-                  <MapPin className="w-8 h-8 opacity-20" />
-                  <p className="text-xs font-mono">No geolocated assets</p>
-                  <p className="text-[10px] font-mono leading-relaxed">
-                    Run the FAA or HNWI ingestor to populate asset coordinates for this entity.
-                  </p>
-                </div>
-              ) : (
-                <MapContainer
-                  center={mapCenter}
-                  zoom={geoAssets.length > 1 ? 3 : 5}
-                  style={{ height: "100%", width: "100%" }}
-                  scrollWheelZoom={false}
-                  className="z-0"
-                >
-                  <TileLayer
-                    url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-                    attribution='&copy; <a href="https://carto.com/attributions">CARTO</a>'
-                  />
-                  {geoAssets.map((asset: any) => {
-                    const color = ASSET_COLORS[asset.category] ?? "#64748B";
+        {/* ═══ INTEL TAB ══════════════════════════════════════════════════ */}
+        {activeTab === "intel" && <>
+
+          {/* Row 1: Mini-map + Confidence */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+
+            {/* ── Asset Mini-Map ──────────────────────────────────────────── */}
+            <div className="border border-border rounded-lg overflow-hidden bg-card/30 flex flex-col">
+              <SectionHeader
+                icon={<MapPin className="w-3.5 h-3.5" />}
+                title="Asset Footprint"
+                badge={`${geoAssets.length} geolocated`}
+              />
+              <div className="relative flex-1" style={{ minHeight: "300px", height: "300px" }}>
+                {geoAssets.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full gap-2 text-muted-foreground/40 px-4 text-center">
+                    <MapPin className="w-8 h-8 opacity-20" />
+                    <p className="text-xs font-mono">No geolocated assets</p>
+                    <p className="text-[10px] font-mono leading-relaxed">
+                      Run the FAA or HNWI ingestor to populate asset coordinates for this entity.
+                    </p>
+                  </div>
+                ) : (
+                  <MapContainer
+                    center={mapCenter}
+                    zoom={geoAssets.length > 1 ? 3 : 5}
+                    style={{ height: "100%", width: "100%" }}
+                    scrollWheelZoom={false}
+                    className="z-0"
+                  >
+                    <TileLayer
+                      url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                      attribution='&copy; <a href="https://carto.com/attributions">CARTO</a>'
+                    />
+                    {geoAssets.map((asset: any) => {
+                      const color = ASSET_COLORS[asset.category] ?? "#64748B";
+                      return (
+                        <CircleMarker
+                          key={asset.id}
+                          center={[asset.latitude, asset.longitude]}
+                          radius={9}
+                          pathOptions={{
+                            fillColor: color,
+                            fillOpacity: 0.85,
+                            color: color,
+                            weight: 2,
+                            opacity: 0.9,
+                          }}
+                        >
+                          <Popup>
+                            <div className="space-y-0.5 min-w-[140px]">
+                              <div className="font-bold text-xs">{asset.identifier}</div>
+                              <div className="text-muted-foreground text-[10px]">{asset.category} · {asset.jurisdiction}</div>
+                              {asset.estimatedValue != null && (
+                                <div className="text-xs font-mono">{formatCurrency(asset.estimatedValue)}</div>
+                              )}
+                              {asset.address && <div className="text-[10px] text-muted-foreground">{asset.address}</div>}
+                              {asset.sourceRegistry && (
+                                <div className="text-[9px] opacity-50 mt-1 pt-1 border-t border-border">{asset.sourceRegistry}</div>
+                              )}
+                            </div>
+                          </Popup>
+                        </CircleMarker>
+                      );
+                    })}
+                  </MapContainer>
+                )}
+              </div>
+              {geoAssets.length > 0 && (
+                <div className="flex items-center gap-3 px-4 py-2 border-t border-border bg-card/40 flex-wrap">
+                  {Object.entries(ASSET_COLORS).map(([cat, color]) => {
+                    const n = geoAssets.filter((a: any) => a.category === cat).length;
+                    if (n === 0) return null;
                     return (
-                      <CircleMarker
-                        key={asset.id}
-                        center={[asset.latitude, asset.longitude]}
-                        radius={9}
-                        pathOptions={{
-                          fillColor: color,
-                          fillOpacity: 0.85,
-                          color: color,
-                          weight: 2,
-                          opacity: 0.9,
-                        }}
-                      >
-                        <Popup>
-                          <div className="space-y-0.5 min-w-[140px]">
-                            <div className="font-bold text-xs">{asset.identifier}</div>
-                            <div className="text-muted-foreground text-[10px]">{asset.category} · {asset.jurisdiction}</div>
-                            {asset.estimatedValue != null && (
-                              <div className="text-xs font-mono">{formatCurrency(asset.estimatedValue)}</div>
-                            )}
-                            {asset.address && <div className="text-[10px] text-muted-foreground">{asset.address}</div>}
-                            {asset.sourceRegistry && (
-                              <div className="text-[9px] opacity-50 mt-1 pt-1 border-t border-border">{asset.sourceRegistry}</div>
-                            )}
-                          </div>
-                        </Popup>
-                      </CircleMarker>
+                      <div key={cat} className="flex items-center gap-1.5">
+                        <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+                        <span className="text-[10px] font-mono text-muted-foreground">{cat} ({n})</span>
+                      </div>
                     );
                   })}
-                </MapContainer>
+                </div>
               )}
             </div>
-            {/* Legend */}
-            {geoAssets.length > 0 && (
-              <div className="flex items-center gap-3 px-4 py-2 border-t border-border bg-card/40 flex-wrap">
-                {Object.entries(ASSET_COLORS).map(([cat, color]) => {
-                  const n = geoAssets.filter((a: any) => a.category === cat).length;
-                  if (n === 0) return null;
-                  return (
-                    <div key={cat} className="flex items-center gap-1.5">
-                      <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
-                      <span className="text-[10px] font-mono text-muted-foreground">{cat} ({n})</span>
+
+            {/* ── Profile Depth ───────────────────────────────────────────── */}
+            <div className="border border-border rounded-lg bg-card/30 flex flex-col">
+              <SectionHeader
+                icon={<BarChart2 className="w-3.5 h-3.5" />}
+                title="Profile Depth"
+              />
+              <div className="flex-1 p-4 flex flex-col gap-4">
+                <div className="flex items-center gap-4 pb-4 border-b border-border">
+                  <div className="relative w-16 h-16 flex-shrink-0">
+                    <svg viewBox="0 0 64 64" className="w-16 h-16 -rotate-90">
+                      <circle cx="32" cy="32" r="26" fill="none" stroke="currentColor" strokeWidth="7" className="text-muted/20" />
+                      <circle
+                        cx="32" cy="32" r="26" fill="none" strokeWidth="7"
+                        stroke={confidence.overall >= 75 ? "var(--color-primary)" : confidence.overall >= 50 ? "#F59E0B" : "#6B7280"}
+                        strokeDasharray={`${(confidence.overall / 100) * 163.4} 163.4`}
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className={cn(
+                        "text-sm font-bold font-mono",
+                        confidence.overall >= 75 ? "text-primary" : confidence.overall >= 50 ? "text-amber-500" : "text-muted-foreground"
+                      )}>
+                        {confidence.overall}
+                      </span>
                     </div>
-                  );
-                })}
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-xs font-mono font-bold text-foreground mb-1">Overall Confidence</div>
+                    <div className="text-[10px] font-mono text-muted-foreground leading-relaxed">
+                      {confidence.overall >= 75
+                        ? "High-confidence target. Multiple registry verifications confirmed."
+                        : confidence.overall >= 50
+                        ? "Moderate confidence. Additional verification recommended before outreach."
+                        : "Low confidence. Expand data sources and run registry search first."}
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-3.5 flex-1">
+                  <ConfidenceBar label="Identity"  score={confidence.identity}  icon={<UserCheck className="w-3 h-3" />} />
+                  <ConfidenceBar label="Financial" score={confidence.financial} icon={<Layers   className="w-3 h-3" />} />
+                  <ConfidenceBar label="Network"   score={confidence.network}   icon={<Network  className="w-3 h-3" />} />
+                  <ConfidenceBar label="Registry"  score={confidence.registry}  icon={<Globe    className="w-3 h-3" />} />
+                  <ConfidenceBar label="Assets"    score={confidence.asset}     icon={<MapPin   className="w-3 h-3" />} />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Row 1.5: Intelligence Signals */}
+          {(occrpData || skyFlights.length > 0 || occrpLoading || skyLoading) && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+
+              {/* ── OCCRP Adverse Media ──────────────────────────────────────── */}
+              <div className="border border-border rounded-lg bg-card/30 flex flex-col">
+                <SectionHeader
+                  icon={<AlertCircle className="w-3.5 h-3.5" />}
+                  title="Adverse Media"
+                  badge={occrpData ? (occrpData.datasets?.length > 0 ? `${occrpData.datasets.length} datasets` : "No flags") : undefined}
+                />
+                <div className="p-4">
+                  {occrpLoading ? (
+                    <div className="flex items-center gap-2 text-muted-foreground text-xs font-mono">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> Querying OCCRP Aleph…
+                    </div>
+                  ) : occrpData ? (
+                    <div className="space-y-3">
+                      {(() => {
+                        const SANCTIONS_RE = /sanction|watchlist|ofac|interpol|fatf|pep|oligarch/i;
+                        const flagged = occrpData.datasets?.some((d: string) => SANCTIONS_RE.test(d));
+                        return (
+                          <div className={cn(
+                            "flex items-center gap-2 px-3 py-2 rounded border text-xs font-mono font-bold",
+                            flagged
+                              ? "border-red-500/40 bg-red-500/10 text-red-400"
+                              : "border-primary/30 bg-primary/5 text-primary"
+                          )}>
+                            {flagged
+                              ? <><AlertCircle className="w-3.5 h-3.5" /> SANCTIONS / WATCHLIST HIT</>
+                              : <><CheckCircle2 className="w-3.5 h-3.5" /> No sanctions flags found</>}
+                          </div>
+                        );
+                      })()}
+                      {occrpData.datasets?.length > 0 && (
+                        <div>
+                          <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-2">
+                            Aleph Datasets ({occrpData.datasets.length})
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            {occrpData.datasets.slice(0, 8).map((d: string) => (
+                              <span key={d} className="text-[9px] font-mono px-1.5 py-0.5 bg-muted border border-border rounded text-muted-foreground">
+                                {d.replace(/_/g, " ")}
+                              </span>
+                            ))}
+                            {occrpData.datasets.length > 8 && (
+                              <span className="text-[9px] font-mono text-muted-foreground">+{occrpData.datasets.length - 8} more</span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      {occrpData.url && (
+                        <a href={occrpData.url} target="_blank" rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-[10px] font-mono text-primary hover:underline">
+                          <Globe className="w-3 h-3" /> View on OCCRP Aleph
+                        </a>
+                      )}
+                      {occrpData.enrichedAt && (
+                        <p className="text-[9px] font-mono text-muted-foreground/50">
+                          Last enriched: {new Date(occrpData.enrichedAt).toLocaleDateString()}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-xs font-mono text-muted-foreground/50 italic">
+                      No OCCRP Aleph data — run the OCCRP enrichment job from Data Sources.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* ── OpenSky Live Flights ──────────────────────────────────────── */}
+              <div className="border border-border rounded-lg bg-card/30 flex flex-col">
+                <SectionHeader
+                  icon={<Route className="w-3.5 h-3.5" />}
+                  title="Live Flight Intel"
+                  badge={skyFlights.length > 0 ? `${skyFlights.length} aircraft tracked` : undefined}
+                />
+                <div className="p-4">
+                  {skyLoading ? (
+                    <div className="flex items-center gap-2 text-muted-foreground text-xs font-mono">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> Querying OpenSky…
+                    </div>
+                  ) : skyFlights.length > 0 ? (
+                    <div className="space-y-3">
+                      {skyFlights.map((flight: any) => (
+                        <div key={flight.id} className="border border-border rounded p-3 bg-muted/10 space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-sm font-mono font-bold text-foreground truncate">{flight.name}</span>
+                            <span className="text-[10px] font-mono text-blue-400 flex-shrink-0 border border-blue-400/30 bg-blue-400/10 px-1.5 py-0.5 rounded">
+                              {flight.identifier}
+                            </span>
+                          </div>
+                          {flight.opensky && (
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                              {flight.opensky.altitudeFt != null && (
+                                <div>
+                                  <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">Altitude</div>
+                                  <div className="text-xs font-mono text-foreground">{flight.opensky.altitudeFt.toLocaleString()} ft</div>
+                                </div>
+                              )}
+                              {flight.opensky.speedKnots != null && (
+                                <div>
+                                  <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">Speed</div>
+                                  <div className="text-xs font-mono text-foreground">{flight.opensky.speedKnots} kts</div>
+                                </div>
+                              )}
+                              {flight.opensky.originCountry && (
+                                <div>
+                                  <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">Origin</div>
+                                  <div className="text-xs font-mono text-foreground">{flight.opensky.originCountry}</div>
+                                </div>
+                              )}
+                              {flight.opensky.onGround != null && (
+                                <div>
+                                  <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">Status</div>
+                                  <div className={cn("text-xs font-mono", flight.opensky.onGround ? "text-muted-foreground" : "text-primary")}>
+                                    {flight.opensky.onGround ? "On ground" : "Airborne ✈"}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          {flight.lastActivityDate && (
+                            <p className="text-[9px] font-mono text-muted-foreground/50">
+                              Last seen: {new Date(flight.lastActivityDate).toLocaleDateString()}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs font-mono text-muted-foreground/50 italic">
+                      No live flight data — run the OpenSky enrichment job from Data Sources.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+            </div>
+          )}
+
+        </>}
+
+        {/* ═══ NETWORK TAB ════════════════════════════════════════════════ */}
+        {activeTab === "network" && <>
+
+          {/* Source Ledger */}
+          <div className="border border-border rounded-lg bg-card/30">
+            <SectionHeader
+              icon={<FileText className="w-3.5 h-3.5" />}
+              title="Source Ledger"
+              badge={`${ledger.length} data points`}
+            />
+            {ledger.length === 0 ? (
+              <div className="px-4 py-10 text-center text-muted-foreground/40 font-mono text-sm">
+                No data points recorded for this entity.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[600px] border-collapse">
+                  <thead>
+                    <tr className="border-b border-border/50 bg-card/30">
+                      {["Category", "Data Point", "Value", "Source Registry", "Status"].map((h) => (
+                        <th key={h} className="px-4 py-2 text-left text-[9px] font-mono font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/30">
+                    {ledger.map((entry) => (
+                      <tr key={entry.id} className="hover:bg-muted/10 transition-colors">
+                        <td className="px-4 py-2.5 whitespace-nowrap"><CategoryBadge category={entry.category} /></td>
+                        <td className="px-4 py-2.5 text-xs font-mono text-muted-foreground whitespace-nowrap">{entry.dataPoint}</td>
+                        <td className="px-4 py-2.5 text-xs font-mono text-foreground max-w-xs">
+                          <span className="truncate block" title={entry.value}>{entry.value}</span>
+                        </td>
+                        <td className="px-4 py-2.5 text-[10px] font-mono text-muted-foreground/70 whitespace-nowrap max-w-[200px]">
+                          <span className="truncate block" title={entry.source}>{entry.source}</span>
+                        </td>
+                        <td className="px-4 py-2.5 whitespace-nowrap">
+                          {entry.verified ? (
+                            <span className="flex items-center gap-1 text-[10px] font-mono text-primary">
+                              <CheckCircle2 className="w-3 h-3 flex-shrink-0" /> Registry
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-mono text-muted-foreground/40">Unverified</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
 
-          {/* ── Profile Depth ───────────────────────────────────────────── */}
-          <div className="border border-border rounded-lg bg-card/30 flex flex-col">
+          {/* Connections */}
+          <div className="border border-border rounded-lg bg-card/30">
             <SectionHeader
-              icon={<BarChart2 className="w-3.5 h-3.5" />}
-              title="Profile Depth"
+              icon={<Link2 className="w-3.5 h-3.5" />}
+              title="Connections"
+              badge={`${(relationships as any[]).length} linked`}
+              action={
+                <button
+                  onClick={() => setAddRelOpen(true)}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-border text-muted-foreground hover:text-primary hover:border-primary/40 font-mono text-[10px] uppercase tracking-wider transition-colors"
+                >
+                  <Plus className="w-3 h-3" /> Add
+                </button>
+              }
             />
-            <div className="flex-1 p-4 flex flex-col gap-4">
-              {/* Overall ring */}
-              <div className="flex items-center gap-4 pb-4 border-b border-border">
-                <div className="relative w-16 h-16 flex-shrink-0">
-                  <svg viewBox="0 0 64 64" className="w-16 h-16 -rotate-90">
-                    <circle cx="32" cy="32" r="26" fill="none" stroke="currentColor" strokeWidth="7" className="text-muted/20" />
-                    <circle
-                      cx="32" cy="32" r="26" fill="none" strokeWidth="7"
-                      stroke={confidence.overall >= 75 ? "var(--color-primary)" : confidence.overall >= 50 ? "#F59E0B" : "#6B7280"}
-                      strokeDasharray={`${(confidence.overall / 100) * 163.4} 163.4`}
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className={cn(
-                      "text-sm font-bold font-mono",
-                      confidence.overall >= 75 ? "text-primary" : confidence.overall >= 50 ? "text-amber-500" : "text-muted-foreground"
-                    )}>
-                      {confidence.overall}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex-1">
-                  <div className="text-xs font-mono font-bold text-foreground mb-1">Overall Confidence</div>
-                  <div className="text-[10px] font-mono text-muted-foreground leading-relaxed">
-                    {confidence.overall >= 75
-                      ? "High-confidence target. Multiple registry verifications confirmed."
-                      : confidence.overall >= 50
-                      ? "Moderate confidence. Additional verification recommended before outreach."
-                      : "Low confidence. Expand data sources and run registry search first."}
-                  </div>
-                </div>
+            {(relationships as any[]).length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 gap-2 text-muted-foreground/40">
+                <Network className="w-8 h-8 opacity-20" />
+                <p className="text-xs font-mono">No connections yet</p>
+                <p className="text-[10px] font-mono text-center max-w-xs leading-relaxed">
+                  Click "Add" to link this entity to another, or run Auto-detect from Data Sources to surface co-ownership signals.
+                </p>
               </div>
-
-              {/* Category bars */}
-              <div className="space-y-3.5 flex-1">
-                <ConfidenceBar label="Identity"  score={confidence.identity}  icon={<UserCheck className="w-3 h-3" />} />
-                <ConfidenceBar label="Financial" score={confidence.financial} icon={<Layers   className="w-3 h-3" />} />
-                <ConfidenceBar label="Network"   score={confidence.network}   icon={<Network  className="w-3 h-3" />} />
-                <ConfidenceBar label="Registry"  score={confidence.registry}  icon={<Globe    className="w-3 h-3" />} />
-                <ConfidenceBar label="Assets"    score={confidence.asset}     icon={<MapPin   className="w-3 h-3" />} />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="border-b border-border/50 bg-card/30">
+                      {["Target", "Type", "Relationship", "Strength", ""].map((h) => (
+                        <th key={h} className="px-4 py-2 text-left text-[9px] font-mono font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/30">
+                    {(relationships as any[]).map((rel: any) => (
+                      <tr key={rel.id} className="hover:bg-muted/10 transition-colors group">
+                        <td className="px-4 py-2.5">
+                          {rel.targetType === "Entity" ? (
+                            <Link href={`/profile/${rel.targetId}`} className="text-xs font-mono text-primary hover:underline">
+                              {rel.targetName ?? `#${rel.targetId}`}
+                            </Link>
+                          ) : (
+                            <span className="text-xs font-mono text-foreground/70">{rel.targetName ?? `Asset #${rel.targetId}`}</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-muted text-muted-foreground uppercase">
+                            {rel.targetType}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5 text-xs font-mono text-foreground/80">
+                          {(rel.relationshipType as string).replace(/_/g, " ")}
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <div className="flex items-center gap-2">
+                            <div className="h-1.5 w-16 rounded-full bg-muted/30 overflow-hidden">
+                              <div className="h-full rounded-full bg-primary/60" style={{ width: `${(rel.strength ?? 0.5) * 100}%` }} />
+                            </div>
+                            <span className="text-[10px] font-mono text-muted-foreground">{((rel.strength ?? 0.5) * 100).toFixed(0)}%</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-2.5 text-right">
+                          <button
+                            onClick={() => handleDeleteRelationship(rel.id)}
+                            disabled={deletingRelId === rel.id}
+                            className="opacity-0 group-hover:opacity-100 p-1 rounded text-muted-foreground hover:text-red-400 transition-all disabled:opacity-50"
+                            title="Remove relationship"
+                          >
+                            {deletingRelId === rel.id
+                              ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              : <Trash2 className="w-3.5 h-3.5" />}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            </div>
+            )}
           </div>
-        </div>
 
-        {/* Row 1.5: Intelligence Signals — OCCRP Adverse Media + OpenSky Live Flights */}
-        {(occrpData || skyFlights.length > 0 || occrpLoading || skyLoading) && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+        </>}
 
-            {/* ── OCCRP Adverse Media ──────────────────────────────────────── */}
-            <div className="border border-border rounded-lg bg-card/30 flex flex-col">
-              <SectionHeader
-                icon={<AlertCircle className="w-3.5 h-3.5" />}
-                title="Adverse Media"
-                badge={occrpData ? (occrpData.datasets?.length > 0 ? `${occrpData.datasets.length} datasets` : "No flags") : undefined}
-              />
-              <div className="p-4">
-                {occrpLoading ? (
-                  <div className="flex items-center gap-2 text-muted-foreground text-xs font-mono">
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" /> Querying OCCRP Aleph…
+        {/* ═══ STRATEGY TAB ═══════════════════════════════════════════════ */}
+        {activeTab === "strategy" && (
+          <div className="border border-border rounded-lg bg-card/30">
+            <SectionHeader
+              icon={<Route className="w-3.5 h-3.5" />}
+              title="Outreach Strategy"
+              badge={(sessions as any[]).length > 0 ? `${(sessions as any[]).length} session${(sessions as any[]).length !== 1 ? "s" : ""}` : undefined}
+              action={
+                <button
+                  onClick={handleRunResearch}
+                  disabled={runResearch.isPending}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-primary/10 border border-primary/30 text-primary font-mono text-[10px] uppercase tracking-wider hover:bg-primary/20 transition-colors disabled:opacity-50"
+                >
+                  {runResearch.isPending
+                    ? <Loader2 className="w-3 h-3 animate-spin" />
+                    : <Play className="w-3 h-3" />}
+                  {runResearch.isPending ? "Computing…" : "Run Research"}
+                </button>
+              }
+            />
+
+            {(sessions as any[]).length === 0 && !runResearch.isPending && (
+              <div className="flex flex-col items-center justify-center py-12 gap-3 text-muted-foreground/40">
+                <TargetIcon className="w-10 h-10 opacity-20" />
+                <p className="text-sm font-mono">No research sessions yet</p>
+                <p className="text-[11px] font-mono text-center max-w-sm leading-relaxed">
+                  Run Hybrid Research to compute the optimal approach path, gatekeeper mapping,
+                  and personalized outreach sequence for this entity.
+                </p>
+              </div>
+            )}
+
+            {runResearch.isPending && (
+              <div className="flex items-center justify-center py-12 gap-3 text-primary/60">
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span className="text-sm font-mono">Running Hybrid Research…</span>
+              </div>
+            )}
+
+            {!runResearch.isPending && (sessions as any[]).length > 0 && (
+              <div className="p-4 md:p-6 space-y-6">
+
+                {(sessions as any[]).length > 1 && (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Session:</span>
+                    {(sessions as any[]).slice(0, 6).map((s: any, i: number) => (
+                      <button
+                        key={s.id}
+                        onClick={() => { setSelectedIdx(i); setPitchExpanded(false); }}
+                        className={cn(
+                          "px-2.5 py-1 rounded border font-mono text-[10px] uppercase transition-colors",
+                          selectedIdx === i
+                            ? "border-primary/40 bg-primary/10 text-primary"
+                            : "border-border text-muted-foreground hover:text-foreground",
+                        )}
+                      >
+                        #{s.id} · {new Date(s.createdAt).toLocaleDateString()}
+                      </button>
+                    ))}
                   </div>
-                ) : occrpData ? (
-                  <div className="space-y-3">
-                    {/* Sanctions / watchlist flag */}
-                    {(() => {
-                      const SANCTIONS_RE = /sanction|watchlist|ofac|interpol|fatf|pep|oligarch/i;
-                      const flagged = occrpData.datasets?.some((d: string) => SANCTIONS_RE.test(d));
-                      return (
-                        <div className={cn(
-                          "flex items-center gap-2 px-3 py-2 rounded border text-xs font-mono font-bold",
-                          flagged
-                            ? "border-red-500/40 bg-red-500/10 text-red-400"
-                            : "border-primary/30 bg-primary/5 text-primary"
-                        )}>
-                          {flagged
-                            ? <><AlertCircle className="w-3.5 h-3.5" /> SANCTIONS / WATCHLIST HIT</>
-                            : <><CheckCircle2 className="w-3.5 h-3.5" /> No sanctions flags found</>}
-                        </div>
-                      );
-                    })()}
-                    {/* Dataset list */}
-                    {occrpData.datasets?.length > 0 && (
+                )}
+
+                {selectedSession && (
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className={cn(
+                        "text-[10px] font-mono font-bold px-2.5 py-1 rounded border uppercase",
+                        CRM_COLORS[selectedSession.crmStatus] ?? "text-muted-foreground border-border",
+                      )}>
+                        {selectedSession.crmStatus}
+                      </span>
+                      {selectedSession.pathScore != null && (
+                        <span className="text-[10px] font-mono text-muted-foreground">
+                          Path score: <span className="text-foreground font-bold">{(selectedSession.pathScore * 100).toFixed(0)}%</span>
+                        </span>
+                      )}
+                      {selectedSession.bayesianScoreAtRuntime != null && (
+                        <span className="text-[10px] font-mono text-muted-foreground">
+                          Bayesian: <span className="text-foreground font-bold">{(selectedSession.bayesianScoreAtRuntime * 100).toFixed(0)}</span>
+                        </span>
+                      )}
+                      <span className="text-[10px] font-mono text-muted-foreground">
+                        {new Date(selectedSession.createdAt).toLocaleString()}
+                      </span>
+                    </div>
+
+                    {winningPath.length > 0 && (
                       <div>
-                        <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-2">
-                          Aleph Datasets ({occrpData.datasets.length})
+                        <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-2">
+                          <Route className="w-3 h-3" /> Winning Path · {winningPath.length} Nodes
                         </div>
-                        <div className="flex flex-wrap gap-1">
-                          {occrpData.datasets.slice(0, 8).map((d: string) => (
-                            <span key={d} className="text-[9px] font-mono px-1.5 py-0.5 bg-muted border border-border rounded text-muted-foreground">
-                              {d.replace(/_/g, " ")}
-                            </span>
+                        <div className="flex items-start gap-0 flex-wrap gap-y-2 overflow-x-auto pb-1">
+                          {winningPath.map((step, i) => (
+                            <div key={step.vertexId + i} className="flex items-center gap-0 flex-shrink-0">
+                              <div className={cn(
+                                "flex flex-col gap-0.5 px-3 py-2 rounded border font-mono min-w-[100px] max-w-[180px]",
+                                roleStyle(step.role),
+                              )}>
+                                <div className="flex items-center gap-1">
+                                  {roleIcon(step.role)}
+                                  <span className="text-[9px] uppercase tracking-wider opacity-60 font-bold">{step.role}</span>
+                                </div>
+                                <span className="font-semibold text-[11px] leading-tight">{step.label}</span>
+                                {step.contactMethod && <span className="text-[9px] opacity-50 leading-tight">{step.contactMethod}</span>}
+                                {step.actionRequired && <span className="text-[9px] opacity-70 leading-tight italic">{step.actionRequired}</span>}
+                              </div>
+                              {i < winningPath.length - 1 && (
+                                <ChevronRight className="w-3.5 h-3.5 text-muted-foreground mx-1 flex-shrink-0" />
+                              )}
+                            </div>
                           ))}
-                          {occrpData.datasets.length > 8 && (
-                            <span className="text-[9px] font-mono text-muted-foreground">+{occrpData.datasets.length - 8} more</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {mctsSteps.length > 0 && (
+                      <div>
+                        <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-2">
+                          {mctsSteps.length} UCT Iterations
+                        </div>
+                        <div className="border border-border/50 rounded overflow-hidden">
+                          <div className="grid grid-cols-4 border-b border-border/50 bg-card/60">
+                            {["Step", "Action", "Registry", "UCT Score"].map((h) => (
+                              <div key={h} className="px-3 py-1.5 text-[9px] font-mono font-bold text-muted-foreground uppercase tracking-widest">{h}</div>
+                            ))}
+                          </div>
+                          <div className="max-h-80 overflow-y-auto divide-y divide-border/30">
+                            {mctsSteps.map((step: any, i: number) => (
+                              <div key={i} className="grid grid-cols-4 hover:bg-muted/10">
+                                <div className="px-3 py-2 text-[10px] font-mono text-muted-foreground">{step.step}</div>
+                                <div className="px-3 py-2 text-[10px] font-mono text-foreground">{step.action}</div>
+                                <div className="px-3 py-2 text-[10px] font-mono text-secondary/80">{step.registry}</div>
+                                <div className="px-3 py-2 text-[10px] font-mono text-amber-400">{step.uctScore?.toFixed(3) ?? "—"}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="border border-border/50 rounded-lg overflow-hidden">
+                      <div className="flex items-center justify-between px-4 py-2.5 bg-card/60 border-b border-border/50">
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                          <span className="text-[11px] font-mono font-bold text-foreground uppercase tracking-widest">Outreach Sequence</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {selectedSession.generatedPitch && (
+                            <button onClick={() => setPitchExpanded(!pitchExpanded)} className="text-[10px] font-mono text-primary hover:underline">
+                              {pitchExpanded ? "Collapse" : "Expand"}
+                            </button>
+                          )}
+                          {!selectedSession.generatedPitch && (
+                            <button
+                              onClick={() => handleGeneratePitch(selectedSession.id)}
+                              disabled={pitchingId === selectedSession.id}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 font-mono text-[10px] uppercase tracking-wider hover:bg-amber-500/20 transition-colors disabled:opacity-50"
+                            >
+                              {pitchingId === selectedSession.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                              Generate Sequence
+                            </button>
                           )}
                         </div>
                       </div>
-                    )}
-                    {/* Aleph link */}
-                    {occrpData.url && (
-                      <a
-                        href={occrpData.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 text-[10px] font-mono text-primary hover:underline"
-                      >
-                        <Globe className="w-3 h-3" /> View on OCCRP Aleph
-                      </a>
-                    )}
-                    {occrpData.enrichedAt && (
-                      <p className="text-[9px] font-mono text-muted-foreground/50">
-                        Last enriched: {new Date(occrpData.enrichedAt).toLocaleDateString()}
-                      </p>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-xs font-mono text-muted-foreground/50 italic">
-                    No OCCRP Aleph data — run the OCCRP enrichment job from Data Sources.
-                  </p>
-                )}
-              </div>
-            </div>
 
-            {/* ── OpenSky Live Flights ──────────────────────────────────────── */}
-            <div className="border border-border rounded-lg bg-card/30 flex flex-col">
-              <SectionHeader
-                icon={<Route className="w-3.5 h-3.5" />}
-                title="Live Flight Intel"
-                badge={skyFlights.length > 0 ? `${skyFlights.length} aircraft tracked` : undefined}
-              />
-              <div className="p-4">
-                {skyLoading ? (
-                  <div className="flex items-center gap-2 text-muted-foreground text-xs font-mono">
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" /> Querying OpenSky…
-                  </div>
-                ) : skyFlights.length > 0 ? (
-                  <div className="space-y-3">
-                    {skyFlights.map((flight: any) => (
-                      <div key={flight.id} className="border border-border rounded p-3 bg-muted/10 space-y-2">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-sm font-mono font-bold text-foreground truncate">{flight.name}</span>
-                          <span className="text-[10px] font-mono text-blue-400 flex-shrink-0 border border-blue-400/30 bg-blue-400/10 px-1.5 py-0.5 rounded">
-                            {flight.identifier}
-                          </span>
+                      {!selectedSession.generatedPitch && pitchingId !== selectedSession.id && (
+                        <div className="flex items-center justify-center py-8 gap-2 text-muted-foreground/40">
+                          <Sparkles className="w-4 h-4 opacity-20" />
+                          <p className="text-xs font-mono">Generate a personalized multi-step outreach sequence from this MCTS winning path</p>
                         </div>
-                        {flight.opensky && (
-                          <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                            {flight.opensky.altitudeFt != null && (
-                              <div>
-                                <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">Altitude</div>
-                                <div className="text-xs font-mono text-foreground">{flight.opensky.altitudeFt.toLocaleString()} ft</div>
+                      )}
+                      {pitchingId === selectedSession.id && (
+                        <div className="flex items-center justify-center py-8 gap-2 text-amber-400/60">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <p className="text-xs font-mono">Generating outreach sequence…</p>
+                        </div>
+                      )}
+                      {selectedSession.generatedPitch && !pitchExpanded && (
+                        <div className="px-4 py-3 flex items-center gap-2 text-emerald-400">
+                          <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
+                          <span className="text-xs font-mono">Outreach sequence generated · {pitchData.length || "—"} messages</span>
+                          <button onClick={() => setPitchExpanded(true)} className="text-xs font-mono text-primary hover:underline ml-1">View →</button>
+                        </div>
+                      )}
+                      {selectedSession.generatedPitch && pitchExpanded && pitchData.length > 0 && (
+                        <div className="divide-y divide-border/30 max-h-80 overflow-y-auto">
+                          {pitchData.map((msg: any, i: number) => (
+                            <div key={i} className="px-4 py-3.5 space-y-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[9px] font-mono font-bold uppercase tracking-widest text-muted-foreground bg-muted/40 px-1.5 py-0.5 rounded">
+                                  {msg.channel ?? `Step ${i + 1}`}
+                                </span>
+                                {msg.subject && <span className="text-[10px] font-mono text-foreground/80">{msg.subject}</span>}
                               </div>
-                            )}
-                            {flight.opensky.speedKnots != null && (
-                              <div>
-                                <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">Speed</div>
-                                <div className="text-xs font-mono text-foreground">{flight.opensky.speedKnots} kts</div>
-                              </div>
-                            )}
-                            {flight.opensky.originCountry && (
-                              <div>
-                                <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">Origin</div>
-                                <div className="text-xs font-mono text-foreground">{flight.opensky.originCountry}</div>
-                              </div>
-                            )}
-                            {flight.opensky.onGround != null && (
-                              <div>
-                                <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">Status</div>
-                                <div className={cn("text-xs font-mono", flight.opensky.onGround ? "text-muted-foreground" : "text-primary")}>
-                                  {flight.opensky.onGround ? "On ground" : "Airborne ✈"}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                        {flight.lastActivityDate && (
-                          <p className="text-[9px] font-mono text-muted-foreground/50">
-                            Last seen: {new Date(flight.lastActivityDate).toLocaleDateString()}
-                          </p>
-                        )}
-                      </div>
-                    ))}
+                              <p className="text-xs font-mono text-foreground/80 leading-relaxed whitespace-pre-wrap">
+                                {msg.body ?? msg.message ?? JSON.stringify(msg)}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {selectedSession.generatedPitch && pitchExpanded && pitchData.length === 0 && (
+                        <div className="px-4 py-4">
+                          <pre className="text-xs font-mono text-foreground/70 whitespace-pre-wrap leading-relaxed max-h-60 overflow-y-auto">
+                            {selectedSession.generatedPitch}
+                          </pre>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                ) : (
-                  <p className="text-xs font-mono text-muted-foreground/50 italic">
-                    No live flight data — run the OpenSky enrichment job from Data Sources.
-                  </p>
                 )}
               </div>
-            </div>
-
+            )}
           </div>
         )}
-
-        {/* Row 2: Source Ledger */}
-        <div className="border border-border rounded-lg bg-card/30">
-          <SectionHeader
-            icon={<FileText className="w-3.5 h-3.5" />}
-            title="Source Ledger"
-            badge={`${ledger.length} data points`}
-          />
-          {ledger.length === 0 ? (
-            <div className="px-4 py-10 text-center text-muted-foreground/40 font-mono text-sm">
-              No data points recorded for this entity.
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[600px] border-collapse">
-                <thead>
-                  <tr className="border-b border-border/50 bg-card/30">
-                    {["Category", "Data Point", "Value", "Source Registry", "Status"].map((h) => (
-                      <th
-                        key={h}
-                        className="px-4 py-2 text-left text-[9px] font-mono font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap"
-                      >
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/30">
-                  {ledger.map((entry) => (
-                    <tr key={entry.id} className="hover:bg-muted/10 transition-colors">
-                      <td className="px-4 py-2.5 whitespace-nowrap">
-                        <CategoryBadge category={entry.category} />
-                      </td>
-                      <td className="px-4 py-2.5 text-xs font-mono text-muted-foreground whitespace-nowrap">
-                        {entry.dataPoint}
-                      </td>
-                      <td className="px-4 py-2.5 text-xs font-mono text-foreground max-w-xs">
-                        <span className="truncate block" title={entry.value}>{entry.value}</span>
-                      </td>
-                      <td className="px-4 py-2.5 text-[10px] font-mono text-muted-foreground/70 whitespace-nowrap max-w-[200px]">
-                        <span className="truncate block" title={entry.source}>{entry.source}</span>
-                      </td>
-                      <td className="px-4 py-2.5 whitespace-nowrap">
-                        {entry.verified ? (
-                          <span className="flex items-center gap-1 text-[10px] font-mono text-primary">
-                            <CheckCircle2 className="w-3 h-3 flex-shrink-0" /> Registry
-                          </span>
-                        ) : (
-                          <span className="text-[10px] font-mono text-muted-foreground/40">Unverified</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
-        {/* Row 2.5: Connections */}
-        <div className="border border-border rounded-lg bg-card/30">
-          <SectionHeader
-            icon={<Link2 className="w-3.5 h-3.5" />}
-            title="Connections"
-            badge={`${(relationships as any[]).length} linked`}
-            action={
-              <button
-                onClick={() => setAddRelOpen(true)}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-border text-muted-foreground hover:text-primary hover:border-primary/40 font-mono text-[10px] uppercase tracking-wider transition-colors"
-              >
-                <Plus className="w-3 h-3" /> Add
-              </button>
-            }
-          />
-          {(relationships as any[]).length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 gap-2 text-muted-foreground/40">
-              <Network className="w-8 h-8 opacity-20" />
-              <p className="text-xs font-mono">No connections yet</p>
-              <p className="text-[10px] font-mono text-center max-w-xs leading-relaxed">
-                Click "Add" to link this entity to another, or run Auto-detect from Data Sources to surface co-ownership signals.
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="border-b border-border/50 bg-card/30">
-                    {["Target", "Type", "Relationship", "Strength", ""].map((h) => (
-                      <th key={h} className="px-4 py-2 text-left text-[9px] font-mono font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/30">
-                  {(relationships as any[]).map((rel: any) => (
-                    <tr key={rel.id} className="hover:bg-muted/10 transition-colors group">
-                      <td className="px-4 py-2.5">
-                        {rel.targetType === "Entity" ? (
-                          <Link href={`/profile/${rel.targetId}`} className="text-xs font-mono text-primary hover:underline">
-                            {rel.targetName ?? `#${rel.targetId}`}
-                          </Link>
-                        ) : (
-                          <span className="text-xs font-mono text-foreground/70">{rel.targetName ?? `Asset #${rel.targetId}`}</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-muted text-muted-foreground uppercase">
-                          {rel.targetType}
-                        </span>
-                      </td>
-                      <td className="px-4 py-2.5 text-xs font-mono text-foreground/80">
-                        {(rel.relationshipType as string).replace(/_/g, " ")}
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <div className="flex items-center gap-2">
-                          <div className="h-1.5 w-16 rounded-full bg-muted/30 overflow-hidden">
-                            <div className="h-full rounded-full bg-primary/60" style={{ width: `${(rel.strength ?? 0.5) * 100}%` }} />
-                          </div>
-                          <span className="text-[10px] font-mono text-muted-foreground">{((rel.strength ?? 0.5) * 100).toFixed(0)}%</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-2.5 text-right">
-                        <button
-                          onClick={() => handleDeleteRelationship(rel.id)}
-                          disabled={deletingRelId === rel.id}
-                          className="opacity-0 group-hover:opacity-100 p-1 rounded text-muted-foreground hover:text-red-400 transition-all disabled:opacity-50"
-                          title="Remove relationship"
-                        >
-                          {deletingRelId === rel.id
-                            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            : <Trash2 className="w-3.5 h-3.5" />}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
-        {/* Row 3: Outreach Strategy Panel */}
-        <div className="border border-border rounded-lg bg-card/30">
-          <SectionHeader
-            icon={<Route className="w-3.5 h-3.5" />}
-            title="Outreach Strategy"
-            badge={(sessions as any[]).length > 0 ? `${(sessions as any[]).length} session${(sessions as any[]).length !== 1 ? "s" : ""}` : undefined}
-            action={
-              <button
-                onClick={handleRunResearch}
-                disabled={runResearch.isPending}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-primary/10 border border-primary/30 text-primary font-mono text-[10px] uppercase tracking-wider hover:bg-primary/20 transition-colors disabled:opacity-50"
-              >
-                {runResearch.isPending
-                  ? <Loader2 className="w-3 h-3 animate-spin" />
-                  : <Play className="w-3 h-3" />}
-                {runResearch.isPending ? "Computing…" : "Run Research"}
-              </button>
-            }
-          />
-
-          {/* No sessions */}
-          {(sessions as any[]).length === 0 && !runResearch.isPending && (
-            <div className="flex flex-col items-center justify-center py-12 gap-3 text-muted-foreground/40">
-              <TargetIcon className="w-10 h-10 opacity-20" />
-              <p className="text-sm font-mono">No research sessions yet</p>
-              <p className="text-[11px] font-mono text-center max-w-sm leading-relaxed">
-                Run Hybrid Research to compute the optimal approach path, gatekeeper mapping,
-                and personalized outreach sequence for this entity.
-              </p>
-            </div>
-          )}
-
-          {/* Computing state */}
-          {runResearch.isPending && (
-            <div className="flex items-center justify-center py-12 gap-3 text-primary/60">
-              <Loader2 className="w-5 h-5 animate-spin" />
-              <span className="text-sm font-mono">Running Hybrid Research…</span>
-            </div>
-          )}
-
-          {/* Sessions present */}
-          {!runResearch.isPending && (sessions as any[]).length > 0 && (
-            <div className="p-4 md:p-6 space-y-6">
-
-              {/* Session selector */}
-              {(sessions as any[]).length > 1 && (
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Session:</span>
-                  {(sessions as any[]).slice(0, 6).map((s: any, i: number) => (
-                    <button
-                      key={s.id}
-                      onClick={() => { setSelectedIdx(i); setPitchExpanded(false); }}
-                      className={cn(
-                        "px-2.5 py-1 rounded border font-mono text-[10px] uppercase transition-colors",
-                        selectedIdx === i
-                          ? "border-primary/40 bg-primary/10 text-primary"
-                          : "border-border text-muted-foreground hover:text-foreground",
-                      )}
-                    >
-                      #{s.id} · {new Date(s.createdAt).toLocaleDateString()}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {selectedSession && (
-                <div className="space-y-6">
-
-                  {/* Meta row */}
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <span className={cn(
-                      "text-[10px] font-mono font-bold px-2.5 py-1 rounded border uppercase",
-                      CRM_COLORS[selectedSession.crmStatus] ?? "text-muted-foreground border-border",
-                    )}>
-                      {selectedSession.crmStatus}
-                    </span>
-                    {selectedSession.pathScore != null && (
-                      <span className="text-[10px] font-mono text-muted-foreground">
-                        Path score: <span className="text-foreground font-bold">{(selectedSession.pathScore * 100).toFixed(0)}%</span>
-                      </span>
-                    )}
-                    {selectedSession.bayesianScoreAtRuntime != null && (
-                      <span className="text-[10px] font-mono text-muted-foreground">
-                        Bayesian: <span className="text-foreground font-bold">{(selectedSession.bayesianScoreAtRuntime * 100).toFixed(0)}</span>
-                      </span>
-                    )}
-                    <span className="text-[10px] font-mono text-muted-foreground">
-                      {new Date(selectedSession.createdAt).toLocaleString()}
-                    </span>
-                  </div>
-
-                  {/* Winning path chain */}
-                  {winningPath.length > 0 && (
-                    <div>
-                      <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-2">
-                        <Route className="w-3 h-3" /> Winning Path · {winningPath.length} Nodes
-                      </div>
-                      <div className="flex items-start gap-0 flex-wrap gap-y-2 overflow-x-auto pb-1">
-                        {winningPath.map((step, i) => (
-                          <div key={step.vertexId + i} className="flex items-center gap-0 flex-shrink-0">
-                            <div className={cn(
-                              "flex flex-col gap-0.5 px-3 py-2 rounded border font-mono min-w-[100px] max-w-[180px]",
-                              roleStyle(step.role),
-                            )}>
-                              <div className="flex items-center gap-1">
-                                {roleIcon(step.role)}
-                                <span className="text-[9px] uppercase tracking-wider opacity-60 font-bold">{step.role}</span>
-                              </div>
-                              <span className="font-semibold text-[11px] leading-tight">{step.label}</span>
-                              {step.contactMethod && (
-                                <span className="text-[9px] opacity-50 leading-tight">{step.contactMethod}</span>
-                              )}
-                              {step.actionRequired && (
-                                <span className="text-[9px] opacity-70 leading-tight italic">{step.actionRequired}</span>
-                              )}
-                            </div>
-                            {i < winningPath.length - 1 && (
-                              <ChevronRight className="w-3.5 h-3.5 text-muted-foreground mx-1 flex-shrink-0" />
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* UCT steps table */}
-                  {mctsSteps.length > 0 && (
-                    <div>
-                      <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-2">
-                        {mctsSteps.length} UCT Iterations
-                      </div>
-                      <div className="border border-border/50 rounded overflow-hidden">
-                        <div className="grid grid-cols-4 border-b border-border/50 bg-card/60">
-                          {["Step", "Action", "Registry", "UCT Score"].map((h) => (
-                            <div key={h} className="px-3 py-1.5 text-[9px] font-mono font-bold text-muted-foreground uppercase tracking-widest">
-                              {h}
-                            </div>
-                          ))}
-                        </div>
-                        <div className="max-h-80 overflow-y-auto divide-y divide-border/30">
-                          {mctsSteps.map((step: any, i: number) => (
-                            <div key={i} className="grid grid-cols-4 hover:bg-muted/10">
-                              <div className="px-3 py-2 text-[10px] font-mono text-muted-foreground">{step.step}</div>
-                              <div className="px-3 py-2 text-[10px] font-mono text-foreground">{step.action}</div>
-                              <div className="px-3 py-2 text-[10px] font-mono text-secondary/80">{step.registry}</div>
-                              <div className="px-3 py-2 text-[10px] font-mono text-amber-400">{step.uctScore?.toFixed(3) ?? "—"}</div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Pitch section */}
-                  <div className="border border-border/50 rounded-lg overflow-hidden">
-                    <div className="flex items-center justify-between px-4 py-2.5 bg-card/60 border-b border-border/50">
-                      <div className="flex items-center gap-2">
-                        <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                        <span className="text-[11px] font-mono font-bold text-foreground uppercase tracking-widest">
-                          Outreach Sequence
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {selectedSession.generatedPitch && (
-                          <button
-                            onClick={() => setPitchExpanded(!pitchExpanded)}
-                            className="text-[10px] font-mono text-primary hover:underline"
-                          >
-                            {pitchExpanded ? "Collapse" : "Expand"}
-                          </button>
-                        )}
-                        {!selectedSession.generatedPitch && (
-                          <button
-                            onClick={() => handleGeneratePitch(selectedSession.id)}
-                            disabled={pitchingId === selectedSession.id}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 font-mono text-[10px] uppercase tracking-wider hover:bg-amber-500/20 transition-colors disabled:opacity-50"
-                          >
-                            {pitchingId === selectedSession.id
-                              ? <Loader2 className="w-3 h-3 animate-spin" />
-                              : <Sparkles className="w-3 h-3" />}
-                            Generate Sequence
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    {!selectedSession.generatedPitch && pitchingId !== selectedSession.id && (
-                      <div className="flex items-center justify-center py-8 gap-2 text-muted-foreground/40">
-                        <Sparkles className="w-4 h-4 opacity-20" />
-                        <p className="text-xs font-mono">
-                          Generate a personalized multi-step outreach sequence from this MCTS winning path
-                        </p>
-                      </div>
-                    )}
-
-                    {pitchingId === selectedSession.id && (
-                      <div className="flex items-center justify-center py-8 gap-2 text-amber-400/60">
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <p className="text-xs font-mono">Generating outreach sequence…</p>
-                      </div>
-                    )}
-
-                    {selectedSession.generatedPitch && !pitchExpanded && (
-                      <div className="px-4 py-3 flex items-center gap-2 text-emerald-400">
-                        <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
-                        <span className="text-xs font-mono">
-                          Outreach sequence generated · {pitchData.length || "—"} messages
-                        </span>
-                        <button onClick={() => setPitchExpanded(true)} className="text-xs font-mono text-primary hover:underline ml-1">
-                          View →
-                        </button>
-                      </div>
-                    )}
-
-                    {selectedSession.generatedPitch && pitchExpanded && pitchData.length > 0 && (
-                      <div className="divide-y divide-border/30 max-h-80 overflow-y-auto">
-                        {pitchData.map((msg: any, i: number) => (
-                          <div key={i} className="px-4 py-3.5 space-y-2">
-                            <div className="flex items-center gap-2">
-                              <span className="text-[9px] font-mono font-bold uppercase tracking-widest text-muted-foreground bg-muted/40 px-1.5 py-0.5 rounded">
-                                {msg.channel ?? `Step ${i + 1}`}
-                              </span>
-                              {msg.subject && (
-                                <span className="text-[10px] font-mono text-foreground/80">{msg.subject}</span>
-                              )}
-                            </div>
-                            <p className="text-xs font-mono text-foreground/80 leading-relaxed whitespace-pre-wrap">
-                              {msg.body ?? msg.message ?? JSON.stringify(msg)}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {selectedSession.generatedPitch && pitchExpanded && pitchData.length === 0 && (
-                      <div className="px-4 py-4">
-                        <pre className="text-xs font-mono text-foreground/70 whitespace-pre-wrap leading-relaxed max-h-60 overflow-y-auto">
-                          {selectedSession.generatedPitch}
-                        </pre>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
 
       </div>
 

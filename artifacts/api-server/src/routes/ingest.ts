@@ -1,282 +1,48 @@
 /**
- * Data Ingest Routes
+ * Data Ingest Routes — Thin Aggregator
  *
- * POST /registry-search         — live registry lookup (public, no auth)
- * POST /ingest/western-hnwi    — launch mass Western HNWI ingestion (background job)
- * POST /ingest/faa              — launch real FAA Releasable Aircraft DB ingestion (background job)
- * GET  /ingest/job/:jobId       — poll job status + log tail
- * GET  /ingest/status           — overall ingestion status
- * DELETE /ingest/dedup          — clear Redis dedup set for re-ingest
+ * This file owns the core public + primary ingestion endpoints, then mounts
+ * three focused sub-routers for migrations, enrichment, and pipeline jobs.
  *
- * All data comes exclusively from public registries. Zero synthetic data.
+ * POST /registry-search          — live registry lookup (public, no auth)
+ * POST /ingest/western-hnwi     — SEC EDGAR / CH / BRREG mass ingestion
+ * POST /ingest/faa               — FAA Releasable Aircraft Database
+ * GET  /ingest/job/:jobId        — poll job status + log tail
+ * GET  /ingest/status            — overall ingestion status
+ * POST /ingest/occrp             — OCCRP Aleph enricher
+ * POST /ingest/land-registry     — UK HMLR OCOD property ingestion
+ * POST /ingest/opensky           — OpenSky live flight enricher
+ *
+ * Sub-routers mounted below:
+ *   ingest-migrations  — sync/backfill routes (sync-faa-coordinates, reclassify, etc.)
+ *   ingest-enrichment  — contact enrichment jobs (CH, in-house, web-osint, etc.)
+ *   ingest-pipeline    — pipeline status, deep-web-osint, compute-embeddings, jobs list
  */
 
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, assetsTable, entitiesTable, relationshipsTable } from "@workspace/db";
+import { db, assetsTable, entitiesTable } from "@workspace/db";
 import { searchRegistry } from "../lib/registry-client";
-import { getCache, setCache, contactCacheSet } from "../lib/redis";
-import { sql, eq, and, gte, inArray, desc, count, type SQL } from "drizzle-orm";
-import { classifyEntityType } from "../lib/western-hnwi-ingestion";
+import { getCache, setCache } from "../lib/redis";
+import { sql, eq } from "drizzle-orm";
 import {
   createJob, updateJob, getJob, getJobLog,
   setActiveJob, getActiveJob, clearDedup, getDedupCount,
 } from "../lib/job-queue";
 import { runWesternHnwiIngestion } from "../lib/western-hnwi-ingestion";
-import { runFaaIngestion, US_STATE_CENTROIDS, normalizeFaaName } from "../lib/faa-ingestor";
-import { runOccrpEnrichment } from "../lib/occrp-enricher";
+import { runFaaIngestion } from "../lib/faa-ingestor";
+import { runOccrpEnrichment } from "../lib/registry-enricher";
 import { runLandRegistryIngestion } from "../lib/land-registry-ingestor";
 import { runOpenSkyEnrichment } from "../lib/opensky-ingestor";
-import { runCompaniesHouseEnrichment } from "../lib/companies-house-enricher";
-import { enrichEntityOsint } from "../lib/web-osint-enricher";
-// hunter-enricher removed — replaced by in-house enricher
-import { enrichInHouse } from "../lib/in-house-enricher";
-import { deepWebOsintEnrich } from "../lib/deep-web-osint";
-import { computeContactConfidence } from "../lib/contact-confidence";
 import { logger } from "../lib/logger";
+
+import migrationsRouter from "./ingest-migrations";
+import enrichmentRouter from "./ingest-enrichment";
+import pipelineRouter   from "./ingest-pipeline";
 
 const router: IRouter = Router();
 
-function safeParseJson<T>(str: string | null | undefined, fallback: T): T {
-  try { return str ? JSON.parse(str) as T : fallback; } catch { return fallback; }
-}
-
-// POST /ingest/sync-faa-coordinates — backfill latitude/longitude for FAA
-// aviation assets that were ingested before the state-centroid lookup was added.
-// Uses the jurisdiction field (e.g. "TX, US") to derive state code → centroid.
-router.post("/ingest/sync-faa-coordinates", async (_req: Request, res: Response): Promise<void> => {
-  try {
-    const rows = await db
-      .select({ id: assetsTable.id, jurisdiction: assetsTable.jurisdiction })
-      .from(assetsTable)
-      .where(and(
-        eq(assetsTable.category, "Aviation"),
-        sql`${assetsTable.latitude} IS NULL`,
-      ));
-
-    let updated = 0;
-    // Group by state to minimise round-trips — batch all assets for each state in one UPDATE
-    const byState = new Map<string, number[]>();
-    for (const row of rows) {
-      const stateCode = row.jurisdiction?.split(",")[0]?.trim().toUpperCase() ?? "";
-      if (!US_STATE_CENTROIDS[stateCode]) continue;
-      const arr = byState.get(stateCode) ?? [];
-      arr.push(row.id);
-      byState.set(stateCode, arr);
-    }
-    for (const [stateCode, ids] of byState.entries()) {
-      const c = US_STATE_CENTROIDS[stateCode]!;
-      const CHUNK = 500;
-      for (let i = 0; i < ids.length; i += CHUNK) {
-        await db.update(assetsTable)
-          .set({ latitude: c[0], longitude: c[1] })
-          .where(inArray(assetsTable.id, ids.slice(i, i + CHUNK)));
-      }
-      updated += ids.length;
-    }
-    res.json({ total: rows.length, updated, message: `${updated}/${rows.length} FAA assets now have coordinates.` });
-  } catch (err: any) {
-    res.status(500).json({ error: err?.message ?? "Coordinate sync failed" });
-  }
-});
-
-// POST /ingest/reclassify-entity-types — one-time migration that re-runs the
-// classifyEntityType() logic over all existing entities and sets their type to
-// Corporation or Trust where the name pattern matches, replacing the blanket
-// "HNWI" that was hardcoded before Phase 10.
-router.post("/ingest/reclassify-entity-types", async (_req: Request, res: Response): Promise<void> => {
-  try {
-    // Fetch all entity names + ids (only need these two fields)
-    const rows = await db
-      .select({ id: entitiesTable.id, name: entitiesTable.name })
-      .from(entitiesTable);
-
-    const corps: number[] = [];
-    const trusts: number[] = [];
-
-    for (const row of rows) {
-      const t = classifyEntityType(row.name);
-      if (t === "Corporation") corps.push(row.id);
-      else if (t === "Trust") trusts.push(row.id);
-    }
-
-    // Batch update in chunks of 500 to avoid massive IN clauses
-    const CHUNK = 500;
-    let corpUpdated = 0;
-    let trustUpdated = 0;
-
-    for (let i = 0; i < corps.length; i += CHUNK) {
-      const chunk = corps.slice(i, i + CHUNK);
-      await db.update(entitiesTable)
-        .set({ type: "Corporation", updatedAt: new Date() })
-        .where(inArray(entitiesTable.id, chunk));
-      corpUpdated += chunk.length;
-    }
-    for (let i = 0; i < trusts.length; i += CHUNK) {
-      const chunk = trusts.slice(i, i + CHUNK);
-      await db.update(entitiesTable)
-        .set({ type: "Trust", updatedAt: new Date() })
-        .where(inArray(entitiesTable.id, chunk));
-      trustUpdated += chunk.length;
-    }
-
-    const hnwiCount = rows.length - corpUpdated - trustUpdated;
-    res.json({
-      total: rows.length,
-      corporations: corpUpdated,
-      trusts: trustUpdated,
-      hnwi: hnwiCount,
-      message: `Reclassified ${corpUpdated} → Corporation, ${trustUpdated} → Trust, ${hnwiCount} remain HNWI.`,
-    });
-  } catch (err: any) {
-    res.status(500).json({ error: err?.message ?? "Reclassification failed" });
-  }
-});
-
-// POST /ingest/fix-faa-names — one-time migration: rewrite existing FAA individual
-// entity names from "Last First" → "First Last" order using normalizeFaaName().
-// Safe to call multiple times — skips entities already marked nameMigrated=true.
-router.post("/ingest/fix-faa-names", async (_req: Request, res: Response): Promise<void> => {
-  try {
-    // Fetch all FAA-sourced entities (sourceRegistries contains "FAA")
-    const rows = await db
-      .select({ id: entitiesTable.id, name: entitiesTable.name, metadata: entitiesTable.metadata })
-      .from(entitiesTable)
-      .where(sql`${entitiesTable.sourceRegistries}::text LIKE '%FAA%'`);
-
-    const updates: { id: number; name: string }[] = [];
-
-    for (const row of rows) {
-      const meta = (typeof row.metadata === "string" ? JSON.parse(row.metadata) : row.metadata) as Record<string, unknown> ?? {};
-      // Skip already-migrated records
-      if (meta["nameMigrated"] === true) continue;
-      const typeReg = (meta["typeRegistrant"] as string) ?? "";
-      const newName = normalizeFaaName(row.name, typeReg);
-      if (newName !== row.name) {
-        updates.push({ id: row.id, name: newName });
-      }
-    }
-
-    // Apply updates in chunks of 100
-    const CHUNK = 100;
-    let updated = 0;
-    for (let i = 0; i < updates.length; i += CHUNK) {
-      const chunk = updates.slice(i, i + CHUNK);
-      await Promise.all(chunk.map(u =>
-        db.update(entitiesTable)
-          .set({ name: u.name, metadata: sql`jsonb_set(COALESCE(${entitiesTable.metadata}::jsonb, '{}'::jsonb), '{nameMigrated}', 'true'::jsonb)`, updatedAt: new Date() })
-          .where(eq(entitiesTable.id, u.id))
-      ));
-      updated += chunk.length;
-    }
-
-    // Mark all skipped (already correct) records as migrated too
-    await db.execute(
-      sql`UPDATE entities SET metadata = jsonb_set(COALESCE(metadata::jsonb, '{}'::jsonb), '{nameMigrated}', 'true'::jsonb) WHERE metadata::text LIKE '%FAA%' AND (metadata::jsonb->>'nameMigrated') IS NULL`
-    );
-
-    res.json({
-      total: rows.length,
-      renamed: updated,
-      skipped: rows.length - updated,
-      message: `FAA name migration: ${updated} entities renamed to First Last order.`,
-    });
-  } catch (err: any) {
-    res.status(500).json({ error: err?.message ?? "FAA name migration failed" });
-  }
-});
-
-// POST /ingest/fix-edgar-names — normalize ALL-CAPS LAST FIRST names from SEC EDGAR filings.
-// Targets HNWI entities whose stored name is entirely uppercase (SEC EDGAR stores names as
-// "LASTNAME FIRSTNAME" in filings). Converts to "First [Middle] Last" order + title case.
-// Safe to call multiple times — skips entities already marked edgarNameMigrated=true.
-router.post("/ingest/fix-edgar-names", async (_req: Request, res: Response): Promise<void> => {
-  try {
-    // Fetch all HNWI/Gatekeeper entities — only these are individuals
-    const rows = await db
-      .select({ id: entitiesTable.id, name: entitiesTable.name, metadata: entitiesTable.metadata })
-      .from(entitiesTable)
-      .where(sql`${entitiesTable.type} IN ('HNWI', 'Gatekeeper')`);
-
-    const updates: { id: number; name: string }[] = [];
-
-    for (const row of rows) {
-      const meta = (typeof row.metadata === "string" ? JSON.parse(row.metadata) : row.metadata ?? {}) as Record<string, unknown>;
-      if (meta["edgarNameMigrated"] === true) continue;
-
-      const name = row.name.trim();
-      // Only normalize ALL-CAPS names (SEC EDGAR LAST FIRST format)
-      // Allow single lowercase letters (initials like "D" or "J") to still qualify
-      const upperRatio = (name.match(/[A-Z]/g) ?? []).length / (name.replace(/[^a-zA-Z]/g, "").length || 1);
-      if (upperRatio < 0.85) continue;  // already title-cased — skip
-      if (!name.includes(" ")) continue; // single word — skip
-
-      // Strip "ET AL" suffix before normalizing
-      const stripped = name.replace(/\s+ET\s+AL\.?\s*$/i, "").trim();
-
-      // Apply title case
-      const titled = stripped.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
-
-      // Reverse LAST FIRST → FIRST LAST
-      const spaceIdx = titled.indexOf(" ");
-      if (spaceIdx === -1) continue;
-      const lastName = titled.slice(0, spaceIdx);
-      const rest = titled.slice(spaceIdx + 1);
-      const normalized = `${rest} ${lastName}`;
-
-      if (normalized !== row.name) {
-        updates.push({ id: row.id, name: normalized });
-      }
-    }
-
-    const CHUNK = 100;
-    let updated = 0;
-    for (let i = 0; i < updates.length; i += CHUNK) {
-      const chunk = updates.slice(i, i + CHUNK);
-      await Promise.all(chunk.map(u =>
-        db.update(entitiesTable)
-          .set({
-            name: u.name,
-            metadata: sql`jsonb_set(COALESCE(${entitiesTable.metadata}::jsonb, '{}'::jsonb), '{edgarNameMigrated}', 'true'::jsonb)`,
-            updatedAt: new Date(),
-          })
-          .where(eq(entitiesTable.id, u.id))
-      ));
-      updated += chunk.length;
-    }
-
-    res.json({
-      total: rows.length,
-      renamed: updated,
-      skipped: rows.length - updated,
-      message: `EDGAR name migration: ${updated} entities normalized to First Last order.`,
-    });
-  } catch (err: any) {
-    res.status(500).json({ error: err?.message ?? "EDGAR name migration failed" });
-  }
-});
-
-// POST /ingest/sync-hot-flags — batch-set isHot=true for all entities with
-// bayesianScore >= 0.70 whose flag was never propagated after ingestion.
-router.post("/ingest/sync-hot-flags", async (_req: Request, res: Response): Promise<void> => {
-  try {
-    const result = await db
-      .update(entitiesTable)
-      .set({ isHot: true, updatedAt: new Date() })
-      .where(and(gte(entitiesTable.bayesianScore, 0.70), eq(entitiesTable.isHot, false)))
-      .returning({ id: entitiesTable.id });
-    res.json({
-      updated: result.length,
-      message: `${result.length} entit${result.length === 1 ? "y" : "ies"} flagged as hot lead${result.length === 1 ? "" : "s"}.`,
-    });
-  } catch (err: any) {
-    res.status(500).json({ error: err?.message ?? "Sync failed" });
-  }
-});
-
 // ── Public: Live registry search ──────────────────────────────────────────────
-// Accepts either:
-//   { query, registry: "gleif" }          — single registry (legacy)
-//   { query, sources: ["gleif","edgar"] } — multiple registries, errors isolated per-source
+// Must be registered BEFORE any auth middleware applied by sub-routers.
 router.post("/registry-search", async (req: Request, res: Response): Promise<void> => {
   const { query, registry, sources, limit = 10 } = req.body as {
     query?: string;
@@ -293,7 +59,6 @@ router.post("/registry-search", async (req: Request, res: Response): Promise<voi
   const validRegistries = ["opencorporates", "companies-house", "sec-edgar", "gleif"] as const;
   type ValidRegistry = typeof validRegistries[number];
 
-  // Normalise: prefer `sources` array; fall back to single `registry`; default to opencorporates
   const requested: ValidRegistry[] = (
     sources?.length ? sources : registry ? [registry] : ["opencorporates"]
   ).filter((s): s is ValidRegistry => (validRegistries as readonly string[]).includes(s));
@@ -306,7 +71,6 @@ router.post("/registry-search", async (req: Request, res: Response): Promise<voi
   const normalizedLimit = Math.min(Number(limit) || 10, 20);
   const q = query.trim();
 
-  // Query each source independently — one failure must NOT kill the rest
   const allResults: unknown[] = [];
   const sourceErrors: Record<string, string> = {};
 
@@ -324,7 +88,6 @@ router.post("/registry-search", async (req: Request, res: Response): Promise<voi
     }
   }));
 
-  // Only fail the whole request if EVERY requested source errored and we got nothing
   if (allResults.length === 0 && Object.keys(sourceErrors).length === requested.length) {
     const firstMsg = Object.values(sourceErrors)[0];
     res.status(500).json({ error: firstMsg, sourceErrors });
@@ -338,7 +101,7 @@ router.post("/registry-search", async (req: Request, res: Response): Promise<voi
   });
 });
 
-// ── POST /ingest/western-hnwi — SEC EDGAR, Companies House, BRREG ─────────────
+// ── POST /ingest/western-hnwi ─────────────────────────────────────────────────
 router.post("/ingest/western-hnwi", async (req, res): Promise<void> => {
   const {
     targetCount = 5_000,
@@ -349,7 +112,6 @@ router.post("/ingest/western-hnwi", async (req, res): Promise<void> => {
 
   const safeTarget = Math.min(Math.max(Number(targetCount) || 5_000, 100), 50_000);
 
-  // Prevent duplicate concurrent jobs (unless force=true to clear stale locks)
   if (!force) {
     const existingJobId = await getActiveJob("western-hnwi");
     if (existingJobId) {
@@ -366,7 +128,6 @@ router.post("/ingest/western-hnwi", async (req, res): Promise<void> => {
   const jobId = await createJob("western-hnwi");
   await setActiveJob("western-hnwi", jobId);
 
-  // Fire-and-forget background job
   (async () => {
     try {
       await updateJob(jobId, { status: "running", total: safeTarget, message: "Ingestion running…" });
@@ -393,7 +154,7 @@ router.post("/ingest/western-hnwi", async (req, res): Promise<void> => {
   });
 });
 
-// ── POST /ingest/faa — FAA Releasable Aircraft Database (real data) ───────────
+// ── POST /ingest/faa ──────────────────────────────────────────────────────────
 router.post("/ingest/faa", async (req, res): Promise<void> => {
   const {
     maxRecords = 30_000,
@@ -404,7 +165,6 @@ router.post("/ingest/faa", async (req, res): Promise<void> => {
 
   const safeMax = Math.min(Math.max(Number(maxRecords) || 30_000, 100), 100_000);
 
-  // Prevent duplicate concurrent jobs (unless force=true to clear stale locks)
   if (!force) {
     const existingJobId = await getActiveJob("faa");
     if (existingJobId) {
@@ -421,7 +181,6 @@ router.post("/ingest/faa", async (req, res): Promise<void> => {
   const jobId = await createJob("faa");
   await setActiveJob("faa", jobId);
 
-  // Fire-and-forget background job
   (async () => {
     try {
       await updateJob(jobId, { status: "running", total: safeMax, message: "Starting FAA ingestion…" });
@@ -449,7 +208,7 @@ router.post("/ingest/faa", async (req, res): Promise<void> => {
   });
 });
 
-// ── GET /ingest/job/:jobId — poll status (no auth, read-only) ────────────────
+// ── GET /ingest/job/:jobId ─────────────────────────────────────────────────────
 router.get("/ingest/job/:jobId", async (req, res): Promise<void> => {
   const { jobId } = req.params as { jobId: string };
   const job = await getJob(jobId);
@@ -461,7 +220,7 @@ router.get("/ingest/job/:jobId", async (req, res): Promise<void> => {
   res.json({ ...job, log: log.slice(0, 20), dedupCount });
 });
 
-// ── GET /ingest/status — overall ingestion status (no auth) ──────────────────
+// ── GET /ingest/status ────────────────────────────────────────────────────────
 router.get("/ingest/status", async (_req, res): Promise<void> => {
   const [dedupCount, entityCount, assetCount, faaCount] = await Promise.all([
     getDedupCount(),
@@ -492,7 +251,7 @@ router.get("/ingest/status", async (_req, res): Promise<void> => {
   });
 });
 
-// ── POST /ingest/occrp — OCCRP Aleph enricher ────────────────────────────────
+// ── POST /ingest/occrp ────────────────────────────────────────────────────────
 router.post("/ingest/occrp", async (req, res): Promise<void> => {
   const { limit = 500 } = req.body as { limit?: number };
   const safeLimit = Math.min(Math.max(Number(limit) || 500, 10), 5_000);
@@ -535,7 +294,7 @@ router.post("/ingest/occrp", async (req, res): Promise<void> => {
   });
 });
 
-// ── POST /ingest/land-registry — UK OCOD Property Data ───────────────────────
+// ── POST /ingest/land-registry ────────────────────────────────────────────────
 router.post("/ingest/land-registry", async (req, res): Promise<void> => {
   const { maxRecords = 50_000, forceRefresh = false, downloadUrl, force = false } = (req.body ?? {}) as {
     maxRecords?: number;
@@ -587,7 +346,7 @@ router.post("/ingest/land-registry", async (req, res): Promise<void> => {
   });
 });
 
-// ── POST /ingest/opensky — OpenSky live flight enricher ───────────────────────
+// ── POST /ingest/opensky ──────────────────────────────────────────────────────
 router.post("/ingest/opensky", async (req, res): Promise<void> => {
   const existingJobId = await getActiveJob("opensky");
   if (existingJobId) {
@@ -628,1134 +387,9 @@ router.post("/ingest/opensky", async (req, res): Promise<void> => {
   });
 });
 
-// ── POST /ingest/companies-house-enrich — contact enrichment ─────────────────
-router.post("/ingest/companies-house-enrich", async (req, res): Promise<void> => {
-  const {
-    entityIds,
-    batchSize = 50,
-    force = false,
-  } = req.body as { entityIds?: number[]; batchSize?: number; force?: boolean };
-
-  if (!force) {
-    const existingJobId = await getActiveJob("companies-house-enrich");
-    if (existingJobId) {
-      const existing = await getJob(existingJobId);
-      if (existing && existing.status === "running") {
-        res.status(409).json({ error: "A Companies House enrichment job is already running.", jobId: existingJobId });
-        return;
-      }
-    }
-  }
-
-  const safeEntityIds = Array.isArray(entityIds) ? entityIds.slice(0, 1_000) : undefined;
-  const safeBatch = Math.min(Math.max(Number(batchSize) || 50, 1), 500);
-
-  const jobId = await createJob("companies-house-enrich");
-  await setActiveJob("companies-house-enrich", jobId);
-
-  (async () => {
-    try {
-      await updateJob(jobId, { status: "running", message: "Starting Companies House contact enrichment…" });
-      const result = await runCompaniesHouseEnrichment({ jobId, entityIds: safeEntityIds, batchSize: safeBatch });
-      await updateJob(jobId, {
-        status: "done",
-        progress: 100,
-        inserted: result.enriched,
-        skipped: result.skipped,
-        errors: result.errors,
-        finishedAt: new Date().toISOString(),
-        message: `Done — ${result.enriched} entities enriched in ${(result.durationMs / 1000).toFixed(1)}s`,
-      });
-    } catch (err: any) {
-      logger.error({ err: err.message }, "Companies House enrichment failed");
-      await updateJob(jobId, { status: "failed", message: err.message ?? "Enrichment failed" });
-    }
-  })();
-
-  res.status(202).json({
-    jobId,
-    message: `Contact enrichment started for ${safeEntityIds ? safeEntityIds.length : "all un-enriched"} entities.`,
-    pollUrl: `/api/ingest/job/${jobId}`,
-    note: process.env.COMPANIES_HOUSE_API_KEY
-      ? "COMPANIES_HOUSE_API_KEY detected — will query CH officer search for addresses."
-      : "COMPANIES_HOUSE_API_KEY not set — will recompute contactConfidence only.",
-  });
-});
-
-// ── POST /ingest/ch-company-officers — fetch CH company officers for Corp entities ──
-router.post("/ingest/ch-company-officers", async (req: Request, res: Response): Promise<void> => {
-  const { batchSize = 100 } = (req.body as { batchSize?: number } | undefined) ?? {};
-  const existingJobId = await getActiveJob("ch-officers");
-  if (existingJobId) {
-    const existing = await getJob(existingJobId);
-    if (existing?.status === "running") {
-      res.status(409).json({ error: "CH officers job already running.", jobId: existingJobId });
-      return;
-    }
-  }
-  const jobId = await createJob("ch-officers");
-  await setActiveJob("ch-officers", jobId);
-  await updateJob(jobId, { status: "running", total: 0, message: "CH company officers enrichment starting…" });
-
-  (async () => {
-    try {
-      const { runCompanyOfficersEnrichment } = await import("../lib/companies-house-enricher");
-      const result = await runCompanyOfficersEnrichment({ jobId, batchSize });
-      await updateJob(jobId, {
-        status: "done", progress: 100, inserted: result.enriched,
-        message: `Done — ${result.enriched} corps enriched with officer data, ${result.skipped} skipped.`,
-      });
-    } catch (err: any) {
-      await updateJob(jobId, { status: "failed", message: err.message ?? "Unknown error" });
-    }
-  })();
-
-  res.status(202).json({ jobId, message: `CH company officers job started.`, pollUrl: `/api/ingest/job/${jobId}` });
-});
-
-// ── POST /ingest/populate-notes — enrich entity notes from metadata ───────────
-router.post("/ingest/populate-notes", async (_req: Request, res: Response): Promise<void> => {
-  // Paginated processing — never load all 35k rows into memory at once.
-  const PAGE = 2000;
-  let offset = 0;
-  let updated = 0;
-  let total = 0;
-
-  while (true) {
-    const rows = await db
-      .select({
-        id: entitiesTable.id,
-        notes: entitiesTable.notes,
-        metadata: entitiesTable.metadata,
-        sourceRegistries: entitiesTable.sourceRegistries,
-        type: entitiesTable.type,
-        nationality: entitiesTable.nationality,
-        knownResidences: entitiesTable.knownResidences,
-      })
-      .from(entitiesTable)
-      .where(sql`${entitiesTable.metadata} IS NOT NULL AND ${entitiesTable.metadata} != '{}'`)
-      .limit(PAGE)
-      .offset(offset);
-
-    if (rows.length === 0) break;
-    total += rows.length;
-    offset += PAGE;
-
-    const updates: Array<{ id: number; notes: string }> = [];
-    for (const row of rows) {
-      let meta: Record<string, any> = {};
-      try { meta = JSON.parse(row.metadata ?? "{}"); } catch {}
-      const sources: string[] = (() => { try { return JSON.parse(row.sourceRegistries ?? "[]"); } catch { return []; } })();
-
-      const parts: string[] = [];
-      if (sources.length > 0) parts.push(`Source: ${sources.join("; ")}.`);
-      if (meta.formType) parts.push(`Filing: ${meta.formType}${meta.fileDate ? ` (${meta.fileDate})` : ""}.`);
-      if (meta.companyName) parts.push(`Company: ${meta.companyName}.`);
-      if (meta.orgnr) parts.push(`Org number: ${meta.orgnr}.`);
-      if (meta.roleDesc) parts.push(`Role: ${meta.roleDesc}.`);
-      if (meta.chOfficers && Array.isArray(meta.chOfficers) && meta.chOfficers.length > 0) {
-        parts.push(`CH directors: ${meta.chOfficers.slice(0, 5).map((o: any) => o.name).join(", ")}.`);
-      }
-      if (row.nationality) parts.push(`Nationality: ${row.nationality}.`);
-      if (row.knownResidences) {
-        const loc = (() => { try { const r = JSON.parse(row.knownResidences!); return Array.isArray(r) ? r[0] : r; } catch { return row.knownResidences; } })();
-        if (loc) parts.push(`Location: ${loc}.`);
-      }
-      if (row.type) parts.push(`Entity type: ${row.type}.`);
-      if (meta.edgarUrl) parts.push(`EDGAR: ${meta.edgarUrl}.`);
-
-      const newNotes = parts.join(" ");
-      if (newNotes && newNotes !== row.notes) {
-        updates.push({ id: row.id, notes: newNotes });
-      }
-    }
-
-    // Batch-update this page
-    for (const u of updates) {
-      await db.update(entitiesTable).set({ notes: u.notes }).where(eq(entitiesTable.id, u.id));
-    }
-    updated += updates.length;
-  }
-
-  res.json({ updated, total, message: `Notes enriched for ${updated} entities.` });
-});
-
-// ── POST /ingest/create-edgar-stock-assets — create StockHolding assets ───────
-// For each Western HNWI from SEC EDGAR that has no assets yet, create a
-// StockHolding asset representing their large-shareholder filing position.
-router.post("/ingest/create-edgar-stock-assets", async (_req: Request, res: Response): Promise<void> => {
-  // Find EDGAR entities without any assets
-  const edgarEntities = await db
-    .select({ id: entitiesTable.id, name: entitiesTable.name, metadata: entitiesTable.metadata, knownResidences: entitiesTable.knownResidences })
-    .from(entitiesTable)
-    .where(sql`${entitiesTable.metadata} LIKE '%sec-edgar%' AND ${entitiesTable.metadata} NOT LIKE '%sec-edgar-def14a%'`);
-
-  // Find which ones already have assets
-  const existingAssetEntityIds = new Set(
-    (await db.select({ ownerEntityId: assetsTable.ownerEntityId }).from(assetsTable).where(sql`${assetsTable.ownerEntityId} IS NOT NULL`))
-      .map((r) => r.ownerEntityId!)
-  );
-
-  const toCreate = edgarEntities.filter((e) => !existingAssetEntityIds.has(e.id));
-
-  let created = 0;
-  const CHUNK = 500;
-  const assetRows: (typeof assetsTable.$inferInsert)[] = [];
-
-  for (const e of toCreate) {
-    let meta: Record<string, any> = {};
-    try { meta = JSON.parse(e.metadata ?? "{}"); } catch {}
-    const formType: string = meta.formType ?? "SC 13G";
-    const fileDate: string = meta.fileDate ?? null;
-    const location: string = meta.bizLocation ?? ((() => { try { const r = JSON.parse(e.knownResidences ?? "null"); return Array.isArray(r) ? r[0] : r; } catch { return null; } })()) ?? "US";
-
-    assetRows.push({
-      category: "StockHolding",
-      identifier: `EDGAR-${formType.replace(/\s/g, "")}-${e.id}`,
-      jurisdiction: "SEC EDGAR",
-      description: `Large-shareholder position per ${formType} filing${fileDate ? ` (${fileDate})` : ""}. Beneficial owner: ${e.name}.`,
-      address: location || null,
-      sourceRegistry: `SEC EDGAR — ${formType}`,
-      ownerEntityId: e.id,
-      lastActivityDate: fileDate || null,
-    });
-  }
-
-  for (let i = 0; i < assetRows.length; i += CHUNK) {
-    await db.insert(assetsTable).values(assetRows.slice(i, i + CHUNK));
-    created += Math.min(CHUNK, assetRows.length - i);
-  }
-
-  res.json({ created, skipped: edgarEntities.length - toCreate.length, total: edgarEntities.length, message: `Created ${created} StockHolding assets for SEC EDGAR entities.` });
-});
-
-// ── POST /ingest/web-osint-enrich — web OSINT contact discovery ───────────────
-// Uses DuckDuckGo, SEC EDGAR full-text search, and OpenCorporates to surface
-// LinkedIn URLs, emails, and phone numbers for entities missing contact data.
-// Runs as a background job; respects a 400ms polite delay between requests.
-router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Promise<void> => {
-  const existing = await getActiveJob("web-osint");
-  if (existing) {
-    res.status(409).json({ error: "A web OSINT enrichment job is already running.", jobId: existing });
-    return;
-  }
-
-  const batchSize  = Math.min(parseInt((req.body as any)?.batchSize ?? "100", 10), 500);
-  const entityType = (req.body as any)?.entityType as string | undefined; // "HNWI" | "Corporation" | undefined
-  const force      = Boolean((req.body as any)?.force);
-
-  // Select entities missing contact data
-  const conditions: any[] = [];
-  if (!force) conditions.push(sql`${entitiesTable.contactConfidence} = 0`);
-  if (entityType) conditions.push(eq(entitiesTable.type, entityType as any));
-
-  const entities = await db
-    .select({
-      id: entitiesTable.id,
-      name: entitiesTable.name,
-      type: entitiesTable.type,
-      nationality: entitiesTable.nationality,
-      sourceRegistries: entitiesTable.sourceRegistries,
-      knownResidences: entitiesTable.knownResidences,
-      metadata: entitiesTable.metadata,
-    })
-    .from(entitiesTable)
-    .where(conditions.length ? and(...conditions) : undefined)
-    .orderBy(sql`${entitiesTable.bayesianScore} desc`)
-    .limit(batchSize);
-
-  if (entities.length === 0) {
-    res.json({ message: "No entities to enrich.", jobId: null });
-    return;
-  }
-
-  const jobId = await createJob("web-osint");
-  await setActiveJob("web-osint", jobId);
-
-  res.status(202).json({
-    jobId,
-    pollUrl: `/api/ingest/job/${jobId}`,
-    total: entities.length,
-    message: `Web OSINT enrichment started for ${entities.length} entities.`,
-  });
-
-  // Background enrichment loop
-  (async () => {
-    let enriched = 0;
-    let skipped  = 0;
-    let errors   = 0;
-
-    for (let i = 0; i < entities.length; i++) {
-      const entity = entities[i];
-      try {
-        await updateJob(jobId, {
-          progress: i,
-          total: entities.length,
-          inserted: enriched,
-          skipped,
-          errors,
-          message: `Enriching ${entity.name}…`,
-        });
-
-        const result = await enrichEntityOsint(entity);
-
-        if (!result.linkedinUrl && !result.email && !result.phone && !result.website) {
-          skipped++;
-          continue;
-        }
-
-        const confidence = computeContactConfidence({
-          email: result.email,
-          phone: result.phone,
-          linkedinUrl: result.linkedinUrl,
-          knownResidences: entity.knownResidences,
-        });
-
-        await db.update(entitiesTable)
-          .set({
-            ...(result.email        ? { email: result.email }               : {}),
-            ...(result.phone        ? { phone: result.phone }               : {}),
-            ...(result.linkedinUrl  ? { linkedinUrl: result.linkedinUrl }   : {}),
-            contactConfidence: confidence,
-            updatedAt: new Date(),
-          })
-          .where(eq(entitiesTable.id, entity.id));
-
-        enriched++;
-        logger.info({ entityId: entity.id, name: entity.name, confidence, sources: result.sources }, "Web OSINT enriched");
-      } catch (err: any) {
-        errors++;
-        logger.warn({ entityId: entity.id, err: err.message }, "Web OSINT enrichment failed");
-      }
-    }
-
-    await updateJob(jobId, {
-      progress: entities.length,
-      total: entities.length,
-      inserted: enriched,
-      skipped,
-      errors,
-      status: "done",
-      message: `Done — ${enriched} entities enriched, ${skipped} no-match, ${errors} errors.`,
-    });
-
-    await setActiveJob("web-osint", "");
-    logger.info({ enriched, skipped, errors }, "Web OSINT enrichment complete");
-  })().catch(err => logger.error({ err: err.message }, "Web OSINT enrichment crashed"));
-});
-
-// ── DELETE /ingest/web-osint-lock — manually clear ghost web-osint lock ───────
-router.delete("/ingest/web-osint-lock", async (_req: Request, res: Response): Promise<void> => {
-  const jobId = await getActiveJob("web-osint");
-  if (!jobId) {
-    res.json({ cleared: false, message: "No active web-osint lock found." });
-    return;
-  }
-  // Mark the stuck job as failed so UI reflects reality
-  await updateJob(jobId, {
-    status: "failed",
-    message: "Process was killed (server restart). Clear the lock and restart.",
-    finishedAt: new Date().toISOString(),
-  } as any);
-  await setActiveJob("web-osint", "");
-  res.json({ cleared: true, jobId, message: "Web-OSINT lock cleared. You can now restart the enrichment." });
-});
-
-// ── POST /ingest/in-house-enrich — in-house OSINT email/LinkedIn enricher ────
-router.post("/ingest/in-house-enrich", async (req: Request, res: Response): Promise<void> => {
-  const existing = await getActiveJob("in-house-enrich");
-  if (existing) {
-    res.status(409).json({ error: "An in-house enrichment job is already running.", jobId: existing });
-    return;
-  }
-
-  const body = req.body ?? {};
-  const batchSize = Math.min(Number(body.batchSize) || 100, 10_000);  // raised cap: auto-triggers send 5000
-  const force = Boolean(body.force);
-  const entityIds: number[] | undefined = Array.isArray(body.entityIds) ? body.entityIds : undefined;
-  // targetMode: "edgar" = only EDGAR/western-ingest entities (high-value, recognizable names)
-  //             "faa"   = only FAA entities (individual aircraft owners)
-  //             "all"   = all HNWI/Gatekeeper/Corp (default — try everything)
-  const targetMode: string = (body.targetMode as string) ?? "all";
-
-  // Select entities: prioritise by Bayesian score so high-value targets are always processed first.
-  // Exclude HMLR/address-named Corp entities (type 'Corp') — they have no contact enrichment surface.
-  const conditions: SQL[] = [
-    sql`${entitiesTable.type} IN ('HNWI', 'Gatekeeper', 'Corporation')`,
-  ];
-  if (!force) conditions.push(sql`${entitiesTable.contactConfidence} < 40`);
-  if (entityIds?.length) conditions.push(inArray(entitiesTable.id, entityIds));
-  // Target mode filters
-  if (targetMode === "edgar") {
-    // EDGAR/western-ingest entities only: have recognizable names suitable for OSINT
-    conditions.push(sql`${entitiesTable.metadata}::text LIKE '%westernIngest%'`);
-  } else if (targetMode === "faa") {
-    conditions.push(sql`${entitiesTable.metadata}::text NOT LIKE '%westernIngest%'`);
-  }
-  // Skip previously attempted enrichment unless forced
-  if (!force) conditions.push(sql`${entitiesTable.metadata}::text NOT LIKE '%enricherVersion%'`);
-
-  const entities = await db
-    .select({
-      id: entitiesTable.id, name: entitiesTable.name, type: entitiesTable.type,
-      nationality: entitiesTable.nationality,
-      sourceRegistries: entitiesTable.sourceRegistries,
-      knownResidences: entitiesTable.knownResidences,
-      metadata: entitiesTable.metadata,
-      notes: entitiesTable.notes,
-      email: entitiesTable.email,
-      phone: entitiesTable.phone,
-      linkedinUrl: entitiesTable.linkedinUrl,
-    })
-    .from(entitiesTable)
-    .where(and(...conditions))
-    .orderBy(desc(entitiesTable.bayesianScore))  // highest-value targets first
-    .limit(batchSize);
-
-  if (!entities.length) {
-    res.json({ message: "No entities need in-house enrichment.", jobId: null });
-    return;
-  }
-
-  const jobId = await createJob("in-house-enrich");
-  await setActiveJob("in-house-enrich", jobId);
-  await updateJob(jobId, { status: "running", total: entities.length, message: "In-house OSINT enrichment starting…" });
-
-  res.json({
-    jobId, total: entities.length,
-    message: `In-house OSINT enrichment started for ${entities.length} entities.`,
-  });
-
-  // Background loop — 5 concurrent workers for ~5× throughput
-  (async () => {
-    let enriched = 0, skipped = 0, errors = 0;
-    const globalSourceHits: Record<string, number> = {};
-    const CONCURRENCY = 5;
-
-    /** Process one entity and persist results — returns "enriched" | "skipped" | "error" */
-    const processEntity = async (entity: typeof entities[number]): Promise<"enriched" | "skipped" | "error"> => {
-      try {
-        const entityMeta = safeParseJson<Record<string, unknown>>(entity.metadata, {});
-        const enrichInput = {
-          ...entity,
-          bizLocation: (entityMeta["bizLocation"] as string | null) ?? null,
-          entityName:  (entityMeta["entityName"] as string | null) ?? null,
-        };
-        const result = await enrichInHouse(enrichInput);
-        const hasSignal = result.email || result.linkedinUrl || result.phone || result.website || result.twitter || result.address;
-        if (!hasSignal) return "skipped";
-
-        // Thread-safe source accumulation
-        for (const [src, hit] of Object.entries(result.sourceHits)) {
-          if (hit) globalSourceHits[src] = (globalSourceHits[src] ?? 0) + 1;
-        }
-
-        const updates: Record<string, unknown> = { updatedAt: new Date() };
-        if (result.email && !entity.email) updates["email"] = result.email;
-        if (result.linkedinUrl && !entity.linkedinUrl) updates["linkedinUrl"] = result.linkedinUrl;
-        if (result.phone && !entity.phone) updates["phone"] = result.phone;
-
-        const confidence = computeContactConfidence({
-          email:           (updates["email"] as string | null) ?? entity.email ?? null,
-          phone:           (updates["phone"] as string | null) ?? entity.phone ?? null,
-          linkedinUrl:     (updates["linkedinUrl"] as string | null) ?? entity.linkedinUrl ?? null,
-          knownResidences: entity.knownResidences,
-        });
-        updates["contactConfidence"] = confidence;
-
-        const meta = safeParseJson<Record<string, unknown>>(entity.metadata, {});
-        if (result.website && !meta["website"]) meta["website"] = result.website;
-        if (result.twitter && !meta["twitter"]) meta["twitter"] = result.twitter;
-        if (result.address && !meta["bizLocation"]) meta["bizLocation"] = result.address;
-        meta["enrichmentSources"] = [
-          ...(Array.isArray(meta["enrichmentSources"]) ? meta["enrichmentSources"] as string[] : []),
-          ...result.sources.filter(s => !(meta["enrichmentSources"] as string[] | undefined)?.includes(s)),
-        ];
-        meta["enrichedAt"]      = new Date().toISOString();
-        meta["emailConfidence"] = result.emailConfidence;
-        meta["phoneConfidence"] = result.phoneConfidence;
-        meta["sourceHits"]      = { ...(meta["sourceHits"] as object ?? {}), ...result.sourceHits };
-        meta["enricherVersion"]  = "v2";
-        meta["needsEnrichment"] = false;  // mark enrichment complete
-        updates["metadata"]     = JSON.stringify(meta);
-        updates["liveSource"]   = true;
-
-        await db.update(entitiesTable)
-          .set(updates as any)
-          .where(eq(entitiesTable.id, entity.id));
-
-        // Mirror to Redis contact cache (slot 2 / REDIS_URL_2) so data survives DB resets.
-        // Keyed by entity-unique stable ID derived from metadata (not registry display name).
-        const stableKey = (() => {
-          if (meta["nNumber"])      return `faa:${meta["nNumber"]}`;
-          if (meta["entityName"])   return `edgar:${String(meta["entityName"]).toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "")}`;
-          if (meta["orgnr"])        return `brreg:${meta["orgnr"]}`;
-          if (meta["companyNumber"]) return `ch:${meta["companyNumber"]}`;
-          return `name:${entity.name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "")}`;
-        })();
-        await contactCacheSet(stableKey, {
-          name:               entity.name,
-          email:              (updates["email"] as string | null | undefined) ?? entity.email ?? undefined,
-          phone:              (updates["phone"] as string | null | undefined) ?? entity.phone ?? undefined,
-          linkedinUrl:        (updates["linkedinUrl"] as string | null | undefined) ?? entity.linkedinUrl ?? undefined,
-          website:            result.website ?? undefined,
-          twitter:            result.twitter ?? undefined,
-          contactConfidence:  confidence,
-          enrichmentSources:  meta["enrichmentSources"] as string[] ?? result.sources,
-          enrichedAt:         new Date().toISOString(),
-          emailConfidence:    result.emailConfidence ?? undefined,
-          phoneConfidence:    result.phoneConfidence ?? undefined,
-          sourceHits:         result.sourceHits as Record<string, number> ?? undefined,
-        });
-
-        logger.info(
-          { entityId: entity.id, name: entity.name, confidence, sources: result.sources },
-          "In-house OSINT v2 enriched",
-        );
-        return "enriched";
-      } catch (err: any) {
-        logger.warn({ entityId: entity.id, err: err.message }, "In-house enrichment failed");
-        return "error";
-      }
-    };
-
-    // Fan out across CONCURRENCY workers, processing entities in parallel batches
-    for (let i = 0; i < entities.length; i += CONCURRENCY) {
-      const batch = entities.slice(i, i + CONCURRENCY);
-      const outcomes = await Promise.allSettled(batch.map(e => processEntity(e)));
-      for (const o of outcomes) {
-        const outcome = o.status === "fulfilled" ? o.value : "error";
-        if (outcome === "enriched")  enriched++;
-        else if (outcome === "skipped") skipped++;
-        else errors++;
-      }
-      // Progress update after every batch
-      await updateJob(jobId, {
-        status: "running",
-        progress: enriched + skipped + errors,
-        total: entities.length,
-        inserted: enriched,
-        message: `In-house OSINT v2: ${enriched} enriched, ${skipped} no-match, ${errors} errors | Sources: ${JSON.stringify(globalSourceHits)}`,
-      });
-    }
-
-    logger.info({ globalSourceHits }, "In-house OSINT v2 source hit breakdown");
-
-    await updateJob(jobId, {
-      status: "done",
-      progress: entities.length,
-      total: entities.length,
-      inserted: enriched,
-      message: `Done — ${enriched} entities enriched, ${skipped} no-match, ${errors} errors.`,
-    });
-    await setActiveJob("in-house-enrich", "");
-    logger.info({ enriched, skipped, errors }, "In-house OSINT enrichment complete");
-  })().catch(async err => {
-    logger.error({ err: err.message }, "In-house enrichment crashed");
-    await updateJob(jobId, { status: "failed", message: err.message ?? "Crashed" });
-    await setActiveJob("in-house-enrich", "");
-  });
-});
-
-// ── DELETE /ingest/in-house-enrich-lock — clear ghost lock ───────────────────
-router.delete("/ingest/in-house-enrich-lock", async (_req: Request, res: Response): Promise<void> => {
-  const jobId = await getActiveJob("in-house-enrich");
-  if (!jobId) { res.json({ cleared: false, message: "No active lock." }); return; }
-  await updateJob(jobId, { status: "failed", message: "Lock cleared manually.", finishedAt: new Date().toISOString() } as any);
-  await setActiveJob("in-house-enrich", "");
-  res.json({ cleared: true, jobId, message: "In-house-enrich lock cleared." });
-});
-
-// ── POST /ingest/recompute-contact-confidence — recompute contactConfidence for all entities ──
-// Entities ingested before the confidence scorer existed have contactConfidence = 0 even when
-// they have addresses, emails, or phones. This endpoint fixes all stale rows.
-router.post("/ingest/recompute-contact-confidence", async (_req: Request, res: Response): Promise<void> => {
-  const entities = await db
-    .select({
-      id: entitiesTable.id,
-      email: entitiesTable.email,
-      phone: entitiesTable.phone,
-      linkedinUrl: entitiesTable.linkedinUrl,
-      knownResidences: entitiesTable.knownResidences,
-      contactConfidence: entitiesTable.contactConfidence,
-    })
-    .from(entitiesTable);
-
-  let updated = 0;
-  let skipped = 0;
-  const BATCH = 1000;
-
-  for (let i = 0; i < entities.length; i += BATCH) {
-    const batch = entities.slice(i, i + BATCH);
-    for (const e of batch) {
-      const confidence = computeContactConfidence({
-        email: e.email,
-        phone: e.phone,
-        linkedinUrl: e.linkedinUrl,
-        knownResidences: e.knownResidences,
-      });
-      if (confidence === (e.contactConfidence ?? 0)) { skipped++; continue; }
-      await db.update(entitiesTable)
-        .set({ contactConfidence: confidence })
-        .where(eq(entitiesTable.id, e.id));
-      updated++;
-    }
-  }
-
-  res.json({ updated, skipped, total: entities.length, message: `Contact confidence recomputed: ${updated} updated, ${skipped} already correct.` });
-});
-
-// ── POST /ingest/sync-livesource-markers — backfill liveSource:true for FAA/HMLR entities ──
-// The data_integrity_auditor flags entities from live registries that are missing the
-// liveSource provenance marker. This one-time endpoint fixes that across all ingested rows.
-router.post("/ingest/sync-livesource-markers", async (_req: Request, res: Response): Promise<void> => {
-  const LIVE_REGISTRY_PATTERNS = [
-    "faa", "land registry", "hmlr", "sec edgar", "companies house", "brreg"
-  ];
-
-  const entities = await db
-    .select({ id: entitiesTable.id, sourceRegistries: entitiesTable.sourceRegistries, metadata: entitiesTable.metadata })
-    .from(entitiesTable);
-
-  let updated = 0;
-  let skipped = 0;
-  const BATCH = 500;
-
-  for (let i = 0; i < entities.length; i += BATCH) {
-    const batch = entities.slice(i, i + BATCH);
-    for (const e of batch) {
-      const sources: string[] = (() => { try { return JSON.parse(e.sourceRegistries ?? "[]"); } catch { return []; } })();
-      const meta: Record<string, unknown> = (() => { try { return JSON.parse(e.metadata ?? "{}"); } catch { return {}; } })();
-
-      const isLive = sources.some(s => LIVE_REGISTRY_PATTERNS.some(p => s.toLowerCase().includes(p)))
-        || !!meta.source || !!meta.nNumber || !!meta.formType || !!meta.orgnr || !!meta.titleNumber;
-
-      if (!isLive || meta.liveSource === true) { skipped++; continue; }
-
-      meta.liveSource = true;
-      await db.update(entitiesTable)
-        .set({ metadata: JSON.stringify(meta) })
-        .where(eq(entitiesTable.id, e.id));
-      updated++;
-    }
-  }
-
-  res.json({ updated, skipped, total: entities.length, message: `liveSource marker synced: ${updated} updated, ${skipped} skipped.` });
-});
-
-// ── POST /ingest/backfill-net-worth — set estimatedNetWorth = 3× asset value for entities ─
-// The data_analyst persona flags entities where estimatedNetWorth is null but total asset
-// value exceeds $1M. This endpoint closes that gap by applying a conservative 3× floor.
-// Corp/Trust/HNWI all qualify. Background job — large datasets can take ~30s.
-router.post("/ingest/backfill-net-worth", async (_req: Request, res: Response): Promise<void> => {
-  try {
-    // Find entities with null estimatedNetWorth that have assets with estimatedValue > 0
-    const candidates = await db.execute(sql`
-      SELECT e.id, SUM(a.estimated_value) AS total_value
-      FROM entities e
-      JOIN assets a ON a.owner_entity_id = e.id
-      WHERE e.estimated_net_worth IS NULL
-        AND a.estimated_value IS NOT NULL
-        AND a.estimated_value > 0
-      GROUP BY e.id
-      HAVING SUM(a.estimated_value) >= 1000000
-    `);
-
-    const rows = candidates.rows as { id: number; total_value: string }[];
-    if (rows.length === 0) {
-      res.json({ updated: 0, message: "No entities need net worth backfill." });
-      return;
-    }
-
-    let updated = 0;
-    const BATCH = 500;
-    for (let i = 0; i < rows.length; i += BATCH) {
-      const slice = rows.slice(i, i + BATCH);
-      for (const row of slice) {
-        const totalValue = Number(row.total_value);
-        const estimatedNetWorth = Math.round(totalValue * 3); // 3× conservative floor
-        await db.update(entitiesTable)
-          .set({ estimatedNetWorth, updatedAt: new Date() })
-          .where(eq(entitiesTable.id, Number(row.id)));
-        updated++;
-      }
-    }
-
-    res.json({
-      updated,
-      total: rows.length,
-      message: `Net worth backfilled: ${updated} entities updated (3× registered asset value as floor).`,
-    });
-  } catch (err: any) {
-    res.status(500).json({ error: err?.message ?? "Backfill failed" });
-  }
-});
-
-// ── POST /ingest/backfill-edgar-net-worth — B3: EDGAR net worth from SEC filings ─
-// For entities with metadata.sharesOwned and metadata.ticker, fetch current price
-// from Yahoo Finance (no API key) and set estimatedNetWorth = shares × price.
-router.post("/ingest/backfill-edgar-net-worth", async (_req: Request, res: Response): Promise<void> => {
-  try {
-    // Find EDGAR entities with sharesOwned but no estimatedNetWorth
-    const candidates = await db
-      .select({ id: entitiesTable.id, name: entitiesTable.name, metadata: entitiesTable.metadata })
-      .from(entitiesTable)
-      .where(sql`${entitiesTable.estimatedNetWorth} IS NULL
-        AND ${entitiesTable.metadata}::text LIKE '%sec-edgar%'
-        AND ${entitiesTable.metadata}::text LIKE '%sharesOwned%'
-        AND ${entitiesTable.metadata}::text LIKE '%ticker%'`);
-
-    if (candidates.length === 0) {
-      res.json({ updated: 0, errors: 0, message: "No EDGAR entities with sharesOwned+ticker found." });
-      return;
-    }
-
-    let updated = 0;
-    let errors = 0;
-    const priceCache = new Map<string, number>();
-
-    for (const entity of candidates) {
-      try {
-        let meta: Record<string, any> = {};
-        try { meta = JSON.parse(entity.metadata ?? "{}"); } catch {}
-        const sharesOwned = Number(meta.sharesOwned ?? 0);
-        const ticker = (meta.ticker as string | undefined)?.trim().toUpperCase();
-        if (!sharesOwned || !ticker) continue;
-
-        // Fetch price from Yahoo Finance (free, no key)
-        let price = priceCache.get(ticker);
-        if (!price) {
-          try {
-            const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?range=1d&interval=1d`;
-            const r = await fetch(url, { signal: AbortSignal.timeout(8_000), headers: { "User-Agent": "Mozilla/5.0" } });
-            if (r.ok) {
-              const d = await r.json() as any;
-              const closes: number[] = d?.chart?.result?.[0]?.indicators?.quote?.[0]?.close ?? [];
-              const lastClose = closes.filter(Boolean).at(-1);
-              if (lastClose && lastClose > 0) { price = lastClose; priceCache.set(ticker, price); }
-            }
-          } catch { /* ignore — skip this ticker */ }
-        }
-        if (!price) continue;
-
-        const estimatedNetWorth = Math.round(sharesOwned * price);
-        if (estimatedNetWorth <= 0) continue;
-        await db.update(entitiesTable).set({ estimatedNetWorth, updatedAt: new Date() }).where(eq(entitiesTable.id, entity.id));
-        updated++;
-      } catch { errors++; }
-    }
-
-    res.json({
-      updated, errors, candidates: candidates.length,
-      message: `EDGAR net worth backfill: ${updated}/${candidates.length} entities updated (${errors} errors). Uses Yahoo Finance closing price × sharesOwned.`,
-    });
-  } catch (err: any) {
-    res.status(500).json({ error: err?.message ?? "EDGAR net worth backfill failed" });
-  }
-});
-
-// ── DELETE /ingest/dedup — clear dedup set ────────────────────────────────────
-router.delete("/ingest/dedup", async (_req, res): Promise<void> => {
-  await clearDedup();
-  res.json({ status: "ok", message: "Dedup set cleared. Next ingestion will re-insert all records." });
-});
-
-// ── POST /ingest/hunter-enrich — DEPRECATED (replaced by in-house enricher) ──
-// Uses HUNTER_API_KEY and/or APOLLO_API_KEY to find verified emails and LinkedIn
-// URLs. Far higher precision than free web OSINT (~40pt contact confidence gain).
-// Accepts: { batchSize?: number, entityType?: "HNWI"|"Gatekeeper", force?: boolean }
-router.post("/ingest/hunter-enrich", async (_req: Request, res: Response): Promise<void> => {
-  res.status(410).json({
-    error: "Hunter.io/Apollo enrichment removed. Use POST /api/ingest/in-house-enrich instead — free, no API keys required.",
-    replacement: "/api/ingest/in-house-enrich",
-  });
-});
-
-// ── DELETE /ingest/hunter-enrich-lock — clear ghost Hunter/Apollo lock ────────
-router.delete("/ingest/hunter-enrich-lock", async (_req: Request, res: Response): Promise<void> => {
-  const jobId = await getActiveJob("hunter-enrich");
-  if (!jobId) {
-    res.json({ cleared: false, message: "No active hunter-enrich lock." });
-    return;
-  }
-  await updateJob(jobId, { status: "failed", message: "Process killed (server restart).", finishedAt: new Date().toISOString() } as any);
-  await setActiveJob("hunter-enrich", "");
-  res.json({ cleared: true, jobId });
-});
-
-// ── GET /api/pipeline/status — real-time counts for the pipeline status panel ──
-// Returns counts of entities in each "problem" state so the UI can show
-// how many entities still need each pipeline step.
-router.get("/pipeline/status", async (_req: Request, res: Response): Promise<void> => {
-  try {
-    const [
-      totalRow,
-      hotRow,
-      coldMctsRow,
-      needsEnrichmentRow,
-      zeroContactRow,
-      sparseNotesRow,
-      zeroRelRow,
-    ] = await Promise.all([
-      db.select({ count: count() }).from(entitiesTable),
-      db.select({ count: count() }).from(entitiesTable).where(eq(entitiesTable.isHot, true)),
-      // Hot entities with no research sessions — use NOT IN on pre-aggregated set (fast)
-      db.execute(sql`
-        SELECT COUNT(*)::int AS count FROM entities e
-        WHERE e.is_hot = true
-        AND e.id NOT IN (SELECT DISTINCT target_entity_id FROM research_sessions)
-      `),
-      // Entities where metadata contains needsEnrichment:true
-      db.select({ count: count() }).from(entitiesTable)
-        .where(sql`${entitiesTable.metadata}::text LIKE '%needsEnrichment%:true%'`),
-      // Entities with zero contact confidence
-      db.select({ count: count() }).from(entitiesTable)
-        .where(sql`${entitiesTable.contactConfidence} = 0 AND ${entitiesTable.type} IN ('HNWI', 'Gatekeeper')`),
-      // Entities with sparse notes (< 50 chars)
-      db.select({ count: count() }).from(entitiesTable)
-        .where(sql`${entitiesTable.notes} IS NULL OR length(${entitiesTable.notes}) < 50`),
-      // Entities with zero relationship edges — aggregate relationships first, then subtract (fast)
-      db.execute(sql`
-        SELECT (
-          (SELECT COUNT(*) FROM entities) -
-          (SELECT COUNT(DISTINCT e_id) FROM (
-            SELECT source_entity_id AS e_id FROM relationships
-            UNION
-            SELECT target_id AS e_id FROM relationships WHERE target_type = 'Entity'
-          ) t)
-        )::int AS count
-      `),
-    ]);
-
-    const coldMcts   = Number((coldMctsRow.rows[0] as any)?.count   ?? 0);
-    const zeroRel    = Number((zeroRelRow.rows[0] as any)?.count     ?? 0);
-
-    res.json({
-      totalEntities:     Number(totalRow[0]?.count            ?? 0),
-      hotLeads:          Number(hotRow[0]?.count              ?? 0),
-      coldMcts,
-      needsEnrichment:   Number(needsEnrichmentRow[0]?.count  ?? 0),
-      zeroContact:       Number(zeroContactRow[0]?.count      ?? 0),
-      sparseNotes:       Number(sparseNotesRow[0]?.count      ?? 0),
-      zeroRelationships: zeroRel,
-    });
-  } catch (err: any) {
-    res.status(500).json({ error: err?.message ?? "Failed to fetch pipeline status" });
-  }
-});
-
-// ── POST /ingest/deep-web-osint — multi-engine multi-query web OSINT ──────────
-// Additive layer on top of in-house enricher. Targets entities that structured
-// databases missed (FAA private owners, HMLR buyers). Uses DDG HTML + Bing HTML
-// with 12 rotating User-Agents and 4-7 context-aware query templates per entity.
-router.post("/ingest/deep-web-osint", async (req: Request, res: Response): Promise<void> => {
-  const existing = await getActiveJob("deep-web-osint");
-  if (existing) {
-    res.status(409).json({ error: "A deep web OSINT job is already running.", jobId: existing });
-    return;
-  }
-
-  const body = req.body ?? {};
-  const batchSize = Math.min(Number(body.batchSize) || 200, 5_000);
-  const force     = Boolean(body.force);
-  // hotOnly: default true — prioritise hot leads (bayesianScore ≥ 0.5) that still have no contacts
-  const hotOnly   = body.hotOnly !== false;
-
-  const conditions: SQL[] = [
-    sql`${entitiesTable.type} IN ('HNWI', 'Gatekeeper', 'Corporation')`,
-  ];
-  if (!force)   conditions.push(sql`${entitiesTable.contactConfidence} = 0`);
-  if (hotOnly)  conditions.push(sql`${entitiesTable.bayesianScore} >= 0.5`);
-  // Only run on entities the in-house enricher already attempted (has enricherVersion) OR never tried
-  // This avoids racing with an in-house enricher run that is still in progress
-
-  const entities = await db
-    .select({
-      id: entitiesTable.id, name: entitiesTable.name, type: entitiesTable.type,
-      sourceRegistries: entitiesTable.sourceRegistries,
-      knownResidences:  entitiesTable.knownResidences,
-      metadata:         entitiesTable.metadata,
-      bayesianScore:    entitiesTable.bayesianScore,
-      email:            entitiesTable.email,
-      phone:            entitiesTable.phone,
-      linkedinUrl:      entitiesTable.linkedinUrl,
-    })
-    .from(entitiesTable)
-    .where(and(...conditions))
-    .orderBy(desc(entitiesTable.bayesianScore))
-    .limit(batchSize);
-
-  if (!entities.length) {
-    res.json({ message: "No entities to deep-web-enrich.", jobId: null });
-    return;
-  }
-
-  const jobId = await createJob("deep-web-osint");
-  await setActiveJob("deep-web-osint", jobId);
-  await updateJob(jobId, { status: "running", total: entities.length, message: "Deep web OSINT starting…" });
-
-  res.json({
-    jobId, total: entities.length,
-    message: `Deep web OSINT started for ${entities.length} entities (${hotOnly ? "hot leads" : "all"}).`,
-  });
-
-  (async () => {
-    let enriched = 0, skipped = 0, errors = 0;
-
-    for (let i = 0; i < entities.length; i++) {
-      const entity = entities[i]!;
-      try {
-        await updateJob(jobId, {
-          status: "running", progress: i, total: entities.length,
-          inserted: enriched, skipped, errors,
-          message: `Searching: ${entity.name}…`,
-        });
-
-        const result = await deepWebOsintEnrich(entity);
-        const hasSignal = result.email || result.phone || result.linkedinUrl;
-
-        if (!hasSignal) { skipped++; continue; }
-
-        const updates: Record<string, unknown> = { updatedAt: new Date() };
-        if (result.email      && !entity.email)      updates["email"]      = result.email;
-        if (result.phone      && !entity.phone)      updates["phone"]      = result.phone;
-        if (result.linkedinUrl && !entity.linkedinUrl) updates["linkedinUrl"] = result.linkedinUrl;
-
-        const confidence = computeContactConfidence({
-          email:           (updates["email"]      as string | null) ?? entity.email ?? null,
-          phone:           (updates["phone"]      as string | null) ?? entity.phone ?? null,
-          linkedinUrl:     (updates["linkedinUrl"] as string | null) ?? entity.linkedinUrl ?? null,
-          knownResidences: entity.knownResidences,
-        });
-        updates["contactConfidence"] = confidence;
-
-        // Update metadata
-        const meta = safeParseJson<Record<string, unknown>>(entity.metadata, {});
-        meta["deepWebOsintAt"]      = new Date().toISOString();
-        meta["deepWebOsintSources"] = result.sources;
-        meta["deepWebQueriesFired"] = result.queriesFired;
-        if (result.emailConfidence) meta["deepWebEmailConf"] = result.emailConfidence;
-        meta["liveSource"] = true;
-        updates["metadata"]   = JSON.stringify(meta);
-        updates["liveSource"] = true;
-
-        await db.update(entitiesTable).set(updates as any).where(eq(entitiesTable.id, entity.id));
-
-        // Mirror to Upstash slot 2 (REDIS_URL_2) for persistence across DB resets
-        const deepWebMeta = safeParseJson<Record<string, unknown>>(entity.metadata ?? "{}", {});
-        const stableKey = (() => {
-          if (deepWebMeta["nNumber"])       return `faa:${deepWebMeta["nNumber"]}`;
-          if (deepWebMeta["entityName"])    return `edgar:${String(deepWebMeta["entityName"]).toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "")}`;
-          if (deepWebMeta["orgnr"])         return `brreg:${deepWebMeta["orgnr"]}`;
-          if (deepWebMeta["companyNumber"]) return `ch:${deepWebMeta["companyNumber"]}`;
-          return `name:${entity.name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "")}`;
-        })();
-        await contactCacheSet(stableKey, {
-          name:              entity.name,
-          email:             (updates["email"]      as string | undefined) ?? entity.email ?? undefined,
-          phone:             (updates["phone"]      as string | undefined) ?? entity.phone ?? undefined,
-          linkedinUrl:       (updates["linkedinUrl"] as string | undefined) ?? entity.linkedinUrl ?? undefined,
-          contactConfidence: confidence,
-          enrichmentSources: result.sources,
-          enrichedAt:        new Date().toISOString(),
-          emailConfidence:   result.emailConfidence,
-          phoneConfidence:   result.phoneConfidence,
-        });
-
-        enriched++;
-        logger.info({ entityId: entity.id, name: entity.name, confidence, queriesFired: result.queriesFired, pagesScraped: result.pagesScraped }, "Deep web OSINT enriched");
-      } catch (err: any) {
-        errors++;
-        logger.warn({ entityId: entity.id, err: err.message }, "Deep web OSINT failed");
-      }
-    }
-
-    await updateJob(jobId, {
-      status: "done", progress: entities.length, total: entities.length,
-      inserted: enriched, skipped, errors,
-      message: `Done — ${enriched} enriched, ${skipped} no-match, ${errors} errors.`,
-    });
-    await setActiveJob("deep-web-osint", "");
-    logger.info({ enriched, skipped, errors }, "Deep web OSINT complete");
-  })().catch(async err => {
-    logger.error({ err: err.message }, "Deep web OSINT crashed");
-    await updateJob(jobId, { status: "failed", message: err.message ?? "Crashed" });
-    await setActiveJob("deep-web-osint", "");
-  });
-});
-
-// ── DELETE /ingest/deep-web-osint-lock — clear ghost lock ────────────────────
-router.delete("/ingest/deep-web-osint-lock", async (_req: Request, res: Response): Promise<void> => {
-  const jobId = await getActiveJob("deep-web-osint");
-  if (!jobId) { res.json({ cleared: false, message: "No active deep-web-osint lock." }); return; }
-  await updateJob(jobId, { status: "failed", message: "Killed (server restart).", finishedAt: new Date().toISOString() } as any);
-  await setActiveJob("deep-web-osint", "");
-  res.json({ cleared: true, jobId, message: "Deep-web-OSINT lock cleared." });
-});
-
-// ── POST /ingest/compute-embeddings — Phase G1 semantic embedding background job ─
-// Embeds all entities using all-MiniLM-L6-v2 (local ONNX, no API key needed).
-// Stores Float32Array embeddings in Redis (emb:v1:{id}) + in-memory cache.
-// Progressively activates the 4th RRF signal in hybrid search.
-router.post("/ingest/compute-embeddings", async (req: Request, res: Response): Promise<void> => {
-  const { batchSize: _batchSize = 2000, force = false, offset: _offset = 0 } = req.body ?? {};
-  // Raised cap: allow up to 50,000 so a single call can cover all entities
-  const batchSize = Math.min(Math.max(Number(_batchSize) || 2000, 1), 50_000);
-  const offset    = Math.max(Number(_offset) || 0, 0);
-
-  const existing = await getActiveJob("compute-embeddings");
-  if (existing && !force) {
-    res.status(409).json({ error: "compute-embeddings already running", jobId: existing });
-    return;
-  }
-  if (existing && force) {
-    await updateJob(existing, { status: "failed", message: "Superseded by force restart.", finishedAt: new Date().toISOString() } as any);
-    await setActiveJob("compute-embeddings", "");
-  }
-
-  const jobId = await createJob("compute-embeddings");
-  await setActiveJob("compute-embeddings", jobId);
-  await updateJob(jobId, { status: "running", message: "Loading semantic embedding model (all-MiniLM-L6-v2)…" });
-  res.json({ jobId, message: "Semantic embedding computation started." });
-
-  (async () => {
-    const {
-      embedText, entityToEmbedText, storeEmbedding, getEmbeddingCacheSize, getAllEmbeddings,
-    } = await import("../lib/semantic-engine");
-
-    // Fetch all entities in the requested window (offset + batchSize)
-    const rows = await db.select({
-      id: entitiesTable.id,
-      name: entitiesTable.name,
-      notes: entitiesTable.notes,
-      nationality: entitiesTable.nationality,
-      knownResidences: entitiesTable.knownResidences,
-      metadata: entitiesTable.metadata,
-    }).from(entitiesTable).offset(offset).limit(batchSize);
-
-    // When force=false, skip entities already in the in-memory cache (saves time on repeat runs)
-    const existingCache = getAllEmbeddings();
-    const toEmbed = force ? rows : rows.filter(e => !existingCache.has(e.id));
-
-    const total = toEmbed.length;
-    await updateJob(jobId, { status: "running", total, progress: 0, message: `Embedding ${total} entities (${rows.length - total} already cached)…` });
-
-    let processed = 0;
-    let skipped = 0;
-    const CHUNK = 10; // parallel embed chunk (each ~15 ms → 10 × 15 ms ≈ 150 ms/chunk)
-    for (let i = 0; i < toEmbed.length; i += CHUNK) {
-      const chunk = toEmbed.slice(i, i + CHUNK);
-      await Promise.all(chunk.map(async (e) => {
-        try {
-          const text = entityToEmbedText(e);
-          const emb = await embedText(text);
-          await storeEmbedding(e.id, emb);
-          processed++;
-        } catch {
-          skipped++;
-        }
-      }));
-      if (i % 200 === 0) {
-        await updateJob(jobId, {
-          progress: processed + skipped,
-          total,
-          inserted: processed,
-          skipped,
-          message: `Embedded ${processed}/${total} (cache: ${getEmbeddingCacheSize()})`,
-        });
-      }
-    }
-
-    await updateJob(jobId, {
-      status: "done", progress: total, total,
-      inserted: processed, skipped,
-      message: `Done — ${processed} embeddings computed, ${skipped} skipped. Cache: ${getEmbeddingCacheSize()} total. Semantic search active.`,
-      finishedAt: new Date().toISOString(),
-    } as any);
-    await setActiveJob("compute-embeddings", "");
-    logger.info({ processed, skipped, total, cacheSize: getEmbeddingCacheSize() }, "Semantic embedding computation complete");
-  })().catch(async (err: any) => {
-    logger.error({ err: err?.message }, "Semantic embedding computation crashed");
-    await updateJob(jobId, { status: "failed", message: err?.message ?? "Crashed", finishedAt: new Date().toISOString() } as any);
-    await setActiveJob("compute-embeddings", "");
-  });
-});
-
-// ── DELETE /ingest/compute-embeddings-lock — clear ghost lock ────────────────
-router.delete("/ingest/compute-embeddings-lock", async (_req: Request, res: Response): Promise<void> => {
-  const jobId = await getActiveJob("compute-embeddings");
-  if (!jobId) { res.json({ cleared: false, message: "No active compute-embeddings lock." }); return; }
-  await updateJob(jobId, { status: "failed", message: "Killed (manual clear).", finishedAt: new Date().toISOString() } as any);
-  await setActiveJob("compute-embeddings", "");
-  res.json({ cleared: true, jobId, message: "compute-embeddings lock cleared." });
-});
-
-// ── GET /ingest/semantic-engine-status — Phase G1 embedding cache status ─────
-router.get("/ingest/semantic-engine-status", async (_req: Request, res: Response): Promise<void> => {
-  try {
-    const { getEmbeddingCacheSize, isModelLoaded } = await import("../lib/semantic-engine");
-    res.json({
-      cacheSize: getEmbeddingCacheSize(),
-      modelLoaded: isModelLoaded(),
-      semanticActive: getEmbeddingCacheSize() >= 100,
-    });
-  } catch {
-    res.json({ cacheSize: 0, modelLoaded: false, semanticActive: false });
-  }
-});
-
-// ── GET /ingest/jobs — live status of all known background job types ──────────
-const KNOWN_JOB_TYPES = [
-  { id: "faa",                       label: "FAA Aircraft Registry",         category: "Registry" },
-  { id: "land-registry",             label: "UK Land Registry PPD",           category: "Registry" },
-  { id: "western-hnwi",              label: "Western HNWI Engine",            category: "Registry" },
-  { id: "in-house-enrich",           label: "In-House OSINT Enricher",        category: "Enrichment" },
-  { id: "deep-web-osint",            label: "Deep Web OSINT",                 category: "Enrichment" },
-  { id: "occrp",                     label: "OCCRP Aleph Enricher",           category: "Enrichment" },
-  { id: "opensky",                   label: "OpenSky Live Flights",           category: "Enrichment" },
-  { id: "ch-company-officers",       label: "CH Company Officers",            category: "Enrichment" },
-  { id: "web-osint-enrich",          label: "Web OSINT Enricher",             category: "Enrichment" },
-  { id: "compute-embeddings",        label: "Semantic Embeddings",            category: "Analysis" },
-  { id: "semantic-dedup",            label: "Semantic Entity Dedup",          category: "Analysis" },
-  { id: "bulk-mcts",                 label: "MCTS Bulk Research",             category: "Analysis" },
-  { id: "auto-detect-clusters",      label: "Corporate Cluster Detection",    category: "Analysis" },
-  { id: "auto-detect",               label: "Associate Edge Detection",       category: "Analysis" },
-  { id: "sync-hot-flags",            label: "Sync Hot Flags",                 category: "Maintenance" },
-  { id: "populate-notes",            label: "Populate Notes",                 category: "Maintenance" },
-  { id: "backfill-net-worth",        label: "Net Worth Backfill",             category: "Maintenance" },
-  { id: "reclassify-entity-types",   label: "Reclassify Entity Types",        category: "Maintenance" },
-  { id: "wikidata-associates",       label: "Wikidata Associate Seeding",     category: "Maintenance" },
-  { id: "edgar-associates",          label: "EDGAR Associate Seeding",        category: "Maintenance" },
-];
-
-router.get("/ingest/jobs", async (_req: Request, res: Response): Promise<void> => {
-  try {
-    const jobs = await Promise.all(
-      KNOWN_JOB_TYPES.map(async (def) => {
-        try {
-          const activeJobId = await getActiveJob(def.id);
-          const state = activeJobId ? await getJob(activeJobId) : null;
-          return {
-            ...def,
-            jobId:      state?.jobId,
-            status:     state?.status ?? "idle",
-            progress:   state?.progress ?? 0,
-            inserted:   state?.inserted ?? 0,
-            skipped:    state?.skipped ?? 0,
-            errors:     state?.errors ?? 0,
-            message:    state?.message ?? "",
-            startedAt:  state?.startedAt,
-            finishedAt: state?.finishedAt,
-          };
-        } catch {
-          return { ...def, status: "idle" as const, progress: 0, inserted: 0, skipped: 0, errors: 0, message: "" };
-        }
-      })
-    );
-    res.json({ jobs, generatedAt: new Date().toISOString() });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
+// ── Mount sub-routers ─────────────────────────────────────────────────────────
+router.use(migrationsRouter);
+router.use(enrichmentRouter);
+router.use(pipelineRouter);
 
 export default router;

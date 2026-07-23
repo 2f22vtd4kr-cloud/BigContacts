@@ -531,114 +531,65 @@ async function runPopulatedDbMaintenance(): Promise<void> {
 
   const hasCH = !!process.env["COMPANIES_HOUSE_API_KEY"];
 
-  // 15s: CORPORATE_SERIES edges — name-cluster detection
-  setTimeout(() => trigger("cluster auto-detection", "/api/relationships/auto-detect-clusters"), 15_000);
+  // ─── Phase-based pipeline scheduler ───────────────────────────────────────
+  // All delayed HTTP triggers are declared as a typed array so phases are easy
+  // to add, remove, or reorder without hunting through scattered setTimeout calls.
 
-  // 20s: KNOWN_ASSOCIATE edges from shared physical addresses
-  setTimeout(() => trigger("shared-address associate detection", "/api/relationships/auto-detect"), 20_000);
+  type Phase = {
+    delayMs: number;
+    label:   string;
+    path:    string;
+    body?:   Record<string, unknown>;
+    onlyIf?: boolean; // when false the phase is skipped (e.g. optional API key required)
+  };
 
-  // 25s: EDGAR_CO_FILER edges — group EDGAR entities that filed on the same reported company
-  setTimeout(() => trigger("EDGAR co-filer edge detection", "/api/relationships/auto-detect-edgar-cofilers"), 25_000);
+  const phases: Phase[] = [
+    // ── Relationship edges (15–42 s) ──────────────────────────────────────────
+    { delayMs:    15_000, label: "cluster auto-detection",             path: "/api/relationships/auto-detect-clusters" },
+    { delayMs:    20_000, label: "shared-address associate detection", path: "/api/relationships/auto-detect" },
+    { delayMs:    25_000, label: "EDGAR co-filer edge detection",      path: "/api/relationships/auto-detect-edgar-cofilers" },
+    { delayMs:    30_000, label: "CH co-director edge detection",      path: "/api/relationships/auto-detect-ch-codirectors",  onlyIf: hasCH },
+    { delayMs:    35_000, label: "EDGAR associate seeding",            path: "/api/relationships/seed-edgar-associates" },
+    { delayMs:    40_000, label: "FAA geo-proximity edges",            path: "/api/relationships/auto-detect-faa-geo" },
+    { delayMs:    41_000, label: "HMLR postcode-proximity edges",      path: "/api/relationships/auto-detect-hmlr-postcode" },
+    { delayMs:    42_000, label: "EDGAR co-shareholder edges",         path: "/api/relationships/auto-detect-edgar-coshareholder" },
 
-  // 30s: SHARED_DIRECTOR edges via Companies House co-director detection (requires CH API key)
-  if (hasCH) {
-    setTimeout(() => trigger("CH co-director edge detection", "/api/relationships/auto-detect-ch-codirectors"), 30_000);
+    // ── First enrichment wave (90 s – 2 min) ──────────────────────────────────
+    { delayMs:    90_000, label: "auto Hybrid Research bulk run (pass 1)",         path: "/api/research/bulk-run",             body: { batchSize: 300, skipExisting: true } },
+    { delayMs:    95_000, label: "auto CH enrichment (needsEnrichment)",           path: "/api/ingest/companies-house-enrich", body: { batchSize: 500 }, onlyIf: hasCH },
+    { delayMs:   100_000, label: "auto net worth backfill (asset-based)",          path: "/api/ingest/backfill-net-worth" },
+    { delayMs:   105_000, label: "auto EDGAR net worth backfill (shares × price)", path: "/api/ingest/backfill-edgar-net-worth" },
+    { delayMs:   110_000, label: "auto populate-notes from asset descriptions",    path: "/api/ingest/populate-notes" },
+    { delayMs:   120_000, label: "auto in-house enricher (pass 1 — edgar)",        path: "/api/ingest/in-house-enrich",        body: { batchSize: 5000, targetMode: "edgar" } },
+
+    // ── Persona + semantic wave (3–6 min) ─────────────────────────────────────
+    { delayMs:   180_000, label: "auto persona improvement loop (full sweep)",     path: "/api/improve/run-all",               body: { chunkSize: 500, resume: true } },
+    { delayMs:   240_000, label: "auto semantic embeddings (G1 — pass 1)",         path: "/api/ingest/compute-embeddings",     body: { batchSize: 2_000 } },
+    { delayMs:   300_000, label: "auto in-house enricher (pass 2 — faa)",          path: "/api/ingest/in-house-enrich",        body: { batchSize: 5000, targetMode: "faa" } },
+    { delayMs:   360_000, label: "auto Wikidata associate seeding",                path: "/api/relationships/seed-wikidata-associates" },
+
+    // ── Research + semantic wave (8–15 min) ───────────────────────────────────
+    { delayMs:   480_000, label: "auto Hybrid Research bulk run (pass 2)",         path: "/api/research/bulk-run",             body: { batchSize: 300, skipExisting: true } },
+    { delayMs:   480_000, label: "auto semantic entity resolution (G2b)",          path: "/api/relationships/semantic-dedup" },
+    { delayMs:   600_000, label: "auto in-house enricher (pass 3 — edgar force)",  path: "/api/ingest/in-house-enrich",        body: { batchSize: 5000, targetMode: "edgar", force: true } },
+    { delayMs:   660_000, label: "auto pitch backfill",                            path: "/api/research/backfill-pitches" },
+    { delayMs:   900_000, label: "auto Hybrid Research bulk run (pass 3)",         path: "/api/research/bulk-run",             body: { batchSize: 300, skipExisting: true } },
+
+    // ── Long-tail sweep (20–45 min) ───────────────────────────────────────────
+    { delayMs: 1_200_000, label: "auto persona improvement loop (pass 2 — force)", path: "/api/improve/run-all",               body: { chunkSize: 500, resume: false } },
+    { delayMs: 1_260_000, label: "auto Hybrid Research bulk run (pass 5)",         path: "/api/research/bulk-run",             body: { batchSize: 300, skipExisting: true } },
+    { delayMs: 1_500_000, label: "auto in-house enricher (pass 4 — faa force)",    path: "/api/ingest/in-house-enrich",        body: { batchSize: 5000, targetMode: "faa", force: true } },
+    { delayMs: 1_800_000, label: "auto Hybrid Research bulk run (pass 4)",         path: "/api/research/bulk-run",             body: { batchSize: 300, skipExisting: true } },
+    { delayMs: 1_920_000, label: "auto semantic embeddings (G1 — pass 2)",         path: "/api/ingest/compute-embeddings",     body: { batchSize: 5_000, force: true } },
+    { delayMs: 2_040_000, label: "auto semantic entity resolution (G2b — pass 2)", path: "/api/relationships/semantic-dedup" },
+    { delayMs: 2_100_000, label: "auto deep web OSINT (pass 1 — hot leads)",       path: "/api/ingest/deep-web-osint",         body: { batchSize: 500, hotOnly: true } },
+    { delayMs: 2_700_000, label: "auto deep web OSINT (pass 2 — all HNWI)",        path: "/api/ingest/deep-web-osint",         body: { batchSize: 1_000, hotOnly: false } },
+  ];
+
+  for (const phase of phases) {
+    if (phase.onlyIf === false) continue;
+    setTimeout(() => trigger(phase.label, phase.path, phase.body), phase.delayMs);
   }
-
-  // 35s: KNOWN_ASSOCIATE edges from live EDGAR EFTS co-filers
-  setTimeout(() => trigger("EDGAR associate seeding", "/api/relationships/seed-edgar-associates"), 35_000);
-
-  // 40s: GEOGRAPHIC_PEER edges — FAA individual owners in the same city+state (C1)
-  setTimeout(() => trigger("FAA geo-proximity edges", "/api/relationships/auto-detect-faa-geo"), 40_000);
-
-  // 41s: PROPERTY_AREA_PEER edges — HMLR buyers in the same postcode district (C2)
-  setTimeout(() => trigger("HMLR postcode-proximity edges", "/api/relationships/auto-detect-hmlr-postcode"), 41_000);
-
-  // 42s: EDGAR_CO_SHAREHOLDER edges — EDGAR entities holding shares in the same company (C3)
-  setTimeout(() => trigger("EDGAR co-shareholder edges", "/api/relationships/auto-detect-edgar-coshareholder"), 42_000);
-
-  // 90s: first bulk Hybrid Research pass — top 300 by score, skip already-run sessions
-  // (moved from 45s → 90s so FAA ingest [~73s] is complete before MCTS fires — D1)
-  setTimeout(() => trigger("auto Hybrid Research bulk run (pass 1)", "/api/research/bulk-run", { batchSize: 300, skipExisting: true }), 90_000);
-
-  // 95s: Companies House enrichment for needsEnrichment entities (fills address, contact confidence)
-  if (hasCH) {
-    setTimeout(() => trigger("auto CH enrichment (needsEnrichment)", "/api/ingest/companies-house-enrich", { batchSize: 500 }), 95_000);
-  }
-
-  // 100s: backfill estimatedNetWorth from asset values (entities with assets but no net worth set yet)
-  setTimeout(() => trigger("auto net worth backfill (asset-based)", "/api/ingest/backfill-net-worth"), 100_000);
-
-  // 105s: EDGAR net worth backfill — shares × Yahoo Finance closing price (B3)
-  setTimeout(() => trigger("auto EDGAR net worth backfill (shares × price)", "/api/ingest/backfill-edgar-net-worth"), 105_000);
-
-  // 110s: auto-populate entity notes from asset descriptions for entities with blank notes (F4)
-  setTimeout(() => trigger("auto populate-notes from asset descriptions", "/api/ingest/populate-notes"), 110_000);
-
-  // 120s: in-house enricher pass 1 — EDGAR/Western HNWI entities first (public figures: highest hit rate)
-  setTimeout(() => trigger("auto in-house enricher (pass 1 — edgar)", "/api/ingest/in-house-enrich", { batchSize: 5000, targetMode: "edgar" }), 120_000);
-
-  // 150s: OCCRP Aleph enrichment — DISABLED: Aleph API now returns 401 (requires paid API key)
-  // setTimeout(() => trigger("auto OCCRP enrichment", "/api/ingest/occrp", { batchSize: 300 }), 150_000);
-
-  // 3 min: persona improvement loop — full sweep, all entities
-  setTimeout(() => trigger("auto persona improvement loop (full sweep)", "/api/improve/run-all", { chunkSize: 500, resume: true }), 180_000);
-
-  // 5 min: in-house enricher pass 2 — FAA individual owners (DuckDuckGo/LinkedIn/GitHub for private HNWIs)
-  setTimeout(() => trigger("auto in-house enricher (pass 2 — faa)", "/api/ingest/in-house-enrich", { batchSize: 5000, targetMode: "faa" }), 300_000);
-
-  // 6 min: Wikidata family/associate edge seeding — fires after in-house enricher so Wikidata hits exist (F1)
-  // Queries SPARQL for spouse/partner/sibling/parent of entities with sourceHits.Wikidata = true
-  setTimeout(() => trigger("auto Wikidata associate seeding", "/api/relationships/seed-wikidata-associates"), 360_000);
-
-  // 8 min: second bulk Hybrid Research pass — cover the next 300 cold sessions
-  setTimeout(() => trigger("auto Hybrid Research bulk run (pass 2)", "/api/research/bulk-run", { batchSize: 300, skipExisting: true }), 480_000);
-
-  // 10 min: in-house enricher pass 3 — force re-run on EDGAR entities (may surface new signals)
-  setTimeout(() => trigger("auto in-house enricher (pass 3 — edgar force)", "/api/ingest/in-house-enrich", { batchSize: 5000, targetMode: "edgar", force: true }), 600_000);
-
-  // 11 min: backfill pitches for sessions that got placeholder text (F2)
-  // Fires after MCTS pass 2 (8 min) to catch any sessions where pitch generation failed
-  setTimeout(() => trigger("auto pitch backfill", "/api/research/backfill-pitches"), 660_000);
-
-  // 15 min: third bulk Hybrid Research pass — long-tail coverage
-  setTimeout(() => trigger("auto Hybrid Research bulk run (pass 3)", "/api/research/bulk-run", { batchSize: 300, skipExisting: true }), 900_000);
-
-  // 20 min: persona improvement loop pass 2 — re-sweep after enrichment completes
-  setTimeout(() => trigger("auto persona improvement loop (pass 2 — force)", "/api/improve/run-all", { chunkSize: 500, resume: false }), 1_200_000);
-
-  // 21 min: fifth bulk Hybrid Research pass — D2 extra coverage after enrichment completes
-  setTimeout(() => trigger("auto Hybrid Research bulk run (pass 5)", "/api/research/bulk-run", { batchSize: 300, skipExisting: true }), 1_260_000);
-
-  // 25 min: in-house enricher pass 4 — FAA force re-run (second sweep on private owners)
-  setTimeout(() => trigger("auto in-house enricher (pass 4 — faa force)", "/api/ingest/in-house-enrich", { batchSize: 5000, targetMode: "faa", force: true }), 1_500_000);
-
-  // 30 min: fourth bulk Hybrid Research pass — final coverage sweep
-  setTimeout(() => trigger("auto Hybrid Research bulk run (pass 4)", "/api/research/bulk-run", { batchSize: 300, skipExisting: true }), 1_800_000);
-
-  // 35 min: deep web OSINT pass 1 — multi-engine (DDG + Bing) + UA rotation on hot leads
-  // Targets entities still at contactConfidence=0 after all in-house enricher passes complete.
-  // Runs AFTER in-house pass 4 (25min) so structured DB sources are exhausted first.
-  setTimeout(() => trigger("auto deep web OSINT (pass 1 — hot leads)", "/api/ingest/deep-web-osint", { batchSize: 500, hotOnly: true }), 2_100_000);
-
-  // 45 min: deep web OSINT pass 2 — wider net (all HNWI/Gatekeeper, not just hot)
-  setTimeout(() => trigger("auto deep web OSINT (pass 2 — all HNWI)", "/api/ingest/deep-web-osint", { batchSize: 1_000, hotOnly: false }), 2_700_000);
-
-  // G1: 4 min — semantic embedding computation (all-MiniLM-L6-v2, local ONNX)
-  // Fires after notes are populated (110s) so embeddings capture rich entity text.
-  // batchSize 2000 = first batch; subsequent boots pick up incrementally.
-  setTimeout(() => trigger("auto semantic embeddings (G1 — pass 1)", "/api/ingest/compute-embeddings", { batchSize: 2_000 }), 240_000);
-
-  // G2b: 8 min — semantic entity resolution (cross-registry LIKELY_SAME_PERSON edges)
-  // Fires after embeddings are computed (4 min) so the cache is populated.
-  // Compares FAA × EDGAR × HMLR × BRREG entity pairs, cosine sim > 0.93.
-  setTimeout(() => trigger("auto semantic entity resolution (G2b)", "/api/relationships/semantic-dedup"), 480_000);
-
-  // G1: 32 min — semantic embedding pass 2 (catches entities added/updated since pass 1)
-  setTimeout(() => trigger("auto semantic embeddings (G1 — pass 2)", "/api/ingest/compute-embeddings", { batchSize: 5_000, force: true }), 1_920_000);
-
-  // G2b: 34 min — second semantic dedup pass (after pass 2 embeddings cover all entities)
-  setTimeout(() => trigger("auto semantic entity resolution (G2b — pass 2)", "/api/relationships/semantic-dedup"), 2_040_000);
 }
 
 /** Main cold-start entry point — call once after Upstash connects. */

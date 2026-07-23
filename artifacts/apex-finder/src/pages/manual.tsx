@@ -259,7 +259,7 @@ export default function FieldManual() {
               Every number is clickable and leads somewhere useful.
             </p>
 
-            <Callout icon={<TrendingUp size={14} />} color="#10B981" title="What ApexFinder Pro does">
+            <Callout icon={<TrendingUp size={14} />} color="#10B981" title="What Atlas does">
               It ingests verified identities from public government registries (FAA aircraft, SEC EDGAR filings,
               UK Land Registry, Companies House, BRREG Norway), maps their asset portfolios and corporate connections,
               then calculates the warmest introduction path to any target — with zero synthetic data.
@@ -741,7 +741,7 @@ export default function FieldManual() {
           <Section id="section-8" level="VIII" levelColor="#14B8A6" levelLabel="LEVEL VIII — DATA SOURCES" title="Registry Pipelines & Enrichment">
 
             <p className="text-sm text-[#94A3B8] leading-relaxed mb-5">
-              Data Sources is the control panel for every pipeline that feeds ApexFinder. Ingestors pull
+              Data Sources is the control panel for every pipeline that feeds Atlas. Ingestors pull
               bulk datasets from public registries. Enrichers run against entities already in your database
               to add contact data, relationship edges, and asset detail — all using free public sources,
               no paid APIs required.
@@ -1006,7 +1006,7 @@ export default function FieldManual() {
             </Callout>
 
             <Callout icon={<Shield size={14} />} color="#10B981" title="Compliance reminder">
-              All data in ApexFinder Pro comes exclusively from public government registries and OSINT. You are
+              All data in Atlas comes exclusively from public government registries and OSINT. You are
               responsible for complying with GDPR, CCPA, and all applicable privacy legislation in your
               jurisdiction. Always respect opt-outs and do not use contact data for unsolicited commercial
               communications where prohibited.
