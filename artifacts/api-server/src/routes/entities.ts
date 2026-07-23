@@ -21,10 +21,10 @@ router.get("/entities", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const { type, minScore, search, limit = 50, offset = 0 } = parsed.data;
+  const { type, minScore, search, limit = 50, offset = 0, starred, hidden } = parsed.data;
 
   // Cache key encodes all query params — 30 s TTL (short, data changes frequently)
-  const cacheKey = `entities:list:${type ?? ""}:${minScore ?? ""}:${search ?? ""}:${limit}:${offset}`;
+  const cacheKey = `entities:list:${type ?? ""}:${minScore ?? ""}:${search ?? ""}:${limit}:${offset}:${starred ?? ""}:${hidden ?? ""}`;
   const cached = await getCache<unknown[]>(cacheKey);
   if (cached) {
     res.json(cached);
@@ -35,6 +35,15 @@ router.get("/entities", async (req, res): Promise<void> => {
   if (type) conditions.push(eq(entitiesTable.type, type));
   if (minScore !== undefined) conditions.push(gte(entitiesTable.bayesianScore, minScore));
   if (search) conditions.push(ilike(entitiesTable.name, `%${search}%`));
+  // Visibility: starred view shows starred regardless of hidden; hidden view shows hidden only;
+  // default view excludes hidden entities so they don't clutter the ledger.
+  if (starred) {
+    conditions.push(eq(entitiesTable.isStarred, true));
+  } else if (hidden) {
+    conditions.push(eq(entitiesTable.isHidden, true));
+  } else {
+    conditions.push(eq(entitiesTable.isHidden, false));
+  }
 
   const rows = await db
     .select()
@@ -72,6 +81,38 @@ router.get("/entities", async (req, res): Promise<void> => {
 
   await setCache(cacheKey, entities, 30);
   res.json(entities);
+});
+
+// PATCH /entities/:id/star  — toggle starred flag
+router.patch("/entities/:id/star", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  const isStarred = req.body?.isStarred;
+  if (typeof isStarred !== "boolean") { res.status(400).json({ error: "isStarred must be boolean" }); return; }
+  const [updated] = await db
+    .update(entitiesTable)
+    .set({ isStarred })
+    .where(eq(entitiesTable.id, id))
+    .returning({ id: entitiesTable.id, isStarred: entitiesTable.isStarred });
+  if (!updated) { res.status(404).json({ error: "Not found" }); return; }
+  await delCachePattern("entities:list:*");
+  res.json(updated);
+});
+
+// PATCH /entities/:id/hide  — toggle hidden flag
+router.patch("/entities/:id/hide", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  const isHidden = req.body?.isHidden;
+  if (typeof isHidden !== "boolean") { res.status(400).json({ error: "isHidden must be boolean" }); return; }
+  const [updated] = await db
+    .update(entitiesTable)
+    .set({ isHidden })
+    .where(eq(entitiesTable.id, id))
+    .returning({ id: entitiesTable.id, isHidden: entitiesTable.isHidden });
+  if (!updated) { res.status(404).json({ error: "Not found" }); return; }
+  await delCachePattern("entities:list:*");
+  res.json(updated);
 });
 
 // GET /entities/:id/occrp  — return Aleph adverse-media metadata for one entity

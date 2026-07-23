@@ -21,7 +21,7 @@ router.get("/dashboard/hot-leads", async (req, res): Promise<void> => {
   const entities = await db
     .select()
     .from(entitiesTable)
-    .where(eq(entitiesTable.type, "HNWI"))
+    .where(and(eq(entitiesTable.type, "HNWI"), eq(entitiesTable.isHidden, false)))
     .orderBy(desc(entitiesTable.bayesianScore))
     .limit(Math.max(limit * 10, 100)); // enough candidates for access-first ranking
 

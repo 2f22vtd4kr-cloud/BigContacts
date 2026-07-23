@@ -8,6 +8,7 @@ import {
   ChevronRight, Network, Target as TargetIcon, Download, ShieldAlert,
   Filter, UserCheck, Building2, Briefcase, Shield, IdCard,
   CheckSquare, Square, Users2, ListPlus, CheckCheck, Database, XCircle,
+  Star, EyeOff, Eye,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -87,11 +88,13 @@ function exportToCsv(entities: any[]) {
 // ─── Mobile card ──────────────────────────────────────────────────────────────
 
 function MobileEntityCard({
-  entity, selected, onToggleSelect, isExpanded, onToggleExpand,
+  entity, selected, onToggleSelect, isExpanded, onToggleExpand, onToggleStar, onToggleHide,
 }: {
   entity: any; selected: boolean; isExpanded: boolean;
   onToggleSelect: (e: React.MouseEvent) => void;
   onToggleExpand: () => void;
+  onToggleStar: (entity: any) => void;
+  onToggleHide: (entity: any) => void;
 }) {
   const typeColor = TYPE_COLORS[entity.type] ?? "#64748B";
   let registries: string[] = [];
@@ -156,7 +159,7 @@ function MobileEntityCard({
             </div>
           )}
 
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-5 gap-2">
             <Link
               href={`/profile/${entity.id}`}
               className="flex flex-col items-center justify-center gap-1.5 py-2 bg-muted border border-border rounded text-muted-foreground hover:text-primary transition-colors"
@@ -178,6 +181,30 @@ function MobileEntityCard({
               <TargetIcon className="w-3.5 h-3.5" />
               <span className="text-[9px] font-mono uppercase">Research</span>
             </Link>
+            <button
+              onClick={(e) => { e.stopPropagation(); onToggleStar(entity); }}
+              className="flex flex-col items-center justify-center gap-1.5 py-2 border rounded transition-colors"
+              style={{
+                background: entity.isStarred ? "rgba(245,158,11,0.1)" : "hsl(var(--muted))",
+                borderColor: entity.isStarred ? "rgba(245,158,11,0.3)" : "hsl(var(--border))",
+                color: entity.isStarred ? "#F59E0B" : "hsl(var(--muted-foreground))",
+              }}
+            >
+              <Star className={cn("w-3.5 h-3.5", entity.isStarred && "fill-amber-400")} />
+              <span className="text-[9px] font-mono uppercase">{entity.isStarred ? "Starred" : "Star"}</span>
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); onToggleHide(entity); }}
+              className="flex flex-col items-center justify-center gap-1.5 py-2 border rounded transition-colors"
+              style={{
+                background: entity.isHidden ? "rgba(249,115,22,0.1)" : "hsl(var(--muted))",
+                borderColor: entity.isHidden ? "rgba(249,115,22,0.3)" : "hsl(var(--border))",
+                color: entity.isHidden ? "#F97316" : "hsl(var(--muted-foreground))",
+              }}
+            >
+              {entity.isHidden ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+              <span className="text-[9px] font-mono uppercase">{entity.isHidden ? "Unhide" : "Hide"}</span>
+            </button>
           </div>
         </div>
       )}
@@ -239,6 +266,13 @@ export default function EntityLedger() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [addForm, setAddForm] = useState<AddEntityForm>(EMPTY_FORM);
 
+  // View mode: all (default, hides hidden), starred, hidden
+  type ViewMode = "all" | "starred" | "hidden";
+  const [viewMode, setViewMode] = useState<ViewMode>("all");
+
+  // Optimistic overrides for star/hide toggles (avoids full refetch on each click)
+  const [localOverrides, setLocalOverrides] = useState<Map<number, { isStarred?: boolean; isHidden?: boolean }>>(new Map());
+
   // Bulk selection state
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
@@ -246,7 +280,7 @@ export default function EntityLedger() {
   const [page, setPage]           = useState(0);
 
   // Reset to page 0 when filters change
-  useEffect(() => { setPage(0); }, [searchTerm, typeFilter, proximityMin, hotOnly, contactableOnly]);
+  useEffect(() => { setPage(0); }, [searchTerm, typeFilter, proximityMin, hotOnly, contactableOnly, viewMode]);
 
   const toggleSelect = (id: number) =>
     setSelectedIds((prev) => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
@@ -296,21 +330,51 @@ export default function EntityLedger() {
   const [mobileSelectedEntity, setMobileSelectedEntity] = useState<any>(null);
   const [mobileTypeFilter, setMobileTypeFilter] = useState<string | null>(null);
 
-  const isSpecialFilter = hotOnly || contactableOnly;
+  const isSpecialFilter = hotOnly || contactableOnly || viewMode !== "all";
 
   const { data: rawEntities, isLoading: isLoadingEntities, isError: isEntitiesError, refetch } = useListEntities({
     search: searchTerm.length > 2 ? searchTerm : undefined,
     type: typeFilter ?? undefined,
     limit: isSpecialFilter ? 500 : 50,
     offset: isSpecialFilter ? 0 : page * 50,
-  });
+    starred: viewMode === "starred" ? true : undefined,
+    hidden: viewMode === "hidden" ? true : undefined,
+  } as any);
   const deleteEntity = useDeleteEntity();
   const createEntity = useCreateEntity();
 
-  // Client-side filters: proximity + hot + contactable
+  // Star/hide toggle helpers
+  const base = (import.meta as any).env.BASE_URL.replace(/\/$/, "");
+  const handleToggleStar = async (entity: any) => {
+    const newVal = !(localOverrides.get(entity.id)?.isStarred ?? entity.isStarred ?? false);
+    setLocalOverrides((prev) => { const m = new Map(prev); m.set(entity.id, { ...m.get(entity.id), isStarred: newVal }); return m; });
+    try {
+      await fetch(`${base}/api/entities/${entity.id}/star`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isStarred: newVal }),
+      });
+    } catch { /* non-fatal */ }
+  };
+  const handleToggleHide = async (entity: any) => {
+    const newVal = !(localOverrides.get(entity.id)?.isHidden ?? entity.isHidden ?? false);
+    setLocalOverrides((prev) => { const m = new Map(prev); m.set(entity.id, { ...m.get(entity.id), isHidden: newVal }); return m; });
+    try {
+      await fetch(`${base}/api/entities/${entity.id}/hide`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isHidden: newVal }),
+      });
+      // If we're in default "all" view and just hid something, remove it from the list
+      if (viewMode === "all" && newVal) refetch();
+    } catch { /* non-fatal */ }
+  };
+
+  // Client-side filters: proximity + hot + contactable + local overrides merged in
   const entities = useMemo(() => {
     if (!rawEntities) return [];
-    let list = rawEntities as any[];
+    let list = (rawEntities as any[]).map((e: any) => {
+      const overrides = localOverrides.get(e.id);
+      return overrides ? { ...e, ...overrides } : e;
+    });
     if (hotOnly) list = list.filter((e: any) => e.isHot);
     if (contactableOnly) list = list.filter((e: any) =>
       e.contactEmail || e.contactPhone || e.contactMethod
@@ -321,8 +385,12 @@ export default function EntityLedger() {
         return (meta.proximityScore ?? 0) >= proximityMin;
       } catch { return false; }
     });
+    // In default view, filter out any optimistically-hidden entities
+    if (viewMode === "all") list = list.filter((e: any) => !e.isHidden);
+    // In starred view, filter out any optimistically-unstarred entities
+    if (viewMode === "starred") list = list.filter((e: any) => e.isStarred !== false);
     return list;
-  }, [rawEntities, proximityMin, hotOnly, contactableOnly]);
+  }, [rawEntities, proximityMin, hotOnly, contactableOnly, viewMode, localOverrides]);
 
   const handleDelete = (id: number) => {
     if (confirm("Purge entity from registry?")) {
@@ -450,6 +518,28 @@ export default function EntityLedger() {
                 </button>
               );
             })}
+          </div>
+
+          {/* View mode tabs */}
+          <div className="flex items-center gap-1 border border-border rounded-full p-0.5 flex-shrink-0">
+            {([
+              { mode: "all",     label: "All",     icon: <Users2 className="w-3 h-3" /> },
+              { mode: "starred", label: "Starred",  icon: <Star className="w-3 h-3" /> },
+              { mode: "hidden",  label: "Hidden",   icon: <EyeOff className="w-3 h-3" /> },
+            ] as const).map(({ mode, label, icon }) => (
+              <button
+                key={mode}
+                onClick={() => setViewMode(mode)}
+                className="flex items-center gap-1.5 px-3 py-1 rounded-full font-mono text-[10px] uppercase tracking-wider transition-all"
+                style={{
+                  background: viewMode === mode ? "rgba(16,185,129,0.15)" : "transparent",
+                  color: viewMode === mode ? "#10B981" : "hsl(var(--muted-foreground))",
+                  borderRadius: "9999px",
+                }}
+              >
+                {icon} {label}
+              </button>
+            ))}
           </div>
 
           {/* Action buttons */}
@@ -739,6 +829,21 @@ export default function EntityLedger() {
                           <TargetIcon className="w-3.5 h-3.5" />
                         </Link>
                         <button
+                          onClick={() => handleToggleStar(entity)}
+                          className="p-1.5 transition-colors"
+                          title={entity.isStarred ? "Unstar" : "Star"}
+                          style={{ color: entity.isStarred ? "#F59E0B" : undefined }}
+                        >
+                          <Star className={cn("w-3.5 h-3.5", entity.isStarred ? "fill-amber-400 text-amber-400" : "text-muted-foreground hover:text-amber-400")} />
+                        </button>
+                        <button
+                          onClick={() => handleToggleHide(entity)}
+                          className="p-1.5 text-muted-foreground hover:text-orange-400 transition-colors"
+                          title={entity.isHidden ? "Unhide" : "Hide from ledger"}
+                        >
+                          {entity.isHidden ? <Eye className="w-3.5 h-3.5 text-orange-400" /> : <EyeOff className="w-3.5 h-3.5" />}
+                        </button>
+                        <button
                           onClick={() => handleDelete(entity.id)}
                           className="p-1.5 text-muted-foreground hover:text-destructive transition-colors"
                           title="Delete"
@@ -825,38 +930,61 @@ export default function EntityLedger() {
             {searchTerm && <button onClick={() => setSearchTerm("")}><X className="w-3.5 h-3.5 text-muted-foreground" /></button>}
           </div>
         </div>
-        {/* Mobile filter chips */}
-        <div className="flex md:hidden items-center gap-2 px-4 py-2 overflow-x-auto border-b border-border bg-card/30 shrink-0"
-             style={{ scrollbarWidth: "none" }}>
-          {[
-            { label: `All (${entities.length})`, value: null },
-            { label: "HNWI",        value: "HNWI" },
-            { label: "Corp",        value: "Corporation" },
-            { label: "Trust",       value: "Trust" },
-            { label: "Gatekeeper",  value: "Gatekeeper" },
-          ].map(({ label, value }) => (
+        {/* Mobile view mode + filter chips */}
+        <div className="flex md:hidden flex-col border-b border-border bg-card/30 shrink-0">
+          {/* View mode row */}
+          <div className="flex items-center gap-1.5 px-3 py-2 border-b border-border/50" style={{ scrollbarWidth: "none" }}>
+            {([
+              { mode: "all",     label: "All",     color: "#10B981" },
+              { mode: "starred", label: "★ Starred", color: "#F59E0B" },
+              { mode: "hidden",  label: "◌ Hidden",  color: "#9CA3AF" },
+            ] as const).map(({ mode, label, color }) => (
+              <button
+                key={mode}
+                onClick={() => setViewMode(mode)}
+                className="shrink-0 h-7 px-3 rounded text-[11px] font-mono border transition-colors"
+                style={{
+                  background: viewMode === mode ? color + "18" : "transparent",
+                  color: viewMode === mode ? color : "hsl(var(--muted-foreground))",
+                  borderColor: viewMode === mode ? color + "50" : "hsl(var(--border))",
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {/* Type filter chips */}
+          <div className="flex items-center gap-2 px-3 py-2 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+            {[
+              { label: "All Types", value: null },
+              { label: "HNWI",        value: "HNWI" },
+              { label: "Corp",        value: "Corporation" },
+              { label: "Trust",       value: "Trust" },
+              { label: "Gatekeeper",  value: "Gatekeeper" },
+            ].map(({ label, value }) => (
+              <button
+                key={label}
+                onClick={() => setTypeFilter(value)}
+                className={cn(
+                  "shrink-0 h-7 px-3 rounded text-[11px] font-mono border transition-colors",
+                  typeFilter === value
+                    ? "bg-primary/10 text-primary border-primary/30"
+                    : "bg-card text-muted-foreground border-border"
+                )}
+              >
+                {label}
+              </button>
+            ))}
             <button
-              key={label}
-              onClick={() => setTypeFilter(value)}
+              onClick={() => setHotOnly(!hotOnly)}
               className={cn(
-                "shrink-0 h-8 px-3 rounded text-[12px] font-mono border transition-colors",
-                typeFilter === value
-                  ? "bg-primary/10 text-primary border-primary/30"
-                  : "bg-card text-muted-foreground border-border"
+                "shrink-0 h-7 px-3 rounded text-[11px] font-mono border transition-colors",
+                hotOnly ? "bg-amber-500/10 text-amber-400 border-amber-500/30" : "bg-card text-muted-foreground border-border"
               )}
             >
-              {label}
+              🔥 Hot
             </button>
-          ))}
-          <button
-            onClick={() => setHotOnly(!hotOnly)}
-            className={cn(
-              "shrink-0 h-8 px-3 rounded text-[12px] font-mono border transition-colors",
-              hotOnly ? "bg-amber-500/10 text-amber-400 border-amber-500/30" : "bg-card text-muted-foreground border-border"
-            )}
-          >
-            🔥 Hot
-          </button>
+          </div>
         </div>
 
         {/* Mobile bulk action bar */}
@@ -905,6 +1033,8 @@ export default function EntityLedger() {
               isExpanded={mobileSelectedEntity?.id === entity.id}
               onToggleExpand={() => setMobileSelectedEntity(mobileSelectedEntity?.id === entity.id ? null : entity)}
               onToggleSelect={(e) => { e.stopPropagation(); toggleSelect(entity.id); }}
+              onToggleStar={handleToggleStar}
+              onToggleHide={handleToggleHide}
             />
           ))}
           {!isLoadingEntities && !isEntitiesError && mobileEntities.length === 0 && <MobileLedgerState kind="empty" />}

@@ -26,6 +26,8 @@ export const entitiesTable = pgTable("entities", {
   sourceRegistries: text("source_registries"), // JSON array stored as text
   metadata: text("metadata"), // JSON blob
   isHot: boolean("is_hot").notNull().default(false),
+  isStarred: boolean("is_starred").notNull().default(false),
+  isHidden: boolean("is_hidden").notNull().default(false),
   contactConfidence: integer("contact_confidence").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),

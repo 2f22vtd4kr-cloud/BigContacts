@@ -27,7 +27,9 @@ export const ListEntitiesQueryParams = zod.object({
   "minScore": zod.coerce.number().optional().describe('Minimum Bayesian investor score'),
   "search": zod.coerce.string().optional().describe('Full-text search on name'),
   "limit": zod.coerce.number().default(listEntitiesQueryLimitDefault),
-  "offset": zod.coerce.number().default(listEntitiesQueryOffsetDefault)
+  "offset": zod.coerce.number().default(listEntitiesQueryOffsetDefault),
+  "starred": zod.coerce.boolean().optional().describe('Show only starred entities'),
+  "hidden": zod.coerce.boolean().optional().describe('Show only hidden entities'),
 })
 
 export const ListEntitiesResponseItem = zod.object({

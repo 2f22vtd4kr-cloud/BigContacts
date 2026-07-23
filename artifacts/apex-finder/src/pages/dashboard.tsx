@@ -227,6 +227,7 @@ function OperationsRail() {
 
 function StatsBar() {
   const { data: stats, isLoading, isError } = useGetDashboardStats();
+  const { jobs } = useJobPoll();
   const s = stats as any;
 
   if (isLoading) {
@@ -264,9 +265,9 @@ function StatsBar() {
     {
       icon: <Radio size={18} style={{ color: "#3B82F6" }} />,
       iconBg: "rgba(59,130,246,0.15)",
-      value: (s.activeResearchSessions ?? 0).toLocaleString(),
-      label: "Active Research",
-      href: "/pipeline",
+      value: jobs.length.toString(),
+      label: "Active Tasks",
+      href: "/jobs",
     },
     {
       icon: <Users size={18} style={{ color: "#9CA3AF" }} />,
@@ -783,9 +784,12 @@ export default function Dashboard() {
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      <StatsBar />
+      {/* Stats bar — desktop only; mobile uses MobileStatTiles inside MobileContactView */}
+      <div className="hidden md:block">
+        <StatsBar />
+      </div>
 
-      {/* ── Desktop: stats bar → ops rail → two-column content ── */}
+      {/* ── Desktop: ops rail → two-column content ── */}
       <div className="hidden md:flex flex-col flex-1 overflow-hidden">
         <OperationsRail />
         <div className="flex flex-1 overflow-hidden" role="main">

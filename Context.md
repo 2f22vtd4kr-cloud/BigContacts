@@ -8,7 +8,7 @@
 
 ---
 
-## Current State (2026-07-23 — re-import setup complete) — Redis + API + Web running
+## Current State (2026-07-23 — mobile UX fixes + star/hide features) — Redis + API + Web running
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically
@@ -26,6 +26,36 @@
 | ApexFinder Web | ✅ Running (port 23695) |
 
 > **Re-import setup note (2026-07-23):** pnpm install (~20s). DB schema pushed (`[✓] Changes applied`). All 3 secrets re-entered (REDIS_URL_1, REDIS_URL_2, COMPANIES_HOUSE_API_KEY — lost on import). API /healthz → `{"status":"ok","redis":{"status":"ok","latencyMs":0}}`. Cold-start auto-recovery will trigger FAA + HMLR + Western HNWI ingestion on first populated-DB boot.
+
+### What was done this session (2026-07-23 — mobile UX fixes + star/hide/MCTS rename)
+
+**5 targeted fixes + 2 new features — all graduated directly to production:**
+
+1. **Mobile dashboard stats bar removed** (`dashboard.tsx`): `StatsBar` was rendering on mobile AND desktop, causing two conflicting stat areas (top bar showed "0 Active Research" while the green banner showed 3 jobs). Fixed by wrapping `<StatsBar />` in `<div className="hidden md:block">` — mobile now uses only `MobileStatTiles` + `MobileOperationsBanner` which have correct live job counts.
+
+2. **"Active Research" → "Active Tasks"** (`dashboard.tsx`): Desktop StatsBar "Active Research" tile now reads `jobs.length` from `useJobPoll()` instead of `activeResearchSessions` from the DB stats endpoint. Correctly reflects live running background tasks. Link goes to `/jobs`.
+
+3. **"MCTS Bulk Research" → "Hybrid Research"** (`ingest-pipeline.ts` line 345): The job label shown in the mobile "RESEARCH ACTIVE" banner and all job lists now says "Hybrid Research" instead of "MCTS Bulk Research".
+
+4. **DB schema** (`lib/db/src/schema/entities.ts`): Added `isStarred boolean DEFAULT false` and `isHidden boolean DEFAULT false` columns. Schema pushed (`[✓] Changes applied`).
+
+5. **Star + Hide API endpoints** (`routes/entities.ts`):
+   - `PATCH /api/entities/:id/star` — toggles `isStarred`, clears entity list cache
+   - `PATCH /api/entities/:id/hide` — toggles `isHidden`, clears entity list cache
+   - `GET /api/entities` default view now excludes `isHidden=true` entities; `?starred=true` returns only starred; `?hidden=true` returns only hidden.
+   - Hot leads (`routes/dashboard.ts`): `GET /dashboard/hot-leads` now filters `isHidden = false` so hidden profiles never appear in the priority queue.
+
+6. **Entity Ledger — view mode tabs** (`entities.tsx`):
+   - Desktop: "All / Starred / Hidden" pill tabs added to the toolbar (before the Live Intel button)
+   - Mobile: "All / ★ Starred / ◌ Hidden" row added above type filter chips
+   - View mode drives the API query (`?starred=true` / `?hidden=true`)
+
+7. **Entity Ledger — Star/Hide buttons** (`entities.tsx`):
+   - Desktop table: Star (⭐) and Hide (👁) icons appear in the per-row hover action group alongside Profile/Network/Research/Delete
+   - Mobile card (expanded): 3-column action grid → 5-column with Star and Hide/Unhide buttons
+   - Optimistic UI: local state updates immediately on click; API call fires in background; hidden entities removed from default view instantly
+
+**Verified:** Production build passes. PATCH star/hide endpoints return `{id, isStarred}` / `{id, isHidden}` as expected.
 
 > **Current import verification note (2026-07-23):** Fresh dependencies were restored from the lockfile. The web server returns HTTP 200 and `/api/healthz` reports Redis healthy; both Upstash Redis connections also initialize successfully. Dashboard data endpoints currently fail because PostgreSQL is unavailable in this imported workspace; do not interpret that as an empty database. The three configured workflows are running. The screenshot helper could not resolve the web preview because the imported artifact registry is empty, although the web server itself responds successfully. The production web build passes. Typecheck still reports pre-existing imported-project errors in shared UI typings/generated client declarations and the optional Expo artifact.
 
