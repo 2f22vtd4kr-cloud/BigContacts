@@ -29,6 +29,8 @@
 
 > **Responsive polish verification note (2026-07-23):** Mobile dashboard now mounts the full activity/context strip and keeps it visible during PostgreSQL outages; the entity ledger distinguishes loading, unavailable, and genuinely empty states; profile tabs use compact horizontally scrollable mobile labels and remain sticky while browsing; deep search uses a shorter mobile explanation and stacked pipeline/results layout; mobile menu controls meet touch-target sizing. Desktop dashboard remains the full two-column command center. ApexFinder production build passes. Browser/API 500s are still the known PostgreSQL-unavailable condition; Redis and `/api/ingest/jobs` remain healthy.
 
+> **Mobile navigation note (2026-07-23):** Removed the mobile bottom navigation bar and its reserved 60px content padding. Mobile navigation now uses only the existing hamburger-triggered side menu; desktop navigation is unchanged.
+
 ### What was done this session (2026-07-23 — re-import #51 nav + UX fixes)
 
 1. **Nav reordered** (`layout.tsx`): Intel HQ → Entity Ledger → Search → Network Graph → Intel Terminal → CRM Pipeline → Outreach, then collapsible "Tools & Admin" (Persona Loop, Data Sources, OSINT Tools, Duplicates, Background Jobs, Field Manual). Footer → "Phase G · v0.3".
@@ -407,6 +409,7 @@ Run **IN-HOUSE ENRICH** on HNWI/Gatekeeper entities — Wikidata SPARQL will hit
 
 | Date | What changed |
 |---|---|
+| 2026-07-23 | **Mobile navigation simplification**: removed the bottom bar menu and its reserved viewport space, leaving the hamburger side menu as the only mobile navigation. Verified at 390×844; production build passes and the web workflow is running. |
 | 2026-07-23 | **Responsive mobile polish pass**: mounted the approved activity/context feed in the mobile dashboard, removed duplicate mobile job polling, added explicit Entity Ledger loading/unavailable/empty states, tightened mobile profile tabs and touch targets, simplified Deep Search mobile copy and stacked its pipeline/results layout, restarted the web workflow, verified 390px mobile and 1440px desktop screenshots, and confirmed the production build passes. |
 | 2026-07-23 | **Research Command Center frontend**: extracted and live-previewed one responsive Canvas direction, graduated the hierarchy into the production dashboard, added 5-second live activity polling with progress/results and `/jobs` navigation, made contactability the primary queue signal, demoted map/wealth context, removed dashboard manual-ingestion controls, and added explicit PostgreSQL-unavailable fallback states. Production build passes; shared UI typecheck errors remain pre-existing. |
 | 2026-07-23 | **Imported project setup**: restored pnpm dependencies from the lockfile; confirmed SESSION_SECRET, REDIS_URL_1, REDIS_URL_2, and COMPANIES_HOUSE_API_KEY are set; started Redis, API Server, and ApexFinder Web. API `/api/healthz` and web HTTP checks pass, production web build passes. PostgreSQL is unavailable in this workspace, and existing frontend/mobile typecheck errors remain documented above. |

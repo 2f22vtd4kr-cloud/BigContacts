@@ -31,49 +31,6 @@ const toolsNav = [
 // All nav items flattened (used for mobile top bar active-page lookup)
 const allNav = [...mainNav, ...toolsNav];
 
-// ─── Bottom nav items ─────────────────────────────────────────────────────────
-const bottomNavItems = [
-  { href: "/",         icon: Activity, label: "Home" },
-  { href: "/search",   icon: Search,   label: "Search" },
-  { href: "/profiles", icon: List,     label: "Profiles" },
-  { href: "/network",  icon: Network,  label: "Graph" },
-];
-
-function MobileBottomNav({ onMoreClick }: { onMoreClick: () => void }) {
-  const [location] = useLocation();
-  const isActive = (href: string) =>
-    location === href || (href !== "/" && location.startsWith(href));
-  return (
-    <nav
-      className="fixed bottom-0 left-0 right-0 h-[60px] bg-background border-t border-border flex items-center md:hidden z-50"
-      aria-label="Mobile navigation"
-    >
-      {bottomNavItems.map(({ href, icon: Icon, label }) => (
-        <Link
-          key={href}
-          href={href}
-          className={cn(
-            "flex-1 flex flex-col items-center justify-center gap-1 h-full transition-colors",
-            isActive(href) ? "text-primary" : "text-muted-foreground"
-          )}
-          aria-current={isActive(href) ? "page" : undefined}
-        >
-          <Icon className="w-5 h-5" strokeWidth={isActive(href) ? 2.5 : 2} />
-          <span className="text-[9px] font-medium">{label}</span>
-        </Link>
-      ))}
-      <button
-        onClick={onMoreClick}
-        className="flex-1 flex flex-col items-center justify-center gap-1 h-full text-muted-foreground"
-        aria-label="More navigation options"
-      >
-        <Menu className="w-5 h-5" />
-        <span className="text-[9px] font-medium">More</span>
-      </button>
-    </nav>
-  );
-}
-
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const [bannerDismissed, setBannerDismissed] = useState(false);
@@ -257,12 +214,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
           }}
         />
 
-        <div className="flex-1 flex flex-col relative z-10 overflow-y-auto overflow-x-hidden min-h-0 pb-[60px] md:pb-0">
+        <div className="flex-1 flex flex-col relative z-10 overflow-y-auto overflow-x-hidden min-h-0">
           {children}
         </div>
       </main>
-
-      <MobileBottomNav onMoreClick={() => setSidebarOpen(true)} />
     </div>
   );
 }
