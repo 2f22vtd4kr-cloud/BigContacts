@@ -8,7 +8,34 @@
 
 ---
 
-## Current State (2026-07-23 — full audit + bug-fix pass) — All workflows running, ingestion active
+## Current State (2026-07-23 — GitHub import recovery) — All core workflows running, ingestion auto-started
+
+### Environment
+- **Replit PostgreSQL** connected — `DATABASE_URL` set automatically ✅
+- **Local Redis** running on `redis://localhost:6379` — workflow `Redis` running ✅
+- **SESSION_SECRET** — ✅ Set
+- **REDIS_URL** — ✅ Set (local Redis)
+- **Upstash Redis (`REDIS_URL_1`)** — ❌ NOT SET — dedup will not persist across restarts
+- **Upstash Redis (`REDIS_URL_2`)** — ❌ NOT SET — contact cache will not persist across restarts
+- **COMPANIES_HOUSE_API_KEY** — ❌ NOT SET — UK Companies House harvester skipped
+
+### Workflows running
+| Workflow | Status |
+|---|---|
+| Redis | ✅ Running (port 6379) |
+| API Server | ✅ Running (port 8080) |
+| ApexFinder Web | ✅ Running (port 23695) |
+
+### Post-import recovery steps completed
+1. `pnpm install` — all 1,229 packages installed
+2. `pnpm --filter @workspace/db run push` — schema applied to fresh PostgreSQL DB
+3. API Server and ApexFinder Web restarted and confirmed healthy
+4. FAA auto-ingestion started on cold boot; Western HNWI also auto-started
+5. DB is empty (fresh import) — follow-up tasks #2 and #3 cover secrets restore + full re-ingest
+
+---
+
+## Previous State (2026-07-23 — full audit + bug-fix pass) — All workflows running, ingestion active
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically
