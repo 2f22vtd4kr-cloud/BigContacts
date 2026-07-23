@@ -600,6 +600,212 @@ These addressed: auto-maintenance pipeline (startup.ts), duplicate detection, ED
 
 ---
 
+---
+
+## Phase H — HNWI Discovery Engine Upgrade
+
+> **Goal:** Invert the pipeline (web-first, not registry-first), add a recurring background scheduler, and build 3 new enrichment modules targeting the social/messenger channels HNWIs actually use.
+> **Status:** ⬜ Pending — implement phase by phase, one per re-import session.
+> **Source:** Architecture review 2026-07-23.
+
+### Why this matters
+
+The current pipeline fires broad web OSINT at minute 35 — after 25 minutes of registry-internal work. The app is "a registry viewer with enrichment" rather than "a broad web HNWI discovery engine with registry verification." Social media domains (LinkedIn, Twitter, Instagram) are actively **blocked** from scraping. Telegram isn't implemented at all. Foundation/990 filings aren't used. The pipeline runs once then stops completely.
+
+After Phase H the app will: fire web discovery at 15s, run 5 recurring background jobs forever, and have 9 contact sources (+LinkedIn, Twitter/X, Instagram, Telegram, IRS 990) instead of 6.
+
+---
+
+### H1 — Pipeline Inversion ⬜
+
+**File:** `artifacts/api-server/src/lib/startup.ts` — replace the `phases` array (lines ~546–587)
+
+**Principle:** broad web discovery fires first → Hybrid Engine scores → registries verify → graph edges → contact enrichment → long-tail.
+
+New `phases` order:
+
+```
+Phase 1 (15–45s):   Web discovery — broad-seed + expand + templateSet 2
+Phase 2 (90–150s):  Hybrid Engine pass 1, semantic embeddings pass 1, semantic dedup
+Phase 3 (180–225s): Registry verification — FAA, Western HNWI, HMLR, CH enrichment
+Phase 4 (240–300s): Relationship graph — clusters, shared-address, EDGAR co-filer,
+                    CH co-directors, EDGAR associates, FAA geo-proximity,
+                    HMLR postcode-proximity, EDGAR co-shareholder
+Phase 5 (360–660s): Contact enrichment — social-discovery, messenger-discovery,
+                    in-house enrich (5000 batch), deep-web-osint (hot only),
+                    foundation-filings, Hybrid Engine pass 2 (re-score enriched)
+Phase 6 (900s+):    Persona loop pass 1, semantic embeddings pass 2 (force),
+                    Hybrid Engine pass 3, deep-web-osint (all HNWI),
+                    persona loop pass 2 (force)
+```
+
+**Note:** Several Phase 4 endpoints referenced in the target plan (`/api/relationships/auto-detect-faa-geo`, `/api/relationships/auto-detect-hmlr-postcode`, `/api/relationships/auto-detect-edgar-coshareholder`) do not yet exist — **skip those entries** in H1 and add them as stubs only when the routes are implemented. Use existing working endpoints only.
+
+**Note:** Several Phase 5 endpoints (`/api/ingest/social-discovery`, `/api/ingest/messenger-discovery`, `/api/ingest/foundation-filings`) don't exist yet — **skip those** in H1. They will be added in H3. The phases array in H1 should only include routes that already exist and work.
+
+**Done when:** API Server boots and logs show web-discovery at 15s, Hybrid Engine at 90s, registry verification at 180s+, relationship graph at 240s+, contact enrichment at 360s+. All existing endpoints 200 OK.
+
+---
+
+### H2 — Recurring Background Scheduler ⬜
+
+**File:** `artifacts/api-server/src/lib/startup.ts` — add `RECURRING_JOBS` block after the initial `phases` loop
+
+**What to add:** after the one-shot pipeline finishes (~35 min), start `setInterval` loops for 5 recurring jobs:
+
+| Job | Interval | Route | Body |
+|---|---|---|---|
+| Web discovery (rotated templates) | 30 min | `/api/ingest/web-discovery` | `{ mode: "broad-seed", rotateTemplates: true }` |
+| Hybrid Engine re-score | 2 hours | `/api/research/bulk-run` | `{ batchSize: 200, skipExisting: false }` |
+| Social discovery (gap-fill) | 4 hours | `/api/ingest/social-discovery` | `{ onlyMissingContact: true }` |
+| Registry re-verification | 6 hours | `/api/ingest/western-hnwi` | `{ targetCount: 500 }` |
+| Persona loop | 24 hours | `/api/improve/run-all` | `{ chunkSize: 500, resume: true }` |
+
+Each job fires immediately once when the recurring block activates, then repeats on its interval. Use the existing `trigger()` helper. Activate the block at `2_100_000ms` (35 min) after boot.
+
+**Note:** Social discovery route (`/api/ingest/social-discovery`) won't exist until H3. Use a `try/catch` or a `hasRoute` guard so the missing route doesn't crash the recurring block.
+
+**Done when:** API Server logs show `Recurring background scheduler activated` at ~35 min. `setInterval` jobs confirmed firing by checking logs 30+ min later.
+
+---
+
+### H3 — New Enrichment Modules ⬜
+
+Three new modules + routes, implemented and tested independently.
+
+#### H3-A: `enrichment/social-discovery.ts` — LinkedIn + Twitter/X + Instagram
+
+**File:** `artifacts/api-server/src/enrichment/social-discovery.ts`
+
+Strategy (no paid API required):
+1. **DuckDuckGo HTML** — `"${name}" site:linkedin.com/in` → extract LinkedIn URL from results
+2. **Nitter** (`nitter.net`) — `"${name}" site:twitter.com OR site:x.com` → extract Twitter handle, scrape bio for email/website
+3. **Scrape LinkedIn public view** — follow extracted URL, look for `<a href>` non-LinkedIn external links (personal website)
+4. **Instagram** — DuckDuckGo `"${name}" site:instagram.com` → extract handle
+
+Returns `SocialDiscoveryResult`: `{ linkedinUrl, linkedinHeadline, twitterHandle, twitterBio, instagramHandle, personalWebsite, confidence, sources }`.
+
+**Route:** `POST /api/ingest/social-discovery` in `routes/ingest-enrichment.ts`
+- Params: `{ batchSize?, hotOnly?, onlyMissingContact?, entityIds? }`
+- Same job/poll pattern as in-house-enrich
+- After each successful write: mirror to Upstash slot 2 (`REDIS_URL_2`) using existing `contactCacheSet`
+- Rate limit: 1 req/s per entity (DuckDuckGo is forgiving but respect it)
+
+**Remove from `SKIP_DOMAINS` in `enrichment/web-discovery.ts`:** `linkedin.com`, `twitter.com`, `x.com`, `instagram.com`. Keep blocking: `google.com`, `bing.com`, `yahoo.com`, `duckduckgo.com`, `amazon.com`, `ebay.com`, `apple.com`, `microsoft.com`, `wikipedia.org`, `wikidata.org`.
+
+**Done when:** `POST /api/ingest/social-discovery` returns `{ jobId }`, job completes, at least 1 entity gains a `linkedinUrl` or `twitterHandle` in the DB.
+
+#### H3-B: `enrichment/messenger-discovery.ts` — Telegram
+
+**File:** `artifacts/api-server/src/enrichment/messenger-discovery.ts`
+
+Strategy:
+1. Generate username candidates from entity name: `johnsmith`, `john_smith`, `john.smith`, `jsmith`, `john_s`, `johns` (7 patterns)
+2. `GET https://t.me/{candidate}` — if response HTML contains the entity's first name, it's a match
+3. Extract bio from `<meta name="description" content="...">` tag
+4. Confidence: 40 for a name match on t.me
+
+Returns `MessengerDiscoveryResult`: `{ telegramHandle, telegramBio, telegramPublicGroups, confidence }`.
+
+**Route:** `POST /api/ingest/messenger-discovery` in `routes/ingest-enrichment.ts`
+- Same job/poll pattern
+- Mirror results to Upstash slot 2
+- Rate limit: 2 req/s (t.me is rate-limited, use exponential backoff on 429)
+
+**Done when:** Route returns `{ jobId }`, job runs clean. Even 0 matches is acceptable — confirm no crashes.
+
+#### H3-C: `enrichment/foundation-filings.ts` — IRS 990 via ProPublica
+
+**File:** `artifacts/api-server/src/enrichment/foundation-filings.ts`
+
+Strategy (ProPublica Nonprofit Explorer API — free, no auth):
+1. `GET https://projects.propublica.org/nonprofits/api/v2/search.json?q={name}` — search by entity name
+2. For each result org, `GET .../organizations/{ein}.json` — get filing with officer info
+3. `nameMatch(officer.name, entity.name)` — fuzzy match (≥2 shared significant tokens)
+4. Extract: `address`, `contact_email`, `org.name` (foundation name)
+5. Confidence: 85 (IRS filing = high confidence)
+
+Note: ProPublica already partially implemented in `enrichment/contact-enrichment.ts` (in-house enricher). **Check for duplication first** — if it's already there, extend it rather than duplicating.
+
+**Route:** `POST /api/ingest/foundation-filings` in `routes/ingest-enrichment.ts`
+- Params: `{ batchSize?, entityIds? }`
+- Rate limit: 1 req/s (ProPublica asks nicely)
+
+**Done when:** Route returns `{ jobId }`, job runs clean, at least 1 entity gains a `foundationName` or enriched address.
+
+---
+
+### H4 — Database Schema: New Contact Fields ⬜
+
+**File:** `lib/db/src/schema/entities.ts`
+
+Add to `entitiesTable`:
+
+```typescript
+linkedinUrl:       text("linkedin_url"),
+linkedinHeadline:  text("linkedin_headline"),
+twitterHandle:     text("twitter_handle"),
+twitterBio:        text("twitter_bio"),
+instagramHandle:   text("instagram_handle"),
+telegramHandle:    text("telegram_handle"),
+telegramBio:       text("telegram_bio"),
+personalWebsite:   text("personal_website"),
+foundationName:    text("foundation_name"),
+```
+
+Note: check if `linkedinUrl` already exists before adding (it may already be in the schema from earlier phases — in that case skip it and add only the new fields).
+
+**After adding:** `pnpm --filter @workspace/db run push` — additive migration, zero downtime.
+
+**Update `contactCacheSet` / `CachedContact` type** in `lib/redis.ts` to include the new fields so they persist across imports.
+
+**Done when:** `pnpm --filter @workspace/db run push` returns "Changes applied", API Server restarts cleanly, new columns visible in DB.
+
+---
+
+### H5 — UI: Expanded Contact Panel ⬜
+
+**File:** `artifacts/apex-finder/src/pages/profile.tsx`
+
+Replace the current email+phone-only contact action bar with a full 8-vector contact panel. Each vector shows only if the field is non-null.
+
+| Field | Icon (lucide) | Deep link |
+|---|---|---|
+| `contactEmail` | `Mail` | `mailto:{email}` |
+| `contactPhone` | `Phone` | `tel:{phone}` |
+| `linkedinUrl` | `Linkedin` | direct URL |
+| `twitterHandle` | `Twitter` | `https://x.com/{handle}` |
+| `instagramHandle` | `Instagram` | `https://instagram.com/{handle}` |
+| `telegramHandle` | `Send` | `https://t.me/{handle}` |
+| `personalWebsite` | `Globe` | direct URL |
+| `foundationName` | `Building2` | `https://projects.propublica.org/nonprofits/search?q={name}` |
+
+Each button shows a confidence badge (`contactConfidence`) beside it.
+
+**Also update:**
+- `entities.tsx` — Entity Ledger contact column: show LinkedIn/Twitter icon if present even when email is null (so the row isn't blank)
+- `dashboard.tsx` — "Contactable" stat: count entities where any of the 8 vectors is non-null (not just email/phone)
+
+**Done when:** Profile page shows all present contact vectors. Ledger shows LinkedIn/Twitter icons. Dashboard contactable count reflects the broader definition.
+
+---
+
+### Phase H — Implementation Order
+
+| Phase | Re-import # | Work | Est. time |
+|---|---|---|---|
+| H4 | Next | Schema first (everything downstream depends on new columns) | 15 min |
+| H1 | Next+1 | Pipeline inversion (existing routes only) | 30 min |
+| H3-A | Next+2 | social-discovery module + SKIP_DOMAINS fix | 2 hours |
+| H3-B | Next+3 | messenger-discovery module | 1 hour |
+| H3-C | Next+4 | foundation-filings module | 45 min |
+| H2 | Next+5 | Recurring background scheduler | 30 min |
+| H5 | Next+6 | UI contact panel expansion | 1 hour |
+
+> **Rule:** complete and verify each phase before moving to the next. Each phase is independently testable. Do not implement H3 routes in startup.ts until the routes exist (use conditional guards).
+
+---
+
 ## Legacy Patterns (all ✅ — do not re-implement)
 
 > See git history for full details. All 19 patterns implemented 2026-07-19 to 2026-07-21.
