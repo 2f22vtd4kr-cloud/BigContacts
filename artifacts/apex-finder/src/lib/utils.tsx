@@ -25,10 +25,12 @@ export function formatCurrency(value: number | null | undefined) {
 }
 
 export function ScoreBadge({ score }: { score: number | null | undefined }) {
+  // "ScoreBadge" kept for backward compat — shows wealth/registry signal strength
   if (score == null) return null;
   const colorClasses = getScoreColor(score);
   return (
-    <div className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono border ${colorClasses}`} title="Signal score — strength of the wealth and registry evidence (0–100)">
+    <div className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono border ${colorClasses}`} 
+         title="Wealth signal — strength of the registry evidence for net worth (0–100). High signal ≠ contactable.">
       <span className="opacity-50 text-[9px] uppercase tracking-wide leading-none">Signal</span>
       <span className="font-bold tabular-nums">{(score * 100).toFixed(0)}</span>
     </div>
@@ -37,15 +39,37 @@ export function ScoreBadge({ score }: { score: number | null | undefined }) {
 
 export function AccessScoreBadge({ score }: { score: number | null | undefined }) {
   if (score == null) return null;
-  const colorClasses = getScoreColor(score);
+  const pct = Math.round(score * 100);
+  
+  // Derive label + color from score bands
+  let label: string;
+  let colorClass: string;
+  
+  if (pct === 0) {
+    label = "No vector";
+    colorClass = "text-muted-foreground border-border bg-muted/30";
+  } else if (pct < 30) {
+    label = "Weak";
+    colorClass = "text-orange-400 border-orange-400/20 bg-orange-400/8";
+  } else if (pct < 60) {
+    label = "Reachable";
+    colorClass = "text-amber-400 border-amber-400/30 bg-amber-400/8";
+  } else if (pct < 85) {
+    label = "Strong";
+    colorClass = "text-primary border-primary/30 bg-primary/8";
+  } else {
+    label = "Direct";
+    colorClass = "text-primary border-primary bg-primary/15";
+  }
+  
   return (
     <div
-      className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono border ${colorClasses}`}
-      title="Access score — how realistically this person can be reached through public contact evidence (0–100)"
+      className={`flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-mono border ${colorClass}`}
+      title={`Access score ${pct}/100 — how realistically this person can be reached through public contact evidence`}
       data-testid="badge-access-score"
     >
-      <span className="opacity-50 text-[9px] uppercase tracking-wide leading-none">Access</span>
-      <span className="font-bold tabular-nums">{(score * 100).toFixed(0)}</span>
+      <span className="font-bold tabular-nums text-[11px]">{pct}</span>
+      <span className="opacity-60 text-[9px] uppercase tracking-wide leading-none">{label}</span>
     </div>
   );
 }

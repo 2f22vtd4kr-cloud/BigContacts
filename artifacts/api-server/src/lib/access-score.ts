@@ -36,7 +36,13 @@ export function computeAccessScore(entity: AccessScoreEntity): number {
   const methodEvidence = hasDirectMethod ? 0.08 : hasIntermediaryMethod ? 0.03 : 0;
   const evidence = Math.min(1, channels + methodEvidence);
 
-  const confidence = Math.max(0, Math.min(100, entity.contactConfidence ?? 0)) / 100;
+  // contactConfidence amplifies existing contact evidence — it must NOT manufacture
+  // a score when there is no actual contact data at all.
+  const hasAnyContact = channels > 0 || hasDirectMethod || hasIntermediaryMethod;
+  const confidence = hasAnyContact
+    ? Math.max(0, Math.min(100, entity.contactConfidence ?? 0)) / 100
+    : 0;
+
   const directness = hasDirectMethod || entity.email || entity.phone
     ? 1
     : hasIntermediaryMethod

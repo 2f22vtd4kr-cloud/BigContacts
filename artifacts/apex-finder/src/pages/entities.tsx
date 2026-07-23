@@ -84,184 +84,103 @@ function exportToCsv(entities: any[]) {
   URL.revokeObjectURL(url);
 }
 
-// ─── Mobile entity detail ─────────────────────────────────────────────────────
+// ─── Mobile card ──────────────────────────────────────────────────────────────
 
-function MobileEntityDetail({ entity, onClose }: { entity: any; onClose: () => void }) {
+function MobileEntityCard({
+  entity, selected, onToggleSelect, isExpanded, onToggleExpand,
+}: {
+  entity: any; selected: boolean; isExpanded: boolean;
+  onToggleSelect: (e: React.MouseEvent) => void;
+  onToggleExpand: () => void;
+}) {
   const typeColor = TYPE_COLORS[entity.type] ?? "#64748B";
   let registries: string[] = [];
   try { registries = JSON.parse(entity.sourceRegistries ?? "[]"); } catch { registries = []; }
-  let meta: any = {};
-  try { meta = JSON.parse(entity.metadata ?? "{}"); } catch { /* */ }
 
   return (
-    <div className="fixed inset-0 bg-background z-50 flex flex-col md:hidden">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card flex-shrink-0">
-        <span className="text-xs font-mono text-muted-foreground uppercase tracking-widest">Entity Detail</span>
-        <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-1">
-          <X className="w-5 h-5" />
+    <div className={cn("border-b border-border bg-card", selected && "bg-primary/5")}>
+      <div 
+        onClick={onToggleExpand}
+        className="flex items-center px-4 py-3 cursor-pointer"
+      >
+        <button onClick={onToggleSelect} className="shrink-0 mr-3" aria-label={selected ? "Deselect" : "Select"}>
+          {selected ? <CheckSquare className="w-4 h-4 text-primary" /> : <Square className="w-4 h-4 text-muted-foreground" />}
         </button>
-      </div>
-
-      <div className="flex-1 overflow-y-auto">
-        <div className="px-4 py-4 border-b border-border">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex-1 min-w-0">
-              {entity.isHot && (
-                <div className="flex items-center gap-1.5 mb-2">
-                  <ShieldAlert className="w-3.5 h-3.5 text-amber-500" />
-                  <span className="text-[10px] font-mono font-bold text-amber-500 uppercase tracking-wider">Hot Lead</span>
-                </div>
-              )}
-              <h2 className="text-lg font-bold text-foreground">{formatEntityName(entity.name)}</h2>
-              <div className="flex items-center gap-2 mt-1 flex-wrap">
-                <span
-                  className="text-[10px] font-mono font-bold px-2 py-0.5 rounded flex items-center gap-1"
-                  style={{ color: typeColor, backgroundColor: typeColor + "18" }}
-                >
-                  {TYPE_ICONS[entity.type]} {entity.type}
-                </span>
-                {entity.nationality && <span className="text-xs text-muted-foreground">{entity.nationality}</span>}
-                {meta.proximityScore && (
-                  <span className={cn(
-                    "text-[10px] font-mono font-bold px-1.5 py-0.5 rounded",
-                    meta.proximityScore >= 8 ? "text-emerald-400 bg-emerald-400/10"
-                    : meta.proximityScore >= 5 ? "text-amber-400 bg-amber-400/10"
-                    : "text-muted-foreground bg-muted/50"
-                  )}>
-                    PROX {meta.proximityScore}/10
-                  </span>
-                )}
-              </div>
-            </div>
-            <AccessScoreBadge score={entity.accessScore} />
+        <div className="flex-1 min-w-0 pr-2">
+          <div className="font-semibold text-[14px] text-foreground truncate">
+            {formatEntityName(entity.name)}
+          </div>
+          <div className="mt-1">
+            <span
+              className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded flex items-center gap-1 w-max"
+              style={{ color: typeColor, backgroundColor: typeColor + "18" }}
+            >
+              {TYPE_ICONS[entity.type]} {entity.type}
+            </span>
           </div>
         </div>
+        <div className="shrink-0 flex items-center gap-2">
+          <AccessScoreBadge score={entity.accessScore} />
+          {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+        </div>
+      </div>
 
-        <div className="divide-y divide-border">
-          {entity.estimatedNetWorth && (
-            <div className="px-4 py-3">
-              <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1">Net Worth / AUM</div>
-              <div className="text-sm text-foreground font-mono">{formatCurrency(entity.estimatedNetWorth)}</div>
+      {isExpanded && (
+        <div className="px-4 pb-4 pt-1 animate-in slide-in-from-top-2 fade-in duration-200">
+          <div className="grid grid-cols-2 gap-3 mb-3">
+            <div>
+              <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-0.5">Nationality</div>
+              <div className="text-xs text-foreground font-mono">{entity.nationality ?? "—"}</div>
             </div>
-          )}
-          {entity.knownResidences && (
-            <div className="px-4 py-3">
-              <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1">Known Residences</div>
-              <div className="text-sm text-foreground">{entity.knownResidences}</div>
+            <div>
+              <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-0.5">Net Worth</div>
+              <div className="text-xs text-foreground font-mono">{entity.estimatedNetWorth ? formatCurrency(entity.estimatedNetWorth) : "—"}</div>
             </div>
-          )}
-          {entity.contactMethod && (
-            <div className="px-4 py-3">
-              <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1">Contact Vector</div>
-              <div className="text-sm text-foreground font-mono">{entity.contactMethod}</div>
+          </div>
+          
+          <div className="mb-3">
+            <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-0.5">Contact Vector</div>
+            <div className="text-xs text-foreground font-mono">
+              {entity.email ? entity.email : entity.phone ? entity.phone : entity.linkedinUrl ? "LinkedIn" : "No contact trace"}
             </div>
-          )}
-          {entity.notes && (
-            <div className="px-4 py-3">
-              <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1">Intelligence Notes</div>
-              <div className="text-sm text-foreground leading-relaxed">{entity.notes}</div>
-            </div>
-          )}
+          </div>
+
           {registries.length > 0 && (
-            <div className="px-4 py-3">
-              <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1">Source Registries</div>
+            <div className="mb-4">
+              <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-1.5">Source Registries</div>
               <div className="flex flex-wrap gap-1">
                 {registries.map((r) => (
-                  <span key={r} className="text-[10px] font-mono px-1.5 py-0.5 bg-muted border border-border rounded text-muted-foreground">{r}</span>
+                  <span key={r} className="text-[9px] font-mono px-1.5 py-0.5 bg-muted border border-border rounded text-muted-foreground">{r}</span>
                 ))}
               </div>
             </div>
           )}
-          {meta.clubs?.length > 0 && (
-            <div className="px-4 py-3">
-              <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1">Club Memberships</div>
-              <div className="text-sm text-foreground">{meta.clubs.join(" · ")}</div>
-            </div>
-          )}
-        </div>
 
-        <div className="p-4 space-y-2">
-          <Link
-            href={`/profile/${entity.id}`}
-            className="flex items-center justify-center gap-2 w-full py-2.5 bg-primary text-primary-foreground rounded font-mono text-xs uppercase tracking-wider"
-          >
-            <IdCard className="w-3.5 h-3.5" /> Apex Profile Card
-          </Link>
-          <Link
-            href={`/graph?entity=${entity.id}`}
-            className="flex items-center justify-center gap-2 w-full py-2.5 bg-muted border border-border text-foreground rounded font-mono text-xs uppercase tracking-wider"
-          >
-            <Network className="w-3.5 h-3.5" /> View Network
-          </Link>
-          <Link
-            href={`/research?entity=${entity.id}`}
-            className="flex items-center justify-center gap-2 w-full py-2.5 bg-muted border border-border text-foreground rounded font-mono text-xs uppercase tracking-wider"
-          >
-            <TargetIcon className="w-3.5 h-3.5" /> Run Hybrid Research
-          </Link>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Mobile card ──────────────────────────────────────────────────────────────
-
-function MobileEntityCard({
-  entity, onSelect, selected, onToggleSelect,
-}: {
-  entity: any; onSelect: () => void; selected: boolean;
-  onToggleSelect: (e: React.MouseEvent) => void;
-}) {
-  const typeColors: Record<string, string> = {
-    HNWI: "#10B981", Corporation: "#3B82F6", Trust: "#A855F7", Gatekeeper: "#F59E0B",
-  };
-  const typeBg: Record<string, string> = {
-    HNWI: "bg-emerald-900", Corporation: "bg-blue-900", Trust: "bg-purple-900", Gatekeeper: "bg-amber-900",
-  };
-  const accessScore = entity.accessScore ?? 0;
-  const grade = accessScore >= 0.8 ? "A" : accessScore >= 0.65 ? "B" : accessScore >= 0.5 ? "C" : "D";
-  const gradeColor = accessScore >= 0.8 ? "text-emerald-400" : accessScore >= 0.65 ? "text-blue-400"
-    : accessScore >= 0.5 ? "text-amber-400" : "text-muted-foreground";
-  const letter = (entity.name ?? "?")[0]?.toUpperCase() ?? "?";
-  const color = typeColors[entity.type] ?? "#64748B";
-  const bg = typeBg[entity.type] ?? "bg-muted";
-  const flag = entity.nationality ? entity.nationality.slice(0, 2) : "";
-
-  return (
-    <div
-      className={cn("flex items-center px-4 h-[64px] border-b border-border transition-colors active:bg-card/50",
-        selected && "bg-primary/5")}
-    >
-      {/* Avatar */}
-      <button onClick={onToggleSelect} className="shrink-0 mr-3" aria-label={selected ? "Deselect" : "Select"}>
-        <div className={cn("w-9 h-9 rounded-full flex items-center justify-center font-bold text-[14px] text-white", bg)}
-             style={{ backgroundColor: color + "33", color }}>
-          {letter}
-        </div>
-      </button>
-
-      {/* Main content */}
-      <button onClick={onSelect} className="flex-1 min-w-0 text-left flex items-center gap-2">
-        <div className="flex-1 min-w-0">
-          <div className="font-semibold text-[14px] text-foreground truncate leading-snug">
-            {formatEntityName(entity.name)}
-          </div>
-          <div className="text-[11px] text-muted-foreground font-mono">
-            {entity.type}{entity.nationality ? ` · ${entity.nationality}` : ""}
+          <div className="grid grid-cols-3 gap-2">
+            <Link
+              href={`/profile/${entity.id}`}
+              className="flex flex-col items-center justify-center gap-1.5 py-2 bg-muted border border-border rounded text-muted-foreground hover:text-primary transition-colors"
+            >
+              <IdCard className="w-3.5 h-3.5" />
+              <span className="text-[9px] font-mono uppercase">Profile</span>
+            </Link>
+            <Link
+              href={`/graph?entity=${entity.id}`}
+              className="flex flex-col items-center justify-center gap-1.5 py-2 bg-muted border border-border rounded text-muted-foreground hover:text-primary transition-colors"
+            >
+              <Network className="w-3.5 h-3.5" />
+              <span className="text-[9px] font-mono uppercase">Network</span>
+            </Link>
+            <Link
+              href={`/research?entity=${entity.id}`}
+              className="flex flex-col items-center justify-center gap-1.5 py-2 bg-primary/10 border border-primary/20 rounded text-primary hover:bg-primary/20 transition-colors"
+            >
+              <TargetIcon className="w-3.5 h-3.5" />
+              <span className="text-[9px] font-mono uppercase">Research</span>
+            </Link>
           </div>
         </div>
-        {/* Right: grade + net worth */}
-        <div className="shrink-0 flex flex-col items-end gap-0.5">
-          <span className={`text-[13px] font-mono font-bold ${gradeColor}`}>{grade}</span>
-          {entity.estimatedNetWorth ? (
-            <span className="text-[10px] font-mono text-muted-foreground">
-              ↗ {formatCurrency(entity.estimatedNetWorth)}
-            </span>
-          ) : <span className="text-[10px] text-muted-foreground">—</span>}
-        </div>
-        <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 ml-1" />
-      </button>
+      )}
     </div>
   );
 }
@@ -502,7 +421,7 @@ export default function EntityLedger() {
         )}
         {/* Header toolbar */}
         <div className="flex items-center gap-3 px-4 py-3 border-b border-border bg-card/30 flex-shrink-0">
-          <div className="flex items-center gap-2 flex-1 px-3 py-1.5 rounded bg-background border border-border">
+          <div className="flex items-center gap-2 flex-1 px-3 py-1.5 rounded-full bg-background border border-border">
             <Search className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
             <input
               type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
@@ -513,46 +432,31 @@ export default function EntityLedger() {
           </div>
 
           {/* Type filter */}
-          <div className="flex items-center gap-1">
-            {[null, "HNWI", "Gatekeeper", "Corporation", "Trust"].map((t) => {
+          <div className="flex items-center gap-1.5">
+            {[null, "HNWI", "Corporation", "Trust", "Gatekeeper"].map((t) => {
               const c = t ? (TYPE_COLORS[t] ?? "#64748B") : "#10B981";
               return (
                 <button
                   key={t ?? "all"}
                   onClick={() => setTypeFilter(t)}
-                  className="px-2.5 py-1 rounded text-[10px] font-mono font-bold uppercase transition-all"
+                  className="px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase transition-all flex items-center gap-1.5"
                   style={{
-                    backgroundColor: typeFilter === t ? c : c + "18",
-                    color: typeFilter === t ? "#000" : c,
-                    border: `1px solid ${c}44`,
+                    backgroundColor: typeFilter === t ? c : "transparent",
+                    color: typeFilter === t ? "#000" : "hsl(var(--muted-foreground))",
+                    border: `1px solid ${typeFilter === t ? c : "hsl(var(--border))"}`,
                   }}
                 >
-                  {t ?? "ALL"}
+                  {t ? TYPE_ICONS[t] : null} {t ?? "ALL"}
                 </button>
               );
             })}
-          </div>
-
-          {/* Proximity filter */}
-          <div className="flex items-center gap-1.5">
-            <Filter className="w-3 h-3 text-muted-foreground" />
-            <select
-              value={proximityMin}
-              onChange={(e) => setProximityMin(Number(e.target.value))}
-              className="bg-background border border-border rounded px-2 py-1 text-[11px] font-mono text-foreground focus:outline-none focus:border-primary"
-            >
-              <option value={0}>Proximity: Any</option>
-              <option value={4}>≥ Gatekeeper (4+)</option>
-              <option value={7}>≥ Near-personal (7+)</option>
-              <option value={9}>Personal only (9+)</option>
-            </select>
           </div>
 
           {/* Action buttons */}
           <button
             onClick={() => setShowRegistry(!showRegistry)}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded border font-mono text-[11px] uppercase tracking-wider transition-all",
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-full border font-mono text-[10px] uppercase tracking-wider transition-all ml-2",
               showRegistry ? "bg-secondary/20 border-secondary text-secondary" : "border-border text-muted-foreground hover:text-foreground",
             )}
           >
@@ -562,7 +466,7 @@ export default function EntityLedger() {
           {entities && entities.length > 0 && (
             <button
               onClick={() => exportToCsv(entities)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-border text-muted-foreground hover:text-foreground font-mono text-[11px] uppercase tracking-wider transition-all"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border text-muted-foreground hover:text-foreground font-mono text-[10px] uppercase tracking-wider transition-all"
             >
               <Download className="w-3 h-3" /> CSV
             </button>
@@ -570,7 +474,7 @@ export default function EntityLedger() {
 
           <button
             onClick={() => openAddModal()}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-primary text-primary-foreground font-mono text-[11px] uppercase tracking-wider hover:bg-primary/90 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border bg-transparent text-muted-foreground hover:bg-muted font-mono text-[10px] uppercase tracking-wider transition-colors ml-auto"
           >
             <Plus className="w-3 h-3" /> Add
           </button>
@@ -659,42 +563,42 @@ export default function EntityLedger() {
 
         {/* Bulk action bar */}
         {selectedIds.size > 0 && (
-          <div className="flex-shrink-0 flex items-center gap-3 px-4 py-2.5 border-b border-primary/30 bg-primary/5">
-            <span className="text-xs font-mono text-primary font-bold">
+          <div className="flex-shrink-0 flex items-center gap-3 px-4 h-9 border-b border-primary/30 bg-primary/5">
+            <span className="text-[10px] font-mono text-primary font-bold">
               {selectedIds.size} selected
             </span>
             <div className="flex-1" />
             {bulkDone ? (
-              <span className="text-xs font-mono text-primary flex items-center gap-1.5">
+              <span className="text-[10px] font-mono text-primary flex items-center gap-1.5">
                 <CheckCheck className="w-3.5 h-3.5" /> {bulkDone}
               </span>
             ) : (
               <>
                 <button
                   onClick={handleBulkExportCsv}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-border text-muted-foreground hover:text-foreground font-mono text-[11px] uppercase tracking-wider transition-all"
+                  className="flex items-center gap-1 px-2 py-1 rounded border border-border text-muted-foreground hover:text-foreground font-mono text-[9px] uppercase tracking-wider transition-all"
                 >
-                  <Download className="w-3 h-3" /> Export CSV
+                  <Download className="w-2.5 h-2.5" /> Export CSV
                 </button>
                 <button
                   onClick={handleBulkAddToCrm}
                   disabled={bulkLoading}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-secondary/40 bg-secondary/10 text-secondary font-mono text-[11px] uppercase tracking-wider hover:bg-secondary/20 disabled:opacity-40 transition-all"
+                  className="flex items-center gap-1 px-2 py-1 rounded border border-secondary/40 bg-secondary/10 text-secondary font-mono text-[9px] uppercase tracking-wider hover:bg-secondary/20 disabled:opacity-40 transition-all"
                 >
                   {bulkLoading
-                    ? <Loader2 className="w-3 h-3 animate-spin" />
-                    : <ListPlus className="w-3 h-3" />}
+                    ? <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                    : <ListPlus className="w-2.5 h-2.5" />}
                   {bulkLoading ? "Adding…" : "Add to CRM"}
                 </button>
                 <button
                   onClick={handleBulkMcts}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-primary/40 bg-primary/10 text-primary font-mono text-[11px] uppercase tracking-wider hover:bg-primary/20 transition-all"
+                  className="flex items-center gap-1 px-2 py-1 rounded border border-primary/40 bg-primary/10 text-primary font-mono text-[9px] uppercase tracking-wider hover:bg-primary/20 transition-all"
                 >
-                  <TargetIcon className="w-3 h-3" /> Run Research
+                  <TargetIcon className="w-2.5 h-2.5" /> Run Research
                 </button>
                 <button
                   onClick={() => setSelectedIds(new Set())}
-                  className="text-[10px] font-mono text-muted-foreground hover:text-foreground transition-colors ml-1"
+                  className="text-[9px] font-mono text-muted-foreground hover:text-foreground transition-colors ml-1 uppercase tracking-wider"
                 >
                   ✕ Clear
                 </button>
@@ -719,8 +623,11 @@ export default function EntityLedger() {
                       : <Square className="w-3.5 h-3.5" />}
                   </button>
                 </th>
-                {["Name & Classification","Nationality","Net Worth","Score","Contact Vector","Assets","Actions"].map((h) => (
-                  <th key={h} className="px-4 py-3 text-left text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">
+                {["Name", "Type", "Nationality", "Access", "Contact Vector", "Net Worth"].map((h) => (
+                  <th key={h} className={cn(
+                    "px-4 py-3 text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap",
+                    h === "Net Worth" ? "text-right" : "text-left"
+                  )}>
                     {h}
                   </th>
                 ))}
@@ -728,8 +635,6 @@ export default function EntityLedger() {
             </thead>
             <tbody className="divide-y divide-border/50">
               {entities?.map((entity: any) => {
-                let meta: any = {};
-                try { meta = JSON.parse((entity as any).metadata ?? "{}"); } catch { /* */ }
                 const typeColor = TYPE_COLORS[entity.type] ?? "#64748B";
                 const isSelected = selectedIds.has(entity.id);
                 return (
@@ -751,33 +656,18 @@ export default function EntityLedger() {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         {entity.isHot && <ShieldAlert className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />}
-                        <div>
-                          <div className="font-semibold text-sm text-foreground">{formatEntityName(entity.name)}</div>
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            <span
-                              className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5"
-                              style={{ color: typeColor, backgroundColor: typeColor + "18" }}
-                            >
-                              {TYPE_ICONS[entity.type]} {entity.type}
-                            </span>
-                            {meta.proximityScore && (
-                              <span className={cn(
-                                "text-[9px] font-mono font-bold px-1 py-0.5 rounded",
-                                meta.proximityScore >= 8 ? "text-emerald-400 bg-emerald-400/10"
-                                : meta.proximityScore >= 5 ? "text-amber-400 bg-amber-400/10"
-                                : "text-muted-foreground/50 bg-muted/30"
-                              )}>
-                                PROX {meta.proximityScore}/10
-                              </span>
-                            )}
-                          </div>
-                        </div>
+                        <span className="font-semibold text-sm text-foreground whitespace-nowrap">{formatEntityName(entity.name)}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground font-mono">{entity.nationality ?? "—"}</td>
-                    <td className="px-4 py-3 text-sm font-mono text-foreground">
-                      {entity.estimatedNetWorth ? formatCurrency(entity.estimatedNetWorth) : "—"}
+                    <td className="px-4 py-3">
+                      <span
+                        className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded flex items-center gap-1.5 w-max whitespace-nowrap"
+                        style={{ color: typeColor, backgroundColor: typeColor + "18" }}
+                      >
+                        {TYPE_ICONS[entity.type]} {entity.type}
+                      </span>
                     </td>
+                    <td className="px-4 py-3 text-sm text-muted-foreground font-mono whitespace-nowrap">{entity.nationality ?? "—"}</td>
                     <td className="px-4 py-3"><AccessScoreBadge score={entity.accessScore} /></td>
                     <td className="px-4 py-3 text-xs max-w-[220px]">
                       {entity.email || entity.phone || entity.linkedinUrl ? (
@@ -822,11 +712,11 @@ export default function EntityLedger() {
                         <span className="text-muted-foreground/40 font-mono text-[11px] italic">No contact</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground font-mono text-center">
-                      {(entity as any).assetCount ?? 0}
+                    <td className="px-4 py-3 text-sm font-mono text-foreground text-right whitespace-nowrap">
+                      {entity.estimatedNetWorth ? formatCurrency(entity.estimatedNetWorth) : "—"}
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Link
                           href={`/profile/${entity.id}`}
                           className="p-1.5 text-muted-foreground hover:text-primary transition-colors"
@@ -1011,8 +901,9 @@ export default function EntityLedger() {
             <MobileEntityCard
               key={entity.id}
               entity={entity}
-              onSelect={() => setMobileSelectedEntity(entity)}
               selected={selectedIds.has(entity.id)}
+              isExpanded={mobileSelectedEntity?.id === entity.id}
+              onToggleExpand={() => setMobileSelectedEntity(mobileSelectedEntity?.id === entity.id ? null : entity)}
               onToggleSelect={(e) => { e.stopPropagation(); toggleSelect(entity.id); }}
             />
           ))}
@@ -1028,10 +919,6 @@ export default function EntityLedger() {
       >
         <Plus className="w-5 h-5 text-black" />
       </button>
-
-      {mobileSelectedEntity && (
-        <MobileEntityDetail entity={mobileSelectedEntity} onClose={() => setMobileSelectedEntity(null)} />
-      )}
 
       {/* Add entity modal */}
       {showAddModal && (

@@ -174,11 +174,11 @@ function BackgroundActivityRail({ className }: { className?: string }) {
   return (
     <section
       aria-label="Background activity"
-      className={cn("flex flex-col gap-2", className)}
+      className={cn("flex flex-col gap-2", hasActive && "border border-primary/20 rounded-lg bg-primary/3 p-1", className)}
       data-testid="background-activity-rail"
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 pt-3 pb-1">
+      <div className="flex items-center justify-between px-3 pt-2 pb-1">
         <div className="flex items-center gap-2">
           <div
             className={cn(
@@ -211,12 +211,12 @@ function BackgroundActivityRail({ className }: { className?: string }) {
 
       {/* Active jobs */}
       {hasActive && (
-        <div className="px-4 space-y-2.5" data-testid="active-jobs-list">
+        <div className="px-3 space-y-3 pb-2" data-testid="active-jobs-list">
           {jobs.map((job, i) => (
-            <div key={job.id ?? i} className="flex flex-col gap-1">
+            <div key={job.id ?? i} className="flex flex-col gap-1.5">
               <div className="flex items-center gap-2 min-w-0">
-                <Loader2 className="w-3 h-3 animate-spin text-primary shrink-0" aria-hidden="true" />
-                <span className="text-xs font-mono text-foreground/80 truncate flex-1">{job.label}</span>
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-primary shrink-0" aria-hidden="true" />
+                <span className="text-xs font-mono text-foreground/90 truncate flex-1">{job.label}</span>
                 <span
                   className={cn(
                     "text-[9px] font-mono uppercase shrink-0",
@@ -227,8 +227,8 @@ function BackgroundActivityRail({ className }: { className?: string }) {
                 </span>
               </div>
               {job.progress > 0 && (
-                <div className="flex items-center gap-2 pl-5">
-                  <div className="flex-1 h-1 rounded-full bg-muted overflow-hidden">
+                <div className="flex items-center gap-2 pl-5.5">
+                  <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
                     <div
                       className="h-full bg-primary transition-all duration-500 rounded-full"
                       style={{ width: `${Math.min(100, job.progress)}%` }}
@@ -244,7 +244,7 @@ function BackgroundActivityRail({ className }: { className?: string }) {
                 </div>
               )}
               {job.message && (
-                <p className="text-[9px] font-mono text-muted-foreground/70 pl-5 truncate">{job.message}</p>
+                <p className="text-[9px] font-mono text-muted-foreground/70 pl-5.5 truncate">{job.message}</p>
               )}
             </div>
           ))}
@@ -253,7 +253,7 @@ function BackgroundActivityRail({ className }: { className?: string }) {
 
       {/* Completed result */}
       {!hasActive && completed && !fetchError && (
-        <div className="px-4 flex items-start gap-2" data-testid="completed-job-result">
+        <div className="px-3 pb-2 flex items-start gap-2" data-testid="completed-job-result">
           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" aria-hidden="true" />
           <div className="min-w-0 flex-1">
             <p className="text-xs font-mono text-foreground/80 truncate">{completed.label}</p>
@@ -270,7 +270,7 @@ function BackgroundActivityRail({ className }: { className?: string }) {
       )}
 
       {fetchError && (
-        <div className="px-4 flex items-center gap-2" data-testid="activity-fetch-error">
+        <div className="px-3 pb-2 flex items-center gap-2" data-testid="activity-fetch-error">
           <XCircle className="w-3.5 h-3.5 text-destructive shrink-0" aria-hidden="true" />
           <p className="text-[10px] font-mono text-muted-foreground">Could not load activity — retrying</p>
         </div>
@@ -306,7 +306,7 @@ function DashboardHeader() {
           {/* Title */}
           <div className="px-4 sm:px-6 py-3 shrink-0">
             <h1 className="text-xs font-mono font-bold uppercase tracking-widest text-foreground whitespace-nowrap">
-              Research Command Center
+              Dashboard
             </h1>
             <p className="text-[10px] font-mono text-muted-foreground/60 mt-0.5 whitespace-nowrap hidden sm:block">
               Public registry intelligence
@@ -493,26 +493,18 @@ function LeadCard({ lead }: { lead: any }) {
       </div>
 
       {/* Contact evidence */}
-      <ContactChips lead={lead} />
-
-      {/* Why ranked */}
-      <p className="mt-2 text-[10px] font-mono text-muted-foreground/80 line-clamp-2" aria-label="Why ranked">
-        <span className="text-primary/70 mr-1">WHY:</span>
-        {buildWhyRanked(lead)}
-      </p>
+      <div className="mb-2">
+        <ContactChips lead={lead} />
+      </div>
 
       {/* Supporting context */}
-      <div className="mt-2 flex items-center gap-3 text-[10px] font-mono text-muted-foreground">
+      <div className="flex items-center gap-2 text-[10px] font-mono text-muted-foreground">
         {lead.estimatedNetWorth != null && (
-          <span>
-            Net worth:{" "}
-            <span className="text-foreground/80">{formatCurrency(lead.estimatedNetWorth)}</span>
-          </span>
+          <span className="text-foreground/80">{formatCurrency(lead.estimatedNetWorth)}</span>
         )}
+        {lead.estimatedNetWorth != null && (lead.assetCount ?? 0) > 0 && <span>·</span>}
         {(lead.assetCount ?? 0) > 0 && (
-          <span>
-            Assets: <span className="text-foreground/80">{lead.assetCount}</span>
-          </span>
+          <span>{lead.assetCount} assets</span>
         )}
       </div>
 
@@ -528,7 +520,7 @@ function LeadCard({ lead }: { lead: any }) {
           data-testid={`link-profile-${lead.entityId}`}
           aria-label={`Open profile for ${formatEntityName(lead.entityName)}`}
           onClick={(e) => e.stopPropagation()}
-          className="flex items-center gap-1 px-2.5 py-1 rounded border border-border text-[10px] font-mono text-muted-foreground hover:text-primary hover:border-primary/40 hover:bg-primary/5 transition-colors"
+          className="flex items-center gap-1 px-2.5 py-1 rounded border border-border text-[9px] font-mono text-muted-foreground hover:text-primary hover:border-primary/40 hover:bg-primary/5 transition-colors uppercase tracking-wider"
         >
           <BookOpen className="w-2.5 h-2.5" aria-hidden="true" />
           Profile
@@ -538,7 +530,7 @@ function LeadCard({ lead }: { lead: any }) {
           data-testid={`link-network-${lead.entityId}`}
           aria-label={`Open network map for ${formatEntityName(lead.entityName)}`}
           onClick={(e) => e.stopPropagation()}
-          className="flex items-center gap-1 px-2.5 py-1 rounded border border-border text-[10px] font-mono text-muted-foreground hover:text-blue-400 hover:border-blue-400/40 hover:bg-blue-400/5 transition-colors"
+          className="flex items-center gap-1 px-2.5 py-1 rounded border border-border text-[9px] font-mono text-muted-foreground hover:text-blue-400 hover:border-blue-400/40 hover:bg-blue-400/5 transition-colors uppercase tracking-wider"
         >
           <Network className="w-2.5 h-2.5" aria-hidden="true" />
           Network
@@ -574,7 +566,7 @@ function ContactQueue({ className }: { className?: string }) {
 
   return (
     <section
-      aria-label="Best next contacts"
+      aria-label="Priority queue"
       className={cn("flex flex-col overflow-hidden", className)}
       data-testid="contact-queue"
     >
@@ -583,7 +575,7 @@ function ContactQueue({ className }: { className?: string }) {
         <div className="flex items-center gap-2">
           <Users className="w-4 h-4 text-emerald-400 shrink-0" aria-hidden="true" />
           <h2 className="text-xs font-mono font-bold uppercase tracking-widest text-foreground">
-            Best Next Contacts
+            Priority Queue
           </h2>
           <span className="text-[9px] font-mono text-muted-foreground/60 hidden sm:inline">
             ranked by access score
@@ -722,51 +714,41 @@ function GlobalContextSection({ className }: { className?: string }) {
 // ── Desktop activity rail (right column) ─────────────────────────────────────
 
 function DesktopActivityRail() {
+  const { data: stats } = useGetDashboardStats();
+  const s = stats as any;
+
   return (
     <aside
-      aria-label="Background activity and context"
-      className="w-[300px] xl:w-[340px] shrink-0 border-l border-border bg-card/20 flex flex-col overflow-hidden"
+      aria-label="Live research and context"
+      className="w-[280px] xl:w-[320px] shrink-0 border-l border-border bg-card/20 flex flex-col overflow-hidden"
       data-testid="desktop-activity-rail"
     >
       {/* Section header */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-border flex-shrink-0">
-        <Activity className="w-4 h-4 text-muted-foreground shrink-0" aria-hidden="true" />
-        <h2 className="text-xs font-mono font-bold uppercase tracking-widest text-foreground">
-          Background Activity
-        </h2>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <Radio className="w-4 h-4 text-primary shrink-0" aria-hidden="true" />
+          <h2 className="text-xs font-mono font-bold uppercase tracking-widest text-foreground">
+            Live Research
+          </h2>
+        </div>
+        {/* Coverage Pulse */}
+        <div className="flex items-center gap-1.5" title="Enrichment coverage">
+          <div className="relative w-3 h-3 flex items-center justify-center">
+            <div className="absolute inset-0 rounded-full border-2 border-primary/20"></div>
+            <div 
+              className="absolute inset-0 rounded-full border-2 border-primary border-t-transparent animate-spin" 
+              style={{ animationDuration: '3s' }}
+            ></div>
+          </div>
+          <span className="text-[10px] font-mono text-primary font-bold">
+            {(s?.enrichmentCoverage ?? 0).toFixed(0)}%
+          </span>
+        </div>
       </div>
-
-      {/* Quick navigation links */}
-      <nav aria-label="Quick navigation" className="flex gap-1.5 px-3 py-2 border-b border-border flex-shrink-0">
-        <Link
-          href="/research"
-          aria-label="Run intelligence session"
-          className="flex-1 flex items-center justify-center gap-1 py-1.5 text-[9px] font-mono uppercase tracking-wider border border-border rounded hover:border-primary/60 hover:text-primary hover:bg-primary/5 transition-colors text-muted-foreground"
-        >
-          <BookOpen className="w-2.5 h-2.5 shrink-0" aria-hidden="true" />
-          Research
-        </Link>
-        <Link
-          href="/profiles"
-          aria-label="Browse all profiles"
-          className="flex-1 flex items-center justify-center gap-1 py-1.5 text-[9px] font-mono uppercase tracking-wider border border-border rounded hover:border-primary/60 hover:text-primary hover:bg-primary/5 transition-colors text-muted-foreground"
-        >
-          <Users className="w-2.5 h-2.5 shrink-0" aria-hidden="true" />
-          Profiles
-        </Link>
-        <Link
-          href="/network"
-          aria-label="Open network map"
-          className="flex-1 flex items-center justify-center gap-1 py-1.5 text-[9px] font-mono uppercase tracking-wider border border-border rounded hover:border-primary/60 hover:text-primary hover:bg-primary/5 transition-colors text-muted-foreground"
-        >
-          <Network className="w-2.5 h-2.5 shrink-0" aria-hidden="true" />
-          Network
-        </Link>
-      </nav>
 
       {/* Live activity */}
       <div className="flex-1 overflow-y-auto">
-        <BackgroundActivityRail className="py-1" />
+        <BackgroundActivityRail className="py-2 px-2" />
         <GlobalContextSection />
       </div>
 
@@ -781,87 +763,49 @@ function DesktopActivityRail() {
   );
 }
 
-// ── Mobile swipeable activity feed ────────────────────────────────────────────
+// ── Mobile activity and context ──────────────────────────────────────────────
 
 function MobileActivityFeed() {
   const { data: stats, isError: statsError } = useGetDashboardStats();
   const s = stats as any;
 
   return (
-    <div
-      className="overflow-x-auto flex gap-3 px-4 py-3 border-b border-border scroll-smooth snap-x snap-mandatory"
-      aria-label="Background activity feed"
-      data-testid="mobile-activity-feed"
-      style={{ WebkitOverflowScrolling: "touch" }}
-    >
-      {/* Activity card */}
-      <div className="w-72 shrink-0 snap-start rounded-lg border border-border bg-card/60 p-3 flex flex-col gap-2">
+    <div className="flex flex-col border-b border-border bg-card/60">
+      <div className="p-3">
+        <div className="flex items-center gap-1.5 mb-2">
+          <Radio className="w-3.5 h-3.5 text-primary" aria-hidden="true" />
+          <h2 className="text-[10px] font-mono font-bold uppercase tracking-widest text-foreground">
+            Live Research
+          </h2>
+        </div>
         <BackgroundActivityRail className="gap-1.5" />
       </div>
-
-      {/* Stats snapshot card */}
-      {s && !statsError && (
-        <div className="w-56 shrink-0 snap-start rounded-lg border border-border bg-card/60 p-3 flex flex-col gap-2">
-          <span className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground flex items-center gap-1">
-            <Database className="w-2.5 h-2.5" aria-hidden="true" />
-            Snapshot
-          </span>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <p className="text-[9px] font-mono text-muted-foreground">Profiles</p>
-              <p className="text-base font-bold text-foreground tabular-nums">
-                {(s.totalEntities ?? 0).toLocaleString()}
-              </p>
+      
+      {/* Stats snapshot strip */}
+      <div className="flex gap-4 overflow-x-auto px-4 py-2 bg-background/50 border-t border-border" style={{ scrollbarWidth: "none" }}>
+        {s && !statsError ? (
+          <>
+            <div className="shrink-0">
+              <span className="text-[10px] font-mono text-muted-foreground mr-1">Profiles</span>
+              <span className="text-xs font-bold text-foreground tabular-nums">{(s.totalEntities ?? 0).toLocaleString()}</span>
             </div>
-            <div>
-              <p className="text-[9px] font-mono text-emerald-400">Reachable</p>
-              <p className="text-base font-bold text-emerald-400 tabular-nums">
-                {(s.contactableCount ?? 0).toLocaleString()}
-              </p>
+            <div className="shrink-0">
+              <span className="text-[10px] font-mono text-emerald-400 mr-1">Reachable</span>
+              <span className="text-xs font-bold text-emerald-400 tabular-nums">{(s.contactableCount ?? 0).toLocaleString()}</span>
             </div>
-            <div>
-              <p className="text-[9px] font-mono text-blue-400">Sessions</p>
-              <p className="text-base font-bold text-blue-400 tabular-nums">
-                {(s.activeResearchSessions ?? 0).toLocaleString()}
-              </p>
+            <div className="shrink-0">
+              <span className="text-[10px] font-mono text-blue-400 mr-1">Sessions</span>
+              <span className="text-xs font-bold text-blue-400 tabular-nums">{(s.activeResearchSessions ?? 0).toLocaleString()}</span>
             </div>
-            <div>
-              <p className="text-[9px] font-mono text-muted-foreground">Coverage</p>
-              <p className="text-base font-bold text-cyan-400 tabular-nums">
-                {(s.enrichmentCoverage ?? 0).toFixed(0)}%
-              </p>
+            <div className="shrink-0">
+              <span className="text-[10px] font-mono text-cyan-400 mr-1">Coverage</span>
+              <span className="text-xs font-bold text-cyan-400 tabular-nums">{(s.enrichmentCoverage ?? 0).toFixed(0)}%</span>
             </div>
-          </div>
-        </div>
-      )}
-      {statsError && (
-        <div className="w-56 shrink-0 snap-start rounded-lg border border-border bg-card/60 p-3">
-          <span className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground">
-            Snapshot
-          </span>
-          <DataUnavailable compact />
-        </div>
-      )}
-
-      {/* Global context card */}
-      <div className="w-64 shrink-0 snap-start rounded-lg border border-border bg-card/60 p-3 flex flex-col gap-2">
-        <div className="flex items-center justify-between">
-          <span className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground flex items-center gap-1">
-            <Globe className="w-2.5 h-2.5" aria-hidden="true" />
-            Global context
-          </span>
-          <Link href="/network" aria-label="Open asset map" className="text-[9px] font-mono text-primary/60 hover:text-primary flex items-center gap-0.5">
-            <MapPin className="w-2.5 h-2.5" aria-hidden="true" />
-            Map
-          </Link>
-        </div>
-        {s?.totalAssets > 0 ? (
-          <p className="text-xs font-mono text-muted-foreground">
-            <span className="text-foreground font-bold">{s.totalAssets.toLocaleString()}</span> assets across public registries.
-            Tap &ldquo;Map&rdquo; to explore geospatially.
-          </p>
+          </>
+        ) : statsError ? (
+          <span className="text-[10px] font-mono text-muted-foreground">Stats unavailable</span>
         ) : (
-          <p className="text-xs font-mono text-muted-foreground/50">No asset data yet.</p>
+          <span className="text-[10px] font-mono text-muted-foreground">Loading stats...</span>
         )}
       </div>
     </div>
@@ -937,26 +881,24 @@ function MobileLeadCard({ lead }: { lead: any }) {
 // ── Mobile contact view ────────────────────────────────────────────────────────
 
 function MobileContactView() {
-  const { data: stats } = useGetDashboardStats();
-  const s = stats as any;
   const { data: hotLeads, isLoading, isError } = useGetHotLeads({ limit: 10 });
   const leads = (hotLeads as any[]) ?? [];
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden">
-      {/* Activity and context strip — remains useful even when PostgreSQL data is unavailable */}
+    <div className="flex flex-col flex-1 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
+      {/* Activity and context strip */}
       <MobileActivityFeed />
 
       {/* Section header */}
       <div className="flex items-center justify-between px-4 pt-4 pb-2 shrink-0">
-        <h2 className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">Best Next Contacts</h2>
+        <h2 className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">Priority Queue</h2>
         <Link href="/profiles?hot=1" className="text-[13px] text-primary flex items-center gap-0.5">
           View all <ChevronRight className="w-4 h-4" />
         </Link>
       </div>
 
       {/* Contact cards */}
-      <div className="flex-1 overflow-y-auto px-4 pb-4 flex flex-col gap-2" style={{ scrollbarWidth: "none" }}>
+      <div className="px-4 pb-4 flex flex-col gap-2 shrink-0">
         {isLoading && (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-5 h-5 animate-spin text-primary" />
@@ -969,22 +911,10 @@ function MobileContactView() {
         ))}
       </div>
 
-      {/* Stats strip */}
-      {s && (
-        <div className="shrink-0 grid grid-cols-4 border-t border-border bg-card">
-          {[
-            { val: s.totalEntities?.toLocaleString() ?? "—", label: "Entities" },
-            { val: s.totalAssets?.toLocaleString() ?? "—",   label: "Assets" },
-            { val: s.hotLeads?.toLocaleString() ?? "—",      label: "Hot Leads" },
-            { val: s.avgAccessScore != null ? s.avgAccessScore.toFixed(2) : "—", label: "Avg Access" },
-          ].map(({ val, label }) => (
-            <div key={label} className="flex flex-col items-center justify-center py-3 border-r border-border last:border-r-0">
-              <span className="text-[15px] font-mono font-bold text-primary tabular-nums">{val}</span>
-              <span className="text-[9px] uppercase tracking-wider text-muted-foreground mt-0.5">{label}</span>
-            </div>
-          ))}
-        </div>
-      )}
+      {/* Global context */}
+      <div className="mt-auto shrink-0 border-t border-border bg-card/40">
+        <GlobalContextSection />
+      </div>
     </div>
   );
 }

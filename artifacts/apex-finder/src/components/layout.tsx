@@ -10,22 +10,21 @@ import {
 
 // ─── Navigation structure ─────────────────────────────────────────────────────
 const mainNav = [
-  { name: "Intel HQ",      href: "/",          icon: Activity },
+  { name: "Dashboard",     href: "/",          icon: Activity },
   { name: "Entity Ledger", href: "/profiles",  icon: List },
   { name: "Search",        href: "/search",    icon: Search },
   { name: "Network Graph", href: "/network",   icon: Network },
   { name: "Intel Terminal",href: "/research",  icon: Terminal },
   { name: "CRM Pipeline",  href: "/pipeline",  icon: KanbanSquare },
   { name: "Outreach",      href: "/outreach",  icon: MessageSquare },
+  { name: "Field Manual",  href: "/manual",    icon: BookOpen },
 ];
 
 const toolsNav = [
   { name: "Persona Loop",  href: "/improvements",  icon: Bot },
   { name: "Data Sources",  href: "/data-sources",  icon: Database },
-  { name: "OSINT Tools",   href: "/osint-tools",   icon: Telescope },
-  { name: "Duplicates",    href: "/duplicates",    icon: Copy },
+  { name: "Sources",       href: "/osint-tools",   icon: Telescope },
   { name: "Background Jobs", href: "/jobs",        icon: Cog },
-  { name: "Field Manual",  href: "/manual",        icon: BookOpen },
 ];
 
 // All nav items flattened (used for mobile top bar active-page lookup)
