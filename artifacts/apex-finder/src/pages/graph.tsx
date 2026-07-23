@@ -160,12 +160,53 @@ export default function GraphViewer() {
 
   function nodeColor(node: any): string {
     if (node.isTarget) return "hsl(160, 84%, 39%)";
-    if (node.nodeType === "Corporation") return "hsl(217, 91%, 60%)";
-    if (node.nodeType === "Trust") return "hsl(270, 70%, 50%)";
-    if (node.nodeType === "Gatekeeper") return "hsl(38, 92%, 50%)";
+    if (node.nodeType === "HNWI") return "hsl(160, 55%, 24%)";
+    if (node.nodeType === "Corporation") return "hsl(217, 80%, 52%)";
+    if (node.nodeType === "Trust") return "hsl(270, 65%, 45%)";
+    if (node.nodeType === "Gatekeeper") return "hsl(38, 90%, 45%)";
     if (["RealEstate", "Aviation", "Marine", "PrivateClub"].includes(node.nodeType))
-      return "hsl(215, 16%, 45%)";
-    return "hsl(215, 16%, 65%)";
+      return "hsl(215, 16%, 38%)";
+    return "hsl(215, 14%, 50%)";
+  }
+
+  /** Draw the entity name label below each node */
+  function drawNodeLabel(node: any, ctx: CanvasRenderingContext2D, globalScale: number) {
+    if (!node.label) return;
+    if (globalScale < 0.6) return; // skip when too far out
+
+    const maxLen = 20;
+    const label = node.label.length > maxLen ? node.label.slice(0, maxLen - 1) + "…" : node.label;
+
+    // Constant pixel size: fontSize / globalScale = constant canvas-unit size
+    const fontSize = 3.8 / globalScale;
+
+    ctx.save();
+    ctx.font = `${fontSize}px sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+
+    // Position below the node circle
+    const baseR = node.isTarget ? 3 : node.isCentral ? 2 : 1;
+    const nodeRadius = Math.sqrt(baseR) * 6 / globalScale; // graph units → canvas units
+    const offsetY = nodeRadius + 1.2 / globalScale;
+
+    const textWidth = ctx.measureText(label).width;
+    const pad = 0.8 / globalScale;
+
+    // Dark backdrop for legibility
+    ctx.fillStyle = "rgba(8, 12, 22, 0.82)";
+    ctx.fillRect(node.x - textWidth / 2 - pad, node.y + offsetY - pad, textWidth + pad * 2, fontSize + pad * 2);
+
+    // Text color by node type
+    ctx.fillStyle = node.isTarget  ? "#34d399"
+      : node.nodeType === "Corporation" ? "#93c5fd"
+      : node.nodeType === "Trust"       ? "#c4b5fd"
+      : node.nodeType === "Gatekeeper"  ? "#fcd34d"
+      : ["RealEstate","Aviation","Marine","PrivateClub"].includes(node.nodeType) ? "#64748b"
+      : "#94a3b8";
+
+    ctx.fillText(label, node.x, node.y + offsetY);
+    ctx.restore();
   }
 
   /** Draw a contact-confidence ring around HNWI / Gatekeeper nodes */
@@ -439,10 +480,13 @@ export default function GraphViewer() {
           }}
           backgroundColor="transparent"
           nodeCanvasObjectMode={() => "after"}
-          nodeCanvasObject={(node, ctx, globalScale) => drawContactRing(node as any, ctx, globalScale)}
+          nodeCanvasObject={(node, ctx, globalScale) => {
+            drawContactRing(node as any, ctx, globalScale);
+            drawNodeLabel(node as any, ctx, globalScale);
+          }}
           linkCanvasObjectMode={() => "after"}
           linkCanvasObject={(link: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
-            if (!link.label || globalScale < 1.8) return;
+            if (!link.label || globalScale < 4.0) return;
             const start = link.source;
             const end = link.target;
             if (!start || !end || typeof start !== "object" || typeof end !== "object") return;

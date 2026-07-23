@@ -33,7 +33,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [workspaceOpen, setWorkspaceOpen] = useState(false);
+  const [workspaceOpen, setWorkspaceOpen] = useState(true);
   const [systemOpen, setSystemOpen] = useState(false);
 
   useEffect(() => {
@@ -198,10 +198,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <div className="flex items-start gap-2 min-w-0">
               <ShieldAlert className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
               <span className="text-xs font-mono text-amber-400/80 leading-snug">
-                <span className="text-amber-500 font-bold">COMPLIANCE NOTICE:</span>{" "}
-                For professional networking and public-data research only. All data sourced
-                exclusively from public registries and OSINT. Comply with GDPR, CCPA, and all
-                applicable local privacy legislation. Respect opt-outs immediately.
+                <span className="text-amber-500 font-bold">COMPLIANCE:</span>{" "}
+                Public-data research only. Sourced from public registries &amp; OSINT. GDPR/CCPA compliant use required.
               </span>
             </div>
             <button

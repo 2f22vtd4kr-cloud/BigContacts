@@ -524,16 +524,13 @@ function HotLeadCard({ lead }: { lead: any }) {
         <span className="text-primary mr-2">SIGNAL:</span>
         <span className="text-foreground/80 line-clamp-2">{lead.signal}</span>
       </div>
-      <div className="mt-2.5 flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
-        <span className="text-xs font-mono text-muted-foreground flex items-center gap-0.5 group-hover:text-primary transition-colors">
-          Open Profile <ChevronRight className="w-3 h-3" />
-        </span>
+      <div className="mt-2.5 flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
         <Link
           href={`/network?entity=${lead.entityId}`}
           onClick={(e) => e.stopPropagation()}
-          className="text-xs font-mono text-muted-foreground/60 flex items-center hover:text-primary transition-colors"
+          className="text-[10px] font-mono text-muted-foreground/50 flex items-center gap-0.5 hover:text-primary transition-colors px-2 py-1 rounded border border-border/0 hover:border-border"
         >
-          Network <ChevronRight className="w-3 h-3 ml-0.5" />
+          Network map <ChevronRight className="w-3 h-3" />
         </Link>
       </div>
     </div>
@@ -592,8 +589,8 @@ export default function Dashboard() {
           ) : (
             <>
               <MapContainer
-                center={[30, 10]}
-                zoom={2}
+                center={[38, -95]}
+                zoom={4}
                 style={{ height: "100%", width: "100%", minHeight: "300px", background: "#0B0F19" }}
                 zoomControl={false}
               >
@@ -778,7 +775,7 @@ export default function Dashboard() {
               </div>
             ) : (
               <MapContainer
-                center={[30, 10]} zoom={2}
+                center={[38, -95]} zoom={4}
                 style={{ height: "100%", width: "100%", minHeight: "300px", background: "#0B0F19" }}
                 zoomControl={false}
               >
