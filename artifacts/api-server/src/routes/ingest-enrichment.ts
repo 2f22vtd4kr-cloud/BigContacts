@@ -800,7 +800,8 @@ router.post("/ingest/social-discovery", async (req: Request, res: Response): Pro
                 linkedinHeadline: result.linkedinHeadline,
                 twitterHandle: result.twitterHandle, twitterBio: result.twitterBio,
                 instagramHandle: result.instagramHandle, personalWebsite: result.personalWebsite,
-                contactConfidence: result.confidence, enrichmentSources: result.sources,
+                contactConfidence: update.contactConfidence, // recomputed from all signals, not module-internal score
+                enrichmentSources: result.sources,
                 enrichedAt: new Date().toISOString(),
               } as any);
               enriched++;
@@ -886,7 +887,8 @@ router.post("/ingest/messenger-discovery", async (req: Request, res: Response): 
             const stableKey = (() => { try { return JSON.parse(row.sourceRegistries ?? "[]")[0] ?? `name:${row.name}`; } catch { return `name:${row.name}`; } })();
             await contactCacheSet(stableKey, {
               name: row.name, telegramHandle: result.telegramHandle, telegramBio: result.telegramBio,
-              contactConfidence: result.confidence, enrichmentSources: result.sources,
+              contactConfidence: newConfidence, // recomputed from all signals, not module-internal score
+              enrichmentSources: result.sources,
               enrichedAt: new Date().toISOString(),
             } as any);
             enriched++;
@@ -957,12 +959,23 @@ router.post("/ingest/foundation-filings", async (req: Request, res: Response): P
                 update.knownResidences = JSON.stringify([...existing, result.address]);
               }
             }
+            // Recompute contactConfidence — foundation may have added an email or address
+            update.contactConfidence = computeContactConfidence({
+              email: update.email ?? row.email,
+              phone: row.phone,
+              linkedinUrl: row.linkedinUrl,
+              twitterHandle: row.twitterHandle,
+              instagramHandle: row.instagramHandle,
+              telegramHandle: row.telegramHandle,
+              knownResidences: update.knownResidences ?? row.knownResidences,
+            });
             await db.update(entitiesTable).set(update).where(eq(entitiesTable.id, row.id));
             const stableKey = (() => { try { return JSON.parse(row.sourceRegistries ?? "[]")[0] ?? `name:${row.name}`; } catch { return `name:${row.name}`; } })();
             await contactCacheSet(stableKey, {
               name: row.name, email: result.email ?? undefined,
               foundationName: result.foundationName,
-              contactConfidence: result.confidence, enrichmentSources: result.sources,
+              contactConfidence: update.contactConfidence, // recomputed from all signals
+              enrichmentSources: result.sources,
               enrichedAt: new Date().toISOString(),
             } as any);
             enriched++;

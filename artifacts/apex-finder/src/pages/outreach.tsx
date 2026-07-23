@@ -125,7 +125,7 @@ function ContextBriefing({ entity, session }: { entity: EntitySummary; session: 
         </div>
       )}
 
-      {/* MCTS winning path */}
+      {/* Hybrid Research winning path */}
       {winningPath.length > 0 && (
         <div className="p-3 rounded-lg border border-border bg-card/30">
           <div className="flex items-center gap-2 text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-2">
@@ -234,7 +234,7 @@ export default function OutreachAssistant() {
   const [error, setError] = useState<string | null>(null);
   const [markedSent, setMarkedSent] = useState(false);
 
-  // Load MCTS session when entity is selected
+  // Load Hybrid Research session when entity is selected
   useEffect(() => {
     if (!selectedEntity) { setSession(null); setPitch(null); return; }
     setLoadingSession(true);
@@ -385,8 +385,8 @@ export default function OutreachAssistant() {
                 <div className="space-y-3">
                   <p className="text-xs font-mono text-muted-foreground leading-relaxed">
                     {session
-                      ? "MCTS research session found. Generate a personalized multi-step outreach sequence from the winning approach path."
-                      : "No research session yet. Generating will first run an MCTS investigation, then produce the outreach sequence."}
+                      ? "Hybrid Research session found. Generate a personalized multi-step outreach sequence from the winning approach path."
+                      : "No research session yet. Generating will first run a Hybrid Research investigation, then produce the outreach sequence."}
                   </p>
                   {error && (
                     <div className="flex items-start gap-2 p-3 rounded-lg border border-red-500/20 bg-red-500/5 text-xs font-mono text-red-400">

@@ -226,7 +226,7 @@ const SOURCES: SourceDef[] = [
     id: "semantic-embeddings",
     label: "Semantic Embedding Engine",
     description:
-      "Generates sentence-level embeddings for all 32,000+ entities using all-MiniLM-L6-v2 (384-dim, ~23 MB ONNX model). Embeddings power true semantic search, cross-registry entity resolution, and MCTS path scoring. Runs fully server-side — no external AI API.",
+      "Generates sentence-level embeddings for all 32,000+ entities using all-MiniLM-L6-v2 (384-dim, ~23 MB ONNX model). Embeddings power true semantic search, cross-registry entity resolution, and Hybrid Research path scoring. Runs fully server-side — no external AI API.",
     kind: "enricher",
     Icon: Brain,
     color: "#8B5CF6",

@@ -342,7 +342,7 @@ const KNOWN_JOB_TYPES = [
   { id: "web-osint-enrich",          label: "Web OSINT Enricher",             category: "Enrichment" },
   { id: "compute-embeddings",        label: "Semantic Embeddings",            category: "Analysis" },
   { id: "semantic-dedup",            label: "Semantic Entity Dedup",          category: "Analysis" },
-  { id: "bulk-mcts",                 label: "Hybrid Research",                category: "Analysis" },
+  { id: "bulk-hybrid-research",       label: "Hybrid Research",                category: "Analysis" },
   { id: "auto-detect-clusters",      label: "Corporate Cluster Detection",    category: "Analysis" },
   { id: "auto-detect",               label: "Associate Edge Detection",       category: "Analysis" },
   { id: "sync-hot-flags",            label: "Sync Hot Flags",                 category: "Maintenance" },

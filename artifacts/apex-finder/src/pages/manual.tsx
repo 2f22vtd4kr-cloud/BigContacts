@@ -127,7 +127,7 @@ const SECTIONS = [
     content: (
       <>
         <p className="text-sm text-muted-foreground leading-relaxed mb-4">
-          When an entity requires deeper analysis, launch an <strong className="text-foreground">MCTS Research Session</strong>. The system will branch out across multiple search vectors, dynamically evaluating approach angles based on public footprints.
+          When an entity requires deeper analysis, launch a <strong className="text-foreground">Hybrid Research Session</strong>. The system branches out across multiple search vectors (BM25 + Semantic + Graph + Bayesian, with L4 UCT path exploration), dynamically evaluating approach angles based on public footprints.
         </p>
         <Callout title="Approach Vectors">
           The research session outputs a recommended approach vector — whether to contact them via a family office, a registered gatekeeper, or directly through professional networks.

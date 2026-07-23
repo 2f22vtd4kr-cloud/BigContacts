@@ -8,7 +8,65 @@
 
 ---
 
-## Current State (2026-07-23 — pipeline recovery verified) — Redis + canonical API + Web running
+## Current State (2026-07-23 — full audit + bug-fix pass) — All workflows running, ingestion active
+
+### Environment
+- **Replit PostgreSQL** connected — `DATABASE_URL` set automatically
+- **Local Redis** running on `redis://localhost:6379` — workflow `Redis` running ✅
+- **SESSION_SECRET** — ✅ Set
+- **Upstash Redis (`REDIS_URL_1`)** — ✅ Set (permanent dedup set)
+- **Upstash Redis (`REDIS_URL_2`)** — ✅ Set (permanent contact cache)
+- **COMPANIES_HOUSE_API_KEY** — ✅ Set
+
+### Workflows running
+| Workflow | Status |
+|---|---|
+| Redis | ✅ Running (port 6379) |
+| API Server | ✅ Running (port 8080) |
+| ApexFinder Web | ✅ Running (port 23695) |
+
+### What was verified and fixed this session (2026-07-23 — comprehensive audit)
+
+**Codebase audit results — all Phase H features confirmed present:**
+- ✅ Pipeline IS web-first: deep-web-osint at 15s, social-discovery at 45s, messenger at 60s, then Hybrid Engine at 90s, registries at 180s, graph at 240s, deep enrichment at 360s
+- ✅ Recurring scheduler (RECURRING_JOBS / setInterval) active at 46-min mark — 7 persistent jobs (broad discovery, deep web, social, Hybrid Engine, messenger, registry, persona loop)
+- ✅ All Phase H DB columns present: linkedinUrl, linkedinHeadline, twitterHandle, twitterBio, instagramHandle, telegramHandle, telegramBio, personalWebsite, foundationName
+- ✅ All 3 enrichment modules exist and are routed: social-discovery.ts, messenger-discovery.ts, foundation-filings.ts
+- ✅ SKIP_DOMAINS in web-enricher.ts does NOT block social media
+- ✅ contactConfidence awards points for twitter (+8), instagram (+5), telegram (+12)
+- ✅ Cold-start retry logic: 3 attempts with 10s intervals before aborting
+- ✅ No "mcts" references in startup.ts phases or recurring scheduler labels
+
+**Bugs found and fixed:**
+1. **deep-web-osint.ts SKIP_DOMAINS** — still blocked linkedin/twitter/x/instagram even though social-discovery handles them. Fixed: removed social media from SKIP_DOMAINS, kept only search engines, e-commerce, encyclopaedias, gov registries.
+2. **ingest-pipeline.ts line 345** — catalog entry `id: "bulk-mcts"` still present. Fixed → `bulk-hybrid-research`.
+3. **jobs.tsx line 38** — UI job definition `id: "bulk-mcts"`. Fixed → `bulk-hybrid-research`.
+4. **outreach.tsx** — 3 user-facing strings said "MCTS research session" / "MCTS investigation". Fixed → "Hybrid Research session" / "Hybrid Research investigation".
+5. **profile.tsx** — "MCTS winning path" in Outreach Assistant description. Fixed → "Hybrid Research winning path".
+6. **manual.tsx** — "MCTS Research Session" in Field Manual. Fixed → "Hybrid Research Session" with 5-layer description.
+7. **data-sources.tsx** — "MCTS path scoring" in Semantic Embedding description. Fixed → "Hybrid Research path scoring".
+8. **ingest-enrichment.ts social-discovery** — `contactCacheSet` used `result.confidence` (module-internal 0–100 signal) instead of `update.contactConfidence` (recomputed from all signals). Fixed.
+9. **ingest-enrichment.ts messenger-discovery** — same wrong confidence in cache write. Fixed → uses `newConfidence`.
+10. **ingest-enrichment.ts foundation-filings** — MISSING `computeContactConfidence` call entirely; contactConfidence never updated after foundation enrichment. Fixed: computes from all signals including new email/address, saves to DB and cache.
+
+**Functional tests run:**
+- Persona Loop (50 entities): ✅ 223 suggestions, 0 errors
+- Hybrid Research bulk (300 entities): ✅ 300/300, 0 errors, 300 sessions
+- API Server build: ✅ clean
+- Frontend production build: ✅ clean
+
+**Active ingestion at time of writing:**
+- FAA: ✅ done (20,032 records, 30,000 dedup-skipped)
+- Land Registry PPD: running (~8,750+ inserted, targeting 50,000)
+- Western HNWI: running
+- Deep-web OSINT: running (hot leads pass)
+- Social discovery, Messenger discovery: running (from maintenance pipeline)
+
+**Live DB at last check:** 44,901+ entities, 230,693 relationships, 738 contactable, 844 research sessions
+
+---
+
+## Previous State (2026-07-23 — pipeline recovery verified) — Redis + canonical API + Web running
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically

@@ -1451,7 +1451,7 @@ export default function ApexProfile() {
                 <div className="text-sm font-mono font-bold text-foreground mb-1">Outreach Assistant</div>
                 <p className="text-xs font-mono text-muted-foreground leading-relaxed mb-3">
                   Generate personalized outreach drafts for this contact. Each draft is built from the
-                  MCTS winning path and can be copied into your own email or LinkedIn client.
+                  Hybrid Research winning path and can be copied into your own email or LinkedIn client.
                   No messages are sent from this app.
                 </p>
                 <Link

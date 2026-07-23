@@ -35,7 +35,7 @@ const JOB_DEFS: Array<Omit<Job, "status"|"jobId"|"progress"|"inserted"|"skipped"
   { id: "compute-embeddings", label: "AI Profile Matching", description: "Update AI models to enable smart profile searching", phase: 2, category: "Analysis", endpoint: "/api/ingest/compute-embeddings", body: { batchSize: 50000 } },
   { id: "semantic-dedup", label: "Find Duplicate Profiles", description: "Detect likely duplicate profiles across different data sources", phase: 2, category: "Analysis", endpoint: "/api/relationships/semantic-dedup" },
   { id: "auto-detect-clusters", label: "Detect Corporate Networks", description: "Identify corporate family structures and series LLCs", phase: 2, category: "Analysis", endpoint: "/api/relationships/auto-detect-clusters" },
-  { id: "bulk-mcts", label: "Generate Outreach Paths", description: "Use AI to find the best introduction paths for hot leads", phase: 2, category: "Analysis", endpoint: "/api/research/bulk-run", body: { batchSize: 200 } },
+  { id: "bulk-hybrid-research", label: "Generate Outreach Paths", description: "Use the Hybrid Engine to find the best introduction paths for hot leads", phase: 2, category: "Analysis", endpoint: "/api/research/bulk-run", body: { batchSize: 200 } },
   // Maintenance
   { id: "sync-hot-flags", label: "Update Hot Leads", description: "Re-evaluate profile scores to identify new hot leads", phase: 5, category: "Maintenance", endpoint: "/api/ingest/sync-hot-flags" },
   { id: "populate-notes", label: "Auto-Generate Summaries", description: "Create readable profile summaries from raw asset data", phase: 5, category: "Maintenance", endpoint: "/api/ingest/populate-notes" },

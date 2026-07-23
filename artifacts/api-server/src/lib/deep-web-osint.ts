@@ -60,14 +60,21 @@ const USER_AGENTS = [
   "Mozilla/5.0 (X11; Linux x86_64; rv:126.0) Gecko/20100101 Firefox/126.0",
 ];
 
-// Domains never worth scraping for personal contact info
+// Domains never worth scraping for personal contact info.
+// NOTE: linkedin.com, twitter.com, x.com, instagram.com intentionally REMOVED —
+// the dedicated social-discovery module handles structured extraction from those domains.
+// Keeping them here would silently drop the most valuable HNWI contact surfaces.
 const SKIP_DOMAINS = new Set([
-  "linkedin.com", "twitter.com", "x.com", "facebook.com", "instagram.com",
-  "youtube.com", "tiktok.com", "pinterest.com",
+  // Search engines and aggregators
   "google.com", "bing.com", "yahoo.com", "duckduckgo.com",
-  "wikipedia.org", "wikidata.org",
-  "sec.gov", "gov.uk", "faa.gov", "irs.gov",
+  // E-commerce — no HNWI contact data
   "amazon.com", "ebay.com", "apple.com", "microsoft.com",
+  // Video / image platforms
+  "youtube.com", "tiktok.com", "pinterest.com",
+  // Encyclopaedias — scraped separately by in-house enricher
+  "wikipedia.org", "wikidata.org",
+  // Government registries — scraped via dedicated ingestors, not general scraper
+  "sec.gov", "gov.uk", "faa.gov", "irs.gov",
 ]);
 
 // Email blocklist — not real contact emails
