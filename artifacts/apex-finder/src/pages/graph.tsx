@@ -81,6 +81,17 @@ export default function GraphViewer() {
 
   const currentEntity = allEntities?.find((e) => e.id === targetId);
 
+  // Resolve the display name: prefer allEntities list, fall back to the target node label
+  // (graph data already contains the entity name in the target node).
+  const displayEntityName = useMemo(() => {
+    if (currentEntity?.name) return currentEntity.name;
+    if (graphData?.nodes) {
+      const target = (graphData.nodes as any[]).find((n: any) => n.isTarget);
+      if (target?.label) return target.label;
+    }
+    return targetId > 0 ? `Entity #${targetId}` : null;
+  }, [currentEntity, graphData, targetId]);
+
   const filteredEntities = useMemo(() => {
     if (!allEntities) return [];
     const q = selectorQuery.toLowerCase();
@@ -160,11 +171,12 @@ export default function GraphViewer() {
 
   function nodeColor(node: any): string {
     if (node.isTarget) return "hsl(160, 84%, 39%)";
-    if (node.nodeType === "HNWI") return "hsl(160, 55%, 24%)";
-    if (node.nodeType === "Corporation") return "hsl(217, 80%, 52%)";
-    if (node.nodeType === "Trust") return "hsl(270, 65%, 45%)";
-    if (node.nodeType === "Gatekeeper") return "hsl(38, 90%, 45%)";
-    if (["RealEstate", "Aviation", "Marine", "PrivateClub"].includes(node.nodeType))
+    const t: string = node.nodeType ?? "";
+    if (t === "HNWI") return "hsl(160, 55%, 24%)";
+    if (t === "Corporation" || t === "Corp") return "hsl(217, 80%, 52%)";
+    if (t === "Trust") return "hsl(270, 65%, 45%)";
+    if (t === "Gatekeeper") return "hsl(38, 90%, 45%)";
+    if (["RealEstate", "Aviation", "Marine", "PrivateClub"].includes(t))
       return "hsl(215, 16%, 38%)";
     return "hsl(215, 14%, 50%)";
   }
@@ -198,11 +210,12 @@ export default function GraphViewer() {
     ctx.fillRect(node.x - textWidth / 2 - pad, node.y + offsetY - pad, textWidth + pad * 2, fontSize + pad * 2);
 
     // Text color by node type
-    ctx.fillStyle = node.isTarget  ? "#34d399"
-      : node.nodeType === "Corporation" ? "#93c5fd"
-      : node.nodeType === "Trust"       ? "#c4b5fd"
-      : node.nodeType === "Gatekeeper"  ? "#fcd34d"
-      : ["RealEstate","Aviation","Marine","PrivateClub"].includes(node.nodeType) ? "#64748b"
+    const _nt: string = node.nodeType ?? "";
+    ctx.fillStyle = node.isTarget                              ? "#34d399"
+      : (_nt === "Corporation" || _nt === "Corp")             ? "#93c5fd"
+      : _nt === "Trust"                                       ? "#c4b5fd"
+      : _nt === "Gatekeeper"                                  ? "#fcd34d"
+      : ["RealEstate","Aviation","Marine","PrivateClub"].includes(_nt) ? "#64748b"
       : "#94a3b8";
 
     ctx.fillText(label, node.x, node.y + offsetY);
@@ -211,7 +224,7 @@ export default function GraphViewer() {
 
   /** Draw a contact-confidence ring around HNWI / Gatekeeper nodes */
   function drawContactRing(node: any, ctx: CanvasRenderingContext2D, globalScale: number) {
-    const ENTITY_TYPES = new Set(["HNWI", "Corporation", "Trust", "Gatekeeper"]);
+    const ENTITY_TYPES = new Set(["HNWI", "Corporation", "Corp", "Trust", "Gatekeeper"]);
     if (!ENTITY_TYPES.has(node.nodeType) && !node.isTarget) return;
     const conf: number = node.contactConfidence ?? 0;
     if (conf <= 0) return;
@@ -255,7 +268,7 @@ export default function GraphViewer() {
           <div className="min-w-0 flex-1">
             <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">Target</div>
             <div className="text-sm font-mono text-foreground truncate font-semibold">
-              {currentEntity?.name ?? `Entity #${targetId}`}
+              {displayEntityName ?? `Entity #${targetId}`}
             </div>
           </div>
           <ChevronDown className={cn("w-4 h-4 text-muted-foreground ml-2 flex-shrink-0 transition-transform", selectorOpen && "rotate-180")} />
@@ -278,7 +291,7 @@ export default function GraphViewer() {
           >
             <Network className="w-3.5 h-3.5 text-primary flex-shrink-0" />
             <span className="truncate flex-1 text-left">
-              {currentEntity?.name ?? `Entity #${targetId}`}
+              {displayEntityName ?? `Entity #${targetId}`}
             </span>
             <ChevronDown className={cn("w-3.5 h-3.5 text-muted-foreground transition-transform", selectorOpen && "rotate-180")} />
           </button>

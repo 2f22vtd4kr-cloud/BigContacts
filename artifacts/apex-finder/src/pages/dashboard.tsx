@@ -2,7 +2,7 @@ import { useGetDashboardStats, useGetMapData, useGetHotLeads } from "@workspace/
 import {
   ShieldAlert, MapPin, Database, ChevronRight, Activity, AlertTriangle,
   Globe, Radio, Zap, Users, Play, Loader2, CheckCircle2, XCircle, RefreshCw,
-  Mail, Phone,
+  Mail, Phone, Network,
 } from "lucide-react";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
@@ -618,20 +618,39 @@ export default function Dashboard() {
                 ))}
               </MapContainer>
 
-              {/* Map legend */}
+              {/* Map context bar — tells the user what they're looking at */}
+              <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[1001] flex items-center gap-2.5 bg-card/90 backdrop-blur-md border border-border/70 rounded-full px-3.5 py-1.5 pointer-events-none shadow-lg">
+                <Globe className="w-3 h-3 text-muted-foreground shrink-0" />
+                <span className="text-[9px] font-mono text-muted-foreground uppercase tracking-widest whitespace-nowrap">
+                  Asset Atlas
+                </span>
+                <div className="w-px h-3 bg-border" />
+                <span className="text-[9px] font-mono text-foreground/70 whitespace-nowrap">
+                  {mapData.length.toLocaleString()} plotted of {(s?.totalAssets ?? 0).toLocaleString()} total
+                </span>
+              </div>
+
+              {/* Map legend with live asset counts */}
               <div className="absolute bottom-6 left-4 bg-card/90 border border-border rounded-lg px-3 py-2 backdrop-blur-sm z-[1000]">
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 flex-wrap">
                   {[
-                    { label: "Real Estate", color: "#10B981" },
-                    { label: "Marine",      color: "#F59E0B" },
-                    { label: "Aviation",    color: "#A855F7" },
-                    { label: "Other",       color: "#3B82F6" },
-                  ].map(({ label, color }) => (
-                    <div key={label} className="flex items-center gap-1.5">
-                      <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                      <span className="text-[10px] font-mono text-muted-foreground truncate">{label}</span>
-                    </div>
-                  ))}
+                    { label: "Real Estate", color: "#10B981", category: "RealEstate" },
+                    { label: "Marine",      color: "#F59E0B", category: "Marine" },
+                    { label: "Aviation",    color: "#A855F7", category: "Aviation" },
+                    { label: "Other",       color: "#3B82F6", category: null },
+                  ].map(({ label, color, category }) => {
+                    const count = (s?.assetsByCategory as any[] | undefined)?.find(
+                      (c: any) => c.category === category
+                    )?.count as number | undefined;
+                    return (
+                      <div key={label} className="flex items-center gap-1.5">
+                        <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                        <span className="text-[10px] font-mono text-muted-foreground whitespace-nowrap">
+                          {label}{count != null && count > 0 ? ` · ${count.toLocaleString()}` : ""}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </>
@@ -656,6 +675,27 @@ export default function Dashboard() {
                 LIVE
               </div>
             </div>
+          </div>
+          {/* Quick-action strip — guide the user's next step */}
+          <div className="flex gap-1.5 px-3 py-2 border-b border-border bg-muted/5 flex-shrink-0">
+            <Link
+              href="/research"
+              className="flex-1 flex items-center justify-center gap-1 py-1.5 text-[9px] font-mono uppercase tracking-wider border border-border rounded hover:border-primary/60 hover:text-primary hover:bg-primary/5 transition-colors text-muted-foreground"
+            >
+              <Play className="w-2.5 h-2.5 shrink-0" /> Run Intel
+            </Link>
+            <Link
+              href="/profiles"
+              className="flex-1 flex items-center justify-center gap-1 py-1.5 text-[9px] font-mono uppercase tracking-wider border border-border rounded hover:border-primary/60 hover:text-primary hover:bg-primary/5 transition-colors text-muted-foreground"
+            >
+              <Users className="w-2.5 h-2.5 shrink-0" /> All Profiles
+            </Link>
+            <Link
+              href="/network"
+              className="flex-1 flex items-center justify-center gap-1 py-1.5 text-[9px] font-mono uppercase tracking-wider border border-border rounded hover:border-primary/60 hover:text-primary hover:bg-primary/5 transition-colors text-muted-foreground"
+            >
+              <Network className="w-2.5 h-2.5 shrink-0" /> Network
+            </Link>
           </div>
 
           <div className="flex-1 overflow-y-auto divide-y divide-border">
