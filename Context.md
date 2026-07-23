@@ -8,7 +8,7 @@
 
 ---
 
-## Current State (2026-07-23 — UX v3 graduated to production) — Redis + API + Web running
+## Current State (2026-07-23 — re-import setup complete) — Redis + API + Web running
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically
@@ -24,6 +24,8 @@
 | Redis | ✅ Running (port 6379) |
 | API Server | ✅ Running (port 8080) |
 | ApexFinder Web | ✅ Running (port 23695) |
+
+> **Re-import setup note (2026-07-23):** pnpm install (~20s). DB schema pushed (`[✓] Changes applied`). All 3 secrets re-entered (REDIS_URL_1, REDIS_URL_2, COMPANIES_HOUSE_API_KEY — lost on import). API /healthz → `{"status":"ok","redis":{"status":"ok","latencyMs":0}}`. Cold-start auto-recovery will trigger FAA + HMLR + Western HNWI ingestion on first populated-DB boot.
 
 > **Current import verification note (2026-07-23):** Fresh dependencies were restored from the lockfile. The web server returns HTTP 200 and `/api/healthz` reports Redis healthy; both Upstash Redis connections also initialize successfully. Dashboard data endpoints currently fail because PostgreSQL is unavailable in this imported workspace; do not interpret that as an empty database. The three configured workflows are running. The screenshot helper could not resolve the web preview because the imported artifact registry is empty, although the web server itself responds successfully. The production web build passes. Typecheck still reports pre-existing imported-project errors in shared UI typings/generated client declarations and the optional Expo artifact.
 
