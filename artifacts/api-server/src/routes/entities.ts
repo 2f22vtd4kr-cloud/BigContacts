@@ -10,6 +10,7 @@ import {
   DeleteEntityParams,
 } from "@workspace/api-zod";
 import { getCache, setCache, delCachePattern } from "../lib/redis";
+import { computeAccessScore } from "../lib/access-score";
 
 const router: IRouter = Router();
 
@@ -63,6 +64,7 @@ router.get("/entities", async (req, res): Promise<void> => {
   const entities = rows.map((e) => ({
     ...e,
     bayesianScore: e.bayesianScore,
+    accessScore: computeAccessScore(e),
     estimatedNetWorth: e.estimatedNetWorth,
     createdAt: e.createdAt.toISOString(),
     assetCount: assetCounts[e.id] ?? 0,
@@ -125,7 +127,12 @@ router.post("/entities", async (req, res): Promise<void> => {
     delCachePattern("entities:list:*"),
     delCachePattern("dashboard:*"),
   ]);
-  res.status(201).json({ ...entity!, createdAt: entity!.createdAt.toISOString(), assetCount: 0 });
+  res.status(201).json({
+    ...entity!,
+    accessScore: computeAccessScore(entity!),
+    createdAt: entity!.createdAt.toISOString(),
+    assetCount: 0,
+  });
 });
 
 // ── GET /entities/duplicate-candidates ───────────────────────────────────────
@@ -211,6 +218,7 @@ router.get("/entities/:id", async (req, res): Promise<void> => {
 
   res.json({
     ...entity,
+    accessScore: computeAccessScore(entity),
     createdAt: entity.createdAt.toISOString(),
     assetCount: cnt?.cnt ?? 0,
   });
@@ -249,7 +257,12 @@ router.patch("/entities/:id", async (req, res): Promise<void> => {
     delCachePattern("entities:list:*"),
     delCachePattern("dashboard:*"),
   ]);
-  res.json({ ...entity, createdAt: entity.createdAt.toISOString(), assetCount: cnt?.cnt ?? 0 });
+  res.json({
+    ...entity,
+    accessScore: computeAccessScore(entity),
+    createdAt: entity.createdAt.toISOString(),
+    assetCount: cnt?.cnt ?? 0,
+  });
 });
 
 // ── POST /entities/:id/merge/:targetId ────────────────────────────────────────

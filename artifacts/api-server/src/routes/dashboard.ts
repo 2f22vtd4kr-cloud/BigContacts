@@ -3,6 +3,7 @@ import { desc, isNotNull, eq, sql, and, or, gte } from "drizzle-orm";
 import { db, entitiesTable, assetsTable, relationshipsTable, researchSessionsTable } from "@workspace/db";
 import { GetHotLeadsQueryParams } from "@workspace/api-zod";
 import { getCache, setCache } from "../lib/redis";
+import { computeAccessScore } from "../lib/access-score";
 
 const router: IRouter = Router();
 
@@ -15,13 +16,14 @@ router.get("/dashboard/hot-leads", async (req, res): Promise<void> => {
   }
   const { limit = 10 } = parsed.data;
 
-  // Get entities ordered by Bayesian score
+  // Over-fetch the wealth signal, then rank the visible queue by realistic access.
+  // Wealth remains useful context; it is not a proxy for reachability.
   const entities = await db
     .select()
     .from(entitiesTable)
     .where(eq(entitiesTable.type, "HNWI"))
     .orderBy(desc(entitiesTable.bayesianScore))
-    .limit(limit * 2); // over-fetch to allow for enrichment
+    .limit(Math.max(limit * 10, 100)); // enough candidates for access-first ranking
 
   // Get asset counts
   const assetCountMap: Record<number, number> = {};
@@ -118,11 +120,12 @@ router.get("/dashboard/hot-leads", async (req, res): Promise<void> => {
     return null;
   }
 
-  const hotLeads = entities.slice(0, limit).map((e) => ({
+  const hotLeads = entities.map((e) => ({
     entityId: e.id,
     entityName: e.name,
     entityType: e.type,
     bayesianScore: e.bayesianScore,
+    accessScore: computeAccessScore(e),
     signal: entitySignal(e),
     signalDate: activityMap[e.id] ?? new Date().toISOString().split("T")[0]!,
     assetCount: assetCountMap[e.id] ?? 0,
@@ -132,7 +135,11 @@ router.get("/dashboard/hot-leads", async (req, res): Promise<void> => {
     nationality: e.nationality,
   }));
 
-  res.json(hotLeads);
+  res.json(
+    hotLeads
+      .sort((a, b) => (b.accessScore ?? 0) - (a.accessScore ?? 0))
+      .slice(0, limit),
+  );
 });
 
 // GET /dashboard/stats
@@ -252,6 +259,7 @@ router.get("/dashboard/stats", async (_req, res): Promise<void> => {
     })),
     topScorers: topScorers.map((e) => ({
       ...e,
+      accessScore: computeAccessScore(e),
       createdAt: e.createdAt.toISOString(),
       assetCount: topAssetCounts[e.id] ?? 0,
     })),

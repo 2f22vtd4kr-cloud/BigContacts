@@ -9,7 +9,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "wouter";
-import { formatCurrency, formatEntityName, formatSignal, ScoreBadge } from "@/lib/utils";
+import { formatCurrency, formatEntityName, formatSignal, AccessScoreBadge } from "@/lib/utils";
 
 // Fix Leaflet icons
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -155,25 +155,25 @@ function IngestionPanel({ onComplete, source = "western-hnwi", autoStart }: Inge
   const isFailed = job.status === "failed";
 
   return (
-    <div className="border-t border-border bg-card/30 px-4 py-3 flex-shrink-0">
+    <div className="border-t border-border bg-card/30 px-4 py-3 flex-shrink-0" data-testid="panel-active-discovery">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2 min-w-0">
           <Zap className="w-3.5 h-3.5 text-primary shrink-0" />
-          <span className="text-xs font-mono font-bold uppercase tracking-widest text-primary truncate">
-            {source === "faa" ? "FAA Aircraft Registry" : "Western HNWI Engine"}
+          <span className="text-xs font-mono font-bold uppercase tracking-widest text-primary truncate" data-testid="text-discovery-title">
+            {source === "faa" ? "Aircraft Registry Search" : "Wealth Profile Search"}
           </span>
-          {isDone && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />}
-          {isFailed && <XCircle className="w-3.5 h-3.5 text-destructive shrink-0" />}
+          {isDone && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" data-testid="icon-discovery-done" />}
+          {isFailed && <XCircle className="w-3.5 h-3.5 text-destructive shrink-0" data-testid="icon-discovery-failed" />}
         </div>
         <div className="flex items-center gap-2 shrink-0 ml-2">
           {isDone && (
-            <span className="text-[10px] font-mono text-emerald-500 whitespace-nowrap">
-              +{job.inserted.toLocaleString()}
+            <span className="text-[10px] font-mono text-emerald-500 whitespace-nowrap" data-testid="text-discovery-inserted">
+              +{job.inserted.toLocaleString()} found
             </span>
           )}
           {job.dedupCount > 0 && (
-            <span className="text-[10px] font-mono text-muted-foreground whitespace-nowrap">
-              {job.dedupCount.toLocaleString()} deduped
+            <span className="text-[10px] font-mono text-muted-foreground whitespace-nowrap" data-testid="text-discovery-deduped">
+              {job.dedupCount.toLocaleString()} duplicates skipped
             </span>
           )}
         </div>
@@ -182,19 +182,20 @@ function IngestionPanel({ onComplete, source = "western-hnwi", autoStart }: Inge
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
         {/* Target selector */}
         <div className="flex items-center gap-1.5 w-full sm:w-auto">
-          <span className="text-[10px] font-mono text-muted-foreground">TARGET</span>
+          <span className="text-[10px] font-mono text-muted-foreground">FIND</span>
           <select
             value={targetCount}
             onChange={(e) => setTargetCount(Number(e.target.value))}
             disabled={isRunning}
+            data-testid="select-target-count"
             className="bg-background border border-border rounded px-2 py-1 text-xs font-mono text-foreground focus:outline-none focus:border-primary disabled:opacity-50 flex-1 sm:flex-none"
           >
-            <option value={500}>500</option>
-            <option value={1000}>1,000</option>
-            <option value={5000}>5,000</option>
-            <option value={10000}>10,000</option>
-            <option value={25000}>25,000</option>
-            <option value={50000}>50,000</option>
+            <option value={500}>500 profiles</option>
+            <option value={1000}>1,000 profiles</option>
+            <option value={5000}>5,000 profiles</option>
+            <option value={10000}>10,000 profiles</option>
+            <option value={25000}>25,000 profiles</option>
+            <option value={50000}>50,000 profiles</option>
           </select>
         </div>
 
@@ -202,6 +203,7 @@ function IngestionPanel({ onComplete, source = "western-hnwi", autoStart }: Inge
         <button
           onClick={() => startIngestion()}
           disabled={isRunning}
+          data-testid="button-start-search"
           className={cn(
             "flex items-center justify-center sm:justify-start gap-1.5 px-3 py-1.5 rounded font-mono text-xs uppercase tracking-wider transition-all w-full sm:w-auto",
             isRunning
@@ -210,12 +212,12 @@ function IngestionPanel({ onComplete, source = "western-hnwi", autoStart }: Inge
           )}
         >
           {isRunning ? <Loader2 className="w-3 h-3 animate-spin shrink-0" /> : <Play className="w-3 h-3 shrink-0" />}
-          <span className="truncate">{isRunning ? "Running…" : "Ingest"}</span>
+          <span className="truncate">{isRunning ? "Searching…" : "Start Search"}</span>
         </button>
 
         {/* Progress bar */}
         {(isRunning || isDone) && (
-          <div className="w-full sm:flex-1 flex items-center gap-2">
+          <div className="w-full sm:flex-1 flex items-center gap-2" data-testid="progress-discovery">
             <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
               <div
                 className="h-full rounded-full bg-primary transition-all duration-500"
@@ -230,7 +232,7 @@ function IngestionPanel({ onComplete, source = "western-hnwi", autoStart }: Inge
 
         {/* Status message */}
         {job.message && !isRunning && (
-          <span className={cn("text-[10px] font-mono truncate w-full sm:w-auto", isFailed ? "text-destructive" : "text-muted-foreground")}>
+          <span className={cn("text-[10px] font-mono truncate w-full sm:w-auto", isFailed ? "text-destructive" : "text-muted-foreground")} data-testid="text-discovery-message">
             {job.message}
           </span>
         )}
@@ -239,6 +241,7 @@ function IngestionPanel({ onComplete, source = "western-hnwi", autoStart }: Inge
         {job.log.length > 0 && (
           <button
             onClick={() => setShowLog(!showLog)}
+            data-testid="button-toggle-log"
             className="text-[10px] font-mono text-muted-foreground hover:text-foreground underline whitespace-nowrap"
           >
             {showLog ? "hide log" : "log"}
@@ -248,7 +251,7 @@ function IngestionPanel({ onComplete, source = "western-hnwi", autoStart }: Inge
 
       {/* Live log */}
       {showLog && job.log.length > 0 && (
-        <div className="mt-2 bg-background border border-border rounded p-2 max-h-24 overflow-y-auto">
+        <div className="mt-2 bg-background border border-border rounded p-2 max-h-24 overflow-y-auto" data-testid="container-discovery-log">
           {job.log.map((line, i) => (
             <div key={i} className="text-[10px] font-mono text-muted-foreground leading-5">{line}</div>
           ))}
@@ -262,25 +265,26 @@ function IngestionPanel({ onComplete, source = "western-hnwi", autoStart }: Inge
 
 function EmptyState() {
   return (
-    <div className="flex flex-col items-center justify-center flex-1 px-6 py-16 text-center">
+    <div className="flex flex-col items-center justify-center flex-1 px-6 py-16 text-center" data-testid="empty-state-container">
       <div className="w-16 h-16 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center mb-6">
         <Database className="w-7 h-7 text-primary" />
       </div>
-      <h2 className="text-lg font-bold font-mono text-foreground mb-2 uppercase tracking-widest">
-        Database Empty
+      <h2 className="text-lg font-bold font-mono text-foreground mb-2 uppercase tracking-widest" data-testid="text-empty-state-title">
+        No Profiles Found Yet
       </h2>
       <p className="text-sm text-muted-foreground font-mono max-w-md mb-2">
-        No synthetic data. All records come from real public registries and open-web discovery.
+        Connect to public registries to start discovering profiles and assets.
       </p>
       <p className="text-xs text-muted-foreground/60 font-mono max-w-md mb-8">
-        The background pipeline runs automatically. Launch it from Background Jobs to start broad web discovery and registry ingestion.
+        Background searches run automatically. You can also start a manual search to find profiles right now.
       </p>
       <Link
         href="/jobs"
+        data-testid="link-jobs-from-empty"
         className="flex items-center gap-2 px-6 py-3 rounded-lg bg-primary/10 border border-primary/30 text-primary font-mono text-sm uppercase tracking-widest hover:bg-primary/20 transition-colors"
       >
         <Radio className="w-4 h-4 shrink-0" />
-        Open Background Jobs →
+        Open Search Tasks →
       </Link>
       <p className="text-[10px] font-mono text-muted-foreground/40 mt-8 max-w-xs">
         COMPLIANCE: All data from public registries only. Source attribution included on every record.
@@ -311,19 +315,20 @@ function BackgroundActivityCard() {
   }, []);
 
   return (
-    <div className="border-t border-border bg-card/30 px-4 py-3 flex-shrink-0">
+    <div className="border-t border-border bg-card/30 px-4 py-3 flex-shrink-0" data-testid="card-background-activity">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 min-w-0">
           <div className={cn("w-1.5 h-1.5 rounded-full shrink-0", jobCount > 0 ? "bg-primary animate-pulse" : "bg-muted-foreground/30")} />
-          <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest truncate">
-            {jobCount > 0 ? `${jobCount} job${jobCount > 1 ? "s" : ""} running` : lastActivity ? `Last: ${lastActivity}` : "Background pipeline idle"}
+          <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest truncate" data-testid="text-pipeline-status">
+            {jobCount > 0 ? `${jobCount} task${jobCount > 1 ? "s" : ""} running` : lastActivity ? `Last: ${lastActivity}` : "Background tasks idle"}
           </span>
         </div>
         <Link
           href="/jobs"
+          data-testid="link-background-jobs"
           className="text-[10px] font-mono text-primary/60 hover:text-primary transition-colors whitespace-nowrap ml-2 flex items-center gap-0.5"
         >
-          View Jobs <ChevronRight className="w-3 h-3" />
+          View Tasks <ChevronRight className="w-3 h-3" />
         </Link>
       </div>
     </div>
@@ -337,7 +342,7 @@ function StatsBar() {
 
   if (isLoading) {
     return (
-      <div className="border-b border-border bg-card/90 backdrop-blur-md sticky top-0 z-20">
+      <div className="border-b border-border bg-card/90 backdrop-blur-md sticky top-0 z-20" data-testid="stats-bar-loading">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-border">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="flex flex-col px-5 py-4 bg-card/90">
@@ -362,16 +367,16 @@ function StatsBar() {
   const s = stats as any;
 
   return (
-    <div className="border-b border-border bg-card/90 backdrop-blur-md sticky top-0 z-20">
-      {/* Row 1 — 4 hero stats (Contactable + Hot Leads are clickable) */}
+    <div className="border-b border-border bg-card/90 backdrop-blur-md sticky top-0 z-20" data-testid="stats-bar">
+      {/* Row 1 — 4 hero stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-border">
-        <div className="flex flex-col px-5 py-4 bg-card/90">
+        <div className="flex flex-col px-5 py-4 bg-card/90" data-testid="stat-total-profiles">
           <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
             <Database className="w-3 h-3 shrink-0" /> All Profiles
           </span>
           <span className="text-2xl font-bold text-foreground tabular-nums">{s.totalEntities?.toLocaleString()}</span>
         </div>
-        <Link href="/entities?hot=1" className="flex flex-col px-5 py-4 bg-card/90 hover:bg-amber-500/5 transition-colors group cursor-pointer">
+        <Link href="/entities?hot=1" data-testid="stat-hot-leads" className="flex flex-col px-5 py-4 bg-card/90 hover:bg-amber-500/5 transition-colors group cursor-pointer">
           <span className="text-[10px] font-mono text-amber-500 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
             <AlertTriangle className="w-3 h-3 shrink-0" /> Hot Leads
             <ChevronRight className="w-3 h-3 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -379,7 +384,7 @@ function StatsBar() {
           <span className="text-2xl font-bold text-amber-500 tabular-nums">{s.hotLeadsCount?.toLocaleString()}</span>
           <span className="text-[9px] font-mono text-amber-500/50 mt-1 group-hover:text-amber-500/80 transition-colors">click to browse →</span>
         </Link>
-        <Link href="/entities?contactable=1" className="flex flex-col px-5 py-4 bg-card/90 hover:bg-emerald-400/5 transition-colors group cursor-pointer">
+        <Link href="/entities?contactable=1" data-testid="stat-contactable" className="flex flex-col px-5 py-4 bg-card/90 hover:bg-emerald-400/5 transition-colors group cursor-pointer">
           <span className="text-[10px] font-mono text-emerald-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
             <Mail className="w-3 h-3 shrink-0" /> Contactable
             <ChevronRight className="w-3 h-3 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -387,36 +392,36 @@ function StatsBar() {
           <span className="text-2xl font-bold text-emerald-400 tabular-nums">{(s.contactableCount ?? 0).toLocaleString()}</span>
           <span className="text-[9px] font-mono text-emerald-400/50 mt-1 group-hover:text-emerald-400/80 transition-colors">click to browse →</span>
         </Link>
-        <div className="flex flex-col px-5 py-4 bg-card/90">
+        <div className="flex flex-col px-5 py-4 bg-card/90" data-testid="stat-hnwi-profiles">
           <span className="text-[10px] font-mono text-blue-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
-            <Globe className="w-3 h-3 shrink-0" /> HNWI Profiles
+            <Globe className="w-3 h-3 shrink-0" /> Wealth Profiles
           </span>
           <span className="text-2xl font-bold text-blue-400 tabular-nums">{(s.westernHnwiCount ?? 0).toLocaleString()}</span>
         </div>
       </div>
       {/* Row 2 — 4 secondary stats compact */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-border/50">
-        <div className="flex items-center justify-between px-4 py-2 bg-card/60">
+        <div className="flex items-center justify-between px-4 py-2 bg-card/60" data-testid="stat-total-assets">
           <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
             <MapPin className="w-3 h-3 shrink-0" /> Assets
           </span>
           <span className="text-xs font-bold text-foreground tabular-nums">{s.totalAssets?.toLocaleString()}</span>
         </div>
-        <div className="flex items-center justify-between px-4 py-2 bg-card/60">
+        <div className="flex items-center justify-between px-4 py-2 bg-card/60" data-testid="stat-avg-reach">
           <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
-            <Activity className="w-3 h-3 shrink-0" /> Avg Reach
+            <Activity className="w-3 h-3 shrink-0" /> Avg Signal
           </span>
           <span className="text-xs font-bold text-primary tabular-nums">{((s.avgBayesianScore ?? 0) * 100).toFixed(1)}</span>
         </div>
-        <div className="flex items-center justify-between px-4 py-2 bg-card/60">
+        <div className="flex items-center justify-between px-4 py-2 bg-card/60" data-testid="stat-enrichment-coverage">
           <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
-            <Phone className="w-3 h-3 shrink-0" /> Enriched
+            <Phone className="w-3 h-3 shrink-0" /> Profile Coverage
           </span>
           <span className="text-xs font-bold text-cyan-400 tabular-nums">{(s.enrichmentCoverage ?? 0).toFixed(1)}%</span>
         </div>
-        <div className="flex items-center justify-between px-4 py-2 bg-card/60">
+        <div className="flex items-center justify-between px-4 py-2 bg-card/60" data-testid="stat-registry-count">
           <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
-            <Database className="w-3 h-3 shrink-0" /> Registries
+            <Database className="w-3 h-3 shrink-0" /> Data Sources
           </span>
           <span className="text-xs font-bold text-foreground tabular-nums">{s.registryCount ?? "6"}</span>
         </div>
@@ -431,7 +436,7 @@ function WealthTierBar() {
   
   if (isLoading) {
     return (
-      <div className="px-3 py-2 border-b border-border bg-card/30 flex items-center gap-3">
+      <div className="px-3 py-2 border-b border-border bg-card/30 flex items-center gap-3" data-testid="wealth-tier-loading">
         <div className="h-2.5 w-24 bg-[#1E2332] animate-pulse rounded hidden sm:block" />
         <div className="flex h-1.5 rounded-full flex-1 gap-px bg-[#1E2332] animate-pulse" />
         <div className="flex items-center gap-x-4 gap-y-1 flex-wrap flex-shrink-0">
@@ -454,7 +459,7 @@ function WealthTierBar() {
     { label: "Unknown",        val: tiers.unknown,   cls: "bg-muted/60",  textCls: "text-muted-foreground" },
   ];
   return (
-    <div className="px-3 py-2 border-b border-border bg-card/30 flex items-center gap-3 min-w-0">
+    <div className="px-3 py-2 border-b border-border bg-card/30 flex items-center gap-3 min-w-0" data-testid="wealth-tier-bar">
       <span className="text-[9px] font-mono text-muted-foreground/60 uppercase tracking-widest whitespace-nowrap hidden sm:block shrink-0">Wealth Tiers</span>
       <div className="flex h-1.5 rounded-full overflow-hidden flex-1 gap-px">
         {segments.map((seg) => (
@@ -481,6 +486,7 @@ function HotLeadCard({ lead }: { lead: any }) {
     <div
       role="button"
       tabIndex={0}
+      data-testid={`card-hot-lead-${lead.entityId}`}
       onClick={() => navigate(`/profile/${lead.entityId}`)}
       onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && navigate(`/profile/${lead.entityId}`)}
       className="block p-4 hover:bg-muted/30 transition-colors group border-b border-border last:border-0 cursor-pointer"
@@ -513,7 +519,7 @@ function HotLeadCard({ lead }: { lead: any }) {
           </div>
         </div>
         <div className="shrink-0">
-          <ScoreBadge score={lead.bayesianScore} />
+          <AccessScoreBadge score={lead.accessScore} />
         </div>
       </div>
       <div className="text-xs text-muted-foreground mb-2.5 flex items-center justify-between">
@@ -528,6 +534,7 @@ function HotLeadCard({ lead }: { lead: any }) {
         <Link
           href={`/network?entity=${lead.entityId}`}
           onClick={(e) => e.stopPropagation()}
+          data-testid={`link-network-${lead.entityId}`}
           className="text-[10px] font-mono text-muted-foreground/50 flex items-center gap-0.5 hover:text-primary transition-colors px-2 py-1 rounded border border-border/0 hover:border-border"
         >
           Network map <ChevronRight className="w-3 h-3" />
@@ -776,7 +783,7 @@ export default function Dashboard() {
                     </div>
                   </div>
                   <div className="shrink-0">
-                    <ScoreBadge score={lead.bayesianScore} />
+                    <AccessScoreBadge score={lead.accessScore} />
                   </div>
                 </div>
                 <div className="bg-background rounded p-2 text-xs font-mono border border-border mt-3">

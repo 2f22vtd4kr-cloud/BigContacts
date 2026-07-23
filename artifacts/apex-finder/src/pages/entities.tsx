@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { Link, useLocation, useSearch } from "wouter";
 import { useListEntities, useCreateEntity, useDeleteEntity } from "@workspace/api-client-react";
-import { formatCurrency, formatEntityName, ScoreBadge } from "@/lib/utils";
+import { formatCurrency, formatEntityName, AccessScoreBadge } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import {
   Plus, Search, Trash2, Globe, ChevronDown, ChevronUp, X, Loader2,
@@ -133,7 +133,7 @@ function MobileEntityDetail({ entity, onClose }: { entity: any; onClose: () => v
                 )}
               </div>
             </div>
-            <ScoreBadge score={entity.bayesianScore} />
+            <AccessScoreBadge score={entity.accessScore} />
           </div>
         </div>
 
@@ -265,7 +265,7 @@ function MobileEntityCard({
           </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          <ScoreBadge score={entity.bayesianScore} />
+          <AccessScoreBadge score={entity.accessScore} />
           <ChevronRight className="w-4 h-4 text-muted-foreground" />
         </div>
       </button>
@@ -747,7 +747,7 @@ export default function EntityLedger() {
                     <td className="px-4 py-3 text-sm font-mono text-foreground">
                       {entity.estimatedNetWorth ? formatCurrency(entity.estimatedNetWorth) : "—"}
                     </td>
-                    <td className="px-4 py-3"><ScoreBadge score={entity.bayesianScore} /></td>
+                    <td className="px-4 py-3"><AccessScoreBadge score={entity.accessScore} /></td>
                     <td className="px-4 py-3 text-xs max-w-[220px]">
                       {entity.email || entity.phone || entity.linkedinUrl ? (
                         <div className="flex flex-col gap-0.5">

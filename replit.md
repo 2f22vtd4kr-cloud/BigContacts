@@ -26,12 +26,14 @@ Shared libraries (under `lib/`):
 | Workflow | Command | Must run? |
 |---|---|---|
 | Redis | `redis-server --port 6379 --save '' --appendonly no` | Yes — local cache |
-| `artifacts/api-server: API Server` | `pnpm --filter @workspace/api-server run dev` | Yes |
-| `artifacts/apex-finder: web` | `pnpm --filter @workspace/apex-finder run dev` | Yes |
+| `API Server` | `pnpm --filter @workspace/api-server run dev` | Yes |
+| `ApexFinder Web` | `pnpm --filter @workspace/apex-finder run dev` | Yes |
 | `artifacts/apex-mobile: expo` | `pnpm --filter @workspace/apex-mobile run dev` | Optional |
 | `artifacts/mockup-sandbox` | `pnpm --filter @workspace/mockup-sandbox run dev` | Optional |
 
 The API server `dev` script runs `build` then `start` every time (esbuild, ~1.5s).
+
+The dashboard uses two deliberately separate scores: **Signal** reflects the strength of wealth/registry evidence, while **Access** reflects how realistically a profile can be reached through public contact evidence and directness. A strong Signal score must not imply a strong Access score.
 
 ---
 

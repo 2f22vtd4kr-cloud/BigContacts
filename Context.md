@@ -8,7 +8,7 @@
 
 ---
 
-## Current State (2026-07-23 — re-import #50) — Fully operational
+## Current State (2026-07-23 — re-import #50) — Frontend UX pass complete; API/web healthy
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically
@@ -22,8 +22,18 @@
 | Workflow | Status |
 |---|---|
 | Redis | ✅ Running (port 6379) |
-| artifacts/api-server: API Server | ✅ Running (port 8080) — artifact-managed |
-| artifacts/apex-finder: web | ✅ Running (port 23695) — artifact-managed |
+| API Server | ✅ Running (port 8080) |
+| ApexFinder Web | ✅ Running (port 23695) |
+
+> **Current import verification note (2026-07-23):** The web server returns HTTP 200 and `/api/healthz` reports Redis healthy. Dashboard data endpoints currently fail because PostgreSQL is unavailable in this imported workspace; do not interpret that as an empty database. Frontend typecheck/build pass cleanly.
+
+### What was done this session (2026-07-23 — access-first UX and live task visibility)
+
+1. **Access Score separated from wealth signal**: added a contactability-first `accessScore` based on public contact evidence, confidence, and directness. The existing Bayesian score remains labeled as signal context and is no longer presented as reachability.
+2. **Lead ranking corrected**: dashboard hot leads are ranked by Access Score, with wealth/registry signal retained as supporting context.
+3. **User-facing hierarchy improved**: dashboard/jobs language now prioritizes profiles, discovery, enrichment, running tasks, and AI suggestions over internal ingestion jargon. Existing dark emerald/blue Atlas styling and routes are preserved.
+4. **Responsive affordances retained**: desktop and mobile cards, task progress, active-task states, data attributes, and profile/list score badges were kept aligned.
+5. **Workflow recovery**: restored `API Server` and `ApexFinder Web` project workflows in `.replit` so the imported project can be previewed alongside Redis.
 
 > **Import #40 note (2026-07-22):** pnpm install (~18s). DB schema pushed (`[✓] Changes applied`). No port conflicts on startup. API Server ✅ + Web Frontend ✅ running via managed workflows. API /healthz → `{"status":"ok","redis":{"status":"ok","latencyMs":1}}`. DB empty at boot → cold-start auto-recovery triggered FAA + HMLR + Western HNWI ingestion.
 > **Port conflict fix (if needed):** kill -9 $(lsof -ti:8080 -ti:23695) then restart `API Server` and `Web Frontend`.
@@ -37,7 +47,7 @@
 - **Wealth Tiers**: Ultra >$100M: 7,392 · Very $30-100M: 4,016 · HNW: 24,568 · Unknown: 1,100
 - **Research Sessions**: many (MCTS bulk-run has run multiple passes)
 
-### What was done this session (2026-07-22 — UI/UX overhaul: clickable stats, Reach Score, nav reorder, manual Intel HQ)
+### What was done this session (2026-07-22 — UI/UX overhaul: clickable stats, score labels, nav reorder, manual Intel HQ)
 
 **5 targeted UX fixes across 5 files — no backend changes, all live via Vite HMR:**
 
@@ -400,6 +410,7 @@ Run **IN-HOUSE ENRICH** on HNWI/Gatekeeper entities — Wikidata SPARQL will hit
 | 2026-07-23 | **Re-import #50 setup**: pnpm install, DB schema pushed, all 4 artifacts re-registered (verifyAndReplaceArtifactToml), old manual workflows removed, artifact-managed workflows started (artifacts/api-server: API Server + artifacts/apex-finder: web). Fixed `trigger` scoping bug in startup.ts — moved function to module level as `triggerHttp`, removing stale inner duplicate. Port conflict resolved (kill -9). App loads: 18,700 profiles, 4,035 hot leads. Auto-ingestion running (FAA + HMLR + Western HNWI). |
 | 2026-07-20 | **Post-import setup + relationship graph**: secrets set (REDIS_URL_1, COMPANIES_HOUSE_API_KEY), artifact-managed workflows restored, schema pushed, FAA 30k + LR 2k ingested, Western HNWI restarted (5k target), hot flags synced (14,814), name-clustering endpoint built (113,946 CORPORATE_SERIES edges), CH enrichment running. |
 | 2026-07-20 | **Hybrid architecture correction + 4 operational steps**: (1) Entity reclassification ran — 22,741→Corp, 585→Trust, 8,674 remain HNWI. (2) CH enricher started (500 entities, addresses added). (3) Relationship auto-detect ran — 0 found (FAA addresses are unique; need different signal). (4) MCTS run on top 5 hot leads — sessions 1–5 created, path scores 0.415–0.488. Code: algorithmPipeline in research.ts now labels L1–L5; persona-engine layer numbering corrected (MCTS=L4); research.tsx HYBRID_PIPELINE string updated; improvements.md Core Hybrid Architecture section added. |
+| 2026-07-23 | Access-first frontend pass: added server/client `accessScore` contract and contactability-first dashboard ranking; changed visible badges from misleading Reach labels to Access/Signal; simplified dashboard and background-task copy; restored API Server and ApexFinder Web workflows. Web/API smoke checks passed, but this import's PostgreSQL connection was unavailable so populated-data screenshots could not be captured. |
 | 2026-07-23 | UI/UX polish pass: added `formatEntityName` (ALL CAPS → title case) + `formatSignal` (strips verbose SEC "Source:/Filing type:" prefix) to utils.tsx. Applied formatEntityName across all 7 name display locations: dashboard, entities, profile, graph dropdown, research, duplicates. Fixed graph single-node blob — added "No connections mapped yet" overlay when nodes=1 and links=0 instead of showing lone giant circle. Graph Corp color fix (Corp → blue) was already in place from prior session. |
 | 2026-07-23 | GitHub import re-setup (#23): pnpm install ✅, DB schema pushed ✅, REDIS_URL already set ✅. All 4 artifacts re-registered via verifyAndReplaceArtifactToml. Workflows running: Redis, API Server (8080), apex-finder web (23695). App loads — 32,000 profiles, 7,453 hot leads. Cold-start auto-ingestion fired (FAA + Western HNWI background job running). |
 | 2026-07-20 | **Sim run (post-import)**: 6 persona batches × 50 entities = 300 entities. 2,376 suggestions (1,284 high / 498 medium / 594 low). Top flags: 100% zero contact vectors, 100% isolated nodes (0 relationships), 100% no MCTS sessions. App rating updated: **6.0/10** (up from 5.2 baseline). All 5 code phases complete; gap is purely operational — trigger CH enricher + relationship auto-detect + entity reclassification. improvements.md updated with full breakdown. |

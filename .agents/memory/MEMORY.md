@@ -26,3 +26,4 @@
 - [Mobile web UI review results](mobile-ui-review-results.md) — all 10 pages load OK at 390×844; /intel and /ledger are wrong slugs (use /research and /entities)
 - [Semantic Engine (Phase G)](semantic-engine-lessons.md) — all-MiniLM-L6-v2 WASM; batchSize cap was 2k→fixed 50k; sourceRegistries are human-readable strings needing normalization for registry-prefix grouping
 - [Atlas Refactor v2 state](atlas-refactor-v2.md) — Apex Atlas Refactor v2 complete; profile tabs, research.ts split, enrichment barrel pattern; remaining: Field Manual content update only
+- [Access score separation](access-score.md) — Contactability/directness must be scored separately from wealth and registry signal

@@ -3,7 +3,7 @@ import {
   Activity, Radio, Bot, Copy, RefreshCw, Play, Loader2,
   CheckCircle2, XCircle, ChevronDown, ChevronRight, Clock,
   Plane, Building2, FileText, Globe, Zap, Search, Network,
-  Cpu, AlertTriangle, Brain, Shield, GitMerge, Trash2,
+  Cpu, AlertTriangle, Brain, Shield, ShieldAlert, GitMerge, Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link } from "wouter";
@@ -22,25 +22,25 @@ interface Job {
 // ─── Known job definitions ────────────────────────────────────────────────────
 const JOB_DEFS: Array<Omit<Job, "status"|"jobId"|"progress"|"inserted"|"skipped"|"errors"|"message"|"startedAt"|"finishedAt">> = [
   // Phase 1 — Registries
-  { id: "faa", label: "FAA Aircraft Registry", description: "US private aircraft owners · ~70MB · turbine/multi-engine filter · 30k+ qualifying records", phase: 1, category: "Registry", endpoint: "/api/ingest/faa", body: { maxRecords: 30000 } },
-  { id: "land-registry", label: "UK Land Registry PPD", description: "UK property transactions £1M+ · bulk CSV · buyer names from title records", phase: 1, category: "Registry", endpoint: "/api/ingest/land-registry" },
-  { id: "western-hnwi", label: "Western HNWI Engine", description: "SEC EDGAR SC 13D/G + DEF 14A · UK Companies House · BRREG Norway · live API", phase: 1, category: "Registry", endpoint: "/api/ingest/western-hnwi", body: { targetCount: 500 } },
+  { id: "faa", label: "Aircraft Owners Search", description: "Discover US private aircraft owners (turbine/multi-engine only)", phase: 1, category: "Discovery", endpoint: "/api/ingest/faa", body: { maxRecords: 30000 } },
+  { id: "land-registry", label: "UK Property Owners", description: "Discover UK property transactions over £1M", phase: 1, category: "Discovery", endpoint: "/api/ingest/land-registry" },
+  { id: "western-hnwi", label: "Wealth Profile Search", description: "Scan SEC filings and corporate registries for wealth profiles", phase: 1, category: "Discovery", endpoint: "/api/ingest/western-hnwi", body: { targetCount: 500 } },
   // Phase 4 — Enrichment
-  { id: "in-house-enrich", label: "In-House OSINT Enricher", description: "Wikidata SPARQL · Wikipedia · GitHub · Gravatar email patterns · DNS/MX · RDAP · ProPublica 990", phase: 4, category: "Enrichment", endpoint: "/api/ingest/in-house-enrich", body: { batchSize: 500 } },
-  { id: "deep-web-osint", label: "Deep Web OSINT", description: "DuckDuckGo + Bing HTML scraping · multi-source cross-validation · contact discovery", phase: 4, category: "Enrichment", endpoint: "/api/ingest/deep-web-osint", body: { batchSize: 500, hotOnly: true } },
-  { id: "occrp", label: "OCCRP Aleph Enricher", description: "Cross-reference entities against aleph.occrp.org sanctions, PEP, and financial crime databases", phase: 3, category: "Enrichment", endpoint: "/api/ingest/occrp", body: { batchSize: 300 } },
-  { id: "opensky", label: "OpenSky Live Flights", description: "Live ADS-B flight enrichment for registered aircraft owners", phase: 4, category: "Enrichment", endpoint: "/api/ingest/opensky" },
-  { id: "ch-company-officers", label: "CH Company Officers", description: "UK Companies House officer roster harvest · requires COMPANIES_HOUSE_API_KEY", phase: 3, category: "Enrichment", endpoint: "/api/ingest/ch-company-officers", body: { batchSize: 200 } },
+  { id: "in-house-enrich", label: "Profile Data Enrichment", description: "Gather missing emails, public links, and background info", phase: 4, category: "Enrichment", endpoint: "/api/ingest/in-house-enrich", body: { batchSize: 500 } },
+  { id: "deep-web-osint", label: "Deep Web Contact Search", description: "Cross-validate contact information across search engines", phase: 4, category: "Enrichment", endpoint: "/api/ingest/deep-web-osint", body: { batchSize: 500, hotOnly: true } },
+  { id: "occrp", label: "Sanctions & Crime Check", description: "Cross-reference profiles against global watchlists", phase: 3, category: "Compliance", endpoint: "/api/ingest/occrp", body: { batchSize: 300 } },
+  { id: "opensky", label: "Live Flight Tracking", description: "Update recent locations for registered aircraft owners", phase: 4, category: "Enrichment", endpoint: "/api/ingest/opensky" },
+  { id: "ch-company-officers", label: "Corporate Network Expansion", description: "Discover co-directors and related corporate officers", phase: 3, category: "Discovery", endpoint: "/api/ingest/ch-company-officers", body: { batchSize: 200 } },
   // Phase 2 — Analysis
-  { id: "compute-embeddings", label: "Semantic Embeddings", description: "all-MiniLM-L6-v2 384-dim vectors · enables semantic search · ~2 min for 5k entities", phase: 2, category: "Analysis", endpoint: "/api/ingest/compute-embeddings", body: { batchSize: 50000 } },
-  { id: "semantic-dedup", label: "Semantic Entity Dedup", description: "Cross-registry cosine similarity >0.93 → LIKELY_SAME_PERSON edges", phase: 2, category: "Analysis", endpoint: "/api/relationships/semantic-dedup" },
-  { id: "auto-detect-clusters", label: "Corporate Cluster Detection", description: "Name-clustering → CORPORATE_SERIES edges · identifies series LLCs and aircraft families", phase: 2, category: "Analysis", endpoint: "/api/relationships/auto-detect-clusters" },
-  { id: "bulk-mcts", label: "MCTS Bulk Research", description: "Hybrid Research path-finding on hot leads · generates outreach approach paths", phase: 2, category: "Analysis", endpoint: "/api/research/bulk-run", body: { batchSize: 200 } },
+  { id: "compute-embeddings", label: "AI Profile Matching", description: "Update AI models to enable smart profile searching", phase: 2, category: "Analysis", endpoint: "/api/ingest/compute-embeddings", body: { batchSize: 50000 } },
+  { id: "semantic-dedup", label: "Find Duplicate Profiles", description: "Detect likely duplicate profiles across different data sources", phase: 2, category: "Analysis", endpoint: "/api/relationships/semantic-dedup" },
+  { id: "auto-detect-clusters", label: "Detect Corporate Networks", description: "Identify corporate family structures and series LLCs", phase: 2, category: "Analysis", endpoint: "/api/relationships/auto-detect-clusters" },
+  { id: "bulk-mcts", label: "Generate Outreach Paths", description: "Use AI to find the best introduction paths for hot leads", phase: 2, category: "Analysis", endpoint: "/api/research/bulk-run", body: { batchSize: 200 } },
   // Maintenance
-  { id: "sync-hot-flags", label: "Sync Hot Flags", description: "Recompute Bayesian isHot flags for all entities", phase: 5, category: "Maintenance", endpoint: "/api/ingest/sync-hot-flags" },
-  { id: "populate-notes", label: "Populate Notes", description: "Auto-fill entity notes from top asset description · improves BM25 search recall", phase: 5, category: "Maintenance", endpoint: "/api/ingest/populate-notes" },
-  { id: "backfill-net-worth", label: "Net Worth Backfill", description: "Estimate net worth from asset signals for entities without explicit wealth data", phase: 5, category: "Maintenance", endpoint: "/api/ingest/backfill-net-worth" },
-  { id: "wikidata-associates", label: "Wikidata Associate Seeding", description: "SPARQL queries to find known associates → FAMILY_OF / KNOWN_ASSOCIATE edges", phase: 5, category: "Maintenance", endpoint: "/api/relationships/seed-wikidata-associates" },
+  { id: "sync-hot-flags", label: "Update Hot Leads", description: "Re-evaluate profile scores to identify new hot leads", phase: 5, category: "Maintenance", endpoint: "/api/ingest/sync-hot-flags" },
+  { id: "populate-notes", label: "Auto-Generate Summaries", description: "Create readable profile summaries from raw asset data", phase: 5, category: "Maintenance", endpoint: "/api/ingest/populate-notes" },
+  { id: "backfill-net-worth", label: "Estimate Net Worth", description: "Calculate estimated wealth based on known assets", phase: 5, category: "Maintenance", endpoint: "/api/ingest/backfill-net-worth" },
+  { id: "wikidata-associates", label: "Find Known Associates", description: "Discover family members and known business partners", phase: 5, category: "Discovery", endpoint: "/api/relationships/seed-wikidata-associates" },
 ];
 
 // ─── Utility ──────────────────────────────────────────────────────────────────
@@ -59,9 +59,10 @@ function statusColor(status: Job["status"]) {
 }
 
 function categoryIcon(cat: string) {
-  if (cat === "Registry") return <Globe className="w-3.5 h-3.5 text-blue-400" />;
+  if (cat === "Discovery") return <Globe className="w-3.5 h-3.5 text-blue-400" />;
   if (cat === "Enrichment") return <Search className="w-3.5 h-3.5 text-amber-400" />;
   if (cat === "Analysis") return <Brain className="w-3.5 h-3.5 text-violet-400" />;
+  if (cat === "Compliance") return <ShieldAlert className="w-3.5 h-3.5 text-red-400" />;
   return <Zap className="w-3.5 h-3.5 text-muted-foreground" />;
 }
 
@@ -79,9 +80,10 @@ function IngestorCard({ job, onTrigger }: { job: Job; onTrigger: (id: string) =>
   const isActive = job.status === "running" || job.status === "queued";
 
   return (
-    <div className={cn("border border-border rounded-lg overflow-hidden transition-colors", isActive && "border-primary/30")}>
+    <div className={cn("border border-border rounded-lg overflow-hidden transition-colors", isActive && "border-primary/30")} data-testid={`card-job-${job.id}`}>
       <button
         onClick={() => setOpen(o => !o)}
+        data-testid={`button-toggle-job-${job.id}`}
         className="w-full flex items-center gap-3 px-4 py-3 bg-card/30 hover:bg-muted/20 transition-colors text-left"
       >
         <div className="shrink-0">{categoryIcon(job.category)}</div>
@@ -129,6 +131,7 @@ function IngestorCard({ job, onTrigger }: { job: Job; onTrigger: (id: string) =>
             <button
               onClick={() => onTrigger(job.id)}
               disabled={isActive}
+              data-testid={`button-trigger-job-${job.id}`}
               className={cn(
                 "flex items-center gap-1.5 px-3 py-1.5 rounded border font-mono text-[11px] uppercase tracking-wider transition-colors",
                 isActive
@@ -137,7 +140,7 @@ function IngestorCard({ job, onTrigger }: { job: Job; onTrigger: (id: string) =>
               )}
             >
               {isActive ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
-              {isActive ? "Running…" : "Trigger"}
+              {isActive ? "Running…" : "Trigger Task"}
             </button>
           )}
         </div>
@@ -201,12 +204,12 @@ function PersonaLoopTab() {
       {/* Header + trigger */}
       <div className="flex items-center justify-between">
         <div>
-          <div className="text-xs font-bold font-mono text-foreground uppercase tracking-widest">Persona Improvement Loop</div>
-          <div className="text-[10px] font-mono text-muted-foreground mt-0.5">8 deterministic AI personas sweep entities and generate actionable improvement suggestions</div>
+          <div className="text-xs font-bold font-mono text-foreground uppercase tracking-widest">AI Analyst Suggestions</div>
+          <div className="text-[10px] font-mono text-muted-foreground mt-0.5">AI models analyze profiles continuously to suggest data corrections and improvements.</div>
         </div>
-        <button onClick={handleRun} disabled={running} className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded border font-mono text-[11px] uppercase tracking-wider transition-colors", running ? "border-border text-muted-foreground opacity-50 cursor-not-allowed" : "border-primary/40 text-primary bg-primary/5 hover:bg-primary/15")}>
+        <button onClick={handleRun} disabled={running} data-testid="button-run-ai-analysts" className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded border font-mono text-[11px] uppercase tracking-wider transition-colors", running ? "border-border text-muted-foreground opacity-50 cursor-not-allowed" : "border-primary/40 text-primary bg-primary/5 hover:bg-primary/15")}>
           {running ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
-          {running ? "Running…" : "Run Now"}
+          {running ? "Analyzing…" : "Run Analysts Now"}
         </button>
       </div>
 
@@ -214,7 +217,7 @@ function PersonaLoopTab() {
       {stats && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {[
-            { label: "Total Logs", val: stats.totalLogs ?? 0, color: "text-foreground" },
+            { label: "Total Suggestions", val: stats.totalLogs ?? 0, color: "text-foreground" },
             { label: "Pending", val: stats.pending ?? 0, color: "text-amber-400" },
             { label: "Applied", val: stats.applied ?? 0, color: "text-emerald-400" },
             { label: "Dismissed", val: stats.dismissed ?? 0, color: "text-muted-foreground" },
@@ -229,7 +232,7 @@ function PersonaLoopTab() {
 
       {/* Persona filter */}
       <div className="flex flex-wrap gap-1.5">
-        <button onClick={() => setFilter("all")} className={cn("px-2 py-1 rounded text-[10px] font-mono uppercase tracking-wider border transition-colors", filter === "all" ? "border-primary/40 text-primary bg-primary/10" : "border-border text-muted-foreground hover:text-foreground")}>All</button>
+        <button onClick={() => setFilter("all")} className={cn("px-2 py-1 rounded text-[10px] font-mono uppercase tracking-wider border transition-colors", filter === "all" ? "border-primary/40 text-primary bg-primary/10" : "border-border text-muted-foreground hover:text-foreground")}>All Analysts</button>
         {personas.map(p => (
           <button key={p} onClick={() => setFilter(p)} className={cn("px-2 py-1 rounded text-[10px] font-mono uppercase tracking-wider border transition-colors", filter === p ? "border-primary/40 text-primary bg-primary/10" : "border-border text-muted-foreground hover:text-foreground")}>
             {personaLabel(p).split(" ")[0]}
@@ -240,10 +243,10 @@ function PersonaLoopTab() {
       {/* Logs */}
       <div className="space-y-2">
         {filteredLogs.length === 0 && (
-          <div className="text-center py-8 text-xs font-mono text-muted-foreground">No suggestions yet. Run the loop to generate improvement suggestions.</div>
+          <div className="text-center py-8 text-xs font-mono text-muted-foreground">No suggestions yet. Run the AI Analysts to generate improvement suggestions.</div>
         )}
         {filteredLogs.map((log: any) => (
-          <div key={log.id} className="p-3 rounded-lg border border-border bg-card/30">
+          <div key={log.id} className="p-3 rounded-lg border border-border bg-card/30" data-testid={`card-suggestion-${log.id}`}>
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-center gap-2 flex-wrap min-w-0">
                 <span className="text-[9px] font-mono uppercase tracking-widest text-primary border border-primary/30 bg-primary/5 px-1.5 py-0.5 rounded">{personaLabel(log.persona)}</span>
@@ -252,8 +255,10 @@ function PersonaLoopTab() {
               </div>
               <div className="flex items-center gap-1 shrink-0">
                 <button onClick={() => fetch(`${BASE}/api/improve/logs/${log.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "applied" }) }).then(() => setLogs(prev => prev.map(l => l.id === log.id ? { ...l, status: "applied" } : l)))}
+                  data-testid={`button-apply-suggestion-${log.id}`}
                   className="text-[9px] font-mono text-emerald-400/60 hover:text-emerald-400 border border-emerald-400/20 px-1.5 py-0.5 rounded transition-colors">Apply</button>
                 <button onClick={() => fetch(`${BASE}/api/improve/logs/${log.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "dismissed" }) }).then(() => setLogs(prev => prev.filter(l => l.id !== log.id)))}
+                  data-testid={`button-dismiss-suggestion-${log.id}`}
                   className="text-[9px] font-mono text-muted-foreground/40 hover:text-muted-foreground border border-border/50 px-1.5 py-0.5 rounded transition-colors">Dismiss</button>
               </div>
             </div>
@@ -309,7 +314,7 @@ function DuplicatesTab() {
   );
 
   if (visible.length === 0) return (
-    <div className="flex flex-col items-center justify-center py-16 text-center">
+    <div className="flex flex-col items-center justify-center py-16 text-center" data-testid="empty-state-duplicates">
       <CheckCircle2 className="w-8 h-8 text-emerald-400 mb-3" />
       <p className="text-sm font-mono text-foreground">No duplicate candidates</p>
       <p className="text-xs font-mono text-muted-foreground mt-1">All pairs reviewed or none detected</p>
@@ -318,7 +323,7 @@ function DuplicatesTab() {
 
   return (
     <div className="space-y-3">
-      <div className="text-[10px] font-mono text-muted-foreground">{visible.length} candidate pairs · name-token similarity algorithm</div>
+      <div className="text-[10px] font-mono text-muted-foreground">{visible.length} candidate pairs · AI name matching</div>
       {visible.map((pair: any) => {
         const key = `${pair.entity1.id}-${pair.entity2.id}`;
         const isSwapped = swapped.has(key);
@@ -326,8 +331,8 @@ function DuplicatesTab() {
         const secondary = isSwapped ? pair.entity1 : pair.entity2;
         const isMerging = merging === key;
         return (
-          <div key={key} className="border border-border rounded-lg overflow-hidden">
-            <button onClick={() => setExpanded(expanded === key ? null : key)} className="w-full flex items-center gap-3 px-4 py-3 bg-card/30 hover:bg-muted/20 transition-colors text-left">
+          <div key={key} className="border border-border rounded-lg overflow-hidden" data-testid={`card-duplicate-${key}`}>
+            <button onClick={() => setExpanded(expanded === key ? null : key)} data-testid={`button-toggle-duplicate-${key}`} className="w-full flex items-center gap-3 px-4 py-3 bg-card/30 hover:bg-muted/20 transition-colors text-left">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-mono font-medium text-foreground truncate">{pair.entity1.name}</span>
@@ -348,25 +353,25 @@ function DuplicatesTab() {
             {expanded === key && (
               <div className="border-t border-border/50 p-3 bg-background/30 space-y-3">
                 <div className="grid sm:grid-cols-2 gap-2">
-                  {[{ entity: primary, label: "KEEP" }, { entity: secondary, label: "MERGE INTO" }].map(({ entity, label }) => (
+                  {[{ entity: primary, label: "KEEP" }, { entity: secondary, label: "MERGE INTO (PRIMARY)" }].map(({ entity, label }) => (
                     <div key={entity.id} className={cn("p-3 rounded border text-xs font-mono space-y-1", label === "KEEP" ? "border-primary/30 bg-primary/5" : "border-border bg-card/30")}>
                       <div className="text-[9px] uppercase tracking-widest text-muted-foreground/50">{label}</div>
                       <div className="font-bold text-foreground">{entity.name}</div>
                       <div className="text-muted-foreground uppercase text-[9px]">{entity.entityType}</div>
-                      {entity.bayesianScore != null && <div className="text-primary">Reach: {((entity.bayesianScore ?? 0) * 100).toFixed(0)}</div>}
+                      {entity.bayesianScore != null && <div className="text-primary">Signal: {((entity.bayesianScore ?? 0) * 100).toFixed(0)}</div>}
                     </div>
                   ))}
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <button onClick={() => setSwapped(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; })} className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-border text-muted-foreground text-[10px] font-mono uppercase hover:text-foreground hover:border-primary/40 transition-colors">
+                  <button onClick={() => setSwapped(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; })} data-testid={`button-swap-duplicate-${key}`} className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-border text-muted-foreground text-[10px] font-mono uppercase hover:text-foreground hover:border-primary/40 transition-colors">
                     <GitMerge className="w-3 h-3" /> Swap Direction
                   </button>
-                  <button onClick={() => merge(pair)} disabled={isMerging} className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-primary/40 text-primary text-[10px] font-mono uppercase bg-primary/5 hover:bg-primary/15 transition-colors disabled:opacity-50">
+                  <button onClick={() => merge(pair)} disabled={isMerging} data-testid={`button-merge-duplicate-${key}`} className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-primary/40 text-primary text-[10px] font-mono uppercase bg-primary/5 hover:bg-primary/15 transition-colors disabled:opacity-50">
                     {isMerging ? <Loader2 className="w-3 h-3 animate-spin" /> : <GitMerge className="w-3 h-3" />}
                     {isMerging ? "Merging…" : "Merge"}
                   </button>
-                  <button onClick={() => dismiss(pair)} className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-border text-muted-foreground text-[10px] font-mono uppercase hover:text-foreground transition-colors">
-                    <Trash2 className="w-3 h-3" /> Not Duplicate
+                  <button onClick={() => dismiss(pair)} data-testid={`button-dismiss-duplicate-${key}`} className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-border text-muted-foreground text-[10px] font-mono uppercase hover:text-foreground transition-colors">
+                    <Trash2 className="w-3 h-3" /> Not a Match
                   </button>
                 </div>
               </div>
@@ -388,10 +393,10 @@ function LiveActivityTab({ jobs }: { jobs: Job[] }) {
     <div className="space-y-4">
       {active.length > 0 && (
         <div>
-          <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-2">Active ({active.length})</div>
+          <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-2" data-testid="text-active-tasks-count">Active ({active.length})</div>
           <div className="space-y-2">
             {active.map(job => (
-              <div key={job.id} className="p-3 rounded-lg border border-primary/30 bg-primary/5 flex items-center gap-3">
+              <div key={job.id} className="p-3 rounded-lg border border-primary/30 bg-primary/5 flex items-center gap-3" data-testid={`card-active-job-${job.id}`}>
                 <Loader2 className="w-4 h-4 animate-spin text-primary shrink-0" />
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-mono font-bold text-primary truncate">{job.label}</div>
@@ -412,8 +417,8 @@ function LiveActivityTab({ jobs }: { jobs: Job[] }) {
       {active.length === 0 && (
         <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card/20">
           <div className="w-2 h-2 rounded-full bg-muted-foreground/30 shrink-0" />
-          <span className="text-xs font-mono text-muted-foreground">No jobs currently running · pipeline idle</span>
-          <Link href="/jobs#sources" className="text-[10px] font-mono text-primary/60 hover:text-primary ml-auto whitespace-nowrap">Trigger a job →</Link>
+          <span className="text-xs font-mono text-muted-foreground" data-testid="text-no-running-tasks">No tasks currently running</span>
+          <Link href="/jobs#sources" className="text-[10px] font-mono text-primary/60 hover:text-primary ml-auto whitespace-nowrap" data-testid="link-trigger-task">Trigger a task →</Link>
         </div>
       )}
 
@@ -435,7 +440,7 @@ function LiveActivityTab({ jobs }: { jobs: Job[] }) {
 
       {idle.length > 0 && (
         <div>
-          <div className="text-[10px] font-mono text-muted-foreground/40 uppercase tracking-widest mb-2">Idle ({idle.length} pipelines)</div>
+          <div className="text-[10px] font-mono text-muted-foreground/40 uppercase tracking-widest mb-2">Idle ({idle.length} tasks)</div>
           <div className="flex flex-wrap gap-1.5">
             {idle.map(job => (
               <span key={job.id} className="text-[9px] font-mono text-muted-foreground/30 border border-border/30 px-2 py-0.5 rounded">{job.label}</span>
@@ -451,13 +456,13 @@ function LiveActivityTab({ jobs }: { jobs: Job[] }) {
 type TabId = "live" | "sources" | "personas" | "duplicates";
 
 const TABS: Array<{ id: TabId; label: string; icon: typeof Activity }> = [
-  { id: "live",       label: "Live Activity",  icon: Activity },
-  { id: "sources",    label: "Sources",         icon: Radio },
-  { id: "personas",   label: "Persona Loop",    icon: Bot },
+  { id: "live",       label: "Running Tasks",  icon: Activity },
+  { id: "sources",    label: "Available Tasks", icon: Radio },
+  { id: "personas",   label: "AI Suggestions", icon: Bot },
   { id: "duplicates", label: "Duplicates",      icon: Copy },
 ];
 
-const CATEGORY_ORDER = ["Registry", "Enrichment", "Analysis", "Maintenance"];
+const CATEGORY_ORDER = ["Discovery", "Enrichment", "Analysis", "Compliance", "Maintenance"];
 
 export default function BackgroundJobs() {
   const [activeTab, setActiveTab] = useState<TabId>("live");

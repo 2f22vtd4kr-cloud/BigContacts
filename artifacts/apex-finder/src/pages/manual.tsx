@@ -270,7 +270,7 @@ export default function FieldManual() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
               {[
                 { color: "#94A3B8", label: "All Profiles", desc: "Total entities in the database — individuals, corporations, trusts, and gatekeepers across all ingested registries.", clickable: false },
-                { color: "#F59E0B", label: "Hot Leads", desc: "Entities with a Reach Score ≥ 70 AND at least one confirmed asset. These are your immediate-action targets. Click to open the full filtered list.", clickable: true },
+                { color: "#F59E0B", label: "Hot Leads", desc: "Profiles with a strong registry signal and at least one confirmed asset. Use the Access score to decide which ones are realistic next actions.", clickable: true },
                 { color: "#10B981", label: "Contactable", desc: "Entities with a confirmed email address, phone number, or LinkedIn URL found through the In-House OSINT enricher. Click to open the full contactable list — this is the most important view.", clickable: true },
                 { color: "#3B82F6", label: "HNWI Profiles", desc: "Entities harvested specifically from the Western HNWI engine (SEC EDGAR SC 13D/G, DEF 14A, UK Companies House, BRREG Norway) — named individuals with beneficial ownership filings.", clickable: false },
               ].map((s) => (
@@ -287,11 +287,11 @@ export default function FieldManual() {
               ))}
             </div>
 
-            {/* Reach Score explanation */}
-            <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-widest mb-4">What is the Reach Score?</h3>
+            {/* Score explanation */}
+            <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-widest mb-4">How to read the scores</h3>
             <div className="bg-[#050A14] border border-[#1E293B] rounded-lg p-5 mb-5">
               <p className="text-xs text-[#94A3B8] leading-relaxed mb-4">
-                Every entity shows a <strong className="text-[#E2E8F0]">Reach Score</strong> (0–100) next to their name.
+                Every entity shows an <strong className="text-[#E2E8F0]">Access score</strong> (0–100) next to their name.
                 This is a Bayesian probability score representing how reachable this person is based on the public signals available:
                 number of assets, registry presence, relationship density, and enrichment data found.
                 It does <em>not</em> mean wealth — it means reachability.
@@ -316,7 +316,7 @@ export default function FieldManual() {
             {/* Top Hot Leads panel */}
             <h3 className="text-xs font-bold text-[#64748B] uppercase tracking-widest mb-4">Top Hot Leads panel</h3>
             <p className="text-sm text-[#94A3B8] leading-relaxed mb-4">
-              The right side of Intelligence HQ shows your top 10 hot leads ranked by Reach Score. Each card is
+              The right side of Intelligence HQ shows your top 10 hot leads ranked by Access score. Each card is
               fully clickable — tap anywhere on it to open that entity's full Profile page. The "View all →" link
               at the top takes you to the complete hot leads list. Green <strong className="text-[#10B981]">EMAIL</strong> and
               cyan <strong className="text-[#06B6D4]">PHONE</strong> badges mean contact data is already available.
@@ -327,7 +327,7 @@ export default function FieldManual() {
             <Steps color="#10B981" items={[
               { title: "Check Contactable count", body: "Click the green Contactable number. If it's non-zero, those are your warmest targets — they have confirmed contact data. Start there." },
               { title: "Review Hot Leads", body: "Click the amber Hot Leads number or a card in the Top Hot Leads panel. Open their Profile, then run Intel Terminal to find the best introduction path." },
-              { title: "Browse all targets", body: "Go to Entity Ledger (second item in the sidebar) to see every entity. Filter by type, use Deep Search for natural language queries, or sort by Reach Score." },
+              { title: "Browse all profiles", body: "Go to Profiles (second item in the sidebar) to see every entity. Filter by type, use Search for natural language queries, or compare Access scores." },
               { title: "Map the network", body: "Once you've chosen a target, open Network Graph to see who they're connected to. Gatekeepers (amber nodes) are your real entry point." },
               { title: "Track outreach in CRM", body: "Run Intel Terminal → Pipeline CRM captures the research path and pitch. Move the card through the 8 stages as you make contact." },
             ]} />
@@ -337,7 +337,7 @@ export default function FieldManual() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {[
                 { icon: <Activity size={12} />,      color: "#10B981", name: "Intelligence HQ",      path: "/",            desc: "Live dashboard — stat tiles (hot leads + contactable are clickable), top leads panel, asset map." },
-                { icon: <Database size={12} />,      color: "#3B82F6", name: "Entity Ledger",         path: "/entities",    desc: "Full list of all targets with Reach Scores, type filters, bulk export, and live registry lookup." },
+                { icon: <Database size={12} />,      color: "#3B82F6", name: "Profiles",              path: "/profiles",   desc: "Full list of profiles with Access scores, type filters, bulk export, and live registry lookup." },
                 { icon: <Search size={12} />,        color: "#06B6D4", name: "Deep Search",           path: "/deep-search", desc: "Natural language search across 32,500+ entities using 4-signal hybrid AI (BM25 + semantic)." },
                 { icon: <Network size={12} />,       color: "#F59E0B", name: "Network Graph",         path: "/graph",       desc: "Interactive relationship graph — HNWI nodes, gatekeeper paths, asset links, edge types." },
                 { icon: <Terminal size={12} />,      color: "#EF4444", name: "Intel Terminal",        path: "/research",    desc: "Hybrid Research — 120 UCT rollouts to find the warmest introduction path to any target." },

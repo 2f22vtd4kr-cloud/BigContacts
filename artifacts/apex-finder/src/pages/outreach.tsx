@@ -105,7 +105,7 @@ function ContextBriefing({ entity, session }: { entity: EntitySummary; session: 
         </div>
         <div className="text-sm font-bold text-foreground">{entity.name}</div>
         <div className="text-xs font-mono text-muted-foreground uppercase">{entity.entityType}</div>
-        <div className="text-[10px] font-mono text-primary">Reach score: {((entity.bayesianScore ?? 0) * 100).toFixed(0)}</div>
+        <div className="text-[10px] font-mono text-primary">Signal score: {((entity.bayesianScore ?? 0) * 100).toFixed(0)}</div>
       </div>
 
       {/* Contact vectors */}

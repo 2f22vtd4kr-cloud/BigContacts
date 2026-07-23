@@ -223,6 +223,7 @@ export default function DuplicatesPage() {
       const t = setTimeout(() => setMergeState("idle"), 3000);
       return () => clearTimeout(t);
     }
+    return undefined;
   }, [mergeState]);
 
   const handleMerge = async (keepId: number, deleteId: number) => {

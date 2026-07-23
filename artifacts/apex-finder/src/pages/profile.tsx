@@ -43,7 +43,7 @@ import {
   Twitter,
   Instagram,
 } from "lucide-react";
-import { cn, formatCurrency, formatEntityName, ScoreBadge } from "@/lib/utils";
+import { cn, formatCurrency, formatEntityName, AccessScoreBadge, ScoreBadge } from "@/lib/utils";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
   DialogFooter, DialogClose,
@@ -555,6 +555,7 @@ export default function ApexProfile() {
 
           <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
             <div className="flex flex-col items-center gap-0.5">
+              <AccessScoreBadge score={entity.accessScore} />
               <ScoreBadge score={entity.bayesianScore} />
               <span className="text-[8px] font-mono text-muted-foreground/50 uppercase tracking-widest">HNWI Signal</span>
             </div>

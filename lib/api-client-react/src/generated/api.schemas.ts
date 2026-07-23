@@ -20,7 +20,10 @@ export interface Entity {
   id: number;
   name: string;
   type: string;
+  /** HNWI / wealth signal score; not a reachability score */
   bayesianScore: number;
+  /** Contactability-first score from public contact evidence and directness (0-1) */
+  accessScore: number;
   /** @nullable */
   nationality?: string | null;
   /** @nullable */
@@ -197,6 +200,8 @@ export interface HotLead {
   entityName: string;
   entityType: string;
   bayesianScore: number;
+  /** Contactability-first score from public contact evidence and directness (0-1) */
+  accessScore: number;
   signal: string;
   signalDate: string;
   assetCount: number;

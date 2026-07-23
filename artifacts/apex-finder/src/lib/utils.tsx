@@ -28,8 +28,23 @@ export function ScoreBadge({ score }: { score: number | null | undefined }) {
   if (score == null) return null;
   const colorClasses = getScoreColor(score);
   return (
-    <div className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono border ${colorClasses}`} title="Reach Score — how reachable this person is based on public data signals (0–100)">
-      <span className="opacity-50 text-[9px] uppercase tracking-wide leading-none">Reach</span>
+    <div className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono border ${colorClasses}`} title="Signal score — strength of the wealth and registry evidence (0–100)">
+      <span className="opacity-50 text-[9px] uppercase tracking-wide leading-none">Signal</span>
+      <span className="font-bold tabular-nums">{(score * 100).toFixed(0)}</span>
+    </div>
+  );
+}
+
+export function AccessScoreBadge({ score }: { score: number | null | undefined }) {
+  if (score == null) return null;
+  const colorClasses = getScoreColor(score);
+  return (
+    <div
+      className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono border ${colorClasses}`}
+      title="Access score — how realistically this person can be reached through public contact evidence (0–100)"
+      data-testid="badge-access-score"
+    >
+      <span className="opacity-50 text-[9px] uppercase tracking-wide leading-none">Access</span>
       <span className="font-bold tabular-nums">{(score * 100).toFixed(0)}</span>
     </div>
   );

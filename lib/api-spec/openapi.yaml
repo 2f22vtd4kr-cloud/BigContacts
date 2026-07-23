@@ -735,12 +735,13 @@ components:
     # ── ENTITY ───────────────────────────────────────────────────────────────
     Entity:
       type: object
-      required: [id, name, type, bayesianScore, isHot, assetCount, createdAt]
+      required: [id, name, type, bayesianScore, accessScore, isHot, assetCount, createdAt]
       properties:
         id: { type: integer }
         name: { type: string }
         type: { type: string }
-        bayesianScore: { type: number }
+        bayesianScore: { type: number, description: "HNWI / wealth signal score; not a reachability score" }
+        accessScore: { type: number, description: "Contactability-first score from public contact evidence and directness (0-1)" }
         nationality: { type: ["string", "null"] }
         estimatedNetWorth: { type: ["number", "null"] }
         knownResidences: { type: ["string", "null"] }
@@ -904,12 +905,13 @@ components:
     # ── DASHBOARD ─────────────────────────────────────────────────────────────
     HotLead:
       type: object
-      required: [entityId, entityName, entityType, bayesianScore, signal, signalDate, assetCount, hasResearchSession]
+      required: [entityId, entityName, entityType, bayesianScore, accessScore, signal, signalDate, assetCount, hasResearchSession]
       properties:
         entityId: { type: integer }
         entityName: { type: string }
         entityType: { type: string }
         bayesianScore: { type: number }
+        accessScore: { type: number, description: "Contactability-first score from public contact evidence and directness (0-1)" }
         signal: { type: string }
         signalDate: { type: string }
         assetCount: { type: integer }
