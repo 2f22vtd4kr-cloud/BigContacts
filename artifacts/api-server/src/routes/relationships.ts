@@ -814,14 +814,25 @@ router.post("/relationships/semantic-dedup", async (_req, res): Promise<void> =>
 
   // Group entity IDs by their first source registry prefix
   const byRegistry = new Map<string, number[]>();
+  const nameById = new Map<number, string>(); // I2: for token overlap guard
   for (const e of entities) {
     if (!embCache.has(e.id)) continue; // no embedding yet
+    nameById.set(e.id, e.name ?? "");
     let srcs: string[] = [];
     try { srcs = JSON.parse(e.sourceRegistries ?? "[]"); } catch { /* */ }
     const prefix = registryPrefix(srcs[0] ?? "unknown");
     const arr = byRegistry.get(prefix) ?? [];
     arr.push(e.id);
     byRegistry.set(prefix, arr);
+  }
+
+  // I2: true if two names share ≥ minShared significant tokens (prevents false positives at 0.87)
+  function hasEnoughSharedTokens(a: string, b: string, minShared = 2): boolean {
+    const STOP = new Set(["the","of","and","a","an","in","at","for","to","by","or","mr","ms","dr","jr","sr","ii","iii","iv"]);
+    const tokens = (s: string) =>
+      s.toLowerCase().replace(/[^a-z0-9 ]/g, " ").split(/\s+/).filter(t => t.length > 1 && !STOP.has(t));
+    const aSet = new Set(tokens(a));
+    return tokens(b).filter(t => aSet.has(t)).length >= minShared;
   }
 
   // Registry pairs to cross-compare (skip same-registry pairs)
@@ -834,7 +845,8 @@ router.post("/relationships/semantic-dedup", async (_req, res): Promise<void> =>
     .where(sql`${relationshipsTable.relationshipType} = 'LIKELY_SAME_PERSON'`);
   const existingSet = new Set(existing.map((r) => `${r.src}-${r.tgt}`));
 
-  const SIMILARITY_THRESHOLD = 0.93;
+  // I2: lowered from 0.93 → 0.87; token overlap guard prevents false positives
+  const SIMILARITY_THRESHOLD = 0.87;
   const MAX_PER_REGISTRY = 10_000;
 
   let created = 0;
@@ -863,6 +875,9 @@ router.post("/relationships/semantic-dedup", async (_req, res): Promise<void> =>
           for (let k = 0; k < embA.length; k++) dot += embA[k]! * embB[k]!;
 
           if (dot < SIMILARITY_THRESHOLD) continue;
+
+          // I2: token overlap guard — must share ≥ 2 significant name tokens (prevents city/state false positives)
+          if (!hasEnoughSharedTokens(nameById.get(idA) ?? "", nameById.get(idB) ?? "", 2)) continue;
 
           const src = Math.min(idA, idB);
           const tgt = Math.max(idA, idB);
@@ -896,6 +911,186 @@ router.post("/relationships/semantic-dedup", async (_req, res): Promise<void> =>
     registries: Object.fromEntries([...byRegistry.entries()].map(([k, v]) => [k, v.length])),
     message: `Semantic dedup: ${created} LIKELY_SAME_PERSON edges from ${compared.toLocaleString()} cross-registry comparisons (${embCache.size} embeddings cached).`,
   });
+});
+
+// ── POST /relationships/auto-detect-edgar-coinvestor — I3-A ───────────────────
+// High-quality warm-path edges: EDGAR HNWI/Gatekeeper entities who are co-investors
+// in the same company. Stronger signal than EDGAR_CO_SHAREHOLDER (which covers all types).
+// Two HNWIs on the same cap table almost certainly know each other personally.
+router.post("/relationships/auto-detect-edgar-coinvestor", async (_req, res): Promise<void> => {
+  const entities = await db
+    .select({ id: entitiesTable.id, metadata: entitiesTable.metadata })
+    .from(entitiesTable)
+    .where(sql`${entitiesTable.type} IN ('HNWI', 'Gatekeeper') AND ${entitiesTable.metadata}::text LIKE '%sec-edgar%'`);
+
+  const companyIndex = new Map<string, number[]>();
+  for (const e of entities) {
+    let meta: Record<string, any> = {};
+    try { meta = JSON.parse(e.metadata ?? "{}"); } catch {}
+    const company = ((meta.companyName as string | undefined) ?? "").trim().toLowerCase();
+    if (!company || company.length < 3) continue;
+    const arr = companyIndex.get(company) ?? [];
+    arr.push(e.id);
+    companyIndex.set(company, arr);
+  }
+
+  const existing = await db
+    .select({ src: relationshipsTable.sourceEntityId, tgt: relationshipsTable.targetId })
+    .from(relationshipsTable)
+    .where(sql`${relationshipsTable.relationshipType} = 'EDGAR_CO_INVESTOR'`);
+  const existingSet = new Set(existing.map((r) => `${r.src}-${r.tgt}`));
+
+  const pending: (typeof relationshipsTable.$inferInsert)[] = [];
+  let created = 0; let skipped = 0; let groups = 0;
+
+  for (const [company, ids] of companyIndex.entries()) {
+    if (ids.length < 2 || ids.length > 20) continue; // singles and hub companies are noise
+    groups++;
+    for (let i = 0; i < ids.length; i++) {
+      for (let j = i + 1; j < ids.length; j++) {
+        if (pending.length >= 200_000) break;
+        const src = Math.min(ids[i]!, ids[j]!);
+        const tgt = Math.max(ids[i]!, ids[j]!);
+        const key = `${src}-${tgt}`;
+        if (existingSet.has(key)) { skipped++; continue; }
+        existingSet.add(key);
+        pending.push({
+          sourceEntityId: src, targetId: tgt, targetType: "Entity",
+          relationshipType: "EDGAR_CO_INVESTOR", strength: 0.75,
+          notes: `EDGAR co-investor: both are HNWI/Gatekeeper shareholders of ${company}`,
+        });
+        created++;
+      }
+    }
+  }
+
+  const CHUNK = 500;
+  for (let i = 0; i < pending.length; i += CHUNK) {
+    await db.insert(relationshipsTable).values(pending.slice(i, i + CHUNK));
+  }
+  res.json({ created, skipped, groups, message: `EDGAR co-investor: ${created} EDGAR_CO_INVESTOR edges across ${groups} companies, ${skipped} skipped.` });
+});
+
+// ── POST /relationships/foundation-colleagues — I3-B ─────────────────────────
+// Entities that share the same foundation name are likely co-directors/co-trustees.
+// IRS 990 filings list officers/directors of the same EIN — these people know each other.
+// Grouped by exact foundationName string (written by foundation-filings enricher).
+router.post("/relationships/foundation-colleagues", async (_req, res): Promise<void> => {
+  const entities = await db
+    .select({ id: entitiesTable.id, foundationName: entitiesTable.foundationName })
+    .from(entitiesTable)
+    .where(isNotNull(entitiesTable.foundationName));
+
+  const byFoundation = new Map<string, number[]>();
+  for (const e of entities) {
+    const key = (e.foundationName ?? "").trim().toLowerCase();
+    if (!key || key.length < 4) continue;
+    const arr = byFoundation.get(key) ?? [];
+    arr.push(e.id);
+    byFoundation.set(key, arr);
+  }
+
+  const existing = await db
+    .select({ src: relationshipsTable.sourceEntityId, tgt: relationshipsTable.targetId })
+    .from(relationshipsTable)
+    .where(sql`${relationshipsTable.relationshipType} = 'FOUNDATION_COLLEAGUE'`);
+  const existingSet = new Set(existing.map((r) => `${r.src}-${r.tgt}`));
+
+  const pending: (typeof relationshipsTable.$inferInsert)[] = [];
+  let created = 0; let skipped = 0; let groups = 0;
+
+  for (const [foundation, ids] of byFoundation.entries()) {
+    if (ids.length < 2 || ids.length > 20) continue;
+    groups++;
+    for (let i = 0; i < ids.length; i++) {
+      for (let j = i + 1; j < ids.length; j++) {
+        if (pending.length >= 100_000) break;
+        const src = Math.min(ids[i]!, ids[j]!);
+        const tgt = Math.max(ids[i]!, ids[j]!);
+        const key = `${src}-${tgt}`;
+        if (existingSet.has(key)) { skipped++; continue; }
+        existingSet.add(key);
+        pending.push({
+          sourceEntityId: src, targetId: tgt, targetType: "Entity",
+          relationshipType: "FOUNDATION_COLLEAGUE", strength: 0.85,
+          notes: `IRS 990 co-director/co-trustee of "${foundation}"`,
+        });
+        created++;
+      }
+    }
+  }
+
+  const CHUNK = 500;
+  for (let i = 0; i < pending.length; i += CHUNK) {
+    await db.insert(relationshipsTable).values(pending.slice(i, i + CHUNK));
+  }
+  res.json({ created, skipped, groups, message: `Foundation colleagues: ${created} FOUNDATION_COLLEAGUE edges across ${groups} foundations, ${skipped} skipped.` });
+});
+
+// ── POST /relationships/name-exact-dedup — I2 ────────────────────────────────
+// Creates LIKELY_SAME_PERSON edges for entities with identical names across different
+// registries — guaranteed same-person matches that semantic dedup may miss when
+// embeddings aren't yet computed or name variants are too short to embed well.
+router.post("/relationships/name-exact-dedup", async (_req, res): Promise<void> => {
+  const entities = await db
+    .select({ id: entitiesTable.id, name: entitiesTable.name, sourceRegistries: entitiesTable.sourceRegistries })
+    .from(entitiesTable)
+    .where(and(isNotNull(entitiesTable.sourceRegistries), isNotNull(entitiesTable.name)));
+
+  const byName = new Map<string, Array<{ id: number; registry: string }>>();
+  for (const e of entities) {
+    const norm = (e.name ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+    if (!norm || norm.length < 4) continue;
+    if (/^\d+\s/.test(norm)) continue; // skip HMLR address-named entities
+    let srcs: string[] = [];
+    try { srcs = JSON.parse(e.sourceRegistries ?? "[]"); } catch {}
+    const registry = (srcs[0] ?? "unknown").toLowerCase().split(/[\s\-:]/)[0]!.slice(0, 20);
+    const arr = byName.get(norm) ?? [];
+    arr.push({ id: e.id, registry });
+    byName.set(norm, arr);
+  }
+
+  const existing = await db
+    .select({ src: relationshipsTable.sourceEntityId, tgt: relationshipsTable.targetId })
+    .from(relationshipsTable)
+    .where(sql`${relationshipsTable.relationshipType} = 'LIKELY_SAME_PERSON'`);
+  const existingSet = new Set(existing.map((r) => `${r.src}-${r.tgt}`));
+
+  const pending: (typeof relationshipsTable.$inferInsert)[] = [];
+  let created = 0; let skipped = 0; let groups = 0;
+
+  for (const [norm, entries] of byName.entries()) {
+    if (entries.length < 2) continue;
+    // Only create edges when at least two different registries are present
+    const registrySet = new Set(entries.map(e => e.registry));
+    if (registrySet.size < 2) continue;
+    groups++;
+
+    for (let i = 0; i < entries.length; i++) {
+      for (let j = i + 1; j < entries.length; j++) {
+        const a = entries[i]!; const b = entries[j]!;
+        if (a.registry === b.registry) continue; // same-registry = same import, not same person
+        if (pending.length >= 50_000) break;
+        const src = Math.min(a.id, b.id);
+        const tgt = Math.max(a.id, b.id);
+        const key = `${src}-${tgt}`;
+        if (existingSet.has(key)) { skipped++; continue; }
+        existingSet.add(key);
+        pending.push({
+          sourceEntityId: src, targetId: tgt, targetType: "Entity",
+          relationshipType: "LIKELY_SAME_PERSON", strength: 0.95,
+          notes: `Exact name match across registries: "${norm}" (${a.registry} × ${b.registry})`,
+        });
+        created++;
+      }
+    }
+  }
+
+  const CHUNK = 500;
+  for (let i = 0; i < pending.length; i += CHUNK) {
+    await db.insert(relationshipsTable).values(pending.slice(i, i + CHUNK));
+  }
+  res.json({ created, skipped, groups, message: `Name-exact dedup: ${created} LIKELY_SAME_PERSON edges from ${groups} exact name matches across registries, ${skipped} skipped.` });
 });
 
 export default router;

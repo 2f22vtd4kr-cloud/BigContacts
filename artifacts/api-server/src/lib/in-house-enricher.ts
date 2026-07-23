@@ -109,6 +109,80 @@ function splitName(full: string): { first: string; last: string } {
   return { first: parts.slice(0, -1).join(" "), last: parts[parts.length - 1]! };
 }
 
+// ── I1: LLC Beneficial Owner Resolution ──────────────────────────────────────
+// FAA aviation LLCs ("John Smith Aviation LLC") are registered to the company, not the person.
+// This function tries to find the individual behind the LLC via two free sources:
+// 1. SEC EDGAR EFTS — who filed SC 13D/G mentioning this LLC name?
+// 2. OpenCorporates free tier — get directors/officers of the company
+async function resolveBeneficialOwner(llcName: string): Promise<string | null> {
+  // Only worth trying for LLC-pattern names
+  if (!/\b(llc|lp|lc|inc|corp|aviation|air|charter|holdings?|capital|equit|invest|aero|flight|sky|jet)\b/i.test(llcName)) return null;
+
+  // Step 1: SEC EDGAR full-text search — who filed about this company?
+  try {
+    const q = `"${llcName.replace(/"/g, "")}"`;
+    const url = `https://efts.sec.gov/LATEST/search-index?q=${encodeURIComponent(q)}&forms=SC+13D,SC+13G,DEF+14A&dateRange=custom&startdt=2015-01-01&enddt=2026-12-31`;
+    const resp = await fetch(url, {
+      signal: AbortSignal.timeout(10_000),
+      headers: { "User-Agent": "ApexFinder Research research@apexfinder.private", Accept: "application/json" },
+    });
+    if (resp.ok) {
+      const data = await resp.json() as any;
+      const hits: any[] = data?.hits?.hits ?? [];
+      for (const hit of hits.slice(0, 10)) {
+        const entityName: string = hit?._source?.entity_name ?? "";
+        // Individual name: ≥2 words, starts with capital, no corporate suffixes
+        if (
+          entityName.length > 3 &&
+          /^[A-Z][a-z]/.test(entityName) &&
+          !/\b(llc|lp|lc|inc|corp|fund|trust|ltd|plc|bank|group|capital|partners|management|investments?|holdings?|company|enterprises?|foundation|association)\b/i.test(entityName)
+        ) {
+          const words = entityName.trim().split(/\s+/);
+          if (words.length >= 2 && words.length <= 4) return entityName;
+        }
+      }
+    }
+  } catch { /* graceful skip — EDGAR may be unavailable */ }
+
+  // Step 2: OpenCorporates free tier — get officers/directors
+  try {
+    const url = `https://api.opencorporates.com/v0.4/companies/search?q=${encodeURIComponent(llcName)}&country_code=us&per_page=3`;
+    const resp = await fetch(url, {
+      signal: AbortSignal.timeout(10_000),
+      headers: { "User-Agent": "ApexFinder Research research@apexfinder.private", Accept: "application/json" },
+    });
+    if (resp.ok) {
+      const data = await resp.json() as any;
+      const companies: any[] = data?.results?.companies ?? [];
+      for (const { company } of companies.slice(0, 2)) {
+        const officers: any[] = company?.officers ?? [];
+        for (const { officer } of officers) {
+          const n: string = officer?.name ?? "";
+          if (n && /^[A-Z][a-z]/.test(n) && !/\b(llc|lp|inc|corp|ltd)\b/i.test(n)) {
+            const words = n.trim().split(/\s+/);
+            if (words.length >= 2 && words.length <= 4) return n;
+          }
+        }
+      }
+    }
+  } catch { /* graceful skip */ }
+
+  return null;
+}
+
+// ── I4: Enrichment Tier Classification ────────────────────────────────────────
+// Tier 1 — EDGAR/public (BRREG, CH, GLEIF): full 20-source pass. Public filings = Wikidata/Wikipedia hits.
+// Tier 2 — FAA individual: skip knowledge graphs (private aircraft owners aren't on Wikidata/GitHub).
+//           Focus on DDG-LinkedIn, DNS/RDAP/email-patterns which work for private HNWIs.
+// Tier 3 — FAA corporation: resolve beneficial owner (I1) first, then Tier 2 on the person name.
+function enrichmentTier(entity: InHouseEnrichInput): 1 | 2 | 3 {
+  const srcs = entity.sourceRegistries?.toLowerCase() ?? "";
+  const isFAA = srcs.includes("faa") || srcs.includes("aircraft") || srcs.includes("n-number");
+  if (!isFAA) return 1; // EDGAR, HMLR, BRREG, CH — full public pass
+  if (entity.type === "Corporation" || entity.type === "Trust") return 3; // LLC → resolve person first
+  return 2; // FAA individual — skip knowledge graphs
+}
+
 // Email blocklist — domains that are never real contact emails
 const EMAIL_BLOCK = new Set([
   "example.com", "domain.com", "email.com", "test.com", "foo.com", "bar.com",
@@ -1095,17 +1169,33 @@ export async function enrichInHouse(entity: InHouseEnrichInput): Promise<InHouse
 
   // Use canonical entityName from metadata if available; strip ticker symbols
   const rawName = (entity.entityName || entity.name).trim();
-  const name = normaliseName(stripTicker(rawName));
+  let name = normaliseName(stripTicker(rawName));
   if (!name || name.length < 3) return result;
 
   // Skip address-named entities (HMLR properties like "23 High Street London")
   if (/^\d+\s/.test(name) || /\b(flat|house|cottage|manor|farm)\s+\d/i.test(name)) return result;
 
-  const isIndividual = entity.type === "HNWI" || entity.type === "Gatekeeper" ||
-    /^[A-Z][a-z]+ [A-Z]/.test(name);
+  // ── I1+I4: Tier classification + LLC beneficial owner resolution ──────────────
+  const tier = enrichmentTier(entity);
+  if (tier === 3) {
+    // FAA Corporation: try to resolve the LLC to the person behind it.
+    // If found, switch the enrichment name to the resolved individual — this unlocks
+    // Wikidata/LinkedIn/email-pattern hits that would never fire against "Smith Aviation LLC".
+    const resolved = await resolveBeneficialOwner(name);
+    if (resolved) {
+      logger.debug({ llc: name, person: resolved }, "I1: FAA LLC → beneficial owner resolved");
+      name = resolved;
+    }
+  }
+
+  // Recalculate derived variables using the (possibly resolved) name
+  const isIndividual = (tier === 3 && /^[A-Z][a-z]+ [A-Z]/.test(name))  // resolved person
+    || entity.type === "HNWI" || entity.type === "Gatekeeper"
+    || /^[A-Z][a-z]+ [A-Z]/.test(name);
   // Also detect individual by 2-word name that looks like First Last
   const looksLikeIndividual = /^[A-Z][a-z]+ [A-Z][a-z]+$/.test(name) || /^[A-Z][a-z]+ [A-Z][a-z]+ [A-Z][a-z]+$/.test(name);
-  const isCorp = (entity.type === "Corporation" || entity.type === "Trust") && !looksLikeIndividual;
+  const isCorp = (entity.type === "Corporation" || entity.type === "Trust") && !looksLikeIndividual
+    && !(tier === 3 && isIndividual); // if we resolved a person, drop corp flag
 
   const { first, last } = splitName(name);
   const hasNameParts = (isIndividual || looksLikeIndividual) && first && last && last.length > 1;
@@ -1140,8 +1230,12 @@ export async function enrichInHouse(entity: InHouseEnrichInput): Promise<InHouse
   // ────────────────────────────────────────────────────────────────────────────
   const g1Promises: Promise<void>[] = [];
 
-  // Source 1: Wikidata (individuals)
-  if (isIndividual) {
+  // I4: Tier 2 = FAA individuals — skip knowledge graphs (private aircraft owners aren't on
+  // Wikidata/Wikipedia/ORCID/GitHub). Focus API budget on DDG-LinkedIn, DNS/RDAP, email patterns.
+  // Tier 1 (EDGAR/public) and Tier 3 (resolved beneficial owner) run the full knowledge graph pass.
+
+  // Source 1: Wikidata (individuals) — skip for Tier 2
+  if (isIndividual && tier !== 2) {
     g1Promises.push((async () => {
       const wd = await queryWikidata(name);
       if (wd) {
@@ -1155,8 +1249,8 @@ export async function enrichInHouse(entity: InHouseEnrichInput): Promise<InHouse
     })());
   }
 
-  // Source 1b: Wikidata (corporations)
-  if (isCorp) {
+  // Source 1b: Wikidata (corporations) — skip for Tier 2
+  if (isCorp && tier !== 2) {
     g1Promises.push((async () => {
       const wd = await queryWikidataCorp(name);
       if (wd) {
@@ -1166,20 +1260,22 @@ export async function enrichInHouse(entity: InHouseEnrichInput): Promise<InHouse
     })());
   }
 
-  // Source 2: Wikipedia
-  g1Promises.push((async () => {
-    const wiki = await queryWikipedia(name);
-    if (wiki) {
-      result.sourceHits["Wikipedia"] = true;
-      if (!result.email) setEmail(extractEmail(wiki.extract), 40, "Wikipedia-Email");
-      if (!result.linkedinUrl) { const li = extractLinkedIn(wiki.extract); if (li) { result.linkedinUrl = li; addSource("Wikipedia-LinkedIn"); } }
-      if (!result.website && wiki.website) { result.website = wiki.website; addSource("Wikipedia-URL"); }
-      if (!result.phone) setPhone(extractPhone(wiki.extract), 45, "Wikipedia-Phone");
-    }
-  })());
+  // Source 2: Wikipedia — skip for Tier 2 (FAA private individuals rarely have Wikipedia pages)
+  if (tier !== 2) {
+    g1Promises.push((async () => {
+      const wiki = await queryWikipedia(name);
+      if (wiki) {
+        result.sourceHits["Wikipedia"] = true;
+        if (!result.email) setEmail(extractEmail(wiki.extract), 40, "Wikipedia-Email");
+        if (!result.linkedinUrl) { const li = extractLinkedIn(wiki.extract); if (li) { result.linkedinUrl = li; addSource("Wikipedia-LinkedIn"); } }
+        if (!result.website && wiki.website) { result.website = wiki.website; addSource("Wikipedia-URL"); }
+        if (!result.phone) setPhone(extractPhone(wiki.extract), 45, "Wikipedia-Phone");
+      }
+    })());
+  }
 
-  // Source 3: ORCID (individuals)
-  if (hasNameParts) {
+  // Source 3: ORCID (individuals) — skip for Tier 2 (aircraft owners aren't typically researchers)
+  if (hasNameParts && tier !== 2) {
     g1Promises.push((async () => {
       const orcid = await queryORCID(first, last);
       if (orcid) {
@@ -1190,8 +1286,8 @@ export async function enrichInHouse(entity: InHouseEnrichInput): Promise<InHouse
     })());
   }
 
-  // Source 4: GitHub (individuals)
-  if (isIndividual) {
+  // Source 4: GitHub (individuals) — skip for Tier 2
+  if (isIndividual && tier !== 2) {
     g1Promises.push((async () => {
       const gh = await queryGitHub(name);
       if (gh) {

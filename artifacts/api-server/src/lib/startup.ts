@@ -632,11 +632,14 @@ async function runPopulatedDbMaintenance(): Promise<void> {
     { delayMs:   290_000, label: "FAA geo-proximity edges",             path: "/api/relationships/auto-detect-faa-geo" },
     { delayMs:   295_000, label: "HMLR postcode-proximity edges",       path: "/api/relationships/auto-detect-hmlr-postcode" },
     { delayMs:   300_000, label: "EDGAR co-shareholder edges",          path: "/api/relationships/auto-detect-edgar-coshareholder" },
+    { delayMs:   305_000, label: "EDGAR co-investor edges (I3-A — warm paths)", path: "/api/relationships/auto-detect-edgar-coinvestor" },
+    { delayMs:   310_000, label: "name-exact cross-registry dedup (I2)",        path: "/api/relationships/name-exact-dedup" },
 
     // ── PHASE 5: DEEP CONTACT ENRICHMENT (360s–660s) ─────────────────────────
     // In-depth enrichment on verified, scored, graphed entities.
     { delayMs:   360_000, label: "auto in-house enricher (pass 1 — edgar)",           path: "/api/ingest/in-house-enrich",       body: { batchSize: 5000, targetMode: "edgar" } },
     { delayMs:   420_000, label: "auto foundation filings (IRS 990 — pass 1)",        path: "/api/ingest/foundation-filings",    body: { batchSize: 500 } },
+    { delayMs:   425_000, label: "foundation colleague edges (I3-B — co-directors)",  path: "/api/relationships/foundation-colleagues" },
     { delayMs:   480_000, label: "auto in-house enricher (pass 2 — faa)",             path: "/api/ingest/in-house-enrich",       body: { batchSize: 5000, targetMode: "faa" } },
     { delayMs:   540_000, label: "auto social discovery (pass 2 — all HNWI)",         path: "/api/ingest/social-discovery",      body: { batchSize: 1000, hotOnly: false } },
     { delayMs:   600_000, label: "auto in-house enricher (pass 3 — edgar force)",     path: "/api/ingest/in-house-enrich",       body: { batchSize: 5000, targetMode: "edgar", force: true } },

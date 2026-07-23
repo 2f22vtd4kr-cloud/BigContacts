@@ -32,12 +32,23 @@
 3. All three workflows restarted and confirmed running
 4. `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":1}}` ✅
 5. DB was empty → cold-start auto-recovery triggered: broad-discovery + FAA + Western HNWI ingestion auto-started
-6. **Action required:** Set REDIS_URL_1 and REDIS_URL_2 as Replit Secrets to restore dedup and contact cache persistence
+6. Upstash secrets (REDIS_URL_1, REDIS_URL_2, COMPANIES_HOUSE_API_KEY) restored — both slots connected on next boot ✅
+
+### Phase I — Road to 9/10 (implemented 2026-07-23)
+All 4 Phase I items implemented and live. Build clean (esbuild ⚡ 1183ms). All 3 new endpoints verified returning 200:
+- **I1** `resolveBeneficialOwner()` in `in-house-enricher.ts` — FAA LLC → person before enrichment (EDGAR EFTS + OpenCorporates)
+- **I2** semantic-dedup threshold 0.93→0.87 + token overlap guard + `POST /api/relationships/name-exact-dedup` (strength 0.95, cross-registry exact matches)
+- **I3-A** `POST /api/relationships/auto-detect-edgar-coinvestor` — EDGAR_CO_INVESTOR edges (HNWI/Gatekeeper co-shareholders, strength 0.75)
+- **I3-B** `POST /api/relationships/foundation-colleagues` — FOUNDATION_COLLEAGUE edges (shared IRS 990 foundation name, strength 0.85)
+- **I4** `enrichmentTier()` classifier — Tier 2 (FAA individuals) skips Wikidata/Wikipedia/ORCID/GitHub to focus budget on DDG-LinkedIn/DNS/RDAP
+- Startup triggers added: edgar-coinvestor at 305s, name-exact-dedup at 310s, foundation-colleagues at 425s
 
 ### Iteration Log
 | Date | Summary |
 |---|---|
 | 2026-07-23 | Fresh import boot: pnpm install, DB schema push, all 3 workflows running, cold-start ingestion auto-started; REDIS_URL_1 + REDIS_URL_2 missing |
+| 2026-07-23 | All Upstash secrets restored; API Server restarted with both slots confirmed live |
+| 2026-07-23 | Phase I (road to 9/10) fully implemented: I1 beneficial owner resolution, I2 dedup tuning, I3 warm-path edges, I4 tiered enrichment |
 
 ---
 

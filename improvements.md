@@ -906,11 +906,36 @@ Each button shows a confidence badge (`contactConfidence`) beside it.
 | Step | What it fixes | Expected lift | Status |
 |---|---|---|---|
 | Baseline (post-audit) | — | **7.5/10** | ✅ Measured 2026-07-23 |
-| I1 — People-resolution | LLC → beneficial owner before enrichment | +0.5 (contact hit rate) | ⬜ Pending |
-| I2 — Dedup threshold | 0 LIKELY_SAME_PERSON edges → cross-registry links | +0.3 (graph quality) | ⬜ Pending |
-| I3 — Warm-path edges | CORPORATE_SERIES → co-investor/co-director edges | +0.5 (UCT path quality) | ⬜ Pending |
-| I4 — Tiered enrichment | Private HNWI contact rate improvement | +0.2 (contact hit rate) | ⬜ Pending |
-| **Target** | | **9.0/10** | ⬜ |
+| I1 — People-resolution | LLC → beneficial owner before enrichment | +0.5 (contact hit rate) | ✅ 2026-07-23 |
+| I2 — Dedup threshold | 0 LIKELY_SAME_PERSON edges → cross-registry links | +0.3 (graph quality) | ✅ 2026-07-23 |
+| I3 — Warm-path edges | CORPORATE_SERIES → co-investor/co-director edges | +0.5 (UCT path quality) | ✅ 2026-07-23 |
+| I4 — Tiered enrichment | Private HNWI contact rate improvement | +0.2 (contact hit rate) | ✅ 2026-07-23 |
+| **Target** | | **9.0/10** | ✅ Implemented |
+
+### Phase I — Implementation Summary (2026-07-23)
+
+**I1 — LLC Beneficial Owner Resolution** (`in-house-enricher.ts`)
+- Added `resolveBeneficialOwner(llcName)` — queries SEC EDGAR EFTS + OpenCorporates for person behind FAA aviation LLCs
+- If a person name is found, `enrichInHouse()` switches to enriching the resolved person (unlocks Wikidata/LinkedIn/email-pattern hits)
+- Activated for Tier 3 entities (FAA Corps) in `enrichmentTier()` classification
+
+**I2 — Semantic Dedup Improvements** (`relationships.ts`)
+- Lowered SIMILARITY_THRESHOLD from 0.93 → 0.87 in semantic-dedup endpoint
+- Added `hasEnoughSharedTokens()` token overlap guard (≥2 shared significant tokens) to prevent false positives at the lower threshold
+- Added `POST /api/relationships/name-exact-dedup` — guaranteed same-name cross-registry matches (strength 0.95)
+- Auto-triggered at 310s in startup.ts Phase 4
+
+**I3 — Warm-Path Edge Quality** (`relationships.ts`)
+- Added `POST /api/relationships/auto-detect-edgar-coinvestor` (I3-A) — EDGAR_CO_INVESTOR edges between HNWI/Gatekeeper co-shareholders (strength 0.75); higher quality than existing EDGAR_CO_SHAREHOLDER (all types)
+- Added `POST /api/relationships/foundation-colleagues` (I3-B) — FOUNDATION_COLLEAGUE edges between entities sharing the same IRS 990 foundation (strength 0.85); uses existing `foundationName` column
+- Auto-triggered at 305s and 425s in startup.ts
+
+**I4 — Tiered Enrichment** (`in-house-enricher.ts`)
+- Added `enrichmentTier(entity): 1|2|3` classifier
+- Tier 1 (EDGAR/public): full 20-source pass
+- Tier 2 (FAA individuals): skip Wikidata, Wikipedia, ORCID, GitHub — focus on DDG-LinkedIn, DNS/RDAP, email patterns
+- Tier 3 (FAA corps): resolveBeneficialOwner first, then treat as individual if resolved
+- Reduces wasted API calls for 30k FAA private individuals; lifts per-call hit rate
 
 ---
 
