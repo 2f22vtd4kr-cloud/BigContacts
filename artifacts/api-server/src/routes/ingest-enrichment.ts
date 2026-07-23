@@ -27,9 +27,9 @@ import {
   createJob, updateJob, getJob,
   setActiveJob, getActiveJob, clearDedup,
 } from "../lib/job-queue";
-import { runCompaniesHouseEnrichment } from "../lib/registry-enricher";
-import { enrichEntityOsint } from "../lib/web-enricher";
-import { enrichInHouse } from "../lib/in-house-enricher";
+import { runCompaniesHouseEnrichment } from "../lib/enrichment/structured-verification";
+import { enrichEntityOsint } from "../lib/enrichment/web-discovery";
+import { enrichInHouse } from "../lib/enrichment/contact-enrichment";
 import { computeContactConfidence } from "../lib/contact-confidence";
 import { contactCacheSet } from "../lib/redis";
 import { logger } from "../lib/logger";

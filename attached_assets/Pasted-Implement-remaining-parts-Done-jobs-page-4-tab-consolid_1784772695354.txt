@@ -1,0 +1,32 @@
+Implement remaining parts: Done:
+* /jobs page — 4-tab consolidation (Live Activity · Sources · Persona Loop · Duplicates). Polls GET /api/ingest/jobs every 5s. Each ingestor card is expandable with metrics + trigger button.
+* GET /api/ingest/jobs endpoint — reads Redis job queue for all 20 known pipeline types and returns live status. Verified at 200ms with 20 types.
+* Dashboard cleanup — IngestionPanel removed from dashboard renders; BackgroundActivityCardreplaces it; ingestionSource state and callbacks removed.
+* Nested DOM warning fixed — hot lead cards refactored into HotLeadCard sub-component using useLocation for programmatic navigation.[blocked]
+* hunter-enricher.ts deleted — POST /ingest/hunter-enrich now returns 410 Gone with a redirect hint to the in-house enricher. Import reference in ingest.ts removed.
+* Context.md updated and all changes committed to git (7327c1a). Still remaining from the refactor spec (for future sessions):
+* [blocked]
+1. Profile page tab split (1447-line profile.tsx → tabbed bottom half)
+2. Pipeline-scheduler rewrite (25+ setTimeout calls → phase-based scheduler)
+3. Enrichment file consolidation (5 enricher files → 3)
+4. God module splits (ingest.ts 1.7k lines, research.ts 787 lines)
+5. manual.tsx "ApexFinder Pro" reference cleanup
+6. Update manual for this new Atlas version (new screenshots of course too)
+7. [blocked]
+Let me explore the codebase to understand the current state of all six items in parallel.
+Good data. Let me read the actual files I need before building — focusing on the key ones.
+Good context gathered. Let me read the remaining files I need before writing anything.
+Good, I have enough context. Now I'll execute all six items. Let me read the enricher files and ingest.ts sections in parallel while I start writing the profile tab split.
+Now I have enough context to execute everything. Let me do the manual fixes, read remaining ingest/enricher files, and write the profile tab split all in parallel.
+Now I'll execute everything in parallel: fix manual.tsx line 744, rewrite startup.ts scheduler, add profile tab state, read remaining ingest.ts, and write the profile tab body.
+Good progress. Now doing the big parallel work: profile tab split (WriteFile), scheduler rewrite, and reading the rest of ingest.ts for the split.
+Good — both artifact workflows are running. Continuing with the remaining 3 items: scheduler rewrite, enrichment consolidation, and ingest.ts split. Doing reads and the scheduler write in parallel.
+
+I have everything I need. Let me now read the middle sections of ingest.ts before doing all the work in parallel.
+Now I have all the pieces. Let me read the one missing section and start writing all files in parallel.
+Now I have everything. All 6 remaining items can be completed. Let me write all files in parallel.
+Continuing with the remaining files. Let me write them all in parallel and check the logs.
+Port conflicts are pre-existing (manual vs artifact workflows competing). Continuing with the remaining three files. Let me write them in parallel.
+Now writing the thin ingest.ts and updating the manual in parallel, while also checking for any stray imports.
+
+

@@ -30,7 +30,7 @@ import {
 } from "../lib/job-queue";
 import { runWesternHnwiIngestion } from "../lib/western-hnwi-ingestion";
 import { runFaaIngestion } from "../lib/faa-ingestor";
-import { runOccrpEnrichment } from "../lib/registry-enricher";
+import { runOccrpEnrichment } from "../lib/enrichment/structured-verification";
 import { runLandRegistryIngestion } from "../lib/land-registry-ingestor";
 import { runOpenSkyEnrichment } from "../lib/opensky-ingestor";
 import { logger } from "../lib/logger";

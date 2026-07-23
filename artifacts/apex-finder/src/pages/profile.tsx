@@ -313,7 +313,7 @@ export default function ApexProfile() {
   const [enrichError, setEnrichError]     = useState<string | null>(null);
   const [enrichDone, setEnrichDone]       = useState(false);
   // ── Tab state ──────────────────────────────────────────────────────────────
-  const [activeTab, setActiveTab] = useState<"intel" | "network" | "strategy">("intel");
+  const [activeTab, setActiveTab] = useState<"assets" | "network" | "research" | "outreach">("assets");
   // ── Relationship modal ─────────────────────────────────────────────────────
   const [addRelOpen, setAddRelOpen]             = useState(false);
   const [relTargetType, setRelTargetType]       = useState<"Entity" | "Asset">("Entity");
@@ -684,9 +684,10 @@ export default function ApexProfile() {
       <div className="flex-shrink-0 border-b border-border bg-card/60 px-4 md:px-6">
         <div className="flex items-center">
           {([
-            { id: "intel" as const,    label: "Intel",    icon: <BarChart2 className="w-3.5 h-3.5" /> },
-            { id: "network" as const,  label: "Network",  icon: <Network   className="w-3.5 h-3.5" /> },
-            { id: "strategy" as const, label: "Strategy", icon: <Route     className="w-3.5 h-3.5" /> },
+            { id: "assets"   as const, label: "Assets & Sources", icon: <Layers    className="w-3.5 h-3.5" /> },
+            { id: "network"  as const, label: "Network",          icon: <Network   className="w-3.5 h-3.5" /> },
+            { id: "research" as const, label: "Research Threads", icon: <Route     className="w-3.5 h-3.5" /> },
+            { id: "outreach" as const, label: "Outreach Drafts",  icon: <Sparkles  className="w-3.5 h-3.5" /> },
           ]).map((tab) => (
             <button
               key={tab.id}
@@ -707,8 +708,8 @@ export default function ApexProfile() {
       {/* ── Tab Content ─────────────────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6">
 
-        {/* ═══ INTEL TAB ══════════════════════════════════════════════════ */}
-        {activeTab === "intel" && <>
+        {/* ═══ ASSETS & SOURCES TAB ════════════════════════════════════════ */}
+        {activeTab === "assets" && <>
 
           {/* Row 1: Mini-map + Confidence */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
@@ -1123,8 +1124,8 @@ export default function ApexProfile() {
 
         </>}
 
-        {/* ═══ STRATEGY TAB ═══════════════════════════════════════════════ */}
-        {activeTab === "strategy" && (
+        {/* ═══ RESEARCH THREADS TAB ════════════════════════════════════════ */}
+        {activeTab === "research" && (
           <div className="border border-border rounded-lg bg-card/30">
             <SectionHeader
               icon={<Route className="w-3.5 h-3.5" />}
@@ -1263,79 +1264,113 @@ export default function ApexProfile() {
                       </div>
                     )}
 
-                    <div className="border border-border/50 rounded-lg overflow-hidden">
-                      <div className="flex items-center justify-between px-4 py-2.5 bg-card/60 border-b border-border/50">
-                        <div className="flex items-center gap-2">
-                          <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                          <span className="text-[11px] font-mono font-bold text-foreground uppercase tracking-widest">Outreach Sequence</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {selectedSession.generatedPitch && (
-                            <button onClick={() => setPitchExpanded(!pitchExpanded)} className="text-[10px] font-mono text-primary hover:underline">
-                              {pitchExpanded ? "Collapse" : "Expand"}
-                            </button>
-                          )}
-                          {!selectedSession.generatedPitch && (
-                            <button
-                              onClick={() => handleGeneratePitch(selectedSession.id)}
-                              disabled={pitchingId === selectedSession.id}
-                              className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 font-mono text-[10px] uppercase tracking-wider hover:bg-amber-500/20 transition-colors disabled:opacity-50"
-                            >
-                              {pitchingId === selectedSession.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-                              Generate Sequence
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
-                      {!selectedSession.generatedPitch && pitchingId !== selectedSession.id && (
-                        <div className="flex items-center justify-center py-8 gap-2 text-muted-foreground/40">
-                          <Sparkles className="w-4 h-4 opacity-20" />
-                          <p className="text-xs font-mono">Generate a personalized multi-step outreach sequence from this MCTS winning path</p>
-                        </div>
-                      )}
-                      {pitchingId === selectedSession.id && (
-                        <div className="flex items-center justify-center py-8 gap-2 text-amber-400/60">
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          <p className="text-xs font-mono">Generating outreach sequence…</p>
-                        </div>
-                      )}
-                      {selectedSession.generatedPitch && !pitchExpanded && (
-                        <div className="px-4 py-3 flex items-center gap-2 text-emerald-400">
-                          <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
-                          <span className="text-xs font-mono">Outreach sequence generated · {pitchData.length || "—"} messages</span>
-                          <button onClick={() => setPitchExpanded(true)} className="text-xs font-mono text-primary hover:underline ml-1">View →</button>
-                        </div>
-                      )}
-                      {selectedSession.generatedPitch && pitchExpanded && pitchData.length > 0 && (
-                        <div className="divide-y divide-border/30 max-h-80 overflow-y-auto">
-                          {pitchData.map((msg: any, i: number) => (
-                            <div key={i} className="px-4 py-3.5 space-y-2">
-                              <div className="flex items-center gap-2">
-                                <span className="text-[9px] font-mono font-bold uppercase tracking-widest text-muted-foreground bg-muted/40 px-1.5 py-0.5 rounded">
-                                  {msg.channel ?? `Step ${i + 1}`}
-                                </span>
-                                {msg.subject && <span className="text-[10px] font-mono text-foreground/80">{msg.subject}</span>}
-                              </div>
-                              <p className="text-xs font-mono text-foreground/80 leading-relaxed whitespace-pre-wrap">
-                                {msg.body ?? msg.message ?? JSON.stringify(msg)}
-                              </p>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      {selectedSession.generatedPitch && pitchExpanded && pitchData.length === 0 && (
-                        <div className="px-4 py-4">
-                          <pre className="text-xs font-mono text-foreground/70 whitespace-pre-wrap leading-relaxed max-h-60 overflow-y-auto">
-                            {selectedSession.generatedPitch}
-                          </pre>
-                        </div>
-                      )}
+                    <div className="border border-primary/10 rounded-lg bg-primary/5 p-3 flex items-center justify-between gap-3">
+                      <p className="text-[11px] font-mono text-muted-foreground leading-relaxed">
+                        Outreach drafts are created in the <strong className="text-foreground">Outreach Assistant</strong>. Switch to the Outreach Drafts tab to review existing drafts.
+                      </p>
+                      <Link
+                        href={`/outreach?entity=${entity.id}&session=${selectedSession.id}`}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-primary/20 border border-primary/30 text-primary font-mono text-[10px] uppercase tracking-wider hover:bg-primary/30 transition-colors flex-shrink-0"
+                      >
+                        <Sparkles className="w-3 h-3" /> Open
+                      </Link>
                     </div>
                   </div>
                 )}
               </div>
             )}
+          </div>
+        )}
+
+        {/* ═══ OUTREACH DRAFTS TAB ════════════════════════════════════════ */}
+        {activeTab === "outreach" && (
+          <div className="space-y-4">
+
+            {/* CTA card */}
+            <div className="border border-primary/20 rounded-lg bg-primary/5 p-4 flex items-start gap-4">
+              <Sparkles className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-mono font-bold text-foreground mb-1">Outreach Assistant</div>
+                <p className="text-xs font-mono text-muted-foreground leading-relaxed mb-3">
+                  Generate personalized outreach drafts for this contact. Each draft is built from the
+                  MCTS winning path and can be copied into your own email or LinkedIn client.
+                  No messages are sent from this app.
+                </p>
+                <Link
+                  href={`/outreach?entity=${entity.id}`}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-primary/20 border border-primary/30 text-primary font-mono text-[11px] uppercase tracking-wider hover:bg-primary/30 transition-colors"
+                >
+                  <Sparkles className="w-3 h-3" /> Open Outreach Assistant →
+                </Link>
+              </div>
+            </div>
+
+            {/* Read-only generated pitch history */}
+            <div className="border border-border rounded-lg bg-card/30">
+              <SectionHeader
+                icon={<Sparkles className="w-3.5 h-3.5" />}
+                title="Generated Drafts"
+                badge={
+                  (sessions as any[]).filter((s: any) => s.generatedPitch).length > 0
+                    ? `${(sessions as any[]).filter((s: any) => s.generatedPitch).length} draft${(sessions as any[]).filter((s: any) => s.generatedPitch).length !== 1 ? "s" : ""}`
+                    : undefined
+                }
+              />
+              {(sessions as any[]).filter((s: any) => s.generatedPitch).length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 gap-3 text-muted-foreground/40">
+                  <Sparkles className="w-8 h-8 opacity-20" />
+                  <p className="text-sm font-mono">No drafts yet</p>
+                  <p className="text-[11px] font-mono text-center max-w-sm leading-relaxed">
+                    Run Hybrid Research first to generate an approach path, then use the Outreach Assistant to draft your outreach.
+                  </p>
+                </div>
+              ) : (
+                <div className="divide-y divide-border/30">
+                  {(sessions as any[]).filter((s: any) => s.generatedPitch).map((s: any) => {
+                    let preview = "";
+                    try {
+                      const p = JSON.parse(s.generatedPitch);
+                      if (Array.isArray(p) && p.length > 0) {
+                        preview = (p[0].body ?? p[0].message ?? "").slice(0, 180);
+                      } else {
+                        preview = s.generatedPitch.slice(0, 180);
+                      }
+                    } catch {
+                      preview = s.generatedPitch.slice(0, 180);
+                    }
+                    return (
+                      <div key={s.id} className="p-4 space-y-2">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div className="flex items-center gap-2">
+                            <span className={cn(
+                              "text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border uppercase",
+                              CRM_COLORS[s.crmStatus] ?? "text-muted-foreground border-border"
+                            )}>
+                              {s.crmStatus}
+                            </span>
+                            <span className="text-[10px] font-mono text-muted-foreground">
+                              Session #{s.id} · {new Date(s.createdAt).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <Link
+                            href={`/outreach?entity=${entity.id}&session=${s.id}`}
+                            className="text-[10px] font-mono text-primary hover:underline flex-shrink-0"
+                          >
+                            Open in Assistant →
+                          </Link>
+                        </div>
+                        {preview && (
+                          <p className="text-xs font-mono text-foreground/60 leading-relaxed line-clamp-2">
+                            {preview}{preview.length >= 180 ? "…" : ""}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
           </div>
         )}
 

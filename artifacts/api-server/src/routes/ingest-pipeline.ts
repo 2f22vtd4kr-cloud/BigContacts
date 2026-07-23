@@ -19,7 +19,7 @@ import {
   createJob, updateJob, getJob,
   setActiveJob, getActiveJob,
 } from "../lib/job-queue";
-import { deepWebOsintEnrich } from "../lib/web-enricher";
+import { deepWebOsintEnrich } from "../lib/enrichment/web-discovery";
 import { computeContactConfidence } from "../lib/contact-confidence";
 import { contactCacheSet } from "../lib/redis";
 import { logger } from "../lib/logger";
