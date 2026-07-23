@@ -8,7 +8,7 @@
 
 ---
 
-## Current State (2026-07-23 — re-import #47) — Fully operational
+## Current State (2026-07-23 — re-import #48) — Fully operational
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically
@@ -365,6 +365,10 @@ Run **IN-HOUSE ENRICH** on HNWI/Gatekeeper entities — Wikidata SPARQL will hit
 ---
 
 ## Iteration Log
+
+| Date | What changed |
+|---|---|
+| 2026-07-23 | Re-import #48: pnpm install, db schema push (no changes), all 3 workflows started, /healthz ✅ — cold-start auto-recovery triggered FAA + HMLR + Western HNWI ingestion |
 
 | Date | What changed |
 |---|---|
