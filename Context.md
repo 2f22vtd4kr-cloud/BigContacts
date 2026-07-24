@@ -43,6 +43,7 @@
 - FAA: **26,000** loaded | HMLR PPD: **2,000** loaded | Western HNWI: **0** currently loaded
 - Research sessions: **0**
 - Active background work: populated-DB maintenance and contact-cache restore; API and web healthy
+- Dashboard operations rail now includes process-specific icons, plain-language source trails, and responsive dual-speed marquee explanations for active jobs; desktop and mobile layouts build cleanly.
 - Honest assessment: **setup is complete; relationship/research enrichment remains pending on this fresh database**.
 
 ### Phase I — Road to 9/10 (implemented 2026-07-23)
@@ -71,6 +72,7 @@ All 4 Phase I items implemented and live. Build clean (esbuild ⚡ 1183ms). All 
 | 2026-07-24 | Ran EDGAR issuer backfill and deterministic relationship passes: 228,362 CORPORATE_SERIES, 2,236 PROPERTY_AREA_PEER, 26 GEOGRAPHIC_PEER, 11 EDGAR_CO_INVESTOR, and 12 EDGAR_CO_SHAREHOLDER edges |
 | 2026-07-24 | Restored 693 cached contacts; measured 936 contactable profiles, 343 emails, 613 phones, 100 EDGAR entities, 95 issuer-covered; API/web health and preview verified |
 | 2026-07-24 | Fixed in-house enrichment state handling so website/address-only evidence remains eligible for later contact enrichment; corrected build and restarted API successfully |
+| 2026-07-24 | Improved dashboard live-process bars with process-specific explainer marquees, icon trails, fading edges, mobile stacking, and reduced-motion support; frontend build and canonical workflows verified |
 
 ---
 

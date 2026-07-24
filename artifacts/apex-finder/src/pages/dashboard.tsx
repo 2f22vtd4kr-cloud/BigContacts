@@ -1,7 +1,8 @@
 import { useGetDashboardStats, useGetHotLeads } from "@workspace/api-client-react";
 import {
   Radio, Mail, Phone, Network, ChevronRight, Database, Activity, Users,
-  Loader2, CheckCircle2, XCircle, Globe, ShieldCheck, BookOpen,
+  Loader2, CheckCircle2, XCircle, Globe, ShieldCheck, BookOpen, Plane,
+  Building2, Search, FileText, Home, Sparkles, Landmark, type LucideIcon,
 } from "lucide-react";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { cn } from "@/lib/utils";
@@ -87,6 +88,7 @@ function EmptyState() {
 
 interface LiveJob {
   id?: string;
+  kind?: string;
   label: string;
   progress: number;
   status: string;
@@ -117,6 +119,7 @@ function useJobPoll() {
           .slice(0, 3)
           .map((j) => ({
             id: j.jobId ?? j.id,
+            kind: j.id,
             label: j.label ?? j.type ?? "Task",
             progress: j.progress ?? 0,
             status: j.status,
@@ -148,6 +151,150 @@ function useJobPoll() {
   return { jobs, completed, fetchError };
 }
 
+type ProcessDescriptor = {
+  icon: LucideIcon;
+  icons: LucideIcon[];
+  summary: string;
+  trail: string;
+  color: string;
+};
+
+const PROCESS_DESCRIPTORS: Record<string, ProcessDescriptor> = {
+  "western-hnwi": {
+    icon: Landmark,
+    icons: [Landmark, FileText, Building2],
+    summary: "Finding public company and ownership records",
+    trail: "SEC filings · BRREG companies · Companies House officers",
+    color: "#60A5FA",
+  },
+  "in-house-enrich": {
+    icon: Sparkles,
+    icons: [Sparkles, Globe, Search],
+    summary: "Resolving public contact paths from open sources",
+    trail: "Wikidata · GitHub · RDAP · public contact vectors",
+    color: "#10B981",
+  },
+  "deep-web-osint": {
+    icon: Search,
+    icons: [Search, Globe, FileText],
+    summary: "Checking the open web for corroborating signals",
+    trail: "Search-index discovery · contact pages · source validation",
+    color: "#A78BFA",
+  },
+  faa: {
+    icon: Plane,
+    icons: [Plane, Database, FileText],
+    summary: "Reading registered aircraft and owner records",
+    trail: "FAA registry · aircraft assets · owner normalization",
+    color: "#38BDF8",
+  },
+  "land-registry": {
+    icon: Home,
+    icons: [Home, FileText, Search],
+    summary: "Adding high-value UK property transactions",
+    trail: "UK Price Paid Data · £1M+ records · postcode peers",
+    color: "#F59E0B",
+  },
+  "compute-embeddings": {
+    icon: Sparkles,
+    icons: [Sparkles, Search, Network],
+    summary: "Indexing names and profile text for similarity",
+    trail: "Semantic index · name context · match candidates",
+    color: "#C084FC",
+  },
+  "semantic-dedup": {
+    icon: Network,
+    icons: [Network, Search, ShieldCheck],
+    summary: "Comparing records across public registries",
+    trail: "Cross-registry names · similarity checks · review candidates",
+    color: "#818CF8",
+  },
+  "bulk-hybrid-research": {
+    icon: Network,
+    icons: [Network, Activity, FileText],
+    summary: "Tracing graph paths and drafting research context",
+    trail: "Relationship paths · UCT scoring · outreach context",
+    color: "#34D399",
+  },
+  "foundation-filings": {
+    icon: Landmark,
+    icons: [Landmark, Users, FileText],
+    summary: "Checking nonprofit filings for shared officers",
+    trail: "IRS 990 filings · foundation affiliations · colleagues",
+    color: "#FBBF24",
+  },
+  occrp: {
+    icon: FileText,
+    icons: [FileText, Search, ShieldCheck],
+    summary: "Cross-referencing entities against investigative records",
+    trail: "Aleph records · entity matches · source checks",
+    color: "#FB7185",
+  },
+  opensky: {
+    icon: Plane,
+    icons: [Plane, Globe, Activity],
+    summary: "Refreshing live aircraft movement signals",
+    trail: "OpenSky flights · aircraft identity · current position",
+    color: "#22D3EE",
+  },
+};
+
+function getProcessDescriptor(job: LiveJob): ProcessDescriptor {
+  const key = job.kind ?? "";
+  if (PROCESS_DESCRIPTORS[key]) return PROCESS_DESCRIPTORS[key];
+
+  const normalized = `${key} ${job.label}`.toLowerCase();
+  if (normalized.includes("deep web")) return PROCESS_DESCRIPTORS["deep-web-osint"];
+  if (normalized.includes("in-house")) return PROCESS_DESCRIPTORS["in-house-enrich"];
+  if (normalized.includes("western")) return PROCESS_DESCRIPTORS["western-hnwi"];
+  if (normalized.includes("land")) return PROCESS_DESCRIPTORS["land-registry"];
+  if (normalized.includes("faa") || normalized.includes("aircraft")) return PROCESS_DESCRIPTORS.faa;
+  return {
+    icon: Activity,
+    icons: [Activity, Search, FileText],
+    summary: "Processing public-source intelligence",
+    trail: "Source discovery · validation · record updates",
+    color: "#10B981",
+  };
+}
+
+function ProcessActivityMarquee({ job, mobile = false }: { job: LiveJob; mobile?: boolean }) {
+  const descriptor = getProcessDescriptor(job);
+  const ProcessIcon = descriptor.icon;
+  const iconSequence = [...descriptor.icons, ...descriptor.icons];
+  const textSequence = [descriptor.trail, descriptor.trail];
+  const progress = Math.max(0, Math.min(100, job.progress));
+
+  return (
+    <div
+      className={cn("process-activity", mobile && "process-activity-mobile")}
+      style={{ "--process-accent": descriptor.color } as React.CSSProperties}
+      aria-label={`${job.label}: ${descriptor.summary}. ${descriptor.trail}`}
+    >
+      <div className="process-activity__icon-flow" aria-hidden="true">
+        <div className="process-activity__icon-track">
+          {iconSequence.map((Icon, index) => (
+            <Icon key={`${job.kind ?? job.label}-icon-${index}`} className="process-activity__icon" />
+          ))}
+        </div>
+      </div>
+      <div className="process-activity__copy-flow">
+        <div className="process-activity__copy-track">
+          {textSequence.map((text, index) => (
+            <span key={`${job.kind ?? job.label}-copy-${index}`} className="process-activity__copy">
+              {text}
+            </span>
+          ))}
+        </div>
+      </div>
+      <div className="sr-only">
+        {descriptor.summary}. {job.message || `${Math.round(progress)}% complete.`}
+      </div>
+      <ProcessIcon className="process-activity__leading-icon" aria-hidden="true" />
+    </div>
+  );
+}
+
 /** Desktop horizontal operations rail */
 function OperationsRail() {
   const { jobs, completed, fetchError } = useJobPoll();
@@ -170,27 +317,30 @@ function OperationsRail() {
         <div className="space-y-3">
           {jobs.map((job, i) => (
             <div key={job.id ?? i} className="flex items-center gap-4">
-              <div className="flex items-center gap-2 w-52 flex-shrink-0">
+              <div className="flex items-center gap-2 w-52 flex-shrink-0 min-w-0">
                 <div
                   className="w-2 h-2 rounded-full animate-pulse flex-shrink-0"
                   style={{ background: "#10B981", boxShadow: "0 0 8px #10B981" }}
                 />
                 <span className="text-sm font-medium truncate">{job.label}</span>
               </div>
-              <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: "#1E2332" }}>
+              <div
+                className="relative flex-1 min-w-0 h-8 rounded-md overflow-hidden"
+                style={{ background: "#1E2332" }}
+                title={job.message || getProcessDescriptor(job).summary}
+              >
                 <div
-                  className="h-full rounded-full transition-all duration-500"
-                  style={{ width: `${Math.min(100, job.progress)}%`, background: "#10B981" }}
+                  className="absolute inset-y-0 left-0 rounded-md transition-all duration-500"
+                  style={{
+                    width: `${Math.min(100, Math.max(0, job.progress))}%`,
+                    background: "linear-gradient(90deg, rgba(16,185,129,0.22), rgba(16,185,129,0.08))",
+                  }}
                 />
+                <ProcessActivityMarquee job={job} />
               </div>
               <span className="text-sm font-mono w-12 text-right flex-shrink-0" style={{ color: "#10B981" }}>
                 {Math.round(job.progress)}%
               </span>
-              {job.message && (
-                <span className="text-xs w-36 text-right flex-shrink-0 truncate" style={{ color: "hsl(215,16%,65%)" }}>
-                  {job.message}
-                </span>
-              )}
             </div>
           ))}
         </div>
@@ -673,15 +823,48 @@ function MobileOperationsBanner() {
       }}
       data-testid="mobile-ops-banner"
     >
-      <div className="flex items-center gap-2 mb-0.5">
-        <div className="w-2 h-2 rounded-full animate-pulse flex-shrink-0"
-          style={{ background: "#10B981", boxShadow: "0 0 8px #10B981" }} />
-        <span className="text-sm font-semibold" style={{ color: "#10B981" }}>
-          RESEARCH ACTIVE: {jobs.length}
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-2 h-2 rounded-full animate-pulse flex-shrink-0"
+            style={{ background: "#10B981", boxShadow: "0 0 8px #10B981" }} />
+          <span className="text-sm font-semibold truncate" style={{ color: "#10B981" }}>
+            RESEARCH ACTIVE
+          </span>
+        </div>
+        <span className="text-[10px] font-mono flex-shrink-0" style={{ color: "hsl(215,16%,65%)" }}>
+          {jobs.length} {jobs.length === 1 ? "task" : "tasks"}
         </span>
       </div>
-      <div className="text-xs truncate" style={{ color: "hsl(215,16%,65%)" }}>
-        {jobs.map(j => j.label).join(" · ")}
+      <div className="space-y-2.5">
+        {jobs.map((job, index) => {
+          const descriptor = getProcessDescriptor(job);
+          const ProcessIcon = descriptor.icon;
+          return (
+            <div key={job.id ?? index} className="min-w-0">
+              <div className="flex items-center gap-2 mb-1.5 min-w-0">
+                <ProcessIcon className="w-3.5 h-3.5 flex-shrink-0" style={{ color: descriptor.color }} aria-hidden="true" />
+                <span className="text-xs font-medium truncate">{job.label}</span>
+                <span className="text-[10px] font-mono ml-auto flex-shrink-0" style={{ color: descriptor.color }}>
+                  {Math.round(job.progress)}%
+                </span>
+              </div>
+              <div
+                className="relative h-7 rounded-md overflow-hidden"
+                style={{ background: "rgba(30,35,50,0.9)" }}
+                title={job.message || descriptor.summary}
+              >
+                <div
+                  className="absolute inset-y-0 left-0 rounded-md transition-all duration-500"
+                  style={{
+                    width: `${Math.min(100, Math.max(0, job.progress))}%`,
+                    background: `linear-gradient(90deg, ${descriptor.color}33, ${descriptor.color}0d)`,
+                  }}
+                />
+                <ProcessActivityMarquee job={job} mobile />
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
