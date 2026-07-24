@@ -32,3 +32,4 @@
 - [Duplicate review guardrails](duplicate-review-guardrails.md) — Deduplicate name tokens before pairing; same-source matches remain review-only
 - [Contact enrichment state](contact-enrichment-state.md) — Website/address evidence is not terminal; only validated contact vectors complete enrichment
 - [Upstash request quota](upstash-request-quota.md) — Persistent Redis can hit its provider request cap while local Redis and API health remain normal
+- [Contact discovery roadmap](contact-discovery-roadmap.md) — Phase J defines gated re-import milestones for validated public-contact yield, source coverage, identity, attribution, and retries

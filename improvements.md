@@ -943,6 +943,270 @@ Each button shows a confidence badge (`contactConfidence`) beside it.
 
 ---
 
+## Phase J — Public Contact Discovery Roadmap Across Future Re-Imports
+
+> **Purpose:** Raise the number of useful, lawful public contact vectors without sacrificing identity accuracy, source provenance, or the separation between a wealth signal and an access/contact signal.
+>
+> **Starting point:** The observed direct-contact yield is approximately **2.5% at best**. This is not a single-scraper problem. The current system finds more business, registry, website, and social evidence than it converts into a validated direct contact. Future work must improve the whole funnel: candidate selection → identity resolution → affiliation/domain resolution → public discovery → validation → persistence → measurable follow-up.
+>
+> **Scope boundary:** Use only lawful, publicly available information and source terms that permit automated access. This roadmap does **not** authorize breach data, credentialed/private databases, doxxing, scraping behind access controls, private social content, “Telegram bot” lookups, or publishing sensitive personal data. A phone number or email is useful only when it is public, attributable to the correct person or organization, and supported by source evidence.
+
+### J0 — Establish the Measurement Contract Before Expanding Sources
+
+**Priority:** Highest — no source expansion should be judged by a single “contactable” percentage.
+
+**Problem:** A LinkedIn URL, a website, a registered address, a business switchboard, a guessed email, and a validated direct email are materially different outcomes. Treating them as one result hides where the 2.5% funnel is failing and can make a low-quality source appear successful.
+
+**Implementation:**
+
+1. Add a run-level funnel with counts for selected candidates, identity-normalized, beneficial-owner/person resolved, employer/affiliation resolved, official domain resolved, public candidate found, candidate validated, candidate attributed, candidate persisted, direct contact confirmed, and social/evidence-only result.
+2. Break down every stage by entity type, source registry, country/jurisdiction, enrichment tier, and source module.
+3. Separate outcome labels:
+   - `evidence_only`: website, address, filing, asset, or organization record
+   - `social_only`: LinkedIn/X/Instagram/Telegram handle without a direct contact
+   - `organization_contact`: official company phone, generic inbox, or contact page
+   - `direct_contact_candidate`: person-level email/phone supported by public evidence but not fully verified
+   - `direct_contact_verified`: validated public person-level contact with attribution evidence
+4. Store source URL, retrieval time, extraction method, confidence, and validation result for each contact vector. Do not store raw page dumps unless required for audit and retention policy.
+5. Add a cohort baseline before each re-import. A later import is successful only when it improves precision and recall for a defined cohort, not merely the absolute number of rows.
+
+**Relevant files:**
+
+- `artifacts/api-server/src/routes/ingest-enrichment.ts`
+- `artifacts/api-server/src/routes/ingest-pipeline.ts`
+- `artifacts/api-server/src/lib/contact-confidence.ts`
+- `artifacts/api-server/src/lib/contact-validation.ts`
+- `artifacts/apex-finder/src/pages/jobs.tsx`
+- `artifacts/apex-finder/src/pages/data-sources.tsx`
+
+**Gate to J1:** A full enrichment run can answer “where did candidates disappear?” and reports direct, social, organization, and evidence-only outcomes separately.
+
+---
+
+### J1 — Stop Treating Social Presence as Enrichment Completion
+
+**Priority:** Highest — likely the fastest yield improvement.
+
+**Problem:** The current pipeline can mark an entity as enriched when it finds LinkedIn or another social handle. That is valuable evidence, but it can prevent the entity from receiving the later email/phone/domain passes that the user actually wants.
+
+**Implementation:**
+
+1. Keep `social_only` records eligible for targeted direct-contact passes.
+2. Make the terminal state require a validated contact vector, not merely a social URL, website, or address.
+3. Use the social identity as a disambiguation signal for follow-up queries: exact name + employer, exact name + city/country, profile slug + official domain, and known company + public team/contact pages.
+4. Preserve all existing vectors; enrichment should fill missing fields instead of replacing a stronger source with a weaker result.
+5. Score access separately from signal, following the existing product rule in `access-score.md`.
+
+**Expected impact:** More second-pass opportunities for the large social/evidence-only cohort; better measurement of usable contact yield without inflating the wealth signal.
+
+**Gate to J2:** The system reports how many social-only records receive a second direct-contact attempt and the conversion rate from that cohort.
+
+---
+
+### J2 — Build a Western Registry Coverage Matrix
+
+**Priority:** High — expand coverage by jurisdiction, not by indiscriminate scraping.
+
+**Problem:** Western HNWI research is strongest where FAA, SEC EDGAR, HMLR, Companies House, BRREG, GLEIF, and ProPublica already provide structured data. Many countries have business registers, officer records, ownership records, property records, or official filings that are not yet represented in a consistent source layer.
+
+**Registry families to prioritize:**
+
+- **EU cross-border:** BRIS/e-Justice discovery, OpenCorporates cross-reference, and GLEIF identifiers.
+- **Nordics:** Denmark CVR, Sweden Bolagsverket, Finland PRH, Norway BRREG, and Estonia e-Business Register.
+- **DACH:** Austria Firmenbuch, Germany Handelsregister, Switzerland ZEFIX/cantonal registers, and Luxembourg RCS.
+- **Benelux:** Belgium KBO/BCE, Netherlands KvK, and Luxembourg RCS.
+- **Southern Europe:** France BODACC/Infogreffe where permitted, Italy Registro Imprese, Spain Registro Mercantil, Portugal company registry, and Ireland CRO.
+- **Central and Eastern EU where legally usable:** Czech Justice, Poland KRS, Slovakia Commercial Register, Slovenia AJPES, Croatia Court Registry, Romania ONRC, Hungary company information, Latvia LURSOFT, Lithuania Legal Entities Register, Bulgaria Commercial Register, Cyprus Registrar, Malta MBR, and Greece GEMI.
+- **Other Western jurisdictions:** US state company registries and county assessor sources, Canadian provincial registries, ASIC/LINZ and Australian state registries, and New Zealand Companies Office/LINZ.
+
+**Implementation:**
+
+- Create a source matrix with jurisdiction, entity identifier, person/officer fields, ownership availability, API/download method, rate limit, licensing, freshness, and legal access notes.
+- Implement one registry adapter at a time behind the existing registry-client dispatch pattern.
+- Normalize company numbers, officer names, addresses, dates, and country codes into shared schemas.
+- Keep ownership, officer, registered-agent, and correspondence-address roles distinct. Do not infer that every registered agent is the beneficial owner.
+- Add fixture tests for each adapter before enabling it in the recurring scheduler.
+
+**Ordering:** Start with open, stable, high-value sources (CVR, AJPES, e-Business Register, CRO, ZEFIX, KRS, and BRIS discovery) before sources requiring paid access, difficult anti-bot handling, or uncertain licensing.
+
+**Gate to J3:** At least three new jurisdictions produce normalized, provenance-backed person/company links and pass precision review on a sampled cohort.
+
+---
+
+### J3 — Make Identity Resolution the Core Enrichment Stage
+
+**Priority:** High — prevents wrong-person contacts from increasing the headline rate.
+
+**Problem:** A company name, an aircraft-owning LLC, a common person name, and a filing name are not interchangeable identities. Searching the wrong name produces low recall; accepting a same-name hit without context produces dangerous false attribution.
+
+**Implementation:**
+
+1. Maintain an identity bundle for each entity: normalized name variants, registry identifiers, employer/company affiliations, country/city, known public address, aircraft/property/company identifiers, and public profile URLs.
+2. Expand FAA corporate resolution beyond a single owner guess. Preserve the legal LLC as the source entity, store each candidate beneficial owner with evidence and confidence, and use SEC, OpenCorporates, official state filings, and public registry officer data as corroboration.
+3. Resolve officer/director records to existing people using token overlap, date/jurisdiction, employer, location, and registry identifiers — not name similarity alone.
+4. Generate variants for `LAST FIRST`, `First Middle Last`, initials, diacritics, hyphens, suffixes, and transliterations. Alternate public names should be used only when a public source explicitly links them.
+5. Add a human-review queue for ambiguous identity matches. Review-only is preferable to an incorrect auto-merge.
+
+**Expected impact:** Higher recall for LLCs and cross-registry people while protecting precision. This stage should improve the quality of every downstream search rather than simply add more endpoints.
+
+**Gate to J4:** A sampled review shows the resolved person/company link is attributable before any direct contact is promoted to verified.
+
+---
+
+### J4 — Resolve Employer, Official Domain, and Organization Contact Paths
+
+**Priority:** High — the highest-leverage bridge from a person name to a public contact surface.
+
+**Problem:** Email-pattern discovery is weak when the system does not know the person’s current or relevant employer. MX only proves that a domain accepts mail; it does not prove that a guessed address belongs to the person.
+
+**Implementation:**
+
+1. Build domain candidates from official registry websites, SEC/annual filings, Companies House/BRREG officer affiliations, official company pages, press releases, GLEIF, and public certificate-transparency evidence.
+2. Score domains using official-source link, affiliation match, location match, consistent branding/contact page, MX/SPF/DNS health, and recency.
+3. Reject registry and hosting domains as person-email domains. Keep the domain blocklist, but make it source-aware rather than relying on a guessed suffix.
+4. Search official contact paths first: team/executive pages, investor-relations and media contacts, public office or foundation pages, company switchboards, and role inboxes.
+5. Keep organization contacts labeled as organization contacts; do not silently convert them into personal contacts.
+
+**Gate to J5:** Domain resolution reports candidate-domain precision and the proportion of person searches with at least one corroborated employer/domain hypothesis.
+
+---
+
+### J5 — Add a Lawful Digital-Footprint Discovery Layer
+
+**Priority:** High — broaden recall after identity and domain quality are in place.
+
+**Problem:** The attachment correctly points out that people often leave a large public digital footprint, but broad searching without identity controls creates noise, false positives, and unnecessary rate-limit failures.
+
+**Approved source families:**
+
+- official websites, public team pages, press releases, event speaker pages, and public biographies
+- public LinkedIn/X/Instagram/GitHub pages where access and terms permit
+- Wikidata, Wikipedia, ORCID, ProPublica 990, SEC filings, and public corporate registries
+- public news archives and search-engine results
+- certificate-transparency logs, RDAP, Wayback snapshots, and DNS records for domain verification
+- public aviation/property/company cross-references already supported by the project
+
+**Implementation:**
+
+1. Add query templates with disambiguating context: exact name + employer, exact name + jurisdiction, exact name + public role, official domain + contact/team/about, and company identifier + officer/director.
+2. Extract candidate URLs, emails, phones, employer names, and handles into a common evidence queue.
+3. Use source-specific parsers and rate limits; cache responses and record empty, blocked, timeout, and parse-failure outcomes.
+4. Treat social profiles as identity evidence unless a direct contact is explicitly public and attributable.
+5. Do not use breached-data indexes, private-data brokers, credentialed services, or dark-web dumps as enrichment sources. The attachment’s IntelX/paid-aggregator references may be evaluated only as a legal/commercial source review, never enabled by default.
+
+**Gate to J6:** New sources increase validated-contact recall on a manually labeled sample without exceeding the agreed false-attribution threshold.
+
+---
+
+### J6 — Introduce Contact Candidate Validation and Attribution Scoring
+
+**Priority:** High — convert “found something” into a trustworthy contact.
+
+**Problem:** A guessed email with MX, a public business phone, and an email extracted from a search snippet have different reliability. The current additive score should not be the only quality control.
+
+**Implementation:**
+
+1. Validate emails with syntax/normalization, domain/MX checks, source context, person/employer/domain consistency, and optional non-invasive SMTP results only when lawful, permitted, and technically safe.
+2. Validate phones with international normalization, country/region consistency, source context, role labeling, duplicate detection, and business-switchboard classification.
+3. Validate social profiles with exact or strong name match, employer/location consistency, linked official website, and cross-source corroboration.
+4. Replace a single additive contact score with separate dimensions: `sourceReliability`, `identityMatch`, `recency`, `directness`, and `independentCorroboration`.
+5. Require at least two independent signals — or one high-authority official source — for `direct_contact_verified`.
+6. Keep rejected candidates and rejection reasons in audit metadata without exposing them as usable contacts.
+
+**Gate to J7:** Precision is measured on a labeled sample and verified contacts can be explained source-by-source.
+
+---
+
+### J7 — Turn Contact Discovery Into a Multi-Pass, Budgeted Scheduler
+
+**Priority:** High — prevent one pass from exhausting the opportunity.
+
+**Passes:**
+
+1. **Identity and registry:** normalize names, resolve companies/officers/owners, and attach stable identifiers.
+2. **Domain and organization:** identify employers, official domains, contact pages, and role inboxes.
+3. **Public social/web:** discover public profiles and use them for disambiguation.
+4. **Direct contact:** search explicit public emails/phones and validate candidates.
+5. **Graph expansion:** follow high-confidence person→company→officer→organization paths to discover additional public sources.
+6. **Retry:** revisit evidence-only and social-only records after a cooling period with a new query plan, not an identical request.
+
+**Implementation:**
+
+- Add per-entity enrichment state, last-attempt time, pass number, source cooldown, and retry reason.
+- Use quotas per source and jurisdiction so one slow or rate-limited source cannot starve the pipeline.
+- Prioritize hot leads, high-identity-confidence records, and cohorts with demonstrated source yield.
+- Keep a negative cache for confirmed no-match, blocked, and ambiguous outcomes with expiry; do not permanently suppress a person because one source returned nothing.
+- Use idempotent jobs and Redis/PostgreSQL persistence so a re-import resumes rather than re-fires every request.
+
+**Gate to J8:** Repeated passes produce incremental yield and do not repeatedly hammer the same source/entity pair.
+
+---
+
+### J8 — Use the Relationship Graph for Discovery, Not Just Visualization
+
+**Priority:** Medium — improve the “company → owner → public footprint” thread described in the attachment.
+
+**Problem:** The graph contains registry and corporate edges, but the enrichment engine does not consistently use high-confidence neighbors to generate contextualized search paths.
+
+**Implementation:**
+
+1. Add typed, provenance-backed edges for person↔company officer/director, person↔beneficial-owner candidate, person↔foundation/charity role, person↔official website/domain, person↔public social profile, and company↔company via shared officer or filing.
+2. Give each edge confidence, source, observed date, and review state.
+3. Permit graph expansion only from high-confidence edges and cap path length/cost.
+4. Generate paths such as aircraft LLC → company filing → officer → official domain → public team/contact page.
+5. Keep proximity (club, event, asset, location) separate from identity proof. It may prioritize research, but it must not prove that a contact belongs to a person.
+
+**Gate to J9:** Graph-assisted searches show incremental validated contacts over name-only searches, with attributable evidence retained for every edge.
+
+---
+
+### J9 — Add Source Quality Operations and Re-Import Checkpoints
+
+**Priority:** High — make the roadmap survive multiple future imports.
+
+**Before each re-import:**
+
+1. Read `replit.md`, `Context.md`, and this Phase J chapter.
+2. Snapshot entity count by registry/type/country; direct, social, organization, and evidence-only counts; a validated-contact precision sample; source errors/timeouts/rate limits; and unresolved identity/domain queues.
+3. Confirm secrets, integrations, database schema, Redis/cache health, and source terms. Never invent missing credentials.
+4. Run a small canary cohort before a full batch.
+5. Compare the canary against the previous baseline before enabling the next phase.
+
+**After each re-import:**
+
+1. Restore durable contact evidence and provenance before launching broad enrichment.
+2. Reconcile entities by stable registry identifiers before name matching.
+3. Run schema/data-quality checks, then identity/domain resolution, then contact passes.
+4. Review false positives and rejected candidates before increasing concurrency.
+5. Record counts, limitations, and the next gate in `Context.md`; update `replit.md` only for durable environment, schema, or phase changes.
+
+**Success dashboard targets:**
+
+- contactable rate is reported by cohort, not only globally
+- direct-contact precision is measured and does not fall as recall rises
+- social-only records decrease after follow-up passes
+- organization contacts are not counted as personal contacts
+- every promoted contact has source, timestamp, attribution, and validation status
+- re-imports are idempotent and do not create duplicate identities or duplicate contact vectors
+
+### Phase J Implementation Order Across Re-Imports
+
+| Re-import milestone | Work | Exit condition |
+|---|---|---|
+| **J-1** | J0 measurement contract + J1 non-terminal social/evidence state | Funnel visible; social-only follow-up is active |
+| **J-2** | J2 registry matrix: first three high-value jurisdictions | Three adapters normalized, tested, and sampled |
+| **J-3** | J3 identity bundles and multi-candidate beneficial-owner resolution | Identity attribution review passes |
+| **J-4** | J4 employer/domain resolution and official organization contact paths | Domain precision measured; organization contacts labeled |
+| **J-5** | J5 lawful public digital-footprint layer | New sources improve recall without unacceptable false attribution |
+| **J-6** | J6 candidate validation and multidimensional access scoring | Verified contacts are explainable and auditable |
+| **J-7** | J7 budgeted multi-pass scheduler and retry state | Incremental yield per pass; no repeated source hammering |
+| **J-8** | J8 graph-assisted contextual discovery | Graph paths beat name-only baseline on labeled cohort |
+| **J-9** | J9 operational checkpoints and source-quality dashboard | Re-import playbook is repeatable and metrics persist |
+
+**Phase J target:** Move from an unqualified ~2.5% contactable headline to a measured, cohort-specific improvement in **validated direct contacts**, while preserving separate counts of social, organization, and evidence-only discoveries. A lower but trustworthy rate is preferable to a higher rate containing wrong-person contacts.
+
+---
+
 ## Legacy Patterns (all ✅ — do not re-implement)
 
 > See git history for full details. All 19 patterns implemented 2026-07-19 to 2026-07-21.

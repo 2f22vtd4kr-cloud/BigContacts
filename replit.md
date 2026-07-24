@@ -35,6 +35,10 @@ The API server `dev` script runs `build` then `start` every time (esbuild, ~1.5s
 
 The dashboard uses two deliberately separate scores: **Signal** reflects the strength of wealth/registry evidence, while **Access** reflects how realistically a profile can be reached through public contact evidence and directness. A strong Signal score must not imply a strong Access score.
 
+## Contact Enrichment Roadmap
+
+The long-term plan for improving the approximately 2.5% direct-contact yield is maintained as **Phase J** in `improvements.md`. It is designed to be implemented across future re-imports in gated milestones: measure the enrichment funnel, keep social-only records eligible for direct-contact follow-up, expand lawful Western registry coverage, resolve identities and official domains, validate candidate contacts, run budgeted multi-pass discovery, and use the relationship graph for contextual research. Only lawful public data with provenance may be promoted to verified contact; organization, social, evidence-only, and direct-contact outcomes remain separate.
+
 ---
 
 ## Environment Variables & Secrets

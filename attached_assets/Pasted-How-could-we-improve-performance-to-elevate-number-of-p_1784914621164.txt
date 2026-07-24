@@ -1,0 +1,64 @@
+How could we improve performance to elevate number of personal contacts of HNWIs found? Every country (we focus on western world) gotta have registry of businesses. Take Ukraine in consideration (just an example - we exclude Ukraine from HNWIs research) - they have their OpenDataBot. Some basic research leads to very infesting stuff like https://github.com/Astrosp/Awesome-OSINT-Listread the readme with all the links. Other OSINT services like IntelX etc... Give me your thought, the potential is huge compared to out 2+% of contacts compared to the amount of entities. People nowadays leave everything about them online, their digital footprint is huge. We just gotta learn how to gather and allocate it correctly. Company name -> owner -> instagram photos form Swiss Alps skiing you know... and the клубок нитей 🧵 begins to разматываться 😏 and here we are with his phone number or else. We are no worse then Глаз Бога simply fucking telegram bot and/or its analogies for example only that we focus on western block countries! 
+
+Apex Atlas leverages broad web OSINT as the primary engine, followed by rigorous multi-stage filtering, cross-verification, and graph/hybrid engine analysis to build reliable profiles of high-net-worth Western individuals. Below is a deep, practical expansion on registries, aggregators, tools, and methods — focused on finding business ownership, property, vehicles, and proximity signals for legitimate networking (e.g., angel investor outreach). Everything stays within  data boundaries.
+1. European Country-by-Country  Registries (Expanded)
+EU-Wide / Cross-Border:
+* BRIS (Business Registers Interconnection System) + e-Justice Portal.
+* OpenCorporates (aggregates most EU company data with ownership where available).
+* OCCRP Aleph (investigative  + leaked records for networks).
+Detailed National Registries:
+* Austria: Firmenbuch (companies), Grundbuch.
+* Belgium: KBO/BCE (companies), National Register, property via cadastre.
+* Bulgaria: Commercial Register, Property Register.
+* Croatia: Court Registry, Land Registry.
+* Cyprus: Registrar of Companies, Land Registry.
+* Czech Re: Justice.cz, Cadastre.
+* Denmark: CVR (companies), Geodata (property).
+* Estonia: e-Business Register (highly digital and open), Land Register.
+* Finland: PRH (companies), Population Information System.
+* France: Infogreffe/BODACC (companies), Cadastre (property).
+* Germany: Handelsregister (companies), Grundbuch, vehicle data.
+* Greece: GEMI (companies), Cadastre.
+* Hungary: Company Information Service, Land Registry.
+* Ireland: CRO (companies), Property Registration Authority.
+* Italy: Registro delle Imprese (companies), Catasto (property), PRA for vehicles.
+* Latvia: LURSOFT/Commercial Register, Land Register.
+* Lithuania: Register of Legal Entities, Real Estate Register.
+* Luxembourg: RCS (companies), Land Registry.
+* Malta: MBR (companies), Land Registry.
+* Netherlands: KvK (companies), Kadaster (property).
+* Poland: KRS (companies), Land and Mortgage Register.
+* Portugal: Company Registry, Predial Register (property).
+* Romania: ONRC (companies), Land Book.
+* Slovakia: Commercial Register, Cadastre.
+* Slovenia: AJPES (companies), Land Register.
+* Spain: Registro Mercantil (companies), Catastro (property), DGT (vehicles — limited).
+* Sweden: Bolagsverket (companies), Lantmäteriet (property).
+Vehicle Data (Europe): Generally. Use indirect signals via  sales, liens, or commercial aggregators.
+2. Other Western Countries (Expanded)
+* USA: SEC EDGAR + state SOS for companies; county assessors for property; DMV  but liens/accidents sometimes available.
+* Canada: Provincial corporate registries; land titles by province.
+* Australia: ASIC (companies); state land registries (e.g., NSW LRS).
+* New Zealand: Companies Office; LINZ (property).
+* Switzerland: ZEFIX/Commercial Register (cantonal); property highly .
+* Norway: Brønnøysund (companies); Statens kartverk (property).
+3. Powerful Aggregators & Platforms (Opendatabot Equivalents)
+* OpenCorporates — Global gold standard for company data and ownership.
+* OCCRP Aleph — Powerful for networks and cross-referenced records.
+* IntelX — Search across /dark web archives, documents, emails.
+* Maltego — Transform-based graphing of entities and relationships.
+* Tracers, LexisNexis, Spokeo, BeenVerified — US-heavy  records (assets, addresses, relatives).
+* Dun & Bradstreet / Orbis — Paid but deep corporate ownership.
+* GLEIF LEI Search — Global company identifiers.
+4. Open Source / GitHub / Hugging Face Resources for Apex Atlas
+* GitHub: Awesome-OSINT lists (general + specific for companies/people search), SpiderFoot (automation), theHarvester, Recon-ng, OSINT Framework.
+* Hugging Face: Entity resolution collections, sentence-transformers for semantic search on profiles, graph datasets, investigative demos (e.g., Emet for ownership tracing).
+* Other: OSINT tools databases on HF,  record parsers, graph embedding models.
+5. Advanced Strategies for Improving Contact Gathering & Proximity
+* Broad Web Layer: Google dorks, news monitoring,  filings scraping (respect robots.txt), API aggregation (OpenCorporates, etc.).
+* Multi-Stage Filtering: Credibility scoring → Cross-source verification → Network density analysis → MCTS path ranking.
+* Proximity Signals: Director addresses/phones from filings, shared assets, club memberships (where ), FBO/yacht broker links.
+* Automation in Apex Atlas: Background jobs for new source monitoring, Redis caching, persona-driven optimization of filters.
+
+Come up with a roadmap to increase contacts enrichment performance, saving it so it will survive re-imports. 
+
