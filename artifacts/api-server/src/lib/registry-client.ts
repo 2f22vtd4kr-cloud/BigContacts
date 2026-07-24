@@ -6,11 +6,15 @@
  *   - Companies House UK (free API key required: COMPANIES_HOUSE_API_KEY)
  *   - SEC EDGAR (free, no key)
  *   - GLEIF LEI Register (free, no key)
+ *   - BRREG Norway (free, no key)
+ *   - ARES Czechia (free, no key)
+ *   - BODACC France (free, no key)
  *
  * Returns normalised RegistryResult[] ready to be inserted as EntityInput.
  */
 
 import { searchGleif } from "./gleif-client";
+import { REGISTRY_COVERAGE_MATRIX } from "./registry-matrix";
 
 export interface RegistryResult {
   name: string;
@@ -24,9 +28,20 @@ export interface RegistryResult {
 
 export interface RegistrySearchParams {
   query: string;
-  registry: "opencorporates" | "companies-house" | "sec-edgar" | "gleif";
+  registry: RegistryId;
   limit?: number;
 }
+
+export const REGISTRY_IDS = [
+  "sec-edgar",
+  "companies-house",
+  "brreg",
+  "ares-czechia",
+  "bodacc-france",
+  "gleif",
+  "opencorporates",
+] as const;
+export type RegistryId = (typeof REGISTRY_IDS)[number];
 
 // ─── OpenCorporates ──────────────────────────────────────────────────────────
 // Free tier, no API key, rate-limited at 50 requests/day.
@@ -297,6 +312,244 @@ async function searchSecEdgar(
   return results;
 }
 
+// ─── BRREG Norway ─────────────────────────────────────────────────────────────
+
+export function normalizeBrregEntity(item: any): RegistryResult | null {
+  const orgnr = String(item?.organisasjonsnummer ?? "").trim();
+  const name = String(item?.navn ?? "").trim();
+  if (!orgnr || !name) return null;
+
+  const address = item?.forretningsadresse ?? item?.postadresse;
+  const addressText = address
+    ? [
+        ...(Array.isArray(address.adresse) ? address.adresse : []),
+        address.postnummer,
+        address.poststed,
+        address.land,
+      ].filter(Boolean).join(", ")
+    : undefined;
+
+  const website = item?.hjemmeside
+    ? (/^https?:\/\//i.test(String(item.hjemmeside)) ? String(item.hjemmeside) : `https://${item.hjemmeside}`)
+    : undefined;
+
+  return {
+    name,
+    type: "Corporation",
+    nationality: "NO",
+    knownResidences: addressText,
+    sourceRegistries: JSON.stringify(["BRREG Norway — Enhetsregisteret"]),
+    notes: [
+      `Org #${orgnr}`,
+      item?.organisasjonsform?.beskrivelse ? `Form: ${item.organisasjonsform.beskrivelse}` : null,
+      item?.naeringskode1?.beskrivelse ? `Industry: ${item.naeringskode1.beskrivelse}` : null,
+      item?.stiftelsesdato ? `Founded: ${item.stiftelsesdato}` : null,
+      item?.telefon ? `Phone: ${item.telefon}` : null,
+    ].filter(Boolean).join(" | "),
+    metadata: JSON.stringify({
+      source: "brreg-norway",
+      productionReviewStatus: "review_required",
+      orgnr,
+      organizationForm: item?.organisasjonsform,
+      website,
+      phone: item?.telefon,
+      industry: item?.naeringskode1,
+      municipality: address?.kommune,
+      registeredDate: item?.registreringsdatoEnhetsregisteret,
+      updatedDate: item?.oppdateringsdato,
+      brregUrl: `https://data.brreg.no/enhetsregisteret/api/enheter/${orgnr}`,
+    }),
+  };
+}
+
+async function searchBrreg(query: string, limit: number): Promise<RegistryResult[]> {
+  const params = new URLSearchParams({ navn: query, size: String(Math.min(limit, 20)) });
+  const resp = await fetch(
+    `https://data.brreg.no/enhetsregisteret/api/enheter?${params.toString()}`,
+    {
+      headers: { Accept: "application/json", "User-Agent": "ApexFinder/1.0 OSINT-Research" },
+      signal: AbortSignal.timeout(12_000),
+    },
+  );
+  if (!resp.ok) {
+    const body = await resp.text().catch(() => "");
+    throw new Error(`BRREG ${resp.status}: ${body.slice(0, 200) || resp.statusText}`);
+  }
+  const data = (await resp.json()) as any;
+  return (data?._embedded?.enheter ?? [])
+    .map(normalizeBrregEntity)
+    .filter((result: RegistryResult | null): result is RegistryResult => Boolean(result))
+    .slice(0, limit);
+}
+
+// ─── ARES Czechia ─────────────────────────────────────────────────────────────
+
+export function normalizeAresEntity(item: any): RegistryResult | null {
+  const ico = String(item?.ico ?? item?.icoId ?? "").trim();
+  const name = String(item?.obchodniJmeno ?? "").trim();
+  if (!ico || !name) return null;
+
+  const address = item?.sidlo;
+  const addressText = String(address?.textovaAdresa ?? "").trim() ||
+    [
+      address?.nazevUlice,
+      address?.cisloDomovni,
+      address?.nazevObce,
+      address?.psc,
+      address?.nazevStatu,
+    ].filter(Boolean).join(", ") || undefined;
+
+  return {
+    name,
+    type: "Corporation",
+    nationality: "CZ",
+    knownResidences: addressText,
+    sourceRegistries: JSON.stringify(["ARES Czech Republic"]),
+    notes: [
+      `IČO ${ico}`,
+      item?.pravniForma ? `Legal form: ${item.pravniForma}` : null,
+      item?.datumVzniku ? `Founded: ${item.datumVzniku}` : null,
+      item?.datumAktualizace ? `Updated: ${item.datumAktualizace}` : null,
+      item?.dic ? `VAT: ${item.dic}` : null,
+    ].filter(Boolean).join(" | "),
+    metadata: JSON.stringify({
+      source: "ares-czechia",
+      productionReviewStatus: "review_required",
+      ico,
+      vatId: item?.dic,
+      legalForm: item?.pravniForma,
+      legalFormRos: item?.pravniFormaRos,
+      foundedDate: item?.datumVzniku,
+      updatedDate: item?.datumAktualizace,
+      primarySource: item?.primarniZdroj,
+      aresUrl: `https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty/${ico}`,
+    }),
+  };
+}
+
+async function searchAres(query: string, limit: number): Promise<RegistryResult[]> {
+  const resp = await fetch(
+    "https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty/vyhledat",
+    {
+      method: "POST",
+      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      body: JSON.stringify({
+        obchodniJmeno: query,
+        strankovani: { pocet: Math.min(limit, 20), start: 0 },
+      }),
+      signal: AbortSignal.timeout(12_000),
+    },
+  );
+  if (!resp.ok) {
+    const body = await resp.text().catch(() => "");
+    throw new Error(`ARES ${resp.status}: ${body.slice(0, 200) || resp.statusText}`);
+  }
+  const data = (await resp.json()) as any;
+  return (data?.ekonomickeSubjekty ?? [])
+    .map(normalizeAresEntity)
+    .filter((result: RegistryResult | null): result is RegistryResult => Boolean(result))
+    .slice(0, limit);
+}
+
+// ─── BODACC France ────────────────────────────────────────────────────────────
+
+function parseJsonObject(value: unknown): Record<string, any> {
+  if (typeof value !== "string" || !value.trim()) return {};
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+export function normalizeBodaccRecord(record: any): RegistryResult | null {
+  const people = parseJsonObject(record?.listepersonnes);
+  const person = people?.personne ?? people;
+  const name = String(
+    person?.denomination ??
+    record?.commercant ??
+    person?.nomCommercial ??
+    "",
+  ).split(",")[0]?.trim();
+  const announcementId = String(record?.id ?? "").trim();
+  if (!name || !announcementId) return null;
+
+  const address = person?.adresseSiegeSocial;
+  const addressText = [
+    address?.numeroVoie,
+    address?.typeVoie,
+    address?.nomVoie,
+    address?.codePostal,
+    address?.ville,
+    address?.pays,
+    record?.ville,
+    record?.departement_nom_officiel,
+  ].filter(Boolean).join(" ").replace(/\s+/g, " ").trim() || undefined;
+  const registrationNumbers = Array.isArray(record?.registre)
+    ? record.registre.filter(Boolean)
+    : record?.registre ? [record.registre] : [];
+
+  return {
+    name,
+    type: "Corporation",
+    nationality: "FR",
+    knownResidences: addressText,
+    sourceRegistries: JSON.stringify(["BODACC France"]),
+    notes: [
+      `Announcement ${announcementId}`,
+      record?.familleavis_lib ? `Family: ${record.familleavis_lib}` : null,
+      record?.dateparution ? `Published: ${record.dateparution}` : null,
+      registrationNumbers.length ? `RCS: ${registrationNumbers.join(", ")}` : null,
+    ].filter(Boolean).join(" | "),
+    metadata: JSON.stringify({
+      source: "bodacc-france",
+      productionReviewStatus: "review_required",
+      evidenceKind: "commercial_announcement",
+      announcementId,
+      announcementFamily: record?.familleavis,
+      announcementFamilyLabel: record?.familleavis_lib,
+      publishedDate: record?.dateparution,
+      registrationNumbers,
+      court: record?.tribunal,
+      url: record?.url_complete,
+      personEvidence: person?.administration ?? null,
+    }),
+  };
+}
+
+async function searchBodacc(query: string, limit: number): Promise<RegistryResult[]> {
+  const params = new URLSearchParams({
+    where: `search("${query.replace(/"/g, '\\"')}")`,
+    limit: String(Math.min(limit * 3, 60)),
+    order_by: "dateparution DESC",
+  });
+  const resp = await fetch(
+    `https://bodacc-datadila.opendatasoft.com/api/explore/v2.1/catalog/datasets/annonces-commerciales/records?${params.toString()}`,
+    {
+      headers: { Accept: "application/json", "User-Agent": "ApexFinder/1.0 OSINT-Research" },
+      signal: AbortSignal.timeout(12_000),
+    },
+  );
+  if (!resp.ok) {
+    const body = await resp.text().catch(() => "");
+    throw new Error(`BODACC ${resp.status}: ${body.slice(0, 200) || resp.statusText}`);
+  }
+  const data = (await resp.json()) as any;
+  const seen = new Set<string>();
+  const results: RegistryResult[] = [];
+  for (const record of data?.results ?? []) {
+    const result = normalizeBodaccRecord(record);
+    if (!result) continue;
+    const key = `${result.name.toLowerCase()}|${result.metadata}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    results.push(result);
+    if (results.length >= limit) break;
+  }
+  return results;
+}
+
 // ─── Public entry point ───────────────────────────────────────────────────────
 
 export async function searchRegistry(
@@ -339,5 +592,9 @@ export async function searchRegistry(
     }));
   }
 
-  throw new Error(`Unknown registry: "${registry}". Use "opencorporates", "companies-house", "sec-edgar", or "gleif".`);
+  if (registry === "brreg") return searchBrreg(query.trim(), limit);
+  if (registry === "ares-czechia") return searchAres(query.trim(), limit);
+  if (registry === "bodacc-france") return searchBodacc(query.trim(), limit);
+
+  throw new Error(`Unknown registry: "${registry}". Use one of: ${REGISTRY_IDS.join(", ")}.`);
 }

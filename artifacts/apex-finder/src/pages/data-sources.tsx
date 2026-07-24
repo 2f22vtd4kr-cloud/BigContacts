@@ -13,6 +13,21 @@ import { cn } from "@/lib/utils";
 type SourceStatus = "live" | "running" | "idle" | "failed" | "coming-soon";
 type SourceKind   = "ingestor" | "enricher";
 
+interface RegistryCoverage {
+  id: string;
+  label: string;
+  jurisdiction: string;
+  entityIdentifier: string;
+  personOfficerFields: string;
+  ownershipAvailability: string;
+  accessMethod: string;
+  rateLimit: string;
+  licensing: string;
+  freshness: string;
+  productionReviewStatus: "review_required" | "reviewed_for_production" | "not_yet_assessed";
+  notes?: string;
+}
+
 interface SourceDef {
   id: string;
   label: string;
@@ -333,15 +348,28 @@ const OUTCOME_META: Record<string, { label: string; color: string; barColor: str
 
 function FunnelPanel() {
   const [data, setData] = useState<FunnelData | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [backfilling, setBackfilling] = useState(false);
   const [backfillMsg, setBackfillMsg] = useState("");
 
   const load = () => {
     const base = import.meta.env.BASE_URL.replace(/\/$/, "");
     fetch(`${base}/api/pipeline/funnel`)
-      .then(r => r.json())
-      .then(d => setData(d))
-      .catch(() => {/* non-fatal */});
+      .then(async (r) => {
+        const body = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          throw new Error(body?.error ?? `HTTP ${r.status}`);
+        }
+        return body as FunnelData;
+      })
+      .then(d => {
+        setData(d);
+        setLoadError(null);
+      })
+      .catch((err: unknown) => {
+        setData(null);
+        setLoadError(err instanceof Error ? err.message : "Funnel data is unavailable");
+      });
   };
 
   useEffect(() => { load(); }, []);
@@ -405,7 +433,16 @@ function FunnelPanel() {
       )}
 
       {!data ? (
-        <p className="text-xs font-mono text-muted-foreground">Loading funnel data…</p>
+        <div className="rounded-lg border border-border/60 bg-muted/20 px-3 py-2">
+          <p className="text-xs font-mono text-muted-foreground">
+            {loadError ? "Funnel data is unavailable right now." : "Loading funnel data…"}
+          </p>
+          {loadError && (
+            <p className="mt-1 text-[10px] font-mono text-muted-foreground/70">
+              The panel will be available when the data service is ready.
+            </p>
+          )}
+        </div>
       ) : (
         <>
           {/* Conversion summary */}
@@ -488,6 +525,72 @@ function FunnelPanel() {
         </>
       )}
     </div>
+  );
+}
+
+function RegistryMatrixPanel() {
+  const [sources, setSources] = useState<RegistryCoverage[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+    fetch(`${base}/api/registry-matrix`)
+      .then((r) => r.json())
+      .then((data) => setSources(Array.isArray(data?.sources) ? data.sources : []))
+      .catch(() => setSources([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  return (
+    <section className="rounded-xl border border-border bg-card/60 p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <Globe className="h-4 w-4 text-cyan-400" />
+        <span className="text-sm font-semibold font-mono uppercase tracking-widest text-cyan-400">
+          Registry Coverage Matrix
+        </span>
+        <span className="text-[9px] font-mono bg-cyan-500/10 text-cyan-400 px-1.5 py-0.5 rounded uppercase tracking-wider">J2</span>
+      </div>
+      {loading ? (
+        <p className="text-xs font-mono text-muted-foreground">Loading registry coverage…</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[860px] text-left text-[10px] font-mono">
+            <thead className="text-muted-foreground uppercase tracking-wider border-b border-border/50">
+              <tr>
+                <th className="py-2 pr-3">Registry</th>
+                <th className="py-2 pr-3">Jurisdiction</th>
+                <th className="py-2 pr-3">Identifier</th>
+                <th className="py-2 pr-3">Person / officer data</th>
+                <th className="py-2 pr-3">Access</th>
+                <th className="py-2 pr-3">Freshness</th>
+                <th className="py-2">Review</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sources.map((source) => (
+                <tr key={source.id} className="border-b border-border/30 last:border-0 align-top">
+                  <td className="py-2 pr-3 font-semibold text-foreground">{source.label}</td>
+                  <td className="py-2 pr-3 text-cyan-300">{source.jurisdiction}</td>
+                  <td className="py-2 pr-3 text-muted-foreground">{source.entityIdentifier}</td>
+                  <td className="py-2 pr-3 text-muted-foreground max-w-[240px]">{source.personOfficerFields}</td>
+                  <td className="py-2 pr-3 text-muted-foreground max-w-[190px]">{source.accessMethod}</td>
+                  <td className="py-2 pr-3 text-muted-foreground">{source.freshness}</td>
+                  <td className={cn(
+                    "py-2 whitespace-nowrap",
+                    source.productionReviewStatus === "reviewed_for_production" ? "text-emerald-400" : "text-amber-400",
+                  )}>
+                    {source.productionReviewStatus.replaceAll("_", " ")}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <p className="text-[10px] font-mono text-muted-foreground mt-3">
+        Coverage labels document source quality and review work; they do not gate private research.
+      </p>
+    </section>
   );
 }
 
@@ -1803,6 +1906,9 @@ export default function DataSources() {
 
         {/* ── J0 Contact Discovery Funnel ──────────────────────────────────── */}
         <FunnelPanel />
+
+        {/* ── J2 Registry Coverage Matrix ──────────────────────────────────── */}
+        <RegistryMatrixPanel />
 
         {/* ── Enrichment Coverage Stats ─────────────────────────────────────── */}
         <EnrichmentCoverageStats />

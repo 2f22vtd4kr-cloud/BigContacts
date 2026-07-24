@@ -1004,6 +1004,7 @@ Each button shows a confidence badge (`contactConfidence`) beside it.
 ---
 
 ### J2 — Build a Western Registry Coverage Matrix
+**Status:** ✅ 2026-07-24
 
 **Priority:** High — expand coverage by jurisdiction, not by indiscriminate scraping.
 
@@ -1027,6 +1028,8 @@ Each button shows a confidence badge (`contactConfidence`) beside it.
 - Normalize company numbers, officer names, addresses, dates, and country codes into shared schemas.
 - Keep ownership, officer, registered-agent, and correspondence-address roles distinct. Do not infer that every registered agent is the beneficial owner.
 - Add fixture tests for each adapter before enabling it in the recurring scheduler.
+
+**Delivered:** The coverage matrix and live registry search now include Norway BRREG, Czechia ARES, and France BODACC. Each adapter has fixture-style normalization tests, source provenance, identifier validation, and non-blocking production-review metadata. BODACC records are labeled as commercial-announcement evidence and are not treated as beneficial-ownership proof. Bulk-only FAA and HMLR sources remain documented in the matrix but are not exposed as live search adapters.
 
 **Ordering:** Start with open, stable, high-value sources (CVR, AJPES, e-Business Register, CRO, ZEFIX, KRS, and BRIS discovery) before sources requiring paid access, difficult anti-bot handling, or uncertain licensing.
 

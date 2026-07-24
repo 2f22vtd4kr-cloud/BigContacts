@@ -21,7 +21,8 @@
 
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, assetsTable, entitiesTable } from "@workspace/db";
-import { searchRegistry } from "../lib/registry-client";
+import { REGISTRY_IDS, searchRegistry, type RegistryId } from "../lib/registry-client";
+import { REGISTRY_COVERAGE_MATRIX } from "../lib/registry-matrix";
 import { getCache, setCache } from "../lib/redis";
 import { sql, eq } from "drizzle-orm";
 import {
@@ -56,8 +57,8 @@ router.post("/registry-search", async (req: Request, res: Response): Promise<voi
     return;
   }
 
-  const validRegistries = ["opencorporates", "companies-house", "sec-edgar", "gleif"] as const;
-  type ValidRegistry = typeof validRegistries[number];
+  const validRegistries = REGISTRY_IDS;
+  type ValidRegistry = RegistryId;
 
   const requested: ValidRegistry[] = (
     sources?.length ? sources : registry ? [registry] : ["opencorporates"]
@@ -98,6 +99,15 @@ router.post("/registry-search", async (req: Request, res: Response): Promise<voi
     results: allResults,
     message: `${allResults.length} result(s) from ${requested.join(", ")}.`,
     ...(Object.keys(sourceErrors).length ? { sourceErrors } : {}),
+  });
+});
+
+// ── Public: Phase J2 registry coverage matrix ─────────────────────────────────
+router.get("/registry-matrix", (_req: Request, res: Response): void => {
+  res.json({
+    phase: "J2",
+    sources: REGISTRY_COVERAGE_MATRIX,
+    note: "productionReviewStatus is an internal review label and does not disable private research.",
   });
 });
 

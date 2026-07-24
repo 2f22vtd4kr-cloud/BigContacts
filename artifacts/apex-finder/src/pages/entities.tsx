@@ -342,7 +342,7 @@ export default function EntityLedger() {
 
   const [showRegistry, setShowRegistry] = useState(false);
   const [registryQuery, setRegistryQuery] = useState("");
-  const [registrySource, setRegistrySource] = useState<"opencorporates" | "companies-house" | "sec-edgar">("opencorporates");
+  const [registrySource, setRegistrySource] = useState<string>("opencorporates");
   const [registryResults, setRegistryResults] = useState<RegistryResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [registryError, setRegistryError] = useState<string | null>(null);
@@ -660,7 +660,7 @@ export default function EntityLedger() {
           </div>
           <div className="p-4 flex-1 overflow-y-auto flex flex-col gap-4">
             <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">
-              OpenCorporates · Companies House · SEC EDGAR
+              OpenCorporates · Companies House · SEC EDGAR · BRREG · ARES · BODACC
             </p>
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-2 px-3 py-2 rounded bg-background border border-border focus-within:border-secondary/60 transition-colors">
@@ -679,7 +679,10 @@ export default function EntityLedger() {
                 >
                   <option value="opencorporates">OpenCorporates</option>
                   <option value="companies-house">Companies House UK</option>
-                  <option value="sec-edgar">SEC EDGAR</option>
+                   <option value="sec-edgar">SEC EDGAR</option>
+                   <option value="brreg">BRREG Norway</option>
+                   <option value="ares-czechia">ARES Czechia</option>
+                   <option value="bodacc-france">BODACC France</option>
                 </select>
                 <button
                   onClick={handleRegistrySearch} disabled={isSearching}

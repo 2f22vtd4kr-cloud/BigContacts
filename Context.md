@@ -8,7 +8,7 @@
 
 ---
 
-## Current State (2026-07-24 17:58 UTC — fresh import setup complete) — Core workflows healthy, 32,002 entities auto-ingested
+## Current State (2026-07-24 18:40 UTC — Phase J2 implementation verified) — Core workflows healthy, 32,000 entities auto-ingested
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically ✅
@@ -39,6 +39,15 @@
 6. Browser preview verified — ApexFinder dashboard loads at the root preview path
 7. `REDIS_URL_1`, `REDIS_URL_2`, and `COMPANIES_HOUSE_API_KEY` confirmed as Replit Secrets; both Upstash slots connected on API startup
 8. Fresh database detected on API startup; stale job locks/dedup state cleared and auto-ingestion started
+
+### Phase J2 verification (2026-07-24)
+- Added the Western registry coverage matrix and `GET /api/registry-matrix`.
+- Added live, normalized registry search for Norway BRREG, Czechia ARES, and France BODACC through `POST /api/registry-search`.
+- Added fixture-style normalization tests covering valid records, missing identifiers, provenance, and registry adapter membership.
+- Verified live sample searches for all three new registries with HTTP 200 responses and normalized records.
+- Verified `/api/healthz`, `/api/pipeline/funnel`, `/api/dashboard/stats`, and the Data Sources browser page after applying the development Drizzle schema.
+- Added an unavailable-data guard to the existing Funnel panel so an API/database error renders a stable state instead of crashing the page.
+- Full workspace typechecks still report unrelated pre-existing errors; shared libraries typecheck, focused J2 tests pass (5/5), and API/frontend production builds pass.
 
 ### Measured live state (2026-07-24 13:59 UTC)
 - Entities: **0 visible in fresh database** | Assets: **0 visible** | Relationships: **0**
@@ -96,6 +105,7 @@ All 4 Phase I items implemented and live. Build clean (esbuild ⚡ 1183ms). All 
 | 2026-07-24 | Added Phase J to `improvements.md`: a multi-re-import roadmap for raising validated public-contact yield through funnel measurement, non-terminal social enrichment, Western registry coverage, identity/domain resolution, lawful digital-footprint discovery, candidate validation, budgeted multi-pass scheduling, graph-assisted research, and re-import checkpoints |
 | 2026-07-24 | Clarified Phase J as a lawful research-phase roadmap rather than a current source or capacity allowlist; lawful discovery remains broad during private development, while public-production limits and safeguards are deferred to separate release hardening |
 | 2026-07-24 | Added non-blocking `productionReviewStatus` source markers (`review_required`, `reviewed_for_production`, `not_yet_assessed`); markers are internal review reminders only and do not restrict private research or alter source coverage |
+| 2026-07-24 18:40 | Phase J2 verified: restored frozen dependencies and development schema, added BRREG/ARES/BODACC live registry coverage with normalization fixtures, verified all three live adapters plus `/api/registry-matrix`, fixed Funnel API error-state rendering, and confirmed API/web workflows and Data Sources preview |
 
 ---
 
