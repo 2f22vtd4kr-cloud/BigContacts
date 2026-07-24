@@ -156,7 +156,7 @@ function buildLedger(entity: any, assets: any[], relationships: any[]): LedgerEn
   if (entity.name)             entries.push({ id: "name",  category: "Identity",  dataPoint: "Full Name",         value: entity.name,              source: primarySrc,   verified: hasRegistry });
   if (entity.nationality)      entries.push({ id: "nat",   category: "Identity",  dataPoint: "Nationality",       value: entity.nationality,       source: primarySrc,   verified: hasRegistry });
   if (entity.knownResidences)  entries.push({ id: "res",   category: "Identity",  dataPoint: "Known Residences",  value: entity.knownResidences,   source: primarySrc,   verified: hasRegistry });
-  if (entity.contactMethod)    entries.push({ id: "cm",    category: "Identity",  dataPoint: "Contact Vector",    value: entity.contactMethod,     source: "Internal",   verified: false });
+  if (entity.contactMethod)    entries.push({ id: "cm",    category: "Identity",  dataPoint: "Contact Method",    value: entity.contactMethod,     source: "Internal",   verified: false });
   if (entity.phone)            entries.push({ id: "phone", category: "Identity",  dataPoint: "Phone",             value: entity.phone,             source: "Internal",   verified: false });
   if (entity.email)            entries.push({ id: "email", category: "Identity",  dataPoint: "Email",             value: entity.email,             source: "Internal",   verified: false });
   if (entity.estimatedNetWorth != null)
@@ -320,6 +320,32 @@ export default function ApexProfile() {
   const [enrichDone, setEnrichDone]       = useState(false);
   // ── Tab state ──────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<"assets" | "network" | "research">("assets");
+  const TAB_LABELS: Record<string, string> = { assets: "Assets & Sources", network: "Network", research: "Research Threads" };
+
+  // ── Contact evidence / rejection state ────────────────────────────────────
+  const [showContactEvidence, setShowContactEvidence] = useState(false);
+  const [rejectStep, setRejectStep] = useState<Record<string, number>>({});
+  const [rejectLoading, setRejectLoading] = useState(false);
+  const [rejectError, setRejectError] = useState<string | null>(null);
+  const baseUrl = (import.meta as any).env.BASE_URL.replace(/\/$/, "");
+
+  const handleRejectContact = async (field: string) => {
+    const step = rejectStep[field] ?? 0;
+    if (step < 1) { setRejectStep(prev => ({ ...prev, [field]: 1 })); return; }
+    if (step < 2) { setRejectStep(prev => ({ ...prev, [field]: 2 })); return; }
+    setRejectLoading(true); setRejectError(null);
+    try {
+      const resp = await fetch(`${baseUrl}/api/entities/${entityId}/reject-contact`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ field }),
+      });
+      if (!resp.ok) throw new Error("Request failed");
+      setShowContactEvidence(false); setRejectStep({});
+      await refetchEntity();
+    } catch { setRejectError("Failed to remove contact — try again"); }
+    finally { setRejectLoading(false); }
+  };
   // ── Relationship modal ─────────────────────────────────────────────────────
   const [addRelOpen, setAddRelOpen]             = useState(false);
   const [relTargetType, setRelTargetType]       = useState<"Entity" | "Asset">("Entity");
@@ -528,6 +554,7 @@ export default function ApexProfile() {
               )}
               <span className="text-[10px] font-mono text-muted-foreground/40 uppercase tracking-widest">
                 Atlas Profile Card
+                <span className="opacity-50"> · {TAB_LABELS[activeTab] ?? activeTab}</span>
               </span>
             </div>
 
@@ -658,27 +685,6 @@ export default function ApexProfile() {
               </span>
             </div>
           </div>
-          {/* Contact evidence row */}
-          {((entity as any).contactEmail || (entity as any).email || (entity as any).contactPhone || (entity as any).phone || (entity as any).linkedinUrl) && (
-            <div className="flex gap-2 flex-wrap mt-3">
-              {((entity as any).contactEmail || (entity as any).email) && (
-                <button className="flex items-center gap-1.5 text-[11px] font-mono px-2.5 py-1.5 rounded bg-primary/10 text-primary border border-primary/20 max-w-[160px] truncate">
-                  <Mail className="w-3 h-3 shrink-0" />
-                  <span className="truncate">{(entity as any).contactEmail || (entity as any).email}</span>
-                </button>
-              )}
-              {(entity as any).linkedinUrl && (
-                <span className="flex items-center gap-1.5 text-[11px] font-mono px-2.5 py-1.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                  <Network className="w-3 h-3" />LinkedIn
-                </span>
-              )}
-              {((entity as any).contactPhone || (entity as any).phone) && (
-                <span className="flex items-center gap-1.5 text-[11px] font-mono px-2.5 py-1.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-                  <Phone className="w-3 h-3" />Phone
-                </span>
-              )}
-            </div>
-          )}
         </div>
       </div>
 
@@ -709,7 +715,7 @@ export default function ApexProfile() {
           <div className={cn("flex-shrink-0 border-b border-border px-4 md:px-6 py-3", hasContact && "bg-primary/5")}>
             <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
               <div className="flex items-center gap-2 min-w-0 flex-wrap">
-                <span className="text-[9px] font-mono font-bold text-primary uppercase tracking-widest whitespace-nowrap">Direct Contact Vectors</span>
+                <span className="text-[9px] font-mono font-bold text-primary uppercase tracking-widest whitespace-nowrap">Contact Channels</span>
                 {hasContact && (
                   <span className={cn("text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border whitespace-nowrap", confCls)}
                     title="Contact completeness score — separate from HNWI Signal score">
@@ -717,6 +723,19 @@ export default function ApexProfile() {
                   </span>
                 )}
               </div>
+              {hasContact && (
+                <button
+                  onClick={() => { setShowContactEvidence(v => !v); setRejectStep({}); setRejectError(null); }}
+                  className={cn(
+                    "flex items-center gap-1.5 px-2.5 py-1 rounded border font-mono text-[10px] uppercase tracking-wider transition-colors flex-shrink-0",
+                    showContactEvidence
+                      ? "border-amber-500/40 text-amber-500 bg-amber-500/10"
+                      : "border-border text-muted-foreground hover:text-amber-500 hover:border-amber-500/40"
+                  )}
+                >
+                  Evidence
+                </button>
+              )}
               <button
                 onClick={handleEnrich}
                 disabled={isEnriching}
@@ -824,6 +843,85 @@ export default function ApexProfile() {
             {enrichError && (
               <p className="text-xs font-mono text-red-400 mt-1.5">{enrichError}</p>
             )}
+            {/* ── Contact Evidence Panel ─────────────────────────────────── */}
+            {showContactEvidence && hasContact && (() => {
+              const e2 = entity as any;
+              const sourceHint: Record<string, string> = {
+                email: "In-house enricher · domain guess · ProPublica 990",
+                phone: "In-house enricher · RDAP lookup",
+                linkedinUrl: "In-house enricher · DDG LinkedIn search",
+                twitterHandle: "Social discovery module",
+                instagramHandle: "Social discovery module",
+                telegramHandle: "Messenger discovery module",
+                personalWebsite: "In-house enricher · DNS probe",
+                foundationName: "ProPublica IRS 990 filing",
+                contactMethod: "Manual entry",
+              };
+              const cFields = [
+                { field: "email", label: "Email", value: e2.email },
+                { field: "phone", label: "Phone", value: e2.phone },
+                { field: "linkedinUrl", label: "LinkedIn", value: e2.linkedinUrl },
+                { field: "twitterHandle", label: "Twitter/X", value: e2.twitterHandle },
+                { field: "instagramHandle", label: "Instagram", value: e2.instagramHandle },
+                { field: "telegramHandle", label: "Telegram", value: e2.telegramHandle },
+                { field: "personalWebsite", label: "Website", value: e2.personalWebsite },
+                { field: "foundationName", label: "Foundation", value: e2.foundationName },
+              ].filter(f => !!f.value);
+              let srcRegs2: string[] = [];
+              try { srcRegs2 = JSON.parse(e2.sourceRegistries ?? "[]"); } catch {}
+              return (
+                <div className="mt-3 border border-amber-500/20 rounded-lg bg-amber-500/5 overflow-hidden">
+                  <div className="px-3 py-2 text-[9px] font-mono text-amber-500/70 uppercase tracking-widest border-b border-amber-500/10">
+                    Evidence — where Apex Atlas found each contact. Mark as bad to remove it permanently.
+                  </div>
+                  {cFields.map(({ field, label, value }) => {
+                    const step = rejectStep[field] ?? 0;
+                    return (
+                      <div key={field} className="px-3 py-2.5 border-b border-amber-500/10 last:border-0">
+                        <div className="flex items-start justify-between gap-2 flex-wrap">
+                          <div className="flex-1 min-w-0">
+                            <div className="text-[10px] font-mono font-bold text-foreground">{label}</div>
+                            <div className="text-[10px] font-mono text-muted-foreground/70 truncate">{value}</div>
+                            <div className="text-[9px] font-mono text-muted-foreground/40 mt-0.5">
+                              Source: {sourceHint[field] ?? "Enrichment pipeline"}{srcRegs2[0] ? ` · Registry: ${srcRegs2[0]}` : ""}
+                            </div>
+                          </div>
+                          <div className="flex-shrink-0 flex items-center gap-1.5 flex-wrap justify-end">
+                            {step === 0 && (
+                              <button onClick={() => handleRejectContact(field)}
+                                className="text-[9px] font-mono px-2 py-1 rounded border border-red-500/30 text-red-400/70 hover:text-red-400 hover:border-red-500/50 transition-colors whitespace-nowrap">
+                                Mark as bad
+                              </button>
+                            )}
+                            {step === 1 && (<>
+                              <span className="text-[9px] font-mono text-red-400 whitespace-nowrap">This will remove it. Sure?</span>
+                              <button onClick={() => handleRejectContact(field)} className="text-[9px] font-mono px-2 py-1 rounded bg-red-500/20 border border-red-500/40 text-red-400 hover:bg-red-500/30 transition-colors">Yes</button>
+                              <button onClick={() => setRejectStep(prev => { const n = {...prev}; delete n[field]; return n; })} className="text-[9px] font-mono px-2 py-1 rounded border border-border text-muted-foreground hover:text-foreground transition-colors">No</button>
+                            </>)}
+                            {step === 2 && (<>
+                              <span className="text-[9px] font-mono text-red-400 font-bold whitespace-nowrap">FINAL: Remove permanently?</span>
+                              <button onClick={() => handleRejectContact(field)} disabled={rejectLoading}
+                                className="text-[9px] font-mono px-2 py-1 rounded bg-red-600/30 border border-red-600/50 text-red-300 hover:bg-red-600/40 disabled:opacity-40 transition-colors">
+                                {rejectLoading ? "…" : "Remove"}
+                              </button>
+                              <button onClick={() => setRejectStep({})} className="text-[9px] font-mono px-2 py-1 rounded border border-border text-muted-foreground hover:text-foreground transition-colors">Cancel</button>
+                            </>)}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {rejectError && <div className="px-3 py-2 text-[10px] font-mono text-red-400">{rejectError}</div>}
+                  <div className="px-3 py-2 border-t border-amber-500/10 flex items-center justify-between">
+                    <span className="text-[9px] font-mono text-muted-foreground/50">After removing, click Enrich to search for a replacement contact.</span>
+                    <button onClick={handleEnrich} disabled={isEnriching}
+                      className="text-[9px] font-mono px-2 py-1 rounded border border-border text-muted-foreground hover:text-primary transition-colors disabled:opacity-40 flex-shrink-0 ml-2">
+                      {isEnriching ? "Enriching…" : "Re-enrich"}
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         );
       })()}
@@ -843,7 +941,6 @@ export default function ApexProfile() {
             { id: "assets"   as const, label: "Assets & Sources", mobileLabel: "Assets", icon: <Layers    className="w-3.5 h-3.5" /> },
             { id: "network"  as const, label: "Network",          mobileLabel: "Network", icon: <Network   className="w-3.5 h-3.5" /> },
             { id: "research" as const, label: "Research Threads", mobileLabel: "Research", icon: <Route     className="w-3.5 h-3.5" /> },
-            { id: "outreach" as const, label: "Outreach Drafts",  mobileLabel: "Outreach", icon: <Sparkles  className="w-3.5 h-3.5" /> },
           ]).map((tab) => (
             <button
               key={tab.id}
@@ -879,7 +976,7 @@ export default function ApexProfile() {
                 title="Asset Footprint"
                 badge={`${geoAssets.length} geolocated`}
               />
-              <div className="relative flex-1" style={{ minHeight: "300px", height: "300px" }}>
+              <div className="relative flex-1" style={{ minHeight: "300px", height: "clamp(300px, 44vh, 500px)" }}>
                 {geoAssets.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full gap-2 text-muted-foreground/40 px-4 text-center">
                     <MapPin className="w-8 h-8 opacity-20" />
@@ -893,7 +990,7 @@ export default function ApexProfile() {
                     center={mapCenter}
                     zoom={geoAssets.length > 1 ? 3 : 5}
                     style={{ height: "100%", width: "100%" }}
-                    scrollWheelZoom={false}
+                    scrollWheelZoom={true}
                     className="z-0"
                   >
                     <TileLayer
@@ -1440,97 +1537,6 @@ export default function ApexProfile() {
           </div>
         )}
 
-        {/* ═══ OUTREACH DRAFTS TAB ════════════════════════════════════════ */}
-        {activeTab === "outreach" && (
-          <div className="space-y-4">
-
-            {/* CTA card */}
-            <div className="border border-primary/20 rounded-lg bg-primary/5 p-4 flex items-start gap-4">
-              <Sparkles className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-mono font-bold text-foreground mb-1">Outreach Assistant</div>
-                <p className="text-xs font-mono text-muted-foreground leading-relaxed mb-3">
-                  Generate personalized outreach drafts for this contact. Each draft is built from the
-                  Hybrid Research winning path and can be copied into your own email or LinkedIn client.
-                  No messages are sent from this app.
-                </p>
-                <Link
-                  href={`/outreach?entity=${entity.id}`}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-primary/20 border border-primary/30 text-primary font-mono text-[11px] uppercase tracking-wider hover:bg-primary/30 transition-colors"
-                >
-                  <Sparkles className="w-3 h-3" /> Open Outreach Assistant →
-                </Link>
-              </div>
-            </div>
-
-            {/* Read-only generated pitch history */}
-            <div className="border border-border rounded-lg bg-card/30">
-              <SectionHeader
-                icon={<Sparkles className="w-3.5 h-3.5" />}
-                title="Generated Drafts"
-                badge={
-                  (sessions as any[]).filter((s: any) => s.generatedPitch).length > 0
-                    ? `${(sessions as any[]).filter((s: any) => s.generatedPitch).length} draft${(sessions as any[]).filter((s: any) => s.generatedPitch).length !== 1 ? "s" : ""}`
-                    : undefined
-                }
-              />
-              {(sessions as any[]).filter((s: any) => s.generatedPitch).length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10 gap-3 text-muted-foreground/40">
-                  <Sparkles className="w-8 h-8 opacity-20" />
-                  <p className="text-sm font-mono">No drafts yet</p>
-                  <p className="text-[11px] font-mono text-center max-w-sm leading-relaxed">
-                    Run Hybrid Research first to generate an approach path, then use the Outreach Assistant to draft your outreach.
-                  </p>
-                </div>
-              ) : (
-                <div className="divide-y divide-border/30">
-                  {(sessions as any[]).filter((s: any) => s.generatedPitch).map((s: any) => {
-                    let preview = "";
-                    try {
-                      const p = JSON.parse(s.generatedPitch);
-                      if (Array.isArray(p) && p.length > 0) {
-                        preview = (p[0].body ?? p[0].message ?? "").slice(0, 180);
-                      } else {
-                        preview = s.generatedPitch.slice(0, 180);
-                      }
-                    } catch {
-                      preview = s.generatedPitch.slice(0, 180);
-                    }
-                    return (
-                      <div key={s.id} className="p-4 space-y-2">
-                        <div className="flex items-center justify-between gap-2 flex-wrap">
-                          <div className="flex items-center gap-2">
-                            <span className={cn(
-                              "text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border uppercase",
-                              CRM_COLORS[s.crmStatus] ?? "text-muted-foreground border-border"
-                            )}>
-                              {s.crmStatus}
-                            </span>
-                            <span className="text-[10px] font-mono text-muted-foreground">
-                              Session #{s.id} · {new Date(s.createdAt).toLocaleDateString()}
-                            </span>
-                          </div>
-                          <Link
-                            href={`/outreach?entity=${entity.id}&session=${s.id}`}
-                            className="text-[10px] font-mono text-primary hover:underline flex-shrink-0"
-                          >
-                            Open in Assistant →
-                          </Link>
-                        </div>
-                        {preview && (
-                          <p className="text-xs font-mono text-foreground/60 leading-relaxed line-clamp-2">
-                            {preview}{preview.length >= 180 ? "…" : ""}
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-          </div>
-        )}
 
       </div>
 

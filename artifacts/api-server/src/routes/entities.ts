@@ -72,11 +72,18 @@ router.get("/entities", async (req, res): Promise<void> => {
     )!);
   }
 
+  // When a contact filter is active, rank by contact confidence so the most
+  // reachable profiles float to the top. Fall back to bayesian score otherwise.
+  const isContactFilter = !!(contactable || hasEmail || hasPhone || hasWhatsapp || hasTelegram || hasInstagram);
+  const orderExpr = isContactFilter
+    ? sql`${entitiesTable.contactConfidence} DESC NULLS LAST, ${entitiesTable.bayesianScore} DESC`
+    : sql`${entitiesTable.bayesianScore} DESC`;
+
   const rows = await db
     .select()
     .from(entitiesTable)
     .where(conditions.length > 0 ? and(...conditions) : undefined)
-    .orderBy(sql`${entitiesTable.bayesianScore} DESC`)
+    .orderBy(orderExpr)
     .limit(limit)
     .offset(offset);
 
@@ -140,6 +147,48 @@ router.patch("/entities/:id/hide", async (req, res): Promise<void> => {
   if (!updated) { res.status(404).json({ error: "Not found" }); return; }
   await delCachePattern("entities:list:*");
   res.json(updated);
+});
+
+// PATCH /entities/:id/reject-contact — mark a contact field as bad and null it out
+router.patch("/entities/:id/reject-contact", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const { field } = req.body ?? {};
+  const validFields = ["email", "phone", "linkedinUrl", "twitterHandle", "instagramHandle",
+    "telegramHandle", "personalWebsite", "foundationName", "contactMethod"];
+  if (!field || !validFields.includes(field)) {
+    res.status(400).json({ error: "Invalid or missing field" }); return;
+  }
+
+  const [entity] = await db.select({ id: entitiesTable.id, metadata: entitiesTable.metadata })
+    .from(entitiesTable).where(eq(entitiesTable.id, id));
+  if (!entity) { res.status(404).json({ error: "Not found" }); return; }
+
+  let meta: Record<string, unknown> = {};
+  try { meta = JSON.parse(entity.metadata ?? "{}") as Record<string, unknown>; } catch { /* */ }
+  const rejected: string[] = (meta.rejectedContacts as string[] | undefined) ?? [];
+  if (!rejected.includes(field)) rejected.push(field);
+  meta.rejectedContacts = rejected;
+
+  // Null the specific contact field + save updated metadata
+  const updates: Record<string, null | string> = { metadata: JSON.stringify(meta) };
+  // Map field name to a null update (Drizzle accepts partial column objects)
+  const fieldNulls: Record<string, any> = {
+    email: { email: null },
+    phone: { phone: null },
+    linkedinUrl: { linkedinUrl: null },
+    twitterHandle: { twitterHandle: null },
+    instagramHandle: { instagramHandle: null },
+    telegramHandle: { telegramHandle: null },
+    personalWebsite: { personalWebsite: null },
+    foundationName: { foundationName: null },
+    contactMethod: { contactMethod: null },
+  };
+  const setObj = { ...updates, ...(fieldNulls[field] ?? {}) };
+  await db.update(entitiesTable).set(setObj as any).where(eq(entitiesTable.id, id));
+  await delCachePattern("entities:list:*");
+  res.json({ ok: true, rejectedField: field });
 });
 
 // GET /entities/:id/occrp  — return Aleph adverse-media metadata for one entity

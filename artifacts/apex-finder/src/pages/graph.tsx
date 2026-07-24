@@ -213,9 +213,9 @@ export default function GraphViewer() {
     const nodeRadius = Math.sqrt(baseR) * 6; // graph units (zoom-invariant)
     const offsetY = nodeRadius + 1.5 / globalScale;
 
-    // Shadow for legibility instead of a solid backdrop
-    ctx.shadowColor = "rgba(0,0,0,0.9)";
-    ctx.shadowBlur = 4 / globalScale;
+    // Soft shadow for legibility — keep blur small to avoid bleed into the circle
+    ctx.shadowColor = "rgba(0,0,0,0.45)";
+    ctx.shadowBlur = 2 / globalScale;
     ctx.fillStyle = color;
     ctx.fillText(label, node.x, node.y + offsetY);
     ctx.restore();

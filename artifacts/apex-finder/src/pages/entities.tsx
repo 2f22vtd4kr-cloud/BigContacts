@@ -419,6 +419,35 @@ export default function EntityLedger() {
     return list;
   }, [rawEntities, proximityMin, hotOnly, viewMode, localOverrides]);
 
+  // Accumulate pages into allEntities (must be after rawEntities + entities + isSpecialFilter are declared)
+  useEffect(() => {
+    if (isLoadingEntities || rawEntities === undefined) return;
+    const pageItems = entities as any[];
+    setAllEntities(prev => {
+      if (page === 0) return pageItems;
+      const seen = new Set(prev.map((e: any) => e.id));
+      const fresh = pageItems.filter((e: any) => !seen.has(e.id));
+      return fresh.length ? [...prev, ...fresh] : prev;
+    });
+    setHasMore(!isSpecialFilter && (rawEntities as any[]).length >= 50);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rawEntities, isLoadingEntities]);
+
+  const handleLoadMore = useCallback(() => {
+    if (isLoadingEntities || !hasMore || isSpecialFilter) return;
+    setPage(p => p + 1);
+  }, [isLoadingEntities, hasMore, isSpecialFilter]);
+
+  const handleDesktopScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, clientHeight, scrollHeight } = e.currentTarget;
+    if (scrollHeight - scrollTop - clientHeight < 300) handleLoadMore();
+  };
+
+  const handleMobileScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, clientHeight, scrollHeight } = e.currentTarget;
+    if (scrollHeight - scrollTop - clientHeight < 300) handleLoadMore();
+  };
+
   const handleDelete = (id: number) => {
     if (confirm("Purge entity from registry?")) {
       deleteEntity.mutate({ id }, { onSuccess: () => refetch() });
@@ -483,11 +512,8 @@ export default function EntityLedger() {
     });
   };
 
-  // Mobile filtered list (typeFilter already applied server-side; hotOnly applied client-side in entities)
-  const mobileEntities = useMemo(() => {
-    if (!entities) return [];
-    return entities;
-  }, [entities]);
+  // Unified display list: hotOnly loads 500 at once (client-side), everything else accumulates via infinite scroll
+  const displayEntities = isSpecialFilter ? entities : allEntities;
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -747,7 +773,7 @@ export default function EntityLedger() {
         )}
 
         {/* Entity table */}
-        <div className="flex-1 overflow-auto">
+        <div className="flex-1 overflow-auto" onScroll={handleDesktopScroll}>
           <table className="w-full border-collapse">
             <thead className="sticky top-0 z-10">
               <tr className="bg-card/90 backdrop-blur-sm border-b border-border">
@@ -773,7 +799,7 @@ export default function EntityLedger() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border/50">
-              {entities?.map((entity: any) => {
+              {displayEntities?.map((entity: any) => {
                 const typeColor = TYPE_COLORS[entity.type] ?? "#64748B";
                 const isSelected = selectedIds.has(entity.id);
                 return (
@@ -904,7 +930,7 @@ export default function EntityLedger() {
                   </tr>
                 );
               })}
-              {(!entities || entities.length === 0) && (
+              {(!displayEntities || displayEntities.length === 0) && (
                 <tr>
                   <td colSpan={8} className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center justify-center text-muted-foreground">
@@ -919,36 +945,24 @@ export default function EntityLedger() {
           </table>
         </div>
 
-        {/* Footer: pagination + count */}
+        {/* Footer: count + load indicator + export */}
         <div className="border-t border-border px-4 py-2 flex items-center justify-between bg-card/30 flex-shrink-0">
+          <span className="text-[10px] font-mono text-muted-foreground">
+            {displayEntities.length} shown
+            {!isSpecialFilter && hasMore && " · scroll to load more"}
+            {!isSpecialFilter && !hasMore && displayEntities.length > 0 && " · all loaded"}
+            {proximityMin > 0 && ` · proximity ≥ ${proximityMin}`}
+            {typeFilter && ` · ${typeFilter}`}
+          </span>
           <div className="flex items-center gap-3">
+            {isLoadingEntities && page > 0 && <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />}
             <button
-              disabled={page === 0}
-              onClick={() => setPage((p) => Math.max(0, p - 1))}
-              className="flex items-center gap-1 px-2.5 py-1 rounded border border-border text-[10px] font-mono text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
+              onClick={() => exportToCsv(displayEntities ?? [])}
+              className="text-[10px] font-mono text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
             >
-              ← Prev
-            </button>
-            <span className="text-[10px] font-mono text-muted-foreground">
-              Page {page + 1}
-              {entities && ` · ${entities.length} shown`}
-              {proximityMin > 0 && ` · proximity ≥ ${proximityMin}`}
-              {typeFilter && ` · ${typeFilter}`}
-            </span>
-            <button
-              disabled={!entities || entities.length < 50}
-              onClick={() => setPage((p) => p + 1)}
-              className="flex items-center gap-1 px-2.5 py-1 rounded border border-border text-[10px] font-mono text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
-            >
-              Next →
+              <Download className="w-3 h-3" /> Export CSV
             </button>
           </div>
-          <button
-            onClick={() => exportToCsv(entities ?? [])}
-            className="text-[10px] font-mono text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
-          >
-            <Download className="w-3 h-3" /> Export CSV
-          </button>
         </div>
       </div>
 
@@ -1098,10 +1112,10 @@ export default function EntityLedger() {
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto">
-          {isLoadingEntities && <MobileLedgerState kind="loading" />}
+        <div className="flex-1 overflow-y-auto" onScroll={handleMobileScroll}>
+          {isLoadingEntities && page === 0 && <MobileLedgerState kind="loading" />}
           {!isLoadingEntities && isEntitiesError && <MobileLedgerState kind="unavailable" />}
-          {!isLoadingEntities && !isEntitiesError && mobileEntities.map((entity: any) => (
+          {!isEntitiesError && displayEntities.map((entity: any) => (
             <MobileEntityCard
               key={entity.id}
               entity={entity}
@@ -1113,7 +1127,12 @@ export default function EntityLedger() {
               onToggleHide={handleToggleHide}
             />
           ))}
-          {!isLoadingEntities && !isEntitiesError && mobileEntities.length === 0 && <MobileLedgerState kind="empty" />}
+          {!isLoadingEntities && !isEntitiesError && displayEntities.length === 0 && <MobileLedgerState kind="empty" />}
+          {isLoadingEntities && page > 0 && (
+            <div className="flex justify-center py-4">
+              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+            </div>
+          )}
         </div>
       </div>
 
@@ -1179,7 +1198,7 @@ export default function EntityLedger() {
               </div>
               {[
                 { label: "Known Residences", field: "knownResidences", placeholder: "London, UK / Monaco / Dubai" },
-                { label: "Contact Vector", field: "contactMethod", placeholder: "Personal WhatsApp / Family Office / Gatekeeper…" },
+                { label: "Contact Method", field: "contactMethod", placeholder: "Personal WhatsApp / Family Office / Gatekeeper…" },
                 { label: "Phone", field: "phone", placeholder: "+44 7..." },
                 { label: "Email", field: "email", placeholder: "private@..." },
                 { label: "Source Registries", field: "sourceRegistries", placeholder: "Companies House, OpenCorporates, FAA…" },
