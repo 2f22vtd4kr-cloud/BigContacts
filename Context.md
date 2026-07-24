@@ -8,7 +8,7 @@
 
 ---
 
-## Current State (2026-07-23 — fresh import boot) — All core workflows running, ingestion auto-started
+## Current State (2026-07-24 — fresh import boot) — All core workflows running, ingestion auto-started
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically ✅
@@ -26,13 +26,13 @@
 | API Server | ✅ Running (port 8080) |
 | ApexFinder Web | ✅ Running (port 23695) |
 
-### Post-import setup (2026-07-23)
-1. `pnpm install` — all packages installed (esbuild, vite, all deps)
+### Post-import setup (2026-07-24)
+1. `pnpm install` — all packages installed (20.4s, pnpm v10.26.1)
 2. `pnpm --filter @workspace/db run push` — schema applied to fresh PostgreSQL DB (`[✓] Changes applied`)
 3. All three workflows restarted and confirmed running
-4. `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":1}}` ✅
-5. DB was empty → cold-start auto-recovery triggered: broad-discovery + FAA + Western HNWI ingestion auto-started
-6. Upstash secrets (REDIS_URL_1, REDIS_URL_2, COMPANIES_HOUSE_API_KEY) restored — both slots connected on next boot ✅
+4. `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":0}}` ✅
+5. DB empty on boot → cold-start auto-recovery triggered: FAA + Western HNWI + broad-discovery ingestion auto-started
+6. All secrets confirmed: REDIS_URL_1, REDIS_URL_2, COMPANIES_HOUSE_API_KEY set
 
 ### Phase I — Road to 9/10 (implemented 2026-07-23)
 All 4 Phase I items implemented and live. Build clean (esbuild ⚡ 1183ms). All 3 new endpoints verified returning 200:
@@ -53,6 +53,7 @@ All 4 Phase I items implemented and live. Build clean (esbuild ⚡ 1183ms). All 
 | 2026-07-23 | Import setup completed: locked dependencies restored, Drizzle schema applied, artifact-managed API/Web workflows restarted, endpoint checks and browser preview passed; live ingestion is active |
 | 2026-07-23 | Phase I (road to 9/10) fully implemented: I1 beneficial owner resolution, I2 dedup tuning, I3 warm-path edges, I4 tiered enrichment |
 | 2026-07-23 | Same-source duplicate review implemented: new cluster endpoint and `/duplicates` tab verified against live data; duplicate candidate self-pair regression fixed; API smoke tests 14/14 passed; API/Web production builds passed |
+| 2026-07-24 | Fresh import boot: pnpm install (20.4s), DB schema push ([✓] Changes applied), Redis+API+Web workflows restarted, /api/healthz → ok (latencyMs:0), all 3 secrets set (REDIS_URL_1/2, COMPANIES_HOUSE_API_KEY), cold-start ingestion auto-started |
 
 ---
 
