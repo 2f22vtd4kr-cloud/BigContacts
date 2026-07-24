@@ -8,16 +8,16 @@
 
 ---
 
-## Current State (2026-07-24 — third import setup complete) — Core workflows healthy, fresh empty database
+## Current State (2026-07-24 — fourth import setup complete) — Core workflows healthy, auto-ingestion active
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically ✅
 - **Local Redis** running on `redis://localhost:6379` — workflow `Redis` running ✅
 - **SESSION_SECRET** — ✅ Set
 - **REDIS_URL** — ✅ Set (local Redis, env var `redis://localhost:6379`)
-- **Upstash Redis (`REDIS_URL_1`)** — ✅ Set (permanent dedup set)
-- **Upstash Redis (`REDIS_URL_2`)** — ✅ Set (permanent contact cache)
-- **COMPANIES_HOUSE_API_KEY** — ✅ Set
+- **Upstash Redis (`REDIS_URL_1`)** — ❌ NOT SET — dedup will not persist across restarts; re-ingest will create duplicates
+- **Upstash Redis (`REDIS_URL_2`)** — ❌ NOT SET — contact cache will not persist across restarts; prior enrichment lost
+- **COMPANIES_HOUSE_API_KEY** — ❌ NOT SET — UK Companies House harvester skipped
 
 ### Workflows running
 | Workflow | Status |
@@ -26,21 +26,21 @@
 | artifacts/api-server: API Server | ✅ Running (port 8080) |
 | artifacts/apex-finder: web | ✅ Running (port 23695) |
 
-### Post-import setup (2026-07-24, second import)
-1. `pnpm install --frozen-lockfile` — all packages installed (16s, pnpm v10.26.1)
-2. All secrets requested and confirmed: REDIS_URL_1, REDIS_URL_2, COMPANIES_HOUSE_API_KEY
-3. `pnpm --filter @workspace/db run push` — schema applied to fresh PostgreSQL DB (`[✓] Changes applied`)
-4. Artifact registry registered for API, web, mobile, and Canvas by Replit platform
-5. Canonical artifact-managed Redis, API, and web workflows restarted and confirmed running
-6. `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":0}}` ✅
-7. Browser preview verified at root ApexFinder route — clean UI, no errors
+### Post-import setup (2026-07-24, fourth import)
+1. `pnpm install` — all packages installed (22.3s, pnpm v10.26.1)
+2. `pnpm --filter @workspace/db run push` — schema applied to fresh PostgreSQL DB (`[✓] Changes applied`)
+3. All 4 artifacts registered via verifyAndReplaceArtifactToml (api-server, apex-finder, apex-mobile, mockup-sandbox)
+4. Canonical artifact-managed Redis, API, and web workflows started
+5. `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":0}}` ✅
+6. Browser preview verified — dashboard loading with 32,002 profiles from auto-ingestion
+7. **REDIS_URL_1, REDIS_URL_2, COMPANIES_HOUSE_API_KEY** not yet set — need user to add them as Replit Secrets
 
-### Measured live state (2026-07-24 07:10 UTC)
-- Entities: **0** | Assets: **0** | Relationships: **0** — **fresh empty database, no ingestion run yet**
-- Contact evidence: **0** profiles; Upstash slot 2 may have prior cached contact entries
+### Measured live state (2026-07-24 08:52 UTC)
+- Entities: **32,002** | Assets: **32,000** | Relationships: **0** — FAA + HMLR auto-ingested on cold start
+- Contact evidence: **0** profiles (Upstash slot 2 not connected — prior cache unavailable)
 - Research sessions: **0**
-- Active background work: API startup ghost-job cleanup complete; ready for ingestion
-- Honest assessment: **setup is complete; run FAA and/or HMLR ingestion to populate data**.
+- Active background work: Western HNWI engine running; broad discovery triggered
+- Honest assessment: **app is running; add REDIS_URL_1 + REDIS_URL_2 secrets to restore contact cache and dedup persistence**.
 
 ### Phase I — Road to 9/10 (implemented 2026-07-23)
 All 4 Phase I items implemented and live. Build clean (esbuild ⚡ 1183ms). All 3 new endpoints verified returning 200:
@@ -71,6 +71,7 @@ All 4 Phase I items implemented and live. Build clean (esbuild ⚡ 1183ms). All 
 | 2026-07-24 | Restored 693 cached contacts; measured 936 contactable profiles, 343 emails, 613 phones, 100 EDGAR entities, 95 issuer-covered; API/web health and preview verified |
 | 2026-07-24 | Fixed in-house enrichment state handling so website/address-only evidence remains eligible for later contact enrichment; corrected build and restarted API successfully |
 | 2026-07-24 | Improved dashboard live-process bars with process-specific explainer marquees, icon trails, fading edges, mobile stacking, and reduced-motion support; frontend build and canonical workflows verified |
+| 2026-07-24 | Fourth import setup: pnpm install (22.3s), schema pushed, all 4 artifacts registered, Redis+API+Web workflows running, /api/healthz ok; 32,002 entities from FAA+HMLR auto-ingestion; REDIS_URL_1/2 and COMPANIES_HOUSE_API_KEY not yet set |
 
 ---
 
