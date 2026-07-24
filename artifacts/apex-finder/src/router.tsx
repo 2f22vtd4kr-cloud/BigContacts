@@ -13,7 +13,6 @@ import DataSources from "@/pages/data-sources";
 import Duplicates from "@/pages/duplicates";
 import OsintToolsDirectory from "@/pages/osint-tools";
 import BackgroundJobs from "@/pages/jobs";
-import OutreachAssistant from "@/pages/outreach";
 import NotFound from "@/pages/not-found";
 
 export default function AppRouter() {

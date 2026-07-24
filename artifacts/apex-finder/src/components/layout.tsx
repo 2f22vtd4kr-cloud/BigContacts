@@ -3,9 +3,9 @@ import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import {
   Crosshair, Network, Terminal,
-  KanbanSquare, X, BookOpen, Menu, MessageSquare,
-  Search, Users, Activity, Cog, Telescope,
-  Copy, Database, Bot, ChevronDown, ChevronRight, ShieldAlert, List,
+  KanbanSquare, X, BookOpen, Menu,
+  Search, Activity, Cog, Telescope,
+  Database, Bot, ChevronDown, ChevronRight, ShieldAlert, List,
 } from "lucide-react";
 
 // ─── Navigation structure ─────────────────────────────────────────────────────
@@ -16,7 +16,6 @@ const mainNav = [
   { name: "Network Graph", href: "/network",   icon: Network },
   { name: "Intel Terminal",href: "/research",  icon: Terminal },
   { name: "CRM Pipeline",  href: "/pipeline",  icon: KanbanSquare },
-  { name: "Outreach",      href: "/outreach",  icon: MessageSquare },
   { name: "Field Manual",  href: "/manual",    icon: BookOpen },
 ];
 
@@ -161,22 +160,27 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
         {/* Mobile top bar */}
         <div className="md:hidden flex items-center h-12 px-4 border-b border-border bg-card flex-shrink-0 z-40">
-          {sidebarOpen ? (
-            <button
-              onClick={() => setSidebarOpen(false)}
-              className="p-2 -ml-2 text-muted-foreground hover:text-foreground transition-colors mr-1 shrink-0"
-              aria-label="Close menu"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          ) : null}
           <Crosshair className="h-4 w-4 text-primary mr-2 shrink-0" />
-          <span className="text-sm font-bold tracking-widest text-primary uppercase font-mono truncate">
-            APEX ATLAS
-          </span>
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <span className="text-sm font-bold tracking-widest text-primary uppercase font-mono shrink-0">
+              APEX ATLAS
+            </span>
+            {(() => {
+              const active = allNav.find(i => isActive(i.href));
+              return active && active.href !== "/" ? (
+                <span className="text-muted-foreground/40 font-mono text-[11px] shrink-0">/</span>
+              ) : null;
+            })()}
+            {(() => {
+              const active = allNav.find(i => isActive(i.href));
+              return active && active.href !== "/" ? (
+                <span className="text-[11px] font-mono text-muted-foreground truncate">{active.name}</span>
+              ) : null;
+            })()}
+          </div>
           <button
             onClick={() => setSidebarOpen(true)}
-            className="ml-auto p-2 -mr-2 text-muted-foreground hover:text-foreground transition-colors shrink-0"
+            className="ml-2 p-2 -mr-2 text-muted-foreground hover:text-foreground transition-colors shrink-0"
             aria-label="Open menu"
           >
             <Menu className="h-5 w-5" />
