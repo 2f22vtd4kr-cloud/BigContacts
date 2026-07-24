@@ -66,6 +66,20 @@ Schema push: `pnpm --filter @workspace/db run push`
 
 ---
 
+## Replit Setup Notes (2026-07-24)
+
+After a fresh GitHub import, run these steps to get the project running:
+
+1. **Install dependencies:** `CI=true pnpm install` (takes ~4 min on first run; subsequent runs are fast)
+2. **Push DB schema:** `pnpm --filter @workspace/db run push`
+3. **Start workflows:** Redis → API Server → apex-finder web (in that order)
+
+Two fixes were needed after the first import:
+- Added `"pg-cloudflare"` to the `external` list in `artifacts/api-server/build.mjs` (pg optional dep that esbuild couldn't resolve)
+- Added `sharp`, `onnxruntime-node`, `protobufjs` to `onlyBuiltDependencies` in `pnpm-workspace.yaml` so their native bindings build correctly (sharp is needed by `@huggingface/transformers` at startup)
+
+---
+
 ## Current Data State (verified 2026-07-24 — latest import setup)
 
 | Source | Entities | Assets | Notes |
