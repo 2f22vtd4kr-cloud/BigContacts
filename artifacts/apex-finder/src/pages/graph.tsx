@@ -186,40 +186,37 @@ export default function GraphViewer() {
   /** Draw the entity name label below each node */
   function drawNodeLabel(node: any, ctx: CanvasRenderingContext2D, globalScale: number) {
     if (!node.label) return;
-    if (globalScale < 0.6) return; // skip when too far out
+    if (globalScale < 1.2) return; // only render labels when zoomed in enough
 
-    const maxLen = 20;
+    const maxLen = 18;
     const label = node.label.length > maxLen ? node.label.slice(0, maxLen - 1) + "…" : node.label;
 
-    // Constant pixel size: fontSize / globalScale = constant canvas-unit size
-    const fontSize = 3.8 / globalScale;
+    const fontSize = 3.2 / globalScale;
+
+    // Text color by node type
+    const _nt: string = node.nodeType ?? "";
+    const color = node.isTarget                              ? "#34d399"
+      : _nt === "HNWI"                                      ? "#6ee7b7"
+      : (_nt === "Corporation" || _nt === "Corp")           ? "#93c5fd"
+      : _nt === "Trust"                                     ? "#c4b5fd"
+      : _nt === "Gatekeeper"                                ? "#fcd34d"
+      : ["RealEstate","Aviation","Marine","PrivateClub"].includes(_nt) ? "#94a3b8"
+      : "#94a3b8";
 
     ctx.save();
     ctx.font = `${fontSize}px sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
 
-    // Position below the node circle
+    // Position below the node circle (in graph units, no globalScale division on the radius)
     const baseR = node.isTarget ? 3 : node.isCentral ? 2 : 1;
-    const nodeRadius = Math.sqrt(baseR) * 6 / globalScale; // graph units → canvas units
-    const offsetY = nodeRadius + 1.2 / globalScale;
+    const nodeRadius = Math.sqrt(baseR) * 6; // graph units (zoom-invariant)
+    const offsetY = nodeRadius + 1.5 / globalScale;
 
-    const textWidth = ctx.measureText(label).width;
-    const pad = 0.8 / globalScale;
-
-    // Dark backdrop for legibility
-    ctx.fillStyle = "rgba(8, 12, 22, 0.82)";
-    ctx.fillRect(node.x - textWidth / 2 - pad, node.y + offsetY - pad, textWidth + pad * 2, fontSize + pad * 2);
-
-    // Text color by node type
-    const _nt: string = node.nodeType ?? "";
-    ctx.fillStyle = node.isTarget                              ? "#34d399"
-      : (_nt === "Corporation" || _nt === "Corp")             ? "#93c5fd"
-      : _nt === "Trust"                                       ? "#c4b5fd"
-      : _nt === "Gatekeeper"                                  ? "#fcd34d"
-      : ["RealEstate","Aviation","Marine","PrivateClub"].includes(_nt) ? "#64748b"
-      : "#94a3b8";
-
+    // Shadow for legibility instead of a solid backdrop
+    ctx.shadowColor = "rgba(0,0,0,0.9)";
+    ctx.shadowBlur = 4 / globalScale;
+    ctx.fillStyle = color;
     ctx.fillText(label, node.x, node.y + offsetY);
     ctx.restore();
   }

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Link, useLocation, useSearch } from "wouter";
 import { useListEntities, useCreateEntity, useDeleteEntity } from "@workspace/api-client-react";
 import { formatCurrency, formatEntityName, AccessScoreBadge } from "@/lib/utils";
@@ -289,9 +289,19 @@ export default function EntityLedger() {
   const [bulkLoading, setBulkLoading] = useState(false);
   const [bulkDone, setBulkDone]   = useState<string | null>(null);
   const [page, setPage]           = useState(0);
+  // Infinite-scroll accumulation
+  const [allEntities, setAllEntities] = useState<any[]>([]);
+  const [hasMore, setHasMore]         = useState(true);
+  const pageRef                       = useRef(0);
+  const desktopSentinelRef            = useRef<HTMLDivElement>(null);
+  const mobileSentinelRef             = useRef<HTMLDivElement>(null);
 
-  // Reset to page 0 when filters change
-  useEffect(() => { setPage(0); }, [searchTerm, typeFilter, proximityMin, hotOnly, contactableOnly, contactChannel, viewMode]);
+  // Reset to page 0 + clear accumulated list when filters change
+  useEffect(() => {
+    setPage(0);
+    setAllEntities([]);
+    setHasMore(true);
+  }, [searchTerm, typeFilter, proximityMin, hotOnly, contactableOnly, contactChannel, viewMode]);
 
   const toggleSelect = (id: number) =>
     setSelectedIds((prev) => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });

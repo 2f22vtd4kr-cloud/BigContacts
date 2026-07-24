@@ -12,7 +12,6 @@ import Improvements from "@/pages/improvements";
 import DataSources from "@/pages/data-sources";
 import Duplicates from "@/pages/duplicates";
 import OsintToolsDirectory from "@/pages/osint-tools";
-import OutreachAssistant from "@/pages/outreach";
 import BackgroundJobs from "@/pages/jobs";
 import NotFound from "@/pages/not-found";
 
@@ -26,7 +25,7 @@ export default function AppRouter() {
         <Route path="/profiles" component={EntityLedger} />
         <Route path="/network" component={GraphViewer} />
         <Route path="/research" component={IntelTerminal} />
-        <Route path="/outreach" component={OutreachAssistant} />
+        {/* Outreach removed — Apex Atlas is a contact intelligence tool, not a comms platform */}
         <Route path="/pipeline" component={PipelineCRM} />
         <Route path="/jobs" component={BackgroundJobs} />
         <Route path="/manual" component={FieldManual} />

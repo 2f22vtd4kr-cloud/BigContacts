@@ -319,7 +319,7 @@ export default function ApexProfile() {
   const [enrichError, setEnrichError]     = useState<string | null>(null);
   const [enrichDone, setEnrichDone]       = useState(false);
   // ── Tab state ──────────────────────────────────────────────────────────────
-  const [activeTab, setActiveTab] = useState<"assets" | "network" | "research" | "outreach">("assets");
+  const [activeTab, setActiveTab] = useState<"assets" | "network" | "research">("assets");
   // ── Relationship modal ─────────────────────────────────────────────────────
   const [addRelOpen, setAddRelOpen]             = useState(false);
   const [relTargetType, setRelTargetType]       = useState<"Entity" | "Asset">("Entity");

@@ -671,7 +671,7 @@ function OperationsRail() {
                 <ProcessAtmosphere job={job} />
               </div>
               <span className="text-sm font-mono w-12 text-right flex-shrink-0" style={{ color: "#10B981" }}>
-                {Math.round(job.progress)}%
+                {Math.min(100, Math.round(job.progress))}%
               </span>
             </div>
           ))}
@@ -1179,7 +1179,7 @@ function MobileOperationsBanner() {
                 />
                 <span className="text-xs font-medium truncate">{job.label}</span>
                 <span className="text-[10px] font-mono ml-auto flex-shrink-0" style={{ color: descriptor.color }}>
-                  {Math.round(job.progress)}%
+                  {Math.min(100, Math.round(job.progress))}%
                 </span>
               </div>
               <div

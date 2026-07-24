@@ -283,6 +283,8 @@ export default function DeepSearch() {
   const [filterMaxScore,      setFilterMaxScore]      = useState(100);
   const [filterHasContact,    setFilterHasContact]    = useState(false);
   const [filterHasRelationship, setFilterHasRelationship] = useState(false);
+  // ── Sort ────────────────────────────────────────────────────────────────────
+  const [sortBy, setSortBy] = useState<"rank" | "score">("score");
 
   const activeFilterCount =
     filterAssetTypes.length +
