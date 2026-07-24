@@ -163,132 +163,124 @@
   animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
 }
 
-.process-activity {
+/* ── Process stream bar (live job rails) ───────────────────────────────── */
+
+.process-stream {
   --process-accent: #10B981;
   position: absolute;
   inset: 0;
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  overflow: hidden;
-  color: color-mix(in srgb, var(--process-accent) 72%, white);
-  pointer-events: none;
-  -webkit-mask-image: linear-gradient(90deg, transparent 0%, black 8%, black 88%, transparent 100%);
-  mask-image: linear-gradient(90deg, transparent 0%, black 8%, black 88%, transparent 100%);
-}
-
-.process-activity::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(90deg, #1E2332 0%, transparent 16%, transparent 78%, #1E2332 100%);
-  opacity: 0.82;
-}
-
-.process-activity__icon-flow,
-.process-activity__copy-flow {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  overflow: hidden;
-}
-
-.process-activity__icon-flow {
-  justify-content: flex-end;
-  padding-right: 14px;
-  opacity: 0.4;
-}
-
-.process-activity__copy-flow {
-  justify-content: flex-end;
-  padding: 0 34px 0 46px;
-  opacity: 0.62;
-}
-
-.process-activity__icon-track,
-.process-activity__copy-track {
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
-  white-space: nowrap;
-  will-change: transform;
-}
-
-.process-activity__icon-track {
-  gap: 17px;
-  animation: process-icons-drift 14s linear infinite;
-}
-
-.process-activity__copy-track {
-  gap: 40px;
-  animation: process-copy-drift 24s linear infinite;
-}
-
-.process-activity__icon {
-  width: 13px;
-  height: 13px;
-  flex-shrink: 0;
-  color: var(--process-accent);
-}
-
-.process-activity__copy {
-  display: inline-block;
-  font-family: var(--app-font-mono);
-  font-size: 10px;
-  letter-spacing: 0.02em;
-  color: color-mix(in srgb, var(--process-accent) 38%, hsl(215 16% 65%));
-}
-
-.process-activity__leading-icon {
-  position: absolute;
-  left: 12px;
   z-index: 1;
-  width: 13px;
-  height: 13px;
-  color: var(--process-accent);
-  opacity: 0.8;
-}
-
-.process-activity-mobile {
+  overflow: hidden;
+  isolation: isolate;
+  /* Edge fade — works over any bar background color */
   -webkit-mask-image: linear-gradient(90deg, transparent 0%, black 10%, black 90%, transparent 100%);
   mask-image: linear-gradient(90deg, transparent 0%, black 10%, black 90%, transparent 100%);
 }
 
-.process-activity-mobile .process-activity__icon-flow {
-  padding-right: 8px;
-  opacity: 0.34;
+.stream-layer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
-.process-activity-mobile .process-activity__copy-flow {
-  padding: 0 20px 0 32px;
-  opacity: 0.58;
+/* Track: duplicate content fills this element so animating to -50% is a seamless loop */
+.stream-track {
+  display: flex;
+  align-items: center;
+  flex: none;
+  width: max-content;
+  will-change: transform;
 }
 
-.process-activity-mobile .process-activity__copy {
+/* Icons layer — faster, shifted above centre */
+.glyph-track {
+  gap: 22px;
+  color: color-mix(in srgb, var(--process-accent) 82%, white);
+  animation: glyph-stream 16s linear infinite;
+}
+
+/* Text layer — slower, shifted below centre */
+.phrase-track {
+  gap: 54px;
+  color: color-mix(in srgb, var(--process-accent) 38%, #a8b7bd);
+  animation: phrase-stream 34s linear infinite;
+}
+
+.stream-glyphs {
+  z-index: 3;
+}
+
+.stream-phrases {
+  z-index: 2;
+  opacity: .88;
+}
+
+/* Subtle depth sheen on top of both layers */
+.stream-atmosphere {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255,255,255,.02), transparent 40%, rgba(0,0,0,.06));
+}
+
+/* Individual glyph slots — vertical scatter for visual depth */
+.glyph-slot {
+  display: grid;
+  width: 26px;
+  height: 30px;
+  flex: none;
+  place-items: center;
+  opacity: .82;
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--process-accent) 24%, transparent));
+}
+
+.glyph-slot:nth-child(3n) {
+  transform: translateY(4px);
+  opacity: .5;
+}
+
+.glyph-slot:nth-child(4n) {
+  transform: translateY(-4px);
+  opacity: .68;
+}
+
+.phrase {
+  display: block;
+  flex: none;
+  font-family: var(--app-font-mono, ui-monospace, "Space Mono", monospace);
   font-size: 9px;
+  letter-spacing: .025em;
+  line-height: 1;
 }
 
-.process-activity-mobile .process-activity__leading-icon {
-  left: 8px;
-  width: 12px;
-  height: 12px;
+/*
+ * Keyframes: translate from 0 to -50%.
+ * The track holds 2× the content, so -50% returns to the exact start — no visible reset.
+ * Y offset baked into keyframes keeps each layer at its vertical position throughout.
+ */
+@keyframes glyph-stream {
+  from { transform: translate3d(0, -4px, 0); }
+  to   { transform: translate3d(-50%, -4px, 0); }
 }
 
-@keyframes process-icons-drift {
-  from { transform: translateX(32%); }
-  to { transform: translateX(-50%); }
+@keyframes phrase-stream {
+  from { transform: translate3d(0, 5px, 0); }
+  to   { transform: translate3d(-50%, 5px, 0); }
 }
 
-@keyframes process-copy-drift {
-  from { transform: translateX(36%); }
-  to { transform: translateX(-50%); }
+@media (max-width: 640px) {
+  .glyph-track  { gap: 18px; animation-duration: 14s; }
+  .phrase-track { gap: 40px; animation-duration: 28s; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .process-activity__icon-track,
-  .process-activity__copy-track {
-    animation: none;
+  .glyph-track,
+  .phrase-track {
+    animation-play-state: paused;
   }
 }
 
