@@ -44,8 +44,9 @@ The dashboard uses two deliberately separate scores: **Signal** reflects the str
 | `DATABASE_URL` | Replit PostgreSQL (auto) | PostgreSQL connection |
 | `REDIS_URL` | `.replit` userenv | Local Redis — `redis://localhost:6379` |
 | `SESSION_SECRET` | Replit Secret | Express session signing |
-| `REDIS_URL_1` | Replit Secret | **Upstash permanent Redis** — dedup set lives here. Required for dedup to persist across restarts. |
+| `REDIS_URL_1` | Replit Secret | **Upstash permanent Redis** — dedup set lives here. Required for dedup to persist across restarts. (Quota exhausted as of 2026-07-24; slot 3 absorbs overflow.) |
 | `REDIS_URL_2` | Replit Secret | **Upstash permanent contact cache** — enriched contact data (email/phone/LinkedIn) lives here. Survives DB resets. Required for contact persistence across GitHub imports. |
+| `REDIS_URL_3` | Replit Secret | **Upstash overflow slot** — third permanent Redis; picked up automatically by the slot scanner (REDIS_URL_1..9). Added 2026-07-24 when slot 1 hit its 500k request quota. |
 | `COMPANIES_HOUSE_API_KEY` | Replit Secret (optional) | UK Companies House officer harvester |
 
 ---

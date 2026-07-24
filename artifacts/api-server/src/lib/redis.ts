@@ -95,13 +95,13 @@ export function getRedisClient(): Redis | null { return _localClient; }
  * In future when Upstash DB_1 fills up, adding REDIS_URL_2 automatically expands capacity.
  */
 export function getPermanentClient(): Redis | null {
-  const alive = _permanentClients.find((c) => c.status === "ready");
+  const alive = _permanentClients.find((c) => c?.status === "ready");
   return alive ?? _localClient;
 }
 
 /** All permanent clients (for sharded writes) */
 export function getAllPermanentClients(): Redis[] {
-  return _permanentClients.filter((c) => c.status === "ready");
+  return _permanentClients.filter((c) => c?.status === "ready");
 }
 
 // ── LOCAL cache helpers (short-lived API responses) ───────────────────────────
