@@ -35,7 +35,7 @@ import { discoverMessengerPresence } from "../lib/enrichment/messenger-discovery
 import { discoverViaFoundationFilings } from "../lib/enrichment/foundation-filings";
 import { runBroadDiscovery } from "../lib/enrichment/broad-discovery";
 import { computeContactConfidence } from "../lib/contact-confidence";
-import { contactCacheSet } from "../lib/redis";
+import { contactCacheSet, contactCacheScanAll, contactCacheCount, type CachedContact } from "../lib/redis";
 import { logger } from "../lib/logger";
 
 const router = Router();
@@ -1141,6 +1141,85 @@ router.post("/ingest/edgar-issuer-backfill", async (_req: Request, res: Response
       }
     }
     logger.info({ updated, total: edgarEntities.length }, "EDGAR issuer backfill complete");
+  })();
+});
+
+// ── POST /ingest/restore-contact-cache ────────────────────────────────────────
+// Re-runs the Upstash slot-2 → PostgreSQL contact restore. Safe to call any
+// time after ingestion has populated the DB; the startup restore often runs
+// before entities exist and misses most records.
+router.post("/ingest/restore-contact-cache", async (_req: Request, res: Response): Promise<void> => {
+  const cacheCount = await contactCacheCount().catch(() => 0);
+  if (cacheCount === 0) {
+    res.json({ restored: 0, total: 0, message: "No entries in contact cache (REDIS_URL_2)." });
+    return;
+  }
+
+  res.json({ message: `Contact cache restore started — ${cacheCount} entries to match against DB.` });
+
+  (async () => {
+    const cached = await contactCacheScanAll().catch(() => [] as { key: string; data: CachedContact }[]);
+    let restored = 0;
+    const CHUNK = 100;
+
+    for (let i = 0; i < cached.length; i += CHUNK) {
+      await Promise.all(cached.slice(i, i + CHUNK).map(async ({ key, data }) => {
+        try {
+          type EntityRow = { id: number; email: string | null; phone: string | null; linkedinUrl: string | null; metadata: string | null };
+          const SEL = { id: entitiesTable.id, email: entitiesTable.email, phone: entitiesTable.phone, linkedinUrl: entitiesTable.linkedinUrl, metadata: entitiesTable.metadata };
+          let entity: EntityRow | undefined;
+
+          if (key.startsWith("faa:")) {
+            const nNum = key.slice(4);
+            entity = await db.select(SEL).from(entitiesTable).where(sql`${entitiesTable.metadata}::jsonb->>'nNumber' = ${nNum}`).limit(1).then(r => r[0]);
+          } else if (key.startsWith("edgar:")) {
+            const slug = key.slice(6);
+            entity = await db.select(SEL).from(entitiesTable).where(sql`regexp_replace(lower(coalesce(${entitiesTable.metadata}::jsonb->>'entityName','')), '[^a-z0-9]+', '_', 'g') = ${slug}`).limit(1).then(r => r[0]);
+          } else if (key.startsWith("brreg:")) {
+            const orgnr = key.slice(6);
+            entity = await db.select(SEL).from(entitiesTable).where(sql`${entitiesTable.metadata}::jsonb->>'orgnr' = ${orgnr}`).limit(1).then(r => r[0]);
+          } else if (key.startsWith("ch:")) {
+            const num = key.slice(3);
+            entity = await db.select(SEL).from(entitiesTable).where(sql`${entitiesTable.metadata}::jsonb->>'companyNumber' = ${num}`).limit(1).then(r => r[0]);
+          } else if (key.startsWith("name:")) {
+            const normalized = key.slice(5).replace(/_/g, " ");
+            entity = await db.select(SEL).from(entitiesTable).where(sql`lower(${entitiesTable.name}) = ${normalized}`).limit(1).then(r => r[0]);
+          } else {
+            return;
+          }
+
+          if (!entity) return;
+          // Only restore if the entity has no contact data yet
+          if (entity.email || entity.phone || entity.linkedinUrl) return;
+
+          const updates: Record<string, unknown> = { updatedAt: new Date() };
+          if (data.email)       updates["email"]       = data.email;
+          if (data.phone)       updates["phone"]       = data.phone;
+          if (data.linkedinUrl) updates["linkedinUrl"] = data.linkedinUrl;
+          updates["contactConfidence"] = data.contactConfidence;
+
+          let meta: Record<string, unknown> = {};
+          try { meta = JSON.parse(entity.metadata ?? "{}"); } catch { /* */ }
+          if (data.website)    meta["website"]    = data.website;
+          if (data.twitter)    meta["twitter"]    = data.twitter;
+          if (data.enrichmentSources?.length) meta["enrichmentSources"] = data.enrichmentSources;
+          if (data.enrichedAt) meta["enrichedAt"] = data.enrichedAt;
+          if (data.emailConfidence != null) meta["emailConfidence"] = data.emailConfidence;
+          if (data.phoneConfidence != null) meta["phoneConfidence"] = data.phoneConfidence;
+          if (data.sourceHits) meta["sourceHits"] = data.sourceHits;
+          meta["enricherVersion"]   = "v2";
+          meta["needsEnrichment"]   = false;
+          meta["restoredFromCache"] = true;
+          updates["metadata"]  = JSON.stringify(meta);
+          updates["liveSource"] = true;
+
+          await db.update(entitiesTable).set(updates as any).where(eq(entitiesTable.id, entity.id));
+          restored++;
+        } catch { /* skip malformed entry */ }
+      }));
+    }
+
+    logger.info({ restored, total: cached.length }, "Manual contact cache restore complete");
   })();
 });
 
