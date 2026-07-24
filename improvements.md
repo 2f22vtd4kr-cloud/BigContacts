@@ -949,7 +949,7 @@ Each button shows a confidence badge (`contactConfidence`) beside it.
 >
 > **Starting point:** The observed direct-contact yield is approximately **2.5% at best**. This is not a single-scraper problem. The current system finds more business, registry, website, and social evidence than it converts into a validated direct contact. Future work must improve the whole funnel: candidate selection → identity resolution → affiliation/domain resolution → public discovery → validation → persistence → measurable follow-up.
 >
-> **Research-phase principle:** This chapter describes lawful public methods, not a current production allowlist or capacity policy. During private development and future re-imports, do not prematurely disable lawful source families or discovery paths; that would reduce the evidence needed to improve recall and understand system capacity. Production safeguards, source allowlists, concurrency limits, retention rules, and public-facing privacy controls belong in a separate release-hardening phase before the system is made public.
+> **Research-phase principle:** This chapter describes lawful public methods, not a current production allowlist or capacity policy. During private development and future re-imports, do not prematurely disable lawful source families or discovery paths; that would reduce the evidence needed to improve recall and understand system capacity. Sources may carry an internal `productionReviewStatus` marker, but that marker is documentation only and must not restrict private research. Production safeguards, source allowlists, concurrency limits, retention rules, and public-facing privacy controls belong in a separate release-hardening phase before the system is made public.
 
 ### J0 — Establish the Measurement Contract Before Expanding Sources
 
@@ -1021,7 +1021,8 @@ Each button shows a confidence badge (`contactConfidence`) beside it.
 
 **Implementation:**
 
-- Create a source matrix with jurisdiction, entity identifier, person/officer fields, ownership availability, API/download method, rate limit, licensing, freshness, and legal access notes.
+- Create a source matrix with jurisdiction, entity identifier, person/officer fields, ownership availability, API/download method, rate limit, licensing, freshness, legal access notes, and an internal `productionReviewStatus`.
+- Use non-blocking production-review labels: `review_required`, `reviewed_for_production`, or `not_yet_assessed`. Every new source may run during private development regardless of this label; the label is a reminder for the later public-production review.
 - Implement one registry adapter at a time behind the existing registry-client dispatch pattern.
 - Normalize company numbers, officer names, addresses, dates, and country codes into shared schemas.
 - Keep ownership, officer, registered-agent, and correspondence-address roles distinct. Do not infer that every registered agent is the beneficial owner.
@@ -1092,7 +1093,7 @@ Each button shows a confidence badge (`contactConfidence`) beside it.
 2. Extract candidate URLs, emails, phones, employer names, and handles into a common evidence queue.
 3. Use source-specific parsers and rate limits; cache responses and record empty, blocked, timeout, and parse-failure outcomes.
 4. Treat social profiles as identity evidence unless a direct contact is explicitly public and attributable.
-5. Keep the discovery layer broad during private development. The attachment’s IntelX and paid-aggregator references can be evaluated as separate lawful integrations or source research; deciding which sources, if any, are enabled in public production belongs to the later release-hardening phase, not this roadmap.
+5. Keep the discovery layer broad during private development. The attachment’s IntelX and paid-aggregator references can be evaluated as separate lawful integrations or source research and marked `review_required` internally; the marker must not disable them or alter private-research coverage. Deciding which sources, if any, are enabled in public production belongs to the later release-hardening phase, not this roadmap.
 
 **Gate to J6:** New sources increase validated-contact recall on a manually labeled sample without exceeding the agreed false-attribution threshold.
 
@@ -1169,8 +1170,9 @@ Each button shows a confidence badge (`contactConfidence`) beside it.
 1. Read `replit.md`, `Context.md`, and this Phase J chapter.
 2. Snapshot entity count by registry/type/country; direct, social, organization, and evidence-only counts; a validated-contact precision sample; source errors/timeouts/rate limits; and unresolved identity/domain queues.
 3. Confirm secrets, integrations, database schema, Redis/cache health, and source terms. Never invent missing credentials. Do not turn temporary development capacity issues into permanent source restrictions.
-4. Run a small canary cohort before a full batch.
-5. Compare the canary against the previous baseline before enabling the next phase.
+4. Ensure each source has a non-blocking `productionReviewStatus` marker and, where relevant, a short internal review note covering legal basis, licensing/terms, privacy, reliability, cost, rate limits, retention, and capacity. Do not use the marker as a runtime gate.
+5. Run a small canary cohort before a full batch.
+6. Compare the canary against the previous baseline before enabling the next phase.
 
 **After each re-import:**
 
@@ -1203,7 +1205,7 @@ Each button shows a confidence badge (`contactConfidence`) beside it.
 | **J-8** | J8 graph-assisted contextual discovery | Graph paths beat name-only baseline on labeled cohort |
 | **J-9** | J9 operational checkpoints and source-quality dashboard | Re-import playbook is repeatable and metrics persist |
 
-**Phase J target:** Move from an unqualified ~2.5% contactable headline to a measured, cohort-specific improvement in **validated direct contacts**, while preserving separate counts of social, organization, and evidence-only discoveries. During private development, maximize lawful discovery and measure capacity honestly; before public production, add a separate release-hardening phase that applies the necessary limits and safeguards.
+**Phase J target:** Move from an unqualified ~2.5% contactable headline to a measured, cohort-specific improvement in **validated direct contacts**, while preserving separate counts of social, organization, and evidence-only discoveries. During private development, maximize lawful discovery and measure capacity honestly. Maintain production-review markers internally without using them to restrict research; apply any necessary limits and safeguards only in a later release-hardening phase.
 
 ---
 
