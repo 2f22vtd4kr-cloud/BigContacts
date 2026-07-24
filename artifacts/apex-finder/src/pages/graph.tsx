@@ -489,7 +489,7 @@ export default function GraphViewer() {
           width={width}
           height={height}
           graphData={gData}
-          nodeLabel="label"
+          nodeLabel={() => ""}
           nodeColor={nodeColor}
           nodeRelSize={6}
           linkColor={() => "rgba(255, 255, 255, 0.18)"}

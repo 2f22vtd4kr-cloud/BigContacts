@@ -110,7 +110,7 @@ function IngestorCard({ job, onTrigger }: { job: Job; onTrigger: (id: string) =>
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] font-mono">
               <span className={statusColor(job.status)}>
                 {job.status.toUpperCase()}
-                {isActive && job.progress > 0 && ` · ${job.progress}%`}
+                {isActive && job.progress > 0 && ` · ${Math.min(100, job.progress)}%`}
               </span>
               {job.inserted > 0 && <span className="text-emerald-400">+{job.inserted.toLocaleString()} inserted</span>}
               {job.skipped > 0 && <span className="text-muted-foreground">{job.skipped.toLocaleString()} deduped</span>}
@@ -120,7 +120,7 @@ function IngestorCard({ job, onTrigger }: { job: Job; onTrigger: (id: string) =>
           )}
           {isActive && (
             <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-              <div className="h-full rounded-full bg-primary transition-all duration-500" style={{ width: `${job.progress || 5}%` }} />
+              <div className="h-full rounded-full bg-primary transition-all duration-500" style={{ width: `${Math.min(100, job.progress || 5)}%` }} />
             </div>
           )}
           {job.message && (
@@ -403,7 +403,7 @@ function LiveActivityTab({ jobs }: { jobs: Job[] }) {
                   <div className="text-[10px] font-mono text-muted-foreground truncate">{job.message || `${job.status}…`}</div>
                   {job.progress > 0 && (
                     <div className="h-1 rounded-full bg-primary/20 overflow-hidden mt-1.5">
-                      <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${job.progress}%` }} />
+                      <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${Math.min(100, job.progress)}%` }} />
                     </div>
                   )}
                 </div>

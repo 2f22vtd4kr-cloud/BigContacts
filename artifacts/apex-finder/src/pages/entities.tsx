@@ -152,7 +152,7 @@ function MobileEntityCard({
           </div>
           
           <div className="mb-3">
-            <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-0.5">Contact Vector</div>
+            <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-0.5">Contact Channel</div>
             <div className="text-xs text-foreground font-mono">
               {entity.email ? entity.email : entity.phone ? entity.phone : entity.linkedinUrl ? "LinkedIn" : "No contact trace"}
             </div>
@@ -762,7 +762,7 @@ export default function EntityLedger() {
                       : <Square className="w-3.5 h-3.5" />}
                   </button>
                 </th>
-                {["Name", "Type", "Nationality", "Access", "Contact Vector", "Net Worth"].map((h) => (
+                {["Name", "Type", "Nationality", "Access", "Contact Channel", "Net Worth"].map((h) => (
                   <th key={h} className={cn(
                     "px-4 py-3 text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap",
                     h === "Net Worth" ? "text-right" : "text-left"
