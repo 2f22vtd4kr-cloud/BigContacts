@@ -15,9 +15,9 @@
 - **Local Redis** running on `redis://localhost:6379` — workflow `Redis` running ✅
 - **SESSION_SECRET** — ✅ Set
 - **REDIS_URL** — ✅ Set (local Redis, env var `redis://localhost:6379`)
-- **Upstash Redis (`REDIS_URL_1`)** — ❌ NOT SET — dedup will not persist across restarts; re-ingest will create duplicates
-- **Upstash Redis (`REDIS_URL_2`)** — ❌ NOT SET — contact cache will not persist across restarts; prior enrichment lost
-- **COMPANIES_HOUSE_API_KEY** — ❌ NOT SET — UK Companies House harvester skipped
+- **Upstash Redis (`REDIS_URL_1`)** — ✅ Set (permanent dedup set)
+- **Upstash Redis (`REDIS_URL_2`)** — ✅ Set (permanent contact cache)
+- **COMPANIES_HOUSE_API_KEY** — ✅ Set
 
 ### Workflows running
 | Workflow | Status |
@@ -72,6 +72,7 @@ All 4 Phase I items implemented and live. Build clean (esbuild ⚡ 1183ms). All 
 | 2026-07-24 | Fixed in-house enrichment state handling so website/address-only evidence remains eligible for later contact enrichment; corrected build and restarted API successfully |
 | 2026-07-24 | Improved dashboard live-process bars with process-specific explainer marquees, icon trails, fading edges, mobile stacking, and reduced-motion support; frontend build and canonical workflows verified |
 | 2026-07-24 | Fourth import setup: pnpm install (22.3s), schema pushed, all 4 artifacts registered, Redis+API+Web workflows running, /api/healthz ok; 32,002 entities from FAA+HMLR auto-ingestion; REDIS_URL_1/2 and COMPANIES_HOUSE_API_KEY not yet set |
+| 2026-07-24 | All 3 missing secrets added (REDIS_URL_1, REDIS_URL_2, COMPANIES_HOUSE_API_KEY); API restarted — both Upstash slots confirmed live; 32,102 entities, 5 contactable profiles restored from cache; setup fully complete |
 
 ---
 
