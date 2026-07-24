@@ -10,6 +10,7 @@ import ingestRouter from "./ingest";
 import searchRouter from "./search";
 import improveRouter from "./improve";
 import osintToolsRouter from "./osint-tools";
+import identityRouter from "./identity";
 
 const router: IRouter = Router();
 
@@ -24,5 +25,6 @@ router.use(ingestRouter);
 router.use(searchRouter);
 router.use(improveRouter);
 router.use(osintToolsRouter);
+router.use(identityRouter);
 
 export default router;

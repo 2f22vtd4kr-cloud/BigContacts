@@ -19,6 +19,11 @@ Shared libraries (under `lib/`):
 - `lib/db` — Drizzle ORM + PostgreSQL schema. Run `pnpm --filter @workspace/db run push` to apply migrations.
 - `lib/api-zod` — shared Zod request/response schemas
 
+Phase J3 identity review data is stored in the `identity_bundles` and
+`identity_candidates` tables. `POST /api/identity/resolve` builds deterministic
+name variants and contextual cross-registry candidates; candidates remain
+review-only and are never auto-merged or used to promote contacts.
+
 ---
 
 ## Workflows (Replit-managed)

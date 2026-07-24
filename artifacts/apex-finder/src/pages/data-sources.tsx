@@ -594,6 +594,113 @@ function RegistryMatrixPanel() {
   );
 }
 
+// ─── J3 Identity Resolution Panel ───────────────────────────────────────────
+
+type IdentityStats = {
+  phase: "J3";
+  bundles: number;
+  candidates: Record<string, number>;
+  reviewOnly: boolean;
+};
+
+function IdentityResolutionPanel() {
+  const [stats, setStats] = useState<IdentityStats | null>(null);
+  const [running, setRunning] = useState(false);
+  const [message, setMessage] = useState("");
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const load = () => {
+    apiGet("/api/identity/stats")
+      .then((data) => setStats(data as IdentityStats))
+      .catch(() => setStats(null));
+  };
+
+  useEffect(() => {
+    load();
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, []);
+
+  const run = async () => {
+    if (running) return;
+    setRunning(true);
+    setMessage("Starting review-only identity resolution…");
+    try {
+      const started = await apiPost("/api/identity/resolve", { limit: 5000 }) as { jobId: string };
+      pollRef.current = setInterval(async () => {
+        try {
+          const job = await apiGet(`/api/ingest/job/${started.jobId}`) as JobState;
+          setMessage(job.message);
+          if (job.status === "done" || job.status === "failed") {
+            if (pollRef.current) clearInterval(pollRef.current);
+            pollRef.current = null;
+            setRunning(false);
+            load();
+          }
+        } catch {
+          // Keep the job state visible; the next poll can recover.
+        }
+      }, 2000);
+    } catch (error) {
+      setRunning(false);
+      setMessage(error instanceof Error ? error.message : "Failed to start identity resolution");
+    }
+  };
+
+  const pending = stats?.candidates.pending ?? 0;
+  const confirmed = stats?.candidates.confirmed ?? 0;
+  const rejected = stats?.candidates.rejected ?? 0;
+
+  return (
+    <section className="rounded-xl border border-border bg-card/60 p-4">
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div className="flex items-center gap-2">
+          <UserCheck className="h-4 w-4 text-violet-400" />
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold font-mono uppercase tracking-widest text-violet-400">
+                Identity Resolution
+              </span>
+              <span className="text-[9px] font-mono bg-violet-500/10 text-violet-400 px-1.5 py-0.5 rounded uppercase tracking-wider">
+                J3
+              </span>
+            </div>
+            <p className="text-[10px] font-mono text-muted-foreground mt-1">
+              Build name variants and contextual cross-registry links before contact attribution.
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={run}
+          disabled={running}
+          className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold bg-violet-500/10 text-violet-300 hover:bg-violet-500/20 border border-violet-500/20 disabled:opacity-50 whitespace-nowrap"
+        >
+          {running ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+          {running ? "Resolving…" : "Run J3"}
+        </button>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {[
+          { label: "Bundles", value: stats?.bundles ?? "—", color: "text-cyan-300" },
+          { label: "Pending review", value: pending, color: "text-amber-300" },
+          { label: "Confirmed", value: confirmed, color: "text-emerald-300" },
+          { label: "Rejected", value: rejected, color: "text-muted-foreground" },
+        ].map((item) => (
+          <div key={item.label} className="rounded-lg border border-border/50 bg-muted/10 px-3 py-2">
+            <div className={`text-lg font-bold font-mono ${item.color}`}>{typeof item.value === "number" ? item.value.toLocaleString() : item.value}</div>
+            <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">{item.label}</div>
+          </div>
+        ))}
+      </div>
+      {message && <p className="mt-3 text-[10px] font-mono text-violet-300">{message}</p>}
+      <p className="mt-3 text-[10px] font-mono text-muted-foreground/70">
+        Review-only by design: confirmed candidates do not merge entities or promote contacts automatically.
+      </p>
+    </section>
+  );
+}
+
 // ─── Enrichment Coverage Stats ───────────────────────────────────────────────
 
 function EnrichmentCoverageStats() {
@@ -1909,6 +2016,9 @@ export default function DataSources() {
 
         {/* ── J2 Registry Coverage Matrix ──────────────────────────────────── */}
         <RegistryMatrixPanel />
+
+        {/* ── J3 Identity Resolution ──────────────────────────────────────── */}
+        <IdentityResolutionPanel />
 
         {/* ── Enrichment Coverage Stats ─────────────────────────────────────── */}
         <EnrichmentCoverageStats />

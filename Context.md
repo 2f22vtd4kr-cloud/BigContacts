@@ -8,7 +8,7 @@
 
 ---
 
-## Current State (2026-07-24 18:40 UTC — Phase J2 implementation verified) — Core workflows healthy, 32,000 entities auto-ingested
+## Current State (2026-07-24 19:10 UTC — Phase J3 implementation verified) — Core workflows healthy, fresh import ingestion active
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically ✅
@@ -48,6 +48,15 @@
 - Verified `/api/healthz`, `/api/pipeline/funnel`, `/api/dashboard/stats`, and the Data Sources browser page after applying the development Drizzle schema.
 - Added an unavailable-data guard to the existing Funnel panel so an API/database error renders a stable state instead of crashing the page.
 - Full workspace typechecks still report unrelated pre-existing errors; shared libraries typecheck, focused J2 tests pass (5/5), and API/frontend production builds pass.
+
+### Phase J3 verification (2026-07-24)
+- Added `identity_bundles` and `identity_candidates` schema tables for durable, provenance-backed identity evidence and review-only candidate links.
+- Added deterministic identity bundle construction: normalized names, order/initial variants, registry identifiers, affiliations, locations, asset identifiers, public profile URLs, and source provenance.
+- Added contextual candidate scoring and bounded variant indexing; name-only matches are rejected and no candidate can auto-merge entities or promote a contact.
+- Added `POST /api/identity/resolve`, `GET /api/identity/stats`, `GET /api/identity/candidates`, and `PATCH /api/identity/candidates/:id`.
+- Added the J3 Identity Resolution panel to Data Sources with a review-only run control and pending/confirmed/rejected counts.
+- Applied the development schema, API build, frontend build, focused registry tests, and focused J3 resolver tests successfully. Live `/api/healthz` and `/api/identity/stats` respond successfully; fresh import currently reports zero bundles/candidates while ingestion repopulates the database.
+- Full API typecheck still contains unrelated pre-existing errors outside J3; J3-specific type errors are cleared.
 
 ### Measured live state (2026-07-24 13:59 UTC)
 - Entities: **0 visible in fresh database** | Assets: **0 visible** | Relationships: **0**
@@ -106,6 +115,7 @@ All 4 Phase I items implemented and live. Build clean (esbuild ⚡ 1183ms). All 
 | 2026-07-24 | Clarified Phase J as a lawful research-phase roadmap rather than a current source or capacity allowlist; lawful discovery remains broad during private development, while public-production limits and safeguards are deferred to separate release hardening |
 | 2026-07-24 | Added non-blocking `productionReviewStatus` source markers (`review_required`, `reviewed_for_production`, `not_yet_assessed`); markers are internal review reminders only and do not restrict private research or alter source coverage |
 | 2026-07-24 18:40 | Phase J2 verified: restored frozen dependencies and development schema, added BRREG/ARES/BODACC live registry coverage with normalization fixtures, verified all three live adapters plus `/api/registry-matrix`, fixed Funnel API error-state rendering, and confirmed API/web workflows and Data Sources preview |
+| 2026-07-24 19:10 | Phase J3 implemented: added deterministic identity bundles, review-only cross-registry candidate scoring, durable provenance tables, identity review APIs, Data Sources controls, focused resolver tests, and verified API/web builds plus live health/stats endpoints |
 
 ---
 

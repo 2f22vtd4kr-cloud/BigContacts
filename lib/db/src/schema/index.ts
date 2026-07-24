@@ -4,3 +4,4 @@ export * from "./relationships";
 export * from "./research_sessions";
 export * from "./improvement_logs";
 export * from "./enrichment_runs";
+export * from "./identity";
