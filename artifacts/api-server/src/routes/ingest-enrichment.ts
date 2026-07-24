@@ -392,6 +392,9 @@ router.post("/ingest/in-house-enrich", async (req: Request, res: Response): Prom
       email: entitiesTable.email,
       phone: entitiesTable.phone,
       linkedinUrl: entitiesTable.linkedinUrl,
+      twitterHandle: entitiesTable.twitterHandle,
+      instagramHandle: entitiesTable.instagramHandle,
+      telegramHandle: entitiesTable.telegramHandle,
     })
     .from(entitiesTable)
     .where(and(...conditions))
@@ -437,11 +440,16 @@ router.post("/ingest/in-house-enrich", async (req: Request, res: Response): Prom
         if (result.email && !entity.email) updates["email"] = result.email;
         if (result.linkedinUrl && !entity.linkedinUrl) updates["linkedinUrl"] = result.linkedinUrl;
         if (result.phone && !entity.phone) updates["phone"] = result.phone;
+        // Write twitter handle to entity column so it contributes to contactConfidence
+        if (result.twitter && !entity.twitterHandle) updates["twitterHandle"] = result.twitter;
 
         const confidence = computeContactConfidence({
           email:           (updates["email"] as string | null) ?? entity.email ?? null,
           phone:           (updates["phone"] as string | null) ?? entity.phone ?? null,
           linkedinUrl:     (updates["linkedinUrl"] as string | null) ?? entity.linkedinUrl ?? null,
+          twitterHandle:   (updates["twitterHandle"] as string | null) ?? entity.twitterHandle ?? null,
+          instagramHandle: entity.instagramHandle ?? null,
+          telegramHandle:  entity.telegramHandle ?? null,
           knownResidences: entity.knownResidences,
         });
         updates["contactConfidence"] = confidence;
@@ -1048,6 +1056,74 @@ router.delete("/ingest/broad-discovery-lock", async (_req: Request, res: Respons
   await updateJob(jobId, { status: "failed", message: "Process killed (server restart).", finishedAt: new Date().toISOString() } as any);
   await setActiveJob("broad-discovery", "");
   res.json({ cleared: true, jobId });
+});
+
+// ── POST /ingest/edgar-issuer-backfill ────────────────────────────────────────
+// Retroactively populate metadata.companyName (the issuer) for EDGAR entities that
+// were ingested before the harvester stored it. Fetches EFTS for each entity by name.
+router.post("/ingest/edgar-issuer-backfill", async (_req: Request, res: Response): Promise<void> => {
+  const edgarEntities = await db
+    .select({ id: entitiesTable.id, name: entitiesTable.name, metadata: entitiesTable.metadata })
+    .from(entitiesTable)
+    .where(sql`(${entitiesTable.sourceRegistries}::text ILIKE '%edgar%' OR ${entitiesTable.metadata}::text ILIKE '%sec-edgar%') AND ${entitiesTable.metadata}::text NOT LIKE '%companyName%'`);
+
+  if (!edgarEntities.length) {
+    res.json({ updated: 0, total: 0, message: "All EDGAR entities already have companyName set." });
+    return;
+  }
+
+  const EDGAR_HEADERS = {
+    Accept: "application/json",
+    "User-Agent": "ApexFinder/1.0 OSINT-Research research@apexfinder.private",
+  };
+  const isCorporate = (n: string) =>
+    /\b(inc|llc|lp|ltd|corp|fund|trust|capital|management|advisors|partners|holdings|group|associates|co\.|company|gmbh|ag|sa|bv|nv|plc|asa|ab|oy)\b/i.test(n);
+
+  let updated = 0;
+
+  res.json({
+    total: edgarEntities.length,
+    message: `EDGAR issuer backfill started for ${edgarEntities.length} entities — runs in background.`,
+  });
+
+  (async () => {
+    for (const entity of edgarEntities) {
+      try {
+        const meta = safeParseJson<Record<string, unknown>>(entity.metadata, {});
+        const formType = ((meta["formType"] as string) ?? "SC 13D").replace(/\s+/g, "+");
+        const name = entity.name ?? "";
+
+        const url =
+          `https://efts.sec.gov/LATEST/search-index` +
+          `?q=${encodeURIComponent(`"${name}"`)}&forms=${encodeURIComponent(formType)}&dateRange=custom&startdt=2015-01-01&from=0`;
+
+        const resp = await fetch(url, { headers: EDGAR_HEADERS, signal: AbortSignal.timeout(10_000) });
+        if (!resp.ok) continue;
+        const data = await resp.json() as any;
+        const hits: any[] = data?.hits?.hits ?? [];
+
+        for (const hit of hits) {
+          const displayNames: string[] = hit?._source?.display_names ?? [];
+          const cleanNames = displayNames.map((d: string) => d.replace(/\s*\(CIK\s*\d+\)\s*$/i, "").trim());
+          const issuer = cleanNames.find((n: string) => n && n.length > 2 && isCorporate(n));
+          if (issuer) {
+            meta["companyName"] = issuer;
+            await db.update(entitiesTable)
+              .set({ metadata: JSON.stringify(meta) })
+              .where(eq(entitiesTable.id, entity.id));
+            updated++;
+            logger.info({ entityId: entity.id, name, issuer }, "EDGAR issuer backfill: companyName set");
+            break;
+          }
+        }
+
+        await new Promise(r => setTimeout(r, 150)); // EDGAR: ~6 req/s max
+      } catch (err: any) {
+        logger.warn({ entityId: entity.id, err: err.message }, "EDGAR issuer backfill: fetch failed");
+      }
+    }
+    logger.info({ updated, total: edgarEntities.length }, "EDGAR issuer backfill complete");
+  })();
 });
 
 export default router;

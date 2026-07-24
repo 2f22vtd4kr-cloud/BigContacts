@@ -122,11 +122,12 @@ async function* harvestSecEdgar13DG(maxCount: number): AsyncGenerator<HarvestedP
         const src = hit?._source ?? {};
 
         // EDGAR EFTS API uses display_names array: ["COMPANY (CIK xxx)", "PERSON NAME (CIK xxx)"]
-        // Extract all person-like names from the array
+        // Extract all person-like names AND the issuer company name from the array
         const displayNames: string[] = src?.display_names ?? [];
-        const personNames = displayNames
-          .map((d: string) => d.replace(/\s*\(CIK\s*\d+\)\s*$/i, "").trim())
-          .filter((n: string) => n && n.toLowerCase() !== "unknown" && looksLikePerson(n));
+        const allCleanNames = displayNames.map((d: string) => d.replace(/\s*\(CIK\s*\d+\)\s*$/i, "").trim());
+        const personNames = allCleanNames.filter((n: string) => n && n.toLowerCase() !== "unknown" && looksLikePerson(n));
+        // The issuer is the non-person display_name — the company whose stock is being reported on
+        const companyIssuer = allCleanNames.find((n: string) => n && n.length > 2 && !looksLikePerson(n)) ?? null;
 
         if (personNames.length === 0) continue;
 
@@ -154,6 +155,7 @@ async function* harvestSecEdgar13DG(maxCount: number): AsyncGenerator<HarvestedP
               fileDate,
               bizLocation,
               entityName: rawName,
+              ...(companyIssuer ? { companyName: companyIssuer } : {}),
               edgarUrl: `https://www.sec.gov/cgi-bin/browse-edgar?company=${encodeURIComponent(rawName)}&CIK=&type=${formType}&dateb=&owner=include&count=10&search_text=&action=getcompany`,
             },
             signals: {

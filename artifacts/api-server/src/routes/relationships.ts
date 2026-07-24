@@ -845,8 +845,8 @@ router.post("/relationships/semantic-dedup", async (_req, res): Promise<void> =>
     .where(sql`${relationshipsTable.relationshipType} = 'LIKELY_SAME_PERSON'`);
   const existingSet = new Set(existing.map((r) => `${r.src}-${r.tgt}`));
 
-  // I2: lowered from 0.93 → 0.87; token overlap guard prevents false positives
-  const SIMILARITY_THRESHOLD = 0.87;
+  // I2: lowered from 0.93 → 0.87 → 0.82; token overlap guard prevents false positives
+  const SIMILARITY_THRESHOLD = 0.82;
   const MAX_PER_REGISTRY = 10_000;
 
   let created = 0;
@@ -876,8 +876,8 @@ router.post("/relationships/semantic-dedup", async (_req, res): Promise<void> =>
 
           if (dot < SIMILARITY_THRESHOLD) continue;
 
-          // I2: token overlap guard — must share ≥ 2 significant name tokens (prevents city/state false positives)
-          if (!hasEnoughSharedTokens(nameById.get(idA) ?? "", nameById.get(idB) ?? "", 2)) continue;
+          // I2: token overlap guard — must share ≥ 1 significant name token (lowered from 2 for cross-registry recall)
+          if (!hasEnoughSharedTokens(nameById.get(idA) ?? "", nameById.get(idB) ?? "", 1)) continue;
 
           const src = Math.min(idA, idB);
           const tgt = Math.max(idA, idB);
@@ -921,7 +921,7 @@ router.post("/relationships/auto-detect-edgar-coinvestor", async (_req, res): Pr
   const entities = await db
     .select({ id: entitiesTable.id, metadata: entitiesTable.metadata })
     .from(entitiesTable)
-    .where(sql`${entitiesTable.type} IN ('HNWI', 'Gatekeeper') AND ${entitiesTable.metadata}::text LIKE '%sec-edgar%'`);
+    .where(sql`${entitiesTable.type} IN ('HNWI', 'Gatekeeper') AND (${entitiesTable.sourceRegistries}::text ILIKE '%edgar%' OR ${entitiesTable.metadata}::text ILIKE '%sec-edgar%')`);
 
   const companyIndex = new Map<string, number[]>();
   for (const e of entities) {
@@ -1037,7 +1037,15 @@ router.post("/relationships/name-exact-dedup", async (_req, res): Promise<void> 
     .from(entitiesTable)
     .where(and(isNotNull(entitiesTable.sourceRegistries), isNotNull(entitiesTable.name)));
 
-  const byName = new Map<string, Array<{ id: number; registry: string }>>();
+  // Sort tokens alphabetically to handle LAST FIRST vs FIRST LAST name order across registries
+  // e.g. FAA "SMITH JOHN A" stored as "smith john a", EDGAR "John A Smith" stored as "john a smith"
+  // Both normalise to sorted "a john smith" → match
+  function sortedNameKey(name: string): string {
+    return name.trim().toLowerCase().replace(/\s+/g, " ")
+      .split(" ").filter(Boolean).sort().join(" ");
+  }
+
+  const byName = new Map<string, Array<{ id: number; registry: string; originalNorm: string }>>();
   for (const e of entities) {
     const norm = (e.name ?? "").trim().toLowerCase().replace(/\s+/g, " ");
     if (!norm || norm.length < 4) continue;
@@ -1045,9 +1053,10 @@ router.post("/relationships/name-exact-dedup", async (_req, res): Promise<void> 
     let srcs: string[] = [];
     try { srcs = JSON.parse(e.sourceRegistries ?? "[]"); } catch {}
     const registry = (srcs[0] ?? "unknown").toLowerCase().split(/[\s\-:]/)[0]!.slice(0, 20);
-    const arr = byName.get(norm) ?? [];
-    arr.push({ id: e.id, registry });
-    byName.set(norm, arr);
+    const key = sortedNameKey(e.name ?? "");
+    const arr = byName.get(key) ?? [];
+    arr.push({ id: e.id, registry, originalNorm: norm });
+    byName.set(key, arr);
   }
 
   const existing = await db

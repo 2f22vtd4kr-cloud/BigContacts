@@ -1188,7 +1188,21 @@ export async function enrichInHouse(entity: InHouseEnrichInput): Promise<InHouse
     }
   }
 
-  // Recalculate derived variables using the (possibly resolved) name
+  // ── Tier 2 name reversal: FAA stores registrant names as "Last First [Middle]" ──
+  // After normaliseName the name is title-cased but still in Last-First order.
+  // Swap to "First [Middle] Last" so DDG/LinkedIn/domain searches match correctly.
+  if (tier === 2) {
+    const parts = name.split(/\s+/);
+    if (parts.length === 2) {
+      name = `${parts[1]!} ${parts[0]!}`;
+    } else if (parts.length === 3) {
+      // FAA "Last First Middle" → "First Middle Last"
+      name = `${parts[1]!} ${parts[2]!} ${parts[0]!}`;
+    }
+    // 4+ word names are likely trust/company names — leave as-is
+  }
+
+  // Recalculate derived variables using the (possibly resolved / reversed) name
   const isIndividual = (tier === 3 && /^[A-Z][a-z]+ [A-Z]/.test(name))  // resolved person
     || entity.type === "HNWI" || entity.type === "Gatekeeper"
     || /^[A-Z][a-z]+ [A-Z]/.test(name);
