@@ -50,6 +50,17 @@ The dashboard uses two deliberately separate scores: **Signal** reflects the str
 | `REDIS_URL_4` | Replit Secret | **Upstash overflow slot** — fourth permanent Redis; added 2026-07-24 for additional quota headroom. |
 | `COMPANIES_HOUSE_API_KEY` | Replit Secret (optional) | UK Companies House officer harvester |
 
+### Adding a new Upstash Redis slot
+
+When any slot hits its 500,000-request free quota, add a fresh Upstash database as the next numbered slot:
+
+1. Create a new database at [upstash.com](https://upstash.com) → copy its Redis URL (`rediss://...`)
+2. Add it as a Replit Secret: `REDIS_URL_5`, `REDIS_URL_6`, etc. (continue the sequence)
+3. Restart the **API Server** workflow — the slot scanner (`REDIS_URL_1` → `REDIS_URL_9`) picks it up automatically, no code changes needed
+4. Confirm the new slot appears in the startup logs: `Permanent Redis connected slot: N`
+
+The exhausted slot will keep retrying in the background (non-fatal); healthy slots are preferred automatically by `getPermanentClient()`.
+
 ---
 
 ## Database Schema
