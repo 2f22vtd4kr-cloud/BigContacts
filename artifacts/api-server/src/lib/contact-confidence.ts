@@ -70,7 +70,13 @@ export function computeContactOutcome(entity: {
   telegramHandle?: string | null;
   website?: string | null;        // from metadata["website"]
   bizLocation?: string | null;    // from metadata["bizLocation"]
+  validatedDirectContact?: boolean;
 }): ContactOutcome {
+  if (
+    entity.validatedDirectContact &&
+    (entity.email?.trim() || entity.phone?.trim())
+  ) return "direct_contact_verified";
+
   // Direct contact vectors are the only terminal outcome
   if (entity.email?.trim() || entity.phone?.trim()) return "direct_contact_candidate";
 

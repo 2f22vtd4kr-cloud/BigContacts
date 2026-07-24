@@ -701,6 +701,147 @@ function IdentityResolutionPanel() {
   );
 }
 
+// ─── Phase J completion controls ─────────────────────────────────────────────
+
+type PhaseJStatus = {
+  implementation?: Record<string, boolean>;
+  latestRun?: {
+    id: number;
+    pass: string | null;
+    totalSelected: number;
+    directConfirmed: number;
+    directVerified: number;
+    candidateValidated: number;
+    candidateAttributed: number;
+    socialOnly: number;
+    evidenceOnly: number;
+    errors: number;
+  } | null;
+  latestCheckpoint?: { name: string; totalEntities: number; directVerified: number } | null;
+};
+
+function PhaseJCompletionPanel() {
+  const [status, setStatus] = useState<PhaseJStatus | null>(null);
+  const [running, setRunning] = useState(false);
+  const [message, setMessage] = useState("");
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const load = () => {
+    apiGet("/api/pipeline/phase-j/status")
+      .then((data) => setStatus(data as PhaseJStatus))
+      .catch(() => setStatus(null));
+  };
+
+  useEffect(() => {
+    load();
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, []);
+
+  const runPass = async () => {
+    if (running) return;
+    setRunning(true);
+    setMessage("Starting a budgeted Phase J follow-up pass…");
+    try {
+      const started = await apiPost("/api/ingest/phase-j-pass", { batchSize: 25, pass: "retry" }) as { jobId: string | null; total: number };
+      if (!started.jobId) {
+        setMessage(started.total === 0 ? "No candidates are due for another pass." : "No Phase J job was created.");
+        setRunning(false);
+        load();
+        return;
+      }
+      pollRef.current = setInterval(async () => {
+        try {
+          const job = await apiGet(`/api/ingest/job/${started.jobId}`) as JobState;
+          setMessage(job.message);
+          if (job.status === "done" || job.status === "failed") {
+            if (pollRef.current) clearInterval(pollRef.current);
+            pollRef.current = null;
+            setRunning(false);
+            load();
+          }
+        } catch {
+          // The next poll can recover from a transient API/network error.
+        }
+      }, 2000);
+    } catch (error) {
+      setRunning(false);
+      setMessage(error instanceof Error ? error.message : "Failed to start Phase J");
+    }
+  };
+
+  const checkpoint = async () => {
+    try {
+      await apiPost("/api/pipeline/phase-j/checkpoint", { name: "manual-phase-j-checkpoint" });
+      setMessage("Checkpoint saved — the current funnel is now comparable across re-imports.");
+      load();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Failed to save checkpoint");
+    }
+  };
+
+  const run = status?.latestRun;
+  return (
+    <section className="rounded-xl border border-border bg-card/60 p-4">
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div className="flex items-center gap-2">
+          <Rocket className="h-4 w-4 text-emerald-400" />
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold font-mono uppercase tracking-widest text-emerald-400">
+                Phase J Completion
+              </span>
+              <span className="text-[9px] font-mono bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded uppercase tracking-wider">
+                J4–J9
+              </span>
+            </div>
+            <p className="text-[10px] font-mono text-muted-foreground mt-1">
+              Validated provenance, retry state, graph context, and re-import checkpoints.
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={checkpoint}
+            className="rounded-lg px-3 py-2 text-xs font-semibold border border-border text-muted-foreground hover:text-foreground"
+          >
+            Save checkpoint
+          </button>
+          <button
+            onClick={runPass}
+            disabled={running}
+            className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 border border-emerald-500/20 disabled:opacity-50 whitespace-nowrap"
+          >
+            {running ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+            {running ? "Running…" : "Run follow-up"}
+          </button>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+        {[
+          ["Selected", run?.totalSelected ?? 0, "text-foreground"],
+          ["Direct candidates", run?.directConfirmed ?? 0, "text-amber-300"],
+          ["Validated", run?.candidateValidated ?? 0, "text-cyan-300"],
+          ["Attributed", run?.candidateAttributed ?? 0, "text-emerald-300"],
+          ["Errors", run?.errors ?? 0, "text-rose-300"],
+        ].map(([label, value, color]) => (
+          <div key={String(label)} className="rounded-lg border border-border/50 bg-muted/10 px-3 py-2">
+            <div className={`text-lg font-bold font-mono ${color}`}>{Number(value).toLocaleString()}</div>
+            <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">{label}</div>
+          </div>
+        ))}
+      </div>
+      {status?.latestCheckpoint && (
+        <p className="mt-3 text-[10px] font-mono text-muted-foreground">
+          Last checkpoint: {status.latestCheckpoint.name} · {status.latestCheckpoint.totalEntities.toLocaleString()} entities · {status.latestCheckpoint.directVerified.toLocaleString()} verified direct contacts
+        </p>
+      )}
+      {message && <p className="mt-2 text-[10px] font-mono text-emerald-300">{message}</p>}
+    </section>
+  );
+}
+
 // ─── Enrichment Coverage Stats ───────────────────────────────────────────────
 
 function EnrichmentCoverageStats() {
@@ -2019,6 +2160,9 @@ export default function DataSources() {
 
         {/* ── J3 Identity Resolution ──────────────────────────────────────── */}
         <IdentityResolutionPanel />
+
+        {/* ── J4–J9 Operational completion ─────────────────────────────────── */}
+        <PhaseJCompletionPanel />
 
         {/* ── Enrichment Coverage Stats ─────────────────────────────────────── */}
         <EnrichmentCoverageStats />

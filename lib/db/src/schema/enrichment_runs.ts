@@ -16,6 +16,9 @@ export const enrichmentRunsTable = pgTable("enrichment_runs", {
   finishedAt:          timestamp("finished_at", { withTimezone: true }),
   /** enricher name: "in-house-enrich" | "social-discovery" | "messenger-discovery" | "web-osint" | "foundation-filings" | "deep-web-osint" */
   source:              text("source").notNull(),
+  /** Phase J pass name, e.g. identity, domain, direct-contact, retry. */
+  pass:                text("pass"),
+  cohort:              text("cohort"),
   /** how many entities were selected for this pass */
   totalSelected:       integer("total_selected").notNull().default(0),
   /** how many produced any result (evidence or contact) */
@@ -24,6 +27,11 @@ export const enrichmentRunsTable = pgTable("enrichment_runs", {
   totalPersisted:      integer("total_persisted").notNull().default(0),
   /** direct_contact_candidate or direct_contact_verified outcomes */
   directConfirmed:     integer("direct_confirmed").notNull().default(0),
+  directVerified:      integer("direct_verified").notNull().default(0),
+  identityResolved:    integer("identity_resolved").notNull().default(0),
+  domainResolved:      integer("domain_resolved").notNull().default(0),
+  candidateValidated:  integer("candidate_validated").notNull().default(0),
+  candidateAttributed: integer("candidate_attributed").notNull().default(0),
   /** social_only outcomes (LinkedIn/Twitter/Telegram without email/phone) */
   socialOnly:          integer("social_only").notNull().default(0),
   /** evidence_only outcomes (website/address/filing, no contact) */

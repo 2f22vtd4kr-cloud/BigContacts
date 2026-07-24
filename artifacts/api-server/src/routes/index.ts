@@ -11,6 +11,7 @@ import searchRouter from "./search";
 import improveRouter from "./improve";
 import osintToolsRouter from "./osint-tools";
 import identityRouter from "./identity";
+import phaseJRouter from "./phase-j";
 
 const router: IRouter = Router();
 
@@ -26,5 +27,6 @@ router.use(searchRouter);
 router.use(improveRouter);
 router.use(osintToolsRouter);
 router.use(identityRouter);
+router.use(phaseJRouter);
 
 export default router;
