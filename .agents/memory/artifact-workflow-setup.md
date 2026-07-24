@@ -5,11 +5,16 @@ description: How managed artifact workflows are configured and the port conflict
 
 ## Managed Workflows (current)
 
-All four artifacts are registered and running via artifact-managed workflows:
+When the artifact registry is populated, all four artifacts run via artifact-managed workflows:
 - `artifacts/api-server: API Server` — port 8080, path `/api`
 - `artifacts/apex-finder: web` — Vite frontend, path `/`
 - `artifacts/apex-mobile: expo` — Expo dev server, path `/apex-mobile/`
 - `artifacts/mockup-sandbox: Component Preview Server` — design sandbox, path `/__mockup`
+
+An imported repository can contain the `.replit-artifact/artifact.toml` files while the
+platform artifact registry is empty. In that state, the manually configured workflows
+can still run and serve the app, but artifact-based screenshot/presentation lookup cannot
+resolve the project until registration is repaired.
 
 ## Port conflict history
 
