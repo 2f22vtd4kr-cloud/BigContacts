@@ -8,7 +8,7 @@
 
 ---
 
-## Current State (2026-07-24 — fresh import recovery + measured intelligence pass) — Core workflows healthy, enrichment continuing
+## Current State (2026-07-24 — imported project setup complete) — Core workflows healthy, fresh data loaded
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically ✅
@@ -23,27 +23,27 @@
 | Workflow | Status |
 |---|---|
 | Redis | ✅ Running (port 6379) |
-| API Server | ✅ Running (port 8080) |
-| ApexFinder Web | ✅ Running (port 23695) |
+| artifacts/api-server: API Server | ✅ Running (port 8080) |
+| artifacts/apex-finder: web | ✅ Running (port 23695) |
 
 ### Post-import setup (2026-07-24)
-1. `pnpm install` — all packages installed (20.4s, pnpm v10.26.1)
+1. `pnpm install --frozen-lockfile` — all packages installed (22.4s, pnpm v10.26.1)
 2. `pnpm --filter @workspace/db run push` — schema applied to fresh PostgreSQL DB (`[✓] Changes applied`)
-3. All three workflows restarted and confirmed running
-4. `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":0}}` ✅
-5. DB empty on boot → cold-start auto-recovery triggered: FAA + Western HNWI + broad-discovery ingestion auto-started
-6. All secrets confirmed: REDIS_URL_1, REDIS_URL_2, COMPANIES_HOUSE_API_KEY set
-7. Artifact registration restored for API, web, mobile, and Canvas; screenshot verification now resolves the ApexFinder web preview.
+3. Artifact registry restored for API, web, mobile, and Canvas; duplicate legacy API/Web workflows removed
+4. Canonical artifact-managed Redis, API, and web workflows restarted and confirmed running
+5. `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":0}}` ✅
+6. Fresh database populated by live FAA/HMLR startup ingestion; API now runs populated-DB maintenance
+7. All secrets confirmed: REDIS_URL_1, REDIS_URL_2, COMPANIES_HOUSE_API_KEY set
+8. Browser preview verified at the root ApexFinder route with HTTP 200.
 
-### Measured live state (2026-07-24 05:50 UTC)
-- Entities: **32,101** | Assets: **32,100** | Relationships: **230,647**
-- Contact evidence: **936** profiles with `contactConfidence > 0`; **669** at 40+ confidence; 343 public emails, 613 public phones, 14 LinkedIn URLs
-- Warm-path graph: **228,362 CORPORATE_SERIES** edges across 2,068 clusters; 2,236 HMLR property-area peers; 26 FAA geographic peers; 11 EDGAR co-investor edges; 12 EDGAR co-shareholder edges
-- EDGAR: **100** imported entities; **95** with issuer/company coverage after backfill
-- Research sessions: **544**
-- Contact cache restore: 693 entries restored during the manual pass; current PostgreSQL contact evidence is higher because live deep-web/social/CH maintenance continues
-- Active background work: corrected FAA-targeted in-house enrichment at 150/5,000 with 0 errors; deep-web OSINT active; API and web healthy
-- Honest 9+ assessment: **not yet**. The graph now has meaningful measured warm paths, but contactability remains about 2.9% of entities and the enrichment run is unfinished.
+### Measured live state (2026-07-24 06:10 UTC)
+- Entities: **28,000** | Assets: **28,000** | Relationships: **0**
+- Contact evidence: **642** profiles with `contactConfidence > 0`; 1,293 contact-cache entries available in Upstash slot 2
+- Hot leads: **12,716** | Average Bayesian score: **0.6677** | Enrichment coverage: **1%**
+- FAA: **26,000** loaded | HMLR PPD: **2,000** loaded | Western HNWI: **0** currently loaded
+- Research sessions: **0**
+- Active background work: populated-DB maintenance and contact-cache restore; API and web healthy
+- Honest assessment: **setup is complete; relationship/research enrichment remains pending on this fresh database**.
 
 ### Phase I — Road to 9/10 (implemented 2026-07-23)
 All 4 Phase I items implemented and live. Build clean (esbuild ⚡ 1183ms). All 3 new endpoints verified returning 200:
@@ -66,6 +66,8 @@ All 4 Phase I items implemented and live. Build clean (esbuild ⚡ 1183ms). All 
 | 2026-07-23 | Same-source duplicate review implemented: new cluster endpoint and `/duplicates` tab verified against live data; duplicate candidate self-pair regression fixed; API smoke tests 14/14 passed; API/Web production builds passed |
 | 2026-07-24 | Fresh import boot: pnpm install (20.4s), DB schema push ([✓] Changes applied), Redis+API+Web workflows restarted, /api/healthz → ok (latencyMs:0), all 3 secrets set (REDIS_URL_1/2, COMPANIES_HOUSE_API_KEY), cold-start ingestion auto-started |
 | 2026-07-24 | Imported project setup verified: API health and web root return 200; artifact registration was restored and ApexFinder preview screenshot verified |
+| 2026-07-24 | Imported project setup completed: frozen-lockfile dependencies restored, schema applied, canonical artifact workflows registered and running, duplicate legacy workflows removed, secrets confirmed, and fresh API/web preview verified |
+| 2026-07-24 | Live maintenance continued after setup: 28,000 entities, 28,000 assets, 642 contactable profiles, and 12,716 hot leads measured; relationships and research sessions remain pending |
 | 2026-07-24 | Ran EDGAR issuer backfill and deterministic relationship passes: 228,362 CORPORATE_SERIES, 2,236 PROPERTY_AREA_PEER, 26 GEOGRAPHIC_PEER, 11 EDGAR_CO_INVESTOR, and 12 EDGAR_CO_SHAREHOLDER edges |
 | 2026-07-24 | Restored 693 cached contacts; measured 936 contactable profiles, 343 emails, 613 phones, 100 EDGAR entities, 95 issuer-covered; API/web health and preview verified |
 | 2026-07-24 | Fixed in-house enrichment state handling so website/address-only evidence remains eligible for later contact enrichment; corrected build and restarted API successfully |

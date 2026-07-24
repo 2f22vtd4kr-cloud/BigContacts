@@ -26,10 +26,10 @@ Shared libraries (under `lib/`):
 | Workflow | Command | Must run? |
 |---|---|---|
 | Redis | `redis-server --port 6379 --save '' --appendonly no` | Yes — local cache |
-| `API Server` | `pnpm --filter @workspace/api-server run dev` | Yes |
-| `ApexFinder Web` | `pnpm --filter @workspace/apex-finder run dev` | Yes |
+| `artifacts/api-server: API Server` | `pnpm --filter @workspace/api-server run dev` | Yes |
+| `artifacts/apex-finder: web` | `pnpm --filter @workspace/apex-finder run dev` | Yes |
 | `artifacts/apex-mobile: expo` | `pnpm --filter @workspace/apex-mobile run dev` | Optional |
-| `artifacts/mockup-sandbox` | `pnpm --filter @workspace/mockup-sandbox run dev` | Optional |
+| `artifacts/mockup-sandbox: Component Preview Server` | `pnpm --filter @workspace/mockup-sandbox run dev` | Optional |
 
 The API server `dev` script runs `build` then `start` every time (esbuild, ~1.5s).
 
@@ -66,18 +66,18 @@ Schema push: `pnpm --filter @workspace/db run push`
 
 ---
 
-## Current Data State (verified 2026-07-24 — fresh import measured state)
+## Current Data State (verified 2026-07-24 — fresh import setup)
 
 | Source | Entities | Assets | Notes |
 |---|---|---|---|
-| FAA Releasable Aircraft Registry | 30,000 | 30,000 | Real FAA registry records; ingestion completed with 0 errors. |
+| FAA Releasable Aircraft Registry | 26,000 | 26,000 | Real FAA registry records currently loaded after fresh import startup. |
 | HMLR Price Paid Data (PPD) | 2,000 | 2,000 | Real bulk PPD records in this fresh import; postcode peer detection created 2,236 edges. |
-| Western HNWI + SEC/BRREG/other live sources | 100 EDGAR entities plus live maintenance | 100+ | Included in the live database totals; enrichment and relationship maintenance continue. |
-| **Current measured total** | **32,101** | **32,100** | Relationships: **230,647** · Contact evidence: **936** · Emails: **343** · Phones: **613** · Research sessions: **544** |
+| Western HNWI + SEC/BRREG/other live sources | 0 | 0 | Credentials are configured; this source has not populated the fresh database yet. |
+| **Current measured total** | **28,000** | **28,000** | Relationships: **0** · Contactable profiles: **642** · Hot leads: **12,716** · Research sessions: **0** |
 
-**Post-import cold-start state:** FAA auto-ingest fires first (~73s, ~30k entities). This fresh import completed FAA and a 2,000-record HMLR pass; Western HNWI produced 100 EDGAR entities. Contact cache restores from Upstash slot 2 on every boot. At the 2026-07-24 measurement, 936 profiles had contact evidence and the corrected in-house FAA-targeted enrichment pass remained active at 150/5,000 with 0 errors.
+**Post-import cold-start state:** The fresh import completed the FAA and 2,000-record HMLR passes. API startup now detects the populated database, skips duplicate auto-ingestion, and runs maintenance. Contact cache restores from Upstash slot 2 on every boot; the current measurement has 642 contactable profiles and 1,293 cached entries.
 
-**Honest rating for this fresh import: still below 9+ pending enrichment completion.** The graph now has measured warm paths — 228,362 `CORPORATE_SERIES`, 2,236 `PROPERTY_AREA_PEER`, 26 `GEOGRAPHIC_PEER`, 11 `EDGAR_CO_INVESTOR`, and 12 `EDGAR_CO_SHAREHOLDER` edges — but contact evidence is about 2.9% of entities and the active enrichment pass must finish before a higher outcome-based rating is justified.
+**Honest rating for this fresh import: not yet assessed.** Relationship and research passes have not populated this fresh database yet; enrichment and maintenance can continue through the running API scheduler.
 
 ---
 
