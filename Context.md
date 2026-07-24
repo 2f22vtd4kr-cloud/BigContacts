@@ -8,7 +8,7 @@
 
 ---
 
-## Current State (2026-07-24 14:03 UTC — mobile profile layout corrected) — Core workflows healthy, fresh database empty
+## Current State (2026-07-24 14:27 UTC — fresh import setup complete) — Core workflows healthy, fresh database empty
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically ✅
@@ -78,6 +78,7 @@ All 4 Phase I items implemented and live. Build clean (esbuild ⚡ 1183ms). All 
 | 2026-07-24 | Live maintenance continued after setup: 28,000 entities, 28,000 assets, 642 contactable profiles, and 12,716 hot leads measured; relationships and research sessions remain pending |
 | 2026-07-24 | Ran EDGAR issuer backfill and deterministic relationship passes: 228,362 CORPORATE_SERIES, 2,236 PROPERTY_AREA_PEER, 26 GEOGRAPHIC_PEER, 11 EDGAR_CO_INVESTOR, and 12 EDGAR_CO_SHAREHOLDER edges |
 | 2026-07-24 | Restored 693 cached contacts; measured 936 contactable profiles, 343 emails, 613 phones, 100 EDGAR entities, 95 issuer-covered; API/web health and preview verified |
+| 2026-07-24 | Third import setup: pnpm install (4m 6s), DB schema push ([✓] Changes applied), REDIS_URL_1/REDIS_URL_2/COMPANIES_HOUSE_API_KEY secrets added, Redis+API+Web workflows started, /api/healthz → ok (redis latencyMs:289), dashboard preview screenshot verified. Upstash quota still exhausted (500k limit reached) — ghost job cleanup non-fatal, dedup cleared for fresh ingest. Database empty; cold-start auto-ingestion active. |
 | 2026-07-24 | Fixed in-house enrichment state handling so website/address-only evidence remains eligible for later contact enrichment; corrected build and restarted API successfully |
 | 2026-07-24 | Improved dashboard live-process bars with process-specific explainer marquees, icon trails, fading edges, mobile stacking, and reduced-motion support; frontend build and canonical workflows verified |
 | 2026-07-24 | Fourth import setup: pnpm install (22.3s), schema pushed, all 4 artifacts registered, Redis+API+Web workflows running, /api/healthz ok; 32,002 entities from FAA+HMLR auto-ingestion; REDIS_URL_1/2 and COMPANIES_HOUSE_API_KEY not yet set |

@@ -74,7 +74,7 @@ After a fresh GitHub import, run these steps to get the project running:
 2. **Push DB schema:** `pnpm --filter @workspace/db run push`
 3. **Start workflows:** Redis → API Server → apex-finder web (in that order)
 
-Latest verification (2026-07-24 13:59 UTC): the requested `REDIS_URL_1`, `REDIS_URL_2`, and `COMPANIES_HOUSE_API_KEY` secrets are present; the frozen-lockfile install and schema push completed; Redis, API, and web are healthy; `/api/healthz` reports Redis `ok`; and the root dashboard preview returns 200. This fresh database currently shows the expected empty-state dashboard. The configured Upstash Redis account has exhausted its 500,000-request quota, so persistent dedup/contact-cache cleanup and ingestion operations may be limited until the quota resets or the plan changes.
+Latest verification (2026-07-24 14:27 UTC): the requested `REDIS_URL_1`, `REDIS_URL_2`, and `COMPANIES_HOUSE_API_KEY` secrets are present; the frozen-lockfile install and schema push completed; Redis, API, and web are healthy; `/api/healthz` reports Redis `ok`; and the root dashboard preview returns 200. This fresh database currently shows the expected empty-state dashboard. The configured Upstash Redis account has exhausted its 500,000-request quota, so persistent dedup/contact-cache cleanup and ingestion operations may be limited until the quota resets or the plan changes.
 
 Two fixes were needed after the first import:
 - Added `"pg-cloudflare"` to the `external` list in `artifacts/api-server/build.mjs` (pg optional dep that esbuild couldn't resolve)
