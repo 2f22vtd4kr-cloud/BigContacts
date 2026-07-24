@@ -8,7 +8,7 @@
 
 ---
 
-## Current State (2026-07-24 12:59 UTC — latest import setup complete) — Core workflows healthy, auto-ingestion active
+## Current State (2026-07-24 13:22 UTC — fresh import setup complete) — Core workflows healthy, auto-ingestion active
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically ✅
@@ -77,6 +77,7 @@ All 4 Phase I items implemented and live. Build clean (esbuild ⚡ 1183ms). All 
 | 2026-07-24 | Fourth import setup: pnpm install (22.3s), schema pushed, all 4 artifacts registered, Redis+API+Web workflows running, /api/healthz ok; 32,002 entities from FAA+HMLR auto-ingestion; REDIS_URL_1/2 and COMPANIES_HOUSE_API_KEY not yet set |
 | 2026-07-24 | All 3 missing secrets added (REDIS_URL_1, REDIS_URL_2, COMPANIES_HOUSE_API_KEY); API restarted — both Upstash slots confirmed live; 32,102 entities, 5 contactable profiles restored from cache; setup fully complete |
 | 2026-07-24 | Fifth import setup: pnpm install (25.4s), Redis workflow started, schema pushed ([✓] Changes applied), all 4 artifacts re-registered via verifyAndReplaceArtifactToml, OutreachAssistant missing import fixed in router.tsx, API/web workflows running, /api/healthz ok (redis latencyMs:2), dashboard verified at 11,150 profiles; REDIS_URL_1, REDIS_URL_2, COMPANIES_HOUSE_API_KEY all set |
+| 2026-07-24 13:22 | Fresh import setup: REDIS_URL_1, REDIS_URL_2, COMPANIES_HOUSE_API_KEY added via secrets flow; pnpm install (1m52s); schema pushed ([✓] Changes applied); all 4 artifacts registered; Redis+API+web workflows running; /api/healthz ok (latencyMs:1); dashboard verified at 1,100 profiles with FAA+HMLR+Western HNWI ingestion active; both Upstash slots live |
 | 2026-07-24 | Latest import setup: requested and confirmed REDIS_URL_1, REDIS_URL_2, and COMPANIES_HOUSE_API_KEY through secure secrets flow; restored dependencies, pushed schema, registered all four artifacts, restarted Redis/API/web, verified API health and browser dashboard, and confirmed cold-start auto-ingestion is active |
 | 2026-07-24 | Sixth import setup: pnpm install (1m 59s), schema pushed ([✓] Changes applied), REDIS_URL_1/REDIS_URL_2/COMPANIES_HOUSE_API_KEY added via secrets flow, API restarted — both Upstash slots live, /api/healthz ok (latencyMs:0), dashboard verified at 32,101 profiles (FAA auto-ingested), cold-start Western HNWI + broad discovery active |
 | 2026-07-24 | Imported project setup finalized: secure keys confirmed, frozen-lockfile dependencies restored, Drizzle schema applied, all four artifacts registered, Redis/API/web workflows healthy, API and browser preview checks passed; optional mobile and mockup services remain stopped |
