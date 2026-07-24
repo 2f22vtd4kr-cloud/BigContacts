@@ -31,3 +31,4 @@
 - [Public contact evidence validation](contact-evidence-validation.md) — Validate extracted contacts before PostgreSQL writes, Redis mirroring, and cache restore
 - [Duplicate review guardrails](duplicate-review-guardrails.md) — Deduplicate name tokens before pairing; same-source matches remain review-only
 - [Contact enrichment state](contact-enrichment-state.md) — Website/address evidence is not terminal; only validated contact vectors complete enrichment
+- [Upstash request quota](upstash-request-quota.md) — Persistent Redis can hit its provider request cap while local Redis and API health remain normal
