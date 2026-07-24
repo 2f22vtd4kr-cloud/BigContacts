@@ -163,125 +163,107 @@
   animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
 }
 
-/* ── Process stream bar (live job rails) ───────────────────────────────── */
+/* ── Process atmosphere (live job bars) ─────────────────────────────────── */
 
-.process-stream {
-  --process-accent: #10B981;
+.proc-atmosphere {
+  --proc-accent: #10B981;
   position: absolute;
-  inset: 0;
-  z-index: 1;
+  top: 0; bottom: 0; right: 0;
+  /* Right-corner only — sized to hold longest phrase at full opacity */
+  width: 62%;
   overflow: hidden;
-  isolation: isolate;
-  /* Edge fade — works over any bar background color */
-  -webkit-mask-image: linear-gradient(90deg, transparent 0%, black 10%, black 90%, transparent 100%);
-  mask-image: linear-gradient(90deg, transparent 0%, black 10%, black 90%, transparent 100%);
+  /* 3-D context so per-slot rotateX creates genuine depth illusion */
+  perspective: 220px;
+  perspective-origin: 50% 50%;
+  /*
+   * Left edge dissolves gradually into the progress fill that sits beneath.
+   * Multi-stop gradient so icons don't snap on/off — they ghost in as they
+   * travel rightward from the progress boundary.
+   */
+  -webkit-mask-image: linear-gradient(90deg,
+    transparent      0%,
+    rgba(0,0,0,0.15) 5%,
+    rgba(0,0,0,0.50) 15%,
+    rgba(0,0,0,0.85) 28%,
+    black            42%,
+    black            76%,
+    rgba(0,0,0,0.35) 91%,
+    transparent      100%
+  );
+  mask-image: linear-gradient(90deg,
+    transparent      0%,
+    rgba(0,0,0,0.15) 5%,
+    rgba(0,0,0,0.50) 15%,
+    rgba(0,0,0,0.85) 28%,
+    black            42%,
+    black            76%,
+    rgba(0,0,0,0.35) 91%,
+    transparent      100%
+  );
+  /* Whole atmosphere breathes with activity */
+  animation: proc-breathe 5.5s ease-in-out infinite;
 }
 
-.stream-layer {
+.proc-layer {
   position: absolute;
   inset: 0;
   display: flex;
   align-items: center;
-  overflow: hidden;
+  overflow: hidden;   /* clips oversized near-layer icons — the 3-D crop effect */
   white-space: nowrap;
 }
 
-/* Track: duplicate content fills this element so animating to -50% is a seamless loop */
-.stream-track {
+/*
+ * Scrolling track.
+ * Content is doubled: first half + second half = identical.
+ * Animating to -50% snaps invisibly back to the start.
+ * padding-right matches the gap so the join has correct spacing.
+ */
+.proc-track {
   display: flex;
   align-items: center;
   flex: none;
   width: max-content;
   will-change: transform;
+  /* Duration supplied per-layer via --proc-dur inline CSS variable */
+  animation: proc-scroll var(--proc-dur, 22s) linear infinite;
 }
 
-/* Icons layer — faster, shifted above centre */
-.glyph-track {
-  gap: 22px;
-  color: color-mix(in srgb, var(--process-accent) 82%, white);
-  animation: glyph-stream 16s linear infinite;
-}
-
-/* Text layer — slower, shifted below centre */
-.phrase-track {
-  gap: 54px;
-  color: color-mix(in srgb, var(--process-accent) 38%, #a8b7bd);
-  animation: phrase-stream 34s linear infinite;
-}
-
-.stream-glyphs {
-  z-index: 3;
-}
-
-.stream-phrases {
-  z-index: 2;
-  opacity: .88;
-}
-
-/* Subtle depth sheen on top of both layers */
-.stream-atmosphere {
-  position: absolute;
-  inset: 0;
-  z-index: 4;
-  pointer-events: none;
-  background: linear-gradient(180deg, rgba(255,255,255,.02), transparent 40%, rgba(0,0,0,.06));
-}
-
-/* Individual glyph slots — vertical scatter for visual depth */
-.glyph-slot {
+.proc-slot {
   display: grid;
-  width: 26px;
-  height: 30px;
-  flex: none;
   place-items: center;
-  opacity: .82;
-  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--process-accent) 24%, transparent));
+  flex: none;
+  /* size / opacity / transform / color set inline per slot */
 }
 
-.glyph-slot:nth-child(3n) {
-  transform: translateY(4px);
-  opacity: .5;
-}
+/* phrase layer sits behind the icon layers */
+.proc-phrase-layer { z-index: 0; }
 
-.glyph-slot:nth-child(4n) {
-  transform: translateY(-4px);
-  opacity: .68;
-}
-
-.phrase {
+.proc-phrase {
   display: block;
   flex: none;
   font-family: var(--app-font-mono, ui-monospace, "Space Mono", monospace);
-  font-size: 9px;
-  letter-spacing: .025em;
+  font-size: 8px;
+  letter-spacing: 0.03em;
   line-height: 1;
+  opacity: 0.17;
+  white-space: nowrap;
 }
 
-/*
- * Keyframes: translate from 0 to -50%.
- * The track holds 2× the content, so -50% returns to the exact start — no visible reset.
- * Y offset baked into keyframes keeps each layer at its vertical position throughout.
- */
-@keyframes glyph-stream {
-  from { transform: translate3d(0, -4px, 0); }
-  to   { transform: translate3d(-50%, -4px, 0); }
+@keyframes proc-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
 }
 
-@keyframes phrase-stream {
-  from { transform: translate3d(0, 5px, 0); }
-  to   { transform: translate3d(-50%, 5px, 0); }
-}
-
-@media (max-width: 640px) {
-  .glyph-track  { gap: 18px; animation-duration: 14s; }
-  .phrase-track { gap: 40px; animation-duration: 28s; }
+/* Atmosphere breathes — overall opacity pulses gently to suggest activity */
+@keyframes proc-breathe {
+  0%, 100% { opacity: 0.78; }
+  50%       { opacity: 1.00; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .glyph-track,
-  .phrase-track {
-    animation-play-state: paused;
-  }
+  .proc-track      { animation-play-state: paused; }
+  .proc-atmosphere { animation: none; opacity: 0.9; }
 }
 
 @keyframes pulse-ring {

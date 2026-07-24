@@ -3,7 +3,7 @@ import {
   Radio, Mail, Phone, Network, ChevronRight, Database, Activity, Users,
   Loader2, CheckCircle2, XCircle, Globe, ShieldCheck, BookOpen,
 } from "lucide-react";
-import { useEffect, useState, useRef, useCallback, type ReactNode } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { Link, useLocation } from "wouter";
 import { formatEntityName } from "@/lib/utils";
@@ -427,31 +427,202 @@ function getProcessDescriptor(job: LiveJob): ProcessDescriptor {
   };
 }
 
-function ProcessStreamBar({ job }: { job: LiveJob }) {
+// ── Lean SVG icon used by ProcessAtmosphere ───────────────────────────────────
+
+function GlyphIcon({ kind, sizePx }: { kind: GlyphKind; sizePx: number }) {
+  const sw = sizePx > 28 ? 1.2 : sizePx > 18 ? 1.5 : 1.85;
+  const paths: Record<GlyphKind, ReactNode> = {
+    wikipedia: <><path d="M5 9h4l4 13 3-9 3 9 4-13h4" /><path d="M8 9l-2 0M26 9l2 0" /></>,
+    browser:   <><rect x="4" y="5" width="24" height="21" rx="3" /><path d="M4 11h24M8 8.2h.1M11 8.2h.1M14 8.2h.1" /><path d="m10 17 3 3 6-6" /></>,
+    search:    <><circle cx="14" cy="14" r="7" /><path d="m19 19 7 7M11 14h6M14 11v6" /></>,
+    globe:     <><circle cx="16" cy="16" r="11" /><path d="M5 16h22M16 5c3 3 4 7 4 11s-1 8-4 11c-3-3-4-7-4-11s1-8 4-11Z" /></>,
+    github:    <path d="M16 4a11 11 0 0 0-3.5 21.4c.6.1.8-.3.8-.6v-2.3c-3.1.7-3.8-1.3-3.8-1.3-.5-1.3-1.2-1.6-1.2-1.6-1-.7.1-.7.1-.7 1.1.1 1.7 1.1 1.7 1.1 1 .1 1.6-.8 1.9-1.3.1-.7.4-1.1.7-1.4-2.5-.3-5.1-1.2-5.1-5.4 0-1.2.4-2.2 1.1-3-.1-.3-.5-1.5.1-3.1 0 0 .9-.3 3.1 1.1a10.7 10.7 0 0 1 5.7 0c2.2-1.4 3.1-1.1 3.1-1.1.6 1.6.2 2.8.1 3.1.7.8 1.1 1.8 1.1 3 0 4.2-2.6 5.1-5.1 5.4.4.3.7 1 .7 2v3.1c0 .3.2.7.8.6A11 11 0 0 0 16 4Z" />,
+    dns:       <><rect x="5" y="5" width="9" height="7" rx="1.5" /><rect x="18" y="5" width="9" height="7" rx="1.5" /><rect x="11.5" y="20" width="9" height="7" rx="1.5" /><path d="M9.5 12v4h13v-4M16 16v4" /></>,
+    mail:      <><rect x="4" y="7" width="24" height="18" rx="2" /><path d="m5 9 11 9L27 9" /></>,
+    phone:     <path d="M10 5.5 7.5 7c-1.3.8-1.5 2.6-.8 4.1 2.7 5.7 7.5 10.5 13.2 13.2 1.5.7 3.3.5 4.1-.8l1.5-2.5-5.1-3.1-2 2a18.5 18.5 0 0 1-7.5-7.5l2-2L10 5.5Z" />,
+    plane:     <><path d="m4 17 24-7-7 24-4-13-13-4Z" /><path d="m17 21 7-7" /></>,
+    registry:  <><path d="M6 26V9l10-4 10 4v17M4 26h24M11 13h2M19 13h2M11 18h2M19 18h2M11 23h2M19 23h2" /></>,
+    property:  <><path d="m4 15 12-10 12 10" /><path d="M7 13v13h18V13M12 26v-7h8v7" /></>,
+    company:   <><path d="M7 27V5h12v22M19 12h6v15M11 9h3M11 14h3M11 19h3M22 16h1M22 21h1M5 27h22" /></>,
+    person:    <><circle cx="16" cy="10" r="4" /><path d="M7 27c.8-5 3.7-8 9-8s8.2 3 9 8" /></>,
+    graph:     <><circle cx="7" cy="16" r="3" /><circle cx="24" cy="8" r="3" /><circle cx="24" cy="24" r="3" /><path d="m9.7 14.7 11.6-5.4M9.7 17.3l11.6 5.4" /></>,
+    path:      <><circle cx="7" cy="23" r="2.5" /><circle cx="16" cy="9" r="2.5" /><circle cx="25" cy="18" r="2.5" /><path d="m8.5 21 6-9M18.2 10.5l5 6" /></>,
+    document:  <><path d="M8 4h11l5 5v19H8zM19 4v6h5M12 15h8M12 20h8M12 25h5" /></>,
+  };
+  return (
+    <svg width={sizePx} height={sizePx} viewBox="0 0 32 32"
+      fill="none" stroke="currentColor" strokeWidth={sw}
+      strokeLinecap="round" strokeLinejoin="round"
+      style={{ display: "block" }} aria-hidden="true">
+      {paths[kind]}
+    </svg>
+  );
+}
+
+// ── Seeded RNG + slot builder ──────────────────────────────────────────────────
+
+/** XOR-shift seeded RNG — reproducible layout per job without React state */
+function seededRng(seed: number) {
+  let s = (seed | 0) || 1;
+  return () => {
+    s ^= s << 13; s ^= s >> 17; s ^= s << 5;
+    return (s >>> 0) / 0x100000000;
+  };
+}
+
+type AtmosphereSlot = {
+  kind:   GlyphKind;
+  sizePx: number;
+  opacity: number;
+  /** vertical offset as % of bar height — values >±50% overflow and get clipped */
+  yPct:   number;
+  rotZ:   number;
+  rotX:   number;
+};
+
+/**
+ * Build randomised icon slots for one depth layer.
+ * layer 0 = far / slow / small / barely visible
+ * layer 1 = mid
+ * layer 2 = near / fast / large / overflows bar height for 3-D crop
+ */
+function buildAtmosphereLayer(
+  descriptor: ProcessDescriptor,
+  seed:       number,
+  intensity:  number,   // 0..1
+  layer:      0 | 1 | 2,
+): AtmosphereSlot[] {
+  const rng       = seededRng(seed + layer * 9973);
+  const primary   = descriptor.glyphs[0]?.kind ?? "search";
+  const support   = descriptor.glyphs.slice(1).map(g => g.kind);
+
+  // Density rises with intensity — feels like a wave of icons flooding in
+  const baseCounts  = [4, 5, 3] as const;
+  const extraCounts = [7, 7, 5] as const;
+  const count = baseCounts[layer] + Math.round(intensity * extraCounts[layer]);
+
+  // Size ranges per layer (px). Near layer deliberately overshoots bar height.
+  const sizeRanges: [number, number][] = [[8, 13], [12, 21], [22, 58]];
+  // Base opacity — everything intentionally subtle/dissolved
+  const opBase = [0.05, 0.11, 0.24][layer];
+  // Vertical spread as % of half-height; near layer spills well beyond bar bounds
+  const ySpread  = [26, 50, 105][layer];
+  // Rotation: far is nearly flat, near has dramatic tilts for depth feel
+  const rotZSp   = [5, 15, 46][layer];
+  const rotXSp   = [0, 12, 40][layer];
+
+  return Array.from({ length: count }, (): AtmosphereSlot => {
+    // Primary icon dominates more at high intensity (wave effect)
+    const primaryBias = 0.38 + intensity * 0.40;
+    const kind = rng() < primaryBias
+      ? primary
+      : (support.length ? support[Math.floor(rng() * support.length)] : primary);
+
+    const [sMin, sMax] = sizeRanges[layer];
+    // Skew toward smaller — a few big ones stand out
+    const sizePx  = Math.round(sMin + Math.pow(rng(), 0.55) * (sMax - sMin));
+    const opacity = opBase * (0.35 + rng() * 0.9) * (0.25 + intensity * 0.75);
+    const yPct    = (rng() * 2 - 1) * ySpread;
+    const rotZ    = (rng() * 2 - 1) * rotZSp;
+    const rotX    = (rng() * 2 - 1) * rotXSp;
+    return { kind, sizePx, opacity, yPct, rotZ, rotX };
+  });
+}
+
+// ── ProcessAtmosphere ─────────────────────────────────────────────────────────
+
+/**
+ * Depth-layered, parallax icon field occupying the right ~62% of the progress
+ * bar. Three independent scroll speeds create genuine parallax. Large near-layer
+ * icons overflow the bar height and are clipped by the parent overflow:hidden,
+ * producing the 3-D crop look. Density rises with job.progress to imitate
+ * fluctuating processing intensity. Left edge dissolves into the progress fill.
+ */
+function ProcessAtmosphere({ job }: { job: LiveJob }) {
   const descriptor = getProcessDescriptor(job);
-  const glyphTrack  = [...descriptor.glyphs,  ...descriptor.glyphs];
-  const phraseTrack = [...descriptor.phrases, ...descriptor.phrases];
+  // Floor at 0.15 so there's always ambient activity even at 0%
+  const intensity  = Math.min(1, Math.max(0.15, (job.progress ?? 10) / 100));
+  // Only re-generate slots when the density band changes (not every % tick)
+  const iBand = Math.floor(intensity * 5);
+
+  const seed = useMemo(
+    () => [...(job.id ?? job.kind ?? "x")].reduce((a, c) => a * 31 + c.charCodeAt(0), 1),
+    [job.id, job.kind],
+  );
+
+  const layers = useMemo(
+    () => ([0, 1, 2] as const).map(l => buildAtmosphereLayer(descriptor, seed, intensity, l)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [seed, iBand],
+  );
+
+  // Far → near: slow → fast scroll durations
+  const DURS = ["46s", "23s", "11s"] as const;
+  // Inter-slot gaps per layer; also used as trailing padding for seamless loop
+  const GAPS = [32, 24, 17] as const;
+
+  const doubledPhrases = [...descriptor.phrases, ...descriptor.phrases];
+
   return (
     <div
-      className="process-stream"
-      style={{ "--process-accent": descriptor.color } as React.CSSProperties}
-      aria-label={`${job.label}: ${descriptor.phrases.join(". ")}`}
+      className="proc-atmosphere"
+      style={{ "--proc-accent": descriptor.color } as React.CSSProperties}
+      aria-hidden="true"
     >
-      <div className="stream-layer stream-glyphs" aria-hidden="true">
-        <div className="stream-track glyph-track">
-          {glyphTrack.map((spec, i) => (
-            <span className="glyph-slot" key={i}><ProcessGlyph spec={spec} /></span>
+      {/* Three depth layers — far (0) through near (2) */}
+      {([0, 1, 2] as const).map(l => {
+        const doubled = [...layers[l], ...layers[l]];
+        return (
+          <div key={l} className="proc-layer">
+            <div
+              className="proc-track"
+              style={{
+                gap: GAPS[l],
+                paddingRight: GAPS[l],       // trailing gap = seamless loop, no visible jump
+                "--proc-dur": DURS[l],
+              } as React.CSSProperties}
+            >
+              {doubled.map((slot, i) => (
+                <span
+                  key={i}
+                  className="proc-slot"
+                  style={{
+                    width:   slot.sizePx + 2,
+                    height:  slot.sizePx + 2,
+                    opacity: slot.opacity,
+                    color:   descriptor.color,
+                    // rotateX uses the perspective set on .proc-atmosphere
+                    transform: `translateY(${slot.yPct}%) rotateZ(${slot.rotZ}deg) rotateX(${slot.rotX}deg)`,
+                    filter: l === 2
+                      ? `drop-shadow(0 0 3px color-mix(in srgb, ${descriptor.color} 25%, transparent))`
+                      : undefined,
+                  }}
+                >
+                  <GlyphIcon kind={slot.kind} sizePx={slot.sizePx} />
+                </span>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+
+      {/* Phrase layer — slowest, most dissolved, sits behind icon layers */}
+      <div className="proc-layer proc-phrase-layer">
+        <div
+          className="proc-track"
+          style={{
+            gap: 58,
+            paddingRight: 58,
+            "--proc-dur": "34s",
+          } as React.CSSProperties}
+        >
+          {doubledPhrases.map((phrase, i) => (
+            <span key={i} className="proc-phrase" style={{ color: descriptor.color }}>
+              {phrase}
+            </span>
           ))}
         </div>
       </div>
-      <div className="stream-layer stream-phrases" aria-hidden="true">
-        <div className="stream-track phrase-track">
-          {phraseTrack.map((phrase, i) => (
-            <span className="phrase" key={i}>{phrase}</span>
-          ))}
-        </div>
-      </div>
-      <div className="stream-atmosphere" aria-hidden="true" />
     </div>
   );
 }
@@ -488,7 +659,7 @@ function OperationsRail() {
               <div
                 className="relative flex-1 min-w-0 h-8 rounded-md overflow-hidden"
                 style={{ background: "#1E2332" }}
-                title={job.message || getProcessDescriptor(job).summary}
+                title={job.message || getProcessDescriptor(job).kicker}
               >
                 <div
                   className="absolute inset-y-0 left-0 rounded-md transition-all duration-500"
@@ -497,7 +668,7 @@ function OperationsRail() {
                     background: "linear-gradient(90deg, rgba(16,185,129,0.22), rgba(16,185,129,0.08))",
                   }}
                 />
-                <ProcessStreamBar job={job} />
+                <ProcessAtmosphere job={job} />
               </div>
               <span className="text-sm font-mono w-12 text-right flex-shrink-0" style={{ color: "#10B981" }}>
                 {Math.round(job.progress)}%
@@ -1023,7 +1194,7 @@ function MobileOperationsBanner() {
                     background: `linear-gradient(90deg, ${descriptor.color}33, ${descriptor.color}0d)`,
                   }}
                 />
-                <ProcessStreamBar job={job} />
+                <ProcessAtmosphere job={job} />
               </div>
             </div>
           );
