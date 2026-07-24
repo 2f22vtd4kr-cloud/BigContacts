@@ -15,8 +15,10 @@
 - **Local Redis** running on `redis://localhost:6379` — workflow `Redis` running ✅
 - **SESSION_SECRET** — ✅ Set
 - **REDIS_URL** — ✅ Set (local Redis, env var `redis://localhost:6379`)
-- **Upstash Redis (`REDIS_URL_1`)** — ✅ Set (permanent dedup set)
+- **Upstash Redis (`REDIS_URL_1`)** — ✅ Set (permanent dedup set) — quota exhausted this cycle
 - **Upstash Redis (`REDIS_URL_2`)** — ✅ Set (permanent contact cache)
+- **Upstash Redis (`REDIS_URL_3`)** — ✅ Set (overflow slot 3)
+- **Upstash Redis (`REDIS_URL_4`)** — ✅ Set (overflow slot 4)
 - **COMPANIES_HOUSE_API_KEY** — ✅ Set
 
 ### Workflows running
