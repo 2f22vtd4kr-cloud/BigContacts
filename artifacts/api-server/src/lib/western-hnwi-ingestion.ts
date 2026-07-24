@@ -55,9 +55,13 @@ function normalizeName(name: string): string {
 
 /** Rough heuristic: does this look like a person name (not a fund/company)? */
 function looksLikePerson(name: string): boolean {
-  const corporate = /\b(inc|llc|lp|ltd|corp|fund|trust|capital|management|advisors|partners|holdings|group|associates|co\.|company|gmbh|ag|sa|bv|nv|plc|asa|ab|oy|as\b)\b/i;
+  // EDGAR display names use punctuation inconsistently: "L.P.", "Co.",
+  // "S.A.", etc. Normalize separators before checking corporate suffixes so
+  // investment vehicles are not harvested as people.
+  const normalized = name.replace(/[.,/&()-]+/g, " ");
+  const corporate = /\b(inc|llc|lp|ltd|corp|co|fund|trust|capital|management|advisors|partners|holdings|group|associates|company|gmbh|ag|sa|bv|nv|plc|asa|ab|oy|as)\b/i;
   // Accept if no corporate keywords and has at least two words
-  return !corporate.test(name) && name.trim().split(/\s+/).length >= 2;
+  return !corporate.test(normalized) && name.trim().split(/\s+/).length >= 2;
 }
 
 /** Build a deterministic dedup key */

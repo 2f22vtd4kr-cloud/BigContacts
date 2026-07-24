@@ -1076,8 +1076,12 @@ router.post("/ingest/edgar-issuer-backfill", async (_req: Request, res: Response
     Accept: "application/json",
     "User-Agent": "ApexFinder/1.0 OSINT-Research research@apexfinder.private",
   };
-  const isCorporate = (n: string) =>
-    /\b(inc|llc|lp|ltd|corp|fund|trust|capital|management|advisors|partners|holdings|group|associates|co\.|company|gmbh|ag|sa|bv|nv|plc|asa|ab|oy)\b/i.test(n);
+  const normalizeForComparison = (n: string) =>
+    n.toLowerCase().replace(/\s*\(.*?\)\s*$/g, "").replace(/[^a-z0-9]/g, "");
+  const isCorporate = (n: string) => {
+    const normalized = n.replace(/[.,/&()-]+/g, " ");
+    return /\b(inc|llc|lp|ltd|corp|co|fund|trust|capital|management|advisors|partners|holdings|group|associates|company|gmbh|ag|sa|bv|nv|plc|asa|ab|oy|as)\b/i.test(normalized);
+  };
 
   let updated = 0;
 
@@ -1090,12 +1094,19 @@ router.post("/ingest/edgar-issuer-backfill", async (_req: Request, res: Response
     for (const entity of edgarEntities) {
       try {
         const meta = safeParseJson<Record<string, unknown>>(entity.metadata, {});
-        const formType = ((meta["formType"] as string) ?? "SC 13D").replace(/\s+/g, "+");
-        const name = entity.name ?? "";
+        const formType = String(meta["formType"] ?? "SC 13D").trim();
+        // Preserve the original EDGAR filing name. Maintenance may normalize
+        // the display name to First Last, which is useful in the UI but loses
+        // the registry's exact search token order.
+        const name = String(meta["entityName"] ?? entity.name ?? "").trim();
+        const normalizedEntityName = normalizeForComparison(name);
 
-        const url =
-          `https://efts.sec.gov/LATEST/search-index` +
-          `?q=${encodeURIComponent(`"${name}"`)}&forms=${encodeURIComponent(formType)}&dateRange=custom&startdt=2015-01-01&from=0`;
+        const params = new URLSearchParams({
+          q: `"${name}"`,
+          forms: formType,
+          from: "0",
+        });
+        const url = `https://efts.sec.gov/LATEST/search-index?${params.toString()}`;
 
         const resp = await fetch(url, { headers: EDGAR_HEADERS, signal: AbortSignal.timeout(10_000) });
         if (!resp.ok) continue;
@@ -1105,7 +1116,14 @@ router.post("/ingest/edgar-issuer-backfill", async (_req: Request, res: Response
         for (const hit of hits) {
           const displayNames: string[] = hit?._source?.display_names ?? [];
           const cleanNames = displayNames.map((d: string) => d.replace(/\s*\(CIK\s*\d+\)\s*$/i, "").trim());
-          const issuer = cleanNames.find((n: string) => n && n.length > 2 && isCorporate(n));
+          // The EFTS result includes both the filer and the subject company.
+          // Never write the queried filer back as its own companyName.
+          const issuer = cleanNames.find((n: string) =>
+            n &&
+            n.length > 2 &&
+            normalizeForComparison(n) !== normalizedEntityName &&
+            isCorporate(n),
+          );
           if (issuer) {
             meta["companyName"] = issuer;
             await db.update(entitiesTable)
