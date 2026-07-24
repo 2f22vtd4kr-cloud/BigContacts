@@ -96,7 +96,7 @@ After a fresh GitHub import, run these steps to get the project running:
 2. **Push DB schema:** `pnpm --filter @workspace/db run push`
 3. **Start workflows:** Redis → API Server → apex-finder web (in that order)
 
-Latest verification (2026-07-24 14:27 UTC): the requested `REDIS_URL_1`, `REDIS_URL_2`, and `COMPANIES_HOUSE_API_KEY` secrets are present; the frozen-lockfile install and schema push completed; Redis, API, and web are healthy; `/api/healthz` reports Redis `ok`; and the root dashboard preview returns 200. This fresh database currently shows the expected empty-state dashboard. The configured Upstash Redis account has exhausted its 500,000-request quota, so persistent dedup/contact-cache cleanup and ingestion operations may be limited until the quota resets or the plan changes.
+Latest verification (2026-07-24 19:38 UTC): the requested `REDIS_URL_1`, `REDIS_URL_2`, and `COMPANIES_HOUSE_API_KEY` secrets are present; the frozen-lockfile install and schema push completed; Redis, the canonical artifact-managed API, and the web app are healthy; `/api/healthz` reports Redis `ok`; and the root dashboard preview returns 200. The live dashboard currently shows 11,600 entities and assets, 2,822 hot leads, 0 relationships, and 0 contactable profiles. The configured Upstash Redis account has exhausted its 500,000-request quota, so persistent dedup/contact-cache cleanup and ingestion operations may be limited until the quota resets or the plan changes.
 
 Two fixes were needed after the first import:
 - Added `"pg-cloudflare"` to the `external` list in `artifacts/api-server/build.mjs` (pg optional dep that esbuild couldn't resolve)
@@ -104,16 +104,16 @@ Two fixes were needed after the first import:
 
 ---
 
-## Current Data State (verified 2026-07-24 — latest import setup)
+## Current Data State (verified 2026-07-24 19:38 UTC — latest import setup)
 
 | Source | Entities | Assets | Notes |
 |---|---|---|---|
-| FAA / HMLR / other live sources | In progress | In progress | The latest import starts from a fresh PostgreSQL schema; the API automatically begins public-source ingestion on cold start. |
-| **Current verified state** | **0 visible at initial check** | **0 visible at initial check** | API auto-ingestion is active; counts will grow as background jobs complete. |
+| FAA / HMLR / other live sources | 11,600 | 11,600 | FAA and HMLR cold-start ingestion completed; the API is running maintenance and enrichment passes. |
+| **Current verified state** | **11,600** | **11,600** | 2,822 hot leads; 0 relationships; 0 contactable profiles; 0 active research sessions. |
 
-**Post-import cold-start state:** This latest import has an empty database after schema setup. API startup detected that state, connected to both persistent Upstash Redis slots, cleared stale job locks/dedup state, and started broad discovery plus Western HNWI ingestion. Contact cache restoration is enabled through Upstash slot 2.
+**Post-import cold-start state:** API startup detected the empty database, cleared stale job locks/dedup state, and started broad discovery plus Western HNWI ingestion. FAA and HMLR ingestion then populated 11,600 records. Contact cache restoration remains enabled through Upstash slot 2.
 
-**Honest rating for this fresh import: not yet assessed.** Relationship and research passes depend on the active ingestion jobs completing.
+**Honest rating for this fresh import:** the web dashboard and API are verified and populated with real registry data; relationship and contact-enrichment passes have not yet produced records in this import.
 
 ---
 

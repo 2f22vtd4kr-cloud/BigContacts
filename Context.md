@@ -8,7 +8,7 @@
 
 ---
 
-## Current State (2026-07-24 19:10 UTC — Phase J3 implementation verified) — Core workflows healthy, fresh import ingestion active
+## Current State (2026-07-24 19:38 UTC — imported project setup verified) — Core workflows healthy, live registry data loaded
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically ✅
@@ -31,14 +31,14 @@
 | artifacts/mockup-sandbox: Component Preview Server | ⏸️ Optional / not required for web setup |
 
 ### Post-import setup (2026-07-24, latest import)
-1. `pnpm install` — all packages installed (22.3s, pnpm v10.26.1)
-2. `pnpm --filter @workspace/db run push` — schema applied to fresh PostgreSQL DB (`[✓] Changes applied`)
-3. All 4 artifacts registered via verifyAndReplaceArtifactToml (api-server, apex-finder, apex-mobile, mockup-sandbox)
-4. Canonical artifact-managed Redis, API, and web workflows started
+1. `CI=true pnpm install --frozen-lockfile` — all packages installed (pnpm v10.26.1)
+2. `pnpm --filter @workspace/db run push` — schema applied to PostgreSQL (`[✓] Changes applied`)
+3. All 4 artifacts registered through validated artifact metadata refresh.
+4. Canonical artifact-managed Redis, API, and web workflows started; temporary fallback workflows were removed.
 5. `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":1}}` ✅
-6. Browser preview verified — ApexFinder dashboard loads at the root preview path
-7. `REDIS_URL_1`, `REDIS_URL_2`, and `COMPANIES_HOUSE_API_KEY` confirmed as Replit Secrets; both Upstash slots connected on API startup
-8. Fresh database detected on API startup; stale job locks/dedup state cleared and auto-ingestion started
+6. Browser preview verified — Apex Atlas dashboard loads at the root preview path; screenshot saved at `screenshots/setup-verification.jpg`.
+7. `REDIS_URL_1`, `REDIS_URL_2`, and `COMPANIES_HOUSE_API_KEY` confirmed as Replit Secrets.
+8. Cold-start ingestion completed with 11,600 entities/assets; current dashboard stats show 2,822 hot leads, 0 relationships, 0 contactable profiles, and 0 active research sessions.
 
 ### Phase J2 verification (2026-07-24)
 - Added the Western registry coverage matrix and `GET /api/registry-matrix`.
@@ -108,6 +108,7 @@ All 4 Phase I items implemented and live. Build clean (esbuild ⚡ 1183ms). All 
 | 2026-07-24 | 8 UI/UX fixes: (1) infinite scroll confirmed working; (2) removed duplicate "Preferred" contact badge; (3) added mobile profile header showing entity name + active tab + access badge; (4) fixed map height (clamp 320-520px, explicit on MapContainer); (5) renamed "Bayesian Score"→"Wealth Signal" and "Has direct contact"→"Has contact info" in deep-search; (6) outreach banner/section removed from Research Threads tab, renamed "Outreach Strategy"→"Research Threads"; (7) graph nodeCanvasObjectMode→"replace" eliminates black node text; "Approach Vector"→"How to Approach"; (8) job progress bars: done=green 100%, queued=pulsing, active=clamped ≤100% |
 | 2026-07-24 | Latest import setup: requested and confirmed REDIS_URL_1, REDIS_URL_2, and COMPANIES_HOUSE_API_KEY through secure secrets flow; restored dependencies, pushed schema, registered all four artifacts, restarted Redis/API/web, verified API health and browser dashboard, and confirmed cold-start auto-ingestion is active |
 | 2026-07-24 | Sixth import setup: pnpm install (1m 59s), schema pushed ([✓] Changes applied), REDIS_URL_1/REDIS_URL_2/COMPANIES_HOUSE_API_KEY added via secrets flow, API restarted — both Upstash slots live, /api/healthz ok (latencyMs:0), dashboard verified at 32,101 profiles (FAA auto-ingested), cold-start Western HNWI + broad discovery active |
+| 2026-07-24 19:38 | Imported project setup completed: frozen-lockfile dependencies installed, schema pushed, all four artifact metadata records restored, canonical Redis/API/web workflows running, live dashboard screenshot verified, and FAA/HMLR ingestion produced 11,600 entities/assets |
 | 2026-07-24 | Imported project setup finalized: secure keys confirmed, frozen-lockfile dependencies restored, Drizzle schema applied, all four artifacts registered, Redis/API/web workflows healthy, API and browser preview checks passed; optional mobile and mockup services remain stopped |
 | 2026-07-24 13:59 | Imported project setup reverified after secure key entry: dependencies restored, schema applied, Redis/API/web healthy, `/api/healthz` returned Redis ok, web preview returned 200 and rendered the empty-state dashboard; Upstash persistent Redis reported its 500,000-request quota exhausted |
 | 2026-07-24 14:03 | Fixed mobile profile chrome: removed duplicate profile headers, moved current tab context beside APEX ATLAS in the shared top bar, removed nested profile scrolling, and verified mobile previews plus production frontend build |
