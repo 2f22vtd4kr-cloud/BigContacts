@@ -66,18 +66,16 @@ Schema push: `pnpm --filter @workspace/db run push`
 
 ---
 
-## Current Data State (verified 2026-07-24 — fresh import setup)
+## Current Data State (verified 2026-07-24 — latest import setup)
 
 | Source | Entities | Assets | Notes |
 |---|---|---|---|
-| FAA Releasable Aircraft Registry | 26,000 | 26,000 | Real FAA registry records currently loaded after fresh import startup. |
-| HMLR Price Paid Data (PPD) | 2,000 | 2,000 | Real bulk PPD records in this fresh import; postcode peer detection created 2,236 edges. |
-| Western HNWI + SEC/BRREG/other live sources | 0 | 0 | Credentials are configured; this source has not populated the fresh database yet. |
-| **Current measured total** | **28,000** | **28,000** | Relationships: **0** · Contactable profiles: **642** · Hot leads: **12,716** · Research sessions: **0** |
+| FAA / HMLR / other live sources | In progress | In progress | The latest import starts from a fresh PostgreSQL schema; the API automatically begins public-source ingestion on cold start. |
+| **Current verified state** | **0 visible at initial check** | **0 visible at initial check** | API auto-ingestion is active; counts will grow as background jobs complete. |
 
-**Post-import cold-start state:** The fresh import completed the FAA and 2,000-record HMLR passes. API startup now detects the populated database, skips duplicate auto-ingestion, and runs maintenance. Contact cache restores from Upstash slot 2 on every boot; the current measurement has 642 contactable profiles and 1,293 cached entries.
+**Post-import cold-start state:** This latest import has an empty database after schema setup. API startup detected that state, connected to both persistent Upstash Redis slots, cleared stale job locks/dedup state, and started broad discovery plus Western HNWI ingestion. Contact cache restoration is enabled through Upstash slot 2.
 
-**Honest rating for this fresh import: not yet assessed.** Relationship and research passes have not populated this fresh database yet; enrichment and maintenance can continue through the running API scheduler.
+**Honest rating for this fresh import: not yet assessed.** Relationship and research passes depend on the active ingestion jobs completing.
 
 ---
 

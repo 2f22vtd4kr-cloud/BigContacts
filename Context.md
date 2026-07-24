@@ -8,7 +8,7 @@
 
 ---
 
-## Current State (2026-07-24 — fourth import setup complete) — Core workflows healthy, auto-ingestion active
+## Current State (2026-07-24 — latest import setup complete) — Core workflows healthy, auto-ingestion active
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically ✅
@@ -26,21 +26,22 @@
 | artifacts/api-server: API Server | ✅ Running (port 8080) |
 | artifacts/apex-finder: web | ✅ Running (port 23695) |
 
-### Post-import setup (2026-07-24, fourth import)
+### Post-import setup (2026-07-24, latest import)
 1. `pnpm install` — all packages installed (22.3s, pnpm v10.26.1)
 2. `pnpm --filter @workspace/db run push` — schema applied to fresh PostgreSQL DB (`[✓] Changes applied`)
 3. All 4 artifacts registered via verifyAndReplaceArtifactToml (api-server, apex-finder, apex-mobile, mockup-sandbox)
 4. Canonical artifact-managed Redis, API, and web workflows started
-5. `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":0}}` ✅
-6. Browser preview verified — dashboard loading with 32,002 profiles from auto-ingestion
-7. **REDIS_URL_1, REDIS_URL_2, COMPANIES_HOUSE_API_KEY** not yet set — need user to add them as Replit Secrets
+5. `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":1}}` ✅
+6. Browser preview verified — ApexFinder dashboard loads at the root preview path
+7. `REDIS_URL_1`, `REDIS_URL_2`, and `COMPANIES_HOUSE_API_KEY` confirmed as Replit Secrets; both Upstash slots connected on API startup
+8. Fresh database detected on API startup; stale job locks/dedup state cleared and auto-ingestion started
 
-### Measured live state (2026-07-24 08:52 UTC)
-- Entities: **32,002** | Assets: **32,000** | Relationships: **0** — FAA + HMLR auto-ingested on cold start
-- Contact evidence: **0** profiles (Upstash slot 2 not connected — prior cache unavailable)
-- Research sessions: **0**
-- Active background work: Western HNWI engine running; broad discovery triggered
-- Honest assessment: **app is running; add REDIS_URL_1 + REDIS_URL_2 secrets to restore contact cache and dedup persistence**.
+### Measured live state (2026-07-24 10:49 UTC)
+- Entities: **0 at initial post-schema check** | Assets: **0 at initial post-schema check** | Relationships: **0**
+- Contact evidence: **not yet measured** — cache restoration is enabled through Upstash slot 2
+- Research sessions: **0 at initial check**
+- Active background work: Western HNWI ingestion and broad discovery; semantic engine loading
+- Honest assessment: **app is running and auto-ingestion is active; counts will populate as background jobs complete**.
 
 ### Phase I — Road to 9/10 (implemented 2026-07-23)
 All 4 Phase I items implemented and live. Build clean (esbuild ⚡ 1183ms). All 3 new endpoints verified returning 200:
@@ -74,6 +75,7 @@ All 4 Phase I items implemented and live. Build clean (esbuild ⚡ 1183ms). All 
 | 2026-07-24 | Fourth import setup: pnpm install (22.3s), schema pushed, all 4 artifacts registered, Redis+API+Web workflows running, /api/healthz ok; 32,002 entities from FAA+HMLR auto-ingestion; REDIS_URL_1/2 and COMPANIES_HOUSE_API_KEY not yet set |
 | 2026-07-24 | All 3 missing secrets added (REDIS_URL_1, REDIS_URL_2, COMPANIES_HOUSE_API_KEY); API restarted — both Upstash slots confirmed live; 32,102 entities, 5 contactable profiles restored from cache; setup fully complete |
 | 2026-07-24 | Fifth import setup: pnpm install (25.4s), Redis workflow started, schema pushed ([✓] Changes applied), all 4 artifacts re-registered via verifyAndReplaceArtifactToml, OutreachAssistant missing import fixed in router.tsx, API/web workflows running, /api/healthz ok (redis latencyMs:2), dashboard verified at 11,150 profiles; REDIS_URL_1, REDIS_URL_2, COMPANIES_HOUSE_API_KEY all set |
+| 2026-07-24 | Latest import setup: requested and confirmed REDIS_URL_1, REDIS_URL_2, and COMPANIES_HOUSE_API_KEY through secure secrets flow; restored dependencies, pushed schema, registered all four artifacts, restarted Redis/API/web, verified API health and browser dashboard, and confirmed cold-start auto-ingestion is active |
 
 ---
 
