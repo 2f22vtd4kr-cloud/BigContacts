@@ -383,4 +383,76 @@ router.get("/ingest/jobs", async (_req: Request, res: Response): Promise<void> =
   }
 });
 
+// ── GET /pipeline/funnel — J0 Measurement Contract ───────────────────────────
+// Returns contactOutcome distribution broken down by entity type and registry.
+// Run POST /ingest/backfill-contact-outcomes to populate the column first.
+router.get("/pipeline/funnel", async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const [outcomeRows, byTypeRows, byRegistryRows] = await Promise.all([
+      db.execute(sql`
+        SELECT COALESCE(contact_outcome, 'none') AS outcome, COUNT(*)::int AS count
+        FROM entities GROUP BY contact_outcome ORDER BY count DESC
+      `),
+      db.execute(sql`
+        SELECT type, COALESCE(contact_outcome, 'none') AS outcome, COUNT(*)::int AS count
+        FROM entities GROUP BY type, contact_outcome ORDER BY type, count DESC
+      `),
+      db.execute(sql`
+        SELECT
+          CASE
+            WHEN metadata::text LIKE '%"nNumber"%'        THEN 'faa'
+            WHEN metadata::text LIKE '%"formType"%'       THEN 'edgar'
+            WHEN metadata::text LIKE '%"orgnr"%'          THEN 'brreg'
+            WHEN metadata::text LIKE '%"titleNumber"%'    THEN 'hmlr'
+            WHEN metadata::text LIKE '%"companyNumber"%'  THEN 'companies-house'
+            ELSE 'other'
+          END AS registry,
+          COALESCE(contact_outcome, 'none') AS outcome,
+          COUNT(*)::int AS count
+        FROM entities
+        GROUP BY registry, contact_outcome
+        ORDER BY registry, count DESC
+      `),
+    ]);
+
+    const outcomes: Record<string, number> = {};
+    for (const row of outcomeRows.rows as any[]) outcomes[row.outcome] = row.count;
+
+    const byEntityType: Record<string, Record<string, number>> = {};
+    for (const row of byTypeRows.rows as any[]) {
+      if (!byEntityType[row.type]) byEntityType[row.type] = {};
+      byEntityType[row.type][row.outcome] = row.count;
+    }
+
+    const byRegistry: Record<string, Record<string, number>> = {};
+    for (const row of byRegistryRows.rows as any[]) {
+      if (!byRegistry[row.registry]) byRegistry[row.registry] = {};
+      byRegistry[row.registry][row.outcome] = row.count;
+    }
+
+    const total = Object.values(outcomes).reduce((s, n) => s + n, 0);
+    const directCount = (outcomes["direct_contact_candidate"] ?? 0) + (outcomes["direct_contact_verified"] ?? 0);
+    const socialCount = outcomes["social_only"] ?? 0;
+    const evidenceCount = outcomes["evidence_only"] ?? 0;
+    const noneCount = outcomes["none"] ?? 0;
+
+    res.json({
+      total,
+      outcomes,
+      byEntityType,
+      byRegistry,
+      conversionRate: {
+        toDirectCandidate: total > 0 ? +(directCount / total).toFixed(4) : 0,
+        toSocialOnly:      total > 0 ? +(socialCount / total).toFixed(4) : 0,
+        toEvidenceOnly:    total > 0 ? +(evidenceCount / total).toFixed(4) : 0,
+        notEnriched:       total > 0 ? +(noneCount / total).toFixed(4) : 0,
+      },
+      phase: "J0",
+      note: "Run POST /api/ingest/backfill-contact-outcomes to populate contactOutcome for all existing entities.",
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message ?? "Funnel query failed" });
+  }
+});
+
 export default router;

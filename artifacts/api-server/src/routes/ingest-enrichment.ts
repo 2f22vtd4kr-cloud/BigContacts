@@ -34,7 +34,7 @@ import { discoverSocialPresence } from "../lib/enrichment/social-discovery";
 import { discoverMessengerPresence } from "../lib/enrichment/messenger-discovery";
 import { discoverViaFoundationFilings } from "../lib/enrichment/foundation-filings";
 import { runBroadDiscovery } from "../lib/enrichment/broad-discovery";
-import { computeContactConfidence } from "../lib/contact-confidence";
+import { computeContactConfidence, computeContactOutcome } from "../lib/contact-confidence";
 import { contactCacheSet, contactCacheScanAll, contactCacheCount, type CachedContact } from "../lib/redis";
 import { logger } from "../lib/logger";
 
@@ -429,7 +429,11 @@ router.post("/ingest/in-house-enrich", async (req: Request, res: Response): Prom
           entityName:  (entityMeta["entityName"] as string | null) ?? null,
         };
         const result = await enrichInHouse(enrichInput);
-        const hasContactSignal = Boolean(result.email || result.linkedinUrl || result.phone || result.twitter);
+        // J1: Separate direct-contact signals from social presence.
+        // Only email/phone are terminal enrichment states; LinkedIn/Twitter keep entity eligible.
+        const hasDirectContact = Boolean(result.email || result.phone);
+        const hasSocialSignal  = Boolean(result.linkedinUrl || result.twitter);
+        const hasContactSignal = hasDirectContact || hasSocialSignal;
         const hasEvidence = Boolean(hasContactSignal || result.website || result.address);
         if (!hasEvidence) return "skipped";
 
@@ -467,13 +471,27 @@ router.post("/ingest/in-house-enrich", async (req: Request, res: Response): Prom
         meta["emailConfidence"] = result.emailConfidence;
         meta["phoneConfidence"] = result.phoneConfidence;
         meta["sourceHits"]      = { ...(meta["sourceHits"] as object ?? {}), ...result.sourceHits };
-        // A website or registered address is useful evidence, but it is not
-        // contactability. Keep the entity eligible for a later pass until a
-        // real public contact vector is found.
-        if (hasContactSignal) {
+        // J0: Compute and store outcome label for funnel measurement.
+        const outcome = computeContactOutcome({
+          email:       (updates["email"]       as string | null | undefined) ?? entity.email,
+          phone:       (updates["phone"]       as string | null | undefined) ?? entity.phone,
+          linkedinUrl: (updates["linkedinUrl"] as string | null | undefined) ?? entity.linkedinUrl,
+          twitterHandle: (updates["twitterHandle"] as string | null | undefined) ?? entity.twitterHandle,
+          instagramHandle: entity.instagramHandle,
+          telegramHandle:  entity.telegramHandle,
+          website:     result.website ?? (meta["website"] as string | null | undefined),
+          bizLocation: result.address ?? (meta["bizLocation"] as string | null | undefined),
+        });
+        updates["contactOutcome"] = outcome;
+        meta["contactOutcome"]    = outcome;
+
+        // J1: Only direct contact vectors (email/phone) are terminal enrichment completion.
+        // Social handles (LinkedIn/Twitter) are valuable but keep entity eligible for direct-contact passes.
+        if (hasDirectContact) {
           meta["enricherVersion"] = "v2";
           meta["needsEnrichment"] = false;
         } else {
+          // Social-only and evidence-only remain eligible for follow-up passes (J1)
           delete meta["enricherVersion"];
           meta["needsEnrichment"] = true;
         }
@@ -1223,8 +1241,16 @@ router.post("/ingest/restore-contact-cache", async (_req: Request, res: Response
           if (data.phoneConfidence != null) meta["phoneConfidence"] = data.phoneConfidence;
           if (data.sourceHits) meta["sourceHits"] = data.sourceHits;
           meta["enricherVersion"]   = "v2";
-          meta["needsEnrichment"]   = false;
+          // J1: only mark enrichment complete when a direct contact was restored
+          meta["needsEnrichment"]   = Boolean(data.email || data.phone) ? false : true;
           meta["restoredFromCache"] = true;
+          // J0: set outcome on restored entities
+          meta["contactOutcome"] = computeContactOutcome({
+            email: data.email, phone: data.phone,
+            linkedinUrl: data.linkedinUrl,
+            website: data.website,
+          });
+          updates["contactOutcome"] = meta["contactOutcome"];
           updates["metadata"]  = JSON.stringify(meta);
           updates["liveSource"] = true;
 
@@ -1236,6 +1262,77 @@ router.post("/ingest/restore-contact-cache", async (_req: Request, res: Response
 
     logger.info({ restored, total: cached.length }, "Manual contact cache restore complete");
   })();
+});
+
+// ── POST /ingest/backfill-contact-outcomes — J0 ───────────────────────────────
+// Recomputes contactOutcome for all existing entities from their current columns.
+// Safe to run multiple times — idempotent. Required after upgrading to Phase J.
+router.post("/ingest/backfill-contact-outcomes", async (_req: Request, res: Response): Promise<void> => {
+  const entities = await db
+    .select({
+      id:              entitiesTable.id,
+      email:           entitiesTable.email,
+      phone:           entitiesTable.phone,
+      linkedinUrl:     entitiesTable.linkedinUrl,
+      twitterHandle:   entitiesTable.twitterHandle,
+      instagramHandle: entitiesTable.instagramHandle,
+      telegramHandle:  entitiesTable.telegramHandle,
+      metadata:        entitiesTable.metadata,
+    })
+    .from(entitiesTable);
+
+  let updated = 0;
+  let unchanged = 0;
+  const BATCH = 500;
+
+  for (let i = 0; i < entities.length; i += BATCH) {
+    const batch = entities.slice(i, i + BATCH);
+    for (const e of batch) {
+      const meta = safeParseJson<Record<string, unknown>>(e.metadata, {});
+      const outcome = computeContactOutcome({
+        email:           e.email,
+        phone:           e.phone,
+        linkedinUrl:     e.linkedinUrl,
+        twitterHandle:   e.twitterHandle,
+        instagramHandle: e.instagramHandle,
+        telegramHandle:  e.telegramHandle,
+        website:         meta["website"] as string | null | undefined,
+        bizLocation:     meta["bizLocation"] as string | null | undefined,
+      });
+      // Also fix needsEnrichment: only false when direct contact exists (J1)
+      const hasDirectContact = Boolean(e.email || e.phone);
+      const needsMeta = { ...meta, contactOutcome: outcome };
+      if (hasDirectContact) {
+        needsMeta["needsEnrichment"] = false;
+      } else if (meta["needsEnrichment"] === false && !hasDirectContact) {
+        // Was incorrectly marked complete (social-only) — re-open it
+        needsMeta["needsEnrichment"] = true;
+      }
+      await db.update(entitiesTable)
+        .set({
+          contactOutcome: outcome,
+          metadata: JSON.stringify(needsMeta),
+        } as any)
+        .where(eq(entitiesTable.id, e.id));
+      updated++;
+    }
+    if (i % 5000 === 0 && i > 0) {
+      logger.info({ progress: i, total: entities.length }, "Backfill contact outcomes progress");
+    }
+  }
+
+  const byOutcome: Record<string, number> = {};
+  const rows = await db.execute(
+    sql`SELECT COALESCE(contact_outcome, 'none') AS outcome, COUNT(*)::int AS count FROM entities GROUP BY contact_outcome`
+  );
+  for (const row of rows.rows as any[]) byOutcome[row.outcome] = row.count;
+
+  logger.info({ updated, unchanged, byOutcome }, "Contact outcome backfill complete");
+  res.json({
+    updated, unchanged, total: entities.length,
+    byOutcome,
+    message: `contactOutcome backfilled for ${updated} entities. needsEnrichment corrected per J1 rule.`,
+  });
 });
 
 export default router;

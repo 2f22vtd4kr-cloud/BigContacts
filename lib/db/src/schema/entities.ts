@@ -29,6 +29,20 @@ export const entitiesTable = pgTable("entities", {
   isStarred: boolean("is_starred").notNull().default(false),
   isHidden: boolean("is_hidden").notNull().default(false),
   contactConfidence: integer("contact_confidence").notNull().default(0),
+  /**
+   * J0 Measurement Contract — outcome label set by every enricher after each pass.
+   *
+   * "none"                   — not yet enriched / no evidence found
+   * "evidence_only"          — website, address, filing, or org record only
+   * "social_only"            — LinkedIn/Twitter/Instagram/Telegram found, no email/phone
+   * "organization_contact"   — company phone/inbox/contact-page (not personal)
+   * "direct_contact_candidate" — person-level email or phone (public evidence, not fully verified)
+   * "direct_contact_verified"  — validated person-level contact with attribution
+   *
+   * J1 rule: only direct_contact_candidate/verified are terminal enrichment states.
+   * social_only and evidence_only remain eligible for follow-up passes.
+   */
+  contactOutcome: text("contact_outcome"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

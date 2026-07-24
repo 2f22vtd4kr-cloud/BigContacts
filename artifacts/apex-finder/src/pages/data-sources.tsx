@@ -276,6 +276,221 @@ async function apiGet(path: string) {
   return res.json();
 }
 
+// ─── J0 Funnel Panel ─────────────────────────────────────────────────────────
+
+type FunnelData = {
+  total: number;
+  outcomes: Record<string, number>;
+  byEntityType: Record<string, Record<string, number>>;
+  byRegistry: Record<string, Record<string, number>>;
+  conversionRate: {
+    toDirectCandidate: number;
+    toSocialOnly: number;
+    toEvidenceOnly: number;
+    notEnriched: number;
+  };
+  note?: string;
+};
+
+const OUTCOME_META: Record<string, { label: string; color: string; barColor: string; description: string }> = {
+  direct_contact_candidate: {
+    label: "Direct Contact",
+    color: "text-emerald-400",
+    barColor: "bg-emerald-500",
+    description: "Person-level email or phone found in public sources",
+  },
+  direct_contact_verified: {
+    label: "Verified Contact",
+    color: "text-emerald-300",
+    barColor: "bg-emerald-400",
+    description: "Validated person-level contact with full attribution",
+  },
+  social_only: {
+    label: "Social Only",
+    color: "text-blue-400",
+    barColor: "bg-blue-500",
+    description: "LinkedIn/Twitter/Telegram found — eligible for direct-contact follow-up (J1)",
+  },
+  evidence_only: {
+    label: "Evidence Only",
+    color: "text-amber-400",
+    barColor: "bg-amber-500",
+    description: "Website or address found — eligible for social/direct-contact follow-up",
+  },
+  organization_contact: {
+    label: "Org Contact",
+    color: "text-purple-400",
+    barColor: "bg-purple-500",
+    description: "Company phone/inbox found (not personal)",
+  },
+  none: {
+    label: "Not Enriched",
+    color: "text-muted-foreground",
+    barColor: "bg-muted-foreground/40",
+    description: "No enrichment pass has run yet",
+  },
+};
+
+function FunnelPanel() {
+  const [data, setData] = useState<FunnelData | null>(null);
+  const [backfilling, setBackfilling] = useState(false);
+  const [backfillMsg, setBackfillMsg] = useState("");
+
+  const load = () => {
+    const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+    fetch(`${base}/api/pipeline/funnel`)
+      .then(r => r.json())
+      .then(d => setData(d))
+      .catch(() => {/* non-fatal */});
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const runBackfill = async () => {
+    if (backfilling) return;
+    setBackfilling(true);
+    setBackfillMsg("Running…");
+    const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+    try {
+      const r = await fetch(`${base}/api/ingest/backfill-contact-outcomes`, { method: "POST" });
+      const d = await r.json();
+      setBackfillMsg(d.message ?? "Done");
+      load();
+    } catch {
+      setBackfillMsg("Failed — check API logs");
+    } finally {
+      setBackfilling(false);
+    }
+  };
+
+  const OUTCOME_ORDER = [
+    "direct_contact_verified",
+    "direct_contact_candidate",
+    "social_only",
+    "evidence_only",
+    "organization_contact",
+    "none",
+  ];
+
+  return (
+    <div className="rounded-xl border border-border bg-card/60 p-4 flex flex-col gap-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Filter className="h-4 w-4 text-primary" />
+          <span className="text-sm font-semibold font-mono uppercase tracking-widest text-primary">
+            Contact Discovery Funnel
+          </span>
+          <span className="text-[9px] font-mono bg-primary/10 text-primary px-1.5 py-0.5 rounded uppercase tracking-wider">J0</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={load}
+            className="h-6 w-6 flex items-center justify-center rounded hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors"
+            title="Refresh"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+          </button>
+          <button
+            onClick={runBackfill}
+            disabled={backfilling}
+            className="text-[10px] font-mono px-2 py-1 rounded bg-primary/10 hover:bg-primary/20 text-primary transition-colors disabled:opacity-50"
+          >
+            {backfilling ? "Backfilling…" : "Backfill Outcomes"}
+          </button>
+        </div>
+      </div>
+
+      {backfillMsg && (
+        <p className="text-[10px] font-mono text-emerald-400">{backfillMsg}</p>
+      )}
+
+      {!data ? (
+        <p className="text-xs font-mono text-muted-foreground">Loading funnel data…</p>
+      ) : (
+        <>
+          {/* Conversion summary */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[
+              { label: "Direct Contact", value: ((data.conversionRate.toDirectCandidate ?? 0) * 100).toFixed(2) + "%", color: "text-emerald-400" },
+              { label: "Social Only",    value: ((data.conversionRate.toSocialOnly     ?? 0) * 100).toFixed(1) + "%",  color: "text-blue-400" },
+              { label: "Evidence Only",  value: ((data.conversionRate.toEvidenceOnly   ?? 0) * 100).toFixed(1) + "%",  color: "text-amber-400" },
+              { label: "Not Enriched",   value: ((data.conversionRate.notEnriched      ?? 0) * 100).toFixed(1) + "%",  color: "text-muted-foreground" },
+            ].map(s => (
+              <div key={s.label} className="text-center">
+                <div className={`text-xl font-bold font-mono ${s.color}`}>{s.value}</div>
+                <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mt-0.5">{s.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Outcome bars */}
+          <div className="space-y-2 border-t border-border/40 pt-3">
+            {OUTCOME_ORDER.map(key => {
+              const meta = OUTCOME_META[key];
+              const count = data.outcomes[key] ?? 0;
+              if (!count && key !== "none") return null;
+              const pct = data.total > 0 ? (count / data.total) * 100 : 0;
+              return (
+                <div key={key} className="space-y-0.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <span className={`text-[10px] font-mono font-semibold ${meta?.color ?? "text-muted-foreground"}`}>
+                        {meta?.label ?? key}
+                      </span>
+                      <span className="text-[9px] font-mono text-muted-foreground hidden md:inline">
+                        — {meta?.description}
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-mono text-muted-foreground">
+                      {count.toLocaleString()} ({pct.toFixed(1)}%)
+                    </span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-muted/40 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-700 ${meta?.barColor ?? "bg-muted-foreground/40"}`}
+                      style={{ width: `${Math.max(pct, pct > 0 ? 0.5 : 0)}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* By entity type (compact) */}
+          {Object.keys(data.byEntityType).length > 0 && (
+            <div className="border-t border-border/40 pt-3">
+              <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-2">By Entity Type</p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                {Object.entries(data.byEntityType).map(([type, outcomes]) => {
+                  const typeTotal = Object.values(outcomes).reduce((s, n) => s + n, 0);
+                  const direct = (outcomes["direct_contact_candidate"] ?? 0) + (outcomes["direct_contact_verified"] ?? 0);
+                  const social = outcomes["social_only"] ?? 0;
+                  return (
+                    <div key={type} className="rounded-lg border border-border/40 p-2">
+                      <div className="text-[10px] font-mono font-bold text-foreground mb-1">{type}</div>
+                      <div className="text-[10px] font-mono text-emerald-400">
+                        {typeTotal > 0 ? ((direct / typeTotal) * 100).toFixed(1) : "0.0"}% direct
+                      </div>
+                      <div className="text-[10px] font-mono text-blue-400">
+                        {typeTotal > 0 ? ((social / typeTotal) * 100).toFixed(1) : "0.0"}% social
+                      </div>
+                      <div className="text-[9px] font-mono text-muted-foreground">{typeTotal.toLocaleString()} total</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {data.note && (
+            <p className="text-[9px] font-mono text-muted-foreground/60 border-t border-border/30 pt-2">{data.note}</p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 // ─── Enrichment Coverage Stats ───────────────────────────────────────────────
 
 function EnrichmentCoverageStats() {
@@ -1585,6 +1800,9 @@ export default function DataSources() {
 
         {/* ── Pipeline Status ───────────────────────────────────────────────── */}
         <PipelineStatusPanel />
+
+        {/* ── J0 Contact Discovery Funnel ──────────────────────────────────── */}
+        <FunnelPanel />
 
         {/* ── Enrichment Coverage Stats ─────────────────────────────────────── */}
         <EnrichmentCoverageStats />
