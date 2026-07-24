@@ -1,0 +1,17 @@
+For both desktop and mobile web view:
+1. Show all contactable HNWIs instead of just 50. Load them in batches of 50 when scrolled to the last of the batch - load another batch.
+2. On the personal HNWI card don't display two times contacts which is repetitive. Also the current tab name is better displaying next to Apex Atlas title and not below in a separate window which just steals space.
+3. On the HNWI 's personal card I can't scroll down to fully see the map - only a small string is visible.
+4. In search there is no filtering for HNWIs score - which the main filter. All the HNWI should by default be displayed from the most reachable score to the least. Also word "vector" is misleading and does poor job at communication with user. Is basically means way of contacting so choose a more understandable word and apply.
+5. For each way of contacting a HNWI in his personal card add a openable tab where you show where you found this contact so user using his human brain can give last analysis Evaluating if this contact is Apex Atlases hallucination and a human clearly sees that the reasoning behind picking that exact contact was wrong and bizarre and can point out to Apex Atlas that that exact contact is bad and mark it so it won't come up again (of course there must be double confirmation request from Apex Atlas for marking contact as bad since it won't appear again). And the user can ask to enrich this HNWI for new contact if it can be found with deeper research focused on this exact HNWI based already on what app has on this HNWI and taking in consideration users remarks on why the previous contact by his evaluation based on provided by Apex Atlas thought and research process could not be this HNWI's contact - this not only adds an additional layer of filtering where a human brain is a new last evaluation mechanism, but also provides an element of machine learning instrument.
+6. Remove outreach tab completely since all the communication with HNWIs is task outside of Apex Atlas which is the source of contacts but not the communication platform.
+7. Network Graphs have a weird black string in circles - remove
+8. Web OSINT progress shows progress beyond 100% as well as other processes can reach 100% and then start again from 0% - gotta come up with a logical visualisation.
+Let me explore the relevant code areas in parallel before touching anything.
+Let me get the detailed file content I need before writing any code.
+Good picture of the codebase. Let me read the remaining sections I need before writing any code.
+Now I have enough context. Let me read the remaining specific sections then implement all 8 changes systematically.
+I have all the context needed. Now implementing all 8 changes in parallel across files.
+Now continuing with the remaining files in parallel:
+Let me read the key sections of profile.tsx and entities.tsx while implementing the simpler changes in parallel:
+You've reached your daily free quota limit. It will reset at 12:00 AM UTC.

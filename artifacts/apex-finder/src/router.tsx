@@ -12,6 +12,7 @@ import Improvements from "@/pages/improvements";
 import DataSources from "@/pages/data-sources";
 import Duplicates from "@/pages/duplicates";
 import OsintToolsDirectory from "@/pages/osint-tools";
+import OutreachAssistant from "@/pages/outreach";
 import BackgroundJobs from "@/pages/jobs";
 import NotFound from "@/pages/not-found";
 
