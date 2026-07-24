@@ -322,6 +322,12 @@ export default function ApexProfile() {
   const [activeTab, setActiveTab] = useState<"assets" | "network" | "research">("assets");
   const TAB_LABELS: Record<string, string> = { assets: "Assets & Sources", network: "Network", research: "Research Threads" };
 
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("apex-mobile-context", {
+      detail: TAB_LABELS[activeTab],
+    }));
+  }, [activeTab]);
+
   // ── Contact evidence / rejection state ────────────────────────────────────
   const [showContactEvidence, setShowContactEvidence] = useState(false);
   const [rejectStep, setRejectStep] = useState<Record<string, number>>({});
@@ -533,26 +539,7 @@ export default function ApexProfile() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
-
-      {/* ── Mobile header ─────────────────────────────────────────────── */}
-      <div className="md:hidden flex-shrink-0 border-b border-border bg-card/60 px-4 py-3 flex items-center gap-3">
-        <Link
-          href="/entities"
-          className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors flex-shrink-0"
-        >
-          <ArrowLeft className="w-4 h-4" />
-        </Link>
-        <div className="flex-1 min-w-0">
-          <h1 className="text-sm font-bold text-foreground truncate leading-none">{formatEntityName(entity.name)}</h1>
-          <div className="text-[9px] font-mono text-muted-foreground/50 uppercase tracking-widest mt-0.5">
-            {TAB_LABELS[activeTab] ?? activeTab}
-          </div>
-        </div>
-        <div className="flex items-center gap-1.5 flex-shrink-0">
-          <AccessScoreBadge score={entity.accessScore} />
-        </div>
-      </div>
+    <div className="flex flex-col min-h-full overflow-visible">
 
       {/* ── Desktop Header ────────────────────────────────────────────── */}
       <div className="hidden md:block flex-shrink-0 border-b border-border bg-card/60 px-4 md:px-6 py-4">
@@ -649,14 +636,6 @@ export default function ApexProfile() {
 
       {/* Mobile Hero - md:hidden */}
       <div className="md:hidden bg-card border-b border-border flex-shrink-0">
-        {/* Nav bar */}
-        <div className="h-[52px] flex items-center justify-between px-4 border-b border-border">
-          <Link href="/profiles" className="p-2 -ml-2 text-foreground">
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
-          <span className="font-mono text-[13px] uppercase text-muted-foreground tracking-wider">Profile</span>
-          <div className="w-9" />
-        </div>
         {/* Hero content */}
         <div className="px-4 pt-4 pb-4">
           <div className="flex items-center justify-between mb-2">
@@ -974,7 +953,7 @@ export default function ApexProfile() {
       </div>
 
       {/* ── Tab Content ─────────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6">
+      <div className="p-4 md:p-6 space-y-4 md:space-y-6">
 
         {/* ═══ ASSETS & SOURCES TAB ════════════════════════════════════════ */}
         {activeTab === "assets" && <>

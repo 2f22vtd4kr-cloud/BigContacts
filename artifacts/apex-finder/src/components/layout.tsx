@@ -34,6 +34,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
+  const [mobileContext, setMobileContext] = useState<string | null>(null);
 
   useEffect(() => {
     document.documentElement.classList.add("dark");
@@ -42,10 +43,20 @@ export function Layout({ children }: { children: React.ReactNode }) {
   // Close mobile sidebar on route change; auto-expand section for active route
   useEffect(() => {
     setSidebarOpen(false);
+    setMobileContext(null);
     if (toolsNav.some(i => location === i.href || location.startsWith(i.href))) {
       setToolsOpen(true);
     }
   }, [location]);
+
+  useEffect(() => {
+    const handleMobileContext = (event: Event) => {
+      const label = (event as CustomEvent<string>).detail;
+      setMobileContext(label || null);
+    };
+    window.addEventListener("apex-mobile-context", handleMobileContext);
+    return () => window.removeEventListener("apex-mobile-context", handleMobileContext);
+  }, []);
 
   const isActive = (href: string) =>
     location === href || (href !== "/" && location.startsWith(href));
@@ -167,14 +178,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </span>
             {(() => {
               const active = allNav.find(i => isActive(i.href));
-              return active && active.href !== "/" ? (
-                <span className="text-muted-foreground/40 font-mono text-[11px] shrink-0">/</span>
-              ) : null;
-            })()}
-            {(() => {
-              const active = allNav.find(i => isActive(i.href));
-              return active && active.href !== "/" ? (
-                <span className="text-[11px] font-mono text-muted-foreground truncate">{active.name}</span>
+              const context = mobileContext
+                ?? (location.startsWith("/profile/") ? "Assets & Sources" : active?.href !== "/" ? active?.name : null);
+              return context ? (
+                <>
+                  <span className="text-muted-foreground/40 font-mono text-[11px] shrink-0">/</span>
+                  <span className="text-[11px] font-mono text-muted-foreground truncate">{context}</span>
+                </>
               ) : null;
             })()}
           </div>

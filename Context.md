@@ -8,7 +8,7 @@
 
 ---
 
-## Current State (2026-07-24 13:59 UTC — imported project setup verified) — Core workflows healthy, fresh database empty
+## Current State (2026-07-24 14:03 UTC — mobile profile layout corrected) — Core workflows healthy, fresh database empty
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically ✅
@@ -44,6 +44,12 @@
 - Research sessions: **0 at initial check**
 - Active background work: semantic engine loading; cold-start recovery is non-fatal but persistent Redis cleanup is quota-limited
 - Honest assessment: **app is running and the dashboard is verified; ingestion/persistent-cache operations may be limited until the Upstash request quota resets or the Redis plan changes**.
+
+### Latest UI verification (2026-07-24 14:03 UTC)
+- Mobile app bar keeps the single `APEX ATLAS` header and adds the current page/tab context to its right.
+- Profile-specific duplicate mobile header rows were removed, so the profile no longer shows separate entity and `PROFILE` header bars.
+- Profile tab content now uses the layout's page scroll container rather than a nested scroll container, allowing the full asset map and content below it to be reached on mobile.
+- Frontend production build passes; API health remains `ok`; mobile previews were verified for `/profiles` and `/profile/1` at 390×844. `/profile/1` shows the loading state because the fresh development database currently has zero entities.
 
 ### Phase I — Road to 9/10 (implemented 2026-07-23)
 All 4 Phase I items implemented and live. Build clean (esbuild ⚡ 1183ms). All 3 new endpoints verified returning 200:
@@ -83,6 +89,7 @@ All 4 Phase I items implemented and live. Build clean (esbuild ⚡ 1183ms). All 
 | 2026-07-24 | Sixth import setup: pnpm install (1m 59s), schema pushed ([✓] Changes applied), REDIS_URL_1/REDIS_URL_2/COMPANIES_HOUSE_API_KEY added via secrets flow, API restarted — both Upstash slots live, /api/healthz ok (latencyMs:0), dashboard verified at 32,101 profiles (FAA auto-ingested), cold-start Western HNWI + broad discovery active |
 | 2026-07-24 | Imported project setup finalized: secure keys confirmed, frozen-lockfile dependencies restored, Drizzle schema applied, all four artifacts registered, Redis/API/web workflows healthy, API and browser preview checks passed; optional mobile and mockup services remain stopped |
 | 2026-07-24 13:59 | Imported project setup reverified after secure key entry: dependencies restored, schema applied, Redis/API/web healthy, `/api/healthz` returned Redis ok, web preview returned 200 and rendered the empty-state dashboard; Upstash persistent Redis reported its 500,000-request quota exhausted |
+| 2026-07-24 14:03 | Fixed mobile profile chrome: removed duplicate profile headers, moved current tab context beside APEX ATLAS in the shared top bar, removed nested profile scrolling, and verified mobile previews plus production frontend build |
 
 ---
 
