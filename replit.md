@@ -66,18 +66,18 @@ Schema push: `pnpm --filter @workspace/db run push`
 
 ---
 
-## Current Data State (verified 2026-07-23 — post-audit)
+## Current Data State (verified 2026-07-24 — fresh import measured state)
 
 | Source | Entities | Assets | Notes |
 |---|---|---|---|
 | FAA Releasable Aircraft Registry | 30,000 | 30,000 | Real FAA registry records; ingestion completed with 0 errors. |
-| HMLR Price Paid Data (PPD) | 50,000 | 50,000 | Real bulk PPD records; ingestion completed with 0 errors. |
-| Western HNWI + SEC/BRREG/other live sources | 1,528+ | 305+ | Included in the live database totals; enrichment and relationship maintenance continue. |
-| **Full pipeline target** | **81,528** | **80,305** | Relationships: **264,253** · Hot leads: **16,305** · Contactable: **767** · Research sessions: **834** |
+| HMLR Price Paid Data (PPD) | 2,000 | 2,000 | Real bulk PPD records in this fresh import; postcode peer detection created 2,236 edges. |
+| Western HNWI + SEC/BRREG/other live sources | 100 EDGAR entities plus live maintenance | 100+ | Included in the live database totals; enrichment and relationship maintenance continue. |
+| **Current measured total** | **32,101** | **32,100** | Relationships: **230,647** · Contact evidence: **936** · Emails: **343** · Phones: **613** · Research sessions: **544** |
 
-**Post-import cold-start state:** FAA auto-ingest fires first (~73s, ~30k entities). HMLR must be triggered manually once FAA completes: `POST /api/ingest/land-registry`. Western HNWI runs in background. Contact cache restores from Upstash slot 2 on every boot (729 contactable entities as of last full run).
+**Post-import cold-start state:** FAA auto-ingest fires first (~73s, ~30k entities). This fresh import completed FAA and a 2,000-record HMLR pass; Western HNWI produced 100 EDGAR entities. Contact cache restores from Upstash slot 2 on every boot. At the 2026-07-24 measurement, 936 profiles had contact evidence and the corrected in-house FAA-targeted enrichment pass remained active at 150/5,000 with 0 errors.
 
-**Honest rating as of 2026-07-23 full audit: 7.5/10.** Architecture strong; contact hit rate (2.3%) and warm-path graph edge quality are the main gaps. See `improvements.md` Phase I for the concrete steps to reach 9+.
+**Honest rating for this fresh import: still below 9+ pending enrichment completion.** The graph now has measured warm paths — 228,362 `CORPORATE_SERIES`, 2,236 `PROPERTY_AREA_PEER`, 26 `GEOGRAPHIC_PEER`, 11 `EDGAR_CO_INVESTOR`, and 12 `EDGAR_CO_SHAREHOLDER` edges — but contact evidence is about 2.9% of entities and the active enrichment pass must finish before a higher outcome-based rating is justified.
 
 ---
 
@@ -188,6 +188,7 @@ GET  /api/improve/logs                 improvement suggestions (filterable by pe
 | 11 | **Pipeline recovery hardening** — stale queued Hybrid Research locks are invalidated safely; shared public-email validation rejects search-engine diagnostics/placeholders; boot sanitation repairs PostgreSQL and Redis contact records; verified two 300-session research passes plus a fresh 100-entity Persona Loop pass with 0 errors. |
 | 12 | **Phase H complete + full audit** — pipeline inverted (web-first), recurring scheduler (7 jobs forever), 3 enrichment modules (social-discovery, messenger-discovery, foundation-filings), 9 new schema columns, 8-vector contact panel UI. Full audit pass: confirmed all Phase H modules exist and route correctly; fixed 2 bugs: (1) `research.tsx` terminal placeholder "MCTS" → "UCT" (user-facing string); (2) `ingest-enrichment.ts` foundation-filings `db.select()` was missing all 5 social columns, causing `computeContactConfidence` to systematically undercount social signals. No other user-facing MCTS strings exist. All 300/300 Hybrid Research sessions and 100-entity Persona Loop pass with 0 errors verified. |
 | 13 | **Same-source duplicate review** — `/duplicates` separates cross-registry candidates from exact-name clusters within normalized registries; new read-only cluster API and regression coverage prevent self-pairs and automatic merges. |
+| 14 | **Measured warm-path recovery + enrichment correctness** — EDGAR issuer backfill, co-investor/co-shareholder detection, corporate-series/name-cluster edges, FAA/HMLR peer edges, and the website/address-only enrichment state fix. |
 
 ---
 

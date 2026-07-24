@@ -8,7 +8,7 @@
 
 ---
 
-## Current State (2026-07-24 — fresh import boot) — All core workflows running, ingestion auto-started
+## Current State (2026-07-24 — fresh import recovery + measured intelligence pass) — Core workflows healthy, enrichment continuing
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically ✅
@@ -33,6 +33,17 @@
 4. `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":0}}` ✅
 5. DB empty on boot → cold-start auto-recovery triggered: FAA + Western HNWI + broad-discovery ingestion auto-started
 6. All secrets confirmed: REDIS_URL_1, REDIS_URL_2, COMPANIES_HOUSE_API_KEY set
+7. Artifact registration restored for API, web, mobile, and Canvas; screenshot verification now resolves the ApexFinder web preview.
+
+### Measured live state (2026-07-24 05:50 UTC)
+- Entities: **32,101** | Assets: **32,100** | Relationships: **230,647**
+- Contact evidence: **936** profiles with `contactConfidence > 0`; **669** at 40+ confidence; 343 public emails, 613 public phones, 14 LinkedIn URLs
+- Warm-path graph: **228,362 CORPORATE_SERIES** edges across 2,068 clusters; 2,236 HMLR property-area peers; 26 FAA geographic peers; 11 EDGAR co-investor edges; 12 EDGAR co-shareholder edges
+- EDGAR: **100** imported entities; **95** with issuer/company coverage after backfill
+- Research sessions: **544**
+- Contact cache restore: 693 entries restored during the manual pass; current PostgreSQL contact evidence is higher because live deep-web/social/CH maintenance continues
+- Active background work: corrected FAA-targeted in-house enrichment at 150/5,000 with 0 errors; deep-web OSINT active; API and web healthy
+- Honest 9+ assessment: **not yet**. The graph now has meaningful measured warm paths, but contactability remains about 2.9% of entities and the enrichment run is unfinished.
 
 ### Phase I — Road to 9/10 (implemented 2026-07-23)
 All 4 Phase I items implemented and live. Build clean (esbuild ⚡ 1183ms). All 3 new endpoints verified returning 200:
@@ -54,7 +65,10 @@ All 4 Phase I items implemented and live. Build clean (esbuild ⚡ 1183ms). All 
 | 2026-07-23 | Phase I (road to 9/10) fully implemented: I1 beneficial owner resolution, I2 dedup tuning, I3 warm-path edges, I4 tiered enrichment |
 | 2026-07-23 | Same-source duplicate review implemented: new cluster endpoint and `/duplicates` tab verified against live data; duplicate candidate self-pair regression fixed; API smoke tests 14/14 passed; API/Web production builds passed |
 | 2026-07-24 | Fresh import boot: pnpm install (20.4s), DB schema push ([✓] Changes applied), Redis+API+Web workflows restarted, /api/healthz → ok (latencyMs:0), all 3 secrets set (REDIS_URL_1/2, COMPANIES_HOUSE_API_KEY), cold-start ingestion auto-started |
-| 2026-07-24 | Imported project setup verified: API health and web root return 200; artifact registry is empty, so screenshot helper cannot resolve the imported web artifact |
+| 2026-07-24 | Imported project setup verified: API health and web root return 200; artifact registration was restored and ApexFinder preview screenshot verified |
+| 2026-07-24 | Ran EDGAR issuer backfill and deterministic relationship passes: 228,362 CORPORATE_SERIES, 2,236 PROPERTY_AREA_PEER, 26 GEOGRAPHIC_PEER, 11 EDGAR_CO_INVESTOR, and 12 EDGAR_CO_SHAREHOLDER edges |
+| 2026-07-24 | Restored 693 cached contacts; measured 936 contactable profiles, 343 emails, 613 phones, 100 EDGAR entities, 95 issuer-covered; API/web health and preview verified |
+| 2026-07-24 | Fixed in-house enrichment state handling so website/address-only evidence remains eligible for later contact enrichment; corrected build and restarted API successfully |
 
 ---
 

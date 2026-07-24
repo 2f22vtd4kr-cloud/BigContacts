@@ -30,3 +30,4 @@
 - [Dashboard data fallback](dashboard-data-fallback.md) — Distinguish unavailable PostgreSQL-backed dashboard data from an empty dataset; keep live jobs visible when healthy
 - [Public contact evidence validation](contact-evidence-validation.md) — Validate extracted contacts before PostgreSQL writes, Redis mirroring, and cache restore
 - [Duplicate review guardrails](duplicate-review-guardrails.md) — Deduplicate name tokens before pairing; same-source matches remain review-only
+- [Contact enrichment state](contact-enrichment-state.md) — Website/address evidence is not terminal; only validated contact vectors complete enrichment

@@ -416,11 +416,11 @@ router.post("/ingest/in-house-enrich", async (req: Request, res: Response): Prom
   });
 
   (async () => {
-    let enriched = 0, skipped = 0, errors = 0;
+    let enriched = 0, evidenceOnly = 0, skipped = 0, errors = 0;
     const globalSourceHits: Record<string, number> = {};
     const CONCURRENCY = 5;
 
-    const processEntity = async (entity: typeof entities[number]): Promise<"enriched" | "skipped" | "error"> => {
+    const processEntity = async (entity: typeof entities[number]): Promise<"enriched" | "evidence-only" | "skipped" | "error"> => {
       try {
         const entityMeta = safeParseJson<Record<string, unknown>>(entity.metadata, {});
         const enrichInput = {
@@ -429,8 +429,9 @@ router.post("/ingest/in-house-enrich", async (req: Request, res: Response): Prom
           entityName:  (entityMeta["entityName"] as string | null) ?? null,
         };
         const result = await enrichInHouse(enrichInput);
-        const hasSignal = result.email || result.linkedinUrl || result.phone || result.website || result.twitter || result.address;
-        if (!hasSignal) return "skipped";
+        const hasContactSignal = Boolean(result.email || result.linkedinUrl || result.phone || result.twitter);
+        const hasEvidence = Boolean(hasContactSignal || result.website || result.address);
+        if (!hasEvidence) return "skipped";
 
         for (const [src, hit] of Object.entries(result.sourceHits)) {
           if (hit) globalSourceHits[src] = (globalSourceHits[src] ?? 0) + 1;
@@ -466,8 +467,16 @@ router.post("/ingest/in-house-enrich", async (req: Request, res: Response): Prom
         meta["emailConfidence"] = result.emailConfidence;
         meta["phoneConfidence"] = result.phoneConfidence;
         meta["sourceHits"]      = { ...(meta["sourceHits"] as object ?? {}), ...result.sourceHits };
-        meta["enricherVersion"] = "v2";
-        meta["needsEnrichment"] = false;
+        // A website or registered address is useful evidence, but it is not
+        // contactability. Keep the entity eligible for a later pass until a
+        // real public contact vector is found.
+        if (hasContactSignal) {
+          meta["enricherVersion"] = "v2";
+          meta["needsEnrichment"] = false;
+        } else {
+          delete meta["enricherVersion"];
+          meta["needsEnrichment"] = true;
+        }
         updates["metadata"]     = JSON.stringify(meta);
         updates["liveSource"]   = true;
 
@@ -482,23 +491,28 @@ router.post("/ingest/in-house-enrich", async (req: Request, res: Response): Prom
           if (meta["companyNumber"]) return `ch:${meta["companyNumber"]}`;
           return `name:${entity.name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "")}`;
         })();
-        await contactCacheSet(stableKey, {
-          name:               entity.name,
-          email:              (updates["email"] as string | null | undefined) ?? entity.email ?? undefined,
-          phone:              (updates["phone"] as string | null | undefined) ?? entity.phone ?? undefined,
-          linkedinUrl:        (updates["linkedinUrl"] as string | null | undefined) ?? entity.linkedinUrl ?? undefined,
-          website:            result.website ?? undefined,
-          twitter:            result.twitter ?? undefined,
-          contactConfidence:  confidence,
-          enrichmentSources:  meta["enrichmentSources"] as string[] ?? result.sources,
-          enrichedAt:         new Date().toISOString(),
-          emailConfidence:    result.emailConfidence ?? undefined,
-          phoneConfidence:    result.phoneConfidence ?? undefined,
-          sourceHits:         result.sourceHits as Record<string, number> ?? undefined,
-        });
+        if (hasContactSignal) {
+          await contactCacheSet(stableKey, {
+            name:               entity.name,
+            email:              (updates["email"] as string | null | undefined) ?? entity.email ?? undefined,
+            phone:              (updates["phone"] as string | null | undefined) ?? entity.phone ?? undefined,
+            linkedinUrl:        (updates["linkedinUrl"] as string | null | undefined) ?? entity.linkedinUrl ?? undefined,
+            website:            result.website ?? undefined,
+            twitter:            result.twitter ?? undefined,
+            contactConfidence:  confidence,
+            enrichmentSources:  meta["enrichmentSources"] as string[] ?? result.sources,
+            enrichedAt:         new Date().toISOString(),
+            emailConfidence:    result.emailConfidence ?? undefined,
+            phoneConfidence:    result.phoneConfidence ?? undefined,
+            sourceHits:         result.sourceHits as Record<string, number> ?? undefined,
+          });
 
-        logger.info({ entityId: entity.id, name: entity.name, confidence, sources: result.sources }, "In-house OSINT v2 enriched");
-        return "enriched";
+          logger.info({ entityId: entity.id, name: entity.name, confidence, sources: result.sources }, "In-house OSINT v2 enriched");
+          return "enriched";
+        }
+
+        logger.info({ entityId: entity.id, name: entity.name, sources: result.sources }, "In-house OSINT evidence found; keeping entity eligible for contact enrichment");
+        return "evidence-only";
       } catch (err: any) {
         logger.warn({ entityId: entity.id, err: err.message }, "In-house enrichment failed");
         return "error";
@@ -510,16 +524,17 @@ router.post("/ingest/in-house-enrich", async (req: Request, res: Response): Prom
       const outcomes = await Promise.allSettled(batch.map(e => processEntity(e)));
       for (const o of outcomes) {
         const outcome = o.status === "fulfilled" ? o.value : "error";
-        if (outcome === "enriched")      enriched++;
-        else if (outcome === "skipped")  skipped++;
-        else                             errors++;
+        if (outcome === "enriched")          enriched++;
+        else if (outcome === "evidence-only") evidenceOnly++;
+        else if (outcome === "skipped")      skipped++;
+        else                                 errors++;
       }
       await updateJob(jobId, {
         status: "running",
-        progress: enriched + skipped + errors,
+        progress: enriched + evidenceOnly + skipped + errors,
         total: entities.length,
         inserted: enriched,
-        message: `In-house OSINT v2: ${enriched} enriched, ${skipped} no-match, ${errors} errors | Sources: ${JSON.stringify(globalSourceHits)}`,
+        message: `In-house OSINT v2: ${enriched} contactable, ${evidenceOnly} evidence-only, ${skipped} no-match, ${errors} errors | Sources: ${JSON.stringify(globalSourceHits)}`,
       });
     }
 
@@ -528,10 +543,10 @@ router.post("/ingest/in-house-enrich", async (req: Request, res: Response): Prom
     await updateJob(jobId, {
       status: "done", progress: entities.length, total: entities.length,
       inserted: enriched,
-      message: `Done — ${enriched} entities enriched, ${skipped} no-match, ${errors} errors.`,
+      message: `Done — ${enriched} contactable, ${evidenceOnly} evidence-only, ${skipped} no-match, ${errors} errors.`,
     });
     await setActiveJob("in-house-enrich", "");
-    logger.info({ enriched, skipped, errors }, "In-house OSINT enrichment complete");
+    logger.info({ enriched, evidenceOnly, skipped, errors }, "In-house OSINT enrichment complete");
   })().catch(async err => {
     logger.error({ err: err.message }, "In-house enrichment crashed");
     await updateJob(jobId, { status: "failed", message: err.message ?? "Crashed" });
