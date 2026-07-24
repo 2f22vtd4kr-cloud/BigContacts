@@ -110,7 +110,7 @@ function IngestorCard({ job, onTrigger }: { job: Job; onTrigger: (id: string) =>
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] font-mono">
               <span className={statusColor(job.status)}>
                 {job.status.toUpperCase()}
-                {isActive && job.progress > 0 && ` · ${Math.min(100, job.progress)}%`}
+                {job.status === "done" ? " · 100%" : isActive && job.progress > 0 ? ` · ${Math.min(100, job.progress)}%` : ""}
               </span>
               {job.inserted > 0 && <span className="text-emerald-400">+{job.inserted.toLocaleString()} inserted</span>}
               {job.skipped > 0 && <span className="text-muted-foreground">{job.skipped.toLocaleString()} deduped</span>}
@@ -118,9 +118,15 @@ function IngestorCard({ job, onTrigger }: { job: Job; onTrigger: (id: string) =>
               {job.startedAt && <span className="text-muted-foreground/40">{elapsed(job.startedAt)}</span>}
             </div>
           )}
-          {isActive && (
+          {(isActive || job.status === "done") && (
             <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-              <div className="h-full rounded-full bg-primary transition-all duration-500" style={{ width: `${Math.min(100, job.progress || 5)}%` }} />
+              {job.status === "queued" ? (
+                <div className="h-full rounded-full bg-primary/60 animate-pulse" style={{ width: "30%" }} />
+              ) : job.status === "done" ? (
+                <div className="h-full rounded-full bg-emerald-500 transition-all duration-500" style={{ width: "100%" }} />
+              ) : (
+                <div className="h-full rounded-full bg-primary transition-all duration-500" style={{ width: `${Math.min(100, job.progress || 5)}%` }} />
+              )}
             </div>
           )}
           {job.message && (
@@ -401,9 +407,13 @@ function LiveActivityTab({ jobs }: { jobs: Job[] }) {
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-mono font-bold text-primary truncate">{job.label}</div>
                   <div className="text-[10px] font-mono text-muted-foreground truncate">{job.message || `${job.status}…`}</div>
-                  {job.progress > 0 && (
+                  {(job.progress > 0 || job.status === "queued") && (
                     <div className="h-1 rounded-full bg-primary/20 overflow-hidden mt-1.5">
-                      <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${Math.min(100, job.progress)}%` }} />
+                      {job.status === "queued" ? (
+                        <div className="h-full rounded-full bg-primary/60 animate-pulse" style={{ width: "20%" }} />
+                      ) : (
+                        <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${Math.min(100, job.progress)}%` }} />
+                      )}
                     </div>
                   )}
                 </div>

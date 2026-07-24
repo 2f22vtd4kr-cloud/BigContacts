@@ -477,7 +477,7 @@ export default function DeepSearch() {
             {/* Score range */}
             <div>
               <div className="text-xs font-mono text-muted-foreground uppercase tracking-widest mb-2">
-                Bayesian Score: {filterMinScore}% – {filterMaxScore}%
+                Wealth Signal: {filterMinScore}% – {filterMaxScore}%
               </div>
               <div className="flex items-center gap-3">
                 <input type="range" min={0} max={100} value={filterMinScore}
@@ -496,7 +496,7 @@ export default function DeepSearch() {
                   className="w-3.5 h-3.5 accent-primary rounded" />
                 <Mail className="w-3 h-3 text-primary" />
                 <span className="text-xs font-mono text-muted-foreground group-hover:text-foreground transition-colors">
-                  Has direct contact
+                  Has contact info
                 </span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer group">

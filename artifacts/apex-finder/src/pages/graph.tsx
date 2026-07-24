@@ -504,10 +504,18 @@ export default function GraphViewer() {
             setCtxMenu({ x: event.clientX, y: event.clientY, nodeId: n.id, nodeName: n.label ?? n.id });
           }}
           backgroundColor="transparent"
-          nodeCanvasObjectMode={() => "after"}
+          nodeCanvasObjectMode={() => "replace"}
           nodeCanvasObject={(node, ctx, globalScale) => {
-            drawContactRing(node as any, ctx, globalScale);
-            drawNodeLabel(node as any, ctx, globalScale);
+            const n = node as any;
+            // Draw the filled node circle ourselves (prevents library from rendering any default text inside)
+            const baseR = n.isTarget ? 3 : n.isCentral ? 2 : 1;
+            const r = Math.sqrt(baseR) * 6;
+            ctx.beginPath();
+            ctx.arc(n.x, n.y, r, 0, 2 * Math.PI);
+            ctx.fillStyle = nodeColor(n);
+            ctx.fill();
+            drawContactRing(n, ctx, globalScale);
+            drawNodeLabel(n, ctx, globalScale);
           }}
           linkCanvasObjectMode={() => "after"}
           linkCanvasObject={(link: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
@@ -594,7 +602,7 @@ export default function GraphViewer() {
               return (
                 <div className="border-t border-border pt-4">
                   <div className="text-xs text-muted-foreground mb-2 font-mono uppercase tracking-wider flex items-center">
-                    <Shield className="w-3 h-3 mr-1.5 text-amber-500" /> Approach Vector
+                    <Shield className="w-3 h-3 mr-1.5 text-amber-500" /> How to Approach
                   </div>
                   <div className="text-xs font-mono text-amber-400 bg-amber-500/5 border border-amber-500/20 p-3 rounded leading-relaxed">
                     {approachVector}

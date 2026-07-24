@@ -535,7 +535,26 @@ export default function ApexProfile() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
 
-      {/* ── Header ───────────────────────────────────────────────────────── */}
+      {/* ── Mobile header ─────────────────────────────────────────────── */}
+      <div className="md:hidden flex-shrink-0 border-b border-border bg-card/60 px-4 py-3 flex items-center gap-3">
+        <Link
+          href="/entities"
+          className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors flex-shrink-0"
+        >
+          <ArrowLeft className="w-4 h-4" />
+        </Link>
+        <div className="flex-1 min-w-0">
+          <h1 className="text-sm font-bold text-foreground truncate leading-none">{formatEntityName(entity.name)}</h1>
+          <div className="text-[9px] font-mono text-muted-foreground/50 uppercase tracking-widest mt-0.5">
+            {TAB_LABELS[activeTab] ?? activeTab}
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <AccessScoreBadge score={entity.accessScore} />
+        </div>
+      </div>
+
+      {/* ── Desktop Header ────────────────────────────────────────────── */}
       <div className="hidden md:block flex-shrink-0 border-b border-border bg-card/60 px-4 md:px-6 py-4">
         <div className="flex items-start gap-3 md:gap-4">
           <Link
@@ -824,12 +843,6 @@ export default function ApexProfile() {
                     <span className="truncate">{e.foundationName}</span>
                   </a>
                 )}
-                {/* Preferred contact method badge */}
-                {e.contactMethod && (
-                  <span className="px-2.5 py-1.5 rounded border border-border text-muted-foreground font-mono text-[10px] uppercase tracking-wider">
-                    Preferred: {e.contactMethod}
-                  </span>
-                )}
               </div>
             ) : (
               <p className="text-xs font-mono text-muted-foreground/50 italic">
@@ -976,9 +989,9 @@ export default function ApexProfile() {
                 title="Asset Footprint"
                 badge={`${geoAssets.length} geolocated`}
               />
-              <div className="relative flex-1" style={{ minHeight: "300px", height: "clamp(300px, 44vh, 500px)" }}>
+              <div className="relative flex-1" style={{ minHeight: "320px" }}>
                 {geoAssets.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-full gap-2 text-muted-foreground/40 px-4 text-center">
+                  <div className="flex flex-col items-center justify-center h-full gap-2 text-muted-foreground/40 px-4 text-center" style={{ minHeight: "320px" }}>
                     <MapPin className="w-8 h-8 opacity-20" />
                     <p className="text-xs font-mono">No geolocated assets</p>
                     <p className="text-[10px] font-mono leading-relaxed">
@@ -989,8 +1002,9 @@ export default function ApexProfile() {
                   <MapContainer
                     center={mapCenter}
                     zoom={geoAssets.length > 1 ? 3 : 5}
-                    style={{ height: "100%", width: "100%" }}
+                    style={{ height: "clamp(320px, 46vh, 520px)", width: "100%" }}
                     scrollWheelZoom={true}
+                    touchZoom={true}
                     className="z-0"
                   >
                     <TileLayer
@@ -1384,7 +1398,7 @@ export default function ApexProfile() {
           <div className="border border-border rounded-lg bg-card/30">
             <SectionHeader
               icon={<Route className="w-3.5 h-3.5" />}
-              title="Outreach Strategy"
+              title="Research Threads"
               badge={(sessions as any[]).length > 0 ? `${(sessions as any[]).length} session${(sessions as any[]).length !== 1 ? "s" : ""}` : undefined}
               action={
                 <button
@@ -1519,17 +1533,6 @@ export default function ApexProfile() {
                       </div>
                     )}
 
-                    <div className="border border-primary/10 rounded-lg bg-primary/5 p-3 flex items-center justify-between gap-3">
-                      <p className="text-[11px] font-mono text-muted-foreground leading-relaxed">
-                        Outreach drafts are created in the <strong className="text-foreground">Outreach Assistant</strong>. Switch to the Outreach Drafts tab to review existing drafts.
-                      </p>
-                      <Link
-                        href={`/outreach?entity=${entity.id}&session=${selectedSession.id}`}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-primary/20 border border-primary/30 text-primary font-mono text-[10px] uppercase tracking-wider hover:bg-primary/30 transition-colors flex-shrink-0"
-                      >
-                        <Sparkles className="w-3 h-3" /> Open
-                      </Link>
-                    </div>
                   </div>
                 )}
               </div>
