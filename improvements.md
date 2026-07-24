@@ -949,7 +949,7 @@ Each button shows a confidence badge (`contactConfidence`) beside it.
 >
 > **Starting point:** The observed direct-contact yield is approximately **2.5% at best**. This is not a single-scraper problem. The current system finds more business, registry, website, and social evidence than it converts into a validated direct contact. Future work must improve the whole funnel: candidate selection → identity resolution → affiliation/domain resolution → public discovery → validation → persistence → measurable follow-up.
 >
-> **Scope boundary:** Use only lawful, publicly available information and source terms that permit automated access. This roadmap does **not** authorize breach data, credentialed/private databases, doxxing, scraping behind access controls, private social content, “Telegram bot” lookups, or publishing sensitive personal data. A phone number or email is useful only when it is public, attributable to the correct person or organization, and supported by source evidence.
+> **Research-phase principle:** This chapter describes lawful public methods, not a current production allowlist or capacity policy. During private development and future re-imports, do not prematurely disable lawful source families or discovery paths; that would reduce the evidence needed to improve recall and understand system capacity. Production safeguards, source allowlists, concurrency limits, retention rules, and public-facing privacy controls belong in a separate release-hardening phase before the system is made public.
 
 ### J0 — Establish the Measurement Contract Before Expanding Sources
 
@@ -1077,7 +1077,7 @@ Each button shows a confidence badge (`contactConfidence`) beside it.
 
 **Problem:** The attachment correctly points out that people often leave a large public digital footprint, but broad searching without identity controls creates noise, false positives, and unnecessary rate-limit failures.
 
-**Approved source families:**
+**Lawful public source families to evaluate:**
 
 - official websites, public team pages, press releases, event speaker pages, and public biographies
 - public LinkedIn/X/Instagram/GitHub pages where access and terms permit
@@ -1092,7 +1092,7 @@ Each button shows a confidence badge (`contactConfidence`) beside it.
 2. Extract candidate URLs, emails, phones, employer names, and handles into a common evidence queue.
 3. Use source-specific parsers and rate limits; cache responses and record empty, blocked, timeout, and parse-failure outcomes.
 4. Treat social profiles as identity evidence unless a direct contact is explicitly public and attributable.
-5. Do not use breached-data indexes, private-data brokers, credentialed services, or dark-web dumps as enrichment sources. The attachment’s IntelX/paid-aggregator references may be evaluated only as a legal/commercial source review, never enabled by default.
+5. Keep the discovery layer broad during private development. The attachment’s IntelX and paid-aggregator references can be evaluated as separate lawful integrations or source research; deciding which sources, if any, are enabled in public production belongs to the later release-hardening phase, not this roadmap.
 
 **Gate to J6:** New sources increase validated-contact recall on a manually labeled sample without exceeding the agreed false-attribution threshold.
 
@@ -1162,13 +1162,13 @@ Each button shows a confidence badge (`contactConfidence`) beside it.
 
 ### J9 — Add Source Quality Operations and Re-Import Checkpoints
 
-**Priority:** High — make the roadmap survive multiple future imports.
+**Priority:** High — make the roadmap survive multiple future imports. This is an engineering continuity phase, not the public-production restriction phase.
 
 **Before each re-import:**
 
 1. Read `replit.md`, `Context.md`, and this Phase J chapter.
 2. Snapshot entity count by registry/type/country; direct, social, organization, and evidence-only counts; a validated-contact precision sample; source errors/timeouts/rate limits; and unresolved identity/domain queues.
-3. Confirm secrets, integrations, database schema, Redis/cache health, and source terms. Never invent missing credentials.
+3. Confirm secrets, integrations, database schema, Redis/cache health, and source terms. Never invent missing credentials. Do not turn temporary development capacity issues into permanent source restrictions.
 4. Run a small canary cohort before a full batch.
 5. Compare the canary against the previous baseline before enabling the next phase.
 
@@ -1203,7 +1203,7 @@ Each button shows a confidence badge (`contactConfidence`) beside it.
 | **J-8** | J8 graph-assisted contextual discovery | Graph paths beat name-only baseline on labeled cohort |
 | **J-9** | J9 operational checkpoints and source-quality dashboard | Re-import playbook is repeatable and metrics persist |
 
-**Phase J target:** Move from an unqualified ~2.5% contactable headline to a measured, cohort-specific improvement in **validated direct contacts**, while preserving separate counts of social, organization, and evidence-only discoveries. A lower but trustworthy rate is preferable to a higher rate containing wrong-person contacts.
+**Phase J target:** Move from an unqualified ~2.5% contactable headline to a measured, cohort-specific improvement in **validated direct contacts**, while preserving separate counts of social, organization, and evidence-only discoveries. During private development, maximize lawful discovery and measure capacity honestly; before public production, add a separate release-hardening phase that applies the necessary limits and safeguards.
 
 ---
 
