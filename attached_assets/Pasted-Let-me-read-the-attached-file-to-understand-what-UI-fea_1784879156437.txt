@@ -1,0 +1,33 @@
+Let me read the attached file to understand what UI feature was partially implemented and what needs to be completed.
+Let me understand what needs to be done. The user says "Last time you didn't finish the UI feature." Based on the log file, the previous session was working on:
+1. Live-process progress bar redesign on the Apex Atlas dashboard
+2. A continuous stream of custom glyphs (process-specific icons) + slower explanatory text
+3. The stream should be a true continuous loop (like бегущая строка / running line), NOT a clipped ticker
+4. Custom SVG glyphs, not generic Lucide icons
+5. Icons move faster than text
+6. Process-specific icon sets and text for Wikipedia, GitHub, RDAP, and other services
+7. Responsive design that works on both desktop and mobile without clipping at the loop reset
+The previous session ran out of quota before finishing, so I need to find the current state of the dashboard component and complete what was started.
+Let me look at the current state of the dashboard.tsx and the ProcessStream prototype to understand what needs to be completed and what state things are in.
+Let me read the current dashboard and the mockup prototype together.
+Now I need to read the current CSS and the rest of the dashboard job rail to understand exactly what to replace.
+Let me read the mockup CSS and the top of dashboard.tsx in parallel.
+One more read for the mobile rail context around line 863, then I'll do all edits in parallel.
+Now I have the complete picture. The mockup has the correct design (custom SVGs, seamless loop, glyphs faster than phrases) but was never integrated into the real dashboard. I'll do all edits in parallel.
+Now the mobile section fix and CSS replacement in parallel.
+Good — let me verify the build compiled clean and check for any TypeScript issues.
+Build is clean, HMR applied, and the in-house enricher is actively running — there should be live job bars visible. Let me grab desktop and mobile screenshots.
+Both views look exactly right. Three live jobs showing with the correct treatment:
+* Western HNWI Engine: registry/company/document glyphs + "reading ownership disclosures · Companies House · checking officer names"
+* In-House OSINT Enricher: github/DNS/phone glyphs + "checking public code profiles · RDAP · resolving domain registrants"
+* Deep Web OSINT: browser/Wikipedia/search glyphs + "reading biographies · search index · checking name variants"
+Glyphs move faster than the explanatory text, both layers are continuous with no visible reset. Let me update the docs to record this.
+The feature is complete. Here's what was done:
+What changed in the dashboard:
+* Replaced the broken Lucide-icon ticker with a custom SVG glyph system — 16 hand-drawn glyphs: wikipedia, browser, github, dns, plane, registry, property, company, person, graph, path, document, and more
+* Each of the 11 job types now has its own curated set of glyphs and action phrases (e.g. Deep Web OSINT gets browser + Wikipedia "W" + search glyphs with text like "Wikipedia · reading biographies" and "search index · checking name variants")
+* Icons move faster (16s loop), text drifts slower (34s loop) — the visual separation is deliberate
+* The loop is seamless: the track holds 2× content, animates to exactly −50%, then resets invisibly — no clipping jump
+* Edge fades use a mask-image so they work over any bar background color
+* Vertical scatter on individual glyph slots (nth-child offsets) gives the icons depth instead of a flat row
+* Mobile uses the same component with slightly tighter gaps and faster timing
