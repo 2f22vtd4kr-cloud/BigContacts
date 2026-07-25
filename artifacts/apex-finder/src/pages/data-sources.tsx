@@ -3,7 +3,7 @@ import {
   Plane, Building2, Globe, Landmark, FileSearch,
   Search, Scale, Network, Activity, CheckCircle2,
   RefreshCw, ExternalLink, Database, UserCheck, BarChart3,
-  Mail, Brain, Filter,
+  Mail, Brain, Filter, BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 

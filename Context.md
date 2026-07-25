@@ -8,7 +8,7 @@
 
 ---
 
-## Current State (2026-07-25 04:16 UTC — Re-import setup complete) — All J0–J9 live; API build clean 719ms; 4 workflows healthy
+## Current State (2026-07-25 05:10 UTC — Re-import setup complete) — All J0–J9 live; API build clean 485ms; 4 workflows healthy
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically ✅
@@ -103,6 +103,7 @@ All 4 Phase I items implemented and live. Build clean (esbuild ⚡ 1183ms). All 
 | 2026-07-24 | Improved dashboard live-process bars with process-specific explainer marquees, icon trails, fading edges, mobile stacking, and reduced-motion support; frontend build and canonical workflows verified |
 | 2026-07-24 | Fourth import setup: pnpm install (22.3s), schema pushed, all 4 artifacts registered, Redis+API+Web workflows running, /api/healthz ok; 32,002 entities from FAA+HMLR auto-ingestion; REDIS_URL_1/2 and COMPANIES_HOUSE_API_KEY not yet set |
 | 2026-07-24 | All 3 missing secrets added (REDIS_URL_1, REDIS_URL_2, COMPANIES_HOUSE_API_KEY); API restarted — both Upstash slots confirmed live; 32,102 entities, 5 contactable profiles restored from cache; setup fully complete |
+| 2026-07-25 | Fresh import boot: pnpm install (28s), DB schema push ([✓] Changes applied), all 4 artifacts re-registered via verifyAndReplaceArtifactToml, Redis+API+Web workflows running, /api/healthz → ok (redis latencyMs:2); fixed missing BookOpen lucide import in data-sources.tsx; dashboard preview verified at 32,001 entities; cold-start ingestion active |
 | 2026-07-24 | Fifth import setup: pnpm install (25.4s), Redis workflow started, schema pushed ([✓] Changes applied), all 4 artifacts re-registered via verifyAndReplaceArtifactToml, OutreachAssistant missing import fixed in router.tsx, API/web workflows running, /api/healthz ok (redis latencyMs:2), dashboard verified at 11,150 profiles; REDIS_URL_1, REDIS_URL_2, COMPANIES_HOUSE_API_KEY all set |
 | 2026-07-24 13:22 | Fresh import setup: REDIS_URL_1, REDIS_URL_2, COMPANIES_HOUSE_API_KEY added via secrets flow; pnpm install (1m52s); schema pushed ([✓] Changes applied); all 4 artifacts registered; Redis+API+web workflows running; /api/healthz ok (latencyMs:1); dashboard verified at 1,100 profiles with FAA+HMLR+Western HNWI ingestion active; both Upstash slots live |
 | 2026-07-24 | 8 UI/UX fixes: (1) infinite scroll confirmed working; (2) removed duplicate "Preferred" contact badge; (3) added mobile profile header showing entity name + active tab + access badge; (4) fixed map height (clamp 320-520px, explicit on MapContainer); (5) renamed "Bayesian Score"→"Wealth Signal" and "Has direct contact"→"Has contact info" in deep-search; (6) outreach banner/section removed from Research Threads tab, renamed "Outreach Strategy"→"Research Threads"; (7) graph nodeCanvasObjectMode→"replace" eliminates black node text; "Approach Vector"→"How to Approach"; (8) job progress bars: done=green 100%, queued=pulsing, active=clamped ≤100% |
