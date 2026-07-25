@@ -782,10 +782,12 @@ interface ScrapedPage {
   twitterUrl: string | null;
   text: string;
   links: string[];
+  /** True when the response is a Cloudflare/bot-protection challenge, not real page content. */
+  botBlocked: boolean;
 }
 
 function emptyScrapedPage(): ScrapedPage {
-  return { email: null, phone: null, linkedinUrl: null, instagramUrl: null, twitterUrl: null, text: "", links: [] };
+  return { email: null, phone: null, linkedinUrl: null, instagramUrl: null, twitterUrl: null, text: "", links: [], botBlocked: false };
 }
 
 function extractPageLinks(html: string, pageUrl: string): string[] {
