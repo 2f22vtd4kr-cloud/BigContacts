@@ -39,6 +39,8 @@ export const REGISTRY_IDS = [
   "ares-czechia",
   "bodacc-france",
   "gleif",
+  "cvr-denmark",
+  "zefix-switzerland",
   "opencorporates",
 ] as const;
 export type RegistryId = (typeof REGISTRY_IDS)[number];
@@ -550,6 +552,118 @@ async function searchBodacc(query: string, limit: number): Promise<RegistryResul
   return results;
 }
 
+// ─── CVR Denmark ─────────────────────────────────────────────────────────────
+// Free API, no auth. Returns phone and email directly for Danish companies.
+// Docs: https://cvrapi.dk/documentation
+
+async function searchCvrDenmark(query: string, limit: number): Promise<RegistryResult[]> {
+  const results: RegistryResult[] = [];
+  // CVR API returns one company per query — search up to 3 name variants
+  const queries = [query, ...query.split(/\s+/).filter(w => w.length > 3)].slice(0, 3);
+  const seen = new Set<string>();
+  for (const q of queries) {
+    try {
+      const url = `https://cvrapi.dk/api?search=${encodeURIComponent(q)}&country=dk`;
+      const resp = await fetch(url, {
+        headers: {
+          Accept: "application/json",
+          "User-Agent": "ApexFinder/1.0 OSINT-Research (public data only)",
+        },
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (!resp.ok) continue;
+      const data = (await resp.json()) as any;
+      const name: string = data?.name ?? "";
+      if (!name || seen.has(name.toLowerCase())) continue;
+      seen.add(name.toLowerCase());
+      const vat: string = data?.vat ? String(data.vat) : "";
+      const city: string = data?.city ?? "";
+      const zipcode: string = data?.zipcode ?? "";
+      const address: string = [data?.address, zipcode, city, "Denmark"].filter(Boolean).join(", ");
+      results.push({
+        name,
+        type: "Corporation",
+        nationality: "DK",
+        knownResidences: address || undefined,
+        sourceRegistries: JSON.stringify(["CVR Denmark"]),
+        notes: [
+          vat ? `CVR: ${vat}` : null,
+          data?.phone ? `Phone: ${data.phone}` : null,
+          data?.email ? `Email: ${data.email}` : null,
+          data?.startdate ? `Founded: ${data.startdate}` : null,
+        ].filter(Boolean).join(" | "),
+        metadata: JSON.stringify({
+          source: "cvr-denmark",
+          vat,
+          phone: data?.phone ?? null,
+          email: data?.email ?? null,
+          address,
+          city,
+          startdate: data?.startdate ?? null,
+          industrydesc: data?.industrydesc ?? null,
+        }),
+      });
+      if (results.length >= limit) break;
+    } catch { /* next variant */ }
+  }
+  return results;
+}
+
+// ─── Zefix Switzerland ────────────────────────────────────────────────────────
+// Free REST API, no auth. Swiss commercial register.
+// Docs: https://www.zefix.ch/en/search/entity/list/search
+
+async function searchZefixSwitzerland(query: string, limit: number): Promise<RegistryResult[]> {
+  const url = `https://www.zefix.ch/ZefixREST/api/v1/firm/search.json`;
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "User-Agent": "ApexFinder/1.0 OSINT-Research (public data only)",
+    },
+    body: JSON.stringify({ name: query, maxEntries: Math.min(limit, 20), searchType: "0" }),
+    signal: AbortSignal.timeout(12_000),
+  });
+  if (!resp.ok) {
+    const body = await resp.text().catch(() => "");
+    throw new Error(`Zefix ${resp.status}: ${body.slice(0, 200) || resp.statusText}`);
+  }
+  const data = (await resp.json()) as any;
+  const firms: any[] = Array.isArray(data) ? data : (data?.list ?? []);
+  const results: RegistryResult[] = [];
+  for (const firm of firms.slice(0, limit)) {
+    const name: string = firm?.name ?? "";
+    if (!name) continue;
+    const uid: string = firm?.uid ?? firm?.ehraid ?? "";
+    const canton: string = firm?.cantonAbbreviation ?? firm?.legalSeat ?? "";
+    const municipality: string = firm?.legalSeat ?? "";
+    const address = [municipality, canton, "Switzerland"].filter(Boolean).join(", ");
+    results.push({
+      name,
+      type: "Corporation",
+      nationality: "CH",
+      knownResidences: address || undefined,
+      sourceRegistries: JSON.stringify(["Zefix Switzerland"]),
+      notes: [
+        uid ? `UID: ${uid}` : null,
+        firm?.status ? `Status: ${firm.status}` : null,
+        canton ? `Canton: ${canton}` : null,
+      ].filter(Boolean).join(" | "),
+      metadata: JSON.stringify({
+        source: "zefix-switzerland",
+        uid,
+        ehraid: firm?.ehraid ?? null,
+        canton,
+        legalSeat: firm?.legalSeat ?? null,
+        status: firm?.status ?? null,
+        chid: firm?.chid ?? null,
+      }),
+    });
+  }
+  return results;
+}
+
 // ─── Public entry point ───────────────────────────────────────────────────────
 
 export async function searchRegistry(
@@ -595,6 +709,8 @@ export async function searchRegistry(
   if (registry === "brreg") return searchBrreg(query.trim(), limit);
   if (registry === "ares-czechia") return searchAres(query.trim(), limit);
   if (registry === "bodacc-france") return searchBodacc(query.trim(), limit);
+  if (registry === "cvr-denmark") return searchCvrDenmark(query.trim(), limit);
+  if (registry === "zefix-switzerland") return searchZefixSwitzerland(query.trim(), limit);
 
   throw new Error(`Unknown registry: "${registry}". Use one of: ${REGISTRY_IDS.join(", ")}.`);
 }

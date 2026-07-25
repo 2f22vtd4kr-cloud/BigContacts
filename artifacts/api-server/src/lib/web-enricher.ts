@@ -1194,11 +1194,13 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       logger.info({ entityId: entity.id, persons }, "Corp→Person hop: discovered person candidates");
 
       for (const personName of persons.slice(0, 3)) {
-        const personQuery = `"${personName}" email contact linkedin`;
         const label = `PersonHop[${personName.split(" ")[0]}]`;
+
+        // Primary: contact/LinkedIn search
         try {
-          const sr = await duckduckgoSearch(personQuery, locale);
+          const sr = await duckduckgoSearch(`"${personName}" email contact linkedin`, locale);
           result.queriesFired++;
+          allSearchText += " " + sr.text;
           if (sr.text) {
             for (const e of extractEmails(sr.text)) {
               const arr = emailHits.get(e) ?? []; arr.push(label); emailHits.set(e, arr);
@@ -1210,32 +1212,79 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
           }
           for (const u of sr.urls) { if (urlsToScrape.size < 10) urlsToScrape.add(u); }
         } catch { /* skip */ }
-        await jitteredDelay(800);
+        await jitteredDelay(600);
+
+        // Press/news context: confirms person↔venue link + surfaces more evidence
+        // Especially powerful for French/European targets where regional press covers venue owners
+        const pressEngine = isFrench ? qwantSearch : duckduckgoSearch;
+        const pressLocale = isFrench ? "fr_FR" : locale;
+        const pressQuery  = isFrench
+          ? `"${personName}" "${trading}" OR "${city ?? ""}" fondateur propriétaire`
+          : `"${personName}" "${trading}" owner founder`;
+        try {
+          const pr = await pressEngine(pressQuery, pressLocale);
+          result.queriesFired++;
+          allSearchText += " " + pr.text;
+          // Person names appearing in press snippets feed back into AI extraction
+          for (const u of pr.urls) { if (urlsToScrape.size < 12) urlsToScrape.add(u); }
+        } catch { /* skip */ }
+        await jitteredDelay(700);
       }
     }
   }
 
-  // ── Phase 5: Direct domain scraping ────────────────────────────────────
-  // Try guessed domains directly before scraping search-result URLs.
-  // This finds reservations@baolicannes.com without needing it to appear in a search snippet.
+  // ── Phase 5: Direct domain scraping + contact-page crawl + Wayback fallback ─
+  // Critical order: guessed domains first, then contact sub-pages, then Wayback.
+  // findContactPages returns Array<{url, scraped}> — iterate the array, do NOT treat as single page.
   for (const domain of domainTargets.slice(0, 4)) {
     try {
       const label = `Domain[${domain}]`;
-      // First try the root — fast check if the domain even resolves
+      // Root page — fast check; also feeds page text into AI accumulator
       const rootScrape = await scrapePage(`https://${domain}`);
       result.pagesScraped++;
-      if (rootScrape.email) { const arr = emailHits.get(rootScrape.email) ?? []; arr.push(label); emailHits.set(rootScrape.email, arr); }
-      if (rootScrape.phone) { const arr = phoneHits.get(rootScrape.phone) ?? []; arr.push(label); phoneHits.set(rootScrape.phone, arr); }
-      if (rootScrape.linkedinUrl) { const arr = linkedinHits.get(rootScrape.linkedinUrl) ?? []; arr.push(label); linkedinHits.set(rootScrape.linkedinUrl, arr); }
-      if (rootScrape.instagramUrl) { const arr = igHits.get(rootScrape.instagramUrl) ?? []; arr.push(label); igHits.set(rootScrape.instagramUrl, arr); }
-      if (rootScrape.twitterUrl) { const arr = twHits.get(rootScrape.twitterUrl) ?? []; arr.push(label); twHits.set(rootScrape.twitterUrl, arr); }
+      allSearchText += " " + rootScrape.text.slice(0, 2000);
+      if (rootScrape.email)       { const a = emailHits.get(rootScrape.email) ?? [];       a.push(label); emailHits.set(rootScrape.email, a); }
+      if (rootScrape.phone)       { const a = phoneHits.get(rootScrape.phone) ?? [];       a.push(label); phoneHits.set(rootScrape.phone, a); }
+      if (rootScrape.linkedinUrl) { const a = linkedinHits.get(rootScrape.linkedinUrl) ?? []; a.push(label); linkedinHits.set(rootScrape.linkedinUrl, a); }
+      if (rootScrape.instagramUrl){ const a = igHits.get(rootScrape.instagramUrl) ?? [];   a.push(label); igHits.set(rootScrape.instagramUrl, a); }
+      if (rootScrape.twitterUrl)  { const a = twHits.get(rootScrape.twitterUrl) ?? [];     a.push(label); twHits.set(rootScrape.twitterUrl, a); }
 
-      // If root resolved (email found), also check contact sub-pages
+      // Crawl contact / about / team sub-pages when root has no email.
+      // findContactPages returns Array<{url, scraped}> — iterate it correctly.
       if (!rootScrape.email) {
-        const contactScrape = await findContactPages(domain);
-        if (contactScrape.email) { const arr2 = emailHits.get(contactScrape.email) ?? []; arr2.push(`${label}/contact`); emailHits.set(contactScrape.email, arr2); }
-        if (contactScrape.phone) { const arr2 = phoneHits.get(contactScrape.phone) ?? []; arr2.push(`${label}/contact`); phoneHits.set(contactScrape.phone, arr2); }
-        if (contactScrape.instagramUrl) { const arr2 = igHits.get(contactScrape.instagramUrl) ?? []; arr2.push(`${label}/contact`); igHits.set(contactScrape.instagramUrl, arr2); }
+        const contactPages = await findContactPages(domain);
+        for (const { url: cpUrl, scraped: cp } of contactPages) {
+          const cpLabel = `${label}[${cpUrl.split("/").slice(-1)[0] ?? "contact"}]`;
+          allSearchText += " " + cp.text.slice(0, 2000);
+          if (cp.email)       { const a = emailHits.get(cp.email) ?? [];       a.push(cpLabel); emailHits.set(cp.email, a); }
+          if (cp.phone)       { const a = phoneHits.get(cp.phone) ?? [];       a.push(cpLabel); phoneHits.set(cp.phone, a); }
+          if (cp.linkedinUrl) { const a = linkedinHits.get(cp.linkedinUrl) ?? []; a.push(cpLabel); linkedinHits.set(cp.linkedinUrl, a); }
+          if (cp.instagramUrl){ const a = igHits.get(cp.instagramUrl) ?? [];   a.push(cpLabel); igHits.set(cp.instagramUrl, a); }
+          if (cp.twitterUrl)  { const a = twHits.get(cp.twitterUrl) ?? [];     a.push(cpLabel); twHits.set(cp.twitterUrl, a); }
+          if (cp.email) break; // got what we need
+        }
+      }
+
+      // Wayback Machine fallback: live site returned very little (likely Cloudflare JS challenge).
+      // A short response (<500 chars) with no contacts = bot-detection page, not the real site.
+      const liveHit = rootScrape.email || rootScrape.phone || rootScrape.instagramUrl;
+      if (!liveHit && rootScrape.text.length < 500) {
+        const wbUrls = await waybackSnapshotUrls(domain);
+        for (const wbUrl of wbUrls.slice(0, 3)) {
+          try {
+            const wb = await scrapePage(wbUrl);
+            result.pagesScraped++;
+            const wbLabel = `Wayback[${domain}]`;
+            allSearchText += " " + wb.text.slice(0, 2000);
+            if (wb.email)       { const a = emailHits.get(wb.email) ?? [];       a.push(wbLabel); emailHits.set(wb.email, a); }
+            if (wb.phone)       { const a = phoneHits.get(wb.phone) ?? [];       a.push(wbLabel); phoneHits.set(wb.phone, a); }
+            if (wb.linkedinUrl) { const a = linkedinHits.get(wb.linkedinUrl) ?? []; a.push(wbLabel); linkedinHits.set(wb.linkedinUrl, a); }
+            if (wb.instagramUrl){ const a = igHits.get(wb.instagramUrl) ?? [];   a.push(wbLabel); igHits.set(wb.instagramUrl, a); }
+            if (wb.twitterUrl)  { const a = twHits.get(wb.twitterUrl) ?? [];     a.push(wbLabel); twHits.set(wb.twitterUrl, a); }
+            if (wb.email || wb.phone) break;
+          } catch { /* skip */ }
+          await sleep(500);
+        }
       }
     } catch { /* domain doesn't resolve */ }
     await jitteredDelay(600);
@@ -1247,6 +1296,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     try {
       const scraped = await scrapePage(url);
       result.pagesScraped++;
+      allSearchText += " " + scraped.text.slice(0, 3000); // page content feeds AI pass
       const label = `Page[${new URL(url).hostname.replace(/^www\./, "").substring(0, 20)}]`;
       if (scraped.email)       { const arr = emailHits.get(scraped.email) ?? []; arr.push(label); emailHits.set(scraped.email, arr); }
       if (scraped.phone)       { const arr = phoneHits.get(scraped.phone) ?? []; arr.push(label); phoneHits.set(scraped.phone, arr); }
