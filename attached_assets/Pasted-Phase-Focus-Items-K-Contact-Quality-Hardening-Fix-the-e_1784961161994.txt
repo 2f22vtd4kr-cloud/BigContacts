@@ -1,0 +1,21 @@
+Phase	Focus	Items
+K — Contact Quality Hardening	Fix the existing contact pool. No new sources.	K1 RDAP registrar blocklist · K2 Generic prefix penalty at setEmail() · K3 Cross-entity email dedup · K4 Auto-trigger backfill · K5 Phone E.164 · K6 JS-filename email bug
+L — Contact Outcome Correctness	Make the dashboard tell the truth.	L1 computeContactOutcomeorg detection · L2 Dashboard "Reachable" metric split · L3 Contact audit panel
+M — Yield Improvement	Increase true personal yield from ~0.5% upward.	M1 Promote SMTP-verified → direct_contact_verified· M2 Multi-pass for social_only · M3 LLC→person coverage · M4 Contact attribution chain
+N — Infrastructure	Platform health.	N1 Upstash slot 1 replacement · N2 Startup auto-backfill · N3 TS errors cleanup · N4 Entity dedup
+Phases K, L, M1, N2 — implemented and live on 32,700 entities
+
+Phase K — Contact Quality Hardening (all 6 items)
+* K1: RDAP registrar domain blocklist — emails from web.com, namebright, amazonaws, godaddy, etc. are now discarded before storage
+* K2: Generic prefix penalty — info@, sales@, contact@, support@ etc. take −30 confidence; if that drops them below the source floor they're rejected; hasGenericEmail flag set for downstream classification
+* K3: POST /api/ingest/flag-shared-emails — emails on ≥3 distinct entities bulk-marked organization_contact
+* K4: Backfill auto-triggered at startup (210s, Phase 3b — after enrichment, before relationship graph)
+* K5: normalizePhone() added — E.164, 8–15 digit range, 10-digit US gets +1 prefix; POST /api/ingest/normalize-phones migration endpoint for existing DB records
+* K6: isValidPublicEmail() now rejects .js/.ts/.mjs/etc. filename domains and IP-like patterns like 10.5.13.x
+Phase L — Outcome Correctness
+* L1: computeContactOutcome() now assigns organization_contact when: phone source is EDGAR-Phone/CompaniesHouse-Phone, or email local-part is generic. The enrichment caller passes source metadata; the backfill reads it from persisted entity.metadata
+* L2: Dashboard "Reachable" replaced with honest split — reachablePersonal, reachableVerified, reachableOrg, reachableSocial returned from /api/dashboard/stats. UI shows "54 Personal"(true yield ≈ 0.16%) instead of the misleading 992
+Phase M1 / N2
+* M1: smtpVerified flag in enricher → validatedDirectContact=true written to DB; backfill derives it from SMTP-Verified in enrichmentSources
+* N2: backfill-contact-outcomes + flag-shared-emails both wired into startup maintenance phases (210s/215s)
+Remaining open items: L3 (contact evidence audit panel), M2–M4 (multi-pass social_only, LLC resolution, attribution chain), N1 (add REDIS_URL_5 secret to replace exhausted slot 1), N3 (TS error cleanup), N4(entity dedup schema).
