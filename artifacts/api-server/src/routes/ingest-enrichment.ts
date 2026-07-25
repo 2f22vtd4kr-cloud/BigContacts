@@ -21,7 +21,7 @@
  */
 
 import { Router, type Request, type Response } from "express";
-import { db, assetsTable, entitiesTable } from "@workspace/db";
+import { db, assetsTable, entitiesTable, contactEvidenceTable } from "@workspace/db";
 import { sql, eq, and, desc, inArray, type SQL } from "drizzle-orm";
 import {
   createJob, updateJob, getJob,
@@ -512,6 +512,35 @@ router.post("/ingest/in-house-enrich", async (req: Request, res: Response): Prom
         await db.update(entitiesTable)
           .set(updates as any)
           .where(eq(entitiesTable.id, entity.id));
+
+        // Persist structured evidence rows so the profile audit panel shows
+        // the real source URL, method, and timestamp for each contact vector.
+        if (result.evidence.length > 0) {
+          try {
+            const evidenceRows = result.evidence.map((ev) => ({
+              entityId: entity.id,
+              vectorType: ev.vectorType,
+              value: ev.value,
+              source: ev.source,
+              sourceUrl: ev.sourceUrl ?? null,
+              extractionMethod: ev.extractionMethod,
+              sourceReliability: Math.min(1, Math.max(0, ev.confidence / 100)),
+              identityMatch: 0.75,
+              recencyScore: 0.70,
+              directnessScore:
+                ev.vectorType === "email" ? 0.80 :
+                ev.vectorType === "phone" ? 0.75 :
+                ev.vectorType === "social" ? 0.20 : 0.10,
+              independentCorroboration: 1,
+              validationStatus: ev.confidence >= 80 ? "verified" : "candidate",
+              metadata: JSON.stringify(ev.details ?? {}),
+              observedAt: new Date(ev.observedAt),
+            }));
+            await db.insert(contactEvidenceTable).values(evidenceRows).onConflictDoNothing();
+          } catch (evidenceErr: any) {
+            logger.warn({ entityId: entity.id, err: evidenceErr.message }, "Failed to write evidence rows (non-fatal)");
+          }
+        }
 
         const stableKey = (() => {
           if (meta["nNumber"])       return `faa:${meta["nNumber"]}`;

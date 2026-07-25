@@ -339,6 +339,7 @@ export default function ApexProfile() {
     value: string;
     source: string;
     sourceUrl: string | null;
+    extractionMethod: string | null;
     validationStatus: string;
     sourceReliability: number;
     directnessScore: number;
@@ -897,10 +898,43 @@ export default function ApexProfile() {
                 return primaryReg || "a public registry";
               })();
 
-              // Plain-English research narrative for each contact field
-              const explainContact = (field: string): string => {
+              // Plain-English research narrative for each contact field.
+              // When structured evidence rows exist for this field, lead with those.
+              const explainContact = (field: string): React.ReactNode => {
                 const name = e2.name || "This person";
                 const anchor = `${name} appears in ${registryLabel} — that registry record (name + address) is the anchor for all contact research below.`;
+
+                // Map field → vectorType for evidence lookup
+                const vectorTypeForField: Record<string, string> = {
+                  email: "email", phone: "phone",
+                  linkedinUrl: "social", twitterHandle: "social",
+                  instagramHandle: "social", telegramHandle: "social",
+                };
+                const vt = vectorTypeForField[field] ?? null;
+                const fieldValue = e2[field];
+                const matchingEvidence = vt && fieldValue
+                  ? contactEvidence.filter(ev => ev.vectorType === vt && ev.value === fieldValue)
+                  : [];
+
+                // If we have a durable evidence row with a source URL, surface it prominently
+                const primaryEvidence = matchingEvidence.find(ev => ev.sourceUrl) ?? matchingEvidence[0] ?? null;
+                const evidenceBadge = primaryEvidence ? (
+                  <span className="block mb-1 text-[9px] font-mono">
+                    <span className="text-amber-400/60 uppercase tracking-wider">Source: </span>
+                    {primaryEvidence.sourceUrl ? (
+                      <a href={primaryEvidence.sourceUrl} target="_blank" rel="noopener noreferrer"
+                        className="text-amber-400 hover:underline" title={primaryEvidence.sourceUrl}>
+                        {primaryEvidence.source}↗
+                      </a>
+                    ) : (
+                      <span className="text-muted-foreground/70">{primaryEvidence.source}</span>
+                    )}
+                    {primaryEvidence.extractionMethod && (
+                      <span className="text-muted-foreground/40"> · {primaryEvidence.extractionMethod}</span>
+                    )}
+                    <span className="text-muted-foreground/30"> · observed {new Date(primaryEvidence.observedAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}</span>
+                  </span>
+                ) : null;
 
                 if (field === "email") {
                   const steps: string[] = [anchor];
@@ -920,10 +954,12 @@ export default function ApexProfile() {
                     steps.push("Found via a web search for this person's name alongside contact-related terms.");
                   }
                   if (steps.length === 1) {
-                    steps.push("The email was surfaced by the enrichment pipeline searching public web sources for this person's name and known affiliations.");
+                    steps.push(primaryEvidence
+                      ? `Extracted via ${primaryEvidence.extractionMethod ?? primaryEvidence.source}.`
+                      : "The email was surfaced by the enrichment pipeline searching public web sources for this person's name and known affiliations.");
                   }
                   steps.push("⚠ If this looks like a generic company inbox (e.g. press@, info@, contact@) rather than a personal address, flag it as incorrect.");
-                  return steps.join(" ");
+                  return <>{evidenceBadge}{steps.join(" ")}</>;
                 }
 
                 if (field === "phone") {
@@ -941,22 +977,24 @@ export default function ApexProfile() {
                     steps.push("This number appears in Norway's official BRREG business registry for a company linked to this person.");
                   }
                   if (steps.length === 1) {
-                    steps.push("The phone number was surfaced from a public record associated with this person's name or registered organization.");
+                    steps.push(primaryEvidence
+                      ? `Extracted via ${primaryEvidence.extractionMethod ?? primaryEvidence.source}.`
+                      : "The phone number was surfaced from a public record associated with this person's name or registered organization.");
                   }
-                  return steps.join(" ");
+                  return <>{evidenceBadge}{steps.join(" ")}</>;
                 }
 
                 if (field === "linkedinUrl") {
-                  return `${anchor} We searched the web for "${e2.name} LinkedIn" and found a professional profile whose name, location, and career background are consistent with this person. We have not independently verified this profile is theirs — check that the work history and photo match what you know before reaching out.`;
+                  return <>{evidenceBadge}{`${anchor} We searched the web for "${e2.name} LinkedIn" and found a professional profile whose name, location, and career background are consistent with this person. We have not independently verified this profile is theirs — check that the work history and photo match what you know before reaching out.`}</>;
                 }
 
                 if (field === "twitterHandle" || field === "instagramHandle") {
                   const net = field === "twitterHandle" ? "Twitter/X" : "Instagram";
-                  return `${anchor} We searched public social networks for accounts whose display name, bio, or profile details match this person. The ${net} handle shown is the closest match found. Verify the profile content (bio, location, posts) before treating it as confirmed.`;
+                  return <>{evidenceBadge}{`${anchor} We searched public social networks for accounts whose display name, bio, or profile details match this person. The ${net} handle shown is the closest match found. Verify the profile content (bio, location, posts) before treating it as confirmed.`}</>;
                 }
 
                 if (field === "telegramHandle") {
-                  return `${anchor} We searched public Telegram directories and group listings for accounts matching this person's name. Telegram handles can be transferred or reused, so confirm the account's activity and content match before reaching out.`;
+                  return <>{evidenceBadge}{`${anchor} We searched public Telegram directories and group listings for accounts matching this person's name. Telegram handles can be transferred or reused, so confirm the account's activity and content match before reaching out.`}</>;
                 }
 
                 if (field === "personalWebsite") {
@@ -973,18 +1011,18 @@ export default function ApexProfile() {
                   if (steps.length === 1) {
                     steps.push("A website associated with this person was found through public records and confirmed active.");
                   }
-                  return steps.join(" ");
+                  return <>{evidenceBadge}{steps.join(" ")}</>;
                 }
 
                 if (field === "foundationName") {
-                  return `${anchor} We searched IRS Form 990 filings — public tax documents that every U.S. nonprofit must file annually — and found this person listed as an officer, director, or trustee of this foundation. The 990 is a government-published document, not inferred data.`;
+                  return <>{evidenceBadge}{`${anchor} We searched IRS Form 990 filings — public tax documents that every U.S. nonprofit must file annually — and found this person listed as an officer, director, or trustee of this foundation. The 990 is a government-published document, not inferred data.`}</>;
                 }
 
                 if (field === "contactMethod") {
-                  return "This contact method was entered manually — either by you or imported directly from a research session. It was not inferred by the enrichment pipeline.";
+                  return <>{"This contact method was entered manually — either by you or imported directly from a research session. It was not inferred by the enrichment pipeline."}</>;
                 }
 
-                return `${anchor} This value was surfaced by the enrichment pipeline from public sources linked to this person's name and registry record.`;
+                return <>{evidenceBadge}{`${anchor} This value was surfaced by the enrichment pipeline from public sources linked to this person's name and registry record.`}</>;
               };
 
               const cFields = [
@@ -1017,20 +1055,38 @@ export default function ApexProfile() {
                       <div className="text-[10px] font-mono text-muted-foreground">Loading evidence…</div>
                     ) : contactEvidence.length === 0 ? (
                       <div className="text-[10px] font-mono text-muted-foreground/60">
-                        No structured evidence rows recorded for these contact vectors yet.
+                        No structured evidence rows yet — evidence is written on the next enrichment run.
                       </div>
                     ) : (
-                      <div className="space-y-1.5">
+                      <div className="space-y-2.5">
                         {contactEvidence.map((item) => (
-                          <div key={item.id} className="flex items-start gap-2 text-[10px] font-mono">
-                            <span className="text-amber-300/80 uppercase w-16 flex-shrink-0">{item.vectorType}</span>
-                            <span className="text-muted-foreground truncate flex-1" title={item.value}>{item.value}</span>
-                            <span className={cn(
-                              "uppercase flex-shrink-0",
-                              item.validationStatus === "verified" ? "text-emerald-400" :
-                                item.validationStatus === "rejected" ? "text-red-400" : "text-amber-400",
-                            )}>{item.validationStatus}</span>
-                            <span className="text-muted-foreground/50 flex-shrink-0">{item.source}</span>
+                          <div key={item.id} className="text-[10px] font-mono border-l border-amber-500/20 pl-2 space-y-0.5">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-amber-300/80 uppercase w-14 flex-shrink-0">{item.vectorType}</span>
+                              <span className={cn(
+                                "uppercase text-[9px] flex-shrink-0",
+                                item.validationStatus === "verified" ? "text-emerald-400" :
+                                  item.validationStatus === "rejected" ? "text-red-400" : "text-amber-400/80",
+                              )}>{item.validationStatus}</span>
+                              <span className="text-foreground/80 truncate flex-1" title={item.value}>{item.value}</span>
+                            </div>
+                            <div className="flex items-center gap-2 flex-wrap text-[9px] text-muted-foreground/60">
+                              {item.sourceUrl ? (
+                                <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer"
+                                  className="text-amber-400/70 hover:text-amber-400 underline underline-offset-2 truncate max-w-[220px]"
+                                  title={item.sourceUrl}>
+                                  {item.source}↗
+                                </a>
+                              ) : (
+                                <span>{item.source}</span>
+                              )}
+                              {item.extractionMethod && (
+                                <span className="text-muted-foreground/40">· {item.extractionMethod}</span>
+                              )}
+                              <span className="text-muted-foreground/30 ml-auto flex-shrink-0">
+                                {new Date(item.observedAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
+                              </span>
+                            </div>
                           </div>
                         ))}
                       </div>

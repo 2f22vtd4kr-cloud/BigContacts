@@ -1399,10 +1399,10 @@ export async function enrichInHouse(entity: InHouseEnrichInput): Promise<InHouse
       const wd = await queryWikidata(name);
       if (wd) {
         result.sourceHits["Wikidata"] = true;
-        setEmail(wd.email, 85, "Wikidata-Email");
+        setEmail(wd.email, 85, "Wikidata-Email", wd.entityUrl ?? null);
         if (!result.linkedinUrl && wd.linkedinUrl) { result.linkedinUrl = wd.linkedinUrl; addSource("Wikidata-LinkedIn"); }
         if (!result.website && wd.website) { result.website = wd.website; addSource("Wikidata-Website"); }
-        if (!result.phone && wd.phone) setPhone(wd.phone, 80, "Wikidata-Phone");
+        if (!result.phone && wd.phone) setPhone(wd.phone, 80, "Wikidata-Phone", wd.entityUrl ?? null);
         if (!result.twitter && wd.twitter) { result.twitter = wd.twitter; addSource("Wikidata-Twitter"); }
       }
     })());
@@ -1425,10 +1425,10 @@ export async function enrichInHouse(entity: InHouseEnrichInput): Promise<InHouse
       const wiki = await queryWikipedia(name);
       if (wiki) {
         result.sourceHits["Wikipedia"] = true;
-        if (!result.email) setEmail(extractEmail(wiki.extract), 40, "Wikipedia-Email");
+        if (!result.email) setEmail(extractEmail(wiki.extract), 40, "Wikipedia-Email", wiki.website ?? null);
         if (!result.linkedinUrl) { const li = extractLinkedIn(wiki.extract); if (li) { result.linkedinUrl = li; addSource("Wikipedia-LinkedIn"); } }
         if (!result.website && wiki.website) { result.website = wiki.website; addSource("Wikipedia-URL"); }
-        if (!result.phone) setPhone(extractPhone(wiki.extract), 45, "Wikipedia-Phone");
+        if (!result.phone) setPhone(extractPhone(wiki.extract), 45, "Wikipedia-Phone", wiki.website ?? null);
       }
     })());
   }
@@ -1439,7 +1439,7 @@ export async function enrichInHouse(entity: InHouseEnrichInput): Promise<InHouse
       const orcid = await queryORCID(first, last);
       if (orcid) {
         result.sourceHits["ORCID"] = true;
-        setEmail(orcid.email, 80, "ORCID-Email");
+        setEmail(orcid.email, 80, "ORCID-Email", orcid.recordUrl);
         if (!result.website && orcid.website) { result.website = orcid.website; addSource("ORCID-Website"); }
       }
     })());
@@ -1451,7 +1451,7 @@ export async function enrichInHouse(entity: InHouseEnrichInput): Promise<InHouse
       const gh = await queryGitHub(name);
       if (gh) {
         result.sourceHits["GitHub"] = true;
-        setEmail(gh.email, 75, "GitHub-Email");
+        setEmail(gh.email, 75, "GitHub-Email", gh.htmlUrl);
         if (!result.website && gh.blog) { result.website = gh.blog; addSource("GitHub-Blog"); }
       }
     })());
@@ -1478,7 +1478,7 @@ export async function enrichInHouse(entity: InHouseEnrichInput): Promise<InHouse
     const edgar = await queryEDGAR(name);
     if (edgar) {
       result.sourceHits["EDGAR"] = true;
-      setPhone(edgar.phone, 65, "EDGAR-Phone");
+      setPhone(edgar.phone, 65, "EDGAR-Phone", edgar.recordUrl);
       if (!result.website && edgar.companyName && isCorp) {
         const guessed = guessCompanyDomain(edgar.companyName);
         if (guessed.length && !knownDomain) knownDomain = guessed[0]!;
@@ -1492,8 +1492,8 @@ export async function enrichInHouse(entity: InHouseEnrichInput): Promise<InHouse
       const ch = await queryCompaniesHouse(name);
       if (ch) {
         result.sourceHits["CompaniesHouse"] = true;
-        if (ch.officerEmails.length) setEmail(ch.officerEmails[0]!, 70, "CompaniesHouse-Email");
-        setPhone(ch.officerPhone, 65, "CompaniesHouse-Phone");
+        if (ch.officerEmails.length) setEmail(ch.officerEmails[0]!, 70, "CompaniesHouse-Email", ch.recordUrl);
+        setPhone(ch.officerPhone, 65, "CompaniesHouse-Phone", ch.recordUrl);
         addSource("CompaniesHouse-Found");
       }
     })());
@@ -1505,8 +1505,8 @@ export async function enrichInHouse(entity: InHouseEnrichInput): Promise<InHouse
       const pp = await queryProPublica(name);
       if (pp) {
         result.sourceHits["ProPublica"] = true;
-        setEmail(pp.email, 50, "ProPublica-Email");
-        setPhone(pp.phone, 50, "ProPublica-Phone");
+        setEmail(pp.email, 50, "ProPublica-Email", pp.recordUrl ?? null);
+        setPhone(pp.phone, 50, "ProPublica-Phone", pp.recordUrl ?? null);
         if (!result.website && pp.website) { result.website = pp.website; addSource("ProPublica-Website"); }
       }
     })());
@@ -1524,7 +1524,7 @@ export async function enrichInHouse(entity: InHouseEnrichInput): Promise<InHouse
         const brreg = await queryBRREG(orgnr);
         if (brreg) {
           result.sourceHits["BRREG"] = true;
-          setPhone(brreg.phone, 55, "BRREG-Phone");
+          setPhone(brreg.phone, 55, "BRREG-Phone", brreg.recordUrl ?? null);
           if (!result.website && brreg.website) { result.website = brreg.website; addSource("BRREG-Website"); }
           if (!result.address && brreg.address) { result.address = brreg.address; addSource("BRREG-Address"); }
         }
@@ -1590,9 +1590,9 @@ export async function enrichInHouse(entity: InHouseEnrichInput): Promise<InHouse
       const rdap = await rdapLookup(knownDomain!);
       if (rdap.email) {
         result.sourceHits["RDAP"] = true;
-        setEmail(rdap.email, 50, "RDAP-Registrant");
+        setEmail(rdap.email, 50, "RDAP-Registrant", `https://rdap.org/domain/${knownDomain}`);
       }
-      if (rdap.phone) setPhone(rdap.phone, 40, "RDAP-Phone");
+      if (rdap.phone) setPhone(rdap.phone, 40, "RDAP-Phone", `https://rdap.org/domain/${knownDomain}`);
     })());
 
     // Source 12: crt.sh
@@ -1741,7 +1741,7 @@ export async function enrichInHouse(entity: InHouseEnrichInput): Promise<InHouse
       if (handle && handle.length > 1 && !["search", "orgs", "trending"].includes(handle)) {
         const gh = await queryGitHubByHandle(handle);
         if (gh?.email) {
-          setEmail(gh.email, 55, "GitHub-Handle");
+          setEmail(gh.email, 55, "GitHub-Handle", gh.htmlUrl ?? null);
           addSource("GitHub-Handle");
         }
         if (gh?.blog && !result.website) {
