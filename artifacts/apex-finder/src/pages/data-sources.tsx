@@ -705,25 +705,43 @@ function IdentityResolutionPanel() {
 
 type PhaseJStatus = {
   implementation?: Record<string, boolean>;
+  modules?: Record<string, string>;
   latestRun?: {
     id: number;
     pass: string | null;
     totalSelected: number;
+    totalFound: number;
     directConfirmed: number;
     directVerified: number;
+    identityResolved: number;
+    domainResolved: number;
     candidateValidated: number;
     candidateAttributed: number;
     socialOnly: number;
     evidenceOnly: number;
+    organizationContact: number;
     errors: number;
+    durationMs: number | null;
   } | null;
-  latestCheckpoint?: { name: string; totalEntities: number; directVerified: number } | null;
+  latestCheckpoint?: { name: string; totalEntities: number; directVerified: number; directCandidate: number } | null;
+  stateCounts?: Array<{ outcome: string; count: number }>;
+  evidenceCounts?: Array<{ validation_status: string; vector_type: string; count: number }>;
 };
+
+const J_MODULES: Array<{ key: string; label: string; desc: string; color: string }> = [
+  { key: "J4", label: "J4", desc: "Domain resolution — GLEIF · DNS MX+SPF · metadata", color: "text-cyan-400 border-cyan-500/20 bg-cyan-500/5" },
+  { key: "J5", label: "J5", desc: "Digital footprint — DDG query templates · contact-page scraper · graph-neighbour", color: "text-blue-400 border-blue-500/20 bg-blue-500/5" },
+  { key: "J6", label: "J6", desc: "Attribution scoring — 5-dimension geometric mean · threshold 0.52", color: "text-violet-400 border-violet-500/20 bg-violet-500/5" },
+  { key: "J7", label: "J7", desc: "Multi-pass scheduler — source cooldowns · budgeted selection", color: "text-amber-400 border-amber-500/20 bg-amber-500/5" },
+  { key: "J8", label: "J8", desc: "Graph-assisted — neighbour domains+names as query context", color: "text-rose-400 border-rose-500/20 bg-rose-500/5" },
+  { key: "J9", label: "J9", desc: "Source quality dashboard · re-import checkpoints", color: "text-emerald-400 border-emerald-500/20 bg-emerald-500/5" },
+];
 
 function PhaseJCompletionPanel() {
   const [status, setStatus] = useState<PhaseJStatus | null>(null);
   const [running, setRunning] = useState(false);
   const [message, setMessage] = useState("");
+  const [showModules, setShowModules] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const load = () => {
@@ -742,11 +760,11 @@ function PhaseJCompletionPanel() {
   const runPass = async () => {
     if (running) return;
     setRunning(true);
-    setMessage("Starting a budgeted Phase J follow-up pass…");
+    setMessage("Starting Phase J pass (J4 domain resolution · J5 footprint · J6 attribution · J7 cooldowns · J8 graph)…");
     try {
-      const started = await apiPost("/api/ingest/phase-j-pass", { batchSize: 25, pass: "retry" }) as { jobId: string | null; total: number };
+      const started = await apiPost("/api/ingest/phase-j-pass", { batchSize: 25, pass: "J4-J9" }) as { jobId: string | null; total: number };
       if (!started.jobId) {
-        setMessage(started.total === 0 ? "No candidates are due for another pass." : "No Phase J job was created.");
+        setMessage(started.total === 0 ? "No candidates are due — all are either verified or cooling down." : "No Phase J job was created.");
         setRunning(false);
         load();
         return;
@@ -761,9 +779,7 @@ function PhaseJCompletionPanel() {
             setRunning(false);
             load();
           }
-        } catch {
-          // The next poll can recover from a transient API/network error.
-        }
+        } catch { /* next poll recovers */ }
       }, 2000);
     } catch (error) {
       setRunning(false);
@@ -773,8 +789,8 @@ function PhaseJCompletionPanel() {
 
   const checkpoint = async () => {
     try {
-      await apiPost("/api/pipeline/phase-j/checkpoint", { name: "manual-phase-j-checkpoint" });
-      setMessage("Checkpoint saved — the current funnel is now comparable across re-imports.");
+      await apiPost("/api/pipeline/phase-j/checkpoint", { name: `phase-j-${new Date().toISOString().slice(0,10)}` });
+      setMessage("Checkpoint saved — funnel snapshot is now comparable across re-imports.");
       load();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Failed to save checkpoint");
@@ -782,29 +798,33 @@ function PhaseJCompletionPanel() {
   };
 
   const run = status?.latestRun;
+  const impl = status?.implementation ?? {};
+  const allJ4J9 = ["J4","J5","J6","J7","J8","J9"].every(k => impl[k]);
+
   return (
-    <section className="rounded-xl border border-border bg-card/60 p-4">
-      <div className="flex items-start justify-between gap-3 mb-3">
+    <section className="rounded-xl border border-border bg-card/60 p-4 space-y-4">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Rocket className="h-4 w-4 text-emerald-400" />
+          <Rocket className="h-4 w-4 text-emerald-400 flex-shrink-0" />
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="text-sm font-semibold font-mono uppercase tracking-widest text-emerald-400">
                 Phase J Completion
               </span>
-              <span className="text-[9px] font-mono bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded uppercase tracking-wider">
-                J4–J9
+              <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded uppercase tracking-wider border ${allJ4J9 ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-amber-500/10 text-amber-400 border-amber-500/20"}`}>
+                {allJ4J9 ? "J4–J9 live" : "partial"}
               </span>
             </div>
-            <p className="text-[10px] font-mono text-muted-foreground mt-1">
-              Validated provenance, retry state, graph context, and re-import checkpoints.
+            <p className="text-[10px] font-mono text-muted-foreground mt-0.5">
+              Domain resolution · Digital footprint · Multi-dim attribution · Source cooldowns · Graph-assisted discovery · Checkpoints
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-shrink-0">
           <button
             onClick={checkpoint}
-            className="rounded-lg px-3 py-2 text-xs font-semibold border border-border text-muted-foreground hover:text-foreground"
+            className="rounded-lg px-3 py-2 text-xs font-semibold border border-border text-muted-foreground hover:text-foreground whitespace-nowrap"
           >
             Save checkpoint
           </button>
@@ -814,30 +834,222 @@ function PhaseJCompletionPanel() {
             className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 border border-emerald-500/20 disabled:opacity-50 whitespace-nowrap"
           >
             {running ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
-            {running ? "Running…" : "Run follow-up"}
+            {running ? "Running…" : "Run J4–J9 pass"}
           </button>
         </div>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-        {[
-          ["Selected", run?.totalSelected ?? 0, "text-foreground"],
-          ["Direct candidates", run?.directConfirmed ?? 0, "text-amber-300"],
-          ["Validated", run?.candidateValidated ?? 0, "text-cyan-300"],
-          ["Attributed", run?.candidateAttributed ?? 0, "text-emerald-300"],
-          ["Errors", run?.errors ?? 0, "text-rose-300"],
-        ].map(([label, value, color]) => (
-          <div key={String(label)} className="rounded-lg border border-border/50 bg-muted/10 px-3 py-2">
-            <div className={`text-lg font-bold font-mono ${color}`}>{Number(value).toLocaleString()}</div>
-            <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">{label}</div>
+
+      {/* Module badges */}
+      <div>
+        <button
+          onClick={() => setShowModules(v => !v)}
+          className="flex items-center gap-1.5 text-[10px] font-mono text-muted-foreground hover:text-foreground mb-2"
+        >
+          {showModules ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+          {showModules ? "Hide modules" : "Show module breakdown"}
+        </button>
+        {showModules && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {J_MODULES.map(({ key, label, desc, color }) => (
+              <div key={key} className={`rounded-lg border px-3 py-2 ${color}`}>
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <CheckCircle2 className="h-3 w-3 flex-shrink-0" />
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider">{label}</span>
+                </div>
+                <p className="text-[9px] font-mono text-muted-foreground leading-relaxed">{desc}</p>
+              </div>
+            ))}
           </div>
-        ))}
+        )}
       </div>
+
+      {/* Stats grid — latest run */}
+      <div>
+        <p className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-2">
+          {run ? `Latest run · pass: ${run.pass ?? "—"} · ${run.totalSelected} selected${run.durationMs ? ` · ${(run.durationMs / 1000).toFixed(0)}s` : ""}` : "No Phase J pass has run yet"}
+        </p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
+          {[
+            { label: "Found", value: run?.totalFound ?? 0, color: "text-foreground" },
+            { label: "Domains J4", value: run?.domainResolved ?? 0, color: "text-cyan-300" },
+            { label: "Identity J4", value: run?.identityResolved ?? 0, color: "text-blue-300" },
+            { label: "Direct", value: run?.directConfirmed ?? 0, color: "text-amber-300" },
+            { label: "Attributed J6", value: run?.candidateAttributed ?? 0, color: "text-emerald-300" },
+            { label: "Social only", value: run?.socialOnly ?? 0, color: "text-violet-300" },
+            { label: "Org contact", value: run?.organizationContact ?? 0, color: "text-rose-300" },
+            { label: "Errors", value: run?.errors ?? 0, color: "text-red-400" },
+          ].map(({ label, value, color }) => (
+            <div key={label} className="rounded-lg border border-border/50 bg-muted/10 px-2 py-2">
+              <div className={`text-base font-bold font-mono ${color}`}>{value.toLocaleString()}</div>
+              <div className="text-[8px] font-mono text-muted-foreground uppercase tracking-wider leading-tight mt-0.5">{label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Evidence breakdown from stateCounts */}
+      {status?.stateCounts && status.stateCounts.length > 0 && (
+        <div>
+          <p className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-2">Enrichment state outcomes</p>
+          <div className="flex flex-wrap gap-2">
+            {status.stateCounts.map(({ outcome, count }) => (
+              <span key={outcome} className="text-[9px] font-mono bg-muted/20 border border-border/40 px-2 py-1 rounded">
+                <span className="text-foreground">{Number(count).toLocaleString()}</span>
+                <span className="text-muted-foreground ml-1">{outcome}</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Checkpoint */}
       {status?.latestCheckpoint && (
-        <p className="mt-3 text-[10px] font-mono text-muted-foreground">
-          Last checkpoint: {status.latestCheckpoint.name} · {status.latestCheckpoint.totalEntities.toLocaleString()} entities · {status.latestCheckpoint.directVerified.toLocaleString()} verified direct contacts
+        <p className="text-[10px] font-mono text-muted-foreground border-t border-border/30 pt-3">
+          Last checkpoint: <span className="text-foreground">{status.latestCheckpoint.name}</span>
+          {" · "}{status.latestCheckpoint.totalEntities.toLocaleString()} entities
+          {" · "}<span className="text-emerald-400">{status.latestCheckpoint.directVerified.toLocaleString()} verified</span>
+          {" · "}<span className="text-amber-300">{status.latestCheckpoint.directCandidate.toLocaleString()} candidates</span>
         </p>
       )}
-      {message && <p className="mt-2 text-[10px] font-mono text-emerald-300">{message}</p>}
+
+      {message && <p className="text-[10px] font-mono text-emerald-300">{message}</p>}
+    </section>
+  );
+}
+
+// ─── J9 Source Quality Dashboard ─────────────────────────────────────────────
+
+type SourceQualityRow = {
+  source: string;
+  total_evidence: number;
+  verified_count: number;
+  candidate_count: number;
+  rejected_count: number;
+  avg_reliability: number;
+  avg_directness: number;
+  avg_corroboration: number;
+  entities_covered: number;
+  vector_types: number;
+};
+
+type OutcomeRow = { outcome: string; count: number; pct: number };
+
+type SourceQualityData = {
+  bySource: SourceQualityRow[];
+  outcomeSummary: OutcomeRow[];
+  generatedAt: string;
+};
+
+function SourceQualityPanel() {
+  const [data, setData] = useState<SourceQualityData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const load = () => {
+    setLoading(true);
+    setError("");
+    apiGet("/api/pipeline/phase-j/source-quality")
+      .then((d) => { setData(d as SourceQualityData); setLoading(false); })
+      .catch((e) => { setError(e instanceof Error ? e.message : "Unavailable"); setLoading(false); });
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const outcomeColor: Record<string, string> = {
+    direct_contact_verified: "text-emerald-400",
+    direct_contact_candidate: "text-amber-300",
+    social_only: "text-violet-300",
+    organization_contact: "text-rose-300",
+    evidence_only: "text-blue-300",
+    none: "text-muted-foreground",
+  };
+
+  return (
+    <section className="rounded-xl border border-border bg-card/60 p-4 space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <BarChart3 className="h-4 w-4 text-cyan-400" />
+          <div>
+            <span className="text-sm font-semibold font-mono uppercase tracking-widest text-cyan-400">
+              J9 Source Quality
+            </span>
+            <p className="text-[10px] font-mono text-muted-foreground mt-0.5">
+              Per-source verification rates, directness scores, and entity coverage
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={load}
+          disabled={loading}
+          className="rounded-lg px-3 py-2 text-xs font-semibold border border-border text-muted-foreground hover:text-foreground disabled:opacity-50"
+        >
+          {loading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : "Refresh"}
+        </button>
+      </div>
+
+      {error && <p className="text-[10px] font-mono text-rose-400">{error}</p>}
+
+      {/* Outcome summary */}
+      {data?.outcomeSummary && data.outcomeSummary.length > 0 && (
+        <div>
+          <p className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-2">Contact outcome distribution</p>
+          <div className="flex flex-wrap gap-2">
+            {data.outcomeSummary.map(({ outcome, count, pct }) => (
+              <div key={outcome} className="rounded-lg border border-border/50 bg-muted/10 px-3 py-2 min-w-[100px]">
+                <div className={`text-base font-bold font-mono ${outcomeColor[outcome] ?? "text-foreground"}`}>
+                  {Number(count).toLocaleString()}
+                </div>
+                <div className="text-[8px] font-mono text-muted-foreground uppercase tracking-wider leading-tight">
+                  {outcome.replace(/_/g, " ")}
+                </div>
+                <div className="text-[8px] font-mono text-muted-foreground">{pct}%</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Per-source table */}
+      {data?.bySource && data.bySource.length > 0 && (
+        <div>
+          <p className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-2">Evidence by source</p>
+          <div className="overflow-x-auto rounded-lg border border-border/40">
+            <table className="w-full text-[10px] font-mono">
+              <thead>
+                <tr className="border-b border-border/40 bg-muted/10">
+                  {["Source", "Entities", "Evidence", "Verified", "Candidate", "Reliability", "Directness"].map(h => (
+                    <th key={h} className="px-3 py-2 text-left text-[9px] uppercase tracking-wider text-muted-foreground font-medium">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {data.bySource.slice(0, 12).map((row) => (
+                  <tr key={row.source} className="border-b border-border/20 hover:bg-muted/5">
+                    <td className="px-3 py-1.5 text-foreground font-medium">{row.source}</td>
+                    <td className="px-3 py-1.5 text-muted-foreground">{row.entities_covered.toLocaleString()}</td>
+                    <td className="px-3 py-1.5 text-muted-foreground">{row.total_evidence.toLocaleString()}</td>
+                    <td className="px-3 py-1.5 text-emerald-400">{row.verified_count.toLocaleString()}</td>
+                    <td className="px-3 py-1.5 text-amber-300">{row.candidate_count.toLocaleString()}</td>
+                    <td className="px-3 py-1.5 text-cyan-300">{(row.avg_reliability ?? 0).toFixed(2)}</td>
+                    <td className="px-3 py-1.5 text-blue-300">{(row.avg_directness ?? 0).toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {data.bySource.length === 0 && (
+            <p className="text-[10px] font-mono text-muted-foreground py-4 text-center">
+              No evidence rows yet — run a Phase J pass first.
+            </p>
+          )}
+        </div>
+      )}
+
+      {data && (
+        <p className="text-[9px] font-mono text-muted-foreground">
+          Generated {new Date(data.generatedAt).toLocaleTimeString()}
+        </p>
+      )}
     </section>
   );
 }
@@ -2163,6 +2375,9 @@ export default function DataSources() {
 
         {/* ── J4–J9 Operational completion ─────────────────────────────────── */}
         <PhaseJCompletionPanel />
+
+        {/* ── J9 Source Quality Dashboard ──────────────────────────────────── */}
+        <SourceQualityPanel />
 
         {/* ── Enrichment Coverage Stats ─────────────────────────────────────── */}
         <EnrichmentCoverageStats />

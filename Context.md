@@ -8,14 +8,14 @@
 
 ---
 
-## Current State (2026-07-24 19:38 UTC — imported project setup verified) — Core workflows healthy, live registry data loaded
+## Current State (2026-07-25 03:15 UTC — Phase J4–J9 fully implemented) — All J0–J9 live; API build clean 778ms; 4 workflows healthy
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically ✅
 - **Local Redis** running on `redis://localhost:6379` — workflow `Redis` running ✅
 - **SESSION_SECRET** — ✅ Set
 - **REDIS_URL** — ✅ Set (local Redis, env var `redis://localhost:6379`)
-- **Upstash Redis (`REDIS_URL_1`)** — ✅ Set (permanent dedup set) — quota exhausted this cycle
+- **Upstash Redis (`REDIS_URL_1`)** — ✅ Set (permanent dedup set) — quota may be exhausted; slot 3/4 absorb overflow
 - **Upstash Redis (`REDIS_URL_2`)** — ✅ Set (permanent contact cache)
 - **Upstash Redis (`REDIS_URL_3`)** — ✅ Set (overflow slot 3)
 - **Upstash Redis (`REDIS_URL_4`)** — ✅ Set (overflow slot 4)
@@ -30,15 +30,15 @@
 | artifacts/apex-mobile: expo | ⏸️ Optional / not required for web setup |
 | artifacts/mockup-sandbox: Component Preview Server | ⏸️ Optional / not required for web setup |
 
-### Post-import setup (2026-07-24, latest import)
-1. `CI=true pnpm install --frozen-lockfile` — all packages installed (pnpm v10.26.1)
+### Post-import setup (2026-07-24, this import)
+1. `CI=true pnpm install --frozen-lockfile` — all packages installed (pnpm v10.26.1, ~31s)
 2. `pnpm --filter @workspace/db run push` — schema applied to PostgreSQL (`[✓] Changes applied`)
-3. All 4 artifacts registered through validated artifact metadata refresh.
-4. Canonical artifact-managed Redis, API, and web workflows started; temporary fallback workflows were removed.
+3. All 4 artifacts re-registered via `verifyAndReplaceArtifactToml` (artifact.toml files were intact from GitHub; platform re-created managed workflows).
+4. Redis, API Server, and apex-finder web workflows started.
 5. `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":1}}` ✅
-6. Browser preview verified — Apex Atlas dashboard loads at the root preview path; screenshot saved at `screenshots/setup-verification.jpg`.
-7. `REDIS_URL_1`, `REDIS_URL_2`, and `COMPANIES_HOUSE_API_KEY` confirmed as Replit Secrets.
-8. Cold-start ingestion completed with 11,600 entities/assets; current dashboard stats show 2,822 hot leads, 0 relationships, 0 contactable profiles, and 0 active research sessions.
+6. All 4 Upstash slots connected at startup (slots 1–4).
+7. Dashboard loads at root preview path — DB empty, cold-start auto-recovery ingestion running in background.
+8. `REDIS_URL_1`–`REDIS_URL_4` and `COMPANIES_HOUSE_API_KEY` confirmed as Replit Secrets.
 
 ### Phase J2 verification (2026-07-24)
 - Added the Western registry coverage matrix and `GET /api/registry-matrix`.
@@ -112,6 +112,7 @@ All 4 Phase I items implemented and live. Build clean (esbuild ⚡ 1183ms). All 
 | 2026-07-24 | Imported project setup finalized: secure keys confirmed, frozen-lockfile dependencies restored, Drizzle schema applied, all four artifacts registered, Redis/API/web workflows healthy, API and browser preview checks passed; optional mobile and mockup services remain stopped |
 | 2026-07-24 13:59 | Imported project setup reverified after secure key entry: dependencies restored, schema applied, Redis/API/web healthy, `/api/healthz` returned Redis ok, web preview returned 200 and rendered the empty-state dashboard; Upstash persistent Redis reported its 500,000-request quota exhausted |
 | 2026-07-24 14:03 | Fixed mobile profile chrome: removed duplicate profile headers, moved current tab context beside APEX ATLAS in the shared top bar, removed nested profile scrolling, and verified mobile previews plus production frontend build |
+| 2026-07-25 03:15 | **Phase J4–J9 fully implemented**: domain-resolver.ts (J4 GLEIF/MX/SPF), digital-footprint.ts (J5 DDG+contact-page scraper, 7 query templates), contact-attribution.ts (J6 geometric-mean score, threshold 0.52); phase-j.ts route rewritten integrating all three + J7 source-cooldown scheduler + J8 graph-neighbour context; GET /pipeline/phase-j/source-quality added (J9); status endpoint now returns J0–J9 all true; PhaseJCompletionPanel expanded (8-stat grid, module badges, outcome pills); SourceQualityPanel added; API build clean 778ms |
 | 2026-07-24 | Added Phase J to `improvements.md`: a multi-re-import roadmap for raising validated public-contact yield through funnel measurement, non-terminal social enrichment, Western registry coverage, identity/domain resolution, lawful digital-footprint discovery, candidate validation, budgeted multi-pass scheduling, graph-assisted research, and re-import checkpoints |
 | 2026-07-24 | Clarified Phase J as a lawful research-phase roadmap rather than a current source or capacity allowlist; lawful discovery remains broad during private development, while public-production limits and safeguards are deferred to separate release hardening |
 | 2026-07-24 | Added non-blocking `productionReviewStatus` source markers (`review_required`, `reviewed_for_production`, `not_yet_assessed`); markers are internal review reminders only and do not restrict private research or alter source coverage |
@@ -727,6 +728,7 @@ Run **IN-HOUSE ENRICH** on HNWI/Gatekeeper entities — Wikidata SPARQL will hit
 | 2026-07-21 | **Re-import #10 setup**: pnpm install, DB schema pushed, all 4 artifacts re-registered (verifyAndReplaceArtifactToml). Managed workflows started: Redis ✅ · artifacts/api-server: API Server ✅ · artifacts/apex-finder: web ✅. DB retained 32,100 entities — cold-start auto-recovery skipped ingestion. SESSION_SECRET ✅ · REDIS_URL_1 ✅ · COMPANIES_HOUSE_API_KEY ✅. |
 | 2026-07-21 | **Re-import #9 setup**: pnpm install, DB schema pushed, all 4 artifacts re-registered. Redis ✅ · API Server ✅ · Web Frontend ✅. SESSION_SECRET ✅ · REDIS_URL_1 ✅ (Upstash connected) · COMPANIES_HOUSE_API_KEY ✅. DB retained 32,200 entities — cold-start skipped auto-ingestion. |
 | 2026-07-21 | **Re-import #8 setup**: pnpm install, DB schema pushed, all 4 artifacts re-registered (verifyAndReplaceArtifactToml). Artifact-managed workflows started: Redis ✅ · artifacts/api-server: API Server ✅ · artifacts/apex-finder: web ✅. DB retained 32,100 entities from prior session — cold-start auto-recovery skipped ingestion. SESSION_SECRET ✅ · REDIS_URL_1 ✅ (Upstash connected) · COMPANIES_HOUSE_API_KEY ✅. All 4 artifact-managed workflows running. In-house enrichment pass 1 complete (49/100 EDGAR entities enriched: Ansari LinkedIn+phone cc=60, Icahn/Slim/Thiel/33 others phones cc=30-40). MCTS run on 7 top targets (Ansari 0.577, Leeds 0.486, Kim 0.494, Icahn 0.474, Slim 0.444, Thiel 0.44, Zhang 0.416). 7346 hot flags, 229259 relationship edges, 31622 notes enriched, entity reclassification done (22767 Corp / 8748 HNWI / 585 Trust). FAA enrichment pass 2 running (500 FAA entities). |
+| 2026-07-24 | **GitHub import re-setup**: secrets set (REDIS_URL_1–4, COMPANIES_HOUSE_API_KEY), pnpm install ✅ (~31s), DB schema pushed ✅, all 4 artifacts re-registered via verifyAndReplaceArtifactToml, Redis + API Server + apex-finder web workflows running. /api/healthz ✅, all 4 Upstash slots connected. Dashboard loads — DB empty, cold-start auto-ingestion running in background. |
 | 2026-07-23 | **Full audit + 2 bug fixes (post-import #51)**: (1) `research.tsx` terminal placeholder read "L4 MCTS Deep Path Exploration" — corrected to "L4 UCT Deep Path Exploration (120 rollouts)". UCT is the user-visible selection policy; MCTS is the internal algorithm name only. Full grep confirmed zero remaining user-facing MCTS strings. (2) `ingest-enrichment.ts` foundation-filings route — `db.select()` missing `phone`, `linkedinUrl`, `twitterHandle`, `instagramHandle`, `telegramHandle`; all 5 added so `computeContactConfidence` no longer receives undefined for social signals and writes systematically low scores. Audit confirmed all other systems correct: pipeline order web-first ✅, RECURRING_JOBS scheduler 7 jobs ✅, all Phase H modules exist and route correctly ✅, SKIP_DOMAINS not blocking social media ✅, contact-validation blocklist present ✅. Tests: Persona Loop 100 entities 226 suggestions 0 errors ✅; Hybrid Research bulk 300/300 0 errors ✅. Live state: 32,101 entities · 230,692 relationships · 729 contactable · 834 research sessions · 14,808 hot leads. Honest rating: **7.5/10** — architecture strong; contact hit rate (2.3%) and graph edge quality (mostly CORPORATE_SERIES, not warm-path introductions) are the two remaining gaps to close. See improvements.md Phase I. Commit 23941c6. |
 | 2026-07-23 | **Re-import #50 setup**: pnpm install, DB schema pushed, all 4 artifacts re-registered (verifyAndReplaceArtifactToml), old manual workflows removed, artifact-managed workflows started (artifacts/api-server: API Server + artifacts/apex-finder: web). Fixed `trigger` scoping bug in startup.ts — moved function to module level as `triggerHttp`, removing stale inner duplicate. Port conflict resolved (kill -9). App loads: 18,700 profiles, 4,035 hot leads. Auto-ingestion running (FAA + HMLR + Western HNWI). |
 | 2026-07-20 | **Post-import setup + relationship graph**: secrets set (REDIS_URL_1, COMPANIES_HOUSE_API_KEY), artifact-managed workflows restored, schema pushed, FAA 30k + LR 2k ingested, Western HNWI restarted (5k target), hot flags synced (14,814), name-clustering endpoint built (113,946 CORPORATE_SERIES edges), CH enrichment running. |

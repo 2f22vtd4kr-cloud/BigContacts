@@ -34,3 +34,4 @@
 - [Upstash request quota](upstash-request-quota.md) — Persistent Redis can hit its provider request cap while local Redis and API health remain normal
 - [Contact discovery roadmap](contact-discovery-roadmap.md) — Phase J defines gated re-import milestones for validated public-contact yield, source coverage, identity, attribution, and retries
 - [Phase J2 registry coverage](j2-registry-coverage.md) — Keep matrix coverage separate from executable live search adapters; preserve source-specific evidence semantics
+- [Phase J4–J9 completion](phase-j-completion.md) — domain-resolver/digital-footprint/contact-attribution libs; source-quality endpoint; geometric-mean attribution threshold 0.52
