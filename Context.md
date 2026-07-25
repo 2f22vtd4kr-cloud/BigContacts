@@ -8,14 +8,14 @@
 
 ---
 
-## Current State (2026-07-25 — Phases K1–K6, L1–L3, M1–M4, N1–N4 implemented) — imported project running; full workspace checks clean; 3/5 workflows running
+## Current State (2026-07-25 — Phases K1–K6, L1–L3, M1–M4, N1–N4 implemented) — fresh import running; all secrets set; 3/5 core workflows running
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically ✅
 - **Local Redis** running on `redis://localhost:6379` — workflow `Redis` running ✅
 - **SESSION_SECRET** — ✅ Set
 - **REDIS_URL** — ✅ Set (local Redis, env var `redis://localhost:6379`)
-- **Upstash Redis (`REDIS_URL_1`–`REDIS_URL_5`)** — ✅ Set; slot 1 is quota-exhausted, healthy overflow slots are available
+- **Upstash Redis (`REDIS_URL_1`–`REDIS_URL_5`)** — ✅ Set; all 5 slots connected; slot 1 quota-exhausted (non-fatal), slots 2–5 healthy
 - **COMPANIES_HOUSE_API_KEY** — ✅ Set
 
 ### Workflows running
@@ -749,3 +749,4 @@ Run **IN-HOUSE ENRICH** on HNWI/Gatekeeper entities — Wikidata SPARQL will hit
 | 2026-07-19 | REDIS_URL_1 (Upstash) set and verified connected (`[upstash-1] Redis ready`). Dedup state from prior sessions is live. Ready for ingestion. |
 | 2026-07-25 | GitHub import re-setup #2: pnpm install (~31s, frozen lockfile), DB schema pushed (`[✓] Changes applied`), all 4 artifacts re-registered (verifyAndReplaceArtifactToml), managed workflows created. Redis + API Server + apex-finder web running. `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":1}}`. Cold-start auto-recovery triggered (Western HNWI + broad discovery background jobs). DB empty — needs re-ingestion. Missing secrets: REDIS_URL_1–4 (Upstash) and COMPANIES_HOUSE_API_KEY need re-adding. |
 | 2026-07-25 | GitHub import re-setup #3: pnpm install (~32s, frozen lockfile), DB schema pushed (`[✓] Changes applied`), all 4 artifacts re-registered (verifyAndReplaceArtifactToml), managed workflows created. Redis + API Server (8080) + apex-finder web (23695) running. `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":1}}`. Dashboard loads — 32,000 profiles from prior DB state. Cold-start broad discovery + Western HNWI background jobs triggered. Missing secrets: REDIS_URL_1–4 (Upstash) and COMPANIES_HOUSE_API_KEY need re-adding for full enrichment. |
+| 2026-07-25 | GitHub import re-setup #4: pnpm install (~36s), DB schema pushed, all 6 secrets set (REDIS_URL_1–5 + COMPANIES_HOUSE_API_KEY), all 4 artifacts re-registered, Redis+API Server+apex-finder web running. All 5 Upstash slots connected (slot 1 quota-exhausted, slots 2–5 healthy). /api/healthz → ok. Dashboard loads — DB empty, cold-start recovery triggered. |
