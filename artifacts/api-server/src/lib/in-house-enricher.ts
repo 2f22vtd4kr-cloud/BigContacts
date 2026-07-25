@@ -55,6 +55,7 @@ export interface InHouseEnrichResult {
   emailConfidence: number;   // 0-100
   phoneConfidence: number;   // 0-100
   sourceHits:      Record<string, boolean>;  // per-source hit tracking
+  evidence:        InHouseEvidence[];
   // K2/L1: generic-prefix flag — set when the winning email is an org inbox
   hasGenericEmail?: boolean;
   // K5: source labels for org-contact classification in computeContactOutcome
@@ -62,6 +63,17 @@ export interface InHouseEnrichResult {
   phoneSource?: string | null;
   // M1: set true when SMTP handshake confirmed the email is deliverable
   smtpVerified?: boolean;
+}
+
+export interface InHouseEvidence {
+  vectorType: "email" | "phone" | "social" | "website" | "address" | "domain";
+  value: string;
+  source: string;
+  sourceUrl: string | null;
+  extractionMethod: string;
+  confidence: number;
+  observedAt: string;
+  details?: Record<string, unknown>;
 }
 
 export interface InHouseEnrichInput {
@@ -294,6 +306,7 @@ function domainFromMeta(metadata?: string | null, notes?: string | null): string
 
 // ── Source 1: Wikidata SPARQL (enhanced) ─────────────────────────────────────
 interface WikidataResult {
+  entityUrl: string | null;
   email: string | null;
   website: string | null;
   linkedinUrl: string | null;
@@ -304,7 +317,7 @@ interface WikidataResult {
 
 async function queryWikidata(name: string): Promise<WikidataResult | null> {
   const sparql = `
-SELECT ?email ?website ?linkedin ?twitter ?phone ?employerLabel WHERE {
+ SELECT ?person ?email ?website ?linkedin ?twitter ?phone ?employerLabel WHERE {
   ?person wdt:P31 wd:Q5;
           rdfs:label "${name.replace(/"/g, "")}"@en.
   OPTIONAL { ?person wdt:P968 ?email. }
@@ -327,6 +340,7 @@ SELECT ?email ?website ?linkedin ?twitter ?phone ?employerLabel WHERE {
     if (!bindings.length) return null;
     const b = bindings[0];
     return {
+      entityUrl:   b?.person?.value ?? null,
       email:       b?.email?.value ?? null,
       website:     b?.website?.value ?? null,
       linkedinUrl: b?.linkedin?.value ? `https://www.linkedin.com/in/${b.linkedin.value}` : null,
@@ -385,6 +399,7 @@ interface ORCIDResult {
   orcidId: string | null;
   website: string | null;
   affiliation: string | null;
+  recordUrl: string | null;
 }
 
 async function queryORCID(firstName: string, lastName: string): Promise<ORCIDResult | null> {
@@ -417,7 +432,13 @@ async function queryORCID(firstName: string, lastName: string): Promise<ORCIDRes
     const affiliations: any[] = profile?.affiliations?.affiliation ?? [];
     const affiliation = affiliations[0]?.organization?.name ?? null;
 
-    return { email: primaryEmail, orcidId: orcidPath, website, affiliation };
+    return {
+      email: primaryEmail,
+      orcidId: orcidPath,
+      website,
+      affiliation,
+      recordUrl: `https://orcid.org/${orcidPath}`,
+    };
   } catch (err: any) {
     logger.debug({ err: err.message }, "ORCID lookup failed");
     return null;
@@ -560,6 +581,7 @@ interface EDGARResult {
   email: string | null;
   phone: string | null;
   address: string | null;
+  recordUrl: string | null;
 }
 
 async function queryEDGAR(name: string): Promise<EDGARResult | null> {
@@ -590,7 +612,15 @@ async function queryEDGAR(name: string): Promise<EDGARResult | null> {
       headers: { "User-Agent": "ApexFinder Research research@apexfinder.private", Accept: "application/json" },
     });
     if (!factsResp.ok) {
-      return { companyName: hit?.entity_name ?? null, cik, filingType: hit?.form_type ?? null, email: null, phone: null, address: null };
+      return {
+        companyName: hit?.entity_name ?? null,
+        cik,
+        filingType: hit?.form_type ?? null,
+        email: null,
+        phone: null,
+        address: null,
+        recordUrl: `https://www.sec.gov/edgar/browse/?CIK=${cik}`,
+      };
     }
     const facts = await factsResp.json() as any;
     const bizAddr = facts?.addresses?.business ?? {};
@@ -603,6 +633,7 @@ async function queryEDGAR(name: string): Promise<EDGARResult | null> {
       email:       null,  // SEC filings rarely have email in structured form
       phone:       facts?.phone ?? null,
       address:     addressParts.length ? addressParts.join(", ") : null,
+      recordUrl:   `https://www.sec.gov/edgar/browse/?CIK=${cik}`,
     };
   } catch (err: any) {
     logger.debug({ err: err.message }, "EDGAR EFTS search failed");
@@ -618,6 +649,7 @@ interface CHResult {
   status: string | null;
   officerEmails: string[];
   officerPhone: string | null;
+  recordUrl: string | null;
 }
 
 async function queryCompaniesHouse(companyName: string): Promise<CHResult | null> {
@@ -667,6 +699,7 @@ async function queryCompaniesHouse(companyName: string): Promise<CHResult | null
       status: co?.company_status ?? null,
       officerEmails,
       officerPhone,
+      recordUrl: `https://find-and-update.company-information.service.gov.uk/company/${companyNumber}`,
     };
   } catch (err: any) {
     logger.debug({ err: err.message }, "Companies House search failed");
@@ -681,6 +714,7 @@ interface BRREGResult {
   phone: string | null;
   website: string | null;
   address: string | null;
+  recordUrl: string | null;
 }
 
 async function queryBRREG(orgnr: string): Promise<BRREGResult | null> {
@@ -693,7 +727,7 @@ async function queryBRREG(orgnr: string): Promise<BRREGResult | null> {
     const website: string | null = d?.hjemmeside ?? null;
     const pa = d?.postadresse ?? d?.forretningsadresse ?? null;
     const addrParts = [(pa?.adresse?.[0] ?? null), pa?.poststed, pa?.landkode].filter(Boolean);
-    return { phone, website, address: addrParts.length ? addrParts.join(", ") : null };
+    return { phone, website, address: addrParts.length ? addrParts.join(", ") : null, recordUrl: url };
   } catch (err: any) {
     logger.debug({ err: err.message }, "BRREG lookup failed");
     return null;
@@ -701,7 +735,7 @@ async function queryBRREG(orgnr: string): Promise<BRREGResult | null> {
 }
 
 // ── Source 8: ProPublica Nonprofit Explorer ───────────────────────────────────
-async function queryProPublica(name: string): Promise<{ email: string | null; website: string | null; phone: string | null } | null> {
+async function queryProPublica(name: string): Promise<{ email: string | null; website: string | null; phone: string | null; recordUrl: string | null } | null> {
   try {
     const url = `https://projects.propublica.org/nonprofits/api/v2/search.json?q=${encodeURIComponent(name)}&page=0`;
     const resp = await fetch(url, { signal: timeout(10_000), headers: HEADERS });
@@ -715,6 +749,7 @@ async function queryProPublica(name: string): Promise<{ email: string | null; we
     const phone: string | null = org?.phone ?? null;
     let email: string | null = null;
 
+    let extractedFromUrl: string | null = null;
     if (website) {
       try {
         const pages = [website, `${website.replace(/\/$/, "")}/contact`, `${website.replace(/\/$/, "")}/about`];
@@ -727,12 +762,18 @@ async function queryProPublica(name: string): Promise<{ email: string | null; we
           const html = await pageResp.text();
           const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").slice(0, 8000);
           email = extractEmail(text);
-          if (email) break;
+           if (email) {
+             extractedFromUrl = page;
+             break;
+           }
         }
       } catch { /* ignore */ }
     }
 
-    return { email, website, phone };
+    const recordUrl = org?.ein
+      ? `https://projects.propublica.org/nonprofits/organizations/${org.ein}`
+      : extractedFromUrl;
+    return { email, website, phone, recordUrl };
   } catch (err: any) {
     logger.debug({ err: err.message }, "ProPublica search failed");
     return null;
@@ -797,7 +838,7 @@ async function analyseSPF(domain: string): Promise<SPFAnalysis> {
 }
 
 // ── Source 11: RDAP domain contact (enhanced) ─────────────────────────────────
-async function rdapLookup(domain: string): Promise<{ email: string | null; org: string | null; phone: string | null }> {
+async function rdapLookup(domain: string): Promise<{ email: string | null; org: string | null; phone: string | null; sourceUrl: string | null }> {
   try {
     const tld = domain.split(".").pop() ?? "com";
     const bootstrapResp = await fetch("https://data.iana.org/rdap/dns.json", {
@@ -813,7 +854,8 @@ async function rdapLookup(domain: string): Promise<{ email: string | null; org: 
     }
 
     const resp = await fetch(`${rdapBase}/domain/${domain}`, { signal: timeout(10_000), headers: HEADERS });
-    if (!resp.ok) return { email: null, org: null, phone: null };
+    const sourceUrl = `${rdapBase}/domain/${domain}`;
+    if (!resp.ok) return { email: null, org: null, phone: null, sourceUrl };
     const data = await resp.json() as any;
 
     let email: string | null = null;
@@ -855,10 +897,10 @@ async function rdapLookup(domain: string): Promise<{ email: string | null; org: 
         email = null;
       }
     }
-    return { email, org, phone };
+    return { email, org, phone, sourceUrl };
   } catch (err: any) {
     logger.debug({ err: err.message }, "RDAP lookup failed");
-    return { email: null, org: null, phone: null };
+    return { email: null, org: null, phone: null, sourceUrl: null };
   }
 }
 
@@ -898,7 +940,7 @@ async function queryCRTsh(domain: string): Promise<string[]> {
 }
 
 // ── Source 13: Wayback Machine CDX — archived contact pages ───────────────────
-async function queryWaybackMachine(domain: string): Promise<string | null> {
+async function queryWaybackMachine(domain: string): Promise<{ email: string | null; sourceUrl: string | null }> {
   try {
     // Find archived contact/about/team pages
     const paths = ["contact", "about", "team", "contact-us", "about-us"];
@@ -922,13 +964,13 @@ async function queryWaybackMachine(domain: string): Promise<string | null> {
       const html = await pageResp.text();
       const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").slice(0, 10_000);
       const email = extractEmail(text);
-      if (email) return email;
+      if (email) return { email, sourceUrl: archiveUrl };
       await sleep(200);
     }
-    return null;
+    return { email: null, sourceUrl: null };
   } catch (err: any) {
     logger.debug({ err: err.message }, "Wayback Machine lookup failed");
-    return null;
+    return { email: null, sourceUrl: null };
   }
 }
 
@@ -1149,7 +1191,7 @@ async function duckduckgoNewsEmail(name: string): Promise<{ email: string | null
 }
 
 // ── Source 20: Company contact page scraper ────────────────────────────────────
-async function scrapeContactPage(domain: string): Promise<{ email: string | null; phone: string | null; linkedinUrl: string | null }> {
+async function scrapeContactPage(domain: string): Promise<{ email: string | null; phone: string | null; linkedinUrl: string | null; sourceUrl: string | null }> {
   const paths = ["/contact", "/about", "/team", "/contact-us", "/about-us",
                  "/leadership", "/our-team", "/executive-team", "/management-team",
                  "/people", "/who-we-are", "/"];
@@ -1189,11 +1231,11 @@ async function scrapeContactPage(domain: string): Promise<{ email: string | null
       const phone = extractPhone(text);
       if (!linkedinUrl) linkedinUrl = extractLinkedIn(text);
 
-      if (email || phone || linkedinUrl) return { email, phone, linkedinUrl };
+      if (email || phone || linkedinUrl) return { email, phone, linkedinUrl, sourceUrl: resp.url || `https://${domain}${path}` };
     } catch { /* try next path */ }
     await sleep(200);
   }
-  return { email: null, phone: null, linkedinUrl: null };
+  return { email: null, phone: null, linkedinUrl: null, sourceUrl: null };
 }
 
 
@@ -1207,6 +1249,7 @@ export async function enrichInHouse(entity: InHouseEnrichInput): Promise<InHouse
     address: null,
     sources: [], emailConfidence: 0, phoneConfidence: 0,
     sourceHits: {},
+    evidence: [],
   };
 
   // Use canonical entityName from metadata if available; strip ticker symbols
@@ -1277,7 +1320,14 @@ export async function enrichInHouse(entity: InHouseEnrichInput): Promise<InHouse
   // K2: penalise generic corporate prefixes at write time — they indicate shared
   // inboxes rather than personal contacts. Confidence is reduced by 30 points;
   // if the adjusted score falls to zero or below, the email is discarded entirely.
-  const setEmail = (email: string | null, confidence: number, source: string) => {
+  const setEmail = (
+    email: string | null,
+    confidence: number,
+    source: string,
+    sourceUrl: string | null = null,
+    extractionMethod = "public-source-parser",
+    details?: Record<string, unknown>,
+  ) => {
     if (!email) return;
     const local = email.split("@")[0]?.toLowerCase() ?? "";
     let adj = confidence;
@@ -1290,18 +1340,47 @@ export async function enrichInHouse(entity: InHouseEnrichInput): Promise<InHouse
       result.email = email;
       result.emailConfidence = adj;
       result.emailSource = source;
+      result.evidence = result.evidence.filter((item) => item.vectorType !== "email");
+      result.evidence.push({
+        vectorType: "email",
+        value: email,
+        source,
+        sourceUrl,
+        extractionMethod,
+        confidence: adj,
+        observedAt: new Date().toISOString(),
+        details,
+      });
       addSource(source);
     }
   };
 
   // K5: normalise phone to E.164 and require ≥ 8 digits (replaces manual PHONE_BLOCKLIST).
-  const setPhone = (phone: string | null, confidence: number, source: string) => {
+  const setPhone = (
+    phone: string | null,
+    confidence: number,
+    source: string,
+    sourceUrl: string | null = null,
+    extractionMethod = "public-source-parser",
+    details?: Record<string, unknown>,
+  ) => {
     if (!phone || result.phone) return;
     const normalized = normalizePhone(phone);
     if (!normalized) return;
     result.phone = normalized;
     result.phoneConfidence = confidence;
     result.phoneSource = source;
+      result.evidence = result.evidence.filter((item) => item.vectorType !== "phone");
+      result.evidence.push({
+        vectorType: "phone",
+        value: normalized,
+        source,
+        sourceUrl,
+        extractionMethod,
+        confidence,
+        observedAt: new Date().toISOString(),
+        details,
+      });
     addSource(source);
   };
 
