@@ -8,14 +8,14 @@
 
 ---
 
-## Current State (2026-07-25 03:15 UTC — Phase J4–J9 fully implemented) — All J0–J9 live; API build clean 778ms; 4 workflows healthy
+## Current State (2026-07-25 04:16 UTC — Re-import setup complete) — All J0–J9 live; API build clean 719ms; 4 workflows healthy
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically ✅
 - **Local Redis** running on `redis://localhost:6379` — workflow `Redis` running ✅
 - **SESSION_SECRET** — ✅ Set
 - **REDIS_URL** — ✅ Set (local Redis, env var `redis://localhost:6379`)
-- **Upstash Redis (`REDIS_URL_1`)** — ✅ Set (permanent dedup set) — quota may be exhausted; slot 3/4 absorb overflow
+- **Upstash Redis (`REDIS_URL_1`)** — ✅ Set (permanent dedup set) — quota exhausted (500k/500k); slot 3/4 absorb overflow; non-fatal
 - **Upstash Redis (`REDIS_URL_2`)** — ✅ Set (permanent contact cache)
 - **Upstash Redis (`REDIS_URL_3`)** — ✅ Set (overflow slot 3)
 - **Upstash Redis (`REDIS_URL_4`)** — ✅ Set (overflow slot 4)
@@ -746,3 +746,4 @@ Run **IN-HOUSE ENRICH** on HNWI/Gatekeeper entities — Wikidata SPARQL will hit
 | 2026-07-19 | Replaced MCTS Expert persona with Intel Systems Analyst (`intel_systems_analyst`). New persona covers the full hybrid stack: MCTS path coverage (Layer 1), hybrid search signal coverage / BM25+RRF anchors (Layer 2), agent orchestration pipeline completeness / Planner→Retriever→Analyst→Critic (Layer 3), Bayesian-UCB convergence / score-frozen detection (Layer 4). Updated persona-engine.ts, improvements.tsx, improvement_logs.ts schema comment. |
 | 2026-07-19 | GitHub import re-setup: pnpm install, DB schema pushed, all 4 artifacts re-registered (verifyAndReplaceArtifactToml), API server + apex-finder web workflows running. Dashboard loads. DB empty — needs re-ingestion. |
 | 2026-07-19 | REDIS_URL_1 (Upstash) set and verified connected (`[upstash-1] Redis ready`). Dedup state from prior sessions is live. Ready for ingestion. |
+| 2026-07-25 | GitHub import re-setup: pnpm install (36s, frozen lockfile), DB schema pushed (`[✓] Changes applied`), all 4 artifacts re-registered (verifyAndReplaceArtifactToml), all 4 secrets set (REDIS_URL_1–4, COMPANIES_HOUSE_API_KEY). Redis + API Server + apex-finder web workflows running. All 4 Upstash slots connected at startup. `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":1}}`. REDIS_URL_1 quota exhausted (500k/500k) — ghost-job cleanup degrades gracefully. DB empty — needs re-ingestion. |
