@@ -958,17 +958,6 @@ function extractEmails(text: string): string[] {
   }))];
 }
 
-function extractPhone(text: string): string | null {
-  for (const p of PHONE_RE_MULTI) {
-    const m = text.match(p);
-    if (m) {
-      const c = m[0]!.replace(/\s+/g, " ").trim();
-      if ((c.match(/\d/g) ?? []).length >= 7) return c;
-    }
-  }
-  return null;
-}
-
 // ── Query builder (Phase K overhaul) ─────────────────────────────────────────
 
 /**
