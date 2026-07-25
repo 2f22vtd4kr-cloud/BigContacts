@@ -35,3 +35,4 @@
 - [Contact discovery roadmap](contact-discovery-roadmap.md) — Phase J defines gated re-import milestones for validated public-contact yield, source coverage, identity, attribution, and retries
 - [Phase J2 registry coverage](j2-registry-coverage.md) — Keep matrix coverage separate from executable live search adapters; preserve source-specific evidence semantics
 - [Phase J4–J9 completion](phase-j-completion.md) — domain-resolver/digital-footprint/contact-attribution libs; source-quality endpoint; geometric-mean attribution threshold 0.52
+- [Groq AI Extractor](groq-ai-extractor.md) — llama-3.3-70b via plain fetch; Phase 7 in web-enricher + Phase 3.5 in deep-web-osint; GROQ_API_KEY secret; no SDK needed

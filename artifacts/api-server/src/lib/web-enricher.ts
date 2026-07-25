@@ -15,6 +15,7 @@
 
 import { logger } from "./logger";
 import { isValidPublicEmail, sanitizePublicEmail } from "./contact-validation";
+import { extractWithAI } from "./ai-extractor";
 
 // ── Shared utilities ──────────────────────────────────────────────────────────
 
@@ -1166,7 +1167,31 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     await jitteredDelay(700);
   }
 
-  // ── Phase 7: Pick best-corroborated values ──────────────────────────────
+  // ── Phase 7: AI extraction pass (Groq llama-3.3-70b) ──────────────────
+  // Runs over all accumulated search + page text. Catches what regex missed:
+  // obfuscated emails, international phones, inline social handles, owner names.
+  if (allSearchText.length > 100) {
+    try {
+      const ai = await extractWithAI(allSearchText, entity.name, entity.type, country);
+      if (ai.source !== "none") {
+        const label = `AI[${ai.source}]`;
+        if (ai.email) { const arr = emailHits.get(ai.email) ?? []; arr.push(label); emailHits.set(ai.email, arr); }
+        if (ai.phone) { const arr = phoneHits.get(ai.phone) ?? []; arr.push(label); phoneHits.set(ai.phone, arr); }
+        if (ai.linkedin) { const arr = linkedinHits.get(ai.linkedin) ?? []; arr.push(label); linkedinHits.set(ai.linkedin, arr); }
+        if (ai.instagram) { const arr = igHits.get(ai.instagram) ?? []; arr.push(label); igHits.set(ai.instagram, arr); }
+        if (ai.twitter) { const arr = twHits.get(ai.twitter) ?? []; arr.push(label); twHits.set(ai.twitter, arr); }
+        // Merge AI-discovered persons without duplicating existing regex finds
+        for (const person of ai.owners) {
+          if (!result.personsDiscovered.includes(person)) result.personsDiscovered.push(person);
+        }
+        logger.info({ entityId: entity.id, hasEmail: !!ai.email, persons: ai.owners.length, source: ai.source }, "AI extraction phase complete");
+      }
+    } catch (err: any) {
+      logger.debug({ err: err?.message }, "AI extraction phase skipped");
+    }
+  }
+
+  // ── Phase 8: Pick best-corroborated values ──────────────────────────────
   let bestEmail = ""; let bestEmailCount = 0;
   for (const [email, srcs] of emailHits.entries()) {
     if (srcs.length > bestEmailCount) { bestEmail = email; bestEmailCount = srcs.length; }

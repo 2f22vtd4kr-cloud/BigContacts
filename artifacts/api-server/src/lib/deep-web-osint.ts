@@ -18,6 +18,7 @@
  */
 
 import { logger } from "./logger";
+import { extractWithAI } from "./ai-extractor";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -383,6 +384,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   const phoneHits = new Map<string, string[]>();
   const linkedinHits = new Map<string, string[]>();
   const urlsToScrape = new Set<string>();
+  let allSearchText = ""; // accumulated for AI extraction pass
 
   // ── Phase 1: DDG HTML search on all queries ──────────────────────────────
   for (let i = 0; i < queries.length; i++) {
@@ -392,6 +394,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     try {
       const sr = await duckduckgoSearch(query);
       result.queriesFired++;
+      allSearchText += " " + sr.text;
 
       if (sr.text) {
         for (const e of extractEmails(sr.text)) {
@@ -432,6 +435,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     try {
       const sr = await bingSearch(query);
       result.queriesFired++;
+      allSearchText += " " + sr.text;
 
       if (sr.text) {
         for (const e of extractEmails(sr.text)) {
@@ -487,6 +491,22 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     } catch { /* skip */ }
 
     await jitteredDelay(700);
+  }
+
+  // ── Phase 3.5: AI extraction pass (Groq) ─────────────────────────────────
+  if (allSearchText.length > 100) {
+    try {
+      const ai = await extractWithAI(allSearchText, entity.name, entity.type, null);
+      if (ai.source !== "none") {
+        const label = `AI[${ai.source}]`;
+        if (ai.email)    { const arr = emailHits.get(ai.email) ?? [];       arr.push(label); emailHits.set(ai.email, arr); }
+        if (ai.phone)    { const arr = phoneHits.get(ai.phone) ?? [];       arr.push(label); phoneHits.set(ai.phone, arr); }
+        if (ai.linkedin) { const arr = linkedinHits.get(ai.linkedin) ?? []; arr.push(label); linkedinHits.set(ai.linkedin, arr); }
+        logger.info({ entityId: entity.id, hasEmail: !!ai.email, owners: ai.owners.length, source: ai.source }, "Deep-web AI extraction complete");
+      }
+    } catch (err: any) {
+      logger.debug({ err: err?.message }, "Deep-web AI extraction skipped");
+    }
   }
 
   // ── Phase 4: Pick best-corroborated values ────────────────────────────────
