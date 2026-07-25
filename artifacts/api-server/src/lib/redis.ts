@@ -17,7 +17,20 @@ import { logger } from "./logger";
 let _localClient: Redis | null = null;
 let _permanentClients: Redis[] = []; // one per REDIS_URL_N
 
-function buildClient(url: string, label: string): Redis {
+/**
+ * Tracks which permanent-client slot indices are quota-exhausted.
+ * An Upstash slot that hits its monthly request cap stays TCP-connected
+ * (status === "ready") but throws ERR max requests limit exceeded on every
+ * command.  We catch that in the error handler and add the index here so
+ * getPermanentClient() skips it and falls through to the next healthy slot.
+ *
+ * RULE: Always skip quota-exhausted slots — never block on them.
+ * If ALL slots are exhausted, request a new REDIS_URL_N from the user and
+ * add it as the next slot (e.g. REDIS_URL_6) so the app can continue.
+ */
+const _quotaExhaustedSlots = new Set<number>();
+
+function buildClient(url: string, label: string, slotIndex?: number): Redis {
   const client = new Redis(url, {
     lazyConnect: true,
     maxRetriesPerRequest: 2,
@@ -34,7 +47,16 @@ function buildClient(url: string, label: string): Redis {
 
   client.on("connect",      () => logger.info(`[${label}] Redis connecting…`));
   client.on("ready",        () => logger.info(`[${label}] Redis ready`));
-  client.on("error",        (err) => logger.warn({ err: err.message }, `[${label}] Redis error (non-fatal)`));
+  client.on("error",        (err) => {
+    if (err.message?.includes("max requests limit exceeded")) {
+      if (slotIndex !== undefined && !_quotaExhaustedSlots.has(slotIndex)) {
+        _quotaExhaustedSlots.add(slotIndex);
+        logger.warn({ slot: slotIndex + 1, label }, `[${label}] Quota exhausted — slot marked as unavailable; falling through to next slot`);
+      }
+    } else {
+      logger.warn({ err: err.message }, `[${label}] Redis error (non-fatal)`);
+    }
+  });
   client.on("close",        () => logger.warn(`[${label}] Redis connection closed`));
   client.on("reconnecting", (ms: number) => logger.info({ ms }, `[${label}] Redis reconnecting`));
 
@@ -67,10 +89,11 @@ export async function connectPermanentRedis(): Promise<void> {
     const url = process.env[`REDIS_URL_${i}`];
     if (!url) break;
     if (_permanentClients[i - 1]) continue; // already connected
-    const client = buildClient(url, `upstash-${i}`);
+    const slotIndex = i - 1;
+    const client = buildClient(url, `upstash-${i}`, slotIndex);
     try {
       await client.connect();
-      _permanentClients[i - 1] = client;
+      _permanentClients[slotIndex] = client;
       logger.info({ slot: i }, "Permanent Redis connected");
     } catch (err: any) {
       logger.warn({ slot: i, err: err.message }, "Permanent Redis connect failed");
@@ -90,18 +113,30 @@ export async function disconnectRedis(): Promise<void> {
 export function getRedisClient(): Redis | null { return _localClient; }
 
 /**
- * Returns the first healthy permanent client.
- * Falls back to local client if no permanent clients exist.
- * In future when Upstash DB_1 fills up, adding REDIS_URL_2 automatically expands capacity.
+ * Returns the first healthy, non-quota-exhausted permanent client.
+ * Falls back to local client if no permanent clients are available.
+ *
+ * Quota-exhausted slots (ERR max requests limit exceeded) stay TCP-connected
+ * so their status remains "ready" — we skip them explicitly via
+ * _quotaExhaustedSlots and fall through to the next slot automatically.
  */
 export function getPermanentClient(): Redis | null {
-  const alive = _permanentClients.find((c) => c?.status === "ready");
+  const alive = _permanentClients.find(
+    (c, i) => c?.status === "ready" && !_quotaExhaustedSlots.has(i),
+  );
   return alive ?? _localClient;
 }
 
-/** All permanent clients (for sharded writes) */
+/** All permanent clients that are healthy and not quota-exhausted (for sharded writes) */
 export function getAllPermanentClients(): Redis[] {
-  return _permanentClients.filter((c) => c?.status === "ready");
+  return _permanentClients.filter(
+    (c, i) => c?.status === "ready" && !_quotaExhaustedSlots.has(i),
+  );
+}
+
+/** True if a given permanent slot (1-based) is quota-exhausted */
+export function isSlotQuotaExhausted(slot: number): boolean {
+  return _quotaExhaustedSlots.has(slot - 1);
 }
 
 // ── LOCAL cache helpers (short-lived API responses) ───────────────────────────
@@ -225,13 +260,14 @@ export async function pingRedis(): Promise<number | null> {
 
 const CONTACT_PREFIX = "contact:v1:";
 
-/** Returns the second permanent client (slot 2 / REDIS_URL_2) for contact cache writes. */
+/** Returns the second permanent client (slot 2 / REDIS_URL_2) for contact cache writes.
+ *  Falls back to the first available non-quota-exhausted slot. */
 export function getContactCacheClient(): Redis | null {
-  // Prefer slot 2; fall back to slot 1 if slot 2 unavailable
+  // Prefer slot 2; skip if quota-exhausted
   const slot2 = _permanentClients[1];
-  if (slot2?.status === "ready") return slot2;
-  const slot1 = _permanentClients[0];
-  return slot1?.status === "ready" ? slot1 : null;
+  if (slot2?.status === "ready" && !_quotaExhaustedSlots.has(1)) return slot2;
+  // Fall back to any healthy slot
+  return getPermanentClient();
 }
 
 export interface CachedContact {

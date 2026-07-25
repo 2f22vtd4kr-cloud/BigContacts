@@ -31,7 +31,7 @@
 - [Public contact evidence validation](contact-evidence-validation.md) — Validate extracted contacts before PostgreSQL writes, Redis mirroring, and cache restore
 - [Duplicate review guardrails](duplicate-review-guardrails.md) — Deduplicate name tokens before pairing; same-source matches remain review-only
 - [Contact enrichment state](contact-enrichment-state.md) — Website/address evidence is not terminal; only validated contact vectors complete enrichment
-- [Upstash request quota](upstash-request-quota.md) — Persistent Redis can hit its provider request cap while local Redis and API health remain normal
+- [Upstash quota slot failover](upstash-quota-failover.md) — Quota-exhausted slots stay "ready" (TCP); getPermanentClient() now skips them via _quotaExhaustedSlots; if all slots exhausted, request a new REDIS_URL_N
 - [Contact discovery roadmap](contact-discovery-roadmap.md) — Phase J defines gated re-import milestones for validated public-contact yield, source coverage, identity, attribution, and retries
 - [Phase J2 registry coverage](j2-registry-coverage.md) — Keep matrix coverage separate from executable live search adapters; preserve source-specific evidence semantics
 - [Phase J4–J9 completion](phase-j-completion.md) — domain-resolver/digital-footprint/contact-attribution libs; source-quality endpoint; geometric-mean attribution threshold 0.52
