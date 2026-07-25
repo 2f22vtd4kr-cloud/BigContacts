@@ -72,6 +72,8 @@ export interface OsintResult {
   email:        string | null;
   phone:        string | null;
   website:      string | null;
+  instagramUrl: string | null;
+  twitterUrl:   string | null;
   sources:      string[];
 }
 
@@ -155,36 +157,75 @@ async function ddgHtmlSearch(query: string, locale = "wt-wt"): Promise<string> {
  * Scrape the entity's website for contact info.
  * Tries multilingual contact/about paths (EN/FR/DE/IT/ES).
  */
-async function scrapeContactEmail(website: string): Promise<string | null> {
+interface ContactPageResult {
+  email:        string | null;
+  instagramUrl: string | null;
+  twitterUrl:   string | null;
+}
+
+async function scrapeContactEmail(website: string): Promise<ContactPageResult> {
+  const empty: ContactPageResult = { email: null, instagramUrl: null, twitterUrl: null };
   try {
     const base = website.replace(/\/$/, "");
+    const tld  = (base.match(/\.([a-z]{2,3})(\/|$)/i)?.[1] ?? "").toLowerCase();
+    const acceptLang =
+      tld === "fr" || tld === "be" || tld === "mc" ? "fr-FR,fr;q=0.9,en;q=0.8" :
+      tld === "de" || tld === "at" ? "de-DE,de;q=0.9,en;q=0.8" :
+      tld === "it" ? "it-IT,it;q=0.9,en;q=0.8" :
+      tld === "es" ? "es-ES,es;q=0.9,en;q=0.8" : "en-US,en;q=0.9";
     const paths = [
       "", "/contact", "/contact-us", "/about", "/team", "/equipe",
       "/nous-contacter", "/kontakt", "/impressum", "/contatti", "/contacto",
       "/about-us", "/who-we-are", "/management", "/staff",
     ];
+    let found: ContactPageResult = { email: null, instagramUrl: null, twitterUrl: null };
     for (const path of paths) {
       try {
         const resp = await fetch(`${base}${path}`, {
-          signal: AbortSignal.timeout(8_000),
-          headers: { "User-Agent": "Mozilla/5.0 (compatible; ApexFinder/1.0)", Accept: "text/html" },
+          signal: AbortSignal.timeout(10_000),
+          headers: {
+            "User-Agent": randomUA(),
+            Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+            "Accept-Language": acceptLang,
+            "Accept-Encoding": "gzip, deflate, br",
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache",
+            "Sec-Fetch-Dest": "document",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-Site": "none",
+            "Sec-Fetch-User": "?1",
+            "Upgrade-Insecure-Requests": "1",
+          },
+          redirect: "follow",
         });
         if (!resp.ok) continue;
         const html = await resp.text();
-        // mailto: href is most reliable
+
+        // mailto: href is most reliable for email
         const mailtoRe = /href=["']mailto:([^"'?\s]+)/gi;
         for (const m of html.matchAll(mailtoRe)) {
           const addr = (m[1] ?? "").toLowerCase().trim();
-          if (isValidPublicEmail(addr) && addr.length < 80) return addr;
+          if (isValidPublicEmail(addr) && addr.length < 80 && !found.email) found.email = addr;
         }
-        const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").slice(0, 5000);
-        const email = extractEmailSimple(text);
-        if (email) return email;
+        // Instagram href
+        const igM = html.match(/href=["'](https?:\/\/(?:www\.)?instagram\.com\/([a-zA-Z0-9._]{2,30}))[^"']*/i);
+        if (igM && !found.instagramUrl) found.instagramUrl = igM[1]!;
+        // Twitter/X href
+        const twM = html.match(/href=["'](https?:\/\/(?:www\.)?(?:twitter|x)\.com\/([a-zA-Z0-9_]{2,50}))[^"']*/i);
+        if (twM && !found.twitterUrl) found.twitterUrl = twM[1]!;
+
+        if (!found.email) {
+          const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").slice(0, 5000);
+          found.email = extractEmailSimple(text) ?? null;
+        }
+        // Stop as soon as we have an email (primary goal); keep going for social if missing
+        if (found.email && found.instagramUrl && found.twitterUrl) break;
+        if (found.email && path !== "") break; // found on contact sub-page — enough
       } catch { /* try next */ }
     }
-    return null;
+    return found;
   } catch {
-    return null;
+    return empty;
   }
 }
 
@@ -203,7 +244,7 @@ export interface EntityOsintInput {
 }
 
 export async function enrichEntityOsint(entity: EntityOsintInput): Promise<OsintResult> {
-  const result: OsintResult = { linkedinUrl: null, email: null, phone: null, website: null, sources: [] };
+  const result: OsintResult = { linkedinUrl: null, email: null, phone: null, website: null, instagramUrl: null, twitterUrl: null, sources: [] };
   const name = entity.name.trim();
   if (!name || name.length < 3) return result;
 
@@ -294,12 +335,13 @@ export async function enrichEntityOsint(entity: EntityOsintInput): Promise<Osint
     const candidates = guessCompanyDomainWithCity(name, city);
     for (const domain of candidates.slice(0, 3)) {
       try {
-        const contactEmail = await scrapeContactEmail(`https://${domain}`);
-        if (contactEmail) {
+        const scraped = await scrapeContactEmail(`https://${domain}`);
+        if (scraped.email || scraped.instagramUrl || scraped.twitterUrl) {
           result.website = `https://${domain}`;
-          result.email = contactEmail;
-          result.sources.push(`Domain-Guess(${domain})`);
-          break;
+          if (scraped.email)        { result.email        = scraped.email;        result.sources.push(`Domain-Guess(${domain})`); }
+          if (scraped.instagramUrl) { result.instagramUrl = scraped.instagramUrl; result.sources.push(`Domain-IG(${domain})`); }
+          if (scraped.twitterUrl)   { result.twitterUrl   = scraped.twitterUrl;   result.sources.push(`Domain-TW(${domain})`); }
+          if (scraped.email) break; // stop domain loop once we have email
         }
       } catch { /* try next */ }
     }
@@ -924,13 +966,15 @@ async function scrapePage(url: string): Promise<ScrapedPage> {
     if (twM) twitterUrl = twM[1]!;
 
     const text = stripHtml(html).slice(0, 15_000);
+    const botBlocked = isBotBlock(html, text);
+
     if (!email) email = extractEmailsWithObfuscation(text)[0] ?? null;
     const phone = extractPhone(text);
     if (!linkedinUrl) linkedinUrl = extractLinkedIn(text);
     if (!instagramUrl) instagramUrl = extractInstagram(text);
     if (!twitterUrl) twitterUrl = extractTwitter(text);
 
-    return { email, phone, linkedinUrl, instagramUrl, twitterUrl, text, links: extractPageLinks(html, url) };
+    return { email, phone, linkedinUrl, instagramUrl, twitterUrl, text, links: extractPageLinks(html, url), botBlocked };
   } catch {
     return emptyScrapedPage();
   }
@@ -1069,16 +1113,20 @@ export function buildDeepWebQueries(
     // Legal name ("BAOLI SAS") never appears in press, venue guides, or social profiles
     // Trading name ("Baoli Cannes") is what the public knows
 
+    // Guard: when the trading name already contains the city ("Baoli Cannes"),
+    // don't generate "${tradingName} ${city}" queries — they produce "Baoli Cannes Cannes …"
+    const tradingHasCity = !!(city && tradingName.toLowerCase().includes(city.toLowerCase()));
+
     // Primary: trading name + city + contact keywords
     if (tradingName !== legalName) {
       queries.push(`"${tradingName}" contact email`);
-      if (city) queries.push(`"${tradingName}" ${city} contact email`);
+      if (city && !tradingHasCity) queries.push(`"${tradingName}" ${city} contact email`);
     }
     // Always include legal name as fallback for corporate directory hits
     queries.push(`"${legalName}" contact email`);
 
     // City-context queries (high yield for local hospitality/venue targets)
-    if (city) {
+    if (city && !tradingHasCity) {
       queries.push(`${tradingName} ${city} email réservations contact`);
       queries.push(`${tradingName} ${city} owner founder manager`);
     }
@@ -1087,7 +1135,7 @@ export function buildDeepWebQueries(
     if (isFrench) {
       queries.push(`"${tradingName}" contact réservations email`);
       queries.push(`"${tradingName}" propriétaire fondateur dirigeant`);
-      if (city) queries.push(`${tradingName} ${city} fondateur email`);
+      if (city && !tradingHasCity) queries.push(`${tradingName} ${city} fondateur email`);
     }
     if (isGerman) {
       queries.push(`"${tradingName}" Kontakt email Inhaber Geschäftsführer`);
@@ -1310,10 +1358,10 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         }
       }
 
-      // Wayback Machine fallback: live site returned very little (likely Cloudflare JS challenge).
-      // A short response (<500 chars) with no contacts = bot-detection page, not the real site.
+      // Wayback Machine fallback: live site returned a Cloudflare/bot-protection challenge or
+      // near-empty response.  Check botBlocked flag (CF signatures) AND short-text guard.
       const liveHit = rootScrape.email || rootScrape.phone || rootScrape.instagramUrl;
-      if (!liveHit && rootScrape.text.length < 500) {
+      if (!liveHit && (rootScrape.botBlocked || rootScrape.text.length < 500)) {
         const wbUrls = await waybackSnapshotUrls(domain);
         for (const wbUrl of wbUrls.slice(0, 3)) {
           try {
