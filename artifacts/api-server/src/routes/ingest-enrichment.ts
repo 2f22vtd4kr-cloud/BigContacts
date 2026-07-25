@@ -533,7 +533,7 @@ router.post("/ingest/in-house-enrich", async (req: Request, res: Response): Prom
             enrichedAt:         new Date().toISOString(),
             emailConfidence:    result.emailConfidence ?? undefined,
             phoneConfidence:    result.phoneConfidence ?? undefined,
-            sourceHits:         result.sourceHits as Record<string, number> ?? undefined,
+            sourceHits:         (result.sourceHits as unknown) as Record<string, number> | undefined,
           });
 
           logger.info({ entityId: entity.id, name: entity.name, confidence, sources: result.sources }, "In-house OSINT v2 enriched");
@@ -793,7 +793,7 @@ router.post("/ingest/social-discovery", async (req: Request, res: Response): Pro
   const { batchSize = 200, hotOnly = false, onlyMissingContact = false, force = false, entityIds } = req.body ?? {};
   const existing = await getActiveJob("social-discovery");
   if (existing) { res.json({ jobId: existing, status: "already_running" }); return; }
-  const jobId = await createJob("social-discovery", { batchSize, hotOnly, onlyMissingContact });
+  const jobId = await createJob("social-discovery");
   await setActiveJob("social-discovery", jobId);
   res.json({ jobId });
 
@@ -891,7 +891,7 @@ router.post("/ingest/messenger-discovery", async (req: Request, res: Response): 
   const { batchSize = 100, hotOnly = false, onlyMissingContact = false, force = false, entityIds } = req.body ?? {};
   const existing = await getActiveJob("messenger-discovery");
   if (existing) { res.json({ jobId: existing, status: "already_running" }); return; }
-  const jobId = await createJob("messenger-discovery", { batchSize, hotOnly });
+  const jobId = await createJob("messenger-discovery");
   await setActiveJob("messenger-discovery", jobId);
   res.json({ jobId });
 
@@ -976,7 +976,7 @@ router.post("/ingest/foundation-filings", async (req: Request, res: Response): P
   const { batchSize = 200, force = false, entityIds } = req.body ?? {};
   const existing = await getActiveJob("foundation-filings");
   if (existing) { res.json({ jobId: existing, status: "already_running" }); return; }
-  const jobId = await createJob("foundation-filings", { batchSize });
+  const jobId = await createJob("foundation-filings");
   await setActiveJob("foundation-filings", jobId);
   res.json({ jobId });
 
@@ -1069,7 +1069,7 @@ router.post("/ingest/broad-discovery", async (req: Request, res: Response): Prom
   const { templateSet, rotateTemplates = true, maxQueries = 10 } = req.body ?? {};
   const existing = await getActiveJob("broad-discovery");
   if (existing) { res.json({ jobId: existing, status: "already_running" }); return; }
-  const jobId = await createJob("broad-discovery", { templateSet, rotateTemplates, maxQueries });
+  const jobId = await createJob("broad-discovery");
   await setActiveJob("broad-discovery", jobId);
   res.json({ jobId });
 
@@ -1319,7 +1319,7 @@ router.post("/ingest/backfill-contact-outcomes", async (_req: Request, res: Resp
       });
       // Also fix needsEnrichment: only false when direct contact exists (J1)
       const hasDirectContact = Boolean(e.email || e.phone);
-      const needsMeta = { ...meta, contactOutcome: outcome };
+      const needsMeta: Record<string, unknown> = { ...meta, contactOutcome: outcome };
       if (hasDirectContact) {
         needsMeta["needsEnrichment"] = false;
       } else if (meta["needsEnrichment"] === false && !hasDirectContact) {

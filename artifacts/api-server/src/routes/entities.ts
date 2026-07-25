@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { eq, ilike, and, gte, sql, inArray, or } from "drizzle-orm";
-import { db, entitiesTable, assetsTable, relationshipsTable } from "@workspace/db";
+import { eq, ilike, and, gte, sql, inArray, or, desc } from "drizzle-orm";
+import { db, entitiesTable, assetsTable, relationshipsTable, contactEvidenceTable, dedupReviewsTable } from "@workspace/db";
 import {
   ListEntitiesQueryParams,
   CreateEntityBody,
@@ -49,8 +49,9 @@ router.get("/entities", async (req, res): Promise<void> => {
   // Contact channel filters — server-side so pagination works correctly.
   // Treat blank strings as missing contact evidence; ingestion can leave empty
   // placeholders in nullable text columns.
-  const hasValue = (column: typeof entitiesTable.email) =>
-    sql`${column} IS NOT NULL AND btrim(${column}) <> ''`;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const hasValue = (column: any) =>
+    sql`${column} IS NOT NULL AND btrim(${column}::text) <> ''`;
   if (hasEmail) {
     conditions.push(hasValue(entitiesTable.email));
   } else if (hasPhone) {
@@ -221,7 +222,6 @@ router.get("/entities/:id/opensky", async (req, res): Promise<void> => {
       if (!osky) return null;
       return {
         id: a.id,
-        name: a.name,
         identifier: a.identifier,
         lastActivityDate: a.lastActivityDate,
         opensky: osky,
@@ -250,6 +250,42 @@ router.post("/entities", async (req, res): Promise<void> => {
     createdAt: entity!.createdAt.toISOString(),
     assetCount: 0,
   });
+});
+
+// ── GET /entities/dedup-reviews — N4: load persisted dedup decisions ─────────
+// MUST be before GET /entities/:id to avoid "dedup-reviews" matching as an ID.
+router.get("/entities/dedup-reviews", async (_req, res): Promise<void> => {
+  try {
+    const reviews = await db
+      .select()
+      .from(dedupReviewsTable)
+      .orderBy(desc(dedupReviewsTable.reviewedAt))
+      .limit(2000);
+    res.json({ reviews });
+  } catch (err: unknown) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+// ── POST /entities/dedup-reviews — N4: record a dedup decision ───────────────
+router.post("/entities/dedup-reviews", async (req, res): Promise<void> => {
+  const { entityAId, entityBId, decision, keepEntityId } = req.body as {
+    entityAId: number; entityBId: number; decision: string; keepEntityId?: number;
+  };
+  if (!entityAId || !entityBId || !decision) {
+    res.status(400).json({ error: "entityAId, entityBId, and decision are required" });
+    return;
+  }
+  // Store as (lower, higher) pair so ordering is canonical
+  const [a, b] = [Math.min(entityAId, entityBId), Math.max(entityAId, entityBId)];
+  try {
+    await db.insert(dedupReviewsTable).values({
+      entityAId: a, entityBId: b, decision, keepEntityId: keepEntityId ?? null,
+    });
+    res.json({ ok: true });
+  } catch (err: unknown) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+  }
 });
 
 // ── GET /entities/duplicate-candidates ───────────────────────────────────────
@@ -397,6 +433,23 @@ router.get("/entities/same-source-name-clusters", async (_req, res): Promise<voi
     res.json({ clusters: result, total: result.length });
   } catch (err: any) {
     res.status(500).json({ error: err?.message ?? "Same-source cluster detection failed" });
+  }
+});
+
+// ── GET /entities/:id/contact-evidence — L3: contact audit panel ─────────────
+router.get("/entities/:id/contact-evidence", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id ?? "", 10);
+  if (!id || isNaN(id)) { res.status(400).json({ error: "Invalid entity ID" }); return; }
+  try {
+    const evidence = await db
+      .select()
+      .from(contactEvidenceTable)
+      .where(eq(contactEvidenceTable.entityId, id))
+      .orderBy(desc(contactEvidenceTable.observedAt))
+      .limit(50);
+    res.json({ evidence });
+  } catch (err: unknown) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
   }
 });
 

@@ -16,6 +16,7 @@ export const assetsTable = pgTable("assets", {
   lastActivityDate: date("last_activity_date", { mode: "string" }),
   sourceRegistry: text("source_registry"),
   ownerEntityId: integer("owner_entity_id").references(() => entitiesTable.id, { onDelete: "set null" }),
+  metadata: text("metadata"), // JSON blob (opensky enrichment, custom flags)
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

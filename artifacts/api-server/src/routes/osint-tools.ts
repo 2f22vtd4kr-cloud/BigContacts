@@ -74,7 +74,7 @@ async function fetchAllTools(): Promise<OsintTool[]> {
 async function getTools(): Promise<OsintTool[]> {
   // Try Redis cache first
   try {
-    const cached = await getCache(CACHE_KEY);
+    const cached = await getCache<string>(CACHE_KEY);
     if (cached) {
       return JSON.parse(cached) as OsintTool[];
     }
@@ -158,7 +158,7 @@ router.get("/osint-tools/categories", async (_req: Request, res: Response): Prom
 
 router.get("/osint-tools/status", async (_req: Request, res: Response): Promise<void> => {
   try {
-    const cached = await getCache(CACHE_KEY);
+    const cached = await getCache<string>(CACHE_KEY);
     if (cached) {
       const tools = JSON.parse(cached) as OsintTool[];
       const counts: Record<string, number> = {};

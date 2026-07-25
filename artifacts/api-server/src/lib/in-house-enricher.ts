@@ -475,6 +475,33 @@ async function queryGitHub(name: string): Promise<GitHubResult | null> {
 }
 
 
+/**
+ * M2: Social second-pass — fetch a GitHub user's public profile directly by handle.
+ * Used when an entity already has a known GitHub URL from a prior enrichment pass
+ * (stored in metadata.githubUrl) but still has no email.
+ */
+async function queryGitHubByHandle(handle: string): Promise<GitHubResult | null> {
+  try {
+    const resp = await fetch(`https://api.github.com/users/${encodeURIComponent(handle)}`, {
+      signal: timeout(10_000),
+      headers: { ...HEADERS, Accept: "application/vnd.github+json" },
+    });
+    if (!resp.ok) return null;
+    const p = await resp.json() as any;
+    if (!p?.login) return null;
+    return {
+      email:    p.email   ?? null,
+      blog:     p.blog    ?? null,
+      htmlUrl:  p.html_url ?? null,
+      company:  p.company ?? null,
+      location: p.location ?? null,
+    };
+  } catch (err: any) {
+    logger.debug({ err: err.message, handle }, "GitHub handle fetch failed");
+    return null;
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // MODULE C — CORPORATE REGISTRIES
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1192,13 +1219,22 @@ export async function enrichInHouse(entity: InHouseEnrichInput): Promise<InHouse
 
   // ── I1+I4: Tier classification + LLC beneficial owner resolution ──────────────
   const tier = enrichmentTier(entity);
-  if (tier === 3) {
-    // FAA Corporation: try to resolve the LLC to the person behind it.
-    // If found, switch the enrichment name to the resolved individual — this unlocks
-    // Wikidata/LinkedIn/email-pattern hits that would never fire against "Smith Aviation LLC".
+
+  // M3: Extend LLC→person resolution to EDGAR corporate entities, not just FAA tier 3.
+  // SEC SC 13D/G filers are often holding companies; resolving the beneficial owner
+  // unlocks social/email hits that would never fire against the corporate name.
+  const isEdgarCorp = tier === 1 && entity.type === "Corporation" &&
+    ((entity.metadata ?? "").includes("sec-edgar") ||
+     (entity.sourceRegistries ?? "").toLowerCase().includes("edgar") ||
+     (entity.sourceRegistries ?? "").toLowerCase().includes("sec "));
+
+  if (tier === 3 || isEdgarCorp) {
+    // FAA Corporation / EDGAR Corp: try to resolve LLC to the person behind it.
+    // If found, switch the enrichment name — this unlocks Wikidata/LinkedIn/email-pattern hits.
     const resolved = await resolveBeneficialOwner(name);
     if (resolved) {
-      logger.debug({ llc: name, person: resolved }, "I1: FAA LLC → beneficial owner resolved");
+      const tag = tier === 3 ? "I1: FAA LLC" : "M3: EDGAR Corp";
+      logger.debug({ llc: name, person: resolved }, `${tag} → beneficial owner resolved`);
       name = resolved;
     }
   }
@@ -1610,6 +1646,32 @@ export async function enrichInHouse(entity: InHouseEnrichInput): Promise<InHouse
   }
 
   await Promise.allSettled(g4Promises);
+
+  // M2: Social second-pass — if entity already has a GitHub URL stored in metadata
+  // from a prior enrichment pass but still has no email, fetch the public profile
+  // directly by handle (avoids the search API; reads the email field GitHub exposes).
+  if (!result.email) {
+    let meta: Record<string, unknown> = {};
+    try { meta = JSON.parse(entity.metadata ?? "{}") as Record<string, unknown>; } catch {}
+    const githubUrl = result.sourceHits["GitHub"]
+      ? null  // Already tried GitHub by name this pass — skip to avoid double-counting
+      : (meta.githubUrl as string | undefined) ?? null;
+    if (githubUrl && typeof githubUrl === "string") {
+      const handleMatch = githubUrl.match(/github\.com\/([^/\s?#]+)/i);
+      const handle = handleMatch?.[1] ?? null;
+      if (handle && handle.length > 1 && !["search", "orgs", "trending"].includes(handle)) {
+        const gh = await queryGitHubByHandle(handle);
+        if (gh?.email) {
+          setEmail(gh.email, 55, "GitHub-Handle");
+          addSource("GitHub-Handle");
+        }
+        if (gh?.blog && !result.website) {
+          result.website = gh.blog;
+          addSource("GitHub-Handle-Blog");
+        }
+      }
+    }
+  }
 
   return result;
 }

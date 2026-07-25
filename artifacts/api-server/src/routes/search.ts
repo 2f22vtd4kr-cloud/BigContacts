@@ -261,9 +261,9 @@ router.post("/search/intelligent", async (req, res): Promise<void> => {
     if (filterHasRelationship && filteredResults.length > 0) {
       const ids = filteredResults.map((r: any) => r.id as number);
       const rows = await db
-        .select({ id: relationshipsTable.fromEntityId })
+        .select({ id: relationshipsTable.sourceEntityId })
         .from(relationshipsTable)
-        .where(inArray(relationshipsTable.fromEntityId, ids));
+        .where(inArray(relationshipsTable.sourceEntityId, ids));
       const relSet = new Set(rows.map((r) => r.id));
       filteredResults = filteredResults.filter((r: any) => relSet.has(r.id as number));
     }

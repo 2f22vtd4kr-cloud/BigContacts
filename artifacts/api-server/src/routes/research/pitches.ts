@@ -60,8 +60,8 @@ router.post("/research/sessions/:id/pitch", async (req, res): Promise<void> => {
         estimatedNetWorth: entity.estimatedNetWorth,
         knownResidences: entity.knownResidences,
         notes: entity.notes,
-        contactEmail: entity.contactEmail ?? null,
-        contactPhone: entity.contactPhone ?? null,
+        contactEmail: entity.email ?? null,
+        contactPhone: entity.phone ?? null,
       },
       gatekeeper: safeGatekeeper,
       assets: targetAssets.map((a) => ({

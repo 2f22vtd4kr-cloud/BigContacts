@@ -52,8 +52,8 @@ async function buildIndex(): Promise<BM25Index> {
       sourceRegistries: entitiesTable.sourceRegistries,
       metadata: entitiesTable.metadata,
       // G2: contact fields — let users search "john smith email" or "tel texas"
-      contactEmail: entitiesTable.contactEmail,
-      contactPhone: entitiesTable.contactPhone,
+      email: entitiesTable.email,
+      phone: entitiesTable.phone,
       linkedinUrl: entitiesTable.linkedinUrl,
       estimatedNetWorth: entitiesTable.estimatedNetWorth,
     })
@@ -85,8 +85,8 @@ async function buildIndex(): Promise<BM25Index> {
       meta.formType ?? "",
       meta.bizLocation ?? "",
       // Contact vector tokens
-      e.contactEmail ? e.contactEmail.split("@")[0] ?? "" : "",
-      e.contactPhone ? "phone mobile tel" : "",
+      e.email ? e.email.split("@")[0] ?? "" : "",
+      e.phone ? "phone mobile tel" : "",
       e.linkedinUrl  ? "linkedin profile" : "",
       nwToken,
     ].join(" ");

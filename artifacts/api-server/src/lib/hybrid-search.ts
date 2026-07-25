@@ -99,6 +99,8 @@ export async function hybridSearch(
       meta: {
         bm25Hits: bm25Results.length,
         semanticHits: semanticResults.length,
+        embeddingHits: embeddingResults.length,
+        embeddingCacheSize: getEmbeddingCacheSize(),
         graphHits: 0,
         totalCandidates: 0,
         durationMs: Date.now() - t0,
@@ -173,7 +175,7 @@ export async function hybridSearch(
     .sort((a, b) => b.rrf - a.rrf)
     .slice(0, topK);
 
-  const results: HybridResult[] = fused
+  const results = fused
     .map((r, i) => {
       const e = entityMap.get(r.id);
       if (!e) return null;
@@ -206,7 +208,7 @@ export async function hybridSearch(
         rank: i + 1,
       };
     })
-    .filter((r): r is HybridResult => r !== null);
+    .filter((r) => r !== null) as HybridResult[];
 
   return {
     results,
