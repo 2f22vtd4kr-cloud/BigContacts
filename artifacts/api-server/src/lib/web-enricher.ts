@@ -335,6 +335,17 @@ export interface DeepWebOsintResult {
   queriesFired:    number;
   pagesScraped:    number;
   personsDiscovered: string[];
+  evidence:        DeepWebEvidence[];
+}
+
+export interface DeepWebEvidence {
+  vectorType: "email" | "phone" | "social" | "domain" | "website" | "address";
+  value: string;
+  source: string;
+  sourceUrl: string | null;
+  extractionMethod: string;
+  confidence: number;
+  details?: Record<string, unknown>;
 }
 
 const USER_AGENTS = [
@@ -639,6 +650,7 @@ interface SearchResult {
   text:   string;
   urls:   string[];
   engine: string;
+  sourceUrl?: string;
 }
 
 function stripHtml(html: string): string {
@@ -704,12 +716,12 @@ async function duckduckgoSearch(query: string, locale = "wt-wt"): Promise<Search
         Referer: "https://duckduckgo.com/",
       },
     });
-    if (!resp.ok) return { text: "", urls: [], engine: "DDG" };
+    if (!resp.ok) return { text: "", urls: [], engine: "DDG", sourceUrl: url };
     const html = await resp.text();
-    return { text: stripHtml(html).slice(0, 12_000), urls: extractDdgUrls(html), engine: "DDG" };
+    return { text: stripHtml(html).slice(0, 12_000), urls: extractDdgUrls(html), engine: "DDG", sourceUrl: url };
   } catch (err: any) {
     logger.debug({ err: err?.message, query }, "DDG search failed");
-    return { text: "", urls: [], engine: "DDG" };
+    return { text: "", urls: [], engine: "DDG", sourceUrl: url };
   }
 }
 
@@ -727,12 +739,12 @@ async function bingSearch(query: string, country: string | null): Promise<Search
         Referer: "https://www.bing.com/",
       },
     });
-    if (!resp.ok) return { text: "", urls: [], engine: "Bing" };
+    if (!resp.ok) return { text: "", urls: [], engine: "Bing", sourceUrl: url };
     const html = await resp.text();
-    return { text: stripHtml(html).slice(0, 12_000), urls: extractBingUrls(html), engine: "Bing" };
+    return { text: stripHtml(html).slice(0, 12_000), urls: extractBingUrls(html), engine: "Bing", sourceUrl: url };
   } catch (err: any) {
     logger.debug({ err: err?.message, query }, "Bing search failed");
-    return { text: "", urls: [], engine: "Bing" };
+    return { text: "", urls: [], engine: "Bing", sourceUrl: url };
   }
 }
 
@@ -753,22 +765,77 @@ async function qwantSearch(query: string, locale = "fr_FR"): Promise<SearchResul
         Referer: "https://www.qwant.com/",
       },
     });
-    if (!resp.ok) return { text: "", urls: [], engine: "Qwant" };
+    if (!resp.ok) return { text: "", urls: [], engine: "Qwant", sourceUrl: url };
     const html = await resp.text();
-    return { text: stripHtml(html).slice(0, 12_000), urls: extractQwantUrls(html), engine: "Qwant" };
+    return { text: stripHtml(html).slice(0, 12_000), urls: extractQwantUrls(html), engine: "Qwant", sourceUrl: url };
   } catch (err: any) {
     logger.debug({ err: err?.message, query }, "Qwant search failed");
-    return { text: "", urls: [], engine: "Qwant" };
+    return { text: "", urls: [], engine: "Qwant", sourceUrl: url };
   }
 }
 
-async function scrapePage(url: string): Promise<{
+interface ScrapedPage {
   email: string | null;
   phone: string | null;
   linkedinUrl: string | null;
   instagramUrl: string | null;
   twitterUrl: string | null;
-}> {
+  text: string;
+  links: string[];
+}
+
+function emptyScrapedPage(): ScrapedPage {
+  return { email: null, phone: null, linkedinUrl: null, instagramUrl: null, twitterUrl: null, text: "", links: [] };
+}
+
+function extractPageLinks(html: string, pageUrl: string): string[] {
+  const links = new Set<string>();
+  let base: URL;
+  try { base = new URL(pageUrl); } catch { return []; }
+  const hrefRe = /href\s*=\s*["']([^"']+)["']/gi;
+  for (const match of html.matchAll(hrefRe)) {
+    const raw = (match[1] ?? "").trim();
+    if (!raw || raw.startsWith("#") || /^(mailto|tel|javascript):/i.test(raw)) continue;
+    try {
+      const resolved = new URL(raw, base);
+      if (!/^https?:$/i.test(resolved.protocol)) continue;
+      if (resolved.hostname.replace(/^www\./, "") !== base.hostname.replace(/^www\./, "")) continue;
+      resolved.hash = "";
+      links.add(resolved.toString());
+    } catch { /* ignore malformed links */ }
+  }
+  return [...links].slice(0, 24);
+}
+
+function extractEmailsWithObfuscation(text: string): string[] {
+  const normalized = text
+    .replace(/\s*(?:\[|\(|\{)\s*at\s*(?:\]|\)|\})\s*/gi, "@")
+    .replace(/\s+(?:at|chez)\s+/gi, "@")
+    .replace(/\s*(?:\[|\(|\{)\s*dot\s*(?:\]|\)|\})\s*/gi, ".")
+    .replace(/\s+dot\s+/gi, ".")
+    .replace(/\s*@\s*/g, "@");
+  return extractEmails(normalized);
+}
+
+export function extractPhone(text: string): string | null {
+  const patterns = [
+    // International formats, including French "(0)4 93..." notation.
+    /\+\d{1,3}\s*(?:\(\s*0\s*\)\s*)?(?:\(?\d{1,4}\)?[\s.\-]?){2,6}\d/,
+    // Local European numbers such as 04 93 43 03 43 or 01.42.68.53.00.
+    /\b0\d(?:[\s.\-]?\d){8,}\b/,
+    // North American numbers.
+    /\(?\d{3}\)?[\s.\-]\d{3}[\s.\-]\d{4}/,
+  ];
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (!match) continue;
+    const candidate = match[0].replace(/\s+/g, " ").trim();
+    if ((candidate.match(/\d/g) ?? []).length >= 8) return candidate;
+  }
+  return null;
+}
+
+async function scrapePage(url: string): Promise<ScrapedPage> {
   try {
     const resp = await fetch(url, {
       signal: AbortSignal.timeout(10_000),
@@ -778,7 +845,7 @@ async function scrapePage(url: string): Promise<{
       },
       redirect: "follow",
     });
-    if (!resp.ok) return { email: null, phone: null, linkedinUrl: null, instagramUrl: null, twitterUrl: null };
+    if (!resp.ok) return emptyScrapedPage();
     const html = await resp.text().then(h => h.slice(0, 80_000));
 
     // mailto: href is most reliable source
@@ -812,15 +879,15 @@ async function scrapePage(url: string): Promise<{
     if (twM) twitterUrl = twM[1]!;
 
     const text = stripHtml(html).slice(0, 15_000);
-    if (!email) email = extractEmails(text)[0] ?? null;
+    if (!email) email = extractEmailsWithObfuscation(text)[0] ?? null;
     const phone = extractPhone(text);
     if (!linkedinUrl) linkedinUrl = extractLinkedIn(text);
     if (!instagramUrl) instagramUrl = extractInstagram(text);
     if (!twitterUrl) twitterUrl = extractTwitter(text);
 
-    return { email, phone, linkedinUrl, instagramUrl, twitterUrl };
+    return { email, phone, linkedinUrl, instagramUrl, twitterUrl, text, links: extractPageLinks(html, url) };
   } catch {
-    return { email: null, phone: null, linkedinUrl: null, instagramUrl: null, twitterUrl: null };
+    return emptyScrapedPage();
   }
 }
 
@@ -829,10 +896,9 @@ async function scrapePage(url: string): Promise<{
  * Multilingual paths cover EN/FR/DE/IT/ES sites.
  */
 async function findContactPages(domain: string): Promise<{
-  email: string | null;
-  phone: string | null;
-  instagramUrl: string | null;
-}> {
+  url: string;
+  scraped: ScrapedPage;
+}[]> {
   const paths = [
     "/contact", "/contact-us", "/contactez-nous", "/nous-contacter",
     "/about", "/about-us", "/qui-sommes-nous", "/uber-uns",
@@ -840,16 +906,48 @@ async function findContactPages(domain: string): Promise<{
     "/kontakt", "/impressum", "/contatti", "/contacto",
     "/reservation", "/reservations", "/book", "/booking",
   ];
+  const candidates = paths.map(path => `https://${domain}${path}`);
   for (const path of paths) {
+    // Seeded by links discovered on the homepage. This handles localized,
+    // CMS-generated routes such as /fr/contactez-nous and /reservation.
+    candidates.push(`https://${domain}${path}/`);
+  }
+  const seen = new Set<string>();
+  const results: Array<{ url: string; scraped: ScrapedPage }> = [];
+  for (const url of candidates) {
+    if (seen.has(url)) continue;
+    seen.add(url);
     try {
-      const scraped = await scrapePage(`https://${domain}${path}`);
-      if (scraped.email || scraped.phone) {
-        return { email: scraped.email, phone: scraped.phone, instagramUrl: scraped.instagramUrl };
+      const scraped = await scrapePage(url);
+      if (scraped.email || scraped.phone || scraped.linkedinUrl || scraped.instagramUrl || scraped.twitterUrl) {
+        results.push({ url, scraped });
+        if (results.length >= 4) break;
       }
     } catch { /* next path */ }
     await sleep(300);
   }
-  return { email: null, phone: null, instagramUrl: null };
+  return results;
+}
+
+async function waybackSnapshotUrls(domain: string): Promise<string[]> {
+  const cdxUrl = `https://web.archive.org/cdx/search/cdx?url=${encodeURIComponent(domain)}/*&output=json&filter=statuscode:200&filter=mimetype:text/html&collapse=urlkey&fl=timestamp,original&limit=20`;
+  try {
+    const response = await fetch(cdxUrl, {
+      signal: AbortSignal.timeout(12_000),
+      headers: { "User-Agent": "ApexFinder/1.0 public OSINT research" },
+    });
+    if (!response.ok) return [];
+    const rows = await response.json() as unknown;
+    if (!Array.isArray(rows)) return [];
+    const urls: string[] = [];
+    for (const row of rows.slice(1)) {
+      if (!Array.isArray(row) || typeof row[0] !== "string" || typeof row[1] !== "string") continue;
+      urls.push(`https://web.archive.org/web/${row[0]}id_/${row[1]}`);
+    }
+    return [...new Set(urls)].slice(0, 8);
+  } catch {
+    return [];
+  }
 }
 
 function extractEmails(text: string): string[] {
