@@ -22,10 +22,11 @@ router.get("/entities", async (req, res): Promise<void> => {
     return;
   }
   const { type, minScore, search, limit = 50, offset = 0, starred, hidden,
-    contactable, hasEmail, hasPhone, hasWhatsapp, hasTelegram, hasInstagram } = parsed.data;
+    contactable, hasEmail, hasPhone, hasWhatsapp, hasTelegram, hasInstagram,
+    contactOutcome, minContactConfidence } = parsed.data;
 
   // Cache key encodes all query params — 30 s TTL (short, data changes frequently)
-  const cacheKey = `entities:list:${type ?? ""}:${minScore ?? ""}:${search ?? ""}:${limit}:${offset}:${starred ?? ""}:${hidden ?? ""}:${contactable ?? ""}:${hasEmail ?? ""}:${hasPhone ?? ""}:${hasWhatsapp ?? ""}:${hasTelegram ?? ""}:${hasInstagram ?? ""}`;
+  const cacheKey = `entities:list:${type ?? ""}:${minScore ?? ""}:${search ?? ""}:${limit}:${offset}:${starred ?? ""}:${hidden ?? ""}:${contactable ?? ""}:${hasEmail ?? ""}:${hasPhone ?? ""}:${hasWhatsapp ?? ""}:${hasTelegram ?? ""}:${hasInstagram ?? ""}:${contactOutcome ?? ""}:${minContactConfidence ?? ""}`;
   const cached = await getCache<unknown[]>(cacheKey);
   if (cached) {
     res.json(cached);
@@ -52,6 +53,8 @@ router.get("/entities", async (req, res): Promise<void> => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const hasValue = (column: any) =>
     sql`${column} IS NOT NULL AND btrim(${column}::text) <> ''`;
+
+  // ── Legacy channel filters (kept for backward compat) ──────────────────────
   if (hasEmail) {
     conditions.push(hasValue(entitiesTable.email));
   } else if (hasPhone) {
@@ -63,7 +66,6 @@ router.get("/entities", async (req, res): Promise<void> => {
   } else if (hasInstagram) {
     conditions.push(hasValue(entitiesTable.instagramHandle));
   } else if (contactable) {
-    // Any contact channel
     conditions.push(or(
       hasValue(entitiesTable.email),
       hasValue(entitiesTable.phone),
@@ -73,9 +75,37 @@ router.get("/entities", async (req, res): Promise<void> => {
     )!);
   }
 
-  // When a contact filter is active, rank by contact confidence so the most
+  // ── Contact richness tier filter ───────────────────────────────────────────
+  // "any"      → has any meaningful contact (social, org, direct, verified)
+  // "direct"   → direct_contact_candidate OR direct_contact_verified
+  // "verified" → direct_contact_verified only
+  // "org"      → organization_contact only
+  // "social"   → social_only
+  if (contactOutcome === "any") {
+    conditions.push(inArray(entitiesTable.contactOutcome, [
+      "social_only", "organization_contact", "direct_contact_candidate", "direct_contact_verified",
+    ]));
+  } else if (contactOutcome === "direct") {
+    conditions.push(inArray(entitiesTable.contactOutcome, [
+      "direct_contact_candidate", "direct_contact_verified",
+    ]));
+  } else if (contactOutcome === "verified") {
+    conditions.push(eq(entitiesTable.contactOutcome, "direct_contact_verified"));
+  } else if (contactOutcome === "org") {
+    conditions.push(eq(entitiesTable.contactOutcome, "organization_contact"));
+  } else if (contactOutcome === "social") {
+    conditions.push(eq(entitiesTable.contactOutcome, "social_only"));
+  }
+
+  // ── Minimum confidence threshold ───────────────────────────────────────────
+  if (minContactConfidence !== undefined && minContactConfidence > 0) {
+    conditions.push(gte(entitiesTable.contactConfidence, minContactConfidence));
+  }
+
+  // When a contact quality filter is active, rank by confidence so the most
   // reachable profiles float to the top. Fall back to bayesian score otherwise.
-  const isContactFilter = !!(contactable || hasEmail || hasPhone || hasWhatsapp || hasTelegram || hasInstagram);
+  const isContactFilter = !!(contactable || hasEmail || hasPhone || hasWhatsapp || hasTelegram
+    || hasInstagram || contactOutcome || (minContactConfidence && minContactConfidence > 0));
   const orderExpr = isContactFilter
     ? sql`${entitiesTable.contactConfidence} DESC NULLS LAST, ${entitiesTable.bayesianScore} DESC`
     : sql`${entitiesTable.bayesianScore} DESC`;

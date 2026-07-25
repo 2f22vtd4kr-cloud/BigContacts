@@ -58,15 +58,27 @@ const TYPE_ICONS: Record<string, React.ReactNode> = {
   Gatekeeper:  <Shield className="w-3 h-3" />,
 };
 
-type ContactChannel = null | "any" | "email" | "phone" | "whatsapp" | "telegram" | "instagram";
-const CONTACT_CHANNELS: { value: Exclude<ContactChannel, null>; label: string; icon: string }[] = [
-  { value: "any",       label: "Any Contact", icon: "◎" },
-  { value: "email",     label: "Email",       icon: "✉" },
-  { value: "phone",     label: "Phone",       icon: "☎" },
-  { value: "whatsapp",  label: "WhatsApp",    icon: "W" },
-  { value: "telegram",  label: "Telegram",    icon: "T" },
-  { value: "instagram", label: "Instagram",   icon: "IG" },
+// ─── Contact richness filter ──────────────────────────────────────────────────
+
+type ContactRichness = null | "any" | "direct" | "verified";
+
+const RICHNESS_TIERS: { value: Exclude<ContactRichness, null>; label: string; color: string }[] = [
+  { value: "any",      label: "Has Contact", color: "#64748B" },
+  { value: "direct",   label: "Direct",      color: "#3B82F6" },
+  { value: "verified", label: "Verified ✓",  color: "#10B981" },
 ];
+
+const CONFIDENCE_STEPS = [25, 50, 75] as const;
+type ConfidenceStep = typeof CONFIDENCE_STEPS[number];
+
+// Small per-row badge config keyed by contactOutcome value
+const OUTCOME_BADGES: Record<string, { label: string; color: string }> = {
+  direct_contact_verified:  { label: "✓ verified",  color: "#10B981" },
+  direct_contact_candidate: { label: "direct",       color: "#3B82F6" },
+  organization_contact:     { label: "org",           color: "#8B5CF6" },
+  social_only:              { label: "social",        color: "#64748B" },
+  evidence_only:            { label: "evidence",      color: "#374151" },
+};
 
 // ─── CSV export ───────────────────────────────────────────────────────────────
 
@@ -152,10 +164,21 @@ function MobileEntityCard({
           </div>
           
           <div className="mb-3">
-            <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-0.5">Contact Channel</div>
-            <div className="text-xs text-foreground font-mono">
-              {entity.email ? entity.email : entity.phone ? entity.phone : entity.linkedinUrl ? "LinkedIn" : "No contact trace"}
+            <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-0.5">Contact</div>
+            <div className="text-xs text-foreground font-mono truncate">
+              {entity.email ? entity.email : entity.phone ? entity.phone : entity.linkedinUrl ? "LinkedIn" : "—"}
             </div>
+            {entity.contactOutcome && OUTCOME_BADGES[entity.contactOutcome] && (
+              <span
+                className="inline-block text-[9px] font-mono px-1.5 py-0.5 rounded mt-0.5"
+                style={{
+                  color: OUTCOME_BADGES[entity.contactOutcome].color,
+                  background: OUTCOME_BADGES[entity.contactOutcome].color + "18",
+                }}
+              >
+                {OUTCOME_BADGES[entity.contactOutcome].label}
+              </span>
+            )}
           </div>
 
           {registries.length > 0 && (
@@ -269,10 +292,11 @@ export default function EntityLedger() {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
-  const [proximityMin, setProximityMin] = useState<number>(0);
   const [hotOnly, setHotOnly] = useState(() => urlParams.get("hot") === "1");
-  const [contactableOnly, setContactableOnly] = useState(() => urlParams.get("contactable") === "1");
-  const [contactChannel, setContactChannel] = useState<ContactChannel>(null);
+  const [contactRichness, setContactRichness] = useState<ContactRichness>(() =>
+    urlParams.get("contactable") === "1" ? "any" : null
+  );
+  const [minConfidence, setMinConfidence] = useState<ConfidenceStep | 0>(0);
   const [showFilters, setShowFilters] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [addForm, setAddForm] = useState<AddEntityForm>(EMPTY_FORM);
@@ -301,7 +325,7 @@ export default function EntityLedger() {
     setPage(0);
     setAllEntities([]);
     setHasMore(true);
-  }, [searchTerm, typeFilter, proximityMin, hotOnly, contactableOnly, contactChannel, viewMode]);
+  }, [searchTerm, typeFilter, hotOnly, contactRichness, minConfidence, viewMode]);
 
   const toggleSelect = (id: number) =>
     setSelectedIds((prev) => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
@@ -350,25 +374,23 @@ export default function EntityLedger() {
 
   const [mobileSelectedEntity, setMobileSelectedEntity] = useState<any>(null);
 
-  // contactable/channel filters are now server-side; only hotOnly remains client-side
+  // Contact richness + confidence are server-side; only hotOnly remains client-side
   const isSpecialFilter = hotOnly;
-  const anyContactFilter = contactableOnly || contactChannel !== null;
+  const anyContactFilter = contactRichness !== null || minConfidence > 0;
 
   const { data: rawEntities, isLoading: isLoadingEntities, isError: isEntitiesError, refetch } = useListEntities({
     search: searchTerm.length > 2 ? searchTerm : undefined,
     type: typeFilter ?? undefined,
-    limit: isSpecialFilter ? 500 : 50,   // hotOnly still client-side; all others server-side
+    limit: isSpecialFilter ? 500 : 50,
     offset: isSpecialFilter ? 0 : page * 50,
     starred: viewMode === "starred" ? true : undefined,
     hidden: viewMode === "hidden" ? true : undefined,
-    // Contact channel filters — server-side (fixes the 104-entity cap issue)
-    contactable: anyContactFilter ? true : undefined,
-    hasEmail:     contactChannel === "email"     ? true : undefined,
-    hasPhone:     contactChannel === "phone"     ? true : undefined,
-    hasWhatsapp:  contactChannel === "whatsapp"  ? true : undefined,
-    hasTelegram:  contactChannel === "telegram"  ? true : undefined,
-    hasInstagram: contactChannel === "instagram" ? true : undefined,
-  });
+    // Richness tier → server-side contactOutcome / contactable filter
+    contactable: contactRichness === "any" ? true : undefined,
+    contactOutcome: (contactRichness === "direct" || contactRichness === "verified")
+      ? contactRichness : undefined,
+    minContactConfidence: minConfidence > 0 ? minConfidence : undefined,
+  } as Parameters<typeof useListEntities>[0]);
   const deleteEntity = useDeleteEntity();
   const createEntity = useCreateEntity();
 
@@ -405,19 +427,13 @@ export default function EntityLedger() {
       return overrides ? { ...e, ...overrides } : e;
     });
     if (hotOnly) list = list.filter((e: any) => e.isHot);
-    // contactableOnly + contactChannel are now server-side — no client filter needed
-    if (proximityMin > 0) list = list.filter((e: any) => {
-      try {
-        const meta = JSON.parse((e as any).metadata ?? "{}");
-        return (meta.proximityScore ?? 0) >= proximityMin;
-      } catch { return false; }
-    });
+    // contactRichness + minConfidence are server-side — no client filter needed
     // In default view, filter out any optimistically-hidden entities
     if (viewMode === "all") list = list.filter((e: any) => !e.isHidden);
     // In starred view, filter out any optimistically-unstarred entities
     if (viewMode === "starred") list = list.filter((e: any) => e.isStarred !== false);
     return list;
-  }, [rawEntities, proximityMin, hotOnly, viewMode, localOverrides]);
+  }, [rawEntities, hotOnly, viewMode, localOverrides]);
 
   // Accumulate pages into allEntities (must be after rawEntities + entities + isSpecialFilter are declared)
   useEffect(() => {
@@ -523,20 +539,24 @@ export default function EntityLedger() {
         {(hotOnly || anyContactFilter) && (
           <div className={cn(
             "flex items-center justify-between px-4 py-2 border-b text-xs font-mono flex-shrink-0",
-            hotOnly ? "bg-amber-500/10 border-amber-500/30 text-amber-400" : "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+            hotOnly ? "bg-amber-500/10 border-amber-500/30 text-amber-400" : "bg-blue-500/10 border-blue-500/30 text-blue-400"
           )}>
             <div className="flex items-center gap-2">
               <Filter className="w-3 h-3 shrink-0" />
               <span className="font-bold uppercase tracking-wider">
-                {hotOnly ? "Filtered: Hot Leads only"
-                  : contactChannel && contactChannel !== "any"
-                    ? `Contact channel: ${CONTACT_CHANNELS.find(c => c.value === contactChannel)?.label ?? contactChannel}`
-                    : "Filtered: Contactable only"}
+                {hotOnly ? "Hot Leads only"
+                  : contactRichness === "verified"
+                    ? (minConfidence > 0 ? `Verified contacts · conf ≥ ${minConfidence}` : "Verified contacts only")
+                    : contactRichness === "direct"
+                      ? (minConfidence > 0 ? `Direct contacts · conf ≥ ${minConfidence}` : "Direct personal contacts")
+                      : contactRichness === "any"
+                        ? (minConfidence > 0 ? `Has contact · conf ≥ ${minConfidence}` : "Has contact data")
+                        : `Confidence ≥ ${minConfidence}`}
               </span>
               <span className="opacity-60">— {entities.length} shown</span>
             </div>
             <button
-              onClick={() => { setHotOnly(false); setContactableOnly(false); setContactChannel(null); }}
+              onClick={() => { setHotOnly(false); setContactRichness(null); setMinConfidence(0); }}
               className="flex items-center gap-1 opacity-70 hover:opacity-100 transition-opacity"
             >
               <X className="w-3 h-3" /> Clear filter
@@ -626,23 +646,63 @@ export default function EntityLedger() {
           </button>
         </div>
 
-        {/* Contact channel filter chips row */}
-        <div className="flex items-center gap-2 px-4 py-1.5 border-b border-border/40 bg-card/5 flex-shrink-0 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
-          <span className="text-[9px] font-mono text-muted-foreground uppercase tracking-widest shrink-0 mr-1">Channel:</span>
-          {CONTACT_CHANNELS.map(({ value, label, icon }) => (
+        {/* Contact richness + confidence + hot filter row */}
+        <div className="flex items-center gap-1.5 px-4 py-1.5 border-b border-border/40 bg-card/5 flex-shrink-0 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+          <span className="text-[9px] font-mono text-muted-foreground uppercase tracking-widest shrink-0">Contact:</span>
+          {/* "All" pill — resets richness filter */}
+          <button
+            onClick={() => setContactRichness(null)}
+            className="shrink-0 h-6 px-2.5 rounded text-[10px] font-mono border transition-all whitespace-nowrap"
+            style={{
+              background: contactRichness === null ? "rgba(100,116,139,0.15)" : "transparent",
+              color: contactRichness === null ? "#94A3B8" : "hsl(var(--muted-foreground))",
+              borderColor: contactRichness === null ? "rgba(100,116,139,0.4)" : "hsl(var(--border))",
+            }}
+          >
+            All
+          </button>
+          {RICHNESS_TIERS.map(({ value, label, color }) => (
             <button
               key={value}
-              onClick={() => { const next = contactChannel === value ? null : value; setContactChannel(next); setContactableOnly(next !== null); }}
-              className="shrink-0 h-6 px-2.5 rounded text-[10px] font-mono border transition-all flex items-center gap-1.5 whitespace-nowrap"
+              onClick={() => setContactRichness(contactRichness === value ? null : value)}
+              className="shrink-0 h-6 px-2.5 rounded text-[10px] font-mono border transition-all whitespace-nowrap"
               style={{
-                background: contactChannel === value ? "rgba(16,185,129,0.12)" : "transparent",
-                color: contactChannel === value ? "#10B981" : "hsl(var(--muted-foreground))",
-                borderColor: contactChannel === value ? "rgba(16,185,129,0.4)" : "hsl(var(--border))",
+                background: contactRichness === value ? color + "20" : "transparent",
+                color: contactRichness === value ? color : "hsl(var(--muted-foreground))",
+                borderColor: contactRichness === value ? color + "60" : "hsl(var(--border))",
               }}
             >
-              <span className="text-[9px]">{icon}</span> {label}
+              {label}
             </button>
           ))}
+          <div className="w-px h-4 bg-border/60 mx-1 shrink-0" />
+          <span className="text-[9px] font-mono text-muted-foreground uppercase tracking-widest shrink-0">Conf:</span>
+          {CONFIDENCE_STEPS.map((step) => (
+            <button
+              key={step}
+              onClick={() => setMinConfidence(minConfidence === step ? 0 : step)}
+              className="shrink-0 h-6 px-2.5 rounded text-[10px] font-mono border transition-all whitespace-nowrap"
+              style={{
+                background: minConfidence === step ? "rgba(245,158,11,0.15)" : "transparent",
+                color: minConfidence === step ? "#F59E0B" : "hsl(var(--muted-foreground))",
+                borderColor: minConfidence === step ? "rgba(245,158,11,0.4)" : "hsl(var(--border))",
+              }}
+            >
+              {step}+
+            </button>
+          ))}
+          <div className="w-px h-4 bg-border/60 mx-1 shrink-0" />
+          <button
+            onClick={() => setHotOnly(!hotOnly)}
+            className="shrink-0 h-6 px-2.5 rounded text-[10px] font-mono border transition-all whitespace-nowrap"
+            style={{
+              background: hotOnly ? "rgba(245,158,11,0.12)" : "transparent",
+              color: hotOnly ? "#F59E0B" : "hsl(var(--muted-foreground))",
+              borderColor: hotOnly ? "rgba(245,158,11,0.4)" : "hsl(var(--border))",
+            }}
+          >
+            🔥 Hot
+          </button>
         </div>
 
         {/* Live Intel slide-over sidebar */}
@@ -791,7 +851,7 @@ export default function EntityLedger() {
                       : <Square className="w-3.5 h-3.5" />}
                   </button>
                 </th>
-                {["Name", "Type", "Nationality", "Access", "Contact Channel", "Net Worth"].map((h) => (
+                {["Name", "Type", "Nationality", "Access", "Contact", "Net Worth"].map((h) => (
                   <th key={h} className={cn(
                     "px-4 py-3 text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap",
                     h === "Net Worth" ? "text-right" : "text-left"
@@ -838,47 +898,58 @@ export default function EntityLedger() {
                     <td className="px-4 py-3 text-sm text-muted-foreground font-mono whitespace-nowrap">{entity.nationality ?? "—"}</td>
                     <td className="px-4 py-3"><AccessScoreBadge score={entity.accessScore} /></td>
                     <td className="px-4 py-3 text-xs max-w-[220px]">
-                      {entity.email || entity.phone || entity.linkedinUrl ? (
-                        <div className="flex flex-col gap-0.5">
-                          {entity.email && (
-                            <a
-                              href={`mailto:${entity.email}`}
-                              className="flex items-center gap-1 text-primary hover:underline truncate font-mono"
-                              title={entity.email}
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
-                              <span className="truncate text-[11px]" title={entity.email}>{entity.email}</span>
-                            </a>
-                          )}
-                          {entity.phone && (
-                            <a
-                              href={`tel:${entity.phone}`}
-                              className="flex items-center gap-1 text-secondary hover:underline font-mono"
-                              title={entity.phone}
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
-                              <span className="text-[11px]" title={entity.phone}>{entity.phone}</span>
-                            </a>
-                          )}
-                          {entity.linkedinUrl && !entity.email && !entity.phone && (
-                            <a
-                              href={entity.linkedinUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-1 text-blue-400 hover:underline font-mono"
-                              title={entity.linkedinUrl}
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <svg className="w-3 h-3 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
-                              <span className="text-[11px] truncate" title={entity.linkedinUrl}>LinkedIn</span>
-                            </a>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground/40 font-mono text-[11px] italic">No contact</span>
-                      )}
+                      <div className="flex flex-col gap-0.5">
+                        {entity.email && (
+                          <a
+                            href={`mailto:${entity.email}`}
+                            className="flex items-center gap-1 text-primary hover:underline truncate font-mono"
+                            title={entity.email}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                            <span className="truncate text-[11px]" title={entity.email}>{entity.email}</span>
+                          </a>
+                        )}
+                        {entity.phone && (
+                          <a
+                            href={`tel:${entity.phone}`}
+                            className="flex items-center gap-1 text-secondary hover:underline font-mono"
+                            title={entity.phone}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
+                            <span className="text-[11px]" title={entity.phone}>{entity.phone}</span>
+                          </a>
+                        )}
+                        {entity.linkedinUrl && !entity.email && !entity.phone && (
+                          <a
+                            href={entity.linkedinUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 text-blue-400 hover:underline font-mono"
+                            title={entity.linkedinUrl}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <svg className="w-3 h-3 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+                            <span className="text-[11px] truncate" title={entity.linkedinUrl}>LinkedIn</span>
+                          </a>
+                        )}
+                        {!entity.email && !entity.phone && !entity.linkedinUrl && (
+                          <span className="text-muted-foreground/40 font-mono text-[11px] italic">—</span>
+                        )}
+                        {/* Outcome quality badge */}
+                        {entity.contactOutcome && OUTCOME_BADGES[entity.contactOutcome] && (
+                          <span
+                            className="text-[9px] font-mono px-1.5 py-0.5 rounded w-max"
+                            style={{
+                              color: OUTCOME_BADGES[entity.contactOutcome].color,
+                              background: OUTCOME_BADGES[entity.contactOutcome].color + "18",
+                            }}
+                          >
+                            {OUTCOME_BADGES[entity.contactOutcome].label}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-sm font-mono text-foreground text-right whitespace-nowrap">
                       {entity.estimatedNetWorth ? formatCurrency(entity.estimatedNetWorth) : "—"}
@@ -954,7 +1025,7 @@ export default function EntityLedger() {
             {displayEntities.length} shown
             {!isSpecialFilter && hasMore && " · scroll to load more"}
             {!isSpecialFilter && !hasMore && displayEntities.length > 0 && " · all loaded"}
-            {proximityMin > 0 && ` · proximity ≥ ${proximityMin}`}
+            {minConfidence > 0 && ` · conf ≥ ${minConfidence}`}
             {typeFilter && ` · ${typeFilter}`}
           </span>
           <div className="flex items-center gap-3">
@@ -975,15 +1046,19 @@ export default function EntityLedger() {
         {(hotOnly || anyContactFilter) && (
           <div className={cn(
             "flex items-center justify-between px-3 py-2 border-b text-xs font-mono flex-shrink-0",
-            hotOnly ? "bg-amber-500/10 border-amber-500/30 text-amber-400" : "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+            hotOnly ? "bg-amber-500/10 border-amber-500/30 text-amber-400" : "bg-blue-500/10 border-blue-500/30 text-blue-400"
           )}>
             <span className="font-bold uppercase tracking-wider truncate">
               {hotOnly ? "Hot Leads only"
-                : contactChannel && contactChannel !== "any"
-                  ? `${CONTACT_CHANNELS.find(c => c.value === contactChannel)?.label ?? contactChannel} only`
-                  : "Contactable only"} — {entities.length} shown
+                : contactRichness === "verified"
+                  ? (minConfidence > 0 ? `Verified · conf ≥ ${minConfidence}` : "Verified contacts")
+                  : contactRichness === "direct"
+                    ? (minConfidence > 0 ? `Direct · conf ≥ ${minConfidence}` : "Direct contacts")
+                    : contactRichness === "any"
+                      ? (minConfidence > 0 ? `Has contact · conf ≥ ${minConfidence}` : "Has contact")
+                      : `Confidence ≥ ${minConfidence}`} — {entities.length} shown
             </span>
-            <button onClick={() => { setHotOnly(false); setContactableOnly(false); setContactChannel(null); }} className="flex items-center gap-1 ml-2 shrink-0 opacity-70">
+            <button onClick={() => { setHotOnly(false); setContactRichness(null); setMinConfidence(0); }} className="flex items-center gap-1 ml-2 shrink-0 opacity-70">
               <X className="w-3 h-3" /> Clear
             </button>
           </div>
@@ -1054,27 +1129,38 @@ export default function EntityLedger() {
               🔥 Hot
             </button>
           </div>
-          {/* Contact channel chips */}
+          {/* Contact richness + confidence chips */}
           <div className="flex items-center gap-2 px-3 pb-2 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
-            <span className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground shrink-0 mr-1">
+            <span className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground shrink-0">
               Contact
             </span>
-            {CONTACT_CHANNELS.map(({ value, label, icon }) => (
+            {RICHNESS_TIERS.map(({ value, label, color }) => (
               <button
                 key={value}
-                onClick={() => {
-                  const next = contactChannel === value ? null : value;
-                  setContactChannel(next);
-                  setContactableOnly(next !== null);
-                }}
-                className="shrink-0 h-7 px-2.5 rounded text-[10px] font-mono border transition-colors flex items-center gap-1"
+                onClick={() => setContactRichness(contactRichness === value ? null : value)}
+                className="shrink-0 h-7 px-2.5 rounded text-[10px] font-mono border transition-colors"
                 style={{
-                  background: contactChannel === value ? "rgba(16,185,129,0.12)" : "hsl(var(--card))",
-                  color: contactChannel === value ? "#10B981" : "hsl(var(--muted-foreground))",
-                  borderColor: contactChannel === value ? "rgba(16,185,129,0.4)" : "hsl(var(--border))",
+                  background: contactRichness === value ? color + "20" : "hsl(var(--card))",
+                  color: contactRichness === value ? color : "hsl(var(--muted-foreground))",
+                  borderColor: contactRichness === value ? color + "60" : "hsl(var(--border))",
                 }}
               >
-                <span className="text-[9px]">{icon}</span> {label}
+                {label}
+              </button>
+            ))}
+            <div className="w-px h-4 bg-border/60 shrink-0" />
+            {CONFIDENCE_STEPS.map((step) => (
+              <button
+                key={step}
+                onClick={() => setMinConfidence(minConfidence === step ? 0 : step)}
+                className="shrink-0 h-7 px-2.5 rounded text-[10px] font-mono border transition-colors"
+                style={{
+                  background: minConfidence === step ? "rgba(245,158,11,0.15)" : "hsl(var(--card))",
+                  color: minConfidence === step ? "#F59E0B" : "hsl(var(--muted-foreground))",
+                  borderColor: minConfidence === step ? "rgba(245,158,11,0.4)" : "hsl(var(--border))",
+                }}
+              >
+                {step}+
               </button>
             ))}
           </div>
