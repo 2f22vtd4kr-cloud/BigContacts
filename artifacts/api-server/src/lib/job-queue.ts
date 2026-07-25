@@ -9,7 +9,7 @@
  */
 
 import { randomUUID } from "crypto";
-import { getPermanentClient, markClientExhausted, permSadd, permSismember, permScard } from "./redis";
+import { withPermanentClient, permSadd, permSismember, permScard } from "./redis";
 import { logger } from "./logger";
 
 /**
@@ -19,23 +19,7 @@ import { logger } from "./logger";
  * healthy slot.  Falls back to `fallback` if all slots are exhausted.
  */
 async function safeRedis<T>(fn: (rc: import("ioredis").Redis) => Promise<T>, fallback: T): Promise<T> {
-  const rc = getPermanentClient();
-  if (!rc) return fallback;
-  try {
-    return await fn(rc);
-  } catch (err: any) {
-    if (err?.message?.includes("max requests limit exceeded")) {
-      markClientExhausted(rc);
-      const rc2 = getPermanentClient();
-      if (rc2 && rc2 !== rc) {
-        try { return await fn(rc2); } catch { /* fall through */ }
-      }
-      logger.warn("All Upstash slots quota-exhausted — job state unavailable");
-    } else {
-      logger.warn({ err: err?.message }, "Redis command failed in job-queue (non-fatal)");
-    }
-    return fallback;
-  }
+  return withPermanentClient(fn, fallback);
 }
 
 export type JobStatus = "queued" | "running" | "done" | "failed";

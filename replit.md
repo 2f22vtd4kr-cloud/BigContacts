@@ -59,6 +59,7 @@ The long-term plan for improving the approximately 2.5% direct-contact yield is 
 | `REDIS_URL_4` | Replit Secret | **Upstash overflow slot** — fourth permanent Redis; added 2026-07-24 for additional quota headroom. |
 | `REDIS_URL_5` | Replit Secret | **Upstash overflow slot** — fifth permanent Redis; picked up automatically by the same slot scanner. |
 | `COMPANIES_HOUSE_API_KEY` | Replit Secret (optional) | UK Companies House officer harvester |
+| `GROQ_API_KEY` | Replit Secret (optional) | Groq-powered structured extraction during web enrichment |
 
 ### Adding a new Upstash Redis slot
 
@@ -97,7 +98,7 @@ After a fresh GitHub import, run these steps to get the project running:
 2. **Push DB schema:** `pnpm --filter @workspace/db run push`
 3. **Start workflows:** Redis → `artifacts/api-server: API Server` → `artifacts/apex-finder: web` (in that order)
 
-Latest verification (2026-07-25): the requested `REDIS_URL_1` through `REDIS_URL_5` secrets and `COMPANIES_HOUSE_API_KEY` are present; the frozen-lockfile install and schema push completed; Redis, `artifacts/api-server: API Server`, and `artifacts/apex-finder: web` are running; `/api/healthz`, `/api/entities`, and `/api/dashboard/stats` return 200; and the root dashboard preview renders successfully. Upstash slots 1–5 connect, although slot 1 has reached its provider request quota; the app continues with healthy slots and graceful degradation. The fresh database currently contains 0 records and needs ingestion to populate profiles.
+Latest verification (2026-07-25): the requested `REDIS_URL_1` through `REDIS_URL_5`, `COMPANIES_HOUSE_API_KEY`, and `GROQ_API_KEY` secrets are present; the frozen-lockfile install and schema push completed; Redis, `artifacts/api-server: API Server`, and `artifacts/apex-finder: web` are running; `/api/healthz`, `/api/entities`, and `/api/dashboard/stats` return 200; and the root dashboard preview renders successfully. Upstash slots 1–5 connect, although slot 1 has reached its provider request quota; the app continues with healthy slots and graceful degradation. Cold-start ingestion has populated 14,200 entities and 14,100 assets; the current snapshot has 3,046 hot leads, 301 contactable profiles, and 0 relationships.
 
 Two fixes were needed after the first import:
 - Added `"pg-cloudflare"` to the `external` list in `artifacts/api-server/build.mjs` (pg optional dep that esbuild couldn't resolve)
@@ -109,12 +110,12 @@ Two fixes were needed after the first import:
 
 | Source | Entities | Assets | Notes |
 |---|---|---|---|
-| FAA / HMLR / other live sources | 0 | 0 | Fresh import database; cold-start registry ingestion is running in the background. |
-| **Current verified state** | **0** | **0** | 0 hot leads; 0 relationships; 0 contactable profiles; 0 active research sessions. |
+| FAA / HMLR / other live sources | 14,200 | 14,100 | Cold-start registry ingestion populated the fresh development database. |
+| **Current verified state** | **14,200** | **14,100** | 3,046 hot leads; 0 relationships; 301 contactable profiles; 0 active research sessions. |
 
-**Post-import cold-start state:** API startup detected the empty database, cleared stale job locks/dedup state where the persistent Redis quota allowed, and started broad discovery plus Western HNWI ingestion. This fresh import currently reports 0 visible records while background ingestion repopulates the database. Contact cache restoration remains enabled through the healthy Upstash overflow slots.
+**Post-import cold-start state:** API startup detected the empty database, cleared stale job locks/dedup state where the persistent Redis quota allowed, and started broad discovery plus Western HNWI ingestion. The live registry ingestion has now populated 14,200 entities and 14,100 assets. Contact cache restoration remains enabled through the healthy Upstash overflow slots.
 
-**Honest rating for this fresh import:** the web dashboard and API are verified and healthy; the fresh development database is currently empty while live registry ingestion runs in the background. Relationship and contact-enrichment passes have not yet produced records in this import.
+**Honest rating for this fresh import:** the web dashboard and API are verified and healthy; live registry data is present. Relationship construction and deeper contact-enrichment passes remain to be run for this import.
 
 ---
 

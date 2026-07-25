@@ -153,6 +153,61 @@ export function markClientExhausted(client: Redis): void {
   }
 }
 
+type RedisCommand<T> = (client: Redis) => Promise<T>;
+
+/**
+ * Run a permanent Redis command and fail over immediately when Upstash reports
+ * its request quota is exhausted. This is deliberately centralized so callers
+ * cannot accidentally keep selecting a TCP-ready but unusable slot.
+ */
+export async function withPermanentClient<T>(
+  command: RedisCommand<T>,
+  fallback: T,
+): Promise<T> {
+  const attempted = new Set<Redis>();
+  for (;;) {
+    const client = getPermanentClient();
+    if (!client || attempted.has(client)) return fallback;
+    attempted.add(client);
+    try {
+      return await command(client);
+    } catch (err: any) {
+      if (err?.message?.includes("max requests limit exceeded")) {
+        markClientExhausted(client);
+        continue;
+      }
+      logger.warn({ err: err?.message }, "Permanent Redis command failed (non-fatal)");
+      return fallback;
+    }
+  }
+}
+
+/**
+ * Same failover behavior as withPermanentClient, but prefers the dedicated
+ * contact-cache slot before falling through to another healthy slot.
+ */
+export async function withContactCacheClient<T>(
+  command: RedisCommand<T>,
+  fallback: T,
+): Promise<T> {
+  const attempted = new Set<Redis>();
+  for (;;) {
+    const client = getContactCacheClient();
+    if (!client || attempted.has(client)) return fallback;
+    attempted.add(client);
+    try {
+      return await command(client);
+    } catch (err: any) {
+      if (err?.message?.includes("max requests limit exceeded")) {
+        markClientExhausted(client);
+        continue;
+      }
+      logger.warn({ err: err?.message }, "Contact-cache Redis command failed (non-fatal)");
+      return fallback;
+    }
+  }
+}
+
 // ── LOCAL cache helpers (short-lived API responses) ───────────────────────────
 
 const LOCAL_PREFIX = "apex:";
@@ -199,61 +254,45 @@ export async function delCachePattern(pattern: string): Promise<void> {
 const PERM_PREFIX = "apex:";
 
 export async function permGet<T>(key: string): Promise<T | null> {
-  const c = getPermanentClient();
-  if (!c) return null;
-  try {
+  return withPermanentClient(async c => {
     const raw = await c.get(PERM_PREFIX + key);
     return raw ? (JSON.parse(raw) as T) : null;
-  } catch { return null; }
+  }, null);
 }
 
 export async function permSet(key: string, value: unknown, ttlSeconds?: number): Promise<void> {
-  const c = getPermanentClient();
-  if (!c) return;
-  try {
+  await withPermanentClient(async c => {
     const serialized = JSON.stringify(value);
     if (ttlSeconds) await c.set(PERM_PREFIX + key, serialized, "EX", ttlSeconds);
     else await c.set(PERM_PREFIX + key, serialized);
-  } catch { /* non-fatal */ }
+  }, undefined);
 }
 
 export async function permHset(key: string, fields: Record<string, string | number>): Promise<void> {
-  const c = getPermanentClient();
-  if (!c) return;
-  try { await c.hset(PERM_PREFIX + key, fields as any); } catch { /* non-fatal */ }
+  await withPermanentClient(c => c.hset(PERM_PREFIX + key, fields as any).then(() => undefined), undefined);
 }
 
 export async function permHgetall(key: string): Promise<Record<string, string> | null> {
-  const c = getPermanentClient();
-  if (!c) return null;
-  try {
+  return withPermanentClient(async c => {
     const data = await c.hgetall(PERM_PREFIX + key);
     return Object.keys(data ?? {}).length > 0 ? data : null;
-  } catch { return null; }
+  }, null);
 }
 
 export async function permSadd(key: string, ...members: string[]): Promise<void> {
-  const c = getPermanentClient();
-  if (!c) return;
-  try { await c.sadd(PERM_PREFIX + key, ...members); } catch { /* non-fatal */ }
+  await withPermanentClient(c => c.sadd(PERM_PREFIX + key, ...members).then(() => undefined), undefined);
 }
 
 export async function permSismember(key: string, member: string): Promise<boolean> {
-  const c = getPermanentClient();
-  if (!c) return false;
-  try { return (await c.sismember(PERM_PREFIX + key, member)) === 1; } catch { return false; }
+  return withPermanentClient(async c => (await c.sismember(PERM_PREFIX + key, member)) === 1, false);
 }
 
 export async function permScard(key: string): Promise<number> {
-  const c = getPermanentClient();
-  if (!c) return 0;
-  try { return await c.scard(PERM_PREFIX + key); } catch { return 0; }
+  return withPermanentClient(c => c.scard(PERM_PREFIX + key), 0);
 }
 
 export async function permExpire(key: string, ttlSeconds: number): Promise<void> {
-  const c = getPermanentClient();
-  if (!c) return;
-  try { await c.expire(PERM_PREFIX + key, ttlSeconds); } catch { /* non-fatal */ }
+  await withPermanentClient(c => c.expire(PERM_PREFIX + key, ttlSeconds).then(() => undefined), undefined);
 }
 
 export async function pingRedis(): Promise<number | null> {
@@ -309,28 +348,26 @@ export interface CachedContact {
 
 /** Write contact data to Redis slot 2. No TTL — permanent. */
 export async function contactCacheSet(stableKey: string, data: CachedContact): Promise<void> {
-  const c = getContactCacheClient();
-  if (!c) return;
-  try {
-    await c.set(CONTACT_PREFIX + stableKey, JSON.stringify(data));
-  } catch { /* non-fatal */ }
+  await withContactCacheClient(
+    c => c.set(CONTACT_PREFIX + stableKey, JSON.stringify(data)).then(() => undefined),
+    undefined,
+  );
 }
 
 /** Remove one permanent contact-cache entry. */
 export async function contactCacheDelete(stableKey: string): Promise<void> {
-  const c = getContactCacheClient();
-  if (!c) return;
-  try { await c.del(CONTACT_PREFIX + stableKey); } catch { /* non-fatal */ }
+  await withContactCacheClient(
+    c => c.del(CONTACT_PREFIX + stableKey).then(() => undefined),
+    undefined,
+  );
 }
 
 /** Read contact data from Redis slot 2. */
 export async function contactCacheGet(stableKey: string): Promise<CachedContact | null> {
-  const c = getContactCacheClient();
-  if (!c) return null;
-  try {
+  return withContactCacheClient(async c => {
     const raw = await c.get(CONTACT_PREFIX + stableKey);
     return raw ? (JSON.parse(raw) as CachedContact) : null;
-  } catch { return null; }
+  }, null);
 }
 
 /**
@@ -338,10 +375,8 @@ export async function contactCacheGet(stableKey: string): Promise<CachedContact 
  * Used by startup restore to backfill PostgreSQL from Redis.
  */
 export async function contactCacheScanAll(): Promise<Array<{ key: string; data: CachedContact }>> {
-  const c = getContactCacheClient();
-  if (!c) return [];
-  const results: Array<{ key: string; data: CachedContact }> = [];
-  try {
+  return withContactCacheClient(async c => {
+    const results: Array<{ key: string; data: CachedContact }> = [];
     let cursor = "0";
     do {
       const [next, keys] = await c.scan(cursor, "MATCH", CONTACT_PREFIX + "*", "COUNT", 200);
@@ -358,15 +393,13 @@ export async function contactCacheScanAll(): Promise<Array<{ key: string; data: 
         }
       }
     } while (cursor !== "0");
-  } catch { /* non-fatal */ }
-  return results;
+    return results;
+  }, []);
 }
 
 /** Count how many contact cache entries exist in slot 2. */
 export async function contactCacheCount(): Promise<number> {
-  const c = getContactCacheClient();
-  if (!c) return 0;
-  try {
+  return withContactCacheClient(async c => {
     let count = 0;
     let cursor = "0";
     do {
@@ -375,5 +408,5 @@ export async function contactCacheCount(): Promise<number> {
       count += keys.length;
     } while (cursor !== "0");
     return count;
-  } catch { return 0; }
+  }, 0);
 }

@@ -20,7 +20,7 @@ import {
   setActiveJob, getActiveJob,
 } from "../lib/job-queue";
 import { deepWebOsintEnrich } from "../lib/enrichment/web-discovery";
-import { computeContactConfidence } from "../lib/contact-confidence";
+import { computeContactConfidence, computeContactOutcome } from "../lib/contact-confidence";
 import { contactCacheSet } from "../lib/redis";
 import { logger } from "../lib/logger";
 
@@ -123,6 +123,7 @@ router.post("/ingest/deep-web-osint", async (req: Request, res: Response): Promi
       linkedinUrl:       entitiesTable.linkedinUrl,
       instagramHandle:   entitiesTable.instagramHandle,
       twitterHandle:     entitiesTable.twitterHandle,
+      contactOutcome:    entitiesTable.contactOutcome,
     })
     .from(entitiesTable)
     .where(and(...conditions))
@@ -172,6 +173,8 @@ router.post("/ingest/deep-web-osint", async (req: Request, res: Response): Promi
           email:           (updates["email"]      as string | null) ?? entity.email ?? null,
           phone:           (updates["phone"]      as string | null) ?? entity.phone ?? null,
           linkedinUrl:     (updates["linkedinUrl"] as string | null) ?? entity.linkedinUrl ?? null,
+          instagramHandle: (updates["instagramHandle"] as string | null) ?? entity.instagramHandle ?? null,
+          twitterHandle:   (updates["twitterHandle"] as string | null) ?? entity.twitterHandle ?? null,
           knownResidences: entity.knownResidences,
         });
         updates["contactConfidence"] = confidence;
@@ -181,11 +184,20 @@ router.post("/ingest/deep-web-osint", async (req: Request, res: Response): Promi
         meta["deepWebOsintSources"] = result.sources;
         meta["deepWebQueriesFired"] = result.queriesFired;
         if (result.emailConfidence) meta["deepWebEmailConf"] = result.emailConfidence;
+        if (result.phoneConfidence) meta["deepWebPhoneConf"] = result.phoneConfidence;
         // Store discovered person names as review-only candidates — never auto-merged
         if (result.personsDiscovered.length > 0) {
           meta["deepWebPersonsDiscovered"] = result.personsDiscovered;
         }
         meta["liveSource"] = true;
+        updates["contactOutcome"] = computeContactOutcome({
+          email: (updates["email"] as string | null) ?? entity.email ?? null,
+          phone: (updates["phone"] as string | null) ?? entity.phone ?? null,
+          linkedinUrl: (updates["linkedinUrl"] as string | null) ?? entity.linkedinUrl ?? null,
+          instagramHandle: (updates["instagramHandle"] as string | null) ?? entity.instagramHandle ?? null,
+          twitterHandle: (updates["twitterHandle"] as string | null) ?? entity.twitterHandle ?? null,
+          bizLocation: entity.knownResidences,
+        });
         updates["metadata"]   = JSON.stringify(meta);
         updates["liveSource"] = true;
 
@@ -203,6 +215,8 @@ router.post("/ingest/deep-web-osint", async (req: Request, res: Response): Promi
           email:             (updates["email"]       as string | undefined) ?? entity.email ?? undefined,
           phone:             (updates["phone"]       as string | undefined) ?? entity.phone ?? undefined,
           linkedinUrl:       (updates["linkedinUrl"] as string | undefined) ?? entity.linkedinUrl ?? undefined,
+          instagramHandle:   (updates["instagramHandle"] as string | undefined) ?? entity.instagramHandle ?? undefined,
+          twitterHandle:     (updates["twitterHandle"] as string | undefined) ?? entity.twitterHandle ?? undefined,
           contactConfidence: confidence,
           enrichmentSources: result.sources,
           enrichedAt:        new Date().toISOString(),
