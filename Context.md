@@ -8,7 +8,7 @@
 
 ---
 
-## Current State (2026-07-25 — import #9 setup complete) — 18,500 entities; all secrets set; Redis + API + web running; cold-start ingestion active
+## Current State (2026-07-25 — import #10 setup complete) — 0 entities (fresh DB); all secrets set; Redis + API + web running; awaiting ingestion
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically ✅
