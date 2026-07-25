@@ -453,9 +453,33 @@ function countryToLocale(country: string | null): string {
  * Extract the city name from addresses or metadata.
  * Returns the first city found or null.
  */
-function extractCity(knownResidences?: string | null, metadata?: string | null): string | null {
+export function extractCity(knownResidences?: string | null, metadata?: string | null): string | null {
   const residenceStr = typeof knownResidences === "string" ? knownResidences : "";
   const metaStr = typeof metadata === "string" ? metadata : "";
+
+  const cityFromAddress = (value: string): string | null => {
+    const clean = value.replace(/\s+/g, " ").trim();
+    if (!clean) return null;
+
+    // European postal-code form: "06400 Cannes", "10115 Berlin", etc.
+    const postal = clean.match(/\b\d{4,6}\s+([A-ZÀ-ÖØ-Ü][A-Za-zÀ-ÖØ-Üà-öø-ü'’\-]+(?:\s+[A-ZÀ-ÖØ-Ü][A-Za-zÀ-ÖØ-Üà-öø-ü'’\-]+){0,2})\b/);
+    if (postal?.[1]) return postal[1].trim().replace(/[,.]$/, "");
+
+    const parts = clean.split(",").map(part => part.trim()).filter(Boolean);
+    if (parts.length > 1) {
+      // Prefer the final locality before a country name, rather than a street.
+      const last = parts[parts.length - 1]!;
+      if (!/^(france|germany|italy|spain|united kingdom|uk|usa|united states|netherlands|belgium|switzerland|monaco|portugal|austria|denmark|sweden|norway|finland|poland)$/i.test(last)) {
+        const withoutPostal = last.replace(/^\d{4,6}\s+/, "").trim();
+        if (withoutPostal && !/^\d/.test(withoutPostal)) return withoutPostal;
+      }
+      const beforeCountry = parts[parts.length - 2]!;
+      const withoutPostal = beforeCountry.replace(/^\d{4,6}\s+/, "").trim();
+      if (withoutPostal && !/^\d/.test(withoutPostal)) return withoutPostal;
+    }
+
+    return null;
+  };
 
   // Try to parse as JSON array of residence strings
   try {
@@ -463,15 +487,15 @@ function extractCity(knownResidences?: string | null, metadata?: string | null):
     const arr = Array.isArray(parsed) ? parsed : [parsed];
     for (const entry of arr) {
       if (typeof entry === "string" && entry.length > 2) {
-        const city = entry.split(",")[0]?.trim();
-        if (city && city.length > 2 && !/^\d/.test(city)) return city;
+        const city = cityFromAddress(entry);
+        if (city) return city;
       }
     }
   } catch {
     // Not JSON — treat as plain string
     if (residenceStr) {
-      const city = residenceStr.split(",")[0]?.trim();
-      if (city && city.length > 2 && !/^\d/.test(city)) return city;
+      const city = cityFromAddress(residenceStr);
+      if (city) return city;
     }
   }
 
@@ -508,7 +532,7 @@ function extractCity(knownResidences?: string | null, metadata?: string | null):
  */
 const LEGAL_SUFFIXES = /\s*\b(s\.?a\.?s\.?|s\.?a\.?r\.?l\.?|s\.?a\.?|e\.?u\.?r\.?l\.?|s\.?n\.?c\.?|s\.?c\.?i\.?|gmbh|ag|kg|ohg|gbr|ltd|llc|llp|plc|inc|corp|incorporated|limited|l\.?p\.?|s\.?l\.?|s\.?r\.?l\.?|b\.?v\.?|n\.?v\.?|a\/s|ab|oy|as|sp\.?\s*z\.?\s*o\.?\s*o\.?|zrt|kft|a\.?s\.?|a\/s|asa|ehf|group|holdings|trust|international|global)\b\.?\s*$/gi;
 
-function deriveTradingName(legalName: string, city: string | null): string {
+export function deriveTradingName(legalName: string, city: string | null): string {
   // Strip legal suffix
   const stripped = legalName.replace(LEGAL_SUFFIXES, "").trim();
   // Titlecase (handles ALL CAPS legal names like "BAOLI SAS")
@@ -532,15 +556,19 @@ const CORP_SUFFIX_RE = /\b(inc|llc|ltd|limited|corp|corporation|group|holdings|i
 
 export function guessCompanyDomainWithCity(companyName: string, city: string | null): string[] {
   const stripped = companyName.replace(CORP_SUFFIX_RE, "").trim();
-  const base = stripped.toLowerCase().replace(/[^a-z0-9 ]/g, "").replace(/\s+/g, "");
-  const hyphen = stripped.toLowerCase().replace(/[^a-z0-9 ]/g, "").replace(/\s+/g, "-");
+  const ascii = (value: string) => value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+  const base = ascii(stripped).replace(/[^a-z0-9 ]/g, "").replace(/\s+/g, "");
+  const hyphen = ascii(stripped).replace(/[^a-z0-9 ]/g, "").replace(/\s+/g, "-");
   if (!base || base.length < 2) return [];
 
   const candidates: string[] = [];
 
   // City-derived variants first (highest relevance for location-branded venues)
   if (city) {
-    const cityClean = city.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const cityClean = ascii(city).replace(/[^a-z0-9]/g, "");
     if (cityClean && cityClean !== base) {
       candidates.push(`${base}${cityClean}.com`);
       candidates.push(`${base}-${cityClean}.com`);
@@ -851,7 +879,7 @@ function extractPhone(text: string): string | null {
  * - Language-specific templates
  * - Direct domain targets
  */
-function buildQueries(
+export function buildDeepWebQueries(
   entity: DeepWebOsintInput,
   tradingName: string,
   city: string | null,
@@ -980,7 +1008,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   const isCorp = entity.type === "Corporation" || entity.type === "Trust";
   const isFrench = country === "FR" || country === "BE" || country === "MC";
 
-  const { queries, domainTargets } = buildQueries(entity, trading, city, country);
+  const { queries, domainTargets } = buildDeepWebQueries(entity, trading, city, country);
   if (queries.length === 0 && domainTargets.length === 0) return result;
 
   const emailHits    = new Map<string, string[]>();
