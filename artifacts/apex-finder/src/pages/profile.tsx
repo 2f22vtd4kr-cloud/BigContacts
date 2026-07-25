@@ -333,7 +333,41 @@ export default function ApexProfile() {
   const [rejectStep, setRejectStep] = useState<Record<string, number>>({});
   const [rejectLoading, setRejectLoading] = useState(false);
   const [rejectError, setRejectError] = useState<string | null>(null);
+  const [contactEvidence, setContactEvidence] = useState<Array<{
+    id: number;
+    vectorType: string;
+    value: string;
+    source: string;
+    sourceUrl: string | null;
+    validationStatus: string;
+    sourceReliability: number;
+    directnessScore: number;
+    independentCorroboration: number;
+    observedAt: string;
+  }>>([]);
+  const [contactEvidenceLoading, setContactEvidenceLoading] = useState(false);
   const baseUrl = (import.meta as any).env.BASE_URL.replace(/\/$/, "");
+
+  useEffect(() => {
+    if (!showContactEvidence || !entityId) return;
+    let cancelled = false;
+    setContactEvidenceLoading(true);
+    fetch(`${baseUrl}/api/entities/${entityId}/contact-evidence`)
+      .then((response) => {
+        if (!response.ok) throw new Error("Failed to load evidence");
+        return response.json() as Promise<{ evidence?: typeof contactEvidence }>;
+      })
+      .then((data) => {
+        if (!cancelled) setContactEvidence(data.evidence ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setContactEvidence([]);
+      })
+      .finally(() => {
+        if (!cancelled) setContactEvidenceLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [showContactEvidence, entityId, baseUrl]);
 
   const handleRejectContact = async (field: string) => {
     const step = rejectStep[field] ?? 0;
@@ -974,6 +1008,33 @@ export default function ApexProfile() {
                     <div className="text-[10px] text-muted-foreground/60 leading-relaxed">
                       For each contact below we explain the research steps so you can judge whether the logic makes sense. If something looks wrong, flag it as incorrect to remove it permanently.
                     </div>
+                  </div>
+                  <div className="px-3 py-2 border-b border-amber-500/10">
+                    <div className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground/60 mb-1.5">
+                      Persisted evidence audit
+                    </div>
+                    {contactEvidenceLoading ? (
+                      <div className="text-[10px] font-mono text-muted-foreground">Loading evidence…</div>
+                    ) : contactEvidence.length === 0 ? (
+                      <div className="text-[10px] font-mono text-muted-foreground/60">
+                        No structured evidence rows recorded for these contact vectors yet.
+                      </div>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {contactEvidence.map((item) => (
+                          <div key={item.id} className="flex items-start gap-2 text-[10px] font-mono">
+                            <span className="text-amber-300/80 uppercase w-16 flex-shrink-0">{item.vectorType}</span>
+                            <span className="text-muted-foreground truncate flex-1" title={item.value}>{item.value}</span>
+                            <span className={cn(
+                              "uppercase flex-shrink-0",
+                              item.validationStatus === "verified" ? "text-emerald-400" :
+                                item.validationStatus === "rejected" ? "text-red-400" : "text-amber-400",
+                            )}>{item.validationStatus}</span>
+                            <span className="text-muted-foreground/50 flex-shrink-0">{item.source}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   {cFields.map(({ field, label, value }) => {

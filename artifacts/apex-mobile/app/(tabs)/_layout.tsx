@@ -25,7 +25,7 @@ function NativeTabLayout() {
         <Label>Approach</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="connections">
-        <Icon sf={{ default: 'share.fill', selected: 'share.fill' }} />
+        <Icon sf={{ default: 'person.2', selected: 'person.2.fill' }} />
         <Label>Connections</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="manual">
@@ -112,7 +112,7 @@ function ClassicTabLayout() {
           title: 'Connections',
           tabBarIcon: ({ color }) =>
             isIOS ? (
-              <SymbolView name="share" tintColor={color} size={22} />
+              <SymbolView name="person.2" tintColor={color} size={22} />
             ) : (
               <Feather name="share-2" size={20} color={color} />
             ),

@@ -281,6 +281,9 @@ router.post("/entities/dedup-reviews", async (req, res): Promise<void> => {
   try {
     await db.insert(dedupReviewsTable).values({
       entityAId: a, entityBId: b, decision, keepEntityId: keepEntityId ?? null,
+    }).onConflictDoUpdate({
+      target: [dedupReviewsTable.entityAId, dedupReviewsTable.entityBId],
+      set: { decision, keepEntityId: keepEntityId ?? null, reviewedAt: new Date() },
     });
     res.json({ ok: true });
   } catch (err: unknown) {

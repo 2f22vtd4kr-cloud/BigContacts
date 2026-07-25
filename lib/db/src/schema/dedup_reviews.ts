@@ -9,7 +9,7 @@
  * the same row.
  */
 
-import { pgTable, serial, integer, text, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { entitiesTable } from "./entities";
 
 export const dedupReviewsTable = pgTable("dedup_reviews", {
@@ -21,7 +21,9 @@ export const dedupReviewsTable = pgTable("dedup_reviews", {
   /** Populated when decision = "merged"; the entity that survives. */
   keepEntityId: integer("keep_entity_id"),
   reviewedAt: timestamp("reviewed_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => ({
+  pairUnique: uniqueIndex("dedup_reviews_entity_pair_unique").on(table.entityAId, table.entityBId),
+}));
 
 export type DedupReview = typeof dedupReviewsTable.$inferSelect;
 export type InsertDedupReview = typeof dedupReviewsTable.$inferInsert;

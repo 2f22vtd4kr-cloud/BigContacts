@@ -127,7 +127,7 @@ router.post("/improve/run", async (req: Request, res: Response): Promise<void> =
 
 // ── POST /improve/run/:entityId — run loop for one entity ─────────────────────
 router.post("/improve/run/:entityId", async (req: Request, res: Response): Promise<void> => {
-  const entityId = parseInt(req.params.entityId, 10);
+  const entityId = parseInt(req.params.entityId as string, 10);
   if (isNaN(entityId)) {
     res.status(400).json({ error: "entityId must be a number." });
     return;
@@ -178,7 +178,7 @@ router.post("/improve/run/:entityId", async (req: Request, res: Response): Promi
 // ── GET /improve/jobs/:jobId — poll job status ─────────────────────────────────
 router.get("/improve/jobs/:jobId", async (req: Request, res: Response): Promise<void> => {
   const { jobId } = req.params;
-  const job = await getJob(jobId);
+  const job = await getJob(jobId as string);
   if (!job) {
     res.status(404).json({ error: `Job ${jobId} not found.` });
     return;
@@ -237,7 +237,7 @@ router.get("/improve/logs", async (req: Request, res: Response): Promise<void> =
 
 // ── GET /improve/logs/:entityId — logs for a specific entity ──────────────────
 router.get("/improve/logs/:entityId", async (req: Request, res: Response): Promise<void> => {
-  const entityId = parseInt(req.params.entityId, 10);
+  const entityId = parseInt(req.params.entityId as string, 10);
   if (isNaN(entityId)) {
     res.status(400).json({ error: "entityId must be a number." });
     return;
@@ -257,7 +257,7 @@ router.get("/improve/logs/:entityId", async (req: Request, res: Response): Promi
 
 // ── PATCH /improve/logs/:logId — update status ────────────────────────────────
 router.patch("/improve/logs/:logId", async (req: Request, res: Response): Promise<void> => {
-  const logId = parseInt(req.params.logId, 10);
+  const logId = parseInt(req.params.logId as string, 10);
   if (isNaN(logId)) {
     res.status(400).json({ error: "logId must be a number." });
     return;

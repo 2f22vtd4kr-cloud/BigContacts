@@ -32,7 +32,6 @@ router.post("/research/lead", async (req, res): Promise<void> => {
     crmStatus: "Lead Gen",
     bayesianScoreAtRuntime: entity.score ?? 0,
     pathScore: 0,
-    mctsSimulations: 0,
     winningPath: null,
     mctsSteps: null,
   }).returning();

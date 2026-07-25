@@ -57,6 +57,7 @@ The long-term plan for improving the approximately 2.5% direct-contact yield is 
 | `REDIS_URL_2` | Replit Secret | **Upstash permanent contact cache** — enriched contact data (email/phone/LinkedIn) lives here. Survives DB resets. Required for contact persistence across GitHub imports. |
 | `REDIS_URL_3` | Replit Secret | **Upstash overflow slot** — third permanent Redis; picked up automatically by the slot scanner (REDIS_URL_1..9). Added 2026-07-24 when slot 1 hit its 500k request quota. |
 | `REDIS_URL_4` | Replit Secret | **Upstash overflow slot** — fourth permanent Redis; added 2026-07-24 for additional quota headroom. |
+| `REDIS_URL_5` | Replit Secret | **Upstash overflow slot** — fifth permanent Redis; picked up automatically by the same slot scanner. |
 | `COMPANIES_HOUSE_API_KEY` | Replit Secret (optional) | UK Companies House officer harvester |
 
 ### Adding a new Upstash Redis slot

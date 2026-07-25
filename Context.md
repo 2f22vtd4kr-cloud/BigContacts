@@ -8,18 +8,15 @@
 
 ---
 
-## Current State (2026-07-25 — Phases K1–K6, L1–L2, M1, N2 implemented) — DB empty (fresh import, cold-start ingestion running); build clean ~534ms; 3/5 workflows running
+## Current State (2026-07-25 — Phases K1–K6, L1–L3, M1–M4, N1–N4 implemented) — imported project running; full workspace checks clean; 3/5 workflows running
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically ✅
 - **Local Redis** running on `redis://localhost:6379` — workflow `Redis` running ✅
 - **SESSION_SECRET** — ✅ Set
 - **REDIS_URL** — ✅ Set (local Redis, env var `redis://localhost:6379`)
-- **Upstash Redis (`REDIS_URL_1`)** — ❌ NOT SET (needs re-adding; was quota-exhausted last session anyway)
-- **Upstash Redis (`REDIS_URL_2`)** — ❌ NOT SET
-- **Upstash Redis (`REDIS_URL_3`)** — ❌ NOT SET
-- **Upstash Redis (`REDIS_URL_4`)** — ❌ NOT SET
-- **COMPANIES_HOUSE_API_KEY** — ❌ NOT SET
+- **Upstash Redis (`REDIS_URL_1`–`REDIS_URL_5`)** — ✅ Set; slot 1 is quota-exhausted, healthy overflow slots are available
+- **COMPANIES_HOUSE_API_KEY** — ✅ Set
 
 ### Workflows running
 | Workflow | Status |
@@ -37,7 +34,9 @@
 4. Redis, API Server, and apex-finder web workflows started.
 5. `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":1}}` ✅
 6. Dashboard loads — DB empty, cold-start auto-recovery fired (Western HNWI + broad discovery running in background).
-7. **Missing secrets**: `REDIS_URL_1`–`REDIS_URL_4` (Upstash dedup/cache) and `COMPANIES_HOUSE_API_KEY` need to be re-added for full functionality.
+7. Re-added `REDIS_URL_1`–`REDIS_URL_5` and `COMPANIES_HOUSE_API_KEY` through the secure secrets flow; API startup confirmed healthy overflow slots 2–5 while slot 1 remains quota-limited.
+8. Completed the prior handoff: structured contact-evidence audit rows are visible on profiles; duplicate dismiss/merge decisions persist in `dedup_reviews`; the pair key is unique and upserted safely.
+9. Cleared API, web, mobile, shared-library, mockup, and script typechecks; applied the schema; production API/web builds passed; `/api/healthz` and the web root returned HTTP 200; final dashboard preview rendered successfully.
 
 ### Phase J2 verification (2026-07-24)
 - Added the Western registry coverage matrix and `GET /api/registry-matrix`.
@@ -113,6 +112,7 @@ All 4 Phase I items implemented and live. Build clean (esbuild ⚡ 1183ms). All 
 | 2026-07-24 13:59 | Imported project setup reverified after secure key entry: dependencies restored, schema applied, Redis/API/web healthy, `/api/healthz` returned Redis ok, web preview returned 200 and rendered the empty-state dashboard; Upstash persistent Redis reported its 500,000-request quota exhausted |
 | 2026-07-24 14:03 | Fixed mobile profile chrome: removed duplicate profile headers, moved current tab context beside APEX ATLAS in the shared top bar, removed nested profile scrolling, and verified mobile previews plus production frontend build |
 | 2026-07-25 03:15 | **Phase J4–J9 fully implemented**: domain-resolver.ts (J4 GLEIF/MX/SPF), digital-footprint.ts (J5 DDG+contact-page scraper, 7 query templates), contact-attribution.ts (J6 geometric-mean score, threshold 0.52); phase-j.ts route rewritten integrating all three + J7 source-cooldown scheduler + J8 graph-neighbour context; GET /pipeline/phase-j/source-quality added (J9); status endpoint now returns J0–J9 all true; PhaseJCompletionPanel expanded (8-stat grid, module badges, outcome pills); SourceQualityPanel added; API build clean 778ms |
+| 2026-07-25 07:09 | **Imported handoff completed**: restored artifact registrations from existing manifests; added Redis slot 5 and Companies House secret; implemented durable N4 dedup review upserts, L3 persisted contact-evidence loading, API type fixes, stale research-field cleanup, and Expo symbol fixes; schema push, full workspace typecheck, API/web builds, live health checks, and dashboard screenshot all passed |
 | 2026-07-24 | Added Phase J to `improvements.md`: a multi-re-import roadmap for raising validated public-contact yield through funnel measurement, non-terminal social enrichment, Western registry coverage, identity/domain resolution, lawful digital-footprint discovery, candidate validation, budgeted multi-pass scheduling, graph-assisted research, and re-import checkpoints |
 | 2026-07-24 | Clarified Phase J as a lawful research-phase roadmap rather than a current source or capacity allowlist; lawful discovery remains broad during private development, while public-production limits and safeguards are deferred to separate release hardening |
 | 2026-07-24 | Added non-blocking `productionReviewStatus` source markers (`review_required`, `reviewed_for_production`, `not_yet_assessed`); markers are internal review reminders only and do not restrict private research or alter source coverage |

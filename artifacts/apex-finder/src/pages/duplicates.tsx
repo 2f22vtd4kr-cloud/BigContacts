@@ -24,6 +24,13 @@ interface SameSourceCluster {
   entities: EntityStub[];
 }
 
+interface DedupReview {
+  entityAId: number;
+  entityBId: number;
+  decision: "dismissed" | "merged";
+  keepEntityId: number | null;
+}
+
 type MergeState = "idle" | "confirming" | "merging" | "done" | "error";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -278,6 +285,20 @@ export default function DuplicatesPage() {
     } finally {
       setSameSourceLoading(false);
     }
+    try {
+      const data = await apiFetch<{ reviews: DedupReview[] }>("/api/entities/dedup-reviews");
+      const nextDismissed = new Set<string>();
+      const nextMerged = new Set<string>();
+      for (const review of data.reviews ?? []) {
+        const key = pairKey(review.entityAId, review.entityBId);
+        if (review.decision === "dismissed") nextDismissed.add(key);
+        if (review.decision === "merged") nextMerged.add(key);
+      }
+      setDismissed(nextDismissed);
+      setMerged(nextMerged);
+    } catch {
+      // Candidate review remains usable if the persistence endpoint is unavailable.
+    }
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -297,12 +318,39 @@ export default function DuplicatesPage() {
     setMergeMsg("Merging entities…");
     try {
       await apiFetch(`/api/entities/${keepId}/merge/${deleteId}`, { method: "POST" });
+      await apiFetch("/api/entities/dedup-reviews", {
+        method: "POST",
+        body: JSON.stringify({
+          entityAId: keepId,
+          entityBId: deleteId,
+          decision: "merged",
+          keepEntityId: keepId,
+        }),
+      });
       setMerged(s => new Set([...s, key]));
       setMergeState("done");
       setMergeMsg("Merge complete — entity deleted, assets reassigned");
     } catch (e: any) {
       setMergeState("error");
       setMergeMsg(e?.message ?? "Merge failed");
+    }
+  };
+
+  const handleDismiss = async (candidate: DuplicateCandidate) => {
+    const key = pairKey(candidate.entityA.id, candidate.entityB.id);
+    try {
+      await apiFetch("/api/entities/dedup-reviews", {
+        method: "POST",
+        body: JSON.stringify({
+          entityAId: candidate.entityA.id,
+          entityBId: candidate.entityB.id,
+          decision: "dismissed",
+        }),
+      });
+      setDismissed(s => new Set([...s, key]));
+    } catch (e: any) {
+      setMergeState("error");
+      setMergeMsg(e?.message ?? "Could not save review");
     }
   };
 
@@ -414,7 +462,7 @@ export default function DuplicatesPage() {
                   key={key}
                   candidate={c}
                   dismissed={dismissed.has(key)}
-                  onDismiss={() => setDismissed(s => new Set([...s, key]))}
+                  onDismiss={() => handleDismiss(c)}
                   onMerge={handleMerge}
                 />
               );

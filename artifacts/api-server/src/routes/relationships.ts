@@ -243,7 +243,7 @@ router.post("/relationships/auto-detect-clusters", async (_req, res): Promise<vo
 // ── POST /relationships/auto-detect-ch-codirectors ────────────────────────────
 // Reads chOfficers stored in entity metadata (populated by POST /ingest/ch-company-officers)
 // and creates SHARED_DIRECTOR edges between entities that share at least one director.
-router.post("/relationships/auto-detect-ch-codirectors", async (_req: Request, res: Response): Promise<void> => {
+router.post("/relationships/auto-detect-ch-codirectors", async (_req, res): Promise<void> => {
   // Load all entities that have chOfficers in metadata
   const entities = await db
     .select({ id: entitiesTable.id, name: entitiesTable.name, metadata: entitiesTable.metadata })
@@ -313,7 +313,7 @@ router.post("/relationships/auto-detect-ch-codirectors", async (_req: Request, r
 // each filing, matches against entities in our DB, and creates KNOWN_ASSOCIATE
 // edges for any pair of DB entities that appear together in the same filing.
 // Uses the filing-centric approach: O(pages) API calls instead of O(entities).
-router.post("/relationships/seed-edgar-associates", async (_req: Request, res: Response): Promise<void> => {
+router.post("/relationships/seed-edgar-associates", async (_req, res): Promise<void> => {
   // 1. Build name → entity ID index for all DB entities
   const allEntities = await db
     .select({ id: entitiesTable.id, name: entitiesTable.name, metadata: entitiesTable.metadata })
@@ -431,7 +431,7 @@ router.post("/relationships/seed-edgar-associates", async (_req: Request, res: R
 // Wikidata SPARQL for known personal relationships (P26 spouse, P451 partner,
 // P3373 sibling, P22/P25 parent) and creates KNOWN_ASSOCIATE / FAMILY_OF edges
 // whenever the named associate also exists in our DB.
-router.post("/relationships/seed-wikidata-associates", async (_req: Request, res: Response): Promise<void> => {
+router.post("/relationships/seed-wikidata-associates", async (_req, res): Promise<void> => {
   // Find entities that had a Wikidata hit (sourceHits.Wikidata = true in metadata)
   const wikidataEntities = await db
     .select({ id: entitiesTable.id, name: entitiesTable.name, metadata: entitiesTable.metadata })
@@ -551,7 +551,7 @@ SELECT DISTINCT ?associateLabel ?relType WHERE {
 // Groups all SEC EDGAR entities by the company they reported on (entityName field
 // in metadata). Entities co-reporting on the same company get EDGAR_CO_FILER edges.
 // Runs entirely from the local DB — no external API calls.
-router.post("/relationships/auto-detect-edgar-cofilers", async (_req: Request, res: Response): Promise<void> => {
+router.post("/relationships/auto-detect-edgar-cofilers", async (_req, res): Promise<void> => {
   // Load all entities from SEC EDGAR source
   const edgarEntities = await db
     .select({ id: entitiesTable.id, name: entitiesTable.name, metadata: entitiesTable.metadata })
