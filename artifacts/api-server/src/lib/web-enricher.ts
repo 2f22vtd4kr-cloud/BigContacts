@@ -837,13 +837,56 @@ export function extractPhone(text: string): string | null {
   return null;
 }
 
+/**
+ * Detect whether an HTML response is a Cloudflare / bot-protection challenge page.
+ * These pages return HTTP 200 but contain JS challenge code, not the real site.
+ * Triggers include: Avada themes, Cloudflare Turnstile, CAPTCHA redirects.
+ */
+function isBotBlock(html: string, strippedText: string): boolean {
+  const lower = html.toLowerCase();
+  return (
+    lower.includes("cf_chl_opt") ||
+    lower.includes("challenge-platform") ||
+    lower.includes("jschl-answer") ||
+    lower.includes("__cf_bm") ||
+    lower.includes("cf_clearance") ||
+    (lower.includes("checking your browser") && lower.includes("cloudflare")) ||
+    lower.includes("enable javascript and cookies to continue") ||
+    lower.includes("please enable javascript") ||
+    lower.includes("ddos-guard") ||
+    lower.includes("human verification") ||
+    strippedText.length < 200
+  );
+}
+
 async function scrapePage(url: string): Promise<ScrapedPage> {
+  // Infer a reasonable Accept-Language from the target domain so French/German
+  // sites get their preferred locale (reduces likelihood of redirect or block).
+  const tld = (url.match(/\.([a-z]{2,3})(\/|$)/i)?.[1] ?? "").toLowerCase();
+  const acceptLang =
+    tld === "fr" || tld === "be" || tld === "mc" ? "fr-FR,fr;q=0.9,en;q=0.8" :
+    tld === "de" || tld === "at" ? "de-DE,de;q=0.9,en;q=0.8" :
+    tld === "it" ? "it-IT,it;q=0.9,en;q=0.8" :
+    tld === "es" ? "es-ES,es;q=0.9,en;q=0.8" :
+    tld === "nl" || tld === "be" ? "nl-NL,nl;q=0.9,en;q=0.8" :
+    "en-US,en;q=0.9";
+
   try {
     const resp = await fetch(url, {
-      signal: AbortSignal.timeout(10_000),
+      signal: AbortSignal.timeout(12_000),
       headers: {
         "User-Agent": randomUA(),
-        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language": acceptLang,
+        "Accept-Encoding": "gzip, deflate, br",
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
+        "Sec-Fetch-User": "?1",
+        "Upgrade-Insecure-Requests": "1",
+        "Connection": "keep-alive",
       },
       redirect: "follow",
     });
