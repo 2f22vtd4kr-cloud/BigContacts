@@ -8,18 +8,18 @@
 
 ---
 
-## Current State (2026-07-25 — Phases K1–K6, L1–L2, M1, N2 implemented) — 32,700 entities; 54 Personal contacts (honest yield ~0.16%); build clean 356ms; all 4 workflows healthy
+## Current State (2026-07-25 — Phases K1–K6, L1–L2, M1, N2 implemented) — DB empty (fresh import, cold-start ingestion running); build clean ~534ms; 3/5 workflows running
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically ✅
 - **Local Redis** running on `redis://localhost:6379` — workflow `Redis` running ✅
 - **SESSION_SECRET** — ✅ Set
 - **REDIS_URL** — ✅ Set (local Redis, env var `redis://localhost:6379`)
-- **Upstash Redis (`REDIS_URL_1`)** — ✅ Set (permanent dedup set) — quota exhausted (500k/500k); slot 3/4 absorb overflow; non-fatal
-- **Upstash Redis (`REDIS_URL_2`)** — ✅ Set (permanent contact cache)
-- **Upstash Redis (`REDIS_URL_3`)** — ✅ Set (overflow slot 3)
-- **Upstash Redis (`REDIS_URL_4`)** — ✅ Set (overflow slot 4)
-- **COMPANIES_HOUSE_API_KEY** — ✅ Set
+- **Upstash Redis (`REDIS_URL_1`)** — ❌ NOT SET (needs re-adding; was quota-exhausted last session anyway)
+- **Upstash Redis (`REDIS_URL_2`)** — ❌ NOT SET
+- **Upstash Redis (`REDIS_URL_3`)** — ❌ NOT SET
+- **Upstash Redis (`REDIS_URL_4`)** — ❌ NOT SET
+- **COMPANIES_HOUSE_API_KEY** — ❌ NOT SET
 
 ### Workflows running
 | Workflow | Status |
@@ -30,15 +30,14 @@
 | artifacts/apex-mobile: expo | ⏸️ Optional / not required for web setup |
 | artifacts/mockup-sandbox: Component Preview Server | ⏸️ Optional / not required for web setup |
 
-### Post-import setup (2026-07-24, this import)
-1. `CI=true pnpm install --frozen-lockfile` — all packages installed (pnpm v10.26.1, ~31s)
+### Post-import setup (2026-07-25, this import)
+1. `pnpm install --frozen-lockfile` — all packages installed (pnpm v10.26.1, ~31s)
 2. `pnpm --filter @workspace/db run push` — schema applied to PostgreSQL (`[✓] Changes applied`)
 3. All 4 artifacts re-registered via `verifyAndReplaceArtifactToml` (artifact.toml files were intact from GitHub; platform re-created managed workflows).
 4. Redis, API Server, and apex-finder web workflows started.
 5. `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":1}}` ✅
-6. All 4 Upstash slots connected at startup (slots 1–4).
-7. Dashboard loads at root preview path — DB empty, cold-start auto-recovery ingestion running in background.
-8. `REDIS_URL_1`–`REDIS_URL_4` and `COMPANIES_HOUSE_API_KEY` confirmed as Replit Secrets.
+6. Dashboard loads — DB empty, cold-start auto-recovery fired (Western HNWI + broad discovery running in background).
+7. **Missing secrets**: `REDIS_URL_1`–`REDIS_URL_4` (Upstash dedup/cache) and `COMPANIES_HOUSE_API_KEY` need to be re-added for full functionality.
 
 ### Phase J2 verification (2026-07-24)
 - Added the Western registry coverage matrix and `GET /api/registry-matrix`.
@@ -747,4 +746,4 @@ Run **IN-HOUSE ENRICH** on HNWI/Gatekeeper entities — Wikidata SPARQL will hit
 | 2026-07-19 | Replaced MCTS Expert persona with Intel Systems Analyst (`intel_systems_analyst`). New persona covers the full hybrid stack: MCTS path coverage (Layer 1), hybrid search signal coverage / BM25+RRF anchors (Layer 2), agent orchestration pipeline completeness / Planner→Retriever→Analyst→Critic (Layer 3), Bayesian-UCB convergence / score-frozen detection (Layer 4). Updated persona-engine.ts, improvements.tsx, improvement_logs.ts schema comment. |
 | 2026-07-19 | GitHub import re-setup: pnpm install, DB schema pushed, all 4 artifacts re-registered (verifyAndReplaceArtifactToml), API server + apex-finder web workflows running. Dashboard loads. DB empty — needs re-ingestion. |
 | 2026-07-19 | REDIS_URL_1 (Upstash) set and verified connected (`[upstash-1] Redis ready`). Dedup state from prior sessions is live. Ready for ingestion. |
-| 2026-07-25 | GitHub import re-setup: pnpm install (36s, frozen lockfile), DB schema pushed (`[✓] Changes applied`), all 4 artifacts re-registered (verifyAndReplaceArtifactToml), all 4 secrets set (REDIS_URL_1–4, COMPANIES_HOUSE_API_KEY). Redis + API Server + apex-finder web workflows running. All 4 Upstash slots connected at startup. `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":1}}`. REDIS_URL_1 quota exhausted (500k/500k) — ghost-job cleanup degrades gracefully. DB empty — needs re-ingestion. |
+| 2026-07-25 | GitHub import re-setup #2: pnpm install (~31s, frozen lockfile), DB schema pushed (`[✓] Changes applied`), all 4 artifacts re-registered (verifyAndReplaceArtifactToml), managed workflows created. Redis + API Server + apex-finder web running. `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":1}}`. Cold-start auto-recovery triggered (Western HNWI + broad discovery background jobs). DB empty — needs re-ingestion. Missing secrets: REDIS_URL_1–4 (Upstash) and COMPANIES_HOUSE_API_KEY need re-adding. |
