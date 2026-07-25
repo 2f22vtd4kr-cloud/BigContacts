@@ -250,20 +250,30 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
   const batchSize  = Math.min(parseInt((req.body as any)?.batchSize ?? "100", 10), 500);
   const entityType = (req.body as any)?.entityType as string | undefined;
   const force      = Boolean((req.body as any)?.force);
+  const entityIds  = Array.isArray((req.body as any)?.entityIds)
+    ? ((req.body as any).entityIds as unknown[]).map(Number).filter(n => Number.isFinite(n) && n > 0)
+    : null;
 
   const conditions: any[] = [];
-  if (!force) conditions.push(sql`${entitiesTable.contactConfidence} = 0`);
-  if (entityType) conditions.push(eq(entitiesTable.type, entityType as any));
+  if (entityIds && entityIds.length > 0) {
+    conditions.push(inArray(entitiesTable.id, entityIds));
+    if (!force) conditions.push(sql`${entitiesTable.contactConfidence} = 0`);
+  } else {
+    if (!force) conditions.push(sql`${entitiesTable.contactConfidence} = 0`);
+    if (entityType) conditions.push(eq(entitiesTable.type, entityType as any));
+  }
 
   const entities = await db
     .select({
-      id: entitiesTable.id,
-      name: entitiesTable.name,
-      type: entitiesTable.type,
-      nationality: entitiesTable.nationality,
+      id:               entitiesTable.id,
+      name:             entitiesTable.name,
+      type:             entitiesTable.type,
+      nationality:      entitiesTable.nationality,
       sourceRegistries: entitiesTable.sourceRegistries,
-      knownResidences: entitiesTable.knownResidences,
-      metadata: entitiesTable.metadata,
+      knownResidences:  entitiesTable.knownResidences,
+      metadata:         entitiesTable.metadata,
+      instagramHandle:  entitiesTable.instagramHandle,
+      twitterHandle:    entitiesTable.twitterHandle,
     })
     .from(entitiesTable)
     .where(conditions.length ? and(...conditions) : undefined)
@@ -301,7 +311,9 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
 
         const result = await enrichEntityOsint(entity);
 
-        if (!result.linkedinUrl && !result.email && !result.phone && !result.website) {
+        const hasSignal = result.linkedinUrl || result.email || result.phone
+          || result.website || (result as any).instagramUrl || (result as any).twitterUrl;
+        if (!hasSignal) {
           skipped++;
           continue;
         }
@@ -318,6 +330,8 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
             ...(result.email       ? { email: result.email }             : {}),
             ...(result.phone       ? { phone: result.phone }             : {}),
             ...(result.linkedinUrl ? { linkedinUrl: result.linkedinUrl } : {}),
+            ...((result as any).instagramUrl && !entity.instagramHandle ? { instagramHandle: (result as any).instagramUrl } : {}),
+            ...((result as any).twitterUrl   && !entity.twitterHandle   ? { twitterHandle:   (result as any).twitterUrl   } : {}),
             contactConfidence: confidence,
             updatedAt: new Date(),
           })

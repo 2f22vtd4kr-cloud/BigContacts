@@ -258,15 +258,23 @@ function stripTicker(name: string): string {
 // Strip legal suffixes for domain guessing
 const CORP_SUFFIXES = /\b(inc|llc|ltd|limited|corp|corporation|group|holdings|international|global|capital|fund|partners|advisors?|management|services|solutions|ventures|investments?|enterprises?|associates?|consulting|technologies|tech|financial|realty|properties|trust|family|l\.?p\.?|s\.?a\.?)\b\.?$/gi;
 
-function guessCompanyDomain(companyName: string): string[] {
+function guessCompanyDomain(companyName: string, city?: string | null): string[] {
   const stripped = companyName.replace(CORP_SUFFIXES, "").trim();
   const base = stripped.toLowerCase().replace(/[^a-z0-9 ]/g, "").replace(/\s+/g, "");
   const hyphen = stripped.toLowerCase().replace(/[^a-z0-9 ]/g, "").replace(/\s+/g, "-");
   if (!base || base.length < 2) return [];
-  return [...new Set([
+  const standard = [
     `${base}.com`, `${hyphen}.com`, `${base}.co`, `${base}.io`,
     `${base}.org`, `${base}.net`, `${base}.co.uk`,
-  ])].slice(0, 5);
+  ];
+  if (city) {
+    const c = city.toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (c.length >= 2) {
+      // City variants first — most likely to be the real domain (e.g. baolicannes.com)
+      standard.unshift(`${base}${c}.com`, `${hyphen}-${c}.com`, `${base}-${c}.com`);
+    }
+  }
+  return [...new Set(standard)].slice(0, 8);
 }
 
 // Domains that belong to registries / governments — NEVER use as email domain for individuals
@@ -1466,7 +1474,7 @@ export async function enrichInHouse(entity: InHouseEnrichInput): Promise<InHouse
         addSource("GLEIF-Found");
         // Store address in result for later writing to entity
         if (!knownDomain && gleif.legalName) {
-          const guessed = guessCompanyDomain(gleif.legalName);
+          const guessed = guessCompanyDomain(gleif.legalName, bizCity);
           if (guessed.length) knownDomain = guessed[0]!;
         }
       }
@@ -1480,7 +1488,7 @@ export async function enrichInHouse(entity: InHouseEnrichInput): Promise<InHouse
       result.sourceHits["EDGAR"] = true;
       setPhone(edgar.phone, 65, "EDGAR-Phone", edgar.recordUrl);
       if (!result.website && edgar.companyName && isCorp) {
-        const guessed = guessCompanyDomain(edgar.companyName);
+        const guessed = guessCompanyDomain(edgar.companyName, bizCity);
         if (guessed.length && !knownDomain) knownDomain = guessed[0]!;
       }
     }
@@ -1551,7 +1559,7 @@ export async function enrichInHouse(entity: InHouseEnrichInput): Promise<InHouse
 
   // For corporations: try DNS-confirmed domain guess if still no domain
   if (!knownDomain && isCorp) {
-    const candidates = guessCompanyDomain(name);
+    const candidates = guessCompanyDomain(name, bizCity);
     for (const candidate of candidates) {
       if (await hasMxRecord(candidate)) { knownDomain = candidate; break; }
       await sleep(80);
@@ -1565,7 +1573,7 @@ export async function enrichInHouse(entity: InHouseEnrichInput): Promise<InHouse
     const entityMeta = safeJson<Record<string, unknown>>(entity.metadata, {});
     const cn = typeof entityMeta["companyName"] === "string" ? (entityMeta["companyName"] as string).trim() : null;
     if (cn && cn.length > 3) {
-      const candidates = guessCompanyDomain(cn);
+      const candidates = guessCompanyDomain(cn, bizCity);
       for (const candidate of candidates) {
         if (await hasMxRecord(candidate)) { knownDomain = candidate; break; }
         await sleep(80);

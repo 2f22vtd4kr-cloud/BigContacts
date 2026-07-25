@@ -14,7 +14,7 @@
 
 import { Router, type Request, type Response } from "express";
 import { db, entitiesTable } from "@workspace/db";
-import { sql, eq, and, desc, count } from "drizzle-orm";
+import { sql, eq, and, desc, count, inArray } from "drizzle-orm";
 import {
   createJob, updateJob, getJob,
   setActiveJob, getActiveJob,
@@ -93,26 +93,36 @@ router.post("/ingest/deep-web-osint", async (req: Request, res: Response): Promi
   }
 
   const body = req.body ?? {};
-  const batchSize = Math.min(Number(body.batchSize) || 200, 5_000);
-  const force     = Boolean(body.force);
-  const hotOnly   = body.hotOnly !== false;
+  const batchSize   = Math.min(Number(body.batchSize) || 200, 5_000);
+  const force       = Boolean(body.force);
+  const hotOnly     = body.hotOnly !== false;
+  const entityIds   = Array.isArray(body.entityIds)
+    ? (body.entityIds as unknown[]).map(Number).filter(n => Number.isFinite(n) && n > 0)
+    : null;
 
-  const conditions: any[] = [
-    sql`${entitiesTable.type} IN ('HNWI', 'Gatekeeper', 'Corporation')`,
-  ];
-  if (!force)  conditions.push(sql`${entitiesTable.contactConfidence} = 0`);
-  if (hotOnly) conditions.push(sql`${entitiesTable.bayesianScore} >= 0.5`);
+  const conditions: any[] = [];
+  if (entityIds && entityIds.length > 0) {
+    // Targeted run: fetch exactly the requested entities regardless of type/score
+    conditions.push(inArray(entitiesTable.id, entityIds));
+    if (!force) conditions.push(sql`${entitiesTable.contactConfidence} = 0`);
+  } else {
+    conditions.push(sql`${entitiesTable.type} IN ('HNWI', 'Gatekeeper', 'Corporation')`);
+    if (!force)  conditions.push(sql`${entitiesTable.contactConfidence} = 0`);
+    if (hotOnly) conditions.push(sql`${entitiesTable.bayesianScore} >= 0.5`);
+  }
 
   const entities = await db
     .select({
       id: entitiesTable.id, name: entitiesTable.name, type: entitiesTable.type,
-      sourceRegistries: entitiesTable.sourceRegistries,
-      knownResidences:  entitiesTable.knownResidences,
-      metadata:         entitiesTable.metadata,
-      bayesianScore:    entitiesTable.bayesianScore,
-      email:            entitiesTable.email,
-      phone:            entitiesTable.phone,
-      linkedinUrl:      entitiesTable.linkedinUrl,
+      sourceRegistries:  entitiesTable.sourceRegistries,
+      knownResidences:   entitiesTable.knownResidences,
+      metadata:          entitiesTable.metadata,
+      bayesianScore:     entitiesTable.bayesianScore,
+      email:             entitiesTable.email,
+      phone:             entitiesTable.phone,
+      linkedinUrl:       entitiesTable.linkedinUrl,
+      instagramHandle:   entitiesTable.instagramHandle,
+      twitterHandle:     entitiesTable.twitterHandle,
     })
     .from(entitiesTable)
     .where(and(...conditions))
@@ -146,14 +156,17 @@ router.post("/ingest/deep-web-osint", async (req: Request, res: Response): Promi
         });
 
         const result = await deepWebOsintEnrich(entity);
-        const hasSignal = result.email || result.phone || result.linkedinUrl;
+        const hasSignal = result.email || result.phone || result.linkedinUrl
+          || result.instagramUrl || result.twitterUrl || result.personsDiscovered.length > 0;
 
         if (!hasSignal) { skipped++; continue; }
 
         const updates: Record<string, unknown> = { updatedAt: new Date() };
-        if (result.email      && !entity.email)      updates["email"]      = result.email;
-        if (result.phone      && !entity.phone)      updates["phone"]      = result.phone;
-        if (result.linkedinUrl && !entity.linkedinUrl) updates["linkedinUrl"] = result.linkedinUrl;
+        if (result.email       && !entity.email)           updates["email"]           = result.email;
+        if (result.phone       && !entity.phone)           updates["phone"]           = result.phone;
+        if (result.linkedinUrl && !entity.linkedinUrl)     updates["linkedinUrl"]     = result.linkedinUrl;
+        if (result.instagramUrl && !entity.instagramHandle) updates["instagramHandle"] = result.instagramUrl;
+        if (result.twitterUrl   && !entity.twitterHandle)   updates["twitterHandle"]   = result.twitterUrl;
 
         const confidence = computeContactConfidence({
           email:           (updates["email"]      as string | null) ?? entity.email ?? null,
@@ -168,6 +181,10 @@ router.post("/ingest/deep-web-osint", async (req: Request, res: Response): Promi
         meta["deepWebOsintSources"] = result.sources;
         meta["deepWebQueriesFired"] = result.queriesFired;
         if (result.emailConfidence) meta["deepWebEmailConf"] = result.emailConfidence;
+        // Store discovered person names as review-only candidates — never auto-merged
+        if (result.personsDiscovered.length > 0) {
+          meta["deepWebPersonsDiscovered"] = result.personsDiscovered;
+        }
         meta["liveSource"] = true;
         updates["metadata"]   = JSON.stringify(meta);
         updates["liveSource"] = true;

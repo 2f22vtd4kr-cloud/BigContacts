@@ -507,14 +507,11 @@ export function extractCity(knownResidences?: string | null, metadata?: string |
         return (meta[key] as string).trim();
       }
     }
-    // Parse from address strings
+    // Parse from address strings — use cityFromAddress so postal-code regex fires
     for (const key of ["registeredAddress", "businessAddress", "address", "legalAddress"]) {
       if (typeof meta[key] === "string") {
-        const parts = (meta[key] as string).split(",");
-        for (const part of parts) {
-          const t = part.trim().replace(/^\d+\s*/, "");
-          if (t.length > 2 && !/^\d/.test(t)) return t;
-        }
+        const city = cityFromAddress(meta[key] as string);
+        if (city) return city;
       }
     }
   } catch { /* ignore */ }
