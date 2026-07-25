@@ -330,6 +330,7 @@ export default function ApexProfile() {
 
   // ── Contact evidence / rejection state ────────────────────────────────────
   const [showContactEvidence, setShowContactEvidence] = useState(false);
+  const [contactEvidenceKey, setContactEvidenceKey] = useState(0);
   const [rejectStep, setRejectStep] = useState<Record<string, number>>({});
   const [rejectLoading, setRejectLoading] = useState(false);
   const [rejectError, setRejectError] = useState<string | null>(null);
@@ -368,7 +369,7 @@ export default function ApexProfile() {
         if (!cancelled) setContactEvidenceLoading(false);
       });
     return () => { cancelled = true; };
-  }, [showContactEvidence, entityId, baseUrl]);
+  }, [showContactEvidence, entityId, baseUrl, contactEvidenceKey]);
 
   const handleRejectContact = async (field: string) => {
     const step = rejectStep[field] ?? 0;
@@ -517,29 +518,43 @@ export default function ApexProfile() {
     setEnrichError(null);
     setEnrichDone(false);
     try {
-      const base = (import.meta as any).env.BASE_URL.replace(/\/$/, "");
-      const r = await fetch(`${base}/api/ingest/in-house-enrich`, {
+      const r = await fetch(`${baseUrl}/api/ingest/in-house-enrich`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ entityIds: [entityId], batchSize: 1, force: true }),
+        // entityId from URL params is a string — cast to number so inArray works correctly
+        body: JSON.stringify({ entityIds: [Number(entityId)], batchSize: 1, force: true }),
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data.error ?? "Request failed");
       const { jobId } = data;
+      if (!jobId) {
+        // Entity already fully enriched — just refresh
+        setIsEnriching(false);
+        setEnrichDone(true);
+        refetchEntity();
+        setContactEvidenceKey(k => k + 1);
+        return;
+      }
       let attempts = 0;
       const poll = async () => {
-        if (attempts > 30) { setIsEnriching(false); setEnrichError("Timed out"); return; }
+        if (attempts > 40) { setIsEnriching(false); setEnrichError("Timed out waiting for enrichment."); return; }
         attempts++;
         try {
-          const jr = await fetch(`${base}/api/ingest/job/${jobId}`);
+          const jr = await fetch(`${baseUrl}/api/ingest/job/${jobId}`);
           const job = await jr.json();
           if (job.status === "done") {
-            setIsEnriching(false); setEnrichDone(true); refetchEntity(); return;
+            setIsEnriching(false);
+            setEnrichDone(true);
+            refetchEntity();
+            setContactEvidenceKey(k => k + 1); // re-fetch evidence panel
+            return;
           }
-          if (job.status === "failed") {
-            setIsEnriching(false); setEnrichError(job.message ?? "Enrichment failed"); return;
+          if (job.status === "failed" || job.status === "error" || job.status === "cancelled") {
+            setIsEnriching(false);
+            setEnrichError(job.message ?? "Enrichment finished without finding new contact data.");
+            return;
           }
-        } catch { /* ignore poll errors */ }
+        } catch { /* ignore transient poll errors */ }
         setTimeout(poll, 2_000);
       };
       setTimeout(poll, 2_000);
@@ -652,10 +667,12 @@ export default function ApexProfile() {
                 <AccessScoreBadge score={entity.accessScore} />
                 <span className="text-[8px] font-mono text-muted-foreground/50 uppercase tracking-widest">Access</span>
               </div>
-              <div className="flex flex-col items-center gap-0.5">
-                <ScoreBadge score={entity.bayesianScore} />
-                <span className="text-[8px] font-mono text-muted-foreground/50 uppercase tracking-widest">Wealth</span>
-              </div>
+              {primaryWealthSource && (
+                <div className="flex flex-col items-start gap-0.5 max-w-[140px]">
+                  <span className="text-[8px] font-mono text-muted-foreground/50 uppercase tracking-widest">Wealth source</span>
+                  <span className="text-[9px] font-mono text-foreground/80 leading-tight">{primaryWealthSource}</span>
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-1.5">
               <Link
@@ -968,96 +985,112 @@ export default function ApexProfile() {
                 ) : null;
 
                 if (field === "email") {
-                  const parts: string[] = [
-                    `${pName} shows up in ${regShort} — that's the public filing we used to pin down who they are.`
-                  ];
-                  if (hasSrc("propublica") || hasSrc("ProPublica")) {
-                    parts.push("We then searched IRS Form 990 filings (public tax documents every U.S. nonprofit must file) and found a foundation linked to them, which disclosed the organisation's domain.");
+                  const steps: string[] = [];
+                  // Step 1: anchor — the registry record that identified this person
+                  steps.push(`We identified ${pName} through ${regShort} — a mandatory public filing that gave us their confirmed legal name${/edgar|sec/i.test(primaryReg) ? ", address, and company affiliation" : ""}.`);
+                  // Step 2: domain path
+                  const fromPP = hasSrc("propublica") || hasSrc("ProPublica");
+                  const fromDomain = hasSrc("domain") || hasSrc("Domain");
+                  const fromSMTP = hasSrc("smtp") || hasSrc("SMTP");
+                  const fromWikidata = hasSrc("wikidata") || hasSrc("Wikidata");
+                  const fromDDG = hasSrc("ddg") || hasSrc("DDG") || hasSrc("duckduckgo");
+                  if (fromPP) {
+                    steps.push("We then searched IRS Form 990 filings — the annual tax return every U.S. nonprofit must make public — and found an associated foundation. That filing disclosed the organisation's domain.");
                   }
-                  if (hasSrc("domain") || hasSrc("Domain")) {
-                    parts.push("From that domain, we tested the most common email formats — firstname@, f.lastname@, firstname.lastname@ and a few others — to see which one the domain actually uses.");
+                  if (fromDomain) {
+                    steps.push("We guessed a handful of likely email formats for that domain (firstname@, firstname.lastname@, f.lastname@, and a few others), which is standard practice since most organisations use one consistent pattern.");
                   }
-                  if (hasSrc("smtp") || hasSrc("SMTP")) {
-                    parts.push("We then ran a quick mail-server check — nothing was sent — just a handshake to confirm the inbox is live and accepting mail. The format that came back active is the one shown above.");
+                  if (fromSMTP) {
+                    steps.push("We then did a mailbox check: a passive handshake with the mail server that confirms whether an inbox exists — nothing is sent, no email is received on the other end. The address shown is the one that came back as live.");
                   }
-                  if (hasSrc("wikidata") || hasSrc("Wikidata")) {
-                    parts.push("This address also appears in their Wikidata public record.");
+                  if (fromWikidata) steps.push("This address is also listed in their public Wikidata record, which corroborates it.");
+                  if (fromDDG) steps.push("A web search for their name and known affiliations also surfaced this address.");
+                  if (steps.length === 1) {
+                    steps.push(primaryEvidence
+                      ? `The address was surfaced via ${primaryEvidence.extractionMethod ?? primaryEvidence.source}.`
+                      : "The address was surfaced from public web sources associated with their name.");
                   }
-                  if (hasSrc("ddg") || hasSrc("DDG") || hasSrc("duckduckgo")) {
-                    parts.push("Also surfaced by a web search for their name and affiliations.");
-                  }
-                  if (parts.length === 1) {
-                    parts.push(primaryEvidence
-                      ? `Found via ${primaryEvidence.extractionMethod ?? primaryEvidence.source}.`
-                      : "Surfaced from public web sources associated with their name.");
-                  }
-                  parts.push("⚠ If this looks like a company inbox (press@, info@, contact@) rather than a personal address, flag it as incorrect.");
-                  return <>{evidenceBadge}{parts.join(" ")}</>;
+                  steps.push("⚠ If this looks like a shared company inbox (info@, press@, contact@) rather than a personal address, flag it as incorrect — we'll search for a better one.");
+                  return <>{evidenceBadge}<>{steps.map((s, i) => <span key={i}>{i > 0 && " "}{s}</span>)}</></>;
                 }
 
                 if (field === "phone") {
-                  const parts: string[] = [
-                    `${pName} shows up in ${regShort}.`
-                  ];
+                  const steps: string[] = [];
+                  steps.push(`We found ${pName} in ${regShort}, which anchored the name and jurisdiction.`);
                   if (hasSrc("rdap") || hasSrc("RDAP") || hasSrc("whois") || hasSrc("WHOIS")) {
-                    parts.push("We found a domain registered to them or their company, then looked it up in the public WHOIS/RDAP record — essentially a phonebook entry for domain owners. This number was listed as the registrant contact. Worth a double-check: WHOIS data occasionally belongs to whoever built the site rather than the person themselves.");
+                    steps.push("We located a domain registered to them or their company, then looked it up in the public WHOIS/RDAP record — that's essentially a registrant directory, and this number was listed as the contact. One caveat: WHOIS data sometimes reflects whoever managed the domain registration rather than the person themselves, so it's worth a quick sanity-check.");
                   }
                   if (hasSrc("propublica") || hasSrc("ProPublica")) {
-                    parts.push("This number also appears in a publicly filed IRS Form 990 for an associated nonprofit.");
+                    steps.push("This number also appears in a publicly filed IRS Form 990 for a nonprofit linked to them.");
                   }
                   if (hasSrc("companieshouse") || hasSrc("CompaniesHouse")) {
-                    parts.push("Listed in UK Companies House filings for a company connected to them.");
+                    steps.push("It was also listed in UK Companies House filings for a company they're connected to.");
                   }
                   if (hasSrc("brreg") || hasSrc("BRREG")) {
-                    parts.push("Listed in Norway's BRREG registry for a company they're linked to.");
+                    steps.push("It appears in Norway's BRREG registry under a company they're associated with.");
                   }
-                  if (parts.length === 1) {
-                    parts.push(primaryEvidence
-                      ? `Found via ${primaryEvidence.extractionMethod ?? primaryEvidence.source}.`
-                      : "Surfaced from a public record associated with their name or registered organisation.");
+                  if (steps.length === 1) {
+                    steps.push(primaryEvidence
+                      ? `Number surfaced via ${primaryEvidence.extractionMethod ?? primaryEvidence.source}.`
+                      : "Surfaced from a public record linked to their name or registered organisation.");
                   }
-                  return <>{evidenceBadge}{parts.join(" ")}</>;
+                  return <>{evidenceBadge}<>{steps.map((s, i) => <span key={i}>{i > 0 && " "}{s}</span>)}</></>;
                 }
 
                 if (field === "linkedinUrl") {
-                  return <>{evidenceBadge}{`${pName} is in ${regShort}. We searched for "${formatEntityName(e2.name || pName)} LinkedIn" and found a professional profile whose name, location, and career background match. We haven't independently verified it's really them — check that the photo and work history look right before reaching out.`}</>;
+                  return (
+                    <>{evidenceBadge}
+                    {`We found ${pName} in ${regShort}, then searched LinkedIn for a profile matching their name, location, and known affiliations. The profile shown here is the closest match. We haven't verified it's definitively them — take 30 seconds to check the photo, job history, and connections before reaching out.`}
+                    </>
+                  );
                 }
 
                 if (field === "twitterHandle" || field === "instagramHandle") {
                   const net = field === "twitterHandle" ? "Twitter/X" : "Instagram";
-                  return <>{evidenceBadge}{`${pName} is in ${regShort}. We searched public ${net} for accounts matching their name and bio. The handle shown is the closest match we found — check the profile content and recent posts to confirm it's really them before making contact.`}</>;
+                  return (
+                    <>{evidenceBadge}
+                    {`We found ${pName} in ${regShort}, then searched ${net} for accounts whose name and bio matched. The handle shown is our best match — accounts with common names can be ambiguous, so check the profile's content, location, and recent activity before treating this as confirmed.`}
+                    </>
+                  );
                 }
 
                 if (field === "telegramHandle") {
-                  return <>{evidenceBadge}{`${pName} is in ${regShort}. We searched public Telegram directories for accounts matching their name. Telegram handles can be transferred or reused, so look at the account's content and activity before reaching out.`}</>;
+                  return (
+                    <>{evidenceBadge}
+                    {`We found ${pName} in ${regShort}, then searched public Telegram directories for a matching account. Telegram handles can change hands, so look at the account's bio, history, and activity before reaching out.`}
+                    </>
+                  );
                 }
 
                 if (field === "personalWebsite") {
-                  const parts: string[] = [`${pName} is in ${regShort}.`];
+                  const steps: string[] = [];
+                  steps.push(`We identified ${pName} through ${regShort}.`);
                   if (hasSrc("dns") || hasSrc("DNS") || hasSrc("probe")) {
-                    parts.push("We identified a domain likely belonging to them and confirmed it's pointing to a live website via DNS lookup.");
+                    steps.push("We found a domain that appeared to belong to them and confirmed it's live and resolving via DNS lookup.");
                   }
                   if (hasSrc("ProPublica-Website") || hasSrc("propublica")) {
-                    parts.push("The site is listed as the organisation's website in a publicly filed IRS Form 990.");
+                    steps.push("The site is also listed as the organisation's website in a publicly filed IRS Form 990.");
                   }
                   if (hasSrc("Wikidata-Website") || hasSrc("wikidata")) {
-                    parts.push("The site is linked to them in their Wikidata public record.");
+                    steps.push("The domain is linked to them directly in their Wikidata public record.");
                   }
-                  if (parts.length === 1) {
-                    parts.push("Found through public records and confirmed active.");
-                  }
-                  return <>{evidenceBadge}{parts.join(" ")}</>;
+                  if (steps.length === 1) steps.push("Confirmed active through public records.");
+                  return <>{evidenceBadge}<>{steps.map((s, i) => <span key={i}>{i > 0 && " "}{s}</span>)}</></>;
                 }
 
                 if (field === "foundationName") {
-                  return <>{evidenceBadge}{`${pName} is listed as an officer, director, or trustee of this foundation in an IRS Form 990 — the annual tax filing every U.S. nonprofit must file publicly. That's a government document, not something we inferred.`}</>;
+                  return (
+                    <>{evidenceBadge}
+                    {`${pName} is listed as an officer, director, or trustee of this foundation in an IRS Form 990 — the annual tax return every U.S. nonprofit is required to file publicly. This isn't inferred; it's a government-filed document.`}
+                    </>
+                  );
                 }
 
                 if (field === "contactMethod") {
-                  return <>{"This was entered manually — either by you or imported from a research session. It wasn't inferred by the enrichment pipeline."}</>;
+                  return <>{"This was entered manually — either by you or imported from a research session. The enrichment pipeline didn't generate it."}</>;
                 }
 
-                return <>{evidenceBadge}{`${pName} is in ${regShort}. This value was surfaced from public sources linked to their name and registry record.`}</>;
+                return <>{evidenceBadge}{`${pName} is in ${regShort}. This value was surfaced from public records linked to their name and registry entry.`}</>;
               };
 
               const cFields = [
@@ -1076,48 +1109,11 @@ export default function ApexProfile() {
                   {/* Panel header */}
                   <div className="px-3 py-2.5 border-b border-amber-500/10">
                     <div className="text-[10px] font-mono font-semibold text-amber-400/80 mb-0.5">
-                      How we researched these contacts
+                      How we found these contacts
                     </div>
                     <div className="text-[10px] text-muted-foreground/60 leading-relaxed">
-                      For each contact below we explain exactly how we found it. If something looks wrong, flag it to remove it permanently.
+                      Each contact below includes a plain-English explanation of the research steps. If something looks wrong, flag it to remove it permanently.
                     </div>
-                  </div>
-                  {/* ── Why this person is HNWI ─────────────────────────────── */}
-                  <div className="px-3 py-2.5 border-b border-amber-500/10">
-                    <div className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground/60 mb-1.5">
-                      Why {formatEntityName(e2.name || "this person")} is in this database
-                    </div>
-                    <p className="text-[10px] text-muted-foreground/70 leading-relaxed">
-                      {(() => {
-                        const parts: string[] = [];
-                        const pName = formatEntityName(e2.name || "This person");
-                        if (/edgar|sec/i.test(primaryReg)) {
-                          const is13 = primaryReg.toLowerCase().includes("13");
-                          parts.push(`${pName} filed mandatory ${is13 ? "beneficial ownership disclosures (SEC EDGAR Form 13D or 13G)" : "executive compensation disclosures (SEC EDGAR DEF 14A)"} with the U.S. Securities and Exchange Commission. ${is13 ? "Anyone owning more than 5% of a public company must file these publicly." : "Board directors and named executives of public companies must file these annually."}`);
-                        } else if (/faa/i.test(primaryReg)) {
-                          const jets = (assets as any[]).filter((a: any) => a.category === "Aviation");
-                          parts.push(`${pName} owns ${jets.length > 1 ? `${jets.length} aircraft` : "an aircraft"} registered with the FAA. Private turbine aircraft — jets and large turboprops — require mandatory federal registration, which is public record.`);
-                        } else if (/land.?reg|hmlr/i.test(primaryReg)) {
-                          const props = (assets as any[]).filter((a: any) => a.category === "RealEstate");
-                          parts.push(`${pName} appears in the UK Land Registry as the buyer or owner of ${props.length > 1 ? `${props.length} properties` : "a property"} above the £1 million threshold we filter on. Land Registry transactions are a matter of public record.`);
-                        } else if (/brreg/i.test(primaryReg)) {
-                          parts.push(`${pName} is listed as a director or key officer in Norway's BRREG official business registry. We cross-reference that against company turnover data to identify high-net-worth individuals.`);
-                        } else if (/companies.?house/i.test(primaryReg)) {
-                          parts.push(`${pName} is listed as a director or person of significant control in UK Companies House — the official register of UK companies and their officers.`);
-                        } else {
-                          parts.push(`${pName} appears in ${registryLabel}.`);
-                        }
-                        if (e2.estimatedNetWorth != null) {
-                          parts.push(`Estimated net worth or AUM: ${formatCurrency(e2.estimatedNetWorth)}.`);
-                        }
-                        const assetArr = assets as any[];
-                        if (assetArr.length > 0) {
-                          const cats = [...new Set(assetArr.map((a: any) => a.category))];
-                          parts.push(`Registered assets: ${assetArr.length} (${cats.join(", ")}).`);
-                        }
-                        return parts.join(" ");
-                      })()}
-                    </p>
                   </div>
                   <div className="px-3 py-2 border-b border-amber-500/10">
                     <div className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground/60 mb-1.5">
@@ -1215,6 +1211,55 @@ export default function ApexProfile() {
                 </div>
               );
             })()}
+          </div>
+        );
+      })()}
+
+      {/* ── Why this person is in this database (always visible) ─────────── */}
+      {(() => {
+        const e = entity as any;
+        let srcRegsLocal: string[] = [];
+        try { srcRegsLocal = JSON.parse(e.sourceRegistries ?? "[]"); } catch {}
+        const primaryReg = srcRegsLocal[0] ?? "";
+        const pName = formatEntityName(e.name || "This person");
+        const assetArr = assets as any[];
+
+        const lines: string[] = [];
+        if (/edgar|sec/i.test(primaryReg)) {
+          const is13 = primaryReg.toLowerCase().includes("13");
+          lines.push(is13
+            ? `${pName} filed a beneficial ownership disclosure with the U.S. Securities and Exchange Commission (SEC EDGAR Form 13D or 13G). Anyone who controls more than 5% of a publicly traded company is legally required to file this — it's not optional, it's a federal requirement, and it's public record.`
+            : `${pName} appears in executive compensation filings submitted to the U.S. Securities and Exchange Commission (SEC EDGAR DEF 14A). Board directors and named executives of public companies must file these annually — that's how we know they hold a senior role.`);
+        } else if (/faa/i.test(primaryReg)) {
+          const jets = assetArr.filter((a: any) => a.category === "Aviation");
+          lines.push(`${pName} owns ${jets.length > 1 ? `${jets.length} aircraft` : "an aircraft"} registered with the FAA — the U.S. Federal Aviation Administration. Every private aircraft in the U.S. must be registered with the FAA, and that registry is public. Turbine aircraft (jets and large turboprops) cost millions to own and operate, which is why FAA ownership is one of our strongest wealth signals.`);
+        } else if (/land.?reg|hmlr/i.test(primaryReg)) {
+          const props = assetArr.filter((a: any) => a.category === "RealEstate");
+          lines.push(`${pName} shows up in the UK Land Registry as the buyer or registered owner of ${props.length > 1 ? `${props.length} properties` : "a property"} above £1 million. Every property transaction in England and Wales is filed with the Land Registry — it's how the UK tracks real estate ownership, and it's freely accessible.`);
+        } else if (/brreg/i.test(primaryReg)) {
+          lines.push(`${pName} is listed in Norway's official business registry (BRREG) as a director or key officer. BRREG is the public record of every registered company in Norway — we cross-reference officer names with company turnover data to identify high-net-worth individuals.`);
+        } else if (/companies.?house/i.test(primaryReg)) {
+          lines.push(`${pName} appears in UK Companies House as a director or person of significant control. Companies House is the UK's official register of companies and their officers — anyone with >25% ownership or voting control must be listed. That's the statutory basis for their inclusion here.`);
+        } else if (primaryReg) {
+          lines.push(`${pName} appears in ${primaryReg} — a public registry we monitor for high-net-worth individuals and significant asset holders.`);
+        }
+        if (e.estimatedNetWorth != null) {
+          lines.push(`Estimated net worth or AUM: ${formatCurrency(e.estimatedNetWorth)}.`);
+        }
+        if (assetArr.length > 0) {
+          const cats = [...new Set(assetArr.map((a: any) => a.category))];
+          lines.push(`Registered assets on file: ${assetArr.length} (${cats.join(", ")}).`);
+        }
+
+        if (!lines.length) return null;
+        return (
+          <div className="flex-shrink-0 border-b border-border px-4 md:px-6 py-3 bg-muted/20">
+            <div className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground/50 mb-1.5">
+              Why {pName} is in this database
+            </div>
+            <p className="text-[11px] text-muted-foreground/75 leading-relaxed">
+              {lines.join(" ")}
+            </p>
           </div>
         );
       })()}
