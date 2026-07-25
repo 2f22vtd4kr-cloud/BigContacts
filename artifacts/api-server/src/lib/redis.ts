@@ -139,6 +139,20 @@ export function isSlotQuotaExhausted(slot: number): boolean {
   return _quotaExhaustedSlots.has(slot - 1);
 }
 
+/**
+ * Mark a specific client instance as quota-exhausted.
+ * Call this when a command-level ReplyError "max requests limit exceeded" is caught
+ * BEFORE the ioredis `error` event fires, so subsequent getPermanentClient() calls
+ * skip this slot immediately.
+ */
+export function markClientExhausted(client: Redis): void {
+  const i = _permanentClients.indexOf(client);
+  if (i >= 0 && !_quotaExhaustedSlots.has(i)) {
+    _quotaExhaustedSlots.add(i);
+    logger.warn({ slot: i + 1 }, `Permanent Redis slot ${i + 1} marked exhausted via command-level catch`);
+  }
+}
+
 // ── LOCAL cache helpers (short-lived API responses) ───────────────────────────
 
 const LOCAL_PREFIX = "apex:";

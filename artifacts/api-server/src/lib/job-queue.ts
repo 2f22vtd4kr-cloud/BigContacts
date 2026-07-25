@@ -9,8 +9,34 @@
  */
 
 import { randomUUID } from "crypto";
-import { getPermanentClient, permSadd, permSismember, permScard } from "./redis";
+import { getPermanentClient, markClientExhausted, permSadd, permSismember, permScard } from "./redis";
 import { logger } from "./logger";
+
+/**
+ * Execute a Redis command with automatic quota-exhaustion retry.
+ * If the first client throws "max requests limit exceeded", marks it exhausted
+ * immediately (before the ioredis error event fires) and retries with the next
+ * healthy slot.  Falls back to `fallback` if all slots are exhausted.
+ */
+async function safeRedis<T>(fn: (rc: import("ioredis").Redis) => Promise<T>, fallback: T): Promise<T> {
+  const rc = getPermanentClient();
+  if (!rc) return fallback;
+  try {
+    return await fn(rc);
+  } catch (err: any) {
+    if (err?.message?.includes("max requests limit exceeded")) {
+      markClientExhausted(rc);
+      const rc2 = getPermanentClient();
+      if (rc2 && rc2 !== rc) {
+        try { return await fn(rc2); } catch { /* fall through */ }
+      }
+      logger.warn("All Upstash slots quota-exhausted — job state unavailable");
+    } else {
+      logger.warn({ err: err?.message }, "Redis command failed in job-queue (non-fatal)");
+    }
+    return fallback;
+  }
+}
 
 export type JobStatus = "queued" | "running" | "done" | "failed";
 
@@ -42,35 +68,33 @@ export async function createJob(type: string): Promise<string> {
     startedAt: new Date().toISOString(),
     message: "Queued",
   };
-  const rc = getPermanentClient();
-  if (rc) {
+  await safeRedis(async rc => {
     await rc.hset(jk(jobId), state as any);
     await rc.expire(jk(jobId), JOB_TTL);
-  }
+  }, undefined);
   return jobId;
 }
 
 export async function updateJob(jobId: string, patch: Partial<JobState>): Promise<void> {
-  const rc = getPermanentClient();
-  if (!rc) return;
   const flat: Record<string, string> = {};
   for (const [k, v] of Object.entries(patch)) if (v !== undefined) flat[k] = String(v);
-  await rc.hset(jk(jobId), flat);
-  await rc.expire(jk(jobId), JOB_TTL);
+  await safeRedis(async rc => {
+    await rc.hset(jk(jobId), flat);
+    await rc.expire(jk(jobId), JOB_TTL);
+  }, undefined);
 }
 
 export async function appendJobLog(jobId: string, line: string): Promise<void> {
-  const rc = getPermanentClient();
-  if (!rc) return;
-  await rc.lpush(lk(jobId), `${new Date().toISOString()} ${line}`);
-  await rc.ltrim(lk(jobId), 0, LOG_CAP - 1);
-  await rc.expire(lk(jobId), JOB_TTL);
+  const ts = `${new Date().toISOString()} ${line}`;
+  await safeRedis(async rc => {
+    await rc.lpush(lk(jobId), ts);
+    await rc.ltrim(lk(jobId), 0, LOG_CAP - 1);
+    await rc.expire(lk(jobId), JOB_TTL);
+  }, undefined);
 }
 
 export async function getJob(jobId: string): Promise<JobState | null> {
-  const rc = getPermanentClient();
-  if (!rc) return null;
-  const raw = await rc.hgetall(jk(jobId));
+  const raw = await safeRedis(rc => rc.hgetall(jk(jobId)), null);
   if (!raw || Object.keys(raw).length === 0) return null;
   return {
     jobId: raw["jobId"] ?? jobId,
@@ -88,10 +112,7 @@ export async function getJob(jobId: string): Promise<JobState | null> {
 }
 
 export async function getJobLog(jobId: string): Promise<string[]> {
-  const rc = getPermanentClient();
-  if (!rc) return [];
-  const lines = await rc.lrange(lk(jobId), 0, LOG_CAP - 1);
-  return lines; // already newest-first (LPUSH)
+  return safeRedis(rc => rc.lrange(lk(jobId), 0, LOG_CAP - 1), []);
 }
 
 // ── Deduplication (Upstash SET — permanent across restarts) ──────────────────
@@ -172,19 +193,13 @@ export async function batchMarkSeen(keys: string[]): Promise<void> {
 // ── Active job tracking ───────────────────────────────────────────────────────
 
 export async function setActiveJob(type: string, jobId: string): Promise<void> {
-  const rc = getPermanentClient();
-  if (!rc) return;
-  await rc.set(`apex:activejob:${type}`, jobId, "EX", JOB_TTL);
+  await safeRedis(rc => rc.set(`apex:activejob:${type}`, jobId, "EX", JOB_TTL), null);
 }
 
 export async function getActiveJob(type: string): Promise<string | null> {
-  const rc = getPermanentClient();
-  if (!rc) return null;
-  return rc.get(`apex:activejob:${type}`);
+  return safeRedis(rc => rc.get(`apex:activejob:${type}`), null);
 }
 
 export async function clearActiveJob(type: string): Promise<void> {
-  const rc = getPermanentClient();
-  if (!rc) return;
-  await rc.del(`apex:activejob:${type}`);
+  await safeRedis(rc => rc.del(`apex:activejob:${type}`), null);
 }
