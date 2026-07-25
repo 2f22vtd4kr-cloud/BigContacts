@@ -1,0 +1,64 @@
+Pipeline Audit — Honest Assessment
+Short version: The architecture and tooling are genuinely impressive. The 3% number is real, but it's measuring the wrong thing. Most of that "Reachable" count is organisational contact data incorrectly attributed to individual HNWIs. Your true personal-contact yield is closer to 0.3–0.5%. Here's exactly why.
+
+What the live data actually shows
+Contact outcome column: 99.88% of 32,201 entities have NULL outcome — meaning backfill-contact-outcomes hasn't run since import. That endpoint needs a trigger. The 37 classified as direct_contact_candidate are the only ones properly assessed.
+The 992 "Reachable" is misleading. Breakdown of what's actually in there:
+Source tag	Hits	What it really is
+EDGAR-Phone	724	SEC filer phone numbers — these are fund switchboards, company main lines, not personal numbers
+CompaniesHouse-Found	343	Entity confirmed to exist in CH — no contact data extracted
+EmailPattern-MX	234	Email pattern that passed MX check — not SMTP confirmed
+RDAP-Registrant	87	Phone/email from WHOIS record — often the registrar's contact, not the entity's
+SMTP-Verified	60	Actually confirmed deliverable — most reliable bucket
+ContactPage-Email	42	Email from a contact page — real, but often company inbox
+GitHub-Email	26	Personal developer emails — genuinely personal
+Wayback-Email	19	Archived contact page — mixed quality
+The top email domains tell the real story:
+* support.aws.com — 18 hits. AWS's own support address. The RDAP lookup is finding Amazon Web Services as the hosting/DNS provider for entities' domains and extracting AWS's support contact. These 18 are pure noise.
+* web.com — 12 hits. web.com is a domain registrar. domain.operations@web.com is web.com's internal address, not the entity's contact.
+* namebright.com — 2 hits. Another registrar, same problem.
+* cae.com — 14 hits. CAE is a flight simulator manufacturer. The entity "Delux Public Charter LLC" has deluxpubliccharter.llc@cae.com — that's CAE's customer account email for the charter company, not a personal contact.
+* 10.5.13.module.js — 2 hits. That's a JavaScript filename being parsed as an email domain. It's a parsing bug.
+* amazon.com — 4 hits. Amazon's corporate addresses.
+The high-confidence contacts (score 100) expose the core problem:
+Superior Capital Holdings Llc → investor.relations@embraer.com.br (Embraer's IR dept — wrong company entirely)
+Altc Llc → contact@altcraft.com (generic contact@ inbox)
+4kla Llc → sales@4kla.com (sales@ inbox)
+Dfx Llc → info@dwellfox.com (info@ inbox)
+Tailwinds Llc → sales@avs.business (sales@ inbox)
+
+These score 100 because they have both an email and a phone. But sales@, info@, investor.relations@are organisational inboxes. The system has no logic to penalise generic prefix patterns at the scoring level — only at the contact_outcome classification level, and that column hasn't been backfilled.
+71 emails are flagged as generic corporate inboxes by even the basic pattern check (info@, sales@, press@, support@, contact@, etc.). These represent ~19% of the total email pool.
+Generic inbox detection is patchy. The contact-validation.ts blocks obvious garbage domains (example.com, whoisguard) but doesn't recognise that support@ prefix = organisational even on a legitimate domain. That gap means they flow through as direct_contact_candidate.
+Phone numbers:
+* 10-digit (716): Likely valid US numbers — this bucket is the cleanest
+* 12–19 digits (101 entries): Mix of international numbers and formatting noise. No E.164 normalisation being enforced at write time.
+* 7–8 digit (6 entries): Too short for any real phone number — blocklist should catch these but apparently doesn't
+Deduplication within contacts is absent. "Delux Public Charter LLC" appears 5 times with identical email and phone in the high-confidence list. The ingestion dedup prevents re-ingesting the same entity, but there's no constraint preventing multiple research sessions or enrichment passes from writing the same contact values to duplicate entity rows.
+The organisation_contact outcome never gets assigned. The code has the classification but the DB shows 0 entities with that value. Company phones from EDGAR, generic inboxes, and RDAP registrar contacts are all landing as direct_contact_candidate or staying NULL — not being properly separated.
+
+What IS solid and working well
+* The enrichment tier system (Tier 1 full pass / Tier 2 FAA-individual skip knowledge graphs / Tier 3 LLC → person resolution) is architecturally correct. The idea of not wasting Wikidata/Wikipedia lookups on private aircraft owners is smart.
+* EDGAR → 22.5% email, 49% phone yield on those 200 entities is genuinely good — the SEC filer universe is the richest source you have.
+* SMTP verification (60 confirmed) is the most trustworthy data in the system. Any email that passed SMTP handshake without sending is real.
+* LLC beneficial owner resolution (EDGAR SC 13D/G + OpenCorporates for FAA LLCs) is the right approach to pierce the corporate veil.
+* The confidence hierarchy (Gravatar 90 > SMTP 88 > Wikidata 85 > ORCID 80 > GitHub 75 > CH 70 > …) is well-calibrated for source trustworthiness.
+* The Bayesian scorer is sound — asset signals, geographic data, corporate structure, network connections all feeding a principled score.
+* Phase J1 fix (social_only isn't terminal) is correct — keeping LinkedIn-only profiles in the enrichment queue is the right call.
+
+The four things that matter most to fix
+1. RDAP registrar contact filtering — Before writing any RDAP result, check the domain against a list of known registrar/hosting infrastructure domains (web.com, namebright.com, godaddy.com, network-solutions.com, enom.com, hugedomains.com, domainsbyproxy.com, and the AWS/Cloudflare IP-reverse-DNS patterns). If the RDAP contact's domain matches the registrar rather than the entity's domain, discard it. This alone removes web.com (12), namebright.com (2), and the AWS hits (18) — roughly 32 bad emails.
+2. Generic prefix rejection at score-write time, not just classification time — The setEmail() function should reduce confidence by 30 points if the local-part matches a corporate prefix list (info, contact, sales, support, press, admin, hello, office, noreply, billing, ops, team, media, pr, legal, hr, webmaster). If confidence drops below the source's floor, reject it entirely. Currently this only fires at the computeContactOutcome() step which isn't being called.
+3. Cross-entity email uniqueness check — After enrichment, any email address that appears on 3+ distinct entities is almost certainly a shared corporate inbox. Flag those automatically as organization_contact. The deluxpubliccharter.llc@cae.com duplication across 5 rows is the clearest example.
+4. Run backfill-contact-outcomes — Right now 99.88% of entities have NULL outcome. Until that runs, any metric you're reading off the dashboard (Reachable count, coverage %) is computed from contactConfidence > 0 which doesn't distinguish personal from organisational. After the backfill, the organization_contact bucket will surface the true scale of the corporate-inbox problem so you can triage it properly.
+
+The real numbers
+
+Metric	Reported	Actual
+"Reachable"	992 (3.08%)	~992 entities have some contact signal, but the majority is organisational
+Genuinely personal contacts (SMTP-verified + GitHub + clean ContactPage)	—	~100–140 at most
+True personal-contact yield	3%	~0.4–0.5%
+Generic/corporate inboxes in the email pool	—	~30–35% of all emails
+Registrar-contact noise	—	~32 entries (web.com, namebright, AWS)
+
+The pipeline's architecture is the right one. The enrichment methods, tier classification, and scoring hierarchy are genuinely well thought out. What it lacks right now is contact-type discrimination — distinguishing "this is a real person's email" from "this is the company's customer service address." That's a focused, achievable fix, not a rethink of the whole system.
