@@ -2,8 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import {
-  Crosshair, Network, Terminal,
-  KanbanSquare, X, BookOpen, Menu,
+  Crosshair, Network, X, BookOpen, Menu,
   Search, Activity, Cog, Telescope,
   Database, Bot, ChevronDown, ChevronRight, ShieldAlert, List,
 } from "lucide-react";
@@ -14,8 +13,6 @@ const mainNav = [
   { name: "Entity Ledger", href: "/profiles",  icon: List },
   { name: "Search",        href: "/search",    icon: Search },
   { name: "Network Graph", href: "/network",   icon: Network },
-  { name: "Intel Terminal",href: "/research",  icon: Terminal },
-  { name: "CRM Pipeline",  href: "/pipeline",  icon: KanbanSquare },
   { name: "Field Manual",  href: "/manual",    icon: BookOpen },
 ];
 
