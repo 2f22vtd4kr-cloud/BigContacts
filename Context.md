@@ -22,15 +22,15 @@
 | Workflow | Status |
 |---|---|
 | Redis | ✅ Running (port 6379) |
-| artifacts/api-server: API Server | ✅ Running (port 8080) |
-| artifacts/apex-finder: web | ✅ Running (port 23695) |
+| ApexFinder API | ✅ Running (port 8080) |
+| ApexFinder Web | ✅ Running (port 23695) |
 | artifacts/apex-mobile: expo | ⏸️ Optional / not required for web setup |
 | artifacts/mockup-sandbox: Component Preview Server | ⏸️ Optional / not required for web setup |
 
 ### Post-import setup (2026-07-25, this import)
 1. `pnpm install --frozen-lockfile` — all packages installed (pnpm v10.26.1, ~31s)
 2. `pnpm --filter @workspace/db run push` — schema applied to PostgreSQL (`[✓] Changes applied`)
-3. All 4 artifacts re-registered via `verifyAndReplaceArtifactToml` (artifact.toml files were intact from GitHub; platform re-created managed workflows).
+3. The imported artifact metadata was present, but the platform registry was empty; validating the four existing artifact manifests restored the managed workflows.
 4. Redis, API Server, and apex-finder web workflows started.
 5. `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":1}}` ✅
 6. Dashboard loads — DB empty, cold-start auto-recovery fired (Western HNWI + broad discovery running in background).
@@ -753,3 +753,4 @@ Run **IN-HOUSE ENRICH** on HNWI/Gatekeeper entities — Wikidata SPARQL will hit
 | 2026-07-25 | Implemented structured evidence provenance: (1) in-house-enricher now passes real source URLs (Wikidata entity, ORCID record, GitHub profile, EDGAR/CIK, Companies House, BRREG API, RDAP, ProPublica, Wikipedia) through setEmail/setPhone; (2) ingest-enrichment.ts processEntity writes contact_evidence rows after each entity update; (3) profile.tsx evidence audit panel now renders sourceUrl as clickable link, extractionMethod, and observed date per row; explainContact leads with actual evidence badge instead of generic boilerplate. API build clean, healthz ok. |
 | 2026-07-25 | GitHub import re-setup #5: CI=true pnpm install (~33s), DB schema pushed (`[✓] Changes applied`). Artifact registry was empty post-import (managed workflows not auto-restored); configured manual workflows: "API Server" (PORT=8080) and "ApexFinder Web" (PORT=23695). Redis + API Server + apex-finder web all running. `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":1}}`. Web root 200. Cold-start auto-recovery triggered (broad discovery + Western HNWI background jobs). DB empty — needs re-ingestion. SESSION_SECRET present; Upstash slots (REDIS_URL_1–5) and COMPANIES_HOUSE_API_KEY need re-adding for full enrichment. |
 | 2026-07-25 | Artifacts registered (platform restored managed workflows for all 4 artifacts). Removed manual "API Server" and "ApexFinder Web" duplicate workflows. Re-added all 6 secrets: REDIS_URL_1–5 + COMPANIES_HOUSE_API_KEY. All 5 Upstash slots confirmed connected in startup logs ("Permanent Redis connected slot: 1–5"). All workflows healthy: Redis, API Server (8080), apex-finder web (23695), apex-mobile expo, mockup-sandbox. DB empty — ready for ingestion. |
+| 2026-07-25 | Import setup completed: verified managed artifact workflows after clearing orphaned port listeners; Redis, API Server, and apex-finder web are running. `/api/healthz` and `/api/entities` return 200; the Apex Atlas root preview renders successfully. Upstash slot 1 remains quota-exhausted but slots 2–5 are healthy and the app degrades non-fatally. |

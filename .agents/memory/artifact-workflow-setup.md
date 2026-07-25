@@ -16,6 +16,17 @@ platform artifact registry is empty. In that state, the manually configured work
 can still run and serve the app, but artifact-based screenshot/presentation lookup cannot
 resolve the project until registration is repaired.
 
+After registration, validate the existing manifests through the artifact registration
+flow rather than creating new artifacts. Remove any temporary manual workflows and clear
+their orphaned listeners before starting the restored managed services.
+
+**Why:** GitHub imports can preserve artifact files without preserving the platform
+registry; leaving manual services alive causes `EADDRINUSE` when managed services return.
+
+**How to apply:** On an imported workspace, check `listArtifacts()` before starting app
+services. If empty but manifests exist, validate each existing manifest, then use the
+exact managed workflow names and clean stale processes from the old manual services.
+
 ## Port conflict history
 
 During setup, two old **manual** workflows ("API Server" on PORT=8080, "ApexFinder Frontend" on PORT=5173) were holding ports after the artifacts were registered. Resolution:

@@ -95,9 +95,9 @@ After a fresh GitHub import, run these steps to get the project running:
 
 1. **Install dependencies:** `CI=true pnpm install` (takes ~4 min on first run; subsequent runs are fast)
 2. **Push DB schema:** `pnpm --filter @workspace/db run push`
-3. **Start workflows:** Redis → API Server → apex-finder web (in that order)
+3. **Start workflows:** Redis → `artifacts/api-server: API Server` → `artifacts/apex-finder: web` (in that order)
 
-Latest verification (2026-07-24 19:38 UTC): the requested `REDIS_URL_1`, `REDIS_URL_2`, and `COMPANIES_HOUSE_API_KEY` secrets are present; the frozen-lockfile install and schema push completed; Redis, the canonical artifact-managed API, and the web app are healthy; `/api/healthz` reports Redis `ok`; and the root dashboard preview returns 200. The live dashboard currently shows 11,600 entities and assets, 2,822 hot leads, 0 relationships, and 0 contactable profiles. The configured Upstash Redis account has exhausted its 500,000-request quota, so persistent dedup/contact-cache cleanup and ingestion operations may be limited until the quota resets or the plan changes.
+Latest verification (2026-07-25): the requested `REDIS_URL_1` through `REDIS_URL_5` secrets and `COMPANIES_HOUSE_API_KEY` are present; the frozen-lockfile install and schema push completed; Redis, `ApexFinder API`, and `ApexFinder Web` are running; `/api/healthz` reports Redis `ok`; `/api/entities` returns 200; and the root dashboard preview returns 200. Upstash slots 1–5 connect, although slot 1 has reached its provider request quota; the app continues with healthy slots and graceful degradation.
 
 Two fixes were needed after the first import:
 - Added `"pg-cloudflare"` to the `external` list in `artifacts/api-server/build.mjs` (pg optional dep that esbuild couldn't resolve)

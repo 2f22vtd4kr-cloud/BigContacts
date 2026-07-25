@@ -364,6 +364,8 @@ router.post("/ingest/in-house-enrich", async (req: Request, res: Response): Prom
 
   // Single-entity force requests (e.g. from a profile page Enrich button) bypass the
   // batch-job lock so they can run even while the scheduler's batch job is in progress.
+  // They must also not claim the shared active-job pointer: doing so would replace the
+  // scheduler's lock and let the short profile job clear it when it finishes.
   const bypassLock = force && !!entityIds?.length && entityIds.length <= 5;
   if (!bypassLock) {
     const existing = await getActiveJob("in-house-enrich");
@@ -412,7 +414,7 @@ router.post("/ingest/in-house-enrich", async (req: Request, res: Response): Prom
   }
 
   const jobId = await createJob("in-house-enrich");
-  await setActiveJob("in-house-enrich", jobId);
+  if (!bypassLock) await setActiveJob("in-house-enrich", jobId);
   await updateJob(jobId, { status: "running", total: entities.length, message: "In-house OSINT enrichment starting…" });
 
   res.json({
@@ -608,12 +610,12 @@ router.post("/ingest/in-house-enrich", async (req: Request, res: Response): Prom
       inserted: enriched,
       message: `Done — ${enriched} contactable, ${evidenceOnly} evidence-only, ${skipped} no-match, ${errors} errors.`,
     });
-    await setActiveJob("in-house-enrich", "");
+    if (!bypassLock) await setActiveJob("in-house-enrich", "");
     logger.info({ enriched, evidenceOnly, skipped, errors }, "In-house OSINT enrichment complete");
   })().catch(async err => {
     logger.error({ err: err.message }, "In-house enrichment crashed");
     await updateJob(jobId, { status: "failed", message: err.message ?? "Crashed" });
-    await setActiveJob("in-house-enrich", "");
+    if (!bypassLock) await setActiveJob("in-house-enrich", "");
   });
 });
 
