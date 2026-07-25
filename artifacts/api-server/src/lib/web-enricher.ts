@@ -1,11 +1,16 @@
 /**
  * Web Enricher — Layer 1/2 Web OSINT + Deep Web OSINT
  *
- * Consolidates two web-based contact discovery layers:
- *   Layer 1: Web OSINT (web-osint-enricher) — DuckDuckGo, EDGAR, GLEIF, OpenCorporates
- *   Layer 2: Deep Web OSINT (deep-web-osint)  — Multi-engine, multi-query, UA-rotating
- *
- * Both layers are deterministic TypeScript, no LLM, no paid API.
+ * Phase K overhaul:
+ *   - Trading-name derivation (legal name → venue/brand name + city)
+ *   - Locale-aware search (fr-fr for French entities, de-de for German, etc.)
+ *   - Multilingual query templates (EN/FR/DE/IT/ES)
+ *   - City-derived domain guessing (baolicannes.com, not just baoli.com)
+ *   - Corp → Person hop: extract "fondé par X / founded by X / PDG X" from snippets
+ *   - Contact page crawler: /contact /equipe /team /kontakt /nous-contacter
+ *   - Social handle extraction: Instagram, Twitter/X
+ *   - Qwant search for French entities (better French regional coverage than DDG)
+ *   - OpenCorporates removed (returns 401 for all queries since API went paid-only)
  */
 
 import { logger } from "./logger";
@@ -23,6 +28,26 @@ function extractLinkedIn(text: string): string | null {
   return m ? m[0].replace(/\/$/, "") : null;
 }
 
+/** Extract Instagram handle or URL from text */
+function extractInstagram(text: string): string | null {
+  // Full URL first
+  const urlM = text.match(/https?:\/\/(www\.)?instagram\.com\/([a-zA-Z0-9._]{2,30})\/?/i);
+  if (urlM) return `https://instagram.com/${urlM[2]}`;
+  // @handle — must be adjacent to word like "instagram" or standalone
+  const atM = text.match(/instagram[^a-z0-9]*@([a-zA-Z0-9._]{2,30})/i);
+  if (atM) return `https://instagram.com/${atM[1]}`;
+  return null;
+}
+
+/** Extract Twitter/X handle or URL from text */
+function extractTwitter(text: string): string | null {
+  const urlM = text.match(/https?:\/\/(www\.)?(twitter|x)\.com\/([a-zA-Z0-9_]{2,50})\/?/i);
+  if (urlM) return `https://x.com/${urlM[3]}`;
+  const atM = text.match(/twitter[^a-z0-9]*@([a-zA-Z0-9_]{2,50})/i);
+  if (atM) return `https://x.com/${atM[1]}`;
+  return null;
+}
+
 const EMAIL_RE = /\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b/g;
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -31,7 +56,6 @@ const EMAIL_RE = /\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b/g;
 
 const DDG_API   = "https://api.duckduckgo.com/";
 const EDGAR_FT  = "https://efts.sec.gov/LATEST/search-index?q=";
-const OC_API    = "https://api.opencorporates.com/v0.4/companies/search";
 const GLEIF_API = "https://api.gleif.org/api/v1/fuzzycompletions?field=entity.legalName&page%5Bsize%5D=1&q=";
 
 const FETCH_OPTS = {
@@ -56,8 +80,8 @@ function extractEmailSimple(text: string): string | null {
   return filtered[0] ?? null;
 }
 
-// Simple phone regex for Layer 1 (US-centric)
-const PHONE_RE_SIMPLE = /(\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]\d{3}[-.\s]\d{4}/g;
+// Multi-format phone regex (international)
+const PHONE_RE_SIMPLE = /\+?\d[\d\s.\-()]{6,18}\d/g;
 
 function extractPhoneSimple(text: string): string | null {
   const m = text.match(PHONE_RE_SIMPLE);
@@ -103,22 +127,9 @@ async function edgarEmailSearch(name: string): Promise<string | null> {
   }
 }
 
-async function ocWebsite(name: string): Promise<string | null> {
+async function ddgHtmlSearch(query: string, locale = "wt-wt"): Promise<string> {
   try {
-    const url = `${OC_API}?q=${encodeURIComponent(name)}&per_page=1&fields=registered_address,website`;
-    const resp = await fetch(url, FETCH_OPTS);
-    if (!resp.ok) return null;
-    const data = await resp.json() as any;
-    const co = data?.results?.companies?.[0]?.company;
-    return co?.website ?? null;
-  } catch {
-    return null;
-  }
-}
-
-async function ddgHtmlSearch(query: string): Promise<string> {
-  try {
-    const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
+    const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}&kl=${locale}`;
     const resp = await fetch(url, {
       signal: AbortSignal.timeout(12_000),
       headers: {
@@ -139,18 +150,32 @@ async function ddgHtmlSearch(query: string): Promise<string> {
   }
 }
 
+/**
+ * Scrape the entity's website for contact info.
+ * Tries multilingual contact/about paths (EN/FR/DE/IT/ES).
+ */
 async function scrapeContactEmail(website: string): Promise<string | null> {
   try {
     const base = website.replace(/\/$/, "");
-    const attempts = [base, `${base}/contact`, `${base}/contact-us`, `${base}/about`];
-    for (const url of attempts) {
+    const paths = [
+      "", "/contact", "/contact-us", "/about", "/team", "/equipe",
+      "/nous-contacter", "/kontakt", "/impressum", "/contatti", "/contacto",
+      "/about-us", "/who-we-are", "/management", "/staff",
+    ];
+    for (const path of paths) {
       try {
-        const resp = await fetch(url, {
+        const resp = await fetch(`${base}${path}`, {
           signal: AbortSignal.timeout(8_000),
           headers: { "User-Agent": "Mozilla/5.0 (compatible; ApexFinder/1.0)", Accept: "text/html" },
         });
         if (!resp.ok) continue;
         const html = await resp.text();
+        // mailto: href is most reliable
+        const mailtoRe = /href=["']mailto:([^"'?\s]+)/gi;
+        for (const m of html.matchAll(mailtoRe)) {
+          const addr = (m[1] ?? "").toLowerCase().trim();
+          if (isValidPublicEmail(addr) && addr.length < 80) return addr;
+        }
         const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").slice(0, 5000);
         const email = extractEmailSimple(text);
         if (email) return email;
@@ -183,6 +208,8 @@ export async function enrichEntityOsint(entity: EntityOsintInput): Promise<Osint
 
   const isIndividual = entity.type === "HNWI" || /^[A-Z][a-z]+ [A-Z]/.test(name);
   const isCorp = entity.type === "Corporation" || entity.type === "Trust";
+  const country = detectCountry(entity.nationality, entity.knownResidences, entity.metadata);
+  const locale = countryToLocale(country);
 
   // Step 1: LinkedIn URL via DDG instant answer
   try {
@@ -197,12 +224,12 @@ export async function enrichEntityOsint(entity: EntityOsintInput): Promise<Osint
 
   await sleep(400);
 
-  // Step 2: Email via DDG HTML deep search
+  // Step 2: Email via DDG HTML deep search (locale-aware)
   try {
     const emailQuery = isIndividual
       ? `"${name}" email contact site:linkedin.com OR site:bloomberg.com OR site:crunchbase.com`
       : `"${name}" contact email official`;
-    const html = await ddgHtmlSearch(emailQuery);
+    const html = await ddgHtmlSearch(emailQuery, locale);
     if (html) {
       const email = extractEmailSimple(html);
       if (email) { result.email = email; result.sources.push("DuckDuckGo-Email"); }
@@ -246,8 +273,8 @@ export async function enrichEntityOsint(entity: EntityOsintInput): Promise<Osint
           const legalAddress = entry.entity?.legalAddress;
           if (legalAddress) {
             const city = legalAddress.city ?? "";
-            const country = legalAddress.country ?? "";
-            if (city || country) result.sources.push(`GLEIF-LEI(${city},${country})`);
+            const co = legalAddress.country ?? "";
+            if (city || co) result.sources.push(`GLEIF-LEI(${city},${co})`);
           }
           const reg = entry?.registration;
           if (reg?.managingLou) result.sources.push("GLEIF-Verified");
@@ -259,18 +286,21 @@ export async function enrichEntityOsint(entity: EntityOsintInput): Promise<Osint
     await sleep(200);
   }
 
-  // Step 4: OpenCorporates website (for corporations)
-  if (isCorp && !result.website && !result.email) {
-    try {
-      const website = await ocWebsite(name);
-      if (website) {
-        result.website = website;
-        result.sources.push("OpenCorporates-Website");
-        const contactEmail = await scrapeContactEmail(website);
-        if (contactEmail) { result.email = contactEmail; result.sources.push("Website-Scrape"); }
-      }
-    } catch (err: any) {
-      logger.debug({ err: err.message }, "OC website search failed");
+  // Step 4: Domain guess + contact page scrape (for corporations)
+  // OpenCorporates removed — returns 401 for all requests since API went paid-only
+  if (isCorp && !result.email) {
+    const city = extractCity(entity.knownResidences, entity.metadata);
+    const candidates = guessCompanyDomainWithCity(name, city);
+    for (const domain of candidates.slice(0, 3)) {
+      try {
+        const contactEmail = await scrapeContactEmail(`https://${domain}`);
+        if (contactEmail) {
+          result.website = `https://${domain}`;
+          result.email = contactEmail;
+          result.sources.push(`Domain-Guess(${domain})`);
+          break;
+        }
+      } catch { /* try next */ }
     }
   }
 
@@ -289,6 +319,7 @@ export interface DeepWebOsintInput {
   knownResidences?:  string | null;
   metadata?:         string | null;
   bayesianScore?:    number | null;
+  nationality?:      string | null;
 }
 
 export interface DeepWebOsintResult {
@@ -297,9 +328,12 @@ export interface DeepWebOsintResult {
   phone:           string | null;
   phoneConfidence: number;
   linkedinUrl:     string | null;
+  instagramUrl:    string | null;
+  twitterUrl:      string | null;
   sources:         string[];
   queriesFired:    number;
   pagesScraped:    number;
+  personsDiscovered: string[];
 }
 
 const USER_AGENTS = [
@@ -318,17 +352,10 @@ const USER_AGENTS = [
 ];
 
 const SKIP_DOMAINS = new Set([
-  // Search engines and aggregators — no useful HNWI data to scrape
-  "google.com", "bing.com", "yahoo.com", "duckduckgo.com",
-  // E-commerce — irrelevant
+  "google.com", "bing.com", "yahoo.com", "duckduckgo.com", "qwant.com",
   "amazon.com", "ebay.com", "apple.com", "microsoft.com",
-  // Encyclopaedias — scraped separately by in-house enricher
   "wikipedia.org", "wikidata.org",
-  // Video / image platforms — no email/contact data
   "youtube.com", "tiktok.com", "pinterest.com",
-  // NOTE: linkedin.com, twitter.com, x.com, instagram.com intentionally
-  // REMOVED so that social profile URLs found in search results are followed.
-  // Dedicated social-discovery module handles structured extraction from these domains.
 ]);
 
 const EMAIL_BLOCK = new Set([
@@ -338,13 +365,11 @@ const EMAIL_BLOCK = new Set([
   "whoisprivacycorp.com", "registrant.com",
 ]);
 
-// Multi-pattern phone regex for Layer 2 (international-aware)
+// Multi-pattern phone regex (international-aware)
 const PHONE_RE_MULTI = [
   /\+\d{1,3}[\s.\-]?\(?\d{1,4}\)?[\s.\-]?\d{1,4}[\s.\-]?\d{1,9}/,
   /\(?\d{3}\)?[\s.\-]\d{3}[\s.\-]\d{4}/,
 ];
-
-const LINKEDIN_RE = /https?:\/\/(www\.)?linkedin\.com\/(in|pub|company)\/[a-zA-Z0-9\-_%]{3,}\/?/i;
 
 function randomUA(): string {
   return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)]!;
@@ -368,23 +393,223 @@ function normaliseName(raw: string): string {
   return [...rest, last].map(tc).join(" ");
 }
 
-function extractEmails(text: string): string[] {
-  const all = [...text.matchAll(EMAIL_RE)].map(m => m[0]!.toLowerCase());
-  return [...new Set(all.filter(e => {
-    const d = e.split("@")[1] ?? "";
-    return isValidPublicEmail(e) && e.length < 80;
-  }))];
+// ── Country/locale detection ──────────────────────────────────────────────────
+
+const COUNTRY_LOCALE: Record<string, string> = {
+  FR: "fr-fr", DE: "de-de", IT: "it-it", ES: "es-es",
+  NL: "nl-nl", BE: "fr-be", CH: "de-ch", AT: "de-at",
+  GB: "uk-en", UK: "uk-en", US: "us-en", AU: "en-au",
+  PT: "pt-pt", PL: "pl-pl", SE: "se-sv", DK: "dk-da",
+  NO: "no-nn", FI: "fi-fi", RU: "ru-ru", AE: "en-ww",
+  SG: "en-ww", HK: "en-ww",
+};
+
+/**
+ * Detect country ISO-2 from entity nationality, addresses, or metadata.
+ * Returns uppercase 2-letter code or null.
+ */
+function detectCountry(
+  nationality?: string | null,
+  knownResidences?: string | null,
+  metadata?: string | null,
+): string | null {
+  // 1. Explicit nationality field
+  if (nationality && /^[A-Z]{2}$/.test(nationality.trim())) return nationality.trim();
+
+  // 2. Common nationality strings
+  const nat = (nationality ?? "").toLowerCase();
+  if (/french|france/i.test(nat)) return "FR";
+  if (/german|germany|deutsch/i.test(nat)) return "DE";
+  if (/italian|italy|italia/i.test(nat)) return "IT";
+  if (/spanish|spain|españa/i.test(nat)) return "ES";
+  if (/british|uk|united kingdom/i.test(nat)) return "GB";
+  if (/american|usa|united states/i.test(nat)) return "US";
+  if (/dutch|netherlands|holland/i.test(nat)) return "NL";
+  if (/swiss|switzerland/i.test(nat)) return "CH";
+
+  // 3. Scan addresses for country hints
+  const residenceStr = typeof knownResidences === "string" ? knownResidences : "";
+  const metaStr = typeof metadata === "string" ? metadata : "";
+  const combined = `${residenceStr} ${metaStr}`.toLowerCase();
+
+  if (/\bfrance\b|\bcannes\b|\bparis\b|\bnice\b|\bmonaco\b|\blyon\b|\bmarseille\b/i.test(combined)) return "FR";
+  if (/\bgermany\b|\bberlin\b|\bmunich\b|\bfrankfurt\b|\bhamburg\b/i.test(combined)) return "DE";
+  if (/\bitaly\b|\brome\b|\bmilan\b|\bvenice\b|\bflorence\b|\bnaples\b/i.test(combined)) return "IT";
+  if (/\bspain\b|\bmadrid\b|\bbarcelona\b|\bibiza\b|\bmarbella\b/i.test(combined)) return "ES";
+  if (/\buk\b|\bbritain\b|\blondon\b|\bmanchester\b|\bedinburgh\b/i.test(combined)) return "GB";
+  if (/\bnetherlands\b|\bamsterdam\b|\brotterdam\b/i.test(combined)) return "NL";
+  if (/\bswitzerland\b|\bzürich\b|\bgeneva\b|\bzurich\b/i.test(combined)) return "CH";
+  if (/\baustralia\b|\bsydney\b|\bmelbourne\b/i.test(combined)) return "AU";
+
+  return null;
 }
 
-function extractPhone(text: string): string | null {
-  for (const p of PHONE_RE_MULTI) {
-    const m = text.match(p);
-    if (m) {
-      const c = m[0]!.replace(/\s+/g, " ").trim();
-      if ((c.match(/\d/g) ?? []).length >= 7) return c;
+function countryToLocale(country: string | null): string {
+  if (!country) return "wt-wt";
+  return COUNTRY_LOCALE[country] ?? "wt-wt";
+}
+
+/**
+ * Extract the city name from addresses or metadata.
+ * Returns the first city found or null.
+ */
+function extractCity(knownResidences?: string | null, metadata?: string | null): string | null {
+  const residenceStr = typeof knownResidences === "string" ? knownResidences : "";
+  const metaStr = typeof metadata === "string" ? metadata : "";
+
+  // Try to parse as JSON array of residence strings
+  try {
+    const parsed = JSON.parse(residenceStr);
+    const arr = Array.isArray(parsed) ? parsed : [parsed];
+    for (const entry of arr) {
+      if (typeof entry === "string" && entry.length > 2) {
+        const city = entry.split(",")[0]?.trim();
+        if (city && city.length > 2 && !/^\d/.test(city)) return city;
+      }
+    }
+  } catch {
+    // Not JSON — treat as plain string
+    if (residenceStr) {
+      const city = residenceStr.split(",")[0]?.trim();
+      if (city && city.length > 2 && !/^\d/.test(city)) return city;
     }
   }
+
+  // Try metadata JSON for address fields
+  try {
+    const meta = JSON.parse(metaStr) as Record<string, unknown>;
+    for (const key of ["city", "cityName", "registeredCity", "businessCity", "addressCity"]) {
+      if (typeof meta[key] === "string" && (meta[key] as string).length > 1) {
+        return (meta[key] as string).trim();
+      }
+    }
+    // Parse from address strings
+    for (const key of ["registeredAddress", "businessAddress", "address", "legalAddress"]) {
+      if (typeof meta[key] === "string") {
+        const parts = (meta[key] as string).split(",");
+        for (const part of parts) {
+          const t = part.trim().replace(/^\d+\s*/, "");
+          if (t.length > 2 && !/^\d/.test(t)) return t;
+        }
+      }
+    }
+  } catch { /* ignore */ }
+
   return null;
+}
+
+/**
+ * Derive a public-facing trading name from the legal entity name + city context.
+ *
+ * Examples:
+ *   "BAOLI SAS" + "Cannes" → "Baoli Cannes"
+ *   "RIVIERA HOSPITALITY SAS" + "Cannes" → "Riviera Hospitality"
+ *   "APPLE INC" + null → "Apple"
+ */
+const LEGAL_SUFFIXES = /\s*\b(s\.?a\.?s\.?|s\.?a\.?r\.?l\.?|s\.?a\.?|e\.?u\.?r\.?l\.?|s\.?n\.?c\.?|s\.?c\.?i\.?|gmbh|ag|kg|ohg|gbr|ltd|llc|llp|plc|inc|corp|incorporated|limited|l\.?p\.?|s\.?l\.?|s\.?r\.?l\.?|b\.?v\.?|n\.?v\.?|a\/s|ab|oy|as|sp\.?\s*z\.?\s*o\.?\s*o\.?|zrt|kft|a\.?s\.?|a\/s|asa|ehf|group|holdings|trust|international|global)\b\.?\s*$/gi;
+
+function deriveTradingName(legalName: string, city: string | null): string {
+  // Strip legal suffix
+  const stripped = legalName.replace(LEGAL_SUFFIXES, "").trim();
+  // Titlecase (handles ALL CAPS legal names like "BAOLI SAS")
+  const titled = stripped
+    .toLowerCase()
+    .replace(/(?:^|\s)\S/g, c => c.toUpperCase())
+    .trim();
+  // If the city adds meaningful context (e.g. "Baoli" alone is ambiguous but "Baoli Cannes" is the known venue)
+  if (city && titled.length < 12 && !titled.toLowerCase().includes(city.toLowerCase())) {
+    return `${titled} ${city}`;
+  }
+  return titled;
+}
+
+/**
+ * Guess company domains, including city-derived variants.
+ *
+ * "BAOLI SAS" + "Cannes" → [baolicannes.com, baoli-cannes.com, baoli.com, ...]
+ */
+const CORP_SUFFIX_RE = /\b(inc|llc|ltd|limited|corp|corporation|group|holdings|international|global|capital|fund|partners|advisors?|management|services|solutions|ventures|investments?|enterprises?|associates?|consulting|technologies|tech|financial|realty|properties|trust|family|l\.?p\.?|s\.?a\.?s\.?|s\.?a\.?r\.?l\.?|s\.?a\.?|gmbh|s\.?r\.?l\.?|b\.?v\.?|n\.?v\.?|a\.?g\.?)\b\.?/gi;
+
+export function guessCompanyDomainWithCity(companyName: string, city: string | null): string[] {
+  const stripped = companyName.replace(CORP_SUFFIX_RE, "").trim();
+  const base = stripped.toLowerCase().replace(/[^a-z0-9 ]/g, "").replace(/\s+/g, "");
+  const hyphen = stripped.toLowerCase().replace(/[^a-z0-9 ]/g, "").replace(/\s+/g, "-");
+  if (!base || base.length < 2) return [];
+
+  const candidates: string[] = [];
+
+  // City-derived variants first (highest relevance for location-branded venues)
+  if (city) {
+    const cityClean = city.toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (cityClean && cityClean !== base) {
+      candidates.push(`${base}${cityClean}.com`);
+      candidates.push(`${base}-${cityClean}.com`);
+      candidates.push(`${hyphen}${cityClean}.com`);
+    }
+  }
+
+  // Standard variants
+  candidates.push(`${base}.com`, `${hyphen}.com`, `${base}.co`, `${base}.io`,
+    `${base}.org`, `${base}.net`, `${base}.co.uk`, `${base}.fr`, `${base}.de`);
+
+  return [...new Set(candidates)].slice(0, 8);
+}
+
+// ── Person-hop: extract candidate person names from search text ───────────────
+
+/**
+ * Extract person name candidates from a body of search result text.
+ * Uses keyword patterns in English, French, German, Italian, Spanish.
+ * Returns deduplicated list of "Firstname Lastname" strings.
+ */
+const PERSON_PATTERNS: RegExp[] = [
+  // English
+  /(?:founded|owned|run|led|managed|created|started|built|established|operated)\s+by\s+([A-ZÀ-ÖØ-Ü][a-zà-öø-ü]+(?:[\s\-][A-ZÀ-ÖØ-Ü][a-zà-öø-ü\-]+){1,3})/g,
+  /(?:CEO|CFO|COO|CTO|CMO|owner|co-owner|founder|co-founder|director|chairman|president|partner|principal|managing director)\s*[:\-]?\s*([A-ZÀ-ÖØ-Ü][a-zà-öø-ü]+\s+[A-ZÀ-ÖØ-Ü][a-zà-öø-ü\-]+)/g,
+  // French
+  /(?:fondé par|fondateur|co-fondateur|propriétaire|co-propriétaire|gérant|directeur général|PDG|DG|directeur|associé)\s*[:\-]?\s*([A-ZÀ-ÖØ-ÜÉÈÊËÀÂÙÛÜÇÎÏÔŒæœ][a-zà-öø-üéèêëàâùûüçîïôœ]+(?:[\s\-][A-ZÀ-ÖØ-Ü][a-zà-öø-ü\-]+){1,2})/g,
+  /(?:M\.|M |Mme\.?|Mme |Monsieur|Madame)\s+([A-ZÀ-ÖØ-Ü][a-zà-öø-ü]+\s+[A-ZÀ-ÖØ-Ü][a-zà-öø-ü\-]+)/g,
+  // German
+  /(?:Inhaber|Geschäftsführer|Gründer|Mitgründer|Eigentümer|Gesellschafter|Vorstand|Vorsitzender)\s*[:\-]?\s*([A-ZÄÖÜ][a-zäöü]+\s+[A-ZÄÖÜ][a-zäöü\-]+)/g,
+  // Italian
+  /(?:fondato da|fondatore|proprietario|titolare|amministratore|socio)\s*[:\-]?\s*([A-ZÀ-ÖØ-Ü][a-zà-öø-ü]+\s+[A-ZÀ-ÖØ-Ü][a-zà-öø-ü\-]+)/g,
+  // Spanish
+  /(?:fundado por|fundador|propietario|dueño|director|socio)\s*[:\-]?\s*([A-ZÀ-ÖØ-Ü][a-zà-öø-ü]+\s+[A-ZÀ-ÖØ-Ü][a-zà-öø-ü\-]+)/g,
+];
+
+// Common first/last name parts that are NOT person names
+const NOT_A_PERSON = new Set([
+  "the", "and", "or", "of", "in", "at", "for", "to", "by",
+  "le", "la", "les", "de", "du", "des", "un", "une", "sur", "avec", "par",
+  "und", "der", "die", "das", "von", "zu",
+  "the company", "the group", "the firm", "the club", "the hotel",
+]);
+
+function extractPersonCandidates(text: string): string[] {
+  const found = new Set<string>();
+  for (const pattern of PERSON_PATTERNS) {
+    const re = new RegExp(pattern.source, pattern.flags);
+    for (const m of text.matchAll(re)) {
+      const name = (m[1] ?? "").trim();
+      if (name.length < 4 || name.length > 60) continue;
+      const lower = name.toLowerCase();
+      if (NOT_A_PERSON.has(lower)) continue;
+      // Must have at least two words each starting with uppercase
+      const words = name.split(/\s+/);
+      if (words.length < 2) continue;
+      if (!words.every(w => /^[A-ZÀ-ÖØ-Üa-zà-öø-ü\-]/.test(w))) continue;
+      found.add(name);
+    }
+  }
+  return [...found].slice(0, 5); // max 5 person candidates per entity
+}
+
+// ── Search engine functions ───────────────────────────────────────────────────
+
+interface SearchResult {
+  text:   string;
+  urls:   string[];
+  engine: string;
 }
 
 function stripHtml(html: string): string {
@@ -424,14 +649,21 @@ function extractBingUrls(html: string): string[] {
   return [...new Set(urls)].slice(0, 8);
 }
 
-interface SearchResult {
-  text:   string;
-  urls:   string[];
-  engine: string;
+function extractQwantUrls(html: string): string[] {
+  const urls: string[] = [];
+  const hrefRe = /href="(https?:\/\/(?!www\.qwant\.com)[^"]+)"/g;
+  for (const m of html.matchAll(hrefRe)) {
+    try {
+      const url = m[1]!;
+      const domain = new URL(url).hostname.replace(/^www\./, "");
+      if (!SKIP_DOMAINS.has(domain)) urls.push(url);
+    } catch { /* skip */ }
+  }
+  return [...new Set(urls)].slice(0, 8);
 }
 
-async function duckduckgoSearch(query: string): Promise<SearchResult> {
-  const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}&kl=us-en`;
+async function duckduckgoSearch(query: string, locale = "wt-wt"): Promise<SearchResult> {
+  const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}&kl=${locale}`;
   try {
     const resp = await fetch(url, {
       signal: AbortSignal.timeout(14_000),
@@ -452,15 +684,17 @@ async function duckduckgoSearch(query: string): Promise<SearchResult> {
   }
 }
 
-async function bingSearch(query: string): Promise<SearchResult> {
-  const url = `https://www.bing.com/search?q=${encodeURIComponent(query)}&setlang=en&cc=US&first=1`;
+async function bingSearch(query: string, country: string | null): Promise<SearchResult> {
+  const cc = country ?? "US";
+  const setlang = country === "FR" ? "fr" : country === "DE" ? "de" : country === "IT" ? "it" : country === "ES" ? "es" : "en";
+  const url = `https://www.bing.com/search?q=${encodeURIComponent(query)}&setlang=${setlang}&cc=${cc}&first=1`;
   try {
     const resp = await fetch(url, {
       signal: AbortSignal.timeout(14_000),
       headers: {
         "User-Agent": randomUA(),
         Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.5",
+        "Accept-Language": setlang === "fr" ? "fr-FR,fr;q=0.9" : "en-US,en;q=0.5",
         Referer: "https://www.bing.com/",
       },
     });
@@ -473,7 +707,39 @@ async function bingSearch(query: string): Promise<SearchResult> {
   }
 }
 
-async function scrapePage(url: string): Promise<{ email: string | null; phone: string | null; linkedinUrl: string | null }> {
+/**
+ * Qwant search — French search engine with much better coverage of French
+ * regional media, local business directories, and French-language content
+ * compared to DuckDuckGo. Used for FR/BE/CH/MC entities.
+ */
+async function qwantSearch(query: string, locale = "fr_FR"): Promise<SearchResult> {
+  const url = `https://www.qwant.com/?q=${encodeURIComponent(query)}&t=web&locale=${locale}&uiv=4`;
+  try {
+    const resp = await fetch(url, {
+      signal: AbortSignal.timeout(14_000),
+      headers: {
+        "User-Agent": randomUA(),
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.5",
+        Referer: "https://www.qwant.com/",
+      },
+    });
+    if (!resp.ok) return { text: "", urls: [], engine: "Qwant" };
+    const html = await resp.text();
+    return { text: stripHtml(html).slice(0, 12_000), urls: extractQwantUrls(html), engine: "Qwant" };
+  } catch (err: any) {
+    logger.debug({ err: err?.message, query }, "Qwant search failed");
+    return { text: "", urls: [], engine: "Qwant" };
+  }
+}
+
+async function scrapePage(url: string): Promise<{
+  email: string | null;
+  phone: string | null;
+  linkedinUrl: string | null;
+  instagramUrl: string | null;
+  twitterUrl: string | null;
+}> {
   try {
     const resp = await fetch(url, {
       signal: AbortSignal.timeout(10_000),
@@ -483,9 +749,10 @@ async function scrapePage(url: string): Promise<{ email: string | null; phone: s
       },
       redirect: "follow",
     });
-    if (!resp.ok) return { email: null, phone: null, linkedinUrl: null };
+    if (!resp.ok) return { email: null, phone: null, linkedinUrl: null, instagramUrl: null, twitterUrl: null };
     const html = await resp.text().then(h => h.slice(0, 80_000));
 
+    // mailto: href is most reliable source
     let email: string | null = null;
     const mailtoRe = /href=["']mailto:([^"'?\s]+)/gi;
     for (const m of html.matchAll(mailtoRe)) {
@@ -503,77 +770,187 @@ async function scrapePage(url: string): Promise<{ email: string | null; phone: s
     const liM = html.match(liRe);
     if (liM) linkedinUrl = liM[1]!.replace(/\/$/, "");
 
+    // Instagram from link tags
+    let instagramUrl: string | null = null;
+    const igRe = /href=["'](https?:\/\/(?:www\.)?instagram\.com\/([a-zA-Z0-9._]{2,30}))[^"']*/i;
+    const igM = html.match(igRe);
+    if (igM) instagramUrl = igM[1]!;
+
+    // Twitter/X from link tags
+    let twitterUrl: string | null = null;
+    const twRe = /href=["'](https?:\/\/(?:www\.)?(?:twitter|x)\.com\/([a-zA-Z0-9_]{2,50}))[^"']*/i;
+    const twM = html.match(twRe);
+    if (twM) twitterUrl = twM[1]!;
+
     const text = stripHtml(html).slice(0, 15_000);
     if (!email) email = extractEmails(text)[0] ?? null;
     const phone = extractPhone(text);
     if (!linkedinUrl) linkedinUrl = extractLinkedIn(text);
+    if (!instagramUrl) instagramUrl = extractInstagram(text);
+    if (!twitterUrl) twitterUrl = extractTwitter(text);
 
-    return { email, phone, linkedinUrl };
+    return { email, phone, linkedinUrl, instagramUrl, twitterUrl };
   } catch {
-    return { email: null, phone: null, linkedinUrl: null };
+    return { email: null, phone: null, linkedinUrl: null, instagramUrl: null, twitterUrl: null };
   }
 }
 
-function buildQueries(entity: DeepWebOsintInput): string[] {
-  const meta = safeJson<Record<string, unknown>>(entity.metadata, {});
-  const name = normaliseName(entity.name.trim());
-  if (!name || name.length < 4) return [];
+/**
+ * Try contact/about/team pages on a discovered domain.
+ * Multilingual paths cover EN/FR/DE/IT/ES sites.
+ */
+async function findContactPages(domain: string): Promise<{
+  email: string | null;
+  phone: string | null;
+  instagramUrl: string | null;
+}> {
+  const paths = [
+    "/contact", "/contact-us", "/contactez-nous", "/nous-contacter",
+    "/about", "/about-us", "/qui-sommes-nous", "/uber-uns",
+    "/team", "/equipe", "/our-team", "/staff", "/management",
+    "/kontakt", "/impressum", "/contatti", "/contacto",
+    "/reservation", "/reservations", "/book", "/booking",
+  ];
+  for (const path of paths) {
+    try {
+      const scraped = await scrapePage(`https://${domain}${path}`);
+      if (scraped.email || scraped.phone) {
+        return { email: scraped.email, phone: scraped.phone, instagramUrl: scraped.instagramUrl };
+      }
+    } catch { /* next path */ }
+    await sleep(300);
+  }
+  return { email: null, phone: null, instagramUrl: null };
+}
 
-  if (/^\d+\s/.test(name) || /\b(flat|house|cottage|manor|farm|apartment)\s+\d/i.test(name)) return [];
+function extractEmails(text: string): string[] {
+  const all = [...text.matchAll(EMAIL_RE)].map(m => m[0]!.toLowerCase());
+  return [...new Set(all.filter(e => {
+    const d = e.split("@")[1] ?? "";
+    return isValidPublicEmail(e) && e.length < 80 && !EMAIL_BLOCK.has(d);
+  }))];
+}
+
+function extractPhone(text: string): string | null {
+  for (const p of PHONE_RE_MULTI) {
+    const m = text.match(p);
+    if (m) {
+      const c = m[0]!.replace(/\s+/g, " ").trim();
+      if ((c.match(/\d/g) ?? []).length >= 7) return c;
+    }
+  }
+  return null;
+}
+
+// ── Query builder (Phase K overhaul) ─────────────────────────────────────────
+
+/**
+ * Build search queries using:
+ * - Trading name (not raw legal name)
+ * - City context
+ * - Language-specific templates
+ * - Direct domain targets
+ */
+function buildQueries(
+  entity: DeepWebOsintInput,
+  tradingName: string,
+  city: string | null,
+  country: string | null,
+): { queries: string[]; domainTargets: string[] } {
+  const legalName = normaliseName(entity.name.trim());
+  if (!legalName || legalName.length < 4) return { queries: [], domainTargets: [] };
+
+  if (/^\d+\s/.test(legalName) || /\b(flat|house|cottage|manor|farm|apartment)\s+\d/i.test(legalName)) {
+    return { queries: [], domainTargets: [] };
+  }
 
   const isIndividual = entity.type === "HNWI" || entity.type === "Gatekeeper" ||
-    /^[A-Z][a-z]+ [A-Z]/.test(name);
+    /^[A-Z][a-z]+ [A-Z]/.test(legalName);
   const isCorp = !isIndividual;
+  const meta = safeJson<Record<string, unknown>>(entity.metadata, {});
 
   const queries: string[] = [];
+  const domainTargets: string[] = [];
+
+  const isFrench  = country === "FR" || country === "BE" || country === "MC";
+  const isGerman  = country === "DE" || country === "AT" || country === "CH";
+  const isItalian = country === "IT";
+  const isSpanish = country === "ES";
 
   if (isIndividual) {
-    queries.push(`"${name}" email contact`);
-    queries.push(`"${name}" linkedin`);
+    queries.push(`"${legalName}" email contact`);
+    queries.push(`"${legalName}" linkedin`);
 
     const nNumber = typeof meta["nNumber"] === "string" ? meta["nNumber"] as string : null;
     if (nNumber) {
       queries.push(`"${nNumber}" aircraft owner contact email`);
-      queries.push(`"${name}" pilot aviation email`);
+      queries.push(`"${legalName}" pilot aviation email`);
     }
 
     const companyName = typeof meta["companyName"] === "string" ? (meta["companyName"] as string).trim() : null;
-    if (companyName && companyName !== name) {
-      queries.push(`"${name}" "${companyName.substring(0, 40)}" contact`);
+    if (companyName && companyName !== legalName) {
+      queries.push(`"${legalName}" "${companyName.substring(0, 40)}" contact`);
     } else if (typeof meta["formType"] === "string") {
-      queries.push(`"${name}" investor director SEC contact email`);
+      queries.push(`"${legalName}" investor director SEC contact email`);
     }
 
-    const bizLocation = typeof meta["bizLocation"] === "string" ? meta["bizLocation"] as string : null;
-    const residences = safeJson<string | string[]>(entity.knownResidences, []);
-    const firstResidence = Array.isArray(residences) ? residences[0] : residences;
-    const geoContext = bizLocation || (typeof firstResidence === "string" ? firstResidence : null);
-    if (geoContext) {
-      const city = geoContext.split(",")[0]?.trim();
-      if (city && city.length > 2 && city !== name) {
-        queries.push(`"${name}" "${city}" contact email phone`);
-      }
+    if (city && city !== legalName) {
+      queries.push(`"${legalName}" ${city} contact email phone`);
+    }
+
+    if (isFrench) {
+      queries.push(`"${legalName}" contact email France`);
     }
   }
 
   if (isCorp) {
-    const clean = name
-      .replace(/\b(llc|ltd|limited|corp|corporation|inc|incorporated|group|holdings|trust|co)\b\.?$/gi, "")
-      .trim();
+    // Use TRADING name for all queries — not the raw legal name
+    // Legal name ("BAOLI SAS") never appears in press, venue guides, or social profiles
+    // Trading name ("Baoli Cannes") is what the public knows
 
-    queries.push(`"${name}" CEO director email contact`);
-    queries.push(`"${clean}" registered office contact phone`);
-    queries.push(`"${name}" head office address`);
+    // Primary: trading name + city + contact keywords
+    if (tradingName !== legalName) {
+      queries.push(`"${tradingName}" contact email`);
+      if (city) queries.push(`"${tradingName}" ${city} contact email`);
+    }
+    // Always include legal name as fallback for corporate directory hits
+    queries.push(`"${legalName}" contact email`);
 
-    const chId = typeof meta["chId"] === "string" ? meta["chId"] as string : null;
-    if (chId || /uk|ltd|plc/i.test(entity.sourceRegistries ?? "")) {
-      queries.push(`site:companies-house.gov.uk "${clean}"`);
+    // City-context queries (high yield for local hospitality/venue targets)
+    if (city) {
+      queries.push(`${tradingName} ${city} email réservations contact`);
+      queries.push(`${tradingName} ${city} owner founder manager`);
     }
 
-    queries.push(`"${name}" management team email`);
+    // Language-specific templates
+    if (isFrench) {
+      queries.push(`"${tradingName}" contact réservations email`);
+      queries.push(`"${tradingName}" propriétaire fondateur dirigeant`);
+      if (city) queries.push(`${tradingName} ${city} fondateur email`);
+    }
+    if (isGerman) {
+      queries.push(`"${tradingName}" Kontakt email Inhaber Geschäftsführer`);
+      queries.push(`"${tradingName}" Gründer Eigentümer`);
+    }
+    if (isItalian) {
+      queries.push(`"${tradingName}" contatti email fondatore titolare`);
+    }
+    if (isSpanish) {
+      queries.push(`"${tradingName}" contacto email fundador propietario`);
+    }
+
+    // English fallback
+    queries.push(`"${tradingName}" CEO owner founder contact`);
+
+    // Domain guessing — add to direct scrape targets, not search queries
+    const domains = guessCompanyDomainWithCity(legalName, city);
+    domainTargets.push(...domains.slice(0, 4));
   }
 
-  return queries.slice(0, 7);
+  return {
+    queries: [...new Set(queries)].slice(0, 10),
+    domainTargets: [...new Set(domainTargets)],
+  };
 }
 
 function scoreByCorroboration(sources: number): number {
@@ -588,24 +965,40 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     email: null, emailConfidence: 0,
     phone: null, phoneConfidence: 0,
     linkedinUrl: null,
+    instagramUrl: null,
+    twitterUrl: null,
     sources: [], queriesFired: 0, pagesScraped: 0,
+    personsDiscovered: [],
   };
 
-  const queries = buildQueries(entity);
-  if (queries.length === 0) return result;
+  // ── Derive context from entity ──────────────────────────────────────────
+  const country  = detectCountry(entity.nationality, entity.knownResidences, entity.metadata);
+  const locale   = countryToLocale(country);
+  const city     = extractCity(entity.knownResidences, entity.metadata);
+  const trading  = deriveTradingName(entity.name, city);
+
+  const isCorp = entity.type === "Corporation" || entity.type === "Trust";
+  const isFrench = country === "FR" || country === "BE" || country === "MC";
+
+  const { queries, domainTargets } = buildQueries(entity, trading, city, country);
+  if (queries.length === 0 && domainTargets.length === 0) return result;
 
   const emailHits    = new Map<string, string[]>();
   const phoneHits    = new Map<string, string[]>();
   const linkedinHits = new Map<string, string[]>();
+  const igHits       = new Map<string, string[]>();
+  const twHits       = new Map<string, string[]>();
   const urlsToScrape = new Set<string>();
+  let allSearchText  = "";
 
-  // Phase 1: DDG HTML search on all queries
+  // ── Phase 1: DDG search (locale-aware) ─────────────────────────────────
   for (let i = 0; i < queries.length; i++) {
     const query = queries[i]!;
     const label = `DDG[q${i + 1}]`;
     try {
-      const sr = await duckduckgoSearch(query);
+      const sr = await duckduckgoSearch(query, locale);
       result.queriesFired++;
+      allSearchText += " " + sr.text;
       if (sr.text) {
         for (const e of extractEmails(sr.text)) {
           const arr = emailHits.get(e) ?? []; arr.push(label); emailHits.set(e, arr);
@@ -614,20 +1007,52 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         if (ph) { const arr = phoneHits.get(ph) ?? []; arr.push(label); phoneHits.set(ph, arr); }
         const li = extractLinkedIn(sr.text);
         if (li) { const arr = linkedinHits.get(li) ?? []; arr.push(label); linkedinHits.set(li, arr); }
+        const ig = extractInstagram(sr.text);
+        if (ig) { const arr = igHits.get(ig) ?? []; arr.push(label); igHits.set(ig, arr); }
+        const tw = extractTwitter(sr.text);
+        if (tw) { const arr = twHits.get(tw) ?? []; arr.push(label); twHits.set(tw, arr); }
       }
       for (const u of sr.urls) { if (urlsToScrape.size < 6) urlsToScrape.add(u); }
     } catch { /* skip */ }
     if (i < queries.length - 1) await jitteredDelay(900);
   }
 
-  // Phase 2: Bing on top 2 most specific queries
-  const bingQueries = queries.filter(q => q.includes("email") || q.includes("contact")).slice(0, 2);
+  // ── Phase 2: Qwant for French entities (much better French coverage) ───
+  const qwantQueries = isFrench
+    ? queries.filter(q => q.includes(trading) || (city && q.includes(city))).slice(0, 3)
+    : [];
+  for (let i = 0; i < qwantQueries.length; i++) {
+    const query = qwantQueries[i]!;
+    const label = `Qwant[q${i + 1}]`;
+    try {
+      const sr = await qwantSearch(query, "fr_FR");
+      result.queriesFired++;
+      allSearchText += " " + sr.text;
+      if (sr.text) {
+        for (const e of extractEmails(sr.text)) {
+          const arr = emailHits.get(e) ?? []; arr.push(label); emailHits.set(e, arr);
+        }
+        const ph = extractPhone(sr.text);
+        if (ph) { const arr = phoneHits.get(ph) ?? []; arr.push(label); phoneHits.set(ph, arr); }
+        const li = extractLinkedIn(sr.text);
+        if (li) { const arr = linkedinHits.get(li) ?? []; arr.push(label); linkedinHits.set(li, arr); }
+        const ig = extractInstagram(sr.text);
+        if (ig) { const arr = igHits.get(ig) ?? []; arr.push(label); igHits.set(ig, arr); }
+      }
+      for (const u of sr.urls) { if (urlsToScrape.size < 8) urlsToScrape.add(u); }
+    } catch { /* skip */ }
+    if (i < qwantQueries.length - 1) await jitteredDelay(1000);
+  }
+
+  // ── Phase 3: Bing on top queries (country-aware) ────────────────────────
+  const bingQueries = queries.filter(q => q.includes("email") || q.includes("contact") || q.includes("réservations")).slice(0, 2);
   for (let i = 0; i < bingQueries.length; i++) {
     const query = bingQueries[i]!;
     const label = `Bing[q${i + 1}]`;
     try {
-      const sr = await bingSearch(query);
+      const sr = await bingSearch(query, country);
       result.queriesFired++;
+      allSearchText += " " + sr.text;
       if (sr.text) {
         for (const e of extractEmails(sr.text)) {
           const arr = emailHits.get(e) ?? []; arr.push(label); emailHits.set(e, arr);
@@ -637,26 +1062,86 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         const li = extractLinkedIn(sr.text);
         if (li) { const arr = linkedinHits.get(li) ?? []; arr.push(label); linkedinHits.set(li, arr); }
       }
-      for (const u of sr.urls) { if (urlsToScrape.size < 6) urlsToScrape.add(u); }
+      for (const u of sr.urls) { if (urlsToScrape.size < 8) urlsToScrape.add(u); }
     } catch { /* skip */ }
     if (i < bingQueries.length - 1) await jitteredDelay(1000);
   }
 
-  // Phase 3: Scrape top result URLs
-  const scrapeTargets = [...urlsToScrape].slice(0, 3);
+  // ── Phase 4: Corp → Person hop ─────────────────────────────────────────
+  // Extract person names from all search snippets collected so far.
+  // Then run targeted person queries — this is how we get from "BAOLI SAS"
+  // to "Christophe Caucino" without needing an AI model.
+  if (isCorp && allSearchText.length > 200) {
+    const persons = extractPersonCandidates(allSearchText);
+    if (persons.length > 0) {
+      result.personsDiscovered.push(...persons);
+      logger.info({ entityId: entity.id, persons }, "Corp→Person hop: discovered person candidates");
+
+      for (const personName of persons.slice(0, 3)) {
+        const personQuery = `"${personName}" email contact linkedin`;
+        const label = `PersonHop[${personName.split(" ")[0]}]`;
+        try {
+          const sr = await duckduckgoSearch(personQuery, locale);
+          result.queriesFired++;
+          if (sr.text) {
+            for (const e of extractEmails(sr.text)) {
+              const arr = emailHits.get(e) ?? []; arr.push(label); emailHits.set(e, arr);
+            }
+            const li = extractLinkedIn(sr.text);
+            if (li) { const arr = linkedinHits.get(li) ?? []; arr.push(label); linkedinHits.set(li, arr); }
+            const ig = extractInstagram(sr.text);
+            if (ig) { const arr = igHits.get(ig) ?? []; arr.push(label); igHits.set(ig, arr); }
+          }
+          for (const u of sr.urls) { if (urlsToScrape.size < 10) urlsToScrape.add(u); }
+        } catch { /* skip */ }
+        await jitteredDelay(800);
+      }
+    }
+  }
+
+  // ── Phase 5: Direct domain scraping ────────────────────────────────────
+  // Try guessed domains directly before scraping search-result URLs.
+  // This finds reservations@baolicannes.com without needing it to appear in a search snippet.
+  for (const domain of domainTargets.slice(0, 4)) {
+    try {
+      const label = `Domain[${domain}]`;
+      // First try the root — fast check if the domain even resolves
+      const rootScrape = await scrapePage(`https://${domain}`);
+      result.pagesScraped++;
+      if (rootScrape.email) { const arr = emailHits.get(rootScrape.email) ?? []; arr.push(label); emailHits.set(rootScrape.email, arr); }
+      if (rootScrape.phone) { const arr = phoneHits.get(rootScrape.phone) ?? []; arr.push(label); phoneHits.set(rootScrape.phone, arr); }
+      if (rootScrape.linkedinUrl) { const arr = linkedinHits.get(rootScrape.linkedinUrl) ?? []; arr.push(label); linkedinHits.set(rootScrape.linkedinUrl, arr); }
+      if (rootScrape.instagramUrl) { const arr = igHits.get(rootScrape.instagramUrl) ?? []; arr.push(label); igHits.set(rootScrape.instagramUrl, arr); }
+      if (rootScrape.twitterUrl) { const arr = twHits.get(rootScrape.twitterUrl) ?? []; arr.push(label); twHits.set(rootScrape.twitterUrl, arr); }
+
+      // If root resolved (email found), also check contact sub-pages
+      if (!rootScrape.email) {
+        const contactScrape = await findContactPages(domain);
+        if (contactScrape.email) { const arr2 = emailHits.get(contactScrape.email) ?? []; arr2.push(`${label}/contact`); emailHits.set(contactScrape.email, arr2); }
+        if (contactScrape.phone) { const arr2 = phoneHits.get(contactScrape.phone) ?? []; arr2.push(`${label}/contact`); phoneHits.set(contactScrape.phone, arr2); }
+        if (contactScrape.instagramUrl) { const arr2 = igHits.get(contactScrape.instagramUrl) ?? []; arr2.push(`${label}/contact`); igHits.set(contactScrape.instagramUrl, arr2); }
+      }
+    } catch { /* domain doesn't resolve */ }
+    await jitteredDelay(600);
+  }
+
+  // ── Phase 6: Scrape search-result URLs ─────────────────────────────────
+  const scrapeTargets = [...urlsToScrape].slice(0, 5);
   for (const url of scrapeTargets) {
     try {
       const scraped = await scrapePage(url);
       result.pagesScraped++;
       const label = `Page[${new URL(url).hostname.replace(/^www\./, "").substring(0, 20)}]`;
-      if (scraped.email) { const arr = emailHits.get(scraped.email) ?? []; arr.push(label); emailHits.set(scraped.email, arr); }
-      if (scraped.phone) { const arr = phoneHits.get(scraped.phone) ?? []; arr.push(label); phoneHits.set(scraped.phone, arr); }
+      if (scraped.email)       { const arr = emailHits.get(scraped.email) ?? []; arr.push(label); emailHits.set(scraped.email, arr); }
+      if (scraped.phone)       { const arr = phoneHits.get(scraped.phone) ?? []; arr.push(label); phoneHits.set(scraped.phone, arr); }
       if (scraped.linkedinUrl) { const arr = linkedinHits.get(scraped.linkedinUrl) ?? []; arr.push(label); linkedinHits.set(scraped.linkedinUrl, arr); }
+      if (scraped.instagramUrl){ const arr = igHits.get(scraped.instagramUrl) ?? []; arr.push(label); igHits.set(scraped.instagramUrl, arr); }
+      if (scraped.twitterUrl)  { const arr = twHits.get(scraped.twitterUrl) ?? []; arr.push(label); twHits.set(scraped.twitterUrl, arr); }
     } catch { /* skip */ }
     await jitteredDelay(700);
   }
 
-  // Phase 4: Pick best-corroborated values
+  // ── Phase 7: Pick best-corroborated values ──────────────────────────────
   let bestEmail = ""; let bestEmailCount = 0;
   for (const [email, srcs] of emailHits.entries()) {
     if (srcs.length > bestEmailCount) { bestEmail = email; bestEmailCount = srcs.length; }
@@ -684,6 +1169,24 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   if (bestLinkedIn) {
     result.linkedinUrl = bestLinkedIn;
     result.sources.push(...(linkedinHits.get(bestLinkedIn) ?? []));
+  }
+
+  let bestIg = ""; let bestIgCount = 0;
+  for (const [ig, srcs] of igHits.entries()) {
+    if (srcs.length > bestIgCount) { bestIg = ig; bestIgCount = srcs.length; }
+  }
+  if (bestIg) {
+    result.instagramUrl = bestIg;
+    result.sources.push(...(igHits.get(bestIg) ?? []));
+  }
+
+  let bestTw = ""; let bestTwCount = 0;
+  for (const [tw, srcs] of twHits.entries()) {
+    if (srcs.length > bestTwCount) { bestTw = tw; bestTwCount = srcs.length; }
+  }
+  if (bestTw) {
+    result.twitterUrl = bestTw;
+    result.sources.push(...(twHits.get(bestTw) ?? []));
   }
 
   result.sources = [...new Set(result.sources)];
