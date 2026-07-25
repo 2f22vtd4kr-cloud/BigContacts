@@ -40,7 +40,7 @@ import { createHash } from "crypto";
 import { promises as dns } from "dns";
 import * as net from "net";
 import { logger } from "./logger";
-import { isValidPublicEmail, sanitizePublicEmail } from "./contact-validation";
+import { isValidPublicEmail, sanitizePublicEmail, isGenericEmailPrefix, REGISTRAR_DOMAINS, normalizePhone } from "./contact-validation";
 
 // ─── Result / Input types ─────────────────────────────────────────────────────
 
@@ -55,6 +55,13 @@ export interface InHouseEnrichResult {
   emailConfidence: number;   // 0-100
   phoneConfidence: number;   // 0-100
   sourceHits:      Record<string, boolean>;  // per-source hit tracking
+  // K2/L1: generic-prefix flag — set when the winning email is an org inbox
+  hasGenericEmail?: boolean;
+  // K5: source labels for org-contact classification in computeContactOutcome
+  emailSource?: string | null;
+  phoneSource?: string | null;
+  // M1: set true when SMTP handshake confirmed the email is deliverable
+  smtpVerified?: boolean;
 }
 
 export interface InHouseEnrichInput {
@@ -813,6 +820,14 @@ async function rdapLookup(domain: string): Promise<{ email: string | null; org: 
       if (email) break;
     }
 
+    // K1: discard if the email's domain belongs to a registrar or hosting provider
+    if (email) {
+      const rdapEmailDomain = email.split("@")[1]?.toLowerCase() ?? "";
+      if (REGISTRAR_DOMAINS.has(rdapEmailDomain)) {
+        logger.debug({ domain: rdapEmailDomain }, "RDAP email discarded — registrar/infra domain");
+        email = null;
+      }
+    }
     return { email, org, phone };
   } catch (err: any) {
     logger.debug({ err: err.message }, "RDAP lookup failed");
@@ -1222,21 +1237,36 @@ export async function enrichInHouse(entity: InHouseEnrichInput): Promise<InHouse
   let knownDomain = domainFromMeta(entity.metadata, entity.notes);
 
   const addSource = (tag: string) => { result.sources.push(tag); result.sourceHits[tag] = true; };
+
+  // K2: penalise generic corporate prefixes at write time — they indicate shared
+  // inboxes rather than personal contacts. Confidence is reduced by 30 points;
+  // if the adjusted score falls to zero or below, the email is discarded entirely.
   const setEmail = (email: string | null, confidence: number, source: string) => {
     if (!email) return;
-    if (confidence > result.emailConfidence) {
-      result.email = email; result.emailConfidence = confidence; addSource(source);
+    const local = email.split("@")[0]?.toLowerCase() ?? "";
+    let adj = confidence;
+    if (isGenericEmailPrefix(local)) {
+      adj -= 30;
+      result.hasGenericEmail = true; // propagated to computeContactOutcome (L1)
+    }
+    if (adj <= 0) return;
+    if (adj > result.emailConfidence) {
+      result.email = email;
+      result.emailConfidence = adj;
+      result.emailSource = source;
+      addSource(source);
     }
   };
-  // Phone values that are not real phone numbers — from RDAP privacy redaction etc.
-  const PHONE_BLOCKLIST = /redacted|privacy|not\s+public|unavailable|unknown|n\/a|none/i;
+
+  // K5: normalise phone to E.164 and require ≥ 8 digits (replaces manual PHONE_BLOCKLIST).
   const setPhone = (phone: string | null, confidence: number, source: string) => {
     if (!phone || result.phone) return;
-    const cleaned = phone.trim().replace(/^["']+|["']+$/g, "");
-    if (!cleaned || PHONE_BLOCKLIST.test(cleaned)) return;
-    // Must have at least 7 digits to be a valid phone number
-    if ((cleaned.match(/\d/g) ?? []).length < 7) return;
-    result.phone = cleaned; result.phoneConfidence = confidence; addSource(source);
+    const normalized = normalizePhone(phone);
+    if (!normalized) return;
+    result.phone = normalized;
+    result.phoneConfidence = confidence;
+    result.phoneSource = source;
+    addSource(source);
   };
 
   // ────────────────────────────────────────────────────────────────────────────
@@ -1529,6 +1559,7 @@ export async function enrichInHouse(entity: InHouseEnrichInput): Promise<InHouse
       if (smtp.confirmed) {
         result.emailConfidence = smtp.confidence;
         result.sourceHits["SMTP-Verify"] = true;
+        result.smtpVerified = true; // M1: promote to direct_contact_verified on DB write
         addSource("SMTP-Verified");
         logger.info({ email: result.email }, "SMTP verification confirmed email");
       }

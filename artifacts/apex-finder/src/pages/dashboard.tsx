@@ -740,8 +740,13 @@ function StatsBar() {
     {
       icon: <Mail size={18} style={{ color: "#10B981" }} />,
       iconBg: "rgba(16,185,129,0.15)",
-      value: (s.contactableCount ?? 0).toLocaleString(),
-      label: "Reachable",
+      // L2: show true personal-contact yield when backfill has run (reachablePersonal > 0),
+      // otherwise fall back to the legacy contactableCount (pre-backfill state).
+      value: ((s.reachablePersonal ?? 0) > 0
+        ? (s.reachablePersonal ?? 0)
+        : (s.contactableCount ?? 0)
+      ).toLocaleString(),
+      label: (s.reachablePersonal ?? 0) > 0 ? "Personal" : "Reachable",
       href: "/profiles?contactable=1",
     },
     {
@@ -1214,7 +1219,7 @@ function MobileStatTiles() {
   if (isError || !s) return null;
 
   const tiles = [
-    { value: (s.contactableCount ?? 0).toLocaleString(), label: "Reachable", href: "/profiles?contactable=1" },
+    { value: ((s.reachablePersonal ?? 0) > 0 ? (s.reachablePersonal ?? 0) : (s.contactableCount ?? 0)).toLocaleString(), label: (s.reachablePersonal ?? 0) > 0 ? "Personal" : "Reachable", href: "/profiles?contactable=1" },
     { value: jobs.length.toString(), label: "Active Jobs", href: "/jobs" },
     { value: (s.totalEntities ?? 0) >= 1000 ? `${Math.round((s.totalEntities ?? 0) / 1000)}k` : (s.totalEntities ?? 0).toLocaleString(), label: "Profiles", href: "/profiles" },
     { value: `${(s.enrichmentCoverage ?? 0).toFixed(1)}%`, label: "Coverage", href: null },

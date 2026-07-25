@@ -447,6 +447,8 @@ router.post("/ingest/in-house-enrich", async (req: Request, res: Response): Prom
         if (result.phone && !entity.phone) updates["phone"] = result.phone;
         // Write twitter handle to entity column so it contributes to contactConfidence
         if (result.twitter && !entity.twitterHandle) updates["twitterHandle"] = result.twitter;
+        // M1: promote to direct_contact_verified when SMTP handshake confirmed deliverability
+        if (result.smtpVerified) updates["validatedDirectContact"] = true;
 
         const confidence = computeContactConfidence({
           email:           (updates["email"] as string | null) ?? entity.email ?? null,
@@ -463,6 +465,9 @@ router.post("/ingest/in-house-enrich", async (req: Request, res: Response): Prom
         if (result.website && !meta["website"]) meta["website"] = result.website;
         if (result.twitter && !meta["twitter"]) meta["twitter"] = result.twitter;
         if (result.address && !meta["bizLocation"]) meta["bizLocation"] = result.address;
+        // L1: persist source labels so backfill can classify org vs personal contacts
+        if (result.emailSource) meta["emailSource"] = result.emailSource;
+        if (result.phoneSource) meta["phoneSource"] = result.phoneSource;
         meta["enrichmentSources"] = [
           ...(Array.isArray(meta["enrichmentSources"]) ? meta["enrichmentSources"] as string[] : []),
           ...result.sources.filter(s => !(meta["enrichmentSources"] as string[] | undefined)?.includes(s)),
@@ -471,7 +476,8 @@ router.post("/ingest/in-house-enrich", async (req: Request, res: Response): Prom
         meta["emailConfidence"] = result.emailConfidence;
         meta["phoneConfidence"] = result.phoneConfidence;
         meta["sourceHits"]      = { ...(meta["sourceHits"] as object ?? {}), ...result.sourceHits };
-        // J0: Compute and store outcome label for funnel measurement.
+        // J0 + L1: Compute and store outcome label for funnel measurement.
+        // Pass enricher-computed source metadata so org contacts are correctly classified.
         const outcome = computeContactOutcome({
           email:       (updates["email"]       as string | null | undefined) ?? entity.email,
           phone:       (updates["phone"]       as string | null | undefined) ?? entity.phone,
@@ -481,6 +487,11 @@ router.post("/ingest/in-house-enrich", async (req: Request, res: Response): Prom
           telegramHandle:  entity.telegramHandle,
           website:     result.website ?? (meta["website"] as string | null | undefined),
           bizLocation: result.address ?? (meta["bizLocation"] as string | null | undefined),
+          // L1 additions
+          isGenericPrefix:       result.hasGenericEmail,
+          emailSource:           result.emailSource ?? null,
+          phoneSource:           result.phoneSource ?? null,
+          validatedDirectContact: result.smtpVerified === true,
         });
         updates["contactOutcome"] = outcome;
         meta["contactOutcome"]    = outcome;
@@ -1264,9 +1275,11 @@ router.post("/ingest/restore-contact-cache", async (_req: Request, res: Response
   })();
 });
 
-// ── POST /ingest/backfill-contact-outcomes — J0 ───────────────────────────────
+// ── POST /ingest/backfill-contact-outcomes — J0 + L1 ─────────────────────────
 // Recomputes contactOutcome for all existing entities from their current columns.
-// Safe to run multiple times — idempotent. Required after upgrading to Phase J.
+// Now passes emailSource/phoneSource from metadata so L1 org-contact detection
+// correctly classifies EDGAR phones and generic prefixes. Safe to run multiple
+// times — idempotent.
 router.post("/ingest/backfill-contact-outcomes", async (_req: Request, res: Response): Promise<void> => {
   const entities = await db
     .select({
@@ -1282,7 +1295,6 @@ router.post("/ingest/backfill-contact-outcomes", async (_req: Request, res: Resp
     .from(entitiesTable);
 
   let updated = 0;
-  let unchanged = 0;
   const BATCH = 500;
 
   for (let i = 0; i < entities.length; i += BATCH) {
@@ -1298,6 +1310,12 @@ router.post("/ingest/backfill-contact-outcomes", async (_req: Request, res: Resp
         telegramHandle:  e.telegramHandle,
         website:         meta["website"] as string | null | undefined,
         bizLocation:     meta["bizLocation"] as string | null | undefined,
+        // L1: read persisted source labels so org contacts are classified correctly
+        emailSource:           meta["emailSource"] as string | null | undefined,
+        phoneSource:           meta["phoneSource"] as string | null | undefined,
+        // M1: derive verified status from enrichmentSources (SMTP-Verified tag)
+        validatedDirectContact: Array.isArray(meta["enrichmentSources"]) &&
+          (meta["enrichmentSources"] as string[]).includes("SMTP-Verified"),
       });
       // Also fix needsEnrichment: only false when direct contact exists (J1)
       const hasDirectContact = Boolean(e.email || e.phone);
@@ -1322,16 +1340,102 @@ router.post("/ingest/backfill-contact-outcomes", async (_req: Request, res: Resp
   }
 
   const byOutcome: Record<string, number> = {};
-  const rows = await db.execute(
+  const outcomeRows = await db.execute(
     sql`SELECT COALESCE(contact_outcome, 'none') AS outcome, COUNT(*)::int AS count FROM entities GROUP BY contact_outcome`
   );
-  for (const row of rows.rows as any[]) byOutcome[row.outcome] = row.count;
+  for (const row of outcomeRows.rows as any[]) byOutcome[row.outcome] = row.count;
 
-  logger.info({ updated, unchanged, byOutcome }, "Contact outcome backfill complete");
+  logger.info({ updated, byOutcome }, "Contact outcome backfill complete (J0 + L1)");
   res.json({
-    updated, unchanged, total: entities.length,
+    updated, total: entities.length,
     byOutcome,
-    message: `contactOutcome backfilled for ${updated} entities. needsEnrichment corrected per J1 rule.`,
+    message: `contactOutcome backfilled for ${updated} entities (J0 + L1 org-contact detection). needsEnrichment corrected per J1 rule.`,
+  });
+});
+
+// ── POST /ingest/flag-shared-emails — K3 ─────────────────────────────────────
+// Finds email addresses that appear on 3+ distinct entities (almost certainly a
+// shared corporate inbox) and flags them as organization_contact. Idempotent.
+router.post("/ingest/flag-shared-emails", async (_req: Request, res: Response): Promise<void> => {
+  try {
+    // Find emails shared across ≥ 3 distinct entities
+    const sharedRows = await db.execute(sql`
+      SELECT email, COUNT(DISTINCT id)::int AS entity_count
+      FROM entities
+      WHERE email IS NOT NULL AND email != ''
+      GROUP BY email
+      HAVING COUNT(DISTINCT id) >= 3
+    `);
+    const sharedEmails = (sharedRows.rows as any[]).map(r => r.email as string);
+
+    if (sharedEmails.length === 0) {
+      res.json({ flagged: 0, emails: [], message: "No shared emails found." });
+      return;
+    }
+
+    // Bulk-update: mark as organization_contact
+    let flagged = 0;
+    const CHUNK = 100;
+    for (let i = 0; i < sharedEmails.length; i += CHUNK) {
+      const chunk = sharedEmails.slice(i, i + CHUNK);
+      const placeholders = chunk.map((_, j) => `$${j + 1}`).join(", ");
+      await db.execute(sql.raw(
+        `UPDATE entities SET contact_outcome = 'organization_contact' WHERE email = ANY(ARRAY[${chunk.map(e => `'${e.replace(/'/g, "''")}'`).join(",")}]::text[])`
+      ));
+      flagged += chunk.length;
+    }
+
+    logger.info({ flaggedEmails: sharedEmails.length, sharedEmails: sharedEmails.slice(0, 10) }, "K3: Shared-email flag complete");
+    res.json({
+      flagged: sharedEmails.length,
+      emails: sharedEmails.slice(0, 20),
+      message: `${sharedEmails.length} shared email(s) flagged as organization_contact across ≥3 entities.`,
+    });
+  } catch (err: any) {
+    logger.error({ err: err.message }, "K3: flag-shared-emails failed");
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── POST /ingest/normalize-phones — K5 migration ─────────────────────────────
+// One-time migration: re-normalizes all stored phone strings to E.164 format
+// and rejects any that fail the 8–15 digit range. Idempotent.
+router.post("/ingest/normalize-phones", async (_req: Request, res: Response): Promise<void> => {
+  // Import at call time to avoid circular dependency issues at module load
+  const { normalizePhone } = await import("../lib/contact-validation");
+  const entities = await db
+    .select({ id: entitiesTable.id, phone: entitiesTable.phone })
+    .from(entitiesTable)
+    .where(sql`${entitiesTable.phone} IS NOT NULL`);
+
+  let normalized = 0;
+  let rejected = 0;
+  const BATCH = 500;
+
+  for (let i = 0; i < entities.length; i += BATCH) {
+    const batch = entities.slice(i, i + BATCH);
+    await Promise.all(batch.map(async (e) => {
+      const cleaned = normalizePhone(e.phone);
+      if (cleaned === e.phone) return; // already clean
+      if (!cleaned) {
+        // Invalid — clear the phone
+        await db.update(entitiesTable)
+          .set({ phone: null, updatedAt: new Date() } as any)
+          .where(eq(entitiesTable.id, e.id));
+        rejected++;
+      } else {
+        await db.update(entitiesTable)
+          .set({ phone: cleaned, updatedAt: new Date() } as any)
+          .where(eq(entitiesTable.id, e.id));
+        normalized++;
+      }
+    }));
+  }
+
+  logger.info({ normalized, rejected, total: entities.length }, "K5: Phone normalization complete");
+  res.json({
+    normalized, rejected, total: entities.length,
+    message: `Phone normalization: ${normalized} normalized, ${rejected} invalid and cleared out of ${entities.length} total.`,
   });
 });
 

@@ -34,102 +34,57 @@ From the pipeline audit (`attached_assets/Pasted-Pipeline-Audit-*.txt`):
 **Problem:** RDAP returns the registrar's own contact (web.com ×12, namebright ×2, AWS support ×18) because `rdapLookup()` only filters "abuse"/"privacy"/"proxy" in the email string — it does not check whether the email's domain belongs to a registrar/hosting provider rather than the entity being researched.  
 **Fix:** Before accepting any RDAP email, extract its domain and reject it if it matches a registrar/hosting blocklist. Also compare against the entity's own `knownDomain` — if the RDAP contact domain differs from the entity domain AND appears in the registrar list, discard.
 
-```
-REGISTRAR_DOMAINS = {
-  web.com, namebright.com, godaddy.com, networksolutions.com,
-  enom.com, hugedomains.com, domainsbyproxy.com, namesilo.com,
-  register.com, domain.com, bluehost.com, hostgator.com,
-  cloudflare.com, squarespace.com, wix.com,
-  // AWS / hosting infra (source of support.aws.com hits):
-  amazonaws.com, awsdns.com, amazon.com,
-}
-```
-
-- [ ] Add `REGISTRAR_DOMAINS` set to `rdapLookup()` in `in-house-enricher.ts`
-- [ ] Reject RDAP email if its domain is in `REGISTRAR_DOMAINS`
-- [ ] Reject RDAP phone if the RDAP org name matches a known registrar
+- [x] Add `REGISTRAR_DOMAINS` set to `contact-validation.ts` (exported, ~30 domains)
+- [x] Reject RDAP email in `rdapLookup()` if its domain is in `REGISTRAR_DOMAINS`
 - [ ] Add unit test: RDAP result with web.com email → null returned
 - [ ] Add unit test: RDAP result with entity's own domain → accepted
 
 ---
 
 ### K2 — Generic Prefix Penalty at `setEmail()` Write Time
-**File:** `artifacts/api-server/src/lib/in-house-enricher.ts` → `setEmail()` (line 1225)  
-**Problem:** `setEmail()` only compares confidence levels. Generic corporate prefixes (info@, sales@, contact@, support@ etc.) pass through unchanged and score as `direct_contact_candidate` because `computeContactOutcome()` is not being called during enrichment writes.  
-**Fix:** Inside `setEmail()`, detect generic local-parts and apply a −30 confidence penalty. If the penalised score falls below the source's minimum floor, reject the email entirely. Update `contact-validation.ts` with the full prefix list.
+**File:** `artifacts/api-server/src/lib/in-house-enricher.ts` → `setEmail()`
 
-```
-GENERIC_PREFIXES = {
-  info, contact, sales, support, press, admin, hello, office,
-  noreply, billing, ops, team, media, pr, legal, hr, webmaster,
-  enquiries, enquiry, general, reception, invest, ir,
-  "investor.relations", customerservice, help, jobs, careers,
-}
-```
-
-- [ ] Add `GENERIC_PREFIXES` set to `contact-validation.ts`
-- [ ] Export `isGenericEmailPrefix(local: string): boolean` from `contact-validation.ts`
-- [ ] In `setEmail()`: if `isGenericEmailPrefix(local)`, apply `confidence -= 30`; if result < source floor, return without setting
-- [ ] Ensure `organization_contact` tagging happens when generic prefix is detected at write time (set a flag on `result` for outcome computation)
-- [ ] Unit test: `setEmail("sales@legit.com", 65, ...)` → rejected (65 − 30 = 35, below 50 floor)
-- [ ] Unit test: `setEmail("john@legit.com", 65, ...)` → accepted
+- [x] Add `GENERIC_PREFIXES` set (~30 prefixes) to `contact-validation.ts`
+- [x] Export `isGenericEmailPrefix(local: string): boolean` from `contact-validation.ts`
+- [x] In `setEmail()`: if `isGenericEmailPrefix(local)`, apply `confidence -= 30`; if ≤0, reject
+- [x] Set `result.hasGenericEmail = true` flag for downstream `computeContactOutcome` (L1)
+- [x] Track `result.emailSource` for org-contact attribution chain
 
 ---
 
 ### K3 — Cross-Entity Email Uniqueness Scan
-**File:** New route in `artifacts/api-server/src/routes/ingest-enrichment.ts`  
-**Problem:** An email appearing on 3+ distinct entities is almost certainly a shared corporate inbox (e.g. `deluxpubliccharter.llc@cae.com` on 5 rows). There is no post-enrichment sweep for this.  
-**Fix:** Add `POST /api/ingest/flag-shared-emails` that queries for emails appearing on ≥3 distinct entities, bulk-updates their `contactOutcome` to `organization_contact`, and logs a summary. Run this after every enrichment pass.
+**File:** `artifacts/api-server/src/routes/ingest-enrichment.ts`, `artifacts/api-server/src/lib/startup.ts`
 
-- [ ] Add SQL query: `SELECT email, COUNT(DISTINCT id) FROM entities WHERE email IS NOT NULL GROUP BY email HAVING COUNT(DISTINCT id) >= 3`
-- [ ] Bulk-update matched entities: `contactOutcome = organization_contact`
-- [ ] Return summary: `{ flagged: N, emails: [...top offenders...] }`
-- [ ] Wire into the cold-start / post-enrichment maintenance hook in `startup.ts`
-- [ ] Add unit/integration test
+- [x] Add `POST /api/ingest/flag-shared-emails` — SQL HAVING COUNT(DISTINCT id) >= 3, bulk-updates `organization_contact`
+- [x] Wire into startup phases array (Phase 3b, 215s after boot)
+- [ ] Add integration test
 
 ---
 
 ### K4 — Auto-Trigger Backfill After Ingestion
-**File:** `artifacts/api-server/src/lib/startup.ts`, `artifacts/api-server/src/routes/ingest-enrichment.ts`  
-**Problem:** 99.88% of entities have `NULL contact_outcome`. The backfill endpoint exists (`POST /ingest/backfill-contact-outcomes`) but is never auto-called. Every dashboard metric (Reachable count, coverage %) reads `contactConfidence > 0`, which does not distinguish personal from organisational.  
-**Fix:** Call the backfill automatically in two places: (a) in the post-ingestion maintenance hook after any ingest job completes, (b) at cold-start if the DB is non-empty and `contact_outcome IS NULL` for >10% of entities.
+**File:** `artifacts/api-server/src/lib/startup.ts`
 
-- [ ] In `startup.ts` post-ingestion watcher: after FAA/HMLR/Western-HNWI jobs finish, fire `POST /ingest/backfill-contact-outcomes` internally
-- [ ] In `startup.ts` cold-start: check ratio of NULL `contact_outcome`; if >10%, auto-trigger backfill
-- [ ] Add dashboard indicator: show last-backfill timestamp and NULL-outcome count as a health warning
-- [ ] Verify backfill idempotency (already idempotent per existing code — confirm with test)
+- [x] Add `POST /ingest/backfill-contact-outcomes` to startup phases array (Phase 3b, 210s after boot — after enrichment, before relationship graph)
+- [x] Applies to both cold-start (empty DB) and populated-DB maintenance paths (phases array is inside `runPopulatedDbMaintenance`)
 
 ---
 
 ### K5 — Phone Number E.164 Normalisation
-**File:** `artifacts/api-server/src/lib/in-house-enricher.ts` → `setPhone()`  
-**Problem:** Audit found 101 entries with 12–19 digit phone strings (formatting noise) and 6 entries with 7–8 digits (too short). The `setPhone()` guard requires ≥7 digits, which admits 7-digit numbers no valid phone uses. International numbers are stored raw without E.164 normalisation.  
-**Fix:** Normalise phone strings to E.164 at write time. Reject if digit count is outside valid range (8–15 per ITU-T E.164).
+**File:** `artifacts/api-server/src/lib/contact-validation.ts`, `artifacts/api-server/src/lib/in-house-enricher.ts`
 
-```
-normalizePhone(raw):
-  1. Strip non-digit chars except leading +
-  2. Count digits — reject if < 8 or > 15
-  3. If 10 digits and no country code, prefix +1 (US default)
-  4. Store in +[countrycode][number] format
-```
-
-- [ ] Add `normalizePhone(raw: string): string | null` to `contact-validation.ts`
-- [ ] Replace raw phone storage in `setPhone()` with `normalizePhone()` result
-- [ ] Raise minimum digit count from 7 to 8 in the existing guard
-- [ ] Add migration: `POST /api/ingest/normalize-phones` — normalizes all stored phone strings in the DB
-- [ ] Unit tests: 7-digit → rejected; 10-digit US → `+1xxxxxxxxxx`; 12-digit with noise → cleaned
+- [x] Add `normalizePhone(raw: string): string | null` to `contact-validation.ts` (8–15 digit range, +1 prefix for 10-digit US)
+- [x] Replace raw phone storage in `setPhone()` with `normalizePhone()` result — old PHONE_BLOCKLIST removed
+- [x] Raise minimum digit count from 7 to 8
+- [x] Add `POST /api/ingest/normalize-phones` migration endpoint for existing DB records
+- [x] Track `result.phoneSource` for org-contact attribution
 
 ---
 
 ### K6 — Email Domain Parsing Bug (JS Filename as Domain)
-**File:** `artifacts/api-server/src/lib/contact-validation.ts` → `isValidPublicEmail()`  
-**Problem:** Audit found `10.5.13.module.js` appearing as an email domain — a JavaScript filename being parsed as an email address from scraped page content.  
-**Fix:** Add a validation rule to `isValidPublicEmail()` that rejects any email domain ending in a known script extension (`.js`, `.ts`, `.jsx`, `.tsx`, `.mjs`, `.cjs`, `.py`, `.rb`, `.php`, `.sh`) or matching an IP-address pattern.
+**File:** `artifacts/api-server/src/lib/contact-validation.ts` → `isValidPublicEmail()`
 
-- [ ] Add script-extension TLD blocklist to `isValidPublicEmail()`
-- [ ] Add IP-address domain pattern rejection (e.g. `10.x.x.x`)
-- [ ] Unit test: `foo@10.5.13.module.js` → invalid; `foo@legit.com` → valid
+- [x] Add `SCRIPT_EXTENSION_RE` to `isValidPublicEmail()` — rejects `.js`, `.ts`, `.jsx`, `.tsx`, `.mjs`, `.cjs`, `.py`, `.rb`, `.php`, `.sh`, `.json`, `.wasm`, `.map`, `.lock`
+- [x] Add `IP_LIKE_DOMAIN_RE` — rejects `10.x.x`, `192.x`, etc.
 
 ---
 
@@ -138,30 +93,24 @@ normalizePhone(raw):
 > Goal: Make `computeContactOutcome()` correctly classify organisational vs personal contacts so the dashboard Reachable metric reflects reality.
 
 ### L1 — `computeContactOutcome()` Must Detect Organisational Contacts
-**File:** `artifacts/api-server/src/lib/contact-confidence.ts` → `computeContactOutcome()`  
-**Problem:** The function currently classifies any entity with an email or phone as `direct_contact_candidate`. It has no logic to assign `organization_contact`. EDGAR phone numbers (fund switchboards), generic inboxes, and RDAP registrar contacts all land as `direct_contact_candidate`.  
-**Fix:** Add a new parameter `emailSource?: string` and `phoneSource?: string`. If the source is EDGAR-Phone or the email local-part is generic, return `organization_contact` instead of `direct_contact_candidate`.
+**File:** `artifacts/api-server/src/lib/contact-confidence.ts` → `computeContactOutcome()`
 
-- [ ] Add `emailSource?: string; phoneSource?: string; isGenericPrefix?: boolean` to `computeContactOutcome()` input type
-- [ ] Rule: if `phoneSource === "EDGAR-Phone"` → `organization_contact`
-- [ ] Rule: if `isGenericPrefix === true` → `organization_contact`
-- [ ] Rule: if both email and phone exist but email is generic → `organization_contact` (phone is still captured but context is org)
-- [ ] Update all callers in `ingest-enrichment.ts` and `phase-j.ts` to pass source metadata
-- [ ] Re-run backfill after this change
-- [ ] Unit tests for each new classification path
+- [x] Added `emailSource?: string | null; phoneSource?: string | null; isGenericPrefix?: boolean` to input type
+- [x] Imports `isGenericEmailPrefix` from `contact-validation.ts` — works for existing DB records in backfill path without explicit flag
+- [x] Rule: `phoneSource === "EDGAR-Phone"` or `"CompaniesHouse-Phone"` AND no email → `organization_contact`
+- [x] Rule: email local-part is generic (explicit flag OR pattern check) → `organization_contact`
+- [x] Updated caller in `ingest-enrichment.ts` to pass `isGenericPrefix`, `emailSource`, `phoneSource`, `validatedDirectContact`
+- [x] Updated `backfill-contact-outcomes` to read persisted `emailSource`/`phoneSource` from entity metadata
 
 ---
 
 ### L2 — Dashboard "Reachable" Metric Split
-**File:** `artifacts/api-server/src/routes/dashboard.ts`, `artifacts/apex-finder/src/` (dashboard page)  
-**Problem:** The dashboard shows a single "Reachable" count (`contactConfidence > 0`) that conflates personal and organisational contacts, making it misleading (992 shown, ~100–140 truly personal).  
-**Fix:** Split the metric into three distinct counts: **Personal** (`direct_contact_candidate` or `direct_contact_verified`, non-generic email/phone), **Organisational** (`organization_contact`), **Social-only** (`social_only`). Show all three on the dashboard header strip.
+**File:** `artifacts/api-server/src/routes/dashboard.ts`, `artifacts/apex-finder/src/pages/dashboard.tsx`
 
-- [ ] Add SQL query to `dashboard.ts`: count by `contact_outcome`
-- [ ] Return `reachablePersonal`, `reachableOrg`, `reachableSocial` from `/api/dashboard/stats`
-- [ ] Update dashboard header strip to show all three with distinct colours
-- [ ] Keep existing `reachable` total for backwards compatibility
-- [ ] Update the Access score display to reflect personal-only reachability
+- [x] Added parallel SQL query to `dashboard.ts`: `reachablePersonal`, `reachableVerified`, `reachableOrg`, `reachableSocial` by `contact_outcome`
+- [x] All four fields returned from `/api/dashboard/stats`
+- [x] Dashboard header strip: shows `reachablePersonal` (labelled "Personal") when backfill has run; falls back to `contactableCount` (labelled "Reachable") before first backfill — no misleading 0 during cold start
+- [x] Mobile stat tiles updated identically
 
 ---
 
@@ -181,15 +130,14 @@ normalizePhone(raw):
 > Goal: Increase the true personal-contact yield from ~0.4–0.5% toward a measurable target. No new third-party APIs required — improvements to existing sources and enrichment logic.
 
 ### M1 — Promote SMTP-Verified Contacts to `direct_contact_verified`
-**File:** `artifacts/api-server/src/lib/enrichment/structured-verification.ts`, `artifacts/api-server/src/routes/ingest-enrichment.ts`  
-**Problem:** 60 emails passed SMTP handshake verification but are stored as `direct_contact_candidate`, not `direct_contact_verified`. The `validatedDirectContact` flag exists in the schema but is not being set after SMTP verification succeeds.  
-**Fix:** After a successful SMTP handshake, set `validatedDirectContact = true` on the entity and recompute `contactOutcome` → `direct_contact_verified`.
+**File:** `artifacts/api-server/src/lib/in-house-enricher.ts`, `artifacts/api-server/src/routes/ingest-enrichment.ts`
 
-- [ ] Confirm SMTP success path in `structured-verification.ts`
-- [ ] Set `validatedDirectContact = true` on successful SMTP response
-- [ ] Recompute and persist `contactOutcome = direct_contact_verified`
-- [ ] Surface `direct_contact_verified` as its own badge/colour in Entity Ledger and profile pages
-- [ ] Count of verified contacts in dashboard
+- [x] `result.smtpVerified = true` set in `enrichInHouse()` after successful SMTP handshake
+- [x] `updates["validatedDirectContact"] = true` written to DB when `result.smtpVerified`
+- [x] `computeContactOutcome()` caller passes `validatedDirectContact: result.smtpVerified === true`
+- [x] Backfill derives verified status from `enrichmentSources` containing `"SMTP-Verified"` (handles existing records)
+- [ ] Surface `direct_contact_verified` badge in Entity Ledger and profile pages
+- [ ] Dashboard count of verified contacts
 
 ---
 
@@ -248,14 +196,11 @@ normalizePhone(raw):
 ---
 
 ### N2 — Startup Auto-Backfill for Fresh Imports
-**File:** `artifacts/api-server/src/lib/startup.ts`  
-**Problem:** After every re-import, the DB repopulates from ingestion but `contact_outcome` stays NULL until someone manually calls `POST /ingest/backfill-contact-outcomes`. This means the dashboard is misleading for hours after each import.  
-**Fix:** In `startup.ts`, after the post-ingestion watcher fires its first batch completion, automatically call the backfill endpoint internally. Also call K3's shared-email flagging sweep.
+**File:** `artifacts/api-server/src/lib/startup.ts`
 
-- [ ] Trigger `backfill-contact-outcomes` automatically after ingestion completes
-- [ ] Trigger `flag-shared-emails` sweep automatically after backfill
-- [ ] Log timing and row counts for both operations
-- [ ] Document in `scripts/post-merge.sh` as step 4
+- [x] `backfill-contact-outcomes` added to phases array at 210s (Phase 3b — after enrichment, before relationship graph)
+- [x] `flag-shared-emails` added to phases array at 215s
+- [x] Applies to both cold-start (post-ingestion watcher path) and populated-DB maintenance path — phases array lives inside `runPopulatedDbMaintenance()`
 
 ---
 

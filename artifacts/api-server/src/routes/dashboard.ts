@@ -210,8 +210,8 @@ router.get("/dashboard/stats", async (_req, res): Promise<void> => {
     .from(entitiesTable)
     .where(sql`${entitiesTable.metadata} LIKE '%"westernIngest":true%'`);
 
-  // Enrichment coverage + F3 wealth tier segmentation (parallel queries)
-  const [[contactableCount], [anyContactCount], [wealthTiersRow]] = await Promise.all([
+  // Enrichment coverage + F3 wealth tier segmentation + L2 contact outcome split (parallel queries)
+  const [[contactableCount], [anyContactCount], [wealthTiersRow], [contactOutcomeRow]] = await Promise.all([
     db.select({ cnt: sql<number>`count(*)::int` }).from(entitiesTable)
       .where(gte(entitiesTable.contactConfidence, 30)),  // phone alone (30pts) counts as contactable
     db.select({ cnt: sql<number>`count(*)::int` }).from(entitiesTable)
@@ -226,6 +226,14 @@ router.get("/dashboard/stats", async (_req, res): Promise<void> => {
       veryHnw:  sql<number>`count(*) filter (where ${entitiesTable.estimatedNetWorth} between 30000000 and 100000000)::int`,
       hnw:      sql<number>`count(*) filter (where ${entitiesTable.estimatedNetWorth} between 4000000 and 30000000)::int`,
       unknown:  sql<number>`count(*) filter (where ${entitiesTable.estimatedNetWorth} is null or ${entitiesTable.estimatedNetWorth} < 4000000)::int`,
+    }).from(entitiesTable),
+    // L2: break down the "Reachable" metric by outcome type so the dashboard
+    // distinguishes personal contacts from organisational/social signals.
+    db.select({
+      personal: sql<number>`count(*) filter (where contact_outcome in ('direct_contact_candidate','direct_contact_verified'))::int`,
+      verified: sql<number>`count(*) filter (where contact_outcome = 'direct_contact_verified')::int`,
+      org:      sql<number>`count(*) filter (where contact_outcome = 'organization_contact')::int`,
+      social:   sql<number>`count(*) filter (where contact_outcome = 'social_only')::int`,
     }).from(entitiesTable),
   ]);
 
@@ -244,6 +252,11 @@ router.get("/dashboard/stats", async (_req, res): Promise<void> => {
     activeResearchSessions: sessionCount?.cnt ?? 0,
     contactableCount: contactableCount?.cnt ?? 0,
     enrichmentCoverage,
+    // L2: true contact breakdown — personal vs org vs social-only
+    reachablePersonal: contactOutcomeRow?.personal ?? 0,
+    reachableVerified: contactOutcomeRow?.verified ?? 0,
+    reachableOrg:      contactOutcomeRow?.org ?? 0,
+    reachableSocial:   contactOutcomeRow?.social ?? 0,
     // F3: wealth tier segmentation
     wealthTiers: {
       ultraHnw: wealthTiersRow?.ultraHnw ?? 0,  // >$100M

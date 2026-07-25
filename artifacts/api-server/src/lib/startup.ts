@@ -622,6 +622,11 @@ async function runPopulatedDbMaintenance(): Promise<void> {
     { delayMs:   195_000, label: "auto populate-notes from asset descriptions",       path: "/api/ingest/populate-notes" },
     { delayMs:   200_000, label: "auto Wikidata associate seeding",                   path: "/api/relationships/seed-wikidata-associates" },
 
+    // ── PHASE 3b: CONTACT QUALITY BACKFILL (K4/N2 — 210s–215s) ─────────────
+    // Run AFTER enrichment so freshly-classified org contacts get correct outcomes.
+    { delayMs:   210_000, label: "contact outcome backfill (K4 — classify org vs personal)", path: "/api/ingest/backfill-contact-outcomes" },
+    { delayMs:   215_000, label: "flag shared emails (K3 — cross-entity inbox dedup)",       path: "/api/ingest/flag-shared-emails" },
+
     // ── PHASE 4: RELATIONSHIP GRAPH (240s–300s) ──────────────────────────────
     // Build edges now that both web and registry data exist.
     { delayMs:   240_000, label: "cluster auto-detection",              path: "/api/relationships/auto-detect-clusters" },
