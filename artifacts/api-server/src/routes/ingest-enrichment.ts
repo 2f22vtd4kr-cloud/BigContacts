@@ -357,16 +357,21 @@ router.delete("/ingest/web-osint-lock", async (_req: Request, res: Response): Pr
 
 // ── POST /ingest/in-house-enrich ──────────────────────────────────────────────
 router.post("/ingest/in-house-enrich", async (req: Request, res: Response): Promise<void> => {
-  const existing = await getActiveJob("in-house-enrich");
-  if (existing) {
-    res.status(409).json({ error: "An in-house enrichment job is already running.", jobId: existing });
-    return;
-  }
-
   const body = req.body ?? {};
   const batchSize = Math.min(Number(body.batchSize) || 100, 10_000);
   const force = Boolean(body.force);
   const entityIds: number[] | undefined = Array.isArray(body.entityIds) ? body.entityIds : undefined;
+
+  // Single-entity force requests (e.g. from a profile page Enrich button) bypass the
+  // batch-job lock so they can run even while the scheduler's batch job is in progress.
+  const bypassLock = force && !!entityIds?.length && entityIds.length <= 5;
+  if (!bypassLock) {
+    const existing = await getActiveJob("in-house-enrich");
+    if (existing) {
+      res.status(409).json({ error: "An in-house enrichment job is already running.", jobId: existing });
+      return;
+    }
+  }
   const targetMode: string = (body.targetMode as string) ?? "all";
 
   const conditions: SQL[] = [

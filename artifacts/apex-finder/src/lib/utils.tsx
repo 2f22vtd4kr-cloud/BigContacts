@@ -25,14 +25,16 @@ export function formatCurrency(value: number | null | undefined) {
 }
 
 export function ScoreBadge({ score }: { score: number | null | undefined }) {
-  // "ScoreBadge" kept for backward compat — shows wealth/registry signal strength
+  // Registry confidence score — how many independent public registries confirm this person
   if (score == null) return null;
   const colorClasses = getScoreColor(score);
+  const pct = Math.round(score * 100);
+  const label = pct >= 70 ? "Multi-registry" : pct >= 40 ? "Single-registry" : "Unverified";
   return (
-    <div className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono border ${colorClasses}`} 
-         title="Wealth signal — strength of the registry evidence for net worth (0–100). High signal ≠ contactable.">
-      <span className="opacity-50 text-[9px] uppercase tracking-wide leading-none">Signal</span>
-      <span className="font-bold tabular-nums">{(score * 100).toFixed(0)}</span>
+    <div className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono border ${colorClasses}`}
+         title={`Registry confidence ${pct}/100 — strength of public registry verification. Higher means more independent sources confirm this person's wealth profile.`}>
+      <span className="font-bold tabular-nums">{pct}</span>
+      <span className="opacity-50 text-[9px] uppercase tracking-wide leading-none">{label}</span>
     </div>
   );
 }

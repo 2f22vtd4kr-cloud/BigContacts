@@ -455,6 +455,28 @@ export default function ApexProfile() {
   const confidence = computeConfidence(entity, assets as any[], relationships as any[]);
   const ledger     = buildLedger(entity, assets as any[], relationships as any[]);
 
+  // Human-readable primary wealth source for display
+  const primaryWealthSource = (() => {
+    const reg = srcRegs[0] ?? "";
+    if (/edgar|sec/i.test(reg)) {
+      return reg.toLowerCase().includes("13") ? "SEC EDGAR — beneficial owner (13D/G filing)" : "SEC EDGAR — board director / exec (DEF 14A)";
+    }
+    if (/faa/i.test(reg)) {
+      const jets = (assets as any[]).filter((a: any) => a.category === "Aviation");
+      return jets.length > 1 ? `FAA aircraft owner · ${jets.length} aircraft` : "FAA aircraft owner";
+    }
+    if (/land.?reg|hmlr/i.test(reg)) {
+      const props = (assets as any[]).filter((a: any) => a.category === "RealEstate");
+      return props.length > 1 ? `UK Land Registry · ${props.length} properties £1M+` : "UK Land Registry · property £1M+";
+    }
+    if (/brreg/i.test(reg))           return "BRREG — Norwegian company director";
+    if (/companies.?house/i.test(reg)) return "Companies House — UK company director";
+    if (/bodacc|france/i.test(reg))   return "BODACC — French company director";
+    if (/ares|czech/i.test(reg))      return "ARES — Czech company director";
+    if (reg) return reg;
+    return null;
+  })();
+
   const mapCenter: [number, number] = geoAssets.length > 0
     ? [
         geoAssets.reduce((s: number, a: any) => s + a.latitude,  0) / geoAssets.length,
@@ -496,10 +518,10 @@ export default function ApexProfile() {
     setEnrichDone(false);
     try {
       const base = (import.meta as any).env.BASE_URL.replace(/\/$/, "");
-      const r = await fetch(`${base}/api/ingest/companies-house-enrich`, {
+      const r = await fetch(`${base}/api/ingest/in-house-enrich`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ entityIds: [entityId], batchSize: 1 }),
+        body: JSON.stringify({ entityIds: [entityId], batchSize: 1, force: true }),
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data.error ?? "Request failed");
@@ -707,15 +729,21 @@ export default function ApexProfile() {
             </div>
             <div className="flex-1 bg-background rounded border border-border/50 p-2.5 flex flex-col">
               <span className="font-mono text-[9px] text-muted-foreground uppercase tracking-wider mb-1">Wealth</span>
-              <div className="flex gap-1 my-1">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <div key={i} className={cn("w-2.5 h-2.5 rounded-full",
-                    i < Math.round((entity.bayesianScore ?? 0) * 5) ? "bg-primary" : "bg-muted")} />
-                ))}
-              </div>
-              <span className="text-[9px] text-muted-foreground">
-                {(entity.bayesianScore ?? 0) >= 0.7 ? "Strong Signal" : (entity.bayesianScore ?? 0) >= 0.4 ? "Moderate" : "Low Signal"}
-              </span>
+              {(entity as any).estimatedNetWorth != null ? (
+                <span className="font-mono text-[17px] font-bold text-primary leading-none mb-1">
+                  {formatCurrency((entity as any).estimatedNetWorth)}
+                </span>
+              ) : (
+                <span className="font-mono text-[10px] font-semibold text-foreground leading-snug mb-1">
+                  {primaryWealthSource ?? "Unknown source"}
+                </span>
+              )}
+              {(entity as any).estimatedNetWorth != null && primaryWealthSource && (
+                <span className="text-[9px] text-muted-foreground leading-tight">{primaryWealthSource}</span>
+              )}
+              {(entity as any).estimatedNetWorth == null && !primaryWealthSource && (
+                <span className="text-[9px] text-muted-foreground/50 italic">Run enrichment to determine source</span>
+              )}
             </div>
           </div>
         </div>
@@ -746,37 +774,31 @@ export default function ApexProfile() {
           : "text-muted-foreground border-border bg-muted/20";
         return (
           <div className={cn("flex-shrink-0 border-b border-border px-4 md:px-6 py-3", hasContact && "bg-primary/5")}>
-            <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
-              <div className="flex items-center gap-2 min-w-0 flex-wrap">
-                <span className="text-[9px] font-mono font-bold text-primary uppercase tracking-widest whitespace-nowrap">Contact Channels</span>
+            <div className="flex items-center justify-between mb-2 gap-2">
+              <span className="text-[9px] font-mono font-bold text-primary uppercase tracking-widest">Direct Contact</span>
+              <div className="flex items-center gap-1.5">
                 {hasContact && (
-                  <span className={cn("text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border whitespace-nowrap", confCls)}
-                    title="Contact completeness score — separate from HNWI Signal score">
-                    {conf}% contact data
-                  </span>
+                  <button
+                    onClick={() => { setShowContactEvidence(v => !v); setRejectStep({}); setRejectError(null); }}
+                    className={cn(
+                      "flex items-center gap-1 px-2 py-1 rounded border font-mono text-[10px] uppercase tracking-wider transition-colors",
+                      showContactEvidence
+                        ? "border-amber-500/40 text-amber-500 bg-amber-500/10"
+                        : "border-border text-muted-foreground hover:text-amber-500 hover:border-amber-500/40"
+                    )}
+                  >
+                    {showContactEvidence ? "▴ Evidence" : "▾ Evidence"}
+                  </button>
                 )}
-              </div>
-              {hasContact && (
                 <button
-                  onClick={() => { setShowContactEvidence(v => !v); setRejectStep({}); setRejectError(null); }}
-                  className={cn(
-                    "flex items-center gap-1.5 px-2.5 py-1 rounded border font-mono text-[10px] uppercase tracking-wider transition-colors flex-shrink-0",
-                    showContactEvidence
-                      ? "border-amber-500/40 text-amber-500 bg-amber-500/10"
-                      : "border-border text-muted-foreground hover:text-amber-500 hover:border-amber-500/40"
-                  )}
+                  onClick={handleEnrich}
+                  disabled={isEnriching}
+                  className="flex items-center gap-1 px-2 py-1 rounded border border-border text-muted-foreground hover:text-primary hover:border-primary/40 font-mono text-[10px] uppercase tracking-wider transition-colors disabled:opacity-50"
                 >
-                  Evidence
+                  {isEnriching ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                  {isEnriching ? "Enriching…" : "Enrich"}
                 </button>
-              )}
-              <button
-                onClick={handleEnrich}
-                disabled={isEnriching}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-border text-muted-foreground hover:text-primary hover:border-primary/40 font-mono text-[10px] uppercase tracking-wider transition-colors disabled:opacity-50 flex-shrink-0"
-              >
-                {isEnriching ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-                {isEnriching ? "Enriching…" : enrichDone ? "Re-enrich" : "Enrich"}
-              </button>
+              </div>
             </div>
             {hasContact ? (
               <div className="flex items-center gap-2 flex-wrap">
@@ -898,11 +920,21 @@ export default function ApexProfile() {
                 return primaryReg || "a public registry";
               })();
 
-              // Plain-English research narrative for each contact field.
-              // When structured evidence rows exist for this field, lead with those.
+              // Natural-language research narrative for each contact field.
               const explainContact = (field: string): React.ReactNode => {
-                const name = e2.name || "This person";
-                const anchor = `${name} appears in ${registryLabel} — that registry record (name + address) is the anchor for all contact research below.`;
+                const pName = formatEntityName(e2.name || "This person");
+
+                // Natural registry label (shorter than registryLabel)
+                const regShort = (() => {
+                  if (/faa/i.test(primaryReg))              return "the FAA aircraft registry";
+                  if (/edgar|sec/i.test(primaryReg))        return "SEC EDGAR";
+                  if (/land.?reg|hmlr/i.test(primaryReg))   return "the UK Land Registry";
+                  if (/brreg|norway/i.test(primaryReg))     return "Norway's BRREG";
+                  if (/companies.?house/i.test(primaryReg)) return "UK Companies House";
+                  if (/bodacc|france/i.test(primaryReg))    return "France's BODACC";
+                  if (/ares|czech/i.test(primaryReg))       return "the Czech ARES registry";
+                  return primaryReg || "a public registry";
+                })();
 
                 // Map field → vectorType for evidence lookup
                 const vectorTypeForField: Record<string, string> = {
@@ -915,11 +947,10 @@ export default function ApexProfile() {
                 const matchingEvidence = vt && fieldValue
                   ? contactEvidence.filter(ev => ev.vectorType === vt && ev.value === fieldValue)
                   : [];
-
-                // If we have a durable evidence row with a source URL, surface it prominently
                 const primaryEvidence = matchingEvidence.find(ev => ev.sourceUrl) ?? matchingEvidence[0] ?? null;
+
                 const evidenceBadge = primaryEvidence ? (
-                  <span className="block mb-1 text-[9px] font-mono">
+                  <span className="block mb-1.5 text-[9px] font-mono">
                     <span className="text-amber-400/60 uppercase tracking-wider">Source: </span>
                     {primaryEvidence.sourceUrl ? (
                       <a href={primaryEvidence.sourceUrl} target="_blank" rel="noopener noreferrer"
@@ -937,92 +968,96 @@ export default function ApexProfile() {
                 ) : null;
 
                 if (field === "email") {
-                  const steps: string[] = [anchor];
+                  const parts: string[] = [
+                    `${pName} shows up in ${regShort} — that's the public filing we used to pin down who they are.`
+                  ];
                   if (hasSrc("propublica") || hasSrc("ProPublica")) {
-                    steps.push("We searched IRS Form 990 filings — public tax documents every U.S. nonprofit must file — and found a charitable organization linked to this person. That filing disclosed the organization's web domain.");
+                    parts.push("We then searched IRS Form 990 filings (public tax documents every U.S. nonprofit must file) and found a foundation linked to them, which disclosed the organisation's domain.");
                   }
                   if (hasSrc("domain") || hasSrc("Domain")) {
-                    steps.push("We then built candidate email addresses using common naming patterns (firstname@domain, f.lastname@domain, firstname.lastname@domain, etc.) and checked which formats are plausible for this domain.");
+                    parts.push("From that domain, we tested the most common email formats — firstname@, f.lastname@, firstname.lastname@ and a few others — to see which one the domain actually uses.");
                   }
                   if (hasSrc("smtp") || hasSrc("SMTP")) {
-                    steps.push("The address was further validated by querying the mail server — without sending any email — which confirmed the mailbox exists and accepts mail.");
+                    parts.push("We then ran a quick mail-server check — nothing was sent — just a handshake to confirm the inbox is live and accepting mail. The format that came back active is the one shown above.");
                   }
                   if (hasSrc("wikidata") || hasSrc("Wikidata")) {
-                    steps.push("The email also appears in Wikidata's public structured record for this person.");
+                    parts.push("This address also appears in their Wikidata public record.");
                   }
                   if (hasSrc("ddg") || hasSrc("DDG") || hasSrc("duckduckgo")) {
-                    steps.push("Found via a web search for this person's name alongside contact-related terms.");
+                    parts.push("Also surfaced by a web search for their name and affiliations.");
                   }
-                  if (steps.length === 1) {
-                    steps.push(primaryEvidence
-                      ? `Extracted via ${primaryEvidence.extractionMethod ?? primaryEvidence.source}.`
-                      : "The email was surfaced by the enrichment pipeline searching public web sources for this person's name and known affiliations.");
+                  if (parts.length === 1) {
+                    parts.push(primaryEvidence
+                      ? `Found via ${primaryEvidence.extractionMethod ?? primaryEvidence.source}.`
+                      : "Surfaced from public web sources associated with their name.");
                   }
-                  steps.push("⚠ If this looks like a generic company inbox (e.g. press@, info@, contact@) rather than a personal address, flag it as incorrect.");
-                  return <>{evidenceBadge}{steps.join(" ")}</>;
+                  parts.push("⚠ If this looks like a company inbox (press@, info@, contact@) rather than a personal address, flag it as incorrect.");
+                  return <>{evidenceBadge}{parts.join(" ")}</>;
                 }
 
                 if (field === "phone") {
-                  const steps: string[] = [anchor];
+                  const parts: string[] = [
+                    `${pName} shows up in ${regShort}.`
+                  ];
                   if (hasSrc("rdap") || hasSrc("RDAP") || hasSrc("whois") || hasSrc("WHOIS")) {
-                    steps.push("We found a domain registered to this person or their organization, then queried its public WHOIS/RDAP registration record — like looking up an entry in a public directory. The domain registrant had listed this number as their contact. Note: WHOIS data can occasionally belong to a web administrator rather than the person themselves, so cross-check if in doubt.");
+                    parts.push("We found a domain registered to them or their company, then looked it up in the public WHOIS/RDAP record — essentially a phonebook entry for domain owners. This number was listed as the registrant contact. Worth a double-check: WHOIS data occasionally belongs to whoever built the site rather than the person themselves.");
                   }
                   if (hasSrc("propublica") || hasSrc("ProPublica")) {
-                    steps.push("This number also appears in a publicly filed IRS Form 990 for an associated nonprofit as the organization's listed contact phone.");
+                    parts.push("This number also appears in a publicly filed IRS Form 990 for an associated nonprofit.");
                   }
                   if (hasSrc("companieshouse") || hasSrc("CompaniesHouse")) {
-                    steps.push("This number is listed in official UK Companies House filings for a company connected to this person.");
+                    parts.push("Listed in UK Companies House filings for a company connected to them.");
                   }
                   if (hasSrc("brreg") || hasSrc("BRREG")) {
-                    steps.push("This number appears in Norway's official BRREG business registry for a company linked to this person.");
+                    parts.push("Listed in Norway's BRREG registry for a company they're linked to.");
                   }
-                  if (steps.length === 1) {
-                    steps.push(primaryEvidence
-                      ? `Extracted via ${primaryEvidence.extractionMethod ?? primaryEvidence.source}.`
-                      : "The phone number was surfaced from a public record associated with this person's name or registered organization.");
+                  if (parts.length === 1) {
+                    parts.push(primaryEvidence
+                      ? `Found via ${primaryEvidence.extractionMethod ?? primaryEvidence.source}.`
+                      : "Surfaced from a public record associated with their name or registered organisation.");
                   }
-                  return <>{evidenceBadge}{steps.join(" ")}</>;
+                  return <>{evidenceBadge}{parts.join(" ")}</>;
                 }
 
                 if (field === "linkedinUrl") {
-                  return <>{evidenceBadge}{`${anchor} We searched the web for "${e2.name} LinkedIn" and found a professional profile whose name, location, and career background are consistent with this person. We have not independently verified this profile is theirs — check that the work history and photo match what you know before reaching out.`}</>;
+                  return <>{evidenceBadge}{`${pName} is in ${regShort}. We searched for "${formatEntityName(e2.name || pName)} LinkedIn" and found a professional profile whose name, location, and career background match. We haven't independently verified it's really them — check that the photo and work history look right before reaching out.`}</>;
                 }
 
                 if (field === "twitterHandle" || field === "instagramHandle") {
                   const net = field === "twitterHandle" ? "Twitter/X" : "Instagram";
-                  return <>{evidenceBadge}{`${anchor} We searched public social networks for accounts whose display name, bio, or profile details match this person. The ${net} handle shown is the closest match found. Verify the profile content (bio, location, posts) before treating it as confirmed.`}</>;
+                  return <>{evidenceBadge}{`${pName} is in ${regShort}. We searched public ${net} for accounts matching their name and bio. The handle shown is the closest match we found — check the profile content and recent posts to confirm it's really them before making contact.`}</>;
                 }
 
                 if (field === "telegramHandle") {
-                  return <>{evidenceBadge}{`${anchor} We searched public Telegram directories and group listings for accounts matching this person's name. Telegram handles can be transferred or reused, so confirm the account's activity and content match before reaching out.`}</>;
+                  return <>{evidenceBadge}{`${pName} is in ${regShort}. We searched public Telegram directories for accounts matching their name. Telegram handles can be transferred or reused, so look at the account's content and activity before reaching out.`}</>;
                 }
 
                 if (field === "personalWebsite") {
-                  const steps: string[] = [anchor];
+                  const parts: string[] = [`${pName} is in ${regShort}.`];
                   if (hasSrc("dns") || hasSrc("DNS") || hasSrc("probe")) {
-                    steps.push("We identified a domain likely belonging to this person and confirmed it resolves to an active website by checking DNS records.");
+                    parts.push("We identified a domain likely belonging to them and confirmed it's pointing to a live website via DNS lookup.");
                   }
                   if (hasSrc("ProPublica-Website") || hasSrc("propublica")) {
-                    steps.push("The site is listed as the organization's website in a publicly filed IRS Form 990.");
+                    parts.push("The site is listed as the organisation's website in a publicly filed IRS Form 990.");
                   }
                   if (hasSrc("Wikidata-Website") || hasSrc("wikidata")) {
-                    steps.push("The site is linked to this person in Wikidata's public structured record.");
+                    parts.push("The site is linked to them in their Wikidata public record.");
                   }
-                  if (steps.length === 1) {
-                    steps.push("A website associated with this person was found through public records and confirmed active.");
+                  if (parts.length === 1) {
+                    parts.push("Found through public records and confirmed active.");
                   }
-                  return <>{evidenceBadge}{steps.join(" ")}</>;
+                  return <>{evidenceBadge}{parts.join(" ")}</>;
                 }
 
                 if (field === "foundationName") {
-                  return <>{evidenceBadge}{`${anchor} We searched IRS Form 990 filings — public tax documents that every U.S. nonprofit must file annually — and found this person listed as an officer, director, or trustee of this foundation. The 990 is a government-published document, not inferred data.`}</>;
+                  return <>{evidenceBadge}{`${pName} is listed as an officer, director, or trustee of this foundation in an IRS Form 990 — the annual tax filing every U.S. nonprofit must file publicly. That's a government document, not something we inferred.`}</>;
                 }
 
                 if (field === "contactMethod") {
-                  return <>{"This contact method was entered manually — either by you or imported directly from a research session. It was not inferred by the enrichment pipeline."}</>;
+                  return <>{"This was entered manually — either by you or imported from a research session. It wasn't inferred by the enrichment pipeline."}</>;
                 }
 
-                return <>{evidenceBadge}{`${anchor} This value was surfaced by the enrichment pipeline from public sources linked to this person's name and registry record.`}</>;
+                return <>{evidenceBadge}{`${pName} is in ${regShort}. This value was surfaced from public sources linked to their name and registry record.`}</>;
               };
 
               const cFields = [
@@ -1044,8 +1079,45 @@ export default function ApexProfile() {
                       How we researched these contacts
                     </div>
                     <div className="text-[10px] text-muted-foreground/60 leading-relaxed">
-                      For each contact below we explain the research steps so you can judge whether the logic makes sense. If something looks wrong, flag it as incorrect to remove it permanently.
+                      For each contact below we explain exactly how we found it. If something looks wrong, flag it to remove it permanently.
                     </div>
+                  </div>
+                  {/* ── Why this person is HNWI ─────────────────────────────── */}
+                  <div className="px-3 py-2.5 border-b border-amber-500/10">
+                    <div className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground/60 mb-1.5">
+                      Why {formatEntityName(e2.name || "this person")} is in this database
+                    </div>
+                    <p className="text-[10px] text-muted-foreground/70 leading-relaxed">
+                      {(() => {
+                        const parts: string[] = [];
+                        const pName = formatEntityName(e2.name || "This person");
+                        if (/edgar|sec/i.test(primaryReg)) {
+                          const is13 = primaryReg.toLowerCase().includes("13");
+                          parts.push(`${pName} filed mandatory ${is13 ? "beneficial ownership disclosures (SEC EDGAR Form 13D or 13G)" : "executive compensation disclosures (SEC EDGAR DEF 14A)"} with the U.S. Securities and Exchange Commission. ${is13 ? "Anyone owning more than 5% of a public company must file these publicly." : "Board directors and named executives of public companies must file these annually."}`);
+                        } else if (/faa/i.test(primaryReg)) {
+                          const jets = (assets as any[]).filter((a: any) => a.category === "Aviation");
+                          parts.push(`${pName} owns ${jets.length > 1 ? `${jets.length} aircraft` : "an aircraft"} registered with the FAA. Private turbine aircraft — jets and large turboprops — require mandatory federal registration, which is public record.`);
+                        } else if (/land.?reg|hmlr/i.test(primaryReg)) {
+                          const props = (assets as any[]).filter((a: any) => a.category === "RealEstate");
+                          parts.push(`${pName} appears in the UK Land Registry as the buyer or owner of ${props.length > 1 ? `${props.length} properties` : "a property"} above the £1 million threshold we filter on. Land Registry transactions are a matter of public record.`);
+                        } else if (/brreg/i.test(primaryReg)) {
+                          parts.push(`${pName} is listed as a director or key officer in Norway's BRREG official business registry. We cross-reference that against company turnover data to identify high-net-worth individuals.`);
+                        } else if (/companies.?house/i.test(primaryReg)) {
+                          parts.push(`${pName} is listed as a director or person of significant control in UK Companies House — the official register of UK companies and their officers.`);
+                        } else {
+                          parts.push(`${pName} appears in ${registryLabel}.`);
+                        }
+                        if (e2.estimatedNetWorth != null) {
+                          parts.push(`Estimated net worth or AUM: ${formatCurrency(e2.estimatedNetWorth)}.`);
+                        }
+                        const assetArr = assets as any[];
+                        if (assetArr.length > 0) {
+                          const cats = [...new Set(assetArr.map((a: any) => a.category))];
+                          parts.push(`Registered assets: ${assetArr.length} (${cats.join(", ")}).`);
+                        }
+                        return parts.join(" ");
+                      })()}
+                    </p>
                   </div>
                   <div className="px-3 py-2 border-b border-amber-500/10">
                     <div className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground/60 mb-1.5">
