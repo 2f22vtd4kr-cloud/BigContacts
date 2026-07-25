@@ -97,7 +97,7 @@ After a fresh GitHub import, run these steps to get the project running:
 2. **Push DB schema:** `pnpm --filter @workspace/db run push`
 3. **Start workflows:** Redis → `artifacts/api-server: API Server` → `artifacts/apex-finder: web` (in that order)
 
-Latest verification (2026-07-25): the requested `REDIS_URL_1` through `REDIS_URL_5` secrets and `COMPANIES_HOUSE_API_KEY` are present; the frozen-lockfile install and schema push completed; Redis, `ApexFinder API`, and `ApexFinder Web` are running; `/api/healthz` reports Redis `ok`; `/api/entities` returns 200; and the root dashboard preview returns 200. Upstash slots 1–5 connect, although slot 1 has reached its provider request quota; the app continues with healthy slots and graceful degradation.
+Latest verification (2026-07-25): the requested `REDIS_URL_1` through `REDIS_URL_5` secrets and `COMPANIES_HOUSE_API_KEY` are present; the frozen-lockfile install and schema push completed; Redis, `artifacts/api-server: API Server`, and `artifacts/apex-finder: web` are running; `/api/healthz`, `/api/entities`, and `/api/dashboard/stats` return 200; and the root dashboard preview renders successfully. Upstash slots 1–5 connect, although slot 1 has reached its provider request quota; the app continues with healthy slots and graceful degradation. The fresh database currently contains 0 records and needs ingestion to populate profiles.
 
 Two fixes were needed after the first import:
 - Added `"pg-cloudflare"` to the `external` list in `artifacts/api-server/build.mjs` (pg optional dep that esbuild couldn't resolve)

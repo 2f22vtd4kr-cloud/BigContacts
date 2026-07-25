@@ -8,33 +8,33 @@
 
 ---
 
-## Current State (2026-07-25 — Phases K1–K6, L1–L3, M1–M4, N1–N4 implemented) — 32,201 entities; profile UI fixes applied (re-enrich, HNWI justification, wealth source, contact explanations)
+## Current State (2026-07-25 — imported project setup verified) — 0 entities; dashboard and API healthy; cold-start ingestion can repopulate the fresh database
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically ✅
 - **Local Redis** running on `redis://localhost:6379` — workflow `Redis` running ✅
 - **SESSION_SECRET** — ✅ Set
 - **REDIS_URL** — ✅ Set (local Redis, env var `redis://localhost:6379`)
-- **Upstash Redis (`REDIS_URL_1`–`REDIS_URL_5`)** — ✅ Set; all 5 slots connected; slot 1 quota-exhausted (non-fatal), slots 2–5 healthy
+- **Upstash Redis (`REDIS_URL_1`–`REDIS_URL_5`)** — ✅ Set; all 5 slots connect; slot 1 is quota-exhausted (non-fatal), slots 2–5 healthy
 - **COMPANIES_HOUSE_API_KEY** — ✅ Set
 
 ### Workflows running
 | Workflow | Status |
 |---|---|
 | Redis | ✅ Running (port 6379) |
-| ApexFinder API | ✅ Running (port 8080) |
-| ApexFinder Web | ✅ Running (port 23695) |
+| `artifacts/api-server: API Server` | ✅ Running (port 8080) |
+| `artifacts/apex-finder: web` | ✅ Running (port 23695) |
 | artifacts/apex-mobile: expo | ⏸️ Optional / not required for web setup |
 | artifacts/mockup-sandbox: Component Preview Server | ⏸️ Optional / not required for web setup |
 
 ### Post-import setup (2026-07-25, this import)
-1. `pnpm install --frozen-lockfile` — all packages installed (pnpm v10.26.1, ~31s)
+1. `CI=true pnpm install --frozen-lockfile` — all packages installed (pnpm v10.26.1, ~43s)
 2. `pnpm --filter @workspace/db run push` — schema applied to PostgreSQL (`[✓] Changes applied`)
 3. The imported artifact metadata was present, but the platform registry was empty; validating the four existing artifact manifests restored the managed workflows.
-4. Redis, API Server, and apex-finder web workflows started.
+4. Redis, API Server, and apex-finder web workflows started; optional mobile and mockup workflows remain stopped.
 5. `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":1}}` ✅
-6. Dashboard loads — DB empty, cold-start auto-recovery fired (Western HNWI + broad discovery running in background).
-7. Re-added `REDIS_URL_1`–`REDIS_URL_5` and `COMPANIES_HOUSE_API_KEY` through the secure secrets flow; API startup confirmed healthy overflow slots 2–5 while slot 1 remains quota-limited.
+6. `/api/entities` and `/api/dashboard/stats` return 200 with zero records; the dashboard browser preview renders the empty-state screen.
+7. Added `REDIS_URL_1`–`REDIS_URL_5` and `COMPANIES_HOUSE_API_KEY` through the secure secrets flow; API startup confirmed all five slots, with slot 1 quota-limited and slots 2–5 healthy.
 8. Completed the prior handoff: structured contact-evidence audit rows are visible on profiles; duplicate dismiss/merge decisions persist in `dedup_reviews`; the pair key is unique and upserted safely.
 9. Cleared API, web, mobile, shared-library, mockup, and script typechecks; applied the schema; production API/web builds passed; `/api/healthz` and the web root returned HTTP 200; final dashboard preview rendered successfully.
 
@@ -755,4 +755,4 @@ Run **IN-HOUSE ENRICH** on HNWI/Gatekeeper entities — Wikidata SPARQL will hit
 | 2026-07-25 | Artifacts registered (platform restored managed workflows for all 4 artifacts). Removed manual "API Server" and "ApexFinder Web" duplicate workflows. Re-added all 6 secrets: REDIS_URL_1–5 + COMPANIES_HOUSE_API_KEY. All 5 Upstash slots confirmed connected in startup logs ("Permanent Redis connected slot: 1–5"). All workflows healthy: Redis, API Server (8080), apex-finder web (23695), apex-mobile expo, mockup-sandbox. DB empty — ready for ingestion. |
 | 2026-07-25 | Import setup completed: verified managed artifact workflows after clearing orphaned port listeners; Redis, API Server, and apex-finder web are running. `/api/healthz` and `/api/entities` return 200; the Apex Atlas root preview renders successfully. Upstash slot 1 remains quota-exhausted but slots 2–5 are healthy and the app degrades non-fatally. |
 | 2026-07-25 | GitHub import re-setup #6: CI=true pnpm install (~33s), DB schema pushed (`[✓] Changes applied`), all 4 artifacts re-registered (verifyAndReplaceArtifactToml), managed workflows auto-created. Redis + API Server (8080) + apex-finder web (23695) running. `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":1}}`. DB empty — needs re-ingestion. Missing secrets: REDIS_URL_1–5 (Upstash) and COMPANIES_HOUSE_API_KEY need re-adding for full enrichment. |
-| 2026-07-25 | GitHub import re-setup #7: CI=true pnpm install (~30s, frozen lockfile), DB schema pushed (`[✓] Changes applied`), all 4 artifacts re-registered (verifyAndReplaceArtifactToml), managed workflows auto-created (api-server: API Server, apex-finder: web, apex-mobile: expo, mockup-sandbox: Component Preview Server). Redis + API Server (8080) + apex-finder web (23695) running. All 6 secrets added (REDIS_URL_1–5 + COMPANIES_HOUSE_API_KEY); slots 2–5 healthy, slot 1 quota-exhausted (non-fatal). `/api/healthz` → ok. Dashboard loads — 32,000 profiles visible, cold-start broad discovery + Western HNWI running. Setup complete. |
+| 2026-07-25 | Imported project setup: CI=true frozen-lockfile dependencies restored, schema pushed, all four existing artifact manifests validated and registered, and managed Redis/API/web workflows started. All six requested secrets are present; `/api/healthz`, `/api/entities`, `/api/dashboard/stats`, and the browser dashboard preview pass. Fresh database currently has 0 records; ingestion is the next operational step. |
