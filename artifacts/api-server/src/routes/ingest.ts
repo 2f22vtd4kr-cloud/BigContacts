@@ -60,8 +60,11 @@ router.post("/registry-search", async (req: Request, res: Response): Promise<voi
   const validRegistries = REGISTRY_IDS;
   type ValidRegistry = RegistryId;
 
+  // Default to all free registries when none specified — OpenCorporates is
+  // excluded from the default because it now requires a paid API key (401).
+  const FREE_DEFAULTS: ValidRegistry[] = ["bodacc-france", "brreg", "ares-czechia", "gleif"];
   const requested: ValidRegistry[] = (
-    sources?.length ? sources : registry ? [registry] : ["opencorporates"]
+    sources?.length ? sources : registry ? [registry] : FREE_DEFAULTS
   ).filter((s): s is ValidRegistry => (validRegistries as readonly string[]).includes(s));
 
   if (requested.length === 0) {

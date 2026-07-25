@@ -120,16 +120,13 @@ export async function getDedupCount(): Promise<number> {
 
 /** Clear dedup set — use before a full re-ingest */
 export async function clearDedup(): Promise<void> {
-  const rc = getPermanentClient();
-  if (!rc) return;
   // batchMarkSeen and preloadDedupPrefix both use `apex:${DEDUP_KEY}` as the raw key
-  // (because the permanent client adds the "apex:" prefix automatically via permSadd/permScard,
-  //  but those functions were NOT used for the raw writes — so the actual Upstash key is
-  //  "apex:" + DEDUP_KEY = "apex:apex:dedup:hnwi").
-  // We must delete that same raw key, not the un-prefixed DEDUP_KEY.
+  // (because permSadd applies PERM_PREFIX "apex:" → actual Upstash key = "apex:apex:dedup:hnwi").
   const FULL_KEY = `apex:${DEDUP_KEY}`;
-  await rc.del(FULL_KEY);
-  logger.info({ key: FULL_KEY }, "Dedup set cleared");
+  await withPermanentClient(async rc => {
+    await rc.del(FULL_KEY);
+    logger.info({ key: FULL_KEY }, "Dedup set cleared");
+  }, undefined);
 }
 
 /**
@@ -140,9 +137,7 @@ export async function clearDedup(): Promise<void> {
  */
 export async function preloadDedupPrefix(prefix: string): Promise<Set<string>> {
   const seen = new Set<string>();
-  const rc = getPermanentClient();
-  if (!rc) return seen;
-  try {
+  await withPermanentClient(async rc => {
     // The actual Redis key has the PERM_PREFIX applied by permSadd/permSismember
     const fullKey = `apex:${DEDUP_KEY}`;
     let cursor = "0";
@@ -152,9 +147,7 @@ export async function preloadDedupPrefix(prefix: string): Promise<Set<string>> {
       for (const m of members) seen.add(m);
     } while (cursor !== "0");
     logger.info({ prefix, count: seen.size }, "Dedup prefix pre-loaded");
-  } catch (err: any) {
-    logger.warn({ err: err.message }, "preloadDedupPrefix failed (non-fatal)");
-  }
+  }, undefined);
   return seen;
 }
 
@@ -164,14 +157,10 @@ export async function preloadDedupPrefix(prefix: string): Promise<Set<string>> {
  */
 export async function batchMarkSeen(keys: string[]): Promise<void> {
   if (keys.length === 0) return;
-  const rc = getPermanentClient();
-  if (!rc) return;
-  try {
-    const fullKey = `apex:${DEDUP_KEY}`;
+  const fullKey = `apex:${DEDUP_KEY}`;
+  await withPermanentClient(async rc => {
     await rc.sadd(fullKey, ...keys);
-  } catch (err: any) {
-    logger.warn({ err: err.message }, "batchMarkSeen failed (non-fatal)");
-  }
+  }, undefined);
 }
 
 // ── Active job tracking ───────────────────────────────────────────────────────

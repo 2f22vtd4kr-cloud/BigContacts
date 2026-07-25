@@ -567,7 +567,10 @@ export function guessCompanyDomainWithCity(companyName: string, city: string | n
   // City-derived variants first (highest relevance for location-branded venues)
   if (city) {
     const cityClean = ascii(city).replace(/[^a-z0-9]/g, "");
-    if (cityClean && cityClean !== base) {
+    // Only add city suffix when the base does NOT already contain the city.
+    // "Baoli Cannes" → base="baolicannes" already includes "cannes", so skip
+    // "BAOLI SAS"    → base="baoli"       doesn't include "cannes" → add baolicannes.com
+    if (cityClean && cityClean !== base && !base.includes(cityClean)) {
       candidates.push(`${base}${cityClean}.com`);
       candidates.push(`${base}-${cityClean}.com`);
       candidates.push(`${hyphen}${cityClean}.com`);
