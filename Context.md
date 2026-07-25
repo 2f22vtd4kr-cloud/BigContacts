@@ -8,15 +8,16 @@
 
 ---
 
-## Current State (2026-07-25 — imported project setup verified) — 0 entities; dashboard and API healthy; cold-start ingestion can repopulate the fresh database
+## Current State (2026-07-25 — import #8 setup complete) — 0 entities; all secrets set; Redis + API + web running; DB empty, ready for ingestion
 
 ### Environment
 - **Replit PostgreSQL** connected — `DATABASE_URL` set automatically ✅
 - **Local Redis** running on `redis://localhost:6379` — workflow `Redis` running ✅
 - **SESSION_SECRET** — ✅ Set
 - **REDIS_URL** — ✅ Set (local Redis, env var `redis://localhost:6379`)
-- **Upstash Redis (`REDIS_URL_1`–`REDIS_URL_5`)** — ✅ Set; all 5 slots connect; slot 1 is quota-exhausted (non-fatal), slots 2–5 healthy
+- **Upstash Redis (`REDIS_URL_1`–`REDIS_URL_5`)** — ✅ Set; slot 1 quota-exhausted (non-fatal), slots 2–5 healthy
 - **COMPANIES_HOUSE_API_KEY** — ✅ Set
+- **GROQ_API_KEY** — ✅ Set
 
 ### Workflows running
 | Workflow | Status |
@@ -760,3 +761,4 @@ Run **IN-HOUSE ENRICH** on HNWI/Gatekeeper entities — Wikidata SPARQL will hit
 | 2026-07-25 | **Phase K AI extraction (Groq)**: created `artifacts/api-server/src/lib/ai-extractor.ts` — Groq llama-3.3-70b-versatile (free, 6k req/day) via plain fetch, falls back to llama-3.1-8b-instant on rate limit, silent fallback if no key. Integrated as Phase 7 in `web-enricher.ts` deepWebOsintEnrich (runs over accumulated allSearchText after all search+scrape passes) and Phase 3.5 in `deep-web-osint.ts`. Also added allSearchText accumulation to deep-web-osint.ts DDG/Bing phases. Groq key confirmed working: llama-3.3-70b returns structured JSON. API build clean (1646ms), `/api/healthz` ok. GROQ_API_KEY set as Replit Secret. |
 | 2026-07-25 | **Imported project setup completed**: securely added REDIS_URL_1–5, COMPANIES_HOUSE_API_KEY, and GROQ_API_KEY; restored dependencies with frozen lockfile; pushed the existing Drizzle schema; registered all four artifact manifests; removed duplicate legacy API/web workflows; and updated the Project run button to use managed artifact workflows. Redis, managed API, and managed web are running. `/api/healthz`, `/api/entities`, and `/api/dashboard/stats` return 200, and the browser dashboard renders its empty state. Fresh database contains 0 records; ingestion is the next operational step. |
 | 2026-07-25 | **Import setup finalized**: validated the Project run button against managed Redis/API/web workflows; cold-start ingestion populated 14,200 entities and 14,100 assets. Current dashboard stats: 3,046 hot leads, 301 contactable profiles, 0 relationships, 0 active research sessions. API health and dashboard endpoints return 200; browser preview renders successfully. |
+| 2026-07-25 | **Import #8 setup complete**: CI=true frozen-lockfile install (~30s), DB schema pushed (`[✓] Changes applied`), all 7 secrets added (REDIS_URL_1–5, COMPANIES_HOUSE_API_KEY, GROQ_API_KEY). All 4 artifacts registered; Redis + API Server (8080) + apex-finder web (23695) workflows running. `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":0}}`. Upstash slots 2–5 healthy, slot 1 quota-exhausted (non-fatal). DB empty — ready for ingestion. |
