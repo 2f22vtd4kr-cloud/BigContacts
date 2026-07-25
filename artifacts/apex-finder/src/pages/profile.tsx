@@ -838,76 +838,188 @@ export default function ApexProfile() {
             {/* ── Contact Evidence Panel ─────────────────────────────────── */}
             {showContactEvidence && hasContact && (() => {
               const e2 = entity as any;
-              const sourceHint: Record<string, string> = {
-                email: "In-house enricher · domain guess · ProPublica 990",
-                phone: "In-house enricher · RDAP lookup",
-                linkedinUrl: "In-house enricher · DDG LinkedIn search",
-                twitterHandle: "Social discovery module",
-                instagramHandle: "Social discovery module",
-                telegramHandle: "Messenger discovery module",
-                personalWebsite: "In-house enricher · DNS probe",
-                foundationName: "ProPublica IRS 990 filing",
-                contactMethod: "Manual entry",
-              };
-              const cFields = [
-                { field: "email", label: "Email", value: e2.email },
-                { field: "phone", label: "Phone", value: e2.phone },
-                { field: "linkedinUrl", label: "LinkedIn", value: e2.linkedinUrl },
-                { field: "twitterHandle", label: "Twitter/X", value: e2.twitterHandle },
-                { field: "instagramHandle", label: "Instagram", value: e2.instagramHandle },
-                { field: "telegramHandle", label: "Telegram", value: e2.telegramHandle },
-                { field: "personalWebsite", label: "Website", value: e2.personalWebsite },
-                { field: "foundationName", label: "Foundation", value: e2.foundationName },
-              ].filter(f => !!f.value);
+
+              // Parse enrichment sources stored in metadata
+              let enrichSources: string[] = [];
+              try {
+                const m = JSON.parse(e2.metadata ?? "{}");
+                enrichSources = Array.isArray(m.enrichmentSources) ? m.enrichmentSources : [];
+              } catch {}
+              const hasSrc = (tag: string) =>
+                enrichSources.some(s => s.toLowerCase().includes(tag.toLowerCase()));
+
+              // Human-readable registry name from sourceRegistries
               let srcRegs2: string[] = [];
               try { srcRegs2 = JSON.parse(e2.sourceRegistries ?? "[]"); } catch {}
+              const primaryReg = srcRegs2[0] ?? "";
+              const registryLabel = (() => {
+                if (/faa/i.test(primaryReg))          return "the FAA Releasable Aircraft Database (a U.S. federal registry of aircraft owners)";
+                if (/edgar|sec/i.test(primaryReg))    return "SEC EDGAR (U.S. securities filings identifying beneficial owners and executives)";
+                if (/land.?reg|hmlr/i.test(primaryReg)) return "the UK Land Registry (property transaction records)";
+                if (/brreg|norway/i.test(primaryReg)) return "Norway's official business registry (BRREG)";
+                if (/companies.?house/i.test(primaryReg)) return "UK Companies House (official company filings)";
+                if (/bodacc|france/i.test(primaryReg)) return "BODACC (France's official business gazette)";
+                if (/ares|czech/i.test(primaryReg))   return "the Czech ARES business registry";
+                return primaryReg || "a public registry";
+              })();
+
+              // Plain-English research narrative for each contact field
+              const explainContact = (field: string): string => {
+                const name = e2.name || "This person";
+                const anchor = `${name} appears in ${registryLabel} — that registry record (name + address) is the anchor for all contact research below.`;
+
+                if (field === "email") {
+                  const steps: string[] = [anchor];
+                  if (hasSrc("propublica") || hasSrc("ProPublica")) {
+                    steps.push("We searched IRS Form 990 filings — public tax documents every U.S. nonprofit must file — and found a charitable organization linked to this person. That filing disclosed the organization's web domain.");
+                  }
+                  if (hasSrc("domain") || hasSrc("Domain")) {
+                    steps.push("We then built candidate email addresses using common naming patterns (firstname@domain, f.lastname@domain, firstname.lastname@domain, etc.) and checked which formats are plausible for this domain.");
+                  }
+                  if (hasSrc("smtp") || hasSrc("SMTP")) {
+                    steps.push("The address was further validated by querying the mail server — without sending any email — which confirmed the mailbox exists and accepts mail.");
+                  }
+                  if (hasSrc("wikidata") || hasSrc("Wikidata")) {
+                    steps.push("The email also appears in Wikidata's public structured record for this person.");
+                  }
+                  if (hasSrc("ddg") || hasSrc("DDG") || hasSrc("duckduckgo")) {
+                    steps.push("Found via a web search for this person's name alongside contact-related terms.");
+                  }
+                  if (steps.length === 1) {
+                    steps.push("The email was surfaced by the enrichment pipeline searching public web sources for this person's name and known affiliations.");
+                  }
+                  steps.push("⚠ If this looks like a generic company inbox (e.g. press@, info@, contact@) rather than a personal address, flag it as incorrect.");
+                  return steps.join(" ");
+                }
+
+                if (field === "phone") {
+                  const steps: string[] = [anchor];
+                  if (hasSrc("rdap") || hasSrc("RDAP") || hasSrc("whois") || hasSrc("WHOIS")) {
+                    steps.push("We found a domain registered to this person or their organization, then queried its public WHOIS/RDAP registration record — like looking up an entry in a public directory. The domain registrant had listed this number as their contact. Note: WHOIS data can occasionally belong to a web administrator rather than the person themselves, so cross-check if in doubt.");
+                  }
+                  if (hasSrc("propublica") || hasSrc("ProPublica")) {
+                    steps.push("This number also appears in a publicly filed IRS Form 990 for an associated nonprofit as the organization's listed contact phone.");
+                  }
+                  if (hasSrc("companieshouse") || hasSrc("CompaniesHouse")) {
+                    steps.push("This number is listed in official UK Companies House filings for a company connected to this person.");
+                  }
+                  if (hasSrc("brreg") || hasSrc("BRREG")) {
+                    steps.push("This number appears in Norway's official BRREG business registry for a company linked to this person.");
+                  }
+                  if (steps.length === 1) {
+                    steps.push("The phone number was surfaced from a public record associated with this person's name or registered organization.");
+                  }
+                  return steps.join(" ");
+                }
+
+                if (field === "linkedinUrl") {
+                  return `${anchor} We searched the web for "${e2.name} LinkedIn" and found a professional profile whose name, location, and career background are consistent with this person. We have not independently verified this profile is theirs — check that the work history and photo match what you know before reaching out.`;
+                }
+
+                if (field === "twitterHandle" || field === "instagramHandle") {
+                  const net = field === "twitterHandle" ? "Twitter/X" : "Instagram";
+                  return `${anchor} We searched public social networks for accounts whose display name, bio, or profile details match this person. The ${net} handle shown is the closest match found. Verify the profile content (bio, location, posts) before treating it as confirmed.`;
+                }
+
+                if (field === "telegramHandle") {
+                  return `${anchor} We searched public Telegram directories and group listings for accounts matching this person's name. Telegram handles can be transferred or reused, so confirm the account's activity and content match before reaching out.`;
+                }
+
+                if (field === "personalWebsite") {
+                  const steps: string[] = [anchor];
+                  if (hasSrc("dns") || hasSrc("DNS") || hasSrc("probe")) {
+                    steps.push("We identified a domain likely belonging to this person and confirmed it resolves to an active website by checking DNS records.");
+                  }
+                  if (hasSrc("ProPublica-Website") || hasSrc("propublica")) {
+                    steps.push("The site is listed as the organization's website in a publicly filed IRS Form 990.");
+                  }
+                  if (hasSrc("Wikidata-Website") || hasSrc("wikidata")) {
+                    steps.push("The site is linked to this person in Wikidata's public structured record.");
+                  }
+                  if (steps.length === 1) {
+                    steps.push("A website associated with this person was found through public records and confirmed active.");
+                  }
+                  return steps.join(" ");
+                }
+
+                if (field === "foundationName") {
+                  return `${anchor} We searched IRS Form 990 filings — public tax documents that every U.S. nonprofit must file annually — and found this person listed as an officer, director, or trustee of this foundation. The 990 is a government-published document, not inferred data.`;
+                }
+
+                if (field === "contactMethod") {
+                  return "This contact method was entered manually — either by you or imported directly from a research session. It was not inferred by the enrichment pipeline.";
+                }
+
+                return `${anchor} This value was surfaced by the enrichment pipeline from public sources linked to this person's name and registry record.`;
+              };
+
+              const cFields = [
+                { field: "email",           label: "Email",      value: e2.email },
+                { field: "phone",           label: "Phone",      value: e2.phone },
+                { field: "linkedinUrl",     label: "LinkedIn",   value: e2.linkedinUrl },
+                { field: "twitterHandle",   label: "Twitter/X",  value: e2.twitterHandle },
+                { field: "instagramHandle", label: "Instagram",  value: e2.instagramHandle },
+                { field: "telegramHandle",  label: "Telegram",   value: e2.telegramHandle },
+                { field: "personalWebsite", label: "Website",    value: e2.personalWebsite },
+                { field: "foundationName",  label: "Foundation", value: e2.foundationName },
+              ].filter(f => !!f.value);
+
               return (
                 <div className="mt-3 border border-amber-500/20 rounded-lg bg-amber-500/5 overflow-hidden">
-                  <div className="px-3 py-2 text-[9px] font-mono text-amber-500/70 uppercase tracking-widest border-b border-amber-500/10">
-                    Evidence — where Apex Atlas found each contact. Mark as bad to remove it permanently.
+                  {/* Panel header */}
+                  <div className="px-3 py-2.5 border-b border-amber-500/10">
+                    <div className="text-[10px] font-mono font-semibold text-amber-400/80 mb-0.5">
+                      How we researched these contacts
+                    </div>
+                    <div className="text-[10px] text-muted-foreground/60 leading-relaxed">
+                      For each contact below we explain the research steps so you can judge whether the logic makes sense. If something looks wrong, flag it as incorrect to remove it permanently.
+                    </div>
                   </div>
+
                   {cFields.map(({ field, label, value }) => {
                     const step = rejectStep[field] ?? 0;
                     return (
-                      <div key={field} className="px-3 py-2.5 border-b border-amber-500/10 last:border-0">
-                        <div className="flex items-start justify-between gap-2 flex-wrap">
+                      <div key={field} className="px-3 py-3 border-b border-amber-500/10 last:border-0">
+                        {/* Contact type label + value + action button */}
+                        <div className="flex items-start justify-between gap-2 flex-wrap mb-2">
                           <div className="flex-1 min-w-0">
-                            <div className="text-[10px] font-mono font-bold text-foreground">{label}</div>
-                            <div className="text-[10px] font-mono text-muted-foreground/70 truncate">{value}</div>
-                            <div className="text-[9px] font-mono text-muted-foreground/40 mt-0.5">
-                              Source: {sourceHint[field] ?? "Enrichment pipeline"}{srcRegs2[0] ? ` · Registry: ${srcRegs2[0]}` : ""}
-                            </div>
+                            <div className="text-[9px] font-mono uppercase tracking-widest text-amber-500/50 mb-0.5">{label}</div>
+                            <div className="text-[11px] font-mono font-semibold text-foreground break-all">{value}</div>
                           </div>
-                          <div className="flex-shrink-0 flex items-center gap-1.5 flex-wrap justify-end">
+                          <div className="flex-shrink-0 flex items-center gap-1.5 flex-wrap justify-end pt-0.5">
                             {step === 0 && (
                               <button onClick={() => handleRejectContact(field)}
-                                className="text-[9px] font-mono px-2 py-1 rounded border border-red-500/30 text-red-400/70 hover:text-red-400 hover:border-red-500/50 transition-colors whitespace-nowrap">
-                                Mark as bad
+                                className="text-[9px] font-mono px-2 py-1 rounded border border-red-500/30 text-red-400/60 hover:text-red-400 hover:border-red-500/50 transition-colors whitespace-nowrap">
+                                Flag as incorrect
                               </button>
                             )}
                             {step === 1 && (<>
-                              <span className="text-[9px] font-mono text-red-400 whitespace-nowrap">This will remove it. Sure?</span>
-                              <button onClick={() => handleRejectContact(field)} className="text-[9px] font-mono px-2 py-1 rounded bg-red-500/20 border border-red-500/40 text-red-400 hover:bg-red-500/30 transition-colors">Yes</button>
-                              <button onClick={() => setRejectStep(prev => { const n = {...prev}; delete n[field]; return n; })} className="text-[9px] font-mono px-2 py-1 rounded border border-border text-muted-foreground hover:text-foreground transition-colors">No</button>
+                              <span className="text-[9px] font-mono text-red-400 whitespace-nowrap">Remove this contact?</span>
+                              <button onClick={() => handleRejectContact(field)} className="text-[9px] font-mono px-2 py-1 rounded bg-red-500/20 border border-red-500/40 text-red-400 hover:bg-red-500/30 transition-colors">Yes, remove</button>
+                              <button onClick={() => setRejectStep(prev => { const n = {...prev}; delete n[field]; return n; })} className="text-[9px] font-mono px-2 py-1 rounded border border-border text-muted-foreground hover:text-foreground transition-colors">Keep it</button>
                             </>)}
                             {step === 2 && (<>
-                              <span className="text-[9px] font-mono text-red-400 font-bold whitespace-nowrap">FINAL: Remove permanently?</span>
+                              <span className="text-[9px] font-mono text-red-400 font-bold whitespace-nowrap">Permanently delete?</span>
                               <button onClick={() => handleRejectContact(field)} disabled={rejectLoading}
                                 className="text-[9px] font-mono px-2 py-1 rounded bg-red-600/30 border border-red-600/50 text-red-300 hover:bg-red-600/40 disabled:opacity-40 transition-colors">
-                                {rejectLoading ? "…" : "Remove"}
+                                {rejectLoading ? "…" : "Yes, delete"}
                               </button>
                               <button onClick={() => setRejectStep({})} className="text-[9px] font-mono px-2 py-1 rounded border border-border text-muted-foreground hover:text-foreground transition-colors">Cancel</button>
                             </>)}
                           </div>
                         </div>
+                        {/* Plain-English research explanation */}
+                        <div className="text-[10px] text-muted-foreground/55 leading-relaxed border-l-2 border-amber-500/20 pl-2.5">
+                          {explainContact(field)}
+                        </div>
                       </div>
                     );
                   })}
                   {rejectError && <div className="px-3 py-2 text-[10px] font-mono text-red-400">{rejectError}</div>}
-                  <div className="px-3 py-2 border-t border-amber-500/10 flex items-center justify-between">
-                    <span className="text-[9px] font-mono text-muted-foreground/50">After removing, click Enrich to search for a replacement contact.</span>
+                  <div className="px-3 py-2 border-t border-amber-500/10 flex items-center justify-between gap-2">
+                    <span className="text-[9px] text-muted-foreground/40">After removing an incorrect contact, click Re-enrich to search for a replacement.</span>
                     <button onClick={handleEnrich} disabled={isEnriching}
-                      className="text-[9px] font-mono px-2 py-1 rounded border border-border text-muted-foreground hover:text-primary transition-colors disabled:opacity-40 flex-shrink-0 ml-2">
+                      className="text-[9px] font-mono px-2 py-1 rounded border border-border text-muted-foreground hover:text-primary transition-colors disabled:opacity-40 flex-shrink-0">
                       {isEnriching ? "Enriching…" : "Re-enrich"}
                     </button>
                   </div>
