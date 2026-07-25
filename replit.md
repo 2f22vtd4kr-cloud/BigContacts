@@ -109,12 +109,12 @@ Two fixes were needed after the first import:
 
 | Source | Entities | Assets | Notes |
 |---|---|---|---|
-| FAA / HMLR / other live sources | 11,600 | 11,600 | FAA and HMLR cold-start ingestion completed; the API is running maintenance and enrichment passes. |
-| **Current verified state** | **11,600** | **11,600** | 2,822 hot leads; 0 relationships; 0 contactable profiles; 0 active research sessions. |
+| FAA / HMLR / other live sources | 0 | 0 | Fresh import database; cold-start registry ingestion is running in the background. |
+| **Current verified state** | **0** | **0** | 0 hot leads; 0 relationships; 0 contactable profiles; 0 active research sessions. |
 
-**Post-import cold-start state:** API startup detected the empty database, cleared stale job locks/dedup state, and started broad discovery plus Western HNWI ingestion. FAA and HMLR ingestion then populated 11,600 records. Contact cache restoration remains enabled through Upstash slot 2.
+**Post-import cold-start state:** API startup detected the empty database, cleared stale job locks/dedup state where the persistent Redis quota allowed, and started broad discovery plus Western HNWI ingestion. This fresh import currently reports 0 visible records while background ingestion repopulates the database. Contact cache restoration remains enabled through the healthy Upstash overflow slots.
 
-**Honest rating for this fresh import:** the web dashboard and API are verified and populated with real registry data; relationship and contact-enrichment passes have not yet produced records in this import.
+**Honest rating for this fresh import:** the web dashboard and API are verified and healthy; the fresh development database is currently empty while live registry ingestion runs in the background. Relationship and contact-enrichment passes have not yet produced records in this import.
 
 ---
 
