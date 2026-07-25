@@ -235,6 +235,10 @@ From the pipeline audit (`attached_assets/Pasted-Pipeline-Audit-*.txt`):
 | Date | Item | Notes |
 |---|---|---|
 | 2026-07-25 | Roadmap created | Audit baseline established; Phases K–N defined |
+| 2026-07-25 | K1–K6 implemented | RDAP registrar blocklist, generic prefix penalty, cross-entity email dedup endpoint, backfill auto-trigger, E.164 normalisation, JS-filename domain rejection |
+| 2026-07-25 | L1–L2 implemented | computeContactOutcome org detection (EDGAR-Phone, generic prefix); dashboard metric split — "54 Personal" shown (was misleading 992 Reachable) on 32,700 entities = ~0.16% true personal yield, consistent with audit estimate |
+| 2026-07-25 | M1 implemented (server-side) | smtpVerified flag → validatedDirectContact DB write; backfill derives from SMTP-Verified enrichmentSources |
+| 2026-07-25 | N2 implemented | backfill-contact-outcomes + flag-shared-emails auto-triggered in startup phases at 210s/215s |
 
 ---
 
@@ -242,20 +246,20 @@ From the pipeline audit (`attached_assets/Pasted-Pipeline-Audit-*.txt`):
 
 | Phase | Title | Status | Priority |
 |---|---|---|---|
-| K1 | RDAP Registrar Blocklist | [ ] Not started | 🔴 Critical |
-| K2 | Generic Prefix Penalty at setEmail | [ ] Not started | 🔴 Critical |
-| K3 | Cross-Entity Email Uniqueness Scan | [ ] Not started | 🔴 Critical |
-| K4 | Auto-Trigger Backfill After Ingestion | [ ] Not started | 🔴 Critical |
-| K5 | Phone E.164 Normalisation | [ ] Not started | 🟠 High |
-| K6 | Email Domain Parsing Bug (JS filename) | [ ] Not started | 🟠 High |
-| L1 | computeContactOutcome Org Detection | [ ] Not started | 🔴 Critical |
-| L2 | Dashboard Reachable Metric Split | [ ] Not started | 🟠 High |
+| K1 | RDAP Registrar Blocklist | [x] Done | 🔴 Critical |
+| K2 | Generic Prefix Penalty at setEmail | [x] Done | 🔴 Critical |
+| K3 | Cross-Entity Email Uniqueness Scan | [x] Done | 🔴 Critical |
+| K4 | Auto-Trigger Backfill After Ingestion | [x] Done | 🔴 Critical |
+| K5 | Phone E.164 Normalisation | [x] Done | 🟠 High |
+| K6 | Email Domain Parsing Bug (JS filename) | [x] Done | 🟠 High |
+| L1 | computeContactOutcome Org Detection | [x] Done | 🔴 Critical |
+| L2 | Dashboard Reachable Metric Split | [x] Done | 🟠 High |
 | L3 | Contact Evidence Audit Panel | [ ] Not started | 🟡 Medium |
-| M1 | Promote SMTP-Verified to direct_contact_verified | [ ] Not started | 🟠 High |
+| M1 | Promote SMTP-Verified to direct_contact_verified | [x] Done (server-side) | 🟠 High |
 | M2 | Multi-Pass for social_only Entities | [ ] Not started | 🟠 High |
 | M3 | LLC→Person Resolution Coverage | [ ] Not started | 🟡 Medium |
 | M4 | Contact Attribution Chain (Provenance) | [ ] Not started | 🟡 Medium |
-| N1 | Upstash Slot 1 Replacement | [ ] Not started | 🟠 High |
-| N2 | Startup Auto-Backfill Fresh Imports | [ ] Not started | 🟠 High |
+| N1 | Upstash Slot 1 Replacement | [ ] Not started — manual (add REDIS_URL_5 secret) | 🟠 High |
+| N2 | Startup Auto-Backfill Fresh Imports | [x] Done | 🟠 High |
 | N3 | Pre-existing TypeScript Errors | [ ] Not started | 🟡 Medium |
 | N4 | Contact Dedup Within Entities | [ ] Not started | 🟡 Medium |
