@@ -23,9 +23,10 @@ const GROQ_API        = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_MODEL      = "llama-3.3-70b-versatile";
 const GROQ_MODEL_FAST = "llama-3.1-8b-instant";
 
-const OPENROUTER_API    = "https://openrouter.ai/api/v1/chat/completions";
-const OPENROUTER_MODEL  = "meta-llama/llama-3.3-70b-instruct"; // fast + free-tier friendly
-const PERPLEXITY_MODEL  = "perplexity/sonar-pro";               // live web-search model (Gemini AI Overview equivalent)
+const OPENROUTER_API       = "https://openrouter.ai/api/v1/chat/completions";
+const OPENROUTER_MODEL     = "meta-llama/llama-3.3-70b-instruct"; // fast + free-tier friendly
+const PERPLEXITY_MODEL     = "perplexity/sonar-pro";               // live web-search model (Gemini AI Overview equivalent)
+const PERPLEXITY_FALLBACK  = "perplexity/sonar";                   // cheaper fallback — same live search, lower per-query cost
 
 // Track which keys hit rate-limits. Map<key, expiresAtMs> — keys auto-recover after 5 min.
 const EXHAUSTED_TTL_MS = 5 * 60 * 1000;
@@ -50,9 +51,11 @@ function getGroqKeys(): string[] {
 }
 
 function getOpenRouterKeys(): string[] {
-  return ["OPENROUTER_API_KEY", "OPENROUTER_API_KEY_2"]
-    .map(k => process.env[k] ?? "")
-    .filter(k => k.length > 0);
+  // Scan OPENROUTER_API_KEY, OPENROUTER_API_KEY_2 … OPENROUTER_API_KEY_8
+  // Any new key added as a secret is picked up automatically on next restart.
+  const names = ["OPENROUTER_API_KEY"];
+  for (let i = 2; i <= 8; i++) names.push(`OPENROUTER_API_KEY_${i}`);
+  return names.map(k => process.env[k] ?? "").filter(k => k.length > 0);
 }
 
 /** Personal contact vector for a named owner/founder discovered in text */
@@ -457,17 +460,24 @@ export async function researchWithPerplexity(
     return EMPTY;
   }
   logger.info({ entityName, entityType, country }, "Phase 0: firing Perplexity Sonar research");
-  for (const key of perpKeys) {
-    if (isExhausted(_exhaustedPerplexityKeys, key)) continue;
+  const prompt = buildPerplexityPrompt(entityName, entityType, country, context);
+
+  /** Call one model on one key. Returns the parsed result or null.
+   *  Side-effects: marks key exhausted on 429; logs errors.
+   *  `creditInsufficient` is true on 402 — caller should try cheaper model on same key. */
+  async function callPerplexity(
+    model: string,
+    label: string,
+    key: string,
+    maxTokens: number,
+  ): Promise<{ parsed: AIExtractResult | null; creditInsufficient: boolean; hardFail: boolean }> {
     try {
-      const prompt = buildPerplexityPrompt(entityName, entityType, country, context);
       const body = JSON.stringify({
-        model: PERPLEXITY_MODEL,
+        model,
         messages: [{ role: "user", content: prompt }],
         temperature: 0.1,
-        max_tokens: 1400,
+        max_tokens: maxTokens,
       });
-
       const resp = await fetch(OPENROUTER_API, {
         method: "POST",
         headers: {
@@ -482,52 +492,69 @@ export async function researchWithPerplexity(
 
       if (resp.status === 429) {
         _exhaustedPerplexityKeys.set(key, Date.now() + EXHAUSTED_TTL_MS);
-        logger.warn("Perplexity Sonar rate limit — key marked exhausted for 5 min (does NOT affect llama extraction)");
-        continue;
+        logger.warn({ label }, "Perplexity rate limit — key exhausted for 5 min");
+        return { parsed: null, creditInsufficient: false, hardFail: true };
+      }
+      if (resp.status === 402) {
+        const errText = await resp.text().catch(() => "");
+        // Parse "can only afford N" to see actual credit capacity
+        const affordMatch = errText.match(/can only afford (\d+)/);
+        const canAfford = affordMatch ? parseInt(affordMatch[1]!) : 0;
+        logger.warn({ label, canAfford, requested: maxTokens }, "Phase 0: insufficient credits for this model — will try cheaper model");
+        return { parsed: null, creditInsufficient: true, hardFail: false };
       }
       if (!resp.ok) {
         const errText = await resp.text().catch(() => "");
-        logger.warn({ status: resp.status, err: errText.slice(0, 300) }, "Phase 0: Perplexity API error");
-        continue;
+        logger.warn({ status: resp.status, err: errText.slice(0, 300), label }, "Phase 0: Perplexity API error");
+        return { parsed: null, creditInsufficient: false, hardFail: false };
       }
 
       const data = await resp.json() as any;
       const raw: string = data?.choices?.[0]?.message?.content ?? "";
-      // OpenRouter returns Perplexity citations at the top-level response object
       const citations: string[] = Array.isArray(data?.citations) ? data.citations.slice(0, 8) : [];
+      logger.info({ entityName, rawLen: raw.length, citations: citations.length, label }, "Phase 0: Perplexity raw response received");
 
-      logger.info({ entityName, rawLen: raw.length, citations: citations.length }, "Phase 0: Perplexity raw response received");
-
-      // Perplexity may wrap JSON in text — extract the JSON block
       const jsonMatch = raw.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
-        logger.warn({ raw: raw.slice(0, 300) }, "Phase 0: Perplexity — no JSON block in response");
-        continue;
+        logger.warn({ raw: raw.slice(0, 300), label }, "Phase 0: no JSON block in response");
+        return { parsed: null, creditInsufficient: false, hardFail: false };
       }
-
       const parsed = parseAIResponse(jsonMatch[0], "perplexity-sonar");
       if (!parsed) {
-        logger.warn({ json: jsonMatch[0].slice(0, 300) }, "Phase 0: Perplexity — parseAIResponse returned null");
-        continue;
+        logger.warn({ json: jsonMatch[0].slice(0, 300), label }, "Phase 0: parseAIResponse returned null");
+        return { parsed: null, creditInsufficient: false, hardFail: false };
       }
 
       logger.info(
-        { entityName, hasEmail: !!parsed.email, hasPhone: !!parsed.phone, hasIG: !!parsed.instagram, owners: parsed.owners.length, ownerContacts: parsed.ownerContacts.length, citations: citations.length },
+        { entityName, hasEmail: !!parsed.email, hasPhone: !!parsed.phone, hasIG: !!parsed.instagram,
+          hasLinkedIn: !!parsed.linkedin, owners: parsed.owners.length, ownerContacts: parsed.ownerContacts.length,
+          citations: citations.length, model: label },
         "Phase 0: Perplexity Sonar research complete",
       );
-      return {
-        ...parsed,
-        source: "perplexity-sonar",
-        citations,
-        ownershipSources: [...new Set([...parsed.ownershipSources, ...citations])].slice(0, 8),
-        ownerResolutions: parsed.ownerResolutions.map((owner) => ({
-          ...owner,
-          sourceUrls: owner.sourceUrls.length > 0 ? owner.sourceUrls : citations.slice(0, 4),
-        })),
-      };
+      return { parsed: { ...parsed, citations, ownershipSources: [...new Set([...parsed.ownershipSources, ...citations])].slice(0, 8),
+        ownerResolutions: parsed.ownerResolutions.map(o => ({ ...o, sourceUrls: o.sourceUrls.length > 0 ? o.sourceUrls : citations.slice(0, 4) })) },
+        creditInsufficient: false, hardFail: false };
     } catch (err: any) {
-      logger.warn({ err: err?.message, name: (err as any)?.name }, "Phase 0: Perplexity call threw");
+      logger.warn({ err: err?.message, label }, "Phase 0: Perplexity call threw");
+      return { parsed: null, creditInsufficient: false, hardFail: false };
     }
+  }
+
+  // Per-key strategy: try sonar-pro (2000 tokens) → if 402 (not enough credits), immediately
+  // fall back to sonar (1000 tokens, ~15× cheaper) on the SAME key before moving on.
+  for (const key of perpKeys) {
+    if (isExhausted(_exhaustedPerplexityKeys, key)) continue;
+
+    // 1. Try sonar-pro
+    const pro = await callPerplexity(PERPLEXITY_MODEL, "sonar-pro", key, 2000);
+    if (pro.parsed) return { ...pro.parsed, source: "perplexity-sonar" };
+    if (pro.hardFail) continue; // 429 — key is exhausted, move to next
+
+    // 2. sonar-pro failed (402 insufficient credits or API error) — try sonar on same key
+    const standard = await callPerplexity(PERPLEXITY_FALLBACK, "sonar", key, 1000);
+    if (standard.parsed) return { ...standard.parsed, source: "perplexity-sonar" };
+    if (standard.hardFail) continue; // 429 on sonar too
+    // Both failed on this key — move to next key
   }
 
   logger.warn({ entityName }, "Phase 0: Perplexity returned no usable data — all keys tried");

@@ -23,10 +23,22 @@ function sleep(ms: number): Promise<void> {
   return new Promise(r => setTimeout(r, ms));
 }
 
-/** Extract first LinkedIn URL from text */
+/** Extract first LinkedIn URL from text.
+ *  Handles:
+ *  - Full URL with any subdomain: https://fr.linkedin.com/company/slug
+ *  - Plain www: https://www.linkedin.com/in/slug
+ *  - Protocol-free breadcrumb: fr.linkedin.com › company › slug
+ *  - No-protocol path: linkedin.com/company/slug
+ *  Always normalises to https://www.linkedin.com/...
+ */
 function extractLinkedIn(text: string): string | null {
-  const m = text.match(/https?:\/\/(www\.)?linkedin\.com\/(in|pub|company)\/[a-zA-Z0-9\-_%]+\/?/i);
-  return m ? m[0].replace(/\/$/, "") : null;
+  // 1. Full URL — any subdomain (www., fr., uk., de., …)
+  const fullM = text.match(/https?:\/\/(?:[a-z]{2,5}\.)?linkedin\.com\/(in|pub|company|school)\/([a-zA-Z0-9\-_%]{2,80})\/?/i);
+  if (fullM) return `https://www.linkedin.com/${fullM[1]}/${fullM[2]!.replace(/\/$/, "")}`;
+  // 2. Protocol-free (breadcrumb or copy-paste): linkedin.com/company/slug
+  const bareM = text.match(/(?:^|[\s(["'])(?:[a-z]{2,5}\.)?linkedin\.com\/(in|pub|company|school)\/([a-zA-Z0-9\-_%]{2,80})/i);
+  if (bareM) return `https://www.linkedin.com/${bareM[1]}/${bareM[2]}`;
+  return null;
 }
 
 /** Extract Instagram handle or URL from text */
@@ -206,6 +218,14 @@ async function scrapeContactEmail(website: string): Promise<ContactPageResult> {
         for (const m of html.matchAll(mailtoRe)) {
           const addr = (m[1] ?? "").toLowerCase().trim();
           if (isValidPublicEmail(addr) && addr.length < 80 && !found.email) found.email = addr;
+        }
+        // LinkedIn company href — critical for corps: website footers always link /company/ pages
+        if (!(found as any).linkedinUrl) {
+          const liHM = html.match(/href=["'](https?:\/\/(?:[a-z]{2,5}\.)?linkedin\.com\/(company|school|in|pub)\/[a-zA-Z0-9\-_%]{2,80})[^"']*/i);
+          if (liHM) {
+            (found as any).linkedinUrl = liHM[1]!.replace(/\/$/, "")
+              .replace(/^https?:\/\/[a-z]{2,5}\.linkedin\.com\//, "https://www.linkedin.com/");
+          }
         }
         // Instagram href
         const igM = html.match(/href=["'](https?:\/\/(?:www\.)?instagram\.com\/([a-zA-Z0-9._]{2,30}))[^"']*/i);
@@ -1028,9 +1048,14 @@ async function scrapePage(url: string): Promise<ScrapedPage> {
     }
 
     let linkedinUrl: string | null = null;
-    const liRe = /href=["'](https?:\/\/(?:www\.)?linkedin\.com\/in\/[a-zA-Z0-9\-_%]{3,})[^"']*/i;
+    // Match /company/, /school/, /in/, /pub/ — all LinkedIn entity types found in footers/headers
+    const liRe = /href=["'](https?:\/\/(?:[a-z]{2,5}\.)?linkedin\.com\/(company|school|in|pub)\/[a-zA-Z0-9\-_%]{2,80})[^"']*/i;
     const liM = html.match(liRe);
-    if (liM) linkedinUrl = liM[1]!.replace(/\/$/, "");
+    if (liM) {
+      // Normalise country subdomains (fr.linkedin.com → www.linkedin.com)
+      linkedinUrl = liM[1]!.replace(/\/$/, "")
+        .replace(/^https?:\/\/[a-z]{2,5}\.linkedin\.com\//, "https://www.linkedin.com/");
+    }
 
     // Instagram from link tags
     let instagramUrl: string | null = null;
@@ -1393,7 +1418,14 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         if (scope === "organization") { arr.push(label); phoneHits.set(ph, arr); }
         recordEvidence("phone", ph, label, sr.sourceUrl, method, confidence, details);
       }
-      const li = extractLinkedIn(sr.text);
+      // Check stripped text first, then fall back to raw result URLs.
+      // DDG encodes destination URLs in uddg= params — extractDdgUrls decodes them
+      // into sr.urls, but they never appear in sr.text (stripped HTML has no hrefs).
+      let li = extractLinkedIn(sr.text);
+      if (!li && scope === "organization") {
+        li = sr.urls.find(u => /linkedin\.com\/(company|school)\/[a-zA-Z0-9\-_%]+/i.test(u))
+             ?.replace(/[?#].*$/, "").replace(/\/$/, "") ?? null;
+      }
       if (li) {
         const arr = linkedinHits.get(li) ?? [];
         if (scope === "organization") { arr.push(label); linkedinHits.set(li, arr); }
@@ -1575,7 +1607,11 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   }
 
   // ── Phase 3: Bing on top queries (country-aware) ────────────────────────
-  const bingQueries = queries.filter(q => q.includes("email") || q.includes("contact") || q.includes("réservations")).slice(0, 2);
+  // Include contact/email queries + the linkedin query (Bing handles site: and
+  // linkedin queries far more reliably than DDG for company page discovery).
+  const bingQueries = queries.filter(q =>
+    q.includes("email") || q.includes("contact") || q.includes("réservations") || q.includes("linkedin")
+  ).slice(0, 3);
   for (let i = 0; i < bingQueries.length; i++) {
     const query = bingQueries[i]!;
     const label = `Bing[q${i + 1}]`;
@@ -1589,7 +1625,13 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         }
         const ph = extractPhone(sr.text);
         if (ph) { const arr = phoneHits.get(ph) ?? []; arr.push(label); phoneHits.set(ph, arr); }
-        const li = extractLinkedIn(sr.text);
+        // Also check sr.urls — Bing result URLs may contain LinkedIn company pages
+        // that don't appear in snippet text
+        let li = extractLinkedIn(sr.text);
+        if (!li) {
+          li = sr.urls.find(u => /linkedin\.com\/(company|school)\/[a-zA-Z0-9\-_%]+/i.test(u))
+               ?.replace(/[?#].*$/, "").replace(/\/$/, "") ?? null;
+        }
         if (li) { const arr = linkedinHits.get(li) ?? []; arr.push(label); linkedinHits.set(li, arr); }
       }
       for (const u of sr.urls) { if (urlsToScrape.size < 8) urlsToScrape.add(u); }
