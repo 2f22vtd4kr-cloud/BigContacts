@@ -1,0 +1,27 @@
+In the attachment you can remind yourself what happened last re-import. As you can see you failed badly with a new isolated target. But we discovered that openrouter just wasn't fucking working and you didn't notice it for a dozen of re-import!!! But fine, now I added 4(!) Perplexity keys. So let's test on a new target. Same conditions: you run Apex Atlas research and I will send what Google/Gemini found.
+So the next target is B&B HOTELS which is the second-largest budget hotel group in Europe
+All workflows running. Verifying health then going straight into the research.
+Good. Now let me look at the entity creation and research endpoints so I run this correctly — B&B Hotels is the seed, the HNWIs behind it are the actual targets.
+All services up. Creating B&B Hotels as the seed entity now — the deliverable will be the wealthy principals behind it, not the brand's inbox.
+Entity ID 1 created. Firing targeted deep-web OSINT now — Perplexity Sonar goes first (Phase 0), then DDG+Groq fallback.
+Perplexity Sonar is firing — 5 owners found, 7 citations, sonar-pro[direct] working perfectly. Corp→Person hop already identified candidates. Polling for completion.
+The job's hanging after the Corp→Person hop. Let me read the full log to find where it's blocked.
+The job is alive but silent after the Corp→Person hop. Let me check what the enricher does after that hop — it may be blocking on per-person DDG queries with no log output.
+The enrichment is still running inside deepWebOsintEnrich — it's multi-phase (DDG, Bing, Qwant, page scrapes) after the Perplexity hit. With 5 owners found, it's firing many more queries. Let me check where it is now and whether the Corp→Person hop spawned per-person scraping.
+Still in the Corp→Person hop for "Goldman Sachs" + "Patrick Imbert" — each fires 4 DDG queries at 12–14s each. That's up to 2+ minutes just there, then domain scraping and AI extraction. Let me poll and read the remaining phases in parallel.
+8+ minutes is too long. Something's genuinely stuck — likely a scrape phase with no abort firing correctly. Let me check the actual log tail and DB state to see what was captured before the hang.
+Nothing written to DB yet — the job is still mid-pipeline. At 7 min in we're likely deep in Phase 5 (domain scraping with Wayback fallback) — max theoretical time is ~9.5 min. Polling in 90s.
+9+ minutes, nothing written to DB, no new log entries — a fetch body is genuinely hanging past its abort signal. Restarting the API server to kill it, then re-running immediately.
+API server is back. Let me verify health and immediately re-run — but this time I'll also add a global max-timeout guard to deepWebOsintEnrich to prevent infinite hangs from body-stalled fetches.
+Job is failed (server restart killed it), API is healthy. Let me add the global timeout guard first, rebuild, then re-run.
+Adding a hard 4-minute timeout around the deepWebOsintEnrich call, plus checking scrapePage's body-read timeout.
+Restarting API server to rebuild with the timeout fix, and simultaneously checking the scrapePage body-read implementation.
+Built clean with timeout fix. Re-running the enrichment now.
+Perplexity hit again — 3 owners, 7 citations, sonar-pro[direct]. Corp→Person hop found "Goldman Sachs". 4-minute timeout guard is active. Polling until done.
+4-minute timeout fired cleanly — so the hang is confirmed somewhere in Phase 4/5. Let me identify the exact culprit and fix it at the source.
+The root cause is clear: resp.text() on lines 156, 215, 802, 825, 851, 1038 all lack a body-read timeout. AbortSignal.timeout() on fetch() guards the connection, but once headers arrive, a stalled body hangs resp.text() forever. Let me read those sections and fix them all at once.
+Found all 6 unguarded resp.text() calls. The fix: add a readBodyText(resp, ms) helper that races body reads against a hard timeout, and apply it everywhere. Also findContactPages tries 40 paths — I'll cap it at 12.
+Now replacing all 6 unguarded resp.text() calls and capping findContactPages paths — all in parallel since these are independent edits.
+Now cap findContactPages to 12 paths max, then rebuild.
+
+
