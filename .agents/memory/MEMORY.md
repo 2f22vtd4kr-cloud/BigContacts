@@ -37,3 +37,4 @@
 - [Phase J4–J9 completion](phase-j-completion.md) — domain-resolver/digital-footprint/contact-attribution libs; source-quality endpoint; geometric-mean attribution threshold 0.52
 - [Groq AI Extractor](groq-ai-extractor.md) — llama-3.3-70b via plain fetch; Phase 7 in web-enricher + Phase 3.5 in deep-web-osint; GROQ_API_KEY secret; no SDK needed
 - [Domain guesser city-in-name bug](domain-guesser-city-bug.md) — add !base.includes(cityClean) guard; Avada+Cloudflare sites block server-side fetch; AI extraction more reliable than scraping for luxury venues
+- [Perplexity Phase 0 correct file](perplexity-phase0-wrong-file.md) — Phase 0 must be in web-enricher.ts NOT deep-web-osint.ts; route imports via enrichment/web-discovery.ts barrel → web-enricher.ts

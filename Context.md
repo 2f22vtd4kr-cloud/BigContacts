@@ -18,6 +18,8 @@
 - Dashboard stats: 32,000 entities, 7,458 hot leads, avg Bayesian score 0.67
 - Secrets status: SESSION_SECRET ✅; REDIS_URL_1–5 (Upstash), COMPANIES_HOUSE_API_KEY, GROQ_API_KEY ×3, OPENROUTER_API_KEY ×2 — all previously set; verify in secrets panel if enrichment pipeline shows degraded state.
 
+| 2026-07-26 | **Perplexity Sonar Phase 0 fix**: Phase 0 was wired into `lib/deep-web-osint.ts` but the route imports `deepWebOsintEnrich` from `lib/web-enricher.ts` (via `lib/enrichment/web-discovery.ts` barrel). Added `researchWithPerplexity` import and full Phase 0 block to `web-enricher.ts` before Phase 1 (DDG). Build clean (1023ms). Live confirmation: first entity processed ("Scott Yocham J") — `Phase 0: Perplexity Sonar research complete hasEmail: true owners: 1 ownerContacts: 1`. Perplexity Sonar is now the first layer of every deep-web enrichment run. |
+
 ## Previous State (2026-07-26 — Fresh import; Redis + API + web running; all requested enrichment secrets restored)
 
 ### Post-import setup (2026-07-26)

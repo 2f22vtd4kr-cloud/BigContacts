@@ -15,7 +15,7 @@
 
 import { logger } from "./logger";
 import { isValidPublicEmail, sanitizePublicEmail } from "./contact-validation";
-import { extractWithAI } from "./ai-extractor";
+import { extractWithAI, researchWithPerplexity } from "./ai-extractor";
 
 // ── Shared utilities ──────────────────────────────────────────────────────────
 
@@ -1389,6 +1389,61 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     add("social", page.instagramUrl, igHits, { network: "instagram" });
     add("social", page.twitterUrl, twHits, { network: "twitter" });
   };
+
+  // ── Phase 0: Perplexity Sonar — live web research ──────────────────────
+  // perplexity/sonar-pro via OpenRouter is a LIVE web-search model (same as
+  // Gemini AI Overview). Fires before DDG/Bing — owner names and personal
+  // social handles arrive in seconds, even from regional press that DDG
+  // doesn't index well (e.g. Nice-Matin finding Christophe Caucino).
+  try {
+    const perp = await researchWithPerplexity(entity.name, entity.type, country);
+    if (perp.source === "perplexity-sonar") {
+      const label = "Perplexity[sonar]";
+      result.sources.push(label);
+      if (perp.email) {
+        const arr = emailHits.get(perp.email) ?? []; arr.push(label); emailHits.set(perp.email, arr);
+        recordEvidence("email", perp.email, label, null, "ai-perplexity-sonar", 80);
+      }
+      if (perp.phone) {
+        const arr = phoneHits.get(perp.phone) ?? []; arr.push(label); phoneHits.set(perp.phone, arr);
+        recordEvidence("phone", perp.phone, label, null, "ai-perplexity-sonar", 80);
+      }
+      if (perp.linkedin) {
+        const arr = linkedinHits.get(perp.linkedin) ?? []; arr.push(label); linkedinHits.set(perp.linkedin, arr);
+        recordEvidence("social", perp.linkedin, label, null, "ai-perplexity-sonar", 75, { network: "linkedin" });
+      }
+      if (perp.instagram) {
+        const arr = igHits.get(perp.instagram) ?? []; arr.push(label); igHits.set(perp.instagram, arr);
+        recordEvidence("social", perp.instagram, label, null, "ai-perplexity-sonar", 75, { network: "instagram" });
+      }
+      if (perp.twitter) {
+        const arr = twHits.get(perp.twitter) ?? []; arr.push(label); twHits.set(perp.twitter, arr);
+        recordEvidence("social", perp.twitter, label, null, "ai-perplexity-sonar", 75, { network: "twitter" });
+      }
+      for (const oc of perp.ownerContacts) {
+        if (oc.name && !result.personsDiscovered.includes(oc.name)) result.personsDiscovered.push(oc.name);
+        if (oc.instagram) {
+          const arr = igHits.get(oc.instagram) ?? []; arr.push(`${label}-owner`); igHits.set(oc.instagram, arr);
+          recordEvidence("social", oc.instagram, `${label}-owner`, null, "ai-perplexity-sonar", 70, { network: "instagram", personName: oc.name, relationship: "discovered-person-review-only" });
+        }
+        if (oc.twitter) {
+          const arr = twHits.get(oc.twitter) ?? []; arr.push(`${label}-owner`); twHits.set(oc.twitter, arr);
+          recordEvidence("social", oc.twitter, `${label}-owner`, null, "ai-perplexity-sonar", 70, { network: "twitter", personName: oc.name, relationship: "discovered-person-review-only" });
+        }
+        if (oc.linkedin) {
+          const arr = linkedinHits.get(oc.linkedin) ?? []; arr.push(`${label}-owner`); linkedinHits.set(oc.linkedin, arr);
+          recordEvidence("social", oc.linkedin, `${label}-owner`, null, "ai-perplexity-sonar", 70, { network: "linkedin", personName: oc.name, relationship: "discovered-person-review-only" });
+        }
+      }
+      // Cited URLs → scrape queue (Perplexity's actual sources, highest quality)
+      for (const url of perp.citations.slice(0, 4)) urlsToScrape.add(url);
+      // Include Perplexity output in accumulated text for AI cross-validation
+      allSearchText += " " + JSON.stringify({ owners: perp.owners, ownerContacts: perp.ownerContacts });
+      result.queriesFired++;
+    }
+  } catch (err: any) {
+    logger.warn({ err: err?.message, name: err?.name }, "Phase 0: Perplexity Sonar failed");
+  }
 
   // ── Phase 1: DDG search (locale-aware) ─────────────────────────────────
   for (let i = 0; i < queries.length; i++) {

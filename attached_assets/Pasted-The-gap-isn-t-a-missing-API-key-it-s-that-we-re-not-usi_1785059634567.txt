@@ -1,0 +1,73 @@
+The gap isn't a missing API key — it's that we're not using them correctly. Let me check what's actually wired up now.
+Got it — the problem is crystal clear. OpenRouter has Perplexity Sonar which is a live web-search model. We're using OpenRouter as a dumb extraction layer (same as Groq — reads text we already scraped). We should be using it as a search engine that reasons, which is exactly what Gemini's AI Overview is.
+Let me check the full ai-extractor and deep-web pipeline, then build this.
+The problem is exact: OpenRouter is wired as a dumb extraction fallback (reads text we already scraped, same as Groq). It's never used as a search engine. OpenRouter gives access to Perplexity Sonar — a live web-search model that is literally what Gemini AI Overview is under the hood. It searches the internet and synthesises results with citations.
+The fix: add a Phase 0 that fires a Perplexity Sonar research query via OpenRouter before DDG scraping even starts. If Perplexity finds Christophe Caucino from Nice-Matin, we have it in seconds, not minutes.
+I have everything I need. Here's the concrete fix: wire Perplexity Sonar as Phase 0 — a live web-research query that fires before DDG/Bing, exactly like Gemini AI Overview. OpenRouter already has the key, we're just sending it to the wrong model.
+Now I'll make both changes in parallel — extend ai-extractor with Perplexity Sonar, then wire Phase 0 into deep-web-osint.
+I need to continue implementing the Perplexity Sonar integration. I've already:
+1. Added PERPLEXITY_MODEL constant
+2. Added "perplexity-sonar" to source type union
+3. Added citations field to AIExtractResult
+Now I need to:
+1. Update the EMPTY constant to include citations: []
+2. Update parseAIResponse to include citations: [] in its return
+3. Add buildPerplexityPrompt() function
+4. Add researchWithPerplexity() function
+5. Update deep-web-osint.ts with the necessary imports, reorganize the aiOwners variable, and add Phase 0 logic
+Now I need to wire Phase 0 into deep-web-osint.ts. Let me:
+1. Update the import to include researchWithPerplexity
+2. Move type AiOwner and const aiOwnersdeclaration before Phase 0
+3. Add Phase 0 block after the accumulators are declared but before Phase 1
+Let me do the deep-web-osint changes now.
+Now wire Phase 0 into deep-web-osint.ts — update import, hoist aiOwners, add the Perplexity phase.
+I need to remove the duplicate type AiOwner and const aiOwners declaration from Phase 3.5 (since I hoisted them), then build and test.
+Now remove the duplicate aiOwners declaration from Phase 3.5 (it was hoisted), then build.
+
+The attachment cut off mid-implementation of Perplexity Sonar Phase 0. Let me check the exact current state of both files before touching anything.
+Both files already have Perplexity Sonar wired. The last step from the attachment was removing the duplicate aiOwners declaration from Phase 3.5. Let me check the current build state and that duplicate simultaneously.
+Build is clean and duplicate was already removed — the implementation is complete. The API needs a restart to pick up the latest code, then I'll run a live test.
+No Bâoli entities — fresh DB. Creating them and running the full test now.
+Both entities created. Firing all enrichment layers in parallel now.
+The job is stuck — Perplexity Phase 0 is hanging with no timeout. Let me check the timeout configuration and fix it while watching live logs.
+Both entities were skipped (enriched: 0) and no Perplexity Sonar log appeared — need to diagnose why. Checking entities and the skip logic simultaneously.
+Perplexity Sonar works perfectly — it returned email, phone, instagram, AND Christophe Caucino in one shot. The issue is in the pipeline: entities were skipped and no Phase 0 log appeared. Diagnosing in parallel now.
+The root cause is clear: _exhaustedORKeys is a shared module-level set — if any prior maintenance job hit 429 on OpenRouter during cold-start enrichment, both keys are marked exhausted permanently for the process lifetime, silently blocking Phase 0. Let me read the full exhaustion logic and fix all the issues together.
+Found two bugs:
+1. _exhaustedORKeys is shared between callOpenRouter (text extraction) and researchWithPerplexity — if any maintenance enrichment job got a 429 on OpenRouter before Phase 0 ran, Perplexity is silently blocked for the entire process lifetime
+2. Perplexity returns "@baolicannes" (handle format) but parseAIResponse filters it out because it doesn't contain "instagram.com"
+Fixing both now, plus adding time-based TTL expiry so keys auto-recover after 5 minutes.
+Now I have everything I need. Writing all fixes to ai-extractor.ts in one pass:
+1. Separate _exhaustedPerplexityKeys set for Perplexity Sonar (decoupled from OpenRouter-llama)
+2. Time-based TTL expiry (5 min) on all exhaustion maps — keys auto-recover
+3. Instagram/Twitter @handle → full URL normalization in parseAIResponse
+4. Warning log when all Perplexity keys are exhausted
+Now update all the .has() and .add() calls to use the new TTL maps, and switch Perplexity to its own separate exhaustion tracking.
+Now applying all remaining fixes in one batch — updating .has() / .add() calls and switching Perplexity to its own exhaustion map.
+Clean build. Restarting and running the Bâoli test simultaneously.
+Phase 0 is being called but failing silently — all errors are at DEBUG level so they don't appear in logs. Let me make failures visible at WARN and trace exactly what's happening.
+Upgrading all silent failure paths to WARN so I can see exactly where Perplexity breaks.
+
+last unfinished step is clear: the Perplexity Sonar Phase 0 code exists, but the live test was still diagnosing silent failures. I’m checking the exact error paths and current build before applying the final observability fix and rerunning the Bâoli test safely.
+Continuing the workflow
+I need to keep going and understand that the attachment mentions "silent failures." It seems the code may already have warnings in the current source, and the attachment might indicate an issue due to an interruption. I have to run a live test now, while the current database is populating without interference. I should locate the actual enrichment endpoint for triggering two entities and possibly search the BAOLI records first. Polling FAA might help avoid the need to restart while running.
+The Perplexity implementation is present and the focused regression tests pass (28/28). The remaining interruption is operational: the API was rebuilt but not restarted after those changes, and the database is still ingesting FAA records. I’ll let ingestion continue, restart the API once safely, then locate the Bâoli records and run a targeted enrichment test rather than launching a broad job.
+Inspecting citations and results
+I’m thinking I might need to attach citations to the final result. It’s important to ensure that any information I provide is supported with credible sources. I want to check the deepWeb result interface for evidence or details that could help. Maybe I’ll have to look through the final result and see how the owner has handled saved data. This way, I can make sure everything is accurate and properly referenced!
+The live ingestion is progressing normally (FAA at 39%, land registry complete, 15,300 entities), so I won’t interrupt it. I found the exact unfinished change from the attachment: the Phase 0 catch still logs at debug level, which hides failures. I’m promoting that failure path to a warning, restarting the API to load the already-built Perplexity code, then I’ll run a targeted Bâoli lookup/enrichment.
+The visibility fix is in place. I’m checking whether the Bâoli entities are already present while the registry import continues; if they are, I’ll run the targeted deep-web job against only those IDs and avoid touching the broad ingestion workers.
+Bâoli is not in this fresh database yet, so there is no safe entity-targeted job to run. I’ll restart the API to load the completed Perplexity code, then use the existing public registry search to find the current Bâoli record rather than creating synthetic test data.
+The API is restarted with the final Phase 0 logging fix loaded. I’m now verifying startup, querying the live French registry search for Bâoli Cannes, and checking whether the resumed ingestion has reached a suitable record for a targeted Sonar test.
+Considering existing routes
+I’m thinking if I should use an existing route for the response. It might be necessary to create Bâoli records, but I should keep in mind that synthetic data is prohibited. I’m also wondering if a live registry search will work; it’s possible that a BODACC query could fail because of the endpoint. I might need to inspect the response using curl -i to troubleshoot any issues.
+The API restart is clean and the focused tests now pass (42/42). The interrupted deep-web job was killed by the restart before processing any records, and this fresh database still has no Bâoli entity. I’m going to validate the unfinished Phase 0 directly against the live Perplexity Sonar endpoint for the Bâoli target, then inspect the failed job record and decide whether a real targeted rerun is possible without creating synthetic data.
+The failed job confirms the restart killed it before processing any entity, not because of a Perplexity error. One probe used the wrong workspace command, so I’m retrying the direct Sonar test from the monorepo root and parsing the live registry response cleanly; then I’ll either resume a real target or document the exact blocker.
+The live French registry search found the real BAOLIcorporation at the Cannes address (RCS 428108641), but this endpoint is read-only, so it did not create a database record. I’m checking the project’s existing test/runtime entry points for a safe direct invocation of the new Phase 0 function; I won’t fabricate an entity just to force a test.
+
+
+
+
+
+
+
+
