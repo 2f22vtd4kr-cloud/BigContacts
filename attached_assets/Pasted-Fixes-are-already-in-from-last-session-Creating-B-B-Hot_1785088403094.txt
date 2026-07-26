@@ -1,0 +1,57 @@
+Fixes are already in from last session. Creating B&B Hotels and firing enrichment now.
+Entity created. Firing the enrichment now.
+Job completed — 1 inserted. Let me pull the entity and fresh logs simultaneously.
+Enrichment complete. Here's what was found:
+B&B Hotels — confidence 88, access 0.87, direct_contact_candidate
+* Email: privacy.france@hotelbb.com (corporate privacy inbox — org-level)
+* Social: LinkedIn company, Twitter @BBHotels, Instagram @bbhotels
+* Ownership chain (sourced): Goldman Sachs AM confirmed controller (acquired 2019, ~€1.9B; exploring €3.5B sale) ← PAI Partners (2016–19) ← Carlyle Group ← Duke Street Capital (2003). Founder: François Branellec (Galaxy SA, Brest 1990)
+* Current CEO: Céline Vercollier (PR Newswire source). US CEO: Amir Mustafa
+Now running Apex Atlas research.
+Apex Atlas session complete. Here's the full picture:
+
+B&B Hotels — Apex Atlas Result
+Enrichment (Perplexity sonar-pro[direct], 13 queries, 12 pages scraped)
+Field	Value
+Confidence	88 / contactOutcome: direct_contact_candidate
+Access score	0.87
+Email	privacy.france@hotelbb.com⚠️ corporate privacy inbox
+Social	LinkedIn company · Twitter @BBHotels · Instagram @bbhotels
+Ownership chain (all sourced)
+		
+		
+		
+		
+		
+Principal	Role	Status
+Goldman Sachs AM	Majority controller	✅ Confirmed — acquired 2019 ~€1.9B, exploring €3.5B sale (Bloomberg 2024)
+Atlas path: 1-step isolated graph (no registry data yet) → path score 99/100 is a synthetic fallback. Bayesian: 0.05 → 0.164.
+Key finding: The real targets are Goldman Sachs AM partners and Céline Vercollier. The enrichment surfaced the corporate org-email and social handles but no personal contacts — that requires HNWI entity creation for Vercollier and relevant GS principals and a second enrichment pass.
+Ready for your Google/Gemini comparison whenever you send it.
+Here is Google/Gemini response: "Here is the direct executive intelligence for B&B HOTELS GROUP:Group Executive LeadershipCeline Vercollier – Group Chief Executive Officer (CEO)Direct Email Target: celine.vercollier@hotel-bb.comFabrice Collet – ChairmanDirect Email Target: fabrice.collet@hotel-bb.comDamien Martin – Group Chief Financial Officer (CFO)Direct Email Target: damien.martin@hotel-bb.comAxel Gerke – Group Revenue Management DirectorDirect Email Target: axel.gerke@hotel-bb.comKey Regional CEOsBecause B&B HOTELS operates via highly empowered regional clusters, reaching out to the regional chief executives is often the fastest path to a commercial decision:Valerio Duchini – CEO of Western Europe Cluster (Managing nearly 450 properties across France, Belgium, and Switzerland)Direct Email Target: valerio.uchini@hotel-bb.com or valerio.duchini@hotel-bb.comMarine Charles – President / CEO of B&B HOTELS FranceDirect Email Target: marine.charles@hotel-bb.comBenjaminLacroix – CEO of B&B HOTELS US & BrazilDirect Email Target: benjamin.lacroix@hotel-bb.com"
+Workflows crashed — restarting them while I process this intel.
+All up. Creating all 7 executives in parallel — domain hotel-bb.com is live and confirmed.
+All 7 created (IDs 2–8). Running Atlas research on all of them in parallel — no external API calls, just graph traversal.
+All sessions done. Let me update Context.md and give you the honest comparison.
+Apex vs. Gemini — honest scorecard:
+Where Gemini beat us clearly:
+* Named 6 executives we missed entirely (Collet, Martin, Gerke, Duchini, M. Charles, Lacroix)
+* Gave direct firstname.lastname@hotel-bb.comemail addresses — domain is live and confirmed
+* Identified the regional cluster structure (Western Europe ~450 hotels)
+Where we beat Gemini:
+* Full sourced PE ownership chain: GS AM → PAI Partners → Carlyle → Duke Street Capital → Branellec (every hop with URLs)
+* Confirmed Goldman Sachs is exploring a €3.5B sale (Bloomberg 2024) — actionable deal intelligence Gemini didn't surface
+* Céline Vercollier and Amir Mustafa independently confirmed via PR Newswire / Hotel Dive
+Where we failed specifically:
+* The Corp→Person hop extracted "Hotels CEO" — garbage. The Perplexity hit returned 5 owner names but the extractor collapsed them into a useless label. That's a parsing bug in the name-extraction step, not a data problem.
+* Wrong domain: scraped hotelbb.com (the booking site) instead of hotel-bb.com (the corporate domain). The enricher needs to try hotel-bb.com as a domain variant when the primary domain is a booking/consumer site.
+What's now in the DB: 8 entities (B&B Hotels + 7 execs), 8 Atlas sessions, all with Gemini-sourced emails pre-loaded, graph isolated pending registry ingestion. The two highest-priority targets for a direct approach are Vercollier (CEO, path 57) and Lacroix (US CEO, path 63 — easiest if you have a US angle).
+Two concrete fixes needed from this case study — want me to patch them now or save for the next session?
+
+Save it for the next session
+The user wants to save the fixes for the next session. I'll note this in memory and wrap up cleanly.
+The user hasn't said anything. The system reminder just updated me on workflow status. My work is complete - I should just save the bug notes for next session as the user requested.
+Let me write the topic file for the B&B Hotels gaps memory entry.
+The system reminder is just updating me on workflow status and giving me guidance. No user message. Work is complete - the bugs are saved to memory for next session. Nothing to do here.
+Noted and saved. See you next session.
+
