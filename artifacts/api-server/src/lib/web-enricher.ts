@@ -1230,6 +1230,9 @@ export function buildDeepWebQueries(
     // English fallback
     queries.push(`"${tradingName}" CEO owner founder contact`);
 
+    // LinkedIn company page — surfaces /company/<slug> URL via snippet
+    queries.push(`"${tradingName}" linkedin`);
+
     // Domain guessing — add to direct scrape targets, not search queries
     const domains = guessCompanyDomainWithCity(legalName, city);
     domainTargets.push(...domains.slice(0, 4));
