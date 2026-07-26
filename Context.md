@@ -8,15 +8,17 @@
 
 ---
 
-## Current State (2026-07-26 — Imported project setup complete; Redis + API + web running; database ready for ingestion)
+## Current State (2026-07-26 — Fresh import fully set up; all secrets loaded; OSINT paused by user; ready for single-entity test run)
 
 ### Post-import setup (2026-07-26)
-- `CI=true pnpm install --frozen-lockfile` — all packages installed (~31s)
+- `CI=true pnpm install --frozen-lockfile` — all packages installed (~35s)
 - `pnpm --filter @workspace/db run push` — schema applied (`[✓] Changes applied`)
 - Redis, API Server, apex-finder web workflows restarted and confirmed running
-- `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":1}}` ✅
-- `/api/entities` and `/api/dashboard/stats` → HTTP 200; the fresh development database currently contains zero entities/assets.
-- Secrets status: `SESSION_SECRET`, `REDIS_URL_1`–`REDIS_URL_5`, `COMPANIES_HOUSE_API_KEY`, `GROQ_API_KEY`/`_2`/`_3`, and `OPENROUTER_API_KEY` through `_4` are present. Upstash slot 1 is quota-exhausted but slots 2–5 are healthy and failover is automatic.
+- `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":5}}` ✅
+- All 13 secrets loaded via secure form: `SESSION_SECRET`, `REDIS_URL_1`–`REDIS_URL_5`, `COMPANIES_HOUSE_API_KEY`, `GROQ_API_KEY`/`_2`/`_3`, `OPENROUTER_API_KEY`/`_2`/`_3`/`_4`
+- Upstash slots 2–5 healthy; slot 1 quota-exhausted (graceful fallback, non-fatal)
+- Database is fresh/empty. OSINT ingestion intentionally NOT started — user will trigger a single-entity enrichment run for testing/study.
+- Cold-start auto-ingestion that fires on empty DB was triggered on first boot but user has instructed to hold off further OSINT until ready.
 
 | 2026-07-26 | **Perplexity Sonar Phase 0 fix**: Phase 0 was wired into `lib/deep-web-osint.ts` but the route imports `deepWebOsintEnrich` from `lib/web-enricher.ts` (via `lib/enrichment/web-discovery.ts` barrel). Added `researchWithPerplexity` import and full Phase 0 block to `web-enricher.ts` before Phase 1 (DDG). Build clean (1023ms). Live confirmation: first entity processed ("Scott Yocham J") — `Phase 0: Perplexity Sonar research complete hasEmail: true owners: 1 ownerContacts: 1`. Perplexity Sonar is now the first layer of every deep-web enrichment run. |
 
