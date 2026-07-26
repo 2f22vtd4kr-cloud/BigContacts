@@ -8,7 +8,18 @@
 
 ---
 
-## Current State (2026-07-26 — All 13 secrets set; auto-pipeline gated (ENABLE_AUTO_PIPELINE); BAOLI case study run: email✅ phone✅ instagram✅ linkedin❌; 3 enrichment fixes applied)
+## Current State (2026-07-26 — All 13 secrets set; auto-pipeline gated; Orient Express single-target Apex Atlas run complete)
+
+### Orient Express case study (2026-07-26)
+- User-provided target brief: `attached_assets/Pasted-The-Orient-Express-brand-is-owned-and-operated-as-a-joi_1785076892493.txt`.
+- Added one research-only `Corporation` entity: **Orient Express**. No broad ingestion or registry population was started.
+- Added `ENABLE_AUTO_PIPELINE=false` to the shared environment and gated `coldStartRecovery()` so an empty database cannot trigger broad discovery or registry ingestion on startup.
+- Targeted deep-web job completed successfully: **1 enriched, 0 skipped, 0 errors**; 12 queries fired and 5 pages scraped.
+- Live research layers used: Perplexity Sonar fallback, DuckDuckGo search, Groq structured extraction, and direct public-page parsing.
+- Persisted findings: official organization email `contact@orient-express.com`; review-only named principals **Gilda Perez-Alvarado** (CEO) and **Guillaume de Saint Lager** (General Secretary); ownership summary returned Accor control, based on the captured Wikipedia/Accor PDF sources.
+- Contact state: `organization_contact`, confidence 73, Access score 0.74. The India-based `info@orientexpress.in`, `+91-11-4151 4430`, and Unilocal social result are likely name-collision evidence and must not be treated as Orient Express (Accor) contacts.
+- Full Apex Atlas session completed: Bayesian score 0.05 → 0.1644, path score 0.99, but graph remains isolated with 0 relationships. The generated pitch is therefore not actionable; its gatekeeper/path score is a synthetic fallback and should be reviewed before any outreach.
+- Google/Gemini comparison baseline is now ready: compare against the attachment’s Accor/LVMH, Corinthian, Belmond, hotel, and train claims; separate factual ownership accuracy, source quality, entity resolution, contact attribution, and unsupported inference.
 
 ### Post-import setup (2026-07-26)
 - `CI=true pnpm install --frozen-lockfile` — all packages installed (~35s)
@@ -117,6 +128,7 @@ All 4 Phase I items implemented and live. Build clean (esbuild ⚡ 1183ms). All 
 ### Iteration Log
 | Date | Summary |
 |---|---|
+| 2026-07-26 | Completed a controlled Orient Express single-target run from the uploaded brief: auto-pipeline disabled; one corporation created; targeted deep-web enrichment returned 1/1 success with official Orient Express contact evidence and two review-only officers; full Apex Atlas session completed with no graph edges. Name-collision contacts and synthetic fallback pitch/path were explicitly flagged for review. |
 | 2026-07-26 | Imported project setup completed: securely restored five Upstash Redis URLs, one Companies House key, three Groq keys, and four OpenRouter keys; installed frozen-lockfile dependencies; applied the Drizzle schema; restarted Redis/API/web workflows; verified `/api/healthz`, `/api/entities`, and `/api/dashboard/stats`; API and web are healthy, with a fresh empty database ready for ingestion. |
 | 2026-07-26 | Fresh import boot: pnpm install (28s), DB schema push ([✓] Changes applied), Redis+API+Web workflows restarted, /api/healthz → ok; all 11 secrets restored (REDIS_URL_1–5 slots 1–5, COMPANIES_HOUSE_API_KEY, GROQ_API_KEY/2/3, OPENROUTER_API_KEY/2); 9,500 entities + 2,384 hot leads carried from prior session |
 | 2026-07-23 | Fresh import boot: pnpm install, DB schema push, all 3 workflows running, cold-start ingestion auto-started |

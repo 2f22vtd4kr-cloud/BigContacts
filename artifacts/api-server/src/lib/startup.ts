@@ -725,6 +725,14 @@ export async function coldStartRecovery(): Promise<void> {
   // Non-blocking — starts model download (~23 MB on first boot) and cache hydration.
   warmUpSemanticEngine();
 
+  // Research is intentionally opt-in. A fresh import must not begin broad
+  // discovery or registry ingestion merely because the database is empty.
+  // This also allows a controlled single-target run before any bulk pipeline.
+  if (process.env["ENABLE_AUTO_PIPELINE"] !== "true") {
+    logger.info("Automatic broad ingestion is disabled (ENABLE_AUTO_PIPELINE is not true)");
+    return;
+  }
+
   // Check entity count — retry up to 3× with backoff to handle transient PG startup lag.
   // Previously this returned immediately on any error, causing cold-start to abort
   // and leaving the DB empty with no ingestion triggered.

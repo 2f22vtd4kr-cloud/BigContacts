@@ -57,6 +57,7 @@ The long-term plan for improving the approximately 2.5% direct-contact yield is 
 | `COMPANIES_HOUSE_API_KEY` | Replit Secret (optional) | UK Companies House officer harvester |
 | `GROQ_API_KEY`, `_2`, `_3` | Replit Secrets (optional) | Groq-powered structured extraction during web enrichment, with key rotation |
 | `OPENROUTER_API_KEY`, `_2`, `_3`, `_4` | Replit Secrets (optional) | OpenRouter model access, with key rotation |
+| `ENABLE_AUTO_PIPELINE` | Shared environment | Set to `false` for controlled imports and single-target research; set to `true` only when broad cold-start ingestion is explicitly requested. |
 
 ### Adding a new Upstash Redis slot
 
@@ -95,7 +96,7 @@ After a fresh GitHub import, run these steps to get the project running:
 2. **Push DB schema:** `pnpm --filter @workspace/db run push`
 3. **Start workflows:** Redis → `artifacts/api-server: API Server` → `artifacts/apex-finder: web` (in that order)
 
-Latest verification (2026-07-26): all 13 requested enrichment secrets are present — `REDIS_URL_1` through `REDIS_URL_5`, `COMPANIES_HOUSE_API_KEY`, `GROQ_API_KEY`/`_2`/`_3`, and `OPENROUTER_API_KEY` through `_4`; the frozen-lockfile install and schema push completed; Redis, `artifacts/api-server: API Server`, and `artifacts/apex-finder: web` are running; `/api/healthz`, `/api/entities`, and `/api/dashboard/stats` return 200. Upstash slots 1–5 connect, although slot 1 has reached its provider request quota; the app continues with healthy slots and graceful degradation. The fresh development database is empty and ready for ingestion.
+Latest verification (2026-07-26): all 13 requested enrichment secrets are present — `REDIS_URL_1` through `REDIS_URL_5`, `COMPANIES_HOUSE_API_KEY`, `GROQ_API_KEY`/`_2`/`_3`, and `OPENROUTER_API_KEY` through `_4`; the frozen-lockfile install and schema push completed; Redis, `artifacts/api-server: API Server`, and `artifacts/apex-finder: web` are running; `/api/healthz`, `/api/entities`, and `/api/dashboard/stats` return 200. `ENABLE_AUTO_PIPELINE=false` prevented broad cold-start ingestion. A single Orient Express target was enriched and researched; no bulk registry ingestion was started.
 
 Two fixes were needed after the first import:
 - Added `"pg-cloudflare"` to the `external` list in `artifacts/api-server/build.mjs` (pg optional dep that esbuild couldn't resolve)
@@ -103,16 +104,16 @@ Two fixes were needed after the first import:
 
 ---
 
-## Current Data State (verified 2026-07-24 19:38 UTC — latest import setup)
+## Current Data State (verified 2026-07-26 14:45 UTC — controlled Orient Express case study)
 
 | Source | Entities | Assets | Notes |
 |---|---|---|---|
-| FAA / HMLR / other live sources | 14,200 | 14,100 | Cold-start registry ingestion populated the fresh development database. |
-| **Current verified state** | **14,200** | **14,100** | 3,046 hot leads; 0 relationships; 301 contactable profiles; 0 active research sessions. |
+| User-provided Orient Express brief + targeted public web OSINT | 1 | 0 | One research-only corporation target; 1 organization-contact outcome; review-only ownership/person evidence. |
+| **Current verified state** | **1** | **0** | 0 relationships; 1 contact-enrichment run; 1 Apex Atlas research session; broad ingestion disabled. |
 
-**Post-import cold-start state:** API startup detected the empty database, cleared stale job locks/dedup state where the persistent Redis quota allowed, and started broad discovery plus Western HNWI ingestion. The live registry ingestion has now populated 14,200 entities and 14,100 assets. Contact cache restoration remains enabled through the healthy Upstash overflow slots.
+**Controlled case-study state:** API startup detected the empty database but did not start broad discovery or registry ingestion because `ENABLE_AUTO_PIPELINE=false`. The only stored target is Orient Express, and the only research session is the targeted Apex Atlas run.
 
-**Honest rating for this fresh import:** the web dashboard and API are verified and healthy; live registry data is present. Relationship construction and deeper contact-enrichment passes remain to be run for this import.
+**Honest rating for this case study:** the API and web dashboard are healthy; targeted web research completed; official organization evidence was captured; the graph is isolated; and collision-prone contact evidence plus generated outreach require manual review.
 
 ---
 
