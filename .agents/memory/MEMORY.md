@@ -40,3 +40,4 @@
 - [Perplexity Phase 0 correct file](perplexity-phase0-wrong-file.md) — Phase 0 must be in web-enricher.ts NOT deep-web-osint.ts; route imports via enrichment/web-discovery.ts barrel → web-enricher.ts
 - [Imported artifact preview metadata](imported-artifact-preview.md) — imported artifact files can exist while artifact listing is empty, blocking helper screenshots; verify via workflow, HTTP, and build checks
 - [Target entity resolution](target-entity-resolution.md) — brand-level targets need disambiguation before contacts, ownership, or outreach are trusted
+- [B&B Hotels enrichment gaps](bb-hotels-gaps.md) — two concrete bugs to fix next session: Corp→Person name extraction collapse + wrong corporate domain selection
