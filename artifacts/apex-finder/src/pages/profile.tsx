@@ -766,6 +766,138 @@ export default function ApexProfile() {
         </div>
       </div>
 
+      {/* ── Ownership / control resolution ─────────────────────────────────── */}
+      {(() => {
+        const e = entity as any;
+        let meta: Record<string, any> = {};
+        try { meta = JSON.parse(e.metadata ?? "{}"); } catch {}
+        const resolutions = Array.isArray(meta.deepWebOwnerResolutions)
+          ? meta.deepWebOwnerResolutions
+          : [];
+        const legacyPeople = Array.isArray(meta.deepWebPersonsDiscovered)
+          ? meta.deepWebPersonsDiscovered
+          : [];
+        const summary = typeof meta.deepWebOwnershipSummary === "string"
+          ? meta.deepWebOwnershipSummary
+          : null;
+        const sourceUrls = Array.isArray(meta.deepWebOwnershipSources)
+          ? meta.deepWebOwnershipSources.filter((url: unknown): url is string => typeof url === "string" && /^https?:\/\//i.test(url))
+          : [];
+        const people = resolutions.length > 0
+          ? resolutions
+          : legacyPeople.map((name: string) => ({
+              name,
+              role: "associated_person",
+              ownershipStatus: "not_established",
+              basis: null,
+              sourceUrls: sourceUrls.slice(0, 2),
+              instagram: null,
+              twitter: null,
+              linkedin: null,
+              email: null,
+            }));
+        const isOrg = e.type === "Corporation" || e.type === "Trust";
+        if (!isOrg && people.length === 0 && !summary) return null;
+        const ownerCount = people.filter((person: any) =>
+          person.role === "owner" || person.role === "beneficial_owner" || person.role === "controller",
+        ).length;
+        return (
+          <section className="flex-shrink-0 border-b border-border px-4 md:px-6 py-4 bg-amber-500/[0.03]">
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <ShieldAlert className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                  <span className="text-[10px] font-mono font-bold text-amber-400 uppercase tracking-widest">
+                    Ownership / Control
+                  </span>
+                  {ownerCount > 0 && (
+                    <span className="text-[9px] font-mono text-emerald-400/80 uppercase">
+                      {ownerCount} supported {ownerCount === 1 ? "claim" : "claims"}
+                    </span>
+                  )}
+                </div>
+                <p className="text-[10px] text-muted-foreground/70 mt-1.5 leading-relaxed max-w-3xl">
+                  Phase 0 resolves the people behind the entity first. Director, operator, founder, and owner are kept distinct; names remain review-only until independently confirmed.
+                </p>
+              </div>
+              {sourceUrls[0] && (
+                <a
+                  href={sourceUrls[0]}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-shrink-0 text-[9px] font-mono text-amber-400/80 hover:text-amber-300 underline underline-offset-2"
+                >
+                  Source↗
+                </a>
+              )}
+            </div>
+            <div className="rounded border border-amber-500/15 bg-background/40 px-3 py-2.5 mb-3">
+              <div className="text-[9px] font-mono uppercase tracking-widest text-amber-400/60 mb-1">
+                Phase 0 finding
+              </div>
+              <div className={cn(
+                "text-xs font-mono leading-relaxed",
+                summary && !/not established|not proven|unknown/i.test(summary)
+                  ? "text-foreground/90"
+                  : "text-muted-foreground/70",
+              )}>
+                {summary ?? "Ownership not established yet — run the owner-first enrichment pass."}
+              </div>
+            </div>
+            {people.length === 0 ? (
+              <div className="text-[10px] font-mono text-muted-foreground/60 italic">
+                No named principals returned yet. The next Phase 0 pass will search owners, controllers, founders, operators, and officers separately.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+                {people.slice(0, 8).map((person: any, index: number) => {
+                  const role = String(person.role ?? "associated_person").replaceAll("_", " ");
+                  const status = String(person.ownershipStatus ?? "not_established").replaceAll("_", " ");
+                  const isSupported = person.ownershipStatus === "confirmed" || person.ownershipStatus === "probable";
+                  const urls = Array.isArray(person.sourceUrls)
+                    ? person.sourceUrls.filter((url: unknown): url is string => typeof url === "string" && /^https?:\/\//i.test(url))
+                    : [];
+                  return (
+                    <div key={`${person.name}-${index}`} className="rounded border border-border/70 bg-background/50 p-3 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <UserCheck className="w-3.5 h-3.5 text-amber-400/80 flex-shrink-0" />
+                          <span className="text-xs font-semibold text-foreground truncate">{person.name}</span>
+                        </div>
+                        <span className={cn(
+                          "text-[9px] font-mono uppercase tracking-wider flex-shrink-0",
+                          isSupported ? "text-emerald-400" : "text-muted-foreground/65",
+                        )}>
+                          {status}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                        <span className="text-[9px] font-mono uppercase text-amber-400/80">{role}</span>
+                        {person.basis && (
+                          <span className="text-[9px] text-muted-foreground/65 truncate max-w-full" title={person.basis}>
+                            · {person.basis}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 mt-2 flex-wrap">
+                        {person.instagram && <a href={person.instagram} target="_blank" rel="noopener noreferrer" className="text-[9px] font-mono text-pink-400 hover:underline">Instagram↗</a>}
+                        {person.linkedin && <a href={person.linkedin} target="_blank" rel="noopener noreferrer" className="text-[9px] font-mono text-blue-400 hover:underline">LinkedIn↗</a>}
+                        {person.twitter && <a href={person.twitter} target="_blank" rel="noopener noreferrer" className="text-[9px] font-mono text-sky-400 hover:underline">X↗</a>}
+                        {urls.slice(0, 2).map((url: string) => (
+                          <a key={url} href={url} target="_blank" rel="noopener noreferrer" className="text-[9px] font-mono text-amber-400/70 hover:underline truncate max-w-[180px]" title={url}>
+                            Evidence↗
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        );
+      })()}
+
       {/* ── Direct Contact Vectors (8-vector panel — H5) ───────────────────── */}
       {(() => {
         const e = entity as any;

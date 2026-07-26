@@ -64,6 +64,22 @@ export interface OwnerContact {
   email:     string | null; // Personal or direct email if stated
 }
 
+export type OwnershipRole =
+  | "owner"
+  | "beneficial_owner"
+  | "founder"
+  | "controller"
+  | "operator"
+  | "director_officer"
+  | "associated_person";
+
+export interface OwnerResolution extends OwnerContact {
+  role: OwnershipRole;
+  ownershipStatus: "confirmed" | "probable" | "not_established";
+  basis: string | null;
+  sourceUrls: string[];
+}
+
 export interface AIExtractResult {
   // ── Org-level contact vectors (for the entity being researched) ─────────
   email:     string | null;
@@ -74,6 +90,9 @@ export interface AIExtractResult {
   // ── Person discoveries ──────────────────────────────────────────────────
   owners:        string[];        // flat list of owner names (backward compat)
   ownerContacts: OwnerContact[];  // structured per-owner data with personal handles
+  ownerResolutions: OwnerResolution[]; // role + ownership basis; never auto-merged
+  ownershipSummary: string | null;
+  ownershipSources: string[];
   source:    "groq-llama-70b" | "groq-llama-8b" | "openrouter" | "perplexity-sonar" | "none";
   citations: string[];            // URLs Perplexity actually searched — use as evidence sources
 }
@@ -81,38 +100,57 @@ export interface AIExtractResult {
 const EMPTY: AIExtractResult = {
   email: null, phone: null, linkedin: null,
   instagram: null, twitter: null,
-  owners: [], ownerContacts: [],
+  owners: [], ownerContacts: [], ownerResolutions: [],
+  ownershipSummary: null, ownershipSources: [],
   source: "none",
   citations: [],
 };
 
 
 /**
- * Build the prompt. Separates org-level contact from personal owner contacts —
- * this is the key distinction that lets us find @christoph_cau (personal) vs
- * @baolicannes (venue), matching what Google/Gemini AI overview produces.
+ * Build the prompt. Ownership resolution is deliberately the first objective:
+ * finding the public contact page without identifying who owns or controls the
+ * business is an incomplete OSINT result.
  * Text is capped at 5 500 chars to leave room for the response.
  */
 function buildPrompt(text: string, entityName: string, entityType: string, country: string | null): string {
   const ctx = country ? ` (${country})` : "";
-  const truncated = text.slice(0, 5500);
+  const truncated = text.slice(0, 7000);
   const isOrg = entityType === "Corporation" || entityType === "Trust";
 
-  return `You are an OSINT research assistant. Analyze this web text about "${entityName}"${ctx} (${entityType}) and extract verifiable contact information EXPLICITLY stated in the text.
+  return `You are the ownership-resolution lead for an OSINT intelligence platform. Analyze this web text about "${entityName}"${ctx} (${entityType}).
+
+PRIMARY OBJECTIVE — WHO OWNS, CONTROLS, OR RUNS THIS ENTITY?
+Do not stop at an organisation email or phone number. Identify every named person explicitly connected to this entity and classify the connection:
+- owner / beneficial_owner: the text explicitly says they own, hold, control, or beneficially own it
+- founder: explicitly founded or co-founded it (not proof of current ownership)
+- controller: explicitly controls the entity, parent, holding company, or operating group
+- operator: explicitly runs, manages, or operates the venue/business (not proof of ownership)
+- director_officer: an explicitly named director, president, CEO, officer, or legal representative (not proof of ownership)
+- associated_person: named in a relevant business context when no stronger role is established
+
+Ownership claims must be evidence-led. Never turn a director, manager, spokesperson, chef, investor, landlord, or person merely mentioned in an article into an owner. If ownership is not established, say so in the role/status fields while still returning the person and their weaker role.
+
+SECONDARY OBJECTIVE — find the entity's public contact vectors and personal handles for the named principals.
 
 TEXT:
 ${truncated}
 
 Return ONLY valid JSON — no explanation, no markdown:
 {
+  "ownershipSummary": "one sentence stating the strongest ownership/control finding, or 'Ownership not established in the supplied text.'",
   "email": "venue/org contact email or null",
   "phone": "full international number with country code (e.g. +33 4 93 43 03 43) or null",
   "linkedin": "${isOrg ? "https://linkedin.com/company/... org page or null" : "https://linkedin.com/in/profile or null"}",
   "instagram": "${isOrg ? "venue/brand Instagram URL (e.g. https://instagram.com/baolicannes) or null" : "personal Instagram URL or null"}",
   "twitter": "venue/org Twitter/X URL or null",
-  "ownerContacts": [
+  "ownerResolutions": [
     {
       "name": "Full Name (First Last minimum)",
+      "role": "owner | beneficial_owner | founder | controller | operator | director_officer | associated_person",
+      "ownershipStatus": "confirmed | probable | not_established",
+      "basis": "short exact relationship/basis from the text, or null",
+      "sourceUrls": ["https://source-url.example/article"],
       "instagram": "PERSONAL Instagram URL (not the venue account — e.g. https://instagram.com/christoph_cau) or null",
       "twitter": "personal Twitter/X URL or null",
       "linkedin": "personal LinkedIn /in/ profile URL or null",
@@ -123,16 +161,19 @@ Return ONLY valid JSON — no explanation, no markdown:
 
 Rules:
 - Only extract what is EXPLICITLY present in the text above — never guess or infer
+- ownershipSummary must explicitly say when ownership is not established
+- ownerResolutions is the primary output; return named people even when they are only directors/operators, but label those roles honestly
+- basis must be a short quote or faithful paraphrase from the text, never an invented explanation
+- sourceUrls must contain only URLs explicitly present in the text; return [] when none are present
 - email/phone: prefer the primary business/venue contact (reservations@, contact@, info@)
 - phone: must have ≥7 digits; include country code when present
 - instagram/twitter (top level): the venue or org account (handle matches the business name)
-- ownerContacts: named founders, owners, CEOs, directors found in the text
-  * max 5 owners; full name required (at least First + Last)
-  * instagram/twitter in ownerContacts: their PERSONAL handles (not the venue account)
+- ownerResolutions: max 8 people; full name required (at least First + Last)
+  * instagram/twitter in ownerResolutions: their PERSONAL handles (not the venue account)
     e.g. if text says "Christophe Caucino (@christoph_cau)" → instagram: "https://instagram.com/christoph_cau"
   * linkedin in ownerContacts: /in/ profiles only (not /company/)
   * email in ownerContacts: personal or named email only (not info@ or reservations@)
-- Return null for any field not found; return [] for ownerContacts if none found
+- Return null for any field not found; return [] for ownerResolutions if none found
 - Do NOT invent anything not stated in the text`;
 }
 
@@ -164,9 +205,20 @@ function parseAIResponse(raw: string, source: AIExtractResult["source"]): AIExtr
 
     const owners: string[] = [];
     const ownerContacts: OwnerContact[] = [];
+    const ownerResolutions: OwnerResolution[] = [];
+    const validRoles = new Set<OwnershipRole>([
+      "owner", "beneficial_owner", "founder", "controller", "operator",
+      "director_officer", "associated_person",
+    ]);
+    const validStatuses = new Set<OwnerResolution["ownershipStatus"]>([
+      "confirmed", "probable", "not_established",
+    ]);
 
-    if (Array.isArray(parsed["ownerContacts"])) {
-      for (const oc of parsed["ownerContacts"]) {
+    const rawResolutions = Array.isArray(parsed["ownerResolutions"])
+      ? parsed["ownerResolutions"]
+      : parsed["ownerContacts"];
+    if (Array.isArray(rawResolutions)) {
+      for (const oc of rawResolutions) {
         if (typeof oc !== "object" || !oc) continue;
         const name = clean((oc as any)["name"]);
         if (!name || !name.includes(" ") || name.length < 4 || name.length > 80) continue;
@@ -180,6 +232,18 @@ function parseAIResponse(raw: string, source: AIExtractResult["source"]): AIExtr
         };
         ownerContacts.push(contact);
         owners.push(name);
+        const rawRole = clean((oc as any)["role"])?.toLowerCase() as OwnershipRole | null;
+        const rawStatus = clean((oc as any)["ownershipStatus"])?.toLowerCase() as OwnerResolution["ownershipStatus"] | null;
+        const rawSources = Array.isArray((oc as any)["sourceUrls"])
+          ? (oc as any)["sourceUrls"].filter((u: unknown): u is string => typeof u === "string" && /^https?:\/\//i.test(u)).slice(0, 8)
+          : [];
+        ownerResolutions.push({
+          ...contact,
+          role: rawRole && validRoles.has(rawRole) ? rawRole : "associated_person",
+          ownershipStatus: rawStatus && validStatuses.has(rawStatus) ? rawStatus : "not_established",
+          basis: clean((oc as any)["basis"]),
+          sourceUrls: rawSources,
+        });
       }
     }
 
@@ -200,6 +264,13 @@ function parseAIResponse(raw: string, source: AIExtractResult["source"]): AIExtr
       twitter:       normTW(parsed["twitter"]),
       owners:        owners.slice(0, 5),
       ownerContacts: ownerContacts.slice(0, 5),
+      ownerResolutions: ownerResolutions.slice(0, 8),
+      ownershipSummary: clean(parsed["ownershipSummary"]),
+      ownershipSources: Array.isArray(parsed["sources"])
+        ? parsed["sources"]
+          .filter((u: unknown): u is string => typeof u === "string" && /^https?:\/\//i.test(u))
+          .slice(0, 8)
+        : [],
       source,
       citations: [],
     };
@@ -222,7 +293,7 @@ async function callGroq(
     model,
     messages: [{ role: "user", content: prompt }],
     temperature: 0,
-    max_tokens: 600,
+    max_tokens: 1000,
     response_format: { type: "json_object" },
   });
 
@@ -268,7 +339,7 @@ async function callOpenRouter(
     model: OPENROUTER_MODEL,
     messages: [{ role: "user", content: prompt }],
     temperature: 0,
-    max_tokens: 600,
+    max_tokens: 1000,
     response_format: { type: "json_object" },
   });
 
@@ -312,33 +383,61 @@ async function callOpenRouter(
 // natural-language research question and Perplexity fetches and reads sources itself.
 // This is how Gemini finds "Christophe Caucino" from Nice-Matin in <1 second.
 
-function buildPerplexityPrompt(entityName: string, entityType: string, country: string | null): string {
+export function buildPerplexityPrompt(
+  entityName: string,
+  entityType: string,
+  country: string | null,
+  context: { tradingName?: string | null; city?: string | null } = {},
+): string {
   const ctx = country ? ` in ${country}` : "";
+  const publicName = context.tradingName && context.tradingName !== entityName
+    ? `"${context.tradingName}" (legal/entity name: "${entityName}")`
+    : `"${entityName}"`;
+  const city = context.city ? `\nKnown city/location context: ${context.city}` : "";
   const isOrg = entityType === "Corporation" || entityType === "Trust";
 
-  return `Research task: Find verifiable public contact and ownership information for "${entityName}"${ctx}.
+  return `You are conducting Phase 0 owner-first OSINT for ${publicName}${ctx}. This is not a generic contact lookup.${city}
+
+PRIMARY QUESTION: WHO OWNS, BENEFICIALLY OWNS, CONTROLS, FOUNDED, OR CURRENTLY RUNS THIS ENTITY?
+The answer must lead with the people behind the entity. Search deliberately for owner/founder/controller/operator/director names, then search each named principal for personal public social profiles. For a venue or luxury business, prioritize local and regional press, interviews, trade publications, official corporate filings, ownership/holding-company records, the official website's about/team/management pages, and public professional profiles.
+
+Do not equate a director, CEO, manager, chef, spokesperson, investor, landlord, or operator with ownership unless a source explicitly supports that claim. If current ownership cannot be proven, return the strongest supported role and mark ownershipStatus as "not_established". Never invent a beneficial owner from a company registration alone.
 
 ${isOrg
-  ? `This is a company/business. I need:\n1. Official contact email (e.g. reservations@, contact@, info@)\n2. Phone number with country code\n3. Business Instagram handle and URL\n4. Business Twitter/X handle and URL\n5. Full names of founders, owners, presidents, CEOs, or directors\n6. For each named founder/owner: their personal Instagram (@handle), Twitter/X, and LinkedIn URL\n\nCheck the company website, local/regional press articles, LinkedIn, Instagram, business registries, and news sources. Regional press (e.g. Nice-Matin, local business newspapers) often names owners.`
+  ? `This is a company/business. Required research order:\n1. Current owner or beneficial owner, with the exact basis and source URL\n2. Controller, parent, holding company, founder, operator, and director/officer names, each with an honest role\n3. For every named principal: personal Instagram, Twitter/X, and LinkedIn /in/ profile when explicitly tied to that person\n4. Official organisation email, phone, Instagram, Twitter/X\n\nUse the entity's trading name, legal name, city, country, local-language ownership terms, and quoted press. Search the company website, local/regional press, interviews, trade publications, LinkedIn, Instagram, official registries, filings, and news.`
   : `This is an individual. I need:\n1. Contact email\n2. Phone number\n3. LinkedIn profile URL\n4. Instagram handle and URL\n5. Twitter/X handle and URL\n6. Their associated companies or roles`}
 
 Return ONLY this JSON — no preamble, no explanation, no markdown:
 {
+  "ownershipSummary": "one sentence: strongest supported ownership/control finding, or 'Ownership not established.'",
   "email": "contact email or null",
   "phone": "+XX XXX XXX or null",
   "linkedin": "LinkedIn URL or null",
   "instagram": "Instagram URL or null",
   "twitter": "Twitter/X URL or null",
-  "ownerContacts": [
+  "ownerResolutions": [
     {
       "name": "First Last",
+      "role": "owner | beneficial_owner | founder | controller | operator | director_officer | associated_person",
+      "ownershipStatus": "confirmed | probable | not_established",
+      "basis": "short exact basis from the source, or null",
+      "sourceUrls": ["source URL used for this person"],
       "instagram": "personal Instagram URL or null",
       "twitter": "personal Twitter/X URL or null",
       "linkedin": "personal LinkedIn /in/ URL or null",
       "email": "personal email or null"
     }
-  ]
-}`;
+  ],
+  "sources": ["URLs actually used to support the ownership/person findings"]
+}
+
+Hard requirements:
+- Return up to 8 named principals, not just one.
+- The first priority is the owner/controller question, not the organisation email.
+- Use sourceUrls for each person and sources for the research overall.
+- If no source establishes ownership, ownershipSummary must say so; do not promote a director/operator to owner.
+- Return [] for ownerResolutions when no named person is found and null for unavailable contact fields.
+`;
 }
 
 /**
@@ -350,6 +449,7 @@ export async function researchWithPerplexity(
   entityName: string,
   entityType: string,
   country: string | null = null,
+  context: { tradingName?: string | null; city?: string | null } = {},
 ): Promise<AIExtractResult> {
   const perpKeys = getOpenRouterKeys();
   if (perpKeys.every(k => isExhausted(_exhaustedPerplexityKeys, k))) {
@@ -360,12 +460,12 @@ export async function researchWithPerplexity(
   for (const key of perpKeys) {
     if (isExhausted(_exhaustedPerplexityKeys, key)) continue;
     try {
-      const prompt = buildPerplexityPrompt(entityName, entityType, country);
+      const prompt = buildPerplexityPrompt(entityName, entityType, country, context);
       const body = JSON.stringify({
         model: PERPLEXITY_MODEL,
         messages: [{ role: "user", content: prompt }],
         temperature: 0.1,
-        max_tokens: 800,
+        max_tokens: 1400,
       });
 
       const resp = await fetch(OPENROUTER_API, {
@@ -415,7 +515,16 @@ export async function researchWithPerplexity(
         { entityName, hasEmail: !!parsed.email, hasPhone: !!parsed.phone, hasIG: !!parsed.instagram, owners: parsed.owners.length, ownerContacts: parsed.ownerContacts.length, citations: citations.length },
         "Phase 0: Perplexity Sonar research complete",
       );
-      return { ...parsed, source: "perplexity-sonar", citations };
+      return {
+        ...parsed,
+        source: "perplexity-sonar",
+        citations,
+        ownershipSources: [...new Set([...parsed.ownershipSources, ...citations])].slice(0, 8),
+        ownerResolutions: parsed.ownerResolutions.map((owner) => ({
+          ...owner,
+          sourceUrls: owner.sourceUrls.length > 0 ? owner.sourceUrls : citations.slice(0, 4),
+        })),
+      };
     } catch (err: any) {
       logger.warn({ err: err?.message, name: (err as any)?.name }, "Phase 0: Perplexity call threw");
     }

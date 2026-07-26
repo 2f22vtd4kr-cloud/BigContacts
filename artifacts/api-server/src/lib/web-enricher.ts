@@ -15,7 +15,7 @@
 
 import { logger } from "./logger";
 import { isValidPublicEmail, sanitizePublicEmail } from "./contact-validation";
-import { extractWithAI, researchWithPerplexity } from "./ai-extractor";
+import { extractWithAI, researchWithPerplexity, type OwnerResolution } from "./ai-extractor";
 
 // ── Shared utilities ──────────────────────────────────────────────────────────
 
@@ -377,11 +377,14 @@ export interface DeepWebOsintResult {
   queriesFired:    number;
   pagesScraped:    number;
   personsDiscovered: string[];
+  ownerResolutions: OwnerResolution[];
+  ownershipSummary: string | null;
+  ownershipSources: string[];
   evidence:        DeepWebEvidence[];
 }
 
 export interface DeepWebEvidence {
-  vectorType: "email" | "phone" | "social" | "domain" | "website" | "address";
+  vectorType: "email" | "phone" | "social" | "domain" | "website" | "address" | "ownership";
   value: string;
   source: string;
   sourceUrl: string | null;
@@ -1254,6 +1257,9 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     twitterUrl: null,
     sources: [], queriesFired: 0, pagesScraped: 0,
     personsDiscovered: [],
+    ownerResolutions: [],
+    ownershipSummary: null,
+    ownershipSources: [],
     evidence: [],
   };
 
@@ -1302,6 +1308,60 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       confidence: Math.min(100, Math.max(0, confidence)),
       details,
     });
+  };
+
+  const addOwnerResolution = (
+    owner: OwnerResolution,
+    source: string,
+    fallbackSourceUrl: string | null = null,
+  ) => {
+    const name = owner.name.trim();
+    if (!name) return;
+    const existing = result.ownerResolutions.find(
+      (candidate) => candidate.name.toLowerCase() === name.toLowerCase()
+        && candidate.role === owner.role,
+    );
+    if (!existing) {
+      result.ownerResolutions.push({ ...owner, name });
+    }
+    if (!result.personsDiscovered.includes(name)) result.personsDiscovered.push(name);
+
+    const sourceUrls = owner.sourceUrls.length > 0
+      ? owner.sourceUrls
+      : (fallbackSourceUrl ? [fallbackSourceUrl] : []);
+    for (const sourceUrl of sourceUrls.slice(0, 4)) {
+      if (!result.ownershipSources.includes(sourceUrl)) result.ownershipSources.push(sourceUrl);
+      recordEvidence(
+        "ownership",
+        name,
+        source,
+        sourceUrl,
+        "owner-resolution",
+        owner.ownershipStatus === "confirmed" ? 90 : owner.ownershipStatus === "probable" ? 78 : 62,
+        {
+          scope: "person_candidate",
+          personName: name,
+          role: owner.role,
+          ownershipStatus: owner.ownershipStatus,
+          basis: owner.basis,
+          relationship: "ownership-resolution-review-only",
+        },
+      );
+    }
+
+    const ownerLabel = `${source}[${owner.role}:${name.split(" ")[0]}]`;
+    const details = {
+      scope: "person_candidate" as const,
+      personName: name,
+      role: owner.role,
+      ownershipStatus: owner.ownershipStatus,
+      relationship: "personal-handle-candidate",
+    };
+    const sourceUrl = sourceUrls[0] ?? fallbackSourceUrl;
+    if (owner.instagram) recordEvidence("social", owner.instagram, ownerLabel, sourceUrl, "owner-resolution", 72, { ...details, network: "instagram" });
+    if (owner.twitter) recordEvidence("social", owner.twitter, ownerLabel, sourceUrl, "owner-resolution", 72, { ...details, network: "twitter" });
+    if (owner.linkedin) recordEvidence("social", owner.linkedin, ownerLabel, sourceUrl, "owner-resolution", 72, { ...details, network: "linkedin" });
+    if (owner.email) recordEvidence("email", owner.email, ownerLabel, sourceUrl, "owner-resolution", 66, { ...details, relationship: "personal-email-candidate" });
   };
 
   const collectSearchResult = (
@@ -1396,7 +1456,10 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   // social handles arrive in seconds, even from regional press that DDG
   // doesn't index well (e.g. Nice-Matin finding Christophe Caucino).
   try {
-    const perp = await researchWithPerplexity(entity.name, entity.type, country);
+    const perp = await researchWithPerplexity(entity.name, entity.type, country, {
+      tradingName: trading,
+      city,
+    });
     if (perp.source === "perplexity-sonar") {
       const label = "Perplexity[sonar]";
       result.sources.push(label);
@@ -1420,25 +1483,30 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         const arr = twHits.get(perp.twitter) ?? []; arr.push(label); twHits.set(perp.twitter, arr);
         recordEvidence("social", perp.twitter, label, null, "ai-perplexity-sonar", 75, { network: "twitter" });
       }
+      if (perp.ownershipSummary) result.ownershipSummary = perp.ownershipSummary;
+      for (const owner of perp.ownerResolutions) {
+        addOwnerResolution(owner, label, perp.citations[0] ?? null);
+      }
+      // Backward-compatible responses may still return ownerContacts only.
       for (const oc of perp.ownerContacts) {
-        if (oc.name && !result.personsDiscovered.includes(oc.name)) result.personsDiscovered.push(oc.name);
-        if (oc.instagram) {
-          const arr = igHits.get(oc.instagram) ?? []; arr.push(`${label}-owner`); igHits.set(oc.instagram, arr);
-          recordEvidence("social", oc.instagram, `${label}-owner`, null, "ai-perplexity-sonar", 70, { network: "instagram", personName: oc.name, relationship: "discovered-person-review-only" });
-        }
-        if (oc.twitter) {
-          const arr = twHits.get(oc.twitter) ?? []; arr.push(`${label}-owner`); twHits.set(oc.twitter, arr);
-          recordEvidence("social", oc.twitter, `${label}-owner`, null, "ai-perplexity-sonar", 70, { network: "twitter", personName: oc.name, relationship: "discovered-person-review-only" });
-        }
-        if (oc.linkedin) {
-          const arr = linkedinHits.get(oc.linkedin) ?? []; arr.push(`${label}-owner`); linkedinHits.set(oc.linkedin, arr);
-          recordEvidence("social", oc.linkedin, `${label}-owner`, null, "ai-perplexity-sonar", 70, { network: "linkedin", personName: oc.name, relationship: "discovered-person-review-only" });
+        if (!perp.ownerResolutions.some((owner) => owner.name.toLowerCase() === oc.name.toLowerCase())) {
+          addOwnerResolution({
+            ...oc,
+            role: "associated_person",
+            ownershipStatus: "not_established",
+            basis: null,
+            sourceUrls: perp.citations.slice(0, 4),
+          }, label, perp.citations[0] ?? null);
         }
       }
       // Cited URLs → scrape queue (Perplexity's actual sources, highest quality)
       for (const url of perp.citations.slice(0, 4)) urlsToScrape.add(url);
       // Include Perplexity output in accumulated text for AI cross-validation
-      allSearchText += " " + JSON.stringify({ owners: perp.owners, ownerContacts: perp.ownerContacts });
+      allSearchText += " " + JSON.stringify({
+        ownershipSummary: perp.ownershipSummary,
+        ownerResolutions: perp.ownerResolutions,
+        owners: perp.owners,
+      });
       result.queriesFired++;
     }
   } catch (err: any) {
@@ -1694,6 +1762,12 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         // Merge AI-discovered persons without duplicating existing regex finds
         for (const person of ai.owners) {
           if (!result.personsDiscovered.includes(person)) result.personsDiscovered.push(person);
+        }
+        if (!result.ownershipSummary && ai.ownershipSummary) {
+          result.ownershipSummary = ai.ownershipSummary;
+        }
+        for (const owner of ai.ownerResolutions) {
+          addOwnerResolution(owner, label);
         }
 
         // ── Integrate per-owner personal social handles ──────────────────

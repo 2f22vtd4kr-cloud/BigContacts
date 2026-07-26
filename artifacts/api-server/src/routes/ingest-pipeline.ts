@@ -158,7 +158,8 @@ router.post("/ingest/deep-web-osint", async (req: Request, res: Response): Promi
 
         const result = await deepWebOsintEnrich(entity);
         const hasSignal = result.email || result.phone || result.linkedinUrl
-          || result.instagramUrl || result.twitterUrl || result.personsDiscovered.length > 0;
+          || result.instagramUrl || result.twitterUrl || result.personsDiscovered.length > 0
+          || result.ownerResolutions.length > 0 || result.ownershipSummary;
 
         if (!hasSignal) { skipped++; continue; }
 
@@ -188,6 +189,15 @@ router.post("/ingest/deep-web-osint", async (req: Request, res: Response): Promi
         // Store discovered person names as review-only candidates — never auto-merged
         if (result.personsDiscovered.length > 0) {
           meta["deepWebPersonsDiscovered"] = result.personsDiscovered;
+        }
+        if (result.ownerResolutions.length > 0) {
+          meta["deepWebOwnerResolutions"] = result.ownerResolutions;
+        }
+        if (result.ownershipSummary) {
+          meta["deepWebOwnershipSummary"] = result.ownershipSummary;
+        }
+        if (result.ownershipSources.length > 0) {
+          meta["deepWebOwnershipSources"] = [...new Set(result.ownershipSources)].slice(0, 8);
         }
         meta["liveSource"] = true;
         updates["contactOutcome"] = computeContactOutcome({
