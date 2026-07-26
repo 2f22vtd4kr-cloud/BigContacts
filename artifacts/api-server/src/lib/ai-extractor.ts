@@ -19,10 +19,28 @@
 
 import { logger } from "./logger";
 
-const GROQ_API   = "https://api.groq.com/openai/v1/chat/completions";
-const GROQ_MODEL = "llama-3.3-70b-versatile";
-// Fallback model if primary hits rate limit
+const GROQ_API        = "https://api.groq.com/openai/v1/chat/completions";
+const GROQ_MODEL      = "llama-3.3-70b-versatile";
 const GROQ_MODEL_FAST = "llama-3.1-8b-instant";
+
+const OPENROUTER_API   = "https://openrouter.ai/api/v1/chat/completions";
+const OPENROUTER_MODEL = "meta-llama/llama-3.3-70b-instruct"; // fast + free-tier friendly
+
+// Track which keys hit quota this process lifetime so we skip them quickly
+const _exhaustedGroqKeys    = new Set<string>();
+const _exhaustedORKeys      = new Set<string>();
+
+function getGroqKeys(): string[] {
+  return ["GROQ_API_KEY", "GROQ_API_KEY_2", "GROQ_API_KEY_3"]
+    .map(k => process.env[k] ?? "")
+    .filter(k => k.length > 0);
+}
+
+function getOpenRouterKeys(): string[] {
+  return ["OPENROUTER_API_KEY", "OPENROUTER_API_KEY_2"]
+    .map(k => process.env[k] ?? "")
+    .filter(k => k.length > 0);
+}
 
 /** Personal contact vector for a named owner/founder discovered in text */
 export interface OwnerContact {
@@ -43,7 +61,7 @@ export interface AIExtractResult {
   // ── Person discoveries ──────────────────────────────────────────────────
   owners:        string[];        // flat list of owner names (backward compat)
   ownerContacts: OwnerContact[];  // structured per-owner data with personal handles
-  source:    "groq-llama-70b" | "groq-llama-8b" | "none";
+  source:    "groq-llama-70b" | "groq-llama-8b" | "openrouter" | "none";
 }
 
 const EMPTY: AIExtractResult = {
@@ -53,9 +71,6 @@ const EMPTY: AIExtractResult = {
   source: "none",
 };
 
-function getKey(): string | null {
-  return process.env["GROQ_API_KEY"] ?? null;
-}
 
 /**
  * Build the prompt. Separates org-level contact from personal owner contacts —
@@ -106,52 +121,10 @@ Rules:
 - Do NOT invent anything not stated in the text`;
 }
 
-async function callGroq(
-  text: string,
-  entityName: string,
-  entityType: string,
-  country: string | null,
-  model: string,
-): Promise<AIExtractResult | null> {
-  const key = getKey();
-  if (!key) return null;
-
-  const prompt = buildPrompt(text, entityName, entityType, country);
-
-  const body = JSON.stringify({
-    model,
-    messages: [{ role: "user", content: prompt }],
-    temperature: 0,
-    max_tokens: 600,
-    response_format: { type: "json_object" },
-  });
-
+/** Parse the raw JSON response content into an AIExtractResult */
+function parseAIResponse(raw: string, source: AIExtractResult["source"]): AIExtractResult | null {
+  if (!raw) return null;
   try {
-    const resp = await fetch(GROQ_API, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${key}`,
-        "Content-Type": "application/json",
-      },
-      body,
-      signal: AbortSignal.timeout(20_000),
-    });
-
-    if (resp.status === 429) {
-      logger.debug({ model }, "Groq rate limit hit");
-      return null;
-    }
-
-    if (!resp.ok) {
-      const err = await resp.text().catch(() => "");
-      logger.debug({ status: resp.status, err: err.slice(0, 200), model }, "Groq API error");
-      return null;
-    }
-
-    const data = await resp.json() as any;
-    const raw: string = data?.choices?.[0]?.message?.content ?? "";
-    if (!raw) return null;
-
     const parsed = JSON.parse(raw) as Record<string, unknown>;
 
     const clean = (v: unknown): string | null => {
@@ -160,11 +133,9 @@ async function callGroq(
       return (s === "null" || s === "undefined" || s.length < 3) ? null : s;
     };
 
-    // Parse flat owners array (backward compat)
     const owners: string[] = [];
-
-    // Parse structured ownerContacts
     const ownerContacts: OwnerContact[] = [];
+
     if (Array.isArray(parsed["ownerContacts"])) {
       for (const oc of parsed["ownerContacts"]) {
         if (typeof oc !== "object" || !oc) continue;
@@ -177,7 +148,6 @@ async function callGroq(
           linkedin:  clean((oc as any)["linkedin"]),
           email:     clean((oc as any)["email"]),
         };
-        // Validate URLs minimally
         if (contact.instagram && !contact.instagram.includes("instagram.com")) contact.instagram = null;
         if (contact.twitter   && !contact.twitter.includes("twitter.com") && !contact.twitter.includes("x.com")) contact.twitter = null;
         if (contact.linkedin  && !contact.linkedin.includes("linkedin.com")) contact.linkedin = null;
@@ -186,7 +156,6 @@ async function callGroq(
       }
     }
 
-    // Also accept legacy flat owners[] if ownerContacts not present
     if (owners.length === 0 && Array.isArray(parsed["owners"])) {
       for (const o of parsed["owners"]) {
         if (typeof o === "string" && o.trim().includes(" ") && o.trim().length >= 4 && o.trim().length <= 60) {
@@ -195,27 +164,127 @@ async function callGroq(
       }
     }
 
-    const src = model === GROQ_MODEL ? "groq-llama-70b" : "groq-llama-8b";
     return {
-      email:     clean(parsed["email"]),
-      phone:     clean(parsed["phone"]),
-      linkedin:  clean(parsed["linkedin"]),
-      instagram: clean(parsed["instagram"]),
-      twitter:   clean(parsed["twitter"]),
-      owners:    owners.slice(0, 5),
+      email:         clean(parsed["email"]),
+      phone:         clean(parsed["phone"]),
+      linkedin:      clean(parsed["linkedin"]),
+      instagram:     clean(parsed["instagram"]),
+      twitter:       clean(parsed["twitter"]),
+      owners:        owners.slice(0, 5),
       ownerContacts: ownerContacts.slice(0, 5),
-      source:    src,
+      source,
     };
+  } catch {
+    return null;
+  }
+}
+
+/** Call one Groq key + model combination. Returns null on rate-limit (key marked exhausted). */
+async function callGroq(
+  text: string,
+  entityName: string,
+  entityType: string,
+  country: string | null,
+  key: string,
+  model: string,
+): Promise<AIExtractResult | null> {
+  const prompt = buildPrompt(text, entityName, entityType, country);
+  const body = JSON.stringify({
+    model,
+    messages: [{ role: "user", content: prompt }],
+    temperature: 0,
+    max_tokens: 600,
+    response_format: { type: "json_object" },
+  });
+
+  try {
+    const resp = await fetch(GROQ_API, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" },
+      body,
+      signal: AbortSignal.timeout(20_000),
+    });
+
+    if (resp.status === 429) {
+      _exhaustedGroqKeys.add(key);
+      logger.debug({ model }, "Groq rate limit — key marked exhausted");
+      return null;
+    }
+    if (!resp.ok) {
+      const err = await resp.text().catch(() => "");
+      logger.debug({ status: resp.status, err: err.slice(0, 200), model }, "Groq API error");
+      return null;
+    }
+
+    const data = await resp.json() as any;
+    const raw: string = data?.choices?.[0]?.message?.content ?? "";
+    const src: AIExtractResult["source"] = model === GROQ_MODEL ? "groq-llama-70b" : "groq-llama-8b";
+    return parseAIResponse(raw, src);
   } catch (err: any) {
-    logger.debug({ err: err?.message, model }, "Groq extraction failed");
+    logger.debug({ err: err?.message, model }, "Groq call failed");
+    return null;
+  }
+}
+
+/** Call one OpenRouter key. Returns null on rate-limit (key marked exhausted). */
+async function callOpenRouter(
+  text: string,
+  entityName: string,
+  entityType: string,
+  country: string | null,
+  key: string,
+): Promise<AIExtractResult | null> {
+  const prompt = buildPrompt(text, entityName, entityType, country);
+  const body = JSON.stringify({
+    model: OPENROUTER_MODEL,
+    messages: [{ role: "user", content: prompt }],
+    temperature: 0,
+    max_tokens: 600,
+    response_format: { type: "json_object" },
+  });
+
+  try {
+    const resp = await fetch(OPENROUTER_API, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${key}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://apex-finder.replit.app",
+        "X-Title": "ApexFinder OSINT",
+      },
+      body,
+      signal: AbortSignal.timeout(25_000),
+    });
+
+    if (resp.status === 429) {
+      _exhaustedORKeys.add(key);
+      logger.debug("OpenRouter rate limit — key marked exhausted");
+      return null;
+    }
+    if (!resp.ok) {
+      const err = await resp.text().catch(() => "");
+      logger.debug({ status: resp.status, err: err.slice(0, 200) }, "OpenRouter API error");
+      return null;
+    }
+
+    const data = await resp.json() as any;
+    const raw: string = data?.choices?.[0]?.message?.content ?? "";
+    return parseAIResponse(raw, "openrouter");
+  } catch (err: any) {
+    logger.debug({ err: err?.message }, "OpenRouter call failed");
     return null;
   }
 }
 
 /**
  * Main extraction entry point.
- * Tries llama-3.3-70b first; falls back to llama-3.1-8b-instant on rate limit.
- * Returns EMPTY result (source: "none") if Groq is unavailable — never throws.
+ *
+ * Strategy (in order):
+ *   1. Each Groq key (GROQ_API_KEY, _2, _3) — tries llama-3.3-70b first, then llama-3.1-8b-instant
+ *   2. Each OpenRouter key (OPENROUTER_API_KEY, _2) — llama-3.3-70b-instruct
+ *
+ * A key that returns 429 is marked exhausted for the process lifetime and skipped on future calls.
+ * Falls back silently to EMPTY if all providers are exhausted or unavailable.
  */
 export async function extractWithAI(
   text: string,
@@ -223,24 +292,38 @@ export async function extractWithAI(
   entityType: string,
   country: string | null = null,
 ): Promise<AIExtractResult> {
-  if (!getKey() || !text || text.trim().length < 50) return EMPTY;
+  if (!text || text.trim().length < 50) return EMPTY;
 
   try {
-    const result = await callGroq(text, entityName, entityType, country, GROQ_MODEL);
-    if (result) {
-      logger.debug({
-        entityName, source: result.source,
-        hasEmail: !!result.email, owners: result.owners.length,
-        ownerHandles: result.ownerContacts.filter(o => o.instagram || o.linkedin || o.twitter).length,
-      }, "AI extraction complete");
-      return result;
+    // ── 1. Try all Groq keys ────────────────────────────────────────────────
+    for (const key of getGroqKeys()) {
+      if (_exhaustedGroqKeys.has(key)) continue;
+
+      // Primary model
+      const result = await callGroq(text, entityName, entityType, country, key, GROQ_MODEL);
+      if (result) {
+        logger.debug({ entityName, source: result.source, hasEmail: !!result.email, owners: result.owners.length }, "AI extraction complete");
+        return result;
+      }
+
+      // Fast fallback on same key (if not exhausted by the primary call)
+      if (!_exhaustedGroqKeys.has(key)) {
+        const fast = await callGroq(text, entityName, entityType, country, key, GROQ_MODEL_FAST);
+        if (fast) {
+          logger.debug({ entityName, source: fast.source, hasEmail: !!fast.email }, "AI extraction (fast model) complete");
+          return fast;
+        }
+      }
     }
 
-    // Rate limit on primary — try faster model
-    const fallback = await callGroq(text, entityName, entityType, country, GROQ_MODEL_FAST);
-    if (fallback) {
-      logger.debug({ entityName, source: fallback.source, hasEmail: !!fallback.email }, "AI extraction (fallback model) complete");
-      return fallback;
+    // ── 2. Fall back to OpenRouter ──────────────────────────────────────────
+    for (const key of getOpenRouterKeys()) {
+      if (_exhaustedORKeys.has(key)) continue;
+      const result = await callOpenRouter(text, entityName, entityType, country, key);
+      if (result) {
+        logger.debug({ entityName, source: result.source, hasEmail: !!result.email }, "AI extraction (OpenRouter) complete");
+        return result;
+      }
     }
   } catch (err: any) {
     logger.debug({ err: err?.message }, "AI extractor outer catch");

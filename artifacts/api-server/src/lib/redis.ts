@@ -88,6 +88,11 @@ export async function connectPermanentRedis(): Promise<void> {
   for (let i = 1; i <= 9; i++) {
     const url = process.env[`REDIS_URL_${i}`];
     if (!url) break;
+    // Skip slots populated with placeholder text instead of a real Redis URL
+    if (!url.startsWith("redis://") && !url.startsWith("rediss://")) {
+      logger.warn({ slot: i }, "Permanent Redis slot skipped — invalid URL (not a redis:// URI)");
+      break; // no point checking higher slots
+    }
     if (_permanentClients[i - 1]) continue; // already connected
     const slotIndex = i - 1;
     const client = buildClient(url, `upstash-${i}`, slotIndex);
