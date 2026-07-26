@@ -19,7 +19,9 @@
 - `/api/dashboard/stats` → 200, all zeros ✅
 - `ENABLE_AUTO_PIPELINE` not set → broad cold-start ingestion remains disabled
 - Optional workflows (apex-mobile, mockup-sandbox) remain stopped
-- Artifact registry empty (known GitHub-import state) — managed workflows still route correctly
+- All 4 artifacts registered by platform: API Server, ApexFinder Pro, ApexFinder Mobile, Canvas
+- All 13 secrets loaded: `REDIS_URL_1`–`REDIS_URL_5`, `COMPANIES_HOUSE_API_KEY`, `GROQ_API_KEY`/`_2`/`_3`, `PERPLEXITY_API_KEY`/`_2`/`_3`/`_4`
+- Upstash slots 2–5 healthy; slot 1 quota-exhausted (graceful fallback, non-fatal)
 
 ## Previous State (2026-07-26 — Orient Express HNWI Atlas run complete; 5 entities; Perplexity credits exhausted across all slots)
 
