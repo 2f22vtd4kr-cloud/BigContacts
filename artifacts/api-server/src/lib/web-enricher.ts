@@ -16,6 +16,7 @@
 import { logger } from "./logger";
 import { isValidPublicEmail, sanitizePublicEmail } from "./contact-validation";
 import { extractWithAI, researchWithPerplexity, type OwnerResolution } from "./ai-extractor";
+import { extractPersonNames } from "./gliner-client";
 
 // ── Shared utilities ──────────────────────────────────────────────────────────
 
@@ -791,6 +792,36 @@ function extractPersonCandidates(text: string): string[] {
     }
   }
   return [...found].slice(0, 5); // max 5 person candidates per entity
+}
+
+/**
+ * GLiNER-enhanced async version of extractPersonCandidates.
+ * When the GLiNER NER microservice is running (port 7890), uses zero-shot NER
+ * which eliminates the entire class of regex false-positives ("Hotels CEO", etc.).
+ * Falls back to the regex implementation automatically when service is unavailable.
+ */
+async function extractPersonCandidatesAsync(text: string): Promise<string[]> {
+  if (!text?.trim()) return [];
+  try {
+    // Try GLiNER first — it's more accurate and handles multilingual text natively
+    const glinerResults = await extractPersonNames(text, 0.5);
+    if (glinerResults.length > 0) {
+      // Filter through the same blocklist for consistency
+      return glinerResults
+        .map(r => r.name.trim())
+        .filter(name => {
+          const words = name.split(/\s+/);
+          if (words.length < 2 || words.length > 4) return false;
+          if (!words.every(w => /^[A-ZÀ-ÖØ-Ü]/.test(w))) return false;
+          if (words.some(w => PERSON_WORD_BLOCKLIST.has(w))) return false;
+          if (NOT_A_PERSON.has(name.toLowerCase())) return false;
+          return true;
+        })
+        .slice(0, 5);
+    }
+  } catch { /* fall through to regex */ }
+  // Regex fallback
+  return extractPersonCandidates(text);
 }
 
 // ── Search engine functions ───────────────────────────────────────────────────
@@ -1667,8 +1698,8 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       const wikiResult = await wikipediaLookup(trading, country);
       if (wikiResult && wikiResult.extract) {
         allSearchText += " " + wikiResult.extract;
-        // Extract persons from the Wikipedia summary text directly
-        const wikiPersons = extractPersonCandidates(wikiResult.extract);
+        // Extract persons from the Wikipedia summary text directly (GLiNER if available, regex fallback)
+        const wikiPersons = await extractPersonCandidatesAsync(wikiResult.extract);
         for (const p of wikiPersons) {
           if (!result.personsDiscovered.includes(p)) result.personsDiscovered.push(p);
         }
@@ -1741,7 +1772,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   // Then run targeted person queries — this is how we get from "BAOLI SAS"
   // to "Christophe Caucino" without needing an AI model.
   if (isCorp && allSearchText.length > 200) {
-    const persons = extractPersonCandidates(allSearchText);
+    const persons = await extractPersonCandidatesAsync(allSearchText);
     if (persons.length > 0) {
       result.personsDiscovered.push(...persons);
       logger.info({ entityId: entity.id, persons }, "Corp→Person hop: discovered person candidates");

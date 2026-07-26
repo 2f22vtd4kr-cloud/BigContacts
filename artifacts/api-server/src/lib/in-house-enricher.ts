@@ -41,6 +41,8 @@ import { promises as dns } from "dns";
 import * as net from "net";
 import { logger } from "./logger";
 import { isValidPublicEmail, sanitizePublicEmail, isGenericEmailPrefix, REGISTRAR_DOMAINS, normalizePhone } from "./contact-validation";
+import { enrichWithIcij, summariseIcijFindings } from "./icij-enricher";
+import { enrichWithWhoxy, summariseWhoxyFindings } from "./whoxy-enricher";
 
 // ─── Result / Input types ─────────────────────────────────────────────────────
 
@@ -63,6 +65,9 @@ export interface InHouseEnrichResult {
   phoneSource?: string | null;
   // M1: set true when SMTP handshake confirmed the email is deliverable
   smtpVerified?: boolean;
+  // Phase L: extended OSINT sources
+  icijFindings?: { totalMatches: number; sources: string[]; summary: string | null };
+  whoxyDomains?: { totalUnique: number; domains: Array<{ domain_name: string; create_date?: string }>; summary: string | null };
 }
 
 export interface InHouseEvidence {
@@ -1540,6 +1545,28 @@ export async function enrichInHouse(entity: InHouseEnrichInput): Promise<InHouse
     }
   }
 
+  // Source C9: ICIJ Offshore Leaks — for corporations, query the Panama/Pandora Papers database
+  // This is non-blocking: findings are stored in result.icijFindings but don't affect email/phone scoring.
+  if (isCorp && tier !== 2) {
+    g1Promises.push((async () => {
+      try {
+        const icij = await enrichWithIcij(name, [], false);
+        if (icij.found) {
+          result.sourceHits["ICIJ-Offshore"] = true;
+          addSource("ICIJ-Offshore");
+          result.icijFindings = {
+            totalMatches: icij.totalMatches,
+            sources: icij.sources,
+            summary: summariseIcijFindings(icij),
+          };
+          logger.info({ name, matches: icij.totalMatches, sources: icij.sources }, "[ICIJ] offshore match found");
+        }
+      } catch (err: any) {
+        logger.debug({ err: err.message }, "[ICIJ] enrichment error (non-fatal)");
+      }
+    })());
+  }
+
   await Promise.allSettled(g1Promises);
   await sleep(150);
 
@@ -1733,6 +1760,38 @@ export async function enrichInHouse(entity: InHouseEnrichInput): Promise<InHouse
   }
 
   await Promise.allSettled(g4Promises);
+
+  // Phase L: Whoxy Reverse WHOIS — after email discovery, find all domains registered by this email/name
+  // Gracefully skipped when WHOXY_API_KEY is not set.
+  if (result.email || name) {
+    try {
+      const whoxyResult = await enrichWithWhoxy({
+        email: result.email ?? undefined,
+        name: (isIndividual || looksLikeIndividual) ? name : undefined,
+        companyName: isCorp ? name : undefined,
+      });
+      if (whoxyResult.totalUnique > 0) {
+        result.sourceHits["Whoxy-RDAP"] = true;
+        addSource("Whoxy-Domains");
+        result.whoxyDomains = {
+          totalUnique: whoxyResult.totalUnique,
+          domains: whoxyResult.allUniqueDomains.slice(0, 20).map(d => ({ domain_name: d.domain_name, create_date: d.create_date })),
+          summary: summariseWhoxyFindings(whoxyResult.allUniqueDomains),
+        };
+        // If Whoxy found domains and we still have no website, promote the first domain
+        if (!result.website && whoxyResult.allUniqueDomains[0]?.domain_name) {
+          const dom = whoxyResult.allUniqueDomains[0].domain_name;
+          if (!BLOCKED_DOMAINS.has(dom)) {
+            result.website = `https://${dom}`;
+            addSource("Whoxy-Website");
+          }
+        }
+        logger.info({ name, totalDomains: whoxyResult.totalUnique }, "[Whoxy] reverse WHOIS domains found");
+      }
+    } catch (err: any) {
+      logger.debug({ err: err.message }, "[Whoxy] enrichment error (non-fatal)");
+    }
+  }
 
   // M2: Social second-pass — if entity already has a GitHub URL stored in metadata
   // from a prior enrichment pass but still has no email, fetch the public profile

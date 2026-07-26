@@ -3,7 +3,8 @@ import {
   Plane, Building2, Globe, Landmark, FileSearch,
   Search, Scale, Network, Activity, CheckCircle2,
   RefreshCw, ExternalLink, Database, UserCheck, BarChart3,
-  Mail, Brain, Filter, BookOpen,
+  Mail, Brain, Filter, BookOpen, Ship, Layers, AtSign,
+  User, Terminal, Anchor, Cpu,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -11,6 +12,7 @@ import { cn } from "@/lib/utils";
 
 type SourceStatus = "live" | "running" | "idle" | "failed" | "coming-soon";
 type SourceKind   = "ingestor" | "enricher";
+type SourcePhase  = 1 | 8 | 9 | 10 | 11;
 
 interface RegistryCoverage {
   id: string;
@@ -35,7 +37,7 @@ interface SourceDef {
   Icon: React.FC<any>;
   color: string;
   bg: string;
-  phase: 1 | 8 | 9 | 10;
+  phase: SourcePhase;
   homepage?: string;
   endpoint?: string;      // POST endpoint to trigger
   jobType?: string;       // type key for job polling
@@ -264,6 +266,117 @@ const SOURCES: SourceDef[] = [
     phase: 10,
     homepage: "https://huggingface.co/datasets/tomvaillant/osint-tool-database",
     note: "Browse at /osint-tools — no ingest trigger needed; data fetched on-demand.",
+  },
+
+  // ── Phase L: Extended OSINT tool suite ──────────────────────────────────
+  {
+    id: "icij-offshore",
+    label: "ICIJ Offshore Leaks",
+    description:
+      "Reconciles entity names against the ICIJ Offshore Leaks database — Panama Papers, Pandora Papers, Paradise Papers, Bahamas Leaks, and FinCEN Files. Runs automatically during in-house enrichment for all corporations.",
+    kind: "enricher",
+    Icon: FileSearch,
+    color: "#F43F5E",
+    bg: "rgba(244,63,94,0.1)",
+    phase: 11,
+    homepage: "https://offshoreleaks.icij.org",
+    note: "No API key required. Free reconciliation API at offshoreleaks.icij.org/reconcile.",
+  },
+  {
+    id: "openownership",
+    label: "OpenOwnership BODS",
+    description:
+      "Beneficial ownership data in the Beneficial Ownership Data Standard — covers UK Register of Persons with Significant Control (PSC) and international BODS-format data. Resolves corporate ownership chains.",
+    kind: "enricher",
+    Icon: Layers,
+    color: "#8B5CF6",
+    bg: "rgba(139,92,246,0.1)",
+    phase: 11,
+    homepage: "https://www.openownership.org",
+    endpoint: "/api/enrich/openownership",
+    note: "Available via /api/enrich/openownership?entityId=<id>. Also queries UK PSC via Companies House.",
+  },
+  {
+    id: "whoxy-rdap",
+    label: "Whoxy Reverse WHOIS",
+    description:
+      "Finds all domains registered by a known email address or registrant name — reveals corporate infrastructure, personal domains, and holding company networks. Runs automatically in in-house enrichment after email discovery.",
+    kind: "enricher",
+    Icon: AtSign,
+    color: "#10B981",
+    bg: "rgba(16,185,129,0.1)",
+    phase: 11,
+    homepage: "https://www.whoxy.com",
+    note: "Requires WHOXY_API_KEY secret. Gracefully skipped without it.",
+  },
+  {
+    id: "equasis-vessels",
+    label: "Equasis Vessel Intelligence",
+    description:
+      "Yacht and superyacht ownership via Equasis (IMO-linked vessel register) with VesselFinder fallback. Enriches entities with registered vessel names, flags, and ownership trails.",
+    kind: "enricher",
+    Icon: Anchor,
+    color: "#0EA5E9",
+    bg: "rgba(14,165,233,0.1)",
+    phase: 11,
+    homepage: "https://www.equasis.org",
+    endpoint: "/api/enrich/equasis",
+    note: "Requires EQUASIS_SESSION cookie for full data. VesselFinder API used as fallback.",
+  },
+  {
+    id: "adsb-history",
+    label: "ADS-B Historical Flight Traces",
+    description:
+      "Retrieves historical flight paths for known aircraft registration numbers via ADSBExchange and OpenSky historical APIs. Reveals habitual destinations, home airports, and travel patterns for private jet owners.",
+    kind: "enricher",
+    Icon: Plane,
+    color: "#F59E0B",
+    bg: "rgba(245,158,11,0.1)",
+    phase: 11,
+    homepage: "https://globe.adsbexchange.com",
+    endpoint: "/api/enrich/adsb-history",
+    note: "Available via /api/enrich/adsb-history?entityId=<id>. Reads registration from entity metadata.",
+  },
+  {
+    id: "holehe-maigret",
+    label: "Holehe + Maigret (Email/Username OSINT)",
+    description:
+      "Checks known email addresses against 200+ online services (Holehe) and discovers social profiles by username across 3,000+ sites (Maigret). Exposes social accounts hidden from standard search.",
+    kind: "enricher",
+    Icon: User,
+    color: "#EC4899",
+    bg: "rgba(236,72,153,0.1)",
+    phase: 11,
+    homepage: "https://github.com/megadose/holehe",
+    endpoint: "/api/enrich/holehe",
+    note: "Runs server-side Python. Both tools installed. Use /api/enrich/holehe?entityId=<id> and /api/enrich/maigret?entityId=<id>.",
+  },
+  {
+    id: "theharvester",
+    label: "theHarvester",
+    description:
+      "Passive OSINT aggregator that queries Google, Bing, LinkedIn, DNS, and Shodan for emails, hostnames, and subdomains associated with a domain or person name.",
+    kind: "enricher",
+    Icon: Terminal,
+    color: "#6B7280",
+    bg: "rgba(107,114,128,0.1)",
+    phase: 11,
+    homepage: "https://github.com/laramies/theHarvester",
+    comingSoon: true,
+    note: "Installation dependency conflict on current platform. Will be re-attempted via virtual environment.",
+  },
+  {
+    id: "gliner-ner",
+    label: "GLiNER Zero-Shot NER",
+    description:
+      "Generalist NER model (urchade/gliner-multi-v2.1, 83M params) running locally via Python microservice on port 7890. Replaces regex-based name extraction in web enricher — zero-shot; no training needed for new entity types.",
+    kind: "enricher",
+    Icon: Cpu,
+    color: "#A78BFA",
+    bg: "rgba(167,139,250,0.1)",
+    phase: 11,
+    homepage: "https://github.com/urchade/GLiNER",
+    note: "Start with: python3 scripts/gliner_service.py. Automatically used by web enricher when service is running. Falls back to regex NER when offline.",
   },
 ];
 
@@ -635,6 +748,111 @@ function IdentityResolutionPanel() {
 }
 
 
+// ─── Phase L: Python Tools Status Panel ──────────────────────────────────────
+
+type PythonToolsStatus = {
+  tools: Record<string, boolean>;
+  gliner: { available: boolean; port: number };
+  installCommand: string;
+};
+
+function PythonToolsPanel() {
+  const [status, setStatus] = useState<PythonToolsStatus | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const load = () => {
+    setLoading(true);
+    const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+    fetch(`${base}/api/enrich/python-tools`)
+      .then(r => r.json())
+      .then(d => { setStatus(d as PythonToolsStatus); setLoading(false); })
+      .catch(() => setLoading(false));
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const TOOL_META: Record<string, { label: string; desc: string }> = {
+    holehe:       { label: "Holehe",       desc: "Email → 200+ service accounts" },
+    maigret:      { label: "Maigret",      desc: "Username → 3,000+ social profiles" },
+    theHarvester: { label: "theHarvester", desc: "Domain → emails, hostnames, Shodan" },
+  };
+
+  return (
+    <section className="rounded-xl border border-border bg-card/60 p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Terminal className="h-4 w-4 text-violet-400" />
+          <span className="text-sm font-semibold font-mono uppercase tracking-widest text-violet-400">
+            Phase L — Python OSINT Tools
+          </span>
+          <span className="text-[9px] font-mono bg-violet-500/10 text-violet-400 px-1.5 py-0.5 rounded uppercase tracking-wider">L</span>
+        </div>
+        <button
+          onClick={load}
+          disabled={loading}
+          className="h-6 w-6 flex items-center justify-center rounded hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+        </button>
+      </div>
+
+      {/* GLiNER service status */}
+      <div className="rounded-lg border border-border/50 bg-muted/10 p-3 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Cpu className="h-4 w-4 text-violet-300" />
+          <div>
+            <div className="text-xs font-semibold text-foreground">GLiNER NER Microservice</div>
+            <div className="text-[10px] font-mono text-muted-foreground">
+              urchade/gliner-multi-v2.1 · port {status?.gliner.port ?? 7890}
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className={`h-2 w-2 rounded-full ${status?.gliner.available ? "bg-emerald-500" : "bg-amber-500"}`} />
+          <span className={`text-[10px] font-mono ${status?.gliner.available ? "text-emerald-400" : "text-amber-400"}`}>
+            {status ? (status.gliner.available ? "Online" : "Offline") : "—"}
+          </span>
+        </div>
+      </div>
+
+      {!status?.gliner.available && (
+        <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2">
+          <p className="text-[10px] font-mono text-amber-400/80">
+            Start GLiNER service: <code className="bg-muted px-1 rounded">python3 scripts/gliner_service.py</code>
+            &nbsp;· Falls back to regex NER automatically.
+          </p>
+        </div>
+      )}
+
+      {/* CLI tool availability */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+        {status && Object.entries(TOOL_META).map(([key, meta]) => {
+          const available = status.tools[key] ?? false;
+          return (
+            <div key={key} className="rounded-lg border border-border/40 bg-muted/5 p-2.5">
+              <div className="flex items-center justify-between mb-0.5">
+                <span className="text-[11px] font-semibold text-foreground">{meta.label}</span>
+                <span className={`h-1.5 w-1.5 rounded-full ${available ? "bg-emerald-500" : "bg-rose-500/60"}`} />
+              </div>
+              <div className="text-[9px] font-mono text-muted-foreground">{meta.desc}</div>
+              <div className={`text-[9px] font-mono mt-0.5 ${available ? "text-emerald-400" : "text-rose-400/70"}`}>
+                {available ? "installed" : "not available"}
+              </div>
+            </div>
+          );
+        })}
+        {!status && (
+          <div className="col-span-3 text-[10px] font-mono text-muted-foreground">Checking tool availability…</div>
+        )}
+      </div>
+
+      <p className="text-[9px] font-mono text-muted-foreground/60">
+        All tools run server-side. Endpoints: /api/enrich/holehe · /api/enrich/maigret · /api/enrich/theharvester
+      </p>
+    </section>
+  );
+}
+
 // ─── J9 Source Quality Dashboard ─────────────────────────────────────────────
 
 type SourceQualityRow = {
@@ -881,7 +1099,7 @@ export default function DataSources() {
           </div>
         </section>
 
-        {/* ── Enrichment sources ────────────────────────────────────────────── */}
+        {/* ── Enrichment sources (phases 1–10) ──────────────────────────────── */}
         <section>
           <div className="flex items-center gap-2 mb-3">
             <Activity className="h-4 w-4 text-primary" />
@@ -891,7 +1109,30 @@ export default function DataSources() {
             <div className="flex-1 h-px bg-border" />
           </div>
           <div className="grid gap-3 grid-cols-1 lg:grid-cols-2">
-            {enrichers.map((src) => (
+            {enrichers.filter(s => s.phase < 11).map((src) => (
+              <SourceCard key={src.id} src={src} />
+            ))}
+          </div>
+        </section>
+
+        {/* ── Phase L: Extended OSINT Tools ─────────────────────────────────── */}
+        <section>
+          <div className="flex items-center gap-2 mb-3">
+            <Cpu className="h-4 w-4 text-violet-400" />
+            <h2 className="text-sm font-semibold font-mono uppercase tracking-widest text-violet-400">
+              Phase L — Extended OSINT
+            </h2>
+            <div className="flex-1 h-px bg-border" />
+          </div>
+
+          {/* Python tool runtime status */}
+          <div className="mb-4">
+            <PythonToolsPanel />
+          </div>
+
+          {/* Phase L source cards */}
+          <div className="grid gap-3 grid-cols-1 lg:grid-cols-2">
+            {[...ingestors, ...enrichers].filter(s => s.phase === 11).map((src) => (
               <SourceCard key={src.id} src={src} />
             ))}
           </div>
