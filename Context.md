@@ -8,7 +8,17 @@
 
 ---
 
-## Current State (2026-07-26 — All 13 secrets set; auto-pipeline gated; Orient Express single-target Apex Atlas run complete)
+## Current State (2026-07-26 — Re-import setup complete; Redis + API + web running; DB schema applied; empty DB)
+
+### Post-import setup (2026-07-26, this import)
+- `CI=true pnpm install --frozen-lockfile` — all packages installed (~31s)
+- `pnpm --filter @workspace/db run push` — schema applied (`[✓] Changes applied`)
+- Redis, API Server, apex-finder web workflows restarted and confirmed running
+- `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":2}}` ✅
+- `/api/entities` → `[]` (empty database, as expected after fresh import)
+- Optional workflows (apex-mobile, mockup-sandbox) remain stopped
+
+## Previous State (2026-07-26 — All 13 secrets set; auto-pipeline gated; Orient Express single-target Apex Atlas run complete)
 
 ### Orient Express case study (2026-07-26)
 - User-provided target brief: `attached_assets/Pasted-The-Orient-Express-brand-is-owned-and-operated-as-a-joi_1785076892493.txt`.
