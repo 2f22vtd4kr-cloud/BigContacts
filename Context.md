@@ -8,7 +8,22 @@
 
 ---
 
-## Current State (2026-07-26 — Re-import setup complete; Redis + API + web running; DB schema applied; empty DB)
+## Current State (2026-07-26 — Orient Express HNWI Atlas run complete; 5 entities; Perplexity credits exhausted across all slots)
+
+### Orient Express HNWI Research (2026-07-26)
+- Seed: Orient Express (Corporation, ID 1) — Accor/LVMH JV context node; no Atlas run on it
+- HNWIs created and enriched: Sébastien Bazin (ID 2), Bernard Arnault (ID 3), Gilda Perez-Alvarado (ID 4), Guillaume de Saint Lager (ID 5)
+- Deep-web OSINT: 4/4 enriched, 0 errors; Perplexity credits exhausted on all 5 Upstash slots — fell back to DDG+Groq for all entities
+- Atlas run: all 4 HNWIs — graph isolated (0 edges, no registry ingestion yet); path scores are synthetic fallbacks
+- Key findings:
+  - Bazin: phone +33 1 45 38 88 00 (Accor HQ, not personal); no email; confidence 25
+  - Arnault: email b.arnault@fondationlouisvuitton.fr (foundation, needs verification); phone +33 1 44 13 22 22 (LVMH HQ); confidence 83; AroundDeal twitter is noise
+  - Perez-Alvarado: email gilda.perezalvarado@jll.com (STALE — pre-Accor JLL address); LinkedIn directory; confidence 50; dual role confirmed (Accor CSO + OE CEO)
+  - de Saint Lager: ⚠️ IDENTITY CONFLICT — OSINT found "Founder & CEO Paragone / Director Barnes Interiors", not OE General Secretary; email info@paragoneagency.com is agency inbox; LinkedIn confirmed but ambiguous
+- Perplexity new API keys needed (all slots exhausted)
+- Awaiting Google/Gemini comparison from user
+
+## Previous State (2026-07-26 — Re-import setup complete; Redis + API + web running; DB schema applied; empty DB)
 
 ### Post-import setup (2026-07-26, this import)
 - `CI=true pnpm install --frozen-lockfile` — all packages installed (~31s)
