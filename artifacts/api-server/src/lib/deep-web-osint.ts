@@ -33,14 +33,17 @@ export interface DeepWebOsintInput {
 }
 
 export interface DeepWebOsintResult {
-  email:           string | null;
-  emailConfidence: number;   // 0–100; higher when found in more independent sources
-  phone:           string | null;
-  phoneConfidence: number;
-  linkedinUrl:     string | null;
-  sources:         string[];  // which queries/engines produced the find
-  queriesFired:    number;
-  pagesScraped:    number;
+  email:             string | null;
+  emailConfidence:   number;   // 0–100; higher when found in more independent sources
+  phone:             string | null;
+  phoneConfidence:   number;
+  linkedinUrl:       string | null;
+  instagramUrl:      string | null;  // venue/org OR personal handle discovered
+  twitterUrl:        string | null;  // venue/org OR personal handle discovered
+  personsDiscovered: string[];       // owner/founder names found — review-only, never auto-promoted
+  sources:           string[];  // which queries/engines produced the find
+  queriesFired:      number;
+  pagesScraped:      number;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -86,12 +89,14 @@ const EMAIL_BLOCK = new Set([
   "whoisprivacycorp.com", "registrant.com",
 ]);
 
-const EMAIL_RE  = /\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b/g;
-const PHONE_RE  = [
+const EMAIL_RE     = /\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b/g;
+const PHONE_RE     = [
   /\+\d{1,3}[\s.\-]?\(?\d{1,4}\)?[\s.\-]?\d{1,4}[\s.\-]?\d{1,9}/,
   /\(?\d{3}\)?[\s.\-]\d{3}[\s.\-]\d{4}/,
 ];
-const LINKEDIN_RE = /https?:\/\/(www\.)?linkedin\.com\/(in|pub|company)\/[a-zA-Z0-9\-_%]{3,}\/?/i;
+const LINKEDIN_RE  = /https?:\/\/(www\.)?linkedin\.com\/(in|pub|company)\/[a-zA-Z0-9\-_%]{3,}\/?/i;
+const INSTAGRAM_RE = /https?:\/\/(www\.)?instagram\.com\/[a-zA-Z0-9_.]{2,30}\/?/gi;
+const TWITTER_RE   = /https?:\/\/(www\.)?(twitter|x)\.com\/[a-zA-Z0-9_]{2,30}\/?/gi;
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
@@ -241,46 +246,66 @@ async function bingSearch(query: string): Promise<SearchResult> {
   }
 }
 
+interface ScrapeResult {
+  email:        string | null;
+  phone:        string | null;
+  linkedinUrl:  string | null;
+  instagramUrl: string | null;
+  twitterUrl:   string | null;
+  rawText:      string;
+}
+
 // Scrape a URL for contact info — light, respects 10s timeout
-async function scrapePage(url: string): Promise<{ email: string | null; phone: string | null; linkedinUrl: string | null }> {
+async function scrapePage(url: string): Promise<ScrapeResult> {
+  const empty: ScrapeResult = { email: null, phone: null, linkedinUrl: null, instagramUrl: null, twitterUrl: null, rawText: "" };
   try {
     const resp = await fetch(url, {
       signal: AbortSignal.timeout(10_000),
       headers: {
         "User-Agent": randomUA(),
         Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Cache-Control": "no-cache",
       },
       redirect: "follow",
     });
-    if (!resp.ok) return { email: null, phone: null, linkedinUrl: null };
+    if (!resp.ok) return empty;
     const html = await resp.text().then(h => h.slice(0, 80_000));
 
-    // Extract mailto: hrefs first (highest accuracy)
+    // mailto: hrefs (highest accuracy)
     let email: string | null = null;
     const mailtoRe = /href=["']mailto:([^"'?\s]+)/gi;
     for (const m of html.matchAll(mailtoRe)) {
       const addr = m[1]!.toLowerCase().trim();
       const domain = addr.split("@")[1] ?? "";
-      if (addr.includes("@") && !EMAIL_BLOCK.has(domain) && addr.length < 80) {
-        email = addr;
-        break;
-      }
+      if (addr.includes("@") && !EMAIL_BLOCK.has(domain) && addr.length < 80) { email = addr; break; }
     }
 
     // LinkedIn from href
     let linkedinUrl: string | null = null;
-    const liRe = /href=["'](https?:\/\/(?:www\.)?linkedin\.com\/in\/[a-zA-Z0-9\-_%]{3,})[^"']*/i;
-    const liM = html.match(liRe);
+    const liM = html.match(/href=["'](https?:\/\/(?:www\.)?linkedin\.com\/in\/[a-zA-Z0-9\-_%]{3,})[^"']*/i);
     if (liM) linkedinUrl = liM[1]!.replace(/\/$/, "");
 
-    const text = stripHtml(html).slice(0, 15_000);
-    if (!email) email = extractEmails(text)[0] ?? null;
-    const phone = extractPhone(text);
-    if (!linkedinUrl) linkedinUrl = extractLinkedIn(text);
+    // Instagram from href
+    let instagramUrl: string | null = null;
+    const igM = html.match(/href=["'](https?:\/\/(?:www\.)?instagram\.com\/[a-zA-Z0-9_.]{2,30})[^"']*/i);
+    if (igM) instagramUrl = igM[1]!.replace(/\/$/, "");
 
-    return { email, phone, linkedinUrl };
+    // Twitter / X from href
+    let twitterUrl: string | null = null;
+    const twM = html.match(/href=["'](https?:\/\/(?:www\.)?(?:twitter|x)\.com\/[a-zA-Z0-9_]{2,30})[^"']*/i);
+    if (twM) twitterUrl = twM[1]!.replace(/\/$/, "");
+
+    const rawText = stripHtml(html).slice(0, 15_000);
+    if (!email) email = extractEmails(rawText)[0] ?? null;
+    const phone = extractPhone(rawText);
+    if (!linkedinUrl) linkedinUrl = extractLinkedIn(rawText);
+    if (!instagramUrl) { const igT = rawText.match(INSTAGRAM_RE); if (igT) instagramUrl = igT[0]!.replace(/\/$/, ""); }
+    if (!twitterUrl)   { const twT = rawText.match(TWITTER_RE);   if (twT) twitterUrl   = twT[0]!.replace(/\/$/, ""); }
+
+    return { email, phone, linkedinUrl, instagramUrl, twitterUrl, rawText };
   } catch {
-    return { email: null, phone: null, linkedinUrl: null };
+    return empty;
   }
 }
 
@@ -373,6 +398,8 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     email: null, emailConfidence: 0,
     phone: null, phoneConfidence: 0,
     linkedinUrl: null,
+    instagramUrl: null, twitterUrl: null,
+    personsDiscovered: [],
     sources: [], queriesFired: 0, pagesScraped: 0,
   };
 
@@ -380,11 +407,13 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   if (queries.length === 0) return result;
 
   // Accumulators for cross-validation
-  const emailHits = new Map<string, string[]>();  // email → [source labels]
-  const phoneHits = new Map<string, string[]>();
+  const emailHits    = new Map<string, string[]>();
+  const phoneHits    = new Map<string, string[]>();
   const linkedinHits = new Map<string, string[]>();
+  const igHits       = new Map<string, string[]>();  // instagram url → sources
+  const twHits       = new Map<string, string[]>();  // twitter url → sources
   const urlsToScrape = new Set<string>();
-  let allSearchText = ""; // accumulated for AI extraction pass
+  let allSearchText  = ""; // accumulated for AI extraction pass
 
   // ── Phase 1: DDG HTML search on all queries ──────────────────────────────
   for (let i = 0; i < queries.length; i++) {
@@ -473,76 +502,104 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       result.pagesScraped++;
       const label = `Page[${new URL(url).hostname.replace(/^www\./, "").substring(0, 20)}]`;
 
-      if (scraped.email) {
-        const arr = emailHits.get(scraped.email) ?? [];
-        arr.push(label);
-        emailHits.set(scraped.email, arr);
-      }
-      if (scraped.phone) {
-        const arr = phoneHits.get(scraped.phone) ?? [];
-        arr.push(label);
-        phoneHits.set(scraped.phone, arr);
-      }
-      if (scraped.linkedinUrl) {
-        const arr = linkedinHits.get(scraped.linkedinUrl) ?? [];
-        arr.push(label);
-        linkedinHits.set(scraped.linkedinUrl, arr);
-      }
+      if (scraped.email)        { const a = emailHits.get(scraped.email) ?? [];               a.push(label); emailHits.set(scraped.email, a); }
+      if (scraped.phone)        { const a = phoneHits.get(scraped.phone) ?? [];               a.push(label); phoneHits.set(scraped.phone, a); }
+      if (scraped.linkedinUrl)  { const a = linkedinHits.get(scraped.linkedinUrl) ?? [];       a.push(label); linkedinHits.set(scraped.linkedinUrl, a); }
+      if (scraped.instagramUrl) { const a = igHits.get(scraped.instagramUrl) ?? [];            a.push(label); igHits.set(scraped.instagramUrl, a); }
+      if (scraped.twitterUrl)   { const a = twHits.get(scraped.twitterUrl) ?? [];              a.push(label); twHits.set(scraped.twitterUrl, a); }
+      if (scraped.rawText)      { allSearchText += " " + scraped.rawText.slice(0, 3_000); }
     } catch { /* skip */ }
 
     await jitteredDelay(700);
   }
 
-  // ── Phase 3.5: AI extraction pass (Groq) ─────────────────────────────────
+  // ── Phase 3.5: AI extraction pass (Groq → OpenRouter fallback) ───────────
+  type AiOwner = { name: string; instagram: string | null; twitter: string | null; linkedin: string | null };
+  const aiOwners: AiOwner[] = [];
+
   if (allSearchText.length > 100) {
     try {
       const ai = await extractWithAI(allSearchText, entity.name, entity.type, null);
       if (ai.source !== "none") {
         const label = `AI[${ai.source}]`;
-        if (ai.email)    { const arr = emailHits.get(ai.email) ?? [];       arr.push(label); emailHits.set(ai.email, arr); }
-        if (ai.phone)    { const arr = phoneHits.get(ai.phone) ?? [];       arr.push(label); phoneHits.set(ai.phone, arr); }
-        if (ai.linkedin) { const arr = linkedinHits.get(ai.linkedin) ?? []; arr.push(label); linkedinHits.set(ai.linkedin, arr); }
-        logger.info({ entityId: entity.id, hasEmail: !!ai.email, owners: ai.owners.length, source: ai.source }, "Deep-web AI extraction complete");
+        if (ai.email)    { const a = emailHits.get(ai.email) ?? [];       a.push(label); emailHits.set(ai.email, a); }
+        if (ai.phone)    { const a = phoneHits.get(ai.phone) ?? [];       a.push(label); phoneHits.set(ai.phone, a); }
+        if (ai.linkedin) { const a = linkedinHits.get(ai.linkedin) ?? []; a.push(label); linkedinHits.set(ai.linkedin, a); }
+        if (ai.instagram){ const a = igHits.get(ai.instagram) ?? [];      a.push(label); igHits.set(ai.instagram, a); }
+        if (ai.twitter)  { const a = twHits.get(ai.twitter) ?? [];        a.push(label); twHits.set(ai.twitter, a); }
+        for (const oc of ai.ownerContacts) {
+          aiOwners.push({ name: oc.name, instagram: oc.instagram, twitter: oc.twitter, linkedin: oc.linkedin });
+          if (oc.instagram) { const a = igHits.get(oc.instagram) ?? []; a.push(`${label}-owner`); igHits.set(oc.instagram, a); }
+          if (oc.twitter)   { const a = twHits.get(oc.twitter) ?? [];   a.push(`${label}-owner`); twHits.set(oc.twitter, a); }
+          if (oc.linkedin)  { const a = linkedinHits.get(oc.linkedin) ?? []; a.push(`${label}-owner`); linkedinHits.set(oc.linkedin, a); }
+        }
+        logger.info({ entityId: entity.id, hasEmail: !!ai.email, owners: ai.owners.length, ownerHandles: aiOwners.filter(o => o.instagram || o.twitter).length, source: ai.source }, "Deep-web AI extraction complete");
       }
     } catch (err: any) {
       logger.debug({ err: err?.message }, "Deep-web AI extraction skipped");
     }
   }
 
+  // ── Phase 3.7: Person-hop — fire targeted social queries for discovered owners
+  // Each owner name gets 2 queries: "Name" instagram and "Name" site:linkedin.com/in
+  // This is how Gemini finds @christoph_cau from "Christophe Caucino" — we now do the same.
+  const CORP_SUFFIX_STRIP = /\b(sas|sarl|sa|gmbh|llc|ltd|inc|corp|bv|nv|spa|srl|ag|ab|as|oy)\b\.?/gi;
+  const entityShortName = entity.name.replace(CORP_SUFFIX_STRIP, "").trim().slice(0, 40);
+
+  for (const owner of aiOwners.slice(0, 3)) {
+    // Skip if AI already found both handles directly
+    if (owner.instagram && owner.twitter) continue;
+    const firstName = owner.name.split(" ")[0] ?? owner.name;
+
+    const hopQueries = [
+      `"${owner.name}" instagram`,
+      `"${owner.name}" "${entityShortName}" linkedin contact`,
+    ];
+
+    for (const q of hopQueries) {
+      try {
+        const sr = await duckduckgoSearch(q);
+        result.queriesFired++;
+        allSearchText += " " + sr.text.slice(0, 2_000);
+
+        for (const m of (sr.text.match(INSTAGRAM_RE) ?? [])) {
+          const clean = m.replace(/\/$/, "");
+          // Exclude generic instagram.com/p/ photo links
+          if (!clean.includes("/p/") && !clean.includes("/reel/")) {
+            const a = igHits.get(clean) ?? []; a.push(`Hop[${firstName}]`); igHits.set(clean, a);
+          }
+        }
+        for (const m of (sr.text.match(TWITTER_RE) ?? [])) {
+          const clean = m.replace(/\/$/, "");
+          const a = twHits.get(clean) ?? []; a.push(`Hop[${firstName}]`); twHits.set(clean, a);
+        }
+      } catch { /* skip */ }
+      await jitteredDelay(800);
+    }
+  }
+
   // ── Phase 4: Pick best-corroborated values ────────────────────────────────
-  let bestEmail = "";
-  let bestEmailCount = 0;
-  for (const [email, srcs] of emailHits.entries()) {
-    if (srcs.length > bestEmailCount) { bestEmail = email; bestEmailCount = srcs.length; }
-  }
-  if (bestEmail) {
-    result.email = bestEmail;
-    result.emailConfidence = scoreByCorroboration(bestEmailCount);
-    result.sources.push(...(emailHits.get(bestEmail) ?? []));
+  function pickBest<K extends string>(hits: Map<K, string[]>): [K, string[]] | null {
+    let best: K | null = null; let bestCount = 0;
+    for (const [k, srcs] of hits.entries()) {
+      if (srcs.length > bestCount) { best = k; bestCount = srcs.length; }
+    }
+    return best ? [best, hits.get(best)!] : null;
   }
 
-  let bestPhone = "";
-  let bestPhoneCount = 0;
-  for (const [phone, srcs] of phoneHits.entries()) {
-    if (srcs.length > bestPhoneCount) { bestPhone = phone; bestPhoneCount = srcs.length; }
-  }
-  if (bestPhone) {
-    result.phone = bestPhone;
-    result.phoneConfidence = scoreByCorroboration(bestPhoneCount);
-    result.sources.push(...(phoneHits.get(bestPhone) ?? []));
-  }
+  const [bestEmail, emailSrcs]   = pickBest(emailHits) ?? [null, []];
+  const [bestPhone, phoneSrcs]   = pickBest(phoneHits) ?? [null, []];
+  const [bestLI, liSrcs]         = pickBest(linkedinHits) ?? [null, []];
+  const [bestIG, igSrcs]         = pickBest(igHits) ?? [null, []];
+  const [bestTW, twSrcs]         = pickBest(twHits) ?? [null, []];
 
-  let bestLinkedIn = "";
-  let bestLinkedInCount = 0;
-  for (const [li, srcs] of linkedinHits.entries()) {
-    if (srcs.length > bestLinkedInCount) { bestLinkedIn = li; bestLinkedInCount = srcs.length; }
-  }
-  if (bestLinkedIn) {
-    result.linkedinUrl = bestLinkedIn;
-    result.sources.push(...(linkedinHits.get(bestLinkedIn) ?? []));
-  }
+  if (bestEmail) { result.email = bestEmail; result.emailConfidence = scoreByCorroboration(emailSrcs.length); result.sources.push(...emailSrcs); }
+  if (bestPhone) { result.phone = bestPhone; result.phoneConfidence = scoreByCorroboration(phoneSrcs.length); result.sources.push(...phoneSrcs); }
+  if (bestLI)    { result.linkedinUrl  = bestLI; result.sources.push(...liSrcs); }
+  if (bestIG)    { result.instagramUrl = bestIG; result.sources.push(...igSrcs); }
+  if (bestTW)    { result.twitterUrl   = bestTW; result.sources.push(...twSrcs); }
 
-  // Deduplicate sources list
+  result.personsDiscovered = [...new Set(aiOwners.map(o => o.name))].slice(0, 5);
   result.sources = [...new Set(result.sources)];
 
   return result;

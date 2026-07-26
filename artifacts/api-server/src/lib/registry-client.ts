@@ -44,6 +44,10 @@ export const REGISTRY_IDS = [
   "offeneregister-germany",
   "bolagsverket-sweden",
   "ytj-finland",
+  "atoka-italy",
+  "borme-spain",
+  "kvk-netherlands",
+  "kbo-belgium",
   "opencorporates",
 ] as const;
 export type RegistryId = (typeof REGISTRY_IDS)[number];
