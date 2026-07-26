@@ -1,0 +1,55 @@
+BAOLI Cannes — Phase-by-Phase Results vs Google/Gemini
+Final entity state (entity 32102)
+Field	Value	Source
+Email	reservations@baolicannes.com	Phase 0 (Perplexity)
+Phone	+33 4 93 43 03 43	Phases 1–8 (scraping)
+Instagram	https://www.instagram.com/baolicannes	Phases 1–8 (scraping)
+LinkedIn	https://www.linkedin.com/company/baoli-france	Phases 1–8 (scraping)
+Persons discovered	Christian Bischof, Xinbao Hu	Groq AI (Phase 7)
+SIREN / RCS	428108641	BODACC registry (pre-enrichment)
+Contact confidence	85	Cross-validated (4 vectors)
+Queries fired	11	All phases
+Pages scraped	9	Phases 4–6
+Phase 0 (Perplexity Sonar) — 2.6 seconds
+From the log: hasEmail: true · hasPhone: false · hasIG: false · owners: 1 · ownerContacts: 1
+Found immediately:
+* reservations@baolicannes.com ✅ — org email, exact match to Google
+* 1 named owner contact (no personal handles in that contact)
+Did not find:
+* Phone number
+* Instagram URL
+* LinkedIn
+* Christophe Caucino's personal @christoph_cau (or Pierre-Antoine Navarro)
+Perplexity's raw response was only 394 characters — it gave a tight, correct answer for the org email and surfaced 1 owner name, but didn't go deep enough to extract personal social handles for the principals.
+
+Phases 1–6 — DDG + Qwant + Bing + Wikipedia + Corp→Person hop + Page scraping (~3 min)
+Added three signals Perplexity missed entirely:
+* Phone +33 4 93 43 03 43 — scraped from a contact page (likely baolicannes.com or a venue directory)
+* Instagram @baolicannes — scraped from a page; Perplexity returned the handle without the URL prefix, the normalization fix (@handle → https://instagram.com/handle) didn't catch it this time, scraping got it directly
+* LinkedIn /company/baoli-france — scraped from search snippets
+The Corp→Person hop fired on names found in search snippets. It found candidates but they didn't produce additional contact vectors.
+
+Phase 7 (Groq llama-3.3-70b AI extraction)
+Ran over all the accumulated scraped text. Surfaced 2 owner-level persons not found by either Perplexity or Google/Gemini:
+* Christian Bischof — appears in business context (likely an officer or director)
+* Xinbao Hu — appears in business context
+These are review-only candidates, not merged contacts, but they're genuinely new intelligence.
+
+Direct comparison to Google/Gemini
+
+Signal	Google/Gemini	ApexFinder (this run)
+reservations@baolicannes.com	✅	✅ Phase 0
+@baolicannes (Instagram)	✅	✅ Phases 1–6
+Phone +33 4 93 43 03 43	❌	✅ Phases 1–6
+LinkedIn /company/baoli-france	❌	✅ Phases 1–6
+Christophe Caucino (@christoph_cau)	✅	❌ not found
+Pierre-Antoine Navarro	✅	❌ not found
+Christian Bischof / Xinbao Hu	❌	✅ Phase 7 (Groq)
+SIREN 428108641, registered address, filings	✅	✅ BODACC (registry layer)
+
+
+Assessment
+Where Phase 0 matched Google in 2.6 seconds: the org email. That's the primary contact vector and Perplexity nailed it instantly.
+Where Phases 1–8 beat Google: phone number and LinkedIn — both missed entirely by Google. These came from page scraping, not from any AI model.
+Where Google beats us: finding the named principals with personal handles — Christophe Caucino and @christoph_cau, Pierre-Antoine Navarro. These require a "who owns/runs this venue" search that ties a name to a personal Instagram, which Perplexity returned as a short 394-char answer focused on org contacts. This is a prompt engineering gap — the Perplexity prompt needs to explicitly ask for named founders/owners + their personal social accounts as a primary objective for Corporation entities, not just org-level contact info.
+The structural data (SIREN, filings, addresses) comes from the registry layer (BODACC) which runs before any OSINT — that's genuinely better than what Google gives since it's official government records.
