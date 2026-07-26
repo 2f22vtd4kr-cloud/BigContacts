@@ -8,15 +8,15 @@
 
 ---
 
-## Current State (2026-07-26 — Import #13 setup complete; Redis + API + web running; 32,000 entities loaded)
+## Current State (2026-07-26 — Imported project setup complete; Redis + API + web running; database ready for ingestion)
 
-### Post-import setup (2026-07-26, import #13)
-- `CI=true pnpm install --frozen-lockfile` — all packages installed (~36s)
+### Post-import setup (2026-07-26)
+- `CI=true pnpm install --frozen-lockfile` — all packages installed (~31s)
 - `pnpm --filter @workspace/db run push` — schema applied (`[✓] Changes applied`)
 - Redis, API Server, apex-finder web workflows restarted and confirmed running
 - `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":1}}` ✅
-- Dashboard stats: 32,000 entities, 7,458 hot leads, avg Bayesian score 0.67
-- Secrets status: SESSION_SECRET ✅; REDIS_URL_1–5 (Upstash), COMPANIES_HOUSE_API_KEY, GROQ_API_KEY ×3, OPENROUTER_API_KEY ×2 — all previously set; verify in secrets panel if enrichment pipeline shows degraded state.
+- `/api/entities` and `/api/dashboard/stats` → HTTP 200; the fresh development database currently contains zero entities/assets.
+- Secrets status: `SESSION_SECRET`, `REDIS_URL_1`–`REDIS_URL_5`, `COMPANIES_HOUSE_API_KEY`, `GROQ_API_KEY`/`_2`/`_3`, and `OPENROUTER_API_KEY` through `_4` are present. Upstash slot 1 is quota-exhausted but slots 2–5 are healthy and failover is automatic.
 
 | 2026-07-26 | **Perplexity Sonar Phase 0 fix**: Phase 0 was wired into `lib/deep-web-osint.ts` but the route imports `deepWebOsintEnrich` from `lib/web-enricher.ts` (via `lib/enrichment/web-discovery.ts` barrel). Added `researchWithPerplexity` import and full Phase 0 block to `web-enricher.ts` before Phase 1 (DDG). Build clean (1023ms). Live confirmation: first entity processed ("Scott Yocham J") — `Phase 0: Perplexity Sonar research complete hasEmail: true owners: 1 ownerContacts: 1`. Perplexity Sonar is now the first layer of every deep-web enrichment run. |
 
@@ -115,7 +115,7 @@ All 4 Phase I items implemented and live. Build clean (esbuild ⚡ 1183ms). All 
 ### Iteration Log
 | Date | Summary |
 |---|---|
-| 2026-07-26 | Imported project setup completed: securely restored five Upstash Redis URLs, Companies House key, three Groq keys, and two OpenRouter keys; installed frozen-lockfile dependencies; applied the Drizzle schema; restarted Redis/API/web workflows; verified `/api/healthz`, `/api/entities`, and `/api/dashboard/stats`; API and web are healthy, with a fresh empty database ready for ingestion. |
+| 2026-07-26 | Imported project setup completed: securely restored five Upstash Redis URLs, one Companies House key, three Groq keys, and four OpenRouter keys; installed frozen-lockfile dependencies; applied the Drizzle schema; restarted Redis/API/web workflows; verified `/api/healthz`, `/api/entities`, and `/api/dashboard/stats`; API and web are healthy, with a fresh empty database ready for ingestion. |
 | 2026-07-26 | Fresh import boot: pnpm install (28s), DB schema push ([✓] Changes applied), Redis+API+Web workflows restarted, /api/healthz → ok; all 11 secrets restored (REDIS_URL_1–5 slots 1–5, COMPANIES_HOUSE_API_KEY, GROQ_API_KEY/2/3, OPENROUTER_API_KEY/2); 9,500 entities + 2,384 hot leads carried from prior session |
 | 2026-07-23 | Fresh import boot: pnpm install, DB schema push, all 3 workflows running, cold-start ingestion auto-started |
 | 2026-07-23 | All Upstash secrets restored; API Server restarted with both slots confirmed live |
