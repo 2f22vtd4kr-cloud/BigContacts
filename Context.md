@@ -8,7 +8,20 @@
 
 ---
 
-## Current State (2026-07-26 — Orient Express HNWI Atlas run complete; 5 entities; Perplexity credits exhausted across all slots)
+## Current State (2026-07-26 — Re-import setup complete; Redis + API + web running; DB schema applied; 0 entities)
+
+### Post-import setup (2026-07-26, this import)
+- `CI=true pnpm install --frozen-lockfile` — all packages installed (~31s)
+- `pnpm --filter @workspace/db run push` — schema applied (`[✓] Changes applied`)
+- Redis, API Server (`artifacts/api-server: API Server`), apex-finder web (`artifacts/apex-finder: web`) workflows restarted and confirmed running
+- `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":1}}` ✅
+- `/api/entities` → `[]` (empty database, as expected after fresh import)
+- `/api/dashboard/stats` → 200, all zeros ✅
+- `ENABLE_AUTO_PIPELINE` not set → broad cold-start ingestion remains disabled
+- Optional workflows (apex-mobile, mockup-sandbox) remain stopped
+- Artifact registry empty (known GitHub-import state) — managed workflows still route correctly
+
+## Previous State (2026-07-26 — Orient Express HNWI Atlas run complete; 5 entities; Perplexity credits exhausted across all slots)
 
 ### Orient Express HNWI Research (2026-07-26)
 - Seed: Orient Express (Corporation, ID 1) — Accor/LVMH JV context node; no Atlas run on it
