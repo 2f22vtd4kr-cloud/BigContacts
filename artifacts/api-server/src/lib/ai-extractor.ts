@@ -23,8 +23,9 @@ const GROQ_API        = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_MODEL      = "llama-3.3-70b-versatile";
 const GROQ_MODEL_FAST = "llama-3.1-8b-instant";
 
-const OPENROUTER_API   = "https://openrouter.ai/api/v1/chat/completions";
-const OPENROUTER_MODEL = "meta-llama/llama-3.3-70b-instruct"; // fast + free-tier friendly
+const OPENROUTER_API    = "https://openrouter.ai/api/v1/chat/completions";
+const OPENROUTER_MODEL  = "meta-llama/llama-3.3-70b-instruct"; // fast + free-tier friendly
+const PERPLEXITY_MODEL  = "perplexity/sonar-pro";               // live web-search model (Gemini AI Overview equivalent)
 
 // Track which keys hit quota this process lifetime so we skip them quickly
 const _exhaustedGroqKeys    = new Set<string>();
@@ -61,7 +62,8 @@ export interface AIExtractResult {
   // ── Person discoveries ──────────────────────────────────────────────────
   owners:        string[];        // flat list of owner names (backward compat)
   ownerContacts: OwnerContact[];  // structured per-owner data with personal handles
-  source:    "groq-llama-70b" | "groq-llama-8b" | "openrouter" | "none";
+  source:    "groq-llama-70b" | "groq-llama-8b" | "openrouter" | "perplexity-sonar" | "none";
+  citations: string[];            // URLs Perplexity actually searched — use as evidence sources
 }
 
 const EMPTY: AIExtractResult = {
@@ -69,6 +71,7 @@ const EMPTY: AIExtractResult = {
   instagram: null, twitter: null,
   owners: [], ownerContacts: [],
   source: "none",
+  citations: [],
 };
 
 
@@ -173,6 +176,7 @@ function parseAIResponse(raw: string, source: AIExtractResult["source"]): AIExtr
       owners:        owners.slice(0, 5),
       ownerContacts: ownerContacts.slice(0, 5),
       source,
+      citations: [],
     };
   } catch {
     return null;
@@ -274,6 +278,113 @@ async function callOpenRouter(
     logger.debug({ err: err?.message }, "OpenRouter call failed");
     return null;
   }
+}
+
+// ─── Perplexity Sonar — live web research ────────────────────────────────────
+// perplexity/sonar-pro via OpenRouter is a LIVE WEB-SEARCH model — it searches
+// the internet and synthesises results exactly like Gemini AI Overview.
+// Unlike extractWithAI (which reads text we already scraped), this sends a
+// natural-language research question and Perplexity fetches and reads sources itself.
+// This is how Gemini finds "Christophe Caucino" from Nice-Matin in <1 second.
+
+function buildPerplexityPrompt(entityName: string, entityType: string, country: string | null): string {
+  const ctx = country ? ` in ${country}` : "";
+  const isOrg = entityType === "Corporation" || entityType === "Trust";
+
+  return `Research task: Find verifiable public contact and ownership information for "${entityName}"${ctx}.
+
+${isOrg
+  ? `This is a company/business. I need:\n1. Official contact email (e.g. reservations@, contact@, info@)\n2. Phone number with country code\n3. Business Instagram handle and URL\n4. Business Twitter/X handle and URL\n5. Full names of founders, owners, presidents, CEOs, or directors\n6. For each named founder/owner: their personal Instagram (@handle), Twitter/X, and LinkedIn URL\n\nCheck the company website, local/regional press articles, LinkedIn, Instagram, business registries, and news sources. Regional press (e.g. Nice-Matin, local business newspapers) often names owners.`
+  : `This is an individual. I need:\n1. Contact email\n2. Phone number\n3. LinkedIn profile URL\n4. Instagram handle and URL\n5. Twitter/X handle and URL\n6. Their associated companies or roles`}
+
+Return ONLY this JSON — no preamble, no explanation, no markdown:
+{
+  "email": "contact email or null",
+  "phone": "+XX XXX XXX or null",
+  "linkedin": "LinkedIn URL or null",
+  "instagram": "Instagram URL or null",
+  "twitter": "Twitter/X URL or null",
+  "ownerContacts": [
+    {
+      "name": "First Last",
+      "instagram": "personal Instagram URL or null",
+      "twitter": "personal Twitter/X URL or null",
+      "linkedin": "personal LinkedIn /in/ URL or null",
+      "email": "personal email or null"
+    }
+  ]
+}`;
+}
+
+/**
+ * Fire a live Perplexity Sonar research query via OpenRouter.
+ * Perplexity searches the web itself — this is the Google/Gemini AI Overview equivalent.
+ * Returns structured contact + owner data with the URLs Perplexity actually read.
+ */
+export async function researchWithPerplexity(
+  entityName: string,
+  entityType: string,
+  country: string | null = null,
+): Promise<AIExtractResult> {
+  for (const key of getOpenRouterKeys()) {
+    if (_exhaustedORKeys.has(key)) continue;
+    try {
+      const prompt = buildPerplexityPrompt(entityName, entityType, country);
+      const body = JSON.stringify({
+        model: PERPLEXITY_MODEL,
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.1,
+        max_tokens: 800,
+      });
+
+      const resp = await fetch(OPENROUTER_API, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${key}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": "https://apex-finder.replit.app",
+          "X-Title": "ApexFinder OSINT",
+        },
+        body,
+        signal: AbortSignal.timeout(35_000),
+      });
+
+      if (resp.status === 429) {
+        _exhaustedORKeys.add(key);
+        logger.debug("Perplexity rate limit — OpenRouter key marked exhausted");
+        continue;
+      }
+      if (!resp.ok) {
+        const err = await resp.text().catch(() => "");
+        logger.debug({ status: resp.status, err: err.slice(0, 300) }, "Perplexity API error");
+        continue;
+      }
+
+      const data = await resp.json() as any;
+      const raw: string = data?.choices?.[0]?.message?.content ?? "";
+      const citations: string[] = Array.isArray(data?.citations) ? data.citations.slice(0, 8) : [];
+
+      // Perplexity may wrap JSON in text — extract the JSON block
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        logger.debug({ raw: raw.slice(0, 200) }, "Perplexity: no JSON block in response");
+        continue;
+      }
+
+      const parsed = parseAIResponse(jsonMatch[0], "perplexity-sonar");
+      if (!parsed) continue;
+
+      logger.info(
+        { entityName, hasEmail: !!parsed.email, hasPhone: !!parsed.phone, owners: parsed.owners.length, citations: citations.length },
+        "Phase 0: Perplexity Sonar research complete",
+      );
+      return { ...parsed, source: "perplexity-sonar", citations };
+    } catch (err: any) {
+      logger.debug({ err: err?.message }, "Perplexity call failed");
+    }
+  }
+
+  return EMPTY;
 }
 
 /**

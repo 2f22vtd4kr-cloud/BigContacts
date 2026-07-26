@@ -18,7 +18,7 @@
  */
 
 import { logger } from "./logger";
-import { extractWithAI } from "./ai-extractor";
+import { extractWithAI, researchWithPerplexity } from "./ai-extractor";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -415,6 +415,47 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   const urlsToScrape = new Set<string>();
   let allSearchText  = ""; // accumulated for AI extraction pass
 
+  // Hoist aiOwners so Phase 0 (Perplexity) can populate it before Phase 3.7 runs
+  type AiOwner = { name: string; instagram: string | null; twitter: string | null; linkedin: string | null };
+  const aiOwners: AiOwner[] = [];
+
+  // ── Phase 0: Perplexity Sonar — live web research ────────────────────────
+  // perplexity/sonar-pro via OpenRouter searches the web itself, synthesising
+  // results exactly like Gemini AI Overview. Fires before DDG/Bing so owner names
+  // and personal social handles arrive immediately — even from regional press that
+  // DDG doesn't index well (e.g. Nice-Matin finding Christophe Caucino).
+  try {
+    // Derive country hint from knownResidences (e.g. "Port Pierre Canto, Cannes, France" → "France")
+    const countryHint = (() => {
+      const r = entity.knownResidences ?? "";
+      const m = r.match(/,\s*([A-Z][a-zA-Z\s]{2,25})$/);
+      return m ? m[1]!.trim() : null;
+    })();
+
+    const perp = await researchWithPerplexity(entity.name, entity.type, countryHint);
+    if (perp.source === "perplexity-sonar") {
+      const label = "Perplexity[sonar]";
+      if (perp.email)    { const a = emailHits.get(perp.email) ?? [];       a.push(label); emailHits.set(perp.email, a); }
+      if (perp.phone)    { const a = phoneHits.get(perp.phone) ?? [];       a.push(label); phoneHits.set(perp.phone, a); }
+      if (perp.linkedin) { const a = linkedinHits.get(perp.linkedin) ?? []; a.push(label); linkedinHits.set(perp.linkedin, a); }
+      if (perp.instagram){ const a = igHits.get(perp.instagram) ?? [];      a.push(label); igHits.set(perp.instagram, a); }
+      if (perp.twitter)  { const a = twHits.get(perp.twitter) ?? [];        a.push(label); twHits.set(perp.twitter, a); }
+      for (const oc of perp.ownerContacts) {
+        aiOwners.push({ name: oc.name, instagram: oc.instagram, twitter: oc.twitter, linkedin: oc.linkedin });
+        if (oc.instagram) { const a = igHits.get(oc.instagram) ?? [];      a.push(`${label}-owner`); igHits.set(oc.instagram, a); }
+        if (oc.twitter)   { const a = twHits.get(oc.twitter) ?? [];        a.push(`${label}-owner`); twHits.set(oc.twitter, a); }
+        if (oc.linkedin)  { const a = linkedinHits.get(oc.linkedin) ?? []; a.push(`${label}-owner`); linkedinHits.set(oc.linkedin, a); }
+      }
+      // Add Perplexity's cited URLs to the scrape queue — these are the real sources it found
+      for (const url of perp.citations.slice(0, 4)) urlsToScrape.add(url);
+      // Include Perplexity output in accumulated text for Phase 3.5 cross-validation
+      allSearchText += " " + JSON.stringify({ owners: perp.owners, ownerContacts: perp.ownerContacts });
+      result.sources.push(label);
+    }
+  } catch (err: any) {
+    logger.debug({ err: err?.message }, "Phase 0: Perplexity research failed");
+  }
+
   // ── Phase 1: DDG HTML search on all queries ──────────────────────────────
   for (let i = 0; i < queries.length; i++) {
     const query = queries[i]!;
@@ -514,8 +555,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   }
 
   // ── Phase 3.5: AI extraction pass (Groq → OpenRouter fallback) ───────────
-  type AiOwner = { name: string; instagram: string | null; twitter: string | null; linkedin: string | null };
-  const aiOwners: AiOwner[] = [];
+  // Reads accumulated search text; aiOwners already populated by Phase 0 if Perplexity ran.
 
   if (allSearchText.length > 100) {
     try {
