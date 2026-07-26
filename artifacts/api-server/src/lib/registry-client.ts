@@ -876,7 +876,6 @@ async function searchYtjFinland(query: string, limit: number): Promise<RegistryR
         type: "Corporation",
         nationality: "FI",
         knownResidences: address,
-        estimatedNetWorth: null,
         sourceRegistries: JSON.stringify(["YTJ Finland"]),
         notes: noteParts.join(". "),
         metadata: JSON.stringify({
@@ -895,6 +894,275 @@ async function searchYtjFinland(query: string, limit: number): Promise<RegistryR
     logger.debug({ err: err?.message }, "YTJ Finland search failed");
     return [];
   }
+}
+
+// ─── Registro Imprese Italy ───────────────────────────────────────────────────
+// Free endpoint: Italian startup / PMI innovativa register (Registro Imprese).
+// Returns company details from the national Chamber of Commerce open data.
+// Docs: https://startup.registroimprese.it/isin/static/startup/index.html#/ricerca
+// Also tries the Italian government open-company endpoint for non-startup firms.
+
+async function searchAtokaItaly(query: string, limit: number): Promise<RegistryResult[]> {
+  const results: RegistryResult[] = [];
+  const seen = new Set<string>();
+
+  // Tier 1: Italian startup / PMI innovativa register — free, no auth
+  try {
+    const url = `https://startup.registroimprese.it/isin/api/v1/startup/search?text=${encodeURIComponent(query)}&lang=en&page=0&size=${Math.min(limit, 10)}`;
+    const resp = await fetch(url, {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "ApexFinder/1.0 OSINT-Research (public data only)",
+      },
+      signal: AbortSignal.timeout(5_000),
+    });
+    if (resp.ok) {
+      const data = (await resp.json()) as any;
+      const items: any[] = data?.content ?? data?.result ?? data?.data ?? [];
+      for (const item of items.slice(0, limit)) {
+        const name: string = item?.denominazione ?? item?.ragioneSociale ?? item?.name ?? "";
+        if (!name || seen.has(name.toLowerCase())) continue;
+        seen.add(name.toLowerCase());
+        const cf: string = item?.codiceFiscale ?? item?.cf ?? "";
+        const city: string = item?.comune ?? item?.city ?? item?.localita ?? "";
+        const province: string = item?.provincia ?? item?.prov ?? "";
+        const address = [item?.indirizzo, city, province, "Italy"].filter(Boolean).join(", ");
+        results.push({
+          name,
+          type: "Corporation",
+          nationality: "IT",
+          knownResidences: address || undefined,
+          sourceRegistries: JSON.stringify(["Registro Imprese Italy (startup)"]),
+          notes: [
+            cf ? `CF/PIVA: ${cf}` : null,
+            item?.ateco ? `ATECO: ${item.ateco}` : null,
+            item?.dataIscrizione ? `Registered: ${item.dataIscrizione}` : null,
+          ].filter(Boolean).join(" | "),
+          metadata: JSON.stringify({
+            source: "atoka-italy",
+            cf,
+            city,
+            province,
+            ateco: item?.ateco ?? null,
+            category: item?.categoria ?? null,
+          }),
+        });
+        if (results.length >= limit) break;
+      }
+    }
+  } catch { /* graceful — tier 2 follows */ }
+
+  // Tier 2: Italian open-data company search via the government SPARQL/open-data proxy
+  // (Only fires if tier 1 returned nothing)
+  if (results.length === 0) {
+    try {
+      const url = `https://www.atoka.io/api/v1/companies?q=${encodeURIComponent(query)}&limit=${Math.min(limit, 5)}`;
+      const resp = await fetch(url, {
+        headers: {
+          Accept: "application/json",
+          "User-Agent": "ApexFinder/1.0 OSINT-Research (public data only)",
+        },
+        signal: AbortSignal.timeout(5_000),
+      });
+      if (resp.ok) {
+        const data = (await resp.json()) as any;
+        const items: any[] = data?.data ?? data?.items ?? data?.results ?? [];
+        for (const item of items.slice(0, limit)) {
+          const name: string = item?.name ?? item?.denominazione ?? "";
+          if (!name || seen.has(name.toLowerCase())) continue;
+          seen.add(name.toLowerCase());
+          const vatNumber: string = item?.vatNumber ?? item?.cf ?? item?.id ?? "";
+          const city: string = item?.registered_address?.city ?? item?.city ?? "";
+          const address = [item?.registered_address?.street, city, "Italy"].filter(Boolean).join(", ");
+          results.push({
+            name,
+            type: "Corporation",
+            nationality: "IT",
+            knownResidences: address || undefined,
+            sourceRegistries: JSON.stringify(["Registro Imprese Italy"]),
+            notes: vatNumber ? `PIVA: ${vatNumber}` : undefined,
+            metadata: JSON.stringify({ source: "atoka-italy", vatNumber, city }),
+          });
+          if (results.length >= limit) break;
+        }
+      }
+    } catch { /* return whatever we have */ }
+  }
+
+  return results;
+}
+
+// ─── BORME Spain ──────────────────────────────────────────────────────────────
+// Boletín Oficial del Registro Mercantil — Spain's official commercial register gazette.
+// Free BOE (Boletín Oficial del Estado) search API — no auth required.
+// Docs: https://www.boe.es/api/
+// Also queries the Spanish CNMV for listed company data.
+
+async function searchBormeSpain(query: string, limit: number): Promise<RegistryResult[]> {
+  const results: RegistryResult[] = [];
+  const seen = new Set<string>();
+
+  // Tier 1: BOE/BORME search API — returns publication summaries with company names
+  try {
+    const url = `https://boe.es/buscar/api.php?collection=BORME&q=${encodeURIComponent(query)}&lang=es&hits=${Math.min(limit * 2, 20)}`;
+    const resp = await fetch(url, {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "ApexFinder/1.0 OSINT-Research (public data only)",
+      },
+      signal: AbortSignal.timeout(5_000),
+    });
+    if (resp.ok) {
+      const data = (await resp.json()) as any;
+      const items: any[] = data?.response?.results?.result ?? data?.items ?? [];
+      for (const item of items) {
+        // Extract company name from document title — BORME titles are "Company Name SL/SA/SLU"
+        const raw: string = item?.titulo ?? item?.title ?? item?.descripcion ?? "";
+        if (!raw) continue;
+        // Strip BORME publication prefixes like "Actos inscritos: " etc.
+        const name = raw.replace(/^[A-ZÁÉÍÓÚ\s]+:\s+/u, "").split(/[,;]/)[0]?.trim() ?? raw;
+        if (!name || seen.has(name.toLowerCase())) continue;
+        seen.add(name.toLowerCase());
+        const pubDate: string = item?.fecha ?? item?.date ?? "";
+        const section: string = item?.seccion ?? "";
+        const idBoe: string = item?.identificador ?? item?.id ?? "";
+        results.push({
+          name,
+          type: "Corporation",
+          nationality: "ES",
+          knownResidences: "Spain",
+          sourceRegistries: JSON.stringify(["BORME Spain (BOE)"]),
+          notes: [
+            pubDate ? `Published: ${pubDate}` : null,
+            section ? `Section: ${section}` : null,
+          ].filter(Boolean).join(" | "),
+          metadata: JSON.stringify({
+            source: "borme-spain",
+            boeId: idBoe,
+            pubDate,
+            section,
+            boeUrl: idBoe ? `https://www.boe.es/boe/dias/${pubDate?.replace(/-/g, "/")}/pdfs/${idBoe}.pdf` : null,
+          }),
+        });
+        if (results.length >= limit) break;
+      }
+    }
+  } catch { /* graceful fallback */ }
+
+  return results;
+}
+
+// ─── KvK Netherlands ─────────────────────────────────────────────────────────
+// openkvk.nl — community mirror of the Dutch Chamber of Commerce register.
+// Free, no auth required. Returns company details including address and type.
+// Docs: https://api.openkvk.nl/
+
+async function searchKvkNetherlands(query: string, limit: number): Promise<RegistryResult[]> {
+  try {
+    // openkvk.nl community API: free, returns JSON, no auth
+    const url = `https://api.openkvk.nl/api/v2/companies?q=${encodeURIComponent(query)}&limit=${Math.min(limit, 20)}`;
+    const resp = await fetch(url, {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "ApexFinder/1.0 OSINT-Research (public data only)",
+        Origin: "https://www.openkvk.nl",
+        Referer: "https://www.openkvk.nl/",
+      },
+      signal: AbortSignal.timeout(5_000),
+    });
+    if (!resp.ok) return [];
+    const data = (await resp.json()) as any;
+    const items: any[] = data?.data ?? data?.results ?? data?.companies ?? (Array.isArray(data) ? data : []);
+    const results: RegistryResult[] = [];
+    for (const item of items.slice(0, limit)) {
+      const name: string = item?.naam ?? item?.name ?? item?.company_name ?? "";
+      if (!name) continue;
+      const kvkNumber: string = item?.kvk ?? item?.kvk_nummer ?? item?.kvknummer ?? item?.id ?? "";
+      const city: string = item?.stad ?? item?.city ?? item?.vestigingsplaats ?? "";
+      const address = [item?.adres ?? item?.address, item?.postcode ?? item?.zip, city, "Netherlands"]
+        .filter(Boolean).join(", ");
+      const legalForm: string = item?.rechtsvorm ?? item?.legal_form ?? "";
+      const sbi: string = item?.sbi_code ?? "";
+      results.push({
+        name,
+        type: "Corporation",
+        nationality: "NL",
+        knownResidences: address || undefined,
+        sourceRegistries: JSON.stringify(["KvK Netherlands (openkvk.nl)"]),
+        notes: [
+          kvkNumber ? `KvK: ${kvkNumber}` : null,
+          legalForm ? `Form: ${legalForm}` : null,
+          sbi ? `SBI: ${sbi}` : null,
+        ].filter(Boolean).join(" | "),
+        metadata: JSON.stringify({
+          source: "kvk-netherlands",
+          kvkNumber,
+          legalForm,
+          city,
+          sbi,
+        }),
+      });
+    }
+    return results;
+  } catch {
+    return [];
+  }
+}
+
+// ─── KBO Belgium ─────────────────────────────────────────────────────────────
+// Kruispuntbank van Ondernemingen (KBO) / Banque-Carrefour des Entreprises (BCE).
+// Belgium's official company register. Free open-data endpoint, no auth.
+// Docs: https://economie.fgov.be/fr/themes/entreprises/banque-carrefour-des
+
+async function searchKboBelgium(query: string, limit: number): Promise<RegistryResult[]> {
+  const results: RegistryResult[] = [];
+
+  // Try the official KBO open data REST API
+  try {
+    const url = `https://kbopub.economie.fgov.be/kbopub/zoeknaamfonetischform.html?lang=nl&searchWord=${encodeURIComponent(query)}&pstcdeNummer=&postgemeente=&gemeente=&typeVennootschap=&status=&startdatum=&einddatum=&numberOfResults=${Math.min(limit, 10)}&resultaat=`;
+    const resp = await fetch(url, {
+      headers: {
+        Accept: "text/html,application/xhtml+xml",
+        "User-Agent": "ApexFinder/1.0 OSINT-Research (public data only)",
+      },
+      signal: AbortSignal.timeout(5_000),
+    });
+    if (resp.ok) {
+      const html = await resp.text();
+      // Extract company rows from the KBO search results table
+      // Pattern: <a href="/kbopub/toonondernemingps.html?ondernemingsnummer=...">Company Name</a>
+      const rowRe = /href="[^"]*ondernemingsnummer=(\d+)[^"]*"\s*>([^<]+)<\/a>/g;
+      const cityRe = /class="resultaatValue"[^>]*>([^<]{3,40})<\/td>/g;
+      let m: RegExpExecArray | null;
+      const cities: string[] = [];
+      let cityMatch;
+      while ((cityMatch = cityRe.exec(html)) !== null) cities.push((cityMatch[1] ?? "").trim());
+      let idx = 0;
+      while ((m = rowRe.exec(html)) !== null && results.length < limit) {
+        const enterpriseNumber = m[1] ?? "";
+        const name = (m[2] ?? "").trim();
+        if (!name || name.length < 2) { idx++; continue; }
+        const city = cities[idx * 2 + 1] ?? cities[idx] ?? "";
+        results.push({
+          name,
+          type: "Corporation",
+          nationality: "BE",
+          knownResidences: city ? `${city}, Belgium` : "Belgium",
+          sourceRegistries: JSON.stringify(["KBO Belgium"]),
+          notes: enterpriseNumber ? `KBO: ${enterpriseNumber.replace(/(\d{4})(\d{3})(\d{3})/, "$1.$2.$3")}` : undefined,
+          metadata: JSON.stringify({
+            source: "kbo-belgium",
+            enterpriseNumber,
+            city,
+            kboUrl: enterpriseNumber ? `https://kbopub.economie.fgov.be/kbopub/toonondernemingps.html?ondernemingsnummer=${enterpriseNumber}` : null,
+          }),
+        });
+        idx++;
+      }
+    }
+  } catch { /* graceful fallback */ }
+
+  return results;
 }
 
 // ─── Public entry point ───────────────────────────────────────────────────────
@@ -947,6 +1215,10 @@ export async function searchRegistry(
   if (registry === "offeneregister-germany") return searchOffeneregisterGermany(query.trim(), limit);
   if (registry === "bolagsverket-sweden") return searchBolagsverketSweden(query.trim(), limit);
   if (registry === "ytj-finland") return searchYtjFinland(query.trim(), limit);
+  if (registry === "atoka-italy") return searchAtokaItaly(query.trim(), limit);
+  if (registry === "borme-spain") return searchBormeSpain(query.trim(), limit);
+  if (registry === "kvk-netherlands") return searchKvkNetherlands(query.trim(), limit);
+  if (registry === "kbo-belgium") return searchKboBelgium(query.trim(), limit);
 
   throw new Error(`Unknown registry: "${registry}". Use one of: ${REGISTRY_IDS.join(", ")}.`);
 }

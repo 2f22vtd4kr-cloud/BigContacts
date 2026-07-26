@@ -62,6 +62,9 @@ router.post("/registry-search", async (req: Request, res: Response): Promise<voi
 
   // Default to all free registries when none specified — OpenCorporates is
   // excluded from the default because it now requires a paid API key (401).
+  // Note: atoka-italy, borme-spain, kvk-netherlands, kbo-belgium are registered but
+  // blocked from server-side containers (Cloudflare / HTML-only portals). They can be
+  // called explicitly but are excluded here to avoid timeout latency on every search.
   const FREE_DEFAULTS: ValidRegistry[] = ["bodacc-france", "brreg", "ares-czechia", "gleif", "cvr-denmark", "zefix-switzerland", "offeneregister-germany", "bolagsverket-sweden", "ytj-finland"];
   const requested: ValidRegistry[] = (
     sources?.length ? sources : registry ? [registry] : FREE_DEFAULTS
