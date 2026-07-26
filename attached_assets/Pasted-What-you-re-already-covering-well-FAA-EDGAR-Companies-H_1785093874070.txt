@@ -1,0 +1,63 @@
+What you're already covering well
+FAA, EDGAR, Companies House, GLEIF/LEI, OpenCorporates, HMLR, OCCRP Aleph, ProPublica 990, OpenSky live flights, Wikipedia/Wikidata, RDAP, Perplexity Sonar, DDG/Qwant/Bing, all-MiniLM-L6-v2 embeddings, Groq AI extraction. That's a genuinely strong stack. The gaps are specific, not broad.
+
+TIER 1 — Critical misses (free, direct integration, high signal)
+1. ICIJ Offshore Leaks — FREE reconciliation API
+offshoreleaks.icij.org/docs/reconciliation
+This is the single biggest gap. 810,000+ offshore companies, foundations and trusts from Panama Papers, Pandora Papers, Paradise Papers, Bahamas Leaks, and Pandora Papers — all searchable via a free REST reconciliation API with no auth required. You POST entity names, it returns matched offshore structures with UBOs, intermediaries, registered agents, and jurisdiction.
+For HNWI ownership chain research this is irreplaceable. A PE fund's beneficial owner that doesn't appear in any public registry will often appear here as the controller of a BVI SPV. You have zero coverage of this currently.
+POST https://offshoreleaks.icij.org/reconcile
+{"queries": {"q0": {"query": "Goldman Sachs Asset Management", "type": "/Entity"}}}
+
+2. OpenSanctions — self-hostable for free
+opensanctions.org / github.com/opensanctions/yente
+2.1M+ entities across 410+ sources: OFAC, EU sanctions, UN, national watchlists, and critically — PEP (Politically Exposed Persons) lists. The hosted API is €0.10/query (commercial), but you can self-host the yente Docker container on a free tier VM and run unlimited queries. The bulk dataset download is also free for non-commercial use.
+HNWI research without PEP/sanctions screening is incomplete. If a target or their associates appear on a watchlist, that changes everything about the approach. Currently you have no coverage of this at all.
+3. Whoxy Reverse WHOIS — 250,000 free lookups/month
+whoxy.com
+Given an email address or person name → returns ALL domains registered by that registrant across 708M domain records and 1,596 TLDs. This is the critical "email → digital footprint" bridge you're missing.
+Your pipeline finds emails. But it doesn't then ask: "what else did this person register under this email?" A HNWI who owns a Monaco property via a Luxembourg holding company often registered the holding company's domain under their personal email in 2009 before privacy shields existed. Whoxy finds it. 250k queries/month free, simple REST API.
+4. Holehe — email → platform presence
+github.com/megadose/holehe — 8,100 stars
+Given an email address, checks whether it's registered on 120+ platforms — Instagram, Twitter, Airbnb, Adobe, Spotify, GitHub, Patreon, Flickr, etc. — using registration-attempt probing (no auth, no login, purely checks whether the email exists on each platform).
+Your pipeline finds contact emails. But it then stops. Holehe is the "and now what platforms is this email associated with?" step. If you find vercollier.c@gmail.com via any source, Holehe tells you she has an Airbnb account, a Flickr account, and a GitHub account — which gives you usernames to pass to Maigret. The chain is: email → Holehe → usernames → Maigret → full social dossier. You have none of this currently.
+Python package, callable as subprocess from Node.js. Entirely free.
+
+TIER 2 — High value, worth building toward
+5. GLiNER — zero-shot NER (Hugging Face)
+github.com/urchade/GLiNER — 3,400 stars | huggingface.co/knowledgator/gliner-x-large
+This is the permanent fix for the entire class of bugs you just patched today. GLiNER is a zero-shot Named Entity Recognition model — you give it a block of text and a list of entity types at runtime (["person name", "company name", "job title", "location"]) and it returns spans with confidence scores. No regex. No blocklist. No "Hotels CEO" garbage.
+It's ONNX-compatible (you already run all-MiniLM-L6-v2 via ONNX), so it could drop into the same WASM/ONNX infrastructure you built for the semantic engine. The knowledgator/gliner-x-large variant is the strongest for business/corporate text. Running it server-side in Python as a microservice (one endpoint: POST text → entities) and calling it from the TypeScript enricher is the practical integration path.
+The extractPersonCandidates function and its regex patterns would be replaced entirely.
+6. Maigret — username → cross-platform dossier
+github.com/soxoj/maigret — 35,700 stars
+Given a username, searches 3,000+ sites and builds a structured person dossier with profile data, profile photos, location hints, linked accounts, and site-specific metadata. When your pipeline discovers someone's LinkedIn slug or Twitter handle, you currently do nothing further with it. Maigret turns one username into a cross-platform identity graph in minutes.
+Particularly powerful for the Holehe → Maigret chain described above. Python CLI, call as subprocess.
+7. Equasis — vessel/yacht ownership
+equasis.org (free account required)
+This is the maritime equivalent of your FAA registry. Vessel ownership, beneficial owners behind flag-of-convenience registrations, ISM company details, port state control inspections. You track private jets via FAA/ADS-B but have zero coverage of yachts and private vessels — which is a significant gap for European HNWIs specifically (Monaco, Côte d'Azur, Balearics, Greek islands). No official API but it's structured HTML and has been successfully integrated into investigative journalism toolchains. Free.
+8. ADS-B historical traces — adsbtrack
+github.com/frankea/adsbtrack
+You have OpenSky for live/recent flight data. adsbtrack pulls historical ADS-B traces from ADSBExchange for any aircraft going back months or years. Travel pattern analysis over 12 months — which cities, which private airports, which FBOs — is materially more valuable than a single current position fix. A HNWI's flight log reveals residency patterns, business relationships, and property locations that no public registry captures.
+
+TIER 3 — Situationally useful
+theHarvester (16.8k stars) — email/subdomain harvesting from 20+ sources. Marginal gain given your existing Perplexity + DDG pipeline, but useful specifically for the "enumerate all email patterns from a corporate domain" use case that your domain scraper doesn't do systematically.
+OpenOwnership BODS data (bods-data.openownership.org) — aggregated Beneficial Ownership Data Standard records from UK, Ukraine, Denmark, Slovakia etc. UK PSC (Persons with Significant Control) register is already partly accessible via Companies House, but BODS bulk gives richer structured data for graph enrichment.
+
+What I'm deliberately not recommending
+* Sherlock (87k stars) — Maigret is a strict superset
+* LinkedIn scrapers — ToS violation, rate-limited to uselessness within hours, legally grey
+* Various email-finder repos — your in-house enricher already covers these without rate limits or ToS exposure
+* NuNER / BERT NER models — GLiNER outperforms them on zero-shot tasks; no reason to run both
+
+Priority order for integration
+#	Tool	Effort	Value	Cost
+1	ICIJ Offshore Leaks API	2h	🔴 Critical	Free
+2	OpenSanctions(self-hosted yente)	4h	🔴 Critical	Free
+3	Whoxy Reverse WHOIS	2h	🟠 High	Free (250k/mo)
+4	Holehe(subprocess)	3h	🟠 High	Free
+5	Equasis (scraper)	4h	🟠 High	Free
+6	GLiNER (Python microservice)	6h	🟡 Medium	Free
+7	Maigret(subprocess)	3h	🟡 Medium	Free
+8	adsbtrack(historical ADS-B)	3h	🟡 Medium	Free
+ICIJ Offshore Leaks is the one I'd build first — it's a single POST call returning structured ownership data from the most significant investigative leak datasets in history. B&B Hotels' Goldman Sachs PE chain would have lit up immediately. Two hours of integration work.

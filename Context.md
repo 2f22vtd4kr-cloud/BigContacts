@@ -8,7 +8,7 @@
 
 ---
 
-## Current State (2026-07-26 — Re-import setup complete; Redis + API + web running; DB schema applied; 0 entities)
+## Current State (2026-07-26 — Re-import setup complete; all 13 secrets restored; Redis + API + web running; DB schema applied; 0 entities)
 
 ### Post-import setup (2026-07-26, this import)
 - `CI=true pnpm install --frozen-lockfile` — all packages installed (~31s)
