@@ -8,15 +8,15 @@
 
 ---
 
-## Current State (2026-07-26 — Fresh import; 9,500 entities in DB; Redis + API + web running; Upstash/CH/Groq secrets not yet restored)
+## Current State (2026-07-26 — Fresh import; Redis + API + web running; all requested enrichment secrets restored)
 
 ### Post-import setup (2026-07-26)
-- `CI=true pnpm install --frozen-lockfile` — all packages installed (~28s)
+- `CI=true pnpm install --frozen-lockfile` — all packages installed (~29s)
 - `pnpm --filter @workspace/db run push` — schema applied (`[✓] Changes applied`)
 - Redis, API Server, apex-finder web workflows restarted and confirmed running
 - `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":0}}` ✅
-- DB carries 9,500 entities and 2,384 hot leads from prior session
-- All secrets restored: `REDIS_URL_1`–`REDIS_URL_5` (Upstash slots 1–5; slot 1 quota-exhausted, 2–5 healthy), `COMPANIES_HOUSE_API_KEY`, `GROQ_API_KEY`/`_2`/`_3`, `OPENROUTER_API_KEY`/`_2`
+- `/api/entities` and `/api/dashboard/stats` return 200; the fresh development database currently has zero entities/assets.
+- All requested secrets restored: `REDIS_URL_1`–`REDIS_URL_5` (Upstash slots 2–5 healthy; slot 1 quota-exhausted but non-fatal), `COMPANIES_HOUSE_API_KEY`, `GROQ_API_KEY`/`_2`/`_3`, `OPENROUTER_API_KEY`/`_2`
 
 ## Previous State (2026-07-25 — Phase K web-OSINT fixes complete) — 32,103 entities; all secrets set; Redis + API + web running; BAOLI test: email + instagram found
 
@@ -103,6 +103,7 @@ All 4 Phase I items implemented and live. Build clean (esbuild ⚡ 1183ms). All 
 ### Iteration Log
 | Date | Summary |
 |---|---|
+| 2026-07-26 | Imported project setup completed: securely restored five Upstash Redis URLs, Companies House key, three Groq keys, and two OpenRouter keys; installed frozen-lockfile dependencies; applied the Drizzle schema; restarted Redis/API/web workflows; verified `/api/healthz`, `/api/entities`, and `/api/dashboard/stats`; API and web are healthy, with a fresh empty database ready for ingestion. |
 | 2026-07-26 | Fresh import boot: pnpm install (28s), DB schema push ([✓] Changes applied), Redis+API+Web workflows restarted, /api/healthz → ok; all 11 secrets restored (REDIS_URL_1–5 slots 1–5, COMPANIES_HOUSE_API_KEY, GROQ_API_KEY/2/3, OPENROUTER_API_KEY/2); 9,500 entities + 2,384 hot leads carried from prior session |
 | 2026-07-23 | Fresh import boot: pnpm install, DB schema push, all 3 workflows running, cold-start ingestion auto-started |
 | 2026-07-23 | All Upstash secrets restored; API Server restarted with both slots confirmed live |

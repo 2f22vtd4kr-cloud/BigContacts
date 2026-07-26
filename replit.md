@@ -53,13 +53,10 @@ The long-term plan for improving the approximately 2.5% direct-contact yield is 
 | `DATABASE_URL` | Replit PostgreSQL (auto) | PostgreSQL connection |
 | `REDIS_URL` | `.replit` userenv | Local Redis — `redis://localhost:6379` |
 | `SESSION_SECRET` | Replit Secret | Express session signing |
-| `REDIS_URL_1` | Replit Secret | **Upstash permanent Redis** — dedup set lives here. Required for dedup to persist across restarts. (Quota exhausted as of 2026-07-24; slot 3 absorbs overflow.) |
-| `REDIS_URL_2` | Replit Secret | **Upstash permanent contact cache** — enriched contact data (email/phone/LinkedIn) lives here. Survives DB resets. Required for contact persistence across GitHub imports. |
-| `REDIS_URL_3` | Replit Secret | **Upstash overflow slot** — third permanent Redis; picked up automatically by the slot scanner (REDIS_URL_1..9). Added 2026-07-24 when slot 1 hit its 500k request quota. |
-| `REDIS_URL_4` | Replit Secret | **Upstash overflow slot** — fourth permanent Redis; added 2026-07-24 for additional quota headroom. |
-| `REDIS_URL_5` | Replit Secret | **Upstash overflow slot** — fifth permanent Redis; picked up automatically by the same slot scanner. |
+| `REDIS_URL_1`–`REDIS_URL_5` | Replit Secrets | **Upstash permanent Redis slots** — dedup/contact-cache capacity is distributed across the numbered slots; slot 1 is currently quota-exhausted and skipped automatically, while slots 2–5 are healthy. |
 | `COMPANIES_HOUSE_API_KEY` | Replit Secret (optional) | UK Companies House officer harvester |
-| `GROQ_API_KEY` | Replit Secret (optional) | Groq-powered structured extraction during web enrichment |
+| `GROQ_API_KEY`, `_2`, `_3` | Replit Secrets (optional) | Groq-powered structured extraction during web enrichment, with key rotation |
+| `OPENROUTER_API_KEY`, `_2` | Replit Secrets (optional) | OpenRouter model access, with key rotation |
 
 ### Adding a new Upstash Redis slot
 
@@ -98,7 +95,7 @@ After a fresh GitHub import, run these steps to get the project running:
 2. **Push DB schema:** `pnpm --filter @workspace/db run push`
 3. **Start workflows:** Redis → `artifacts/api-server: API Server` → `artifacts/apex-finder: web` (in that order)
 
-Latest verification (2026-07-25): the requested `REDIS_URL_1` through `REDIS_URL_5`, `COMPANIES_HOUSE_API_KEY`, and `GROQ_API_KEY` secrets are present; the frozen-lockfile install and schema push completed; Redis, `artifacts/api-server: API Server`, and `artifacts/apex-finder: web` are running; `/api/healthz`, `/api/entities`, and `/api/dashboard/stats` return 200; and the root dashboard preview renders successfully. Upstash slots 1–5 connect, although slot 1 has reached its provider request quota; the app continues with healthy slots and graceful degradation. Cold-start ingestion has populated 14,200 entities and 14,100 assets; the current snapshot has 3,046 hot leads, 301 contactable profiles, and 0 relationships.
+Latest verification (2026-07-26): the requested `REDIS_URL_1` through `REDIS_URL_5`, `COMPANIES_HOUSE_API_KEY`, `GROQ_API_KEY`/`_2`/`_3`, and `OPENROUTER_API_KEY`/`_2` secrets are present; the frozen-lockfile install and schema push completed; Redis, `artifacts/api-server: API Server`, and `artifacts/apex-finder: web` are running; `/api/healthz`, `/api/entities`, and `/api/dashboard/stats` return 200. Upstash slots 1–5 connect, although slot 1 has reached its provider request quota; the app continues with healthy slots and graceful degradation. This fresh development database currently has 0 entities/assets and is ready for ingestion.
 
 Two fixes were needed after the first import:
 - Added `"pg-cloudflare"` to the `external` list in `artifacts/api-server/build.mjs` (pg optional dep that esbuild couldn't resolve)

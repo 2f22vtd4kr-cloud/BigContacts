@@ -453,7 +453,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       result.sources.push(label);
     }
   } catch (err: any) {
-    logger.debug({ err: err?.message }, "Phase 0: Perplexity research failed");
+    logger.warn({ err: err?.message, name: err?.name }, "Phase 0: Perplexity research failed");
   }
 
   // ── Phase 1: DDG HTML search on all queries ──────────────────────────────
