@@ -8,7 +8,7 @@
 
 ---
 
-## Current State (2026-07-26 — Fresh import set up; SESSION_SECRET only; cold-start auto-ingestion ran; 32k entities/assets; awaiting enrichment secrets from user)
+## Current State (2026-07-26 — All 13 secrets set; auto-pipeline gated (ENABLE_AUTO_PIPELINE); BAOLI case study run: email✅ phone✅ instagram✅ linkedin❌; 3 enrichment fixes applied)
 
 ### Post-import setup (2026-07-26)
 - `CI=true pnpm install --frozen-lockfile` — all packages installed (~35s)

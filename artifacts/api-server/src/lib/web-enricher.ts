@@ -171,12 +171,13 @@ async function ddgHtmlSearch(query: string, locale = "wt-wt"): Promise<string> {
  */
 interface ContactPageResult {
   email:        string | null;
+  linkedinUrl:  string | null;
   instagramUrl: string | null;
   twitterUrl:   string | null;
 }
 
 async function scrapeContactEmail(website: string): Promise<ContactPageResult> {
-  const empty: ContactPageResult = { email: null, instagramUrl: null, twitterUrl: null };
+  const empty: ContactPageResult = { email: null, linkedinUrl: null, instagramUrl: null, twitterUrl: null };
   try {
     const base = website.replace(/\/$/, "");
     const tld  = (base.match(/\.([a-z]{2,3})(\/|$)/i)?.[1] ?? "").toLowerCase();
@@ -190,7 +191,7 @@ async function scrapeContactEmail(website: string): Promise<ContactPageResult> {
       "/nous-contacter", "/kontakt", "/impressum", "/contatti", "/contacto",
       "/about-us", "/who-we-are", "/management", "/staff",
     ];
-    let found: ContactPageResult = { email: null, instagramUrl: null, twitterUrl: null };
+    let found: ContactPageResult = { email: null, linkedinUrl: null, instagramUrl: null, twitterUrl: null };
     for (const path of paths) {
       try {
         const resp = await fetch(`${base}${path}`, {
@@ -220,10 +221,10 @@ async function scrapeContactEmail(website: string): Promise<ContactPageResult> {
           if (isValidPublicEmail(addr) && addr.length < 80 && !found.email) found.email = addr;
         }
         // LinkedIn company href — critical for corps: website footers always link /company/ pages
-        if (!(found as any).linkedinUrl) {
+        if (!found.linkedinUrl) {
           const liHM = html.match(/href=["'](https?:\/\/(?:[a-z]{2,5}\.)?linkedin\.com\/(company|school|in|pub)\/[a-zA-Z0-9\-_%]{2,80})[^"']*/i);
           if (liHM) {
-            (found as any).linkedinUrl = liHM[1]!.replace(/\/$/, "")
+            found.linkedinUrl = liHM[1]!.replace(/\/$/, "")
               .replace(/^https?:\/\/[a-z]{2,5}\.linkedin\.com\//, "https://www.linkedin.com/");
           }
         }
@@ -238,9 +239,9 @@ async function scrapeContactEmail(website: string): Promise<ContactPageResult> {
           const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").slice(0, 5000);
           found.email = extractEmailSimple(text) ?? null;
         }
-        // Stop as soon as we have an email (primary goal); keep going for social if missing
-        if (found.email && found.instagramUrl && found.twitterUrl) break;
-        if (found.email && path !== "") break; // found on contact sub-page — enough
+        // Stop as soon as we have email + all social signals; keep going if anything missing
+        if (found.email && found.linkedinUrl && found.instagramUrl && found.twitterUrl) break;
+        if (found.email && found.linkedinUrl && path !== "") break; // email + LinkedIn on sub-page — enough
       } catch { /* try next */ }
     }
     return found;
@@ -356,11 +357,13 @@ export async function enrichEntityOsint(entity: EntityOsintInput): Promise<Osint
     for (const domain of candidates.slice(0, 3)) {
       try {
         const scraped = await scrapeContactEmail(`https://${domain}`);
-        if (scraped.email || scraped.instagramUrl || scraped.twitterUrl) {
+        if (scraped.email || scraped.linkedinUrl || scraped.instagramUrl || scraped.twitterUrl) {
           result.website = `https://${domain}`;
           if (scraped.email)        { result.email        = scraped.email;        result.sources.push(`Domain-Guess(${domain})`); }
+          if (scraped.linkedinUrl)  { result.linkedinUrl  = scraped.linkedinUrl;  result.sources.push(`Domain-LI(${domain})`); }
           if (scraped.instagramUrl) { result.instagramUrl = scraped.instagramUrl; result.sources.push(`Domain-IG(${domain})`); }
           if (scraped.twitterUrl)   { result.twitterUrl   = scraped.twitterUrl;   result.sources.push(`Domain-TW(${domain})`); }
+          if (scraped.email && scraped.linkedinUrl) break; // stop domain loop once we have both
           if (scraped.email) break; // stop domain loop once we have email
         }
       } catch { /* try next */ }
@@ -1745,15 +1748,20 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       allSearchText += " " + rootScrape.text.slice(0, 2000);
       collectScrapedPage(rootScrape, label, `https://${domain}`);
 
-      // Crawl contact / about / team sub-pages when root has no email.
-      // findContactPages returns Array<{url, scraped}> — iterate it correctly.
-      if (!rootScrape.email) {
+      // Crawl contact / about / team sub-pages when root has no email OR no LinkedIn.
+      // LinkedIn often appears only in footers/contact pages — always check sub-pages
+      // for corps if root came back without a LinkedIn URL, even when email was found.
+      if (!rootScrape.email || !rootScrape.linkedinUrl) {
         const contactPages = await findContactPages(domain);
         for (const { url: cpUrl, scraped: cp } of contactPages) {
           const cpLabel = `${label}[${cpUrl.split("/").slice(-1)[0] ?? "contact"}]`;
           allSearchText += " " + cp.text.slice(0, 2000);
           collectScrapedPage(cp, cpLabel, cpUrl);
-          if (cp.email) break; // got what we need
+          // Stop when we have email AND LinkedIn (either from this page or any earlier phase)
+          if (cp.email && (cp.linkedinUrl || linkedinHits.size > 0)) break;
+          // Have email but no LinkedIn yet — keep scanning sub-pages for it
+          if (cp.email && !cp.linkedinUrl) continue;
+          if (cp.email) break; // safety fallback
         }
       }
 

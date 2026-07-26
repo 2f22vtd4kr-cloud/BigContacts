@@ -1,0 +1,41 @@
+let me read the two critical AI functions — the Perplexity Phase 0 prompt and the extractWithAI/OpenRouter rotation — in parallel.
+Now I have the full picture. Let me check the search functions and the duckduckgoSearch implementation to understand what URLs are returned.
+Now I have everything I need. Let me check SKIP_DOMAINS and the query limit in parallel, then I'll implement all fixes.
+Now I have everything. Three concrete issues to fix:
+1. getOpenRouterKeys() only reads 2 keys — we now have 4 (Perplexity and extraction both silently skip keys 3–4)
+2. LinkedIn company URL in DDG results lives in sr.urls, not sr.text — collectSearchResultnever scans sr.urls for LinkedIn, only extractLinkedIn(sr.text), so it's always missed
+3. Bing Phase 3 has the same sr.urls blind spot for LinkedIn
+Plus two prompt/quality improvements: 4. Increase Perplexity max_tokens so it doesn't truncate owner lists 5. Add perplexity/sonar as a fallback model when sonar-pro is exhausted
+Now fix the LinkedIn URL blind spot in collectSearchResult and Bing Phase 3, plus increase Perplexity max_tokens and add sonar fallback — all in parallel.
+Good, continuing with the remaining fixes in parallel.
+Now fix Perplexity max_tokens and add sonar as fallback, plus add the LinkedIn query to Bing scope for corporations (Bing handles site: operators reliably unlike DDG).
+Continuing with all remaining changes in parallel.
+Good, continuing. Need to: add sonar fallback logic in Perplexity, add LinkedIn query to Bing filter (currently excluded since it has no "email"/"contact" keyword), and rebuild.
+Now fix the Bing phase to include the LinkedIn query (currently filtered out since it has no "email"/"contact" keyword), then build and restart.
+Build clean. Restarting the API server, then immediately creating BAOLI and firing the enrichment test.
+API is up clean. Now create BAOLI Cannes and fire the enrichment to verify all three fixes in one live run.
+404 — let me find the correct single-entity enrichment endpoint.
+Let me check both endpoints to find the single-entity targeting parameter, in parallel.
+The correct endpoint is /api/ingest/deep-web-osint with entityIds and force: true. Firing it now.
+Phase 0 already showing owners: 2 — the key rotation fix is working (skipped 2 depleted keys, succeeded on key 3). Let me wait for the full pipeline to finish.
+Job done. Let me inspect the full enrichment result and logs simultaneously.
+The run completed. Key results vs the attachment baseline:
+Signal	Last session	This run
+Email	reservations@baolicannes.com✅	office@baolicannes.com✅
+Phone	+33 4 93 43 03 43 ✅	+33 4 93 43 03 43 ✅
+Instagram	✅	✅
+LinkedIn	❌	❌ still
+Owners (Phase 0)	0 (depleted keys)	2 (Jean-François Navarro, Riviera Hospitality) ✅
+Key rotation	failed silently	skipped 2 low-credit keys, succeeded on key 3 ✅
+Remaining issue: LinkedIn still null. Let me trace it — DDG breadcrumbs show fr.linkedin.com › company › slug without https://, and extractLinkedIn only matches https://...linkedin.com. Also need to check how results are saved. Let me read in parallel.
+The metadata columns (deepWebQueriesFired, deepWebPersonsDiscovered, etc.) are stored inside the metadata JSON field — the API endpoint needs to deserialize them. But the critical fix is extractLinkedIn: the regex only matches www.linkedin.com, missing fr.linkedin.combreadcrumbs and protocol-free breadcrumb text like fr.linkedin.com › company › slug. Both fixes together:
+API is up. Firing the re-enrichment of BAOLI with the LinkedIn fix active now.
+LinkedIn still null. Let me get the logs from that second run and also test what DDG/Bing actually return for the LinkedIn query directly.
+Clear diagnosis. Two issues remain:
+1. scrapePage only extracts /in/ LinkedIn URLs from href attributes — it uses linkedin.com/in/ regex, completely missing /company/ URLs in website footers (where the real LinkedIn company link lives)
+2. Perplexity max_tokens: 2000 wastes 2 of 4 keys — keys with 406/1227 credits get 402-rejected; should fall back to sonar on the same key immediately
+Let me read scrapePage and fix both in parallel.
+Found it. scrapePage line 1043 only matches /in/LinkedIn URLs — /company/ URLs in website footers are completely ignored. scrapeContactEmail doesn't extract LinkedIn at all. Applying both fixes plus the Perplexity per-key model fallback now.
+Now fix the Perplexity per-key model fallback while building in parallel — 402 on sonar-pro should immediately try sonar on the same key (not skip to next key).
+
+

@@ -662,6 +662,12 @@ async function runPopulatedDbMaintenance(): Promise<void> {
     { delayMs: 2_700_000, label: "auto persona improvement loop (pass 2 — force)",   path: "/api/improve/run-all",              body: { chunkSize: 500, resume: false } },
   ];
 
+  // Gate: skip mass auto-pipeline unless explicitly enabled — preserves API credits for targeted runs
+  if (process.env["ENABLE_AUTO_PIPELINE"] !== "true") {
+    logger.info("Auto pipeline scheduler disabled — set ENABLE_AUTO_PIPELINE=true to enable mass background research");
+    return;
+  }
+
   for (const phase of phases) {
     if (phase.onlyIf === false) continue;
     setTimeout(() => triggerHttp(phase.label, phase.path, phase.body), phase.delayMs);
