@@ -8,7 +8,17 @@
 
 ---
 
-## Current State (2026-07-26 — Fresh import; Redis + API + web running; all requested enrichment secrets restored)
+## Current State (2026-07-26 — Import #13 setup complete; Redis + API + web running; 32,000 entities loaded)
+
+### Post-import setup (2026-07-26, import #13)
+- `CI=true pnpm install --frozen-lockfile` — all packages installed (~36s)
+- `pnpm --filter @workspace/db run push` — schema applied (`[✓] Changes applied`)
+- Redis, API Server, apex-finder web workflows restarted and confirmed running
+- `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":1}}` ✅
+- Dashboard stats: 32,000 entities, 7,458 hot leads, avg Bayesian score 0.67
+- Secrets status: SESSION_SECRET ✅; REDIS_URL_1–5 (Upstash), COMPANIES_HOUSE_API_KEY, GROQ_API_KEY ×3, OPENROUTER_API_KEY ×2 — all previously set; verify in secrets panel if enrichment pipeline shows degraded state.
+
+## Previous State (2026-07-26 — Fresh import; Redis + API + web running; all requested enrichment secrets restored)
 
 ### Post-import setup (2026-07-26)
 - `CI=true pnpm install --frozen-lockfile` — all packages installed (~29s)
