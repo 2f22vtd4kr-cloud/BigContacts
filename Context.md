@@ -23,6 +23,17 @@
 - All 13 secrets loaded: `REDIS_URL_1`–`REDIS_URL_5`, `COMPANIES_HOUSE_API_KEY`, `GROQ_API_KEY`/`_2`/`_3`, `PERPLEXITY_API_KEY`/`_2`/`_3`/`_4`
 - Upstash slots 2–5 healthy; slot 1 quota-exhausted (graceful fallback, non-fatal)
 
+### B&B Hotels case study (2026-07-26)
+- Seed entity: B&B Hotels (Corporation, FR) — ID 1
+- Deep-web OSINT: completed in ~4min, confidence 88, `direct_contact_candidate`, access 0.87
+  - email: privacy.france@hotelbb.com (WRONG domain — hotelbb.com not hotel-bb.com)
+  - Ownership chain: Goldman Sachs AM (confirmed, €1.9B 2019, exploring €3.5B sale) ← PAI Partners ← Carlyle ← Duke Street. Founder: François Branellec
+  - Céline Vercollier (CEO) and Amir Mustafa (US CEO) correctly identified
+  - Corp→Person hop extracted "Hotels CEO" — weak; missed all exec names
+- 7 HNWI exec entities created from Gemini intel (IDs 2–8): Vercollier, Collet, D.Martin, Gerke, Duchini, M.Charles, Lacroix — all with email pattern firstname.lastname@hotel-bb.com (domain confirmed live, unverified deliverability)
+- Atlas research sessions 1–8 complete (all path scores synthetic — graph isolated, 0 edges)
+- Gemini advantage: org chart enumeration + email pattern; Our advantage: sourced ownership chain with PE history
+
 ## Previous State (2026-07-26 — Orient Express HNWI Atlas run complete; 5 entities; Perplexity credits exhausted across all slots)
 
 ### Orient Express HNWI Research (2026-07-26)
