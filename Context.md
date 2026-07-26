@@ -8,7 +8,17 @@
 
 ---
 
-## Current State (2026-07-25 — Phase K web-OSINT fixes complete) — 32,103 entities; all secrets set; Redis + API + web running; BAOLI test: email + instagram found
+## Current State (2026-07-26 — Fresh import; 9,500 entities in DB; Redis + API + web running; Upstash/CH/Groq secrets not yet restored)
+
+### Post-import setup (2026-07-26)
+- `CI=true pnpm install --frozen-lockfile` — all packages installed (~28s)
+- `pnpm --filter @workspace/db run push` — schema applied (`[✓] Changes applied`)
+- Redis, API Server, apex-finder web workflows restarted and confirmed running
+- `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":0}}` ✅
+- DB carries 9,500 entities and 2,384 hot leads from prior session
+- **Missing secrets** (need to be re-added): `REDIS_URL_1`–`REDIS_URL_5` (Upstash), `COMPANIES_HOUSE_API_KEY`, `GROQ_API_KEY`
+
+## Previous State (2026-07-25 — Phase K web-OSINT fixes complete) — 32,103 entities; all secrets set; Redis + API + web running; BAOLI test: email + instagram found
 
 ### Phase K web-OSINT enrichment fixes (2026-07-25)
 - **scrapePage full browser headers** — added Accept-Language, Sec-Fetch-*, Cache-Control, Pragma, Upgrade-Insecure-Requests, Connection; TLD-aware locale selection (fr-FR for .fr/.be/.mc, etc.)
