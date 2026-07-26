@@ -43,6 +43,7 @@ export const REGISTRY_IDS = [
   "zefix-switzerland",
   "offeneregister-germany",
   "bolagsverket-sweden",
+  "ytj-finland",
   "opencorporates",
 ] as const;
 export type RegistryId = (typeof REGISTRY_IDS)[number];
@@ -782,6 +783,116 @@ async function searchBolagsverketSweden(query: string, limit: number): Promise<R
   }
 }
 
+// ─── YTJ Finland ─────────────────────────────────────────────────────────────
+// Finnish Patent and Registration Office — free REST API, no auth required.
+// Docs: https://avoindata.prh.fi/
+// Returns company name, business ID, address, registration status.
+// Uniquely valuable: one of the few EU registries that returns direct phone/email
+// fields in the detail endpoint for some company types.
+
+async function searchYtjFinland(query: string, limit: number): Promise<RegistryResult[]> {
+  // PRH Open Data API v3 — correct endpoint and response schema
+  // Returns companies: [{businessId:{value, registrationDate}, names:[{name, type}], companyForms, ...}]
+  const url = `https://avoindata.prh.fi/opendata-ytj-api/v3/companies?name=${encodeURIComponent(query)}&maxResults=${Math.min(limit, 5)}`;
+  try {
+    const resp = await fetch(url, {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "ApexFinder/1.0 OSINT-Research (public data only)",
+      },
+      signal: AbortSignal.timeout(14_000),
+    });
+    if (!resp.ok) return [];
+    const data = (await resp.json()) as any;
+    const companies: any[] = data?.companies ?? [];
+    const results: RegistryResult[] = [];
+
+    for (const co of companies.slice(0, limit)) {
+      const businessId: string = co?.businessId?.value ?? "";
+      if (!businessId) continue;
+
+      // Primary name = type "1" (current Finnish name), fall back to first in array
+      const names: any[] = co?.names ?? [];
+      const currentName = names.find((n: any) => n?.type === "1" && !n?.endDate) ?? names[0];
+      const name: string = currentName?.name ?? "";
+      if (!name) continue;
+
+      // Company form (Osakeyhtiö = Oy, etc.)
+      const forms: any[] = co?.companyForms ?? [];
+      const formDesc = forms[0]?.descriptions?.find((d: any) => d?.languageCode === "3")?.description
+        ?? forms[0]?.descriptions?.[0]?.description ?? "";
+
+      // Registration date
+      const regDate: string = co?.businessId?.registrationDate ?? "";
+
+      // Fetch detail record for address + contact (best-effort, caps to 1 extra request)
+      let address = "Finland";
+      let phone: string | null = null;
+      let email: string | null = null;
+      let website: string | null = null;
+      try {
+        const detResp = await fetch(
+          `https://avoindata.prh.fi/opendata-ytj-api/v3/companies/${encodeURIComponent(businessId)}`,
+          { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(8_000) },
+        );
+        if (detResp.ok) {
+          const det = (await detResp.json()) as any;
+          const det0 = det?.companies?.[0] ?? det;
+          // Address from addresses array
+          const addrs: any[] = det0?.addresses ?? [];
+          const mainAddr = addrs.find((a: any) => a?.type === "1" && !a?.endDate) ?? addrs[0];
+          if (mainAddr) {
+            address = [mainAddr.street, mainAddr.postCode, mainAddr.city, "Finland"]
+              .filter(Boolean).join(", ");
+          }
+          // Contact details (phone, email, website)
+          const contacts: any[] = det0?.contactDetails ?? [];
+          for (const c of contacts) {
+            // type "3" = phone, "4" = email, "5" = website in PRH schema
+            const v: string = c?.value ?? "";
+            if (!v) continue;
+            if ((c?.type === "3" || v.startsWith("+") || /^\d[\d\s\-()]{6,}/.test(v)) && !phone) phone = v;
+            else if ((c?.type === "4" || v.includes("@")) && !email) email = v;
+            else if ((c?.type === "5" || /^https?:/.test(v)) && !website) website = v;
+          }
+        }
+      } catch { /* use defaults — never block a result on a detail fetch failure */ }
+
+      const noteParts = [
+        `Y-tunnus: ${businessId}`,
+        formDesc ? `Form: ${formDesc}` : null,
+        regDate  ? `Registered: ${regDate}` : null,
+        phone    ? `Phone: ${phone}` : null,
+        email    ? `Email: ${email}` : null,
+        website  ? `Website: ${website}` : null,
+      ].filter(Boolean);
+
+      results.push({
+        name,
+        type: "Corporation",
+        nationality: "FI",
+        knownResidences: address,
+        estimatedNetWorth: null,
+        sourceRegistries: JSON.stringify(["YTJ Finland"]),
+        notes: noteParts.join(". "),
+        metadata: JSON.stringify({
+          source: "ytj-finland",
+          businessId,
+          companyForm: formDesc || null,
+          registrationDate: regDate || null,
+          phone,
+          email,
+          website,
+        }),
+      });
+    }
+    return results;
+  } catch (err: any) {
+    logger.debug({ err: err?.message }, "YTJ Finland search failed");
+    return [];
+  }
+}
+
 // ─── Public entry point ───────────────────────────────────────────────────────
 
 export async function searchRegistry(
@@ -831,6 +942,7 @@ export async function searchRegistry(
   if (registry === "zefix-switzerland") return searchZefixSwitzerland(query.trim(), limit);
   if (registry === "offeneregister-germany") return searchOffeneregisterGermany(query.trim(), limit);
   if (registry === "bolagsverket-sweden") return searchBolagsverketSweden(query.trim(), limit);
+  if (registry === "ytj-finland") return searchYtjFinland(query.trim(), limit);
 
   throw new Error(`Unknown registry: "${registry}". Use one of: ${REGISTRY_IDS.join(", ")}.`);
 }

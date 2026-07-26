@@ -11,6 +11,7 @@
  *   - Phone numbers in international or formatted form ("call +33 4 93 43 03 43")
  *   - Social handles mentioned inline ("find us on Instagram @baolicannes")
  *   - Owner/founder names from press snippets, bios, registry filings in any language
+ *   - Personal social handles for named owners (e.g. @christoph_cau for Christophe Caucino)
  *
  * Falls back silently if GROQ_API_KEY is unset or quota is hit — pipeline continues
  * with regex-only results.
@@ -23,19 +24,33 @@ const GROQ_MODEL = "llama-3.3-70b-versatile";
 // Fallback model if primary hits rate limit
 const GROQ_MODEL_FAST = "llama-3.1-8b-instant";
 
+/** Personal contact vector for a named owner/founder discovered in text */
+export interface OwnerContact {
+  name:      string;        // Full name (First Last)
+  instagram: string | null; // Personal Instagram URL — NOT the venue account
+  twitter:   string | null; // Personal Twitter/X URL
+  linkedin:  string | null; // Personal LinkedIn /in/ profile URL
+  email:     string | null; // Personal or direct email if stated
+}
+
 export interface AIExtractResult {
+  // ── Org-level contact vectors (for the entity being researched) ─────────
   email:     string | null;
   phone:     string | null;
-  linkedin:  string | null;
-  instagram: string | null;
-  twitter:   string | null;
-  owners:    string[];   // Discovered person names (review-only, never auto-merged)
+  linkedin:  string | null; // org LinkedIn /company/ page
+  instagram: string | null; // venue/org Instagram
+  twitter:   string | null; // venue/org Twitter
+  // ── Person discoveries ──────────────────────────────────────────────────
+  owners:        string[];        // flat list of owner names (backward compat)
+  ownerContacts: OwnerContact[];  // structured per-owner data with personal handles
   source:    "groq-llama-70b" | "groq-llama-8b" | "none";
 }
 
 const EMPTY: AIExtractResult = {
   email: null, phone: null, linkedin: null,
-  instagram: null, twitter: null, owners: [], source: "none",
+  instagram: null, twitter: null,
+  owners: [], ownerContacts: [],
+  source: "none",
 };
 
 function getKey(): string | null {
@@ -43,35 +58,52 @@ function getKey(): string | null {
 }
 
 /**
- * Build the prompt. Keeps it tight — Groq charges by token.
- * Text is capped at 6 000 chars to leave room for the response.
+ * Build the prompt. Separates org-level contact from personal owner contacts —
+ * this is the key distinction that lets us find @christoph_cau (personal) vs
+ * @baolicannes (venue), matching what Google/Gemini AI overview produces.
+ * Text is capped at 5 500 chars to leave room for the response.
  */
 function buildPrompt(text: string, entityName: string, entityType: string, country: string | null): string {
   const ctx = country ? ` (${country})` : "";
-  const truncated = text.slice(0, 6000);
-  return `You are an OSINT research assistant. Analyze this web search text about "${entityName}"${ctx} (${entityType}) and extract verifiable contact information and person names that are EXPLICITLY stated in the text.
+  const truncated = text.slice(0, 5500);
+  const isOrg = entityType === "Corporation" || entityType === "Trust";
+
+  return `You are an OSINT research assistant. Analyze this web text about "${entityName}"${ctx} (${entityType}) and extract verifiable contact information EXPLICITLY stated in the text.
 
 TEXT:
 ${truncated}
 
-Return ONLY a valid JSON object — no explanation, no markdown:
+Return ONLY valid JSON — no explanation, no markdown:
 {
-  "email": "address@domain.com or null",
-  "phone": "full international number or null",
-  "linkedin": "https://linkedin.com/in/handle or null",
-  "instagram": "https://instagram.com/handle or null",
-  "twitter": "https://x.com/handle or null",
-  "owners": ["Full Name", "Full Name 2"]
+  "email": "venue/org contact email or null",
+  "phone": "full international number with country code (e.g. +33 4 93 43 03 43) or null",
+  "linkedin": "${isOrg ? "https://linkedin.com/company/... org page or null" : "https://linkedin.com/in/profile or null"}",
+  "instagram": "${isOrg ? "venue/brand Instagram URL (e.g. https://instagram.com/baolicannes) or null" : "personal Instagram URL or null"}",
+  "twitter": "venue/org Twitter/X URL or null",
+  "ownerContacts": [
+    {
+      "name": "Full Name (First Last minimum)",
+      "instagram": "PERSONAL Instagram URL (not the venue account — e.g. https://instagram.com/christoph_cau) or null",
+      "twitter": "personal Twitter/X URL or null",
+      "linkedin": "personal LinkedIn /in/ profile URL or null",
+      "email": "personal or direct email if explicitly stated or null"
+    }
+  ]
 }
 
 Rules:
-- Only extract what is EXPLICITLY present in the text above
-- email: prefer business/venue contact over personal; must contain @
-- phone: include country code if present; must have ≥7 digits
-- linkedin/instagram/twitter: full URL only
-- owners: founders, owners, CEOs, directors named in text; full names (First + Last minimum); max 5
-- Return null for any field not found; return [] for owners if none found
-- Do NOT invent or infer anything not stated`;
+- Only extract what is EXPLICITLY present in the text above — never guess or infer
+- email/phone: prefer the primary business/venue contact (reservations@, contact@, info@)
+- phone: must have ≥7 digits; include country code when present
+- instagram/twitter (top level): the venue or org account (handle matches the business name)
+- ownerContacts: named founders, owners, CEOs, directors found in the text
+  * max 5 owners; full name required (at least First + Last)
+  * instagram/twitter in ownerContacts: their PERSONAL handles (not the venue account)
+    e.g. if text says "Christophe Caucino (@christoph_cau)" → instagram: "https://instagram.com/christoph_cau"
+  * linkedin in ownerContacts: /in/ profiles only (not /company/)
+  * email in ownerContacts: personal or named email only (not info@ or reservations@)
+- Return null for any field not found; return [] for ownerContacts if none found
+- Do NOT invent anything not stated in the text`;
 }
 
 async function callGroq(
@@ -90,7 +122,7 @@ async function callGroq(
     model,
     messages: [{ role: "user", content: prompt }],
     temperature: 0,
-    max_tokens: 400,
+    max_tokens: 600,
     response_format: { type: "json_object" },
   });
 
@@ -106,7 +138,6 @@ async function callGroq(
     });
 
     if (resp.status === 429) {
-      // Rate limit — caller handles fallback
       logger.debug({ model }, "Groq rate limit hit");
       return null;
     }
@@ -129,8 +160,34 @@ async function callGroq(
       return (s === "null" || s === "undefined" || s.length < 3) ? null : s;
     };
 
+    // Parse flat owners array (backward compat)
     const owners: string[] = [];
-    if (Array.isArray(parsed["owners"])) {
+
+    // Parse structured ownerContacts
+    const ownerContacts: OwnerContact[] = [];
+    if (Array.isArray(parsed["ownerContacts"])) {
+      for (const oc of parsed["ownerContacts"]) {
+        if (typeof oc !== "object" || !oc) continue;
+        const name = clean((oc as any)["name"]);
+        if (!name || !name.includes(" ") || name.length < 4 || name.length > 80) continue;
+        const contact: OwnerContact = {
+          name,
+          instagram: clean((oc as any)["instagram"]),
+          twitter:   clean((oc as any)["twitter"]),
+          linkedin:  clean((oc as any)["linkedin"]),
+          email:     clean((oc as any)["email"]),
+        };
+        // Validate URLs minimally
+        if (contact.instagram && !contact.instagram.includes("instagram.com")) contact.instagram = null;
+        if (contact.twitter   && !contact.twitter.includes("twitter.com") && !contact.twitter.includes("x.com")) contact.twitter = null;
+        if (contact.linkedin  && !contact.linkedin.includes("linkedin.com")) contact.linkedin = null;
+        ownerContacts.push(contact);
+        owners.push(name);
+      }
+    }
+
+    // Also accept legacy flat owners[] if ownerContacts not present
+    if (owners.length === 0 && Array.isArray(parsed["owners"])) {
       for (const o of parsed["owners"]) {
         if (typeof o === "string" && o.trim().includes(" ") && o.trim().length >= 4 && o.trim().length <= 60) {
           owners.push(o.trim());
@@ -146,6 +203,7 @@ async function callGroq(
       instagram: clean(parsed["instagram"]),
       twitter:   clean(parsed["twitter"]),
       owners:    owners.slice(0, 5),
+      ownerContacts: ownerContacts.slice(0, 5),
       source:    src,
     };
   } catch (err: any) {
@@ -170,7 +228,11 @@ export async function extractWithAI(
   try {
     const result = await callGroq(text, entityName, entityType, country, GROQ_MODEL);
     if (result) {
-      logger.debug({ entityName, source: result.source, hasEmail: !!result.email, owners: result.owners.length }, "AI extraction complete");
+      logger.debug({
+        entityName, source: result.source,
+        hasEmail: !!result.email, owners: result.owners.length,
+        ownerHandles: result.ownerContacts.filter(o => o.instagram || o.linkedin || o.twitter).length,
+      }, "AI extraction complete");
       return result;
     }
 

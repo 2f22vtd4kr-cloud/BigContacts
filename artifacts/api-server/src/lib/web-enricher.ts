@@ -1509,7 +1509,58 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
           result.queriesFired++;
           collectSearchResult(pr, `${label}[press]`, "person_candidate", personName);
         } catch { /* skip */ }
-        await jitteredDelay(700);
+        await jitteredDelay(500);
+
+        // ── Targeted personal Instagram search ──────────────────────────────
+        // "Christophe Caucino" instagram → finds instagram.com/christoph_cau
+        // This single query is what Google does to get from a person's name to their handle.
+        // Result goes to evidence as person_candidate ONLY — not to igHits (entity's own social).
+        try {
+          const igQuery = `"${personName}" instagram`;
+          const igSr = await duckduckgoSearch(igQuery, locale);
+          result.queriesFired++;
+          // Try text regex first, then fall back to parsing result URLs directly
+          let igUrl = extractInstagram(igSr.text);
+          if (!igUrl) {
+            for (const u of igSr.urls) {
+              const m = u.match(/instagram\.com\/([^/?#\s]+)/i);
+              if (m && m[1] && m[1].length >= 2 && m[1].length <= 30
+                  && !["p","reel","stories","explore","accounts","tv"].includes(m[1].toLowerCase())) {
+                igUrl = `https://instagram.com/${m[1]}`;
+                break;
+              }
+            }
+          }
+          if (igUrl) {
+            recordEvidence("social", igUrl, `${label}[ig-personal]`, igSr.sourceUrl,
+              "person-social-search", 72, {
+                scope: "person_candidate", personName,
+                relationship: "personal-handle-candidate", network: "instagram",
+              });
+            logger.info({ entityId: entity.id, personName, igUrl }, "Person hop: personal Instagram found");
+          }
+          for (const u of igSr.urls.slice(0, 2)) urlsToScrape.add(u);
+        } catch { /* skip */ }
+        await jitteredDelay(350);
+
+        // ── Targeted personal LinkedIn search ───────────────────────────────
+        try {
+          const liQuery = `"${personName}" site:linkedin.com/in`;
+          const liSr = await duckduckgoSearch(liQuery, locale);
+          result.queriesFired++;
+          const liUrl = extractLinkedIn(liSr.text)
+            ?? liSr.urls.find(u => /linkedin\.com\/in\//i.test(u))
+            ?? null;
+          if (liUrl) {
+            recordEvidence("social", liUrl, `${label}[li-personal]`, liSr.sourceUrl,
+              "person-social-search", 70, {
+                scope: "person_candidate", personName,
+                relationship: "personal-handle-candidate", network: "linkedin",
+              });
+          }
+          for (const u of liSr.urls.slice(0, 2)) urlsToScrape.add(u);
+        } catch { /* skip */ }
+        await jitteredDelay(350);
       }
     }
   }
@@ -1589,7 +1640,35 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         for (const person of ai.owners) {
           if (!result.personsDiscovered.includes(person)) result.personsDiscovered.push(person);
         }
-        logger.info({ entityId: entity.id, hasEmail: !!ai.email, persons: ai.owners.length, source: ai.source }, "AI extraction phase complete");
+
+        // ── Integrate per-owner personal social handles ──────────────────
+        // This is the Google/Gemini parity gap: when the LLM sees "Christophe Caucino
+        // (@christoph_cau)" in the text, it returns that as an ownerContact with a personal
+        // Instagram handle — NOT the venue's @baolicannes account.
+        // These go to evidence as person_candidate ONLY, never to igHits/twHits/linkedinHits,
+        // so the entity's own social fields stay org-level while evidence carries personal vectors.
+        for (const oc of ai.ownerContacts) {
+          if (!result.personsDiscovered.includes(oc.name)) result.personsDiscovered.push(oc.name);
+          const ocLabel = `AI[owner:${oc.name.split(" ")[0]}]`;
+          const ocDetails = (network: string) => ({
+            scope: "person_candidate" as const, personName: oc.name,
+            relationship: "personal-handle-candidate", network,
+          });
+          if (oc.instagram) recordEvidence("social",   oc.instagram, ocLabel, null, "ai-owner-extraction", 74, ocDetails("instagram"));
+          if (oc.twitter)   recordEvidence("social",   oc.twitter,   ocLabel, null, "ai-owner-extraction", 74, ocDetails("twitter"));
+          if (oc.linkedin)  recordEvidence("social",   oc.linkedin,  ocLabel, null, "ai-owner-extraction", 74, ocDetails("linkedin"));
+          if (oc.email)     recordEvidence("email",    oc.email,     ocLabel, null, "ai-owner-extraction", 66, {
+            scope: "person_candidate", personName: oc.name, relationship: "personal-email-candidate",
+          });
+        }
+        if (ai.ownerContacts.length > 0) {
+          logger.info({
+            entityId: entity.id,
+            owners: ai.ownerContacts.map(o => ({ name: o.name, ig: !!o.instagram, li: !!o.linkedin })),
+          }, "AI owner contacts with personal handles extracted");
+        }
+
+        logger.info({ entityId: entity.id, hasEmail: !!ai.email, persons: ai.owners.length, ownerContacts: ai.ownerContacts.length, source: ai.source }, "AI extraction phase complete");
       }
     } catch (err: any) {
       logger.debug({ err: err?.message }, "AI extraction phase skipped");
