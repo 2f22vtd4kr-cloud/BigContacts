@@ -453,6 +453,31 @@ const SKIP_DOMAINS = new Set([
   "youtube.com", "tiktok.com", "pinterest.com",
 ]);
 
+// Domains to exclude when harvesting corporate website candidates from Perplexity
+// citations — these are known aggregators, social platforms, news wires, booking
+// engines, and public registries that will never be the entity's own website.
+const CITATION_SKIP_DOMAINS = new Set([
+  // Search / aggregators
+  "google.com", "bing.com", "yahoo.com", "duckduckgo.com", "qwant.com",
+  // Social
+  "linkedin.com", "twitter.com", "x.com", "instagram.com", "facebook.com",
+  "youtube.com", "tiktok.com", "pinterest.com",
+  // News wires & general press
+  "bloomberg.com", "reuters.com", "ft.com", "wsj.com", "nytimes.com",
+  "businesswire.com", "prnewswire.com", "apnews.com", "bbc.com", "bbc.co.uk",
+  "lemonde.fr", "lefigaro.fr", "nicematin.com",
+  // Encyclopedias / reference
+  "wikipedia.org", "wikidata.org", "crunchbase.com",
+  // Booking / OTAs — these are consumer sites, not corporate domains
+  "booking.com", "hotels.com", "expedia.com", "tripadvisor.com", "airbnb.com",
+  "agoda.com", "kayak.com", "hotelscombined.com", "trivago.com",
+  // Public registries
+  "companies-house.gov.uk", "sec.gov", "gleif.org", "opencorporates.com",
+  "infogreffe.fr", "pappers.fr",
+  // Other common non-corporate hits
+  "amazon.com", "apple.com", "microsoft.com",
+]);
+
 const EMAIL_BLOCK = new Set([
   "example.com", "domain.com", "email.com", "test.com", "sample.com",
   "noreply.com", "no-reply.com", "invalid.com", "placeholder.com",
@@ -722,6 +747,31 @@ const NOT_A_PERSON = new Set([
   "the company", "the group", "the firm", "the club", "the hotel",
 ]);
 
+// Individual words that disqualify a regex match from being a real person name.
+// Catches garbage like "Hotels CEO", "Group COO", "Capital Partners".
+const PERSON_WORD_BLOCKLIST = new Set([
+  // Job titles that appear as the second "word" in false-positive captures
+  "CEO", "CFO", "COO", "CTO", "CMO", "CXO", "SVP", "EVP", "VP", "MD",
+  // Company-type words that should never be part of a person name
+  "Hotels", "Hotel", "Group", "Holdings", "Capital", "Partners", "Management",
+  "International", "Global", "Hospitality", "Properties", "Trust", "Fund",
+  "Ventures", "Asset", "Assets", "Equity", "Private", "Investment",
+  "Investments", "Corporation", "Consulting", "Solutions", "Services",
+  "Technologies", "Industries", "Enterprises", "Associates",
+]);
+
+/** Returns true when a string looks like a real human name (2–4 capitalised words,
+ *  no job-title or company-type tokens). Used to filter owner-resolution pushes. */
+function looksLikePersonName(name: string): boolean {
+  const words = name.trim().split(/\s+/);
+  if (words.length < 2 || words.length > 4) return false;
+  // Every word must open with a true uppercase letter
+  if (!words.every(w => /^[A-ZÀ-ÖØ-Ü]/.test(w))) return false;
+  // Reject if any word is a known role or company-type indicator
+  if (words.some(w => PERSON_WORD_BLOCKLIST.has(w))) return false;
+  return true;
+}
+
 function extractPersonCandidates(text: string): string[] {
   const found = new Set<string>();
   for (const pattern of PERSON_PATTERNS) {
@@ -731,10 +781,12 @@ function extractPersonCandidates(text: string): string[] {
       if (name.length < 4 || name.length > 60) continue;
       const lower = name.toLowerCase();
       if (NOT_A_PERSON.has(lower)) continue;
-      // Must have at least two words each starting with uppercase
+      // Must have at least two words, each opening with a TRUE uppercase letter
       const words = name.split(/\s+/);
       if (words.length < 2) continue;
-      if (!words.every(w => /^[A-ZÀ-ÖØ-Üa-zà-öø-ü\-]/.test(w))) continue;
+      if (!words.every(w => /^[A-ZÀ-ÖØ-Ü]/.test(w))) continue;
+      // Reject job titles / company words masquerading as person names
+      if (words.some(w => PERSON_WORD_BLOCKLIST.has(w))) continue;
       found.add(name);
     }
   }
@@ -1366,7 +1418,12 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     if (!existing) {
       result.ownerResolutions.push({ ...owner, name });
     }
-    if (!result.personsDiscovered.includes(name)) result.personsDiscovered.push(name);
+    // Only seed personsDiscovered with real human names — skip PE firms, holding
+    // companies, and any string that passes the ownership chain but is not a person
+    // (e.g. "Goldman Sachs AM", "PAI Partners", "Hotels CEO").
+    if (looksLikePersonName(name) && !result.personsDiscovered.includes(name)) {
+      result.personsDiscovered.push(name);
+    }
 
     const sourceUrls = owner.sourceUrls.length > 0
       ? owner.sourceUrls
@@ -1550,6 +1607,32 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       }
       // Cited URLs → scrape queue (Perplexity's actual sources, highest quality)
       for (const url of perp.citations.slice(0, 4)) urlsToScrape.add(url);
+
+      // ── Domain injection from Perplexity citations (Bug 2 fix) ──────────
+      // Perplexity reads the entity's actual corporate website to answer our
+      // prompt, so its citations contain the CORRECT corporate domain even when
+      // the domain guesser picked a consumer/booking site (e.g. bbhotels.com
+      // instead of hotel-bb.com). Extract those domains and prepend them to
+      // domainTargets so Phase 5 scrapes them first.
+      const citationDomains: string[] = [];
+      for (const url of perp.citations) {
+        try {
+          const hostname = new URL(url).hostname.replace(/^www\./, "");
+          if (!CITATION_SKIP_DOMAINS.has(hostname) && !citationDomains.includes(hostname)) {
+            citationDomains.push(hostname);
+          }
+        } catch { /* ignore malformed URLs */ }
+      }
+      if (citationDomains.length > 0) {
+        // Prepend so they run before the guessed domains — Perplexity already
+        // confirmed these are relevant to the entity.
+        domainTargets.unshift(...citationDomains.slice(0, 3));
+        logger.info(
+          { entityId: entity.id, citationDomains },
+          "Phase 0: injected Perplexity citation domains into scrape targets",
+        );
+      }
+
       // Include Perplexity output in accumulated text for AI cross-validation
       allSearchText += " " + JSON.stringify({
         ownershipSummary: perp.ownershipSummary,
