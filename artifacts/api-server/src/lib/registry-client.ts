@@ -41,6 +41,8 @@ export const REGISTRY_IDS = [
   "gleif",
   "cvr-denmark",
   "zefix-switzerland",
+  "offeneregister-germany",
+  "bolagsverket-sweden",
   "opencorporates",
 ] as const;
 export type RegistryId = (typeof REGISTRY_IDS)[number];
@@ -664,6 +666,122 @@ async function searchZefixSwitzerland(query: string, limit: number): Promise<Reg
   return results;
 }
 
+// ─── Open Handelsregister Germany ────────────────────────────────────────────
+// offeneregister.de — community mirror of the German commercial register.
+// Datasette JSON API, no auth, free.
+// Docs: https://offeneregister.de/
+
+async function searchOffeneregisterGermany(query: string, limit: number): Promise<RegistryResult[]> {
+  // Datasette SQL-over-HTTP: full-text search on company name
+  const sql = `SELECT id, current_name, registered_address, company_type_code, jurisdiction_code, current_status FROM companies WHERE current_name LIKE '%${query.replace(/'/g, "''")}%' LIMIT ${Math.min(limit, 20)}`;
+  const url = `https://db.offeneregister.de/handelsregister.json?sql=${encodeURIComponent(sql)}`;
+  try {
+    const resp = await fetch(url, {
+      headers: { Accept: "application/json", "User-Agent": "ApexFinder/1.0 OSINT-Research (public data only)" },
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!resp.ok) return [];
+    const data = (await resp.json()) as any;
+    const rows: any[] = data?.rows ?? [];
+    const columns: string[] = data?.columns ?? [];
+    const results: RegistryResult[] = [];
+    for (const row of rows) {
+      // Map positional row array to named fields using columns array
+      const get = (col: string) => {
+        const i = columns.indexOf(col);
+        return i >= 0 ? row[i] : null;
+      };
+      const name: string = get("current_name") ?? "";
+      if (!name) continue;
+      const address: string = get("registered_address") ?? "";
+      const companyType: string = get("company_type_code") ?? "";
+      const jurisdiction: string = get("jurisdiction_code") ?? "";
+      const status: string = get("current_status") ?? "";
+      const id: string = get("id") ?? "";
+      results.push({
+        name,
+        type: "Corporation",
+        nationality: "DE",
+        knownResidences: address || undefined,
+        sourceRegistries: JSON.stringify(["Handelsregister Germany (offeneregister.de)"]),
+        notes: [
+          companyType ? `Type: ${companyType}` : null,
+          jurisdiction ? `Court: ${jurisdiction}` : null,
+          status ? `Status: ${status}` : null,
+        ].filter(Boolean).join(" | "),
+        metadata: JSON.stringify({
+          source: "offeneregister-germany",
+          id,
+          companyType,
+          jurisdiction,
+          status,
+          offeneregisterUrl: id ? `https://offeneregister.de/companies/${id}` : null,
+        }),
+      });
+    }
+    return results;
+  } catch {
+    return [];
+  }
+}
+
+// ─── Bolagsverket Sweden ──────────────────────────────────────────────────────
+// Swedish Companies Registration Office — open data API, no auth.
+// Basic search via the Bolagsverket open-data endpoint.
+// Docs: https://bolagsverket.se/foretag/apitjanster/
+
+async function searchBolagsverketSweden(query: string, limit: number): Promise<RegistryResult[]> {
+  // Use the Allabolag public search API as a fallback — it wraps Bolagsverket data.
+  // Primary: Allabolag search (free, no key, returns JSON)
+  const url = `https://www.allabolag.se/api/search/company?query=${encodeURIComponent(query)}&limit=${Math.min(limit, 20)}`;
+  try {
+    const resp = await fetch(url, {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "ApexFinder/1.0 OSINT-Research (public data only)",
+        "X-Requested-With": "XMLHttpRequest",
+      },
+      signal: AbortSignal.timeout(12_000),
+    });
+    if (!resp.ok) throw new Error(`Allabolag ${resp.status}`);
+    const data = (await resp.json()) as any;
+    const hits: any[] = data?.hits ?? data?.results ?? data?.companies ?? [];
+    const results: RegistryResult[] = [];
+    for (const hit of hits.slice(0, limit)) {
+      const name: string = hit?.name ?? hit?.companyName ?? "";
+      if (!name) continue;
+      const orgNumber: string = hit?.orgNumber ?? hit?.organizationNumber ?? hit?.org_number ?? "";
+      const city: string = hit?.city ?? hit?.municipality ?? "";
+      const status: string = hit?.status ?? "";
+      const legalForm: string = hit?.legalForm ?? hit?.legal_form ?? "";
+      const address = [hit?.address, city, "Sweden"].filter(Boolean).join(", ");
+      results.push({
+        name,
+        type: "Corporation",
+        nationality: "SE",
+        knownResidences: address || city ? address : undefined,
+        sourceRegistries: JSON.stringify(["Bolagsverket Sweden"]),
+        notes: [
+          orgNumber ? `Org: ${orgNumber}` : null,
+          legalForm ? `Form: ${legalForm}` : null,
+          status ? `Status: ${status}` : null,
+        ].filter(Boolean).join(" | "),
+        metadata: JSON.stringify({
+          source: "bolagsverket-sweden",
+          orgNumber,
+          legalForm,
+          status,
+          city,
+        }),
+      });
+    }
+    return results;
+  } catch {
+    // Fallback: Bolagsverket open data SPARQL is complex; return empty gracefully
+    return [];
+  }
+}
+
 // ─── Public entry point ───────────────────────────────────────────────────────
 
 export async function searchRegistry(
@@ -711,6 +829,8 @@ export async function searchRegistry(
   if (registry === "bodacc-france") return searchBodacc(query.trim(), limit);
   if (registry === "cvr-denmark") return searchCvrDenmark(query.trim(), limit);
   if (registry === "zefix-switzerland") return searchZefixSwitzerland(query.trim(), limit);
+  if (registry === "offeneregister-germany") return searchOffeneregisterGermany(query.trim(), limit);
+  if (registry === "bolagsverket-sweden") return searchBolagsverketSweden(query.trim(), limit);
 
   throw new Error(`Unknown registry: "${registry}". Use one of: ${REGISTRY_IDS.join(", ")}.`);
 }

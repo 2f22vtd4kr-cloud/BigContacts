@@ -13,7 +13,7 @@
  */
 
 import { Router, type Request, type Response } from "express";
-import { db, entitiesTable } from "@workspace/db";
+import { db, entitiesTable, contactEvidenceTable } from "@workspace/db";
 import { sql, eq, and, desc, count, inArray } from "drizzle-orm";
 import {
   createJob, updateJob, getJob,
@@ -202,6 +202,40 @@ router.post("/ingest/deep-web-osint", async (req: Request, res: Response): Promi
         updates["liveSource"] = true;
 
         await db.update(entitiesTable).set(updates as any).where(eq(entitiesTable.id, entity.id));
+
+        // Persist structured evidence rows into contact_evidence table.
+        // The unique index (entity_id, vector_type, value, source) prevents duplicates on re-runs.
+        if (result.evidence && result.evidence.length > 0) {
+          const evidenceRows = result.evidence
+            .filter(e => e.value && e.value.trim())
+            .map(e => {
+              const isPersonHop = (e.details?.["scope"] as string) === "person_candidate";
+              return {
+                entityId: entity.id,
+                vectorType: e.vectorType,
+                value: e.value.trim(),
+                source: e.source,
+                sourceUrl: e.sourceUrl ?? null,
+                extractionMethod: e.extractionMethod ?? "unknown",
+                // confidence 0-100 → sourceReliability 0.0-1.0
+                sourceReliability: Math.min(1, Math.max(0, e.confidence / 100)),
+                // Person-hop candidates have lower identity match — not yet confirmed as the entity's own contact
+                identityMatch: isPersonHop ? 0.25 : 0.65,
+                recencyScore: 0.7,
+                directnessScore:
+                  e.vectorType === "email" ? 0.9 :
+                  e.vectorType === "phone" ? 0.85 :
+                  e.vectorType === "social" ? 0.6 : 0.4,
+                independentCorroboration: 1,
+                validationStatus: isPersonHop ? "candidate" : "candidate",
+                observedAt: new Date(),
+                metadata: JSON.stringify(e.details ?? {}),
+              };
+            });
+          try {
+            await db.insert(contactEvidenceTable).values(evidenceRows).onConflictDoNothing();
+          } catch { /* non-fatal: unique constraint or schema mismatch */ }
+        }
 
         const stableKey = (() => {
           if (meta["nNumber"])       return `faa:${meta["nNumber"]}`;

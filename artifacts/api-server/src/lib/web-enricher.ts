@@ -657,6 +657,20 @@ const PERSON_PATTERNS: RegExp[] = [
   /(?:fondato da|fondatore|proprietario|titolare|amministratore|socio)\s*[:\-]?\s*([A-ZÀ-ÖØ-Ü][a-zà-öø-ü]+\s+[A-ZÀ-ÖØ-Ü][a-zà-öø-ü\-]+)/g,
   // Spanish
   /(?:fundado por|fundador|propietario|dueño|director|socio)\s*[:\-]?\s*([A-ZÀ-ÖØ-Ü][a-zà-öø-ü]+\s+[A-ZÀ-ÖØ-Ü][a-zà-öø-ü\-]+)/g,
+  // ── Subject-position patterns (name BEFORE the keyword) ────────────────────
+  // French: "Christophe Caucino et Pierre Navarro ont fondé Bâoli"
+  // Captures the first person before "et ... ont fondé"
+  /([A-ZÀ-ÖØ-Ü][a-zà-öø-üéèêëàâùûüçîïôœ\-]+\s+[A-ZÀ-ÖØ-Ü][a-zà-öø-üéèêëàâùûüçîïôœ\-]+(?:-[A-ZÀ-ÖØ-Ü][a-zà-öø-üéèêëàâùûüçîïôœ\-]+)?)\s+(?:et\s+\S+\s+\S+\s+)?(?:a|ont)\s+(?:fondé|créé|lancé|ouvert|inauguré|cofondé|co-fondé|développé|ouvert)/g,
+  // French: captures the second person in "Caucino et Pierre Navarro ont fondé"
+  /[A-ZÀ-ÖØ-Ü][a-zà-öø-ü\-]+\s+[A-ZÀ-ÖØ-Ü][a-zà-öø-ü\-]+\s+et\s+([A-ZÀ-ÖØ-Ü][a-zà-öø-üéèêëàâùûüçîïôœ\-]+\s+[A-ZÀ-ÖØ-Ü][a-zà-öø-üéèêëàâùûüçîïôœ\-]+(?:-[A-ZÀ-ÖØ-Ü][a-zà-öø-üéèêëàâùûüçîïôœ\-]+)?)\s+(?:ont|a)\s+(?:fondé|créé|lancé)/g,
+  // English subject-position: "Person founded/started/co-founded/created"
+  /([A-Z][a-zA-Z\-]+\s+[A-Z][a-zA-Z\-]+(?:\s+[A-Z][a-zA-Z\-]+)?)\s+(?:founded|co-founded|created|started|launched|established|built|opened)/g,
+  // Appositive: "Name, founder/owner/CEO of X"
+  /([A-Z][a-zA-Z\-]+\s+[A-Z][a-zA-Z\-]+(?:\s+[A-Z][a-zA-Z\-]+)?),\s*(?:founder|co-founder|owner|CEO|president|chairman|director|managing director)/gi,
+  // French appositive: "Name, fondateur/propriétaire/PDG de X"
+  /([A-ZÀ-ÖØ-Ü][a-zà-öø-üéèêëàâùûüçîïôœ\-]+\s+[A-ZÀ-ÖØ-Ü][a-zà-öø-üéèêëàâùûüçîïôœ\-]+(?:-[A-ZÀ-ÖØ-Ü][a-zà-öø-ü\-]+)?),\s*(?:fondateur|co-fondateur|propriétaire|gérant|directeur général|PDG|président)/g,
+  // German subject-position: "Person gründete/eröffnete"
+  /([A-ZÄÖÜ][a-zäöü\-]+\s+[A-ZÄÖÜ][a-zäöü\-]+)\s+(?:gründete|gründeten|eröffnete|eröffneten|gründete)/g,
 ];
 
 // Common first/last name parts that are NOT person names
@@ -814,6 +828,68 @@ async function qwantSearch(query: string, locale = "fr_FR"): Promise<SearchResul
     logger.debug({ err: err?.message, query }, "Qwant search failed");
     return { text: "", urls: [], engine: "Qwant", sourceUrl: url };
   }
+}
+
+// ── Wikipedia lookup — free, no auth, best structured person-company data ────
+/**
+ * Look up the entity's trading name on Wikipedia (native language first,
+ * then English). Returns the plain-text extract from the page summary, which
+ * typically names founders, CEOs, and key personnel directly.
+ *
+ * Uses the Wikipedia REST v1 summary endpoint (no authentication required).
+ * Fails silently on timeout or 404.
+ */
+async function wikipediaLookup(
+  tradingName: string,
+  country: string | null,
+): Promise<{ extract: string; pageUrl: string } | null> {
+  // Choose the most likely Wikipedia language edition for the entity's country
+  const lang =
+    country === "FR" || country === "BE" || country === "MC" || country === "LU" ? "fr" :
+    country === "DE" || country === "AT" ? "de" :
+    country === "IT" ? "it" :
+    country === "ES" ? "es" :
+    country === "NO" ? "no" :
+    country === "SE" ? "sv" :
+    country === "DK" ? "da" :
+    country === "NL" || country === "BE" ? "nl" :
+    country === "CH" ? "de" : "en";
+
+  async function tryLang(wikiLang: string): Promise<{ extract: string; pageUrl: string } | null> {
+    try {
+      // Step 1: search for the page title
+      const searchUrl = `https://${wikiLang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(tradingName)}&format=json&utf8=1&srlimit=1&srprop=snippet`;
+      const searchResp = await fetch(searchUrl, {
+        headers: { "User-Agent": "ApexFinder/1.0 OSINT-Research (contact discovery only)" },
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (!searchResp.ok) return null;
+      const searchData = (await searchResp.json()) as any;
+      const title: string = searchData?.query?.search?.[0]?.title ?? "";
+      if (!title) return null;
+
+      // Step 2: fetch the page summary (includes extract with named persons)
+      const summaryUrl = `https://${wikiLang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`;
+      const summaryResp = await fetch(summaryUrl, {
+        headers: { "User-Agent": "ApexFinder/1.0 OSINT-Research (contact discovery only)" },
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (!summaryResp.ok) return null;
+      const summary = (await summaryResp.json()) as any;
+      const extract: string = summary?.extract ?? "";
+      if (!extract || extract.length < 30) return null;
+      const pageUrl: string = summary?.content_urls?.desktop?.page ?? "";
+      return { extract, pageUrl };
+    } catch {
+      return null;
+    }
+  }
+
+  const result = await tryLang(lang);
+  if (result) return result;
+  // Fall back to English if native-language search found nothing
+  if (lang !== "en") return tryLang("en");
+  return null;
 }
 
 interface ScrapedPage {
@@ -1325,6 +1401,35 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       collectSearchResult(sr, label);
     } catch { /* skip */ }
     if (i < queries.length - 1) await jitteredDelay(900);
+  }
+
+  // ── Phase 1.5: Wikipedia lookup ────────────────────────────────────────
+  // Wikipedia page summaries frequently name founders, CEOs, and principals
+  // in a structured, attributed way — better than relying purely on search
+  // snippet extraction. Runs only for corporations to avoid irrelevant hits.
+  if (isCorp) {
+    try {
+      const wikiResult = await wikipediaLookup(trading, country);
+      if (wikiResult && wikiResult.extract) {
+        allSearchText += " " + wikiResult.extract;
+        // Extract persons from the Wikipedia summary text directly
+        const wikiPersons = extractPersonCandidates(wikiResult.extract);
+        for (const p of wikiPersons) {
+          if (!result.personsDiscovered.includes(p)) result.personsDiscovered.push(p);
+        }
+        // Record Wikipedia page as a source for any emails/phones in the summary (rare but possible)
+        for (const e of extractEmails(wikiResult.extract)) {
+          const arr = emailHits.get(e) ?? []; arr.push("Wikipedia"); emailHits.set(e, arr);
+        }
+        const ph = extractPhone(wikiResult.extract);
+        if (ph) { const arr = phoneHits.get(ph) ?? []; arr.push("Wikipedia"); phoneHits.set(ph, arr); }
+        result.queriesFired++;
+        logger.debug(
+          { entityId: entity.id, pageUrl: wikiResult.pageUrl, personsFound: wikiPersons.length },
+          "Phase 1.5 Wikipedia hit",
+        );
+      }
+    } catch { /* non-fatal */ }
   }
 
   // ── Phase 2: Qwant for French entities (much better French coverage) ───
