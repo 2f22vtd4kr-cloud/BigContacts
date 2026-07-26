@@ -16,7 +16,7 @@
 - Redis, API Server, apex-finder web workflows restarted and confirmed running
 - `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":0}}` ✅
 - DB carries 9,500 entities and 2,384 hot leads from prior session
-- **Missing secrets** (need to be re-added): `REDIS_URL_1`–`REDIS_URL_5` (Upstash), `COMPANIES_HOUSE_API_KEY`, `GROQ_API_KEY`
+- All secrets restored: `REDIS_URL_1`–`REDIS_URL_5` (Upstash slots 1–5; slot 1 quota-exhausted, 2–5 healthy), `COMPANIES_HOUSE_API_KEY`, `GROQ_API_KEY`/`_2`/`_3`, `OPENROUTER_API_KEY`/`_2`
 
 ## Previous State (2026-07-25 — Phase K web-OSINT fixes complete) — 32,103 entities; all secrets set; Redis + API + web running; BAOLI test: email + instagram found
 
@@ -103,6 +103,7 @@ All 4 Phase I items implemented and live. Build clean (esbuild ⚡ 1183ms). All 
 ### Iteration Log
 | Date | Summary |
 |---|---|
+| 2026-07-26 | Fresh import boot: pnpm install (28s), DB schema push ([✓] Changes applied), Redis+API+Web workflows restarted, /api/healthz → ok; all 11 secrets restored (REDIS_URL_1–5 slots 1–5, COMPANIES_HOUSE_API_KEY, GROQ_API_KEY/2/3, OPENROUTER_API_KEY/2); 9,500 entities + 2,384 hot leads carried from prior session |
 | 2026-07-23 | Fresh import boot: pnpm install, DB schema push, all 3 workflows running, cold-start ingestion auto-started |
 | 2026-07-23 | All Upstash secrets restored; API Server restarted with both slots confirmed live |
 | 2026-07-23 | Import setup completed: locked dependencies restored, Drizzle schema applied, artifact-managed API/Web workflows restarted, endpoint checks and browser preview passed; live ingestion is active |

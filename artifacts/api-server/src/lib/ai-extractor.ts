@@ -27,9 +27,21 @@ const OPENROUTER_API    = "https://openrouter.ai/api/v1/chat/completions";
 const OPENROUTER_MODEL  = "meta-llama/llama-3.3-70b-instruct"; // fast + free-tier friendly
 const PERPLEXITY_MODEL  = "perplexity/sonar-pro";               // live web-search model (Gemini AI Overview equivalent)
 
-// Track which keys hit quota this process lifetime so we skip them quickly
-const _exhaustedGroqKeys    = new Set<string>();
-const _exhaustedORKeys      = new Set<string>();
+// Track which keys hit rate-limits. Map<key, expiresAtMs> — keys auto-recover after 5 min.
+const EXHAUSTED_TTL_MS = 5 * 60 * 1000;
+
+function isExhausted(map: Map<string, number>, key: string): boolean {
+  const exp = map.get(key);
+  if (!exp) return false;
+  if (Date.now() > exp) { map.delete(key); return false; }
+  return true;
+}
+
+// IMPORTANT: Perplexity uses a SEPARATE exhaustion map from OpenRouter-llama extraction.
+// A 429 on the llama extraction path must NOT block Perplexity Sonar (different model, different quota).
+const _exhaustedGroqKeys       = new Map<string, number>();
+const _exhaustedORKeys         = new Map<string, number>(); // for llama text extraction only
+const _exhaustedPerplexityKeys = new Map<string, number>(); // for Perplexity Sonar only
 
 function getGroqKeys(): string[] {
   return ["GROQ_API_KEY", "GROQ_API_KEY_2", "GROQ_API_KEY_3"]
@@ -136,6 +148,20 @@ function parseAIResponse(raw: string, source: AIExtractResult["source"]): AIExtr
       return (s === "null" || s === "undefined" || s.length < 3) ? null : s;
     };
 
+    // Normalize @handle → full URL for instagram and twitter fields
+    const normIG  = (v: unknown): string | null => {
+      const s = clean(v);
+      if (!s) return null;
+      if (s.startsWith("@")) return `https://instagram.com/${s.slice(1)}`;
+      return s.includes("instagram.com") ? s : null;
+    };
+    const normTW  = (v: unknown): string | null => {
+      const s = clean(v);
+      if (!s) return null;
+      if (s.startsWith("@")) return `https://twitter.com/${s.slice(1)}`;
+      return (s.includes("twitter.com") || s.includes("x.com")) ? s : null;
+    };
+
     const owners: string[] = [];
     const ownerContacts: OwnerContact[] = [];
 
@@ -144,16 +170,14 @@ function parseAIResponse(raw: string, source: AIExtractResult["source"]): AIExtr
         if (typeof oc !== "object" || !oc) continue;
         const name = clean((oc as any)["name"]);
         if (!name || !name.includes(" ") || name.length < 4 || name.length > 80) continue;
+        const rawLinkedin = clean((oc as any)["linkedin"]);
         const contact: OwnerContact = {
           name,
-          instagram: clean((oc as any)["instagram"]),
-          twitter:   clean((oc as any)["twitter"]),
-          linkedin:  clean((oc as any)["linkedin"]),
+          instagram: normIG((oc as any)["instagram"]),
+          twitter:   normTW((oc as any)["twitter"]),
+          linkedin:  rawLinkedin?.includes("linkedin.com") ? rawLinkedin : null,
           email:     clean((oc as any)["email"]),
         };
-        if (contact.instagram && !contact.instagram.includes("instagram.com")) contact.instagram = null;
-        if (contact.twitter   && !contact.twitter.includes("twitter.com") && !contact.twitter.includes("x.com")) contact.twitter = null;
-        if (contact.linkedin  && !contact.linkedin.includes("linkedin.com")) contact.linkedin = null;
         ownerContacts.push(contact);
         owners.push(name);
       }
@@ -167,12 +191,13 @@ function parseAIResponse(raw: string, source: AIExtractResult["source"]): AIExtr
       }
     }
 
+    const rawLinkedinTop = clean(parsed["linkedin"]);
     return {
       email:         clean(parsed["email"]),
       phone:         clean(parsed["phone"]),
-      linkedin:      clean(parsed["linkedin"]),
-      instagram:     clean(parsed["instagram"]),
-      twitter:       clean(parsed["twitter"]),
+      linkedin:      rawLinkedinTop?.includes("linkedin.com") ? rawLinkedinTop : null,
+      instagram:     normIG(parsed["instagram"]),
+      twitter:       normTW(parsed["twitter"]),
       owners:        owners.slice(0, 5),
       ownerContacts: ownerContacts.slice(0, 5),
       source,
@@ -210,8 +235,8 @@ async function callGroq(
     });
 
     if (resp.status === 429) {
-      _exhaustedGroqKeys.add(key);
-      logger.debug({ model }, "Groq rate limit — key marked exhausted");
+      _exhaustedGroqKeys.set(key, Date.now() + EXHAUSTED_TTL_MS);
+      logger.debug({ model }, "Groq rate limit — key marked exhausted for 5 min");
       return null;
     }
     if (!resp.ok) {
@@ -261,8 +286,8 @@ async function callOpenRouter(
     });
 
     if (resp.status === 429) {
-      _exhaustedORKeys.add(key);
-      logger.debug("OpenRouter rate limit — key marked exhausted");
+      _exhaustedORKeys.set(key, Date.now() + EXHAUSTED_TTL_MS);
+      logger.debug("OpenRouter (llama) rate limit — key marked exhausted for 5 min");
       return null;
     }
     if (!resp.ok) {
@@ -326,8 +351,14 @@ export async function researchWithPerplexity(
   entityType: string,
   country: string | null = null,
 ): Promise<AIExtractResult> {
-  for (const key of getOpenRouterKeys()) {
-    if (_exhaustedORKeys.has(key)) continue;
+  const perpKeys = getOpenRouterKeys();
+  if (perpKeys.every(k => isExhausted(_exhaustedPerplexityKeys, k))) {
+    logger.warn("Phase 0: all OpenRouter keys exhausted for Perplexity — skipping sonar research");
+    return EMPTY;
+  }
+  logger.info({ entityName, entityType, country }, "Phase 0: firing Perplexity Sonar research");
+  for (const key of perpKeys) {
+    if (isExhausted(_exhaustedPerplexityKeys, key)) continue;
     try {
       const prompt = buildPerplexityPrompt(entityName, entityType, country);
       const body = JSON.stringify({
@@ -350,40 +381,47 @@ export async function researchWithPerplexity(
       });
 
       if (resp.status === 429) {
-        _exhaustedORKeys.add(key);
-        logger.debug("Perplexity rate limit — OpenRouter key marked exhausted");
+        _exhaustedPerplexityKeys.set(key, Date.now() + EXHAUSTED_TTL_MS);
+        logger.warn("Perplexity Sonar rate limit — key marked exhausted for 5 min (does NOT affect llama extraction)");
         continue;
       }
       if (!resp.ok) {
-        const err = await resp.text().catch(() => "");
-        logger.debug({ status: resp.status, err: err.slice(0, 300) }, "Perplexity API error");
+        const errText = await resp.text().catch(() => "");
+        logger.warn({ status: resp.status, err: errText.slice(0, 300) }, "Phase 0: Perplexity API error");
         continue;
       }
 
       const data = await resp.json() as any;
       const raw: string = data?.choices?.[0]?.message?.content ?? "";
+      // OpenRouter returns Perplexity citations at the top-level response object
       const citations: string[] = Array.isArray(data?.citations) ? data.citations.slice(0, 8) : [];
+
+      logger.info({ entityName, rawLen: raw.length, citations: citations.length }, "Phase 0: Perplexity raw response received");
 
       // Perplexity may wrap JSON in text — extract the JSON block
       const jsonMatch = raw.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
-        logger.debug({ raw: raw.slice(0, 200) }, "Perplexity: no JSON block in response");
+        logger.warn({ raw: raw.slice(0, 300) }, "Phase 0: Perplexity — no JSON block in response");
         continue;
       }
 
       const parsed = parseAIResponse(jsonMatch[0], "perplexity-sonar");
-      if (!parsed) continue;
+      if (!parsed) {
+        logger.warn({ json: jsonMatch[0].slice(0, 300) }, "Phase 0: Perplexity — parseAIResponse returned null");
+        continue;
+      }
 
       logger.info(
-        { entityName, hasEmail: !!parsed.email, hasPhone: !!parsed.phone, owners: parsed.owners.length, citations: citations.length },
+        { entityName, hasEmail: !!parsed.email, hasPhone: !!parsed.phone, hasIG: !!parsed.instagram, owners: parsed.owners.length, ownerContacts: parsed.ownerContacts.length, citations: citations.length },
         "Phase 0: Perplexity Sonar research complete",
       );
       return { ...parsed, source: "perplexity-sonar", citations };
     } catch (err: any) {
-      logger.debug({ err: err?.message }, "Perplexity call failed");
+      logger.warn({ err: err?.message, name: (err as any)?.name }, "Phase 0: Perplexity call threw");
     }
   }
 
+  logger.warn({ entityName }, "Phase 0: Perplexity returned no usable data — all keys tried");
   return EMPTY;
 }
 
@@ -394,8 +432,10 @@ export async function researchWithPerplexity(
  *   1. Each Groq key (GROQ_API_KEY, _2, _3) — tries llama-3.3-70b first, then llama-3.1-8b-instant
  *   2. Each OpenRouter key (OPENROUTER_API_KEY, _2) — llama-3.3-70b-instruct
  *
- * A key that returns 429 is marked exhausted for the process lifetime and skipped on future calls.
+ * A key that returns 429 is marked exhausted for 5 minutes, then auto-recovers.
  * Falls back silently to EMPTY if all providers are exhausted or unavailable.
+ * NOTE: OpenRouter exhaustion here (_exhaustedORKeys) is INDEPENDENT of Perplexity Sonar
+ *       exhaustion (_exhaustedPerplexityKeys). A 429 on llama extraction never blocks Sonar.
  */
 export async function extractWithAI(
   text: string,
@@ -408,7 +448,7 @@ export async function extractWithAI(
   try {
     // ── 1. Try all Groq keys ────────────────────────────────────────────────
     for (const key of getGroqKeys()) {
-      if (_exhaustedGroqKeys.has(key)) continue;
+      if (isExhausted(_exhaustedGroqKeys, key)) continue;
 
       // Primary model
       const result = await callGroq(text, entityName, entityType, country, key, GROQ_MODEL);
@@ -418,7 +458,7 @@ export async function extractWithAI(
       }
 
       // Fast fallback on same key (if not exhausted by the primary call)
-      if (!_exhaustedGroqKeys.has(key)) {
+      if (!isExhausted(_exhaustedGroqKeys, key)) {
         const fast = await callGroq(text, entityName, entityType, country, key, GROQ_MODEL_FAST);
         if (fast) {
           logger.debug({ entityName, source: fast.source, hasEmail: !!fast.email }, "AI extraction (fast model) complete");
@@ -427,9 +467,9 @@ export async function extractWithAI(
       }
     }
 
-    // ── 2. Fall back to OpenRouter ──────────────────────────────────────────
+    // ── 2. Fall back to OpenRouter (llama extraction — separate from Perplexity) ──
     for (const key of getOpenRouterKeys()) {
-      if (_exhaustedORKeys.has(key)) continue;
+      if (isExhausted(_exhaustedORKeys, key)) continue;
       const result = await callOpenRouter(text, entityName, entityType, country, key);
       if (result) {
         logger.debug({ entityName, source: result.source, hasEmail: !!result.email }, "AI extraction (OpenRouter) complete");
