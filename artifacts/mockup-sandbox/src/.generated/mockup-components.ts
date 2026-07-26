@@ -3,9 +3,9 @@ type ModuleMap = Record<string, () => Promise<Record<string, unknown>>>;
 export const modules: ModuleMap = {
   "./components/mockups/apex-dashboard/DashDesktop.tsx": () => import("../components/mockups/apex-dashboard/DashDesktop.tsx"),
   "./components/mockups/apex-dashboard/DashMobile.tsx": () => import("../components/mockups/apex-dashboard/DashMobile.tsx"),
-  "./components/mockups/apex-ledger/LedgerMobile.tsx": () => import("../components/mockups/apex-ledger/LedgerMobile.tsx"),
   "./components/mockups/apex-manual/FieldManualXI.tsx": () => import("../components/mockups/apex-manual/FieldManualXI.tsx"),
   "./components/mockups/apex-nav/SidebarNav.tsx": () => import("../components/mockups/apex-nav/SidebarNav.tsx"),
+  "./components/mockups/apex-ledger/LedgerMobile.tsx": () => import("../components/mockups/apex-ledger/LedgerMobile.tsx"),
   "./components/mockups/apex-profile/ProfileDesktop.tsx": () => import("../components/mockups/apex-profile/ProfileDesktop.tsx"),
   "./components/mockups/apex-ux-v2/DashboardDesktop.tsx": () => import("../components/mockups/apex-ux-v2/DashboardDesktop.tsx"),
   "./components/mockups/apex-ux-v3/Desktop.tsx": () => import("../components/mockups/apex-ux-v3/Desktop.tsx"),
