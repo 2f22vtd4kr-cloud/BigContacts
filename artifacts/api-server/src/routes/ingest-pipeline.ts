@@ -156,7 +156,16 @@ router.post("/ingest/deep-web-osint", async (req: Request, res: Response): Promi
           message: `Searching: ${entity.name}…`,
         });
 
-        const result = await deepWebOsintEnrich(entity);
+        // Hard cap: if the enricher hangs on a stalled body-read past all
+        // individual fetch timeouts, this kills it after 4 minutes and
+        // returns an empty result so the job can continue / complete.
+        const ENRICHER_TIMEOUT_MS = 4 * 60 * 1000;
+        const result = await Promise.race([
+          deepWebOsintEnrich(entity),
+          new Promise<Awaited<ReturnType<typeof deepWebOsintEnrich>>>((_, reject) =>
+            setTimeout(() => reject(new Error(`deepWebOsintEnrich timed out after ${ENRICHER_TIMEOUT_MS / 1000}s for entity ${entity.id} (${entity.name})`)), ENRICHER_TIMEOUT_MS)
+          ),
+        ]);
         const hasSignal = result.email || result.phone || result.linkedinUrl
           || result.instagramUrl || result.twitterUrl || result.personsDiscovered.length > 0
           || result.ownerResolutions.length > 0 || result.ownershipSummary;

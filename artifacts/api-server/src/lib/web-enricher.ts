@@ -63,6 +63,21 @@ function extractTwitter(text: string): string | null {
 
 const EMAIL_RE = /\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b/g;
 
+/**
+ * Read a response body as text with a hard timeout.
+ * AbortSignal.timeout() on fetch() guards the connection phase; once
+ * headers arrive the signal may not interrupt a stalled chunked body in
+ * all Node.js/undici versions. This wrapper closes that gap.
+ */
+function readBodyText(resp: Response, ms = 8_000): Promise<string> {
+  return Promise.race([
+    resp.text(),
+    new Promise<string>((_, reject) =>
+      setTimeout(() => reject(new Error(`body read timeout after ${ms}ms`)), ms)
+    ),
+  ]);
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 // SECTION A — Web OSINT Enricher (Layer 1)
 // ══════════════════════════════════════════════════════════════════════════════
@@ -153,7 +168,7 @@ async function ddgHtmlSearch(query: string, locale = "wt-wt"): Promise<string> {
       },
     });
     if (!resp.ok) return "";
-    const html = await resp.text();
+    const html = await readBodyText(resp);
     return html
       .replace(/<script[\s\S]*?<\/script>/gi, "")
       .replace(/<style[\s\S]*?<\/style>/gi, "")
@@ -212,7 +227,7 @@ async function scrapeContactEmail(website: string): Promise<ContactPageResult> {
           redirect: "follow",
         });
         if (!resp.ok) continue;
-        const html = await resp.text();
+        const html = await readBodyText(resp);
 
         // mailto: href is most reliable for email
         const mailtoRe = /href=["']mailto:([^"'?\s]+)/gi;
@@ -799,7 +814,7 @@ async function duckduckgoSearch(query: string, locale = "wt-wt"): Promise<Search
       },
     });
     if (!resp.ok) return { text: "", urls: [], engine: "DDG", sourceUrl: url };
-    const html = await resp.text();
+    const html = await readBodyText(resp);
     return { text: stripHtml(html).slice(0, 12_000), urls: extractDdgUrls(html), engine: "DDG", sourceUrl: url };
   } catch (err: any) {
     logger.debug({ err: err?.message, query }, "DDG search failed");
@@ -822,7 +837,7 @@ async function bingSearch(query: string, country: string | null): Promise<Search
       },
     });
     if (!resp.ok) return { text: "", urls: [], engine: "Bing", sourceUrl: url };
-    const html = await resp.text();
+    const html = await readBodyText(resp);
     return { text: stripHtml(html).slice(0, 12_000), urls: extractBingUrls(html), engine: "Bing", sourceUrl: url };
   } catch (err: any) {
     logger.debug({ err: err?.message, query }, "Bing search failed");
@@ -848,7 +863,7 @@ async function qwantSearch(query: string, locale = "fr_FR"): Promise<SearchResul
       },
     });
     if (!resp.ok) return { text: "", urls: [], engine: "Qwant", sourceUrl: url };
-    const html = await resp.text();
+    const html = await readBodyText(resp);
     return { text: stripHtml(html).slice(0, 12_000), urls: extractQwantUrls(html), engine: "Qwant", sourceUrl: url };
   } catch (err: any) {
     logger.debug({ err: err?.message, query }, "Qwant search failed");
@@ -1035,7 +1050,7 @@ async function scrapePage(url: string): Promise<ScrapedPage> {
       redirect: "follow",
     });
     if (!resp.ok) return emptyScrapedPage();
-    const html = await resp.text().then(h => h.slice(0, 80_000));
+    const html = await readBodyText(resp, 10_000).then(h => h.slice(0, 80_000));
 
     // mailto: href is most reliable source
     let email: string | null = null;
@@ -1102,12 +1117,8 @@ async function findContactPages(domain: string): Promise<{
     "/kontakt", "/impressum", "/contatti", "/contacto",
     "/reservation", "/reservations", "/book", "/booking",
   ];
-  const candidates = paths.map(path => `https://${domain}${path}`);
-  for (const path of paths) {
-    // Seeded by links discovered on the homepage. This handles localized,
-    // CMS-generated routes such as /fr/contactez-nous and /reservation.
-    candidates.push(`https://${domain}${path}/`);
-  }
+  // Cap candidates — each scrapePage call costs up to 10s; 12 paths × 10s = 120s max.
+  const candidates = paths.slice(0, 12).map(path => `https://${domain}${path}`);
   const seen = new Set<string>();
   const results: Array<{ url: string; scraped: ScrapedPage }> = [];
   for (const url of candidates) {
