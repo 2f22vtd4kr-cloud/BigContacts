@@ -1178,6 +1178,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     twitterUrl: null,
     sources: [], queriesFired: 0, pagesScraped: 0,
     personsDiscovered: [],
+    evidence: [],
   };
 
   // ── Derive context from entity ──────────────────────────────────────────
@@ -1199,6 +1200,119 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   const twHits       = new Map<string, string[]>();
   const urlsToScrape = new Set<string>();
   let allSearchText  = "";
+  const evidenceKeys = new Set<string>();
+
+  const recordEvidence = (
+    vectorType: DeepWebEvidence["vectorType"],
+    value: string | null | undefined,
+    source: string,
+    sourceUrl: string | null | undefined,
+    extractionMethod: string,
+    confidence: number,
+    details: Record<string, unknown> = {},
+  ) => {
+    if (!value) return;
+    const normalized = value.trim();
+    if (!normalized) return;
+    const key = `${vectorType}|${normalized.toLowerCase()}|${source}|${sourceUrl ?? ""}`;
+    if (evidenceKeys.has(key)) return;
+    evidenceKeys.add(key);
+    result.evidence.push({
+      vectorType,
+      value: normalized,
+      source,
+      sourceUrl: sourceUrl ?? null,
+      extractionMethod,
+      confidence: Math.min(100, Math.max(0, confidence)),
+      details,
+    });
+  };
+
+  const collectSearchResult = (
+    sr: SearchResult,
+    label: string,
+    scope: "organization" | "person_candidate" = "organization",
+    personName?: string,
+  ) => {
+    const details = {
+      scope,
+      ...(personName ? { personName, relationship: "discovered-person-review-only" } : {}),
+    };
+    const method = scope === "person_candidate"
+      ? "person-hop-search-parser"
+      : "search-result-parser";
+    const confidence = scope === "person_candidate" ? 55 : 60;
+    if (sr.text) {
+      for (const e of extractEmails(sr.text)) {
+        const arr = emailHits.get(e) ?? [];
+        if (scope === "organization") { arr.push(label); emailHits.set(e, arr); }
+        recordEvidence("email", e, label, sr.sourceUrl, method, confidence, details);
+      }
+      const ph = extractPhone(sr.text);
+      if (ph) {
+        const arr = phoneHits.get(ph) ?? [];
+        if (scope === "organization") { arr.push(label); phoneHits.set(ph, arr); }
+        recordEvidence("phone", ph, label, sr.sourceUrl, method, confidence, details);
+      }
+      const li = extractLinkedIn(sr.text);
+      if (li) {
+        const arr = linkedinHits.get(li) ?? [];
+        if (scope === "organization") { arr.push(label); linkedinHits.set(li, arr); }
+        recordEvidence("social", li, label, sr.sourceUrl, method, confidence, { ...details, network: "linkedin" });
+      }
+      const ig = extractInstagram(sr.text);
+      if (ig) {
+        const arr = igHits.get(ig) ?? [];
+        if (scope === "organization") { arr.push(label); igHits.set(ig, arr); }
+        recordEvidence("social", ig, label, sr.sourceUrl, method, confidence, { ...details, network: "instagram" });
+      }
+      const tw = extractTwitter(sr.text);
+      if (tw) {
+        const arr = twHits.get(tw) ?? [];
+        if (scope === "organization") { arr.push(label); twHits.set(tw, arr); }
+        recordEvidence("social", tw, label, sr.sourceUrl, method, confidence, { ...details, network: "twitter" });
+      }
+    }
+    for (const u of sr.urls) {
+      if (urlsToScrape.size < (scope === "person_candidate" ? 12 : 8)) urlsToScrape.add(u);
+    }
+  };
+
+  const collectScrapedPage = (
+    page: ScrapedPage,
+    label: string,
+    sourceUrl: string,
+    scope: "organization" | "person_candidate" = "organization",
+    personName?: string,
+  ) => {
+    const details = {
+      scope,
+      ...(personName ? { personName, relationship: "discovered-person-review-only" } : {}),
+    };
+    const method = scope === "person_candidate"
+      ? "person-hop-page-parser"
+      : "page-parser";
+    const confidence = scope === "person_candidate" ? 60 : 75;
+    const add = (
+      vectorType: DeepWebEvidence["vectorType"],
+      value: string | null,
+      map: Map<string, string[]>,
+      extra: Record<string, unknown> = {},
+    ) => {
+      if (!value) return;
+      if (scope === "organization") {
+        const arr = map.get(value) ?? [];
+        arr.push(label);
+        map.set(value, arr);
+      }
+      recordEvidence(vectorType, value, label, sourceUrl, method, confidence, { ...details, ...extra });
+    };
+    add("email", page.email, emailHits);
+    add("phone", page.phone, phoneHits);
+    add("social", page.linkedinUrl, linkedinHits, { network: "linkedin" });
+    add("social", page.instagramUrl, igHits, { network: "instagram" });
+    add("social", page.twitterUrl, twHits, { network: "twitter" });
+  };
 
   // ── Phase 1: DDG search (locale-aware) ─────────────────────────────────
   for (let i = 0; i < queries.length; i++) {
@@ -1208,20 +1322,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       const sr = await duckduckgoSearch(query, locale);
       result.queriesFired++;
       allSearchText += " " + sr.text;
-      if (sr.text) {
-        for (const e of extractEmails(sr.text)) {
-          const arr = emailHits.get(e) ?? []; arr.push(label); emailHits.set(e, arr);
-        }
-        const ph = extractPhone(sr.text);
-        if (ph) { const arr = phoneHits.get(ph) ?? []; arr.push(label); phoneHits.set(ph, arr); }
-        const li = extractLinkedIn(sr.text);
-        if (li) { const arr = linkedinHits.get(li) ?? []; arr.push(label); linkedinHits.set(li, arr); }
-        const ig = extractInstagram(sr.text);
-        if (ig) { const arr = igHits.get(ig) ?? []; arr.push(label); igHits.set(ig, arr); }
-        const tw = extractTwitter(sr.text);
-        if (tw) { const arr = twHits.get(tw) ?? []; arr.push(label); twHits.set(tw, arr); }
-      }
-      for (const u of sr.urls) { if (urlsToScrape.size < 6) urlsToScrape.add(u); }
+      collectSearchResult(sr, label);
     } catch { /* skip */ }
     if (i < queries.length - 1) await jitteredDelay(900);
   }
@@ -1237,18 +1338,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       const sr = await qwantSearch(query, "fr_FR");
       result.queriesFired++;
       allSearchText += " " + sr.text;
-      if (sr.text) {
-        for (const e of extractEmails(sr.text)) {
-          const arr = emailHits.get(e) ?? []; arr.push(label); emailHits.set(e, arr);
-        }
-        const ph = extractPhone(sr.text);
-        if (ph) { const arr = phoneHits.get(ph) ?? []; arr.push(label); phoneHits.set(ph, arr); }
-        const li = extractLinkedIn(sr.text);
-        if (li) { const arr = linkedinHits.get(li) ?? []; arr.push(label); linkedinHits.set(li, arr); }
-        const ig = extractInstagram(sr.text);
-        if (ig) { const arr = igHits.get(ig) ?? []; arr.push(label); igHits.set(ig, arr); }
-      }
-      for (const u of sr.urls) { if (urlsToScrape.size < 8) urlsToScrape.add(u); }
+      collectSearchResult(sr, label);
     } catch { /* skip */ }
     if (i < qwantQueries.length - 1) await jitteredDelay(1000);
   }
@@ -1289,21 +1379,16 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       for (const personName of persons.slice(0, 3)) {
         const label = `PersonHop[${personName.split(" ")[0]}]`;
 
-        // Primary: contact/LinkedIn search
+        // Primary: contact/LinkedIn search. These results remain review-only:
+        // a person discovered in public text must not become the corporation's
+        // contact vector without an explicit identity-resolution decision.
         try {
-          const sr = await duckduckgoSearch(`"${personName}" email contact linkedin`, locale);
+          const personQuery = city
+            ? `"${personName}" "${trading}" "${city}" owner founder director email linkedin`
+            : `"${personName}" "${trading}" owner founder director email linkedin`;
+          const sr = await duckduckgoSearch(personQuery, locale);
           result.queriesFired++;
-          allSearchText += " " + sr.text;
-          if (sr.text) {
-            for (const e of extractEmails(sr.text)) {
-              const arr = emailHits.get(e) ?? []; arr.push(label); emailHits.set(e, arr);
-            }
-            const li = extractLinkedIn(sr.text);
-            if (li) { const arr = linkedinHits.get(li) ?? []; arr.push(label); linkedinHits.set(li, arr); }
-            const ig = extractInstagram(sr.text);
-            if (ig) { const arr = igHits.get(ig) ?? []; arr.push(label); igHits.set(ig, arr); }
-          }
-          for (const u of sr.urls) { if (urlsToScrape.size < 10) urlsToScrape.add(u); }
+          collectSearchResult(sr, label, "person_candidate", personName);
         } catch { /* skip */ }
         await jitteredDelay(600);
 
@@ -1317,9 +1402,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         try {
           const pr = await pressEngine(pressQuery, pressLocale);
           result.queriesFired++;
-          allSearchText += " " + pr.text;
-          // Person names appearing in press snippets feed back into AI extraction
-          for (const u of pr.urls) { if (urlsToScrape.size < 12) urlsToScrape.add(u); }
+          collectSearchResult(pr, `${label}[press]`, "person_candidate", personName);
         } catch { /* skip */ }
         await jitteredDelay(700);
       }
@@ -1336,11 +1419,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       const rootScrape = await scrapePage(`https://${domain}`);
       result.pagesScraped++;
       allSearchText += " " + rootScrape.text.slice(0, 2000);
-      if (rootScrape.email)       { const a = emailHits.get(rootScrape.email) ?? [];       a.push(label); emailHits.set(rootScrape.email, a); }
-      if (rootScrape.phone)       { const a = phoneHits.get(rootScrape.phone) ?? [];       a.push(label); phoneHits.set(rootScrape.phone, a); }
-      if (rootScrape.linkedinUrl) { const a = linkedinHits.get(rootScrape.linkedinUrl) ?? []; a.push(label); linkedinHits.set(rootScrape.linkedinUrl, a); }
-      if (rootScrape.instagramUrl){ const a = igHits.get(rootScrape.instagramUrl) ?? [];   a.push(label); igHits.set(rootScrape.instagramUrl, a); }
-      if (rootScrape.twitterUrl)  { const a = twHits.get(rootScrape.twitterUrl) ?? [];     a.push(label); twHits.set(rootScrape.twitterUrl, a); }
+      collectScrapedPage(rootScrape, label, `https://${domain}`);
 
       // Crawl contact / about / team sub-pages when root has no email.
       // findContactPages returns Array<{url, scraped}> — iterate it correctly.
@@ -1349,11 +1428,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         for (const { url: cpUrl, scraped: cp } of contactPages) {
           const cpLabel = `${label}[${cpUrl.split("/").slice(-1)[0] ?? "contact"}]`;
           allSearchText += " " + cp.text.slice(0, 2000);
-          if (cp.email)       { const a = emailHits.get(cp.email) ?? [];       a.push(cpLabel); emailHits.set(cp.email, a); }
-          if (cp.phone)       { const a = phoneHits.get(cp.phone) ?? [];       a.push(cpLabel); phoneHits.set(cp.phone, a); }
-          if (cp.linkedinUrl) { const a = linkedinHits.get(cp.linkedinUrl) ?? []; a.push(cpLabel); linkedinHits.set(cp.linkedinUrl, a); }
-          if (cp.instagramUrl){ const a = igHits.get(cp.instagramUrl) ?? [];   a.push(cpLabel); igHits.set(cp.instagramUrl, a); }
-          if (cp.twitterUrl)  { const a = twHits.get(cp.twitterUrl) ?? [];     a.push(cpLabel); twHits.set(cp.twitterUrl, a); }
+          collectScrapedPage(cp, cpLabel, cpUrl);
           if (cp.email) break; // got what we need
         }
       }
@@ -1369,11 +1444,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
             result.pagesScraped++;
             const wbLabel = `Wayback[${domain}]`;
             allSearchText += " " + wb.text.slice(0, 2000);
-            if (wb.email)       { const a = emailHits.get(wb.email) ?? [];       a.push(wbLabel); emailHits.set(wb.email, a); }
-            if (wb.phone)       { const a = phoneHits.get(wb.phone) ?? [];       a.push(wbLabel); phoneHits.set(wb.phone, a); }
-            if (wb.linkedinUrl) { const a = linkedinHits.get(wb.linkedinUrl) ?? []; a.push(wbLabel); linkedinHits.set(wb.linkedinUrl, a); }
-            if (wb.instagramUrl){ const a = igHits.get(wb.instagramUrl) ?? [];   a.push(wbLabel); igHits.set(wb.instagramUrl, a); }
-            if (wb.twitterUrl)  { const a = twHits.get(wb.twitterUrl) ?? [];     a.push(wbLabel); twHits.set(wb.twitterUrl, a); }
+            collectScrapedPage(wb, wbLabel, wbUrl);
             if (wb.email || wb.phone) break;
           } catch { /* skip */ }
           await sleep(500);
@@ -1391,11 +1462,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       result.pagesScraped++;
       allSearchText += " " + scraped.text.slice(0, 3000); // page content feeds AI pass
       const label = `Page[${new URL(url).hostname.replace(/^www\./, "").substring(0, 20)}]`;
-      if (scraped.email)       { const arr = emailHits.get(scraped.email) ?? []; arr.push(label); emailHits.set(scraped.email, arr); }
-      if (scraped.phone)       { const arr = phoneHits.get(scraped.phone) ?? []; arr.push(label); phoneHits.set(scraped.phone, arr); }
-      if (scraped.linkedinUrl) { const arr = linkedinHits.get(scraped.linkedinUrl) ?? []; arr.push(label); linkedinHits.set(scraped.linkedinUrl, arr); }
-      if (scraped.instagramUrl){ const arr = igHits.get(scraped.instagramUrl) ?? []; arr.push(label); igHits.set(scraped.instagramUrl, arr); }
-      if (scraped.twitterUrl)  { const arr = twHits.get(scraped.twitterUrl) ?? []; arr.push(label); twHits.set(scraped.twitterUrl, arr); }
+      collectScrapedPage(scraped, label, url);
     } catch { /* skip */ }
     await jitteredDelay(700);
   }
