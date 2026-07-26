@@ -20,7 +20,7 @@
   - Arnault: email b.arnault@fondationlouisvuitton.fr (foundation, needs verification); phone +33 1 44 13 22 22 (LVMH HQ); confidence 83; AroundDeal twitter is noise
   - Perez-Alvarado: email gilda.perezalvarado@jll.com (STALE — pre-Accor JLL address); LinkedIn directory; confidence 50; dual role confirmed (Accor CSO + OE CEO)
   - de Saint Lager: ⚠️ IDENTITY CONFLICT — OSINT found "Founder & CEO Paragone / Director Barnes Interiors", not OE General Secretary; email info@paragoneagency.com is agency inbox; LinkedIn confirmed but ambiguous
-- Perplexity new API keys needed (all slots exhausted)
+- Perplexity direct API key added (`PERPLEXITY_API_KEY`); `ai-extractor.ts` now calls `api.perplexity.ai` directly (sonar-pro[direct] → sonar[direct]) before falling back to OpenRouter-routed Sonar; confirmed working — Omer Acar enrichment returned 8 citations via sonar-pro[direct] with zero credit errors
 - Awaiting Google/Gemini comparison from user
 
 ## Previous State (2026-07-26 — Re-import setup complete; Redis + API + web running; DB schema applied; empty DB)
