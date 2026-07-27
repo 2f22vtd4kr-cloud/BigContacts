@@ -64,9 +64,11 @@ function getOpenRouterKeys(): string[] {
   return names.map(k => process.env[k] ?? "").filter(k => k.length > 0);
 }
 
-/** Returns the direct Perplexity API key if set (PERPLEXITY_API_KEY). */
-function getPerplexityDirectKey(): string | null {
-  return process.env["PERPLEXITY_API_KEY"] ?? null;
+/** Returns all direct Perplexity API keys (PERPLEXITY_API_KEY, _1 … _8). */
+function getPerplexityDirectKeys(): string[] {
+  const names = ["PERPLEXITY_API_KEY"];
+  for (let i = 1; i <= 8; i++) names.push(`PERPLEXITY_API_KEY_${i}`);
+  return names.map(k => process.env[k] ?? "").filter(k => k.length > 0);
 }
 
 /** Personal contact vector for a named owner/founder discovered in text */
@@ -503,8 +505,11 @@ export async function researchWithPerplexity(
   }
 
   // ── PATH A: Direct Perplexity API (preferred — no per-key credit balance issues) ──────────
-  const directKey = getPerplexityDirectKey();
-  if (directKey && !isExhausted(_exhaustedPerplexityDirectKeys, directKey)) {
+  // Rotates through PERPLEXITY_API_KEY, PERPLEXITY_API_KEY_1 … _8 (any that are set).
+  const directKeys = getPerplexityDirectKeys();
+  for (const directKey of directKeys) {
+    if (isExhausted(_exhaustedPerplexityDirectKeys, directKey)) continue;
+    let keySucceeded = false;
     for (const [model, label, maxTokens] of [
       [PERPLEXITY_DIRECT_MODEL,    "sonar-pro[direct]", 2000],
       [PERPLEXITY_DIRECT_FALLBACK, "sonar[direct]",     1000],
@@ -528,11 +533,11 @@ export async function researchWithPerplexity(
         if (resp.status === 429) {
           _exhaustedPerplexityDirectKeys.set(directKey, Date.now() + EXHAUSTED_TTL_MS);
           logger.warn({ label }, "Phase 0: direct Perplexity rate limit — key exhausted 5 min");
-          break; // no point trying the cheaper model on the same exhausted key
+          break; // try next key
         }
         if (resp.status === 402) {
           logger.warn({ label }, "Phase 0: direct Perplexity insufficient credits — trying cheaper model");
-          continue; // try sonar fallback
+          continue; // try sonar fallback on same key
         }
         if (!resp.ok) {
           const errText = await resp.text().catch(() => "");
@@ -543,12 +548,16 @@ export async function researchWithPerplexity(
         const data = await resp.json() as any;
         const parsed = parsePerplexityResponse(data, label);
         if (parsed) return { ...parsed, source: "perplexity-sonar" };
+        keySucceeded = true;
       } catch (err: any) {
         logger.warn({ err: err?.message, label }, "Phase 0: direct Perplexity call threw");
       }
     }
-    // If we reach here, direct API failed — fall through to OpenRouter
-    logger.warn({ entityName }, "Phase 0: direct Perplexity failed — falling back to OpenRouter-routed Sonar");
+    if (keySucceeded) break; // parsed returned null but key worked — don't burn remaining keys
+  }
+  if (directKeys.length > 0) {
+    // Had direct keys but all failed or exhausted — fall through to OpenRouter
+    logger.warn({ entityName, keyCount: directKeys.length }, "Phase 0: all direct Perplexity keys failed — falling back to OpenRouter-routed Sonar");
   }
 
   // ── PATH B: OpenRouter-routed Sonar (fallback — subject to per-account credit limits) ─────
