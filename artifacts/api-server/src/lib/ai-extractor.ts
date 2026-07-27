@@ -412,47 +412,60 @@ export function buildPerplexityPrompt(
   const city = context.city ? `\nKnown city/location context: ${context.city}` : "";
   const isOrg = entityType === "Corporation" || entityType === "Trust";
 
-  return `You are conducting Phase 0 owner-first OSINT for ${publicName}${ctx}. This is not a generic contact lookup.${city}
+  return `You are conducting Phase 0 OSINT for ${publicName}${ctx}. Goal: find every named human decision-maker and their direct contact path.${city}
 
-PRIMARY QUESTION: WHO OWNS, BENEFICIALLY OWNS, CONTROLS, FOUNDED, OR CURRENTLY RUNS THIS ENTITY?
-The answer must lead with the people behind the entity. Search deliberately for owner/founder/controller/operator/director names, then search each named principal for personal public social profiles. For a venue or luxury business, prioritize local and regional press, interviews, trade publications, official corporate filings, ownership/holding-company records, the official website's about/team/management pages, and public professional profiles.
+${isOrg ? `This is a company/business/institution. Execute this research in order:
 
-Do not equate a director, CEO, manager, chef, spokesperson, investor, landlord, or operator with ownership unless a source explicitly supports that claim. If current ownership cannot be proven, return the strongest supported role and mark ownershipStatus as "not_established". Never invent a beneficial owner from a company registration alone.
+STEP 1 — EXECUTIVE TEAM (highest priority for contact purposes):
+Find the current CEO, Deputy CEO, Managing Director, and all C-suite/Executive Committee (COMEX/EXCO) members by full name.
+Then find department/fund heads: heads of investment, innovation, venture, equity, communications, regional/country heads.
+For each named person: their individual direct email (construct from verified pattern if not explicit), personal LinkedIn /in/ URL, Twitter/X, Instagram.
+Search: official website team/management/leadership pages, LinkedIn, press interviews, annual reports, official filings, conference speaker bios.
 
-${isOrg
-  ? `This is a company/business. Required research order:\n1. Current owner or beneficial owner, with the exact basis and source URL\n2. Controller, parent, holding company, founder, operator, and director/officer names, each with an honest role\n3. For every named principal: personal Instagram, Twitter/X, and LinkedIn /in/ profile when explicitly tied to that person\n4. Official organisation email, phone, Instagram, Twitter/X\n\nUse the entity's trading name, legal name, city, country, local-language ownership terms, and quoted press. Search the company website, local/regional press, interviews, trade publications, LinkedIn, Instagram, official registries, filings, and news.`
-  : `This is an individual. I need:\n1. Contact email\n2. Phone number\n3. LinkedIn profile URL\n4. Instagram handle and URL\n5. Twitter/X handle and URL\n6. Their associated companies or roles`}
+STEP 2 — EMAIL PATTERN:
+Identify the organisation's verified email format (e.g. firstname.lastname@domain.fr or f.lastname@domain.com).
+Use this pattern to construct direct emails for every named executive even if not explicitly stated.
+Include the pattern in ownershipSummary.
+
+STEP 3 — OWNERSHIP / CONTROL (for institutional context):
+Who owns, controls, or beneficially owns this entity? Parent company, holding, state body, or private shareholders.
+Do not confuse a director/CEO with an owner unless a source explicitly says so.
+
+STEP 4 — ORGANISATION CONTACT:
+Official HQ address(es), main phone line(s), general email, LinkedIn company page.` 
+  : `This is an individual. Find:\n1. Direct email\n2. Phone\n3. LinkedIn /in/ URL\n4. Instagram, Twitter/X\n5. Associated companies and roles`}
 
 Return ONLY this JSON — no preamble, no explanation, no markdown:
 {
-  "ownershipSummary": "one sentence: strongest supported ownership/control finding, or 'Ownership not established.'",
-  "email": "contact email or null",
+  "ownershipSummary": "one sentence: email pattern + strongest ownership finding, e.g. 'Email pattern: firstname.lastname@bpifrance.fr; owned 50/50 by French State and Caisse des Dépôts.'",
+  "email": "general org contact email or null",
   "phone": "+XX XXX XXX or null",
-  "linkedin": "LinkedIn URL or null",
-  "instagram": "Instagram URL or null",
-  "twitter": "Twitter/X URL or null",
+  "linkedin": "${isOrg ? "https://linkedin.com/company/... org page or null" : "https://linkedin.com/in/profile or null"}",
+  "instagram": "org Instagram URL or null",
+  "twitter": "org Twitter/X URL or null",
   "ownerResolutions": [
     {
       "name": "First Last",
       "role": "owner | beneficial_owner | founder | controller | operator | director_officer | associated_person",
       "ownershipStatus": "confirmed | probable | not_established",
-      "basis": "short exact basis from the source, or null",
-      "sourceUrls": ["source URL used for this person"],
+      "basis": "their title and organisation, e.g. 'CEO of Bpifrance since 2013'",
+      "sourceUrls": ["source URL"],
       "instagram": "personal Instagram URL or null",
       "twitter": "personal Twitter/X URL or null",
       "linkedin": "personal LinkedIn /in/ URL or null",
-      "email": "personal email or null"
+      "email": "direct personal email constructed from verified pattern, e.g. nicolas.dufourcq@bpifrance.fr, or null"
     }
   ],
-  "sources": ["URLs actually used to support the ownership/person findings"]
+  "sources": ["URLs used"]
 }
 
 Hard requirements:
-- Return up to 8 named principals, not just one.
-- The first priority is the owner/controller question, not the organisation email.
-- Use sourceUrls for each person and sources for the research overall.
-- If no source establishes ownership, ownershipSummary must say so; do not promote a director/operator to owner.
-- Return [] for ownerResolutions when no named person is found and null for unavailable contact fields.
+- Return up to 8 named HUMAN individuals — executives first, then owners.
+- Named executives with director_officer role are MORE valuable than institutional shareholders for contact purposes. Always include them even when the beneficial owner is a state body or holding company.
+- Construct direct individual emails from the verified pattern for every named executive.
+- ownershipSummary MUST state the verified email pattern if found.
+- sourceUrls and sources: only real URLs from your search.
+- Return [] for ownerResolutions only if absolutely no named human is found anywhere.
 `;
 }
 
