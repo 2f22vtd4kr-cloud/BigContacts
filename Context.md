@@ -8,7 +8,13 @@
 
 ---
 
-## Current State (2026-07-27 — secure credentials confirmed; workflows intentionally stopped; no research run)
+## Current State (2026-07-27 — HNWI-first responsive frontend applied and verified; database empty; no research run)
+
+### Frontend redesign (2026-07-27)
+- Dashboard now leads with HNWI discovery and priority people cards, including separate Signal and Access scores, wealth/assets context, contact-path cues, source, and recency.
+- Desktop shell uses a focused research-desk hierarchy; technical routes are grouped under quiet Workspace settings while People, Discover, Connections, and Field manual stay prominent.
+- Mobile web layout verified at 390×844 with intentional compact header, one-column priority surface, wrapped controls, and no horizontal overflow.
+- Production build passed; `/api/healthz`, `/api/dashboard/stats`, and `/api/dashboard/hot-leads` return 200. Database remains empty and broad ingestion is disabled.
 
 ### Current user-directed hold
 - Securely saved: `REDIS_URL_1`–`REDIS_URL_5`, `COMPANIES_HOUSE_API_KEY`, `GROQ_API_KEY`/`_2`/`_3`, `PERPLEXITY_API_KEY`/`_2`/`_3`/`_4`, and `WHOXY_API_KEY`
@@ -211,6 +217,7 @@ All 4 Phase I items implemented and live. Build clean (esbuild ⚡ 1183ms). All 
 ### Iteration Log
 | Date | Summary |
 |---|---|
+| 2026-07-27 | **HNWI-first frontend redesign applied and verified**: replaced the operations-led dashboard with responsive people discovery, priority HNWI cards, separate Signal/Access scores, contact-path cues, and clear empty/loading/error states; regrouped technical navigation under Workspace settings; desktop and 390px mobile previews verified; API health/stats/hot-leads returned 200; production build and frontend typecheck passed; no ingestion or research run. |
 | 2026-07-26 | Completed a controlled Orient Express single-target run from the uploaded brief: auto-pipeline disabled; one corporation created; targeted deep-web enrichment returned 1/1 success with official Orient Express contact evidence and two review-only officers; full Apex Atlas session completed with no graph edges. Name-collision contacts and synthetic fallback pitch/path were explicitly flagged for review. |
 | 2026-07-26 | Imported project setup completed: securely restored five Upstash Redis URLs, one Companies House key, three Groq keys, and four OpenRouter keys; installed frozen-lockfile dependencies; applied the Drizzle schema; restarted Redis/API/web workflows; verified `/api/healthz`, `/api/entities`, and `/api/dashboard/stats`; API and web are healthy, with a fresh empty database ready for ingestion. |
 | 2026-07-26 | Fresh import boot: pnpm install (28s), DB schema push ([✓] Changes applied), Redis+API+Web workflows restarted, /api/healthz → ok; all 11 secrets restored (REDIS_URL_1–5 slots 1–5, COMPANIES_HOUSE_API_KEY, GROQ_API_KEY/2/3, OPENROUTER_API_KEY/2); 9,500 entities + 2,384 hot leads carried from prior session |

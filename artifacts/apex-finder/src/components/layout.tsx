@@ -2,229 +2,178 @@ import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import {
-  Crosshair, Network, X, BookOpen, Menu,
-  Search, Activity, Cog, Telescope,
-  Database, Bot, ChevronDown, ChevronRight, ShieldAlert, List,
+  BookOpen,
+  ChevronDown,
+  ChevronRight,
+  Crosshair,
+  Database,
+  GitCompare,
+  Bot,
+  List,
+  Menu,
+  Network,
+  Search,
+  Settings2,
+  Telescope,
+  X,
 } from "lucide-react";
 
-// ─── Navigation structure ─────────────────────────────────────────────────────
 const mainNav = [
-  { name: "Dashboard",     href: "/",          icon: Activity },
-  { name: "Entity Ledger", href: "/profiles",  icon: List },
-  { name: "Search",        href: "/search",    icon: Search },
-  { name: "Network Graph", href: "/network",   icon: Network },
-  { name: "Field Manual",  href: "/manual",    icon: BookOpen },
+  { name: "Overview", href: "/", icon: Crosshair },
+  { name: "People", href: "/profiles", icon: List },
+  { name: "Discover", href: "/search", icon: Search },
+  { name: "Connections", href: "/network", icon: Network },
+];
+
+const referenceNav = [
+  { name: "Field manual", href: "/manual", icon: BookOpen },
 ];
 
 const toolsNav = [
-  { name: "Persona Loop",  href: "/improvements",  icon: Bot },
-  { name: "Data Sources",  href: "/data-sources",  icon: Database },
-  { name: "Sources",       href: "/osint-tools",   icon: Telescope },
-  { name: "Background Jobs", href: "/jobs",        icon: Cog },
+  { name: "Data sources", href: "/data-sources", icon: Database },
+  { name: "Source directory", href: "/osint-tools", icon: Telescope },
+  { name: "Persona review", href: "/improvements", icon: Bot },
+  { name: "Duplicate review", href: "/duplicates", icon: GitCompare },
+  { name: "Workspace activity", href: "/jobs", icon: Settings2 },
 ];
 
-// All nav items flattened (used for mobile top bar active-page lookup)
-const allNav = [...mainNav, ...toolsNav];
+const allNav = [...mainNav, ...referenceNav, ...toolsNav];
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
-  const [bannerDismissed, setBannerDismissed] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
-  const [mobileContext, setMobileContext] = useState<string | null>(null);
 
   useEffect(() => {
     document.documentElement.classList.add("dark");
   }, []);
 
-  // Close mobile sidebar on route change; auto-expand section for active route
   useEffect(() => {
     setSidebarOpen(false);
-    setMobileContext(null);
-    if (toolsNav.some(i => location === i.href || location.startsWith(i.href))) {
+    if (toolsNav.some((item) => location === item.href || location.startsWith(item.href))) {
       setToolsOpen(true);
     }
   }, [location]);
 
-  useEffect(() => {
-    const handleMobileContext = (event: Event) => {
-      const label = (event as CustomEvent<string>).detail;
-      setMobileContext(label || null);
-    };
-    window.addEventListener("apex-mobile-context", handleMobileContext);
-    return () => window.removeEventListener("apex-mobile-context", handleMobileContext);
-  }, []);
-
   const isActive = (href: string) =>
     location === href || (href !== "/" && location.startsWith(href));
 
-  const NavLink = ({ item }: { item: typeof allNav[0] }) => (
-    <Link
-      href={item.href}
-      aria-current={isActive(item.href) ? "page" : undefined}
-      className={cn(
-        "flex items-center px-3 py-2.5 text-sm font-medium transition-colors gap-2.5 border-l-2 rounded-r-md",
-        isActive(item.href)
-          ? "bg-primary/10 text-primary border-primary"
-          : "text-muted-foreground hover:bg-muted hover:text-foreground border-transparent"
-      )}
-    >
-      <item.icon className={cn("h-4 w-4 shrink-0", isActive(item.href) ? "text-primary" : "text-muted-foreground")} />
-      <span className="truncate">{item.name}</span>
-    </Link>
-  );
+  const NavLink = ({ item }: { item: typeof allNav[number] }) => {
+    const active = isActive(item.href);
+    return (
+      <Link
+        href={item.href}
+        aria-current={active ? "page" : undefined}
+        data-testid={`link-nav-${item.name.toLowerCase().replace(/\s+/g, "-")}`}
+        className={cn(
+          "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] transition-colors",
+          active
+            ? "bg-primary/10 text-primary"
+            : "text-muted-foreground hover:bg-muted/70 hover:text-foreground",
+        )}
+      >
+        <item.icon className={cn("h-[17px] w-[17px] shrink-0", active ? "text-primary" : "text-muted-foreground/80")} />
+        <span className="truncate">{item.name}</span>
+        {active && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" />}
+      </Link>
+    );
+  };
 
-  const SectionToggle = ({
-    label,
-    open,
-    onToggle,
-  }: { label: string; open: boolean; onToggle: () => void }) => (
-    <button
-      onClick={onToggle}
-      className="w-full flex items-center justify-between px-3 pt-4 pb-1 group"
-    >
-      <span className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground/40 group-hover:text-muted-foreground/70 transition-colors">
-        {label}
-      </span>
-      {open
-        ? <ChevronDown className="h-3 w-3 text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-colors" />
-        : <ChevronRight className="h-3 w-3 text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-colors" />
-      }
-    </button>
-  );
-
-  const Sidebar = ({ mobile }: { mobile?: boolean }) => (
-    <aside
-      className={cn(
-        "flex flex-col bg-card border-r border-border",
-        mobile ? "w-[min(288px,85vw)] h-full" : "w-64 flex-shrink-0 h-full"
-      )}
-    >
-      {/* Header */}
-      <div className="h-14 md:h-16 flex items-center px-5 border-b border-border shrink-0">
-        <Crosshair className="h-5 w-5 text-primary mr-3 flex-shrink-0" />
-        <h1 className="text-base md:text-lg font-bold tracking-widest text-primary uppercase font-mono leading-tight truncate">
-          APEX ATLAS
-        </h1>
+  const Sidebar = ({ mobile = false }: { mobile?: boolean }) => (
+    <aside className={cn(
+      "flex h-full flex-col border-r border-sidebar-border bg-sidebar",
+      mobile ? "w-[min(300px,86vw)]" : "w-[250px] shrink-0",
+    )}>
+      <div className="flex h-[76px] shrink-0 items-center border-b border-sidebar-border px-5">
+        <div className="grid h-8 w-8 place-items-center rounded-lg bg-primary text-primary-foreground">
+          <Crosshair className="h-[18px] w-[18px]" />
+        </div>
+        <div className="ml-3 min-w-0">
+          <div className="font-display text-[15px] font-bold tracking-[0.14em] text-foreground">APEX ATLAS</div>
+          <div className="mt-0.5 font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground/70">Private workspace</div>
+        </div>
         {mobile && (
           <button
             onClick={() => setSidebarOpen(false)}
-            className="ml-auto text-muted-foreground hover:text-foreground transition-colors shrink-0"
+            aria-label="Close menu"
+            data-testid="button-close-menu"
+            className="ml-auto rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
           >
             <X className="h-5 w-5" />
           </button>
         )}
       </div>
 
-      {/* Nav */}
-      <nav className="flex-1 py-3 px-3 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-track-transparent scrollbar-thumb-[#2A3045]">
-        {/* Main investigation flow */}
-        <div className="space-y-0.5">
-          {mainNav.map(item => <NavLink key={item.href} item={item} />)}
+      <nav className="flex-1 overflow-y-auto px-3 py-6">
+        <div className="mb-2 px-3 font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground/50">Research desk</div>
+        <div className="space-y-1">
+          {mainNav.map((item) => <NavLink key={item.href} item={item} />)}
         </div>
-
-        {/* Tools & Admin (collapsible) */}
-        <SectionToggle label="Tools & Admin" open={toolsOpen} onToggle={() => setToolsOpen(o => !o)} />
+        <div className="mt-7 mb-2 px-3 font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground/50">Reference</div>
+        <div className="space-y-1">
+          {referenceNav.map((item) => <NavLink key={item.href} item={item} />)}
+        </div>
+        <button
+          onClick={() => setToolsOpen((open) => !open)}
+          aria-expanded={toolsOpen}
+          data-testid="button-toggle-tools"
+          className="mt-7 flex w-full items-center justify-between rounded-lg px-3 py-2 text-left font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground/50 transition-colors hover:bg-muted/50 hover:text-muted-foreground"
+        >
+          <span>Workspace settings</span>
+          {toolsOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+        </button>
         {toolsOpen && (
-          <div className="space-y-0.5">
-            {toolsNav.map(item => <NavLink key={item.href} item={item} />)}
+          <div className="mt-1 space-y-1">
+            {toolsNav.map((item) => <NavLink key={item.href} item={item} />)}
           </div>
         )}
       </nav>
 
-      {/* Footer */}
-      <div className="p-4 border-t border-border shrink-0">
-        <div className="px-3 py-2 flex flex-col gap-1 text-xs font-mono text-muted-foreground/60 uppercase tracking-widest">
-          <div>Phase G · v0.3</div>
-          <div className="text-[10px] opacity-70">PRIVATE INTELLIGENCE</div>
+      <div className="border-t border-sidebar-border px-5 py-4">
+        <div className="flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground/60">
+          <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+          Public records workspace
         </div>
       </div>
     </aside>
   );
 
+  const active = allNav.find((item) => isActive(item.href));
+  const mobileTitle = location.startsWith("/profile/") ? "Profile" : active?.name ?? "Overview";
+
   return (
-    <div className="flex h-screen bg-background text-foreground overflow-hidden font-sans selection:bg-primary/30">
-
-      {/* Desktop Sidebar (md+) */}
-      <div className="hidden md:flex md:flex-shrink-0">
-        <Sidebar />
-      </div>
-
-      {/* Mobile Sidebar Overlay */}
+    <div className="atlas-noise flex min-h-[100dvh] overflow-hidden bg-background text-foreground">
+      <div className="hidden md:flex"><Sidebar /></div>
       {sidebarOpen && (
-        <div className="fixed inset-0 z-50 md:hidden flex">
-          <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        <div className="fixed inset-0 z-50 flex md:hidden">
+          <button
+            aria-label="Close menu"
+            data-testid="button-overlay-close-menu"
+            className="absolute inset-0 bg-background/80 backdrop-blur-sm"
             onClick={() => setSidebarOpen(false)}
           />
-          <div className="relative z-10 flex h-full">
-            <Sidebar mobile />
-          </div>
+          <div className="relative z-10 h-full"><Sidebar mobile /></div>
         </div>
       )}
-
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
-
-        {/* Mobile top bar */}
-        <div className="md:hidden flex items-center h-12 px-4 border-b border-border bg-card flex-shrink-0 z-40">
-          <Crosshair className="h-4 w-4 text-primary mr-2 shrink-0" />
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            <span className="text-sm font-bold tracking-widest text-primary uppercase font-mono shrink-0">
-              APEX ATLAS
-            </span>
-            {(() => {
-              const active = allNav.find(i => isActive(i.href));
-              const context = mobileContext
-                ?? (location.startsWith("/profile/") ? "Assets & Sources" : active?.href !== "/" ? active?.name : null);
-              return context ? (
-                <>
-                  <span className="text-muted-foreground/40 font-mono text-[11px] shrink-0">/</span>
-                  <span className="text-[11px] font-mono text-muted-foreground truncate">{context}</span>
-                </>
-              ) : null;
-            })()}
+      <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
+        <div className="atlas-grid pointer-events-none absolute inset-0" />
+        <header className="relative z-20 flex h-14 shrink-0 items-center border-b border-border/80 bg-background/85 px-4 backdrop-blur-md md:hidden">
+          <div className="grid h-7 w-7 place-items-center rounded-md bg-primary text-primary-foreground">
+            <Crosshair className="h-4 w-4" />
           </div>
+          <span className="ml-2 font-mono text-[11px] font-bold tracking-[0.14em] text-foreground">APEX ATLAS</span>
+          <span className="mx-2 text-muted-foreground/40">/</span>
+          <span className="truncate text-xs text-muted-foreground">{mobileTitle}</span>
           <button
             onClick={() => setSidebarOpen(true)}
-            className="ml-2 p-2 -mr-2 text-muted-foreground hover:text-foreground transition-colors shrink-0"
             aria-label="Open menu"
+            data-testid="button-open-menu"
+            className="ml-auto rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
           >
             <Menu className="h-5 w-5" />
           </button>
-        </div>
-
-        {/* Compliance Disclaimer Banner — desktop only */}
-        {!bannerDismissed && (
-          <div className="hidden md:flex flex-shrink-0 bg-amber-950/40 border-b border-amber-600/25 px-3 md:px-4 py-2 items-start justify-between z-30 gap-2">
-            <div className="flex items-start gap-2 min-w-0">
-              <ShieldAlert className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
-              <span className="text-xs font-mono text-amber-400/80 leading-snug">
-                <span className="text-amber-500 font-bold">COMPLIANCE:</span>{" "}
-                Public-data research only. Sourced from public registries &amp; OSINT. GDPR/CCPA compliant use required.
-              </span>
-            </div>
-            <button
-              onClick={() => setBannerDismissed(true)}
-              className="text-amber-600/60 hover:text-amber-400 flex-shrink-0 transition-colors mt-0.5"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )}
-
-        {/* Subtle grid pattern */}
-        <div
-          className="absolute inset-0 pointer-events-none opacity-[0.03]"
-          style={{
-            backgroundImage:
-              "linear-gradient(rgba(255,255,255,1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,1) 1px, transparent 1px)",
-            backgroundSize: "32px 32px",
-            backgroundPosition: "center",
-          }}
-        />
-
-        <div className="flex-1 flex flex-col relative z-10 overflow-y-auto overflow-x-hidden min-h-0">
+        </header>
+        <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden">
           {children}
         </div>
       </main>

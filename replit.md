@@ -215,6 +215,7 @@ GET  /api/improve/logs                 improvement suggestions (filterable by pe
 
 | Phase | Feature |
 |---|---|
+| UI refresh | **HNWI-first responsive research desk** — dashboard prioritizes people cards, separate Signal/Access scoring, public contact-path cues, and real empty/loading/error states; desktop and mobile shell/navigation tuned without changing API routes or data behavior |
 | 1–3 | Core DB schema, Bayesian scorer, Express API, React frontend |
 | 4 | Hybrid Research agent (L4 UCT graph traversal), research sessions, CRM pipeline |
 | 5 | Hybrid BM25 + TF-IDF + Bayesian search, network graph |
