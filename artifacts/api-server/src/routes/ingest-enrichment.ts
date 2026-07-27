@@ -327,9 +327,11 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
 
         await db.update(entitiesTable)
           .set({
-            ...(result.email       ? { email: result.email }             : {}),
-            ...(result.phone       ? { phone: result.phone }             : {}),
-            ...(result.linkedinUrl ? { linkedinUrl: result.linkedinUrl } : {}),
+            // When force=true, always write the new result (even null) to wipe stale/garbage
+            // values from a previous run that passed invalid data (wrong phone country, bad LinkedIn).
+            ...(result.email       ? { email: result.email }             : force ? { email:       null } : {}),
+            ...(result.phone       ? { phone: result.phone }             : force ? { phone:       null } : {}),
+            ...(result.linkedinUrl ? { linkedinUrl: result.linkedinUrl } : force ? { linkedinUrl: null } : {}),
             // Corp/Trust: social handles from web scraping belong to persons, not the org
             ...((result as any).instagramUrl && !entity.instagramHandle && !["Corporation","Corp","Trust"].includes(entity.type) ? { instagramHandle: (result as any).instagramUrl } : {}),
             ...((result as any).twitterUrl   && !entity.twitterHandle   && !["Corporation","Corp","Trust"].includes(entity.type) ? { twitterHandle:   (result as any).twitterUrl   } : {}),

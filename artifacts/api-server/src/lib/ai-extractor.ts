@@ -412,7 +412,14 @@ export function buildPerplexityPrompt(
   const city = context.city ? `\nKnown city/location context: ${context.city}` : "";
   const isOrg = entityType === "Corporation" || entityType === "Trust";
 
-  return `You are conducting Phase 0 OSINT for ${publicName}${ctx}. Goal: find every named human decision-maker and their direct contact path.${city}
+  // Strong geographic/sector scope guard — prevents name-clash contamination.
+  // e.g. "Target Global" (Berlin VC) must not pull in Target Corporation (US retailer).
+  const locationCtx = [context.city, country].filter(Boolean).join(", ");
+  const disambig = locationCtx
+    ? `\nSCOPE LOCK: You are researching ONLY the ${locationCtx}-based ${isOrg ? "company/institution" : "individual"} named ${publicName}. If any other entity (retailer, sports team, consumer brand, government body, etc.) shares this name or a similar name, IGNORE it entirely. Do NOT mix data from different entities. All output must relate exclusively to the ${locationCtx} entity.`
+    : "";
+
+  return `You are conducting Phase 0 OSINT for ${publicName}${ctx}. Goal: find every named human decision-maker and their direct contact path.${city}${disambig}
 
 ${isOrg ? `This is a company/business/institution. Execute this research in order:
 

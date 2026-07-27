@@ -477,6 +477,17 @@ const CITATION_SKIP_DOMAINS = new Set([
   "infogreffe.fr", "pappers.fr",
   // Other common non-corporate hits
   "amazon.com", "apple.com", "microsoft.com",
+  // Retail / consumer brands — never a VC or Corp research target's own domain.
+  // These bleed in when the entity name matches a well-known consumer brand
+  // (e.g. "Target Global" VC firm → Target Corporation US retailer citations).
+  "target.com", "corporate.target.com",
+  "walmart.com", "costco.com", "bestbuy.com", "homedepot.com",
+  "ikea.com", "zara.com", "hm.com", "primark.com",
+  // PE / VC aggregators that return stale/wrong data (privateequityinternational, pitchbook, etc.)
+  "privateequityinternational.com", "pitchbook.com", "preqin.com",
+  "highperformr.ai",
+  // German "Zielverbindungen" / translated Target Corporation pages
+  "translate.google.com", "translate.googleusercontent.com",
 ]);
 
 const EMAIL_BLOCK = new Set([
@@ -1220,6 +1231,26 @@ async function scrapePage(url: string): Promise<ScrapedPage> {
  * prioritised FIRST — they list ALL named partners, not just a single contact email.
  * The result cap is also raised so we don't stop after the first email hit.
  */
+/**
+ * Fetch the most recent Wayback Machine snapshot URL for a specific page URL.
+ * Used as fallback when a sub-page (e.g. /team on a JS SPA) is bot-blocked or near-empty.
+ */
+async function waybackPageUrl(pageUrl: string): Promise<string | null> {
+  try {
+    const cdxUrl = `https://web.archive.org/cdx/search/cdx?url=${encodeURIComponent(pageUrl)}&output=json&filter=statuscode:200&filter=mimetype:text/html&collapse=urlkey&fl=timestamp,original&limit=3`;
+    const resp = await fetch(cdxUrl, {
+      signal: AbortSignal.timeout(8_000),
+      headers: { "User-Agent": "ApexFinder/1.0 public OSINT research" },
+    });
+    if (!resp.ok) return null;
+    const rows = await resp.json() as unknown;
+    if (!Array.isArray(rows) || rows.length < 2) return null;
+    const row = rows[1];
+    if (!Array.isArray(row) || typeof row[0] !== "string" || typeof row[1] !== "string") return null;
+    return `https://web.archive.org/web/${row[0]}id_/${row[1]}`;
+  } catch { return null; }
+}
+
 async function findContactPages(domain: string, isCorp = false): Promise<{
   url: string;
   scraped: ScrapedPage;
@@ -1251,7 +1282,21 @@ async function findContactPages(domain: string, isCorp = false): Promise<{
     if (seen.has(url)) continue;
     seen.add(url);
     try {
-      const scraped = await scrapePage(url);
+      let scraped = await scrapePage(url);
+      // Wayback fallback for bot-blocked or near-empty sub-pages (JS SPAs like VC firm /team pages).
+      // A JS SPA returns a nearly empty HTML shell to server-side fetch — detect and recover.
+      if (scraped.botBlocked || (scraped.text.length < 300 && !scraped.email && !scraped.phone && !scraped.linkedinUrl)) {
+        const wbUrl = await waybackPageUrl(url);
+        if (wbUrl) {
+          try {
+            const wb = await scrapePage(wbUrl);
+            // Only upgrade if Wayback gave us more content
+            if (wb.text.length > scraped.text.length || wb.email || wb.phone || wb.linkedinUrl) {
+              scraped = wb;
+            }
+          } catch { /* keep original scraped */ }
+        }
+      }
       if (scraped.email || scraped.phone || scraped.linkedinUrl || scraped.instagramUrl || scraped.twitterUrl) {
         results.push({ url, scraped });
         if (results.length >= resultCap) break;
