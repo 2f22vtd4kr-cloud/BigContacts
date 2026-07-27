@@ -759,6 +759,10 @@ const PERSON_WORD_BLOCKLIST = new Set([
   "Ventures", "Asset", "Assets", "Equity", "Private", "Investment",
   "Investments", "Corporation", "Consulting", "Solutions", "Services",
   "Technologies", "Industries", "Enterprises", "Associates",
+  // Finance/banking subsidiary words
+  "Financement", "Participations", "Participation", "Finance", "Financing",
+  "Bank", "Banque", "Crédit", "Credit", "Fonds", "Gestion", "Investissement",
+  "Holding", "Groupe", "Société", "Compagnie",
   // UI artifacts from scraped pages — buttons, nav items, form labels
   "Submit", "Images", "Image", "Chat", "Search", "Login", "Register",
   "Contact", "Menu", "Home", "Back", "Next", "More", "View", "Download",
