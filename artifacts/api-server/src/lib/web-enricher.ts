@@ -1188,20 +1188,36 @@ async function scrapePage(url: string): Promise<ScrapedPage> {
 /**
  * Try contact/about/team pages on a discovered domain.
  * Multilingual paths cover EN/FR/DE/IT/ES sites.
+ *
+ * For Corp entities (VC firms, law firms, consultancies) team/partners pages are
+ * prioritised FIRST — they list ALL named partners, not just a single contact email.
+ * The result cap is also raised so we don't stop after the first email hit.
  */
-async function findContactPages(domain: string): Promise<{
+async function findContactPages(domain: string, isCorp = false): Promise<{
   url: string;
   scraped: ScrapedPage;
 }[]> {
-  const paths = [
+  // Corp path order: team/partners FIRST, then contact/about.
+  // Venue/individual path order: contact FIRST (faster single-contact resolution).
+  const corpPaths = [
+    "/team", "/our-team", "/partners", "/people", "/leadership", "/equipe",
+    "/our-partners", "/management", "/staff", "/about", "/about-us",
+    "/qui-sommes-nous", "/contact", "/contact-us", "/contactez-nous",
+    "/nous-contacter", "/uber-uns", "/kontakt", "/impressum",
+  ];
+  const venuePaths = [
     "/contact", "/contact-us", "/contactez-nous", "/nous-contacter",
     "/about", "/about-us", "/qui-sommes-nous", "/uber-uns",
     "/team", "/equipe", "/our-team", "/staff", "/management",
     "/kontakt", "/impressum", "/contatti", "/contacto",
     "/reservation", "/reservations", "/book", "/booking",
   ];
-  // Cap candidates — each scrapePage call costs up to 10s; 12 paths × 10s = 120s max.
-  const candidates = paths.slice(0, 12).map(path => `https://${domain}${path}`);
+  const paths = isCorp ? corpPaths : venuePaths;
+  // Corp cap raised — we want all team pages, not just the first email.
+  // 16 paths × 10s max each = 160s worst case (acceptable for VC/Corp research).
+  const cap = isCorp ? 16 : 12;
+  const resultCap = isCorp ? 8 : 4;
+  const candidates = paths.slice(0, cap).map(path => `https://${domain}${path}`);
   const seen = new Set<string>();
   const results: Array<{ url: string; scraped: ScrapedPage }> = [];
   for (const url of candidates) {
@@ -1211,7 +1227,7 @@ async function findContactPages(domain: string): Promise<{
       const scraped = await scrapePage(url);
       if (scraped.email || scraped.phone || scraped.linkedinUrl || scraped.instagramUrl || scraped.twitterUrl) {
         results.push({ url, scraped });
-        if (results.length >= 4) break;
+        if (results.length >= resultCap) break;
       }
     } catch { /* next path */ }
     await sleep(300);
@@ -1874,19 +1890,18 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       collectScrapedPage(rootScrape, label, `https://${domain}`);
 
       // Crawl contact / about / team sub-pages when root has no email OR no LinkedIn.
-      // LinkedIn often appears only in footers/contact pages — always check sub-pages
-      // for corps if root came back without a LinkedIn URL, even when email was found.
-      if (!rootScrape.email || !rootScrape.linkedinUrl) {
-        const contactPages = await findContactPages(domain);
+      // For Corp entities (VC firms, law firms) ALWAYS crawl sub-pages regardless of
+      // what the root returned — team/partners pages list ALL named partners.
+      if (isCorp || !rootScrape.email || !rootScrape.linkedinUrl) {
+        const contactPages = await findContactPages(domain, isCorp);
         for (const { url: cpUrl, scraped: cp } of contactPages) {
           const cpLabel = `${label}[${cpUrl.split("/").slice(-1)[0] ?? "contact"}]`;
           allSearchText += " " + cp.text.slice(0, 2000);
           collectScrapedPage(cp, cpLabel, cpUrl);
-          // Stop when we have email AND LinkedIn (either from this page or any earlier phase)
-          if (cp.email && (cp.linkedinUrl || linkedinHits.size > 0)) break;
-          // Have email but no LinkedIn yet — keep scanning sub-pages for it
-          if (cp.email && !cp.linkedinUrl) continue;
-          if (cp.email) break; // safety fallback
+          // For Corps: never break early — scrape all team/partner pages to surface every named GP.
+          // For venues/individuals: stop as soon as we have email + LinkedIn.
+          if (!isCorp && cp.email && (cp.linkedinUrl || linkedinHits.size > 0)) break;
+          if (!isCorp && cp.email) break; // safety fallback for non-corps
         }
       }
 
