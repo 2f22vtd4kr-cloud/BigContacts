@@ -18,7 +18,9 @@
 - `/api/dashboard/stats` → 200, all zeros (empty database) ✅
 - `ENABLE_AUTO_PIPELINE` not set → broad cold-start ingestion disabled
 - All 4 artifacts registered: API Server, ApexFinder Pro, ApexFinder Mobile, Canvas
-- SESSION_SECRET ✅; Upstash REDIS_URL_1–5 and COMPANIES_HOUSE_API_KEY need re-adding for full enrichment (graceful degradation active until set)
+- SESSION_SECRET ✅; all 14 secrets added: REDIS_URL_1–5, COMPANIES_HOUSE_API_KEY, GROQ_API_KEY/_2/_3, PERPLEXITY_API_KEY/_2/_3/_4, WHOXY_API_KEY
+- Upstash slots 2–5 healthy; slot 1 quota-exhausted (graceful fallback, non-fatal)
+- ENABLE_AUTO_PIPELINE not set → no ingestion running, no credits spent
 
 ## Current State (2026-07-26 — Re-import setup complete; all 13 secrets restored; Redis + API + web running; DB schema applied; 0 entities)
 
