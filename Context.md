@@ -8,6 +8,18 @@
 
 ---
 
+## Current State (2026-07-27 — Re-import setup complete; SESSION_SECRET present; Redis + API + web running; DB schema applied; 0 entities; all 4 artifacts registered)
+
+### Post-import setup (2026-07-27, this import)
+- `CI=true pnpm install --frozen-lockfile` — all packages installed (~40s)
+- `pnpm --filter @workspace/db run push` — schema applied (`[✓] Changes applied`)
+- Redis, API Server (`artifacts/api-server: API Server`), apex-finder web (`artifacts/apex-finder: web`) workflows running
+- `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":1}}` ✅
+- `/api/dashboard/stats` → 200, all zeros (empty database) ✅
+- `ENABLE_AUTO_PIPELINE` not set → broad cold-start ingestion disabled
+- All 4 artifacts registered: API Server, ApexFinder Pro, ApexFinder Mobile, Canvas
+- SESSION_SECRET ✅; Upstash REDIS_URL_1–5 and COMPANIES_HOUSE_API_KEY need re-adding for full enrichment (graceful degradation active until set)
+
 ## Current State (2026-07-26 — Re-import setup complete; all 13 secrets restored; Redis + API + web running; DB schema applied; 0 entities)
 
 ### Post-import setup (2026-07-26, this import)
