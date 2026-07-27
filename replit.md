@@ -56,6 +56,8 @@ The long-term plan for improving the approximately 2.5% direct-contact yield is 
 | `REDIS_URL_1`–`REDIS_URL_5` | Replit Secrets | **Upstash permanent Redis slots** — dedup/contact-cache capacity is distributed across the numbered slots; slot 1 is currently quota-exhausted and skipped automatically, while slots 2–5 are healthy. |
 | `COMPANIES_HOUSE_API_KEY` | Replit Secret (optional) | UK Companies House officer harvester |
 | `GROQ_API_KEY`, `_2`, `_3` | Replit Secrets (optional) | Groq-powered structured extraction during web enrichment, with key rotation |
+| `PERPLEXITY_API_KEY`, `_2`, `_3`, `_4` | Replit Secrets (optional) | Perplexity-powered public web discovery and enrichment, with key rotation |
+| `WHOXY_API_KEY` | Replit Secret (optional) | Whoxy domain and DNS intelligence lookups |
 | `OPENROUTER_API_KEY`, `_2`, `_3`, `_4` | Replit Secrets (optional) | OpenRouter model access, with key rotation |
 | `ENABLE_AUTO_PIPELINE` | Shared environment | Set to `false` for controlled imports and single-target research; set to `true` only when broad cold-start ingestion is explicitly requested. |
 

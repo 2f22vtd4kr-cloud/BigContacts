@@ -8,7 +8,12 @@
 
 ---
 
-## Current State (2026-07-27 — Ardian test run complete; 1 entity enriched; PERSON_WORD_BLOCKLIST patched; all workflows running; slots 2–5 healthy)
+## Current State (2026-07-27 — secure credentials confirmed; workflows intentionally stopped; no research run)
+
+### Current user-directed hold
+- Securely saved: `REDIS_URL_1`–`REDIS_URL_5`, `COMPANIES_HOUSE_API_KEY`, `GROQ_API_KEY`/`_2`/`_3`, `PERPLEXITY_API_KEY`/`_2`/`_3`/`_4`, and `WHOXY_API_KEY`
+- Workflows remain stopped by request; no ingestion, external research, or credit-consuming work was run
+- Secret values were not read, printed, or written to project files
 
 ### Post-import setup (2026-07-27, this import — Task #1)
 - `CI=true pnpm install` — all packages installed (~37s); all native bindings built (sharp, onnxruntime-node)
