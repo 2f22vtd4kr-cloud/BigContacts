@@ -791,6 +791,17 @@ const PERSON_WORD_BLOCKLIST = new Set([
   // Generic org/state words that slip through as "person" names
   "State", "Government", "Ministry", "Agency", "Authority", "Commission",
   "Federation", "Republic", "Nation",
+  // Governance / org structure words that look like names
+  "Executive", "Committee", "Board", "Director", "Directors", "Officer",
+  "Chairman", "Chairwoman", "Chairperson", "Trustee", "Trustees",
+  // Street / address components — "Pall Mall", "Park Lane", etc.
+  "Mall", "Street", "Avenue", "Road", "Lane", "Place", "Square", "Court",
+  "Drive", "Boulevard", "Way", "Row", "Gardens", "Terrace", "Close",
+  "Pall", "Park", "Bridge", "Gate", "Hill", "House", "Tower",
+  // Geographic regions / continents — "North America", "South Asia", etc.
+  "North", "South", "East", "West", "Central",
+  "America", "Europe", "Asia", "Africa", "Pacific", "Atlantic", "Americas",
+  "Latin", "Middle", "Nordic", "Nordics",
 ]);
 
 /** Returns true when a string looks like a real human name (2–4 capitalised words,
@@ -1239,7 +1250,7 @@ async function waybackPageUrl(pageUrl: string): Promise<string | null> {
   try {
     const cdxUrl = `https://web.archive.org/cdx/search/cdx?url=${encodeURIComponent(pageUrl)}&output=json&filter=statuscode:200&filter=mimetype:text/html&collapse=urlkey&fl=timestamp,original&limit=3`;
     const resp = await fetch(cdxUrl, {
-      signal: AbortSignal.timeout(8_000),
+      signal: AbortSignal.timeout(3_000),
       headers: { "User-Agent": "ApexFinder/1.0 public OSINT research" },
     });
     if (!resp.ok) return null;

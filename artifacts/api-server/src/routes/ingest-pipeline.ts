@@ -159,7 +159,7 @@ router.post("/ingest/deep-web-osint", async (req: Request, res: Response): Promi
         // Hard cap: if the enricher hangs on a stalled body-read past all
         // individual fetch timeouts, this kills it after 4 minutes and
         // returns an empty result so the job can continue / complete.
-        const ENRICHER_TIMEOUT_MS = 4 * 60 * 1000;
+        const ENRICHER_TIMEOUT_MS = 6 * 60 * 1000;
         const result = await Promise.race([
           deepWebOsintEnrich(entity),
           new Promise<Awaited<ReturnType<typeof deepWebOsintEnrich>>>((_, reject) =>
