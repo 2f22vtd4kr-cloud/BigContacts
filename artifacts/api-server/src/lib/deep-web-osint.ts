@@ -41,6 +41,7 @@ export interface DeepWebOsintResult {
   instagramUrl:      string | null;  // venue/org OR personal handle discovered
   twitterUrl:        string | null;  // venue/org OR personal handle discovered
   personsDiscovered: string[];       // owner/founder names found — review-only, never auto-promoted
+  evidence?:         Array<{ vectorType: string; value: string; source: string; sourceUrl?: string | null; extractionMethod: string; confidence: number; details?: Record<string, unknown>; observedAt: string }>;
   sources:           string[];  // which queries/engines produced the find
   queriesFired:      number;
   pagesScraped:      number;
@@ -400,11 +401,18 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     linkedinUrl: null,
     instagramUrl: null, twitterUrl: null,
     personsDiscovered: [],
+    evidence: [],
     sources: [], queriesFired: 0, pagesScraped: 0,
   };
 
   const queries = buildQueries(entity);
   if (queries.length === 0) return result;
+
+  // Derived entity classification — used to gate org-level social accumulation
+  const isCorp = entity.type === "Corporation" || entity.type === "Corp" ||
+    entity.type === "Trust" ||
+    !(entity.type === "HNWI" || entity.type === "Gatekeeper" ||
+      /^[A-Z][a-z]+ [A-Z]/.test(entity.name));
 
   // Accumulators for cross-validation
   const emailHits    = new Map<string, string[]>();
@@ -442,8 +450,11 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       if (perp.twitter)  { const a = twHits.get(perp.twitter) ?? [];        a.push(label); twHits.set(perp.twitter, a); }
       for (const oc of perp.ownerContacts) {
         aiOwners.push({ name: oc.name, instagram: oc.instagram, twitter: oc.twitter, linkedin: oc.linkedin });
-        if (oc.instagram) { const a = igHits.get(oc.instagram) ?? [];      a.push(`${label}-owner`); igHits.set(oc.instagram, a); }
-        if (oc.twitter)   { const a = twHits.get(oc.twitter) ?? [];        a.push(`${label}-owner`); twHits.set(oc.twitter, a); }
+        // Corp entities: owner handles are person-level, never the org's own social
+        if (!isCorp) {
+          if (oc.instagram) { const a = igHits.get(oc.instagram) ?? [];      a.push(`${label}-owner`); igHits.set(oc.instagram, a); }
+          if (oc.twitter)   { const a = twHits.get(oc.twitter) ?? [];        a.push(`${label}-owner`); twHits.set(oc.twitter, a); }
+        }
         if (oc.linkedin)  { const a = linkedinHits.get(oc.linkedin) ?? []; a.push(`${label}-owner`); linkedinHits.set(oc.linkedin, a); }
       }
       // Add Perplexity's cited URLs to the scrape queue — these are the real sources it found
@@ -546,8 +557,11 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       if (scraped.email)        { const a = emailHits.get(scraped.email) ?? [];               a.push(label); emailHits.set(scraped.email, a); }
       if (scraped.phone)        { const a = phoneHits.get(scraped.phone) ?? [];               a.push(label); phoneHits.set(scraped.phone, a); }
       if (scraped.linkedinUrl)  { const a = linkedinHits.get(scraped.linkedinUrl) ?? [];       a.push(label); linkedinHits.set(scraped.linkedinUrl, a); }
-      if (scraped.instagramUrl) { const a = igHits.get(scraped.instagramUrl) ?? [];            a.push(label); igHits.set(scraped.instagramUrl, a); }
-      if (scraped.twitterUrl)   { const a = twHits.get(scraped.twitterUrl) ?? [];              a.push(label); twHits.set(scraped.twitterUrl, a); }
+      // Corp entities: scraped ig/tw are person-level handles — skip org map
+      if (!isCorp) {
+        if (scraped.instagramUrl) { const a = igHits.get(scraped.instagramUrl) ?? [];            a.push(label); igHits.set(scraped.instagramUrl, a); }
+        if (scraped.twitterUrl)   { const a = twHits.get(scraped.twitterUrl) ?? [];              a.push(label); twHits.set(scraped.twitterUrl, a); }
+      }
       if (scraped.rawText)      { allSearchText += " " + scraped.rawText.slice(0, 3_000); }
     } catch { /* skip */ }
 
@@ -569,8 +583,11 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         if (ai.twitter)  { const a = twHits.get(ai.twitter) ?? [];        a.push(label); twHits.set(ai.twitter, a); }
         for (const oc of ai.ownerContacts) {
           aiOwners.push({ name: oc.name, instagram: oc.instagram, twitter: oc.twitter, linkedin: oc.linkedin });
-          if (oc.instagram) { const a = igHits.get(oc.instagram) ?? []; a.push(`${label}-owner`); igHits.set(oc.instagram, a); }
-          if (oc.twitter)   { const a = twHits.get(oc.twitter) ?? [];   a.push(`${label}-owner`); twHits.set(oc.twitter, a); }
+          // Corp entities: owner handles are person-level, never the org's own social
+          if (!isCorp) {
+            if (oc.instagram) { const a = igHits.get(oc.instagram) ?? []; a.push(`${label}-owner`); igHits.set(oc.instagram, a); }
+            if (oc.twitter)   { const a = twHits.get(oc.twitter) ?? [];   a.push(`${label}-owner`); twHits.set(oc.twitter, a); }
+          }
           if (oc.linkedin)  { const a = linkedinHits.get(oc.linkedin) ?? []; a.push(`${label}-owner`); linkedinHits.set(oc.linkedin, a); }
         }
         logger.info({ entityId: entity.id, hasEmail: !!ai.email, owners: ai.owners.length, ownerHandles: aiOwners.filter(o => o.instagram || o.twitter).length, source: ai.source }, "Deep-web AI extraction complete");
@@ -615,6 +632,65 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         }
       } catch { /* skip */ }
       await jitteredDelay(800);
+    }
+  }
+
+  // ── Phase 3.9: Email pattern inference for discovered Corp persons ─────────
+  // After Perplexity+AI owners are collected, derive [fi][last]@domain patterns
+  // and store as evidence candidates. This is the primary Gemini parity gap:
+  //   aflamarion@tikehaucapital.com, mchabran@tikehaucapital.com, etc.
+  if (isCorp && aiOwners.length > 0) {
+    // Best domain: prefer one already confirmed by an email hit, fall back to metadata
+    const inferDomain = (() => {
+      for (const [e] of emailHits.entries()) {
+        const d = e.split("@")[1];
+        if (d && !EMAIL_BLOCK.has(d) && !d.includes("privacy") && !d.includes("proxy")) return d;
+      }
+      const meta = safeJson<Record<string, unknown>>(entity.metadata, {});
+      const w = meta["website"] as string | undefined;
+      if (w) {
+        try { return new URL(w.startsWith("http") ? w : `https://${w}`).hostname.replace(/^www\./, ""); } catch {}
+      }
+      return null;
+    })();
+
+    if (inferDomain) {
+      const normEmail = (s: string) =>
+        s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z]/g, "");
+      if (!result.evidence) result.evidence = [];
+      for (const owner of aiOwners.slice(0, 9)) {
+        const parts = owner.name.trim().split(/\s+/);
+        if (parts.length < 2) continue;
+        const fn = normEmail(parts[0]!);
+        // Compound last names (Laurent-Bellue → laurentbellue)
+        const ln = normEmail(parts.slice(1).join(""));
+        const fi = fn.charAt(0);
+        if (!fi || ln.length < 2) continue;
+        const pats: Array<[string, string]> = [
+          [`${fi}${ln}@${inferDomain}`, "flast"],          // aflamarion ← FR PE norm
+          [`${fn}.${ln}@${inferDomain}`, "first.last"],    // antoine.flamarion
+          [`${fn}${ln}@${inferDomain}`, "firstlast"],      // antoineflamarion
+        ];
+        for (const [email, fmt] of pats) {
+          result.evidence.push({
+            vectorType: "email",
+            value: email,
+            source: `Pattern[${parts[0]}]`,
+            sourceUrl: null,
+            extractionMethod: "email-pattern-inference",
+            confidence: 45,
+            details: {
+              scope: "person_candidate",
+              personName: owner.name,
+              relationship: "inferred-email-pattern",
+              domain: inferDomain,
+              pattern: fmt,
+            },
+            observedAt: new Date().toISOString(),
+          });
+        }
+      }
+      logger.info({ entityId: entity.id, owners: aiOwners.length, domain: inferDomain }, "Phase 3.9: email patterns inferred for Corp persons");
     }
   }
 

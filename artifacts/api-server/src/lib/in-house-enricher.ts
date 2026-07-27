@@ -1204,7 +1204,7 @@ async function duckduckgoNewsEmail(name: string): Promise<{ email: string | null
 }
 
 // ── Source 20: Company contact page scraper ────────────────────────────────────
-async function scrapeContactPage(domain: string): Promise<{ email: string | null; phone: string | null; linkedinUrl: string | null; sourceUrl: string | null }> {
+async function scrapeContactPage(domain: string): Promise<{ email: string | null; phone: string | null; linkedinUrl: string | null; address: string | null; sourceUrl: string | null }> {
   const paths = ["/contact", "/about", "/team", "/contact-us", "/about-us",
                  "/leadership", "/our-team", "/executive-team", "/management-team",
                  "/people", "/who-we-are", "/"];
@@ -1238,17 +1238,35 @@ async function scrapeContactPage(domain: string): Promise<{ email: string | null
       const liHrefMatch = html.match(liHrefRe);
       if (liHrefMatch) linkedinUrl = liHrefMatch[1]!.replace(/\/$/, "");
 
+      // ── Address extraction: <address> tag → French street pattern → UK postcode ──
+      let address: string | null = null;
+      const addrTagM = html.match(/<address[^>]*>([\s\S]{5,400}?)<\/address>/i);
+      if (addrTagM) {
+        address = addrTagM[1]!.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 200);
+      }
+
       // ── Fall back to plain-text extraction ──
       const text = html.replace(/<[^>]+>/g, " ").replace(/&[a-z#0-9]+;/g, " ").replace(/\s+/g, " ").slice(0, 12_000);
       if (!email) email = extractEmail(text);
       const phone = extractPhone(text);
       if (!linkedinUrl) linkedinUrl = extractLinkedIn(text);
 
-      if (email || phone || linkedinUrl) return { email, phone, linkedinUrl, sourceUrl: resp.url || `https://${domain}${path}` };
+      // French street address: number + rue/avenue/boulevard + name + postal code + city
+      if (!address) {
+        const frM = text.match(/\d{1,4}[\s,]+(?:rue|avenue|av\.|boulevard|bd\.|place|all[eé]e|impasse|chemin|cours|quai)\s+[^,\n]{3,50},\s*\d{5}[\s,]+[A-ZÀ-Üa-zà-ü][a-zà-ü\s\-]{2,30}/i);
+        if (frM) address = frM[0].replace(/\s+/g, " ").trim().slice(0, 200);
+      }
+      // UK postcode pattern
+      if (!address) {
+        const ukM = text.match(/\d{1,4}\s+[A-Za-z\s]{5,50},\s*[A-Za-z\s]{3,30},\s*[A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2}/i);
+        if (ukM) address = ukM[0].replace(/\s+/g, " ").trim().slice(0, 200);
+      }
+
+      if (email || phone || linkedinUrl || address) return { email, phone, linkedinUrl, address, sourceUrl: resp.url || `https://${domain}${path}` };
     } catch { /* try next path */ }
     await sleep(200);
   }
-  return { email: null, phone: null, linkedinUrl: null, sourceUrl: null };
+  return { email: null, phone: null, linkedinUrl: null, address: null, sourceUrl: null };
 }
 
 
@@ -1377,7 +1395,9 @@ export async function enrichInHouse(entity: InHouseEnrichInput): Promise<InHouse
     extractionMethod = "public-source-parser",
     details?: Record<string, unknown>,
   ) => {
-    if (!phone || result.phone) return;
+    if (!phone) return;
+    // Allow override when the new source has higher confidence (website > EDGAR)
+    if (result.phone && confidence <= result.phoneConfidence) return;
     const normalized = normalizePhone(phone);
     if (!normalized) return;
     result.phone = normalized;
@@ -1658,11 +1678,16 @@ export async function enrichInHouse(entity: InHouseEnrichInput): Promise<InHouse
           result.sourceHits["ContactPage"] = true;
           setEmail(scraped.email, 60, "ContactPage-Email");
         }
-        if (scraped.phone) setPhone(scraped.phone, 55, "ContactPage-Phone");
+        if (scraped.phone) setPhone(scraped.phone, 72, "ContactPage-Phone");
         if (scraped.linkedinUrl && !result.linkedinUrl) {
           result.linkedinUrl = scraped.linkedinUrl;
           addSource("ContactPage-LinkedIn");
           result.sourceHits["ContactPage-LinkedIn"] = true;
+        }
+        if (scraped.address && !result.address) {
+          result.address = scraped.address;
+          addSource("ContactPage-Address");
+          result.sourceHits["ContactPage-Address"] = true;
         }
       })());
     }

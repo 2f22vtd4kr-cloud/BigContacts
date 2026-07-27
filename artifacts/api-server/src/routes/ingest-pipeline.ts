@@ -176,8 +176,10 @@ router.post("/ingest/deep-web-osint", async (req: Request, res: Response): Promi
         if (result.email       && !entity.email)           updates["email"]           = result.email;
         if (result.phone       && !entity.phone)           updates["phone"]           = result.phone;
         if (result.linkedinUrl && !entity.linkedinUrl)     updates["linkedinUrl"]     = result.linkedinUrl;
-        if (result.instagramUrl && !entity.instagramHandle) updates["instagramHandle"] = result.instagramUrl;
-        if (result.twitterUrl   && !entity.twitterHandle)   updates["twitterHandle"]   = result.twitterUrl;
+        // Corp/Trust: social handles from deep-web belong to persons, not the org
+        const isCorpEntity = entity.type === "Corporation" || entity.type === "Corp" || entity.type === "Trust";
+        if (result.instagramUrl && !entity.instagramHandle && !isCorpEntity) updates["instagramHandle"] = result.instagramUrl;
+        if (result.twitterUrl   && !entity.twitterHandle   && !isCorpEntity) updates["twitterHandle"]   = result.twitterUrl;
 
         const confidence = computeContactConfidence({
           email:           (updates["email"]      as string | null) ?? entity.email ?? null,

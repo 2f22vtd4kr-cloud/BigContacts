@@ -1551,14 +1551,13 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       }
       const ig = extractInstagram(sr.text);
       if (ig) {
-        const arr = igHits.get(ig) ?? [];
-        if (scope === "organization") { arr.push(label); igHits.set(ig, arr); }
+        // Corp entities: social handles from search snippets belong to persons, not the org itself
+        if (scope === "organization" && !isCorp) { const arr = igHits.get(ig) ?? []; arr.push(label); igHits.set(ig, arr); }
         recordEvidence("social", ig, label, sr.sourceUrl, method, confidence, { ...details, network: "instagram" });
       }
       const tw = extractTwitter(sr.text);
       if (tw) {
-        const arr = twHits.get(tw) ?? [];
-        if (scope === "organization") { arr.push(label); twHits.set(tw, arr); }
+        if (scope === "organization" && !isCorp) { const arr = twHits.get(tw) ?? []; arr.push(label); twHits.set(tw, arr); }
         recordEvidence("social", tw, label, sr.sourceUrl, method, confidence, { ...details, network: "twitter" });
       }
     }
@@ -1599,8 +1598,14 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     add("email", page.email, emailHits);
     add("phone", page.phone, phoneHits);
     add("social", page.linkedinUrl, linkedinHits, { network: "linkedin" });
-    add("social", page.instagramUrl, igHits, { network: "instagram" });
-    add("social", page.twitterUrl, twHits, { network: "twitter" });
+    // Corp entities: scraped ig/tw are person-level handles — evidence only, never the org's social
+    if (isCorp && scope === "organization") {
+      if (page.instagramUrl) recordEvidence("social", page.instagramUrl, label, sourceUrl, method, confidence, { ...details, network: "instagram" });
+      if (page.twitterUrl)   recordEvidence("social", page.twitterUrl,   label, sourceUrl, method, confidence, { ...details, network: "twitter" });
+    } else {
+      add("social", page.instagramUrl, igHits, { network: "instagram" });
+      add("social", page.twitterUrl, twHits, { network: "twitter" });
+    }
   };
 
   // ── Phase 0: Perplexity Sonar — live web research ──────────────────────
@@ -1874,6 +1879,39 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         } catch { /* skip */ }
         await jitteredDelay(350);
       }
+    }
+  }
+
+  // ── Phase 4.5: Email pattern inference for Corp person candidates ──────────
+  // When persons are discovered AND a corporate domain is confirmed, generate
+  // [fi][last]@domain patterns as evidence candidates (review-only, never
+  // promoted to the entity's primary email). This is the main gap vs Gemini:
+  // aflamarion@tikehaucapital.com is the dominant pattern for FR finance firms.
+  if (isCorp && result.personsDiscovered.length > 0 && domainTargets.length > 0) {
+    const corpDomain = domainTargets[0]!;
+    const normEmail = (s: string) =>
+      s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z]/g, "");
+    for (const personName of [...new Set(result.personsDiscovered)].slice(0, 9)) {
+      const parts = personName.trim().split(/\s+/);
+      if (parts.length < 2) continue;
+      const fn = normEmail(parts[0]!);
+      // Compound last names (Laurent-Bellue → laurentbellue) — normEmail strips hyphens
+      const ln = normEmail(parts.slice(1).join(""));
+      const fi = fn.charAt(0);
+      if (!fi || ln.length < 2) continue;
+      const pats: Array<[string, string]> = [
+        [`${fi}${ln}@${corpDomain}`, "flast"],          // aflamarion  ← FR PE/finance norm
+        [`${fn}.${ln}@${corpDomain}`, "first.last"],    // antoine.flamarion
+        [`${fn}${ln}@${corpDomain}`, "firstlast"],      // antoineflamarion
+      ];
+      for (const [email, fmt] of pats) {
+        recordEvidence("email", email, `Pattern[${parts[0]}]`, null,
+          "email-pattern-inference", 45, {
+            scope: "person_candidate", personName,
+            relationship: "inferred-email-pattern", domain: corpDomain, pattern: fmt,
+          });
+      }
+      logger.debug({ entityId: entity.id, personName, corpDomain }, "Phase 4.5: inferred email patterns");
     }
   }
 

@@ -330,8 +330,9 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
             ...(result.email       ? { email: result.email }             : {}),
             ...(result.phone       ? { phone: result.phone }             : {}),
             ...(result.linkedinUrl ? { linkedinUrl: result.linkedinUrl } : {}),
-            ...((result as any).instagramUrl && !entity.instagramHandle ? { instagramHandle: (result as any).instagramUrl } : {}),
-            ...((result as any).twitterUrl   && !entity.twitterHandle   ? { twitterHandle:   (result as any).twitterUrl   } : {}),
+            // Corp/Trust: social handles from web scraping belong to persons, not the org
+            ...((result as any).instagramUrl && !entity.instagramHandle && !["Corporation","Corp","Trust"].includes(entity.type) ? { instagramHandle: (result as any).instagramUrl } : {}),
+            ...((result as any).twitterUrl   && !entity.twitterHandle   && !["Corporation","Corp","Trust"].includes(entity.type) ? { twitterHandle:   (result as any).twitterUrl   } : {}),
             contactConfidence: confidence,
             updatedAt: new Date(),
           })
