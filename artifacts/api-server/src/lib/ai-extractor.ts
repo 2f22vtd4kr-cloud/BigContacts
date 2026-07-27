@@ -416,11 +416,17 @@ export function buildPerplexityPrompt(
 
 ${isOrg ? `This is a company/business/institution. Execute this research in order:
 
-STEP 1 — EXECUTIVE TEAM (highest priority for contact purposes):
-Find the current CEO, Deputy CEO, Managing Director, and all C-suite/Executive Committee (COMEX/EXCO) members by full name.
-Then find department/fund heads: heads of investment, innovation, venture, equity, communications, regional/country heads.
-For each named person: their individual direct email (construct from verified pattern if not explicit), personal LinkedIn /in/ URL, Twitter/X, Instagram.
-Search: official website team/management/leadership pages, LinkedIn, press interviews, annual reports, official filings, conference speaker bios.
+STEP 1 — NAMED DECISION-MAKERS (highest priority for contact purposes):
+Find ALL named partners, principals, and executives. For venture capital / private equity / investment firms specifically:
+- Every General Partner (GP), Managing Partner, Founding Partner, Partner by full name
+- Every Principal, Director, Vice President, Associate Partner involved in deals
+- CEO, CFO, COO, and any C-suite if different from the partners
+- Every named team member on the official team/people/partners page
+
+For other companies: CEO, Deputy CEO, Managing Director, all C-suite/Executive Committee (COMEX/EXCO) members, department heads.
+
+For EVERY named person: their individual direct email (construct from verified domain pattern even if not explicit), personal LinkedIn /in/ URL, Twitter/X handle.
+Search: official website team/people/partners page, LinkedIn company page team section, Crunchbase, press interviews, conference speaker bios, news articles, PitchBook/AngelList for VC firms.
 
 STEP 2 — EMAIL PATTERN:
 Identify the organisation's verified email format (e.g. firstname.lastname@domain.fr or f.lastname@domain.com).

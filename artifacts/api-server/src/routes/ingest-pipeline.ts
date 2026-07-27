@@ -173,9 +173,13 @@ router.post("/ingest/deep-web-osint", async (req: Request, res: Response): Promi
         if (!hasSignal) { skipped++; continue; }
 
         const updates: Record<string, unknown> = { updatedAt: new Date() };
-        if (result.email       && !entity.email)           updates["email"]           = result.email;
-        if (result.phone       && !entity.phone)           updates["phone"]           = result.phone;
-        if (result.linkedinUrl && !entity.linkedinUrl)     updates["linkedinUrl"]     = result.linkedinUrl;
+        // On force re-run always overwrite so stale/garbage values from prior run are replaced.
+        if (result.email)       updates["email"]       = result.email;
+        else if (!entity.email) updates["email"]       = null;
+        if (result.phone)       updates["phone"]       = result.phone;
+        else if (force)         updates["phone"]       = null; // clear stale
+        if (result.linkedinUrl) updates["linkedinUrl"] = result.linkedinUrl;
+        else if (force)         updates["linkedinUrl"] = null; // clear stale
         // Corp/Trust: social handles from deep-web belong to persons, not the org
         const isCorpEntity = entity.type === "Corporation" || entity.type === "Corp" || entity.type === "Trust";
         if (result.instagramUrl && !entity.instagramHandle && !isCorpEntity) updates["instagramHandle"] = result.instagramUrl;

@@ -697,9 +697,10 @@ export function guessCompanyDomainWithCity(companyName: string, city: string | n
     }
   }
 
-  // Standard variants
+  // Standard variants — include .vc for venture capital firms
   candidates.push(`${base}.com`, `${hyphen}.com`, `${base}.co`, `${base}.io`,
-    `${base}.org`, `${base}.net`, `${base}.co.uk`, `${base}.fr`, `${base}.de`);
+    `${base}.vc`, `${hyphen}.vc`, `${base}.org`, `${base}.net`,
+    `${base}.co.uk`, `${base}.fr`, `${base}.de`);
 
   return [...new Set(candidates)].slice(0, 8);
 }
@@ -784,12 +785,18 @@ const PERSON_WORD_BLOCKLIST = new Set([
 /** Returns true when a string looks like a real human name (2–4 capitalised words,
  *  no job-title or company-type tokens). Used to filter owner-resolution pushes. */
 function looksLikePersonName(name: string): boolean {
+  // Reject immediately if string contains newlines, tabs, or non-printable chars
+  if (/[\n\r\t\x00-\x1f]/.test(name)) return false;
+  // Reject if it contains digits (addresses, phone numbers, codes)
+  if (/\d/.test(name)) return false;
   const words = name.trim().split(/\s+/);
   if (words.length < 2 || words.length > 4) return false;
-  // Every word must open with a true uppercase letter
-  if (!words.every(w => /^[A-ZÀ-ÖØ-Ü]/.test(w))) return false;
+  // Every word must open with a true uppercase letter and contain only letters/hyphens
+  if (!words.every(w => /^[A-ZÀ-ÖØ-Ü][a-zA-ZÀ-öø-ÿ\-']*$/.test(w))) return false;
   // Reject if any word is a known role or company-type indicator
   if (words.some(w => PERSON_WORD_BLOCKLIST.has(w))) return false;
+  // Reject if all words are ALL-CAPS (abbreviations, company codes)
+  if (words.every(w => w === w.toUpperCase() && w.length > 1)) return false;
   return true;
 }
 
@@ -1390,6 +1397,10 @@ export function buildDeepWebQueries(
 
     // LinkedIn company page — surfaces /company/<slug> URL via snippet
     queries.push(`"${tradingName}" linkedin`);
+
+    // VC / PE firms: explicitly search for partners and GPs by name
+    queries.push(`"${tradingName}" general partner managing partner team`);
+    queries.push(`"${tradingName}" partners founders site:crunchbase.com OR site:pitchbook.com OR site:linkedin.com`);
 
     // Domain guessing — add to direct scrape targets, not search queries
     const domains = guessCompanyDomainWithCity(legalName, city);
@@ -2174,8 +2185,26 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     result.sources.push(...(emailHits.get(bestEmail) ?? []));
   }
 
+  // Phone validation: reject garbage numbers (< 7 real digits, country code +0, placeholder patterns,
+  // and US-format local numbers for non-US/CA entities)
+  function isValidPhone(phone: string): boolean {
+    if (!phone) return false;
+    const digits = phone.replace(/\D/g, "");
+    if (digits.length < 7) return false;                  // too short to be real
+    if (/^\+?0[0-9]{1,3}-/.test(phone)) return false;    // starts with +0... (invalid country code)
+    if (/^[+\d]?0+[-\s]?0+/.test(phone)) return false;   // all-zeros pattern
+    if (/(\d)\1{5,}/.test(digits)) return false;          // 6+ repeated same digit (placeholder)
+    if (digits.length > 15) return false;                 // E.164 max is 15
+    // Reject US-format 10-digit NPA-NXX-XXXX (no +1 prefix) for non-US/CA entities
+    const nonNorthAmerican = country && !["US", "CA"].includes(country);
+    const looksUsLocal = /^\d{3}[-.\s]\d{3}[-.\s]\d{4}$/.test(phone.trim()) && digits.length === 10;
+    if (nonNorthAmerican && looksUsLocal) return false;
+    return true;
+  }
+
   let bestPhone = ""; let bestPhoneCount = 0;
   for (const [phone, srcs] of phoneHits.entries()) {
+    if (!isValidPhone(phone)) continue;
     if (srcs.length > bestPhoneCount) { bestPhone = phone; bestPhoneCount = srcs.length; }
   }
   if (bestPhone) {
@@ -2184,8 +2213,22 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     result.sources.push(...(phoneHits.get(bestPhone) ?? []));
   }
 
+  // LinkedIn validation: reject org pages whose slug has zero token overlap with the entity name
+  function linkedInSlugMatchesEntity(liUrl: string): boolean {
+    try {
+      const slug = new URL(liUrl).pathname.split("/").filter(Boolean).pop() ?? "";
+      const slugClean = slug.toLowerCase().replace(/[^a-z0-9]/g, "");
+      // Entity name tokens (4+ chars)
+      const nameTokens = entity.name.toLowerCase().split(/\s+/)
+        .map(w => w.replace(/[^a-z0-9]/g, "")).filter(w => w.length >= 4);
+      if (nameTokens.length === 0) return true; // can't validate, allow
+      return nameTokens.some(tok => slugClean.includes(tok) || tok.includes(slugClean.slice(0, 6)));
+    } catch { return true; }
+  }
+
   let bestLinkedIn = ""; let bestLinkedInCount = 0;
   for (const [li, srcs] of linkedinHits.entries()) {
+    if (!linkedInSlugMatchesEntity(li)) continue;
     if (srcs.length > bestLinkedInCount) { bestLinkedIn = li; bestLinkedInCount = srcs.length; }
   }
   if (bestLinkedIn) {
