@@ -759,6 +759,22 @@ const PERSON_WORD_BLOCKLIST = new Set([
   "Ventures", "Asset", "Assets", "Equity", "Private", "Investment",
   "Investments", "Corporation", "Consulting", "Solutions", "Services",
   "Technologies", "Industries", "Enterprises", "Associates",
+  // UI artifacts from scraped pages — buttons, nav items, form labels
+  "Submit", "Images", "Image", "Chat", "Search", "Login", "Register",
+  "Contact", "Menu", "Home", "Back", "Next", "More", "View", "Download",
+  "Upload", "Send", "Save", "Cancel", "Close", "Open", "Click",
+  // French UI / web navigation artifacts
+  "Recherche", "Rechercher", "Discuter", "Notre", "Connexion", "Accueil",
+  "Retour", "Suivant", "Télécharger", "Envoyer", "Annuler",
+  // German UI
+  "Suche", "Anmelden", "Weiter", "Zurück",
+  // Common city/geography words that appear in entity names
+  "Paris", "London", "Berlin", "Lyon", "Bordeaux", "Marseille",
+  // Qwant / search engine UI tokens
+  "Qwant", "Google", "Bing", "Yahoo", "DuckDuckGo",
+  // Generic org/state words that slip through as "person" names
+  "State", "Government", "Ministry", "Agency", "Authority", "Commission",
+  "Federation", "Republic", "Nation",
 ]);
 
 /** Returns true when a string looks like a real human name (2–4 capitalised words,
@@ -2121,8 +2137,31 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   }
 
   // ── Phase 8: Pick best-corroborated values ──────────────────────────────
+  // Build a set of "entity-owned" domain tokens from the name and guessed domains.
+  // Emails whose domain has no overlap with these tokens are third-party contacts
+  // (e.g. secretariat@ifswf.org found on a membership-listing page) and must
+  // stay as evidence-only candidates, never promoted to the entity's primary email.
+  const entityDomainTokens = new Set<string>();
+  const tradingLower = trading.toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (tradingLower.length >= 4) entityDomainTokens.add(tradingLower);
+  // Add first 6+ char word from entity name
+  for (const w of entity.name.toLowerCase().split(/\s+/)) {
+    if (w.length >= 5) entityDomainTokens.add(w.replace(/[^a-z0-9]/g, ""));
+  }
+  for (const d of domainTargets.slice(0, 3)) {
+    const base = d.replace(/^www\./, "").split(".")[0] ?? "";
+    if (base.length >= 4) entityDomainTokens.add(base.replace(/[^a-z0-9]/g, ""));
+  }
+
   let bestEmail = ""; let bestEmailCount = 0;
   for (const [email, srcs] of emailHits.entries()) {
+    // Reject emails from clearly unrelated domains (third-party sites scraped as citations)
+    const emailDomain = email.split("@")[1] ?? "";
+    const emailDomainBase = emailDomain.split(".")[0]?.replace(/[^a-z0-9]/g, "") ?? "";
+    const domainMatchesEntity = entityDomainTokens.size === 0
+      || [...entityDomainTokens].some(tok => emailDomainBase.includes(tok) || tok.includes(emailDomainBase));
+    if (!domainMatchesEntity) continue; // keep in evidence, skip promotion
+
     if (srcs.length > bestEmailCount) { bestEmail = email; bestEmailCount = srcs.length; }
   }
   if (bestEmail) {
