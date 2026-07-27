@@ -8,6 +8,17 @@
 
 ---
 
+## Current State (2026-07-27 [latest] — Re-import setup complete; Redis + API + web running; DB schema applied; 0 entities; all 4 artifacts registered; SESSION_SECRET present)
+
+### Post-import setup (2026-07-27, this import — Task #1)
+- `CI=true pnpm install` — all packages installed (~37s); all native bindings built (sharp, onnxruntime-node)
+- `pnpm --filter @workspace/db run push` — schema applied (`[✓] Changes applied`)
+- Redis, API Server (`artifacts/api-server: API Server`), apex-finder web (`artifacts/apex-finder: web`) workflows running
+- `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":2}}` ✅
+- `/api/dashboard/stats` → 200, all zeros (empty database) ✅
+- `ENABLE_AUTO_PIPELINE` not set → broad cold-start ingestion disabled
+- All 4 artifacts registered: API Server, ApexFinder Pro, ApexFinder Mobile, Canvas
+
 ## Current State (2026-07-27 — Re-import setup complete; SESSION_SECRET present; Redis + API + web running; DB schema applied; 0 entities; all 4 artifacts registered)
 
 ### Post-import setup (2026-07-27, this import)
