@@ -1,0 +1,83 @@
+Let's test on another target: Tikehau Capital: A fast-growing French entrepreneurial asset management group specializing in private debt, real estate, private equity, and capital markets
+Entity created (ID 1). Starting the enrichment pipeline — in-house sources first.
+The entity type "Corp" won't match the enricher's IN ('HNWI', 'Gatekeeper', 'Corporation')filter. Let me fix that first, then run the full pipeline.
+Now running the in-house enricher (7 free sources: Wikidata, Wikipedia, GitHub, domain/DNS, RDAP, ProPublica, Companies House).
+In-house done — 1 contactable. Now running web OSINT and checking current entity state in parallel.
+Web OSINT done. Checking results and firing the deep-web OSINT (Perplexity Sonar Pro) pass in parallel.
+Deep-web OSINT complete. Let me pull the final entity state and contact evidence together.
+Pipeline complete. Here's the full picture on Tikehau Capital:
+
+Scores
+Signal	Value
+Contact Confidence	88 / 100
+Access Score	0.87
+Contact Outcome	organization_contact
+Contact vectors found
+			
+			
+			
+			
+Person candidates (review-only)
+		
+		
+		
+Sources that fired: Wikipedia, EDGAR, EDGAR-Phone, Wayback, DDG-Instant, Perplexity Sonar, Groq llama-3.3-70b
+
+⚠️ Two likely false positives in social fields The Twitter handle (totaietema) and Instagram (societyislands) look like wrong entity hops — those are not Tikehau Capital accounts. The owner-resolution path picked up social links from person candidates and attached them to the corp entity. Worth a bug fix to gate social handles on a stricter identity match threshold for Corporation-type entities before writing them to the entity row.
+Compare to Google/Gemini:
+Here's the direct comparison:
+
+Apex vs. Google/Gemini — Tikehau Capital
+✅ What we got right
+		
+		
+		
+		
+❌ Where Gemini beats us badly
+1. Executive list with inferred direct emails — we got none
+Gemini produced 9 named executives + inferred addresses following the [initial][lastname]@tikehaucapital.compattern:
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+Our pipeline found Flamarion and Chabran as ownership candidates only — no emails derived for either.
+2. Wrong phone number
+* Our output: +33 1 41 35 04 48 (pulled from EDGAR — likely an old SEC filing)
+* Gemini: +33 1 40 06 26 26 (current Paris deal-desk switchboard)
+3. Physical address missed — Gemini has 32 Rue de Monceau, 75008 Paris. We got nothing.
+4. Email pattern not detected — Gemini correctly identified the uniform [first_initial][lastname]@tikehaucapital.comschema and noted hyphen-removal for compound names (Laurent-Bellue → mlaurentbellue). Our pipeline never attempted to infer this pattern from the domain.
+5. Strategic routing intelligence — Gemini mapped which executive owns which asset cluster (private debt vs capital markets vs PE), so outreach can skip the founders and go directly to the relevant unit head. We have no equivalent concept.
+
+⚠️ False positives we produced
+* Twitter: totaietema — clearly wrong
+* Instagram: societyislands — clearly wrong
+* Gemini had none
+
+Honest assessment
+Gemini's output is significantly more actionable for the stated purpose. The key structural gaps in our pipeline:
+1. No email pattern inference — we never attempt to derive [initial][lastname]@domain from a confirmed domain. This is a rule that covers most European firms and is low-cost to implement.
+2. No executive roster scraping — our findContactPages prioritises /team, /partners, /people for Corp entities, but the named-person extraction apparently failed to go from names → inferred emails on this target.
+3. EDGAR phone data is stale — we should cross-validate the phone against the company's own website rather than trusting EDGAR as ground truth.
+4. Social handle false positives — owner-resolution is writing person-level social candidates directly onto the Corp entity row without a strict identity gate.
+Want me to tackle any of these gaps?
+Fix it all, pathetic
+Let me read all the relevant files in parallel before touching anything.
+Now I have enough to understand all four bugs. Let me read the remaining pieces I need — the deep-web write path and phone confidence — then fix everything at once.
+Now I have the full picture. Let me read the deep-web-osint setup and the in-house-enricher's setPhone to understand the final pieces before writing all fixes.
+I have everything I need. Now writing all fixes in parallel across the five affected files.
+Now I have full context. Executing all fixes across 5 files in parallel batches.
+Round 1 — independent changes across different files:
+Round 2 — collectScrapedPage Corp gating, ContactPage-Phone confidence bump, evidence init in deep-web result:
+Round 3 — Phase 4.5 email pattern inference in web-enricher, isCorp in deep-web-osint, scrapeContactPage address extraction (all independent):
+Round 4 — fix scrapeContactPage return statements + add address extraction, deep-web Phase 0 ig/tw gating:
+Round 5 — wire address into enrichInHouse caller, gate deep-web Phase 3 scraping ig/tw:
+Round 6 — deep-web Phase 3.5 AI owner ig/tw gating + Phase 3.9 email pattern inference:
+Now adding Phase 3.9 (email pattern inference) to deep-web-osint, then rebuilding:
+All edits done. Rebuilding now:
+Build clean in 791ms. Now re-running the full pipeline on a fresh Tikehau entity to validate all fixes:
