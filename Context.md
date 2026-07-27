@@ -8,7 +8,7 @@
 
 ---
 
-## Current State (2026-07-27 — All secrets set; Redis + API + web running; DB empty; all 4 artifacts registered; Upstash slots 2–5 healthy; slot 1 quota-exhausted non-fatal)
+## Current State (2026-07-27 — Ardian test run complete; 1 entity enriched; PERSON_WORD_BLOCKLIST patched; all workflows running; slots 2–5 healthy)
 
 ### Post-import setup (2026-07-27, this import — Task #1)
 - `CI=true pnpm install` — all packages installed (~37s); all native bindings built (sharp, onnxruntime-node)

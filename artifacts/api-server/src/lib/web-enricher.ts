@@ -802,6 +802,21 @@ const PERSON_WORD_BLOCKLIST = new Set([
   "North", "South", "East", "West", "Central",
   "America", "Europe", "Asia", "Africa", "Pacific", "Atlantic", "Americas",
   "Latin", "Middle", "Nordic", "Nordics",
+  // Country names — "Ardian France", "Target Germany" etc. must not pass as person names
+  "France", "Germany", "Italy", "Spain", "Netherlands", "Belgium", "Switzerland",
+  "Austria", "Sweden", "Norway", "Denmark", "Finland", "Portugal", "Poland",
+  "Ireland", "Luxembourg", "Singapore", "Emirates", "Kingdom", "Japan", "China",
+  "Korea", "Australia", "Canada", "Mexico", "Brazil", "India", "Russia",
+  "Turkey", "Greece", "Romania", "Hungary", "Croatia", "Ukraine", "Israel",
+  "Egypt", "Morocco", "Nigeria", "Kenya", "Ghana", "Tanzania",
+  // French/Spanish/Italian/German job-title words that slip through as surnames
+  "Directeur", "Directrice", "Général", "Générale", "Président", "Présidente",
+  "Gérant", "Gérants", "Gérance", "Associé", "Associée", "Associés",
+  "Fondateur", "Fondatrice", "Dirigeant", "Dirigeante", "Responsable",
+  "Directora", "Director", "Presidente", "Socio", "Gerente", "Fundador",
+  "Geschäftsführer", "Vorstand", "Vorsitzender", "Inhaber",
+  "Managing", "Senior", "General", "Principal", "Chief", "Head",
+  "Partner", "Partners",  // already blocked via company-type but add here for person filter
 ]);
 
 /** Returns true when a string looks like a real human name (2–4 capitalised words,
