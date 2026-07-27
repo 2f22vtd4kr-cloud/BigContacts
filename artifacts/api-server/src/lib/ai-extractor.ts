@@ -429,8 +429,9 @@ Find ALL named partners, principals, and executives. For venture capital / priva
 - Every Principal, Director, Vice President, Associate Partner involved in deals
 - CEO, CFO, COO, and any C-suite if different from the partners
 - Every named team member on the official team/people/partners page
+- CRITICAL for PE/infrastructure/real assets firms: all strategy/sector heads — Head of Buyout, Head of Infrastructure, Head of Fund-of-Funds, Head of Secondaries, Head of Private Debt, Head of Real Estate, Head of Growth, Head of Credit, Head of each regional office (Head of US, Head of Germany, Head of Asia, etc.). These are Managing Directors or Senior MDs, one level below the firm-wide partners, and are the PRIMARY deal decision-makers for their asset class.
 
-For other companies: CEO, Deputy CEO, Managing Director, all C-suite/Executive Committee (COMEX/EXCO) members, department heads.
+For other companies: CEO, Deputy CEO, Managing Director, all C-suite/Executive Committee (COMEX/EXCO) members, all named department/division heads.
 
 For EVERY named person: their individual direct email (construct from verified domain pattern even if not explicit), personal LinkedIn /in/ URL, Twitter/X handle.
 Search: official website team/people/partners page, LinkedIn company page team section, Crunchbase, press interviews, conference speaker bios, news articles, PitchBook/AngelList for VC firms.
@@ -473,12 +474,69 @@ Return ONLY this JSON — no preamble, no explanation, no markdown:
 }
 
 Hard requirements:
-- Return up to 8 named HUMAN individuals — executives first, then owners.
+- Return up to 12 named HUMAN individuals — sector/strategy heads and executives first, then owners.
 - Named executives with director_officer role are MORE valuable than institutional shareholders for contact purposes. Always include them even when the beneficial owner is a state body or holding company.
 - Construct direct individual emails from the verified pattern for every named executive.
 - ownershipSummary MUST state the verified email pattern if found.
 - sourceUrls and sources: only real URLs from your search.
 - Return [] for ownerResolutions only if absolutely no named human is found anywhere.
+`;
+}
+
+/**
+ * Build a targeted sector/strategy head discovery prompt for PE/investment Corp entities.
+ * Fires as Phase 7.7 when the main Phase 0 pass returned fewer than 6 named people —
+ * asking specifically about the MD/sector-head layer rather than the top executive committee.
+ */
+export function buildSectorHeadPrompt(
+  entityName: string,
+  country: string | null,
+  context: { city?: string | null } = {},
+): string {
+  const locationCtx = [context.city, country].filter(Boolean).join(", ");
+  const scope = locationCtx
+    ? `\nSCOPE LOCK: Research ONLY the ${locationCtx}-based firm named "${entityName}". Ignore any unrelated entity with the same name.`
+    : "";
+  return `You are researching the investment team structure at "${entityName}".${scope}
+
+Find the sector/strategy heads and senior managing directors who run specific asset class verticals or regional offices — these are one level below the firm-wide CEO/Co-CEO layer.
+
+Examples of roles to find: Head of Buyout, Head of Infrastructure, Head of Fund-of-Funds, Head of Secondaries, Head of Private Debt, Head of Real Estate, Head of Growth Equity, Head of Credit, Head of [Country/Region] Office (e.g. Head of Germany, Head of US, Head of Asia).
+
+For EACH person found:
+- Full name
+- Exact role title
+- Direct individual email (construct from the verified pattern e.g. firstname.lastname@${entityName.toLowerCase().replace(/\s+/g, "")}.com)
+- Personal LinkedIn /in/ URL
+
+Return ONLY this JSON — no preamble:
+{
+  "ownershipSummary": "email pattern confirmed or null",
+  "email": null,
+  "phone": null,
+  "linkedin": null,
+  "instagram": null,
+  "twitter": null,
+  "ownerResolutions": [
+    {
+      "name": "First Last",
+      "role": "director_officer",
+      "ownershipStatus": "not_established",
+      "basis": "Head of [Strategy] at ${entityName}",
+      "sourceUrls": ["source URL"],
+      "instagram": null,
+      "twitter": null,
+      "linkedin": "personal LinkedIn /in/ URL or null",
+      "email": "firstname.lastname@domain.com or null"
+    }
+  ],
+  "sources": ["URLs used"]
+}
+
+Hard requirements:
+- Return up to 8 sector/strategy heads.
+- Do NOT repeat names already in the executive committee (CEO/Co-CEO/Chairman/President).
+- Construct direct emails from verified pattern for every named person.
 `;
 }
 
