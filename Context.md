@@ -8,7 +8,7 @@
 
 ---
 
-## Current State (2026-07-27 [latest] — Import #2 setup complete; Redis + API + web running; DB schema applied; 0 entities; SESSION_SECRET present; ENABLE_AUTO_PIPELINE not set)
+## Current State (2026-07-27 — Import setup complete; Redis + API + web running; DB schema applied; 0 entities; SESSION_SECRET present; all 4 artifacts registered; ENABLE_AUTO_PIPELINE not set)
 
 ### Post-import setup (2026-07-27, this import — Task #1)
 - `CI=true pnpm install` — all packages installed (~37s); all native bindings built (sharp, onnxruntime-node)
