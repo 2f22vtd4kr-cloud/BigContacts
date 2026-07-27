@@ -21,6 +21,8 @@
 - SESSION_SECRET ✅; all 14 secrets added: REDIS_URL_1–5, COMPANIES_HOUSE_API_KEY, GROQ_API_KEY/_2/_3, PERPLEXITY_API_KEY/_2/_3/_4, WHOXY_API_KEY
 - Upstash slots 2–5 healthy; slot 1 quota-exhausted (graceful fallback, non-fatal)
 - ENABLE_AUTO_PIPELINE not set → no ingestion running, no credits spent
+- **Phase 7.5/7.6 added to web-enricher.ts**: iterative Perplexity follow-up after AI extraction — discovered persons fed back into Perplexity (max 2 follow-ups), new citation URLs scraped; no longer a one-shot linear pipeline
+- **Profile Enrich button fixed**: now calls `/api/ingest/web-osint-enrich` (full Perplexity+DDG+scrape cycle) instead of `/api/ingest/in-house-enrich`
 
 ## Current State (2026-07-26 — Re-import setup complete; all 13 secrets restored; Redis + API + web running; DB schema applied; 0 entities)
 

@@ -2035,6 +2035,91 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     }
   }
 
+  // ── Phase 7.5: Iterative Perplexity follow-up on newly discovered persons ─
+  // Phase 0 queried the entity. By now (after DDG/scraping/AI) we know real
+  // person names (founders, owners, directors) that weren't in Phase 0.
+  // Fire targeted Perplexity sonar calls on those persons — this closes the
+  // Gemini gap: find a name → immediately ask Perplexity about that person
+  // in context of the entity → get personal contacts/social handles.
+  // Cap at 2 persons and 1 extra domain scrape to control credit spend.
+  {
+    const alreadyQueriedNames = new Set(
+      result.ownerResolutions.map(o => o.name.toLowerCase()),
+    );
+    const followUpPersons = result.personsDiscovered
+      .filter(n => looksLikePersonName(n) && !alreadyQueriedNames.has(n.toLowerCase()))
+      .slice(0, 2);
+
+    const alreadyScrapedUrls = new Set<string>([...urlsToScrape]);
+
+    for (const personName of followUpPersons) {
+      try {
+        logger.info({ entityId: entity.id, personName }, "Phase 7.5: follow-up Perplexity for discovered person");
+        const fuPerp = await researchWithPerplexity(personName, "HNWI", country, {
+          tradingName: entity.name,
+          city,
+        });
+        if (fuPerp.source === "perplexity-sonar") {
+          const label = `Perplexity[fu:${personName.split(" ")[0]}]`;
+          result.sources.push(label);
+          const pdDetails = { scope: "person_candidate" as const, personName, relationship: "personal-contact-followup" };
+          if (fuPerp.email) {
+            const arr = emailHits.get(fuPerp.email) ?? []; arr.push(label); emailHits.set(fuPerp.email, arr);
+            recordEvidence("email", fuPerp.email, label, null, "ai-perplexity-sonar-followup", 76, pdDetails);
+          }
+          if (fuPerp.phone) {
+            const arr = phoneHits.get(fuPerp.phone) ?? []; arr.push(label); phoneHits.set(fuPerp.phone, arr);
+            recordEvidence("phone", fuPerp.phone, label, null, "ai-perplexity-sonar-followup", 76, pdDetails);
+          }
+          if (fuPerp.linkedin) {
+            const arr = linkedinHits.get(fuPerp.linkedin) ?? []; arr.push(label); linkedinHits.set(fuPerp.linkedin, arr);
+            recordEvidence("social", fuPerp.linkedin, label, null, "ai-perplexity-sonar-followup", 72, { ...pdDetails, network: "linkedin" });
+          }
+          if (fuPerp.instagram) {
+            recordEvidence("social", fuPerp.instagram, label, null, "ai-perplexity-sonar-followup", 72, { ...pdDetails, network: "instagram" });
+          }
+          if (fuPerp.twitter) {
+            recordEvidence("social", fuPerp.twitter, label, null, "ai-perplexity-sonar-followup", 72, { ...pdDetails, network: "twitter" });
+          }
+          for (const owner of fuPerp.ownerResolutions) {
+            addOwnerResolution(owner, label, fuPerp.citations[0] ?? null);
+          }
+          // New citations → scrape queue + domain targets
+          for (const url of fuPerp.citations.slice(0, 3)) urlsToScrape.add(url);
+          for (const url of fuPerp.citations) {
+            try {
+              const hostname = new URL(url).hostname.replace(/^www\./, "");
+              if (!CITATION_SKIP_DOMAINS.has(hostname) && !domainTargets.includes(hostname)) {
+                domainTargets.push(hostname);
+              }
+            } catch { /* skip malformed */ }
+          }
+          allSearchText += " " + JSON.stringify({
+            personName, ownershipSummary: fuPerp.ownershipSummary,
+            ownerResolutions: fuPerp.ownerResolutions,
+          });
+          result.queriesFired++;
+        }
+      } catch (err: any) {
+        logger.warn({ err: err?.message, personName }, "Phase 7.5: follow-up Perplexity failed");
+      }
+      await jitteredDelay(500);
+    }
+
+    // ── Phase 7.6: Scrape new URLs surfaced by follow-up Perplexity ────────
+    const newScrapeUrls = [...urlsToScrape].filter(u => !alreadyScrapedUrls.has(u)).slice(0, 3);
+    for (const url of newScrapeUrls) {
+      try {
+        const scraped = await scrapePage(url);
+        result.pagesScraped++;
+        allSearchText += " " + scraped.text.slice(0, 2000);
+        const label = `FollowUp[${new URL(url).hostname.replace(/^www\./, "").substring(0, 20)}]`;
+        collectScrapedPage(scraped, label, url);
+      } catch { /* skip */ }
+      await jitteredDelay(500);
+    }
+  }
+
   // ── Phase 8: Pick best-corroborated values ──────────────────────────────
   let bestEmail = ""; let bestEmailCount = 0;
   for (const [email, srcs] of emailHits.entries()) {

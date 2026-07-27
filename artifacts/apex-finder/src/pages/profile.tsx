@@ -518,10 +518,9 @@ export default function ApexProfile() {
     setEnrichError(null);
     setEnrichDone(false);
     try {
-      const r = await fetch(`${baseUrl}/api/ingest/in-house-enrich`, {
+      const r = await fetch(`${baseUrl}/api/ingest/web-osint-enrich`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // entityId from URL params is a string — cast to number so inArray works correctly
         body: JSON.stringify({ entityIds: [Number(entityId)], batchSize: 1, force: true }),
       });
       const data = await r.json();
