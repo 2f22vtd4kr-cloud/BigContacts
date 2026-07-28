@@ -8,6 +8,23 @@
 
 ---
 
+## Current State (2026-07-28 — Tool installation enforced; Maigret wired into pipeline; flexible re-entry architecture implemented)
+
+### What was done this session (2026-07-28 — post-import hardening)
+1. **Python tools installed**: `bash scripts/install-python-tools.sh` → holehe ✓ maigret ✓
+2. **post-merge.sh updated**: added step 4/4 — `bash scripts/install-python-tools.sh` runs after every GitHub re-import automatically, permanently
+3. **startup.ts updated**: `verifyAndInstallPythonTools()` now runs on every API server boot, auto-installs missing tools before any research
+4. **Maigret + Holehe wired into web-osint-enrich pipeline**: After `deepWebOsintEnrich` finds a handle, Maigret scans 3,000+ platforms; if 3+ found with no email, web-OSINT re-runs with Maigret context. Holehe runs in parallel if email is known. Results saved to `contact_evidence` table.
+5. **Reactor updated**: Maigret node added to NODES, EDGES (sky-mai, web-mai, mai-groq, mai-bay), WAVES, MOBILE_PHASES, JOB_NODE_MAP
+6. **replit.md updated**: Rules 5 and 6 added permanently — tool verification mandate + flexible pipeline architecture rules
+7. **API build clean**: 1382ms, all edits compile cleanly
+
+### Next session
+- Trigger Atlas: western-hnwi ingestion → web-osint-enrich (now includes Maigret + Holehe automatically)
+- Monitor reactor to verify Maigret node lights up during web-osint-enrich job
+
+---
+
 ## Current State (2026-07-28 — Re-import #26 setup complete; all 24 secrets saved; all workflows running; DB empty; pipeline idle)
 
 ### Import setup (2026-07-28 — re-import #26)

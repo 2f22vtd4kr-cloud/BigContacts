@@ -716,10 +716,47 @@ async function triggerHttp(label: string, path: string, body?: Record<string, un
   }
 }
 
+/**
+ * Verify Python OSINT tools (Holehe, Maigret) are installed; auto-install if missing.
+ *
+ * MANDATORY — runs on every boot so tools survive GitHub re-imports.
+ * Apex Atlas must not run research without these tools in place.
+ */
+async function verifyAndInstallPythonTools(): Promise<void> {
+  const { execFile } = await import("child_process");
+  const { promisify } = await import("util");
+  const execFileAsync = promisify(execFile);
+
+  const check = async (module: string): Promise<boolean> => {
+    try { await execFileAsync("python3", ["-c", `import ${module}`], { timeout: 5_000 }); return true; }
+    catch { return false; }
+  };
+
+  const [holehe, maigret] = await Promise.all([check("holehe"), check("maigret")]);
+
+  if (!holehe || !maigret) {
+    logger.warn({ holehe, maigret }, "⚠️  Python OSINT tools missing — auto-installing (Holehe + Maigret)…");
+    try {
+      await execFileAsync("bash", ["scripts/install-python-tools.sh"], { timeout: 120_000, cwd: process.cwd() });
+      logger.info("✅ Python OSINT tools installed successfully");
+    } catch (err: any) {
+      logger.error({ err: err?.message }, "❌ Python OSINT tools installation FAILED — Maigret/Holehe unavailable this session");
+    }
+  } else {
+    logger.info("✅ Python OSINT tools verified: holehe ✓  maigret ✓");
+  }
+}
+
 /** Main cold-start entry point — call once after Upstash connects. */
 export async function coldStartRecovery(): Promise<void> {
   logger.info("Cold-start recovery: checking for ghost jobs…");
   await clearGhostJobs();
+
+  // Always verify/install Python OSINT tools — survives re-imports automatically.
+  // This runs regardless of ENABLE_AUTO_PIPELINE so tools are ready before research.
+  verifyAndInstallPythonTools().catch((err: any) =>
+    logger.warn({ err: err?.message }, "Python tool verification error (non-fatal)")
+  );
 
   // G1: Pre-warm the semantic embedding model and load Redis embedding cache in background.
   // Non-blocking — starts model download (~23 MB on first boot) and cache hydration.

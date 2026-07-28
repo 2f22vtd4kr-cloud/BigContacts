@@ -3,7 +3,7 @@ import {
   Plane, Building2, Globe, Search, Brain, Zap, Network,
   Target, Cpu, Radio, Activity, BarChart2, Shield,
   TrendingUp, Eye, RefreshCw, GitMerge, Layers, Crosshair, MapPin,
-  Sparkles, Compass, Rss,
+  Sparkles, Compass, Rss, Users,
 } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -42,6 +42,7 @@ const NODES: NodeDef[] = [
   { id:"webdisc", label:"WEB DISC.",       sub:"DuckDuckGo · Bing",          cx:530,  cy:298, w:168, h:60,  type:"discovery",Icon:Compass,    color:"#fb923c" },
   { id:"deepweb", label:"DEEP WEB",        sub:"Multi-source OSINT",         cx:900,  cy:298, w:168, h:60,  type:"discovery",Icon:Eye,        color:"#fb923c" },
   { id:"opensky", label:"LIVE FLIGHT",     sub:"OpenSky Network",            cx:1270, cy:298, w:148, h:60,  type:"discovery",Icon:Radio,      color:"#fb923c" },
+  { id:"maigret", label:"MAIGRET",         sub:"Holehe · 3,000+ Platforms",  cx:1460, cy:298, w:168, h:60,  type:"discovery",Icon:Users,      color:"#fb923c" },
   { id:"perp0",   label:"PERPLEXITY",      sub:"Phase 0 · Live Research",    cx:140,  cy:420, w:160, h:62,  type:"ai-cyan",  Icon:Zap,        color:"#22d3ee" },
   { id:"exa",     label:"EXA NEURAL",      sub:"Semantic People Search",     cx:345,  cy:420, w:148, h:62,  type:"ai-cyan",  Icon:Compass,    color:"#22d3ee" },
   { id:"tavily",  label:"TAVILY AI",       sub:"AI-native Web Search",       cx:545,  cy:420, w:148, h:62,  type:"ai-cyan",  Icon:Rss,        color:"#22d3ee" },
@@ -85,6 +86,10 @@ const EDGES: EdgeDef[] = [
   {id:"dw-gem",   from:"deepweb",to:"gemini" },
   {id:"dw-fu",    from:"deepweb",to:"perpfu" },
   {id:"sky-fu",   from:"opensky",to:"perpfu" },
+  {id:"sky-mai",  from:"opensky",to:"maigret"},
+  {id:"web-mai",  from:"webdisc",to:"maigret"},
+  {id:"mai-groq", from:"maigret",to:"groq"   },
+  {id:"mai-bay",  from:"maigret",to:"bayesian"},
   {id:"web-gem",  from:"webdisc",to:"gemini" },
   {id:"p0-groq",  from:"perp0",  to:"groq"   },
   {id:"exa-groq", from:"exa",    to:"groq"   },
@@ -112,7 +117,7 @@ const EDGES: EdgeDef[] = [
 const WAVES: Wave[] = [
   { nodes:["target"],                               edges:["t-faa","t-edgar","t-hmlr","t-ch","t-hnwi","t-occrp"],            label:"TARGETING  —  parsing entity query" },
   { nodes:["faa","edgar","hmlr","ch","hnwi","occrp"],edges:["faa-inh","edgar-web","hmlr-web","ch-inh","hnwi-dw","occrp-sky"],label:"REGISTRY STACK  —  scanning six public registries in parallel" },
-  { nodes:["inhouse","webdisc","deepweb","opensky"], edges:["inh-p0","web-p0","web-gem","web-groq","dw-groq","dw-fu","sky-fu"], label:"DISCOVERY LAYER  —  enriching from web sources" },
+  { nodes:["inhouse","webdisc","deepweb","opensky","maigret"], edges:["inh-p0","web-p0","web-gem","web-groq","dw-groq","dw-fu","sky-fu","sky-mai","web-mai"], label:"DISCOVERY LAYER  —  web sources + Maigret cross-platform expansion" },
   { nodes:["perp0","exa","tavily","gemini"],          edges:["p0-groq","exa-groq","tav-groq","p0-sem","gem-sem","gem-fu"],    label:"AI PHASE 0  —  Perplexity · Gemini · Tavily · Exa in parallel" },
   { nodes:["groq"],                                  edges:["groq-fu","groq-sem","groq-bay"],                                label:"GROQ LLM  —  structured extraction from Exa · Tavily · web text" },
   { nodes:["perpfu"],                                edges:["fu-bay"],                                                       label:"PERPLEXITY+  —  iterative follow-up" },
@@ -129,7 +134,7 @@ const WAVES: Wave[] = [
 const MOBILE_PHASES = [
   { label:"INPUT",      nodeIds:["target"]                              },
   { label:"REGISTRIES", nodeIds:["faa","edgar","hmlr","ch","hnwi","occrp"] },
-  { label:"DISCOVERY",  nodeIds:["inhouse","webdisc","deepweb","opensky"] },
+  { label:"DISCOVERY",  nodeIds:["inhouse","webdisc","deepweb","opensky","maigret"] },
   { label:"AI LAYER",   nodeIds:["perp0","exa","tavily","gemini","groq","perpfu"] },
   { label:"SYNTHESIS",  nodeIds:["semantic","bayesian"]                  },
   { label:"CORE",       nodeIds:["graph","mcts","prac"]                  },
@@ -142,7 +147,7 @@ const JOB_NODE_MAP: Record<string, string[]> = {
   "land-registry":        ["target","hmlr","webdisc"],
   "western-hnwi":         ["target","hnwi","inhouse"],
   "in-house-enrich":      ["inhouse","perp0","exa"],
-  "web-osint-enrich":     ["webdisc","perp0","exa","tavily","gemini","groq"],
+  "web-osint-enrich":     ["webdisc","perp0","exa","tavily","gemini","groq","maigret"],
   "deep-web-osint":       ["deepweb","gemini","perpfu"],
   "social-discovery":     ["webdisc","inhouse"],
   "occrp":                ["occrp"],

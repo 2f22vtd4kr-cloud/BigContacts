@@ -260,3 +260,17 @@ GET  /api/improve/logs                 improvement suggestions (filterable by pe
    - Schema changes → update "Database Schema"
 
 4. **Both files must be committed to the repo** as part of any task that changes project state. They are the permanent record of how this project runs.
+
+5. **Python OSINT tools MUST be installed and verified on every session start and after every re-import** (PERMANENT — survives repo re-imports):
+   - Run `bash scripts/install-python-tools.sh` immediately after `pnpm install` and `db push`.
+   - Verify output shows `holehe: ✓` and `maigret: ✓` before triggering any research.
+   - This is now also wired into `scripts/post-merge.sh` (step 4) and `startup.ts` (auto-installs on boot).
+   - **The app must not begin research if any tool is not ready.** If tools are missing, run the install script and wait for it to complete before proceeding.
+
+6. **The enrichment pipeline is flexible — not a strict linear sequence** (PERMANENT — survives re-imports):
+   - **Web-OSINT runs FIRST** (it is the primary AI layer: Perplexity, Gemini, Tavily, Exa, Groq in parallel).
+   - **In-house enrichment runs SECOND** to fill gaps from free sources (Wikidata, EDGAR, CH, DNS, RDAP).
+   - **Maigret runs THIRD** (auto-triggered inside web-osint-enrich job) whenever a social handle is discovered.
+   - **Web-OSINT re-runs** automatically if Maigret finds 3+ cross-platform profiles — Maigret output becomes extra context for the AI.
+   - **Holehe runs in parallel with Maigret** whenever an email is known.
+   - Any phase can be re-triggered at any point. Never treat the pipeline as one-way. New signals at any stage should feed back into earlier phases.

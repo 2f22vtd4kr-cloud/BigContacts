@@ -30,16 +30,23 @@
 
 set -e
 
-echo "=== [1/3] Installing dependencies ==="
+echo "=== [1/4] Installing dependencies ==="
 pnpm install --frozen-lockfile
 
-echo "=== [2/3] Applying DB schema (additive) ==="
+echo "=== [2/4] Applying DB schema (additive) ==="
 pnpm --filter @workspace/db run push
 
-echo "=== [3/3] Checking for synthetic data ==="
+echo "=== [3/4] Checking for synthetic data ==="
 bash scripts/check-no-synthetic-data.sh
+
+echo "=== [4/4] Installing Python OSINT tools (Holehe · Maigret) ==="
+# MANDATORY — Apex Atlas must not run research without these tools installed.
+# Holehe: email → 120+ platform presence check
+# Maigret: username → 3,000+ social platform dossier
+bash scripts/install-python-tools.sh
 
 echo ""
 echo "✅ Post-merge setup complete."
 echo "   Start workflows: Redis → API Server → apex-finder web"
+echo "   All Python OSINT tools (Holehe, Maigret) verified above."
 echo "   API server will auto-start ingestion if DB is empty."

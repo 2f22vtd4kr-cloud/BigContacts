@@ -30,6 +30,7 @@ import {
 import { runCompaniesHouseEnrichment } from "../lib/enrichment/structured-verification";
 import { deepWebOsintEnrich } from "../lib/enrichment/web-discovery";
 import { enrichInHouse } from "../lib/enrichment/contact-enrichment";
+import { runMaigret, runHolehe } from "../lib/python-tools";
 import { discoverSocialPresence } from "../lib/enrichment/social-discovery";
 import { discoverMessengerPresence } from "../lib/enrichment/messenger-discovery";
 import { discoverViaFoundationFilings } from "../lib/enrichment/foundation-filings";
@@ -275,6 +276,8 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
       bayesianScore:    entitiesTable.bayesianScore,
       instagramHandle:  entitiesTable.instagramHandle,
       twitterHandle:    entitiesTable.twitterHandle,
+      notes:            entitiesTable.notes,
+      email:            entitiesTable.email,
     })
     .from(entitiesTable)
     .where(conditions.length ? and(...conditions) : undefined)
@@ -343,6 +346,87 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
 
         enriched++;
         logger.info({ entityId: entity.id, name: entity.name, confidence, sources: result.sources, queriesFired: result.queriesFired, pagesScraped: result.pagesScraped }, "Web OSINT enriched");
+
+        // ── Phase 2: Maigret — cross-platform social dossier ───────────────────
+        // Extract the best handle found by web-OSINT or already on the entity.
+        // Flexible re-entry: Maigret runs AFTER web-OSINT within the same job,
+        // and if it finds 3+ platforms, web-OSINT fires again with the new context.
+        const rawHandle =
+          (result.twitterUrl  ?? "").replace(/^https?:\/\/(www\.)?(twitter\.com|x\.com)\//, "").replace(/\?.*$/, "") ||
+          (entity.twitterHandle   ?? "").replace(/^@/, "") ||
+          (result.instagramUrl ?? "").replace(/^https?:\/\/(www\.)?instagram\.com\//, "").replace(/\?.*$/, "") ||
+          (entity.instagramHandle ?? "").replace(/^@/, "");
+        const cleanHandle = rawHandle.replace(/[^a-zA-Z0-9._\-]/g, "").trim();
+        const emailForHolehe = result.email ?? entity.email ?? null;
+
+        if (cleanHandle || emailForHolehe) {
+          await updateJob(jobId, { progress: i, total: entities.length, inserted: enriched, skipped, errors,
+            message: `Maigret + Holehe: expanding ${entity.name}…` });
+
+          const [maigretResult, holeheResult] = await Promise.all([
+            cleanHandle    ? runMaigret(cleanHandle)       : Promise.resolve(null),
+            emailForHolehe ? runHolehe(emailForHolehe)     : Promise.resolve(null),
+          ]);
+
+          // Save Maigret cross-platform profiles as social evidence
+          if (maigretResult?.found.length) {
+            logger.info({ entityId: entity.id, handle: cleanHandle, found: maigretResult.found.length }, "[Maigret] cross-platform profiles found");
+            const maigretRows = maigretResult.found.slice(0, 15).map(p => ({
+              entityId: entity.id,
+              vectorType: "social" as const,
+              value: p.url ?? p.siteName,
+              source: "maigret",
+              sourceUrl: p.url ?? null,
+              extractionMethod: "maigret-username-search",
+              sourceReliability: 0.7,
+              identityMatch: 0.65,
+              recencyScore: 0.5,
+              directnessScore: 0.6,
+              independentCorroboration: 1,
+              validationStatus: "candidate" as const,
+              metadata: JSON.stringify({ siteName: p.siteName, tags: p.tags ?? [] }),
+            }));
+            await db.insert(contactEvidenceTable).values(maigretRows).onConflictDoNothing().catch(() => {});
+
+            // Web-OSINT re-run: Maigret found 3+ platforms but no email yet — give the AI extra context
+            if (maigretResult.found.length >= 3 && !result.email) {
+              const platformList = maigretResult.found.slice(0, 6).map(p => p.siteName).join(", ");
+              await updateJob(jobId, { progress: i, total: entities.length, inserted: enriched, skipped, errors,
+                message: `Web-OSINT re-run (${maigretResult.found.length} Maigret signals): ${entity.name}…` });
+              const result2 = await deepWebOsintEnrich({
+                ...entity,
+                notes: [`${entity.notes ?? ""}`, `Active on: ${platformList}`].filter(Boolean).join(" — ").trim(),
+              });
+              if (result2.email) {
+                await db.update(entitiesTable).set({ email: result2.email, updatedAt: new Date() }).where(eq(entitiesTable.id, entity.id));
+                logger.info({ entityId: entity.id, email: result2.email }, "[Web-OSINT re-run] found email after Maigret expansion");
+              }
+            }
+          }
+
+          // Save Holehe email-platform presence as social evidence
+          if (holeheResult?.found.length) {
+            logger.info({ entityId: entity.id, email: emailForHolehe, platforms: holeheResult.found.length }, "[Holehe] email platform presence confirmed");
+            const holeheRows = holeheResult.found.slice(0, 10).map(p => ({
+              entityId: entity.id,
+              vectorType: "social" as const,
+              value: p.url ?? p.name,
+              source: "holehe",
+              sourceUrl: p.url ?? null,
+              extractionMethod: "holehe-email-check",
+              sourceReliability: 0.8,
+              identityMatch: 0.8,
+              recencyScore: 0.5,
+              directnessScore: 0.7,
+              independentCorroboration: 1,
+              validationStatus: "candidate" as const,
+              metadata: JSON.stringify({ platform: p.name }),
+            }));
+            await db.insert(contactEvidenceTable).values(holeheRows).onConflictDoNothing().catch(() => {});
+          }
+        }
+        // ── End Maigret/Holehe ──────────────────────────────────────────────────
+
       } catch (err: any) {
         errors++;
         logger.warn({ entityId: entity.id, err: err.message }, "Web OSINT enrichment failed");
@@ -353,7 +437,7 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
       progress: entities.length, total: entities.length,
       inserted: enriched, skipped, errors,
       status: "done",
-      message: `Done — ${enriched} entities enriched, ${skipped} no-match, ${errors} errors.`,
+      message: `Done — ${enriched} enriched, ${skipped} no-match, ${errors} errors.`,
     });
     await setActiveJob("web-osint", "");
     logger.info({ enriched, skipped, errors }, "Web OSINT enrichment complete");
