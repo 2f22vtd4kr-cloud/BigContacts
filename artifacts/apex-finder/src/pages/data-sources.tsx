@@ -847,12 +847,17 @@ function PythonToolsPanel() {
   useEffect(() => { load(); }, []);
 
   const toolKeys = Object.keys(TOOL_META);
+  // "pip-installable" tools — the install script can actually fix these
+  const pipTools = ["holehe", "maigret"];
   const readyCount = status
     ? toolKeys.filter(k => status.tools[k]).length + (status.gliner.available ? 1 : 0)
     : 0;
   const totalCount = toolKeys.length + 1; // +1 for GLiNER
   const allReady = readyCount === totalCount;
-  const anyMissing = checked && !allReady;
+  // Only suggest the install script when a pip-installable tool is missing
+  const needsInstallScript = checked && status
+    ? pipTools.some(k => !status.tools[k])
+    : false;
 
   return (
     <section className="rounded-xl border border-border bg-card/60 p-4 space-y-4">
@@ -877,30 +882,33 @@ function PythonToolsPanel() {
       </div>
 
       {/* Health summary bar */}
-      <div className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 ${
+      <div className={`rounded-lg border px-3 py-2.5 space-y-1.5 ${
         !checked
           ? "border-border/40 bg-muted/10"
           : allReady
             ? "border-emerald-500/30 bg-emerald-500/5"
             : "border-amber-500/30 bg-amber-500/5"
       }`}>
-        <span className={`h-2.5 w-2.5 rounded-full flex-shrink-0 ${
-          !checked ? "bg-muted-foreground/30" : allReady ? "bg-emerald-500" : "bg-amber-400 animate-pulse"
-        }`} />
-        <div className="flex-1">
-          {!checked ? (
-            <span className="text-xs font-mono text-muted-foreground">Checking tool availability…</span>
-          ) : (
-            <span className={`text-xs font-semibold font-mono ${allReady ? "text-emerald-400" : "text-amber-400"}`}>
-              {readyCount}/{totalCount} tools ready
-              {allReady ? " — all systems operational" : ` — run install script to fix`}
-            </span>
-          )}
+        {/* Count row — always one line */}
+        <div className="flex items-center gap-2">
+          <span className={`h-2 w-2 rounded-full flex-shrink-0 ${
+            !checked ? "bg-muted-foreground/30" : allReady ? "bg-emerald-500" : "bg-amber-400 animate-pulse"
+          }`} />
+          <span className={`text-xs font-semibold font-mono ${
+            !checked ? "text-muted-foreground" : allReady ? "text-emerald-400" : "text-amber-400"
+          }`}>
+            {!checked ? "Checking…" : `${readyCount} / ${totalCount} tools ready`}
+            {allReady && " — all operational"}
+          </span>
         </div>
-        {anyMissing && (
-          <code className="text-[9px] font-mono text-muted-foreground bg-muted/60 px-2 py-0.5 rounded whitespace-nowrap select-all">
-            bash scripts/install-python-tools.sh
-          </code>
+        {/* Install hint — only when a pip-installable tool is actually missing */}
+        {needsInstallScript && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[10px] font-mono text-muted-foreground">Run:</span>
+            <code className="text-[10px] font-mono text-amber-300 bg-muted/60 px-2 py-0.5 rounded select-all">
+              bash scripts/install-python-tools.sh
+            </code>
+          </div>
         )}
       </div>
 
