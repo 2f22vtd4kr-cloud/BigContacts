@@ -15,7 +15,7 @@
 
 import { logger } from "./logger";
 import { isValidPublicEmail, sanitizePublicEmail } from "./contact-validation";
-import { extractWithAI, researchWithPerplexity, researchWithGemini, researchWithTavily, type OwnerResolution } from "./ai-extractor";
+import { extractWithAI, researchWithPerplexity, researchWithGemini, researchWithTavily, researchWithExa, type OwnerResolution } from "./ai-extractor";
 import { extractPersonNames } from "./gliner-client";
 
 // ── Shared utilities ──────────────────────────────────────────────────────────
@@ -1715,7 +1715,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   // complementary coverage. Perplexity excels at regional press; Gemini
   // excels at Google-indexed official pages and LinkedIn.
   try {
-    const [perp, gem, tav] = await Promise.all([
+    const [perp, gem, tav, exa] = await Promise.all([
       researchWithPerplexity(entity.name, entity.type, country, {
         tradingName: trading,
         city,
@@ -1725,6 +1725,10 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         city,
       }),
       researchWithTavily(entity.name, entity.type, country, {
+        tradingName: trading,
+        city,
+      }),
+      researchWithExa(entity.name, entity.type, country, {
         tradingName: trading,
         city,
       }),
@@ -1940,6 +1944,73 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     }
   } catch (err: any) {
     logger.warn({ err: err?.message }, "Phase 0.6: Tavily processing failed");
+  }
+
+  // ── Phase 0.7: Exa results (already fetched above in parallel) ──────────
+  // Exa uses neural/semantic retrieval — different ranking model from Perplexity,
+  // Gemini, and Tavily. Especially strong for people + company identity lookups.
+  try {
+    if (typeof exa !== "undefined" && exa.source === "exa-groq") {
+      const label = "Exa[groq]";
+      result.sources.push(label);
+      if (exa.email) {
+        const arr = emailHits.get(exa.email) ?? []; arr.push(label); emailHits.set(exa.email, arr);
+        recordEvidence("email", exa.email, label, null, "ai-exa-groq", 78);
+      }
+      if (exa.phone) {
+        const arr = phoneHits.get(exa.phone) ?? []; arr.push(label); phoneHits.set(exa.phone, arr);
+        recordEvidence("phone", exa.phone, label, null, "ai-exa-groq", 78);
+      }
+      if (exa.linkedin) {
+        const arr = linkedinHits.get(exa.linkedin) ?? []; arr.push(label); linkedinHits.set(exa.linkedin, arr);
+        recordEvidence("social", exa.linkedin, label, null, "ai-exa-groq", 73, { network: "linkedin" });
+      }
+      if (exa.instagram) {
+        const arr = igHits.get(exa.instagram) ?? []; arr.push(label); igHits.set(exa.instagram, arr);
+        recordEvidence("social", exa.instagram, label, null, "ai-exa-groq", 73, { network: "instagram" });
+      }
+      if (exa.twitter) {
+        const arr = twHits.get(exa.twitter) ?? []; arr.push(label); twHits.set(exa.twitter, arr);
+        recordEvidence("social", exa.twitter, label, null, "ai-exa-groq", 73, { network: "twitter" });
+      }
+      if (exa.ownershipSummary && !result.ownershipSummary) result.ownershipSummary = exa.ownershipSummary;
+      for (const owner of exa.ownerResolutions) {
+        addOwnerResolution(owner, label, exa.citations[0] ?? null);
+      }
+      for (const oc of exa.ownerContacts) {
+        if (!exa.ownerResolutions.some(o => o.name.toLowerCase() === oc.name.toLowerCase())) {
+          addOwnerResolution({
+            ...oc,
+            role: "associated_person",
+            ownershipStatus: "not_established",
+            basis: null,
+            sourceUrls: exa.citations.slice(0, 4),
+          }, label, exa.citations[0] ?? null);
+        }
+      }
+      for (const url of exa.citations.slice(0, 4)) urlsToScrape.add(url);
+      const exaDomains: string[] = [];
+      for (const url of exa.citations) {
+        try {
+          const hostname = new URL(url).hostname.replace(/^www\./, "");
+          if (!CITATION_SKIP_DOMAINS.has(hostname) && !exaDomains.includes(hostname)) {
+            exaDomains.push(hostname);
+          }
+        } catch { /* ignore malformed URLs */ }
+      }
+      if (exaDomains.length > 0) {
+        domainTargets.unshift(...exaDomains.slice(0, 3));
+        logger.info({ entityId: entity.id, exaDomains }, "Phase 0.7: injected Exa result domains into scrape targets");
+      }
+      allSearchText += " " + JSON.stringify({
+        ownershipSummary: exa.ownershipSummary,
+        ownerResolutions: exa.ownerResolutions,
+        owners: exa.owners,
+      });
+      result.queriesFired++;
+    }
+  } catch (err: any) {
+    logger.warn({ err: err?.message }, "Phase 0.7: Exa processing failed");
   }
 
   // ── Phase 1: DDG search (locale-aware) ─────────────────────────────────
@@ -2299,8 +2370,8 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
 
     for (const personName of followUpPersons) {
       try {
-        logger.info({ entityId: entity.id, personName }, "Phase 7.5: follow-up Perplexity+Gemini+Tavily for discovered person");
-        const [fuPerp, fuGem, fuTav] = await Promise.all([
+        logger.info({ entityId: entity.id, personName }, "Phase 7.5: follow-up Perplexity+Gemini+Tavily+Exa for discovered person");
+        const [fuPerp, fuGem, fuTav, fuExa] = await Promise.all([
           researchWithPerplexity(personName, "HNWI", country, {
             tradingName: entity.name,
             city,
@@ -2310,6 +2381,10 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
             city,
           }),
           researchWithTavily(personName, "HNWI", country, {
+            tradingName: entity.name,
+            city,
+          }),
+          researchWithExa(personName, "HNWI", country, {
             tradingName: entity.name,
             city,
           }),
@@ -2425,8 +2500,45 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
           allSearchText += " " + JSON.stringify({ personName, ownershipSummary: fuTav.ownershipSummary, ownerResolutions: fuTav.ownerResolutions });
           result.queriesFired++;
         }
+
+        // Process Exa follow-up
+        if (fuExa.source === "exa-groq") {
+          const label = `Exa[fu:${personName.split(" ")[0]}]`;
+          result.sources.push(label);
+          const pdDetails = { scope: "person_candidate" as const, personName, relationship: "personal-contact-followup" };
+          if (fuExa.email) {
+            const arr = emailHits.get(fuExa.email) ?? []; arr.push(label); emailHits.set(fuExa.email, arr);
+            recordEvidence("email", fuExa.email, label, null, "ai-exa-groq-followup", 74, pdDetails);
+          }
+          if (fuExa.phone) {
+            const arr = phoneHits.get(fuExa.phone) ?? []; arr.push(label); phoneHits.set(fuExa.phone, arr);
+            recordEvidence("phone", fuExa.phone, label, null, "ai-exa-groq-followup", 74, pdDetails);
+          }
+          if (fuExa.linkedin) {
+            const arr = linkedinHits.get(fuExa.linkedin) ?? []; arr.push(label); linkedinHits.set(fuExa.linkedin, arr);
+            recordEvidence("social", fuExa.linkedin, label, null, "ai-exa-groq-followup", 70, { ...pdDetails, network: "linkedin" });
+          }
+          if (fuExa.instagram) {
+            recordEvidence("social", fuExa.instagram, label, null, "ai-exa-groq-followup", 70, { ...pdDetails, network: "instagram" });
+          }
+          if (fuExa.twitter) {
+            recordEvidence("social", fuExa.twitter, label, null, "ai-exa-groq-followup", 70, { ...pdDetails, network: "twitter" });
+          }
+          for (const owner of fuExa.ownerResolutions) {
+            addOwnerResolution(owner, label, fuExa.citations[0] ?? null);
+          }
+          for (const url of fuExa.citations.slice(0, 3)) urlsToScrape.add(url);
+          for (const url of fuExa.citations) {
+            try {
+              const hostname = new URL(url).hostname.replace(/^www\./, "");
+              if (!CITATION_SKIP_DOMAINS.has(hostname) && !domainTargets.includes(hostname)) domainTargets.push(hostname);
+            } catch { /* skip malformed */ }
+          }
+          allSearchText += " " + JSON.stringify({ personName, ownershipSummary: fuExa.ownershipSummary, ownerResolutions: fuExa.ownerResolutions });
+          result.queriesFired++;
+        }
       } catch (err: any) {
-        logger.warn({ err: err?.message, personName }, "Phase 7.5: follow-up Perplexity/Gemini/Tavily failed");
+        logger.warn({ err: err?.message, personName }, "Phase 7.5: follow-up Perplexity/Gemini/Tavily/Exa failed");
       }
       await jitteredDelay(500);
     }

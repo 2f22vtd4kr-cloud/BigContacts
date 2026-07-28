@@ -8,6 +8,20 @@
 
 ---
 
+## Current State (2026-07-28 — Exa integrated; 2 keys saved; clean build; API healthy)
+
+### Exa integration (2026-07-28)
+- `researchWithExa()` added to `ai-extractor.ts` — Exa neural search (POST https://api.exa.ai/search) with `useAutoprompt: true`, `type: "neural"`, 7 results with text excerpts; fed into Groq for structured extraction
+- Key rotation: `EXA_API_KEY` through `EXA_API_KEY_8` (2 keys saved); independent exhaustion map
+- Source label: `"exa-groq"` (added to union type)
+- Wired into 3 places (all in `Promise.all` — zero added latency):
+  - `web-enricher.ts` Phase 0 → Phase 0.7 processing block (domain injection + scrape queue)
+  - `web-enricher.ts` Phase 7.5 → `fuExa` follow-up per discovered person (`Exa[fu:FirstName]`)
+  - `deep-web-osint.ts` Phase 0 → Exa processing block
+- Build: clean (1768ms, no errors) ✅
+
+---
+
 ## Current State (2026-07-28 — Tavily integrated; 4 keys saved; clean build; API healthy)
 
 ### Tavily integration (2026-07-28)

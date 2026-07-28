@@ -40,6 +40,9 @@ const GEMINI_MODEL = "gemini-2.0-flash"; // used only for log labels
 // Tavily — AI-native search API; returns clean excerpts fed into Groq for extraction
 const TAVILY_API = "https://api.tavily.com/search";
 
+// Exa — neural/semantic search API; excels at people + company lookups
+const EXA_API = "https://api.exa.ai/search";
+
 // Track which keys hit rate-limits. Map<key, expiresAtMs> — keys auto-recover after 5 min.
 const EXHAUSTED_TTL_MS = 5 * 60 * 1000;
 
@@ -57,6 +60,7 @@ const _exhaustedPerplexityKeys        = new Map<string, number>(); // for OpenRo
 const _exhaustedPerplexityDirectKeys  = new Map<string, number>(); // for direct Perplexity API only
 const _exhaustedGeminiKeys            = new Map<string, number>(); // for Gemini Flash grounded search
 const _exhaustedTavilyKeys            = new Map<string, number>(); // for Tavily search API
+const _exhaustedExaKeys               = new Map<string, number>(); // for Exa neural search API
 
 function getGroqKeys(): string[] {
   return ["GROQ_API_KEY", "GROQ_API_KEY_2", "GROQ_API_KEY_3"]
@@ -90,6 +94,13 @@ function getGeminiKeys(): string[] {
 function getTavilyKeys(): string[] {
   const names = ["TAVILY_API_KEY"];
   for (let i = 2; i <= 8; i++) names.push(`TAVILY_API_KEY_${i}`);
+  return names.map(k => process.env[k] ?? "").filter(k => k.length > 0);
+}
+
+/** Returns all Exa API keys (EXA_API_KEY, EXA_API_KEY_2 … _8). */
+function getExaKeys(): string[] {
+  const names = ["EXA_API_KEY"];
+  for (let i = 2; i <= 8; i++) names.push(`EXA_API_KEY_${i}`);
   return names.map(k => process.env[k] ?? "").filter(k => k.length > 0);
 }
 
@@ -131,7 +142,7 @@ export interface AIExtractResult {
   ownerResolutions: OwnerResolution[]; // role + ownership basis; never auto-merged
   ownershipSummary: string | null;
   ownershipSources: string[];
-  source:    "groq-llama-70b" | "groq-llama-8b" | "openrouter" | "perplexity-sonar" | "gemini-flash" | "tavily-groq" | "none";
+  source:    "groq-llama-70b" | "groq-llama-8b" | "openrouter" | "perplexity-sonar" | "gemini-flash" | "tavily-groq" | "exa-groq" | "none";
   citations: string[];            // URLs the model actually searched — use as evidence sources
 }
 
@@ -952,6 +963,121 @@ export async function researchWithTavily(
   }
 
   logger.warn({ entityName }, "Phase 0 [tavily]: no usable data — all keys failed");
+  return EMPTY;
+}
+
+/**
+ * Fire an Exa neural/semantic search then extract structured contacts via Groq.
+ * Exa's neural index excels at people + company lookups — different retrieval
+ * model from both Perplexity (sonar) and Tavily (BM25-hybrid).
+ * Returns clean per-source excerpts fed into Groq (llama-3.3-70b).
+ * Key rotation supports EXA_API_KEY through EXA_API_KEY_8.
+ * Returns source: "exa-groq" with Exa result URLs as citations.
+ */
+export async function researchWithExa(
+  entityName: string,
+  entityType: string,
+  country: string | null = null,
+  context: { tradingName?: string | null; city?: string | null } = {},
+): Promise<AIExtractResult> {
+  const keys = getExaKeys();
+  if (keys.length === 0) return EMPTY;
+
+  // Build a targeted OSINT search query — Exa's autoprompt will further refine it
+  const queryParts: string[] = [entityName];
+  if (context.tradingName && context.tradingName !== entityName) queryParts.push(context.tradingName);
+  if (context.city) queryParts.push(context.city);
+  if (country) queryParts.push(country);
+  queryParts.push("owner contact email");
+  const query = queryParts.join(" ");
+
+  logger.info({ entityName, entityType, country, query }, "Phase 0 [exa]: firing Exa neural search");
+
+  for (const key of keys) {
+    if (isExhausted(_exhaustedExaKeys, key)) continue;
+    try {
+      const resp = await fetch(EXA_API, {
+        method: "POST",
+        headers: {
+          "x-api-key": key,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          query,
+          numResults: 7,
+          useAutoprompt: true,
+          type: "neural",
+          contents: { text: { maxCharacters: 1000 } },
+        }),
+        signal: AbortSignal.timeout(30_000),
+      });
+
+      if (resp.status === 429) {
+        _exhaustedExaKeys.set(key, Date.now() + EXHAUSTED_TTL_MS);
+        logger.warn("Phase 0 [exa]: rate limit — key exhausted 5 min");
+        continue;
+      }
+      if (resp.status === 401 || resp.status === 403) {
+        logger.warn({ status: resp.status }, "Phase 0 [exa]: auth error — skipping key");
+        continue;
+      }
+      if (!resp.ok) {
+        const errText = await resp.text().catch(() => "");
+        logger.warn({ status: resp.status, err: errText.slice(0, 200) }, "Phase 0 [exa]: API error");
+        continue;
+      }
+
+      const data = await resp.json() as {
+        results?: { url: string; title: string; text?: string; score?: number }[];
+      };
+
+      const citations: string[] = (data.results ?? [])
+        .map(r => r.url)
+        .filter((u): u is string => typeof u === "string" && /^https?:\/\//i.test(u))
+        .slice(0, 8);
+
+      // Concatenate per-source excerpts — Exa returns page text, not a synthesised answer
+      const textParts: string[] = [];
+      for (const r of (data.results ?? []).slice(0, 7)) {
+        if (r.text) textParts.push(`[${r.title ?? r.url}]\n${r.text}`);
+      }
+      const text = textParts.join("\n\n");
+
+      if (text.length < 50) {
+        logger.warn({ entityName }, "Phase 0 [exa]: empty results");
+        continue;
+      }
+
+      logger.info(
+        { entityName, textLen: text.length, citations: citations.length },
+        "Phase 0 [exa]: results received — running Groq extraction",
+      );
+
+      const extracted = await extractWithAI(text, entityName, entityType, country);
+
+      logger.info(
+        {
+          entityName, hasEmail: !!extracted.email, hasPhone: !!extracted.phone,
+          owners: extracted.owners.length, citations: citations.length,
+        },
+        "Phase 0 [exa]: extraction complete",
+      );
+
+      return {
+        ...extracted,
+        source: "exa-groq",
+        citations,
+        ownershipSources: [...new Set([...extracted.ownershipSources, ...citations])].slice(0, 8),
+        ownerResolutions: extracted.ownerResolutions.map(o => ({
+          ...o, sourceUrls: o.sourceUrls.length > 0 ? o.sourceUrls : citations.slice(0, 4),
+        })),
+      };
+    } catch (err: any) {
+      logger.warn({ err: err?.message }, "Phase 0 [exa]: call threw");
+    }
+  }
+
+  logger.warn({ entityName }, "Phase 0 [exa]: no usable data — all keys failed");
   return EMPTY;
 }
 
