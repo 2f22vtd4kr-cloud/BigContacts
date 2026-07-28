@@ -17,6 +17,7 @@
 - `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":1}}` ✅
 - `/api/dashboard/stats` → 200; entities=18,100 assets=18,200 hotLeads=3,953 ✅
 - `ENABLE_AUTO_PIPELINE` not set → broad cold-start ingestion disabled; no new research run
+- All 15 secrets saved: `REDIS_URL_1`–`REDIS_URL_5`, `COMPANIES_HOUSE_API_KEY`, `GROQ_API_KEY`/`_2`/`_3`, `PERPLEXITY_API_KEY`/`_2`/`_3`/`_4`, `WHOXY_API_KEY`, `GEMINI_API_KEY` (new)
 
 ---
 

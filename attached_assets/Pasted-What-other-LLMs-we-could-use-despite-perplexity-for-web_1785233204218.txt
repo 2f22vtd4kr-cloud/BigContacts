@@ -1,0 +1,62 @@
+What other LLMs we could use despite perplexity for web search with free tier and no prepayment required?
+Good alternatives for web-search-augmented LLM queries, free tier, no prepayment:
+Drop-in Perplexity replacements (search + synthesis in one call):
+Service	Free Tier	Notes
+Gemini + Google Search Grounding	15 req/min, 1M req/day (Google AI Studio)	Best free option — Gemini 1.5 Flash/Pro with real-time Google Search built in via groundingWithGoogleSearch. No credit card to start.
+Cohere Command R+	Free trial credits, then pay	Has web connector, but requires CC after trial
+Search APIs to feed into Groq/your own LLM (often more cost-effective):
+		
+		
+		
+Service	Free Tier	Notes
+Tavily	1,000 req/month	Designed specifically for AI agents; returns clean excerpts ready for LLM synthesis. No CC.
+Exa	1,000 req/month	Neural/semantic search, great for people + company lookups. No CC.
+Best practical swap for your pipeline:
+For Apex Atlas's deep-web OSINT use case, Gemini Flash + Google Grounding is the strongest free option — it searches Google in real time and synthesises results like Perplexity does, with a much more generous free tier. Tavily is the cleanest search-only API if you want to keep Groq as the LLM brain.
+Want me to integrate either of those?
+Not perplexity-replacements, we want to keep perplexity, just add more power more tools.
+Got it — adding more search-capable tools on top of Perplexity. Best options with free tiers and no CC required:
+LLMs with native web search (like Perplexity):
+			
+			
+			
+Search APIs that feed into Groq (which you already have ×3):
+			
+			
+			
+			
+Most practical additions for Apex Atlas specifically:
+The pipeline currently uses Perplexity for deep-web OSINT (finding people, emails, roles). The highest-leverage additions would be:
+1. Gemini Flash ×3–4 keys — parallel to Perplexity passes, searches Google (different index), free at scale
+2. Tavily ×2–3 keys — feeds Groq for targeted entity lookups (structured, fast, cheap)
+3. Exa ×2 keys — semantic people/company search as a dedicated phase
+Want me to request those keys and wire them into the pipeline?
+Okay, let's first add 1 Gemini key. Ask me for it as a secret
+Add secrets
+GEMINI_API_KEY
+Secret provided
+Workflows crashed — restarting them while I wire in the Gemini key.
+Let me read the Perplexity call patterns in both files to understand how to add Gemini alongside them.
+Let me find where Perplexity calls are actually constructed to understand the exact pattern.
+Good, all workflows back up. Let me read the ai-extractor to understand the pattern before adding Gemini.
+Now I have the full picture. I'll add researchWithGemini() to ai-extractor.tsalongside Perplexity, then wire it in. Let me first check where researchWithPerplexity is called so I know all the integration points.
+Let me read the three call sites to understand the merge pattern before implementing.
+Let me read the end of the Phase 0 block in web-enricher.ts to see where it closes.
+Good, all workflows running. Now I'll implement all the changes in parallel — add researchWithGemini to the extractor, then wire it into both pipeline files.
+Now update the source union type, add researchWithGemini, and wire it into both pipeline files — all in parallel.
+Now I'll add researchWithGemini() to ai-extractor.ts and simultaneously wire it into both pipeline files.
+Now wire researchWithGemini into both pipeline files in parallel.
+Now update Phase 0 in both pipeline files to run Perplexity + Gemini in parallel, and add Gemini result processing.
+Now I need to add Gemini processing blocks in all three locations. Let me do all remaining edits in parallel.
+Continuing — need to update Phase 7.5 in web-enricher.ts and Phase 0 in deep-web-osint.ts, then build and verify.
+Now update deep-web-osint.ts Phase 0, then build.
+All edits done. Now let's build and verify it compiles cleanly.
+Clean build. Restarting the API server to load the new Gemini integration.
+All good — server healthy, all 5 Upstash slots connected (slot 1 quota-exhausted as expected, non-fatal). Let me update Context.md.
+Done. Here's what was added:
+researchWithGemini() in ai-extractor.ts — Gemini 2.0 Flash with Google Search Grounding. Same JSON schema as Perplexity so results merge cleanly into the evidence store. Key rotation supports GEMINI_API_KEY through GEMINI_API_KEY_8 using the same exhaustion-map pattern as Perplexity.
+Wired into three places:
+* web-enricher.ts Phase 0 — Perplexity + Gemini fire in Promise.all(), then both results are processed. Gemini's grounding URLs get domain-injected into the scrape queue exactly like Perplexity citations.
+* web-enricher.ts Phase 7.5 — both fire in parallel for each newly-discovered person (follow-up contacts pass).
+* deep-web-osint.ts Phase 0 — same parallel pattern.
+Evidence labels in the UI will show Gemini[flash] and Gemini[fu:FirstName] so you can see when Gemini found something Perplexity missed (or vice versa). When you start research on any entity, both models will search simultaneously — no extra latency vs. Perplexity alone.
