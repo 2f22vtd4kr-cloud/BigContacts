@@ -8,6 +8,18 @@
 
 ---
 
+## Current State (2026-07-28 — Re-import setup complete; Redis + API + web running; DB schema applied; 18,100 entities; 18,200 assets)
+
+### Post-import setup (2026-07-28, this import — Task #1)
+- `CI=true pnpm install --frozen-lockfile` — all packages installed (~42s); all native bindings built
+- `pnpm --filter @workspace/db run push` — schema applied (`[✓] Changes applied`)
+- Redis, API Server (`artifacts/api-server: API Server`), apex-finder web (`artifacts/apex-finder: web`) workflows running
+- `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":1}}` ✅
+- `/api/dashboard/stats` → 200; entities=18,100 assets=18,200 hotLeads=3,953 ✅
+- `ENABLE_AUTO_PIPELINE` not set → broad cold-start ingestion disabled; no new research run
+
+---
+
 ## Current State (2026-07-28 — Python tools installed; Phase L tool health panel redesigned; 2/4 tools ready)
 
 ### Python OSINT tools (2026-07-28)
