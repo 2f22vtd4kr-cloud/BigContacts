@@ -29,6 +29,16 @@ interface RunResult {
   exitCode: number;
 }
 
+// Replit installs Python packages into .pythonlibs alongside the workspace.
+// Node's PATH inherits the module system's python3 which already has site-packages.
+function buildPythonEnv(extra?: Record<string, string>): Record<string, string> {
+  return {
+    ...process.env,
+    ...extra,
+    PYTHONUNBUFFERED: "1",
+  };
+}
+
 function runSubprocess(
   cmd: string,
   args: string[],
@@ -37,7 +47,7 @@ function runSubprocess(
 ): Promise<RunResult> {
   return new Promise((resolve) => {
     const proc = spawn(cmd, args, {
-      env: { ...process.env, ...env, PYTHONUNBUFFERED: "1" },
+      env: buildPythonEnv(env),
       stdio: ["ignore", "pipe", "pipe"],
     });
 

@@ -362,8 +362,8 @@ const SOURCES: SourceDef[] = [
     bg: "rgba(107,114,128,0.1)",
     phase: 11,
     homepage: "https://github.com/laramies/theHarvester",
-    comingSoon: true,
-    note: "Installation dependency conflict on current platform. Will be re-attempted via virtual environment.",
+    endpoint: "/api/enrich/theharvester",
+    note: "Requires Python ≥3.12. Install status shown in the Phase L tool health panel above.",
   },
   {
     id: "gliner-ner",
@@ -756,99 +756,222 @@ type PythonToolsStatus = {
   installCommand: string;
 };
 
+type ToolMeta = {
+  label: string;
+  desc: string;
+  usage: "auto" | "on-demand";
+  usageNote: string;
+  endpoint: string;
+  input: string;
+};
+
+const TOOL_META: Record<string, ToolMeta> = {
+  holehe: {
+    label: "Holehe",
+    desc: "Checks a known email address against 200+ online platforms to reveal linked social accounts and registrations.",
+    usage: "on-demand",
+    usageNote: "Run after a verified email is found",
+    endpoint: "/api/enrich/holehe?entityId=<id>",
+    input: "Email address",
+  },
+  maigret: {
+    label: "Maigret",
+    desc: "Takes a username and searches 3,000+ sites for matching profiles — exposes social footprint across platforms.",
+    usage: "on-demand",
+    usageNote: "Run after a username or handle is found",
+    endpoint: "/api/enrich/maigret?entityId=<id>",
+    input: "Username / handle",
+  },
+  theHarvester: {
+    label: "theHarvester",
+    desc: "Queries Google, Bing, LinkedIn, DNS, and cert logs for emails and subdomains belonging to a domain. Requires Python ≥3.12 — not available on current runtime (3.11).",
+    usage: "on-demand",
+    usageNote: "Unavailable — upgrade to Python 3.12 to enable",
+    endpoint: "/api/enrich/theharvester?entityId=<id>",
+    input: "Domain name",
+  },
+};
+
+const GLINER_META = {
+  label: "GLiNER NER",
+  desc: "Zero-shot name extraction model (urchade/gliner-multi-v2.1) running as a local microservice. Replaces regex in the web enricher — more accurate for non-English names and novel entity types.",
+  usage: "auto" as const,
+  usageNote: "Auto-used in Phases 4 & 1.5 of the enrichment pipeline",
+  startCommand: "python3 scripts/gliner_service.py",
+  fallback: "Falls back to regex NER when offline — no crash",
+};
+
+function ToolStatusBadge({ ready, label }: { ready: boolean; label?: string }) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold ${
+        ready
+          ? "bg-emerald-500/15 text-emerald-400"
+          : "bg-rose-500/15 text-rose-400"
+      }`}
+    >
+      <span className={`h-1.5 w-1.5 rounded-full ${ready ? "bg-emerald-400" : "bg-rose-400"}`} />
+      {label ?? (ready ? "Ready" : "Not installed")}
+    </span>
+  );
+}
+
+function UsageBadge({ usage }: { usage: "auto" | "on-demand" }) {
+  return (
+    <span
+      className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-mono uppercase tracking-wider ${
+        usage === "auto"
+          ? "bg-blue-500/10 text-blue-400"
+          : "bg-muted/60 text-muted-foreground"
+      }`}
+    >
+      {usage === "auto" ? "Auto" : "On-demand"}
+    </span>
+  );
+}
+
 function PythonToolsPanel() {
   const [status, setStatus] = useState<PythonToolsStatus | null>(null);
   const [loading, setLoading] = useState(false);
+  const [checked, setChecked] = useState(false);
 
   const load = () => {
     setLoading(true);
     const base = import.meta.env.BASE_URL.replace(/\/$/, "");
     fetch(`${base}/api/enrich/python-tools`)
       .then(r => r.json())
-      .then(d => { setStatus(d as PythonToolsStatus); setLoading(false); })
-      .catch(() => setLoading(false));
+      .then(d => { setStatus(d as PythonToolsStatus); setLoading(false); setChecked(true); })
+      .catch(() => { setLoading(false); setChecked(true); });
   };
 
   useEffect(() => { load(); }, []);
 
-  const TOOL_META: Record<string, { label: string; desc: string }> = {
-    holehe:       { label: "Holehe",       desc: "Email → 200+ service accounts" },
-    maigret:      { label: "Maigret",      desc: "Username → 3,000+ social profiles" },
-    theHarvester: { label: "theHarvester", desc: "Domain → emails, hostnames, Shodan" },
-  };
+  const toolKeys = Object.keys(TOOL_META);
+  const readyCount = status
+    ? toolKeys.filter(k => status.tools[k]).length + (status.gliner.available ? 1 : 0)
+    : 0;
+  const totalCount = toolKeys.length + 1; // +1 for GLiNER
+  const allReady = readyCount === totalCount;
+  const anyMissing = checked && !allReady;
 
   return (
-    <section className="rounded-xl border border-border bg-card/60 p-4 space-y-3">
+    <section className="rounded-xl border border-border bg-card/60 p-4 space-y-4">
+
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Terminal className="h-4 w-4 text-violet-400" />
           <span className="text-sm font-semibold font-mono uppercase tracking-widest text-violet-400">
-            Phase L — Python OSINT Tools
+            Python OSINT Tools
           </span>
-          <span className="text-[9px] font-mono bg-violet-500/10 text-violet-400 px-1.5 py-0.5 rounded uppercase tracking-wider">L</span>
+          <span className="text-[9px] font-mono bg-violet-500/10 text-violet-400 px-1.5 py-0.5 rounded uppercase tracking-wider">Phase L</span>
         </div>
         <button
           onClick={load}
           disabled={loading}
-          className="h-6 w-6 flex items-center justify-center rounded hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+          title="Re-check tool availability"
+          className="h-7 w-7 flex items-center justify-center rounded hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
         >
           <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
         </button>
       </div>
 
-      {/* GLiNER service status */}
-      <div className="rounded-lg border border-border/50 bg-muted/10 p-3 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <Cpu className="h-4 w-4 text-violet-300" />
-          <div>
-            <div className="text-xs font-semibold text-foreground">GLiNER NER Microservice</div>
-            <div className="text-[10px] font-mono text-muted-foreground">
-              urchade/gliner-multi-v2.1 · port {status?.gliner.port ?? 7890}
+      {/* Health summary bar */}
+      <div className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 ${
+        !checked
+          ? "border-border/40 bg-muted/10"
+          : allReady
+            ? "border-emerald-500/30 bg-emerald-500/5"
+            : "border-amber-500/30 bg-amber-500/5"
+      }`}>
+        <span className={`h-2.5 w-2.5 rounded-full flex-shrink-0 ${
+          !checked ? "bg-muted-foreground/30" : allReady ? "bg-emerald-500" : "bg-amber-400 animate-pulse"
+        }`} />
+        <div className="flex-1">
+          {!checked ? (
+            <span className="text-xs font-mono text-muted-foreground">Checking tool availability…</span>
+          ) : (
+            <span className={`text-xs font-semibold font-mono ${allReady ? "text-emerald-400" : "text-amber-400"}`}>
+              {readyCount}/{totalCount} tools ready
+              {allReady ? " — all systems operational" : ` — run install script to fix`}
+            </span>
+          )}
+        </div>
+        {anyMissing && (
+          <code className="text-[9px] font-mono text-muted-foreground bg-muted/60 px-2 py-0.5 rounded whitespace-nowrap select-all">
+            bash scripts/install-python-tools.sh
+          </code>
+        )}
+      </div>
+
+      {/* Tool rows */}
+      <div className="space-y-2">
+
+        {/* GLiNER — microservice */}
+        <div className="rounded-lg border border-border/40 bg-muted/5 p-3">
+          <div className="flex items-start gap-3">
+            <Cpu className="h-4 w-4 text-violet-300 mt-0.5 flex-shrink-0" />
+            <div className="flex-1 min-w-0 space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-semibold text-foreground">{GLINER_META.label}</span>
+                <ToolStatusBadge
+                  ready={status?.gliner.available ?? false}
+                  label={!checked ? undefined : status?.gliner.available ? "Online" : "Offline"}
+                />
+                <UsageBadge usage={GLINER_META.usage} />
+              </div>
+              <p className="text-[10px] font-mono text-muted-foreground leading-relaxed">{GLINER_META.desc}</p>
+              <div className="flex flex-wrap items-center gap-3 pt-0.5">
+                <span className="text-[9px] font-mono text-blue-400/80">{GLINER_META.usageNote}</span>
+                <span className="text-[9px] font-mono text-muted-foreground/60">{GLINER_META.fallback}</span>
+              </div>
+              {checked && !status?.gliner.available && (
+                <div className="mt-1.5 flex items-center gap-1.5">
+                  <span className="text-[9px] font-mono text-muted-foreground">Start:</span>
+                  <code className="text-[9px] font-mono text-amber-400/90 bg-muted/60 px-1.5 py-0.5 rounded select-all">
+                    {GLINER_META.startCommand}
+                  </code>
+                </div>
+              )}
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className={`h-2 w-2 rounded-full ${status?.gliner.available ? "bg-emerald-500" : "bg-amber-500"}`} />
-          <span className={`text-[10px] font-mono ${status?.gliner.available ? "text-emerald-400" : "text-amber-400"}`}>
-            {status ? (status.gliner.available ? "Online" : "Offline") : "—"}
-          </span>
-        </div>
-      </div>
 
-      {!status?.gliner.available && (
-        <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2">
-          <p className="text-[10px] font-mono text-amber-400/80">
-            Start GLiNER service: <code className="bg-muted px-1 rounded">python3 scripts/gliner_service.py</code>
-            &nbsp;· Falls back to regex NER automatically.
-          </p>
-        </div>
-      )}
-
-      {/* CLI tool availability */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-        {status && Object.entries(TOOL_META).map(([key, meta]) => {
-          const available = status.tools[key] ?? false;
+        {/* CLI tools */}
+        {toolKeys.map(key => {
+          const meta = TOOL_META[key]!;
+          const ready = status?.tools[key] ?? false;
           return (
-            <div key={key} className="rounded-lg border border-border/40 bg-muted/5 p-2.5">
-              <div className="flex items-center justify-between mb-0.5">
-                <span className="text-[11px] font-semibold text-foreground">{meta.label}</span>
-                <span className={`h-1.5 w-1.5 rounded-full ${available ? "bg-emerald-500" : "bg-rose-500/60"}`} />
-              </div>
-              <div className="text-[9px] font-mono text-muted-foreground">{meta.desc}</div>
-              <div className={`text-[9px] font-mono mt-0.5 ${available ? "text-emerald-400" : "text-rose-400/70"}`}>
-                {available ? "installed" : "not available"}
+            <div key={key} className="rounded-lg border border-border/40 bg-muted/5 p-3">
+              <div className="flex items-start gap-3">
+                <Terminal className="h-4 w-4 text-muted-foreground/50 mt-0.5 flex-shrink-0" />
+                <div className="flex-1 min-w-0 space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-semibold text-foreground">{meta.label}</span>
+                    {checked && <ToolStatusBadge ready={ready} />}
+                    <UsageBadge usage={meta.usage} />
+                    <span className="text-[9px] font-mono text-muted-foreground/60">{meta.input}</span>
+                  </div>
+                  <p className="text-[10px] font-mono text-muted-foreground leading-relaxed">{meta.desc}</p>
+                  <div className="flex flex-wrap items-center gap-3 pt-0.5">
+                    <span className="text-[9px] font-mono text-muted-foreground/70">{meta.usageNote}</span>
+                    <code className="text-[9px] font-mono text-muted-foreground/50 bg-muted/40 px-1.5 py-0.5 rounded">
+                      {meta.endpoint}
+                    </code>
+                  </div>
+                </div>
               </div>
             </div>
           );
         })}
-        {!status && (
-          <div className="col-span-3 text-[10px] font-mono text-muted-foreground">Checking tool availability…</div>
-        )}
+
       </div>
 
-      <p className="text-[9px] font-mono text-muted-foreground/60">
-        All tools run server-side. Endpoints: /api/enrich/holehe · /api/enrich/maigret · /api/enrich/theharvester
-      </p>
+      {!checked && (
+        <p className="text-[9px] font-mono text-muted-foreground/50">
+          Availability check runs on load — click refresh to re-check after installing.
+        </p>
+      )}
     </section>
   );
 }

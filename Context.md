@@ -8,6 +8,24 @@
 
 ---
 
+## Current State (2026-07-28 — Python tools installed; Phase L tool health panel redesigned; 2/4 tools ready)
+
+### Python OSINT tools (2026-07-28)
+- Python 3.11 installed via Replit module system (.pythonlibs/)
+- holehe ✅ installed (email → 200+ platform accounts)
+- maigret ✅ installed (username → 3,000+ social profiles)
+- theHarvester ❌ requires Python ≥3.12; PyPI package is a 0.0.1 stub; real one (GitHub) won't install on 3.11
+- GLiNER ❌ offline by default — start manually: `python3 scripts/gliner_service.py`; falls back to regex NER automatically
+- API endpoint /api/enrich/python-tools returns: `{tools:{holehe:true,maigret:true,theHarvester:false},gliner:{available:false}}`
+- install script (scripts/install-python-tools.sh) updated: uses `python3 -m pip`, documents theHarvester Python version constraint
+- python-tools.ts fixed: buildPythonEnv() injects PYTHONUNBUFFERED; removed broken runSubprocessRaw reference
+
+### Phase L tool health panel redesign (2026-07-28)
+- PythonToolsPanel in data-sources.tsx rewritten: health summary bar (X/4 ready), per-tool rows with status badges (Ready/Not installed/Online/Offline), usage context (Auto vs On-demand), endpoint paths, and inline install instructions
+- theHarvester source card in SOURCES: comingSoon removed, note added explaining Python ≥3.12 requirement
+
+---
+
 ## Current State (2026-07-28 — Fresh import setup complete; all 14 secrets saved; Redis + API + web running; DB schema applied; 0 entities; no research run)
 
 ### Post-import setup (2026-07-28)
