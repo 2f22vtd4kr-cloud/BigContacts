@@ -14,7 +14,24 @@
  */
 
 import { logger } from "./logger";
-import { isValidPublicEmail, sanitizePublicEmail } from "./contact-validation";
+import { isValidPublicEmail, sanitizePublicEmail, isGenericEmailPrefix } from "./contact-validation";
+
+// ── Third-party financial data aggregators and news wires ─────────────────────
+// Emails scraped from these domains belong to their editorial/ops teams, not the
+// person being researched. Never promote them as a personal contact vector.
+const FINANCIAL_AGGREGATOR_DOMAINS = new Set([
+  "stocktitan.net", "seekingalpha.com", "benzinga.com", "thestreet.com",
+  "marketwatch.com", "wsj.com", "bloomberg.com", "reuters.com", "ft.com",
+  "businesswire.com", "prnewswire.com", "globenewswire.com", "accesswire.com",
+  "globeandmail.com", "fnlondon.com", "investopedia.com", "fool.com",
+  "cnbc.com", "forbes.com", "fortune.com", "barrons.com", "economist.com",
+  "nytimes.com", "guardian.com", "telegraph.co.uk", "independent.co.uk",
+  "finance.yahoo.com", "yahoo.com", "msn.com", "zacks.com", "nasdaq.com",
+  "nyse.com", "morningstar.com", "simply.wall.st", "simplywall.st",
+  "crunchbase.com", "pitchbook.com", "owler.com", "dnb.com",
+  "companieshouse.gov.uk", "sec.gov", "edgaronline.com", "macroaxis.com",
+  "wisesheets.io", "stockanalysis.com", "finviz.com",
+]);
 import { extractWithAI, researchWithPerplexity, researchWithGemini, researchWithTavily, researchWithExa, type OwnerResolution } from "./ai-extractor";
 import { extractPersonNames } from "./gliner-client";
 
@@ -2576,12 +2593,24 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
 
   let bestEmail = ""; let bestEmailCount = 0;
   for (const [email, srcs] of emailHits.entries()) {
-    // Reject emails from clearly unrelated domains (third-party sites scraped as citations)
     const emailDomain = email.split("@")[1] ?? "";
+    const emailLocal  = email.split("@")[0] ?? "";
     const emailDomainBase = emailDomain.split(".")[0]?.replace(/[^a-z0-9]/g, "") ?? "";
+
+    // Never promote generic shared inboxes (info@, contact@, sales@, etc.)
+    if (isGenericEmailPrefix(emailLocal)) continue;
+
+    // Never promote emails scraped from financial data aggregators / news wires
+    if (FINANCIAL_AGGREGATOR_DOMAINS.has(emailDomain)) continue;
+
+    // Domain match check:
+    //  • Known entity domain → email domain must overlap with entity name tokens
+    //  • Unknown entity domain → only promote if 2+ independent sources agree
+    //    (single-source unknown-domain emails are evidence leads, not contact data)
     const domainMatchesEntity = entityDomainTokens.size === 0
-      || [...entityDomainTokens].some(tok => emailDomainBase.includes(tok) || tok.includes(emailDomainBase));
-    if (!domainMatchesEntity) continue; // keep in evidence, skip promotion
+      ? srcs.length >= 2
+      : [...entityDomainTokens].some(tok => emailDomainBase.includes(tok) || tok.includes(emailDomainBase));
+    if (!domainMatchesEntity) continue;
 
     if (srcs.length > bestEmailCount) { bestEmail = email; bestEmailCount = srcs.length; }
   }

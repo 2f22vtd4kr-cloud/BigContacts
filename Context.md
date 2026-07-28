@@ -8,6 +8,22 @@
 
 ---
 
+## Current State (2026-07-28 — Session wrap-up; 200 entities; 32 contactable; quality fixes applied)
+
+### What was done this session (2026-07-28 — continued from attachment)
+1. **Email promotion bug fixed** (`web-enricher.ts`): `entityDomainTokens.size === 0` was passing ALL emails through domain check — company emails like `info@stocktitan.net` and `mike@sonomawestholdings.com` were being promoted as personal contacts. Fixed with three guards: (a) reject generic prefixes (`info@`, `contact@`, etc.), (b) reject financial aggregator/news domains, (c) when entity domain is unknown, require 2+ independent source corroboration before promotion.
+2. **Financial aggregator blocklist added** to `web-enricher.ts`, `deep-web-osint.ts`, and `in-house-enricher.ts`: stocktitan.net, seekingalpha.com, benzinga.com, crunchbase.com, pitchbook.com, 20+ others.
+3. **EDGAR name normalization fixed** (`western-hnwi-ingestion.ts`): Added `normalizeEdgarName()` — converts ALL_CAPS LAST FIRST format ("THIEL PETER" → "Peter Thiel", "KIM JAMES J" → "James J Kim"). Wired into SC 13D/G and DEF 14A yield sites. 48 existing ALL_CAPS names patched in DB via SQL UPDATE.
+4. **Atlas run**: western-hnwi ingestion running (200 entities inserted, EDGAR SC 13D/G in progress). In-house enrichment got 32 contactable before session ended. Web-OSINT not yet triggered.
+5. **API server** build clean (1197ms), all 5 Upstash slots connected (slot 1 quota-exhausted, auto-skipped).
+
+### Next session: trigger web-OSINT enrichment on all entities
+- `POST /api/ingest/web-osint-enrich {"batchSize": 100, "force": true}` — runs full AI-first pipeline (Perplexity + Gemini + Tavily + Exa + Groq)
+- Ingestion still running in background — check western-hnwi job status first
+- DB: 200 entities / 30 hot / 32 contactable at wrap-up
+
+---
+
 ## Current State (2026-07-28 — Re-import #25 setup complete; all 24 secrets present; all workflows running; DB empty; pipeline idle)
 
 ### Import setup (2026-07-28 — re-import #25)

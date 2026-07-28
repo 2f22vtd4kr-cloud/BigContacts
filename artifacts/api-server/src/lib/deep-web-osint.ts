@@ -88,6 +88,13 @@ const EMAIL_BLOCK = new Set([
   "noreply.com", "no-reply.com", "invalid.com", "placeholder.com",
   "privacy.com", "domainsbyproxy.com", "whoisguard.com", "privacyprotect.org",
   "whoisprivacycorp.com", "registrant.com",
+  // Financial data aggregators / news wires — their emails belong to editorial teams
+  "stocktitan.net", "seekingalpha.com", "benzinga.com", "thestreet.com",
+  "marketwatch.com", "businesswire.com", "prnewswire.com", "globenewswire.com",
+  "accesswire.com", "investopedia.com", "fool.com", "cnbc.com",
+  "crunchbase.com", "pitchbook.com", "owler.com", "dnb.com",
+  "morningstar.com", "simplywall.st", "stockanalysis.com", "finviz.com",
+  "macroaxis.com", "zacks.com", "wisesheets.io",
 ]);
 
 const EMAIL_RE     = /\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b/g;

@@ -215,6 +215,13 @@ const EMAIL_BLOCK = new Set([
   "privacy.com", "domains.com", "registrant.com", "whoisguard.com",
   "domainsbyproxy.com", "privacyprotect.org", "whoisprivacycorp.com",
   "duckduckgo.com", "bing.com", "google.com", "search.yahoo.com",
+  // Financial data aggregators / news wires
+  "stocktitan.net", "seekingalpha.com", "benzinga.com", "thestreet.com",
+  "marketwatch.com", "businesswire.com", "prnewswire.com", "globenewswire.com",
+  "accesswire.com", "investopedia.com", "fool.com", "cnbc.com",
+  "crunchbase.com", "pitchbook.com", "owler.com", "dnb.com",
+  "morningstar.com", "simplywall.st", "stockanalysis.com", "finviz.com",
+  "macroaxis.com", "zacks.com", "wisesheets.io",
 ]);
 const EMAIL_RE = /\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b/g;
 

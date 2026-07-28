@@ -36,6 +36,8 @@
 - [Phase J2 registry coverage](j2-registry-coverage.md) — Keep matrix coverage separate from executable live search adapters; preserve source-specific evidence semantics
 - [Phase J4–J9 completion](phase-j-completion.md) — domain-resolver/digital-footprint/contact-attribution libs; source-quality endpoint; geometric-mean attribution threshold 0.52
 - [Groq AI Extractor](groq-ai-extractor.md) — llama-3.3-70b via plain fetch; Phase 7 in web-enricher + Phase 3.5 in deep-web-osint; GROQ_API_KEY secret; no SDK needed
+- [EDGAR name normalization](edgar-name-normalization.md) — normalizeEdgarName() in western-hnwi-ingestion.ts; ALL_CAPS LAST FIRST → "First Last"; SQL patch for already-stored records
+- [Email promotion guardrails](email-promotion-guardrails.md) — 3 guards in deepWebOsintEnrich: generic prefix, financial aggregator blocklist, unknown-domain requires 2+ sources
 - [Domain guesser city-in-name bug](domain-guesser-city-bug.md) — add !base.includes(cityClean) guard; Avada+Cloudflare sites block server-side fetch; AI extraction more reliable than scraping for luxury venues
 - [Perplexity Phase 0 correct file](perplexity-phase0-wrong-file.md) — Phase 0 must be in web-enricher.ts NOT deep-web-osint.ts; route imports via enrichment/web-discovery.ts barrel → web-enricher.ts
 - [Imported artifact preview metadata](imported-artifact-preview.md) — imported artifact files can exist while artifact listing is empty, blocking helper screenshots; verify via workflow, HTTP, and build checks

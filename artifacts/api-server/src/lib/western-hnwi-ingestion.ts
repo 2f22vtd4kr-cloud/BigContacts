@@ -53,6 +53,36 @@ function normalizeName(name: string): string {
   return name.toLowerCase().replace(/[^a-z]/g, "");
 }
 
+/**
+ * EDGAR EFTS returns names in ALL-CAPS "LAST FIRST [MIDDLE]" format.
+ * Detect and convert to "First [Middle] Last" title-case for display.
+ * Non-ALL-CAPS names (already formatted) are title-cased in place.
+ *
+ * Examples:
+ *   "THIEL PETER"         → "Peter Thiel"
+ *   "KIM JAMES J"         → "James J Kim"
+ *   "HO CHI SING"         → "Chi Sing Ho"
+ *   "LEEDS RICHARD BRIAN" → "Richard Brian Leeds"
+ *   "Warren Buffett"      → "Warren Buffett"  (unchanged)
+ */
+function normalizeEdgarName(raw: string): string {
+  const t = raw.trim();
+  if (!t) return t;
+  const tc = (s: string) =>
+    s.length <= 2 ? s.toUpperCase() : s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+  // If name is all-caps (EDGAR format), reverse LAST → end
+  if (t === t.toUpperCase() && /[A-Z]{2}/.test(t)) {
+    const parts = t.split(/\s+/);
+    if (parts.length >= 2) {
+      const [last, ...rest] = parts as [string, ...string[]];
+      return [...rest, last].map(tc).join(" ");
+    }
+    return tc(t);
+  }
+  // Mixed case: just title-case each word
+  return t.split(/\s+/).map(tc).join(" ");
+}
+
 /** Rough heuristic: does this look like a person name (not a fund/company)? */
 function looksLikePerson(name: string): boolean {
   // EDGAR display names use punctuation inconsistently: "L.P.", "Co.",
@@ -148,7 +178,7 @@ async function* harvestSecEdgar13DG(maxCount: number): AsyncGenerator<HarvestedP
 
           yielded++;
           yield {
-            name: rawName,
+            name: normalizeEdgarName(rawName),
             nationality: "American",
             location: bizLocation,
             sourceRegistry: `SEC EDGAR — ${formType}`,
@@ -241,7 +271,7 @@ async function* harvestSecEdgarDEF14A(maxCount: number): AsyncGenerator<Harveste
 
         yielded++;
         yield {
-          name: rawName,
+          name: normalizeEdgarName(rawName),
           nationality: "American",
           location: bizLocation || "United States",
           sourceRegistry: "SEC EDGAR — DEF 14A (Proxy)",
