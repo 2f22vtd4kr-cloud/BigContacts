@@ -8,13 +8,15 @@
 
 ---
 
-## Current State (2026-07-28 — Re-import #26 setup complete; SESSION_SECRET present; all workflows running; DB empty; pipeline idle)
+## Current State (2026-07-28 — Re-import #26 setup complete; all 24 secrets saved; all workflows running; DB empty; pipeline idle)
 
 ### Import setup (2026-07-28 — re-import #26)
 - `CI=true pnpm install --frozen-lockfile` ✅ (~35s)
 - `pnpm --filter @workspace/db run push` → `[✓] Changes applied` ✅
-- Redis ✅ (port 6379) · artifacts/api-server: API Server ✅ (port 8080, build 875ms) · artifacts/apex-finder: web ✅ (port 23695, Vite ready 1325ms)
-- Only SESSION_SECRET is present in secrets this import; other API keys (REDIS_URL_1–5, GROQ, PERPLEXITY, GEMINI, EXA, TAVILY, WHOXY, COMPANIES_HOUSE) need to be re-added
+- Redis ✅ (port 6379) · artifacts/api-server: API Server ✅ (port 8080, build 1977ms) · artifacts/apex-finder: web ✅ (port 23695, Vite ready 1885ms)
+- All 24 secrets saved: SESSION_SECRET, REDIS_URL_1–5, COMPANIES_HOUSE_API_KEY, GROQ_API_KEY/_2/_3, PERPLEXITY_API_KEY/_2/_3/_4, WHOXY_API_KEY, GEMINI_API_KEY/_2/_3/_4, EXA_API_KEY/_2, TAVILY_API_KEY/_2/_3/_4
+- Upstash slots 1–5 all connected; slot 1 quota-exhausted (auto-skipped, expected)
+- Ghost job lock cleared (western-hnwi) at cold-start ✅
 - `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":1}}` ✅
 - DB empty (0 entities) — ENABLE_AUTO_PIPELINE=false; pipeline idle; awaiting user instruction
 
