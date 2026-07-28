@@ -1,0 +1,48 @@
+
+Here's the full audit:
+
+Phase 0 (Perplexity) — ✅ Correct and first
+deepWebOsintEnrich in web-enricher.ts opens with Perplexity Sonar as Phase 0, before any DDG/Bing/scraping. It tries your 4 direct Perplexity keys first (rotating through PERPLEXITY_API_KEY, _2, _3, _4) with sonar-pro → sonar fallback, then falls back to OpenRouter if all direct keys fail. Cited URLs are immediately injected into the domain scrape queue so Phase 5 hits Perplexity's actual sources first — that's working exactly as intended.
+
+"Reshuffling" — ⚠️ Not quite what you described
+The pipeline is fixed-order, always running: 0 (Perplexity) → 1 (DDG) → 1.5 (Wikipedia) → 2 (Qwant/FR) → 3 (Bing) → 4 (Corp→Person hop) → 4.5 (Email pattern) → 5 (Domain scrape) → 6 (Result scrape) → 7 (Groq AI) → 7.5 (Perplexity recall) → 7.6 (Scrape follow-up URLs) → 8 (Best-corroboration pick).
+There's no target-aware reordering — a luxury hotel and a Norwegian shipping firm get the same phase sequence. What IS data-driven:
+* Phase 4 generates person queries from whatever Phases 0–3 surfaced
+* Phase 7.5 IS the mid-research Perplexity recall — after DDG/scraping/AI has revealed real person names, it fires targeted Perplexity calls for up to 2 newly-discovered persons in context of the entity, then Phase 7.6 scrapes their citations. This is solid and works as intended.
+If you want true reshuffling (e.g. skip Bing for French entities already saturated by Qwant, or early-exit once a verified email is found), that would need to be built.
+
+Tool-by-tool status
+Tool	In main pipeline?	Status
+Perplexity Sonar (Phase 0 + 7.5)	✅	✅ 4 keys, key rotation, OpenRouter fallback
+DDG, Wikipedia, Qwant, Bing	✅	✅ No keys needed
+Groq llama-3.3-70b (Phase 7)	✅	✅ 3 keys rotating
+OpenRouter llama-3.3-70b	✅ Fallback	✅ 4 keys rotating
+Domain scraping + Wayback	✅ Phase 5	✅
+GLiNER NER (person extraction)	✅ Phase 4/1.5	⚠️ Microservice not running — falls back to regex automatically (no crash)
+Wikidata, Wikipedia, GitHub, Gravatar, RDAP, ProPublica 990, GLEIF	✅ In-house enricher	✅
+Companies House officer lookup	✅ In-house enricher	✅ Key set
+WHOXY reverse WHOIS	✅ In-house enricher	✅ Key set
+OCCRP Aleph	✅ Dedicated route	✅
+OpenSky live flights	✅ Dedicated route	✅
+Maigret (username → 3,000-site dossier)	⚠️ Standalone only	✅ NOW installed
+Holehe (email → 120-platform check)	⚠️ Standalone only	✅ NOW installed
+theHarvester(domain → emails/subdomains)	⚠️ Standalone only	✅ NOW installed
+Maigret/Holehe/theHarvester are not called during a normal research run. They exist as manual endpoints (POST /api/enrich/maigret, /api/enrich/holehe, /api/enrich/theharvester) you can call once you have a username or email. They're useful for a second-pass dossier after the main pipeline surfaces a social handle or email candidate.
+
+Fixes applied right now
+1. Python tools not installed — the install script used --user which NixOS disables. Installed holehe, maigret, and the real theHarvester (the PyPI package is a 0.0.1 stub — real one comes from GitHub) into .python-packages/.
+2. PYTHONPATH never set — python-tools.tssubprocess runner wasn't injecting the package path, so even an installed tool would fail. Fixed: it now builds PYTHONPATH=.python-packages for every subprocess call.
+3. Install script — rewritten to use --target and pull theHarvester from GitHub. Safe to re-run.
+
+One thing to know about Upstash slot 1
+Your new REDIS_URL_1 key connected successfully on this boot, then immediately got marked quota-exhausted. That means the new slot 1 key is either also near its limit or was pre-used. Slots 2–5 are healthy and doing the actual work — no impact on enrichment. When you want a fresh slot 1, create a new Upstash database and update the REDIS_URL_1 secret.
+Well, that's not what we implemented during previous sessions. You gotta rework workflow a bit and make sure it stays that way surviving any repo re-imports. So there is gotta be target-aware reordering. It's important to use the best tool with new data surfacing, especially coming back to perplexity with new data so more precise prompts. We already actually have implemented this approach during one of previous sessions. Then standalone tools gotta of course not be standalone and participate actively in research automatically being used when it's time.
+So apply these improvements and make sure that in UI I can clearly see the statuses of each tool although we have already implemented such dashboard in UI - make sure it's actually clear and intuitive.
+Let me first explore the full pipeline and the existing tool-status UI before making changes.
+Good — I have the full picture. Now let me read the specific sections I need before writing the new pipeline code.
+Good context gathered. Let me read the remaining pieces I need — the Perplexity prompt builder, phases 6-7 of the pipeline, and the existing UI panel — then I'll implement everything.
+I have everything I need. This is substantial work — I'll implement it all in parallel across 4 files. Let me check startup.ts first, then write everything.
+Save it for the next session don't knows the drill. Now you have not enough credits left
+Got it. Let me save the full plan to Context.md so it's ready to pick up immediately next session.
+All saved. Task #5 has the full spec, and the complete implementation plan is in Context.md under the "NEXT SESSION — Adaptive Pipeline Rework" section with exact file locations, line numbers, code snippets for every new phase, and the PipelineConfig design.
+Next session starts right at the code — no re-auditing needed.

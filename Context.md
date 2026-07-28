@@ -8,6 +8,19 @@
 
 ---
 
+## Current State (2026-07-28 — Fresh import setup complete; all 14 secrets saved; Redis + API + web running; DB schema applied; 0 entities; no research run)
+
+### Post-import setup (2026-07-28)
+- `CI=true pnpm install --frozen-lockfile` — all packages installed (~35s)
+- `pnpm --filter @workspace/db run push` — schema applied (`[✓] Changes applied`)
+- Redis, API Server (`artifacts/api-server: API Server`), apex-finder web (`artifacts/apex-finder: web`) workflows running
+- `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":0}}` ✅
+- `/api/dashboard/stats` → 200, all zeros (empty database) ✅
+- All 14 secrets saved: `REDIS_URL_1`–`REDIS_URL_5`, `COMPANIES_HOUSE_API_KEY`, `GROQ_API_KEY`/`_2`/`_3`, `PERPLEXITY_API_KEY`/`_2`/`_3`/`_4`, `WHOXY_API_KEY`
+- `ENABLE_AUTO_PIPELINE` not set → broad cold-start ingestion disabled; no research run, no credits spent
+
+---
+
 ## Current State (2026-07-27 — HNWI-first responsive frontend applied and verified; database empty; no research run)
 
 ### Frontend redesign (2026-07-27)
