@@ -15,6 +15,17 @@ interface NodeDef {
 interface EdgeDef { id: string; from: string; to: string; adaptive?: boolean }
 interface Wave   { nodes: string[]; edges: string[]; label: string; adaptive?: boolean }
 
+interface ResearchSession {
+  id: number;
+  targetEntityName: string | null;
+  winningPath: string | null;
+  generatedPitch: string | null;
+  crmStatus: string;
+  bayesianScoreAtRuntime: number | null;
+  pathScore: number | null;
+  createdAt: string;
+}
+
 // ── Node layout (desktop coords) ─────────────────────────────────────────────
 const NODES: NodeDef[] = [
   { id:"target",  label:"TARGET INPUT",    sub:"Entity · Query",             cx:800,  cy:68,  w:200, h:52,  type:"input",    Icon:Crosshair, color:"#e8e0cc" },
@@ -34,7 +45,7 @@ const NODES: NodeDef[] = [
   { id:"semantic",label:"SEMANTIC ENGINE", sub:"MiniLM · Embeddings",        cx:460,  cy:540, w:192, h:62,  type:"analysis", Icon:GitMerge,   color:"#a78bfa" },
   { id:"bayesian",label:"BAYESIAN SCORE",  sub:"Dynamic Priority",           cx:1020, cy:540, w:192, h:62,  type:"analysis", Icon:Layers,     color:"#a78bfa" },
   { id:"graph",   label:"GRAPH ENGINE",    sub:"Relationship Synthesis",     cx:260,  cy:652, w:178, h:62,  type:"core",     Icon:Network,    color:"#a78bfa" },
-  { id:"mcts",    label:"MCTS CORE",       sub:"Adaptive Pathfinding",       cx:800,  cy:657, w:228, h:78,  type:"reactor",  Icon:Cpu,        color:"#a3e635" },
+  { id:"mcts",    label:"UCT CORE",        sub:"Adaptive Pathfinding",       cx:800,  cy:657, w:228, h:78,  type:"reactor",  Icon:Cpu,        color:"#a3e635" },
   { id:"prac",    label:"PRAC ENGINE",     sub:"Planner · Analyst · Critic", cx:1340, cy:652, w:178, h:62,  type:"core",     Icon:Activity,   color:"#a78bfa" },
   { id:"pitch",   label:"PITCH GENERATOR", sub:"Custom Outreach Sequence",   cx:800,  cy:768, w:244, h:54,  type:"output",   Icon:Target,     color:"#fbbf24" },
 ];
@@ -88,7 +99,7 @@ const WAVES: Wave[] = [
   { nodes:["perpfu"],                                edges:["fu-bay"],                                                       label:"PERPLEXITY+  —  iterative follow-up" },
   { nodes:["semantic","bayesian"],                   edges:["sem-gr","sem-mc","bay-mc","bay-pr"],                            label:"SYNTHESIS  —  embedding profiles, scoring priorities" },
   { nodes:["graph"],                                 edges:["gr-mc"],                                                        label:"GRAPH ENGINE  —  relationship network" },
-  { nodes:["mcts"],                                  edges:["mc-pr","mc-groq-a","mc-fu-a"],                                 label:"MCTS CORE  —  adaptive pathfinding", adaptive:true },
+  { nodes:["mcts"],                                  edges:["mc-pr","mc-groq-a","mc-fu-a"],                                 label:"UCT CORE  —  adaptive pathfinding", adaptive:true },
   { nodes:["groq","perpfu"],                         edges:["groq-fu","fu-bay","pr-fu-a"],                                  label:"ADAPTIVE LOOP  —  re-querying with new graph evidence", adaptive:true },
   { nodes:["prac"],                                  edges:["pr-pit","mc-pit"],                                             label:"PRAC ENGINE  —  planner · retriever · analyst · critic" },
   { nodes:["pitch"],                                 edges:[],                                                               label:"OUTPUT  —  generating custom outreach sequence" },
@@ -141,7 +152,7 @@ function Meter({ label, value, max, color }: { label:string; value:number; max:n
       </div>
       <div style={{ height:3, background:"#192840", borderRadius:2 }}>
         <div style={{
-          height:"100%", width:`${Math.min((value/max)*100,100)}%`,
+          height:"100%", width:`${Math.min((value/Math.max(max,1))*100,100)}%`,
           background:color, borderRadius:2,
           boxShadow:`0 0 8px ${color}80`, transition:"width 0.6s ease",
         }} />
@@ -156,46 +167,47 @@ function MobileNodeCard({ n, on }: { n: NodeDef; on: boolean }) {
   const c = n.color;
   return (
     <div style={{
-      display:"flex", alignItems:"center", gap:10,
-      padding:"10px 12px",
+      display:"flex", alignItems:"center", gap:8,
+      padding:"9px 10px",
       border:`${on?(isReactor?2:1.5):1}px solid ${on?c:"#192840"}`,
       borderRadius: isReactor ? 10 : 6,
       background: on ? (isReactor?`${c}14`:`${c}0d`) : "#0d1525",
       transition:"all 0.35s ease",
       boxShadow: on ? `0 0 ${isReactor?20:10}px ${c}${isReactor?"44":"22"}` : "none",
+      minWidth:0, overflow:"hidden",
     }}>
       <div style={{
-        width:28, height:28, flexShrink:0, borderRadius:5,
+        width:26, height:26, flexShrink:0, borderRadius:5,
         border:`1px solid ${on?c+"50":"#192840"}`,
         background: on ? c+"16" : "transparent",
-        display:"grid", placeItems:"center",
+        display:"flex", alignItems:"center", justifyContent:"center",
         color: on ? c : "#253850",
         transition:"all 0.35s",
       }}>
-        <n.Icon style={{ width:13, height:13 }} />
+        <n.Icon style={{ width:12, height:12 }} />
       </div>
       <div style={{ flex:1, minWidth:0 }}>
         <div style={{
-          fontSize:10, fontWeight:700, letterSpacing:"0.12em",
+          fontSize:9, fontWeight:700, letterSpacing:"0.1em",
           color: on ? c : "#253850",
           transition:"color 0.35s",
-          whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis",
+          overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
         }}>
           {n.label}
         </div>
         <div style={{
-          fontSize:9, color: on ? c+"99" : "#1a2d42",
-          marginTop:2, letterSpacing:"0.08em",
-          whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis",
+          fontSize:8, color: on ? c+"99" : "#1a2d42",
+          marginTop:1, letterSpacing:"0.06em",
+          overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
           transition:"color 0.35s",
         }}>
           {n.sub}
         </div>
       </div>
       <div style={{
-        width:6, height:6, borderRadius:"50%", flexShrink:0,
+        width:5, height:5, borderRadius:"50%", flexShrink:0,
         background: on ? c : "#192840",
-        boxShadow: on ? `0 0 8px ${c}` : "none",
+        boxShadow: on ? `0 0 6px ${c}` : "none",
         animation: on ? "blink 1.1s ease-in-out infinite" : "none",
         transition:"all 0.35s",
       }} />
@@ -203,178 +215,290 @@ function MobileNodeCard({ n, on }: { n: NodeDef; on: boolean }) {
   );
 }
 
+// ── CRM status colour ─────────────────────────────────────────────────────────
+function crmColor(status: string) {
+  switch (status) {
+    case "contacted": return "#a3e635";
+    case "replied":   return "#22d3ee";
+    case "converted": return "#fbbf24";
+    default:          return "#3a5070";
+  }
+}
+
+function formatDate(iso: string) {
+  try {
+    return new Date(iso).toLocaleDateString("en-GB", { day:"numeric", month:"short", year:"2-digit" });
+  } catch { return iso.slice(0, 10); }
+}
+
 // ── Mobile layout ─────────────────────────────────────────────────────────────
-function MobileReactor({ step, cycle, signals, contacts, loops }: {
-  step:number; cycle:number; signals:number; contacts:number; loops:number;
+function MobileReactor({ sessions, totalEntities, loading }: {
+  sessions: ResearchSession[];
+  totalEntities: number;
+  loading: boolean;
 }) {
-  const wave = WAVES[step];
-  const AN = new Set(wave.nodes);
-  const adaptive = wave.adaptive ?? false;
-  const phaseIdx = MOBILE_PHASES.findIndex(p => p.nodeIds.some(id => AN.has(id)));
+  const hasSessions = sessions.length > 0;
+  const lastSession = sessions[0] ?? null;
+  const pitchCount = sessions.filter(s => s.generatedPitch).length;
+
+  // Core nodes always active when any session has run; pitch node active if any pitch generated
+  const activeNodes: Set<string> = hasSessions
+    ? new Set(["target","semantic","bayesian","graph","mcts","prac", ...(pitchCount > 0 ? ["pitch"] : [])])
+    : new Set();
 
   return (
     <div style={{
-      display:"flex", flexDirection:"column", height:"100%",
+      display:"flex", flexDirection:"column", width:"100%", height:"100%",
       background:"#0b1120",
       fontFamily:"'Space Mono','DM Mono','Courier New',monospace",
       overflow:"hidden",
     }}>
-      {/* Header */}
+      <style>{KEYFRAMES}</style>
+
+      {/* ── Header ── */}
       <header style={{
         padding:"10px 14px", borderBottom:"1px solid #192840", flexShrink:0,
         display:"flex", alignItems:"center", gap:10,
         background:"rgba(11,17,32,0.95)",
       }}>
+        {/* Nuclear icon — properly centred */}
         <div style={{
-          width:32, height:32, borderRadius:"50%",
-          border:`2px solid ${adaptive?"#22d3ee":"#a3e635"}`,
-          display:"grid", placeItems:"center", fontSize:18,
-          color: adaptive?"#22d3ee":"#a3e635",
-          boxShadow:`0 0 12px ${adaptive?"#22d3ee44":"#a3e63544"}`,
-          animation: adaptive?"pulseGlow 0.7s ease-in-out infinite":"breathe 3s ease-in-out infinite",
-          flexShrink:0,
-        }}>☢</div>
+          width:32, height:32, borderRadius:"50%", flexShrink:0,
+          border:`2px solid ${hasSessions ? "#a3e635" : "#253850"}`,
+          display:"flex", alignItems:"center", justifyContent:"center",
+          lineHeight:1,
+          color: hasSessions ? "#a3e635" : "#253850",
+          fontSize:17,
+          boxShadow: hasSessions ? "0 0 12px #a3e63544" : "none",
+          animation: hasSessions ? "breathe 3s ease-in-out infinite" : "none",
+          transition:"all 0.4s",
+        }}>
+          <span style={{ lineHeight:1, display:"block", marginTop:1 }}>☢</span>
+        </div>
+
         <div style={{ flex:1, minWidth:0 }}>
-          <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.18em", color:"#e8e0cc", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+          <div style={{
+            fontSize:10, fontWeight:700, letterSpacing:"0.18em", color:"#e8e0cc",
+            overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+          }}>
             INTELLIGENCE REACTOR
           </div>
           <div style={{ fontSize:8, letterSpacing:"0.12em", color:"#3a5070", marginTop:1 }}>
-            APEX ATLAS  ·  ADAPTIVE ENGINE
+            APEX ATLAS  ·  UCT RESEARCH ENGINE
           </div>
         </div>
+
         <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:3, flexShrink:0 }}>
           <div style={{ display:"flex", alignItems:"center", gap:5 }}>
             <div style={{
               width:6, height:6, borderRadius:"50%",
-              background: adaptive?"#22d3ee":"#a3e635",
-              boxShadow:`0 0 6px ${adaptive?"#22d3ee":"#a3e635"}`,
-              animation:"blink 1.1s ease-in-out infinite",
+              background: hasSessions ? "#a3e635" : "#253850",
+              boxShadow: hasSessions ? "0 0 6px #a3e635" : "none",
+              animation: hasSessions ? "blink 1.1s ease-in-out infinite" : "none",
             }} />
-            <span style={{ fontSize:8, letterSpacing:"0.14em", color: adaptive?"#22d3ee":"#a3e635" }}>
-              {adaptive?"ADAPTIVE":"NOMINAL"}
+            <span style={{ fontSize:8, letterSpacing:"0.14em", color: hasSessions ? "#a3e635" : "#3a5070" }}>
+              {hasSessions ? "OPERATIONAL" : "STANDBY"}
             </span>
           </div>
-          <div style={{ fontSize:14, fontWeight:700, color:"#a3e635", lineHeight:1 }}>
-            {String(cycle).padStart(4,"0")}
+          <div style={{ fontSize:14, fontWeight:700, color: hasSessions ? "#a3e635" : "#253850", lineHeight:1 }}>
+            {String(sessions.length).padStart(4, "0")}
           </div>
         </div>
       </header>
 
-      {/* Phase progress bar */}
+      {/* ── Scrollable body ── */}
       <div style={{
-        padding:"8px 14px 6px", borderBottom:"1px solid #192840", flexShrink:0,
-        background:"#0c1320",
+        flex:1, overflowY:"auto", overflowX:"hidden",
+        display:"flex", flexDirection:"column",
       }}>
-        <div style={{ display:"flex", gap:3, marginBottom:5 }}>
-          {MOBILE_PHASES.map((p, i) => (
-            <div key={p.label} style={{
-              flex:1, height:3, borderRadius:2,
-              background: i < phaseIdx ? "#a3e635" : i === phaseIdx ? (adaptive?"#22d3ee":"#a3e635") : "#192840",
-              boxShadow: i === phaseIdx ? `0 0 6px ${adaptive?"#22d3ee":"#a3e635"}` : "none",
-              transition:"all 0.4s ease",
+        {loading ? (
+          // Loading state
+          <div style={{
+            flex:1, display:"flex", alignItems:"center", justifyContent:"center",
+            flexDirection:"column", gap:10, padding:24,
+          }}>
+            <div style={{
+              width:28, height:28, borderRadius:"50%",
+              border:"2px solid #192840", borderTopColor:"#a3e635",
+              animation:"blink 0.7s linear infinite",
             }} />
-          ))}
-        </div>
-        <div style={{
-          fontSize:9, letterSpacing:"0.14em",
-          color: adaptive?"#22d3ee":"#3a5070",
-          whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis",
-        }}>
-          {adaptive?"⚡  ":"›  "}{wave.label}
-        </div>
-      </div>
+            <span style={{ fontSize:9, letterSpacing:"0.18em", color:"#3a5070" }}>
+              LOADING SESSIONS…
+            </span>
+          </div>
+        ) : (
+          <>
+            {/* ── Pipeline architecture ── */}
+            <div style={{ padding:"12px 12px 0", flexShrink:0 }}>
+              {MOBILE_PHASES.map((phase, pi) => {
+                const phaseNodes = phase.nodeIds.map(id => NM[id]).filter(Boolean);
+                const anyActive = phaseNodes.some(n => activeNodes.has(n.id));
+                const cols = phase.nodeIds.length > 2 ? 2 : 1;
 
-      {/* Phase cards — scrollable */}
-      <div style={{ flex:1, overflowY:"auto", padding:"10px 12px", display:"flex", flexDirection:"column", gap:10 }}>
-        {MOBILE_PHASES.map((phase, pi) => {
-          const phaseNodes = phase.nodeIds.map(id => NM[id]).filter(Boolean);
-          const anyActive = phaseNodes.some(n => AN.has(n.id));
-          const isCurrentPhase = pi === phaseIdx;
-          const cols = phase.nodeIds.length > 2 ? 2 : 1;
+                return (
+                  <div key={phase.label} style={{ marginBottom:8 }}>
+                    {/* Phase label */}
+                    <div style={{
+                      fontSize:8, letterSpacing:"0.22em", marginBottom:5,
+                      color: anyActive ? "#a3e63599" : "#1e3050",
+                      display:"flex", alignItems:"center", gap:6,
+                    }}>
+                      <div style={{ flex:1, height:1, background: anyActive ? "#a3e63520" : "#192840" }} />
+                      {phase.label}
+                      <div style={{ flex:1, height:1, background: anyActive ? "#a3e63520" : "#192840" }} />
+                    </div>
 
-          return (
-            <div key={phase.label}>
-              {/* Phase label */}
+                    {/* Node grid */}
+                    <div style={{
+                      display:"grid",
+                      gridTemplateColumns: cols === 2 ? "1fr 1fr" : "1fr",
+                      gap:5,
+                      width:"100%",
+                    }}>
+                      {phaseNodes.map(n => (
+                        <MobileNodeCard key={n.id} n={n} on={activeNodes.has(n.id)} />
+                      ))}
+                    </div>
+
+                    {pi < MOBILE_PHASES.length - 1 && (
+                      <div style={{
+                        display:"flex", justifyContent:"center", padding:"3px 0",
+                        fontSize:10, color: anyActive ? "#a3e63560" : "#192840",
+                      }}>▾</div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* ── Sessions section ── */}
+            <div style={{ padding:"8px 12px 12px", flexShrink:0 }}>
+              {/* Section header */}
               <div style={{
-                fontSize:8, letterSpacing:"0.22em", marginBottom:6,
-                color: anyActive ? (adaptive&&isCurrentPhase?"#22d3ee99":"#a3e63599") : "#1e3050",
-                display:"flex", alignItems:"center", gap:6, transition:"color 0.35s",
+                display:"flex", alignItems:"center", justifyContent:"space-between",
+                marginBottom:8, marginTop:4,
               }}>
                 <div style={{
-                  flex:1, height:1,
-                  background: anyActive ? (adaptive&&isCurrentPhase?"#22d3ee30":"#a3e63520") : "#192840",
-                  transition:"background 0.35s",
-                }} />
-                {phase.label}
-                <div style={{
-                  flex:1, height:1,
-                  background: anyActive ? (adaptive&&isCurrentPhase?"#22d3ee30":"#a3e63520") : "#192840",
-                  transition:"background 0.35s",
-                }} />
+                  fontSize:8, letterSpacing:"0.22em", color:"#3a5070",
+                  display:"flex", alignItems:"center", gap:6,
+                }}>
+                  <div style={{ width:1, flex:1, height:1, background:"#192840" }} />
+                  RESEARCH SESSIONS
+                  <div style={{ width:1, flex:1, height:1, background:"#192840" }} />
+                </div>
               </div>
 
-              {/* Node grid */}
-              <div style={{
-                display:"grid",
-                gridTemplateColumns: cols === 2 ? "1fr 1fr" : "1fr",
-                gap:6,
-              }}>
-                {phaseNodes.map(n => (
-                  <MobileNodeCard key={n.id} n={n} on={AN.has(n.id)} />
-                ))}
-              </div>
-
-              {/* Flow arrow between phases */}
-              {pi < MOBILE_PHASES.length - 1 && (
+              {!hasSessions ? (
+                // Standby state
                 <div style={{
-                  display:"flex", justifyContent:"center", padding:"4px 0",
-                  fontSize:10, color: anyActive ? "#a3e63560" : "#192840",
-                  transition:"color 0.35s",
-                }}>▾</div>
+                  padding:"18px 14px",
+                  border:"1px solid #192840",
+                  borderRadius:8,
+                  background:"#0c1320",
+                  display:"flex", flexDirection:"column", alignItems:"center",
+                  gap:10, textAlign:"center",
+                }}>
+                  <Cpu style={{ width:22, height:22, color:"#253850" }} />
+                  <div>
+                    <div style={{ fontSize:9, fontWeight:700, letterSpacing:"0.16em", color:"#253850", marginBottom:4 }}>
+                      NO SESSIONS YET
+                    </div>
+                    <div style={{ fontSize:8, color:"#1e3050", letterSpacing:"0.08em", lineHeight:1.6 }}>
+                      Run Hybrid Research from a profile{"\n"}to see real UCT work here.
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                // Real session list
+                <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                  {sessions.slice(0, 12).map(s => (
+                    <div key={s.id} style={{
+                      padding:"10px 12px",
+                      border:"1px solid #192840",
+                      borderRadius:7,
+                      background:"#0d1525",
+                      display:"flex", flexDirection:"column", gap:6,
+                    }}>
+                      {/* Row 1: name + status */}
+                      <div style={{ display:"flex", alignItems:"center", gap:8, minWidth:0 }}>
+                        <Cpu style={{ width:11, height:11, color:"#a78bfa", flexShrink:0 }} />
+                        <div style={{
+                          flex:1, minWidth:0,
+                          fontSize:10, fontWeight:700, letterSpacing:"0.1em",
+                          color:"#c4b8a0",
+                          overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+                        }}>
+                          {s.targetEntityName ?? `Session #${s.id}`}
+                        </div>
+                        <div style={{
+                          fontSize:8, letterSpacing:"0.12em", flexShrink:0,
+                          color: crmColor(s.crmStatus),
+                          padding:"2px 6px", border:`1px solid ${crmColor(s.crmStatus)}40`,
+                          borderRadius:3, background:`${crmColor(s.crmStatus)}10`,
+                        }}>
+                          {s.crmStatus.toUpperCase()}
+                        </div>
+                      </div>
+
+                      {/* Row 2: metrics */}
+                      <div style={{ display:"flex", gap:12, alignItems:"center" }}>
+                        {s.pathScore != null && (
+                          <div style={{ display:"flex", flexDirection:"column", gap:1 }}>
+                            <span style={{ fontSize:7, letterSpacing:"0.14em", color:"#3a5070" }}>PATH SCORE</span>
+                            <span style={{ fontSize:12, fontWeight:700, color:"#a3e635", lineHeight:1 }}>
+                              {s.pathScore.toFixed(2)}
+                            </span>
+                          </div>
+                        )}
+                        {s.bayesianScoreAtRuntime != null && (
+                          <div style={{ display:"flex", flexDirection:"column", gap:1 }}>
+                            <span style={{ fontSize:7, letterSpacing:"0.14em", color:"#3a5070" }}>SIGNAL</span>
+                            <span style={{ fontSize:12, fontWeight:700, color:"#38bdf8", lineHeight:1 }}>
+                              {s.bayesianScoreAtRuntime.toFixed(1)}
+                            </span>
+                          </div>
+                        )}
+                        {s.generatedPitch && (
+                          <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+                            <Target style={{ width:9, height:9, color:"#fbbf24" }} />
+                            <span style={{ fontSize:8, letterSpacing:"0.1em", color:"#fbbf24" }}>PITCH READY</span>
+                          </div>
+                        )}
+                        <div style={{ marginLeft:"auto", fontSize:8, color:"#253850", letterSpacing:"0.08em" }}>
+                          {formatDate(s.createdAt)}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {sessions.length > 12 && (
+                    <div style={{
+                      textAlign:"center", fontSize:8, letterSpacing:"0.14em",
+                      color:"#253850", padding:"6px 0",
+                    }}>
+                      +{sessions.length - 12} MORE SESSIONS
+                    </div>
+                  )}
+                </div>
               )}
             </div>
-          );
-        })}
-
-        {/* Adaptive loop badge */}
-        {adaptive && (
-          <div style={{
-            margin:"4px 0 8px",
-            padding:"10px 14px",
-            border:"1px solid #22d3ee30",
-            borderRadius:8,
-            background:"#22d3ee08",
-            display:"flex", alignItems:"center", gap:10,
-          }}>
-            <RefreshCw style={{ width:14, height:14, color:"#22d3ee", flexShrink:0,
-              animation:"blink 0.9s ease-in-out infinite" }} />
-            <div>
-              <div style={{ fontSize:9, fontWeight:700, letterSpacing:"0.14em", color:"#22d3ee" }}>
-                ADAPTIVE LOOP ACTIVE
-              </div>
-              <div style={{ fontSize:8, color:"#22d3ee80", marginTop:2, letterSpacing:"0.08em" }}>
-                MCTS triggered re-query via Groq + Perplexity+
-              </div>
-            </div>
-          </div>
+          </>
         )}
       </div>
 
-      {/* Footer meters */}
+      {/* ── Footer meters (real data) ── */}
       <footer style={{
         borderTop:"1px solid #192840", flexShrink:0,
         background:"rgba(11,17,32,0.95)",
         padding:"10px 0",
         display:"flex", alignItems:"center",
       }}>
-        <Meter label="SIGNALS"  value={signals}  max={80} color="#38bdf8" />
+        <Meter label="ENTITIES" value={totalEntities} max={Math.max(totalEntities, 50)} color="#38bdf8" />
         <div style={{ width:1, height:32, background:"#192840", flexShrink:0 }} />
-        <Meter label="CONTACTS" value={contacts} max={30} color="#a3e635" />
+        <Meter label="RUNS" value={sessions.length} max={Math.max(sessions.length, 10)} color="#a3e635" />
         <div style={{ width:1, height:32, background:"#192840", flexShrink:0 }} />
-        <Meter label="LOOPS"    value={loops}    max={20} color="#22d3ee" />
+        <Meter label="OUTREACH" value={pitchCount} max={Math.max(sessions.length, 5)} color="#22d3ee" />
       </footer>
-
-      <style>{KEYFRAMES}</style>
     </div>
   );
 }
@@ -416,14 +540,18 @@ function DesktopReactor({ step, cycle, signals, contacts, loops }: {
         background:"rgba(11,17,32,0.92)", backdropFilter:"blur(8px)",
       }}>
         <div style={{
-          width:38, height:38, borderRadius:"50%",
+          width:38, height:38, borderRadius:"50%", flexShrink:0,
           border:`2px solid ${adaptive ? "#22d3ee" : "#a3e635"}`,
-          display:"grid", placeItems:"center", fontSize:20,
+          display:"flex", alignItems:"center", justifyContent:"center",
+          lineHeight:1,
           color: adaptive ? "#22d3ee" : "#a3e635",
+          fontSize:20,
           boxShadow:`0 0 14px ${adaptive ? "#22d3ee55" : "#a3e63555"}`,
           animation: adaptive ? "pulseGlow 0.7s ease-in-out infinite" : "breathe 3s ease-in-out infinite",
           transition:"all 0.4s",
-        }}>☢</div>
+        }}>
+          <span style={{ lineHeight:1, display:"block", marginTop:1 }}>☢</span>
+        </div>
         <div>
           <div style={{ fontSize:13, fontWeight:700, letterSpacing:"0.2em", color:"#e8e0cc" }}>
             APEX ATLAS  —  INTELLIGENCE REACTOR
@@ -527,7 +655,7 @@ function DesktopReactor({ step, cycle, signals, contacts, loops }: {
                 width:30, height:30, flexShrink:0, borderRadius:5,
                 border:`1px solid ${on?c+"50":"#192840"}`,
                 background: on ? c+"16" : "transparent",
-                display:"grid", placeItems:"center",
+                display:"flex", alignItems:"center", justifyContent:"center",
                 color: on ? c : "#253850", transition:"all 0.35s",
               }}>
                 <n.Icon style={{ width:14, height:14 }} />
@@ -633,7 +761,7 @@ function DesktopReactor({ step, cycle, signals, contacts, loops }: {
   );
 }
 
-// ── Shared state + breakpoint hook ────────────────────────────────────────────
+// ── Shared breakpoint hook ────────────────────────────────────────────────────
 function useIsMobile() {
   const [mobile, setMobile] = useState(() => window.innerWidth < 768);
   useEffect(() => {
@@ -646,18 +774,35 @@ function useIsMobile() {
 
 // ── Page wrapper ──────────────────────────────────────────────────────────────
 export default function IntelligenceReactorPage() {
+  const isMobile = useIsMobile();
+
+  // ── Real data for mobile ──────────────────────────────────────────────────
+  const [sessions,      setSessions]      = useState<ResearchSession[]>([]);
+  const [totalEntities, setTotalEntities] = useState(0);
+  const [loadingData,   setLoadingData]   = useState(true);
+
+  useEffect(() => {
+    const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+    Promise.all([
+      fetch(`${BASE}/api/research/sessions?limit=20`).then(r => r.ok ? r.json() : []).catch(() => []),
+      fetch(`${BASE}/api/dashboard/stats`).then(r => r.ok ? r.json() : {}).catch(() => ({})),
+    ]).then(([sess, stats]) => {
+      setSessions(Array.isArray(sess) ? sess : []);
+      setTotalEntities((stats as { totalEntities?: number })?.totalEntities ?? 0);
+    }).finally(() => setLoadingData(false));
+  }, []);
+
+  // ── Fake animation kept for desktop architecture diagram only ─────────────
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scale,    setScale]    = useState(1);
   const [step,     setStep]     = useState(0);
   const [cycle,    setCycle]    = useState(1);
   const [signals,  setSignals]  = useState(0);
   const [contacts, setContacts] = useState(0);
   const [loops,    setLoops]    = useState(0);
-  const isMobile = useIsMobile();
-
-  // Desktop scale
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(1);
 
   useEffect(() => {
+    if (isMobile) return;
     const t = setInterval(() => {
       setStep(s => {
         const next = (s + 1) % WAVES.length;
@@ -666,13 +811,14 @@ export default function IntelligenceReactorPage() {
       });
     }, 1500);
     return () => clearInterval(t);
-  }, []);
+  }, [isMobile]);
 
   useEffect(() => {
+    if (isMobile) return;
     const w = WAVES[step];
     if (w.adaptive) setLoops(l => l + 1);
     if (w.nodes.includes("pitch")) { setSignals(s => s + 7); setContacts(c => c + 2); }
-  }, [step]);
+  }, [step, isMobile]);
 
   useEffect(() => {
     if (isMobile) return;
@@ -687,23 +833,23 @@ export default function IntelligenceReactorPage() {
     return () => ro.disconnect();
   }, [isMobile]);
 
-  const shared = { step, cycle, signals, contacts, loops };
-
+  // ── Mobile ────────────────────────────────────────────────────────────────
   if (isMobile) {
     return (
-      <div style={{ position:"absolute", inset:0, overflow:"hidden" }}>
-        <MobileReactor {...shared} />
+      <div style={{ display:"flex", flexDirection:"column", height:"100%", overflow:"hidden", width:"100%" }}>
+        <MobileReactor sessions={sessions} totalEntities={totalEntities} loading={loadingData} />
       </div>
     );
   }
 
+  // ── Desktop ───────────────────────────────────────────────────────────────
   return (
     <div
       ref={containerRef}
       style={{ position:"absolute", inset:0, overflow:"hidden", background:"#0b1120" }}
     >
       <div style={{ transformOrigin:"top left", transform:`scale(${scale})`, width:1600, height:960 }}>
-        <DesktopReactor {...shared} />
+        <DesktopReactor step={step} cycle={cycle} signals={signals} contacts={contacts} loops={loops} />
       </div>
     </div>
   );
