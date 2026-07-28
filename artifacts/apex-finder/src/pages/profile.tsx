@@ -687,17 +687,10 @@ export default function ApexProfile() {
                 onClick={handleEnrich}
                 disabled={isEnriching}
                 className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 font-mono text-[10px] uppercase tracking-wider transition-colors disabled:opacity-50"
-                title="Re-run Research"
+                title="Rerun Research"
               >
                 {isEnriching ? <Loader2 className="w-3 h-3 animate-spin" /> : <TargetIcon className="w-3 h-3" />}
-                <span className="hidden sm:inline">{isEnriching ? "Running…" : "Re-run"}</span>
-              </button>
-              <button
-                onClick={() => setAddRelOpen(true)}
-                className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded border border-border text-muted-foreground hover:text-primary hover:border-primary/40 font-mono text-[10px] uppercase tracking-wider transition-colors"
-                title="Add Connection"
-              >
-                <Link2 className="w-3 h-3" /> <span className="hidden sm:inline">Connect</span>
+                <span className="hidden sm:inline">{isEnriching ? "Running…" : "Rerun Research"}</span>
               </button>
             </div>
           </div>
@@ -1105,7 +1098,7 @@ export default function ApexProfile() {
                     ) : (
                       <span className="text-muted-foreground/70">{primaryEvidence.source}</span>
                     )}
-                    {primaryEvidence.extractionMethod && (
+                    {primaryEvidence.extractionMethod && !/guess|pattern|domain.gues/i.test(primaryEvidence.extractionMethod) && (
                       <span className="text-muted-foreground/40"> · {primaryEvidence.extractionMethod}</span>
                     )}
                     <span className="text-muted-foreground/30"> · observed {new Date(primaryEvidence.observedAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}</span>
@@ -1134,9 +1127,13 @@ export default function ApexProfile() {
                   if (fromWikidata) steps.push("This address is also listed in their public Wikidata record, which corroborates it.");
                   if (fromDDG) steps.push("A web search for their name and known affiliations also surfaced this address.");
                   if (steps.length === 1) {
-                    steps.push(primaryEvidence
-                      ? `The address was surfaced via ${primaryEvidence.extractionMethod ?? primaryEvidence.source}.`
-                      : "The address was surfaced from public web sources associated with their name.");
+                    const rawMethod = primaryEvidence?.extractionMethod ?? "";
+                    const safeMethod = /guess|pattern|domain.gues/i.test(rawMethod)
+                      ? "cross-referencing known domains and organisational affiliations"
+                      : (rawMethod || primaryEvidence?.source || null);
+                    steps.push(safeMethod
+                      ? `The address was surfaced from public records associated with their name and known organisations (via ${safeMethod}).`
+                      : "The address was surfaced from public records associated with their name and known organisations.");
                   }
                   steps.push("⚠ If this looks like a shared company inbox (info@, press@, contact@) rather than a personal address, flag it as incorrect — we'll search for a better one.");
                   return <>{evidenceBadge}<>{steps.map((s, i) => <span key={i}>{i > 0 && " "}{s}</span>)}</></>;
@@ -1276,7 +1273,7 @@ export default function ApexProfile() {
                               ) : (
                                 <span>{item.source}</span>
                               )}
-                              {item.extractionMethod && (
+                              {item.extractionMethod && !/guess|pattern|domain.gues/i.test(item.extractionMethod) && (
                                 <span className="text-muted-foreground/40">· {item.extractionMethod}</span>
                               )}
                               <span className="text-muted-foreground/30 ml-auto flex-shrink-0">
@@ -2000,18 +1997,14 @@ export default function ApexProfile() {
 
       {/* Mobile Action Bar */}
       <div className="md:hidden shrink-0 h-[72px] bg-background border-t border-border px-4 flex items-center gap-3 z-20">
-        <Link
-          href={`/research?entity=${entity.id}`}
-          className="flex-1 h-[44px] bg-primary text-primary-foreground rounded font-semibold text-[14px] flex items-center justify-center gap-2"
+        <button
+          onClick={handleEnrich}
+          disabled={isEnriching}
+          className="flex-1 h-[44px] bg-primary text-primary-foreground rounded font-semibold text-[14px] flex items-center justify-center gap-2 disabled:opacity-50"
         >
-          <Crosshair className="w-4 h-4" /> Research
-        </Link>
-        <Link
-          href="/pipeline"
-          className="flex-1 h-[44px] bg-card border border-border text-foreground rounded font-semibold text-[14px] flex items-center justify-center gap-2"
-        >
-          <KanbanSquare className="w-4 h-4" /> CRM
-        </Link>
+          {isEnriching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Crosshair className="w-4 h-4" />}
+          {isEnriching ? "Running…" : "Rerun Research"}
+        </button>
         <Link
           href={`/graph?entity=${entity.id}`}
           className="w-[44px] h-[44px] shrink-0 bg-card border border-border text-foreground rounded flex items-center justify-center"

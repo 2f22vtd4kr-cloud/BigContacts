@@ -101,7 +101,7 @@ After a fresh GitHub import, run these steps to get the project running:
 2. **Push DB schema:** `pnpm --filter @workspace/db run push`
 3. **Start workflows:** Redis → `artifacts/api-server: API Server` → `artifacts/apex-finder: web` (in that order)
 
-Latest verification (2026-07-28): all 24 requested enrichment secrets are present — `REDIS_URL_1` through `REDIS_URL_5`, `COMPANIES_HOUSE_API_KEY`, `GROQ_API_KEY`/`_2`/`_3`, `PERPLEXITY_API_KEY`/`_2`/`_3`/`_4`, `WHOXY_API_KEY`, `GEMINI_API_KEY`/`_2`/`_3`/`_4`, `EXA_API_KEY`/`_2`, `TAVILY_API_KEY`/`_2`/`_3`/`_4`; the frozen-lockfile install and schema push completed; Redis, `artifacts/api-server: API Server`, and `artifacts/apex-finder: web` are running; `/api/healthz` returns 200. DB is empty — research not yet started (user instruction).
+Latest verification (2026-07-28): all 24 requested enrichment secrets are present — `REDIS_URL_1` through `REDIS_URL_5`, `COMPANIES_HOUSE_API_KEY`, `GROQ_API_KEY`/`_2`/`_3`, `PERPLEXITY_API_KEY`/`_2`/`_3`/`_4`, `WHOXY_API_KEY`, `GEMINI_API_KEY`/`_2`/`_3`/`_4`, `EXA_API_KEY`/`_2`, `TAVILY_API_KEY`/`_2`/`_3`/`_4`; the frozen-lockfile install and schema push completed; Redis, `artifacts/api-server: API Server`, and `artifacts/apex-finder: web` are running; `/api/healthz` returns 200. DB is empty — research not yet started (user instruction). `ENABLE_AUTO_PIPELINE=false` set in shared env to prevent cold-start auto-ingestion.
 
 Two fixes were needed after the first import:
 - Added `"pg-cloudflare"` to the `external` list in `artifacts/api-server/build.mjs` (pg optional dep that esbuild couldn't resolve)

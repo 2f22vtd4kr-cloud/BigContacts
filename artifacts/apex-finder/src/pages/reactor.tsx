@@ -135,6 +135,25 @@ const MOBILE_PHASES = [
   { label:"OUTPUT",     nodeIds:["pitch"]                               },
 ];
 
+// ── Job → node mapping for live reactor state ────────────────────────────────
+const JOB_NODE_MAP: Record<string, string[]> = {
+  "faa":                  ["target","faa","inhouse"],
+  "land-registry":        ["target","hmlr","webdisc"],
+  "western-hnwi":         ["target","hnwi","inhouse"],
+  "in-house-enrich":      ["inhouse","perp0","exa"],
+  "web-osint-enrich":     ["webdisc","perp0","exa","tavily","groq"],
+  "deep-web-osint":       ["deepweb","gemini","perpfu"],
+  "social-discovery":     ["webdisc","inhouse"],
+  "occrp":                ["occrp"],
+  "opensky":              ["opensky","perpfu"],
+  "ch-company-officers":  ["ch","inhouse"],
+  "compute-embeddings":   ["semantic"],
+  "semantic-dedup":       ["semantic","bayesian"],
+  "bulk-hybrid-research": ["mcts","prac","bayesian","graph","pitch"],
+  "auto-detect":          ["graph","bayesian"],
+  "auto-detect-clusters": ["graph","semantic"],
+};
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function fwdPath(a: NodeDef, b: NodeDef) {
   const sx = a.cx, sy = a.cy + a.h / 2;
@@ -250,21 +269,26 @@ function formatDate(iso: string) {
 }
 
 // ── Mobile layout ─────────────────────────────────────────────────────────────
-function MobileReactor({ sessions, totalEntities, loading, onRefresh, syncing }: {
+function MobileReactor({ sessions, totalEntities, loading, onRefresh, syncing, liveNodes, liveLabel }: {
   sessions: ResearchSession[];
   totalEntities: number;
   loading: boolean;
   onRefresh: () => void;
   syncing: boolean;
+  liveNodes?: Set<string>;
+  liveLabel?: string;
 }) {
   const hasSessions = sessions.length > 0;
   const lastSession = sessions[0] ?? null;
   const pitchCount = sessions.filter(s => s.generatedPitch).length;
+  const isLive = (liveNodes?.size ?? 0) > 0;
 
-  // Core nodes always active when any session has run; pitch node active if any pitch generated
-  const activeNodes: Set<string> = hasSessions
-    ? new Set(["target","semantic","bayesian","graph","mcts","prac", ...(pitchCount > 0 ? ["pitch"] : [])])
-    : new Set();
+  // Live job state overrides static completion state
+  const activeNodes: Set<string> = isLive
+    ? liveNodes!
+    : (hasSessions
+        ? new Set(["target","semantic","bayesian","graph","mcts","prac", ...(pitchCount > 0 ? ["pitch"] : [])])
+        : new Set());
 
   return (
     <div style={{
@@ -306,12 +330,12 @@ function MobileReactor({ sessions, totalEntities, loading, onRefresh, syncing }:
           <div style={{ display:"flex", alignItems:"center", gap:5 }}>
             <div style={{
               width:6, height:6, borderRadius:"50%",
-              background: hasSessions ? "#a3e635" : "#253850",
-              boxShadow: hasSessions ? "0 0 6px #a3e635" : "none",
-              animation: hasSessions ? "blink 1.1s ease-in-out infinite" : "none",
+              background: isLive ? "#22d3ee" : (hasSessions ? "#a3e635" : "#253850"),
+              boxShadow: isLive ? "0 0 8px #22d3ee" : (hasSessions ? "0 0 6px #a3e635" : "none"),
+              animation: (isLive || hasSessions) ? "blink 1.1s ease-in-out infinite" : "none",
             }} />
-            <span style={{ fontSize:8, letterSpacing:"0.14em", color: hasSessions ? "#a3e635" : "#3a5070" }}>
-              {hasSessions ? "OPERATIONAL" : "STANDBY"}
+            <span style={{ fontSize:8, letterSpacing:"0.14em", color: isLive ? "#22d3ee" : (hasSessions ? "#a3e635" : "#3a5070") }}>
+              {isLive ? "LIVE" : (hasSessions ? "OPERATIONAL" : "STANDBY")}
             </span>
           </div>
           <div style={{ display:"flex", alignItems:"center", gap:6 }}>
@@ -404,6 +428,31 @@ function MobileReactor({ sessions, totalEntities, loading, onRefresh, syncing }:
                 );
               })}
             </div>
+
+            {/* ── Live job banner ── */}
+            {isLive && liveLabel && (
+              <div style={{
+                margin:"0 12px 8px",
+                padding:"6px 10px",
+                border:"1px solid #22d3ee30",
+                borderRadius:6,
+                background:"#22d3ee0a",
+                display:"flex", alignItems:"center", gap:8,
+                flexShrink:0,
+              }}>
+                <div style={{
+                  width:5, height:5, borderRadius:"50%",
+                  background:"#22d3ee", boxShadow:"0 0 6px #22d3ee",
+                  animation:"blink 0.6s ease-in-out infinite", flexShrink:0,
+                }} />
+                <span style={{
+                  fontSize:8, letterSpacing:"0.12em", color:"#22d3ee",
+                  flex:1, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+                }}>
+                  {liveLabel}
+                </span>
+              </div>
+            )}
 
             {/* ── Sessions section ── */}
             <div style={{ padding:"8px 12px 12px", flexShrink:0 }}>
@@ -815,6 +864,40 @@ export default function IntelligenceReactorPage() {
   const [totalEntities, setTotalEntities] = useState(0);
   const [loadingData,   setLoadingData]   = useState(true);
   const [syncing,       setSyncing]       = useState(false);
+  const [liveNodes,     setLiveNodes]     = useState<Set<string>>(new Set());
+  const [liveLabel,     setLiveLabel]     = useState<string>("");
+
+  const pollJobs = useCallback(async () => {
+    const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+    try {
+      const data = await fetch(`${BASE}/api/ingest/jobs`, { cache: "no-store" })
+        .then(r => r.ok ? r.json() : { jobs: [] })
+        .catch(() => ({ jobs: [] }));
+      const running = (data.jobs ?? []).filter((j: any) =>
+        j.status === "running" || j.status === "active"
+      );
+      if (running.length > 0) {
+        const nodes = new Set<string>();
+        const labels: string[] = [];
+        for (const job of running) {
+          (JOB_NODE_MAP[job.id] ?? []).forEach((n: string) => nodes.add(n));
+          if (job.label) labels.push(job.label);
+        }
+        setLiveNodes(nodes);
+        setLiveLabel(labels.join(" · "));
+      } else {
+        setLiveNodes(new Set());
+        setLiveLabel("");
+      }
+    } catch { /* non-fatal */ }
+  }, []);
+
+  // Poll live jobs every 3 s so nodes light up as research runs
+  useEffect(() => {
+    pollJobs();
+    const id = setInterval(pollJobs, 3_000);
+    return () => clearInterval(id);
+  }, [pollJobs]);
 
   const fetchData = useCallback(async (isBackground = false) => {
     if (isBackground) {
@@ -894,6 +977,8 @@ export default function IntelligenceReactorPage() {
           loading={loadingData}
           onRefresh={() => fetchData(true)}
           syncing={syncing}
+          liveNodes={liveNodes}
+          liveLabel={liveLabel}
         />
       </div>
     );

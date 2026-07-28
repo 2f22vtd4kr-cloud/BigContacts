@@ -92,9 +92,79 @@ const TEMPLATE_CATEGORIES: Record<number, string[]> = {
     '"family office" "net worth" billion',
     '"ultra high net worth" investor',
   ],
+  6: [  // European venue-owner discovery
+    '"casino" owner director "Monte Carlo" OR Marbella OR Cannes',
+    '"luxury hotel" "beneficial owner" Italy OR France OR Spain',
+    '"yacht club" commodore owner Mediterranean',
+    '"private members club" director London OR Zurich OR Geneva',
+    '"grand hotel" proprietor Austria OR Switzerland',
+    '"ski resort" owner investor Alps',
+    '"marina" operator owner Cannes OR Monaco OR Antibes',
+    '"vineyard" owner estate "Bordeaux" OR "Tuscany"',
+    '"luxury villa" owner "Côte d\'Azur" OR Sardinia OR Mallorca',
+    '"superyacht charter" owner Mediterranean fleet',
+    '"private golf club" owner director membership',
+    '"boutique hotel" group owner lifestyle portfolio',
+  ],
+  7: [  // Nordic & Scandinavian
+    '"Bergen" shipping owner director Norway',
+    '"Norwegian" billionaire investor portfolio',
+    '"Finnish" tech founder billion investment',
+    '"Swedish" family office principal',
+    '"Stockholm" private equity managing partner',
+    '"Danish" shipping company owner director',
+    '"Stavanger" oil gas executive director',
+    '"Helsinki" investment office founder',
+    '"Oslo" real estate developer portfolio',
+    '"Copenhagen" private wealth director',
+    '"BRREG" director aksjeselskap major shareholder',
+    '"Scandinavian" family office investment billion',
+  ],
+  8: [  // Asian wealth centres
+    '"Singapore" family office principal HNWI',
+    '"Hong Kong" tycoon director "private limited"',
+    '"Tokyo" billionaire investment portfolio',
+    '"Dubai" family office "ultra high net worth"',
+    '"Abu Dhabi" investment director wealth fund',
+    '"Seoul" family business chairman owner conglomerate',
+    '"Singapore" MAS licensed fund manager',
+    '"Hong Kong" SFC director fund management',
+    '"Indonesia" billionaire group owner director',
+    '"Malaysia" tycoon conglomerate director chairman',
+    '"Philippines" billionaire family office',
+    '"Thailand" billionaire investment group',
+  ],
+  9: [  // Latin American & Eastern European
+    '"São Paulo" billionaire investor portfolio',
+    '"Mexico City" family office director wealth',
+    '"Buenos Aires" investment fund director',
+    '"Warsaw" private equity founder billion',
+    '"Prague" real estate developer investment',
+    '"Cyprus" beneficial owner offshore fund',
+    '"Luxembourg" family office principal fund',
+    '"Geneva" private wealth family office Swiss',
+    '"Zurich" private banking director wealth management',
+    '"Vienna" private equity foundation director',
+    '"Amsterdam" family office investment',
+    '"Brussels" private equity fund director',
+  ],
+  10: [ // Tier-1 fund & institutional principals
+    '"general partner" fund billion AUM raise',
+    '"managing director" private equity European',
+    '"venture capital" "founding partner" Europe',
+    '"hedge fund" "founding partner" London',
+    '"family office" "chief investment officer" Europe',
+    '"sovereign wealth" officer director fund',
+    '"endowment" "chief investment officer" foundation',
+    '"private credit" fund manager director',
+    '"real assets" fund manager director European',
+    '"UHNW" client director private bank',
+    '"impact fund" "managing partner" billion',
+    '"co-investment" director "family office" network',
+  ],
 };
 
-const TOTAL_CATEGORIES = Object.keys(TEMPLATE_CATEGORIES).length; // 5
+const TOTAL_CATEGORIES = Object.keys(TEMPLATE_CATEGORIES).length; // 10
 
 // ── Name extraction ───────────────────────────────────────────────────────────
 
@@ -202,16 +272,21 @@ const ROTATION_KEY = "broad-discovery:last-template-set";
 
 async function getNextTemplateSet(rotate: boolean): Promise<number> {
   if (!rotate) return 1;
+  const catKeys = Object.keys(TEMPLATE_CATEGORIES).map(Number);
   try {
     const client = await getPermanentClient();
-    if (!client) return 1;
-    const last = await client.get(ROTATION_KEY);
-    const lastNum = last ? parseInt(last, 10) : 0;
-    const next = (lastNum % TOTAL_CATEGORIES) + 1; // cycles 1→2→3→4→5→1
-    await client.set(ROTATION_KEY, String(next));
-    return next;
+    let lastUsed = 0;
+    if (client) {
+      const last = await client.get(ROTATION_KEY);
+      lastUsed = last ? parseInt(last, 10) : 0;
+    }
+    // Pick randomly, avoiding the same category twice in a row for true diversity
+    const available = catKeys.filter(k => k !== lastUsed);
+    const picked = available[Math.floor(Math.random() * available.length)];
+    if (client) await client.set(ROTATION_KEY, String(picked));
+    return picked;
   } catch {
-    return 1;
+    return catKeys[Math.floor(Math.random() * catKeys.length)];
   }
 }
 

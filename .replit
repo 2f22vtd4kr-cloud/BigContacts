@@ -79,7 +79,7 @@ channel = "stable-25_05"
 
 [userenv.shared]
 REDIS_URL = "redis://localhost:6379"
-ENABLE_AUTO_PIPELINE = "true"
+ENABLE_AUTO_PIPELINE = "false"
 
 [[ports]]
 localPort = 6379

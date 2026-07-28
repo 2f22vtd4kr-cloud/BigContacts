@@ -1,0 +1,36 @@
+Before running Apex Atlas, few things:
+
+Graphs aren't connected to the right HMWI's cards. When at the bottom of HNWI's I click on the graph button - it just opens a random graph which has nothing to do within that person. Also I can't come back from the graph page to the HNWI's card, needs to be possible.
+When asking for evidence for contacts of a HNWI - for email you say that is was guessed, which is unacceptable - we have restricted any generated data AS FINAL RESULT. You may use that deduction method while researching but not as explanation for the final email cause it a guessed contact should never be displayed!
+The enrichment button and all the bottom buttons on the HNWI's card (except the graph one) - gotta be removed and instead added a button which basically reruns research for this exact target. Also marking as bad data from evidence window - gotta be updated so the research runs for that specific contact data. This is because we just added many new LLMs and tuned the research workflow in general.
+The intelligence reactor isn't working (I'm working on a phone so I'm referring to the mobile website view) it just lits some tools and stays still. Also gotta be updated with new tools added. The UI visualisation as already once described gotta show the workflow: what tools are triggered - the found data flow from one tool to another in real time when the Apex Atlas is working.
+Once you solve these little issues - run Apex Atlas. And here is the catch - the HNWIs source targets aren't diversified at the beginning: its 30 000 aircraft's from FFA, while its just once source when we have dozens if not hundreds of other registries from European countries etc. I would prefer a randomised starting point of research each iteration, example: a web search for Italian casino, select one and begin research on owners etc (HNWIs related to that casino), once done - the second source will be from one of registries we have, then a private plane in Finland and research of owner, then web research of investment funds in Spain, pick one then start a HNWIs research on it, then plane from FAA and so on...
+
+Got it? One at the time. Work on this architecture of the workflow, because we now have basically the unique intelligence tool and really there aren't others like Apex Atlas (for real) and we just need to optimise it because all the tools are set up and the only thing remaining is to use them properly.
+
+Of course as you understand the best tools are LLMs that we have which all have already trained models so basically we have intelligence apps inside our one app and plus many other tools we added to amplify each other's work and final contacts result's quality. From Gemini to Maigret etc.
+
+Once you though it all through and implemented - run Apex Atlas in the background.
+This is a substantial set of changes. Let me explore the codebase in parallel to map the relevant files before making any edits.
+Good map. Now reading the exact code sections I need to edit across all 5 issues simultaneously.
+Now reading the remaining files I need — reactor page, profile bottom buttons, and startup ingestion logic.
+Let me read a few more specific code sections before writing all the edits.
+Good, I have enough context. Let me read the remaining critical sections in parallel before writing all edits.
+I have everything I need. Now executing all changes in parallel — 5 issues, working simultaneously.
+Let me get the last pieces I need — the handleEnrich/handleRejectContact functions and the graph header area.
+Now I have everything. Implementing all 5 issues in parallel across files.
+Continuing with all remaining edits in parallel.
+I need to fix the entities.tsx grid layout and add the RerunButton component, plus continue with the remaining 4 issues.
+Continuing all edits in parallel — fixing the grid layout, adding RerunButton, fixing graph nav, evidence wording, and more.
+Now adding the RerunButton component and all remaining parallel edits across files.
+Now making all remaining edits in parallel — entities RerunButton, profile fixes, graph back-nav, all at once.
+Continuing with all remaining edits in parallel — profile fixes, graph back nav, reactor overhaul, and diversified sources simultaneously.
+Continuing all edits in parallel.
+Continuing all remaining edits in parallel — evidence panel, graph back-nav, reactor nodes, diversified discovery, startup.
+Continuing all parallel edits — graph back-nav, reactor overhaul, diversified discovery, all at once.
+Continuing all remaining parallel edits — graph back button, reactor overhaul, and diversified discovery engine.
+Continuing all remaining edits in parallel — desktop graph back-nav, full reactor overhaul with new nodes, and diversified discovery engine.
+Now tackling the reactor overhaul, broad-discovery diversification, and startup changes all in parallel.
+Continuing with parallel edits — reactor.tsx NODES+EDGES+WAVES, broad-discovery new categories, and startup diversification.
+Continuing all parallel edits — updating reactor EDGES/WAVES/MOBILE_PHASES, adding mobile job polling, broad-discovery new categories, and startup diversification.
+You've reached your daily free quota limit. It will reset at 12:00 AM UTC.
