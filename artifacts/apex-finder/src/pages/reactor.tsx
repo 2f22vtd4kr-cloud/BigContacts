@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Plane, Building2, Globe, Search, Brain, Zap, Network,
   Target, Cpu, Radio, Activity, BarChart2, Shield,
@@ -232,10 +232,12 @@ function formatDate(iso: string) {
 }
 
 // ── Mobile layout ─────────────────────────────────────────────────────────────
-function MobileReactor({ sessions, totalEntities, loading }: {
+function MobileReactor({ sessions, totalEntities, loading, onRefresh, syncing }: {
   sessions: ResearchSession[];
   totalEntities: number;
   loading: boolean;
+  onRefresh: () => void;
+  syncing: boolean;
 }) {
   const hasSessions = sessions.length > 0;
   const lastSession = sessions[0] ?? null;
@@ -261,7 +263,7 @@ function MobileReactor({ sessions, totalEntities, loading }: {
         display:"flex", alignItems:"center", gap:10,
         background:"rgba(11,17,32,0.95)",
       }}>
-        {/* Nuclear icon — absolute-centred to bypass glyph-metric quirks */}
+        {/* Nuclear icon */}
         <div style={{
           width:32, height:32, borderRadius:"50%", flexShrink:0,
           position:"relative",
@@ -303,8 +305,28 @@ function MobileReactor({ sessions, totalEntities, loading }: {
               {hasSessions ? "OPERATIONAL" : "STANDBY"}
             </span>
           </div>
-          <div style={{ fontSize:14, fontWeight:700, color: hasSessions ? "#a3e635" : "#253850", lineHeight:1 }}>
-            {String(sessions.length).padStart(4, "0")}
+          <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+            <div style={{ fontSize:14, fontWeight:700, color: hasSessions ? "#a3e635" : "#253850", lineHeight:1 }}>
+              {String(sessions.length).padStart(4, "0")}
+            </div>
+            {/* Sync button */}
+            <button
+              onClick={onRefresh}
+              title="Sync"
+              style={{
+                width:22, height:22, borderRadius:4, border:"1px solid #253850",
+                background:"transparent", cursor:"pointer",
+                display:"flex", alignItems:"center", justifyContent:"center",
+                color: syncing ? "#a3e635" : "#3a5070",
+                transition:"all 0.25s",
+                padding:0, flexShrink:0,
+              }}
+            >
+              <RefreshCw style={{
+                width:10, height:10,
+                animation: syncing ? "blink 0.6s linear infinite" : "none",
+              }} />
+            </button>
           </div>
         </div>
       </header>
