@@ -15,7 +15,7 @@
 
 import { logger } from "./logger";
 import { isValidPublicEmail, sanitizePublicEmail } from "./contact-validation";
-import { extractWithAI, researchWithPerplexity, type OwnerResolution } from "./ai-extractor";
+import { extractWithAI, researchWithPerplexity, researchWithGemini, type OwnerResolution } from "./ai-extractor";
 import { extractPersonNames } from "./gliner-client";
 
 // ── Shared utilities ──────────────────────────────────────────────────────────
@@ -1710,16 +1710,21 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     }
   };
 
-  // ── Phase 0: Perplexity Sonar — live web research ──────────────────────
-  // perplexity/sonar-pro via OpenRouter is a LIVE web-search model (same as
-  // Gemini AI Overview). Fires before DDG/Bing — owner names and personal
-  // social handles arrive in seconds, even from regional press that DDG
-  // doesn't index well (e.g. Nice-Matin finding Christophe Caucino).
+  // ── Phase 0: Perplexity Sonar + Gemini Flash — live web research ──────────
+  // Both fire in parallel before DDG/Bing — different search indexes means
+  // complementary coverage. Perplexity excels at regional press; Gemini
+  // excels at Google-indexed official pages and LinkedIn.
   try {
-    const perp = await researchWithPerplexity(entity.name, entity.type, country, {
-      tradingName: trading,
-      city,
-    });
+    const [perp, gem] = await Promise.all([
+      researchWithPerplexity(entity.name, entity.type, country, {
+        tradingName: trading,
+        city,
+      }),
+      researchWithGemini(entity.name, entity.type, country, {
+        tradingName: trading,
+        city,
+      }),
+    ]);
     if (perp.source === "perplexity-sonar") {
       const label = "Perplexity[sonar]";
       result.sources.push(label);
@@ -1796,7 +1801,73 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       result.queriesFired++;
     }
   } catch (err: any) {
-    logger.warn({ err: err?.message, name: err?.name }, "Phase 0: Perplexity Sonar failed");
+    logger.warn({ err: err?.message, name: err?.name }, "Phase 0: Perplexity/Gemini research failed");
+  }
+
+  // ── Phase 0.5: Gemini Flash results (already fetched above in parallel) ──
+  try {
+    if (typeof gem !== "undefined" && gem.source === "gemini-flash") {
+      const label = "Gemini[flash]";
+      result.sources.push(label);
+      if (gem.email) {
+        const arr = emailHits.get(gem.email) ?? []; arr.push(label); emailHits.set(gem.email, arr);
+        recordEvidence("email", gem.email, label, null, "ai-gemini-flash", 80);
+      }
+      if (gem.phone) {
+        const arr = phoneHits.get(gem.phone) ?? []; arr.push(label); phoneHits.set(gem.phone, arr);
+        recordEvidence("phone", gem.phone, label, null, "ai-gemini-flash", 80);
+      }
+      if (gem.linkedin) {
+        const arr = linkedinHits.get(gem.linkedin) ?? []; arr.push(label); linkedinHits.set(gem.linkedin, arr);
+        recordEvidence("social", gem.linkedin, label, null, "ai-gemini-flash", 75, { network: "linkedin" });
+      }
+      if (gem.instagram) {
+        const arr = igHits.get(gem.instagram) ?? []; arr.push(label); igHits.set(gem.instagram, arr);
+        recordEvidence("social", gem.instagram, label, null, "ai-gemini-flash", 75, { network: "instagram" });
+      }
+      if (gem.twitter) {
+        const arr = twHits.get(gem.twitter) ?? []; arr.push(label); twHits.set(gem.twitter, arr);
+        recordEvidence("social", gem.twitter, label, null, "ai-gemini-flash", 75, { network: "twitter" });
+      }
+      if (gem.ownershipSummary && !result.ownershipSummary) result.ownershipSummary = gem.ownershipSummary;
+      for (const owner of gem.ownerResolutions) {
+        addOwnerResolution(owner, label, gem.citations[0] ?? null);
+      }
+      for (const oc of gem.ownerContacts) {
+        if (!gem.ownerResolutions.some(o => o.name.toLowerCase() === oc.name.toLowerCase())) {
+          addOwnerResolution({
+            ...oc,
+            role: "associated_person",
+            ownershipStatus: "not_established",
+            basis: null,
+            sourceUrls: gem.citations.slice(0, 4),
+          }, label, gem.citations[0] ?? null);
+        }
+      }
+      // Grounding URLs → scrape queue + domain injection (same logic as Perplexity citations)
+      for (const url of gem.citations.slice(0, 4)) urlsToScrape.add(url);
+      const gemDomains: string[] = [];
+      for (const url of gem.citations) {
+        try {
+          const hostname = new URL(url).hostname.replace(/^www\./, "");
+          if (!CITATION_SKIP_DOMAINS.has(hostname) && !gemDomains.includes(hostname)) {
+            gemDomains.push(hostname);
+          }
+        } catch { /* ignore malformed URLs */ }
+      }
+      if (gemDomains.length > 0) {
+        domainTargets.unshift(...gemDomains.slice(0, 3));
+        logger.info({ entityId: entity.id, gemDomains }, "Phase 0.5: injected Gemini grounding domains into scrape targets");
+      }
+      allSearchText += " " + JSON.stringify({
+        ownershipSummary: gem.ownershipSummary,
+        ownerResolutions: gem.ownerResolutions,
+        owners: gem.owners,
+      });
+      result.queriesFired++;
+    }
+  } catch (err: any) {
+    logger.warn({ err: err?.message }, "Phase 0.5: Gemini Flash processing failed");
   }
 
   // ── Phase 1: DDG search (locale-aware) ─────────────────────────────────
@@ -2156,11 +2227,19 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
 
     for (const personName of followUpPersons) {
       try {
-        logger.info({ entityId: entity.id, personName }, "Phase 7.5: follow-up Perplexity for discovered person");
-        const fuPerp = await researchWithPerplexity(personName, "HNWI", country, {
-          tradingName: entity.name,
-          city,
-        });
+        logger.info({ entityId: entity.id, personName }, "Phase 7.5: follow-up Perplexity+Gemini for discovered person");
+        const [fuPerp, fuGem] = await Promise.all([
+          researchWithPerplexity(personName, "HNWI", country, {
+            tradingName: entity.name,
+            city,
+          }),
+          researchWithGemini(personName, "HNWI", country, {
+            tradingName: entity.name,
+            city,
+          }),
+        ]);
+
+        // Process Perplexity follow-up
         if (fuPerp.source === "perplexity-sonar") {
           const label = `Perplexity[fu:${personName.split(" ")[0]}]`;
           result.sources.push(label);
@@ -2186,20 +2265,51 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
           for (const owner of fuPerp.ownerResolutions) {
             addOwnerResolution(owner, label, fuPerp.citations[0] ?? null);
           }
-          // New citations → scrape queue + domain targets
           for (const url of fuPerp.citations.slice(0, 3)) urlsToScrape.add(url);
           for (const url of fuPerp.citations) {
             try {
               const hostname = new URL(url).hostname.replace(/^www\./, "");
-              if (!CITATION_SKIP_DOMAINS.has(hostname) && !domainTargets.includes(hostname)) {
-                domainTargets.push(hostname);
-              }
+              if (!CITATION_SKIP_DOMAINS.has(hostname) && !domainTargets.includes(hostname)) domainTargets.push(hostname);
             } catch { /* skip malformed */ }
           }
-          allSearchText += " " + JSON.stringify({
-            personName, ownershipSummary: fuPerp.ownershipSummary,
-            ownerResolutions: fuPerp.ownerResolutions,
-          });
+          allSearchText += " " + JSON.stringify({ personName, ownershipSummary: fuPerp.ownershipSummary, ownerResolutions: fuPerp.ownerResolutions });
+          result.queriesFired++;
+        }
+
+        // Process Gemini follow-up
+        if (fuGem.source === "gemini-flash") {
+          const label = `Gemini[fu:${personName.split(" ")[0]}]`;
+          result.sources.push(label);
+          const pdDetails = { scope: "person_candidate" as const, personName, relationship: "personal-contact-followup" };
+          if (fuGem.email) {
+            const arr = emailHits.get(fuGem.email) ?? []; arr.push(label); emailHits.set(fuGem.email, arr);
+            recordEvidence("email", fuGem.email, label, null, "ai-gemini-flash-followup", 76, pdDetails);
+          }
+          if (fuGem.phone) {
+            const arr = phoneHits.get(fuGem.phone) ?? []; arr.push(label); phoneHits.set(fuGem.phone, arr);
+            recordEvidence("phone", fuGem.phone, label, null, "ai-gemini-flash-followup", 76, pdDetails);
+          }
+          if (fuGem.linkedin) {
+            const arr = linkedinHits.get(fuGem.linkedin) ?? []; arr.push(label); linkedinHits.set(fuGem.linkedin, arr);
+            recordEvidence("social", fuGem.linkedin, label, null, "ai-gemini-flash-followup", 72, { ...pdDetails, network: "linkedin" });
+          }
+          if (fuGem.instagram) {
+            recordEvidence("social", fuGem.instagram, label, null, "ai-gemini-flash-followup", 72, { ...pdDetails, network: "instagram" });
+          }
+          if (fuGem.twitter) {
+            recordEvidence("social", fuGem.twitter, label, null, "ai-gemini-flash-followup", 72, { ...pdDetails, network: "twitter" });
+          }
+          for (const owner of fuGem.ownerResolutions) {
+            addOwnerResolution(owner, label, fuGem.citations[0] ?? null);
+          }
+          for (const url of fuGem.citations.slice(0, 3)) urlsToScrape.add(url);
+          for (const url of fuGem.citations) {
+            try {
+              const hostname = new URL(url).hostname.replace(/^www\./, "");
+              if (!CITATION_SKIP_DOMAINS.has(hostname) && !domainTargets.includes(hostname)) domainTargets.push(hostname);
+            } catch { /* skip malformed */ }
+          }
+          allSearchText += " " + JSON.stringify({ personName, ownershipSummary: fuGem.ownershipSummary, ownerResolutions: fuGem.ownerResolutions });
           result.queriesFired++;
         }
       } catch (err: any) {

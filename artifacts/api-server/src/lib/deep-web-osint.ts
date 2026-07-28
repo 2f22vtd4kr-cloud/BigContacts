@@ -18,7 +18,7 @@
  */
 
 import { logger } from "./logger";
-import { extractWithAI, researchWithPerplexity } from "./ai-extractor";
+import { extractWithAI, researchWithPerplexity, researchWithGemini } from "./ai-extractor";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -427,11 +427,10 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   type AiOwner = { name: string; instagram: string | null; twitter: string | null; linkedin: string | null };
   const aiOwners: AiOwner[] = [];
 
-  // ── Phase 0: Perplexity Sonar — live web research ────────────────────────
-  // perplexity/sonar-pro via OpenRouter searches the web itself, synthesising
-  // results exactly like Gemini AI Overview. Fires before DDG/Bing so owner names
-  // and personal social handles arrive immediately — even from regional press that
-  // DDG doesn't index well (e.g. Nice-Matin finding Christophe Caucino).
+  // ── Phase 0: Perplexity Sonar + Gemini Flash — live web research ─────────
+  // Both fire in parallel before DDG/Bing. Perplexity and Gemini use different
+  // search indexes — complementary coverage for owner names, contacts, and
+  // regional press (e.g. Nice-Matin for French HNWIs).
   try {
     // Derive country hint from knownResidences (e.g. "Port Pierre Canto, Cannes, France" → "France")
     const countryHint = (() => {
@@ -440,7 +439,12 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       return m ? m[1]!.trim() : null;
     })();
 
-    const perp = await researchWithPerplexity(entity.name, entity.type, countryHint);
+    const [perp, gem] = await Promise.all([
+      researchWithPerplexity(entity.name, entity.type, countryHint),
+      researchWithGemini(entity.name, entity.type, countryHint),
+    ]);
+
+    // Process Perplexity results
     if (perp.source === "perplexity-sonar") {
       const label = "Perplexity[sonar]";
       if (perp.email)    { const a = emailHits.get(perp.email) ?? [];       a.push(label); emailHits.set(perp.email, a); }
@@ -450,21 +454,41 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       if (perp.twitter)  { const a = twHits.get(perp.twitter) ?? [];        a.push(label); twHits.set(perp.twitter, a); }
       for (const oc of perp.ownerContacts) {
         aiOwners.push({ name: oc.name, instagram: oc.instagram, twitter: oc.twitter, linkedin: oc.linkedin });
-        // Corp entities: owner handles are person-level, never the org's own social
         if (!isCorp) {
           if (oc.instagram) { const a = igHits.get(oc.instagram) ?? [];      a.push(`${label}-owner`); igHits.set(oc.instagram, a); }
           if (oc.twitter)   { const a = twHits.get(oc.twitter) ?? [];        a.push(`${label}-owner`); twHits.set(oc.twitter, a); }
         }
         if (oc.linkedin)  { const a = linkedinHits.get(oc.linkedin) ?? []; a.push(`${label}-owner`); linkedinHits.set(oc.linkedin, a); }
       }
-      // Add Perplexity's cited URLs to the scrape queue — these are the real sources it found
       for (const url of perp.citations.slice(0, 4)) urlsToScrape.add(url);
-      // Include Perplexity output in accumulated text for Phase 3.5 cross-validation
       allSearchText += " " + JSON.stringify({ owners: perp.owners, ownerContacts: perp.ownerContacts });
       result.sources.push(label);
     }
+
+    // Process Gemini results
+    if (gem.source === "gemini-flash") {
+      const label = "Gemini[flash]";
+      if (gem.email)    { const a = emailHits.get(gem.email) ?? [];       a.push(label); emailHits.set(gem.email, a); }
+      if (gem.phone)    { const a = phoneHits.get(gem.phone) ?? [];       a.push(label); phoneHits.set(gem.phone, a); }
+      if (gem.linkedin) { const a = linkedinHits.get(gem.linkedin) ?? []; a.push(label); linkedinHits.set(gem.linkedin, a); }
+      if (gem.instagram){ const a = igHits.get(gem.instagram) ?? [];      a.push(label); igHits.set(gem.instagram, a); }
+      if (gem.twitter)  { const a = twHits.get(gem.twitter) ?? [];        a.push(label); twHits.set(gem.twitter, a); }
+      for (const oc of gem.ownerContacts) {
+        if (!aiOwners.some(o => o.name.toLowerCase() === oc.name.toLowerCase())) {
+          aiOwners.push({ name: oc.name, instagram: oc.instagram, twitter: oc.twitter, linkedin: oc.linkedin });
+        }
+        if (!isCorp) {
+          if (oc.instagram) { const a = igHits.get(oc.instagram) ?? [];      a.push(`${label}-owner`); igHits.set(oc.instagram, a); }
+          if (oc.twitter)   { const a = twHits.get(oc.twitter) ?? [];        a.push(`${label}-owner`); twHits.set(oc.twitter, a); }
+        }
+        if (oc.linkedin)  { const a = linkedinHits.get(oc.linkedin) ?? []; a.push(`${label}-owner`); linkedinHits.set(oc.linkedin, a); }
+      }
+      for (const url of gem.citations.slice(0, 4)) urlsToScrape.add(url);
+      allSearchText += " " + JSON.stringify({ owners: gem.owners, ownerContacts: gem.ownerContacts });
+      result.sources.push(label);
+    }
   } catch (err: any) {
-    logger.warn({ err: err?.message, name: err?.name }, "Phase 0: Perplexity research failed");
+    logger.warn({ err: err?.message, name: err?.name }, "Phase 0: Perplexity/Gemini research failed");
   }
 
   // ── Phase 1: DDG HTML search on all queries ──────────────────────────────

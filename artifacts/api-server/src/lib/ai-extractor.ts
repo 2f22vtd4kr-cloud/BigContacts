@@ -33,6 +33,10 @@ const PERPLEXITY_DIRECT_API      = "https://api.perplexity.ai/chat/completions";
 const PERPLEXITY_DIRECT_MODEL    = "sonar-pro";   // model name WITHOUT the "perplexity/" prefix when calling directly
 const PERPLEXITY_DIRECT_FALLBACK = "sonar";       // cheaper direct fallback
 
+// Gemini Flash with Google Search Grounding — searches Google in real-time, different index from Perplexity
+const GEMINI_API   = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+const GEMINI_MODEL = "gemini-2.0-flash"; // used only for log labels
+
 // Track which keys hit rate-limits. Map<key, expiresAtMs> — keys auto-recover after 5 min.
 const EXHAUSTED_TTL_MS = 5 * 60 * 1000;
 
@@ -43,12 +47,12 @@ function isExhausted(map: Map<string, number>, key: string): boolean {
   return true;
 }
 
-// IMPORTANT: Perplexity uses a SEPARATE exhaustion map from OpenRouter-llama extraction.
-// A 429 on the llama extraction path must NOT block Perplexity Sonar (different model, different quota).
+// IMPORTANT: each provider uses a SEPARATE exhaustion map — a 429 on one must NOT block others.
 const _exhaustedGroqKeys              = new Map<string, number>();
 const _exhaustedORKeys                = new Map<string, number>(); // for llama text extraction only
 const _exhaustedPerplexityKeys        = new Map<string, number>(); // for OpenRouter-routed Sonar only
 const _exhaustedPerplexityDirectKeys  = new Map<string, number>(); // for direct Perplexity API only
+const _exhaustedGeminiKeys            = new Map<string, number>(); // for Gemini Flash grounded search
 
 function getGroqKeys(): string[] {
   return ["GROQ_API_KEY", "GROQ_API_KEY_2", "GROQ_API_KEY_3"]
@@ -68,6 +72,13 @@ function getOpenRouterKeys(): string[] {
 function getPerplexityDirectKeys(): string[] {
   const names = ["PERPLEXITY_API_KEY"];
   for (let i = 1; i <= 8; i++) names.push(`PERPLEXITY_API_KEY_${i}`);
+  return names.map(k => process.env[k] ?? "").filter(k => k.length > 0);
+}
+
+/** Returns all Gemini API keys (GEMINI_API_KEY, GEMINI_API_KEY_2 … _8). */
+function getGeminiKeys(): string[] {
+  const names = ["GEMINI_API_KEY"];
+  for (let i = 2; i <= 8; i++) names.push(`GEMINI_API_KEY_${i}`);
   return names.map(k => process.env[k] ?? "").filter(k => k.length > 0);
 }
 
@@ -109,8 +120,8 @@ export interface AIExtractResult {
   ownerResolutions: OwnerResolution[]; // role + ownership basis; never auto-merged
   ownershipSummary: string | null;
   ownershipSources: string[];
-  source:    "groq-llama-70b" | "groq-llama-8b" | "openrouter" | "perplexity-sonar" | "none";
-  citations: string[];            // URLs Perplexity actually searched — use as evidence sources
+  source:    "groq-llama-70b" | "groq-llama-8b" | "openrouter" | "perplexity-sonar" | "gemini-flash" | "none";
+  citations: string[];            // URLs the model actually searched — use as evidence sources
 }
 
 const EMPTY: AIExtractResult = {
@@ -717,6 +728,103 @@ export async function researchWithPerplexity(
   }
 
   logger.warn({ entityName }, "Phase 0: Perplexity returned no usable data — all paths exhausted");
+  return EMPTY;
+}
+
+/**
+ * Fire a live Gemini Flash research query with Google Search Grounding.
+ * Gemini searches Google in real-time — complementary to Perplexity (different search index).
+ * Uses the same buildPerplexityPrompt so JSON schema is identical; results merge cleanly.
+ * Returns structured contact + owner data with grounding URLs Gemini actually visited.
+ */
+export async function researchWithGemini(
+  entityName: string,
+  entityType: string,
+  country: string | null = null,
+  context: { tradingName?: string | null; city?: string | null } = {},
+): Promise<AIExtractResult> {
+  const keys = getGeminiKeys();
+  if (keys.length === 0) return EMPTY;
+
+  logger.info({ entityName, entityType, country }, `Phase 0 [${GEMINI_MODEL}]: firing Gemini grounded search`);
+  const prompt = buildPerplexityPrompt(entityName, entityType, country, context);
+
+  for (const key of keys) {
+    if (isExhausted(_exhaustedGeminiKeys, key)) continue;
+    try {
+      const resp = await fetch(`${GEMINI_API}?key=${key}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          tools: [{ google_search: {} }],
+          generationConfig: { temperature: 0.1, maxOutputTokens: 2000 },
+        }),
+        signal: AbortSignal.timeout(35_000),
+      });
+
+      if (resp.status === 429) {
+        _exhaustedGeminiKeys.set(key, Date.now() + EXHAUSTED_TTL_MS);
+        logger.warn(`Phase 0 [${GEMINI_MODEL}]: rate limit — key exhausted 5 min`);
+        continue;
+      }
+      if (resp.status === 403) {
+        const errText = await resp.text().catch(() => "");
+        logger.warn({ err: errText.slice(0, 200) }, `Phase 0 [${GEMINI_MODEL}]: quota/auth error — skipping key`);
+        continue;
+      }
+      if (!resp.ok) {
+        const errText = await resp.text().catch(() => "");
+        logger.warn({ status: resp.status, err: errText.slice(0, 300) }, `Phase 0 [${GEMINI_MODEL}]: API error`);
+        continue;
+      }
+
+      const data = await resp.json() as any;
+      const raw: string = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+
+      // Extract grounding citations from groundingMetadata
+      const chunks: any[] = data?.candidates?.[0]?.groundingMetadata?.groundingChunks ?? [];
+      const citations: string[] = chunks
+        .map((c: any) => c?.web?.uri)
+        .filter((u: unknown): u is string => typeof u === "string" && /^https?:\/\//i.test(u))
+        .slice(0, 8);
+
+      logger.info(
+        { entityName, rawLen: raw.length, citations: citations.length },
+        `Phase 0 [${GEMINI_MODEL}]: raw response received`,
+      );
+
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        logger.warn({ raw: raw.slice(0, 300) }, `Phase 0 [${GEMINI_MODEL}]: no JSON block in response`);
+        continue;
+      }
+
+      const parsed = parseAIResponse(jsonMatch[0], "gemini-flash");
+      if (!parsed) continue;
+
+      logger.info(
+        {
+          entityName, hasEmail: !!parsed.email, hasPhone: !!parsed.phone,
+          hasLinkedIn: !!parsed.linkedin, owners: parsed.owners.length, citations: citations.length,
+        },
+        `Phase 0 [${GEMINI_MODEL}]: research complete`,
+      );
+
+      return {
+        ...parsed,
+        citations,
+        ownershipSources: [...new Set([...parsed.ownershipSources, ...citations])].slice(0, 8),
+        ownerResolutions: parsed.ownerResolutions.map(o => ({
+          ...o, sourceUrls: o.sourceUrls.length > 0 ? o.sourceUrls : citations.slice(0, 4),
+        })),
+      };
+    } catch (err: any) {
+      logger.warn({ err: err?.message }, `Phase 0 [${GEMINI_MODEL}]: call threw`);
+    }
+  }
+
+  logger.warn({ entityName }, `Phase 0 [${GEMINI_MODEL}]: no usable data — all keys failed`);
   return EMPTY;
 }
 
