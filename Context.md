@@ -73,16 +73,16 @@
 
 ---
 
-## Current State (2026-07-28 — Re-import setup complete; Redis + API + web running; DB schema applied; 0 entities; DB empty; awaiting user instruction)
+## Current State (2026-07-28 — All 24 secrets saved; Upstash slots 2–5 healthy; DB empty; pipeline idle; awaiting user instruction)
 
-### Post-import setup (2026-07-28, latest import — Task #1)
+### Post-import setup + secrets (2026-07-28, latest import — Task #1)
 - `CI=true pnpm install --frozen-lockfile` — all packages installed (~39s); all native bindings built (onnxruntime, sharp)
 - `pnpm --filter @workspace/db run push` — schema applied (`[✓] Changes applied`)
-- Redis ✅ (port 6379) · `artifacts/api-server: API Server` ✅ (port 8080, build 654ms) · `artifacts/apex-finder: web` ✅ (port 23695, Vite ready 849ms)
+- Redis ✅ (port 6379) · `artifacts/api-server: API Server` ✅ (port 8080, build 484ms) · `artifacts/apex-finder: web` ✅ (port 23695, Vite ready 849ms)
 - `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":1}}` ✅
-- `/api/dashboard/stats` → 200, all zeros (empty database) ✅
-- `SESSION_SECRET` present; `ENABLE_AUTO_PIPELINE` not set → broad cold-start ingestion disabled
-- DB empty — no research run yet; awaiting user instruction
+- All 24 enrichment secrets saved: `REDIS_URL_1`–`REDIS_URL_5`, `COMPANIES_HOUSE_API_KEY`, `GROQ_API_KEY`/`_2`/`_3`, `PERPLEXITY_API_KEY`/`_2`/`_3`/`_4`, `WHOXY_API_KEY`, `GEMINI_API_KEY`/`_2`/`_3`/`_4`, `EXA_API_KEY`/`_2`, `TAVILY_API_KEY`/`_2`/`_3`/`_4`
+- Upstash: slot 1 quota-exhausted (auto-skipped); slots 2–5 connected ✅
+- `ENABLE_AUTO_PIPELINE` not set → broad cold-start ingestion disabled; DB empty; no research started
 
 ---
 
