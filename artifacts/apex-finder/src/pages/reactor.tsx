@@ -814,8 +814,8 @@ export default function IntelligenceReactorPage() {
     const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
     try {
       const [sess, stats] = await Promise.all([
-        fetch(`${BASE}/api/research/sessions?limit=20`).then(r => r.ok ? r.json() : []).catch(() => []),
-        fetch(`${BASE}/api/dashboard/stats`).then(r => r.ok ? r.json() : {}).catch(() => ({})),
+        fetch(`${BASE}/api/research/sessions?limit=20`, { cache: "no-store" }).then(r => r.ok ? r.json() : []).catch(() => []),
+        fetch(`${BASE}/api/dashboard/stats`, { cache: "no-store" }).then(r => r.ok ? r.json() : {}).catch(() => ({})),
       ]);
       setSessions(Array.isArray(sess) ? sess : []);
       setTotalEntities((stats as { totalEntities?: number })?.totalEntities ?? 0);
