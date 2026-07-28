@@ -8,6 +8,19 @@
 
 ---
 
+## Current State (2026-07-28 — Re-import setup complete; all 24 secrets saved; all workflows running; DB empty; research NOT started)
+
+### Import setup (2026-07-28)
+- `CI=true pnpm install --frozen-lockfile` ✅ (~44s)
+- `pnpm --filter @workspace/db run push` → `[✓] Changes applied` ✅
+- Redis ✅ (port 6379) · artifacts/api-server: API Server ✅ (port 8080, build 1612ms) · artifacts/apex-finder: web ✅ (port 23695, Vite ready)
+- All 24 secrets saved: REDIS_URL_1–5, COMPANIES_HOUSE_API_KEY, GROQ_API_KEY/_2/_3, PERPLEXITY_API_KEY/_2/_3/_4, WHOXY_API_KEY, GEMINI_API_KEY/_2/_3/_4, EXA_API_KEY/_2, TAVILY_API_KEY/_2/_3/_4
+- Upstash slots 1–5 all connected (slots 1–3 confirmed in logs; 4–5 connecting at log cutoff)
+- `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":1}}` ✅
+- DB empty — ENABLE_AUTO_PIPELINE=false; research NOT started; awaiting user instruction
+
+---
+
 ## Current State (2026-07-28 — web-osint-enrich fixed; Phase 0 AI-first confirmed; Gemini keys rate-limited; 101 entities in DB)
 
 ### web-osint Phase 0 fix (2026-07-28)
