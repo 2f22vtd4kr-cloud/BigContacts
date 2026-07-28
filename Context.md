@@ -8,6 +8,20 @@
 
 ---
 
+## Current State (2026-07-28 — Fresh import setup complete; DB empty; all workflows running; 0 entities)
+
+### Post-import setup (2026-07-28)
+- `CI=true pnpm install --frozen-lockfile` — all packages installed (~36s); native bindings (onnxruntime, sharp) built
+- `pnpm --filter @workspace/db run push` — schema applied (`[✓] Changes applied`)
+- Redis ✅ (port 6379) · artifacts/api-server: API Server ✅ (port 8080, build 907ms) · artifacts/apex-finder: web ✅ (port 23695, Vite ready 839ms)
+- `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":1}}` ✅
+- `/api/dashboard/stats` → 200, all zeros (empty database) ✅
+- `ENABLE_AUTO_PIPELINE=false` confirmed in shared env → broad cold-start ingestion disabled; no credits spent
+- `REDIS_URL=redis://localhost:6379` confirmed in shared env
+- DB empty — no research run yet; user has not requested ingestion to start
+
+---
+
 ## Current State (2026-07-28 — Re-import setup complete; 24 secrets set; DB empty; research NOT started)
 
 ### Import setup (2026-07-28)
