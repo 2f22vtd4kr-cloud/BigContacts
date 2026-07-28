@@ -6,6 +6,7 @@ import {
   ChevronDown,
   ChevronRight,
   Crosshair,
+  Cpu,
   Database,
   GitCompare,
   Bot,
@@ -23,6 +24,7 @@ const mainNav = [
   { name: "People", href: "/profiles", icon: List },
   { name: "Discover", href: "/search", icon: Search },
   { name: "Connections", href: "/network", icon: Network },
+  { name: "Intelligence Reactor", href: "/reactor", icon: Cpu },
 ];
 
 const referenceNav = [

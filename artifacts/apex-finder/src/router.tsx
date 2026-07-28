@@ -11,6 +11,7 @@ import DataSources from "@/pages/data-sources";
 import Duplicates from "@/pages/duplicates";
 import OsintToolsDirectory from "@/pages/osint-tools";
 import BackgroundJobs from "@/pages/jobs";
+import IntelligenceReactorPage from "@/pages/reactor";
 import NotFound from "@/pages/not-found";
 
 export default function AppRouter() {
@@ -23,6 +24,7 @@ export default function AppRouter() {
         <Route path="/profiles" component={EntityLedger} />
         <Route path="/network" component={GraphViewer} />
         <Route path="/jobs" component={BackgroundJobs} />
+        <Route path="/reactor" component={IntelligenceReactorPage} />
         <Route path="/manual" component={FieldManual} />
         <Route path="/profile/:id" component={ApexProfile} />
 
