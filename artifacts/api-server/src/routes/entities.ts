@@ -102,13 +102,23 @@ router.get("/entities", async (req, res): Promise<void> => {
     conditions.push(gte(entitiesTable.contactConfidence, minContactConfidence));
   }
 
-  // When a contact quality filter is active, rank by confidence so the most
-  // reachable profiles float to the top. Fall back to bayesian score otherwise.
-  const isContactFilter = !!(contactable || hasEmail || hasPhone || hasWhatsapp || hasTelegram
+  // Always rank by contact richness first (outcome tier, then confidence score),
+  // then bayesian score. Entities with more/better contacts always float to the top
+  // regardless of whether a contact filter is active — wealth is a secondary signal.
+  const _isContactFilter = !!(contactable || hasEmail || hasPhone || hasWhatsapp || hasTelegram
     || hasInstagram || contactOutcome || (minContactConfidence && minContactConfidence > 0));
-  const orderExpr = isContactFilter
-    ? sql`${entitiesTable.contactConfidence} DESC NULLS LAST, ${entitiesTable.bayesianScore} DESC`
-    : sql`${entitiesTable.bayesianScore} DESC`;
+  const orderExpr = sql`
+    CASE ${entitiesTable.contactOutcome}
+      WHEN 'direct_contact_verified'   THEN 6
+      WHEN 'direct_contact_candidate'  THEN 5
+      WHEN 'organization_contact'      THEN 4
+      WHEN 'social_only'               THEN 3
+      WHEN 'evidence_only'             THEN 2
+      ELSE 1
+    END DESC,
+    ${entitiesTable.contactConfidence} DESC NULLS LAST,
+    ${entitiesTable.bayesianScore} DESC
+  `;
 
   const rows = await db
     .select()

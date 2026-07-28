@@ -125,7 +125,7 @@ function LeadCard({ lead, index }: { lead: any; index: number }) {
         <div className="rounded-lg border border-border/70 bg-background/45 px-3 py-2.5">
           <div className="font-mono text-[8px] uppercase tracking-[0.14em] text-muted-foreground">Signal</div>
           <div className={`mt-1 font-mono text-lg font-bold ${scoreTone(signal)}`} data-testid={`text-signal-${lead.entityId}`}>{scorePercent(signal)}</div>
-          <div className="mt-0.5 text-[10px] text-muted-foreground">wealth / registry</div>
+          <div className="mt-0.5 text-[10px] text-muted-foreground">contact signal</div>
         </div>
         <div className="rounded-lg border border-border/70 bg-background/45 px-3 py-2.5">
           <div className="font-mono text-[8px] uppercase tracking-[0.14em] text-muted-foreground">Access</div>
@@ -173,7 +173,7 @@ function EmptyLeads() {
     <div className="rounded-xl border border-dashed border-border bg-card/40 px-6 py-16 text-center">
       <div className="mx-auto grid h-12 w-12 place-items-center rounded-full border border-primary/25 bg-primary/10 text-primary"><Radar className="h-5 w-5" /></div>
       <h2 className="mt-5 font-display text-lg font-semibold">Your priority desk is clear</h2>
-      <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">Search public registries to bring people with meaningful wealth signals into view.</p>
+      <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">Search public registries to find people with verified contact paths and public reach.</p>
       <Link href="/search" data-testid="link-empty-discover" className="mt-6 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground hover:bg-primary/90">
         <Search className="h-3.5 w-3.5" /> Discover people <ChevronRight className="h-3.5 w-3.5" />
       </Link>
@@ -215,7 +215,7 @@ export default function Dashboard() {
 
       <section className="atlas-enter grid grid-cols-2 gap-3 py-6 md:grid-cols-4" style={{ animationDelay: "70ms" }}>
         <StatTile label="People in view" value={stats?.totalEntities ?? "—"} detail="publicly indexed entities" icon={Users} testId="stat-total-entities" />
-        <StatTile label="Priority leads" value={stats?.hotLeadsCount ?? "—"} detail="strongest wealth signals" icon={Sparkles} testId="stat-hot-leads" />
+        <StatTile label="Priority leads" value={stats?.hotLeadsCount ?? "—"} detail="most reachable contacts" icon={Sparkles} testId="stat-hot-leads" />
         <StatTile label="Public assets" value={stats?.totalAssets ?? "—"} detail="linked to people" icon={Database} testId="stat-total-assets" />
         <StatTile label="Relationships" value={stats?.totalRelationships ?? "—"} detail="known public connections" icon={Network} testId="stat-total-relationships" />
       </section>
@@ -224,7 +224,7 @@ export default function Dashboard() {
         <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <div className="flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.18em] text-primary"><Sparkles className="h-3 w-3" /> Priority people</div>
-            <h2 className="mt-2 font-display text-xl font-semibold tracking-tight text-foreground md:text-2xl">Start with the strongest signals</h2>
+            <h2 className="mt-2 font-display text-xl font-semibold tracking-tight text-foreground md:text-2xl">Most reachable people first</h2>
           </div>
           <Link href="/profiles" data-testid="link-view-all-leads" className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-primary">View full ledger <ChevronRight className="h-3.5 w-3.5" /></Link>
         </div>

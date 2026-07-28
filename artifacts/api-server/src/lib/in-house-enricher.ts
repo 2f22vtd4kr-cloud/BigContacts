@@ -1358,6 +1358,11 @@ export async function enrichInHouse(entity: InHouseEnrichInput): Promise<InHouse
     sourceUrl: string | null = null,
     extractionMethod = "public-source-parser",
     details?: Record<string, unknown>,
+    // When true: add to evidence log only — never write to result.email.
+    // Use for pattern-generated / guessed addresses that must not be surfaced
+    // as a confirmed contact vector (per user policy: guessed emails must never
+    // be presented as final contact data).
+    evidenceOnly = false,
   ) => {
     if (!email) return;
     const local = email.split("@")[0]?.toLowerCase() ?? "";
@@ -1367,23 +1372,27 @@ export async function enrichInHouse(entity: InHouseEnrichInput): Promise<InHouse
       result.hasGenericEmail = true; // propagated to computeContactOutcome (L1)
     }
     if (adj <= 0) return;
-    if (adj > result.emailConfidence) {
+    if (!evidenceOnly && adj > result.emailConfidence) {
       result.email = email;
       result.emailConfidence = adj;
       result.emailSource = source;
       result.evidence = result.evidence.filter((item) => item.vectorType !== "email");
+    }
+    // Always record in evidence log (for transparency) but mark generated emails clearly.
+    const isPatternGenerated = evidenceOnly || source.startsWith("EmailPattern") || source.startsWith("GenericEmail");
+    if (!result.evidence.some((e) => e.vectorType === "email" && e.value === email)) {
       result.evidence.push({
         vectorType: "email",
         value: email,
         source,
         sourceUrl,
-        extractionMethod,
+        extractionMethod: isPatternGenerated ? "pattern-generated" : extractionMethod,
         confidence: adj,
         observedAt: new Date().toISOString(),
-        details,
+        details: isPatternGenerated ? { ...details, guessed: true } : details,
       });
-      addSource(source);
     }
+    if (!evidenceOnly) addSource(source);
   };
 
   // K5: normalise phone to E.164 and require ≥ 8 digits (replaces manual PHONE_BLOCKLIST).
@@ -1706,9 +1715,10 @@ export async function enrichInHouse(entity: InHouseEnrichInput): Promise<InHouse
     if (domain && hasNameParts) {
       // Source 14 + 15: Pattern gen + Gravatar
       const verified = await verifyEmailPatterns(first, last, domain);
-      if (verified && verified.confidence > result.emailConfidence) {
+      if (verified) {
         result.sourceHits["EmailPattern"] = true;
-        setEmail(verified.email, verified.confidence, verified.method);
+        // evidenceOnly=true: pattern emails are research leads, never final contact data
+        setEmail(verified.email, verified.confidence, verified.method, null, "pattern-generated", undefined, true);
       }
     }
 
@@ -1719,7 +1729,8 @@ export async function enrichInHouse(entity: InHouseEnrichInput): Promise<InHouse
         const email = `${prefix}@${domain}`;
         const hasGrav = await checkGravatar(email);
         if (hasGrav) {
-          setEmail(email, 65, "GenericEmail-Gravatar");
+          // evidenceOnly=true: generic org emails are research leads, never final contact data
+          setEmail(email, 65, "GenericEmail-Gravatar", null, "pattern-generated", undefined, true);
           break;
         }
         await sleep(80);

@@ -16,14 +16,25 @@ router.get("/dashboard/hot-leads", async (req, res): Promise<void> => {
   }
   const { limit = 10 } = parsed.data;
 
-  // Over-fetch the wealth signal, then rank the visible queue by realistic access.
-  // Wealth remains useful context; it is not a proxy for reachability.
+  // Over-fetch ranked by contact richness first — outcome tier → confidence score → wealth.
+  // Contacts are the primary priority signal; wealth is secondary context.
   const entities = await db
     .select()
     .from(entitiesTable)
     .where(and(eq(entitiesTable.type, "HNWI"), eq(entitiesTable.isHidden, false)))
-    .orderBy(desc(entitiesTable.bayesianScore))
-    .limit(Math.max(limit * 10, 100)); // enough candidates for access-first ranking
+    .orderBy(sql`
+      CASE ${entitiesTable.contactOutcome}
+        WHEN 'direct_contact_verified'   THEN 6
+        WHEN 'direct_contact_candidate'  THEN 5
+        WHEN 'organization_contact'      THEN 4
+        WHEN 'social_only'               THEN 3
+        WHEN 'evidence_only'             THEN 2
+        ELSE 1
+      END DESC,
+      ${entitiesTable.contactConfidence} DESC NULLS LAST,
+      ${entitiesTable.bayesianScore} DESC
+    `)
+    .limit(Math.max(limit * 10, 100)); // enough candidates for final ranking
 
   // Get asset counts
   const assetCountMap: Record<number, number> = {};
@@ -120,12 +131,22 @@ router.get("/dashboard/hot-leads", async (req, res): Promise<void> => {
     return null;
   }
 
+  const OUTCOME_RANK: Record<string, number> = {
+    direct_contact_verified:  6,
+    direct_contact_candidate: 5,
+    organization_contact:     4,
+    social_only:              3,
+    evidence_only:            2,
+  };
+
   const hotLeads = entities.map((e) => ({
     entityId: e.id,
     entityName: e.name,
     entityType: e.type,
     bayesianScore: e.bayesianScore,
     accessScore: computeAccessScore(e),
+    contactOutcome: e.contactOutcome,
+    contactConfidence: e.contactConfidence,
     signal: entitySignal(e),
     signalDate: activityMap[e.id] ?? new Date().toISOString().split("T")[0]!,
     assetCount: assetCountMap[e.id] ?? 0,
@@ -137,7 +158,18 @@ router.get("/dashboard/hot-leads", async (req, res): Promise<void> => {
 
   res.json(
     hotLeads
-      .sort((a, b) => (b.accessScore ?? 0) - (a.accessScore ?? 0))
+      .sort((a, b) => {
+        // 1. Contact outcome tier (verified > direct > org > social > evidence > none)
+        const ao = OUTCOME_RANK[a.contactOutcome ?? ""] ?? 1;
+        const bo = OUTCOME_RANK[b.contactOutcome ?? ""] ?? 1;
+        if (bo !== ao) return bo - ao;
+        // 2. Contact confidence score
+        const ac = a.contactConfidence ?? 0;
+        const bc = b.contactConfidence ?? 0;
+        if (bc !== ac) return bc - ac;
+        // 3. Reachability / access as tiebreaker
+        return (b.accessScore ?? 0) - (a.accessScore ?? 0);
+      })
       .slice(0, limit),
   );
 });
@@ -183,7 +215,18 @@ router.get("/dashboard/stats", async (_req, res): Promise<void> => {
       .select()
       .from(entitiesTable)
       .where(eq(entitiesTable.type, "HNWI"))
-      .orderBy(desc(entitiesTable.bayesianScore))
+      .orderBy(sql`
+        CASE ${entitiesTable.contactOutcome}
+          WHEN 'direct_contact_verified'   THEN 6
+          WHEN 'direct_contact_candidate'  THEN 5
+          WHEN 'organization_contact'      THEN 4
+          WHEN 'social_only'               THEN 3
+          WHEN 'evidence_only'             THEN 2
+          ELSE 1
+        END DESC,
+        ${entitiesTable.contactConfidence} DESC NULLS LAST,
+        ${entitiesTable.bayesianScore} DESC
+      `)
       .limit(5),
   ]);
 
