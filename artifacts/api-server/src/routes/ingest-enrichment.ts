@@ -28,7 +28,7 @@ import {
   setActiveJob, getActiveJob, clearDedup,
 } from "../lib/job-queue";
 import { runCompaniesHouseEnrichment } from "../lib/enrichment/structured-verification";
-import { enrichEntityOsint } from "../lib/enrichment/web-discovery";
+import { deepWebOsintEnrich } from "../lib/enrichment/web-discovery";
 import { enrichInHouse } from "../lib/enrichment/contact-enrichment";
 import { discoverSocialPresence } from "../lib/enrichment/social-discovery";
 import { discoverMessengerPresence } from "../lib/enrichment/messenger-discovery";
@@ -272,6 +272,7 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
       sourceRegistries: entitiesTable.sourceRegistries,
       knownResidences:  entitiesTable.knownResidences,
       metadata:         entitiesTable.metadata,
+      bayesianScore:    entitiesTable.bayesianScore,
       instagramHandle:  entitiesTable.instagramHandle,
       twitterHandle:    entitiesTable.twitterHandle,
     })
@@ -309,10 +310,10 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
           message: `Enriching ${entity.name}…`,
         });
 
-        const result = await enrichEntityOsint(entity);
+        const result = await deepWebOsintEnrich(entity);
 
         const hasSignal = result.linkedinUrl || result.email || result.phone
-          || result.website || (result as any).instagramUrl || (result as any).twitterUrl;
+          || result.instagramUrl || result.twitterUrl || result.evidence.length > 0;
         if (!hasSignal) {
           skipped++;
           continue;
@@ -333,15 +334,15 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
             ...(result.phone       ? { phone: result.phone }             : force ? { phone:       null } : {}),
             ...(result.linkedinUrl ? { linkedinUrl: result.linkedinUrl } : force ? { linkedinUrl: null } : {}),
             // Corp/Trust: social handles from web scraping belong to persons, not the org
-            ...((result as any).instagramUrl && !entity.instagramHandle && !["Corporation","Corp","Trust"].includes(entity.type) ? { instagramHandle: (result as any).instagramUrl } : {}),
-            ...((result as any).twitterUrl   && !entity.twitterHandle   && !["Corporation","Corp","Trust"].includes(entity.type) ? { twitterHandle:   (result as any).twitterUrl   } : {}),
+            ...(result.instagramUrl && !entity.instagramHandle && !["Corporation","Corp","Trust"].includes(entity.type) ? { instagramHandle: result.instagramUrl } : {}),
+            ...(result.twitterUrl   && !entity.twitterHandle   && !["Corporation","Corp","Trust"].includes(entity.type) ? { twitterHandle:   result.twitterUrl   } : {}),
             contactConfidence: confidence,
             updatedAt: new Date(),
           })
           .where(eq(entitiesTable.id, entity.id));
 
         enriched++;
-        logger.info({ entityId: entity.id, name: entity.name, confidence, sources: result.sources }, "Web OSINT enriched");
+        logger.info({ entityId: entity.id, name: entity.name, confidence, sources: result.sources, queriesFired: result.queriesFired, pagesScraped: result.pagesScraped }, "Web OSINT enriched");
       } catch (err: any) {
         errors++;
         logger.warn({ entityId: entity.id, err: err.message }, "Web OSINT enrichment failed");

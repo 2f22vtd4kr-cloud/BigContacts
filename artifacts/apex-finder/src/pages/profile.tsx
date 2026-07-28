@@ -928,14 +928,6 @@ export default function ApexProfile() {
                     {showContactEvidence ? "▴ Evidence" : "▾ Evidence"}
                   </button>
                 )}
-                <button
-                  onClick={handleEnrich}
-                  disabled={isEnriching}
-                  className="flex items-center gap-1 px-2 py-1 rounded border border-border text-muted-foreground hover:text-primary hover:border-primary/40 font-mono text-[10px] uppercase tracking-wider transition-colors disabled:opacity-50"
-                >
-                  {isEnriching ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-                  {isEnriching ? "Enriching…" : "Enrich"}
-                </button>
               </div>
             </div>
             {hasContact ? (
@@ -1021,10 +1013,10 @@ export default function ApexProfile() {
             ) : (
               <p className="text-xs font-mono text-muted-foreground/50 italic">
                 {isEnriching
-                  ? "Running enrichment pipeline…"
+                  ? "Running research pipeline…"
                   : enrichDone
-                  ? "Enrichment complete — no public contact data found for this entity."
-                  : "No direct contact data. Click Enrich to search public sources."}
+                  ? "Research complete — no public contact data found for this entity."
+                  : "No direct contact data. Use Rerun Research to search public sources."}
               </p>
             )}
             {enrichError && (

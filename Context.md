@@ -8,6 +8,32 @@
 
 ---
 
+## Current State (2026-07-28 — web-osint-enrich fixed; Phase 0 AI-first confirmed; Gemini keys rate-limited; 101 entities in DB)
+
+### web-osint Phase 0 fix (2026-07-28)
+- Root cause: `/api/ingest/web-osint-enrich` was calling `enrichEntityOsint` (shallow 4-step DDG-only stub ending at line 389, ~1.8s/entity, no AI calls) instead of `deepWebOsintEnrich` (full AI-first pipeline with Phase 0 at line 1494)
+- Fix: changed import + call in `ingest-enrichment.ts` to `deepWebOsintEnrich`; added `bayesianScore` to entity select; updated result handling to `DeepWebOsintResult` (removed `.website`, uses `.evidence.length`)
+- Verified: 5/5 entities enriched, 0 skipped — Perplexity ✅ Tavily ✅ Exa ✅ all fire in parallel at Phase 0
+- Gemini issue: all 4 keys hit "rate limit — key exhausted 5 min" simultaneously — free-tier RPM cap; keys auto-recover in 5 min; other LLMs cover in the meantime
+- DB: 101 entities (71 HNWI, 30 Corporation); in-house enrichment complete (~60 contactable); western-hnwi still running (cleared stale dedup; second run inserted 100 + broad-discovery 1)
+- Next: run full web-OSINT batch (100 entities, force=true) once Gemini keys recover
+
+---
+
+## Current State (2026-07-28 — Re-import setup complete; all 24 secrets saved; all workflows running; DB empty; research NOT started)
+
+### Import setup (2026-07-28)
+- `CI=true pnpm install --frozen-lockfile` ✅ (~33s)
+- `pnpm --filter @workspace/db run push` → `[✓] Changes applied` ✅
+- Redis ✅ (port 6379) · artifacts/api-server: API Server ✅ (port 8080, build 754ms) · artifacts/apex-finder: web ✅ (port 23695, Vite ready 782ms)
+- All 24 secrets saved: REDIS_URL_1–5, COMPANIES_HOUSE_API_KEY, GROQ_API_KEY/_2/_3, PERPLEXITY_API_KEY/_2/_3/_4, WHOXY_API_KEY, GEMINI_API_KEY/_2/_3/_4, EXA_API_KEY/_2, TAVILY_API_KEY/_2/_3/_4
+- Upstash slots 1–5 all connected; slot 1 quota-exhausted (auto-skipped, expected)
+- `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":1}}` ✅
+- Ghost job lock cleared (western-hnwi) at cold-start ✅
+- `ENABLE_AUTO_PIPELINE` not set → broad ingestion disabled; no research run; awaiting user instruction
+
+---
+
 ## Current State (2026-07-28 — All 24 secrets saved; Upstash slots 2–5 healthy; DB empty; research not started)
 
 ### Secrets & restart (2026-07-28)

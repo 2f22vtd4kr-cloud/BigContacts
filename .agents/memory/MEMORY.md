@@ -39,5 +39,6 @@
 - [Domain guesser city-in-name bug](domain-guesser-city-bug.md) — add !base.includes(cityClean) guard; Avada+Cloudflare sites block server-side fetch; AI extraction more reliable than scraping for luxury venues
 - [Perplexity Phase 0 correct file](perplexity-phase0-wrong-file.md) — Phase 0 must be in web-enricher.ts NOT deep-web-osint.ts; route imports via enrichment/web-discovery.ts barrel → web-enricher.ts
 - [Imported artifact preview metadata](imported-artifact-preview.md) — imported artifact files can exist while artifact listing is empty, blocking helper screenshots; verify via workflow, HTTP, and build checks
+- [web-osint wrong function](web-osint-wrong-function.md) — web-osint-enrich must call deepWebOsintEnrich (AI-first Phase 0), NOT enrichEntityOsint (shallow DDG stub, no AI, returns in ~1.8s)
 - [Target entity resolution](target-entity-resolution.md) — brand-level targets need disambiguation before contacts, ownership, or outreach are trusted
 - [AI source labels](ai-source-labels.md) — Tavily/Exa source values are "tavily"/"exa" (not "tavily-groq"/"exa-groq"); Gemini is ai-cyan search source in reactor, not ai-lime extraction layer
