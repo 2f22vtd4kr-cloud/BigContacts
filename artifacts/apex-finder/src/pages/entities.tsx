@@ -107,6 +107,54 @@ function exportToCsv(entities: any[]) {
   URL.revokeObjectURL(url);
 }
 
+// ─── Re-run Research button ───────────────────────────────────────────────────
+
+function RerunButton({ entityId }: { entityId: number }) {
+  const [state, setState] = useState<"idle" | "running" | "done" | "error">("idle");
+  const baseUrl = (import.meta as any).env.BASE_URL?.replace(/\/$/, "") ?? "";
+
+  const handleRerun = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (state === "running") return;
+    setState("running");
+    try {
+      const r = await fetch(`${baseUrl}/api/ingest/web-osint-enrich`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entityIds: [entityId], batchSize: 1, force: true }),
+      });
+      if (!r.ok) throw new Error("failed");
+      setState("done");
+      setTimeout(() => setState("idle"), 3000);
+    } catch {
+      setState("error");
+      setTimeout(() => setState("idle"), 2000);
+    }
+  };
+
+  const icon = state === "running" ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+    : state === "done" ? <CheckCheck className="w-3.5 h-3.5" />
+    : state === "error" ? <XCircle className="w-3.5 h-3.5" />
+    : <TargetIcon className="w-3.5 h-3.5" />;
+  const label = state === "running" ? "Running" : state === "done" ? "Done" : state === "error" ? "Failed" : "Re-run";
+  const cls = state === "done"
+    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+    : state === "error"
+    ? "bg-red-500/10 border-red-500/30 text-red-400"
+    : "bg-primary/10 border-primary/20 text-primary hover:bg-primary/20";
+
+  return (
+    <button
+      onClick={handleRerun}
+      disabled={state === "running"}
+      className={cn("flex flex-col items-center justify-center gap-1.5 py-2 border rounded transition-colors disabled:opacity-60", cls)}
+    >
+      {icon}
+      <span className="text-[9px] font-mono uppercase">{label}</span>
+    </button>
+  );
+}
+
 // ─── Mobile card ──────────────────────────────────────────────────────────────
 
 function MobileEntityCard({
@@ -192,7 +240,7 @@ function MobileEntityCard({
             </div>
           )}
 
-          <div className="grid grid-cols-5 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             <Link
               href={`/profile/${entity.id}`}
               className="flex flex-col items-center justify-center gap-1.5 py-2 bg-muted border border-border rounded text-muted-foreground hover:text-primary transition-colors"
@@ -201,43 +249,13 @@ function MobileEntityCard({
               <span className="text-[9px] font-mono uppercase">Profile</span>
             </Link>
             <Link
-              href={`/graph?entity=${entity.id}`}
+              href={`/network?entity=${entity.id}`}
               className="flex flex-col items-center justify-center gap-1.5 py-2 bg-muted border border-border rounded text-muted-foreground hover:text-primary transition-colors"
             >
               <Network className="w-3.5 h-3.5" />
               <span className="text-[9px] font-mono uppercase">Network</span>
             </Link>
-            <Link
-              href={`/research?entity=${entity.id}`}
-              className="flex flex-col items-center justify-center gap-1.5 py-2 bg-primary/10 border border-primary/20 rounded text-primary hover:bg-primary/20 transition-colors"
-            >
-              <TargetIcon className="w-3.5 h-3.5" />
-              <span className="text-[9px] font-mono uppercase">Research</span>
-            </Link>
-            <button
-              onClick={(e) => { e.stopPropagation(); onToggleStar(entity); }}
-              className="flex flex-col items-center justify-center gap-1.5 py-2 border rounded transition-colors"
-              style={{
-                background: entity.isStarred ? "rgba(245,158,11,0.1)" : "hsl(var(--muted))",
-                borderColor: entity.isStarred ? "rgba(245,158,11,0.3)" : "hsl(var(--border))",
-                color: entity.isStarred ? "#F59E0B" : "hsl(var(--muted-foreground))",
-              }}
-            >
-              <Star className={cn("w-3.5 h-3.5", entity.isStarred && "fill-amber-400")} />
-              <span className="text-[9px] font-mono uppercase">{entity.isStarred ? "Starred" : "Star"}</span>
-            </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); onToggleHide(entity); }}
-              className="flex flex-col items-center justify-center gap-1.5 py-2 border rounded transition-colors"
-              style={{
-                background: entity.isHidden ? "rgba(249,115,22,0.1)" : "hsl(var(--muted))",
-                borderColor: entity.isHidden ? "rgba(249,115,22,0.3)" : "hsl(var(--border))",
-                color: entity.isHidden ? "#F97316" : "hsl(var(--muted-foreground))",
-              }}
-            >
-              {entity.isHidden ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-              <span className="text-[9px] font-mono uppercase">{entity.isHidden ? "Unhide" : "Hide"}</span>
-            </button>
+            <RerunButton entityId={entity.id} />
           </div>
         </div>
       )}

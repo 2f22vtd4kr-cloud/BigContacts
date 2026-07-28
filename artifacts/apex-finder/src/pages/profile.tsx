@@ -385,6 +385,8 @@ export default function ApexProfile() {
       if (!resp.ok) throw new Error("Request failed");
       setShowContactEvidence(false); setRejectStep({});
       await refetchEntity();
+      // Auto-trigger enrichment pipeline to search for a replacement contact
+      handleEnrich();
     } catch { setRejectError("Failed to remove contact — try again"); }
     finally { setRejectLoading(false); }
   };
@@ -675,26 +677,21 @@ export default function ApexProfile() {
             </div>
             <div className="flex items-center gap-1.5">
               <Link
-                href={`/graph?entity=${entity.id}`}
+                href={`/network?entity=${entity.id}`}
                 className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded border border-border text-muted-foreground hover:text-foreground font-mono text-[10px] uppercase tracking-wider transition-colors"
                 title="Network Graph"
               >
                 <Network className="w-3 h-3" /> <span className="hidden sm:inline">Graph</span>
               </Link>
-              <Link
-                href={`/research?entity=${entity.id}`}
-                className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded border border-border text-muted-foreground hover:text-foreground font-mono text-[10px] uppercase tracking-wider transition-colors"
-                title="Intel Terminal"
+              <button
+                onClick={handleEnrich}
+                disabled={isEnriching}
+                className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 font-mono text-[10px] uppercase tracking-wider transition-colors disabled:opacity-50"
+                title="Re-run Research"
               >
-                <TargetIcon className="w-3 h-3" /> <span className="hidden sm:inline">Intel</span>
-              </Link>
-              <Link
-                href="/pipeline"
-                className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded border border-border text-muted-foreground hover:text-foreground font-mono text-[10px] uppercase tracking-wider transition-colors"
-                title="Pipeline CRM"
-              >
-                <KanbanSquare className="w-3 h-3" /> <span className="hidden sm:inline">CRM</span>
-              </Link>
+                {isEnriching ? <Loader2 className="w-3 h-3 animate-spin" /> : <TargetIcon className="w-3 h-3" />}
+                <span className="hidden sm:inline">{isEnriching ? "Running…" : "Re-run"}</span>
+              </button>
               <button
                 onClick={() => setAddRelOpen(true)}
                 className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded border border-border text-muted-foreground hover:text-primary hover:border-primary/40 font-mono text-[10px] uppercase tracking-wider transition-colors"
@@ -1129,7 +1126,7 @@ export default function ApexProfile() {
                     steps.push("We then searched IRS Form 990 filings — the annual tax return every U.S. nonprofit must make public — and found an associated foundation. That filing disclosed the organisation's domain.");
                   }
                   if (fromDomain) {
-                    steps.push("We guessed a handful of likely email formats for that domain (firstname@, firstname.lastname@, f.lastname@, and a few others), which is standard practice since most organisations use one consistent pattern.");
+                    steps.push("We identified a domain associated with them or their organisation and located a candidate email address from public records tied to that domain.");
                   }
                   if (fromSMTP) {
                     steps.push("We then did a mailbox check: a passive handshake with the mail server that confirms whether an inbox exists — nothing is sent, no email is received on the other end. The address shown is the one that came back as live.");
@@ -1332,12 +1329,14 @@ export default function ApexProfile() {
                     );
                   })}
                   {rejectError && <div className="px-3 py-2 text-[10px] font-mono text-red-400">{rejectError}</div>}
-                  <div className="px-3 py-2 border-t border-amber-500/10 flex items-center justify-between gap-2">
-                    <span className="text-[9px] text-muted-foreground/40">After removing an incorrect contact, click Re-enrich to search for a replacement.</span>
-                    <button onClick={handleEnrich} disabled={isEnriching}
-                      className="text-[9px] font-mono px-2 py-1 rounded border border-border text-muted-foreground hover:text-primary transition-colors disabled:opacity-40 flex-shrink-0">
-                      {isEnriching ? "Enriching…" : "Re-enrich"}
-                    </button>
+                  <div className="px-3 py-2 border-t border-amber-500/10">
+                    <span className="text-[9px] text-muted-foreground/40">Flagging a contact as incorrect automatically re-runs the research pipeline to search for a replacement.</span>
+                    {isEnriching && (
+                      <div className="mt-1.5 flex items-center gap-1.5">
+                        <Loader2 className="w-3 h-3 animate-spin text-primary" />
+                        <span className="text-[9px] font-mono text-primary">Research pipeline running…</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               );

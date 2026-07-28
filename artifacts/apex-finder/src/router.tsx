@@ -1,5 +1,5 @@
 import { Layout } from "@/components/layout";
-import { Route, Switch, Redirect } from "wouter";
+import { Route, Switch, Redirect, useSearch } from "wouter";
 import Dashboard from "@/pages/dashboard";
 import GraphViewer from "@/pages/graph";
 import EntityLedger from "@/pages/entities";
@@ -36,7 +36,7 @@ export default function AppRouter() {
 
         {/* ── Legacy route aliases ── */}
         <Route path="/entities">{() => <Redirect to="/profiles" />}</Route>
-        <Route path="/graph">{() => <Redirect to="/network" />}</Route>
+        <Route path="/graph">{() => { const s = useSearch(); return <Redirect to={`/network${s ? `?${s}` : ""}`} />; }}</Route>
         <Route path="/deep-search">{() => <Redirect to="/search" />}</Route>
         <Route path="/ledger">{() => <Redirect to="/profiles" />}</Route>
 

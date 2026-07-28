@@ -1,8 +1,8 @@
 import { getGetEntityGraphQueryKey, useGetEntityGraph, useListEntities, useCreateRelationship } from "@workspace/api-client-react";
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
-import { useSearch, useLocation } from "wouter";
+import { useSearch, useLocation, Link } from "wouter";
 import ForceGraph2D, { ForceGraphMethods } from "react-force-graph-2d";
-import { Network, ZoomIn, ZoomOut, Maximize, X, Search, ChevronDown, Filter, Shield, Plus, Link2, Loader2 } from "lucide-react";
+import { Network, ZoomIn, ZoomOut, Maximize, X, Search, ChevronDown, Filter, Shield, Plus, Link2, Loader2, ArrowLeft } from "lucide-react";
 import { cn, formatCurrency, formatEntityName, ScoreBadge } from "@/lib/utils";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose,
@@ -260,6 +260,15 @@ export default function GraphViewer() {
 
       {/* ── Mobile top bar (entity selector + controls) ── */}
       <div className="flex md:hidden items-center gap-2 px-3 py-2.5 border-b border-border bg-card/90 backdrop-blur z-30 flex-shrink-0">
+        {entityIdFromUrl && (
+          <Link
+            href={`/profile/${entityIdFromUrl}`}
+            className="w-9 h-9 flex items-center justify-center rounded bg-muted border border-border text-muted-foreground hover:text-foreground flex-shrink-0"
+            title="Back to profile"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </Link>
+        )}
         <button
           onClick={() => setSelectorOpen((o) => !o)}
           className="flex-1 flex items-center justify-between px-3 py-2 rounded bg-background border border-border text-left"
@@ -282,6 +291,17 @@ export default function GraphViewer() {
 
       {/* ── Desktop floating toolbar ── */}
       <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 hidden md:flex items-center space-x-2 max-w-[90vw]">
+        {/* Back to profile */}
+        {entityIdFromUrl && (
+          <Link
+            href={`/profile/${entityIdFromUrl}`}
+            className="flex items-center space-x-1.5 bg-card/90 backdrop-blur border border-border px-3 py-2 rounded text-xs font-mono text-muted-foreground hover:text-foreground transition-colors"
+            title="Back to profile"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Profile</span>
+          </Link>
+        )}
         {/* Entity selector */}
         <div className="relative">
           <button
