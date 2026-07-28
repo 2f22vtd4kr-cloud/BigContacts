@@ -805,17 +805,34 @@ export default function IntelligenceReactorPage() {
   const [sessions,      setSessions]      = useState<ResearchSession[]>([]);
   const [totalEntities, setTotalEntities] = useState(0);
   const [loadingData,   setLoadingData]   = useState(true);
+  const [syncing,       setSyncing]       = useState(false);
 
-  useEffect(() => {
+  const fetchData = useCallback(async (isBackground = false) => {
+    if (isBackground) {
+      setSyncing(true);
+    }
     const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
-    Promise.all([
-      fetch(`${BASE}/api/research/sessions?limit=20`).then(r => r.ok ? r.json() : []).catch(() => []),
-      fetch(`${BASE}/api/dashboard/stats`).then(r => r.ok ? r.json() : {}).catch(() => ({})),
-    ]).then(([sess, stats]) => {
+    try {
+      const [sess, stats] = await Promise.all([
+        fetch(`${BASE}/api/research/sessions?limit=20`).then(r => r.ok ? r.json() : []).catch(() => []),
+        fetch(`${BASE}/api/dashboard/stats`).then(r => r.ok ? r.json() : {}).catch(() => ({})),
+      ]);
       setSessions(Array.isArray(sess) ? sess : []);
       setTotalEntities((stats as { totalEntities?: number })?.totalEntities ?? 0);
-    }).finally(() => setLoadingData(false));
+    } finally {
+      setLoadingData(false);
+      setSyncing(false);
+    }
   }, []);
+
+  // Initial load
+  useEffect(() => { fetchData(false); }, [fetchData]);
+
+  // Auto-poll every 10 s so the reactor stays live after research completes
+  useEffect(() => {
+    const id = setInterval(() => fetchData(true), 10_000);
+    return () => clearInterval(id);
+  }, [fetchData]);
 
   // ── Fake animation kept for desktop architecture diagram only ─────────────
   const containerRef = useRef<HTMLDivElement>(null);
@@ -862,7 +879,13 @@ export default function IntelligenceReactorPage() {
   if (isMobile) {
     return (
       <div style={{ display:"flex", flexDirection:"column", height:"100%", overflow:"hidden", width:"100%" }}>
-        <MobileReactor sessions={sessions} totalEntities={totalEntities} loading={loadingData} />
+        <MobileReactor
+          sessions={sessions}
+          totalEntities={totalEntities}
+          loading={loadingData}
+          onRefresh={() => fetchData(true)}
+          syncing={syncing}
+        />
       </div>
     );
   }
