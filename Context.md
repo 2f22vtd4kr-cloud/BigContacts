@@ -8,6 +8,15 @@
 
 ---
 
+## Current State (2026-07-28 — All 24 secrets saved; Upstash slots 2–5 healthy; DB empty; research not started)
+
+### Secrets & restart (2026-07-28)
+- All 24 secrets saved: REDIS_URL_1–5, COMPANIES_HOUSE_API_KEY, GROQ_API_KEY/_2/_3, PERPLEXITY_API_KEY/_2/_3/_4, WHOXY_API_KEY, GEMINI_API_KEY/_2/_3/_4, EXA_API_KEY/_2, TAVILY_API_KEY/_2/_3/_4
+- API Server restarted — Upstash slots 2–5 connected; slot 1 quota-exhausted (auto-skipped, expected)
+- DB still empty; ENABLE_AUTO_PIPELINE=false; no research run — awaiting user instruction
+
+---
+
 ## Current State (2026-07-28 — Fresh import setup complete; DB empty; all workflows running; 0 entities)
 
 ### Post-import setup (2026-07-28)
