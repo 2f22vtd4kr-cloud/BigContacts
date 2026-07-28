@@ -73,6 +73,19 @@
 
 ---
 
+## Current State (2026-07-28 — Re-import setup complete; Redis + API + web running; DB schema applied; 0 entities; DB empty; awaiting user instruction)
+
+### Post-import setup (2026-07-28, latest import — Task #1)
+- `CI=true pnpm install --frozen-lockfile` — all packages installed (~39s); all native bindings built (onnxruntime, sharp)
+- `pnpm --filter @workspace/db run push` — schema applied (`[✓] Changes applied`)
+- Redis ✅ (port 6379) · `artifacts/api-server: API Server` ✅ (port 8080, build 654ms) · `artifacts/apex-finder: web` ✅ (port 23695, Vite ready 849ms)
+- `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":1}}` ✅
+- `/api/dashboard/stats` → 200, all zeros (empty database) ✅
+- `SESSION_SECRET` present; `ENABLE_AUTO_PIPELINE` not set → broad cold-start ingestion disabled
+- DB empty — no research run yet; awaiting user instruction
+
+---
+
 ## Current State (2026-07-28 — Re-import setup complete; Redis + API + web running; DB schema applied; 18,100 entities; 18,200 assets)
 
 ### Post-import setup (2026-07-28, this import — Task #1)
@@ -1038,4 +1051,5 @@ Run **IN-HOUSE ENRICH** on HNWI/Gatekeeper entities — Wikidata SPARQL will hit
 
 | 2026-07-28 | **All 14 enrichment secrets set**: REDIS_URL_1–5 (Upstash slots 1–5 all connected and ready), COMPANIES_HOUSE_API_KEY, GROQ_API_KEY/\_2/\_3, PERPLEXITY_API_KEY/\_2/\_3/\_4, WHOXY_API_KEY. API server restarted — all 5 permanent Redis slots confirmed connected in logs. ENABLE_AUTO_PIPELINE not set — no ingestion or research started. DB has 32,001 entities / 14,706 hot leads from prior import. Awaiting user instruction before starting pipeline. |
 
+| 2026-07-28 | **Re-import setup complete (Task #1)**: CI=true frozen-lockfile install (~39s), DB schema pushed (`[✓] Changes applied`), Redis + API Server (8080) + apex-finder web (23695) workflows running. `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":1}}`. DB empty — all 24 enrichment secrets present (SESSION_SECRET + REDIS_URL_1–5 + COMPANIES_HOUSE_API_KEY + GROQ×3 + PERPLEXITY×4 + WHOXY + GEMINI×4 + EXA×2 + TAVILY×4). ENABLE_AUTO_PIPELINE not set — pipeline idle, awaiting user instruction. |
 | 2026-07-28 | **Gemini Flash grounded search added**: `researchWithGemini()` implemented in `ai-extractor.ts` using `gemini-2.0-flash` with `google_search` grounding tool. Wired into `web-enricher.ts` Phase 0 (parallel with Perplexity, evidence source `ai-gemini-flash`) + Phase 7.5 follow-up persons; and `deep-web-osint.ts` Phase 0. Both models now fire in `Promise.all()` — different search indexes for complementary coverage. GEMINI_API_KEY set. Supports GEMINI_API_KEY_2…_8 via same rotation pattern. Build clean (415ms). ENABLE_AUTO_PIPELINE not set — pipeline still idle. |
