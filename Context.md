@@ -73,6 +73,19 @@
 
 ---
 
+## Current State (2026-07-28 — AI source labels corrected; all 5 sources correctly represented in reactor diagram and evidence)
+
+### AI source label cleanup (2026-07-28)
+- `"tavily-groq"` → `"tavily"` everywhere (source type, evidence strings, follow-up labels)
+- `"exa-groq"` → `"exa"` everywhere
+- Evidence labels: `"Tavily[groq]"` → `"Tavily"`, `"Exa[groq]"` → `"Exa"`
+- Evidence source strings: `"ai-tavily-groq"` / `"ai-exa-groq"` / followup variants → `"ai-tavily"` / `"ai-exa"`
+- `reactor.tsx` corrected: Gemini node now `type:"ai-cyan"` (search source, not extraction layer); removed wrong `groq→gemini` edge; added `webdisc→gemini` + `gemini→semantic` edges; Wave 3 renamed "AI PHASE 0 — Perplexity · Gemini · Tavily · Exa in parallel"; mobile AI LAYER now shows all 6 AI nodes; `web-osint-enrich` job map includes Gemini
+- `ai-extractor.ts` header updated to describe 5-source parallel architecture
+- API build: clean (1417ms) ✅ · Frontend build: clean (7.09s) ✅
+
+---
+
 ## Current State (2026-07-28 — All 24 secrets saved; Upstash slots 2–5 healthy; DB empty; pipeline idle; awaiting user instruction)
 
 ### Post-import setup + secrets (2026-07-28, latest import — Task #1)
@@ -1051,5 +1064,6 @@ Run **IN-HOUSE ENRICH** on HNWI/Gatekeeper entities — Wikidata SPARQL will hit
 
 | 2026-07-28 | **All 14 enrichment secrets set**: REDIS_URL_1–5 (Upstash slots 1–5 all connected and ready), COMPANIES_HOUSE_API_KEY, GROQ_API_KEY/\_2/\_3, PERPLEXITY_API_KEY/\_2/\_3/\_4, WHOXY_API_KEY. API server restarted — all 5 permanent Redis slots confirmed connected in logs. ENABLE_AUTO_PIPELINE not set — no ingestion or research started. DB has 32,001 entities / 14,706 hot leads from prior import. Awaiting user instruction before starting pipeline. |
 
+| 2026-07-28 | **AI source label cleanup**: `"tavily-groq"` → `"tavily"` and `"exa-groq"` → `"exa"` across `ai-extractor.ts`, `web-enricher.ts` (Phase 0.6, 0.7, 7.5 follow-up), `deep-web-osint.ts`. Evidence source strings updated (`ai-tavily`, `ai-exa`, `ai-tavily-followup`, `ai-exa-followup`). `reactor.tsx` corrected: Gemini node `type:"ai-lime"` → `"ai-cyan"` (it's a search source, not extraction layer); removed wrong `groq→gemini` edge; added `webdisc→gemini` + `gemini→semantic` edges; Wave 3 renamed "AI PHASE 0 — Perplexity · Gemini · Tavily · Exa in parallel"; mobile AI LAYER now shows all 6 AI nodes; `web-osint-enrich` job map includes Gemini. API build clean (503ms), frontend build clean (7.09s). Upstash slots 2–5 connected; slot 1 quota-exhausted (non-fatal). |
 | 2026-07-28 | **Re-import setup complete (Task #1)**: CI=true frozen-lockfile install (~39s), DB schema pushed (`[✓] Changes applied`), Redis + API Server (8080) + apex-finder web (23695) workflows running. `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":1}}`. DB empty — all 24 enrichment secrets present (SESSION_SECRET + REDIS_URL_1–5 + COMPANIES_HOUSE_API_KEY + GROQ×3 + PERPLEXITY×4 + WHOXY + GEMINI×4 + EXA×2 + TAVILY×4). ENABLE_AUTO_PIPELINE not set — pipeline idle, awaiting user instruction. |
 | 2026-07-28 | **Gemini Flash grounded search added**: `researchWithGemini()` implemented in `ai-extractor.ts` using `gemini-2.0-flash` with `google_search` grounding tool. Wired into `web-enricher.ts` Phase 0 (parallel with Perplexity, evidence source `ai-gemini-flash`) + Phase 7.5 follow-up persons; and `deep-web-osint.ts` Phase 0. Both models now fire in `Promise.all()` — different search indexes for complementary coverage. GEMINI_API_KEY set. Supports GEMINI_API_KEY_2…_8 via same rotation pattern. Build clean (415ms). ENABLE_AUTO_PIPELINE not set — pipeline still idle. |

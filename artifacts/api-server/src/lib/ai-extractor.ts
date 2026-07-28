@@ -1,20 +1,21 @@
 /**
- * AI Extractor — Groq-powered contact & person extraction from scraped web text
+ * AI Extractor — Multi-source AI extraction layer for contact & person intelligence
  *
- * Uses Groq's llama-3.3-70b-versatile (free, 6 000 req/day, 32k context window)
- * via the OpenAI-compatible REST API — no SDK, pure fetch.
+ * Five AI sources fire in parallel at Phase 0 of the enrichment pipeline:
  *
- * Role in the pipeline:
- *   After deterministic regex extraction runs against search snippets + scraped pages,
- *   the AI pass reads the same accumulated text and pulls out anything regex missed:
- *   - Emails in obfuscated or sentence form ("contact us at reservations [at] venue")
- *   - Phone numbers in international or formatted form ("call +33 4 93 43 03 43")
- *   - Social handles mentioned inline ("find us on Instagram @baolicannes")
- *   - Owner/founder names from press snippets, bios, registry filings in any language
- *   - Personal social handles for named owners (e.g. @christoph_cau for Christophe Caucino)
+ *   SEARCH / RESEARCH (return structured answers directly):
+ *   - Perplexity Sonar Pro — live web-search model; synthesises from real sources
+ *   - Gemini 2.0 Flash    — Google Search grounding; different index from Perplexity
  *
- * Falls back silently if GROQ_API_KEY is unset or quota is hit — pipeline continues
- * with regex-only results.
+ *   SEARCH + GROQ EXTRACTION (return raw text excerpts, Groq extracts structure):
+ *   - Tavily              — AI-native search; 7 live sources per query
+ *   - Exa                 — neural/semantic retrieval; strong for people & company lookups
+ *
+ *   TEXT EXTRACTION (reads accumulated scraped text from all other phases):
+ *   - Groq llama-3.3-70b  — free, 6 000 req/day, 32k context; pulls out anything regex missed:
+ *       emails in obfuscated form, phone numbers, social handles, owner names in any language
+ *
+ * Every source falls back silently if its key is unset or quota is hit.
  */
 
 import { logger } from "./logger";
@@ -37,7 +38,7 @@ const PERPLEXITY_DIRECT_FALLBACK = "sonar";       // cheaper direct fallback
 const GEMINI_API   = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
 const GEMINI_MODEL = "gemini-2.0-flash"; // used only for log labels
 
-// Tavily — AI-native search API; returns clean excerpts fed into Groq for extraction
+// Tavily — AI-native search API; returns clean excerpts; structure extracted by Groq
 const TAVILY_API = "https://api.tavily.com/search";
 
 // Exa — neural/semantic search API; excels at people + company lookups
@@ -142,7 +143,7 @@ export interface AIExtractResult {
   ownerResolutions: OwnerResolution[]; // role + ownership basis; never auto-merged
   ownershipSummary: string | null;
   ownershipSources: string[];
-  source:    "groq-llama-70b" | "groq-llama-8b" | "openrouter" | "perplexity-sonar" | "gemini-flash" | "tavily-groq" | "exa-groq" | "none";
+  source:    "groq-llama-70b" | "groq-llama-8b" | "openrouter" | "perplexity-sonar" | "gemini-flash" | "tavily" | "exa" | "none";
   citations: string[];            // URLs the model actually searched — use as evidence sources
 }
 
@@ -856,7 +857,7 @@ export async function researchWithGemini(
  * Those excerpts are fed into Groq (llama-3.3-70b) using the same ownership/
  * contact extraction prompt as the rest of the pipeline.
  * Key rotation supports TAVILY_API_KEY through TAVILY_API_KEY_8.
- * Returns source: "tavily-groq" with Tavily result URLs as citations.
+ * Returns source: "tavily" with Tavily result URLs as citations.
  */
 export async function researchWithTavily(
   entityName: string,
@@ -934,7 +935,7 @@ export async function researchWithTavily(
 
       logger.info(
         { entityName, textLen: text.length, citations: citations.length },
-        "Phase 0 [tavily]: results received — running Groq extraction",
+        "Phase 0 [tavily]: results received — extracting structure",
       );
 
       // Feed Tavily excerpts into Groq for structured contact/owner extraction
@@ -950,7 +951,7 @@ export async function researchWithTavily(
 
       return {
         ...extracted,
-        source: "tavily-groq",
+        source: "tavily",
         citations,
         ownershipSources: [...new Set([...extracted.ownershipSources, ...citations])].slice(0, 8),
         ownerResolutions: extracted.ownerResolutions.map(o => ({
@@ -972,7 +973,7 @@ export async function researchWithTavily(
  * model from both Perplexity (sonar) and Tavily (BM25-hybrid).
  * Returns clean per-source excerpts fed into Groq (llama-3.3-70b).
  * Key rotation supports EXA_API_KEY through EXA_API_KEY_8.
- * Returns source: "exa-groq" with Exa result URLs as citations.
+ * Returns source: "exa" with Exa result URLs as citations.
  */
 export async function researchWithExa(
   entityName: string,
@@ -1050,7 +1051,7 @@ export async function researchWithExa(
 
       logger.info(
         { entityName, textLen: text.length, citations: citations.length },
-        "Phase 0 [exa]: results received — running Groq extraction",
+        "Phase 0 [exa]: results received — extracting structure",
       );
 
       const extracted = await extractWithAI(text, entityName, entityType, country);
@@ -1065,7 +1066,7 @@ export async function researchWithExa(
 
       return {
         ...extracted,
-        source: "exa-groq",
+        source: "exa",
         citations,
         ownershipSources: [...new Set([...extracted.ownershipSources, ...citations])].slice(0, 8),
         ownerResolutions: extracted.ownerResolutions.map(o => ({

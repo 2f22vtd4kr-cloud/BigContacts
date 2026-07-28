@@ -1880,30 +1880,30 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
 
   // ── Phase 0.6: Tavily results (already fetched above in parallel) ────────
   // Tavily returns clean AI-ready excerpts from 7 live sources — different
-  // index from both Perplexity and Gemini. Groq extracts structure from them.
+  // index from both Perplexity and Gemini. Structure extracted by Groq internally.
   try {
-    if (typeof tav !== "undefined" && tav.source === "tavily-groq") {
-      const label = "Tavily[groq]";
+    if (typeof tav !== "undefined" && tav.source === "tavily") {
+      const label = "Tavily";
       result.sources.push(label);
       if (tav.email) {
         const arr = emailHits.get(tav.email) ?? []; arr.push(label); emailHits.set(tav.email, arr);
-        recordEvidence("email", tav.email, label, null, "ai-tavily-groq", 78);
+        recordEvidence("email", tav.email, label, null, "ai-tavily", 78);
       }
       if (tav.phone) {
         const arr = phoneHits.get(tav.phone) ?? []; arr.push(label); phoneHits.set(tav.phone, arr);
-        recordEvidence("phone", tav.phone, label, null, "ai-tavily-groq", 78);
+        recordEvidence("phone", tav.phone, label, null, "ai-tavily", 78);
       }
       if (tav.linkedin) {
         const arr = linkedinHits.get(tav.linkedin) ?? []; arr.push(label); linkedinHits.set(tav.linkedin, arr);
-        recordEvidence("social", tav.linkedin, label, null, "ai-tavily-groq", 73, { network: "linkedin" });
+        recordEvidence("social", tav.linkedin, label, null, "ai-tavily", 73, { network: "linkedin" });
       }
       if (tav.instagram) {
         const arr = igHits.get(tav.instagram) ?? []; arr.push(label); igHits.set(tav.instagram, arr);
-        recordEvidence("social", tav.instagram, label, null, "ai-tavily-groq", 73, { network: "instagram" });
+        recordEvidence("social", tav.instagram, label, null, "ai-tavily", 73, { network: "instagram" });
       }
       if (tav.twitter) {
         const arr = twHits.get(tav.twitter) ?? []; arr.push(label); twHits.set(tav.twitter, arr);
-        recordEvidence("social", tav.twitter, label, null, "ai-tavily-groq", 73, { network: "twitter" });
+        recordEvidence("social", tav.twitter, label, null, "ai-tavily", 73, { network: "twitter" });
       }
       if (tav.ownershipSummary && !result.ownershipSummary) result.ownershipSummary = tav.ownershipSummary;
       for (const owner of tav.ownerResolutions) {
@@ -1950,28 +1950,28 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   // Exa uses neural/semantic retrieval — different ranking model from Perplexity,
   // Gemini, and Tavily. Especially strong for people + company identity lookups.
   try {
-    if (typeof exa !== "undefined" && exa.source === "exa-groq") {
-      const label = "Exa[groq]";
+    if (typeof exa !== "undefined" && exa.source === "exa") {
+      const label = "Exa";
       result.sources.push(label);
       if (exa.email) {
         const arr = emailHits.get(exa.email) ?? []; arr.push(label); emailHits.set(exa.email, arr);
-        recordEvidence("email", exa.email, label, null, "ai-exa-groq", 78);
+        recordEvidence("email", exa.email, label, null, "ai-exa", 78);
       }
       if (exa.phone) {
         const arr = phoneHits.get(exa.phone) ?? []; arr.push(label); phoneHits.set(exa.phone, arr);
-        recordEvidence("phone", exa.phone, label, null, "ai-exa-groq", 78);
+        recordEvidence("phone", exa.phone, label, null, "ai-exa", 78);
       }
       if (exa.linkedin) {
         const arr = linkedinHits.get(exa.linkedin) ?? []; arr.push(label); linkedinHits.set(exa.linkedin, arr);
-        recordEvidence("social", exa.linkedin, label, null, "ai-exa-groq", 73, { network: "linkedin" });
+        recordEvidence("social", exa.linkedin, label, null, "ai-exa", 73, { network: "linkedin" });
       }
       if (exa.instagram) {
         const arr = igHits.get(exa.instagram) ?? []; arr.push(label); igHits.set(exa.instagram, arr);
-        recordEvidence("social", exa.instagram, label, null, "ai-exa-groq", 73, { network: "instagram" });
+        recordEvidence("social", exa.instagram, label, null, "ai-exa", 73, { network: "instagram" });
       }
       if (exa.twitter) {
         const arr = twHits.get(exa.twitter) ?? []; arr.push(label); twHits.set(exa.twitter, arr);
-        recordEvidence("social", exa.twitter, label, null, "ai-exa-groq", 73, { network: "twitter" });
+        recordEvidence("social", exa.twitter, label, null, "ai-exa", 73, { network: "twitter" });
       }
       if (exa.ownershipSummary && !result.ownershipSummary) result.ownershipSummary = exa.ownershipSummary;
       for (const owner of exa.ownerResolutions) {
@@ -2465,27 +2465,27 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         }
 
         // Process Tavily follow-up
-        if (fuTav.source === "tavily-groq") {
+        if (fuTav.source === "tavily") {
           const label = `Tavily[fu:${personName.split(" ")[0]}]`;
           result.sources.push(label);
           const pdDetails = { scope: "person_candidate" as const, personName, relationship: "personal-contact-followup" };
           if (fuTav.email) {
             const arr = emailHits.get(fuTav.email) ?? []; arr.push(label); emailHits.set(fuTav.email, arr);
-            recordEvidence("email", fuTav.email, label, null, "ai-tavily-groq-followup", 74, pdDetails);
+            recordEvidence("email", fuTav.email, label, null, "ai-tavily-followup", 74, pdDetails);
           }
           if (fuTav.phone) {
             const arr = phoneHits.get(fuTav.phone) ?? []; arr.push(label); phoneHits.set(fuTav.phone, arr);
-            recordEvidence("phone", fuTav.phone, label, null, "ai-tavily-groq-followup", 74, pdDetails);
+            recordEvidence("phone", fuTav.phone, label, null, "ai-tavily-followup", 74, pdDetails);
           }
           if (fuTav.linkedin) {
             const arr = linkedinHits.get(fuTav.linkedin) ?? []; arr.push(label); linkedinHits.set(fuTav.linkedin, arr);
-            recordEvidence("social", fuTav.linkedin, label, null, "ai-tavily-groq-followup", 70, { ...pdDetails, network: "linkedin" });
+            recordEvidence("social", fuTav.linkedin, label, null, "ai-tavily-followup", 70, { ...pdDetails, network: "linkedin" });
           }
           if (fuTav.instagram) {
-            recordEvidence("social", fuTav.instagram, label, null, "ai-tavily-groq-followup", 70, { ...pdDetails, network: "instagram" });
+            recordEvidence("social", fuTav.instagram, label, null, "ai-tavily-followup", 70, { ...pdDetails, network: "instagram" });
           }
           if (fuTav.twitter) {
-            recordEvidence("social", fuTav.twitter, label, null, "ai-tavily-groq-followup", 70, { ...pdDetails, network: "twitter" });
+            recordEvidence("social", fuTav.twitter, label, null, "ai-tavily-followup", 70, { ...pdDetails, network: "twitter" });
           }
           for (const owner of fuTav.ownerResolutions) {
             addOwnerResolution(owner, label, fuTav.citations[0] ?? null);
@@ -2502,27 +2502,27 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         }
 
         // Process Exa follow-up
-        if (fuExa.source === "exa-groq") {
+        if (fuExa.source === "exa") {
           const label = `Exa[fu:${personName.split(" ")[0]}]`;
           result.sources.push(label);
           const pdDetails = { scope: "person_candidate" as const, personName, relationship: "personal-contact-followup" };
           if (fuExa.email) {
             const arr = emailHits.get(fuExa.email) ?? []; arr.push(label); emailHits.set(fuExa.email, arr);
-            recordEvidence("email", fuExa.email, label, null, "ai-exa-groq-followup", 74, pdDetails);
+            recordEvidence("email", fuExa.email, label, null, "ai-exa-followup", 74, pdDetails);
           }
           if (fuExa.phone) {
             const arr = phoneHits.get(fuExa.phone) ?? []; arr.push(label); phoneHits.set(fuExa.phone, arr);
-            recordEvidence("phone", fuExa.phone, label, null, "ai-exa-groq-followup", 74, pdDetails);
+            recordEvidence("phone", fuExa.phone, label, null, "ai-exa-followup", 74, pdDetails);
           }
           if (fuExa.linkedin) {
             const arr = linkedinHits.get(fuExa.linkedin) ?? []; arr.push(label); linkedinHits.set(fuExa.linkedin, arr);
-            recordEvidence("social", fuExa.linkedin, label, null, "ai-exa-groq-followup", 70, { ...pdDetails, network: "linkedin" });
+            recordEvidence("social", fuExa.linkedin, label, null, "ai-exa-followup", 70, { ...pdDetails, network: "linkedin" });
           }
           if (fuExa.instagram) {
-            recordEvidence("social", fuExa.instagram, label, null, "ai-exa-groq-followup", 70, { ...pdDetails, network: "instagram" });
+            recordEvidence("social", fuExa.instagram, label, null, "ai-exa-followup", 70, { ...pdDetails, network: "instagram" });
           }
           if (fuExa.twitter) {
-            recordEvidence("social", fuExa.twitter, label, null, "ai-exa-groq-followup", 70, { ...pdDetails, network: "twitter" });
+            recordEvidence("social", fuExa.twitter, label, null, "ai-exa-followup", 70, { ...pdDetails, network: "twitter" });
           }
           for (const owner of fuExa.ownerResolutions) {
             addOwnerResolution(owner, label, fuExa.citations[0] ?? null);

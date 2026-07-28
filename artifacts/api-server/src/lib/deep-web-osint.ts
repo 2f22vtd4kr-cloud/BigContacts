@@ -491,8 +491,8 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     }
 
     // Process Exa results
-    if (exa.source === "exa-groq") {
-      const label = "Exa[groq]";
+    if (exa.source === "exa") {
+      const label = "Exa";
       if (exa.email)    { const a = emailHits.get(exa.email) ?? [];       a.push(label); emailHits.set(exa.email, a); }
       if (exa.phone)    { const a = phoneHits.get(exa.phone) ?? [];       a.push(label); phoneHits.set(exa.phone, a); }
       if (exa.linkedin) { const a = linkedinHits.get(exa.linkedin) ?? []; a.push(label); linkedinHits.set(exa.linkedin, a); }
@@ -514,8 +514,8 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     }
 
     // Process Tavily results
-    if (tav.source === "tavily-groq") {
-      const label = "Tavily[groq]";
+    if (tav.source === "tavily") {
+      const label = "Tavily";
       if (tav.email)    { const a = emailHits.get(tav.email) ?? [];       a.push(label); emailHits.set(tav.email, a); }
       if (tav.phone)    { const a = phoneHits.get(tav.phone) ?? [];       a.push(label); phoneHits.set(tav.phone, a); }
       if (tav.linkedin) { const a = linkedinHits.get(tav.linkedin) ?? []; a.push(label); linkedinHits.set(tav.linkedin, a); }
