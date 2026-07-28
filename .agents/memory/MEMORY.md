@@ -44,3 +44,4 @@
 - [web-osint wrong function](web-osint-wrong-function.md) — web-osint-enrich must call deepWebOsintEnrich (AI-first Phase 0), NOT enrichEntityOsint (shallow DDG stub, no AI, returns in ~1.8s)
 - [Target entity resolution](target-entity-resolution.md) — brand-level targets need disambiguation before contacts, ownership, or outreach are trusted
 - [AI source labels](ai-source-labels.md) — Tavily/Exa source values are "tavily"/"exa" (not "tavily-groq"/"exa-groq"); Gemini is ai-cyan search source in reactor, not ai-lime extraction layer
+- [Enricher execution order](enricher-execution-order.md) — web-OSINT first (primary data), in-house second (fill-only-if-empty); force=true web-OSINT after in-house can null good fields
