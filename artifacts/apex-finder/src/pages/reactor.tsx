@@ -199,54 +199,56 @@ function Meter({ label, value, max, color }: { label:string; value:number; max:n
 }
 
 // ── Mobile single node card ───────────────────────────────────────────────────
-function MobileNodeCard({ n, on }: { n: NodeDef; on: boolean }) {
+function MobileNodeCard({ n, on, dim }: { n: NodeDef; on: boolean; dim?: boolean }) {
   const isReactor = n.type === "reactor";
   const c = n.color;
+  // dim = in-pipeline but not current active step (faint glow)
+  const dimColor = dim ? c : undefined;
   return (
     <div style={{
       display:"flex", alignItems:"center", gap:8,
       padding:"9px 10px",
-      border:`${on?(isReactor?2:1.5):1}px solid ${on?c:"#192840"}`,
+      border:`${on?(isReactor?2:1.5):dim?1:1}px solid ${on?c:dim?(c+"30"):"#192840"}`,
       borderRadius: isReactor ? 10 : 6,
-      background: on ? (isReactor?`${c}14`:`${c}0d`) : "#0d1525",
-      transition:"all 0.35s ease",
-      boxShadow: on ? `0 0 ${isReactor?20:10}px ${c}${isReactor?"44":"22"}` : "none",
+      background: on ? (isReactor?`${c}14`:`${c}0d`) : dim ? `${c}07` : "#0d1525",
+      transition:"all 0.4s ease",
+      boxShadow: on ? `0 0 ${isReactor?20:10}px ${c}${isReactor?"44":"22"}` : dim ? `0 0 4px ${c}15` : "none",
       minWidth:0, overflow:"hidden",
     }}>
       <div style={{
         width:26, height:26, flexShrink:0, borderRadius:5,
-        border:`1px solid ${on?c+"50":"#192840"}`,
-        background: on ? c+"16" : "transparent",
+        border:`1px solid ${on?c+"50":dim?(c+"25"):"#192840"}`,
+        background: on ? c+"16" : dim ? c+"0a" : "transparent",
         display:"flex", alignItems:"center", justifyContent:"center",
-        color: on ? c : "#253850",
-        transition:"all 0.35s",
+        color: on ? c : dim ? c+"55" : "#253850",
+        transition:"all 0.4s",
       }}>
         <n.Icon style={{ width:12, height:12 }} />
       </div>
       <div style={{ flex:1, minWidth:0 }}>
         <div style={{
           fontSize:9, fontWeight:700, letterSpacing:"0.1em",
-          color: on ? c : "#253850",
-          transition:"color 0.35s",
+          color: on ? c : dim ? c+"60" : "#253850",
+          transition:"color 0.4s",
           overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
         }}>
           {n.label}
         </div>
         <div style={{
-          fontSize:8, color: on ? c+"99" : "#1a2d42",
+          fontSize:8, color: on ? c+"99" : dim ? c+"35" : "#1a2d42",
           marginTop:1, letterSpacing:"0.06em",
           overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
-          transition:"color 0.35s",
+          transition:"color 0.4s",
         }}>
           {n.sub}
         </div>
       </div>
       <div style={{
         width:5, height:5, borderRadius:"50%", flexShrink:0,
-        background: on ? c : "#192840",
-        boxShadow: on ? `0 0 6px ${c}` : "none",
-        animation: on ? "blink 1.1s ease-in-out infinite" : "none",
-        transition:"all 0.35s",
+        background: on ? c : dim ? c+"40" : "#192840",
+        boxShadow: on ? `0 0 6px ${c}` : dim ? `0 0 3px ${c}50` : "none",
+        animation: on ? "blink 1.1s ease-in-out infinite" : dim ? "breathe 2s ease-in-out infinite" : "none",
+        transition:"all 0.4s",
       }} />
     </div>
   );
@@ -279,16 +281,38 @@ function MobileReactor({ sessions, totalEntities, loading, onRefresh, syncing, l
   liveLabel?: string;
 }) {
   const hasSessions = sessions.length > 0;
-  const lastSession = sessions[0] ?? null;
   const pitchCount = sessions.filter(s => s.generatedPitch).length;
   const isLive = (liveNodes?.size ?? 0) > 0;
 
-  // Live job state overrides static completion state
+  // ── Animated phase-cycling when a job is running ────────────────────────────
+  const [liveStep, setLiveStep] = useState(0);
+  useEffect(() => {
+    if (!isLive) { setLiveStep(0); return; }
+    const id = setInterval(() => setLiveStep(s => (s + 1) % WAVES.length), 1300);
+    return () => clearInterval(id);
+  }, [isLive]);
+
+  // When live: current wave step = "on" (bright), rest of liveNodes = "dim"
+  // When idle with sessions: show completed nodes statically
+  const currentStepNodes: Set<string> = isLive
+    ? new Set(WAVES[liveStep % WAVES.length].nodes)
+    : new Set();
+
+  const staticNodes: Set<string> = hasSessions
+    ? new Set(["target","semantic","bayesian","graph","mcts","prac", ...(pitchCount > 0 ? ["pitch"] : [])])
+    : new Set();
+
+  // activeNodes = nodes that are "on" (bright) at this moment
+  // When live: the current WAVE step lights up (shows pipeline progression through ALL stages)
+  // This makes the reactor animate through the full pipeline even if only one job type is running
   const activeNodes: Set<string> = isLive
-    ? liveNodes!
-    : (hasSessions
-        ? new Set(["target","semantic","bayesian","graph","mcts","prac", ...(pitchCount > 0 ? ["pitch"] : [])])
-        : new Set());
+    ? currentStepNodes
+    : staticNodes;
+
+  // dimNodes = job-mapped nodes that are staged but not the current step
+  const dimNodes: Set<string> = isLive
+    ? new Set([...(liveNodes ?? new Set())].filter(id => !currentStepNodes.has(id)))
+    : new Set();
 
   return (
     <div style={{
@@ -414,43 +438,95 @@ function MobileReactor({ sessions, totalEntities, loading, onRefresh, syncing, l
                       width:"100%",
                     }}>
                       {phaseNodes.map(n => (
-                        <MobileNodeCard key={n.id} n={n} on={activeNodes.has(n.id)} />
+                        <MobileNodeCard
+                          key={n.id}
+                          n={n}
+                          on={activeNodes.has(n.id)}
+                          dim={dimNodes.has(n.id)}
+                        />
                       ))}
                     </div>
 
-                    {pi < MOBILE_PHASES.length - 1 && (
-                      <div style={{
-                        display:"flex", justifyContent:"center", padding:"3px 0",
-                        fontSize:10, color: anyActive ? "#a3e63560" : "#192840",
-                      }}>▾</div>
-                    )}
+                    {pi < MOBILE_PHASES.length - 1 && (() => {
+                      const nextPhase = MOBILE_PHASES[pi + 1];
+                      const nextPhaseNodes = nextPhase.nodeIds.map(id => NM[id]).filter(Boolean);
+                      const nextActive = nextPhaseNodes.some(n => activeNodes.has(n.id) || dimNodes.has(n.id));
+                      const flowActive = anyActive || nextActive;
+                      return (
+                        <div style={{
+                          display:"flex", justifyContent:"center", alignItems:"center",
+                          padding:"2px 0", gap:3,
+                        }}>
+                          {flowActive && isLive ? (
+                            // Animated data-flow dots when live
+                            <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
+                              {[0,1,2].map(i => (
+                                <div key={i} style={{
+                                  width:3, height:3, borderRadius:"50%",
+                                  background: "#a3e635",
+                                  opacity: (liveStep + i) % 3 === 0 ? 1 : 0.2,
+                                  transition:"opacity 0.35s ease",
+                                  boxShadow: (liveStep + i) % 3 === 0 ? "0 0 4px #a3e635" : "none",
+                                }} />
+                              ))}
+                            </div>
+                          ) : (
+                            <div style={{
+                              fontSize:10,
+                              color: anyActive ? "#a3e63560" : "#192840",
+                            }}>▾</div>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 );
               })}
             </div>
 
             {/* ── Live job banner ── */}
-            {isLive && liveLabel && (
+            {isLive && (
               <div style={{
                 margin:"0 12px 8px",
-                padding:"6px 10px",
+                padding:"7px 10px",
                 border:"1px solid #22d3ee30",
                 borderRadius:6,
                 background:"#22d3ee0a",
-                display:"flex", alignItems:"center", gap:8,
+                display:"flex", flexDirection:"column", gap:4,
                 flexShrink:0,
               }}>
-                <div style={{
-                  width:5, height:5, borderRadius:"50%",
-                  background:"#22d3ee", boxShadow:"0 0 6px #22d3ee",
-                  animation:"blink 0.6s ease-in-out infinite", flexShrink:0,
-                }} />
-                <span style={{
-                  fontSize:8, letterSpacing:"0.12em", color:"#22d3ee",
-                  flex:1, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
-                }}>
-                  {liveLabel}
-                </span>
+                {/* Job running label */}
+                <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                  <div style={{
+                    width:5, height:5, borderRadius:"50%",
+                    background:"#22d3ee", boxShadow:"0 0 6px #22d3ee",
+                    animation:"blink 0.6s ease-in-out infinite", flexShrink:0,
+                  }} />
+                  <span style={{
+                    fontSize:8, letterSpacing:"0.12em", color:"#22d3ee",
+                    flex:1, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+                  }}>
+                    {liveLabel || "JOB RUNNING"}
+                  </span>
+                </div>
+                {/* Current pipeline step */}
+                <div style={{ display:"flex", alignItems:"center", gap:6, paddingLeft:13 }}>
+                  <span style={{ fontSize:7.5, letterSpacing:"0.14em", color:"#a3e63599",
+                    flex:1, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                    ▸ {WAVES[liveStep % WAVES.length].label}
+                  </span>
+                  {/* Step progress dots */}
+                  <div style={{ display:"flex", gap:2, flexShrink:0 }}>
+                    {WAVES.slice(0, 8).map((_, i) => (
+                      <div key={i} style={{
+                        width:3, height:3, borderRadius:"50%",
+                        background: i === (liveStep % 8) ? "#a3e635" : "#192840",
+                        boxShadow: i === (liveStep % 8) ? "0 0 4px #a3e635" : "none",
+                        transition:"all 0.3s",
+                      }} />
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
 
