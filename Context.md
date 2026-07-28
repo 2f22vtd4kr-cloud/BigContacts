@@ -8,6 +8,19 @@
 
 ---
 
+## Current State (2026-07-28 — Re-import setup complete; 24 secrets set; DB empty; research NOT started)
+
+### Import setup (2026-07-28)
+- CI=true frozen-lockfile pnpm install (~39s) ✅
+- DB schema pushed (`[✓] Changes applied`) ✅
+- Redis ✅ · artifacts/api-server: API Server ✅ (port 8080) · artifacts/apex-finder: web ✅ (port 23695)
+- `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":0}}` ✅
+- All 24 secrets set: REDIS_URL_1–5 (slots 2–5 healthy, slot 1 quota-exhausted/auto-skipped), COMPANIES_HOUSE_API_KEY, GROQ_API_KEY/\_2/\_3, PERPLEXITY_API_KEY/\_2/\_3/\_4, WHOXY_API_KEY, GEMINI_API_KEY/\_2/\_3/\_4, EXA_API_KEY/\_2, TAVILY_API_KEY/\_2/\_3/\_4
+- DB empty — cold-start auto-recovery ran; ENABLE_AUTO_PIPELINE not set; user instructed NOT to start research yet
+- Ghost job locks cleared at startup (western-hnwi, companies-house-enrich, improve)
+
+---
+
 ## Current State (2026-07-28 — Exa integrated; 2 keys saved; clean build; API healthy)
 
 ### Exa integration (2026-07-28)
