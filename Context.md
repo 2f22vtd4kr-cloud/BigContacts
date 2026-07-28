@@ -8,6 +8,18 @@
 
 ---
 
+## Current State (2026-07-28 — Re-import #25 setup complete; all 24 secrets present; all workflows running; DB empty; pipeline idle)
+
+### Import setup (2026-07-28 — re-import #25)
+- `CI=true pnpm install --frozen-lockfile` ✅ (~32s)
+- `pnpm --filter @workspace/db run push` → `[✓] Changes applied` ✅
+- Redis ✅ (port 6379) · artifacts/api-server: API Server ✅ (port 8080, build 555ms) · artifacts/apex-finder: web ✅ (port 23695, Vite ready 1017ms)
+- All 24 secrets carried over: SESSION_SECRET, REDIS_URL_1–5, COMPANIES_HOUSE_API_KEY, GROQ_API_KEY/_2/_3, PERPLEXITY_API_KEY/_2/_3/_4, WHOXY_API_KEY, GEMINI_API_KEY/_2/_3/_4, EXA_API_KEY/_2, TAVILY_API_KEY/_2/_3/_4
+- `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":1}}` ✅
+- DB empty (0 entities) — ENABLE_AUTO_PIPELINE not set; pipeline idle; awaiting user instruction
+
+---
+
 ## Current State (2026-07-28 — Re-import setup complete; all 24 secrets saved; all workflows running; DB empty; research NOT started)
 
 ### Import setup (2026-07-28)
