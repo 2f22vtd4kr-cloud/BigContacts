@@ -15,7 +15,7 @@
 
 import { logger } from "./logger";
 import { isValidPublicEmail, sanitizePublicEmail } from "./contact-validation";
-import { extractWithAI, researchWithPerplexity, researchWithGemini, type OwnerResolution } from "./ai-extractor";
+import { extractWithAI, researchWithPerplexity, researchWithGemini, researchWithTavily, type OwnerResolution } from "./ai-extractor";
 import { extractPersonNames } from "./gliner-client";
 
 // ── Shared utilities ──────────────────────────────────────────────────────────
@@ -1715,12 +1715,16 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   // complementary coverage. Perplexity excels at regional press; Gemini
   // excels at Google-indexed official pages and LinkedIn.
   try {
-    const [perp, gem] = await Promise.all([
+    const [perp, gem, tav] = await Promise.all([
       researchWithPerplexity(entity.name, entity.type, country, {
         tradingName: trading,
         city,
       }),
       researchWithGemini(entity.name, entity.type, country, {
+        tradingName: trading,
+        city,
+      }),
+      researchWithTavily(entity.name, entity.type, country, {
         tradingName: trading,
         city,
       }),
@@ -1868,6 +1872,74 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     }
   } catch (err: any) {
     logger.warn({ err: err?.message }, "Phase 0.5: Gemini Flash processing failed");
+  }
+
+  // ── Phase 0.6: Tavily results (already fetched above in parallel) ────────
+  // Tavily returns clean AI-ready excerpts from 7 live sources — different
+  // index from both Perplexity and Gemini. Groq extracts structure from them.
+  try {
+    if (typeof tav !== "undefined" && tav.source === "tavily-groq") {
+      const label = "Tavily[groq]";
+      result.sources.push(label);
+      if (tav.email) {
+        const arr = emailHits.get(tav.email) ?? []; arr.push(label); emailHits.set(tav.email, arr);
+        recordEvidence("email", tav.email, label, null, "ai-tavily-groq", 78);
+      }
+      if (tav.phone) {
+        const arr = phoneHits.get(tav.phone) ?? []; arr.push(label); phoneHits.set(tav.phone, arr);
+        recordEvidence("phone", tav.phone, label, null, "ai-tavily-groq", 78);
+      }
+      if (tav.linkedin) {
+        const arr = linkedinHits.get(tav.linkedin) ?? []; arr.push(label); linkedinHits.set(tav.linkedin, arr);
+        recordEvidence("social", tav.linkedin, label, null, "ai-tavily-groq", 73, { network: "linkedin" });
+      }
+      if (tav.instagram) {
+        const arr = igHits.get(tav.instagram) ?? []; arr.push(label); igHits.set(tav.instagram, arr);
+        recordEvidence("social", tav.instagram, label, null, "ai-tavily-groq", 73, { network: "instagram" });
+      }
+      if (tav.twitter) {
+        const arr = twHits.get(tav.twitter) ?? []; arr.push(label); twHits.set(tav.twitter, arr);
+        recordEvidence("social", tav.twitter, label, null, "ai-tavily-groq", 73, { network: "twitter" });
+      }
+      if (tav.ownershipSummary && !result.ownershipSummary) result.ownershipSummary = tav.ownershipSummary;
+      for (const owner of tav.ownerResolutions) {
+        addOwnerResolution(owner, label, tav.citations[0] ?? null);
+      }
+      for (const oc of tav.ownerContacts) {
+        if (!tav.ownerResolutions.some(o => o.name.toLowerCase() === oc.name.toLowerCase())) {
+          addOwnerResolution({
+            ...oc,
+            role: "associated_person",
+            ownershipStatus: "not_established",
+            basis: null,
+            sourceUrls: tav.citations.slice(0, 4),
+          }, label, tav.citations[0] ?? null);
+        }
+      }
+      // Tavily result URLs → scrape queue + domain injection
+      for (const url of tav.citations.slice(0, 4)) urlsToScrape.add(url);
+      const tavDomains: string[] = [];
+      for (const url of tav.citations) {
+        try {
+          const hostname = new URL(url).hostname.replace(/^www\./, "");
+          if (!CITATION_SKIP_DOMAINS.has(hostname) && !tavDomains.includes(hostname)) {
+            tavDomains.push(hostname);
+          }
+        } catch { /* ignore malformed URLs */ }
+      }
+      if (tavDomains.length > 0) {
+        domainTargets.unshift(...tavDomains.slice(0, 3));
+        logger.info({ entityId: entity.id, tavDomains }, "Phase 0.6: injected Tavily result domains into scrape targets");
+      }
+      allSearchText += " " + JSON.stringify({
+        ownershipSummary: tav.ownershipSummary,
+        ownerResolutions: tav.ownerResolutions,
+        owners: tav.owners,
+      });
+      result.queriesFired++;
+    }
+  } catch (err: any) {
+    logger.warn({ err: err?.message }, "Phase 0.6: Tavily processing failed");
   }
 
   // ── Phase 1: DDG search (locale-aware) ─────────────────────────────────
@@ -2227,13 +2299,17 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
 
     for (const personName of followUpPersons) {
       try {
-        logger.info({ entityId: entity.id, personName }, "Phase 7.5: follow-up Perplexity+Gemini for discovered person");
-        const [fuPerp, fuGem] = await Promise.all([
+        logger.info({ entityId: entity.id, personName }, "Phase 7.5: follow-up Perplexity+Gemini+Tavily for discovered person");
+        const [fuPerp, fuGem, fuTav] = await Promise.all([
           researchWithPerplexity(personName, "HNWI", country, {
             tradingName: entity.name,
             city,
           }),
           researchWithGemini(personName, "HNWI", country, {
+            tradingName: entity.name,
+            city,
+          }),
+          researchWithTavily(personName, "HNWI", country, {
             tradingName: entity.name,
             city,
           }),
@@ -2312,8 +2388,45 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
           allSearchText += " " + JSON.stringify({ personName, ownershipSummary: fuGem.ownershipSummary, ownerResolutions: fuGem.ownerResolutions });
           result.queriesFired++;
         }
+
+        // Process Tavily follow-up
+        if (fuTav.source === "tavily-groq") {
+          const label = `Tavily[fu:${personName.split(" ")[0]}]`;
+          result.sources.push(label);
+          const pdDetails = { scope: "person_candidate" as const, personName, relationship: "personal-contact-followup" };
+          if (fuTav.email) {
+            const arr = emailHits.get(fuTav.email) ?? []; arr.push(label); emailHits.set(fuTav.email, arr);
+            recordEvidence("email", fuTav.email, label, null, "ai-tavily-groq-followup", 74, pdDetails);
+          }
+          if (fuTav.phone) {
+            const arr = phoneHits.get(fuTav.phone) ?? []; arr.push(label); phoneHits.set(fuTav.phone, arr);
+            recordEvidence("phone", fuTav.phone, label, null, "ai-tavily-groq-followup", 74, pdDetails);
+          }
+          if (fuTav.linkedin) {
+            const arr = linkedinHits.get(fuTav.linkedin) ?? []; arr.push(label); linkedinHits.set(fuTav.linkedin, arr);
+            recordEvidence("social", fuTav.linkedin, label, null, "ai-tavily-groq-followup", 70, { ...pdDetails, network: "linkedin" });
+          }
+          if (fuTav.instagram) {
+            recordEvidence("social", fuTav.instagram, label, null, "ai-tavily-groq-followup", 70, { ...pdDetails, network: "instagram" });
+          }
+          if (fuTav.twitter) {
+            recordEvidence("social", fuTav.twitter, label, null, "ai-tavily-groq-followup", 70, { ...pdDetails, network: "twitter" });
+          }
+          for (const owner of fuTav.ownerResolutions) {
+            addOwnerResolution(owner, label, fuTav.citations[0] ?? null);
+          }
+          for (const url of fuTav.citations.slice(0, 3)) urlsToScrape.add(url);
+          for (const url of fuTav.citations) {
+            try {
+              const hostname = new URL(url).hostname.replace(/^www\./, "");
+              if (!CITATION_SKIP_DOMAINS.has(hostname) && !domainTargets.includes(hostname)) domainTargets.push(hostname);
+            } catch { /* skip malformed */ }
+          }
+          allSearchText += " " + JSON.stringify({ personName, ownershipSummary: fuTav.ownershipSummary, ownerResolutions: fuTav.ownerResolutions });
+          result.queriesFired++;
+        }
       } catch (err: any) {
-        logger.warn({ err: err?.message, personName }, "Phase 7.5: follow-up Perplexity failed");
+        logger.warn({ err: err?.message, personName }, "Phase 7.5: follow-up Perplexity/Gemini/Tavily failed");
       }
       await jitteredDelay(500);
     }

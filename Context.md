@@ -8,6 +8,21 @@
 
 ---
 
+## Current State (2026-07-28 — Tavily integrated; 4 keys saved; clean build; API healthy)
+
+### Tavily integration (2026-07-28)
+- `researchWithTavily()` added to `ai-extractor.ts` — Tavily search API (POST https://api.tavily.com/search) returns clean excerpts fed into Groq (llama-3.3-70b) for structured contact/owner extraction
+- Key rotation: `TAVILY_API_KEY` through `TAVILY_API_KEY_8` (4 keys saved); 429 → exhausted 5 min then auto-recover; independent exhaustion map
+- Source label: `"tavily-groq"` (added to union type)
+- Wired into 3 places (all in `Promise.all` — zero added latency vs existing calls):
+  - `web-enricher.ts` Phase 0 → Phase 0.6 processing block (domain injection + scrape queue)
+  - `web-enricher.ts` Phase 7.5 → `fuTav` follow-up per discovered person
+  - `deep-web-osint.ts` Phase 0 → Tavily processing block
+- Evidence in UI shows `Tavily[groq]` / `Tavily[fu:FirstName]` labels
+- Build: clean (874ms, no errors); `/api/healthz` → ok ✅
+
+---
+
 ## Current State (2026-07-28 — Re-import setup complete; Redis + API + web running; DB schema applied; 18,100 entities; 18,200 assets)
 
 ### Post-import setup (2026-07-28, this import — Task #1)

@@ -18,7 +18,7 @@
  */
 
 import { logger } from "./logger";
-import { extractWithAI, researchWithPerplexity, researchWithGemini } from "./ai-extractor";
+import { extractWithAI, researchWithPerplexity, researchWithGemini, researchWithTavily } from "./ai-extractor";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -439,9 +439,10 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       return m ? m[1]!.trim() : null;
     })();
 
-    const [perp, gem] = await Promise.all([
+    const [perp, gem, tav] = await Promise.all([
       researchWithPerplexity(entity.name, entity.type, countryHint),
       researchWithGemini(entity.name, entity.type, countryHint),
+      researchWithTavily(entity.name, entity.type, countryHint),
     ]);
 
     // Process Perplexity results
@@ -487,8 +488,31 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       allSearchText += " " + JSON.stringify({ owners: gem.owners, ownerContacts: gem.ownerContacts });
       result.sources.push(label);
     }
+
+    // Process Tavily results
+    if (tav.source === "tavily-groq") {
+      const label = "Tavily[groq]";
+      if (tav.email)    { const a = emailHits.get(tav.email) ?? [];       a.push(label); emailHits.set(tav.email, a); }
+      if (tav.phone)    { const a = phoneHits.get(tav.phone) ?? [];       a.push(label); phoneHits.set(tav.phone, a); }
+      if (tav.linkedin) { const a = linkedinHits.get(tav.linkedin) ?? []; a.push(label); linkedinHits.set(tav.linkedin, a); }
+      if (tav.instagram){ const a = igHits.get(tav.instagram) ?? [];      a.push(label); igHits.set(tav.instagram, a); }
+      if (tav.twitter)  { const a = twHits.get(tav.twitter) ?? [];        a.push(label); twHits.set(tav.twitter, a); }
+      for (const oc of tav.ownerContacts) {
+        if (!aiOwners.some(o => o.name.toLowerCase() === oc.name.toLowerCase())) {
+          aiOwners.push({ name: oc.name, instagram: oc.instagram, twitter: oc.twitter, linkedin: oc.linkedin });
+        }
+        if (!isCorp) {
+          if (oc.instagram) { const a = igHits.get(oc.instagram) ?? [];      a.push(`${label}-owner`); igHits.set(oc.instagram, a); }
+          if (oc.twitter)   { const a = twHits.get(oc.twitter) ?? [];        a.push(`${label}-owner`); twHits.set(oc.twitter, a); }
+        }
+        if (oc.linkedin)  { const a = linkedinHits.get(oc.linkedin) ?? []; a.push(`${label}-owner`); linkedinHits.set(oc.linkedin, a); }
+      }
+      for (const url of tav.citations.slice(0, 4)) urlsToScrape.add(url);
+      allSearchText += " " + JSON.stringify({ owners: tav.owners, ownerContacts: tav.ownerContacts });
+      result.sources.push(label);
+    }
   } catch (err: any) {
-    logger.warn({ err: err?.message, name: err?.name }, "Phase 0: Perplexity/Gemini research failed");
+    logger.warn({ err: err?.message, name: err?.name }, "Phase 0: Perplexity/Gemini/Tavily research failed");
   }
 
   // ── Phase 1: DDG HTML search on all queries ──────────────────────────────

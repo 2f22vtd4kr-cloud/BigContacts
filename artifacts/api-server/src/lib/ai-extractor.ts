@@ -37,6 +37,9 @@ const PERPLEXITY_DIRECT_FALLBACK = "sonar";       // cheaper direct fallback
 const GEMINI_API   = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
 const GEMINI_MODEL = "gemini-2.0-flash"; // used only for log labels
 
+// Tavily — AI-native search API; returns clean excerpts fed into Groq for extraction
+const TAVILY_API = "https://api.tavily.com/search";
+
 // Track which keys hit rate-limits. Map<key, expiresAtMs> — keys auto-recover after 5 min.
 const EXHAUSTED_TTL_MS = 5 * 60 * 1000;
 
@@ -53,6 +56,7 @@ const _exhaustedORKeys                = new Map<string, number>(); // for llama 
 const _exhaustedPerplexityKeys        = new Map<string, number>(); // for OpenRouter-routed Sonar only
 const _exhaustedPerplexityDirectKeys  = new Map<string, number>(); // for direct Perplexity API only
 const _exhaustedGeminiKeys            = new Map<string, number>(); // for Gemini Flash grounded search
+const _exhaustedTavilyKeys            = new Map<string, number>(); // for Tavily search API
 
 function getGroqKeys(): string[] {
   return ["GROQ_API_KEY", "GROQ_API_KEY_2", "GROQ_API_KEY_3"]
@@ -79,6 +83,13 @@ function getPerplexityDirectKeys(): string[] {
 function getGeminiKeys(): string[] {
   const names = ["GEMINI_API_KEY"];
   for (let i = 2; i <= 8; i++) names.push(`GEMINI_API_KEY_${i}`);
+  return names.map(k => process.env[k] ?? "").filter(k => k.length > 0);
+}
+
+/** Returns all Tavily API keys (TAVILY_API_KEY, TAVILY_API_KEY_2 … _8). */
+function getTavilyKeys(): string[] {
+  const names = ["TAVILY_API_KEY"];
+  for (let i = 2; i <= 8; i++) names.push(`TAVILY_API_KEY_${i}`);
   return names.map(k => process.env[k] ?? "").filter(k => k.length > 0);
 }
 
@@ -120,7 +131,7 @@ export interface AIExtractResult {
   ownerResolutions: OwnerResolution[]; // role + ownership basis; never auto-merged
   ownershipSummary: string | null;
   ownershipSources: string[];
-  source:    "groq-llama-70b" | "groq-llama-8b" | "openrouter" | "perplexity-sonar" | "gemini-flash" | "none";
+  source:    "groq-llama-70b" | "groq-llama-8b" | "openrouter" | "perplexity-sonar" | "gemini-flash" | "tavily-groq" | "none";
   citations: string[];            // URLs the model actually searched — use as evidence sources
 }
 
@@ -825,6 +836,122 @@ export async function researchWithGemini(
   }
 
   logger.warn({ entityName }, `Phase 0 [${GEMINI_MODEL}]: no usable data — all keys failed`);
+  return EMPTY;
+}
+
+/**
+ * Fire a Tavily AI-native search then extract structured contacts via Groq.
+ * Tavily returns clean, LLM-ready excerpts from up to 7 live web sources.
+ * Those excerpts are fed into Groq (llama-3.3-70b) using the same ownership/
+ * contact extraction prompt as the rest of the pipeline.
+ * Key rotation supports TAVILY_API_KEY through TAVILY_API_KEY_8.
+ * Returns source: "tavily-groq" with Tavily result URLs as citations.
+ */
+export async function researchWithTavily(
+  entityName: string,
+  entityType: string,
+  country: string | null = null,
+  context: { tradingName?: string | null; city?: string | null } = {},
+): Promise<AIExtractResult> {
+  const keys = getTavilyKeys();
+  if (keys.length === 0) return EMPTY;
+
+  // Build a targeted OSINT search query
+  const queryParts: string[] = [entityName];
+  if (context.tradingName && context.tradingName !== entityName) queryParts.push(context.tradingName);
+  if (context.city) queryParts.push(context.city);
+  if (country) queryParts.push(country);
+  queryParts.push("owner contact email phone");
+  const query = queryParts.join(" ");
+
+  logger.info({ entityName, entityType, country, query }, "Phase 0 [tavily]: firing Tavily search");
+
+  for (const key of keys) {
+    if (isExhausted(_exhaustedTavilyKeys, key)) continue;
+    try {
+      const resp = await fetch(TAVILY_API, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          api_key: key,
+          query,
+          search_depth: "advanced",
+          include_answer: true,
+          max_results: 7,
+          include_raw_content: false,
+        }),
+        signal: AbortSignal.timeout(30_000),
+      });
+
+      if (resp.status === 429) {
+        _exhaustedTavilyKeys.set(key, Date.now() + EXHAUSTED_TTL_MS);
+        logger.warn("Phase 0 [tavily]: rate limit — key exhausted 5 min");
+        continue;
+      }
+      if (resp.status === 401 || resp.status === 403) {
+        logger.warn({ status: resp.status }, "Phase 0 [tavily]: auth error — skipping key");
+        continue;
+      }
+      if (!resp.ok) {
+        const errText = await resp.text().catch(() => "");
+        logger.warn({ status: resp.status, err: errText.slice(0, 200) }, "Phase 0 [tavily]: API error");
+        continue;
+      }
+
+      const data = await resp.json() as {
+        answer?: string;
+        results?: { title: string; url: string; content: string; score: number }[];
+      };
+
+      const citations: string[] = (data.results ?? [])
+        .map(r => r.url)
+        .filter((u): u is string => typeof u === "string" && /^https?:\/\//i.test(u))
+        .slice(0, 8);
+
+      // Combine Tavily's synthesised answer + top per-source excerpts
+      const textParts: string[] = [];
+      if (data.answer) textParts.push(data.answer);
+      for (const r of (data.results ?? []).slice(0, 6)) {
+        if (r.content) textParts.push(`[${r.title}]\n${r.content}`);
+      }
+      const text = textParts.join("\n\n");
+
+      if (text.length < 50) {
+        logger.warn({ entityName }, "Phase 0 [tavily]: empty results");
+        continue;
+      }
+
+      logger.info(
+        { entityName, textLen: text.length, citations: citations.length },
+        "Phase 0 [tavily]: results received — running Groq extraction",
+      );
+
+      // Feed Tavily excerpts into Groq for structured contact/owner extraction
+      const extracted = await extractWithAI(text, entityName, entityType, country);
+
+      logger.info(
+        {
+          entityName, hasEmail: !!extracted.email, hasPhone: !!extracted.phone,
+          owners: extracted.owners.length, citations: citations.length,
+        },
+        "Phase 0 [tavily]: extraction complete",
+      );
+
+      return {
+        ...extracted,
+        source: "tavily-groq",
+        citations,
+        ownershipSources: [...new Set([...extracted.ownershipSources, ...citations])].slice(0, 8),
+        ownerResolutions: extracted.ownerResolutions.map(o => ({
+          ...o, sourceUrls: o.sourceUrls.length > 0 ? o.sourceUrls : citations.slice(0, 4),
+        })),
+      };
+    } catch (err: any) {
+      logger.warn({ err: err?.message }, "Phase 0 [tavily]: call threw");
+    }
+  }
+
+  logger.warn({ entityName }, "Phase 0 [tavily]: no usable data — all keys failed");
   return EMPTY;
 }
 
