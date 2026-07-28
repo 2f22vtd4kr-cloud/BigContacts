@@ -264,22 +264,13 @@ function MobileReactor({ sessions, totalEntities, loading, onRefresh, syncing }:
         background:"rgba(11,17,32,0.95)",
       }}>
         {/* Nuclear icon */}
-        <div style={{
-          width:32, height:32, borderRadius:"50%", flexShrink:0,
-          position:"relative",
-          border:`2px solid ${hasSessions ? "#a3e635" : "#253850"}`,
+        <span style={{
+          fontSize:32, lineHeight:1, flexShrink:0,
           color: hasSessions ? "#a3e635" : "#253850",
-          fontSize:16,
-          boxShadow: hasSessions ? "0 0 12px #a3e63544" : "none",
+          textShadow: hasSessions ? "0 0 12px #a3e63544" : "none",
           animation: hasSessions ? "breathe 3s ease-in-out infinite" : "none",
           transition:"all 0.4s",
-        }}>
-          <span style={{
-            position:"absolute", top:"50%", left:"50%",
-            transform:"translate(-50%, -50%)",
-            lineHeight:1, display:"block",
-          }}>☢</span>
-        </div>
+        }}>☢</span>
 
         <div style={{ flex:1, minWidth:0 }}>
           <div style={{
