@@ -22,6 +22,7 @@ import type { InsertEntity, InsertAsset } from "@workspace/db";
 import { computeBayesianScore } from "./bayesian-scorer";
 import { isDuplicate, markSeen, updateJob, appendJobLog, clearDedup } from "./job-queue";
 import { logger } from "./logger";
+import { filterHumanNamesWithLLM } from "./llm-name-validator";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -777,6 +778,19 @@ export async function runWesternHnwiIngestion(opts: IngestionOptions): Promise<I
   const flushBatch = async () => {
     if (entityBatch.length === 0) return;
     try {
+      // LLM validation: secondary filter for any names that slipped past the regex.
+      // Runs a single Groq batch call per flush. Fail-open — if Groq is unavailable,
+      // all candidates are accepted (matching prior behaviour).
+      const candidateNames = entityBatch.map(e => e.name ?? "");
+      const validNames = new Set(await filterHumanNamesWithLLM(candidateNames));
+      const preCount = entityBatch.length;
+      entityBatch = entityBatch.filter(e => validNames.has(e.name ?? ""));
+      const rejected = preCount - entityBatch.length;
+      if (rejected > 0) {
+        logger.info({ rejected }, "LLM name validator: rejected non-human names from batch");
+      }
+
+      if (entityBatch.length === 0) return;
       const insertedRows = await db
         .insert(entitiesTable)
         .values(entityBatch)

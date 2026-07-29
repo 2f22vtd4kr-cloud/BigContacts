@@ -648,6 +648,12 @@ export default function ApexProfile() {
               >
                 {TYPE_ICONS[entity.type]} {entity.type}
               </span>
+              {(entity as any).linkedinHeadline && (
+                <span className="text-[10px] font-mono text-muted-foreground/80 flex items-center gap-1 px-2 py-0.5 rounded bg-muted/40 border border-border/50 max-w-[280px] truncate" title={(entity as any).linkedinHeadline}>
+                  <Briefcase className="w-2.5 h-2.5 flex-shrink-0" />
+                  {(entity as any).linkedinHeadline}
+                </span>
+              )}
               {(entity as any).nationality && (
                 <span className="text-xs text-muted-foreground font-mono">{(entity as any).nationality}</span>
               )}

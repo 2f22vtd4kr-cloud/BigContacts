@@ -183,6 +183,11 @@ function MobileEntityCard({
           <div className="font-semibold text-[14px] text-foreground truncate">
             {formatEntityName(entity.name)}
           </div>
+          {entity.linkedinHeadline && (
+            <div className="text-[10px] text-muted-foreground/60 font-mono truncate mt-0.5" title={entity.linkedinHeadline}>
+              {entity.linkedinHeadline}
+            </div>
+          )}
           <div className="mt-1">
             <span
               className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded flex items-center gap-1 w-max"
@@ -311,6 +316,7 @@ export default function EntityLedger() {
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
   const [hotOnly, setHotOnly] = useState(() => urlParams.get("hot") === "1");
+  const [hideBillionaires, setHideBillionaires] = useState(false);
   const [contactRichness, setContactRichness] = useState<ContactRichness>(() =>
     urlParams.get("contactable") === "1" ? "any" : null
   );
@@ -392,8 +398,8 @@ export default function EntityLedger() {
 
   const [mobileSelectedEntity, setMobileSelectedEntity] = useState<any>(null);
 
-  // Contact richness + confidence are server-side; only hotOnly remains client-side
-  const isSpecialFilter = hotOnly;
+  // Contact richness + confidence are server-side; hotOnly and hideBillionaires are client-side
+  const isSpecialFilter = hotOnly || hideBillionaires;
   const anyContactFilter = contactRichness !== null || minConfidence > 0;
 
   const { data: rawEntities, isLoading: isLoadingEntities, isError: isEntitiesError, refetch } = useListEntities({
@@ -445,6 +451,16 @@ export default function EntityLedger() {
       return overrides ? { ...e, ...overrides } : e;
     });
     if (hotOnly) list = list.filter((e: any) => e.isHot);
+    // "Hide Billionaires" — suppress ultra-wealthy ($500M+) people with zero direct contact.
+    // These are public figures (Thiel, Icahn tier) who are essentially unreachable.
+    // Entities WITH email or phone are never hidden regardless of wealth.
+    if (hideBillionaires) {
+      list = list.filter((e: any) => {
+        const hasDirectContact = !!(e.email || e.phone);
+        const isUltraRich = (e.estimatedNetWorth ?? 0) > 500_000_000;
+        return hasDirectContact || !isUltraRich;
+      });
+    }
     // contactRichness + minConfidence are server-side — no client filter needed
     // In default view, filter out any optimistically-hidden entities
     if (viewMode === "all") list = list.filter((e: any) => !e.isHidden);
@@ -721,6 +737,19 @@ export default function EntityLedger() {
           >
             🔥 Hot
           </button>
+          <div className="w-px h-4 bg-border/60 mx-1 shrink-0" />
+          <button
+            onClick={() => setHideBillionaires(!hideBillionaires)}
+            title="Hide ultra-wealthy ($500M+) with no direct contact (Thiel, Icahn tier — practically unreachable)"
+            className="shrink-0 h-6 px-2.5 rounded text-[10px] font-mono border transition-all whitespace-nowrap"
+            style={{
+              background: hideBillionaires ? "rgba(168,85,247,0.12)" : "transparent",
+              color: hideBillionaires ? "#A855F7" : "hsl(var(--muted-foreground))",
+              borderColor: hideBillionaires ? "rgba(168,85,247,0.4)" : "hsl(var(--border))",
+            }}
+          >
+            {hideBillionaires ? "✓ " : ""}No Billionaires
+          </button>
         </div>
 
         {/* Live Intel slide-over sidebar */}
@@ -902,7 +931,14 @@ export default function EntityLedger() {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         {entity.isHot && <ShieldAlert className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />}
-                        <span className="font-semibold text-sm text-foreground whitespace-nowrap">{formatEntityName(entity.name)}</span>
+                        <div className="min-w-0">
+                          <div className="font-semibold text-sm text-foreground whitespace-nowrap">{formatEntityName(entity.name)}</div>
+                          {entity.linkedinHeadline && (
+                            <div className="text-[10px] text-muted-foreground/55 font-mono truncate max-w-[200px]" title={entity.linkedinHeadline}>
+                              {entity.linkedinHeadline}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </td>
                     <td className="px-4 py-3">

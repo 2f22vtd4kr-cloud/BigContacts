@@ -107,6 +107,13 @@ router.get("/entities", async (req, res): Promise<void> => {
   // regardless of whether a contact filter is active — wealth is a secondary signal.
   const _isContactFilter = !!(contactable || hasEmail || hasPhone || hasWhatsapp || hasTelegram
     || hasInstagram || contactOutcome || (minContactConfidence && minContactConfidence > 0));
+  // Reachability-first sort:
+  //  1. Contact richness tier (verified direct > candidate > org > social > evidence > none)
+  //  2. Contact confidence (how trustworthy the contact data is)
+  //  3. Inline access score (email/phone/LinkedIn presence → direct channels)
+  //  4. Prominence penalty: push ultra-wealthy ($500M+) with zero direct contact to bottom of tier
+  //     (Peter Thiel class — public figures who are HNWI-signal-rich but practically unreachable)
+  //  5. Bayesian score as final tiebreaker (wealth/asset signal)
   const orderExpr = sql`
     CASE ${entitiesTable.contactOutcome}
       WHEN 'direct_contact_verified'   THEN 6
@@ -117,6 +124,17 @@ router.get("/entities", async (req, res): Promise<void> => {
       ELSE 1
     END DESC,
     ${entitiesTable.contactConfidence} DESC NULLS LAST,
+    (
+      CASE WHEN ${entitiesTable.email}     IS NOT NULL AND btrim(${entitiesTable.email}::text)     <> '' THEN 55 ELSE 0 END +
+      CASE WHEN ${entitiesTable.phone}     IS NOT NULL AND btrim(${entitiesTable.phone}::text)     <> '' THEN 45 ELSE 0 END +
+      CASE WHEN ${entitiesTable.linkedinUrl} IS NOT NULL AND btrim(${entitiesTable.linkedinUrl}::text) <> '' THEN 12 ELSE 0 END
+    ) DESC,
+    CASE
+      WHEN COALESCE(${entitiesTable.estimatedNetWorth}, 0) > 500000000
+       AND (${entitiesTable.email}  IS NULL OR btrim(${entitiesTable.email}::text)  = '')
+       AND (${entitiesTable.phone}  IS NULL OR btrim(${entitiesTable.phone}::text)  = '')
+      THEN 0 ELSE 1
+    END DESC,
     ${entitiesTable.bayesianScore} DESC
   `;
 

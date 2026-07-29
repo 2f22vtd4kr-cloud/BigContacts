@@ -51,7 +51,7 @@ export default function GraphViewer() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entityIdFromUrl]);
 
-  const { data: graphData, isLoading } = useGetEntityGraph(targetId, undefined, {
+  const { data: graphData, isLoading, isError } = useGetEntityGraph(targetId, undefined, {
     query: { enabled: targetId > 0, queryKey: getGetEntityGraphQueryKey(targetId) },
   });
   const { data: allEntities } = useListEntities({ limit: 200 });
@@ -148,20 +148,21 @@ export default function GraphViewer() {
   };
 
   const gData = useMemo(() => {
-    if (!graphData) return { nodes: [], links: [] };
+    // Guard against undefined AND against error-response objects like { error: "Entity not found" }
+    if (!graphData || !Array.isArray((graphData as any)?.nodes)) return { nodes: [], links: [] };
     const ASSET_TYPES = new Set(["RealEstate", "Aviation", "Marine", "PrivateClub"]);
-    const filteredNodes = graphData.nodes.filter((n) => {
+    const filteredNodes = (graphData as any).nodes.filter((n: any) => {
       if (n.isTarget) return true;
       if (minScore > 0 && !ASSET_TYPES.has(n.nodeType) && n.bayesianScore != null && n.bayesianScore * 100 < minScore) return false;
       if (assetTypeFilter && ASSET_TYPES.has(n.nodeType) && n.nodeType !== assetTypeFilter) return false;
       return true;
     });
-    const filteredIds = new Set(filteredNodes.map((n) => n.id));
+    const filteredIds = new Set(filteredNodes.map((n: any) => n.id));
     return {
-      nodes: filteredNodes.map((n) => ({ ...n, val: n.isTarget ? 3 : n.isCentral ? 2 : 1 })),
-      links: graphData.edges
-        .filter((e) => filteredIds.has(e.source) && filteredIds.has(e.target))
-        .map((e) => ({ source: e.source, target: e.target, label: e.label, strength: e.strength })),
+      nodes: filteredNodes.map((n: any) => ({ ...n, val: n.isTarget ? 3 : n.isCentral ? 2 : 1 })),
+      links: ((graphData as any).edges ?? [])
+        .filter((e: any) => filteredIds.has(e.source) && filteredIds.has(e.target))
+        .map((e: any) => ({ source: e.source, target: e.target, label: e.label, strength: e.strength })),
     };
   }, [graphData, minScore, assetTypeFilter]);
 
@@ -465,8 +466,19 @@ export default function GraphViewer() {
         <div className="flex items-center"><div className="w-2.5 h-2.5 rounded-full bg-muted-foreground mr-1.5 md:mr-2" /> Asset</div>
       </div>
 
+      {/* ── Error state — entity not found or graph API error ── */}
+      {isError && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center z-20 text-muted-foreground font-mono space-y-3">
+          <Network className="w-12 h-12 opacity-20" />
+          <span className="text-sm tracking-widest uppercase">Graph unavailable</span>
+          <span className="text-xs opacity-60 text-center max-w-xs">
+            Entity not found or graph data could not be loaded. Select a different entity from the dropdown.
+          </span>
+        </div>
+      )}
+
       {/* ── No entities at all (DB empty) ── */}
-      {allEntities !== undefined && allEntities.length === 0 && (
+      {!isError && allEntities !== undefined && allEntities.length === 0 && (
         <div className="absolute inset-0 flex flex-col items-center justify-center z-20 text-muted-foreground font-mono space-y-3">
           <Network className="w-12 h-12 opacity-20" />
           <span className="text-sm tracking-widest uppercase">No entities yet</span>
