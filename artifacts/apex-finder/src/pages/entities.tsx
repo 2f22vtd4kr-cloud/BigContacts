@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Link, useLocation, useSearch } from "wouter";
 import { useListEntities, useCreateEntity, useDeleteEntity } from "@workspace/api-client-react";
-import { formatCurrency, formatEntityName, AccessScoreBadge } from "@/lib/utils";
+import { formatCurrency, formatEntityName, AccessScoreBadge, ConfidenceBadge } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import {
   Plus, Search, Trash2, Globe, ChevronDown, ChevronUp, X, Loader2,
@@ -198,6 +198,7 @@ function MobileEntityCard({
           </div>
         </div>
         <div className="shrink-0 flex items-center gap-2">
+          <ConfidenceBadge score={entity.contactConfidence} />
           <AccessScoreBadge score={entity.accessScore} />
           {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
         </div>
@@ -898,7 +899,7 @@ export default function EntityLedger() {
                       : <Square className="w-3.5 h-3.5" />}
                   </button>
                 </th>
-                {["Name", "Type", "Nationality", "Access", "Contact", "Net Worth"].map((h) => (
+                {["Name", "Type", "Nationality", "Confidence", "Access", "Contact", "Net Worth"].map((h) => (
                   <th key={h} className={cn(
                     "px-4 py-3 text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap",
                     h === "Net Worth" ? "text-right" : "text-left"
@@ -950,6 +951,7 @@ export default function EntityLedger() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-sm text-muted-foreground font-mono whitespace-nowrap">{entity.nationality ?? "—"}</td>
+                    <td className="px-4 py-3"><ConfidenceBadge score={entity.contactConfidence} /></td>
                     <td className="px-4 py-3"><AccessScoreBadge score={entity.accessScore} /></td>
                     <td className="px-4 py-3 text-xs max-w-[220px]">
                       <div className="flex flex-col gap-0.5">

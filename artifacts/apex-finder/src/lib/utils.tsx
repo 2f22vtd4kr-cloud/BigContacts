@@ -76,6 +76,45 @@ export function AccessScoreBadge({ score }: { score: number | null | undefined }
   );
 }
 
+export function ConfidenceBadge({ score }: { score: number | null | undefined }) {
+  // Contact confidence — how trustworthy the extracted contact data itself is
+  // (email/phone/social evidence quality), distinct from Access (reachability)
+  // and Signal (wealth/registry evidence). This is the primary surfaced metric
+  // for prioritizing outreach — see reachability-rank.ts on the API side.
+  if (score == null) return null;
+  const pct = Math.round(score);
+
+  let label: string;
+  let colorClass: string;
+  if (pct === 0) {
+    label = "None";
+    colorClass = "text-muted-foreground border-border bg-muted/30";
+  } else if (pct < 30) {
+    label = "Low";
+    colorClass = "text-orange-400 border-orange-400/20 bg-orange-400/8";
+  } else if (pct < 60) {
+    label = "Moderate";
+    colorClass = "text-amber-400 border-amber-400/30 bg-amber-400/8";
+  } else if (pct < 85) {
+    label = "High";
+    colorClass = "text-primary border-primary/30 bg-primary/8";
+  } else {
+    label = "Verified";
+    colorClass = "text-primary border-primary bg-primary/15";
+  }
+
+  return (
+    <div
+      className={`flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-mono border ${colorClass}`}
+      title={`Contact confidence ${pct}/100 — how trustworthy the discovered contact data is`}
+      data-testid="badge-confidence-score"
+    >
+      <span className="font-bold tabular-nums text-[11px]">{pct}</span>
+      <span className="opacity-60 text-[9px] uppercase tracking-wide leading-none">{label}</span>
+    </div>
+  );
+}
+
 export function formatRegistry(source: string | null | undefined) {
   if (!source) return "Unknown";
   return source.split(',').map(s => s.trim()).join(' / ');

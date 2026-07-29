@@ -4,6 +4,7 @@ import { db, entitiesTable, assetsTable, relationshipsTable, researchSessionsTab
 import { GetHotLeadsQueryParams } from "@workspace/api-zod";
 import { getCache, setCache } from "../lib/redis";
 import { computeAccessScore } from "../lib/access-score";
+import { reachabilityOrderExpr } from "../lib/reachability-rank";
 
 const router: IRouter = Router();
 
@@ -17,23 +18,13 @@ router.get("/dashboard/hot-leads", async (req, res): Promise<void> => {
   const { limit = 10 } = parsed.data;
 
   // Over-fetch ranked by contact richness first — outcome tier → confidence score → wealth.
-  // Contacts are the primary priority signal; wealth is secondary context.
+  // Contacts are the primary priority signal; wealth is secondary context. Shared with
+  // the entities list and Atlas Phase 10 MCTS target selection — keep ranking consistent.
   const entities = await db
     .select()
     .from(entitiesTable)
     .where(and(eq(entitiesTable.type, "HNWI"), eq(entitiesTable.isHidden, false)))
-    .orderBy(sql`
-      CASE ${entitiesTable.contactOutcome}
-        WHEN 'direct_contact_verified'   THEN 6
-        WHEN 'direct_contact_candidate'  THEN 5
-        WHEN 'organization_contact'      THEN 4
-        WHEN 'social_only'               THEN 3
-        WHEN 'evidence_only'             THEN 2
-        ELSE 1
-      END DESC,
-      ${entitiesTable.contactConfidence} DESC NULLS LAST,
-      ${entitiesTable.bayesianScore} DESC
-    `)
+    .orderBy(reachabilityOrderExpr())
     .limit(Math.max(limit * 10, 100)); // enough candidates for final ranking
 
   // Get asset counts

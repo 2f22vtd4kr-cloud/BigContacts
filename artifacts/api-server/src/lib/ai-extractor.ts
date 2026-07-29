@@ -64,7 +64,7 @@ const _exhaustedTavilyKeys            = new Map<string, number>(); // for Tavily
 const _exhaustedExaKeys               = new Map<string, number>(); // for Exa neural search API
 
 function getGroqKeys(): string[] {
-  return ["GROQ_API_KEY", "GROQ_API_KEY_2", "GROQ_API_KEY_3"]
+  return ["GROQ_API_KEY", "GROQ_API_KEY_1", "GROQ_API_KEY_2", "GROQ_API_KEY_3"]
     .map(k => process.env[k] ?? "")
     .filter(k => k.length > 0);
 }
@@ -84,24 +84,24 @@ function getPerplexityDirectKeys(): string[] {
   return names.map(k => process.env[k] ?? "").filter(k => k.length > 0);
 }
 
-/** Returns all Gemini API keys (GEMINI_API_KEY, GEMINI_API_KEY_2 … _8). */
+/** Returns all Gemini API keys (GEMINI_API_KEY, GEMINI_API_KEY_1 … _8). */
 function getGeminiKeys(): string[] {
   const names = ["GEMINI_API_KEY"];
-  for (let i = 2; i <= 8; i++) names.push(`GEMINI_API_KEY_${i}`);
+  for (let i = 1; i <= 8; i++) names.push(`GEMINI_API_KEY_${i}`);
   return names.map(k => process.env[k] ?? "").filter(k => k.length > 0);
 }
 
-/** Returns all Tavily API keys (TAVILY_API_KEY, TAVILY_API_KEY_2 … _8). */
+/** Returns all Tavily API keys (TAVILY_API_KEY, TAVILY_API_KEY_1 … _8). */
 function getTavilyKeys(): string[] {
   const names = ["TAVILY_API_KEY"];
-  for (let i = 2; i <= 8; i++) names.push(`TAVILY_API_KEY_${i}`);
+  for (let i = 1; i <= 8; i++) names.push(`TAVILY_API_KEY_${i}`);
   return names.map(k => process.env[k] ?? "").filter(k => k.length > 0);
 }
 
-/** Returns all Exa API keys (EXA_API_KEY, EXA_API_KEY_2 … _8). */
+/** Returns all Exa API keys (EXA_API_KEY, EXA_API_KEY_1 … _8). */
 function getExaKeys(): string[] {
   const names = ["EXA_API_KEY"];
-  for (let i = 2; i <= 8; i++) names.push(`EXA_API_KEY_${i}`);
+  for (let i = 1; i <= 8; i++) names.push(`EXA_API_KEY_${i}`);
   return names.map(k => process.env[k] ?? "").filter(k => k.length > 0);
 }
 

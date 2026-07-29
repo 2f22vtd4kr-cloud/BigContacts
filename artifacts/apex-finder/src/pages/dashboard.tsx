@@ -92,7 +92,7 @@ function LeadSkeleton() {
 
 function LeadCard({ lead, index }: { lead: any; index: number }) {
   const access = lead.accessScore ?? 0;
-  const signal = lead.bayesianScore ?? 0;
+  const confidence = (lead.contactConfidence ?? 0) / 100;
   const contactReady = access >= 0.55;
   return (
     <Link
@@ -123,9 +123,9 @@ function LeadCard({ lead, index }: { lead: any; index: number }) {
 
       <div className="relative mt-6 grid grid-cols-2 gap-3">
         <div className="rounded-lg border border-border/70 bg-background/45 px-3 py-2.5">
-          <div className="font-mono text-[8px] uppercase tracking-[0.14em] text-muted-foreground">Signal</div>
-          <div className={`mt-1 font-mono text-lg font-bold ${scoreTone(signal)}`} data-testid={`text-signal-${lead.entityId}`}>{scorePercent(signal)}</div>
-          <div className="mt-0.5 text-[10px] text-muted-foreground">contact signal</div>
+          <div className="font-mono text-[8px] uppercase tracking-[0.14em] text-muted-foreground">Confidence</div>
+          <div className={`mt-1 font-mono text-lg font-bold ${scoreTone(confidence)}`} data-testid={`text-confidence-${lead.entityId}`}>{scorePercent(confidence)}</div>
+          <div className="mt-0.5 text-[10px] text-muted-foreground">contact data trust</div>
         </div>
         <div className="rounded-lg border border-border/70 bg-background/45 px-3 py-2.5">
           <div className="font-mono text-[8px] uppercase tracking-[0.14em] text-muted-foreground">Access</div>

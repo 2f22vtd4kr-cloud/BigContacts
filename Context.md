@@ -8,6 +8,20 @@
 
 ---
 
+## Current State (2026-07-29 — Re-import #30 setup complete; all workflows running; DB schema applied; 24 API secrets loaded; pipeline idle)
+
+### Import setup (2026-07-29 — re-import #30)
+- `CI=true pnpm install --frozen-lockfile` ✅ (~42s)
+- `pnpm --filter @workspace/db run push` → `[✓] Changes applied` ✅
+- Redis ✅ (port 6379) · artifacts/api-server: API Server ✅ (port 8080) · artifacts/apex-finder: web ✅ (port 23695)
+- Python tools: holehe ✓ maigret ✓ (theHarvester ✗ needs Python 3.12; gliner ✗ optional)
+- `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":3}}` ✅
+- **24 new API secrets saved**: REDIS_URL_1–5, COMPANIES_HOUSE_API_KEY, GROQ_API_KEY_1–3, PERPLEXITY_API_KEY_1–4, WHOXY_API_KEY, GEMINI_API_KEY_1–4, EXA_API_KEY_1–2, TAVILY_API_KEY_1–4
+- **Key rotation updated** in `ai-extractor.ts`: getGroqKeys now includes _1; getGeminiKeys, getTavilyKeys, getExaKeys now scan from _1 (previously started at _2)
+- DB schema applied; pipeline idle; awaiting user instruction
+
+---
+
 ## Current State (2026-07-29 — Re-import #29 setup complete; all workflows running; DB schema applied; pipeline idle)
 
 ### Import setup (2026-07-29 — re-import #29)

@@ -43,6 +43,7 @@ import { runHolehe, runMaigret } from "./python-tools";
 import { computeContactConfidence, computeContactOutcome } from "./contact-confidence";
 import { contactCacheSet } from "./redis";
 import { runPhaseJBatch } from "../routes/phase-j";
+import { reachabilityOrderExpr } from "./reachability-rank";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -779,11 +780,15 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
   if (opts.runResearch !== false) {
     await status("Phase 10/10: MCTS research on hot leads…", 10);
     try {
+      // Target selection is reachability-first, NOT wealth-first: a $2B net worth
+      // recluse with no contact vector (the "Peter Thiel class") must never outrank
+      // a moderately wealthy person we can actually reach. bayesianScore only breaks
+      // ties here — see reachability-rank.ts for the full ordering rationale.
       const researchLimit = opts.researchLimit ?? 10;
       const hotEntities = await db.select({ id: entitiesTable.id })
         .from(entitiesTable)
-        .where(sql`${entitiesTable.bayesianScore} >= 0.6 AND ${entitiesTable.type} = 'HNWI'`)
-        .orderBy(desc(entitiesTable.bayesianScore))
+        .where(sql`${entitiesTable.type} = 'HNWI' AND ${entitiesTable.isHidden} = false`)
+        .orderBy(reachabilityOrderExpr())
         .limit(researchLimit);
 
       let researched = 0;
