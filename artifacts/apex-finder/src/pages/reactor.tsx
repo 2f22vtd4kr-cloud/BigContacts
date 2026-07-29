@@ -142,6 +142,21 @@ const MOBILE_PHASES = [
 ];
 
 // ── Job → node mapping for live reactor state ────────────────────────────────
+// Atlas phase → which nodes light up in the reactor diagram
+const ATLAS_PHASE_NODES: Record<number, string[]> = {
+  0:  ["target","faa","hnwi","webdisc","ch","brreg","edgar"],
+  1:  ["target","occrp","opensky","ch"],
+  2:  ["ch","inhouse","hnwi"],
+  3:  ["hnwi","target","edgar"],
+  4:  ["inhouse","target"],
+  5:  ["webdisc","inhouse","opensky"],
+  6:  ["perp0","exa","tavily","gemini","groq","maigret","webdisc","deepweb"],
+  7:  ["whoxy","opensky","deepweb"],
+  8:  ["semantic","bayesian","graph"],
+  9:  ["semantic","bayesian","inhouse"],
+  10: ["mcts","prac","graph","target"],
+};
+
 const JOB_NODE_MAP: Record<string, string[]> = {
   // ── Discovery / Ingestion ────────────────────────────────────────────────────
   "faa":                  ["target","faa","inhouse"],
@@ -961,19 +976,40 @@ export default function IntelligenceReactorPage() {
   const pollJobs = useCallback(async () => {
     const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
     try {
-      const data = await fetch(`${BASE}/api/ingest/jobs`, { cache: "no-store" })
-        .then(r => r.ok ? r.json() : { jobs: [] })
-        .catch(() => ({ jobs: [] }));
-      const running = (data.jobs ?? []).filter((j: any) =>
+      // Poll both the regular job list AND the atlas-status endpoint in parallel
+      const [jobsData, atlasData] = await Promise.all([
+        fetch(`${BASE}/api/ingest/jobs`, { cache: "no-store" })
+          .then(r => r.ok ? r.json() : { jobs: [] })
+          .catch(() => ({ jobs: [] })),
+        fetch(`${BASE}/api/ingest/atlas-status`, { cache: "no-store" })
+          .then(r => r.ok ? r.json() : null)
+          .catch(() => null),
+      ]);
+
+      const nodes = new Set<string>();
+      const labels: string[] = [];
+
+      // ── Atlas job (phase-aware) ───────────────────────────────────────────────
+      if (atlasData?.status === "running" && atlasData?.jobId) {
+        const msg: string = atlasData.message ?? "";
+        const phaseMatch = msg.match(/Phase\s+(\d+)/i);
+        const phase = phaseMatch ? parseInt(phaseMatch[1], 10) : 0;
+        const phaseNodes = ATLAS_PHASE_NODES[phase] ?? ATLAS_PHASE_NODES[0];
+        phaseNodes.forEach((n: string) => nodes.add(n));
+        const label = msg.replace(/^Phase \d+\/\d+:\s*/i, "").split("—")[0].trim().slice(0, 70);
+        labels.push(`▶ Atlas Phase ${phase}/10 — ${label}`);
+      }
+
+      // ── Regular jobs ─────────────────────────────────────────────────────────
+      const running = (jobsData.jobs ?? []).filter((j: any) =>
         j.status === "running" || j.status === "active"
       );
-      if (running.length > 0) {
-        const nodes = new Set<string>();
-        const labels: string[] = [];
-        for (const job of running) {
-          (JOB_NODE_MAP[job.id] ?? []).forEach((n: string) => nodes.add(n));
-          if (job.label) labels.push(job.label);
-        }
+      for (const job of running) {
+        (JOB_NODE_MAP[job.id] ?? []).forEach((n: string) => nodes.add(n));
+        if (job.label) labels.push(job.label);
+      }
+
+      if (nodes.size > 0) {
         setLiveNodes(nodes);
         setLiveLabel(labels.join(" · "));
       } else {

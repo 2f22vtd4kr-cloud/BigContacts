@@ -90,8 +90,23 @@ function looksLikePerson(name: string): boolean {
   // investment vehicles are not harvested as people.
   const normalized = name.replace(/[.,/&()-]+/g, " ");
   const corporate = /\b(inc|llc|lp|ltd|corp|co|fund|trust|capital|management|advisors|partners|holdings|group|associates|company|gmbh|ag|sa|bv|nv|plc|asa|ab|oy|as)\b/i;
-  // Accept if no corporate keywords and has at least two words
-  return !corporate.test(normalized) && name.trim().split(/\s+/).length >= 2;
+  // Also reject if the name itself contains role or institutional words — these
+  // appear in CH officer search results where the title field bleeds in
+  // role metadata (e.g. "Victoria DIRECTOR", "Norfolk County Council NPLAW").
+  const roleOrInstitutional = /\b(director|directors|secretary|council|nplaw|details|returned|services limited|two limited|the board)\b/i;
+  // Accept if no corporate/role keywords and has 2–5 words
+  const wordCount = name.trim().split(/\s+/).length;
+  return !corporate.test(normalized) && !roleOrInstitutional.test(name) && wordCount >= 2 && wordCount <= 6;
+}
+
+/**
+ * Sanitise a CH officer name by stripping trailing role/title artefacts.
+ * CH sometimes returns "John Smith DIRECTOR DETAILS RETURNED FOR" as the title.
+ */
+function sanitizeChName(raw: string): string {
+  return raw
+    .replace(/\s+(DIRECTOR|SECRETARY|OFFICER|DETAILS RETURNED FOR|DETAILS RETURNED).*$/i, "")
+    .trim();
 }
 
 /** Build a deterministic dedup key */
@@ -499,7 +514,7 @@ async function* harvestCompaniesHouseOfficers(maxCount: number): AsyncGenerator<
       for (const item of items) {
         if (yielded >= maxCount) break;
 
-        const rawName: string = (item?.title ?? "").trim();
+        const rawName: string = sanitizeChName((item?.title ?? "").trim());
         if (!rawName) continue;
 
         // Companies House officer search returns both people and companies — filter

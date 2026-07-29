@@ -29,6 +29,74 @@ import { db, entitiesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { getPermanentClient } from "../redis";
 
+// ── Tavily search (primary — better quality than DDG) ─────────────────────────
+
+const TAVILY_KEYS = ["TAVILY_API_KEY","TAVILY_API_KEY_2","TAVILY_API_KEY_3","TAVILY_API_KEY_4"]
+  .map(k => process.env[k]).filter(Boolean) as string[];
+
+async function tavilySearch(query: string): Promise<Array<{ snippet: string; url: string }>> {
+  if (!TAVILY_KEYS.length) return [];
+  const key = TAVILY_KEYS[Math.floor(Math.random() * TAVILY_KEYS.length)];
+  try {
+    const resp = await fetch("https://api.tavily.com/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+      body: JSON.stringify({ query, max_results: 8, search_depth: "basic", include_answer: false }),
+      signal: AbortSignal.timeout(12_000),
+    });
+    if (!resp.ok) return [];
+    const data = await resp.json() as { results?: Array<{ content?: string; url?: string }> };
+    return (data.results ?? []).map(r => ({ snippet: r.content ?? "", url: r.url ?? "" })).filter(r => r.snippet.length > 20);
+  } catch (err: any) {
+    logger.debug({ err: err?.message, query }, "broad-discovery Tavily error (non-fatal)");
+    return [];
+  }
+}
+
+// ── Groq AI name extraction from aggregated text ───────────────────────────────
+
+const GROQ_KEYS = ["GROQ_API_KEY","GROQ_API_KEY_2","GROQ_API_KEY_3"]
+  .map(k => process.env[k]).filter(Boolean) as string[];
+
+async function aiExtractPersonNames(text: string, context: string): Promise<string[]> {
+  if (!GROQ_KEYS.length || text.length < 50) return [];
+  const key = GROQ_KEYS[Math.floor(Math.random() * GROQ_KEYS.length)];
+  try {
+    const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+      body: JSON.stringify({
+        model: "llama-3.3-70b-versatile",
+        temperature: 0,
+        max_tokens: 400,
+        messages: [
+          {
+            role: "system",
+            content: `Extract the full names of real individual people (not companies, venues, countries, cities, or organizations) from the text. Context: searches about "${context}". Return ONLY a JSON array of name strings. If no real people are found, return []. Example: ["John Smith", "Carlo Bianchi"]`,
+          },
+          { role: "user", content: text.slice(0, 3000) },
+        ],
+      }),
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!resp.ok) return [];
+    const data = await resp.json() as { choices?: Array<{ message?: { content?: string } }> };
+    const raw = data.choices?.[0]?.message?.content?.trim() ?? "[]";
+    const match = raw.match(/\[[\s\S]*\]/);
+    if (!match) return [];
+    const parsed: unknown = JSON.parse(match[0]);
+    if (!Array.isArray(parsed)) return [];
+    return (parsed as unknown[])
+      .filter((n): n is string => typeof n === "string" && n.length >= 5 && n.length <= 60)
+      .filter(n => n.split(/\s+/).length >= 2)         // at least first + last name
+      .filter(n => !isVenueOrOrganization(n))
+      .filter(n => !EXCLUDED_NAMES.has(n));
+  } catch (err: any) {
+    logger.debug({ err: err?.message }, "broad-discovery Groq extraction error (non-fatal)");
+    return [];
+  }
+}
+
 // ── Query templates ───────────────────────────────────────────────────────────
 
 const TEMPLATE_CATEGORIES: Record<number, string[]> = {
@@ -296,6 +364,12 @@ const VENUE_INDICATORS = [
   "group", "holding", "holdings", "trust", "fund", "capital", "ventures",
   "partners", "associates", "consultants", "services", "solutions",
   "club", "society", "foundation", "charity", "organisation", "organization",
+  // Abstract/institutional nouns that look like 2-word TitleCase pairs
+  "affairs", "promotion", "bureau", "authority", "ministry", "department",
+  "agency", "council", "commission", "committee", "board", "institute",
+  "association", "federation", "union", "alliance", "network", "initiative",
+  "programme", "program", "project", "sector", "industry", "market",
+  "investment", "development", "management", "administration",
 ];
 
 function isVenueOrOrganization(name: string): boolean {
@@ -310,11 +384,12 @@ function extractNames(text: string): string[] {
     let m: RegExpExecArray | null;
     while ((m = pattern.exec(text)) !== null) {
       const name = (m[1] || m[0]).trim();
-      // Validate: 2-4 words, each capitalised, not in exclusion list
+      // Validate: 2-4 words, each capitalised, not in exclusion list, not a venue
       const words = name.split(/\s+/);
       if (words.length >= 2 && words.length <= 4 &&
           words.every(w => /^[A-Z][a-zA-Z'-]+$/.test(w)) &&
           !EXCLUDED_NAMES.has(name) &&
+          !isVenueOrOrganization(name) &&
           name.length >= 5 && name.length <= 60) {
         found.add(name);
       }
@@ -440,12 +515,39 @@ export async function runBroadDiscovery(options: {
   let resultsScraped = 0;
   const candidateMap = new Map<string, { snippet: string; query: string }>(); // name → best snippet
 
+  const useTavily = TAVILY_KEYS.length > 0;
+  const useGroq   = GROQ_KEYS.length > 0;
+
   for (const query of queries) {
-    const results = await ddgSearch(query);
+    // ── Primary: Tavily (higher-quality results) ──────────────────────────────
+    let results = useTavily ? await tavilySearch(query) : [];
+    if (!results.length) {
+      // Fallback: DuckDuckGo HTML scrape
+      results = await ddgSearch(query);
+    }
+
     queriesFired++;
     resultsScraped += results.length;
 
-    for (const { snippet, url: _url } of results) {
+    if (!results.length) {
+      await new Promise(r => setTimeout(r, 1_000));
+      continue;
+    }
+
+    // ── Primary extraction: Groq AI person name extraction ────────────────────
+    if (useGroq) {
+      const aggregated = results.map(r => r.snippet).join("\n\n");
+      const aiNames = await aiExtractPersonNames(aggregated, query);
+      for (const name of aiNames) {
+        if (!candidateMap.has(name)) {
+          const bestSnippet = results.find(r => r.snippet.toLowerCase().includes(name.split(" ")[0].toLowerCase()))?.snippet ?? results[0].snippet;
+          candidateMap.set(name, { snippet: bestSnippet, query });
+        }
+      }
+    }
+
+    // ── Secondary extraction: regex (always runs as safety net) ───────────────
+    for (const { snippet } of results) {
       const names = extractNames(snippet);
       for (const name of names) {
         if (!candidateMap.has(name)) {
@@ -454,8 +556,8 @@ export async function runBroadDiscovery(options: {
       }
     }
 
-    // Polite delay between queries
-    await new Promise(r => setTimeout(r, 2_000 + Math.random() * 1_000));
+    // Polite delay between queries (shorter since Tavily is a paid API)
+    await new Promise(r => setTimeout(r, useTavily ? 500 : 2_000 + Math.random() * 1_000));
   }
 
   logger.info({ queriesFired, resultsScraped, candidates: candidateMap.size }, "Broad discovery: queries done, deduping against DB");
