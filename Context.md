@@ -8,6 +8,18 @@
 
 ---
 
+## Current State (2026-07-29 — Re-import #31 setup complete; all workflows running; DB schema applied; pipeline idle)
+
+### Import setup (2026-07-29 — re-import #31)
+- `CI=true pnpm install --frozen-lockfile` ✅ (~31s)
+- `pnpm --filter @workspace/db run push` → `[✓] Changes applied` ✅
+- Redis ✅ (port 6379) · artifacts/api-server: API Server ✅ (port 8080, build 710ms) · artifacts/apex-finder: web ✅ (port 23695, Vite ready 1180ms)
+- Python tools: holehe ✓ maigret ✓ (theHarvester ✗ needs Python 3.12; gliner ✗ optional)
+- `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":37}}` ✅
+- DB schema applied; pipeline idle; awaiting user instruction
+
+---
+
 ## Current State (2026-07-29 — Re-import #30 setup complete; all workflows running; DB schema applied; 24 API secrets loaded; pipeline idle)
 
 ### Import setup (2026-07-29 — re-import #30)
