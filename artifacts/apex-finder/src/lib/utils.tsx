@@ -40,7 +40,7 @@ export function ScoreBadge({ score }: { score: number | null | undefined }) {
 }
 
 export function AccessScoreBadge({ score }: { score: number | null | undefined }) {
-  if (score == null) return null;
+  if (score == null || typeof score !== "number" || isNaN(score)) return null;
   const pct = Math.round(score * 100);
   
   // Derive label + color from score bands
@@ -81,7 +81,7 @@ export function ConfidenceBadge({ score }: { score: number | null | undefined })
   // (email/phone/social evidence quality), distinct from Access (reachability)
   // and Signal (wealth/registry evidence). This is the primary surfaced metric
   // for prioritizing outreach — see reachability-rank.ts on the API side.
-  if (score == null) return null;
+  if (score == null || typeof score !== "number" || isNaN(score)) return null;
   const pct = Math.round(score);
 
   let label: string;

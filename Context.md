@@ -16,9 +16,19 @@
 - Redis ✅ (port 6379) · artifacts/api-server: API Server ✅ (port 8080) · artifacts/apex-finder: web ✅ (port 23695)
 - Python tools: holehe ✓ maigret ✓ (theHarvester ✗ needs Python 3.12; gliner ✗ optional)
 - `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":1}}` ✅
-- DB empty — cold-start pipeline check ran; ENABLE_AUTO_PIPELINE not set → pipeline idle
+- **Atlas RUNNING** — job `5dd23d80`, Phase 0/10 discovery-first, 5 broad categories, skipFaa=true, targetCount=1500, researchLimit=15
 - All 24 enrichment secrets set: REDIS_URL_1–5 (slots 2–5 connected; slot 1 quota-exhausted/non-fatal), COMPANIES_HOUSE_API_KEY, GROQ_API_KEY/\_2/\_3, PERPLEXITY_API_KEY/\_2/\_3/\_4, WHOXY_API_KEY, GEMINI_API_KEY/\_2/\_3/\_4, EXA_API_KEY/\_2, TAVILY_API_KEY/\_2/\_3/\_4; SESSION_SECRET present
-- Awaiting user instruction before starting ingestion
+
+### Fixes applied this session (2026-07-29 — re-import #32 continuation):
+1. **Ghost Atlas job cleared permanently**: Added `"atlas-run"` to `INGESTOR_TYPES` in `startup.ts` — ghost Atlas jobs now cleared on every restart (same as FAA/western-hnwi)
+2. **Reactor RUNS=0 fixed**: Footer RUNS meter now shows `PHASE X/10` (real Atlas phase progress) when Atlas is live; falls back to `RUNS` (sessions count) when idle — parsed from `liveLabel` pattern `"▶ Atlas Phase X/10 — …"`
+3. **Score NaN guard added**: `ConfidenceBadge` and `AccessScoreBadge` in `utils.tsx` now guard against NaN and non-number values (`typeof score !== "number" || isNaN(score)`) in addition to null/undefined — prevents any rendering crash from unexpected DB values
+4. **Atlas launched**: `discoveryFirst=true`, `broadCategories=5`, `skipFaa=true` (no 50k aircraft dump), `targetCount=1500` (EDGAR/CH/BRREG/BODACC diversity), `researchLimit=15` MCTS sessions at Phase 10
+
+### To poll Atlas progress:
+```bash
+curl -s http://localhost:8080/api/ingest/job/5dd23d80-e814-44b3-99fd-f41c0d97f45f | jq '{status,progress,total,message,inserted}'
+```
 
 ---
 
@@ -1325,4 +1335,5 @@ Run **IN-HOUSE ENRICH** on HNWI/Gatekeeper entities — Wikidata SPARQL will hit
 | 2026-07-28 | **Enricher execution order confirmed**: web-OSINT (deepWebOsintEnrich) must run FIRST — it is the primary data layer. In-house enricher runs second (fill-only-if-empty guard: only writes email/phone/linkedinUrl if field is null). Running web-OSINT with force=true AFTER in-house risks nulling out in-house-found data if web-OSINT finds nothing. Evidence rows (contact_evidence table) are always additive from both layers. |
 | 2026-07-28 | **Re-import setup complete (Task #1)**: CI=true frozen-lockfile install (~39s), DB schema pushed (`[✓] Changes applied`), Redis + API Server (8080) + apex-finder web (23695) workflows running. `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":1}}`. DB empty — all 24 enrichment secrets present (SESSION_SECRET + REDIS_URL_1–5 + COMPANIES_HOUSE_API_KEY + GROQ×3 + PERPLEXITY×4 + WHOXY + GEMINI×4 + EXA×2 + TAVILY×4). ENABLE_AUTO_PIPELINE not set — pipeline idle, awaiting user instruction. |
 | 2026-07-29 | **Re-import setup complete (Task #1)**: CI=true frozen-lockfile install (~38s), DB schema pushed (`[✓] Changes applied`), Redis + API Server (8080) + apex-finder web (23695) workflows running. `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":0}}`. DB empty — cold-start pipeline auto-check ran (ENABLE_AUTO_PIPELINE not set, so pipeline idle). SESSION_SECRET present. All enrichment secrets from prior session carried over. Awaiting user instruction before starting ingestion. |
+| 2026-07-29 | **3 bugs fixed + Atlas launched (discovery-first)**: (1) Ghost `atlas-run` job `0754421b` was blocking new runs — fixed by adding `"atlas-run"` to `INGESTOR_TYPES` in startup.ts so ghost Atlas jobs are auto-cleared on every cold-start. (2) Reactor `RUNS` meter was always 0 (sessions only created at Phase 10 MCTS) — now shows `PHASE X/10` with real Atlas progress when live, falls back to `RUNS` (session count) when idle. (3) `ConfidenceBadge` / `AccessScoreBadge` now guard against `NaN` + non-number values (was guarding null/undefined only). Atlas fired: `discoveryFirst=true`, 5 broad categories (Tier-1 funds, Asian wealth centres, European venues, Nordic, Public mentions), `skipFaa=true`, `targetCount=1500`, `researchLimit=15`. Phase 0a complete: 224 entities from web discovery. Phase 0b (EDGAR SC 13D/G + DEF 14A + BRREG Norway + CH UK) running. |
 | 2026-07-28 | **Gemini Flash grounded search added**: `researchWithGemini()` implemented in `ai-extractor.ts` using `gemini-2.0-flash` with `google_search` grounding tool. Wired into `web-enricher.ts` Phase 0 (parallel with Perplexity, evidence source `ai-gemini-flash`) + Phase 7.5 follow-up persons; and `deep-web-osint.ts` Phase 0. Both models now fire in `Promise.all()` — different search indexes for complementary coverage. GEMINI_API_KEY set. Supports GEMINI_API_KEY_2…_8 via same rotation pattern. Build clean (415ms). ENABLE_AUTO_PIPELINE not set — pipeline still idle. |

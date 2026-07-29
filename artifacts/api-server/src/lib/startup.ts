@@ -24,7 +24,7 @@ import { warmUpSemanticEngine } from "./semantic-engine";
 import { computeContactConfidence } from "./contact-confidence";
 import { isValidPublicEmail, sanitizePublicEmail } from "./contact-validation";
 
-const INGESTOR_TYPES = ["faa", "land-registry", "western-hnwi", "companies-house-enrich", "occrp", "opensky", "improve", "web-osint", "bulk-hybrid-research", "in-house-enrich", "deep-web-osint", "compute-embeddings", "social-discovery", "messenger-discovery", "foundation-filings", "broad-discovery"] as const;
+const INGESTOR_TYPES = ["faa", "land-registry", "western-hnwi", "companies-house-enrich", "occrp", "opensky", "improve", "web-osint", "bulk-hybrid-research", "in-house-enrich", "deep-web-osint", "compute-embeddings", "social-discovery", "messenger-discovery", "foundation-filings", "broad-discovery", "atlas-run"] as const;
 
 /**
  * Mark jobs whose worker process is dead as failed, clear their locks.

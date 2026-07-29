@@ -682,7 +682,15 @@ function MobileReactor({ sessions, totalEntities, loading, onRefresh, syncing, l
       }}>
         <Meter label="ENTITIES" value={totalEntities} max={Math.max(totalEntities, 50)} color="#38bdf8" />
         <div style={{ width:1, height:32, background:"#192840", flexShrink:0 }} />
-        <Meter label="RUNS" value={sessions.length} max={Math.max(sessions.length, 10)} color="#a3e635" />
+        {(() => {
+          // When Atlas is running, show real phase progress (e.g. 3/10) instead of sessions count
+          const m = liveLabel?.match(/Atlas Phase (\d+)\/(\d+)/);
+          const phase = m ? parseInt(m[1], 10) : null;
+          const phaseTotal = m ? parseInt(m[2], 10) : 10;
+          return isLive && phase != null
+            ? <Meter label="PHASE" value={phase} max={phaseTotal} color="#a3e635" />
+            : <Meter label="RUNS"  value={sessions.length} max={Math.max(sessions.length, 10)} color="#a3e635" />;
+        })()}
         <div style={{ width:1, height:32, background:"#192840", flexShrink:0 }} />
         <Meter label="OUTREACH" value={pitchCount} max={Math.max(sessions.length, 5)} color="#22d3ee" />
       </footer>
