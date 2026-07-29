@@ -202,6 +202,46 @@ type PassEntity = {
   savedGraphContext: string | null;
 };
 
+export type { PassEntity };
+
+export async function runPhaseJBatch(jobId: string, batchSize: number): Promise<{ ran: number; message: string }> {
+  const entities = await db
+    .select({
+      id: entitiesTable.id, name: entitiesTable.name, type: entitiesTable.type,
+      nationality: entitiesTable.nationality, sourceRegistries: entitiesTable.sourceRegistries,
+      knownResidences: entitiesTable.knownResidences, metadata: entitiesTable.metadata,
+      notes: entitiesTable.notes, email: entitiesTable.email, phone: entitiesTable.phone,
+      linkedinUrl: entitiesTable.linkedinUrl, twitterHandle: entitiesTable.twitterHandle,
+      instagramHandle: entitiesTable.instagramHandle, telegramHandle: entitiesTable.telegramHandle,
+      passNumber: sql<number>`COALESCE(${enrichmentStateTable.passNumber}, 0)`,
+      sourceCooldowns: enrichmentStateTable.sourceCooldowns,
+      savedGraphContext: enrichmentStateTable.graphContext,
+    })
+    .from(entitiesTable)
+    .leftJoin(enrichmentStateTable, eq(enrichmentStateTable.entityId, entitiesTable.id))
+    .where(sql`
+      ${entitiesTable.type} IN ('HNWI', 'Gatekeeper', 'Corporation', 'Trust')
+      AND COALESCE(${entitiesTable.contactOutcome}, 'none') <> 'direct_contact_verified'
+      AND (
+        ${enrichmentStateTable.nextAttemptAt} IS NULL
+        OR ${enrichmentStateTable.nextAttemptAt} <= NOW()
+      )
+    `)
+    .orderBy(desc(entitiesTable.isHot), desc(entitiesTable.bayesianScore))
+    .limit(batchSize);
+
+  if (!entities.length) return { ran: 0, message: "No Phase J candidates due." };
+
+  const run = await db.insert(enrichmentRunsTable).values({
+    source: "phase-j", pass: "J4-J9", cohort: "atlas-run",
+    totalSelected: entities.length,
+  }).returning({ id: enrichmentRunsTable.id });
+  const runId = run[0]!.id;
+
+  await runPhaseJPass(jobId, runId, entities as PassEntity[]);
+  return { ran: entities.length, message: `Phase J complete — ${entities.length} entities processed.` };
+}
+
 async function runPhaseJPass(jobId: string, runId: number, entities: PassEntity[]): Promise<void> {
   const totals = {
     found: 0, persisted: 0, direct: 0, verified: 0, social: 0,

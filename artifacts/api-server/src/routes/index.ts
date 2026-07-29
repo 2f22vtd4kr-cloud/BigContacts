@@ -13,6 +13,7 @@ import osintToolsRouter from "./osint-tools";
 import identityRouter from "./identity";
 import phaseJRouter from "./phase-j";
 import extendedOsintRouter from "./extended-osint";
+import atlasRouter from "./atlas";
 
 const router: IRouter = Router();
 
@@ -30,5 +31,6 @@ router.use(osintToolsRouter);
 router.use(identityRouter);
 router.use(phaseJRouter);
 router.use(extendedOsintRouter);
+router.use(atlasRouter);
 
 export default router;

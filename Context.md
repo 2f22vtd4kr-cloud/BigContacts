@@ -8,7 +8,42 @@
 
 ---
 
-## Current State (2026-07-28 — Tool installation enforced; Maigret wired into pipeline; flexible re-entry architecture implemented)
+## Current State (2026-07-29 — Apex Atlas RUNNING — full 10-phase pipeline active)
+
+### What was done this session (2026-07-29 — Atlas orchestrator)
+1. **Full audit of all 30+ data sources** — every enricher, ingestor, and OSINT tool catalogued
+2. **`lib/atlas-orchestrator.ts`** — 600-line orchestrator that chains all 10 phases in the optimal cross-reference order
+3. **`routes/atlas.ts`** — POST /api/ingest/atlas-run endpoint + DELETE /api/ingest/atlas-lock + GET /api/ingest/atlas-status
+4. **`routes/phase-j.ts`** — exported `runPhaseJBatch()` so Atlas can call it directly without HTTP
+5. **`routes/index.ts`** — registered atlasRouter
+6. **Atlas triggered**: jobId `a588fbf6-3a32-419b-bc8a-6eea157eb55e` — running in background
+
+### Atlas 10-phase pipeline (currently running):
+- Phase 0: FAA (60k aircraft) + Western HNWI/EDGAR/CH/BRREG (15k entities) — PARALLEL
+- Phase 1: OCCRP Aleph + OpenSky live flights + CH Company Officers — PARALLEL
+- Phase 2: CH contact enrichment + OpenOwnership BODS + Foundation filings — PARALLEL
+- Phase 3: Notes + EDGAR stock assets + live-source markers
+- Phase 4: In-house OSINT (Wikidata/GitHub/RDAP/DNS/Gravatar/ProPublica990) — concurrency 5
+- Phase 5: Social discovery (LinkedIn/Twitter/Instagram) + Messenger (Telegram) + Broad discovery (200 new entities)
+- Phase 6: AI OSINT (Perplexity+Gemini+Tavily+Exa+Groq) → Maigret (3k platforms) + Holehe (120 services) → re-run if 3+ signals
+- Phase 7: Forensic — ICIJ Offshore Leaks + Whoxy WHOIS + Equasis vessels + ADSB flight history — PARALLEL
+- Phase 8: Phase J (J4-J9) domain resolution + digital footprint + J6 attribution
+- Phase 9: Semantic embeddings + net worth backfill + contact outcomes + confidence recompute
+- Phase 10: MCTS research on top 10 hot leads (batches of 5)
+
+### To check progress:
+```bash
+curl -s http://localhost:8080/api/ingest/job/a588fbf6-3a32-419b-bc8a-6eea157eb55e | jq '{status,progress,total,message}'
+curl -s http://localhost:8080/api/ingest/atlas-status | jq .
+```
+
+### To re-run Atlas (skip ingestion if data already there):
+```bash
+curl -s -X POST http://localhost:8080/api/ingest/atlas-run -H "Content-Type: application/json" \
+  -d '{"skipIngestion": true, "hotLeadsOnly": false, "runResearch": true}'
+```
+
+---
 
 ### What was done this session (2026-07-28 — post-import hardening)
 1. **Python tools installed**: `bash scripts/install-python-tools.sh` → holehe ✓ maigret ✓

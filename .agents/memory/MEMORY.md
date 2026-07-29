@@ -47,3 +47,4 @@
 - [Enricher execution order](enricher-execution-order.md) — web-OSINT first (primary data), in-house second (fill-only-if-empty); force=true web-OSINT after in-house can null good fields
 - [Python tools mandate](python-tools-mandate.md) — Holehe + Maigret MUST be installed before research; enforced in post-merge.sh (step 4) + startup.ts auto-install + verified on every boot
 - [Flexible pipeline architecture](flexible-pipeline-architecture.md) — web-OSINT first, Maigret+Holehe auto-wired inside web-osint-enrich, web-OSINT re-fires if Maigret finds 3+ platforms; never one-way
+- [Atlas orchestrator](atlas-orchestrator.md) — POST /api/ingest/atlas-run; 10-phase pipeline wiring every tool; lib/atlas-orchestrator.ts + routes/atlas.ts; phase-j.ts exports runPhaseJBatch
