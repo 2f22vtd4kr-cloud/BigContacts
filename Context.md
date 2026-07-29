@@ -8,6 +8,18 @@
 
 ---
 
+## Current State (2026-07-29 — Re-import #27 setup complete; all workflows running; DB schema applied; pipeline idle)
+
+### Import setup (2026-07-29 — re-import #27)
+- `CI=true pnpm install --frozen-lockfile` ✅ (~39s)
+- `pnpm --filter @workspace/db run push` → `[✓] Changes applied` ✅
+- Redis ✅ (port 6379) · artifacts/api-server: API Server ✅ (port 8080, build 730ms) · artifacts/apex-finder: web ✅ (port 23695, Vite ready 976ms)
+- Python tools: holehe ✓ maigret ✓ (verified by startup.ts on boot)
+- `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":1}}` ✅
+- DB schema applied; pipeline idle; ENABLE_AUTO_PIPELINE=false; awaiting user instruction
+
+---
+
 ## Current State (2026-07-29 — Apex Atlas RUNNING — full 10-phase pipeline active)
 
 ### What was done this session (2026-07-29 — Atlas orchestrator)
