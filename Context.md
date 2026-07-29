@@ -8,7 +8,7 @@
 
 ---
 
-## Current State (2026-07-29 — Re-import #33 setup complete; all workflows running; DB schema applied; pipeline idle)
+## Current State (2026-07-29 — Re-import #33 — Atlas RUNNING job 634c7968 — Phase 0 all-15-category discovery)
 
 ### Import setup (2026-07-29 — re-import #33)
 - `CI=true pnpm install --frozen-lockfile` ✅ (~38s)
@@ -16,8 +16,17 @@
 - Redis ✅ (port 6379) · artifacts/api-server: API Server ✅ (port 8080) · artifacts/apex-finder: web ✅ (port 23695)
 - Python tools: holehe ✓ maigret 0.6.3 ✓ (theHarvester ✗ needs Python 3.12; gliner ✗ optional)
 - `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":2}}` ✅
-- All 24 enrichment secrets set: REDIS_URL_1–5, COMPANIES_HOUSE_API_KEY, GROQ_API_KEY_1–3, PERPLEXITY_API_KEY_1–4, WHOXY_API_KEY, GEMINI_API_KEY_1–4, EXA_API_KEY_1–2, TAVILY_API_KEY_1–4
-- Pipeline idle; awaiting user instruction to launch
+- All 24 enrichment secrets set: REDIS_URL_1–5 (slot 1 quota-exhausted/non-fatal), COMPANIES_HOUSE_API_KEY, GROQ_API_KEY_1–3, PERPLEXITY_API_KEY_1–4, WHOXY_API_KEY, GEMINI_API_KEY_1–4, EXA_API_KEY_1–2, TAVILY_API_KEY_1–4
+
+### Fixes applied this session (2026-07-29 — re-import #33):
+1. **Desktop Reactor live wiring** — DesktopReactor now accepts `liveNodes`, `liveLabel`, `isLive` props; when Atlas is running, real phase nodes drive the architecture diagram instead of scripted WAVES; status ticker shows live Atlas message; header badge shows "ATLAS LIVE"
+2. **ai-extractor.ts getAIKeyStatus bug fixed** — `groqNames` now includes `GROQ_API_KEY_1`; `gemNames`/`tavNames`/`exaNames` now scan from `_1` (were incorrectly starting from `_2`)
+3. **Atlas fired with all 15 broad categories** — discoveryFirst=true, broadCategories=15, skipFaa=true, targetCount=1500, researchLimit=15; all 15 template sets firing in parallel (Family Office, Luxury Assets, SEC, Philanthropy, Public Mentions, European Venues, Nordic, Asian Wealth, LatAm/EE, Tier-1 Funds, Italian/Mediterranean, French Riviera, Middle East, Private Clubs, UK Estates)
+
+### To poll Atlas progress:
+```bash
+curl -s http://localhost:8080/api/ingest/job/634c7968-ac19-4055-8b1a-7a20bf9e4b2b | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['status'], d['progress'], '/', d['total'], '—', d['message'][:80], '— inserted:', d['inserted'])"
+```
 
 ---
 

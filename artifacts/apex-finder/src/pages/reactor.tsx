@@ -699,13 +699,15 @@ function MobileReactor({ sessions, totalEntities, loading, onRefresh, syncing, l
 }
 
 // ── Desktop layout ────────────────────────────────────────────────────────────
-function DesktopReactor({ step, cycle, signals, contacts, loops }: {
+function DesktopReactor({ step, cycle, signals, contacts, loops, liveNodes, liveLabel, isLive }: {
   step:number; cycle:number; signals:number; contacts:number; loops:number;
+  liveNodes?: Set<string>; liveLabel?: string; isLive?: boolean;
 }) {
   const wave = WAVES[step];
-  const AN = new Set(wave.nodes);
+  // When Atlas is actively running, drive nodes from real live data instead of scripted wave
+  const AN = (isLive && liveNodes && liveNodes.size > 0) ? liveNodes : new Set(wave.nodes);
   const AE = new Set(wave.edges);
-  const adaptive = wave.adaptive ?? false;
+  const adaptive = (isLive && liveNodes && liveNodes.size > 0) ? true : (wave.adaptive ?? false);
 
   return (
     <div style={{
@@ -769,7 +771,7 @@ function DesktopReactor({ step, cycle, signals, contacts, loops }: {
               animation:"blink 1.1s ease-in-out infinite",
             }} />
             <span style={{ fontSize:8.5, letterSpacing:"0.2em", color: adaptive ? "#22d3ee" : "#a3e635" }}>
-              {adaptive ? "ADAPTIVE LOOP ACTIVE" : "NOMINAL"}
+              {isLive ? "ATLAS LIVE" : adaptive ? "ADAPTIVE LOOP ACTIVE" : "NOMINAL"}
             </span>
           </div>
           <div style={{ textAlign:"right" }}>
@@ -917,7 +919,7 @@ function DesktopReactor({ step, cycle, signals, contacts, loops }: {
           transition:"color 0.4s",
           whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis",
         }}>
-          {adaptive ? "⚡  " : "›  "}{wave.label}
+          {isLive ? "▶  " : adaptive ? "⚡  " : "›  "}{(isLive && liveLabel) ? liveLabel : wave.label}
         </div>
       </div>
 
@@ -1130,7 +1132,10 @@ export default function IntelligenceReactorPage() {
       style={{ position:"absolute", inset:0, overflow:"hidden", background:"#0b1120" }}
     >
       <div style={{ transformOrigin:"top left", transform:`scale(${scale})`, width:1600, height:960 }}>
-        <DesktopReactor step={step} cycle={cycle} signals={signals} contacts={contacts} loops={loops} />
+        <DesktopReactor
+          step={step} cycle={cycle} signals={signals} contacts={contacts} loops={loops}
+          liveNodes={liveNodes} liveLabel={liveLabel} isLive={liveNodes.size > 0}
+        />
       </div>
     </div>
   );
