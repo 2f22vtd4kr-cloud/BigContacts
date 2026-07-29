@@ -46,7 +46,7 @@ import {
   Phone,
   Crosshair,
 } from "lucide-react";
-import { cn, formatCurrency, formatEntityName, AccessScoreBadge, ScoreBadge } from "@/lib/utils";
+import { cn, formatCurrency, formatEntityName, AccessScoreBadge, ConfidenceBadge, ScoreBadge } from "@/lib/utils";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
   DialogFooter, DialogClose,
