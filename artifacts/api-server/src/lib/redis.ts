@@ -402,6 +402,51 @@ export async function contactCacheScanAll(): Promise<Array<{ key: string; data: 
   }, []);
 }
 
+// ── System-status API ─────────────────────────────────────────────────────────
+
+export interface RedisSlotInfo {
+  slot:       number;    // 0 = local, 1–9 = Upstash slots
+  label:      string;    // "local" | "upstash-1" … "upstash-9"
+  configured: boolean;
+  status:     "ready" | "exhausted" | "connecting" | "disconnected" | "not_configured";
+}
+
+/** Status of the local (ephemeral) Redis client. */
+export function getLocalRedisStatus(): RedisSlotInfo {
+  const url = process.env["REDIS_URL"];
+  if (!url) return { slot: 0, label: "local", configured: false, status: "not_configured" };
+  if (!_localClient) return { slot: 0, label: "local", configured: true, status: "disconnected" };
+  const s = _localClient.status;
+  let status: RedisSlotInfo["status"] = "disconnected";
+  if (s === "ready") status = "ready";
+  else if (s === "connecting" || s === "reconnecting") status = "connecting";
+  return { slot: 0, label: "local", configured: true, status };
+}
+
+/** Status of all Upstash permanent-client slots. */
+export function getPermanentClientStatuses(): RedisSlotInfo[] {
+  const result: RedisSlotInfo[] = [];
+  for (let i = 1; i <= 9; i++) {
+    const url = process.env[`REDIS_URL_${i}`];
+    if (!url) break;
+    const client = _permanentClients[i - 1];
+    const exhausted = _quotaExhaustedSlots.has(i - 1);
+    let status: RedisSlotInfo["status"] = "disconnected";
+    if (!client) {
+      status = "disconnected";
+    } else if (exhausted) {
+      status = "exhausted";
+    } else {
+      const s = client.status;
+      if (s === "ready") status = "ready";
+      else if (s === "connecting" || s === "reconnecting") status = "connecting";
+      else status = "disconnected";
+    }
+    result.push({ slot: i, label: `upstash-${i}`, configured: true, status });
+  }
+  return result;
+}
+
 /** Count how many contact cache entries exist in slot 2. */
 export async function contactCacheCount(): Promise<number> {
   return withContactCacheClient(async c => {

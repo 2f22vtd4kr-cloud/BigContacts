@@ -44,10 +44,10 @@ export const modules: ModuleMap = {
   "./components/mockups/nav/CompactSidebar.tsx": () => import("../components/mockups/nav/CompactSidebar.tsx"),
   "./components/mockups/nav/Current.tsx": () => import("../components/mockups/nav/Current.tsx"),
   "./components/mockups/nav-search-preview/NavSearchPreview.tsx": () => import("../components/mockups/nav-search-preview/NavSearchPreview.tsx"),
+  "./components/mockups/pages/DeepSearchMobile.tsx": () => import("../components/mockups/pages/DeepSearchMobile.tsx"),
+  "./components/mockups/pages/ProfileMobile.tsx": () => import("../components/mockups/pages/ProfileMobile.tsx"),
   "./components/mockups/process-stream/ProcessStream.tsx": () => import("../components/mockups/process-stream/ProcessStream.tsx"),
   "./components/mockups/research/Desktop.tsx": () => import("../components/mockups/research/Desktop.tsx"),
   "./components/mockups/research/Mobile.tsx": () => import("../components/mockups/research/Mobile.tsx"),
-  "./components/mockups/workflow-reactor/IntelligenceReactor.tsx": () => import("../components/mockups/workflow-reactor/IntelligenceReactor.tsx"),
-  "./components/mockups/pages/DeepSearchMobile.tsx": () => import("../components/mockups/pages/DeepSearchMobile.tsx"),
-  "./components/mockups/pages/ProfileMobile.tsx": () => import("../components/mockups/pages/ProfileMobile.tsx")
+  "./components/mockups/workflow-reactor/IntelligenceReactor.tsx": () => import("../components/mockups/workflow-reactor/IntelligenceReactor.tsx")
 };
