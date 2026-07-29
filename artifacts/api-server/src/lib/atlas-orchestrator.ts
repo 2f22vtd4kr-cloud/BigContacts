@@ -65,6 +65,20 @@ export interface AtlasOptions {
   runResearch?: boolean;
   /** Max MCTS sessions in Phase 10. Default: 10 */
   researchLimit?: number;
+  /**
+   * Discovery-first mode: diverse web searches (hotels, golf clubs, funds, venues…)
+   * run BEFORE registry ingestion. FAA is skipped unless skipFaa=false.
+   * Default: false (legacy FAA-first behaviour).
+   */
+  discoveryFirst?: boolean;
+  /** Skip FAA aircraft ingestion entirely. Default: false */
+  skipFaa?: boolean;
+  /**
+   * Number of randomised broad-discovery categories to run in Phase 0.
+   * Each category fires ~10 venue/venue/fund queries and extracts owner names.
+   * Default: 3 when discoveryFirst=true, 1 otherwise.
+   */
+  broadCategories?: number;
 }
 
 export interface AtlasResult {
@@ -181,33 +195,86 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
     });
   }
 
-  // ── Phase 0: Mass Ingestion ─────────────────────────────────────────────────
+  // ── Phase 0: Diversified Ingestion ─────────────────────────────────────────
+  //
+  // When discoveryFirst=true (default for targeted runs):
+  //   0a — Broad diverse web discovery (venue/fund/club/hotel searches) runs FIRST
+  //   0b — Western HNWI registries (EDGAR/CH/BRREG) run in parallel with 0a
+  //   0c — FAA aircraft (optional, large — skipped if skipFaa=true)
+  //
+  // Legacy mode (discoveryFirst=false):
+  //   FAA + Western HNWI run in parallel (original behaviour)
+  //
   if (!opts.skipIngestion) {
-    await status("Phase 0/10: Mass ingestion — FAA aircraft + Western HNWI (EDGAR/CH/BRREG)…", 0);
+    const discoveryFirst = opts.discoveryFirst ?? false;
+    const skipFaa        = opts.skipFaa ?? discoveryFirst; // skip FAA by default when discovery-first
+    const numBroadCats   = opts.broadCategories ?? (discoveryFirst ? 3 : 1);
 
-    const faaJobId  = await createJob("faa");
-    const hnwiJobId = await createJob("western-hnwi");
-    await setActiveJob("faa", faaJobId);
-    await setActiveJob("western-hnwi", hnwiJobId);
+    if (discoveryFirst) {
+      await status("Phase 0/10: Discovery-first — diverse web searches (venues, funds, clubs, hotels)…", 0);
 
-    const [faaRes, hnwiRes] = await Promise.all([
-      runFaaIngestion({ jobId: faaJobId, maxRecords: opts.faaMaxRecords ?? 60_000, forceRefresh: false })
-        .catch(e => { logger.error({ err: e.message }, "[Atlas] FAA failed"); return { inserted: 0, skipped: 0, errors: 1, durationMs: 0 }; }),
-      runWesternHnwiIngestion({ targetCount: opts.targetCount ?? 15_000, batchSize: 100, jobId: hnwiJobId })
-        .catch(e => { logger.error({ err: e.message }, "[Atlas] HNWI ingestion failed"); return { inserted: 0, skipped: 0, errors: 1, durationMs: 0 }; }),
-    ]);
+      // 0a: Broad discovery — pick N randomised categories, fire in parallel
+      const broadResults = await Promise.all(
+        Array.from({ length: numBroadCats }, (_, i) =>
+          runBroadDiscovery({ rotateTemplates: true, maxQueries: 8 })
+            .catch(e => { logger.error({ err: e.message, i }, "[Atlas] broad-discovery failed"); return { entitiesDiscovered: 0, queriesFired: 0, resultsScraped: 0, entitiesSkipped: 0, newEntities: [] }; })
+        )
+      );
+      const broadInserted = broadResults.reduce((s, r) => s + r.entitiesDiscovered, 0);
+      totalIngested += broadInserted;
+      logger.info({ broadInserted, categories: numBroadCats }, "[Atlas] Phase 0a broad-discovery done");
 
-    totalIngested += faaRes.inserted + hnwiRes.inserted;
-    summary["Phase 0"] = `FAA: ${faaRes.inserted} aircraft | HNWI: ${hnwiRes.inserted} entities (${Math.round((faaRes.durationMs + hnwiRes.durationMs) / 1000)}s)`;
+      // 0b: Western HNWI registries (reduced target — diversity run, not mass harvest)
+      const hnwiJobId = await createJob("western-hnwi");
+      await setActiveJob("western-hnwi", hnwiJobId);
+      const hnwiRes = await runWesternHnwiIngestion({
+        targetCount: opts.targetCount ?? 500,   // much smaller for targeted runs
+        batchSize: 100,
+        jobId: hnwiJobId,
+      }).catch(e => { logger.error({ err: e.message }, "[Atlas] HNWI ingestion failed"); return { inserted: 0, skipped: 0, errors: 1, durationMs: 0 }; });
+      totalIngested += hnwiRes.inserted;
+
+      summary["Phase 0"] = `Broad discovery (${numBroadCats} categories): ${broadInserted} new | Registries: ${hnwiRes.inserted} entities`;
+
+    } else {
+      // Legacy: FAA + Western HNWI in parallel
+      await status("Phase 0/10: Mass ingestion — FAA aircraft + Western HNWI (EDGAR/CH/BRREG)…", 0);
+
+      const faaJobId  = await createJob("faa");
+      const hnwiJobId = await createJob("western-hnwi");
+      await setActiveJob("faa", faaJobId);
+      await setActiveJob("western-hnwi", hnwiJobId);
+
+      const [faaRes, hnwiRes] = await Promise.all([
+        runFaaIngestion({ jobId: faaJobId, maxRecords: opts.faaMaxRecords ?? 60_000, forceRefresh: false })
+          .catch(e => { logger.error({ err: e.message }, "[Atlas] FAA failed"); return { inserted: 0, skipped: 0, errors: 1, durationMs: 0 }; }),
+        runWesternHnwiIngestion({ targetCount: opts.targetCount ?? 15_000, batchSize: 100, jobId: hnwiJobId })
+          .catch(e => { logger.error({ err: e.message }, "[Atlas] HNWI ingestion failed"); return { inserted: 0, skipped: 0, errors: 1, durationMs: 0 }; }),
+      ]);
+
+      totalIngested += faaRes.inserted + hnwiRes.inserted;
+      summary["Phase 0"] = `FAA: ${faaRes.inserted} aircraft | HNWI: ${hnwiRes.inserted} entities`;
+    }
+
+    // 0c: FAA (only if not skipping and not already run in discovery-first above)
+    if (!skipFaa && discoveryFirst) {
+      await status("Phase 0c: FAA aircraft registry…");
+      const faaJobId = await createJob("faa");
+      await setActiveJob("faa", faaJobId);
+      const faaRes = await runFaaIngestion({ jobId: faaJobId, maxRecords: opts.faaMaxRecords ?? 60_000, forceRefresh: false })
+        .catch(e => { logger.error({ err: e.message }, "[Atlas] FAA failed"); return { inserted: 0, skipped: 0, errors: 1, durationMs: 0 }; });
+      totalIngested += faaRes.inserted;
+      summary["Phase 0c"] = `FAA: ${faaRes.inserted} aircraft owners`;
+    }
 
     if (opts.includeLandRegistry) {
-      await status("Phase 0b: UK Land Registry OCOD ingestion…");
+      await status("Phase 0d: UK Land Registry OCOD ingestion…");
       const lrJobId = await createJob("land-registry");
       await setActiveJob("land-registry", lrJobId);
       const lrRes = await runLandRegistryIngestion({ jobId: lrJobId, maxRecords: 100_000, forceRefresh: false })
         .catch(e => { logger.error({ err: e.message }, "[Atlas] Land Registry failed"); return { inserted: 0, skipped: 0, errors: 1, durationMs: 0 }; });
       totalIngested += lrRes.inserted;
-      summary["Phase 0b"] = `Land Registry: ${lrRes.inserted} overseas property owners`;
+      summary["Phase 0d"] = `Land Registry: ${lrRes.inserted} overseas property owners`;
     }
   } else {
     summary["Phase 0"] = "Skipped (skipIngestion=true)";

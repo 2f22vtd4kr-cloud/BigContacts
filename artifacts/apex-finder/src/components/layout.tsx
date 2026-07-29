@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import {
+  Activity,
   BookOpen,
   ChevronDown,
   ChevronRight,
@@ -32,6 +33,7 @@ const referenceNav = [
 ];
 
 const toolsNav = [
+  { name: "System status", href: "/status", icon: Activity },
   { name: "Data sources", href: "/data-sources", icon: Database },
   { name: "Source directory", href: "/osint-tools", icon: Telescope },
   { name: "Persona review", href: "/improvements", icon: Bot },

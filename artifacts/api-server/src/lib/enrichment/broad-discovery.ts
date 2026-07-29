@@ -4,12 +4,22 @@
  * Discovers NEW HNWIs from the open web WITHOUT requiring existing entity IDs.
  * Fires broad search queries against DuckDuckGo and generates entities from results.
  *
- * 50+ query templates across 5 categories (10+ each):
- *   1 — Family Office & Private Wealth
- *   2 — Luxury Assets & Aviation
- *   3 — SEC Filings & Corporate
- *   4 — Philanthropy & Foundations
- *   5 — Public Mentions & Networks
+ * 150+ query templates across 15 categories (10+ each):
+ *   1  — Family Office & Private Wealth
+ *   2  — Luxury Assets & Aviation
+ *   3  — SEC Filings & Corporate
+ *   4  — Philanthropy & Foundations
+ *   5  — Public Mentions & Networks
+ *   6  — European Venue Owners
+ *   7  — Nordic & Scandinavian
+ *   8  — Asian Wealth Centres
+ *   9  — Latin American & Eastern European
+ *   10 — Tier-1 Fund Principals
+ *   11 — Real-World Italian & Mediterranean Venues
+ *   12 — French Riviera & Alpine Luxury
+ *   13 — Middle East Business & Investment
+ *   14 — Private Club, Marina & Resort Ownership
+ *   15 — UK Country Houses, Estates & Private Members
  *
  * Template rotation is tracked in Redis key "broad-discovery:last-template-set".
  */
@@ -162,9 +172,84 @@ const TEMPLATE_CATEGORIES: Record<number, string[]> = {
     '"impact fund" "managing partner" billion',
     '"co-investment" director "family office" network',
   ],
+
+  11: [ // Real-world Italian & Mediterranean venue owners
+    '"hotel" owner founder Sicily Italy millionaire director',
+    '"albergo" proprietario Sicilia Sardegna Costiera',
+    '"luxury hotel" owner Italy "boutique" founder director',
+    '"resort" owner director Sicily Sardinia Amalfi',
+    '"restaurant Michelin" owner founder Italy chef patron',
+    '"vineyard" owner estate Tuscany Piedmont Barolo director',
+    '"agriturismo" owner founder Tuscany Umbria',
+    '"villa" rental owner Positano Capri Portofino',
+    '"private beach club" owner director Mediterranean',
+    '"restaurant" "Michelin star" owner Sicily Palermo Agrigento',
+    '"yacht charter" owner fleet Mediterranean Italy',
+    '"palazzo" owner restoration Italy heritage director',
+  ],
+
+  12: [ // French Riviera, Alpine luxury & Bordeaux
+    '"hotel" owner director "Côte d\'Azur" Nice Cannes',
+    '"château" owner Bordeaux wine estate proprietor',
+    '"golf club" owner director France "Côte d\'Azur"',
+    '"ski resort" owner director Courchevel Méribel Chamonix',
+    '"restaurant" owner founder Monaco Saint-Tropez Antibes',
+    '"villa" owner director Cap Ferrat Menton Èze France',
+    '"private members club" owner director Paris Lyon',
+    '"luxury boutique hotel" owner France Provence Alps',
+    '"spa resort" owner director Alps France Switzerland',
+    '"polo club" owner patron France Argentina',
+    '"domaine" wine owner director Burgundy Champagne',
+    '"nightclub" owner director Saint-Tropez Monaco Ibiza',
+  ],
+
+  13: [ // Middle East business, investment & real estate
+    '"investment fund" Dubai founder principal director',
+    '"family office" Abu Dhabi Riyadh Doha principal',
+    '"real estate" developer owner Dubai founder billion',
+    '"hospitality group" owner CEO Dubai UAE founder',
+    '"business group" chairman owner Saudi Arabia Kuwait',
+    '"hotel" developer owner Dubai Abu Dhabi founder',
+    '"mall" developer owner UAE Gulf director chairman',
+    '"private equity" Dubai founding partner billion',
+    '"investment" chairman CEO Qatar Bahrain Oman',
+    '"sovereign wealth" officer director Dubai Abu Dhabi',
+    '"construction" chairman owner Riyadh Jeddah billion',
+    '"shipping" owner director UAE Gulf billionaire',
+  ],
+
+  14: [ // Private club, marina & resort ownership globally
+    '"golf club" owner director member "private" Scotland Ireland',
+    '"yacht club" owner commodore director Mediterranean Atlantic',
+    '"marina" operator owner developer Monaco Antibes Port Vieux',
+    '"private members club" director owner London Edinburgh',
+    '"polo club" owner patron Windsor Deauville',
+    '"tennis club" owner director exclusive member',
+    '"ski club" owner director exclusive Alps Verbier Gstaad',
+    '"shooting estate" owner director Scotland Highlands',
+    '"fishing lodge" owner director Scotland Norway Iceland',
+    '"private island resort" owner developer Caribbean Maldives',
+    '"beach club" owner founder Mykonos Ibiza Sardinia',
+    '"country club" owner developer director exclusive',
+  ],
+
+  15: [ // UK country houses, estates & private members clubs
+    '"country house hotel" owner director UK England',
+    '"estate" owner director English countryside heritage',
+    '"stately home" owner restoration director UK',
+    '"private members club" founder director London Mayfair',
+    '"shooting estate" owner director Scottish Highlands',
+    '"country estate" owner developer director England',
+    '"manor house" owner founder restoration UK',
+    '"luxury lodge" owner director Scottish Highlands',
+    '"racecourse" owner director British horse racing',
+    '"vineyard" owner director English wine Sussex Kent',
+    '"private school" trustee major donor UK',
+    '"arts foundation" patron benefactor director UK',
+  ],
 };
 
-const TOTAL_CATEGORIES = Object.keys(TEMPLATE_CATEGORIES).length; // 10
+const TOTAL_CATEGORIES = Object.keys(TEMPLATE_CATEGORIES).length; // 15
 
 // ── Name extraction ───────────────────────────────────────────────────────────
 
@@ -181,13 +266,42 @@ const NAME_PATTERNS = [
 
 // Common false positives to exclude
 const EXCLUDED_NAMES = new Set([
-  "New York", "Hong Kong", "Los Angeles", "United States", "United Kingdom",
-  "Wall Street", "Silicon Valley", "New Jersey", "New Mexico", "Las Vegas",
-  "San Francisco", "Fort Worth", "Fort Lauderdale", "Palm Beach",
-  "North America", "South America", "Middle East", "South East",
+  // US geography
+  "New York", "Los Angeles", "San Francisco", "Las Vegas", "Palm Beach",
+  "Fort Worth", "Fort Lauderdale", "North America", "South America",
+  "New Jersey", "New Mexico", "Wall Street", "Silicon Valley",
+  // International geography
+  "Hong Kong", "United States", "United Kingdom", "Middle East", "South East",
+  "Monte Carlo", "Cote d'Azur", "Côte d'Azur", "Massa Carrara", "Costa Rica",
+  "Saudi Arabia", "Abu Dhabi", "South Korea", "East Asia", "North Africa",
+  "New Zealand", "Costa Blanca", "Tel Aviv",
+  // SEC / regulatory
   "Schedule 13D", "Schedule 13G", "Form 4", "Form ADV", "DEF 14A",
   "Annual Report", "Proxy Statement", "Board Meeting", "General Meeting",
+  // UK government bodies (commonly extracted from CH queries)
+  "Companies House", "Land Registry", "Companies Act", "Company Act",
+  "Royal Mail", "National Trust", "English Heritage", "Natural England",
+  // Common venue/estate fragments (not person names)
+  "Country House", "Country Estate", "Country Club", "Grand Hotel",
+  "Manor House", "Stately Home", "Estate Agency", "Heritage Site",
+  "Family Office", "Investment Fund", "Private Equity", "Hedge Fund",
+  "Ski Resort", "Golf Club", "Beach Club", "Yacht Club", "Polo Club",
+  "Members Club", "Private Club", "Health Club", "Country House Hotel",
 ]);
+
+// Words that indicate a venue/brand name rather than a person
+const VENUE_INDICATORS = [
+  "hotel", "hotels", "resort", "resorts", "estate", "estates", "grange",
+  "house", "lodge", "manor", "hall", "castle", "palace", "villa", "villas",
+  "group", "holding", "holdings", "trust", "fund", "capital", "ventures",
+  "partners", "associates", "consultants", "services", "solutions",
+  "club", "society", "foundation", "charity", "organisation", "organization",
+];
+
+function isVenueOrOrganization(name: string): boolean {
+  const lower = name.toLowerCase();
+  return VENUE_INDICATORS.some(v => lower.includes(v));
+}
 
 function extractNames(text: string): string[] {
   const found = new Set<string>();

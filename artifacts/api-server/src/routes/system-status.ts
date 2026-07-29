@@ -27,7 +27,7 @@ const CACHE_TTL_MS = 15_000;
 let _cached:   unknown = null;
 let _cachedAt  = 0;
 
-router.get("/api/system/status", async (_req, res) => {
+router.get("/system/status", async (_req, res) => {
   try {
     if (_cached && Date.now() - _cachedAt < CACHE_TTL_MS) {
       return res.json({ ...(typeof _cached === "object" ? _cached : {}), cached: true, cachedAgoMs: Date.now() - _cachedAt });

@@ -143,16 +143,25 @@ const MOBILE_PHASES = [
 
 // ── Job → node mapping for live reactor state ────────────────────────────────
 const JOB_NODE_MAP: Record<string, string[]> = {
+  // ── Discovery / Ingestion ────────────────────────────────────────────────────
   "faa":                  ["target","faa","inhouse"],
   "land-registry":        ["target","hmlr","webdisc"],
   "western-hnwi":         ["target","hnwi","inhouse"],
+  "broad-discovery":      ["target","webdisc","hnwi"],
+  // Atlas orchestrator — lights up the whole input layer while running
+  "atlas-run":            ["target","faa","hnwi","webdisc","ch","occrp","opensky"],
+  // ── Enrichment ───────────────────────────────────────────────────────────────
   "in-house-enrich":      ["inhouse","perp0","exa"],
   "web-osint-enrich":     ["webdisc","perp0","exa","tavily","gemini","groq","maigret"],
   "deep-web-osint":       ["deepweb","gemini","perpfu"],
   "social-discovery":     ["webdisc","inhouse"],
+  // ── Registry cross-reference ─────────────────────────────────────────────────
   "occrp":                ["occrp"],
   "opensky":              ["opensky","perpfu"],
   "ch-company-officers":  ["ch","inhouse"],
+  "ch-officers":          ["ch","inhouse"],
+  "companies-house-enrich":["ch","inhouse"],
+  // ── Analysis ─────────────────────────────────────────────────────────────────
   "compute-embeddings":   ["semantic"],
   "semantic-dedup":       ["semantic","bayesian"],
   "bulk-hybrid-research": ["mcts","prac","bayesian","graph","pitch"],

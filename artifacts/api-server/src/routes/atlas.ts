@@ -26,16 +26,21 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
 
   const body = (req.body ?? {}) as Record<string, unknown>;
 
+  const discoveryFirst = Boolean(body.discoveryFirst);
   const opts: AtlasOptions = {
-    targetCount:        Number(body.targetCount)     || 15_000,
-    faaMaxRecords:      Number(body.faaMaxRecords)   || 60_000,
+    targetCount:        Number(body.targetCount)       || (discoveryFirst ? 500 : 15_000),
+    faaMaxRecords:      Number(body.faaMaxRecords)     || 60_000,
     includeLandRegistry: Boolean(body.includeLandRegistry),
-    batchSize:          Number(body.batchSize)       || 200,
-    phaseJBatchSize:    Number(body.phaseJBatchSize) || 50,
+    batchSize:          Number(body.batchSize)         || 200,
+    phaseJBatchSize:    Number(body.phaseJBatchSize)   || 50,
     skipIngestion:      Boolean(body.skipIngestion),
     hotLeadsOnly:       Boolean(body.hotLeadsOnly),
     runResearch:        body.runResearch !== false,
-    researchLimit:      Number(body.researchLimit)   || 10,
+    researchLimit:      Number(body.researchLimit)     || 10,
+    // ── Discovery-first diversified mode ──────────────────────────────────────
+    discoveryFirst,
+    skipFaa:            body.skipFaa !== undefined ? Boolean(body.skipFaa) : discoveryFirst,
+    broadCategories:    Number(body.broadCategories)   || (discoveryFirst ? 3 : 1),
   };
 
   const atlasJobId = await createJob("atlas-run");

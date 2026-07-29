@@ -13,6 +13,7 @@ import OsintToolsDirectory from "@/pages/osint-tools";
 import BackgroundJobs from "@/pages/jobs";
 import IntelligenceReactorPage from "@/pages/reactor";
 import NotFound from "@/pages/not-found";
+import SystemStatusPage from "@/pages/status";
 
 export default function AppRouter() {
   return (
@@ -33,6 +34,7 @@ export default function AppRouter() {
         <Route path="/data-sources" component={DataSources} />
         <Route path="/duplicates" component={Duplicates} />
         <Route path="/osint-tools" component={OsintToolsDirectory} />
+        <Route path="/status" component={SystemStatusPage} />
 
         {/* ── Legacy route aliases ── */}
         <Route path="/entities">{() => <Redirect to="/profiles" />}</Route>
