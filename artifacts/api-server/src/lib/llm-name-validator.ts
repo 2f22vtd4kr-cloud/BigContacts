@@ -16,7 +16,7 @@
 
 import { logger } from "./logger";
 
-const GROQ_KEYS = ["GROQ_API_KEY", "GROQ_API_KEY_2", "GROQ_API_KEY_3"]
+const GROQ_KEYS = ["GROQ_API_KEY", "GROQ_API_KEY_1", "GROQ_API_KEY_2", "GROQ_API_KEY_3"]
   .map(k => process.env[k])
   .filter(Boolean) as string[];
 

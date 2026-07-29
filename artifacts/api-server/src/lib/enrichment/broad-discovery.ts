@@ -31,7 +31,7 @@ import { getPermanentClient } from "../redis";
 
 // ── Tavily search (primary — better quality than DDG) ─────────────────────────
 
-const TAVILY_KEYS = ["TAVILY_API_KEY","TAVILY_API_KEY_2","TAVILY_API_KEY_3","TAVILY_API_KEY_4"]
+const TAVILY_KEYS = ["TAVILY_API_KEY","TAVILY_API_KEY_1","TAVILY_API_KEY_2","TAVILY_API_KEY_3","TAVILY_API_KEY_4"]
   .map(k => process.env[k]).filter(Boolean) as string[];
 
 async function tavilySearch(query: string): Promise<Array<{ snippet: string; url: string }>> {
@@ -55,7 +55,7 @@ async function tavilySearch(query: string): Promise<Array<{ snippet: string; url
 
 // ── Groq AI name extraction from aggregated text ───────────────────────────────
 
-const GROQ_KEYS = ["GROQ_API_KEY","GROQ_API_KEY_2","GROQ_API_KEY_3"]
+const GROQ_KEYS = ["GROQ_API_KEY","GROQ_API_KEY_1","GROQ_API_KEY_2","GROQ_API_KEY_3"]
   .map(k => process.env[k]).filter(Boolean) as string[];
 
 async function aiExtractPersonNames(text: string, context: string): Promise<string[]> {

@@ -8,6 +8,22 @@
 
 ---
 
+## Current State (2026-07-29 — Re-import #31 — Atlas RUNNING job 8b10bf96 — Phase 0 broad discovery)
+
+### What was done this session (2026-07-29 — re-import #31 + Atlas launch)
+1. **Key rotation fixes** — 3 static key arrays were missing `GROQ_API_KEY_1` and `TAVILY_API_KEY_1`:
+   - `lib/llm-name-validator.ts`: added `GROQ_API_KEY_1` to GROQ_KEYS
+   - `lib/enrichment/broad-discovery.ts`: added `GROQ_API_KEY_1` + `TAVILY_API_KEY_1`
+2. **Stale Atlas lock cleared** (leftover from re-import #30 session)
+3. **Atlas fired** — discovery-first, batchSize 200, researchLimit 15, all 11 phases queued
+
+### To check Atlas progress:
+```bash
+curl -s http://localhost:8080/api/ingest/job/8b10bf96-dd1c-47b3-b3ec-6669905c3f0a | jq '{status,progress,total,message,inserted}'
+```
+
+---
+
 ## Current State (2026-07-29 — Re-import #31 setup complete; all workflows running; DB schema applied; pipeline idle)
 
 ### Import setup (2026-07-29 — re-import #31)
