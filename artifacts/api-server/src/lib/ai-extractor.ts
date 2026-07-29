@@ -1139,3 +1139,53 @@ export async function extractWithAI(
 
   return EMPTY;
 }
+
+// ── Key status snapshot (for /api/system/status) ─────────────────────────────
+
+export interface AIKeySlot {
+  index:     number;
+  state:     "active" | "exhausted" | "missing";
+  expiresAt: string | null;
+}
+
+export interface AIKeyStatus {
+  groq:       AIKeySlot[];
+  perplexity: AIKeySlot[];
+  gemini:     AIKeySlot[];
+  tavily:     AIKeySlot[];
+  exa:        AIKeySlot[];
+}
+
+/**
+ * Returns a per-slot snapshot of every AI provider key pool:
+ * active, exhausted (with expiry timestamp), or missing (env var not set).
+ */
+export function getAIKeyStatus(): AIKeyStatus {
+  const now = Date.now();
+
+  function slotState(
+    envName:   string,
+    exhausted: Map<string, number>,
+    index:     number,
+  ): AIKeySlot {
+    const val = process.env[envName];
+    if (!val) return { index, state: "missing", expiresAt: null };
+    const exp = exhausted.get(val);
+    if (exp && exp > now) return { index, state: "exhausted", expiresAt: new Date(exp).toISOString() };
+    return { index, state: "active", expiresAt: null };
+  }
+
+  const groqNames = ["GROQ_API_KEY", "GROQ_API_KEY_2", "GROQ_API_KEY_3"];
+  const pplxNames = ["PERPLEXITY_API_KEY", ...Array.from({ length: 8 }, (_, i) => `PERPLEXITY_API_KEY_${i + 1}`)];
+  const gemNames  = ["GEMINI_API_KEY",     ...Array.from({ length: 7 }, (_, i) => `GEMINI_API_KEY_${i + 2}`)];
+  const tavNames  = ["TAVILY_API_KEY",     ...Array.from({ length: 7 }, (_, i) => `TAVILY_API_KEY_${i + 2}`)];
+  const exaNames  = ["EXA_API_KEY",        ...Array.from({ length: 7 }, (_, i) => `EXA_API_KEY_${i + 2}`)];
+
+  return {
+    groq:       groqNames.map((n, i) => slotState(n, _exhaustedGroqKeys,             i)),
+    perplexity: pplxNames.map((n, i) => slotState(n, _exhaustedPerplexityDirectKeys, i)),
+    gemini:     gemNames .map((n, i) => slotState(n, _exhaustedGeminiKeys,           i)),
+    tavily:     tavNames .map((n, i) => slotState(n, _exhaustedTavilyKeys,           i)),
+    exa:        exaNames .map((n, i) => slotState(n, _exhaustedExaKeys,              i)),
+  };
+}

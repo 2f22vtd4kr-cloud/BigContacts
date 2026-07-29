@@ -737,7 +737,9 @@ async function verifyAndInstallPythonTools(): Promise<void> {
   if (!holehe || !maigret) {
     logger.warn({ holehe, maigret }, "⚠️  Python OSINT tools missing — auto-installing (Holehe + Maigret)…");
     try {
-      await execFileAsync("bash", ["scripts/install-python-tools.sh"], { timeout: 120_000, cwd: process.cwd() });
+      // Resolve from workspace root (two levels up from artifacts/api-server)
+      const wsRoot = new URL("../../../..", import.meta.url).pathname;
+      await execFileAsync("bash", ["scripts/install-python-tools.sh"], { timeout: 120_000, cwd: wsRoot });
       logger.info("✅ Python OSINT tools installed successfully");
     } catch (err: any) {
       logger.error({ err: err?.message }, "❌ Python OSINT tools installation FAILED — Maigret/Holehe unavailable this session");
