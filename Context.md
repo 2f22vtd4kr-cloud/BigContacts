@@ -8,6 +8,18 @@
 
 ---
 
+## Current State (2026-07-29 — Re-import #29 setup complete; all workflows running; DB schema applied; pipeline idle)
+
+### Import setup (2026-07-29 — re-import #29)
+- `CI=true pnpm install --frozen-lockfile` ✅ (~36s)
+- `pnpm --filter @workspace/db run push` → `[✓] Changes applied` ✅
+- Redis ✅ (port 6379) · artifacts/api-server: API Server ✅ (port 8080) · artifacts/apex-finder: web ✅ (port 23695)
+- Python tools: holehe ✓ maigret ✓ (theHarvester ✗ needs Python 3.12; gliner ✗ optional)
+- `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":1}}` ✅
+- DB schema applied; pipeline idle; awaiting user instruction
+
+---
+
 ## Current State (2026-07-29 — Atlas running Phase 4/In-house; 395 entities; 25 contactable; quality fixes applied)
 
 ### What was done this session (2026-07-29 — re-import #28 + Atlas launch)
