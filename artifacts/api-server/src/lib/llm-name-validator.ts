@@ -50,14 +50,30 @@ export async function filterHumanNamesWithLLM(candidates: string[]): Promise<str
 async function _validateBatch(names: string[]): Promise<string[]> {
   const key = GROQ_KEYS[Math.floor(Math.random() * GROQ_KEYS.length)];
 
-  const prompt = `You are a strict human-name classifier. For each numbered name below, decide:
-- YES if it is a plausible full name of a real individual human person (first + last, possibly with middle)
-- NO if it is a company, fund, trust, NGO, government body, venue, geographic location, abstract concept, role title, action phrase, or any non-person entity
+  const prompt = `You are a human-name classifier for an OSINT database. Your job is to decide whether each string is a human person's name.
+
+IMPORTANT: When in doubt, answer YES. Only answer NO when the string is CLEARLY and OBVIOUSLY not a human person.
+
+Answer YES for:
+- Any plausible first + last name combination, even if it sounds famous or matches a brand (e.g. "Ralph Lauren", "Barry Diller", "Mark Zuckerberg" are PEOPLE)
+- Names in Last-First order (e.g. "Wagoner Dayne", "Meyer Thomas", "Proceviat Ralph")
+- Chinese, Korean, Japanese, Arabic, or other non-Western names (e.g. "Zhu Jun", "HE Boquan", "Yang Tianfu")
+- Names with initials or middle names (e.g. "Charles W Ergen", "A Haag Sherman")
+- Unusual or rare names that could be real people
+
+Answer NO only when the string is CLEARLY a non-person:
+- Contains "LLC", "L.L.C.", "L.P.", "Corp", "Inc", "Ltd", "Fund", "Trust", "REIT", "Holdings", "Partners", "Capital" — e.g. "D. E. Shaw Fund LLC", "Blackrock Capital Corp"
+- Two people joined by "&" — e.g. "Gerhard & Ruth Cless", "Edward & Carol Kaplan"
+- Government/institutional body — e.g. "Abu Dhabi Investment Authority", "Department of Treasury"
+- Financial ticker patterns — e.g. "Corp (ccz, Cmcsa) Comcast", "Inc (qcom) Qualcomm"
+- Abstract concept phrase — e.g. "Economic Analysis", "Reducing Marginal Tax"
+- Clearly a company operating name — e.g. "Smack Sportswear", "Carvana Jack Ma", "Hydro A S A Norsk"
 
 Names:
 ${names.map((n, idx) => `${idx + 1}. "${n}"`).join("\n")}
 
 Respond ONLY with a compact JSON array of the 1-based indices of names that are YES (human persons). Example: [1,3,7]
+If ALL are human names, respond with all indices. If ALL are clearly non-human, respond with [].
 Output nothing else.`;
 
   try {
