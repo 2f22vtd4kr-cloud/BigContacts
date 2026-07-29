@@ -149,9 +149,9 @@ const ATLAS_PHASE_NODES: Record<number, string[]> = {
   2:  ["ch","inhouse","hnwi"],
   3:  ["hnwi","target","edgar"],
   4:  ["inhouse","target"],
-  5:  ["webdisc","inhouse","opensky"],
+  5:  ["webdisc","inhouse","maigret"],
   6:  ["perp0","exa","tavily","gemini","groq","maigret","webdisc","deepweb"],
-  7:  ["whoxy","opensky","deepweb"],
+  7:  ["whoxy","occrp","deepweb","opensky"],
   8:  ["semantic","bayesian","graph"],
   9:  ["semantic","bayesian","inhouse"],
   10: ["mcts","prac","graph","target"],
@@ -996,7 +996,7 @@ export default function IntelligenceReactorPage() {
         const phase = phaseMatch ? parseInt(phaseMatch[1], 10) : 0;
         const phaseNodes = ATLAS_PHASE_NODES[phase] ?? ATLAS_PHASE_NODES[0];
         phaseNodes.forEach((n: string) => nodes.add(n));
-        const label = msg.replace(/^Phase \d+\/\d+:\s*/i, "").split("—")[0].trim().slice(0, 70);
+        const label = msg.replace(/^Phase \d+\/[^:]+:\s*/i, "").split("—")[0].trim().slice(0, 70);
         labels.push(`▶ Atlas Phase ${phase}/10 — ${label}`);
       }
 

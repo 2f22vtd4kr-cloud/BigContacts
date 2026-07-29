@@ -364,12 +364,25 @@ const VENUE_INDICATORS = [
   "group", "holding", "holdings", "trust", "fund", "capital", "ventures",
   "partners", "associates", "consultants", "services", "solutions",
   "club", "society", "foundation", "charity", "organisation", "organization",
+  "golfers", "marina", "yacht", "golf", "polo", "tennis", "equestrian",
   // Abstract/institutional nouns that look like 2-word TitleCase pairs
   "affairs", "promotion", "bureau", "authority", "ministry", "department",
   "agency", "council", "commission", "committee", "board", "institute",
   "association", "federation", "union", "alliance", "network", "initiative",
   "programme", "program", "project", "sector", "industry", "market",
   "investment", "development", "management", "administration",
+  // Geographic/topographic terms that produce place-name pairs
+  "bay", "cape", "cove", "gulf", "lake", "lakes", "mountain", "mountains",
+  "midtown", "downtown", "uptown", "borough", "district", "peninsula",
+  "strait", "island", "islands", "valley", "canyon", "creek", "river",
+  // Historical period / event words — never a person's name
+  "wars", "war", "battle", "napoleonic", "baroque", "renaissance",
+  "medieval", "victorian", "georgian", "edwardian", "colonial", "classical",
+  "romantic", "ancient", "modern", "contemporary", "imperial", "byzantine",
+  // Generic commodity / abstract concept pairs
+  "energy", "renewable", "technology", "technologies", "media", "digital",
+  "global", "international", "national", "regional", "local", "analytics",
+  "logistics", "infrastructure", "telecommunications", "pharmaceutical",
 ];
 
 function isVenueOrOrganization(name: string): boolean {

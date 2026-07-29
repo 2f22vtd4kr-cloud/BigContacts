@@ -66,7 +66,9 @@ function normalizeName(name: string): string {
  *   "Warren Buffett"      → "Warren Buffett"  (unchanged)
  */
 function normalizeEdgarName(raw: string): string {
-  const t = raw.trim();
+  // Strip "ET AL" / "et al" suffix before processing (means "and others" in SEC filings)
+  const cleaned = raw.trim().replace(/\s+ET\s+AL\.?$/i, "").trim();
+  const t = cleaned;
   if (!t) return t;
   const tc = (s: string) =>
     s.length <= 2 ? s.toUpperCase() : s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
@@ -89,14 +91,19 @@ function looksLikePerson(name: string): boolean {
   // "S.A.", etc. Normalize separators before checking corporate suffixes so
   // investment vehicles are not harvested as people.
   const normalized = name.replace(/[.,/&()-]+/g, " ");
-  const corporate = /\b(inc|llc|lp|ltd|corp|co|fund|trust|capital|management|advisors|partners|holdings|group|associates|company|gmbh|ag|sa|bv|nv|plc|asa|ab|oy|as)\b/i;
+  const corporate = /\b(inc|llc|lp|ltd|corp|co|fund|trust|capital|management|advisors|partners|holdings|group|associates|company|gmbh|ag|sa|bv|nv|plc|asa|ab|oy|as|enterprise|enterprises|electric|industries|systems|technologies|solutions|logistics|pharmaceuticals|healthcare|financial|bancorp|bancshares|motors|aerospace|energy|networks|communications|international|global|national|resources|properties|realty|infrastructure)\b/i;
   // Also reject if the name itself contains role or institutional words — these
   // appear in CH officer search results where the title field bleeds in
   // role metadata (e.g. "Victoria DIRECTOR", "Norfolk County Council NPLAW").
   const roleOrInstitutional = /\b(director|directors|secretary|council|nplaw|details|returned|services limited|two limited|the board)\b/i;
+  // Reject abstract concept pairs that look like 2-word TitleCase names
+  // (e.g. "Reducing Marginal", "Women Outpaces", "Increasing Returns")
+  const abstractVerb = /^(reducing|increasing|improving|growing|developing|managing|providing|supporting|delivering|enabling|accelerating|leveraging|transforming|creating|building|driving|leading|connecting|advancing|promoting|protecting|expanding|ensuring|achieving|maximizing|minimizing|optimizing|streamlining|integrating|diversifying)\b/i;
+  // Reject names with ticker symbols (e.g. "Aramark (armk)")
+  const hasTicker = /\([a-z]{2,6}\)$/i.test(name.trim());
   // Accept if no corporate/role keywords and has 2–5 words
   const wordCount = name.trim().split(/\s+/).length;
-  return !corporate.test(normalized) && !roleOrInstitutional.test(name) && wordCount >= 2 && wordCount <= 6;
+  return !corporate.test(normalized) && !roleOrInstitutional.test(name) && !abstractVerb.test(name) && !hasTicker && wordCount >= 2 && wordCount <= 6;
 }
 
 /**
