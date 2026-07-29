@@ -17,7 +17,7 @@
 - Python tools: holehe ✓ maigret ✓ (theHarvester ✗ needs Python 3.12; gliner ✗ optional)
 - `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":1}}` ✅
 - DB empty — cold-start pipeline check ran; ENABLE_AUTO_PIPELINE not set → pipeline idle
-- All enrichment secrets from prior session carried over; SESSION_SECRET present
+- All 24 enrichment secrets set: REDIS_URL_1–5 (slots 2–5 connected; slot 1 quota-exhausted/non-fatal), COMPANIES_HOUSE_API_KEY, GROQ_API_KEY/\_2/\_3, PERPLEXITY_API_KEY/\_2/\_3/\_4, WHOXY_API_KEY, GEMINI_API_KEY/\_2/\_3/\_4, EXA_API_KEY/\_2, TAVILY_API_KEY/\_2/\_3/\_4; SESSION_SECRET present
 - Awaiting user instruction before starting ingestion
 
 ---
