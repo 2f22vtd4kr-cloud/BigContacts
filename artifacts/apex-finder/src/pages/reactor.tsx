@@ -301,7 +301,7 @@ function formatDate(iso: string) {
 }
 
 // ── Mobile layout ─────────────────────────────────────────────────────────────
-function MobileReactor({ sessions, totalEntities, loading, onRefresh, syncing, liveNodes, liveLabel }: {
+function MobileReactor({ sessions, totalEntities, loading, onRefresh, syncing, liveNodes, liveLabel, livePhaseDetail }: {
   sessions: ResearchSession[];
   totalEntities: number;
   loading: boolean;
@@ -309,6 +309,7 @@ function MobileReactor({ sessions, totalEntities, loading, onRefresh, syncing, l
   syncing: boolean;
   liveNodes?: Set<string>;
   liveLabel?: string;
+  livePhaseDetail?: string;
 }) {
   const hasSessions = sessions.length > 0;
   const pitchCount = sessions.filter(s => s.generatedPitch).length;
@@ -322,10 +323,11 @@ function MobileReactor({ sessions, totalEntities, loading, onRefresh, syncing, l
     return () => clearInterval(id);
   }, [isLive]);
 
-  // When live: current wave step = "on" (bright), rest of liveNodes = "dim"
-  // When idle with sessions: show completed nodes statically
-  const currentStepNodes: Set<string> = isLive
-    ? new Set(WAVES[liveStep % WAVES.length].nodes)
+  // When live: pulse through the REAL job-mapped nodes (liveNodes), not scripted WAVES
+  // This ensures only nodes relevant to the actual running phase light up
+  const liveNodesArr = isLive ? [...(liveNodes ?? new Set())] : [];
+  const currentStepNodes: Set<string> = isLive && liveNodesArr.length > 0
+    ? new Set([liveNodesArr[liveStep % liveNodesArr.length]])
     : new Set();
 
   const staticNodes: Set<string> = hasSessions
@@ -333,15 +335,11 @@ function MobileReactor({ sessions, totalEntities, loading, onRefresh, syncing, l
     : new Set();
 
   // activeNodes = nodes that are "on" (bright) at this moment
-  // When live: the current WAVE step lights up (shows pipeline progression through ALL stages)
-  // This makes the reactor animate through the full pipeline even if only one job type is running
-  const activeNodes: Set<string> = isLive
-    ? currentStepNodes
-    : staticNodes;
+  const activeNodes: Set<string> = isLive ? currentStepNodes : staticNodes;
 
-  // dimNodes = job-mapped nodes that are staged but not the current step
+  // dimNodes = other job-mapped nodes that are staged but not the current pulse step
   const dimNodes: Set<string> = isLive
-    ? new Set([...(liveNodes ?? new Set())].filter(id => !currentStepNodes.has(id)))
+    ? new Set(liveNodesArr.filter(id => !currentStepNodes.has(id)))
     : new Set();
 
   return (
@@ -539,19 +537,19 @@ function MobileReactor({ sessions, totalEntities, loading, onRefresh, syncing, l
                     {liveLabel || "JOB RUNNING"}
                   </span>
                 </div>
-                {/* Current pipeline step */}
+                {/* Current pipeline step — real detail from the running job */}
                 <div style={{ display:"flex", alignItems:"center", gap:6, paddingLeft:13 }}>
                   <span style={{ fontSize:7.5, letterSpacing:"0.14em", color:"#a3e63599",
                     flex:1, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                    ▸ {WAVES[liveStep % WAVES.length].label}
+                    ▸ {livePhaseDetail || "processing…"}
                   </span>
-                  {/* Step progress dots */}
+                  {/* Real node pulse dots — one per live node */}
                   <div style={{ display:"flex", gap:2, flexShrink:0 }}>
-                    {WAVES.slice(0, 8).map((_, i) => (
+                    {liveNodesArr.slice(0, 8).map((_, i) => (
                       <div key={i} style={{
                         width:3, height:3, borderRadius:"50%",
-                        background: i === (liveStep % 8) ? "#a3e635" : "#192840",
-                        boxShadow: i === (liveStep % 8) ? "0 0 4px #a3e635" : "none",
+                        background: i === (liveStep % Math.max(liveNodesArr.length, 1)) ? "#a3e635" : "#192840",
+                        boxShadow: i === (liveStep % Math.max(liveNodesArr.length, 1)) ? "0 0 4px #a3e635" : "none",
                         transition:"all 0.3s",
                       }} />
                     ))}
@@ -970,8 +968,9 @@ export default function IntelligenceReactorPage() {
   const [totalEntities, setTotalEntities] = useState(0);
   const [loadingData,   setLoadingData]   = useState(true);
   const [syncing,       setSyncing]       = useState(false);
-  const [liveNodes,     setLiveNodes]     = useState<Set<string>>(new Set());
-  const [liveLabel,     setLiveLabel]     = useState<string>("");
+  const [liveNodes,       setLiveNodes]       = useState<Set<string>>(new Set());
+  const [liveLabel,       setLiveLabel]       = useState<string>("");
+  const [livePhaseDetail, setLivePhaseDetail] = useState<string>("");
 
   const pollJobs = useCallback(async () => {
     const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -998,6 +997,9 @@ export default function IntelligenceReactorPage() {
         phaseNodes.forEach((n: string) => nodes.add(n));
         const label = msg.replace(/^Phase \d+\/[^:]+:\s*/i, "").split("—")[0].trim().slice(0, 70);
         labels.push(`▶ Atlas Phase ${phase}/10 — ${label}`);
+        // Extract the detail after the em-dash for the sub-banner (e.g. "FAA aircraft + Western HNWI…")
+        const detailMatch = msg.match(/—\s*(.+)$/);
+        setLivePhaseDetail(detailMatch ? detailMatch[1].trim().slice(0, 90) : msg.slice(0, 90));
       }
 
       // ── Regular jobs ─────────────────────────────────────────────────────────
@@ -1015,6 +1017,7 @@ export default function IntelligenceReactorPage() {
       } else {
         setLiveNodes(new Set());
         setLiveLabel("");
+        setLivePhaseDetail("");
       }
     } catch { /* non-fatal */ }
   }, []);
@@ -1106,6 +1109,7 @@ export default function IntelligenceReactorPage() {
           syncing={syncing}
           liveNodes={liveNodes}
           liveLabel={liveLabel}
+          livePhaseDetail={livePhaseDetail}
         />
       </div>
     );
