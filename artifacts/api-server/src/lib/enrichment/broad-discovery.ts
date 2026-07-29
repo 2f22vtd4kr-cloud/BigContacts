@@ -402,6 +402,14 @@ const VENUE_INDICATORS = [
   "energy", "renewable", "technology", "technologies", "media", "digital",
   "global", "international", "national", "regional", "local", "analytics",
   "logistics", "infrastructure", "telecommunications", "pharmaceutical",
+  // Financial / advisory firms (not people)
+  "wealth", "financial", "advisory", "advisors", "advisor", "bankers",
+  "bank", "banking", "corporate", "securities", "investments",
+  // Educational institutions
+  "university", "universities", "school", "schools", "college", "colleges",
+  "academy", "academies", "institute", "institutes",
+  // Privacy / tech jargon leaking from ad/cookie banners
+  "privacy", "profiles", "cookies", "consent", "settings",
 ];
 
 function isVenueOrOrganization(name: string): boolean {
@@ -409,13 +417,28 @@ function isVenueOrOrganization(name: string): boolean {
   return VENUE_INDICATORS.some(v => lower.includes(v));
 }
 
+// Country/region words that sometimes prefix person names in scraped text
+// e.g. "Mexico Asanka Pathiraja" → strip "Mexico" → "Asanka Pathiraja"
+const LEADING_GEO_WORDS = new Set([
+  "America", "Mexico", "Europe", "Asia", "Africa", "Nordic", "Latin",
+  "Eastern", "Western", "Southern", "Northern", "Central", "Middle",
+  "Brazil", "Chile", "India", "China", "Japan", "Korea", "Russia",
+  "France", "Germany", "Italy", "Spain", "Poland", "Greece", "Turkey",
+  "Australia", "Canada", "Israel", "Singapore", "Dubai", "Qatar",
+]);
+
 function extractNames(text: string): string[] {
   const found = new Set<string>();
   for (const pattern of NAME_PATTERNS) {
     pattern.lastIndex = 0;
     let m: RegExpExecArray | null;
     while ((m = pattern.exec(text)) !== null) {
-      const name = (m[1] || m[0]).trim();
+      let name = (m[1] || m[0]).trim();
+      // Strip leading country/region word that bled into the match
+      const firstWord = name.split(/\s+/)[0];
+      if (LEADING_GEO_WORDS.has(firstWord)) {
+        name = name.slice(firstWord.length).trim();
+      }
       // Validate: 2-4 words, each capitalised, not in exclusion list, not a venue
       const words = name.split(/\s+/);
       if (words.length >= 2 && words.length <= 4 &&

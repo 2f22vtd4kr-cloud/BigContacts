@@ -20,7 +20,7 @@
 import { db, entitiesTable, assetsTable } from "@workspace/db";
 import type { InsertEntity, InsertAsset } from "@workspace/db";
 import { computeBayesianScore } from "./bayesian-scorer";
-import { isDuplicate, markSeen, updateJob, appendJobLog } from "./job-queue";
+import { isDuplicate, markSeen, updateJob, appendJobLog, clearDedup } from "./job-queue";
 import { logger } from "./logger";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -94,14 +94,15 @@ function looksLikePerson(name: string): boolean {
   const normalized = name
     .replace(/\bL\s+P\b/g, "LP")   // "Falls Investors L P" → "Falls Investors LP"
     .replace(/[.,/&()-]+/g, " ");
-  const corporate = /\b(inc|llc|lp|ltd|corp|co|fund|trust|capital|management|advisors|partners|holdings|group|associates|company|gmbh|ag|sa|bv|nv|plc|asa|ab|oy|as|enterprise|enterprises|electric|industries|systems|technologies|solutions|logistics|pharmaceuticals|healthcare|financial|bancorp|bancshares|motors|aerospace|energy|networks|communications|international|global|national|resources|properties|realty|infrastructure|united|workers|union|council|committee|coalition|alliance|federation)\b/i;
+  const corporate = /\b(inc|llc|lp|ltd|limited|corp|corporate|co|fund|trust|capital|management|advisors|partners|holdings|group|associates|company|gmbh|ag|sa|sas|sarl|bv|nv|plc|llp|asa|ab|oy|as|enterprise|enterprises|electric|industries|systems|technologies|solutions|logistics|pharmaceuticals|healthcare|financial|bancorp|bancshares|motors|aerospace|energy|networks|communications|international|global|national|resources|properties|realty|infrastructure|united|workers|union|council|committee|coalition|alliance|federation|securitisation|secretarial|appoint|incorporated|services|ventures|consultancy|recruitment)\b/i;
   // Also reject if the name itself contains role or institutional words — these
   // appear in CH officer search results where the title field bleeds in
   // role metadata (e.g. "Victoria DIRECTOR", "Norfolk County Council NPLAW").
   const roleOrInstitutional = /\b(director|directors|secretary|council|nplaw|details|returned|services limited|two limited|the board)\b/i;
   // Reject abstract concept pairs that look like 2-word TitleCase names
   // (e.g. "Reducing Marginal", "Women Outpaces", "Increasing Returns")
-  const abstractVerb = /^(reducing|increasing|improving|growing|developing|managing|providing|supporting|delivering|enabling|accelerating|leveraging|transforming|creating|building|driving|leading|connecting|advancing|promoting|protecting|expanding|ensuring|achieving|maximizing|minimizing|optimizing|streamlining|integrating|diversifying)\b/i;
+  // Also reject imperative/modal verb starters ("Please Appoint", "Use Privacy")
+  const abstractVerb = /^(reducing|increasing|improving|growing|developing|managing|providing|supporting|delivering|enabling|accelerating|leveraging|transforming|creating|building|driving|leading|connecting|advancing|promoting|protecting|expanding|ensuring|achieving|maximizing|minimizing|optimizing|streamlining|integrating|diversifying|please|appoint|use|visit|find|discover|explore|contact|subscribe|register|login|sign|click|read|view|get|learn|see|buy|hire|call|email)\b/i;
   // Reject names with ticker symbols (e.g. "Aramark (armk)")
   const hasTicker = /\([a-z]{2,6}\)$/i.test(name.trim());
   // Accept if no corporate/role keywords and has 2–5 words

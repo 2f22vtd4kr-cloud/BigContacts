@@ -8,6 +8,38 @@
 
 ---
 
+## Current State (2026-07-29 — Atlas running Phase 4/In-house; 395 entities; 25 contactable; quality fixes applied)
+
+### What was done this session (2026-07-29 — re-import #28 + Atlas launch)
+
+1. **`clearDedup` import bug fixed** (`western-hnwi-ingestion.ts` line 23): `clearDedup` was used at line 728 but never imported — function call would throw at runtime. Fixed by adding it to the job-queue import.
+2. **`looksLikePerson` corporate regex expanded** (`western-hnwi-ingestion.ts`): Added missing terms: `limited`, `corporate`, `sas`, `sarl`, `llp`, `securitisation`, `secretarial`, `appoint`, `incorporated`, `services`, `ventures`, `consultancy`, `recruitment`. Prevents CH/BRREG company names like "HILTON CORPORATE", "L.D.C SECURITISATION", "DIRECTORC01 LIMITED", "PLEASE APPOINT A" from being stored as HNWIs. Also expanded `abstractVerb` reject list with imperative starters (`please`, `appoint`, `use`, `visit`, `find`, etc.).
+3. **Broad-discovery country-prefix fix** (`broad-discovery.ts`): Added `LEADING_GEO_WORDS` set (50 country/region names) to `extractNames()` — strips leading geo-word before validation so "Mexico Asanka Pathiraja" → "Asanka Pathiraja".
+4. **Broad-discovery VENUE_INDICATORS expanded** (`broad-discovery.ts`): Added `wealth`, `financial`, `advisory`, `bank`, `banking`, `corporate`, `university`, `school`, `college`, `academy`, `privacy`, `profiles`, `cookies`, `consent` — prevents "Hoxton Wealth", "Yale University School", "Use Privacy Profiles" from being stored as HNWIs.
+5. **27 bad entities deleted from DB** during live Atlas run (8 broad-discovery junk + 19 CH/BRREG corporate names).
+6. **Atlas launched (discovery-first mode)**: jobId `18178f30-67c8-4191-b486-afe19f0bee40`
+   - Phase 0a broad-discovery: 224 entities from 3 template categories (Nordic/Latin American/UK estates) ✅
+   - Phase 0b western-hnwi: 199 inserted (EDGAR SC 13D/G + DEF 14A + BRREG Norway + CH UK) ✅
+   - Phase 1 OCCRP + OpenSky + CH Officers ✅ (OCCRP 401 — no API key, non-fatal)
+   - Phase 2 OpenOwnership + CH contact enrichment + Foundation filings ✅
+   - Phase 3 Notes + EDGAR assets ✅
+   - Phase 4 In-house OSINT (Wikidata/GitHub/RDAP/DNS/Gravatar) — **running at 55/200**
+   - Phase 5–10 pending
+7. **DB state at wrap**: 395 entities / 25 contactable — Peter Thiel (phone + LinkedIn), Anousheh Ansari (phone + LinkedIn), Warren Stephens, and 22 more.
+8. **All fixes built** (API server rebuild clean 578ms) — will take effect on next ingestion since Phase 0 already completed.
+
+### To check Atlas progress:
+```bash
+curl -s http://localhost:8080/api/ingest/job/18178f30-67c8-4191-b486-afe19f0bee40 | jq '{status,progress,total,message}'
+```
+
+### Next session:
+- Atlas will have completed Phase 4 (in-house enrichment) → Phase 5 (social discovery) → Phase 6 (AI OSINT: Perplexity + Gemini + Tavily + Exa + Groq → Maigret → Holehe) → Phases 7–10
+- If Atlas completed: check DB totals and trigger `POST /api/ingest/web-osint-enrich {"batchSize": 100, "force": true}` on any unenriched entities
+- Restart API server (between Atlas phases) to pick up the broad-discovery + looksLikePerson fixes for future ingestion runs
+
+---
+
 ## Current State (2026-07-29 — Re-import #28 setup complete; all workflows running; DB schema applied; pipeline idle)
 
 ### Import setup (2026-07-29 — re-import #28)
