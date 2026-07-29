@@ -90,8 +90,11 @@ function looksLikePerson(name: string): boolean {
   // EDGAR display names use punctuation inconsistently: "L.P.", "Co.",
   // "S.A.", etc. Normalize separators before checking corporate suffixes so
   // investment vehicles are not harvested as people.
-  const normalized = name.replace(/[.,/&()-]+/g, " ");
-  const corporate = /\b(inc|llc|lp|ltd|corp|co|fund|trust|capital|management|advisors|partners|holdings|group|associates|company|gmbh|ag|sa|bv|nv|plc|asa|ab|oy|as|enterprise|enterprises|electric|industries|systems|technologies|solutions|logistics|pharmaceuticals|healthcare|financial|bancorp|bancshares|motors|aerospace|energy|networks|communications|international|global|national|resources|properties|realty|infrastructure)\b/i;
+  // Also collapse "L P" (spaced LP — common EDGAR format) → "LP" so the regex catches it.
+  const normalized = name
+    .replace(/\bL\s+P\b/g, "LP")   // "Falls Investors L P" → "Falls Investors LP"
+    .replace(/[.,/&()-]+/g, " ");
+  const corporate = /\b(inc|llc|lp|ltd|corp|co|fund|trust|capital|management|advisors|partners|holdings|group|associates|company|gmbh|ag|sa|bv|nv|plc|asa|ab|oy|as|enterprise|enterprises|electric|industries|systems|technologies|solutions|logistics|pharmaceuticals|healthcare|financial|bancorp|bancshares|motors|aerospace|energy|networks|communications|international|global|national|resources|properties|realty|infrastructure|united|workers|union|council|committee|coalition|alliance|federation)\b/i;
   // Also reject if the name itself contains role or institutional words — these
   // appear in CH officer search results where the title field bleeds in
   // role metadata (e.g. "Victoria DIRECTOR", "Norfolk County Council NPLAW").
@@ -715,9 +718,19 @@ export interface IngestionResult {
 }
 
 export async function runWesternHnwiIngestion(opts: IngestionOptions): Promise<IngestionResult> {
-  const { targetCount, batchSize = 100, jobId } = opts;
+  const { targetCount, batchSize = 100, jobId, clearDedupFirst = false } = opts;
   const t0 = Date.now();
   let inserted = 0, skipped = 0, errors = 0;
+
+  // Clear stale Upstash dedup set if requested (prevents previous-import entries blocking all ingestion)
+  if (clearDedupFirst) {
+    try {
+      await clearDedup();
+      logger.info("Upstash HNWI dedup set cleared before ingestion");
+    } catch (err: any) {
+      logger.warn({ err: err?.message }, "clearDedup failed (non-fatal)");
+    }
+  }
 
   const log = async (msg: string) => {
     logger.info(msg);

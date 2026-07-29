@@ -231,6 +231,7 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
         targetCount: opts.targetCount ?? 500,   // much smaller for targeted runs
         batchSize: 100,
         jobId: hnwiJobId,
+        clearDedupFirst: true,  // always clear stale Upstash dedup on fresh Atlas discovery run
       }).catch(e => { logger.error({ err: e.message }, "[Atlas] HNWI ingestion failed"); return { inserted: 0, skipped: 0, errors: 1, durationMs: 0 }; });
       totalIngested += hnwiRes.inserted;
 

@@ -342,7 +342,13 @@ const EXCLUDED_NAMES = new Set([
   "Hong Kong", "United States", "United Kingdom", "Middle East", "South East",
   "Monte Carlo", "Cote d'Azur", "Côte d'Azur", "Massa Carrara", "Costa Rica",
   "Saudi Arabia", "Abu Dhabi", "South Korea", "East Asia", "North Africa",
-  "New Zealand", "Costa Blanca", "Tel Aviv",
+  "New Zealand", "Costa Blanca", "Tel Aviv", "Cape Town",
+  // Historical periods / eras (never HNWIs)
+  "Middle Ages", "Dark Ages", "Bronze Age", "Iron Age", "Stone Age",
+  "Ancient Rome", "Ancient Greece", "Roman Empire", "Ottoman Empire",
+  // Historical titles / deceased figures commonly mentioned in estate contexts
+  "Duke Wellington", "Duke Marlborough", "Duke Devonshire",
+  "Earl Spencer", "Lord Byron", "Lord Nelson",
   // SEC / regulatory
   "Schedule 13D", "Schedule 13G", "Form 4", "Form ADV", "DEF 14A",
   "Annual Report", "Proxy Statement", "Board Meeting", "General Meeting",
@@ -361,10 +367,15 @@ const EXCLUDED_NAMES = new Set([
 const VENUE_INDICATORS = [
   "hotel", "hotels", "resort", "resorts", "estate", "estates", "grange",
   "house", "lodge", "manor", "hall", "castle", "palace", "villa", "villas",
+  "place", "court", "court house", "spa", "retreat", "sanctuary",
   "group", "holding", "holdings", "trust", "fund", "capital", "ventures",
   "partners", "associates", "consultants", "services", "solutions",
   "club", "society", "foundation", "charity", "organisation", "organization",
   "golfers", "marina", "yacht", "golf", "polo", "tennis", "equestrian",
+  "studio", "studios", "gallery", "galleries", "atelier",
+  "travel", "travels", "tours", "tourism", "visit", "visitor",
+  "trading", "trade", "traders", "enterprise", "enterprises",
+  "heritage", "cultural", "culture", "arts", "museum",
   // Abstract/institutional nouns that look like 2-word TitleCase pairs
   "affairs", "promotion", "bureau", "authority", "ministry", "department",
   "agency", "council", "commission", "committee", "board", "institute",
@@ -375,6 +386,14 @@ const VENUE_INDICATORS = [
   "bay", "cape", "cove", "gulf", "lake", "lakes", "mountain", "mountains",
   "midtown", "downtown", "uptown", "borough", "district", "peninsula",
   "strait", "island", "islands", "valley", "canyon", "creek", "river",
+  "shire", "county", "yorkshire", "lancashire", "hampshire",
+  "scotland", "england", "ireland", "wales",
+  // Job-function / role phrases that look like names
+  "managers", "manager", "directors", "officers", "executives",
+  "commissioners", "coordinators", "volunteers", "ambassadors",
+  // Media / publications
+  "magazines", "magazine", "newspaper", "newspapers", "journal", "journals",
+  "broadcast", "publisher", "publishers", "productions",
   // Historical period / event words — never a person's name
   "wars", "war", "battle", "napoleonic", "baroque", "renaissance",
   "medieval", "victorian", "georgian", "edwardian", "colonial", "classical",
@@ -589,9 +608,12 @@ export async function runBroadDiscovery(options: {
   let inserted = 0;
   for (const { name, snippet, query } of newEntities) {
     try {
-      const type = classifyType(name);
+      // Sanitise: strip newlines, leading/trailing whitespace, control chars
+      const cleanName = name.replace(/[\r\n\t]+/g, " ").replace(/\s{2,}/g, " ").trim();
+      if (cleanName.length < 5 || cleanName.split(/\s+/).length < 2) continue;
+      const type = classifyType(cleanName);
       await db.insert(entitiesTable).values({
-        name,
+        name: cleanName,
         type,
         sourceRegistries: JSON.stringify(["web-discovery"]),
         bayesianScore: 0.3,
