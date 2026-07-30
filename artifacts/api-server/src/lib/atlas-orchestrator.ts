@@ -536,7 +536,7 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
         sql`${entitiesTable.cookedAt} IS NULL`,
       ))
       .orderBy(desc(entitiesTable.createdAt))
-      .limit(200);
+      .limit(1000);
 
     logger.info({ sourceRound, label: source.label, newCount: newEntities.length }, "[Atlas] Starting full-circle enrichment");
 
@@ -589,7 +589,9 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
       if (row.nationality) parts.push(`Nationality: ${row.nationality}.`);
       if (row.type) parts.push(`Type: ${row.type}.`);
       const newNotes = parts.join(" ");
-      if (newNotes && newNotes !== row.notes) {
+      // Only write baseline metadata notes when the entity has no notes yet.
+      // Entities already enriched (ICIJ hits, Whoxy, AI notes) must not be overwritten.
+      if (newNotes && !row.notes) {
         await db.update(entitiesTable).set({ notes: newNotes }).where(eq(entitiesTable.id, row.id));
         notesUpdated++;
       }
@@ -737,6 +739,12 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
 
   const hotLeads = Number(hotRow[0]?.count ?? 0);
   const durationMs = Date.now() - startMs;
+
+  // Count entities with at least one confirmed contact vector
+  const contactRow = await db.select({ count: sql<number>`count(*)::int` })
+    .from(entitiesTable)
+    .where(sql`(${entitiesTable.email} IS NOT NULL OR ${entitiesTable.phone} IS NOT NULL OR ${entitiesTable.linkedinUrl} IS NOT NULL)`);
+  totalContacts = Number(contactRow[0]?.count ?? 0);
 
   const finalMsg = [
     `Atlas complete in ${Math.round(durationMs / 60_000)}min.`,

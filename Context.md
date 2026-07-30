@@ -8,6 +8,33 @@
 
 ---
 
+## Current State (2026-07-30 — Re-import #37 — Atlas RUNNING job 0799f997 — 3 bugs fixed, all 26 secrets set)
+
+### Setup this session (2026-07-30 — re-import #37):
+- `pnpm install` ✅ (~32s) · `pnpm --filter @workspace/db run push` → `[✓] Changes applied` ✅
+- Python tools: holehe ✓ maigret ✓
+- All 26 secrets added: REDIS_URL_1–5 (slots 1–5 all healthy), COMPANIES_HOUSE_API_KEY, GROQ_API_KEY_1–5, PERPLEXITY_API_KEY_1–4, WHOXY_API_KEY, GEMINI_API_KEY_1–4, EXA_API_KEY_1–2, TAVILY_API_KEY_1–4
+- Slot 1 quota-exhausted on first restart (prior run used it), then recovered on second restart — slots 1–5 all connected and ready
+
+### 3 bugs fixed before Atlas launch:
+1. **Phase 3 notes overwrite** — Phase 3 metadata population was overwriting `notes` with bare registry metadata strings, destroying ICIJ/Whoxy/AI forensic notes written during full-circle enrichment. Fixed: only write baseline notes when `notes IS NULL` (entities already enriched are untouched).
+2. **200-entity cap per source round** — `newEntities` query had `.limit(200)` — source rounds producing >200 entities left the rest permanently uncooked. Raised to 1000.
+3. **`totalContacts` always 0** — initialized to 0, never incremented. Fixed: query DB at end of pipeline for real count (`email IS NOT NULL OR phone IS NOT NULL OR linkedinUrl IS NOT NULL`).
+
+### Atlas job 0799f997:
+- Started: 2026-07-30
+- `discoveryFirst=true, skipFaa=true` — 21 interleaved sources (15 broad web-search + 6 registry batches)
+- Per-entity full-circle enrichment (concurrency=3, cookedAt stamped)
+- Dedup cleared before launch ✅
+- All 5 Upstash slots connected ✅
+
+### To poll Atlas progress:
+```bash
+curl -s http://localhost:8080/api/ingest/job/0799f997-b6c3-40c6-bf3c-cd997ffbe8e1 | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('status'), '|', d.get('inserted',0), 'inserted |', str(d.get('message',''))[:100])"
+```
+
+---
+
 ## Current State (2026-07-30 — Re-import #36 — Atlas RUNNING job 2fda3fc9 — 2 critical bugs fixed, concurrency=3)
 
 ### Fixes applied this session (2026-07-30 — re-import #36):
