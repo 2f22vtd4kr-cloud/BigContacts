@@ -63,10 +63,11 @@ const _exhaustedGeminiKeys            = new Map<string, number>(); // for Gemini
 const _exhaustedTavilyKeys            = new Map<string, number>(); // for Tavily search API
 const _exhaustedExaKeys               = new Map<string, number>(); // for Exa neural search API
 
+/** Returns all Groq API keys (GROQ_API_KEY, GROQ_API_KEY_1 … _8). */
 function getGroqKeys(): string[] {
-  return ["GROQ_API_KEY", "GROQ_API_KEY_1", "GROQ_API_KEY_2", "GROQ_API_KEY_3"]
-    .map(k => process.env[k] ?? "")
-    .filter(k => k.length > 0);
+  const names = ["GROQ_API_KEY"];
+  for (let i = 1; i <= 8; i++) names.push(`GROQ_API_KEY_${i}`);
+  return names.map(k => process.env[k] ?? "").filter(k => k.length > 0);
 }
 
 function getOpenRouterKeys(): string[] {

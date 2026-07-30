@@ -16,9 +16,9 @@
 
 import { logger } from "./logger";
 
-const GROQ_KEYS = ["GROQ_API_KEY", "GROQ_API_KEY_1", "GROQ_API_KEY_2", "GROQ_API_KEY_3"]
-  .map(k => process.env[k])
-  .filter(Boolean) as string[];
+const _groqKeyNames = ["GROQ_API_KEY"];
+for (let i = 1; i <= 8; i++) _groqKeyNames.push(`GROQ_API_KEY_${i}`);
+const GROQ_KEYS = _groqKeyNames.map(k => process.env[k]).filter(Boolean) as string[];
 
 /**
  * Filter a batch of candidate name strings down to those that are genuine
