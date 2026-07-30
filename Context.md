@@ -8,6 +8,19 @@
 
 ---
 
+## Current State (2026-07-30 — Re-import #36 — setup complete; pipeline idle; waiting for user)
+
+### Import setup (2026-07-30 — re-import #36)
+- `CI=true pnpm install --frozen-lockfile` ✅ (~34s)
+- `pnpm --filter @workspace/db run push` → `[✓] Changes applied` ✅
+- Redis ✅ (port 6379) · artifacts/api-server: API Server ✅ (port 8080) · artifacts/apex-finder: web ✅ (port 23695)
+- Python tools: holehe ✓ maigret 0.6.3 ✓ (pip-installed fresh)
+- `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":0}}` ✅
+- SESSION_SECRET present; enrichment secrets carried from prior import
+- Pipeline idle — user has not launched Atlas yet
+
+---
+
 ## Current State (2026-07-30 — Re-import #35 — Atlas RUNNING job 31de1d45 — per-entity full-circle, reactor fixes applied)
 
 ### Fixes applied this session (2026-07-30 — reactor overhaul):
