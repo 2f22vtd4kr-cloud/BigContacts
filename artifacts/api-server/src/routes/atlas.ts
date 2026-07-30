@@ -10,6 +10,8 @@ import { Router, type Request, type Response } from "express";
 import { createJob, getActiveJob, getJob, setActiveJob, updateJob } from "../lib/job-queue";
 import { runAtlasPipeline, type AtlasOptions } from "../lib/atlas-orchestrator";
 import { logger } from "../lib/logger";
+import { db } from "@workspace/db";
+import { sql } from "drizzle-orm";
 
 const router = Router();
 
@@ -50,6 +52,14 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
     progress: 0, total: 10,
     message: "Atlas pipeline initializing — 10 phases queued…",
   });
+
+  // Immediately repair isHot for all entities with contact vectors (fixes stale data from prior runs)
+  db.execute(sql`
+    UPDATE entities SET is_hot = true
+    WHERE (email IS NOT NULL OR phone IS NOT NULL
+           OR (contact_confidence >= 50 AND linkedin_url IS NOT NULL))
+      AND is_hot = false
+  `).catch(() => {});
 
   // Fire and forget — run fully in background
   void (async () => {

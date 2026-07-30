@@ -449,7 +449,7 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
       }
     } catch (_assetErr) { /* fail-open — asset extraction is best-effort */ }
 
-    // ── Step F: Final confidence recompute + cookedAt stamp ───────────────────
+    // ── Step F: Final confidence recompute + bayesian score + isHot + cookedAt ─
     const fresh = await db.select({
       email: entitiesTable.email, phone: entitiesTable.phone,
       linkedinUrl: entitiesTable.linkedinUrl, twitterHandle: entitiesTable.twitterHandle,
@@ -458,9 +458,48 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
     }).from(entitiesTable).where(eq(entitiesTable.id, id)).then((r: any[]) => r[0]);
 
     if (fresh) {
+      const contactConf = computeContactConfidence(fresh);
+
+      // Fetch assets written in Steps E + G for bayesian scoring
+      const entityAssets = await db.select({
+        category: assetsTable.category,
+        estimatedValue: assetsTable.estimatedValue,
+        jurisdiction: assetsTable.jurisdiction,
+      }).from(assetsTable).where(eq(assetsTable.ownerEntityId, id)).catch(() => []);
+
+      const assetCategories = [...new Set(entityAssets.map((a: any) => a.category).filter(Boolean))] as string[];
+      const totalAssetValue = entityAssets.reduce((s: number, a: any) => s + (Number(a.estimatedValue) || 0), 0);
+      const jurisdictionCount = new Set(entityAssets.map((a: any) => a.jurisdiction).filter(Boolean)).size;
+
+      const { computeBayesianScore } = await import("./bayesian-scorer");
+      const bayesScore = computeBayesianScore(0.05, {
+        entityType:               entity.type,
+        assetCount:               entityAssets.length,
+        assetCategories,
+        totalAssetValue,
+        hasRecentActivity:        true,
+        recentActivityDays:       0,
+        networkDegree:            0,
+        hasGatekeeperConnection:  false,
+        hasKnownInvestorConnection: false,
+        hasShellCompany:          false,
+        hasAviationAsset:         assetCategories.includes("Aviation"),
+        hasMarineAsset:           assetCategories.includes("Marine"),
+        hasClubMembership:        assetCategories.some(c => ["PrivateClub","Hospitality"].includes(c)),
+        hasLuxuryRealEstate:      assetCategories.includes("RealEstate"),
+        jurisdictionCount,
+        contactConfidence:        contactConf,
+      });
+
+      // isHot: entity is a real lead when we have a direct contact vector
+      const isHot = !!(fresh.email || fresh.phone ||
+        (contactConf >= 50 && (fresh.linkedinUrl || fresh.twitterHandle)));
+
       await db.update(entitiesTable).set({
-        contactConfidence: computeContactConfidence(fresh),
+        contactConfidence: contactConf,
         contactOutcome:    computeContactOutcome(fresh),
+        bayesianScore:     Math.max(entity.bayesianScore ?? 0, bayesScore),
+        isHot,
         cookedAt:          new Date(),
         updatedAt:         new Date(),
       }).where(eq(entitiesTable.id, id));
@@ -787,6 +826,16 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
         ELSE 'none'
       END
       WHERE contact_outcome IS NULL
+    `);
+
+    // Backfill isHot for all entities — a direct contact vector = priority lead.
+    // This repairs entities enriched before the isHot-stamping logic existed.
+    await db.execute(sql`
+      UPDATE entities
+      SET is_hot = true
+      WHERE (email IS NOT NULL OR phone IS NOT NULL
+             OR (contact_confidence >= 50 AND linkedin_url IS NOT NULL))
+        AND is_hot = false
     `);
 
     // Recompute contact confidence for all
