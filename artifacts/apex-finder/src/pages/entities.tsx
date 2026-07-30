@@ -200,6 +200,11 @@ function MobileEntityCard({
         <div className="shrink-0 flex items-center gap-2">
           <ConfidenceBadge score={entity.contactConfidence} />
           <AccessScoreBadge score={entity.accessScore} />
+          {entity.cookedAt && (
+            <span title={`Fully cooked — all enrichment phases complete (${new Date(entity.cookedAt).toLocaleDateString()})`}>
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+            </span>
+          )}
           {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
         </div>
       </div>

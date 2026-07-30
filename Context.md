@@ -8,6 +8,26 @@
 
 ---
 
+## Current State (2026-07-30 — Re-import #35 — Atlas RUNNING job 5b9a7e99 — Phase 0 broad discovery + registries interleaved)
+
+### What was done this session (2026-07-30 — re-import #35):
+1. **Mobile COOKED badge added** — `MobileEntityCard` in `entities.tsx` now shows `CheckCircle2` (emerald) when `entity.cookedAt` is set — matches desktop table behaviour
+2. **Dedup cleared** — `DELETE /api/ingest/dedup` called before Atlas launch to ensure fresh Upstash dedup (fresh DB, stale entries from prior runs would have silently blocked discovery)
+3. **Atlas launched** — `discoveryFirst=true`, `skipFaa=true`, `targetCount=1500`, `researchLimit=15`, all 15 broad categories + 6 registry batches interleaved; per-entity full-circle enrichment with `cookedAt` stamp
+
+### Atlas job 5b9a7e99:
+- Started: 2026-07-30 ~05:10 UTC
+- 21 interleaved sources: 15 broad web-search categories (hotels Italy/Sicily, golf clubs Norway, Dubai funds, Nordic shipping, French Riviera, Asian wealth centres, Latin America, UK estates, marinas, SEC filings, philanthropy, public mentions…) + 6 EDGAR/CH/BRREG/BODACC registry batches
+- FAA mass-dump: SKIPPED ✅
+- Per-entity full-circle: each discovered entity immediately runs Phases 4–8 + cookedAt stamp
+
+### To poll Atlas progress:
+```bash
+curl -s http://localhost:8080/api/ingest/job/5b9a7e99-24d3-4d0c-ab2a-328e0a976470 | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('status'), d.get('progress'),'/',d.get('total'), '—', str(d.get('inserted',0)), 'inserted —', d.get('message','')[:80])"
+```
+
+---
+
 ## Current State (2026-07-30 — Re-import #35 — setup complete; pipeline idle; waiting for user)
 
 ### Import setup (2026-07-30 — re-import #35)
