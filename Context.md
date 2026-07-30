@@ -8,6 +8,29 @@
 
 ---
 
+## Current State (2026-07-30 — Re-import #42 — Atlas RUNNING job c6718f0e — all 30 secrets active)
+
+### Setup this session (2026-07-30 — re-import #42 — full launch):
+- `CI=true pnpm install --frozen-lockfile` ✅ (~42s)
+- `pnpm --filter @workspace/db run push` → `[✓] Changes applied` ✅
+- Redis ✅ (port 6379) · artifacts/api-server: API Server ✅ (port 8080) · artifacts/apex-finder: web ✅ (port 23695)
+- Python tools: holehe ✓ maigret ✓
+- `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":1}}` ✅
+- All 30 secrets active: REDIS_URL_1–5, COMPANIES_HOUSE_API_KEY, GROQ_API_KEY_1–5, PERPLEXITY_API_KEY_1–6 (6 keys — 2 new vs last session), WHOXY_API_KEY, GEMINI_API_KEY_1–4, EXA_API_KEY_1–2, TAVILY_API_KEY_1–6, SESSION_SECRET
+- Upstash: slot 1 quota-exhausted (non-fatal), slots 2–5 ready ✅
+- Groq status display fix: line 1230 now dynamically enumerates GROQ_API_KEY_1–8 (was hardcoded to 4)
+- Dedup cleared ✅ (50 stale entries from prior session removed)
+- Ghost jobs: auto-cleared on startup ✅
+- Atlas job c6718f0e RUNNING — discoveryFirst=true, skipFaa=true, targetCount=500
+- Phase 1/10: Discovery + full-circle enrichment loop — running
+
+### To poll Atlas progress:
+```bash
+curl -s http://localhost:8080/api/ingest/job/c6718f0e-7fea-4a5e-b32a-ae078749f661 | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('status'), '|', d.get('inserted',0), 'inserted |', str(d.get('message',''))[:120])"
+```
+
+---
+
 ## Current State (2026-07-30 — Re-import #42 — setup complete; SESSION_SECRET active; DB empty; pipeline idle)
 
 ### Setup this session (2026-07-30 — re-import #42):

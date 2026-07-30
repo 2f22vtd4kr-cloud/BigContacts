@@ -1227,7 +1227,7 @@ export function getAIKeyStatus(): AIKeyStatus {
     return { index, state: "active", expiresAt: null };
   }
 
-  const groqNames = ["GROQ_API_KEY", "GROQ_API_KEY_1", "GROQ_API_KEY_2", "GROQ_API_KEY_3"];
+  const groqNames = ["GROQ_API_KEY", ...Array.from({ length: 8 }, (_, i) => `GROQ_API_KEY_${i + 1}`)];
   const pplxNames = ["PERPLEXITY_API_KEY", ...Array.from({ length: 8 }, (_, i) => `PERPLEXITY_API_KEY_${i + 1}`)];
   const gemNames  = ["GEMINI_API_KEY",     ...Array.from({ length: 8 }, (_, i) => `GEMINI_API_KEY_${i + 1}`)];
   const tavNames  = ["TAVILY_API_KEY",     ...Array.from({ length: 8 }, (_, i) => `TAVILY_API_KEY_${i + 1}`)];
