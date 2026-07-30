@@ -8,6 +8,19 @@
 
 ---
 
+## Current State (2026-07-30 — Re-import #39 — setup complete; pipeline idle; DB empty; awaiting user)
+
+### Setup this session (2026-07-30 — re-import #39):
+- `CI=true pnpm install --frozen-lockfile` ✅ (~38s)
+- `pnpm --filter @workspace/db run push` → `[✓] Changes applied` ✅
+- Redis ✅ (port 6379) · artifacts/api-server: API Server ✅ (port 8080) · artifacts/apex-finder: web ✅ (port 23695)
+- Python tools: holehe ✓ maigret ✓
+- `/api/healthz` → `{"status":"ok","redis":{"status":"ok"}}` ✅
+- DB: 0 entities, 0 enrichment_runs, 0 identity_bundles (fresh/empty)
+- SESSION_SECRET present; enrichment API secrets need to be re-added by user
+
+---
+
 ## Current State (2026-07-30 — Re-import #38 — Atlas RUNNING job 25a433ea — Step G upgraded: Hospitality assets + llama-3.3-70b)
 
 ### Setup this session (2026-07-30 — re-import #38):
