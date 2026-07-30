@@ -540,17 +540,16 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
 
     logger.info({ sourceRound, label: source.label, newCount: newEntities.length }, "[Atlas] Starting full-circle enrichment");
 
-    for (let ei = 0; ei < newEntities.length; ei++) {
-      const entity = newEntities[ei];
-      await updateJob(atlasJobId, {
-        status: "running",
-        progress: sourceRound,
-        total: DISCOVERY_SOURCES.length,
-        message: `[${sourceRound}/${DISCOVERY_SOURCES.length}] 🍳 ${entity.name} (${ei + 1}/${newEntities.length})…`,
-      });
-      await enrichEntityFullCircle(atlasJobId, entity as EntityRow);
-      cookedCount++;
-      totalEnriched++;
+    if (newEntities.length > 0) {
+      const batchResult = await runEntityBatch(
+        atlasJobId,
+        `[${sourceRound}/${DISCOVERY_SOURCES.length}] 🍳`,
+        newEntities,
+        (entity) => enrichEntityFullCircle(atlasJobId, entity as EntityRow),
+        3,
+      );
+      cookedCount += batchResult.ok;
+      totalEnriched += batchResult.ok;
     }
 
     // Phase J attribution after each source round (processes all pending entities)

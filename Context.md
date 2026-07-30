@@ -8,6 +8,26 @@
 
 ---
 
+## Current State (2026-07-30 — Re-import #36 — Atlas RUNNING job 2fda3fc9 — 2 critical bugs fixed, concurrency=3)
+
+### Fixes applied this session (2026-07-30 — re-import #36):
+1. **CRITICAL: Gemini/Tavily/Exa results were silently dropped** — `gem`, `tav`, `exa` were declared with `const` inside a `try` block in `web-enricher.ts` (line ~1735) and then referenced in subsequent `try` blocks outside it. In JS, `typeof` of an out-of-scope block-scoped `const` returns `"undefined"`, so all three provider result-processing blocks were silently skipped on every enrichment — only Perplexity results were ever used. Fixed by declaring `let perp, gem, tav, exa` before the first `try` block.
+2. **Concurrency: sequential → 3 parallel** — Per-entity enrichment in `atlas-orchestrator.ts` was a plain sequential `for` loop (one entity at a time). `runEntityBatch(concurrency=3)` already existed but was unused in the discovery loop. Wired it in — 3 entities now enrich simultaneously, ~3× faster throughput.
+
+### Atlas job 2fda3fc9:
+- Started: 2026-07-30
+- discoveryFirst=true, skipFaa=true, targetCount=1500, researchLimit=15
+- 21 interleaved sources: 15 broad web-search categories + 6 registry batches
+- Per-entity full-circle with cookedAt stamp and concurrency=3
+- Dedup cleared before launch ✅
+
+### To poll Atlas progress:
+```bash
+curl -s http://localhost:8080/api/ingest/job/2fda3fc9-1e40-4b7b-9237-1478af1b6643 | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('status'), '|', d.get('inserted',0), 'inserted |', str(d.get('message',''))[:100])"
+```
+
+---
+
 ## Current State (2026-07-30 — Re-import #36 — setup complete; pipeline idle; waiting for user)
 
 ### Import setup (2026-07-30 — re-import #36)

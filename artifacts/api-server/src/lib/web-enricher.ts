@@ -1731,8 +1731,11 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   // Both fire in parallel before DDG/Bing — different search indexes means
   // complementary coverage. Perplexity excels at regional press; Gemini
   // excels at Google-indexed official pages and LinkedIn.
+  // NOTE: declared outside the try so Phases 0.5/0.6/0.7 can access them even
+  // if perp's own processing throws — all 4 providers must contribute results.
+  let perp: any, gem: any, tav: any, exa: any;
   try {
-    const [perp, gem, tav, exa] = await Promise.all([
+    [perp, gem, tav, exa] = await Promise.all([
       researchWithPerplexity(entity.name, entity.type, country, {
         tradingName: trading,
         city,
