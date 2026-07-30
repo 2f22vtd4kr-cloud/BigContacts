@@ -620,12 +620,28 @@ export async function runBroadDiscovery(options: {
 
   // Dedup against existing entities
   const existingNames = await existingNameSet();
-  const newEntities: Array<{ name: string; snippet: string; query: string }> = [];
+  const rawEntities: Array<{ name: string; snippet: string; query: string }> = [];
   let skipped = 0;
 
   for (const [name, { snippet, query }] of candidateMap) {
     if (isDuplicateName(name, existingNames)) { skipped++; continue; }
-    newEntities.push({ name, snippet, query });
+    rawEntities.push({ name, snippet, query });
+  }
+
+  // LLM name filter — removes noise like "Les Ballets", "Beneficial Owners", "Amr El" (truncated)
+  let newEntities = rawEntities;
+  try {
+    const { filterHumanNamesWithLLM } = await import("../llm-name-validator");
+    const rawNames = rawEntities.map(e => e.name);
+    const validNames = new Set(await filterHumanNamesWithLLM(rawNames));
+    const beforeCount = rawEntities.length;
+    newEntities = rawEntities.filter(e => validNames.has(e.name));
+    const filteredCount = beforeCount - newEntities.length;
+    if (filteredCount > 0) {
+      logger.info({ filteredCount, beforeCount, afterCount: newEntities.length }, "Broad discovery: LLM name filter removed noise entities");
+    }
+  } catch (e: any) {
+    logger.warn({ err: e.message }, "Broad discovery: LLM name filter failed (fail-open, using all candidates)");
   }
 
   // Insert new entities

@@ -171,13 +171,18 @@ function buildSignals(input: EntityScoringInput): ScoringSignal[] {
   // ── Contact reachability signal ────────────────────────────────────
   // A confirmed direct contact vector (email/phone/LinkedIn) is strong
   // evidence of a real HNWI, not a ghost company or stale record.
+  // Weights tuned so that an HNWI with a single phone/email (confidence ~25-38)
+  // clears the 0.5 priority-leads threshold after HNWI type + recent-activity signals.
   if (input.contactConfidence != null && input.contactConfidence > 0) {
     if (input.contactConfidence >= 70) {
-      // High-confidence contact data: multiple vectors confirmed
-      signals.push({ name: "contact_high", value: input.contactConfidence, weight: 0.7, likelihood: 3.0 });
+      // High-confidence: multiple verified vectors (email + phone, or LinkedIn + phone)
+      signals.push({ name: "contact_high", value: input.contactConfidence, weight: 0.9, likelihood: 6.0 });
     } else if (input.contactConfidence >= 30) {
-      // Partial contact data: single vector or low-confidence
-      signals.push({ name: "contact_partial", value: input.contactConfidence, weight: 0.4, likelihood: 1.6 });
+      // Partial: single confirmed vector (phone OR email found)
+      signals.push({ name: "contact_partial", value: input.contactConfidence, weight: 0.8, likelihood: 3.5 });
+    } else if (input.contactConfidence >= 10) {
+      // Weak: social-only signal (LinkedIn/Twitter discovered, no direct contact)
+      signals.push({ name: "contact_weak", value: input.contactConfidence, weight: 0.4, likelihood: 1.8 });
     }
   }
 

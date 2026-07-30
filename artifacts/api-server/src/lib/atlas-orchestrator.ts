@@ -847,7 +847,31 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
       }
     }
 
-    summary["Phase 9"] = `Embeddings: ${embProcessed} | Net worth backfill done | Confidence recomputed`;
+    // Recompute bayesian scores for all cooked entities using current weights
+    const scoreEntities = await db.select({
+      id: entitiesTable.id, type: entitiesTable.type, bayesianScore: entitiesTable.bayesianScore,
+      contactConfidence: entitiesTable.contactConfidence,
+    }).from(entitiesTable).where(sql`${entitiesTable.cookedAt} IS NOT NULL`).limit(50_000);
+    const { computeBayesianScore: recomputeScore } = await import("./bayesian-scorer");
+    let bayesUpdated = 0;
+    for (const e of scoreEntities) {
+      const newScore = recomputeScore(0.05, {
+        entityType: e.type ?? "HNWI",
+        assetCount: 0, assetCategories: [], totalAssetValue: 0,
+        hasRecentActivity: true, recentActivityDays: 0,
+        networkDegree: 0, hasGatekeeperConnection: false, hasKnownInvestorConnection: false,
+        hasShellCompany: false, hasAviationAsset: false, hasMarineAsset: false,
+        hasClubMembership: false, hasLuxuryRealEstate: false, jurisdictionCount: 0,
+        contactConfidence: e.contactConfidence ?? 0,
+      });
+      const finalScore = Math.max(e.bayesianScore ?? 0, newScore);
+      if (Math.abs(finalScore - (e.bayesianScore ?? 0)) > 0.001) {
+        await db.update(entitiesTable).set({ bayesianScore: finalScore }).where(eq(entitiesTable.id, e.id));
+        bayesUpdated++;
+      }
+    }
+
+    summary["Phase 9"] = `Embeddings: ${embProcessed} | Net worth backfill done | Confidence recomputed | Bayesian scores recomputed: ${bayesUpdated}`;
   } catch (e: any) {
     logger.error({ err: e.message }, "[Atlas] Phase 9 failed");
     summary["Phase 9"] = `Error: ${e.message}`;
