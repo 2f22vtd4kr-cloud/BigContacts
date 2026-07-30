@@ -148,13 +148,13 @@ const ATLAS_REGISTRY_STEPS = new Set([2, 5, 8, 11, 14, 18]);
 
 /** Map an Atlas [N/21] step + message to reactor node IDs. */
 function atlasStepToNodes(stepN: number, msg: string): string[] {
-  // Entity cooking (🍳) → full enrichment stack
+  // Entity cooking (🍳) → full enrichment stack including deep-web + maigret
   if (msg.includes("🍳")) {
-    return ["inhouse","perp0","exa","tavily","gemini","groq","semantic","bayesian"];
+    return ["inhouse","perp0","exa","tavily","gemini","groq","deepweb","maigret","semantic","bayesian"];
   }
   // Registry batch → ingestion nodes
   if (ATLAS_REGISTRY_STEPS.has(stepN)) {
-    return ["target","hnwi","edgar","ch","brreg"];
+    return ["target","hnwi","edgar","ch","brreg","occrp"];
   }
   // Broad discovery category → web + AI extraction
   return ["target","webdisc","groq"];
@@ -162,7 +162,7 @@ function atlasStepToNodes(stepN: number, msg: string): string[] {
 
 // Legacy phase map kept for non-atlas jobs / fallback
 const ATLAS_PHASE_NODES: Record<number, string[]> = {
-  0:  ["target","faa","hnwi","webdisc","ch","brreg","edgar"],
+  0:  ["target","occrp","opensky","ch","brreg","edgar"],   // pre-run: OCCRP+OpenSky+CH Officers
   1:  ["target","occrp","opensky","ch"],
   2:  ["ch","inhouse","hnwi"],
   3:  ["hnwi","target","edgar"],
@@ -172,7 +172,7 @@ const ATLAS_PHASE_NODES: Record<number, string[]> = {
   7:  ["whoxy","occrp","deepweb","opensky"],
   8:  ["semantic","bayesian","graph"],
   9:  ["semantic","bayesian","inhouse"],
-  10: ["mcts","prac","graph","target"],
+  10: ["mcts","prac","graph","pitch","target"],             // MCTS generates outreach pitch
 };
 
 const JOB_NODE_MAP: Record<string, string[]> = {
@@ -194,6 +194,8 @@ const JOB_NODE_MAP: Record<string, string[]> = {
   "ch-company-officers":  ["ch","inhouse"],
   "ch-officers":          ["ch","inhouse"],
   "companies-house-enrich":["ch","inhouse"],
+  // ── Phase J (domain resolution + graph attribution + bayesian scoring) ───────
+  "phase-j-pass":         ["semantic","bayesian","graph"],
   // ── Analysis ─────────────────────────────────────────────────────────────────
   "compute-embeddings":   ["semantic"],
   "semantic-dedup":       ["semantic","bayesian"],
@@ -1069,22 +1071,38 @@ export default function IntelligenceReactorPage() {
           setLivePhaseDetail(`Step ${stepN}/${total} — ${detail.slice(0, 80)}`);
         } else {
           // Entity-level enrichment messages (inner loop overwrites outer [N/21])
-          // Detect enrichment phase from message keywords / emojis
+          // Detect enrichment phase from message keywords / emojis.
+          // Rules are additive — multiple can match so all relevant nodes light.
           const enrichNodes: string[] = [];
-          // Maigret/Holehe = Phase D of full-circle enrichment; AI tools (Phases A–C)
-          // already ran for this entity — light the whole enrichment stack so the
-          // reactor shows real activity rather than going dark between phases.
-          if (/Maigret|Holehe|🕵/.test(msg))              enrichNodes.push("maigret","inhouse","perp0","exa","tavily","gemini","groq");
+          // ── Full-circle enrichment phases ────────────────────────────────────
+          // Maigret/Holehe = Phase D; Phases A–C already ran for this entity,
+          // so light the whole stack — this is accurate and avoids a dark reactor.
+          if (/Maigret|Holehe|🕵/.test(msg))
+            enrichNodes.push("maigret","inhouse","deepweb","perp0","exa","tavily","gemini","groq");
+          if (/AI OSINT|web.enrich|web.osint/i.test(msg))
+            enrichNodes.push("perp0","exa","tavily","gemini","groq","inhouse","deepweb");
+          if (/🍳/.test(msg))
+            enrichNodes.push("inhouse","perp0","exa","tavily","gemini","groq","deepweb","maigret","semantic","bayesian");
+          // ── Individual AI providers ───────────────────────────────────────────
           if (/Perplexity|Sonar/i.test(msg))              enrichNodes.push("perp0","perpfu");
-          if (/Gemini/i.test(msg))                         enrichNodes.push("gemini");
-          if (/Tavily/i.test(msg))                         enrichNodes.push("tavily");
-          if (/\bExa\b/i.test(msg))                        enrichNodes.push("exa");
-          if (/AI OSINT|web.enrich|web.osint/i.test(msg)) enrichNodes.push("perp0","exa","tavily","gemini","groq","inhouse");
+          if (/Gemini/i.test(msg))                        enrichNodes.push("gemini");
+          if (/Tavily/i.test(msg))                        enrichNodes.push("tavily");
+          if (/\bExa\b/i.test(msg))                       enrichNodes.push("exa");
+          if (/Groq|Llama/i.test(msg))                    enrichNodes.push("groq");
+          // ── Tool-specific phases ──────────────────────────────────────────────
           if (/In-house|Wikidata|GitHub|RDAP/i.test(msg)) enrichNodes.push("inhouse");
-          if (/Phase J|footprint|domain|attrib/i.test(msg))enrichNodes.push("semantic","bayesian");
-          if (/confidence|cookedAt|scoring/i.test(msg))    enrichNodes.push("semantic","bayesian");
-          if (/🍳/.test(msg))                              enrichNodes.push("inhouse","perp0","exa","tavily","gemini","groq");
-          // Fallback: legacy Phase X format
+          if (/deep.web|multi.source/i.test(msg))         enrichNodes.push("deepweb","gemini","perpfu");
+          if (/OCCRP|Aleph|sanction/i.test(msg))          enrichNodes.push("occrp");
+          if (/OpenSky|flight|aircraft/i.test(msg))       enrichNodes.push("opensky");
+          if (/Whoxy|WHOIS|forensic/i.test(msg))          enrichNodes.push("whoxy","deepweb","occrp");
+          if (/ICIJ|offshore|leak/i.test(msg))            enrichNodes.push("occrp","deepweb");
+          // ── Analysis + synthesis phases ───────────────────────────────────────
+          if (/Phase J|footprint|attrib/i.test(msg))      enrichNodes.push("semantic","bayesian","graph");
+          if (/domain.resol|digital.foot/i.test(msg))     enrichNodes.push("semantic","bayesian","graph");
+          if (/confidence|cookedAt|scoring|embed/i.test(msg)) enrichNodes.push("semantic","bayesian");
+          if (/MCTS|UCT|research.*target|hot.lead/i.test(msg)) enrichNodes.push("mcts","prac","graph","pitch");
+          if (/graph|cluster|relation/i.test(msg))        enrichNodes.push("graph","semantic");
+          // ── Fallback: legacy Phase X/10 format ───────────────────────────────
           if (enrichNodes.length === 0) {
             const phaseMatch = msg.match(/Phase\s+(\d+)/i);
             const phase = phaseMatch ? parseInt(phaseMatch[1], 10) : 0;
