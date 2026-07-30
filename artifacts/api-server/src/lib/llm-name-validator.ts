@@ -61,7 +61,10 @@ Answer NO (exclude) if ANY of the following apply:
 - FICTIONAL CHARACTER — e.g. "James Bond", "Jay Gatsby", "Gordon Gekko", "Jack Sparrow"
 - DECEASED — anyone publicly known to have died: "George Mason" (1792), "Gar Wood" (1971), "Louis Comfort Tiffany" (1933), "Benjamin Franklin", "Napoleon Bonaparte", "Steve Jobs", "Princess Diana"
 - ULTRA-FAMOUS public figure with no private-wealth angle — A-list celebrities, world leaders, royalty (e.g. "Elon Musk", "Taylor Swift", "King Charles")
-- Company, venue, or organisation — contains LLC, Ltd, Corp, Marina, Hotel, Resort, Foundation, Group, Capital, Partners, Holdings, Trust, Club, Association, Council, Authority, Department
+- Company, venue, or organisation — contains LLC, Ltd, Corp, Marina, Hotel, Resort, Foundation, Group, Capital, Partners, Holdings, Trust, Club, Association, Council, Authority, Department, Circle, Society, Institute
+- Government / public sector body — pension funds, public employees, retirement systems, municipal authorities, government agencies, school districts, police departments (e.g. "Colorado Public Employees", "Texas Teachers Retirement", "NYC Fire Department")
+- Geographic place, ski resort, venue, or establishment — a named place that is not a person (e.g. "Serre Chevalier", "Port City Chop", "Queen Victoria" when used as a hotel/pub, "Connoisseur Circle")
+- Deceased historical figure — monarchs, historical rulers, anyone who died before 1950 (e.g. "Queen Victoria", "Napoleon Bonaparte")
 - Two people joined by "&" — e.g. "Edward & Carol Kaplan"
 - Abstract concept or legal phrase — "Beneficial Owners", "Joint Venture", "Safe Harbor", "Ministerial Decree", "Due Diligence"
 - Clearly truncated or a title — "The Chairman", "Mr Smith", single-word entries, all-initial strings

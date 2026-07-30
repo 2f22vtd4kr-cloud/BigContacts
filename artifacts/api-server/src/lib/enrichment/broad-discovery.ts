@@ -684,7 +684,9 @@ export async function runBroadDiscovery(options: {
       const nameParts = cleanName.split(/\s+/);
       if (nameParts.every(p => p.replace(/[^a-zA-Z]/g, "").length < 4)) continue;
       // Hard-reject obvious non-human patterns before the LLM validator
-      if (/\b(decree|holders?|ownership|beneficial\s+owner|joint\s+venture|harbour|harbor|marina|marine|resort|holdings?|safe\s+harbor|ministerial|legislative|regulation|directive|ordinance|register|committee|council|association|authority|department|government|institute|portfolio|investors?|ventures?|partners?|capital\s+group|asset\s+management)\b/i.test(cleanName)) continue;
+      if (/\b(decree|holders?|ownership|beneficial\s+owner|joint\s+venture|harbour|harbor|marina|marine|resort|holdings?|safe\s+harbor|ministerial|legislative|regulation|directive|ordinance|register|committee|council|association|authority|department|government|institute|portfolio|investors?|ventures?|partners?|capital\s+group|asset\s+management|employees|pension|retirement|municipal|bureau|ministry|sheriff|police|fire\s+department|school\s+district|county|borough|township|parish|university|college|nonprofit|non-profit|society|circle|casino|restaurant|bistro|caf[eé]|brasserie|winery|vineyard|gallery|museum|theatre|theater|chophouse|chop\s+house)\b/i.test(cleanName)) continue;
+      // Reject names that are clearly places/venues — Title Case words ending in a geographic or amenity noun
+      if (/\b(chevalier|sur\s+mer|les\s+bains|château|chateau|domaine|maison|palais|palace|lodge|manor|chalet|club|spa|cove|island|islands|valley|hills|heights|ridge|summit|falls|lake|lakes|creek|gardens|park|square|plaza|promenade)\s*$/i.test(cleanName)) continue;
       // Reject names that contain legal-entity suffixes — these are companies, not people
       if (/\b(ltd|llc|llp|inc|corp|gmbh|s\.a\.|s\.r\.l\.|b\.v\.|n\.v\.|plc|ag|oy|ab|as|bv|nv)\b\.?$/i.test(cleanName)) continue;
       // Reject names starting with military/professional/honorary titles — not a real name
