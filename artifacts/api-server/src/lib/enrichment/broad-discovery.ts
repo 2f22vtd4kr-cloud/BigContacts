@@ -605,23 +605,33 @@ export async function runBroadDiscovery(options: {
     }
 
     // ── Primary extraction: Groq AI person name extraction ────────────────────
+    // AI extraction runs first. Regex fallback only runs when Groq is unavailable,
+    // because regex has no knowledge of fiction/history and adds names the AI
+    // would correctly reject (e.g. "James Bond", "George Mason").
+    let aiExtracted = false;
     if (useGroq) {
       const aggregated = results.map(r => r.snippet).join("\n\n");
       const aiNames = await aiExtractPersonNames(aggregated, query);
-      for (const name of aiNames) {
-        if (!candidateMap.has(name)) {
-          const bestSnippet = results.find(r => r.snippet.toLowerCase().includes(name.split(" ")[0].toLowerCase()))?.snippet ?? results[0].snippet;
-          candidateMap.set(name, { snippet: bestSnippet, query });
+      if (aiNames.length > 0) {
+        aiExtracted = true;
+        for (const name of aiNames) {
+          if (!candidateMap.has(name)) {
+            const bestSnippet = results.find(r => r.snippet.toLowerCase().includes(name.split(" ")[0].toLowerCase()))?.snippet ?? results[0].snippet;
+            candidateMap.set(name, { snippet: bestSnippet, query });
+          }
         }
       }
     }
 
-    // ── Secondary extraction: regex (always runs as safety net) ───────────────
-    for (const { snippet } of results) {
-      const names = extractNames(snippet);
-      for (const name of names) {
-        if (!candidateMap.has(name)) {
-          candidateMap.set(name, { snippet, query });
+    // ── Fallback extraction: regex (only when Groq unavailable or returned nothing) ──
+    // Regex is blind to history/fiction — never run it alongside AI extraction.
+    if (!aiExtracted) {
+      for (const { snippet } of results) {
+        const names = extractNames(snippet);
+        for (const name of names) {
+          if (!candidateMap.has(name)) {
+            candidateMap.set(name, { snippet, query });
+          }
         }
       }
     }

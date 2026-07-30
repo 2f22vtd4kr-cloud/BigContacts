@@ -50,32 +50,33 @@ export async function filterHumanNamesWithLLM(candidates: string[]): Promise<str
 async function _validateBatch(names: string[]): Promise<string[]> {
   const key = GROQ_KEYS[Math.floor(Math.random() * GROQ_KEYS.length)];
 
-  const prompt = `You are a human-name classifier for an OSINT database. Your job is to decide whether each string is a human person's name.
+  const prompt = `You are a quality gate for a private-wealth OSINT database. Your job: decide whether each name is a REAL, CURRENTLY LIVING private individual who could plausibly be a high-net-worth research target.
 
-IMPORTANT: When in doubt, answer YES. Only answer NO when the string is CLEARLY and OBVIOUSLY not a human person.
+Answer YES only when ALL three are true:
+1. Real human being — not fictional, not a brand, not a venue name
+2. Currently alive today — not deceased, not a historical figure
+3. Private individual — not a world-famous celebrity, actor, musician, athlete, politician, head of state, or member of a royal family
 
-Answer YES for:
-- Any plausible first + last name combination, even if it sounds famous or matches a brand (e.g. "Ralph Lauren", "Barry Diller", "Mark Zuckerberg" are PEOPLE)
-- Names in Last-First order (e.g. "Wagoner Dayne", "Meyer Thomas", "Proceviat Ralph")
-- Chinese, Korean, Japanese, Arabic, or other non-Western names (e.g. "Zhu Jun", "HE Boquan", "Yang Tianfu")
-- Names with initials or middle names (e.g. "Charles W Ergen", "A Haag Sherman")
-- Unusual or rare names that could be real people
+Answer NO (exclude) if ANY of the following apply:
+- FICTIONAL CHARACTER — e.g. "James Bond", "Jay Gatsby", "Gordon Gekko", "Jack Sparrow"
+- DECEASED — anyone publicly known to have died: "George Mason" (1792), "Gar Wood" (1971), "Louis Comfort Tiffany" (1933), "Benjamin Franklin", "Napoleon Bonaparte", "Steve Jobs", "Princess Diana"
+- ULTRA-FAMOUS public figure with no private-wealth angle — A-list celebrities, world leaders, royalty (e.g. "Elon Musk", "Taylor Swift", "King Charles")
+- Company, venue, or organisation — contains LLC, Ltd, Corp, Marina, Hotel, Resort, Foundation, Group, Capital, Partners, Holdings, Trust, Club, Association, Council, Authority, Department
+- Two people joined by "&" — e.g. "Edward & Carol Kaplan"
+- Abstract concept or legal phrase — "Beneficial Owners", "Joint Venture", "Safe Harbor", "Ministerial Decree", "Due Diligence"
+- Clearly truncated or a title — "The Chairman", "Mr Smith", single-word entries, all-initial strings
+- Plural collective noun — "Past Commodores", "Private Bankers", "Senior Directors"
 
-Answer NO when the string is clearly NOT a human person's name:
-- Contains "LLC", "L.L.C.", "L.P.", "Corp", "Inc", "Ltd", "Fund", "Trust", "REIT", "Holdings", "Partners", "Capital", "Group", "Marina", "Hotel", "Harbour", "Harbor", "Marine", "Club", "Resort" — these are company/venue names
-- Two people joined by "&" — e.g. "Gerhard & Ruth Cless", "Edward & Carol Kaplan"
-- Government/institutional body — e.g. "Abu Dhabi Investment Authority", "Department of Treasury"
-- Financial ticker patterns — e.g. "Corp (ccz, Cmcsa) Comcast", "Inc (qcom) Qualcomm"
-- Abstract concept or legal phrase — e.g. "Economic Analysis", "Reducing Marginal Tax", "Beneficial Owners", "Ultimate Beneficial Owners", "Ministerial Decree", "Legislative Decree", "Joint Venture", "Safe Harbor", "Due Diligence"
-- Clearly a company or venue operating name without personal first+last name — e.g. "Smack Sportswear", "Monaco Marine", "Safe Harbor Marinas", "Istiklal Hotel"
-- A well-known DECEASED historical figure (died before 1950) — e.g. "Benjamin Franklin", "Napoleon Bonaparte". Note: Living businesspeople are always YES.
-- Strings that are clearly fragments or titles, not full names — e.g. "The Chairman", "Mr Smith", single-word entries
+Real living businesspeople, family office principals, property developers, fund managers, and investors are YES even if modestly known.
+Non-Western names (Chinese, Arabic, Korean, etc.) are YES when they look like a real individual's full name.
+
+IMPORTANT: When unsure whether someone is alive or fictional — err on the side of NO. It is far better to miss one person than to insert a fictional character or deceased historical figure.
 
 Names:
 ${names.map((n, idx) => `${idx + 1}. "${n}"`).join("\n")}
 
-Respond ONLY with a compact JSON array of the 1-based indices of names that are YES (human persons). Example: [1,3,7]
-If ALL are human names, respond with all indices. If ALL are clearly non-human, respond with [].
+Respond ONLY with a compact JSON array of the 1-based indices of names that pass (YES). Example: [1,3,7]
+If ALL pass, respond with all indices. If ALL fail, respond with [].
 Output nothing else.`;
 
   try {
