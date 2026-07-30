@@ -8,6 +8,20 @@
 
 ---
 
+## Current State (2026-07-30 — Re-import #43 — setup complete; SESSION_SECRET active; DB empty; pipeline idle)
+
+### Setup this session (2026-07-30 — re-import #43):
+- `CI=true pnpm install --frozen-lockfile` ✅ (~37s)
+- `pnpm --filter @workspace/db run push` → `[✓] Changes applied` ✅
+- Redis ✅ (port 6379) · artifacts/api-server: API Server ✅ (port 8080) · artifacts/apex-finder: web ✅ (port 23695)
+- Python tools: holehe ✓ maigret ✓
+- `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":2}}` ✅
+- DB: 0 entities (fresh/empty)
+- Secrets: SESSION_SECRET active (re-enter API keys as needed)
+- Pipeline idle — ready for Atlas launch when user instructs
+
+---
+
 ## Current State (2026-07-30 — Re-import #42 — Atlas RUNNING job c6718f0e — all 30 secrets active)
 
 ### Setup this session (2026-07-30 — re-import #42 — full launch):
