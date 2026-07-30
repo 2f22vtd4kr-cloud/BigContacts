@@ -17,8 +17,8 @@
 - Python tools: holehe ✓ maigret ✓
 - `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":2}}` ✅
 - DB: 0 entities (fresh/empty)
-- Secrets: SESSION_SECRET active (only secret present this import)
-- Pipeline idle — awaiting user instruction
+- Secrets: All 26 active — REDIS_URL_1–5, COMPANIES_HOUSE_API_KEY, GROQ_API_KEY_1–5, PERPLEXITY_API_KEY_1–4, WHOXY_API_KEY, GEMINI_API_KEY_1–4, EXA_API_KEY_1–2, TAVILY_API_KEY_1–4, SESSION_SECRET
+- Pipeline idle — all secrets set; ready for Atlas launch when user instructs
 
 ---
 
