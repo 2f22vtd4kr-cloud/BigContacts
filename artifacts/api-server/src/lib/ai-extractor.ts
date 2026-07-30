@@ -524,7 +524,17 @@ Their individual named email address (e.g. firstname.lastname@company.com). NOT 
 
 STEP 2 — PERSONAL MOBILE / DIRECT LINE:
 Their personal cell phone or personal direct office extension ONLY.
-⚠️ CRITICAL: DO NOT return a corporate headquarters number, company main switchboard, reception line, or any number that belongs to an organisation rather than this specific individual. If the only phone you can find is a company HQ/switchboard, return null for phone. Example of what NOT to return: "+1 (303) 404-1800" is Vail Resorts corporate HQ — not a personal number.
+⚠️ CRITICAL: DO NOT return a corporate headquarters number, company main switchboard, reception line, investor-relations line, press office, or any number that rings a company rather than this specific individual's personal device. If you cannot find a personal number, return null — do NOT substitute a corporate number.
+
+Examples of what you must NOT return (these are all corporate HQ numbers, not personal):
+- "+1 (303) 404-1800" → Vail Resorts corporate HQ (Broomfield, CO) — NOT Kirsten Lynch's personal number
+- "+1 (212) 310-2000" → Goldman Sachs HQ switchboard
+- "+33 1 40 14 80 00" → BNP Paribas HQ Paris
+- "+44 20 7626 1500" → Lloyd's of London main line
+- "+971 4 XXX XXXX" → any Dubai corporate tower reception
+- Any number listed under "Contact us", "Investor Relations", "Press", or "General Enquiries"
+
+A personal number is one that rings directly to the individual's mobile or private office extension and is NOT shared by the whole organisation.
 
 STEP 3 — PERSONAL LINKEDIN /in/ PROFILE:
 Their personal /in/ profile URL. NOT a /company/ page.

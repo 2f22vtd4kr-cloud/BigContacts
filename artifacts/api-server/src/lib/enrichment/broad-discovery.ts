@@ -31,8 +31,10 @@ import { getPermanentClient } from "../redis";
 
 // ── Tavily search (primary — better quality than DDG) ─────────────────────────
 
-const TAVILY_KEYS = ["TAVILY_API_KEY","TAVILY_API_KEY_1","TAVILY_API_KEY_2","TAVILY_API_KEY_3","TAVILY_API_KEY_4"]
-  .map(k => process.env[k]).filter(Boolean) as string[];
+const TAVILY_KEYS = [
+  "TAVILY_API_KEY","TAVILY_API_KEY_1","TAVILY_API_KEY_2","TAVILY_API_KEY_3",
+  "TAVILY_API_KEY_4","TAVILY_API_KEY_5","TAVILY_API_KEY_6",
+].map(k => process.env[k]).filter(Boolean) as string[];
 
 async function tavilySearch(query: string): Promise<Array<{ snippet: string; url: string }>> {
   if (!TAVILY_KEYS.length) return [];
@@ -79,12 +81,14 @@ INCLUDE only: living private individuals who are wealthy — business owners, in
 
 EXCLUDE all of the following:
 - Companies, organizations, venues, hotels, brands, cities, countries, legal entities (Ltd/LLC/SA/GmbH/Corp/Foundation/Trust/Holdings/Group/Capital/Partners)
-- Deceased or historical figures (anyone who died before 2000, or historical names like "Gar Wood", "George Mason", "Queen Victoria", "Louis Tiffany")
-- Celebrities, musicians, actors, athletes, politicians, royalty, heads of state
-- Truncated or incomplete names — every word in the name MUST have ≥4 letters ("Amr El", "Li Bo", "Al Wu" are INVALID)
-- Titles without real names ("The CEO", "The Director", "Board Member")
-- Venue/place names being used as person names ("Camille Rayon", "Connoisseur Circle", "Port Hercule")
-- Generic roles/abstractions ("Beneficial Owners", "Ministerial Decree", "Joint Venture", "The Register")
+- Deceased or historical figures (anyone who died before 2000, or historical names like "Gar Wood", "George Mason", "Queen Victoria", "Louis Tiffany", "Steve Jobs", "Princess Diana")
+- Famous public figures: A-list celebrities, musicians, actors, athletes, politicians, royalty, billionaires known to every newspaper (e.g. "Elon Musk", "Jeff Bezos", "Taylor Swift", "King Charles")
+- Truncated or incomplete names — at least ONE word in the name must have ≥5 letters (reject "Amr El", "Li Bo", "Al Wu" — these are fragments, not full names)
+- Names where every part is ≤3 characters (e.g. "Lu Yu", "Bo Li") — too short to be a reliable full name
+- Titles or roles used as names ("The CEO", "The Director", "Board Member", "Past Commodore", "Senior Partner")
+- Venue/place names mistaken for people ("Camille Rayon" = a marina, "Connoisseur Circle" = an event, "Port Hercule" = a port)
+- Generic roles/abstractions ("Beneficial Owners", "Ministerial Decree", "Joint Venture", "The Register", "Alexander Rich View")
+- Names with French/Spanish/Italian articles ("La Compagnie", "Les Ballets", "El Grupo", "Gli Amici")
 
 Return ONLY a JSON array of full name strings. If no valid living HNWIs are found, return [].
 Example output: ["Carlo Bianchi", "Ingrid Magnusson", "Walid Dabess"]`,
