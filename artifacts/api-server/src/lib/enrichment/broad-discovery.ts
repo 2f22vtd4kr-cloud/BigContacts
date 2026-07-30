@@ -665,3 +665,13 @@ export async function runBroadDiscovery(options: {
     newEntities: newEntities.slice(0, 100), // cap result payload
   };
 }
+
+/**
+ * Discover from a single specific category (1–15).
+ * Used by the per-entity full-circle orchestrator to interleave
+ * one category at a time with registry batches.
+ */
+export async function discoverSingleTemplate(category: number, maxQueries = 10): Promise<BroadDiscoveryResult> {
+  const cat = Math.max(1, Math.min(15, category));
+  return runBroadDiscovery({ templateSet: cat, rotateTemplates: false, maxQueries });
+}

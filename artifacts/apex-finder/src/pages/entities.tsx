@@ -8,7 +8,7 @@ import {
   ChevronRight, Network, Target as TargetIcon, Download, ShieldAlert,
   Filter, UserCheck, Building2, Briefcase, Shield, IdCard,
   CheckSquare, Square, Users2, ListPlus, CheckCheck, Database, XCircle,
-  Star, EyeOff, Eye,
+  Star, EyeOff, Eye, CheckCircle2,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -932,6 +932,11 @@ export default function EntityLedger() {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         {entity.isHot && <ShieldAlert className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />}
+                        {entity.cookedAt && (
+                          <span title={`Fully cooked — all enrichment phases complete (${new Date(entity.cookedAt).toLocaleDateString()})`}>
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+                          </span>
+                        )}
                         <div className="min-w-0">
                           <div className="font-semibold text-sm text-foreground whitespace-nowrap">{formatEntityName(entity.name)}</div>
                           {entity.linkedinHeadline && (

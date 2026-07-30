@@ -174,6 +174,196 @@ async function runEntityBatch<T>(
   return { ok, err: errCount };
 }
 
+// ── Per-entity full-circle enricher ───────────────────────────────────────────
+// Runs all enrichment phases (4–8) on a single entity and stamps cookedAt.
+// Called immediately after each entity is discovered — users see progress live.
+
+type EntityRow = {
+  id: number; name: string; type: string;
+  email: string | null; phone: string | null;
+  linkedinUrl: string | null; twitterHandle: string | null;
+  instagramHandle: string | null; telegramHandle: string | null;
+  bayesianScore: number | null; contactConfidence: number | null;
+  knownResidences: string | null; metadata: string | null;
+  notes: string | null; sourceRegistries: string | null;
+};
+
+async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Promise<void> {
+  const { id, name } = entity;
+  try {
+    // ── Step A: In-house OSINT (Wikidata, GitHub, RDAP, DNS, Gravatar, ProPublica) ──
+    const meta = safeJson<Record<string, unknown>>(entity.metadata, {});
+    const ihResult = await enrichInHouse({
+      ...entity,
+      bizLocation: meta.bizLocation as string ?? null,
+      entityName: meta.entityName as string ?? null,
+    } as any).catch(() => null);
+
+    if (ihResult) {
+      const up: Record<string, unknown> = { updatedAt: new Date() };
+      if (ihResult.email && !entity.email)           { up.email = ihResult.email;           entity = { ...entity, email: ihResult.email }; }
+      if (ihResult.linkedinUrl && !entity.linkedinUrl){ up.linkedinUrl = ihResult.linkedinUrl; entity = { ...entity, linkedinUrl: ihResult.linkedinUrl }; }
+      if (ihResult.phone && !entity.phone)           { up.phone = ihResult.phone;            entity = { ...entity, phone: ihResult.phone }; }
+      if (ihResult.twitter && !entity.twitterHandle) { up.twitterHandle = ihResult.twitter;  entity = { ...entity, twitterHandle: ihResult.twitter }; }
+      if (Object.keys(up).length > 1) {
+        up.contactConfidence = computeContactConfidence({ email: entity.email, phone: entity.phone, linkedinUrl: entity.linkedinUrl, twitterHandle: entity.twitterHandle, knownResidences: entity.knownResidences });
+        up.contactOutcome = computeContactOutcome({ email: entity.email, phone: entity.phone, linkedinUrl: entity.linkedinUrl, twitterHandle: entity.twitterHandle });
+        await db.update(entitiesTable).set(up as any).where(eq(entitiesTable.id, id));
+      }
+      if (ihResult.evidence?.length) {
+        await db.insert(contactEvidenceTable).values(ihResult.evidence.map((ev: any) => ({
+          entityId: id, vectorType: ev.vectorType, value: ev.value, source: ev.source,
+          sourceUrl: ev.sourceUrl ?? null, extractionMethod: ev.extractionMethod,
+          sourceReliability: Math.min(1, ev.confidence / 100), identityMatch: 0.75, recencyScore: 0.70,
+          directnessScore: ev.vectorType === "email" ? 0.80 : ev.vectorType === "phone" ? 0.75 : 0.20,
+          independentCorroboration: 1, validationStatus: "candidate" as const,
+          metadata: JSON.stringify(ev.details ?? {}), observedAt: new Date(ev.observedAt),
+        }))).onConflictDoNothing().catch(() => {});
+      }
+    }
+
+    // ── Step B: Social + Messenger discovery ───────────────────────────────────
+    const [socialResult, messengerResult] = await Promise.all([
+      discoverSocialPresence(entity as any).catch(() => null),
+      discoverMessengerPresence(entity as any).catch(() => null),
+    ]);
+    const socUp: Record<string, unknown> = {};
+    if (socialResult?.linkedinUrl && !entity.linkedinUrl)     { socUp.linkedinUrl = socialResult.linkedinUrl;       entity = { ...entity, linkedinUrl: socialResult.linkedinUrl }; }
+    if (socialResult?.twitterHandle && !entity.twitterHandle) { socUp.twitterHandle = socialResult.twitterHandle;   entity = { ...entity, twitterHandle: socialResult.twitterHandle }; }
+    if (socialResult?.instagramHandle && !entity.instagramHandle) { socUp.instagramHandle = socialResult.instagramHandle; entity = { ...entity, instagramHandle: socialResult.instagramHandle }; }
+    if (messengerResult?.telegramHandle && !entity.telegramHandle) { socUp.telegramHandle = messengerResult.telegramHandle; entity = { ...entity, telegramHandle: messengerResult.telegramHandle }; }
+    if (Object.keys(socUp).length) { socUp.updatedAt = new Date(); await db.update(entitiesTable).set(socUp as any).where(eq(entitiesTable.id, id)); }
+
+    // ── Step C: AI OSINT sweep (Perplexity + Gemini + Tavily + Exa + Groq) ────
+    await updateJob(atlasJobId, { status: "running", message: `🤖 ${name}: AI OSINT…` });
+    const aiResult = await deepWebOsintEnrich(entity as any).catch(() => null);
+    const aiHasSignal = aiResult && (
+      aiResult.email || aiResult.phone || aiResult.linkedinUrl ||
+      aiResult.instagramUrl || aiResult.twitterUrl || (aiResult.evidence?.length ?? 0) > 0
+    );
+
+    if (aiHasSignal && aiResult) {
+      const isCorpOrTrust = ["Corporation", "Corp", "Trust"].includes(entity.type);
+      const confidence = computeContactConfidence({ email: aiResult.email, phone: aiResult.phone, linkedinUrl: aiResult.linkedinUrl, knownResidences: entity.knownResidences });
+      await db.update(entitiesTable).set({
+        ...(aiResult.email        ? { email:          aiResult.email }        : {}),
+        ...(aiResult.phone        ? { phone:          aiResult.phone }        : {}),
+        ...(aiResult.linkedinUrl  ? { linkedinUrl:    aiResult.linkedinUrl }  : {}),
+        ...(aiResult.instagramUrl && !entity.instagramHandle && !isCorpOrTrust ? { instagramHandle: aiResult.instagramUrl } : {}),
+        ...(aiResult.twitterUrl   && !entity.twitterHandle   && !isCorpOrTrust ? { twitterHandle:   aiResult.twitterUrl }   : {}),
+        contactConfidence: confidence, updatedAt: new Date(),
+        contactOutcome: computeContactOutcome({ email: aiResult.email, phone: aiResult.phone, linkedinUrl: aiResult.linkedinUrl }),
+      }).where(eq(entitiesTable.id, id));
+      if (aiResult.email)        entity = { ...entity, email:          aiResult.email };
+      if (aiResult.phone)        entity = { ...entity, phone:          aiResult.phone };
+      if (aiResult.linkedinUrl)  entity = { ...entity, linkedinUrl:    aiResult.linkedinUrl };
+      if (aiResult.twitterUrl  && !entity.twitterHandle)   entity = { ...entity, twitterHandle:   aiResult.twitterUrl };
+      if (aiResult.instagramUrl && !entity.instagramHandle) entity = { ...entity, instagramHandle: aiResult.instagramUrl };
+      if (aiResult.evidence?.length) {
+        await db.insert(contactEvidenceTable).values(aiResult.evidence.map((ev: any) => ({
+          entityId: id, vectorType: ev.vectorType, value: ev.value, source: ev.source,
+          sourceUrl: ev.sourceUrl ?? null, extractionMethod: ev.extractionMethod ?? "deep-web-osint",
+          sourceReliability: Math.min(1, ev.confidence / 100), identityMatch: 0.65, recencyScore: 0.7,
+          directnessScore: ev.vectorType === "email" ? 0.9 : ev.vectorType === "phone" ? 0.85 : 0.6,
+          independentCorroboration: 1, validationStatus: "candidate" as const,
+          observedAt: new Date(), metadata: JSON.stringify(ev.details ?? {}),
+        }))).onConflictDoNothing().catch(() => {});
+      }
+    }
+
+    // ── Step D: Maigret (3 000+ platforms) + Holehe (120+ services) ───────────
+    const rawHandle = (
+      (aiResult?.twitterUrl ?? "").replace(/^https?:\/\/(www\.)?(twitter\.com|x\.com)\//, "").replace(/\?.*$/, "")
+      || (entity.twitterHandle ?? "").replace(/^@/, "")
+      || (aiResult?.instagramUrl ?? "").replace(/^https?:\/\/(www\.)?instagram\.com\//, "").replace(/\?.*$/, "")
+      || (entity.instagramHandle ?? "").replace(/^@/, "")
+    ).replace(/[^a-zA-Z0-9._\-]/g, "").trim();
+    const emailForHolehe = entity.email ?? null;
+
+    if (rawHandle || emailForHolehe) {
+      await updateJob(atlasJobId, { status: "running", message: `🕵️ ${name}: Maigret + Holehe…` });
+      const [maigretResult, holeheResult] = await Promise.all([
+        rawHandle      ? runMaigret(rawHandle).catch(() => null)      : Promise.resolve(null),
+        emailForHolehe ? runHolehe(emailForHolehe).catch(() => null)  : Promise.resolve(null),
+      ]);
+      if (maigretResult?.found.length) {
+        await db.insert(contactEvidenceTable).values(
+          maigretResult.found.slice(0, 15).map((p: any) => ({
+            entityId: id, vectorType: "social" as const, value: p.url ?? p.siteName,
+            source: "maigret", sourceUrl: p.url ?? null, extractionMethod: "maigret-username-search",
+            sourceReliability: 0.7, identityMatch: 0.65, recencyScore: 0.5, directnessScore: 0.6,
+            independentCorroboration: 1, validationStatus: "candidate" as const,
+            metadata: JSON.stringify({ siteName: p.siteName, tags: p.tags ?? [] }),
+          })),
+        ).onConflictDoNothing().catch(() => {});
+        // Flexible re-entry: Maigret found 3+ platforms but no email → re-run AI with platform hints
+        if (maigretResult.found.length >= 3 && !entity.email) {
+          const platformList = maigretResult.found.slice(0, 6).map((p: any) => p.siteName).join(", ");
+          const result2 = await deepWebOsintEnrich({ ...entity, notes: `${entity.notes ?? ""} — Active on: ${platformList}` } as any).catch(() => null);
+          if (result2?.email) await db.update(entitiesTable).set({ email: result2.email, updatedAt: new Date() }).where(eq(entitiesTable.id, id));
+        }
+      }
+      if (holeheResult?.found.length) {
+        await db.insert(contactEvidenceTable).values(
+          holeheResult.found.slice(0, 10).map((p: any) => ({
+            entityId: id, vectorType: "social" as const, value: p.url ?? p.name,
+            source: "holehe", sourceUrl: p.url ?? null, extractionMethod: "holehe-email-check",
+            sourceReliability: 0.8, identityMatch: 0.8, recencyScore: 0.5, directnessScore: 0.7,
+            independentCorroboration: 1, validationStatus: "candidate" as const,
+            metadata: JSON.stringify({ platform: p.name }),
+          })),
+        ).onConflictDoNothing().catch(() => {});
+      }
+    }
+
+    // ── Step E: Forensic cross-reference (ICIJ Offshore Leaks + Whoxy WHOIS) ──
+    await Promise.allSettled([
+      enrichWithIcij(name, [], false).then(async (res: any) => {
+        if (res.totalMatches > 0) {
+          const note = `ICIJ Offshore Leaks: ${res.totalMatches} match(es) — ${res.datasets?.join(", ") ?? "unknown dataset"}`;
+          await db.update(entitiesTable)
+            .set({ notes: sql`CASE WHEN notes IS NULL THEN ${note} ELSE notes || E'\n' || ${note} END`, updatedAt: new Date() })
+            .where(eq(entitiesTable.id, id));
+        }
+      }).catch(() => {}),
+      (entity.email || entity.type === "HNWI") ? enrichWithWhoxy({
+        email: entity.email ?? undefined,
+        name:  entity.type === "HNWI" ? name : undefined,
+      }).then(async (res) => {
+        if ((res as any).allUniqueDomains?.length) {
+          const note = `Whoxy WHOIS: ${(res as any).allUniqueDomains.length} domain(s) — ${(res as any).allUniqueDomains.slice(0, 5).join(", ")}`;
+          await db.update(entitiesTable)
+            .set({ notes: sql`CASE WHEN notes IS NULL THEN ${note} ELSE notes || E'\n' || ${note} END`, updatedAt: new Date() })
+            .where(eq(entitiesTable.id, id));
+        }
+      }).catch(() => {}) : Promise.resolve(),
+    ]);
+
+    // ── Step F: Final confidence recompute + cookedAt stamp ───────────────────
+    const fresh = await db.select({
+      email: entitiesTable.email, phone: entitiesTable.phone,
+      linkedinUrl: entitiesTable.linkedinUrl, twitterHandle: entitiesTable.twitterHandle,
+      instagramHandle: entitiesTable.instagramHandle, telegramHandle: entitiesTable.telegramHandle,
+      knownResidences: entitiesTable.knownResidences,
+    }).from(entitiesTable).where(eq(entitiesTable.id, id)).then((r: any[]) => r[0]);
+
+    if (fresh) {
+      await db.update(entitiesTable).set({
+        contactConfidence: computeContactConfidence(fresh),
+        contactOutcome:    computeContactOutcome(fresh),
+        cookedAt:          new Date(),
+        updatedAt:         new Date(),
+      }).where(eq(entitiesTable.id, id));
+    }
+
+    logger.info({ entityId: id, name }, "[Atlas] ✅ Entity fully cooked");
+  } catch (err: any) {
+    logger.warn({ entityId: id, name, err: err.message }, "[Atlas] Full-circle enrichment failed (non-fatal)");
+    // Still stamp cookedAt so we don't retry endlessly on problematic entities
+    await db.update(entitiesTable).set({ cookedAt: new Date(), updatedAt: new Date() }).where(eq(entitiesTable.id, id)).catch(() => {});
+  }
+}
+
 // ── Main Orchestrator ─────────────────────────────────────────────────────────
 
 export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): Promise<AtlasResult> {
@@ -182,6 +372,7 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
   let totalIngested = 0;
   let totalEnriched = 0;
   let totalContacts = 0;
+  let cookedCount = 0;
 
   const batch = opts.batchSize ?? 200;
   const hot = opts.hotLeadsOnly ?? false;
@@ -196,151 +387,185 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
     });
   }
 
-  // ── Phase 0: Diversified Ingestion ─────────────────────────────────────────
-  //
-  // When discoveryFirst=true (default for targeted runs):
-  //   0a — Broad diverse web discovery (venue/fund/club/hotel searches) runs FIRST
-  //   0b — Western HNWI registries (EDGAR/CH/BRREG) run in parallel with 0a
-  //   0c — FAA aircraft (optional, large — skipped if skipFaa=true)
-  //
-  // Legacy mode (discoveryFirst=false):
-  //   FAA + Western HNWI run in parallel (original behaviour)
-  //
+  // ── Phase 0: Pre-run cross-references ──────────────────────────────────────
+  // Cross-reference whatever is already in the DB. Run once at the start.
   if (!opts.skipIngestion) {
-    const discoveryFirst = opts.discoveryFirst ?? false;
-    const skipFaa        = opts.skipFaa ?? discoveryFirst; // skip FAA by default when discovery-first
-    const numBroadCats   = opts.broadCategories ?? (discoveryFirst ? 3 : 1);
+    // ── Pre-run: OCCRP + OpenSky + CH Officers (cross-reference existing DB) ──
+    await status("Phase 0/10: Pre-run cross-references — OCCRP + OpenSky + CH Officers…", 0);
 
-    if (discoveryFirst) {
-      await status("Phase 0/10: Discovery-first — diverse web searches (venues, funds, clubs, hotels)…", 0);
+    const occrpJobId   = await createJob("occrp");
+    const openskyJobId = await createJob("opensky");
+    await setActiveJob("occrp", occrpJobId);
+    await setActiveJob("opensky", openskyJobId);
 
-      // 0a: Broad discovery — pick N randomised categories, fire in parallel
-      const broadResults = await Promise.all(
-        Array.from({ length: numBroadCats }, (_, i) =>
-          runBroadDiscovery({ rotateTemplates: true, maxQueries: 8 })
-            .catch(e => { logger.error({ err: e.message, i }, "[Atlas] broad-discovery failed"); return { entitiesDiscovered: 0, queriesFired: 0, resultsScraped: 0, entitiesSkipped: 0, newEntities: [] }; })
-        )
-      );
-      const broadInserted = broadResults.reduce((s, r) => s + r.entitiesDiscovered, 0);
-      totalIngested += broadInserted;
-      logger.info({ broadInserted, categories: numBroadCats }, "[Atlas] Phase 0a broad-discovery done");
+    const [occrpRes, openskyRes, officersRes] = await Promise.all([
+      runOccrpEnrichment({ jobId: occrpJobId, limit: 5_000 })
+        .catch(e => { logger.error({ err: e.message }, "[Atlas] OCCRP failed"); return { inserted: 0, skipped: 0, errors: 1, durationMs: 0 }; }),
+      runOpenSkyEnrichment({ jobId: openskyJobId })
+        .catch(e => { logger.error({ err: e.message }, "[Atlas] OpenSky failed"); return { inserted: 0, skipped: 0, errors: 1, liveAircraft: 0, durationMs: 0 }; }),
+      (async () => {
+        try {
+          const { runCompanyOfficersEnrichment } = await import("./registry-enricher");
+          const chOffJobId = await createJob("ch-officers");
+          await setActiveJob("ch-officers", chOffJobId);
+          return await runCompanyOfficersEnrichment({ jobId: chOffJobId, batchSize: 100 });
+        } catch (e: any) {
+          logger.error({ err: e.message }, "[Atlas] CH Officers failed");
+          return { enriched: 0, skipped: 0, errors: 1, durationMs: 0 };
+        }
+      })(),
+    ]);
 
-      // 0b: Western HNWI registries (reduced target — diversity run, not mass harvest)
-      const hnwiJobId = await createJob("western-hnwi");
-      await setActiveJob("western-hnwi", hnwiJobId);
-      const hnwiRes = await runWesternHnwiIngestion({
-        targetCount: opts.targetCount ?? 500,   // much smaller for targeted runs
-        batchSize: 100,
-        jobId: hnwiJobId,
-        clearDedupFirst: true,  // always clear stale Upstash dedup on fresh Atlas discovery run
-      }).catch(e => { logger.error({ err: e.message }, "[Atlas] HNWI ingestion failed"); return { inserted: 0, skipped: 0, errors: 1, durationMs: 0 }; });
-      totalIngested += hnwiRes.inserted;
+    summary["Phase 0"] = `OCCRP: ${occrpRes.inserted ?? 0} | OpenSky: ${(openskyRes as any).inserted ?? 0} live | CH Officers: ${(officersRes as any).enriched ?? 0}`;
 
-      summary["Phase 0"] = `Broad discovery (${numBroadCats} categories): ${broadInserted} new | Registries: ${hnwiRes.inserted} entities`;
+    // Identity passes: CH contact enrichment + OpenOwnership + Foundation filings
+    const chEnrichJobId = await createJob("companies-house-enrich");
+    await setActiveJob("companies-house-enrich", chEnrichJobId);
+    const entities0 = await fetchEntities({ batchSize: 200, hotLeadsOnly: false });
 
-    } else {
-      // Legacy: FAA + Western HNWI in parallel
-      await status("Phase 0/10: Mass ingestion — FAA aircraft + Western HNWI (EDGAR/CH/BRREG)…", 0);
+    const [chRes] = await Promise.all([
+      runCompaniesHouseEnrichment({ jobId: chEnrichJobId, batchSize: 50 })
+        .catch(e => { logger.error({ err: e.message }, "[Atlas] CH enrichment failed"); return { enriched: 0, skipped: 0, errors: 1, durationMs: 0 }; }),
+      runEntityBatch(atlasJobId, "Phase 0/OpenOwnership", entities0.slice(0, 100), async (e) => {
+        const res = await enrichWithOpenOwnership(e.name, true) as any;
+        if ((res.totalEntities ?? res.found ?? 0) > 0) {
+          const note = `OpenOwnership BODS: ${res.totalEntities ?? res.found ?? 0} ownership record(s) found.`;
+          const existing = (e as any).notes ?? "";
+          await db.update(entitiesTable).set({ notes: existing ? `${existing}\n${note}` : note, updatedAt: new Date() }).where(eq(entitiesTable.id, e.id));
+        }
+      }, 2),
+      runEntityBatch(atlasJobId, "Phase 0/FoundationFilings", entities0.filter(e => e.type === "HNWI").slice(0, 100), async (e) => {
+        await discoverViaFoundationFilings(e as any);
+      }, 2),
+    ]);
 
-      const faaJobId  = await createJob("faa");
-      const hnwiJobId = await createJob("western-hnwi");
-      await setActiveJob("faa", faaJobId);
-      await setActiveJob("western-hnwi", hnwiJobId);
-
-      const [faaRes, hnwiRes] = await Promise.all([
-        runFaaIngestion({ jobId: faaJobId, maxRecords: opts.faaMaxRecords ?? 60_000, forceRefresh: false })
-          .catch(e => { logger.error({ err: e.message }, "[Atlas] FAA failed"); return { inserted: 0, skipped: 0, errors: 1, durationMs: 0 }; }),
-        runWesternHnwiIngestion({ targetCount: opts.targetCount ?? 15_000, batchSize: 100, jobId: hnwiJobId })
-          .catch(e => { logger.error({ err: e.message }, "[Atlas] HNWI ingestion failed"); return { inserted: 0, skipped: 0, errors: 1, durationMs: 0 }; }),
-      ]);
-
-      totalIngested += faaRes.inserted + hnwiRes.inserted;
-      summary["Phase 0"] = `FAA: ${faaRes.inserted} aircraft | HNWI: ${hnwiRes.inserted} entities`;
-    }
-
-    // 0c: FAA (only if not skipping and not already run in discovery-first above)
-    if (!skipFaa && discoveryFirst) {
-      await status("Phase 0c: FAA aircraft registry…");
-      const faaJobId = await createJob("faa");
-      await setActiveJob("faa", faaJobId);
-      const faaRes = await runFaaIngestion({ jobId: faaJobId, maxRecords: opts.faaMaxRecords ?? 60_000, forceRefresh: false })
-        .catch(e => { logger.error({ err: e.message }, "[Atlas] FAA failed"); return { inserted: 0, skipped: 0, errors: 1, durationMs: 0 }; });
-      totalIngested += faaRes.inserted;
-      summary["Phase 0c"] = `FAA: ${faaRes.inserted} aircraft owners`;
-    }
-
-    if (opts.includeLandRegistry) {
-      await status("Phase 0d: UK Land Registry OCOD ingestion…");
-      const lrJobId = await createJob("land-registry");
-      await setActiveJob("land-registry", lrJobId);
-      const lrRes = await runLandRegistryIngestion({ jobId: lrJobId, maxRecords: 100_000, forceRefresh: false })
-        .catch(e => { logger.error({ err: e.message }, "[Atlas] Land Registry failed"); return { inserted: 0, skipped: 0, errors: 1, durationMs: 0 }; });
-      totalIngested += lrRes.inserted;
-      summary["Phase 0d"] = `Land Registry: ${lrRes.inserted} overseas property owners`;
-    }
+    summary["Phase 0b"] = `CH contact: ${(chRes as any).enriched ?? 0} | OpenOwnership + Foundation filings done`;
   } else {
     summary["Phase 0"] = "Skipped (skipIngestion=true)";
   }
 
-  // ── Phase 1: Registry Cross-Reference ──────────────────────────────────────
-  await status("Phase 1/10: Registry cross-reference — OCCRP + OpenSky + CH Officers…", 1);
+  // ── Discovery + Full-circle loop ─────────────────────────────────────────────
+  // 21 interleaved sources: 15 broad web-search categories + 6 registry batches.
+  // After each source, every new entity is immediately enriched through ALL phases
+  // and stamped cookedAt — users see "cooked" entities appear progressively.
+  await status("Phase 1/10: Discovery + full-circle enrichment loop…", 1);
 
-  const occrpJobId   = await createJob("occrp");
-  const openskyJobId = await createJob("opensky");
-  await setActiveJob("occrp", occrpJobId);
-  await setActiveJob("opensky", openskyJobId);
+  type DiscoverySource =
+    | { kind: "broad"; category: number; label: string }
+    | { kind: "registry"; label: string; clearFirst?: boolean };
 
-  const [occrpRes, openskyRes, officersRes] = await Promise.all([
-    runOccrpEnrichment({ jobId: occrpJobId, limit: 5_000 })
-      .catch(e => { logger.error({ err: e.message }, "[Atlas] OCCRP failed"); return { inserted: 0, skipped: 0, errors: 1, durationMs: 0 }; }),
-    runOpenSkyEnrichment({ jobId: openskyJobId })
-      .catch(e => { logger.error({ err: e.message }, "[Atlas] OpenSky failed"); return { inserted: 0, skipped: 0, errors: 1, liveAircraft: 0, durationMs: 0 }; }),
-    (async () => {
-      try {
-        const { runCompanyOfficersEnrichment } = await import("./registry-enricher");
-        const chOffJobId = await createJob("ch-officers");
-        await setActiveJob("ch-officers", chOffJobId);
-        return await runCompanyOfficersEnrichment({ jobId: chOffJobId, batchSize: 100 });
-      } catch (e: any) {
-        logger.error({ err: e.message }, "[Atlas] CH Officers failed");
-        return { enriched: 0, skipped: 0, errors: 1, durationMs: 0 };
+  const DISCOVERY_SOURCES: DiscoverySource[] = [
+    { kind: "broad",    category: 6,  label: "European venue owners (Monte Carlo, Italian hotels, resorts…)" },
+    { kind: "registry", label: "EDGAR/CH/BRREG/BODACC — batch 1", clearFirst: true },
+    { kind: "broad",    category: 11, label: "Italian & Mediterranean (hotel Sicily, villa Amalfi coast…)" },
+    { kind: "broad",    category: 7,  label: "Nordic & Scandinavian (golf clubs Norway, shipping Bergen, BRREG…)" },
+    { kind: "registry", label: "EDGAR/CH/BRREG/BODACC — batch 2" },
+    { kind: "broad",    category: 13, label: "Middle East business (investment funds Dubai, Qatar family office…)" },
+    { kind: "broad",    category: 14, label: "Private clubs & marinas (yacht clubs, polo, golf, private members…)" },
+    { kind: "registry", label: "EDGAR/CH/BRREG/BODACC — batch 3" },
+    { kind: "broad",    category: 12, label: "French Riviera & Alpine (ski resort Courchevel, château Bordeaux…)" },
+    { kind: "broad",    category: 8,  label: "Asian wealth centres (Singapore family office, Tokyo billionaire…)" },
+    { kind: "registry", label: "EDGAR/CH/BRREG/BODACC — batch 4" },
+    { kind: "broad",    category: 1,  label: "Family offices & private wealth (London, Geneva, Monaco, Zurich…)" },
+    { kind: "broad",    category: 10, label: "Tier-1 fund principals (general partner AUM billion, PE managing…)" },
+    { kind: "registry", label: "EDGAR/CH/BRREG/BODACC — batch 5" },
+    { kind: "broad",    category: 15, label: "UK country houses, estates & private members clubs" },
+    { kind: "broad",    category: 2,  label: "Luxury assets & aviation (superyacht owner, private jet N-number…)" },
+    { kind: "broad",    category: 9,  label: "Latin American & Eastern European (São Paulo, Warsaw, Kyiv…)" },
+    { kind: "registry", label: "EDGAR/CH/BRREG/BODACC — batch 6" },
+    { kind: "broad",    category: 3,  label: "SEC filings & corporate (Schedule 13D, Form 4 insider transactions…)" },
+    { kind: "broad",    category: 4,  label: "Philanthropy & foundations (private foundation trustee 990 filing…)" },
+    { kind: "broad",    category: 5,  label: "Public mentions & networks (billionaire interview, angel investor…)" },
+  ];
+
+  const includeFaa = !(opts.skipFaa ?? true); // skip FAA by default
+  let sourceRound = 0;
+  const phaseJJobId = await createJob("phase-j-pass");
+
+  for (const source of DISCOVERY_SOURCES) {
+    sourceRound++;
+    const runStart = new Date();
+
+    try {
+      await status(`[${sourceRound}/${DISCOVERY_SOURCES.length}] ${source.label}…`, 1);
+
+      if (source.kind === "broad") {
+        const { discoverSingleTemplate } = await import("./enrichment/broad-discovery");
+        const broadRes = await discoverSingleTemplate(source.category, 10)
+          .catch(e => { logger.error({ err: e.message }, "[Atlas] Broad discovery failed"); return { entitiesDiscovered: 0, queriesFired: 0, resultsScraped: 0, entitiesSkipped: 0, newEntities: [] }; });
+        totalIngested += broadRes.entitiesDiscovered;
+      } else {
+        const hnwiJobId = await createJob("western-hnwi");
+        await setActiveJob("western-hnwi", hnwiJobId);
+        const hnwiRes = await runWesternHnwiIngestion({
+          targetCount: opts.targetCount ?? 120,
+          batchSize: 100,
+          jobId: hnwiJobId,
+          clearDedupFirst: (source as any).clearFirst ?? false,
+        }).catch(e => { logger.error({ err: e.message }, "[Atlas] HNWI ingestion failed"); return { inserted: 0, skipped: 0, errors: 1, durationMs: 0 }; });
+        await setActiveJob("western-hnwi", "");
+        totalIngested += hnwiRes.inserted;
+
+        // Optional FAA between registry batches 3 and 4
+        if (includeFaa && sourceRound === 8) {
+          const faaJobId = await createJob("faa");
+          await setActiveJob("faa", faaJobId);
+          const faaRes = await runFaaIngestion({ jobId: faaJobId, maxRecords: opts.faaMaxRecords ?? 10_000, forceRefresh: false })
+            .catch(e => { logger.error({ err: e.message }, "[Atlas] FAA failed"); return { inserted: 0 }; });
+          await setActiveJob("faa", "");
+          totalIngested += faaRes.inserted;
+        }
       }
-    })(),
-  ]);
+    } catch (e: any) {
+      logger.error({ err: e.message, sourceRound }, "[Atlas] Discovery source failed");
+    }
 
-  summary["Phase 1"] = `OCCRP: ${occrpRes.inserted} | OpenSky: ${(openskyRes as any).inserted ?? 0} live | CH Officers: ${(officersRes as any).enriched ?? 0}`;
+    // Fetch entities created in this batch that haven't been cooked yet
+    const newEntities = await db.select({
+      id: entitiesTable.id, name: entitiesTable.name, type: entitiesTable.type,
+      email: entitiesTable.email, phone: entitiesTable.phone,
+      linkedinUrl: entitiesTable.linkedinUrl, twitterHandle: entitiesTable.twitterHandle,
+      instagramHandle: entitiesTable.instagramHandle, telegramHandle: entitiesTable.telegramHandle,
+      bayesianScore: entitiesTable.bayesianScore, contactConfidence: entitiesTable.contactConfidence,
+      knownResidences: entitiesTable.knownResidences, metadata: entitiesTable.metadata,
+      notes: entitiesTable.notes, sourceRegistries: entitiesTable.sourceRegistries,
+    })
+      .from(entitiesTable)
+      .where(and(
+        sql`${entitiesTable.createdAt} >= ${runStart.toISOString()}`,
+        sql`${entitiesTable.cookedAt} IS NULL`,
+      ))
+      .orderBy(desc(entitiesTable.createdAt))
+      .limit(200);
 
-  // ── Phase 2: Identity & Ownership ──────────────────────────────────────────
-  await status("Phase 2/10: Identity — CH contact enrichment + OpenOwnership BODS + Foundation filings…", 2);
+    logger.info({ sourceRound, label: source.label, newCount: newEntities.length }, "[Atlas] Starting full-circle enrichment");
 
-  const chEnrichJobId = await createJob("companies-house-enrich");
-  await setActiveJob("companies-house-enrich", chEnrichJobId);
+    for (let ei = 0; ei < newEntities.length; ei++) {
+      const entity = newEntities[ei];
+      await updateJob(atlasJobId, {
+        status: "running",
+        progress: sourceRound,
+        total: DISCOVERY_SOURCES.length,
+        message: `[${sourceRound}/${DISCOVERY_SOURCES.length}] 🍳 ${entity.name} (${ei + 1}/${newEntities.length})…`,
+      });
+      await enrichEntityFullCircle(atlasJobId, entity as EntityRow);
+      cookedCount++;
+      totalEnriched++;
+    }
 
-  const entities2 = await fetchEntities({ batchSize: batch, hotLeadsOnly: hot });
+    // Phase J attribution after each source round (processes all pending entities)
+    try {
+      await setActiveJob("phase-j-pass", phaseJJobId);
+      await runPhaseJBatch(phaseJJobId, 50);
+      await setActiveJob("phase-j-pass", "");
+    } catch (e: any) {
+      logger.warn({ err: e.message }, "[Atlas] Phase J round failed (non-fatal)");
+    }
 
-  const [chRes, , ] = await Promise.all([
-    runCompaniesHouseEnrichment({ jobId: chEnrichJobId, batchSize: 50 })
-      .catch(e => { logger.error({ err: e.message }, "[Atlas] CH enrichment failed"); return { enriched: 0, skipped: 0, errors: 1, durationMs: 0 }; }),
+    summary[`Src ${sourceRound}`] = `${source.label.split("(")[0].trim()}: ${newEntities.length} → cooked`;
+  }
 
-    // OpenOwnership BODS — batch all entities
-    runEntityBatch(atlasJobId, "Phase 2/OpenOwnership", entities2.slice(0, 100), async (e) => {
-      const res = await enrichWithOpenOwnership(e.name, true);
-      if (res.totalEntities > 0) {
-        const note = `OpenOwnership BODS: ${res.totalEntities} ownership record(s) found.`;
-        const existing = (e as any).notes ?? "";
-        await db.update(entitiesTable)
-          .set({ notes: existing ? `${existing}\n${note}` : note, updatedAt: new Date() })
-          .where(eq(entitiesTable.id, e.id));
-      }
-    }, 2),
-
-    // Foundation filings — batch all HNWI entities
-    runEntityBatch(atlasJobId, "Phase 2/FoundationFilings", entities2.filter(e => e.type === "HNWI").slice(0, 100), async (e) => {
-      await discoverViaFoundationFilings(e as any);
-    }, 2),
-  ]);
-
-  summary["Phase 2"] = `CH contact: ${chRes.enriched} | OpenOwnership + Foundation filings: batch complete`;
+  summary["Discovery loop"] = `${cookedCount} entities fully cooked across ${sourceRound} sources`;
 
   // ── Phase 3: Metadata population ───────────────────────────────────────────
   await status("Phase 3/10: Populate notes + EDGAR stock assets + live-source markers…", 3);
@@ -406,316 +631,8 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
     summary["Phase 3"] = `Error: ${e.message}`;
   }
 
-  // ── Phase 4: In-House OSINT ─────────────────────────────────────────────────
-  await status("Phase 4/10: In-house OSINT — Wikidata, GitHub, RDAP, DNS, Gravatar, ProPublica 990…", 4);
-
-  const entities4 = await fetchEntities({ batchSize: batch, hotLeadsOnly: hot });
-  const inHouseJobId = await createJob("in-house-enrich");
-  await setActiveJob("in-house-enrich", inHouseJobId);
-
-  const p4 = await runEntityBatch(atlasJobId, "Phase 4/In-house", entities4, async (entity) => {
-    const meta = safeJson<Record<string, unknown>>(entity.metadata, {});
-    const result = await enrichInHouse({ ...entity, bizLocation: meta.bizLocation as string ?? null, entityName: meta.entityName as string ?? null });
-
-    const hasSignal = result.email || result.phone || result.linkedinUrl || result.twitter;
-    if (!hasSignal) return;
-
-    const updates: Record<string, unknown> = { updatedAt: new Date() };
-    if (result.email && !entity.email) updates.email = result.email;
-    if (result.linkedinUrl && !entity.linkedinUrl) updates.linkedinUrl = result.linkedinUrl;
-    if (result.phone && !entity.phone) updates.phone = result.phone;
-    if (result.twitter && !entity.twitterHandle) updates.twitterHandle = result.twitter;
-    updates.contactConfidence = computeContactConfidence({
-      email: (updates.email as string | null) ?? entity.email ?? null,
-      phone: (updates.phone as string | null) ?? entity.phone ?? null,
-      linkedinUrl: (updates.linkedinUrl as string | null) ?? entity.linkedinUrl ?? null,
-      twitterHandle: (updates.twitterHandle as string | null) ?? entity.twitterHandle ?? null,
-      knownResidences: entity.knownResidences,
-    });
-    const newMeta = { ...meta, enricherVersion: "v2", enrichedAt: new Date().toISOString(), enrichmentSources: result.sources };
-    updates.metadata = JSON.stringify(newMeta);
-    updates.liveSource = true;
-    updates.contactOutcome = computeContactOutcome({ email: updates.email as any, phone: updates.phone as any, linkedinUrl: updates.linkedinUrl as any, twitterHandle: updates.twitterHandle as any });
-    await db.update(entitiesTable).set(updates as any).where(eq(entitiesTable.id, entity.id));
-
-    if (result.evidence.length) {
-      await db.insert(contactEvidenceTable).values(result.evidence.map(ev => ({
-        entityId: entity.id, vectorType: ev.vectorType, value: ev.value, source: ev.source,
-        sourceUrl: ev.sourceUrl ?? null, extractionMethod: ev.extractionMethod,
-        sourceReliability: Math.min(1, ev.confidence / 100),
-        identityMatch: 0.75, recencyScore: 0.70,
-        directnessScore: ev.vectorType === "email" ? 0.80 : ev.vectorType === "phone" ? 0.75 : 0.20,
-        independentCorroboration: 1, validationStatus: "candidate" as const,
-        metadata: JSON.stringify(ev.details ?? {}), observedAt: new Date(ev.observedAt),
-      }))).onConflictDoNothing();
-    }
-    totalEnriched++;
-  }, 5);
-
-  await setActiveJob("in-house-enrich", "");
-  summary["Phase 4"] = `In-house OSINT: ${p4.ok} enriched, ${p4.err} errors`;
-
-  // ── Phase 5: Social / Messenger / Broad discovery ───────────────────────────
-  await status("Phase 5/10: Social + Messenger + Broad discovery…", 5);
-
-  const entities5 = await fetchEntities({ batchSize: Math.min(batch, 300), hotLeadsOnly: hot, types: ["HNWI", "Gatekeeper"] });
-
-  // Social discovery (LinkedIn, Twitter/X, Instagram, personal websites)
-  const p5social = await runEntityBatch(atlasJobId, "Phase 5/Social", entities5, async (entity) => {
-    const result = await discoverSocialPresence(entity as any);
-    const updates: Record<string, unknown> = {};
-    if (result.linkedinUrl && !entity.linkedinUrl) updates.linkedinUrl = result.linkedinUrl;
-    if (result.twitterHandle && !entity.twitterHandle) updates.twitterHandle = result.twitterHandle;
-    if (result.instagramHandle && !entity.instagramHandle) updates.instagramHandle = result.instagramHandle;
-    if (Object.keys(updates).length) {
-      updates.updatedAt = new Date();
-      await db.update(entitiesTable).set(updates as any).where(eq(entitiesTable.id, entity.id));
-    }
-  }, 3);
-
-  // Messenger discovery (Telegram)
-  const p5msg = await runEntityBatch(atlasJobId, "Phase 5/Messenger", entities5.slice(0, 100), async (entity) => {
-    const result = await discoverMessengerPresence(entity as any);
-    if (result.telegramHandle && !entity.telegramHandle) {
-      await db.update(entitiesTable).set({ telegramHandle: result.telegramHandle, updatedAt: new Date() }).where(eq(entitiesTable.id, entity.id));
-    }
-  }, 3);
-
-  // Broad discovery — generates NEW HNWIs from the web
-  try {
-    const broadJobId = await createJob("broad-discovery");
-    await setActiveJob("broad-discovery", broadJobId);
-    const broadRes = await runBroadDiscovery({ jobId: broadJobId, queriesPerCategory: 3, maxNewEntities: 200 } as any);
-    await setActiveJob("broad-discovery", "");
-    totalIngested += (broadRes as any)?.newEntities ?? 0;
-    summary["Phase 5b"] = `Broad: ${(broadRes as any)?.newEntities ?? "?"} new entities discovered`;
-  } catch (e: any) {
-    logger.error({ err: e.message }, "[Atlas] Broad discovery failed");
-    summary["Phase 5b"] = `Broad: error — ${e.message}`;
-  }
-
-  summary["Phase 5"] = `Social: ${p5social.ok} | Messenger: ${p5msg.ok}`;
-
-  // ── Phase 6: AI OSINT sweep ─────────────────────────────────────────────────
-  // Full flexible pipeline: Perplexity + Gemini + Tavily + Exa → Groq extraction
-  //   → Maigret (3 000+ platforms) → Holehe (120+ services)
-  //   → Web-OSINT re-run if Maigret found 3+ platforms and no email yet
-  await status("Phase 6/10: AI OSINT — Perplexity + Gemini + Tavily + Exa + Groq → Maigret + Holehe…", 6);
-
-  const webOsintJobId = await createJob("web-osint");
-  await setActiveJob("web-osint", webOsintJobId);
-
-  const entities6 = await fetchEntities({ batchSize: batch, hotLeadsOnly: hot });
-  let aiEnriched = 0; let aiSkipped = 0; let aiErrors = 0;
-
-  for (let i = 0; i < entities6.length; i++) {
-    const entity = entities6[i]!;
-    try {
-      await updateJob(webOsintJobId, {
-        status: "running", progress: i, total: entities6.length,
-        inserted: aiEnriched, skipped: aiSkipped, errors: aiErrors,
-        message: `AI OSINT: ${entity.name}…`,
-      });
-
-      // — Primary AI layer —
-      const result = await deepWebOsintEnrich(entity as any);
-      const hasSignal = result.email || result.phone || result.linkedinUrl
-        || result.instagramUrl || result.twitterUrl || result.evidence.length > 0;
-
-      if (hasSignal) {
-        const confidence = computeContactConfidence({
-          email: result.email, phone: result.phone, linkedinUrl: result.linkedinUrl,
-          knownResidences: entity.knownResidences,
-        });
-        const isCorpOrTrust = ["Corporation", "Corp", "Trust"].includes(entity.type);
-        await db.update(entitiesTable).set({
-          ...(result.email       ? { email: result.email }             : {}),
-          ...(result.phone       ? { phone: result.phone }             : {}),
-          ...(result.linkedinUrl ? { linkedinUrl: result.linkedinUrl } : {}),
-          ...(result.instagramUrl && !entity.instagramHandle && !isCorpOrTrust ? { instagramHandle: result.instagramUrl } : {}),
-          ...(result.twitterUrl   && !entity.twitterHandle   && !isCorpOrTrust ? { twitterHandle:   result.twitterUrl }   : {}),
-          contactConfidence: confidence, updatedAt: new Date(),
-          contactOutcome: computeContactOutcome({ email: result.email, phone: result.phone, linkedinUrl: result.linkedinUrl }),
-        }).where(eq(entitiesTable.id, entity.id));
-
-        if (result.evidence?.length) {
-          await db.insert(contactEvidenceTable).values(result.evidence.map(ev => ({
-            entityId: entity.id, vectorType: ev.vectorType, value: ev.value, source: ev.source,
-            sourceUrl: ev.sourceUrl ?? null, extractionMethod: ev.extractionMethod ?? "deep-web-osint",
-            sourceReliability: Math.min(1, ev.confidence / 100), identityMatch: 0.65, recencyScore: 0.7,
-            directnessScore: ev.vectorType === "email" ? 0.9 : ev.vectorType === "phone" ? 0.85 : 0.6,
-            independentCorroboration: 1, validationStatus: "candidate" as const, observedAt: new Date(),
-            metadata: JSON.stringify(ev.details ?? {}),
-          }))).onConflictDoNothing().catch(() => {});
-        }
-        aiEnriched++;
-        totalContacts++;
-      } else {
-        aiSkipped++;
-        continue;
-      }
-
-      // — Maigret + Holehe layer —
-      const rawHandle = (result.twitterUrl ?? "").replace(/^https?:\/\/(www\.)?(twitter\.com|x\.com)\//, "").replace(/\?.*$/, "")
-        || (entity.twitterHandle ?? "").replace(/^@/, "")
-        || (result.instagramUrl ?? "").replace(/^https?:\/\/(www\.)?instagram\.com\//, "").replace(/\?.*$/, "")
-        || (entity.instagramHandle ?? "").replace(/^@/, "");
-      const cleanHandle = rawHandle.replace(/[^a-zA-Z0-9._\-]/g, "").trim();
-      const emailForHolehe = result.email ?? entity.email ?? null;
-
-      if (cleanHandle || emailForHolehe) {
-        await updateJob(webOsintJobId, {
-          status: "running", progress: i, total: entities6.length, inserted: aiEnriched,
-          message: `Maigret + Holehe: ${entity.name}…`,
-        });
-
-        const [maigretResult, holeheResult] = await Promise.all([
-          cleanHandle    ? runMaigret(cleanHandle).catch(() => null)   : Promise.resolve(null),
-          emailForHolehe ? runHolehe(emailForHolehe).catch(() => null) : Promise.resolve(null),
-        ]);
-
-        // Save Maigret social dossier
-        if (maigretResult?.found.length) {
-          await db.insert(contactEvidenceTable).values(
-            maigretResult.found.slice(0, 15).map(p => ({
-              entityId: entity.id, vectorType: "social" as const,
-              value: p.url ?? p.siteName, source: "maigret", sourceUrl: p.url ?? null,
-              extractionMethod: "maigret-username-search", sourceReliability: 0.7,
-              identityMatch: 0.65, recencyScore: 0.5, directnessScore: 0.6,
-              independentCorroboration: 1, validationStatus: "candidate" as const,
-              metadata: JSON.stringify({ siteName: p.siteName, tags: (p as any).tags ?? [] }),
-            })),
-          ).onConflictDoNothing().catch(() => {});
-
-          // Flexible re-entry: if Maigret found 3+ platforms and no email yet → re-run AI
-          if (maigretResult.found.length >= 3 && !result.email) {
-            const platformList = maigretResult.found.slice(0, 6).map(p => p.siteName).join(", ");
-            await updateJob(webOsintJobId, {
-              status: "running", progress: i, total: entities6.length, inserted: aiEnriched,
-              message: `Web-OSINT re-run (${maigretResult.found.length} Maigret signals): ${entity.name}…`,
-            });
-            const result2 = await deepWebOsintEnrich({
-              ...entity,
-              notes: [`${entity.notes ?? ""}`, `Active on: ${platformList}`].filter(Boolean).join(" — ").trim(),
-            } as any).catch(() => null);
-            if (result2?.email) {
-              await db.update(entitiesTable).set({ email: result2.email, updatedAt: new Date() }).where(eq(entitiesTable.id, entity.id));
-            }
-          }
-        }
-
-        // Save Holehe platform presence
-        if (holeheResult?.found.length) {
-          await db.insert(contactEvidenceTable).values(
-            holeheResult.found.slice(0, 10).map(p => ({
-              entityId: entity.id, vectorType: "social" as const,
-              value: p.url ?? p.name, source: "holehe", sourceUrl: p.url ?? null,
-              extractionMethod: "holehe-email-check", sourceReliability: 0.8,
-              identityMatch: 0.8, recencyScore: 0.5, directnessScore: 0.7,
-              independentCorroboration: 1, validationStatus: "candidate" as const,
-              metadata: JSON.stringify({ platform: p.name }),
-            })),
-          ).onConflictDoNothing().catch(() => {});
-        }
-      }
-    } catch (err: any) {
-      aiErrors++;
-      logger.warn({ entityId: entity.id, err: err.message }, "[Atlas] Phase 6 entity failed");
-    }
-  }
-
-  await updateJob(webOsintJobId, { status: "done", progress: entities6.length, total: entities6.length, inserted: aiEnriched, message: `AI OSINT done — ${aiEnriched} enriched` });
-  await setActiveJob("web-osint", "");
-  summary["Phase 6"] = `AI OSINT: ${aiEnriched} enriched, ${aiSkipped} no-match, ${aiErrors} errors`;
-
-  // ── Phase 7: Forensic Cross-Reference ──────────────────────────────────────
-  // ICIJ + Whoxy + Equasis + ADSB History (per-entity, parallel batches)
-  await status("Phase 7/10: Forensic cross-reference — ICIJ + Whoxy + Equasis + ADSB…", 7);
-
-  const entities7 = await fetchEntities({ batchSize: Math.min(batch, 300), hotLeadsOnly: hot });
-
-  // ICIJ Offshore Leaks — all entities
-  const p7icij = await runEntityBatch(atlasJobId, "Phase 7/ICIJ", entities7, async (entity) => {
-    const res = await enrichWithIcij(entity.name, [], false);
-    if (res.totalMatches > 0) {
-      const note = `ICIJ Offshore Leaks: ${res.totalMatches} match(es) — ${res.datasets?.join(", ") ?? "unknown dataset"}`;
-      const existing = entity.notes ?? "";
-      await db.update(entitiesTable)
-        .set({ notes: (existing ? `${existing}\n${note}` : note).slice(0, 10_000), updatedAt: new Date() })
-        .where(eq(entitiesTable.id, entity.id));
-    }
-  }, 3);
-
-  // Whoxy Reverse WHOIS — entities with email or name (finds domains they registered)
-  const p7whoxy = await runEntityBatch(atlasJobId, "Phase 7/Whoxy",
-    entities7.filter(e => e.email || e.type === "HNWI").slice(0, 150), async (entity) => {
-      const res = await enrichWithWhoxy({
-        email: entity.email ?? undefined,
-        name: entity.type === "HNWI" ? entity.name : undefined,
-        companyName: ["Corporation", "Corp", "Trust"].includes(entity.type) ? entity.name : undefined,
-      });
-      if (res.allUniqueDomains?.length) {
-        const note = `Whoxy WHOIS: ${res.allUniqueDomains.length} domain(s) — ${res.allUniqueDomains.slice(0, 5).join(", ")}`;
-        const existing = entity.notes ?? "";
-        await db.update(entitiesTable)
-          .set({ notes: (existing ? `${existing}\n${note}` : note).slice(0, 10_000), updatedAt: new Date() })
-          .where(eq(entitiesTable.id, entity.id));
-      }
-    }, 2);
-
-  // Equasis / VesselFinder — entities with aviation/maritime assets
-  const aviationEntities = await db.select({ id: entitiesTable.id, name: entitiesTable.name, notes: entitiesTable.notes })
-    .from(entitiesTable)
-    .where(sql`EXISTS (
-      SELECT 1 FROM assets a
-      WHERE a.owner_entity_id = ${entitiesTable.id}
-      AND a.category IN ('Aviation', 'Maritime', 'Vessel')
-    )`)
-    .limit(100);
-
-  const p7equasis = await runEntityBatch(atlasJobId, "Phase 7/Equasis", aviationEntities, async (entity) => {
-    const res = await enrichWithEquasis(entity.name, undefined);
-    if ((res as any)?.vessels?.length || (res as any)?.found) {
-      const note = `Equasis/VesselFinder: vessel registry match found for ${entity.name}`;
-      const existing = entity.notes ?? "";
-      await db.update(entitiesTable)
-        .set({ notes: (existing ? `${existing}\n${note}` : note).slice(0, 10_000), updatedAt: new Date() })
-        .where(eq(entitiesTable.id, entity.id));
-    }
-  }, 2);
-
-  // ADSB History — FAA registered aircraft (cross-ref recent flight patterns)
-  const faaAssets = await db.select({ registration: assetsTable.identifier, ownerEntityId: assetsTable.ownerEntityId })
-    .from(assetsTable)
-    .where(sql`${assetsTable.category} = 'Aviation' AND ${assetsTable.ownerEntityId} IS NOT NULL AND ${assetsTable.identifier} LIKE 'N%'`)
-    .limit(50);
-
-  if (faaAssets.length) {
-    await runEntityBatch(atlasJobId, "Phase 7/ADSB",
-      faaAssets.map(a => ({ id: a.ownerEntityId!, name: a.registration ?? "" })),
-      async (a) => {
-        await enrichWithAdsbHistory(a.name, 30, false).catch(() => {});
-      }, 3);
-  }
-
-  summary["Phase 7"] = `ICIJ: ${p7icij.ok} | Whoxy: ${p7whoxy.ok} | Equasis: ${p7equasis.ok} | ADSB: ${faaAssets.length} aircraft`;
-
-  // ── Phase 8: Phase J Attribution ───────────────────────────────────────────
-  // J4 domain resolution, J5 digital footprint, J6 attribution, J7 cooldowns, J8 graph-assisted
-  await status("Phase 8/10: Phase J attribution — domain resolution + digital footprint + graph scoring…", 8);
-
-  try {
-    const phaseJJobId = await createJob("phase-j-pass");
-    await setActiveJob("phase-j-pass", phaseJJobId);
-    const phaseJRes = await runPhaseJBatch(phaseJJobId, opts.phaseJBatchSize ?? 50);
-    summary["Phase 8"] = `Phase J: ${phaseJRes.message}`;
-    await setActiveJob("phase-j-pass", "");
-  } catch (e: any) {
-    logger.error({ err: e.message }, "[Atlas] Phase J failed");
-    summary["Phase 8"] = `Phase J: error — ${e.message}`;
-  }
-
   // ── Phase 9: Semantic layer ─────────────────────────────────────────────────
+  // (Phases 4-8 are now handled per-entity inside enrichEntityFullCircle above)
   await status("Phase 9/10: Semantic embeddings + net worth backfill + confidence recompute…", 9);
 
   try {
