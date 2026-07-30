@@ -8,6 +8,32 @@
 
 ---
 
+## Current State (2026-07-30 — Re-import #44 — Atlas RUNNING job dbdb77e5 — all 30 secrets active)
+
+### Setup this session (2026-07-30 — re-import #44 — full launch):
+- `CI=true pnpm install --frozen-lockfile` ✅ (~39s)
+- `pnpm --filter @workspace/db run push` → `[✓] Changes applied` ✅
+- Redis ✅ (port 6379) · artifacts/api-server: API Server ✅ (port 8080) · artifacts/apex-finder: web ✅ (port 23695)
+- Python tools: holehe ✓ maigret ✓
+- `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":1}}` ✅
+- All 30 secrets active: SESSION_SECRET, REDIS_URL_1–5, COMPANIES_HOUSE_API_KEY, GROQ_API_KEY_1–5, PERPLEXITY_API_KEY_1–6, WHOXY_API_KEY, GEMINI_API_KEY_1–4, EXA_API_KEY_1–2, TAVILY_API_KEY_1–6
+- Upstash: slot 1 quota-exhausted (non-fatal), slots 2–5 ready ✅
+- Fixes applied before launch:
+  1. Step G geocoding: JURISDICTION_COORDS lookup (60+ entries) + jurisdictionToCoords() — assets now get lat/lng on insert
+  2. Step G error logging: catch now logs warnings instead of silent swallow
+  3. DesktopReactor real stats: footer meters show ENTITIES IN DB / HOT LEADS / ASSETS FOUND from live DB (not synthetic counters)
+  4. Profile map empty state: shows "N assets recorded — see list below" when assets exist but have no coords
+  5. Profile "Registered Assets" list: always-visible asset ledger section added below map (shows all assets with or without coords)
+- Atlas job dbdb77e5 RUNNING — discoveryFirst=true, skipFaa=true, targetCount=500, broadCategories=3
+- Phase 1/21: European venue owners — broad discovery live
+
+### Poll command:
+```bash
+curl -s http://localhost:8080/api/ingest/job/dbdb77e5-1b0e-42ce-9767-fb21a255895c | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('status'), '|', d.get('inserted',0), 'inserted |', str(d.get('message',''))[:120])"
+```
+
+---
+
 ## Current State (2026-07-30 — Re-import #44 — setup complete; all 30 secrets active; DB schema applied; pipeline idle)
 
 ### Setup this session (2026-07-30 — re-import #44 — full setup):

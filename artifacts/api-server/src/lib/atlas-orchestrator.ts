@@ -45,6 +45,79 @@ import { contactCacheSet } from "./redis";
 import { runPhaseJBatch } from "../routes/phase-j";
 import { reachabilityOrderExpr } from "./reachability-rank";
 
+// ── Jurisdiction → approximate coordinates lookup (for asset geocoding) ───────
+const JURISDICTION_COORDS: Record<string, [number, number]> = {
+  // Western Europe
+  "France": [46.2276, 2.2137], "French Riviera": [43.7102, 7.2620], "Côte d'Azur": [43.7102, 7.2620],
+  "Monaco": [43.7384, 7.4246], "Paris": [48.8566, 2.3522], "Nice": [43.7102, 7.2620],
+  "Italy": [41.8719, 12.5674], "Sicily": [37.5994, 14.0154], "Sardinia": [40.1209, 9.0129],
+  "Rome": [41.9028, 12.4964], "Milan": [45.4642, 9.1900], "Venice": [45.4408, 12.3155],
+  "UK": [51.5074, -0.1278], "England": [52.3555, -1.1743], "Scotland": [56.4907, -4.2026],
+  "London": [51.5074, -0.1278], "HMLR": [51.5074, -0.1278],
+  "Spain": [40.4168, -3.7038], "Mallorca": [39.6953, 3.0176], "Ibiza": [38.9067, 1.4206],
+  "Barcelona": [41.3851, 2.1734], "Madrid": [40.4168, -3.7038], "Marbella": [36.5101, -4.8817],
+  "Germany": [51.1657, 10.4515], "Austria": [47.5162, 14.5501], "Switzerland": [46.8182, 8.2275],
+  "Netherlands": [52.1326, 5.2913], "Belgium": [50.8503, 4.3517], "Luxembourg": [49.8153, 6.1296],
+  "Sweden": [59.3293, 18.0686], "Norway": [59.9139, 10.7522], "Denmark": [55.6761, 12.5683],
+  "Finland": [60.1699, 24.9384], "Iceland": [64.1355, -21.8954],
+  "Portugal": [38.7169, -9.1399], "Lisbon": [38.7169, -9.1399],
+  "Greece": [37.9838, 23.7275], "Athens": [37.9838, 23.7275], "Mykonos": [37.4467, 25.3289],
+  "Turkey": [41.0082, 28.9784], "Istanbul": [41.0082, 28.9784],
+  "Croatia": [45.8150, 15.9819], "Montenegro": [42.4411, 19.2636], "Malta": [35.8997, 14.5146],
+  "Cyprus": [35.1264, 33.4299], "Czech Republic": [50.0755, 14.4378], "Poland": [52.2297, 21.0122],
+  "Hungary": [47.4979, 19.0402], "Romania": [44.4268, 26.1025], "Russia": [55.7558, 37.6173],
+  "Ireland": [53.3498, -6.2603],
+  // Middle East / Africa
+  "UAE": [25.2048, 55.2708], "Dubai": [25.2048, 55.2708], "Abu Dhabi": [24.4539, 54.3773],
+  "Saudi Arabia": [24.7136, 46.6753], "Riyadh": [24.7136, 46.6753],
+  "Qatar": [25.2854, 51.5310], "Doha": [25.2854, 51.5310],
+  "Kuwait": [29.3759, 47.9774], "Bahrain": [26.0667, 50.5577], "Oman": [23.5880, 58.3829],
+  "Israel": [31.7683, 35.2137], "Egypt": [30.0444, 31.2357],
+  "South Africa": [26.2041, 28.0473], "Morocco": [33.9716, -6.8498],
+  "Nigeria": [9.0820, 8.6753], "Kenya": [1.2921, 36.8219],
+  // Americas
+  "USA": [37.0902, -95.7129], "United States": [37.0902, -95.7129],
+  "FAA": [37.0902, -95.7129],
+  "Florida": [27.6648, -81.5158], "Miami": [25.7617, -80.1918], "Palm Beach": [26.7153, -80.0534],
+  "California": [36.7783, -119.4179], "Los Angeles": [34.0522, -118.2437],
+  "New York": [40.7128, -74.0060], "Manhattan": [40.7831, -73.9712],
+  "Texas": [31.9686, -99.9018], "Houston": [29.7604, -95.3698],
+  "Colorado": [39.5501, -105.7821], "Aspen": [39.1911, -106.8175],
+  "Nevada": [38.8026, -116.4194], "Las Vegas": [36.1699, -115.1398],
+  "Canada": [56.1304, -106.3468], "Vancouver": [49.2827, -123.1207], "Toronto": [43.6532, -79.3832],
+  "Mexico": [23.6345, -102.5528], "Mexico City": [19.4326, -99.1332],
+  "Brazil": [14.2350, -51.9253], "São Paulo": [23.5505, 46.6333], "Rio de Janeiro": [22.9068, 43.1729],
+  "Argentina": [38.4161, -63.6167], "Chile": [35.6751, -71.5430],
+  "Cayman Islands": [19.3133, -81.2546], "British Virgin Islands": [18.4207, -64.6400],
+  "Bahamas": [25.0343, -77.3963], "Bermuda": [32.3078, -64.7505],
+  "Panama": [8.9936, -79.5197],
+  // Asia Pacific
+  "China": [35.8617, 104.1954], "Beijing": [39.9042, 116.4074], "Shanghai": [31.2304, 121.4737],
+  "Hong Kong": [22.3193, 114.1694], "Singapore": [1.3521, 103.8198],
+  "Japan": [36.2048, 138.2529], "Tokyo": [35.6762, 139.6503],
+  "South Korea": [35.9078, 127.7669], "Thailand": [15.8700, 100.9925], "Bangkok": [13.7563, 100.5018],
+  "Indonesia": [0.7893, 113.9213], "Malaysia": [4.2105, 101.9758],
+  "India": [20.5937, 78.9629], "Mumbai": [19.0760, 72.8777], "New Delhi": [28.6139, 77.2090],
+  "Australia": [25.2744, 133.7751], "Sydney": [33.8688, 151.2093], "Melbourne": [37.8136, 144.9631],
+  "New Zealand": [40.9006, -174.8860],
+  // Registries / special
+  "IMO": [43.7102, 7.2620],
+  "Unknown": [48.8566, 2.3522],
+};
+
+function jurisdictionToCoords(jurisdiction: string): [number, number] | null {
+  if (!jurisdiction || jurisdiction === "Unknown") return null;
+  const j = jurisdiction.trim();
+  if (JURISDICTION_COORDS[j]) return JURISDICTION_COORDS[j];
+  // Try case-insensitive / contains match
+  const lower = j.toLowerCase();
+  for (const [key, coords] of Object.entries(JURISDICTION_COORDS)) {
+    if (key.toLowerCase() === lower) return coords;
+    if (lower.includes(key.toLowerCase()) && key.length > 4) return coords;
+  }
+  return null;
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface AtlasOptions {
@@ -443,14 +516,20 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
             const assetRows = extracted
               .filter(a => a.identifier?.length > 2 && validCategories.has(a.category))
               .slice(0, 12)
-              .map(a => ({
-                category: a.category,
-                identifier: a.identifier,
-                jurisdiction: a.jurisdiction ?? "Unknown",
-                description: a.description ?? null,
-                sourceRegistry: "AI OSINT (Groq extraction)",
-                ownerEntityId: id,
-              }));
+              .map(a => {
+                const juris = a.jurisdiction ?? "Unknown";
+                const coords = jurisdictionToCoords(juris);
+                return {
+                  category: a.category,
+                  identifier: a.identifier,
+                  jurisdiction: juris,
+                  description: a.description ?? null,
+                  sourceRegistry: "AI OSINT (Groq extraction)",
+                  ownerEntityId: id,
+                  latitude:  coords ? coords[0] : null,
+                  longitude: coords ? coords[1] : null,
+                };
+              });
             if (assetRows.length) {
               await db.insert(assetsTable).values(assetRows).onConflictDoNothing().catch(() => {});
               logger.info({ entityId: id, name, assetCount: assetRows.length }, "[Atlas] ✅ Assets extracted");
@@ -458,7 +537,9 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
           }
         }
       }
-    } catch (_assetErr) { /* fail-open — asset extraction is best-effort */ }
+    } catch (assetErr) {
+      logger.warn({ entityId: id, name, err: String(assetErr) }, "[Atlas] Step G asset extraction failed");
+    }
 
     // ── Step F: Final confidence recompute + bayesian score + isHot + cookedAt ─
     const fresh = await db.select({

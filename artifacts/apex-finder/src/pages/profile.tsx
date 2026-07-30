@@ -1472,9 +1472,13 @@ export default function ApexProfile() {
                 {geoAssets.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full gap-2 text-muted-foreground/40 px-4 text-center" style={{ minHeight: "320px" }}>
                     <MapPin className="w-8 h-8 opacity-20" />
-                    <p className="text-xs font-mono">No geolocated assets</p>
+                    <p className="text-xs font-mono">
+                      {(assets as any[]).length > 0 ? "No map coordinates on file" : "No assets on file"}
+                    </p>
                     <p className="text-[10px] font-mono leading-relaxed">
-                      Run the FAA or HNWI ingestor to populate asset coordinates for this entity.
+                      {(assets as any[]).length > 0
+                        ? `${(assets as any[]).length} asset${(assets as any[]).length !== 1 ? "s" : ""} recorded — see list below`
+                        : "Assets appear after the AI enrichment pipeline completes."}
                     </p>
                   </div>
                 ) : (
@@ -1588,6 +1592,45 @@ export default function ApexProfile() {
               </div>
             </div>
           </div>
+
+          {/* Row 1.3: All Assets List — always visible when assets exist */}
+          {(assets as any[]).length > 0 && (
+            <div className="border border-border rounded-lg bg-card/30 overflow-hidden">
+              <SectionHeader
+                icon={<Layers className="w-3.5 h-3.5" />}
+                title="Registered Assets"
+                badge={`${(assets as any[]).length} total`}
+              />
+              <div className="divide-y divide-border/40">
+                {(assets as any[]).map((asset: any) => {
+                  const color = (ASSET_COLORS as Record<string, string>)[asset.category] ?? "#64748B";
+                  return (
+                    <div key={asset.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-muted/20 transition-colors">
+                      <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-mono font-medium text-foreground">{asset.identifier}</span>
+                          <span className="text-[9px] font-mono px-1.5 py-0.5 rounded border border-border/60 text-muted-foreground">{asset.category}</span>
+                        </div>
+                        {asset.description && (
+                          <p className="text-[10px] font-mono text-muted-foreground/70 truncate mt-0.5">{asset.description}</p>
+                        )}
+                      </div>
+                      <div className="text-right flex-shrink-0 space-y-0.5">
+                        <div className="text-[10px] font-mono text-muted-foreground">{asset.jurisdiction}</div>
+                        {asset.estimatedValue != null && (
+                          <div className="text-[10px] font-mono text-primary">{formatCurrency(asset.estimatedValue)}</div>
+                        )}
+                        {(asset.latitude != null) && (
+                          <div className="text-[9px] font-mono text-muted-foreground/50">📍 mapped</div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Row 1.5: Intelligence Signals */}
           {(occrpData || skyFlights.length > 0 || occrpLoading || skyLoading) && (

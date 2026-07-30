@@ -742,9 +742,10 @@ function MobileReactor({ sessions, totalEntities, loading, onRefresh, syncing, l
 }
 
 // ── Desktop layout ────────────────────────────────────────────────────────────
-function DesktopReactor({ step, cycle, signals, contacts, loops, liveNodes, liveLabel, isLive }: {
+function DesktopReactor({ step, cycle, signals, contacts, loops, liveNodes, liveLabel, isLive, totalEntities, hotCount, totalAssets }: {
   step:number; cycle:number; signals:number; contacts:number; loops:number;
   liveNodes?: Set<string>; liveLabel?: string; isLive?: boolean;
+  totalEntities?: number; hotCount?: number; totalAssets?: number;
 }) {
   const wave = WAVES[step];
   // When Atlas is actively running, drive nodes from real live data instead of scripted wave
@@ -972,11 +973,11 @@ function DesktopReactor({ step, cycle, signals, contacts, loops, liveNodes, live
         display:"flex", alignItems:"center",
         background:"rgba(11,17,32,0.95)", backdropFilter:"blur(8px)",
       }}>
-        <Meter label="SIGNALS DETECTED" value={signals}  max={80} color="#38bdf8" />
+        <Meter label="ENTITIES IN DB"  value={isLive ? (totalEntities ?? signals)  : signals}  max={isLive ? Math.max(totalEntities ?? 80, 80)  : 80}  color="#38bdf8" />
         <div style={{ width:1, height:36, background:"#192840" }} />
-        <Meter label="CONTACTS FOUND"   value={contacts} max={30} color="#a3e635" />
+        <Meter label="HOT LEADS"       value={isLive ? (hotCount ?? contacts)       : contacts} max={isLive ? Math.max(hotCount ?? 30, 30)       : 30}  color="#a3e635" />
         <div style={{ width:1, height:36, background:"#192840" }} />
-        <Meter label="ADAPTIVE LOOPS"   value={loops}    max={20} color="#22d3ee" />
+        <Meter label="ASSETS FOUND"    value={isLive ? (totalAssets ?? loops)       : loops}    max={isLive ? Math.max(totalAssets ?? 20, 20)     : 20}  color="#22d3ee" />
         <div style={{ width:1, height:36, background:"#192840" }} />
         <div style={{ padding:"0 28px", display:"flex", flexDirection:"column", gap:4, minWidth:160 }}>
           <span style={{ fontSize:8, letterSpacing:"0.18em", color:"#3a5070" }}>REACTOR STATUS</span>
@@ -1152,7 +1153,10 @@ export default function IntelligenceReactorPage() {
         fetch(`${BASE}/api/dashboard/stats`, { cache: "no-store" }).then(r => r.ok ? r.json() : {}).catch(() => ({})),
       ]);
       setSessions(Array.isArray(sess) ? sess : []);
-      setTotalEntities((stats as { totalEntities?: number })?.totalEntities ?? 0);
+      const s = stats as { totalEntities?: number; hotLeadsCount?: number; totalAssets?: number };
+      setTotalEntities(s?.totalEntities ?? 0);
+      setHotCount(s?.hotLeadsCount ?? 0);
+      setTotalAssets(s?.totalAssets ?? 0);
     } finally {
       setLoadingData(false);
       setSyncing(false);
@@ -1173,9 +1177,11 @@ export default function IntelligenceReactorPage() {
   const [scale,    setScale]    = useState(1);
   const [step,     setStep]     = useState(0);
   const [cycle,    setCycle]    = useState(1);
-  const [signals,  setSignals]  = useState(0);
-  const [contacts, setContacts] = useState(0);
-  const [loops,    setLoops]    = useState(0);
+  const [signals,     setSignals]     = useState(0);
+  const [contacts,    setContacts]    = useState(0);
+  const [loops,       setLoops]       = useState(0);
+  const [hotCount,    setHotCount]    = useState(0);
+  const [totalAssets, setTotalAssets] = useState(0);
 
   useEffect(() => {
     if (isMobile) return;
@@ -1238,6 +1244,7 @@ export default function IntelligenceReactorPage() {
         <DesktopReactor
           step={step} cycle={cycle} signals={signals} contacts={contacts} loops={loops}
           liveNodes={liveNodes} liveLabel={liveLabel} isLive={liveNodes.size > 0}
+          totalEntities={totalEntities} hotCount={hotCount} totalAssets={totalAssets}
         />
       </div>
     </div>
