@@ -8,6 +8,32 @@
 
 ---
 
+## Current State (2026-07-30 — Re-import #38 — Atlas RUNNING job 25a433ea — Step G upgraded: Hospitality assets + llama-3.3-70b)
+
+### Setup this session (2026-07-30 — re-import #38):
+- `pnpm install` ✅ (~44s) · `pnpm --filter @workspace/db run push` → `[✓] Changes applied` ✅
+- Python tools: holehe ✓ maigret ✓
+- All 26 secrets active: REDIS_URL_1–5 (slot 1 quota-exhausted/non-fatal, slots 2–5 healthy), COMPANIES_HOUSE_API_KEY, GROQ_API_KEY_1–5, PERPLEXITY_API_KEY_1–4, WHOXY_API_KEY, GEMINI_API_KEY_1–4, EXA_API_KEY_1–2, TAVILY_API_KEY_1–4
+
+### Fix applied this session:
+- **Step G asset extraction upgraded** — `enrichEntityFullCircle` Step G now uses `llama-3.3-70b-versatile` (was `llama-3.1-8b-instant`) with an expanded prompt that explicitly covers "Hospitality" as a category (hotels, resorts, restaurants, golf clubs, beach clubs, ski resorts, marinas — businesses the HNWI owns/operates). Categories: RealEstate | Aviation | Marine | **Hospitality** | Business | PrivateClub | Investment. Max assets per entity raised from 8 → 12. Context now includes sourceRegistries + metadata (companyName, bizLocation) in addition to notes and knownResidences.
+
+### Atlas job 25a433ea:
+- Started: 2026-07-30 ~08:33 UTC
+- `discoveryFirst=true, skipFaa=true, targetCount=500, researchLimit=15`
+- 21 interleaved sources (15 broad web-search + 6 registry batches)
+- Per-entity full-circle enrichment (concurrency=3, cookedAt stamped)
+- Dedup cleared before launch ✅
+- Phase 0 (OCCRP + OpenSky + CH Officers pre-run) completed
+- Now running [1/21] European venue owners (Monte Carlo, Italian hotels, resorts…)
+
+### To poll Atlas progress:
+```bash
+curl -s http://localhost:8080/api/ingest/job/25a433ea-9c3c-4438-8713-6c9c8f8831c3 | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('status'), '|', d.get('inserted',0), 'inserted |', str(d.get('message',''))[:100])"
+```
+
+---
+
 ## Current State (2026-07-30 — Re-import #37 — Atlas RUNNING job 0799f997 — 3 bugs fixed, all 26 secrets set)
 
 ### Setup this session (2026-07-30 — re-import #37):

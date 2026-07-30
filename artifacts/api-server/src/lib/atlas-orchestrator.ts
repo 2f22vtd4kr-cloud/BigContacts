@@ -352,7 +352,8 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
 
     // ── Step G: Groq asset extraction — pull structured assets from AI context ──
     // Uses the notes/context accumulated above to extract real estate, aviation,
-    // marine, and business assets as structured rows in the assets table.
+    // marine, hospitality businesses (hotels/restaurants/resorts/clubs), and
+    // other business assets as structured rows in the assets table.
     try {
       const groqKeys: string[] = [];
       const _gNames = ["GROQ_API_KEY"];
@@ -360,42 +361,66 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
       _gNames.forEach(k => { const v = process.env[k]; if (v) groqKeys.push(v); });
 
       if (groqKeys.length) {
-        // Fetch current entity notes for context
-        const ctxRow = await db.select({ notes: entitiesTable.notes, knownResidences: entitiesTable.knownResidences, nationality: entitiesTable.nationality })
-          .from(entitiesTable).where(eq(entitiesTable.id, id)).then((r: any[]) => r[0]);
+        // Fetch current entity notes + metadata for rich context
+        const ctxRow = await db.select({
+          notes: entitiesTable.notes,
+          knownResidences: entitiesTable.knownResidences,
+          nationality: entitiesTable.nationality,
+          sourceRegistries: entitiesTable.sourceRegistries,
+          metadata: entitiesTable.metadata,
+        }).from(entitiesTable).where(eq(entitiesTable.id, id)).then((r: any[]) => r[0]);
+
+        const srcRegs: string[] = safeJson<string[]>(ctxRow?.sourceRegistries, []);
+        const meta: Record<string, unknown> = safeJson<Record<string, unknown>>(ctxRow?.metadata, {});
 
         const context = [
           ctxRow?.notes,
-          ctxRow?.knownResidences ? `Residences: ${ctxRow.knownResidences}` : null,
-          entity.type ? `Type: ${entity.type}` : null,
+          ctxRow?.knownResidences ? `Known residences / locations: ${ctxRow.knownResidences}` : null,
+          ctxRow?.nationality ? `Nationality: ${ctxRow.nationality}` : null,
+          srcRegs.length ? `Source registries: ${srcRegs.join(", ")}` : null,
+          meta.companyName ? `Associated company: ${meta.companyName}` : null,
+          meta.bizLocation ? `Business location: ${meta.bizLocation}` : null,
+          entity.type ? `Entity type: ${entity.type}` : null,
         ].filter(Boolean).join("\n");
 
         if (context.length > 60) {
           const groqKey = groqKeys[Math.floor(Math.random() * groqKeys.length)];
-          const prompt = `You are extracting structured asset data about a high-net-worth individual named "${name}".
+          const prompt = `You are an expert OSINT analyst extracting structured ASSET DATA about a high-net-worth individual.
 
-Context about this person:
+Person: "${name}"
+
+Context (discovery notes, OSINT findings, WHOIS data, registry information):
 ${context}
 
-Extract any REAL ASSETS mentioned (real estate properties, aircraft, yachts/boats, businesses/companies, private clubs memberships).
-Respond ONLY with a JSON array. Each item must have:
-- "category": one of "RealEstate" | "Aviation" | "Marine" | "Business" | "PrivateClub"
-- "identifier": the specific identifier (address, tail number N-XXXXX, IMO number, company name, club name)
-- "jurisdiction": country or registry (e.g. "UK", "USA", "FAA", "IMO", "Italy", "France")
-- "description": one sentence describing the asset
+Extract ALL REAL ASSETS this person OWNS, OPERATES, or CONTROLS — including businesses they run day-to-day:
 
-If nothing concrete is mentioned, respond with [].
-Only include assets with a real identifier — no vague mentions.`;
+ASSET CATEGORIES:
+- "Hospitality": hotels, resorts, restaurants, spas, golf clubs, beach clubs, ski resorts, private dining clubs, luxury lodges, marinas that they own or operate as a business
+- "RealEstate": residential or commercial properties, villas, châteaux, estates, vineyards, land
+- "Aviation": private jets, helicopters, aircraft (use FAA tail number if mentioned)
+- "Marine": yachts, superyachts, boats, vessels (use IMO number or vessel name)
+- "Business": other companies they founded/own/control (tech, retail, manufacturing, trading, media, finance)
+- "PrivateClub": exclusive private membership clubs or societies they own or chair
+- "Investment": private equity funds, hedge funds, stock positions, financial stakes
+
+Respond ONLY with a JSON array. Each item must have:
+- "category": one of the categories above (use "Hospitality" for hotels/restaurants/clubs/resorts)
+- "identifier": SPECIFIC name/identifier — hotel name + city, property address, N-number, company name, vessel name (NOT vague like "a hotel in Italy")
+- "jurisdiction": country, state, or registry (e.g. "Italy", "France", "UK", "FAA", "IMO")
+- "description": one sentence: what the asset is and the person's role (owner, founder, operator, etc.)
+
+IMPORTANT: A hotel, restaurant, resort, or golf club that a person OWNS is one of their most important assets — always include it.
+Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned, respond with [].`;
 
           const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
             method: "POST",
             headers: { "Content-Type": "application/json", "Authorization": `Bearer ${groqKey}` },
             body: JSON.stringify({
-              model: "llama-3.1-8b-instant",
+              model: "llama-3.3-70b-versatile",
               messages: [{ role: "user", content: prompt }],
-              temperature: 0, max_tokens: 512,
+              temperature: 0, max_tokens: 1024,
             }),
-            signal: AbortSignal.timeout(10_000),
+            signal: AbortSignal.timeout(15_000),
           }).then(r => r.json()).catch(() => null);
 
           const raw = resp?.choices?.[0]?.message?.content?.trim() ?? "";
@@ -403,10 +428,10 @@ Only include assets with a real identifier — no vague mentions.`;
           if (jsonMatch) {
             const extracted: Array<{ category: string; identifier: string; jurisdiction: string; description?: string }> =
               JSON.parse(jsonMatch[0]);
-            const validCategories = new Set(["RealEstate", "Aviation", "Marine", "Business", "PrivateClub"]);
+            const validCategories = new Set(["RealEstate", "Aviation", "Marine", "Hospitality", "Business", "PrivateClub", "Investment"]);
             const assetRows = extracted
               .filter(a => a.identifier?.length > 2 && validCategories.has(a.category))
-              .slice(0, 8)
+              .slice(0, 12)
               .map(a => ({
                 category: a.category,
                 identifier: a.identifier,
