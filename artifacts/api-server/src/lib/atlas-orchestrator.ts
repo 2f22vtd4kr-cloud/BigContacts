@@ -330,14 +330,99 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
         email: entity.email ?? undefined,
         name:  entity.type === "HNWI" ? name : undefined,
       }).then(async (res) => {
-        if ((res as any).allUniqueDomains?.length) {
-          const note = `Whoxy WHOIS: ${(res as any).allUniqueDomains.length} domain(s) — ${(res as any).allUniqueDomains.slice(0, 5).join(", ")}`;
+        const domains: string[] = (res as any).allUniqueDomains ?? [];
+        if (domains.length) {
+          const note = `Whoxy WHOIS: ${domains.length} domain(s) — ${domains.slice(0, 5).join(", ")}`;
           await db.update(entitiesTable)
             .set({ notes: sql`CASE WHEN notes IS NULL THEN ${note} ELSE notes || E'\n' || ${note} END`, updatedAt: new Date() })
             .where(eq(entitiesTable.id, id));
+          // Write each discovered domain as a DigitalAsset row
+          const domainAssets = domains.slice(0, 10).map((domain: string) => ({
+            category: "DigitalAsset",
+            identifier: domain,
+            jurisdiction: "WHOIS",
+            description: `Registered domain linked to ${name} via Whoxy reverse-WHOIS`,
+            sourceRegistry: "Whoxy WHOIS",
+            ownerEntityId: id,
+          }));
+          await db.insert(assetsTable).values(domainAssets).onConflictDoNothing().catch(() => {});
         }
       }).catch(() => {}) : Promise.resolve(),
     ]);
+
+    // ── Step G: Groq asset extraction — pull structured assets from AI context ──
+    // Uses the notes/context accumulated above to extract real estate, aviation,
+    // marine, and business assets as structured rows in the assets table.
+    try {
+      const groqKeys: string[] = [];
+      const _gNames = ["GROQ_API_KEY"];
+      for (let i = 1; i <= 8; i++) _gNames.push(`GROQ_API_KEY_${i}`);
+      _gNames.forEach(k => { const v = process.env[k]; if (v) groqKeys.push(v); });
+
+      if (groqKeys.length) {
+        // Fetch current entity notes for context
+        const ctxRow = await db.select({ notes: entitiesTable.notes, knownResidences: entitiesTable.knownResidences, nationality: entitiesTable.nationality })
+          .from(entitiesTable).where(eq(entitiesTable.id, id)).then((r: any[]) => r[0]);
+
+        const context = [
+          ctxRow?.notes,
+          ctxRow?.knownResidences ? `Residences: ${ctxRow.knownResidences}` : null,
+          entity.type ? `Type: ${entity.type}` : null,
+        ].filter(Boolean).join("\n");
+
+        if (context.length > 60) {
+          const groqKey = groqKeys[Math.floor(Math.random() * groqKeys.length)];
+          const prompt = `You are extracting structured asset data about a high-net-worth individual named "${name}".
+
+Context about this person:
+${context}
+
+Extract any REAL ASSETS mentioned (real estate properties, aircraft, yachts/boats, businesses/companies, private clubs memberships).
+Respond ONLY with a JSON array. Each item must have:
+- "category": one of "RealEstate" | "Aviation" | "Marine" | "Business" | "PrivateClub"
+- "identifier": the specific identifier (address, tail number N-XXXXX, IMO number, company name, club name)
+- "jurisdiction": country or registry (e.g. "UK", "USA", "FAA", "IMO", "Italy", "France")
+- "description": one sentence describing the asset
+
+If nothing concrete is mentioned, respond with [].
+Only include assets with a real identifier — no vague mentions.`;
+
+          const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${groqKey}` },
+            body: JSON.stringify({
+              model: "llama-3.1-8b-instant",
+              messages: [{ role: "user", content: prompt }],
+              temperature: 0, max_tokens: 512,
+            }),
+            signal: AbortSignal.timeout(10_000),
+          }).then(r => r.json()).catch(() => null);
+
+          const raw = resp?.choices?.[0]?.message?.content?.trim() ?? "";
+          const jsonMatch = raw.match(/\[[\s\S]*\]/);
+          if (jsonMatch) {
+            const extracted: Array<{ category: string; identifier: string; jurisdiction: string; description?: string }> =
+              JSON.parse(jsonMatch[0]);
+            const validCategories = new Set(["RealEstate", "Aviation", "Marine", "Business", "PrivateClub"]);
+            const assetRows = extracted
+              .filter(a => a.identifier?.length > 2 && validCategories.has(a.category))
+              .slice(0, 8)
+              .map(a => ({
+                category: a.category,
+                identifier: a.identifier,
+                jurisdiction: a.jurisdiction ?? "Unknown",
+                description: a.description ?? null,
+                sourceRegistry: "AI OSINT (Groq extraction)",
+                ownerEntityId: id,
+              }));
+            if (assetRows.length) {
+              await db.insert(assetsTable).values(assetRows).onConflictDoNothing().catch(() => {});
+              logger.info({ entityId: id, name, assetCount: assetRows.length }, "[Atlas] ✅ Assets extracted");
+            }
+          }
+        }
+      }
+    } catch (_assetErr) { /* fail-open — asset extraction is best-effort */ }
 
     // ── Step F: Final confidence recompute + cookedAt stamp ───────────────────
     const fresh = await db.select({
