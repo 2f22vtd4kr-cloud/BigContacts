@@ -8,6 +8,19 @@
 
 ---
 
+## Current State (2026-07-30 — Re-import #34 — setup complete; pipeline idle; waiting for user)
+
+### Import setup (2026-07-30 — re-import #34)
+- `CI=true pnpm install --frozen-lockfile` ✅ (~38s)
+- `pnpm --filter @workspace/db run push` → `[✓] Changes applied` ✅
+- Redis ✅ (port 6379) · artifacts/api-server: API Server ✅ (port 8080) · artifacts/apex-finder: web ✅ (port 23695)
+- Python tools: holehe ✓ maigret 0.6.3 ✓
+- `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":3}}` ✅
+- All 24 enrichment secrets set: REDIS_URL_1–5, COMPANIES_HOUSE_API_KEY, GROQ_API_KEY/\_2/\_3, PERPLEXITY_API_KEY/\_2/\_3/\_4, WHOXY_API_KEY, GEMINI_API_KEY/\_2/\_3/\_4, EXA_API_KEY/\_2, TAVILY_API_KEY/\_2/\_3/\_4; SESSION_SECRET present
+- Pipeline idle — user has not launched Atlas yet
+
+---
+
 ## Current State (2026-07-30 — Atlas RUNNING job b41fe1e2 — Phase 1 enrichment — 941 entities / 91 contactable)
 
 ### Fixes applied this session (2026-07-30):
