@@ -146,6 +146,24 @@ function computeConfidence(entity: any, assets: any[], relationships: any[]): Co
   return { identity, financial, network, registry, asset, overall };
 }
 
+/** Strip URL prefix from a stored social handle — returns bare handle only (no @ prefix, no URL). */
+function cleanHandle(url: string | null | undefined): string | null {
+  if (!url) return null;
+  const s = url
+    .replace(/^https?:\/\/(www\.)?(twitter\.com|x\.com|instagram\.com|t\.me)\//, "")
+    .replace(/\/$/, "")
+    .replace(/^@/, "")
+    .trim();
+  return s && !s.startsWith("http") ? s : null;
+}
+
+/** True when the email looks like a Cloudflare-obfuscated or placeholder address — never display these. */
+function isProtectedEmail(email: string | null | undefined): boolean {
+  if (!email) return false;
+  const lc = email.toLowerCase();
+  return lc.includes("protected") || lc === "[email protected]" || lc.startsWith("javascript:");
+}
+
 function buildLedger(entity: any, assets: any[], relationships: any[]): LedgerEntry[] {
   const entries: LedgerEntry[] = [];
   let srcRegs: string[] = [];
@@ -476,7 +494,8 @@ export default function ApexProfile() {
     if (/companies.?house/i.test(reg)) return "Companies House — UK company director";
     if (/bodacc|france/i.test(reg))   return "BODACC — French company director";
     if (/ares|czech/i.test(reg))      return "ARES — Czech company director";
-    if (reg) return reg;
+    // Don't surface internal pipeline labels as a "wealth source"
+    if (reg && !/^(web.?discovery|broad.?discovery|ai.?osint|deep.?web|in.?house|web.?enricher|manual)$/i.test(reg)) return reg;
     return null;
   })();
 
@@ -671,7 +690,7 @@ export default function ApexProfile() {
           <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
             <div className="flex items-center gap-2">
               <div className="flex flex-col items-center gap-0.5">
-                <ConfidenceBadge score={(entity as any).contactConfidence} />
+                <ConfidenceBadge score={confidence.overall} />
                 <span className="text-[8px] font-mono text-muted-foreground/50 uppercase tracking-widest">Confidence</span>
               </div>
               <div className="flex flex-col items-center gap-0.5">
@@ -943,7 +962,7 @@ export default function ApexProfile() {
             {hasContact ? (
               <div className="flex items-center gap-2 flex-wrap">
                 {/* Email */}
-                {e.email && (
+                {e.email && !isProtectedEmail(e.email) && (
                   <a href={`mailto:${e.email}`} title={e.email}
                     className="flex items-center gap-2 px-3 py-1.5 rounded border border-primary/30 bg-primary/10 text-primary font-mono text-xs hover:bg-primary/20 transition-colors min-w-0 max-w-[220px] sm:max-w-none">
                     <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -976,20 +995,20 @@ export default function ApexProfile() {
                   </a>
                 )}
                 {/* Twitter/X */}
-                {e.twitterHandle && (
-                  <a href={`https://x.com/${e.twitterHandle}`} target="_blank" rel="noopener noreferrer"
-                    title={e.twitterBio ?? `@${e.twitterHandle} on X/Twitter`}
+                {cleanHandle(e.twitterHandle) && (
+                  <a href={`https://x.com/${cleanHandle(e.twitterHandle)}`} target="_blank" rel="noopener noreferrer"
+                    title={e.twitterBio ?? `@${cleanHandle(e.twitterHandle)} on X/Twitter`}
                     className="flex items-center gap-2 px-3 py-1.5 rounded border border-sky-400/30 bg-sky-400/10 text-sky-400 font-mono text-xs hover:bg-sky-400/20 transition-colors">
                     <Twitter className="w-3.5 h-3.5 flex-shrink-0" />
-                    @{e.twitterHandle}
+                    @{cleanHandle(e.twitterHandle)}
                   </a>
                 )}
                 {/* Instagram */}
-                {e.instagramHandle && (
-                  <a href={`https://instagram.com/${e.instagramHandle}`} target="_blank" rel="noopener noreferrer"
+                {cleanHandle(e.instagramHandle) && (
+                  <a href={`https://instagram.com/${cleanHandle(e.instagramHandle)}`} target="_blank" rel="noopener noreferrer"
                     className="flex items-center gap-2 px-3 py-1.5 rounded border border-pink-400/30 bg-pink-400/10 text-pink-400 font-mono text-xs hover:bg-pink-400/20 transition-colors">
                     <Instagram className="w-3.5 h-3.5 flex-shrink-0" />
-                    @{e.instagramHandle}
+                    @{cleanHandle(e.instagramHandle)}
                   </a>
                 )}
                 {/* Telegram */}

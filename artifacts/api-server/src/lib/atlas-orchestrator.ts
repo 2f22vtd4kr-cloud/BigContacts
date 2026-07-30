@@ -188,6 +188,17 @@ type EntityRow = {
   notes: string | null; sourceRegistries: string | null;
 };
 
+/** Reduce a stored social-URL or @handle to a bare handle for consistent DB storage. */
+function normalizeHandle(url: string | null | undefined): string | null {
+  if (!url) return null;
+  const s = url
+    .replace(/^https?:\/\/(www\.)?(twitter\.com|x\.com|instagram\.com|t\.me)\//, "")
+    .replace(/\/$/, "")
+    .replace(/^@/, "")
+    .trim();
+  return s && !s.startsWith("http") ? s : null;
+}
+
 async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Promise<void> {
   const { id, name } = entity;
   try {
@@ -249,16 +260,16 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
         ...(aiResult.email        ? { email:          aiResult.email }        : {}),
         ...(aiResult.phone        ? { phone:          aiResult.phone }        : {}),
         ...(aiResult.linkedinUrl  ? { linkedinUrl:    aiResult.linkedinUrl }  : {}),
-        ...(aiResult.instagramUrl && !entity.instagramHandle && !isCorpOrTrust ? { instagramHandle: aiResult.instagramUrl } : {}),
-        ...(aiResult.twitterUrl   && !entity.twitterHandle   && !isCorpOrTrust ? { twitterHandle:   aiResult.twitterUrl }   : {}),
+        ...(aiResult.instagramUrl && !entity.instagramHandle && !isCorpOrTrust ? { instagramHandle: normalizeHandle(aiResult.instagramUrl) } : {}),
+        ...(aiResult.twitterUrl   && !entity.twitterHandle   && !isCorpOrTrust ? { twitterHandle:   normalizeHandle(aiResult.twitterUrl) }   : {}),
         contactConfidence: confidence, updatedAt: new Date(),
         contactOutcome: computeContactOutcome({ email: aiResult.email, phone: aiResult.phone, linkedinUrl: aiResult.linkedinUrl }),
       }).where(eq(entitiesTable.id, id));
       if (aiResult.email)        entity = { ...entity, email:          aiResult.email };
       if (aiResult.phone)        entity = { ...entity, phone:          aiResult.phone };
       if (aiResult.linkedinUrl)  entity = { ...entity, linkedinUrl:    aiResult.linkedinUrl };
-      if (aiResult.twitterUrl  && !entity.twitterHandle)   entity = { ...entity, twitterHandle:   aiResult.twitterUrl };
-      if (aiResult.instagramUrl && !entity.instagramHandle) entity = { ...entity, instagramHandle: aiResult.instagramUrl };
+      if (aiResult.twitterUrl  && !entity.twitterHandle)   entity = { ...entity, twitterHandle:   normalizeHandle(aiResult.twitterUrl) };
+      if (aiResult.instagramUrl && !entity.instagramHandle) entity = { ...entity, instagramHandle: normalizeHandle(aiResult.instagramUrl) };
       if (aiResult.evidence?.length) {
         await db.insert(contactEvidenceTable).values(aiResult.evidence.map((ev: any) => ({
           entityId: id, vectorType: ev.vectorType, value: ev.value, source: ev.source,
@@ -454,7 +465,8 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
       email: entitiesTable.email, phone: entitiesTable.phone,
       linkedinUrl: entitiesTable.linkedinUrl, twitterHandle: entitiesTable.twitterHandle,
       instagramHandle: entitiesTable.instagramHandle, telegramHandle: entitiesTable.telegramHandle,
-      knownResidences: entitiesTable.knownResidences,
+      knownResidences: entitiesTable.knownResidences, sourceRegistries: entitiesTable.sourceRegistries,
+      nationality: entitiesTable.nationality, estimatedNetWorth: entitiesTable.estimatedNetWorth,
     }).from(entitiesTable).where(eq(entitiesTable.id, id)).then((r: any[]) => r[0]);
 
     if (fresh) {
@@ -495,8 +507,23 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
       const isHot = !!(fresh.email || fresh.phone ||
         (contactConf >= 50 && (fresh.linkedinUrl || fresh.twitterHandle)));
 
+      // Compute composite overall confidence (mirrors frontend computeConfidence formula).
+      // Stored as contactConfidence so the list, profile header, and Profile Depth circle all show the same number.
+      const idScore = Math.round(
+        ([fresh.email, fresh.phone, fresh.linkedinUrl, fresh.knownResidences, (fresh as any).nationality].filter(Boolean).length / 5) * 100
+      );
+      const assetsWithVal = entityAssets.filter((a: any) => a.estimatedValue != null).length;
+      const financialScore = Math.min((fresh as any).estimatedNetWorth != null ? 40 : 0) + Math.min(assetsWithVal * 15, 60);
+      let srcRegs: string[] = []; try { srcRegs = JSON.parse((fresh as any).sourceRegistries ?? "[]"); } catch {}
+      const assetSrcSet = new Set(entityAssets.map((a: any) => a.sourceRegistry).filter(Boolean));
+      const registryScore = Math.min(new Set([...srcRegs, ...assetSrcSet]).size * 20, 100);
+      const assetScore = entityAssets.length === 0 ? 0 : Math.round((entityAssets.filter((a: any) => a.sourceRegistry).length / entityAssets.length) * 100);
+      const overallConf = Math.round(idScore * 0.2 + Math.min(financialScore, 100) * 0.25 + 0 * 0.2 + registryScore * 0.2 + assetScore * 0.15);
+      // Use the higher of contact-based and composite score (never downgrade an already-good contact score)
+      const finalConf = Math.max(contactConf, overallConf);
+
       await db.update(entitiesTable).set({
-        contactConfidence: contactConf,
+        contactConfidence: finalConf,
         contactOutcome:    computeContactOutcome(fresh),
         bayesianScore:     Math.max(entity.bayesianScore ?? 0, bayesScore),
         isHot,
@@ -827,6 +854,20 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
       END
       WHERE contact_outcome IS NULL
     `);
+
+    // Normalize stored social handles — strip URL prefixes so only bare handles are stored.
+    // Fixes entities enriched before normalizeHandle() was added to Step C.
+    await db.execute(sql`
+      UPDATE entities
+      SET twitter_handle = regexp_replace(twitter_handle, '^https?://(www\\.)?(twitter\\.com|x\\.com)/', '', 'i'),
+          instagram_handle = regexp_replace(instagram_handle, '^https?://(www\\.)?instagram\\.com/', '', 'i')
+      WHERE twitter_handle LIKE 'http%' OR instagram_handle LIKE 'http%'
+    `).catch(() => {});
+
+    // Clear obfuscated/protected emails that were scraped from Cloudflare-protected pages.
+    await db.execute(sql`
+      UPDATE entities SET email = NULL WHERE email ILIKE '%protected%'
+    `).catch(() => {});
 
     // Backfill isHot for all entities — a direct contact vector = priority lead.
     // This repairs entities enriched before the isHot-stamping logic existed.

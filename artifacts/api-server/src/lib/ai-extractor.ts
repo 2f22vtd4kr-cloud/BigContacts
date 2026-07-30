@@ -240,6 +240,17 @@ function parseAIResponse(raw: string, source: AIExtractResult["source"]): AIExtr
       return (s === "null" || s === "undefined" || s.length < 3) ? null : s;
     };
 
+    // Reject emails that look like placeholders or templates the AI invented
+    const isPlaceholderEmail = (e: string): boolean => {
+      if (!e) return false;
+      const local = e.split("@")[0]?.toLowerCase() ?? "";
+      // Classic placeholder patterns: jane.doe, j.doe, john.smith, jdoe, test.user, firstname.lastname etc.
+      if (/^(jane\.?doe|john\.?doe|j\.?doe|test\.?user|sample|firstname|lastname|first\.last|f\.last|j\.smith|john\.smith|your\.name|name\.surname)$/i.test(local)) return true;
+      // Generic placeholder domains
+      if (/^(example|test|sample|placeholder|domain|email)\.(com|org|net)$/i.test(e.split("@")[1] ?? "")) return true;
+      return false;
+    };
+
     // Normalize @handle → full URL for instagram and twitter fields
     const normIG  = (v: unknown): string | null => {
       const s = clean(v);
@@ -482,7 +493,23 @@ Do not confuse a director/CEO with an owner unless a source explicitly says so.
 
 STEP 4 — ORGANISATION CONTACT:
 Official HQ address(es), main phone line(s), general email, LinkedIn company page.` 
-  : `This is an individual. Find:\n1. Direct email\n2. Phone\n3. LinkedIn /in/ URL\n4. Instagram, Twitter/X\n5. Associated companies and roles`}
+  : `This is a high-net-worth individual. Find PERSONAL direct contact information ONLY.
+
+STEP 1 — PERSONAL DIRECT EMAIL:
+Their individual named email address (e.g. firstname.lastname@company.com). NOT info@, press@, media@, contact@, or any shared company inbox. Construct from known domain patterns if not explicit.
+
+STEP 2 — PERSONAL MOBILE / DIRECT LINE:
+Their personal cell phone or personal direct office extension ONLY.
+⚠️ CRITICAL: DO NOT return a corporate headquarters number, company main switchboard, reception line, or any number that belongs to an organisation rather than this specific individual. If the only phone you can find is a company HQ/switchboard, return null for phone. Example of what NOT to return: "+1 (303) 404-1800" is Vail Resorts corporate HQ — not a personal number.
+
+STEP 3 — PERSONAL LINKEDIN /in/ PROFILE:
+Their personal /in/ profile URL. NOT a /company/ page.
+
+STEP 4 — PERSONAL SOCIAL ACCOUNTS:
+Instagram or Twitter/X accounts this individual personally manages and posts from themselves.
+⚠️ NOT corporate brand accounts. NOT company social pages. Personal lifestyle/professional accounts only (e.g. @firstname_lastname style handles, not @companybrand).
+
+STEP 5 — ASSOCIATED COMPANIES AND ROLES (context only, not contact purposes).`}
 
 Return ONLY this JSON — no preamble, no explanation, no markdown:
 {

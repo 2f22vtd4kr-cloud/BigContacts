@@ -139,7 +139,7 @@ function extractEmails(text: string): string[] {
   const all = [...text.matchAll(EMAIL_RE)].map(m => m[0]!.toLowerCase());
   return [...new Set(all.filter(e => {
     const d = e.split("@")[1] ?? "";
-    return !EMAIL_BLOCK.has(d) && !d.includes("privacy") && !d.includes("proxy") && e.length < 80;
+    return !EMAIL_BLOCK.has(d) && !d.includes("privacy") && !d.includes("proxy") && e.length < 80 && !e.toLowerCase().includes("protected");
   }))];
 }
 

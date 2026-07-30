@@ -651,6 +651,12 @@ export async function runBroadDiscovery(options: {
       // Sanitise: strip newlines, leading/trailing whitespace, control chars
       const cleanName = name.replace(/[\r\n\t]+/g, " ").replace(/\s{2,}/g, " ").trim();
       if (cleanName.length < 5 || cleanName.split(/\s+/).length < 2) continue;
+      // Reject names where no single word is ≥4 chars — these are almost always truncated
+      // (e.g. "Amr El", "Li Bo", "Al Wu") not full human names
+      const nameParts = cleanName.split(/\s+/);
+      if (nameParts.every(p => p.replace(/[^a-zA-Z]/g, "").length < 4)) continue;
+      // Hard-reject obvious non-human patterns before the LLM validator
+      if (/\b(decree|holders?|ownership|beneficial\s+owner|joint\s+venture|harbour|harbor|marina|marine|resort|holdings?|safe\s+harbor|ministerial|legislative|regulation|directive|ordinance)\b/i.test(cleanName)) continue;
       const type = classifyType(cleanName);
       await db.insert(entitiesTable).values({
         name: cleanName,

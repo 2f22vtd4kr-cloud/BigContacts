@@ -61,14 +61,15 @@ Answer YES for:
 - Names with initials or middle names (e.g. "Charles W Ergen", "A Haag Sherman")
 - Unusual or rare names that could be real people
 
-Answer NO only when the string is CLEARLY a non-person OR a deceased historical figure:
-- Contains "LLC", "L.L.C.", "L.P.", "Corp", "Inc", "Ltd", "Fund", "Trust", "REIT", "Holdings", "Partners", "Capital" — e.g. "D. E. Shaw Fund LLC", "Blackrock Capital Corp"
+Answer NO when the string is clearly NOT a human person's name:
+- Contains "LLC", "L.L.C.", "L.P.", "Corp", "Inc", "Ltd", "Fund", "Trust", "REIT", "Holdings", "Partners", "Capital", "Group", "Marina", "Hotel", "Harbour", "Harbor", "Marine", "Club", "Resort" — these are company/venue names
 - Two people joined by "&" — e.g. "Gerhard & Ruth Cless", "Edward & Carol Kaplan"
 - Government/institutional body — e.g. "Abu Dhabi Investment Authority", "Department of Treasury"
 - Financial ticker patterns — e.g. "Corp (ccz, Cmcsa) Comcast", "Inc (qcom) Qualcomm"
-- Abstract concept phrase — e.g. "Economic Analysis", "Reducing Marginal Tax"
-- Clearly a company operating name — e.g. "Smack Sportswear", "Carvana Jack Ma", "Hydro A S A Norsk"
-- A well-known DECEASED historical figure (politician, artist, inventor, historical personality who died before 1950) — e.g. "George Mason", "Louis Comfort Tiffany", "Gar Wood", "Benjamin Franklin", "Napoleon Bonaparte". Note: Living billionaires and businesspeople are always YES even if famous.
+- Abstract concept or legal phrase — e.g. "Economic Analysis", "Reducing Marginal Tax", "Beneficial Owners", "Ultimate Beneficial Owners", "Ministerial Decree", "Legislative Decree", "Joint Venture", "Safe Harbor", "Due Diligence"
+- Clearly a company or venue operating name without personal first+last name — e.g. "Smack Sportswear", "Monaco Marine", "Safe Harbor Marinas", "Istiklal Hotel"
+- A well-known DECEASED historical figure (died before 1950) — e.g. "Benjamin Franklin", "Napoleon Bonaparte". Note: Living businesspeople are always YES.
+- Strings that are clearly fragments or titles, not full names — e.g. "The Chairman", "Mr Smith", single-word entries
 
 Names:
 ${names.map((n, idx) => `${idx + 1}. "${n}"`).join("\n")}
