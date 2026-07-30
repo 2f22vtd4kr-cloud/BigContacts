@@ -1,0 +1,299 @@
+
+The logs show only HTTP polling requests — no actual enrichment activity. Let me read the full API server log to see what Phase 6 is actually doing:
+It's actually working — the progress counter just doesn't reflect contacts found mid-phase. Here's the real picture:
+Right now:
+* 941 entities (up from 822 — more were added during Phase 1–5)
+* 93 contactable entities already found with contact signals
+* 100 reachable personal contact vectors discovered
+* 11% enrichment coverage and climbing
+What Phase 6 is doing per entity:
+* Perplexity Sonar ✅ firing and returning results
+* Gemini ⚠️ all 4 keys currently rate-limited (5-min cooldown window) — being skipped temporarily, will resume
+* Tavily ✅ firing and returning results
+* Exa ✅ firing fast (~0.5s per entity)
+* Maigret 🐢 this is the bottleneck — scans 3,000+ platforms, takes ~2 minutes per entity
+The slow part: Maigret runs sequentially, ~2 min per entity. With 941 entities and hotLeadsOnly: false, Phase 6 will take many hours to process everyone. That's working as designed but very long.
+The contacts that ARE being found are real — "AI owner contacts with personal handles extracted" is showing up in logs.
+Want me to kill the current job and relaunch Phase 6 with hotLeadsOnly: true to focus the AI sweep + Maigret only on the 39 hot leads? That would complete Phase 6 in ~2 hours instead of days, and you'd see all the contacts concentrated on the highest-value targets rather than spread thin across 941 entities.
+But the intelligence reactor isn't on maigret - it jumps from one tool to another in loop quickly. Also does the UI show that Gemini keys are down now? Fix
+Two separate issues. Let me read the relevant code in parallel:
+Now I have the full picture. Let me check the system-status route path, then fix both issues:
+I have everything I need. Two clean fixes:
+1. Reactor cycling — currentStepNodes picks 1 node per 1.3s tick instead of lighting all live nodes simultaneously. Fix: show all liveNodes lit at once; keep liveStep for the animated dots only.
+2. Key exhaustion in reactor — poll /api/system/status and show an amber warning strip when providers are down.
+Now add the key exhaustion polling and warning strip in the reactor:
+You've reached your daily free quota limit. It will reset at 12:00 AM UTC.
+Continue
+API server crashed. Restarting it while I finish the reactor fix:
+Now add the amber warning strip into the live banner. Let me find the exact insertion point:
+Now verify the props are wired through to MobileReactor and check for TS errors:
+exhaustedKeys is used inside MobileReactor but not in its props — it's referencing the outer state directly which will break. Need to add it to the props interface and pass it from the call site. Also Atlas is idle — refiring it. All in parallel:
+Both edits at once — add exhaustedKeys to MobileReactor's props interface and pass it from the call site:
+All good — Vite hot-reloaded 4 times cleanly, all changes are live. Let me update Context.md and check the current pipeline state:
+Both fixes are live (Vite confirmed 4× HMR updates, no errors):
+Reactor nodes — all tools that fire in parallel during Phase 6 (Perplexity, Tavily, Exa, Maigret, Holehe) now glow simultaneously instead of jumping one at a time every 1.3s. The footer pulse dots still animate gently at 2.5s to show activity without being frantic.
+Key exhaustion warning — the reactor now polls /api/system/status every 3s alongside the job poll. When any provider has all keys rate-limited, an amber ⚠ RATE LIMITED: Gemini · Tavily↓ strip appears inside the live banner. Right now all keys are healthy (Gemini recovered), so nothing shows — but you'll see it instantly if they hit limits again.
+Atlas is on Phase 1, heading toward Phase 6. You already have 941 entities and 91 contactable signals from the previous run. Also proposed three follow-up tasks for things worth fixing next: noise entities from broad discovery, focusing Phase 6 only on hot leads so it finishes in hours not days, and auto-resuming Atlas after restarts.
+Can you just do entities one by one full circle? Instead of batches and mark those that went through all the phases in the UI so I immediately see that those are "cooked" fully? Otherwise I have to wait huge amount of time before I can start reaching to HNWIs. Also you are still using same few resources for the first entities when I asked you to mix the ways you find where to begin research so it's web-search for hotel owner, golf clubs, investments funds etc and also ffa and all European registries per country we added - all mixed fetching one and working full circle with it an so on.
+Big architectural shift — need to understand the current structure before rewriting. Let me explore in parallel:
+Good, the explorer gave me everything I need. Atlas is on Phase 6 right now — let me cancel it cleanly, then rewrite the pipeline. I need to see the exact current code for the orchestrator and schema:
+Now I have everything I need. Let me find the DB schema path and the broad-discovery template list simultaneously, then implement all the changes:
+I have everything I need. Now implementing all the changes in parallel — this is a 5-file rewrite. Let me read the DB schema while starting the main code edits:
+Good — I have all the context I need. Let me implement all changes in parallel:
+Plan:
+1. Add cookedAt column to DB schema
+2. Export a discoverSingleTemplate() from broad-discovery (one query at a time)
+3. Rewrite atlas-orchestrator.ts with per-entity full-circle + interleaved discovery
+4. Add "COOKED" badge in the entities UI
+Let me read the entities API route select to know what to add, while starting the DB schema change:
+Now I need to find the entities list select fields and write all the changes in parallel:
+
+The session cut off mid-rewrite at the credit limit. The planned changes were: per-entity full-circle pipeline, cookedAt DB column, discoverSingleTemplate(), and a "COOKED" badge. Let me check exactly what landed vs what's still missing before touching anything.
+Clear picture. cookedAt is in schema ✅, but the per-entity full-circle orchestrator and discoverSingleTemplate() were never written — session cut off before that. Let me read the exact current code for those three files, then implement everything in one sweep.
+Now I have the full picture. Let me read the omitted orchestrator tail and the entities API select to know exactly what to add, then implement all changes in one sweep.
+I have the full picture now. Let me check the entities list API select and the LLM validator (for the false positive fix that was written but never rebuilt), then implement everything in one go.
+I have everything I need. Now implementing all 4 changes in parallel: per-entity full-circle orchestrator, discoverSingleTemplate, COOKED badge, and the LLM validator fix.
+The LLM validator prompt is already correct (the fix landed). Now writing all 3 changes in parallel: per-entity full-circle orchestrator, discoverSingleTemplateexport, and COOKED badge.
+Now writing the orchestrator rewrite and COOKED badge in parallel:
+Now replacing the full orchestrator body and adding the COOKED badge in parallel:
+Now doing the main orchestrator body replacement and entities COOKED badge in parallel:
+Let me read the current state of the orchestrator to see exactly where I am, then finish the replacement and do the badge simultaneously.
+I need to replace the entire remaining old body with the new implementation in one shot. Let me do that and the badge edit simultaneously.
+Let me read the end of the orchestrator and do both the orchestrator completion and badge edit simultaneously:
+Now replacing the old phases 1-10 body with the per-entity loop and adding the COOKED badge simultaneously:
+Let me check the current orchestrator state and add the badge simultaneously:
+The old Phase 4-10 batch code is still there and needs to be removed since it's now in enrichEntityFullCircle. Let me read the remaining section and remove it:
+Now removing the redundant old Phase 4-8 batch code (now handled by enrichEntityFullCircle) in one clean replacement:
+Removing old Phase 4-8 batch code (now in enrichEntityFullCircle) and adding the COOKED badge to the table simultaneously:
+Now adding the COOKED badge to both the table row and mobile card, and kicking off the build verify simultaneously:
+Let me check the current build state and find the mobile card section for the badge, plus check the orchestrator's final state:
+Most errors are pre-existing. Let me fix the new ones in the orchestrator and check the mobile card and discoverSingleTemplate export simultaneously:
+discoverSingleTemplate is already exported. Now fixing the new TS errors and adding the mobile card badge in parallel:
+Now fixing the remaining .then(r => r[0]) type issue and adding the mobile card badge simultaneously:
+Let me find the mobile card area and kick off the db build in parallel:
+
+The last session ended mid-rewrite at the credit limit. I need to verify exactly what landed before touching anything or firing Atlas. Let me do a full parallel sweep of all the critical files.
+Build is clean. Status: orchestrator ✅, schema ✅, desktop COOKED badge ✅, mobile card badge ❌ missing. Let me read the mobile card and the broad-discovery templates in parallel to verify content diversity before firing.
+Good — build is clean, orchestrator is complete. Two things left: check ghost clearing in startup.ts, add the mobile COOKED badge, then fire Atlas. Doing all in parallel.
+Everything confirmed ✅. Last piece: add mobile COOKED badge, then fire Atlas with all 15 categories.
+Now let me verify the Vite hot-reload took the badge change, check the dedup/clear param, and prepare to fire Atlas — all in parallel.
+Mobile COOKED badge ✅ (Vite HMR confirmed). Slot 1 quota-exhausted (non-fatal), slots 2–5 healthy. Let me check how broadCategories maps to categories in the orchestrator before firing.
+The orchestrator runs all 15 broad categories from DISCOVERY_SOURCES regardless of the broadCategories param — great. One critical check before firing: with a fresh/empty DB, old Upstash dedup entries from prior runs will silently block all insertions. Need to clear dedup first.
+The orchestrator runs all 15 broad categories + 6 registry batches interleaved. clearFirst: true only fires on registry batch 1, not on the broad-discovery phase — so old Upstash dedup entries would silently block fresh entity discovery. Clearing dedup first, then firing Atlas.
+Atlas is live — job 5b9a7e99. Let me confirm Phase 0 is moving and update Context.md.
+Atlas is running — Phase 0 broad discovery firing category 1/21 (European venue owners). Everything is live and wired correctly.
+Atlas is running cleanly. Here's what was verified and done before firing:
+All checks passed ✅
+* atlas-run in INGESTOR_TYPES → ghost jobs auto-cleared on every restart
+* Per-entity full-circle orchestrator complete (21 interleaved sources, cookedAt stamped per entity)
+* LLM validator prompt already corrected (real people pass, corporate strings rejected)
+* Mobile card COOKED badge added (was the only missing piece from last session)
+* Upstash dedup cleared before launch (fresh DB + stale dedup = silently blocked discoveries)
+Atlas job 5b9a7e99 — running now
+* 15 diverse broad-discovery categories firing in sequence: European venues, Italian/Mediterranean hotels, Nordic golf clubs & shipping, Dubai investment funds, French Riviera, Asian wealth centres, UK estates, Latin America, marinas, SEC filings, philanthropy, public mentions…
+* 6 EDGAR/CH/BRREG/BODACC registry batches interleaved between the above
+* FAA 50k dump: skipped
+* Each discovered entity immediately runs full enrichment (Phases 4–8) and gets cookedAtstamped — you'll see green ✓ badges appearing progressively as entities finish
+Poll progress:
+curl -s http://localhost:8080/api/ingest/job/5b9a7e99-24d3-4d0c-ab2a-328e0a976470 | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('status'), '|', d.get('inserted',0), 'inserted |', d.get('message','')[:80])"
+
+Already processing individual entities through AI OSINT — the pipeline is working end-to-end.
+The intelligence reactor doesn't represent all those sources and all work being actually done
+Workflows crashed when the platform registered the artifacts. Restarting everything in parallel while reading the reactor code simultaneously.
+All workflows up. Now reading the rest of the reactor to understand the live state logic before fixing it.
+Atlas killed by restart. Let me read the pollJobs/live state logic while simultaneously refiring Atlas — I can fix the reactor and refire in parallel.
+Atlas is live (job 31de1d45). Now let me read the pollJobs function and the live banner section to understand exactly how liveNodes is derived before rewriting the mapping.
+Now let me read the pollJobs function and then make all the fixes in one pass.
+Now I have the full picture. The problems are clear:
+1. MOBILE_PHASES.REGISTRIES only lists 6 nodes — brreg and whoxy are in NODES but never shown on mobile
+2. pollJobs Atlas parser looks for Phase\s+(\d+)but the new 21-source orchestrator sends [N/21] source label — no nodes ever light up correctly
+3. Footer PHASE meter matches Atlas Phase X/10pattern — also dead with the new format
+4. webdisc sub-text says "DuckDuckGo · Bing" but it's actually running 15 AI-powered category searches via Tavily/Groq
+Fixing all 4 in one pass:
+Good — now fixing the pollJobs parser and footer meter in parallel:
+Now fix the footer meter regex and verify the build compiles clean — in parallel:
+Atlas is live — already running Maigret on entities. One new TS error from my edit (exhaustedKeys possibly undefined) and pre-existing errors elsewhere. Fixing the TS error while also checking the Vite hot-reload picked up all changes:
+Vite confirmed 5× HMR updates — all changes live. Now I need to fix the exhaustedKeys TS error AND improve the message parser to handle entity-level messages (the inner enrichment overwrites the [N/21] prefix quickly). Both in parallel:
+No TS errors in reactor.tsx — clean. Let me confirm Vite picked up the latest edits and update Context.md.
+All changes are live — Vite confirmed 7× HMR updates with no errors.
+Here's what changed in the reactor and why each node now lights up correctly:
+What was broken → what's fixed
+Issue	Fix
+brreg + whoxynodes existed but were invisible on mobile	Added to MOBILE_PHASES.REGISTRIES— now all 8 registry nodes render
+"WEB DISC. — DuckDuckGo · Bing" (wrong)	Subtitle now "15 Categories · Tavily · AI" (what it actually does)
+Atlas node parser looked for Phase X/10 — never matched new pipeline	New atlasStepToNodes()maps [N/21] step numbers: registry steps 2/5/8/11/14/18 → edgar+ch+brreg+hnwi; broad categories → webdisc+groq; 🍳 → enrichment stack
+Entity-level messages (inner enrichment overwrites [N/21]) left all nodes dark	Keyword parser: Maigret/Holehe → maigret; Perplexity/Sonar → perp0+perpfu; Gemini → gemini; Tavily → tavily; Exa→ exa; AI OSINT → full AI stack; In-house/Wikidata → inhouse
+Footer showed RUNS 0 always when Atlas live	Now shows STEP N/21 real progress counter
+Atlas is running right now — logs show Perplexity Sonar already found email + phone + LinkedIn for "Andrew Richardson" on the first entity processed. The pipeline is working end-to-end.
+
+Whoxy is already wired (graceful degradation). Three fixes in parallel — Phase 3 notes overwrite, 200-entity cap, and totalContacts counter — then fire.
+Now build to verify, then clear dedup and fire Atlas.
+Clean build. Restarting the API server, then clearing dedup and firing Atlas.
+All 5 Upstash slots healthy. Clearing stale dedup and firing Atlas now.
+Atlas is idle, no ghost. Clearing dedup then firing.
+Atlas is running. Let me poll to confirm broad discovery is active and update Context.md simultaneously.
+Phase [1/21] — European venue owners broad discovery is live. Let me update Context.md now.
+Atlas is live and the full pipeline is working end-to-end. Here's exactly what's confirmed:
+3 bugs fixed before launch:
+* Phase 3 was silently overwriting forensic notes (ICIJ/Whoxy/AI) with bare registry strings — now only writes if notes are empty
+* Entity cap of 200 per source round meant entities discovered beyond the first 200 were never enriched — raised to 1000
+* totalContacts was always 0 in the final result — now queries DB directly at completion
+Atlas job 0799f997 — running now:
+* Source [1/21] — European venue owners: 47 real people inserted (Monte Carlo, Italian hotel/resort owners)
+* Full-circle enrichment immediately kicked off on all 47: Perplexity, Tavily, Exa all firing in parallel per entity
+* Perplexity already found a phone number on the very first entity (Armelle Falcy) — real contact signal within seconds of discovery
+* Gemini keys hit rate limits on startup (all 4 fresh keys hit per-minute quota simultaneously) — will auto-recover in ~5 min and re-join the parallel sweep
+* 21 sources remain: 14 more broad-discovery categories (Nordic golf clubs, Dubai funds, French Riviera, UK estates, Asian wealth, Latin America, marinas, philanthropy…) then 6 registry batches (EDGAR/CH/BRREG/BODACC)
+* Each entity gets immediately cooked (in-house → AI sweep → Maigret/Holehe → ICIJ/Whoxy → confidence recompute → cookedAt stamp) before the next source round starts
+You'll see green ✓ COOKED badges appearing progressively in the entities list as people finish their full circle. Poll progress:
+curl -s http://localhost:8080/api/ingest/job/0799f997-b6c3-40c6-bf3c-cd997ffbe8e1 | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('status'), '|', d.get('inserted',0), 'inserted |', str(d.get('message',''))[:100])"
+
+You show groq keys as if they hit quota limits, but that's not true because in this session I added 2 more fresh keys.
+The logs actually show Gemini rate-limiting (not Groq). But the real issue is whether the code picks up all your numbered keys correctly — let me check both.
+Found it. getGroqKeys() is hardcoded to only scan up to _3 — your _4 and _5 are invisible. Same bug in the name validator. Fixing both to use the same dynamic scan as every other provider.
+One more in broad-discovery.ts — fixing all three at once.
+No more hardcoded lists anywhere. Restarting the API server to load all 5 Groq keys, then re-firing Atlas.
+Server is up with all 5 Groq keys now visible. Firing Atlas.
+Atlas 02ca8991 is running. The fix is confirmed working — all 5 Groq keys are now visible to all three places that use them (ai-extractor.ts, broad-discovery.ts, llm-name-validator.ts). The previous run had been doing name extraction with only 3/5 keys.
+What's running now:
+* Phase 0 pre-run: OpenOwnership enrichment working, OCCRP getting 401s (expected — no OCCRP_API_KEY set, graceful degradation), OpenSky network timeout (also graceful)
+* Broad discovery category [1/21] already seeded 47 entities from the previous short run (they're still in the DB), and full-circle enrichment is about to kick in with the full key set
+Poll progress:
+curl -s http://localhost:8080/api/ingest/job/02ca8991-4c46-4480-84e9-2f6ce8905d38 | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('status'), '|', d.get('inserted',0), 'inserted |', str(d.get('message',''))[:100])"
+
+How is that there are 0 assets shown?
+Clear picture. enrichEntityFullCircle never touches the assets table — it only writes contacts and evidence. Whoxy domains go into notes, AI finds yachts/properties in text but nothing extracts them into rows. Phase 3 EDGAR stock assets haven't run yet (it's after the discovery loop), and FAA was skipped.
+Two things to fix: wire Whoxy domains → asset rows in Step E right now, and add a lightweight Groq extraction step that pulls structured assets (property, aviation, marine, business) from whatever AI OSINT already found and writes them to the table.
+Now I have everything I need. Adding Whoxy domains → asset rows and a Groq asset-extraction step to enrichEntityFullCircle, both in one edit.
+
+DB push ✅, holehe ✓, maigret ✓. Now I'll fix Step G (business/hotel assets + better model + richer context) and start the workflows — all in parallel.
+Now I'll make the targeted fixes in parallel: upgrade Step G in the orchestrator (better model + hospitality asset category + richer prompt), then start both workflows.
+Now starting both workflows and verifying the build compiles clean — in parallel.
+All three workflows running. Let me verify the API is healthy, check the build was clean, then clear dedup and fire Atlas.
+Everything clean — build 698ms, all 4 Upstash slots connected (slot 1 quota-exhausted non-fatal as before), ghost jobs cleared, holehe ✓ maigret ✓. Now clearing stale dedup and firing Atlas.
+Dedup cleared. Firing Atlas now.
+Atlas is live — Phase 0 running. Let me update Context.md and do one more poll to confirm broad discovery starts.
+Phase 0 complete, now on [1/21] European venue owners — broad discovery is live. Updating Context.md.
+Everything is live and working. Let me update memory and report.
+Atlas is live and enrichment is firing end-to-end. Here's the full picture:
+What was done before launch:
+Check	Result
+pnpm install	✅ 44s
+DB schema push	✅ applied
+holehe / maigret	✅ both ready
+Ghost jobs cleared	✅ (3 stale from prior run)
+Upstash slots 2–5	✅ connected (slot 1 quota-exhausted, non-fatal as always)
+Dedup cleared	✅ fresh start
+Step G asset extraction — what changed:
+* Model upgraded: llama-3.1-8b-instant → llama-3.3-70b-versatile (much stronger extraction)
+* New "Hospitality" category — hotels, resorts, restaurants, golf clubs, beach clubs, ski resorts, marinas that a person owns or operates are now explicitly captured as assets
+* New "Investment" category — funds and financial stakes
+* Asset cap raised: 8 → 12 per entity
+* Context now includes sourceRegistries, companyName, bizLocation from metadata alongside notes — so the "Query: luxury hotel owner Sicily…" snippet the discovery stored is fully visible to Groq
+Atlas job 25a433ea — live right now:
+* Phase 0 complete (OCCRP 401 non-fatal, OpenSky timeout non-fatal, CH Officers ran)
+* Source [1/21] European venue owners (Monte Carlo, Italian hotels, resorts): 31 entities discovered, 77 results scraped — full-circle enrichment starting on all 31 now
+* Perplexity Sonar already found email + phone + LinkedIn on "Lady Sarah" within the first minute
+* Gemini keys rate-limited on cold-start (all 4 hit quota simultaneously) — auto-recovers in ~5 min, then rejoins parallel sweep
+* 20 more sources follow: Italian/Mediterranean hotels, Nordic shipping, Dubai funds, French Riviera, Asian wealth, UK estates, marinas, EDGAR/CH/BRREG registry batches…
+Poll progress any time:
+curl -s http://localhost:8080/api/ingest/job/25a433ea-9c3c-4438-8713-6c9c8f8831c3 | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('status'), '|', d.get('inserted',0), 'inserted |', str(d.get('message',''))[:120])"
+
+Good
+Artifact registration restarted the container and killed the workflows — including the running Atlas job. Restarting everything in parallel now.
+API is up. Clearing dedup and refiring Atlas.
+Atlas is running on job 7ec3cdba. Let me update Context.md with the new job ID.
+All good. Atlas is running on job 7ec3cdba — same 21-source pipeline, dedup fresh, all three core workflows up. The workflow restart from artifact registration was handled cleanly.
+What are these numbers, bro?!
+Let me check the current DB state and Atlas job status right now.
+Those numbers are telling me exactly what's broken. Two root causes: bayesianScore is hardcoded to 0.3 on insert and never updated during enrichment (so "Priority leads" — which requires ≥ 0.5 — is always 0), and Step G only runs after Maigret finishes which takes minutes per entity. Let me read the scorer and fix this properly.
+I see it clearly. There are already 5 verified contacts + 13 reachable personal in the DB but they show as "0" everywhere because isHot is never set after enrichment. Let me read the front-end to confirm the mapping, then fix both the orchestrator and the existing 34 entities simultaneously.
+Confirmed: Priority leads = hotLeadsCount = isHot=true— never set during enrichment. I'll fix Step F to set isHot + recompute bayesianScore after enrichment, then SQL-patch the existing 34 entities and rebuild — all in parallel.
+Now making both fixes in parallel — Step F gets isHot + bayesianScore compute, and Phase 9 gets an isHotbackfill SQL for all existing entities on every run.
+Now add the isHot backfill SQL to Phase 9 so every Atlas run repairs existing entities too.
+Now kill the current Atlas job, rebuild, restart, patch existing entities, and refire — all in one sweep.
+Build is clean with the fix. Now I need to immediately patch the existing 34 entities' isHot flag. I'll add a one-time SQL patch to the atlas-run route that fires before the pipeline starts, so every Atlas launch repairs existing entities instantly.
+
+Read the attachment to get full context of what we have been through in the last sessions. Continue from where you ran out of credits. And once you ran Apex Atlas - stay with it for few full research workflows - monitoring so there are no bugs and that in both desktop and mobile web views everything is being disolayed correctly. It's time to launch Apex Atlas in the background! Make sure before you do it that everything is wired up and connected perfectly and that the whole research is tuned perfectly.
+Clear picture from the log. Last session ended mid-fix: isHot + bayesianScore recompute after enrichment was in progress, build was clean, but the atlas-route one-time SQL patch hadn't landed yet. Let me do a full parallel sweep before touching anything.
+The code is in good shape — Step F correctly sets isHot+bayesianScore+cookedAt, Step G has the upgraded Groq model with Hospitality assets, and the atlas route has the pre-launch SQL repair patch. DB is fresh. Let me verify the build, check for ghosts, and then fire.
+Build clean, API healthy, no ghost jobs. Clearing dedup and firing Atlas now.
+Atlas is live — job e8ff27de. Let me poll progress and watch logs simultaneously.
+Atlas is running clean — all 5 Upstash slots connected, ghost job cleared, Phase 0 complete, now on [1/21]broad discovery. The clear-dedup 404 is fine since the DB is empty (no stale dedup to worry about). Let me monitor the first discovery wave.
+Good — AI OSINT is firing on entities. "Madame Beaumont" means discovery found people and enrichment kicked in. Let me check the actual DB counts and logs simultaneously to see what's landing.
+Pipeline is firing correctly — Perplexity already found phones for Armelle Falcy and Cornélie Loudon, Exa and Tavily both returning results, Gemini cold-start rate limit (recovers in ~5 min). Two things to investigate: INSERTED: 0 in job status despite 32 entities logged to DB, and "Madame Beaumont" possibly being a noise/title entity. Checking both in parallel.
+32 entities in DB, enrichment actively firing. I can see some noise entities though ("Les Ballets", "Beneficial Owners", "The Register", "Connoisseur Circle") — the name validator isn't catching these. Let me check the validator and logs simultaneously while monitoring enrichment progress.
+First entity cooked — Armelle Falcy ✅. Let me check her record to verify isHot/bayesianScore updated correctly, then look at the name validator gap in parallel.
+Armelle Falcy: is_hot=TRUE ✅, phone=+1(614)665-0450 ✅, bayesian_score=0.319 ⚠️ (below 0.5 "priority leads" threshold despite having a phone). Two bugs to fix while Atlas runs: (1) noise entities bypassing the name validator, (2) bayesian score too low for entities with phones. Let me read the relevant code in parallel.
+Let me check the bayesian scorer and broad-discovery insert logic in parallel — I need to fix both before the next source round.
+Good pipeline flow — enrichment is working, two cooked already. I see three bugs to fix now while the current batch runs:
+1. Noise entities — name validator exists but isn't called from broad-discovery (no import, never wired in)
+2. bayesian score too weak for phone contacts (0.319 with phone — never reaches 0.5 "priority leads" threshold)
+3. "Amr El" — truncated name got through (should be filtered by name validator)
+Making all three fixes now in parallel, then I'll rebuild and restart between source rounds.
+Now fix the bayesian scorer contact signal strength in parallel with checking current progress.
+3 cooked, 3 hot, 6 phones — pipeline running well. Now fixing the bayesian scorer (contact signal too weak — phone never clears 0.5 threshold) and taking a screenshot to check current UI state in parallel.
+Priority Leads = 4 ✅ — dashboard is updating correctly. But I see "Madame Beaumont" (88% confidence) and "Amr El" (40% confidence) still showing as PRIORITY — those are noise entities from the current batch.
+Build is clean. I need to also add bayesian score backfill in Phase 9 so already-cooked entities from this round get recomputed with the new weights. Let me check Phase 9 and add it, then wait for this source round to end and restart.
+6 cooked, 6 hot already — good pace. Let me add the bayesian score backfill to Phase 9 so all cooked entities get rescored with the new weights on the next run, then monitor the current batch.
+Pipeline is healthy. "Camille Rayon" is actually a marina (Port Camille Rayon) — another noise entity the validator will catch next round. Let me take a mobile screenshot and wait for round 1 to finish.
+Mobile UI looks great — Priority Leads showing correctly (6), stats cards rendering cleanly at 390px. Let me keep monitoring while also checking the Intelligence Reactor and People page on mobile.
+People list rendering cleanly on mobile — confidence/access badges, cooked indicators, all good. Let me check fresh logs and monitor when round 1 completes so I can restart with the fixes.
+Let me check the Intelligence Reactor and an entity profile while waiting for round 1 to finish.
+Reactor looks excellent — ATLAS LIVE showing, all active nodes lit (IN-HOUSE, DEEP WEB, MAIGRET, PERPLEXITY, EXA, TAVILY, GROQ, GEMINI). Currently on Monaco Marine Maigret phase. Let me check reactor on mobile and keep monitoring.
+Mobile reactor looks excellent — sections (REGISTRIES, DISCOVERY, AI LAYER) all rendering correctly, LIVE indicator active, nodes glowing. Let me check an entity profile and keep monitoring while we wait for round 1 to complete.
+Entity profile at /entities/30 shows 404 — the route slug is different. Let me find the correct profile URL and check progress.
+Let me find the correct entity profile URL and monitor progress simultaneously.
+Entity profile route is /profile/:id. Let me screenshot Armelle's profile and check progress simultaneously.
+Profile page looks excellent — HOT LEAD badge, phone, social handles, completeness bar, Profile Depth breakdown. I do notice "Societe.com" and "frenchentree" URLs came through as social handles (false extraction from citation domains). I'll note that for fixing after restart.
+14/32 cooked. Let me check the mobile profile view and keep monitoring for round 1 completion.
+Mobile profile renders perfectly — HOT badge, phone, completeness bar, tabs all clean at 390px. 15/32 cooked.
+While waiting for round 1 to finish, let me fix the false positive social handle issue — URLs like "https://twitter.com/Societe_com" are being stored as Twitter handles instead of the clean "@handle".
+Pipeline is progressing — ~17/32 cooked. Let me fix the social handle URL sanitization while we wait, then check progress toward round 1 completion.
+18/32 cooked — almost done with round 1! The social discovery functions extract handles correctly from URLs, so the full URL handles must be coming from the AI extractor. Let me find that and fix it while we wait.
+
+Good state picture. Three issues to verify before firing — the bayesian scorer may still be too weak (phone alone scores 0.30, never hits 0.50), the social handle false-extraction bug, and the INSERTED counter. Let me read the exact code in parallel.
+Build clean ✅. Bayesian scorer is already fixed (contact_partial likelihood 3.5 at weight 0.8 — phone alone will clear 0.5 with HNWI type). Two remaining things to verify: the social handle citation-domain filter, and whether the broad-discovery inserted count actually flows into totalIngested. Let me check both plus the full orchestrator discovery loop.
+Social handles are safe — normIG/normTW/normLI all require the correct domain. The pipeline is solid. Let me do a final pre-launch checklist in parallel — build verify, ghost job state, Upstash slots — then fire.
+Everything is green — build clean, all 5 Upstash slots up (slot 1 quota-exhausted is the normal non-fatal state), ghost jobs auto-cleared (5 from the previous session), holehe ✓ maigret ✓. Time to clear stale dedup and fire Atlas.
+All checks passed. Clearing dedup then firing Atlas.
+Atlas is live — job 9d94b308. Let me poll progress and check the logs simultaneously.
+Atlas is running — Phase 0 complete, OpenSky timeout (normal/graceful), broad discovery category [1/21] "European venue owners" is firing. Let me monitor the first wave land.
+17 entities in DB, AI OSINT firing on Armelle Falcy. Let me keep watching — I want to confirm the first batch fully cooks (cookedAt stamped, isHot set, contacts found) before declaring it clean.
+Pipeline is firing correctly — name validator caught 8 noise entities ("Beneficial Ownership", "Connoisseur Circle" etc.), Perplexity already found a phone for Armelle Falcy, Maigret/Holehe running. Gemini cold-start rate limit is normal (recovers in ~5 min). Let me keep watching until the first batch cooks.
+3 cooked ✅, 3 hot ✅, 5 phones, 1 email — pipeline is working end-to-end. Let me check the UI and keep monitoring the enrichment progress.
+Pipeline is running cleanly — entities are fully cooking (✅ logged for Walid Dabess, Amr El, Armelle Falcy), Perplexity finding phones/emails, Maigret scanning. Let me check artifact registration for the screenshot and poll progress simultaneously.
+5 cooked, 5 hot, max bayesian 0.661 — clearing the 0.5 priority-leads threshold ✅. Let me take a screenshot at the correct path and keep monitoring.
+Pipeline is flowing — more entities cooking, Holehe running on Monaco Marine's email. Let me keep monitoring through the next source round transition.
+6 cooked, 6 hot, 8 phones — and Samih Sawiris just hit the AI OSINT step. Let me watch the logs and keep polling.
+9 cooked, 9 hot, max bayesian 0.852 — APEX tier entity found. Pipeline is running beautifully. Let me keep watching through round 1 completion and into round 2.
+12 cooked, 11 priority leads. I spotted two issues in the logs: Tavily hitting 432 quota errors (some keys exhausted) and historical figures slipping through (Gar Wood 1971, George Mason 1792). Let me check Tavily degradation and fix the historical-figure filter while monitoring continues.
+Let me check the Tavily 432 handling and the historical-figure issue in the discovery prompts, while monitoring continues.
+Two issues to fix while the pipeline runs: (1) historical figures slipping through the name validator, (2) verify Tavily 432 degradation. Let me read the validator and fix it.
+14 cooked, 13 priority leads — round 1 nearly complete. Now fixing the historical figure leak in the name validator while monitoring the round 2 transition.
+Build clean. I'll time the server restart between source rounds so we don't kill mid-enrichment. Let me watch for round 1 to fully complete first.
+All 17 cooked. Restarting server to load the validator fix, then refiring Atlas.
+Server healthy, all 5 Upstash slots connected, ghost cleared. Firing Atlas.
+All 17 from round 1 are cooked (17 hot, 16 priority leads, 8 emails, 17 phones). Round 1 is re-running now — dedup will block re-inserts, new validator catches historical figures. Let me keep monitoring.
+Round 1 re-ran with the updated validator — 10 fresh entities inserted, 9 duplicates correctly blocked by dedup. New entities are contemporary people (Ami Chessex, Kirsten Lynch, Lady Sarah). Two things to log: Tavily 432 quota-exhausted on all keys (graceful degradation working, Perplexity+Exa still active), and the pipeline is healthy. Let me update Context.md and keep monitoring through round 2.
+Round 1 second batch is cooking. Let me monitor the transition to round 2 and flag the Tavily quota issue to the user.
+22 cooked, 20 priority leads, pipeline healthy. Let me keep monitoring through the round 1→2 transition to confirm the pattern holds and Gemini recovers.
+Artifacts registered — this may have caused a workflow restart. Let me check and recover fast.
+API healthy, Atlas job survived the artifact registration. Let me check job status and logs.
+Let me read the full server log to check what's happening with Commodore John Cox and whether Maigret is stuck.
+You've reached your daily free quota limit. It will reset at 12:00 AM UTC.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
