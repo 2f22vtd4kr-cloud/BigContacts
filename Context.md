@@ -18,18 +18,17 @@
 ### Fix applied this session:
 - **Step G asset extraction upgraded** — `enrichEntityFullCircle` Step G now uses `llama-3.3-70b-versatile` (was `llama-3.1-8b-instant`) with an expanded prompt that explicitly covers "Hospitality" as a category (hotels, resorts, restaurants, golf clubs, beach clubs, ski resorts, marinas — businesses the HNWI owns/operates). Categories: RealEstate | Aviation | Marine | **Hospitality** | Business | PrivateClub | Investment. Max assets per entity raised from 8 → 12. Context now includes sourceRegistries + metadata (companyName, bizLocation) in addition to notes and knownResidences.
 
-### Atlas job 25a433ea:
-- Started: 2026-07-30 ~08:33 UTC
+### Atlas job 7ec3cdba (relaunched after artifact registration triggered restart):
+- Started: 2026-07-30 ~08:36 UTC
 - `discoveryFirst=true, skipFaa=true, targetCount=500, researchLimit=15`
 - 21 interleaved sources (15 broad web-search + 6 registry batches)
 - Per-entity full-circle enrichment (concurrency=3, cookedAt stamped)
 - Dedup cleared before launch ✅
-- Phase 0 (OCCRP + OpenSky + CH Officers pre-run) completed
-- Now running [1/21] European venue owners (Monte Carlo, Italian hotels, resorts…)
+- Phase 0 (OCCRP + OpenSky + CH Officers pre-run) running
 
 ### To poll Atlas progress:
 ```bash
-curl -s http://localhost:8080/api/ingest/job/25a433ea-9c3c-4438-8713-6c9c8f8831c3 | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('status'), '|', d.get('inserted',0), 'inserted |', str(d.get('message',''))[:100])"
+curl -s http://localhost:8080/api/ingest/job/7ec3cdba-1c41-49ca-bd93-45b49a3e7c64 | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('status'), '|', d.get('inserted',0), 'inserted |', str(d.get('message',''))[:100])"
 ```
 
 ---
