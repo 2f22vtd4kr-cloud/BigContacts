@@ -73,7 +73,21 @@ async function aiExtractPersonNames(text: string, context: string): Promise<stri
         messages: [
           {
             role: "system",
-            content: `Extract the full names of real individual people (not companies, venues, countries, cities, or organizations) from the text. Context: searches about "${context}". Return ONLY a JSON array of name strings. If no real people are found, return []. Example: ["John Smith", "Carlo Bianchi"]`,
+            content: `You are an OSINT analyst extracting names of living, contemporary high-net-worth individuals from search results. Context: searches about "${context}".
+
+INCLUDE only: living private individuals who are wealthy — business owners, investors, property owners, yacht/aircraft owners, fund managers, family office principals, developers, collectors.
+
+EXCLUDE all of the following:
+- Companies, organizations, venues, hotels, brands, cities, countries, legal entities (Ltd/LLC/SA/GmbH/Corp/Foundation/Trust/Holdings/Group/Capital/Partners)
+- Deceased or historical figures (anyone who died before 2000, or historical names like "Gar Wood", "George Mason", "Queen Victoria", "Louis Tiffany")
+- Celebrities, musicians, actors, athletes, politicians, royalty, heads of state
+- Truncated or incomplete names — every word in the name MUST have ≥4 letters ("Amr El", "Li Bo", "Al Wu" are INVALID)
+- Titles without real names ("The CEO", "The Director", "Board Member")
+- Venue/place names being used as person names ("Camille Rayon", "Connoisseur Circle", "Port Hercule")
+- Generic roles/abstractions ("Beneficial Owners", "Ministerial Decree", "Joint Venture", "The Register")
+
+Return ONLY a JSON array of full name strings. If no valid living HNWIs are found, return [].
+Example output: ["Carlo Bianchi", "Ingrid Magnusson", "Walid Dabess"]`,
           },
           { role: "user", content: text.slice(0, 3000) },
         ],
@@ -656,7 +670,21 @@ export async function runBroadDiscovery(options: {
       const nameParts = cleanName.split(/\s+/);
       if (nameParts.every(p => p.replace(/[^a-zA-Z]/g, "").length < 4)) continue;
       // Hard-reject obvious non-human patterns before the LLM validator
-      if (/\b(decree|holders?|ownership|beneficial\s+owner|joint\s+venture|harbour|harbor|marina|marine|resort|holdings?|safe\s+harbor|ministerial|legislative|regulation|directive|ordinance)\b/i.test(cleanName)) continue;
+      if (/\b(decree|holders?|ownership|beneficial\s+owner|joint\s+venture|harbour|harbor|marina|marine|resort|holdings?|safe\s+harbor|ministerial|legislative|regulation|directive|ordinance|register|committee|council|association|authority|department|government|institute|portfolio|investors?|ventures?|partners?|capital\s+group|asset\s+management)\b/i.test(cleanName)) continue;
+      // Reject names that contain legal-entity suffixes — these are companies, not people
+      if (/\b(ltd|llc|llp|inc|corp|gmbh|s\.a\.|s\.r\.l\.|b\.v\.|n\.v\.|plc|ag|oy|ab|as|bv|nv)\b\.?$/i.test(cleanName)) continue;
+      // Reject names starting with military/professional/honorary titles — not a real name
+      if (/^(colonel|general|admiral|captain|major|sergeant|lieutenant|commodore|past|former|late|sir|lord|lady|dame|baron|baroness|prince|princess|duke|duchess|count|countess|viscount|earl|marquess|archbishop|bishop|reverend|dr\.|prof\.|judge|justice|senator|governor|president|secretary|minister|inspector|chief|commissioner|superintendent)\b/i.test(cleanName)) continue;
+      // Strip trailing web UI artifacts before further checks (e.g. "Alexander Rich View" from LinkedIn "View profile")
+      const uiSuffixStripped = cleanName.replace(/\s+(View|Read|More|Less|Next|Back|Page|Profile|Login|Sign|Click|Enter|Submit|Apply|Follow|Connect|Contact|See|Show|Hide|Open|Close|Share|Print|Download|Export|Copy|Edit|Delete|Save|Cancel|Close)\s*$/i, "").trim();
+      const finalName = uiSuffixStripped.length >= 5 && uiSuffixStripped.includes(" ") ? uiSuffixStripped : cleanName;
+      if (finalName !== cleanName && finalName.length < 5) continue;
+      // Reject French article + collective noun combos — "Les Ballets", "Les Vignerons", "La Compagnie"
+      if (/^(la|le|les|l'|l')\s+/i.test(finalName)) continue;
+      // Reject Spanish/Italian company article prefixes with a venue/org indicator
+      if (/^(el\s+|los\s+|las\s+|il\s+|gli\s+|di\s+|de\s+|del\s+|della\s+)/i.test(finalName) && /\b(compan|hotel|resort|club|group|capital|invest|fund|partner|maison|chateau|château|villa|domaine|estate|gallery|atelier)\b/i.test(finalName)) continue;
+      // Reject plural nouns — groups/collectives, not a person (e.g. "Past Commodores", "Private Bankers")
+      if (/\b(commodores?|bankers?|investors?|directors?|officers?|executives?|managers?|shareholders?|trustees?|partners?|founders?|principals?)\s*$/i.test(finalName) && !/^[A-Z][a-z]+\s+[A-Z][a-z]/.test(finalName)) continue;
       const type = classifyType(cleanName);
       await db.insert(entitiesTable).values({
         name: cleanName,

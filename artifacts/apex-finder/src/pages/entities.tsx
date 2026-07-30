@@ -904,7 +904,7 @@ export default function EntityLedger() {
                       : <Square className="w-3.5 h-3.5" />}
                   </button>
                 </th>
-                {["Name", "Type", "Nationality", "Confidence", "Access", "Contact", "Net Worth"].map((h) => (
+                {["Name", "Type", "Nationality", "Contact Score", "Access", "Direct Contact", "Net Worth"].map((h) => (
                   <th key={h} className={cn(
                     "px-4 py-3 text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap",
                     h === "Net Worth" ? "text-right" : "text-left"

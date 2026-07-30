@@ -8,6 +8,32 @@
 
 ---
 
+## Current State (2026-07-30 — Re-import #41 — Atlas RUNNING job 4707e3f0 — 6 bug fixes applied)
+
+### Setup this session (2026-07-30 — re-import #41 — continued):
+- All 29 secrets active (REDIS_URL_1–5, COMPANIES_HOUSE_API_KEY, GROQ_1–5, PERPLEXITY_1–4, WHOXY, GEMINI_1–4, EXA_1–2, TAVILY_1–6, SESSION_SECRET)
+- Atlas job 4707e3f0 RUNNING — 21-source pipeline, discoveryFirst=true, skipFaa=true, targetCount=500
+- ⚠️ Perplexity (all 4 keys 401 quota-exhausted), Tavily (all 6 keys 432 quota-exhausted) — graceful degradation active; Exa + Groq + Gemini (recovering cold-start) running
+- DB: ~10 entities (9 from prior rounds + 1 new Joyce Price)
+
+### Bug fixes applied this session:
+1. **isPlaceholderEmail wired** — ai-extractor.ts: now called at both top-level email (line 322) and owner-contact email (line 293). Extended to block role-based inboxes (info@, contact@, press@, etc.) and financial aggregator domains.
+2. **Confidence score mismatch fixed** — profile.tsx hero now shows `contactConfidence` (same as entities list) labeled "Contact". Was showing 5-factor `confidence.overall` (different number). Both list and profile card now match.
+3. **"web-discovery" source badge filtered** — internal pipeline labels (web-discovery, broad-discovery, ai-osint, etc.) now suppressed from profile hero source badges and from `primaryWealthSource`. Mobile "Wealth" card shows "In Discovery" instead of "Unknown source".
+4. **Mobile profile hero** — Added "Contact" score card alongside Access and Wealth for consistency with desktop and list view.
+5. **Entities list columns renamed** — "Confidence" → "Contact Score", "Contact" → "Direct Contact" for clarity.
+6. **Corporate handle rejection** — `normTW`/`normIG` now reject handles matching known data-aggregator/registry patterns (societe_com, infogreffe, etc.) and brand suffixes (_com, _fr, etc.). Fixed: "@aSociete_com" was being stored as Walid Dabess's Twitter.
+7. **Groq extraction prompt hardened** — Now explicitly requires living contemporary HNWIs; blocks historical figures, celebrities, politicians, royalty, truncated names, plural/group nouns.
+8. **Hard-reject filter expanded** — broad-discovery.ts: added military/title prefixes (colonel, commodore, etc.), French article rejection (La/Le/Les prefix), UI scraping artifacts ("View", "Read" etc. stripped), entity suffix rejection (Ltd, LLC, etc.), plural collective noun rejection.
+9. **"Unknown source" → "In Discovery"** — Mobile Wealth card shows better label when enrichment hasn't determined the wealth source yet.
+
+### To poll Atlas progress:
+```bash
+curl -s http://localhost:8080/api/ingest/job/4707e3f0-6d1a-4e03-9af3-e36db962a3e8 | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('status'), '|', d.get('inserted',0), 'inserted |', str(d.get('message',''))[:120])"
+```
+
+---
+
 ## Current State (2026-07-30 — Re-import #41 — setup complete; SESSION_SECRET active; DB empty; pipeline idle)
 
 ### Setup this session (2026-07-30 — re-import #41):
@@ -17,7 +43,7 @@
 - Python tools: holehe ✓ maigret ✓
 - `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":2}}` ✅
 - DB: 0 entities (fresh/empty)
-- Secrets: SESSION_SECRET active; all other secrets from prior session persist
+- Secrets: All 29 active — REDIS_URL_1–5, COMPANIES_HOUSE_API_KEY, GROQ_API_KEY_1–5, PERPLEXITY_API_KEY_1–4, WHOXY_API_KEY, GEMINI_API_KEY_1–4, EXA_API_KEY_1–2, TAVILY_API_KEY_1–6 (6 keys this session, up from 4), SESSION_SECRET
 - Pipeline idle — ready for Atlas launch when user instructs
 
 ---

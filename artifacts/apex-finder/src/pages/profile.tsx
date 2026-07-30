@@ -679,7 +679,7 @@ export default function ApexProfile() {
               {(entity as any).estimatedNetWorth && (
                 <span className="text-xs font-mono text-foreground">{formatCurrency((entity as any).estimatedNetWorth)}</span>
               )}
-              {srcRegs.slice(0, 3).map((r) => (
+              {srcRegs.filter(r => !/^(web[-.]?discovery|broad[-.]?discovery|ai[-.]?osint|deep[-.]?web|in[-.]?house|web[-.]?enricher|manual|live[-.]?source)$/i.test(r)).slice(0, 3).map((r) => (
                 <span key={r} className="text-[9px] font-mono px-1.5 py-0.5 bg-muted border border-border rounded text-muted-foreground">
                   {r}
                 </span>
@@ -690,8 +690,8 @@ export default function ApexProfile() {
           <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
             <div className="flex items-center gap-2">
               <div className="flex flex-col items-center gap-0.5">
-                <ConfidenceBadge score={confidence.overall} />
-                <span className="text-[8px] font-mono text-muted-foreground/50 uppercase tracking-widest">Confidence</span>
+                <ConfidenceBadge score={typeof (entity as any).contactConfidence === "number" ? (entity as any).contactConfidence : confidence.overall} />
+                <span className="text-[8px] font-mono text-muted-foreground/50 uppercase tracking-widest">Contact</span>
               </div>
               <div className="flex flex-col items-center gap-0.5">
                 <AccessScoreBadge score={entity.accessScore} />
@@ -752,7 +752,16 @@ export default function ApexProfile() {
             </p>
           )}
           {/* Score cards */}
-          <div className="mt-4 flex gap-3">
+          <div className="mt-4 flex gap-2">
+            <div className="flex-1 bg-background rounded border border-border/50 p-2.5 flex flex-col">
+              <span className="font-mono text-[9px] text-muted-foreground uppercase tracking-wider mb-1">Contact</span>
+              <span className="font-mono text-[20px] text-primary font-bold leading-none mb-1">
+                {typeof (entity as any).contactConfidence === "number" ? `${(entity as any).contactConfidence}%` : "—"}
+              </span>
+              <span className="text-[9px] text-muted-foreground">
+                {((entity as any).contactConfidence ?? 0) >= 60 ? "Strong" : ((entity as any).contactConfidence ?? 0) >= 30 ? "Partial" : "Low"}
+              </span>
+            </div>
             <div className="flex-1 bg-background rounded border border-border/50 p-2.5 flex flex-col">
               <span className="font-mono text-[9px] text-muted-foreground uppercase tracking-wider mb-1">Access</span>
               <span className="font-mono text-[20px] text-primary font-bold leading-none mb-1">
@@ -769,15 +778,12 @@ export default function ApexProfile() {
                   {formatCurrency((entity as any).estimatedNetWorth)}
                 </span>
               ) : (
-                <span className="font-mono text-[10px] font-semibold text-foreground leading-snug mb-1">
-                  {primaryWealthSource ?? "Unknown source"}
+                <span className="font-mono text-[10px] font-semibold text-foreground/60 leading-snug mb-1 italic">
+                  {primaryWealthSource ?? "In Discovery"}
                 </span>
               )}
               {(entity as any).estimatedNetWorth != null && primaryWealthSource && (
                 <span className="text-[9px] text-muted-foreground leading-tight">{primaryWealthSource}</span>
-              )}
-              {(entity as any).estimatedNetWorth == null && !primaryWealthSource && (
-                <span className="text-[9px] text-muted-foreground/50 italic">Run enrichment to determine source</span>
               )}
             </div>
           </div>

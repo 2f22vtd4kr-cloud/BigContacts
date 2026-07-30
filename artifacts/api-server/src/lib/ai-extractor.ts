@@ -240,14 +240,32 @@ function parseAIResponse(raw: string, source: AIExtractResult["source"]): AIExtr
       return (s === "null" || s === "undefined" || s.length < 3) ? null : s;
     };
 
-    // Reject emails that look like placeholders or templates the AI invented
+    // Reject emails that look like placeholders, templates, or shared role-based inboxes the AI invented
     const isPlaceholderEmail = (e: string): boolean => {
       if (!e) return false;
       const local = e.split("@")[0]?.toLowerCase() ?? "";
+      const domain = (e.split("@")[1] ?? "").toLowerCase();
       // Classic placeholder patterns: jane.doe, j.doe, john.smith, jdoe, test.user, firstname.lastname etc.
       if (/^(jane\.?doe|john\.?doe|j\.?doe|test\.?user|sample|firstname|lastname|first\.last|f\.last|j\.smith|john\.smith|your\.name|name\.surname)$/i.test(local)) return true;
       // Generic placeholder domains
-      if (/^(example|test|sample|placeholder|domain|email)\.(com|org|net)$/i.test(e.split("@")[1] ?? "")) return true;
+      if (/^(example|test|sample|placeholder|domain|email)\.(com|org|net)$/.test(domain)) return true;
+      // Role-based / shared inboxes — never a personal direct contact
+      if (/^(info|contact|hello|team|support|press|media|noreply|no[-.]?reply|admin|general|office|enquir|reception|mail|post|webmaster|marketing|sales|hr|legal|finance|invest|ir|pr|news|feedback|service|help|care|ops|inquir|request|apply|career|job|recruit)$/.test(local)) return true;
+      // Financial aggregator / FSCS-type generic domains
+      if (/\b(safeharb|fincen|nmlsr|creditunion|bankassoc|fdic\.gov|nacha\.org)\b/.test(domain)) return true;
+      return false;
+    };
+
+    // Patterns for known data-aggregator, registry, or corporate-brand accounts
+    // These are NEVER a personal social handle — reject them outright.
+    const isCorporateHandle = (handle: string): boolean => {
+      const h = handle.toLowerCase().replace(/^@/, "");
+      // Known data aggregators and business registries
+      if (/^(societe_com|societecom|infogreffe|pappers|bodacc|kompass|verif|societefr|societe|linkedin|facebook|instagram|twitter|youtube|tiktok|snapchat|google|apple|amazon|microsoft|forbes|bloomberg|reuters|guardian|bbc|cnn|nytimes|wsj|ft|economist|sothebys|christies|bonhams|bnpparibas|credit_suisse|hsbc|jpmorgan|goldmansachs|morganstanley|ubs|dbtrust|barclays|citibank|deloitte|pwc|kpmg|ey_|mckinsey|bcg|bain|rothschild|lazard|blackrock|blackstone|kkr|carlyle|apollo|vistacapital|merrilllynch|schwab|vanguard|fidelity|invesco|statestreet)/.test(h)) return true;
+      // Handle ends in _com / _fr / _uk / _us / _de etc. — corporate brand account
+      if (/_(com|fr|uk|us|de|it|es|ch|be|nl|au|ca|sg|hk|ae|sa)$/.test(h)) return true;
+      // Handle contains obvious registry/aggregator keywords
+      if (/\b(registry|register|registr|official|newsroom|presse|media|pr_|corp|group|global|international|holding|invest|capital|fund|asset|wealth|finance|bank)\b/.test(h)) return true;
       return false;
     };
 
@@ -255,14 +273,18 @@ function parseAIResponse(raw: string, source: AIExtractResult["source"]): AIExtr
     const normIG  = (v: unknown): string | null => {
       const s = clean(v);
       if (!s) return null;
-      if (s.startsWith("@")) return `https://instagram.com/${s.slice(1)}`;
-      return s.includes("instagram.com") ? s : null;
+      const url = s.startsWith("@") ? `https://instagram.com/${s.slice(1)}` : s.includes("instagram.com") ? s : null;
+      if (!url) return null;
+      const handle = url.split("/").pop() ?? "";
+      return isCorporateHandle(handle) ? null : url;
     };
     const normTW  = (v: unknown): string | null => {
       const s = clean(v);
       if (!s) return null;
-      if (s.startsWith("@")) return `https://twitter.com/${s.slice(1)}`;
-      return (s.includes("twitter.com") || s.includes("x.com")) ? s : null;
+      const url = s.startsWith("@") ? `https://twitter.com/${s.slice(1)}` : (s.includes("twitter.com") || s.includes("x.com")) ? s : null;
+      if (!url) return null;
+      const handle = url.split("/").pop() ?? "";
+      return isCorporateHandle(handle) ? null : url;
     };
 
     const owners: string[] = [];
@@ -285,12 +307,13 @@ function parseAIResponse(raw: string, source: AIExtractResult["source"]): AIExtr
         const name = clean((oc as any)["name"]);
         if (!name || !name.includes(" ") || name.length < 4 || name.length > 80) continue;
         const rawLinkedin = clean((oc as any)["linkedin"]);
+        const rawOwnerEmail = clean((oc as any)["email"]);
         const contact: OwnerContact = {
           name,
           instagram: normIG((oc as any)["instagram"]),
           twitter:   normTW((oc as any)["twitter"]),
           linkedin:  rawLinkedin?.includes("linkedin.com") ? rawLinkedin : null,
-          email:     clean((oc as any)["email"]),
+          email:     rawOwnerEmail && !isPlaceholderEmail(rawOwnerEmail) ? rawOwnerEmail : null,
         };
         ownerContacts.push(contact);
         owners.push(name);
@@ -318,8 +341,9 @@ function parseAIResponse(raw: string, source: AIExtractResult["source"]): AIExtr
     }
 
     const rawLinkedinTop = clean(parsed["linkedin"]);
+    const rawTopEmail = clean(parsed["email"]);
     return {
-      email:         clean(parsed["email"]),
+      email:         rawTopEmail && !isPlaceholderEmail(rawTopEmail) ? rawTopEmail : null,
       phone:         clean(parsed["phone"]),
       linkedin:      rawLinkedinTop?.includes("linkedin.com") ? rawLinkedinTop : null,
       instagram:     normIG(parsed["instagram"]),
