@@ -45,6 +45,11 @@ export const entitiesTable = pgTable("entities", {
   contactOutcome: text("contact_outcome"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+  /**
+   * Timestamp set when this entity has completed all full-circle enrichment phases.
+   * NULL = not yet fully processed. Non-null = "cooked" — ready for outreach.
+   */
+  cookedAt: timestamp("cooked_at", { withTimezone: true }),
 });
 
 export const insertEntitySchema = createInsertSchema(entitiesTable).omit({
