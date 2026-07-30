@@ -18,6 +18,11 @@
 - `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":2}}` ✅
 - DB: 0 entities (fresh/empty)
 - Secrets: All 26 active — REDIS_URL_1–5, COMPANIES_HOUSE_API_KEY, GROQ_API_KEY_1–5, PERPLEXITY_API_KEY_1–4, WHOXY_API_KEY, GEMINI_API_KEY_1–4, EXA_API_KEY_1–2, TAVILY_API_KEY_1–4, SESSION_SECRET
+- Atlas job d1a235d0 RUNNING — 21-source pipeline, discoveryFirst=true, skipFaa=true, targetCount=500
+- Round 1 complete: 17 entities from prior run + 10 new from re-run = 27 total; 19 cooked, 17 priority leads
+- Name validator fix applied: deceased historical figures (Gar Wood, George Mason, Louis Comfort Tiffany) now blocked
+- Tavily all 4 keys quota-exhausted (432 billing limit) — graceful degradation active; Perplexity+Exa+Groq still running
+- Gemini cold-start rate limit (normal, auto-recovers ~5 min after restart)
 - Pipeline idle — all secrets set; ready for Atlas launch when user instructs
 
 ---
