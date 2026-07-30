@@ -8,6 +8,28 @@
 
 ---
 
+## Current State (2026-07-30 — Re-import #35 — Atlas RUNNING job 31de1d45 — per-entity full-circle, reactor fixes applied)
+
+### Fixes applied this session (2026-07-30 — reactor overhaul):
+1. **Mobile REGISTRIES section** — `MOBILE_PHASES` now includes `brreg` and `whoxy` nodes (were in `NODES` but never rendered on mobile)
+2. **WEB DISC. subtitle** — updated from "DuckDuckGo · Bing" to "15 Categories · Tavily · AI" (reflects actual operation)
+3. **`atlasStepToNodes()` helper** — maps `[N/21]` step numbers to correct reactor nodes: registry steps (2,5,8,11,14,18) → edgar/ch/brreg/hnwi; `🍳` cooking → enrichment stack; broad category → webdisc/groq
+4. **Content-aware keyword parser** — entity-level messages (inner enrichment overwrites `[N/21]`) now matched by emoji/keyword: Maigret→maigret, Perplexity→perp0/perpfu, Gemini→gemini, Tavily→tavily, Exa→exa, AI OSINT→full AI stack, In-house→inhouse, Phase J→semantic/bayesian
+5. **Footer STEP meter** — parses `[N/21]` to show step progress (e.g. 3/21) instead of dead `Atlas Phase X/10` regex
+6. **`exhaustedKeys` TS fix** — defaulted to `[]` in MobileReactor props to eliminate `possibly undefined` error
+
+### Atlas job 31de1d45 (refired after workflow crash):
+- Started: 2026-07-30 ~05:22 UTC
+- Dedup cleared before launch
+- Holehe running on entities; AI OSINT sweep active
+
+### To poll Atlas progress:
+```bash
+curl -s http://localhost:8080/api/ingest/atlas-status | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('status'), d.get('progress'),'/',d.get('total'), '—', d.get('inserted',0), 'inserted —', str(d.get('message',''))[:80])"
+```
+
+---
+
 ## Current State (2026-07-30 — Re-import #35 — Atlas RUNNING job 5b9a7e99 — Phase 0 broad discovery + registries interleaved)
 
 ### What was done this session (2026-07-30 — re-import #35):

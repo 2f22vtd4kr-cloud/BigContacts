@@ -39,7 +39,7 @@ const NODES: NodeDef[] = [
   { id:"brreg",   label:"EU REGISTRIES",   sub:"BRREG · ARES · BODACC",      cx:1180, cy:178, w:140, h:60,  type:"registry", Icon:Globe,      color:"#38bdf8" },
   { id:"whoxy",   label:"WHOXY / RDAP",    sub:"Domain · DNS Intel",         cx:1360, cy:178, w:140, h:60,  type:"registry", Icon:Rss,        color:"#38bdf8" },
   { id:"inhouse", label:"IN-HOUSE",        sub:"Wikidata · GitHub · RDAP",   cx:160,  cy:298, w:168, h:60,  type:"discovery",Icon:Search,     color:"#fb923c" },
-  { id:"webdisc", label:"WEB DISC.",       sub:"DuckDuckGo · Bing",          cx:530,  cy:298, w:168, h:60,  type:"discovery",Icon:Compass,    color:"#fb923c" },
+  { id:"webdisc", label:"WEB DISC.",       sub:"15 Categories · Tavily · AI",cx:530,  cy:298, w:168, h:60,  type:"discovery",Icon:Compass,    color:"#fb923c" },
   { id:"deepweb", label:"DEEP WEB",        sub:"Multi-source OSINT",         cx:900,  cy:298, w:168, h:60,  type:"discovery",Icon:Eye,        color:"#fb923c" },
   { id:"opensky", label:"LIVE FLIGHT",     sub:"OpenSky Network",            cx:1270, cy:298, w:148, h:60,  type:"discovery",Icon:Radio,      color:"#fb923c" },
   { id:"maigret", label:"MAIGRET",         sub:"Holehe · 3,000+ Platforms",  cx:1460, cy:298, w:168, h:60,  type:"discovery",Icon:Users,      color:"#fb923c" },
@@ -132,17 +132,35 @@ const WAVES: Wave[] = [
 
 // ── Mobile phase groups ───────────────────────────────────────────────────────
 const MOBILE_PHASES = [
-  { label:"INPUT",      nodeIds:["target"]                              },
-  { label:"REGISTRIES", nodeIds:["faa","edgar","hmlr","ch","hnwi","occrp"] },
-  { label:"DISCOVERY",  nodeIds:["inhouse","webdisc","deepweb","opensky","maigret"] },
-  { label:"AI LAYER",   nodeIds:["perp0","exa","tavily","gemini","groq","perpfu"] },
-  { label:"SYNTHESIS",  nodeIds:["semantic","bayesian"]                  },
-  { label:"CORE",       nodeIds:["graph","mcts","prac"]                  },
-  { label:"OUTPUT",     nodeIds:["pitch"]                               },
+  { label:"INPUT",      nodeIds:["target"]                                              },
+  { label:"REGISTRIES", nodeIds:["faa","edgar","hmlr","ch","hnwi","occrp","brreg","whoxy"] },
+  { label:"DISCOVERY",  nodeIds:["inhouse","webdisc","deepweb","opensky","maigret"]     },
+  { label:"AI LAYER",   nodeIds:["perp0","exa","tavily","gemini","groq","perpfu"]       },
+  { label:"SYNTHESIS",  nodeIds:["semantic","bayesian"]                                 },
+  { label:"CORE",       nodeIds:["graph","mcts","prac"]                                 },
+  { label:"OUTPUT",     nodeIds:["pitch"]                                               },
 ];
 
 // ── Job → node mapping for live reactor state ────────────────────────────────
-// Atlas phase → which nodes light up in the reactor diagram
+// 21-source interleaved atlas pipeline: 15 broad-web + 6 registry batches.
+// Registry batches sit at 1-indexed positions 2,5,8,11,14,18 in DISCOVERY_SOURCES.
+const ATLAS_REGISTRY_STEPS = new Set([2, 5, 8, 11, 14, 18]);
+
+/** Map an Atlas [N/21] step + message to reactor node IDs. */
+function atlasStepToNodes(stepN: number, msg: string): string[] {
+  // Entity cooking (🍳) → full enrichment stack
+  if (msg.includes("🍳")) {
+    return ["inhouse","perp0","exa","tavily","gemini","groq","semantic","bayesian"];
+  }
+  // Registry batch → ingestion nodes
+  if (ATLAS_REGISTRY_STEPS.has(stepN)) {
+    return ["target","hnwi","edgar","ch","brreg"];
+  }
+  // Broad discovery category → web + AI extraction
+  return ["target","webdisc","groq"];
+}
+
+// Legacy phase map kept for non-atlas jobs / fallback
 const ATLAS_PHASE_NODES: Record<number, string[]> = {
   0:  ["target","faa","hnwi","webdisc","ch","brreg","edgar"],
   1:  ["target","occrp","opensky","ch"],
@@ -301,7 +319,7 @@ function formatDate(iso: string) {
 }
 
 // ── Mobile layout ─────────────────────────────────────────────────────────────
-function MobileReactor({ sessions, totalEntities, loading, onRefresh, syncing, liveNodes, liveLabel, livePhaseDetail, exhaustedKeys }: {
+function MobileReactor({ sessions, totalEntities, loading, onRefresh, syncing, liveNodes, liveLabel, livePhaseDetail, exhaustedKeys = [] }: {
   sessions: ResearchSession[];
   totalEntities: number;
   loading: boolean;
@@ -704,12 +722,14 @@ function MobileReactor({ sessions, totalEntities, loading, onRefresh, syncing, l
         <Meter label="ENTITIES" value={totalEntities} max={Math.max(totalEntities, 50)} color="#38bdf8" />
         <div style={{ width:1, height:32, background:"#192840", flexShrink:0 }} />
         {(() => {
-          // When Atlas is running, show real phase progress (e.g. 3/10) instead of sessions count
-          const m = liveLabel?.match(/Atlas Phase (\d+)\/(\d+)/);
-          const phase = m ? parseInt(m[1], 10) : null;
-          const phaseTotal = m ? parseInt(m[2], 10) : 10;
-          return isLive && phase != null
-            ? <Meter label="PHASE" value={phase} max={phaseTotal} color="#a3e635" />
+          // New format [N/21] — show step progress while Atlas runs
+          const m21  = liveLabel?.match(/\[(\d+)\/(\d+)\]/);
+          // Legacy format: Atlas Phase X/10
+          const mOld = !m21 ? liveLabel?.match(/Atlas Phase (\d+)\/(\d+)/) : null;
+          const step  = m21  ? parseInt(m21[1],  10) : mOld ? parseInt(mOld[1], 10) : null;
+          const total = m21  ? parseInt(m21[2],  10) : mOld ? parseInt(mOld[2], 10) : 21;
+          return isLive && step != null
+            ? <Meter label="STEP"  value={step}  max={total} color="#a3e635" />
             : <Meter label="RUNS"  value={sessions.length} max={Math.max(sessions.length, 10)} color="#a3e635" />;
         })()}
         <div style={{ width:1, height:32, background:"#192840", flexShrink:0 }} />
@@ -1035,17 +1055,42 @@ export default function IntelligenceReactorPage() {
       const nodes = new Set<string>();
       const labels: string[] = [];
 
-      // ── Atlas job (phase-aware) ───────────────────────────────────────────────
+      // ── Atlas job (step + content-aware for 21-source pipeline) ─────────────
       if (atlasData?.status === "running" && atlasData?.jobId) {
         const msg: string = atlasData.message ?? "";
-        const phaseMatch = msg.match(/Phase\s+(\d+)/i);
-        const phase = phaseMatch ? parseInt(phaseMatch[1], 10) : 0;
-        const phaseNodes = ATLAS_PHASE_NODES[phase] ?? ATLAS_PHASE_NODES[0];
-        phaseNodes.forEach((n: string) => nodes.add(n));
-        const label = msg.replace(/^Phase \d+\/[^:]+:\s*/i, "").split("—")[0].trim().slice(0, 70);
-        labels.push(`▶ Atlas Phase ${phase}/10 — ${label}`);
-        const detailMatch = msg.match(/—\s*(.+)$/);
-        setLivePhaseDetail(detailMatch ? detailMatch[1].trim().slice(0, 90) : msg.slice(0, 90));
+        // New format: [N/21] label… or [N/21] 🍳 EntityName (x/y)…
+        const stepMatch = msg.match(/\[(\d+)\/(\d+)\]/);
+        if (stepMatch) {
+          const stepN  = parseInt(stepMatch[1], 10);
+          const total  = parseInt(stepMatch[2], 10);
+          atlasStepToNodes(stepN, msg).forEach((n: string) => nodes.add(n));
+          const detail = msg.slice(stepMatch[0].length).trim().replace(/…$/, "");
+          labels.push(`▶ [${stepN}/${total}] ${detail.slice(0, 65)}`);
+          setLivePhaseDetail(`Step ${stepN}/${total} — ${detail.slice(0, 80)}`);
+        } else {
+          // Entity-level enrichment messages (inner loop overwrites outer [N/21])
+          // Detect enrichment phase from message keywords / emojis
+          const enrichNodes: string[] = [];
+          if (/Maigret|Holehe|🕵/.test(msg))              enrichNodes.push("maigret");
+          if (/Perplexity|Sonar/i.test(msg))              enrichNodes.push("perp0","perpfu");
+          if (/Gemini/i.test(msg))                         enrichNodes.push("gemini");
+          if (/Tavily/i.test(msg))                         enrichNodes.push("tavily");
+          if (/\bExa\b/i.test(msg))                        enrichNodes.push("exa");
+          if (/AI OSINT|web.enrich|web.osint/i.test(msg)) enrichNodes.push("perp0","exa","tavily","gemini","groq");
+          if (/In-house|Wikidata|GitHub|RDAP/i.test(msg)) enrichNodes.push("inhouse");
+          if (/Phase J|footprint|domain|attrib/i.test(msg))enrichNodes.push("semantic","bayesian");
+          if (/confidence|cookedAt|scoring/i.test(msg))    enrichNodes.push("semantic","bayesian");
+          if (/🍳/.test(msg))                              enrichNodes.push("inhouse","groq");
+          // Fallback: legacy Phase X format
+          if (enrichNodes.length === 0) {
+            const phaseMatch = msg.match(/Phase\s+(\d+)/i);
+            const phase = phaseMatch ? parseInt(phaseMatch[1], 10) : 0;
+            (ATLAS_PHASE_NODES[phase] ?? ATLAS_PHASE_NODES[0]).forEach((n: string) => enrichNodes.push(n));
+          }
+          enrichNodes.forEach((n: string) => nodes.add(n));
+          labels.push(`▶ Atlas — ${msg.replace(/^Phase \d+\/[^:]+:\s*/i, "").slice(0, 70)}`);
+          setLivePhaseDetail(msg.slice(0, 90));
+        }
       }
 
       // ── Regular jobs ─────────────────────────────────────────────────────────
