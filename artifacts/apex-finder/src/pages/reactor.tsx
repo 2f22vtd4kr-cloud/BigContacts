@@ -1071,16 +1071,19 @@ export default function IntelligenceReactorPage() {
           // Entity-level enrichment messages (inner loop overwrites outer [N/21])
           // Detect enrichment phase from message keywords / emojis
           const enrichNodes: string[] = [];
-          if (/Maigret|Holehe|🕵/.test(msg))              enrichNodes.push("maigret");
+          // Maigret/Holehe = Phase D of full-circle enrichment; AI tools (Phases A–C)
+          // already ran for this entity — light the whole enrichment stack so the
+          // reactor shows real activity rather than going dark between phases.
+          if (/Maigret|Holehe|🕵/.test(msg))              enrichNodes.push("maigret","inhouse","perp0","exa","tavily","gemini","groq");
           if (/Perplexity|Sonar/i.test(msg))              enrichNodes.push("perp0","perpfu");
           if (/Gemini/i.test(msg))                         enrichNodes.push("gemini");
           if (/Tavily/i.test(msg))                         enrichNodes.push("tavily");
           if (/\bExa\b/i.test(msg))                        enrichNodes.push("exa");
-          if (/AI OSINT|web.enrich|web.osint/i.test(msg)) enrichNodes.push("perp0","exa","tavily","gemini","groq");
+          if (/AI OSINT|web.enrich|web.osint/i.test(msg)) enrichNodes.push("perp0","exa","tavily","gemini","groq","inhouse");
           if (/In-house|Wikidata|GitHub|RDAP/i.test(msg)) enrichNodes.push("inhouse");
           if (/Phase J|footprint|domain|attrib/i.test(msg))enrichNodes.push("semantic","bayesian");
           if (/confidence|cookedAt|scoring/i.test(msg))    enrichNodes.push("semantic","bayesian");
-          if (/🍳/.test(msg))                              enrichNodes.push("inhouse","groq");
+          if (/🍳/.test(msg))                              enrichNodes.push("inhouse","perp0","exa","tavily","gemini","groq");
           // Fallback: legacy Phase X format
           if (enrichNodes.length === 0) {
             const phaseMatch = msg.match(/Phase\s+(\d+)/i);
