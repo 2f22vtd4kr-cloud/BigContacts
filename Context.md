@@ -8,6 +8,27 @@
 
 ---
 
+## Current State (2026-07-30 — Atlas RUNNING job b41fe1e2 — Phase 1 enrichment — 941 entities / 91 contactable)
+
+### Fixes applied this session (2026-07-30):
+1. **ConfidenceBadge crash fixed** — `profile.tsx` used `ConfidenceBadge` without importing it; added to import on line 49
+2. **Reactor node cycling fixed** — `currentStepNodes` was pulsing 1 node per 1.3s; now ALL `liveNodes` lit simultaneously (Perplexity + Tavily + Exa + Maigret all glow at once during Phase 6); dot-pulse ticker slowed to 2.5s gentle pulse
+3. **Key exhaustion shown in Reactor** — `pollJobs` now fetches `/api/system/status` every 3s; amber "⚠ RATE LIMITED: Gemini·Tavily↓" strip appears in live banner when any AI provider is rate-limited; works both live and idle
+4. **MobileReactor `exhaustedKeys` prop** — properly typed in props interface and passed from page wrapper
+
+### Current pipeline state (2026-07-30 02:11):
+- 941 entities | 91 contactable | 98 reachable personal | 1 reachable social | 11% enrichment coverage
+- Atlas job b41fe1e2 running: skipIngestion=true, Phase 1 (OCCRP 401/rate-limited non-fatal, OpenSky fetch-failed non-fatal, CH Officers running)
+- All AI keys healthy: Groq _1/_2/_3 ✓ | Perplexity _1–_4 ✓ | Gemini _1–_4 ✓ | Tavily _1–_4 ✓ | Exa _1/_2 ✓
+- OCCRP requires API key (401) — non-fatal, Atlas continues through all phases
+
+### To poll Atlas progress:
+```bash
+curl -s http://localhost:8080/api/ingest/atlas-status | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('status'), d.get('progress'),'/',d.get('total'), '—', d.get('message','')[:80])"
+```
+
+---
+
 ## Current State (2026-07-29 — Re-import #33 — Atlas RUNNING job 634c7968 — Phase 0 all-15-category discovery)
 
 ### Import setup (2026-07-29 — re-import #33)
@@ -17,16 +38,7 @@
 - Python tools: holehe ✓ maigret 0.6.3 ✓ (theHarvester ✗ needs Python 3.12; gliner ✗ optional)
 - `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":2}}` ✅
 - All 24 enrichment secrets set: REDIS_URL_1–5 (slot 1 quota-exhausted/non-fatal), COMPANIES_HOUSE_API_KEY, GROQ_API_KEY_1–3, PERPLEXITY_API_KEY_1–4, WHOXY_API_KEY, GEMINI_API_KEY_1–4, EXA_API_KEY_1–2, TAVILY_API_KEY_1–4
-
-### Fixes applied this session (2026-07-29 — re-import #33):
-1. **Desktop Reactor live wiring** — DesktopReactor now accepts `liveNodes`, `liveLabel`, `isLive` props; when Atlas is running, real phase nodes drive the architecture diagram instead of scripted WAVES; status ticker shows live Atlas message; header badge shows "ATLAS LIVE"
-2. **ai-extractor.ts getAIKeyStatus bug fixed** — `groqNames` now includes `GROQ_API_KEY_1`; `gemNames`/`tavNames`/`exaNames` now scan from `_1` (were incorrectly starting from `_2`)
-3. **Atlas fired with all 15 broad categories** — discoveryFirst=true, broadCategories=15, skipFaa=true, targetCount=1500, researchLimit=15; all 15 template sets firing in parallel (Family Office, Luxury Assets, SEC, Philanthropy, Public Mentions, European Venues, Nordic, Asian Wealth, LatAm/EE, Tier-1 Funds, Italian/Mediterranean, French Riviera, Middle East, Private Clubs, UK Estates)
-
-### To poll Atlas progress:
-```bash
-curl -s http://localhost:8080/api/ingest/job/634c7968-ac19-4055-8b1a-7a20bf9e4b2b | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['status'], d['progress'], '/', d['total'], '—', d['message'][:80], '— inserted:', d['inserted'])"
-```
+- Atlas fired: discoveryFirst=true, broadCategories=15, skipFaa=true, targetCount=1500, researchLimit=15
 
 ---
 

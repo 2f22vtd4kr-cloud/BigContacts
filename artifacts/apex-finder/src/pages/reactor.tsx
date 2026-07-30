@@ -301,7 +301,7 @@ function formatDate(iso: string) {
 }
 
 // ── Mobile layout ─────────────────────────────────────────────────────────────
-function MobileReactor({ sessions, totalEntities, loading, onRefresh, syncing, liveNodes, liveLabel, livePhaseDetail }: {
+function MobileReactor({ sessions, totalEntities, loading, onRefresh, syncing, liveNodes, liveLabel, livePhaseDetail, exhaustedKeys }: {
   sessions: ResearchSession[];
   totalEntities: number;
   loading: boolean;
@@ -310,37 +310,32 @@ function MobileReactor({ sessions, totalEntities, loading, onRefresh, syncing, l
   liveNodes?: Set<string>;
   liveLabel?: string;
   livePhaseDetail?: string;
+  exhaustedKeys?: string[];
 }) {
   const hasSessions = sessions.length > 0;
   const pitchCount = sessions.filter(s => s.generatedPitch).length;
   const isLive = (liveNodes?.size ?? 0) > 0;
 
-  // ── Animated phase-cycling when a job is running ────────────────────────────
+  // ── Animated dot-pulse ticker (used for banner dots only, NOT node selection) ─
   const [liveStep, setLiveStep] = useState(0);
   useEffect(() => {
     if (!isLive) { setLiveStep(0); return; }
-    const id = setInterval(() => setLiveStep(s => (s + 1) % WAVES.length), 1300);
+    // Slow tick — 2.5s per step so dots pulse gently, not frantically
+    const id = setInterval(() => setLiveStep(s => s + 1), 2500);
     return () => clearInterval(id);
   }, [isLive]);
 
-  // When live: pulse through the REAL job-mapped nodes (liveNodes), not scripted WAVES
-  // This ensures only nodes relevant to the actual running phase light up
+  // When live: ALL liveNodes are lit simultaneously (they run in parallel, e.g. Perplexity
+  // + Tavily + Exa + Maigret all fire at once during Phase 6 — show them all active)
   const liveNodesArr = isLive ? [...(liveNodes ?? new Set())] : [];
-  const currentStepNodes: Set<string> = isLive && liveNodesArr.length > 0
-    ? new Set([liveNodesArr[liveStep % liveNodesArr.length]])
-    : new Set();
 
   const staticNodes: Set<string> = hasSessions
     ? new Set(["target","semantic","bayesian","graph","mcts","prac", ...(pitchCount > 0 ? ["pitch"] : [])])
     : new Set();
 
-  // activeNodes = nodes that are "on" (bright) at this moment
-  const activeNodes: Set<string> = isLive ? currentStepNodes : staticNodes;
-
-  // dimNodes = other job-mapped nodes that are staged but not the current pulse step
-  const dimNodes: Set<string> = isLive
-    ? new Set(liveNodesArr.filter(id => !currentStepNodes.has(id)))
-    : new Set();
+  // activeNodes = all live nodes on simultaneously; dimNodes = nothing (all are active)
+  const activeNodes: Set<string> = isLive ? (liveNodes ?? new Set()) : staticNodes;
+  const dimNodes: Set<string> = new Set();
 
   return (
     <div style={{
@@ -543,7 +538,7 @@ function MobileReactor({ sessions, totalEntities, loading, onRefresh, syncing, l
                     flex:1, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                     ▸ {livePhaseDetail || "processing…"}
                   </span>
-                  {/* Real node pulse dots — one per live node */}
+                  {/* Pulse dots — one per live node */}
                   <div style={{ display:"flex", gap:2, flexShrink:0 }}>
                     {liveNodesArr.slice(0, 8).map((_, i) => (
                       <div key={i} style={{
@@ -555,6 +550,32 @@ function MobileReactor({ sessions, totalEntities, loading, onRefresh, syncing, l
                     ))}
                   </div>
                 </div>
+                {/* ── Key exhaustion warning ── */}
+                {exhaustedKeys.length > 0 && (
+                  <div style={{
+                    display:"flex", alignItems:"center", gap:6, paddingLeft:13, marginTop:2,
+                  }}>
+                    <span style={{
+                      fontSize:7, letterSpacing:"0.12em",
+                      color:"#f59e0b", opacity:0.9,
+                      flex:1, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+                    }}>
+                      ⚠ RATE LIMITED: {exhaustedKeys.join(" · ")}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+            {/* Key exhaustion warning when idle (no live job) */}
+            {!isLive && exhaustedKeys.length > 0 && (
+              <div style={{
+                margin:"0 12px 8px", padding:"5px 10px",
+                border:"1px solid #f59e0b30", borderRadius:6, background:"#f59e0b08",
+                display:"flex", alignItems:"center", gap:6, flexShrink:0,
+              }}>
+                <span style={{ fontSize:7, letterSpacing:"0.12em", color:"#f59e0b" }}>
+                  ⚠ RATE LIMITED: {exhaustedKeys.join(" · ")}
+                </span>
               </div>
             )}
 
@@ -978,22 +999,38 @@ export default function IntelligenceReactorPage() {
   const [totalEntities, setTotalEntities] = useState(0);
   const [loadingData,   setLoadingData]   = useState(true);
   const [syncing,       setSyncing]       = useState(false);
-  const [liveNodes,       setLiveNodes]       = useState<Set<string>>(new Set());
-  const [liveLabel,       setLiveLabel]       = useState<string>("");
-  const [livePhaseDetail, setLivePhaseDetail] = useState<string>("");
+  const [liveNodes,        setLiveNodes]        = useState<Set<string>>(new Set());
+  const [liveLabel,        setLiveLabel]        = useState<string>("");
+  const [livePhaseDetail,  setLivePhaseDetail]  = useState<string>("");
+  const [exhaustedKeys,    setExhaustedKeys]    = useState<string[]>([]);
 
   const pollJobs = useCallback(async () => {
     const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
     try {
-      // Poll both the regular job list AND the atlas-status endpoint in parallel
-      const [jobsData, atlasData] = await Promise.all([
+      // Poll jobs, atlas status, AND key health in parallel
+      const [jobsData, atlasData, sysData] = await Promise.all([
         fetch(`${BASE}/api/ingest/jobs`, { cache: "no-store" })
           .then(r => r.ok ? r.json() : { jobs: [] })
           .catch(() => ({ jobs: [] })),
         fetch(`${BASE}/api/ingest/atlas-status`, { cache: "no-store" })
           .then(r => r.ok ? r.json() : null)
           .catch(() => null),
+        fetch(`${BASE}/api/system/status`, { cache: "no-store" })
+          .then(r => r.ok ? r.json() : null)
+          .catch(() => null),
       ]);
+
+      // ── Key exhaustion ────────────────────────────────────────────────────────
+      if (sysData?.ai) {
+        const LABELS: Record<string, string> = { groq: "Groq", perplexity: "Perplexity", gemini: "Gemini", tavily: "Tavily", exa: "Exa" };
+        const down = (Object.entries(sysData.ai) as [string, any[]][])
+          .filter(([, slots]) => slots.length > 0 && slots.every((s: any) => s.state === "exhausted" || s.state === "missing"))
+          .map(([k]) => LABELS[k] ?? k);
+        const partial = (Object.entries(sysData.ai) as [string, any[]][])
+          .filter(([, slots]) => slots.some((s: any) => s.state === "exhausted") && slots.some((s: any) => s.state === "active"))
+          .map(([k]) => `${LABELS[k] ?? k}↓`);
+        setExhaustedKeys([...down, ...partial]);
+      }
 
       const nodes = new Set<string>();
       const labels: string[] = [];
@@ -1007,7 +1044,6 @@ export default function IntelligenceReactorPage() {
         phaseNodes.forEach((n: string) => nodes.add(n));
         const label = msg.replace(/^Phase \d+\/[^:]+:\s*/i, "").split("—")[0].trim().slice(0, 70);
         labels.push(`▶ Atlas Phase ${phase}/10 — ${label}`);
-        // Extract the detail after the em-dash for the sub-banner (e.g. "FAA aircraft + Western HNWI…")
         const detailMatch = msg.match(/—\s*(.+)$/);
         setLivePhaseDetail(detailMatch ? detailMatch[1].trim().slice(0, 90) : msg.slice(0, 90));
       }
@@ -1120,6 +1156,7 @@ export default function IntelligenceReactorPage() {
           liveNodes={liveNodes}
           liveLabel={liveLabel}
           livePhaseDetail={livePhaseDetail}
+          exhaustedKeys={exhaustedKeys}
         />
       </div>
     );
