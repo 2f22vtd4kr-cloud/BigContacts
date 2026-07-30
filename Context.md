@@ -8,16 +8,17 @@
 
 ---
 
-## Current State (2026-07-30 — Re-import #39 — setup complete; pipeline idle; DB empty; awaiting user)
+## Current State (2026-07-30 — Re-import #39 — setup complete; all 26 secrets active; DB empty; pipeline idle)
 
 ### Setup this session (2026-07-30 — re-import #39):
 - `CI=true pnpm install --frozen-lockfile` ✅ (~38s)
 - `pnpm --filter @workspace/db run push` → `[✓] Changes applied` ✅
 - Redis ✅ (port 6379) · artifacts/api-server: API Server ✅ (port 8080) · artifacts/apex-finder: web ✅ (port 23695)
 - Python tools: holehe ✓ maigret ✓
-- `/api/healthz` → `{"status":"ok","redis":{"status":"ok"}}` ✅
+- `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":1}}` ✅
 - DB: 0 entities, 0 enrichment_runs, 0 identity_bundles (fresh/empty)
-- SESSION_SECRET present; enrichment API secrets need to be re-added by user
+- All 26 secrets active: REDIS_URL_1–5, COMPANIES_HOUSE_API_KEY, GROQ_API_KEY_1–5, PERPLEXITY_API_KEY_1–4, WHOXY_API_KEY, GEMINI_API_KEY_1–4, EXA_API_KEY_1–2, TAVILY_API_KEY_1–4, SESSION_SECRET
+- Pipeline idle — ready for Atlas launch
 
 ---
 
