@@ -8,6 +8,20 @@
 
 ---
 
+## Current State (2026-07-30 — Re-import #40 — setup complete; SESSION_SECRET active; DB empty; pipeline idle)
+
+### Setup this session (2026-07-30 — re-import #40):
+- `CI=true pnpm install --frozen-lockfile` ✅ (~41s)
+- `pnpm --filter @workspace/db run push` → `[✓] Changes applied` ✅
+- Redis ✅ (port 6379) · artifacts/api-server: API Server ✅ (port 8080) · artifacts/apex-finder: web ✅ (port 23695)
+- Python tools: holehe ✓ maigret ✓
+- `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":2}}` ✅
+- DB: 0 entities (fresh/empty)
+- Secrets: SESSION_SECRET active (only secret present this import)
+- Pipeline idle — awaiting user instruction
+
+---
+
 ## Current State (2026-07-30 — Re-import #39 — setup complete; all 26 secrets active; DB empty; pipeline idle)
 
 ### Setup this session (2026-07-30 — re-import #39):
