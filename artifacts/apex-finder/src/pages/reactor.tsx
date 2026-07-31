@@ -115,12 +115,12 @@ const EDGES: EdgeDef[] = [
 ];
 
 const WAVES: Wave[] = [
-  { nodes:["target"],                               edges:["t-faa","t-edgar","t-hmlr","t-ch","t-hnwi","t-occrp"],            label:"TARGETING  —  parsing entity query" },
-  { nodes:["faa","edgar","hmlr","ch","hnwi","occrp"],edges:["faa-inh","edgar-web","hmlr-web","ch-inh","hnwi-dw","occrp-sky"],label:"REGISTRY STACK  —  scanning six public registries in parallel" },
-  { nodes:["inhouse","webdisc","deepweb","opensky","maigret"], edges:["inh-p0","web-p0","web-gem","web-groq","dw-groq","dw-fu","sky-fu","sky-mai","web-mai"], label:"DISCOVERY LAYER  —  web sources + Maigret cross-platform expansion" },
+  { nodes:["target"],                               edges:["t-faa","t-edgar","t-hmlr","t-ch","t-hnwi","t-occrp","t-brreg","t-whoxy"],            label:"TARGETING  —  parsing entity query" },
+  { nodes:["faa","edgar","hmlr","ch","hnwi","occrp","brreg","whoxy"],edges:["faa-inh","edgar-web","hmlr-web","ch-inh","hnwi-dw","occrp-sky","brreg-inh","whoxy-inh"],label:"REGISTRY STACK  —  scanning eight public registries in parallel" },
+  { nodes:["inhouse","webdisc","deepweb","opensky","maigret"], edges:["inh-p0","inh-exa","web-p0","web-exa","web-tav","web-groq","web-gem","web-mai","dw-groq","dw-gem","dw-fu","sky-fu","sky-mai"], label:"DISCOVERY LAYER  —  web sources + Maigret cross-platform expansion" },
   { nodes:["perp0","exa","tavily","gemini"],          edges:["p0-groq","exa-groq","tav-groq","p0-sem","gem-sem","gem-fu"],    label:"AI PHASE 0  —  Perplexity · Gemini · Tavily · Exa in parallel" },
   { nodes:["groq"],                                  edges:["groq-fu","groq-sem","groq-bay"],                                label:"GROQ LLM  —  structured extraction from Exa · Tavily · web text" },
-  { nodes:["perpfu"],                                edges:["fu-bay"],                                                       label:"PERPLEXITY+  —  iterative follow-up" },
+  { nodes:["perpfu"],                                edges:["fu-bay","mai-groq","mai-bay"],                                  label:"PERPLEXITY+  —  iterative follow-up" },
   { nodes:["semantic","bayesian"],                   edges:["sem-gr","sem-mc","bay-mc","bay-pr"],                            label:"SYNTHESIS  —  embedding profiles, scoring priorities" },
   { nodes:["graph"],                                 edges:["gr-mc"],                                                        label:"GRAPH ENGINE  —  relationship network" },
   { nodes:["mcts"],                                  edges:["mc-pr","mc-groq-a","mc-fu-a"],                                 label:"UCT CORE  —  adaptive pathfinding", adaptive:true },
@@ -132,14 +132,31 @@ const WAVES: Wave[] = [
 
 // ── Mobile phase groups ───────────────────────────────────────────────────────
 const MOBILE_PHASES = [
-  { label:"INPUT",      nodeIds:["target"]                                              },
-  { label:"REGISTRIES", nodeIds:["faa","edgar","hmlr","ch","hnwi","occrp","brreg","whoxy"] },
-  { label:"DISCOVERY",  nodeIds:["inhouse","webdisc","deepweb","opensky","maigret"]     },
-  { label:"AI LAYER",   nodeIds:["perp0","exa","tavily","gemini","groq","perpfu"]       },
-  { label:"SYNTHESIS",  nodeIds:["semantic","bayesian"]                                 },
-  { label:"CORE",       nodeIds:["graph","mcts","prac"]                                 },
-  { label:"OUTPUT",     nodeIds:["pitch"]                                               },
+  { label:"INPUT",      detail:"Target becomes a research brief", nodeIds:["target"]                                              },
+  { label:"REGISTRIES", detail:"Public records establish the evidence base", nodeIds:["faa","edgar","hmlr","ch","hnwi","occrp","brreg","whoxy"] },
+  { label:"DISCOVERY",  detail:"Open sources expand identity and activity", nodeIds:["inhouse","webdisc","deepweb","opensky","maigret"]     },
+  { label:"AI LAYER",   detail:"Search, extraction, and adaptive follow-up", nodeIds:["perp0","exa","tavily","gemini","groq","perpfu"]       },
+  { label:"SYNTHESIS",  detail:"Evidence becomes vectors and priority", nodeIds:["semantic","bayesian"]                                 },
+  { label:"CORE",       detail:"Relationships and paths are evaluated", nodeIds:["graph","mcts","prac"]                                 },
+  { label:"OUTPUT",     detail:"A research-ready outreach sequence", nodeIds:["pitch"]                                               },
 ];
+
+const REGISTRY_NODE_IDS = ["faa","edgar","hmlr","ch","hnwi","occrp","brreg","whoxy"];
+
+// A compact 360 × 740 coordinate system keeps the same complete network visible
+// on narrow screens. SVG carries the routes; the HTML cards remain readable.
+const MOBILE_NODE_POS: Record<string, { x:number; y:number }> = {
+  target: { x:180, y:28 },
+  faa: { x:42, y:112 }, edgar: { x:126, y:112 }, hmlr: { x:210, y:112 }, ch: { x:294, y:112 },
+  hnwi: { x:42, y:162 }, occrp: { x:126, y:162 }, brreg: { x:210, y:162 }, whoxy: { x:294, y:162 },
+  inhouse: { x:42, y:246 }, webdisc: { x:126, y:246 }, deepweb: { x:210, y:246 }, opensky: { x:294, y:246 },
+  maigret: { x:180, y:296 },
+  perp0: { x:42, y:378 }, exa: { x:126, y:378 }, tavily: { x:210, y:378 }, groq: { x:294, y:378 },
+  gemini: { x:84, y:428 }, perpfu: { x:168, y:428 },
+  semantic: { x:84, y:512 }, bayesian: { x:276, y:512 },
+  graph: { x:54, y:594 }, mcts: { x:180, y:594 }, prac: { x:306, y:594 },
+  pitch: { x:180, y:690 },
+};
 
 // ── Job → node mapping for live reactor state ────────────────────────────────
 // 21-source interleaved atlas pipeline: 15 broad-web + 6 registry batches.
@@ -154,7 +171,7 @@ function atlasStepToNodes(stepN: number, msg: string): string[] {
   }
   // Registry batch → ingestion nodes
   if (ATLAS_REGISTRY_STEPS.has(stepN)) {
-    return ["target","hnwi","edgar","ch","brreg","occrp"];
+    return ["target", ...REGISTRY_NODE_IDS];
   }
   // Broad discovery category → web + AI extraction
   return ["target","webdisc","groq"];
@@ -249,7 +266,7 @@ function Meter({ label, value, max, color }: { label:string; value:number; max:n
 }
 
 // ── Mobile single node card ───────────────────────────────────────────────────
-function MobileNodeCard({ n, on, dim }: { n: NodeDef; on: boolean; dim?: boolean }) {
+function MobileNodeCard({ n, on, dim, compact = false }: { n: NodeDef; on: boolean; dim?: boolean; compact?: boolean }) {
   const isReactor = n.type === "reactor";
   const c = n.color;
   // dim = in-pipeline but not current active step (faint glow)
@@ -257,44 +274,44 @@ function MobileNodeCard({ n, on, dim }: { n: NodeDef; on: boolean; dim?: boolean
   return (
     <div style={{
       display:"flex", alignItems:"center", gap:8,
-      padding:"9px 10px",
+      padding:compact ? "4px 5px" : "9px 10px",
       border:`${on?(isReactor?2:1.5):dim?1:1}px solid ${on?c:dim?(c+"30"):"#192840"}`,
       borderRadius: isReactor ? 10 : 6,
       background: on ? (isReactor?`${c}14`:`${c}0d`) : dim ? `${c}07` : "#0d1525",
       transition:"all 0.4s ease",
       boxShadow: on ? `0 0 ${isReactor?20:10}px ${c}${isReactor?"44":"22"}` : dim ? `0 0 4px ${c}15` : "none",
-      minWidth:0, overflow:"hidden",
+      minWidth:0, overflow:"hidden", width:"100%", height:compact ? 40 : undefined,
     }}>
       <div style={{
-        width:26, height:26, flexShrink:0, borderRadius:5,
+         width:compact ? 18 : 26, height:compact ? 18 : 26, flexShrink:0, borderRadius:5,
         border:`1px solid ${on?c+"50":dim?(c+"25"):"#192840"}`,
         background: on ? c+"16" : dim ? c+"0a" : "transparent",
         display:"flex", alignItems:"center", justifyContent:"center",
         color: on ? c : dim ? c+"55" : "#253850",
         transition:"all 0.4s",
       }}>
-        <n.Icon style={{ width:12, height:12 }} />
+         <n.Icon style={{ width:compact ? 9 : 12, height:compact ? 9 : 12 }} />
       </div>
       <div style={{ flex:1, minWidth:0 }}>
         <div style={{
-          fontSize:9, fontWeight:700, letterSpacing:"0.1em",
+           fontSize:compact ? 6.7 : 9, fontWeight:700, letterSpacing:compact ? "0.04em" : "0.1em",
           color: on ? c : dim ? c+"60" : "#253850",
           transition:"color 0.4s",
-          overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+           overflow:"hidden", textOverflow:"ellipsis", whiteSpace:compact ? "normal" : "nowrap",
         }}>
           {n.label}
         </div>
         <div style={{
-          fontSize:8, color: on ? c+"99" : dim ? c+"35" : "#1a2d42",
-          marginTop:1, letterSpacing:"0.06em",
-          overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+           fontSize:compact ? 5.4 : 8, color: on ? c+"99" : dim ? c+"35" : "#1a2d42",
+           marginTop:compact ? 0 : 1, letterSpacing:compact ? "0.02em" : "0.06em",
+           overflow:"hidden", textOverflow:"ellipsis", whiteSpace:compact ? "nowrap" : "nowrap",
           transition:"color 0.4s",
         }}>
           {n.sub}
         </div>
       </div>
       <div style={{
-        width:5, height:5, borderRadius:"50%", flexShrink:0,
+         width:compact ? 4 : 5, height:compact ? 4 : 5, borderRadius:"50%", flexShrink:0,
         background: on ? c : dim ? c+"40" : "#192840",
         boxShadow: on ? `0 0 6px ${c}` : dim ? `0 0 3px ${c}50` : "none",
         animation: on ? "blink 1.1s ease-in-out infinite" : dim ? "breathe 2s ease-in-out infinite" : "none",
@@ -453,78 +470,130 @@ function MobileReactor({ sessions, totalEntities, loading, onRefresh, syncing, l
           </div>
         ) : (
           <>
-            {/* ── Pipeline architecture ── */}
-            <div style={{ padding:"12px 12px 0", flexShrink:0 }}>
-              {MOBILE_PHASES.map((phase, pi) => {
-                const phaseNodes = phase.nodeIds.map(id => NM[id]).filter(Boolean);
-                const anyActive = phaseNodes.some(n => activeNodes.has(n.id));
-                const cols = phase.nodeIds.length > 2 ? 2 : 1;
-
-                return (
-                  <div key={phase.label} style={{ marginBottom:8 }}>
-                    {/* Phase label */}
-                    <div style={{
-                      fontSize:8, letterSpacing:"0.22em", marginBottom:5,
-                      color: anyActive ? "#a3e63599" : "#1e3050",
-                      display:"flex", alignItems:"center", gap:6,
-                    }}>
-                      <div style={{ flex:1, height:1, background: anyActive ? "#a3e63520" : "#192840" }} />
-                      {phase.label}
-                      <div style={{ flex:1, height:1, background: anyActive ? "#a3e63520" : "#192840" }} />
-                    </div>
-
-                    {/* Node grid */}
-                    <div style={{
-                      display:"grid",
-                      gridTemplateColumns: cols === 2 ? "1fr 1fr" : "1fr",
-                      gap:5,
-                      width:"100%",
-                    }}>
-                      {phaseNodes.map(n => (
-                        <MobileNodeCard
-                          key={n.id}
-                          n={n}
-                          on={activeNodes.has(n.id)}
-                          dim={dimNodes.has(n.id)}
-                        />
-                      ))}
-                    </div>
-
-                    {pi < MOBILE_PHASES.length - 1 && (() => {
-                      const nextPhase = MOBILE_PHASES[pi + 1];
-                      const nextPhaseNodes = nextPhase.nodeIds.map(id => NM[id]).filter(Boolean);
-                      const nextActive = nextPhaseNodes.some(n => activeNodes.has(n.id) || dimNodes.has(n.id));
-                      const flowActive = anyActive || nextActive;
-                      return (
-                        <div style={{
-                          display:"flex", justifyContent:"center", alignItems:"center",
-                          padding:"2px 0", gap:3,
-                        }}>
-                          {flowActive && isLive ? (
-                            // Animated data-flow dots when live
-                            <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
-                              {[0,1,2].map(i => (
-                                <div key={i} style={{
-                                  width:3, height:3, borderRadius:"50%",
-                                  background: "#a3e635",
-                                  opacity: (liveStep + i) % 3 === 0 ? 1 : 0.2,
-                                  transition:"opacity 0.35s ease",
-                                  boxShadow: (liveStep + i) % 3 === 0 ? "0 0 4px #a3e635" : "none",
-                                }} />
-                              ))}
-                            </div>
-                          ) : (
-                            <div style={{
-                              fontSize:10,
-                              color: anyActive ? "#a3e63560" : "#192840",
-                            }}>▾</div>
-                          )}
-                        </div>
-                      );
-                    })()}
+            {/* ── Complete rod wall: the same route map remains visible on mobile ── */}
+            <div style={{ padding:"12px 10px 0", flexShrink:0 }}>
+              <div style={{
+                display:"flex", alignItems:"center", justifyContent:"space-between",
+                marginBottom:7, padding:"0 2px",
+              }}>
+                <div>
+                  <div style={{ fontSize:8, letterSpacing:"0.2em", color:"#e8e0cc", fontWeight:700 }}>
+                    ACTIVE ROD WALL
                   </div>
-                );
-              })}
+                  <div style={{ fontSize:7, letterSpacing:"0.08em", color:"#3a5070", marginTop:3 }}>
+                    {isLive ? "LIVE ROUTES · PARALLEL WORKERS LIT" : "FULL PIPELINE · TAP-THROUGH DATA ROUTES"}
+                  </div>
+                </div>
+                <div style={{ display:"flex", alignItems:"center", gap:7, fontSize:6.5, letterSpacing:"0.1em", color:"#3a5070" }}>
+                  <span style={{ display:"inline-flex", alignItems:"center", gap:3 }}>
+                    <i style={{ width:6, height:2, background:"#a3e635", display:"inline-block" }} /> FORWARD
+                  </span>
+                  <span style={{ display:"inline-flex", alignItems:"center", gap:3 }}>
+                    <i style={{ width:6, height:2, background:"#22d3ee", display:"inline-block" }} /> FEEDBACK
+                  </span>
+                </div>
+              </div>
+              <div style={{
+                position:"relative", width:"100%", maxWidth:360, height:738, margin:"0 auto",
+                border:"1px solid #192840", borderRadius:8, overflow:"hidden",
+                background:"linear-gradient(180deg,#0c1525 0%,#0a1120 100%)",
+                boxShadow:"inset 0 0 40px #07101d",
+              }}>
+                <div style={{
+                  position:"absolute", inset:0, pointerEvents:"none", opacity:0.45,
+                  backgroundImage:"linear-gradient(rgba(163,230,53,0.035) 1px,transparent 1px),linear-gradient(90deg,rgba(163,230,53,0.035) 1px,transparent 1px)",
+                  backgroundSize:"24px 24px",
+                }} />
+                {MOBILE_PHASES.map((phase, pi) => {
+                  const y = [18, 92, 226, 358, 492, 574, 670][pi];
+                  const phaseNodes = phase.nodeIds.map(id => NM[id]).filter(Boolean);
+                  const anyActive = phaseNodes.some(n => activeNodes.has(n.id));
+                  return (
+                    <div key={phase.label} style={{
+                      position:"absolute", left:8, top:y, zIndex:3,
+                      writingMode:"vertical-rl", transform:"rotate(180deg)",
+                      fontSize:6, letterSpacing:"0.17em", color:anyActive ? "#a3e63599" : "#263d59",
+                    }}>
+                      {String(pi + 1).padStart(2,"0")} {phase.label}
+                    </div>
+                  );
+                })}
+                <svg viewBox="0 0 360 738" preserveAspectRatio="none" style={{
+                  position:"absolute", inset:0, width:"100%", height:"100%", zIndex:1, overflow:"visible",
+                }}>
+                  <defs>
+                    <marker id="mobileLime" markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto">
+                      <path d="M0,0 L5,2.5 L0,5 z" fill="#a3e635" />
+                    </marker>
+                    <marker id="mobileCyan" markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto">
+                      <path d="M0,0 L5,2.5 L0,5 z" fill="#22d3ee" />
+                    </marker>
+                  </defs>
+                  {EDGES.map(e => {
+                    const a = MOBILE_NODE_POS[e.from], b = MOBILE_NODE_POS[e.to];
+                    if (!a || !b) return null;
+                    const on = activeNodes.has(e.from) || activeNodes.has(e.to);
+                    const col = e.adaptive ? "#22d3ee" : "#a3e635";
+                    const d = `M ${a.x} ${a.y + 18} C ${a.x} ${(a.y + b.y) / 2} ${b.x} ${(a.y + b.y) / 2} ${b.x} ${b.y - 18}`;
+                    return (
+                      <path key={e.id} d={d} fill="none" stroke={on ? col : "#20344d"}
+                        strokeWidth={on ? 1.35 : 0.75} opacity={on ? 0.85 : 0.42}
+                        strokeDasharray={e.adaptive ? "5 3" : on ? "1 0" : "3 5"}
+                        markerEnd={on ? `url(#${e.adaptive ? "mobileCyan" : "mobileLime"})` : undefined}
+                        style={on ? { animation:`${e.adaptive ? "dashBack" : "dashFwd"} 1.2s linear infinite` } : {}}
+                      />
+                    );
+                  })}
+                  {isLive && (
+                    <text x="350" y="622" fill="#22d3ee88" fontSize="6" textAnchor="end"
+                      fontFamily="'Space Mono',monospace" letterSpacing="0.12em"
+                      transform="rotate(-90 350 622)">ADAPTIVE FEEDBACK</text>
+                  )}
+                </svg>
+                {NODES.map(n => {
+                  const pos = MOBILE_NODE_POS[n.id];
+                  if (!pos) return null;
+                  const isTarget = n.id === "target";
+                  const isOutput = n.id === "pitch";
+                  return (
+                    <div key={n.id} style={{
+                      position:"absolute", zIndex:2,
+                      left:`${pos.x - (isTarget || isOutput ? 70 : 34)}px`,
+                      top:`${pos.y - 18}px`,
+                      width:isTarget || isOutput ? 140 : 68,
+                    }}>
+                      <MobileNodeCard n={n} on={activeNodes.has(n.id)} dim={dimNodes.has(n.id)} compact={!isTarget && !isOutput} />
+                    </div>
+                  );
+                })}
+                {MOBILE_PHASES.map((phase, pi) => {
+                  const y = [76, 210, 342, 476, 558, 658, 724][pi];
+                  return <div key={`rail-${phase.label}`} style={{
+                    position:"absolute", left:20, right:10, top:y, height:1,
+                    background:`linear-gradient(90deg,${phase.nodeIds.some(id => activeNodes.has(id)) ? "#a3e63530" : "#192840"},transparent)`,
+                    zIndex:1,
+                  }} />;
+                })}
+              </div>
+              <div style={{
+                display:"grid", gridTemplateColumns:"repeat(2, minmax(0,1fr))",
+                gap:5, marginTop:8,
+              }}>
+                {MOBILE_PHASES.map((phase, pi) => {
+                  const active = phase.nodeIds.some(id => activeNodes.has(id));
+                  return <div key={`phase-note-${phase.label}`} style={{
+                    border:`1px solid ${active ? "#a3e63545" : "#192840"}`,
+                    borderRadius:5, padding:"6px 7px", background:active ? "#a3e6350b" : "#0c1422",
+                  }}>
+                    <div style={{ fontSize:6.5, letterSpacing:"0.12em", color:active ? "#a3e635" : "#526b86" }}>
+                      {String(pi + 1).padStart(2,"0")} · {phase.label}
+                    </div>
+                    <div style={{ fontSize:6.5, lineHeight:1.35, color:"#3a5070", marginTop:3 }}>
+                      {phase.detail}
+                    </div>
+                  </div>;
+                })}
+              </div>
             </div>
 
             {/* ── Live job banner ── */}
@@ -750,12 +819,16 @@ function DesktopReactor({ step, cycle, signals, contacts, loops, liveNodes, live
   const wave = WAVES[step];
   // When Atlas is actively running, drive nodes from real live data instead of scripted wave
   const AN = (isLive && liveNodes && liveNodes.size > 0) ? liveNodes : new Set(wave.nodes);
-  const AE = new Set(wave.edges);
+  // Live routes are derived from the active rods so the lines never imply work
+  // that is not currently represented by the job state.
+  const AE = isLive && liveNodes && liveNodes.size > 0
+    ? new Set(EDGES.filter(e => liveNodes.has(e.from) || liveNodes.has(e.to)).map(e => e.id))
+    : new Set(wave.edges);
   const adaptive = (isLive && liveNodes && liveNodes.size > 0) ? true : (wave.adaptive ?? false);
 
   return (
     <div style={{
-      width:1600, height:960,
+      width:"100%", height:"100%", minWidth:1600, minHeight:960,
       background:"#0b1120",
       fontFamily:"'Space Mono','DM Mono','Courier New',monospace",
       display:"flex", flexDirection:"column",
@@ -1238,14 +1311,16 @@ export default function IntelligenceReactorPage() {
   return (
     <div
       ref={containerRef}
-      style={{ position:"absolute", inset:0, overflow:"hidden", background:"#0b1120" }}
+      style={{ position:"absolute", inset:0, overflow:"hidden", background:"#0b1120", isolation:"isolate" }}
     >
-      <div style={{ transformOrigin:"top left", transform:`scale(${scale})`, width:1600, height:960 }}>
+      <div style={{ position:"relative", overflow:"hidden", width:"100%", height:"100%" }}>
+        <div style={{ transformOrigin:"top left", transform:`scale(${scale})`, width:1600, height:960 }}>
         <DesktopReactor
           step={step} cycle={cycle} signals={signals} contacts={contacts} loops={loops}
           liveNodes={liveNodes} liveLabel={liveLabel} isLive={liveNodes.size > 0}
           totalEntities={totalEntities} hotCount={hotCount} totalAssets={totalAssets}
         />
+        </div>
       </div>
     </div>
   );
