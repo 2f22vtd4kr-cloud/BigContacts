@@ -1,4 +1,4 @@
-modules = ["nodejs-24"]
+modules = ["nodejs-20", "web", "bash", "python-3.11", "postgresql-16"]
 
 [deployment]
 router = "application"
@@ -11,6 +11,59 @@ env = { "CI" = "true" }
 [workflows]
 runButton = "Project"
 
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Redis"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "artifacts/api-server: API Server"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "artifacts/apex-finder: web"
+
+[[workflows.workflow]]
+name = "Redis"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "redis-server --port 6379 --save '' --appendonly no --loglevel notice"
+waitForPort = 6379
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow]]
+name = "artifacts/api-server: API Server"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pnpm --filter @workspace/api-server run dev"
+waitForPort = 8080
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow]]
+name = "artifacts/apex-finder: web"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pnpm --filter @workspace/apex-finder run dev"
+waitForPort = 23695
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
 [agent]
 stack = "PNPM_WORKSPACE"
 expertMode = true
@@ -18,3 +71,32 @@ expertMode = true
 [postMerge]
 path = "scripts/post-merge.sh"
 timeoutMs = 20000
+
+[nix]
+channel = "stable-25_05"
+
+[userenv]
+
+[userenv.shared]
+REDIS_URL = "redis://localhost:6379"
+ENABLE_AUTO_PIPELINE = "false"
+
+[[ports]]
+localPort = 6379
+externalPort = 3001
+
+[[ports]]
+localPort = 8080
+externalPort = 8080
+
+[[ports]]
+localPort = 8081
+externalPort = 8081
+
+[[ports]]
+localPort = 22796
+externalPort = 3000
+
+[[ports]]
+localPort = 23695
+externalPort = 80
