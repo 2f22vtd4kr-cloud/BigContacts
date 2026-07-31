@@ -201,8 +201,13 @@ export function normalizePhone(raw: string | null | undefined): string | null {
   if (!s || PHONE_BLOCKLIST_RE.test(s)) return null;
 
   const hasPlus = s.startsWith("+");
-  const digits  = s.replace(PHONE_NOISE_RE, "");
+  const digits  = s.replace(/[^\d]/g, "");
   const len     = digits.length;
+  const plusCount = (s.match(/\+/g) ?? []).length;
+
+  // A phone number may have one leading plus only. Repeated plus signs are
+  // extraction noise, not a valid international number.
+  if (plusCount > 1 || (plusCount === 1 && !hasPlus)) return null;
 
   // Reject out-of-range lengths (ITU-T E.164: 1–15 digits; require ≥ 8)
   if (len < 8 || len > 15) return null;

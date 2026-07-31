@@ -223,7 +223,8 @@ export function entityInvolvement(entity: EntityNarrative): string | null {
 }
 
 export function entityEvidenceLabel(entity: EntityNarrative): string {
-  const registries = parseEntityRegistries(entity.sourceRegistries);
+  const registries = parseEntityRegistries(entity.sourceRegistries)
+    .filter((source) => !/^(manual|user|seed|imported)$/i.test(source.trim()));
   if (registries.length > 0) return `${registries.length} public source${registries.length === 1 ? "" : "s"}`;
   if (entity.relationshipCount) return `${entity.relationshipCount} public connection${entity.relationshipCount === 1 ? "" : "s"}`;
   return "Evidence detail pending";

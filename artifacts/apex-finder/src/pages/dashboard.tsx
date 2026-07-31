@@ -118,8 +118,12 @@ function LeadCard({ lead, index }: { lead: any; index: number }) {
           </div>
         </div>
         {index < 3 && (
-          <span className="relative rounded-full border border-accent/30 bg-accent/10 px-2 py-1 font-mono text-[8px] uppercase tracking-[0.13em] text-accent">
-            Priority
+          <span className={`relative rounded-full border px-2 py-1 font-mono text-[8px] uppercase tracking-[0.13em] ${
+            contactReady
+              ? "border-accent/30 bg-accent/10 text-accent"
+              : "border-border bg-muted/60 text-muted-foreground"
+          }`}>
+            {contactReady ? "Priority" : "Review"}
           </span>
         )}
       </div>
@@ -240,7 +244,7 @@ export default function Dashboard() {
         <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <div className="flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.18em] text-primary"><Sparkles className="h-3 w-3" /> Priority people</div>
-            <h2 className="mt-2 font-display text-xl font-semibold tracking-tight text-foreground md:text-2xl">Most reachable people first</h2>
+            <h2 className="mt-2 font-display text-xl font-semibold tracking-tight text-foreground md:text-2xl">Most useful records first</h2>
           </div>
           <Link href="/profiles" data-testid="link-view-all-leads" className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-primary">View full ledger <ChevronRight className="h-3.5 w-3.5" /></Link>
         </div>

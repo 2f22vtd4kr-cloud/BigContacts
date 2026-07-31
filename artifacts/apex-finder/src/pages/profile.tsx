@@ -109,6 +109,7 @@ const CRM_COLORS: Record<string, string> = {
   "New Lead":        "text-primary bg-primary/10 border-primary/30",
   "In Research":     "text-secondary bg-secondary/10 border-secondary/30",
   "Pitch Generated": "text-amber-400 bg-amber-400/10 border-amber-400/30",
+  "Research Review": "text-sky-400 bg-sky-400/10 border-sky-400/30",
   Contacted:         "text-blue-400 bg-blue-400/10 border-blue-400/30",
   "In Negotiation":  "text-purple-400 bg-purple-400/10 border-purple-400/30",
   Closed:            "text-emerald-400 bg-emerald-400/10 border-emerald-400/30",
@@ -981,7 +982,7 @@ export default function ApexProfile() {
         return (
           <div className={cn("flex-shrink-0 border-b border-border px-4 md:px-6 py-3", hasContact && "bg-primary/5")}>
             <div className="flex items-center justify-between mb-2 gap-2">
-              <span className="text-[9px] font-mono font-bold text-primary uppercase tracking-widest">Direct Contact</span>
+               <span className="text-[9px] font-mono font-bold text-primary uppercase tracking-widest">Public Contact Vectors</span>
               <div className="flex items-center gap-1.5">
                 {hasContact && (
                   <button
@@ -1427,7 +1428,9 @@ export default function ApexProfile() {
           lines.push(`${pName} is listed in Norway's official business registry (BRREG) as a director or key officer. BRREG is the public record of every registered company in Norway — we cross-reference officer names with company turnover data to identify high-net-worth individuals.`);
         } else if (/companies.?house/i.test(primaryReg)) {
           lines.push(`${pName} appears in UK Companies House as a director or person of significant control. Companies House is the UK's official register of companies and their officers — anyone with >25% ownership or voting control must be listed. That's the statutory basis for their inclusion here.`);
-        } else if (primaryReg) {
+         } else if (/^manual$/i.test(primaryReg)) {
+           lines.push(`${pName} is a manually created research record. No public registry or asset evidence is recorded yet.`);
+         } else if (primaryReg) {
           lines.push(`${pName} appears in ${primaryReg} — a public registry we monitor for high-net-worth individuals and significant asset holders.`);
         }
         if (e.estimatedNetWorth != null) {

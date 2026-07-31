@@ -72,7 +72,10 @@ router.post("/research/run", async (req, res): Promise<void> => {
     ? Math.floor((Date.now() - new Date(latestActivity).getTime()) / 86400000)
     : 999;
 
-  const updatedScore = computeBayesianScore(targetEntity.bayesianScore ?? 0.05, {
+  // Recompute from the stable prior on every run. Feeding the previous posterior
+  // back into the scorer compounds the same evidence on reruns and creates
+  // unsupported score inflation.
+  const updatedScore = computeBayesianScore(0.05, {
     entityType: targetEntity.type,
     assetCount: targetAssets.length,
     assetCategories,
@@ -99,6 +102,10 @@ router.post("/research/run", async (req, res): Promise<void> => {
     .where(eq(entitiesTable.id, entityId));
 
   const targetVertexId = `e:${entityId}`;
+  // The graph was built before the persisted score update. Keep the in-memory
+  // target vertex aligned so MCTS reasoning does not quote the stale score.
+  const targetVertex = graph.vertices.get(targetVertexId);
+  if (targetVertex) targetVertex.bayesianScore = updatedScore;
   const gatekeeperVertices = allEntities
     .filter((e) => e.type === "Gatekeeper")
     .map((e) => `e:${e.id}`);
@@ -202,6 +209,8 @@ router.post("/research/run", async (req, res): Promise<void> => {
       notes: targetEntity.notes,
       contactEmail: targetEntity.email,
       contactPhone: targetEntity.phone,
+      contactOutcome: targetEntity.contactOutcome,
+      contactConfidence: targetEntity.contactConfidence,
     },
     gatekeeper,
     assets: entityAssets.map((a) => ({
@@ -234,7 +243,11 @@ router.post("/research/run", async (req, res): Promise<void> => {
       targetEntityId: entityId,
       winningPath: JSON.stringify(mctsResult.winningPath),
       mctsSteps: JSON.stringify(mctsResult.mctsSteps),
-      crmStatus: pitchText.startsWith("[Auto-pitch pending") ? "Pitch Pending" : "Pitch Generated",
+      crmStatus: pitchText.startsWith("[Auto-pitch pending")
+        ? "Pitch Pending"
+        : gatekeeper
+          ? "Pitch Generated"
+          : "Research Review",
       bayesianScoreAtRuntime: updatedScore,
       pathScore: mctsResult.pathScore,
       generatedPitch: pitchText,

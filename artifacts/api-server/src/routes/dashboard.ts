@@ -118,6 +118,7 @@ router.get("/dashboard/hot-leads", async (req, res): Promise<void> => {
     if (signalMap[e.id]) return signalMap[e.id]!;
     // Notes field is populated by ingestors with real attribution text
     const note = (e.notes ?? "").trim();
+    if (/identity seed|manual(?:ly)? entered|entered manually|seed record/i.test(note)) return null;
     if (note.length > 10) return note.slice(0, 120);
     return null;
   }
