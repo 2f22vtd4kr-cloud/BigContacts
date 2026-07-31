@@ -38,6 +38,7 @@ import { runBroadDiscovery } from "../lib/enrichment/broad-discovery";
 import { computeContactConfidence, computeContactOutcome } from "../lib/contact-confidence";
 import { contactCacheSet, contactCacheScanAll, contactCacheCount, type CachedContact } from "../lib/redis";
 import { logger } from "../lib/logger";
+import { backfillWealthLLM } from "../lib/wealth-estimator";
 
 const router = Router();
 
@@ -797,6 +798,43 @@ router.post("/ingest/sync-livesource-markers", async (_req: Request, res: Respon
   }
 
   res.json({ updated, skipped, total: entities.length, message: `liveSource marker synced: ${updated} updated, ${skipped} skipped.` });
+});
+
+// ── POST /ingest/backfill-wealth-llm ─────────────────────────────────────────
+// Forces a calibrated LLM wealth estimate for every entity lacking estimatedNetWorth.
+// Models are prompted so they cannot respond with "I don't know" — they must
+// derive a figure from role, company, registry, assets, and sector norms.
+router.post("/ingest/backfill-wealth-llm", async (req: Request, res: Response): Promise<void> => {
+  const onlyMissing = req.body?.onlyMissing !== false; // default true
+  const batchSize   = Math.min(Number(req.body?.batchSize ?? 8), 15);
+
+  // Stream progress via chunked response
+  res.setHeader("Content-Type", "application/json; charset=utf-8");
+  res.setHeader("X-Accel-Buffering", "no");
+
+  let progressSent = 0;
+  const jobId = `wealth-llm-${Date.now()}`;
+  logger.info({ jobId, onlyMissing, batchSize }, "[WealthBackfill] Starting LLM wealth estimation");
+
+  try {
+    const result = await backfillWealthLLM({
+      onlyMissing,
+      batchSize,
+      onProgress: (done, total) => {
+        progressSent++;
+        if (progressSent % 3 === 0) {
+          logger.info({ done, total }, "[WealthBackfill] Progress");
+        }
+      },
+    });
+    res.json({
+      ...result,
+      message: `LLM wealth backfill complete: ${result.updated} entities updated, ${result.skipped} skipped, ${result.errors} errors.`,
+    });
+  } catch (err: any) {
+    logger.error({ err: err.message }, "[WealthBackfill] Fatal error");
+    res.status(500).json({ error: err?.message ?? "LLM wealth backfill failed" });
+  }
 });
 
 // ── POST /ingest/backfill-net-worth ───────────────────────────────────────────

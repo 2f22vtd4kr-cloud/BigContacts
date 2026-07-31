@@ -44,6 +44,7 @@ import { computeContactConfidence, computeContactOutcome } from "./contact-confi
 import { contactCacheSet } from "./redis";
 import { runPhaseJBatch } from "../routes/phase-j";
 import { reachabilityOrderExpr } from "./reachability-rank";
+import { backfillWealthLLM } from "./wealth-estimator";
 
 // ── Jurisdiction → approximate coordinates lookup (for asset geocoding) ───────
 const JURISDICTION_COORDS: Record<string, [number, number]> = {
@@ -914,14 +915,26 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
     await updateJob(embJobId, { status: "done", progress: embProcessed, total: toEmbed.length, message: `${embProcessed} embeddings computed. Cache: ${getEmbeddingCacheSize()}` });
     await setActiveJob("compute-embeddings", "");
 
-    // Net worth backfill — set estimatedNetWorth = 3× total asset value
-    await db.execute(sql`
-      UPDATE entities SET estimated_net_worth = (
-        SELECT COALESCE(SUM(estimated_value), 0) * 3
-        FROM assets WHERE owner_entity_id = entities.id
-      )
-      WHERE estimated_net_worth IS NULL OR estimated_net_worth = 0
-    `);
+    // Net worth backfill — LLM forced-estimate pass (primary) + asset formula (secondary)
+    // The LLM prompt is engineered so models CANNOT respond "I don't know" — they
+    // must derive a figure from role, company, registry signals, and sector norms.
+    await status("Phase 9/10: LLM wealth estimation…", 9);
+    try {
+      const wealthResult = await backfillWealthLLM({ onlyMissing: true, batchSize: 8 });
+      summary["Phase 9 — Wealth"] = `LLM wealth estimates: ${wealthResult.updated} updated, ${wealthResult.skipped} skipped, ${wealthResult.errors} errors`;
+      logger.info(wealthResult, "[Atlas] LLM wealth backfill complete");
+    } catch (wealthErr: any) {
+      logger.warn({ err: wealthErr.message }, "[Atlas] LLM wealth backfill failed — falling back to asset formula");
+      // Asset-formula fallback for any remaining nulls
+      await db.execute(sql`
+        UPDATE entities SET estimated_net_worth = (
+          SELECT COALESCE(SUM(estimated_value), 0) * 3
+          FROM assets WHERE owner_entity_id = entities.id
+        )
+        WHERE (estimated_net_worth IS NULL OR estimated_net_worth = 0)
+          AND EXISTS (SELECT 1 FROM assets WHERE owner_entity_id = entities.id AND estimated_value > 0)
+      `);
+    }
 
     // Backfill contact outcomes for all entities
     await db.execute(sql`
