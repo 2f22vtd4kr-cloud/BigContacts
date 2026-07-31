@@ -55,12 +55,12 @@ The long-term plan for improving the approximately 2.5% direct-contact yield is 
 | `SESSION_SECRET` | Replit Secret | Express session signing |
 | `REDIS_URL_1`–`REDIS_URL_5` | Replit Secrets | **Upstash permanent Redis slots** — dedup/contact-cache capacity is distributed across the numbered slots; slot 1 is currently quota-exhausted and skipped automatically, while slots 2–5 are healthy. |
 | `COMPANIES_HOUSE_API_KEY` | Replit Secret (optional) | UK Companies House officer harvester |
-| `GROQ_API_KEY`, `_2`, `_3` | Replit Secrets (optional) | Groq-powered structured extraction during web enrichment, with key rotation |
-| `PERPLEXITY_API_KEY`, `_2`, `_3`, `_4` | Replit Secrets (optional) | Perplexity-powered public web discovery and enrichment, with key rotation |
+| `GROQ_API_KEY`, `_2`–`_5` | Replit Secrets (optional) | Groq-powered structured extraction during web enrichment, with key rotation |
+| `PERPLEXITY_API_KEY`, `_2`–`_6` | Replit Secrets (optional) | Perplexity-powered public web discovery and enrichment, with key rotation |
 | `WHOXY_API_KEY` | Replit Secret (optional) | Whoxy domain and DNS intelligence lookups |
 | `OPENROUTER_API_KEY`, `_2`, `_3`, `_4` | Replit Secrets (optional) | OpenRouter model access, with key rotation |
-| `GEMINI_API_KEY` | Replit Secret (optional) | Google Gemini model access |
-| `TAVILY_API_KEY`, `_2`, `_3`, `_4` | Replit Secrets (optional) | Tavily AI-native search API; returns clean excerpts fed into Groq for extraction, with key rotation |
+| `GEMINI_API_KEY`, `_2`–`_4` | Replit Secrets (optional) | Google Gemini model access, with key rotation |
+| `TAVILY_API_KEY`, `_2`–`_6` | Replit Secrets (optional) | Tavily AI-native search API; returns clean excerpts fed into Groq for extraction, with key rotation |
 | `EXA_API_KEY`, `_2` | Replit Secrets (optional) | Exa neural/semantic search; excels at people + company lookups; fed into Groq for extraction, with key rotation |
 | `ENABLE_AUTO_PIPELINE` | Shared environment | Set to `false` for controlled imports and single-target research; set to `true` only when broad cold-start ingestion is explicitly requested. |
 
@@ -101,7 +101,7 @@ After a fresh GitHub import, run these steps to get the project running:
 2. **Push DB schema:** `pnpm --filter @workspace/db run push`
 3. **Start workflows:** Redis → `artifacts/api-server: API Server` → `artifacts/apex-finder: web` (in that order)
 
-Latest verification (2026-07-28): all 24 requested enrichment secrets are present — `REDIS_URL_1` through `REDIS_URL_5`, `COMPANIES_HOUSE_API_KEY`, `GROQ_API_KEY`/`_2`/`_3`, `PERPLEXITY_API_KEY`/`_2`/`_3`/`_4`, `WHOXY_API_KEY`, `GEMINI_API_KEY`/`_2`/`_3`/`_4`, `EXA_API_KEY`/`_2`, `TAVILY_API_KEY`/`_2`/`_3`/`_4`; the frozen-lockfile install and schema push completed; Redis, `artifacts/api-server: API Server`, and `artifacts/apex-finder: web` are running; `/api/healthz` returns 200. DB is empty — research not yet started (user instruction). `ENABLE_AUTO_PIPELINE=false` set in shared env to prevent cold-start auto-ingestion.
+Latest verification (2026-07-31): all 30 requested provider secrets are present — `REDIS_URL_1` through `_5`, `COMPANIES_HOUSE_API_KEY`, five Groq keys, six Perplexity keys, `WHOXY_API_KEY`, four Gemini keys, two Exa keys, and six Tavily keys. Secret values were not read or displayed. Research and ingestion remain paused by user instruction; no workflows were restarted.
 
 Two fixes were needed after the first import:
 - Added `"pg-cloudflare"` to the `external` list in `artifacts/api-server/build.mjs` (pg optional dep that esbuild couldn't resolve)

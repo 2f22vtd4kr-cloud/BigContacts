@@ -42,6 +42,7 @@ const GENERIC_PREFIXES = new Set([
   "security", "privacy", "newsletter", "notifications", "alerts",
   "service", "services", "business", "commercial", "connect", "info-",
   "partnership", "partnerships", "sponsors", "sponsorship",
+  "membership", "memberships", "frontdesk", "front.desk", "main",
 ]);
 
 export function isGenericEmailPrefix(local: string): boolean {

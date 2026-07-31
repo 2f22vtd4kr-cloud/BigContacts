@@ -737,15 +737,29 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
   ];
 
   const includeFaa = !(opts.skipFaa ?? true); // skip FAA by default
+  // Discovery-first mode is intentionally bounded. Keep all registry anchor
+  // rounds, but honor broadCategories so a "3 category" launch does not
+  // silently expand into every broad source and recreate the prior OOM risk.
+  const selectedBroadCategories = opts.discoveryFirst && opts.broadCategories
+    ? new Set(
+        DISCOVERY_SOURCES
+          .filter((source): source is Extract<DiscoverySource, { kind: "broad" }> => source.kind === "broad")
+          .slice(0, Math.max(1, opts.broadCategories))
+          .map(source => source.category),
+      )
+    : null;
+  const sourcesToRun = selectedBroadCategories
+    ? DISCOVERY_SOURCES.filter(source => source.kind === "registry" || selectedBroadCategories.has(source.category))
+    : DISCOVERY_SOURCES;
   let sourceRound = 0;
   const phaseJJobId = await createJob("phase-j-pass");
 
-  for (const source of DISCOVERY_SOURCES) {
+  for (const source of sourcesToRun) {
     sourceRound++;
     const runStart = new Date();
 
     try {
-      await status(`[${sourceRound}/${DISCOVERY_SOURCES.length}] ${source.label}…`, 1);
+      await status(`[${sourceRound}/${sourcesToRun.length}] ${source.label}…`, 1);
 
       if (source.kind === "broad") {
         const { discoverSingleTemplate } = await import("./enrichment/broad-discovery");
@@ -801,7 +815,7 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
     if (newEntities.length > 0) {
       const batchResult = await runEntityBatch(
         atlasJobId,
-        `[${sourceRound}/${DISCOVERY_SOURCES.length}] 🍳`,
+        `[${sourceRound}/${sourcesToRun.length}] 🍳`,
         newEntities,
         (entity) => enrichEntityFullCircle(atlasJobId, entity as EntityRow),
         3,

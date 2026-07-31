@@ -2603,11 +2603,31 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     const emailLocal  = email.split("@")[0] ?? "";
     const emailDomainBase = emailDomain.split(".")[0]?.replace(/[^a-z0-9]/g, "") ?? "";
 
+    // Apply the shared public-contact validator before promotion. The evidence
+    // row is still retained below for auditability, but malformed, registrar,
+    // privacy-relay, and placeholder addresses cannot become entity contacts.
+    if (!isValidPublicEmail(email)) continue;
+
     // Never promote generic shared inboxes (info@, contact@, sales@, etc.)
     if (isGenericEmailPrefix(emailLocal)) continue;
 
     // Never promote emails scraped from financial data aggregators / news wires
     if (FINANCIAL_AGGREGATOR_DOMAINS.has(emailDomain)) continue;
+
+    // Organisation pages are valuable evidence but their addresses belong to
+    // the organisation, not automatically to the person being researched.
+    // Permit the same value only when a person-level candidate independently
+    // supports it (for example, an owner-resolution result).
+    const emailEvidence = result.evidence.filter(
+      ev => ev.vectorType === "email" && ev.value.toLowerCase() === email.toLowerCase(),
+    );
+    const hasOrganizationEvidence = emailEvidence.some(
+      ev => ev.details?.scope === "organization",
+    );
+    const hasPersonEvidence = emailEvidence.some(
+      ev => ev.details?.scope === "person_candidate",
+    );
+    if (hasOrganizationEvidence && !hasPersonEvidence) continue;
 
     // Domain match check:
     //  • Known entity domain → email domain must overlap with entity name tokens
@@ -2646,6 +2666,21 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   let bestPhone = ""; let bestPhoneCount = 0;
   for (const [phone, srcs] of phoneHits.entries()) {
     if (!isValidPhone(phone)) continue;
+
+    // Do not promote a switchboard or public office number found only on an
+    // organisation page. Keep it in contact_evidence for review instead.
+    const phoneDigits = phone.replace(/\D/g, "");
+    const phoneEvidence = result.evidence.filter(
+      ev => ev.vectorType === "phone" && ev.value.replace(/\D/g, "") === phoneDigits,
+    );
+    const hasOrganizationEvidence = phoneEvidence.some(
+      ev => ev.details?.scope === "organization",
+    );
+    const hasPersonEvidence = phoneEvidence.some(
+      ev => ev.details?.scope === "person_candidate",
+    );
+    if (hasOrganizationEvidence && !hasPersonEvidence) continue;
+
     if (srcs.length > bestPhoneCount) { bestPhone = phone; bestPhoneCount = srcs.length; }
   }
   if (bestPhone) {
