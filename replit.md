@@ -101,9 +101,11 @@ After a fresh GitHub import, run these steps to get the project running:
 2. **Push DB schema:** `pnpm --filter @workspace/db run push`
 3. **Start workflows:** Redis → `artifacts/api-server: API Server` → `artifacts/apex-finder: web` (in that order)
 
-Latest verification (2026-07-31): all 32 requested provider secrets are present — `REDIS_URL_1` through `_5`, `COMPANIES_HOUSE_API_KEY`, five Groq keys, eight Perplexity keys, `WHOXY_API_KEY`, four Gemini keys, two Exa keys, and six Tavily keys. Secret values were not read or displayed. Redis, API, web, and mockup workflows are healthy. The pipeline is idle; no Atlas, ingestion, or research job is active.
+Latest verification (2026-07-31): all 32 requested provider secrets are present — `REDIS_URL_1` through `_5`, `COMPANIES_HOUSE_API_KEY`, five Groq keys, eight Perplexity keys, `WHOXY_API_KEY`, four Gemini keys, two Exa keys, and six Tavily keys. Secret values were not read or displayed. Redis, API, web, and mockup workflows are healthy; the web workflow was restarted after the Intelligence Reactor UI update. The pipeline is idle; no Atlas, ingestion, or research job is active.
 
 Contact-quality hardening completed: human-name admission is fail-closed behind deterministic safety gates; AI and enrichment paths no longer construct email addresses; email/phone/social values are sanitized before every PostgreSQL, evidence, Redis, cache-restore, startup-maintenance, and merge write; confidence and hot status are recomputed from cleaned vectors rather than trusted incoming scores; organization contacts cannot inflate personal Access confidence; `isHot` requires a meaningful person-level direct contact signal; and aircraft/property/shareholder/live-flight evidence no longer creates Access-hot leads. Wealth/registry evidence remains available as Signal.
+
+Intelligence Reactor UI hardening completed: the desktop rod wall now displays all eight registry rods (including BRREG and WHOXY) and highlights live route segments from active endpoints; mobile now uses the same complete tool network in a responsive SVG panel with visible forward and adaptive-feedback routes, phase purpose readouts, and all 26 tool rods. The desktop canvas is contained as one surface rather than repeating inside the application shell. No backend or pipeline behavior changed.
 
 Two fixes were needed after the first import:
 - Added `"pg-cloudflare"` to the `external` list in `artifacts/api-server/build.mjs` (pg optional dep that esbuild couldn't resolve)
