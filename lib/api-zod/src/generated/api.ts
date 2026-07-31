@@ -35,9 +35,7 @@ export const ListEntitiesQueryParams = zod.object({
   "hasPhone": zod.coerce.boolean().optional().describe('Show only entities with a phone number'),
   "hasWhatsapp": zod.coerce.boolean().optional().describe('Show only entities with a WhatsApp contact vector'),
   "hasTelegram": zod.coerce.boolean().optional().describe('Show only entities with a Telegram handle'),
-  "hasInstagram": zod.coerce.boolean().optional().describe('Show only entities with an Instagram handle'),
-  "contactOutcome": zod.coerce.string().optional().describe('Filter by contact richness tier: any | direct | verified | org | social'),
-  "minContactConfidence": zod.coerce.number().optional().describe('Minimum contact confidence score 0–100')
+  "hasInstagram": zod.coerce.boolean().optional().describe('Show only entities with an Instagram handle')
 })
 
 export const ListEntitiesResponseItem = zod.object({
@@ -505,7 +503,14 @@ export const GetHotLeadsResponseItem = zod.object({
   "estimatedNetWorth": zod.number().nullish(),
   "crmStatus": zod.string().nullish(),
   "hasResearchSession": zod.boolean(),
-  "nationality": zod.string().nullish()
+  "nationality": zod.string().nullish(),
+  "contactOutcome": zod.string().nullish(),
+  "contactConfidence": zod.number().nullish(),
+  "linkedinHeadline": zod.string().nullish(),
+  "twitterBio": zod.string().nullish(),
+  "telegramBio": zod.string().nullish(),
+  "personalWebsite": zod.string().nullish(),
+  "foundationName": zod.string().nullish()
 })
 export const GetHotLeadsResponse = zod.array(GetHotLeadsResponseItem)
 

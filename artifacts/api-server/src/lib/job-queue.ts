@@ -36,6 +36,12 @@ export interface JobState {
   startedAt: string;
   finishedAt?: string;
   message: string;
+  /** Optional structured progress for the Atlas reactor. */
+  atlasPhase?: number;
+  atlasPhaseTotal?: number;
+  entityProgress?: number;
+  entityTotal?: number;
+  entityNames?: string;
 }
 
 const JOB_TTL = 60 * 60 * 24 * 7; // 7 days on Upstash
@@ -68,6 +74,15 @@ export async function updateJob(jobId: string, patch: Partial<JobState>): Promis
   }, undefined);
 }
 
+/** Remove optional structured fields when a job moves to a new phase. */
+export async function clearJobFields(jobId: string, fields: string[]): Promise<void> {
+  if (fields.length === 0) return;
+  await safeRedis(async rc => {
+    await rc.hdel(jk(jobId), ...fields);
+    await rc.expire(jk(jobId), JOB_TTL);
+  }, undefined);
+}
+
 export async function appendJobLog(jobId: string, line: string): Promise<void> {
   const ts = `${new Date().toISOString()} ${line}`;
   await safeRedis(async rc => {
@@ -92,6 +107,11 @@ export async function getJob(jobId: string): Promise<JobState | null> {
     startedAt: raw["startedAt"] ?? "",
     finishedAt: raw["finishedAt"],
     message: raw["message"] ?? "",
+    atlasPhase: raw["atlasPhase"] !== undefined ? Number(raw["atlasPhase"]) : undefined,
+    atlasPhaseTotal: raw["atlasPhaseTotal"] !== undefined ? Number(raw["atlasPhaseTotal"]) : undefined,
+    entityProgress: raw["entityProgress"] !== undefined ? Number(raw["entityProgress"]) : undefined,
+    entityTotal: raw["entityTotal"] !== undefined ? Number(raw["entityTotal"]) : undefined,
+    entityNames: raw["entityNames"],
   };
 }
 

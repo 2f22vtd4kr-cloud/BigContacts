@@ -145,6 +145,11 @@ router.get("/dashboard/hot-leads", async (req, res): Promise<void> => {
     crmStatus: crmMap[e.id] ?? null,
     hasResearchSession: sessionIds[e.id] ?? false,
     nationality: e.nationality,
+    linkedinHeadline: e.linkedinHeadline,
+    twitterBio: e.twitterBio,
+    telegramBio: e.telegramBio,
+    personalWebsite: e.personalWebsite,
+    foundationName: e.foundationName,
   }));
 
   res.json(

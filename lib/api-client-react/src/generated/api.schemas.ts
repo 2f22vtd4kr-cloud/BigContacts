@@ -216,6 +216,20 @@ export interface HotLead {
   hasResearchSession: boolean;
   /** @nullable */
   nationality?: string | null;
+  /** @nullable */
+  contactOutcome?: string | null;
+  /** @nullable */
+  contactConfidence?: number | null;
+  /** @nullable */
+  linkedinHeadline?: string | null;
+  /** @nullable */
+  twitterBio?: string | null;
+  /** @nullable */
+  telegramBio?: string | null;
+  /** @nullable */
+  personalWebsite?: string | null;
+  /** @nullable */
+  foundationName?: string | null;
 }
 
 export type DashboardStatsCrmBreakdownItem = {

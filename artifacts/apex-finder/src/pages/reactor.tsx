@@ -27,6 +27,101 @@ interface ResearchSession {
   createdAt: string;
 }
 
+interface AtlasLiveState {
+  runStatus: "running" | "done" | "failed";
+  phase: number;
+  phaseLabel: string;
+  phaseProgress: number;
+  phaseTotal: number;
+  sourceStep: number | null;
+  sourceTotal: number | null;
+  currentEntities: string[];
+  entityProgress: number | null;
+  entityTotal: number | null;
+  detail: string;
+}
+
+type RodStatus = "idle" | "completed" | "active" | "queued" | "skipped" | "failed";
+
+function rodStatusColor(status: RodStatus, fallback: string): string {
+  switch (status) {
+    case "completed": return "#a3e635";
+    case "active": return "#22d3ee";
+    case "queued": return "#526b86";
+    case "skipped": return "#f59e0b";
+    case "failed": return "#fb7185";
+    default: return fallback;
+  }
+}
+
+const ATLAS_PHASES = [
+  { n: 0, label: "CROSS-REF", detail: "Existing records and registry anchors" },
+  { n: 1, label: "DISCOVERY", detail: "21-source discovery plus full-circle entity cooking" },
+  { n: 2, label: "IDENTITY", detail: "Contacts, ownership, and foundation evidence" },
+  { n: 3, label: "METADATA", detail: "Notes, assets, and source markers" },
+  { n: 4, label: "IN-HOUSE", detail: "Wikidata, GitHub, RDAP, DNS, and filings" },
+  { n: 5, label: "SOCIAL", detail: "Public social and messenger discovery" },
+  { n: 6, label: "AI OSINT", detail: "Search, extraction, and platform expansion" },
+  { n: 7, label: "FORENSICS", detail: "Leaks, WHOIS, vessels, and flight history" },
+  { n: 8, label: "ATTRIBUTION", detail: "Domain, footprint, and graph-assisted attribution" },
+  { n: 9, label: "SEMANTIC", detail: "Embeddings, wealth, confidence, and outcomes" },
+  { n: 10, label: "UCT RESEARCH", detail: "Adaptive paths and outreach sequences" },
+];
+
+function atlasPhaseFromMessage(message: string, progress = 0): number {
+  const explicit = message.match(/Phase\s+(\d+)(?:\/10)?/i);
+  if (explicit) return Math.min(10, Math.max(0, Number(explicit[1])));
+  if (/\bMCTS\b|research batch/i.test(message)) return 10;
+  if (/\bPhase J\b|attribution|digital footprint|domain resolution/i.test(message)) return 8;
+  if (/embedding|semantic|net worth|confidence recompute|contact outcome/i.test(message)) return 9;
+  if (/forensic|ICIJ|Whoxy|WHOIS|Equasis|ADSB|flight history/i.test(message)) return 7;
+  if (/AI OSINT|Maigret|Holehe|Perplexity|Gemini|Tavily|Exa|Groq/i.test(message)) return 6;
+  if (/social|messenger|Telegram|LinkedIn|Instagram|Twitter/i.test(message)) return 5;
+  if (/in.house|Wikidata|GitHub|RDAP|ProPublica|DNS/i.test(message)) return 4;
+  if (/metadata|notes|EDGAR assets|source markers/i.test(message)) return 3;
+  if (/identity|ownership|Foundation|OpenOwnership|Companies House contact/i.test(message)) return 2;
+  if (/\[\d+\/\d+\]|discovery|registry|cooked|🍳/i.test(message)) return 1;
+  return Math.min(10, Math.max(0, progress));
+}
+
+function parseAtlasLiveState(message: string, progress = 0, total = 10, runStatus: AtlasLiveState["runStatus"] = "running"): AtlasLiveState {
+  const phase = atlasPhaseFromMessage(message, progress);
+  const source = message.match(/\[(\d+)\/(\d+)\]/);
+  const entityBatch = message.match(/(?:🍳|:)\s*([^…]+?)(?:…|$)/);
+  const names = entityBatch?.[1]
+    ?.split(",")
+    .map(value => value.replace(/^🍳\s*/, "").trim())
+    .filter(Boolean)
+    .slice(0, 3) ?? [];
+  const phaseMeta = ATLAS_PHASES[phase] ?? ATLAS_PHASES[1];
+  return {
+    runStatus,
+    phase,
+    phaseLabel: phaseMeta.label,
+    phaseProgress: progress,
+    phaseTotal: total,
+    sourceStep: source ? Number(source[1]) : null,
+    sourceTotal: source ? Number(source[2]) : null,
+    currentEntities: names,
+    entityProgress: null,
+    entityTotal: null,
+    detail: message.replace(/…$/, "").trim(),
+  };
+}
+
+function parseEntityNames(value: unknown): string[] {
+  if (Array.isArray(value)) return value.filter((name): name is string => typeof name === "string").slice(0, 3);
+  if (typeof value !== "string") return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed)
+      ? parsed.filter((name): name is string => typeof name === "string").slice(0, 3)
+      : [];
+  } catch {
+    return value.split(",").map(name => name.trim()).filter(Boolean).slice(0, 3);
+  }
+}
+
 // ── Node layout (desktop coords) ─────────────────────────────────────────────
 const NODES: NodeDef[] = [
   { id:"target",  label:"TARGET INPUT",    sub:"Entity · Query",             cx:800,  cy:68,  w:200, h:52,  type:"input",    Icon:Crosshair, color:"#e8e0cc" },
@@ -192,6 +287,21 @@ const ATLAS_PHASE_NODES: Record<number, string[]> = {
   10: ["mcts","prac","graph","pitch","target"],             // MCTS generates outreach pitch
 };
 
+function rodStatus(id: string, atlasState: AtlasLiveState | null | undefined, liveNodes?: Set<string>): RodStatus {
+  if (!atlasState) return liveNodes?.has(id) ? "active" : "idle";
+  if (atlasState.runStatus === "failed") {
+    if (liveNodes?.has(id)) return "failed";
+    const wasReached = Object.entries(ATLAS_PHASE_NODES).some(([phase, ids]) => Number(phase) <= atlasState.phase && ids.includes(id));
+    return wasReached ? "completed" : "skipped";
+  }
+  if (atlasState.runStatus === "done") return "completed";
+  if (liveNodes?.has(id)) return "active";
+  const wasReached = Object.entries(ATLAS_PHASE_NODES).some(([phase, ids]) => Number(phase) < atlasState.phase && ids.includes(id));
+  if (wasReached) return "completed";
+  const isQueued = Object.entries(ATLAS_PHASE_NODES).some(([phase, ids]) => Number(phase) >= atlasState.phase && ids.includes(id));
+  return isQueued ? "queued" : "idle";
+}
+
 const JOB_NODE_MAP: Record<string, string[]> = {
   // ── Discovery / Ingestion ────────────────────────────────────────────────────
   "faa":                  ["target","faa","inhouse"],
@@ -266,28 +376,30 @@ function Meter({ label, value, max, color }: { label:string; value:number; max:n
 }
 
 // ── Mobile single node card ───────────────────────────────────────────────────
-function MobileNodeCard({ n, on, dim, compact = false }: { n: NodeDef; on: boolean; dim?: boolean; compact?: boolean }) {
+function MobileNodeCard({ n, on, dim, status = "idle", compact = false }: { n: NodeDef; on: boolean; dim?: boolean; status?: RodStatus; compact?: boolean }) {
   const isReactor = n.type === "reactor";
   const c = n.color;
+  const statusColor = rodStatusColor(status, c);
+  const powered = status === "active" || status === "completed";
+  const muted = status === "queued" || status === "skipped";
   // dim = in-pipeline but not current active step (faint glow)
-  const dimColor = dim ? c : undefined;
   return (
     <div style={{
       display:"flex", alignItems:"center", gap:8,
       padding:compact ? "4px 5px" : "9px 10px",
-      border:`${on?(isReactor?2:1.5):dim?1:1}px solid ${on?c:dim?(c+"30"):"#192840"}`,
+      border:`${on?(isReactor?2:1.5):dim?1:1}px solid ${on?statusColor:dim?(statusColor+"55"):"#192840"}`,
       borderRadius: isReactor ? 10 : 6,
-      background: on ? (isReactor?`${c}14`:`${c}0d`) : dim ? `${c}07` : "#0d1525",
+      background: on ? (isReactor?`${statusColor}14`:`${statusColor}0d`) : dim ? `${statusColor}0b` : "#0d1525",
       transition:"all 0.4s ease",
-      boxShadow: on ? `0 0 ${isReactor?20:10}px ${c}${isReactor?"44":"22"}` : dim ? `0 0 4px ${c}15` : "none",
+      boxShadow: on ? `0 0 ${isReactor?20:10}px ${statusColor}${isReactor?"44":"22"}` : dim ? `0 0 4px ${statusColor}15` : "none",
       minWidth:0, overflow:"hidden", width:"100%", height:compact ? 40 : undefined,
     }}>
       <div style={{
          width:compact ? 18 : 26, height:compact ? 18 : 26, flexShrink:0, borderRadius:5,
-        border:`1px solid ${on?c+"50":dim?(c+"25"):"#192840"}`,
-        background: on ? c+"16" : dim ? c+"0a" : "transparent",
+        border:`1px solid ${on?statusColor+"70":dim?(statusColor+"35"):"#192840"}`,
+        background: on ? statusColor+"16" : dim ? statusColor+"0a" : "transparent",
         display:"flex", alignItems:"center", justifyContent:"center",
-        color: on ? c : dim ? c+"55" : "#253850",
+        color: on ? statusColor : dim ? statusColor+"88" : "#253850",
         transition:"all 0.4s",
       }}>
          <n.Icon style={{ width:compact ? 9 : 12, height:compact ? 9 : 12 }} />
@@ -295,14 +407,14 @@ function MobileNodeCard({ n, on, dim, compact = false }: { n: NodeDef; on: boole
       <div style={{ flex:1, minWidth:0 }}>
         <div style={{
            fontSize:compact ? 6.7 : 9, fontWeight:700, letterSpacing:compact ? "0.04em" : "0.1em",
-          color: on ? c : dim ? c+"60" : "#253850",
+           color: on ? statusColor : dim ? statusColor+"88" : "#253850",
           transition:"color 0.4s",
            overflow:"hidden", textOverflow:"ellipsis", whiteSpace:compact ? "normal" : "nowrap",
         }}>
           {n.label}
         </div>
         <div style={{
-           fontSize:compact ? 5.4 : 8, color: on ? c+"99" : dim ? c+"35" : "#1a2d42",
+           fontSize:compact ? 5.4 : 8, color: on ? statusColor+"99" : dim ? statusColor+"60" : "#1a2d42",
            marginTop:compact ? 0 : 1, letterSpacing:compact ? "0.02em" : "0.06em",
            overflow:"hidden", textOverflow:"ellipsis", whiteSpace:compact ? "nowrap" : "nowrap",
           transition:"color 0.4s",
@@ -312,9 +424,9 @@ function MobileNodeCard({ n, on, dim, compact = false }: { n: NodeDef; on: boole
       </div>
       <div style={{
          width:compact ? 4 : 5, height:compact ? 4 : 5, borderRadius:"50%", flexShrink:0,
-        background: on ? c : dim ? c+"40" : "#192840",
-        boxShadow: on ? `0 0 6px ${c}` : dim ? `0 0 3px ${c}50` : "none",
-        animation: on ? "blink 1.1s ease-in-out infinite" : dim ? "breathe 2s ease-in-out infinite" : "none",
+         background: on ? statusColor : dim ? statusColor+"70" : "#192840",
+         boxShadow: on ? `0 0 6px ${statusColor}` : dim ? `0 0 3px ${statusColor}50` : "none",
+         animation: on ? "blink 1.1s ease-in-out infinite" : dim && !muted ? "breathe 2s ease-in-out infinite" : "none",
         transition:"all 0.4s",
       }} />
     </div>
@@ -337,8 +449,110 @@ function formatDate(iso: string) {
   } catch { return iso.slice(0, 10); }
 }
 
+function AtlasPhaseStrip({ state, compact = false }: { state?: AtlasLiveState | null; compact?: boolean }) {
+  const activePhase = state?.phase ?? -1;
+  const running = Boolean(state);
+  return (
+    <div style={{
+      display:"flex", flexDirection:"column", gap:compact ? 5 : 7,
+      minWidth:0, width:"100%",
+    }}>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8 }}>
+        <span style={{ fontSize:compact ? 7 : 8, letterSpacing:"0.16em", color:"#526b86" }}>
+          {running ? `ENTITY JOURNEY · PHASE ${activePhase}/10` : "ENTITY JOURNEY · 11 CHECKPOINTS · 10 PHASES"}
+        </span>
+        <span style={{ fontSize:compact ? 6.5 : 7, letterSpacing:"0.12em", color:running ? "#22d3ee" : "#3a5070" }}>
+          {running ? (state?.sourceStep != null ? `SOURCE ${state.sourceStep}/${state.sourceTotal}` : "PROCESSING") : "STANDBY"}
+        </span>
+      </div>
+      <div style={{ display:"flex", alignItems:"center", gap:compact ? 2 : 3 }}>
+        {ATLAS_PHASES.map((phase) => {
+          const complete = running && phase.n < activePhase;
+          const active = running && phase.n === activePhase;
+          const color = active ? "#22d3ee" : complete ? "#a3e635" : "#263d59";
+          return (
+            <div key={phase.n} title={`${phase.n} · ${phase.label} — ${phase.detail}`} style={{
+              flex:1, minWidth:compact ? 18 : 24,
+              display:"flex", flexDirection:"column", gap:3,
+            }}>
+              <div style={{
+                height:compact ? 4 : 5, borderRadius:3,
+                background:active ? `linear-gradient(90deg,#22d3ee,#a3e635)` : color,
+                opacity:active || complete ? 1 : 0.55,
+                boxShadow:active ? "0 0 8px #22d3ee88" : "none",
+                transition:"all .35s ease",
+              }} />
+              <span style={{
+                fontSize:compact ? 5.5 : 6.5, textAlign:"center",
+                letterSpacing:"0.06em", color,
+                whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis",
+              }}>
+                {phase.n}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function EntityWorkbench({ state, liveNodes, compact = false }: {
+  state?: AtlasLiveState | null;
+  liveNodes?: Set<string>;
+  compact?: boolean;
+}) {
+  if (!state) return null;
+  const active = [...(liveNodes ?? new Set<string>())];
+  const current = state.currentEntities.length > 0 ? state.currentEntities.join(" · ") : "Batch activity detected";
+  const batchStart = state.entityProgress != null && state.entityTotal != null
+    ? Math.min(state.entityProgress + 1, state.entityTotal)
+    : null;
+  const batchEnd = batchStart != null && state.entityTotal != null
+    ? Math.min(batchStart + Math.max(state.currentEntities.length, 1) - 1, state.entityTotal)
+    : null;
+  return (
+    <div style={{
+      border:"1px solid #22d3ee35", borderRadius:compact ? 5 : 7,
+      background:"#22d3ee08", padding:compact ? "6px 8px" : "9px 11px",
+      display:"flex", flexDirection:"column", gap:compact ? 5 : 7,
+    }}>
+      <div style={{ display:"flex", alignItems:"center", gap:7, minWidth:0 }}>
+        <div style={{
+          width:compact ? 5 : 6, height:compact ? 5 : 6, borderRadius:"50%",
+          flexShrink:0, background:"#22d3ee", boxShadow:"0 0 8px #22d3ee",
+          animation:"blink .8s ease-in-out infinite",
+        }} />
+        <span style={{ fontSize:compact ? 6.5 : 7.5, letterSpacing:"0.14em", color:"#22d3ee" }}>
+          CURRENT ENTITY WORKBENCH
+        </span>
+        <span style={{ marginLeft:"auto", fontSize:compact ? 6 : 7, color:"#526b86", letterSpacing:"0.08em" }}>
+          {state.phaseLabel}
+        </span>
+      </div>
+      <div style={{
+        fontSize:compact ? 8 : 10, fontWeight:700, color:"#e8e0cc",
+        overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+      }}>
+        {current}
+      </div>
+      <div style={{ display:"flex", alignItems:"center", gap:8, minWidth:0 }}>
+        <span style={{
+          fontSize:compact ? 6 : 7, color:"#a3e635", letterSpacing:"0.09em",
+          overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", flex:1,
+        }}>
+          {state.detail || "Collecting evidence and passing it to the next rod"}
+        </span>
+        <span style={{ fontSize:compact ? 6 : 7, color:"#526b86", whiteSpace:"nowrap", textAlign:"right" }}>
+          {batchStart != null ? `ENTITIES ${batchStart}–${batchEnd}/${state.entityTotal}` : `${active.length} RODS ACTIVE`}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 // ── Mobile layout ─────────────────────────────────────────────────────────────
-function MobileReactor({ sessions, totalEntities, loading, onRefresh, syncing, liveNodes, liveLabel, livePhaseDetail, exhaustedKeys = [] }: {
+function MobileReactor({ sessions, totalEntities, loading, onRefresh, syncing, liveNodes, liveLabel, livePhaseDetail, atlasState, exhaustedKeys = [] }: {
   sessions: ResearchSession[];
   totalEntities: number;
   loading: boolean;
@@ -347,11 +561,12 @@ function MobileReactor({ sessions, totalEntities, loading, onRefresh, syncing, l
   liveNodes?: Set<string>;
   liveLabel?: string;
   livePhaseDetail?: string;
+  atlasState?: AtlasLiveState | null;
   exhaustedKeys?: string[];
 }) {
   const hasSessions = sessions.length > 0;
   const pitchCount = sessions.filter(s => s.generatedPitch).length;
-  const isLive = (liveNodes?.size ?? 0) > 0;
+  const isLive = (liveNodes?.size ?? 0) > 0 || Boolean(atlasState);
 
   // ── Animated dot-pulse ticker (used for banner dots only, NOT node selection) ─
   const [liveStep, setLiveStep] = useState(0);
@@ -366,9 +581,9 @@ function MobileReactor({ sessions, totalEntities, loading, onRefresh, syncing, l
   // + Tavily + Exa + Maigret all fire at once during Phase 6 — show them all active)
   const liveNodesArr = isLive ? [...(liveNodes ?? new Set())] : [];
 
-  const staticNodes: Set<string> = hasSessions
-    ? new Set(["target","semantic","bayesian","graph","mcts","prac", ...(pitchCount > 0 ? ["pitch"] : [])])
-    : new Set();
+  // Historical sessions are shown below as records, not as live reactor
+  // activity. A dormant pipeline keeps every rod visibly unpowered.
+  const staticNodes: Set<string> = new Set();
 
   // activeNodes = all live nodes on simultaneously; dimNodes = nothing (all are active)
   const activeNodes: Set<string> = isLive ? (liveNodes ?? new Set()) : staticNodes;
@@ -470,7 +685,12 @@ function MobileReactor({ sessions, totalEntities, loading, onRefresh, syncing, l
           </div>
         ) : (
           <>
-            {/* ── Complete rod wall: the same route map remains visible on mobile ── */}
+             <div style={{ padding:"12px 12px 0", display:"flex", flexDirection:"column", gap:8 }}>
+               <AtlasPhaseStrip state={atlasState} />
+               <EntityWorkbench state={atlasState} liveNodes={liveNodes} />
+             </div>
+
+             {/* ── Complete rod wall: the same route map remains visible on mobile ── */}
             <div style={{ padding:"12px 10px 0", flexShrink:0 }}>
               <div style={{
                 display:"flex", alignItems:"center", justifyContent:"space-between",
@@ -532,15 +752,21 @@ function MobileReactor({ sessions, totalEntities, loading, onRefresh, syncing, l
                   {EDGES.map(e => {
                     const a = MOBILE_NODE_POS[e.from], b = MOBILE_NODE_POS[e.to];
                     if (!a || !b) return null;
-                    const on = activeNodes.has(e.from) || activeNodes.has(e.to);
-                    const col = e.adaptive ? "#22d3ee" : "#a3e635";
+                    const fromStatus = rodStatus(e.from, atlasState, liveNodes);
+                    const toStatus = rodStatus(e.to, atlasState, liveNodes);
+                    const active = fromStatus === "active" || toStatus === "active";
+                    const completed = fromStatus === "completed" && toStatus === "completed";
+                    const failed = fromStatus === "failed" || toStatus === "failed";
+                    const queued = fromStatus === "queued" || toStatus === "queued";
+                    const on = active || completed;
+                    const col = failed ? "#fb7185" : queued ? "#526b86" : e.adaptive ? "#22d3ee" : "#a3e635";
                     const d = `M ${a.x} ${a.y + 18} C ${a.x} ${(a.y + b.y) / 2} ${b.x} ${(a.y + b.y) / 2} ${b.x} ${b.y - 18}`;
                     return (
                       <path key={e.id} d={d} fill="none" stroke={on ? col : "#20344d"}
-                        strokeWidth={on ? 1.35 : 0.75} opacity={on ? 0.85 : 0.42}
-                        strokeDasharray={e.adaptive ? "5 3" : on ? "1 0" : "3 5"}
-                        markerEnd={on ? `url(#${e.adaptive ? "mobileCyan" : "mobileLime"})` : undefined}
-                        style={on ? { animation:`${e.adaptive ? "dashBack" : "dashFwd"} 1.2s linear infinite` } : {}}
+                        strokeWidth={active ? 1.5 : on ? 1 : 0.75} opacity={active ? 0.9 : on ? 0.55 : queued || failed ? 0.5 : 0.42}
+                        strokeDasharray={active ? (e.adaptive ? "5 3" : "1 0") : completed ? "1 0" : "3 5"}
+                        markerEnd={active ? `url(#${e.adaptive ? "mobileCyan" : "mobileLime"})` : undefined}
+                        style={active ? { animation:`${e.adaptive ? "dashBack" : "dashFwd"} 1.2s linear infinite` } : {}}
                       />
                     );
                   })}
@@ -556,13 +782,19 @@ function MobileReactor({ sessions, totalEntities, loading, onRefresh, syncing, l
                   const isTarget = n.id === "target";
                   const isOutput = n.id === "pitch";
                   return (
-                    <div key={n.id} style={{
+                      <div key={n.id} style={{
                       position:"absolute", zIndex:2,
                       left:`${pos.x - (isTarget || isOutput ? 70 : 34)}px`,
                       top:`${pos.y - 18}px`,
                       width:isTarget || isOutput ? 140 : 68,
                     }}>
-                      <MobileNodeCard n={n} on={activeNodes.has(n.id)} dim={dimNodes.has(n.id)} compact={!isTarget && !isOutput} />
+                       <MobileNodeCard
+                         n={n}
+                         on={rodStatus(n.id, atlasState, liveNodes) === "active"}
+                         status={rodStatus(n.id, atlasState, liveNodes)}
+                         dim={rodStatus(n.id, atlasState, liveNodes) !== "idle"}
+                         compact={!isTarget && !isOutput}
+                       />
                     </div>
                   );
                 })}
@@ -580,12 +812,15 @@ function MobileReactor({ sessions, totalEntities, loading, onRefresh, syncing, l
                 gap:5, marginTop:8,
               }}>
                 {MOBILE_PHASES.map((phase, pi) => {
-                  const active = phase.nodeIds.some(id => activeNodes.has(id));
+                   const phaseStatuses = phase.nodeIds.map(id => rodStatus(id, atlasState, liveNodes));
+                   const active = phaseStatuses.includes("active");
+                   const completed = !active && phaseStatuses.some(status => status === "completed");
+                   const skipped = !active && !completed && phaseStatuses.some(status => status === "skipped");
                   return <div key={`phase-note-${phase.label}`} style={{
-                    border:`1px solid ${active ? "#a3e63545" : "#192840"}`,
-                    borderRadius:5, padding:"6px 7px", background:active ? "#a3e6350b" : "#0c1422",
+                     border:`1px solid ${active ? "#22d3ee55" : completed ? "#a3e63545" : skipped ? "#f59e0b40" : "#192840"}`,
+                     borderRadius:5, padding:"6px 7px", background:active ? "#22d3ee0b" : completed ? "#a3e6350b" : "#0c1422",
                   }}>
-                    <div style={{ fontSize:6.5, letterSpacing:"0.12em", color:active ? "#a3e635" : "#526b86" }}>
+                     <div style={{ fontSize:6.5, letterSpacing:"0.12em", color:active ? "#22d3ee" : completed ? "#a3e635" : skipped ? "#f59e0b" : "#526b86" }}>
                       {String(pi + 1).padStart(2,"0")} · {phase.label}
                     </div>
                     <div style={{ fontSize:6.5, lineHeight:1.35, color:"#3a5070", marginTop:3 }}>
@@ -811,20 +1046,20 @@ function MobileReactor({ sessions, totalEntities, loading, onRefresh, syncing, l
 }
 
 // ── Desktop layout ────────────────────────────────────────────────────────────
-function DesktopReactor({ step, cycle, signals, contacts, loops, liveNodes, liveLabel, isLive, totalEntities, hotCount, totalAssets }: {
-  step:number; cycle:number; signals:number; contacts:number; loops:number;
+function DesktopReactor({ liveNodes, liveLabel, atlasState, isLive, totalEntities, hotCount, totalAssets }: {
   liveNodes?: Set<string>; liveLabel?: string; isLive?: boolean;
+  atlasState?: AtlasLiveState | null;
   totalEntities?: number; hotCount?: number; totalAssets?: number;
 }) {
-  const wave = WAVES[step];
-  // When Atlas is actively running, drive nodes from real live data instead of scripted wave
-  const AN = (isLive && liveNodes && liveNodes.size > 0) ? liveNodes : new Set(wave.nodes);
+  // Only live job state lights rods. Standby never simulates an entity moving
+  // through the reactor.
+  const AN = (isLive && liveNodes && liveNodes.size > 0) ? liveNodes : new Set<string>();
   // Live routes are derived from the active rods so the lines never imply work
   // that is not currently represented by the job state.
   const AE = isLive && liveNodes && liveNodes.size > 0
     ? new Set(EDGES.filter(e => liveNodes.has(e.from) || liveNodes.has(e.to)).map(e => e.id))
-    : new Set(wave.edges);
-  const adaptive = (isLive && liveNodes && liveNodes.size > 0) ? true : (wave.adaptive ?? false);
+    : new Set<string>();
+  const adaptive = Boolean(isLive && liveNodes && liveNodes.size > 0);
 
   return (
     <div style={{
@@ -866,7 +1101,7 @@ function DesktopReactor({ step, cycle, signals, contacts, loops, liveNodes, live
         }}>
           <span style={{ lineHeight:1, display:"block", marginTop:1 }}>☢</span>
         </div>
-        <div>
+         <div style={{ minWidth:260 }}>
           <div style={{ fontSize:13, fontWeight:700, letterSpacing:"0.2em", color:"#e8e0cc" }}>
             APEX ATLAS  —  INTELLIGENCE REACTOR
           </div>
@@ -874,6 +1109,9 @@ function DesktopReactor({ step, cycle, signals, contacts, loops, liveNodes, live
             ADAPTIVE RESEARCH ENGINE  ·  UNIT ALPHA  ·  TARGET-AWARE MODE
           </div>
         </div>
+         <div style={{ width:430, marginLeft:18 }}>
+           <AtlasPhaseStrip state={atlasState} compact />
+         </div>
         <div style={{ marginLeft:"auto", display:"flex", alignItems:"center", gap:28 }}>
           <div style={{
             padding:"4px 12px", borderRadius:4,
@@ -891,10 +1129,10 @@ function DesktopReactor({ step, cycle, signals, contacts, loops, liveNodes, live
               {isLive ? "ATLAS LIVE" : adaptive ? "ADAPTIVE LOOP ACTIVE" : "NOMINAL"}
             </span>
           </div>
-          <div style={{ textAlign:"right" }}>
-            <div style={{ fontSize:8, letterSpacing:"0.18em", color:"#3a5070" }}>RESEARCH CYCLE</div>
-            <div style={{ fontSize:20, fontWeight:700, color:"#a3e635", lineHeight:1, marginTop:1 }}>
-              {String(cycle).padStart(4,"0")}
+           <div style={{ textAlign:"right" }}>
+             <div style={{ fontSize:8, letterSpacing:"0.18em", color:"#3a5070" }}>ENTITY FLOW</div>
+             <div style={{ fontSize:11, fontWeight:700, color:adaptive ? "#22d3ee" : "#3a5070", lineHeight:1, marginTop:3, letterSpacing:"0.12em" }}>
+               {atlasState ? `${atlasState.phase}/10` : "IDLE"}
             </div>
           </div>
         </div>
@@ -918,18 +1156,24 @@ function DesktopReactor({ step, cycle, signals, contacts, loops, liveNodes, live
           {EDGES.map(e => {
             const A = NM[e.from], B = NM[e.to];
             if (!A || !B) return null;
-            const on  = AE.has(e.id);
+            const fromStatus = rodStatus(e.from, atlasState, liveNodes);
+            const toStatus = rodStatus(e.to, atlasState, liveNodes);
+            const active = fromStatus === "active" || toStatus === "active";
+            const complete = fromStatus === "completed" && toStatus === "completed";
+            const failed = fromStatus === "failed" || toStatus === "failed";
+            const queued = fromStatus === "queued" || toStatus === "queued";
+            const on = AE.has(e.id) || complete;
             const d   = e.adaptive ? adaptPath(A, B) : fwdPath(A, B);
-            const col = on ? (e.adaptive ? "#22d3ee" : "#a3e635") : "#192840";
+            const col = failed ? "#fb7185" : queued ? "#526b86" : e.adaptive ? "#22d3ee" : "#a3e635";
             const mk  = on ? (e.adaptive ? "url(#mCyan2)" : "url(#mLime2)") : "url(#mDim2)";
             return (
               <path key={e.id} d={d} fill="none"
                 stroke={col}
-                strokeWidth={on ? (e.adaptive ? 2 : 1.5) : 1}
-                strokeDasharray={on ? (e.adaptive ? "7 4" : "0") : "4 5"}
-                opacity={on ? 0.92 : 0.22}
+                strokeWidth={active ? (e.adaptive ? 2 : 1.5) : on ? 1 : 1}
+                strokeDasharray={active ? (e.adaptive ? "7 4" : "0") : complete ? "0" : "4 5"}
+                opacity={active ? 0.92 : on ? 0.5 : queued || failed ? 0.45 : 0.22}
                 markerEnd={mk}
-                style={on ? {
+                style={active ? {
                   filter:`drop-shadow(0 0 ${e.adaptive?5:3}px ${col})`,
                   animation: e.adaptive ? "dashBack 1s linear infinite" : "dashFwd 1.2s linear infinite",
                 } : {}}
@@ -947,30 +1191,33 @@ function DesktopReactor({ step, cycle, signals, contacts, loops, liveNodes, live
 
         {/* Nodes */}
         {NODES.map(n => {
-          const on = AN.has(n.id);
+          const status = rodStatus(n.id, atlasState, liveNodes);
+          const on = status === "active";
           const isReactor = n.type === "reactor";
           const c = n.color;
+          const statusColor = rodStatusColor(status, c);
+          const visible = status !== "idle";
           return (
             <div key={n.id} style={{
               position:"absolute",
               left: n.cx - n.w / 2, top: n.cy - n.h / 2,
               width: n.w, height: n.h, zIndex:2,
-              border:`${on?(isReactor?2:1.5):1}px solid ${on?c:"#192840"}`,
+              border:`${on?(isReactor?2:1.5):1}px solid ${visible?statusColor:"#192840"}`,
               borderRadius: isReactor ? 12 : 6,
-              background: on ? (isReactor?`${c}14`:`${c}0d`) : (isReactor?"#0c1830":"#0d1525"),
+              background: on ? (isReactor?`${statusColor}14`:`${statusColor}0d`) : visible ? `${statusColor}08` : (isReactor?"#0c1830":"#0d1525"),
               padding:"0 10px",
               display:"flex", alignItems:"center", gap:9,
               transition:"all 0.35s ease",
               boxShadow: on
-                ? `0 0 ${isReactor?28:14}px ${c}${isReactor?"55":"30"},inset 0 0 ${isReactor?20:10}px ${c}12`
+                ? `0 0 ${isReactor?28:14}px ${statusColor}${isReactor?"55":"30"},inset 0 0 ${isReactor?20:10}px ${statusColor}12`
                 : "none",
             }}>
               <div style={{
                 width:30, height:30, flexShrink:0, borderRadius:5,
-                border:`1px solid ${on?c+"50":"#192840"}`,
-                background: on ? c+"16" : "transparent",
+                border:`1px solid ${visible?statusColor+"50":"#192840"}`,
+                background: visible ? statusColor+"12" : "transparent",
                 display:"flex", alignItems:"center", justifyContent:"center",
-                color: on ? c : "#253850", transition:"all 0.35s",
+                color: visible ? statusColor : "#253850", transition:"all 0.35s",
               }}>
                 <n.Icon style={{ width:14, height:14 }} />
               </div>
@@ -978,14 +1225,14 @@ function DesktopReactor({ step, cycle, signals, contacts, loops, liveNodes, live
                 <div style={{
                   fontSize: isReactor ? 11 : 9.5, fontWeight:700,
                   letterSpacing: isReactor?"0.14em":"0.12em",
-                  color: on ? c : "#253850", lineHeight:1.2,
+                  color: visible ? statusColor : "#253850", lineHeight:1.2,
                   transition:"color 0.35s", whiteSpace:"nowrap",
                 }}>
                   {isReactor && on ? "◉  " : ""}{n.label}
                 </div>
                 <div style={{
                   fontSize:7.5, letterSpacing:"0.1em",
-                  color: on ? c+"99" : "#1a2d42",
+                  color: visible ? statusColor+"99" : "#1a2d42",
                   marginTop:3, lineHeight:1.2,
                   transition:"color 0.35s", whiteSpace:"nowrap",
                 }}>
@@ -1036,7 +1283,7 @@ function DesktopReactor({ step, cycle, signals, contacts, loops, liveNodes, live
           transition:"color 0.4s",
           whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis",
         }}>
-          {isLive ? "▶  " : adaptive ? "⚡  " : "›  "}{(isLive && liveLabel) ? liveLabel : wave.label}
+          {isLive ? "▶  " : "›  "}{(isLive && liveLabel) ? liveLabel : "Standby — no entity is currently moving through the reactor"}
         </div>
       </div>
 
@@ -1046,11 +1293,11 @@ function DesktopReactor({ step, cycle, signals, contacts, loops, liveNodes, live
         display:"flex", alignItems:"center",
         background:"rgba(11,17,32,0.95)", backdropFilter:"blur(8px)",
       }}>
-        <Meter label="ENTITIES IN DB"  value={isLive ? (totalEntities ?? signals)  : signals}  max={isLive ? Math.max(totalEntities ?? 80, 80)  : 80}  color="#38bdf8" />
+        <Meter label="ENTITIES IN DB"  value={isLive ? (totalEntities ?? 0)  : 0}  max={isLive ? Math.max(totalEntities ?? 80, 80)  : 80}  color="#38bdf8" />
         <div style={{ width:1, height:36, background:"#192840" }} />
-        <Meter label="HOT LEADS"       value={isLive ? (hotCount ?? contacts)       : contacts} max={isLive ? Math.max(hotCount ?? 30, 30)       : 30}  color="#a3e635" />
+        <Meter label="HOT LEADS"       value={isLive ? (hotCount ?? 0)       : 0} max={isLive ? Math.max(hotCount ?? 30, 30)       : 30}  color="#a3e635" />
         <div style={{ width:1, height:36, background:"#192840" }} />
-        <Meter label="ASSETS FOUND"    value={isLive ? (totalAssets ?? loops)       : loops}    max={isLive ? Math.max(totalAssets ?? 20, 20)     : 20}  color="#22d3ee" />
+        <Meter label="ASSETS FOUND"    value={isLive ? (totalAssets ?? 0)       : 0}    max={isLive ? Math.max(totalAssets ?? 20, 20)     : 20}  color="#22d3ee" />
         <div style={{ width:1, height:36, background:"#192840" }} />
         <div style={{ padding:"0 28px", display:"flex", flexDirection:"column", gap:4, minWidth:160 }}>
           <span style={{ fontSize:8, letterSpacing:"0.18em", color:"#3a5070" }}>REACTOR STATUS</span>
@@ -1098,6 +1345,7 @@ export default function IntelligenceReactorPage() {
   const [liveNodes,        setLiveNodes]        = useState<Set<string>>(new Set());
   const [liveLabel,        setLiveLabel]        = useState<string>("");
   const [livePhaseDetail,  setLivePhaseDetail]  = useState<string>("");
+  const [atlasState,       setAtlasState]       = useState<AtlasLiveState | null>(null);
   const [exhaustedKeys,    setExhaustedKeys]    = useState<string[]>([]);
 
   const pollJobs = useCallback(async () => {
@@ -1130,10 +1378,23 @@ export default function IntelligenceReactorPage() {
 
       const nodes = new Set<string>();
       const labels: string[] = [];
+      let nextAtlasState: AtlasLiveState | null = null;
 
       // ── Atlas job (step + content-aware for 21-source pipeline) ─────────────
       if (atlasData?.status === "running" && atlasData?.jobId) {
         const msg: string = atlasData.message ?? "";
+        const structured = parseAtlasLiveState(
+          msg,
+          Number(atlasData.atlasPhase ?? atlasData.progress ?? 0),
+          Number(atlasData.atlasPhaseTotal ?? 10),
+        );
+        const structuredNames = parseEntityNames(atlasData.entityNames);
+        nextAtlasState = {
+          ...structured,
+          entityProgress: atlasData.entityProgress != null ? Number(atlasData.entityProgress) : null,
+          entityTotal: atlasData.entityTotal != null ? Number(atlasData.entityTotal) : null,
+          currentEntities: structuredNames.length > 0 ? structuredNames : structured.currentEntities,
+        };
         // New format: [N/21] label… or [N/21] 🍳 EntityName (x/y)…
         const stepMatch = msg.match(/\[(\d+)\/(\d+)\]/);
         if (stepMatch) {
@@ -1205,6 +1466,7 @@ export default function IntelligenceReactorPage() {
         setLiveLabel("");
         setLivePhaseDetail("");
       }
+      setAtlasState(nextAtlasState);
     } catch { /* non-fatal */ }
   }, []);
 
@@ -1245,35 +1507,14 @@ export default function IntelligenceReactorPage() {
     return () => clearInterval(id);
   }, [fetchData]);
 
-  // ── Fake animation kept for desktop architecture diagram only ─────────────
+  // ── Desktop canvas sizing ─────────────────────────────────────────────────
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale,    setScale]    = useState(1);
-  const [step,     setStep]     = useState(0);
-  const [cycle,    setCycle]    = useState(1);
-  const [signals,     setSignals]     = useState(0);
-  const [contacts,    setContacts]    = useState(0);
-  const [loops,       setLoops]       = useState(0);
+  const [signals] = useState(0);
+  const [contacts] = useState(0);
+  const [loops] = useState(0);
   const [hotCount,    setHotCount]    = useState(0);
   const [totalAssets, setTotalAssets] = useState(0);
-
-  useEffect(() => {
-    if (isMobile) return;
-    const t = setInterval(() => {
-      setStep(s => {
-        const next = (s + 1) % WAVES.length;
-        if (next === 0) setCycle(c => c + 1);
-        return next;
-      });
-    }, 1500);
-    return () => clearInterval(t);
-  }, [isMobile]);
-
-  useEffect(() => {
-    if (isMobile) return;
-    const w = WAVES[step];
-    if (w.adaptive) setLoops(l => l + 1);
-    if (w.nodes.includes("pitch")) { setSignals(s => s + 7); setContacts(c => c + 2); }
-  }, [step, isMobile]);
 
   useEffect(() => {
     if (isMobile) return;
@@ -1301,6 +1542,7 @@ export default function IntelligenceReactorPage() {
           liveNodes={liveNodes}
           liveLabel={liveLabel}
           livePhaseDetail={livePhaseDetail}
+           atlasState={atlasState}
           exhaustedKeys={exhaustedKeys}
         />
       </div>
@@ -1316,8 +1558,8 @@ export default function IntelligenceReactorPage() {
       <div style={{ position:"relative", overflow:"hidden", width:"100%", height:"100%" }}>
         <div style={{ transformOrigin:"top left", transform:`scale(${scale})`, width:1600, height:960 }}>
         <DesktopReactor
-          step={step} cycle={cycle} signals={signals} contacts={contacts} loops={loops}
-          liveNodes={liveNodes} liveLabel={liveLabel} isLive={liveNodes.size > 0}
+          liveNodes={liveNodes} liveLabel={liveLabel} atlasState={atlasState}
+          isLive={liveNodes.size > 0 || Boolean(atlasState)}
           totalEntities={totalEntities} hotCount={hotCount} totalAssets={totalAssets}
         />
         </div>

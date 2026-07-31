@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Link, useLocation, useSearch } from "wouter";
 import { useListEntities, useCreateEntity, useDeleteEntity } from "@workspace/api-client-react";
-import { formatCurrency, formatEntityName, AccessScoreBadge, ConfidenceBadge } from "@/lib/utils";
+import { entityBio, entityEvidenceLabel, entityInvolvement, formatCurrency, formatEntityName, AccessScoreBadge, ConfidenceBadge, parseEntityRegistries } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import {
   Plus, Search, Trash2, Globe, ChevronDown, ChevronUp, X, Loader2,
@@ -167,8 +167,9 @@ function MobileEntityCard({
   onToggleHide: (entity: any) => void;
 }) {
   const typeColor = TYPE_COLORS[entity.type] ?? "#64748B";
-  let registries: string[] = [];
-  try { registries = JSON.parse(entity.sourceRegistries ?? "[]"); } catch { registries = []; }
+  const registries = parseEntityRegistries(entity.sourceRegistries);
+  const bio = entityBio(entity);
+  const involvement = entityInvolvement({ ...entity, assetCount: entity.assetCount });
 
   return (
     <div className={cn("border-b border-border bg-card", selected && "bg-primary/5")}>
@@ -188,6 +189,9 @@ function MobileEntityCard({
               {entity.linkedinHeadline}
             </div>
           )}
+          <div className="mt-2 text-[10px] leading-4 text-muted-foreground/80 line-clamp-2">
+            {bio ?? "Public biography not recorded"}
+          </div>
           <div className="mt-1">
             <span
               className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded flex items-center gap-1 w-max"
@@ -211,6 +215,16 @@ function MobileEntityCard({
 
       {isExpanded && (
         <div className="px-4 pb-4 pt-1 animate-in slide-in-from-top-2 fade-in duration-200">
+           <div className="mb-4 grid gap-2">
+             <div className="rounded-lg border border-primary/15 bg-primary/[0.035] px-3 py-2.5">
+               <div className="text-[9px] font-mono uppercase tracking-wider text-primary/75">Bio / public profile</div>
+               <p className="mt-1 text-xs leading-5 text-foreground/80">{bio ?? "No public biography has been recorded for this profile."}</p>
+             </div>
+             <div className="rounded-lg border border-secondary/15 bg-secondary/[0.035] px-3 py-2.5">
+               <div className="text-[9px] font-mono uppercase tracking-wider text-secondary/80">Involvement</div>
+               <p className="mt-1 text-xs leading-5 text-foreground/80">{involvement ?? "No involvement signal has been recorded yet."}</p>
+             </div>
+           </div>
           <div className="grid grid-cols-2 gap-3 mb-3">
             <div>
               <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-0.5">Nationality</div>
@@ -942,8 +956,11 @@ export default function EntityLedger() {
                             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
                           </span>
                         )}
-                        <div className="min-w-0">
+                         <div className="min-w-0">
                           <div className="font-semibold text-sm text-foreground whitespace-nowrap">{formatEntityName(entity.name)}</div>
+                           <div className="mt-1 max-w-[260px] truncate text-[10px] leading-4 text-muted-foreground/65" title={entityBio(entity) ?? undefined}>
+                             {entityBio(entity) ?? entityInvolvement({ ...entity, assetCount: entity.assetCount }) ?? "Profile brief pending"}
+                           </div>
                           {entity.linkedinHeadline && (
                             <div className="text-[10px] text-muted-foreground/55 font-mono truncate max-w-[200px]" title={entity.linkedinHeadline}>
                               {entity.linkedinHeadline}
@@ -1017,7 +1034,7 @@ export default function EntityLedger() {
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-sm font-mono text-foreground text-right whitespace-nowrap">
+                     <td className="px-4 py-3 text-sm font-mono text-foreground text-right whitespace-nowrap">
                       {entity.estimatedNetWorth ? formatCurrency(entity.estimatedNetWorth) : "—"}
                     </td>
                     <td className="px-4 py-3 text-right">
