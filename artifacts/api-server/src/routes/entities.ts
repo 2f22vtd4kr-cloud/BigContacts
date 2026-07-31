@@ -12,6 +12,17 @@ import {
 import { getCache, setCache, delCachePattern } from "../lib/redis";
 import { computeAccessScore } from "../lib/access-score";
 import { reachabilityOrderExpr } from "../lib/reachability-rank";
+import {
+  computeContactConfidence,
+  computeContactOutcome,
+  hasMeaningfulDirectContact,
+} from "../lib/contact-confidence";
+import {
+  sanitizePublicEmail,
+  sanitizePublicPhone,
+  sanitizePublicSocialUrl,
+  sanitizePublicSocialHandle,
+} from "../lib/contact-validation";
 
 const router: IRouter = Router();
 
@@ -590,6 +601,42 @@ router.post("/entities/:id/merge/:targetId", async (req, res): Promise<void> => 
   // Merge text fields: take primary if non-null, fall back to target
   const mergedResidences = primary.knownResidences ?? target.knownResidences;
   const mergedNotes = [primary.notes, target.notes].filter(Boolean).join("\n\n---\n\n") || null;
+  const mergedEmail = sanitizePublicEmail(primary.email) ?? sanitizePublicEmail(target.email);
+  const mergedPhone = sanitizePublicPhone(primary.phone) ?? sanitizePublicPhone(target.phone);
+  const mergedLinkedIn =
+    sanitizePublicSocialUrl(primary.linkedinUrl, "linkedin", "person") ??
+    sanitizePublicSocialUrl(target.linkedinUrl, "linkedin", "person");
+  const mergedTwitter =
+    sanitizePublicSocialHandle(primary.twitterHandle, "twitter") ??
+    sanitizePublicSocialHandle(target.twitterHandle, "twitter");
+  const mergedInstagram =
+    sanitizePublicSocialHandle(primary.instagramHandle, "instagram") ??
+    sanitizePublicSocialHandle(target.instagramHandle, "instagram");
+  const mergedTelegram = primary.telegramHandle ?? target.telegramHandle;
+  const mergedContactConfidence = computeContactConfidence({
+    type: primary.type,
+    email: mergedEmail,
+    phone: mergedPhone,
+    linkedinUrl: mergedLinkedIn,
+    twitterHandle: mergedTwitter,
+    instagramHandle: mergedInstagram,
+    telegramHandle: mergedTelegram,
+    knownResidences: mergedResidences,
+  });
+  const mergedContactOutcome = computeContactOutcome({
+    email: mergedEmail,
+    phone: mergedPhone,
+    linkedinUrl: mergedLinkedIn,
+    twitterHandle: mergedTwitter,
+    instagramHandle: mergedInstagram,
+    telegramHandle: mergedTelegram,
+  });
+  const mergedIsHot = hasMeaningfulDirectContact({
+    type: primary.type,
+    email: mergedEmail,
+    phone: mergedPhone,
+    phoneSource: primary.phoneSource ?? target.phoneSource,
+  });
 
   await Promise.all([
     // Reassign assets owned by target → primary
@@ -607,12 +654,16 @@ router.post("/entities/:id/merge/:targetId", async (req, res): Promise<void> => 
       knownResidences: mergedResidences ?? null,
       notes: mergedNotes ?? primary.notes,
       estimatedNetWorth: primary.estimatedNetWorth ?? target.estimatedNetWorth,
-      email: primary.email ?? target.email,
-      phone: primary.phone ?? target.phone,
-      linkedinUrl: primary.linkedinUrl ?? target.linkedinUrl,
-      contactConfidence: Math.max(primary.contactConfidence ?? 0, target.contactConfidence ?? 0),
+       email: mergedEmail,
+       phone: mergedPhone,
+       linkedinUrl: mergedLinkedIn,
+       twitterHandle: mergedTwitter,
+       instagramHandle: mergedInstagram,
+       telegramHandle: mergedTelegram,
+       contactConfidence: mergedContactConfidence,
+       contactOutcome: mergedContactOutcome,
       bayesianScore: Math.max(primary.bayesianScore ?? 0, target.bayesianScore ?? 0),
-      isHot: primary.isHot || target.isHot,
+       isHot: mergedIsHot,
       updatedAt: new Date(),
     }).where(eq(entitiesTable.id, id)),
   ]);

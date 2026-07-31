@@ -41,7 +41,12 @@ import { enrichWithAdsbHistory } from "./adsbtrack-enricher";
 import { enrichWithOpenOwnership } from "./openownership-enricher";
 import { runHolehe, runMaigret } from "./python-tools";
 import { computeContactConfidence, computeContactOutcome, hasMeaningfulDirectContact } from "./contact-confidence";
-import { sanitizePublicEmail, sanitizePublicPhone, sanitizePublicSocialUrl } from "./contact-validation";
+import {
+  sanitizePublicEmail,
+  sanitizePublicPhone,
+  sanitizePublicSocialUrl,
+  isValidPublicSocialHandle,
+} from "./contact-validation";
 import { contactCacheSet } from "./redis";
 import { runPhaseJBatch } from "../routes/phase-j";
 import { reachabilityOrderExpr } from "./reachability-rank";
@@ -287,17 +292,62 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
 
     if (ihResult) {
       const up: Record<string, unknown> = { updatedAt: new Date() };
-      if (ihResult.email && !entity.email)           { up.email = ihResult.email;           entity = { ...entity, email: ihResult.email }; }
-      if (ihResult.linkedinUrl && !entity.linkedinUrl){ up.linkedinUrl = ihResult.linkedinUrl; entity = { ...entity, linkedinUrl: ihResult.linkedinUrl }; }
-      if (ihResult.phone && !entity.phone)           { up.phone = ihResult.phone;            entity = { ...entity, phone: ihResult.phone }; }
-      if (ihResult.twitter && !entity.twitterHandle) { up.twitterHandle = ihResult.twitter;  entity = { ...entity, twitterHandle: ihResult.twitter }; }
+      const ihEmail = sanitizePublicEmail(ihResult.email);
+      const ihPhone = sanitizePublicPhone(ihResult.phone);
+      const ihLinkedIn = sanitizePublicSocialUrl(ihResult.linkedinUrl, "linkedin", "person");
+      const ihTwitter = isValidPublicSocialHandle(ihResult.twitter, "twitter")
+        ? ihResult.twitter!.replace(/^@/, "")
+        : null;
+      if (ihEmail && !entity.email) {
+        up.email = ihEmail;
+        entity = { ...entity, email: ihEmail };
+      }
+      if (ihLinkedIn && !entity.linkedinUrl) {
+        up.linkedinUrl = ihLinkedIn;
+        entity = { ...entity, linkedinUrl: ihLinkedIn };
+      }
+      if (ihPhone && !entity.phone) {
+        up.phone = ihPhone;
+        entity = { ...entity, phone: ihPhone };
+      }
+      if (ihTwitter && !entity.twitterHandle) {
+        up.twitterHandle = ihTwitter;
+        entity = { ...entity, twitterHandle: ihTwitter };
+      }
       if (Object.keys(up).length > 1) {
-        up.contactConfidence = computeContactConfidence({ email: entity.email, phone: entity.phone, linkedinUrl: entity.linkedinUrl, twitterHandle: entity.twitterHandle, knownResidences: entity.knownResidences });
-        up.contactOutcome = computeContactOutcome({ email: entity.email, phone: entity.phone, linkedinUrl: entity.linkedinUrl, twitterHandle: entity.twitterHandle });
+        up.contactConfidence = computeContactConfidence({
+          type: entity.type,
+          email: entity.email,
+          phone: entity.phone,
+          linkedinUrl: entity.linkedinUrl,
+          twitterHandle: entity.twitterHandle,
+          knownResidences: entity.knownResidences,
+        });
+        up.contactOutcome = computeContactOutcome({
+          email: entity.email,
+          phone: entity.phone,
+          linkedinUrl: entity.linkedinUrl,
+          twitterHandle: entity.twitterHandle,
+        });
         await db.update(entitiesTable).set(up as any).where(eq(entitiesTable.id, id));
       }
       if (ihResult.evidence?.length) {
-        await db.insert(contactEvidenceTable).values(ihResult.evidence.map((ev: any) => ({
+        const cleanEvidence = ihResult.evidence.filter((ev: any) => {
+          if (ev.vectorType === "email") return Boolean(sanitizePublicEmail(ev.value));
+          if (ev.vectorType === "phone") return Boolean(sanitizePublicPhone(ev.value));
+          if (ev.vectorType === "social") {
+            const network = ev.details?.network;
+            return network === "linkedin"
+              ? Boolean(sanitizePublicSocialUrl(ev.value, "linkedin", "person"))
+              : network === "twitter"
+                ? isValidPublicSocialHandle(ev.value, "twitter")
+                : network === "instagram"
+                  ? isValidPublicSocialHandle(ev.value, "instagram")
+                  : false;
+          }
+          return true;
+        });
+        await db.insert(contactEvidenceTable).values(cleanEvidence.map((ev: any) => ({
           entityId: id, vectorType: ev.vectorType, value: ev.value, source: ev.source,
           sourceUrl: ev.sourceUrl ?? null, extractionMethod: ev.extractionMethod,
           sourceReliability: Math.min(1, ev.confidence / 100), identityMatch: 0.75, recencyScore: 0.70,
@@ -314,9 +364,25 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
       discoverMessengerPresence(entity as any).catch(() => null),
     ]);
     const socUp: Record<string, unknown> = {};
-    if (socialResult?.linkedinUrl && !entity.linkedinUrl)     { socUp.linkedinUrl = socialResult.linkedinUrl;       entity = { ...entity, linkedinUrl: socialResult.linkedinUrl }; }
-    if (socialResult?.twitterHandle && !entity.twitterHandle) { socUp.twitterHandle = socialResult.twitterHandle;   entity = { ...entity, twitterHandle: socialResult.twitterHandle }; }
-    if (socialResult?.instagramHandle && !entity.instagramHandle) { socUp.instagramHandle = socialResult.instagramHandle; entity = { ...entity, instagramHandle: socialResult.instagramHandle }; }
+    const socialLinkedIn = sanitizePublicSocialUrl(socialResult?.linkedinUrl, "linkedin", "person");
+    const socialTwitter = isValidPublicSocialHandle(socialResult?.twitterHandle, "twitter")
+      ? socialResult!.twitterHandle!.replace(/^@/, "")
+      : null;
+    const socialInstagram = isValidPublicSocialHandle(socialResult?.instagramHandle, "instagram")
+      ? socialResult!.instagramHandle!.replace(/^@/, "")
+      : null;
+    if (socialLinkedIn && !entity.linkedinUrl) {
+      socUp.linkedinUrl = socialLinkedIn;
+      entity = { ...entity, linkedinUrl: socialLinkedIn };
+    }
+    if (socialTwitter && !entity.twitterHandle) {
+      socUp.twitterHandle = socialTwitter;
+      entity = { ...entity, twitterHandle: socialTwitter };
+    }
+    if (socialInstagram && !entity.instagramHandle) {
+      socUp.instagramHandle = socialInstagram;
+      entity = { ...entity, instagramHandle: socialInstagram };
+    }
     if (messengerResult?.telegramHandle && !entity.telegramHandle) { socUp.telegramHandle = messengerResult.telegramHandle; entity = { ...entity, telegramHandle: messengerResult.telegramHandle }; }
     if (Object.keys(socUp).length) { socUp.updatedAt = new Date(); await db.update(entitiesTable).set(socUp as any).where(eq(entitiesTable.id, id)); }
 
@@ -362,7 +428,22 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
       if (cleanTwitter  && !entity.twitterHandle)   entity = { ...entity, twitterHandle:   normalizeHandle(cleanTwitter) };
       if (cleanInstagram && !entity.instagramHandle) entity = { ...entity, instagramHandle: normalizeHandle(cleanInstagram) };
       if (aiResult.evidence?.length) {
-        await db.insert(contactEvidenceTable).values(aiResult.evidence.map((ev: any) => ({
+        const cleanEvidence = aiResult.evidence.filter((ev: any) => {
+          if (ev.vectorType === "email") return Boolean(sanitizePublicEmail(ev.value));
+          if (ev.vectorType === "phone") return Boolean(sanitizePublicPhone(ev.value));
+          if (ev.vectorType === "social") {
+            const network = ev.details?.network;
+            return network === "linkedin"
+              ? Boolean(sanitizePublicSocialUrl(ev.value, "linkedin", "person"))
+              : network === "twitter"
+                ? isValidPublicSocialHandle(ev.value, "twitter")
+                : network === "instagram"
+                  ? isValidPublicSocialHandle(ev.value, "instagram")
+                  : false;
+          }
+          return true;
+        });
+        await db.insert(contactEvidenceTable).values(cleanEvidence.map((ev: any) => ({
           entityId: id, vectorType: ev.vectorType, value: ev.value, source: ev.source,
           sourceUrl: ev.sourceUrl ?? null, extractionMethod: ev.extractionMethod ?? "deep-web-osint",
           sourceReliability: Math.min(1, ev.confidence / 100), identityMatch: 0.65, recencyScore: 0.7,

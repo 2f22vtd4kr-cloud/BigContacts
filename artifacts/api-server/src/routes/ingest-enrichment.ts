@@ -36,6 +36,13 @@ import { discoverMessengerPresence } from "../lib/enrichment/messenger-discovery
 import { discoverViaFoundationFilings } from "../lib/enrichment/foundation-filings";
 import { runBroadDiscovery } from "../lib/enrichment/broad-discovery";
 import { computeContactConfidence, computeContactOutcome } from "../lib/contact-confidence";
+import {
+  sanitizePublicEmail,
+  sanitizePublicPhone,
+  sanitizePublicSocialUrl,
+  isValidPublicSocialHandle,
+  sanitizePublicSocialHandle,
+} from "../lib/contact-validation";
 import { contactCacheSet, contactCacheScanAll, contactCacheCount, type CachedContact } from "../lib/redis";
 import { logger } from "../lib/logger";
 import { backfillWealthLLM } from "../lib/wealth-estimator";
@@ -315,18 +322,28 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
         });
 
         const result = await deepWebOsintEnrich(entity);
+        const cleanEmail = sanitizePublicEmail(result.email);
+        const cleanPhone = sanitizePublicPhone(result.phone);
+        const cleanLinkedIn = sanitizePublicSocialUrl(result.linkedinUrl, "linkedin", "person");
+        const cleanInstagram = sanitizePublicSocialUrl(result.instagramUrl, "instagram", "person");
+        const cleanTwitter = sanitizePublicSocialUrl(result.twitterUrl, "twitter", "person");
+        const cleanInstagramHandle = sanitizePublicSocialHandle(result.instagramUrl, "instagram");
+        const cleanTwitterHandle = sanitizePublicSocialHandle(result.twitterUrl, "twitter");
 
-        const hasSignal = result.linkedinUrl || result.email || result.phone
-          || result.instagramUrl || result.twitterUrl || result.evidence.length > 0;
+        const hasSignal = cleanLinkedIn || cleanEmail || cleanPhone
+          || cleanInstagram || cleanTwitter || result.evidence.length > 0;
         if (!hasSignal) {
           skipped++;
           continue;
         }
 
         const confidence = computeContactConfidence({
-          email: result.email,
-          phone: result.phone,
-          linkedinUrl: result.linkedinUrl,
+          type: entity.type,
+          email: cleanEmail,
+          phone: cleanPhone,
+          linkedinUrl: cleanLinkedIn,
+          instagramHandle: cleanInstagramHandle,
+          twitterHandle: cleanTwitterHandle,
           knownResidences: entity.knownResidences,
         });
 
@@ -334,12 +351,12 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
           .set({
             // When force=true, always write the new result (even null) to wipe stale/garbage
             // values from a previous run that passed invalid data (wrong phone country, bad LinkedIn).
-            ...(result.email       ? { email: result.email }             : force ? { email:       null } : {}),
-            ...(result.phone       ? { phone: result.phone }             : force ? { phone:       null } : {}),
-            ...(result.linkedinUrl ? { linkedinUrl: result.linkedinUrl } : force ? { linkedinUrl: null } : {}),
+            ...(cleanEmail       ? { email: cleanEmail }             : force ? { email:       null } : {}),
+            ...(cleanPhone       ? { phone: cleanPhone }             : force ? { phone:       null } : {}),
+            ...(cleanLinkedIn    ? { linkedinUrl: cleanLinkedIn }     : force ? { linkedinUrl: null } : {}),
             // Corp/Trust: social handles from web scraping belong to persons, not the org
-            ...(result.instagramUrl && !entity.instagramHandle && !["Corporation","Corp","Trust"].includes(entity.type) ? { instagramHandle: result.instagramUrl } : {}),
-            ...(result.twitterUrl   && !entity.twitterHandle   && !["Corporation","Corp","Trust"].includes(entity.type) ? { twitterHandle:   result.twitterUrl   } : {}),
+            ...(cleanInstagramHandle && !entity.instagramHandle && !["Corporation","Corp","Trust"].includes(entity.type) ? { instagramHandle: cleanInstagramHandle } : {}),
+            ...(cleanTwitterHandle   && !entity.twitterHandle   && !["Corporation","Corp","Trust"].includes(entity.type) ? { twitterHandle:   cleanTwitterHandle   } : {}),
             contactConfidence: confidence,
             updatedAt: new Date(),
           })
@@ -352,13 +369,13 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
         // Extract the best handle found by web-OSINT or already on the entity.
         // Flexible re-entry: Maigret runs AFTER web-OSINT within the same job,
         // and if it finds 3+ platforms, web-OSINT fires again with the new context.
-        const rawHandle =
-          (result.twitterUrl  ?? "").replace(/^https?:\/\/(www\.)?(twitter\.com|x\.com)\//, "").replace(/\?.*$/, "") ||
+          const rawHandle =
+          (cleanTwitterHandle ?? "") ||
           (entity.twitterHandle   ?? "").replace(/^@/, "") ||
-          (result.instagramUrl ?? "").replace(/^https?:\/\/(www\.)?instagram\.com\//, "").replace(/\?.*$/, "") ||
+          (cleanInstagramHandle ?? "") ||
           (entity.instagramHandle ?? "").replace(/^@/, "");
         const cleanHandle = rawHandle.replace(/[^a-zA-Z0-9._\-]/g, "").trim();
-        const emailForHolehe = result.email ?? entity.email ?? null;
+         const emailForHolehe = cleanEmail ?? sanitizePublicEmail(entity.email);
 
         if (cleanHandle || emailForHolehe) {
           await updateJob(jobId, { progress: i, total: entities.length, inserted: enriched, skipped, errors,
@@ -539,10 +556,14 @@ router.post("/ingest/in-house-enrich", async (req: Request, res: Response): Prom
           entityName:  (entityMeta["entityName"] as string | null) ?? null,
         };
         const result = await enrichInHouse(enrichInput);
+        const cleanEmail = sanitizePublicEmail(result.email);
+        const cleanPhone = sanitizePublicPhone(result.phone);
+        const cleanLinkedIn = sanitizePublicSocialUrl(result.linkedinUrl, "linkedin", "person");
+        const cleanTwitter = sanitizePublicSocialHandle(result.twitter, "twitter");
         // J1: Separate direct-contact signals from social presence.
         // Only email/phone are terminal enrichment states; LinkedIn/Twitter keep entity eligible.
-        const hasDirectContact = Boolean(result.email || result.phone);
-        const hasSocialSignal  = Boolean(result.linkedinUrl || result.twitter);
+        const hasDirectContact = Boolean(cleanEmail || cleanPhone);
+        const hasSocialSignal  = Boolean(cleanLinkedIn || cleanTwitter);
         const hasContactSignal = hasDirectContact || hasSocialSignal;
         const hasEvidence = Boolean(hasContactSignal || result.website || result.address);
         if (!hasEvidence) return "skipped";
@@ -552,15 +573,16 @@ router.post("/ingest/in-house-enrich", async (req: Request, res: Response): Prom
         }
 
         const updates: Record<string, unknown> = { updatedAt: new Date() };
-        if (result.email && !entity.email) updates["email"] = result.email;
-        if (result.linkedinUrl && !entity.linkedinUrl) updates["linkedinUrl"] = result.linkedinUrl;
-        if (result.phone && !entity.phone) updates["phone"] = result.phone;
+        if (cleanEmail && !entity.email) updates["email"] = cleanEmail;
+        if (cleanLinkedIn && !entity.linkedinUrl) updates["linkedinUrl"] = cleanLinkedIn;
+        if (cleanPhone && !entity.phone) updates["phone"] = cleanPhone;
         // Write twitter handle to entity column so it contributes to contactConfidence
-        if (result.twitter && !entity.twitterHandle) updates["twitterHandle"] = result.twitter;
+        if (cleanTwitter && !entity.twitterHandle) updates["twitterHandle"] = cleanTwitter;
         // M1: promote to direct_contact_verified when SMTP handshake confirmed deliverability
         if (result.smtpVerified) updates["validatedDirectContact"] = true;
 
         const confidence = computeContactConfidence({
+          type: entity.type,
           email:           (updates["email"] as string | null) ?? entity.email ?? null,
           phone:           (updates["phone"] as string | null) ?? entity.phone ?? null,
           linkedinUrl:     (updates["linkedinUrl"] as string | null) ?? entity.linkedinUrl ?? null,
@@ -573,7 +595,7 @@ router.post("/ingest/in-house-enrich", async (req: Request, res: Response): Prom
 
         const meta = safeParseJson<Record<string, unknown>>(entity.metadata, {});
         if (result.website && !meta["website"]) meta["website"] = result.website;
-        if (result.twitter && !meta["twitter"]) meta["twitter"] = result.twitter;
+        if (cleanTwitter && !meta["twitter"]) meta["twitter"] = cleanTwitter;
         if (result.address && !meta["bizLocation"]) meta["bizLocation"] = result.address;
         // L1: persist source labels so backfill can classify org vs personal contacts
         if (result.emailSource) meta["emailSource"] = result.emailSource;
@@ -627,7 +649,21 @@ router.post("/ingest/in-house-enrich", async (req: Request, res: Response): Prom
         // the real source URL, method, and timestamp for each contact vector.
         if (result.evidence.length > 0) {
           try {
-            const evidenceRows = result.evidence.map((ev) => ({
+            const evidenceRows = result.evidence.filter((ev) => {
+              if (ev.vectorType === "email") return Boolean(sanitizePublicEmail(ev.value));
+              if (ev.vectorType === "phone") return Boolean(sanitizePublicPhone(ev.value));
+              if (ev.vectorType === "social") {
+                const network = (ev.details as Record<string, unknown> | undefined)?.network;
+                return network === "linkedin"
+                  ? Boolean(sanitizePublicSocialUrl(ev.value, "linkedin", "person"))
+                  : network === "twitter"
+                    ? Boolean(sanitizePublicSocialHandle(ev.value, "twitter"))
+                    : network === "instagram"
+                      ? Boolean(sanitizePublicSocialHandle(ev.value, "instagram"))
+                      : false;
+              }
+              return true;
+            }).map((ev) => ({
               entityId: entity.id,
               vectorType: ev.vectorType,
               value: ev.value,
@@ -662,15 +698,15 @@ router.post("/ingest/in-house-enrich", async (req: Request, res: Response): Prom
         if (hasContactSignal) {
           await contactCacheSet(stableKey, {
             name:               entity.name,
-            email:              (updates["email"] as string | null | undefined) ?? entity.email ?? undefined,
-            phone:              (updates["phone"] as string | null | undefined) ?? entity.phone ?? undefined,
-            linkedinUrl:        (updates["linkedinUrl"] as string | null | undefined) ?? entity.linkedinUrl ?? undefined,
+            email:              (updates["email"] as string | null | undefined) ?? sanitizePublicEmail(entity.email) ?? undefined,
+            phone:              (updates["phone"] as string | null | undefined) ?? sanitizePublicPhone(entity.phone) ?? undefined,
+            linkedinUrl:        (updates["linkedinUrl"] as string | null | undefined) ?? sanitizePublicSocialUrl(entity.linkedinUrl, "linkedin", "person") ?? undefined,
             website:            result.website ?? undefined,
-            twitter:            result.twitter ?? undefined,
+            twitter:            cleanTwitter ?? undefined,
             contactConfidence:  confidence,
             enrichmentSources:  meta["enrichmentSources"] as string[] ?? result.sources,
             enrichedAt:         new Date().toISOString(),
-            emailConfidence:    result.emailConfidence ?? undefined,
+            emailConfidence:    cleanEmail ? result.emailConfidence ?? undefined : undefined,
             phoneConfidence:    result.phoneConfidence ?? undefined,
             sourceHits:         (result.sourceHits as unknown) as Record<string, number> | undefined,
           });
@@ -1004,19 +1040,27 @@ router.post("/ingest/social-discovery", async (req: Request, res: Response): Pro
           const result = await discoverSocialPresence({ name: row.name, type: row.type });
           if (result.confidence > 0) {
             const update: Record<string, any> = {};
-            if (result.linkedinUrl)      update.linkedinUrl      = result.linkedinUrl;
+            const cleanLinkedIn = sanitizePublicSocialUrl(result.linkedinUrl, "linkedin", "person");
+            const cleanTwitter = isValidPublicSocialHandle(result.twitterHandle, "twitter")
+              ? result.twitterHandle!.replace(/^@/, "")
+              : null;
+            const cleanInstagram = isValidPublicSocialHandle(result.instagramHandle, "instagram")
+              ? result.instagramHandle!.replace(/^@/, "")
+              : null;
+            if (cleanLinkedIn)           update.linkedinUrl      = cleanLinkedIn;
             if (result.linkedinHeadline) update.linkedinHeadline = result.linkedinHeadline;
-            if (result.twitterHandle)    update.twitterHandle    = result.twitterHandle;
+            if (cleanTwitter)            update.twitterHandle    = cleanTwitter;
             if (result.twitterBio)       update.twitterBio       = result.twitterBio;
-            if (result.instagramHandle)  update.instagramHandle  = result.instagramHandle;
+            if (cleanInstagram)          update.instagramHandle  = cleanInstagram;
             if (result.personalWebsite)  update.personalWebsite  = result.personalWebsite;
             if (Object.keys(update).length) {
               // Recompute contactConfidence with newly discovered social signals
               update.contactConfidence = computeContactConfidence({
+                type: row.type,
                 email: row.email, phone: row.phone,
-                linkedinUrl: result.linkedinUrl ?? row.linkedinUrl,
-                twitterHandle: result.twitterHandle ?? row.twitterHandle,
-                instagramHandle: result.instagramHandle ?? row.instagramHandle,
+                linkedinUrl: cleanLinkedIn ?? row.linkedinUrl,
+                twitterHandle: cleanTwitter ?? row.twitterHandle,
+                instagramHandle: cleanInstagram ?? row.instagramHandle,
                 telegramHandle: row.telegramHandle,
                 knownResidences: row.knownResidences,
               });
@@ -1024,10 +1068,10 @@ router.post("/ingest/social-discovery", async (req: Request, res: Response): Pro
               // Mirror to Redis contact cache
               const stableKey = (() => { try { return JSON.parse(row.sourceRegistries ?? "[]")[0] ?? `name:${row.name}`; } catch { return `name:${row.name}`; } })();
               await contactCacheSet(stableKey, {
-                name: row.name, linkedinUrl: result.linkedinUrl,
+                name: row.name, linkedinUrl: cleanLinkedIn,
                 linkedinHeadline: result.linkedinHeadline,
-                twitterHandle: result.twitterHandle, twitterBio: result.twitterBio,
-                instagramHandle: result.instagramHandle, personalWebsite: result.personalWebsite,
+                twitterHandle: cleanTwitter, twitterBio: result.twitterBio,
+                instagramHandle: cleanInstagram, personalWebsite: result.personalWebsite,
                 contactConfidence: update.contactConfidence, // recomputed from all signals, not module-internal score
                 enrichmentSources: result.sources,
                 enrichedAt: new Date().toISOString(),
@@ -1184,7 +1228,8 @@ router.post("/ingest/foundation-filings", async (req: Request, res: Response): P
           if (result.foundationName) {
             const update: Record<string, any> = { foundationName: result.foundationName };
             // Only fill email if entity has none
-            if (result.email && !row.email) update.email = result.email;
+            const cleanEmail = sanitizePublicEmail(result.email);
+            if (cleanEmail && !row.email) update.email = cleanEmail;
             // Persist address into knownResidences JSON array (was previously dropped)
             if (result.address) {
               const existing: string[] = (() => { try { const r = JSON.parse(row.knownResidences ?? "[]"); return Array.isArray(r) ? r : [String(r)]; } catch { return []; } })();
@@ -1194,8 +1239,9 @@ router.post("/ingest/foundation-filings", async (req: Request, res: Response): P
             }
             // Recompute contactConfidence — foundation may have added an email or address
             update.contactConfidence = computeContactConfidence({
-              email: update.email ?? row.email,
-              phone: row.phone,
+              type: row.type,
+              email: sanitizePublicEmail(update.email as string | null | undefined) ?? sanitizePublicEmail(row.email),
+              phone: sanitizePublicPhone(row.phone),
               linkedinUrl: row.linkedinUrl,
               twitterHandle: row.twitterHandle,
               instagramHandle: row.instagramHandle,
@@ -1205,7 +1251,7 @@ router.post("/ingest/foundation-filings", async (req: Request, res: Response): P
             await db.update(entitiesTable).set(update).where(eq(entitiesTable.id, row.id));
             const stableKey = (() => { try { return JSON.parse(row.sourceRegistries ?? "[]")[0] ?? `name:${row.name}`; } catch { return `name:${row.name}`; } })();
             await contactCacheSet(stableKey, {
-              name: row.name, email: result.email ?? undefined,
+              name: row.name, email: cleanEmail ?? undefined,
               foundationName: result.foundationName,
               contactConfidence: update.contactConfidence, // recomputed from all signals
               enrichmentSources: result.sources,
@@ -1385,8 +1431,17 @@ router.post("/ingest/restore-contact-cache", async (_req: Request, res: Response
     for (let i = 0; i < cached.length; i += CHUNK) {
       await Promise.all(cached.slice(i, i + CHUNK).map(async ({ key, data }) => {
         try {
-          type EntityRow = { id: number; email: string | null; phone: string | null; linkedinUrl: string | null; metadata: string | null };
-          const SEL = { id: entitiesTable.id, email: entitiesTable.email, phone: entitiesTable.phone, linkedinUrl: entitiesTable.linkedinUrl, metadata: entitiesTable.metadata };
+          type EntityRow = {
+            id: number; type: string | null; email: string | null; phone: string | null;
+            linkedinUrl: string | null; twitterHandle: string | null; instagramHandle: string | null;
+            knownResidences: string | null; metadata: string | null;
+          };
+          const SEL = {
+            id: entitiesTable.id, type: entitiesTable.type, email: entitiesTable.email,
+            phone: entitiesTable.phone, linkedinUrl: entitiesTable.linkedinUrl,
+            twitterHandle: entitiesTable.twitterHandle, instagramHandle: entitiesTable.instagramHandle,
+            knownResidences: entitiesTable.knownResidences, metadata: entitiesTable.metadata,
+          };
           let entity: EntityRow | undefined;
 
           if (key.startsWith("faa:")) {
@@ -1412,16 +1467,28 @@ router.post("/ingest/restore-contact-cache", async (_req: Request, res: Response
           // Only restore if the entity has no contact data yet
           if (entity.email || entity.phone || entity.linkedinUrl) return;
 
-          const updates: Record<string, unknown> = { updatedAt: new Date() };
-          if (data.email)       updates["email"]       = data.email;
-          if (data.phone)       updates["phone"]       = data.phone;
-          if (data.linkedinUrl) updates["linkedinUrl"] = data.linkedinUrl;
-          updates["contactConfidence"] = data.contactConfidence;
+           const cleanEmail = sanitizePublicEmail(data.email);
+           const cleanPhone = sanitizePublicPhone(data.phone);
+           const cleanLinkedIn = sanitizePublicSocialUrl(data.linkedinUrl, "linkedin", "person");
+           const cleanTwitter = sanitizePublicSocialHandle(data.twitter, "twitter");
+           const cleanInstagram = sanitizePublicSocialHandle(data.instagramHandle, "instagram");
+           const updates: Record<string, unknown> = { updatedAt: new Date() };
+           if (cleanEmail)       updates["email"]       = cleanEmail;
+           if (cleanPhone)       updates["phone"]       = cleanPhone;
+           if (cleanLinkedIn)    updates["linkedinUrl"] = cleanLinkedIn;
+           if (cleanTwitter)     updates["twitterHandle"] = cleanTwitter;
+           if (cleanInstagram)   updates["instagramHandle"] = cleanInstagram;
+           updates["contactConfidence"] = computeContactConfidence({
+             type: entity.type,
+             email: cleanEmail, phone: cleanPhone, linkedinUrl: cleanLinkedIn,
+             twitterHandle: cleanTwitter, instagramHandle: cleanInstagram,
+             knownResidences: entity.knownResidences,
+           });
 
           let meta: Record<string, unknown> = {};
           try { meta = JSON.parse(entity.metadata ?? "{}"); } catch { /* */ }
           if (data.website)    meta["website"]    = data.website;
-          if (data.twitter)    meta["twitter"]    = data.twitter;
+           if (cleanTwitter)    meta["twitter"]    = cleanTwitter;
           if (data.enrichmentSources?.length) meta["enrichmentSources"] = data.enrichmentSources;
           if (data.enrichedAt) meta["enrichedAt"] = data.enrichedAt;
           if (data.emailConfidence != null) meta["emailConfidence"] = data.emailConfidence;
@@ -1429,12 +1496,13 @@ router.post("/ingest/restore-contact-cache", async (_req: Request, res: Response
           if (data.sourceHits) meta["sourceHits"] = data.sourceHits;
           meta["enricherVersion"]   = "v2";
           // J1: only mark enrichment complete when a direct contact was restored
-          meta["needsEnrichment"]   = Boolean(data.email || data.phone) ? false : true;
+           meta["needsEnrichment"]   = Boolean(cleanEmail || cleanPhone) ? false : true;
           meta["restoredFromCache"] = true;
           // J0: set outcome on restored entities
           meta["contactOutcome"] = computeContactOutcome({
-            email: data.email, phone: data.phone,
-            linkedinUrl: data.linkedinUrl,
+             email: cleanEmail, phone: cleanPhone,
+             linkedinUrl: cleanLinkedIn, twitterHandle: cleanTwitter,
+             instagramHandle: cleanInstagram,
             website: data.website,
           });
           updates["contactOutcome"] = meta["contactOutcome"];

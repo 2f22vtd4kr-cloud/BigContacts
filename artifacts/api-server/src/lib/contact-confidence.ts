@@ -14,7 +14,13 @@
  * Previously missed Twitter, Instagram, Telegram signals entirely.
  */
 
-import { isGenericEmailPrefix, isValidPublicEmail, normalizePhone } from "./contact-validation";
+import {
+  isGenericEmailPrefix,
+  isValidPublicEmail,
+  normalizePhone,
+  sanitizePublicSocialUrl,
+  isValidPublicSocialHandle,
+} from "./contact-validation";
 
 export function computeContactConfidence(entity: {
   type?: string | null;
@@ -35,12 +41,12 @@ export function computeContactConfidence(entity: {
   }
   let score = 0;
   const emailLocal = entity.email?.split("@")[0] ?? "";
-  if (entity.email?.trim() && !isGenericEmailPrefix(emailLocal)) score += 35;
-  if (entity.phone?.trim())          score += 25;
-  if (entity.linkedinUrl?.trim())    score += 15;
-  if (entity.telegramHandle?.trim()) score += 12;
-  if (entity.twitterHandle?.trim())  score += 8;
-  if (entity.instagramHandle?.trim()) score += 5;
+  if (isValidPublicEmail(entity.email) && !isGenericEmailPrefix(emailLocal)) score += 35;
+  if (normalizePhone(entity.phone) !== null)                                  score += 25;
+  if (sanitizePublicSocialUrl(entity.linkedinUrl, "linkedin", "person"))      score += 15;
+  if (entity.telegramHandle?.trim() && /^[a-zA-Z0-9_]{2,64}$/.test(entity.telegramHandle.replace(/^@/, ""))) score += 12;
+  if (isValidPublicSocialHandle(entity.twitterHandle, "twitter"))             score += 8;
+  if (isValidPublicSocialHandle(entity.instagramHandle, "instagram"))         score += 5;
   const res = entity.knownResidences;
   if (res && res !== "[]" && res !== "null" && res.trim().length > 2) score += 5;
   return Math.min(score, 100);
@@ -76,9 +82,7 @@ export function hasMeaningfulDirectContact(entity: {
     entity.phoneSource !== "EDGAR-Phone" &&
     entity.phoneSource !== "CompaniesHouse-Phone";
 
-  return hasPersonalEmail || hasPersonalPhone ||
-    entity.contactOutcome === "direct_contact_candidate" ||
-    entity.contactOutcome === "direct_contact_verified";
+  return hasPersonalEmail || hasPersonalPhone;
 }
 
 // ── J0 Measurement Contract ───────────────────────────────────────────────────

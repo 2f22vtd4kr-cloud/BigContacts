@@ -79,6 +79,7 @@ export function isValidPublicEmail(value: string | null | undefined): boolean {
   const local = email.slice(0, at);
   const domain = email.slice(at + 1);
   if (BLOCKED_EMAIL_DOMAINS.has(domain)) return false;
+  if ([...REGISTRAR_DOMAINS].some(blocked => domain === blocked || domain.endsWith(`.${blocked}`))) return false;
   if (BLOCKED_EMAIL_LOCAL_PARTS.has(local)) return false;
   if (domain.includes("privacy") || domain.includes("proxy")) return false;
   // K6: reject script filenames parsed as email domains
@@ -97,6 +98,48 @@ export function sanitizePublicEmail(value: string | null | undefined): string | 
 // snippets frequently contain the network homepage, tracking URLs, or a company
 // page where a personal handle was expected.
 const SOCIAL_HANDLE_RE = /^[a-zA-Z0-9._-]{2,80}$/;
+
+export function isValidPublicSocialHandle(
+  value: string | null | undefined,
+  network: "instagram" | "twitter",
+): boolean {
+  const handle = value?.trim().replace(/^@/, "") ?? "";
+  if (!SOCIAL_HANDLE_RE.test(handle)) return false;
+  const blocked = new Set([
+    "about", "login", "signup", "privacy", "terms", "explore", "home",
+    "search", "hashtag", "intent", "share", "status", "i", "company",
+    "instagram", "twitter", "x", "linkedin", "accounts", "p", "reel",
+  ]);
+  if (blocked.has(handle.toLowerCase())) return false;
+  // Twitter handles are limited to 15 characters. Instagram allows longer
+  // handles, but both must remain simple profile identifiers.
+  return network === "twitter" ? handle.length <= 15 : handle.length <= 30;
+}
+
+export function sanitizePublicSocialHandle(
+  value: string | null | undefined,
+  network: "instagram" | "twitter",
+): string | null {
+  const raw = value?.trim() ?? "";
+  if (!raw) return null;
+  if (raw.includes("://")) {
+    const url = sanitizePublicSocialUrl(raw, network, "person");
+    if (!url) return null;
+    try {
+      const pathPart = new URL(url).pathname.split("/").filter(Boolean)[0] ?? "";
+      return isValidPublicSocialHandle(pathPart, network) ? pathPart : null;
+    } catch {
+      return null;
+    }
+  }
+  const handle = raw.replace(/^@/, "");
+  return isValidPublicSocialHandle(handle, network) ? handle : null;
+}
+
+export function sanitizePublicTelegramHandle(value: string | null | undefined): string | null {
+  const handle = value?.trim().replace(/^@/, "") ?? "";
+  return /^[a-zA-Z0-9_]{2,64}$/.test(handle) ? handle : null;
+}
 
 export function sanitizePublicSocialUrl(
   value: string | null | undefined,

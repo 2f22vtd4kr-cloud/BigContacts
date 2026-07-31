@@ -26,7 +26,13 @@ import {
   computeContactOutcome,
   type ContactOutcome,
 } from "../lib/contact-confidence";
-import { isValidPublicEmail, sanitizePublicEmail } from "../lib/contact-validation";
+import {
+  isValidPublicEmail,
+  sanitizePublicEmail,
+  sanitizePublicPhone,
+  sanitizePublicSocialUrl,
+  isValidPublicSocialHandle,
+} from "../lib/contact-validation";
 import { resolveEmployerDomain } from "../lib/domain-resolver";
 import { discoverDigitalFootprint } from "../lib/digital-footprint";
 import { scoreAttribution, isGenericLocalPart } from "../lib/contact-attribution";
@@ -330,14 +336,21 @@ async function runPhaseJPass(jobId: string, runId: number, entities: PassEntity[
         bestEmail = footprintEmails.length ? sanitizePublicEmail(footprintEmails[0]!.value) : null;
       }
 
-      const bestPhone = normalizePhone(
+      const bestPhone = sanitizePublicPhone(
         inHouseResult.phone ?? entity.phone ??
         footprint.evidence.find(e => e.type === "phone")?.value,
       );
 
       const bestLinkedIn =
-        inHouseResult.linkedinUrl ?? entity.linkedinUrl ??
-        footprint.evidence.find(e => e.type === "linkedin")?.value ?? null;
+        sanitizePublicSocialUrl(
+          inHouseResult.linkedinUrl ?? entity.linkedinUrl ??
+          footprint.evidence.find(e => e.type === "linkedin")?.value ?? null,
+          "linkedin",
+          "person",
+        );
+      const bestTwitter = isValidPublicSocialHandle(inHouseResult.twitter, "twitter")
+        ? inHouseResult.twitter!.replace(/^@/, "")
+        : entity.twitterHandle;
 
       // ── J6: Multi-Dimensional Attribution Scoring ──────────────────────────
       const validEmail = Boolean(bestEmail && isValidPublicEmail(bestEmail));
@@ -405,10 +418,11 @@ async function runPhaseJPass(jobId: string, runId: number, entities: PassEntity[
 
       const entityUpdates: Record<string, unknown> = {
         contactConfidence: computeContactConfidence({
+          type: entity.type,
           email: bestEmail ?? entity.email,
           phone: bestPhone ?? entity.phone,
           linkedinUrl: bestLinkedIn,
-          twitterHandle: inHouseResult.twitter ?? entity.twitterHandle,
+          twitterHandle: bestTwitter,
           instagramHandle: entity.instagramHandle,
           telegramHandle: entity.telegramHandle,
           knownResidences: entity.knownResidences,
@@ -420,7 +434,7 @@ async function runPhaseJPass(jobId: string, runId: number, entities: PassEntity[
       if (bestEmail && !entity.email) entityUpdates.email = bestEmail;
       if (bestPhone && !entity.phone) entityUpdates.phone = bestPhone;
       if (bestLinkedIn && !entity.linkedinUrl) entityUpdates.linkedinUrl = bestLinkedIn;
-      if (inHouseResult.twitter && !entity.twitterHandle) entityUpdates.twitterHandle = inHouseResult.twitter;
+      if (bestTwitter && !entity.twitterHandle) entityUpdates.twitterHandle = bestTwitter;
 
       await db.update(entitiesTable).set(entityUpdates as any).where(eq(entitiesTable.id, entity.id));
 

@@ -103,7 +103,7 @@ After a fresh GitHub import, run these steps to get the project running:
 
 Latest verification (2026-07-31): all 32 requested provider secrets are present — `REDIS_URL_1` through `_5`, `COMPANIES_HOUSE_API_KEY`, five Groq keys, eight Perplexity keys, `WHOXY_API_KEY`, four Gemini keys, two Exa keys, and six Tavily keys. Secret values were not read or displayed. Redis, API, web, and mockup workflows are healthy. The pipeline is idle; no Atlas, ingestion, or research job is active.
 
-Contact-quality hardening completed: human-name admission is fail-closed behind deterministic safety gates; AI and enrichment paths no longer construct email addresses; email/phone/social values are sanitized before persistence, evidence, Redis, and scoring; organization contacts cannot inflate personal Access confidence; `isHot` requires a meaningful person-level direct contact signal; and aircraft/property/shareholder/live-flight evidence no longer creates Access-hot leads. Wealth/registry evidence remains available as Signal.
+Contact-quality hardening completed: human-name admission is fail-closed behind deterministic safety gates; AI and enrichment paths no longer construct email addresses; email/phone/social values are sanitized before every PostgreSQL, evidence, Redis, cache-restore, startup-maintenance, and merge write; confidence and hot status are recomputed from cleaned vectors rather than trusted incoming scores; organization contacts cannot inflate personal Access confidence; `isHot` requires a meaningful person-level direct contact signal; and aircraft/property/shareholder/live-flight evidence no longer creates Access-hot leads. Wealth/registry evidence remains available as Signal.
 
 Two fixes were needed after the first import:
 - Added `"pg-cloudflare"` to the `external` list in `artifacts/api-server/build.mjs` (pg optional dep that esbuild couldn't resolve)
@@ -118,7 +118,7 @@ Two fixes were needed after the first import:
 | Apex Atlas bounded discovery-first run | 24 | 0 | Historical first discovery cohort persisted; no enrichment worker is currently running. |
 | **Current verified state at last check** | **24** | **0** | 0 relationships; 1 contact-evidence row; all job statuses idle; no FAA or land-registry bulk download. |
 
-**Controlled-run state:** `ENABLE_AUTO_PIPELINE=false` remains set, so startup will not create an additional broad ingestion job. No pipeline is active; the durable contact-promotion validator and Access/Signal separation remain in place.
+**Controlled-run state:** `ENABLE_AUTO_PIPELINE=false` remains set, so startup will not create an additional broad ingestion job. No pipeline is active; the durable contact-promotion validator, persistence-boundary sanitation, and Access/Signal separation remain in place.
 
 **Honest rating for this case study:** the API and web dashboard are healthy; targeted web research completed; official organization evidence was captured; the graph is isolated; and collision-prone contact evidence plus generated outreach require manual review.
 

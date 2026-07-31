@@ -10,7 +10,7 @@
  */
 
 import { db, entitiesTable, assetsTable } from "@workspace/db";
-import { count, gte, eq, and, inArray, isNotNull, sql } from "drizzle-orm";
+import { count, gte, eq, and, inArray, isNotNull, or, sql } from "drizzle-orm";
 import {
   createJob, updateJob, setActiveJob, getActiveJob, getJob, clearActiveJob,
   clearDedup, getDedupCount,
@@ -22,7 +22,13 @@ import { logger } from "./logger";
 import { contactCacheScanAll, contactCacheCount, contactCacheSet, type CachedContact, delCachePattern } from "./redis";
 import { warmUpSemanticEngine } from "./semantic-engine";
 import { computeContactConfidence } from "./contact-confidence";
-import { isValidPublicEmail, sanitizePublicEmail } from "./contact-validation";
+import {
+  sanitizePublicEmail,
+  sanitizePublicPhone,
+  sanitizePublicSocialUrl,
+  sanitizePublicSocialHandle,
+  sanitizePublicTelegramHandle,
+} from "./contact-validation";
 
 const INGESTOR_TYPES = ["faa", "land-registry", "western-hnwi", "companies-house-enrich", "occrp", "opensky", "improve", "web-osint", "bulk-hybrid-research", "in-house-enrich", "deep-web-osint", "compute-embeddings", "social-discovery", "messenger-discovery", "foundation-filings", "broad-discovery", "atlas-run"] as const;
 
@@ -61,20 +67,43 @@ async function clearGhostJobs(): Promise<void> {
  * idempotent and runs before Redis restore so the cache cannot reintroduce a
  * known false positive after a database re-import.
  */
-async function sanitizePersistedContactEmails(): Promise<void> {
+async function sanitizePersistedContactData(): Promise<void> {
   let scrubbedCache = 0;
   let scrubbedEntities = 0;
 
   try {
     const cached = await contactCacheScanAll();
     for (const { key, data } of cached) {
-      if (!data.email || isValidPublicEmail(data.email)) continue;
+      const email = sanitizePublicEmail(data.email);
+      const phone = sanitizePublicPhone(data.phone);
+      const linkedinUrl = sanitizePublicSocialUrl(data.linkedinUrl, "linkedin", "person");
+      const twitterHandle = sanitizePublicSocialHandle(data.twitterHandle ?? data.twitter, "twitter");
+      const instagramHandle = sanitizePublicSocialHandle(data.instagramHandle, "instagram");
+      const telegramHandle = sanitizePublicTelegramHandle(data.telegramHandle);
+      const changed =
+        email !== (data.email ?? null) ||
+        phone !== (data.phone ?? null) ||
+        linkedinUrl !== (data.linkedinUrl ?? null) ||
+        twitterHandle !== (data.twitterHandle ?? data.twitter ?? null) ||
+        instagramHandle !== (data.instagramHandle ?? null) ||
+        telegramHandle !== (data.telegramHandle ?? null);
+      if (!changed) continue;
       const cleaned: CachedContact = {
         ...data,
-        email: null,
+        email,
+        phone,
+        linkedinUrl,
+        twitterHandle,
+        twitter: twitterHandle,
+        instagramHandle,
+        telegramHandle,
         contactConfidence: computeContactConfidence({
-          phone: data.phone,
-          linkedinUrl: data.linkedinUrl,
+          email,
+          phone,
+          linkedinUrl,
+          twitterHandle,
+          instagramHandle,
+          telegramHandle,
         }),
       };
       await contactCacheSet(key, cleaned);
@@ -88,25 +117,61 @@ async function sanitizePersistedContactEmails(): Promise<void> {
     const rows = await db
       .select({
         id: entitiesTable.id,
+        type: entitiesTable.type,
         email: entitiesTable.email,
         phone: entitiesTable.phone,
         linkedinUrl: entitiesTable.linkedinUrl,
+        twitterHandle: entitiesTable.twitterHandle,
+        instagramHandle: entitiesTable.instagramHandle,
+        telegramHandle: entitiesTable.telegramHandle,
         knownResidences: entitiesTable.knownResidences,
       })
       .from(entitiesTable)
-      .where(isNotNull(entitiesTable.email));
+      .where(or(
+        isNotNull(entitiesTable.email),
+        isNotNull(entitiesTable.phone),
+        isNotNull(entitiesTable.linkedinUrl),
+        isNotNull(entitiesTable.twitterHandle),
+        isNotNull(entitiesTable.instagramHandle),
+        isNotNull(entitiesTable.telegramHandle),
+      ));
 
     for (const entity of rows) {
       const email = sanitizePublicEmail(entity.email);
-      if (email === entity.email) continue;
+      const phone = sanitizePublicPhone(entity.phone);
+      const linkedinUrl = sanitizePublicSocialUrl(entity.linkedinUrl, "linkedin", "person");
+      const twitterHandle = sanitizePublicSocialHandle(entity.twitterHandle, "twitter");
+      const instagramHandle = sanitizePublicSocialHandle(entity.instagramHandle, "instagram");
+      const telegramHandle = sanitizePublicTelegramHandle(entity.telegramHandle);
+      const changed =
+        email !== entity.email ||
+        phone !== entity.phone ||
+        linkedinUrl !== entity.linkedinUrl ||
+        twitterHandle !== entity.twitterHandle ||
+        instagramHandle !== entity.instagramHandle ||
+        telegramHandle !== entity.telegramHandle;
+      if (!changed) continue;
       const contactConfidence = computeContactConfidence({
+        type: entity.type,
         email,
-        phone: entity.phone,
-        linkedinUrl: entity.linkedinUrl,
+        phone,
+        linkedinUrl,
+        twitterHandle,
+        instagramHandle,
+        telegramHandle,
         knownResidences: entity.knownResidences,
       });
       await db.update(entitiesTable)
-        .set({ email, contactConfidence, updatedAt: new Date() })
+        .set({
+          email,
+          phone,
+          linkedinUrl,
+          twitterHandle,
+          instagramHandle,
+          telegramHandle,
+          contactConfidence,
+          updatedAt: new Date(),
+        })
         .where(eq(entitiesTable.id, entity.id));
       scrubbedEntities++;
     }
@@ -118,7 +183,7 @@ async function sanitizePersistedContactEmails(): Promise<void> {
     await delCachePattern("entities:list:*");
     await delCachePattern("dashboard:*");
   }
-  logger.info({ scrubbedCache, scrubbedEntities }, "Persisted contact email sanitation complete");
+  logger.info({ scrubbedCache, scrubbedEntities }, "Persisted contact data sanitation complete");
 }
 
 /** Fire-and-forget background ingestor. */
@@ -159,7 +224,7 @@ async function runPopulatedDbMaintenance(): Promise<void> {
   logger.info("Running populated-DB maintenance tasks…");
 
   // Remove known false positives before Redis restore and cache backfill.
-  await sanitizePersistedContactEmails();
+  await sanitizePersistedContactData();
 
   // 0. Restore contact data from Redis slot 2 (REDIS_URL_2) — runs first so downstream
   //    steps (isHot sync, enricher, etc.) see the restored contact confidence values.

@@ -1365,13 +1365,12 @@ export async function enrichInHouse(entity: InHouseEnrichInput): Promise<InHouse
     sourceUrl: string | null = null,
     extractionMethod = "public-source-parser",
     details?: Record<string, unknown>,
-    // When true: add to evidence log only — never write to result.email.
-    // Use for pattern-generated / guessed addresses that must not be surfaced
-    // as a confirmed contact vector (per user policy: guessed emails must never
-    // be presented as final contact data).
+    // Guessed or pattern-derived addresses are not public contact evidence.
+    // They are discarded rather than stored as review data or promoted later.
     evidenceOnly = false,
   ) => {
     if (!email) return;
+    if (evidenceOnly) return;
     const local = email.split("@")[0]?.toLowerCase() ?? "";
     let adj = confidence;
     if (isGenericEmailPrefix(local)) {
@@ -1385,18 +1384,16 @@ export async function enrichInHouse(entity: InHouseEnrichInput): Promise<InHouse
       result.emailSource = source;
       result.evidence = result.evidence.filter((item) => item.vectorType !== "email");
     }
-    // Always record in evidence log (for transparency) but mark generated emails clearly.
-    const isPatternGenerated = evidenceOnly || source.startsWith("EmailPattern") || source.startsWith("GenericEmail");
     if (!result.evidence.some((e) => e.vectorType === "email" && e.value === email)) {
       result.evidence.push({
         vectorType: "email",
         value: email,
         source,
         sourceUrl,
-        extractionMethod: isPatternGenerated ? "pattern-generated" : extractionMethod,
+        extractionMethod,
         confidence: adj,
         observedAt: new Date().toISOString(),
-        details: isPatternGenerated ? { ...details, guessed: true } : details,
+        details,
       });
     }
     if (!evidenceOnly) addSource(source);
