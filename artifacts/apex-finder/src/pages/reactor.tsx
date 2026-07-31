@@ -827,22 +827,8 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                   backgroundImage:"linear-gradient(rgba(163,230,53,0.035) 1px,transparent 1px),linear-gradient(90deg,rgba(163,230,53,0.035) 1px,transparent 1px)",
                   backgroundSize:"24px 24px",
                 }} />
-                {MOBILE_PHASES.map((phase, pi) => {
-                  const y = [18, 92, 226, 358, 492, 574, 670][pi];
-                  const phaseNodes = phase.nodeIds.map(id => NM[id]).filter(Boolean);
-                  const anyActive = phaseNodes.some(n => activeNodes.has(n.id));
-                  return (
-                    <div key={phase.label} style={{
-                      position:"absolute", left:8, top:y, zIndex:3,
-                      writingMode:"vertical-rl", transform:"rotate(180deg)",
-                      fontSize:6, letterSpacing:"0.17em", color:anyActive ? "#a3e63599" : "#263d59",
-                    }}>
-                      {String(pi + 1).padStart(2,"0")} {phase.label}
-                    </div>
-                  );
-                })}
                 <svg viewBox="0 0 360 738" preserveAspectRatio="none" style={{
-                  position:"absolute", inset:0, width:"100%", height:"100%", zIndex:1, overflow:"visible",
+                  position:"absolute", inset:0, width:"100%", height:"100%", zIndex:1, overflow:"hidden",
                 }}>
                   <defs>
                     <marker id="mobileLime" markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto">
