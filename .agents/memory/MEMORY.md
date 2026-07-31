@@ -51,3 +51,4 @@
 - [Atlas orchestrator](atlas-orchestrator.md) — POST /api/ingest/atlas-run; 10-phase pipeline wiring every tool; lib/atlas-orchestrator.ts + routes/atlas.ts; phase-j.ts exports runPhaseJBatch
 - [Reactor live telemetry](reactor-live-telemetry.md) — Keep Atlas phase progress separate from entity-batch progress; idle UI must never infer live work from historical sessions or scripted waves
 - [Evidence-led entity cards](evidence-led-entity-cards.md) — Show bios and involvement only from stored public evidence; label missing narrative fields instead of inferring them
+- [Research review guardrails](research-review-guardrails.md) — Stable reruns, manual provenance, malformed-contact rejection, and no outreach copy for isolated targets

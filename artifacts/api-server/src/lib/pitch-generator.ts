@@ -27,6 +27,8 @@ export interface PitchContext {
     notes?: string | null;
     contactEmail?: string | null;
     contactPhone?: string | null;
+      contactOutcome?: string | null;
+      contactConfidence?: number | null;
   };
   gatekeeper: PathStep | null;
   assets: Array<{
@@ -50,7 +52,7 @@ function fmtValue(v: number | null | undefined): string {
 }
 
 function fmtAssets(assets: PitchContext["assets"]): { primary: string; detail: string } {
-  if (!assets.length) return { primary: "significant assets", detail: "" };
+  if (!assets.length) return { primary: "no publicly recorded assets", detail: "" };
   const byType: Record<string, typeof assets> = {};
   for (const a of assets) {
     byType[a.category] ??= [];
@@ -174,7 +176,9 @@ function intelBlock(
   assets: ReturnType<typeof fmtAssets>
 ): string {
   const score = (ctx.pathScore * 100).toFixed(0);
-  const confidence = ctx.pathScore >= 0.75 ? "APEX" : ctx.pathScore >= 0.5 ? "HIGH" : "MODERATE";
+  const confidence = ctx.gatekeeper
+    ? ctx.pathScore >= 0.75 ? "APEX" : ctx.pathScore >= 0.5 ? "HIGH" : "MODERATE"
+    : "LIMITED";
   const pathDesc = ctx.winningPath
     .filter((p) => p.role !== "TARGET")
     .map((p) => `${p.role}: ${p.label}`)
@@ -184,8 +188,12 @@ function intelBlock(
     `TARGET:       ${ctx.targetEntity.name} (${ctx.targetEntity.type})`,
     `CONFIDENCE:   ${confidence} — ${score}/100`,
     `CHANNEL:      ${channel}`,
-    ctx.targetEntity.contactEmail ? `CONTACT:      ${ctx.targetEntity.contactEmail}` : null,
-    ctx.targetEntity.contactPhone ? `PHONE:        ${ctx.targetEntity.contactPhone}` : null,
+    ctx.targetEntity.contactOutcome === "direct_contact_verified" && ctx.targetEntity.contactEmail
+      ? `CONTACT:      ${ctx.targetEntity.contactEmail}`
+      : null,
+    ctx.targetEntity.contactOutcome === "direct_contact_verified" && ctx.targetEntity.contactPhone
+      ? `PHONE:        ${ctx.targetEntity.contactPhone}`
+      : null,
     ctx.gatekeeper ? `GATEKEEPER:   ${ctx.gatekeeper.label} via ${ctx.gatekeeper.registry ?? "Intel"}` : null,
     `PATH:         ${pathDesc}`,
     assets.detail ? `ASSETS:\n${assets.detail.split("\n").map((l) => `  ${l}`).join("\n")}` : null,
@@ -340,6 +348,16 @@ ${ts}${intel}
     ? `We have identified your professional connection to ${targetEntity.name}'s network (via ${pathDesc}) and are approaching you as the most appropriate introduction point for a confidential investment opportunity.`
     : `We have identified you as the most appropriate introduction point for a confidential investment opportunity involving ${targetEntity.name}.`;
 
+  if (!gatekeeper) {
+    return `
+RESEARCH STATUS — OUTREACH NOT RECOMMENDED
+
+No supported gatekeeper or warm-introduction path has been established for ${targetEntity.name}. Do not initiate direct or speculative outreach from this record.
+
+Next step: verify the target identity and independently corroborate a suitable intermediary before drafting contact copy.
+    `.trim();
+  }
+
   return `
 Dear ${gatekeeper?.label ?? "Sir/Madam"},
 
@@ -382,6 +400,15 @@ export function generateOutreachSequence(ctx: PitchContext): OutreachSequence {
   const scoreStr = (pathScore * 100).toFixed(0);
   const targetFirst = targetEntity.name.split(" ").slice(-1)[0];
   const targetFull = targetEntity.name;
+
+  if (!gatekeeper) {
+    const status = `No outreach recommended for ${targetFull}: no supported gatekeeper or warm-introduction path has been established.`;
+    return {
+      initial,
+      followUp: `${status}\n\nNext step: verify the target identity and establish an independently supported intermediary before drafting contact copy.`,
+      introScript: "No introduction script available. A gatekeeper has not been identified or corroborated.",
+    };
+  }
 
   // ── Follow-up message ─────────────────────────────────────────────────────
   const followUp = `

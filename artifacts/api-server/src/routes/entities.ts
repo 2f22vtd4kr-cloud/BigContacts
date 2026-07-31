@@ -205,8 +205,10 @@ router.patch("/entities/:id/reject-contact", async (req, res): Promise<void> => 
     res.status(400).json({ error: "Invalid or missing field" }); return;
   }
 
-  const [entity] = await db.select({ id: entitiesTable.id, metadata: entitiesTable.metadata })
-    .from(entitiesTable).where(eq(entitiesTable.id, id));
+  const [entity] = await db
+    .select()
+    .from(entitiesTable)
+    .where(eq(entitiesTable.id, id));
   if (!entity) { res.status(404).json({ error: "Not found" }); return; }
 
   let meta: Record<string, unknown> = {};
@@ -216,7 +218,7 @@ router.patch("/entities/:id/reject-contact", async (req, res): Promise<void> => 
   meta.rejectedContacts = rejected;
 
   // Null the specific contact field + save updated metadata
-  const updates: Record<string, null | string> = { metadata: JSON.stringify(meta) };
+  const updates: Record<string, null | string | number | boolean> = { metadata: JSON.stringify(meta) };
   // Map field name to a null update (Drizzle accepts partial column objects)
   const fieldNulls: Record<string, any> = {
     email: { email: null },
@@ -230,9 +232,19 @@ router.patch("/entities/:id/reject-contact", async (req, res): Promise<void> => 
     contactMethod: { contactMethod: null },
   };
   const setObj = { ...updates, ...(fieldNulls[field] ?? {}) };
+  const nextEntity = { ...entity, [field]: null };
+  const nextConfidence = computeContactConfidence(nextEntity);
+  const nextOutcome = computeContactOutcome(nextEntity);
+  const nextIsHot = hasMeaningfulDirectContact(nextEntity);
+  setObj.contactConfidence = nextConfidence;
+  setObj.contactOutcome = nextOutcome;
+  setObj.isHot = nextIsHot;
   await db.update(entitiesTable).set(setObj as any).where(eq(entitiesTable.id, id));
-  await delCachePattern("entities:list:*");
-  res.json({ ok: true, rejectedField: field });
+  await Promise.all([
+    delCachePattern("entities:list:*"),
+    delCachePattern("dashboard:*"),
+  ]);
+  res.json({ ok: true, rejectedField: field, contactConfidence: nextConfidence, contactOutcome: nextOutcome, isHot: nextIsHot });
 });
 
 // GET /entities/:id/occrp  — return Aleph adverse-media metadata for one entity
