@@ -21,6 +21,7 @@ import {
 } from "../lib/job-queue";
 import { deepWebOsintEnrich } from "../lib/enrichment/web-discovery";
 import { computeContactConfidence, computeContactOutcome } from "../lib/contact-confidence";
+import { sanitizePublicEmail, sanitizePublicPhone, sanitizePublicSocialUrl } from "../lib/contact-validation";
 import { contactCacheSet } from "../lib/redis";
 import { logger } from "../lib/logger";
 
@@ -174,18 +175,24 @@ router.post("/ingest/deep-web-osint", async (req: Request, res: Response): Promi
 
         const updates: Record<string, unknown> = { updatedAt: new Date() };
         // On force re-run always overwrite so stale/garbage values from prior run are replaced.
-        if (result.email)       updates["email"]       = result.email;
+        const cleanEmail = sanitizePublicEmail(result.email);
+        const cleanPhone = sanitizePublicPhone(result.phone);
+        const cleanLinkedIn = sanitizePublicSocialUrl(result.linkedinUrl, "linkedin", "person");
+        const cleanInstagram = sanitizePublicSocialUrl(result.instagramUrl, "instagram", "person");
+        const cleanTwitter = sanitizePublicSocialUrl(result.twitterUrl, "twitter", "person");
+        if (cleanEmail)         updates["email"]       = cleanEmail;
         else if (!entity.email) updates["email"]       = null;
-        if (result.phone)       updates["phone"]       = result.phone;
+        if (cleanPhone)         updates["phone"]       = cleanPhone;
         else if (force)         updates["phone"]       = null; // clear stale
-        if (result.linkedinUrl) updates["linkedinUrl"] = result.linkedinUrl;
+        if (cleanLinkedIn)      updates["linkedinUrl"] = cleanLinkedIn;
         else if (force)         updates["linkedinUrl"] = null; // clear stale
         // Corp/Trust: social handles from deep-web belong to persons, not the org
         const isCorpEntity = entity.type === "Corporation" || entity.type === "Corp" || entity.type === "Trust";
-        if (result.instagramUrl && !entity.instagramHandle && !isCorpEntity) updates["instagramHandle"] = result.instagramUrl;
-        if (result.twitterUrl   && !entity.twitterHandle   && !isCorpEntity) updates["twitterHandle"]   = result.twitterUrl;
+        if (cleanInstagram && !entity.instagramHandle && !isCorpEntity) updates["instagramHandle"] = cleanInstagram;
+        if (cleanTwitter   && !entity.twitterHandle   && !isCorpEntity) updates["twitterHandle"]   = cleanTwitter;
 
         const confidence = computeContactConfidence({
+          type:             entity.type,
           email:           (updates["email"]      as string | null) ?? entity.email ?? null,
           phone:           (updates["phone"]      as string | null) ?? entity.phone ?? null,
           linkedinUrl:     (updates["linkedinUrl"] as string | null) ?? entity.linkedinUrl ?? null,
@@ -232,7 +239,22 @@ router.post("/ingest/deep-web-osint", async (req: Request, res: Response): Promi
         // The unique index (entity_id, vector_type, value, source) prevents duplicates on re-runs.
         if (result.evidence && result.evidence.length > 0) {
           const evidenceRows = result.evidence
-            .filter(e => e.value && e.value.trim())
+            .filter(e => {
+              if (!e.value?.trim()) return false;
+              if (e.vectorType === "email") return Boolean(sanitizePublicEmail(e.value));
+              if (e.vectorType === "phone") return Boolean(sanitizePublicPhone(e.value));
+              if (e.vectorType === "social") {
+                const network = String(e.details?.["network"] ?? "");
+                return network === "linkedin"
+                  ? Boolean(sanitizePublicSocialUrl(e.value, "linkedin", "person"))
+                  : network === "instagram"
+                    ? Boolean(sanitizePublicSocialUrl(e.value, "instagram", "person"))
+                    : network === "twitter"
+                      ? Boolean(sanitizePublicSocialUrl(e.value, "twitter", "person"))
+                      : true;
+              }
+              return true;
+            })
             .map(e => {
               const isPersonHop = (e.details?.["scope"] as string) === "person_candidate";
               return {

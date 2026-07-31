@@ -289,14 +289,10 @@ async function runPopulatedDbMaintenance(): Promise<void> {
     logger.warn({ err: err?.message }, "Maintenance: Redis contact cache backfill failed (non-fatal)");
   }
 
-  // 1. Sync isHot flags for entities with score ≥ 0.70 that aren't flagged yet
+  // 1. Do not derive isHot from wealth/registry score. Hot is an access flag,
+  // and is set only by validated person-level direct-contact paths.
   try {
-    const hotResult = await db
-      .update(entitiesTable)
-      .set({ isHot: true, updatedAt: new Date() })
-      .where(and(gte(entitiesTable.bayesianScore, 0.70), eq(entitiesTable.isHot, false)))
-      .returning({ id: entitiesTable.id });
-    logger.info({ updated: hotResult.length }, "Maintenance: hot flags synced");
+    logger.info("Maintenance: skipped wealth-score hot flag promotion");
   } catch (err: any) {
     logger.warn({ err: err?.message }, "Maintenance: hot flag sync failed (non-fatal)");
   }

@@ -14,9 +14,11 @@
  * Previously missed Twitter, Instagram, Telegram signals entirely.
  */
 
-import { isGenericEmailPrefix } from "./contact-validation";
+import { isGenericEmailPrefix, isValidPublicEmail, normalizePhone } from "./contact-validation";
 
 export function computeContactConfidence(entity: {
+  type?: string | null;
+  organizationContact?: boolean;
   email?: string | null;
   phone?: string | null;
   linkedinUrl?: string | null;
@@ -25,8 +27,15 @@ export function computeContactConfidence(entity: {
   instagramHandle?: string | null;
   knownResidences?: string | null;
 }): number {
+  // This score is the personal access score. Company/Trust records may have
+  // useful organisation evidence, but it must not be presented as a personal
+  // reachability signal.
+  if (entity.organizationContact || entity.type === "Corporation" || entity.type === "Corp" || entity.type === "Trust") {
+    return 0;
+  }
   let score = 0;
-  if (entity.email?.trim())          score += 35;
+  const emailLocal = entity.email?.split("@")[0] ?? "";
+  if (entity.email?.trim() && !isGenericEmailPrefix(emailLocal)) score += 35;
   if (entity.phone?.trim())          score += 25;
   if (entity.linkedinUrl?.trim())    score += 15;
   if (entity.telegramHandle?.trim()) score += 12;
@@ -35,6 +44,41 @@ export function computeContactConfidence(entity: {
   const res = entity.knownResidences;
   if (res && res !== "[]" && res !== "null" && res.trim().length > 2) score += 5;
   return Math.min(score, 100);
+}
+
+/**
+ * A hot lead requires a meaningful person-level direct vector. Wealth, assets,
+ * registry status, generic inboxes, and corporate switchboards do not qualify.
+ */
+export function hasMeaningfulDirectContact(entity: {
+  type?: string | null;
+  organizationContact?: boolean;
+  email?: string | null;
+  phone?: string | null;
+  phoneSource?: string | null;
+  contactOutcome?: string | null;
+}): boolean {
+  if (
+    entity.organizationContact ||
+    entity.type === "Corporation" ||
+    entity.type === "Corp" ||
+    entity.type === "Trust"
+  ) return false;
+
+  const emailLocal = entity.email?.split("@")[0] ?? "";
+  const hasPersonalEmail =
+    Boolean(entity.email?.trim()) &&
+    isValidPublicEmail(entity.email) &&
+    !isGenericEmailPrefix(emailLocal);
+  const hasPersonalPhone =
+    Boolean(entity.phone?.trim()) &&
+    normalizePhone(entity.phone) !== null &&
+    entity.phoneSource !== "EDGAR-Phone" &&
+    entity.phoneSource !== "CompaniesHouse-Phone";
+
+  return hasPersonalEmail || hasPersonalPhone ||
+    entity.contactOutcome === "direct_contact_candidate" ||
+    entity.contactOutcome === "direct_contact_verified";
 }
 
 // ── J0 Measurement Contract ───────────────────────────────────────────────────

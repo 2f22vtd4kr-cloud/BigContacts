@@ -9,9 +9,10 @@
  *   2. LLM batch-filter (catches ambiguous cases like "Economic Affairs",
  *      "Reducing Marginal", "Please Appoint A", abstract concept pairs)
  *
- * The LLM call is ALWAYS fail-open: if Groq is unavailable or rate-limited,
- * all candidates that passed the regex are accepted. This prevents the
- * validator from blocking ingestion when API keys are exhausted.
+ * The LLM call is fail-closed for broad discovery: if Groq is unavailable or
+ * returns malformed output, only candidates that pass the deterministic safety
+ * gate are retained. A provider outage must never turn search noise into HNWI
+ * records.
  */
 
 import { logger } from "./logger";
@@ -30,21 +31,47 @@ const GROQ_KEYS = _groqKeyNames.map(k => process.env[k]).filter(Boolean) as stri
  */
 export async function filterHumanNamesWithLLM(candidates: string[]): Promise<string[]> {
   if (candidates.length === 0) return [];
+  const safeCandidates = candidates.filter(isDeterministicallySafeHumanName);
   if (GROQ_KEYS.length === 0) {
-    logger.debug("llm-name-validator: no GROQ keys — skipping LLM filter (fail-open)");
-    return candidates;
+    logger.debug("llm-name-validator: no GROQ keys — deterministic safety gate only");
+    return safeCandidates;
   }
 
   const results: string[] = [];
   const BATCH = 60;
 
   for (let i = 0; i < candidates.length; i += BATCH) {
-    const batch = candidates.slice(i, i + BATCH);
+    const batch = safeCandidates.slice(i, i + BATCH);
     const valid = await _validateBatch(batch);
     results.push(...valid);
   }
 
   return results;
+}
+
+const NON_PERSON_WORDS = new Set([
+  "hotel", "resort", "marina", "club", "foundation", "group", "capital",
+  "partners", "holdings", "fund", "trust", "company", "corporation",
+  "association", "council", "authority", "department", "institute",
+  "university", "college", "school", "portfolio", "income", "select",
+  "tax", "free", "organization", "organisation", "owners", "ownership",
+  "director", "directors", "officer", "officers", "manager", "managers",
+  "investor", "investors", "beneficial", "joint", "venture", "decree",
+  "board", "committee", "city", "county", "lake", "river", "valley",
+  "park", "place", "house", "estate", "view", "profile", "contact",
+]);
+
+function isDeterministicallySafeHumanName(value: string): boolean {
+  const name = value.trim().replace(/\s+/g, " ");
+  if (name.length < 5 || name.length > 80 || /[\d\n\r\t]/.test(name)) return false;
+  const words = name.split(" ");
+  if (words.length < 2 || words.length > 4) return false;
+  if (!words.every(w => /^[A-ZÀ-ÖØ-Ü][A-Za-zÀ-ÖØ-öø-ÿ'’-]*$/.test(w))) return false;
+  if (words.every(w => w.length <= 3)) return false;
+  if (words.some(w => NON_PERSON_WORDS.has(w.toLowerCase()))) return false;
+  if (/^(the|a|an|la|le|les|el|los|las|il|gli|de|del|della)\b/i.test(name)) return false;
+  if (/[&/]/.test(name)) return false;
+  return true;
 }
 
 async function _validateBatch(names: string[]): Promise<string[]> {
@@ -99,8 +126,8 @@ Output nothing else.`;
     });
 
     if (!resp.ok) {
-      logger.debug({ status: resp.status }, "llm-name-validator: Groq non-OK — fail-open");
-      return names; // fail-open
+      logger.debug({ status: resp.status }, "llm-name-validator: Groq non-OK — deterministic gate only");
+      return names.filter(isDeterministicallySafeHumanName);
     }
 
     const data = await resp.json() as { choices?: Array<{ message?: { content?: string } }> };
@@ -108,8 +135,8 @@ Output nothing else.`;
 
     const match = text.match(/\[[\d,\s]*\]/);
     if (!match) {
-      logger.debug({ text }, "llm-name-validator: no JSON array in response — fail-open");
-      return names;
+      logger.debug({ text }, "llm-name-validator: no JSON array in response — deterministic gate only");
+      return names.filter(isDeterministicallySafeHumanName);
     }
 
     const validIndices: number[] = JSON.parse(match[0]);
@@ -125,7 +152,7 @@ Output nothing else.`;
 
     return accepted;
   } catch (err: any) {
-    logger.debug({ err: err?.message }, "llm-name-validator: error — fail-open");
-    return names; // fail-open
+    logger.debug({ err: err?.message }, "llm-name-validator: error — deterministic gate only");
+    return names.filter(isDeterministicallySafeHumanName);
   }
 }

@@ -2221,39 +2221,6 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     }
   }
 
-  // ── Phase 4.5: Email pattern inference for Corp person candidates ──────────
-  // When persons are discovered AND a corporate domain is confirmed, generate
-  // [fi][last]@domain patterns as evidence candidates (review-only, never
-  // promoted to the entity's primary email). This is the main gap vs Gemini:
-  // aflamarion@tikehaucapital.com is the dominant pattern for FR finance firms.
-  if (isCorp && result.personsDiscovered.length > 0 && domainTargets.length > 0) {
-    const corpDomain = domainTargets[0]!;
-    const normEmail = (s: string) =>
-      s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z]/g, "");
-    for (const personName of [...new Set(result.personsDiscovered)].slice(0, 9)) {
-      const parts = personName.trim().split(/\s+/);
-      if (parts.length < 2) continue;
-      const fn = normEmail(parts[0]!);
-      // Compound last names (Laurent-Bellue → laurentbellue) — normEmail strips hyphens
-      const ln = normEmail(parts.slice(1).join(""));
-      const fi = fn.charAt(0);
-      if (!fi || ln.length < 2) continue;
-      const pats: Array<[string, string]> = [
-        [`${fi}${ln}@${corpDomain}`, "flast"],          // aflamarion  ← FR PE/finance norm
-        [`${fn}.${ln}@${corpDomain}`, "first.last"],    // antoine.flamarion
-        [`${fn}${ln}@${corpDomain}`, "firstlast"],      // antoineflamarion
-      ];
-      for (const [email, fmt] of pats) {
-        recordEvidence("email", email, `Pattern[${parts[0]}]`, null,
-          "email-pattern-inference", 45, {
-            scope: "person_candidate", personName,
-            relationship: "inferred-email-pattern", domain: corpDomain, pattern: fmt,
-          });
-      }
-      logger.debug({ entityId: entity.id, personName, corpDomain }, "Phase 4.5: inferred email patterns");
-    }
-  }
-
   // ── Phase 5: Direct domain scraping + contact-page crawl + Wayback fallback ─
   // Critical order: guessed domains first, then contact sub-pages, then Wayback.
   // findContactPages returns Array<{url, scraped}> — iterate the array, do NOT treat as single page.

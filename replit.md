@@ -101,7 +101,9 @@ After a fresh GitHub import, run these steps to get the project running:
 2. **Push DB schema:** `pnpm --filter @workspace/db run push`
 3. **Start workflows:** Redis → `artifacts/api-server: API Server` → `artifacts/apex-finder: web` (in that order)
 
-Latest verification (2026-07-31): all 32 requested provider secrets are present — `REDIS_URL_1` through `_5`, `COMPANIES_HOUSE_API_KEY`, five Groq keys, eight Perplexity keys, `WHOXY_API_KEY`, four Gemini keys, two Exa keys, and six Tavily keys. Secret values were not read or displayed. Redis, API, and web are healthy. After restarting the API to load fresh Perplexity keys `_7` and `_8`, replacement Apex Atlas job `8c24a586-6ad9-42c1-af36-1f8370645703` is running in bounded discovery-first mode (`skipFaa=true`, no land-registry download, 3 broad categories, batch size 50, Phase J batch size 25, MCTS limit 5). The prior job's partial results were preserved.
+Latest verification (2026-07-31): all 32 requested provider secrets are present — `REDIS_URL_1` through `_5`, `COMPANIES_HOUSE_API_KEY`, five Groq keys, eight Perplexity keys, `WHOXY_API_KEY`, four Gemini keys, two Exa keys, and six Tavily keys. Secret values were not read or displayed. Redis, API, web, and mockup workflows are healthy. The pipeline is idle; no Atlas, ingestion, or research job is active.
+
+Contact-quality hardening completed: human-name admission is fail-closed behind deterministic safety gates; AI and enrichment paths no longer construct email addresses; email/phone/social values are sanitized before persistence, evidence, Redis, and scoring; organization contacts cannot inflate personal Access confidence; `isHot` requires a meaningful person-level direct contact signal; and aircraft/property/shareholder/live-flight evidence no longer creates Access-hot leads. Wealth/registry evidence remains available as Signal.
 
 Two fixes were needed after the first import:
 - Added `"pg-cloudflare"` to the `external` list in `artifacts/api-server/build.mjs` (pg optional dep that esbuild couldn't resolve)
@@ -109,14 +111,14 @@ Two fixes were needed after the first import:
 
 ---
 
-## Current Data State (verified 2026-07-31 during Atlas job `deaa85d0-1788-4eca-898d-2532c2ebbf48`)
+## Current Data State (verified 2026-07-31 after contact-quality hardening)
 
 | Source | Entities | Assets | Notes |
 |---|---|---|---|
-| Apex Atlas bounded discovery-first run | 24 | 0 | First discovery cohort persisted; enrichment is still running. |
-| **Current verified state at last check** | **24** | **0** | 0 relationships; 1 contact-evidence row; one Atlas job active; no FAA or land-registry bulk download. |
+| Apex Atlas bounded discovery-first run | 24 | 0 | Historical first discovery cohort persisted; no enrichment worker is currently running. |
+| **Current verified state at last check** | **24** | **0** | 0 relationships; 1 contact-evidence row; all job statuses idle; no FAA or land-registry bulk download. |
 
-**Controlled-run state:** `ENABLE_AUTO_PIPELINE=false` remains set, so startup will not create an additional broad ingestion job. The only active pipeline is the explicitly launched bounded Atlas job; the durable contact-promotion validator remains in place.
+**Controlled-run state:** `ENABLE_AUTO_PIPELINE=false` remains set, so startup will not create an additional broad ingestion job. No pipeline is active; the durable contact-promotion validator and Access/Signal separation remain in place.
 
 **Honest rating for this case study:** the API and web dashboard are healthy; targeted web research completed; official organization evidence was captured; the graph is isolated; and collision-prone contact evidence plus generated outreach require manual review.
 

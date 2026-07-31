@@ -53,12 +53,24 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
     message: "Atlas pipeline initializing — 10 phases queued…",
   });
 
-  // Immediately repair isHot for all entities with contact vectors (fixes stale data from prior runs)
+  // Immediately repair isHot only for validated person-level direct contacts.
+  // Wealth/registry signals and organisation switchboards are not access signals.
   db.execute(sql`
-    UPDATE entities SET is_hot = true
-    WHERE (email IS NOT NULL OR phone IS NOT NULL
-           OR (contact_confidence >= 50 AND linkedin_url IS NOT NULL))
-      AND is_hot = false
+    UPDATE entities
+    SET is_hot = (
+      (
+        (email IS NOT NULL AND email !~* '^(info|contact|hello|sales|support|office|admin|press|media|enquiries|inquiries|reservations|booking|investor|ir)@')
+        OR (phone IS NOT NULL AND COALESCE(phone_source, '') NOT IN ('EDGAR-Phone', 'CompaniesHouse-Phone'))
+      )
+      AND entity_type NOT IN ('Corporation', 'Corp', 'Trust')
+    )
+    WHERE is_hot IS DISTINCT FROM (
+      (
+        (email IS NOT NULL AND email !~* '^(info|contact|hello|sales|support|office|admin|press|media|enquiries|inquiries|reservations|booking|investor|ir)@')
+        OR (phone IS NOT NULL AND COALESCE(phone_source, '') NOT IN ('EDGAR-Phone', 'CompaniesHouse-Phone'))
+      )
+      AND entity_type NOT IN ('Corporation', 'Corp', 'Trust')
+    )
   `).catch(() => {});
 
   // Fire and forget — run fully in background

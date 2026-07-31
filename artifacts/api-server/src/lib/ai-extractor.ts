@@ -19,6 +19,11 @@
  */
 
 import { logger } from "./logger";
+import {
+  sanitizePublicEmail,
+  sanitizePublicPhone,
+  sanitizePublicSocialUrl,
+} from "./contact-validation";
 
 const GROQ_API        = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_MODEL      = "llama-3.3-70b-versatile";
@@ -310,10 +315,12 @@ function parseAIResponse(raw: string, source: AIExtractResult["source"]): AIExtr
         const rawOwnerEmail = clean((oc as any)["email"]);
         const contact: OwnerContact = {
           name,
-          instagram: normIG((oc as any)["instagram"]),
-          twitter:   normTW((oc as any)["twitter"]),
-          linkedin:  rawLinkedin?.includes("linkedin.com") ? rawLinkedin : null,
-          email:     rawOwnerEmail && !isPlaceholderEmail(rawOwnerEmail) ? rawOwnerEmail : null,
+          instagram: sanitizePublicSocialUrl(normIG((oc as any)["instagram"]), "instagram", "person"),
+          twitter:   sanitizePublicSocialUrl(normTW((oc as any)["twitter"]), "twitter", "person"),
+          linkedin:  sanitizePublicSocialUrl(rawLinkedin, "linkedin", "person"),
+          email:     rawOwnerEmail && !isPlaceholderEmail(rawOwnerEmail)
+            ? sanitizePublicEmail(rawOwnerEmail)
+            : null,
         };
         ownerContacts.push(contact);
         owners.push(name);
@@ -343,11 +350,17 @@ function parseAIResponse(raw: string, source: AIExtractResult["source"]): AIExtr
     const rawLinkedinTop = clean(parsed["linkedin"]);
     const rawTopEmail = clean(parsed["email"]);
     return {
-      email:         rawTopEmail && !isPlaceholderEmail(rawTopEmail) ? rawTopEmail : null,
-      phone:         clean(parsed["phone"]),
-      linkedin:      rawLinkedinTop?.includes("linkedin.com") ? rawLinkedinTop : null,
-      instagram:     normIG(parsed["instagram"]),
-      twitter:       normTW(parsed["twitter"]),
+      email:         rawTopEmail && !isPlaceholderEmail(rawTopEmail)
+        ? sanitizePublicEmail(rawTopEmail)
+        : null,
+      phone:         sanitizePublicPhone(clean(parsed["phone"])),
+      linkedin:      sanitizePublicSocialUrl(
+        rawLinkedinTop,
+        "linkedin",
+        parsed["linkedin"] && String(parsed["linkedin"]).includes("/company/") ? "organization" : "person",
+      ),
+      instagram:     sanitizePublicSocialUrl(normIG(parsed["instagram"]), "instagram", "person"),
+      twitter:       sanitizePublicSocialUrl(normTW(parsed["twitter"]), "twitter", "person"),
       owners:        owners.slice(0, 5),
       ownerContacts: ownerContacts.slice(0, 5),
       ownerResolutions: ownerResolutions.slice(0, 8),
@@ -503,13 +516,11 @@ Find ALL named partners, principals, and executives. For venture capital / priva
 
 For other companies: CEO, Deputy CEO, Managing Director, all C-suite/Executive Committee (COMEX/EXCO) members, all named department/division heads.
 
-For EVERY named person: their individual direct email (construct from verified domain pattern even if not explicit), personal LinkedIn /in/ URL, Twitter/X handle.
+For EVERY named person: return a direct email or personal profile ONLY when it is explicitly present in the supplied source text. Never construct, infer, or pattern-match an email address.
 Search: official website team/people/partners page, LinkedIn company page team section, Crunchbase, press interviews, conference speaker bios, news articles, PitchBook/AngelList for VC firms.
 
-STEP 2 — EMAIL PATTERN:
-Identify the organisation's verified email format (e.g. firstname.lastname@domain.fr or f.lastname@domain.com).
-Use this pattern to construct direct emails for every named executive even if not explicitly stated.
-Include the pattern in ownershipSummary.
+STEP 2 — EMAIL EVIDENCE:
+Record an email only when the exact address is explicitly present in a supplied source. Do not infer an organisation pattern and do not construct an address for a named executive.
 
 STEP 3 — OWNERSHIP / CONTROL (for institutional context):
 Who owns, controls, or beneficially owns this entity? Parent company, holding, state body, or private shareholders.
@@ -520,7 +531,7 @@ Official HQ address(es), main phone line(s), general email, LinkedIn company pag
   : `This is a high-net-worth individual. Find PERSONAL direct contact information ONLY.
 
 STEP 1 — PERSONAL DIRECT EMAIL:
-Their individual named email address (e.g. firstname.lastname@company.com). NOT info@, press@, media@, contact@, or any shared company inbox. Construct from known domain patterns if not explicit.
+Their individual named email address only when the exact address is explicitly stated. NOT info@, press@, media@, contact@, or any shared company inbox. Never construct one from a guessed domain pattern.
 
 STEP 2 — PERSONAL MOBILE / DIRECT LINE:
 Their personal cell phone or personal direct office extension ONLY.
@@ -547,7 +558,7 @@ STEP 5 — ASSOCIATED COMPANIES AND ROLES (context only, not contact purposes).`
 
 Return ONLY this JSON — no preamble, no explanation, no markdown:
 {
-  "ownershipSummary": "one sentence: email pattern + strongest ownership finding, e.g. 'Email pattern: firstname.lastname@bpifrance.fr; owned 50/50 by French State and Caisse des Dépôts.'",
+  "ownershipSummary": "one sentence stating the strongest ownership/control finding, or 'Ownership not established in the supplied sources.'",
   "email": "general org contact email or null",
   "phone": "+XX XXX XXX or null",
   "linkedin": "${isOrg ? "https://linkedin.com/company/... org page or null" : "https://linkedin.com/in/profile or null"}",
@@ -563,7 +574,7 @@ Return ONLY this JSON — no preamble, no explanation, no markdown:
       "instagram": "personal Instagram URL or null",
       "twitter": "personal Twitter/X URL or null",
       "linkedin": "personal LinkedIn /in/ URL or null",
-      "email": "direct personal email constructed from verified pattern, e.g. nicolas.dufourcq@bpifrance.fr, or null"
+      "email": "direct personal email only if explicitly stated in a supplied source, or null"
     }
   ],
   "sources": ["URLs used"]
@@ -572,8 +583,8 @@ Return ONLY this JSON — no preamble, no explanation, no markdown:
 Hard requirements:
 - Return up to 12 named HUMAN individuals — sector/strategy heads and executives first, then owners.
 - Named executives with director_officer role are MORE valuable than institutional shareholders for contact purposes. Always include them even when the beneficial owner is a state body or holding company.
-- Construct direct individual emails from the verified pattern for every named executive.
-- ownershipSummary MUST state the verified email pattern if found.
+- Never construct or infer direct individual emails from a naming pattern.
+- ownershipSummary must not describe an inferred email pattern as evidence.
 - sourceUrls and sources: only real URLs from your search.
 - Return [] for ownerResolutions only if absolutely no named human is found anywhere.
 `;
@@ -602,12 +613,12 @@ Examples of roles to find: Head of Buyout, Head of Infrastructure, Head of Fund-
 For EACH person found:
 - Full name
 - Exact role title
-- Direct individual email (construct from the verified pattern e.g. firstname.lastname@${entityName.toLowerCase().replace(/\s+/g, "")}.com)
+- Direct individual email only when explicitly present in a source; otherwise null
 - Personal LinkedIn /in/ URL
 
 Return ONLY this JSON — no preamble:
 {
-  "ownershipSummary": "email pattern confirmed or null",
+  "ownershipSummary": "strongest ownership/control finding or null",
   "email": null,
   "phone": null,
   "linkedin": null,
@@ -623,7 +634,7 @@ Return ONLY this JSON — no preamble:
       "instagram": null,
       "twitter": null,
       "linkedin": "personal LinkedIn /in/ URL or null",
-      "email": "firstname.lastname@domain.com or null"
+      "email": "explicitly sourced direct email or null"
     }
   ],
   "sources": ["URLs used"]
@@ -632,7 +643,7 @@ Return ONLY this JSON — no preamble:
 Hard requirements:
 - Return up to 8 sector/strategy heads.
 - Do NOT repeat names already in the executive committee (CEO/Co-CEO/Chairman/President).
-- Construct direct emails from verified pattern for every named person.
+- Never construct or infer direct emails from a verified or guessed pattern.
 `;
 }
 

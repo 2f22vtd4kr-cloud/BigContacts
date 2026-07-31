@@ -627,8 +627,9 @@ export async function runBroadDiscovery(options: {
       }
     }
 
-    // ── Fallback extraction: regex (only when Groq unavailable or returned nothing) ──
-    // Regex is blind to history/fiction — never run it alongside AI extraction.
+    // ── Fallback extraction: deterministic regex only when AI is unavailable ──
+    // Regex is blind to history/fiction, so it is never allowed to bypass the
+    // final deterministic + LLM safety gate below.
     if (!aiExtracted) {
       for (const { snippet } of results) {
         const names = extractNames(snippet);
@@ -657,7 +658,7 @@ export async function runBroadDiscovery(options: {
   }
 
   // LLM name filter — removes noise like "Les Ballets", "Beneficial Owners", "Amr El" (truncated)
-  let newEntities = rawEntities;
+  let newEntities: typeof rawEntities = [];
   try {
     const { filterHumanNamesWithLLM } = await import("../llm-name-validator");
     const rawNames = rawEntities.map(e => e.name);
@@ -669,7 +670,7 @@ export async function runBroadDiscovery(options: {
       logger.info({ filteredCount, beforeCount, afterCount: newEntities.length }, "Broad discovery: LLM name filter removed noise entities");
     }
   } catch (e: any) {
-    logger.warn({ err: e.message }, "Broad discovery: LLM name filter failed (fail-open, using all candidates)");
+    logger.warn({ err: e.message }, "Broad discovery: LLM name filter failed (deterministic candidates only)");
   }
 
   // Insert new entities
@@ -701,9 +702,9 @@ export async function runBroadDiscovery(options: {
       if (/^(el\s+|los\s+|las\s+|il\s+|gli\s+|di\s+|de\s+|del\s+|della\s+)/i.test(finalName) && /\b(compan|hotel|resort|club|group|capital|invest|fund|partner|maison|chateau|château|villa|domaine|estate|gallery|atelier)\b/i.test(finalName)) continue;
       // Reject plural nouns — groups/collectives, not a person (e.g. "Past Commodores", "Private Bankers")
       if (/\b(commodores?|bankers?|investors?|directors?|officers?|executives?|managers?|shareholders?|trustees?|partners?|founders?|principals?)\s*$/i.test(finalName) && !/^[A-Z][a-z]+\s+[A-Z][a-z]/.test(finalName)) continue;
-      const type = classifyType(cleanName);
+      const type = classifyType(finalName);
       await db.insert(entitiesTable).values({
-        name: cleanName,
+        name: finalName,
         type,
         sourceRegistries: JSON.stringify(["web-discovery"]),
         bayesianScore: 0.3,
@@ -715,7 +716,7 @@ export async function runBroadDiscovery(options: {
         knownResidences: null,
         contactConfidence: 0,
       } as any).onConflictDoNothing();
-      existingNames.add(name.toLowerCase().replace(/[^a-z]/g, "")); // prevent same-run dups
+       existingNames.add(finalName.toLowerCase().replace(/[^a-z]/g, "")); // prevent same-run dups
       inserted++;
     } catch (err: any) {
       logger.debug({ err: err?.message, name }, "broad-discovery insert error (non-fatal)");

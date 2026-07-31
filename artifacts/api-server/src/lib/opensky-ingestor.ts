@@ -175,13 +175,8 @@ export async function runOpenSkyEnrichment(
         })
         .where(sql`${assetsTable.id} = ${asset.id}`);
 
-      // If we have an owner entity, set isHot=true (active jet = hot lead)
-      if (asset.ownerEntityId) {
-        await db
-          .update(entitiesTable)
-          .set({ isHot: true })
-          .where(sql`${entitiesTable.id} = ${asset.ownerEntityId}`);
-      }
+      // Live flight activity contributes to Signal only. It must not create an
+      // Access-hot lead without a validated person-level contact vector.
 
       updated++;
 
