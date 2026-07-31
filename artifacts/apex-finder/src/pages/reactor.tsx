@@ -375,6 +375,92 @@ function Meter({ label, value, max, color }: { label:string; value:number; max:n
   );
 }
 
+function QuickStat({ label, value, color, compact = false }: {
+  label: string;
+  value: number | string;
+  color: string;
+  compact?: boolean;
+}) {
+  return (
+    <div style={{
+      minWidth:0,
+      padding:compact ? "4px 6px" : "5px 9px",
+      border:`1px solid ${color}28`,
+      borderRadius:4,
+      background:`${color}08`,
+      display:"flex", flexDirection:"column", gap:2,
+    }}>
+      <span style={{
+        fontSize:compact ? 5.5 : 6.5, letterSpacing:"0.14em",
+        color:"#526b86", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+      }}>
+        {label}
+      </span>
+      <span style={{
+        fontSize:compact ? 11 : 13, fontWeight:700, lineHeight:1,
+        color, fontVariantNumeric:"tabular-nums",
+      }}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function QuickStats({ totalEntities, hotCount, totalAssets, sessionCount, pitchCount, compact = false }: {
+  totalEntities: number;
+  hotCount: number;
+  totalAssets: number;
+  sessionCount: number;
+  pitchCount: number;
+  compact?: boolean;
+}) {
+  return (
+    <div style={{
+      display:"grid",
+      gridTemplateColumns:compact ? "repeat(4, minmax(0, 1fr))" : "repeat(5, minmax(72px, 1fr))",
+      gap:compact ? 4 : 6,
+      minWidth:0,
+      flex:compact ? undefined : 1,
+    }}>
+      <QuickStat label="ENTITIES" value={totalEntities} color="#38bdf8" compact={compact} />
+      <QuickStat label="HOT LEADS" value={hotCount} color="#a3e635" compact={compact} />
+      <QuickStat label="ASSETS" value={totalAssets} color="#22d3ee" compact={compact} />
+      <QuickStat label="RESEARCH" value={sessionCount} color="#a78bfa" compact={compact} />
+      {!compact && <QuickStat label="OUTREACH" value={pitchCount} color="#fbbf24" />}
+    </div>
+  );
+}
+
+function LiveHeaderDetail({ isLive, atlasState, liveLabel, livePhaseDetail, compact = false }: {
+  isLive: boolean;
+  atlasState?: AtlasLiveState | null;
+  liveLabel?: string;
+  livePhaseDetail?: string;
+  compact?: boolean;
+}) {
+  if (!isLive && !atlasState) return null;
+  const detail = atlasState?.detail || livePhaseDetail || liveLabel || "Processing live research";
+  return (
+    <div style={{
+      display:"flex", alignItems:"center", gap:6, minWidth:0,
+      padding:compact ? "4px 6px" : "4px 8px",
+      border:`1px solid #22d3ee30`, borderRadius:4, background:"#22d3ee08",
+    }}>
+      <span style={{
+        width:5, height:5, borderRadius:"50%", flexShrink:0,
+        background:"#22d3ee", boxShadow:"0 0 7px #22d3ee",
+        animation:"blink .8s ease-in-out infinite",
+      }} />
+      <span style={{
+        fontSize:compact ? 6 : 7, letterSpacing:"0.08em", color:"#22d3ee",
+        overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+      }}>
+        {detail}
+      </span>
+    </div>
+  );
+}
+
 // ── Mobile single node card ───────────────────────────────────────────────────
 function MobileNodeCard({ n, on, dim, status = "idle", compact = false }: { n: NodeDef; on: boolean; dim?: boolean; status?: RodStatus; compact?: boolean }) {
   const isReactor = n.type === "reactor";
@@ -552,9 +638,11 @@ function EntityWorkbench({ state, liveNodes, compact = false }: {
 }
 
 // ── Mobile layout ─────────────────────────────────────────────────────────────
-function MobileReactor({ sessions, totalEntities, loading, onRefresh, syncing, liveNodes, liveLabel, livePhaseDetail, atlasState, exhaustedKeys = [] }: {
+function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading, onRefresh, syncing, liveNodes, liveLabel, livePhaseDetail, atlasState, exhaustedKeys = [] }: {
   sessions: ResearchSession[];
   totalEntities: number;
+  hotCount: number;
+  totalAssets: number;
   loading: boolean;
   onRefresh: () => void;
   syncing: boolean;
@@ -600,48 +688,49 @@ function MobileReactor({ sessions, totalEntities, loading, onRefresh, syncing, l
 
       {/* ── Header ── */}
       <header style={{
-        padding:"10px 14px", borderBottom:"1px solid #192840", flexShrink:0,
-        display:"flex", alignItems:"center", gap:10,
+        padding:"10px 12px", borderBottom:"1px solid #192840", flexShrink:0,
+        display:"flex", flexDirection:"column", alignItems:"stretch", gap:8,
         background:"rgba(11,17,32,0.95)",
       }}>
-        {/* Nuclear icon */}
-        <span style={{
-          fontSize:32, lineHeight:1, flexShrink:0,
-          color: hasSessions ? "#a3e635" : "#253850",
-          textShadow: hasSessions ? "0 0 12px #a3e63544" : "none",
-          animation: hasSessions ? "breathe 3s ease-in-out infinite" : "none",
-          transition:"all 0.4s",
-        }}>☢</span>
+        <div style={{ display:"flex", alignItems:"center", gap:10, minWidth:0 }}>
+          {/* Nuclear icon */}
+          <span style={{
+            fontSize:32, lineHeight:1, flexShrink:0,
+            color: hasSessions ? "#a3e635" : "#253850",
+            textShadow: hasSessions ? "0 0 12px #a3e63544" : "none",
+            animation: hasSessions ? "breathe 3s ease-in-out infinite" : "none",
+            transition:"all 0.4s",
+          }}>☢</span>
 
-        <div style={{ flex:1, minWidth:0 }}>
-          <div style={{
-            fontSize:10, fontWeight:700, letterSpacing:"0.18em", color:"#e8e0cc",
-            overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
-          }}>
-            INTELLIGENCE REACTOR
-          </div>
-          <div style={{ fontSize:8, letterSpacing:"0.12em", color:"#3a5070", marginTop:1 }}>
-            APEX ATLAS  ·  UCT RESEARCH ENGINE
-          </div>
-        </div>
-
-        <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:3, flexShrink:0 }}>
-          <div style={{ display:"flex", alignItems:"center", gap:5 }}>
+          <div style={{ flex:1, minWidth:0 }}>
             <div style={{
-              width:6, height:6, borderRadius:"50%",
-              background: isLive ? "#22d3ee" : (hasSessions ? "#a3e635" : "#253850"),
-              boxShadow: isLive ? "0 0 8px #22d3ee" : (hasSessions ? "0 0 6px #a3e635" : "none"),
-              animation: (isLive || hasSessions) ? "blink 1.1s ease-in-out infinite" : "none",
-            }} />
-            <span style={{ fontSize:8, letterSpacing:"0.14em", color: isLive ? "#22d3ee" : (hasSessions ? "#a3e635" : "#3a5070") }}>
-              {isLive ? "LIVE" : (hasSessions ? "OPERATIONAL" : "STANDBY")}
-            </span>
-          </div>
-          <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-            <div style={{ fontSize:14, fontWeight:700, color: hasSessions ? "#a3e635" : "#253850", lineHeight:1 }}>
-              {String(sessions.length).padStart(4, "0")}
+              fontSize:10, fontWeight:700, letterSpacing:"0.18em", color:"#e8e0cc",
+              overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+            }}>
+              INTELLIGENCE REACTOR
             </div>
-            {/* Sync button */}
+            <div style={{ fontSize:8, letterSpacing:"0.12em", color:"#3a5070", marginTop:1 }}>
+              APEX ATLAS  ·  UCT RESEARCH ENGINE
+            </div>
+          </div>
+
+          <div style={{ display:"flex", alignItems:"center", gap:6, flexShrink:0 }}>
+            <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:3 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:5 }}>
+                <div style={{
+                  width:6, height:6, borderRadius:"50%",
+                  background: isLive ? "#22d3ee" : (hasSessions ? "#a3e635" : "#253850"),
+                  boxShadow: isLive ? "0 0 8px #22d3ee" : (hasSessions ? "0 0 6px #a3e635" : "none"),
+                  animation: (isLive || hasSessions) ? "blink 1.1s ease-in-out infinite" : "none",
+                }} />
+                <span style={{ fontSize:8, letterSpacing:"0.14em", color: isLive ? "#22d3ee" : (hasSessions ? "#a3e635" : "#3a5070") }}>
+                  {isLive ? "LIVE" : (hasSessions ? "OPERATIONAL" : "STANDBY")}
+                </span>
+              </div>
+              <span style={{ fontSize:7, letterSpacing:"0.1em", color:"#526b86" }}>
+                {atlasState ? `PHASE ${atlasState.phase}/10` : "READY"}
+              </span>
+            </div>
             <button
               onClick={onRefresh}
               title="Sync"
@@ -661,6 +750,25 @@ function MobileReactor({ sessions, totalEntities, loading, onRefresh, syncing, l
             </button>
           </div>
         </div>
+
+        <AtlasPhaseStrip state={atlasState} compact />
+        <QuickStats
+          totalEntities={totalEntities}
+          hotCount={hotCount}
+          totalAssets={totalAssets}
+          sessionCount={sessions.length}
+          pitchCount={pitchCount}
+          compact
+        />
+        <EntityWorkbench state={atlasState} liveNodes={liveNodes} compact />
+        {!atlasState && (
+          <LiveHeaderDetail
+            isLive={isLive}
+            liveLabel={liveLabel}
+            livePhaseDetail={livePhaseDetail}
+            compact
+          />
+        )}
       </header>
 
       {/* ── Scrollable body ── */}
@@ -685,11 +793,6 @@ function MobileReactor({ sessions, totalEntities, loading, onRefresh, syncing, l
           </div>
         ) : (
           <>
-             <div style={{ padding:"12px 12px 0", display:"flex", flexDirection:"column", gap:8 }}>
-               <AtlasPhaseStrip state={atlasState} />
-               <EntityWorkbench state={atlasState} liveNodes={liveNodes} />
-             </div>
-
              {/* ── Complete rod wall: the same route map remains visible on mobile ── */}
             <div style={{ padding:"12px 10px 0", flexShrink:0 }}>
               <div style={{
@@ -1018,38 +1121,18 @@ function MobileReactor({ sessions, totalEntities, loading, onRefresh, syncing, l
         )}
       </div>
 
-      {/* ── Footer meters (real data) ── */}
-      <footer style={{
-        borderTop:"1px solid #192840", flexShrink:0,
-        background:"rgba(11,17,32,0.95)",
-        padding:"10px 0",
-        display:"flex", alignItems:"center",
-      }}>
-        <Meter label="ENTITIES" value={totalEntities} max={Math.max(totalEntities, 50)} color="#38bdf8" />
-        <div style={{ width:1, height:32, background:"#192840", flexShrink:0 }} />
-        {(() => {
-          // New format [N/21] — show step progress while Atlas runs
-          const m21  = liveLabel?.match(/\[(\d+)\/(\d+)\]/);
-          // Legacy format: Atlas Phase X/10
-          const mOld = !m21 ? liveLabel?.match(/Atlas Phase (\d+)\/(\d+)/) : null;
-          const step  = m21  ? parseInt(m21[1],  10) : mOld ? parseInt(mOld[1], 10) : null;
-          const total = m21  ? parseInt(m21[2],  10) : mOld ? parseInt(mOld[2], 10) : 21;
-          return isLive && step != null
-            ? <Meter label="STEP"  value={step}  max={total} color="#a3e635" />
-            : <Meter label="RUNS"  value={sessions.length} max={Math.max(sessions.length, 10)} color="#a3e635" />;
-        })()}
-        <div style={{ width:1, height:32, background:"#192840", flexShrink:0 }} />
-        <Meter label="OUTREACH" value={pitchCount} max={Math.max(sessions.length, 5)} color="#22d3ee" />
-      </footer>
     </div>
   );
 }
 
 // ── Desktop layout ────────────────────────────────────────────────────────────
-function DesktopReactor({ liveNodes, liveLabel, atlasState, isLive, totalEntities, hotCount, totalAssets }: {
+function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, isLive, totalEntities, hotCount, totalAssets, sessionCount, pitchCount, latestStatus }: {
   liveNodes?: Set<string>; liveLabel?: string; isLive?: boolean;
+  livePhaseDetail?: string;
   atlasState?: AtlasLiveState | null;
   totalEntities?: number; hotCount?: number; totalAssets?: number;
+  sessionCount?: number; pitchCount?: number;
+  latestStatus?: string;
 }) {
   // Only live job state lights rods. Standby never simulates an entity moving
   // through the reactor.
@@ -1082,59 +1165,79 @@ function DesktopReactor({ liveNodes, liveLabel, atlasState, isLive, totalEntitie
         animation:"scanline 8s linear infinite",
       }} />
 
-      {/* Header */}
+      {/* Header: all quick progress stays above the reactor canvas. */}
       <header style={{
-        height:58, borderBottom:"1px solid #192840", zIndex:20, flexShrink:0,
-        display:"flex", alignItems:"center", padding:"0 24px", gap:16,
+        height:112, borderBottom:"1px solid #192840", zIndex:20, flexShrink:0,
+        display:"flex", flexDirection:"column", alignItems:"stretch",
+        justifyContent:"center", padding:"8px 24px", gap:7,
         background:"rgba(11,17,32,0.92)", backdropFilter:"blur(8px)",
       }}>
-        <div style={{
-          width:38, height:38, borderRadius:"50%", flexShrink:0,
-          border:`2px solid ${adaptive ? "#22d3ee" : "#a3e635"}`,
-          display:"flex", alignItems:"center", justifyContent:"center",
-          lineHeight:1,
-          color: adaptive ? "#22d3ee" : "#a3e635",
-          fontSize:20,
-          boxShadow:`0 0 14px ${adaptive ? "#22d3ee55" : "#a3e63555"}`,
-          animation: adaptive ? "pulseGlow 0.7s ease-in-out infinite" : "breathe 3s ease-in-out infinite",
-          transition:"all 0.4s",
-        }}>
-          <span style={{ lineHeight:1, display:"block", marginTop:1 }}>☢</span>
-        </div>
-         <div style={{ minWidth:260 }}>
-          <div style={{ fontSize:13, fontWeight:700, letterSpacing:"0.2em", color:"#e8e0cc" }}>
-            APEX ATLAS  —  INTELLIGENCE REACTOR
-          </div>
-          <div style={{ fontSize:8.5, letterSpacing:"0.16em", color:"#3a5070", marginTop:2 }}>
-            ADAPTIVE RESEARCH ENGINE  ·  UNIT ALPHA  ·  TARGET-AWARE MODE
-          </div>
-        </div>
-         <div style={{ width:430, marginLeft:18 }}>
-           <AtlasPhaseStrip state={atlasState} compact />
-         </div>
-        <div style={{ marginLeft:"auto", display:"flex", alignItems:"center", gap:28 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:16, minWidth:0 }}>
           <div style={{
-            padding:"4px 12px", borderRadius:4,
-            border:`1px solid ${adaptive ? "#22d3ee40" : "#a3e63530"}`,
-            background: adaptive ? "#22d3ee0e" : "#a3e6350a",
-            display:"flex", alignItems:"center", gap:7,
+            width:34, height:34, borderRadius:"50%", flexShrink:0,
+            border:`2px solid ${adaptive ? "#22d3ee" : "#a3e635"}`,
+            display:"flex", alignItems:"center", justifyContent:"center",
+            lineHeight:1, color: adaptive ? "#22d3ee" : "#a3e635", fontSize:18,
+            boxShadow:`0 0 14px ${adaptive ? "#22d3ee55" : "#a3e63555"}`,
+            animation: adaptive ? "pulseGlow 0.7s ease-in-out infinite" : "breathe 3s ease-in-out infinite",
           }}>
-            <div style={{
-              width:7, height:7, borderRadius:"50%",
-              background: adaptive ? "#22d3ee" : "#a3e635",
-              boxShadow:`0 0 8px ${adaptive ? "#22d3ee" : "#a3e635"}`,
-              animation:"blink 1.1s ease-in-out infinite",
-            }} />
-            <span style={{ fontSize:8.5, letterSpacing:"0.2em", color: adaptive ? "#22d3ee" : "#a3e635" }}>
-              {isLive ? "ATLAS LIVE" : adaptive ? "ADAPTIVE LOOP ACTIVE" : "NOMINAL"}
-            </span>
+            <span style={{ lineHeight:1, display:"block", marginTop:1 }}>☢</span>
           </div>
-           <div style={{ textAlign:"right" }}>
-             <div style={{ fontSize:8, letterSpacing:"0.18em", color:"#3a5070" }}>ENTITY FLOW</div>
-             <div style={{ fontSize:11, fontWeight:700, color:adaptive ? "#22d3ee" : "#3a5070", lineHeight:1, marginTop:3, letterSpacing:"0.12em" }}>
-               {atlasState ? `${atlasState.phase}/10` : "IDLE"}
+          <div style={{ minWidth:230, flexShrink:0 }}>
+            <div style={{ fontSize:12, fontWeight:700, letterSpacing:"0.2em", color:"#e8e0cc" }}>
+              APEX ATLAS  —  INTELLIGENCE REACTOR
+            </div>
+            <div style={{ fontSize:8, letterSpacing:"0.16em", color:"#3a5070", marginTop:2 }}>
+              ADAPTIVE RESEARCH ENGINE  ·  TARGET-AWARE MODE
             </div>
           </div>
+          <div style={{ flex:1, minWidth:260 }}>
+            <AtlasPhaseStrip state={atlasState} compact />
+          </div>
+          <div style={{ display:"flex", alignItems:"center", gap:16, flexShrink:0 }}>
+            <div style={{
+              padding:"4px 10px", borderRadius:4,
+              border:`1px solid ${isLive ? "#22d3ee40" : "#a3e63530"}`,
+              background: isLive ? "#22d3ee0e" : "#a3e6350a",
+              display:"flex", alignItems:"center", gap:6,
+            }}>
+              <div style={{
+                width:7, height:7, borderRadius:"50%",
+                background: isLive ? "#22d3ee" : "#a3e635",
+                boxShadow:`0 0 8px ${isLive ? "#22d3ee" : "#a3e635"}`,
+                animation:"blink 1.1s ease-in-out infinite",
+              }} />
+              <span style={{ fontSize:8, letterSpacing:"0.18em", color: isLive ? "#22d3ee" : "#a3e635" }}>
+                {isLive ? "ATLAS LIVE" : "NOMINAL"}
+              </span>
+            </div>
+            <div style={{ textAlign:"right" }}>
+              <div style={{ fontSize:7, letterSpacing:"0.16em", color:"#3a5070" }}>ENTITY FLOW</div>
+              <div style={{ fontSize:11, fontWeight:700, color:isLive ? "#22d3ee" : "#3a5070", lineHeight:1, marginTop:3, letterSpacing:"0.12em" }}>
+                {atlasState ? `${atlasState.phase}/10` : "IDLE"}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style={{ display:"flex", alignItems:"center", gap:10, minWidth:0 }}>
+          <div style={{ flex:1, minWidth:0 }}>
+            <QuickStats
+              totalEntities={totalEntities ?? 0}
+              hotCount={hotCount ?? 0}
+              totalAssets={totalAssets ?? 0}
+              sessionCount={sessionCount ?? 0}
+              pitchCount={pitchCount ?? 0}
+            />
+          </div>
+          <EntityWorkbench state={atlasState} liveNodes={liveNodes} compact />
+          {!atlasState && (
+            <LiveHeaderDetail
+              isLive={Boolean(isLive)}
+              liveLabel={liveLabel}
+              livePhaseDetail={livePhaseDetail}
+              compact
+            />
+          )}
         </div>
       </header>
 
@@ -1273,49 +1376,7 @@ function DesktopReactor({ liveNodes, liveLabel, atlasState, isLive, totalEntitie
           }} />
         ))}
 
-        {/* Status ticker */}
-        <div style={{
-          position:"absolute", bottom:10, left:28, right:28,
-          fontSize:9, letterSpacing:"0.14em",
-          color: adaptive ? "#22d3ee" : "#3a5070",
-          zIndex:3,
-          animation: adaptive ? "blink 0.9s ease-in-out infinite" : "none",
-          transition:"color 0.4s",
-          whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis",
-        }}>
-          {isLive ? "▶  " : "›  "}{(isLive && liveLabel) ? liveLabel : "Standby — no entity is currently moving through the reactor"}
-        </div>
       </div>
-
-      {/* Footer */}
-      <footer style={{
-        height:62, borderTop:"1px solid #192840", zIndex:20, flexShrink:0,
-        display:"flex", alignItems:"center",
-        background:"rgba(11,17,32,0.95)", backdropFilter:"blur(8px)",
-      }}>
-        <Meter label="ENTITIES IN DB"  value={isLive ? (totalEntities ?? 0)  : 0}  max={isLive ? Math.max(totalEntities ?? 80, 80)  : 80}  color="#38bdf8" />
-        <div style={{ width:1, height:36, background:"#192840" }} />
-        <Meter label="HOT LEADS"       value={isLive ? (hotCount ?? 0)       : 0} max={isLive ? Math.max(hotCount ?? 30, 30)       : 30}  color="#a3e635" />
-        <div style={{ width:1, height:36, background:"#192840" }} />
-        <Meter label="ASSETS FOUND"    value={isLive ? (totalAssets ?? 0)       : 0}    max={isLive ? Math.max(totalAssets ?? 20, 20)     : 20}  color="#22d3ee" />
-        <div style={{ width:1, height:36, background:"#192840" }} />
-        <div style={{ padding:"0 28px", display:"flex", flexDirection:"column", gap:4, minWidth:160 }}>
-          <span style={{ fontSize:8, letterSpacing:"0.18em", color:"#3a5070" }}>REACTOR STATUS</span>
-          <div style={{ display:"flex", alignItems:"center", gap:7 }}>
-            <div style={{
-              width:8, height:8, borderRadius:"50%",
-              background: adaptive ? "#22d3ee" : "#a3e635",
-              boxShadow:`0 0 10px ${adaptive?"#22d3ee":"#a3e635"}`,
-            }} />
-            <span style={{
-              fontSize:11, fontWeight:700, letterSpacing:"0.16em",
-              color: adaptive ? "#22d3ee" : "#a3e635",
-            }}>
-              {adaptive ? "ADAPTIVE" : "NOMINAL"}
-            </span>
-          </div>
-        </div>
-      </footer>
 
       <style>{KEYFRAMES}</style>
     </div>
@@ -1536,6 +1597,8 @@ export default function IntelligenceReactorPage() {
         <MobileReactor
           sessions={sessions}
           totalEntities={totalEntities}
+          hotCount={hotCount}
+          totalAssets={totalAssets}
           loading={loadingData}
           onRefresh={() => fetchData(true)}
           syncing={syncing}
@@ -1558,9 +1621,11 @@ export default function IntelligenceReactorPage() {
       <div style={{ position:"relative", overflow:"hidden", width:"100%", height:"100%" }}>
         <div style={{ transformOrigin:"top left", transform:`scale(${scale})`, width:1600, height:960 }}>
         <DesktopReactor
-          liveNodes={liveNodes} liveLabel={liveLabel} atlasState={atlasState}
+          liveNodes={liveNodes} liveLabel={liveLabel} livePhaseDetail={livePhaseDetail} atlasState={atlasState}
           isLive={liveNodes.size > 0 || Boolean(atlasState)}
           totalEntities={totalEntities} hotCount={hotCount} totalAssets={totalAssets}
+          sessionCount={sessions.length}
+          pitchCount={sessions.filter(s => Boolean(s.generatedPitch)).length}
         />
         </div>
       </div>

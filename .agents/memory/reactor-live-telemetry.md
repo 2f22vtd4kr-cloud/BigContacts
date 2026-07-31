@@ -8,3 +8,9 @@ Atlas uses numbered checkpoints 0 through 10, so the UI should present eleven ch
 **Why:** The orchestrator can overwrite generic job progress with bounded entity-batch counters while the overall phase is unchanged. Inferring one from the other makes the reactor show misleading phase numbers or entity activity.
 
 **How to apply:** Keep phase state, entity-batch state, and live rod endpoints as distinct inputs. Historical sessions are output records, not reactor activity; idle mode must not animate waves or light synthesis rods. Feedback routes should light only when a live endpoint reports activity.
+
+The Reactor's quick operational summary belongs in a persistent responsive header on both desktop and mobile. It should include the current checkpoint/live detail plus real database totals, hot leads, assets, research sessions, and outreach count; the idle state must not replace those totals with zeroes.
+
+**Why:** Operators need progress and dataset context without scrolling, and zeroing valid totals during standby makes the UI look disconnected from the actual workspace.
+
+**How to apply:** Use compact metric chips or a two-row mobile summary, keep the pipeline visualization below, and remove duplicate footer meters once the header carries the same information.
