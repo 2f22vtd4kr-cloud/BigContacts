@@ -16,6 +16,7 @@ import {
   Users,
 } from "lucide-react";
 import { Link } from "wouter";
+import { entityBio, entityEvidenceLabel, entityInvolvement } from "@/lib/utils";
 
 function scorePercent(score?: number | null) {
   if (score == null || Number.isNaN(score)) return "—";
@@ -94,6 +95,8 @@ function LeadCard({ lead, index }: { lead: any; index: number }) {
   const access = lead.accessScore ?? 0;
   const confidence = (lead.contactConfidence ?? 0) / 100;
   const contactReady = access >= 0.55;
+  const bio = entityBio(lead);
+  const involvement = entityInvolvement({ ...lead, signal: lead.signal, assetCount: lead.assetCount });
   return (
     <Link
       href={`/profile/${lead.entityId}`}
@@ -119,6 +122,19 @@ function LeadCard({ lead, index }: { lead: any; index: number }) {
             Priority
           </span>
         )}
+      </div>
+
+      <div className="relative mt-4 space-y-2.5">
+        <div className="rounded-lg border border-primary/15 bg-primary/[0.035] px-3 py-2.5">
+          <div className="font-mono text-[8px] uppercase tracking-[0.14em] text-primary/75">Profile brief</div>
+          <p className="mt-1 text-[11px] leading-5 text-foreground/80">
+            {bio ?? "No public biography recorded yet."}
+          </p>
+        </div>
+        <div className="flex items-start gap-2 text-[10px] leading-4 text-muted-foreground">
+          <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-secondary" />
+          <span><span className="font-mono text-[8px] uppercase tracking-[0.12em] text-muted-foreground/65">Involved in </span>{involvement ?? "No involvement signal recorded yet."}</span>
+        </div>
       </div>
 
       <div className="relative mt-6 grid grid-cols-2 gap-3">
@@ -149,7 +165,7 @@ function LeadCard({ lead, index }: { lead: any; index: number }) {
       </div>
       <div className="relative mt-3 flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.08em] text-muted-foreground/70">
         <span className="h-1.5 w-1.5 rounded-full bg-secondary" />
-        {lead.signal || "Registry signal"} · {dateLabel(lead.signalDate)}
+        {entityEvidenceLabel(lead)} · {dateLabel(lead.signalDate)}
       </div>
     </Link>
   );

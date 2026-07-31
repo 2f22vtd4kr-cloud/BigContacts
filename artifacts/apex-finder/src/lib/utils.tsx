@@ -147,3 +147,84 @@ export function formatSignal(signal: string | null | undefined): string {
     .replace(/\.$/, "")                                   // trailing period
     .trim();
 }
+
+type EntityNarrative = {
+  type?: string | null;
+  nationality?: string | null;
+  knownResidences?: string | null;
+  notes?: string | null;
+  linkedinHeadline?: string | null;
+  twitterBio?: string | null;
+  telegramBio?: string | null;
+  personalWebsite?: string | null;
+  foundationName?: string | null;
+  sourceRegistries?: string | string[] | null;
+  signal?: string | null;
+  assetCount?: number | null;
+  assetCategories?: string[] | null;
+  relationshipCount?: number | null;
+};
+
+function narrativeText(value: unknown, max = 220): string | null {
+  if (typeof value !== "string") return null;
+  const text = value.replace(/\s+/g, " ").replace(/^[-–—|:]\s*/, "").trim();
+  if (!text || text.length < 4) return null;
+  return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;
+}
+
+export function parseEntityRegistries(value: EntityNarrative["sourceRegistries"]): string[] {
+  if (Array.isArray(value)) return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) return parsed.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+  } catch {
+    return value.split(",").map((item) => item.trim()).filter(Boolean);
+  }
+  return [];
+}
+
+export function entityBio(entity: EntityNarrative): string | null {
+  return narrativeText(entity.twitterBio)
+    ?? narrativeText(entity.telegramBio)
+    ?? narrativeText(entity.linkedinHeadline)
+    ?? null;
+}
+
+const INVOLVEMENT_LABELS: Array<[RegExp, string]> = [
+  [/edgar|sec/i, "public-company ownership or governance"],
+  [/faa|aviation|aircraft/i, "private aviation"],
+  [/land.?reg|hmlr|property|real.?estate/i, "high-value property"],
+  [/companies.?house|house.?uk/i, "UK company directorships"],
+  [/brreg|norway/i, "Norwegian company directorships"],
+  [/bodacc|france/i, "French corporate filings"],
+  [/ares|czech/i, "Czech corporate filings"],
+  [/foundation|charity/i, "philanthropic or foundation activity"],
+  [/opensky|flight/i, "live aviation activity"],
+];
+
+export function entityInvolvement(entity: EntityNarrative): string | null {
+  const signal = narrativeText(entity.signal, 180);
+  if (signal) return signal;
+  const foundation = narrativeText(entity.foundationName, 150);
+  if (foundation) return `Foundation activity: ${foundation}`;
+  const categories = (entity.assetCategories ?? []).filter(Boolean);
+  if (categories.length > 0) {
+    const labels = Array.from(new Set(categories)).slice(0, 3).map((category) => category.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase());
+    return `${labels.join(", ")} record${labels.length === 1 ? "" : "s"} linked to this profile`;
+  }
+  const registry = parseEntityRegistries(entity.sourceRegistries);
+  const labels = Array.from(new Set(
+    registry.flatMap((source) => INVOLVEMENT_LABELS.filter(([pattern]) => pattern.test(source)).map(([, label]) => label)),
+  ));
+  if (labels.length > 0) return labels.slice(0, 2).join(" · ");
+  if ((entity.assetCount ?? 0) > 0) return `${entity.assetCount} public asset${entity.assetCount === 1 ? "" : "s"} linked to this profile`;
+  return null;
+}
+
+export function entityEvidenceLabel(entity: EntityNarrative): string {
+  const registries = parseEntityRegistries(entity.sourceRegistries);
+  if (registries.length > 0) return `${registries.length} public source${registries.length === 1 ? "" : "s"}`;
+  if (entity.relationshipCount) return `${entity.relationshipCount} public connection${entity.relationshipCount === 1 ? "" : "s"}`;
+  return "Evidence detail pending";
+}

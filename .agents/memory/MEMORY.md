@@ -49,3 +49,5 @@
 - [Python tools mandate](python-tools-mandate.md) — Holehe + Maigret MUST be installed before research; enforced in post-merge.sh (step 4) + startup.ts auto-install + verified on every boot
 - [Flexible pipeline architecture](flexible-pipeline-architecture.md) — web-OSINT first, Maigret+Holehe auto-wired inside web-osint-enrich, web-OSINT re-fires if Maigret finds 3+ platforms; never one-way
 - [Atlas orchestrator](atlas-orchestrator.md) — POST /api/ingest/atlas-run; 10-phase pipeline wiring every tool; lib/atlas-orchestrator.ts + routes/atlas.ts; phase-j.ts exports runPhaseJBatch
+- [Reactor live telemetry](reactor-live-telemetry.md) — Keep Atlas phase progress separate from entity-batch progress; idle UI must never infer live work from historical sessions or scripted waves
+- [Evidence-led entity cards](evidence-led-entity-cards.md) — Show bios and involvement only from stored public evidence; label missing narrative fields instead of inferring them

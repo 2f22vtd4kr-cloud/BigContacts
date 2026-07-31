@@ -953,6 +953,13 @@ components:
         crmStatus: { type: ["string", "null"] }
         hasResearchSession: { type: boolean }
         nationality: { type: ["string", "null"] }
+        contactOutcome: { type: ["string", "null"] }
+        contactConfidence: { type: ["integer", "null"] }
+        linkedinHeadline: { type: ["string", "null"] }
+        twitterBio: { type: ["string", "null"] }
+        telegramBio: { type: ["string", "null"] }
+        personalWebsite: { type: ["string", "null"] }
+        foundationName: { type: ["string", "null"] }
 
     DashboardStats:
       type: object

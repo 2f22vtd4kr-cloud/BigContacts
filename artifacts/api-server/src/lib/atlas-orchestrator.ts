@@ -22,7 +22,7 @@
 import { db, entitiesTable, assetsTable, contactEvidenceTable } from "@workspace/db";
 import { sql, eq, and, desc, inArray } from "drizzle-orm";
 import { logger } from "./logger";
-import { updateJob, createJob, setActiveJob } from "./job-queue";
+import { updateJob, clearJobFields, createJob, setActiveJob } from "./job-queue";
 import { runWesternHnwiIngestion } from "./western-hnwi-ingestion";
 import { runFaaIngestion } from "./faa-ingestor";
 import { runLandRegistryIngestion } from "./land-registry-ingestor";
@@ -235,6 +235,9 @@ async function runEntityBatch<T>(
       progress: i,
       total: entities.length,
       message: `${phase}: ${slice.map(e => e.name).join(", ")}…`,
+      entityProgress: i,
+      entityTotal: entities.length,
+      entityNames: JSON.stringify(slice.map(e => e.name)),
     });
 
     await Promise.allSettled(
@@ -249,6 +252,11 @@ async function runEntityBatch<T>(
         }
       }),
     );
+    await updateJob(atlasJobId, {
+      entityProgress: i + slice.length,
+      entityTotal: entities.length,
+      entityNames: JSON.stringify(slice.map(e => e.name)),
+    });
   }
 
   return { ok, err: errCount };
@@ -730,7 +738,13 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
       progress: phaseNum ?? 0,
       total: 10,
       message: msg,
+      atlasPhase: phaseNum ?? 0,
+      atlasPhaseTotal: 10,
+      entityProgress: undefined,
+      entityTotal: undefined,
+      entityNames: undefined,
     });
+    await clearJobFields(atlasJobId, ["entityProgress", "entityTotal", "entityNames"]);
   }
 
   // ── Phase 0: Pre-run cross-references ──────────────────────────────────────
@@ -1186,6 +1200,8 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
   await updateJob(atlasJobId, {
     status: "done",
     progress: 10, total: 10,
+    atlasPhase: 10,
+    atlasPhaseTotal: 10,
     inserted: totalIngested,
     finishedAt: new Date().toISOString(),
     message: finalMsg,

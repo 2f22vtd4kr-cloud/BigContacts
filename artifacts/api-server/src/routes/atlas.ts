@@ -50,6 +50,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
   await updateJob(atlasJobId, {
     status: "running",
     progress: 0, total: 10,
+    atlasPhase: 0, atlasPhaseTotal: 10,
     message: "Atlas pipeline initializing — 10 phases queued…",
   });
 
@@ -91,18 +92,20 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
   res.status(202).json({
     jobId: atlasJobId,
     pollUrl: `/api/ingest/job/${atlasJobId}`,
+    // There are eleven numbered checkpoints (0 through 10). `total: 10`
+    // remains the phase maximum, while the UI renders all eleven checkpoints.
     phases: [
-      "0 — FAA aircraft + Western HNWI (EDGAR/CH/BRREG)",
-      "1 — OCCRP Aleph + OpenSky live flights + CH Company Officers",
-      "2 — CH contact enrichment + OpenOwnership BODS + Foundation filings",
-      "3 — Notes population + EDGAR stock assets + live-source markers",
-      "4 — In-house OSINT (Wikidata/GitHub/RDAP/DNS/Gravatar/ProPublica990)",
-      "5 — Social discovery (LinkedIn/Twitter/Instagram) + Messenger (Telegram) + Broad discovery",
-      "6 — AI OSINT: Perplexity + Gemini + Tavily + Exa + Groq → Maigret (3k sites) + Holehe (120 services) → flexible re-run",
-      "7 — Forensic: ICIJ Offshore Leaks + Whoxy WHOIS + Equasis vessels + ADSB flight history",
-      "8 — Phase J: domain resolution + digital footprint + J6 attribution + J7 cooldowns + J8 graph-assisted",
-      "9 — Semantic embeddings + net worth backfill + contact outcomes + confidence recompute",
-      "10 — MCTS research on top hot leads",
+      "0 — Pre-run cross-references (OCCRP, OpenSky, Companies House, ownership)",
+      "1 — Discovery + full-circle entity enrichment loop",
+      "2 — Identity and contact evidence",
+      "3 — Metadata, notes, and registry assets",
+      "4 — In-house OSINT",
+      "5 — Social and messenger discovery",
+      "6 — AI OSINT + Maigret + Holehe",
+      "7 — Forensic cross-reference and asset discovery",
+      "8 — Phase J attribution and graph-assisted analysis",
+      "9 — Semantic embeddings, wealth, and confidence recompute",
+      "10 — MCTS research on reachable hot leads",
     ],
     options: opts,
     message: `Atlas pipeline started (job: ${atlasJobId}). Poll ${`/api/ingest/job/${atlasJobId}`} for progress.`,
