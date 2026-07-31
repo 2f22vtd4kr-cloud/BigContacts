@@ -708,7 +708,8 @@ function buildEntity(person: HarvestedPerson): { entity: InsertEntity; key: stri
       ...(person.companyName ? { companyName: person.companyName } : {}),
       ...person.rawMetadata,
     }),
-    isHot: person.signals.isLargeShareholder && person.signals.hasRecentFiling,
+    // Filing/shareholder evidence contributes to Signal, not personal access.
+    isHot: false,
   };
 
   return { entity, key };

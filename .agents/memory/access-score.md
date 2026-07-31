@@ -8,3 +8,9 @@ Access Score must remain separate from the Bayesian wealth/registry signal. It i
 **Why:** Users correctly identified that profiles labeled “100” could simultaneously say “not contactable,” which made the prioritization model untrustworthy.
 
 **How to apply:** Use Access for action queues, lead ranking, and contactability badges. Keep the Bayesian score as supporting research context and label it Signal, not Reach.
+
+Hot-lead status follows the same boundary: only a validated person-level direct email or phone can make a record hot; aircraft, property, filing, social-only, generic inbox, and switchboard evidence cannot.
+
+**Why:** A hot flag is used as an outreach-priority shortcut, so deriving it from wealth or registry activity creates the same false reachability claim as an inflated Access score.
+
+**How to apply:** Recompute hot status from sanitized direct-contact fields and organization type/source metadata whenever enrichment or maintenance runs.

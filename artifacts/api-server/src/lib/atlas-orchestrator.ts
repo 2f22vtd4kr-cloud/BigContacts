@@ -40,7 +40,8 @@ import { enrichWithEquasis } from "./equasis-enricher";
 import { enrichWithAdsbHistory } from "./adsbtrack-enricher";
 import { enrichWithOpenOwnership } from "./openownership-enricher";
 import { runHolehe, runMaigret } from "./python-tools";
-import { computeContactConfidence, computeContactOutcome } from "./contact-confidence";
+import { computeContactConfidence, computeContactOutcome, hasMeaningfulDirectContact } from "./contact-confidence";
+import { sanitizePublicEmail, sanitizePublicPhone, sanitizePublicSocialUrl } from "./contact-validation";
 import { contactCacheSet } from "./redis";
 import { runPhaseJBatch } from "../routes/phase-j";
 import { reachabilityOrderExpr } from "./reachability-rank";
@@ -329,21 +330,37 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
 
     if (aiHasSignal && aiResult) {
       const isCorpOrTrust = ["Corporation", "Corp", "Trust"].includes(entity.type);
-      const confidence = computeContactConfidence({ email: aiResult.email, phone: aiResult.phone, linkedinUrl: aiResult.linkedinUrl, knownResidences: entity.knownResidences });
+      const cleanEmail = sanitizePublicEmail(aiResult.email);
+      const cleanPhone = sanitizePublicPhone(aiResult.phone);
+      const cleanLinkedIn = sanitizePublicSocialUrl(aiResult.linkedinUrl, "linkedin", "person");
+      const cleanInstagram = sanitizePublicSocialUrl(aiResult.instagramUrl, "instagram", "person");
+      const cleanTwitter = sanitizePublicSocialUrl(aiResult.twitterUrl, "twitter", "person");
+      const confidence = computeContactConfidence({
+        type: entity.type,
+        email: cleanEmail, phone: cleanPhone, linkedinUrl: cleanLinkedIn,
+        instagramHandle: cleanInstagram, twitterHandle: cleanTwitter,
+        knownResidences: entity.knownResidences,
+      });
       await db.update(entitiesTable).set({
-        ...(aiResult.email        ? { email:          aiResult.email }        : {}),
-        ...(aiResult.phone        ? { phone:          aiResult.phone }        : {}),
-        ...(aiResult.linkedinUrl  ? { linkedinUrl:    aiResult.linkedinUrl }  : {}),
-        ...(aiResult.instagramUrl && !entity.instagramHandle && !isCorpOrTrust ? { instagramHandle: normalizeHandle(aiResult.instagramUrl) } : {}),
-        ...(aiResult.twitterUrl   && !entity.twitterHandle   && !isCorpOrTrust ? { twitterHandle:   normalizeHandle(aiResult.twitterUrl) }   : {}),
+        ...(cleanEmail        ? { email:          cleanEmail }        : {}),
+        ...(cleanPhone        ? { phone:          cleanPhone }        : {}),
+        ...(cleanLinkedIn     ? { linkedinUrl:    cleanLinkedIn }     : {}),
+        ...(cleanInstagram && !entity.instagramHandle && !isCorpOrTrust ? { instagramHandle: normalizeHandle(cleanInstagram) } : {}),
+        ...(cleanTwitter   && !entity.twitterHandle   && !isCorpOrTrust ? { twitterHandle:   normalizeHandle(cleanTwitter) }   : {}),
         contactConfidence: confidence, updatedAt: new Date(),
-        contactOutcome: computeContactOutcome({ email: aiResult.email, phone: aiResult.phone, linkedinUrl: aiResult.linkedinUrl }),
+        contactOutcome: computeContactOutcome({
+          email: cleanEmail,
+          phone: cleanPhone,
+          linkedinUrl: cleanLinkedIn,
+          twitterHandle: cleanTwitter,
+          instagramHandle: cleanInstagram,
+        }),
       }).where(eq(entitiesTable.id, id));
-      if (aiResult.email)        entity = { ...entity, email:          aiResult.email };
-      if (aiResult.phone)        entity = { ...entity, phone:          aiResult.phone };
-      if (aiResult.linkedinUrl)  entity = { ...entity, linkedinUrl:    aiResult.linkedinUrl };
-      if (aiResult.twitterUrl  && !entity.twitterHandle)   entity = { ...entity, twitterHandle:   normalizeHandle(aiResult.twitterUrl) };
-      if (aiResult.instagramUrl && !entity.instagramHandle) entity = { ...entity, instagramHandle: normalizeHandle(aiResult.instagramUrl) };
+      if (cleanEmail)        entity = { ...entity, email:          cleanEmail };
+      if (cleanPhone)        entity = { ...entity, phone:          cleanPhone };
+      if (cleanLinkedIn)     entity = { ...entity, linkedinUrl:    cleanLinkedIn };
+      if (cleanTwitter  && !entity.twitterHandle)   entity = { ...entity, twitterHandle:   normalizeHandle(cleanTwitter) };
+      if (cleanInstagram && !entity.instagramHandle) entity = { ...entity, instagramHandle: normalizeHandle(cleanInstagram) };
       if (aiResult.evidence?.length) {
         await db.insert(contactEvidenceTable).values(aiResult.evidence.map((ev: any) => ({
           entityId: id, vectorType: ev.vectorType, value: ev.value, source: ev.source,
@@ -544,6 +561,7 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
 
     // ── Step F: Final confidence recompute + bayesian score + isHot + cookedAt ─
     const fresh = await db.select({
+      type: entitiesTable.type,
       email: entitiesTable.email, phone: entitiesTable.phone,
       linkedinUrl: entitiesTable.linkedinUrl, twitterHandle: entitiesTable.twitterHandle,
       instagramHandle: entitiesTable.instagramHandle, telegramHandle: entitiesTable.telegramHandle,
@@ -586,26 +604,15 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
       });
 
       // isHot: entity is a real lead when we have a direct contact vector
-      const isHot = !!(fresh.email || fresh.phone ||
-        (contactConf >= 50 && (fresh.linkedinUrl || fresh.twitterHandle)));
-
-      // Compute composite overall confidence (mirrors frontend computeConfidence formula).
-      // Stored as contactConfidence so the list, profile header, and Profile Depth circle all show the same number.
-      const idScore = Math.round(
-        ([fresh.email, fresh.phone, fresh.linkedinUrl, fresh.knownResidences, (fresh as any).nationality].filter(Boolean).length / 5) * 100
-      );
-      const assetsWithVal = entityAssets.filter((a: any) => a.estimatedValue != null).length;
-      const financialScore = Math.min((fresh as any).estimatedNetWorth != null ? 40 : 0) + Math.min(assetsWithVal * 15, 60);
-      let srcRegs: string[] = []; try { srcRegs = JSON.parse((fresh as any).sourceRegistries ?? "[]"); } catch {}
-      const assetSrcSet = new Set(entityAssets.map((a: any) => a.sourceRegistry).filter(Boolean));
-      const registryScore = Math.min(new Set([...srcRegs, ...assetSrcSet]).size * 20, 100);
-      const assetScore = entityAssets.length === 0 ? 0 : Math.round((entityAssets.filter((a: any) => a.sourceRegistry).length / entityAssets.length) * 100);
-      const overallConf = Math.round(idScore * 0.2 + Math.min(financialScore, 100) * 0.25 + 0 * 0.2 + registryScore * 0.2 + assetScore * 0.15);
-      // Use the higher of contact-based and composite score (never downgrade an already-good contact score)
-      const finalConf = Math.max(contactConf, overallConf);
+      const isHot = hasMeaningfulDirectContact({
+        type: fresh.type,
+        email: fresh.email,
+        phone: fresh.phone,
+        contactOutcome: computeContactOutcome(fresh),
+      });
 
       await db.update(entitiesTable).set({
-        contactConfidence: finalConf,
+        contactConfidence: contactConf,
         contactOutcome:    computeContactOutcome(fresh),
         bayesianScore:     Math.max(entity.bayesianScore ?? 0, bayesScore),
         isHot,
@@ -977,14 +984,25 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
       UPDATE entities SET email = NULL WHERE email ILIKE '%protected%'
     `).catch(() => {});
 
-    // Backfill isHot for all entities — a direct contact vector = priority lead.
+    // Backfill isHot for all entities — only a meaningful person-level direct
+    // contact vector is a priority lead.
     // This repairs entities enriched before the isHot-stamping logic existed.
     await db.execute(sql`
       UPDATE entities
-      SET is_hot = true
-      WHERE (email IS NOT NULL OR phone IS NOT NULL
-             OR (contact_confidence >= 50 AND linkedin_url IS NOT NULL))
-        AND is_hot = false
+      SET is_hot = (
+        (
+          (email IS NOT NULL AND email !~* '^(info|contact|hello|sales|support|office|admin|press|media|enquiries|inquiries|reservations|booking|investor|ir)@')
+          OR (phone IS NOT NULL AND COALESCE(phone_source, '') NOT IN ('EDGAR-Phone', 'CompaniesHouse-Phone'))
+        )
+        AND entity_type NOT IN ('Corporation', 'Corp', 'Trust')
+      )
+      WHERE is_hot IS DISTINCT FROM (
+        (
+          (email IS NOT NULL AND email !~* '^(info|contact|hello|sales|support|office|admin|press|media|enquiries|inquiries|reservations|booking|investor|ir)@')
+          OR (phone IS NOT NULL AND COALESCE(phone_source, '') NOT IN ('EDGAR-Phone', 'CompaniesHouse-Phone'))
+        )
+        AND entity_type NOT IN ('Corporation', 'Corp', 'Trust')
+      )
     `);
 
     // Recompute contact confidence for all

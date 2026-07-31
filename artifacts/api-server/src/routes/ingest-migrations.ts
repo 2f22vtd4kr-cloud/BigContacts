@@ -8,7 +8,7 @@
  * POST /ingest/reclassify-entity-types  — re-run classifyEntityType() on all entities
  * POST /ingest/fix-faa-names            — normalize FAA "LAST FIRST" → "First Last"
  * POST /ingest/fix-edgar-names          — normalize EDGAR ALL-CAPS names
- * POST /ingest/sync-hot-flags           — set isHot=true where bayesianScore ≥ 0.70
+ * POST /ingest/sync-hot-flags           — set isHot=true for validated direct contacts
  */
 
 import { Router, type Request, type Response } from "express";
@@ -214,14 +214,28 @@ router.post("/ingest/fix-edgar-names", async (_req: Request, res: Response): Pro
 // ── POST /ingest/sync-hot-flags ───────────────────────────────────────────────
 router.post("/ingest/sync-hot-flags", async (_req: Request, res: Response): Promise<void> => {
   try {
-    const result = await db
-      .update(entitiesTable)
-      .set({ isHot: true, updatedAt: new Date() })
-      .where(and(gte(entitiesTable.bayesianScore, 0.70), eq(entitiesTable.isHot, false)))
-      .returning({ id: entitiesTable.id });
+    const result = await db.execute(sql`
+      UPDATE entities
+      SET is_hot = (
+        (
+          (email IS NOT NULL AND email !~* '^(info|contact|hello|sales|support|office|admin|press|media|enquiries|inquiries|reservations|booking|investor|ir)@')
+          OR (phone IS NOT NULL AND COALESCE(phone_source, '') NOT IN ('EDGAR-Phone', 'CompaniesHouse-Phone'))
+        )
+        AND entity_type NOT IN ('Corporation', 'Corp', 'Trust')
+      ), updated_at = now()
+      WHERE is_hot IS DISTINCT FROM (
+        (
+          (email IS NOT NULL AND email !~* '^(info|contact|hello|sales|support|office|admin|press|media|enquiries|inquiries|reservations|booking|investor|ir)@')
+          OR (phone IS NOT NULL AND COALESCE(phone_source, '') NOT IN ('EDGAR-Phone', 'CompaniesHouse-Phone'))
+        )
+        AND entity_type NOT IN ('Corporation', 'Corp', 'Trust')
+      )
+      RETURNING id
+    `);
+    const updated = (result.rows as Array<{ id: number }>).length;
     res.json({
-      updated: result.length,
-      message: `${result.length} entit${result.length === 1 ? "y" : "ies"} flagged as hot lead${result.length === 1 ? "" : "s"}.`,
+      updated,
+      message: `${updated} entit${updated === 1 ? "y" : "ies"} flagged as hot lead${updated === 1 ? "" : "s"}.`,
     });
   } catch (err: any) {
     res.status(500).json({ error: err?.message ?? "Sync failed" });

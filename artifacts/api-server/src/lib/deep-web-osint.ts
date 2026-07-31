@@ -714,65 +714,6 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     }
   }
 
-  // ── Phase 3.9: Email pattern inference for discovered Corp persons ─────────
-  // After Perplexity+AI owners are collected, derive [fi][last]@domain patterns
-  // and store as evidence candidates. This is the primary Gemini parity gap:
-  //   aflamarion@tikehaucapital.com, mchabran@tikehaucapital.com, etc.
-  if (isCorp && aiOwners.length > 0) {
-    // Best domain: prefer one already confirmed by an email hit, fall back to metadata
-    const inferDomain = (() => {
-      for (const [e] of emailHits.entries()) {
-        const d = e.split("@")[1];
-        if (d && !EMAIL_BLOCK.has(d) && !d.includes("privacy") && !d.includes("proxy")) return d;
-      }
-      const meta = safeJson<Record<string, unknown>>(entity.metadata, {});
-      const w = meta["website"] as string | undefined;
-      if (w) {
-        try { return new URL(w.startsWith("http") ? w : `https://${w}`).hostname.replace(/^www\./, ""); } catch {}
-      }
-      return null;
-    })();
-
-    if (inferDomain) {
-      const normEmail = (s: string) =>
-        s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z]/g, "");
-      if (!result.evidence) result.evidence = [];
-      for (const owner of aiOwners.slice(0, 9)) {
-        const parts = owner.name.trim().split(/\s+/);
-        if (parts.length < 2) continue;
-        const fn = normEmail(parts[0]!);
-        // Compound last names (Laurent-Bellue → laurentbellue)
-        const ln = normEmail(parts.slice(1).join(""));
-        const fi = fn.charAt(0);
-        if (!fi || ln.length < 2) continue;
-        const pats: Array<[string, string]> = [
-          [`${fi}${ln}@${inferDomain}`, "flast"],          // aflamarion ← FR PE norm
-          [`${fn}.${ln}@${inferDomain}`, "first.last"],    // antoine.flamarion
-          [`${fn}${ln}@${inferDomain}`, "firstlast"],      // antoineflamarion
-        ];
-        for (const [email, fmt] of pats) {
-          result.evidence.push({
-            vectorType: "email",
-            value: email,
-            source: `Pattern[${parts[0]}]`,
-            sourceUrl: null,
-            extractionMethod: "email-pattern-inference",
-            confidence: 45,
-            details: {
-              scope: "person_candidate",
-              personName: owner.name,
-              relationship: "inferred-email-pattern",
-              domain: inferDomain,
-              pattern: fmt,
-            },
-            observedAt: new Date().toISOString(),
-          });
-        }
-      }
-      logger.info({ entityId: entity.id, owners: aiOwners.length, domain: inferDomain }, "Phase 3.9: email patterns inferred for Corp persons");
-    }
-  }
-
   // ── Phase 4: Pick best-corroborated values ────────────────────────────────
   function pickBest<K extends string>(hits: Map<K, string[]>): [K, string[]] | null {
     let best: K | null = null; let bestCount = 0;

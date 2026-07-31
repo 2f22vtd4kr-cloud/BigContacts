@@ -8,7 +8,7 @@
 
 ---
 
-## Current State (2026-07-31 — imported project setup complete; API and web running)
+## Current State (2026-07-31 — contact-quality hardening complete; API and web running)
 
 ### Setup this session (2026-07-31 — BigContacts import):
 - Imported the BigContacts project, including ApexFinder web, Apex mobile, API source, shared libraries, scripts, documentation, and memory files.
@@ -18,21 +18,31 @@
 - Shared env configured: `REDIS_URL=redis://localhost:6379` and `ENABLE_AUTO_PIPELINE=false`
 - Redis ✅ · artifacts/api-server: API Server ✅ · artifacts/apex-finder: web ✅
 - Python tools: holehe ✓ · maigret ✓ · theHarvester skipped (requires Python ≥3.12)
-- `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":0}}` ✅
-- Automatic ingestion is disabled; pipeline is idle.
+- `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":1}}` ✅
+- Automatic ingestion is disabled; pipeline is idle; no Atlas, ingestion, or research job is active.
+- API and web workflows were restarted after the safeguards were applied and are healthy.
+- Backend builds and frontend builds pass. Vite emits only the existing sourcemap/chunk-size warnings.
 
 ---
 
-## Current State (2026-07-31 — Apex Atlas replacement run active; all 32 provider secrets active)
+## Historical State (2026-07-31 — bounded Atlas run was previously launched; now idle)
 
 - Secure secret check confirmed all 30 requested slots are present; secret values were not read or displayed.
 - Requested slots: REDIS_URL_1–5, COMPANIES_HOUSE_API_KEY, GROQ_API_KEY through _5,
   PERPLEXITY_API_KEY through _6, WHOXY_API_KEY, GEMINI_API_KEY through _4,
   EXA_API_KEY through _2, and TAVILY_API_KEY through _6.
-- Fresh Perplexity secrets `PERPLEXITY_API_KEY_7` and `_8` are present and active in the restarted API process alongside `_1` through `_6`.
-- The prior Atlas job `deaa85d0-1788-4eca-898d-2532c2ebbf48` was marked failed by the required API restart, with its partial database results preserved. Replacement job `8c24a586-6ad9-42c1-af36-1f8370645703` is running in the same bounded discovery-first mode: `skipFaa=true`, no land-registry download, 3 broad categories, batch size 50, Phase J batch size 25, and MCTS research limit 5.
-- Workflow state: Redis, API Server, and web are running; mobile and mockup remain stopped because they are not needed for Atlas. API health is `ok`.
-- First discovery round inserted 24 entities. At the last persisted check: 24 entities, 0 assets, 0 relationships, and 1 contact-evidence row. Exa/Tavily are returning results; Perplexity quota and Gemini rate-limit failures are non-fatal fallbacks.
+- Fresh Perplexity secrets `PERPLEXITY_API_KEY_7` and `_8` were present and loaded in the restarted API process alongside `_1` through `_6`.
+- The prior bounded Atlas jobs were stopped/marked failed by API restarts; their partial database results were preserved. No replacement job was launched during the contact-quality hardening pass.
+- Current workflow state: Redis, API Server, web, and mockup sandbox are running; mobile is not started because it is not needed. API health is `ok`.
+- The last observed job list was entirely idle; no Atlas, ingestion, or research worker is active.
+
+### Contact-quality hardening completed (2026-07-31)
+- Human-name admission now applies deterministic safety gates and retains only successful LLM validation results; provider failure cannot admit broad-discovery candidates.
+- AI prompts and parser rules prohibit constructed/pattern-derived emails; inferred email candidates were removed from web and deep-web evidence paths.
+- Email, phone, and social URLs are sanitized before entity, evidence, Redis, and confidence writes.
+- Organization contacts remain separate from personal Access confidence; corporate/trust records cannot receive personal contact confidence from switchboards or shared inboxes.
+- Access/contact confidence no longer uses wealth, assets, registry, or composite identity score; `isHot` requires a meaningful person-level direct contact signal.
+- Aircraft, property value, shareholder filing, and live-flight signals remain wealth/research evidence only and no longer promote an entity to Access-hot status.
 
 ---
 
@@ -990,6 +1000,7 @@ All 4 Phase I items implemented and live. Build clean (esbuild ⚡ 1183ms). All 
 ### Iteration Log
 | Date | Summary |
 |---|---|
+| 2026-07-31 | Completed contact-quality hardening: fail-closed name admission, no constructed emails, final contact-vector sanitization, organization/personal Access separation, and direct-contact-only hot flags. Rebuilt and restarted API/web; health and preview verified; no ingestion or research job active. |
 | 2026-07-31 | Securely added fresh Perplexity keys `_7` and `_8`, restarted the API so the process loaded them, confirmed all eight numbered Perplexity slots active, preserved the prior partial Atlas results, and launched replacement job `8c24a586-6ad9-42c1-af36-1f8370645703` with the same bounded profile. |
 | 2026-07-31 | Verified the running API's Perplexity pool through `/api/system/status`: numbered slots `_1` through `_6` are all present and active. The direct rotation source scans the base slot plus `_1` through `_8`, so newly added `_5` and `_6` are included; no restart was performed while Atlas was active. |
 | 2026-07-31 | Restored the fresh import, applied the existing schema, verified Holehe/Maigret, rebuilt and restarted Redis/API/web, and launched one bounded discovery-first Apex Atlas run (`deaa85d0-1788-4eca-898d-2532c2ebbf48`). The run is healthy with 24 entities inserted; Exa/Tavily are producing results while exhausted Perplexity/Gemini fall back non-fatally. |

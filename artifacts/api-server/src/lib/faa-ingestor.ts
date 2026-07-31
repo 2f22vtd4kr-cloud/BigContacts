@@ -393,7 +393,8 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
       knownResidences: address || undefined,
       sourceRegistries: JSON.stringify(["FAA Releasable Aircraft Database"]),
       bayesianScore: score,
-      isHot: isJet,
+       // Aircraft/wealth evidence contributes to Signal, not Access-hot status.
+       isHot: false,
       estimatedNetWorth: faaNetWorth(typeEngine, typeAircraft),
       notes: `${label} owner. Tail: N${nNumber}.${yearMfr ? ` MFR year: ${yearMfr}.` : ""}`,
       metadata: JSON.stringify({

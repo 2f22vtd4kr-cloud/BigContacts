@@ -92,6 +92,60 @@ export function sanitizePublicEmail(value: string | null | undefined): string | 
   return isValidPublicEmail(email) ? email : null;
 }
 
+// ── Public social URL validation ──────────────────────────────────────────────
+// Social URLs are evidence only when they point to a real profile path.  Search
+// snippets frequently contain the network homepage, tracking URLs, or a company
+// page where a personal handle was expected.
+const SOCIAL_HANDLE_RE = /^[a-zA-Z0-9._-]{2,80}$/;
+
+export function sanitizePublicSocialUrl(
+  value: string | null | undefined,
+  network: "linkedin" | "instagram" | "twitter",
+  scope: "person" | "organization" = "person",
+): string | null {
+  const raw = value?.trim() ?? "";
+  if (!raw) return null;
+  let url: URL;
+  try {
+    url = new URL(raw.startsWith("@") ? `https://${network === "twitter" ? "x.com" : `${network}.com`}/${raw.slice(1)}` : raw);
+  } catch {
+    return null;
+  }
+
+  const host = url.hostname.toLowerCase().replace(/^www\./, "");
+  const allowedHosts = network === "linkedin"
+    ? new Set(["linkedin.com"])
+    : network === "instagram"
+      ? new Set(["instagram.com"])
+      : new Set(["twitter.com", "x.com"]);
+  if (!allowedHosts.has(host)) return null;
+
+  const parts = url.pathname.split("/").filter(Boolean);
+  const expectedPath = network === "linkedin"
+    ? (scope === "organization" ? "company" : "in")
+    : null;
+  if (network === "linkedin") {
+    if (parts.length < 2 || parts[0] !== expectedPath || !SOCIAL_HANDLE_RE.test(parts[1]!)) return null;
+  } else if (parts.length < 1 || !SOCIAL_HANDLE_RE.test(parts[0]!)) {
+    return null;
+  }
+
+  const slug = parts[parts.length - 1]!;
+  const blocked = new Set([
+    "about", "login", "signup", "privacy", "terms", "explore", "home",
+    "search", "hashtag", "intent", "share", "status", "i", "company",
+    "instagram", "twitter", "x", "linkedin",
+  ]);
+  if (blocked.has(slug.toLowerCase())) return null;
+
+  const canonicalHost = network === "twitter" ? "x.com" : network === "linkedin" ? "www.linkedin.com" : "instagram.com";
+  return `https://${canonicalHost}/${parts.join("/")}`;
+}
+
+export function sanitizePublicPhone(value: string | null | undefined): string | null {
+  return normalizePhone(value);
+}
+
 // ── K5: E.164-oriented phone normalisation ───────────────────────────────────
 // Returns null when the input is clearly invalid (blocklist, too short, too long).
 // ITU-T E.164 max is 15 digits. We require ≥ 8 to filter 7-digit and shorter noise.

@@ -258,7 +258,8 @@ export async function runLandRegistryIngestion(params: LandRegIngestionParams): 
         knownResidences: address || undefined,
         sourceRegistries: JSON.stringify(["UK HM Land Registry (PPD)"]),
         bayesianScore: score,
-        isHot: price >= 5_000_000,
+        // Property value is wealth evidence only; it is not a direct contact.
+        isHot: false,
         // B2: net worth heuristic — property price × 5 (conservative wealth floor)
         estimatedNetWorth: price * 5,
         notes: `High-value UK property: ${propLabel} (${tenureLabel}). Paid ${priceStr2} on ${date}.`,
