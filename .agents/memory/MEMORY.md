@@ -29,6 +29,7 @@
 - [Access score separation](access-score.md) — Contactability/directness must be scored separately from wealth and registry signal
 - [Dashboard data fallback](dashboard-data-fallback.md) — Distinguish unavailable PostgreSQL-backed dashboard data from an empty dataset; keep live jobs visible when healthy
 - [Public contact evidence validation](contact-evidence-validation.md) — Validate extracted contacts before PostgreSQL writes, Redis mirroring, and cache restore
+- [Contact persistence guardrails](contact-persistence-guardrails.md) — Every enrichment, cache restore, startup cleanup, and merge path must sanitize vectors and recompute confidence/hot status
 - [Duplicate review guardrails](duplicate-review-guardrails.md) — Deduplicate name tokens before pairing; same-source matches remain review-only
 - [Contact enrichment state](contact-enrichment-state.md) — Website/address evidence is not terminal; only validated contact vectors complete enrichment
 - [Upstash quota slot failover](upstash-quota-failover.md) — Quota-exhausted slots stay "ready" (TCP); getPermanentClient() now skips them via _quotaExhaustedSlots; if all slots exhausted, request a new REDIS_URL_N

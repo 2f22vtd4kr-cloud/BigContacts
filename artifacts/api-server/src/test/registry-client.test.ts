@@ -4,6 +4,7 @@ import {
   normalizeBrregEntity,
   REGISTRY_IDS,
 } from "../lib/registry-client";
+import { describe, expect, it } from "vitest";
 
 describe("Phase J2 registry normalization", () => {
   it("normalizes a BRREG entity with stable provenance", () => {

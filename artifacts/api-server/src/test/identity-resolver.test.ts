@@ -3,6 +3,7 @@ import {
   normalizeIdentityName,
   scoreIdentityMatch,
 } from "../lib/identity-resolver";
+import { describe, expect, it } from "vitest";
 
 describe("Phase J3 identity resolver", () => {
   it("normalizes diacritics and generates order/initial variants", () => {
