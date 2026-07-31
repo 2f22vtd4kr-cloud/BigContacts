@@ -31,6 +31,9 @@ const FINANCIAL_AGGREGATOR_DOMAINS = new Set([
   "crunchbase.com", "pitchbook.com", "owler.com", "dnb.com",
   "companieshouse.gov.uk", "sec.gov", "edgaronline.com", "macroaxis.com",
   "wisesheets.io", "stockanalysis.com", "finviz.com",
+  // Norwegian / Scandinavian directory services — these return their OWN contact info, not the person's
+  "1881.no", "gulesider.no", "proff.no", "purehelp.no", "enhetsregisteret.no",
+  "allabolag.se", "hitta.se", "eniro.se", "proff.se", "virksomhed.dk",
 ]);
 import { extractWithAI, researchWithPerplexity, researchWithGemini, researchWithTavily, researchWithExa, type OwnerResolution } from "./ai-extractor";
 import { extractPersonNames } from "./gliner-client";

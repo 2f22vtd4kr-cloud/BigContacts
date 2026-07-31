@@ -383,6 +383,17 @@ async function* harvestBRREGDirectors(maxCount: number): AsyncGenerator<Harveste
         const orgnr: string = company?.organisasjonsnummer;
         if (!orgnr) continue;
 
+        // Skip micro-entities: sole proprietors (ENK) and small associations
+        // without meaningful employee counts — these are not HNWIs
+        const orgForm: string = company?.organisasjonsform?.kode ?? "";
+        const employees: number = company?.antallAnsatte ?? 0;
+        // ENK = Enkeltpersonforetak (sole trader), FLI = ideell forening (non-profit assoc)
+        // Only skip ENK/FLI with 0 employees; AS/ASA/SE companies always pass
+        if ((orgForm === "ENK" || orgForm === "FLI") && employees === 0) continue;
+        // Require meaningful scale for AS (private limited): at least 2 employees OR skip
+        // This filters out 1-person shell companies while keeping real operating businesses
+        if (orgForm === "AS" && employees < 2) continue;
+
         const companyName: string = company?.navn ?? "Unknown Company";
         const city: string =
           company?.forretningsadresse?.poststed ??
