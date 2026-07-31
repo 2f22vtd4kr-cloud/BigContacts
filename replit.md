@@ -101,7 +101,7 @@ After a fresh GitHub import, run these steps to get the project running:
 2. **Push DB schema:** `pnpm --filter @workspace/db run push`
 3. **Start workflows:** Redis → `artifacts/api-server: API Server` → `artifacts/apex-finder: web` (in that order)
 
-Latest verification (2026-07-31): all 30 requested provider secrets are present — `REDIS_URL_1` through `_5`, `COMPANIES_HOUSE_API_KEY`, five Groq keys, six Perplexity keys, `WHOXY_API_KEY`, four Gemini keys, two Exa keys, and six Tavily keys. Secret values were not read or displayed. Research and ingestion remain paused by user instruction; no workflows were restarted.
+Latest verification (2026-07-31): all 30 requested provider secrets are present — `REDIS_URL_1` through `_5`, `COMPANIES_HOUSE_API_KEY`, five Groq keys, six Perplexity keys, `WHOXY_API_KEY`, four Gemini keys, two Exa keys, and six Tavily keys. Secret values were not read or displayed. Redis, API, and web are healthy. Apex Atlas job `deaa85d0-1788-4eca-898d-2532c2ebbf48` is running in bounded discovery-first mode (`skipFaa=true`, no land-registry download, 3 broad categories, batch size 50, Phase J batch size 25, MCTS limit 5). Perplexity quota and Gemini rate-limit failures are being handled non-fatally; Exa and Tavily are returning results.
 
 Two fixes were needed after the first import:
 - Added `"pg-cloudflare"` to the `external` list in `artifacts/api-server/build.mjs` (pg optional dep that esbuild couldn't resolve)
@@ -109,14 +109,14 @@ Two fixes were needed after the first import:
 
 ---
 
-## Current Data State (verified 2026-07-26 14:45 UTC — controlled Orient Express case study)
+## Current Data State (verified 2026-07-31 during Atlas job `deaa85d0-1788-4eca-898d-2532c2ebbf48`)
 
 | Source | Entities | Assets | Notes |
 |---|---|---|---|
-| User-provided Orient Express brief + targeted public web OSINT | 1 | 0 | One research-only corporation target; 1 organization-contact outcome; review-only ownership/person evidence. |
-| **Current verified state** | **1** | **0** | 0 relationships; 1 contact-enrichment run; 1 Apex Atlas research session; broad ingestion disabled. |
+| Apex Atlas bounded discovery-first run | 24 | 0 | First discovery cohort persisted; enrichment is still running. |
+| **Current verified state at last check** | **24** | **0** | 0 relationships; 1 contact-evidence row; one Atlas job active; no FAA or land-registry bulk download. |
 
-**Controlled case-study state:** API startup detected the empty database but did not start broad discovery or registry ingestion because `ENABLE_AUTO_PIPELINE=false`. The only stored target is Orient Express, and the only research session is the targeted Apex Atlas run.
+**Controlled-run state:** `ENABLE_AUTO_PIPELINE=false` remains set, so startup will not create an additional broad ingestion job. The only active pipeline is the explicitly launched bounded Atlas job; the durable contact-promotion validator remains in place.
 
 **Honest rating for this case study:** the API and web dashboard are healthy; targeted web research completed; official organization evidence was captured; the graph is isolated; and collision-prone contact evidence plus generated outreach require manual review.
 

@@ -8,15 +8,15 @@
 
 ---
 
-## Current State (2026-07-31 — imported project setup — all 30 requested provider secrets active; research paused)
+## Current State (2026-07-31 — Apex Atlas background run active; all 30 requested provider secrets active)
 
 - Secure secret check confirmed all 30 requested slots are present; secret values were not read or displayed.
 - Requested slots: REDIS_URL_1–5, COMPANIES_HOUSE_API_KEY, GROQ_API_KEY through _5,
   PERPLEXITY_API_KEY through _6, WHOXY_API_KEY, GEMINI_API_KEY through _4,
   EXA_API_KEY through _2, and TAVILY_API_KEY through _6.
-- Research, ingestion, provider calls, and app workflow restarts were intentionally not run.
-- Workflow state: Redis running; API Server, web, mobile, and mockup workflows failed/stopped.
-- Database/research state was left unchanged; awaiting explicit user instruction before any research.
+- Atlas job `deaa85d0-1788-4eca-898d-2532c2ebbf48` is running in bounded discovery-first mode: `skipFaa=true`, no land-registry download, 3 broad categories, batch size 50, Phase J batch size 25, and MCTS research limit 5.
+- Workflow state: Redis, API Server, and web are running; mobile and mockup remain stopped because they are not needed for Atlas. API health is `ok`.
+- First discovery round inserted 24 entities. At the last persisted check: 24 entities, 0 assets, 0 relationships, and 1 contact-evidence row. Exa/Tavily are returning results; Perplexity quota and Gemini rate-limit failures are non-fatal fallbacks.
 
 ---
 
@@ -974,6 +974,7 @@ All 4 Phase I items implemented and live. Build clean (esbuild ⚡ 1183ms). All 
 ### Iteration Log
 | Date | Summary |
 |---|---|
+| 2026-07-31 | Restored the fresh import, applied the existing schema, verified Holehe/Maigret, rebuilt and restarted Redis/API/web, and launched one bounded discovery-first Apex Atlas run (`deaa85d0-1788-4eca-898d-2532c2ebbf48`). The run is healthy with 24 entities inserted; Exa/Tavily are producing results while exhausted Perplexity/Gemini fall back non-fatally. |
 | 2026-07-31 | Imported-project setup completed without spending research credits: securely confirmed all 30 requested provider secrets, did not read or display values, did not restart failed app workflows, and left research/ingestion paused pending explicit approval. |
 | 2026-07-27 | **HNWI-first frontend redesign applied and verified**: replaced the operations-led dashboard with responsive people discovery, priority HNWI cards, separate Signal/Access scores, contact-path cues, and clear empty/loading/error states; regrouped technical navigation under Workspace settings; desktop and 390px mobile previews verified; API health/stats/hot-leads returned 200; production build and frontend typecheck passed; no ingestion or research run. |
 | 2026-07-26 | Completed a controlled Orient Express single-target run from the uploaded brief: auto-pipeline disabled; one corporation created; targeted deep-web enrichment returned 1/1 success with official Orient Express contact evidence and two review-only officers; full Apex Atlas session completed with no graph edges. Name-collision contacts and synthetic fallback pitch/path were explicitly flagged for review. |
