@@ -101,7 +101,7 @@ After a fresh GitHub import, run these steps to get the project running:
 2. **Push DB schema:** `pnpm --filter @workspace/db run push`
 3. **Start workflows:** Redis → `artifacts/api-server: API Server` → `artifacts/apex-finder: web` (in that order)
 
-Latest verification (2026-07-31): all 30 requested provider secrets are present — `REDIS_URL_1` through `_5`, `COMPANIES_HOUSE_API_KEY`, five Groq keys, six Perplexity keys, `WHOXY_API_KEY`, four Gemini keys, two Exa keys, and six Tavily keys. Secret values were not read or displayed. Redis, API, and web are healthy. Apex Atlas job `deaa85d0-1788-4eca-898d-2532c2ebbf48` is running in bounded discovery-first mode (`skipFaa=true`, no land-registry download, 3 broad categories, batch size 50, Phase J batch size 25, MCTS limit 5). Perplexity quota and Gemini rate-limit failures are being handled non-fatally; Exa and Tavily are returning results.
+Latest verification (2026-07-31): all 32 requested provider secrets are present — `REDIS_URL_1` through `_5`, `COMPANIES_HOUSE_API_KEY`, five Groq keys, eight Perplexity keys, `WHOXY_API_KEY`, four Gemini keys, two Exa keys, and six Tavily keys. Secret values were not read or displayed. Redis, API, and web are healthy. After restarting the API to load fresh Perplexity keys `_7` and `_8`, replacement Apex Atlas job `8c24a586-6ad9-42c1-af36-1f8370645703` is running in bounded discovery-first mode (`skipFaa=true`, no land-registry download, 3 broad categories, batch size 50, Phase J batch size 25, MCTS limit 5). The prior job's partial results were preserved.
 
 Two fixes were needed after the first import:
 - Added `"pg-cloudflare"` to the `external` list in `artifacts/api-server/build.mjs` (pg optional dep that esbuild couldn't resolve)
