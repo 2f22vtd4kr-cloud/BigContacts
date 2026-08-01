@@ -11,6 +11,7 @@ import { orchestrate } from "../../lib/agent-orchestrator";
 import { assessTargetReachability } from "../../lib/reachability-realism";
 import { buildResearchEvidenceRows } from "../../lib/research-evidence";
 import { computeResearchScorecard } from "../../lib/research-scorecard";
+import { decideResearchCascade } from "../../lib/research-cascade";
 
 const router = Router();
 
@@ -247,8 +248,34 @@ router.post("/research/run", async (req, res): Promise<void> => {
   // ── Layer 2: Multi-Agent Critic ───────────────────────────────────────────
   const pathNodes = mctsResult.winningPath.length;
   const hasGatekeeper = mctsResult.winningPath.some((p) => p.role === "GATEKEEPER");
+  const independentSources = new Set([
+    ...targetEntity.sourceRegistries
+      ? (() => {
+          try {
+            const parsed = JSON.parse(targetEntity.sourceRegistries);
+            return Array.isArray(parsed) ? parsed.filter((value): value is string => typeof value === "string") : [];
+          } catch {
+            return [];
+          }
+        })()
+      : [],
+    ...mctsResult.winningPath.map((node) => node.registry).filter((value): value is string => Boolean(value)),
+  ]).size;
+  const cascade = decideResearchCascade({
+    hybridCandidates: hybridCount,
+    independentSources,
+    hasDirectContact: reachability.hasDirectContact,
+    hasGatekeeperPath: hasGatekeeper,
+    pathNodes,
+    identityScore: scorecard.identity,
+    accessScore: scorecard.access,
+    requestedDepth: depth,
+  });
   let critiqueNote: string;
   try {
+    if (!cascade.runCritic) {
+      critiqueNote = `${cascade.reason} Path score ${(mctsResult.pathScore * 100).toFixed(0)}/100 is retained for review.`;
+    } else {
     const orchResult = await orchestrate(targetEntity.name, 5);
     const topCandidates = orchResult.results.slice(0, 3);
     if (topCandidates.length > 0) {
@@ -271,6 +298,7 @@ router.post("/research/run", async (req, res): Promise<void> => {
         : pathNodes === 1
           ? "Isolated entity — no relationship edges. Enrich via Companies House to build graph."
           : `${pathNodes}-hop path found — no confirmed gatekeeper. Expand graph for better results.`;
+    }
     }
   } catch {
     critiqueNote = pathNodes > 1 && hasGatekeeper
@@ -297,7 +325,7 @@ router.post("/research/run", async (req, res): Promise<void> => {
     {
       algo: "L2 — Multi-Agent Reasoning (Planner→Retriever→Analyst→Critic)",
       contribution: critiqueNote,
-      status: "done",
+      status: cascade.runCritic ? "done" : "skipped",
     },
     {
       algo: "L3 — Query Expansion (single-pass expandQuery)",
