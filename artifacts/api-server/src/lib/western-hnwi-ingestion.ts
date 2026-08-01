@@ -23,6 +23,12 @@ import { computeBayesianScore } from "./bayesian-scorer";
 import { isDuplicate, markSeen, updateJob, appendJobLog, clearDedup } from "./job-queue";
 import { logger } from "./logger";
 import { filterHumanNamesWithLLM } from "./llm-name-validator";
+import {
+  getRandomDiscoveryRegistries,
+  searchRegistry,
+  type RegistryId,
+  type RegistryResult,
+} from "./registry-client";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -715,6 +721,102 @@ function buildEntity(person: HarvestedPerson): { entity: InsertEntity; key: stri
   return { entity, key };
 }
 
+const RANDOM_REGISTRY_QUERIES = [
+  "holdings",
+  "capital",
+  "investments",
+  "management",
+  "group",
+  "properties",
+  "technology",
+  "energy",
+  "partners",
+  "consulting",
+  "international",
+  "real estate",
+] as const;
+
+function pickRandom<T>(values: readonly T[]): T | undefined {
+  return values[Math.floor(Math.random() * values.length)];
+}
+
+function buildRegistryEntity(
+  result: RegistryResult,
+  registry: RegistryId,
+): { entity: InsertEntity; key: string } {
+  const jurisdiction = (result.nationality ?? "XX").slice(0, 2).toUpperCase();
+  const isPerson = result.type === "HNWI" || result.type === "Gatekeeper";
+  const prior = result.type === "HNWI" ? 0.42 : result.type === "Gatekeeper" ? 0.3 : 0.2;
+  const bayesianScore = computeBayesianScore(prior, {
+    entityType: result.type,
+    assetCount: 0,
+    assetCategories: [],
+    totalAssetValue: 0,
+    hasRecentActivity: true,
+    recentActivityDays: 90,
+    networkDegree: 0,
+    hasGatekeeperConnection: result.type === "Gatekeeper",
+    hasKnownInvestorConnection: false,
+    hasShellCompany: false,
+    hasAviationAsset: false,
+    hasMarineAsset: false,
+    hasClubMembership: false,
+    hasLuxuryRealEstate: false,
+    jurisdictionCount: 1,
+  });
+  const sourceLabel = (() => {
+    try {
+      const parsed = JSON.parse(result.sourceRegistries || "[]");
+      return Array.isArray(parsed) && typeof parsed[0] === "string" ? parsed[0] : registry;
+    } catch {
+      return registry;
+    }
+  })();
+  const rawMetadata = (() => {
+    try {
+      const parsed = JSON.parse(result.metadata ?? "{}");
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch {
+      return {};
+    }
+  })();
+
+  return {
+    key: dedupKey(result.name, jurisdiction),
+    entity: {
+      name: result.name,
+      type: result.type,
+      bayesianScore,
+      nationality: result.nationality ?? null,
+      estimatedNetWorth: null,
+      knownResidences: result.knownResidences ?? null,
+      linkedinUrl: null,
+      phone: null,
+      email: null,
+      contactMethod: isPerson
+        ? "Public registry record — research for a validated person-level contact path"
+        : "Public registry company record — research officers, ownership, and public contact channels",
+      notes: [
+        `Random discovery source: ${sourceLabel}.`,
+        result.notes ?? null,
+        "Registry evidence is a lead, not proof of wealth or beneficial ownership.",
+      ].filter(Boolean).join(" "),
+      sourceRegistries: result.sourceRegistries,
+      metadata: JSON.stringify({
+        ...rawMetadata,
+        source: rawMetadata.source ?? registry,
+        registryId: registry,
+        randomDiscovery: true,
+        liveSource: true,
+        westernIngest: true,
+        needsEnrichment: true,
+        lastVerified: new Date().toISOString().slice(0, 10),
+      }),
+      isHot: false,
+    },
+  };
+}
+
 // ── Main ingestion function ───────────────────────────────────────────────────
 
 export interface IngestionOptions {
@@ -752,7 +854,9 @@ export async function runWesternHnwiIngestion(opts: IngestionOptions): Promise<I
   };
 
   const hasCompaniesHouseKey = !!process.env["COMPANIES_HOUSE_API_KEY"];
+  const randomDiscoveryRegistries = getRandomDiscoveryRegistries();
   const sources = [
+    `Random registry mix (${randomDiscoveryRegistries.length} live adapters)`,
     "SEC EDGAR SC 13D/G (US beneficial owners)",
     "SEC EDGAR DEF 14A (US board directors)",
     "BRREG Norway (company directors)",
@@ -793,10 +897,16 @@ export async function runWesternHnwiIngestion(opts: IngestionOptions): Promise<I
       // LLM validation: secondary filter for any names that slipped past the regex.
       // Runs a single Groq batch call per flush. Fail-open — if Groq is unavailable,
       // all candidates are accepted (matching prior behaviour).
-      const candidateNames = entityBatch.map(e => e.name ?? "");
+      const candidateNames = entityBatch
+        .filter((e) => e.type === "HNWI" || e.type === "Gatekeeper")
+        .map(e => e.name ?? "");
       const validNames = new Set(await filterHumanNamesWithLLM(candidateNames));
       const preCount = entityBatch.length;
-      entityBatch = entityBatch.filter(e => validNames.has(e.name ?? ""));
+      entityBatch = entityBatch.filter((e) =>
+        e.type === "Corporation" ||
+        e.type === "Trust" ||
+        validNames.has(e.name ?? ""),
+      );
       const rejected = preCount - entityBatch.length;
       if (rejected > 0) {
         logger.info({ rejected }, "LLM name validator: rejected non-human names from batch");
@@ -814,6 +924,53 @@ export async function runWesternHnwiIngestion(opts: IngestionOptions): Promise<I
     }
     entityBatch = [];
   };
+
+  // ── Random live-registry discovery pass ─────────────────────────────────────
+  // The source itself is shuffled on every run. Query terms are deliberately
+  // broad but bounded, so this creates a changing company/lead mix without
+  // pretending that a registry hit proves wealth or ownership.
+  const randomDiscoveryBudget = Math.min(
+    Math.max(12, Math.floor(targetCount * 0.15)),
+    Math.max(0, targetCount),
+    250,
+  );
+  const shuffledRegistries = [...randomDiscoveryRegistries].sort(() => Math.random() - 0.5);
+  const randomQueryOrder = [...RANDOM_REGISTRY_QUERIES].sort(() => Math.random() - 0.5);
+  let randomDiscoveryInserted = 0;
+
+  for (const registry of shuffledRegistries) {
+    if (randomDiscoveryInserted >= randomDiscoveryBudget || inserted >= targetCount) break;
+    const query = pickRandom(randomQueryOrder) ?? "holdings";
+    try {
+      const results = await searchRegistry({
+        registry,
+        query,
+        limit: Math.min(12, randomDiscoveryBudget - randomDiscoveryInserted),
+      });
+      await log(`[Random registry mix] ${registry} · "${query}" → ${results.length} result(s)`);
+      for (const result of results) {
+        if (
+          randomDiscoveryInserted >= randomDiscoveryBudget ||
+          inserted + entityBatch.length >= targetCount
+        ) break;
+        if (!result.name?.trim()) continue;
+        const { entity, key } = buildRegistryEntity(result, registry);
+        if (await isDuplicate(key)) {
+          skipped++;
+          continue;
+        }
+        await markSeen(key);
+        entityBatch.push(entity);
+        randomDiscoveryInserted++;
+        if (entityBatch.length >= batchSize) await flushBatch();
+      }
+    } catch (err: any) {
+      errors++;
+      await log(`[Random registry mix] ${registry} unavailable: ${err?.message ?? "unknown error"}`);
+    }
+  }
+  await flushBatch();
+  await log(`[Random registry mix] Added ${randomDiscoveryInserted} candidate record(s) from shuffled live sources`);
 
   // ── Run harvesters sequentially ──────────────────────────────────────────────
   for (const [harvester, sourceName] of harvesters) {
@@ -877,6 +1034,12 @@ export function getIngestionStats(): {
 } {
   return {
     sources: [
+      {
+        name: "Random live registry mix",
+        description: "Bounded shuffled discovery across queryable registries; each hit remains a lead pending identity and ownership verification",
+        jurisdiction: "Multi-jurisdiction",
+        requiresKey: false,
+      },
       {
         name: "SEC EDGAR SC 13D/G",
         description: "US beneficial owners filing >5% stake in public companies",

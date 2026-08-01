@@ -21,7 +21,12 @@
 
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, assetsTable, entitiesTable } from "@workspace/db";
-import { REGISTRY_IDS, searchRegistry, type RegistryId } from "../lib/registry-client";
+import {
+  REGISTRY_IDS,
+  getRandomDiscoveryRegistries,
+  searchRegistry,
+  type RegistryId,
+} from "../lib/registry-client";
 import { REGISTRY_COVERAGE_MATRIX } from "../lib/registry-matrix";
 import { getCache, setCache } from "../lib/redis";
 import { sql, eq } from "drizzle-orm";
@@ -110,10 +115,27 @@ router.post("/registry-search", async (req: Request, res: Response): Promise<voi
 
 // ── Public: Phase J2 registry coverage matrix ─────────────────────────────────
 router.get("/registry-matrix", (_req: Request, res: Response): void => {
+  const randomDiscoveryIds = new Set(getRandomDiscoveryRegistries());
   res.json({
     phase: "J2",
-    sources: REGISTRY_COVERAGE_MATRIX,
-    note: "productionReviewStatus is an internal review label and does not disable private research.",
+    sources: REGISTRY_COVERAGE_MATRIX.map((source) => ({
+      ...source,
+      randomDiscoveryEnabled: randomDiscoveryIds.has(source.id as RegistryId),
+      runtimeMode:
+        source.id === "faa" || source.id === "hmlr-ppd"
+          ? "bulk_only"
+          : randomDiscoveryIds.has(source.id as RegistryId)
+            ? "random_mix"
+            : "explicit_only",
+      runtimeNote:
+        source.id === "faa" || source.id === "hmlr-ppd"
+          ? "Bulk ingestion source; not a queryable random-search adapter."
+          : randomDiscoveryIds.has(source.id as RegistryId)
+            ? "Eligible for the shuffled discovery pass."
+            : "Available only when explicitly selected or after required access is configured.",
+    })),
+    randomDiscoveryIds: [...randomDiscoveryIds],
+    note: "Runtime availability and production review are separate: a source can be active in private research while still awaiting public-production review.",
   });
 });
 

@@ -52,6 +52,36 @@ export const REGISTRY_IDS = [
 ] as const;
 export type RegistryId = (typeof REGISTRY_IDS)[number];
 
+/**
+ * Sources that can participate in the controlled random target-discovery pass.
+ * FAA and HMLR are intentionally absent because they are bulk ingestors, not
+ * queryable registries. OpenCorporates remains explicit-only until a working
+ * API entitlement is configured; its free endpoint currently returns 401.
+ */
+export const RANDOM_DISCOVERY_REGISTRIES = [
+  "sec-edgar",
+  "companies-house",
+  "brreg",
+  "ares-czechia",
+  "bodacc-france",
+  "gleif",
+  "cvr-denmark",
+  "zefix-switzerland",
+  "offeneregister-germany",
+  "bolagsverket-sweden",
+  "ytj-finland",
+  "atoka-italy",
+  "borme-spain",
+  "kvk-netherlands",
+  "kbo-belgium",
+] as const satisfies readonly RegistryId[];
+
+export function getRandomDiscoveryRegistries(): RegistryId[] {
+  return RANDOM_DISCOVERY_REGISTRIES.filter(
+    (registry) => registry !== "companies-house" || Boolean(process.env["COMPANIES_HOUSE_API_KEY"]),
+  );
+}
+
 // ─── OpenCorporates ──────────────────────────────────────────────────────────
 // Free tier, no API key, rate-limited at 50 requests/day.
 // Docs: https://api.opencorporates.com/v0.4/

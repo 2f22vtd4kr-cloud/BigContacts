@@ -3,6 +3,7 @@ import {
   normalizeBodaccRecord,
   normalizeBrregEntity,
   REGISTRY_IDS,
+  getRandomDiscoveryRegistries,
 } from "../lib/registry-client";
 import { describe, expect, it } from "vitest";
 
@@ -90,5 +91,20 @@ describe("Phase J2 registry normalization", () => {
     expect(REGISTRY_IDS).toEqual(expect.arrayContaining(["brreg", "ares-czechia", "bodacc-france"]));
     expect(REGISTRY_IDS).not.toContain("faa");
     expect(REGISTRY_IDS).not.toContain("hmlr-ppd");
+  });
+
+  it("keeps bulk-only matrix sources out of the randomized live mix", () => {
+    const randomSources = getRandomDiscoveryRegistries();
+    expect(randomSources).toEqual(expect.arrayContaining([
+      "brreg",
+      "ares-czechia",
+      "bodacc-france",
+      "atoka-italy",
+      "borme-spain",
+      "kvk-netherlands",
+      "kbo-belgium",
+    ]));
+    expect(randomSources).not.toContain("faa");
+    expect(randomSources).not.toContain("hmlr-ppd");
   });
 });

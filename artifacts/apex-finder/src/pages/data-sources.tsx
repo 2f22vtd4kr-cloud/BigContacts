@@ -4,7 +4,7 @@ import {
   Search, Scale, Network, Activity, CheckCircle2,
   RefreshCw, ExternalLink, Database, UserCheck, BarChart3,
   Mail, Brain, Filter, BookOpen, Ship, Layers, AtSign,
-  User, Terminal, Anchor, Cpu,
+  User, Terminal, Anchor, Cpu, ChevronDown, ChevronRight, Shuffle, Info,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -27,6 +27,9 @@ interface RegistryCoverage {
   freshness: string;
   productionReviewStatus: "review_required" | "reviewed_for_production" | "not_yet_assessed";
   notes?: string;
+  randomDiscoveryEnabled?: boolean;
+  runtimeMode?: "random_mix" | "explicit_only" | "bulk_only";
+  runtimeNote?: string;
 }
 
 interface SourceDef {
@@ -610,6 +613,7 @@ function FunnelPanel() {
 function RegistryMatrixPanel() {
   const [sources, setSources] = useState<RegistryCoverage[]>([]);
   const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
     const base = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -629,6 +633,42 @@ function RegistryMatrixPanel() {
         </span>
         <span className="text-[9px] font-mono bg-cyan-500/10 text-cyan-400 px-1.5 py-0.5 rounded uppercase tracking-wider">J2</span>
       </div>
+      {!loading && sources.length > 0 && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-3">
+          {[
+            {
+              label: "Random mix",
+              value: sources.filter((s) => s.runtimeMode === "random_mix").length,
+              color: "text-emerald-300",
+              detail: "shuffled into discovery",
+            },
+            {
+              label: "Explicit only",
+              value: sources.filter((s) => s.runtimeMode === "explicit_only").length,
+              color: "text-amber-300",
+              detail: "select when needed",
+            },
+            {
+              label: "Bulk only",
+              value: sources.filter((s) => s.runtimeMode === "bulk_only").length,
+              color: "text-violet-300",
+              detail: "periodic imports",
+            },
+            {
+              label: "Production reviewed",
+              value: sources.filter((s) => s.productionReviewStatus === "reviewed_for_production").length,
+              color: "text-cyan-300",
+              detail: "public-release checked",
+            },
+          ].map((item) => (
+            <div key={item.label} className="rounded-lg border border-border/50 bg-muted/10 px-2.5 py-2">
+              <div className={`text-lg font-bold font-mono ${item.color}`}>{item.value}</div>
+              <div className="text-[9px] font-mono uppercase tracking-wider text-foreground">{item.label}</div>
+              <div className="text-[9px] font-mono text-muted-foreground">{item.detail}</div>
+            </div>
+          ))}
+        </div>
+      )}
       {loading ? (
         <p className="text-xs font-mono text-muted-foreground">Loading registry coverage…</p>
       ) : (
@@ -639,10 +679,9 @@ function RegistryMatrixPanel() {
             <tr>
               <th className="py-2 pr-3">Registry</th>
               <th className="py-2 pr-3">Jurisdiction</th>
-              <th className="py-2 pr-3">Person / officer data</th>
-              <th className="py-2 pr-3">Access</th>
-              <th className="py-2 pr-3">Freshness</th>
-              <th className="py-2">Review</th>
+              <th className="py-2 pr-3">Runtime</th>
+              <th className="py-2 pr-3">Review</th>
+              <th className="py-2">Details</th>
             </tr>
           </thead>
           <tbody>
@@ -650,14 +689,45 @@ function RegistryMatrixPanel() {
               <tr key={source.id} className="border-b border-border/30 last:border-0 align-top">
                 <td className="py-2 pr-3 font-semibold text-foreground whitespace-nowrap">{source.label}</td>
                 <td className="py-2 pr-3 text-cyan-300 whitespace-nowrap">{source.jurisdiction}</td>
-                <td className="py-2 pr-3 text-muted-foreground">{source.personOfficerFields}</td>
-                <td className="py-2 pr-3 text-muted-foreground">{source.accessMethod}</td>
-                <td className="py-2 pr-3 text-muted-foreground whitespace-nowrap">{source.freshness}</td>
+                <td className="py-2 pr-3 whitespace-nowrap">
+                  <span className={cn(
+                    "inline-flex items-center gap-1 rounded px-1.5 py-0.5",
+                    source.runtimeMode === "random_mix"
+                      ? "bg-emerald-400/10 text-emerald-300"
+                      : source.runtimeMode === "bulk_only"
+                        ? "bg-violet-400/10 text-violet-300"
+                        : "bg-amber-400/10 text-amber-300",
+                  )}>
+                    {source.runtimeMode === "random_mix" && <Shuffle className="h-3 w-3" />}
+                    {source.runtimeMode === "random_mix" ? "random mix" : source.runtimeMode === "bulk_only" ? "bulk only" : "explicit only"}
+                  </span>
+                </td>
                 <td className={cn(
                   "py-2 whitespace-nowrap",
-                  source.productionReviewStatus === "reviewed_for_production" ? "text-emerald-400" : "text-amber-400",
+                  source.productionReviewStatus === "reviewed_for_production" ? "text-cyan-300" : "text-muted-foreground",
                 )}>
-                  {source.productionReviewStatus === "reviewed_for_production" ? "reviewed" : "pending review"}
+                  {source.productionReviewStatus === "reviewed_for_production"
+                    ? "production reviewed"
+                    : source.randomDiscoveryEnabled
+                      ? "private research active"
+                      : "assessment pending"}
+                </td>
+                <td className="py-2">
+                  <button
+                    onClick={() => setExpandedId(expandedId === source.id ? null : source.id)}
+                    className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground"
+                  >
+                    {expandedId === source.id ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                    {expandedId === source.id ? "hide" : "inspect"}
+                  </button>
+                  {expandedId === source.id && (
+                    <div className="mt-2 min-w-[280px] max-w-[440px] rounded-lg border border-border/50 bg-muted/10 p-2.5 text-muted-foreground">
+                      <p>{source.runtimeNote}</p>
+                      <p className="mt-1 text-foreground/80">{source.personOfficerFields}</p>
+                      <p className="mt-1">{source.accessMethod} · {source.freshness}</p>
+                      {source.notes && <p className="mt-1 text-amber-200/80">{source.notes}</p>}
+                    </div>
+                  )}
                 </td>
               </tr>
             ))}
@@ -669,24 +739,34 @@ function RegistryMatrixPanel() {
       <div className="md:hidden space-y-2">
         {sources.map((source) => (
           <div key={source.id} className="rounded-lg border border-border/40 p-3 space-y-1">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-foreground">{source.label}</span>
-              <span className={cn(
-                "text-[9px] font-mono",
-                source.productionReviewStatus === "reviewed_for_production" ? "text-emerald-400" : "text-amber-400",
-              )}>
-                {source.productionReviewStatus === "reviewed_for_production" ? "reviewed" : "pending"}
-              </span>
-            </div>
-            <div className="text-[10px] font-mono text-cyan-300">{source.jurisdiction}</div>
-            <div className="text-[10px] font-mono text-muted-foreground">{source.accessMethod} · {source.freshness}</div>
+              <button
+                onClick={() => setExpandedId(expandedId === source.id ? null : source.id)}
+                className="w-full flex items-center justify-between text-left"
+              >
+                <span className="text-xs font-semibold text-foreground">{source.label}</span>
+                {expandedId === source.id ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+              </button>
+              <div className="flex items-center gap-2 text-[10px] font-mono">
+                <span className="text-cyan-300">{source.jurisdiction}</span>
+                <span className={source.runtimeMode === "random_mix" ? "text-emerald-300" : source.runtimeMode === "bulk_only" ? "text-violet-300" : "text-amber-300"}>
+                  {source.runtimeMode === "random_mix" ? "random mix" : source.runtimeMode === "bulk_only" ? "bulk only" : "explicit only"}
+                </span>
+              </div>
+              {expandedId === source.id && (
+                <div className="pt-1 text-[10px] font-mono text-muted-foreground">
+                  <p>{source.runtimeNote}</p>
+                  <p className="mt-1">{source.accessMethod} · {source.freshness}</p>
+                  <p className="mt-1">{source.personOfficerFields}</p>
+                </div>
+              )}
           </div>
         ))}
       </div>
         </>
       )}
-      <p className="text-[10px] font-mono text-muted-foreground mt-3">
-        Coverage labels document source quality and review work; they do not gate private research.
+      <p className="flex items-start gap-1.5 text-[10px] font-mono text-muted-foreground mt-3">
+        <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
+        Random mix means the source is eligible for the shuffled discovery pass. Review status describes public-production readiness, not private-research availability.
       </p>
     </section>
   );
@@ -1173,6 +1253,38 @@ function SourceCard({ src }: { src: SourceDef }) {
   );
 }
 
+function CollapsibleSection({
+  title,
+  subtitle,
+  icon: Icon,
+  children,
+  defaultOpen = false,
+  accent = "text-primary",
+}: {
+  title: string;
+  subtitle: string;
+  icon: React.FC<any>;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+  accent?: string;
+}) {
+  return (
+    <details open={defaultOpen} className="group rounded-xl border border-border/70 bg-card/20 overflow-hidden">
+      <summary className="list-none cursor-pointer select-none px-4 py-3 flex items-center gap-3 hover:bg-muted/20 transition-colors">
+        <Icon className={cn("h-4 w-4 flex-shrink-0", accent)} />
+        <div className="min-w-0 flex-1">
+          <div className={cn("text-xs font-semibold font-mono uppercase tracking-widest", accent)}>{title}</div>
+          <div className="text-[10px] font-mono text-muted-foreground truncate mt-0.5">{subtitle}</div>
+        </div>
+        <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" />
+      </summary>
+      <div className="border-t border-border/50 p-3 md:p-4 space-y-4">
+        {children}
+      </div>
+    </details>
+  );
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function DataSources() {
@@ -1190,7 +1302,7 @@ export default function DataSources() {
               Data Sources
             </h1>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {ingestors.length} registries · {enrichers.filter(s => !s.comingSoon).length} enrichers · ingestion runs automatically
+              {ingestors.length} bulk/registry sources · {enrichers.filter(s => !s.comingSoon).length} enrichers · compact operational view
             </p>
           </div>
         </div>
@@ -1202,72 +1314,67 @@ export default function DataSources() {
 
       <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 md:px-6 py-5 space-y-6">
 
-        {/* ── Contact enrichment funnel ──────────────────────────────────────── */}
-        <FunnelPanel />
+        <CollapsibleSection
+          title="Registry runtime"
+          subtitle="Which sources can participate in the shuffled target-discovery mix"
+          icon={Shuffle}
+          defaultOpen
+          accent="text-emerald-300"
+        >
+          <RegistryMatrixPanel />
+        </CollapsibleSection>
 
-        {/* ── Identity Resolution stats ─────────────────────────────────────── */}
-        <IdentityResolutionPanel />
+        <CollapsibleSection
+          title="Discovery quality"
+          subtitle="Contact funnel, identity review, and source attribution"
+          icon={BarChart3}
+          defaultOpen
+          accent="text-cyan-300"
+        >
+          <FunnelPanel />
+          <IdentityResolutionPanel />
+          <SourceQualityPanel />
+        </CollapsibleSection>
 
-        {/* ── Source quality (evidence attribution) ─────────────────────────── */}
-        <SourceQualityPanel />
-
-        {/* ── Registry coverage ─────────────────────────────────────────────── */}
-        <RegistryMatrixPanel />
-
-        {/* ── Registries & Ingestors ────────────────────────────────────────── */}
-        <section>
-          <div className="flex items-center gap-2 mb-3">
-            <Globe className="h-4 w-4 text-primary" />
-            <h2 className="text-sm font-semibold font-mono uppercase tracking-widest text-primary">
-              Registries
-            </h2>
-            <div className="flex-1 h-px bg-border" />
-          </div>
+        <CollapsibleSection
+          title="Registry and bulk ingestors"
+          subtitle={`${ingestors.length} sources · live adapters, bulk imports, and provider notes`}
+          icon={Globe}
+          accent="text-primary"
+        >
           <div className="grid gap-3 grid-cols-1 lg:grid-cols-2">
             {ingestors.map((src) => (
               <SourceCard key={src.id} src={src} />
             ))}
           </div>
-        </section>
+        </CollapsibleSection>
 
-        {/* ── Enrichment sources (phases 1–10) ──────────────────────────────── */}
-        <section>
-          <div className="flex items-center gap-2 mb-3">
-            <Activity className="h-4 w-4 text-primary" />
-            <h2 className="text-sm font-semibold font-mono uppercase tracking-widest text-primary">
-              Enrichment
-            </h2>
-            <div className="flex-1 h-px bg-border" />
-          </div>
+        <CollapsibleSection
+          title="Enrichment adapters"
+          subtitle={`${enrichers.filter(s => s.phase < 11).length} active enrichment services`}
+          icon={Activity}
+          accent="text-primary"
+        >
           <div className="grid gap-3 grid-cols-1 lg:grid-cols-2">
             {enrichers.filter(s => s.phase < 11).map((src) => (
               <SourceCard key={src.id} src={src} />
             ))}
           </div>
-        </section>
+        </CollapsibleSection>
 
-        {/* ── Phase L: Extended OSINT Tools ─────────────────────────────────── */}
-        <section>
-          <div className="flex items-center gap-2 mb-3">
-            <Cpu className="h-4 w-4 text-violet-400" />
-            <h2 className="text-sm font-semibold font-mono uppercase tracking-widest text-violet-400">
-              Phase L — Extended OSINT
-            </h2>
-            <div className="flex-1 h-px bg-border" />
-          </div>
-
-          {/* Python tool runtime status */}
-          <div className="mb-4">
-            <PythonToolsPanel />
-          </div>
-
-          {/* Phase L source cards */}
+        <CollapsibleSection
+          title="Extended OSINT tools"
+          subtitle={`${[...ingestors, ...enrichers].filter(s => s.phase === 11).length} tools · runtime checks and optional enrichers`}
+          icon={Cpu}
+          accent="text-violet-300"
+        >
+          <PythonToolsPanel />
           <div className="grid gap-3 grid-cols-1 lg:grid-cols-2">
             {[...ingestors, ...enrichers].filter(s => s.phase === 11).map((src) => (
               <SourceCard key={src.id} src={src} />
             ))}
           </div>
-        </section>
+        </CollapsibleSection>
 
       </div>
     </div>
