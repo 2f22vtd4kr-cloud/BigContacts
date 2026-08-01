@@ -89,7 +89,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       mobile ? "w-[min(300px,86vw)]" : "w-[250px] shrink-0",
     )}>
       <div className="flex h-[76px] shrink-0 items-center border-b border-sidebar-border px-5">
-        <div className="grid h-8 w-8 place-items-center rounded-lg bg-primary text-primary-foreground">
+        <div className="grid h-8 w-8 place-items-center rounded-lg bg-primary text-primary-foreground shadow-[0_0_15px_rgba(var(--primary),0.3)]">
           <Crosshair className="h-[18px] w-[18px]" />
         </div>
         <div className="ml-3 min-w-0">
@@ -134,7 +134,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </nav>
 
       <div className="border-t border-sidebar-border px-5 py-4">
-        <div className="flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground/60">
+        <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground/60">
           <span className="h-1.5 w-1.5 rounded-full bg-primary" />
           Public records workspace
         </div>
@@ -162,7 +162,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
         <div className="atlas-grid pointer-events-none absolute inset-0" />
         <header className="relative z-20 flex h-14 shrink-0 items-center border-b border-border/80 bg-background/85 px-4 backdrop-blur-md md:hidden">
-          <div className="grid h-7 w-7 place-items-center rounded-md bg-primary text-primary-foreground">
+          <div className="grid h-7 w-7 place-items-center rounded-md bg-primary text-primary-foreground shadow-[0_0_10px_rgba(var(--primary),0.3)]">
             <Crosshair className="h-4 w-4" />
           </div>
           <span className="ml-2 font-mono text-[11px] font-bold tracking-[0.14em] text-foreground">APEX ATLAS</span>

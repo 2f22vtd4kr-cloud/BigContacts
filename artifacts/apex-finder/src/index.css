@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
 @import "leaflet/dist/leaflet.css";
 @import 'tailwindcss';
 @import 'tw-animate-css';
@@ -38,6 +38,7 @@
   --color-sidebar-ring: hsl(var(--sidebar-ring));
   --font-sans: var(--app-font-sans);
   --font-mono: var(--app-font-mono);
+  --font-display: var(--app-font-sans);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -46,38 +47,47 @@
 
 :root,
 .dark {
-  --background: 223 34% 8%;
-  --foreground: 42 28% 91%;
-  --card: 222 29% 12%;
-  --card-foreground: 42 28% 91%;
-  --card-border: 220 21% 23%;
-  --popover: 222 29% 12%;
-  --popover-foreground: 42 28% 91%;
-  --popover-border: 220 21% 23%;
-  --primary: 72 75% 62%;
-  --primary-foreground: 223 34% 8%;
-  --secondary: 193 54% 62%;
-  --secondary-foreground: 223 34% 8%;
-  --muted: 222 25% 17%;
-  --muted-foreground: 220 13% 63%;
-  --accent: 26 81% 67%;
-  --accent-foreground: 223 34% 8%;
-  --destructive: 5 72% 62%;
-  --destructive-foreground: 42 28% 91%;
-  --border: 220 21% 23%;
-  --input: 220 21% 23%;
-  --ring: 72 75% 62%;
-  --sidebar: 224 35% 9%;
-  --sidebar-foreground: 42 28% 91%;
-  --sidebar-border: 220 21% 19%;
-  --sidebar-primary: 72 75% 62%;
-  --sidebar-primary-foreground: 223 34% 8%;
-  --sidebar-accent: 222 25% 17%;
-  --sidebar-accent-foreground: 42 28% 91%;
-  --sidebar-ring: 72 75% 62%;
-  --app-font-sans: 'DM Sans', ui-sans-serif, sans-serif;
-  --app-font-mono: 'Space Mono', ui-monospace, monospace;
-  --radius: 0.65rem;
+  --background: 224 35% 6%;
+  --foreground: 210 20% 90%;
+  --card: 224 35% 8%;
+  --card-foreground: 210 20% 90%;
+  --card-border: 224 25% 15%;
+
+  --popover: 224 35% 8%;
+  --popover-foreground: 210 20% 90%;
+  --popover-border: 224 25% 15%;
+
+  --primary: 214 100% 60%;
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 150 80% 45%;
+  --secondary-foreground: 0 0% 10%;
+
+  --muted: 224 25% 12%;
+  --muted-foreground: 214 15% 65%;
+
+  --accent: 35 100% 55%;
+  --accent-foreground: 0 0% 10%;
+
+  --destructive: 0 85% 60%;
+  --destructive-foreground: 0 0% 100%;
+
+  --border: 224 25% 15%;
+  --input: 224 25% 15%;
+  --ring: 214 100% 60%;
+
+  --sidebar: 224 35% 4%;
+  --sidebar-foreground: 210 20% 90%;
+  --sidebar-border: 224 25% 12%;
+  --sidebar-primary: 214 100% 60%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 224 25% 12%;
+  --sidebar-accent-foreground: 210 20% 90%;
+  --sidebar-ring: 214 100% 60%;
+
+  --app-font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  --app-font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+  --radius: 0.5rem;
 }
 
 @layer base {
@@ -89,22 +99,22 @@
   }
   button, a, input, select { -webkit-tap-highlight-color: transparent; }
   :focus-visible {
-    outline: 2px solid hsl(var(--primary));
-    outline-offset: 3px;
+    outline: 2px solid hsl(var(--primary) / 0.5);
+    outline-offset: 2px;
   }
 }
 
 @layer utilities {
-  .font-display { font-family: var(--app-font-sans); }
+  .font-display { font-family: var(--app-font-sans); letter-spacing: -0.02em; }
   .font-mono { font-family: var(--app-font-mono); }
 }
 
 .atlas-grid {
   background-image:
-    linear-gradient(hsl(var(--foreground) / 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, hsl(var(--foreground) / 0.035) 1px, transparent 1px);
-  background-size: 42px 42px;
-  mask-image: linear-gradient(to bottom, black, transparent 85%);
+    linear-gradient(hsl(var(--foreground) / 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--foreground) / 0.025) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: linear-gradient(to bottom, black, transparent 80%);
 }
 
 .atlas-noise::after {
@@ -113,16 +123,16 @@
   inset: 0;
   pointer-events: none;
   z-index: 40;
-  opacity: 0.022;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.9'/%3E%3C/svg%3E");
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
 }
 
 .atlas-enter {
-  animation: atlas-enter 480ms cubic-bezier(.22, .8, .28, 1) both;
+  animation: atlas-enter 400ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 @keyframes atlas-enter {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
@@ -139,6 +149,22 @@
   color: hsl(var(--foreground)) !important;
   border-color: hsl(var(--border)) !important;
 }
-.marker-emerald { background-color: hsl(var(--primary)); }
-.marker-blue { background-color: hsl(var(--secondary)); }
+.marker-emerald { background-color: hsl(var(--secondary)); }
+.marker-blue { background-color: hsl(var(--primary)); }
 .marker-amber { background-color: hsl(var(--accent)); }
+
+/* Scrollbar polish */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.2);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.4);
+}

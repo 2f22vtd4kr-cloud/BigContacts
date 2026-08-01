@@ -259,7 +259,7 @@ export default function IntelTerminal() {
           className="w-full flex items-center justify-between px-3 py-2.5 rounded border border-border bg-background text-sm font-mono text-foreground disabled:opacity-50"
         >
           <span className={selectedEntityId ? "text-foreground" : "text-muted-foreground"}>
-            {selectedEntity?.name ?? "Select HNWI target..."}
+            {selectedEntity?.name ?? "Select an entity..."}
           </span>
           <div className="flex items-center gap-2 flex-shrink-0 ml-2">
             {selectedEntity && <ScoreBadge score={selectedEntity.bayesianScore} />}
@@ -287,9 +287,9 @@ export default function IntelTerminal() {
         )}
 
         {/* Hybrid pipeline */}
-        <div className="bg-background/60 border border-border/60 rounded px-2 py-1.5">
-          <div className="text-[10px] font-mono text-muted-foreground/50 uppercase tracking-widest mb-0.5">Pipeline</div>
-          <div className="text-[10px] font-mono text-primary/70 leading-relaxed">{HYBRID_PIPELINE}</div>
+        <div className="bg-background/60 border border-border/60 rounded px-3 py-2">
+          <div className="text-[10px] font-mono text-muted-foreground/60 uppercase tracking-widest mb-1">Pipeline Architecture</div>
+          <div className="text-[11px] font-mono text-primary/80 leading-relaxed">{HYBRID_PIPELINE}</div>
         </div>
 
         {/* Run button */}
@@ -322,9 +322,9 @@ export default function IntelTerminal() {
           <h2 className="text-sm font-bold font-mono tracking-wider flex items-center uppercase text-foreground">
             <Cpu className="w-4 h-4 mr-2 text-primary" /> Target Selection
           </h2>
-          <div className="bg-background/60 border border-border/60 rounded px-2 py-1.5">
-            <div className="text-[10px] font-mono text-muted-foreground/50 uppercase tracking-widest mb-0.5">5-Algorithm Pipeline</div>
-            <div className="text-[10px] font-mono text-primary/70 leading-relaxed">{HYBRID_PIPELINE}</div>
+          <div className="bg-background/60 border border-border/60 rounded px-3 py-2">
+            <div className="text-[10px] font-mono text-muted-foreground/60 uppercase tracking-widest mb-1">5-Algorithm Pipeline</div>
+            <div className="text-[11px] font-mono text-primary/80 leading-relaxed">{HYBRID_PIPELINE}</div>
           </div>
         </div>
 

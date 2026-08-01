@@ -288,7 +288,7 @@ function JobProgressBar({ job }: { job: JobState }) {
 
       {isDone && (
         <p className="text-xs text-emerald-400 font-mono">
-          ✓ {job.inserted} suggestions generated
+          <><CheckCircle2 className="mr-1 inline-block h-3 w-3" />{job.inserted} suggestions generated</>
           {job.errors > 0 && ` · ${job.errors} errors`}
         </p>
       )}
@@ -540,7 +540,7 @@ export default function ImprovementsPage() {
                   onClick={() => { setActivePersona(null); setActiveStatus("all"); setActivePriority("all"); }}
                   className="text-[11px] font-mono text-muted-foreground hover:text-red-400 transition-colors ml-1"
                 >
-                  ✕ Clear filters
+                  <><XCircle className="mr-1 inline-block h-3 w-3" />Clear filters</>
                 </button>
               )}
 

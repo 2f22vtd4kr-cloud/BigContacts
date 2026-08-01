@@ -217,9 +217,12 @@ export default function MctsScreen() {
           </View>
         )}
         {error && (
-          <Text style={[styles.errorLine, { color: colors.destructive, fontFamily: 'Inter_400Regular' }]}>
-            ⚠ {error}
-          </Text>
+          <View style={styles.errorRow}>
+            <Feather name="alert-triangle" size={14} color={colors.destructive} />
+            <Text style={[styles.errorLine, { color: colors.destructive, fontFamily: 'Inter_400Regular' }]}>
+              {error}
+            </Text>
+          </View>
         )}
       </ScrollView>
 
@@ -334,7 +337,8 @@ const styles = StyleSheet.create({
   terminalPrompt: { fontSize: 12, lineHeight: 20 },
   cursorRow: { paddingTop: 2 },
   cursor: { fontSize: 14 },
-  errorLine: { fontSize: 12, marginTop: 4 },
+  errorRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
+  errorLine: { flex: 1, fontSize: 12 },
 
   pathSection: { borderTopWidth: 1, paddingTop: 10, paddingBottom: 12 },
   pathLabel: { fontSize: 10, letterSpacing: 2, paddingHorizontal: 16, marginBottom: 8 },

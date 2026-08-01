@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { BookOpen, Search, ExternalLink, Filter, RefreshCw, Globe, Tag } from "lucide-react";
+import { BookOpen, Search, ExternalLink, Filter, RefreshCw, Globe, Tag, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -201,7 +201,7 @@ export default function OsintToolsDirectory() {
               onClick={() => handleCategory("")}
               className="text-[9px] font-mono text-red-400 hover:text-red-300 transition-colors px-1"
             >
-              ✕ clear
+              <><X className="h-3 w-3" /> clear</>
             </button>
           )}
         </div>

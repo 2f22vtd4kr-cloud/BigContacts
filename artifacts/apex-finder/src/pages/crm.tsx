@@ -7,7 +7,7 @@ import {
 import { ScoreBadge } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import {
-  FileText, UserCircle, ChevronRight, Copy,
+  FileText, UserCircle, ChevronRight, Copy, AlertTriangle,
   MessageSquare, Clock, Users, Shield, Target,
   ChevronDown, Zap, Printer, CalendarDays, StickyNote, Check,
 } from "lucide-react";
@@ -505,13 +505,13 @@ export default function PipelineCRM() {
             return (
               <div
                 key={column}
-                className="min-w-[230px] w-[230px] flex-shrink-0 flex flex-col h-full bg-muted/10 border border-border rounded-md"
+                className="min-w-[240px] w-[240px] flex-shrink-0 flex flex-col h-full bg-muted/10 border border-border rounded-lg shadow-sm"
               >
-                <div className="p-3 border-b border-border flex justify-between items-center bg-card flex-shrink-0">
-                  <h3 className="font-mono text-sm font-bold text-muted-foreground uppercase tracking-wider">
+                <div className="p-3 border-b border-border flex justify-between items-center bg-card rounded-t-lg flex-shrink-0">
+                  <h3 className="font-mono text-[11px] font-bold text-foreground uppercase tracking-wider">
                     {column}
                   </h3>
-                  <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded">
+                  <span className="text-[10px] bg-muted/50 border border-border/50 text-muted-foreground px-2 py-0.5 rounded font-mono">
                     {columnSessions.length}
                   </span>
                 </div>
@@ -536,33 +536,36 @@ export default function PipelineCRM() {
                   {columnSessions.map((session) => (
                     <div
                       key={session.id}
-                      className="bg-card border border-border p-3 rounded shadow-sm hover:border-primary/50 transition-colors cursor-pointer group"
+                      data-testid={`crm-card-${session.id}`}
+                      className="bg-card border border-border p-3 rounded-lg shadow-sm hover:border-primary/50 hover:shadow-md hover:shadow-primary/5 transition-all cursor-pointer group"
                       onClick={() => selectSession(session)}
                     >
                       <div className="flex justify-between items-start mb-2">
-                        <div className="font-bold text-sm text-foreground truncate mr-2">
+                        <div className="font-bold text-[13px] text-foreground truncate mr-2 leading-tight">
                           {session.targetEntityName ?? "Unknown Target"}
                         </div>
                         <ScoreBadge score={session.bayesianScoreAtRuntime} />
                       </div>
 
-                      <div className="text-xs font-mono text-muted-foreground mb-3 flex items-center">
+                      <div className="text-[10px] font-mono text-muted-foreground mb-3 flex items-center">
                         <UserCircle className="w-3 h-3 mr-1" /> ID: #{session.targetEntityId}
                       </div>
 
-                      <div className="flex justify-between items-center mt-2 border-t border-border pt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex justify-between items-center mt-3 border-t border-border/60 pt-2.5 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
                           className="p-1 hover:text-primary disabled:opacity-30 transition-colors"
                           disabled={CRM_COLUMNS.indexOf(column) === 0}
                           onClick={(e) => { e.stopPropagation(); moveCard(session.id, column, -1); }}
+                          data-testid={`btn-move-left-${session.id}`}
                         >
                           <ChevronRight className="w-4 h-4 rotate-180" />
                         </button>
-                        <span className="text-xs uppercase text-muted-foreground tracking-wider">Move</span>
+                        <span className="text-[9px] font-mono font-bold uppercase text-muted-foreground tracking-widest">Move Stage</span>
                         <button
                           className="p-1 hover:text-primary disabled:opacity-30 transition-colors"
                           disabled={CRM_COLUMNS.indexOf(column) === CRM_COLUMNS.length - 1}
                           onClick={(e) => { e.stopPropagation(); moveCard(session.id, column, 1); }}
+                          data-testid={`btn-move-right-${session.id}`}
                         >
                           <ChevronRight className="w-4 h-4" />
                         </button>
@@ -644,7 +647,7 @@ export default function PipelineCRM() {
               {selectedSession.generatedPitch ? (
                 <>
                   <div className="mb-2 px-3 py-2 rounded border border-amber-500/20 bg-amber-500/5 text-xs font-mono text-amber-400/80 leading-relaxed">
-                    ⚠ Structural template only — rewrite with your specific purpose, relationship angle, and tone before sending.
+                    <><AlertTriangle className="mr-1 inline-block h-3 w-3 text-amber-400" />Structural template only — rewrite with your specific purpose, relationship angle, and tone before sending.</>
                   </div>
                   <PitchSequenceDisplay pitch={selectedSession.generatedPitch} />
                 </>

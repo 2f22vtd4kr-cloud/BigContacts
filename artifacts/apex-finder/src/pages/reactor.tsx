@@ -80,17 +80,19 @@ function atlasPhaseFromMessage(message: string, progress = 0): number {
   if (/in.house|Wikidata|GitHub|RDAP|ProPublica|DNS/i.test(message)) return 4;
   if (/metadata|notes|EDGAR assets|source markers/i.test(message)) return 3;
   if (/identity|ownership|Foundation|OpenOwnership|Companies House contact/i.test(message)) return 2;
-  if (/\[\d+\/\d+\]|discovery|registry|cooked|🍳/i.test(message)) return 1;
+  if (/\[\d+\/\d+\]|discovery|registry|cooked|enrich/i.test(message)) return 1;
   return Math.min(10, Math.max(0, progress));
 }
 
 function parseAtlasLiveState(message: string, progress = 0, total = 10, runStatus: AtlasLiveState["runStatus"] = "running"): AtlasLiveState {
   const phase = atlasPhaseFromMessage(message, progress);
   const source = message.match(/\[(\d+)\/(\d+)\]/);
-  const entityBatch = message.match(/(?:🍳|:)\s*([^…]+?)(?:…|$)/);
+  // Remove emojis from the raw message before matching entity names
+  const cleanMessage = message.replace(/[\u{1F300}-\u{1F9FF}]/gu, "").replace(/🍳/g, "");
+  const entityBatch = cleanMessage.match(/:\s*([^…]+?)(?:…|$)/);
   const names = entityBatch?.[1]
     ?.split(",")
-    .map(value => value.replace(/^🍳\s*/, "").trim())
+    .map(value => value.trim())
     .filter(Boolean)
     .slice(0, 3) ?? [];
   const phaseMeta = ATLAS_PHASES[phase] ?? ATLAS_PHASES[1];
@@ -105,7 +107,7 @@ function parseAtlasLiveState(message: string, progress = 0, total = 10, runStatu
     currentEntities: names,
     entityProgress: null,
     entityTotal: null,
-    detail: message.replace(/…$/, "").trim(),
+    detail: cleanMessage.replace(/…$/, "").trim(),
   };
 }
 
@@ -260,8 +262,8 @@ const ATLAS_REGISTRY_STEPS = new Set([2, 5, 8, 11, 14, 18]);
 
 /** Map an Atlas [N/21] step + message to reactor node IDs. */
 function atlasStepToNodes(stepN: number, msg: string): string[] {
-  // Entity cooking (🍳) → full enrichment stack including deep-web + maigret
-  if (msg.includes("🍳")) {
+  // Entity cooking -> full enrichment stack including deep-web + maigret
+  if (msg.includes("cooked") || msg.includes("enrich")) {
     return ["inhouse","perp0","exa","tavily","gemini","groq","deepweb","maigret","semantic","bayesian"];
   }
   // Registry batch → ingestion nodes
@@ -973,7 +975,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                       color:"#f59e0b", opacity:0.9,
                       flex:1, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
                     }}>
-                      ⚠ RATE LIMITED: {exhaustedKeys.join(" · ")}
+                      RATE LIMITED: {exhaustedKeys.join(" · ")}
                     </span>
                   </div>
                 )}
@@ -987,7 +989,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                 display:"flex", alignItems:"center", gap:6, flexShrink:0,
               }}>
                 <span style={{ fontSize:7, letterSpacing:"0.12em", color:"#f59e0b" }}>
-                  ⚠ RATE LIMITED: {exhaustedKeys.join(" · ")}
+                  RATE LIMITED: {exhaustedKeys.join(" · ")}
                 </span>
               </div>
             )}

@@ -44,7 +44,7 @@ import {
   Instagram,
   Mail,
   Phone,
-  Crosshair,
+  Crosshair, Flame,
 } from "lucide-react";
 import { cn, entityBio, entityInvolvement, formatCurrency, formatEntityName, AccessScoreBadge, ConfidenceBadge, ScoreBadge } from "@/lib/utils";
 import { entityMeta, EntityTypeMark, entityMetric } from "@/lib/entity-taxonomy";
@@ -84,20 +84,6 @@ interface ConfidenceScores {
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
-const TYPE_COLORS: Record<string, string> = {
-  HNWI: "#10B981",
-  Corporation: "#3B82F6",
-  Trust: "#A855F7",
-  Gatekeeper: "#F59E0B",
-};
-
-const TYPE_ICONS: Record<string, React.ReactNode> = {
-  HNWI:        <UserCheck className="w-3.5 h-3.5" />,
-  Corporation: <Building2 className="w-3.5 h-3.5" />,
-  Trust:       <Briefcase className="w-3.5 h-3.5" />,
-  Gatekeeper:  <Shield className="w-3.5 h-3.5" />,
-};
 
 const ASSET_COLORS: Record<string, string> = {
   Aviation:     "#3B82F6",
@@ -261,11 +247,19 @@ function ConfidenceBar({ label, score, icon }: { label: string; score: number; i
 function ProfileCompleteness({ entity, assets, relationships, sessions }: {
   entity: any; assets: any[]; relationships: any[]; sessions: any[];
 }) {
+  const metricEvidenceDone =
+    entity.type === "HNWI"
+      ? entity.estimatedNetWorth != null
+      : entity.type === "Corporation"
+        ? relationships.length >= 1 || !!entity.sourceRegistries
+        : entity.type === "Trust"
+          ? assets.length >= 1 || !!entity.sourceRegistries
+          : !!(entity.email || entity.phone || entity.contactOutcome || entity.contactMethod);
   const fields = [
     { key: "name",        label: "Name",         done: !!entity.name },
     { key: "type",        label: "Type",         done: !!entity.type },
     { key: "nationality", label: "Nationality",  done: !!entity.nationality },
-    { key: "networth",    label: entityMeta(entity.type).metricLabel,    done: entity.estimatedNetWorth != null },
+    { key: "metric",      label: entityMeta(entity.type).metricLabel,    done: metricEvidenceDone },
     { key: "email",       label: "Email",        done: !!(entity.email ?? entity.contactEmail) },
     { key: "phone",       label: "Phone",        done: !!(entity.phone ?? entity.contactPhone) },
     { key: "linkedin",    label: "LinkedIn",     done: !!entity.linkedinUrl },
@@ -294,13 +288,13 @@ function ProfileCompleteness({ entity, assets, relationships, sessions }: {
           <span
             key={f.key}
             className={cn(
-              "text-[9px] font-mono px-1.5 py-0.5 rounded border transition-colors",
+              "text-[10px] font-mono px-2 py-0.5 rounded border transition-colors",
               f.done
                 ? "border-primary/30 bg-primary/10 text-primary"
                 : "border-border/40 bg-muted/10 text-muted-foreground/30 opacity-40"
             )}
           >
-            {f.done ? "✓ " : ""}{f.label}
+            {f.done ? "[X] " : "[ ] "}{f.label}
           </span>
         ))}
       </div>
@@ -764,7 +758,7 @@ export default function ApexProfile() {
             </span>
             {(entity as any).isHot && (
               <span className="text-xs font-bold px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                🔥 HOT
+                <><Flame className="mr-1 inline-block h-3 w-3" /> HOT</>
               </span>
             )}
           </div>
@@ -807,7 +801,7 @@ export default function ApexProfile() {
               </span>
             </div>
             <div className="flex-1 bg-background rounded border border-border/50 p-2.5 flex flex-col">
-              <span className="font-mono text-[9px] text-muted-foreground uppercase tracking-wider mb-1">Wealth</span>
+              <span className="font-mono text-[9px] text-muted-foreground uppercase tracking-wider mb-1">{entityMeta(entity.type).metricLabel}</span>
               {(entity as any).estimatedNetWorth != null ? (
                 <span className="font-mono text-[17px] font-bold text-primary leading-none mb-1">
                 {entity.type === "HNWI" ? formatCurrency((entity as any).estimatedNetWorth) : entityMetric(entity)}
@@ -1197,7 +1191,7 @@ export default function ApexProfile() {
                       ? `The address was surfaced from public records associated with their name and known organisations (via ${safeMethod}).`
                       : "The address was surfaced from public records associated with their name and known organisations.");
                   }
-                  steps.push("⚠ If this looks like a shared company inbox (info@, press@, contact@) rather than a personal address, flag it as incorrect — we'll search for a better one.");
+                  steps.push("If this looks like a shared company inbox (info@, press@, contact@) rather than a personal address, flag it as incorrect — we'll search for a better one.");
                   return <>{evidenceBadge}<>{steps.map((s, i) => <span key={i}>{i > 0 && " "}{s}</span>)}</></>;
                 }
 

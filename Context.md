@@ -14,6 +14,8 @@
 - Replaced person-only workspace language with neutral entity language in the navigation, dashboard hero, stats, priority cards, empty states, and evidence footer.
 - Added a shared four-class taxonomy presentation layer for HNWI, Corporation, Trust, and Gatekeeper records, including type-specific colors, icons, descriptors, metrics, evidence labels, and next-action vocabulary.
 - Applied the taxonomy to desktop and mobile entity ledgers, type filters, entity signal columns, add-entity fields, profile heroes, completeness labels, and mobile target cards. Companies now surface control links, trusts surface structure/assets, gatekeepers surface access/contact outcomes, and HNWIs retain wealth metrics.
+- Completed a broad visual pass across web and mobile: refreshed typography and dark-blue tokens, improved card hierarchy, hover/focus states, empty states, pipeline readability, mobile MCTS error treatment, and removed emoji glyphs from UI feedback.
+- Added truthful type-aware completeness logic so non-HNWI profiles do not report missing wealth as their primary signal, and corrected the shared Trust icon used by profile cards.
 - Web production build and mobile TypeScript validation pass. No API contract changes were required.
 
 ### Setup this session (2026-07-31 — BigContacts import):
@@ -1016,6 +1018,7 @@ All 4 Phase I items implemented and live. Build clean (esbuild ⚡ 1183ms). All 
 ### Iteration Log
 | Date | Summary |
 |---|---|
+| 2026-08-01 | Completed cross-product UI/UX polish pass: refreshed web typography/theme, dashboard/ledger/profile/CRM/research/reactor hierarchy, mobile MCTS/manual states, type-aware profile signals, and icon-based status treatment. Web build, mobile typecheck, API health, and desktop/mobile previews verified. |
 | 2026-07-31 | Completed contact-quality hardening: fail-closed name admission, no constructed emails, final contact-vector sanitization, organization/personal Access separation, and direct-contact-only hot flags. Rebuilt and restarted API/web; health and preview verified; no ingestion or research job active. |
 | 2026-07-31 | Securely added fresh Perplexity keys `_7` and `_8`, restarted the API so the process loaded them, confirmed all eight numbered Perplexity slots active, preserved the prior partial Atlas results, and launched replacement job `8c24a586-6ad9-42c1-af36-1f8370645703` with the same bounded profile. |
 | 2026-07-31 | Verified the running API's Perplexity pool through `/api/system/status`: numbered slots `_1` through `_6` are all present and active. The direct rotation source scans the base slot plus `_1` through `_8`, so newly added `_5` and `_6` are included; no restart was performed while Atlas was active. |

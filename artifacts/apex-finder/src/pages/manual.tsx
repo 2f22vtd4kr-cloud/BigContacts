@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { cn, AccessScoreBadge, ScoreBadge } from "@/lib/utils";
 import { Link } from "wouter";
-import { BookOpen, Shield, ShieldAlert, Database, ChevronRight, Activity, ChevronDown, ChevronUp } from "lucide-react";
+import { BookOpen, Shield, ShieldAlert, Database, ChevronRight, Activity, ChevronDown, ChevronUp, Flame } from "lucide-react";
 
 // --- Mini UI Components for the Demo ---
 
@@ -111,7 +111,7 @@ const SECTIONS = [
           <span className="text-xs font-mono text-muted-foreground">Example Pipeline:</span>
           <span className="text-xs font-mono text-primary bg-primary/10 px-2 py-1 rounded">HNWI</span>
           <span className="text-xs font-mono text-muted-foreground">→</span>
-          <span className="text-xs font-mono text-amber-400 bg-amber-500/10 px-2 py-1 rounded">🔥 Hot</span>
+          <span className="inline-flex items-center gap-1 text-xs font-mono text-amber-400 bg-amber-500/10 px-2 py-1 rounded"><Flame className="h-3 w-3" />Hot</span>
           <span className="text-xs font-mono text-muted-foreground">→</span>
           <span className="text-xs font-mono text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded">Contactable</span>
         </div>

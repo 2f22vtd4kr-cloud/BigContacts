@@ -496,7 +496,7 @@ export default function ApproachScreen() {
       >
         {pitchError && (
           <Text style={[styles.pitchError, { color: colors.destructive, fontFamily: 'Inter_400Regular' }]}>
-            ⚠ {pitchError}
+            {pitchError}
           </Text>
         )}
         <Pressable

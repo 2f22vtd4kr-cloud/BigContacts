@@ -1,5 +1,6 @@
 import {
   Building2,
+  Landmark,
   Shield,
   UserRound,
   type LucideIcon,
@@ -52,6 +53,7 @@ const META: Record<EntityType, EntityMeta> = {
     shortLabel: "Trust",
     descriptor: "trust, foundation, or fiduciary structure",
     color: "#A855F7",
+    Icon: Landmark,
     metricLabel: "Structure signal",
     evidenceLabel: "fiduciary, jurisdiction, and beneficiary evidence",
     actionLabel: "Review structure",

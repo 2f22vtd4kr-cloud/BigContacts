@@ -26,7 +26,7 @@ const LEVELS = [
       },
       {
         heading: 'Your 5-step playbook',
-        body: '① Entity Ledger — add targets\n② Live Intel — run registry searches\n③ Network Graph — map connections\n④ MCTS Terminal — find warmest path\n⑤ Pipeline CRM — track outreach',
+        body: '1. Entity Ledger — add targets\n2. Live Intel — run registry searches\n3. Network Graph — map connections\n4. MCTS Terminal — find warmest path\n5. Pipeline CRM — track outreach',
       },
       {
         heading: 'Getting started',
@@ -68,7 +68,7 @@ const LEVELS = [
     content: [
       {
         heading: 'Node types',
-        body: '🟢 Green — HNWI Target (your subject)\n🟠 Amber — Gatekeeper (your real entry point)\n🔵 Blue — Corporation (companies they direct)\n🟣 Purple — Trust / SPV (offshore vehicles)\n⚫ Grey — Asset (yacht, aircraft, property)',
+        body: 'Green — HNWI target (your subject)\nAmber — Gatekeeper (your real entry point)\nBlue — Corporation (companies they direct)\nPurple — Trust / SPV (offshore vehicles)\nGrey — Asset (yacht, aircraft, property)',
       },
       {
         heading: 'Edge types',

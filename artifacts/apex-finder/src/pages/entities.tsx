@@ -7,9 +7,9 @@ import { entityMeta, EntityTypeMark, entityMetric, ENTITY_TYPES } from "@/lib/en
 import {
   Plus, Search, Trash2, Globe, ChevronDown, ChevronUp, X, Loader2,
   ChevronRight, Network, Target as TargetIcon, Download, ShieldAlert,
-  Filter, UserCheck, Building2, Briefcase, Shield, IdCard,
+  Filter, IdCard,
   CheckSquare, Square, Users2, ListPlus, CheckCheck, Database, XCircle,
-  Star, EyeOff, Eye, CheckCircle2,
+  Star, EyeOff, Eye, CheckCircle2, Flame,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -45,20 +45,6 @@ const EMPTY_FORM: AddEntityForm = {
   notes: "", sourceRegistries: "",
 };
 
-const TYPE_COLORS: Record<string, string> = {
-  HNWI: "#10B981",
-  Corporation: "#3B82F6",
-  Trust: "#A855F7",
-  Gatekeeper: "#F59E0B",
-};
-
-const TYPE_ICONS: Record<string, React.ReactNode> = {
-  HNWI:        <UserCheck className="w-3 h-3" />,
-  Corporation: <Building2 className="w-3 h-3" />,
-  Trust:       <Briefcase className="w-3 h-3" />,
-  Gatekeeper:  <Shield className="w-3 h-3" />,
-};
-
 // ─── Contact richness filter ──────────────────────────────────────────────────
 
 type ContactRichness = null | "any" | "direct" | "verified";
@@ -66,7 +52,7 @@ type ContactRichness = null | "any" | "direct" | "verified";
 const RICHNESS_TIERS: { value: Exclude<ContactRichness, null>; label: string; color: string }[] = [
   { value: "any",      label: "Has Contact", color: "#64748B" },
   { value: "direct",   label: "Direct",      color: "#3B82F6" },
-  { value: "verified", label: "Verified ✓",  color: "#10B981" },
+  { value: "verified", label: "Verified [V]",  color: "#10B981" },
 ];
 
 const CONFIDENCE_STEPS = [25, 50, 75] as const;
@@ -74,7 +60,7 @@ type ConfidenceStep = typeof CONFIDENCE_STEPS[number];
 
 // Small per-row badge config keyed by contactOutcome value
 const OUTCOME_BADGES: Record<string, { label: string; color: string }> = {
-  direct_contact_verified:  { label: "✓ verified",  color: "#10B981" },
+  direct_contact_verified:  { label: "[V] verified",  color: "#10B981" },
   direct_contact_candidate: { label: "direct",       color: "#3B82F6" },
   organization_contact:     { label: "org",           color: "#8B5CF6" },
   social_only:              { label: "social",        color: "#64748B" },
@@ -173,7 +159,7 @@ function MobileEntityCard({
   const involvement = entityInvolvement({ ...entity, assetCount: entity.assetCount });
 
   return (
-    <div className={cn("border-b border-border bg-card", selected && "bg-primary/5")}>
+      <div className={cn("border-b border-border bg-card transition-colors hover:bg-card/80", selected && "bg-primary/5")}>
       <div 
         onClick={onToggleExpand}
         className="flex items-center px-4 py-3 cursor-pointer"
@@ -756,7 +742,7 @@ export default function EntityLedger() {
               borderColor: hotOnly ? "rgba(245,158,11,0.4)" : "hsl(var(--border))",
             }}
           >
-            🔥 Hot
+            <><Flame className="w-3 h-3" /> Hot</>
           </button>
           <div className="w-px h-4 bg-border/60 mx-1 shrink-0" />
           <button
@@ -769,7 +755,7 @@ export default function EntityLedger() {
               borderColor: hideBillionaires ? "rgba(168,85,247,0.4)" : "hsl(var(--border))",
             }}
           >
-            {hideBillionaires ? "✓ " : ""}No Billionaires
+            {hideBillionaires ? "[X] " : ""}No Billionaires
           </button>
         </div>
 
@@ -896,7 +882,7 @@ export default function EntityLedger() {
                   onClick={() => setSelectedIds(new Set())}
                   className="text-[9px] font-mono text-muted-foreground hover:text-foreground transition-colors ml-1 uppercase tracking-wider"
                 >
-                  ✕ Clear
+                  <><X className="w-3 h-3" /> Clear</>
                 </button>
               </>
             )}
@@ -1209,7 +1195,7 @@ export default function EntityLedger() {
                 hotOnly ? "bg-amber-500/10 text-amber-400 border-amber-500/30" : "bg-card text-muted-foreground border-border"
               )}
             >
-              🔥 Hot
+                  <><Flame className="w-3 h-3" /> Hot</>
             </button>
           </div>
           {/* Contact richness + confidence chips */}
@@ -1277,7 +1263,7 @@ export default function EntityLedger() {
                 </button>
                 <button onClick={() => setSelectedIds(new Set())}
                   className="text-[10px] font-mono text-muted-foreground hover:text-foreground ml-1">
-                  ✕
+                  <X className="w-3 h-3" />
                 </button>
               </>
             )}

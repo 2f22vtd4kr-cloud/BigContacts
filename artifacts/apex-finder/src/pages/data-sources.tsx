@@ -657,7 +657,7 @@ function RegistryMatrixPanel() {
                   "py-2 whitespace-nowrap",
                   source.productionReviewStatus === "reviewed_for_production" ? "text-emerald-400" : "text-amber-400",
                 )}>
-                  {source.productionReviewStatus === "reviewed_for_production" ? "✓ reviewed" : "pending review"}
+                  {source.productionReviewStatus === "reviewed_for_production" ? "reviewed" : "pending review"}
                 </td>
               </tr>
             ))}
@@ -675,7 +675,7 @@ function RegistryMatrixPanel() {
                 "text-[9px] font-mono",
                 source.productionReviewStatus === "reviewed_for_production" ? "text-emerald-400" : "text-amber-400",
               )}>
-                {source.productionReviewStatus === "reviewed_for_production" ? "✓" : "pending"}
+                {source.productionReviewStatus === "reviewed_for_production" ? "reviewed" : "pending"}
               </span>
             </div>
             <div className="text-[10px] font-mono text-cyan-300">{source.jurisdiction}</div>
