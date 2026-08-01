@@ -13,6 +13,7 @@ import { buildResearchEvidenceRows } from "../../lib/research-evidence";
 import { computeResearchScorecard } from "../../lib/research-scorecard";
 import { decideResearchCascade } from "../../lib/research-cascade";
 import { recordResearchAudit, type ResearchAuditStage } from "../../lib/research-audit";
+import { averageSourceReliability } from "../../lib/source-reliability";
 
 const router = Router();
 
@@ -127,6 +128,14 @@ router.post("/research/run", async (req, res): Promise<void> => {
       return connected?.type === "Gatekeeper" || ["BOARD_MEMBER_OF", "KNOWN_ASSOCIATE", "FAMILY_OF", "SHARED_GATEKEEPER"].includes(r.relationshipType);
     }).length,
   });
+  const targetSourceLabels = (() => {
+    try {
+      const parsed = JSON.parse(targetEntity.sourceRegistries ?? "[]");
+      return Array.isArray(parsed) ? parsed.filter((value): value is string => typeof value === "string") : [];
+    } catch {
+      return [];
+    }
+  })();
   const scorecard = computeResearchScorecard({
     bayesianScore: updatedScore,
     contactConfidence: targetEntity.contactConfidence,
@@ -148,6 +157,10 @@ router.post("/research/run", async (req, res): Promise<void> => {
       ...targetAssets.map((asset) => asset.sourceRegistry).filter(Boolean),
       ...targetRelationships.map((relationship) => relationship.relationshipType),
     ]).size,
+    sourceReliabilityAverage: averageSourceReliability([
+      ...targetSourceLabels,
+      ...targetAssets.map((asset) => asset.sourceRegistry),
+    ]),
     daysSinceActivity,
     hasRecentActivity: daysSinceActivity < 180,
   });

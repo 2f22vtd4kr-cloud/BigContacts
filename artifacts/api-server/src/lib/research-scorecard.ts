@@ -26,6 +26,7 @@ export function computeResearchScorecard(input: {
   ownershipRelationshipCount: number;
   sourceRegistryCount: number;
   corroboratingSourceCount: number;
+  sourceReliabilityAverage?: number;
   daysSinceActivity: number;
   hasRecentActivity: boolean;
 }): ResearchScorecard {
@@ -46,8 +47,9 @@ export function computeResearchScorecard(input: {
     ? 1
     : clamp(1 - Math.max(0, input.daysSinceActivity - 180) / 720);
   const sourceQuality = clamp(
-    (input.sourceRegistryCount > 0 ? 0.45 : 0.15) +
-      Math.min(0.45, input.corroboratingSourceCount * 0.1),
+    ((input.sourceRegistryCount > 0 ? 0.45 : 0.15) +
+      Math.min(0.45, input.corroboratingSourceCount * 0.1)) *
+      (0.65 + 0.35 * clamp(input.sourceReliabilityAverage ?? 0.3)),
   );
   const overall = clamp(
     identity * 0.2 +

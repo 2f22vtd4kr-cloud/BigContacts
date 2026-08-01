@@ -30,6 +30,7 @@ describe("research scorecard", () => {
       ownershipRelationshipCount: 4,
       sourceRegistryCount: 3,
       corroboratingSourceCount: 4,
+      sourceReliabilityAverage: 0.92,
       daysSinceActivity: 10,
       hasRecentActivity: true,
     });

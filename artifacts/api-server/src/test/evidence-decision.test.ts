@@ -3,7 +3,7 @@ import { decideEvidence } from "../lib/evidence-decision";
 
 describe("evidence decisions", () => {
   it("retains strong attributable claims as supported", () => {
-    expect(decideEvidence({ confidence: 0.82, sourceName: "FAA" })).toEqual({
+    expect(decideEvidence({ confidence: 0.82, sourceName: "FAA", sourceReliability: 0.88 })).toEqual({
       status: "supported",
       rejectionReason: null,
     });

@@ -2,6 +2,7 @@ import type { InsertResearchEvidence } from "@workspace/db";
 import type { HybridSearchMeta } from "./hybrid-search";
 import { computeFreshnessScore } from "./temporal-evidence";
 import { decideEvidence } from "./evidence-decision";
+import { getSourceReliability } from "./source-reliability";
 
 type PathNode = {
   label?: string;
@@ -44,18 +45,32 @@ export function buildResearchEvidenceRows(input: {
     negativeReason?: string | null;
     attributable?: boolean;
   }) => {
+    const sourceReliability = getSourceReliability(row.sourceName);
     const decision = decideEvidence({
       confidence: row.confidence,
       sourceName: row.sourceName,
+      sourceReliability: sourceReliability.reliability,
       conflictReason: row.conflictReason,
       negativeReason: row.negativeReason,
       attributable: row.attributable,
     });
     const { conflictReason: _conflictReason, negativeReason: _negativeReason, attributable: _attributable, ...evidence } = row;
+    let metadata: Record<string, unknown> = {};
+    try {
+      const parsed = JSON.parse(evidence.metadata || "{}");
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) metadata = parsed as Record<string, unknown>;
+    } catch {
+      // Keep malformed source metadata visible while adding reliability context.
+    }
     add({
       ...evidence,
       status: decision.status,
       rejectionReason: evidence.rejectionReason ?? decision.rejectionReason,
+      metadata: JSON.stringify({
+        ...metadata,
+        sourceReliability: sourceReliability.reliability,
+        sourceRationale: sourceReliability.rationale,
+      }),
     });
   };
 

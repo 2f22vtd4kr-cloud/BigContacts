@@ -8,6 +8,7 @@ export interface EvidenceDecision {
 export function decideEvidence(input: {
   confidence: number;
   sourceName?: string | null;
+  sourceReliability?: number;
   conflictReason?: string | null;
   negativeReason?: string | null;
   attributable?: boolean;
@@ -24,9 +25,14 @@ export function decideEvidence(input: {
   if (input.negativeReason) {
     return { status: "disputed", rejectionReason: input.negativeReason };
   }
-  if (input.confidence >= 0.7) return { status: "supported", rejectionReason: null };
+  const sourceReliability = input.sourceReliability ?? 0.3;
+  if (input.confidence >= 0.7 && sourceReliability >= 0.55) {
+    return { status: "supported", rejectionReason: null };
+  }
   return {
     status: "review",
-    rejectionReason: "Evidence is retained for review but does not meet the support threshold.",
+    rejectionReason: sourceReliability < 0.55
+      ? "The source family is not authoritative enough for automatic support."
+      : "Evidence is retained for review but does not meet the support threshold.",
   };
 }
