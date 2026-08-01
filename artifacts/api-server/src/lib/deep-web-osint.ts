@@ -19,6 +19,7 @@
 
 import { logger } from "./logger";
 import { extractWithAI, researchWithPerplexity, researchWithGemini, researchWithTavily, researchWithExa } from "./ai-extractor";
+import { assessTargetReachability, reachabilityDirective } from "./reachability-realism";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -30,6 +31,11 @@ export interface DeepWebOsintInput {
   knownResidences?:  string | null;
   metadata?:         string | null;
   bayesianScore?:    number | null;
+  email?:            string | null;
+  phone?:            string | null;
+  contactOutcome?:   string | null;
+  contactConfidence?: number | null;
+  notes?:            string | null;
 }
 
 export interface DeepWebOsintResult {
@@ -445,12 +451,23 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       const m = r.match(/,\s*([A-Z][a-zA-Z\s]{2,25})$/);
       return m ? m[1]!.trim() : null;
     })();
+    const realism = reachabilityDirective(assessTargetReachability({
+      type: entity.type,
+      email: entity.email,
+      phone: entity.phone,
+      contactOutcome: entity.contactOutcome,
+      contactConfidence: entity.contactConfidence,
+      knownResidences: entity.knownResidences,
+      metadata: entity.metadata,
+      notes: entity.notes,
+      sourceRegistries: entity.sourceRegistries,
+    }));
 
     const [perp, gem, tav, exa] = await Promise.all([
-      researchWithPerplexity(entity.name, entity.type, countryHint),
-      researchWithGemini(entity.name, entity.type, countryHint),
-      researchWithTavily(entity.name, entity.type, countryHint),
-      researchWithExa(entity.name, entity.type, countryHint),
+      researchWithPerplexity(entity.name, entity.type, countryHint, { reachability: realism }),
+      researchWithGemini(entity.name, entity.type, countryHint, { reachability: realism }),
+      researchWithTavily(entity.name, entity.type, countryHint, { reachability: realism }),
+      researchWithExa(entity.name, entity.type, countryHint, { reachability: realism }),
     ]);
 
     // Process Perplexity results

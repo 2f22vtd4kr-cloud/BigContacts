@@ -85,7 +85,7 @@ function evaluateWarmth(vertex: GraphVertex, depth: number, degree = 0): number 
 
   // Assets are not directly approachable (they're signposts)
   if (["RealEstate", "Aviation", "Marine", "PrivateClub"].includes(vertex.nodeType)) {
-    warmth += 0.3; // high info value even if not a contact point
+    warmth -= 0.18; // useful signposts, never assumed to be people or access points
   }
 
   // Shallower depth = closer to user (us) = more accessible
@@ -102,7 +102,7 @@ function evaluateWarmth(vertex: GraphVertex, depth: number, degree = 0): number 
   // High-degree nodes are hub entities: more paths through them → more outreach options
   if (degree > 0) warmth += Math.min(0.12, degree * 0.008);
 
-  return Math.max(0.05, Math.min(0.99, warmth + (Math.random() - 0.5) * 0.1));
+  return Math.max(0.05, Math.min(0.99, warmth));
 }
 
 function getRegistry(vertex: GraphVertex): string {
@@ -120,16 +120,16 @@ function getRegistry(vertex: GraphVertex): string {
 
 function getActionRequired(vertex: GraphVertex, role: string): string {
   if (role === "GATEKEEPER") {
-    if (vertex.nodeType === "Gatekeeper") {
-      return "Direct approach via WhatsApp with referral commission offer (5-10%)";
+    if (vertex.nodeType === "Gatekeeper" && (vertex.contactEmail || vertex.contactPhone)) {
+      return "Review the stored public contact vector and verify the gatekeeper relationship before any outreach";
     }
-    return "Establish contact via LinkedIn or mutual connection";
+    return "No actionable route: corroborate a named intermediary and a public contact vector first";
   }
   if (role === "INTERMEDIARY") {
-    return `Cross-reference ${getRegistry(vertex)} → identify next link`;
+    return `Review ${getRegistry(vertex)} as evidence only; do not treat this node as an intermediary without explicit corroboration`;
   }
   if (role === "ASSET") {
-    return `Pull public record from ${getRegistry(vertex)} → trace beneficial owner`;
+    return `Use ${getRegistry(vertex)} to verify identity/control only; asset operators and staff are not assumed gatekeepers`;
   }
   return "Identify gatekeeper and warm-approach path";
 }
@@ -138,13 +138,11 @@ function getReasoning(vertex: GraphVertex, step: number, depth: number, warmth: 
   const registry = getRegistry(vertex);
   const templates: Record<string, string[]> = {
     Gatekeeper: [
-      `${vertex.label} is a registered ${vertex.nodeType.toLowerCase()} with direct access to the target. ` +
-      `${registry} confirms the management relationship. ` +
-      `UCT favors this node at depth ${depth} — high warmth (${(warmth * 100).toFixed(0)}%) ` +
-      `due to professional relationship dynamic. Commission-based outreach (5%) is standard practice.`,
-      `Registry cross-reference identifies ${vertex.label} as the operational manager. ` +
-      `Approach vector: professional courtesy + mutual benefit framing. ` +
-      `Warmth index: ${(warmth * 100).toFixed(0)}% — gatekeeper archetype confirmed.`,
+      `${vertex.label} is labelled as a gatekeeper in the stored graph. ` +
+      `${registry} is evidence to review, not proof of personal access. ` +
+      `${vertex.contactEmail || vertex.contactPhone ? "A public contact vector is stored; verify attribution and relationship before outreach." : "No public contact vector is stored, so this remains a review candidate."}`,
+      `${vertex.label} may be a relevant intermediary node, but the graph does not by itself establish authorization or direct access. ` +
+      `Warmth is limited to ${(warmth * 100).toFixed(0)}% until a cited relationship and contact route are corroborated.`,
     ],
     Corporation: [
       `${vertex.label} appears as a beneficial owner shell in ${registry}. ` +
@@ -155,29 +153,23 @@ function getReasoning(vertex: GraphVertex, step: number, depth: number, warmth: 
       `UCT score favors this corporate branch — pathway warmth ${(warmth * 100).toFixed(0)}%.`,
     ],
     RealEstate: [
-      `Catasto parcel record maps ${vertex.label} to the target's beneficial ownership chain. ` +
-      `The registered geometra serves as the logical warm-introduction point — they have ` +
-      `daily contact with the property owner and accept third-party referrals.`,
-      `HM Land Registry / Catasto entry identifies ${vertex.label} as a key asset node. ` +
-      `Property manager / geometra is the optimal gatekeeper. MCTS scores this path ` +
-      `at warmth ${(warmth * 100).toFixed(0)}% — low resistance to professional approach.`,
+      `Catasto or land-record evidence makes ${vertex.label} an identity/control signpost only. ` +
+      `A geometra, property manager, or staff member is not a gatekeeper unless explicitly named and corroborated.`,
+      `The property node ${vertex.label} may help verify the target's documented interests. ` +
+      `No personal access is inferred from ownership, address, or property-service relationships.`,
     ],
     Aviation: [
-      `FAA/EASA tail number trace: ${vertex.label}. Registered operator leads back to ` +
-      `shell company in the target's network. Fixed Base Operator (FBO) staff at ` +
-      `home airport are high-warmth contacts — they handle logistics for the owner personally.`,
-      `Aviation registry confirms ${vertex.label} is operated under target's entity structure. ` +
-      `Approach vector: FBO staff, charter broker, or avionics maintenance contact.`,
+      `FAA/EASA evidence for ${vertex.label} can support identity or control analysis only. ` +
+      `FBO staff, charter brokers, and maintenance providers are not assumed to have authorized access.`,
+      `The aviation node ${vertex.label} is a research lead, not an outreach route. ` +
+      `Any intermediary claim requires a named person, cited source, and attributable public contact.`,
     ],
     Marine: [
-      `IMO registry entry for ${vertex.label} traces to target's ownership chain. ` +
-      `Marina staff and yacht broker represent optimal warm-introduction path — ` +
-      `seasonal presence creates predictable access window (Mediterranean: May-Oct).`,
+      `IMO or flag-register evidence for ${vertex.label} may support identity/control analysis. ` +
+      `Marina staff and yacht brokers are not treated as gatekeepers without explicit corroboration.`,
     ],
     PrivateClub: [
-      `Club intel identifies ${vertex.label} as a shared-membership node between ` +
-      `multiple HNWIs in the target's orbit. Club secretary or events coordinator ` +
-      `is the warm-approach vector — staff loyalty can be navigated via mutual member introduction.`,
+      `Private-club evidence may identify a relationship context, but membership or club staff does not establish an authorized introduction route.`,
     ],
     HNWI: [
       `Target confirmed: ${vertex.label}. Bayesian score ${vertex.bayesianScore ? (vertex.bayesianScore * 100).toFixed(0) + "%" : "—"}. ` +
@@ -208,7 +200,6 @@ function classifyRole(
   if (isLast && vertex.nodeType === "HNWI") return "TARGET";
   if (["RealEstate", "Aviation", "Marine", "PrivateClub"].includes(vertex.nodeType)) return "ASSET";
   if (vertex.nodeType === "Gatekeeper" && !isFirst) return "GATEKEEPER";
-  if (isFirst && vertex.nodeType !== "HNWI") return "GATEKEEPER";
   return "INTERMEDIARY";
 }
 

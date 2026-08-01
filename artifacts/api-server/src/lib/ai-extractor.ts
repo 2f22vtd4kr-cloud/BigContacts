@@ -24,6 +24,7 @@ import {
   sanitizePublicPhone,
   sanitizePublicSocialUrl,
 } from "./contact-validation";
+import { formatReachabilityDirective, type ReachabilityDirective } from "./reachability-realism";
 
 const GROQ_API        = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_MODEL      = "llama-3.3-70b-versatile";
@@ -151,6 +152,11 @@ export interface AIExtractResult {
   ownershipSources: string[];
   source:    "groq-llama-70b" | "groq-llama-8b" | "openrouter" | "perplexity-sonar" | "gemini-flash" | "tavily" | "exa" | "none";
   citations: string[];            // URLs the model actually searched — use as evidence sources
+  reachability?: {
+    status: "direct" | "intermediary" | "bounded" | "research_only" | "unknown";
+    viableRoute: boolean;
+    evidence: string[];
+  };
 }
 
 const EMPTY: AIExtractResult = {
@@ -160,6 +166,7 @@ const EMPTY: AIExtractResult = {
   ownershipSummary: null, ownershipSources: [],
   source: "none",
   citations: [],
+  reachability: { status: "unknown", viableRoute: false, evidence: [] },
 };
 
 
@@ -349,6 +356,18 @@ function parseAIResponse(raw: string, source: AIExtractResult["source"]): AIExtr
 
     const rawLinkedinTop = clean(parsed["linkedin"]);
     const rawTopEmail = clean(parsed["email"]);
+    const rawReachability = parsed["reachability"];
+    const reachability = rawReachability && typeof rawReachability === "object"
+      ? {
+          status: ["direct", "intermediary", "bounded", "research_only"].includes(String((rawReachability as any).status))
+            ? String((rawReachability as any).status) as "direct" | "intermediary" | "bounded" | "research_only"
+            : "unknown" as const,
+          viableRoute: (rawReachability as any).viableRoute === true,
+          evidence: Array.isArray((rawReachability as any).evidence)
+            ? (rawReachability as any).evidence.filter((v: unknown): v is string => typeof v === "string").slice(0, 8)
+            : [],
+        }
+      : { status: "unknown" as const, viableRoute: false, evidence: [] };
     return {
       email:         rawTopEmail && !isPlaceholderEmail(rawTopEmail)
         ? sanitizePublicEmail(rawTopEmail)
@@ -372,6 +391,7 @@ function parseAIResponse(raw: string, source: AIExtractResult["source"]): AIExtr
         : [],
       source,
       citations: [],
+      reachability,
     };
   } catch {
     return null;
@@ -486,7 +506,7 @@ export function buildPerplexityPrompt(
   entityName: string,
   entityType: string,
   country: string | null,
-  context: { tradingName?: string | null; city?: string | null } = {},
+  context: { tradingName?: string | null; city?: string | null; reachability?: ReachabilityDirective } = {},
 ): string {
   const ctx = country ? ` in ${country}` : "";
   const publicName = context.tradingName && context.tradingName !== entityName
@@ -501,8 +521,11 @@ export function buildPerplexityPrompt(
   const disambig = locationCtx
     ? `\nSCOPE LOCK: You are researching ONLY the ${locationCtx}-based ${isOrg ? "company/institution" : "individual"} named ${publicName}. If any other entity (retailer, sports team, consumer brand, government body, etc.) shares this name or a similar name, IGNORE it entirely. Do NOT mix data from different entities. All output must relate exclusively to the ${locationCtx} entity.`
     : "";
+  const realism = formatReachabilityDirective(context.reachability);
 
-  return `You are conducting Phase 0 OSINT for ${publicName}${ctx}. Goal: find every named human decision-maker and their direct contact path.${city}${disambig}
+  return `You are conducting Phase 0 OSINT for ${publicName}${ctx}. Goal: find every named human decision-maker and their evidence-backed contact path.${city}${disambig}
+
+${realism}
 
 ${isOrg ? `This is a company/business/institution. Execute this research in order:
 
@@ -554,7 +577,9 @@ STEP 4 — PERSONAL SOCIAL ACCOUNTS:
 Instagram or Twitter/X accounts this individual personally manages and posts from themselves.
 ⚠️ NOT corporate brand accounts. NOT company social pages. Personal lifestyle/professional accounts only (e.g. @firstname_lastname style handles, not @companybrand).
 
-STEP 5 — ASSOCIATED COMPANIES AND ROLES (context only, not contact purposes).`}
+STEP 5 — ASSOCIATED COMPANIES AND ROLES (context only, not contact purposes).
+
+For an individual, also investigate whether a named assistant, chief of staff, family-office executive, foundation executive, or authorized professional intermediary is explicitly corroborated. A hypothetical FBO, marina employee, club employee, property manager, security person, or asset operator is not a gatekeeper unless a source explicitly ties that person to the target and indicates a contact relationship.`}
 
 Return ONLY this JSON — no preamble, no explanation, no markdown:
 {
@@ -578,6 +603,11 @@ Return ONLY this JSON — no preamble, no explanation, no markdown:
     }
   ],
   "sources": ["URLs used"]
+  ,"reachability": {
+    "status": "direct | intermediary | bounded | research_only",
+    "viableRoute": true,
+    "evidence": ["only explicit evidence from the supplied sources"]
+  }
 }
 
 Hard requirements:
@@ -585,6 +615,10 @@ Hard requirements:
 - Named executives with director_officer role are MORE valuable than institutional shareholders for contact purposes. Always include them even when the beneficial owner is a state body or holding company.
 - Never construct or infer direct individual emails from a naming pattern.
 - ownershipSummary must not describe an inferred email pattern as evidence.
+- Social accounts, press visibility, wealth, assets, and public biographies are not access evidence.
+- Corporate switchboards and generic inboxes are organization contacts, not personal routes.
+- "No viable route found" is a valid outcome. Use reachability.status "research_only" and viableRoute false rather than inventing a route.
+- Never return WhatsApp, commission, staff, FBO, marina, club, or property-manager access unless explicitly corroborated in a cited source.
 - sourceUrls and sources: only real URLs from your search.
 - Return [] for ownerResolutions only if absolutely no named human is found anywhere.
 `;
@@ -656,7 +690,7 @@ export async function researchWithPerplexity(
   entityName: string,
   entityType: string,
   country: string | null = null,
-  context: { tradingName?: string | null; city?: string | null } = {},
+  context: { tradingName?: string | null; city?: string | null; reachability?: ReachabilityDirective } = {},
 ): Promise<AIExtractResult> {
   logger.info({ entityName, entityType, country }, "Phase 0: firing Perplexity Sonar research");
   const prompt = buildPerplexityPrompt(entityName, entityType, country, context);
@@ -837,7 +871,7 @@ export async function researchWithGemini(
   entityName: string,
   entityType: string,
   country: string | null = null,
-  context: { tradingName?: string | null; city?: string | null } = {},
+  context: { tradingName?: string | null; city?: string | null; reachability?: ReachabilityDirective } = {},
 ): Promise<AIExtractResult> {
   const keys = getGeminiKeys();
   if (keys.length === 0) return EMPTY;
@@ -936,7 +970,7 @@ export async function researchWithTavily(
   entityName: string,
   entityType: string,
   country: string | null = null,
-  context: { tradingName?: string | null; city?: string | null } = {},
+  context: { tradingName?: string | null; city?: string | null; reachability?: ReachabilityDirective } = {},
 ): Promise<AIExtractResult> {
   const keys = getTavilyKeys();
   if (keys.length === 0) return EMPTY;
@@ -946,7 +980,9 @@ export async function researchWithTavily(
   if (context.tradingName && context.tradingName !== entityName) queryParts.push(context.tradingName);
   if (context.city) queryParts.push(context.city);
   if (country) queryParts.push(country);
-  queryParts.push("owner contact email phone");
+  queryParts.push(context.reachability?.mode === "research_only"
+    ? "identity control authorized intermediary route no viable route"
+    : "owner contact email phone authorized intermediary");
   const query = queryParts.join(" ");
 
   logger.info({ entityName, entityType, country, query }, "Phase 0 [tavily]: firing Tavily search");
@@ -1052,7 +1088,7 @@ export async function researchWithExa(
   entityName: string,
   entityType: string,
   country: string | null = null,
-  context: { tradingName?: string | null; city?: string | null } = {},
+  context: { tradingName?: string | null; city?: string | null; reachability?: ReachabilityDirective } = {},
 ): Promise<AIExtractResult> {
   const keys = getExaKeys();
   if (keys.length === 0) return EMPTY;
@@ -1062,7 +1098,9 @@ export async function researchWithExa(
   if (context.tradingName && context.tradingName !== entityName) queryParts.push(context.tradingName);
   if (context.city) queryParts.push(context.city);
   if (country) queryParts.push(country);
-  queryParts.push("owner contact email");
+  queryParts.push(context.reachability?.mode === "research_only"
+    ? "identity control authorized intermediary route no viable route"
+    : "owner contact email authorized intermediary");
   const query = queryParts.join(" ");
 
   logger.info({ entityName, entityType, country, query }, "Phase 0 [exa]: firing Exa neural search");
