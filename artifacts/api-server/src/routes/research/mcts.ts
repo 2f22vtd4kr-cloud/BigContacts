@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { eq } from "drizzle-orm";
-import { db, entitiesTable, assetsTable, identityCandidatesTable, assetsTable, relationshipsTable, researchEvidenceTable, researchSessionsTable } from "@workspace/db";
+import { db, entitiesTable, assetsTable, identityCandidatesTable, relationshipsTable, researchEvidenceTable, researchSessionsTable } from "@workspace/db";
 import { RunResearchBody } from "@workspace/api-zod";
 import { buildGraph, findShortestPath, identityPairKey } from "../../lib/graph-engine";
 import { computeBayesianScore } from "../../lib/bayesian-scorer";
@@ -12,6 +12,7 @@ import { assessTargetReachability } from "../../lib/reachability-realism";
 import { buildResearchEvidenceRows } from "../../lib/research-evidence";
 import { computeResearchScorecard } from "../../lib/research-scorecard";
 import { decideResearchCascade } from "../../lib/research-cascade";
+import { recordResearchAudit, type ResearchAuditStage } from "../../lib/research-audit";
 
 const router = Router();
 
@@ -205,12 +206,21 @@ router.post("/research/run", async (req, res): Promise<void> => {
           contribution: `${reachability.status} target · ${reachability.score}/100 · ${reachability.blockers.join(" ")}`,
           status: "done",
         },
-        { algo: "L1 — Hybrid Retrieval", contribution: "Skipped: research-only target has no plausible access route", status: "skipped" },
-        { algo: "L2 — Multi-Agent Reasoning", contribution: "Skipped: no access evidence to validate", status: "skipped" },
-        { algo: "L4 — UCT Deep Path Exploration", contribution: "Skipped: no corroborated gatekeeper or intermediary path", status: "skipped" },
-        { algo: "L5 — Bayesian-UCB Optimization", contribution: `Stable-prior score: ${updatedScore.toFixed(3)}`, status: "done" },
+        { algo: "L1 — Hybrid Retrieval", contribution: "Skipped: research-only target has no plausible access route", status: "skipped", durationMs: 0 },
+        { algo: "L2 — Multi-Agent Reasoning", contribution: "Skipped: no access evidence to validate", status: "skipped", durationMs: 0 },
+        { algo: "L4 — UCT Deep Path Exploration", contribution: "Skipped: no corroborated gatekeeper or intermediary path", status: "skipped", durationMs: 0 },
+        { algo: "L5 — Bayesian-UCB Optimization", contribution: `Stable-prior score: ${updatedScore.toFixed(3)}`, status: "done", durationMs: 0 },
       ],
     });
+    if (session) {
+      await recordResearchAudit(session.id, [
+        { algo: "L0 — Reachability Realism Preflight", contribution: `${reachability.status} target · ${reachability.score}/100`, status: "done", durationMs: 0 },
+        { algo: "L1 — Hybrid Retrieval", contribution: "Skipped: research-only target has no plausible access route", status: "skipped", durationMs: 0 },
+        { algo: "L2 — Multi-Agent Reasoning", contribution: "Skipped: no access evidence to validate", status: "skipped", durationMs: 0 },
+        { algo: "L4 — UCT Deep Path Exploration", contribution: "Skipped: no corroborated gatekeeper or intermediary path", status: "skipped", durationMs: 0 },
+        { algo: "L5 — Bayesian-UCB Optimization", contribution: `Stable-prior score: ${updatedScore.toFixed(3)}`, status: "done", durationMs: 0 },
+      ]);
+    }
     return;
   }
 
@@ -243,7 +253,9 @@ router.post("/research/run", async (req, res): Promise<void> => {
   }
 
   // ── Layer 4: MCTS (120 rollouts) ──────────────────────────────────────────
+  const mctsStartedAt = Date.now();
   const mctsResult = runMcts(graph, targetVertexId, bestBfsPath, depth);
+  const mctsDurationMs = Date.now() - mctsStartedAt;
 
   // ── Layer 2: Multi-Agent Critic ───────────────────────────────────────────
   const pathNodes = mctsResult.winningPath.length;
@@ -272,11 +284,14 @@ router.post("/research/run", async (req, res): Promise<void> => {
     requestedDepth: depth,
   });
   let critiqueNote: string;
+  let criticDurationMs = 0;
   try {
     if (!cascade.runCritic) {
       critiqueNote = `${cascade.reason} Path score ${(mctsResult.pathScore * 100).toFixed(0)}/100 is retained for review.`;
     } else {
+    const criticStartedAt = Date.now();
     const orchResult = await orchestrate(targetEntity.name, 5);
+    criticDurationMs = Date.now() - criticStartedAt;
     const topCandidates = orchResult.results.slice(0, 3);
     if (topCandidates.length > 0) {
       const synthLines = topCandidates.map((c, i) => {
@@ -321,26 +336,31 @@ router.post("/research/run", async (req, res): Promise<void> => {
         return `${searchPart} · ${bfsPart}`;
       })(),
       status: "done",
+      durationMs: hybridMeta.durationMs,
     },
     {
       algo: "L2 — Multi-Agent Reasoning (Planner→Retriever→Analyst→Critic)",
       contribution: critiqueNote,
       status: cascade.runCritic ? "done" : "skipped",
+      durationMs: criticDurationMs,
     },
     {
       algo: "L3 — Query Expansion (single-pass expandQuery)",
       contribution: "Asset synonyms · GEO_MAP · intent background terms applied at retrieval",
       status: "done",
+      durationMs: 0,
     },
     {
       algo: "L4 — UCT Deep Path Exploration (120 rollouts)",
       contribution: `Path score: ${(mctsResult.pathScore * 100).toFixed(0)}/100 · ${mctsResult.mctsSteps.length} step${mctsResult.mctsSteps.length !== 1 ? "s" : ""}`,
       status: "done",
+      durationMs: mctsDurationMs,
     },
     {
       algo: "L5 — Bayesian-UCB Optimization",
       contribution: `Score: ${(targetEntity.bayesianScore ?? 0).toFixed(3)} → ${updatedScore.toFixed(3)} · UCB exploitation ${updatedScore >= 0.7 ? "high priority" : "standard"}`,
       status: "done",
+      durationMs: 0,
     },
   ];
 
@@ -413,6 +433,7 @@ router.post("/research/run", async (req, res): Promise<void> => {
     })
     .returning();
   if (session) {
+    await recordResearchAudit(session.id, algorithmPipeline as ResearchAuditStage[]);
     await db.insert(researchEvidenceTable).values(buildResearchEvidenceRows({
       sessionId: session.id,
       entityId,

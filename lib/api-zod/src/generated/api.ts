@@ -490,6 +490,26 @@ export const ListResearchEvidenceResponseItem = zod.object({
 export const ListResearchEvidenceResponse = zod.array(ListResearchEvidenceResponseItem)
 
 
+/**
+ * @summary List durable research pipeline audit events
+ */
+export const ListResearchRunAuditParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ListResearchRunAuditResponseItem = zod.object({
+  "id": zod.number(),
+  "sessionId": zod.number(),
+  "phase": zod.string(),
+  "status": zod.string(),
+  "durationMs": zod.number(),
+  "message": zod.string(),
+  "metadata": zod.string().optional(),
+  "createdAt": zod.string()
+})
+export const ListResearchRunAuditResponse = zod.array(ListResearchRunAuditResponseItem)
+
+
 export const UpdateResearchStatusParams = zod.object({
   "id": zod.coerce.number()
 })

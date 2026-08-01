@@ -233,6 +233,17 @@ export interface ResearchEvidence {
   createdAt: string;
 }
 
+export interface ResearchRunEvent {
+  id: number;
+  sessionId: number;
+  phase: string;
+  status: string;
+  durationMs: number;
+  message: string;
+  metadata?: string;
+  createdAt: string;
+}
+
 export interface ResearchRunInput {
   entityId: number;
   depth?: number;

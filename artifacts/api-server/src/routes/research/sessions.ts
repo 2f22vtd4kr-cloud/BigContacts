@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { eq, desc } from "drizzle-orm";
-import { db, entitiesTable, researchEvidenceTable, researchSessionsTable } from "@workspace/db";
+import { db, entitiesTable, researchEvidenceTable, researchRunEventsTable, researchSessionsTable } from "@workspace/db";
 import {
   ListResearchSessionsQueryParams,
   GetResearchSessionParams,
@@ -96,6 +96,32 @@ router.get("/research/sessions/:id/evidence", async (req, res): Promise<void> =>
     publishedAt: row.publishedAt?.toISOString() ?? null,
     validFrom: row.validFrom?.toISOString() ?? null,
     validTo: row.validTo?.toISOString() ?? null,
+    createdAt: row.createdAt.toISOString(),
+  })));
+});
+
+// GET /research/sessions/:id/audit
+router.get("/research/sessions/:id/audit", async (req, res): Promise<void> => {
+  const params = GetResearchSessionParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const [session] = await db
+    .select({ id: researchSessionsTable.id })
+    .from(researchSessionsTable)
+    .where(eq(researchSessionsTable.id, params.data.id));
+  if (!session) {
+    res.status(404).json({ error: "Research session not found" });
+    return;
+  }
+  const rows = await db
+    .select()
+    .from(researchRunEventsTable)
+    .where(eq(researchRunEventsTable.sessionId, params.data.id))
+    .orderBy(desc(researchRunEventsTable.createdAt));
+  res.json(rows.map((row) => ({
+    ...row,
     createdAt: row.createdAt.toISOString(),
   })));
 });

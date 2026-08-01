@@ -50,6 +50,7 @@ import type {
   Relationship,
   RelationshipInput,
   ResearchEvidence,
+  ResearchRunEvent,
   ResearchRunInput,
   ResearchSession,
   RunImprovementLoopBody,
@@ -1376,6 +1377,83 @@ export function useListResearchEvidence<TData = Awaited<ReturnType<typeof listRe
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListResearchEvidenceQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListResearchRunAuditUrl = (id: number,) => {
+
+
+
+
+  return `/api/research/sessions/${id}/audit`
+}
+
+/**
+ * @summary List durable research pipeline audit events
+ */
+export const listResearchRunAudit = async (id: number, options?: RequestInit): Promise<ResearchRunEvent[]> => {
+
+  return customFetch<ResearchRunEvent[]>(getListResearchRunAuditUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListResearchRunAuditQueryKey = (id: number,) => {
+    return [
+    `/api/research/sessions/${id}/audit`
+    ] as const;
+    }
+
+
+export const getListResearchRunAuditQueryOptions = <TData = Awaited<ReturnType<typeof listResearchRunAudit>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listResearchRunAudit>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListResearchRunAuditQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listResearchRunAudit>>> = ({ signal }) => listResearchRunAudit(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listResearchRunAudit>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListResearchRunAuditQueryResult = NonNullable<Awaited<ReturnType<typeof listResearchRunAudit>>>
+export type ListResearchRunAuditQueryError = ErrorType<void>
+
+
+/**
+ * @summary List durable research pipeline audit events
+ */
+
+export function useListResearchRunAudit<TData = Awaited<ReturnType<typeof listResearchRunAudit>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listResearchRunAudit>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListResearchRunAuditQueryOptions(id,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

@@ -403,6 +403,28 @@ paths:
         "404":
           description: Research session not found
 
+  /research/sessions/{id}/audit:
+    get:
+      operationId: listResearchRunAudit
+      tags: [research]
+      summary: List durable research pipeline audit events
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Research pipeline audit events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ResearchRunEvent"
+        "404":
+          description: Research session not found
+
   /research/sessions/{id}/status:
     patch:
       operationId: updateResearchStatus
@@ -971,6 +993,19 @@ components:
         validFrom: { type: ["string", "null"] }
         validTo: { type: ["string", "null"] }
         freshnessScore: { type: number }
+        metadata: { type: string }
+        createdAt: { type: string }
+
+    ResearchRunEvent:
+      type: object
+      required: [id, sessionId, phase, status, durationMs, message, createdAt]
+      properties:
+        id: { type: integer }
+        sessionId: { type: integer }
+        phase: { type: string }
+        status: { type: string }
+        durationMs: { type: integer }
+        message: { type: string }
         metadata: { type: string }
         createdAt: { type: string }
 
