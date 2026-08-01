@@ -93,6 +93,9 @@ router.get("/research/sessions/:id/evidence", async (req, res): Promise<void> =>
   res.json(rows.map((row) => ({
     ...row,
     observedAt: row.observedAt.toISOString(),
+    publishedAt: row.publishedAt?.toISOString() ?? null,
+    validFrom: row.validFrom?.toISOString() ?? null,
+    validTo: row.validTo?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
   })));
 });

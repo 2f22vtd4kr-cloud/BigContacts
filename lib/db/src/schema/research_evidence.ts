@@ -28,6 +28,10 @@ export const researchEvidenceTable = pgTable("research_evidence", {
   confidence: doublePrecision("confidence").notNull().default(0),
   rejectionReason: text("rejection_reason"),
   observedAt: timestamp("observed_at", { withTimezone: true }).notNull().defaultNow(),
+  publishedAt: timestamp("published_at", { withTimezone: true }),
+  validFrom: timestamp("valid_from", { withTimezone: true }),
+  validTo: timestamp("valid_to", { withTimezone: true }),
+  freshnessScore: doublePrecision("freshness_score").notNull().default(0),
   metadata: text("metadata").notNull().default("{}"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

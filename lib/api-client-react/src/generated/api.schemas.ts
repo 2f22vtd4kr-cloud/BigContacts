@@ -222,6 +222,13 @@ export interface ResearchEvidence {
   /** @nullable */
   rejectionReason?: string | null;
   observedAt: string;
+  /** @nullable */
+  publishedAt?: string | null;
+  /** @nullable */
+  validFrom?: string | null;
+  /** @nullable */
+  validTo?: string | null;
+  freshnessScore?: number;
   metadata?: string;
   createdAt: string;
 }

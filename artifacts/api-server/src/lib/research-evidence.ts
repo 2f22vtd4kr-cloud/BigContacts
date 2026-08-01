@@ -1,5 +1,6 @@
 import type { InsertResearchEvidence } from "@workspace/db";
 import type { HybridSearchMeta } from "./hybrid-search";
+import { computeFreshnessScore } from "./temporal-evidence";
 
 type PathNode = {
   label?: string;
@@ -36,6 +37,7 @@ export function buildResearchEvidenceRows(input: {
       entityId: input.entityId,
     });
   };
+  const observedAt = new Date();
 
   add({
     claimType: "identity",
@@ -44,6 +46,8 @@ export function buildResearchEvidenceRows(input: {
     sourceName: "Apex Atlas target record",
     status: "review",
     confidence: 0.5,
+    observedAt,
+    freshnessScore: computeFreshnessScore(observedAt, observedAt),
     metadata: JSON.stringify({ basis: "selected_entity" }),
   });
 
@@ -56,6 +60,8 @@ export function buildResearchEvidenceRows(input: {
       sourceName: node.registry ?? "Graph path",
       status: confidence >= 0.7 ? "supported" : "review",
       confidence: confidence || 0.35,
+      observedAt,
+      freshnessScore: computeFreshnessScore(observedAt, observedAt),
       metadata: JSON.stringify({
         role: node.role ?? null,
         contactEmail: node.contactEmail ?? null,
@@ -73,6 +79,8 @@ export function buildResearchEvidenceRows(input: {
       sourceName: step.registry ?? "MCTS",
       status: (step.warmthScore ?? 0) >= 0.7 ? "supported" : "review",
       confidence: Math.max(0, Math.min(1, step.warmthScore ?? 0)),
+      observedAt,
+      freshnessScore: computeFreshnessScore(observedAt, observedAt),
       metadata: JSON.stringify({ action: step.action ?? null, targetType: step.targetType ?? null }),
     });
   }
@@ -85,6 +93,8 @@ export function buildResearchEvidenceRows(input: {
       sourceName: "Apex Atlas hybrid retrieval",
       status: (input.hybridMeta.totalCandidates ?? 0) > 0 ? "supported" : "review",
       confidence: (input.hybridMeta.totalCandidates ?? 0) > 0 ? 0.75 : 0.25,
+      observedAt,
+      freshnessScore: computeFreshnessScore(observedAt, observedAt),
       metadata: JSON.stringify(input.hybridMeta),
     });
   }
@@ -98,6 +108,8 @@ export function buildResearchEvidenceRows(input: {
       sourceName: "Apex Atlas reachability preflight",
       status,
       confidence: Math.max(0, Math.min(1, (input.reachability.score ?? 0) / 100)),
+      observedAt,
+      freshnessScore: computeFreshnessScore(observedAt, observedAt),
       rejectionReason: input.reachability.blockers?.join("; ") || null,
       metadata: JSON.stringify({
         reasons: input.reachability.reasons ?? [],

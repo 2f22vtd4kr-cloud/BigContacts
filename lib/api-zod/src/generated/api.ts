@@ -480,6 +480,10 @@ export const ListResearchEvidenceResponseItem = zod.object({
   "confidence": zod.number(),
   "rejectionReason": zod.string().nullish(),
   "observedAt": zod.string(),
+  "publishedAt": zod.string().nullish(),
+  "validFrom": zod.string().nullish(),
+  "validTo": zod.string().nullish(),
+  "freshnessScore": zod.number().optional(),
   "metadata": zod.string().optional(),
   "createdAt": zod.string()
 })

@@ -41,6 +41,10 @@ type ResearchEvidence = {
   confidence: number;
   rejectionReason?: string | null;
   observedAt: string;
+  freshnessScore: number;
+  publishedAt?: string | null;
+  validFrom?: string | null;
+  validTo?: string | null;
 };
 
 type ResearchScorecard = {
@@ -120,6 +124,10 @@ function EvidenceLedger({ sessionId }: { sessionId: number | null }) {
                       <span>{item.sourceName ?? "Unattributed source"}</span>
                       <span>·</span>
                       <span>{new Date(item.observedAt).toLocaleDateString()}</span>
+                      <span>·</span>
+                      <span className={item.freshnessScore >= 0.7 ? "text-emerald-400" : item.freshnessScore >= 0.35 ? "text-amber-400" : "text-rose-400"}>
+                        {item.freshnessScore >= 0.7 ? "current" : item.freshnessScore >= 0.35 ? "aging" : "stale"} evidence
+                      </span>
                       {item.sourceUrl && <a href={item.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline"><ExternalLink className="w-3 h-3" /> source</a>}
                     </div>
                     {item.rejectionReason && <p className="text-[10px] text-amber-400/80 mt-1">Constraint: {item.rejectionReason}</p>}

@@ -967,6 +967,10 @@ components:
         confidence: { type: number }
         rejectionReason: { type: ["string", "null"] }
         observedAt: { type: string }
+        publishedAt: { type: ["string", "null"] }
+        validFrom: { type: ["string", "null"] }
+        validTo: { type: ["string", "null"] }
+        freshnessScore: { type: number }
         metadata: { type: string }
         createdAt: { type: string }
 
