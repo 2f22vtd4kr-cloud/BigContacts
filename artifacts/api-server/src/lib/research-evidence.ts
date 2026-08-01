@@ -1,6 +1,7 @@
 import type { InsertResearchEvidence } from "@workspace/db";
 import type { HybridSearchMeta } from "./hybrid-search";
 import { computeFreshnessScore } from "./temporal-evidence";
+import { decideEvidence } from "./evidence-decision";
 
 type PathNode = {
   label?: string;
@@ -38,13 +39,31 @@ export function buildResearchEvidenceRows(input: {
     });
   };
   const observedAt = new Date();
+  const addClaim = (row: Omit<InsertResearchEvidence, "sessionId" | "entityId"> & {
+    conflictReason?: string | null;
+    negativeReason?: string | null;
+    attributable?: boolean;
+  }) => {
+    const decision = decideEvidence({
+      confidence: row.confidence,
+      sourceName: row.sourceName,
+      conflictReason: row.conflictReason,
+      negativeReason: row.negativeReason,
+      attributable: row.attributable,
+    });
+    const { conflictReason: _conflictReason, negativeReason: _negativeReason, attributable: _attributable, ...evidence } = row;
+    add({
+      ...evidence,
+      status: decision.status,
+      rejectionReason: evidence.rejectionReason ?? decision.rejectionReason,
+    });
+  };
 
-  add({
+  addClaim({
     claimType: "identity",
     claim: `Research target is ${input.targetName}`,
     value: input.targetName,
     sourceName: "Apex Atlas target record",
-    status: "review",
     confidence: 0.5,
     observedAt,
     freshnessScore: computeFreshnessScore(observedAt, observedAt),
@@ -53,12 +72,11 @@ export function buildResearchEvidenceRows(input: {
 
   for (const node of input.path) {
     const confidence = Math.max(0, Math.min(1, (node.contactConfidence ?? 0) / 100));
-    add({
+    addClaim({
       claimType: node.role === "GATEKEEPER" ? "access" : "relationship",
       claim: `${node.role ?? "PATH"} candidate: ${node.label ?? "unlabelled node"}`,
       value: node.label ?? null,
       sourceName: node.registry ?? "Graph path",
-      status: confidence >= 0.7 ? "supported" : "review",
       confidence: confidence || 0.35,
       observedAt,
       freshnessScore: computeFreshnessScore(observedAt, observedAt),
@@ -68,45 +86,50 @@ export function buildResearchEvidenceRows(input: {
         contactPhone: node.contactPhone ?? null,
         registry: node.registry ?? null,
       }),
+      negativeReason: confidence < 0.7
+        ? "The stored public contact vector is insufficient to attribute this path node as an authorized intermediary."
+        : null,
     });
   }
 
   for (const step of input.steps) {
-    add({
+    addClaim({
       claimType: "process",
       claim: step.reasoning || `${step.action ?? "Research step"} → ${step.target ?? "unknown target"}`,
       value: step.target ?? null,
       sourceName: step.registry ?? "MCTS",
-      status: (step.warmthScore ?? 0) >= 0.7 ? "supported" : "review",
       confidence: Math.max(0, Math.min(1, step.warmthScore ?? 0)),
       observedAt,
       freshnessScore: computeFreshnessScore(observedAt, observedAt),
       metadata: JSON.stringify({ action: step.action ?? null, targetType: step.targetType ?? null }),
+      negativeReason: (step.warmthScore ?? 0) < 0.7
+        ? "Warmth is a prioritization signal, not independent proof of access or identity."
+        : null,
     });
   }
 
   if (input.hybridMeta) {
-    add({
+    addClaim({
       claimType: "process",
       claim: `Retrieval returned ${input.hybridMeta.totalCandidates ?? 0} candidate records`,
       value: String(input.hybridMeta.totalCandidates ?? 0),
       sourceName: "Apex Atlas hybrid retrieval",
-      status: (input.hybridMeta.totalCandidates ?? 0) > 0 ? "supported" : "review",
       confidence: (input.hybridMeta.totalCandidates ?? 0) > 0 ? 0.75 : 0.25,
       observedAt,
       freshnessScore: computeFreshnessScore(observedAt, observedAt),
       metadata: JSON.stringify(input.hybridMeta),
+      negativeReason: (input.hybridMeta.totalCandidates ?? 0) === 0
+        ? "No related candidates were returned by the configured retrieval signals."
+        : null,
     });
   }
 
   if (input.reachability) {
-    const status = input.reachability.status === "reachable" ? "supported" : "review";
-    add({
+    addClaim({
       claimType: "access",
       claim: `Reachability preflight: ${input.reachability.status ?? "unknown"}`,
       value: input.reachability.status ?? null,
       sourceName: "Apex Atlas reachability preflight",
-      status,
       confidence: Math.max(0, Math.min(1, (input.reachability.score ?? 0) / 100)),
       observedAt,
       freshnessScore: computeFreshnessScore(observedAt, observedAt),
@@ -115,6 +138,9 @@ export function buildResearchEvidenceRows(input: {
         reasons: input.reachability.reasons ?? [],
         blockers: input.reachability.blockers ?? [],
       }),
+      negativeReason: input.reachability.status === "reachable"
+        ? null
+        : input.reachability.blockers?.join("; ") || "No validated direct or intermediary route was established.",
     });
   }
 

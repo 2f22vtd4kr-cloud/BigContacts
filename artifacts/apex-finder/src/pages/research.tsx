@@ -109,14 +109,23 @@ function EvidenceLedger({ sessionId }: { sessionId: number | null }) {
         <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
           {evidence.map((item) => {
             const supported = item.status === "supported";
+            const disputed = item.status === "disputed";
+            const rejected = item.status === "rejected";
+            const statusColor = supported
+              ? "text-emerald-400"
+              : disputed
+                ? "text-rose-400"
+                : rejected
+                  ? "text-slate-400"
+                  : "text-amber-400";
             return (
               <div key={item.id} className="rounded border border-border/70 bg-background/50 p-3">
                 <div className="flex items-start gap-2">
-                  {supported ? <FileCheck2 className="w-3.5 h-3.5 text-emerald-400 mt-0.5 shrink-0" /> : <CircleAlert className="w-3.5 h-3.5 text-amber-400 mt-0.5 shrink-0" />}
+                  {supported ? <FileCheck2 className="w-3.5 h-3.5 text-emerald-400 mt-0.5 shrink-0" /> : <CircleAlert className={cn("w-3.5 h-3.5 mt-0.5 shrink-0", disputed ? "text-rose-400" : rejected ? "text-slate-400" : "text-amber-400")} />}
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground">{item.claimType}</span>
-                      <span className={cn("text-[10px] uppercase tracking-wider font-mono", supported ? "text-emerald-400" : "text-amber-400")}>{item.status}</span>
+                      <span className={cn("text-[10px] uppercase tracking-wider font-mono", statusColor)}>{item.status}</span>
                       <span className="text-[10px] font-mono text-muted-foreground">{Math.round(item.confidence * 100)}% confidence</span>
                     </div>
                     <p className="text-xs text-foreground/90 mt-1 leading-relaxed">{item.claim}</p>
@@ -130,7 +139,7 @@ function EvidenceLedger({ sessionId }: { sessionId: number | null }) {
                       </span>
                       {item.sourceUrl && <a href={item.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline"><ExternalLink className="w-3 h-3" /> source</a>}
                     </div>
-                    {item.rejectionReason && <p className="text-[10px] text-amber-400/80 mt-1">Constraint: {item.rejectionReason}</p>}
+                    {item.rejectionReason && <p className={cn("text-[10px] mt-1", disputed ? "text-rose-400/80" : "text-muted-foreground")}>{disputed ? "Dispute: " : rejected ? "Rejected: " : "Review note: "}{item.rejectionReason}</p>}
                   </div>
                 </div>
               </div>
