@@ -12,6 +12,7 @@ import {
   scoreIdentityMatch,
   type IdentityEntityInput,
 } from "../lib/identity-resolver";
+import { evaluateIdentityGate } from "../lib/identity-gate";
 import { createJob, getActiveJob, getJob, setActiveJob, updateJob } from "../lib/job-queue";
 import { logger } from "../lib/logger";
 
@@ -110,6 +111,8 @@ async function runIdentityResolution(jobId: string, requestedLimit: number): Pro
     score: number;
     signals: string[];
     evidence: unknown[];
+    identityDecision: "accepted" | "review" | "rejected";
+    gateReason: string;
   }>();
   const rowById = new Map(rows.map((row) => [row.id, row]));
 
@@ -132,6 +135,12 @@ async function runIdentityResolution(jobId: string, requestedLimit: number): Pro
         const candidateBundle = bundles.get(candidateEntityId);
         if (!candidate || !candidateBundle) continue;
         const key = candidateKey(entityId, candidateEntityId);
+        const gate = evaluateIdentityGate({
+          score: match.score,
+          signals: match.signals,
+          leftSources: left.provenance.map((item) => item.source),
+          rightSources: right.provenance.map((item) => item.source),
+        });
         const prior = matches.get(key);
         if (!prior || match.score > prior.score) {
           matches.set(key, {
@@ -145,6 +154,8 @@ async function runIdentityResolution(jobId: string, requestedLimit: number): Pro
               { entityId: leftId, sources: left.provenance },
               { entityId: rightId, sources: right.provenance },
             ],
+            identityDecision: gate.decision,
+            gateReason: gate.reason,
           });
         }
       }
@@ -164,6 +175,8 @@ async function runIdentityResolution(jobId: string, requestedLimit: number): Pro
         matchSignals: json(match.signals),
         sourceEvidence: json(match.evidence),
         status: "pending",
+        identityDecision: match.identityDecision,
+        gateReason: match.gateReason,
         updatedAt: new Date(),
       })
       .onConflictDoUpdate({
@@ -177,6 +190,8 @@ async function runIdentityResolution(jobId: string, requestedLimit: number): Pro
           matchScore: match.score,
           matchSignals: json(match.signals),
           sourceEvidence: json(match.evidence),
+          identityDecision: match.identityDecision,
+          gateReason: match.gateReason,
           updatedAt: new Date(),
         },
       });
@@ -253,6 +268,8 @@ router.get("/identity/candidates", async (req: Request, res: Response): Promise<
       candidateEntity: entityMap.get(candidate.candidateEntityId) ?? null,
       matchSignals: parseArray(candidate.matchSignals),
       sourceEvidence: parseArray(candidate.sourceEvidence),
+      identityDecision: candidate.identityDecision,
+      gateReason: candidate.gateReason,
     })),
     total: candidates.length,
     reviewOnly: true,
@@ -283,12 +300,29 @@ router.patch("/identity/candidates/:id", async (req: Request, res: Response): Pr
     res.status(400).json({ error: "id and status (pending, confirmed, or rejected) are required." });
     return;
   }
+  const [candidate] = await db
+    .select()
+    .from(identityCandidatesTable)
+    .where(eq(identityCandidatesTable.id, id));
+  if (!candidate) {
+    res.status(404).json({ error: "Identity candidate not found." });
+    return;
+  }
+  if (status === "confirmed" && candidate.identityDecision !== "accepted") {
+    res.status(422).json({
+      error: "Identity gate has not cleared this candidate.",
+      decision: candidate.identityDecision,
+      reason: candidate.gateReason ?? "Independent corroboration is required.",
+    });
+    return;
+  }
   const [updated] = await db
     .update(identityCandidatesTable)
     .set({
       status,
       reviewerNote: typeof req.body?.reviewerNote === "string" ? req.body.reviewerNote.trim() || null : undefined,
       reviewedAt: status === "pending" ? null : new Date(),
+      identityDecision: status === "rejected" ? "rejected" : candidate.identityDecision,
       updatedAt: new Date(),
     })
     .where(eq(identityCandidatesTable.id, id))

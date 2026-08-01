@@ -59,12 +59,22 @@ export interface RelationshipRow {
   targetType: string;
   relationshipType: string;
   strength?: number | null;
+  notes?: string | null;
+}
+
+function isIdentityRelationship(relationshipType: string): boolean {
+  return /identity|same[_ -]?(person|company|entity)|duplicate/i.test(relationshipType);
+}
+
+export function identityPairKey(sourceEntityId: number, targetEntityId: number): string {
+  return `${Math.min(sourceEntityId, targetEntityId)}:${Math.max(sourceEntityId, targetEntityId)}`;
 }
 
 export function buildGraph(
   entities: EntityRow[],
   assets: AssetRow[],
   relationships: RelationshipRow[],
+  acceptedIdentityPairs: ReadonlySet<string> = new Set(),
 ): InMemoryGraph {
   const vertices = new Map<string, GraphVertex>();
   const adjacency = new Map<string, Array<{ neighbor: string; arc: GraphArc }>>();
@@ -110,6 +120,11 @@ export function buildGraph(
   }
 
   for (const r of relationships) {
+    if (
+      r.targetType === "Entity" &&
+      isIdentityRelationship(r.relationshipType) &&
+      !acceptedIdentityPairs.has(identityPairKey(r.sourceEntityId, r.targetId))
+    ) continue;
     const sourceId = `e:${r.sourceEntityId}`;
     const targetId = r.targetType === "Asset" ? `a:${r.targetId}` : `e:${r.targetId}`;
 

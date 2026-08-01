@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { eq } from "drizzle-orm";
-import { db, entitiesTable, assetsTable, relationshipsTable, researchEvidenceTable, researchSessionsTable } from "@workspace/db";
+import { db, entitiesTable, assetsTable, identityCandidatesTable, assetsTable, relationshipsTable, researchEvidenceTable, researchSessionsTable } from "@workspace/db";
 import { RunResearchBody } from "@workspace/api-zod";
-import { buildGraph, findShortestPath } from "../../lib/graph-engine";
+import { buildGraph, findShortestPath, identityPairKey } from "../../lib/graph-engine";
 import { computeBayesianScore } from "../../lib/bayesian-scorer";
 import { runMcts } from "../../lib/mcts-agent";
 import { generateOutreachSequence } from "../../lib/pitch-generator";
@@ -33,13 +33,19 @@ router.post("/research/run", async (req, res): Promise<void> => {
     return;
   }
 
-  const [allEntities, allAssets, allRelationships] = await Promise.all([
+  const [allEntities, allAssets, allRelationships, acceptedIdentityCandidates] = await Promise.all([
     db.select().from(entitiesTable),
     db.select().from(assetsTable),
     db.select().from(relationshipsTable),
+    db.select().from(identityCandidatesTable),
   ]);
 
-  const graph = buildGraph(allEntities, allAssets, allRelationships);
+  const acceptedIdentityPairs = new Set(
+    acceptedIdentityCandidates
+      .filter((candidate) => candidate.status === "confirmed" && candidate.identityDecision === "accepted")
+      .map((candidate) => identityPairKey(candidate.entityId, candidate.candidateEntityId)),
+  );
+  const graph = buildGraph(allEntities, allAssets, allRelationships, acceptedIdentityPairs);
 
   const targetAssets = allAssets.filter((a) => a.ownerEntityId === entityId);
   const targetRelationships = allRelationships.filter((r) => r.sourceEntityId === entityId);

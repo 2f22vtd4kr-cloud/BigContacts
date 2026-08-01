@@ -33,6 +33,8 @@ export const identityCandidatesTable = pgTable(
     matchSignals: text("match_signals").notNull().default("[]"),
     sourceEvidence: text("source_evidence").notNull().default("[]"),
     status: text("status").notNull().default("pending"),
+    identityDecision: text("identity_decision").notNull().default("review"),
+    gateReason: text("gate_reason"),
     reviewerNote: text("reviewer_note"),
     reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

@@ -3,6 +3,7 @@ import {
   normalizeIdentityName,
   scoreIdentityMatch,
 } from "../lib/identity-resolver";
+import { evaluateIdentityGate } from "../lib/identity-gate";
 import { describe, expect, it } from "vitest";
 
 describe("Phase J3 identity resolver", () => {
@@ -86,5 +87,23 @@ describe("Phase J3 identity resolver", () => {
 
     const match = scoreIdentityMatch(left, right);
     expect(match?.signals).toContain("shared_registry_identifier");
+  });
+
+  it("keeps same-name candidates out of the graph until independent evidence clears the gate", () => {
+    const review = evaluateIdentityGate({
+      score: 0.74,
+      signals: ["shared_affiliation", "cross_registry"],
+      leftSources: ["SEC EDGAR"],
+      rightSources: ["Companies House UK"],
+    });
+    expect(review.decision).toBe("review");
+
+    const accepted = evaluateIdentityGate({
+      score: 0.9,
+      signals: ["shared_registry_identifier", "cross_registry"],
+      leftSources: ["SEC EDGAR"],
+      rightSources: ["Companies House UK"],
+    });
+    expect(accepted.decision).toBe("accepted");
   });
 });
