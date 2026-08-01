@@ -23,6 +23,10 @@ export interface GraphArc {
   target: string;
   label: string;
   strength?: number | null;
+  provenanceScore: number;
+  citationCount: number;
+  freshnessScore: number;
+  evidenceStatus: "supported" | "review" | "disputed" | "rejected";
 }
 
 export interface InMemoryGraph {
@@ -60,6 +64,28 @@ export interface RelationshipRow {
   relationshipType: string;
   strength?: number | null;
   notes?: string | null;
+}
+
+function deriveArcProvenance(relationship: RelationshipRow): Pick<GraphArc, "provenanceScore" | "citationCount" | "freshnessScore" | "evidenceStatus"> {
+  const notes = relationship.notes ?? "";
+  const citationCount = (notes.match(/https?:\/\/|source\s*:/gi) ?? []).length;
+  const hasExplicitDispute = /disputed|rejected|unverified|not attributable/i.test(notes);
+  const hasVerification = /verified|corroborat|official filing|registry/i.test(notes);
+  const provenanceScore = hasExplicitDispute
+    ? 0.15
+    : Math.min(
+        1,
+        (relationship.strength ?? 0.35) +
+          Math.min(0.3, citationCount * 0.1) +
+          (hasVerification ? 0.2 : 0),
+      );
+
+  return {
+    provenanceScore: Number(provenanceScore.toFixed(3)),
+    citationCount,
+    freshnessScore: /stale|historical|expired/i.test(notes) ? 0.2 : 0.7,
+    evidenceStatus: hasExplicitDispute ? "disputed" : provenanceScore >= 0.7 ? "supported" : "review",
+  };
 }
 
 function isIdentityRelationship(relationshipType: string): boolean {
@@ -137,6 +163,7 @@ export function buildGraph(
       target: targetId,
       label: r.relationshipType,
       strength: r.strength,
+      ...deriveArcProvenance(r),
     });
   }
 

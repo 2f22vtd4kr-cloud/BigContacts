@@ -74,7 +74,7 @@ function uctScore(node: MctsNode, parentVisits: number): number {
  * G3: degree centrality bonus — well-connected entities have more paths to
  *     the target and are therefore higher-value intermediaries.
  */
-function evaluateWarmth(vertex: GraphVertex, depth: number, degree = 0): number {
+function evaluateWarmth(vertex: GraphVertex, depth: number, degree = 0, provenanceScore = 1): number {
   let warmth = 0.3; // base warmth
 
   // Gatekeepers are more approachable than HNWIs
@@ -101,6 +101,10 @@ function evaluateWarmth(vertex: GraphVertex, depth: number, degree = 0): number 
   // G3: degree centrality — each additional connection adds a small bonus (capped at +0.12)
   // High-degree nodes are hub entities: more paths through them → more outreach options
   if (degree > 0) warmth += Math.min(0.12, degree * 0.008);
+
+  // A structurally convenient edge is not necessarily a usable route. Penalize
+  // unsupported or disputed provenance before the path can win a rollout.
+  warmth -= (1 - Math.max(0, Math.min(1, provenanceScore))) * 0.3;
 
   return Math.max(0.05, Math.min(0.99, warmth));
 }
@@ -287,7 +291,9 @@ export function runMcts(
     // Simulation: evaluate warmth of this node (G3: pass degree for centrality bonus)
     const vertex = graph.vertices.get(node.vertexId);
     const degree = graph.adjacency.get(node.vertexId)?.length ?? 0;
-    const reward = vertex ? evaluateWarmth(vertex, node.depth, degree) : 0.1;
+    const reward = vertex
+      ? evaluateWarmth(vertex, node.depth, degree, node.pathArc?.provenanceScore ?? 0.5)
+      : 0.1;
 
     // Backpropagation
     let backNode: MctsNode | null = node;
@@ -308,7 +314,10 @@ export function runMcts(
     if (!vertex) continue;
 
     const vDegree = graph.adjacency.get(vId)?.length ?? 0;
-    const warmth = evaluateWarmth(vertex, i, vDegree);
+    const pathArc = i > 0
+      ? (graph.adjacency.get(bestPath[i - 1]!) ?? []).find(({ neighbor }) => neighbor === vId)?.arc
+      : undefined;
+    const warmth = evaluateWarmth(vertex, i, vDegree, pathArc?.provenanceScore ?? 0.5);
     const uctVal = i === 0 ? 1.0 : Math.min(0.99, warmth + Math.random() * 0.15);
 
     steps.push({
@@ -346,7 +355,12 @@ export function runMcts(
   // Compute aggregate path score using UCT-weighted warmth
   const rawPathScore = bestPath.reduce((acc, vId, i) => {
     const vertex = graph.vertices.get(vId);
-    const warmth = vertex ? evaluateWarmth(vertex, i) : 0.1;
+    const pathArc = i > 0
+      ? (graph.adjacency.get(bestPath[i - 1]!) ?? []).find(({ neighbor }) => neighbor === vId)?.arc
+      : undefined;
+    const warmth = vertex
+      ? evaluateWarmth(vertex, i, graph.adjacency.get(vId)?.length ?? 0, pathArc?.provenanceScore ?? 0.5)
+      : 0.1;
     return acc + warmth * (1 / (i + 1)); // depth-weighted
   }, 0) / Math.max(bestPath.length, 1);
 
