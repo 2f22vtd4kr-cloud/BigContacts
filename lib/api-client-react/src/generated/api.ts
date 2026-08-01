@@ -49,6 +49,7 @@ import type {
   MapAsset,
   Relationship,
   RelationshipInput,
+  ResearchEvidence,
   ResearchRunInput,
   ResearchSession,
   RunImprovementLoopBody,
@@ -1298,6 +1299,83 @@ export function useGetResearchSession<TData = Awaited<ReturnType<typeof getResea
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetResearchSessionQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListResearchEvidenceUrl = (id: number,) => {
+
+
+
+
+  return `/api/research/sessions/${id}/evidence`
+}
+
+/**
+ * @summary List claim-level evidence recorded for a research session
+ */
+export const listResearchEvidence = async (id: number, options?: RequestInit): Promise<ResearchEvidence[]> => {
+
+  return customFetch<ResearchEvidence[]>(getListResearchEvidenceUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListResearchEvidenceQueryKey = (id: number,) => {
+    return [
+    `/api/research/sessions/${id}/evidence`
+    ] as const;
+    }
+
+
+export const getListResearchEvidenceQueryOptions = <TData = Awaited<ReturnType<typeof listResearchEvidence>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listResearchEvidence>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListResearchEvidenceQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listResearchEvidence>>> = ({ signal }) => listResearchEvidence(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listResearchEvidence>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListResearchEvidenceQueryResult = NonNullable<Awaited<ReturnType<typeof listResearchEvidence>>>
+export type ListResearchEvidenceQueryError = ErrorType<void>
+
+
+/**
+ * @summary List claim-level evidence recorded for a research session
+ */
+
+export function useListResearchEvidence<TData = Awaited<ReturnType<typeof listResearchEvidence>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listResearchEvidence>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListResearchEvidenceQueryOptions(id,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

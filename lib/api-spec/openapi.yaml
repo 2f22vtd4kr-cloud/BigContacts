@@ -381,6 +381,28 @@ paths:
         "404":
           description: Not found
 
+  /research/sessions/{id}/evidence:
+    get:
+      operationId: listResearchEvidence
+      tags: [research]
+      summary: List claim-level evidence recorded for a research session
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Claim-level evidence ledger
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ResearchEvidence"
+        "404":
+          description: Research session not found
+
   /research/sessions/{id}/status:
     patch:
       operationId: updateResearchStatus
@@ -918,6 +940,26 @@ components:
         lastContactDate: { type: ["string", "null"] }
         bayesianScoreAtRuntime: { type: ["number", "null"] }
         pathScore: { type: ["number", "null"] }
+        createdAt: { type: string }
+
+    ResearchEvidence:
+      type: object
+      required: [id, sessionId, entityId, claimType, claim, status, confidence, observedAt, createdAt]
+      properties:
+        id: { type: integer }
+        sessionId: { type: integer }
+        entityId: { type: integer }
+        claimType: { type: string }
+        claim: { type: string }
+        value: { type: ["string", "null"] }
+        sourceName: { type: ["string", "null"] }
+        sourceUrl: { type: ["string", "null"] }
+        sourceDomain: { type: ["string", "null"] }
+        status: { type: string }
+        confidence: { type: number }
+        rejectionReason: { type: ["string", "null"] }
+        observedAt: { type: string }
+        metadata: { type: string }
         createdAt: { type: string }
 
     ResearchRunInput:

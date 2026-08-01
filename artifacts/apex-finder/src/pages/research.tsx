@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
-import { useListEntities, useRunResearch } from "@workspace/api-client-react";
-import { Terminal, Play, Cpu, ChevronRight, Hash, CheckCircle2, GitBranch, Target, Shield, ChevronDown, Search, X, Mail, Phone, Copy, CheckCheck, Layers } from "lucide-react";
+import { useListEntities, useRunResearch, useListResearchEvidence } from "@workspace/api-client-react";
+import { Terminal, Play, Cpu, ChevronRight, Hash, CheckCircle2, GitBranch, Target, Shield, ChevronDown, Search, X, Mail, Phone, Copy, CheckCheck, Layers, ExternalLink, FileCheck2, CircleAlert } from "lucide-react";
 import { cn, formatEntityName } from "@/lib/utils";
 import { ScoreBadge } from "@/lib/utils";
 
@@ -30,6 +30,19 @@ type PathStep = {
   contactPhone?: string | null;
 };
 
+type ResearchEvidence = {
+  id: number;
+  claimType: string;
+  claim: string;
+  value?: string | null;
+  sourceName?: string | null;
+  sourceUrl?: string | null;
+  status: string;
+  confidence: number;
+  rejectionReason?: string | null;
+  observedAt: string;
+};
+
 const HYBRID_PIPELINE = "L1: BM25+Semantic+Graph · L2: Planner→Retriever→Analyst→Critic · L3: QueryExpansion · L4: UCT(120 rollouts) · L5: Bayesian-UCB";
 
 function roleIcon(role: string) {
@@ -56,6 +69,58 @@ function getActionColor(action: string) {
   if (action === "GATEKEEPER LOCKED") return "text-primary font-bold";
   if (action === "TARGET IDENTIFIED") return "text-amber-500";
   return "text-secondary";
+}
+
+function EvidenceLedger({ sessionId }: { sessionId: number | null }) {
+  const { data, isLoading } = useListResearchEvidence(sessionId ?? 0, {
+    query: { enabled: sessionId != null },
+  });
+  const evidence = (data ?? []) as ResearchEvidence[];
+  if (!sessionId) return null;
+  return (
+    <div className="border-t border-border/50 bg-card/30 p-4 md:p-5">
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <div>
+          <h3 className="text-xs font-mono text-primary uppercase tracking-widest flex items-center gap-2">
+            <FileCheck2 className="w-4 h-4" /> Claim Evidence Ledger
+          </h3>
+          <p className="text-[11px] text-muted-foreground mt-1">Every research assertion is shown with its current support level and source basis.</p>
+        </div>
+        <span className="text-[10px] font-mono text-muted-foreground">{isLoading ? "loading…" : `${evidence.length} claims`}</span>
+      </div>
+      {evidence.length === 0 && !isLoading ? (
+        <div className="rounded border border-dashed border-border p-3 text-xs text-muted-foreground font-mono">No claim-level evidence was recorded for this run.</div>
+      ) : (
+        <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+          {evidence.map((item) => {
+            const supported = item.status === "supported";
+            return (
+              <div key={item.id} className="rounded border border-border/70 bg-background/50 p-3">
+                <div className="flex items-start gap-2">
+                  {supported ? <FileCheck2 className="w-3.5 h-3.5 text-emerald-400 mt-0.5 shrink-0" /> : <CircleAlert className="w-3.5 h-3.5 text-amber-400 mt-0.5 shrink-0" />}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground">{item.claimType}</span>
+                      <span className={cn("text-[10px] uppercase tracking-wider font-mono", supported ? "text-emerald-400" : "text-amber-400")}>{item.status}</span>
+                      <span className="text-[10px] font-mono text-muted-foreground">{Math.round(item.confidence * 100)}% confidence</span>
+                    </div>
+                    <p className="text-xs text-foreground/90 mt-1 leading-relaxed">{item.claim}</p>
+                    <div className="flex flex-wrap items-center gap-2 mt-1.5 text-[10px] font-mono text-muted-foreground">
+                      <span>{item.sourceName ?? "Unattributed source"}</span>
+                      <span>·</span>
+                      <span>{new Date(item.observedAt).toLocaleDateString()}</span>
+                      {item.sourceUrl && <a href={item.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline"><ExternalLink className="w-3 h-3" /> source</a>}
+                    </div>
+                    {item.rejectionReason && <p className="text-[10px] text-amber-400/80 mt-1">Constraint: {item.rejectionReason}</p>}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ── Path node contact bar ──────────────────────────────────────────────────────
@@ -543,6 +608,7 @@ export default function IntelTerminal() {
             </div>
           </div>
         )}
+        {!isComputing && <EvidenceLedger sessionId={sessionId} />}
       </div>
     </div>
   );

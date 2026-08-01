@@ -187,6 +187,29 @@ export interface ResearchSession {
   createdAt: string;
 }
 
+export interface ResearchEvidence {
+  id: number;
+  sessionId: number;
+  entityId: number;
+  claimType: string;
+  claim: string;
+  /** @nullable */
+  value?: string | null;
+  /** @nullable */
+  sourceName?: string | null;
+  /** @nullable */
+  sourceUrl?: string | null;
+  /** @nullable */
+  sourceDomain?: string | null;
+  status: string;
+  confidence: number;
+  /** @nullable */
+  rejectionReason?: string | null;
+  observedAt: string;
+  metadata?: string;
+  createdAt: string;
+}
+
 export interface ResearchRunInput {
   entityId: number;
   depth?: number;

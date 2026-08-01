@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { eq } from "drizzle-orm";
-import { db, entitiesTable, assetsTable, relationshipsTable, researchSessionsTable } from "@workspace/db";
+import { db, entitiesTable, assetsTable, relationshipsTable, researchEvidenceTable, researchSessionsTable } from "@workspace/db";
 import { RunResearchBody } from "@workspace/api-zod";
 import { buildGraph, findShortestPath } from "../../lib/graph-engine";
 import { computeBayesianScore } from "../../lib/bayesian-scorer";
@@ -9,6 +9,7 @@ import { generateOutreachSequence } from "../../lib/pitch-generator";
 import { hybridSearch } from "../../lib/hybrid-search";
 import { orchestrate } from "../../lib/agent-orchestrator";
 import { assessTargetReachability } from "../../lib/reachability-realism";
+import { buildResearchEvidenceRows } from "../../lib/research-evidence";
 
 const router = Router();
 
@@ -142,6 +143,16 @@ router.post("/research/run", async (req, res): Promise<void> => {
         generatedPitch: "",
       })
       .returning();
+    if (session) {
+      await db.insert(researchEvidenceTable).values(buildResearchEvidenceRows({
+        sessionId: session.id,
+        entityId,
+        targetName: targetEntity.name,
+        path: [],
+        steps: [],
+        reachability,
+      }));
+    }
 
     res.status(201).json({
       ...session!,
@@ -326,6 +337,17 @@ router.post("/research/run", async (req, res): Promise<void> => {
       generatedPitch: pitchText,
     })
     .returning();
+  if (session) {
+    await db.insert(researchEvidenceTable).values(buildResearchEvidenceRows({
+      sessionId: session.id,
+      entityId,
+      targetName: targetEntity.name,
+      path: mctsResult.winningPath,
+      steps: mctsResult.mctsSteps,
+      hybridMeta,
+      reachability,
+    }));
+  }
 
   res.status(201).json({
     ...session!,

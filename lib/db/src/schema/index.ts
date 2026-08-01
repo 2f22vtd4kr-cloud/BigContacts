@@ -7,3 +7,4 @@ export * from "./enrichment_runs";
 export * from "./identity";
 export * from "./phase_j";
 export * from "./dedup_reviews";
+export * from "./research_evidence";

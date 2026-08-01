@@ -435,6 +435,33 @@ export const GetResearchSessionResponse = zod.object({
 })
 
 
+/**
+ * @summary List claim-level evidence recorded for a research session
+ */
+export const ListResearchEvidenceParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ListResearchEvidenceResponseItem = zod.object({
+  "id": zod.number(),
+  "sessionId": zod.number(),
+  "entityId": zod.number(),
+  "claimType": zod.string(),
+  "claim": zod.string(),
+  "value": zod.string().nullish(),
+  "sourceName": zod.string().nullish(),
+  "sourceUrl": zod.string().nullish(),
+  "sourceDomain": zod.string().nullish(),
+  "status": zod.string(),
+  "confidence": zod.number(),
+  "rejectionReason": zod.string().nullish(),
+  "observedAt": zod.string(),
+  "metadata": zod.string().optional(),
+  "createdAt": zod.string()
+})
+export const ListResearchEvidenceResponse = zod.array(ListResearchEvidenceResponseItem)
+
+
 export const UpdateResearchStatusParams = zod.object({
   "id": zod.coerce.number()
 })
