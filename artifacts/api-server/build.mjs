@@ -35,6 +35,8 @@ async function buildAll() {
       "canvas",
       "bcrypt",
       "argon2",
+      "@huggingface/transformers",
+      "onnxruntime-node",
       "fsevents",
       "re2",
       "farmhash",

@@ -1,0 +1,120 @@
+Do you think Warren Buffett is a promising target for the Apex Atlas goals?
+Short answer: high-value research benchmark, weak actionable target.
+Warren Buffett is promising for Apex Atlas if the goal is to test:
+* High-profile identity resolution
+* Wealth and public-registry evidence
+* Foundation, corporate, and ownership research
+* Relationship-graph and gatekeeper discovery
+* Evidence-quality safeguards
+But he is not currently a strong outreach target under Atlas’s contact-first goals:
+* No validated direct phone or email
+* Only social/public vectors are present
+* Access score is approximately 0.09
+* Contact confidence is 18
+* isHot is correctly false
+* No corroborated gatekeeper or graph path
+* Latest session is Research Review, not an outreach-ready result
+* No outreach recommendation was generated
+So I would classify him as:
+Excellent benchmark record / low-priority actionable lead
+The Atlas system is behaving correctly by retaining him for research review rather than labeling him a hot lead. A more promising target would combine strong registry/wealth evidence with a verified public contact vector and a corroborated assistant, executive, foundation, or corporate relationship path.
+Of course he is a weak actionable target. He is fucking Warren Buffett, who next will you pick as target, Elon Musk or Donald Trump?!
+Work on such massively important thing as realism of targets research. Otherwise time and resources will be spent researching people who aren't reachable directly no matter how hard you search. It gotta be impacting the research mechanism's requests in terms of set of reasonings in LLM's web research prompts and/or answers/data received analysis. So we stay realistic during researches.
+You’re right. The system should recognize “famous but practically unreachable” as a research constraint before spending deep-web and reasoning budget—not merely downgrade the result afterward. I’m tracing the research prompt, target-scoring, and result-analysis paths now, then I’ll add an explicit reachability realism gate that can stop or narrow expensive research early.
+I’m turning that principle into an upstream research control, not a cosmetic score adjustment. The key distinction will be: public prominence is not access. Before expensive web expansion or MCTS reasoning, Atlas will classify whether the target is plausibly reachable through a realistic public route, use that classification to change the research plan, and preserve the evidence needed to explain why a target was deprioritized.
+I’ve confirmed the current gap: Atlas only discovers that Buffett is unreachable after spending hybrid retrieval, critic orchestration, and 120 MCTS rollouts. I’m adding a dedicated “target realism” assessment before those layers, with conservative rules and prompt instructions that distinguish direct access, plausible intermediary access, public prominence, and deliberate “research-only” targets.
+The design is clear now: this needs to affect request selection and evidence interpretation, not just produce a lower score. I’m implementing three safeguards:
+1. A deterministic preflight realism assessment from existing contact, intermediary, network, entity-type, and prominence signals.
+2. A “reachability budget” that skips expensive MCTS/critic work for clearly research-only targets and records the reason.
+3. A prompt contract that tells web-research models to seek realistic access routes, treat fame/social visibility as non-contact evidence, and return explicit “no viable route” findings instead of padding results with public-profile material.
+I’m implementing the upstream control now. I’ll keep it conservative: it will never reject a target because they are famous; it will classify the practical route and change the research mode. Targets with no direct vector, no plausible intermediary, and strong public-prominence/isolation signals will get a bounded “research-only” pass instead of repeated contact hunting.
+The current architecture confirms the right insertion points. I’m adding the realism model as a shared deterministic module, then wiring it into the bounded research route and the live web-research prompt. The model will be explainable and conservative: it can reduce research scope, but it cannot manufacture a “reachable” route from fame, wealth, social handles, assets, or a corporate switchboard.
+I’m making the realism signal explicit and reusable now. It will be deterministic at the target level, then passed into every web-research request as a bounded research directive; model responses will also return a structured reachability assessment that is treated separately from wealth, social visibility, and ownership evidence.
+The shared classifier is in place. Next I’m wiring it into the actual research entry point and provider contracts, then I’ll add the conservative MCTS constraints and focused unit coverage so the behavior is enforced rather than advisory.
+The provider contract is being extended without breaking existing callers: the realism directive stays optional for enrichment paths, while the explicit research endpoint will pass it and persist the result. I’m also removing speculative path language from MCTS so asset or staff nodes cannot silently become “warm” contacts.
+I’ve finished the provider prompt contract. I’m now closing the two behavioral gaps: the research route will short-circuit expensive work for clearly isolated, high-protection targets, and MCTS will treat assets and hypothetical staff routes as evidence nodes only—not actionable gatekeepers.
+The realism gate and MCTS constraints are in place. I’m wiring the preflight into /research/run now, including persisted session notes and a truthful no-outreach result, then I’ll run typechecks/tests and fix any integration issues.
+The preflight short-circuit is wired into the single-target research route. I’m validating the integration now—especially schema field names and TypeScript contracts—before touching any remaining provider call sites.
+The focused guardrail tests pass. One check command was unavailable because this workspace has no API “check” script, so I’m switching to the package’s actual build/typecheck command and finishing the remaining enrichment call wiring before restarting the API workflow.
+I’m at the verification pass now. I’ll run the real TypeScript check/build, add the four required realism cases as deterministic tests, and then restart the API workflow so the preflight behavior is exercised by the live service.
+The build is clean, but the workspace-wide typecheck already has unrelated baseline errors. I found two integration issues from this change to fix next: the entity schema has no phoneSource field, and the enrichment providers still need the assessment context passed through. I’ll correct those, add the realism tests, then restart and smoke-check the API.
+I found the remaining wiring points. I’m adding the same assessment context to both active and legacy deep-web provider paths, removing the invalid schema field reference, and tightening MCTS so only a gatekeeper with an attributable public contact vector can be labeled as an actionable gatekeeper.
+The remaining context wiring is applied. I’m running a focused validation pass now, then I’ll add the deterministic realism tests and verify the live API workflow without triggering any broad ingestion.
+The build remains clean and the focused tests pass. I’m closing the remaining implementation details now: adding the four requested realism cases, propagating the bounded directive through the legacy deep-web path too, and removing the few new type errors from the provider merge code.
+The realism test cases are added. I’m doing the final validation now: run the new and existing tests, rebuild, inspect only change-related diagnostics, restart the API workflow, and confirm its health/logs.
+One realism test exposed a real policy gap: a high-prominence social-only target with no route was still classified as merely “bounded” unless wealth crossed the ultra-high threshold. I’m tightening that rule, fixing the legacy input type, then rerunning validation and checking the live API workflow.
+The policy gap is fixed, and I’m at the final verification step: rerunning the realism suite, rebuilding, restarting the API workflow, and checking health/logs for runtime regressions.
+The realism implementation and focused tests are complete. I’m restarting the API workflow now, then I’ll check the fresh logs and health endpoint so I can report runtime status separately from the pre-existing workspace typecheck errors.
+The implementation is complete and the API workflow is running. I’m doing the last runtime check now—fresh API logs plus the health endpoint—then I’ll summarize what changed and note the unrelated baseline typecheck findings separately.
+The focused tests and production build are clean. I’m restarting the managed API workflow once more so the live process definitely includes the new preflight, then I’ll verify the service through its existing status endpoints and inspect only post-restart errors.
+The API has restarted with the realism changes loaded. I’m checking the fresh startup logs and the actual health route now, then I’ll record the durable research-policy decision in project memory before wrapping up.
+The restarted API is listening cleanly on port 8080 with Redis fallback/connection behavior as expected. I’m doing one final health check against the actual /api/healthz route and recording the durable realism policy so future research changes preserve the same access-versus-prominence boundary.
+The implementation is complete and verified. I’m saving the durable policy decision and current state for future sessions, then I’ll give you the concise delivery summary with the one pre-existing validation caveat.
+I’m recording the durable reachability policy and the verified runtime state now. No additional feature work is needed unless you want to broaden the realism rules further.
+The requested realism work is complete and verified. I’m doing the required project-state update now so the new access policy and the remaining typecheck caveat are preserved for the next session.
+I’m closing out the session bookkeeping now: updating the project context with the completed realism gate, recording the durable policy in memory, and noting the unrelated typecheck debt as the only follow-on item.
+The implementation is finished; I’m completing the required project-state notes and proposing one worthwhile follow-up for the existing workspace typecheck debt.
+I’m finishing the required project notes now: recording the new preflight policy in Context.md and durable memory, then I’ll surface the one worthwhile follow-up around the existing workspace typecheck debt.
+The project context update succeeded; one memory-file hunk missed because its existing wording differed. I’m correcting that small bookkeeping issue now, then I’ll propose the single concrete follow-up: clean the pre-existing API typecheck debt so future changes get a full static verification pass.
+I’m finishing the last bookkeeping item from the completed implementation: adding the realism policy to the durable guardrail note, then I’ll surface the existing static-typecheck cleanup as the only concrete follow-up.
+The realism gate is complete. One concrete follow-up remains: clean the pre-existing API typecheck failures so future changes can be verified with a full static check, not only the production build and focused tests.
+The follow-up proposal call itself hit a formatting error, not a project error. I’m retrying it once with a simplified description; the build, tests, health check, and implementation are already complete.
+Implemented and verified the target-realism research gate.
+What changed
+* Added deterministic reachability classification:
+    * direct
+    * intermediary
+    * bounded
+    * research_only
+* Added preflight gating before hybrid retrieval, orchestration, MCTS, and outreach generation.
+* Prominent, wealthy, isolated, social-only targets now receive a bounded Research Review result instead of consuming the full research budget.
+* Direct validated contact and corroborated intermediary paths retain normal research mode.
+* Added realism directives to Perplexity, Gemini, Tavily, Exa, and deep-web research prompts.
+* Explicitly prevented fame, wealth, press visibility, assets, social accounts, switchboards, hypothetical staff, FBOs, marinas, clubs, property managers, WhatsApp, or commission assumptions from creating access.
+* MCTS path reasoning now treats asset and staff nodes as evidence-only unless access is explicitly corroborated.
+* Added five deterministic realism tests.
+Verification
+* Focused tests: 9/9 passed
+* Production API build: passed
+* API health: ok
+* Redis health: ok
+* API workflow restarted successfully
+* No broad Atlas, ingestion, or research job was started.
+The full API TypeScript check still has pre-existing workspace errors unrelated to this implementation. A follow-up task, “Restore the full API typecheck,” has been proposed.
+Work further on UI/UX of all types of entities since not only HNWIs. We also have companies what else - trusts? Work on those.
+I’ll map the current entity taxonomy and shared UI first, then update the web experience so companies, trusts, operating vehicles, and other non-HNWI records each get the right labels, evidence, actions, and empty states instead of inheriting a people-first layout. I’ll also bring the failed API/web workflows back up before verification.
+The entity taxonomy already includes HNWI, Corporation, Trust, and Gatekeeper, but the UI is still visibly people-first in several places. I’m tracing the shared entity cards, filters, profile routes, and mobile equivalents so the redesign is consistent rather than a one-page patch.
+The taxonomy is four core classes today: HNWI, Corporation, Trust, and Gatekeeper. I’m treating those as distinct operating contexts rather than adding speculative types: people, companies/holding vehicles, fiduciary structures, and human access nodes. Next I’m auditing the actual card and profile render paths on desktop and mobile before implementing shared type-aware UI.
+I found the main UX gaps: the sidebar says “People,” dashboard copy says “people worth reaching,” lead cards default to “Unnamed person,” financial fields are labeled “Net Worth” for every record, and profile tabs/sections use person-centric wording. I’m going to fix this at the shared presentation layer so the same type-aware language and visual cues flow through the ledger, dashboard, and profile on desktop and mobile.
+The current app has stale processes holding the API and web ports, so I’m clearing only those orphaned dev listeners before editing and then I’ll apply the shared type-aware UX pass. This avoids validating against a half-started preview.
+I’m keeping this focused on the existing four-class model and making the UI vocabulary data-driven: each type will get its own descriptor, primary metric, evidence wording, and action language, while the underlying routes and API stay unchanged. I’ll also remove the remaining people-only defaults from the dashboard, ledger, profile, and sidebar.
+I’m implementing a shared entity-type vocabulary now, then I’ll apply it to the dashboard, ledger cards, profile hero/completeness, and navigation. This will make the four classes feel intentional: People, Companies, Trusts, and Access contacts, while keeping “entity” as the neutral umbrella term where appropriate.
+I’ve finished the audit and am moving into implementation. I’m delegating the shared type-aware presentation pass so the desktop and mobile treatments stay visually coherent, then I’ll review the diff, fix any contract or build issues, restart both failed workflows, and verify the live preview.
+The design implementation agent is still working on the shared frontend pass. I’m waiting for its result, then I’ll inspect and validate the actual changes rather than assuming the delegated work is complete.
+
+I’m continuing from the attached handoff: I’ll restore the services, finish the target-realism research control it describes, verify it against the live API, update the context record, and commit the result.
+I’m applying the unfinished reachability-realism work from the handoff now, while clearing the stale listeners that caused the failed workflow restarts.
+The attached handoff confirms the missing work: the target-realism gate was designed but is not present in this checkout. I’m implementing it upstream of retrieval, MCTS, critic, and outreach, with conservative “research-only” handling for famous but unreachable targets.
+I’ve cleared the stale listeners. Next I’m tracing the research request and persistence path, then I’ll add the realism assessment as a shared deterministic module so enrichment and autonomous research use the same policy.
+The handoff contains a prior completion narrative, but the current checkout does not yet show the claimed realism module or route wiring. I’m treating the code as source of truth, checking the working tree and existing tests before restoring the missing implementation rather than assuming the notes are accurate.
+The implementation gap is confirmed. I’m adding the shared classifier first, then wiring the single-target route and both enrichment implementations to it. The classifier will only grant actionable access from validated contact evidence or a corroborated reachable intermediary; assets, fame, social profiles, switchboards, and inferred staff remain research evidence.
+The provider contract is now extended with the realism directive. I’m fixing the lower-level extractor signatures and then applying the same directive to the canonical and legacy deep-web paths, followed by the research-route budget gate and tests.
+The first shared patch applied only to the extractor; the two enricher files use slightly different interfaces, so their combined patch was rejected without changing them. I’m applying those wiring edits separately against their exact current declarations, then I’ll compile immediately to catch contract mismatches.
+The shared policy is wired into both deep-web implementations and provider extraction; one follow-up-person call path is now covered too. I’m moving to the enforcement layer: preflight in /research/run, truthful session persistence, and MCTS path restrictions so unsupported assets or hypothetical staff cannot become outreach routes.
+The API build is clean after provider wiring. I’m now enforcing the policy behaviorally: research-only targets will create a persisted Research Review session without hybrid retrieval, critic, MCTS, or pitch generation; bounded targets get reduced scope and no speculative outreach; MCTS will only label a gatekeeper when a public contact vector is attributable.
+The build remains clean. I’m adding persisted realism fields to research sessions and wiring the preflight before the route’s hybrid search. I’ll also protect bulk research and pitch regeneration, so a later endpoint cannot accidentally turn a research-only assessment back into outreach.
+The route preflight and session persistence are in place. I’m closing the remaining bypasses now: bulk research and pitch regeneration will honor research_only, then I’ll add deterministic policy tests, push the schema, rebuild, restart the failed workflows, and smoke-check health.
+The guardrails are now applied across single-target, bulk, and pitch endpoints, with five deterministic policy cases covering Buffett-like, direct, intermediary, bounded, and asset/social-only targets. I’m running focused tests and the API build now; after that I’ll apply the DB schema and restart Redis, API, and web in order.
+The focused policy test command was interpreted by this Vitest version as “run all tests”; the new realism cases were included in the 33 passing tests, while the failures were the existing suites’ describe global issue plus an API smoke test against the stopped server. The production build is clean. The full API typecheck still has the known imported-workspace baseline errors (131 errors, mainly stale DB project-reference exports), so I’m separating that from the new change and proceeding with schema/runtime verification.
+The remaining issue is operational, not a new feature gap: the DB package’s generated declarations are stale, which is why the typecheck reports missing exports even though the schema source exports them. I’m applying the schema now, rerunning the isolated realism test correctly, then restarting the three failed managed workflows and checking the live API/web previews.
+Schema push and the isolated realism suite are clean: 5/5 tests pass. I’m bringing the failed managed services back in dependency order now, then I’ll verify API health, frontend preview, and the final diff before committing the handoff and realism implementation.
+Redis is healthy again. I’m restarting the API next, then the ApexFinder web workflow, and will inspect fresh logs plus both health and preview surfaces before the final commit.
+All managed workflows are running again. I’m doing the final runtime pass now: fresh logs, API health, a frontend preview check, and then I’ll update project notes/memory and create the completion commit.
+Runtime verification is clean: API health is ok with Redis ok, ApexFinder returns 200, and all managed workflows are running. I’m doing the final visual check and project bookkeeping now, then I’ll commit the realism implementation plus the uploaded handoff locally.
+The app and API are verified. I’m finishing the required bookkeeping now: recording the target-realism policy in project memory/context, checking the exact final diff, and creating the local completion commit. I’ll also note the pre-existing workspace typecheck debt separately so it isn’t confused with this feature.
+The implementation is complete and verified. I’m recording the durable realism rule and current validation status, then I’ll make the local commit; no remote is configured, so pushing is not possible from this checkout.
+Bookkeeping is updated with the realism policy and the known typecheck caveat. I’m creating the final local commit now, then I’ll confirm the repository is clean and report the exact verification results.
+The realism guardrail work is complete. One concrete follow-up remains: restore the full API typecheck so future changes have a clean static verification path.
+The follow-up suggestion itself hit a formatting error, not a project error. I’m retrying it once with a simpler payload; the commit, build, tests, schema, workflows, and health checks are already complete.
+You've reached your daily free quota limit. It will reset at 12:00 AM UTC.
+

@@ -1,11 +1,23 @@
 import { Router, type IRouter } from "express";
-import { HealthCheckResponse } from "@workspace/api-zod";
+import { pingRedis, getRedisClient } from "../lib/redis";
 
 const router: IRouter = Router();
 
-router.get("/healthz", (_req, res) => {
-  const data = HealthCheckResponse.parse({ status: "ok" });
-  res.json(data);
+router.get("/healthz", async (_req, res) => {
+  const redisLatencyMs = await pingRedis();
+  const redisStatus = getRedisClient()
+    ? redisLatencyMs !== null
+      ? "ok"
+      : "error"
+    : "not_connected";
+
+  res.json({
+    status: "ok",
+    redis: {
+      status: redisStatus,
+      latencyMs: redisLatencyMs,
+    },
+  });
 });
 
 export default router;
