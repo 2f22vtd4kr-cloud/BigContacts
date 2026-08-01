@@ -20,6 +20,7 @@
 import { logger } from "./logger";
 import { extractWithAI, researchWithPerplexity, researchWithGemini, researchWithTavily, researchWithExa } from "./ai-extractor";
 import { assessTargetReachability, reachabilityDirective } from "./reachability-realism";
+import { scoreCorroboration } from "./evidence-ledger";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -398,11 +399,23 @@ function buildQueries(entity: DeepWebOsintInput): string[] {
 // ─── Cross-validation scoring ─────────────────────────────────────────────────
 // More independent sources confirming the same value = higher confidence
 
-function scoreByCorroboration(sources: number): number {
-  if (sources >= 4) return 88;
-  if (sources >= 3) return 78;
-  if (sources >= 2) return 62;
-  return 42;
+function scoreByCorroboration(
+  sources: number,
+  evidence: Array<{ value: string; sourceUrl?: string | null }> = [],
+  value?: string | null,
+): number {
+  const matchingEvidence = value
+    ? evidence.filter((item) => item.value.trim().toLowerCase() === value.trim().toLowerCase() && item.sourceUrl)
+    : evidence.filter((item) => item.sourceUrl);
+  if (matchingEvidence.length === 0) return Math.min(35, 20 + sources * 4);
+  const summary = scoreCorroboration(
+    matchingEvidence.map((item) => ({ value: item.value, url: item.sourceUrl! })),
+  );
+  const score = 38
+    + summary.corroboratingDomains * 12
+    + summary.corroboratingFamilies * 8
+    - summary.conflictCount * 15;
+  return Math.max(40, Math.min(94, score));
 }
 
 // ─── Main enricher ────────────────────────────────────────────────────────────
@@ -463,12 +476,20 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       sourceRegistries: entity.sourceRegistries,
     }));
 
-    const [perp, gem, tav, exa] = await Promise.all([
+    const providerResults = await Promise.allSettled([
       researchWithPerplexity(entity.name, entity.type, countryHint, { reachability: realism }),
       researchWithGemini(entity.name, entity.type, countryHint, { reachability: realism }),
       researchWithTavily(entity.name, entity.type, countryHint, { reachability: realism }),
       researchWithExa(entity.name, entity.type, countryHint, { reachability: realism }),
     ]);
+    const [perp, gem, tav, exa] = providerResults.map((item) =>
+      item.status === "fulfilled" ? item.value : { source: "none" },
+    ) as any[];
+    for (const [index, item] of providerResults.entries()) {
+      if (item.status === "rejected") {
+        logger.warn({ providerIndex: index, err: item.reason?.message ?? String(item.reason) }, "Phase 0 provider failed independently");
+      }
+    }
 
     // Process Perplexity results
     if (perp.source === "perplexity-sonar") {
@@ -746,8 +767,16 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   const [bestIG, igSrcs]         = pickBest(igHits) ?? [null, []];
   const [bestTW, twSrcs]         = pickBest(twHits) ?? [null, []];
 
-  if (bestEmail) { result.email = bestEmail; result.emailConfidence = scoreByCorroboration(emailSrcs.length); result.sources.push(...emailSrcs); }
-  if (bestPhone) { result.phone = bestPhone; result.phoneConfidence = scoreByCorroboration(phoneSrcs.length); result.sources.push(...phoneSrcs); }
+  if (bestEmail) {
+    result.email = bestEmail;
+    result.emailConfidence = scoreByCorroboration(emailSrcs.length, result.evidence ?? [], bestEmail);
+    result.sources.push(...emailSrcs);
+  }
+  if (bestPhone) {
+    result.phone = bestPhone;
+    result.phoneConfidence = scoreByCorroboration(phoneSrcs.length, result.evidence ?? [], bestPhone);
+    result.sources.push(...phoneSrcs);
+  }
   if (bestLI)    { result.linkedinUrl  = bestLI; result.sources.push(...liSrcs); }
   if (bestIG)    { result.instagramUrl = bestIG; result.sources.push(...igSrcs); }
   if (bestTW)    { result.twitterUrl   = bestTW; result.sources.push(...twSrcs); }

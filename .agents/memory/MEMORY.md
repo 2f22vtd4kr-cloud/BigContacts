@@ -54,3 +54,4 @@
 - [Evidence-led entity cards](evidence-led-entity-cards.md) — Show bios and involvement only from stored public evidence; label missing narrative fields instead of inferring them
 - [Research review guardrails](research-review-guardrails.md) — Stable reruns, manual provenance, malformed-contact rejection, and no outreach copy for isolated targets
 - [Research reachability realism](research-review-guardrails.md) — Preflight access before expensive research; fame, wealth, social, assets, and hypothetical staff routes never create access
+- [Evidence-led research scoring](evidence-ledger-research.md) — Corroboration must use canonical source domains and claim-level URLs, not repeated provider labels

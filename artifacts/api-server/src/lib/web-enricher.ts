@@ -38,6 +38,7 @@ const FINANCIAL_AGGREGATOR_DOMAINS = new Set([
 import { extractWithAI, researchWithPerplexity, researchWithGemini, researchWithTavily, researchWithExa, type OwnerResolution } from "./ai-extractor";
 import { extractPersonNames } from "./gliner-client";
 import { assessTargetReachability, reachabilityDirective } from "./reachability-realism";
+import { scoreCorroboration } from "./evidence-ledger";
 
 // ── Shared utilities ──────────────────────────────────────────────────────────
 
@@ -1510,11 +1511,23 @@ export function buildDeepWebQueries(
   };
 }
 
-function scoreByCorroboration(sources: number): number {
-  if (sources >= 4) return 88;
-  if (sources >= 3) return 78;
-  if (sources >= 2) return 62;
-  return 42;
+function scoreByCorroboration(
+  sources: number,
+  evidence: Array<{ value: string; sourceUrl?: string | null }>,
+  value: string,
+): number {
+  const matchingEvidence = evidence.filter(
+    (item) => item.value.trim().toLowerCase() === value.trim().toLowerCase() && item.sourceUrl,
+  );
+  if (matchingEvidence.length === 0) return Math.min(35, 20 + sources * 4);
+  const summary = scoreCorroboration(
+    matchingEvidence.map((item) => ({ value: item.value, url: item.sourceUrl! })),
+  );
+  const score = 38
+    + summary.corroboratingDomains * 12
+    + summary.corroboratingFamilies * 8
+    - summary.conflictCount * 15;
+  return Math.max(40, Math.min(94, score));
 }
 
 export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<DeepWebOsintResult> {
@@ -1592,7 +1605,6 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   const addOwnerResolution = (
     owner: OwnerResolution,
     source: string,
-    fallbackSourceUrl: string | null = null,
   ) => {
     const name = owner.name.trim();
     if (!name) return;
@@ -1610,9 +1622,9 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       result.personsDiscovered.push(name);
     }
 
-    const sourceUrls = owner.sourceUrls.length > 0
-      ? owner.sourceUrls
-      : (fallbackSourceUrl ? [fallbackSourceUrl] : []);
+    // A provider's global citation list is not proof for every person it
+    // names. Only retain URLs explicitly attached to this owner claim.
+    const sourceUrls = owner.sourceUrls;
     for (const sourceUrl of sourceUrls.slice(0, 4)) {
       if (!result.ownershipSources.includes(sourceUrl)) result.ownershipSources.push(sourceUrl);
       recordEvidence(
@@ -1641,7 +1653,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       ownershipStatus: owner.ownershipStatus,
       relationship: "personal-handle-candidate",
     };
-    const sourceUrl = sourceUrls[0] ?? fallbackSourceUrl;
+    const sourceUrl = sourceUrls[0] ?? null;
     if (owner.instagram) recordEvidence("social", owner.instagram, ownerLabel, sourceUrl, "owner-resolution", 72, { ...details, network: "instagram" });
     if (owner.twitter) recordEvidence("social", owner.twitter, ownerLabel, sourceUrl, "owner-resolution", 72, { ...details, network: "twitter" });
     if (owner.linkedin) recordEvidence("social", owner.linkedin, ownerLabel, sourceUrl, "owner-resolution", 72, { ...details, network: "linkedin" });
@@ -1754,7 +1766,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   // if perp's own processing throws — all 4 providers must contribute results.
   let perp: any, gem: any, tav: any, exa: any;
   try {
-    [perp, gem, tav, exa] = await Promise.all([
+    const providerResults = await Promise.allSettled([
       researchWithPerplexity(entity.name, entity.type, country, {
         tradingName: trading,
         city,
@@ -1776,6 +1788,14 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         reachability: realism,
       }),
     ]);
+    [perp, gem, tav, exa] = providerResults.map((item) =>
+      item.status === "fulfilled" ? item.value : { source: "none" },
+    ) as any[];
+    for (const [index, item] of providerResults.entries()) {
+      if (item.status === "rejected") {
+        logger.warn({ providerIndex: index, err: item.reason?.message ?? String(item.reason) }, "Phase 0 provider failed independently");
+      }
+    }
     if (perp.source === "perplexity-sonar") {
       const label = "Perplexity[sonar]";
       result.sources.push(label);
@@ -1801,7 +1821,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       }
       if (perp.ownershipSummary) result.ownershipSummary = perp.ownershipSummary;
       for (const owner of perp.ownerResolutions) {
-        addOwnerResolution(owner, label, perp.citations[0] ?? null);
+        addOwnerResolution(owner, label);
       }
       // Backward-compatible responses may still return ownerContacts only.
       for (const oc of perp.ownerContacts) {
@@ -1811,8 +1831,8 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
             role: "associated_person",
             ownershipStatus: "not_established",
             basis: null,
-            sourceUrls: perp.citations.slice(0, 4),
-          }, label, perp.citations[0] ?? null);
+            sourceUrls: [],
+            }, label);
         }
       }
       // Cited URLs → scrape queue (Perplexity's actual sources, highest quality)
@@ -1882,7 +1902,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       }
       if (gem.ownershipSummary && !result.ownershipSummary) result.ownershipSummary = gem.ownershipSummary;
       for (const owner of gem.ownerResolutions) {
-        addOwnerResolution(owner, label, gem.citations[0] ?? null);
+        addOwnerResolution(owner, label);
       }
       for (const oc of gem.ownerContacts) {
         if (!gem.ownerResolutions.some((o: OwnerResolution) => o.name.toLowerCase() === oc.name.toLowerCase())) {
@@ -1891,8 +1911,8 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
             role: "associated_person",
             ownershipStatus: "not_established",
             basis: null,
-            sourceUrls: gem.citations.slice(0, 4),
-          }, label, gem.citations[0] ?? null);
+            sourceUrls: [],
+          }, label);
         }
       }
       // Grounding URLs → scrape queue + domain injection (same logic as Perplexity citations)
@@ -1950,7 +1970,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       }
       if (tav.ownershipSummary && !result.ownershipSummary) result.ownershipSummary = tav.ownershipSummary;
       for (const owner of tav.ownerResolutions) {
-        addOwnerResolution(owner, label, tav.citations[0] ?? null);
+        addOwnerResolution(owner, label);
       }
       for (const oc of tav.ownerContacts) {
         if (!tav.ownerResolutions.some((o: OwnerResolution) => o.name.toLowerCase() === oc.name.toLowerCase())) {
@@ -1959,8 +1979,8 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
             role: "associated_person",
             ownershipStatus: "not_established",
             basis: null,
-            sourceUrls: tav.citations.slice(0, 4),
-          }, label, tav.citations[0] ?? null);
+            sourceUrls: [],
+          }, label);
         }
       }
       // Tavily result URLs → scrape queue + domain injection
@@ -2018,7 +2038,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       }
       if (exa.ownershipSummary && !result.ownershipSummary) result.ownershipSummary = exa.ownershipSummary;
       for (const owner of exa.ownerResolutions) {
-        addOwnerResolution(owner, label, exa.citations[0] ?? null);
+        addOwnerResolution(owner, label);
       }
       for (const oc of exa.ownerContacts) {
         if (!exa.ownerResolutions.some((o: OwnerResolution) => o.name.toLowerCase() === oc.name.toLowerCase())) {
@@ -2027,8 +2047,8 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
             role: "associated_person",
             ownershipStatus: "not_established",
             basis: null,
-            sourceUrls: exa.citations.slice(0, 4),
-          }, label, exa.citations[0] ?? null);
+            sourceUrls: [],
+          }, label);
         }
       }
       for (const url of exa.citations.slice(0, 4)) urlsToScrape.add(url);
@@ -2381,7 +2401,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     for (const personName of followUpPersons) {
       try {
         logger.info({ entityId: entity.id, personName }, "Phase 7.5: follow-up Perplexity+Gemini+Tavily+Exa for discovered person");
-        const [fuPerp, fuGem, fuTav, fuExa] = await Promise.all([
+        const followUpResults = await Promise.allSettled([
           researchWithPerplexity(personName, "HNWI", country, {
             tradingName: entity.name,
             city,
@@ -2403,6 +2423,14 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
             reachability: realism,
           }),
         ]);
+        const [fuPerp, fuGem, fuTav, fuExa] = followUpResults.map((item) =>
+          item.status === "fulfilled" ? item.value : { source: "none" },
+        ) as any[];
+        for (const [index, item] of followUpResults.entries()) {
+          if (item.status === "rejected") {
+            logger.warn({ providerIndex: index, personName, err: item.reason?.message ?? String(item.reason) }, "Follow-up provider failed independently");
+          }
+        }
 
         // Process Perplexity follow-up
         if (fuPerp.source === "perplexity-sonar") {
@@ -2428,7 +2456,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
             recordEvidence("social", fuPerp.twitter, label, null, "ai-perplexity-sonar-followup", 72, { ...pdDetails, network: "twitter" });
           }
           for (const owner of fuPerp.ownerResolutions) {
-            addOwnerResolution(owner, label, fuPerp.citations[0] ?? null);
+            addOwnerResolution(owner, label);
           }
           for (const url of fuPerp.citations.slice(0, 3)) urlsToScrape.add(url);
           for (const url of fuPerp.citations) {
@@ -2465,7 +2493,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
             recordEvidence("social", fuGem.twitter, label, null, "ai-gemini-flash-followup", 72, { ...pdDetails, network: "twitter" });
           }
           for (const owner of fuGem.ownerResolutions) {
-            addOwnerResolution(owner, label, fuGem.citations[0] ?? null);
+            addOwnerResolution(owner, label);
           }
           for (const url of fuGem.citations.slice(0, 3)) urlsToScrape.add(url);
           for (const url of fuGem.citations) {
@@ -2502,7 +2530,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
             recordEvidence("social", fuTav.twitter, label, null, "ai-tavily-followup", 70, { ...pdDetails, network: "twitter" });
           }
           for (const owner of fuTav.ownerResolutions) {
-            addOwnerResolution(owner, label, fuTav.citations[0] ?? null);
+            addOwnerResolution(owner, label);
           }
           for (const url of fuTav.citations.slice(0, 3)) urlsToScrape.add(url);
           for (const url of fuTav.citations) {
@@ -2539,7 +2567,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
             recordEvidence("social", fuExa.twitter, label, null, "ai-exa-followup", 70, { ...pdDetails, network: "twitter" });
           }
           for (const owner of fuExa.ownerResolutions) {
-            addOwnerResolution(owner, label, fuExa.citations[0] ?? null);
+            addOwnerResolution(owner, label);
           }
           for (const url of fuExa.citations.slice(0, 3)) urlsToScrape.add(url);
           for (const url of fuExa.citations) {
@@ -2633,7 +2661,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   }
   if (bestEmail) {
     result.email = bestEmail;
-    result.emailConfidence = scoreByCorroboration(bestEmailCount);
+    result.emailConfidence = scoreByCorroboration(bestEmailCount, result.evidence, bestEmail);
     result.sources.push(...(emailHits.get(bestEmail) ?? []));
   }
 
@@ -2676,7 +2704,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   }
   if (bestPhone) {
     result.phone = bestPhone;
-    result.phoneConfidence = scoreByCorroboration(bestPhoneCount);
+    result.phoneConfidence = scoreByCorroboration(bestPhoneCount, result.evidence, bestPhone);
     result.sources.push(...(phoneHits.get(bestPhone) ?? []));
   }
 
