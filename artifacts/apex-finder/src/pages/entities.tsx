@@ -3,6 +3,7 @@ import { Link, useLocation, useSearch } from "wouter";
 import { useListEntities, useCreateEntity, useDeleteEntity } from "@workspace/api-client-react";
 import { entityBio, entityEvidenceLabel, entityInvolvement, formatCurrency, formatEntityName, AccessScoreBadge, ConfidenceBadge, parseEntityRegistries } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import { entityMeta, EntityTypeMark, entityMetric, ENTITY_TYPES } from "@/lib/entity-taxonomy";
 import {
   Plus, Search, Trash2, Globe, ChevronDown, ChevronUp, X, Loader2,
   ChevronRight, Network, Target as TargetIcon, Download, ShieldAlert,
@@ -166,7 +167,7 @@ function MobileEntityCard({
   onToggleStar: (entity: any) => void;
   onToggleHide: (entity: any) => void;
 }) {
-  const typeColor = TYPE_COLORS[entity.type] ?? "#64748B";
+  const typeColor = entityMeta(entity.type).color;
   const registries = parseEntityRegistries(entity.sourceRegistries);
   const bio = entityBio(entity);
   const involvement = entityInvolvement({ ...entity, assetCount: entity.assetCount });
@@ -197,7 +198,7 @@ function MobileEntityCard({
               className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded flex items-center gap-1 w-max"
               style={{ color: typeColor, backgroundColor: typeColor + "18" }}
             >
-              {TYPE_ICONS[entity.type]} {entity.type}
+              <EntityTypeMark type={entity.type} compact />
             </span>
           </div>
         </div>
@@ -231,8 +232,8 @@ function MobileEntityCard({
               <div className="text-xs text-foreground font-mono">{entity.nationality ?? "—"}</div>
             </div>
             <div>
-              <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-0.5">Net Worth</div>
-              <div className="text-xs text-foreground font-mono">{entity.estimatedNetWorth ? formatCurrency(entity.estimatedNetWorth) : "—"}</div>
+              <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-0.5">{entityMeta(entity.type).metricLabel}</div>
+              <div className="text-xs text-foreground font-mono">{entity.type === "HNWI" && entity.estimatedNetWorth ? formatCurrency(entity.estimatedNetWorth) : entityMetric(entity)}</div>
             </div>
           </div>
           
@@ -631,8 +632,8 @@ export default function EntityLedger() {
 
           {/* Type filter */}
           <div className="flex items-center gap-1.5">
-            {[null, "HNWI", "Corporation", "Trust", "Gatekeeper"].map((t) => {
-              const c = t ? (TYPE_COLORS[t] ?? "#64748B") : "#10B981";
+            {[null, ...ENTITY_TYPES].map((t) => {
+              const c = t ? entityMeta(t).color : "#10B981";
               return (
                 <button
                   key={t ?? "all"}
@@ -644,7 +645,7 @@ export default function EntityLedger() {
                     border: `1px solid ${typeFilter === t ? c : "hsl(var(--border))"}`,
                   }}
                 >
-                  {t ? TYPE_ICONS[t] : null} {t ?? "ALL"}
+                  {t ? <EntityTypeMark type={t} compact /> : "ALL"}
                 </button>
               );
             })}
@@ -918,10 +919,10 @@ export default function EntityLedger() {
                       : <Square className="w-3.5 h-3.5" />}
                   </button>
                 </th>
-                {["Name", "Type", "Nationality", "Contact Score", "Access", "Direct Contact", "Net Worth"].map((h) => (
+                {["Name", "Type", "Nationality", "Contact Score", "Access", "Public vector", "Entity signal"].map((h) => (
                   <th key={h} className={cn(
                     "px-4 py-3 text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap",
-                    h === "Net Worth" ? "text-right" : "text-left"
+                    h === "Entity signal" ? "text-right" : "text-left"
                   )}>
                     {h}
                   </th>
@@ -930,7 +931,7 @@ export default function EntityLedger() {
             </thead>
             <tbody className="divide-y divide-border/50">
               {displayEntities?.map((entity: any) => {
-                const typeColor = TYPE_COLORS[entity.type] ?? "#64748B";
+                const typeColor = entityMeta(entity.type).color;
                 const isSelected = selectedIds.has(entity.id);
                 return (
                   <tr key={entity.id} className={cn(
@@ -974,7 +975,7 @@ export default function EntityLedger() {
                         className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded flex items-center gap-1.5 w-max whitespace-nowrap"
                         style={{ color: typeColor, backgroundColor: typeColor + "18" }}
                       >
-                        {TYPE_ICONS[entity.type]} {entity.type}
+                        <EntityTypeMark type={entity.type} compact />
                       </span>
                     </td>
                     <td className="px-4 py-3 text-sm text-muted-foreground font-mono whitespace-nowrap">{entity.nationality ?? "—"}</td>
@@ -1034,8 +1035,10 @@ export default function EntityLedger() {
                         )}
                       </div>
                     </td>
-                     <td className="px-4 py-3 text-sm font-mono text-foreground text-right whitespace-nowrap">
-                      {entity.estimatedNetWorth ? formatCurrency(entity.estimatedNetWorth) : "—"}
+                    <td className="px-4 py-3 text-right text-[10px] font-mono text-muted-foreground">
+                      {entity.type === "HNWI" && entity.estimatedNetWorth != null
+                        ? formatCurrency(entity.estimatedNetWorth)
+                        : entityMetric(entity)}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1183,11 +1186,8 @@ export default function EntityLedger() {
           {/* Type filter chips */}
           <div className="flex items-center gap-2 px-3 py-2 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
             {[
-              { label: "All Types", value: null },
-              { label: "HNWI",        value: "HNWI" },
-              { label: "Corp",        value: "Corporation" },
-              { label: "Trust",       value: "Trust" },
-              { label: "Gatekeeper",  value: "Gatekeeper" },
+              { label: "All entities", value: null },
+              ...ENTITY_TYPES.map((value) => ({ label: entityMeta(value).shortLabel, value })),
             ].map(({ label, value }) => (
               <button
                 key={label}
@@ -1358,7 +1358,7 @@ export default function EntityLedger() {
               <div className="grid grid-cols-2 gap-3">
                 {[
                   { label: "Nationality", field: "nationality", placeholder: "e.g. British" },
-                  { label: "Net Worth (USD)", field: "estimatedNetWorth", placeholder: "e.g. 50000000" },
+                  { label: addForm.type === "HNWI" ? "Estimated wealth (USD)" : entityMeta(addForm.type).metricLabel, field: "estimatedNetWorth", placeholder: addForm.type === "HNWI" ? "e.g. 50000000" : "Optional numeric signal" },
                 ].map(({ label, field, placeholder }) => (
                   <div key={field}>
                     <label className="block text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">{label}</label>

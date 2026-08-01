@@ -10,6 +10,12 @@
 
 ## Current State (2026-07-31 — target realism gate verified; API and web running)
 
+### UI/UX iteration (2026-08-01):
+- Replaced person-only workspace language with neutral entity language in the navigation, dashboard hero, stats, priority cards, empty states, and evidence footer.
+- Added a shared four-class taxonomy presentation layer for HNWI, Corporation, Trust, and Gatekeeper records, including type-specific colors, icons, descriptors, metrics, evidence labels, and next-action vocabulary.
+- Applied the taxonomy to desktop and mobile entity ledgers, type filters, entity signal columns, add-entity fields, profile heroes, completeness labels, and mobile target cards. Companies now surface control links, trusts surface structure/assets, gatekeepers surface access/contact outcomes, and HNWIs retain wealth metrics.
+- Web production build and mobile TypeScript validation pass. No API contract changes were required.
+
 ### Setup this session (2026-07-31 — BigContacts import):
 - Imported the BigContacts project, including ApexFinder web, Apex mobile, API source, shared libraries, scripts, documentation, and memory files.
 - `pnpm install` ✅

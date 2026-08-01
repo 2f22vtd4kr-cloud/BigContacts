@@ -22,7 +22,7 @@ import {
 
 const mainNav = [
   { name: "Overview", href: "/", icon: Crosshair },
-  { name: "People", href: "/profiles", icon: List },
+  { name: "Entity ledger", href: "/profiles", icon: List },
   { name: "Discover", href: "/search", icon: Search },
   { name: "Connections", href: "/network", icon: Network },
   { name: "Intelligence Reactor", href: "/reactor", icon: Cpu },

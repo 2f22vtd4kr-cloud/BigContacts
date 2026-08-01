@@ -46,10 +46,30 @@ function formatNetWorth(val: number | null | undefined): string {
   return `€${val.toLocaleString()}`;
 }
 
+const ENTITY_META: Record<string, { short: string; descriptor: string; color: string }> = {
+  HNWI: { short: 'Person', descriptor: 'person and personal access profile', color: '#10B981' },
+  Corporation: { short: 'Company', descriptor: 'company, holding vehicle, or operating entity', color: '#3B82F6' },
+  Trust: { short: 'Trust', descriptor: 'trust, foundation, or fiduciary structure', color: '#A855F7' },
+  Gatekeeper: { short: 'Access', descriptor: 'human access node or introducer', color: '#F59E0B' },
+};
+
+function entityMeta(type?: string | null) {
+  return ENTITY_META[type ?? 'HNWI'] ?? ENTITY_META.HNWI;
+}
+
+function entitySignal(entity: any): string {
+  const meta = entityMeta(entity.type);
+  if (entity.type === 'HNWI' && entity.estimatedNetWorth != null) return formatNetWorth(entity.estimatedNetWorth);
+  if (entity.type === 'Gatekeeper' && entity.contactOutcome) return entity.contactOutcome.replace(/_/g, ' ');
+  if (entity.assetCount > 0) return `${entity.assetCount} linked asset${entity.assetCount === 1 ? '' : 's'}`;
+  return meta.descriptor;
+}
+
 // ─── Entity card ──────────────────────────────────────────────────────────────
 
 function EntityCard({ entity, onPress }: { entity: any; onPress: () => void }) {
   const colors = useColors();
+  const meta = entityMeta(entity.type);
 
   return (
     <Pressable
@@ -78,9 +98,9 @@ function EntityCard({ entity, onPress }: { entity: any; onPress: () => void }) {
         </View>
 
         <View style={styles.cardMeta}>
-          <View style={[styles.typePill, { backgroundColor: colors.muted, borderColor: colors.border }]}>
-            <Text style={[styles.typePillText, { color: colors.mutedForeground, fontFamily: 'Inter_400Regular' }]}>
-              {entity.type}
+          <View style={[styles.typePill, { backgroundColor: `${meta.color}18`, borderColor: `${meta.color}55` }]}>
+            <Text style={[styles.typePillText, { color: meta.color, fontFamily: 'Inter_600SemiBold' }]}>
+              {meta.short}
             </Text>
           </View>
           {entity.nationality && (
@@ -92,7 +112,7 @@ function EntityCard({ entity, onPress }: { entity: any; onPress: () => void }) {
 
         <View style={styles.cardStats}>
           <Text style={[styles.netWorth, { color: colors.foreground, fontFamily: 'Inter_500Medium' }]}>
-            {formatNetWorth(entity.estimatedNetWorth)}
+            {entitySignal(entity)}
           </Text>
           {entity.assetCount > 0 && (
             <Text style={[styles.assetCount, { color: colors.mutedForeground, fontFamily: 'Inter_400Regular' }]}>
@@ -190,9 +210,9 @@ export default function TargetsScreen() {
           scrollEnabled={!!(entities && entities.length > 0)}
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <Feather name="users" size={32} color={colors.mutedForeground} />
+              <Feather name="layers" size={32} color={colors.mutedForeground} />
               <Text style={[styles.emptyText, { color: colors.mutedForeground, fontFamily: 'Inter_400Regular' }]}>
-                No entities found.{'\n'}Add targets via the web dashboard.
+                No entities found.{'\n'}People, companies, trusts, and access contacts will appear here.
               </Text>
             </View>
           }

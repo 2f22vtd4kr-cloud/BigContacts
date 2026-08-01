@@ -47,6 +47,7 @@ import {
   Crosshair,
 } from "lucide-react";
 import { cn, entityBio, entityInvolvement, formatCurrency, formatEntityName, AccessScoreBadge, ConfidenceBadge, ScoreBadge } from "@/lib/utils";
+import { entityMeta, EntityTypeMark, entityMetric } from "@/lib/entity-taxonomy";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
   DialogFooter, DialogClose,
@@ -179,7 +180,7 @@ function buildLedger(entity: any, assets: any[], relationships: any[]): LedgerEn
   if (entity.phone)            entries.push({ id: "phone", category: "Identity",  dataPoint: "Phone",             value: entity.phone,             source: "Internal",   verified: false });
   if (entity.email)            entries.push({ id: "email", category: "Identity",  dataPoint: "Email",             value: entity.email,             source: "Internal",   verified: false });
   if (entity.estimatedNetWorth != null)
-    entries.push({ id: "nw", category: "Financial", dataPoint: "Est. Net Worth / AUM", value: formatCurrency(entity.estimatedNetWorth), source: primarySrc, verified: hasRegistry });
+    entries.push({ id: "nw", category: "Financial", dataPoint: entityMeta(entity.type).metricLabel, value: entity.type === "HNWI" ? formatCurrency(entity.estimatedNetWorth) : entityMetric(entity), source: primarySrc, verified: hasRegistry });
 
   for (const reg of srcRegs) {
     entries.push({ id: `reg-${reg}`, category: "Registry", dataPoint: "Registry Presence", value: reg, source: reg, verified: true });
@@ -264,7 +265,7 @@ function ProfileCompleteness({ entity, assets, relationships, sessions }: {
     { key: "name",        label: "Name",         done: !!entity.name },
     { key: "type",        label: "Type",         done: !!entity.type },
     { key: "nationality", label: "Nationality",  done: !!entity.nationality },
-    { key: "networth",    label: "Net Worth",    done: entity.estimatedNetWorth != null },
+    { key: "networth",    label: entityMeta(entity.type).metricLabel,    done: entity.estimatedNetWorth != null },
     { key: "email",       label: "Email",        done: !!(entity.email ?? entity.contactEmail) },
     { key: "phone",       label: "Phone",        done: !!(entity.phone ?? entity.contactPhone) },
     { key: "linkedin",    label: "LinkedIn",     done: !!entity.linkedinUrl },
@@ -469,7 +470,7 @@ export default function ApexProfile() {
 
   // ── Derived data ───────────────────────────────────────────────────────────
 
-  const typeColor  = TYPE_COLORS[entity.type] ?? "#64748B";
+  const typeColor  = entityMeta(entity.type).color;
   let srcRegs: string[] = [];
   try { srcRegs = JSON.parse((entity as any).sourceRegistries ?? "[]"); } catch {}
 
@@ -675,7 +676,7 @@ export default function ApexProfile() {
                 className="text-[10px] font-mono font-bold px-2 py-0.5 rounded flex items-center gap-1"
                 style={{ color: typeColor, backgroundColor: typeColor + "1A" }}
               >
-                {TYPE_ICONS[entity.type]} {entity.type}
+                <EntityTypeMark type={entity.type} compact />
               </span>
               {(entity as any).linkedinHeadline && (
                 <span className="text-[10px] font-mono text-muted-foreground/80 flex items-center gap-1 px-2 py-0.5 rounded bg-muted/40 border border-border/50 max-w-[280px] truncate" title={(entity as any).linkedinHeadline}>
@@ -756,10 +757,10 @@ export default function ApexProfile() {
         <div className="px-4 pt-4 pb-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-semibold px-2 py-0.5 rounded border"
-                  style={{ color: TYPE_COLORS[(entity as any).type] ?? "#64748B",
-                           backgroundColor: (TYPE_COLORS[(entity as any).type] ?? "#64748B") + "18",
-                           borderColor: (TYPE_COLORS[(entity as any).type] ?? "#64748B") + "30" }}>
-              {(entity as any).type}
+                  style={{ color: entityMeta((entity as any).type).color,
+                           backgroundColor: entityMeta((entity as any).type).color + "18",
+                           borderColor: entityMeta((entity as any).type).color + "30" }}>
+              <EntityTypeMark type={(entity as any).type} compact />
             </span>
             {(entity as any).isHot && (
               <span className="text-xs font-bold px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
@@ -809,7 +810,7 @@ export default function ApexProfile() {
               <span className="font-mono text-[9px] text-muted-foreground uppercase tracking-wider mb-1">Wealth</span>
               {(entity as any).estimatedNetWorth != null ? (
                 <span className="font-mono text-[17px] font-bold text-primary leading-none mb-1">
-                  {formatCurrency((entity as any).estimatedNetWorth)}
+                {entity.type === "HNWI" ? formatCurrency((entity as any).estimatedNetWorth) : entityMetric(entity)}
                 </span>
               ) : (
                 <span className="font-mono text-[10px] font-semibold text-foreground/60 leading-snug mb-1 italic">
