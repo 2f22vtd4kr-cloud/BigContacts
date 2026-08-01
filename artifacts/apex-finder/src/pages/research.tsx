@@ -295,6 +295,7 @@ export default function IntelTerminal() {
   const [winningPath, setWinningPath] = useState<PathStep[]>([]);
   const [pathScore, setPathScore] = useState<number>(0);
   const [sessionId, setSessionId] = useState<number | null>(null);
+  const [safeUseStatus, setSafeUseStatus] = useState("manual_review");
   const [algorithmPipeline, setAlgorithmPipeline] = useState<Array<{ algo: string; contribution: string; status: string }> | null>(null);
   const [scorecard, setScorecard] = useState<ResearchScorecard | null>(null);
   const logEndRef = useRef<HTMLDivElement | null>(null);
@@ -309,6 +310,7 @@ export default function IntelTerminal() {
     setTerminalLog([]);
     setWinningPath([]);
     setPathScore(0);
+    setSafeUseStatus("manual_review");
     setAlgorithmPipeline(null);
     setScorecard(null);
     setIsComputing(true);
@@ -319,6 +321,7 @@ export default function IntelTerminal() {
       {
         onSuccess: (data) => {
           setSessionId(data.id);
+          setSafeUseStatus((data as any).safeUseStatus ?? "manual_review");
 
           let steps: MctsStep[] = [];
           let path: PathStep[] = [];
@@ -441,6 +444,23 @@ export default function IntelTerminal() {
         {sessionId && !isComputing && (
           <div className="text-[10px] font-mono text-muted-foreground text-center">
             Session #{sessionId} saved → Pipeline CRM
+          </div>
+        )}
+        {sessionId && !isComputing && (
+          <div className={cn(
+            "text-[10px] font-mono text-center border rounded px-2 py-1.5",
+            safeUseStatus === "blocked"
+              ? "text-rose-300 border-rose-400/30 bg-rose-400/5"
+              : safeUseStatus === "approved_for_manual_outreach"
+                ? "text-amber-300 border-amber-400/30 bg-amber-400/5"
+                : "text-sky-300 border-sky-400/30 bg-sky-400/5",
+          )}>
+            <Shield className="w-3 h-3 inline mr-1.5 align-[-2px]" />
+            {safeUseStatus === "blocked"
+              ? "Outreach blocked — research review only"
+              : safeUseStatus === "approved_for_manual_outreach"
+                ? "Manual outreach approval recorded — Apex Atlas never sends messages"
+                : "Draft only — manual review required; Apex Atlas never sends messages"}
           </div>
         )}
       </div>

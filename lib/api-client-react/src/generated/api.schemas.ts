@@ -200,6 +200,11 @@ export interface ResearchSession {
   sourceQualityScore?: number | null;
   /** @nullable */
   scoreBreakdown?: string | null;
+  safeUseStatus?: string;
+  /** @nullable */
+  safeUseReviewedAt?: string | null;
+  /** @nullable */
+  safeUseNote?: string | null;
   createdAt: string;
 }
 
@@ -511,6 +516,20 @@ export type ListResearchSessionsParams = {
 entityId?: number;
 status?: string;
 limit?: number;
+};
+
+export type UpdateResearchSafetyBodyStatus = typeof UpdateResearchSafetyBodyStatus[keyof typeof UpdateResearchSafetyBodyStatus];
+
+
+export const UpdateResearchSafetyBodyStatus = {
+  manual_review: 'manual_review',
+  approved_for_manual_outreach: 'approved_for_manual_outreach',
+  blocked: 'blocked',
+} as const;
+
+export type UpdateResearchSafetyBody = {
+  status: UpdateResearchSafetyBodyStatus;
+  reviewerNote?: string;
 };
 
 export type GetHotLeadsParams = {

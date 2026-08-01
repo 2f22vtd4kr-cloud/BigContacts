@@ -7,6 +7,7 @@ import {
   UpdateResearchStatusParams,
   UpdateResearchStatusBody,
 } from "@workspace/api-zod";
+import { canApproveForManualOutreach, getSafeUseDecision, type SafeUseStatus } from "../../lib/safe-use";
 
 const router = Router();
 
@@ -64,6 +65,7 @@ router.get("/research/sessions/:id", async (req, res): Promise<void> => {
     ...row.session,
     targetEntityName: row.entityName ?? null,
     createdAt: row.session.createdAt.toISOString(),
+    safeUse: getSafeUseDecision(row.session.safeUseStatus),
   });
 });
 
@@ -126,6 +128,57 @@ router.get("/research/sessions/:id/audit", async (req, res): Promise<void> => {
   })));
 });
 
+// PATCH /research/sessions/:id/safety
+// This approves a draft for manual review only; it never sends or schedules contact.
+router.patch("/research/sessions/:id/safety", async (req, res): Promise<void> => {
+  const params = GetResearchSessionParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  const status = req.body?.status as SafeUseStatus;
+  const reviewerNote = typeof req.body?.reviewerNote === "string" ? req.body.reviewerNote.trim() : "";
+  if (!["manual_review", "approved_for_manual_outreach", "blocked"].includes(status)) {
+    res.status(400).json({ error: "status must be manual_review, approved_for_manual_outreach, or blocked." });
+    return;
+  }
+  const [existing] = await db
+    .select()
+    .from(researchSessionsTable)
+    .where(eq(researchSessionsTable.id, params.data.id));
+  if (!existing) {
+    res.status(404).json({ error: "Research session not found" });
+    return;
+  }
+  if (
+    status === "approved_for_manual_outreach" &&
+    !canApproveForManualOutreach({
+      reviewerNote,
+      identityScore: existing.identityScore,
+      accessScore: existing.accessScore,
+    })
+  ) {
+    res.status(422).json({
+      error: "Manual approval requires a reviewer note, identity score ≥ 0.65, and access score ≥ 0.35.",
+    });
+    return;
+  }
+  const [updated] = await db
+    .update(researchSessionsTable)
+    .set({
+      safeUseStatus: status,
+      safeUseReviewedAt: status === "manual_review" ? null : new Date(),
+      safeUseNote: reviewerNote || null,
+      updatedAt: new Date(),
+    })
+    .where(eq(researchSessionsTable.id, params.data.id))
+    .returning();
+  res.json({
+    ...updated,
+    safeUse: getSafeUseDecision(updated!.safeUseStatus),
+  });
+});
+
 // PATCH /research/sessions/:id/status
 router.patch("/research/sessions/:id/status", async (req, res): Promise<void> => {
   const params = UpdateResearchStatusParams.safeParse(req.params);
@@ -169,6 +222,7 @@ router.patch("/research/sessions/:id/status", async (req, res): Promise<void> =>
     ...session,
     targetEntityName: entityRow?.name ?? null,
     createdAt: session.createdAt.toISOString(),
+    safeUse: getSafeUseDecision(session.safeUseStatus),
   });
 });
 

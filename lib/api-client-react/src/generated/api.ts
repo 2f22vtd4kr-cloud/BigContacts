@@ -57,7 +57,8 @@ import type {
   RunLandRegistryIngestionBody,
   RunOccrpEnrichmentBody,
   SessionStatusUpdate,
-  UpdateImprovementLogBody
+  UpdateImprovementLogBody,
+  UpdateResearchSafetyBody
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -1601,6 +1602,78 @@ export const useGeneratePitch = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getGeneratePitchMutationOptions(options));
+    }
+
+export const getUpdateResearchSafetyUrl = (id: number,) => {
+
+
+
+
+  return `/api/research/sessions/${id}/safety`
+}
+
+/**
+ * @summary Set manual-review safety state for a research draft
+ */
+export const updateResearchSafety = async (id: number,
+    updateResearchSafetyBody: UpdateResearchSafetyBody, options?: RequestInit): Promise<ResearchSession> => {
+
+  return customFetch<ResearchSession>(getUpdateResearchSafetyUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateResearchSafetyBody)
+  }
+);}
+
+
+
+
+
+export const getUpdateResearchSafetyMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateResearchSafety>>, TError,{id: number;data: BodyType<UpdateResearchSafetyBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateResearchSafety>>, TError,{id: number;data: BodyType<UpdateResearchSafetyBody>}, TContext> => {
+
+const mutationKey = ['updateResearchSafety'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateResearchSafety>>, {id: number;data: BodyType<UpdateResearchSafetyBody>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateResearchSafety(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateResearchSafetyMutationResult = NonNullable<Awaited<ReturnType<typeof updateResearchSafety>>>
+    export type UpdateResearchSafetyMutationBody = BodyType<UpdateResearchSafetyBody>
+    export type UpdateResearchSafetyMutationError = ErrorType<void>
+
+    /**
+ * @summary Set manual-review safety state for a research draft
+ */
+export const useUpdateResearchSafety = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateResearchSafety>>, TError,{id: number;data: BodyType<UpdateResearchSafetyBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateResearchSafety>>,
+        TError,
+        {id: number;data: BodyType<UpdateResearchSafetyBody>},
+        TContext
+      > => {
+      return useMutation(getUpdateResearchSafetyMutationOptions(options));
     }
 
 export const getGetHotLeadsUrl = (params?: GetHotLeadsParams,) => {

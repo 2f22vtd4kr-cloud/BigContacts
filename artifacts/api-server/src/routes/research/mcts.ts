@@ -195,6 +195,7 @@ router.post("/research/run", async (req, res): Promise<void> => {
         freshnessScore: scorecard.freshness,
         sourceQualityScore: scorecard.sourceQuality,
         scoreBreakdown: JSON.stringify(scorecard),
+        safeUseStatus: "manual_review",
       })
       .returning();
     if (session) {
@@ -443,6 +444,7 @@ router.post("/research/run", async (req, res): Promise<void> => {
       freshnessScore: scorecard.freshness,
       sourceQualityScore: scorecard.sourceQuality,
       scoreBreakdown: JSON.stringify(scorecard),
+      safeUseStatus: "manual_review",
     })
     .returning();
   if (session) {

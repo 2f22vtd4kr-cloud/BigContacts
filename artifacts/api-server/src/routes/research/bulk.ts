@@ -34,6 +34,7 @@ router.post("/research/lead", async (req, res): Promise<void> => {
     pathScore: 0,
     winningPath: null,
     mctsSteps: null,
+    safeUseStatus: "manual_review",
   }).returning();
   res.status(201).json(session);
 });
@@ -234,6 +235,7 @@ router.post("/research/bulk-run", async (req, res): Promise<void> => {
             pathScore: mctsResult.pathScore,
             generatedPitch: pitchText,
             notes: critiqueNote,
+            safeUseStatus: "manual_review",
           });
 
           done++;

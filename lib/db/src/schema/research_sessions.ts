@@ -11,6 +11,9 @@ export const researchSessionsTable = pgTable("research_sessions", {
   winningPath: text("winning_path"), // JSON: array of path step objects
   mctsSteps: text("mcts_steps"), // JSON: array of MCTS reasoning steps shown in terminal
   generatedPitch: text("generated_pitch"), // full outreach pitch text
+  safeUseStatus: text("safe_use_status").notNull().default("manual_review"),
+  safeUseReviewedAt: timestamp("safe_use_reviewed_at", { withTimezone: true }),
+  safeUseNote: text("safe_use_note"),
   crmStatus: text("crm_status").notNull().default("Lead Gen"),
   // 'Lead Gen' | 'Identified' | 'Graph Mapped' | 'MCTS Path Selected'
   // | 'Pitch Generated' | 'Contacted' | 'Follow-Up' | 'Closed'

@@ -468,6 +468,38 @@ paths:
         "404":
           description: Not found
 
+  /research/sessions/{id}/safety:
+    patch:
+      operationId: updateResearchSafety
+      tags: [research]
+      summary: Set manual-review safety state for a research draft
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [manual_review, approved_for_manual_outreach, blocked]
+                reviewerNote: { type: string }
+      responses:
+        "200":
+          description: Safety state updated; no message is sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResearchSession"
+        "422":
+          description: Evidence or review note is insufficient
+
   # ── DASHBOARD ─────────────────────────────────────────────────────────────
   /dashboard/hot-leads:
     get:
@@ -970,6 +1002,9 @@ components:
         freshnessScore: { type: ["number", "null"] }
         sourceQualityScore: { type: ["number", "null"] }
         scoreBreakdown: { type: ["string", "null"] }
+        safeUseStatus: { type: string }
+        safeUseReviewedAt: { type: ["string", "null"] }
+        safeUseNote: { type: ["string", "null"] }
         createdAt: { type: string }
 
     ResearchEvidence:

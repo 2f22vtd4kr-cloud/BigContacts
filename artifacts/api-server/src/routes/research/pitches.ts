@@ -3,6 +3,7 @@ import { eq, sql } from "drizzle-orm";
 import { db, entitiesTable, assetsTable, researchSessionsTable } from "@workspace/db";
 import { GeneratePitchParams } from "@workspace/api-zod";
 import { generateOutreachSequence } from "../../lib/pitch-generator";
+import { getSafeUseDecision } from "../../lib/safe-use";
 
 const router = Router();
 
@@ -89,6 +90,9 @@ router.post("/research/sessions/:id/pitch", async (req, res): Promise<void> => {
     .set({
       generatedPitch: JSON.stringify(sequence),
       crmStatus: "Pitch Generated",
+      safeUseStatus: "manual_review",
+      safeUseReviewedAt: null,
+      safeUseNote: null,
       updatedAt: new Date(),
     })
     .where(eq(researchSessionsTable.id, params.data.id))
@@ -98,6 +102,7 @@ router.post("/research/sessions/:id/pitch", async (req, res): Promise<void> => {
     ...updated!,
     targetEntityName: entity.name,
     createdAt: updated!.createdAt.toISOString(),
+    safeUse: getSafeUseDecision(updated!.safeUseStatus),
   });
 });
 
@@ -144,7 +149,14 @@ router.post("/research/backfill-pitches", async (_req, res): Promise<void> => {
       ].join("\n\n");
 
       await db.update(researchSessionsTable)
-        .set({ generatedPitch: pitchText, crmStatus: "Pitch Generated", updatedAt: new Date() })
+        .set({
+          generatedPitch: pitchText,
+          crmStatus: "Pitch Generated",
+          safeUseStatus: "manual_review",
+          safeUseReviewedAt: null,
+          safeUseNote: null,
+          updatedAt: new Date(),
+        })
         .where(eq(researchSessionsTable.id, s.id));
       updated++;
     } catch {

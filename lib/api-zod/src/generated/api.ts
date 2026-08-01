@@ -396,6 +396,9 @@ export const RunResearchResponse = zod.object({
   "freshnessScore": zod.number().nullish(),
   "sourceQualityScore": zod.number().nullish(),
   "scoreBreakdown": zod.string().nullish(),
+  "safeUseStatus": zod.string().optional(),
+  "safeUseReviewedAt": zod.string().nullish(),
+  "safeUseNote": zod.string().nullish(),
   "createdAt": zod.string()
 })
 
@@ -427,6 +430,9 @@ export const ListResearchSessionsResponseItem = zod.object({
   "freshnessScore": zod.number().nullish(),
   "sourceQualityScore": zod.number().nullish(),
   "scoreBreakdown": zod.string().nullish(),
+  "safeUseStatus": zod.string().optional(),
+  "safeUseReviewedAt": zod.string().nullish(),
+  "safeUseNote": zod.string().nullish(),
   "createdAt": zod.string()
 })
 export const ListResearchSessionsResponse = zod.array(ListResearchSessionsResponseItem)
@@ -455,6 +461,9 @@ export const GetResearchSessionResponse = zod.object({
   "freshnessScore": zod.number().nullish(),
   "sourceQualityScore": zod.number().nullish(),
   "scoreBreakdown": zod.string().nullish(),
+  "safeUseStatus": zod.string().optional(),
+  "safeUseReviewedAt": zod.string().nullish(),
+  "safeUseNote": zod.string().nullish(),
   "createdAt": zod.string()
 })
 
@@ -539,6 +548,9 @@ export const UpdateResearchStatusResponse = zod.object({
   "freshnessScore": zod.number().nullish(),
   "sourceQualityScore": zod.number().nullish(),
   "scoreBreakdown": zod.string().nullish(),
+  "safeUseStatus": zod.string().optional(),
+  "safeUseReviewedAt": zod.string().nullish(),
+  "safeUseNote": zod.string().nullish(),
   "createdAt": zod.string()
 })
 
@@ -569,6 +581,47 @@ export const GeneratePitchResponse = zod.object({
   "freshnessScore": zod.number().nullish(),
   "sourceQualityScore": zod.number().nullish(),
   "scoreBreakdown": zod.string().nullish(),
+  "safeUseStatus": zod.string().optional(),
+  "safeUseReviewedAt": zod.string().nullish(),
+  "safeUseNote": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Set manual-review safety state for a research draft
+ */
+export const UpdateResearchSafetyParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateResearchSafetyBody = zod.object({
+  "status": zod.enum(['manual_review', 'approved_for_manual_outreach', 'blocked']),
+  "reviewerNote": zod.string().optional()
+})
+
+export const UpdateResearchSafetyResponse = zod.object({
+  "id": zod.number(),
+  "targetEntityId": zod.number(),
+  "targetEntityName": zod.string().nullish(),
+  "winningPath": zod.string().nullish(),
+  "mctsSteps": zod.string().nullish(),
+  "generatedPitch": zod.string().nullish(),
+  "crmStatus": zod.string(),
+  "lastContactDate": zod.string().nullish(),
+  "bayesianScoreAtRuntime": zod.number().nullish(),
+  "pathScore": zod.number().nullish(),
+  "identityScore": zod.number().nullish(),
+  "ownershipScore": zod.number().nullish(),
+  "contactScore": zod.number().nullish(),
+  "accessScore": zod.number().nullish(),
+  "wealthScore": zod.number().nullish(),
+  "freshnessScore": zod.number().nullish(),
+  "sourceQualityScore": zod.number().nullish(),
+  "scoreBreakdown": zod.string().nullish(),
+  "safeUseStatus": zod.string().optional(),
+  "safeUseReviewedAt": zod.string().nullish(),
+  "safeUseNote": zod.string().nullish(),
   "createdAt": zod.string()
 })
 
