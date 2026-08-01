@@ -10,6 +10,7 @@ import { hybridSearch } from "../../lib/hybrid-search";
 import { orchestrate } from "../../lib/agent-orchestrator";
 import { assessTargetReachability } from "../../lib/reachability-realism";
 import { buildResearchEvidenceRows } from "../../lib/research-evidence";
+import { computeResearchScorecard } from "../../lib/research-scorecard";
 
 const router = Router();
 
@@ -118,6 +119,30 @@ router.post("/research/run", async (req, res): Promise<void> => {
       return connected?.type === "Gatekeeper" || ["BOARD_MEMBER_OF", "KNOWN_ASSOCIATE", "FAMILY_OF", "SHARED_GATEKEEPER"].includes(r.relationshipType);
     }).length,
   });
+  const scorecard = computeResearchScorecard({
+    bayesianScore: updatedScore,
+    contactConfidence: targetEntity.contactConfidence,
+    hasDirectContact: reachability.hasDirectContact,
+    reachabilityScore: reachability.score,
+    assetCount: targetAssets.length,
+    ownershipRelationshipCount: targetRelationships.filter((r) =>
+      ["OWNS", "MANAGES", "NOMINEE_OF", "BOARD_MEMBER_OF"].includes(r.relationshipType),
+    ).length,
+    sourceRegistryCount: (() => {
+      try {
+        const parsed = JSON.parse(targetEntity.sourceRegistries ?? "[]");
+        return Array.isArray(parsed) ? parsed.length : 0;
+      } catch {
+        return 0;
+      }
+    })(),
+    corroboratingSourceCount: new Set([
+      ...targetAssets.map((asset) => asset.sourceRegistry).filter(Boolean),
+      ...targetRelationships.map((relationship) => relationship.relationshipType),
+    ]).size,
+    daysSinceActivity,
+    hasRecentActivity: daysSinceActivity < 180,
+  });
 
   // A prominent, isolated target with no direct or corroborated intermediary
   // route is still valuable for identity/control research, but should not
@@ -141,6 +166,14 @@ router.post("/research/run", async (req, res): Promise<void> => {
         bayesianScoreAtRuntime: updatedScore,
         pathScore: 0,
         generatedPitch: "",
+        identityScore: scorecard.identity,
+        ownershipScore: scorecard.ownership,
+        contactScore: scorecard.contact,
+        accessScore: scorecard.access,
+        wealthScore: scorecard.wealth,
+        freshnessScore: scorecard.freshness,
+        sourceQualityScore: scorecard.sourceQuality,
+        scoreBreakdown: JSON.stringify(scorecard),
       })
       .returning();
     if (session) {
@@ -335,6 +368,14 @@ router.post("/research/run", async (req, res): Promise<void> => {
       bayesianScoreAtRuntime: updatedScore,
       pathScore: mctsResult.pathScore,
       generatedPitch: pitchText,
+      identityScore: scorecard.identity,
+      ownershipScore: scorecard.ownership,
+      contactScore: scorecard.contact,
+      accessScore: scorecard.access,
+      wealthScore: scorecard.wealth,
+      freshnessScore: scorecard.freshness,
+      sourceQualityScore: scorecard.sourceQuality,
+      scoreBreakdown: JSON.stringify(scorecard),
     })
     .returning();
   if (session) {

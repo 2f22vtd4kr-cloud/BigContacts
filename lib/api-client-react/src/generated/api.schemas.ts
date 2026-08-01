@@ -184,6 +184,22 @@ export interface ResearchSession {
   bayesianScoreAtRuntime?: number | null;
   /** @nullable */
   pathScore?: number | null;
+  /** @nullable */
+  identityScore?: number | null;
+  /** @nullable */
+  ownershipScore?: number | null;
+  /** @nullable */
+  contactScore?: number | null;
+  /** @nullable */
+  accessScore?: number | null;
+  /** @nullable */
+  wealthScore?: number | null;
+  /** @nullable */
+  freshnessScore?: number | null;
+  /** @nullable */
+  sourceQualityScore?: number | null;
+  /** @nullable */
+  scoreBreakdown?: string | null;
   createdAt: string;
 }
 

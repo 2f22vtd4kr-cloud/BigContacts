@@ -43,6 +43,17 @@ type ResearchEvidence = {
   observedAt: string;
 };
 
+type ResearchScorecard = {
+  identity: number;
+  ownership: number;
+  contact: number;
+  access: number;
+  wealth: number;
+  freshness: number;
+  sourceQuality: number;
+  overall: number;
+};
+
 const HYBRID_PIPELINE = "L1: BM25+Semantic+Graph · L2: Planner→Retriever→Analyst→Critic · L3: QueryExpansion · L4: UCT(120 rollouts) · L5: Bayesian-UCB";
 
 function roleIcon(role: string) {
@@ -119,6 +130,39 @@ function EvidenceLedger({ sessionId }: { sessionId: number | null }) {
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+function Scorecard({ score }: { score: ResearchScorecard | null }) {
+  if (!score) return null;
+  const items: Array<[string, number, string]> = [
+    ["Identity", score.identity, "same-person confidence"],
+    ["Ownership", score.ownership, "asset/relationship basis"],
+    ["Contact", score.contact, "validated public vectors"],
+    ["Access", score.access, "practical reachability"],
+    ["Wealth", score.wealth, "wealth signal only"],
+    ["Freshness", score.freshness, "recency of evidence"],
+    ["Sources", score.sourceQuality, "source diversity/quality"],
+  ];
+  return (
+    <div className="border-t border-border/50 bg-background/30 px-4 md:px-5 py-4">
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <h3 className="text-xs font-mono text-primary uppercase tracking-widest">Independent Research Scorecard</h3>
+          <p className="text-[11px] text-muted-foreground mt-1">Scores answer different questions; wealth is never used as an access proxy.</p>
+        </div>
+        <span className="text-xs font-mono text-foreground">{Math.round(score.overall * 100)}/100 overall</span>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+        {items.map(([label, value, hint]) => (
+          <div key={label} className="rounded border border-border/70 bg-card/50 p-2" title={hint}>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-mono">{label}</div>
+            <div className={cn("text-lg font-mono mt-1", value >= 0.7 ? "text-emerald-400" : value >= 0.4 ? "text-amber-400" : "text-muted-foreground")}>{Math.round(value * 100)}</div>
+            <div className="h-1 rounded bg-muted mt-1 overflow-hidden"><div className="h-full bg-current rounded" style={{ width: `${Math.round(value * 100)}%` }} /></div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -235,6 +279,7 @@ export default function IntelTerminal() {
   const [pathScore, setPathScore] = useState<number>(0);
   const [sessionId, setSessionId] = useState<number | null>(null);
   const [algorithmPipeline, setAlgorithmPipeline] = useState<Array<{ algo: string; contribution: string; status: string }> | null>(null);
+  const [scorecard, setScorecard] = useState<ResearchScorecard | null>(null);
   const logEndRef = useRef<HTMLDivElement | null>(null);
 
   // Mobile entity picker state
@@ -248,6 +293,7 @@ export default function IntelTerminal() {
     setWinningPath([]);
     setPathScore(0);
     setAlgorithmPipeline(null);
+    setScorecard(null);
     setIsComputing(true);
     setMobilePickerOpen(false);
 
@@ -264,6 +310,7 @@ export default function IntelTerminal() {
           try { path = data.winningPath ? JSON.parse(data.winningPath) : []; } catch { path = []; }
 
           setPathScore(data.pathScore ?? 0);
+          try { setScorecard(data.scoreBreakdown ? JSON.parse(data.scoreBreakdown) : null); } catch { setScorecard(null); }
           if ((data as any).algorithmPipeline) setAlgorithmPipeline((data as any).algorithmPipeline);
 
           let i = 0;
@@ -541,6 +588,7 @@ export default function IntelTerminal() {
             </div>
           </div>
         )}
+        {!isComputing && <Scorecard score={scorecard} />}
 
         {/* ── Winning Path Visualization ── */}
         {winningPath.length > 0 && !isComputing && (

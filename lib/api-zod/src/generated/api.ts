@@ -388,6 +388,14 @@ export const RunResearchResponse = zod.object({
   "lastContactDate": zod.string().nullish(),
   "bayesianScoreAtRuntime": zod.number().nullish(),
   "pathScore": zod.number().nullish(),
+  "identityScore": zod.number().nullish(),
+  "ownershipScore": zod.number().nullish(),
+  "contactScore": zod.number().nullish(),
+  "accessScore": zod.number().nullish(),
+  "wealthScore": zod.number().nullish(),
+  "freshnessScore": zod.number().nullish(),
+  "sourceQualityScore": zod.number().nullish(),
+  "scoreBreakdown": zod.string().nullish(),
   "createdAt": zod.string()
 })
 
@@ -411,6 +419,14 @@ export const ListResearchSessionsResponseItem = zod.object({
   "lastContactDate": zod.string().nullish(),
   "bayesianScoreAtRuntime": zod.number().nullish(),
   "pathScore": zod.number().nullish(),
+  "identityScore": zod.number().nullish(),
+  "ownershipScore": zod.number().nullish(),
+  "contactScore": zod.number().nullish(),
+  "accessScore": zod.number().nullish(),
+  "wealthScore": zod.number().nullish(),
+  "freshnessScore": zod.number().nullish(),
+  "sourceQualityScore": zod.number().nullish(),
+  "scoreBreakdown": zod.string().nullish(),
   "createdAt": zod.string()
 })
 export const ListResearchSessionsResponse = zod.array(ListResearchSessionsResponseItem)
@@ -431,6 +447,14 @@ export const GetResearchSessionResponse = zod.object({
   "lastContactDate": zod.string().nullish(),
   "bayesianScoreAtRuntime": zod.number().nullish(),
   "pathScore": zod.number().nullish(),
+  "identityScore": zod.number().nullish(),
+  "ownershipScore": zod.number().nullish(),
+  "contactScore": zod.number().nullish(),
+  "accessScore": zod.number().nullish(),
+  "wealthScore": zod.number().nullish(),
+  "freshnessScore": zod.number().nullish(),
+  "sourceQualityScore": zod.number().nullish(),
+  "scoreBreakdown": zod.string().nullish(),
   "createdAt": zod.string()
 })
 
@@ -483,6 +507,14 @@ export const UpdateResearchStatusResponse = zod.object({
   "lastContactDate": zod.string().nullish(),
   "bayesianScoreAtRuntime": zod.number().nullish(),
   "pathScore": zod.number().nullish(),
+  "identityScore": zod.number().nullish(),
+  "ownershipScore": zod.number().nullish(),
+  "contactScore": zod.number().nullish(),
+  "accessScore": zod.number().nullish(),
+  "wealthScore": zod.number().nullish(),
+  "freshnessScore": zod.number().nullish(),
+  "sourceQualityScore": zod.number().nullish(),
+  "scoreBreakdown": zod.string().nullish(),
   "createdAt": zod.string()
 })
 
@@ -505,6 +537,14 @@ export const GeneratePitchResponse = zod.object({
   "lastContactDate": zod.string().nullish(),
   "bayesianScoreAtRuntime": zod.number().nullish(),
   "pathScore": zod.number().nullish(),
+  "identityScore": zod.number().nullish(),
+  "ownershipScore": zod.number().nullish(),
+  "contactScore": zod.number().nullish(),
+  "accessScore": zod.number().nullish(),
+  "wealthScore": zod.number().nullish(),
+  "freshnessScore": zod.number().nullish(),
+  "sourceQualityScore": zod.number().nullish(),
+  "scoreBreakdown": zod.string().nullish(),
   "createdAt": zod.string()
 })
 

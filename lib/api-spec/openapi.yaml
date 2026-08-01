@@ -940,6 +940,14 @@ components:
         lastContactDate: { type: ["string", "null"] }
         bayesianScoreAtRuntime: { type: ["number", "null"] }
         pathScore: { type: ["number", "null"] }
+        identityScore: { type: ["number", "null"] }
+        ownershipScore: { type: ["number", "null"] }
+        contactScore: { type: ["number", "null"] }
+        accessScore: { type: ["number", "null"] }
+        wealthScore: { type: ["number", "null"] }
+        freshnessScore: { type: ["number", "null"] }
+        sourceQualityScore: { type: ["number", "null"] }
+        scoreBreakdown: { type: ["string", "null"] }
         createdAt: { type: string }
 
     ResearchEvidence:

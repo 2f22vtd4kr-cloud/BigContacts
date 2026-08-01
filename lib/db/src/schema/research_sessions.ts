@@ -19,6 +19,14 @@ export const researchSessionsTable = pgTable("research_sessions", {
   notes: text("notes"),
   bayesianScoreAtRuntime: doublePrecision("bayesian_score_at_runtime"),
   pathScore: doublePrecision("path_score"), // MCTS UCT score of winning path
+  identityScore: doublePrecision("identity_score"),
+  ownershipScore: doublePrecision("ownership_score"),
+  contactScore: doublePrecision("contact_score"),
+  accessScore: doublePrecision("access_score"),
+  wealthScore: doublePrecision("wealth_score"),
+  freshnessScore: doublePrecision("freshness_score"),
+  sourceQualityScore: doublePrecision("source_quality_score"),
+  scoreBreakdown: text("score_breakdown"), // JSON: independent research scorecard
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
