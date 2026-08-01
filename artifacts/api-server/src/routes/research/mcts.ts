@@ -8,6 +8,7 @@ import { runMcts } from "../../lib/mcts-agent";
 import { generateOutreachSequence } from "../../lib/pitch-generator";
 import { hybridSearch } from "../../lib/hybrid-search";
 import { orchestrate } from "../../lib/agent-orchestrator";
+import { assessTargetReachability } from "../../lib/reachability-realism";
 
 const router = Router();
 
@@ -37,17 +38,6 @@ router.post("/research/run", async (req, res): Promise<void> => {
   ]);
 
   const graph = buildGraph(allEntities, allAssets, allRelationships);
-
-  // ── Layer 1: Hybrid Retrieval ─────────────────────────────────────────────
-  let hybridMeta = { bm25Hits: 0, semanticHits: 0, graphHits: 0, totalCandidates: 0, durationMs: 0 };
-  let hybridCount = 0;
-  try {
-    const { results: hybridResults, meta } = await hybridSearch(targetEntity.name, undefined, 15);
-    hybridMeta = meta;
-    hybridCount = hybridResults.length;
-  } catch {
-    // Non-fatal
-  }
 
   const targetAssets = allAssets.filter((a) => a.ownerEntityId === entityId);
   const targetRelationships = allRelationships.filter((r) => r.sourceEntityId === entityId);
@@ -100,6 +90,89 @@ router.post("/research/run", async (req, res): Promise<void> => {
     .update(entitiesTable)
     .set({ bayesianScore: updatedScore, updatedAt: new Date() })
     .where(eq(entitiesTable.id, entityId));
+
+  const reachability = assessTargetReachability({
+    type: targetEntity.type,
+    estimatedNetWorth: targetEntity.estimatedNetWorth,
+    email: targetEntity.email,
+    phone: targetEntity.phone,
+    contactOutcome: targetEntity.contactOutcome,
+    contactConfidence: targetEntity.contactConfidence,
+    linkedinUrl: targetEntity.linkedinUrl,
+    twitterHandle: targetEntity.twitterHandle,
+    instagramHandle: targetEntity.instagramHandle,
+    telegramHandle: targetEntity.telegramHandle,
+    knownResidences: targetEntity.knownResidences,
+    notes: targetEntity.notes,
+    metadata: targetEntity.metadata,
+    sourceRegistries: targetEntity.sourceRegistries,
+    networkDegree: targetRelationships.length,
+    gatekeeperConnections: targetRelationships.filter((r) => {
+      if (r.targetType !== "Entity") return false;
+      return allEntities.find((e) => e.id === r.targetId)?.type === "Gatekeeper";
+    }).length,
+    intermediaryConnections: targetRelationships.filter((r) => {
+      if (r.targetType !== "Entity") return false;
+      const connected = allEntities.find((e) => e.id === r.targetId);
+      return connected?.type === "Gatekeeper" || ["BOARD_MEMBER_OF", "KNOWN_ASSOCIATE", "FAMILY_OF", "SHARED_GATEKEEPER"].includes(r.relationshipType);
+    }).length,
+  });
+
+  // A prominent, isolated target with no direct or corroborated intermediary
+  // route is still valuable for identity/control research, but should not
+  // consume broad retrieval, orchestration, or MCTS budget.
+  if (reachability.mode === "research_only") {
+    const reason = [
+      `Reachability preflight: ${reachability.status} (${reachability.score}/100).`,
+      ...reachability.reasons.map((r) => `Evidence: ${r}.`),
+      ...reachability.blockers.map((b) => `Constraint: ${b}.`),
+      "Expensive retrieval, critic/orchestration, MCTS, and outreach generation were skipped.",
+      "A future run may resume after a validated direct vector or corroborated intermediary path is added.",
+    ].join(" ");
+    const [session] = await db
+      .insert(researchSessionsTable)
+      .values({
+        targetEntityId: entityId,
+        winningPath: JSON.stringify([]),
+        mctsSteps: JSON.stringify([]),
+        crmStatus: "Research Review",
+        notes: reason,
+        bayesianScoreAtRuntime: updatedScore,
+        pathScore: 0,
+        generatedPitch: "",
+      })
+      .returning();
+
+    res.status(201).json({
+      ...session!,
+      targetEntityName: targetEntity.name,
+      createdAt: session!.createdAt.toISOString(),
+      reachability,
+      algorithmPipeline: [
+        {
+          algo: "L0 — Reachability Realism Preflight",
+          contribution: `${reachability.status} target · ${reachability.score}/100 · ${reachability.blockers.join(" ")}`,
+          status: "done",
+        },
+        { algo: "L1 — Hybrid Retrieval", contribution: "Skipped: research-only target has no plausible access route", status: "skipped" },
+        { algo: "L2 — Multi-Agent Reasoning", contribution: "Skipped: no access evidence to validate", status: "skipped" },
+        { algo: "L4 — UCT Deep Path Exploration", contribution: "Skipped: no corroborated gatekeeper or intermediary path", status: "skipped" },
+        { algo: "L5 — Bayesian-UCB Optimization", contribution: `Stable-prior score: ${updatedScore.toFixed(3)}`, status: "done" },
+      ],
+    });
+    return;
+  }
+
+  // ── Layer 1: Hybrid Retrieval ─────────────────────────────────────────────
+  let hybridMeta = { bm25Hits: 0, semanticHits: 0, graphHits: 0, totalCandidates: 0, durationMs: 0 };
+  let hybridCount = 0;
+  try {
+    const { results: hybridResults, meta } = await hybridSearch(targetEntity.name, undefined, 15);
+    hybridMeta = meta;
+    hybridCount = hybridResults.length;
+  } catch {
+    // Non-fatal
+  }
 
   const targetVertexId = `e:${entityId}`;
   // The graph was built before the persisted score update. Keep the in-memory

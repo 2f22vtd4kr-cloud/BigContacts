@@ -37,6 +37,7 @@ const FINANCIAL_AGGREGATOR_DOMAINS = new Set([
 ]);
 import { extractWithAI, researchWithPerplexity, researchWithGemini, researchWithTavily, researchWithExa, type OwnerResolution } from "./ai-extractor";
 import { extractPersonNames } from "./gliner-client";
+import { assessTargetReachability, reachabilityDirective } from "./reachability-realism";
 
 // ── Shared utilities ──────────────────────────────────────────────────────────
 
@@ -422,6 +423,11 @@ export interface DeepWebOsintInput {
   metadata?:         string | null;
   bayesianScore?:    number | null;
   nationality?:      string | null;
+  email?:            string | null;
+  phone?:            string | null;
+  contactOutcome?:   string | null;
+  contactConfidence?: number | null;
+  notes?:            string | null;
 }
 
 export interface DeepWebOsintResult {
@@ -1534,6 +1540,16 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
 
   const isCorp = entity.type === "Corporation" || entity.type === "Trust";
   const isFrench = country === "FR" || country === "BE" || country === "MC";
+  const realism = reachabilityDirective(assessTargetReachability({
+    type: entity.type,
+    email: entity.email,
+    phone: entity.phone,
+    contactOutcome: entity.contactOutcome,
+    contactConfidence: entity.contactConfidence,
+    knownResidences: entity.knownResidences,
+    metadata: entity.metadata,
+    sourceRegistries: entity.sourceRegistries,
+  }));
 
   const { queries, domainTargets } = buildDeepWebQueries(entity, trading, city, country);
   if (queries.length === 0 && domainTargets.length === 0) return result;
@@ -1742,18 +1758,22 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       researchWithPerplexity(entity.name, entity.type, country, {
         tradingName: trading,
         city,
+        reachability: realism,
       }),
       researchWithGemini(entity.name, entity.type, country, {
         tradingName: trading,
         city,
+        reachability: realism,
       }),
       researchWithTavily(entity.name, entity.type, country, {
         tradingName: trading,
         city,
+        reachability: realism,
       }),
       researchWithExa(entity.name, entity.type, country, {
         tradingName: trading,
         city,
+        reachability: realism,
       }),
     ]);
     if (perp.source === "perplexity-sonar") {
@@ -1785,7 +1805,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       }
       // Backward-compatible responses may still return ownerContacts only.
       for (const oc of perp.ownerContacts) {
-        if (!perp.ownerResolutions.some((owner) => owner.name.toLowerCase() === oc.name.toLowerCase())) {
+        if (!perp.ownerResolutions.some((owner: OwnerResolution) => owner.name.toLowerCase() === oc.name.toLowerCase())) {
           addOwnerResolution({
             ...oc,
             role: "associated_person",
@@ -1865,7 +1885,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         addOwnerResolution(owner, label, gem.citations[0] ?? null);
       }
       for (const oc of gem.ownerContacts) {
-        if (!gem.ownerResolutions.some(o => o.name.toLowerCase() === oc.name.toLowerCase())) {
+        if (!gem.ownerResolutions.some((o: OwnerResolution) => o.name.toLowerCase() === oc.name.toLowerCase())) {
           addOwnerResolution({
             ...oc,
             role: "associated_person",
@@ -1933,7 +1953,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         addOwnerResolution(owner, label, tav.citations[0] ?? null);
       }
       for (const oc of tav.ownerContacts) {
-        if (!tav.ownerResolutions.some(o => o.name.toLowerCase() === oc.name.toLowerCase())) {
+        if (!tav.ownerResolutions.some((o: OwnerResolution) => o.name.toLowerCase() === oc.name.toLowerCase())) {
           addOwnerResolution({
             ...oc,
             role: "associated_person",
@@ -2001,7 +2021,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         addOwnerResolution(owner, label, exa.citations[0] ?? null);
       }
       for (const oc of exa.ownerContacts) {
-        if (!exa.ownerResolutions.some(o => o.name.toLowerCase() === oc.name.toLowerCase())) {
+        if (!exa.ownerResolutions.some((o: OwnerResolution) => o.name.toLowerCase() === oc.name.toLowerCase())) {
           addOwnerResolution({
             ...oc,
             role: "associated_person",
@@ -2365,18 +2385,22 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
           researchWithPerplexity(personName, "HNWI", country, {
             tradingName: entity.name,
             city,
+            reachability: realism,
           }),
           researchWithGemini(personName, "HNWI", country, {
             tradingName: entity.name,
             city,
+            reachability: realism,
           }),
           researchWithTavily(personName, "HNWI", country, {
             tradingName: entity.name,
             city,
+            reachability: realism,
           }),
           researchWithExa(personName, "HNWI", country, {
             tradingName: entity.name,
             city,
+            reachability: realism,
           }),
         ]);
 
