@@ -39,7 +39,7 @@ import { discoverSocialPresence } from "../lib/enrichment/social-discovery";
 import { discoverMessengerPresence } from "../lib/enrichment/messenger-discovery";
 import { discoverViaFoundationFilings } from "../lib/enrichment/foundation-filings";
 import { runBroadDiscovery } from "../lib/enrichment/broad-discovery";
-import { computeContactConfidence, computeContactOutcome } from "../lib/contact-confidence";
+import { computeContactConfidence, computeContactOutcome, hasMeaningfulDirectContact } from "../lib/contact-confidence";
 import {
   sanitizePublicEmail,
   sanitizePublicPhone,
@@ -1850,6 +1850,16 @@ router.post("/ingest/backfill-contact-outcomes", async (_req: Request, res: Resp
     const batch = entities.slice(i, i + BATCH);
     for (const e of batch) {
       const meta = safeParseJson<Record<string, unknown>>(e.metadata, {});
+      const phaseJ = meta["phaseJ"] && typeof meta["phaseJ"] === "object"
+        ? meta["phaseJ"] as Record<string, unknown>
+        : {};
+      const phaseJSources = Array.isArray(phaseJ["sources"])
+        ? phaseJ["sources"] as unknown[]
+        : [];
+      const phoneSource =
+        (typeof meta["phoneSource"] === "string" ? meta["phoneSource"] : null) ??
+        (phaseJSources.includes("EDGAR-Phone") ? "EDGAR-Phone" : null) ??
+        (phaseJSources.includes("CompaniesHouse-Phone") ? "CompaniesHouse-Phone" : null);
       const outcome = computeContactOutcome({
         email:           e.email,
         phone:           e.phone,
@@ -1861,14 +1871,32 @@ router.post("/ingest/backfill-contact-outcomes", async (_req: Request, res: Resp
         bizLocation:     meta["bizLocation"] as string | null | undefined,
         // L1: read persisted source labels so org contacts are classified correctly
         emailSource:           meta["emailSource"] as string | null | undefined,
-        phoneSource:           meta["phoneSource"] as string | null | undefined,
+        phoneSource,
         // M1: derive verified status from enrichmentSources (SMTP-Verified tag)
         validatedDirectContact: Array.isArray(meta["enrichmentSources"]) &&
           (meta["enrichmentSources"] as string[]).includes("SMTP-Verified"),
       });
+      const contactConfidence = computeContactConfidence({
+        email: e.email,
+        phone: e.phone,
+        phoneSource,
+        linkedinUrl: e.linkedinUrl,
+        twitterHandle: e.twitterHandle,
+        instagramHandle: e.instagramHandle,
+        telegramHandle: e.telegramHandle,
+      });
+      const isHot = hasMeaningfulDirectContact({
+        email: e.email,
+        phone: e.phone,
+        phoneSource,
+      });
       // Also fix needsEnrichment: only false when direct contact exists (J1)
       const hasDirectContact = Boolean(e.email || e.phone);
-      const needsMeta: Record<string, unknown> = { ...meta, contactOutcome: outcome };
+      const needsMeta: Record<string, unknown> = {
+        ...meta,
+        ...(phoneSource ? { phoneSource } : {}),
+        contactOutcome: outcome,
+      };
       if (hasDirectContact) {
         needsMeta["needsEnrichment"] = false;
       } else if (meta["needsEnrichment"] === false && !hasDirectContact) {
@@ -1878,6 +1906,8 @@ router.post("/ingest/backfill-contact-outcomes", async (_req: Request, res: Resp
       await db.update(entitiesTable)
         .set({
           contactOutcome: outcome,
+          contactConfidence,
+          isHot,
           metadata: JSON.stringify(needsMeta),
         } as any)
         .where(eq(entitiesTable.id, e.id));

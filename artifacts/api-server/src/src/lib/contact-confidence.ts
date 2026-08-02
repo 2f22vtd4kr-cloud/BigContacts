@@ -27,6 +27,7 @@ export function computeContactConfidence(entity: {
   organizationContact?: boolean;
   email?: string | null;
   phone?: string | null;
+  phoneSource?: string | null;
   linkedinUrl?: string | null;
   telegramHandle?: string | null;
   twitterHandle?: string | null;
@@ -42,7 +43,11 @@ export function computeContactConfidence(entity: {
   let score = 0;
   const emailLocal = entity.email?.split("@")[0] ?? "";
   if (isValidPublicEmail(entity.email) && !isGenericEmailPrefix(emailLocal)) score += 35;
-  if (normalizePhone(entity.phone) !== null)                                  score += 25;
+  if (
+    normalizePhone(entity.phone) !== null &&
+    entity.phoneSource !== "EDGAR-Phone" &&
+    entity.phoneSource !== "CompaniesHouse-Phone"
+  ) score += 25;
   if (sanitizePublicSocialUrl(entity.linkedinUrl, "linkedin", "person"))      score += 15;
   if (entity.telegramHandle?.trim() && /^[a-zA-Z0-9_]{2,64}$/.test(entity.telegramHandle.replace(/^@/, ""))) score += 12;
   if (isValidPublicSocialHandle(entity.twitterHandle, "twitter"))             score += 8;
@@ -136,8 +141,14 @@ export function computeContactOutcome(entity: {
   const emailStr = entity.email?.trim() ?? "";
   const phoneStr = entity.phone?.trim() ?? "";
 
+  // Registry phones are organization switchboards/main lines, even when a
+  // separate validation step marked the number as reachable.
+  const isOrgPhone =
+    entity.phoneSource === "EDGAR-Phone" ||
+    entity.phoneSource === "CompaniesHouse-Phone";
+
   // Verified personal contact — highest priority
-  if (entity.validatedDirectContact && (emailStr || phoneStr)) {
+  if (entity.validatedDirectContact && (emailStr || phoneStr) && !isOrgPhone) {
     return "direct_contact_verified";
   }
 
@@ -152,15 +163,11 @@ export function computeContactOutcome(entity: {
 
     // L1: organisational phone detection
     // EDGAR phones are SEC-filer switchboards; CH phones are company main lines.
-    const isOrgPhone =
-      entity.phoneSource === "EDGAR-Phone" ||
-      entity.phoneSource === "CompaniesHouse-Phone";
-
     // If the only contact vector is an org phone (no email at all) → org_contact
     if (isOrgPhone && !emailStr) return "organization_contact";
 
     // Generic email → org_contact regardless of whether a phone also exists
-    if (isGenericEmail) return "organization_contact";
+    if (isGenericEmail || isOrgPhone) return "organization_contact";
 
     // Personal email/phone (or unknown source without generic prefix)
     return "direct_contact_candidate";

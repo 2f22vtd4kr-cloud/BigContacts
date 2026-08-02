@@ -431,6 +431,7 @@ async function runPhaseJPass(jobId: string, runId: number, entities: PassEntity[
         : computeContactOutcome({
           email: bestEmail,
           phone: bestPhone,
+          phoneSource: inHouseResult.phoneSource ?? (meta["phoneSource"] as string | null | undefined),
           linkedinUrl: bestLinkedIn,
           twitterHandle: inHouseResult.twitter ?? entity.twitterHandle,
           instagramHandle: entity.instagramHandle,
@@ -458,6 +459,7 @@ async function runPhaseJPass(jobId: string, runId: number, entities: PassEntity[
       // ── Write entity updates ───────────────────────────────────────────────
       const nextMeta: JsonMap = {
         ...meta,
+        ...(inHouseResult.phoneSource ? { phoneSource: inHouseResult.phoneSource } : {}),
         contactOutcome: outcome,
         phaseJ: {
           pass: "J4-J9",
@@ -480,6 +482,7 @@ async function runPhaseJPass(jobId: string, runId: number, entities: PassEntity[
           type: entity.type,
           email: bestEmail ?? entity.email,
           phone: bestPhone ?? entity.phone,
+          phoneSource: inHouseResult.phoneSource ?? (meta["phoneSource"] as string | null | undefined),
           linkedinUrl: bestLinkedIn,
           twitterHandle: bestTwitter,
           instagramHandle: entity.instagramHandle,

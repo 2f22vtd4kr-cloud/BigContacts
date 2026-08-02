@@ -1191,13 +1191,23 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
     await db.execute(sql`
       UPDATE entities
       SET contact_outcome = CASE
-        WHEN email IS NOT NULL AND phone IS NOT NULL THEN 'direct_contact_verified'
-        WHEN email IS NOT NULL THEN 'direct_contact_candidate'
+        WHEN COALESCE(phone_source, '') IN ('EDGAR-Phone', 'CompaniesHouse-Phone')
+          AND (email IS NULL OR email = '') THEN 'organization_contact'
+        WHEN email IS NOT NULL AND email <> '' THEN
+          CASE
+            WHEN lower(split_part(email, '@', 1)) ~ '^(info|contact|hello|sales|support|office|admin|press|media|enquiries|inquiries|reservations|booking|investor|ir)$'
+              THEN 'organization_contact'
+            ELSE 'direct_contact_candidate'
+          END
+        WHEN phone IS NOT NULL AND phone <> ''
+          AND COALESCE(phone_source, '') NOT IN ('EDGAR-Phone', 'CompaniesHouse-Phone')
+          THEN 'direct_contact_candidate'
         WHEN linkedin_url IS NOT NULL OR twitter_handle IS NOT NULL THEN 'social_only'
         WHEN notes IS NOT NULL AND length(notes) > 50 THEN 'evidence_only'
         ELSE 'none'
       END
       WHERE contact_outcome IS NULL
+        OR contact_outcome IN ('direct_contact_verified', 'direct_contact_candidate', 'organization_contact')
     `);
 
     // Normalize stored social handles — strip URL prefixes so only bare handles are stored.
@@ -1236,10 +1246,10 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
     `);
 
     // Recompute contact confidence for all
-    const confEntities = await db.select({ id: entitiesTable.id, email: entitiesTable.email, phone: entitiesTable.phone, linkedinUrl: entitiesTable.linkedinUrl, twitterHandle: entitiesTable.twitterHandle, instagramHandle: entitiesTable.instagramHandle, telegramHandle: entitiesTable.telegramHandle, knownResidences: entitiesTable.knownResidences, contactConfidence: entitiesTable.contactConfidence }).from(entitiesTable).limit(50_000);
+    const confEntities = await db.select({ id: entitiesTable.id, email: entitiesTable.email, phone: entitiesTable.phone, phoneSource: entitiesTable.phoneSource, linkedinUrl: entitiesTable.linkedinUrl, twitterHandle: entitiesTable.twitterHandle, instagramHandle: entitiesTable.instagramHandle, telegramHandle: entitiesTable.telegramHandle, knownResidences: entitiesTable.knownResidences, contactConfidence: entitiesTable.contactConfidence }).from(entitiesTable).limit(50_000);
     for (let i = 0; i < confEntities.length; i += 1000) {
       for (const e of confEntities.slice(i, i + 1000)) {
-        const c = computeContactConfidence({ email: e.email, phone: e.phone, linkedinUrl: e.linkedinUrl, twitterHandle: e.twitterHandle, instagramHandle: e.instagramHandle, telegramHandle: e.telegramHandle, knownResidences: e.knownResidences });
+        const c = computeContactConfidence({ email: e.email, phone: e.phone, phoneSource: e.phoneSource, linkedinUrl: e.linkedinUrl, twitterHandle: e.twitterHandle, instagramHandle: e.instagramHandle, telegramHandle: e.telegramHandle, knownResidences: e.knownResidences });
         if (c !== (e.contactConfidence ?? 0)) await db.update(entitiesTable).set({ contactConfidence: c }).where(eq(entitiesTable.id, e.id));
       }
     }
