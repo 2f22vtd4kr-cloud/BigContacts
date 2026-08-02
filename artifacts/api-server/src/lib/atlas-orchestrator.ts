@@ -865,15 +865,15 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
 
       if (source.kind === "broad") {
         const { discoverSingleTemplate } = await import("./enrichment/broad-discovery");
-        const broadRes = await discoverSingleTemplate(source.category, 10)
+        const broadRes = await discoverSingleTemplate(source.category, 10, 1)
           .catch(e => { logger.error({ err: e.message }, "[Atlas] Broad discovery failed"); return { entitiesDiscovered: 0, queriesFired: 0, resultsScraped: 0, entitiesSkipped: 0, newEntities: [] }; });
         totalIngested += broadRes.entitiesDiscovered;
       } else {
         const hnwiJobId = await createJob("western-hnwi");
         await setActiveJob("western-hnwi", hnwiJobId);
         const hnwiRes = await runWesternHnwiIngestion({
-          targetCount: opts.targetCount ?? 120,
-          batchSize: 100,
+          targetCount: 1,
+          batchSize: 1,
           jobId: hnwiJobId,
           clearDedupFirst: (source as any).clearFirst ?? false,
         }).catch(e => { logger.error({ err: e.message }, "[Atlas] HNWI ingestion failed"); return { inserted: 0, skipped: 0, errors: 1, durationMs: 0 }; });
@@ -884,7 +884,7 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
         if (includeFaa && sourceRound === 8) {
           const faaJobId = await createJob("faa");
           await setActiveJob("faa", faaJobId);
-          const faaRes = await runFaaIngestion({ jobId: faaJobId, maxRecords: opts.faaMaxRecords ?? 10_000, forceRefresh: false })
+          const faaRes = await runFaaIngestion({ jobId: faaJobId, maxRecords: 1, forceRefresh: false })
             .catch(e => { logger.error({ err: e.message }, "[Atlas] FAA failed"); return { inserted: 0 }; });
           await setActiveJob("faa", "");
           totalIngested += faaRes.inserted;
@@ -910,7 +910,7 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
         sql`${entitiesTable.cookedAt} IS NULL`,
       ))
       .orderBy(desc(entitiesTable.createdAt))
-      .limit(1000);
+      .limit(1);
 
     logger.info({ sourceRound, label: source.label, newCount: newEntities.length }, "[Atlas] Starting full-circle enrichment");
 

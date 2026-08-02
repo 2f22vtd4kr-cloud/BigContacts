@@ -175,6 +175,7 @@ router.get("/dashboard/hot-leads", async (req, res): Promise<void> => {
 router.get("/dashboard/stats", async (_req, res): Promise<void> => {
   const cached = await getCache<object>("dashboard:stats");
   if (cached) { res.json(cached); return; }
+  const visibleEntity = eq(entitiesTable.isHidden, false);
 
   const [
     [entityCount],
@@ -187,11 +188,11 @@ router.get("/dashboard/stats", async (_req, res): Promise<void> => {
     assetsByCategory,
     topScorers,
   ] = await Promise.all([
-    db.select({ cnt: sql<number>`count(*)::int` }).from(entitiesTable),
+    db.select({ cnt: sql<number>`count(*)::int` }).from(entitiesTable).where(visibleEntity),
     db.select({ cnt: sql<number>`count(*)::int` }).from(assetsTable),
     db.select({ cnt: sql<number>`count(*)::int` }).from(relationshipsTable),
-    db.select({ avg: sql<number>`round(avg(${entitiesTable.bayesianScore})::numeric, 4)` }).from(entitiesTable),
-    db.select({ cnt: sql<number>`count(*)::int` }).from(entitiesTable).where(eq(entitiesTable.isHot, true)),
+    db.select({ avg: sql<number>`round(avg(${entitiesTable.bayesianScore})::numeric, 4)` }).from(entitiesTable).where(visibleEntity),
+    db.select({ cnt: sql<number>`count(*)::int` }).from(entitiesTable).where(and(visibleEntity, eq(entitiesTable.isHot, true))),
     db.select({ cnt: sql<number>`count(*)::int` }).from(researchSessionsTable),
     db
       .select({
@@ -211,7 +212,7 @@ router.get("/dashboard/stats", async (_req, res): Promise<void> => {
     db
       .select()
       .from(entitiesTable)
-      .where(eq(entitiesTable.type, "HNWI"))
+      .where(and(visibleEntity, eq(entitiesTable.type, "HNWI")))
       .orderBy(sql`
         CASE ${entitiesTable.contactOutcome}
           WHEN 'direct_contact_verified'   THEN 6
@@ -248,25 +249,25 @@ router.get("/dashboard/stats", async (_req, res): Promise<void> => {
   const [westernCount] = await db
     .select({ cnt: sql<number>`count(*)::int` })
     .from(entitiesTable)
-    .where(sql`${entitiesTable.metadata} LIKE '%"westernIngest":true%'`);
+    .where(and(visibleEntity, sql`${entitiesTable.metadata} LIKE '%"westernIngest":true%'`));
 
   // Enrichment coverage + F3 wealth tier segmentation + L2 contact outcome split (parallel queries)
   const [[contactableCount], [anyContactCount], [wealthTiersRow], [contactOutcomeRow]] = await Promise.all([
     db.select({ cnt: sql<number>`count(*)::int` }).from(entitiesTable)
-      .where(gte(entitiesTable.contactConfidence, 30)),  // phone alone (30pts) counts as contactable
+      .where(and(visibleEntity, gte(entitiesTable.contactConfidence, 30))),  // phone alone (30pts) counts as contactable
     db.select({ cnt: sql<number>`count(*)::int` }).from(entitiesTable)
-      .where(or(
+      .where(and(visibleEntity, or(
         isNotNull(entitiesTable.email),
         isNotNull(entitiesTable.phone),
         isNotNull(entitiesTable.linkedinUrl),
-      )),
+      ))),
     // F3: bucket estimatedNetWorth into 4 tiers for dashboard wealth distribution widget
     db.select({
       ultraHnw: sql<number>`count(*) filter (where ${entitiesTable.estimatedNetWorth} > 100000000)::int`,
       veryHnw:  sql<number>`count(*) filter (where ${entitiesTable.estimatedNetWorth} between 30000000 and 100000000)::int`,
       hnw:      sql<number>`count(*) filter (where ${entitiesTable.estimatedNetWorth} between 4000000 and 30000000)::int`,
       unknown:  sql<number>`count(*) filter (where ${entitiesTable.estimatedNetWorth} is null or ${entitiesTable.estimatedNetWorth} < 4000000)::int`,
-    }).from(entitiesTable),
+    }).from(entitiesTable).where(visibleEntity),
     // L2: break down the "Reachable" metric by outcome type so the dashboard
     // distinguishes personal contacts from organisational/social signals.
     db.select({
@@ -274,7 +275,7 @@ router.get("/dashboard/stats", async (_req, res): Promise<void> => {
       verified: sql<number>`count(*) filter (where contact_outcome = 'direct_contact_verified')::int`,
       org:      sql<number>`count(*) filter (where contact_outcome = 'organization_contact')::int`,
       social:   sql<number>`count(*) filter (where contact_outcome = 'social_only')::int`,
-    }).from(entitiesTable),
+    }).from(entitiesTable).where(visibleEntity),
   ]);
 
   const total = entityCount?.cnt ?? 0;

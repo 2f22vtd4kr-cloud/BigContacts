@@ -137,9 +137,9 @@ const TEMPLATE_CATEGORIES: Record<number, string[]> = {
   1: [
     '"family office" "director" London',
     '"family office" "principal" Switzerland',
-    '"private wealth" "manager" Singapore',
+    'Singapore ("private wealth" OR family office) (principal OR founder OR CIO) company profile',
     '"single family office" "founder" "New York"',
-    '"multi family office" CEO Dubai',
+    'Dubai ("multi family office" OR investment company) (CEO OR founder OR principal) UAE profile',
     '"private office" investment "Hong Kong"',
     '"wealth management" partner Geneva',
     '"private banking" director Luxembourg',
@@ -210,7 +210,7 @@ const TEMPLATE_CATEGORIES: Record<number, string[]> = {
     '"yacht club" commodore owner Mediterranean',
     '"private members club" director London OR Zurich OR Geneva',
     '"grand hotel" proprietor Austria OR Switzerland',
-    '"ski resort" owner investor Alps',
+    'Alps ("hospitality company" OR "mountain resort group") (owner OR founder OR investor) (France OR Switzerland OR Austria) profile',
     '"marina" operator owner Cannes OR Monaco OR Antibes',
     '"vineyard" owner estate "Bordeaux" OR "Tuscany"',
     '"luxury villa" owner "Côte d\'Azur" OR Sardinia OR Mallorca',
@@ -294,7 +294,7 @@ const TEMPLATE_CATEGORIES: Record<number, string[]> = {
     '"hotel" owner director "Côte d\'Azur" Nice Cannes',
     '"château" owner Bordeaux wine estate proprietor',
     '"golf club" owner director France "Côte d\'Azur"',
-    '"ski resort" owner director Courchevel Méribel Chamonix',
+    'Courchevel Méribel Chamonix ("Alpine hospitality company" OR "mountain resort group") (owner OR founder OR director) profile',
     '"restaurant" owner founder Monaco Saint-Tropez Antibes',
     '"villa" owner director Cap Ferrat Menton Èze France',
     '"private members club" owner director Paris Lyon',
@@ -607,8 +607,9 @@ export async function runBroadDiscovery(options: {
   templateSet?: number;       // 1-5, selects which category; overrides rotation
   rotateTemplates?: boolean;  // cycle to next category each run (default true)
   maxQueries?: number;        // default 10
+  maxEntities?: number;       // maximum validated entities admitted in this pass
 } = {}): Promise<BroadDiscoveryResult> {
-  const { rotateTemplates = true, maxQueries = 10 } = options;
+  const { rotateTemplates = true, maxQueries = 10, maxEntities = Number.POSITIVE_INFINITY } = options;
 
   const templateSet = options.templateSet ?? await getNextTemplateSet(rotateTemplates);
   const templates = TEMPLATE_CATEGORIES[templateSet] ?? TEMPLATE_CATEGORIES[1];
@@ -647,7 +648,9 @@ export async function runBroadDiscovery(options: {
     // would correctly reject (e.g. "James Bond", "George Mason").
     let aiExtracted = false;
     if (useGroq) {
-      const aggregated = results.map(r => r.snippet).join("\n\n");
+      const aggregated = results
+        .map((r, index) => `[${index + 1}] SOURCE URL: ${r.url || "unknown"}\n${r.snippet}`)
+        .join("\n\n");
       const aiNames = await aiExtractPersonNames(aggregated, query);
       if (aiNames.length > 0) {
         aiExtracted = true;
@@ -709,6 +712,7 @@ export async function runBroadDiscovery(options: {
   // Insert new entities
   let inserted = 0;
   for (const { name, snippet, query } of newEntities) {
+    if (inserted >= maxEntities) break;
     try {
       // Sanitise: strip newlines, leading/trailing whitespace, control chars
       const cleanName = name.replace(/[\r\n\t]+/g, " ").replace(/\s{2,}/g, " ").trim();
@@ -772,7 +776,11 @@ export async function runBroadDiscovery(options: {
  * Used by the per-entity full-circle orchestrator to interleave
  * one category at a time with registry batches.
  */
-export async function discoverSingleTemplate(category: number, maxQueries = 10): Promise<BroadDiscoveryResult> {
+export async function discoverSingleTemplate(
+  category: number,
+  maxQueries = 10,
+  maxEntities = 1,
+): Promise<BroadDiscoveryResult> {
   const cat = Math.max(1, Math.min(15, category));
-  return runBroadDiscovery({ templateSet: cat, rotateTemplates: false, maxQueries });
+  return runBroadDiscovery({ templateSet: cat, rotateTemplates: false, maxQueries, maxEntities });
 }

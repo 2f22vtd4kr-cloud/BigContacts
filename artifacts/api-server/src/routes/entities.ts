@@ -28,7 +28,27 @@ const router: IRouter = Router();
 
 // GET /entities
 router.get("/entities", async (req, res): Promise<void> => {
-  const parsed = ListEntitiesQueryParams.safeParse(req.query);
+  // Zod's coerce.boolean() treats every non-empty string, including "false",
+  // as true. Normalize boolean query strings before validation so the visible
+  // and quarantined entity views cannot be swapped accidentally.
+  const booleanQuery = (value: unknown): unknown => {
+    if (typeof value !== "string") return value;
+    if (value.toLowerCase() === "true") return true;
+    if (value.toLowerCase() === "false") return false;
+    return value;
+  };
+  const normalizedQuery = {
+    ...req.query,
+    starred: booleanQuery(req.query.starred),
+    hidden: booleanQuery(req.query.hidden),
+    contactable: booleanQuery(req.query.contactable),
+    hasEmail: booleanQuery(req.query.hasEmail),
+    hasPhone: booleanQuery(req.query.hasPhone),
+    hasWhatsapp: booleanQuery(req.query.hasWhatsapp),
+    hasTelegram: booleanQuery(req.query.hasTelegram),
+    hasInstagram: booleanQuery(req.query.hasInstagram),
+  };
+  const parsed = ListEntitiesQueryParams.safeParse(normalizedQuery);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
@@ -189,7 +209,10 @@ router.patch("/entities/:id/hide", async (req, res): Promise<void> => {
     .where(eq(entitiesTable.id, id))
     .returning({ id: entitiesTable.id, isHidden: entitiesTable.isHidden });
   if (!updated) { res.status(404).json({ error: "Not found" }); return; }
-  await delCachePattern("entities:list:*");
+  await Promise.all([
+    delCachePattern("entities:list:*"),
+    delCachePattern("dashboard:*"),
+  ]);
   res.json(updated);
 });
 
