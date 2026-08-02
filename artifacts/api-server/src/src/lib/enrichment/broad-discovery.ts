@@ -368,6 +368,8 @@ const EXCLUDED_NAMES = new Set([
   // Historical titles / deceased figures commonly mentioned in estate contexts
   "Duke Wellington", "Duke Marlborough", "Duke Devonshire",
   "Earl Spencer", "Lord Byron", "Lord Nelson",
+  // Fictional/cultural references that can appear in venue or lifestyle copy
+  "James Bond", "Sherlock Holmes", "Bruce Wayne", "Clark Kent",
   // SEC / regulatory
   "Schedule 13D", "Schedule 13G", "Form 4", "Form ADV", "DEF 14A",
   "Annual Report", "Proxy Statement", "Board Meeting", "General Meeting",
@@ -462,6 +464,7 @@ export function hasAttributableWealthEvidence(name: string, snippet: string): bo
   const cleanName = name.trim().replace(/\s+/g, " ");
   const source = snippet.replace(/\s+/g, " ").trim();
   if (!cleanName || !source) return false;
+  if (EXCLUDED_NAMES.has(cleanName)) return false;
 
   const escaped = cleanName.split(" ").map(part => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
   const namePattern = new RegExp(`\\b${escaped.join("\\s+")}\\b`, "i");
@@ -479,7 +482,13 @@ export function hasAttributableWealthEvidence(name: string, snippet: string): bo
 
   const windowStart = Math.max(0, match.index - 220);
   const windowEnd = Math.min(source.length, match.index + match[0].length + 220);
-  return hasQualifyingWealthEvidence(source.slice(windowStart, windowEnd), "");
+  const localContext = source.slice(windowStart, windowEnd);
+  // Cultural/fictional references are not real-world HNWI evidence, even when
+  // a venue or article mentions ownership language nearby.
+  if (/\b(?:image of|fictional|fictional character|character|portrayed|played by|film character|movie character|in the novel|in the film|in the movie|imaginary|mythical|inseparable from)\b/i.test(localContext)) {
+    return false;
+  }
+  return hasQualifyingWealthEvidence(localContext, "");
 }
 
 // Country/region words that sometimes prefix person names in scraped text
@@ -726,6 +735,10 @@ export async function runBroadDiscovery(options: {
       // Sanitise: strip newlines, leading/trailing whitespace, control chars
       const cleanName = name.replace(/[\r\n\t]+/g, " ").replace(/\s{2,}/g, " ").trim();
       if (cleanName.length < 5 || cleanName.split(/\s+/).length < 2) continue;
+      if (EXCLUDED_NAMES.has(cleanName)) {
+        logger.info({ name: cleanName, query }, "broad-discovery: rejected excluded contextual name");
+        continue;
+      }
       // A human name alone is not enough for HNWI admission. Keep employment
       // and management-directory mentions out of the target corpus unless the
       // same evidence also establishes ownership, wealth, or principal status.

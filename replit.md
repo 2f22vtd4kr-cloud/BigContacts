@@ -140,7 +140,7 @@ The benchmark figures below are historical results from the prior populated runt
 | Western HNWI + FAA controlled import | 5,036 | 5,000 | 35 Western records plus 5,000 FAA aircraft-owner records; no synthetic data. |
 | FAA benchmark enrichment | 16 | — | Post-fix run completed 16/16 with 0 errors: 10 social-only, 0 direct-contact candidates, 6 no usable contact outcomes; 431 durable evidence rows. Follow-up three-target claim-source canary: 3/3, 0 errors, 0/3 verified direct routes. |
 | **Current verified state at last check** | **5,036** | **5,000** | API and Redis healthy; broad auto-ingestion disabled; no active enrichment worker; contact fields remain fail-closed. |
-| **Current imported development runtime** | **18** | **0** | Preserved discovery records from the authorized Atlas run; weak/interrupted records are hidden for review, active discovery applies candidate-attributed ownership/wealth gating, registry phones remain organization-only, and corrected Atlas job `ba12f043-148b-46d2-b35e-17e39eaecf55` is running in the background. |
+| **Current imported development runtime** | **20** | **0** | Preserved discovery records from authorized Atlas runs; weak/interrupted records, including two contextual-name candidates, are hidden for review. Active discovery applies candidate-attributed ownership/wealth gating and deterministic fictional/contextual-name rejection; final Atlas retry `e4cc9451-853e-4d5d-9887-8f216952be38` is running in the background. |
 
 **Controlled-run state:** `ENABLE_AUTO_PIPELINE=false` remains set, so startup will not create an additional broad ingestion job. The explicitly authorized Atlas run is active; the durable contact-promotion validator, current-run evidence boundary, active-job ownership guard, candidate-attribution gate, and Access/Signal separation remain in place.
 
@@ -265,7 +265,7 @@ GET  /api/improve/logs                 improvement suggestions (filterable by pe
 | Research provenance | **Fail-closed candidate evidence** — exact fetched page URLs and registry records are the provenance unit; flattened search snippets and aggregate AI extraction remain capped review signals; independent publisher domains corroborate, while contradictory values from one publisher remain disputed. |
 | Username discovery | **Maigret primary + Sherlock fallback** — Sherlock is availability-checked and review-only, runs only when Maigret is unavailable/sparse, and cannot promote identity/contact fields or trigger automatic re-entry. |
 | Atlas publication gate | **Final target-scoped web/LLM sanity review** — exact supplied evidence only; research-only targets cannot promote contacts; organization/person scope is enforced; rejected evidence and reasons remain reviewable. |
-| Runtime verification | **Live Atlas run** — API/Redis healthy, all five managed workflows running, the first corrected broad-discovery round inserted 0 weak candidates, registry-phone repair verified organization-only with zero personal confidence, focused guardrail tests pass 18/18, and API build passes. |
+| Runtime verification | **Live Atlas run** — API/Redis healthy, all five managed workflows running, the final corrected broad-discovery round inserted 0 candidates, fictional/contextual-name rejection is covered by 20/20 focused tests, registry-phone repair is organization-only with zero personal confidence, and API build passes. |
 
 ---
 

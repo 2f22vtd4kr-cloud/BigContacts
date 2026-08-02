@@ -43,4 +43,18 @@ describe("broad discovery evidence gate", () => {
       "Victoria Meeke is our French Villa Specialist. We help owners manage luxury villas.",
     )).toBe(false);
   });
+
+  it("rejects fictional cultural references from venue copy", () => {
+    expect(hasAttributableWealthEvidence(
+      "James Bond",
+      "The image of James Bond has become inseparable from the Casino de Monte-Carlo, founded by François Blanc.",
+    )).toBe(false);
+  });
+
+  it("rejects excluded names even when nearby text contains ownership language", () => {
+    expect(hasAttributableWealthEvidence(
+      "Sherlock Holmes",
+      "Sherlock Holmes is the fictional owner of a private estate and investor in the resort.",
+    )).toBe(false);
+  });
 });
