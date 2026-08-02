@@ -36,11 +36,23 @@ review-only and are never auto-merged or used to promote contacts.
 | `artifacts/apex-mobile: expo` | `pnpm --filter @workspace/apex-mobile run dev` | Optional |
 | `artifacts/mockup-sandbox: Component Preview Server` | `pnpm --filter @workspace/mockup-sandbox run dev` | Optional |
 
-The API server `dev` script runs `build` then `start` every time (esbuild, ~1.5s).
+The API server `dev` script runs `build` then `start` every time (esbuild, ~1.5s). The build entry is `artifacts/api-server/src/src/index.ts`; the top-level `src/` tree is an import-era health-only scaffold and must not be used as the production entry.
 
 The dashboard uses two deliberately separate scores: **Signal** reflects the strength of wealth/registry evidence, while **Access** reflects how realistically a profile can be reached through public contact evidence and directness. A strong Signal score must not imply a strong Access score.
 
-The bounded single-entity verification record is intentionally review-only: a manually created Warren Buffett record has social-only public vectors, no stored public biography/assets/registry evidence, no direct contact, and no corroborated gatekeeper path. Broad ingestion remains disabled until explicitly requested.
+The previously used Warren Buffett record is not a valid benchmark: celebrity visibility makes it unrealistically reachable. The valid controlled benchmark is a 16-person FAA aircraft-owner cohort selected from real individual turbine/multi-engine registrants, excluding Buffett, trusts, companies, obvious wrappers, and malformed names. The pre-fix run completed 16/16 with 0 errors at 13 social-only / 1 direct-contact candidate / 2 no usable contact outcomes; the stricter post-fix rerun completed 16/16 with 0 errors at 10 social-only / 0 direct-contact candidates / 6 no usable contact outcomes. Broad ingestion remains disabled unless explicitly requested.
+
+### Controlled FAA benchmark (verified 2026-08-02)
+
+- FAA import: 5,000 real registry records, 0 errors; no synthetic entities were seeded.
+- Cohort: 16 less-famous, business-linked individual owners; target selection excluded celebrity/public-figure benchmarks and non-person wrappers.
+- Funnel: post-fix 16/16 enriched, 10 social-only, 0 direct-contact candidates, 6 no usable contact outcomes; 6 HNWI social fields were promoted only after current-run attribution checks.
+- Durable evidence: 431 contact-evidence rows across the cohort, including organization and person-candidate review evidence that was not promoted.
+- Evidence rule: organization accounts, same-name/public-figure candidates, AI-only citations, and provider agreement without exact canonical claim URLs remain durable review evidence only.
+- Attribution hardening: only current-run social candidates with target-person attribution and an exact fetched claim URL can reach HNWI contact fields or trigger Maigret/Sherlock; legacy entity handles are never used as scan fallbacks.
+- Run safety: active-job ownership checks prevent orphaned workers from overlapping replacements or clearing a newer job lock.
+- Claim-source hardening: lead-generation/directory publishers are excluded from direct-contact corroboration and bounded exact-claim fetching. A controlled three-target canary completed 3/3 with 0 errors and 0/3 verified direct routes; it improved provenance quality without producing a false contact promotion.
+- Honest status: the pipeline is materially safer and provenance-correct, but this cohort does **not** establish a 9/10 research score. Post-fix direct-contact yield is 0/16; 10 social-only and 6 no-usable-contact records require further lawful, evidence-backed access work.
 
 ## Contact Enrichment Roadmap
 
@@ -111,22 +123,25 @@ Intelligence Reactor UI hardening completed: the desktop rod wall now displays a
 
 HNWI/entity card UX updated: dashboard priority cards, People ledger cards, and profile heroes now show an evidence-led public profile brief plus involvement summary using stored bios, headlines, foundation signals, registry activity, and linked assets. Missing evidence is labeled as unrecorded; no biography or involvement is invented. The hot-lead API contract includes the narrative fields and was regenerated from OpenAPI.
 
+Research evidence hardening completed: provider output is reconciled into reviewable contact candidates keyed by normalized vector, with canonical source URLs/domains, organization-vs-person scope, attribution, conflicts, and explicit promotion states. Candidate funnel metadata is persisted through existing `contact_evidence` rows and shown on the Research desk. The independent scorecard separates identity, ownership, contact, practical access, wealth, freshness, and source quality; provider repetition, asset/graph volume, and wealth cannot promote access or verified contact. `/research` is registered and API route coverage is verified after bundling the full imported source tree. No ingestion or research job runs automatically.
+
 Two fixes were needed after the first import:
 - Added `"pg-cloudflare"` to the `external` list in `artifacts/api-server/build.mjs` (pg optional dep that esbuild couldn't resolve)
 - Added `sharp`, `onnxruntime-node`, `protobufjs` to `onlyBuiltDependencies` in `pnpm-workspace.yaml` so their native bindings build correctly (sharp is needed by `@huggingface/transformers` at startup)
 
 ---
 
-## Current Data State (verified 2026-07-31 after contact-quality hardening)
+## Current Data State (verified 2026-08-02 after FAA benchmark and attribution hardening)
 
 | Source | Entities | Assets | Notes |
 |---|---|---|---|
-| Apex Atlas bounded discovery-first run | 24 | 0 | Historical first discovery cohort persisted; no enrichment worker is currently running. |
-| **Current verified state at last check** | **24** | **0** | 0 relationships; 1 contact-evidence row; all job statuses idle; no FAA or land-registry bulk download. |
+| Western HNWI + FAA controlled import | 5,036 | 5,000 | 35 Western records plus 5,000 FAA aircraft-owner records; no synthetic data. |
+| FAA benchmark enrichment | 16 | — | Post-fix run completed 16/16 with 0 errors: 10 social-only, 0 direct-contact candidates, 6 no usable contact outcomes; 431 durable evidence rows. Follow-up three-target claim-source canary: 3/3, 0 errors, 0/3 verified direct routes. |
+| **Current verified state at last check** | **5,036** | **5,000** | API and Redis healthy; broad auto-ingestion disabled; no active enrichment worker; contact fields remain fail-closed. |
 
-**Controlled-run state:** `ENABLE_AUTO_PIPELINE=false` remains set, so startup will not create an additional broad ingestion job. No pipeline is active; the durable contact-promotion validator, persistence-boundary sanitation, and Access/Signal separation remain in place.
+**Controlled-run state:** `ENABLE_AUTO_PIPELINE=false` remains set, so startup will not create an additional broad ingestion job. No pipeline is active; the durable contact-promotion validator, current-run evidence boundary, active-job ownership guard, and Access/Signal separation remain in place.
 
-**Honest rating for this case study:** the API and web dashboard are healthy; targeted web research completed; official organization evidence was captured; the graph is isolated; and collision-prone contact evidence plus generated outreach require manual review.
+**Honest rating for this case study:** the API and web dashboard are healthy; targeted web research completed; official organization evidence was captured; collision-prone contact evidence and generated outreach remain manual-review only. The benchmark demonstrates correctness and provenance hardening, not 9/10 access quality. The stricter post-fix result is the authoritative benchmark result.
 
 ---
 
@@ -241,6 +256,9 @@ GET  /api/improve/logs                 improvement suggestions (filterable by pe
 | 14 | **Measured warm-path recovery + enrichment correctness** — EDGAR issuer backfill, co-investor/co-shareholder detection, corporate-series/name-cluster edges, FAA/HMLR peer edges, and the website/address-only enrichment state fix. |
 | J-1 (Phase J) | **J0 Measurement Contract + J1 Non-terminal social state** — `contactOutcome` column on entities (`none`/`evidence_only`/`social_only`/`organization_contact`/`direct_contact_candidate`/`direct_contact_verified`); `enrichment_runs` table for per-run funnel metrics; `computeContactOutcome()` in `contact-confidence.ts`; `GET /api/pipeline/funnel` with breakdown by registry/type; `POST /ingest/backfill-contact-outcomes`; FunnelPanel UI on Data Sources page. J1 fix: `needsEnrichment=false` only on email/phone — LinkedIn/Twitter no longer falsely mark entities as done. No research restrictions; production safeguards deferred to release-hardening. |
 | J-2 (Phase J) | **Western registry coverage matrix** — live normalized search adapters for Norway BRREG, Czechia ARES, and France BODACC; provenance and identifier validation; fixture-style normalization tests; Data Sources coverage matrix with jurisdiction, access, freshness, ownership/officer scope, and non-blocking production review status. |
+| J-3–J-9 (Phase J) | **Identity, domain, footprint, attribution, retry, graph, and source-quality hardening** — identity bundles/candidates remain review-only; domains and public digital footprints are resolved with cooldowns; contact attribution uses independent evidence dimensions; graph/MCTS paths carry provenance; source-quality/checkpoint APIs expose audit state. |
+| Research provenance | **Fail-closed candidate evidence** — exact fetched page URLs and registry records are the provenance unit; flattened search snippets and aggregate AI extraction remain capped review signals; independent publisher domains corroborate, while contradictory values from one publisher remain disputed. |
+| Username discovery | **Maigret primary + Sherlock fallback** — Sherlock is availability-checked and review-only, runs only when Maigret is unavailable/sparse, and cannot promote identity/contact fields or trigger automatic re-entry. |
 
 ---
 
@@ -270,8 +288,9 @@ GET  /api/improve/logs                 improvement suggestions (filterable by pe
 4. **Both files must be committed to the repo** as part of any task that changes project state. They are the permanent record of how this project runs.
 
 5. **Python OSINT tools MUST be installed and verified on every session start and after every re-import** (PERMANENT — survives repo re-imports):
+   - The project uses the managed Python 3.11 module and `.pythonlibs/bin/python3` when available.
    - Run `bash scripts/install-python-tools.sh` immediately after `pnpm install` and `db push`.
-   - Verify output shows `holehe: ✓` and `maigret: ✓` before triggering any research.
+   - Verify output/logs show `holehe: ✓`, `maigret: ✓`, and `sherlock: ✓` before triggering any research.
    - This is now also wired into `scripts/post-merge.sh` (step 4) and `startup.ts` (auto-installs on boot).
    - **The app must not begin research if any tool is not ready.** If tools are missing, run the install script and wait for it to complete before proceeding.
 

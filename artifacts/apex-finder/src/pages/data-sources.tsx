@@ -862,11 +862,19 @@ const TOOL_META: Record<string, ToolMeta> = {
     endpoint: "/api/enrich/maigret?entityId=<id>",
     input: "Username / handle",
   },
+  sherlock: {
+    label: "Sherlock",
+    desc: "Supplementary username search across public sites. Used only as a review-only fallback when Maigret has no or limited results.",
+    usage: "on-demand",
+    usageNote: "Review-only fallback after Maigret",
+    endpoint: "/api/enrich/sherlock?entityId=<id>",
+    input: "Username / handle",
+  },
   theHarvester: {
     label: "theHarvester",
-    desc: "Queries Google, Bing, LinkedIn, DNS, and cert logs for emails and subdomains belonging to a domain. Requires Python ≥3.12 — not available on current runtime (3.11).",
+    desc: "Queries public search, DNS, and certificate sources for emails and subdomains belonging to a domain.",
     usage: "on-demand",
-    usageNote: "Unavailable — upgrade to Python 3.12 to enable",
+    usageNote: "On-demand when the upstream tool is available",
     endpoint: "/api/enrich/theharvester?entityId=<id>",
     input: "Domain name",
   },
@@ -928,7 +936,7 @@ function PythonToolsPanel() {
 
   const toolKeys = Object.keys(TOOL_META);
   // "pip-installable" tools — the install script can actually fix these
-  const pipTools = ["holehe", "maigret"];
+  const pipTools = ["holehe", "maigret", "sherlock"];
   const readyCount = status
     ? toolKeys.filter(k => status.tools[k]).length + (status.gliner.available ? 1 : 0)
     : 0;

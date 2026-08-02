@@ -602,7 +602,7 @@ Who owns, controls, or beneficially owns this entity? Parent company, holding, s
 Do not confuse a director/CEO with an owner unless a source explicitly says so.
 
 STEP 4 — ORGANISATION CONTACT:
-Official HQ address(es), main phone line(s), general email, LinkedIn company page.` 
+Official HQ address(es), main phone line(s), general email, LinkedIn company page.`
   : `This is a high-net-worth individual. Find PERSONAL direct contact information ONLY.
 
 STEP 1 — PERSONAL DIRECT EMAIL:

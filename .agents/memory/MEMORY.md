@@ -46,7 +46,7 @@
 - [Target entity resolution](target-entity-resolution.md) — brand-level targets need disambiguation before contacts, ownership, or outreach are trusted
 - [AI source labels](ai-source-labels.md) — Tavily/Exa source values are "tavily"/"exa" (not "tavily-groq"/"exa-groq"); Gemini is ai-cyan search source in reactor, not ai-lime extraction layer
 - [Enricher execution order](enricher-execution-order.md) — web-OSINT first (primary data), in-house second (fill-only-if-empty); force=true web-OSINT after in-house can null good fields
-- [Python tools mandate](python-tools-mandate.md) — Holehe + Maigret MUST be installed before research; enforced in post-merge.sh (step 4) + startup.ts auto-install + verified on every boot
+- [Python tools mandate](python-tools-mandate.md) — Holehe + Maigret + Sherlock are installed before research; startup and re-import checks use managed Python
 - [Flexible pipeline architecture](flexible-pipeline-architecture.md) — web-OSINT first, Maigret+Holehe auto-wired inside web-osint-enrich, web-OSINT re-fires if Maigret finds 3+ platforms; never one-way
 - [Atlas orchestrator](atlas-orchestrator.md) — POST /api/ingest/atlas-run; 10-phase pipeline wiring every tool; lib/atlas-orchestrator.ts + routes/atlas.ts; phase-j.ts exports runPhaseJBatch
 - [Entity taxonomy UI](entity-taxonomy-ui.md) — HNWI, Corporation, Trust, and Gatekeeper need distinct labels, metrics, evidence language, and actions across web/mobile
@@ -55,3 +55,7 @@
 - [Research review guardrails](research-review-guardrails.md) — Stable reruns, manual provenance, malformed-contact rejection, and no outreach copy for isolated targets
 - [Research reachability realism](research-review-guardrails.md) — Preflight access before expensive research; fame, wealth, social, assets, and hypothetical staff routes never create access
 - [Evidence-led research scoring](evidence-ledger-research.md) — Corroboration must use canonical source domains and claim-level URLs, not repeated provider labels
+- [Run-isolated evidence snapshots](run-isolated-evidence.md) — Score only the latest enrichment snapshot while retaining superseded evidence for audit
+- [Research scorecard provenance](research-scorecard-provenance.md) — Keep identity, ownership, contact, access, wealth, freshness, and source quality independent and evidence-backed
+- [FAA benchmark attribution](attribution-and-benchmark.md) — Use a less-famous FAA owner cohort, and require current-run target-person evidence before social promotion or username pivots
+- [GitHub sync branch workflow](github-sync-branch.md) — Verify remote hashes; when main cannot be updated safely, publish a sync branch and open a PR instead of claiming local work is remote

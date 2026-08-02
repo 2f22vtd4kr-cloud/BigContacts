@@ -1005,7 +1005,74 @@ components:
         safeUseStatus: { type: string }
         safeUseReviewedAt: { type: ["string", "null"] }
         safeUseNote: { type: ["string", "null"] }
+        candidateFunnel:
+          allOf:
+            - $ref: "#/components/schemas/ContactCandidateFunnel"
+          nullable: true
         createdAt: { type: string }
+
+    ContactCandidateFunnel:
+      type: object
+      required:
+        - totalCandidates
+        - discovered
+        - sourceLinked
+        - attributionReview
+        - independentlyCorroborated
+        - verifiedDirectRoute
+        - organizationOnly
+        - conflicted
+        - independentSourceDomains
+        - candidates
+      properties:
+        totalCandidates: { type: integer }
+        discovered: { type: integer }
+        sourceLinked: { type: integer }
+        attributionReview: { type: integer }
+        independentlyCorroborated: { type: integer }
+        verifiedDirectRoute: { type: integer }
+        organizationOnly: { type: integer }
+        conflicted: { type: integer }
+        independentSourceDomains: { type: integer }
+        candidates:
+          type: array
+          items:
+            $ref: "#/components/schemas/ContactCandidate"
+
+    ContactCandidate:
+      type: object
+      required:
+        - key
+        - vectorType
+        - value
+        - providers
+        - sourceDomains
+        - sourceUrls
+        - scopes
+        - personNames
+        - state
+        - conflictCount
+      properties:
+        key: { type: string }
+        vectorType: { type: string }
+        value: { type: string }
+        providers:
+          type: array
+          items: { type: string }
+        sourceDomains:
+          type: array
+          items: { type: string }
+        sourceUrls:
+          type: array
+          items: { type: string }
+        scopes:
+          type: array
+          items: { type: string }
+        personNames:
+          type: array
+          items: { type: string }
+        state: { type: string }
+        conflictCount: { type: integer }
 
     ResearchEvidence:
       type: object

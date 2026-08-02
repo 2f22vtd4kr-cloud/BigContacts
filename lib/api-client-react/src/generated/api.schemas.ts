@@ -166,6 +166,32 @@ export interface RelationshipInput {
   notes?: string;
 }
 
+export interface ContactCandidate {
+  key: string;
+  vectorType: string;
+  value: string;
+  providers: string[];
+  sourceDomains: string[];
+  sourceUrls: string[];
+  scopes: string[];
+  personNames: string[];
+  state: string;
+  conflictCount: number;
+}
+
+export interface ContactCandidateFunnel {
+  totalCandidates: number;
+  discovered: number;
+  sourceLinked: number;
+  attributionReview: number;
+  independentlyCorroborated: number;
+  verifiedDirectRoute: number;
+  organizationOnly: number;
+  conflicted: number;
+  independentSourceDomains: number;
+  candidates: ContactCandidate[];
+}
+
 export interface ResearchSession {
   id: number;
   targetEntityId: number;
@@ -205,6 +231,7 @@ export interface ResearchSession {
   safeUseReviewedAt?: string | null;
   /** @nullable */
   safeUseNote?: string | null;
+  candidateFunnel?: ContactCandidateFunnel | null;
   createdAt: string;
 }
 
