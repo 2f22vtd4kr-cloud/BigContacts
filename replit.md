@@ -139,10 +139,10 @@ The benchmark figures below are historical results from the prior populated runt
 |---|---|---|---|
 | Western HNWI + FAA controlled import | 5,036 | 5,000 | 35 Western records plus 5,000 FAA aircraft-owner records; no synthetic data. |
 | FAA benchmark enrichment | 16 | — | Post-fix run completed 16/16 with 0 errors: 10 social-only, 0 direct-contact candidates, 6 no usable contact outcomes; 431 durable evidence rows. Follow-up three-target claim-source canary: 3/3, 0 errors, 0/3 verified direct routes. |
-| **Current verified state at last check** | **12 visible** | **7** | API and Redis healthy; assets are all idempotent `BusinessInterest` rows; hidden entities are excluded from dashboard/list counts. |
-| **Current controlled development runtime** | **12 visible** | **7** | 0 relationships and 0 active research sessions; Atlas job `2bb2709e-867b-4f6d-904d-e866ac6db3c1` remains active and sequential. |
+| **Current verified state at last check** | **12 visible** | **10 total** | API and Redis healthy; 9 assets are idempotent `BusinessInterest` rows and 1 is a `StockHolding`; hidden entities are excluded from dashboard/list counts. |
+| **Current controlled development runtime** | **12 visible** | **10 total** | 0 relationships and 0 active research sessions; the authorized Atlas job completed and is idle. |
 
-**Controlled-run state:** `ENABLE_AUTO_PIPELINE=false` remains set, so startup will not create a broad ingestion job. The explicitly authorized Atlas run is active; it is not being restarted while its worker owns the process. The durable contact-promotion validator, current-run evidence boundary, active-job ownership guard, candidate-attribution gate, and Access/Signal separation remain in place.
+**Controlled-run state:** `ENABLE_AUTO_PIPELINE=false` remains set, so startup will not create a broad ingestion job. Populated databases still receive safe idempotent maintenance, while empty databases remain idle. The authorized Atlas run completed without being interrupted. The durable contact-promotion validator, current-run evidence boundary, active-job ownership guard, candidate-attribution gate, and Access/Signal separation remain in place.
 
 **Atlas audit state:** Discovery admission and target processing are strictly sequential: each source may admit one candidate, that candidate is fully cooked before the next source starts, and final target review runs before research publication, contact promotion, and new asset publication. Broad search prompts constrain geography, person-level business evidence, and source quality while retaining selected global wealth hubs. The current API runtime reports Holehe, Maigret, and Sherlock available from `.pythonlibs/bin/python3`.
 

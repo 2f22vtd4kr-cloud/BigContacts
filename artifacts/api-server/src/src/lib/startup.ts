@@ -234,6 +234,29 @@ function startIngestor(
 async function runPopulatedDbMaintenance(): Promise<void> {
   logger.info("Running populated-DB maintenance tasks…");
 
+  // Keep the business ledger available immediately. Contact-cache restoration
+  // can be slow or blocked by an external Redis slot; operating-company assets
+  // are local, idempotent DB maintenance and must not wait behind it.
+  try {
+    const businessRows = await db
+      .select({
+        id: entitiesTable.id,
+        name: entitiesTable.name,
+        type: entitiesTable.type,
+        sourceRegistries: entitiesTable.sourceRegistries,
+        metadata: entitiesTable.metadata,
+      })
+      .from(entitiesTable)
+      .where(eq(entitiesTable.isHidden, false));
+    let created = 0;
+    for (const entity of businessRows) {
+      if (await materializeBusinessAsset(entity)) created++;
+    }
+    logger.info({ created, candidates: businessRows.length }, "Maintenance: immediate business-interest materialization complete");
+  } catch (err: any) {
+    logger.warn({ err: err?.message }, "Maintenance: immediate business-interest materialization failed (non-fatal)");
+  }
+
   // Remove known false positives before Redis restore and cache backfill.
   await sanitizePersistedContactData();
 
@@ -464,35 +487,6 @@ async function runPopulatedDbMaintenance(): Promise<void> {
     logger.info({ corps: corps.length, trusts: trusts.length }, "Maintenance: entity types reclassified");
   } catch (err: any) {
     logger.warn({ err: err?.message }, "Maintenance: reclassify failed (non-fatal)");
-  }
-
-  // 2b. Materialize each confirmed operating business as a ledger asset.
-  // This is deliberately separate from personal wealth assets.
-  try {
-    const businessRows = await db
-      .select({
-        id: entitiesTable.id,
-        name: entitiesTable.name,
-        type: entitiesTable.type,
-        sourceRegistries: entitiesTable.sourceRegistries,
-        metadata: entitiesTable.metadata,
-      })
-      .from(entitiesTable)
-      .where(eq(entitiesTable.isHidden, false));
-
-    const candidates = businessRows.filter((row) => {
-      return row.type === "Corporation" || (row.type === "HNWI" && /\b(air|aviation|capital|energy|finance|financial|group|holdings?|hotel|investments?|partners?|shipping|ventures?|wealth|industr(?:y|ies)|logistics|properties|technolog(?:y|ies)|foods?|health|media|retail|resources?)\b/i.test(row.name));
-    });
-
-    if (candidates.length > 0) {
-      let created = 0;
-      for (const entity of candidates) {
-        if (await materializeBusinessAsset(entity)) created++;
-      }
-      logger.info({ created, candidates: candidates.length }, "Maintenance: business-interest assets materialized");
-    }
-  } catch (err: any) {
-    logger.warn({ err: err?.message }, "Maintenance: business-interest asset materialization failed (non-fatal)");
   }
 
   // 3. Backfill lat/lon for FAA aviation assets that are missing coordinates
@@ -875,11 +869,9 @@ export async function coldStartRecovery(): Promise<void> {
 
   // Research is intentionally opt-in. A fresh import must not begin broad
   // discovery or registry ingestion merely because the database is empty.
-  // This also allows a controlled single-target run before any bulk pipeline.
-  if (process.env["ENABLE_AUTO_PIPELINE"] !== "true") {
-    logger.info("Automatic broad ingestion is disabled (ENABLE_AUTO_PIPELINE is not true)");
-    return;
-  }
+  // Populated databases still receive safe, idempotent maintenance while
+  // ENABLE_AUTO_PIPELINE=false; only new broad ingestion is gated below.
+  const autoPipelineEnabled = process.env["ENABLE_AUTO_PIPELINE"] === "true";
 
   // Check entity count — retry up to 3× with backoff to handle transient PG startup lag.
   // Previously this returned immediately on any error, causing cold-start to abort
@@ -905,6 +897,11 @@ export async function coldStartRecovery(): Promise<void> {
     runPopulatedDbMaintenance().catch((err: any) =>
       logger.warn({ err: err?.message }, "Populated-DB maintenance error (non-fatal)")
     );
+    return;
+  }
+
+  if (!autoPipelineEnabled) {
+    logger.info("Automatic broad ingestion is disabled (ENABLE_AUTO_PIPELINE is not true)");
     return;
   }
 

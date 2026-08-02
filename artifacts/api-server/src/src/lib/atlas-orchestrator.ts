@@ -1364,14 +1364,14 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
           (email IS NOT NULL AND email !~* '^(info|contact|hello|sales|support|office|admin|press|media|enquiries|inquiries|reservations|booking|investor|ir)@')
           OR (phone IS NOT NULL AND COALESCE(phone_source, '') NOT IN ('EDGAR-Phone', 'CompaniesHouse-Phone'))
         )
-        AND entity_type NOT IN ('Corporation', 'Corp', 'Trust')
+        AND type NOT IN ('Corporation', 'Corp', 'Trust')
       )
       WHERE is_hot IS DISTINCT FROM (
         (
           (email IS NOT NULL AND email !~* '^(info|contact|hello|sales|support|office|admin|press|media|enquiries|inquiries|reservations|booking|investor|ir)@')
           OR (phone IS NOT NULL AND COALESCE(phone_source, '') NOT IN ('EDGAR-Phone', 'CompaniesHouse-Phone'))
         )
-        AND entity_type NOT IN ('Corporation', 'Corp', 'Trust')
+        AND type NOT IN ('Corporation', 'Corp', 'Trust')
       )
     `);
 
