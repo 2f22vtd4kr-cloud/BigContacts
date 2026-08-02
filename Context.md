@@ -8,9 +8,14 @@
 
 ---
 
-## Current State (2026-08-02 — controlled research canary completed; pipeline idle)
+## Current State (2026-08-02 — contact candidate funnel integration completed; pipeline idle)
 
 ### Research improvement iteration (2026-08-02):
+- Completed the active-tree contact-discovery gap implementation: provider evidence is reconciled into explicit candidate states, bounded exact claim pages are fetched before promotion, and only fail-closed direct routes reach entity contact fields.
+- Candidate funnel metadata and provenance-enriched evidence are persisted through both deep-web enrichment routes using the existing `entities.metadata` and `contact_evidence` storage; organization-only and person-hop candidates remain reviewable.
+- Added active-tree regression coverage for independent-domain corroboration, organization-only contacts, same-publisher conflicts, blocked lead directories, and social eligibility. Full API test suite passes 34 files / 192 tests; production build passes.
+- Restarted the managed API workflow after the changes. `/api/healthz` returns Redis-healthy `200`, `/api/pipeline/funnel` returns an idle empty funnel, and `/api/pipeline/phase-j/status` reports all J0–J9 implementations present. No ingestion job was started.
+- The workspace still has only the internal `gitsafe-backup` remote; the requested GitHub remote URL is not configured, so this milestone can be committed locally but cannot honestly be pushed to GitHub until that URL is provided.
 - Added fail-closed contact candidate reconciliation across provider output: candidates retain canonical URLs/domains, scope, person attribution, conflicts, provider audit data, and explicit funnel states from discovered through verified direct route.
 - Corrected person-vs-organization Perplexity prompt contracts and annotated web-enricher evidence with organization/target-person scope, target name, provider, citations, and relationship context.
 - Persisted candidate funnel metadata and durable `contact_evidence` rows without adding a competing candidate table; research sessions now expose the stored funnel for review.
