@@ -241,22 +241,9 @@ router.post("/ingest/deep-web-osint", async (req: Request, res: Response): Promi
         // The unique index (entity_id, vector_type, value, source) prevents duplicates on re-runs.
         if (result.evidence && result.evidence.length > 0) {
           const evidenceRows = result.evidence
-            .filter(e => {
-              if (!e.value?.trim()) return false;
-              if (e.vectorType === "email") return Boolean(sanitizePublicEmail(e.value));
-              if (e.vectorType === "phone") return Boolean(sanitizePublicPhone(e.value));
-              if (e.vectorType === "social") {
-                const network = String(e.details?.["network"] ?? "");
-                return network === "linkedin"
-                  ? Boolean(sanitizePublicSocialUrl(e.value, "linkedin", "person"))
-                  : network === "instagram"
-                    ? Boolean(sanitizePublicSocialUrl(e.value, "instagram", "person"))
-                    : network === "twitter"
-                      ? Boolean(sanitizePublicSocialUrl(e.value, "twitter", "person"))
-                      : true;
-              }
-              return true;
-            })
+            // Preserve every discovered value; rejected candidates remain
+            // auditable instead of disappearing before persistence.
+            .filter(e => Boolean(e.value?.trim()))
             .map(e => {
               const candidate = result.candidateFunnel.candidates.find(
                 (item) => item.key === candidateKey(e.vectorType as any, e.value),
@@ -281,7 +268,10 @@ router.post("/ingest/deep-web-osint", async (req: Request, res: Response): Promi
                   e.vectorType === "phone" ? 0.85 :
                   e.vectorType === "social" ? 0.6 : 0.4,
                 independentCorroboration: candidate?.sourceDomains.length ?? 0,
-                validationStatus: candidate?.state === "verified_direct_route" ? "verified" : "candidate",
+                validationStatus: candidate?.state === "rejected"
+                  ? "rejected"
+                  : candidate?.state === "verified_direct_route" ? "verified" : "candidate",
+                rejectionReason: candidate?.rejectionReason ?? null,
                 observedAt: new Date(),
                 metadata: JSON.stringify({
                   ...(e.details ?? {}),
@@ -292,6 +282,9 @@ router.post("/ingest/deep-web-osint", async (req: Request, res: Response): Promi
                   scopes,
                   personNames: candidate?.personNames ?? [],
                   conflictCount: candidate?.conflictCount ?? 0,
+                  exactClaimObserved: candidate?.exactClaimObserved ?? false,
+                  blockedSourceUrls: candidate?.blockedSourceUrls ?? [],
+                  rejectionReason: candidate?.rejectionReason ?? null,
                 }),
               };
             });

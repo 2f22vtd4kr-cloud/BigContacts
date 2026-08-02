@@ -4,6 +4,7 @@ import {
   isEligiblePersonalSocialCandidate,
   isPromotableDirectContactUrl,
   reconcileContactCandidates,
+  reconcileStoredContactEvidence,
 } from "../lib/contact-candidate";
 
 describe("contact candidate reconciliation", () => {
@@ -18,6 +19,20 @@ describe("contact candidate reconciliation", () => {
     expect(isPromotableDirectContactUrl("https://signalhire.com/profiles/jane-doe")).toBe(false);
     expect(isPromotableDirectContactUrl("https://www.bbb.org/profile/jane-doe")).toBe(true);
     expect(isPromotableDirectContactUrl("https://example.org/team/jane-doe")).toBe(true);
+  });
+
+  it("retains a blocked directory contact as an explicit rejected candidate", () => {
+    const funnel = reconcileContactCandidates([{
+      vectorType: "email",
+      value: "jane@example.org",
+      source: "directory",
+      sourceUrl: "https://contactout.com/Jane-Doe-123",
+      details: { scope: "target_person", personName: "Jane Doe" },
+    }]);
+    expect(funnel.rejected).toBe(1);
+    expect(funnel.candidates[0]?.state).toBe("rejected");
+    expect(funnel.candidates[0]?.rejectionReason).toContain("blocked");
+    expect(funnel.candidates[0]?.blockedSourceUrls).toHaveLength(1);
   });
 
   it("keeps an organization contact out of the personal promotion state", () => {
@@ -143,6 +158,25 @@ describe("contact candidate reconciliation", () => {
 
     expect(isEligiblePersonalSocialCandidate(organization)).toBe(false);
     expect(isEligiblePersonalSocialCandidate(sameName)).toBe(false);
+    expect(organization.state).toBe("rejected");
+    expect(organization.rejectionReason).toContain("organization-only");
+  });
+
+  it("matches social claims by normalized profile URL and requires fetched-claim metadata", () => {
+    expect(exactContactValueMatches(
+      "social",
+      "https://www.instagram.com/jane-doe/?utm_source=search",
+      "https://instagram.com/jane-doe",
+    )).toBe(true);
+    const withoutFetch = reconcileContactCandidates([{
+      vectorType: "social",
+      value: "https://instagram.com/jane-doe",
+      source: "search",
+      sourceUrl: "https://press.example.org/jane",
+      details: { scope: "target_person", personName: "Jane Doe" },
+    }]).candidates[0]!;
+    expect(withoutFetch.exactClaimObserved).toBe(false);
+    expect(isEligiblePersonalSocialCandidate(withoutFetch)).toBe(false);
   });
 
   it("allows a corroborated person candidate to become a research pivot", () => {
@@ -165,5 +199,34 @@ describe("contact candidate reconciliation", () => {
 
     expect(candidate.state).toBe("independently_corroborated");
     expect(isEligiblePersonalSocialCandidate(candidate)).toBe(true);
+  });
+
+  it("reconstructs the same funnel from historical evidence rows", () => {
+    const funnel = reconcileStoredContactEvidence([
+      {
+        id: 1,
+        vectorType: "email",
+        value: "jane@example.org",
+        source: "directory",
+        sourceUrl: "https://contactout.com/Jane-Doe-123",
+        metadata: JSON.stringify({ scope: "target_person", personName: "Jane Doe" }),
+      },
+      {
+        id: 2,
+        vectorType: "social",
+        value: "https://instagram.com/jane-doe",
+        source: "claim-page",
+        sourceUrl: "https://press.example.org/jane",
+        metadata: JSON.stringify({
+          scope: "target_person",
+          personName: "Jane Doe",
+          exactClaimObserved: true,
+        }),
+      },
+    ]);
+    expect(funnel.totalCandidates).toBe(2);
+    expect(funnel.rejected).toBe(1);
+    expect(funnel.candidates.find((candidate) => candidate.vectorType === "email")?.state).toBe("rejected");
+    expect(funnel.candidates.find((candidate) => candidate.vectorType === "social")?.exactClaimObserved).toBe(true);
   });
 });

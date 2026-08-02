@@ -69,6 +69,8 @@ type ContactCandidate = {
   personNames: string[];
   state: string;
   conflictCount: number;
+  rejectionReason?: string | null;
+  exactClaimObserved?: boolean;
 };
 
 type CandidateFunnel = {
@@ -78,6 +80,7 @@ type CandidateFunnel = {
   attributionReview: number;
   independentlyCorroborated: number;
   verifiedDirectRoute: number;
+  rejected: number;
   organizationOnly: number;
   conflicted: number;
   independentSourceDomains: number;
@@ -218,6 +221,7 @@ function CandidateFunnelPanel({ funnel }: { funnel: CandidateFunnel | null }) {
     ["Attribution review", funnel.attributionReview, "text-amber-300"],
     ["Corroborated", funnel.independentlyCorroborated, "text-cyan-300"],
     ["Verified direct", funnel.verifiedDirectRoute, "text-emerald-300"],
+    ["Rejected", funnel.rejected, "text-rose-300"],
   ];
   const stateLabel = (state: string) => state.replaceAll("_", " ");
   return (
@@ -235,7 +239,7 @@ function CandidateFunnelPanel({ funnel }: { funnel: CandidateFunnel | null }) {
           {funnel.totalCandidates} candidates · {funnel.independentSourceDomains} domains
         </span>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-3">
+      <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 mb-3">
         {states.map(([label, value, color]) => (
           <div key={label} className="rounded border border-border/60 bg-card/40 px-2 py-1.5">
             <div className="text-[9px] uppercase tracking-wider text-muted-foreground font-mono">{label}</div>
@@ -258,6 +262,7 @@ function CandidateFunnelPanel({ funnel }: { funnel: CandidateFunnel | null }) {
                 <span className="text-xs text-foreground break-all">{candidate.value}</span>
                 <span className="text-[10px] text-muted-foreground ml-auto">{stateLabel(candidate.state)}</span>
                 {candidate.conflictCount > 0 && <span className="text-[10px] text-rose-300">conflict</span>}
+                {candidate.exactClaimObserved && <span className="text-[10px] text-emerald-300">exact claim</span>}
               </div>
               <div className="text-[10px] font-mono text-muted-foreground mt-1 flex flex-wrap gap-x-2 gap-y-0.5">
                 <span>{candidate.scopes.join(", ") || "unscoped"}</span>
@@ -266,6 +271,11 @@ function CandidateFunnelPanel({ funnel }: { funnel: CandidateFunnel | null }) {
                 <span>·</span>
                 <span>{candidate.providers.join(", ")}</span>
               </div>
+              {candidate.rejectionReason && (
+                <div className="text-[10px] text-rose-300/90 mt-1">
+                  Rejected: {candidate.rejectionReason}
+                </div>
+              )}
             </div>
           ))}
         </div>

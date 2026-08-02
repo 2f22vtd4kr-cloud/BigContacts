@@ -22,7 +22,10 @@
 
 import { Router, type Request, type Response } from "express";
 import { db, assetsTable, entitiesTable, contactEvidenceTable, enrichmentRunsTable } from "@workspace/db";
-import { candidateKey } from "../lib/contact-candidate";
+import {
+  candidateKey,
+  reconcileStoredContactEvidence,
+} from "../lib/contact-candidate";
 import { sql, eq, and, desc, inArray, type SQL } from "drizzle-orm";
 import {
   createJob, updateJob, getJob,
@@ -438,18 +441,11 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
         // attribution metadata.
         if (result.evidence.length > 0) {
           const evidenceRows = result.evidence
-            .filter((ev) => {
-              if (!ev.value?.trim()) return false;
-              if (ev.vectorType === "email") return Boolean(sanitizePublicEmail(ev.value));
-              if (ev.vectorType === "phone") return Boolean(sanitizePublicPhone(ev.value));
-              if (ev.vectorType === "social") {
-                const network = String(ev.details?.network ?? "");
-                if (network === "linkedin") return Boolean(sanitizePublicSocialUrl(ev.value, "linkedin", "person"));
-                if (network === "instagram") return Boolean(sanitizePublicSocialUrl(ev.value, "instagram", "person"));
-                if (network === "twitter") return Boolean(sanitizePublicSocialUrl(ev.value, "twitter", "person"));
-              }
-              return true;
-            })
+            // Keep malformed, blocked, and organization-only values in the
+            // evidence ledger. The candidate funnel marks them rejected;
+            // dropping them here makes discovery counts appear lower than the
+            // evidence actually found.
+            .filter((ev) => Boolean(ev.value?.trim()))
             .map((ev) => {
               const candidate = result.candidateFunnel.candidates.find(
                 (item) => item.key === candidateKey(ev.vectorType as any, ev.value),
@@ -479,7 +475,10 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
                   ev.vectorType === "phone" ? 0.85 :
                   ev.vectorType === "social" ? 0.6 : 0.4,
                 independentCorroboration: candidate?.sourceDomains.length ?? 0,
-                validationStatus: candidate?.state === "verified_direct_route" ? "verified" : "candidate",
+                validationStatus: candidate?.state === "rejected"
+                  ? "rejected"
+                  : candidate?.state === "verified_direct_route" ? "verified" : "candidate",
+                rejectionReason: candidate?.rejectionReason ?? null,
                 observedAt: new Date(),
                 metadata: JSON.stringify({
                   ...(ev.details ?? {}),
@@ -490,6 +489,9 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
                   scopes,
                   personNames: candidate?.personNames ?? [],
                   conflictCount: candidate?.conflictCount ?? 0,
+                  exactClaimObserved: candidate?.exactClaimObserved ?? false,
+                  blockedSourceUrls: candidate?.blockedSourceUrls ?? [],
+                  rejectionReason: candidate?.rejectionReason ?? null,
                 }),
               };
             });
@@ -940,21 +942,10 @@ router.post("/ingest/in-house-enrich", async (req: Request, res: Response): Prom
         // the real source URL, method, and timestamp for each contact vector.
         if (result.evidence.length > 0) {
           try {
-            const evidenceRows = result.evidence.filter((ev) => {
-              if (ev.vectorType === "email") return Boolean(sanitizePublicEmail(ev.value));
-              if (ev.vectorType === "phone") return Boolean(sanitizePublicPhone(ev.value));
-              if (ev.vectorType === "social") {
-                const network = (ev.details as Record<string, unknown> | undefined)?.network;
-                return network === "linkedin"
-                  ? Boolean(sanitizePublicSocialUrl(ev.value, "linkedin", "person"))
-                  : network === "twitter"
-                    ? Boolean(sanitizePublicSocialHandle(ev.value, "twitter"))
-                    : network === "instagram"
-                      ? Boolean(sanitizePublicSocialHandle(ev.value, "instagram"))
-                      : false;
-              }
-              return true;
-            }).map((ev) => {
+            const evidenceRows = result.evidence
+              // Keep rejected and organization-only findings auditable.
+              .filter((ev) => Boolean(ev.value?.trim()))
+              .map((ev) => {
               const candidate = result.candidateFunnel.candidates.find(
                 (item) => item.key === candidateKey(ev.vectorType as any, ev.value),
               );
@@ -974,7 +965,10 @@ router.post("/ingest/in-house-enrich", async (req: Request, res: Response): Prom
                 ev.vectorType === "phone" ? 0.75 :
                 ev.vectorType === "social" ? 0.20 : 0.10,
               independentCorroboration: candidate?.sourceDomains.length ?? 0,
-              validationStatus: candidate?.state === "verified_direct_route" ? "verified" : "candidate",
+              validationStatus: candidate?.state === "rejected"
+                ? "rejected"
+                : candidate?.state === "verified_direct_route" ? "verified" : "candidate",
+              rejectionReason: candidate?.rejectionReason ?? null,
               metadata: JSON.stringify({
                 ...(ev.details ?? {}),
                 candidateState: candidate?.state ?? "discovered",
@@ -984,6 +978,9 @@ router.post("/ingest/in-house-enrich", async (req: Request, res: Response): Prom
                 scopes,
                 personNames: candidate?.personNames ?? [],
                 conflictCount: candidate?.conflictCount ?? 0,
+                exactClaimObserved: candidate?.exactClaimObserved ?? false,
+                blockedSourceUrls: candidate?.blockedSourceUrls ?? [],
+                rejectionReason: candidate?.rejectionReason ?? null,
               }),
               observedAt: new Date(),
               };
@@ -1902,6 +1899,89 @@ router.post("/ingest/backfill-contact-outcomes", async (_req: Request, res: Resp
     updated, total: entities.length,
     byOutcome,
     message: `contactOutcome backfilled for ${updated} entities (J0 + L1 org-contact detection). needsEnrichment corrected per J1 rule.`,
+  });
+});
+
+// ── POST /ingest/backfill-contact-funnels ────────────────────────────────────
+// Reconstructs candidate funnels from durable contact_evidence only. This is
+// deliberately separate from contactOutcome backfill and never starts an
+// enrichment job. Repeated calls converge to the same funnel/status values.
+router.post("/ingest/backfill-contact-funnels", async (_req: Request, res: Response): Promise<void> => {
+  const [entities, evidenceRows] = await Promise.all([
+    db.select({
+      id: entitiesTable.id,
+      metadata: entitiesTable.metadata,
+    }).from(entitiesTable),
+    db.select({
+      id: contactEvidenceTable.id,
+      entityId: contactEvidenceTable.entityId,
+      vectorType: contactEvidenceTable.vectorType,
+      value: contactEvidenceTable.value,
+      source: contactEvidenceTable.source,
+      sourceUrl: contactEvidenceTable.sourceUrl,
+      metadata: contactEvidenceTable.metadata,
+    }).from(contactEvidenceTable),
+  ]);
+
+  const evidenceByEntity = new Map<number, typeof evidenceRows>();
+  for (const row of evidenceRows) {
+    const list = evidenceByEntity.get(row.entityId) ?? [];
+    list.push(row);
+    evidenceByEntity.set(row.entityId, list);
+  }
+
+  let updatedEntities = 0;
+  let updatedEvidence = 0;
+  for (const entity of entities) {
+    const rows = evidenceByEntity.get(entity.id) ?? [];
+    if (rows.length === 0) continue;
+    const funnel = reconcileStoredContactEvidence(rows);
+    const candidateByKey = new Map(funnel.candidates.map((candidate) => [candidate.key, candidate]));
+
+    for (const row of rows) {
+      const candidate = candidateByKey.get(candidateKey(row.vectorType as any, row.value));
+      if (!candidate) continue;
+      const oldMetadata = safeParseJson<Record<string, unknown>>(row.metadata, {});
+      const nextMetadata = {
+        ...oldMetadata,
+        candidateState: candidate.state,
+        sourceDomains: candidate.sourceDomains,
+        sourceUrls: candidate.sourceUrls,
+        providers: candidate.providers,
+        scopes: candidate.scopes,
+        personNames: candidate.personNames,
+        conflictCount: candidate.conflictCount,
+        exactClaimObserved: candidate.exactClaimObserved,
+        blockedSourceUrls: candidate.blockedSourceUrls,
+        rejectionReason: candidate.rejectionReason,
+      };
+      await db.update(contactEvidenceTable)
+        .set({
+          validationStatus: candidate.state === "rejected"
+            ? "rejected"
+            : candidate.state === "verified_direct_route" ? "verified" : "candidate",
+          rejectionReason: candidate.rejectionReason ?? null,
+          independentCorroboration: candidate.sourceDomains.length,
+          metadata: JSON.stringify(nextMetadata),
+        })
+        .where(eq(contactEvidenceTable.id, row.id));
+      updatedEvidence++;
+    }
+
+    const metadata = safeParseJson<Record<string, unknown>>(entity.metadata, {});
+    metadata["deepWebCandidateFunnel"] = funnel;
+    metadata["candidateFunnelBackfilledAt"] = new Date().toISOString();
+    await db.update(entitiesTable)
+      .set({ metadata: JSON.stringify(metadata) } as any)
+      .where(eq(entitiesTable.id, entity.id));
+    updatedEntities++;
+  }
+
+  res.json({
+    updatedEntities,
+    updatedEvidence,
+    entitiesWithEvidence: evidenceByEntity.size,
+    message: `Reconstructed ${updatedEntities} candidate funnel(s) from ${updatedEvidence} durable evidence row(s).`,
   });
 });
 

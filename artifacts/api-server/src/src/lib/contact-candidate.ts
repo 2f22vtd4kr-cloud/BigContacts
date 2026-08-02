@@ -25,6 +25,15 @@ export interface ContactCandidateEvidence {
   details?: Record<string, unknown>;
 }
 
+export interface StoredContactEvidenceRow {
+  id: number;
+  vectorType: string;
+  value: string;
+  source: string;
+  sourceUrl?: string | null;
+  metadata?: string | null;
+}
+
 export interface ReconciledCandidate {
   key: string;
   vectorType: CandidateVector;
@@ -53,6 +62,41 @@ export interface CandidateFunnel {
   conflicted: number;
   independentSourceDomains: number;
   candidates: ReconciledCandidate[];
+}
+
+const CANDIDATE_VECTORS = new Set<CandidateVector>([
+  "email", "phone", "social", "domain", "website", "address",
+]);
+
+function parseStoredDetails(metadata: string | null | undefined): Record<string, unknown> {
+  if (!metadata) return {};
+  try {
+    const parsed: unknown = JSON.parse(metadata);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+/** Reconstructs the same funnel used during ingestion from durable evidence. */
+export function reconcileStoredContactEvidence(
+  rows: readonly StoredContactEvidenceRow[],
+): CandidateFunnel {
+  return reconcileContactCandidates(
+    rows
+      .filter((row): row is StoredContactEvidenceRow & { vectorType: CandidateVector } =>
+        CANDIDATE_VECTORS.has(row.vectorType as CandidateVector) && Boolean(row.value?.trim()),
+      )
+      .map((row) => ({
+        vectorType: row.vectorType,
+        value: row.value,
+        source: row.source,
+        sourceUrl: row.sourceUrl ?? null,
+        details: parseStoredDetails(row.metadata),
+      })),
+  );
 }
 
 const BLOCKED_DIRECT_CONTACT_PUBLISHER_DOMAINS = new Set([
@@ -112,8 +156,8 @@ export function candidateKey(vectorType: CandidateVector, value: string): string
         .replace(/^https?:\/\/(www\.)?/, "")
         .replace(/^twitter\.com\//, "x.com/")
         .replace(/^www\.twitter\.com\//, "x.com/")
-        .replace(/\/+$/, "")
         .split(/[?#]/, 1)[0]!
+        .replace(/\/+$/, "")
       : trimmed;
   return `${vectorType}|${normalized}`;
 }
@@ -181,6 +225,28 @@ function scopeFor(item: ContactCandidateEvidence): CandidateScope {
   const scope = item.details?.scope;
   if (scope === "organization" || scope === "target_person" || scope === "person_candidate") return scope;
   return "unknown";
+}
+
+function candidateValueRejectionReason(vectorType: CandidateVector, value: string): string | null {
+  if (vectorType === "email" && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value.trim())) {
+    return "Invalid or unsupported email value.";
+  }
+  if (vectorType === "phone") {
+    const digits = value.replace(/\D/g, "");
+    if (digits.length < 7 || digits.length > 15) return "Invalid or unsupported phone value.";
+  }
+  if (vectorType === "social") {
+    try {
+      const url = new URL(value.trim());
+      const host = url.hostname.replace(/^www\./, "").toLowerCase();
+      const supported = ["linkedin.com", "instagram.com", "twitter.com", "x.com"]
+        .some((domain) => host === domain || host.endsWith(`.${domain}`));
+      if (!supported || url.pathname === "/") return "Unsupported social profile URL.";
+    } catch {
+      return "Invalid or unsupported social profile URL.";
+    }
+  }
+  return null;
 }
 
 function publisherFamily(source: string, url: string): string {
@@ -257,8 +323,23 @@ export function reconcileContactCandidates(
     const rejected = (candidate.vectorType === "email" || candidate.vectorType === "phone")
       && candidate.sourceDomains.length === 0
       && candidate.blockedSourceUrls.length > 0;
+    const valueRejectionReason = candidateValueRejectionReason(candidate.vectorType, candidate.value);
+    const organizationSocialRejected = candidate.vectorType === "social" && organizationOnly;
+    const attributionRejected = candidate.scopes.includes("unknown")
+      && candidate.sourceUrls.length > 0
+      && candidate.exactClaimObserved === false
+      && candidate.providers.some((provider) => provider.toLowerCase().includes("attribution-rejected"));
+    const rejectionReason = rejected
+      ? "Only blocked lead-directory or people-search publishers supplied this direct-contact value."
+      : organizationSocialRejected
+        ? "Social profile is organization-only and cannot be promoted as a personal route."
+        : valueRejectionReason
+          ? valueRejectionReason
+          : attributionRejected
+            ? "Attribution did not distinguish the candidate from a same-name or unrelated person."
+            : null;
     const state: CandidateState =
-      rejected ? "rejected"
+      rejectionReason ? "rejected"
       : organizationOnly ? (candidate.sourceDomains.length ? "source_linked" : "discovered")
       : hasTargetAttribution && isDirectVector && candidate.sourceDomains.length >= 2
         ? "verified_direct_route"
@@ -273,9 +354,7 @@ export function reconcileContactCandidates(
       ...candidate,
       state,
       conflictCount: 0,
-      rejectionReason: rejected
-        ? "Only blocked lead-directory or people-search publishers supplied this direct-contact value."
-        : null,
+      rejectionReason,
     };
   });
 

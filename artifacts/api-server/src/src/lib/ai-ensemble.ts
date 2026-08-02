@@ -101,7 +101,10 @@ function normalize(vectorType: EnsembleVector, value: string): string {
   const trimmed = value.trim().toLowerCase();
   if (vectorType === "phone") return trimmed.replace(/\D/g, "");
   if (vectorType === "email") return trimmed.replace(/\s+/g, "");
-  return trimmed.replace(/^https?:\/\/(www\.)?/i, "").replace(/\/+$/, "");
+  return trimmed
+    .replace(/^https?:\/\/(www\.)?/i, "")
+    .split(/[?#]/, 1)[0]!
+    .replace(/\/+$/, "");
 }
 
 function domainFor(url: string): string | null {
