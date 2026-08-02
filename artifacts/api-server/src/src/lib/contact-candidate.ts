@@ -36,6 +36,9 @@ export interface ReconciledCandidate {
   personNames: string[];
   state: CandidateState;
   conflictCount: number;
+  rejectionReason?: string | null;
+  exactClaimObserved: boolean;
+  blockedSourceUrls: string[];
 }
 
 export interface CandidateFunnel {
@@ -45,6 +48,7 @@ export interface CandidateFunnel {
   attributionReview: number;
   independentlyCorroborated: number;
   verifiedDirectRoute: number;
+  rejected: number;
   organizationOnly: number;
   conflicted: number;
   independentSourceDomains: number;
@@ -88,9 +92,10 @@ export function isPromotableDirectContactUrl(url: string): boolean {
  * a person-candidate needs corroboration from at least two canonical domains.
  */
 export function isEligiblePersonalSocialCandidate(
-  candidate: Pick<ReconciledCandidate, "scopes" | "sourceUrls" | "sourceDomains" | "state">,
+  candidate: Pick<ReconciledCandidate, "scopes" | "sourceUrls" | "sourceDomains" | "state" | "exactClaimObserved">,
 ): boolean {
   if (candidate.sourceUrls.length === 0) return false;
+  if (!candidate.exactClaimObserved) return false;
   if (candidate.scopes.includes("target_person")) return true;
   return candidate.scopes.includes("person_candidate")
     && !candidate.scopes.every((scope) => scope === "organization")
@@ -103,7 +108,12 @@ export function candidateKey(vectorType: CandidateVector, value: string): string
   const normalized = vectorType === "phone"
     ? trimmed.replace(/\D/g, "")
     : vectorType === "social" || vectorType === "domain" || vectorType === "website"
-      ? trimmed.replace(/^https?:\/\/(www\.)?/, "").replace(/\/+$/, "")
+      ? trimmed
+        .replace(/^https?:\/\/(www\.)?/, "")
+        .replace(/^twitter\.com\//, "x.com/")
+        .replace(/^www\.twitter\.com\//, "x.com/")
+        .replace(/\/+$/, "")
+        .split(/[?#]/, 1)[0]!
       : trimmed;
   return `${vectorType}|${normalized}`;
 }
@@ -126,6 +136,9 @@ export function exactContactValueMatches(
   if (vectorType === "email") {
     return candidateValue.trim().toLowerCase() === observedValue.trim().toLowerCase();
   }
+  if (vectorType === "social") {
+    return candidateKey("social", candidateValue) === candidateKey("social", observedValue);
+  }
   return false;
 }
 
@@ -140,12 +153,28 @@ function sourceUrlsFor(item: ContactCandidateEvidence): string[] {
     ...(Array.isArray(item.details?.sourceUrls)
       ? item.details.sourceUrls.filter((url): url is string => typeof url === "string")
       : []),
+    ...(item.vectorType === "social" && Array.isArray(item.details?.discoveryUrls)
+      ? item.details.discoveryUrls.filter((url): url is string => typeof url === "string")
+      : []),
   ];
   const canonicalUrls = [...new Set(urls.map((url) => canonicalizeUrl(url)).filter((url): url is string => Boolean(url)))];
   if (item.vectorType === "email" || item.vectorType === "phone") {
     return canonicalUrls.filter(isPromotableDirectContactUrl);
   }
   return canonicalUrls;
+}
+
+function canonicalUrlsFor(item: ContactCandidateEvidence): string[] {
+  const urls = [
+    item.sourceUrl,
+    ...(Array.isArray(item.details?.sourceUrls)
+      ? item.details.sourceUrls.filter((url): url is string => typeof url === "string")
+      : []),
+    ...(Array.isArray(item.details?.discoveryUrls)
+      ? item.details.discoveryUrls.filter((url): url is string => typeof url === "string")
+      : []),
+  ];
+  return [...new Set(urls.map((url) => canonicalizeUrl(url)).filter((url): url is string => Boolean(url)))];
 }
 
 function scopeFor(item: ContactCandidateEvidence): CandidateScope {
@@ -181,7 +210,11 @@ export function reconcileContactCandidates(
     const normalized = normalizedValue(item.vectorType, item.value);
     if (!normalized) continue;
     const key = `${item.vectorType}|${normalized}`;
+    const rawUrls = canonicalUrlsFor(item);
     const urls = sourceUrlsFor(item);
+    const blockedSourceUrls = (item.vectorType === "email" || item.vectorType === "phone")
+      ? rawUrls.filter((url) => !isPromotableDirectContactUrl(url))
+      : [];
     const domains = urls
       .map((url) => {
         try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return null; }
@@ -202,12 +235,16 @@ export function reconcileContactCandidates(
       personNames: [],
       state: "discovered",
       conflictCount: 0,
+      exactClaimObserved: false,
+      blockedSourceUrls: [],
     };
     if (!current.providers.includes(item.source)) current.providers.push(item.source);
     for (const url of urls) if (!current.sourceUrls.includes(url)) current.sourceUrls.push(url);
     for (const domain of domains) if (!current.sourceDomains.includes(domain)) current.sourceDomains.push(domain);
+    for (const url of blockedSourceUrls) if (!current.blockedSourceUrls.includes(url)) current.blockedSourceUrls.push(url);
     if (!current.scopes.includes(scope)) current.scopes.push(scope);
     if (personName && !current.personNames.includes(personName)) current.personNames.push(personName);
+    if (item.details?.exactClaimObserved === true) current.exactClaimObserved = true;
     groups.set(key, current);
   }
 
@@ -217,8 +254,12 @@ export function reconcileContactCandidates(
     const hasPersonAttribution = hasTargetAttribution || candidate.scopes.includes("person_candidate");
     const organizationOnly = candidate.scopes.length > 0
       && candidate.scopes.every((scope) => scope === "organization");
+    const rejected = (candidate.vectorType === "email" || candidate.vectorType === "phone")
+      && candidate.sourceDomains.length === 0
+      && candidate.blockedSourceUrls.length > 0;
     const state: CandidateState =
-      organizationOnly ? (candidate.sourceDomains.length ? "source_linked" : "discovered")
+      rejected ? "rejected"
+      : organizationOnly ? (candidate.sourceDomains.length ? "source_linked" : "discovered")
       : hasTargetAttribution && isDirectVector && candidate.sourceDomains.length >= 2
         ? "verified_direct_route"
         : candidate.sourceDomains.length >= 2
@@ -228,7 +269,14 @@ export function reconcileContactCandidates(
           : candidate.sourceDomains.length
             ? "source_linked"
             : "discovered";
-    return { ...candidate, state, conflictCount: 0 };
+    return {
+      ...candidate,
+      state,
+      conflictCount: 0,
+      rejectionReason: rejected
+        ? "Only blocked lead-directory or people-search publishers supplied this direct-contact value."
+        : null,
+    };
   });
 
   const byVector = new Map<CandidateVector, ReconciledCandidate[]>();
@@ -266,6 +314,7 @@ export function reconcileContactCandidates(
     attributionReview: count("attribution_review"),
     independentlyCorroborated: count("independently_corroborated"),
     verifiedDirectRoute: count("verified_direct_route"),
+    rejected: count("rejected"),
     organizationOnly: candidates.filter((candidate) =>
       candidate.scopes.length > 0 && candidate.scopes.every((scope) => scope === "organization"),
     ).length,

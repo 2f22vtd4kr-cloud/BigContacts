@@ -36,7 +36,7 @@ const FINANCIAL_AGGREGATOR_DOMAINS = new Set([
   "allabolag.se", "hitta.se", "eniro.se", "proff.se", "virksomhed.dk",
 ]);
 import { extractWithAI, researchWithPerplexity, researchWithGemini, researchWithTavily, researchWithExa, type OwnerResolution } from "./ai-extractor";
-import { reconcileAIResults, type AIEnsembleResult } from "./ai-ensemble";
+import { applyEnsembleAdjudication, buildEnsembleAdjudicationText, reconcileAIResults, type AIEnsembleResult } from "./ai-ensemble";
 import { extractPersonNames } from "./gliner-client";
 import { assessTargetReachability, reachabilityDirective } from "./reachability-realism";
 import { scoreCorroboration } from "./evidence-ledger";
@@ -1824,8 +1824,27 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       { provider: "tavily", result: tav },
       { provider: "exa", result: exa },
     ].filter(({ result }) => result?.source && result.source !== "none"));
-    result.aiEnsemble = ensemble;
-    for (const claim of ensemble.claims) {
+    try {
+      const adjudicator = await extractWithAI(
+        buildEnsembleAdjudicationText(entity.name, entity.type, [
+          { provider: "perplexity", result: perp },
+          { provider: "gemini", result: gem },
+          { provider: "tavily", result: tav },
+          { provider: "exa", result: exa },
+        ].filter(({ result }) => result?.source && result.source !== "none")),
+        entity.name,
+        entity.type,
+        country,
+      );
+      if (adjudicator.source !== "none") {
+        result.aiEnsemble = applyEnsembleAdjudication(ensemble, adjudicator);
+      } else {
+        result.aiEnsemble = ensemble;
+      }
+    } catch {
+      result.aiEnsemble = ensemble;
+    }
+    for (const claim of result.aiEnsemble.claims) {
       const vectorType = claim.vectorType === "linkedin"
         || claim.vectorType === "instagram"
         || claim.vectorType === "twitter"
@@ -1847,6 +1866,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
           sourceDomains: claim.sourceDomains,
           discoveryUrls: claim.sourceUrls,
           selected: claim.selected,
+          adjudicatorSource: result.aiEnsemble.adjudicator?.source ?? null,
         },
       );
     }
@@ -2731,7 +2751,13 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
               ...(scraped.email ? [scraped.email] : []),
               ...extractEmailsWithObfuscation(scraped.text),
             ]
-            : (scraped.phone ? [scraped.phone] : []);
+            : evidence.vectorType === "phone"
+              ? (scraped.phone ? [scraped.phone] : [])
+              : [
+                ...(scraped.linkedinUrl ? [scraped.linkedinUrl] : []),
+                ...(scraped.instagramUrl ? [scraped.instagramUrl] : []),
+                ...(scraped.twitterUrl ? [scraped.twitterUrl] : []),
+              ];
           if (!observedValues.some((observed) =>
             exactContactValueMatches(evidence.vectorType, evidence.value, observed),
           )) continue;

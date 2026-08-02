@@ -152,14 +152,14 @@ describe("contact candidate reconciliation", () => {
         value: "https://instagram.com/jane-doe",
         source: "press",
         sourceUrl: "https://press.example.org/jane-doe",
-        details: { scope: "person_candidate", personName: "Jane Doe" },
+        details: { scope: "person_candidate", personName: "Jane Doe", exactClaimObserved: true },
       },
       {
         vectorType: "social",
         value: "https://instagram.com/jane-doe",
         source: "registry",
         sourceUrl: "https://registry.example.net/person/jane-doe",
-        details: { scope: "person_candidate", personName: "Jane Doe" },
+        details: { scope: "person_candidate", personName: "Jane Doe", exactClaimObserved: true },
       },
     ]).candidates[0]!;
 

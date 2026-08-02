@@ -28,6 +28,73 @@ export interface AIEnsembleResult {
   ownerResolutions: OwnerResolution[];
   sources: string[];
   citationUrls: string[];
+  adjudicator?: {
+    source: string;
+    selectedValues: Partial<Record<EnsembleVector, string | null>>;
+    disagreements: Partial<Record<EnsembleVector, string[]>>;
+  };
+}
+
+export function buildEnsembleAdjudicationText(
+  entityName: string,
+  entityType: string,
+  providerResults: readonly EnsembleProviderResult[],
+): string {
+  return [
+    `ENSEMBLE ADJUDICATION for "${entityName}" (${entityType}).`,
+    "Compare independent provider answers below. Preserve every plausible value as a candidate, but select a value only when the supplied evidence supports it.",
+    "Never invent, normalize into a new value, or infer an email/phone. A disagreement must remain visible in the output.",
+    ...providerResults.map(({ provider, result }) => JSON.stringify({
+      provider,
+      email: result.email,
+      phone: result.phone,
+      linkedin: result.linkedin,
+      instagram: result.instagram,
+      twitter: result.twitter,
+      citations: result.citations,
+      ownerResolutions: result.ownerResolutions,
+    })),
+  ].join("\n");
+}
+
+export function applyEnsembleAdjudication(
+  ensemble: AIEnsembleResult,
+  adjudicator: AIExtractResult,
+): AIEnsembleResult {
+  const selectedValues: Partial<Record<EnsembleVector, string | null>> = {};
+  const vectorTypes: EnsembleVector[] = ["email", "phone", "linkedin", "instagram", "twitter"];
+
+  for (const vectorType of vectorTypes) {
+    const proposed = adjudicator[vectorType];
+    if (!proposed) {
+      selectedValues[vectorType] = ensemble.selected[vectorType] ?? null;
+      continue;
+    }
+    const normalized = normalize(vectorType, proposed);
+    const matchingClaim = ensemble.claims.find(
+      (claim) => claim.vectorType === vectorType && claim.normalizedValue === normalized,
+    );
+    // The adjudicator may select among discovered claims, but may not invent a
+    // new contact value that no search provider supplied.
+    selectedValues[vectorType] = matchingClaim?.value ?? ensemble.selected[vectorType] ?? null;
+    if (matchingClaim) {
+      for (const claim of ensemble.claims) {
+        if (claim.vectorType === vectorType) {
+          claim.selected = claim.normalizedValue === matchingClaim.normalizedValue;
+        }
+      }
+    }
+  }
+
+  return {
+    ...ensemble,
+    selected: selectedValues,
+    adjudicator: {
+      source: adjudicator.source,
+      selectedValues,
+      disagreements: ensemble.disagreements,
+    },
+  };
 }
 
 function normalize(vectorType: EnsembleVector, value: string): string {
