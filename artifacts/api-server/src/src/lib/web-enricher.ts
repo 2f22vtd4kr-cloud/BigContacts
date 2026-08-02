@@ -41,6 +41,7 @@ import { assessTargetReachability, reachabilityDirective } from "./reachability-
 import { scoreCorroboration } from "./evidence-ledger";
 import {
   candidateKey,
+  exactContactValueMatches,
   isEligiblePersonalSocialCandidate,
   reconcileContactCandidates,
   type CandidateFunnel,
@@ -2617,6 +2618,103 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         const label = `FollowUp[${new URL(url).hostname.replace(/^www\./, "").substring(0, 20)}]`;
         collectScrapedPage(scraped, label, url);
       } catch { /* skip */ }
+      await jitteredDelay(500);
+    }
+  }
+
+  // ── Phase 7.7: Verify person-level discovery claims on exact pages ───────
+  // Provider citations and AI discovery URLs are leads, not claim provenance.
+  // Fetch a very small bounded set of those URLs and record a claim only when
+  // the exact candidate value is observed in the fetched page. The normal
+  // candidate funnel still decides whether independent domains are sufficient.
+  {
+    const claimCandidates = result.evidence.filter((evidence) => {
+      if (evidence.vectorType !== "email" && evidence.vectorType !== "phone") return false;
+      const details = evidence.details ?? {};
+      const scopes = Array.isArray(details.scopes)
+        ? details.scopes.filter((scope): scope is string => typeof scope === "string")
+        : typeof details.scope === "string" ? [details.scope] : [];
+      const discoveryUrls = Array.isArray(details.discoveryUrls)
+        ? details.discoveryUrls.filter((url): url is string => typeof url === "string")
+        : [];
+      return scopes.some((scope) => scope === "target_person" || scope === "person_candidate")
+        && discoveryUrls.length > 0;
+    }).sort((a, b) => {
+      const scopes = (evidence: DeepWebEvidence) => {
+        const details = evidence.details ?? {};
+        return Array.isArray(details.scopes)
+          ? details.scopes.filter((scope): scope is string => typeof scope === "string")
+          : typeof details.scope === "string" ? [details.scope] : [];
+      };
+      const priority = (evidence: DeepWebEvidence) =>
+        (scopes(evidence).includes("target_person") ? 4 : 0) +
+        (evidence.vectorType === "email" ? 2 : 0) +
+        (evidence.sourceUrl ? 1 : 0);
+      return priority(b) - priority(a);
+    });
+    const claimUrls: string[] = [];
+    const seenClaimUrls = new Set<string>();
+    for (const evidence of claimCandidates) {
+      const discoveryUrls = Array.isArray(evidence.details?.discoveryUrls)
+        ? evidence.details.discoveryUrls.filter((url): url is string => typeof url === "string")
+        : [];
+      const candidateUrls = [
+        ...(evidence.sourceUrl ? [evidence.sourceUrl] : []),
+        ...discoveryUrls,
+      ];
+      for (const rawUrl of candidateUrls) {
+        try {
+          const parsed = new URL(rawUrl);
+          if (!/^https?:$/.test(parsed.protocol)) continue;
+          parsed.hash = "";
+          const url = parsed.toString();
+          if (seenClaimUrls.has(url)) continue;
+          seenClaimUrls.add(url);
+          claimUrls.push(url);
+          if (claimUrls.length >= 3) break;
+        } catch { /* ignore malformed provider citations */ }
+      }
+      if (claimUrls.length >= 3) break;
+    }
+
+    for (const url of claimUrls) {
+      try {
+        const scraped = await scrapePage(url);
+        result.pagesScraped++;
+        const host = new URL(url).hostname.replace(/^www\./, "").slice(0, 24);
+        for (const evidence of claimCandidates) {
+          const observedValues = evidence.vectorType === "email"
+            ? [
+              ...(scraped.email ? [scraped.email] : []),
+              ...extractEmailsWithObfuscation(scraped.text),
+            ]
+            : (scraped.phone ? [scraped.phone] : []);
+          if (!observedValues.some((observed) =>
+            exactContactValueMatches(evidence.vectorType, evidence.value, observed),
+          )) continue;
+          const scopes = Array.isArray(evidence.details?.scopes)
+            ? evidence.details.scopes.filter((scope): scope is string => typeof scope === "string")
+            : typeof evidence.details?.scope === "string" ? [evidence.details.scope] : [];
+          const scope = scopes.includes("target_person") ? "target_person" : "person_candidate";
+          recordEvidence(
+            evidence.vectorType,
+            evidence.value,
+            `ClaimPage[${host}]`,
+            url,
+            "candidate-claim-page-parser",
+            88,
+            {
+              scope,
+              ...(evidence.details?.personName ? { personName: evidence.details.personName } : {}),
+              relationship: "exact-fetched-claim",
+              exactClaimObserved: true,
+              discoveryUrls: Array.isArray(evidence.details?.discoveryUrls)
+                ? evidence.details.discoveryUrls
+                : [],
+            },
+          );
+        }
+      } catch { /* claim pages are opportunistic and must fail closed */ }
       await jitteredDelay(500);
     }
   }

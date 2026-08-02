@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { isEligiblePersonalSocialCandidate, reconcileContactCandidates } from "../lib/contact-candidate";
+import { exactContactValueMatches, isEligiblePersonalSocialCandidate, reconcileContactCandidates } from "../lib/contact-candidate";
 
 describe("contact candidate reconciliation", () => {
+  it("matches exact fetched claim values without treating formatting as evidence", () => {
+    expect(exactContactValueMatches("email", "Jane@Example.org", " jane@example.org ")).toBe(true);
+    expect(exactContactValueMatches("phone", "+1 (212) 555-0101", "212.555.0101")).toBe(false);
+    expect(exactContactValueMatches("phone", "+1 (212) 555-0101", "+1 212 555 0101")).toBe(true);
+  });
+
   it("keeps an organization contact out of the personal promotion state", () => {
     const funnel = reconcileContactCandidates([
       {

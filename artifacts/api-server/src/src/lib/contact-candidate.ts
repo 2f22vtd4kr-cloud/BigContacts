@@ -78,6 +78,27 @@ export function candidateKey(vectorType: CandidateVector, value: string): string
   return `${vectorType}|${normalized}`;
 }
 
+/**
+ * Compare a candidate with a value observed on a fetched claim page.
+ * Phone formatting is not evidence, so compare digits only; email matching is
+ * case-insensitive and whitespace-insensitive.
+ */
+export function exactContactValueMatches(
+  vectorType: CandidateVector,
+  candidateValue: string,
+  observedValue: string,
+): boolean {
+  if (vectorType === "phone") {
+    const candidateDigits = candidateValue.replace(/\D/g, "");
+    const observedDigits = observedValue.replace(/\D/g, "");
+    return candidateDigits.length >= 7 && candidateDigits === observedDigits;
+  }
+  if (vectorType === "email") {
+    return candidateValue.trim().toLowerCase() === observedValue.trim().toLowerCase();
+  }
+  return false;
+}
+
 function normalizedValue(vectorType: CandidateVector, value: string): string {
   const key = candidateKey(vectorType, value);
   return key.slice(vectorType.length + 1);
