@@ -68,4 +68,11 @@ describe("broad discovery evidence gate", () => {
     const { discoverSingleTemplate } = await import("../lib/enrichment/broad-discovery");
     expect(discoverSingleTemplate).toBeTypeOf("function");
   });
+
+  it("keeps placeholder names out of target admission", async () => {
+    const source = await import("../lib/atlas-orchestrator");
+    expect(source.isPlaceholderEntityName("Unknown")).toBe(true);
+    expect(source.isPlaceholderEntityName("Entity 42")).toBe(true);
+    expect(source.isPlaceholderEntityName("Samih Sawiris")).toBe(false);
+  });
 });

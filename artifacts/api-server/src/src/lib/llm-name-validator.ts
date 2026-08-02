@@ -196,8 +196,10 @@ async function requestIndexGate(
   candidateCount: number,
   gateName: string,
 ): Promise<number[]> {
-  const key = GROQ_KEYS[Math.floor(Math.random() * GROQ_KEYS.length)];
-  try {
+  const start = Math.floor(Math.random() * GROQ_KEYS.length);
+  for (let attempt = 0; attempt < GROQ_KEYS.length; attempt++) {
+    const key = GROQ_KEYS[(start + attempt) % GROQ_KEYS.length]!;
+    try {
     const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -214,6 +216,10 @@ async function requestIndexGate(
     });
 
     if (!resp.ok) {
+      if (resp.status === 429 || resp.status === 401 || resp.status === 403) {
+        logger.warn({ status: resp.status, gateName, attempt: attempt + 1 }, "llm validator: Groq key unavailable — trying next key");
+        continue;
+      }
       logger.warn({ status: resp.status, gateName }, "llm validator: Groq non-OK — rejecting candidates fail-closed");
       return [];
     }
@@ -230,8 +236,13 @@ async function requestIndexGate(
       return [];
     }
     return (parsed as number[]).filter(index => index >= 1 && index <= candidateCount);
-  } catch (err: any) {
-    logger.warn({ err: err?.message, gateName }, "llm validator: request failed — rejecting candidates fail-closed");
-    return [];
+    } catch (err: any) {
+      logger.warn({ err: err?.message, gateName, attempt: attempt + 1 }, "llm validator: request failed — trying next key");
+      if (attempt === GROQ_KEYS.length - 1) {
+        return [];
+      }
+    }
   }
+  logger.warn({ gateName }, "llm validator: all Groq keys unavailable — rejecting candidates fail-closed");
+  return [];
 }

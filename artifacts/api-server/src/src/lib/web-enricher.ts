@@ -829,6 +829,10 @@ const PERSON_WORD_BLOCKLIST = new Set([
   // Generic org/state words that slip through as "person" names
   "State", "Government", "Ministry", "Agency", "Authority", "Commission",
   "Federation", "Republic", "Nation",
+  // Wikipedia / religious-text and placeholder nouns leaking from generic
+  // corporation searches are not named business decision-makers.
+  "Wikipedia", "Unknown", "Church", "Catholic", "Roman", "Martyrology",
+  "Bible", "Saint", "Saints", "Martyr", "Martyrs",
   // Governance / org structure words that look like names
   "Executive", "Committee", "Board", "Director", "Directors", "Officer",
   "Chairman", "Chairwoman", "Chairperson", "Trustee", "Trustees",

@@ -311,9 +311,44 @@ function normalizeHandle(url: string | null | undefined): string | null {
   return s && !s.startsWith("http") ? s : null;
 }
 
+const PLACEHOLDER_ENTITY_NAMES = new Set([
+  "unknown",
+  "n/a",
+  "na",
+  "none",
+  "null",
+  "undefined",
+  "test",
+  "test entity",
+  "sample",
+  "sample entity",
+  "placeholder",
+  "mock",
+  "dummy",
+]);
+
+export function isPlaceholderEntityName(name: string): boolean {
+  const normalized = name.trim().replace(/\s+/g, " ").toLowerCase();
+  return PLACEHOLDER_ENTITY_NAMES.has(normalized)
+    || /^entity\s+\d+$/i.test(normalized);
+}
+
 async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Promise<void> {
   const { id, name } = entity;
   try {
+    // Registry adapters can occasionally emit a missing-name placeholder.
+    // Never spend OSINT/provider budget on it or let it generate synthetic
+    // person candidates; stamp it cooked so the sequential loop advances.
+    if (isPlaceholderEntityName(name)) {
+      logger.warn({ entityId: id, name }, "[Atlas] Skipping placeholder entity");
+      await db.update(entitiesTable).set({
+        cookedAt: new Date(),
+        updatedAt: new Date(),
+        notes: sql`CASE WHEN notes IS NULL THEN 'Skipped placeholder entity name.' ELSE notes || E'\nSkipped placeholder entity name.' END`,
+      }).where(eq(entitiesTable.id, id));
+      return;
+    }
+
     // Keep a strict pre-run boundary. New contacts/assets are not published
     // until the target-scoped final review approves exact current-run claims.
     const [baselineEvidence, baselineAssets] = await Promise.all([
