@@ -2,8 +2,8 @@
 # Install Python OSINT tools for ApexFinder Pro
 # Run once after import; safe to re-run (idempotent).
 #
-# Replit Python is managed by the module system — packages install into
-# .pythonlibs/ automatically; no --user or --target flags needed.
+# Replit's system Python is immutable. Keep the tools in the workspace-local
+# uv environment so the API and the installer use the same interpreter.
 
 set -e
 
@@ -12,8 +12,10 @@ PYTHON_BIN="${APEX_PYTHON_BIN:-}"
 if [ -z "$PYTHON_BIN" ] && [ -x "$PWD/.pythonlibs/bin/python3" ]; then
   PYTHON_BIN="$PWD/.pythonlibs/bin/python3"
 fi
-if [ -z "$PYTHON_BIN" ] && command -v python3.11 >/dev/null 2>&1; then
-  PYTHON_BIN="$(command -v python3.11)"
+if [ -z "$PYTHON_BIN" ] && command -v uv >/dev/null 2>&1; then
+  echo "Creating workspace-local Python environment at .pythonlibs..."
+  uv venv "$PWD/.pythonlibs" --python "$(command -v python3)"
+  PYTHON_BIN="$PWD/.pythonlibs/bin/python3"
 fi
 if [ -z "$PYTHON_BIN" ]; then
   PYTHON_BIN="$(command -v python3)"
@@ -24,9 +26,13 @@ echo ""
 
 install_package() {
   if command -v uv >/dev/null 2>&1; then
+    if [ ! -x "$PWD/.pythonlibs/bin/python3" ]; then
+      uv venv "$PWD/.pythonlibs" --python "$(command -v python3)"
+      PYTHON_BIN="$PWD/.pythonlibs/bin/python3"
+    fi
     uv pip install --python "$PYTHON_BIN" "$1"
   else
-    "$PYTHON_BIN" -m pip install -q "$1"
+    "$PYTHON_BIN" -m pip install --disable-pip-version-check -q "$1"
   fi
 }
 

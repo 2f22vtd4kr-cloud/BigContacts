@@ -14,3 +14,9 @@ Target research must run a deterministic reachability-realism preflight before e
 **Why:** Public prominence predicts search noise and protected access more often than it predicts a viable route. Spending the full research budget first and only discovering “no route” in the final score made the system look more confident than it was.
 
 **How to apply:** Pass the preflight directive into every live research provider and response contract. Persist research-only decisions as `Research Review` with reasons/blockers and no outreach copy. Treat asset operators, FBOs, marina staff, club staff, property managers, WhatsApp, and commission offers as non-actionable unless a cited source explicitly corroborates the relationship and route.
+
+Final target review is a publication boundary, not an annotation: newly discovered contacts and assets stay pending until a target-scoped reviewer selects exact supplied evidence. Review/unavailable/reject outcomes must persist review state without a normal path, contact promotion, asset publication, or outreach copy.
+
+**Why:** A post-enrichment reviewer that only decorated the response could still leave an interrupted run with unreviewed contacts or publish a research path before the evidence gate completed.
+
+**How to apply:** Keep provider evidence durable for adjudication, but stage entity contact fields and new assets in memory. Enforce person-vs-organization scope and exact candidate matching in deterministic code around any model decision.

@@ -16,7 +16,7 @@
  * Phase 7  — Forensic cross-reference (parallel): ICIJ Offshore Leaks + Whoxy + Equasis + ADSB history + OpenOwnership
  * Phase 8  — Attribution: Phase J (J4–J9) domain resolution + digital footprint + graph-assisted scoring
  * Phase 9  — Semantic layer: embeddings + net worth backfill + contact outcome backfill + confidence recompute
- * Phase 10 — MCTS research on hot leads (batches of 5)
+ * Phase 10 — MCTS research on hot leads (strictly one target at a time)
  */
 
 import { db, entitiesTable, assetsTable, contactEvidenceTable } from "@workspace/db";
@@ -40,6 +40,9 @@ import { enrichWithEquasis } from "./equasis-enricher";
 import { enrichWithAdsbHistory } from "./adsbtrack-enricher";
 import { enrichWithOpenOwnership } from "./openownership-enricher";
 import { runHolehe, runMaigret } from "./python-tools";
+import { runFinalTargetReview } from "./ai-extractor";
+import { reconcileStoredContactEvidence } from "./contact-candidate";
+import { assessTargetReachability } from "./reachability-realism";
 import { computeContactConfidence, computeContactOutcome, hasMeaningfulDirectContact } from "./contact-confidence";
 import {
   sanitizePublicEmail,
@@ -217,19 +220,25 @@ async function fetchEntities(opts: {
     .limit(opts.batchSize);
 }
 
-/** Run a per-entity async fn with bounded concurrency and update the Atlas job. */
+/** Run a per-entity async fn strictly in sequence.
+ *
+ * The source-provider calls inside one entity may still use their intended
+ * parallelism, but the next entity never starts until the previous entity's
+ * complete enrichment and final validation have finished.
+ */
 async function runEntityBatch<T>(
   atlasJobId: string,
   phase: string,
   entities: Array<{ id: number; name: string }>,
   fn: (entity: any) => Promise<T>,
-  concurrency = 3,
+  _concurrency = 1,
   onResult?: (entity: any, result: T) => Promise<void>,
 ): Promise<{ ok: number; err: number }> {
   let ok = 0; let errCount = 0;
 
-  for (let i = 0; i < entities.length; i += concurrency) {
-    const slice = entities.slice(i, i + concurrency);
+  for (let i = 0; i < entities.length; i++) {
+    const entity = entities[i]!;
+    const slice = [entity];
     await updateJob(atlasJobId, {
       status: "running",
       progress: i,
@@ -240,20 +249,16 @@ async function runEntityBatch<T>(
       entityNames: JSON.stringify(slice.map(e => e.name)),
     });
 
-    await Promise.allSettled(
-      slice.map(async (entity) => {
-        try {
-          const result = await fn(entity);
-          if (onResult) await onResult(entity, result).catch(() => {});
-          ok++;
-        } catch (err) {
-          errCount++;
-          logger.warn({ entityId: entity.id, phase, err: (err as Error).message }, "[Atlas] entity error");
-        }
-      }),
-    );
+    try {
+      const result = await fn(entity);
+      if (onResult) await onResult(entity, result).catch(() => {});
+      ok++;
+    } catch (err) {
+      errCount++;
+      logger.warn({ entityId: entity.id, phase, err: (err as Error).message }, "[Atlas] entity error");
+    }
     await updateJob(atlasJobId, {
-      entityProgress: i + slice.length,
+      entityProgress: i + 1,
       entityTotal: entities.length,
       entityNames: JSON.stringify(slice.map(e => e.name)),
     });
@@ -290,6 +295,26 @@ function normalizeHandle(url: string | null | undefined): string | null {
 async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Promise<void> {
   const { id, name } = entity;
   try {
+    // Keep a strict pre-run boundary. New contacts/assets are not published
+    // until the target-scoped final review approves exact current-run claims.
+    const [baselineEvidence, baselineAssets] = await Promise.all([
+      db.select({ id: contactEvidenceTable.id })
+        .from(contactEvidenceTable)
+        .where(eq(contactEvidenceTable.entityId, id)),
+      db.select({ id: assetsTable.id })
+        .from(assetsTable)
+        .where(eq(assetsTable.ownerEntityId, id)),
+    ]);
+    const baselineEvidenceIds = new Set(baselineEvidence.map((row) => row.id));
+    const baselineContacts = {
+      email: entity.email,
+      phone: entity.phone,
+      linkedinUrl: entity.linkedinUrl,
+      twitterHandle: entity.twitterHandle,
+      instagramHandle: entity.instagramHandle,
+    };
+    let pendingAssetRows: Array<Record<string, unknown>> = [];
+
     // ── Step A: In-house OSINT (Wikidata, GitHub, RDAP, DNS, Gravatar, ProPublica) ──
     const meta = safeJson<Record<string, unknown>>(entity.metadata, {});
     const ihResult = await enrichInHouse({
@@ -299,7 +324,6 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
     } as any).catch(() => null);
 
     if (ihResult) {
-      const up: Record<string, unknown> = { updatedAt: new Date() };
       const ihEmail = sanitizePublicEmail(ihResult.email);
       const ihPhone = sanitizePublicPhone(ihResult.phone);
       const ihLinkedIn = sanitizePublicSocialUrl(ihResult.linkedinUrl, "linkedin", "person");
@@ -307,37 +331,16 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
         ? ihResult.twitter!.replace(/^@/, "")
         : null;
       if (ihEmail && !entity.email) {
-        up.email = ihEmail;
         entity = { ...entity, email: ihEmail };
       }
       if (ihLinkedIn && !entity.linkedinUrl) {
-        up.linkedinUrl = ihLinkedIn;
         entity = { ...entity, linkedinUrl: ihLinkedIn };
       }
       if (ihPhone && !entity.phone) {
-        up.phone = ihPhone;
         entity = { ...entity, phone: ihPhone };
       }
       if (ihTwitter && !entity.twitterHandle) {
-        up.twitterHandle = ihTwitter;
         entity = { ...entity, twitterHandle: ihTwitter };
-      }
-      if (Object.keys(up).length > 1) {
-        up.contactConfidence = computeContactConfidence({
-          type: entity.type,
-          email: entity.email,
-          phone: entity.phone,
-          linkedinUrl: entity.linkedinUrl,
-          twitterHandle: entity.twitterHandle,
-          knownResidences: entity.knownResidences,
-        });
-        up.contactOutcome = computeContactOutcome({
-          email: entity.email,
-          phone: entity.phone,
-          linkedinUrl: entity.linkedinUrl,
-          twitterHandle: entity.twitterHandle,
-        });
-        await db.update(entitiesTable).set(up as any).where(eq(entitiesTable.id, id));
       }
       if (ihResult.evidence?.length) {
         const cleanEvidence = ihResult.evidence.filter((ev: any) => {
@@ -371,7 +374,6 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
       discoverSocialPresence(entity as any).catch(() => null),
       discoverMessengerPresence(entity as any).catch(() => null),
     ]);
-    const socUp: Record<string, unknown> = {};
     const socialLinkedIn = sanitizePublicSocialUrl(socialResult?.linkedinUrl, "linkedin", "person");
     const socialTwitter = isValidPublicSocialHandle(socialResult?.twitterHandle, "twitter")
       ? socialResult!.twitterHandle!.replace(/^@/, "")
@@ -380,19 +382,20 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
       ? socialResult!.instagramHandle!.replace(/^@/, "")
       : null;
     if (socialLinkedIn && !entity.linkedinUrl) {
-      socUp.linkedinUrl = socialLinkedIn;
       entity = { ...entity, linkedinUrl: socialLinkedIn };
     }
     if (socialTwitter && !entity.twitterHandle) {
-      socUp.twitterHandle = socialTwitter;
       entity = { ...entity, twitterHandle: socialTwitter };
     }
     if (socialInstagram && !entity.instagramHandle) {
-      socUp.instagramHandle = socialInstagram;
       entity = { ...entity, instagramHandle: socialInstagram };
     }
-    if (messengerResult?.telegramHandle && !entity.telegramHandle) { socUp.telegramHandle = messengerResult.telegramHandle; entity = { ...entity, telegramHandle: messengerResult.telegramHandle }; }
-    if (Object.keys(socUp).length) { socUp.updatedAt = new Date(); await db.update(entitiesTable).set(socUp as any).where(eq(entitiesTable.id, id)); }
+    // Telegram is intentionally kept in the in-memory target context only.
+    // The final review contract currently covers email, phone, and social
+    // routes; no newly discovered contact field is persisted before it runs.
+    if (messengerResult?.telegramHandle && !entity.telegramHandle) {
+      entity = { ...entity, telegramHandle: messengerResult.telegramHandle };
+    }
 
     // ── Step C: AI OSINT sweep (Perplexity + Gemini + Tavily + Exa + Groq) ────
     await updateJob(atlasJobId, { status: "running", message: `🤖 ${name}: AI OSINT…` });
@@ -409,27 +412,6 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
       const cleanLinkedIn = sanitizePublicSocialUrl(aiResult.linkedinUrl, "linkedin", "person");
       const cleanInstagram = sanitizePublicSocialUrl(aiResult.instagramUrl, "instagram", "person");
       const cleanTwitter = sanitizePublicSocialUrl(aiResult.twitterUrl, "twitter", "person");
-      const confidence = computeContactConfidence({
-        type: entity.type,
-        email: cleanEmail, phone: cleanPhone, linkedinUrl: cleanLinkedIn,
-        instagramHandle: cleanInstagram, twitterHandle: cleanTwitter,
-        knownResidences: entity.knownResidences,
-      });
-      await db.update(entitiesTable).set({
-        ...(cleanEmail        ? { email:          cleanEmail }        : {}),
-        ...(cleanPhone        ? { phone:          cleanPhone }        : {}),
-        ...(cleanLinkedIn     ? { linkedinUrl:    cleanLinkedIn }     : {}),
-        ...(cleanInstagram && !entity.instagramHandle && !isCorpOrTrust ? { instagramHandle: normalizeHandle(cleanInstagram) } : {}),
-        ...(cleanTwitter   && !entity.twitterHandle   && !isCorpOrTrust ? { twitterHandle:   normalizeHandle(cleanTwitter) }   : {}),
-        contactConfidence: confidence, updatedAt: new Date(),
-        contactOutcome: computeContactOutcome({
-          email: cleanEmail,
-          phone: cleanPhone,
-          linkedinUrl: cleanLinkedIn,
-          twitterHandle: cleanTwitter,
-          instagramHandle: cleanInstagram,
-        }),
-      }).where(eq(entitiesTable.id, id));
       if (cleanEmail)        entity = { ...entity, email:          cleanEmail };
       if (cleanPhone)        entity = { ...entity, phone:          cleanPhone };
       if (cleanLinkedIn)     entity = { ...entity, linkedinUrl:    cleanLinkedIn };
@@ -491,7 +473,7 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
         if (maigretResult.found.length >= 3 && !entity.email) {
           const platformList = maigretResult.found.slice(0, 6).map((p: any) => p.siteName).join(", ");
           const result2 = await deepWebOsintEnrich({ ...entity, notes: `${entity.notes ?? ""} — Active on: ${platformList}` } as any).catch(() => null);
-          if (result2?.email) await db.update(entitiesTable).set({ email: result2.email, updatedAt: new Date() }).where(eq(entitiesTable.id, id));
+          if (result2?.email) entity = { ...entity, email: sanitizePublicEmail(result2.email) ?? entity.email };
         }
       }
       if (holeheResult?.found.length) {
@@ -536,7 +518,7 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
             sourceRegistry: "Whoxy WHOIS",
             ownerEntityId: id,
           }));
-          await db.insert(assetsTable).values(domainAssets).onConflictDoNothing().catch(() => {});
+          pendingAssetRows.push(...domainAssets);
         }
       }).catch(() => {}) : Promise.resolve(),
     ]);
@@ -638,8 +620,8 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
                 };
               });
             if (assetRows.length) {
-              await db.insert(assetsTable).values(assetRows).onConflictDoNothing().catch(() => {});
-              logger.info({ entityId: id, name, assetCount: assetRows.length }, "[Atlas] ✅ Assets extracted");
+              pendingAssetRows.push(...assetRows);
+              logger.info({ entityId: id, name, assetCount: assetRows.length }, "[Atlas] Assets held for final target review");
             }
           }
         }
@@ -647,6 +629,155 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
     } catch (assetErr) {
       logger.warn({ entityId: id, name, err: String(assetErr) }, "[Atlas] Step G asset extraction failed");
     }
+
+    // ── Step H: Final target-scoped web/LLM sanity review ───────────────────
+    // The model receives only this target's exact evidence universe. Its
+    // response is passed through a deterministic adjudicator that cannot
+    // invent a contact or asset identifier.
+    const reviewEntity = await db.select({
+      metadata: entitiesTable.metadata,
+      sourceRegistries: entitiesTable.sourceRegistries,
+      knownResidences: entitiesTable.knownResidences,
+      estimatedNetWorth: entitiesTable.estimatedNetWorth,
+    }).from(entitiesTable).where(eq(entitiesTable.id, id)).then((rows: any[]) => rows[0]);
+    const reviewEvidence = await db.select().from(contactEvidenceTable)
+      .where(eq(contactEvidenceTable.entityId, id));
+    const candidateFunnel = reconcileStoredContactEvidence(reviewEvidence as any);
+    const reachability = assessTargetReachability({
+      type: entity.type,
+      estimatedNetWorth: reviewEntity?.estimatedNetWorth,
+      email: entity.email,
+      phone: entity.phone,
+      contactOutcome: computeContactOutcome(entity),
+      contactConfidence: entity.contactConfidence,
+      knownResidences: reviewEntity?.knownResidences ?? entity.knownResidences,
+      metadata: reviewEntity?.metadata ?? entity.metadata,
+      sourceRegistries: reviewEntity?.sourceRegistries ?? entity.sourceRegistries,
+    });
+    const finalReview = await runFinalTargetReview({
+      targetName: name,
+      targetType: entity.type,
+      proposedContacts: {
+        email: entity.email,
+        phone: entity.phone,
+        linkedin: entity.linkedinUrl,
+        instagram: entity.instagramHandle,
+        twitter: entity.twitterHandle,
+      },
+      candidates: candidateFunnel.candidates,
+      evidence: reviewEvidence.map((row) => ({
+        vectorType: row.vectorType,
+        value: row.value,
+        source: row.source,
+        sourceUrl: row.sourceUrl,
+        validationStatus: row.validationStatus,
+      })),
+      proposedAssets: pendingAssetRows.map((row) => ({
+        category: String(row.category ?? ""),
+        identifier: String(row.identifier ?? ""),
+        jurisdiction: String(row.jurisdiction ?? ""),
+        description: row.description == null ? null : String(row.description),
+        sourceRegistry: row.sourceRegistry == null ? null : String(row.sourceRegistry),
+        latitude: typeof row.latitude === "number" ? row.latitude : null,
+        longitude: typeof row.longitude === "number" ? row.longitude : null,
+      })),
+      reachabilityStatus: reachability.status,
+    });
+    logger.info({
+      entityId: id,
+      decision: finalReview.decision,
+      approvedContacts: finalReview.approvedContactValues.length,
+      approvedAssets: finalReview.approvedAssetIdentifiers.length,
+      reviewer: finalReview.reviewerSource,
+    }, "[Atlas] Final target review complete");
+
+    const approvedValues = new Set(finalReview.approvedContactValues);
+    const approvedCandidateValues = new Set(
+      candidateFunnel.candidates
+        .filter((candidate) => approvedValues.has(candidate.value))
+        .map((candidate) => candidate.value),
+    );
+    const isApproved = (value: string | null | undefined) =>
+      Boolean(value && approvedCandidateValues.has(value));
+    const approvedLinkedIn = candidateFunnel.candidates.find(
+      (candidate) => candidate.vectorType === "social"
+        && approvedValues.has(candidate.value)
+        && /linkedin\.com\/in\//i.test(candidate.value),
+    )?.value ?? null;
+    const approvedInstagram = candidateFunnel.candidates.find(
+      (candidate) => candidate.vectorType === "social"
+        && approvedValues.has(candidate.value)
+        && /instagram\.com\//i.test(candidate.value),
+    )?.value ?? null;
+    const approvedTwitter = candidateFunnel.candidates.find(
+      (candidate) => candidate.vectorType === "social"
+        && approvedValues.has(candidate.value)
+        && /(twitter|x)\.com\//i.test(candidate.value),
+    )?.value ?? null;
+    const approvedEmail = candidateFunnel.candidates.find(
+      (candidate) => candidate.vectorType === "email" && approvedValues.has(candidate.value),
+    )?.value ?? null;
+    const approvedPhone = candidateFunnel.candidates.find(
+      (candidate) => candidate.vectorType === "phone" && approvedValues.has(candidate.value),
+    )?.value ?? null;
+    const publish = finalReview.decision === "publish";
+    const finalContacts = {
+      email: baselineContacts.email ?? (publish && isApproved(approvedEmail) ? approvedEmail : null),
+      phone: baselineContacts.phone ?? (publish && isApproved(approvedPhone) ? approvedPhone : null),
+      linkedinUrl: baselineContacts.linkedinUrl ?? (publish ? approvedLinkedIn : null),
+      instagramHandle: baselineContacts.instagramHandle ?? (publish ? normalizeHandle(approvedInstagram) : null),
+      twitterHandle: baselineContacts.twitterHandle ?? (publish ? normalizeHandle(approvedTwitter) : null),
+    };
+    const reviewMetadata = {
+      ...safeJson<Record<string, unknown>>(reviewEntity?.metadata ?? entity.metadata, {}),
+      finalTargetReview: finalReview,
+      finalTargetReviewAt: new Date().toISOString(),
+    };
+    await db.update(entitiesTable).set({
+      email: finalContacts.email,
+      phone: finalContacts.phone,
+      linkedinUrl: finalContacts.linkedinUrl,
+      instagramHandle: finalContacts.instagramHandle,
+      twitterHandle: finalContacts.twitterHandle,
+      metadata: JSON.stringify(reviewMetadata),
+      updatedAt: new Date(),
+    }).where(eq(entitiesTable.id, id));
+    entity = { ...entity, ...finalContacts };
+
+    // Only exact values selected by the final reviewer become verified. A
+    // reviewer rejection is durable; an unavailable/uncertain review remains
+    // candidate evidence for later manual adjudication.
+    for (const row of reviewEvidence) {
+      if (baselineEvidenceIds.has(row.id)) continue;
+      const candidate = candidateFunnel.candidates.find(
+        (item) => item.vectorType === row.vectorType
+          && item.value.trim().toLowerCase() === row.value.trim().toLowerCase(),
+      );
+      if (!candidate) continue;
+      if (publish && approvedValues.has(candidate.value)) {
+        await db.update(contactEvidenceTable)
+          .set({ validationStatus: "verified", rejectionReason: null })
+          .where(eq(contactEvidenceTable.id, row.id));
+      } else if (finalReview.decision === "reject") {
+        await db.update(contactEvidenceTable)
+          .set({
+            validationStatus: "rejected",
+            rejectionReason: finalReview.reasons.join(" ").slice(0, 500),
+          })
+          .where(eq(contactEvidenceTable.id, row.id));
+      }
+    }
+
+    const approvedAssets = new Set(finalReview.approvedAssetIdentifiers);
+    if (publish) {
+      const rowsToInsert = pendingAssetRows.filter((row) =>
+        approvedAssets.has(String(row.identifier ?? "")),
+      );
+      if (rowsToInsert.length) {
+        await db.insert(assetsTable).values(rowsToInsert as any).onConflictDoNothing();
+      }
+    }
+    pendingAssetRows = [];
 
     // ── Step F: Final confidence recompute + bayesian score + isHot + cookedAt ─
     const fresh = await db.select({
@@ -783,21 +914,25 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
     await setActiveJob("companies-house-enrich", chEnrichJobId);
     const entities0 = await fetchEntities({ batchSize: 200, hotLeadsOnly: false });
 
-    const [chRes] = await Promise.all([
-      runCompaniesHouseEnrichment({ jobId: chEnrichJobId, batchSize: 50 })
-        .catch(e => { logger.error({ err: e.message }, "[Atlas] CH enrichment failed"); return { enriched: 0, skipped: 0, errors: 1, durationMs: 0 }; }),
-      runEntityBatch(atlasJobId, "Phase 0/OpenOwnership", entities0.slice(0, 100), async (e) => {
-        const res = await enrichWithOpenOwnership(e.name, true) as any;
-        if ((res.totalEntities ?? res.found ?? 0) > 0) {
-          const note = `OpenOwnership BODS: ${res.totalEntities ?? res.found ?? 0} ownership record(s) found.`;
-          const existing = (e as any).notes ?? "";
-          await db.update(entitiesTable).set({ notes: existing ? `${existing}\n${note}` : note, updatedAt: new Date() }).where(eq(entitiesTable.id, e.id));
-        }
-      }, 2),
-      runEntityBatch(atlasJobId, "Phase 0/FoundationFilings", entities0.filter(e => e.type === "HNWI").slice(0, 100), async (e) => {
-        await discoverViaFoundationFilings(e as any);
-      }, 2),
-    ]);
+    // These streams share the same target set. Keep them strictly sequential
+    // so Phase 0 never researches multiple targets concurrently, even though
+    // individual provider calls inside one target may remain parallel.
+    const chRes = await runCompaniesHouseEnrichment({ jobId: chEnrichJobId, batchSize: 1 })
+      .catch(e => {
+        logger.error({ err: e.message }, "[Atlas] CH enrichment failed");
+        return { enriched: 0, skipped: 0, errors: 1, durationMs: 0 };
+      });
+    await runEntityBatch(atlasJobId, "Phase 0/OpenOwnership", entities0.slice(0, 100), async (e) => {
+      const res = await enrichWithOpenOwnership(e.name, true) as any;
+      if ((res.totalEntities ?? res.found ?? 0) > 0) {
+        const note = `OpenOwnership BODS: ${res.totalEntities ?? res.found ?? 0} ownership record(s) found.`;
+        const existing = (e as any).notes ?? "";
+        await db.update(entitiesTable).set({ notes: existing ? `${existing}\n${note}` : note, updatedAt: new Date() }).where(eq(entitiesTable.id, e.id));
+      }
+    }, 1);
+    await runEntityBatch(atlasJobId, "Phase 0/FoundationFilings", entities0.filter(e => e.type === "HNWI").slice(0, 100), async (e) => {
+      await discoverViaFoundationFilings(e as any);
+    }, 1);
 
     summary["Phase 0b"] = `CH contact: ${(chRes as any).enriched ?? 0} | OpenOwnership + Foundation filings done`;
   } else {
@@ -1155,17 +1290,29 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
         .limit(researchLimit);
 
       let researched = 0;
-      const MCTS_BATCH = 5;
-      for (let i = 0; i < hotEntities.length; i += MCTS_BATCH) {
-        const batch5 = hotEntities.slice(i, i + MCTS_BATCH);
-        await updateJob(atlasJobId, { status: "running", progress: 10, total: 10, message: `MCTS research batch ${Math.floor(i / MCTS_BATCH) + 1}/${Math.ceil(hotEntities.length / MCTS_BATCH)}…` });
-        await Promise.allSettled(batch5.map(async (e) => {
-          try {
-            const { runResearchSession } = await import("./mcts-agent");
-            await (runResearchSession as any)(e.id);
-            researched++;
-          } catch {}
-        }));
+      for (let i = 0; i < hotEntities.length; i++) {
+        const e = hotEntities[i]!;
+        await updateJob(atlasJobId, {
+          status: "running",
+          progress: 10,
+          total: 10,
+          message: `MCTS research target ${i + 1}/${hotEntities.length}: ${e.id}…`,
+          entityProgress: i,
+          entityTotal: hotEntities.length,
+          entityNames: JSON.stringify([String(e.id)]),
+        });
+        try {
+          const { runResearchSession } = await import("./mcts-agent");
+          await (runResearchSession as any)(e.id);
+          researched++;
+        } catch (err: any) {
+          logger.warn({ entityId: e.id, err: err?.message }, "[Atlas] single-target MCTS failed");
+        }
+        await updateJob(atlasJobId, {
+          entityProgress: i + 1,
+          entityTotal: hotEntities.length,
+          entityNames: JSON.stringify([String(e.id)]),
+        });
       }
       summary["Phase 10"] = `MCTS: ${researched}/${hotEntities.length} hot leads researched`;
     } catch (e: any) {

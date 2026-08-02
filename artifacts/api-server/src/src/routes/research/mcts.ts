@@ -14,6 +14,8 @@ import { computeResearchScorecard } from "../../lib/research-scorecard";
 import { decideResearchCascade } from "../../lib/research-cascade";
 import { recordResearchAudit, type ResearchAuditStage } from "../../lib/research-audit";
 import { averageSourceReliability } from "../../lib/source-reliability";
+import { reconcileStoredContactEvidence } from "../../lib/contact-candidate";
+import { runFinalTargetReview } from "../../lib/ai-extractor";
 
 const router = Router();
 
@@ -273,6 +275,45 @@ router.post("/research/run", async (req, res): Promise<void> => {
     evidenceFreshnessScore,
   });
 
+  // Final target-scoped publication gate. The model receives only this
+  // target's durable evidence and candidate funnel; the deterministic
+  // adjudicator rejects any value it did not observe exactly in that evidence.
+  const finalCandidateFunnel = reconcileStoredContactEvidence(targetContactEvidence as any);
+  const finalTargetReview = await runFinalTargetReview({
+    targetName: targetEntity.name,
+    targetType: targetEntity.type,
+    proposedContacts: {
+      email: targetEntity.email,
+      phone: targetEntity.phone,
+      linkedin: targetEntity.linkedinUrl,
+      instagram: targetEntity.instagramHandle,
+      twitter: targetEntity.twitterHandle,
+    },
+    candidates: finalCandidateFunnel.candidates,
+    evidence: targetContactEvidence.map((evidence) => ({
+      vectorType: evidence.vectorType,
+      value: evidence.value,
+      source: evidence.source,
+      sourceUrl: evidence.sourceUrl,
+      validationStatus: evidence.validationStatus,
+    })),
+    proposedAssets: targetAssets.map((asset) => ({
+      category: asset.category,
+      identifier: asset.identifier,
+      jurisdiction: asset.jurisdiction,
+      description: asset.description,
+      sourceRegistry: asset.sourceRegistry,
+      latitude: asset.latitude,
+      longitude: asset.longitude,
+    })),
+    reachabilityStatus: reachability.status,
+  });
+  const finalReviewNote = [
+    `Final target review: ${finalTargetReview.decision} (${finalTargetReview.reviewerSource}).`,
+    ...finalTargetReview.reasons,
+  ].join(" ");
+  const finalReviewApproved = finalTargetReview.decision === "publish";
+
   // A prominent, isolated target with no direct or corroborated intermediary
   // route is still valuable for identity/control research, but should not
   // consume broad retrieval, orchestration, or MCTS budget.
@@ -332,6 +373,7 @@ router.post("/research/run", async (req, res): Promise<void> => {
         { algo: "L2 — Multi-Agent Reasoning", contribution: "Skipped: no access evidence to validate", status: "skipped", durationMs: 0 },
         { algo: "L4 — UCT Deep Path Exploration", contribution: "Skipped: no corroborated gatekeeper or intermediary path", status: "skipped", durationMs: 0 },
         { algo: "L5 — Bayesian-UCB Optimization", contribution: `Stable-prior score: ${updatedScore.toFixed(3)}`, status: "done", durationMs: 0 },
+        { algo: "L6 — Final Target Web/LLM Sanity Review", contribution: finalReviewNote, status: finalTargetReview.decision === "publish" ? "done" : "review", durationMs: 0 },
       ],
     });
     if (session) {
@@ -341,6 +383,7 @@ router.post("/research/run", async (req, res): Promise<void> => {
         { algo: "L2 — Multi-Agent Reasoning", contribution: "Skipped: no access evidence to validate", status: "skipped", durationMs: 0 },
         { algo: "L4 — UCT Deep Path Exploration", contribution: "Skipped: no corroborated gatekeeper or intermediary path", status: "skipped", durationMs: 0 },
         { algo: "L5 — Bayesian-UCB Optimization", contribution: `Stable-prior score: ${updatedScore.toFixed(3)}`, status: "done", durationMs: 0 },
+        { algo: "L6 — Final Target Web/LLM Sanity Review", contribution: finalReviewNote, status: finalTargetReview.decision === "publish" ? "done" : "review", durationMs: 0 },
       ]);
     }
     return;
@@ -484,6 +527,12 @@ router.post("/research/run", async (req, res): Promise<void> => {
       status: "done",
       durationMs: 0,
     },
+    {
+      algo: "L6 — Final Target Web/LLM Sanity Review",
+      contribution: finalReviewNote,
+      status: finalTargetReview.decision === "publish" ? "done" : "review",
+      durationMs: 0,
+    },
   ];
 
   const entityAssets = await db
@@ -517,32 +566,38 @@ router.post("/research/run", async (req, res): Promise<void> => {
     pathScore: mctsResult.pathScore,
   };
   let pitchText = "";
-  try {
-    const outreach = generateOutreachSequence(pitchCtx);
-    pitchText = [
-      outreach.initial,
-      "---\n**7-day follow-up:**",
-      outreach.followUp,
-      "---\n**Intro script for gatekeeper:**",
-      outreach.introScript,
-    ].join("\n\n");
-  } catch (pitchErr: any) {
-    pitchText = `[Auto-pitch pending: ${pitchErr?.message ?? "generation error"}. Run /research/backfill-pitches to retry.]`;
+  if (finalReviewApproved) {
+    try {
+      const outreach = generateOutreachSequence(pitchCtx);
+      pitchText = [
+        outreach.initial,
+        "---\n**7-day follow-up:**",
+        outreach.followUp,
+        "---\n**Intro script for gatekeeper:**",
+        outreach.introScript,
+      ].join("\n\n");
+    } catch (pitchErr: any) {
+      pitchText = `[Auto-pitch pending: ${pitchErr?.message ?? "generation error"}. Run /research/backfill-pitches to retry.]`;
+    }
   }
 
+  const publishedWinningPath = finalReviewApproved ? mctsResult.winningPath : [];
+  const publishedMctsSteps = finalReviewApproved ? mctsResult.mctsSteps : [];
   const [session] = await db
     .insert(researchSessionsTable)
     .values({
       targetEntityId: entityId,
-      winningPath: JSON.stringify(mctsResult.winningPath),
-      mctsSteps: JSON.stringify(mctsResult.mctsSteps),
-      crmStatus: pitchText.startsWith("[Auto-pitch pending")
+      winningPath: JSON.stringify(publishedWinningPath),
+      mctsSteps: JSON.stringify(publishedMctsSteps),
+      crmStatus: !finalReviewApproved
+        ? "Research Review"
+        : pitchText.startsWith("[Auto-pitch pending")
         ? "Pitch Pending"
         : gatekeeper
           ? "Pitch Generated"
           : "Research Review",
       bayesianScoreAtRuntime: updatedScore,
-      pathScore: mctsResult.pathScore,
+      pathScore: finalReviewApproved ? mctsResult.pathScore : 0,
       generatedPitch: pitchText,
       identityScore: scorecard.identity,
       ownershipScore: scorecard.ownership,
@@ -561,8 +616,8 @@ router.post("/research/run", async (req, res): Promise<void> => {
       sessionId: session.id,
       entityId,
       targetName: targetEntity.name,
-      path: mctsResult.winningPath,
-      steps: mctsResult.mctsSteps,
+      path: publishedWinningPath,
+      steps: publishedMctsSteps,
       hybridMeta,
       reachability,
     }));
@@ -573,6 +628,7 @@ router.post("/research/run", async (req, res): Promise<void> => {
     targetEntityName: targetEntity.name,
     createdAt: session!.createdAt.toISOString(),
     algorithmPipeline,
+      finalTargetReview,
   });
 });
 

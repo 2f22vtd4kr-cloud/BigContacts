@@ -26,6 +26,12 @@ import {
 } from "./contact-validation";
 import { formatReachabilityDirective, type ReachabilityDirective } from "./reachability-realism";
 import { canonicalizeUrl } from "./evidence-ledger";
+import {
+  adjudicateFinalTargetReview,
+  buildFinalTargetReviewPrompt,
+  type FinalTargetReviewInput,
+  type FinalTargetReviewResult,
+} from "./final-target-review";
 
 const GROQ_API        = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_MODEL      = "llama-3.3-70b-versatile";
@@ -136,6 +142,45 @@ export interface OwnerResolution extends OwnerContact {
   ownershipStatus: "confirmed" | "probable" | "not_established";
   basis: string | null;
   sourceUrls: string[];
+}
+
+/** Run the final target-scoped publication review through the existing
+ * server-side provider pool. Any provider failure is a review outcome. */
+export async function runFinalTargetReview(
+  input: FinalTargetReviewInput,
+): Promise<FinalTargetReviewResult> {
+  const prompt = buildFinalTargetReviewPrompt(input);
+  for (const key of getGroqKeys()) {
+    if (isExhausted(_exhaustedGroqKeys, key)) continue;
+    try {
+      const response = await fetch(GROQ_API, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: GROQ_MODEL,
+          messages: [{ role: "user", content: prompt }],
+          temperature: 0,
+          max_tokens: 700,
+          response_format: { type: "json_object" },
+        }),
+        signal: AbortSignal.timeout(20_000),
+      });
+      if (response.status === 429) {
+        _exhaustedGroqKeys.set(key, Date.now() + EXHAUSTED_TTL_MS);
+        continue;
+      }
+      if (!response.ok) continue;
+      const data = await response.json() as any;
+      const raw = data?.choices?.[0]?.message?.content ?? "";
+      const json = extractJsonObject(raw);
+      if (!json) continue;
+      return adjudicateFinalTargetReview(input, JSON.parse(json), "groq-final-review");
+    } catch {
+      // Try the next configured key. Exhaustion or malformed output is
+      // deliberately not converted into a publishable fallback.
+    }
+  }
+  return adjudicateFinalTargetReview(input, {}, "unavailable-final-review");
 }
 
 export interface AIExtractResult {
