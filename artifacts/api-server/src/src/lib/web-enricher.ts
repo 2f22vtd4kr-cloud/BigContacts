@@ -36,6 +36,7 @@ const FINANCIAL_AGGREGATOR_DOMAINS = new Set([
   "allabolag.se", "hitta.se", "eniro.se", "proff.se", "virksomhed.dk",
 ]);
 import { extractWithAI, researchWithPerplexity, researchWithGemini, researchWithTavily, researchWithExa, type OwnerResolution } from "./ai-extractor";
+import { reconcileAIResults, type AIEnsembleResult } from "./ai-ensemble";
 import { extractPersonNames } from "./gliner-client";
 import { assessTargetReachability, reachabilityDirective } from "./reachability-realism";
 import { scoreCorroboration } from "./evidence-ledger";
@@ -456,6 +457,7 @@ export interface DeepWebOsintResult {
   ownershipSources: string[];
   evidence:        DeepWebEvidence[];
   candidateFunnel: CandidateFunnel;
+  aiEnsemble?:     AIEnsembleResult;
 }
 
 export interface DeepWebEvidence {
@@ -1816,6 +1818,38 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     [perp, gem, tav, exa] = providerResults.map((item) =>
       item.status === "fulfilled" ? item.value : { source: "none" },
     ) as any[];
+    const ensemble = reconcileAIResults([
+      { provider: "perplexity", result: perp },
+      { provider: "gemini", result: gem },
+      { provider: "tavily", result: tav },
+      { provider: "exa", result: exa },
+    ].filter(({ result }) => result?.source && result.source !== "none"));
+    result.aiEnsemble = ensemble;
+    for (const claim of ensemble.claims) {
+      const vectorType = claim.vectorType === "linkedin"
+        || claim.vectorType === "instagram"
+        || claim.vectorType === "twitter"
+        ? "social"
+        : claim.vectorType;
+      recordEvidence(
+        vectorType,
+        claim.value,
+        "AI-ensemble",
+        null,
+        "ai-ensemble-consensus",
+        claim.confidence,
+        {
+          scope: isCorp ? "organization" : "target_person",
+          ...(isCorp ? {} : { personName: entity.name, relationship: "target-person-ensemble" }),
+          ...(vectorType === "social" ? { network: claim.vectorType } : {}),
+          supportingProviders: claim.supportingProviders,
+          agreementCount: claim.agreementCount,
+          sourceDomains: claim.sourceDomains,
+          discoveryUrls: claim.sourceUrls,
+          selected: claim.selected,
+        },
+      );
+    }
     for (const [index, item] of providerResults.entries()) {
       if (item.status === "rejected") {
         logger.warn({ providerIndex: index, err: item.reason?.message ?? String(item.reason) }, "Phase 0 provider failed independently");

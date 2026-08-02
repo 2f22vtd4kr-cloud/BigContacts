@@ -19,6 +19,7 @@
 
 import { logger } from "./logger";
 import { extractWithAI, researchWithPerplexity, researchWithGemini, researchWithTavily, researchWithExa } from "./ai-extractor";
+import { reconcileAIResults, type AIEnsembleResult } from "./ai-ensemble";
 import { assessTargetReachability, reachabilityDirective } from "./reachability-realism";
 import { scoreCorroboration } from "./evidence-ledger";
 
@@ -49,6 +50,7 @@ export interface DeepWebOsintResult {
   twitterUrl:        string | null;  // venue/org OR personal handle discovered
   personsDiscovered: string[];       // owner/founder names found — review-only, never auto-promoted
   evidence?:         Array<{ vectorType: string; value: string; source: string; sourceUrl?: string | null; extractionMethod: string; confidence: number; details?: Record<string, unknown>; observedAt: string }>;
+  aiEnsemble?:        AIEnsembleResult;
   sources:           string[];  // which queries/engines produced the find
   queriesFired:      number;
   pagesScraped:      number;
@@ -495,6 +497,12 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     const [perp, gem, tav, exa] = providerResults.map((item) =>
       item.status === "fulfilled" ? item.value : { source: "none" },
     ) as any[];
+    result.aiEnsemble = reconcileAIResults([
+      { provider: "perplexity", result: perp },
+      { provider: "gemini", result: gem },
+      { provider: "tavily", result: tav },
+      { provider: "exa", result: exa },
+    ].filter(({ result }) => result?.source && result.source !== "none"));
     for (const [index, item] of providerResults.entries()) {
       if (item.status === "rejected") {
         logger.warn({ providerIndex: index, err: item.reason?.message ?? String(item.reason) }, "Phase 0 provider failed independently");
