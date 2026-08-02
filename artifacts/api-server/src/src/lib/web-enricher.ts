@@ -1609,11 +1609,14 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     });
   };
 
-  const topLevelDetails = (provider: string, sourceUrls: string[] = []): Record<string, unknown> => ({
+  const topLevelDetails = (provider: string, discoveryUrls: string[] = []): Record<string, unknown> => ({
     scope: isCorp ? "organization" : "target_person",
     ...(isCorp ? {} : { personName: entity.name, relationship: "target-person-extraction" }),
     provider,
-    sourceUrls: sourceUrls.slice(0, 8),
+    // Provider citation bundles are discovery context, not claim-level
+    // provenance. A URL belongs in `sourceUrls` only when the exact page was
+    // fetched and the extracted value was observed there.
+    discoveryUrls: discoveryUrls.slice(0, 8),
   });
 
   const addOwnerResolution = (

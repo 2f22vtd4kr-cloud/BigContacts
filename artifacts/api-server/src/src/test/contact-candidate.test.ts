@@ -64,7 +64,7 @@ describe("contact candidate reconciliation", () => {
     expect(independent.candidates[0]?.sourceDomains).toHaveLength(2);
   });
 
-  it("preserves conflicting values for review instead of choosing one", () => {
+  it("does not call independent publishers a same-publisher conflict", () => {
     const funnel = reconcileContactCandidates([
       {
         vectorType: "phone",
@@ -82,6 +82,27 @@ describe("contact candidate reconciliation", () => {
       },
     ]);
     expect(funnel.candidates).toHaveLength(2);
+    expect(funnel.conflicted).toBe(0);
+    expect(funnel.candidates.every((candidate) => candidate.conflictCount === 0)).toBe(true);
+  });
+
+  it("preserves same-publisher contradictory values as conflicts", () => {
+    const funnel = reconcileContactCandidates([
+      {
+        vectorType: "phone",
+        value: "+1 212 555 0101",
+        source: "official",
+        sourceUrl: "https://example.org/team",
+        details: { scope: "target_person", personName: "Jane Doe" },
+      },
+      {
+        vectorType: "phone",
+        value: "+1 212 555 0199",
+        source: "official",
+        sourceUrl: "https://example.org/contact",
+        details: { scope: "target_person", personName: "Jane Doe" },
+      },
+    ]);
     expect(funnel.conflicted).toBe(2);
     expect(funnel.candidates.every((candidate) => candidate.conflictCount === 1)).toBe(true);
   });

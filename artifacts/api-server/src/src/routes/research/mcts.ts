@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { eq } from "drizzle-orm";
-import { db, entitiesTable, assetsTable, contactEvidenceTable, assetsTable, identityCandidatesTable, relationshipsTable, researchEvidenceTable, researchSessionsTable } from "@workspace/db";
+import { db, entitiesTable, assetsTable, contactEvidenceTable, enrichmentRunsTable, identityCandidatesTable, relationshipsTable, researchEvidenceTable, researchSessionsTable } from "@workspace/db";
 import { RunResearchBody } from "@workspace/api-zod";
 import { buildGraph, findShortestPath, identityPairKey } from "../../lib/graph-engine";
 import { computeBayesianScore } from "../../lib/bayesian-scorer";
@@ -42,7 +42,7 @@ router.post("/research/run", async (req, res): Promise<void> => {
     db.select().from(relationshipsTable),
     db.select().from(identityCandidatesTable),
   ]);
-  const targetContactEvidence = await db
+  const allTargetContactEvidence = await db
     .select()
     .from(contactEvidenceTable)
     .where(eq(contactEvidenceTable.entityId, entityId));
@@ -148,6 +148,20 @@ router.post("/research/run", async (req, res): Promise<void> => {
       return {};
     }
   })();
+  const activeEvidenceRunId = typeof targetMetadata.deepWebEvidenceRunId === "number"
+    ? targetMetadata.deepWebEvidenceRunId
+    : null;
+  const targetContactEvidence = activeEvidenceRunId
+    ? allTargetContactEvidence.filter((evidence) => evidence.runId === activeEvidenceRunId)
+    : allTargetContactEvidence;
+  const isTargetPersonEvidence = (evidence: typeof targetContactEvidence[number]): boolean => {
+    try {
+      const metadata = JSON.parse(evidence.metadata ?? "{}") as { scopes?: unknown };
+      return Array.isArray(metadata.scopes) && metadata.scopes.includes("target_person");
+    } catch {
+      return false;
+    }
+  };
   const candidateFunnel = (() => {
     const value = targetMetadata.deepWebCandidateFunnel ?? targetMetadata.candidateFunnel;
     return value && typeof value === "object" ? value as {
@@ -173,7 +187,7 @@ router.post("/research/run", async (req, res): Promise<void> => {
     directCandidateRows.flatMap((candidate) => candidate.sourceDomains ?? []),
   );
   const evidenceDomains = new Set(
-    targetContactEvidence.flatMap((evidence) => {
+    targetContactEvidence.filter(isTargetPersonEvidence).flatMap((evidence) => {
       try {
         return evidence.sourceUrl ? [new URL(evidence.sourceUrl).hostname.replace(/^www\./, "")] : [];
       } catch {
@@ -191,10 +205,16 @@ router.post("/research/run", async (req, res): Promise<void> => {
       }
     }),
   ]);
+  // Organization inboxes and switchboards remain auditable, but they are not
+  // personal reachability evidence for an HNWI target.
   const contactEvidenceRows = targetContactEvidence.filter((evidence) =>
     (evidence.vectorType === "email" || evidence.vectorType === "phone") &&
+    isTargetPersonEvidence(evidence) &&
     evidence.validationStatus !== "rejected",
   );
+  const validatedContactEvidenceCount = contactEvidenceRows.filter(
+    (evidence) => evidence.validationStatus === "verified",
+  ).length;
   const contactEvidenceQuality = contactEvidenceRows.length > 0
     ? contactEvidenceRows.reduce((sum, evidence) =>
       sum + evidence.sourceReliability * evidence.identityMatch * evidence.directnessScore, 0,
@@ -229,7 +249,7 @@ router.post("/research/run", async (req, res): Promise<void> => {
         sum + evidence.sourceReliability * evidence.identityMatch, 0,
       ) / ownershipEvidenceRows.length
       : 0,
-    validatedContactEvidenceCount: contactEvidenceRows.length,
+    validatedContactEvidenceCount,
     verifiedDirectRouteCount,
     contactIndependentDomainCount: new Set([...candidateContactDomains, ...evidenceDomains]).size,
     contactEvidenceQuality,

@@ -21,7 +21,7 @@
  */
 
 import { Router, type Request, type Response } from "express";
-import { db, assetsTable, entitiesTable, contactEvidenceTable } from "@workspace/db";
+import { db, assetsTable, entitiesTable, contactEvidenceTable, enrichmentRunsTable } from "@workspace/db";
 import { candidateKey } from "../lib/contact-candidate";
 import { sql, eq, and, desc, inArray, type SQL } from "drizzle-orm";
 import {
@@ -299,6 +299,17 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
   }
 
   const jobId = await createJob("web-osint");
+  const [enrichmentRun] = await db.insert(enrichmentRunsTable).values({
+    source: "web-osint",
+    pass: force ? "controlled-force" : "scheduled",
+    cohort: entityIds && entityIds.length > 0 ? "targeted" : "all",
+    totalSelected: entities.length,
+  }).returning({ id: enrichmentRunsTable.id });
+  const runId = enrichmentRun?.id;
+  if (!runId) {
+    res.status(500).json({ error: "Could not create the web-OSINT enrichment run." });
+    return;
+  }
   await setActiveJob("web-osint", jobId);
 
   res.status(202).json({
@@ -348,6 +359,41 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
           knownResidences: entity.knownResidences,
         });
 
+        const meta = safeParseJson<Record<string, unknown>>(entity.metadata, {});
+        meta["deepWebOsintAt"] = new Date().toISOString();
+        meta["deepWebOsintSources"] = result.sources;
+        meta["deepWebQueriesFired"] = result.queriesFired;
+        meta["deepWebPagesScraped"] = result.pagesScraped;
+        meta["deepWebCandidateFunnel"] = result.candidateFunnel;
+        meta["deepWebEvidenceRunId"] = runId;
+        if (result.emailConfidence > 0) meta["deepWebEmailConf"] = result.emailConfidence;
+        if (result.phoneConfidence > 0) meta["deepWebPhoneConf"] = result.phoneConfidence;
+        if (result.personsDiscovered.length > 0) {
+          meta["deepWebPersonsDiscovered"] = result.personsDiscovered;
+        }
+        if (result.ownerResolutions.length > 0) {
+          meta["deepWebOwnerResolutions"] = result.ownerResolutions;
+        }
+        if (result.ownershipSummary) {
+          meta["deepWebOwnershipSummary"] = result.ownershipSummary;
+        }
+        if (result.ownershipSources.length > 0) {
+          meta["deepWebOwnershipSources"] = [...new Set(result.ownershipSources)].slice(0, 8);
+        }
+        meta["liveSource"] = true;
+
+        const nextContactOutcome = computeContactOutcome({
+          email: cleanEmail ?? entity.email,
+          phone: cleanPhone ?? entity.phone,
+          linkedinUrl: cleanLinkedIn ?? entity.linkedinUrl,
+          instagramHandle: cleanInstagramHandle ?? entity.instagramHandle,
+          twitterHandle: cleanTwitterHandle ?? entity.twitterHandle,
+          knownResidences: entity.knownResidences,
+          website: typeof meta["website"] === "string" ? meta["website"] : undefined,
+          bizLocation: typeof meta["bizLocation"] === "string" ? meta["bizLocation"] : undefined,
+        });
+        meta["contactOutcome"] = nextContactOutcome;
+
         await db.update(entitiesTable)
           .set({
             // When force=true, always write the new result (even null) to wipe stale/garbage
@@ -359,9 +405,110 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
             ...(cleanInstagramHandle && !entity.instagramHandle && !["Corporation","Corp","Trust"].includes(entity.type) ? { instagramHandle: cleanInstagramHandle } : {}),
             ...(cleanTwitterHandle   && !entity.twitterHandle   && !["Corporation","Corp","Trust"].includes(entity.type) ? { twitterHandle:   cleanTwitterHandle   } : {}),
             contactConfidence: confidence,
+            contactOutcome: nextContactOutcome,
+            metadata: JSON.stringify(meta),
+            liveSource: true,
             updatedAt: new Date(),
           })
           .where(eq(entitiesTable.id, entity.id));
+
+        // Persist the web-OSINT result in the shared evidence ledger. The entity
+        // columns are only the promoted winner; every discovered candidate must
+        // remain auditable with its source URL, scope, funnel state, and
+        // attribution metadata.
+        if (result.evidence.length > 0) {
+          const evidenceRows = result.evidence
+            .filter((ev) => {
+              if (!ev.value?.trim()) return false;
+              if (ev.vectorType === "email") return Boolean(sanitizePublicEmail(ev.value));
+              if (ev.vectorType === "phone") return Boolean(sanitizePublicPhone(ev.value));
+              if (ev.vectorType === "social") {
+                const network = String(ev.details?.network ?? "");
+                if (network === "linkedin") return Boolean(sanitizePublicSocialUrl(ev.value, "linkedin", "person"));
+                if (network === "instagram") return Boolean(sanitizePublicSocialUrl(ev.value, "instagram", "person"));
+                if (network === "twitter") return Boolean(sanitizePublicSocialUrl(ev.value, "twitter", "person"));
+              }
+              return true;
+            })
+            .map((ev) => {
+              const candidate = result.candidateFunnel.candidates.find(
+                (item) => item.key === candidateKey(ev.vectorType as any, ev.value),
+              );
+              const scopes = candidate?.scopes ?? [
+                (ev.details?.scope as string | undefined) ?? "unknown",
+              ];
+              return {
+                entityId: entity.id,
+                runId,
+                vectorType: ev.vectorType,
+                value: ev.value.trim(),
+                source: ev.source,
+                sourceUrl: ev.sourceUrl ?? null,
+                extractionMethod: ev.extractionMethod ?? "web-osint",
+                sourceReliability: Math.min(1, Math.max(0, ev.confidence / 100)),
+                identityMatch: scopes.includes("target_person")
+                  ? 0.9
+                  : scopes.includes("person_candidate")
+                    ? 0.4
+                    : scopes.includes("organization")
+                      ? 0.2
+                      : 0.5,
+                recencyScore: 0.7,
+                directnessScore:
+                  ev.vectorType === "email" ? 0.9 :
+                  ev.vectorType === "phone" ? 0.85 :
+                  ev.vectorType === "social" ? 0.6 : 0.4,
+                independentCorroboration: candidate?.sourceDomains.length ?? 0,
+                validationStatus: candidate?.state === "verified_direct_route" ? "verified" : "candidate",
+                observedAt: new Date(),
+                metadata: JSON.stringify({
+                  ...(ev.details ?? {}),
+                  candidateState: candidate?.state ?? "discovered",
+                  sourceDomains: candidate?.sourceDomains ?? [],
+                  sourceUrls: candidate?.sourceUrls ?? [],
+                  providers: candidate?.providers ?? [],
+                  scopes,
+                  personNames: candidate?.personNames ?? [],
+                  conflictCount: candidate?.conflictCount ?? 0,
+                }),
+              };
+            });
+          try {
+            if (evidenceRows.length > 0) {
+              await db.insert(contactEvidenceTable).values(evidenceRows).onConflictDoUpdate({
+                target: [
+                  contactEvidenceTable.entityId,
+                  contactEvidenceTable.vectorType,
+                  contactEvidenceTable.value,
+                  contactEvidenceTable.source,
+                ],
+                set: {
+                  runId,
+                  sourceUrl: sql`excluded.source_url`,
+                  extractionMethod: sql`excluded.extraction_method`,
+                  sourceReliability: sql`excluded.source_reliability`,
+                  identityMatch: sql`excluded.identity_match`,
+                  recencyScore: sql`excluded.recency_score`,
+                  directnessScore: sql`excluded.directness_score`,
+                  independentCorroboration: sql`excluded.independent_corroboration`,
+                  validationStatus: sql`excluded.validation_status`,
+                  rejectionReason: sql`excluded.rejection_reason`,
+                  observedAt: sql`excluded.observed_at`,
+                  metadata: sql`excluded.metadata`,
+                },
+              });
+            }
+          } catch (evidenceErr: any) {
+            // Do not silently turn a persistence failure into an enriched
+            // result. Keep the job alive, but make the audit gap explicit.
+            logger.error({
+              entityId: entity.id,
+              runId,
+              rows: evidenceRows.length,
+              err: evidenceErr?.message ?? String(evidenceErr),
+            }, "Failed to persist web-OSINT evidence");
+          }
+        }
 
         enriched++;
         logger.info({ entityId: entity.id, name: entity.name, confidence, sources: result.sources, queriesFired: result.queriesFired, pagesScraped: result.pagesScraped }, "Web OSINT enriched");
@@ -405,7 +552,15 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
               validationStatus: "candidate" as const,
               metadata: JSON.stringify({ siteName: p.siteName, tags: p.tags ?? [] }),
             }));
-            await db.insert(contactEvidenceTable).values(maigretRows).onConflictDoNothing().catch(() => {});
+            await db.insert(contactEvidenceTable).values(maigretRows).onConflictDoUpdate({
+              target: [
+                contactEvidenceTable.entityId,
+                contactEvidenceTable.vectorType,
+                contactEvidenceTable.value,
+                contactEvidenceTable.source,
+              ],
+              set: { runId },
+            }).catch(() => {});
 
             // Web-OSINT re-run: Maigret found 3+ platforms but no email yet — give the AI extra context
             if (maigretResult.found.length >= 3 && !result.email) {
@@ -435,6 +590,7 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
             if (sherlockResult.found.length) {
               logger.info({
                 entityId: entity.id,
+                runId,
                 handle: cleanHandle,
                 found: sherlockResult.found.length,
               }, "[Sherlock] supplementary review-only profiles found");
@@ -458,7 +614,15 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
                   attributionRequired: true,
                 }),
               }));
-              await db.insert(contactEvidenceTable).values(sherlockRows).onConflictDoNothing().catch(() => {});
+              await db.insert(contactEvidenceTable).values(sherlockRows).onConflictDoUpdate({
+                target: [
+                  contactEvidenceTable.entityId,
+                  contactEvidenceTable.vectorType,
+                  contactEvidenceTable.value,
+                  contactEvidenceTable.source,
+                ],
+                set: { runId },
+              }).catch(() => {});
             }
           }
 
@@ -467,6 +631,7 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
             logger.info({ entityId: entity.id, email: emailForHolehe, platforms: holeheResult.found.length }, "[Holehe] email platform presence confirmed");
             const holeheRows = holeheResult.found.slice(0, 10).map(p => ({
               entityId: entity.id,
+              runId,
               vectorType: "social" as const,
               value: p.url ?? p.name,
               source: "holehe",
@@ -480,7 +645,15 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
               validationStatus: "candidate" as const,
               metadata: JSON.stringify({ platform: p.name }),
             }));
-            await db.insert(contactEvidenceTable).values(holeheRows).onConflictDoNothing().catch(() => {});
+            await db.insert(contactEvidenceTable).values(holeheRows).onConflictDoUpdate({
+              target: [
+                contactEvidenceTable.entityId,
+                contactEvidenceTable.vectorType,
+                contactEvidenceTable.value,
+                contactEvidenceTable.source,
+              ],
+              set: { runId },
+            }).catch(() => {});
           }
         }
         // ── End Maigret/Holehe ──────────────────────────────────────────────────
@@ -497,6 +670,13 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
       status: "done",
       message: `Done — ${enriched} enriched, ${skipped} no-match, ${errors} errors.`,
     });
+    await db.update(enrichmentRunsTable).set({
+      finishedAt: new Date(),
+      totalFound: enriched + (errors > 0 ? 0 : skipped),
+      totalPersisted: enriched,
+      errors,
+      durationMs: 0,
+    }).where(eq(enrichmentRunsTable.id, runId));
     await setActiveJob("web-osint", "");
     logger.info({ enriched, skipped, errors }, "Web OSINT enrichment complete");
   })().catch(err => logger.error({ err: err.message }, "Web OSINT enrichment crashed"));
@@ -734,12 +914,14 @@ router.post("/ingest/in-house-enrich", async (req: Request, res: Response): Prom
                 personNames: candidate?.personNames ?? [],
                 conflictCount: candidate?.conflictCount ?? 0,
               }),
-              observedAt: new Date(ev.observedAt),
+              observedAt: new Date(),
               };
             });
-            await db.insert(contactEvidenceTable).values(evidenceRows).onConflictDoNothing();
+            if (evidenceRows.length > 0) {
+              await db.insert(contactEvidenceTable).values(evidenceRows).onConflictDoNothing();
+            }
           } catch (evidenceErr: any) {
-            logger.warn({ entityId: entity.id, err: evidenceErr.message }, "Failed to write evidence rows (non-fatal)");
+            logger.error({ entityId: entity.id, rows: result.evidence.length, err: evidenceErr.message }, "Failed to write web OSINT evidence rows");
           }
         }
 

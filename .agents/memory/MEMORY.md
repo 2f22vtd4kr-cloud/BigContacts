@@ -55,4 +55,5 @@
 - [Research review guardrails](research-review-guardrails.md) — Stable reruns, manual provenance, malformed-contact rejection, and no outreach copy for isolated targets
 - [Research reachability realism](research-review-guardrails.md) — Preflight access before expensive research; fame, wealth, social, assets, and hypothetical staff routes never create access
 - [Evidence-led research scoring](evidence-ledger-research.md) — Corroboration must use canonical source domains and claim-level URLs, not repeated provider labels
+- [Run-isolated evidence snapshots](run-isolated-evidence.md) — Score only the latest enrichment snapshot while retaining superseded evidence for audit
 - [Research scorecard provenance](research-scorecard-provenance.md) — Keep identity, ownership, contact, access, wealth, freshness, and source quality independent and evidence-backed

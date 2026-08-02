@@ -82,6 +82,18 @@ function scopeFor(item: ContactCandidateEvidence): CandidateScope {
   return "unknown";
 }
 
+function publisherFamily(source: string, url: string): string {
+  try {
+    const hostname = new URL(url).hostname.replace(/^www\./, "").toLowerCase();
+    const parts = hostname.split(".");
+    return parts.length >= 2 ? parts.slice(-2).join(".") : hostname;
+  } catch {
+    // Provider labels are only a fallback when no URL exists. They are never
+    // stronger evidence than a canonical publisher URL.
+    return source.trim().toLowerCase();
+  }
+}
+
 /**
  * Reconciles provider/parser output without treating provider agreement as proof.
  * A provider label is useful for audit, but independent canonical publisher domains
@@ -153,11 +165,25 @@ export function reconcileContactCandidates(
     list.push(candidate);
     byVector.set(candidate.vectorType, list);
   }
-  // Different values for the same vector in one run are a conflict. Keep every
-  // value visible; do not pick a winner merely because one provider repeated it.
+  // Different values from the same publisher family are a conflict. Different
+  // publishers are independent disagreement signals, but must not be marked as
+  // same-publisher conflict; keeping that distinction prevents disagreement
+  // from being misreported as corroboration while preserving every value.
   for (const list of byVector.values()) {
     if (list.length < 2) continue;
-    for (const candidate of list) candidate.conflictCount = list.length - 1;
+    for (const candidate of list) {
+      const candidateFamilies = new Set(
+        candidate.sourceUrls.map((url) => publisherFamily(candidate.providers[0] ?? "", url)),
+      );
+      const competingSamePublisher = list.filter((other) => {
+        if (other.key === candidate.key) return false;
+        const otherFamilies = new Set(
+          other.sourceUrls.map((url) => publisherFamily(other.providers[0] ?? "", url)),
+        );
+        return [...candidateFamilies].some((family) => otherFamilies.has(family));
+      });
+      candidate.conflictCount = competingSamePublisher.length;
+    }
   }
 
   const count = (state: CandidateState) => candidates.filter((candidate) => candidate.state === state).length;
