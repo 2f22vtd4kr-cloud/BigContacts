@@ -445,6 +445,21 @@ function isVenueOrOrganization(name: string): boolean {
   return VENUE_INDICATORS.some(v => lower.includes(v));
 }
 
+// Search snippets frequently turn a person’s title into a fake “name”, e.g.
+// “Rocco Forte Deputy”. These are useful review text, but never valid target
+// identities. Keep the gate deterministic so an LLM cannot re-admit them.
+const ROLE_ONLY_SUFFIXES = new Set([
+  "advisor", "associate", "chairman", "chairwoman", "chief", "director",
+  "deputy", "executive", "founder", "general", "manager", "officer",
+  "operator", "owner", "partner", "president", "principal", "trustee",
+  "vice", "chair", "secretary", "controller",
+]);
+
+export function isRoleOnlyCandidateName(name: string): boolean {
+  const words = name.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  return words.length >= 2 && ROLE_ONLY_SUFFIXES.has(words[words.length - 1] ?? "");
+}
+
 /**
  * Broad discovery is allowed to find a person from a venue or company page,
  * but the page still has to contain target-level ownership, wealth, or
@@ -746,6 +761,10 @@ export async function runBroadDiscovery(options: {
       if (cleanName.length < 5 || cleanName.split(/\s+/).length < 2) continue;
       if (EXCLUDED_NAMES.has(cleanName)) {
         logger.info({ name: cleanName, query }, "broad-discovery: rejected excluded contextual name");
+        continue;
+      }
+      if (isRoleOnlyCandidateName(cleanName)) {
+        logger.info({ name: cleanName, query }, "broad-discovery: rejected role-only candidate name");
         continue;
       }
       // A human name alone is not enough for HNWI admission. Keep employment

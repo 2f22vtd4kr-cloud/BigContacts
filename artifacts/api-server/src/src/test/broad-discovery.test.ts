@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   hasAttributableWealthEvidence,
   hasQualifyingWealthEvidence,
+  isRoleOnlyCandidateName,
 } from "../lib/enrichment/broad-discovery";
 
 describe("broad discovery evidence gate", () => {
@@ -56,6 +57,11 @@ describe("broad discovery evidence gate", () => {
       "Sherlock Holmes",
       "Sherlock Holmes is the fictional owner of a private estate and investor in the resort.",
     )).toBe(false);
+  });
+
+  it("rejects a role fragment that looks like a person name", () => {
+    expect(isRoleOnlyCandidateName("Rocco Forte Deputy")).toBe(true);
+    expect(isRoleOnlyCandidateName("Samih Sawiris")).toBe(false);
   });
 
   it("exposes a single-admission discovery adapter for sequential Atlas cooking", async () => {

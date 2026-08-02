@@ -5,6 +5,7 @@ import {
   TrendingUp, Eye, RefreshCw, GitMerge, Layers, Crosshair, MapPin,
   Sparkles, Compass, Rss, Users,
 } from "lucide-react";
+import { MobileReactorFlow } from "../components/mobile-reactor-flow";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface NodeDef {
@@ -39,6 +40,18 @@ interface AtlasLiveState {
   entityProgress: number | null;
   entityTotal: number | null;
   detail: string;
+  atlasTelemetry?: any;
+}
+
+function parseAtlasTelemetry(raw: unknown) {
+  if (!raw) return null;
+  if (typeof raw === "object") return raw;
+  if (typeof raw !== "string") return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
 }
 
 type RodStatus = "idle" | "completed" | "active" | "queued" | "skipped" | "failed";
@@ -1443,6 +1456,7 @@ export default function IntelligenceReactorPage() {
           entityProgress: atlasData.entityProgress != null ? Number(atlasData.entityProgress) : null,
           entityTotal: atlasData.entityTotal != null ? Number(atlasData.entityTotal) : null,
           currentEntities: structuredNames.length > 0 ? structuredNames : structured.currentEntities,
+          atlasTelemetry: parseAtlasTelemetry(atlasData.atlasTelemetry),
         };
         // New format: [N/21] label… or [N/21] 🍳 EntityName (x/y)…
         const stepMatch = msg.match(/\[(\d+)\/(\d+)\]/);
@@ -1582,7 +1596,7 @@ export default function IntelligenceReactorPage() {
   if (isMobile) {
     return (
       <div style={{ display:"flex", flexDirection:"column", height:"100%", overflow:"hidden", width:"100%" }}>
-        <MobileReactor
+        <MobileReactorFlow
           sessions={sessions}
           totalEntities={totalEntities}
           hotCount={hotCount}
@@ -1593,7 +1607,7 @@ export default function IntelligenceReactorPage() {
           liveNodes={liveNodes}
           liveLabel={liveLabel}
           livePhaseDetail={livePhaseDetail}
-           atlasState={atlasState}
+          atlasState={atlasState}
           exhaustedKeys={exhaustedKeys}
         />
       </div>

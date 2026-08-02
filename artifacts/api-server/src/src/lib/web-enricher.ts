@@ -855,6 +855,9 @@ const PERSON_WORD_BLOCKLIST = new Set([
   "Geschäftsführer", "Vorstand", "Vorsitzender", "Inhaber",
   "Managing", "Senior", "General", "Principal", "Chief", "Head",
   "Partner", "Partners",  // already blocked via company-type but add here for person filter
+  // Editorial/recipe extraction noise from scraped company pages.
+  "Recipe", "Recipes", "Salad", "Cucumber", "Tomato", "Kitchen", "Aug",
+  "September", "October", "November", "December",
 ]);
 
 /** Returns true when a string looks like a real human name (2–4 capitalised words,

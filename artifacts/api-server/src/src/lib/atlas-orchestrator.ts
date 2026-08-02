@@ -40,9 +40,9 @@ import { enrichWithEquasis } from "./equasis-enricher";
 import { enrichWithAdsbHistory } from "./adsbtrack-enricher";
 import { enrichWithOpenOwnership } from "./openownership-enricher";
 import { runHolehe, runMaigret } from "./python-tools";
-import { runFinalTargetReview } from "./ai-extractor";
+import { buildPerplexityPrompt, runFinalTargetReview } from "./ai-extractor";
 import { reconcileStoredContactEvidence } from "./contact-candidate";
-import { assessTargetReachability } from "./reachability-realism";
+import { assessTargetReachability, reachabilityDirective } from "./reachability-realism";
 import { computeContactConfidence, computeContactOutcome, hasMeaningfulDirectContact } from "./contact-confidence";
 import {
   sanitizePublicEmail,
@@ -281,6 +281,25 @@ type EntityRow = {
   notes: string | null; sourceRegistries: string | null;
 };
 
+type AtlasTelemetry = {
+  stage: string;
+  status: "active" | "complete" | "blocked" | "review";
+  targetName?: string;
+  targetType?: string;
+  toolIds: string[];
+  activeToolId?: string;
+  prompt?: string;
+  inputSummary?: string;
+  resultSummary?: string;
+  sources?: number;
+  evidence?: number;
+  contacts?: number;
+};
+
+async function setAtlasTelemetry(atlasJobId: string, telemetry: AtlasTelemetry): Promise<void> {
+  await updateJob(atlasJobId, { atlasTelemetry: JSON.stringify(telemetry) });
+}
+
 /** Reduce a stored social-URL or @handle to a bare handle for consistent DB storage. */
 function normalizeHandle(url: string | null | undefined): string | null {
   if (!url) return null;
@@ -316,6 +335,15 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
     let pendingAssetRows: Array<Record<string, unknown>> = [];
 
     // ── Step A: In-house OSINT (Wikidata, GitHub, RDAP, DNS, Gravatar, ProPublica) ──
+    await setAtlasTelemetry(atlasJobId, {
+      stage: "IN-HOUSE OSINT",
+      status: "active",
+      targetName: name,
+      targetType: entity.type,
+      toolIds: ["inhouse"],
+      activeToolId: "inhouse",
+      inputSummary: "Registry identity, known residence, notes, and public identifiers",
+    });
     const meta = safeJson<Record<string, unknown>>(entity.metadata, {});
     const ihResult = await enrichInHouse({
       ...entity,
@@ -370,6 +398,15 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
     }
 
     // ── Step B: Social + Messenger discovery ───────────────────────────────────
+    await setAtlasTelemetry(atlasJobId, {
+      stage: "SOCIAL + MESSENGER",
+      status: "active",
+      targetName: name,
+      targetType: entity.type,
+      toolIds: ["webdisc", "inhouse"],
+      activeToolId: "webdisc",
+      inputSummary: "Validated target identity and public profile candidates",
+    });
     const [socialResult, messengerResult] = await Promise.all([
       discoverSocialPresence(entity as any).catch(() => null),
       discoverMessengerPresence(entity as any).catch(() => null),
@@ -399,7 +436,50 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
 
     // ── Step C: AI OSINT sweep (Perplexity + Gemini + Tavily + Exa + Groq) ────
     await updateJob(atlasJobId, { status: "running", message: `🤖 ${name}: AI OSINT…` });
+    const telemetryReachability = assessTargetReachability({
+      type: entity.type,
+      email: entity.email,
+      phone: entity.phone,
+      contactOutcome: (entity as any).contactOutcome,
+      contactConfidence: entity.contactConfidence,
+      knownResidences: entity.knownResidences,
+      metadata: entity.metadata,
+      notes: entity.notes,
+      sourceRegistries: entity.sourceRegistries,
+    });
+    const prompt = buildPerplexityPrompt(
+      name,
+      entity.type,
+      null,
+      { reachability: reachabilityDirective(telemetryReachability) },
+    );
+    await setAtlasTelemetry(atlasJobId, {
+      stage: "AI WEB OSINT",
+      status: "active",
+      targetName: name,
+      targetType: entity.type,
+      toolIds: ["perp0", "gemini", "tavily", "exa", "groq"],
+      activeToolId: "perp0",
+      prompt: prompt.slice(0, 2200),
+      inputSummary: `${entity.type} target · ${telemetryReachability.status} reachability · provider fan-out is parallel within this target`,
+    });
     const aiResult = await deepWebOsintEnrich(entity as any).catch(() => null);
+    await setAtlasTelemetry(atlasJobId, {
+      stage: "AI WEB OSINT",
+      status: aiResult ? "complete" : "review",
+      targetName: name,
+      targetType: entity.type,
+      toolIds: ["perp0", "gemini", "tavily", "exa", "groq"],
+      activeToolId: "groq",
+      prompt: prompt.slice(0, 2200),
+      inputSummary: `${entity.type} target · ${telemetryReachability.status} reachability`,
+      resultSummary: aiResult
+        ? `${aiResult.sources.length} provider/source lanes · ${aiResult.queriesFired} web queries · ${aiResult.pagesScraped} pages · ${aiResult.evidence?.length ?? 0} evidence candidates`
+        : "No usable AI/web result returned; retained review-only state",
+      sources: aiResult?.sources.length ?? 0,
+      evidence: aiResult?.evidence?.length ?? 0,
+      contacts: [aiResult?.email, aiResult?.phone, aiResult?.linkedinUrl, aiResult?.instagramUrl, aiResult?.twitterUrl].filter(Boolean).length,
+    });
     const aiHasSignal = aiResult && (
       aiResult.email || aiResult.phone || aiResult.linkedinUrl ||
       aiResult.instagramUrl || aiResult.twitterUrl || (aiResult.evidence?.length ?? 0) > 0
