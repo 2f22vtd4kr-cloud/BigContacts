@@ -8,12 +8,15 @@
 
 ---
 
-## Current State (2026-08-02 — Atlas audit completed; pipeline safely idle)
+## Current State (2026-08-02 — Atlas live discovery run active)
 
 ### Research improvement iteration (2026-08-02):
+- Launched the authorized background Apex Atlas discovery run `7ca90f62-07e5-44f4-8c65-a94e6eb55d40` with `discoveryFirst=true`, `targetCount=500`, `broadCategories=5`, `skipFaa=true`, and sequential research enabled. Redis, API, web, mobile, and mockup workflows are running; API health is Redis-healthy.
+- The run's first broad venue-owner source round completed with 0 inserted candidates: employee/management-directory names, service-page names, author/UI fragments, and names without candidate-attributed ownership/wealth evidence were rejected before insertion. Atlas is continuing in Phase 1 in the background.
+- A stricter candidate-attribution gate and regression tests were added to broad discovery. Records admitted by the interrupted weaker run remain preserved but hidden for review; they are not active targets and no contacts or outreach were promoted from them. Current development counts are 18 preserved entities, 0 assets, 0 relationships, and 0 active research sessions.
 - Completed the Atlas audit gate: unreachable/prominent isolated targets remain `research_only`, entity enrichment and Phase 10 MCTS are strictly one target at a time, and the existing web-OSINT → Maigret/Holehe/Sherlock → adaptive re-entry design remains intact.
 - Added a target-scoped final web/LLM sanity review before research-session publication, contact promotion, or new asset publication. The deterministic adjudicator can only approve exact supplied evidence, applies person/org scope rules, blocks contacts for research-only targets, and preserves rejected evidence/reasons for review.
-- Fresh import runtime is verified with `totalEntities=0`, `totalAssets=0`, all ingestion jobs idle, `ENABLE_AUTO_PIPELINE=false`, Redis/API healthy, and no Atlas run active. No controlled target run was started because there was no real target to process; no synthetic target was created.
+- `ENABLE_AUTO_PIPELINE=false` remains set; Atlas is running only because this authorized background run was explicitly launched through the Atlas endpoint.
 - Managed `.pythonlibs/bin/python3` now verifies `holehe`, `maigret`, and `sherlock` from the same interpreter used by the API. API build passes; full API suite passes 35 files / 197 tests; final-review regression tests pass; web build passes.
 - The API workflow was restarted after the audit changes and live checks report all three Python tools available. Mobile typecheck remains blocked by pre-existing generated-client exports (`useListEntities`/`useRunResearch`), unrelated to this audit.
 - Completed the active-tree contact-discovery gap implementation: provider evidence is reconciled into explicit candidate states, bounded exact claim pages are fetched before promotion, and only fail-closed direct routes reach entity contact fields.
@@ -1051,6 +1054,7 @@ All 4 Phase I items implemented and live. Build clean (esbuild ⚡ 1183ms). All 
 ### Iteration Log
 | Date | Summary |
 |---|---|
+| 2026-08-02 | Launched authorized Atlas background job `7ca90f62-07e5-44f4-8c65-a94e6eb55d40` with discovery-first live sources. Tightened broad discovery to require candidate-attributed ownership/wealth evidence, added 8 regression tests, hid interrupted weak records for review, and verified the first corrected venue-owner round inserted 0 weak candidates while Atlas continued running. |
 | 2026-08-02 | Added bounded claim-source hardening: owner-resolution candidates now retain their attached source URLs, exact-claim verification can fetch those person-level URLs, and lead-generation/directory publishers are excluded from direct-contact corroboration and exact-claim fetching. Controlled canary on Edmund O Noel, Robert M Davidson, and Jacob Eiting completed 3/3 with 0 errors and 0/3 verified direct routes; blocked-publisher evidence remained review-only. Full API suite passed 101/101, API build and health passed. |
 | 2026-08-02 | Completed the authorized controlled research canary and final persistence pass: web-OSINT evidence is run-tagged, superseded rows no longer contaminate scorecards, duplicate upserts refresh validation/provenance, organization contacts are excluded from personal reachability scoring, provider citation bundles remain review-only, and cross-publisher disagreement is not misclassified as same-publisher conflict. Final run 1/1 with 0 errors; 21 current-run evidence rows; scorecard identity 1.00, ownership 0.40, contact 0.369, access 0.12, wealth 0.183, freshness 0.253, source quality 0.705, overall 0.454. |
 | 2026-08-02 | Completed final research hardening: candidate evidence now binds only to exact fetched pages, the ledger distinguishes cross-domain corroboration from same-publisher conflicts, Sherlock is a review-only Maigret fallback, and managed Python 3.11 verifies Holehe/Maigret/Sherlock on boot. 13 focused tests, API/web builds, health, tool-status, and `/research` checks pass; pipeline remains idle with no canary run. |

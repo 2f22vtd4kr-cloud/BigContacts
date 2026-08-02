@@ -436,6 +436,52 @@ function isVenueOrOrganization(name: string): boolean {
   return VENUE_INDICATORS.some(v => lower.includes(v));
 }
 
+/**
+ * Broad discovery is allowed to find a person from a venue or company page,
+ * but the page still has to contain target-level ownership, wealth, or
+ * principal evidence before the person can enter the HNWI corpus. Employment,
+ * event, and management-directory mentions are research leads only.
+ */
+export function hasQualifyingWealthEvidence(snippet: string, query: string): boolean {
+  // Search queries describe what we asked for, not what the source proves.
+  // Only the fetched source snippet can establish qualifying evidence.
+  const text = snippet.toLowerCase();
+  const employmentOnly = /\b(employ(?:ee|ees|ed|s)?|staff|team includes|management team|works? (?:at|for)|head of|director of operations|event project manager|project manager|marketing manager|sales manager|general manager|operations manager)\b/i.test(snippet);
+  if (employmentOnly && !/\b(owner|owned|owns|founder|co-?founder|beneficial owner|principal|chair(?:man|woman)?|controlling shareholder|major shareholder|investor|billionaire|millionaire|family office|private equity|hedge fund|net worth|fortune|wealthy|high[-\s]?net[-\s]?worth|ultra[-\s]?high[-\s]?net[-\s]?worth)\b/i.test(snippet)) {
+    return false;
+  }
+
+  return /\b(owner|owned|owns|founder|co-?founder|beneficial owner|principal|chair(?:man|woman)?|controlling shareholder|major shareholder|investor|billionaire|millionaire|family office|private equity|hedge fund|net worth|fortune|wealthy|high[-\s]?net[-\s]?worth|ultra[-\s]?high[-\s]?net[-\s]?worth|asset owner|property owner|yacht owner|aircraft owner|estate owner|proprietor|developer|collector|managing partner|general partner)\b/i.test(text);
+}
+
+/**
+ * Require the ownership/wealth claim to be attributable to this exact
+ * candidate, not merely present somewhere in an aggregated result snippet.
+ */
+export function hasAttributableWealthEvidence(name: string, snippet: string): boolean {
+  const cleanName = name.trim().replace(/\s+/g, " ");
+  const source = snippet.replace(/\s+/g, " ").trim();
+  if (!cleanName || !source) return false;
+
+  const escaped = cleanName.split(" ").map(part => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const namePattern = new RegExp(`\\b${escaped.join("\\s+")}\\b`, "i");
+  const match = namePattern.exec(source);
+  if (!match || match.index === undefined) return false;
+
+  // By-lines and directory/service descriptions are not target attribution.
+  const before = source.slice(Math.max(0, match.index - 80), match.index);
+  const after = source.slice(match.index + match[0].length, match.index + match[0].length + 80);
+  if (/\b(by|written by|author|reporter|journalist|staff writer)\s*[:\-]?\s*$/i.test(before)) return false;
+  if (/\b(specialist|agent|advisor|consultant|manager|employee|staff|team member|service|directory|contact)\b/i.test(`${before} ${after}`) &&
+      !/\b(owner|owned|owns|founder|co-?founder|beneficial owner|principal|shareholder|investor|billionaire|millionaire|family office|private equity|hedge fund|net worth|wealthy|developer|proprietor|collector)\b/i.test(`${before} ${after}`)) {
+    return false;
+  }
+
+  const windowStart = Math.max(0, match.index - 220);
+  const windowEnd = Math.min(source.length, match.index + match[0].length + 220);
+  return hasQualifyingWealthEvidence(source.slice(windowStart, windowEnd), "");
+}
+
 // Country/region words that sometimes prefix person names in scraped text
 // e.g. "Mexico Asanka Pathiraja" → strip "Mexico" → "Asanka Pathiraja"
 const LEADING_GEO_WORDS = new Set([
@@ -680,6 +726,13 @@ export async function runBroadDiscovery(options: {
       // Sanitise: strip newlines, leading/trailing whitespace, control chars
       const cleanName = name.replace(/[\r\n\t]+/g, " ").replace(/\s{2,}/g, " ").trim();
       if (cleanName.length < 5 || cleanName.split(/\s+/).length < 2) continue;
+      // A human name alone is not enough for HNWI admission. Keep employment
+      // and management-directory mentions out of the target corpus unless the
+      // same evidence also establishes ownership, wealth, or principal status.
+      if (!hasAttributableWealthEvidence(cleanName, snippet)) {
+        logger.info({ name: cleanName, query }, "broad-discovery: rejected candidate without ownership/wealth evidence");
+        continue;
+      }
       // Reject names where no single word is ≥4 chars — these are almost always truncated
       // (e.g. "Amr El", "Li Bo", "Al Wu") not full human names
       const nameParts = cleanName.split(/\s+/);

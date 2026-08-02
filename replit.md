@@ -140,9 +140,9 @@ The benchmark figures below are historical results from the prior populated runt
 | Western HNWI + FAA controlled import | 5,036 | 5,000 | 35 Western records plus 5,000 FAA aircraft-owner records; no synthetic data. |
 | FAA benchmark enrichment | 16 | — | Post-fix run completed 16/16 with 0 errors: 10 social-only, 0 direct-contact candidates, 6 no usable contact outcomes; 431 durable evidence rows. Follow-up three-target claim-source canary: 3/3, 0 errors, 0/3 verified direct routes. |
 | **Current verified state at last check** | **5,036** | **5,000** | API and Redis healthy; broad auto-ingestion disabled; no active enrichment worker; contact fields remain fail-closed. |
-| **Current imported development runtime** | **0** | **0** | All jobs idle; Atlas idle; no synthetic data; no controlled target run started because no real target exists. |
+| **Current imported development runtime** | **18** | **0** | Preserved discovery records from the authorized Atlas run; weak/interrupted records are hidden for review, active discovery applies candidate-attributed ownership/wealth gating, and Atlas job `7ca90f62-07e5-44f4-8c65-a94e6eb55d40` is running in the background. |
 
-**Controlled-run state:** `ENABLE_AUTO_PIPELINE=false` remains set, so startup will not create an additional broad ingestion job. No pipeline is active; the durable contact-promotion validator, current-run evidence boundary, active-job ownership guard, and Access/Signal separation remain in place.
+**Controlled-run state:** `ENABLE_AUTO_PIPELINE=false` remains set, so startup will not create an additional broad ingestion job. The explicitly authorized Atlas run is active; the durable contact-promotion validator, current-run evidence boundary, active-job ownership guard, candidate-attribution gate, and Access/Signal separation remain in place.
 
 **Atlas audit state:** Target processing is strictly sequential. Final target review runs before research publication, contact promotion, and new asset publication; unavailable or malformed review output fails closed. The current API runtime reports Holehe, Maigret, and Sherlock available from `.pythonlibs/bin/python3`.
 
@@ -265,7 +265,7 @@ GET  /api/improve/logs                 improvement suggestions (filterable by pe
 | Research provenance | **Fail-closed candidate evidence** — exact fetched page URLs and registry records are the provenance unit; flattened search snippets and aggregate AI extraction remain capped review signals; independent publisher domains corroborate, while contradictory values from one publisher remain disputed. |
 | Username discovery | **Maigret primary + Sherlock fallback** — Sherlock is availability-checked and review-only, runs only when Maigret is unavailable/sparse, and cannot promote identity/contact fields or trigger automatic re-entry. |
 | Atlas publication gate | **Final target-scoped web/LLM sanity review** — exact supplied evidence only; research-only targets cannot promote contacts; organization/person scope is enforced; rejected evidence and reasons remain reviewable. |
-| Runtime verification | **Fresh import audit** — API/Redis healthy, all ingestion jobs and Atlas idle, database empty, API build plus 35 test files/197 tests pass; web build passes. Mobile typecheck has pre-existing generated-client export errors. |
+| Runtime verification | **Live Atlas run** — API/Redis healthy, all five managed workflows running, first corrected broad-discovery round inserted 0 weak candidates, focused broad-discovery/final-review tests pass 8/8, and API build passes. |
 
 ---
 

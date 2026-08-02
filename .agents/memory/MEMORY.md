@@ -60,3 +60,4 @@
 - [FAA benchmark attribution](attribution-and-benchmark.md) — Use a less-famous FAA owner cohort, and require current-run target-person evidence before social promotion or username pivots
 - [GitHub sync branch workflow](github-sync-branch.md) — Verify remote hashes; when main cannot be updated safely, publish a sync branch and open a PR instead of claiming local work is remote
 - [Dual-path contact adjudication](dual-path-contact-adjudication.md) — Both web enrichment paths share fail-closed adjudication and retain rejected candidates with reasons
+- [Broad discovery attribution](broad-discovery-attribution.md) — Human-name extraction is insufficient; ownership/wealth evidence must be locally attributed to the exact candidate before active insertion
