@@ -39,6 +39,7 @@ import { extractWithAI, researchWithPerplexity, researchWithGemini, researchWith
 import { extractPersonNames } from "./gliner-client";
 import { assessTargetReachability, reachabilityDirective } from "./reachability-realism";
 import { scoreCorroboration } from "./evidence-ledger";
+import { runResearchExclusively } from "./research-gate";
 
 // ── Shared utilities ──────────────────────────────────────────────────────────
 
@@ -1530,7 +1531,7 @@ function scoreByCorroboration(
   return Math.max(40, Math.min(94, score));
 }
 
-export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<DeepWebOsintResult> {
+async function deepWebOsintEnrichUnlocked(entity: DeepWebOsintInput): Promise<DeepWebOsintResult> {
   const result: DeepWebOsintResult = {
     email: null, emailConfidence: 0,
     phone: null, phoneConfidence: 0,
@@ -2751,4 +2752,16 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
 
   result.sources = [...new Set(result.sources)];
   return result;
+}
+
+/**
+ * Serialize full web research across all entry points. The unlocked function
+ * keeps the existing multi-source fan-out for one target, while this wrapper
+ * guarantees that a second target cannot begin until the first is complete.
+ */
+export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<DeepWebOsintResult> {
+  return runResearchExclusively(
+    `${entity.id}:${entity.name}`,
+    () => deepWebOsintEnrichUnlocked(entity),
+  );
 }

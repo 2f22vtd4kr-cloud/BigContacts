@@ -223,7 +223,7 @@ async function runEntityBatch<T>(
   phase: string,
   entities: Array<{ id: number; name: string }>,
   fn: (entity: any) => Promise<T>,
-  concurrency = 3,
+  concurrency = 1,
   onResult?: (entity: any, result: T) => Promise<void>,
 ): Promise<{ ok: number; err: number }> {
   let ok = 0; let errCount = 0;
@@ -793,10 +793,10 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
           const existing = (e as any).notes ?? "";
           await db.update(entitiesTable).set({ notes: existing ? `${existing}\n${note}` : note, updatedAt: new Date() }).where(eq(entitiesTable.id, e.id));
         }
-      }, 2),
+      }, 1),
       runEntityBatch(atlasJobId, "Phase 0/FoundationFilings", entities0.filter(e => e.type === "HNWI").slice(0, 100), async (e) => {
         await discoverViaFoundationFilings(e as any);
-      }, 2),
+      }, 1),
     ]);
 
     summary["Phase 0b"] = `CH contact: ${(chRes as any).enriched ?? 0} | OpenOwnership + Foundation filings done`;
@@ -920,7 +920,7 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
         `[${sourceRound}/${sourcesToRun.length}] 🍳`,
         newEntities,
         (entity) => enrichEntityFullCircle(atlasJobId, entity as EntityRow),
-        3,
+        1,
       );
       cookedCount += batchResult.ok;
       totalEnriched += batchResult.ok;

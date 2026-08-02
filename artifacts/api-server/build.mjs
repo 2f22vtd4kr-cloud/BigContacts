@@ -15,11 +15,9 @@ async function buildAll() {
   await rm(distDir, { recursive: true, force: true });
 
   await esbuild({
-    // The imported BigContacts implementation lives under src/src. The
-    // top-level src tree is only the minimal scaffold and exposes healthz
-    // alone, which would make the preview appear healthy while every real
-    // API route returned 404.
-    entryPoints: [path.resolve(artifactDir, "src/src/index.ts")],
+    // The imported BigContacts implementation is now merged into the
+    // artifact's canonical src tree.
+    entryPoints: [path.resolve(artifactDir, "src/index.ts")],
     platform: "node",
     bundle: true,
     format: "esm",

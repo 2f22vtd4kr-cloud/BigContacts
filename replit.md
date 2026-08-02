@@ -73,7 +73,7 @@ The long-term plan for improving the approximately 2.5% direct-contact yield is 
 | `PERPLEXITY_API_KEY`, `_2`–`_6` | Replit Secrets (optional) | Perplexity-powered public web discovery and enrichment, with key rotation |
 | `WHOXY_API_KEY` | Replit Secret (optional) | Whoxy domain and DNS intelligence lookups |
 | `OPENROUTER_API_KEY`, `_2`, `_3`, `_4` | Replit Secrets (optional) | OpenRouter model access, with key rotation |
-| `GEMINI_API_KEY`, `_2`–`_4` | Replit Secrets (optional) | Google Gemini model access, with key rotation |
+| `GEMINI_API_KEY_1`–`_4` | Replit Secrets (optional) | Google Gemini Flash-Lite access, with per-key rotation and quota spacing |
 | `TAVILY_API_KEY`, `_2`–`_6` | Replit Secrets (optional) | Tavily AI-native search API; returns clean excerpts fed into Groq for extraction, with key rotation |
 | `EXA_API_KEY`, `_2` | Replit Secrets (optional) | Exa neural/semantic search; excels at people + company lookups; fed into Groq for extraction, with key rotation |
 | `ENABLE_AUTO_PIPELINE` | Shared environment | Set to `false` for controlled imports and single-target research; set to `true` only when broad cold-start ingestion is explicitly requested. |
@@ -115,7 +115,7 @@ After a fresh GitHub import, run these steps to get the project running:
 2. **Push DB schema:** `pnpm --filter @workspace/db run push`
 3. **Start workflows:** Redis → `artifacts/api-server: API Server` → `artifacts/apex-finder: web` (in that order)
 
-Latest verification (2026-07-31): all 32 requested provider secrets are present — `REDIS_URL_1` through `_5`, `COMPANIES_HOUSE_API_KEY`, five Groq keys, eight Perplexity keys, `WHOXY_API_KEY`, four Gemini keys, two Exa keys, and six Tavily keys. Secret values were not read or displayed. Redis, API, web, and mockup workflows are healthy; the web workflow was restarted after the Intelligence Reactor UI update. The pipeline is idle; no Atlas, ingestion, or research job is active.
+Latest verification (2026-08-02): all requested provider secret slots are present — `REDIS_URL_1` through `_5`, `COMPANIES_HOUSE_API_KEY`, five Groq keys, the requested Perplexity keys, `WHOXY_API_KEY`, four Gemini keys, two Exa keys, and six Tavily keys. Secret values were not read or displayed. Redis, API, web, and mockup workflows are healthy; the API health endpoint reports local Redis healthy. The pipeline is idle; no Atlas, ingestion, or research job is active. Gemini uses Flash-Lite with per-key spacing and rotation.
 
 Contact-quality hardening completed: human-name admission is fail-closed behind deterministic safety gates; AI and enrichment paths no longer construct email addresses; email/phone/social values are sanitized before every PostgreSQL, evidence, Redis, cache-restore, startup-maintenance, and merge write; confidence and hot status are recomputed from cleaned vectors rather than trusted incoming scores; organization contacts cannot inflate personal Access confidence; `isHot` requires a meaningful person-level direct contact signal; and aircraft/property/shareholder/live-flight evidence no longer creates Access-hot leads. Wealth/registry evidence remains available as Signal.
 
