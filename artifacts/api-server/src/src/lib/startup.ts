@@ -11,6 +11,8 @@
 
 import { db, entitiesTable, assetsTable } from "@workspace/db";
 import { count, gte, eq, and, inArray, isNotNull, or, sql } from "drizzle-orm";
+import { existsSync } from "fs";
+import { join } from "path";
 import {
   createJob, updateJob, setActiveJob, getActiveJob, getJob, clearActiveJob,
   clearDedup, getDedupCount,
@@ -778,7 +780,7 @@ async function triggerHttp(label: string, path: string, body?: Record<string, un
 }
 
 /**
- * Verify Python OSINT tools (Holehe, Maigret) are installed; auto-install if missing.
+ * Verify Python OSINT tools (Holehe, Maigret, Sherlock) are installed; auto-install if missing.
  *
  * MANDATORY — runs on every boot so tools survive GitHub re-imports.
  * Apex Atlas must not run research without these tools in place.
@@ -787,26 +789,34 @@ async function verifyAndInstallPythonTools(): Promise<void> {
   const { execFile } = await import("child_process");
   const { promisify } = await import("util");
   const execFileAsync = promisify(execFile);
+  const pythonBin = process.env.APEX_PYTHON_BIN
+    || (existsSync(join(process.cwd(), ".pythonlibs", "bin", "python3"))
+      ? join(process.cwd(), ".pythonlibs", "bin", "python3")
+      : "python3");
 
   const check = async (module: string): Promise<boolean> => {
-    try { await execFileAsync("python3", ["-c", `import ${module}`], { timeout: 5_000 }); return true; }
+    try { await execFileAsync(pythonBin, ["-c", `import ${module}`], { timeout: 5_000 }); return true; }
     catch { return false; }
   };
 
-  const [holehe, maigret] = await Promise.all([check("holehe"), check("maigret")]);
+  const [holehe, maigret, sherlock] = await Promise.all([
+    check("holehe"),
+    check("maigret"),
+    check("sherlock_project"),
+  ]);
 
-  if (!holehe || !maigret) {
-    logger.warn({ holehe, maigret }, "⚠️  Python OSINT tools missing — auto-installing (Holehe + Maigret)…");
+  if (!holehe || !maigret || !sherlock) {
+    logger.warn({ holehe, maigret, sherlock }, "⚠️  Python OSINT tools missing — auto-installing (Holehe + Maigret + Sherlock)…");
     try {
       // Resolve from workspace root: dist/index.mjs → dist/ → api-server/ → artifacts/ → workspace/
       const wsRoot = new URL("../../..", import.meta.url).pathname;
       await execFileAsync("bash", ["scripts/install-python-tools.sh"], { timeout: 120_000, cwd: wsRoot });
       logger.info("✅ Python OSINT tools installed successfully");
     } catch (err: any) {
-      logger.error({ err: err?.message }, "❌ Python OSINT tools installation FAILED — Maigret/Holehe unavailable this session");
+      logger.error({ err: err?.message }, "❌ Python OSINT tools installation FAILED — optional username discovery tools may be unavailable this session");
     }
   } else {
-    logger.info("✅ Python OSINT tools verified: holehe ✓  maigret ✓");
+    logger.info("✅ Python OSINT tools verified: holehe ✓  maigret ✓  sherlock ✓");
   }
 }
 

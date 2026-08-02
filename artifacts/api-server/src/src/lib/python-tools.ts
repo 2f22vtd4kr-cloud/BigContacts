@@ -1,13 +1,14 @@
 /**
  * Python Tool Subprocess Runner
  *
- * Wraps Python OSINT CLI tools (Holehe, Maigret, theHarvester, GLiNER)
+ * Wraps Python OSINT CLI tools (Holehe, Maigret, Sherlock, theHarvester, GLiNER)
  * as async TypeScript functions. Each tool is called via child_process.spawn
  * with a timeout, and output is parsed from JSON or stdout.
  *
  * Tools:
  *   - Holehe:       email → platform presence (120+ platforms)
  *   - Maigret:      username → cross-platform dossier (3,000+ sites)
+ *   - Sherlock:      username → supplementary public profile discovery fallback
  *   - theHarvester: domain → emails/subdomains/IPs from public sources
  *
  * GLiNER is handled separately via gliner-client.ts (HTTP microservice).
@@ -16,6 +17,7 @@
  */
 
 import { spawn } from "child_process";
+import { existsSync } from "fs";
 import { promises as fs } from "fs";
 import * as os from "os";
 import * as path from "path";
@@ -30,7 +32,13 @@ interface RunResult {
 }
 
 // Replit installs Python packages into .pythonlibs alongside the workspace.
-// Node's PATH inherits the module system's python3 which already has site-packages.
+// Prefer the workspace-managed interpreter so this remains stable when the
+// base image's python3 changes after a re-import.
+const PYTHON_BIN = process.env.APEX_PYTHON_BIN
+  || (existsSync(path.join(process.cwd(), ".pythonlibs", "bin", "python3"))
+    ? path.join(process.cwd(), ".pythonlibs", "bin", "python3")
+    : "python3");
+
 function buildPythonEnv(extra?: Record<string, string>): Record<string, string> {
   return {
     ...process.env,
@@ -89,7 +97,7 @@ async function isToolAvailable(tool: string): Promise<boolean> {
 async function isPythonModuleAvailable(module: string): Promise<boolean> {
   const key = `module:${module}`;
   if (toolAvailability[key] !== undefined) return toolAvailability[key]!;
-  const result = await runSubprocess("python3", ["-c", `import ${module}`], 5_000);
+  const result = await runSubprocess(PYTHON_BIN, ["-c", `import ${module}`], 5_000);
   const available = result.exitCode === 0;
   toolAvailability[key] = available;
   return available;
@@ -137,7 +145,7 @@ export async function runHolehe(email: string): Promise<HoleheResult> {
   try {
     // holehe EMAIL --only-used --json > tmpFile
     const result = await runSubprocess(
-      "python3",
+      PYTHON_BIN,
       ["-m", "holehe", email, "--only-used", "--json", "--output", tmpFile],
       90_000
     );
@@ -225,7 +233,7 @@ export async function runMaigret(username: string): Promise<MaigretResult> {
 
   try {
     const result = await runSubprocess(
-      "python3",
+      PYTHON_BIN,
       [
         "-m", "maigret",
         sanitized,
@@ -281,6 +289,87 @@ export async function runMaigret(username: string): Promise<MaigretResult> {
     return { ...base, available: true, error: err.message };
   } finally {
     fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
+// ── Sherlock: supplementary username discovery fallback ───────────────────────
+
+export interface SherlockProfile {
+  siteName: string;
+  url: string;
+  status: "found";
+}
+
+export interface SherlockResult {
+  username: string;
+  found: SherlockProfile[];
+  totalSitesChecked: number;
+  available: boolean;
+  /** Sherlock is discovery-only; callers must keep these candidates review-only. */
+  reviewOnly: true;
+  error?: string;
+}
+
+/**
+ * Runs Sherlock only as a supplementary username search. Maigret is the
+ * primary engine because it has broader structured output. Sherlock results
+ * are never treated as identity or contact verification on their own.
+ */
+export async function runSherlock(username: string): Promise<SherlockResult> {
+  const base: SherlockResult = {
+    username,
+    found: [],
+    totalSitesChecked: 0,
+    available: false,
+    reviewOnly: true,
+  };
+  const sanitized = username.replace(/[^a-zA-Z0-9._\-]/g, "");
+  if (!sanitized) return { ...base, error: "Invalid username" };
+
+  const available = await isPythonModuleAvailable("sherlock_project");
+  if (!available) {
+    logger.debug("[Sherlock] module not installed — run scripts/install-python-tools.sh");
+    return { ...base, error: "sherlock not installed" };
+  }
+
+  try {
+    const result = await runSubprocess(
+      PYTHON_BIN,
+      [
+        "-m", "sherlock_project",
+        sanitized,
+        "--print-found",
+        "--no-color",
+        "--timeout", "10",
+      ],
+      120_000,
+    );
+    const profiles: SherlockProfile[] = [];
+    const seen = new Set<string>();
+    for (const line of result.stdout.split("\n")) {
+      const match = line.match(/https?:\/\/[^\s"'<>]+/i);
+      if (!match) continue;
+      const url = match[0].replace(/[),.;]+$/, "");
+      if (seen.has(url)) continue;
+      seen.add(url);
+      let siteName = "Sherlock result";
+      try { siteName = new URL(url).hostname.replace(/^www\./, ""); } catch { /* keep generic */ }
+      profiles.push({ siteName, url, status: "found" });
+    }
+    logger.info({ username, found: profiles.length }, "[Sherlock] supplementary dossier complete");
+    return {
+      username,
+      found: profiles,
+      totalSitesChecked: 0,
+      available: true,
+      reviewOnly: true,
+      ...(result.exitCode !== 0 && profiles.length === 0
+        ? { error: result.stderr.trim().slice(0, 500) || "Sherlock returned no usable results" }
+        : {}),
+    };
+  } catch (err: any) {
+    logger.warn({ username, err: err.message }, "[Sherlock] run failed");
+    return { ...base, available: true, error: err.message };
   }
 }
 
@@ -377,12 +466,14 @@ export async function checkPythonToolsAvailability(): Promise<Record<string, boo
   const checks = await Promise.all([
     isPythonModuleAvailable("holehe"),
     isPythonModuleAvailable("maigret"),
+    isPythonModuleAvailable("sherlock_project"),
     isToolAvailable("theHarvester").then(async v => v || isPythonModuleAvailable("theHarvester")),
   ]);
 
   return {
     holehe: checks[0]!,
     maigret: checks[1]!,
-    theHarvester: checks[2]!,
+    sherlock: checks[2]!,
+    theHarvester: checks[3]!,
   };
 }

@@ -97,15 +97,21 @@ export function scoreCorroboration(items: readonly EvidenceItem[]): LedgerSummar
   const unique = dedupeEvidence(items);
   const familySet = new Set(unique.map((item) => item.sourceFamily).filter((family) => family !== "unknown"));
   const domainSet = new Set(unique.map((item) => item.canonicalDomain).filter((domain): domain is string => Boolean(domain)));
-  const normalizedToDomains = new Map<string, Set<string>>();
+  // Corroboration is value -> domains. A value appearing on multiple
+  // publishers is agreement, not conflict. Conflicts are the inverse:
+  // one canonical publisher asserting multiple different values for the same
+  // claim family. Keep these dimensions separate so cross-source agreement
+  // cannot reduce the score it is meant to improve.
+  const domainToNormalizedValues = new Map<string, Set<string>>();
   for (const item of unique) {
-    const domains = normalizedToDomains.get(item.normalizedValue) ?? new Set<string>();
-    if (item.canonicalDomain) domains.add(item.canonicalDomain);
-    normalizedToDomains.set(item.normalizedValue, domains);
+    if (!item.canonicalDomain) continue;
+    const values = domainToNormalizedValues.get(item.canonicalDomain) ?? new Set<string>();
+    values.add(item.normalizedValue);
+    domainToNormalizedValues.set(item.canonicalDomain, values);
   }
   let conflicts = 0;
-  for (const domains of normalizedToDomains.values()) {
-    if (domains.size > 1) conflicts += domains.size - 1;
+  for (const values of domainToNormalizedValues.values()) {
+    if (values.size > 1) conflicts += values.size - 1;
   }
   const corroboratingFamilies = familySet.size;
   const corroboratingDomains = domainSet.size;

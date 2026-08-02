@@ -8,31 +8,50 @@
 set -e
 
 echo "=== ApexFinder Python OSINT Tools Setup ==="
-python3 --version
+PYTHON_BIN="${APEX_PYTHON_BIN:-}"
+if [ -z "$PYTHON_BIN" ] && [ -x "$PWD/.pythonlibs/bin/python3" ]; then
+  PYTHON_BIN="$PWD/.pythonlibs/bin/python3"
+fi
+if [ -z "$PYTHON_BIN" ] && command -v python3.11 >/dev/null 2>&1; then
+  PYTHON_BIN="$(command -v python3.11)"
+fi
+if [ -z "$PYTHON_BIN" ]; then
+  PYTHON_BIN="$(command -v python3)"
+fi
+
+"$PYTHON_BIN" --version
 echo ""
 
-PIP="python3 -m pip install -q"
+install_package() {
+  if command -v uv >/dev/null 2>&1; then
+    uv pip install --python "$PYTHON_BIN" "$1"
+  else
+    "$PYTHON_BIN" -m pip install -q "$1"
+  fi
+}
 
 # ── Holehe: email → 120+ platform presence checks ────────────────────────────
 echo "[1/3] Installing holehe..."
-$PIP holehe && echo "  ✓ holehe installed" || echo "  ✗ holehe failed (non-fatal)"
+install_package holehe && echo "  ✓ holehe installed" || echo "  ✗ holehe failed (non-fatal)"
 
 # ── Maigret: username → 3000+ site dossier ───────────────────────────────────
 echo "[2/3] Installing maigret..."
-$PIP maigret && echo "  ✓ maigret installed" || echo "  ✗ maigret failed (non-fatal)"
+install_package maigret && echo "  ✓ maigret installed" || echo "  ✗ maigret failed (non-fatal)"
+
+# ── Sherlock: supplementary username discovery ────────────────────────────────
+echo "[3/4] Installing sherlock-project..."
+install_package sherlock-project && echo "  ✓ sherlock installed" || echo "  ✗ sherlock failed (non-fatal)"
 
 # ── theHarvester requires Python ≥3.12 ───────────────────────────────────────
-# The PyPI 'theHarvester' package is a 0.0.1 stub; the real one (GitHub) needs ≥3.12.
-# Current environment has Python 3.11 — skipping automatically.
-echo "[3/3] theHarvester — skipped (requires Python ≥3.12, have $(python3 --version 2>&1 | awk '{print $2}'))"
-echo "      To enable: install Python 3.12 module, then run: python3 -m pip install git+https://github.com/laramies/theHarvester.git"
+echo "[4/4] theHarvester — optional (requires Python ≥3.12 and upstream package)"
+echo "      Current interpreter: $("$PYTHON_BIN" --version 2>&1)"
 
 echo ""
 echo "=== Tool availability ==="
-python3 -c "import holehe; print('  holehe:       ✓')" 2>/dev/null || echo "  holehe:       ✗"
-python3 -c "import maigret; print('  maigret:      ✓')" 2>/dev/null || echo "  maigret:      ✗"
-echo "  theHarvester: ✗ (needs Python ≥3.12)"
-python3 -c "import gliner;  print('  gliner:       ✓')" 2>/dev/null || echo "  gliner:       ✗ (optional — heavy deps)"
+"$PYTHON_BIN" -c "import holehe; print('  holehe:       ✓')" 2>/dev/null || echo "  holehe:       ✗"
+"$PYTHON_BIN" -c "import maigret; print('  maigret:      ✓')" 2>/dev/null || echo "  maigret:      ✗"
+"$PYTHON_BIN" -c "import sherlock_project; print('  sherlock:     ✓')" 2>/dev/null || echo "  sherlock:     ✗"
+"$PYTHON_BIN" -c "import gliner;  print('  gliner:       ✓')" 2>/dev/null || echo "  gliner:       ✗ (optional — heavy deps)"
 
 echo ""
 echo "=== Done ==="

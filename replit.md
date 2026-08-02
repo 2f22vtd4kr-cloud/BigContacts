@@ -243,6 +243,9 @@ GET  /api/improve/logs                 improvement suggestions (filterable by pe
 | 14 | **Measured warm-path recovery + enrichment correctness** — EDGAR issuer backfill, co-investor/co-shareholder detection, corporate-series/name-cluster edges, FAA/HMLR peer edges, and the website/address-only enrichment state fix. |
 | J-1 (Phase J) | **J0 Measurement Contract + J1 Non-terminal social state** — `contactOutcome` column on entities (`none`/`evidence_only`/`social_only`/`organization_contact`/`direct_contact_candidate`/`direct_contact_verified`); `enrichment_runs` table for per-run funnel metrics; `computeContactOutcome()` in `contact-confidence.ts`; `GET /api/pipeline/funnel` with breakdown by registry/type; `POST /ingest/backfill-contact-outcomes`; FunnelPanel UI on Data Sources page. J1 fix: `needsEnrichment=false` only on email/phone — LinkedIn/Twitter no longer falsely mark entities as done. No research restrictions; production safeguards deferred to release-hardening. |
 | J-2 (Phase J) | **Western registry coverage matrix** — live normalized search adapters for Norway BRREG, Czechia ARES, and France BODACC; provenance and identifier validation; fixture-style normalization tests; Data Sources coverage matrix with jurisdiction, access, freshness, ownership/officer scope, and non-blocking production review status. |
+| J-3–J-9 (Phase J) | **Identity, domain, footprint, attribution, retry, graph, and source-quality hardening** — identity bundles/candidates remain review-only; domains and public digital footprints are resolved with cooldowns; contact attribution uses independent evidence dimensions; graph/MCTS paths carry provenance; source-quality/checkpoint APIs expose audit state. |
+| Research provenance | **Fail-closed candidate evidence** — exact fetched page URLs and registry records are the provenance unit; flattened search snippets and aggregate AI extraction remain capped review signals; independent publisher domains corroborate, while contradictory values from one publisher remain disputed. |
+| Username discovery | **Maigret primary + Sherlock fallback** — Sherlock is availability-checked and review-only, runs only when Maigret is unavailable/sparse, and cannot promote identity/contact fields or trigger automatic re-entry. |
 
 ---
 
@@ -272,8 +275,9 @@ GET  /api/improve/logs                 improvement suggestions (filterable by pe
 4. **Both files must be committed to the repo** as part of any task that changes project state. They are the permanent record of how this project runs.
 
 5. **Python OSINT tools MUST be installed and verified on every session start and after every re-import** (PERMANENT — survives repo re-imports):
+   - The project uses the managed Python 3.11 module and `.pythonlibs/bin/python3` when available.
    - Run `bash scripts/install-python-tools.sh` immediately after `pnpm install` and `db push`.
-   - Verify output shows `holehe: ✓` and `maigret: ✓` before triggering any research.
+   - Verify output/logs show `holehe: ✓`, `maigret: ✓`, and `sherlock: ✓` before triggering any research.
    - This is now also wired into `scripts/post-merge.sh` (step 4) and `startup.ts` (auto-installs on boot).
    - **The app must not begin research if any tool is not ready.** If tools are missing, run the install script and wait for it to complete before proceeding.
 

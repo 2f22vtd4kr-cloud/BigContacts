@@ -8,7 +8,7 @@
 
 ---
 
-## Current State (2026-08-02 — research evidence funnel and scorecard hardening verified; pipeline idle)
+## Current State (2026-08-02 — provenance hardening and optional username discovery verified; pipeline idle)
 
 ### Research improvement iteration (2026-08-02):
 - Added fail-closed contact candidate reconciliation across provider output: candidates retain canonical URLs/domains, scope, person attribution, conflicts, provider audit data, and explicit funnel states from discovered through verified direct route.
@@ -16,10 +16,15 @@
 - Persisted candidate funnel metadata and durable `contact_evidence` rows without adding a competing candidate table; research sessions now expose the stored funnel for review.
 - Added the research desk candidate funnel panel and registered `/research` in the web router. The preview now renders the empty-state research desk correctly.
 - Hardened the independent research scorecard: identity, ownership, contact, access, wealth, freshness, and source quality are scored independently from canonical evidence, attribution, validation, reachability, reliability, and dated evidence. Asset count, graph degree, provider repetition, and wealth no longer promote contact/access/identity.
+- Fixed deep-web candidate confidence to use evidence carrying the candidate's actual fetched page URL. Flattened search snippets, aggregate AI extraction, and provider repetition remain capped review signals; search-result URL lists are not treated as claim-level provenance until the page is fetched.
+- Fixed the shared evidence ledger so the same value on independent publisher domains is corroboration, while contradictory values from one publisher remain conflicts.
+- Added Sherlock as an availability-checked, review-only username-discovery fallback after Maigret. Sherlock results never promote identity/contact fields or trigger web-OSINT re-entry.
+- Restored the managed Python 3.11 toolchain with Holehe, Maigret, and Sherlock. Startup and the re-import installer now use the managed interpreter and verify all three tools.
 - Stable-rerun coverage now asserts deterministic scorecard output; focused candidate/prompt/scorecard tests pass 11/11. API and web production builds pass. API health, entities, research sessions, and dashboard stats return 200.
 - Fixed the API build entry to bundle the full imported implementation under `artifacts/api-server/src/src`; the prior scaffold entry served health only and caused false 404s for real routes.
 - No ingestion, enrichment, Atlas, or research job was started. The database remains controlled/idle; no provider calls were made by this implementation pass.
-- Remaining honest limitations: full API typecheck still has pre-existing workspace errors; the full Vitest smoke suite retains unrelated baseline SPA/404 failures; the scorecard is now evidence-ready but cannot claim high scores for entities lacking independent canonical evidence.
+- Final verification: 13 focused API tests pass; API and web production builds pass with only the existing Vite sourcemap/chunk-size warnings; `/api/healthz`, `/api/enrich/python-tools`, and `/research` return successfully; startup verifies `holehe ✓ maigret ✓ sherlock ✓`.
+- Remaining honest limitations: full API typecheck still has pre-existing workspace errors; the full Vitest smoke suite retains unrelated baseline SPA/404 failures; the scorecard is evidence-ready but cannot claim high scores for entities lacking independent canonical evidence; no canary enrichment/research run was authorized, so live yield is not re-measured.
 
 ### Backend research workflow iteration (2026-08-01):
 - Added an evidence ledger that canonicalizes URLs, classifies source families, deduplicates mirrored pages, and scores corroboration by independent domains/families instead of provider-count inflation.
@@ -42,7 +47,7 @@
 - `pnpm --filter @workspace/db run push` → schema applied ✅
 - Shared env configured: `REDIS_URL=redis://localhost:6379` and `ENABLE_AUTO_PIPELINE=false`
 - Redis ✅ · artifacts/api-server: API Server ✅ · artifacts/apex-finder: web ✅
-- Python tools: holehe ✓ · maigret ✓ · theHarvester skipped (requires Python ≥3.12)
+- Python tools: holehe ✓ · maigret ✓ · sherlock ✓ · theHarvester optional/unavailable
 - `/api/healthz` → `{"status":"ok","redis":{"status":"ok","latencyMs":1}}` ✅
 - Automatic broad ingestion is disabled; no Atlas or ingestion job is active. One bounded Warren Buffett research session remains as a review record.
 - API and web workflows were restarted after the safeguards were applied and are healthy. API health is `ok` with local Redis healthy; Upstash slot 1 is quota-exhausted and slots 2–5 remain available.
@@ -1035,6 +1040,7 @@ All 4 Phase I items implemented and live. Build clean (esbuild ⚡ 1183ms). All 
 ### Iteration Log
 | Date | Summary |
 |---|---|
+| 2026-08-02 | Completed final research hardening: candidate evidence now binds only to exact fetched pages, the ledger distinguishes cross-domain corroboration from same-publisher conflicts, Sherlock is a review-only Maigret fallback, and managed Python 3.11 verifies Holehe/Maigret/Sherlock on boot. 13 focused tests, API/web builds, health, tool-status, and `/research` checks pass; pipeline remains idle with no canary run. |
 | 2026-08-02 | Completed research evidence hardening: candidate funnel persistence/review UI, `/research` route registration, canonical-domain scorecard inputs, stable-rerun coverage, and API build-entry correction. Focused tests 11/11, API/web builds, endpoint checks, and research preview pass; pipeline remains idle with no provider calls. |
 | 2026-08-01 | Completed cross-product UI/UX polish pass: refreshed web typography/theme, dashboard/ledger/profile/CRM/research/reactor hierarchy, mobile MCTS/manual states, type-aware profile signals, and icon-based status treatment. Web build, mobile typecheck, API health, and desktop/mobile previews verified. |
 | 2026-07-31 | Completed contact-quality hardening: fail-closed name admission, no constructed emails, final contact-vector sanitization, organization/personal Access separation, and direct-contact-only hot flags. Rebuilt and restarted API/web; health and preview verified; no ingestion or research job active. |

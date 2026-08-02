@@ -31,7 +31,7 @@ import {
 import { runCompaniesHouseEnrichment } from "../lib/enrichment/structured-verification";
 import { deepWebOsintEnrich } from "../lib/enrichment/web-discovery";
 import { enrichInHouse } from "../lib/enrichment/contact-enrichment";
-import { runMaigret, runHolehe } from "../lib/python-tools";
+import { runMaigret, runSherlock, runHolehe } from "../lib/python-tools";
 import { discoverSocialPresence } from "../lib/enrichment/social-discovery";
 import { discoverMessengerPresence } from "../lib/enrichment/messenger-discovery";
 import { discoverViaFoundationFilings } from "../lib/enrichment/foundation-filings";
@@ -420,6 +420,45 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
                 await db.update(entitiesTable).set({ email: result2.email, updatedAt: new Date() }).where(eq(entitiesTable.id, entity.id));
                 logger.info({ entityId: entity.id, email: result2.email }, "[Web-OSINT re-run] found email after Maigret expansion");
               }
+            }
+          }
+
+          // Sherlock is a supplementary fallback, not a second vote for
+          // identity. Use it only when Maigret is unavailable or too sparse,
+          // and keep every result review-only. Sherlock results never trigger
+          // the web-OSINT re-entry and never promote entity contact fields.
+          if (
+            cleanHandle &&
+            (!maigretResult?.available || (maigretResult.found.length < 3 && maigretResult.available))
+          ) {
+            const sherlockResult = await runSherlock(cleanHandle);
+            if (sherlockResult.found.length) {
+              logger.info({
+                entityId: entity.id,
+                handle: cleanHandle,
+                found: sherlockResult.found.length,
+              }, "[Sherlock] supplementary review-only profiles found");
+              const sherlockRows = sherlockResult.found.slice(0, 15).map(p => ({
+                entityId: entity.id,
+                vectorType: "social" as const,
+                value: p.url,
+                source: "sherlock",
+                sourceUrl: p.url,
+                extractionMethod: "sherlock-username-search-fallback",
+                sourceReliability: 0.45,
+                identityMatch: 0.25,
+                recencyScore: 0.35,
+                directnessScore: 0.10,
+                independentCorroboration: 1,
+                validationStatus: "candidate" as const,
+                metadata: JSON.stringify({
+                  siteName: p.siteName,
+                  reviewOnly: true,
+                  fallbackFor: "maigret",
+                  attributionRequired: true,
+                }),
+              }));
+              await db.insert(contactEvidenceTable).values(sherlockRows).onConflictDoNothing().catch(() => {});
             }
           }
 

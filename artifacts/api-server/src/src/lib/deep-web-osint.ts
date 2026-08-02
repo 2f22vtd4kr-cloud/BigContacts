@@ -54,6 +54,16 @@ export interface DeepWebOsintResult {
   pagesScraped:      number;
 }
 
+type CandidateEvidence = {
+  value: string;
+  sourceUrl?: string | null;
+  source: string;
+  extractionMethod: string;
+  confidence: number;
+  details?: Record<string, unknown>;
+  observedAt: string;
+};
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 // 12 real browser fingerprints — rotated randomly per search request
@@ -399,7 +409,7 @@ function buildQueries(entity: DeepWebOsintInput): string[] {
 // ─── Cross-validation scoring ─────────────────────────────────────────────────
 // More independent sources confirming the same value = higher confidence
 
-function scoreByCorroboration(
+export function scoreByCorroboration(
   sources: number,
   evidence: Array<{ value: string; sourceUrl?: string | null }> = [],
   value?: string | null,
@@ -446,13 +456,13 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   const linkedinHits = new Map<string, string[]>();
   const igHits       = new Map<string, string[]>();  // instagram url → sources
   const twHits       = new Map<string, string[]>();  // twitter url → sources
+  const sourceUrlsByLabel = new Map<string, string[]>();
   const urlsToScrape = new Set<string>();
   let allSearchText  = ""; // accumulated for AI extraction pass
 
   // Hoist aiOwners so Phase 0 (Perplexity) can populate it before Phase 3.7 runs
   type AiOwner = { name: string; instagram: string | null; twitter: string | null; linkedin: string | null };
   const aiOwners: AiOwner[] = [];
-
   // ── Phase 0: Perplexity Sonar + Gemini Flash — live web research ─────────
   // Both fire in parallel before DDG/Bing. Perplexity and Gemini use different
   // search indexes — complementary coverage for owner names, contacts, and
@@ -494,6 +504,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     // Process Perplexity results
     if (perp.source === "perplexity-sonar") {
       const label = "Perplexity[sonar]";
+      sourceUrlsByLabel.set(label, []);
       if (perp.email)    { const a = emailHits.get(perp.email) ?? [];       a.push(label); emailHits.set(perp.email, a); }
       if (perp.phone)    { const a = phoneHits.get(perp.phone) ?? [];       a.push(label); phoneHits.set(perp.phone, a); }
       if (perp.linkedin) { const a = linkedinHits.get(perp.linkedin) ?? []; a.push(label); linkedinHits.set(perp.linkedin, a); }
@@ -515,6 +526,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     // Process Gemini results
     if (gem.source === "gemini-flash") {
       const label = "Gemini[flash]";
+      sourceUrlsByLabel.set(label, []);
       if (gem.email)    { const a = emailHits.get(gem.email) ?? [];       a.push(label); emailHits.set(gem.email, a); }
       if (gem.phone)    { const a = phoneHits.get(gem.phone) ?? [];       a.push(label); phoneHits.set(gem.phone, a); }
       if (gem.linkedin) { const a = linkedinHits.get(gem.linkedin) ?? []; a.push(label); linkedinHits.set(gem.linkedin, a); }
@@ -538,6 +550,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     // Process Exa results
     if (exa.source === "exa") {
       const label = "Exa";
+      sourceUrlsByLabel.set(label, []);
       if (exa.email)    { const a = emailHits.get(exa.email) ?? [];       a.push(label); emailHits.set(exa.email, a); }
       if (exa.phone)    { const a = phoneHits.get(exa.phone) ?? [];       a.push(label); phoneHits.set(exa.phone, a); }
       if (exa.linkedin) { const a = linkedinHits.get(exa.linkedin) ?? []; a.push(label); linkedinHits.set(exa.linkedin, a); }
@@ -561,6 +574,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     // Process Tavily results
     if (tav.source === "tavily") {
       const label = "Tavily";
+      sourceUrlsByLabel.set(label, []);
       if (tav.email)    { const a = emailHits.get(tav.email) ?? [];       a.push(label); emailHits.set(tav.email, a); }
       if (tav.phone)    { const a = phoneHits.get(tav.phone) ?? [];       a.push(label); phoneHits.set(tav.phone, a); }
       if (tav.linkedin) { const a = linkedinHits.get(tav.linkedin) ?? []; a.push(label); linkedinHits.set(tav.linkedin, a); }
@@ -592,6 +606,11 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     try {
       const sr = await duckduckgoSearch(query);
       result.queriesFired++;
+      // DDG returns a URL list separately from flattened snippets. Without a
+      // claim-to-result mapping, binding every URL to every extracted value
+      // would manufacture provenance. Page scraping below creates the exact
+      // URL binding when a candidate is actually observed on a page.
+      sourceUrlsByLabel.set(label, []);
       allSearchText += " " + sr.text;
 
       if (sr.text) {
@@ -633,6 +652,9 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     try {
       const sr = await bingSearch(query);
       result.queriesFired++;
+      // Same fail-closed rule as DDG: result URLs are discovery context until
+      // one is fetched and the value is observed in that page.
+      sourceUrlsByLabel.set(label, []);
       allSearchText += " " + sr.text;
 
       if (sr.text) {
@@ -670,6 +692,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       const scraped = await scrapePage(url);
       result.pagesScraped++;
       const label = `Page[${new URL(url).hostname.replace(/^www\./, "").substring(0, 20)}]`;
+      sourceUrlsByLabel.set(label, [url]);
 
       if (scraped.email)        { const a = emailHits.get(scraped.email) ?? [];               a.push(label); emailHits.set(scraped.email, a); }
       if (scraped.phone)        { const a = phoneHits.get(scraped.phone) ?? [];               a.push(label); phoneHits.set(scraped.phone, a); }
@@ -693,6 +716,10 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       const ai = await extractWithAI(allSearchText, entity.name, entity.type, null);
       if (ai.source !== "none") {
         const label = `AI[${ai.source}]`;
+        // This extractor receives aggregate snippets/pages. Its provider
+        // response is not claim-level provenance, so keep these candidates
+        // unbound until a cited page independently confirms them.
+        sourceUrlsByLabel.set(label, []);
         if (ai.email)    { const a = emailHits.get(ai.email) ?? [];       a.push(label); emailHits.set(ai.email, a); }
         if (ai.phone)    { const a = phoneHits.get(ai.phone) ?? [];       a.push(label); phoneHits.set(ai.phone, a); }
         if (ai.linkedin) { const a = linkedinHits.get(ai.linkedin) ?? []; a.push(label); linkedinHits.set(ai.linkedin, a); }
@@ -734,6 +761,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       try {
         const sr = await duckduckgoSearch(q);
         result.queriesFired++;
+        sourceUrlsByLabel.set(`Hop[${firstName}]`, []);
         allSearchText += " " + sr.text.slice(0, 2_000);
 
         for (const m of (sr.text.match(INSTAGRAM_RE) ?? [])) {
@@ -766,6 +794,42 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   const [bestLI, liSrcs]         = pickBest(linkedinHits) ?? [null, []];
   const [bestIG, igSrcs]         = pickBest(igHits) ?? [null, []];
   const [bestTW, twSrcs]         = pickBest(twHits) ?? [null, []];
+
+  // Preserve claim-level provenance for the values that can be promoted to the
+  // result. Provider labels are only audit metadata; corroboration is computed
+  // from the canonical publisher URLs attached here. When a provider returns a
+  // value without a claim-level URL, keep the candidate but leave sourceUrl
+  // null so it cannot gain false corroboration.
+  const now = new Date().toISOString();
+  const evidenceFor = (
+    vectorType: string,
+    value: string | null,
+    labels: string[],
+  ): CandidateEvidence[] => {
+    if (!value) return [];
+    return labels.flatMap((label) => {
+      const baseLabel = label.replace(/-owner$/, "");
+      const urls = sourceUrlsByLabel.get(label) ?? sourceUrlsByLabel.get(baseLabel) ?? [];
+      const boundUrls = urls.length ? urls : [null];
+      return boundUrls.map((sourceUrl) => ({
+        vectorType,
+        value,
+        source: label,
+        sourceUrl,
+        extractionMethod: sourceUrl ? "public-search-extraction" : "ai-extraction-without-claim-url",
+        confidence: sourceUrl ? 0.4 : 0.25,
+        details: { citationBound: Boolean(sourceUrl) },
+        observedAt: now,
+      }));
+    });
+  };
+  result.evidence = [
+    ...evidenceFor("email", bestEmail, emailSrcs),
+    ...evidenceFor("phone", bestPhone, phoneSrcs),
+    ...evidenceFor("social", bestLI, liSrcs),
+    ...evidenceFor("social", bestIG, igSrcs),
+    ...evidenceFor("social", bestTW, twSrcs),
+  ];
 
   if (bestEmail) {
     result.email = bestEmail;

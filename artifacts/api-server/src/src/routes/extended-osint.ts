@@ -7,6 +7,7 @@
  * POST /api/enrich/whoxy           — Whoxy reverse WHOIS (email/name → domains)
  * POST /api/enrich/holehe          — Holehe email → platform presence (120+ platforms)
  * POST /api/enrich/maigret         — Maigret username → cross-platform dossier
+ * POST /api/enrich/sherlock        — Sherlock supplementary username discovery
  * POST /api/enrich/theharvester    — theHarvester domain → emails/subdomains
  * POST /api/enrich/equasis         — Equasis/VesselFinder vessel/yacht lookup
  * POST /api/enrich/adsb-history    — Historical ADS-B flight traces
@@ -27,7 +28,7 @@ import { enrichWithWhoxy, summariseWhoxyFindings } from "../lib/whoxy-enricher";
 import { enrichWithEquasis, summariseVesselFindings } from "../lib/equasis-enricher";
 import { enrichWithAdsbHistory, summariseAdsbHistory } from "../lib/adsbtrack-enricher";
 import { enrichWithOpenOwnership, summariseOwnershipFindings } from "../lib/openownership-enricher";
-import { runHolehe, runMaigret, runTheHarvester, checkPythonToolsAvailability } from "../lib/python-tools";
+import { runHolehe, runMaigret, runSherlock, runTheHarvester, checkPythonToolsAvailability } from "../lib/python-tools";
 import { getGlinerStatus } from "../lib/gliner-client";
 
 const router = Router();
@@ -192,6 +193,38 @@ router.post("/enrich/maigret", async (req: Request, res: Response): Promise<void
     res.json(result);
   } catch (err: any) {
     logger.error({ err: err.message }, "[Maigret] route error");
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── POST /api/enrich/sherlock ──────────────────────────────────────────────────
+// Supplementary username discovery. Results are always review-only.
+
+router.post("/enrich/sherlock", async (req: Request, res: Response): Promise<void> => {
+  const { entityId, username } = req.body as { entityId?: number; username?: string };
+
+  if (!username) {
+    res.status(400).json({ error: "username is required" });
+    return;
+  }
+
+  const entity = entityId ? await resolveEntity(entityId) : null;
+
+  try {
+    const result = await runSherlock(username);
+    if (entity && result.found.length > 0) {
+      const summary = `Sherlock Supplementary Dossier (${new Date().toISOString().slice(0, 10)}) — ${result.found.length} review-only profiles:\n` +
+        result.found.slice(0, 20).map(p => `  • ${p.siteName} → ${p.url}`).join("\n");
+      const existing = entity.notes ?? "";
+      const newNotes = existing ? `${existing}\n\n${summary}` : summary;
+      await db.update(entitiesTable)
+        .set({ notes: newNotes.slice(0, 10_000), updatedAt: new Date() })
+        .where(eq(entitiesTable.id, entity.id));
+    }
+
+    res.json(result);
+  } catch (err: any) {
+    logger.error({ err: err.message }, "[Sherlock] route error");
     res.status(500).json({ error: err.message });
   }
 });

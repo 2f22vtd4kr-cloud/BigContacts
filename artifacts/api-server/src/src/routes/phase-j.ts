@@ -37,6 +37,7 @@ import { resolveEmployerDomain } from "../lib/domain-resolver";
 import { discoverDigitalFootprint } from "../lib/digital-footprint";
 import { scoreAttribution, isGenericLocalPart } from "../lib/contact-attribution";
 import { logger } from "../lib/logger";
+import { canonicalizeUrl } from "../lib/evidence-ledger";
 
 const router = Router();
 
@@ -120,6 +121,17 @@ async function loadNeighbourContext(targetIds: number[]): Promise<{ names: strin
 
 // ── Evidence persistence ──────────────────────────────────────────────────────
 
+type PersistableContactEvidence = {
+  type: string;
+  value: string;
+  source: string;
+  sourceUrl: string | null;
+  confidence: number;
+  queryTemplate?: string;
+  extractionMethod?: string;
+  details?: Record<string, unknown>;
+};
+
 async function persistEvidence(
   entityId: number,
   runId: number,
@@ -130,47 +142,94 @@ async function persistEvidence(
   linkedinUrl: string | null,
   domain: string | null,
   verified: boolean,
-  footprintEvidence: Array<{ type: string; value: string; source: string; sourceUrl: string | null; confidence: number; queryTemplate: string }>,
+  footprintEvidence: PersistableContactEvidence[],
 ): Promise<void> {
   const rows: Array<typeof contactEvidenceTable.$inferInsert> = [];
-  const validationStatus = verified ? "verified" : "candidate";
   const corroboration = new Set(sources.map(s => s.split(/[-_]/)[0])).size;
 
-  function baseRow(src: string) {
+  function baseRow(src: string, validationStatus: "verified" | "candidate", sourceUrl: string | null, extra: Record<string, unknown> = {}) {
     return {
       entityId, runId,
       source: src,
       sourceReliability: sourceReliabilityScore(src),
-      identityMatch: 0.75,
-      recencyScore: 0.70,
+      // These are intentionally conservative defaults. The evidence row must
+      // carry its own URL and metadata rather than inheriting a score from the
+      // merged winner or from provider repetition.
+      identityMatch: 0.50,
+      recencyScore: 0.50,
       independentCorroboration: corroboration,
       validationStatus,
-      metadata: JSON.stringify({ sources, entityType }),
+      sourceUrl,
+      metadata: JSON.stringify({ sources, entityType, ...extra }),
     };
   }
 
-  if (email) rows.push({ ...baseRow(sources[0] ?? "phase-j"), vectorType: "email", value: email, directnessScore: verified ? 0.95 : 0.65, extractionMethod: "public-source-parser", sourceUrl: domain ? `https://${domain}` : null });
-  if (phone) rows.push({ ...baseRow(sources[0] ?? "phase-j"), vectorType: "phone", value: phone, directnessScore: verified ? 0.90 : 0.60, extractionMethod: "public-source-parser", sourceUrl: domain ? `https://${domain}` : null });
-  if (linkedinUrl) rows.push({ ...baseRow("LinkedIn"), vectorType: "social", value: linkedinUrl, directnessScore: 0.20, validationStatus: "candidate", extractionMethod: "public-profile-discovery", sourceUrl: linkedinUrl });
-  if (domain) rows.push({ ...baseRow("domain-resolver"), vectorType: "domain", value: domain, directnessScore: 0.10, validationStatus: "candidate", extractionMethod: "J4-domain-resolution", sourceUrl: `https://${domain}` });
+  function addContactVector(vectorType: string, value: string | null, fallbackSource: string): void {
+    if (!value) return;
+    const matches = footprintEvidence.filter((e) =>
+      e.type === vectorType && e.value.trim().toLowerCase() === value.trim().toLowerCase(),
+    );
+    const unique = new Set<string>();
+    for (const evidence of matches) {
+      const sourceUrl = canonicalizeUrl(evidence.sourceUrl);
+      const key = `${evidence.source}|${sourceUrl ?? ""}`;
+      if (unique.has(key)) continue;
+      unique.add(key);
+      const validationStatus = verified ? "verified" : "candidate";
+      rows.push({
+        ...baseRow(evidence.source, validationStatus, sourceUrl, {
+          queryTemplate: evidence.queryTemplate ?? null,
+          evidenceDetails: evidence.details ?? null,
+        }),
+        vectorType,
+        value,
+        directnessScore: verified ? Math.min(0.95, evidence.confidence) : Math.min(0.75, evidence.confidence),
+        extractionMethod: evidence.extractionMethod ?? "public-source-parser",
+      });
+    }
+    if (!matches.length) {
+      rows.push({
+        ...baseRow(fallbackSource, "candidate", null, {
+          provenance: "merged-result-without-source-row",
+        }),
+        vectorType,
+        value,
+        directnessScore: 0.25,
+        extractionMethod: "merged-result-without-source-row",
+      });
+    }
+  }
+
+  addContactVector("email", email, sources[0] ?? "phase-j");
+  addContactVector("phone", phone, sources[0] ?? "phase-j");
+  if (linkedinUrl) rows.push({
+    ...baseRow("LinkedIn", "candidate", canonicalizeUrl(linkedinUrl), { vector: "social" }),
+    vectorType: "social", value: linkedinUrl, directnessScore: 0.20,
+    extractionMethod: "public-profile-discovery",
+  });
+  if (domain) rows.push({
+    ...baseRow("domain-resolver", "candidate", canonicalizeUrl(`https://${domain}`), { vector: "domain" }),
+    vectorType: "domain", value: domain, directnessScore: 0.10,
+    extractionMethod: "J4-domain-resolution",
+  });
 
   // Add footprint evidence rows (J5)
-  for (const fe of footprintEvidence.slice(0, 10)) {
-    if (["email", "phone", "linkedin"].includes(fe.type) && fe.value) {
+  for (const fe of footprintEvidence.slice(0, 20)) {
+    if (["email", "phone", "linkedin"].includes(fe.type) && fe.value && !["email", "phone"].includes(fe.type)) {
       rows.push({
         entityId, runId,
         source: fe.source,
         vectorType: fe.type === "linkedin" ? "social" : fe.type,
         value: fe.value,
-        sourceUrl: fe.sourceUrl,
+        sourceUrl: canonicalizeUrl(fe.sourceUrl),
         sourceReliability: sourceReliabilityScore(fe.source),
-        identityMatch: 0.70,
-        recencyScore: 0.65,
+        identityMatch: 0.50,
+        recencyScore: 0.50,
         directnessScore: fe.confidence,
         independentCorroboration: 1,
-        validationStatus: fe.type === "email" && isValidPublicEmail(fe.value) ? validationStatus : "candidate",
-        extractionMethod: `J5-${fe.queryTemplate}`,
-        metadata: JSON.stringify({ queryTemplate: fe.queryTemplate, entityType }),
+        validationStatus: "candidate",
+        extractionMethod: fe.extractionMethod ?? `J5-${fe.queryTemplate ?? "discovery"}`,
+        metadata: JSON.stringify({ queryTemplate: fe.queryTemplate ?? null, entityType, details: fe.details ?? null }),
       });
     }
   }
@@ -442,7 +501,19 @@ async function runPhaseJPass(jobId: string, runId: number, entities: PassEntity[
       await persistEvidence(
         entity.id, runId, entity.type, mergedSources,
         bestEmail, bestPhone, bestLinkedIn,
-        domainInfo.domain, attribution.attributed, footprint.evidence,
+        domainInfo.domain, attribution.attributed,
+        [
+          ...inHouseResult.evidence.map((e) => ({
+            type: e.vectorType,
+            value: e.value,
+            source: e.source,
+            sourceUrl: e.sourceUrl,
+            confidence: e.confidence / 100,
+            extractionMethod: e.extractionMethod,
+            details: e.details,
+          })),
+          ...footprint.evidence,
+        ],
       );
 
       // ── J7: Update enrichment state + source cooldowns ─────────────────────
