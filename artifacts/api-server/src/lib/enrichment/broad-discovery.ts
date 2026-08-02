@@ -87,7 +87,7 @@ This is entity discovery, not topic extraction. Admit a candidate only when the 
 
 INCLUDE only: living private individuals who are wealthy — business owners, investors, property owners, yacht/aircraft owners, fund managers, family office principals, developers, collectors.
 
-GEOGRAPHY: include only candidates explicitly tied in the supplied evidence to the United States, Canada, the United Kingdom, Ireland, France, Germany, Switzerland, Austria, Belgium, the Netherlands, Luxembourg, Denmark, Sweden, Norway, Finland, Iceland, Italy, Spain, Portugal, Greece, Monaco, Australia, or New Zealand. Reject candidates whose only location is Asia, the Middle East, Africa, Latin America, Russia, or Eastern Europe.
+GEOGRAPHY: include only candidates explicitly tied in the supplied evidence to the United States, Canada, the United Kingdom, Ireland, France, Germany, Switzerland, Austria, Belgium, the Netherlands, Luxembourg, Denmark, Sweden, Norway, Finland, Iceland, Italy, Spain, Portugal, Greece, Monaco, Australia, New Zealand, Singapore, Hong Kong, Japan, South Korea, the United Arab Emirates, Qatar, Bahrain, or Israel. Reject candidates whose only location is Africa, Latin America, Russia, or Eastern Europe, or whose only connection is a travel/tourism mention.
 
 EVIDENCE: prefer official registries, regulatory filings, company websites, foundation filings, reputable business publications, or an attributable interview. Tourism pages, booking sites, venue directories, listicles, generic lifestyle pages, and anonymous snippets are not evidence of wealth or identity. Return a name only if the same result text supports that person's role or ownership.
 
@@ -232,33 +232,33 @@ const TEMPLATE_CATEGORIES: Record<number, string[]> = {
     '"BRREG" director aksjeselskap major shareholder',
     '"Scandinavian" family office investment billion',
   ],
-  8: [  // Asian wealth centres
-    '"Singapore" family office principal HNWI',
-    '"Hong Kong" tycoon director "private limited"',
-    '"Tokyo" billionaire investment portfolio',
-    '"Dubai" family office "ultra high net worth"',
-    '"Abu Dhabi" investment director wealth fund',
-    '"Seoul" family business chairman owner conglomerate',
-    '"Singapore" MAS licensed fund manager',
-    '"Hong Kong" SFC director fund management',
-    '"Indonesia" billionaire group owner director',
-    '"Malaysia" tycoon conglomerate director chairman',
-    '"Philippines" billionaire family office',
-    '"Thailand" billionaire investment group',
+  8: [  // Global wealth centres with explicit person/ownership evidence
+    '"New York" ("family office" OR investment company) (principal OR founder OR CIO) profile',
+    '"Los Angeles" ("family office" OR holding company) (principal OR founder OR investor) interview',
+    'Toronto ("family office" OR private equity) (principal OR founder OR partner) profile',
+    'Vancouver (investment OR real estate) (owner OR founder OR principal) company',
+    'Paris ("family office" OR investment) (principal OR founder OR managing partner) profile',
+    'Berlin ("family office" OR technology company) (founder OR investor OR principal) interview',
+    'Geneva ("private wealth" OR family office) (principal OR founder OR partner) profile',
+    'Singapore ("family office" OR investment company) (principal OR founder OR CIO) MAS profile',
+    '"Hong Kong" ("family office" OR private equity) (principal OR founder OR partner) SFC profile',
+    'Tokyo (technology OR industrial) (founder OR owner OR investor) company profile',
+    'Seoul ("family business" OR investment company) (chairman OR founder OR owner) profile',
+    'Sydney ("family office" OR investment company) (principal OR founder OR owner) profile',
   ],
-  9: [  // Latin American & Eastern European
-    '"São Paulo" billionaire investor portfolio',
-    '"Mexico City" family office director wealth',
-    '"Buenos Aires" investment fund director',
-    '"Warsaw" private equity founder billion',
-    '"Prague" real estate developer investment',
-    '"Cyprus" beneficial owner offshore fund',
-    '"Luxembourg" family office principal fund',
-    '"Geneva" private wealth family office Swiss',
-    '"Zurich" private banking director wealth management',
-    '"Vienna" private equity foundation director',
-    '"Amsterdam" family office investment',
-    '"Brussels" private equity fund director',
+  9: [  // Western Europe & North American ownership evidence
+    '"San Francisco" ("technology founder" OR investor) (company OR portfolio) profile',
+    '"Boston" ("private equity" OR venture capital) (founder OR partner OR principal) profile',
+    '"Chicago" ("family office" OR investment company) (owner OR founder OR chairman) filing',
+    '"Miami" ("real estate developer" OR investment) (owner OR principal OR founder) interview',
+    '"Dallas" (industrial OR energy OR property) (owner OR founder OR chairman) company',
+    '"Zurich" ("private bank" OR family office) (principal OR founder OR partner) profile',
+    '"Brussels" ("private equity" OR investment group) (founder OR director OR principal) profile',
+    '"Luxembourg" ("family office" OR investment fund) (principal OR founder OR partner) filing',
+    '"Vienna" ("private equity" OR industrial group) (founder OR owner OR chairman) profile',
+    '"Dublin" ("investment company" OR family office) (founder OR principal OR owner) profile',
+    '"Edinburgh" (investment OR property) (owner OR founder OR principal) Scotland profile',
+    '"Copenhagen" ("family office" OR private equity) (founder OR partner OR principal) profile',
   ],
   10: [ // Tier-1 fund & institutional principals
     '"general partner" fund billion AUM raise',
@@ -305,19 +305,20 @@ const TEMPLATE_CATEGORIES: Record<number, string[]> = {
     '"nightclub" owner director Saint-Tropez Monaco Ibiza',
   ],
 
-  13: [ // Middle East business, investment & real estate
-    '"investment fund" Dubai founder principal director',
-    '"family office" Abu Dhabi Riyadh Doha principal',
-    '"real estate" developer owner Dubai founder billion',
-    '"hospitality group" owner CEO Dubai UAE founder',
-    '"business group" chairman owner Saudi Arabia Kuwait',
-    '"hotel" developer owner Dubai Abu Dhabi founder',
-    '"mall" developer owner UAE Gulf director chairman',
-    '"private equity" Dubai founding partner billion',
-    '"investment" chairman CEO Qatar Bahrain Oman',
-    '"sovereign wealth" officer director Dubai Abu Dhabi',
-    '"construction" chairman owner Riyadh Jeddah billion',
-    '"shipping" owner director UAE Gulf billionaire',
+  13: [ // Global institutional, property & investment principals
+    '"investment fund" (founder OR principal OR managing partner) (London OR New York OR Paris) profile',
+    '"family office" (principal OR CIO OR founder) (Geneva OR Zurich OR London) interview',
+    '"real estate developer" (owner OR founder OR chairman) (United States OR Canada OR United Kingdom) profile',
+    '"hospitality group" (owner OR founder OR CEO) (France OR Italy OR Spain) company',
+    '"business group" (chairman OR owner OR founder) (Germany OR Austria OR Switzerland) profile',
+    '"hotel group" (developer OR owner OR founder) (United Kingdom OR France OR Italy) filing',
+    '"private equity" (founding partner OR managing partner) (London OR Boston OR Paris) interview',
+    '"investment company" (chairman OR CEO OR founder) (Denmark OR Sweden OR Norway) profile',
+    '"real assets fund" (principal OR partner OR founder) Europe profile',
+    '"Singapore" ("investment fund" OR family office) (founder OR principal OR managing partner) MAS profile',
+    '"Dubai" ("family office" OR investment company) (founder OR principal OR chairman) UAE profile',
+    '"Abu Dhabi" ("investment company" OR family office) (principal OR founder OR chairman) UAE profile',
+    '"Doha" ("investment group" OR family office) (founder OR principal OR chairman) Qatar profile',
   ],
 
   14: [ // Private club, marina & resort ownership globally
@@ -352,6 +353,21 @@ const TEMPLATE_CATEGORIES: Record<number, string[]> = {
 };
 
 const TOTAL_CATEGORIES = Object.keys(TEMPLATE_CATEGORIES).length; // 15
+
+/**
+ * Every broad-discovery search gets this contract appended to its category
+ * template. Category templates describe the business signal; this wrapper
+ * prevents them from degrading into generic venue/travel/topic searches.
+ */
+const DISCOVERY_QUERY_GUARDRAIL = [
+  '("United States" OR Canada OR "United Kingdom" OR Ireland OR France OR Germany OR Switzerland OR Austria OR Belgium OR Netherlands OR Luxembourg OR Denmark OR Sweden OR Norway OR Finland OR Iceland OR Italy OR Spain OR Portugal OR Greece OR Monaco OR Australia OR "New Zealand" OR Singapore OR "Hong Kong" OR Japan OR "South Korea" OR "United Arab Emirates" OR Dubai OR Qatar OR Bahrain OR Israel)',
+  '(owner OR founder OR principal OR investor OR "managing partner" OR chairman OR "family office")',
+  '-tourism -travel -vacation -booking -tripadvisor -expedia -"hotel deals"',
+].join(" ");
+
+function buildDiscoveryQuery(template: string): string {
+  return `${template} ${DISCOVERY_QUERY_GUARDRAIL}`;
+}
 
 // ── Name extraction ───────────────────────────────────────────────────────────
 
@@ -596,7 +612,9 @@ export async function runBroadDiscovery(options: {
 
   const templateSet = options.templateSet ?? await getNextTemplateSet(rotateTemplates);
   const templates = TEMPLATE_CATEGORIES[templateSet] ?? TEMPLATE_CATEGORIES[1];
-  const queries = templates.slice(0, Math.min(maxQueries, templates.length));
+  const queries = templates
+    .slice(0, Math.min(maxQueries, templates.length))
+    .map(buildDiscoveryQuery);
 
   logger.info({ templateSet, queryCount: queries.length }, "Broad discovery: starting");
 
