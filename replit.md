@@ -51,6 +51,7 @@ The previously used Warren Buffett record is not a valid benchmark: celebrity vi
 - Evidence rule: organization accounts, same-name/public-figure candidates, AI-only citations, and provider agreement without exact canonical claim URLs remain durable review evidence only.
 - Attribution hardening: only current-run social candidates with target-person attribution and an exact fetched claim URL can reach HNWI contact fields or trigger Maigret/Sherlock; legacy entity handles are never used as scan fallbacks.
 - Run safety: active-job ownership checks prevent orphaned workers from overlapping replacements or clearing a newer job lock.
+- Claim-source hardening: lead-generation/directory publishers are excluded from direct-contact corroboration and bounded exact-claim fetching. A controlled three-target canary completed 3/3 with 0 errors and 0/3 verified direct routes; it improved provenance quality without producing a false contact promotion.
 - Honest status: the pipeline is materially safer and provenance-correct, but this cohort does **not** establish a 9/10 research score. Post-fix direct-contact yield is 0/16; 10 social-only and 6 no-usable-contact records require further lawful, evidence-backed access work.
 
 ## Contact Enrichment Roadmap
@@ -135,7 +136,7 @@ Two fixes were needed after the first import:
 | Source | Entities | Assets | Notes |
 |---|---|---|---|
 | Western HNWI + FAA controlled import | 5,036 | 5,000 | 35 Western records plus 5,000 FAA aircraft-owner records; no synthetic data. |
-| FAA benchmark enrichment | 16 | — | Post-fix run completed 16/16 with 0 errors: 10 social-only, 0 direct-contact candidates, 6 no usable contact outcomes; 431 durable evidence rows. |
+| FAA benchmark enrichment | 16 | — | Post-fix run completed 16/16 with 0 errors: 10 social-only, 0 direct-contact candidates, 6 no usable contact outcomes; 431 durable evidence rows. Follow-up three-target claim-source canary: 3/3, 0 errors, 0/3 verified direct routes. |
 | **Current verified state at last check** | **5,036** | **5,000** | API and Redis healthy; broad auto-ingestion disabled; no active enrichment worker; contact fields remain fail-closed. |
 
 **Controlled-run state:** `ENABLE_AUTO_PIPELINE=false` remains set, so startup will not create an additional broad ingestion job. No pipeline is active; the durable contact-promotion validator, current-run evidence boundary, active-job ownership guard, and Access/Signal separation remain in place.

@@ -1,11 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { exactContactValueMatches, isEligiblePersonalSocialCandidate, reconcileContactCandidates } from "../lib/contact-candidate";
+import {
+  exactContactValueMatches,
+  isEligiblePersonalSocialCandidate,
+  isPromotableDirectContactUrl,
+  reconcileContactCandidates,
+} from "../lib/contact-candidate";
 
 describe("contact candidate reconciliation", () => {
   it("matches exact fetched claim values without treating formatting as evidence", () => {
     expect(exactContactValueMatches("email", "Jane@Example.org", " jane@example.org ")).toBe(true);
     expect(exactContactValueMatches("phone", "+1 (212) 555-0101", "212.555.0101")).toBe(false);
     expect(exactContactValueMatches("phone", "+1 (212) 555-0101", "+1 212 555 0101")).toBe(true);
+  });
+
+  it("does not count lead-generation directories as canonical direct-contact publishers", () => {
+    expect(isPromotableDirectContactUrl("https://contactout.com/Jane-Doe-123")).toBe(false);
+    expect(isPromotableDirectContactUrl("https://signalhire.com/profiles/jane-doe")).toBe(false);
+    expect(isPromotableDirectContactUrl("https://www.bbb.org/profile/jane-doe")).toBe(true);
+    expect(isPromotableDirectContactUrl("https://example.org/team/jane-doe")).toBe(true);
   });
 
   it("keeps an organization contact out of the personal promotion state", () => {

@@ -51,6 +51,36 @@ export interface CandidateFunnel {
   candidates: ReconciledCandidate[];
 }
 
+const BLOCKED_DIRECT_CONTACT_PUBLISHER_DOMAINS = new Set([
+  "contactout.com",
+  "signalhire.com",
+  "rocketreach.co",
+  "zoominfo.com",
+  "veripages.com",
+  "whitepages.com",
+  "spokeo.com",
+  "peoplefinders.com",
+  "idcrawl.com",
+  "theorg.com",
+  "dnb.com",
+  "crunchbase.com",
+  "pitchbook.com",
+]);
+
+/**
+ * Directory/lead-generation pages can discover a value, but they are not
+ * canonical claim publishers for a personal contact route.
+ */
+export function isPromotableDirectContactUrl(url: string): boolean {
+  try {
+    const hostname = new URL(url).hostname.replace(/^www\./, "").toLowerCase();
+    return ![...BLOCKED_DIRECT_CONTACT_PUBLISHER_DOMAINS]
+      .some((domain) => hostname === domain || hostname.endsWith(`.${domain}`));
+  } catch {
+    return false;
+  }
+}
+
 /**
  * A social candidate may be used as a personal research pivot only after
  * attribution is strong enough to distinguish it from an organization account
@@ -111,7 +141,11 @@ function sourceUrlsFor(item: ContactCandidateEvidence): string[] {
       ? item.details.sourceUrls.filter((url): url is string => typeof url === "string")
       : []),
   ];
-  return [...new Set(urls.map((url) => canonicalizeUrl(url)).filter((url): url is string => Boolean(url)))];
+  const canonicalUrls = [...new Set(urls.map((url) => canonicalizeUrl(url)).filter((url): url is string => Boolean(url)))];
+  if (item.vectorType === "email" || item.vectorType === "phone") {
+    return canonicalUrls.filter(isPromotableDirectContactUrl);
+  }
+  return canonicalUrls;
 }
 
 function scopeFor(item: ContactCandidateEvidence): CandidateScope {

@@ -11,6 +11,8 @@ The valid benchmark is a controlled cohort of 16 less-famous, business-linked FA
 
 The enricher now makes a bounded exact-claim fetch pass over the strongest person-level discovery URLs before final promotion. The canary produced no new verified route, which is useful evidence that the current citation sources are inaccessible, non-claim pages, or insufficiently attributable rather than proof that the gates should be relaxed.
 
+The claim-source pass now carries all owner-resolution source URLs into the candidate details and excludes lead-generation/directory publishers from direct-contact corroboration and exact-claim fetching. A controlled three-target canary completed 3/3 with 0 errors and 0/3 verified direct routes; the change improved provenance quality without increasing yield.
+
 **Why:** Provider discovery frequently returns directory, aggregator, profile, or blocked pages that mention a candidate without exposing the exact contact value on a fetchable canonical page.
 
-**How to apply:** Keep this pass bounded and opportunistic. A failed or non-matching fetch must leave the candidate in review; expand lawful source coverage instead of promoting from snippets or provider agreement.
+**How to apply:** Keep this pass bounded and opportunistic. Exclude known lead-generation/directory domains from direct-contact corroboration, and leave failed or non-matching fetches in review; expand lawful source coverage instead of promoting from snippets or provider agreement.

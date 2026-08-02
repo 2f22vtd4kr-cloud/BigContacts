@@ -16,6 +16,7 @@ This controlled benchmark measures research quality on less-famous, business-lin
 | Pre-attribution fix | 16/16 enriched, 13 social-only, 1 direct-contact candidate, 2 no usable contact outcomes |
 | Five-target regression | 5/5 enriched, 0 errors; organization-only and same-name social values were not promoted |
 | **Authoritative post-fix rerun** | **16/16 enriched, 0 errors, 10 social-only, 0 direct-contact candidates, 6 no usable contact outcomes** |
+| Three-target claim-source canary | 3/3 enriched, 0 errors; 0/3 verified direct routes; blocked lead-generation publishers remained review-only |
 
 The post-fix result is authoritative because it applies the final fail-closed attribution and legacy-handle protections.
 
@@ -27,7 +28,8 @@ The post-fix result is authoritative because it applies the final fail-closed at
 - No personal email or phone was promoted into the cohort
 - Organization accounts, same-name/public-figure candidates, AI-only citations, and provider agreement without exact fetched claim URLs remained review-only
 - Maigret/Sherlock were not allowed to use legacy entity handles as scan fallbacks
+- The claim-source canary excluded lead-generation/directory publishers from direct-contact corroboration and exact-claim fetching. It improved provenance quality but produced no new verified route: Edmund O Noel had 15 current-run evidence rows, Robert M Davidson 12, and Jacob Eiting 5; all three remained at 0 verified direct routes.
 
 ## Quality interpretation
 
-This is a correctness and provenance milestone, not a 9/10 access-quality result. The authoritative direct-contact yield is 0/16. The remaining work is to improve lawful, evidence-backed access discovery without weakening identity, attribution, corroboration, freshness, or manual-review gates.
+This is a correctness and provenance milestone, not a 9/10 access-quality result. The authoritative direct-contact yield remains 0/16; the controlled three-target follow-up also yielded 0/3. The remaining work is source coverage and exact claim retrieval, not weakening identity, attribution, corroboration, freshness, or manual-review gates.

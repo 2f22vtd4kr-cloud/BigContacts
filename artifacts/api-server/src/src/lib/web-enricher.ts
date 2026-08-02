@@ -43,6 +43,7 @@ import {
   candidateKey,
   exactContactValueMatches,
   isEligiblePersonalSocialCandidate,
+  isPromotableDirectContactUrl,
   reconcileContactCandidates,
   type CandidateFunnel,
 } from "./contact-candidate";
@@ -1675,6 +1676,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       role: owner.role,
       ownershipStatus: owner.ownershipStatus,
       relationship: "personal-handle-candidate",
+      sourceUrls: sourceUrls.slice(0, 4),
     };
     const sourceUrl = sourceUrls[0] ?? null;
     if (owner.instagram) recordEvidence("social", owner.instagram, ownerLabel, sourceUrl, "owner-resolution", 72, { ...details, network: "instagram" });
@@ -2638,7 +2640,9 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         ? details.discoveryUrls.filter((url): url is string => typeof url === "string")
         : [];
       return scopes.some((scope) => scope === "target_person" || scope === "person_candidate")
-        && discoveryUrls.length > 0;
+        && Boolean(evidence.sourceUrl || discoveryUrls.length || (
+          Array.isArray(details.sourceUrls) && details.sourceUrls.length > 0
+        ));
     }).sort((a, b) => {
       const scopes = (evidence: DeepWebEvidence) => {
         const details = evidence.details ?? {};
@@ -2658,23 +2662,28 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       const discoveryUrls = Array.isArray(evidence.details?.discoveryUrls)
         ? evidence.details.discoveryUrls.filter((url): url is string => typeof url === "string")
         : [];
+      const sourceUrls = Array.isArray(evidence.details?.sourceUrls)
+        ? evidence.details.sourceUrls.filter((url): url is string => typeof url === "string")
+        : [];
       const candidateUrls = [
         ...(evidence.sourceUrl ? [evidence.sourceUrl] : []),
+        ...sourceUrls,
         ...discoveryUrls,
-      ];
+      ].slice(0, 3);
       for (const rawUrl of candidateUrls) {
         try {
           const parsed = new URL(rawUrl);
           if (!/^https?:$/.test(parsed.protocol)) continue;
           parsed.hash = "";
           const url = parsed.toString();
+          if (!isPromotableDirectContactUrl(url)) continue;
           if (seenClaimUrls.has(url)) continue;
           seenClaimUrls.add(url);
           claimUrls.push(url);
-          if (claimUrls.length >= 3) break;
+          if (claimUrls.length >= 6) break;
         } catch { /* ignore malformed provider citations */ }
       }
-      if (claimUrls.length >= 3) break;
+      if (claimUrls.length >= 6) break;
     }
 
     for (const url of claimUrls) {
