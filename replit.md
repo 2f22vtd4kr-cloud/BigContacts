@@ -40,17 +40,18 @@ The API server `dev` script runs `build` then `start` every time (esbuild, ~1.5s
 
 The dashboard uses two deliberately separate scores: **Signal** reflects the strength of wealth/registry evidence, while **Access** reflects how realistically a profile can be reached through public contact evidence and directness. A strong Signal score must not imply a strong Access score.
 
-The previously used Warren Buffett record is not a valid benchmark: celebrity visibility makes it unrealistically reachable. The valid controlled benchmark is a 16-person FAA aircraft-owner cohort selected from real individual turbine/multi-engine registrants, excluding Buffett, trusts, companies, obvious wrappers, and malformed names. The clean run completed 16/16 with 0 errors: 13 social-only, 1 direct-contact candidate, and 2 with no usable contact outcome. Broad ingestion remains disabled unless explicitly requested.
+The previously used Warren Buffett record is not a valid benchmark: celebrity visibility makes it unrealistically reachable. The valid controlled benchmark is a 16-person FAA aircraft-owner cohort selected from real individual turbine/multi-engine registrants, excluding Buffett, trusts, companies, obvious wrappers, and malformed names. The pre-fix run completed 16/16 with 0 errors at 13 social-only / 1 direct-contact candidate / 2 no usable contact outcomes; the stricter post-fix rerun completed 16/16 with 0 errors at 10 social-only / 0 direct-contact candidates / 6 no usable contact outcomes. Broad ingestion remains disabled unless explicitly requested.
 
 ### Controlled FAA benchmark (verified 2026-08-02)
 
 - FAA import: 5,000 real registry records, 0 errors; no synthetic entities were seeded.
 - Cohort: 16 less-famous, business-linked individual owners; target selection excluded celebrity/public-figure benchmarks and non-person wrappers.
-- Funnel: 16/16 enriched, 13 social-only, 1 direct-contact candidate, 2 no usable contact outcome.
+- Funnel: post-fix 16/16 enriched, 10 social-only, 0 direct-contact candidates, 6 no usable contact outcomes; 6 HNWI social fields were promoted only after current-run attribution checks.
+- Durable evidence: 431 contact-evidence rows across the cohort, including organization and person-candidate review evidence that was not promoted.
 - Evidence rule: organization accounts, same-name/public-figure candidates, AI-only citations, and provider agreement without exact canonical claim URLs remain durable review evidence only.
 - Attribution hardening: only current-run social candidates with target-person attribution and an exact fetched claim URL can reach HNWI contact fields or trigger Maigret/Sherlock; legacy entity handles are never used as scan fallbacks.
 - Run safety: active-job ownership checks prevent orphaned workers from overlapping replacements or clearing a newer job lock.
-- Honest status: the pipeline is materially safer and provenance-correct, but this cohort does **not** establish a 9/10 research score. Direct-contact yield is 1/16, and the remaining 13 social-only records require further lawful, evidence-backed access work.
+- Honest status: the pipeline is materially safer and provenance-correct, but this cohort does **not** establish a 9/10 research score. Post-fix direct-contact yield is 0/16; 10 social-only and 6 no-usable-contact records require further lawful, evidence-backed access work.
 
 ## Contact Enrichment Roadmap
 
@@ -134,12 +135,12 @@ Two fixes were needed after the first import:
 | Source | Entities | Assets | Notes |
 |---|---|---|---|
 | Western HNWI + FAA controlled import | 5,036 | 5,000 | 35 Western records plus 5,000 FAA aircraft-owner records; no synthetic data. |
-| FAA benchmark enrichment | 16 | — | Clean run completed 16/16 with 0 errors; the five-target attribution regression also completed 5/5 with 0 errors. |
+| FAA benchmark enrichment | 16 | — | Post-fix run completed 16/16 with 0 errors: 10 social-only, 0 direct-contact candidates, 6 no usable contact outcomes; 431 durable evidence rows. |
 | **Current verified state at last check** | **5,036** | **5,000** | API and Redis healthy; broad auto-ingestion disabled; no active enrichment worker; contact fields remain fail-closed. |
 
 **Controlled-run state:** `ENABLE_AUTO_PIPELINE=false` remains set, so startup will not create an additional broad ingestion job. No pipeline is active; the durable contact-promotion validator, current-run evidence boundary, active-job ownership guard, and Access/Signal separation remain in place.
 
-**Honest rating for this case study:** the API and web dashboard are healthy; targeted web research completed; official organization evidence was captured; collision-prone contact evidence and generated outreach remain manual-review only. The benchmark demonstrates correctness and provenance hardening, not 9/10 access quality.
+**Honest rating for this case study:** the API and web dashboard are healthy; targeted web research completed; official organization evidence was captured; collision-prone contact evidence and generated outreach remain manual-review only. The benchmark demonstrates correctness and provenance hardening, not 9/10 access quality. The stricter post-fix result is the authoritative benchmark result.
 
 ---
 
