@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { reconcileContactCandidates } from "../lib/contact-candidate";
+import { isEligiblePersonalSocialCandidate, reconcileContactCandidates } from "../lib/contact-candidate";
 
 describe("contact candidate reconciliation", () => {
   it("keeps an organization contact out of the personal promotion state", () => {
@@ -105,5 +105,47 @@ describe("contact candidate reconciliation", () => {
     ]);
     expect(funnel.conflicted).toBe(2);
     expect(funnel.candidates.every((candidate) => candidate.conflictCount === 1)).toBe(true);
+  });
+
+  it("blocks organization-only and uncorroborated same-name social candidates", () => {
+    const organization = reconcileContactCandidates([{
+      vectorType: "social",
+      value: "https://instagram.com/company-account",
+      source: "directory",
+      sourceUrl: "https://company.example/contact",
+      details: { scope: "organization" },
+    }]).candidates[0]!;
+    const sameName = reconcileContactCandidates([{
+      vectorType: "social",
+      value: "https://instagram.com/jane-doe",
+      source: "search",
+      sourceUrl: "https://unrelated.example/profile",
+      details: { scope: "person_candidate", personName: "Jane Doe" },
+    }]).candidates[0]!;
+
+    expect(isEligiblePersonalSocialCandidate(organization)).toBe(false);
+    expect(isEligiblePersonalSocialCandidate(sameName)).toBe(false);
+  });
+
+  it("allows a corroborated person candidate to become a research pivot", () => {
+    const candidate = reconcileContactCandidates([
+      {
+        vectorType: "social",
+        value: "https://instagram.com/jane-doe",
+        source: "press",
+        sourceUrl: "https://press.example.org/jane-doe",
+        details: { scope: "person_candidate", personName: "Jane Doe" },
+      },
+      {
+        vectorType: "social",
+        value: "https://instagram.com/jane-doe",
+        source: "registry",
+        sourceUrl: "https://registry.example.net/person/jane-doe",
+        details: { scope: "person_candidate", personName: "Jane Doe" },
+      },
+    ]).candidates[0]!;
+
+    expect(candidate.state).toBe("independently_corroborated");
+    expect(isEligiblePersonalSocialCandidate(candidate)).toBe(true);
   });
 });

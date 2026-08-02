@@ -33,6 +33,11 @@ import {
 } from "./contact-validation";
 
 const INGESTOR_TYPES = ["faa", "land-registry", "western-hnwi", "companies-house-enrich", "occrp", "opensky", "improve", "web-osint", "bulk-hybrid-research", "in-house-enrich", "deep-web-osint", "compute-embeddings", "social-discovery", "messenger-discovery", "foundation-filings", "broad-discovery", "atlas-run"] as const;
+// Startup maintenance is fire-and-forget and the HTTP server can accept a
+// request before it reaches clearGhostJobs(). Only jobs created before this
+// process boot are eligible for recovery; otherwise a legitimate new request
+// can be mistaken for a dead worker from the previous process.
+const PROCESS_BOOT_MS = Date.now();
 
 /**
  * Mark jobs whose worker process is dead as failed, clear their locks.
@@ -48,7 +53,10 @@ async function clearGhostJobs(): Promise<void> {
       const jobId = await getActiveJob(type);
       if (!jobId) continue;
       const job = await getJob(jobId);
-      if (job?.status === "running" || job?.status === "queued") {
+      const startedAtMs = job?.startedAt ? Date.parse(job.startedAt) : NaN;
+      const predatesProcess =
+        Number.isFinite(startedAtMs) && startedAtMs < PROCESS_BOOT_MS;
+      if (predatesProcess && (job?.status === "running" || job?.status === "queued")) {
         await updateJob(jobId, {
           status: "failed",
           message: "Process was killed before the job completed — restart job to continue.",

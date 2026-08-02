@@ -51,6 +51,23 @@ export interface CandidateFunnel {
   candidates: ReconciledCandidate[];
 }
 
+/**
+ * A social candidate may be used as a personal research pivot only after
+ * attribution is strong enough to distinguish it from an organization account
+ * or a same-name public figure. Target-person evidence needs an exact claim URL;
+ * a person-candidate needs corroboration from at least two canonical domains.
+ */
+export function isEligiblePersonalSocialCandidate(
+  candidate: Pick<ReconciledCandidate, "scopes" | "sourceUrls" | "sourceDomains" | "state">,
+): boolean {
+  if (candidate.sourceUrls.length === 0) return false;
+  if (candidate.scopes.includes("target_person")) return true;
+  return candidate.scopes.includes("person_candidate")
+    && !candidate.scopes.every((scope) => scope === "organization")
+    && candidate.sourceDomains.length >= 2
+    && (candidate.state === "independently_corroborated" || candidate.state === "verified_direct_route");
+}
+
 export function candidateKey(vectorType: CandidateVector, value: string): string {
   const trimmed = value.trim().toLowerCase();
   const normalized = vectorType === "phone"

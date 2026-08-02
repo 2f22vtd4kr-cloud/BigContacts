@@ -39,7 +39,12 @@ import { extractWithAI, researchWithPerplexity, researchWithGemini, researchWith
 import { extractPersonNames } from "./gliner-client";
 import { assessTargetReachability, reachabilityDirective } from "./reachability-realism";
 import { scoreCorroboration } from "./evidence-ledger";
-import { candidateKey, reconcileContactCandidates, type CandidateFunnel } from "./contact-candidate";
+import {
+  candidateKey,
+  isEligiblePersonalSocialCandidate,
+  reconcileContactCandidates,
+  type CandidateFunnel,
+} from "./contact-candidate";
 
 // ── Shared utilities ──────────────────────────────────────────────────────────
 
@@ -2771,6 +2776,36 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       ["email", "phone", "social", "domain", "website", "address"].includes(e.vectorType),
     ),
   );
+
+  // Social values are especially vulnerable to same-name contamination:
+  // search providers frequently return a company account, a public figure, or
+  // an unrelated person with the same name. The hit maps above are discovery
+  // indexes, not promotion decisions. For HNWI records, only a target-person
+  // candidate with at least one exact fetched claim URL may reach the entity
+  // columns or trigger username tooling. Owner/person candidates remain
+  // review-only until identity resolution promotes them.
+  const promotedSocialUrl = (
+    vectorType: "social",
+    value: string | null,
+  ): string | null => {
+    if (!value?.trim()) return null;
+    const candidate = result.candidateFunnel.candidates.find(
+      (item) => item.key === candidateKey(vectorType, value),
+    );
+    if (!candidate || candidate.state === "rejected") return null;
+    if (isCorp) {
+      return candidate.scopes.length > 0
+        && candidate.scopes.every((scope) => scope === "organization")
+        && candidate.sourceUrls.length > 0
+        ? value
+        : null;
+    }
+    return isEligiblePersonalSocialCandidate(candidate) ? value : null;
+  };
+
+  result.linkedinUrl = promotedSocialUrl("social", result.linkedinUrl);
+  result.instagramUrl = promotedSocialUrl("social", result.instagramUrl);
+  result.twitterUrl = promotedSocialUrl("social", result.twitterUrl);
 
   // Promotion is deliberately stricter than discovery. For people, only a
   // target-person direct vector corroborated by independent canonical domains

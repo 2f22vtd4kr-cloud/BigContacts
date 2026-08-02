@@ -57,3 +57,4 @@
 - [Evidence-led research scoring](evidence-ledger-research.md) — Corroboration must use canonical source domains and claim-level URLs, not repeated provider labels
 - [Run-isolated evidence snapshots](run-isolated-evidence.md) — Score only the latest enrichment snapshot while retaining superseded evidence for audit
 - [Research scorecard provenance](research-scorecard-provenance.md) — Keep identity, ownership, contact, access, wealth, freshness, and source quality independent and evidence-backed
+- [FAA benchmark attribution](attribution-and-benchmark.md) — Use a less-famous FAA owner cohort, and require current-run target-person evidence before social promotion or username pivots

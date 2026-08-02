@@ -196,3 +196,18 @@ export async function getActiveJob(type: string): Promise<string | null> {
 export async function clearActiveJob(type: string): Promise<void> {
   await safeRedis(rc => rc.del(`apex:activejob:${type}`), null);
 }
+
+/** True only while this worker still owns the active job slot for its type. */
+export async function ownsActiveJob(type: string, jobId: string): Promise<boolean> {
+  return (await getActiveJob(type)) === jobId;
+}
+
+/**
+ * Clear an active slot only if it still points at this worker's job.
+ * A stale worker must never clear a newer replacement job's lock.
+ */
+export async function clearActiveJobIfOwned(type: string, jobId: string): Promise<boolean> {
+  if (!(await ownsActiveJob(type, jobId))) return false;
+  await clearActiveJob(type);
+  return true;
+}

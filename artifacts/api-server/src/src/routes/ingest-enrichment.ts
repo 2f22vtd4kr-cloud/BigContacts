@@ -26,7 +26,7 @@ import { candidateKey } from "../lib/contact-candidate";
 import { sql, eq, and, desc, inArray, type SQL } from "drizzle-orm";
 import {
   createJob, updateJob, getJob,
-  setActiveJob, getActiveJob, clearDedup,
+  setActiveJob, getActiveJob, ownsActiveJob, clearActiveJobIfOwned, clearDedup,
 } from "../lib/job-queue";
 import { runCompaniesHouseEnrichment } from "../lib/enrichment/structured-verification";
 import { deepWebOsintEnrich } from "../lib/enrichment/web-discovery";
@@ -325,6 +325,16 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
     let errors   = 0;
 
     for (let i = 0; i < entities.length; i++) {
+      if (!(await ownsActiveJob("web-osint", jobId))) {
+        await db.update(enrichmentRunsTable).set({
+          finishedAt: new Date(),
+          totalFound: enriched + skipped,
+          totalPersisted: enriched,
+          errors,
+        }).where(eq(enrichmentRunsTable.id, runId));
+        logger.warn({ jobId, runId }, "Web OSINT worker stopped after losing active-job ownership");
+        return;
+      }
       const entity = entities[i];
       try {
         await updateJob(jobId, {
@@ -334,6 +344,16 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
         });
 
         const result = await deepWebOsintEnrich(entity);
+        if (!(await ownsActiveJob("web-osint", jobId))) {
+          await db.update(enrichmentRunsTable).set({
+            finishedAt: new Date(),
+            totalFound: enriched + skipped,
+            totalPersisted: enriched,
+            errors,
+          }).where(eq(enrichmentRunsTable.id, runId));
+          logger.warn({ jobId, runId, entityId: entity.id }, "Web OSINT worker stopped before persistence after losing ownership");
+          return;
+        }
         const cleanEmail = sanitizePublicEmail(result.email);
         const cleanPhone = sanitizePublicPhone(result.phone);
         const cleanLinkedIn = sanitizePublicSocialUrl(result.linkedinUrl, "linkedin", "person");
@@ -402,8 +422,8 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
             ...(cleanPhone       ? { phone: cleanPhone }             : force ? { phone:       null } : {}),
             ...(cleanLinkedIn    ? { linkedinUrl: cleanLinkedIn }     : force ? { linkedinUrl: null } : {}),
             // Corp/Trust: social handles from web scraping belong to persons, not the org
-            ...(cleanInstagramHandle && !entity.instagramHandle && !["Corporation","Corp","Trust"].includes(entity.type) ? { instagramHandle: cleanInstagramHandle } : {}),
-            ...(cleanTwitterHandle   && !entity.twitterHandle   && !["Corporation","Corp","Trust"].includes(entity.type) ? { twitterHandle:   cleanTwitterHandle   } : {}),
+            ...(cleanInstagramHandle && !["Corporation","Corp","Trust"].includes(entity.type) ? { instagramHandle: cleanInstagramHandle } : force && !["Corporation","Corp","Trust"].includes(entity.type) ? { instagramHandle: null } : {}),
+            ...(cleanTwitterHandle   && !["Corporation","Corp","Trust"].includes(entity.type) ? { twitterHandle:   cleanTwitterHandle   } : force && !["Corporation","Corp","Trust"].includes(entity.type) ? { twitterHandle: null } : {}),
             contactConfidence: confidence,
             contactOutcome: nextContactOutcome,
             metadata: JSON.stringify(meta),
@@ -473,9 +493,45 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
                 }),
               };
             });
+          // Multiple extraction layers can emit the same claim with the same
+          // database uniqueness key (AI extraction, the fetched page, and a
+          // domain contact crawl often all report one email/phone). PostgreSQL
+          // rejects an INSERT ... ON CONFLICT batch when the same target row
+          // appears more than once in that batch. Collapse those duplicates
+          // before insertion, retaining the row with the strongest evidence
+          // and the richest claim-level provenance.
+          const dedupedEvidenceRows = [...evidenceRows.reduce((byKey, row) => {
+            const key = [
+              row.entityId,
+              row.vectorType,
+              row.value,
+              row.source,
+            ].join("\u0000");
+            const existing = byKey.get(key);
+            if (!existing) {
+              byKey.set(key, row);
+              return byKey;
+            }
+
+            const rowScore =
+              (row.sourceUrl ? 4 : 0) +
+              row.identityMatch * 3 +
+              row.sourceReliability * 2 +
+              row.directnessScore +
+              row.metadata.length / 10_000;
+            const existingScore =
+              (existing.sourceUrl ? 4 : 0) +
+              existing.identityMatch * 3 +
+              existing.sourceReliability * 2 +
+              existing.directnessScore +
+              existing.metadata.length / 10_000;
+            if (rowScore > existingScore) byKey.set(key, row);
+            return byKey;
+          }, new Map<string, (typeof evidenceRows)[number]>()).values()];
+
           try {
-            if (evidenceRows.length > 0) {
-              await db.insert(contactEvidenceTable).values(evidenceRows).onConflictDoUpdate({
+            if (dedupedEvidenceRows.length > 0) {
+              await db.insert(contactEvidenceTable).values(dedupedEvidenceRows).onConflictDoUpdate({
                 target: [
                   contactEvidenceTable.entityId,
                   contactEvidenceTable.vectorType,
@@ -517,15 +573,15 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
         // Extract the best handle found by web-OSINT or already on the entity.
         // Flexible re-entry: Maigret runs AFTER web-OSINT within the same job,
         // and if it finds 3+ platforms, web-OSINT fires again with the new context.
-          const rawHandle =
-          (cleanTwitterHandle ?? "") ||
-          (entity.twitterHandle   ?? "").replace(/^@/, "") ||
-          (cleanInstagramHandle ?? "") ||
-          (entity.instagramHandle ?? "").replace(/^@/, "");
+        // Only scan a handle discovered and approved by this enrichment run.
+        // Never fall back to a legacy entity field: those fields may contain
+        // an organization account or a same-name public figure from an older
+        // run that did not have attribution guardrails.
+        const rawHandle = cleanTwitterHandle || cleanInstagramHandle || "";
         const cleanHandle = rawHandle.replace(/[^a-zA-Z0-9._\-]/g, "").trim();
-         const emailForHolehe = cleanEmail ?? sanitizePublicEmail(entity.email);
+        const emailForHolehe = cleanEmail;
 
-        if (cleanHandle || emailForHolehe) {
+        if ((cleanHandle || emailForHolehe) && await ownsActiveJob("web-osint", jobId)) {
           await updateJob(jobId, { progress: i, total: entities.length, inserted: enriched, skipped, errors,
             message: `Maigret + Holehe: expanding ${entity.name}…` });
 
@@ -533,6 +589,10 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
             cleanHandle    ? runMaigret(cleanHandle)       : Promise.resolve(null),
             emailForHolehe ? runHolehe(emailForHolehe)     : Promise.resolve(null),
           ]);
+          if (!(await ownsActiveJob("web-osint", jobId))) {
+            logger.warn({ jobId, runId, entityId: entity.id }, "Web OSINT worker stopped after username scans lost active-job ownership");
+            return;
+          }
 
           // Save Maigret cross-platform profiles as social evidence
           if (maigretResult?.found.length) {
@@ -664,6 +724,17 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
       }
     }
 
+    if (!(await ownsActiveJob("web-osint", jobId))) {
+      await db.update(enrichmentRunsTable).set({
+        finishedAt: new Date(),
+        totalFound: enriched + skipped,
+        totalPersisted: enriched,
+        errors,
+      }).where(eq(enrichmentRunsTable.id, runId));
+      logger.warn({ jobId, runId }, "Web OSINT worker stopped before completion after losing active-job ownership");
+      return;
+    }
+
     await updateJob(jobId, {
       progress: entities.length, total: entities.length,
       inserted: enriched, skipped, errors,
@@ -677,7 +748,7 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
       errors,
       durationMs: 0,
     }).where(eq(enrichmentRunsTable.id, runId));
-    await setActiveJob("web-osint", "");
+    await clearActiveJobIfOwned("web-osint", jobId);
     logger.info({ enriched, skipped, errors }, "Web OSINT enrichment complete");
   })().catch(err => logger.error({ err: err.message }, "Web OSINT enrichment crashed"));
 });
