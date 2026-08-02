@@ -98,7 +98,7 @@ Tables (all in `lib/db/src/schema/`):
 | Table | Purpose |
 |---|---|
 | `entities` | Core HNWI/Corp/Trust/Gatekeeper profiles |
-| `assets` | Aviation, RealEstate, Marine, PrivateClub assets |
+| `assets` | BusinessInterest, Aviation, RealEstate, Marine, PrivateClub and other public asset evidence |
 | `relationships` | Entity→Entity and Entity→Asset edges |
 | `research_sessions` | Hybrid Research outreach path results + CRM status |
 | `improvement_logs` | Persona-loop suggestions per entity |
@@ -131,18 +131,18 @@ Two fixes were needed after the first import:
 
 ---
 
-## Current Data State (historical benchmark vs current imported runtime, verified 2026-08-02)
+## Current Data State (historical benchmark vs active controlled runtime, verified 2026-08-02)
 
-The benchmark figures below are historical results from the prior populated runtime. The current imported development database is intentionally empty and must remain empty until an explicitly authorized real-data run is requested.
+The benchmark figures below are historical results from the prior populated runtime. The current development database contains only records produced by the explicitly authorized controlled Atlas run; no synthetic records were seeded.
 
 | Source | Entities | Assets | Notes |
 |---|---|---|---|
 | Western HNWI + FAA controlled import | 5,036 | 5,000 | 35 Western records plus 5,000 FAA aircraft-owner records; no synthetic data. |
 | FAA benchmark enrichment | 16 | — | Post-fix run completed 16/16 with 0 errors: 10 social-only, 0 direct-contact candidates, 6 no usable contact outcomes; 431 durable evidence rows. Follow-up three-target claim-source canary: 3/3, 0 errors, 0/3 verified direct routes. |
-| **Current verified state at last check** | **5,036** | **5,000** | API and Redis healthy; broad auto-ingestion disabled; no active enrichment worker; contact fields remain fail-closed. |
-| **Current imported development runtime** | **0** | **0** | Empty and idle after import; no visible or hidden entities, no assets, and no active research worker. No data was added by the prompt/admission safeguards. |
+| **Current verified state at last check** | **10 visible** | **7** | API and Redis healthy; assets are all idempotent `BusinessInterest` rows; hidden entities are excluded from dashboard/list counts. |
+| **Current controlled development runtime** | **10 visible** | **7** | 0 relationships and 0 active research sessions; Atlas job `2bb2709e-867b-4f6d-904d-e866ac6db3c1` remains active and sequential. |
 
-**Controlled-run state:** `ENABLE_AUTO_PIPELINE=false` remains set, so startup will not create a broad ingestion job. No Atlas, ingestion, enrichment, or research worker is active. The durable contact-promotion validator, current-run evidence boundary, active-job ownership guard, candidate-attribution gate, and Access/Signal separation remain in place.
+**Controlled-run state:** `ENABLE_AUTO_PIPELINE=false` remains set, so startup will not create a broad ingestion job. The explicitly authorized Atlas run is active; it is not being restarted while its worker owns the process. The durable contact-promotion validator, current-run evidence boundary, active-job ownership guard, candidate-attribution gate, and Access/Signal separation remain in place.
 
 **Atlas audit state:** Discovery admission and target processing are strictly sequential: each source may admit one candidate, that candidate is fully cooked before the next source starts, and final target review runs before research publication, contact promotion, and new asset publication. Broad search prompts constrain geography, person-level business evidence, and source quality while retaining selected global wealth hubs. The current API runtime reports Holehe, Maigret, and Sherlock available from `.pythonlibs/bin/python3`.
 

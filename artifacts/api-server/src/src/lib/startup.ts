@@ -31,6 +31,7 @@ import {
   sanitizePublicSocialHandle,
   sanitizePublicTelegramHandle,
 } from "./contact-validation";
+import { materializeBusinessAsset } from "./business-assets";
 
 const INGESTOR_TYPES = ["faa", "land-registry", "western-hnwi", "companies-house-enrich", "occrp", "opensky", "improve", "web-osint", "bulk-hybrid-research", "in-house-enrich", "deep-web-osint", "compute-embeddings", "social-discovery", "messenger-discovery", "foundation-filings", "broad-discovery", "atlas-run"] as const;
 // Startup maintenance is fire-and-forget and the HTTP server can accept a
@@ -463,6 +464,35 @@ async function runPopulatedDbMaintenance(): Promise<void> {
     logger.info({ corps: corps.length, trusts: trusts.length }, "Maintenance: entity types reclassified");
   } catch (err: any) {
     logger.warn({ err: err?.message }, "Maintenance: reclassify failed (non-fatal)");
+  }
+
+  // 2b. Materialize each confirmed operating business as a ledger asset.
+  // This is deliberately separate from personal wealth assets.
+  try {
+    const businessRows = await db
+      .select({
+        id: entitiesTable.id,
+        name: entitiesTable.name,
+        type: entitiesTable.type,
+        sourceRegistries: entitiesTable.sourceRegistries,
+        metadata: entitiesTable.metadata,
+      })
+      .from(entitiesTable)
+      .where(eq(entitiesTable.isHidden, false));
+
+    const candidates = businessRows.filter((row) => {
+      return row.type === "Corporation" || (row.type === "HNWI" && /\b(air|aviation|capital|energy|finance|financial|group|holdings?|hotel|investments?|partners?|shipping|ventures?|wealth|industr(?:y|ies)|logistics|properties|technolog(?:y|ies)|foods?|health|media|retail|resources?)\b/i.test(row.name));
+    });
+
+    if (candidates.length > 0) {
+      let created = 0;
+      for (const entity of candidates) {
+        if (await materializeBusinessAsset(entity)) created++;
+      }
+      logger.info({ created, candidates: candidates.length }, "Maintenance: business-interest assets materialized");
+    }
+  } catch (err: any) {
+    logger.warn({ err: err?.message }, "Maintenance: business-interest asset materialization failed (non-fatal)");
   }
 
   // 3. Backfill lat/lon for FAA aviation assets that are missing coordinates

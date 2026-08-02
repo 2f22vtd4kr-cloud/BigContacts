@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and } from "drizzle-orm";
+import { eq, and, or, isNull } from "drizzle-orm";
 import { db, assetsTable, entitiesTable } from "@workspace/db";
 import {
   ListAssetsQueryParams,
@@ -32,7 +32,10 @@ router.get("/assets", async (req, res): Promise<void> => {
     })
     .from(assetsTable)
     .leftJoin(entitiesTable, eq(assetsTable.ownerEntityId, entitiesTable.id))
-    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .where(and(
+      ...(conditions.length > 0 ? conditions : []),
+      or(isNull(assetsTable.ownerEntityId), eq(entitiesTable.isHidden, false)),
+    ))
     .orderBy(assetsTable.createdAt);
 
   const assets = rows.map(({ asset, ownerName }) => ({

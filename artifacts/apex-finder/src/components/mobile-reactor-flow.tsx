@@ -200,7 +200,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
   }
 
   return (
-    <div className="flex flex-col h-full bg-[#0b1120] text-slate-200 overflow-hidden font-sans">
+    <div className="flex h-full min-h-0 flex-col bg-[#0b1120] text-slate-200 overflow-hidden font-sans">
       {/* Header */}
       <header className="px-5 py-4 border-b border-white/10 bg-black/20 backdrop-blur-md shrink-0 z-10">
         <div className="flex items-center justify-between mb-4">
@@ -233,7 +233,10 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
       </header>
 
       {/* Main Flow Area */}
-      <div className="flex-1 overflow-y-auto px-6 py-8 relative atlas-grid">
+      <div
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-8 relative atlas-grid"
+        style={{ WebkitOverflowScrolling: "touch" }}
+      >
         <div className="max-w-md mx-auto relative">
           
           {/* Vertical line connecting phases */}

@@ -1595,7 +1595,7 @@ export default function IntelligenceReactorPage() {
   // ── Mobile ────────────────────────────────────────────────────────────────
   if (isMobile) {
     return (
-      <div style={{ display:"flex", flexDirection:"column", height:"100%", overflow:"hidden", width:"100%" }}>
+      <div style={{ display:"flex", flexDirection:"column", height:"100%", minHeight:0, overflow:"hidden", width:"100%" }}>
         <MobileReactorFlow
           sessions={sessions}
           totalEntities={totalEntities}

@@ -54,6 +54,7 @@ import { contactCacheSet } from "./redis";
 import { runPhaseJBatch } from "../routes/phase-j";
 import { reachabilityOrderExpr } from "./reachability-rank";
 import { backfillWealthLLM } from "./wealth-estimator";
+import { materializeBusinessAsset } from "./business-assets";
 
 // ── Jurisdiction → approximate coordinates lookup (for asset geocoding) ───────
 const JURISDICTION_COORDS: Record<string, [number, number]> = {
@@ -959,6 +960,14 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
         updatedAt:         new Date(),
       }).where(eq(entitiesTable.id, id));
     }
+
+    await materializeBusinessAsset({
+      id,
+      name,
+      type: entity.type,
+      sourceRegistries: entity.sourceRegistries,
+      metadata: entity.metadata,
+    }).catch((err: any) => logger.warn({ entityId: id, err: err?.message }, "[Atlas] Business asset materialization skipped"));
 
     logger.info({ entityId: id, name }, "[Atlas] ✅ Entity fully cooked");
   } catch (err: any) {

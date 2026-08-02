@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { desc, isNotNull, eq, sql, and, or, gte } from "drizzle-orm";
+import { desc, isNotNull, isNull, eq, sql, and, or, gte } from "drizzle-orm";
 import { db, entitiesTable, assetsTable, relationshipsTable, researchSessionsTable } from "@workspace/db";
 import { GetHotLeadsQueryParams } from "@workspace/api-zod";
 import { getCache, setCache } from "../lib/redis";
@@ -189,7 +189,14 @@ router.get("/dashboard/stats", async (_req, res): Promise<void> => {
     topScorers,
   ] = await Promise.all([
     db.select({ cnt: sql<number>`count(*)::int` }).from(entitiesTable).where(visibleEntity),
-    db.select({ cnt: sql<number>`count(*)::int` }).from(assetsTable),
+    db
+      .select({ cnt: sql<number>`count(*)::int` })
+      .from(assetsTable)
+      .leftJoin(entitiesTable, eq(assetsTable.ownerEntityId, entitiesTable.id))
+      .where(or(
+        isNull(assetsTable.ownerEntityId),
+        eq(entitiesTable.isHidden, false),
+      )),
     db.select({ cnt: sql<number>`count(*)::int` }).from(relationshipsTable),
     db.select({ avg: sql<number>`round(avg(${entitiesTable.bayesianScore})::numeric, 4)` }).from(entitiesTable).where(visibleEntity),
     db.select({ cnt: sql<number>`count(*)::int` }).from(entitiesTable).where(and(visibleEntity, eq(entitiesTable.isHot, true))),
@@ -208,6 +215,11 @@ router.get("/dashboard/stats", async (_req, res): Promise<void> => {
         totalValue: sql<number>`coalesce(sum(${assetsTable.estimatedValue}), 0)::float`,
       })
       .from(assetsTable)
+      .leftJoin(entitiesTable, eq(assetsTable.ownerEntityId, entitiesTable.id))
+      .where(or(
+        isNull(assetsTable.ownerEntityId),
+        eq(entitiesTable.isHidden, false),
+      ))
       .groupBy(assetsTable.category),
     db
       .select()
@@ -238,7 +250,11 @@ router.get("/dashboard/stats", async (_req, res): Promise<void> => {
         cnt: sql<number>`count(*)::int`,
       })
       .from(assetsTable)
-      .where(sql`${assetsTable.ownerEntityId} = ANY(${sql.raw(`ARRAY[${topIds.join(",")}]::int[]`)})`)
+      .leftJoin(entitiesTable, eq(assetsTable.ownerEntityId, entitiesTable.id))
+      .where(and(
+        sql`${assetsTable.ownerEntityId} = ANY(${sql.raw(`ARRAY[${topIds.join(",")}]::int[]`)})`,
+        eq(entitiesTable.isHidden, false),
+      ))
       .groupBy(assetsTable.ownerEntityId);
     for (const c of counts) {
       if (c.ownerId) topAssetCounts[c.ownerId] = c.cnt;
@@ -335,7 +351,11 @@ router.get("/dashboard/map-data", async (_req, res): Promise<void> => {
     })
     .from(assetsTable)
     .leftJoin(entitiesTable, eq(assetsTable.ownerEntityId, entitiesTable.id))
-    .where(and(isNotNull(assetsTable.latitude), isNotNull(assetsTable.longitude)))
+    .where(and(
+      isNotNull(assetsTable.latitude),
+      isNotNull(assetsTable.longitude),
+      or(isNull(assetsTable.ownerEntityId), eq(entitiesTable.isHidden, false)),
+    ))
     .orderBy(desc(entitiesTable.bayesianScore))
     .limit(1000);
 
