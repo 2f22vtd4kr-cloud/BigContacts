@@ -19,7 +19,12 @@
 
 import { logger } from "./logger";
 import { extractWithAI, researchWithPerplexity, researchWithGemini, researchWithTavily, researchWithExa } from "./ai-extractor";
-import { reconcileAIResults, type AIEnsembleResult } from "./ai-ensemble";
+import {
+  applyEnsembleAdjudication,
+  buildEnsembleAdjudicationText,
+  reconcileAIResults,
+  type AIEnsembleResult,
+} from "./ai-ensemble";
 import { assessTargetReachability, reachabilityDirective } from "./reachability-realism";
 import { scoreCorroboration } from "./evidence-ledger";
 
@@ -497,12 +502,30 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     const [perp, gem, tav, exa] = providerResults.map((item) =>
       item.status === "fulfilled" ? item.value : { source: "none" },
     ) as any[];
-    result.aiEnsemble = reconcileAIResults([
+    const ensemble = reconcileAIResults([
       { provider: "perplexity", result: perp },
       { provider: "gemini", result: gem },
       { provider: "tavily", result: tav },
       { provider: "exa", result: exa },
     ].filter(({ result }) => result?.source && result.source !== "none"));
+    try {
+      const adjudicator = await extractWithAI(
+        buildEnsembleAdjudicationText(entity.name, entity.type, [
+          { provider: "perplexity", result: perp },
+          { provider: "gemini", result: gem },
+          { provider: "tavily", result: tav },
+          { provider: "exa", result: exa },
+        ].filter(({ result }) => result?.source && result.source !== "none")),
+        entity.name,
+        entity.type,
+        countryHint,
+      );
+      result.aiEnsemble = adjudicator.source !== "none"
+        ? applyEnsembleAdjudication(ensemble, adjudicator)
+        : ensemble;
+    } catch {
+      result.aiEnsemble = ensemble;
+    }
     for (const [index, item] of providerResults.entries()) {
       if (item.status === "rejected") {
         logger.warn({ providerIndex: index, err: item.reason?.message ?? String(item.reason) }, "Phase 0 provider failed independently");

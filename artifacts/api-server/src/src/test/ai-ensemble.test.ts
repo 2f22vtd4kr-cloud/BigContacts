@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { reconcileAIResults } from "../lib/ai-ensemble";
+import { applyEnsembleAdjudication, reconcileAIResults } from "../lib/ai-ensemble";
 import type { AIExtractResult } from "../lib/ai-extractor";
 
 const result = (overrides: Partial<AIExtractResult>): AIExtractResult => ({
@@ -43,5 +43,25 @@ describe("AI provider ensemble reconciliation", () => {
     expect(ensemble.agreement.phone).toBe(2);
     expect(ensemble.claims[0]?.sourceDomains).toEqual(["same.example"]);
     expect(ensemble.claims[0]?.confidence).toBe(75);
+  });
+
+  it("allows adjudication to choose only a discovered claim", () => {
+    const ensemble = reconcileAIResults([
+      { provider: "perplexity", result: result({ source: "perplexity-sonar", email: "jane@example.org" }) },
+      { provider: "gemini", result: result({ source: "gemini-flash", email: "other@example.org" }) },
+    ]);
+    const selected = applyEnsembleAdjudication(
+      ensemble,
+      result({ source: "groq", email: "other@example.org" }),
+    );
+    expect(selected.selected.email).toBe("other@example.org");
+    expect(selected.adjudicator?.source).toBe("groq");
+
+    const cannotInvent = applyEnsembleAdjudication(
+      ensemble,
+      result({ source: "groq", email: "invented@example.org" }),
+    );
+    expect(cannotInvent.selected.email).toBe("jane@example.org");
+    expect(cannotInvent.claims.map((claim) => claim.value)).not.toContain("invented@example.org");
   });
 });
