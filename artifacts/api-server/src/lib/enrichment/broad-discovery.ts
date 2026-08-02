@@ -43,7 +43,13 @@ async function tavilySearch(query: string): Promise<Array<{ snippet: string; url
     const resp = await fetch("https://api.tavily.com/search", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-      body: JSON.stringify({ query, max_results: 8, search_depth: "basic", include_answer: false }),
+      body: JSON.stringify({
+        query,
+        max_results: 8,
+        search_depth: "advanced",
+        include_answer: false,
+        include_raw_content: false,
+      }),
       signal: AbortSignal.timeout(12_000),
     });
     if (!resp.ok) return [];
@@ -75,9 +81,15 @@ async function aiExtractPersonNames(text: string, context: string): Promise<stri
         messages: [
           {
             role: "system",
-            content: `You are an OSINT analyst extracting names of living, contemporary high-net-worth individuals from search results. Context: searches about "${context}".
+            content: `You are a senior OSINT analyst extracting names of living, contemporary high-net-worth individuals from western-country public evidence. Search context: "${context}".
+
+This is entity discovery, not topic extraction. Admit a candidate only when the supplied result text contains a plausible full personal name AND an attributable wealth or business signal for that same person, such as founder, principal, owner, controlling shareholder, investor, family-office principal, fund partner, or documented executive. Never infer a person from a venue, geography, job title, or generic article topic.
 
 INCLUDE only: living private individuals who are wealthy — business owners, investors, property owners, yacht/aircraft owners, fund managers, family office principals, developers, collectors.
+
+GEOGRAPHY: include only candidates explicitly tied in the supplied evidence to the United States, Canada, the United Kingdom, Ireland, France, Germany, Switzerland, Austria, Belgium, the Netherlands, Luxembourg, Denmark, Sweden, Norway, Finland, Iceland, Italy, Spain, Portugal, Greece, Monaco, Australia, or New Zealand. Reject candidates whose only location is Asia, the Middle East, Africa, Latin America, Russia, or Eastern Europe.
+
+EVIDENCE: prefer official registries, regulatory filings, company websites, foundation filings, reputable business publications, or an attributable interview. Tourism pages, booking sites, venue directories, listicles, generic lifestyle pages, and anonymous snippets are not evidence of wealth or identity. Return a name only if the same result text supports that person's role or ownership.
 
 EXCLUDE all of the following:
 - Companies, organizations, venues, hotels, brands, cities, countries, legal entities (Ltd/LLC/SA/GmbH/Corp/Foundation/Trust/Holdings/Group/Capital/Partners)
@@ -93,7 +105,10 @@ EXCLUDE all of the following:
 Return ONLY a JSON array of full name strings. If no valid living HNWIs are found, return [].
 Example output: ["Carlo Bianchi", "Ingrid Magnusson", "Walid Dabess"]`,
           },
-          { role: "user", content: text.slice(0, 3000) },
+          {
+            role: "user",
+            content: `SEARCH QUERY:\n${context}\n\nRESULT EXCERPTS WITH SOURCE URLS:\n${text.slice(0, 7000)}\n\nReturn only a JSON array of full names that satisfy every rule above. If the evidence is weak, geographically out of scope, or only describes a venue/topic, return [].`,
+          },
         ],
       }),
       signal: AbortSignal.timeout(15_000),
