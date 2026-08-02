@@ -62,3 +62,4 @@
 - [Dual-path contact adjudication](dual-path-contact-adjudication.md) — Both web enrichment paths share fail-closed adjudication and retain rejected candidates with reasons
 - [Broad discovery attribution](broad-discovery-attribution.md) — Human-name extraction is insufficient; ownership/wealth evidence must be locally attributed to the exact candidate before active insertion
 - [Discovery LLM admission](discovery-llm-admission.md) — Discovery AI must validate candidate plus source context before insertion; provider errors fail closed, never fall back to deterministic admission
+- [Business asset separation](business-asset-separation.md) — Operating businesses are separate evidence-backed assets; never infer them from personal wealth or uncertain names
