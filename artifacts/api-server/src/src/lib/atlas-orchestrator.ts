@@ -421,14 +421,16 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
           }
           return true;
         });
-        await db.insert(contactEvidenceTable).values(cleanEvidence.map((ev: any) => ({
-          entityId: id, vectorType: ev.vectorType, value: ev.value, source: ev.source,
-          sourceUrl: ev.sourceUrl ?? null, extractionMethod: ev.extractionMethod,
-          sourceReliability: Math.min(1, ev.confidence / 100), identityMatch: 0.75, recencyScore: 0.70,
-          directnessScore: ev.vectorType === "email" ? 0.80 : ev.vectorType === "phone" ? 0.75 : 0.20,
-          independentCorroboration: 1, validationStatus: "candidate" as const,
-          metadata: JSON.stringify(ev.details ?? {}), observedAt: new Date(ev.observedAt),
-        }))).onConflictDoNothing().catch(() => {});
+        if (cleanEvidence.length) {
+          await db.insert(contactEvidenceTable).values(cleanEvidence.map((ev: any) => ({
+            entityId: id, vectorType: ev.vectorType, value: ev.value, source: ev.source,
+            sourceUrl: ev.sourceUrl ?? null, extractionMethod: ev.extractionMethod,
+            sourceReliability: Math.min(1, ev.confidence / 100), identityMatch: 0.75, recencyScore: 0.70,
+            directnessScore: ev.vectorType === "email" ? 0.80 : ev.vectorType === "phone" ? 0.75 : 0.20,
+            independentCorroboration: 1, validationStatus: "candidate" as const,
+            metadata: JSON.stringify(ev.details ?? {}), observedAt: new Date(ev.observedAt),
+          }))).onConflictDoNothing().catch(() => {});
+        }
       }
     }
 
@@ -548,14 +550,16 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
           }
           return true;
         });
-        await db.insert(contactEvidenceTable).values(cleanEvidence.map((ev: any) => ({
-          entityId: id, vectorType: ev.vectorType, value: ev.value, source: ev.source,
-          sourceUrl: ev.sourceUrl ?? null, extractionMethod: ev.extractionMethod ?? "deep-web-osint",
-          sourceReliability: Math.min(1, ev.confidence / 100), identityMatch: 0.65, recencyScore: 0.7,
-          directnessScore: ev.vectorType === "email" ? 0.9 : ev.vectorType === "phone" ? 0.85 : 0.6,
-          independentCorroboration: 1, validationStatus: "candidate" as const,
-          observedAt: new Date(), metadata: JSON.stringify(ev.details ?? {}),
-        }))).onConflictDoNothing().catch(() => {});
+        if (cleanEvidence.length) {
+          await db.insert(contactEvidenceTable).values(cleanEvidence.map((ev: any) => ({
+            entityId: id, vectorType: ev.vectorType, value: ev.value, source: ev.source,
+            sourceUrl: ev.sourceUrl ?? null, extractionMethod: ev.extractionMethod ?? "deep-web-osint",
+            sourceReliability: Math.min(1, ev.confidence / 100), identityMatch: 0.65, recencyScore: 0.7,
+            directnessScore: ev.vectorType === "email" ? 0.9 : ev.vectorType === "phone" ? 0.85 : 0.6,
+            independentCorroboration: 1, validationStatus: "candidate" as const,
+            observedAt: new Date(), metadata: JSON.stringify(ev.details ?? {}),
+          }))).onConflictDoNothing().catch(() => {});
+        }
       }
     }
 

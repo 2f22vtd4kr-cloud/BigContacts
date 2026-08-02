@@ -14,3 +14,9 @@ Groq quota/auth failures should rotate through configured keys before the gate g
 **Why:** Overnight monitoring showed a 429 on one discovery key and a pre-existing `Unknown` corporation consuming provider calls and producing Wikipedia/religious-text names. Safety and provider efficiency require both protections.
 
 **How to apply:** Keep key failover inside the validator request boundary, and reject placeholder entity names before any per-entity enrichment begins.
+
+Evidence sanitization can legitimately produce an empty batch even when a provider returned candidates; database inserts must skip `.values([])`.
+
+**Why:** The overnight run reached a legacy target whose provider evidence was all rejected by public-contact validation. Drizzle throws on an empty insert rather than treating it as a no-op.
+
+**How to apply:** Check the sanitized evidence array after every enrichment filter and before inserting contact evidence.
