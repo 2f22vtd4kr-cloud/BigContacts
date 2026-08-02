@@ -687,28 +687,36 @@ export async function runBroadDiscovery(options: {
     }
 
     // ── Primary extraction: Groq AI person name extraction ────────────────────
-    // AI extraction runs first. Regex fallback only runs when Groq is unavailable,
-    // because regex has no knowledge of fiction/history and adds names the AI
-    // would correctly reject (e.g. "James Bond", "George Mason").
-    let aiExtracted = false;
+    // AI extraction runs first. Once Groq was attempted, an empty result is a
+    // deliberate refusal—not an invitation to run regex. Regex has no
+    // knowledge of fiction/history and can manufacture names the AI rejected
+    // (e.g. role fragments and recipe/editorial phrases).
+    let aiAttempted = false;
     if (useGroq) {
+      aiAttempted = true;
       const aggregated = results.map(r => r.snippet).join("\n\n");
       const aiNames = await aiExtractPersonNames(aggregated, query);
       if (aiNames.length > 0) {
-        aiExtracted = true;
         for (const name of aiNames) {
           if (!candidateMap.has(name)) {
-            const bestSnippet = results.find(r => r.snippet.toLowerCase().includes(name.split(" ")[0].toLowerCase()))?.snippet ?? results[0].snippet;
+            const normalizedName = name.toLowerCase();
+            const bestSnippet = results.find(r =>
+              r.snippet.toLowerCase().includes(normalizedName),
+            )?.snippet
+              ?? results.find(r =>
+                r.snippet.toLowerCase().includes(name.split(" ")[0].toLowerCase()),
+              )?.snippet
+              ?? results[0].snippet;
             candidateMap.set(name, { snippet: bestSnippet, query });
           }
         }
       }
     }
 
-    // ── Fallback extraction: deterministic regex only when AI is unavailable ──
-    // Regex is blind to history/fiction, so it is never allowed to bypass the
-    // final deterministic + LLM safety gate below.
-    if (!aiExtracted) {
+    // ── Fallback extraction: only when no Groq provider is configured ────────
+    // This path is still subject to the evidence-aware LLM admission gate
+    // below. It must never run after Groq has returned an empty/refused result.
+    if (!aiAttempted) {
       for (const { snippet } of results) {
         const names = extractNames(snippet);
         for (const name of names) {
@@ -738,9 +746,8 @@ export async function runBroadDiscovery(options: {
   // LLM name filter — removes noise like "Les Ballets", "Beneficial Owners", "Amr El" (truncated)
   let newEntities: typeof rawEntities = [];
   try {
-    const { filterHumanNamesWithLLM } = await import("../llm-name-validator");
-    const rawNames = rawEntities.map(e => e.name);
-    const validNames = new Set(await filterHumanNamesWithLLM(rawNames));
+    const { validateDiscoveryCandidatesWithLLM } = await import("../llm-name-validator");
+    const validNames = new Set(await validateDiscoveryCandidatesWithLLM(rawEntities));
     const beforeCount = rawEntities.length;
     newEntities = rawEntities.filter(e => validNames.has(e.name));
     const filteredCount = beforeCount - newEntities.length;
@@ -748,7 +755,11 @@ export async function runBroadDiscovery(options: {
       logger.info({ filteredCount, beforeCount, afterCount: newEntities.length }, "Broad discovery: LLM name filter removed noise entities");
     }
   } catch (e: any) {
-    logger.warn({ err: e.message }, "Broad discovery: LLM name filter failed (deterministic candidates only)");
+    // The LLM validator is an admission gate, not an enrichment hint.
+    // If it cannot be loaded or called, fail closed rather than admitting
+    // search-result noise on the deterministic checks alone.
+    logger.error({ err: e.message }, "Broad discovery: LLM name filter failed (rejecting candidates)");
+    newEntities = [];
   }
 
   // Insert new entities
