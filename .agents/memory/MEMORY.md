@@ -1,0 +1,57 @@
+- [Import startup rule](import-startup-rule.md) — Always read replit.md AND Context.md first on every session/import; update Context.md after each iteration
+- [AI model preference](ai-model-preference.md) — Use Fable 5 High effort (built-in agent) NOT external AI APIs; implement AI features as server-side TypeScript logic
+- [Artifact workflow setup](artifact-workflow-setup.md) — All 4 artifacts are registered with managed workflows; old manual workflows were removed; port 8080 conflict resolution required killing leftover PID
+- [Registry search routing](registry-search-routing.md) — Live registry search is at POST /api/registry-search (not /ingest/); placed before adminOnly middleware in ingest.ts
+- [Redis integration](redis-integration.md) — ioredis on REDIS_URL; cache-aside on entities/dashboard/registry; graceful degradation on Redis outage
+- [Western HNWI ingestion](western-hnwi-ingestion.md) — Dual Redis (local cache + Upstash permanent); background job at POST /ingest/western-hnwi; poll at GET /ingest/job/:jobId; no auth required (personal use)
+- [Real OSINT data pipeline](real-osint-pipeline.md) — FAA ingestor uses curl+unzip (no npm pkg); mock seeding removed from startup; DB must be cleared after import
+- [Persona Improvement Loop](persona-loop.md) — 8 deterministic TypeScript personas, improvement_logs table, /improve/* routes, and known PostgreSQL/UI error-state caveat
+- [Extended Sources](extended-sources.md) — Phase 8: OCCRP Aleph enricher, UK Land Registry OCOD ingestor, OpenSky live-flight enricher; Data Sources dashboard at /data-sources
+- [FAA dedup batching](faa-dedup-batching.md) — Per-record Upstash sismember kills FAA throughput; fixed with preloadDedupPrefix + batchMarkSeen; progress update must fire unconditionally (not inside filter chain)
+- [HMLR PPD CSV ingestor](hmlr-ppd-csv.md) — HMLR SPARQL endpoint times out/returns 0 results for price+date queries; use bulk CSV from S3 instead (pp-YYYY.csv redirects to prod2 bucket, ~160MB/year)
+- [Contact Enrichment Phase 1](contact-enrichment-phase1.md) — contactConfidence column (camelCase in Drizzle!), CH officer lookup at 2/s, always recompute even without API key
+- [In-House OSINT Enricher](in-house-enricher.md) — replaces Hunter/Apollo; 7 free sources: Wikidata, Wikipedia, GitHub, Gravatar MD5 pattern verify, domain guesser+DNS, RDAP, ProPublica 990
+- [Phase 4 Responsive Polish](phase4-responsive.md) — 4.1–4.4 were pre-built; 4.5 fixed profile nav, email truncation, graph legend, MCTS terminal wrapping, entity ledger mobile bulk select
+- [Phase 5 Intelligence Hardening](phase5-intelligence.md) — OCCRP/OpenSky endpoints, graph contact rings, Bayesian contact signal, smoke tests (12/12), entity pagination
+- [Dedup key bug](dedup-key-bug.md) — clearDedup() was deleting wrong Upstash key; fix uses `apex:${DEDUP_KEY}` to match batchMarkSeen/preloadDedupPrefix
+- [Cold-start auto-recovery](cold-start-auto-recovery.md) — startup.ts clears ghost jobs + auto-starts ingestion; edge case when DB is partial but dedup stale
+- [Phase 10 Simulation Fixes](phase10-simulation-fixes.md) — all 11 simulation issues fixed; entity reclassification, isHot sync, hybrid branding, FAA coords, pitch fallbacks
+- [Relationship graph gap](relationship-gap.md) — SOLVED: name-clustering endpoint built; 229k CORPORATE_SERIES edges; CH co-directors returns 0 for US-entity DB (FAA/EDGAR are US — CH is UK only)
+- [Post-import port conflicts](post-import-ports.md) — orphaned processes hold 8080/23695 after killing manual workflows; fix with kill -9 $(lsof -ti:8080 -ti:23695); trigger scoping bug in startup.ts fixed (trigger→triggerHttp at module level)
+- [MCTS parallel limit](mcts-parallel-limit.md) — max 5 parallel MCTS sessions; 20 parallel triggers OOM crash (--max-old-space-size=3072 hit); run sequentially or in batches of 5
+- [Persona engine Corp-Trust scoping](persona-corp-trust-scoping.md) — Corp/Trust are property vehicles; isolation and geo flags should be LOW/skipped for them; HNWI/Gatekeeper = HIGH; also backfill-net-worth endpoint is POST /api/ingest/backfill-net-worth
+- [CH co-directors vs US DB](ch-codirectors-us-db.md) — CH co-director detection always returns 0 for FAA/EDGAR entities (US-based); only activates when UK Companies House entities are in the DB; do not expect SHARED_DIRECTOR edges from current dataset
+- [Hunter/Apollo enrichment constraints](hunter-apollo-constraints.md) — Apollo people/match = paid plan only (403 free); Hunter = 25/mo free; FAA names ALL CAPS LAST FIRST fixed in normalizeName()
+- [Build fragility fixes applied](build-fragility-fixes.md) — PORT throw→fallback in api-server + apex-finder + mockup-sandbox; coldStartRecovery inner catch added
+- [Mobile web UI review results](mobile-ui-review-results.md) — all 10 pages load OK at 390×844; /intel and /ledger are wrong slugs (use /research and /entities)
+- [Semantic Engine (Phase G)](semantic-engine-lessons.md) — all-MiniLM-L6-v2 WASM; batchSize cap was 2k→fixed 50k; sourceRegistries are human-readable strings needing normalization for registry-prefix grouping
+- [Atlas Refactor v2 state](atlas-refactor-v2.md) — Apex Atlas Refactor v2 complete; profile tabs, research.ts split, enrichment barrel pattern; remaining: Field Manual content update only
+- [Access score separation](access-score.md) — Contactability/directness must be scored separately from wealth and registry signal
+- [Dashboard data fallback](dashboard-data-fallback.md) — Distinguish unavailable PostgreSQL-backed dashboard data from an empty dataset; keep live jobs visible when healthy
+- [Public contact evidence validation](contact-evidence-validation.md) — Validate extracted contacts before PostgreSQL writes, Redis mirroring, and cache restore
+- [Contact persistence guardrails](contact-persistence-guardrails.md) — Every enrichment, cache restore, startup cleanup, and merge path must sanitize vectors and recompute confidence/hot status
+- [Duplicate review guardrails](duplicate-review-guardrails.md) — Deduplicate name tokens before pairing; same-source matches remain review-only
+- [Contact enrichment state](contact-enrichment-state.md) — Website/address evidence is not terminal; only validated contact vectors complete enrichment
+- [Upstash quota slot failover](upstash-quota-failover.md) — Quota-exhausted slots stay "ready" (TCP); getPermanentClient() now skips them via _quotaExhaustedSlots; if all slots exhausted, request a new REDIS_URL_N
+- [Contact discovery roadmap](contact-discovery-roadmap.md) — Phase J defines gated re-import milestones for validated public-contact yield, source coverage, identity, attribution, and retries
+- [Phase J2 registry coverage](j2-registry-coverage.md) — Keep matrix coverage separate from executable live search adapters; preserve source-specific evidence semantics
+- [Phase J4–J9 completion](phase-j-completion.md) — domain-resolver/digital-footprint/contact-attribution libs; source-quality endpoint; geometric-mean attribution threshold 0.52
+- [Groq AI Extractor](groq-ai-extractor.md) — llama-3.3-70b via plain fetch; Phase 7 in web-enricher + Phase 3.5 in deep-web-osint; GROQ_API_KEY secret; no SDK needed
+- [EDGAR name normalization](edgar-name-normalization.md) — normalizeEdgarName() in western-hnwi-ingestion.ts; ALL_CAPS LAST FIRST → "First Last"; SQL patch for already-stored records
+- [Email promotion guardrails](email-promotion-guardrails.md) — 3 guards in deepWebOsintEnrich: generic prefix, financial aggregator blocklist, unknown-domain requires 2+ sources
+- [Domain guesser city-in-name bug](domain-guesser-city-bug.md) — add !base.includes(cityClean) guard; Avada+Cloudflare sites block server-side fetch; AI extraction more reliable than scraping for luxury venues
+- [Perplexity Phase 0 correct file](perplexity-phase0-wrong-file.md) — Phase 0 must be in web-enricher.ts NOT deep-web-osint.ts; route imports via enrichment/web-discovery.ts barrel → web-enricher.ts
+- [Imported artifact preview metadata](imported-artifact-preview.md) — imported artifact files can exist while artifact listing is empty, blocking helper screenshots; verify via workflow, HTTP, and build checks
+- [web-osint wrong function](web-osint-wrong-function.md) — web-osint-enrich must call deepWebOsintEnrich (AI-first Phase 0), NOT enrichEntityOsint (shallow DDG stub, no AI, returns in ~1.8s)
+- [Target entity resolution](target-entity-resolution.md) — brand-level targets need disambiguation before contacts, ownership, or outreach are trusted
+- [AI source labels](ai-source-labels.md) — Tavily/Exa source values are "tavily"/"exa" (not "tavily-groq"/"exa-groq"); Gemini is ai-cyan search source in reactor, not ai-lime extraction layer
+- [Enricher execution order](enricher-execution-order.md) — web-OSINT first (primary data), in-house second (fill-only-if-empty); force=true web-OSINT after in-house can null good fields
+- [Python tools mandate](python-tools-mandate.md) — Holehe + Maigret MUST be installed before research; enforced in post-merge.sh (step 4) + startup.ts auto-install + verified on every boot
+- [Flexible pipeline architecture](flexible-pipeline-architecture.md) — web-OSINT first, Maigret+Holehe auto-wired inside web-osint-enrich, web-OSINT re-fires if Maigret finds 3+ platforms; never one-way
+- [Atlas orchestrator](atlas-orchestrator.md) — POST /api/ingest/atlas-run; 10-phase pipeline wiring every tool; lib/atlas-orchestrator.ts + routes/atlas.ts; phase-j.ts exports runPhaseJBatch
+- [Entity taxonomy UI](entity-taxonomy-ui.md) — HNWI, Corporation, Trust, and Gatekeeper need distinct labels, metrics, evidence language, and actions across web/mobile
+- [Reactor live telemetry](reactor-live-telemetry.md) — Keep Atlas phase progress separate from entity-batch progress; idle UI must never infer live work from historical sessions or scripted waves
+- [Evidence-led entity cards](evidence-led-entity-cards.md) — Show bios and involvement only from stored public evidence; label missing narrative fields instead of inferring them
+- [Research review guardrails](research-review-guardrails.md) — Stable reruns, manual provenance, malformed-contact rejection, and no outreach copy for isolated targets
+- [Research reachability realism](research-review-guardrails.md) — Preflight access before expensive research; fame, wealth, social, assets, and hypothetical staff routes never create access
+- [Evidence-led research scoring](evidence-ledger-research.md) — Corroboration must use canonical source domains and claim-level URLs, not repeated provider labels
