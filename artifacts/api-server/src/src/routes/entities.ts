@@ -26,9 +26,33 @@ import {
 
 const router: IRouter = Router();
 
+const BOOLEAN_QUERY_KEYS = [
+  "starred",
+  "hidden",
+  "contactable",
+  "hasEmail",
+  "hasPhone",
+  "hasWhatsapp",
+  "hasTelegram",
+  "hasInstagram",
+] as const;
+
+function normalizeBooleanQueryValues(query: Record<string, unknown>): Record<string, unknown> {
+  const normalized = { ...query };
+  for (const key of BOOLEAN_QUERY_KEYS) {
+    const value = normalized[key];
+    if (typeof value === "string" && (value === "true" || value === "false")) {
+      normalized[key] = value === "true";
+    }
+  }
+  return normalized;
+}
+
 // GET /entities
 router.get("/entities", async (req, res): Promise<void> => {
-  const parsed = ListEntitiesQueryParams.safeParse(req.query);
+  const parsed = ListEntitiesQueryParams.safeParse(
+    normalizeBooleanQueryValues(req.query as Record<string, unknown>),
+  );
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
@@ -190,6 +214,7 @@ router.patch("/entities/:id/hide", async (req, res): Promise<void> => {
     .returning({ id: entitiesTable.id, isHidden: entitiesTable.isHidden });
   if (!updated) { res.status(404).json({ error: "Not found" }); return; }
   await delCachePattern("entities:list:*");
+  await delCachePattern("dashboard:stats");
   res.json(updated);
 });
 

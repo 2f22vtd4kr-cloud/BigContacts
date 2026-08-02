@@ -871,11 +871,14 @@ export async function runWesternHnwiIngestion(opts: IngestionOptions): Promise<I
 
   // ── Budget allocation ────────────────────────────────────────────────────────
   // SC 13D/G is the highest-quality source (real wealthy people) — give it the most budget.
-  const edgarBudget13D = Math.floor(targetCount * 0.55);
+  // Keep every source budget viable for a single-target Atlas round. Without
+  // this floor, targetCount=1 rounded all budgets to zero and the supposedly
+  // single-target round could admit nothing.
+  const edgarBudget13D = targetCount > 0 ? Math.max(1, Math.floor(targetCount * 0.55)) : 0;
   const edgarBudgetDEF = Math.floor(targetCount * 0.25);
   const brregBudget = Math.floor(targetCount * 0.12);
   const chBudget = hasCompaniesHouseKey ? targetCount - edgarBudget13D - edgarBudgetDEF - brregBudget : 0;
-  const edgarExtraBudget = !hasCompaniesHouseKey
+  const edgarExtraBudget = !hasCompaniesHouseKey && targetCount > 1
     ? targetCount - edgarBudget13D - edgarBudgetDEF - brregBudget
     : 0;
 

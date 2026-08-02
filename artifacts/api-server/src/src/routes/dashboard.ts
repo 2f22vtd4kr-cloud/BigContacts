@@ -187,7 +187,8 @@ router.get("/dashboard/stats", async (_req, res): Promise<void> => {
     assetsByCategory,
     topScorers,
   ] = await Promise.all([
-    db.select({ cnt: sql<number>`count(*)::int` }).from(entitiesTable),
+    db.select({ cnt: sql<number>`count(*)::int` }).from(entitiesTable)
+      .where(eq(entitiesTable.isHidden, false)),
     db.select({ cnt: sql<number>`count(*)::int` }).from(assetsTable),
     db.select({ cnt: sql<number>`count(*)::int` }).from(relationshipsTable),
     db.select({ avg: sql<number>`round(avg(${entitiesTable.bayesianScore})::numeric, 4)` }).from(entitiesTable),

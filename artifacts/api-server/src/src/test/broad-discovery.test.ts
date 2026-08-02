@@ -57,4 +57,9 @@ describe("broad discovery evidence gate", () => {
       "Sherlock Holmes is the fictional owner of a private estate and investor in the resort.",
     )).toBe(false);
   });
+
+  it("exposes a single-admission discovery adapter for sequential Atlas cooking", async () => {
+    const { discoverSingleTemplate } = await import("../lib/enrichment/broad-discovery");
+    expect(discoverSingleTemplate).toBeTypeOf("function");
+  });
 });

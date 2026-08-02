@@ -940,9 +940,9 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
   }
 
   // ── Discovery + Full-circle loop ─────────────────────────────────────────────
-  // 21 interleaved sources: 15 broad web-search categories + 6 registry batches.
-  // After each source, every new entity is immediately enriched through ALL phases
-  // and stamped cookedAt — users see "cooked" entities appear progressively.
+  // Interleaved sources: broad web-search categories + registry rounds.
+  // Each source round admits at most one new entity. That entity is immediately
+  // enriched through ALL phases and stamped cookedAt before the next source runs.
   await status("Phase 1/10: Discovery + full-circle enrichment loop…", 1);
 
   type DiscoverySource =
@@ -1007,8 +1007,10 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
         const hnwiJobId = await createJob("western-hnwi");
         await setActiveJob("western-hnwi", hnwiJobId);
         const hnwiRes = await runWesternHnwiIngestion({
-          targetCount: opts.targetCount ?? 120,
-          batchSize: 100,
+          // This is an admission round, not a bulk import. Full-circle
+          // enrichment below must finish before another target is admitted.
+          targetCount: 1,
+          batchSize: 1,
           jobId: hnwiJobId,
           clearDedupFirst: (source as any).clearFirst ?? false,
         }).catch(e => { logger.error({ err: e.message }, "[Atlas] HNWI ingestion failed"); return { inserted: 0, skipped: 0, errors: 1, durationMs: 0 }; });

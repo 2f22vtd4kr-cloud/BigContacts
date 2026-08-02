@@ -631,8 +631,9 @@ export async function runBroadDiscovery(options: {
   templateSet?: number;       // 1-5, selects which category; overrides rotation
   rotateTemplates?: boolean;  // cycle to next category each run (default true)
   maxQueries?: number;        // default 10
+  maxEntities?: number;       // cap admissions for single-target orchestration
 } = {}): Promise<BroadDiscoveryResult> {
-  const { rotateTemplates = true, maxQueries = 10 } = options;
+  const { rotateTemplates = true, maxQueries = 10, maxEntities } = options;
 
   const templateSet = options.templateSet ?? await getNextTemplateSet(rotateTemplates);
   const templates = TEMPLATE_CATEGORIES[templateSet] ?? TEMPLATE_CATEGORIES[1];
@@ -731,6 +732,7 @@ export async function runBroadDiscovery(options: {
   // Insert new entities
   let inserted = 0;
   for (const { name, snippet, query } of newEntities) {
+    if (maxEntities !== undefined && inserted >= Math.max(0, maxEntities)) break;
     try {
       // Sanitise: strip newlines, leading/trailing whitespace, control chars
       const cleanName = name.replace(/[\r\n\t]+/g, " ").replace(/\s{2,}/g, " ").trim();
@@ -807,5 +809,8 @@ export async function runBroadDiscovery(options: {
  */
 export async function discoverSingleTemplate(category: number, maxQueries = 10): Promise<BroadDiscoveryResult> {
   const cat = Math.max(1, Math.min(15, category));
-  return runBroadDiscovery({ templateSet: cat, rotateTemplates: false, maxQueries });
+  // Atlas uses this adapter between full-circle target runs. Search broadly,
+  // but admit exactly one target before returning so the caller can fully cook
+  // it before the next discovery round.
+  return runBroadDiscovery({ templateSet: cat, rotateTemplates: false, maxQueries, maxEntities: 1 });
 }
