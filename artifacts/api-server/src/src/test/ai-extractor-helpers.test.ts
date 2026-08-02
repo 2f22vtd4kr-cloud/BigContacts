@@ -21,12 +21,15 @@ describe("AI response safety helpers", () => {
     const prompt = buildPerplexityPrompt("Jane Doe", "HNWI", "US");
     expect(prompt).toContain("personal/direct email for the named individual only");
     expect(prompt).not.toContain('"email": "general org contact email or null"');
+    expect(prompt).toContain('"instagram": "personal Instagram URL or null"');
+    expect(prompt).not.toContain('"instagram": "org Instagram URL or null"');
     expect(prompt).toContain("corporate headquarters number");
   });
 
   it("keeps organization email wording scoped to organization research", () => {
     const prompt = buildPerplexityPrompt("Example Holdings", "Corporation", "US");
     expect(prompt).toContain('"email": "general organization contact email or null"');
+    expect(prompt).toContain('"instagram": "organization Instagram URL or null"');
     expect(prompt).not.toContain("personal/direct email for the named individual only");
   });
 });

@@ -642,7 +642,7 @@ Return ONLY this JSON — no preamble, no explanation, no markdown:
   "email": "${isOrg ? "general organization contact email or null" : "personal/direct email for the named individual only, or null"}",
   "phone": "+XX XXX XXX or null",
   "linkedin": "${isOrg ? "https://linkedin.com/company/... org page or null" : "https://linkedin.com/in/profile or null"}",
-  "instagram": "org Instagram URL or null",
+  "instagram": "${isOrg ? "organization Instagram URL or null" : "personal Instagram URL or null"}",
   "twitter": "${isOrg ? "org Twitter/X URL or null" : "personal Twitter/X URL or null"}",
   "ownerResolutions": [
     {
