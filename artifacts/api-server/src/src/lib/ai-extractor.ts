@@ -172,7 +172,10 @@ function bindResolutionsToCitations(
   return parsed.ownerResolutions.map((owner) => ({
     ...owner,
     sourceUrls: owner.sourceUrls
-      .map((url) => citationByCanonicalUrl.get(canonicalizeUrl(url)))
+      .map((url) => {
+        const canonical = canonicalizeUrl(url);
+        return canonical ? citationByCanonicalUrl.get(canonical) : undefined;
+      })
       .filter((url): url is string => Boolean(url)),
   }));
 }
@@ -222,11 +225,11 @@ UNTRUSTED SOURCE TEXT END
 Return ONLY valid JSON — no explanation, no markdown:
 {
   "ownershipSummary": "one sentence stating the strongest ownership/control finding, or 'Ownership not established in the supplied text.'",
-  "email": "venue/org contact email or null",
+  "email": "${isOrg ? "venue/org contact email or null" : "personal/direct email for the named individual only, or null"}",
   "phone": "full international number with country code (e.g. +33 4 93 43 03 43) or null",
   "linkedin": "${isOrg ? "https://linkedin.com/company/... org page or null" : "https://linkedin.com/in/profile or null"}",
   "instagram": "${isOrg ? "venue/brand Instagram URL (e.g. https://instagram.com/baolicannes) or null" : "personal Instagram URL or null"}",
-  "twitter": "venue/org Twitter/X URL or null",
+  "twitter": "${isOrg ? "venue/org Twitter/X URL or null" : "personal Twitter/X URL or null"}",
   "ownerResolutions": [
     {
       "name": "Full Name (First Last minimum)",
@@ -636,11 +639,11 @@ For an individual, also investigate whether a named assistant, chief of staff, f
 Return ONLY this JSON — no preamble, no explanation, no markdown:
 {
   "ownershipSummary": "one sentence stating the strongest ownership/control finding, or 'Ownership not established in the supplied sources.'",
-  "email": "general org contact email or null",
+  "email": "${isOrg ? "general organization contact email or null" : "personal/direct email for the named individual only, or null"}",
   "phone": "+XX XXX XXX or null",
   "linkedin": "${isOrg ? "https://linkedin.com/company/... org page or null" : "https://linkedin.com/in/profile or null"}",
   "instagram": "org Instagram URL or null",
-  "twitter": "org Twitter/X URL or null",
+  "twitter": "${isOrg ? "org Twitter/X URL or null" : "personal Twitter/X URL or null"}",
   "ownerResolutions": [
     {
       "name": "First Last",

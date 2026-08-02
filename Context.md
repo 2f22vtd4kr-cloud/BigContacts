@@ -8,7 +8,18 @@
 
 ---
 
-## Current State (2026-07-31 — target realism gate verified; API and web running)
+## Current State (2026-08-02 — research evidence funnel and scorecard hardening verified; pipeline idle)
+
+### Research improvement iteration (2026-08-02):
+- Added fail-closed contact candidate reconciliation across provider output: candidates retain canonical URLs/domains, scope, person attribution, conflicts, provider audit data, and explicit funnel states from discovered through verified direct route.
+- Corrected person-vs-organization Perplexity prompt contracts and annotated web-enricher evidence with organization/target-person scope, target name, provider, citations, and relationship context.
+- Persisted candidate funnel metadata and durable `contact_evidence` rows without adding a competing candidate table; research sessions now expose the stored funnel for review.
+- Added the research desk candidate funnel panel and registered `/research` in the web router. The preview now renders the empty-state research desk correctly.
+- Hardened the independent research scorecard: identity, ownership, contact, access, wealth, freshness, and source quality are scored independently from canonical evidence, attribution, validation, reachability, reliability, and dated evidence. Asset count, graph degree, provider repetition, and wealth no longer promote contact/access/identity.
+- Stable-rerun coverage now asserts deterministic scorecard output; focused candidate/prompt/scorecard tests pass 11/11. API and web production builds pass. API health, entities, research sessions, and dashboard stats return 200.
+- Fixed the API build entry to bundle the full imported implementation under `artifacts/api-server/src/src`; the prior scaffold entry served health only and caused false 404s for real routes.
+- No ingestion, enrichment, Atlas, or research job was started. The database remains controlled/idle; no provider calls were made by this implementation pass.
+- Remaining honest limitations: full API typecheck still has pre-existing workspace errors; the full Vitest smoke suite retains unrelated baseline SPA/404 failures; the scorecard is now evidence-ready but cannot claim high scores for entities lacking independent canonical evidence.
 
 ### Backend research workflow iteration (2026-08-01):
 - Added an evidence ledger that canonicalizes URLs, classifies source families, deduplicates mirrored pages, and scores corroboration by independent domains/families instead of provider-count inflation.
@@ -1024,6 +1035,7 @@ All 4 Phase I items implemented and live. Build clean (esbuild ⚡ 1183ms). All 
 ### Iteration Log
 | Date | Summary |
 |---|---|
+| 2026-08-02 | Completed research evidence hardening: candidate funnel persistence/review UI, `/research` route registration, canonical-domain scorecard inputs, stable-rerun coverage, and API build-entry correction. Focused tests 11/11, API/web builds, endpoint checks, and research preview pass; pipeline remains idle with no provider calls. |
 | 2026-08-01 | Completed cross-product UI/UX polish pass: refreshed web typography/theme, dashboard/ledger/profile/CRM/research/reactor hierarchy, mobile MCTS/manual states, type-aware profile signals, and icon-based status treatment. Web build, mobile typecheck, API health, and desktop/mobile previews verified. |
 | 2026-07-31 | Completed contact-quality hardening: fail-closed name admission, no constructed emails, final contact-vector sanitization, organization/personal Access separation, and direct-contact-only hot flags. Rebuilt and restarted API/web; health and preview verified; no ingestion or research job active. |
 | 2026-07-31 | Securely added fresh Perplexity keys `_7` and `_8`, restarted the API so the process loaded them, confirmed all eight numbered Perplexity slots active, preserved the prior partial Atlas results, and launched replacement job `8c24a586-6ad9-42c1-af36-1f8370645703` with the same bounded profile. |

@@ -16,39 +16,60 @@ function clamp(value: number): number {
 /**
  * Keeps distinct research questions separate. A high wealth signal must not
  * make an unverified identity or unreachable target look actionable.
+ *
+ * The inputs deliberately describe evidence quality, not just record volume.
+ * Registry labels, provider counts, assets, and graph degree are useful
+ * retrieval context, but cannot by themselves promote identity, ownership,
+ * contact, or access.
  */
 export function computeResearchScorecard(input: {
-  bayesianScore: number;
-  contactConfidence?: number | null;
-  hasDirectContact: boolean;
+  wealthEvidenceScore: number;
+  identitySourceCount: number;
+  identityCorroboratingDomainCount: number;
+  identityAttributionConfidence?: number;
+  ownershipSourceCount: number;
+  ownershipCorroboratingDomainCount: number;
+  ownershipEvidenceQuality?: number;
+  validatedContactEvidenceCount: number;
+  verifiedDirectRouteCount: number;
+  contactIndependentDomainCount: number;
+  contactEvidenceQuality?: number;
   reachabilityScore: number;
-  assetCount: number;
-  ownershipRelationshipCount: number;
-  sourceRegistryCount: number;
-  corroboratingSourceCount: number;
+  sourceIndependentDomainCount: number;
   sourceReliabilityAverage?: number;
   daysSinceActivity: number;
   hasRecentActivity: boolean;
+  evidenceFreshnessScore?: number;
 }): ResearchScorecard {
   const identity = clamp(
-    (input.sourceRegistryCount > 0 ? 0.45 : 0.2) +
-      Math.min(0.35, input.corroboratingSourceCount * 0.08) +
-      (input.hasDirectContact ? 0.2 : 0),
+    Math.min(0.45, Math.max(0, input.identitySourceCount) * 0.15) +
+      Math.min(0.35, Math.max(0, input.identityCorroboratingDomainCount) * 0.12) +
+      0.2 * clamp(input.identityAttributionConfidence ?? 0),
   );
   const ownership = clamp(
-    (input.assetCount > 0 ? 0.25 : 0) +
-      Math.min(0.55, input.ownershipRelationshipCount * 0.12) +
-      (input.sourceRegistryCount > 0 ? 0.2 : 0),
+    Math.min(0.4, Math.max(0, input.ownershipSourceCount) * 0.16) +
+      Math.min(0.35, Math.max(0, input.ownershipCorroboratingDomainCount) * 0.12) +
+      0.25 * clamp(input.ownershipEvidenceQuality ?? 0),
   );
-  const contact = clamp((input.contactConfidence ?? 0) / 100);
+  const directRouteEvidence = Math.min(0.55, Math.max(0, input.verifiedDirectRouteCount) * 0.55);
+  const validatedEvidence = input.validatedContactEvidenceCount > 0 ? 0.2 : 0;
+  const contact = clamp(
+    directRouteEvidence +
+      Math.min(0.25, Math.max(0, input.contactIndependentDomainCount) * 0.08) +
+      validatedEvidence +
+      0.2 * clamp(input.contactEvidenceQuality ?? 0),
+  );
   const access = clamp(input.reachabilityScore / 100);
-  const wealth = clamp(input.bayesianScore);
-  const freshness = input.hasRecentActivity
+  const wealth = clamp(input.wealthEvidenceScore);
+  const activityFreshness = input.hasRecentActivity
     ? 1
     : clamp(1 - Math.max(0, input.daysSinceActivity - 180) / 720);
+  const freshness = clamp(
+    activityFreshness * 0.6 + 0.4 * clamp(input.evidenceFreshnessScore ?? activityFreshness),
+  );
   const sourceQuality = clamp(
-    ((input.sourceRegistryCount > 0 ? 0.45 : 0.15) +
-      Math.min(0.45, input.corroboratingSourceCount * 0.1)) *
+    (Math.min(0.6, Math.max(0, input.sourceIndependentDomainCount) * 0.2) +
+      (input.sourceIndependentDomainCount >= 2 ? 0.25 : input.sourceIndependentDomainCount > 0 ? 0.1 : 0)) *
       (0.65 + 0.35 * clamp(input.sourceReliabilityAverage ?? 0.3)),
   );
   const overall = clamp(

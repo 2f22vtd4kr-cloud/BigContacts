@@ -22,6 +22,7 @@
 
 import { Router, type Request, type Response } from "express";
 import { db, assetsTable, entitiesTable, contactEvidenceTable } from "@workspace/db";
+import { candidateKey } from "../lib/contact-candidate";
 import { sql, eq, and, desc, inArray, type SQL } from "drizzle-orm";
 import {
   createJob, updateJob, getJob,
@@ -663,7 +664,12 @@ router.post("/ingest/in-house-enrich", async (req: Request, res: Response): Prom
                       : false;
               }
               return true;
-            }).map((ev) => ({
+            }).map((ev) => {
+              const candidate = result.candidateFunnel.candidates.find(
+                (item) => item.key === candidateKey(ev.vectorType as any, ev.value),
+              );
+              const scopes = candidate?.scopes ?? [(ev.details?.["scope"] as string | undefined) ?? "unknown"];
+              return {
               entityId: entity.id,
               vectorType: ev.vectorType,
               value: ev.value,
@@ -671,17 +677,27 @@ router.post("/ingest/in-house-enrich", async (req: Request, res: Response): Prom
               sourceUrl: ev.sourceUrl ?? null,
               extractionMethod: ev.extractionMethod,
               sourceReliability: Math.min(1, Math.max(0, ev.confidence / 100)),
-              identityMatch: 0.75,
+              identityMatch: scopes.includes("target_person") ? 0.9 : scopes.includes("person_candidate") ? 0.4 : scopes.includes("organization") ? 0.2 : 0.5,
               recencyScore: 0.70,
               directnessScore:
                 ev.vectorType === "email" ? 0.80 :
                 ev.vectorType === "phone" ? 0.75 :
                 ev.vectorType === "social" ? 0.20 : 0.10,
-              independentCorroboration: 1,
-              validationStatus: ev.confidence >= 80 ? "verified" : "candidate",
-              metadata: JSON.stringify(ev.details ?? {}),
+              independentCorroboration: candidate?.sourceDomains.length ?? 0,
+              validationStatus: candidate?.state === "verified_direct_route" ? "verified" : "candidate",
+              metadata: JSON.stringify({
+                ...(ev.details ?? {}),
+                candidateState: candidate?.state ?? "discovered",
+                sourceDomains: candidate?.sourceDomains ?? [],
+                sourceUrls: candidate?.sourceUrls ?? [],
+                providers: candidate?.providers ?? [],
+                scopes,
+                personNames: candidate?.personNames ?? [],
+                conflictCount: candidate?.conflictCount ?? 0,
+              }),
               observedAt: new Date(ev.observedAt),
-            }));
+              };
+            });
             await db.insert(contactEvidenceTable).values(evidenceRows).onConflictDoNothing();
           } catch (evidenceErr: any) {
             logger.warn({ entityId: entity.id, err: evidenceErr.message }, "Failed to write evidence rows (non-fatal)");

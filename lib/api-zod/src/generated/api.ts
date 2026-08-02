@@ -399,6 +399,29 @@ export const RunResearchResponse = zod.object({
   "safeUseStatus": zod.string().optional(),
   "safeUseReviewedAt": zod.string().nullish(),
   "safeUseNote": zod.string().nullish(),
+  "candidateFunnel": zod.object({
+  "totalCandidates": zod.number(),
+  "discovered": zod.number(),
+  "sourceLinked": zod.number(),
+  "attributionReview": zod.number(),
+  "independentlyCorroborated": zod.number(),
+  "verifiedDirectRoute": zod.number(),
+  "organizationOnly": zod.number(),
+  "conflicted": zod.number(),
+  "independentSourceDomains": zod.number(),
+  "candidates": zod.array(zod.object({
+  "key": zod.string(),
+  "vectorType": zod.string(),
+  "value": zod.string(),
+  "providers": zod.array(zod.string()),
+  "sourceDomains": zod.array(zod.string()),
+  "sourceUrls": zod.array(zod.string()),
+  "scopes": zod.array(zod.string()),
+  "personNames": zod.array(zod.string()),
+  "state": zod.string(),
+  "conflictCount": zod.number()
+}))
+}).nullish(),
   "createdAt": zod.string()
 })
 
@@ -433,6 +456,29 @@ export const ListResearchSessionsResponseItem = zod.object({
   "safeUseStatus": zod.string().optional(),
   "safeUseReviewedAt": zod.string().nullish(),
   "safeUseNote": zod.string().nullish(),
+  "candidateFunnel": zod.object({
+  "totalCandidates": zod.number(),
+  "discovered": zod.number(),
+  "sourceLinked": zod.number(),
+  "attributionReview": zod.number(),
+  "independentlyCorroborated": zod.number(),
+  "verifiedDirectRoute": zod.number(),
+  "organizationOnly": zod.number(),
+  "conflicted": zod.number(),
+  "independentSourceDomains": zod.number(),
+  "candidates": zod.array(zod.object({
+  "key": zod.string(),
+  "vectorType": zod.string(),
+  "value": zod.string(),
+  "providers": zod.array(zod.string()),
+  "sourceDomains": zod.array(zod.string()),
+  "sourceUrls": zod.array(zod.string()),
+  "scopes": zod.array(zod.string()),
+  "personNames": zod.array(zod.string()),
+  "state": zod.string(),
+  "conflictCount": zod.number()
+}))
+}).nullish(),
   "createdAt": zod.string()
 })
 export const ListResearchSessionsResponse = zod.array(ListResearchSessionsResponseItem)
@@ -464,6 +510,29 @@ export const GetResearchSessionResponse = zod.object({
   "safeUseStatus": zod.string().optional(),
   "safeUseReviewedAt": zod.string().nullish(),
   "safeUseNote": zod.string().nullish(),
+  "candidateFunnel": zod.object({
+  "totalCandidates": zod.number(),
+  "discovered": zod.number(),
+  "sourceLinked": zod.number(),
+  "attributionReview": zod.number(),
+  "independentlyCorroborated": zod.number(),
+  "verifiedDirectRoute": zod.number(),
+  "organizationOnly": zod.number(),
+  "conflicted": zod.number(),
+  "independentSourceDomains": zod.number(),
+  "candidates": zod.array(zod.object({
+  "key": zod.string(),
+  "vectorType": zod.string(),
+  "value": zod.string(),
+  "providers": zod.array(zod.string()),
+  "sourceDomains": zod.array(zod.string()),
+  "sourceUrls": zod.array(zod.string()),
+  "scopes": zod.array(zod.string()),
+  "personNames": zod.array(zod.string()),
+  "state": zod.string(),
+  "conflictCount": zod.number()
+}))
+}).nullish(),
   "createdAt": zod.string()
 })
 
@@ -551,6 +620,29 @@ export const UpdateResearchStatusResponse = zod.object({
   "safeUseStatus": zod.string().optional(),
   "safeUseReviewedAt": zod.string().nullish(),
   "safeUseNote": zod.string().nullish(),
+  "candidateFunnel": zod.object({
+  "totalCandidates": zod.number(),
+  "discovered": zod.number(),
+  "sourceLinked": zod.number(),
+  "attributionReview": zod.number(),
+  "independentlyCorroborated": zod.number(),
+  "verifiedDirectRoute": zod.number(),
+  "organizationOnly": zod.number(),
+  "conflicted": zod.number(),
+  "independentSourceDomains": zod.number(),
+  "candidates": zod.array(zod.object({
+  "key": zod.string(),
+  "vectorType": zod.string(),
+  "value": zod.string(),
+  "providers": zod.array(zod.string()),
+  "sourceDomains": zod.array(zod.string()),
+  "sourceUrls": zod.array(zod.string()),
+  "scopes": zod.array(zod.string()),
+  "personNames": zod.array(zod.string()),
+  "state": zod.string(),
+  "conflictCount": zod.number()
+}))
+}).nullish(),
   "createdAt": zod.string()
 })
 
@@ -584,6 +676,29 @@ export const GeneratePitchResponse = zod.object({
   "safeUseStatus": zod.string().optional(),
   "safeUseReviewedAt": zod.string().nullish(),
   "safeUseNote": zod.string().nullish(),
+  "candidateFunnel": zod.object({
+  "totalCandidates": zod.number(),
+  "discovered": zod.number(),
+  "sourceLinked": zod.number(),
+  "attributionReview": zod.number(),
+  "independentlyCorroborated": zod.number(),
+  "verifiedDirectRoute": zod.number(),
+  "organizationOnly": zod.number(),
+  "conflicted": zod.number(),
+  "independentSourceDomains": zod.number(),
+  "candidates": zod.array(zod.object({
+  "key": zod.string(),
+  "vectorType": zod.string(),
+  "value": zod.string(),
+  "providers": zod.array(zod.string()),
+  "sourceDomains": zod.array(zod.string()),
+  "sourceUrls": zod.array(zod.string()),
+  "scopes": zod.array(zod.string()),
+  "personNames": zod.array(zod.string()),
+  "state": zod.string(),
+  "conflictCount": zod.number()
+}))
+}).nullish(),
   "createdAt": zod.string()
 })
 
@@ -622,6 +737,29 @@ export const UpdateResearchSafetyResponse = zod.object({
   "safeUseStatus": zod.string().optional(),
   "safeUseReviewedAt": zod.string().nullish(),
   "safeUseNote": zod.string().nullish(),
+  "candidateFunnel": zod.object({
+  "totalCandidates": zod.number(),
+  "discovered": zod.number(),
+  "sourceLinked": zod.number(),
+  "attributionReview": zod.number(),
+  "independentlyCorroborated": zod.number(),
+  "verifiedDirectRoute": zod.number(),
+  "organizationOnly": zod.number(),
+  "conflicted": zod.number(),
+  "independentSourceDomains": zod.number(),
+  "candidates": zod.array(zod.object({
+  "key": zod.string(),
+  "vectorType": zod.string(),
+  "value": zod.string(),
+  "providers": zod.array(zod.string()),
+  "sourceDomains": zod.array(zod.string()),
+  "sourceUrls": zod.array(zod.string()),
+  "scopes": zod.array(zod.string()),
+  "personNames": zod.array(zod.string()),
+  "state": zod.string(),
+  "conflictCount": zod.number()
+}))
+}).nullish(),
   "createdAt": zod.string()
 })
 

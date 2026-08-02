@@ -36,7 +36,7 @@ review-only and are never auto-merged or used to promote contacts.
 | `artifacts/apex-mobile: expo` | `pnpm --filter @workspace/apex-mobile run dev` | Optional |
 | `artifacts/mockup-sandbox: Component Preview Server` | `pnpm --filter @workspace/mockup-sandbox run dev` | Optional |
 
-The API server `dev` script runs `build` then `start` every time (esbuild, ~1.5s).
+The API server `dev` script runs `build` then `start` every time (esbuild, ~1.5s). The build entry is `artifacts/api-server/src/src/index.ts`; the top-level `src/` tree is an import-era health-only scaffold and must not be used as the production entry.
 
 The dashboard uses two deliberately separate scores: **Signal** reflects the strength of wealth/registry evidence, while **Access** reflects how realistically a profile can be reached through public contact evidence and directness. A strong Signal score must not imply a strong Access score.
 
@@ -110,6 +110,8 @@ Contact-quality hardening completed: human-name admission is fail-closed behind 
 Intelligence Reactor UI hardening completed: the desktop rod wall now displays all eight registry rods (including BRREG and WHOXY) and highlights live route segments from active endpoints; mobile now uses the same complete tool network in a responsive SVG panel with visible forward and adaptive-feedback routes, phase purpose readouts, and all 26 tool rods. The desktop canvas is contained as one surface rather than repeating inside the application shell. Atlas now provides separate phase and entity-batch telemetry, with truthful 0–10 phase state, current entity names/range, and shared completed/active/queued/skipped/failed rod semantics on desktop and mobile. Idle mode does not simulate waves or light rods from historical sessions. No ingestion or pipeline behavior changed.
 
 HNWI/entity card UX updated: dashboard priority cards, People ledger cards, and profile heroes now show an evidence-led public profile brief plus involvement summary using stored bios, headlines, foundation signals, registry activity, and linked assets. Missing evidence is labeled as unrecorded; no biography or involvement is invented. The hot-lead API contract includes the narrative fields and was regenerated from OpenAPI.
+
+Research evidence hardening completed: provider output is reconciled into reviewable contact candidates keyed by normalized vector, with canonical source URLs/domains, organization-vs-person scope, attribution, conflicts, and explicit promotion states. Candidate funnel metadata is persisted through existing `contact_evidence` rows and shown on the Research desk. The independent scorecard separates identity, ownership, contact, practical access, wealth, freshness, and source quality; provider repetition, asset/graph volume, and wealth cannot promote access or verified contact. `/research` is registered and API route coverage is verified after bundling the full imported source tree. No ingestion or research job runs automatically.
 
 Two fixes were needed after the first import:
 - Added `"pg-cloudflare"` to the `external` list in `artifacts/api-server/build.mjs` (pg optional dep that esbuild couldn't resolve)

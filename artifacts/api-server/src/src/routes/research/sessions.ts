@@ -11,6 +11,16 @@ import { canApproveForManualOutreach, getSafeUseDecision, type SafeUseStatus } f
 
 const router = Router();
 
+function candidateFunnelFromMetadata(metadata: string | null | undefined): unknown {
+  if (!metadata) return null;
+  try {
+    const parsed = JSON.parse(metadata) as Record<string, unknown>;
+    return parsed.deepWebCandidateFunnel ?? null;
+  } catch {
+    return null;
+  }
+}
+
 // GET /research/sessions
 router.get("/research/sessions", async (req, res): Promise<void> => {
   const parsed = ListResearchSessionsQueryParams.safeParse(req.query);
@@ -21,7 +31,7 @@ router.get("/research/sessions", async (req, res): Promise<void> => {
   const { entityId, status, limit = 50 } = parsed.data;
 
   const rows = await db
-    .select({ session: researchSessionsTable, entityName: entitiesTable.name })
+    .select({ session: researchSessionsTable, entityName: entitiesTable.name, entityMetadata: entitiesTable.metadata })
     .from(researchSessionsTable)
     .leftJoin(entitiesTable, eq(researchSessionsTable.targetEntityId, entitiesTable.id))
     .orderBy(desc(researchSessionsTable.createdAt))
@@ -33,9 +43,10 @@ router.get("/research/sessions", async (req, res): Promise<void> => {
       if (status && r.session.crmStatus !== status) return false;
       return true;
     })
-    .map(({ session, entityName }) => ({
+    .map(({ session, entityName, entityMetadata }) => ({
       ...session,
       targetEntityName: entityName ?? null,
+      candidateFunnel: candidateFunnelFromMetadata(entityMetadata),
       createdAt: session.createdAt.toISOString(),
     }));
 
@@ -51,7 +62,7 @@ router.get("/research/sessions/:id", async (req, res): Promise<void> => {
   }
 
   const [row] = await db
-    .select({ session: researchSessionsTable, entityName: entitiesTable.name })
+    .select({ session: researchSessionsTable, entityName: entitiesTable.name, entityMetadata: entitiesTable.metadata })
     .from(researchSessionsTable)
     .leftJoin(entitiesTable, eq(researchSessionsTable.targetEntityId, entitiesTable.id))
     .where(eq(researchSessionsTable.id, params.data.id));
@@ -64,6 +75,7 @@ router.get("/research/sessions/:id", async (req, res): Promise<void> => {
   res.json({
     ...row.session,
     targetEntityName: row.entityName ?? null,
+    candidateFunnel: candidateFunnelFromMetadata(row.entityMetadata),
     createdAt: row.session.createdAt.toISOString(),
     safeUse: getSafeUseDecision(row.session.safeUseStatus),
   });

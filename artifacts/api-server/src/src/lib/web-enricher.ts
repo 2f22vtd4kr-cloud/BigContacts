@@ -39,6 +39,7 @@ import { extractWithAI, researchWithPerplexity, researchWithGemini, researchWith
 import { extractPersonNames } from "./gliner-client";
 import { assessTargetReachability, reachabilityDirective } from "./reachability-realism";
 import { scoreCorroboration } from "./evidence-ledger";
+import { candidateKey, reconcileContactCandidates, type CandidateFunnel } from "./contact-candidate";
 
 // ── Shared utilities ──────────────────────────────────────────────────────────
 
@@ -447,6 +448,7 @@ export interface DeepWebOsintResult {
   ownershipSummary: string | null;
   ownershipSources: string[];
   evidence:        DeepWebEvidence[];
+  candidateFunnel: CandidateFunnel;
 }
 
 export interface DeepWebEvidence {
@@ -1543,6 +1545,11 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     ownershipSummary: null,
     ownershipSources: [],
     evidence: [],
+    candidateFunnel: {
+      totalCandidates: 0, discovered: 0, sourceLinked: 0, attributionReview: 0,
+      independentlyCorroborated: 0, verifiedDirectRoute: 0, organizationOnly: 0,
+      conflicted: 0, independentSourceDomains: 0, candidates: [],
+    },
   };
 
   // ── Derive context from entity ──────────────────────────────────────────
@@ -1601,6 +1608,13 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       details,
     });
   };
+
+  const topLevelDetails = (provider: string, sourceUrls: string[] = []): Record<string, unknown> => ({
+    scope: isCorp ? "organization" : "target_person",
+    ...(isCorp ? {} : { personName: entity.name, relationship: "target-person-extraction" }),
+    provider,
+    sourceUrls: sourceUrls.slice(0, 8),
+  });
 
   const addOwnerResolution = (
     owner: OwnerResolution,
@@ -1801,23 +1815,23 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       result.sources.push(label);
       if (perp.email) {
         const arr = emailHits.get(perp.email) ?? []; arr.push(label); emailHits.set(perp.email, arr);
-        recordEvidence("email", perp.email, label, null, "ai-perplexity-sonar", 80);
+        recordEvidence("email", perp.email, label, null, "ai-perplexity-sonar", 80, topLevelDetails(label, perp.citations));
       }
       if (perp.phone) {
         const arr = phoneHits.get(perp.phone) ?? []; arr.push(label); phoneHits.set(perp.phone, arr);
-        recordEvidence("phone", perp.phone, label, null, "ai-perplexity-sonar", 80);
+        recordEvidence("phone", perp.phone, label, null, "ai-perplexity-sonar", 80, topLevelDetails(label, perp.citations));
       }
       if (perp.linkedin) {
         const arr = linkedinHits.get(perp.linkedin) ?? []; arr.push(label); linkedinHits.set(perp.linkedin, arr);
-        recordEvidence("social", perp.linkedin, label, null, "ai-perplexity-sonar", 75, { network: "linkedin" });
+        recordEvidence("social", perp.linkedin, label, null, "ai-perplexity-sonar", 75, { ...topLevelDetails(label, perp.citations), network: "linkedin" });
       }
       if (perp.instagram) {
         const arr = igHits.get(perp.instagram) ?? []; arr.push(label); igHits.set(perp.instagram, arr);
-        recordEvidence("social", perp.instagram, label, null, "ai-perplexity-sonar", 75, { network: "instagram" });
+        recordEvidence("social", perp.instagram, label, null, "ai-perplexity-sonar", 75, { ...topLevelDetails(label, perp.citations), network: "instagram" });
       }
       if (perp.twitter) {
         const arr = twHits.get(perp.twitter) ?? []; arr.push(label); twHits.set(perp.twitter, arr);
-        recordEvidence("social", perp.twitter, label, null, "ai-perplexity-sonar", 75, { network: "twitter" });
+        recordEvidence("social", perp.twitter, label, null, "ai-perplexity-sonar", 75, { ...topLevelDetails(label, perp.citations), network: "twitter" });
       }
       if (perp.ownershipSummary) result.ownershipSummary = perp.ownershipSummary;
       for (const owner of perp.ownerResolutions) {
@@ -1882,23 +1896,23 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       result.sources.push(label);
       if (gem.email) {
         const arr = emailHits.get(gem.email) ?? []; arr.push(label); emailHits.set(gem.email, arr);
-        recordEvidence("email", gem.email, label, null, "ai-gemini-flash", 80);
+        recordEvidence("email", gem.email, label, null, "ai-gemini-flash", 80, topLevelDetails(label, gem.citations));
       }
       if (gem.phone) {
         const arr = phoneHits.get(gem.phone) ?? []; arr.push(label); phoneHits.set(gem.phone, arr);
-        recordEvidence("phone", gem.phone, label, null, "ai-gemini-flash", 80);
+        recordEvidence("phone", gem.phone, label, null, "ai-gemini-flash", 80, topLevelDetails(label, gem.citations));
       }
       if (gem.linkedin) {
         const arr = linkedinHits.get(gem.linkedin) ?? []; arr.push(label); linkedinHits.set(gem.linkedin, arr);
-        recordEvidence("social", gem.linkedin, label, null, "ai-gemini-flash", 75, { network: "linkedin" });
+        recordEvidence("social", gem.linkedin, label, null, "ai-gemini-flash", 75, { ...topLevelDetails(label, gem.citations), network: "linkedin" });
       }
       if (gem.instagram) {
         const arr = igHits.get(gem.instagram) ?? []; arr.push(label); igHits.set(gem.instagram, arr);
-        recordEvidence("social", gem.instagram, label, null, "ai-gemini-flash", 75, { network: "instagram" });
+        recordEvidence("social", gem.instagram, label, null, "ai-gemini-flash", 75, { ...topLevelDetails(label, gem.citations), network: "instagram" });
       }
       if (gem.twitter) {
         const arr = twHits.get(gem.twitter) ?? []; arr.push(label); twHits.set(gem.twitter, arr);
-        recordEvidence("social", gem.twitter, label, null, "ai-gemini-flash", 75, { network: "twitter" });
+        recordEvidence("social", gem.twitter, label, null, "ai-gemini-flash", 75, { ...topLevelDetails(label, gem.citations), network: "twitter" });
       }
       if (gem.ownershipSummary && !result.ownershipSummary) result.ownershipSummary = gem.ownershipSummary;
       for (const owner of gem.ownerResolutions) {
@@ -1950,23 +1964,23 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       result.sources.push(label);
       if (tav.email) {
         const arr = emailHits.get(tav.email) ?? []; arr.push(label); emailHits.set(tav.email, arr);
-        recordEvidence("email", tav.email, label, null, "ai-tavily", 78);
+        recordEvidence("email", tav.email, label, null, "ai-tavily", 78, topLevelDetails(label, tav.citations));
       }
       if (tav.phone) {
         const arr = phoneHits.get(tav.phone) ?? []; arr.push(label); phoneHits.set(tav.phone, arr);
-        recordEvidence("phone", tav.phone, label, null, "ai-tavily", 78);
+        recordEvidence("phone", tav.phone, label, null, "ai-tavily", 78, topLevelDetails(label, tav.citations));
       }
       if (tav.linkedin) {
         const arr = linkedinHits.get(tav.linkedin) ?? []; arr.push(label); linkedinHits.set(tav.linkedin, arr);
-        recordEvidence("social", tav.linkedin, label, null, "ai-tavily", 73, { network: "linkedin" });
+        recordEvidence("social", tav.linkedin, label, null, "ai-tavily", 73, { ...topLevelDetails(label, tav.citations), network: "linkedin" });
       }
       if (tav.instagram) {
         const arr = igHits.get(tav.instagram) ?? []; arr.push(label); igHits.set(tav.instagram, arr);
-        recordEvidence("social", tav.instagram, label, null, "ai-tavily", 73, { network: "instagram" });
+        recordEvidence("social", tav.instagram, label, null, "ai-tavily", 73, { ...topLevelDetails(label, tav.citations), network: "instagram" });
       }
       if (tav.twitter) {
         const arr = twHits.get(tav.twitter) ?? []; arr.push(label); twHits.set(tav.twitter, arr);
-        recordEvidence("social", tav.twitter, label, null, "ai-tavily", 73, { network: "twitter" });
+        recordEvidence("social", tav.twitter, label, null, "ai-tavily", 73, { ...topLevelDetails(label, tav.citations), network: "twitter" });
       }
       if (tav.ownershipSummary && !result.ownershipSummary) result.ownershipSummary = tav.ownershipSummary;
       for (const owner of tav.ownerResolutions) {
@@ -2018,23 +2032,23 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       result.sources.push(label);
       if (exa.email) {
         const arr = emailHits.get(exa.email) ?? []; arr.push(label); emailHits.set(exa.email, arr);
-        recordEvidence("email", exa.email, label, null, "ai-exa", 78);
+        recordEvidence("email", exa.email, label, null, "ai-exa", 78, topLevelDetails(label, exa.citations));
       }
       if (exa.phone) {
         const arr = phoneHits.get(exa.phone) ?? []; arr.push(label); phoneHits.set(exa.phone, arr);
-        recordEvidence("phone", exa.phone, label, null, "ai-exa", 78);
+        recordEvidence("phone", exa.phone, label, null, "ai-exa", 78, topLevelDetails(label, exa.citations));
       }
       if (exa.linkedin) {
         const arr = linkedinHits.get(exa.linkedin) ?? []; arr.push(label); linkedinHits.set(exa.linkedin, arr);
-        recordEvidence("social", exa.linkedin, label, null, "ai-exa", 73, { network: "linkedin" });
+        recordEvidence("social", exa.linkedin, label, null, "ai-exa", 73, { ...topLevelDetails(label, exa.citations), network: "linkedin" });
       }
       if (exa.instagram) {
         const arr = igHits.get(exa.instagram) ?? []; arr.push(label); igHits.set(exa.instagram, arr);
-        recordEvidence("social", exa.instagram, label, null, "ai-exa", 73, { network: "instagram" });
+        recordEvidence("social", exa.instagram, label, null, "ai-exa", 73, { ...topLevelDetails(label, exa.citations), network: "instagram" });
       }
       if (exa.twitter) {
         const arr = twHits.get(exa.twitter) ?? []; arr.push(label); twHits.set(exa.twitter, arr);
-        recordEvidence("social", exa.twitter, label, null, "ai-exa", 73, { network: "twitter" });
+        recordEvidence("social", exa.twitter, label, null, "ai-exa", 73, { ...topLevelDetails(label, exa.citations), network: "twitter" });
       }
       if (exa.ownershipSummary && !result.ownershipSummary) result.ownershipSummary = exa.ownershipSummary;
       for (const owner of exa.ownerResolutions) {
@@ -2747,6 +2761,47 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   if (bestTw) {
     result.twitterUrl = bestTw;
     result.sources.push(...(twHits.get(bestTw) ?? []));
+  }
+
+  result.candidateFunnel = reconcileContactCandidates(
+    result.evidence.filter((e): e is DeepWebEvidence & { vectorType: "email" | "phone" | "social" | "domain" | "website" | "address" } =>
+      ["email", "phone", "social", "domain", "website", "address"].includes(e.vectorType),
+    ),
+  );
+
+  // Promotion is deliberately stricter than discovery. For people, only a
+  // target-person direct vector corroborated by independent canonical domains
+  // is allowed into the entity contact columns. Organizations may retain an
+  // organization-scoped direct route, but it is never a personal route.
+  const promotedEmailCandidate = result.candidateFunnel.candidates.find(
+    (candidate) => {
+      if (candidate.key !== candidateKey("email", result.email ?? "")) return false;
+      if (!isCorp) return candidate.state === "verified_direct_route";
+      return candidate.vectorType === "email"
+        && candidate.scopes.length > 0
+        && candidate.scopes.every((scope) => scope === "organization")
+        && candidate.sourceDomains.length >= 1
+        && candidate.state === "source_linked";
+    },
+  );
+  if (!promotedEmailCandidate) {
+    result.email = null;
+    result.emailConfidence = 0;
+  }
+  const promotedPhoneCandidate = result.candidateFunnel.candidates.find(
+    (candidate) => {
+      if (candidate.key !== candidateKey("phone", result.phone ?? "")) return false;
+      if (!isCorp) return candidate.state === "verified_direct_route";
+      return candidate.vectorType === "phone"
+        && candidate.scopes.length > 0
+        && candidate.scopes.every((scope) => scope === "organization")
+        && candidate.sourceDomains.length >= 1
+        && candidate.state === "source_linked";
+    },
+  );
+  if (!promotedPhoneCandidate) {
+    result.phone = null;
+    result.phoneConfidence = 0;
   }
 
   result.sources = [...new Set(result.sources)];

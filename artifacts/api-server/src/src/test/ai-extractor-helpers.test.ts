@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractJsonObject } from "../lib/ai-extractor";
+import { buildPerplexityPrompt, extractJsonObject } from "../lib/ai-extractor";
 
 describe("AI response safety helpers", () => {
   it("extracts the first balanced JSON object instead of greedily merging objects", () => {
@@ -15,5 +15,18 @@ describe("AI response safety helpers", () => {
   it("rejects incomplete or non-object responses", () => {
     expect(extractJsonObject("not json")).toBeNull();
     expect(extractJsonObject('{"email":"broken"')).toBeNull();
+  });
+
+  it("does not ask person research for a general organization email", () => {
+    const prompt = buildPerplexityPrompt("Jane Doe", "HNWI", "US");
+    expect(prompt).toContain("personal/direct email for the named individual only");
+    expect(prompt).not.toContain('"email": "general org contact email or null"');
+    expect(prompt).toContain("corporate headquarters number");
+  });
+
+  it("keeps organization email wording scoped to organization research", () => {
+    const prompt = buildPerplexityPrompt("Example Holdings", "Corporation", "US");
+    expect(prompt).toContain('"email": "general organization contact email or null"');
+    expect(prompt).not.toContain("personal/direct email for the named individual only");
   });
 });

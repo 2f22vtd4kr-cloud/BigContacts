@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { eq } from "drizzle-orm";
-import { db, entitiesTable, assetsTable, identityCandidatesTable, relationshipsTable, researchEvidenceTable, researchSessionsTable } from "@workspace/db";
+import { db, entitiesTable, assetsTable, contactEvidenceTable, assetsTable, identityCandidatesTable, relationshipsTable, researchEvidenceTable, researchSessionsTable } from "@workspace/db";
 import { RunResearchBody } from "@workspace/api-zod";
 import { buildGraph, findShortestPath, identityPairKey } from "../../lib/graph-engine";
 import { computeBayesianScore } from "../../lib/bayesian-scorer";
@@ -42,6 +42,10 @@ router.post("/research/run", async (req, res): Promise<void> => {
     db.select().from(relationshipsTable),
     db.select().from(identityCandidatesTable),
   ]);
+  const targetContactEvidence = await db
+    .select()
+    .from(contactEvidenceTable)
+    .where(eq(contactEvidenceTable.entityId, entityId));
 
   const acceptedIdentityPairs = new Set(
     acceptedIdentityCandidates
@@ -136,26 +140,109 @@ router.post("/research/run", async (req, res): Promise<void> => {
       return [];
     }
   })();
-  const scorecard = computeResearchScorecard({
-    bayesianScore: updatedScore,
-    contactConfidence: targetEntity.contactConfidence,
-    hasDirectContact: reachability.hasDirectContact,
-    reachabilityScore: reachability.score,
-    assetCount: targetAssets.length,
-    ownershipRelationshipCount: targetRelationships.filter((r) =>
-      ["OWNS", "MANAGES", "NOMINEE_OF", "BOARD_MEMBER_OF"].includes(r.relationshipType),
-    ).length,
-    sourceRegistryCount: (() => {
+  const targetMetadata = (() => {
+    try {
+      const parsed = JSON.parse(targetEntity.metadata ?? "{}");
+      return parsed && typeof parsed === "object" ? parsed as Record<string, unknown> : {};
+    } catch {
+      return {};
+    }
+  })();
+  const candidateFunnel = (() => {
+    const value = targetMetadata.deepWebCandidateFunnel ?? targetMetadata.candidateFunnel;
+    return value && typeof value === "object" ? value as {
+      candidates?: Array<{
+        vectorType?: string;
+        state?: string;
+        sourceDomains?: string[];
+        scopes?: string[];
+        conflictCount?: number;
+      }>;
+    } : {};
+  })();
+  const candidateRows = Array.isArray(candidateFunnel.candidates) ? candidateFunnel.candidates : [];
+  const directCandidateRows = candidateRows.filter((candidate) =>
+    candidate.vectorType === "email" || candidate.vectorType === "phone",
+  );
+  const verifiedDirectRouteCount = directCandidateRows.filter((candidate) =>
+    candidate.state === "verified_direct_route" &&
+    (candidate.scopes ?? []).includes("target_person") &&
+    (candidate.conflictCount ?? 0) === 0,
+  ).length;
+  const candidateContactDomains = new Set(
+    directCandidateRows.flatMap((candidate) => candidate.sourceDomains ?? []),
+  );
+  const evidenceDomains = new Set(
+    targetContactEvidence.flatMap((evidence) => {
       try {
-        const parsed = JSON.parse(targetEntity.sourceRegistries ?? "[]");
-        return Array.isArray(parsed) ? parsed.length : 0;
+        return evidence.sourceUrl ? [new URL(evidence.sourceUrl).hostname.replace(/^www\./, "")] : [];
       } catch {
-        return 0;
+        return [];
       }
-    })(),
-    corroboratingSourceCount: new Set([
-      ...targetAssets.map((asset) => asset.sourceRegistry).filter(Boolean),
-      ...targetRelationships.map((relationship) => relationship.relationshipType),
+    }),
+  );
+  const identityDomains = new Set([
+    ...candidateRows.flatMap((candidate) => candidate.sourceDomains ?? []),
+    ...targetContactEvidence.flatMap((evidence) => {
+      try {
+        return evidence.sourceUrl ? [new URL(evidence.sourceUrl).hostname.replace(/^www\./, "")] : [];
+      } catch {
+        return [];
+      }
+    }),
+  ]);
+  const contactEvidenceRows = targetContactEvidence.filter((evidence) =>
+    (evidence.vectorType === "email" || evidence.vectorType === "phone") &&
+    evidence.validationStatus !== "rejected",
+  );
+  const contactEvidenceQuality = contactEvidenceRows.length > 0
+    ? contactEvidenceRows.reduce((sum, evidence) =>
+      sum + evidence.sourceReliability * evidence.identityMatch * evidence.directnessScore, 0,
+    ) / contactEvidenceRows.length
+    : 0;
+  const ownershipEvidenceRows = targetContactEvidence.filter((evidence) =>
+    evidence.vectorType === "domain" || evidence.vectorType === "website" || evidence.vectorType === "address",
+  );
+  const ownershipDomains = new Set(
+    ownershipEvidenceRows.flatMap((evidence) => {
+      try {
+        return evidence.sourceUrl ? [new URL(evidence.sourceUrl).hostname.replace(/^www\./, "")] : [];
+      } catch {
+        return [];
+      }
+    }),
+  );
+  const evidenceFreshnessScore = targetContactEvidence.length > 0
+    ? targetContactEvidence.reduce((sum, evidence) => sum + evidence.recencyScore, 0) / targetContactEvidence.length
+    : undefined;
+  const scorecard = computeResearchScorecard({
+    wealthEvidenceScore: updatedScore,
+    identitySourceCount: targetSourceLabels.length,
+    identityCorroboratingDomainCount: identityDomains.size,
+    identityAttributionConfidence: candidateRows.some((candidate) =>
+      (candidate.scopes ?? []).includes("target_person") && (candidate.conflictCount ?? 0) === 0,
+    ) ? 1 : 0,
+    ownershipSourceCount: targetSourceLabels.length + (ownershipEvidenceRows.length > 0 ? 1 : 0),
+    ownershipCorroboratingDomainCount: ownershipDomains.size,
+    ownershipEvidenceQuality: ownershipEvidenceRows.length > 0
+      ? ownershipEvidenceRows.reduce((sum, evidence) =>
+        sum + evidence.sourceReliability * evidence.identityMatch, 0,
+      ) / ownershipEvidenceRows.length
+      : 0,
+    validatedContactEvidenceCount: contactEvidenceRows.length,
+    verifiedDirectRouteCount,
+    contactIndependentDomainCount: new Set([...candidateContactDomains, ...evidenceDomains]).size,
+    contactEvidenceQuality,
+    reachabilityScore: reachability.score,
+    sourceIndependentDomainCount: new Set([
+      ...targetContactEvidence.flatMap((evidence) => {
+        try {
+          return evidence.sourceUrl ? [new URL(evidence.sourceUrl).hostname.replace(/^www\./, "")] : [];
+        } catch {
+          return [];
+        }
+      }),
+      ...candidateRows.flatMap((candidate) => candidate.sourceDomains ?? []),
     ]).size,
     sourceReliabilityAverage: averageSourceReliability([
       ...targetSourceLabels,
@@ -163,6 +250,7 @@ router.post("/research/run", async (req, res): Promise<void> => {
     ]),
     daysSinceActivity,
     hasRecentActivity: daysSinceActivity < 180,
+    evidenceFreshnessScore,
   });
 
   // A prominent, isolated target with no direct or corroborated intermediary

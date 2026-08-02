@@ -58,6 +58,32 @@ type ResearchScorecard = {
   overall: number;
 };
 
+type ContactCandidate = {
+  key: string;
+  vectorType: string;
+  value: string;
+  providers: string[];
+  sourceDomains: string[];
+  sourceUrls: string[];
+  scopes: string[];
+  personNames: string[];
+  state: string;
+  conflictCount: number;
+};
+
+type CandidateFunnel = {
+  totalCandidates: number;
+  discovered: number;
+  sourceLinked: number;
+  attributionReview: number;
+  independentlyCorroborated: number;
+  verifiedDirectRoute: number;
+  organizationOnly: number;
+  conflicted: number;
+  independentSourceDomains: number;
+  candidates: ContactCandidate[];
+};
+
 const HYBRID_PIPELINE = "L1: BM25+Semantic+Graph · L2: Planner→Retriever→Analyst→Critic · L3: QueryExpansion · L4: UCT(120 rollouts) · L5: Bayesian-UCB";
 
 function roleIcon(role: string) {
@@ -184,6 +210,70 @@ function Scorecard({ score }: { score: ResearchScorecard | null }) {
   );
 }
 
+function CandidateFunnelPanel({ funnel }: { funnel: CandidateFunnel | null }) {
+  if (!funnel) return null;
+  const states: Array<[string, number, string]> = [
+    ["Discovered", funnel.discovered, "text-muted-foreground"],
+    ["Source-linked", funnel.sourceLinked, "text-sky-300"],
+    ["Attribution review", funnel.attributionReview, "text-amber-300"],
+    ["Corroborated", funnel.independentlyCorroborated, "text-cyan-300"],
+    ["Verified direct", funnel.verifiedDirectRoute, "text-emerald-300"],
+  ];
+  const stateLabel = (state: string) => state.replaceAll("_", " ");
+  return (
+    <div className="border-t border-border/50 bg-[#080C14] px-4 md:px-5 py-4 flex-shrink-0">
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div>
+          <h3 className="text-xs font-mono text-primary uppercase tracking-widest flex items-center gap-2">
+            <CircleAlert className="w-3.5 h-3.5" /> Contact Candidate Funnel
+          </h3>
+          <p className="text-[11px] text-muted-foreground mt-1">
+            Provider repetition is not corroboration. Personal routes require target attribution and independent source domains.
+          </p>
+        </div>
+        <span className="text-[10px] font-mono text-muted-foreground whitespace-nowrap">
+          {funnel.totalCandidates} candidates · {funnel.independentSourceDomains} domains
+        </span>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-3">
+        {states.map(([label, value, color]) => (
+          <div key={label} className="rounded border border-border/60 bg-card/40 px-2 py-1.5">
+            <div className="text-[9px] uppercase tracking-wider text-muted-foreground font-mono">{label}</div>
+            <div className={cn("text-lg font-mono mt-0.5", color)}>{value}</div>
+          </div>
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-2 text-[10px] font-mono text-muted-foreground mb-2">
+        <span className="rounded border border-border/60 px-2 py-1">Organization-only: {funnel.organizationOnly}</span>
+        <span className={cn("rounded border px-2 py-1", funnel.conflicted ? "border-rose-400/30 text-rose-300" : "border-border/60")}>
+          Conflicts: {funnel.conflicted}
+        </span>
+      </div>
+      {funnel.candidates.length > 0 && (
+        <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1">
+          {funnel.candidates.map((candidate) => (
+            <div key={candidate.key} className="rounded border border-border/50 bg-background/40 px-2.5 py-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[10px] text-primary uppercase">{candidate.vectorType}</span>
+                <span className="text-xs text-foreground break-all">{candidate.value}</span>
+                <span className="text-[10px] text-muted-foreground ml-auto">{stateLabel(candidate.state)}</span>
+                {candidate.conflictCount > 0 && <span className="text-[10px] text-rose-300">conflict</span>}
+              </div>
+              <div className="text-[10px] font-mono text-muted-foreground mt-1 flex flex-wrap gap-x-2 gap-y-0.5">
+                <span>{candidate.scopes.join(", ") || "unscoped"}</span>
+                <span>·</span>
+                <span>{candidate.sourceDomains.length} source domain{candidate.sourceDomains.length === 1 ? "" : "s"}</span>
+                <span>·</span>
+                <span>{candidate.providers.join(", ")}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Path node contact bar ──────────────────────────────────────────────────────
 function PathNodeContact({ node }: { node: PathStep }) {
   if (!node.contactConfidence && !node.contactEmail && !node.contactPhone) return null;
@@ -298,6 +388,7 @@ export default function IntelTerminal() {
   const [safeUseStatus, setSafeUseStatus] = useState("manual_review");
   const [algorithmPipeline, setAlgorithmPipeline] = useState<Array<{ algo: string; contribution: string; status: string }> | null>(null);
   const [scorecard, setScorecard] = useState<ResearchScorecard | null>(null);
+  const [candidateFunnel, setCandidateFunnel] = useState<CandidateFunnel | null>(null);
   const logEndRef = useRef<HTMLDivElement | null>(null);
 
   // Mobile entity picker state
@@ -313,6 +404,7 @@ export default function IntelTerminal() {
     setSafeUseStatus("manual_review");
     setAlgorithmPipeline(null);
     setScorecard(null);
+    setCandidateFunnel(null);
     setIsComputing(true);
     setMobilePickerOpen(false);
 
@@ -331,6 +423,7 @@ export default function IntelTerminal() {
 
           setPathScore(data.pathScore ?? 0);
           try { setScorecard(data.scoreBreakdown ? JSON.parse(data.scoreBreakdown) : null); } catch { setScorecard(null); }
+          setCandidateFunnel((data as any).candidateFunnel ?? null);
           if ((data as any).algorithmPipeline) setAlgorithmPipeline((data as any).algorithmPipeline);
 
           let i = 0;
@@ -626,6 +719,7 @@ export default function IntelTerminal() {
           </div>
         )}
         {!isComputing && <Scorecard score={scorecard} />}
+        {!isComputing && <CandidateFunnelPanel funnel={candidateFunnel} />}
 
         {/* ── Winning Path Visualization ── */}
         {winningPath.length > 0 && !isComputing && (

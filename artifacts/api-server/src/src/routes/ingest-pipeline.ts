@@ -14,6 +14,7 @@
 
 import { Router, type Request, type Response } from "express";
 import { db, entitiesTable, contactEvidenceTable } from "@workspace/db";
+import { candidateKey } from "../lib/contact-candidate";
 import { sql, eq, and, desc, count, inArray } from "drizzle-orm";
 import {
   createJob, updateJob, getJob,
@@ -206,6 +207,7 @@ router.post("/ingest/deep-web-osint", async (req: Request, res: Response): Promi
         meta["deepWebOsintAt"]      = new Date().toISOString();
         meta["deepWebOsintSources"] = result.sources;
         meta["deepWebQueriesFired"] = result.queriesFired;
+        meta["deepWebCandidateFunnel"] = result.candidateFunnel;
         if (result.emailConfidence) meta["deepWebEmailConf"] = result.emailConfidence;
         if (result.phoneConfidence) meta["deepWebPhoneConf"] = result.phoneConfidence;
         // Store discovered person names as review-only candidates — never auto-merged
@@ -256,7 +258,12 @@ router.post("/ingest/deep-web-osint", async (req: Request, res: Response): Promi
               return true;
             })
             .map(e => {
-              const isPersonHop = (e.details?.["scope"] as string) === "person_candidate";
+              const candidate = result.candidateFunnel.candidates.find(
+                (item) => item.key === candidateKey(e.vectorType as any, e.value),
+              );
+              const scopes = candidate?.scopes ?? [(e.details?.["scope"] as string | undefined) ?? "unknown"];
+              const isTargetPerson = scopes.includes("target_person");
+              const isPersonHop = scopes.includes("person_candidate");
               return {
                 entityId: entity.id,
                 vectorType: e.vectorType,
@@ -267,16 +274,25 @@ router.post("/ingest/deep-web-osint", async (req: Request, res: Response): Promi
                 // confidence 0-100 → sourceReliability 0.0-1.0
                 sourceReliability: Math.min(1, Math.max(0, e.confidence / 100)),
                 // Person-hop candidates have lower identity match — not yet confirmed as the entity's own contact
-                identityMatch: isPersonHop ? 0.25 : 0.65,
+                identityMatch: isTargetPerson ? 0.9 : isPersonHop ? 0.4 : scopes.includes("organization") ? 0.2 : 0.5,
                 recencyScore: 0.7,
                 directnessScore:
                   e.vectorType === "email" ? 0.9 :
                   e.vectorType === "phone" ? 0.85 :
                   e.vectorType === "social" ? 0.6 : 0.4,
-                independentCorroboration: 1,
-                validationStatus: isPersonHop ? "candidate" : "candidate",
+                independentCorroboration: candidate?.sourceDomains.length ?? 0,
+                validationStatus: candidate?.state === "verified_direct_route" ? "verified" : "candidate",
                 observedAt: new Date(),
-                metadata: JSON.stringify(e.details ?? {}),
+                metadata: JSON.stringify({
+                  ...(e.details ?? {}),
+                  candidateState: candidate?.state ?? "discovered",
+                  sourceDomains: candidate?.sourceDomains ?? [],
+                  sourceUrls: candidate?.sourceUrls ?? [],
+                  providers: candidate?.providers ?? [],
+                  scopes,
+                  personNames: candidate?.personNames ?? [],
+                  conflictCount: candidate?.conflictCount ?? 0,
+                }),
               };
             });
           try {
