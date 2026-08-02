@@ -223,7 +223,7 @@ async function runEntityBatch<T>(
   phase: string,
   entities: Array<{ id: number; name: string }>,
   fn: (entity: any) => Promise<T>,
-  concurrency = 1,
+  concurrency = 3,
   onResult?: (entity: any, result: T) => Promise<void>,
 ): Promise<{ ok: number; err: number }> {
   let ok = 0; let errCount = 0;
@@ -793,10 +793,10 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
           const existing = (e as any).notes ?? "";
           await db.update(entitiesTable).set({ notes: existing ? `${existing}\n${note}` : note, updatedAt: new Date() }).where(eq(entitiesTable.id, e.id));
         }
-      }, 1),
+      }, 2),
       runEntityBatch(atlasJobId, "Phase 0/FoundationFilings", entities0.filter(e => e.type === "HNWI").slice(0, 100), async (e) => {
         await discoverViaFoundationFilings(e as any);
-      }, 1),
+      }, 2),
     ]);
 
     summary["Phase 0b"] = `CH contact: ${(chRes as any).enriched ?? 0} | OpenOwnership + Foundation filings done`;
@@ -865,15 +865,15 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
 
       if (source.kind === "broad") {
         const { discoverSingleTemplate } = await import("./enrichment/broad-discovery");
-        const broadRes = await discoverSingleTemplate(source.category, 10, 1)
+        const broadRes = await discoverSingleTemplate(source.category, 10)
           .catch(e => { logger.error({ err: e.message }, "[Atlas] Broad discovery failed"); return { entitiesDiscovered: 0, queriesFired: 0, resultsScraped: 0, entitiesSkipped: 0, newEntities: [] }; });
         totalIngested += broadRes.entitiesDiscovered;
       } else {
         const hnwiJobId = await createJob("western-hnwi");
         await setActiveJob("western-hnwi", hnwiJobId);
         const hnwiRes = await runWesternHnwiIngestion({
-          targetCount: 1,
-          batchSize: 1,
+          targetCount: opts.targetCount ?? 120,
+          batchSize: 100,
           jobId: hnwiJobId,
           clearDedupFirst: (source as any).clearFirst ?? false,
         }).catch(e => { logger.error({ err: e.message }, "[Atlas] HNWI ingestion failed"); return { inserted: 0, skipped: 0, errors: 1, durationMs: 0 }; });
@@ -884,7 +884,7 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
         if (includeFaa && sourceRound === 8) {
           const faaJobId = await createJob("faa");
           await setActiveJob("faa", faaJobId);
-          const faaRes = await runFaaIngestion({ jobId: faaJobId, maxRecords: 1, forceRefresh: false })
+          const faaRes = await runFaaIngestion({ jobId: faaJobId, maxRecords: opts.faaMaxRecords ?? 10_000, forceRefresh: false })
             .catch(e => { logger.error({ err: e.message }, "[Atlas] FAA failed"); return { inserted: 0 }; });
           await setActiveJob("faa", "");
           totalIngested += faaRes.inserted;
@@ -910,7 +910,7 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
         sql`${entitiesTable.cookedAt} IS NULL`,
       ))
       .orderBy(desc(entitiesTable.createdAt))
-      .limit(1);
+      .limit(1000);
 
     logger.info({ sourceRound, label: source.label, newCount: newEntities.length }, "[Atlas] Starting full-circle enrichment");
 
@@ -920,7 +920,7 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
         `[${sourceRound}/${sourcesToRun.length}] 🍳`,
         newEntities,
         (entity) => enrichEntityFullCircle(atlasJobId, entity as EntityRow),
-        1,
+        3,
       );
       cookedCount += batchResult.ok;
       totalEnriched += batchResult.ok;

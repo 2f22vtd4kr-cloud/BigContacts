@@ -43,13 +43,7 @@ async function tavilySearch(query: string): Promise<Array<{ snippet: string; url
     const resp = await fetch("https://api.tavily.com/search", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-      body: JSON.stringify({
-        query,
-        max_results: 8,
-        search_depth: "advanced",
-        include_answer: false,
-        include_raw_content: false,
-      }),
+      body: JSON.stringify({ query, max_results: 8, search_depth: "basic", include_answer: false }),
       signal: AbortSignal.timeout(12_000),
     });
     if (!resp.ok) return [];
@@ -81,15 +75,9 @@ async function aiExtractPersonNames(text: string, context: string): Promise<stri
         messages: [
           {
             role: "system",
-            content: `You are a senior OSINT analyst extracting names of living, contemporary high-net-worth individuals from western-country public evidence. Search context: "${context}".
-
-This is entity discovery, not topic extraction. Admit a candidate only when the supplied result text contains a plausible full personal name AND an attributable wealth or business signal for that same person, such as founder, principal, owner, controlling shareholder, investor, family-office principal, fund partner, or documented executive. Never infer a person from a venue, geography, job title, or generic article topic.
+            content: `You are an OSINT analyst extracting names of living, contemporary high-net-worth individuals from search results. Context: searches about "${context}".
 
 INCLUDE only: living private individuals who are wealthy — business owners, investors, property owners, yacht/aircraft owners, fund managers, family office principals, developers, collectors.
-
-GEOGRAPHY: include only candidates explicitly tied in the supplied evidence to the United States, Canada, the United Kingdom, Ireland, France, Germany, Switzerland, Austria, Belgium, the Netherlands, Luxembourg, Denmark, Sweden, Norway, Finland, Iceland, Italy, Spain, Portugal, Greece, Monaco, Australia, New Zealand, Singapore, Hong Kong, Japan, South Korea, the United Arab Emirates, Qatar, Bahrain, or Israel. Reject candidates whose only location is Africa, Latin America, Russia, or Eastern Europe, or whose only connection is a travel/tourism mention.
-
-EVIDENCE: prefer official registries, regulatory filings, company websites, foundation filings, reputable business publications, or an attributable interview. Tourism pages, booking sites, venue directories, listicles, generic lifestyle pages, and anonymous snippets are not evidence of wealth or identity. Return a name only if the same result text supports that person's role or ownership.
 
 EXCLUDE all of the following:
 - Companies, organizations, venues, hotels, brands, cities, countries, legal entities (Ltd/LLC/SA/GmbH/Corp/Foundation/Trust/Holdings/Group/Capital/Partners)
@@ -105,10 +93,7 @@ EXCLUDE all of the following:
 Return ONLY a JSON array of full name strings. If no valid living HNWIs are found, return [].
 Example output: ["Carlo Bianchi", "Ingrid Magnusson", "Walid Dabess"]`,
           },
-          {
-            role: "user",
-            content: `SEARCH QUERY:\n${context}\n\nRESULT EXCERPTS WITH SOURCE URLS:\n${text.slice(0, 7000)}\n\nReturn only a JSON array of full names that satisfy every rule above. If the evidence is weak, geographically out of scope, or only describes a venue/topic, return [].`,
-          },
+          { role: "user", content: text.slice(0, 3000) },
         ],
       }),
       signal: AbortSignal.timeout(15_000),
@@ -137,9 +122,9 @@ const TEMPLATE_CATEGORIES: Record<number, string[]> = {
   1: [
     '"family office" "director" London',
     '"family office" "principal" Switzerland',
-    'Singapore ("private wealth" OR family office) (principal OR founder OR CIO) company profile',
+    '"private wealth" "manager" Singapore',
     '"single family office" "founder" "New York"',
-    'Dubai ("multi family office" OR investment company) (CEO OR founder OR principal) UAE profile',
+    '"multi family office" CEO Dubai',
     '"private office" investment "Hong Kong"',
     '"wealth management" partner Geneva',
     '"private banking" director Luxembourg',
@@ -210,7 +195,7 @@ const TEMPLATE_CATEGORIES: Record<number, string[]> = {
     '"yacht club" commodore owner Mediterranean',
     '"private members club" director London OR Zurich OR Geneva',
     '"grand hotel" proprietor Austria OR Switzerland',
-    'Alps ("hospitality company" OR "mountain resort group") (owner OR founder OR investor) (France OR Switzerland OR Austria) profile',
+    '"ski resort" owner investor Alps',
     '"marina" operator owner Cannes OR Monaco OR Antibes',
     '"vineyard" owner estate "Bordeaux" OR "Tuscany"',
     '"luxury villa" owner "Côte d\'Azur" OR Sardinia OR Mallorca',
@@ -232,33 +217,33 @@ const TEMPLATE_CATEGORIES: Record<number, string[]> = {
     '"BRREG" director aksjeselskap major shareholder',
     '"Scandinavian" family office investment billion',
   ],
-  8: [  // Global wealth centres with explicit person/ownership evidence
-    '"New York" ("family office" OR investment company) (principal OR founder OR CIO) profile',
-    '"Los Angeles" ("family office" OR holding company) (principal OR founder OR investor) interview',
-    'Toronto ("family office" OR private equity) (principal OR founder OR partner) profile',
-    'Vancouver (investment OR real estate) (owner OR founder OR principal) company',
-    'Paris ("family office" OR investment) (principal OR founder OR managing partner) profile',
-    'Berlin ("family office" OR technology company) (founder OR investor OR principal) interview',
-    'Geneva ("private wealth" OR family office) (principal OR founder OR partner) profile',
-    'Singapore ("family office" OR investment company) (principal OR founder OR CIO) MAS profile',
-    '"Hong Kong" ("family office" OR private equity) (principal OR founder OR partner) SFC profile',
-    'Tokyo (technology OR industrial) (founder OR owner OR investor) company profile',
-    'Seoul ("family business" OR investment company) (chairman OR founder OR owner) profile',
-    'Sydney ("family office" OR investment company) (principal OR founder OR owner) profile',
+  8: [  // Asian wealth centres
+    '"Singapore" family office principal HNWI',
+    '"Hong Kong" tycoon director "private limited"',
+    '"Tokyo" billionaire investment portfolio',
+    '"Dubai" family office "ultra high net worth"',
+    '"Abu Dhabi" investment director wealth fund',
+    '"Seoul" family business chairman owner conglomerate',
+    '"Singapore" MAS licensed fund manager',
+    '"Hong Kong" SFC director fund management',
+    '"Indonesia" billionaire group owner director',
+    '"Malaysia" tycoon conglomerate director chairman',
+    '"Philippines" billionaire family office',
+    '"Thailand" billionaire investment group',
   ],
-  9: [  // Western Europe & North American ownership evidence
-    '"San Francisco" ("technology founder" OR investor) (company OR portfolio) profile',
-    '"Boston" ("private equity" OR venture capital) (founder OR partner OR principal) profile',
-    '"Chicago" ("family office" OR investment company) (owner OR founder OR chairman) filing',
-    '"Miami" ("real estate developer" OR investment) (owner OR principal OR founder) interview',
-    '"Dallas" (industrial OR energy OR property) (owner OR founder OR chairman) company',
-    '"Zurich" ("private bank" OR family office) (principal OR founder OR partner) profile',
-    '"Brussels" ("private equity" OR investment group) (founder OR director OR principal) profile',
-    '"Luxembourg" ("family office" OR investment fund) (principal OR founder OR partner) filing',
-    '"Vienna" ("private equity" OR industrial group) (founder OR owner OR chairman) profile',
-    '"Dublin" ("investment company" OR family office) (founder OR principal OR owner) profile',
-    '"Edinburgh" (investment OR property) (owner OR founder OR principal) Scotland profile',
-    '"Copenhagen" ("family office" OR private equity) (founder OR partner OR principal) profile',
+  9: [  // Latin American & Eastern European
+    '"São Paulo" billionaire investor portfolio',
+    '"Mexico City" family office director wealth',
+    '"Buenos Aires" investment fund director',
+    '"Warsaw" private equity founder billion',
+    '"Prague" real estate developer investment',
+    '"Cyprus" beneficial owner offshore fund',
+    '"Luxembourg" family office principal fund',
+    '"Geneva" private wealth family office Swiss',
+    '"Zurich" private banking director wealth management',
+    '"Vienna" private equity foundation director',
+    '"Amsterdam" family office investment',
+    '"Brussels" private equity fund director',
   ],
   10: [ // Tier-1 fund & institutional principals
     '"general partner" fund billion AUM raise',
@@ -294,7 +279,7 @@ const TEMPLATE_CATEGORIES: Record<number, string[]> = {
     '"hotel" owner director "Côte d\'Azur" Nice Cannes',
     '"château" owner Bordeaux wine estate proprietor',
     '"golf club" owner director France "Côte d\'Azur"',
-    'Courchevel Méribel Chamonix ("Alpine hospitality company" OR "mountain resort group") (owner OR founder OR director) profile',
+    '"ski resort" owner director Courchevel Méribel Chamonix',
     '"restaurant" owner founder Monaco Saint-Tropez Antibes',
     '"villa" owner director Cap Ferrat Menton Èze France',
     '"private members club" owner director Paris Lyon',
@@ -305,20 +290,19 @@ const TEMPLATE_CATEGORIES: Record<number, string[]> = {
     '"nightclub" owner director Saint-Tropez Monaco Ibiza',
   ],
 
-  13: [ // Global institutional, property & investment principals
-    '"investment fund" (founder OR principal OR managing partner) (London OR New York OR Paris) profile',
-    '"family office" (principal OR CIO OR founder) (Geneva OR Zurich OR London) interview',
-    '"real estate developer" (owner OR founder OR chairman) (United States OR Canada OR United Kingdom) profile',
-    '"hospitality group" (owner OR founder OR CEO) (France OR Italy OR Spain) company',
-    '"business group" (chairman OR owner OR founder) (Germany OR Austria OR Switzerland) profile',
-    '"hotel group" (developer OR owner OR founder) (United Kingdom OR France OR Italy) filing',
-    '"private equity" (founding partner OR managing partner) (London OR Boston OR Paris) interview',
-    '"investment company" (chairman OR CEO OR founder) (Denmark OR Sweden OR Norway) profile',
-    '"real assets fund" (principal OR partner OR founder) Europe profile',
-    '"Singapore" ("investment fund" OR family office) (founder OR principal OR managing partner) MAS profile',
-    '"Dubai" ("family office" OR investment company) (founder OR principal OR chairman) UAE profile',
-    '"Abu Dhabi" ("investment company" OR family office) (principal OR founder OR chairman) UAE profile',
-    '"Doha" ("investment group" OR family office) (founder OR principal OR chairman) Qatar profile',
+  13: [ // Middle East business, investment & real estate
+    '"investment fund" Dubai founder principal director',
+    '"family office" Abu Dhabi Riyadh Doha principal',
+    '"real estate" developer owner Dubai founder billion',
+    '"hospitality group" owner CEO Dubai UAE founder',
+    '"business group" chairman owner Saudi Arabia Kuwait',
+    '"hotel" developer owner Dubai Abu Dhabi founder',
+    '"mall" developer owner UAE Gulf director chairman',
+    '"private equity" Dubai founding partner billion',
+    '"investment" chairman CEO Qatar Bahrain Oman',
+    '"sovereign wealth" officer director Dubai Abu Dhabi',
+    '"construction" chairman owner Riyadh Jeddah billion',
+    '"shipping" owner director UAE Gulf billionaire',
   ],
 
   14: [ // Private club, marina & resort ownership globally
@@ -353,21 +337,6 @@ const TEMPLATE_CATEGORIES: Record<number, string[]> = {
 };
 
 const TOTAL_CATEGORIES = Object.keys(TEMPLATE_CATEGORIES).length; // 15
-
-/**
- * Every broad-discovery search gets this contract appended to its category
- * template. Category templates describe the business signal; this wrapper
- * prevents them from degrading into generic venue/travel/topic searches.
- */
-const DISCOVERY_QUERY_GUARDRAIL = [
-  '("United States" OR Canada OR "United Kingdom" OR Ireland OR France OR Germany OR Switzerland OR Austria OR Belgium OR Netherlands OR Luxembourg OR Denmark OR Sweden OR Norway OR Finland OR Iceland OR Italy OR Spain OR Portugal OR Greece OR Monaco OR Australia OR "New Zealand" OR Singapore OR "Hong Kong" OR Japan OR "South Korea" OR "United Arab Emirates" OR Dubai OR Qatar OR Bahrain OR Israel)',
-  '(owner OR founder OR principal OR investor OR "managing partner" OR chairman OR "family office")',
-  '-tourism -travel -vacation -booking -tripadvisor -expedia -"hotel deals"',
-].join(" ");
-
-function buildDiscoveryQuery(template: string): string {
-  return `${template} ${DISCOVERY_QUERY_GUARDRAIL}`;
-}
 
 // ── Name extraction ───────────────────────────────────────────────────────────
 
@@ -607,15 +576,12 @@ export async function runBroadDiscovery(options: {
   templateSet?: number;       // 1-5, selects which category; overrides rotation
   rotateTemplates?: boolean;  // cycle to next category each run (default true)
   maxQueries?: number;        // default 10
-  maxEntities?: number;       // maximum validated entities admitted in this pass
 } = {}): Promise<BroadDiscoveryResult> {
-  const { rotateTemplates = true, maxQueries = 10, maxEntities = Number.POSITIVE_INFINITY } = options;
+  const { rotateTemplates = true, maxQueries = 10 } = options;
 
   const templateSet = options.templateSet ?? await getNextTemplateSet(rotateTemplates);
   const templates = TEMPLATE_CATEGORIES[templateSet] ?? TEMPLATE_CATEGORIES[1];
-  const queries = templates
-    .slice(0, Math.min(maxQueries, templates.length))
-    .map(buildDiscoveryQuery);
+  const queries = templates.slice(0, Math.min(maxQueries, templates.length));
 
   logger.info({ templateSet, queryCount: queries.length }, "Broad discovery: starting");
 
@@ -648,9 +614,7 @@ export async function runBroadDiscovery(options: {
     // would correctly reject (e.g. "James Bond", "George Mason").
     let aiExtracted = false;
     if (useGroq) {
-      const aggregated = results
-        .map((r, index) => `[${index + 1}] SOURCE URL: ${r.url || "unknown"}\n${r.snippet}`)
-        .join("\n\n");
+      const aggregated = results.map(r => r.snippet).join("\n\n");
       const aiNames = await aiExtractPersonNames(aggregated, query);
       if (aiNames.length > 0) {
         aiExtracted = true;
@@ -712,7 +676,6 @@ export async function runBroadDiscovery(options: {
   // Insert new entities
   let inserted = 0;
   for (const { name, snippet, query } of newEntities) {
-    if (inserted >= maxEntities) break;
     try {
       // Sanitise: strip newlines, leading/trailing whitespace, control chars
       const cleanName = name.replace(/[\r\n\t]+/g, " ").replace(/\s{2,}/g, " ").trim();
@@ -776,11 +739,7 @@ export async function runBroadDiscovery(options: {
  * Used by the per-entity full-circle orchestrator to interleave
  * one category at a time with registry batches.
  */
-export async function discoverSingleTemplate(
-  category: number,
-  maxQueries = 10,
-  maxEntities = 1,
-): Promise<BroadDiscoveryResult> {
+export async function discoverSingleTemplate(category: number, maxQueries = 10): Promise<BroadDiscoveryResult> {
   const cat = Math.max(1, Math.min(15, category));
-  return runBroadDiscovery({ templateSet: cat, rotateTemplates: false, maxQueries, maxEntities });
+  return runBroadDiscovery({ templateSet: cat, rotateTemplates: false, maxQueries });
 }

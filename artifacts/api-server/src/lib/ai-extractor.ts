@@ -5,7 +5,7 @@
  *
  *   SEARCH / RESEARCH (return structured answers directly):
  *   - Perplexity Sonar Pro — live web-search model; synthesises from real sources
- *   - Gemini 2.0 Flash-Lite — Google Search grounding; lower-quota-cost coverage
+ *   - Gemini 2.0 Flash    — Google Search grounding; different index from Perplexity
  *
  *   SEARCH + GROQ EXTRACTION (return raw text excerpts, Groq extracts structure):
  *   - Tavily              — AI-native search; 7 live sources per query
@@ -41,11 +41,9 @@ const PERPLEXITY_DIRECT_API      = "https://api.perplexity.ai/chat/completions";
 const PERPLEXITY_DIRECT_MODEL    = "sonar-pro";   // model name WITHOUT the "perplexity/" prefix when calling directly
 const PERPLEXITY_DIRECT_FALLBACK = "sonar";       // cheaper direct fallback
 
-// Gemini Flash-Lite with Google Search Grounding — the lower-quota-cost model.
-// Keep this deliberately lightweight because Gemini is a complementary source;
-// Perplexity remains the primary live-research provider.
-const GEMINI_API   = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent";
-const GEMINI_MODEL = "gemini-2.0-flash-lite"; // used only for log labels
+// Gemini Flash with Google Search Grounding — searches Google in real-time, different index from Perplexity
+const GEMINI_API   = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+const GEMINI_MODEL = "gemini-2.0-flash"; // used only for log labels
 
 // Tavily — AI-native search API; returns clean excerpts; structure extracted by Groq
 const TAVILY_API = "https://api.tavily.com/search";
@@ -71,21 +69,6 @@ const _exhaustedPerplexityDirectKeys  = new Map<string, number>(); // for direct
 const _exhaustedGeminiKeys            = new Map<string, number>(); // for Gemini Flash grounded search
 const _exhaustedTavilyKeys            = new Map<string, number>(); // for Tavily search API
 const _exhaustedExaKeys               = new Map<string, number>(); // for Exa neural search API
-
-// Gemini free/quota-limited projects are especially sensitive to bursts.
-// Rotate across the configured key pool and keep a small per-key spacing even
-// when separate routes happen to request research at the same time.
-const GEMINI_MIN_INTERVAL_MS = 2_500;
-let _geminiKeyCursor = 0;
-const _geminiNextAllowedAt = new Map<string, number>();
-
-async function waitForGeminiKey(key: string): Promise<void> {
-  const now = Date.now();
-  const nextAllowedAt = _geminiNextAllowedAt.get(key) ?? 0;
-  const waitMs = Math.max(0, nextAllowedAt - now);
-  if (waitMs > 0) await new Promise<void>(resolve => setTimeout(resolve, waitMs));
-  _geminiNextAllowedAt.set(key, Date.now() + GEMINI_MIN_INTERVAL_MS);
-}
 
 /** Returns all Groq API keys (GROQ_API_KEY, GROQ_API_KEY_1 … _8). */
 function getGroqKeys(): string[] {
@@ -943,25 +926,19 @@ export async function researchWithGemini(
   const keys = getGeminiKeys();
   if (keys.length === 0) return EMPTY;
 
-  // Start at a different slot for each request so one key does not absorb the
-  // whole workload. The loop still falls back through every healthy key.
-  const orderedKeys = keys.map((_, offset) => keys[(_geminiKeyCursor + offset) % keys.length]!);
-  _geminiKeyCursor = (_geminiKeyCursor + 1) % keys.length;
-
   logger.info({ entityName, entityType, country }, `Phase 0 [${GEMINI_MODEL}]: firing Gemini grounded search`);
   const prompt = buildPerplexityPrompt(entityName, entityType, country, context);
 
-  for (const key of orderedKeys) {
+  for (const key of keys) {
     if (isExhausted(_exhaustedGeminiKeys, key)) continue;
     try {
-      await waitForGeminiKey(key);
       const resp = await fetch(`${GEMINI_API}?key=${key}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [{ role: "user", parts: [{ text: prompt }] }],
           tools: [{ google_search: {} }],
-          generationConfig: { temperature: 0.1, maxOutputTokens: 1200 },
+          generationConfig: { temperature: 0.1, maxOutputTokens: 2000 },
         }),
         signal: AbortSignal.timeout(35_000),
       });
