@@ -7,4 +7,4 @@ The Replit-managed Git push helper can publish a new GitHub branch but may rejec
 
 **Why:** The local checkout can contain valid commits and an internal backup ref without those commits being present on the user’s GitHub default branch. A clean local status is not proof of remote publication.
 
-**How to apply:** Before declaring work wrapped up, inspect the GitHub remote, compare hashes, and verify publication with a remote ref or PR URL. Never claim `main` was updated unless the remote hash confirms it.
+**How to apply:** Before declaring work wrapped up, inspect the GitHub remote, compare hashes, and verify publication with a remote ref or PR URL. Compare the merged remote tree before replaying a milestone: a PR may legitimately contain only a small delta when the implementation is already upstream. Never claim `main` was updated unless the remote hash confirms it.
