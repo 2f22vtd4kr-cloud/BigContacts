@@ -139,8 +139,8 @@ The benchmark figures below are historical results from the prior populated runt
 |---|---|---|---|
 | Western HNWI + FAA controlled import | 5,036 | 5,000 | 35 Western records plus 5,000 FAA aircraft-owner records; no synthetic data. |
 | FAA benchmark enrichment | 16 | — | Post-fix run completed 16/16 with 0 errors: 10 social-only, 0 direct-contact candidates, 6 no usable contact outcomes; 431 durable evidence rows. Follow-up three-target claim-source canary: 3/3, 0 errors, 0/3 verified direct routes. |
-| **Current verified state at last check** | **11 visible** | **7** | API and Redis healthy; assets are all idempotent `BusinessInterest` rows; hidden entities are excluded from dashboard/list counts. |
-| **Current controlled development runtime** | **11 visible** | **7** | 0 relationships and 0 active research sessions; Atlas job `2bb2709e-867b-4f6d-904d-e866ac6db3c1` remains active and sequential. |
+| **Current verified state at last check** | **12 visible** | **7** | API and Redis healthy; assets are all idempotent `BusinessInterest` rows; hidden entities are excluded from dashboard/list counts. |
+| **Current controlled development runtime** | **12 visible** | **7** | 0 relationships and 0 active research sessions; Atlas job `2bb2709e-867b-4f6d-904d-e866ac6db3c1` remains active and sequential. |
 
 **Controlled-run state:** `ENABLE_AUTO_PIPELINE=false` remains set, so startup will not create a broad ingestion job. The explicitly authorized Atlas run is active; it is not being restarted while its worker owns the process. The durable contact-promotion validator, current-run evidence boundary, active-job ownership guard, candidate-attribution gate, and Access/Signal separation remain in place.
 
