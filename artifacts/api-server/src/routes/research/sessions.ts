@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { eq, desc } from "drizzle-orm";
-import { db, entitiesTable, researchEvidenceTable, researchRunEventsTable, researchSessionsTable } from "@workspace/db";
+import { db, entitiesTable, contactEvidenceTable, researchEvidenceTable, researchRunEventsTable, researchSessionsTable } from "@workspace/db";
 import {
   ListResearchSessionsQueryParams,
   GetResearchSessionParams,
@@ -8,8 +8,41 @@ import {
   UpdateResearchStatusBody,
 } from "@workspace/api-zod";
 import { canApproveForManualOutreach, getSafeUseDecision, type SafeUseStatus } from "../../lib/safe-use";
+import { deriveIntroPathCandidate } from "../../lib/intro-path-candidate";
 
 const router = Router();
+
+// GET /research/intro-path/:entityId
+// Returns at most one review-only route from durable evidence. This never
+// promotes an entity contact field and never sends or schedules outreach.
+router.get("/research/intro-path/:entityId", async (req, res): Promise<void> => {
+  const entityId = Number(req.params.entityId);
+  if (!Number.isInteger(entityId) || entityId <= 0) {
+    res.status(400).json({ error: "Invalid entity ID" });
+    return;
+  }
+  const [entity] = await db.select({
+    id: entitiesTable.id,
+    name: entitiesTable.name,
+    type: entitiesTable.type,
+  }).from(entitiesTable).where(eq(entitiesTable.id, entityId));
+  if (!entity) {
+    res.status(404).json({ error: "Entity not found" });
+    return;
+  }
+  const evidence = await db.select({
+    vectorType: contactEvidenceTable.vectorType,
+    value: contactEvidenceTable.value,
+    source: contactEvidenceTable.source,
+    sourceUrl: contactEvidenceTable.sourceUrl,
+    validationStatus: contactEvidenceTable.validationStatus,
+    metadata: contactEvidenceTable.metadata,
+  }).from(contactEvidenceTable).where(eq(contactEvidenceTable.entityId, entityId));
+  res.json({
+    targetEntityId: entityId,
+    candidate: deriveIntroPathCandidate(entity, evidence),
+  });
+});
 
 // GET /research/sessions
 router.get("/research/sessions", async (req, res): Promise<void> => {
