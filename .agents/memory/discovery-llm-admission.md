@@ -20,3 +20,9 @@ Evidence sanitization can legitimately produce an empty batch even when a provid
 **Why:** The overnight run reached a legacy target whose provider evidence was all rejected by public-contact validation. Drizzle throws on an empty insert rather than treating it as a no-op.
 
 **How to apply:** Check the sanitized evidence array after every enrichment filter and before inserting contact evidence.
+
+Corporation→person hops need a second, local attribution gate even after human-name validation: the exact candidate, an explicit role/ownership relationship, and a researched-corporation anchor must appear in the same evidence window before targeted searches or provider follow-up.
+
+**Why:** Live provider fan-out returned name-shaped but unrelated proper nouns such as product/platform phrases and event names. A deterministic name gate cannot distinguish these from real people without target-linked claim context.
+
+**How to apply:** Keep the candidate review-only unless the local attribution check passes; do not spend paid provider calls on candidates that only look like names or occur elsewhere in the result bundle.

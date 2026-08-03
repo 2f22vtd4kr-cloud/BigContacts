@@ -16,6 +16,7 @@ import {
   guessCompanyDomainWithCity,
   extractCity,
   looksLikePersonName,
+  hasTargetLinkedPersonEvidence,
 } from "../lib/web-enricher";
 
 // ── deriveTradingName ────────────────────────────────────────────────────────
@@ -180,5 +181,31 @@ describe("looksLikePersonName", () => {
     expect(looksLikePersonName("Der Fußballklub")).toBe(false);
     expect(looksLikePersonName("Fußballvereine Kölner")).toBe(false);
     expect(looksLikePersonName("Accessibility Feedback Deutsch")).toBe(false);
+  });
+});
+
+describe("hasTargetLinkedPersonEvidence", () => {
+  it("accepts an explicitly attributed person near the corporation anchor", () => {
+    expect(hasTargetLinkedPersonEvidence(
+      "KH Group Oyj was founded by Jane Doe and operates in Finland.",
+      "Jane Doe",
+      ["KH Group Oyj", "Finland"],
+    )).toBe(true);
+  });
+
+  it("rejects unrelated proper nouns from provider fan-out", () => {
+    expect(hasTargetLinkedPersonEvidence(
+      "KH Group Oyj is a Finnish public company. Khan Academy offers free online courses. Launch Day is a product event.",
+      "Khan Academy",
+      ["KH Group Oyj", "Finland"],
+    )).toBe(false);
+  });
+
+  it("rejects a person name without an explicit role or ownership claim", () => {
+    expect(hasTargetLinkedPersonEvidence(
+      "KH Group Oyj lists Jane Doe in a general article and has offices in Helsinki.",
+      "Jane Doe",
+      ["KH Group Oyj", "Helsinki"],
+    )).toBe(false);
   });
 });

@@ -870,6 +870,8 @@ const PERSON_WORD_BLOCKLIST = new Set([
   "September", "October", "November", "December",
 ]);
 
+const PERSON_LINK_TERMS = /\b(?:founded|founder|co-founded|cofounder|owned|owner|run|led|managed|created|started|built|established|operated|ceo|cfo|coo|cto|director|chairman|president|partner|principal|managing director|fondé par|fondateur|co-fondateur|propriétaire|gérant|directeur général|pdg|dg|directeur|associé|inhaber|geschäftsführer|gründer|mitgründer|eigentümer|gesellschafter|vorstand|vorsitzender|fondato da|fondatore|proprietario|titolare|amministratore|socio|fundado por|fundador|propietario|dueño)\b/i;
+
 /** Returns true when a string looks like a real human name (2–4 capitalised words,
  *  no job-title or company-type tokens). Used to filter owner-resolution pushes. */
 export function looksLikePersonName(name: string): boolean {
@@ -886,6 +888,40 @@ export function looksLikePersonName(name: string): boolean {
   // Reject if all words are ALL-CAPS (abbreviations, company codes)
   if (words.every(w => w === w.toUpperCase() && w.length > 1)) return false;
   return true;
+}
+
+/**
+ * A name-shaped span is not enough to justify a corporation→person hop.
+ * Require the same local source window to contain:
+ *   1) the exact candidate,
+ *   2) an explicit role/ownership relationship, and
+ *   3) an anchor for the researched corporation.
+ *
+ * This deliberately returns false when the source only contains a person's
+ * name, a generic proper noun, or an unrelated result from provider fan-out.
+ */
+export function hasTargetLinkedPersonEvidence(
+  text: string,
+  personName: string,
+  targetAnchors: string[],
+): boolean {
+  if (!text?.trim() || !looksLikePersonName(personName)) return false;
+  const anchors = targetAnchors
+    .map(anchor => anchor.trim().toLowerCase())
+    .filter(anchor => anchor.length >= 3);
+  if (anchors.length === 0) return false;
+
+  const lowerText = text.toLowerCase();
+  const lowerName = personName.trim().toLowerCase();
+  let offset = 0;
+  while (offset < lowerText.length) {
+    const nameIndex = lowerText.indexOf(lowerName, offset);
+    if (nameIndex < 0) break;
+    const window = lowerText.slice(Math.max(0, nameIndex - 320), nameIndex + lowerName.length + 320);
+    if (PERSON_LINK_TERMS.test(window) && anchors.some(anchor => window.includes(anchor))) return true;
+    offset = nameIndex + lowerName.length;
+  }
+  return false;
 }
 
 function extractPersonCandidates(text: string): string[] {
@@ -916,7 +952,7 @@ function extractPersonCandidates(text: string): string[] {
  * which eliminates the entire class of regex false-positives ("Hotels CEO", etc.).
  * Falls back to the regex implementation automatically when service is unavailable.
  */
-async function extractPersonCandidatesAsync(text: string): Promise<string[]> {
+async function extractPersonCandidatesAsync(text: string, targetAnchors: string[] = []): Promise<string[]> {
   if (!text?.trim()) return [];
   try {
     // Try GLiNER first — it's more accurate and handles multilingual text natively
@@ -927,6 +963,7 @@ async function extractPersonCandidatesAsync(text: string): Promise<string[]> {
         .map(r => r.name.trim())
         .filter(name => {
           if (!looksLikePersonName(name)) return false;
+          if (!hasTargetLinkedPersonEvidence(text, name, targetAnchors)) return false;
           const words = name.split(/\s+/);
           if (words.length < 2 || words.length > 4) return false;
           if (!words.every(w => /^[A-ZÀ-ÖØ-Ü]/.test(w))) return false;
@@ -938,7 +975,9 @@ async function extractPersonCandidatesAsync(text: string): Promise<string[]> {
     }
   } catch { /* fall through to regex */ }
   // Regex fallback
-  return extractPersonCandidates(text);
+  return extractPersonCandidates(text).filter(name =>
+    hasTargetLinkedPersonEvidence(text, name, targetAnchors),
+  );
 }
 
 // ── Search engine functions ───────────────────────────────────────────────────
@@ -2193,7 +2232,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       if (wikiResult && wikiResult.extract) {
         allSearchText += " " + wikiResult.extract;
         // Extract persons from the Wikipedia summary text directly (GLiNER if available, regex fallback)
-        const wikiPersons = await extractPersonCandidatesAsync(wikiResult.extract);
+        const wikiPersons = await extractPersonCandidatesAsync(wikiResult.extract, [entity.name, trading, city ?? ""]);
         for (const p of wikiPersons) {
           if (!result.personsDiscovered.includes(p)) result.personsDiscovered.push(p);
         }
@@ -2266,7 +2305,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   // Then run targeted person queries — this is how we get from "BAOLI SAS"
   // to "Christophe Caucino" without needing an AI model.
   if (isCorp && allSearchText.length > 200) {
-    const persons = await extractPersonCandidatesAsync(allSearchText);
+    const persons = await extractPersonCandidatesAsync(allSearchText, [entity.name, trading, city ?? ""]);
     if (persons.length > 0) {
       result.personsDiscovered.push(...persons);
       logger.info({ entityId: entity.id, persons }, "Corp→Person hop: discovered person candidates");
