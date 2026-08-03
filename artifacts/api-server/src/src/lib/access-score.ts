@@ -6,6 +6,7 @@
  * never produce a strong Access Score.
  */
 export type AccessScoreEntity = {
+  type?: string | null;
   contactConfidence?: number | null;
   email?: string | null;
   phone?: string | null;
@@ -21,6 +22,13 @@ const DIRECT_METHODS = ["email", "phone", "whatsapp", "signal", "telegram"];
 const INTERMEDIARY_METHODS = ["family office", "gatekeeper", "assistant", "intermediary", "office"];
 
 export function computeAccessScore(entity: AccessScoreEntity): number {
+  // Access is a personal reachability metric. Company/trust switchboards,
+  // registered phones, and structure websites must not appear as personal
+  // routes in the ledger or dashboard.
+  if (entity.type === "Corporation" || entity.type === "Corp" || entity.type === "Trust") {
+    return 0;
+  }
+
   const channels =
     (entity.email ? 0.32 : 0) +
     (entity.phone ? 0.28 : 0) +

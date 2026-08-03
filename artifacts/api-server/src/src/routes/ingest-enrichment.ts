@@ -1833,6 +1833,7 @@ router.post("/ingest/backfill-contact-outcomes", async (_req: Request, res: Resp
   const entities = await db
     .select({
       id:              entitiesTable.id,
+      type:            entitiesTable.type,
       email:           entitiesTable.email,
       phone:           entitiesTable.phone,
       linkedinUrl:     entitiesTable.linkedinUrl,
@@ -1860,7 +1861,7 @@ router.post("/ingest/backfill-contact-outcomes", async (_req: Request, res: Resp
         (typeof meta["phoneSource"] === "string" ? meta["phoneSource"] : null) ??
         (phaseJSources.includes("EDGAR-Phone") ? "EDGAR-Phone" : null) ??
         (phaseJSources.includes("CompaniesHouse-Phone") ? "CompaniesHouse-Phone" : null);
-      const outcome = computeContactOutcome({
+      const computedOutcome = computeContactOutcome({
         email:           e.email,
         phone:           e.phone,
         linkedinUrl:     e.linkedinUrl,
@@ -1876,6 +1877,10 @@ router.post("/ingest/backfill-contact-outcomes", async (_req: Request, res: Resp
         validatedDirectContact: Array.isArray(meta["enrichmentSources"]) &&
           (meta["enrichmentSources"] as string[]).includes("SMTP-Verified"),
       });
+      const outcome =
+        e.type === "Corporation" || e.type === "Corp" || e.type === "Trust"
+          ? (computedOutcome === "none" ? "none" : "organization_contact")
+          : computedOutcome;
       const contactConfidence = computeContactConfidence({
         email: e.email,
         phone: e.phone,
@@ -1886,6 +1891,7 @@ router.post("/ingest/backfill-contact-outcomes", async (_req: Request, res: Resp
         telegramHandle: e.telegramHandle,
       });
       const isHot = hasMeaningfulDirectContact({
+        type: e.type,
         email: e.email,
         phone: e.phone,
         phoneSource,

@@ -102,6 +102,11 @@ export type ContactOutcome =
   | "direct_contact_candidate"  // person-level email or phone (public evidence)
   | "direct_contact_verified";  // validated person-level contact with attribution
 
+/** True only for outcomes that represent a person-level direct route. */
+export function isPersonalContactOutcome(outcome: ContactOutcome): boolean {
+  return outcome === "direct_contact_candidate" || outcome === "direct_contact_verified";
+}
+
 /**
  * Determine the contact outcome for an entity based on its current fields.
  *

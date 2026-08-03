@@ -26,6 +26,27 @@ import {
 
 const router: IRouter = Router();
 
+const ORGANIZATION_ENTITY_TYPES = new Set(["Corporation", "Corp", "Trust"]);
+
+function normalizePresentedContactOutcome(entity: {
+  type?: string | null;
+  contactOutcome?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  phoneSource?: string | null;
+  metadata?: string | null;
+}): string | null {
+  if (!ORGANIZATION_ENTITY_TYPES.has(entity.type ?? "")) return entity.contactOutcome ?? null;
+
+  // Organization rows must never present a person-level outcome. Registry
+  // phones and stale metadata are evidence about the organization, not a
+  // validated personal route.
+  if (entity.contactOutcome === "direct_contact_candidate" || entity.contactOutcome === "direct_contact_verified") {
+    return "organization_contact";
+  }
+  return entity.contactOutcome ?? null;
+}
+
 const BOOLEAN_QUERY_KEYS = [
   "starred",
   "hidden",
@@ -175,6 +196,7 @@ router.get("/entities", async (req, res): Promise<void> => {
   const entities = rows.map((e) => ({
     ...e,
     bayesianScore: e.bayesianScore,
+    contactOutcome: normalizePresentedContactOutcome(e),
     accessScore: computeAccessScore(e),
     estimatedNetWorth: e.estimatedNetWorth,
     createdAt: e.createdAt.toISOString(),
@@ -560,6 +582,7 @@ router.get("/entities/:id", async (req, res): Promise<void> => {
 
   res.json({
     ...entity,
+    contactOutcome: normalizePresentedContactOutcome(entity),
     accessScore: computeAccessScore(entity),
     createdAt: entity.createdAt.toISOString(),
     assetCount: cnt?.cnt ?? 0,

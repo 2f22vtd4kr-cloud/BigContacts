@@ -24,6 +24,7 @@ import { enrichInHouse } from "../lib/enrichment/contact-enrichment";
 import {
   computeContactConfidence,
   computeContactOutcome,
+  isPersonalContactOutcome,
   type ContactOutcome,
 } from "../lib/contact-confidence";
 import {
@@ -80,6 +81,44 @@ function sourceReliabilityScore(source: string): number {
 function isOrgContact(entityType: string, email: string | null, _phone: string | null): boolean {
   if (!["Corporation", "Trust"].includes(entityType)) return false;
   return isGenericLocalPart(email ?? "");
+}
+
+function correctedPersonalRunMetrics(run: {
+  byEntityType?: string | null;
+  directConfirmed?: number;
+  directVerified?: number;
+  candidateAttributed?: number;
+}): {
+  directConfirmed: number;
+  directVerified: number;
+  candidateAttributed: number;
+} {
+  const breakdown = parseJson<Record<string, Record<string, number>>>(run.byEntityType, {});
+  const counts = Object.values(breakdown).reduce(
+    (totals, outcomes) => {
+      totals.candidate += Number(outcomes.direct_contact_candidate ?? 0);
+      totals.verified += Number(outcomes.direct_contact_verified ?? 0);
+      return totals;
+    },
+    { candidate: 0, verified: 0 },
+  );
+
+  // Older runs counted validated organisation routes as direct. If a
+  // breakdown is present, derive the personal metrics from its outcome
+  // labels; otherwise preserve the stored values for compatibility.
+  if (Object.keys(breakdown).length === 0) {
+    return {
+      directConfirmed: Number(run.directConfirmed ?? 0),
+      directVerified: Number(run.directVerified ?? 0),
+      candidateAttributed: Number(run.candidateAttributed ?? 0),
+    };
+  }
+
+  return {
+    directConfirmed: counts.candidate + counts.verified,
+    directVerified: counts.verified,
+    candidateAttributed: counts.verified,
+  };
 }
 
 // ── J8: graph context loader ──────────────────────────────────────────────────
@@ -441,10 +480,16 @@ async function runPhaseJPass(jobId: string, runId: number, entities: PassEntity[
           validatedDirectContact: attribution.attributed,
         });
 
-      // ── Track totals ───────────────────────────────────────────────────────
+       // ── Track totals ───────────────────────────────────────────────────────
+       // Validated evidence and personal direct reachability are separate
+       // measurements. Organization inboxes/switchboards may be structurally
+       // valid and even attribution-scored, but must never inflate the
+       // personal direct-contact counters.
+       const personalOutcome = isPersonalContactOutcome(outcome);
       if (inHouseResult.email || inHouseResult.phone || inHouseResult.linkedinUrl || footprint.evidence.length > 0) totals.found += 1;
-      if (bestEmail || bestPhone) totals.direct += 1;
-      if (attribution.attributed) { totals.verified += 1; totals.attributed += 1; }
+       if (personalOutcome) totals.direct += 1;
+       if (outcome === "direct_contact_verified") totals.verified += 1;
+       if (attribution.attributed && personalOutcome) totals.attributed += 1;
       if (validEmail || validPhone) totals.validated += 1;
       if (outcome === "social_only") totals.social += 1;
       if (outcome === "evidence_only") totals.evidence += 1;
@@ -589,7 +634,7 @@ async function runPhaseJPass(jobId: string, runId: number, entities: PassEntity[
     progress: entities.length, total: entities.length,
     inserted: totals.persisted, errors: totals.errors,
     finishedAt: new Date().toISOString(),
-    message: `Phase J complete — ${totals.verified} attributed, ${totals.direct} direct candidates, ${totals.domains} domains resolved, ${totals.social} social-only, ${totals.evidence} evidence-only.`,
+     message: `Phase J complete — ${totals.verified} direct verified, ${totals.direct} personal direct candidates, ${totals.validated} validated vectors, ${totals.organization} organization contacts, ${totals.domains} domains resolved.`,
   });
   await setActiveJob("phase-j-pass", "");
 }
@@ -618,6 +663,12 @@ router.get("/pipeline/phase-j/status", async (_req: Request, res: Response): Pro
         ORDER BY validation_status, vector_type
       `),
     ]);
+    const storedLatestRun = latestRun[0] ?? null;
+    const latestRunMetrics = storedLatestRun ? correctedPersonalRunMetrics(storedLatestRun) : null;
+    const reportedLatestRun = storedLatestRun && latestRunMetrics
+      ? { ...storedLatestRun, ...latestRunMetrics }
+      : storedLatestRun;
+
     res.json({
       phase: "J",
       // J4-J9 are now truly implemented (not stubs)
@@ -641,7 +692,14 @@ router.get("/pipeline/phase-j/status", async (_req: Request, res: Response): Pro
         J8: "graph-context — neighbour names/domains used as J5 query context",
         J9: "phase_j_checkpoints + /pipeline/phase-j/source-quality endpoint",
       },
-      latestRun: latestRun[0] ?? null,
+      latestRun: reportedLatestRun,
+      metricSemantics: {
+        directConfirmed: "person-level direct candidate or verified outcome",
+        directVerified: "person-level direct_contact_verified outcome",
+        candidateValidated: "validated contact vectors, including organization routes",
+        candidateAttributed: "person-level routes passing attribution",
+        organizationContact: "validated organization inboxes, switchboards, or company routes",
+      },
       latestCheckpoint: latestCheckpoint[0] ?? null,
       stateCounts: stateCounts.rows,
       evidenceCounts: evidenceCounts.rows,
