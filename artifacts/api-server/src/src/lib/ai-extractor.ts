@@ -5,7 +5,7 @@
  *
  *   SEARCH / RESEARCH (return structured answers directly):
  *   - Perplexity Sonar Pro — live web-search model; synthesises from real sources
- *   - Gemini 2.0 Flash    — Google Search grounding; different index from Perplexity
+ *   - Gemini 2.0 Flash-Lite — Google Search grounding; lower-quota model, different index from Perplexity
  *
  *   SEARCH + GROQ EXTRACTION (return raw text excerpts, Groq extracts structure):
  *   - Tavily              — AI-native search; 7 live sources per query
@@ -47,9 +47,9 @@ const PERPLEXITY_DIRECT_API      = "https://api.perplexity.ai/chat/completions";
 const PERPLEXITY_DIRECT_MODEL    = "sonar-pro";   // model name WITHOUT the "perplexity/" prefix when calling directly
 const PERPLEXITY_DIRECT_FALLBACK = "sonar";       // cheaper direct fallback
 
-// Gemini Flash with Google Search Grounding — searches Google in real-time, different index from Perplexity
-const GEMINI_API   = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
-const GEMINI_MODEL = "gemini-2.0-flash"; // used only for log labels
+// Gemini Flash-Lite with Google Search Grounding — lower-quota model; searches Google in real-time
+const GEMINI_MODEL = "gemini-2.0-flash-lite";
+const GEMINI_API   = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 // Tavily — AI-native search API; returns clean excerpts; structure extracted by Groq
 const TAVILY_API = "https://api.tavily.com/search";
@@ -98,10 +98,10 @@ function getPerplexityDirectKeys(): string[] {
   return names.map(k => process.env[k] ?? "").filter(k => k.length > 0);
 }
 
-/** Returns all Gemini API keys (GEMINI_API_KEY, GEMINI_API_KEY_1 … _8). */
+/** Returns all Gemini API keys (GEMINI_API_KEY, GEMINI_API_KEY_1 … _10). */
 function getGeminiKeys(): string[] {
   const names = ["GEMINI_API_KEY"];
-  for (let i = 1; i <= 8; i++) names.push(`GEMINI_API_KEY_${i}`);
+  for (let i = 1; i <= 10; i++) names.push(`GEMINI_API_KEY_${i}`);
   return names.map(k => process.env[k] ?? "").filter(k => k.length > 0);
 }
 
@@ -1462,7 +1462,7 @@ export function getAIKeyStatus(): AIKeyStatus {
 
   const groqNames = ["GROQ_API_KEY", ...Array.from({ length: 8 }, (_, i) => `GROQ_API_KEY_${i + 1}`)];
   const pplxNames = ["PERPLEXITY_API_KEY", ...Array.from({ length: 8 }, (_, i) => `PERPLEXITY_API_KEY_${i + 1}`)];
-  const gemNames  = ["GEMINI_API_KEY",     ...Array.from({ length: 8 }, (_, i) => `GEMINI_API_KEY_${i + 1}`)];
+  const gemNames  = ["GEMINI_API_KEY",     ...Array.from({ length: 10 }, (_, i) => `GEMINI_API_KEY_${i + 1}`)];
   const tavNames  = ["TAVILY_API_KEY",     ...Array.from({ length: 8 }, (_, i) => `TAVILY_API_KEY_${i + 1}`)];
   const exaNames  = ["EXA_API_KEY",        ...Array.from({ length: 8 }, (_, i) => `EXA_API_KEY_${i + 1}`)];
 

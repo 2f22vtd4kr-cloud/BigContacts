@@ -26,7 +26,7 @@ import { logger } from "./logger";
 
 // ── API key pools ──────────────────────────────────────────────────────────────
 const GROQ_KEY_NAMES = ["GROQ_API_KEY", ...Array.from({ length: 8 }, (_, i) => `GROQ_API_KEY_${i + 1}`)];
-const GEMINI_KEY_NAMES = ["GEMINI_API_KEY", ...Array.from({ length: 6 }, (_, i) => `GEMINI_API_KEY_${i + 1}`)];
+const GEMINI_KEY_NAMES = ["GEMINI_API_KEY", ...Array.from({ length: 10 }, (_, i) => `GEMINI_API_KEY_${i + 1}`)];
 
 const GROQ_KEYS = GROQ_KEY_NAMES.map(k => process.env[k]).filter(Boolean) as string[];
 const GEMINI_KEYS = GEMINI_KEY_NAMES.map(k => process.env[k]).filter(Boolean) as string[];
@@ -203,7 +203,7 @@ async function callGemini(prompt: string): Promise<WealthEstimate[]> {
   if (!key) throw new Error("No Gemini keys available");
 
   const resp = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${key}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },

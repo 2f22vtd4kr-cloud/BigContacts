@@ -73,7 +73,7 @@ The long-term plan for improving the approximately 2.5% direct-contact yield is 
 | `PERPLEXITY_API_KEY`, `_2`–`_6` | Replit Secrets (optional) | Perplexity-powered public web discovery and enrichment, with key rotation |
 | `WHOXY_API_KEY` | Replit Secret (optional) | Whoxy domain and DNS intelligence lookups |
 | `OPENROUTER_API_KEY`, `_2`, `_3`, `_4` | Replit Secrets (optional) | OpenRouter model access, with key rotation |
-| `GEMINI_API_KEY`, `_2`–`_4` | Replit Secrets (optional) | Google Gemini model access, with key rotation |
+| `GEMINI_API_KEY`, `_1`–`_10` | Replit Secrets (optional) | Google Gemini Flash-Lite access with key rotation; lower-quota model is used for grounded research and wealth estimation |
 | `TAVILY_API_KEY`, `_2`–`_6` | Replit Secrets (optional) | Tavily AI-native search API; returns clean excerpts fed into Groq for extraction, with key rotation |
 | `EXA_API_KEY`, `_2` | Replit Secrets (optional) | Exa neural/semantic search; excels at people + company lookups; fed into Groq for extraction, with key rotation |
 | `ENABLE_AUTO_PIPELINE` | Shared environment | Set to `false` for controlled imports and single-target research; set to `true` only when broad cold-start ingestion is explicitly requested. Do not enable it for idle-safe review-only runs. |
