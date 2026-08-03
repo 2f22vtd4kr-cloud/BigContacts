@@ -131,7 +131,7 @@ Two fixes were needed after the first import:
 
 ---
 
-## Current Data State (historical benchmark vs active controlled runtime, verified 2026-08-02)
+## Current Data State (historical benchmark vs active controlled runtime, verified 2026-08-03)
 
 The benchmark figures below are historical results from the prior populated runtime. The current development database contains only records produced by the explicitly authorized controlled Atlas run; no synthetic records were seeded.
 
@@ -139,8 +139,8 @@ The benchmark figures below are historical results from the prior populated runt
 |---|---|---|---|
 | Western HNWI + FAA controlled import | 5,036 | 5,000 | 35 Western records plus 5,000 FAA aircraft-owner records; no synthetic data. |
 | FAA benchmark enrichment | 16 | — | Post-fix run completed 16/16 with 0 errors: 10 social-only, 0 direct-contact candidates, 6 no usable contact outcomes; 431 durable evidence rows. Follow-up three-target claim-source canary: 3/3, 0 errors, 0/3 verified direct routes. |
-| **Current verified state at last check** | **12 visible** | **10 total** | API and Redis healthy; 9 assets are idempotent `BusinessInterest` rows and 1 is a `StockHolding`; hidden entities are excluded from dashboard/list counts. |
-| **Current controlled development runtime** | **12 visible** | **10 total** | 0 relationships and 0 active research sessions; the authorized Atlas job completed and is idle. |
+| **Current verified state at last check** | **10 active** | **9 visible** | API and Redis healthy; all visible assets are idempotent `BusinessInterest` rows; 2 invalid legacy entities remain quarantined for review and hidden from active counts. |
+| **Current controlled development runtime** | **10 active** | **9 visible** | 0 relationships and 0 active research sessions; the authorized Atlas job completed and is idle. |
 
 **Controlled-run state:** `ENABLE_AUTO_PIPELINE=false` remains set, so startup will not create a broad ingestion job. Populated databases still receive safe idempotent maintenance, while empty databases remain idle. The authorized Atlas run completed without being interrupted. The durable contact-promotion validator, current-run evidence boundary, active-job ownership guard, candidate-attribution gate, and Access/Signal separation remain in place.
 

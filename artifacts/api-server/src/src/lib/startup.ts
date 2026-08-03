@@ -274,8 +274,22 @@ async function runPopulatedDbMaintenance(): Promise<void> {
         await Promise.all(cached.slice(i, i + CHUNK).map(async ({ key, data }) => {
           try {
             // Match by entity-unique stable key prefix → targeted JSONB lookup per source
-            type EntityRow = { id: number; email: string | null; phone: string | null; linkedinUrl: string | null; metadata: string | null };
-            const SEL = { id: entitiesTable.id, email: entitiesTable.email, phone: entitiesTable.phone, linkedinUrl: entitiesTable.linkedinUrl, metadata: entitiesTable.metadata };
+            type EntityRow = {
+              id: number;
+              email: string | null;
+              phone: string | null;
+              linkedinUrl: string | null;
+              metadata: string | null;
+              isHidden: boolean;
+            };
+            const SEL = {
+              id: entitiesTable.id,
+              email: entitiesTable.email,
+              phone: entitiesTable.phone,
+              linkedinUrl: entitiesTable.linkedinUrl,
+              metadata: entitiesTable.metadata,
+              isHidden: entitiesTable.isHidden,
+            };
             let entity: EntityRow | undefined;
             if (key.startsWith("faa:")) {
               const nNum = key.slice(4);
@@ -296,6 +310,8 @@ async function runPopulatedDbMaintenance(): Promise<void> {
               return; // Legacy key format (e.g. "FAA Releasable Aircraft Database") — skip
             }
             if (!entity) return;
+            // Never rehydrate active contact state for quarantined records.
+            if (entity.isHidden) return;
             // Only restore if entity has no contact data currently
             if (entity.email || entity.phone || entity.linkedinUrl) return;
             const updates: Record<string, unknown> = { updatedAt: new Date() };
@@ -465,10 +481,50 @@ async function runPopulatedDbMaintenance(): Promise<void> {
 
   // 2. Reclassify entity types (Corporation/Trust by name pattern)
   try {
-    const rows = await db.select({ id: entitiesTable.id, name: entitiesTable.name }).from(entitiesTable);
+    const rows = await db
+      .select({
+        id: entitiesTable.id,
+        name: entitiesTable.name,
+        type: entitiesTable.type,
+        isHidden: entitiesTable.isHidden,
+        email: entitiesTable.email,
+        phone: entitiesTable.phone,
+        linkedinUrl: entitiesTable.linkedinUrl,
+        twitterHandle: entitiesTable.twitterHandle,
+        instagramHandle: entitiesTable.instagramHandle,
+        telegramHandle: entitiesTable.telegramHandle,
+        contactMethod: entitiesTable.contactMethod,
+        contactOutcome: entitiesTable.contactOutcome,
+        contactConfidence: entitiesTable.contactConfidence,
+        metadata: entitiesTable.metadata,
+      })
+      .from(entitiesTable);
     const corps: number[] = [];
     const trusts: number[] = [];
+    const quarantined: number[] = [];
     for (const row of rows) {
+      const roleOnly = /\b(advisor|associate|chairman|chairwoman|chief|director|deputy|executive|founder|general|manager|officer|operator|owner|partner|president|principal|trustee|vice|chair|secretary|controller)\s*$/i.test(row.name.trim());
+      const placeholder = /^(unknown|unnamed|anonymous|n\/a|not available|entity\s+\d+)$/i.test(row.name.trim());
+      const invalidName = roleOnly || placeholder;
+      let metadataContactOutcome: string | null = null;
+      let metadataPhoneSource: string | null = null;
+      try {
+        const meta = JSON.parse(row.metadata ?? "{}") as Record<string, unknown>;
+        metadataContactOutcome = typeof meta.contactOutcome === "string" ? meta.contactOutcome : null;
+        metadataPhoneSource = typeof meta.phoneSource === "string" ? meta.phoneSource : null;
+      } catch { /* malformed metadata is not a reason to trust the row */ }
+      const hasPromotedContact = Boolean(
+        row.email || row.phone || row.linkedinUrl || row.twitterHandle ||
+        row.instagramHandle || row.telegramHandle || row.contactMethod ||
+        (row.contactOutcome != null && row.contactOutcome !== "none") ||
+        row.contactConfidence > 0 ||
+        (metadataContactOutcome != null && metadataContactOutcome !== "none") ||
+        metadataPhoneSource,
+      );
+      if (invalidName && (!row.isHidden || hasPromotedContact)) {
+        quarantined.push(row.id);
+        continue;
+      }
       const t = classifyEntityType(row.name);
       if (t === "Corporation") corps.push(row.id);
       else if (t === "Trust") trusts.push(row.id);
@@ -484,7 +540,51 @@ async function runPopulatedDbMaintenance(): Promise<void> {
         .set({ type: "Trust", updatedAt: new Date() })
         .where(inArray(entitiesTable.id, trusts.slice(i, i + CHUNK)));
     }
-    logger.info({ corps: corps.length, trusts: trusts.length }, "Maintenance: entity types reclassified");
+    if (quarantined.length > 0) {
+      await db.update(entitiesTable)
+        .set({
+          isHidden: true,
+          isHot: false,
+          email: null,
+          phone: null,
+          linkedinUrl: null,
+          twitterHandle: null,
+          instagramHandle: null,
+          telegramHandle: null,
+          contactMethod: null,
+          contactOutcome: "none",
+          contactConfidence: 0,
+          metadata: sql`(
+            CASE
+              WHEN (${entitiesTable.metadata}::jsonb #> '{quarantine,contactEvidence}') IS NOT NULL
+                THEN ${entitiesTable.metadata}::jsonb
+              ELSE jsonb_set(
+                COALESCE(${entitiesTable.metadata}::jsonb, '{}'::jsonb),
+                '{quarantine,contactEvidence}',
+                jsonb_build_object(
+                  'email', ${entitiesTable.email},
+                  'phone', ${entitiesTable.phone},
+                  'linkedinUrl', ${entitiesTable.linkedinUrl},
+                  'twitterHandle', ${entitiesTable.twitterHandle},
+                  'instagramHandle', ${entitiesTable.instagramHandle},
+                  'telegramHandle', ${entitiesTable.telegramHandle},
+                  'contactMethod', ${entitiesTable.contactMethod},
+                  'contactOutcome', ${entitiesTable.contactOutcome},
+                  'contactConfidence', ${entitiesTable.contactConfidence},
+                  'metadataContactOutcome', COALESCE(${entitiesTable.metadata}::jsonb->>'contactOutcome', ''),
+                  'metadataPhoneSource', COALESCE(${entitiesTable.metadata}::jsonb->>'phoneSource', ''),
+                  'archivedAt', NOW()
+                )
+              )
+            END
+            || jsonb_build_object('contactOutcome', 'none')
+          ) - 'phoneSource'`,
+          notes: sql`concat_ws(E'\n', ${entitiesTable.notes}, 'Quarantined: placeholder, role-only, or title-shaped name; retained for provenance review and excluded from active targets.')`,
+          updatedAt: new Date(),
+        })
+        .where(inArray(entitiesTable.id, quarantined));
+    }
+    logger.info({ corps: corps.length, trusts: trusts.length, quarantined: quarantined.length }, "Maintenance: entity types reclassified and invalid HNWI names quarantined");
   } catch (err: any) {
     logger.warn({ err: err?.message }, "Maintenance: reclassify failed (non-fatal)");
   }

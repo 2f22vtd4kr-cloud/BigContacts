@@ -604,13 +604,17 @@ export function classifyEntityType(name: string): "HNWI" | "Corporation" | "Trus
   const n = name.trim();
   // Trusts and foundations first (highest specificity)
   if (/\b(Trust|Trustee|Foundation|Fiduciary|Settlement|Estate\s+of)\b/i.test(n)) return "Trust";
+  // Search snippets and registry feeds can surface a person's role next to an
+  // organization name. These are never valid HNWI identities; callers that
+  // retain the record for review must quarantine it rather than promote it.
+  if (/\b(advisor|associate|chairman|chairwoman|chief|director|deputy|executive|founder|general|manager|officer|operator|owner|partner|president|principal|trustee|vice|chair|secretary|controller)\s*$/i.test(n)) return "Corporation";
   // Explicit partnership / LP forms
   if (/\b(L\.?P\.?|LLP|Limited\s+Partnership|General\s+Partnership)\b/i.test(n)) return "Corporation";
   // Corporate-suffix identifiers (trailing \b removed for dot-ending suffixes like S.A., B.V.)
-  if (/\b(Inc\.?|Corp\.?|Ltd\.?|LLC|L\.?L\.?C\.?|PLC|S\.A\.|S\.p\.A\.|GmbH|B\.V\.|N\.V\.)(?:[^a-zA-Z0-9]|$)/i.test(n)) return "Corporation";
+  if (/\b(Inc\.?|Corp\.?|Ltd\.?|LLC|L\.?L\.?C\.?|PLC|Oyj|S\.A\.|S\.p\.A\.|GmbH|B\.V\.|N\.V\.)(?:[^a-zA-Z0-9]|$)/i.test(n)) return "Corporation";
   if (/\bCo\b\.?(\s|$)/i.test(n) && !/^[A-Z][a-z]+ [A-Z][a-z]+ Co\b/.test(n)) return "Corporation"; // "Callon Petroleum Co" not "Smith Brown Co"
   // Industry / fund / financial keywords — never an individual
-  if (/\b(Fund|Capital\s+(?:Partners|Management|Advisors|Group)|Venture\s+Capital|Ventures|Holdings|Management|Advisors|Consulting|Partners|Acquisition|Petroleum|Energy|Pharmaceutical|Biotechnology|Technologies|Solutions|Sciences|Industries|Properties|Realty|Entertainment|Media|Analytics|Logistics|Transportation|Enterprises|Associates|Financial\s+(?:Group|Partners|Services)|Investments|Aeronautica|Aeronautics|Crossover|Participacoes|Participations|Beteiligungen|Inversiones|Rentas)\b/i.test(n)) return "Corporation";
+  if (/\b(Fund|Capital\s+(?:Partners|Management|Advisors|Group)|Venture\s+Capital|Ventures|Holdings|Management|Advisors|Consulting|Partners|Acquisition|Petroleum|Energy|Pharmaceutical|Biotechnology|Technologies|Solutions|Sciences|Industries|Properties|Realty|Entertainment|Media|Analytics|Logistics|Transportation|Shipping|Shipyard|Maritime|Freight|Marine|Enterprises|Associates|Financial\s+(?:Group|Partners|Services)|Investments|Aeronautica|Aeronautics|Crossover|Participacoes|Participations|Beteiligungen|Inversiones|Rentas)\b/i.test(n)) return "Corporation";
   // Banks and financial institutions
   if (/\b(Banc(?:orp|shares?|o)?|Bancshares|Bank(?:ers?|corp|shares)?)\b/i.test(n)) return "Corporation";
   // Committee / political / governance entities

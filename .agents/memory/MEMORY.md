@@ -63,3 +63,4 @@
 - [Broad discovery attribution](broad-discovery-attribution.md) — Human-name extraction is insufficient; ownership/wealth evidence must be locally attributed to the exact candidate before active insertion
 - [Discovery LLM admission](discovery-llm-admission.md) — Discovery AI must validate candidate plus source context before insertion; provider errors fail closed, never fall back to deterministic admission
 - [Business asset separation](business-asset-separation.md) — Operating businesses are separate evidence-backed assets; never infer them from personal wealth or uncertain names
+- [Invalid entity quarantine](invalid-entity-quarantine.md) — Hidden role/placeholder rows must clear active contact state while preserving the original evidence in review-only metadata

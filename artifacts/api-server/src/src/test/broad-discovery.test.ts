@@ -4,6 +4,7 @@ import {
   hasQualifyingWealthEvidence,
   isRoleOnlyCandidateName,
 } from "../lib/enrichment/broad-discovery";
+import { classifyEntityType } from "../lib/western-hnwi-ingestion";
 
 describe("broad discovery evidence gate", () => {
   it("rejects an employee or management-directory mention", () => {
@@ -62,6 +63,15 @@ describe("broad discovery evidence gate", () => {
   it("rejects a role fragment that looks like a person name", () => {
     expect(isRoleOnlyCandidateName("Rocco Forte Deputy")).toBe(true);
     expect(isRoleOnlyCandidateName("Samih Sawiris")).toBe(false);
+  });
+
+  it("classifies organization-shaped industry names as corporations", () => {
+    expect(classifyEntityType("Viken Shipping")).toBe("Corporation");
+    expect(classifyEntityType("KH Group Oyj")).toBe("Corporation");
+  });
+
+  it("does not classify role-shaped snippets as HNWI", () => {
+    expect(classifyEntityType("Rocco Forte Deputy")).not.toBe("HNWI");
   });
 
   it("exposes a single-admission discovery adapter for sequential Atlas cooking", async () => {
