@@ -67,5 +67,6 @@
 - [Placeholder admission boundary](placeholder-admission-boundary.md) — Reject registry placeholders before dedup marking or batch insertion; later enrichment/startup cleanup are recovery layers
  - [AI research prompt contract](ai-research-prompt-contract.md) — Require target anchors, claim-level provenance, and explicit uncertainty; usernames and service hits never prove personal identity/access
  - [Atlas run monitoring](atlas-run-monitoring.md) — Track progress freshness, not only active locks; stalled provider steps must be visible and safely cancellable
+- [Atlas research handoff](atlas-research-handoff.md) — Persist real target-scoped UCT paths in manual review and never describe organization vectors as direct access
   - [Provider JSON transport](provider-json-transport.md) — Normalize wrapped/HTML-escaped provider JSON before extraction while keeping strict evidence adjudication downstream
   - [Intro path candidates](intro-path-candidate.md) — At most one review-only intermediary route per target; never promote it to personal contact or outreach

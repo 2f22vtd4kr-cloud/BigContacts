@@ -5,6 +5,7 @@ import {
   sanitizePublicPhone,
   sanitizePublicSocialHandle,
   sanitizePublicSocialUrl,
+  isGenericEmailPrefix,
 } from "../lib/contact-validation";
 import {
   computeContactConfidence,
@@ -17,6 +18,12 @@ describe("public contact quality guardrails", () => {
     expect(isValidPublicEmail("first.last@example.com")).toBe(false);
     expect(sanitizePublicEmail("owner@cloudflare.com")).toBeNull();
     expect(sanitizePublicEmail("first.last@domain.com")).toBeNull();
+  });
+
+  it("keeps shared press and media inboxes out of personal-tool runs", () => {
+    expect(isGenericEmailPrefix("pressinquiries")).toBe(true);
+    expect(isGenericEmailPrefix("mediarelations")).toBe(true);
+    expect(sanitizePublicEmail("pressinquiries@medium.com")).toBe("pressinquiries@medium.com");
   });
 
   it("rejects registry identifiers that look like phone numbers", () => {
@@ -60,6 +67,41 @@ describe("public contact quality guardrails", () => {
       phoneSource: "EDGAR-Phone",
       contactOutcome: "direct_contact_candidate",
     })).toBe(false);
+  });
+
+  it("does not treat a registry phone as personal when the source is explicit", () => {
+    expect(computeContactConfidence({
+      type: "HNWI",
+      email: "pressinquiries@medium.com",
+      phone: "+15166087000",
+      phoneSource: "EDGAR-Phone",
+      knownResidences: "US",
+    })).toBe(0);
+    expect(hasMeaningfulDirectContact({
+      type: "HNWI",
+      email: "pressinquiries@medium.com",
+      phone: "+15166087000",
+      phoneSource: "EDGAR-Phone",
+    })).toBe(false);
+  });
+
+  it("keeps organization evidence from becoming a direct UCT route", async () => {
+    const { runMcts } = await import("../lib/mcts-agent");
+    const { buildGraph } = await import("../lib/graph-engine");
+    const graph = buildGraph([{
+      id: 25,
+      name: "James J Concilla",
+      type: "HNWI",
+      bayesianScore: 0.9163,
+      contactEmail: "pressinquiries@medium.com",
+      contactPhone: "+10231925959",
+      phoneSource: "EDGAR-Phone",
+      contactOutcome: "organization_contact",
+      contactConfidence: 0,
+    }], [], []);
+    const result = runMcts(graph, "e:25", null, 1);
+    expect(result.mctsSteps[0]?.reasoning).not.toContain("Direct outreach pathway open");
+    expect(result.mctsSteps[0]?.reasoning).toContain("direct access is not established");
   });
 
   it("classifies registry phones as organization contact, never verified personal contact", async () => {

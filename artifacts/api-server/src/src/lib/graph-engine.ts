@@ -15,6 +15,8 @@ export interface GraphVertex {
   contactConfidence?: number | null;
   contactEmail?: string | null;
   contactPhone?: string | null;
+  phoneSource?: string | null;
+  contactOutcome?: string | null;
 }
 
 export interface GraphArc {
@@ -45,6 +47,8 @@ export interface EntityRow {
   contactEmail?: string | null;
   contactPhone?: string | null;
   contactConfidence?: number | null;
+  phoneSource?: string | null;
+  contactOutcome?: string | null;
 }
 
 export interface AssetRow {
@@ -133,6 +137,8 @@ export function buildGraph(
       contactConfidence: e.contactConfidence,
       contactEmail: e.contactEmail,
       contactPhone: e.contactPhone,
+      phoneSource: e.phoneSource,
+      contactOutcome: e.contactOutcome,
     });
   }
 

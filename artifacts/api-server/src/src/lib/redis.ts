@@ -332,6 +332,7 @@ export interface CachedContact {
   name: string;
   email?: string | null;
   phone?: string | null;
+  phoneSource?: string | null;
   linkedinUrl?: string | null;
   linkedinHeadline?: string | null;
   twitterHandle?: string | null;

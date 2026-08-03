@@ -37,6 +37,7 @@ const GENERIC_PREFIXES = new Set([
   "noreply", "no-reply", "donotreply", "billing", "ops", "team", "media",
   "pr", "legal", "hr", "webmaster", "enquiries", "enquiry", "general",
   "reception", "invest", "ir", "investor", "investor.relations",
+  "pressinquiries", "press.inquiries", "mediarelations", "media.relations",
   "customerservice", "customer.service", "help", "jobs", "careers",
   "recruitment", "marketing", "accounts", "mail", "postmaster", "abuse",
   "security", "privacy", "newsletter", "notifications", "alerts",

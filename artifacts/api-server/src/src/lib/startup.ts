@@ -23,7 +23,7 @@ import { runWesternHnwiIngestion, classifyEntityType } from "./western-hnwi-inge
 import { logger } from "./logger";
 import { contactCacheScanAll, contactCacheCount, contactCacheSet, type CachedContact, delCachePattern } from "./redis";
 import { warmUpSemanticEngine } from "./semantic-engine";
-import { computeContactConfidence } from "./contact-confidence";
+import { computeContactConfidence, computeContactOutcome, hasMeaningfulDirectContact } from "./contact-confidence";
 import {
   sanitizePublicEmail,
   sanitizePublicPhone,
@@ -87,6 +87,7 @@ async function sanitizePersistedContactData(): Promise<void> {
     for (const { key, data } of cached) {
       const email = sanitizePublicEmail(data.email);
       const phone = sanitizePublicPhone(data.phone);
+      const phoneSource = data.phoneSource ?? inferCachedPhoneSource(key);
       const linkedinUrl = sanitizePublicSocialUrl(data.linkedinUrl, "linkedin", "person");
       const twitterHandle = sanitizePublicSocialHandle(data.twitterHandle ?? data.twitter, "twitter");
       const instagramHandle = sanitizePublicSocialHandle(data.instagramHandle, "instagram");
@@ -94,6 +95,7 @@ async function sanitizePersistedContactData(): Promise<void> {
       const changed =
         email !== (data.email ?? null) ||
         phone !== (data.phone ?? null) ||
+        phoneSource !== (data.phoneSource ?? null) ||
         linkedinUrl !== (data.linkedinUrl ?? null) ||
         twitterHandle !== (data.twitterHandle ?? data.twitter ?? null) ||
         instagramHandle !== (data.instagramHandle ?? null) ||
@@ -103,6 +105,7 @@ async function sanitizePersistedContactData(): Promise<void> {
         ...data,
         email,
         phone,
+        phoneSource,
         linkedinUrl,
         twitterHandle,
         twitter: twitterHandle,
@@ -111,6 +114,7 @@ async function sanitizePersistedContactData(): Promise<void> {
         contactConfidence: computeContactConfidence({
           email,
           phone,
+          phoneSource,
           linkedinUrl,
           twitterHandle,
           instagramHandle,
@@ -136,6 +140,11 @@ async function sanitizePersistedContactData(): Promise<void> {
         instagramHandle: entitiesTable.instagramHandle,
         telegramHandle: entitiesTable.telegramHandle,
         knownResidences: entitiesTable.knownResidences,
+        phoneSource: entitiesTable.phoneSource,
+        sourceRegistries: entitiesTable.sourceRegistries,
+        contactMethod: entitiesTable.contactMethod,
+        contactOutcome: entitiesTable.contactOutcome,
+        isHot: entitiesTable.isHot,
       })
       .from(entitiesTable)
       .where(or(
@@ -154,13 +163,35 @@ async function sanitizePersistedContactData(): Promise<void> {
       const twitterHandle = sanitizePublicSocialHandle(entity.twitterHandle, "twitter");
       const instagramHandle = sanitizePublicSocialHandle(entity.instagramHandle, "instagram");
       const telegramHandle = sanitizePublicTelegramHandle(entity.telegramHandle);
+      const inferredPhoneSource =
+        entity.phoneSource ??
+        inferRegistryPhoneSource(entity.phone, entity.sourceRegistries, entity.contactMethod);
+      const contactOutcome = computeContactOutcome({
+        email,
+        phone,
+        phoneSource: inferredPhoneSource,
+        linkedinUrl,
+        twitterHandle,
+        instagramHandle,
+        telegramHandle,
+      });
+      const isHot = hasMeaningfulDirectContact({
+        type: entity.type,
+        email,
+        phone,
+        phoneSource: inferredPhoneSource,
+        contactOutcome,
+      });
       const changed =
         email !== entity.email ||
         phone !== entity.phone ||
         linkedinUrl !== entity.linkedinUrl ||
         twitterHandle !== entity.twitterHandle ||
         instagramHandle !== entity.instagramHandle ||
-        telegramHandle !== entity.telegramHandle;
+        telegramHandle !== entity.telegramHandle ||
+        inferredPhoneSource !== entity.phoneSource ||
+        contactOutcome !== entity.contactOutcome ||
+        isHot !== entity.isHot;
       if (!changed) continue;
       const contactConfidence = computeContactConfidence({
         type: entity.type,
@@ -170,6 +201,7 @@ async function sanitizePersistedContactData(): Promise<void> {
         twitterHandle,
         instagramHandle,
         telegramHandle,
+        phoneSource: inferredPhoneSource,
         knownResidences: entity.knownResidences,
       });
       await db.update(entitiesTable)
@@ -180,7 +212,10 @@ async function sanitizePersistedContactData(): Promise<void> {
           twitterHandle,
           instagramHandle,
           telegramHandle,
+          phoneSource: inferredPhoneSource,
           contactConfidence,
+          contactOutcome,
+          isHot,
           updatedAt: new Date(),
         })
         .where(eq(entitiesTable.id, entity.id));
@@ -195,6 +230,28 @@ async function sanitizePersistedContactData(): Promise<void> {
     await delCachePattern("dashboard:*");
   }
   logger.info({ scrubbedCache, scrubbedEntities }, "Persisted contact data sanitation complete");
+}
+
+function inferRegistryPhoneSource(
+  phone: string | null,
+  sourceRegistries: string | null,
+  contactMethod: string | null,
+): "EDGAR-Phone" | "CompaniesHouse-Phone" | null {
+  if (!phone) return null;
+  const sourceText = `${sourceRegistries ?? ""} ${contactMethod ?? ""}`;
+  if (/\bSEC\s+EDGAR\b/i.test(sourceText)) return "EDGAR-Phone";
+  if (/\bCompanies\s+House\b|\bcompany(?:ies)?\s+house\b/i.test(sourceText)) {
+    return "CompaniesHouse-Phone";
+  }
+  return null;
+}
+
+function inferCachedPhoneSource(
+  stableKey: string,
+): "EDGAR-Phone" | "CompaniesHouse-Phone" | null {
+  if (stableKey.startsWith("edgar:")) return "EDGAR-Phone";
+  if (stableKey.startsWith("ch:")) return "CompaniesHouse-Phone";
+  return null;
 }
 
 /** Fire-and-forget background ingestor. */
@@ -276,19 +333,23 @@ async function runPopulatedDbMaintenance(): Promise<void> {
             // Match by entity-unique stable key prefix → targeted JSONB lookup per source
             type EntityRow = {
               id: number;
+              type: string;
               email: string | null;
               phone: string | null;
               linkedinUrl: string | null;
               metadata: string | null;
               isHidden: boolean;
+              knownResidences: string | null;
             };
             const SEL = {
               id: entitiesTable.id,
+              type: entitiesTable.type,
               email: entitiesTable.email,
               phone: entitiesTable.phone,
               linkedinUrl: entitiesTable.linkedinUrl,
               metadata: entitiesTable.metadata,
               isHidden: entitiesTable.isHidden,
+              knownResidences: entitiesTable.knownResidences,
             };
             let entity: EntityRow | undefined;
             if (key.startsWith("faa:")) {
@@ -314,11 +375,39 @@ async function runPopulatedDbMaintenance(): Promise<void> {
             if (entity.isHidden) return;
             // Only restore if entity has no contact data currently
             if (entity.email || entity.phone || entity.linkedinUrl) return;
+            const email = sanitizePublicEmail(data.email);
+            const phone = sanitizePublicPhone(data.phone);
+            const phoneSource = data.phoneSource ?? inferCachedPhoneSource(key);
+            const linkedinUrl = sanitizePublicSocialUrl(data.linkedinUrl, "linkedin", "person");
+            const contactOutcome = computeContactOutcome({
+              email,
+              phone,
+              phoneSource,
+              linkedinUrl,
+            });
+            const contactConfidence = computeContactConfidence({
+              type: entity.type,
+              email,
+              phone,
+              phoneSource,
+              linkedinUrl,
+              knownResidences: entity.knownResidences,
+            });
+            const isHot = hasMeaningfulDirectContact({
+              type: entity.type,
+              email,
+              phone,
+              phoneSource,
+              contactOutcome,
+            });
             const updates: Record<string, unknown> = { updatedAt: new Date() };
-            if (data.email)      updates["email"]      = data.email;
-            if (data.phone)      updates["phone"]      = data.phone;
-            if (data.linkedinUrl) updates["linkedinUrl"] = data.linkedinUrl;
-            updates["contactConfidence"] = data.contactConfidence;
+            if (email) updates["email"] = email;
+            if (phone) updates["phone"] = phone;
+            if (linkedinUrl) updates["linkedinUrl"] = linkedinUrl;
+            updates["phoneSource"] = phoneSource;
+            updates["contactConfidence"] = contactConfidence;
+            updates["contactOutcome"] = contactOutcome;
+            updates["isHot"] = isHot;
             // Restore metadata fields
             let meta: Record<string, unknown> = {};
             try { meta = JSON.parse(entity.metadata ?? "{}"); } catch { /* */ }
@@ -383,6 +472,9 @@ async function runPopulatedDbMaintenance(): Promise<void> {
               name: e.name,
               email: e.email ?? undefined,
               phone: e.phone ?? undefined,
+              phoneSource: typeof meta["phoneSource"] === "string"
+                ? meta["phoneSource"] as string
+                : inferRegistryPhoneSource(e.phone, e.sourceRegistries, null),
               linkedinUrl: e.linkedinUrl ?? undefined,
               website: meta["website"] as string | undefined,
               twitter: meta["twitter"] as string | undefined,

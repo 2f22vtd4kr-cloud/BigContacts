@@ -50,12 +50,14 @@ import {
   sanitizePublicPhone,
   sanitizePublicSocialUrl,
   isValidPublicSocialHandle,
+  isGenericEmailPrefix,
 } from "./contact-validation";
 import { contactCacheSet } from "./redis";
 import { runPhaseJBatch } from "../routes/phase-j";
 import { reachabilityOrderExpr } from "./reachability-rank";
 import { backfillWealthLLM } from "./wealth-estimator";
 import { materializeBusinessAsset } from "./business-assets";
+import { runTargetResearch } from "./target-research";
 
 // ── Jurisdiction → approximate coordinates lookup (for asset geocoding) ───────
 const JURISDICTION_COORDS: Record<string, [number, number]> = {
@@ -602,7 +604,11 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
       || (aiResult?.instagramUrl ?? "").replace(/^https?:\/\/(www\.)?instagram\.com\//, "").replace(/\?.*$/, "")
       || (entity.instagramHandle ?? "").replace(/^@/, "")
     ).replace(/[^a-zA-Z0-9._\-]/g, "").trim();
-    const emailForHolehe = entity.email ?? null;
+    const emailForHolehe = (() => {
+      const email = entity.email?.trim().toLowerCase() ?? "";
+      const localPart = email.split("@")[0] ?? "";
+      return email && !isGenericEmailPrefix(localPart) ? email : null;
+    })();
 
     if (rawHandle || emailForHolehe) {
       await updateJob(atlasJobId, { status: "running", message: `🕵️ ${name}: Maigret + Holehe…` });
@@ -1116,9 +1122,10 @@ async function runSingleTargetPipeline(
       inputSummary: "One completed target journey; reachability-gated adaptive research",
     });
     try {
-      const { runResearchSession } = await import("./mcts-agent");
-      await (runResearchSession as any)(target.id);
-      summary["Target research"] = "MCTS complete";
+      const researchResult = await runTargetResearch(target.id, 3);
+      summary["Target research"] =
+        `UCT complete (${researchResult.mcts.mctsSteps.length} steps, ` +
+        `candidate path ${(researchResult.pathScore * 100).toFixed(0)}/100; manual review)`;
     } catch (err: any) {
       summary["Target research"] = `MCTS review: ${err?.message ?? "failed"}`;
       logger.warn({ entityId: target.id, err: err?.message }, "[Atlas] single-target MCTS failed");
@@ -1672,8 +1679,7 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
           entityNames: JSON.stringify([String(e.id)]),
         });
         try {
-          const { runResearchSession } = await import("./mcts-agent");
-          await (runResearchSession as any)(e.id);
+          await runTargetResearch(e.id, 3);
           researched++;
         } catch (err: any) {
           logger.warn({ entityId: e.id, err: err?.message }, "[Atlas] single-target MCTS failed");

@@ -15,6 +15,7 @@
  */
 
 import { InMemoryGraph, GraphVertex, GraphArc, computeCentrality } from "./graph-engine";
+import { hasMeaningfulDirectContact } from "./contact-confidence";
 
 const EXPLORATION_CONSTANT = Math.SQRT2;
 const DEFAULT_SIMULATIONS = 120;
@@ -140,6 +141,13 @@ function getActionRequired(vertex: GraphVertex, role: string): string {
 
 function getReasoning(vertex: GraphVertex, step: number, depth: number, warmth: number): string {
   const registry = getRegistry(vertex);
+  const hasMeaningfulContact = hasMeaningfulDirectContact({
+    type: vertex.nodeType,
+    email: vertex.contactEmail,
+    phone: vertex.contactPhone,
+    phoneSource: vertex.phoneSource,
+    contactOutcome: vertex.contactOutcome,
+  });
   const templates: Record<string, string[]> = {
     Gatekeeper: [
       `${vertex.label} is labelled as a gatekeeper in the stored graph. ` +
@@ -177,9 +185,11 @@ function getReasoning(vertex: GraphVertex, step: number, depth: number, warmth: 
     ],
     HNWI: [
       `Target confirmed: ${vertex.label}. Bayesian score ${vertex.bayesianScore ? (vertex.bayesianScore * 100).toFixed(0) + "%" : "—"}. ` +
-      (vertex.contactEmail
+      (hasMeaningfulContact
         ? `Contact VERIFIED: ${vertex.contactEmail}. Direct outreach pathway open — gatekeeper step may be skippable.`
-        : vertex.contactConfidence && vertex.contactConfidence >= 50
+        : vertex.contactEmail || vertex.contactPhone
+          ? "Organization or unverified contact evidence is stored; direct access is not established. Use a corroborated gatekeeper path."
+          : vertex.contactConfidence && vertex.contactConfidence >= 50
           ? `Contact confidence: ${vertex.contactConfidence}% — enriched entity. Proceed via gatekeeper until direct contact confirmed.`
           : `Direct approach is NOT recommended at this stage — gatekeeper contact must precede any HNWI touchpoint.`),
     ],
