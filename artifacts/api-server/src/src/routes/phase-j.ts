@@ -309,7 +309,11 @@ type PassEntity = {
 
 export type { PassEntity };
 
-export async function runPhaseJBatch(jobId: string, batchSize: number): Promise<{ ran: number; message: string }> {
+export async function runPhaseJBatch(
+  jobId: string,
+  batchSize: number,
+  mirrorJobId?: string,
+): Promise<{ ran: number; message: string }> {
   const entities = await db
     .select({
       id: entitiesTable.id, name: entitiesTable.name, type: entitiesTable.type,
@@ -343,11 +347,16 @@ export async function runPhaseJBatch(jobId: string, batchSize: number): Promise<
   }).returning({ id: enrichmentRunsTable.id });
   const runId = run[0]!.id;
 
-  await runPhaseJPass(jobId, runId, entities as PassEntity[]);
+  await runPhaseJPass(jobId, runId, entities as PassEntity[], mirrorJobId);
   return { ran: entities.length, message: `Phase J complete — ${entities.length} entities processed.` };
 }
 
-async function runPhaseJPass(jobId: string, runId: number, entities: PassEntity[]): Promise<void> {
+async function runPhaseJPass(
+  jobId: string,
+  runId: number,
+  entities: PassEntity[],
+  mirrorJobId?: string,
+): Promise<void> {
   const totals = {
     found: 0, persisted: 0, direct: 0, verified: 0, social: 0,
     evidence: 0, organization: 0, errors: 0, domains: 0,
@@ -365,6 +374,21 @@ async function runPhaseJPass(jobId: string, runId: number, entities: PassEntity[
         inserted: totals.persisted, errors: totals.errors,
         message: `J4-J9 pass ${entity.passNumber + 1}: ${entity.name}`,
       });
+      if (mirrorJobId) {
+        await updateJob(mirrorJobId, {
+          status: "running",
+          progress: 8,
+          total: 10,
+          inserted: totals.persisted,
+          errors: totals.errors,
+          atlasPhase: 8,
+          atlasPhaseTotal: 10,
+          message: `Phase 8/10: J4-J9 pass ${idx + 1}/${entities.length}: ${entity.name}`,
+          entityProgress: idx,
+          entityTotal: entities.length,
+          entityNames: JSON.stringify([entity.name]),
+        });
+      }
 
       const meta = parseJson<JsonMap>(entity.metadata, {});
       const cooldowns = parseJson<Record<string, string>>(entity.sourceCooldowns, {});
@@ -661,6 +685,21 @@ async function runPhaseJPass(jobId: string, runId: number, entities: PassEntity[
     finishedAt: new Date().toISOString(),
      message: `Phase J complete — ${totals.verified} direct verified, ${totals.direct} personal direct candidates, ${totals.validated} validated vectors, ${totals.organization} organization contacts, ${totals.domains} domains resolved.`,
   });
+  if (mirrorJobId) {
+    await updateJob(mirrorJobId, {
+      status: "running",
+      progress: 8,
+      total: 10,
+      inserted: totals.persisted,
+      errors: totals.errors,
+      atlasPhase: 8,
+      atlasPhaseTotal: 10,
+      message: `Phase 8/10: Phase J complete — ${totals.verified} direct verified, ${totals.direct} personal direct candidates, ${totals.validated} validated vectors.`,
+      entityProgress: entities.length,
+      entityTotal: entities.length,
+      entityNames: JSON.stringify(entities.slice(-1).map((entity) => entity.name)),
+    });
+  }
   await setActiveJob("phase-j-pass", "");
 }
 

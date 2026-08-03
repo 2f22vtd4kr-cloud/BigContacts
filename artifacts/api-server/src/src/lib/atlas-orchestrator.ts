@@ -153,6 +153,8 @@ export interface AtlasOptions {
   runResearch?: boolean;
   /** Max MCTS sessions in Phase 10. Default: 10 */
   researchLimit?: number;
+  /** Maximum time allowed for one target's sequential enrichment journey. Default: 180s. */
+  targetTimeoutMs?: number;
   /**
    * Discovery-first mode: diverse web searches (hotels, golf clubs, funds, venues…)
    * run BEFORE registry ingestion. FAA is skipped unless skipFaa=false.
@@ -186,6 +188,58 @@ export interface AtlasResult {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+const DEFAULT_TARGET_TIMEOUT_MS = 180_000;
+const timedOutTargets = new Map<string, Set<number>>();
+
+class AtlasTargetTimeoutError extends Error {
+  constructor(
+    public readonly entityId: number,
+    public readonly phase: string,
+    public readonly timeoutMs: number,
+  ) {
+    super(`Target ${entityId} exceeded the ${Math.round(timeoutMs / 1_000)}s ${phase} timeout.`);
+    this.name = "AtlasTargetTimeoutError";
+  }
+}
+
+function targetWasTimedOut(atlasJobId: string, entityId: number): boolean {
+  return timedOutTargets.get(atlasJobId)?.has(entityId) ?? false;
+}
+
+function markTargetTimedOut(atlasJobId: string, entityId: number): void {
+  const ids = timedOutTargets.get(atlasJobId) ?? new Set<number>();
+  ids.add(entityId);
+  timedOutTargets.set(atlasJobId, ids);
+}
+
+async function recordTargetTimeout(
+  entity: { id: number; name: string; metadata?: string | null },
+  phase: string,
+  timeoutMs: number,
+): Promise<void> {
+  const row = await db.select({
+    metadata: entitiesTable.metadata,
+    notes: entitiesTable.notes,
+  }).from(entitiesTable).where(eq(entitiesTable.id, entity.id)).then((rows: any[]) => rows[0]);
+  const metadata = safeJson<Record<string, unknown>>(row?.metadata ?? entity.metadata, {});
+  const timeoutAt = new Date().toISOString();
+  const nextAction = "Retry a target-scoped OSINT pass before treating this target as outreach-ready.";
+  metadata.atlasTargetOutcome = "timeout_review";
+  metadata.atlasLastError = `Target enrichment exceeded ${Math.round(timeoutMs / 1_000)}s in ${phase}.`;
+  metadata.atlasTimeoutAt = timeoutAt;
+  metadata.atlasNextAction = nextAction;
+  await db.update(entitiesTable).set({
+    metadata: JSON.stringify(metadata),
+    notes: sql`CASE
+      WHEN ${entitiesTable.notes} IS NULL OR ${entitiesTable.notes} = '' THEN ${`Atlas timeout review: ${phase} exceeded ${Math.round(timeoutMs / 1_000)}s. ${nextAction}`}
+      WHEN ${entitiesTable.notes} NOT LIKE ${`%Atlas timeout review: ${phase}%`} THEN ${entitiesTable.notes} || E'\n' || ${`Atlas timeout review: ${phase} exceeded ${Math.round(timeoutMs / 1_000)}s. ${nextAction}`}
+      ELSE ${entitiesTable.notes}
+    END`,
+    cookedAt: null,
+    updatedAt: new Date(),
+  }).where(eq(entitiesTable.id, entity.id));
+}
 
 function safeJson<T>(str: string | null | undefined, fallback: T): T {
   try { return str ? JSON.parse(str) as T : fallback; } catch { return fallback; }
@@ -246,6 +300,7 @@ async function runEntityBatch<T>(
   fn: (entity: any) => Promise<T>,
   _concurrency = 1,
   onResult?: (entity: any, result: T) => Promise<void>,
+  targetTimeoutMs = DEFAULT_TARGET_TIMEOUT_MS,
 ): Promise<{ ok: number; err: number }> {
   let ok = 0; let errCount = 0;
 
@@ -264,13 +319,35 @@ async function runEntityBatch<T>(
     });
 
     try {
-      const result = await fn(entity);
+      let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+      const result = await Promise.race([
+        fn(entity),
+        new Promise<T>((_, reject) => {
+          timeoutHandle = setTimeout(() => {
+            markTargetTimedOut(atlasJobId, entity.id);
+            reject(new AtlasTargetTimeoutError(entity.id, phase, targetTimeoutMs));
+          }, targetTimeoutMs);
+        }),
+      ]).finally(() => {
+        if (timeoutHandle) clearTimeout(timeoutHandle);
+      });
       if (onResult) await onResult(entity, result).catch(() => {});
       ok++;
     } catch (err) {
       if (err instanceof AtlasCancelledError) throw err;
       errCount++;
-      logger.warn({ entityId: entity.id, phase, err: (err as Error).message }, "[Atlas] entity error");
+      if (err instanceof AtlasTargetTimeoutError) {
+        await recordTargetTimeout(entity, phase, targetTimeoutMs).catch((recordErr: any) => {
+          logger.warn({ entityId: entity.id, phase, err: recordErr?.message }, "[Atlas] timeout outcome recording failed");
+        });
+        logger.warn({
+          entityId: entity.id,
+          phase,
+          timeoutMs: targetTimeoutMs,
+        }, "[Atlas] target timed out; continuing with next sequential target");
+      } else {
+        logger.warn({ entityId: entity.id, phase, err: (err as Error).message }, "[Atlas] entity error");
+      }
     }
     await updateJob(atlasJobId, {
       entityProgress: i + 1,
@@ -289,9 +366,12 @@ class AtlasCancelledError extends Error {
   }
 }
 
-async function ensureAtlasActive(atlasJobId: string): Promise<void> {
+async function ensureAtlasActive(atlasJobId: string, entityId?: number): Promise<void> {
   if (!(await ownsActiveJob("atlas-run", atlasJobId))) {
     throw new AtlasCancelledError();
+  }
+  if (entityId != null && targetWasTimedOut(atlasJobId, entityId)) {
+    throw new AtlasTargetTimeoutError(entityId, "target enrichment", DEFAULT_TARGET_TIMEOUT_MS);
   }
 }
 
@@ -327,7 +407,12 @@ type AtlasTelemetry = {
   disposition?: "contact_route_found" | "needs_follow_up";
 };
 
-async function setAtlasTelemetry(atlasJobId: string, telemetry: AtlasTelemetry): Promise<void> {
+async function setAtlasTelemetry(
+  atlasJobId: string,
+  telemetry: AtlasTelemetry,
+  entityId?: number,
+): Promise<void> {
+  if (entityId != null && targetWasTimedOut(atlasJobId, entityId)) return;
   await updateJob(atlasJobId, { atlasTelemetry: JSON.stringify(telemetry) });
 }
 
@@ -409,7 +494,7 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
       toolIds: ["inhouse"],
       activeToolId: "inhouse",
       inputSummary: "Registry identity, known residence, notes, and public identifiers",
-    });
+    }, id);
     const meta = safeJson<Record<string, unknown>>(entity.metadata, {});
     const ihResult = await enrichInHouse({
       ...entity,
@@ -474,7 +559,7 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
       toolIds: ["webdisc", "inhouse"],
       activeToolId: "webdisc",
       inputSummary: "Validated target identity and public profile candidates",
-    });
+    }, id);
     const [socialResult, messengerResult] = await Promise.all([
       discoverSocialPresence(entity as any).catch(() => null),
       discoverMessengerPresence(entity as any).catch(() => null),
@@ -502,7 +587,7 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
       entity = { ...entity, telegramHandle: messengerResult.telegramHandle };
     }
 
-    await ensureAtlasActive(atlasJobId);
+    await ensureAtlasActive(atlasJobId, id);
     // ── Step C: AI OSINT sweep (Perplexity + Gemini + Tavily + Exa + Groq) ────
     await updateJob(atlasJobId, { status: "running", message: `🤖 ${name}: AI OSINT…` });
     const telemetryReachability = assessTargetReachability({
@@ -532,7 +617,7 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
       activeToolId: "perp0",
       prompt: prompt.slice(0, 2200),
       inputSummary: `${entity.type} target · ${telemetryReachability.status} reachability · provider fan-out is parallel within this target`,
-    });
+    }, id);
     const aiResult = await deepWebOsintEnrich(entity as any).catch(() => null);
     await setAtlasTelemetry(atlasJobId, {
       stage: "AI WEB OSINT",
@@ -549,7 +634,7 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
       sources: aiResult?.sources.length ?? 0,
       evidence: aiResult?.evidence?.length ?? 0,
       contacts: [aiResult?.email, aiResult?.phone, aiResult?.linkedinUrl, aiResult?.instagramUrl, aiResult?.twitterUrl].filter(Boolean).length,
-    });
+    }, id);
     const aiHasSignal = aiResult && (
       aiResult.email || aiResult.phone || aiResult.linkedinUrl ||
       aiResult.instagramUrl || aiResult.twitterUrl || (aiResult.evidence?.length ?? 0) > 0
@@ -596,7 +681,7 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
       }
     }
 
-    await ensureAtlasActive(atlasJobId);
+    await ensureAtlasActive(atlasJobId, id);
     // ── Step D: Maigret (3 000+ platforms) + Holehe (120+ services) ───────────
     const rawHandle = (
       (aiResult?.twitterUrl ?? "").replace(/^https?:\/\/(www\.)?(twitter\.com|x\.com)\//, "").replace(/\?.*$/, "")
@@ -646,7 +731,7 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
       }
     }
 
-    await ensureAtlasActive(atlasJobId);
+    await ensureAtlasActive(atlasJobId, id);
     // ── Step E: Forensic cross-reference (ICIJ Offshore Leaks + Whoxy WHOIS) ──
     await Promise.allSettled([
       enrichWithIcij(name, [], false).then(async (res: any) => {
@@ -792,6 +877,7 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
     // The model receives only this target's exact evidence universe. Its
     // response is passed through a deterministic adjudicator that cannot
     // invent a contact or asset identifier.
+    await ensureAtlasActive(atlasJobId, id);
     const reviewEntity = await db.select({
       metadata: entitiesTable.metadata,
       sourceRegistries: entitiesTable.sourceRegistries,
@@ -1031,7 +1117,7 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
       ? "[Atlas] ✅ Entity has a reviewed contact route"
       : "[Atlas] ⚠️ Entity requires another OSINT follow-up pass");
   } catch (err: any) {
-    if (err instanceof AtlasCancelledError) throw err;
+    if (err instanceof AtlasCancelledError || err instanceof AtlasTargetTimeoutError) throw err;
     logger.warn({ entityId: id, name, err: err.message }, "[Atlas] Full-circle enrichment failed (non-fatal)");
     // Do not stamp cookedAt on an error: cookedAt is the outreach-ready
     // boundary, and failed enrichment must remain eligible for retry.
@@ -1096,6 +1182,8 @@ async function runSingleTargetPipeline(
     targetRows,
     (entity) => enrichEntityFullCircle(atlasJobId, entity as EntityRow),
     1,
+    undefined,
+    opts.targetTimeoutMs ?? DEFAULT_TARGET_TIMEOUT_MS,
   );
   summary["Target journey"] = `${target.name}: ${result.ok ? "complete" : "failed"} (${result.err} errors)`;
 
@@ -1419,6 +1507,8 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
         newEntities,
         (entity) => enrichEntityFullCircle(atlasJobId, entity as EntityRow),
         1,
+        undefined,
+        opts.targetTimeoutMs ?? DEFAULT_TARGET_TIMEOUT_MS,
       );
       cookedCount += batchResult.ok;
       totalEnriched += batchResult.ok;
@@ -1427,10 +1517,17 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
     // Phase J attribution after each source round (processes all pending entities)
     try {
       await setActiveJob("phase-j-pass", phaseJJobId);
-      await runPhaseJBatch(phaseJJobId, 50);
+      await status("Phase 8/10: Phase J attribution and graph-assisted analysis…", 8);
+      const phaseJResult = await runPhaseJBatch(
+        phaseJJobId,
+        opts.phaseJBatchSize ?? 50,
+        atlasJobId,
+      );
+      summary[`Phase J round ${sourceRound}`] = phaseJResult.message;
       await setActiveJob("phase-j-pass", "");
     } catch (e: any) {
       logger.warn({ err: e.message }, "[Atlas] Phase J round failed (non-fatal)");
+      await status(`Phase 8/10: Phase J failed for this round — ${e.message}`, 8);
     }
 
     summary[`Src ${sourceRound}`] = `${source.label.split("(")[0].trim()}: ${newEntities.length} → cooked`;

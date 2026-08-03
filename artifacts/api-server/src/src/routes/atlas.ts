@@ -39,6 +39,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
     hotLeadsOnly:       Boolean(body.hotLeadsOnly),
     runResearch:        body.runResearch !== false,
     researchLimit:      Number(body.researchLimit)     || 10,
+    targetTimeoutMs:    Math.min(Math.max(Number(body.targetTimeoutMs) || 180_000, 30_000), 600_000),
     // ── Discovery-first diversified mode ──────────────────────────────────────
     discoveryFirst,
     skipFaa:            body.skipFaa !== undefined ? Boolean(body.skipFaa) : discoveryFirst,
