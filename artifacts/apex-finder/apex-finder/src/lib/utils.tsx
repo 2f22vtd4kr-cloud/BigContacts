@@ -172,6 +172,28 @@ function narrativeText(value: unknown, max = 220): string | null {
   return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;
 }
 
+function noteField(notes: string | null | undefined, field: string): string | null {
+  if (!notes) return null;
+  const match = notes.match(new RegExp(`${field}:\\s*(.*?)(?=\\s+(?:Source|Filing|Company|Nationality|Location|Entity type):|$)`, "i"));
+  return narrativeText(match?.[1], 180);
+}
+
+function filingLabel(notes: string | null | undefined): string | null {
+  const filing = noteField(notes, "Filing");
+  return filing ? filing.replace(/\s*\([^)]*\)\s*$/, "").trim() : null;
+}
+
+function companyFromNotes(notes: string | null | undefined): string | null {
+  return noteField(notes, "Company");
+}
+
+function cleanCategory(category: string): string {
+  return category
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/[_-]+/g, " ")
+    .toLowerCase();
+}
+
 export function parseEntityRegistries(value: EntityNarrative["sourceRegistries"]): string[] {
   if (Array.isArray(value)) return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
   if (!value) return [];
@@ -184,11 +206,59 @@ export function parseEntityRegistries(value: EntityNarrative["sourceRegistries"]
   return [];
 }
 
-export function entityBio(entity: EntityNarrative): string | null {
-  return narrativeText(entity.twitterBio)
+export function entityWorkSummary(entity: EntityNarrative): string | null {
+  const publicRole = narrativeText(entity.twitterBio)
     ?? narrativeText(entity.telegramBio)
     ?? narrativeText(entity.linkedinHeadline)
-    ?? null;
+  if (publicRole) return `Public role or activity: ${publicRole}`;
+
+  const filing = filingLabel(entity.notes);
+  const company = companyFromNotes(entity.notes);
+  if (filing && company) return `Public filing activity: ${filing} connected to ${company}.`;
+  if (company) return `Public company record connected to ${company}.`;
+  if (filing) return `Public filing activity recorded: ${filing}.`;
+
+  const categories = Array.from(new Set((entity.assetCategories ?? []).filter(Boolean).map(cleanCategory)));
+  if (categories.length > 0) return `Recorded activity includes ${categories.slice(0, 3).join(", ")}.`;
+
+  const foundation = narrativeText(entity.foundationName, 150);
+  if (foundation) return `Documented foundation activity: ${foundation}.`;
+
+  const registry = parseEntityRegistries(entity.sourceRegistries);
+  const labels = Array.from(new Set(
+    registry.flatMap((source) => INVOLVEMENT_LABELS.filter(([pattern]) => pattern.test(source)).map(([, label]) => label)),
+  ));
+  if (labels.length > 0) return `Public records indicate ${labels.slice(0, 2).join(" and ")}.`;
+  return null;
+}
+
+/** Backward-compatible alias for card consumers that still use the old name. */
+export function entityBio(entity: EntityNarrative): string | null {
+  return entityWorkSummary(entity);
+}
+
+export function entityFindingsSummary(entity: EntityNarrative): string {
+  const findings: string[] = [];
+  const source = parseEntityRegistries(entity.sourceRegistries)
+    .filter((item) => !/^(manual|user|seed|imported)$/i.test(item.trim()))[0];
+  const filing = filingLabel(entity.notes);
+  const company = companyFromNotes(entity.notes);
+  const noteNationality = noteField(entity.notes, "Nationality");
+  const noteLocation = noteField(entity.notes, "Location");
+
+  if (source) findings.push(`Source: ${source}`);
+  if (filing && company) findings.push(`${filing} connected to ${company}`);
+  else if (filing) findings.push(filing);
+  if (noteNationality || entity.nationality) findings.push(`nationality recorded as ${noteNationality ?? entity.nationality}`);
+  if (noteLocation || entity.knownResidences) findings.push(`location recorded as ${noteLocation ?? entity.knownResidences}`);
+  if ((entity.assetCount ?? 0) > 0) {
+    const categories = Array.from(new Set((entity.assetCategories ?? []).filter(Boolean).map(cleanCategory)));
+    findings.push(`${entity.assetCount} linked public asset${entity.assetCount === 1 ? "" : "s"}${categories.length ? ` (${categories.slice(0, 2).join(", ")})` : ""}`);
+  }
+  if (entity.personalWebsite) findings.push("personal website recorded");
+  if (entity.linkedinHeadline || entity.twitterBio || entity.telegramBio) findings.push("public social/profile text recorded");
+  if (findings.length === 0) return "No personal finding has been recorded beyond the entity record; further evidence review is pending.";
+  return `${findings.join(" · ")}.`;
 }
 
 const INVOLVEMENT_LABELS: Array<[RegExp, string]> = [

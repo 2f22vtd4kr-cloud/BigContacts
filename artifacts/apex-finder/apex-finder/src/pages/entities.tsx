@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Link, useLocation, useSearch } from "wouter";
 import { useListEntities, useCreateEntity, useDeleteEntity } from "@workspace/api-client-react";
-import { entityBio, entityEvidenceLabel, entityInvolvement, formatCurrency, formatEntityName, AccessScoreBadge, ConfidenceBadge, parseEntityRegistries } from "@/lib/utils";
+import { entityFindingsSummary, entityEvidenceLabel, entityWorkSummary, formatCurrency, formatEntityName, AccessScoreBadge, ConfidenceBadge, parseEntityRegistries } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { entityMeta, EntityTypeMark, entityMetric, ENTITY_TYPES } from "@/lib/entity-taxonomy";
 import {
@@ -155,8 +155,8 @@ function MobileEntityCard({
 }) {
   const typeColor = entityMeta(entity.type).color;
   const registries = parseEntityRegistries(entity.sourceRegistries);
-  const bio = entityBio(entity);
-  const involvement = entityInvolvement({ ...entity, assetCount: entity.assetCount });
+  const workSummary = entityWorkSummary(entity);
+  const findingsSummary = entityFindingsSummary(entity);
   const organizationLike = entity.type === "Corporation" || entity.type === "Corp" || entity.type === "Trust";
   const hasPublicVector = Boolean(entity.email || entity.phone || entity.linkedinUrl || entity.twitterHandle || entity.instagramHandle || entity.telegramHandle);
   const contactState = organizationLike
@@ -194,7 +194,7 @@ function MobileEntityCard({
             </div>
           )}
           <div className="mt-2 text-[10px] leading-4 text-muted-foreground/80 line-clamp-2">
-            {bio ?? "Public biography not recorded"}
+             {workSummary ?? "No documented role or activity recorded"}
           </div>
           <div className="mt-1">
             <span
@@ -239,12 +239,12 @@ function MobileEntityCard({
         <div className="px-4 pb-4 pt-1 animate-in slide-in-from-top-2 fade-in duration-200">
            <div className="mb-4 grid gap-2">
              <div className="rounded-lg border border-primary/15 bg-primary/[0.035] px-3 py-2.5">
-               <div className="text-[9px] font-mono uppercase tracking-wider text-primary/75">Bio / public profile</div>
-               <p className="mt-1 text-xs leading-5 text-foreground/80">{bio ?? "No public biography has been recorded for this profile."}</p>
+                <div className="text-[9px] font-mono uppercase tracking-wider text-primary/75">What they do</div>
+                <p className="mt-1 text-xs leading-5 text-foreground/80">{workSummary ?? "No documented role or activity is recorded yet."}</p>
              </div>
              <div className="rounded-lg border border-secondary/15 bg-secondary/[0.035] px-3 py-2.5">
-               <div className="text-[9px] font-mono uppercase tracking-wider text-secondary/80">Involvement</div>
-               <p className="mt-1 text-xs leading-5 text-foreground/80">{involvement ?? "No involvement signal has been recorded yet."}</p>
+                <div className="text-[9px] font-mono uppercase tracking-wider text-secondary/80">What we found</div>
+                <p className="mt-1 text-xs leading-5 text-foreground/80">{findingsSummary}</p>
              </div>
            </div>
           <div className="grid grid-cols-2 gap-3 mb-3">
@@ -987,8 +987,8 @@ export default function EntityLedger() {
                         )}
                          <div className="min-w-0">
                           <div className="font-semibold text-sm text-foreground whitespace-nowrap">{formatEntityName(entity.name)}</div>
-                           <div className="mt-1 max-w-[260px] truncate text-[10px] leading-4 text-muted-foreground/65" title={entityBio(entity) ?? undefined}>
-                             {entityBio(entity) ?? entityInvolvement({ ...entity, assetCount: entity.assetCount }) ?? "Profile brief pending"}
+                             <div className="mt-1 max-w-[260px] truncate text-[10px] leading-4 text-muted-foreground/65" title={entityWorkSummary(entity) ?? undefined}>
+                             {entityWorkSummary(entity) ?? entityFindingsSummary(entity)}
                            </div>
                           {entity.linkedinHeadline && (
                             <div className="text-[10px] text-muted-foreground/55 font-mono truncate max-w-[200px]" title={entity.linkedinHeadline}>

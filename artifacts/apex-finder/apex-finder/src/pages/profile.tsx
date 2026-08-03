@@ -46,7 +46,7 @@ import {
   Phone,
   Crosshair, Flame,
 } from "lucide-react";
-import { cn, entityBio, entityInvolvement, formatCurrency, formatEntityName, AccessScoreBadge, ConfidenceBadge, ScoreBadge } from "@/lib/utils";
+import { cn, entityFindingsSummary, entityWorkSummary, formatCurrency, formatEntityName, AccessScoreBadge, ConfidenceBadge, ScoreBadge } from "@/lib/utils";
 import { entityMeta, EntityTypeMark, entityMetric } from "@/lib/entity-taxonomy";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -495,15 +495,8 @@ export default function ApexProfile() {
     return null;
   })();
 
-  const profileBio = entityBio(entity);
-  const profileInvolvement = entityInvolvement({
-    ...entity,
-    signal: primaryWealthSource,
-    assetCount: (assets as any[]).length,
-    assetCategories: (assets as any[]).map((asset: any) => asset.category),
-    relationshipCount: (relationships as any[]).length,
-  });
-
+  const profileWorkSummary = entityWorkSummary(entity);
+  const profileFindings = entityFindingsSummary(entity);
   const mapCenter: [number, number] = geoAssets.length > 0
     ? [
         geoAssets.reduce((s: number, a: any) => s + a.latitude,  0) / geoAssets.length,
@@ -692,15 +685,15 @@ export default function ApexProfile() {
             </div>
              <div className="mt-3 grid max-w-3xl gap-2 sm:grid-cols-2">
                <div className="rounded-lg border border-primary/15 bg-primary/[0.035] px-3 py-2.5">
-                 <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-primary/75">Public profile</div>
+                  <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-primary/75">What they do</div>
                  <p className="mt-1 text-[11px] leading-5 text-foreground/80">
-                   {profileBio ?? "No public biography recorded yet."}
+                    {profileWorkSummary ?? "No documented role or activity is recorded yet."}
                  </p>
                </div>
                <div className="rounded-lg border border-secondary/15 bg-secondary/[0.035] px-3 py-2.5">
-                 <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-secondary/80">Involvement</div>
+                  <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-secondary/80">What we found</div>
                  <p className="mt-1 text-[11px] leading-5 text-foreground/80">
-                   {profileInvolvement ?? "No involvement signal recorded yet."}
+                    {profileFindings}
                  </p>
                </div>
              </div>
@@ -772,12 +765,12 @@ export default function ApexProfile() {
           )}
            <div className="mt-3 space-y-2">
              <div className="rounded-lg border border-primary/15 bg-primary/[0.035] px-3 py-2.5">
-               <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-primary/75">Public profile</div>
-               <p className="mt-1 text-[11px] leading-5 text-foreground/80">{profileBio ?? "No public biography recorded yet."}</p>
+                <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-primary/75">What they do</div>
+                <p className="mt-1 text-[11px] leading-5 text-foreground/80">{profileWorkSummary ?? "No documented role or activity is recorded yet."}</p>
              </div>
              <div className="rounded-lg border border-secondary/15 bg-secondary/[0.035] px-3 py-2.5">
-               <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-secondary/80">Involvement</div>
-               <p className="mt-1 text-[11px] leading-5 text-foreground/80">{profileInvolvement ?? "No involvement signal recorded yet."}</p>
+                <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-secondary/80">What we found</div>
+                <p className="mt-1 text-[11px] leading-5 text-foreground/80">{profileFindings}</p>
              </div>
            </div>
           {/* Score cards */}
