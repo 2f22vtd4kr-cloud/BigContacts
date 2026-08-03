@@ -18,7 +18,7 @@ import { candidateKey } from "../lib/contact-candidate";
 import { sql, eq, and, desc, count, inArray } from "drizzle-orm";
 import {
   createJob, updateJob, getJob,
-  setActiveJob, getActiveJob,
+  setActiveJob, getActiveJob, ownsActiveJob, clearActiveJobIfOwned,
 } from "../lib/job-queue";
 import { deepWebOsintEnrich } from "../lib/enrichment/web-discovery";
 import { computeContactConfidence, computeContactOutcome } from "../lib/contact-confidence";
@@ -27,6 +27,19 @@ import { contactCacheSet } from "../lib/redis";
 import { logger } from "../lib/logger";
 
 const router = Router();
+
+class DeepWebCancelledError extends Error {
+  constructor() {
+    super("Deep-web OSINT job cancelled.");
+    this.name = "DeepWebCancelledError";
+  }
+}
+
+async function ensureDeepWebActive(jobId: string): Promise<void> {
+  if (!(await ownsActiveJob("deep-web-osint", jobId))) {
+    throw new DeepWebCancelledError();
+  }
+}
 
 function safeParseJson<T>(str: string | null | undefined, fallback: T): T {
   try { return str ? JSON.parse(str) as T : fallback; } catch { return fallback; }
@@ -152,6 +165,7 @@ router.post("/ingest/deep-web-osint", async (req: Request, res: Response): Promi
     for (let i = 0; i < entities.length; i++) {
       const entity = entities[i]!;
       try {
+        await ensureDeepWebActive(jobId);
         await updateJob(jobId, {
           status: "running", progress: i, total: entities.length,
           inserted: enriched, skipped, errors,
@@ -168,6 +182,7 @@ router.post("/ingest/deep-web-osint", async (req: Request, res: Response): Promi
             setTimeout(() => reject(new Error(`deepWebOsintEnrich timed out after ${ENRICHER_TIMEOUT_MS / 1000}s for entity ${entity.id} (${entity.name})`)), ENRICHER_TIMEOUT_MS)
           ),
         ]);
+        await ensureDeepWebActive(jobId);
         const hasSignal = result.email || result.phone || result.linkedinUrl
           || result.instagramUrl || result.twitterUrl || result.personsDiscovered.length > 0
           || result.ownerResolutions.length > 0 || result.ownershipSummary;
@@ -235,6 +250,7 @@ router.post("/ingest/deep-web-osint", async (req: Request, res: Response): Promi
         updates["metadata"]   = JSON.stringify(meta);
         updates["liveSource"] = true;
 
+        await ensureDeepWebActive(jobId);
         await db.update(entitiesTable).set(updates as any).where(eq(entitiesTable.id, entity.id));
 
         // Persist structured evidence rows into contact_evidence table.
@@ -314,25 +330,32 @@ router.post("/ingest/deep-web-osint", async (req: Request, res: Response): Promi
           phoneConfidence:   result.phoneConfidence,
         });
 
+        await ensureDeepWebActive(jobId);
         enriched++;
         logger.info({ entityId: entity.id, name: entity.name, confidence, queriesFired: result.queriesFired, pagesScraped: result.pagesScraped }, "Deep web OSINT enriched");
       } catch (err: any) {
+        if (err instanceof DeepWebCancelledError) throw err;
         errors++;
         logger.warn({ entityId: entity.id, err: err.message }, "Deep web OSINT failed");
       }
     }
 
+    await ensureDeepWebActive(jobId);
     await updateJob(jobId, {
       status: "done", progress: entities.length, total: entities.length,
       inserted: enriched, skipped, errors,
       message: `Done — ${enriched} enriched, ${skipped} no-match, ${errors} errors.`,
     });
-    await setActiveJob("deep-web-osint", "");
+    await clearActiveJobIfOwned("deep-web-osint", jobId);
     logger.info({ enriched, skipped, errors }, "Deep web OSINT complete");
   })().catch(async err => {
+    if (err instanceof DeepWebCancelledError) {
+      await clearActiveJobIfOwned("deep-web-osint", jobId);
+      return;
+    }
     logger.error({ err: err.message }, "Deep web OSINT crashed");
     await updateJob(jobId, { status: "failed", message: err.message ?? "Crashed" });
-    await setActiveJob("deep-web-osint", "");
+    await clearActiveJobIfOwned("deep-web-osint", jobId);
   });
 });
 
@@ -343,6 +366,14 @@ router.delete("/ingest/deep-web-osint-lock", async (_req: Request, res: Response
   await updateJob(jobId, { status: "failed", message: "Killed (server restart).", finishedAt: new Date().toISOString() } as any);
   await setActiveJob("deep-web-osint", "");
   res.json({ cleared: true, jobId, message: "Deep-web-OSINT lock cleared." });
+});
+
+router.delete("/ingest/deep-web-osint-lock/:jobId", async (req: Request, res: Response): Promise<void> => {
+  const jobId = String(req.params.jobId ?? "");
+  if (!jobId) { res.json({ cleared: false, message: "No deep-web OSINT job ID supplied." }); return; }
+  await updateJob(jobId, { status: "failed", message: "Deep-web OSINT cancelled.", finishedAt: new Date().toISOString() } as any);
+  await clearActiveJobIfOwned("deep-web-osint", jobId);
+  res.json({ cleared: true, jobId, message: "Deep-web OSINT cancellation requested." });
 });
 
 // ── POST /ingest/compute-embeddings ──────────────────────────────────────────
