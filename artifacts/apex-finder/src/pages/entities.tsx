@@ -157,6 +157,23 @@ function MobileEntityCard({
   const registries = parseEntityRegistries(entity.sourceRegistries);
   const bio = entityBio(entity);
   const involvement = entityInvolvement({ ...entity, assetCount: entity.assetCount });
+  const organizationLike = entity.type === "Corporation" || entity.type === "Corp" || entity.type === "Trust";
+  const hasPublicVector = Boolean(entity.email || entity.phone || entity.linkedinUrl || entity.twitterHandle || entity.instagramHandle || entity.telegramHandle);
+  const contactState = organizationLike
+    ? entity.contactOutcome === "organization_contact"
+      ? "Organization route"
+      : hasPublicVector
+        ? "Public vector — review"
+        : "No public route"
+    : entity.contactOutcome === "direct_contact_verified"
+      ? "Verified direct"
+      : entity.contactOutcome === "direct_contact_candidate"
+        ? "Direct candidate"
+        : entity.contactOutcome === "social_only"
+          ? "Social only"
+          : hasPublicVector
+            ? "Public vector — review"
+            : "No public route";
 
   return (
       <div className={cn("border-b border-border bg-card transition-colors hover:bg-card/80", selected && "bg-primary/5")}>
@@ -189,8 +206,26 @@ function MobileEntityCard({
           </div>
         </div>
         <div className="shrink-0 flex items-center gap-2">
-          <ConfidenceBadge score={entity.contactConfidence} />
-          <AccessScoreBadge score={entity.accessScore} />
+          {organizationLike ? (
+            <span
+              className={cn(
+                "text-[9px] font-mono font-bold uppercase tracking-wide px-1.5 py-1 rounded border whitespace-nowrap",
+                entity.contactOutcome === "organization_contact"
+                  ? "text-violet-300 border-violet-400/30 bg-violet-400/10"
+                  : "text-muted-foreground border-border bg-muted/30",
+              )}
+              title={entity.contactOutcome === "organization_contact"
+                ? "Organization contact route — not a personal access route"
+                : "No validated personal access route is recorded for this organization"}
+            >
+              {contactState}
+            </span>
+          ) : (
+            <>
+              <ConfidenceBadge score={entity.contactConfidence} />
+              <AccessScoreBadge score={entity.accessScore} />
+            </>
+          )}
           {entity.cookedAt && (
             <span title={`Fully cooked — all enrichment phases complete (${new Date(entity.cookedAt).toLocaleDateString()})`}>
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
@@ -224,10 +259,17 @@ function MobileEntityCard({
           </div>
           
           <div className="mb-3">
-            <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-0.5">Contact</div>
+             <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-0.5">
+               {organizationLike ? "Organization route" : "Contact"}
+             </div>
             <div className="text-xs text-foreground font-mono truncate">
               {entity.email ? entity.email : entity.phone ? entity.phone : entity.linkedinUrl ? "LinkedIn" : "—"}
             </div>
+             <div className="text-[10px] text-muted-foreground/75 mt-1">
+               {organizationLike
+                 ? `${contactState} · not a personal route`
+                 : contactState}
+             </div>
             {entity.contactOutcome && OUTCOME_BADGES[entity.contactOutcome] && (
               <span
                 className="inline-block text-[9px] font-mono px-1.5 py-0.5 rounded mt-0.5"
@@ -965,7 +1007,18 @@ export default function EntityLedger() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-sm text-muted-foreground font-mono whitespace-nowrap">{entity.nationality ?? "—"}</td>
-                    <td className="px-4 py-3"><ConfidenceBadge score={entity.contactConfidence} /></td>
+                    <td className="px-4 py-3">
+                      {entity.type === "Corporation" || entity.type === "Corp" || entity.type === "Trust" ? (
+                        <span
+                          className="text-[9px] font-mono font-bold uppercase tracking-wide px-1.5 py-1 rounded border text-violet-300 border-violet-400/30 bg-violet-400/10 whitespace-nowrap"
+                          title="Organization evidence — this is not a personal contact confidence score"
+                        >
+                          Org route
+                        </span>
+                      ) : (
+                        <ConfidenceBadge score={entity.contactConfidence} />
+                      )}
+                    </td>
                     <td className="px-4 py-3"><AccessScoreBadge score={entity.accessScore} /></td>
                     <td className="px-4 py-3 text-xs max-w-[220px]">
                       <div className="flex flex-col gap-0.5">

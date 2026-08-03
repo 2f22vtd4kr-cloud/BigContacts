@@ -7,4 +7,6 @@ Every path that persists or restores contact data must sanitize email, phone, an
 
 **Why:** Alternate enrichment routes, Redis restore, startup maintenance, and entity merge logic can otherwise reintroduce stale or invalid contacts after the primary enrichment path has been hardened.
 
-**How to apply:** Keep the shared validators at every persistence boundary. On merges and maintenance, recompute contact outcome and `isHot` from the sanitized person-level direct vectors; organization contacts and generic/shared channels must remain outside personal Access.
+**How to apply:** Keep the shared validators at every persistence boundary. On merges and maintenance, recompute contact outcome and `isHot` from the sanitized person-level direct vectors; pass entity type into every recomputation, and keep organization contacts and generic/shared channels outside personal Access.
+
+This also applies to presentation boundaries: if stored legacy metadata says a corporation or trust has a personal outcome, API responses and ledger cards must normalize it to an organization route rather than exposing the stale label.
