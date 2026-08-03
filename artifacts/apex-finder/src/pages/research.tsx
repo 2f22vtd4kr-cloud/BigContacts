@@ -87,6 +87,24 @@ type CandidateFunnel = {
   candidates: ContactCandidate[];
 };
 
+type IntroPathCandidate = {
+  status: "review_required";
+  routeKind: "intermediary_candidate" | "organization_route";
+  target: { id: number; name: string; type: string };
+  route: {
+    label: string;
+    value: string;
+    vectorType: "email" | "phone";
+    personName: string | null;
+    role: string | null;
+  };
+  evidence: Array<{ source: string; sourceUrl: string; exactClaim: boolean; scope: string }>;
+  corroboration: { sourceDomains: string[]; independentDomains: number };
+  whyItMayHelp: string;
+  nextManualAction: string;
+  warnings: string[];
+};
+
 const HYBRID_PIPELINE = "L1: BM25+Semantic+Graph · L2: Planner→Retriever→Analyst→Critic · L3: QueryExpansion · L4: UCT(120 rollouts) · L5: Bayesian-UCB";
 
 function roleIcon(role: string) {
@@ -284,6 +302,57 @@ function CandidateFunnelPanel({ funnel }: { funnel: CandidateFunnel | null }) {
   );
 }
 
+function IntroPathPanel({ candidate }: { candidate: IntroPathCandidate | null }) {
+  return (
+    <div className="border-t border-border/50 bg-[#0B0F19] px-4 md:px-5 py-4 flex-shrink-0">
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div>
+          <h3 className="text-xs font-mono text-amber-300 uppercase tracking-widest flex items-center gap-2">
+            <Shield className="w-3.5 h-3.5" /> Intro Path Candidate
+          </h3>
+          <p className="text-[11px] text-muted-foreground mt-1">
+            One bounded, review-only route from durable evidence. This is not verified contact or authorization.
+          </p>
+        </div>
+        <span className="text-[10px] font-mono text-amber-300/80 whitespace-nowrap">manual review</span>
+      </div>
+      {!candidate ? (
+        <div className="rounded border border-dashed border-border p-3 text-xs text-muted-foreground font-mono">
+          No evidence-backed introduction route was found.
+        </div>
+      ) : (
+        <div className="rounded border border-amber-400/30 bg-amber-400/5 p-3 space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[10px] uppercase tracking-wider font-mono text-amber-300">{candidate.routeKind.replaceAll("_", " ")}</span>
+            <span className="text-xs font-semibold text-foreground">{candidate.route.label}</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
+            {candidate.route.vectorType === "email" ? <Mail className="w-3 h-3 text-amber-300" /> : <Phone className="w-3 h-3 text-amber-300" />}
+            <span className="break-all text-foreground">{candidate.route.value}</span>
+            {candidate.route.personName && <span className="text-muted-foreground">· {candidate.route.personName}</span>}
+            {candidate.route.role && <span className="text-muted-foreground">· {candidate.route.role}</span>}
+          </div>
+          <p className="text-[11px] leading-relaxed text-muted-foreground">{candidate.whyItMayHelp}</p>
+          <div className="text-[11px] leading-relaxed text-amber-200/80">
+            <strong>Next manual action:</strong> {candidate.nextManualAction}
+          </div>
+          <div className="flex flex-wrap gap-2 text-[10px] font-mono text-muted-foreground">
+            <span>{candidate.corroboration.independentDomains} source domain{candidate.corroboration.independentDomains === 1 ? "" : "s"}</span>
+            {candidate.evidence.map((item) => (
+              <a key={item.sourceUrl} href={item.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+                <ExternalLink className="w-3 h-3" /> {item.source}
+              </a>
+            ))}
+          </div>
+          <ul className="space-y-1 text-[10px] text-rose-300/80">
+            {candidate.warnings.map((warning) => <li key={warning}>• {warning}</li>)}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Path node contact bar ──────────────────────────────────────────────────────
 function PathNodeContact({ node }: { node: PathStep }) {
   if (!node.contactConfidence && !node.contactEmail && !node.contactPhone) return null;
@@ -399,11 +468,31 @@ export default function IntelTerminal() {
   const [algorithmPipeline, setAlgorithmPipeline] = useState<Array<{ algo: string; contribution: string; status: string }> | null>(null);
   const [scorecard, setScorecard] = useState<ResearchScorecard | null>(null);
   const [candidateFunnel, setCandidateFunnel] = useState<CandidateFunnel | null>(null);
+  const [introPathCandidate, setIntroPathCandidate] = useState<IntroPathCandidate | null>(null);
   const logEndRef = useRef<HTMLDivElement | null>(null);
 
   // Mobile entity picker state
   const [mobilePickerOpen, setMobilePickerOpen] = useState(false);
   const selectedEntity = entities?.find((e) => e.id === selectedEntityId);
+
+  useEffect(() => {
+    if (!selectedEntityId) {
+      setIntroPathCandidate(null);
+      return;
+    }
+    let active = true;
+    fetch(`/api/research/intro-path/${selectedEntityId}`, { cache: "no-store" })
+      .then((response) => response.ok ? response.json() : null)
+      .then((payload) => {
+        if (active) setIntroPathCandidate(payload?.candidate ?? null);
+      })
+      .catch(() => {
+        if (active) setIntroPathCandidate(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [selectedEntityId]);
 
   const startAnalysis = () => {
     if (!selectedEntityId) return;
@@ -415,6 +504,7 @@ export default function IntelTerminal() {
     setAlgorithmPipeline(null);
     setScorecard(null);
     setCandidateFunnel(null);
+    setIntroPathCandidate(null);
     setIsComputing(true);
     setMobilePickerOpen(false);
 
@@ -730,6 +820,7 @@ export default function IntelTerminal() {
         )}
         {!isComputing && <Scorecard score={scorecard} />}
         {!isComputing && <CandidateFunnelPanel funnel={candidateFunnel} />}
+        {!isComputing && <IntroPathPanel candidate={introPathCandidate} />}
 
         {/* ── Winning Path Visualization ── */}
         {winningPath.length > 0 && !isComputing && (

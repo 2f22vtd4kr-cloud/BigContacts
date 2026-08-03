@@ -68,3 +68,4 @@
  - [AI research prompt contract](ai-research-prompt-contract.md) — Require target anchors, claim-level provenance, and explicit uncertainty; usernames and service hits never prove personal identity/access
  - [Atlas run monitoring](atlas-run-monitoring.md) — Track progress freshness, not only active locks; stalled provider steps must be visible and safely cancellable
   - [Provider JSON transport](provider-json-transport.md) — Normalize wrapped/HTML-escaped provider JSON before extraction while keeping strict evidence adjudication downstream
+  - [Intro path candidates](intro-path-candidate.md) — At most one review-only intermediary route per target; never promote it to personal contact or outreach
