@@ -184,7 +184,17 @@ function LiquidGlassInspector({ telemetry }: { telemetry: AtlasTelemetry }) {
 }
 
 export function MobileReactorFlow(props: MobileReactorFlowProps) {
-  const { totalEntities, hotCount, totalAssets, sessions, liveNodes, atlasState, exhaustedKeys, livePhaseDetail } = props;
+  const {
+    totalEntities,
+    hotCount,
+    totalAssets,
+    sessions,
+    liveNodes,
+    liveLabel,
+    atlasState,
+    exhaustedKeys,
+    livePhaseDetail,
+  } = props;
 
   const isLive = liveNodes.size > 0 || Boolean(atlasState && atlasState.runStatus !== "done");
 
@@ -210,6 +220,14 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
             <div className={`w-1.5 h-1.5 rounded-full ${isLive ? 'bg-cyan-400 animate-ping' : 'bg-lime-400'}`} />
             {isLive ? 'Active' : 'Nominal'}
           </div>
+        </div>
+        <div
+          className={`mb-3 text-right text-[10px] font-mono tracking-wide ${isLive ? "text-cyan-400/80" : "text-slate-500"}`}
+          role="status"
+        >
+          {isLive
+            ? (liveLabel || livePhaseDetail || "Live Atlas research in progress")
+            : "Standby · Atlas is idle by design — no research run in progress"}
         </div>
         {/* Quick Stats Grid */}
         <div className="flex gap-2">

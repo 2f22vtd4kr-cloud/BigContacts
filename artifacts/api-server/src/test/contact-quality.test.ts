@@ -8,6 +8,7 @@ import {
 import {
   computeContactConfidence,
   hasMeaningfulDirectContact,
+  isPersonalContactOutcome,
 } from "../lib/contact-confidence";
 
 describe("public contact quality guardrails", () => {
@@ -41,5 +42,11 @@ describe("public contact quality guardrails", () => {
     expect(hasMeaningfulDirectContact({ email: "info@venue.example" })).toBe(false);
     expect(hasMeaningfulDirectContact({ phone: "415-555-2671" })).toBe(true);
     expect(hasMeaningfulDirectContact({ type: "Trust", phone: "+14155552671" })).toBe(false);
+  });
+
+  it("keeps organization evidence out of personal Phase J metrics", () => {
+    expect(isPersonalContactOutcome("organization_contact")).toBe(false);
+    expect(isPersonalContactOutcome("direct_contact_candidate")).toBe(true);
+    expect(isPersonalContactOutcome("direct_contact_verified")).toBe(true);
   });
 });
