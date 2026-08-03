@@ -829,6 +829,10 @@ const PERSON_WORD_BLOCKLIST = new Set([
   // Generic org/state words that slip through as "person" names
   "State", "Government", "Ministry", "Agency", "Authority", "Commission",
   "Federation", "Republic", "Nation",
+  // Product, service, and institution words from search snippets
+  "Endpoint", "Acrylic", "Powder", "Gel", "Polish",
+  "Air", "Force", "Marine", "Corps", "Coast", "Guard",
+  "United", "States",
   // Wikipedia / religious-text and placeholder nouns leaking from generic
   // corporation searches are not named business decision-makers.
   "Wikipedia", "Unknown", "Church", "Catholic", "Roman", "Martyrology",
@@ -866,7 +870,7 @@ const PERSON_WORD_BLOCKLIST = new Set([
 
 /** Returns true when a string looks like a real human name (2–4 capitalised words,
  *  no job-title or company-type tokens). Used to filter owner-resolution pushes. */
-function looksLikePersonName(name: string): boolean {
+export function looksLikePersonName(name: string): boolean {
   // Reject immediately if string contains newlines, tabs, or non-printable chars
   if (/[\n\r\t\x00-\x1f]/.test(name)) return false;
   // Reject if it contains digits (addresses, phone numbers, codes)

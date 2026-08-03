@@ -4,7 +4,10 @@ import {
   hasQualifyingWealthEvidence,
   isRoleOnlyCandidateName,
 } from "../lib/enrichment/broad-discovery";
-import { classifyEntityType } from "../lib/western-hnwi-ingestion";
+import {
+  classifyEntityType,
+  isPlaceholderRegistryName,
+} from "../lib/western-hnwi-ingestion";
 
 describe("broad discovery evidence gate", () => {
   it("rejects an employee or management-directory mention", () => {
@@ -72,6 +75,13 @@ describe("broad discovery evidence gate", () => {
 
   it("does not classify role-shaped snippets as HNWI", () => {
     expect(classifyEntityType("Rocco Forte Deputy")).not.toBe("HNWI");
+  });
+
+  it("rejects registry placeholder names before insertion", () => {
+    expect(isPlaceholderRegistryName("Unknown")).toBe(true);
+    expect(isPlaceholderRegistryName(" Unknown Company ")).toBe(true);
+    expect(isPlaceholderRegistryName("Entity 42")).toBe(true);
+    expect(isPlaceholderRegistryName("Patrick Remme")).toBe(false);
   });
 
   it("exposes a single-admission discovery adapter for sequential Atlas cooking", async () => {

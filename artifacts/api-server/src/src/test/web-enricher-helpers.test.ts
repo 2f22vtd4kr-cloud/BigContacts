@@ -15,6 +15,7 @@ import {
   deriveTradingName,
   guessCompanyDomainWithCity,
   extractCity,
+  looksLikePersonName,
 } from "../lib/web-enricher";
 
 // ── deriveTradingName ────────────────────────────────────────────────────────
@@ -160,5 +161,18 @@ describe("extractCity", () => {
     // "United Kingdom" is recognised as a country → beforeCountry is "London"
     const city = extractCity("123 Oxford Street, London, United Kingdom", null);
     expect(city).toBe("London");
+  });
+});
+
+describe("looksLikePersonName", () => {
+  it("rejects product and institution phrases from company snippets", () => {
+    expect(looksLikePersonName("The Secure Endpoint")).toBe(false);
+    expect(looksLikePersonName("Acrylic Powder")).toBe(false);
+    expect(looksLikePersonName("Air Force")).toBe(false);
+    expect(looksLikePersonName("United States")).toBe(false);
+  });
+
+  it("keeps a normal executive name eligible", () => {
+    expect(looksLikePersonName("Samih Sawiris")).toBe(true);
   });
 });

@@ -64,3 +64,4 @@
 - [Discovery LLM admission](discovery-llm-admission.md) — Discovery AI must validate candidate plus source context before insertion; provider errors fail closed, never fall back to deterministic admission
 - [Business asset separation](business-asset-separation.md) — Operating businesses are separate evidence-backed assets; never infer them from personal wealth or uncertain names
 - [Invalid entity quarantine](invalid-entity-quarantine.md) — Hidden role/placeholder rows must clear active contact state while preserving the original evidence in review-only metadata
+- [Placeholder admission boundary](placeholder-admission-boundary.md) — Reject registry placeholders before dedup marking or batch insertion; later enrichment/startup cleanup are recovery layers

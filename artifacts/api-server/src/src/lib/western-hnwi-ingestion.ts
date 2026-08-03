@@ -60,6 +60,11 @@ function normalizeName(name: string): string {
   return name.toLowerCase().replace(/[^a-z]/g, "");
 }
 
+/** Registry adapters must never admit missing-name placeholders. */
+export function isPlaceholderRegistryName(name: string): boolean {
+  return /^(unknown|unnamed|anonymous|n\/a|not available|entity\s+\d+|unknown company)$/i.test(name.trim());
+}
+
 /**
  * EDGAR EFTS returns names in ALL-CAPS "LAST FIRST [MIDDLE]" format.
  * Detect and convert to "First [Middle] Last" title-case for display.
@@ -961,6 +966,10 @@ export async function runWesternHnwiIngestion(opts: IngestionOptions): Promise<I
           inserted + entityBatch.length >= targetCount
         ) break;
         if (!result.name?.trim()) continue;
+        if (isPlaceholderRegistryName(result.name)) {
+          skipped++;
+          continue;
+        }
         const { entity, key } = buildRegistryEntity(result, registry);
         if (await isDuplicate(key)) {
           skipped++;
@@ -988,6 +997,10 @@ export async function runWesternHnwiIngestion(opts: IngestionOptions): Promise<I
 
     for await (const person of harvester) {
       if (inserted >= targetCount) break;
+      if (isPlaceholderRegistryName(person.name)) {
+        skipped++;
+        continue;
+      }
 
       const { entity, key } = buildEntity(person);
 
