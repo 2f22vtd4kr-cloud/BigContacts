@@ -863,6 +863,8 @@ const PERSON_WORD_BLOCKLIST = new Set([
   "Geschäftsführer", "Vorstand", "Vorsitzender", "Inhaber",
   "Managing", "Senior", "General", "Principal", "Chief", "Head",
   "Partner", "Partners",  // already blocked via company-type but add here for person filter
+  // German editorial/search UI fragments observed in corp→person hops.
+  "Fußballklub", "Fußballvereine", "Kölner", "Accessibility", "Feedback", "Deutsch",
   // Editorial/recipe extraction noise from scraped company pages.
   "Recipe", "Recipes", "Salad", "Cucumber", "Tomato", "Kitchen", "Aug",
   "September", "October", "November", "December",
@@ -895,6 +897,7 @@ function extractPersonCandidates(text: string): string[] {
       if (name.length < 4 || name.length > 60) continue;
       const lower = name.toLowerCase();
       if (NOT_A_PERSON.has(lower)) continue;
+      if (!looksLikePersonName(name)) continue;
       // Must have at least two words, each opening with a TRUE uppercase letter
       const words = name.split(/\s+/);
       if (words.length < 2) continue;
@@ -923,6 +926,7 @@ async function extractPersonCandidatesAsync(text: string): Promise<string[]> {
       return glinerResults
         .map(r => r.name.trim())
         .filter(name => {
+          if (!looksLikePersonName(name)) return false;
           const words = name.split(/\s+/);
           if (words.length < 2 || words.length > 4) return false;
           if (!words.every(w => /^[A-ZÀ-ÖØ-Ü]/.test(w))) return false;

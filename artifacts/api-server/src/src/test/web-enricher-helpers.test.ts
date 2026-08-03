@@ -175,4 +175,10 @@ describe("looksLikePersonName", () => {
   it("keeps a normal executive name eligible", () => {
     expect(looksLikePersonName("Samih Sawiris")).toBe(true);
   });
+
+  it("rejects German editorial and search UI fragments", () => {
+    expect(looksLikePersonName("Der Fußballklub")).toBe(false);
+    expect(looksLikePersonName("Fußballvereine Kölner")).toBe(false);
+    expect(looksLikePersonName("Accessibility Feedback Deutsch")).toBe(false);
+  });
 });
