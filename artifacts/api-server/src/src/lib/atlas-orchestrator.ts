@@ -999,7 +999,7 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
         phone: fresh.phone,
         phoneSource: fresh.phoneSource,
         contactOutcome: computeContactOutcome(fresh),
-      });
+      }) && computeContactOutcome(fresh) === "direct_contact_verified";
 
       await db.update(entitiesTable).set({
         contactConfidence: contactConf,

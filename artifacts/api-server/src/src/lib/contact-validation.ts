@@ -79,6 +79,9 @@ export function isValidPublicEmail(value: string | null | undefined): boolean {
   const at = email.lastIndexOf("@");
   const local = email.slice(0, at);
   const domain = email.slice(at + 1);
+  // RFC-style local-part guard: leading/trailing dots and consecutive dots
+  // are malformed addresses and commonly come from scraped/generated noise.
+  if (local.startsWith(".") || local.endsWith(".") || local.includes("..")) return false;
   if (BLOCKED_EMAIL_DOMAINS.has(domain)) return false;
   if ([...REGISTRAR_DOMAINS].some(blocked => domain === blocked || domain.endsWith(`.${blocked}`))) return false;
   if (BLOCKED_EMAIL_LOCAL_PARTS.has(local)) return false;

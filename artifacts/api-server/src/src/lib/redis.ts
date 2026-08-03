@@ -350,6 +350,7 @@ export interface CachedContact {
   emailConfidence?: number;
   phoneConfidence?: number;
   sourceHits?: Record<string, number>;
+  reviewOnlyContacts?: Array<Record<string, unknown>>;
 }
 
 /** Write contact data to Redis slot 2. No TTL — permanent. */

@@ -202,6 +202,7 @@ router.get("/dashboard/stats", async (_req, res): Promise<void> => {
     db.select({ cnt: sql<number>`count(*)::int` }).from(entitiesTable).where(and(
       visibleEntity,
       eq(entitiesTable.isHot, true),
+      eq(entitiesTable.contactOutcome, "direct_contact_verified"),
       sql`${entitiesTable.type} NOT IN ('Corporation', 'Corp', 'Trust')`,
     )),
     db.select({ cnt: sql<number>`count(*)::int` }).from(researchSessionsTable),
@@ -273,8 +274,8 @@ router.get("/dashboard/stats", async (_req, res): Promise<void> => {
 
   // Enrichment coverage + F3 wealth tier segmentation + L2 contact outcome split (parallel queries)
   const [[contactableCount], [anyContactCount], [wealthTiersRow], [contactOutcomeRow]] = await Promise.all([
-    db.select({ cnt: sql<number>`count(*)::int` }).from(entitiesTable)
-      .where(and(visibleEntity, gte(entitiesTable.contactConfidence, 30))),  // phone alone (30pts) counts as contactable
+      db.select({ cnt: sql<number>`count(*)::int` }).from(entitiesTable)
+      .where(and(visibleEntity, eq(entitiesTable.contactOutcome, "direct_contact_verified"))),
     db.select({ cnt: sql<number>`count(*)::int` }).from(entitiesTable)
       .where(and(visibleEntity, or(
         isNotNull(entitiesTable.email),
@@ -291,7 +292,8 @@ router.get("/dashboard/stats", async (_req, res): Promise<void> => {
     // L2: break down the "Reachable" metric by outcome type so the dashboard
     // distinguishes personal contacts from organisational/social signals.
     db.select({
-      personal: sql<number>`count(*) filter (where contact_outcome in ('direct_contact_candidate','direct_contact_verified'))::int`,
+      personal: sql<number>`count(*) filter (where contact_outcome = 'direct_contact_verified')::int`,
+      candidate: sql<number>`count(*) filter (where contact_outcome = 'direct_contact_candidate')::int`,
       verified: sql<number>`count(*) filter (where contact_outcome = 'direct_contact_verified')::int`,
       org:      sql<number>`count(*) filter (where contact_outcome = 'organization_contact')::int`,
       social:   sql<number>`count(*) filter (where contact_outcome = 'social_only')::int`,

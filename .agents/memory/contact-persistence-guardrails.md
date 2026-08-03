@@ -22,3 +22,9 @@ Reachability prompts must use the same sanitized, source-aware direct-contact cl
 **Why:** A target-scoped canary exposed that Atlas's provider prompt omitted `phoneSource` even though persistence scoring already excluded EDGAR/Companies House phones, causing the model to receive a false direct-access instruction.
 
 **How to apply:** Treat `phoneSource` as required context at every `assessTargetReachability` call, especially AI/deep-web prompt construction; add a regression test whenever a new reachability caller is introduced.
+
+Operational `isHot`, dashboard contactable counts, and the `direct` entity filter require `direct_contact_verified`; `direct_contact_candidate` is a separate review-only surface and organization routes never enter either metric.
+
+**Why:** A full sanitation/backfill audit found stale hot flags and an API contract gap that could make review candidates or legacy organization outcomes look reachable even after active contact vectors were quarantined.
+
+**How to apply:** Keep the backfill, startup maintenance, Atlas persistence, dashboard queries, API filters, generated OpenAPI/Zod schemas, and funnel UI aligned. Verify candidate queries separately and expect zero verified/hot/contactable rows until exact target-person attribution is present.

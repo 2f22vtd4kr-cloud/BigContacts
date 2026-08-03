@@ -102,8 +102,14 @@ export function scoreAttribution(params: {
   resolvedDomain:  string | null;
   isValidEmail:    boolean;
   isValidPhone:    boolean;
+  exactClaimObserved?: boolean;
+  targetPersonEvidence?: boolean;
 }): AttributionResult {
-  const { email, phone, sources, entityType, resolvedDomain, isValidEmail, isValidPhone } = params;
+  const {
+    email, phone, sources, entityType, resolvedDomain, isValidEmail, isValidPhone,
+    exactClaimObserved = false,
+    targetPersonEvidence = false,
+  } = params;
 
   // 1. Source authority — best single source
   const authority = sources.length ? Math.max(...sources.map(authorityOf)) : 0.28;
@@ -162,7 +168,11 @@ export function scoreAttribution(params: {
   };
 
   const score = geometricMean(Object.values(dimensions));
-  const attributed = score >= ATTRIBUTION_THRESHOLD && (isValidEmail || isValidPhone);
+  const attributed =
+    score >= ATTRIBUTION_THRESHOLD &&
+    (isValidEmail || isValidPhone) &&
+    exactClaimObserved &&
+    targetPersonEvidence;
 
   // Build human-readable explanation
   const parts: string[] = [];
@@ -171,6 +181,8 @@ export function scoreAttribution(params: {
   if (email && isValidEmail && !isGenericLocalPart(email)) parts.push("personal local-part");
   if (domainFit >= 0.80 && resolvedDomain) parts.push(`domain match: ${resolvedDomain}`);
   if (score < ATTRIBUTION_THRESHOLD) parts.push("below attribution threshold");
+  if (!exactClaimObserved) parts.push("no exact claim URL");
+  if (!targetPersonEvidence) parts.push("target-person attribution not established");
 
   return {
     attributed,

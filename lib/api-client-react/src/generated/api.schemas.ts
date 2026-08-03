@@ -501,9 +501,19 @@ starred?: boolean;
  */
 hidden?: boolean;
 /**
- * Show only entities with at least one public contact channel
+ * Show only entities with a verified personal contact route
  */
 contactable?: boolean;
+/**
+ * Filter by contact evidence state (any, direct, verified, candidate, direct_contact_candidate, org, social)
+ */
+contactOutcome?: string;
+/**
+ * Minimum contact confidence score
+ * @minimum 0
+ * @maximum 100
+ */
+minContactConfidence?: number;
 /**
  * Show only entities with an email address
  */

@@ -11,6 +11,7 @@ import {
   computeContactConfidence,
   hasMeaningfulDirectContact,
   isPersonalContactOutcome,
+  isHeuristicEmailEvidence,
 } from "../lib/contact-confidence";
 
 describe("public contact quality guardrails", () => {
@@ -18,6 +19,7 @@ describe("public contact quality guardrails", () => {
     expect(isValidPublicEmail("first.last@example.com")).toBe(false);
     expect(sanitizePublicEmail("owner@cloudflare.com")).toBeNull();
     expect(sanitizePublicEmail("first.last@domain.com")).toBeNull();
+    expect(sanitizePublicEmail("trust.@bizprofile.net")).toBeNull();
   });
 
   it("keeps shared press and media inboxes out of personal-tool runs", () => {
@@ -58,6 +60,25 @@ describe("public contact quality guardrails", () => {
     expect(hasMeaningfulDirectContact({ phone: "415-555-2671", phoneSource: "EDGAR-Phone" })).toBe(false);
     expect(hasMeaningfulDirectContact({ phone: "415-555-2671", phoneSource: "CompaniesHouse-Phone" })).toBe(false);
     expect(hasMeaningfulDirectContact({ type: "Trust", phone: "+14155552671" })).toBe(false);
+  });
+
+  it("keeps pattern and SMTP-only emails review-only", () => {
+    expect(isHeuristicEmailEvidence({
+      email: "timothy@example.org",
+      emailSource: "pattern-generated",
+    })).toBe(true);
+    expect(isHeuristicEmailEvidence({
+      email: "timothy@example.org",
+      metadata: { enrichmentSources: ["SMTP-Verified"] },
+    })).toBe(true);
+    expect(computeContactConfidence({
+      email: "timothy@example.org",
+      emailSource: "pattern-generated",
+    })).toBe(0);
+    expect(hasMeaningfulDirectContact({
+      email: "timothy@example.org",
+      emailSource: "pattern-generated",
+    })).toBe(false);
   });
 
   it("keeps legacy registry phones out of Atlas hot status", () => {

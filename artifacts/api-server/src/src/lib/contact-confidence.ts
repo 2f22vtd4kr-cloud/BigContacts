@@ -22,6 +22,39 @@ import {
   isValidPublicSocialHandle,
 } from "./contact-validation";
 
+const HEURISTIC_EMAIL_SOURCE_RE =
+  /(emailpattern|pattern-generated|smtp|gravatar|emailpattern-mx|spf-|mx-)/i;
+
+/**
+ * Mailbox existence and address-pattern matches are useful OSINT leads, but
+ * they do not attribute an address to the named person. Keep them review-only
+ * until a target-person claim is independently observed.
+ */
+export function isHeuristicEmailEvidence(input: {
+  email?: string | null;
+  emailSource?: string | null;
+  metadata?: string | Record<string, unknown> | null;
+}): boolean {
+  if (!input.email?.trim()) return false;
+  if (input.emailSource && HEURISTIC_EMAIL_SOURCE_RE.test(input.emailSource)) return true;
+  let meta: Record<string, unknown> = {};
+  if (typeof input.metadata === "string") {
+    try {
+      const parsed = JSON.parse(input.metadata);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) meta = parsed;
+    } catch { /* malformed metadata remains untrusted */ }
+  } else if (input.metadata && typeof input.metadata === "object") {
+    meta = input.metadata;
+  }
+  const sources = [
+    ...(Array.isArray(meta.enrichmentSources) ? meta.enrichmentSources.map(String) : []),
+    ...Object.entries((meta.sourceHits && typeof meta.sourceHits === "object") ? meta.sourceHits : {})
+      .filter(([, hit]) => Boolean(hit))
+      .map(([source]) => source),
+  ];
+  return sources.some((source) => HEURISTIC_EMAIL_SOURCE_RE.test(source));
+}
+
 export function computeContactConfidence(entity: {
   type?: string | null;
   organizationContact?: boolean;
@@ -33,6 +66,8 @@ export function computeContactConfidence(entity: {
   twitterHandle?: string | null;
   instagramHandle?: string | null;
   knownResidences?: string | null;
+  emailSource?: string | null;
+  metadata?: string | Record<string, unknown> | null;
 }): number {
   // This score is the personal access score. Company/Trust records may have
   // useful organisation evidence, but it must not be presented as a personal
@@ -42,7 +77,11 @@ export function computeContactConfidence(entity: {
   }
   let score = 0;
   const emailLocal = entity.email?.split("@")[0] ?? "";
-  if (isValidPublicEmail(entity.email) && !isGenericEmailPrefix(emailLocal)) score += 35;
+  if (
+    isValidPublicEmail(entity.email) &&
+    !isGenericEmailPrefix(emailLocal) &&
+    !isHeuristicEmailEvidence(entity)
+  ) score += 35;
   if (
     normalizePhone(entity.phone) !== null &&
     entity.phoneSource !== "EDGAR-Phone" &&
@@ -68,6 +107,8 @@ export function hasMeaningfulDirectContact(entity: {
   phone?: string | null;
   phoneSource?: string | null;
   contactOutcome?: string | null;
+  emailSource?: string | null;
+  metadata?: string | Record<string, unknown> | null;
 }): boolean {
   if (
     entity.organizationContact ||
@@ -80,7 +121,8 @@ export function hasMeaningfulDirectContact(entity: {
   const hasPersonalEmail =
     Boolean(entity.email?.trim()) &&
     isValidPublicEmail(entity.email) &&
-    !isGenericEmailPrefix(emailLocal);
+    !isGenericEmailPrefix(emailLocal) &&
+    !isHeuristicEmailEvidence(entity);
   const hasPersonalPhone =
     Boolean(entity.phone?.trim()) &&
     normalizePhone(entity.phone) !== null &&
@@ -142,6 +184,7 @@ export function computeContactOutcome(entity: {
   emailSource?: string | null;
   phoneSource?: string | null;
   isGenericPrefix?: boolean;      // explicit flag from enricher (K2)
+  metadata?: string | Record<string, unknown> | null;
 }): ContactOutcome {
   const emailStr = entity.email?.trim() ?? "";
   const phoneStr = entity.phone?.trim() ?? "";
@@ -151,9 +194,10 @@ export function computeContactOutcome(entity: {
   const isOrgPhone =
     entity.phoneSource === "EDGAR-Phone" ||
     entity.phoneSource === "CompaniesHouse-Phone";
+  const heuristicEmail = isHeuristicEmailEvidence(entity);
 
   // Verified personal contact — highest priority
-  if (entity.validatedDirectContact && (emailStr || phoneStr) && !isOrgPhone) {
+  if (entity.validatedDirectContact && (emailStr || phoneStr) && !isOrgPhone && !heuristicEmail) {
     return "direct_contact_verified";
   }
 
@@ -173,6 +217,7 @@ export function computeContactOutcome(entity: {
 
     // Generic email → org_contact regardless of whether a phone also exists
     if (isGenericEmail || isOrgPhone) return "organization_contact";
+    if (heuristicEmail) return "evidence_only";
 
     // Personal email/phone (or unknown source without generic prefix)
     return "direct_contact_candidate";

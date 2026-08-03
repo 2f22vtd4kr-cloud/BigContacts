@@ -583,7 +583,8 @@ router.get("/pipeline/funnel", async (_req: Request, res: Response): Promise<voi
     }
 
     const total = Object.values(outcomes).reduce((s, n) => s + n, 0);
-    const directCount = (outcomes["direct_contact_candidate"] ?? 0) + (outcomes["direct_contact_verified"] ?? 0);
+    const verifiedCount = outcomes["direct_contact_verified"] ?? 0;
+    const reviewCandidateCount = outcomes["direct_contact_candidate"] ?? 0;
     const socialCount = outcomes["social_only"] ?? 0;
     const evidenceCount = outcomes["evidence_only"] ?? 0;
     const noneCount = outcomes["none"] ?? 0;
@@ -594,7 +595,9 @@ router.get("/pipeline/funnel", async (_req: Request, res: Response): Promise<voi
       byEntityType,
       byRegistry,
       conversionRate: {
-        toDirectCandidate: total > 0 ? +(directCount / total).toFixed(4) : 0,
+        toDirectCandidate: total > 0 ? +(verifiedCount / total).toFixed(4) : 0,
+        toVerifiedContact: total > 0 ? +(verifiedCount / total).toFixed(4) : 0,
+        toReviewCandidate: total > 0 ? +(reviewCandidateCount / total).toFixed(4) : 0,
         toSocialOnly:      total > 0 ? +(socialCount / total).toFixed(4) : 0,
         toEvidenceOnly:    total > 0 ? +(evidenceCount / total).toFixed(4) : 0,
         notEnriched:       total > 0 ? +(noneCount / total).toFixed(4) : 0,

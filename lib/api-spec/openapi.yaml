@@ -75,7 +75,15 @@ paths:
         - name: contactable
           in: query
           schema: { type: boolean }
-          description: Show only entities with at least one public contact channel
+          description: Show only entities with a verified personal contact route
+        - name: contactOutcome
+          in: query
+          schema: { type: string }
+          description: Filter by contact evidence state (any, direct, verified, candidate, direct_contact_candidate, org, social)
+        - name: minContactConfidence
+          in: query
+          schema: { type: integer, minimum: 0, maximum: 100 }
+          description: Minimum contact confidence score
         - name: hasEmail
           in: query
           schema: { type: boolean }

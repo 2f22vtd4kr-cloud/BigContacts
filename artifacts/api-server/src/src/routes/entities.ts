@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, ilike, and, gte, sql, inArray, or, desc } from "drizzle-orm";
+import { eq, ilike, and, gte, sql, inArray, or, desc, not } from "drizzle-orm";
 import { db, entitiesTable, assetsTable, relationshipsTable, contactEvidenceTable, dedupReviewsTable } from "@workspace/db";
 import {
   ListEntitiesQueryParams,
@@ -123,18 +123,16 @@ router.get("/entities", async (req, res): Promise<void> => {
   } else if (hasInstagram) {
     conditions.push(hasValue(entitiesTable.instagramHandle));
   } else if (contactable) {
-    conditions.push(or(
-      hasValue(entitiesTable.email),
-      hasValue(entitiesTable.phone),
-      hasValue(entitiesTable.contactMethod),
-      hasValue(entitiesTable.telegramHandle),
-      hasValue(entitiesTable.instagramHandle),
-    )!);
+    // Contactable is an operational reachability filter, not a generic
+    // "has a public vector" filter. Candidates and organization routes remain
+    // reviewable through contactOutcome, but do not appear as reachable.
+    conditions.push(eq(entitiesTable.contactOutcome, "direct_contact_verified"));
   }
 
   // ── Contact richness tier filter ───────────────────────────────────────────
   // "any"      → has any meaningful contact (social, org, direct, verified)
-  // "direct"   → direct_contact_candidate OR direct_contact_verified
+  // "direct"   → direct_contact_verified only (operationally reachable)
+  // "candidate" / "direct_contact_candidate" → review-only person candidate
   // "verified" → direct_contact_verified only
   // "org"      → organization_contact only
   // "social"   → social_only
@@ -143,9 +141,13 @@ router.get("/entities", async (req, res): Promise<void> => {
       "social_only", "organization_contact", "direct_contact_candidate", "direct_contact_verified",
     ]));
   } else if (contactOutcome === "direct") {
-    conditions.push(inArray(entitiesTable.contactOutcome, [
-      "direct_contact_candidate", "direct_contact_verified",
-    ]));
+    conditions.push(eq(entitiesTable.contactOutcome, "direct_contact_verified"));
+  } else if (contactOutcome === "candidate" || contactOutcome === "direct_contact_candidate") {
+    conditions.push(eq(entitiesTable.contactOutcome, "direct_contact_candidate"));
+    // Legacy rows can carry a candidate outcome despite being organization
+    // records. Keep this review surface limited to person-level candidates;
+    // organizations are classified and presented through organization_contact.
+    conditions.push(not(inArray(entitiesTable.type, ["Corporation", "Corp", "Trust"])));
   } else if (contactOutcome === "verified") {
     conditions.push(eq(entitiesTable.contactOutcome, "direct_contact_verified"));
   } else if (contactOutcome === "org") {

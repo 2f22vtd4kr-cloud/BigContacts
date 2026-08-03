@@ -54,6 +54,23 @@ describe("GET /api/entities", () => {
     expect(Array.isArray(body)).toBe(true);
     body.forEach((e: any) => expect(e.type).toBe("HNWI"));
   });
+
+  it("keeps review-only candidates separate from reachable direct contacts", async () => {
+    const candidate = await get("/api/entities?contactOutcome=direct_contact_candidate&limit=100");
+    expect(candidate.status).toBe(200);
+    expect(Array.isArray(candidate.body)).toBe(true);
+    candidate.body.forEach((e: any) => {
+      expect(e.contactOutcome).toBe("direct_contact_candidate");
+      expect(e.isHot).toBe(false);
+    });
+
+    const direct = await get("/api/entities?contactOutcome=direct&limit=100");
+    expect(direct.status).toBe(200);
+    expect(Array.isArray(direct.body)).toBe(true);
+    direct.body.forEach((e: any) => {
+      expect(e.contactOutcome).toBe("direct_contact_verified");
+    });
+  });
 });
 
 // ── 3. Dashboard stats ───────────────────────────────────────────────────────

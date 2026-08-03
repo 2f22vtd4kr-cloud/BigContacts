@@ -21,6 +21,10 @@ export const HealthCheckResponse = zod.object({
  */
 export const listEntitiesQueryLimitDefault = 50;
 export const listEntitiesQueryOffsetDefault = 0;
+export const listEntitiesQueryMinContactConfidenceMin = 0;
+export const listEntitiesQueryMinContactConfidenceMax = 100;
+
+
 
 export const ListEntitiesQueryParams = zod.object({
   "type": zod.coerce.string().optional().describe('Filter by entity type (HNWI, Corporation, Trust, Gatekeeper)'),
@@ -30,7 +34,9 @@ export const ListEntitiesQueryParams = zod.object({
   "offset": zod.coerce.number().default(listEntitiesQueryOffsetDefault),
   "starred": zod.coerce.boolean().optional().describe('Show only starred entities'),
   "hidden": zod.coerce.boolean().optional().describe('Show only hidden entities'),
-  "contactable": zod.coerce.boolean().optional().describe('Show only entities with at least one public contact channel'),
+  "contactable": zod.coerce.boolean().optional().describe('Show only entities with a verified personal contact route'),
+  "contactOutcome": zod.coerce.string().optional().describe('Filter by contact evidence state (any, direct, verified, candidate, direct_contact_candidate, org, social)'),
+  "minContactConfidence": zod.coerce.number().min(listEntitiesQueryMinContactConfidenceMin).max(listEntitiesQueryMinContactConfidenceMax).optional().describe('Minimum contact confidence score'),
   "hasEmail": zod.coerce.boolean().optional().describe('Show only entities with an email address'),
   "hasPhone": zod.coerce.boolean().optional().describe('Show only entities with a phone number'),
   "hasWhatsapp": zod.coerce.boolean().optional().describe('Show only entities with a WhatsApp contact vector'),

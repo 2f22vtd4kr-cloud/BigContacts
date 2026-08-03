@@ -23,7 +23,12 @@ import { runWesternHnwiIngestion, classifyEntityType } from "./western-hnwi-inge
 import { logger } from "./logger";
 import { contactCacheScanAll, contactCacheCount, contactCacheSet, type CachedContact, delCachePattern } from "./redis";
 import { warmUpSemanticEngine } from "./semantic-engine";
-import { computeContactConfidence, computeContactOutcome, hasMeaningfulDirectContact } from "./contact-confidence";
+import {
+  computeContactConfidence,
+  computeContactOutcome,
+  hasMeaningfulDirectContact,
+  isHeuristicEmailEvidence,
+} from "./contact-confidence";
 import {
   sanitizePublicEmail,
   sanitizePublicPhone,
@@ -88,12 +93,19 @@ async function sanitizePersistedContactData(): Promise<void> {
       const email = sanitizePublicEmail(data.email);
       const phone = sanitizePublicPhone(data.phone);
       const phoneSource = data.phoneSource ?? inferCachedPhoneSource(key);
+      const activeEmail = isHeuristicEmailEvidence({
+        email,
+        metadata: {
+          enrichmentSources: data.enrichmentSources,
+          sourceHits: data.sourceHits,
+        },
+      }) ? null : email;
       const linkedinUrl = sanitizePublicSocialUrl(data.linkedinUrl, "linkedin", "person");
       const twitterHandle = sanitizePublicSocialHandle(data.twitterHandle ?? data.twitter, "twitter");
       const instagramHandle = sanitizePublicSocialHandle(data.instagramHandle, "instagram");
       const telegramHandle = sanitizePublicTelegramHandle(data.telegramHandle);
       const changed =
-        email !== (data.email ?? null) ||
+        activeEmail !== (data.email ?? null) ||
         phone !== (data.phone ?? null) ||
         phoneSource !== (data.phoneSource ?? null) ||
         linkedinUrl !== (data.linkedinUrl ?? null) ||
@@ -103,7 +115,7 @@ async function sanitizePersistedContactData(): Promise<void> {
       if (!changed) continue;
       const cleaned: CachedContact = {
         ...data,
-        email,
+        email: activeEmail,
         phone,
         phoneSource,
         linkedinUrl,
@@ -112,7 +124,7 @@ async function sanitizePersistedContactData(): Promise<void> {
         instagramHandle,
         telegramHandle,
         contactConfidence: computeContactConfidence({
-          email,
+          email: activeEmail,
           phone,
           phoneSource,
           linkedinUrl,
@@ -145,6 +157,7 @@ async function sanitizePersistedContactData(): Promise<void> {
         contactMethod: entitiesTable.contactMethod,
         contactOutcome: entitiesTable.contactOutcome,
         isHot: entitiesTable.isHot,
+        metadata: entitiesTable.metadata,
       })
       .from(entitiesTable)
       .where(or(
@@ -159,6 +172,32 @@ async function sanitizePersistedContactData(): Promise<void> {
     for (const entity of rows) {
       const email = sanitizePublicEmail(entity.email);
       const phone = sanitizePublicPhone(entity.phone);
+      let metadata: Record<string, unknown> = {};
+      try {
+        const parsed = JSON.parse(entity.metadata ?? "{}");
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) metadata = parsed;
+      } catch { /* malformed metadata remains untrusted */ }
+      const heuristicEmail = isHeuristicEmailEvidence({
+        email,
+        emailSource: typeof metadata.emailSource === "string" ? metadata.emailSource : null,
+        metadata,
+      });
+      const activeEmail = heuristicEmail ? null : email;
+      if (heuristicEmail && email) {
+        const reviewOnly = Array.isArray(metadata.reviewOnlyContacts)
+          ? metadata.reviewOnlyContacts as Array<Record<string, unknown>>
+          : [];
+        if (!reviewOnly.some((item) => item.field === "email" && item.value === email)) {
+          reviewOnly.push({
+            field: "email",
+            value: email,
+            reason: "Pattern-generated or SMTP-only address; no exact target-person claim evidence.",
+            sources: metadata.enrichmentSources ?? [],
+            quarantinedAt: new Date().toISOString(),
+          });
+          metadata.reviewOnlyContacts = reviewOnly.slice(-25);
+        }
+      }
       const linkedinUrl = sanitizePublicSocialUrl(entity.linkedinUrl, "linkedin", "person");
       const twitterHandle = sanitizePublicSocialHandle(entity.twitterHandle, "twitter");
       const instagramHandle = sanitizePublicSocialHandle(entity.instagramHandle, "instagram");
@@ -167,7 +206,7 @@ async function sanitizePersistedContactData(): Promise<void> {
         entity.phoneSource ??
         inferRegistryPhoneSource(entity.phone, entity.sourceRegistries, entity.contactMethod);
       const contactOutcome = computeContactOutcome({
-        email,
+        email: activeEmail,
         phone,
         phoneSource: inferredPhoneSource,
         linkedinUrl,
@@ -177,13 +216,13 @@ async function sanitizePersistedContactData(): Promise<void> {
       });
       const isHot = hasMeaningfulDirectContact({
         type: entity.type,
-        email,
+        email: activeEmail,
         phone,
         phoneSource: inferredPhoneSource,
         contactOutcome,
-      });
+      }) && contactOutcome === "direct_contact_verified";
       const changed =
-        email !== entity.email ||
+        activeEmail !== entity.email ||
         phone !== entity.phone ||
         linkedinUrl !== entity.linkedinUrl ||
         twitterHandle !== entity.twitterHandle ||
@@ -195,7 +234,7 @@ async function sanitizePersistedContactData(): Promise<void> {
       if (!changed) continue;
       const contactConfidence = computeContactConfidence({
         type: entity.type,
-        email,
+        email: activeEmail,
         phone,
         linkedinUrl,
         twitterHandle,
@@ -206,7 +245,7 @@ async function sanitizePersistedContactData(): Promise<void> {
       });
       await db.update(entitiesTable)
         .set({
-          email,
+          email: activeEmail,
           phone,
           linkedinUrl,
           twitterHandle,
@@ -216,6 +255,7 @@ async function sanitizePersistedContactData(): Promise<void> {
           contactConfidence,
           contactOutcome,
           isHot,
+          metadata: JSON.stringify(metadata),
           updatedAt: new Date(),
         })
         .where(eq(entitiesTable.id, entity.id));
@@ -399,7 +439,7 @@ async function runPopulatedDbMaintenance(): Promise<void> {
               phone,
               phoneSource,
               contactOutcome,
-            });
+            }) && contactOutcome === "direct_contact_verified";
             const updates: Record<string, unknown> = { updatedAt: new Date() };
             if (email) updates["email"] = email;
             if (phone) updates["phone"] = phone;

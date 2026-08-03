@@ -24,6 +24,7 @@ import { enrichInHouse } from "../lib/enrichment/contact-enrichment";
 import {
   computeContactConfidence,
   computeContactOutcome,
+  isHeuristicEmailEvidence,
   isPersonalContactOutcome,
   type ContactOutcome,
 } from "../lib/contact-confidence";
@@ -453,14 +454,29 @@ async function runPhaseJPass(jobId: string, runId: number, entities: PassEntity[
       // ── J6: Multi-Dimensional Attribution Scoring ──────────────────────────
       const validEmail = Boolean(bestEmail && isValidPublicEmail(bestEmail));
       const validPhone = Boolean(bestPhone);
-      const attribution = scoreAttribution({
+      const heuristicEmail = isHeuristicEmailEvidence({
         email: bestEmail,
+        emailSource: inHouseResult.emailSource,
+        metadata: {
+          ...meta,
+          enrichmentSources: mergedSources,
+          sourceHits: inHouseResult.sourceHits,
+        },
+      });
+      const activeEmail = heuristicEmail ? null : bestEmail;
+      const attribution = scoreAttribution({
+        email: activeEmail,
         phone: bestPhone,
         sources: mergedSources,
         entityType: entity.type,
         resolvedDomain: domainInfo.domain,
-        isValidEmail: validEmail,
+        isValidEmail: Boolean(activeEmail && isValidPublicEmail(activeEmail)),
         isValidPhone: validPhone,
+      // A search hit, domain match, SMTP result, or provider repetition is not
+      // an identity claim. Verification requires both an exact fetched claim
+      // URL and explicit target-person attribution.
+      exactClaimObserved: false,
+      targetPersonEvidence: false,
       });
 
       // Determine outcome
@@ -468,7 +484,7 @@ async function runPhaseJPass(jobId: string, runId: number, entities: PassEntity[
       const outcome: ContactOutcome = orgContact
         ? "organization_contact"
         : computeContactOutcome({
-          email: bestEmail,
+          email: activeEmail,
           phone: bestPhone,
           phoneSource: inHouseResult.phoneSource ?? (meta["phoneSource"] as string | null | undefined),
           linkedinUrl: bestLinkedIn,
@@ -478,6 +494,15 @@ async function runPhaseJPass(jobId: string, runId: number, entities: PassEntity[
           website: inHouseResult.website ?? (meta["website"] as string | null | undefined),
           bizLocation: inHouseResult.address ?? (meta["bizLocation"] as string | null | undefined),
           validatedDirectContact: attribution.attributed,
+          metadata: {
+            ...meta,
+            ...(inHouseResult.phoneSource ? { phoneSource: inHouseResult.phoneSource } : {}),
+            ...(inHouseResult.emailSource ? { emailSource: inHouseResult.emailSource } : {}),
+            phaseJ: {
+              ...(typeof meta.phaseJ === "object" && meta.phaseJ ? meta.phaseJ : {}),
+              J6attributed: attribution.attributed,
+            },
+          },
         });
 
        // ── Track totals ───────────────────────────────────────────────────────
@@ -525,7 +550,7 @@ async function runPhaseJPass(jobId: string, runId: number, entities: PassEntity[
       const entityUpdates: Record<string, unknown> = {
         contactConfidence: computeContactConfidence({
           type: entity.type,
-          email: bestEmail ?? entity.email,
+          email: activeEmail ?? (heuristicEmail ? null : entity.email),
           phone: bestPhone ?? entity.phone,
           phoneSource: inHouseResult.phoneSource ?? (meta["phoneSource"] as string | null | undefined),
           linkedinUrl: bestLinkedIn,
@@ -538,7 +563,7 @@ async function runPhaseJPass(jobId: string, runId: number, entities: PassEntity[
         metadata: JSON.stringify(nextMeta),
         updatedAt: new Date(),
       };
-      if (bestEmail && !entity.email) entityUpdates.email = bestEmail;
+       if (activeEmail && !entity.email) entityUpdates.email = activeEmail;
       if (bestPhone && !entity.phone) entityUpdates.phone = bestPhone;
       if (bestLinkedIn && !entity.linkedinUrl) entityUpdates.linkedinUrl = bestLinkedIn;
       if (bestTwitter && !entity.twitterHandle) entityUpdates.twitterHandle = bestTwitter;

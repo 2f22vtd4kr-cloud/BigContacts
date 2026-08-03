@@ -39,7 +39,12 @@ import { discoverSocialPresence } from "../lib/enrichment/social-discovery";
 import { discoverMessengerPresence } from "../lib/enrichment/messenger-discovery";
 import { discoverViaFoundationFilings } from "../lib/enrichment/foundation-filings";
 import { runBroadDiscovery } from "../lib/enrichment/broad-discovery";
-import { computeContactConfidence, computeContactOutcome, hasMeaningfulDirectContact } from "../lib/contact-confidence";
+import {
+  computeContactConfidence,
+  computeContactOutcome,
+  hasMeaningfulDirectContact,
+  isHeuristicEmailEvidence,
+} from "../lib/contact-confidence";
 import {
   sanitizePublicEmail,
   sanitizePublicPhone,
@@ -47,7 +52,13 @@ import {
   isValidPublicSocialHandle,
   sanitizePublicSocialHandle,
 } from "../lib/contact-validation";
-import { contactCacheSet, contactCacheScanAll, contactCacheCount, type CachedContact } from "../lib/redis";
+import {
+  contactCacheSet,
+  contactCacheScanAll,
+  contactCacheCount,
+  delCachePattern,
+  type CachedContact,
+} from "../lib/redis";
 import { logger } from "../lib/logger";
 import { backfillWealthLLM } from "../lib/wealth-estimator";
 
@@ -871,8 +882,8 @@ router.post("/ingest/in-house-enrich", async (req: Request, res: Response): Prom
         if (cleanPhone && !entity.phone) updates["phone"] = cleanPhone;
         // Write twitter handle to entity column so it contributes to contactConfidence
         if (cleanTwitter && !entity.twitterHandle) updates["twitterHandle"] = cleanTwitter;
-        // M1: promote to direct_contact_verified when SMTP handshake confirmed deliverability
-        if (result.smtpVerified) updates["validatedDirectContact"] = true;
+        // SMTP confirms mailbox delivery only. Target-person attribution must
+        // come from exact claim evidence, never from an SMTP handshake.
 
         const confidence = computeContactConfidence({
           type: entity.type,
@@ -916,7 +927,8 @@ router.post("/ingest/in-house-enrich", async (req: Request, res: Response): Prom
           isGenericPrefix:       result.hasGenericEmail,
           emailSource:           result.emailSource ?? null,
           phoneSource:           result.phoneSource ?? null,
-          validatedDirectContact: result.smtpVerified === true,
+          validatedDirectContact: false,
+          metadata: meta,
         });
         updates["contactOutcome"] = outcome;
         meta["contactOutcome"]    = outcome;
@@ -1857,12 +1869,38 @@ router.post("/ingest/backfill-contact-outcomes", async (_req: Request, res: Resp
       const phaseJSources = Array.isArray(phaseJ["sources"])
         ? phaseJ["sources"] as unknown[]
         : [];
+      const normalizedEmail = sanitizePublicEmail(e.email);
+      const malformedEmail = Boolean(e.email && !normalizedEmail);
+      const heuristicEmail = isHeuristicEmailEvidence({
+        email: normalizedEmail ?? e.email,
+        emailSource: typeof meta["emailSource"] === "string" ? meta["emailSource"] : null,
+        metadata: meta,
+      }) || malformedEmail;
+      const activeEmail = heuristicEmail ? null : normalizedEmail;
+      const nextMeta: Record<string, unknown> = { ...meta };
+      if (heuristicEmail && e.email) {
+        const reviewOnly = Array.isArray(nextMeta.reviewOnlyContacts)
+          ? nextMeta.reviewOnlyContacts as Array<Record<string, unknown>>
+          : [];
+        if (!reviewOnly.some((item) => item.field === "email" && item.value === e.email)) {
+          reviewOnly.push({
+            field: "email",
+            value: e.email,
+            reason: malformedEmail
+              ? "Malformed public email; retained only as review evidence."
+              : "Pattern-generated or SMTP-only address; no exact target-person claim evidence.",
+            sources: nextMeta.enrichmentSources ?? [],
+            quarantinedAt: new Date().toISOString(),
+          });
+          nextMeta.reviewOnlyContacts = reviewOnly.slice(-25);
+        }
+      }
       const phoneSource =
         (typeof meta["phoneSource"] === "string" ? meta["phoneSource"] : null) ??
         (phaseJSources.includes("EDGAR-Phone") ? "EDGAR-Phone" : null) ??
         (phaseJSources.includes("CompaniesHouse-Phone") ? "CompaniesHouse-Phone" : null);
       const computedOutcome = computeContactOutcome({
-        email:           e.email,
+        email:           activeEmail,
         phone:           e.phone,
         linkedinUrl:     e.linkedinUrl,
         twitterHandle:   e.twitterHandle,
@@ -1871,20 +1909,23 @@ router.post("/ingest/backfill-contact-outcomes", async (_req: Request, res: Resp
         website:         meta["website"] as string | null | undefined,
         bizLocation:     meta["bizLocation"] as string | null | undefined,
         // L1: read persisted source labels so org contacts are classified correctly
-        emailSource:           meta["emailSource"] as string | null | undefined,
+        emailSource:           nextMeta["emailSource"] as string | null | undefined,
         phoneSource,
-        // M1: derive verified status from enrichmentSources (SMTP-Verified tag)
-        validatedDirectContact: Array.isArray(meta["enrichmentSources"]) &&
-          (meta["enrichmentSources"] as string[]).includes("SMTP-Verified"),
+        // SMTP-Verified is a deliverability observation, not identity
+        // attribution. Only an explicit target-scoped adjudication may verify.
+        validatedDirectContact: meta["contactAttributionValidated"] === true,
+        metadata: nextMeta,
       });
       const outcome =
         e.type === "Corporation" || e.type === "Corp" || e.type === "Trust"
           ? (computedOutcome === "none" ? "none" : "organization_contact")
           : computedOutcome;
       const contactConfidence = computeContactConfidence({
-        email: e.email,
+        email: activeEmail,
         phone: e.phone,
         phoneSource,
+        emailSource: nextMeta["emailSource"] as string | null | undefined,
+        metadata: nextMeta,
         linkedinUrl: e.linkedinUrl,
         twitterHandle: e.twitterHandle,
         instagramHandle: e.instagramHandle,
@@ -1892,18 +1933,19 @@ router.post("/ingest/backfill-contact-outcomes", async (_req: Request, res: Resp
       });
       const isHot = hasMeaningfulDirectContact({
         type: e.type,
-        email: e.email,
+        email: activeEmail,
         phone: e.phone,
         phoneSource,
-      });
+        contactOutcome: outcome,
+      }) && outcome === "direct_contact_verified";
       // Also fix needsEnrichment: only false when direct contact exists (J1)
       const hasDirectContact = Boolean(e.email || e.phone);
       const needsMeta: Record<string, unknown> = {
-        ...meta,
+        ...nextMeta,
         ...(phoneSource ? { phoneSource } : {}),
         contactOutcome: outcome,
       };
-      if (hasDirectContact) {
+       if (hasDirectContact) {
         needsMeta["needsEnrichment"] = false;
       } else if (meta["needsEnrichment"] === false && !hasDirectContact) {
         // Was incorrectly marked complete (social-only) — re-open it
@@ -1911,6 +1953,7 @@ router.post("/ingest/backfill-contact-outcomes", async (_req: Request, res: Resp
       }
       await db.update(entitiesTable)
         .set({
+          email: activeEmail,
           contactOutcome: outcome,
           contactConfidence,
           isHot,
@@ -1930,6 +1973,8 @@ router.post("/ingest/backfill-contact-outcomes", async (_req: Request, res: Resp
   );
   for (const row of outcomeRows.rows as any[]) byOutcome[row.outcome] = row.count;
 
+  await delCachePattern("entities:list:*");
+  await delCachePattern("dashboard:*");
   logger.info({ updated, byOutcome }, "Contact outcome backfill complete (J0 + L1)");
   res.json({
     updated, total: entities.length,

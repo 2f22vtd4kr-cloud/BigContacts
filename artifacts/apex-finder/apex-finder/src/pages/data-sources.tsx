@@ -415,6 +415,8 @@ type FunnelData = {
   byRegistry: Record<string, Record<string, number>>;
   conversionRate: {
     toDirectCandidate: number;
+    toVerifiedContact?: number;
+    toReviewCandidate?: number;
     toSocialOnly: number;
     toEvidenceOnly: number;
     notEnriched: number;
@@ -530,7 +532,8 @@ function FunnelPanel() {
           {/* Conversion summary */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
-              { label: "Direct Contact", value: ((data.conversionRate.toDirectCandidate ?? 0) * 100).toFixed(2) + "%", color: "text-emerald-400" },
+              { label: "Verified Contact", value: ((data.outcomes["direct_contact_verified"] ?? 0) / Math.max(data.total, 1) * 100).toFixed(2) + "%", color: "text-emerald-400" },
+              { label: "Candidate Review", value: ((data.outcomes["direct_contact_candidate"] ?? 0) / Math.max(data.total, 1) * 100).toFixed(2) + "%", color: "text-amber-300" },
               { label: "Social Only",    value: ((data.conversionRate.toSocialOnly     ?? 0) * 100).toFixed(1) + "%",  color: "text-blue-400" },
               { label: "Evidence Only",  value: ((data.conversionRate.toEvidenceOnly   ?? 0) * 100).toFixed(1) + "%",  color: "text-amber-400" },
               { label: "Not Enriched",   value: ((data.conversionRate.notEnriched      ?? 0) * 100).toFixed(1) + "%",  color: "text-muted-foreground" },
@@ -582,13 +585,17 @@ function FunnelPanel() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 {Object.entries(data.byEntityType).map(([type, outcomes]) => {
                   const typeTotal = Object.values(outcomes).reduce((s, n) => s + n, 0);
-                  const direct = (outcomes["direct_contact_candidate"] ?? 0) + (outcomes["direct_contact_verified"] ?? 0);
+                  const verified = outcomes["direct_contact_verified"] ?? 0;
+                  const candidate = outcomes["direct_contact_candidate"] ?? 0;
                   const social = outcomes["social_only"] ?? 0;
                   return (
                     <div key={type} className="rounded-lg border border-border/40 p-2">
                       <div className="text-[10px] font-mono font-bold text-foreground mb-1">{type}</div>
                       <div className="text-[10px] font-mono text-emerald-400">
-                        {typeTotal > 0 ? ((direct / typeTotal) * 100).toFixed(1) : "0.0"}% direct
+                        {typeTotal > 0 ? ((verified / typeTotal) * 100).toFixed(1) : "0.0"}% verified
+                      </div>
+                      <div className="text-[10px] font-mono text-amber-300">
+                        {typeTotal > 0 ? ((candidate / typeTotal) * 100).toFixed(1) : "0.0"}% review
                       </div>
                       <div className="text-[10px] font-mono text-blue-400">
                         {typeTotal > 0 ? ((social / typeTotal) * 100).toFixed(1) : "0.0"}% social

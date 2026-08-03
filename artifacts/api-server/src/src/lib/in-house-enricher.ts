@@ -63,7 +63,8 @@ export interface InHouseEnrichResult {
   // K5: source labels for org-contact classification in computeContactOutcome
   emailSource?: string | null;
   phoneSource?: string | null;
-  // M1: set true when SMTP handshake confirmed the email is deliverable
+  // SMTP proves mailbox delivery only; it does not attribute the address to
+  // the named person and therefore never creates verified contact state.
   smtpVerified?: boolean;
   // Phase L: extended OSINT sources
   icijFindings?: { totalMatches: number; sources: string[]; summary: string | null };
@@ -1749,7 +1750,7 @@ export async function enrichInHouse(entity: InHouseEnrichInput): Promise<InHouse
       if (smtp.confirmed) {
         result.emailConfidence = smtp.confidence;
         result.sourceHits["SMTP-Verify"] = true;
-        result.smtpVerified = true; // M1: promote to direct_contact_verified on DB write
+        result.smtpVerified = true; // delivery signal only; never identity attribution
         addSource("SMTP-Verified");
         logger.info({ email: result.email }, "SMTP verification confirmed email");
       }
