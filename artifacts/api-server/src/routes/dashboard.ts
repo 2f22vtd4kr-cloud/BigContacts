@@ -191,7 +191,10 @@ router.get("/dashboard/stats", async (_req, res): Promise<void> => {
     db.select({ cnt: sql<number>`count(*)::int` }).from(assetsTable),
     db.select({ cnt: sql<number>`count(*)::int` }).from(relationshipsTable),
     db.select({ avg: sql<number>`round(avg(${entitiesTable.bayesianScore})::numeric, 4)` }).from(entitiesTable),
-    db.select({ cnt: sql<number>`count(*)::int` }).from(entitiesTable).where(eq(entitiesTable.isHot, true)),
+    db.select({ cnt: sql<number>`count(*)::int` }).from(entitiesTable).where(and(
+      eq(entitiesTable.isHot, true),
+      sql`${entitiesTable.type} NOT IN ('Corporation', 'Corp', 'Trust')`,
+    )),
     db.select({ cnt: sql<number>`count(*)::int` }).from(researchSessionsTable),
     db
       .select({

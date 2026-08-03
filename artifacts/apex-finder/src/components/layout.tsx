@@ -144,6 +144,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   const active = allNav.find((item) => isActive(item.href));
   const mobileTitle = location.startsWith("/profile/") ? "Profile" : active?.name ?? "Overview";
+  const isReactorRoute = location === "/reactor";
 
   return (
     <div className="atlas-noise flex min-h-[100dvh] overflow-hidden bg-background text-foreground">
@@ -177,7 +178,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <Menu className="h-5 w-5" />
           </button>
         </header>
-        <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden">
+        <div className={`relative z-10 flex min-h-0 flex-1 flex-col overflow-x-hidden ${isReactorRoute ? "overflow-hidden" : "overflow-y-auto"}`}>
           {children}
         </div>
       </main>

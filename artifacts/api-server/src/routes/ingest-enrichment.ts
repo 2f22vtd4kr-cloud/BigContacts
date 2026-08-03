@@ -1528,6 +1528,7 @@ router.post("/ingest/backfill-contact-outcomes", async (_req: Request, res: Resp
   const entities = await db
     .select({
       id:              entitiesTable.id,
+      type:            entitiesTable.type,
       email:           entitiesTable.email,
       phone:           entitiesTable.phone,
       linkedinUrl:     entitiesTable.linkedinUrl,
@@ -1545,7 +1546,7 @@ router.post("/ingest/backfill-contact-outcomes", async (_req: Request, res: Resp
     const batch = entities.slice(i, i + BATCH);
     for (const e of batch) {
       const meta = safeParseJson<Record<string, unknown>>(e.metadata, {});
-      const outcome = computeContactOutcome({
+      const computedOutcome = computeContactOutcome({
         email:           e.email,
         phone:           e.phone,
         linkedinUrl:     e.linkedinUrl,
@@ -1561,6 +1562,10 @@ router.post("/ingest/backfill-contact-outcomes", async (_req: Request, res: Resp
         validatedDirectContact: Array.isArray(meta["enrichmentSources"]) &&
           (meta["enrichmentSources"] as string[]).includes("SMTP-Verified"),
       });
+      const outcome =
+        e.type === "Corporation" || e.type === "Corp" || e.type === "Trust"
+          ? (computedOutcome === "none" ? "none" : "organization_contact")
+          : computedOutcome;
       // Also fix needsEnrichment: only false when direct contact exists (J1)
       const hasDirectContact = Boolean(e.email || e.phone);
       const needsMeta: Record<string, unknown> = { ...meta, contactOutcome: outcome };
