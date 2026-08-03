@@ -10,3 +10,9 @@ Every path that persists or restores contact data must sanitize email, phone, an
 **How to apply:** Keep the shared validators at every persistence boundary. On merges and maintenance, recompute contact outcome and `isHot` from the sanitized person-level direct vectors; pass entity type into every recomputation, and keep organization contacts and generic/shared channels outside personal Access.
 
 This also applies to presentation boundaries: if stored legacy metadata says a corporation or trust has a personal outcome, API responses and ledger cards must normalize it to an organization route rather than exposing the stale label.
+
+Registry-phone provenance must have a persisted schema field, not only a metadata convention. Backfill legacy metadata markers into that field before recomputing outcomes, confidence, or hot status.
+
+**Why:** A legacy EDGAR phone source existed only in metadata while the recomputation path read a missing/blank structured source, allowing a registry switchboard to appear as a personal route.
+
+**How to apply:** Keep the nullable `phone_source` column aligned with the Drizzle schema and pass it through every Atlas, enrichment, maintenance, merge, and reachability recomputation path.
