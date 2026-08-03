@@ -61,3 +61,8 @@
 - [GitHub sync branch workflow](github-sync-branch.md) — Verify remote hashes; when main cannot be updated safely, publish a sync branch and open a PR instead of claiming local work is remote
 - [Dual-path contact adjudication](dual-path-contact-adjudication.md) — Both web enrichment paths share fail-closed adjudication and retain rejected candidates with reasons
 - [Broad discovery attribution](broad-discovery-attribution.md) — Human-name extraction is insufficient; ownership/wealth evidence must be locally attributed to the exact candidate before active insertion
+- [Discovery LLM admission](discovery-llm-admission.md) — Discovery AI must validate candidate plus source context before insertion; provider errors fail closed, never fall back to deterministic admission
+- [Business asset separation](business-asset-separation.md) — Operating businesses are separate evidence-backed assets; never infer them from personal wealth or uncertain names
+- [Invalid entity quarantine](invalid-entity-quarantine.md) — Hidden role/placeholder rows must clear active contact state while preserving the original evidence in review-only metadata
+- [Placeholder admission boundary](placeholder-admission-boundary.md) — Reject registry placeholders before dedup marking or batch insertion; later enrichment/startup cleanup are recovery layers
+- [AI research prompt contract](ai-research-prompt-contract.md) — Require target anchors, claim-level provenance, and explicit uncertainty; usernames and service hits never prove personal identity/access

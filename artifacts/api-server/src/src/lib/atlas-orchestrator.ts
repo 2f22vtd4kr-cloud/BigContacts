@@ -40,9 +40,9 @@ import { enrichWithEquasis } from "./equasis-enricher";
 import { enrichWithAdsbHistory } from "./adsbtrack-enricher";
 import { enrichWithOpenOwnership } from "./openownership-enricher";
 import { runHolehe, runMaigret } from "./python-tools";
-import { runFinalTargetReview } from "./ai-extractor";
+import { buildPerplexityPrompt, runFinalTargetReview } from "./ai-extractor";
 import { reconcileStoredContactEvidence } from "./contact-candidate";
-import { assessTargetReachability } from "./reachability-realism";
+import { assessTargetReachability, reachabilityDirective } from "./reachability-realism";
 import { computeContactConfidence, computeContactOutcome, hasMeaningfulDirectContact } from "./contact-confidence";
 import {
   sanitizePublicEmail,
@@ -54,6 +54,7 @@ import { contactCacheSet } from "./redis";
 import { runPhaseJBatch } from "../routes/phase-j";
 import { reachabilityOrderExpr } from "./reachability-rank";
 import { backfillWealthLLM } from "./wealth-estimator";
+import { materializeBusinessAsset } from "./business-assets";
 
 // ── Jurisdiction → approximate coordinates lookup (for asset geocoding) ───────
 const JURISDICTION_COORDS: Record<string, [number, number]> = {
@@ -281,6 +282,25 @@ type EntityRow = {
   notes: string | null; sourceRegistries: string | null;
 };
 
+type AtlasTelemetry = {
+  stage: string;
+  status: "active" | "complete" | "blocked" | "review";
+  targetName?: string;
+  targetType?: string;
+  toolIds: string[];
+  activeToolId?: string;
+  prompt?: string;
+  inputSummary?: string;
+  resultSummary?: string;
+  sources?: number;
+  evidence?: number;
+  contacts?: number;
+};
+
+async function setAtlasTelemetry(atlasJobId: string, telemetry: AtlasTelemetry): Promise<void> {
+  await updateJob(atlasJobId, { atlasTelemetry: JSON.stringify(telemetry) });
+}
+
 /** Reduce a stored social-URL or @handle to a bare handle for consistent DB storage. */
 function normalizeHandle(url: string | null | undefined): string | null {
   if (!url) return null;
@@ -292,9 +312,44 @@ function normalizeHandle(url: string | null | undefined): string | null {
   return s && !s.startsWith("http") ? s : null;
 }
 
+const PLACEHOLDER_ENTITY_NAMES = new Set([
+  "unknown",
+  "n/a",
+  "na",
+  "none",
+  "null",
+  "undefined",
+  "test",
+  "test entity",
+  "sample",
+  "sample entity",
+  "placeholder",
+  "mock",
+  "dummy",
+]);
+
+export function isPlaceholderEntityName(name: string): boolean {
+  const normalized = name.trim().replace(/\s+/g, " ").toLowerCase();
+  return PLACEHOLDER_ENTITY_NAMES.has(normalized)
+    || /^entity\s+\d+$/i.test(normalized);
+}
+
 async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Promise<void> {
   const { id, name } = entity;
   try {
+    // Registry adapters can occasionally emit a missing-name placeholder.
+    // Never spend OSINT/provider budget on it or let it generate synthetic
+    // person candidates; stamp it cooked so the sequential loop advances.
+    if (isPlaceholderEntityName(name)) {
+      logger.warn({ entityId: id, name }, "[Atlas] Skipping placeholder entity");
+      await db.update(entitiesTable).set({
+        cookedAt: new Date(),
+        updatedAt: new Date(),
+        notes: sql`CASE WHEN notes IS NULL THEN 'Skipped placeholder entity name.' ELSE notes || E'\nSkipped placeholder entity name.' END`,
+      }).where(eq(entitiesTable.id, id));
+      return;
+    }
+
     // Keep a strict pre-run boundary. New contacts/assets are not published
     // until the target-scoped final review approves exact current-run claims.
     const [baselineEvidence, baselineAssets] = await Promise.all([
@@ -316,6 +371,15 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
     let pendingAssetRows: Array<Record<string, unknown>> = [];
 
     // ── Step A: In-house OSINT (Wikidata, GitHub, RDAP, DNS, Gravatar, ProPublica) ──
+    await setAtlasTelemetry(atlasJobId, {
+      stage: "IN-HOUSE OSINT",
+      status: "active",
+      targetName: name,
+      targetType: entity.type,
+      toolIds: ["inhouse"],
+      activeToolId: "inhouse",
+      inputSummary: "Registry identity, known residence, notes, and public identifiers",
+    });
     const meta = safeJson<Record<string, unknown>>(entity.metadata, {});
     const ihResult = await enrichInHouse({
       ...entity,
@@ -358,18 +422,29 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
           }
           return true;
         });
-        await db.insert(contactEvidenceTable).values(cleanEvidence.map((ev: any) => ({
-          entityId: id, vectorType: ev.vectorType, value: ev.value, source: ev.source,
-          sourceUrl: ev.sourceUrl ?? null, extractionMethod: ev.extractionMethod,
-          sourceReliability: Math.min(1, ev.confidence / 100), identityMatch: 0.75, recencyScore: 0.70,
-          directnessScore: ev.vectorType === "email" ? 0.80 : ev.vectorType === "phone" ? 0.75 : 0.20,
-          independentCorroboration: 1, validationStatus: "candidate" as const,
-          metadata: JSON.stringify(ev.details ?? {}), observedAt: new Date(ev.observedAt),
-        }))).onConflictDoNothing().catch(() => {});
+        if (cleanEvidence.length) {
+          await db.insert(contactEvidenceTable).values(cleanEvidence.map((ev: any) => ({
+            entityId: id, vectorType: ev.vectorType, value: ev.value, source: ev.source,
+            sourceUrl: ev.sourceUrl ?? null, extractionMethod: ev.extractionMethod,
+            sourceReliability: Math.min(1, ev.confidence / 100), identityMatch: 0.75, recencyScore: 0.70,
+            directnessScore: ev.vectorType === "email" ? 0.80 : ev.vectorType === "phone" ? 0.75 : 0.20,
+            independentCorroboration: 1, validationStatus: "candidate" as const,
+            metadata: JSON.stringify(ev.details ?? {}), observedAt: new Date(ev.observedAt),
+          }))).onConflictDoNothing().catch(() => {});
+        }
       }
     }
 
     // ── Step B: Social + Messenger discovery ───────────────────────────────────
+    await setAtlasTelemetry(atlasJobId, {
+      stage: "SOCIAL + MESSENGER",
+      status: "active",
+      targetName: name,
+      targetType: entity.type,
+      toolIds: ["webdisc", "inhouse"],
+      activeToolId: "webdisc",
+      inputSummary: "Validated target identity and public profile candidates",
+    });
     const [socialResult, messengerResult] = await Promise.all([
       discoverSocialPresence(entity as any).catch(() => null),
       discoverMessengerPresence(entity as any).catch(() => null),
@@ -399,7 +474,50 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
 
     // ── Step C: AI OSINT sweep (Perplexity + Gemini + Tavily + Exa + Groq) ────
     await updateJob(atlasJobId, { status: "running", message: `🤖 ${name}: AI OSINT…` });
+    const telemetryReachability = assessTargetReachability({
+      type: entity.type,
+      email: entity.email,
+      phone: entity.phone,
+      contactOutcome: (entity as any).contactOutcome,
+      contactConfidence: entity.contactConfidence,
+      knownResidences: entity.knownResidences,
+      metadata: entity.metadata,
+      notes: entity.notes,
+      sourceRegistries: entity.sourceRegistries,
+    });
+    const prompt = buildPerplexityPrompt(
+      name,
+      entity.type,
+      null,
+      { reachability: reachabilityDirective(telemetryReachability) },
+    );
+    await setAtlasTelemetry(atlasJobId, {
+      stage: "AI WEB OSINT",
+      status: "active",
+      targetName: name,
+      targetType: entity.type,
+      toolIds: ["perp0", "gemini", "tavily", "exa", "groq"],
+      activeToolId: "perp0",
+      prompt: prompt.slice(0, 2200),
+      inputSummary: `${entity.type} target · ${telemetryReachability.status} reachability · provider fan-out is parallel within this target`,
+    });
     const aiResult = await deepWebOsintEnrich(entity as any).catch(() => null);
+    await setAtlasTelemetry(atlasJobId, {
+      stage: "AI WEB OSINT",
+      status: aiResult ? "complete" : "review",
+      targetName: name,
+      targetType: entity.type,
+      toolIds: ["perp0", "gemini", "tavily", "exa", "groq"],
+      activeToolId: "groq",
+      prompt: prompt.slice(0, 2200),
+      inputSummary: `${entity.type} target · ${telemetryReachability.status} reachability`,
+      resultSummary: aiResult
+        ? `${aiResult.sources.length} provider/source lanes · ${aiResult.queriesFired} web queries · ${aiResult.pagesScraped} pages · ${aiResult.evidence?.length ?? 0} evidence candidates`
+        : "No usable AI/web result returned; retained review-only state",
+      sources: aiResult?.sources.length ?? 0,
+      evidence: aiResult?.evidence?.length ?? 0,
+      contacts: [aiResult?.email, aiResult?.phone, aiResult?.linkedinUrl, aiResult?.instagramUrl, aiResult?.twitterUrl].filter(Boolean).length,
+    });
     const aiHasSignal = aiResult && (
       aiResult.email || aiResult.phone || aiResult.linkedinUrl ||
       aiResult.instagramUrl || aiResult.twitterUrl || (aiResult.evidence?.length ?? 0) > 0
@@ -433,14 +551,16 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
           }
           return true;
         });
-        await db.insert(contactEvidenceTable).values(cleanEvidence.map((ev: any) => ({
-          entityId: id, vectorType: ev.vectorType, value: ev.value, source: ev.source,
-          sourceUrl: ev.sourceUrl ?? null, extractionMethod: ev.extractionMethod ?? "deep-web-osint",
-          sourceReliability: Math.min(1, ev.confidence / 100), identityMatch: 0.65, recencyScore: 0.7,
-          directnessScore: ev.vectorType === "email" ? 0.9 : ev.vectorType === "phone" ? 0.85 : 0.6,
-          independentCorroboration: 1, validationStatus: "candidate" as const,
-          observedAt: new Date(), metadata: JSON.stringify(ev.details ?? {}),
-        }))).onConflictDoNothing().catch(() => {});
+        if (cleanEvidence.length) {
+          await db.insert(contactEvidenceTable).values(cleanEvidence.map((ev: any) => ({
+            entityId: id, vectorType: ev.vectorType, value: ev.value, source: ev.source,
+            sourceUrl: ev.sourceUrl ?? null, extractionMethod: ev.extractionMethod ?? "deep-web-osint",
+            sourceReliability: Math.min(1, ev.confidence / 100), identityMatch: 0.65, recencyScore: 0.7,
+            directnessScore: ev.vectorType === "email" ? 0.9 : ev.vectorType === "phone" ? 0.85 : 0.6,
+            independentCorroboration: 1, validationStatus: "candidate" as const,
+            observedAt: new Date(), metadata: JSON.stringify(ev.details ?? {}),
+          }))).onConflictDoNothing().catch(() => {});
+        }
       }
     }
 
@@ -841,6 +961,14 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
       }).where(eq(entitiesTable.id, id));
     }
 
+    await materializeBusinessAsset({
+      id,
+      name,
+      type: entity.type,
+      sourceRegistries: entity.sourceRegistries,
+      metadata: entity.metadata,
+    }).catch((err: any) => logger.warn({ entityId: id, err: err?.message }, "[Atlas] Business asset materialization skipped"));
+
     logger.info({ entityId: id, name }, "[Atlas] ✅ Entity fully cooked");
   } catch (err: any) {
     logger.warn({ entityId: id, name, err: err.message }, "[Atlas] Full-circle enrichment failed (non-fatal)");
@@ -1021,7 +1149,7 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
         if (includeFaa && sourceRound === 8) {
           const faaJobId = await createJob("faa");
           await setActiveJob("faa", faaJobId);
-          const faaRes = await runFaaIngestion({ jobId: faaJobId, maxRecords: opts.faaMaxRecords ?? 10_000, forceRefresh: false })
+          const faaRes = await runFaaIngestion({ jobId: faaJobId, maxRecords: 1, forceRefresh: false })
             .catch(e => { logger.error({ err: e.message }, "[Atlas] FAA failed"); return { inserted: 0 }; });
           await setActiveJob("faa", "");
           totalIngested += faaRes.inserted;
@@ -1047,7 +1175,7 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
         sql`${entitiesTable.cookedAt} IS NULL`,
       ))
       .orderBy(desc(entitiesTable.createdAt))
-      .limit(1000);
+      .limit(1);
 
     logger.info({ sourceRound, label: source.label, newCount: newEntities.length }, "[Atlas] Starting full-circle enrichment");
 
@@ -1057,7 +1185,7 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
         `[${sourceRound}/${sourcesToRun.length}] 🍳`,
         newEntities,
         (entity) => enrichEntityFullCircle(atlasJobId, entity as EntityRow),
-        3,
+        1,
       );
       cookedCount += batchResult.ok;
       totalEnriched += batchResult.ok;
@@ -1236,14 +1364,14 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
           (email IS NOT NULL AND email !~* '^(info|contact|hello|sales|support|office|admin|press|media|enquiries|inquiries|reservations|booking|investor|ir)@')
           OR (phone IS NOT NULL AND COALESCE(phone_source, '') NOT IN ('EDGAR-Phone', 'CompaniesHouse-Phone'))
         )
-        AND entity_type NOT IN ('Corporation', 'Corp', 'Trust')
+        AND type NOT IN ('Corporation', 'Corp', 'Trust')
       )
       WHERE is_hot IS DISTINCT FROM (
         (
           (email IS NOT NULL AND email !~* '^(info|contact|hello|sales|support|office|admin|press|media|enquiries|inquiries|reservations|booking|investor|ir)@')
           OR (phone IS NOT NULL AND COALESCE(phone_source, '') NOT IN ('EDGAR-Phone', 'CompaniesHouse-Phone'))
         )
-        AND entity_type NOT IN ('Corporation', 'Corp', 'Trust')
+        AND type NOT IN ('Corporation', 'Corp', 'Trust')
       )
     `);
 

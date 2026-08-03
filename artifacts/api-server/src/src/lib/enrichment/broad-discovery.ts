@@ -43,7 +43,7 @@ async function tavilySearch(query: string): Promise<Array<{ snippet: string; url
     const resp = await fetch("https://api.tavily.com/search", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-      body: JSON.stringify({ query, max_results: 8, search_depth: "basic", include_answer: false }),
+      body: JSON.stringify({ query, max_results: 8, search_depth: "advanced", include_answer: false }),
       signal: AbortSignal.timeout(12_000),
     });
     if (!resp.ok) return [];
@@ -73,11 +73,15 @@ async function aiExtractPersonNames(text: string, context: string): Promise<stri
         temperature: 0,
         max_tokens: 400,
         messages: [
-          {
-            role: "system",
-            content: `You are an OSINT analyst extracting names of living, contemporary high-net-worth individuals from search results. Context: searches about "${context}".
+           {
+             role: "system",
+             content: `You are an OSINT analyst extracting names of living, contemporary high-net-worth individuals from search results. Context: searches about "${context}".
 
 INCLUDE only: living private individuals who are wealthy — business owners, investors, property owners, yacht/aircraft owners, fund managers, family office principals, developers, collectors.
+
+GEOGRAPHY: include only candidates explicitly tied in the supplied evidence to the United States, Canada, the United Kingdom, Ireland, France, Germany, Switzerland, Austria, Belgium, the Netherlands, Luxembourg, Denmark, Sweden, Norway, Finland, Iceland, Italy, Spain, Portugal, Greece, Monaco, Australia, New Zealand, Singapore, Hong Kong, Japan, South Korea, the United Arab Emirates, Qatar, Bahrain, or Israel. Reject candidates whose only location is Africa, Latin America, Russia, or Eastern Europe, or whose only connection is a travel/tourism mention.
+
+EVIDENCE: prefer official registries, regulatory filings, company websites, foundation filings, reputable business publications, or an attributable interview. Tourism pages, booking sites, venue directories, listicles, generic lifestyle pages, and anonymous snippets are not evidence of wealth or identity. Return a name only if the same result text supports that person's role, ownership, wealth, or principal status.
 
 EXCLUDE all of the following:
 - Companies, organizations, venues, hotels, brands, cities, countries, legal entities (Ltd/LLC/SA/GmbH/Corp/Foundation/Trust/Holdings/Group/Capital/Partners)
@@ -93,7 +97,10 @@ EXCLUDE all of the following:
 Return ONLY a JSON array of full name strings. If no valid living HNWIs are found, return [].
 Example output: ["Carlo Bianchi", "Ingrid Magnusson", "Walid Dabess"]`,
           },
-          { role: "user", content: text.slice(0, 3000) },
+           {
+             role: "user",
+             content: `SEARCH QUERY:\n${context}\n\nRESULT EXCERPTS WITH SOURCE URLS:\n${text.slice(0, 7000)}\n\nReturn only a JSON array of full names that satisfy every rule above. If the evidence is weak, geographically out of scope, or only describes a venue/topic, return [].`,
+           },
         ],
       }),
       signal: AbortSignal.timeout(15_000),
@@ -122,9 +129,9 @@ const TEMPLATE_CATEGORIES: Record<number, string[]> = {
   1: [
     '"family office" "director" London',
     '"family office" "principal" Switzerland',
-    '"private wealth" "manager" Singapore',
+    'Singapore ("private wealth" OR family office) (principal OR founder OR CIO) company profile',
     '"single family office" "founder" "New York"',
-    '"multi family office" CEO Dubai',
+    'Dubai ("multi family office" OR investment company) (CEO OR founder OR principal) UAE profile',
     '"private office" investment "Hong Kong"',
     '"wealth management" partner Geneva',
     '"private banking" director Luxembourg',
@@ -195,7 +202,7 @@ const TEMPLATE_CATEGORIES: Record<number, string[]> = {
     '"yacht club" commodore owner Mediterranean',
     '"private members club" director London OR Zurich OR Geneva',
     '"grand hotel" proprietor Austria OR Switzerland',
-    '"ski resort" owner investor Alps',
+    'Alps ("hospitality company" OR "mountain resort group") (owner OR founder OR investor) (France OR Switzerland OR Austria) profile',
     '"marina" operator owner Cannes OR Monaco OR Antibes',
     '"vineyard" owner estate "Bordeaux" OR "Tuscany"',
     '"luxury villa" owner "Côte d\'Azur" OR Sardinia OR Mallorca',
@@ -218,14 +225,14 @@ const TEMPLATE_CATEGORIES: Record<number, string[]> = {
     '"Scandinavian" family office investment billion',
   ],
   8: [  // Asian wealth centres
-    '"Singapore" family office principal HNWI',
-    '"Hong Kong" tycoon director "private limited"',
-    '"Tokyo" billionaire investment portfolio',
-    '"Dubai" family office "ultra high net worth"',
-    '"Abu Dhabi" investment director wealth fund',
-    '"Seoul" family business chairman owner conglomerate',
-    '"Singapore" MAS licensed fund manager',
-    '"Hong Kong" SFC director fund management',
+    '"Singapore" ("family office" OR investment company) (principal OR founder OR CIO) profile',
+    '"Hong Kong" (family office OR investment company) (principal OR founder OR chairman) profile',
+    'Tokyo (investment company OR family office) (founder OR principal OR investor) profile',
+    'Dubai ("family office" OR investment company) (founder OR principal OR chairman) UAE profile',
+    '"Abu Dhabi" (investment company OR family office) (founder OR principal OR chairman) profile',
+    'Seoul ("family business" OR investment company) (founder OR chairman OR owner) profile',
+    'Singapore (MAS OR "fund manager") (founder OR principal OR CIO) profile',
+    'Hong Kong (SFC OR "fund management") (founder OR principal OR director) profile',
     '"Indonesia" billionaire group owner director',
     '"Malaysia" tycoon conglomerate director chairman',
     '"Philippines" billionaire family office',
@@ -276,10 +283,10 @@ const TEMPLATE_CATEGORIES: Record<number, string[]> = {
   ],
 
   12: [ // French Riviera, Alpine luxury & Bordeaux
-    '"hotel" owner director "Côte d\'Azur" Nice Cannes',
+    'Nice Cannes ("hospitality company" OR "hotel group") (owner OR founder OR director) profile',
     '"château" owner Bordeaux wine estate proprietor',
     '"golf club" owner director France "Côte d\'Azur"',
-    '"ski resort" owner director Courchevel Méribel Chamonix',
+    'Courchevel Méribel Chamonix ("Alpine hospitality company" OR "mountain resort group") (owner OR founder OR director) profile',
     '"restaurant" owner founder Monaco Saint-Tropez Antibes',
     '"villa" owner director Cap Ferrat Menton Èze France',
     '"private members club" owner director Paris Lyon',
@@ -291,10 +298,10 @@ const TEMPLATE_CATEGORIES: Record<number, string[]> = {
   ],
 
   13: [ // Middle East business, investment & real estate
-    '"investment fund" Dubai founder principal director',
-    '"family office" Abu Dhabi Riyadh Doha principal',
-    '"real estate" developer owner Dubai founder billion',
-    '"hospitality group" owner CEO Dubai UAE founder',
+    'Dubai ("investment fund" OR family office) (founder OR principal OR managing partner) UAE profile',
+    '"Abu Dhabi" Riyadh Doha (family office OR investment company) (founder OR principal OR chairman) profile',
+    'Dubai ("real estate company" OR developer) (owner OR founder OR principal) profile',
+    'Dubai UAE ("hospitality group" OR hotel company) (owner OR founder OR CEO) profile',
     '"business group" chairman owner Saudi Arabia Kuwait',
     '"hotel" developer owner Dubai Abu Dhabi founder',
     '"mall" developer owner UAE Gulf director chairman',
@@ -436,6 +443,21 @@ const VENUE_INDICATORS = [
 function isVenueOrOrganization(name: string): boolean {
   const lower = name.toLowerCase();
   return VENUE_INDICATORS.some(v => lower.includes(v));
+}
+
+// Search snippets frequently turn a person’s title into a fake “name”, e.g.
+// “Rocco Forte Deputy”. These are useful review text, but never valid target
+// identities. Keep the gate deterministic so an LLM cannot re-admit them.
+const ROLE_ONLY_SUFFIXES = new Set([
+  "advisor", "associate", "chairman", "chairwoman", "chief", "director",
+  "deputy", "executive", "founder", "general", "manager", "officer",
+  "operator", "owner", "partner", "president", "principal", "trustee",
+  "vice", "chair", "secretary", "controller",
+]);
+
+export function isRoleOnlyCandidateName(name: string): boolean {
+  const words = name.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  return words.length >= 2 && ROLE_ONLY_SUFFIXES.has(words[words.length - 1] ?? "");
 }
 
 /**
@@ -665,28 +687,36 @@ export async function runBroadDiscovery(options: {
     }
 
     // ── Primary extraction: Groq AI person name extraction ────────────────────
-    // AI extraction runs first. Regex fallback only runs when Groq is unavailable,
-    // because regex has no knowledge of fiction/history and adds names the AI
-    // would correctly reject (e.g. "James Bond", "George Mason").
-    let aiExtracted = false;
+    // AI extraction runs first. Once Groq was attempted, an empty result is a
+    // deliberate refusal—not an invitation to run regex. Regex has no
+    // knowledge of fiction/history and can manufacture names the AI rejected
+    // (e.g. role fragments and recipe/editorial phrases).
+    let aiAttempted = false;
     if (useGroq) {
+      aiAttempted = true;
       const aggregated = results.map(r => r.snippet).join("\n\n");
       const aiNames = await aiExtractPersonNames(aggregated, query);
       if (aiNames.length > 0) {
-        aiExtracted = true;
         for (const name of aiNames) {
           if (!candidateMap.has(name)) {
-            const bestSnippet = results.find(r => r.snippet.toLowerCase().includes(name.split(" ")[0].toLowerCase()))?.snippet ?? results[0].snippet;
+            const normalizedName = name.toLowerCase();
+            const bestSnippet = results.find(r =>
+              r.snippet.toLowerCase().includes(normalizedName),
+            )?.snippet
+              ?? results.find(r =>
+                r.snippet.toLowerCase().includes(name.split(" ")[0].toLowerCase()),
+              )?.snippet
+              ?? results[0].snippet;
             candidateMap.set(name, { snippet: bestSnippet, query });
           }
         }
       }
     }
 
-    // ── Fallback extraction: deterministic regex only when AI is unavailable ──
-    // Regex is blind to history/fiction, so it is never allowed to bypass the
-    // final deterministic + LLM safety gate below.
-    if (!aiExtracted) {
+    // ── Fallback extraction: only when no Groq provider is configured ────────
+    // This path is still subject to the evidence-aware LLM admission gate
+    // below. It must never run after Groq has returned an empty/refused result.
+    if (!aiAttempted) {
       for (const { snippet } of results) {
         const names = extractNames(snippet);
         for (const name of names) {
@@ -716,9 +746,8 @@ export async function runBroadDiscovery(options: {
   // LLM name filter — removes noise like "Les Ballets", "Beneficial Owners", "Amr El" (truncated)
   let newEntities: typeof rawEntities = [];
   try {
-    const { filterHumanNamesWithLLM } = await import("../llm-name-validator");
-    const rawNames = rawEntities.map(e => e.name);
-    const validNames = new Set(await filterHumanNamesWithLLM(rawNames));
+    const { validateDiscoveryCandidatesWithLLM } = await import("../llm-name-validator");
+    const validNames = new Set(await validateDiscoveryCandidatesWithLLM(rawEntities));
     const beforeCount = rawEntities.length;
     newEntities = rawEntities.filter(e => validNames.has(e.name));
     const filteredCount = beforeCount - newEntities.length;
@@ -726,7 +755,11 @@ export async function runBroadDiscovery(options: {
       logger.info({ filteredCount, beforeCount, afterCount: newEntities.length }, "Broad discovery: LLM name filter removed noise entities");
     }
   } catch (e: any) {
-    logger.warn({ err: e.message }, "Broad discovery: LLM name filter failed (deterministic candidates only)");
+    // The LLM validator is an admission gate, not an enrichment hint.
+    // If it cannot be loaded or called, fail closed rather than admitting
+    // search-result noise on the deterministic checks alone.
+    logger.error({ err: e.message }, "Broad discovery: LLM name filter failed (rejecting candidates)");
+    newEntities = [];
   }
 
   // Insert new entities
@@ -739,6 +772,10 @@ export async function runBroadDiscovery(options: {
       if (cleanName.length < 5 || cleanName.split(/\s+/).length < 2) continue;
       if (EXCLUDED_NAMES.has(cleanName)) {
         logger.info({ name: cleanName, query }, "broad-discovery: rejected excluded contextual name");
+        continue;
+      }
+      if (isRoleOnlyCandidateName(cleanName)) {
+        logger.info({ name: cleanName, query }, "broad-discovery: rejected role-only candidate name");
         continue;
       }
       // A human name alone is not enough for HNWI admission. Keep employment

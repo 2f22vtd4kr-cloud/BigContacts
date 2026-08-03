@@ -31,6 +31,7 @@ import {
   sanitizePublicSocialHandle,
   sanitizePublicTelegramHandle,
 } from "./contact-validation";
+import { materializeBusinessAsset } from "./business-assets";
 
 const INGESTOR_TYPES = ["faa", "land-registry", "western-hnwi", "companies-house-enrich", "occrp", "opensky", "improve", "web-osint", "bulk-hybrid-research", "in-house-enrich", "deep-web-osint", "compute-embeddings", "social-discovery", "messenger-discovery", "foundation-filings", "broad-discovery", "atlas-run"] as const;
 // Startup maintenance is fire-and-forget and the HTTP server can accept a
@@ -233,6 +234,29 @@ function startIngestor(
 async function runPopulatedDbMaintenance(): Promise<void> {
   logger.info("Running populated-DB maintenance tasks…");
 
+  // Keep the business ledger available immediately. Contact-cache restoration
+  // can be slow or blocked by an external Redis slot; operating-company assets
+  // are local, idempotent DB maintenance and must not wait behind it.
+  try {
+    const businessRows = await db
+      .select({
+        id: entitiesTable.id,
+        name: entitiesTable.name,
+        type: entitiesTable.type,
+        sourceRegistries: entitiesTable.sourceRegistries,
+        metadata: entitiesTable.metadata,
+      })
+      .from(entitiesTable)
+      .where(eq(entitiesTable.isHidden, false));
+    let created = 0;
+    for (const entity of businessRows) {
+      if (await materializeBusinessAsset(entity)) created++;
+    }
+    logger.info({ created, candidates: businessRows.length }, "Maintenance: immediate business-interest materialization complete");
+  } catch (err: any) {
+    logger.warn({ err: err?.message }, "Maintenance: immediate business-interest materialization failed (non-fatal)");
+  }
+
   // Remove known false positives before Redis restore and cache backfill.
   await sanitizePersistedContactData();
 
@@ -250,8 +274,22 @@ async function runPopulatedDbMaintenance(): Promise<void> {
         await Promise.all(cached.slice(i, i + CHUNK).map(async ({ key, data }) => {
           try {
             // Match by entity-unique stable key prefix → targeted JSONB lookup per source
-            type EntityRow = { id: number; email: string | null; phone: string | null; linkedinUrl: string | null; metadata: string | null };
-            const SEL = { id: entitiesTable.id, email: entitiesTable.email, phone: entitiesTable.phone, linkedinUrl: entitiesTable.linkedinUrl, metadata: entitiesTable.metadata };
+            type EntityRow = {
+              id: number;
+              email: string | null;
+              phone: string | null;
+              linkedinUrl: string | null;
+              metadata: string | null;
+              isHidden: boolean;
+            };
+            const SEL = {
+              id: entitiesTable.id,
+              email: entitiesTable.email,
+              phone: entitiesTable.phone,
+              linkedinUrl: entitiesTable.linkedinUrl,
+              metadata: entitiesTable.metadata,
+              isHidden: entitiesTable.isHidden,
+            };
             let entity: EntityRow | undefined;
             if (key.startsWith("faa:")) {
               const nNum = key.slice(4);
@@ -272,6 +310,8 @@ async function runPopulatedDbMaintenance(): Promise<void> {
               return; // Legacy key format (e.g. "FAA Releasable Aircraft Database") — skip
             }
             if (!entity) return;
+            // Never rehydrate active contact state for quarantined records.
+            if (entity.isHidden) return;
             // Only restore if entity has no contact data currently
             if (entity.email || entity.phone || entity.linkedinUrl) return;
             const updates: Record<string, unknown> = { updatedAt: new Date() };
@@ -441,10 +481,50 @@ async function runPopulatedDbMaintenance(): Promise<void> {
 
   // 2. Reclassify entity types (Corporation/Trust by name pattern)
   try {
-    const rows = await db.select({ id: entitiesTable.id, name: entitiesTable.name }).from(entitiesTable);
+    const rows = await db
+      .select({
+        id: entitiesTable.id,
+        name: entitiesTable.name,
+        type: entitiesTable.type,
+        isHidden: entitiesTable.isHidden,
+        email: entitiesTable.email,
+        phone: entitiesTable.phone,
+        linkedinUrl: entitiesTable.linkedinUrl,
+        twitterHandle: entitiesTable.twitterHandle,
+        instagramHandle: entitiesTable.instagramHandle,
+        telegramHandle: entitiesTable.telegramHandle,
+        contactMethod: entitiesTable.contactMethod,
+        contactOutcome: entitiesTable.contactOutcome,
+        contactConfidence: entitiesTable.contactConfidence,
+        metadata: entitiesTable.metadata,
+      })
+      .from(entitiesTable);
     const corps: number[] = [];
     const trusts: number[] = [];
+    const quarantined: number[] = [];
     for (const row of rows) {
+      const roleOnly = /\b(advisor|associate|chairman|chairwoman|chief|director|deputy|executive|founder|general|manager|officer|operator|owner|partner|president|principal|trustee|vice|chair|secretary|controller)\s*$/i.test(row.name.trim());
+      const placeholder = /^(unknown|unnamed|anonymous|n\/a|not available|entity\s+\d+)$/i.test(row.name.trim());
+      const invalidName = roleOnly || placeholder;
+      let metadataContactOutcome: string | null = null;
+      let metadataPhoneSource: string | null = null;
+      try {
+        const meta = JSON.parse(row.metadata ?? "{}") as Record<string, unknown>;
+        metadataContactOutcome = typeof meta.contactOutcome === "string" ? meta.contactOutcome : null;
+        metadataPhoneSource = typeof meta.phoneSource === "string" ? meta.phoneSource : null;
+      } catch { /* malformed metadata is not a reason to trust the row */ }
+      const hasPromotedContact = Boolean(
+        row.email || row.phone || row.linkedinUrl || row.twitterHandle ||
+        row.instagramHandle || row.telegramHandle || row.contactMethod ||
+        (row.contactOutcome != null && row.contactOutcome !== "none") ||
+        row.contactConfidence > 0 ||
+        (metadataContactOutcome != null && metadataContactOutcome !== "none") ||
+        metadataPhoneSource,
+      );
+      if (invalidName && (!row.isHidden || hasPromotedContact)) {
+        quarantined.push(row.id);
+        continue;
+      }
       const t = classifyEntityType(row.name);
       if (t === "Corporation") corps.push(row.id);
       else if (t === "Trust") trusts.push(row.id);
@@ -460,7 +540,51 @@ async function runPopulatedDbMaintenance(): Promise<void> {
         .set({ type: "Trust", updatedAt: new Date() })
         .where(inArray(entitiesTable.id, trusts.slice(i, i + CHUNK)));
     }
-    logger.info({ corps: corps.length, trusts: trusts.length }, "Maintenance: entity types reclassified");
+    if (quarantined.length > 0) {
+      await db.update(entitiesTable)
+        .set({
+          isHidden: true,
+          isHot: false,
+          email: null,
+          phone: null,
+          linkedinUrl: null,
+          twitterHandle: null,
+          instagramHandle: null,
+          telegramHandle: null,
+          contactMethod: null,
+          contactOutcome: "none",
+          contactConfidence: 0,
+          metadata: sql`(
+            CASE
+              WHEN (${entitiesTable.metadata}::jsonb #> '{quarantine,contactEvidence}') IS NOT NULL
+                THEN ${entitiesTable.metadata}::jsonb
+              ELSE jsonb_set(
+                COALESCE(${entitiesTable.metadata}::jsonb, '{}'::jsonb),
+                '{quarantine,contactEvidence}',
+                jsonb_build_object(
+                  'email', ${entitiesTable.email},
+                  'phone', ${entitiesTable.phone},
+                  'linkedinUrl', ${entitiesTable.linkedinUrl},
+                  'twitterHandle', ${entitiesTable.twitterHandle},
+                  'instagramHandle', ${entitiesTable.instagramHandle},
+                  'telegramHandle', ${entitiesTable.telegramHandle},
+                  'contactMethod', ${entitiesTable.contactMethod},
+                  'contactOutcome', ${entitiesTable.contactOutcome},
+                  'contactConfidence', ${entitiesTable.contactConfidence},
+                  'metadataContactOutcome', COALESCE(${entitiesTable.metadata}::jsonb->>'contactOutcome', ''),
+                  'metadataPhoneSource', COALESCE(${entitiesTable.metadata}::jsonb->>'phoneSource', ''),
+                  'archivedAt', NOW()
+                )
+              )
+            END
+            || jsonb_build_object('contactOutcome', 'none')
+          ) - 'phoneSource'`,
+          notes: sql`concat_ws(E'\n', ${entitiesTable.notes}, 'Quarantined: placeholder, role-only, or title-shaped name; retained for provenance review and excluded from active targets.')`,
+          updatedAt: new Date(),
+        })
+        .where(inArray(entitiesTable.id, quarantined));
+    }
+    logger.info({ corps: corps.length, trusts: trusts.length, quarantined: quarantined.length }, "Maintenance: entity types reclassified and invalid HNWI names quarantined");
   } catch (err: any) {
     logger.warn({ err: err?.message }, "Maintenance: reclassify failed (non-fatal)");
   }
@@ -845,11 +969,9 @@ export async function coldStartRecovery(): Promise<void> {
 
   // Research is intentionally opt-in. A fresh import must not begin broad
   // discovery or registry ingestion merely because the database is empty.
-  // This also allows a controlled single-target run before any bulk pipeline.
-  if (process.env["ENABLE_AUTO_PIPELINE"] !== "true") {
-    logger.info("Automatic broad ingestion is disabled (ENABLE_AUTO_PIPELINE is not true)");
-    return;
-  }
+  // Populated databases still receive safe, idempotent maintenance while
+  // ENABLE_AUTO_PIPELINE=false; only new broad ingestion is gated below.
+  const autoPipelineEnabled = process.env["ENABLE_AUTO_PIPELINE"] === "true";
 
   // Check entity count — retry up to 3× with backoff to handle transient PG startup lag.
   // Previously this returned immediately on any error, causing cold-start to abort
@@ -875,6 +997,11 @@ export async function coldStartRecovery(): Promise<void> {
     runPopulatedDbMaintenance().catch((err: any) =>
       logger.warn({ err: err?.message }, "Populated-DB maintenance error (non-fatal)")
     );
+    return;
+  }
+
+  if (!autoPipelineEnabled) {
+    logger.info("Automatic broad ingestion is disabled (ENABLE_AUTO_PIPELINE is not true)");
     return;
   }
 

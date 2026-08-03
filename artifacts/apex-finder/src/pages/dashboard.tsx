@@ -218,7 +218,7 @@ export default function Dashboard() {
             <span className="h-1.5 w-1.5 rounded-full bg-primary" /> Research desk
           </div>
           <h1 className="font-display text-[clamp(2.15rem,5vw,4.5rem)] font-semibold leading-[0.95] tracking-[-0.055em] text-foreground">
-            Entities worth<br className="hidden sm:block" /> understanding.
+            People worth<br className="hidden sm:block" /> knowing.
           </h1>
           <p className="mt-5 max-w-lg text-sm leading-6 text-muted-foreground md:text-[15px]">
             A clear view of people, companies, trusts, and access contacts found in public records, with the evidence and routes that make a closer look worthwhile.

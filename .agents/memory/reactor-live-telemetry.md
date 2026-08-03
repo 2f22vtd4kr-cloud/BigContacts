@@ -13,4 +13,4 @@ The Reactor's quick operational summary belongs in a persistent responsive heade
 
 **Why:** Operators need progress and dataset context without scrolling, and zeroing valid totals during standby makes the UI look disconnected from the actual workspace.
 
-**How to apply:** Use compact metric chips or a two-row mobile summary, keep the pipeline visualization below, and remove duplicate footer meters once the header carries the same information.
+**How to apply:** Use compact metric chips or a two-row mobile summary, keep the pipeline visualization below, and remove duplicate footer meters once the header carries the same information. For active target work, publish a target-scoped telemetry payload with stage, tool IDs, safe prompt purpose, evidence/result counts, and review status; parse malformed payloads as absent rather than inferring activity.

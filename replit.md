@@ -98,7 +98,7 @@ Tables (all in `lib/db/src/schema/`):
 | Table | Purpose |
 |---|---|
 | `entities` | Core HNWI/Corp/Trust/Gatekeeper profiles |
-| `assets` | Aviation, RealEstate, Marine, PrivateClub assets |
+| `assets` | BusinessInterest, Aviation, RealEstate, Marine, PrivateClub and other public asset evidence |
 | `relationships` | Entity→Entity and Entity→Asset edges |
 | `research_sessions` | Hybrid Research outreach path results + CRM status |
 | `improvement_logs` | Persona-loop suggestions per entity |
@@ -131,20 +131,20 @@ Two fixes were needed after the first import:
 
 ---
 
-## Current Data State (historical benchmark vs current imported runtime, verified 2026-08-02)
+## Current Data State (historical benchmark vs active controlled runtime, verified 2026-08-03)
 
-The benchmark figures below are historical results from the prior populated runtime. The current imported development database is intentionally empty and must remain empty until an explicitly authorized real-data run is requested.
+The benchmark figures below are historical results from the prior populated runtime. The current development database contains only records produced by the explicitly authorized controlled Atlas run; no synthetic records were seeded.
 
 | Source | Entities | Assets | Notes |
 |---|---|---|---|
 | Western HNWI + FAA controlled import | 5,036 | 5,000 | 35 Western records plus 5,000 FAA aircraft-owner records; no synthetic data. |
 | FAA benchmark enrichment | 16 | — | Post-fix run completed 16/16 with 0 errors: 10 social-only, 0 direct-contact candidates, 6 no usable contact outcomes; 431 durable evidence rows. Follow-up three-target claim-source canary: 3/3, 0 errors, 0/3 verified direct routes. |
-| **Current verified state at last check** | **5,036** | **5,000** | API and Redis healthy; broad auto-ingestion disabled; no active enrichment worker; contact fields remain fail-closed. |
-| **Current imported development runtime** | **20** | **0** | Preserved discovery records from authorized Atlas runs; weak/interrupted records, including two contextual-name candidates, are hidden for review. Active discovery applies candidate-attributed ownership/wealth gating and deterministic fictional/contextual-name rejection; final Atlas retry `e4cc9451-853e-4d5d-9887-8f216952be38` is running in the background. |
+| **Current verified state at last check** | **10 active** | **9 visible** | API and Redis healthy; all visible assets are idempotent `BusinessInterest` rows; 2 invalid legacy entities remain quarantined for review and hidden from active counts. |
+| **Current controlled development runtime** | **10 active** | **9 visible** | 0 relationships and 0 active research sessions; the authorized Atlas job completed and is idle. |
 
-**Controlled-run state:** `ENABLE_AUTO_PIPELINE=false` remains set, so startup will not create an additional broad ingestion job. The explicitly authorized Atlas run is active; the durable contact-promotion validator, current-run evidence boundary, active-job ownership guard, candidate-attribution gate, and Access/Signal separation remain in place.
+**Controlled-run state:** `ENABLE_AUTO_PIPELINE=false` remains set, so startup will not create a broad ingestion job. Populated databases still receive safe idempotent maintenance, while empty databases remain idle. The authorized Atlas run completed without being interrupted. The durable contact-promotion validator, current-run evidence boundary, active-job ownership guard, candidate-attribution gate, and Access/Signal separation remain in place.
 
-**Atlas audit state:** Target processing is strictly sequential. Final target review runs before research publication, contact promotion, and new asset publication; unavailable or malformed review output fails closed. The current API runtime reports Holehe, Maigret, and Sherlock available from `.pythonlibs/bin/python3`.
+**Atlas audit state:** Discovery admission and target processing are strictly sequential: each source may admit one candidate, that candidate is fully cooked before the next source starts, and final target review runs before research publication, contact promotion, and new asset publication. Broad search prompts constrain geography, person-level business evidence, and source quality while retaining selected global wealth hubs. The current API runtime reports Holehe, Maigret, and Sherlock available from `.pythonlibs/bin/python3`.
 
 **Honest rating for this case study:** the API and web dashboard are healthy; targeted web research completed; official organization evidence was captured; collision-prone contact evidence and generated outreach remain manual-review only. The benchmark demonstrates correctness and provenance hardening, not 9/10 access quality. The stricter post-fix result is the authoritative benchmark result.
 

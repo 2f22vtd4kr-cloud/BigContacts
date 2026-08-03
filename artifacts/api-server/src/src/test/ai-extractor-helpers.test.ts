@@ -32,4 +32,16 @@ describe("AI response safety helpers", () => {
     expect(prompt).toContain('"instagram": "organization Instagram URL or null"');
     expect(prompt).not.toContain("personal/direct email for the named individual only");
   });
+
+  it("requires identity anchors and claim-level evidence before promoting findings", () => {
+    const prompt = buildPerplexityPrompt("Example Holdings", "Corporation", "US", { city: "New York" });
+    expect(prompt).toContain("target fingerprint first");
+    expect(prompt).toContain("at least two independent anchors");
+    expect(prompt).toContain("claim-level provenance");
+    expect(prompt).toContain("Reject entity drift");
+    expect(prompt).toContain("A username match, email-platform presence");
+    expect(prompt).toContain('"identityAssessment": "confirmed | probable | ambiguous | not_established"');
+    expect(prompt).toContain('"negativeFindings"');
+    expect(prompt).toContain('"searchGaps"');
+  });
 });

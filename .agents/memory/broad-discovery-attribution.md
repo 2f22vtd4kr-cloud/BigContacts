@@ -7,4 +7,4 @@ Broad discovery may use venue, company, and registry pages to find leads, but a 
 
 **Why:** Broad venue searches produced plausible human names from management directories and nearby article text, including a fictional character mentioned in Casino de Monte-Carlo copy. A human-name validator alone could not distinguish a wealthy owner from an employee, author, advisor, fictional reference, or page artifact.
 
-**How to apply:** Keep query wording separate from source proof. Require exact-name attribution before insertion, retain rejected candidates for review where appropriate, and never let OpenOwnership or later enrichment retroactively convert an unqualified discovery snippet into an active target.
+**How to apply:** Keep query wording separate from source proof. Require exact-name attribution before insertion, reject role-only suffixes and obvious organization/editorial/recipe tokens before provider fan-out, retain rejected candidates for review where appropriate, and never let OpenOwnership or later enrichment retroactively convert an unqualified discovery snippet into an active target.
