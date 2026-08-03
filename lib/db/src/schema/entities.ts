@@ -20,6 +20,7 @@ export const entitiesTable = pgTable("entities", {
   personalWebsite: text("personal_website"),
   foundationName: text("foundation_name"),
   phone: text("phone"),
+  phoneSource: text("phone_source"),
   email: text("email"),
   contactMethod: text("contact_method"), // 'WhatsApp' | 'Email' | 'LinkedIn' | 'Signal'
   notes: text("notes"),

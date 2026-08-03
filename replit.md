@@ -139,14 +139,16 @@ The benchmark figures below are historical results from the prior populated runt
 |---|---|---|---|
 | Western HNWI + FAA controlled import | 5,036 | 5,000 | 35 Western records plus 5,000 FAA aircraft-owner records; no synthetic data. |
 | FAA benchmark enrichment | 16 | — | Post-fix run completed 16/16 with 0 errors: 10 social-only, 0 direct-contact candidates, 6 no usable contact outcomes; 431 durable evidence rows. Follow-up three-target claim-source canary: 3/3, 0 errors, 0/3 verified direct routes. |
-| **Current verified state at last check** | **10 active** | **9 visible** | API and Redis healthy; all visible assets are idempotent `BusinessInterest` rows; 2 invalid legacy entities remain quarantined for review and hidden from active counts. |
-| **Current controlled development runtime** | **10 active** | **9 visible** | 0 relationships and 0 active research sessions; the authorized Atlas job completed and is idle. |
+| **Current verified state at last check** | **102 visible / 1 hidden** | **85** | API and Redis healthy; the controlled Western HNWI import inserted 99 records, skipped 1 duplicate, and had 0 errors. |
+| **Current controlled development runtime** | **103 total / 58 HNWI** | **85** | 0 relationships and 0 active research sessions; the final Richard Leeds single-target canary completed with 0 errors and Atlas is idle. |
 
-**Controlled-run state:** `ENABLE_AUTO_PIPELINE=false` remains set, so startup will not create a broad ingestion job. Populated databases still receive safe idempotent maintenance, while empty databases remain idle. The authorized Atlas run completed without being interrupted. The durable contact-promotion validator, current-run evidence boundary, active-job ownership guard, candidate-attribution gate, and Access/Signal separation remain in place.
+**Controlled-run state:** `ENABLE_AUTO_PIPELINE=false` remains set, so startup will not create a broad ingestion job. Populated databases still receive safe idempotent maintenance, while empty databases remain idle. The authorized Western HNWI import and final single-target Atlas run completed without interruption. The durable contact-promotion validator, current-run evidence boundary, active-job ownership guard, candidate-attribution gate, and Access/Signal separation remain in place.
 
 **Atlas audit state:** Discovery admission and target processing are strictly sequential: each source may admit one candidate, that candidate is fully cooked before the next source starts, and final target review runs before research publication, contact promotion, and new asset publication. Broad search prompts constrain geography, person-level business evidence, and source quality while retaining selected global wealth hubs. The current API runtime reports Holehe, Maigret, and Sherlock available from `.pythonlibs/bin/python3`.
 
 **Honest rating for this case study:** the API and web dashboard are healthy; targeted web research completed; official organization evidence was captured; collision-prone contact evidence and generated outreach remain manual-review only. The benchmark demonstrates correctness and provenance hardening, not 9/10 access quality. The stricter post-fix result is the authoritative benchmark result.
+
+**Contact provenance state:** `entities.phone_source` is the nullable source-of-truth column for registry-phone classification. Legacy metadata markers were backfilled into this column, and 19 EDGAR/Companies House phone rows are organization-only with confidence 0 and `is_hot=false`. Generic HNWI search/page extraction is review-only `person_candidate` evidence unless an explicit target claim or exact fetched claim page establishes target-person scope.
 
 ---
 

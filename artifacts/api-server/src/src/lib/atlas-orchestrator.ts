@@ -220,6 +220,7 @@ async function fetchEntities(opts: {
     twitterHandle: entitiesTable.twitterHandle,
     instagramHandle: entitiesTable.instagramHandle,
     telegramHandle: entitiesTable.telegramHandle,
+    phoneSource: entitiesTable.phoneSource,
     bayesianScore: entitiesTable.bayesianScore,
     contactConfidence: entitiesTable.contactConfidence,
   })
@@ -298,6 +299,7 @@ async function ensureAtlasActive(atlasJobId: string): Promise<void> {
 type EntityRow = {
   id: number; name: string; type: string;
   email: string | null; phone: string | null;
+  phoneSource: string | null;
   linkedinUrl: string | null; twitterHandle: string | null;
   instagramHandle: string | null; telegramHandle: string | null;
   bayesianScore: number | null; contactConfidence: number | null;
@@ -931,6 +933,7 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
       email: entitiesTable.email, phone: entitiesTable.phone,
       linkedinUrl: entitiesTable.linkedinUrl, twitterHandle: entitiesTable.twitterHandle,
       instagramHandle: entitiesTable.instagramHandle, telegramHandle: entitiesTable.telegramHandle,
+      phoneSource: entitiesTable.phoneSource,
       knownResidences: entitiesTable.knownResidences, sourceRegistries: entitiesTable.sourceRegistries,
       nationality: entitiesTable.nationality, estimatedNetWorth: entitiesTable.estimatedNetWorth,
     }).from(entitiesTable).where(eq(entitiesTable.id, id)).then((r: any[]) => r[0]);
@@ -974,6 +977,7 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
         type: fresh.type,
         email: fresh.email,
         phone: fresh.phone,
+        phoneSource: fresh.phoneSource,
         contactOutcome: computeContactOutcome(fresh),
       });
 

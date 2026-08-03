@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   isValidPublicEmail,
   sanitizePublicEmail,
+  sanitizePublicPhone,
   sanitizePublicSocialHandle,
   sanitizePublicSocialUrl,
 } from "../lib/contact-validation";
@@ -16,6 +17,12 @@ describe("public contact quality guardrails", () => {
     expect(isValidPublicEmail("first.last@example.com")).toBe(false);
     expect(sanitizePublicEmail("owner@cloudflare.com")).toBeNull();
     expect(sanitizePublicEmail("first.last@domain.com")).toBeNull();
+  });
+
+  it("rejects registry identifiers that look like phone numbers", () => {
+    expect(sanitizePublicPhone("0001738758")).toBeNull();
+    expect(sanitizePublicPhone("0123456789")).toBeNull();
+    expect(sanitizePublicPhone("+8613810355988")).toBe("+8613810355988");
   });
 
   it("accepts only real social profile handles", () => {
@@ -44,6 +51,15 @@ describe("public contact quality guardrails", () => {
     expect(hasMeaningfulDirectContact({ phone: "415-555-2671", phoneSource: "EDGAR-Phone" })).toBe(false);
     expect(hasMeaningfulDirectContact({ phone: "415-555-2671", phoneSource: "CompaniesHouse-Phone" })).toBe(false);
     expect(hasMeaningfulDirectContact({ type: "Trust", phone: "+14155552671" })).toBe(false);
+  });
+
+  it("keeps legacy registry phones out of Atlas hot status", () => {
+    expect(hasMeaningfulDirectContact({
+      type: "HNWI",
+      phone: "+15166087000",
+      phoneSource: "EDGAR-Phone",
+      contactOutcome: "direct_contact_candidate",
+    })).toBe(false);
   });
 
   it("classifies registry phones as organization contact, never verified personal contact", async () => {

@@ -211,6 +211,13 @@ export function normalizePhone(raw: string | null | undefined): string | null {
 
   // Reject out-of-range lengths (ITU-T E.164: 1–15 digits; require ≥ 8)
   if (len < 8 || len > 15) return null;
+  // Registry identifiers and filing numbers are frequently extracted beside
+  // real phone values. They commonly begin with a zero run (for example
+  // "0001738758"), which is not a valid E.164 country-code representation.
+  if (/^0{2,}/.test(digits)) return null;
+  // A bare ten-digit value is interpreted as NANP below; a zero-leading
+  // NANP area code is not assignable and is therefore extraction noise.
+  if (len === 10 && !hasPlus && digits.startsWith("0")) return null;
 
   // 10-digit without leading +  →  assume NANP (+1)
   if (len === 10 && !hasPlus) return `+1${digits}`;

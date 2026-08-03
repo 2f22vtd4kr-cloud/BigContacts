@@ -9,7 +9,15 @@
 
 ---
 
-## Current State (2026-08-03 — corporation person-hop admission hardening; Atlas idle)
+## Current State (2026-08-03 — final single-target canary and contact provenance hardening; Atlas idle)
+
+- Western HNWI import completed with 99 inserted, 1 duplicate skipped, and 0 errors. The controlled development database contains 103 total entities, 102 visible entities, 58 HNWI records, and 85 assets.
+- The final Richard Leeds single-target Atlas canary completed sequentially in about 3 minutes with 0 worker errors, no unrelated discovery/global backfill, and final review `review` with 0 approved contacts/assets. Atlas is idle; API and Redis health are green.
+- Added nullable `entities.phone_source` to the Drizzle schema. Backfilled 19 legacy EDGAR/Companies House phone provenance markers from metadata; all 19 now classify as `organization_contact`, confidence 0, and `is_hot=false`.
+- Atlas final recomputation now passes `phoneSource` into confidence/outcome/hot scoring. Registry phones cannot become personal reachability through omitted source metadata.
+- Generic HNWI search-result and scraped-page extraction now defaults to `person_candidate` review scope. Target-person scope is reserved for explicit target claims or exact fetched claim evidence.
+- Contact sanitization rejects zero-prefixed registry-like phone identifiers before evidence persistence. Final Richard Leeds evidence retained candidate values for review, with no personal contact promotion.
+- Validation completed: API suite 233/233, API production build, ApexFinder web production build, API/Redis health, and live Atlas idle checks. The API typecheck baseline remains blocked only by pre-existing workspace export/logger errors.
 
 ### Research improvement iteration (2026-08-02):
 - The bounded discovery-first canary `cdd3085b-1842-4214-bf3e-4869dd974eb8` was intentionally stopped after live review found two quality failures: a role-shaped HNWI candidate (`Rocco Forte Deputy`) and corporation person-hop recipe/page noise (`Creamy Cucumber`, `Tomato Salad`). No replacement run was launched; Atlas is idle.

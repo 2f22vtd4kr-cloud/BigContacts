@@ -14,7 +14,14 @@
  */
 
 import { logger } from "./logger";
-import { isValidPublicEmail, sanitizePublicEmail, isGenericEmailPrefix } from "./contact-validation";
+import {
+  isValidPublicEmail,
+  sanitizePublicEmail,
+  sanitizePublicPhone,
+  sanitizePublicSocialUrl,
+  isValidPublicSocialHandle,
+  isGenericEmailPrefix,
+} from "./contact-validation";
 
 // ── Third-party financial data aggregators and news wires ─────────────────────
 // Emails scraped from these domains belong to their editorial/ops teams, not the
@@ -1656,7 +1663,27 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     details: Record<string, unknown> = {},
   ) => {
     if (!value) return;
-    const normalized = value.trim();
+    let normalized = value.trim();
+    if (!normalized) return;
+    if (vectorType === "email") {
+      normalized = sanitizePublicEmail(normalized) ?? "";
+    } else if (vectorType === "phone") {
+      normalized = sanitizePublicPhone(normalized) ?? "";
+    } else if (vectorType === "social") {
+      const network = details.network;
+      const scope = details.scope === "organization" ? "organization" : "person";
+      normalized = network === "linkedin"
+        ? sanitizePublicSocialUrl(normalized, "linkedin", scope)
+        : network === "instagram"
+          ? (isValidPublicSocialHandle(normalized, "instagram")
+            ? normalized
+            : sanitizePublicSocialUrl(normalized, "instagram", scope))
+          : network === "twitter"
+            ? (isValidPublicSocialHandle(normalized, "twitter")
+              ? normalized
+              : sanitizePublicSocialUrl(normalized, "twitter", scope))
+            : "";
+    }
     if (!normalized) return;
     const key = `${vectorType}|${normalized.toLowerCase()}|${source}|${sourceUrl ?? ""}`;
     if (evidenceKeys.has(key)) return;
@@ -1744,7 +1771,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   const collectSearchResult = (
     sr: SearchResult,
     label: string,
-    scope: "organization" | "person_candidate" = "organization",
+    scope: "organization" | "person_candidate" | "target_person" = isCorp ? "organization" : "person_candidate",
     personName?: string,
   ) => {
     const details = {
@@ -1801,7 +1828,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     page: ScrapedPage,
     label: string,
     sourceUrl: string,
-    scope: "organization" | "person_candidate" = "organization",
+    scope: "organization" | "person_candidate" | "target_person" = isCorp ? "organization" : "person_candidate",
     personName?: string,
   ) => {
     const details = {
