@@ -7,7 +7,7 @@
  */
 
 import { Router, type Request, type Response } from "express";
-import { createJob, getActiveJob, getJob, setActiveJob, updateJob } from "../lib/job-queue";
+import { createJob, getActiveJob, getJob, setActiveJob, updateJob, clearActiveJobIfOwned } from "../lib/job-queue";
 import { runAtlasPipeline, type AtlasOptions } from "../lib/atlas-orchestrator";
 import { logger } from "../lib/logger";
 import { db } from "@workspace/db";
@@ -85,7 +85,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
         message: err.message ?? "Atlas pipeline crashed",
         finishedAt: new Date().toISOString(),
       });
-      await setActiveJob("atlas-run", "");
+      await clearActiveJobIfOwned("atlas-run", atlasJobId);
     }
   })();
 
@@ -114,11 +114,23 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
 
 // ── DELETE /ingest/atlas-lock ─────────────────────────────────────────────────
 router.delete("/ingest/atlas-lock", async (_req: Request, res: Response): Promise<void> => {
-  const jobId = await getActiveJob("atlas-run");
-  if (!jobId) { res.json({ cleared: false, message: "No active Atlas lock." }); return; }
+  const activeJobId = await getActiveJob("atlas-run");
+  const requestedJobId = Array.isArray(_req.query.jobId)
+    ? String(_req.query.jobId[0] ?? "")
+    : String(_req.query.jobId ?? "");
+  const jobId = activeJobId ?? requestedJobId;
+  if (!jobId) { res.json({ cleared: false, message: "No active Atlas lock or jobId supplied." }); return; }
   await updateJob(jobId, { status: "failed", message: "Killed manually.", finishedAt: new Date().toISOString() } as any);
-  await setActiveJob("atlas-run", "");
-  res.json({ cleared: true, jobId, message: "Atlas lock cleared." });
+  await clearActiveJobIfOwned("atlas-run", jobId);
+  res.json({ cleared: true, jobId, message: activeJobId ? "Atlas cancellation requested." : "Stale Atlas job marked failed." });
+});
+
+router.delete("/ingest/atlas-lock/:jobId", async (req: Request, res: Response): Promise<void> => {
+  const jobId = String(req.params.jobId ?? "");
+  if (!jobId) { res.json({ cleared: false, message: "No Atlas job ID supplied." }); return; }
+  await updateJob(jobId, { status: "failed", message: "Killed manually.", finishedAt: new Date().toISOString() } as any);
+  await clearActiveJobIfOwned("atlas-run", jobId);
+  res.json({ cleared: true, jobId, message: "Atlas job marked failed." });
 });
 
 // ── GET /ingest/atlas-status ──────────────────────────────────────────────────

@@ -287,9 +287,43 @@ Rules:
 - Do NOT invent anything not stated in the text`;
 }
 
+function decodeHtmlEntities(value: string): string {
+  const named: Record<string, string> = {
+    amp: "&",
+    apos: "'",
+    gt: ">",
+    lt: "<",
+    quot: "\"",
+  };
+  return value.replace(/&(?:amp|apos|gt|lt|quot|#39|#x27|#34|#x22);/gi, (entity) => {
+    const key = entity.slice(1, -1).toLowerCase();
+    if (key === "#39" || key === "#x27") return "'";
+    if (key === "#34" || key === "#x22") return "\"";
+    return named[key] ?? entity;
+  });
+}
+
+/**
+ * Providers occasionally return the JSON object as a JSON-encoded string
+ * (and some escape punctuation as HTML entities). Normalize those transport
+ * wrappers before balanced-brace extraction; parseAIResponse remains the
+ * strict validation boundary afterward.
+ */
+function normalizeJsonTransport(raw: string): string {
+  let candidate = raw.trim();
+  try {
+    const decoded = JSON.parse(candidate);
+    if (typeof decoded === "string") candidate = decoded;
+  } catch {
+    // The body may be fenced JSON or JSON-like text; brace extraction handles it.
+  }
+  return decodeHtmlEntities(candidate);
+}
+
 export function extractJsonObject(raw: string): string | null {
-  const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)\s*```/i)?.[1]?.trim();
-  const candidate = fenced || raw.trim();
+  const normalized = normalizeJsonTransport(raw);
+  const fenced = normalized.match(/```(?:json)?\s*([\s\S]*?)\s*```/i)?.[1]?.trim();
+  const candidate = fenced || normalized.trim();
   const start = candidate.indexOf("{");
   if (start < 0) return null;
 

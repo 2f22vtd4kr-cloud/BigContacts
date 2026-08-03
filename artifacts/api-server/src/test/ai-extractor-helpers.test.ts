@@ -12,6 +12,11 @@ describe("AI response safety helpers", () => {
       .toBe('{"basis":"text with } brace","email":null}');
   });
 
+  it("unwraps provider JSON strings and decodes HTML-escaped punctuation", () => {
+    const raw = JSON.stringify('{ "ownershipSummary": "Michael &amp; Co.", "email": null }');
+    expect(extractJsonObject(raw)).toBe('{ "ownershipSummary": "Michael & Co.", "email": null }');
+  });
+
   it("rejects incomplete or non-object responses", () => {
     expect(extractJsonObject("not json")).toBeNull();
     expect(extractJsonObject('{"email":"broken"')).toBeNull();

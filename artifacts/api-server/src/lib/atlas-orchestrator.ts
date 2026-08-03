@@ -22,7 +22,7 @@
 import { db, entitiesTable, assetsTable, contactEvidenceTable } from "@workspace/db";
 import { sql, eq, and, desc, inArray } from "drizzle-orm";
 import { logger } from "./logger";
-import { updateJob, clearJobFields, createJob, setActiveJob } from "./job-queue";
+import { updateJob, clearJobFields, createJob, setActiveJob, ownsActiveJob, clearActiveJobIfOwned } from "./job-queue";
 import { runWesternHnwiIngestion } from "./western-hnwi-ingestion";
 import { runFaaIngestion } from "./faa-ingestor";
 import { runLandRegistryIngestion } from "./land-registry-ingestor";
@@ -229,6 +229,7 @@ async function runEntityBatch<T>(
   let ok = 0; let errCount = 0;
 
   for (let i = 0; i < entities.length; i += concurrency) {
+    await ensureAtlasActive(atlasJobId);
     const slice = entities.slice(i, i + concurrency);
     await updateJob(atlasJobId, {
       status: "running",
@@ -240,18 +241,24 @@ async function runEntityBatch<T>(
       entityNames: JSON.stringify(slice.map(e => e.name)),
     });
 
-    await Promise.allSettled(
+    const results = await Promise.allSettled(
       slice.map(async (entity) => {
         try {
           const result = await fn(entity);
           if (onResult) await onResult(entity, result).catch(() => {});
           ok++;
         } catch (err) {
+          if (err instanceof AtlasCancelledError) throw err;
           errCount++;
           logger.warn({ entityId: entity.id, phase, err: (err as Error).message }, "[Atlas] entity error");
         }
       }),
     );
+    const cancellation = results.find(
+      (result): result is PromiseRejectedResult =>
+        result.status === "rejected" && result.reason instanceof AtlasCancelledError,
+    );
+    if (cancellation) throw cancellation.reason;
     await updateJob(atlasJobId, {
       entityProgress: i + slice.length,
       entityTotal: entities.length,
@@ -260,6 +267,19 @@ async function runEntityBatch<T>(
   }
 
   return { ok, err: errCount };
+}
+
+class AtlasCancelledError extends Error {
+  constructor() {
+    super("Atlas run cancelled.");
+    this.name = "AtlasCancelledError";
+  }
+}
+
+async function ensureAtlasActive(atlasJobId: string): Promise<void> {
+  if (!(await ownsActiveJob("atlas-run", atlasJobId))) {
+    throw new AtlasCancelledError();
+  }
 }
 
 // ── Per-entity full-circle enricher ───────────────────────────────────────────
@@ -394,6 +414,7 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
     if (messengerResult?.telegramHandle && !entity.telegramHandle) { socUp.telegramHandle = messengerResult.telegramHandle; entity = { ...entity, telegramHandle: messengerResult.telegramHandle }; }
     if (Object.keys(socUp).length) { socUp.updatedAt = new Date(); await db.update(entitiesTable).set(socUp as any).where(eq(entitiesTable.id, id)); }
 
+    await ensureAtlasActive(atlasJobId);
     // ── Step C: AI OSINT sweep (Perplexity + Gemini + Tavily + Exa + Groq) ────
     await updateJob(atlasJobId, { status: "running", message: `🤖 ${name}: AI OSINT…` });
     const aiResult = await deepWebOsintEnrich(entity as any).catch(() => null);
@@ -462,6 +483,7 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
       }
     }
 
+    await ensureAtlasActive(atlasJobId);
     // ── Step D: Maigret (3 000+ platforms) + Holehe (120+ services) ───────────
     const rawHandle = (
       (aiResult?.twitterUrl ?? "").replace(/^https?:\/\/(www\.)?(twitter\.com|x\.com)\//, "").replace(/\?.*$/, "")
@@ -507,6 +529,7 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
       }
     }
 
+    await ensureAtlasActive(atlasJobId);
     // ── Step E: Forensic cross-reference (ICIJ Offshore Leaks + Whoxy WHOIS) ──
     await Promise.allSettled([
       enrichWithIcij(name, [], false).then(async (res: any) => {
@@ -712,6 +735,7 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
 
     logger.info({ entityId: id, name }, "[Atlas] ✅ Entity fully cooked");
   } catch (err: any) {
+    if (err instanceof AtlasCancelledError) throw err;
     logger.warn({ entityId: id, name, err: err.message }, "[Atlas] Full-circle enrichment failed (non-fatal)");
     // Still stamp cookedAt so we don't retry endlessly on problematic entities
     await db.update(entitiesTable).set({ cookedAt: new Date(), updatedAt: new Date() }).where(eq(entitiesTable.id, id)).catch(() => {});
@@ -732,6 +756,7 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
   const hot = opts.hotLeadsOnly ?? false;
 
   async function status(msg: string, phaseNum?: number) {
+    await ensureAtlasActive(atlasJobId);
     logger.info({ phase: phaseNum, msg }, "[Atlas]");
     await updateJob(atlasJobId, {
       status: "running",
@@ -857,6 +882,7 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
   const phaseJJobId = await createJob("phase-j-pass");
 
   for (const source of sourcesToRun) {
+    await ensureAtlasActive(atlasJobId);
     sourceRound++;
     const runStart = new Date();
 
@@ -941,6 +967,7 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
   summary["Discovery loop"] = `${cookedCount} entities fully cooked across ${sourceRound} sources`;
 
   // ── Phase 3: Metadata population ───────────────────────────────────────────
+  await ensureAtlasActive(atlasJobId);
   await status("Phase 3/10: Populate notes + EDGAR stock assets + live-source markers…", 3);
 
   try {
@@ -1008,6 +1035,7 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
 
   // ── Phase 9: Semantic layer ─────────────────────────────────────────────────
   // (Phases 4-8 are now handled per-entity inside enrichEntityFullCircle above)
+  await ensureAtlasActive(atlasJobId);
   await status("Phase 9/10: Semantic embeddings + net worth backfill + confidence recompute…", 9);
 
   try {
@@ -1141,6 +1169,7 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
 
   // ── Phase 10: MCTS Research on hot leads ───────────────────────────────────
   if (opts.runResearch !== false) {
+    await ensureAtlasActive(atlasJobId);
     await status("Phase 10/10: MCTS research on hot leads…", 10);
     try {
       // Target selection is reachability-first, NOT wealth-first: a $2B net worth
@@ -1157,6 +1186,7 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
       let researched = 0;
       const MCTS_BATCH = 5;
       for (let i = 0; i < hotEntities.length; i += MCTS_BATCH) {
+        await ensureAtlasActive(atlasJobId);
         const batch5 = hotEntities.slice(i, i + MCTS_BATCH);
         await updateJob(atlasJobId, { status: "running", progress: 10, total: 10, message: `MCTS research batch ${Math.floor(i / MCTS_BATCH) + 1}/${Math.ceil(hotEntities.length / MCTS_BATCH)}…` });
         await Promise.allSettled(batch5.map(async (e) => {
@@ -1197,6 +1227,7 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
     Object.entries(summary).map(([k, v]) => `${k}: ${v}`).join(" | "),
   ].join(" ");
 
+  await ensureAtlasActive(atlasJobId);
   await updateJob(atlasJobId, {
     status: "done",
     progress: 10, total: 10,
@@ -1206,7 +1237,7 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
     finishedAt: new Date().toISOString(),
     message: finalMsg,
   });
-  await setActiveJob("atlas-run", "");
+  await clearActiveJobIfOwned("atlas-run", atlasJobId);
   logger.info({ durationMs, hotLeads, summary }, "[Atlas] Pipeline complete");
 
   return { phase: 10, ingested: totalIngested, enriched: totalEnriched, contactsFound: totalContacts, hotLeads, durationMs, phaseSummary: summary };
