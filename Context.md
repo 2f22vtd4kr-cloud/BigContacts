@@ -1,3 +1,4 @@
+| 2026-08-03 | **Bounded single-target Atlas mode + desktop telemetry inspector**: Added `singleTargetId` launch support that runs one existing entity through the complete target-scoped enrichment and optional UCT journey without discovery, registry ingestion, or global backfills. Desktop Reactor now shows target, stage, active tool, tool set, prompt, inputs, and result telemetry in a live inspector. |
 # ApexFinder Pro — Session Context
 
 > **ABSOLUTE RULE — no exceptions:**

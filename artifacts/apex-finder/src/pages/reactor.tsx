@@ -652,6 +652,75 @@ function EntityWorkbench({ state, liveNodes, compact = false }: {
   );
 }
 
+const TELEMETRY_TOOL_LABELS: Record<string, string> = {
+  target: "TARGET",
+  inhouse: "IN-HOUSE",
+  webdisc: "WEB DISCOVERY",
+  deepweb: "DEEP WEB",
+  perp0: "PERPLEXITY",
+  perpfu: "PERPLEXITY+",
+  exa: "EXA",
+  tavily: "TAVILY",
+  gemini: "GEMINI",
+  groq: "GROQ",
+  maigret: "MAIGRET",
+  holehe: "HOLEHE",
+  occrp: "OCCRP",
+  whoxy: "WHOXY",
+  graph: "GRAPH",
+  mcts: "UCT / MCTS",
+  prac: "PRAC",
+  pitch: "PITCH",
+};
+
+function AtlasTelemetryInspector({ telemetry }: { telemetry?: any }) {
+  if (!telemetry) return null;
+  const tools = Array.isArray(telemetry.toolIds) ? telemetry.toolIds : [];
+  const activeTool = telemetry.activeToolId ? (TELEMETRY_TOOL_LABELS[telemetry.activeToolId] ?? telemetry.activeToolId) : null;
+  return (
+    <div style={{
+      position:"absolute", top:16, right:18, width:374, maxHeight:350, overflowY:"auto",
+      zIndex:30, padding:"11px 12px", border:"1px solid #22d3ee55", borderRadius:7,
+      background:"rgba(7,15,29,0.96)", boxShadow:"0 0 24px #0008", backdropFilter:"blur(10px)",
+      fontFamily:"'Space Mono','DM Mono','Courier New',monospace",
+    }}>
+      <div style={{ display:"flex", alignItems:"center", gap:7, marginBottom:8 }}>
+        <span style={{ width:6, height:6, borderRadius:"50%", background:telemetry.status === "complete" ? "#a3e635" : "#22d3ee", boxShadow:"0 0 8px #22d3ee", flexShrink:0 }} />
+        <span style={{ fontSize:7, letterSpacing:"0.17em", color:"#22d3ee" }}>LIVE TARGET INSPECTOR</span>
+        <span style={{ marginLeft:"auto", fontSize:6.5, letterSpacing:"0.12em", color:telemetry.status === "complete" ? "#a3e635" : "#fbbf24" }}>
+          {String(telemetry.status ?? "active").toUpperCase()}
+        </span>
+      </div>
+      <div style={{ display:"grid", gridTemplateColumns:"82px 1fr", gap:"5px 8px", fontSize:7 }}>
+        <span style={{ color:"#526b86", letterSpacing:"0.1em" }}>TARGET</span>
+        <span style={{ color:"#e8e0cc", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{telemetry.targetName ?? "—"}</span>
+        <span style={{ color:"#526b86", letterSpacing:"0.1em" }}>STAGE</span>
+        <span style={{ color:"#a3e635" }}>{telemetry.stage ?? "—"}</span>
+        <span style={{ color:"#526b86", letterSpacing:"0.1em" }}>ACTIVE TOOL</span>
+        <span style={{ color:"#22d3ee" }}>{activeTool ?? "—"}</span>
+        <span style={{ color:"#526b86", letterSpacing:"0.1em" }}>TOOL SET</span>
+        <span style={{ color:"#8aa4c0", lineHeight:1.5 }}>{tools.map((tool: string) => TELEMETRY_TOOL_LABELS[tool] ?? tool).join(" · ") || "—"}</span>
+      </div>
+      {telemetry.inputSummary && (
+        <div style={{ marginTop:9, paddingTop:8, borderTop:"1px solid #192840", color:"#8aa4c0", fontSize:7, lineHeight:1.45 }}>
+          <span style={{ color:"#526b86", letterSpacing:"0.1em" }}>INPUT  </span>{telemetry.inputSummary}
+        </div>
+      )}
+      {telemetry.prompt && (
+        <div style={{ marginTop:8, padding:"8px", border:"1px solid #a3e63530", borderRadius:4, background:"#a3e63508", color:"#cbd5a5", fontSize:6.7, lineHeight:1.5, whiteSpace:"pre-wrap", maxHeight:150, overflowY:"auto" }}>
+          <div style={{ color:"#a3e635", fontSize:6.5, letterSpacing:"0.13em", marginBottom:5 }}>CURRENT PROMPT</div>
+          {telemetry.prompt}
+        </div>
+      )}
+      {telemetry.resultSummary && (
+        <div style={{ marginTop:8, color:"#8aa4c0", fontSize:7, lineHeight:1.45 }}>
+          <span style={{ color:"#526b86", letterSpacing:"0.1em" }}>RESULT  </span>{telemetry.resultSummary}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Mobile layout ─────────────────────────────────────────────────────────────
 function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading, onRefresh, syncing, liveNodes, liveLabel, livePhaseDetail, atlasState, exhaustedKeys = [] }: {
   sessions: ResearchSession[];
@@ -1244,6 +1313,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, isL
 
       {/* Main panel */}
       <div style={{ flex:1, position:"relative", zIndex:5, overflow:"hidden" }}>
+        <AtlasTelemetryInspector telemetry={atlasState?.atlasTelemetry} />
         {/* SVG connections */}
         <svg width={1600} height={842} style={{ position:"absolute", inset:0, zIndex:1 }}>
           <defs>

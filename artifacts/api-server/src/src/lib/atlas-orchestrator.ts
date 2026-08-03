@@ -164,6 +164,12 @@ export interface AtlasOptions {
    * Default: 3 when discoveryFirst=true, 1 otherwise.
    */
   broadCategories?: number;
+  /**
+   * Run one existing entity through the complete target-scoped enrichment
+   * journey. This deliberately bypasses discovery, registry ingestion, and
+   * global backfills so no other target is touched.
+   */
+  singleTargetId?: number;
 }
 
 export interface AtlasResult {
@@ -189,6 +195,7 @@ async function fetchEntities(opts: {
   types?: string[];
   requireEmail?: boolean;
   requireAviationAsset?: boolean;
+  targetId?: number;
 }) {
   const types = opts.types ?? ["HNWI", "Gatekeeper", "Corporation", "Trust"];
   const conditions: any[] = [
@@ -196,6 +203,7 @@ async function fetchEntities(opts: {
   ];
   if (opts.hotLeadsOnly) conditions.push(sql`${entitiesTable.bayesianScore} >= 0.5`);
   if (opts.requireEmail) conditions.push(sql`${entitiesTable.email} IS NOT NULL`);
+  if (opts.targetId != null) conditions.push(eq(entitiesTable.id, opts.targetId));
 
   return db.select({
     id: entitiesTable.id,
@@ -998,6 +1006,154 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
 
 // ── Main Orchestrator ─────────────────────────────────────────────────────────
 
+/**
+ * Bounded, target-scoped Atlas run.
+ *
+ * The normal Atlas pipeline is intentionally broad and contains global
+ * maintenance phases. Those are useful after ingestion, but are the wrong
+ * behaviour when an analyst explicitly asks to finish one target before
+ * moving on. This branch keeps the full per-target A–H journey and optional
+ * MCTS research while avoiding discovery, registry ingestion, and global
+ * embedding/wealth/contact passes.
+ */
+async function runSingleTargetPipeline(
+  atlasJobId: string,
+  opts: AtlasOptions,
+  startMs: number,
+): Promise<AtlasResult> {
+  const targetId = opts.singleTargetId!;
+  const summary: Record<string, string> = {};
+  const targetRows = await fetchEntities({
+    batchSize: 1,
+    hotLeadsOnly: false,
+    targetId,
+  });
+
+  if (targetRows.length === 0) {
+    throw new Error(`Atlas target entity ${targetId} was not found.`);
+  }
+
+  const target = targetRows[0]!;
+  await updateJob(atlasJobId, {
+    status: "running",
+    progress: 0,
+    total: 10,
+    atlasPhase: 0,
+    atlasPhaseTotal: 10,
+    message: `Single-target Atlas: ${target.name} — full journey queued…`,
+    entityProgress: 0,
+    entityTotal: 1,
+    entityNames: JSON.stringify([target.name]),
+  });
+  await setAtlasTelemetry(atlasJobId, {
+    stage: "TARGET INITIALIZATION",
+    status: "active",
+    targetName: target.name,
+    targetType: target.type,
+    toolIds: ["target"],
+    activeToolId: "target",
+    inputSummary: `Exact existing entity ID ${targetId}; no discovery or unrelated targets`,
+  });
+
+  const result = await runEntityBatch(
+    atlasJobId,
+    "TARGET 1/1",
+    targetRows,
+    (entity) => enrichEntityFullCircle(atlasJobId, entity as EntityRow),
+    1,
+  );
+  summary["Target journey"] = `${target.name}: ${result.ok ? "complete" : "failed"} (${result.err} errors)`;
+
+  if (opts.runResearch !== false) {
+    await ensureAtlasActive(atlasJobId);
+    await updateJob(atlasJobId, {
+      status: "running",
+      progress: 10,
+      total: 10,
+      atlasPhase: 10,
+      atlasPhaseTotal: 10,
+      message: `Phase 10/10: MCTS research target ${target.name}…`,
+      entityProgress: 0,
+      entityTotal: 1,
+      entityNames: JSON.stringify([target.name]),
+    });
+    await setAtlasTelemetry(atlasJobId, {
+      stage: "UCT RESEARCH",
+      status: "active",
+      targetName: target.name,
+      targetType: target.type,
+      toolIds: ["graph", "mcts", "prac", "pitch"],
+      activeToolId: "mcts",
+      inputSummary: "One completed target journey; reachability-gated adaptive research",
+    });
+    try {
+      const { runResearchSession } = await import("./mcts-agent");
+      await (runResearchSession as any)(target.id);
+      summary["Target research"] = "MCTS complete";
+    } catch (err: any) {
+      summary["Target research"] = `MCTS review: ${err?.message ?? "failed"}`;
+      logger.warn({ entityId: target.id, err: err?.message }, "[Atlas] single-target MCTS failed");
+    }
+    await updateJob(atlasJobId, {
+      entityProgress: 1,
+      entityTotal: 1,
+      entityNames: JSON.stringify([target.name]),
+    });
+  } else {
+    summary["Target research"] = "Skipped (runResearch=false)";
+  }
+
+  const [hotRow, totalRow, contactRow] = await Promise.all([
+    db.select({ count: sql<number>`count(*)::int` }).from(entitiesTable).where(sql`${entitiesTable.bayesianScore} >= 0.5`),
+    db.select({ count: sql<number>`count(*)::int` }).from(entitiesTable),
+    db.select({ count: sql<number>`count(*)::int` }).from(entitiesTable)
+      .where(sql`(${entitiesTable.email} IS NOT NULL OR ${entitiesTable.phone} IS NOT NULL OR ${entitiesTable.linkedinUrl} IS NOT NULL)`),
+  ]);
+  const hotLeads = Number(hotRow[0]?.count ?? 0);
+  const totalEntities = Number(totalRow[0]?.count ?? 0);
+  const totalContacts = Number(contactRow[0]?.count ?? 0);
+  const durationMs = Date.now() - startMs;
+  const finalMsg = [
+    `Single-target Atlas complete in ${Math.round(durationMs / 60_000)}min.`,
+    `${target.name} fully processed; no unrelated discovery or global backfill ran.`,
+    Object.entries(summary).map(([k, v]) => `${k}: ${v}`).join(" | "),
+  ].join(" ");
+
+  await setAtlasTelemetry(atlasJobId, {
+    stage: "TARGET COMPLETE",
+    status: "complete",
+    targetName: target.name,
+    targetType: target.type,
+    toolIds: ["target", "inhouse", "webdisc", "deepweb", "perp0", "exa", "tavily", "gemini", "groq", "maigret", "occrp", "whoxy", "graph", "mcts", "prac", "pitch"],
+    inputSummary: `Exact entity ID ${targetId}`,
+    resultSummary: finalMsg,
+  });
+  await ensureAtlasActive(atlasJobId);
+  await updateJob(atlasJobId, {
+    status: "done",
+    progress: 10,
+    total: 10,
+    atlasPhase: 10,
+    atlasPhaseTotal: 10,
+    inserted: 0,
+    finishedAt: new Date().toISOString(),
+    message: finalMsg,
+    entityProgress: 1,
+    entityTotal: 1,
+    entityNames: JSON.stringify([target.name]),
+  });
+  await clearActiveJobIfOwned("atlas-run", atlasJobId);
+  return {
+    phase: 10,
+    ingested: 0,
+    enriched: result.ok,
+    contactsFound: totalContacts,
+    hotLeads,
+    durationMs,
+    phaseSummary: { ...summary, Scope: `Target ${target.id} only (${totalEntities} entities remain untouched)` },
+  };
+}
+
 export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): Promise<AtlasResult> {
   const startMs = Date.now();
   const summary: Record<string, string> = {};
@@ -1008,6 +1164,10 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
 
   const batch = opts.batchSize ?? 200;
   const hot = opts.hotLeadsOnly ?? false;
+
+  if (opts.singleTargetId != null) {
+    return runSingleTargetPipeline(atlasJobId, opts, startMs);
+  }
 
   async function status(msg: string, phaseNum?: number) {
     await ensureAtlasActive(atlasJobId);
