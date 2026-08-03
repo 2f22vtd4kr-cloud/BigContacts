@@ -65,3 +65,4 @@
 - [Business asset separation](business-asset-separation.md) — Operating businesses are separate evidence-backed assets; never infer them from personal wealth or uncertain names
 - [Invalid entity quarantine](invalid-entity-quarantine.md) — Hidden role/placeholder rows must clear active contact state while preserving the original evidence in review-only metadata
 - [Placeholder admission boundary](placeholder-admission-boundary.md) — Reject registry placeholders before dedup marking or batch insertion; later enrichment/startup cleanup are recovery layers
+- [AI research prompt contract](ai-research-prompt-contract.md) — Require target anchors, claim-level provenance, and explicit uncertainty; usernames and service hits never prove personal identity/access

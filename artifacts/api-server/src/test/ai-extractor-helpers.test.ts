@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractJsonObject } from "../lib/ai-extractor";
+import { buildPerplexityPrompt, extractJsonObject } from "../lib/ai-extractor";
 
 describe("AI response safety helpers", () => {
   it("extracts the first balanced JSON object instead of greedily merging objects", () => {
@@ -15,5 +15,17 @@ describe("AI response safety helpers", () => {
   it("rejects incomplete or non-object responses", () => {
     expect(extractJsonObject("not json")).toBeNull();
     expect(extractJsonObject('{"email":"broken"')).toBeNull();
+  });
+
+  it("requires identity anchors and claim-level evidence before promoting findings", () => {
+    const prompt = buildPerplexityPrompt("Example Holdings", "Corporation", "US", { city: "New York" });
+    expect(prompt).toContain("target fingerprint first");
+    expect(prompt).toContain("at least two independent anchors");
+    expect(prompt).toContain("claim-level provenance");
+    expect(prompt).toContain("Reject entity drift");
+    expect(prompt).toContain("A username match, email-platform presence");
+    expect(prompt).toContain('"identityAssessment": "confirmed | probable | ambiguous | not_established"');
+    expect(prompt).toContain('"negativeFindings"');
+    expect(prompt).toContain('"searchGaps"');
   });
 });
