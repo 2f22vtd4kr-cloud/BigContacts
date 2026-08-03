@@ -44,7 +44,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
     discoveryFirst,
     skipFaa:            body.skipFaa !== undefined ? Boolean(body.skipFaa) : discoveryFirst,
     broadCategories:    Number(body.broadCategories)   || (discoveryFirst ? 3 : 1),
-    singleTargetId:     Number(body.singleTargetId) || undefined,
+    singleTargetId:     body.singleTargetId !== undefined ? Number(body.singleTargetId) : undefined,
   };
 
   const atlasJobId = await createJob("atlas-run");

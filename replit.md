@@ -76,7 +76,7 @@ The long-term plan for improving the approximately 2.5% direct-contact yield is 
 | `GEMINI_API_KEY`, `_2`–`_4` | Replit Secrets (optional) | Google Gemini model access, with key rotation |
 | `TAVILY_API_KEY`, `_2`–`_6` | Replit Secrets (optional) | Tavily AI-native search API; returns clean excerpts fed into Groq for extraction, with key rotation |
 | `EXA_API_KEY`, `_2` | Replit Secrets (optional) | Exa neural/semantic search; excels at people + company lookups; fed into Groq for extraction, with key rotation |
-| `ENABLE_AUTO_PIPELINE` | Shared environment | Set to `false` for controlled imports and single-target research; set to `true` only when broad cold-start ingestion is explicitly requested. |
+| `ENABLE_AUTO_PIPELINE` | Shared environment | Set to `false` for controlled imports and single-target research; set to `true` only when broad cold-start ingestion is explicitly requested. Do not enable it for idle-safe review-only runs. |
 
 ### Adding a new Upstash Redis slot
 
