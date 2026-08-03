@@ -79,4 +79,20 @@ describe("target reachability realism", () => {
     expect(result.hasIntermediaryPath).toBe(false);
     expect(result.status).toBe("research_only");
   });
+
+  it("does not treat a registry phone as validated personal access", () => {
+    const result = assessTargetReachability({
+      type: "HNWI",
+      phone: "+15166087000",
+      phoneSource: "EDGAR-Phone",
+      contactOutcome: "organization_contact",
+      knownResidences: "Port Washington, NY",
+      metadata: JSON.stringify({ publicProminence: true }),
+    });
+
+    expect(result.hasDirectContact).toBe(false);
+    expect(result.status).toBe("bounded");
+    expect(result.reasons).not.toContain("validated person-level direct contact is present");
+    expect(result.blockers).toContain("organization contact is not personal access to the individual");
+  });
 });

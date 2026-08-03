@@ -44,6 +44,8 @@ export interface JobState {
   entityNames?: string;
   /** Structured, target-scoped telemetry for the Intelligence Reactor inspector. */
   atlasTelemetry?: string;
+  /** Process may finish while the research outcome remains incomplete. */
+  outcome?: "complete" | "incomplete";
 }
 
 const JOB_TTL = 60 * 60 * 24 * 7; // 7 days on Upstash
@@ -115,6 +117,9 @@ export async function getJob(jobId: string): Promise<JobState | null> {
     entityTotal: raw["entityTotal"] !== undefined ? Number(raw["entityTotal"]) : undefined,
     entityNames: raw["entityNames"],
     atlasTelemetry: raw["atlasTelemetry"],
+    outcome: raw["outcome"] === "incomplete" || raw["outcome"] === "complete"
+      ? raw["outcome"]
+      : undefined,
   };
 }
 

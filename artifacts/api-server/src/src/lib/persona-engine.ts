@@ -61,6 +61,19 @@ export type ImprovementCategory =
 export type Priority = "high" | "medium" | "low";
 export type ImprovementStatus = "pending" | "applied" | "dismissed";
 
+export function shouldRequestContactFollowUp(input: {
+  entityType?: string | null;
+  approvedContactValues?: unknown[] | null;
+  contactOutcome?: string | null;
+}): boolean {
+  const isDirectOutreachTarget = input.entityType === "HNWI" || input.entityType === "Gatekeeper";
+  return isDirectOutreachTarget
+    && Array.isArray(input.approvedContactValues)
+    && input.approvedContactValues.length === 0
+    && input.contactOutcome !== "direct_contact_candidate"
+    && input.contactOutcome !== "direct_contact_verified";
+}
+
 export interface ImprovementSuggestion {
   entityId: number;
   persona: PersonaId;
@@ -368,6 +381,42 @@ async function runIntelSystemsAnalyst(entity: Entity): Promise<ImprovementSugges
   const sources    = parseJsonSafe<string[]>(entity.sourceRegistries, []);
   const metadata   = parseJsonSafe<Record<string, unknown>>(entity.metadata, {});
   const score      = entity.bayesianScore;
+
+  // A final review is a publication gate, not a successful research outcome.
+  // Do not let a completed provider journey with zero approved contacts
+  // disappear into the cooked/ready state. This directive is deliberately
+  // high priority so the next OSINT pass is visible and actionable.
+  const finalTargetReview = metadata.finalTargetReview;
+  const approvedContacts = finalTargetReview && typeof finalTargetReview === "object"
+    && Array.isArray((finalTargetReview as Record<string, unknown>).approvedContactValues)
+    ? (finalTargetReview as Record<string, unknown>).approvedContactValues as unknown[]
+    : null;
+  const needsContactFollowUp = shouldRequestContactFollowUp({
+    entityType: entity.type,
+    approvedContactValues: approvedContacts,
+    contactOutcome: entity.contactOutcome,
+  });
+  if (needsContactFollowUp) {
+    const candidateFunnel = metadata.deepWebCandidateFunnel;
+    const candidateCount = candidateFunnel && typeof candidateFunnel === "object"
+      && typeof (candidateFunnel as Record<string, unknown>).totalCandidates === "number"
+      ? Number((candidateFunnel as Record<string, unknown>).totalCandidates)
+      : 0;
+    suggestions.push({
+      entityId: entity.id,
+      persona: "intel_systems_analyst",
+      category: "outreach",
+      priority: "high",
+      title: "Zero-yield target run — contact research must continue",
+      description:
+        `The latest target-scoped final review approved 0 personal contact routes${candidateCount ? ` from ${candidateCount} funnel candidates` : ""}. ` +
+        "This is not a successful enrichment outcome. Keep the target in research follow-up and run another bounded pass " +
+        "with identity anchors, official-domain resolution, exact claim-page fetching, and validation of retained review candidates. " +
+        "Do not generate outreach or promote an organization route as personal access.",
+      actionTaken:
+        "Marked needs_follow_up; next pass must improve attributable candidate yield before the target can be considered outreach-ready.",
+    });
+  }
 
   // ── Layer 4: MCTS Deep Path Exploration ────────────────────────────────────
 

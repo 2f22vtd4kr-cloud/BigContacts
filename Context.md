@@ -9,15 +9,15 @@
 
 ---
 
-## Current State (2026-08-03 — final single-target canary and contact provenance hardening; Atlas idle)
+## Current State (2026-08-03 — truthful retry state and reachability provenance hardening; Atlas idle)
 
 - Western HNWI import completed with 99 inserted, 1 duplicate skipped, and 0 errors. The controlled development database contains 103 total entities, 102 visible entities, 58 HNWI records, and 85 assets.
-- The final Richard Leeds single-target Atlas canary completed sequentially in about 3 minutes with 0 worker errors, no unrelated discovery/global backfill, and final review `review` with 0 approved contacts/assets. Atlas is idle; API and Redis health are green.
+- The final Richard Leeds single-target Atlas pass completed sequentially in about 2 minutes with 0 worker errors, no unrelated discovery/global backfill, and final review `review` with 0 approved contacts/assets and 5 reviewable candidates. The job outcome is explicitly `incomplete` with disposition `needs_follow_up`; Atlas is idle and API/Redis health is green.
 - Added nullable `entities.phone_source` to the Drizzle schema. Backfilled 19 legacy EDGAR/Companies House phone provenance markers from metadata; all 19 now classify as `organization_contact`, confidence 0, and `is_hot=false`.
-- Atlas final recomputation now passes `phoneSource` into confidence/outcome/hot scoring. Registry phones cannot become personal reachability through omitted source metadata.
+- Atlas and both deep-web reachability paths now pass `phoneSource` into confidence/outcome/hot scoring and provider prompts. Registry phones cannot become personal reachability or make a target appear `DIRECT` through omitted source metadata.
 - Generic HNWI search-result and scraped-page extraction now defaults to `person_candidate` review scope. Target-person scope is reserved for explicit target claims or exact fetched claim evidence.
 - Contact sanitization rejects zero-prefixed registry-like phone identifiers before evidence persistence. Final Richard Leeds evidence retained candidate values for review, with no personal contact promotion.
-- Validation completed: API suite 233/233, API production build, ApexFinder web production build, API/Redis health, and live Atlas idle checks. The API typecheck baseline remains blocked only by pre-existing workspace export/logger errors.
+- Validation completed: API suite 239/239 across 39 files, API production build, API/Redis health, corrected live bounded telemetry, and final Atlas idle checks. The API typecheck baseline remains blocked only by pre-existing workspace export/logger errors.
 
 ### Research improvement iteration (2026-08-02):
 - The bounded discovery-first canary `cdd3085b-1842-4214-bf3e-4869dd974eb8` was intentionally stopped after live review found two quality failures: a role-shaped HNWI candidate (`Rocco Forte Deputy`) and corporation person-hop recipe/page noise (`Creamy Cucumber`, `Tomato Salad`). No replacement run was launched; Atlas is idle.
@@ -1084,6 +1084,7 @@ All 4 Phase I items implemented and live. Build clean (esbuild ⚡ 1183ms). All 
 ### Iteration Log
 | Date | Summary |
 |---|---|
+| 2026-08-03 | Corrected Atlas research completion semantics: zero approved contacts now remain `needs_follow_up`/`incomplete`, failed enrichment does not stamp `cookedAt`, and high-priority persona guidance requests another bounded pass. Propagated registry phone provenance through every Atlas/deep-web reachability prompt so EDGAR phones cannot create `DIRECT` access. Richard Leeds post-fix pass reported bounded access, 0 approved contacts, 5 reviewable candidates, and `needs_follow_up`; API suite passed 239/239 and the API build/health checks passed. |
 | 2026-08-03 | Repaired legacy data-quality leaks: quarantined role/placeholder rows, cleared stale promoted contact state while retaining review provenance, classified Viken Shipping as a Corporation, expanded classifier coverage, and removed the duplicate mobile Reactor header. Verified 10 active entities / 9 visible business assets / 0 visible stock holdings; full API suite passed 211/211 and API/web builds passed. |
 | 2026-08-02 | Final live discovery retry verified: the contextual/fictional-name gate rejected the previously observed Casino de Monte-Carlo “James Bond” pattern and the first corrected venue-owner round inserted 0 candidates. Focused discovery/contact/final-review tests passed 20/20; API build passed; Atlas remains running under job `e4cc9451-853e-4d5d-9887-8f216952be38`. |
 | 2026-08-02 | Launched authorized Atlas background job `7ca90f62-07e5-44f4-8c65-a94e6eb55d40` with discovery-first live sources. Tightened broad discovery to require candidate-attributed ownership/wealth evidence, added 8 regression tests, hid interrupted weak records for review, and verified the first corrected venue-owner round inserted 0 weak candidates while Atlas continued running. |

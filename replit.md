@@ -267,7 +267,7 @@ GET  /api/improve/logs                 improvement suggestions (filterable by pe
 | Research provenance | **Fail-closed candidate evidence** — exact fetched page URLs and registry records are the provenance unit; flattened search snippets and aggregate AI extraction remain capped review signals; independent publisher domains corroborate, while contradictory values from one publisher remain disputed. |
 | Username discovery | **Maigret primary + Sherlock fallback** — Sherlock is availability-checked and review-only, runs only when Maigret is unavailable/sparse, and cannot promote identity/contact fields or trigger automatic re-entry. |
 | Atlas publication gate | **Final target-scoped web/LLM sanity review** — exact supplied evidence only; research-only targets cannot promote contacts; organization/person scope is enforced; rejected evidence and reasons remain reviewable. |
-| Runtime verification | **Live Atlas run** — API/Redis healthy, all five managed workflows running, the final corrected broad-discovery round inserted 0 candidates, fictional/contextual-name rejection is covered by 20/20 focused tests, registry-phone repair is organization-only with zero personal confidence, and API build passes. |
+| Runtime verification | **Live Atlas run** — API/Redis healthy and Atlas idle; the final Richard Leeds target-scoped pass reported bounded access, 0 approved contacts, 5 reviewable candidates, and explicit `needs_follow_up`/`incomplete` state. Registry phones remain organization-only with zero personal confidence, and API validation passes 239/239 with the production build green. |
 
 ---
 

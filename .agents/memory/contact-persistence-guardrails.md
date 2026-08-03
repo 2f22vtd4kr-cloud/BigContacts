@@ -15,4 +15,10 @@ Registry-phone provenance must have a persisted schema field, not only a metadat
 
 **Why:** A legacy EDGAR phone source existed only in metadata while the recomputation path read a missing/blank structured source, allowing a registry switchboard to appear as a personal route.
 
-**How to apply:** Keep the nullable `phone_source` column aligned with the Drizzle schema and pass it through every Atlas, enrichment, maintenance, merge, and reachability recomputation path.
+**How to apply:** Keep the nullable `phone_source` column aligned with the Drizzle schema and pass it through every Atlas, enrichment, maintenance, merge, and reachability recomputation or provider-prompt path.
+
+Reachability prompts must use the same sanitized, source-aware direct-contact classification as persistence scoring. A registry phone may remain useful organization evidence, but it cannot produce `DIRECT` telemetry or a direct-access research contract.
+
+**Why:** A target-scoped canary exposed that Atlas's provider prompt omitted `phoneSource` even though persistence scoring already excluded EDGAR/Companies House phones, causing the model to receive a false direct-access instruction.
+
+**How to apply:** Treat `phoneSource` as required context at every `assessTargetReachability` call, especially AI/deep-web prompt construction; add a regression test whenever a new reachability caller is introduced.

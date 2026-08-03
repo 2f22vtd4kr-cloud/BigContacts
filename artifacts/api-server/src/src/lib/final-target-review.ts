@@ -36,6 +36,28 @@ export interface FinalTargetReviewResult {
   reviewerSource: string;
 }
 
+export type TargetResearchDisposition = "contact_route_found" | "needs_follow_up";
+
+export function deriveTargetResearchDisposition(
+  review: Pick<FinalTargetReviewResult, "approvedContactValues">,
+): {
+  disposition: TargetResearchDisposition;
+  nextAction: string;
+} {
+  if (review.approvedContactValues.length > 0) {
+    return {
+      disposition: "contact_route_found",
+      nextAction: "Keep the exact approved route in target-scoped review and proceed to manual access review.",
+    };
+  }
+  return {
+    disposition: "needs_follow_up",
+    nextAction:
+      "Run another target-scoped OSINT pass. Prioritize identity/domain resolution, exact claim-page retrieval, " +
+      "and validation of review-only candidates before any contact promotion.",
+  };
+}
+
 /**
  * Build the bounded, target-scoped input given to the final reviewer.
  * The reviewer is explicitly told that the arrays are the complete universe of

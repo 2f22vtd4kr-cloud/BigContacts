@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   adjudicateFinalTargetReview,
+  deriveTargetResearchDisposition,
   type FinalTargetReviewInput,
 } from "../lib/final-target-review";
 
@@ -80,5 +81,23 @@ describe("final target review", () => {
     expect(result.approvedContactValues).toEqual([]);
     expect(result.decision).toBe("publish");
     expect(result.approvedAssetIdentifiers).toEqual(["Example Holdings"]);
+  });
+
+  it("keeps a zero-yield review explicitly retryable", () => {
+    const disposition = deriveTargetResearchDisposition({
+      approvedContactValues: [],
+    });
+
+    expect(disposition.disposition).toBe("needs_follow_up");
+    expect(disposition.nextAction).toContain("another target-scoped OSINT pass");
+  });
+
+  it("marks an approved route as a completed research outcome", () => {
+    const disposition = deriveTargetResearchDisposition({
+      approvedContactValues: ["jane@example.org"],
+    });
+
+    expect(disposition.disposition).toBe("contact_route_found");
+    expect(disposition.nextAction).toContain("manual access review");
   });
 });

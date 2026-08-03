@@ -42,6 +42,7 @@ import { enrichWithOpenOwnership } from "./openownership-enricher";
 import { runHolehe, runMaigret } from "./python-tools";
 import { buildPerplexityPrompt, runFinalTargetReview } from "./ai-extractor";
 import { reconcileStoredContactEvidence } from "./contact-candidate";
+import { deriveTargetResearchDisposition } from "./final-target-review";
 import { assessTargetReachability, reachabilityDirective } from "./reachability-realism";
 import { computeContactConfidence, computeContactOutcome, hasMeaningfulDirectContact } from "./contact-confidence";
 import {
@@ -320,6 +321,8 @@ type AtlasTelemetry = {
   sources?: number;
   evidence?: number;
   contacts?: number;
+  nextAction?: string;
+  disposition?: "contact_route_found" | "needs_follow_up";
 };
 
 async function setAtlasTelemetry(atlasJobId: string, telemetry: AtlasTelemetry): Promise<void> {
@@ -504,6 +507,7 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
       type: entity.type,
       email: entity.email,
       phone: entity.phone,
+      phoneSource: entity.phoneSource,
       contactOutcome: (entity as any).contactOutcome,
       contactConfidence: entity.contactConfidence,
       knownResidences: entity.knownResidences,
@@ -796,6 +800,7 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
       estimatedNetWorth: reviewEntity?.estimatedNetWorth,
       email: entity.email,
       phone: entity.phone,
+      phoneSource: entity.phoneSource,
       contactOutcome: computeContactOutcome(entity),
       contactConfidence: entity.contactConfidence,
       knownResidences: reviewEntity?.knownResidences ?? entity.knownResidences,
@@ -831,12 +836,18 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
       })),
       reachabilityStatus: reachability.status,
     });
+    const researchDisposition = deriveTargetResearchDisposition(finalReview);
+    const reviewableCandidateCount = candidateFunnel.candidates.filter(
+      (candidate) => candidate.state !== "rejected" && ["email", "phone", "social"].includes(candidate.vectorType),
+    ).length;
     logger.info({
       entityId: id,
       decision: finalReview.decision,
       approvedContacts: finalReview.approvedContactValues.length,
       approvedAssets: finalReview.approvedAssetIdentifiers.length,
       reviewer: finalReview.reviewerSource,
+      disposition: researchDisposition.disposition,
+      reviewableCandidateCount,
     }, "[Atlas] Final target review complete");
 
     const approvedValues = new Set(finalReview.approvedContactValues);
@@ -880,6 +891,9 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
       ...safeJson<Record<string, unknown>>(reviewEntity?.metadata ?? entity.metadata, {}),
       finalTargetReview: finalReview,
       finalTargetReviewAt: new Date().toISOString(),
+      atlasResearchDisposition: researchDisposition.disposition,
+      atlasNextAction: researchDisposition.nextAction,
+      atlasReviewableCandidateCount: reviewableCandidateCount,
     };
     await db.update(entitiesTable).set({
       email: finalContacts.email,
@@ -986,7 +1000,10 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
         contactOutcome:    computeContactOutcome(fresh),
         bayesianScore:     Math.max(entity.bayesianScore ?? 0, bayesScore),
         isHot,
-        cookedAt:          new Date(),
+        // `cookedAt` means ready for outreach. A safe review with zero
+        // approved personal routes is a completed pass, not a completed
+        // research outcome, so leave it retryable and explicit.
+        cookedAt:          researchDisposition.disposition === "contact_route_found" ? new Date() : null,
         updatedAt:         new Date(),
       }).where(eq(entitiesTable.id, id));
     }
@@ -999,12 +1016,20 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
       metadata: entity.metadata,
     }).catch((err: any) => logger.warn({ entityId: id, err: err?.message }, "[Atlas] Business asset materialization skipped"));
 
-    logger.info({ entityId: id, name }, "[Atlas] ✅ Entity fully cooked");
+    logger.info({
+      entityId: id,
+      name,
+      disposition: researchDisposition.disposition,
+      nextAction: researchDisposition.nextAction,
+    }, researchDisposition.disposition === "contact_route_found"
+      ? "[Atlas] ✅ Entity has a reviewed contact route"
+      : "[Atlas] ⚠️ Entity requires another OSINT follow-up pass");
   } catch (err: any) {
     if (err instanceof AtlasCancelledError) throw err;
     logger.warn({ entityId: id, name, err: err.message }, "[Atlas] Full-circle enrichment failed (non-fatal)");
-    // Still stamp cookedAt so we don't retry endlessly on problematic entities
-    await db.update(entitiesTable).set({ cookedAt: new Date(), updatedAt: new Date() }).where(eq(entitiesTable.id, id)).catch(() => {});
+    // Do not stamp cookedAt on an error: cookedAt is the outreach-ready
+    // boundary, and failed enrichment must remain eligible for retry.
+    await db.update(entitiesTable).set({ cookedAt: null, updatedAt: new Date() }).where(eq(entitiesTable.id, id)).catch(() => {});
   }
 }
 
@@ -1118,19 +1143,34 @@ async function runSingleTargetPipeline(
   const totalContacts = Number(contactRow[0]?.count ?? 0);
   const durationMs = Date.now() - startMs;
   const finalMsg = [
-    `Single-target Atlas complete in ${Math.round(durationMs / 60_000)}min.`,
-    `${target.name} fully processed; no unrelated discovery or global backfill ran.`,
+    `Single-target Atlas pass finished in ${Math.round(durationMs / 60_000)}min.`,
+    `${target.name} was processed with no unrelated discovery or global backfill.`,
     Object.entries(summary).map(([k, v]) => `${k}: ${v}`).join(" | "),
   ].join(" ");
+  const targetAfterRun = await db.select({
+    metadata: entitiesTable.metadata,
+    contactOutcome: entitiesTable.contactOutcome,
+    cookedAt: entitiesTable.cookedAt,
+  }).from(entitiesTable).where(eq(entitiesTable.id, target.id)).then((rows: any[]) => rows[0]);
+  const targetMetadata = safeJson<Record<string, unknown>>(targetAfterRun?.metadata, {});
+  const disposition = targetMetadata.atlasResearchDisposition === "contact_route_found"
+    ? "contact_route_found"
+    : "needs_follow_up";
+  const nextAction = typeof targetMetadata.atlasNextAction === "string"
+    ? targetMetadata.atlasNextAction
+    : "Run another target-scoped OSINT pass before treating this target as outreach-ready.";
+  const processOutcome = disposition === "contact_route_found" ? "complete" : "incomplete";
 
   await setAtlasTelemetry(atlasJobId, {
     stage: "TARGET COMPLETE",
-    status: "complete",
+    status: processOutcome === "complete" ? "complete" : "review",
     targetName: target.name,
     targetType: target.type,
     toolIds: ["target", "inhouse", "webdisc", "deepweb", "perp0", "exa", "tavily", "gemini", "groq", "maigret", "occrp", "whoxy", "graph", "mcts", "prac", "pitch"],
     inputSummary: `Exact entity ID ${targetId}`,
-    resultSummary: finalMsg,
+    resultSummary: `${finalMsg} Disposition: ${disposition}. Next action: ${nextAction}`,
+    nextAction,
+    disposition,
   });
   await ensureAtlasActive(atlasJobId);
   await updateJob(atlasJobId, {
@@ -1139,9 +1179,10 @@ async function runSingleTargetPipeline(
     total: 10,
     atlasPhase: 10,
     atlasPhaseTotal: 10,
+    outcome: processOutcome,
     inserted: 0,
     finishedAt: new Date().toISOString(),
-    message: finalMsg,
+    message: `${finalMsg} Disposition: ${disposition}. Next action: ${nextAction}`,
     entityProgress: 1,
     entityTotal: 1,
     entityNames: JSON.stringify([target.name]),

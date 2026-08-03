@@ -442,6 +442,7 @@ export interface DeepWebOsintInput {
   nationality?:      string | null;
   email?:            string | null;
   phone?:            string | null;
+  phoneSource?:      string | null;
   contactOutcome?:   string | null;
   contactConfidence?: number | null;
   notes?:            string | null;
@@ -1634,6 +1635,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     type: entity.type,
     email: entity.email,
     phone: entity.phone,
+    phoneSource: entity.phoneSource,
     contactOutcome: entity.contactOutcome,
     contactConfidence: entity.contactConfidence,
     knownResidences: entity.knownResidences,
