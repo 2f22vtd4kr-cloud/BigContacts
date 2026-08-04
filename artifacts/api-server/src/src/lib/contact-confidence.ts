@@ -168,9 +168,11 @@ export function computeContactState(entity: {
   return {
     contactConfidence,
     contactOutcome,
-    // A hot lead is reachable, not merely wealthy or visible. Registry and
-    // organization vectors are excluded by both helpers above.
-    isHot: directTarget && hasMeaningfulDirectContact(entity),
+    // A hot lead is verified and reachable, not merely a candidate, wealthy,
+    // or visible. Registry and organization vectors are excluded above.
+    isHot: directTarget
+      && contactOutcome === "direct_contact_verified"
+      && hasMeaningfulDirectContact(entity),
   };
 }
 
