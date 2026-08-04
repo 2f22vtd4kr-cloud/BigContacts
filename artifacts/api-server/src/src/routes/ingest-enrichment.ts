@@ -958,7 +958,7 @@ router.post("/ingest/in-house-enrich", async (req: Request, res: Response): Prom
               // Keep rejected and organization-only findings auditable.
               .filter((ev) => Boolean(ev.value?.trim()))
               .map((ev) => {
-              const candidate = result.candidateFunnel.candidates.find(
+              const candidate = result.candidateFunnel?.candidates?.find(
                 (item) => item.key === candidateKey(ev.vectorType as any, ev.value),
               );
               const scopes = candidate?.scopes ?? [(ev.details?.["scope"] as string | undefined) ?? "unknown"];
