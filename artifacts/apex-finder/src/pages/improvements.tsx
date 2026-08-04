@@ -56,6 +56,8 @@ interface JobState {
   finishedAt?: string;
 }
 
+type RemediationState = "idle" | "starting" | "running" | "done" | "failed";
+
 // ─── Persona config ───────────────────────────────────────────────────────────
 
 const PERSONA_META: Record<PersonaId, { label: string; Icon: React.FC<any>; color: string; bg: string }> = {
@@ -316,6 +318,8 @@ export default function ImprovementsPage() {
 
   const [runState, setRunState] = useState<"idle" | "starting" | "running" | "done">("idle");
   const [currentJob, setCurrentJob] = useState<JobState | null>(null);
+  const [remediationState, setRemediationState] = useState<RemediationState>("idle");
+  const [remediationJob, setRemediationJob] = useState<JobState | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Fetch logs + stats
@@ -394,6 +398,39 @@ export default function ImprovementsPage() {
     }
   };
 
+  const handleApplySafe = async () => {
+    setRemediationState("starting");
+    setRemediationJob(null);
+    try {
+      const result = await apiPost("/improve/apply-safe");
+      setRemediationState("running");
+      setRemediationJob({
+        jobId: result.jobId,
+        status: "queued",
+        progress: 0,
+        inserted: 0,
+        errors: 0,
+        message: "Queued…",
+      });
+      const timer = window.setInterval(async () => {
+        try {
+          const job = await apiGet(`/improve/jobs/${result.jobId}`);
+          setRemediationJob(job);
+          if (job.status === "done" || job.status === "failed") {
+            window.clearInterval(timer);
+            setRemediationState(job.status === "done" ? "done" : "failed");
+            fetchData();
+          }
+        } catch {
+          // Keep the remediation state visible; the next refresh can recover.
+        }
+      }, 1500);
+    } catch (e: any) {
+      setError(e.message);
+      setRemediationState("failed");
+    }
+  };
+
   const pendingCount  = stats?.byPriority ? stats.byPersona.filter(s => s.status === "pending").reduce((a, s) => a + s.count, 0) : 0;
   const highCount     = stats?.byPriority?.find(p => p.priority === "high")?.count ?? 0;
   const isRunning     = runState === "running" || runState === "starting";
@@ -441,6 +478,22 @@ export default function ImprovementsPage() {
               : <><Play className="h-3.5 w-3.5" />Run Loop</>
             }
           </button>
+          <button
+            onClick={handleApplySafe}
+            disabled={remediationState === "starting" || remediationState === "running"}
+            className={cn(
+              "flex items-center gap-2 px-3 py-2 text-xs font-semibold font-mono rounded-md transition-colors border",
+              remediationState === "starting" || remediationState === "running"
+                ? "border-border text-muted-foreground cursor-not-allowed"
+                : "border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"
+            )}
+            title="Apply only deterministic state fixes supported by stored evidence"
+          >
+            {remediationState === "starting" || remediationState === "running"
+              ? <><RefreshCw className="h-3.5 w-3.5 animate-spin" />Applying…</>
+              : <><CheckCircle2 className="h-3.5 w-3.5" />Apply safe fixes</>
+            }
+          </button>
         </div>
       </div>
 
@@ -449,6 +502,9 @@ export default function ImprovementsPage() {
         {/* ── Job progress ── */}
         {currentJob && (
           <JobProgressBar job={currentJob} />
+        )}
+        {remediationJob && (
+          <JobProgressBar job={remediationJob} />
         )}
 
         {/* ── Error ── */}

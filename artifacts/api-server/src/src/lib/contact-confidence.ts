@@ -132,6 +132,48 @@ export function hasMeaningfulDirectContact(entity: {
   return hasPersonalEmail || hasPersonalPhone;
 }
 
+/**
+ * Reconcile the three persisted contact-state fields as one invariant.
+ *
+ * Enrichment jobs historically updated these fields in separate passes. That
+ * allowed stale confidence or hot flags to survive after a candidate was
+ * rejected. Keeping the calculation here makes batch remediation and every
+ * future write use the same fail-closed rule.
+ */
+export function computeContactState(entity: {
+  type?: string | null;
+  organizationContact?: boolean;
+  email?: string | null;
+  phone?: string | null;
+  phoneSource?: string | null;
+  linkedinUrl?: string | null;
+  telegramHandle?: string | null;
+  twitterHandle?: string | null;
+  instagramHandle?: string | null;
+  knownResidences?: string | null;
+  website?: string | null;
+  bizLocation?: string | null;
+  emailSource?: string | null;
+  metadata?: string | Record<string, unknown> | null;
+  validatedDirectContact?: boolean;
+  isGenericPrefix?: boolean;
+}): {
+  contactConfidence: number;
+  contactOutcome: ContactOutcome;
+  isHot: boolean;
+} {
+  const contactConfidence = computeContactConfidence(entity);
+  const contactOutcome = computeContactOutcome(entity);
+  const directTarget = entity.type === "HNWI" || entity.type === "Gatekeeper";
+  return {
+    contactConfidence,
+    contactOutcome,
+    // A hot lead is reachable, not merely wealthy or visible. Registry and
+    // organization vectors are excluded by both helpers above.
+    isHot: directTarget && hasMeaningfulDirectContact(entity),
+  };
+}
+
 // ── J0 Measurement Contract ───────────────────────────────────────────────────
 
 /**

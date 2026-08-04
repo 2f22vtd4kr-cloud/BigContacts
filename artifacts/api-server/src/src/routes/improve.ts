@@ -13,12 +13,145 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { db, entitiesTable, improvementLogsTable } from "@workspace/db";
 import { eq, desc, and, inArray, sql } from "drizzle-orm";
 import { runPersonasForEntity } from "../lib/persona-engine";
+import { computeContactState } from "../lib/contact-confidence";
 import {
   createJob, updateJob, getJob, appendJobLog, setActiveJob, getActiveJob, clearActiveJob,
 } from "../lib/job-queue";
 import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
+
+const SAFE_REMEDIATION_TITLES = [
+  "Hot-state invariant is inconsistent with verified contact outcome",
+  "L5 contactConfidence stale — physical address exists but score not recomputed",
+  "Organization evidence must not inflate personal access",
+];
+
+function contactStateInput(entity: typeof entitiesTable.$inferSelect) {
+  let metadata: Record<string, unknown> = {};
+  try {
+    const parsed = entity.metadata ? JSON.parse(entity.metadata) : {};
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) metadata = parsed;
+  } catch {
+    // Preserve malformed metadata for review; safe remediation must not erase it.
+  }
+  return {
+    type: entity.type,
+    email: entity.email,
+    phone: entity.phone,
+    phoneSource: entity.phoneSource,
+    linkedinUrl: entity.linkedinUrl,
+    telegramHandle: entity.telegramHandle,
+    twitterHandle: entity.twitterHandle,
+    instagramHandle: entity.instagramHandle,
+    knownResidences: entity.knownResidences,
+    website: typeof metadata.website === "string" ? metadata.website : null,
+    bizLocation: typeof metadata.bizLocation === "string" ? metadata.bizLocation : null,
+    emailSource: typeof metadata.emailSource === "string" ? metadata.emailSource : null,
+    metadata: entity.metadata,
+    validatedDirectContact: metadata.validatedDirectContact === true,
+    isGenericPrefix: metadata.isGenericPrefix === true,
+  };
+}
+
+// ── POST /improve/apply-safe — apply deterministic, fail-closed findings ─────
+//
+// Recommendations that require new public evidence remain pending. This job
+// applies only state reconciliations that can be proven from fields already
+// stored on the entity, in bounded batches so it can safely run beside Atlas.
+router.post("/improve/apply-safe", async (_req: Request, res: Response): Promise<void> => {
+  const existingJobId = await getActiveJob("improve-apply");
+  if (existingJobId) {
+    const existing = await getJob(existingJobId);
+    if (existing?.status === "running") {
+      res.status(409).json({ error: "A safe remediation batch is already running.", jobId: existingJobId });
+      return;
+    }
+  }
+
+  const entities = await db.select().from(entitiesTable);
+  if (entities.length === 0) {
+    res.status(400).json({ error: "No entities found to remediate." });
+    return;
+  }
+
+  const jobId = await createJob("improve-apply");
+  await setActiveJob("improve-apply", jobId);
+  await updateJob(jobId, {
+    status: "running",
+    total: entities.length,
+    progress: 0,
+    message: "Applying deterministic contact-state reconciliations…",
+  });
+  res.status(202).json({
+    jobId,
+    entityCount: entities.length,
+    message: "Safe remediation started.",
+    pollUrl: `/api/improve/jobs/${jobId}`,
+  });
+
+  (async () => {
+    let updated = 0;
+    let applied = 0;
+    let errors = 0;
+    try {
+      for (let i = 0; i < entities.length; i++) {
+        const entity = entities[i];
+        try {
+          const state = computeContactState(contactStateInput(entity));
+          const patch: Record<string, unknown> = {};
+          if (state.contactConfidence !== entity.contactConfidence) patch.contactConfidence = state.contactConfidence;
+          if (state.contactOutcome !== entity.contactOutcome) patch.contactOutcome = state.contactOutcome;
+          if (state.isHot !== entity.isHot) patch.isHot = state.isHot;
+          if (Object.keys(patch).length > 0) {
+            patch.updatedAt = new Date();
+            await db.update(entitiesTable).set(patch as any).where(eq(entitiesTable.id, entity.id));
+            updated++;
+          }
+          if (Object.keys(patch).length > 0) {
+            const rows = await db
+              .update(improvementLogsTable)
+              .set({ status: "applied", updatedAt: new Date() })
+              .where(and(
+                eq(improvementLogsTable.entityId, entity.id),
+                eq(improvementLogsTable.status, "pending"),
+                inArray(improvementLogsTable.title, SAFE_REMEDIATION_TITLES),
+              ))
+              .returning({ id: improvementLogsTable.id });
+            applied += rows.length;
+          }
+        } catch (err: any) {
+          errors++;
+          logger.warn({ entityId: entity.id, err: err.message }, "Safe persona remediation skipped entity");
+        }
+        if ((i + 1) % 50 === 0 || i === entities.length - 1) {
+          await updateJob(jobId, {
+            progress: Math.round(((i + 1) / entities.length) * 100),
+            inserted: updated,
+            skipped: applied,
+            errors,
+            message: `Remediating ${i + 1}/${entities.length} entities…`,
+          });
+        }
+      }
+      await updateJob(jobId, {
+        status: "done",
+        progress: 100,
+        inserted: updated,
+        skipped: applied,
+        errors,
+        finishedAt: new Date().toISOString(),
+        message: `Safe remediation complete — ${updated} entities reconciled, ${applied} findings applied.`,
+      });
+      await appendJobLog(jobId, `✓ Safe remediation complete: ${updated} entities updated, ${applied} findings applied, ${errors} errors.`);
+    } catch (err: any) {
+      logger.error({ err: err.message }, "Safe persona remediation failed");
+      await updateJob(jobId, { status: "failed", errors: errors + 1, message: err.message ?? "Safe remediation failed." });
+    } finally {
+      await clearActiveJob("improve-apply");
+    }
+  })();
+});
 
 // ── POST /improve/run  — fire improvement loop for all (or N) entities ────────
 router.post("/improve/run", async (req: Request, res: Response): Promise<void> => {
