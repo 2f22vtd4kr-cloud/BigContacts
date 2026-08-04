@@ -598,7 +598,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
         </div>
       </header>
 
-      <div className="atlas-grid min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4" style={{ WebkitOverflowScrolling: "touch" }}>
+      <div className="atlas-grid atlas-grid-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4" style={{ WebkitOverflowScrolling: "touch" }}>
         <div className="mx-auto max-w-md">
           <LiveResearchConsole atlasState={atlasState} livePhaseDetail={livePhaseDetail} isLive={isLive} />
 

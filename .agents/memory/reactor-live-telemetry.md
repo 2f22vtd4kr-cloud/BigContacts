@@ -32,3 +32,9 @@ The page-level Reactor render tree must derive scheduler props from the same liv
 **Why:** The first continuous-scheduler UI wiring passed `scheduler` into mobile and desktop renderers without declaring it in the page component, producing a mobile Vite runtime overlay and hiding the entire Reactor.
 
 **How to apply:** Keep one source of truth for scheduler state: set it from the successful `/api/ingest/atlas-status` response and pass `atlasState?.scheduler ?? null` to responsive renderers. Verify the actual `/reactor` route at a mobile viewport after scheduler UI changes.
+
+Never apply a decorative `mask-image` fade to the mobile Reactor's scroll container; keep masks on static background layers only.
+
+**Why:** iOS Safari applies the mask to the full scroll surface, fading lower evidence cards and the pipeline map so they appear unreadable even though scrolling still works.
+
+**How to apply:** Preserve the grid background on the scroll container with a mask-free class, and verify a tall mobile viewport that reaches the final pipeline stages.
