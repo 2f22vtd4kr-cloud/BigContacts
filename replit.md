@@ -279,6 +279,7 @@ GET  /api/improve/logs                 improvement suggestions (filterable by pe
 - Deterministic TypeScript for AI-like features — no external AI APIs.
 - Maintain existing pnpm monorepo structure.
 - Use Fable 5 High Effort (built-in agent model) for any AI feature implementation — not external OpenAI/Anthropic calls.
+- During long-running Atlas work, keep chat updates to a single `.` only; prioritize uninterrupted research, data-quality control, and Reactor improvements.
 
 ---
 
