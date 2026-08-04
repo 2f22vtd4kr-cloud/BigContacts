@@ -38,7 +38,7 @@ import {
 } from "./contact-validation";
 import { materializeBusinessAsset } from "./business-assets";
 
-const INGESTOR_TYPES = ["faa", "land-registry", "western-hnwi", "companies-house-enrich", "occrp", "opensky", "improve", "web-osint", "bulk-hybrid-research", "in-house-enrich", "deep-web-osint", "compute-embeddings", "social-discovery", "messenger-discovery", "foundation-filings", "broad-discovery", "atlas-run"] as const;
+const INGESTOR_TYPES = ["faa", "land-registry", "western-hnwi", "companies-house-enrich", "occrp", "opensky", "improve", "web-osint", "bulk-hybrid-research", "in-house-enrich", "deep-web-osint", "compute-embeddings", "social-discovery", "messenger-discovery", "foundation-filings", "broad-discovery", "atlas-run", "phase-j-pass"] as const;
 // Startup maintenance is fire-and-forget and the HTTP server can accept a
 // request before it reaches clearGhostJobs(). Only jobs created before this
 // process boot are eligible for recovery; otherwise a legitimate new request

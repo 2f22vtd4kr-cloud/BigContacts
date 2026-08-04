@@ -70,3 +70,4 @@
 - [Atlas research handoff](atlas-research-handoff.md) — Persist real target-scoped UCT paths in manual review and never describe organization vectors as direct access
   - [Provider JSON transport](provider-json-transport.md) — Normalize wrapped/HTML-escaped provider JSON before extraction while keeping strict evidence adjudication downstream
   - [Intro path candidates](intro-path-candidate.md) — At most one review-only intermediary route per target; never promote it to personal contact or outreach
+- [Phase J bounded workers](phase-j-bounded-workers.md) — Per-target external timeouts plus startup recovery for phase-j-pass prevent stale locks and hung contact-research batches

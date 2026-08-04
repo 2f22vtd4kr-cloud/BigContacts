@@ -133,6 +133,20 @@ function parseJson<T>(val: string | null | undefined, fallback: T): T {
   try { return val ? JSON.parse(val) as T : fallback; } catch { return fallback; }
 }
 
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`${label} timed out after ${timeoutMs}ms`)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 function registryOf(metadata: string | null, sourceRegistries: string | null): string {
   const meta = parseJson<JsonMap>(metadata, {});
   if (meta["nNumber"]) return "faa";
@@ -485,13 +499,17 @@ async function runPhaseJPass(
       const cooldowns = parseJson<Record<string, string>>(entity.sourceCooldowns, {});
 
       // ── J4: Employer / Domain Resolution ──────────────────────────────────
-      const domainInfo = await resolveEmployerDomain({
-        name: entity.name,
-        type: entity.type,
-        metadata: entity.metadata,
-        notes: entity.notes,
-        sourceRegistries: entity.sourceRegistries,
-      });
+      const domainInfo = await withTimeout(
+        resolveEmployerDomain({
+          name: entity.name,
+          type: entity.type,
+          metadata: entity.metadata,
+          notes: entity.notes,
+          sourceRegistries: entity.sourceRegistries,
+        }),
+        20_000,
+        `J4 domain resolution for ${entity.name}`,
+      );
       if (domainInfo.domain) totals.domains += 1;
       await updateAtlasTelemetry(mirrorJobId, {
         stage: "PHASE J · J4 DOMAIN RESOLUTION",
@@ -513,11 +531,15 @@ async function runPhaseJPass(
       const { names: neighbourNames, domains: neighbourDomains } = await loadNeighbourContext(neighbourIds);
 
       // ── Baseline: existing in-house enrichment ────────────────────────────
-      const inHouseResult = await enrichInHouse({
-        ...entity,
-        bizLocation: typeof meta["bizLocation"] === "string" ? meta["bizLocation"] : null,
-        entityName: typeof meta["entityName"] === "string" ? meta["entityName"] : null,
-      });
+      const inHouseResult = await withTimeout(
+        enrichInHouse({
+          ...entity,
+          bizLocation: typeof meta["bizLocation"] === "string" ? meta["bizLocation"] : null,
+          entityName: typeof meta["entityName"] === "string" ? meta["entityName"] : null,
+        }),
+        90_000,
+        `J4-J5 in-house enrichment for ${entity.name}`,
+      );
 
       // ── J5: Digital-Footprint Discovery ───────────────────────────────────
       const employer =
@@ -529,20 +551,24 @@ async function runPhaseJPass(
         typeof meta["role"] === "string" ? meta["role"] :
         typeof meta["title"] === "string" ? meta["title"] : null;
 
-      const footprint = await discoverDigitalFootprint(
-        {
-          name: entity.name,
-          type: entity.type,
-          nationality: entity.nationality,
-          bizLocation: typeof meta["bizLocation"] === "string" ? meta["bizLocation"] : null,
-          employer,
-          role,
-          graphNeighbourDomains: neighbourDomains,
-          graphNeighbourNames: neighbourNames,
-        },
-        domainInfo.domain,
-        domainInfo.officialContactPaths,
-        cooldowns,
+      const footprint = await withTimeout(
+        discoverDigitalFootprint(
+          {
+            name: entity.name,
+            type: entity.type,
+            nationality: entity.nationality,
+            bizLocation: typeof meta["bizLocation"] === "string" ? meta["bizLocation"] : null,
+            employer,
+            role,
+            graphNeighbourDomains: neighbourDomains,
+            graphNeighbourNames: neighbourNames,
+          },
+          domainInfo.domain,
+          domainInfo.officialContactPaths,
+          cooldowns,
+        ),
+        90_000,
+        `J5 digital footprint for ${entity.name}`,
       );
       await updateAtlasTelemetry(mirrorJobId, {
         stage: "PHASE J · J5 DIGITAL FOOTPRINT",
@@ -795,7 +821,11 @@ async function runPhaseJPass(
 
       let personaReview: { findings: number; personas: string[] } = { findings: 0, personas: [] };
       try {
-        personaReview = await runAtlasPersonaReview(entity.id);
+        personaReview = await withTimeout(
+          runAtlasPersonaReview(entity.id),
+          30_000,
+          `J persona review for ${entity.name}`,
+        );
       } catch (reviewError) {
         logger.warn(
           { entityId: entity.id, err: reviewError instanceof Error ? reviewError.message : String(reviewError) },
