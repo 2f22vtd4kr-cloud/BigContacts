@@ -40,6 +40,7 @@ import { discoverMessengerPresence } from "../lib/enrichment/messenger-discovery
 import { discoverViaFoundationFilings } from "../lib/enrichment/foundation-filings";
 import { runBroadDiscovery } from "../lib/enrichment/broad-discovery";
 import {
+  computeContactState,
   computeContactConfidence,
   computeContactOutcome,
   hasMeaningfulDirectContact,
@@ -1089,11 +1090,19 @@ router.post("/ingest/recompute-contact-confidence", async (_req: Request, res: R
   const entities = await db
     .select({
       id: entitiesTable.id,
+      type: entitiesTable.type,
       email: entitiesTable.email,
       phone: entitiesTable.phone,
+      phoneSource: entitiesTable.phoneSource,
       linkedinUrl: entitiesTable.linkedinUrl,
+      telegramHandle: entitiesTable.telegramHandle,
+      twitterHandle: entitiesTable.twitterHandle,
+      instagramHandle: entitiesTable.instagramHandle,
       knownResidences: entitiesTable.knownResidences,
+      metadata: entitiesTable.metadata,
+      contactOutcome: entitiesTable.contactOutcome,
       contactConfidence: entitiesTable.contactConfidence,
+      isHot: entitiesTable.isHot,
     })
     .from(entitiesTable);
 
@@ -1104,19 +1113,55 @@ router.post("/ingest/recompute-contact-confidence", async (_req: Request, res: R
   for (let i = 0; i < entities.length; i += BATCH) {
     const batch = entities.slice(i, i + BATCH);
     for (const e of batch) {
-      const confidence = computeContactConfidence({
-        email: e.email, phone: e.phone,
-        linkedinUrl: e.linkedinUrl, knownResidences: e.knownResidences,
+      let metadata: Record<string, unknown> = {};
+      try {
+        const parsed = e.metadata ? JSON.parse(e.metadata) : {};
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) metadata = parsed;
+      } catch {
+        // Keep malformed metadata untrusted; recompute from structured vectors.
+      }
+      const state = computeContactState({
+        type: e.type,
+        email: e.email,
+        phone: e.phone,
+        phoneSource: e.phoneSource,
+        linkedinUrl: e.linkedinUrl,
+        telegramHandle: e.telegramHandle,
+        twitterHandle: e.twitterHandle,
+        instagramHandle: e.instagramHandle,
+        knownResidences: e.knownResidences,
+        website: typeof metadata.website === "string" ? metadata.website : null,
+        bizLocation: typeof metadata.bizLocation === "string" ? metadata.bizLocation : null,
+        emailSource: typeof metadata.emailSource === "string" ? metadata.emailSource : null,
+        metadata: e.metadata,
+        validatedDirectContact: metadata.validatedDirectContact === true,
+        isGenericPrefix: metadata.isGenericPrefix === true,
       });
-      if (confidence === (e.contactConfidence ?? 0)) { skipped++; continue; }
+      if (
+        state.contactConfidence === (e.contactConfidence ?? 0)
+        && state.contactOutcome === e.contactOutcome
+        && state.isHot === e.isHot
+      ) {
+        skipped++;
+        continue;
+      }
       await db.update(entitiesTable)
-        .set({ contactConfidence: confidence })
+        .set({
+          contactConfidence: state.contactConfidence,
+          contactOutcome: state.contactOutcome,
+          isHot: state.isHot,
+        })
         .where(eq(entitiesTable.id, e.id));
       updated++;
     }
   }
 
-  res.json({ updated, skipped, total: entities.length, message: `Contact confidence recomputed: ${updated} updated, ${skipped} already correct.` });
+  res.json({
+    updated,
+    skipped,
+    total: entities.length,
+    message: `Contact state reconciled: ${updated} updated, ${skipped} already correct.`,
+  });
 });
 
 // ── POST /ingest/sync-livesource-markers ──────────────────────────────────────
