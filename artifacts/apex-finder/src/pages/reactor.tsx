@@ -726,14 +726,26 @@ const TELEMETRY_TOOL_LABELS: Record<string, string> = {
   mcts: "UCT / MCTS",
   prac: "PRAC",
   evidence: "EVIDENCE REVIEW",
-  "persona-review": "PERSONA REVIEW",
+  "persona-review": "11-PERSONA QUALITY REVIEW",
   sherlock: "SHERLOCK",
 };
+
+const PERSONA_REVIEW_TOOL = "persona-review";
+
+function isPersonaReviewTool(tool: string): boolean {
+  return tool === PERSONA_REVIEW_TOOL;
+}
+
+function telemetryToolLabel(tool: string): string {
+  return TELEMETRY_TOOL_LABELS[tool] ?? tool;
+}
 
 function AtlasTelemetryInspector({ telemetry, eventLog = [] }: { telemetry?: any; eventLog?: AtlasLiveState["eventLog"] }) {
   if (!telemetry && eventLog.length === 0) return null;
   const tools = Array.isArray(telemetry?.toolIds) ? telemetry.toolIds : [];
-  const activeTool = telemetry?.activeToolId ? (TELEMETRY_TOOL_LABELS[telemetry.activeToolId] ?? telemetry.activeToolId) : null;
+  const researchTools = tools.filter((tool: string) => !isPersonaReviewTool(tool));
+  const hasPersonaReview = tools.some((tool: string) => isPersonaReviewTool(tool)) || Boolean(telemetry?.personaNames?.length);
+  const activeTool = telemetry?.activeToolId ? telemetryToolLabel(telemetry.activeToolId) : null;
   return (
     <div style={{
       position:"absolute", top:16, right:18, width:374, maxHeight:350, overflowY:"auto",
@@ -753,11 +765,36 @@ function AtlasTelemetryInspector({ telemetry, eventLog = [] }: { telemetry?: any
         <span style={{ color:"#e8e0cc", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{telemetry?.targetName ?? "—"}</span>
         <span style={{ color:"#526b86", letterSpacing:"0.1em" }}>STAGE</span>
         <span style={{ color:"#a3e635" }}>{telemetry?.stage ?? "—"}</span>
-        <span style={{ color:"#526b86", letterSpacing:"0.1em" }}>ACTIVE TOOL</span>
-        <span style={{ color:"#22d3ee" }}>{activeTool ?? "—"}</span>
-        <span style={{ color:"#526b86", letterSpacing:"0.1em" }}>TOOL SET</span>
-        <span style={{ color:"#8aa4c0", lineHeight:1.5 }}>{tools.map((tool: string) => TELEMETRY_TOOL_LABELS[tool] ?? tool).join(" · ") || "—"}</span>
+        <span style={{ color:"#526b86", letterSpacing:"0.1em" }}>ACTIVE LANE</span>
+        <span style={{ color:telemetry?.activeToolId === PERSONA_REVIEW_TOOL ? "#c4b5fd" : "#22d3ee" }}>{activeTool ?? "—"}</span>
       </div>
+      {(researchTools.length > 0 || hasPersonaReview) && (
+        <div style={{ marginTop:10, display:"flex", flexDirection:"column", gap:7 }}>
+          {researchTools.length > 0 && (
+            <div style={{ padding:"7px 8px", border:"1px solid #22d3ee28", borderRadius:4, background:"#22d3ee06" }}>
+              <div style={{ color:"#67e8f9", fontSize:6.5, letterSpacing:"0.13em", marginBottom:4 }}>
+                OSINT &amp; EVIDENCE TOOLS
+              </div>
+              <div style={{ color:"#8aa4c0", fontSize:6.7, lineHeight:1.45, marginBottom:5 }}>
+                Public-source search, extraction, domain resolution, and contact attribution.
+              </div>
+              <div style={{ color:"#8aa4c0", fontSize:6.7, lineHeight:1.5 }}>
+                {researchTools.map((tool: string) => telemetryToolLabel(tool)).join(" · ")}
+              </div>
+            </div>
+          )}
+          {hasPersonaReview && (
+            <div style={{ padding:"7px 8px", border:"1px solid #8b5cf650", borderRadius:4, background:"#8b5cf610" }}>
+              <div style={{ color:"#c4b5fd", fontSize:6.5, letterSpacing:"0.13em", marginBottom:4 }}>
+                POST-RESEARCH QUALITY REVIEW
+              </div>
+              <div style={{ color:"#c4b5fd", fontSize:6.7, lineHeight:1.5 }}>
+                11 deterministic personas inspect the saved Phase J result. This lane does not search the web, add contacts, or perform OSINT.
+              </div>
+            </div>
+          )}
+        </div>
+      )}
       {telemetry?.inputSummary && (
         <div style={{ marginTop:9, paddingTop:8, borderTop:"1px solid #192840", color:"#8aa4c0", fontSize:7, lineHeight:1.45 }}>
           <span style={{ color:"#526b86", letterSpacing:"0.1em" }}>INPUT  </span>{telemetry.inputSummary}
@@ -776,7 +813,7 @@ function AtlasTelemetryInspector({ telemetry, eventLog = [] }: { telemetry?: any
       )}
       {telemetry?.personaNames?.length > 0 && (
         <div style={{ marginTop:8, color:"#c4b5fd", fontSize:7, lineHeight:1.45 }}>
-          <span style={{ color:"#8b5cf6", letterSpacing:"0.1em" }}>PERSONAS  </span>{telemetry.personaNames.join(" · ")}
+          <span style={{ color:"#8b5cf6", letterSpacing:"0.1em" }}>REVIEW ROLES  </span>{telemetry.personaNames.join(" · ")}
         </div>
       )}
       {eventLog.length > 0 && (
@@ -792,7 +829,7 @@ function AtlasTelemetryInspector({ telemetry, eventLog = [] }: { telemetry?: any
                 <summary style={{ cursor:"pointer", listStyle:"none", color:event.status === "complete" ? "#a3e635" : event.status === "review" ? "#fbbf24" : "#8aa4c0", fontSize:6.7 }}>
                   <span style={{ color:"#526b86" }}>{event.timestamp?.slice(11, 19) ?? "--:--:--"} </span>
                   {event.stage ?? "Research event"}
-                  <span style={{ color:"#526b86" }}> · {event.activeToolId ?? "Atlas"}</span>
+                  <span style={{ color:"#526b86" }}> · {event.activeToolId === PERSONA_REVIEW_TOOL ? "Post-research quality review" : event.activeToolId ? telemetryToolLabel(event.activeToolId) : "Atlas"}</span>
                 </summary>
                 <div style={{ marginTop:5, color:"#8aa4c0", fontSize:6.5, lineHeight:1.45 }}>
                   {event.targetName && <div><span style={{ color:"#526b86" }}>TARGET </span>{event.targetName}</div>}

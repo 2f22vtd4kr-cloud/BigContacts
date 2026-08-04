@@ -38,3 +38,9 @@ Never apply a decorative `mask-image` fade to the mobile Reactor's scroll contai
 **Why:** iOS Safari applies the mask to the full scroll surface, fading lower evidence cards and the pipeline map so they appear unreadable even though scrolling still works.
 
 **How to apply:** Preserve the grid background on the scroll container with a mask-free class, and verify a tall mobile viewport that reaches the final pipeline stages.
+
+Keep actual public-source research tools visually separate from the deterministic persona review lane.
+
+**Why:** Showing `persona-review` beside search providers and evidence tools made it look like another OSINT collector, obscuring that it only audits the persisted Phase J result.
+
+**How to apply:** Label the first group `OSINT & Evidence` and describe it as public-source search/extraction/attribution. Label the second group `Post-research quality review` and explicitly state that the 11 personas do not search the web or add contacts; show this distinction outside collapsed details on mobile.

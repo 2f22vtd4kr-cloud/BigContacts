@@ -159,8 +159,15 @@ function formatTool(tool: string): string {
     mcts: "MCTS / UCT",
     prac: "Path review",
     evidence: "Evidence review",
+    "persona-review": "11-persona quality review",
   };
   return labels[tool] ?? tool;
+}
+
+const PERSONA_REVIEW_TOOL = "persona-review";
+
+function isPersonaReviewTool(tool: string): boolean {
+  return tool === PERSONA_REVIEW_TOOL;
 }
 
 function eventTime(value?: string): string {
@@ -218,6 +225,10 @@ function LiveResearchConsole({
   const queueLabel = hasTargetQueue ? "Target queue" : hasSourceQueue ? "Source queue" : "Queue";
   const latestEventResult = atlasState?.eventLog?.find((event) => event.resultSummary)?.resultSummary;
   const latestResult = telemetry?.resultSummary || latestEventResult;
+  const researchTools = telemetry?.toolIds?.filter((tool) => !isPersonaReviewTool(tool)) ?? [];
+  const hasPersonaReview = Boolean(
+    telemetry?.toolIds?.some(isPersonaReviewTool) || telemetry?.personaNames?.length,
+  );
   const statusLabel = isFailed
     ? "Run failed"
     : isDone
@@ -313,6 +324,22 @@ function LiveResearchConsole({
         </div>
       </div>
 
+      {telemetry && (researchTools.length > 0 || hasPersonaReview) && (
+        <div className="mb-3 rounded-xl border border-white/10 bg-black/20 p-3" data-testid="card-lane-explanation">
+          <div className="mb-2 text-[8px] uppercase tracking-[0.18em] text-slate-500">How to read this lane</div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="rounded-lg border border-cyan-400/20 bg-cyan-400/[0.04] px-2 py-2">
+              <div className="text-[9px] font-semibold uppercase tracking-wider text-cyan-300">OSINT &amp; evidence</div>
+              <div className="mt-1 text-[9px] leading-4 text-slate-400">Actual public-source research and attribution.</div>
+            </div>
+            <div className="rounded-lg border border-violet-400/20 bg-violet-400/[0.04] px-2 py-2">
+              <div className="text-[9px] font-semibold uppercase tracking-wider text-violet-300">Persona review</div>
+              <div className="mt-1 text-[9px] leading-4 text-slate-400">Checks saved results; does not search or add contacts.</div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {latestResult && (
         <div className="mb-3 rounded-xl border border-emerald-400/15 bg-emerald-400/[0.04] p-3" data-testid="card-latest-result">
           <div className="mb-1 flex items-center gap-2 text-[8px] uppercase tracking-[0.18em] text-emerald-300/80">
@@ -342,21 +369,59 @@ function LiveResearchConsole({
               </summary>
               <div className="space-y-3 border-t border-white/10 px-3 pb-3 pt-3">
                 {telemetry.toolIds && telemetry.toolIds.length > 0 && (
-                  <div>
-                    <div className="mb-1.5 text-[8px] uppercase tracking-[0.16em] text-slate-600">Research lanes</div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {telemetry.toolIds.map((tool) => {
-                        const active = tool === telemetry.activeToolId;
-                        return (
-                          <span
-                            key={tool}
-                            className={`rounded-md border px-2 py-1 text-[9px] ${active ? "border-cyan-300/40 bg-cyan-300/10 text-cyan-200" : "border-white/10 bg-white/[0.03] text-slate-500"}`}
-                          >
-                            {active ? "Active · " : ""}
-                            {formatTool(tool)}
-                          </span>
-                        );
-                      })}
+                  <div className="space-y-3">
+                    {telemetry.toolIds.some((tool) => !isPersonaReviewTool(tool)) && (
+                      <div>
+                        <div className="mb-1.5 text-[8px] uppercase tracking-[0.16em] text-cyan-300/70">
+                          OSINT &amp; evidence tools
+                        </div>
+                        <div className="mb-1.5 text-[10px] leading-4 text-slate-400">
+                          Search, resolve, extract, and attribute public evidence for this target.
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {telemetry.toolIds.filter((tool) => !isPersonaReviewTool(tool)).map((tool) => {
+                            const active = tool === telemetry.activeToolId;
+                            return (
+                              <span
+                                key={tool}
+                                className={`rounded-md border px-2 py-1 text-[9px] ${active ? "border-cyan-300/40 bg-cyan-300/10 text-cyan-200" : "border-white/10 bg-white/[0.03] text-slate-500"}`}
+                              >
+                                {active ? "Active · " : ""}
+                                {formatTool(tool)}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                    {telemetry.toolIds.some(isPersonaReviewTool) && (
+                      <div className="rounded-lg border border-violet-400/25 bg-violet-400/[0.06] px-2.5 py-2">
+                        <div className="mb-1 flex items-center gap-1.5 text-[8px] uppercase tracking-[0.16em] text-violet-300">
+                          <Users className="h-3 w-3" />
+                          Post-research quality review
+                        </div>
+                        <div className="mb-2 text-[10px] leading-4 text-slate-300">
+                          11 deterministic personas inspect the saved Phase J result. They do not search the web, add contacts, or perform OSINT.
+                        </div>
+                        <span className={`inline-flex rounded-md border px-2 py-1 text-[9px] ${telemetry.activeToolId === PERSONA_REVIEW_TOOL ? "border-violet-300/50 bg-violet-300/10 text-violet-200" : "border-violet-300/20 bg-violet-300/[0.04] text-violet-300/70"}`}>
+                          {telemetry.activeToolId === PERSONA_REVIEW_TOOL ? "Active · " : ""}
+                          {formatTool(PERSONA_REVIEW_TOOL)}
+                        </span>
+                      </div>
+                    )}
+                    {telemetry.toolIds.length === 0 && (
+                      <div className="text-[10px] text-slate-500">No tool lanes reported for this checkpoint.</div>
+                    )}
+                  </div>
+                )}
+                {!telemetry.toolIds?.length && telemetry.personaNames?.length > 0 && (
+                  <div className="rounded-lg border border-violet-400/25 bg-violet-400/[0.06] px-2.5 py-2">
+                    <div className="mb-1 flex items-center gap-1.5 text-[8px] uppercase tracking-[0.16em] text-violet-300">
+                      <Users className="h-3 w-3" />
+                      Post-research quality review
+                    </div>
+                    <div className="text-[10px] leading-4 text-slate-300">
+                      11 deterministic personas inspect the saved Phase J result. They do not search the web, add contacts, or perform OSINT.
                     </div>
                   </div>
                 )}
@@ -367,12 +432,12 @@ function LiveResearchConsole({
                   </div>
                 )}
                 {telemetry.personaNames && telemetry.personaNames.length > 0 && (
-                  <div className="text-[10px] leading-4 text-slate-300">
+                  <div className="rounded-lg border border-violet-400/15 bg-violet-400/[0.03] px-2.5 py-2 text-[10px] leading-4 text-slate-300">
                     <span className="mr-1 inline-flex items-center gap-1 text-[8px] uppercase tracking-wider text-violet-300/80">
                       <Users className="h-3 w-3" />
-                      Persona review
+                      Review roles
                     </span>
-                    {telemetry.personaNames.join(" · ")}
+                    <span className="text-slate-400">{telemetry.personaNames.join(" · ")}</span>
                   </div>
                 )}
               </div>
