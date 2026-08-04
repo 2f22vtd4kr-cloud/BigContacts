@@ -1,5 +1,5 @@
 import React from "react";
-import { RefreshCw, Target, Cpu, Eye, Radio, GitMerge, Search, Globe, Users, Brain, MapPin, Building2, Server, Key, ChevronDown } from "lucide-react";
+import { RefreshCw, Target, Cpu, Eye, Radio, GitMerge, Search, Globe, Users, Brain, MapPin, Building2, Server, Key, ChevronDown, AlertTriangle, CheckCircle2, Activity } from "lucide-react";
 import LiquidGlass from "liquid-glass-react";
 
 interface ResearchSession {
@@ -18,7 +18,7 @@ interface AtlasTelemetry {
   status: "active" | "complete" | "blocked" | "review";
   targetName?: string;
   targetType?: string;
-  toolIds: string[];
+  toolIds?: string[];
   activeToolId?: string;
   prompt?: string;
   inputSummary?: string;
@@ -26,6 +26,8 @@ interface AtlasTelemetry {
   sources?: number;
   evidence?: number;
   contacts?: number;
+  nextAction?: string;
+  disposition?: "contact_route_found" | "needs_follow_up";
 }
 
 interface AtlasLiveState {
@@ -41,6 +43,14 @@ interface AtlasLiveState {
   entityTotal: number | null;
   detail: string;
   atlasTelemetry?: AtlasTelemetry;
+  phaseJ?: {
+    status?: string;
+    progress?: number;
+    total?: number;
+    inserted?: number;
+    errors?: number;
+    message?: string;
+  } | null;
 }
 
 interface MobileReactorFlowProps {
@@ -87,99 +97,203 @@ function StatBadge({ label, value }: { label: string; value?: number }) {
   );
 }
 
-function LiquidGlassInspector({ telemetry }: { telemetry: AtlasTelemetry }) {
-  const inspector = (
-    <div className="mt-4 p-5 rounded-xl border border-white/10 bg-black/40 backdrop-blur-xl shadow-2xl relative overflow-hidden transition-all duration-500">
-      {/* Glossy top edge highlight */}
-      <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-50" />
-      
-      <div className="flex items-center gap-3 mb-5">
-        <div className="relative flex items-center justify-center">
-          <div className="absolute inset-0 bg-cyan-400 rounded-full animate-ping opacity-30" />
-          <div className="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_12px_theme(colors.cyan.400)] relative z-10" />
+function formatTool(tool: string): string {
+  const labels: Record<string, string> = {
+    perp0: "Perplexity",
+    perpfu: "Perplexity follow-up",
+    exa: "Exa",
+    tavily: "Tavily",
+    gemini: "Gemini",
+    groq: "Groq extraction",
+    inhouse: "In-house OSINT",
+    webdisc: "Web discovery",
+    deepweb: "Deep web OSINT",
+    maigret: "Maigret",
+    holehe: "Holehe",
+    occrp: "OCCRP Aleph",
+    whoxy: "Whoxy / WHOIS",
+    opensky: "OpenSky",
+    graph: "Relationship graph",
+    semantic: "Semantic vectors",
+    bayesian: "Bayesian scoring",
+    "domain-resolver": "Domain resolution",
+    "digital-footprint": "Digital footprint",
+    "contact-attribution": "Contact attribution",
+    "source-cooldowns": "Source cooldowns",
+    mcts: "MCTS / UCT",
+    prac: "Path review",
+    pitch: "Outreach safety",
+  };
+  return labels[tool] ?? tool;
+}
+
+function LiveResearchConsole({
+  atlasState,
+  livePhaseDetail,
+  isLive,
+}: {
+  atlasState: AtlasLiveState | null;
+  livePhaseDetail: string;
+  isLive: boolean;
+}) {
+  const telemetry = atlasState?.atlasTelemetry;
+  const phaseJ = atlasState?.phaseJ;
+  const targetName = telemetry?.targetName || atlasState?.currentEntities[0] || "Waiting for target";
+  const targetType = telemetry?.targetType || "Target-scoped public-source research";
+  const operation = atlasState?.detail || livePhaseDetail || "Waiting for the next research event";
+  const phasePercent = atlasState?.phaseTotal
+    ? Math.min(100, Math.max(0, (atlasState.phase / atlasState.phaseTotal) * 100))
+    : 0;
+  const targetPercent = atlasState?.entityTotal
+    ? Math.min(100, Math.max(0, ((atlasState.entityProgress ?? 0) / atlasState.entityTotal) * 100))
+    : 0;
+  const statusLabel = atlasState?.runStatus === "failed"
+    ? "Run failed"
+    : atlasState?.runStatus === "done"
+      ? "Run complete"
+      : isLive
+        ? "Research active"
+        : "Research idle";
+  const statusClass = atlasState?.runStatus === "failed"
+    ? "text-rose-300 border-rose-400/30 bg-rose-400/10"
+    : atlasState?.runStatus === "done"
+      ? "text-emerald-300 border-emerald-400/30 bg-emerald-400/10"
+      : isLive
+        ? "text-cyan-300 border-cyan-400/30 bg-cyan-400/10"
+        : "text-slate-400 border-white/10 bg-white/[0.03]";
+
+  const phaseJPass = phaseJ?.message?.match(/J4-J9 pass\s+(\d+)\/(\d+):\s*(.+?)(?:…)?$/i);
+
+  return (
+    <section className="mb-7 rounded-2xl border border-cyan-400/20 bg-[#071525]/90 p-4 shadow-[0_0_30px_rgba(34,211,238,0.08)]">
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div>
+          <div className="mb-1 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300">
+            <Radio className="h-3.5 w-3.5" />
+            Live research console
+          </div>
+          <p className="max-w-[290px] text-[11px] leading-relaxed text-slate-400">
+            Sequential public-source OSINT. Each target is checked, enriched, and kept review-only unless evidence is corroborated.
+          </p>
         </div>
-        <span className="text-cyan-400 text-[11px] uppercase tracking-[0.2em] font-bold font-mono">
-          {telemetry.stage}
-          {telemetry.status && <span className="text-cyan-400/60 ml-2">· {telemetry.status}</span>}
+        <span className={`shrink-0 rounded-full border px-2 py-1 text-[9px] font-bold uppercase tracking-wider ${statusClass}`}>
+          {statusLabel}
         </span>
       </div>
 
-      {telemetry.targetName && (
-        <div className="mb-5">
-          <div className="text-[9px] text-slate-500 uppercase tracking-widest mb-1.5">Target Identity</div>
-          <div className="text-slate-200 text-[15px] font-semibold tracking-wide flex items-center gap-2">
-            <Target className="w-4 h-4 text-cyan-500/70" />
-            {telemetry.targetName}
+      <div className="mb-4 rounded-xl border border-white/10 bg-black/25 p-3">
+        <div className="mb-1 text-[9px] uppercase tracking-[0.18em] text-slate-500">Current target</div>
+        <div className="flex items-start gap-2">
+          <Target className="mt-0.5 h-4 w-4 shrink-0 text-cyan-400" />
+          <div className="min-w-0">
+            <div className="truncate text-[15px] font-semibold text-white">{targetName}</div>
+            <div className="mt-0.5 text-[10px] uppercase tracking-wider text-slate-500">{targetType}</div>
           </div>
-          {telemetry.targetType && (
-            <div className="text-slate-500 text-xs mt-1 pl-6">{telemetry.targetType}</div>
+        </div>
+      </div>
+
+      <div className="mb-4 grid grid-cols-2 gap-2">
+        <div className="rounded-lg border border-white/10 bg-white/[0.03] p-2.5">
+          <div className="text-[9px] uppercase tracking-wider text-slate-500">Atlas phase</div>
+          <div className="mt-1 text-sm font-bold text-cyan-300">
+            {atlasState ? `${atlasState.phase} / ${atlasState.phaseTotal}` : "—"}
+          </div>
+          <div className="mt-0.5 truncate text-[10px] text-slate-400">{atlasState?.phaseLabel || "Waiting"}</div>
+          <div className="mt-2 h-1 overflow-hidden rounded-full bg-slate-800">
+            <div className="h-full rounded-full bg-cyan-400 transition-all" style={{ width: `${phasePercent}%` }} />
+          </div>
+        </div>
+        <div className="rounded-lg border border-white/10 bg-white/[0.03] p-2.5">
+          <div className="text-[9px] uppercase tracking-wider text-slate-500">Target queue</div>
+          <div className="mt-1 text-sm font-bold text-lime-300">
+            {atlasState?.entityProgress != null && atlasState?.entityTotal != null
+              ? `${atlasState.entityProgress} / ${atlasState.entityTotal}`
+              : "—"}
+          </div>
+          <div className="mt-0.5 text-[10px] text-slate-400">targets completed</div>
+          <div className="mt-2 h-1 overflow-hidden rounded-full bg-slate-800">
+            <div className="h-full rounded-full bg-lime-400 transition-all" style={{ width: `${targetPercent}%` }} />
+          </div>
+        </div>
+      </div>
+
+      <div className="mb-4 rounded-xl border border-cyan-400/15 bg-cyan-400/[0.04] p-3">
+        <div className="mb-1 text-[9px] uppercase tracking-[0.18em] text-cyan-400/70">What is happening now</div>
+        <div className="text-[12px] leading-relaxed text-slate-200">{operation}</div>
+      </div>
+
+      {telemetry && (
+        <>
+          <div className="mb-4 grid grid-cols-3 gap-2">
+            <QuickStat label="Sources" value={telemetry.sources ?? "—"} color="#38bdf8" />
+            <QuickStat label="Evidence" value={telemetry.evidence ?? "—"} color="#a3e635" />
+            <QuickStat label="Contacts" value={telemetry.contacts ?? "—"} color="#fbbf24" />
+          </div>
+
+          {telemetry.toolIds && telemetry.toolIds.length > 0 && (
+            <div className="mb-4">
+              <div className="mb-2 flex items-center gap-2 text-[9px] uppercase tracking-[0.18em] text-slate-500">
+                <Cpu className="h-3 w-3" />
+                Research lanes
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {telemetry.toolIds.map((tool) => {
+                  const active = tool === telemetry.activeToolId;
+                  return (
+                    <span
+                      key={tool}
+                      className={`rounded-md border px-2 py-1 text-[10px] ${
+                        active
+                          ? "border-cyan-300/40 bg-cyan-300/10 text-cyan-200"
+                          : "border-white/10 bg-white/[0.03] text-slate-500"
+                      }`}
+                    >
+                      {active ? "● " : ""}{formatTool(tool)}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
           )}
-        </div>
+
+          {telemetry.resultSummary && (
+            <div className="mb-3 rounded-xl border border-emerald-400/15 bg-emerald-400/[0.04] p-3">
+              <div className="mb-1 flex items-center gap-2 text-[9px] uppercase tracking-[0.18em] text-emerald-300/70">
+                <CheckCircle2 className="h-3 w-3" />
+                Latest result
+              </div>
+              <div className="text-[11px] leading-relaxed text-slate-300">{telemetry.resultSummary}</div>
+            </div>
+          )}
+
+          {telemetry.nextAction && (
+            <div className="mb-3 rounded-xl border border-amber-400/15 bg-amber-400/[0.04] p-3">
+              <div className="mb-1 text-[9px] uppercase tracking-[0.18em] text-amber-300/70">Next decision</div>
+              <div className="text-[11px] leading-relaxed text-slate-300">{telemetry.nextAction}</div>
+            </div>
+          )}
+
+          {(telemetry.inputSummary || telemetry.prompt) && (
+            <details className="rounded-xl border border-white/10 bg-black/20 p-3">
+              <summary className="cursor-pointer text-[9px] uppercase tracking-[0.18em] text-slate-500">
+                Show research input
+              </summary>
+              <div className="mt-2 max-h-36 overflow-y-auto whitespace-pre-wrap text-[10px] leading-relaxed text-slate-400">
+                {telemetry.inputSummary || telemetry.prompt}
+              </div>
+            </details>
+          )}
+        </>
       )}
 
-      {telemetry.toolIds && telemetry.toolIds.length > 0 && (
-        <div className="mb-5">
-          <div className="text-[9px] text-slate-500 uppercase tracking-widest mb-2.5">Tool Matrix</div>
-          <div className="flex flex-wrap gap-2">
-            {telemetry.toolIds.map((tool) => {
-              const isActive = tool === telemetry.activeToolId;
-              return (
-                <div
-                  key={tool}
-                  className={`px-2.5 py-1.5 rounded-md border text-[11px] font-mono tracking-wide transition-all duration-300 flex items-center gap-1.5
-                    ${isActive 
-                      ? 'border-cyan-400/40 bg-cyan-950/40 text-cyan-300 shadow-[0_0_15px_rgba(34,211,238,0.15)] ring-1 ring-cyan-400/20' 
-                      : 'border-white/5 bg-white/[0.02] text-slate-400 opacity-70'}`}
-                >
-                  <Cpu className="w-3 h-3" />
-                  {tool}
-                </div>
-              );
-            })}
-          </div>
+      {phaseJ && !telemetry?.sources && (
+        <div className="mb-3 grid grid-cols-3 gap-2">
+          <QuickStat label="J4–J9 pass" value={phaseJPass ? `${phaseJPass[1]}/${phaseJPass[2]}` : "—"} color="#38bdf8" />
+          <QuickStat label="Persisted" value={phaseJ.inserted ?? "—"} color="#a3e635" />
+          <QuickStat label="Errors" value={phaseJ.errors ?? "—"} color={phaseJ.errors ? "#fb7185" : "#64748b"} />
         </div>
       )}
-
-      {(telemetry.prompt || telemetry.inputSummary) && (
-        <div className="mb-5">
-          <div className="text-[9px] text-slate-500 uppercase tracking-widest mb-2">Context Payload</div>
-          <div className="text-[11px] leading-relaxed text-slate-300 font-mono bg-black/60 p-3 rounded-lg border border-white/[0.04] max-h-32 overflow-y-auto">
-            {telemetry.prompt || telemetry.inputSummary}
-          </div>
-        </div>
-      )}
-      
-      {telemetry.resultSummary && (
-        <div className="mb-5">
-          <div className="text-[9px] text-slate-500 uppercase tracking-widest mb-2">Result Vector</div>
-          <div className="text-[12px] leading-relaxed text-slate-300 border-l-2 border-emerald-500/50 pl-3">
-            {telemetry.resultSummary}
-          </div>
-        </div>
-      )}
-
-      {(telemetry.sources !== undefined || telemetry.evidence !== undefined || telemetry.contacts !== undefined) && (
-        <div className="flex gap-6 border-t border-white/5 pt-4 mt-2">
-          <StatBadge label="Sources" value={telemetry.sources} />
-          <StatBadge label="Evidence" value={telemetry.evidence} />
-          <StatBadge label="Contacts" value={telemetry.contacts} />
-        </div>
-      )}
-    </div>
-  );
-  return (
-    <LiquidGlass
-      mode="shader"
-      blurAmount={0.12}
-      saturation={1.15}
-      aberrationIntensity={1.5}
-      elasticity={0.15}
-      cornerRadius={14}
-      padding="0px"
-      style={{ display: "block", width: "100%" }}
-    >
-      {inspector}
-    </LiquidGlass>
+    </section>
   );
 }
 
@@ -244,17 +358,29 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
         style={{ WebkitOverflowScrolling: "touch" }}
       >
         <div className="max-w-md mx-auto relative">
+          <LiveResearchConsole
+            atlasState={atlasState}
+            livePhaseDetail={livePhaseDetail}
+            isLive={isLive}
+          />
+
+          <div className="mb-4 flex items-center gap-2 text-[9px] font-bold uppercase tracking-[0.2em] text-slate-500">
+            <Activity className="h-3.5 w-3.5 text-cyan-400/70" />
+            Atlas pipeline map
+            <span className="font-normal normal-case tracking-normal text-slate-600">· context, not a progress log</span>
+          </div>
           
-          {/* Vertical line connecting phases */}
-          <div className="absolute left-[15px] top-4 bottom-8 w-px bg-gradient-to-b from-cyan-500/50 via-white/10 to-transparent" />
-          
-          {MOBILE_PHASES.map((phase, i) => {
+          <div className="relative">
+            {/* Vertical line connecting phases */}
+            <div className="absolute left-[15px] top-4 bottom-8 w-px bg-gradient-to-b from-cyan-500/50 via-white/10 to-transparent" />
+
+            {MOBILE_PHASES.map((phase, i) => {
             const isActive = isLive && i === activePhaseIndex;
             const isCompleted = isLive && i < activePhaseIndex;
             const isUpcoming = !isLive || i > activePhaseIndex;
 
-            return (
-              <div key={phase.id} className="relative pl-12 mb-10 last:mb-0">
+              return (
+                <div key={phase.id} className="relative pl-12 mb-10 last:mb-0">
                 {/* Dot */}
                 <div className={`absolute left-0 top-1 w-[31px] h-[31px] rounded-full border-2 flex items-center justify-center bg-[#0b1120] transition-colors duration-500 z-10
                   ${isActive ? 'border-cyan-400 text-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.4)]' : 
@@ -285,23 +411,11 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                     {phase.detail}
                   </div>
 
-                  {/* Render Liquid Glass Inspector if this is the active phase */}
-                  {isActive && (
-                    <div className="mt-2 animate-in slide-in-from-top-4 fade-in duration-500">
-                      {atlasState?.atlasTelemetry ? (
-                        <LiquidGlassInspector telemetry={atlasState.atlasTelemetry} />
-                      ) : (
-                        <div className="mt-4 p-4 rounded-lg border border-white/5 bg-white/[0.02] text-xs text-slate-400 font-mono italic">
-                          <span className="text-cyan-500/50 mr-2">▶</span>
-                          {livePhaseDetail || "Awaiting target telemetry payload..."}
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </div>
-              </div>
-            );
-          })}
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
       

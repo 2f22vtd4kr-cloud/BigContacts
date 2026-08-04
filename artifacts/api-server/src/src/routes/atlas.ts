@@ -148,7 +148,24 @@ router.get("/ingest/atlas-status", async (_req: Request, res: Response): Promise
     return;
   }
   const job = await getJob(jobId);
-  res.json({ ...job, jobId, active: true });
+  const phaseJJobId = await getActiveJob("phase-j-pass");
+  const phaseJ = phaseJJobId ? await getJob(phaseJJobId) : null;
+  res.json({
+    ...job,
+    jobId,
+    active: true,
+    phaseJ: phaseJ
+      ? {
+          jobId: phaseJ.jobId,
+          status: phaseJ.status,
+          progress: phaseJ.progress,
+          total: phaseJ.total,
+          inserted: phaseJ.inserted,
+          errors: phaseJ.errors,
+          message: phaseJ.message,
+        }
+      : null,
+  });
 });
 
 export default router;

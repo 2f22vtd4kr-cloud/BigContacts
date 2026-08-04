@@ -43,6 +43,26 @@ import { canonicalizeUrl } from "../lib/evidence-ledger";
 
 const router = Router();
 
+async function updateAtlasTelemetry(
+  mirrorJobId: string | undefined,
+  telemetry: {
+    stage: string;
+    status: "active" | "complete" | "blocked" | "review";
+    targetName?: string;
+    targetType?: string;
+    toolIds: string[];
+    activeToolId?: string;
+    inputSummary?: string;
+    resultSummary?: string;
+    sources?: number;
+    evidence?: number;
+    contacts?: number;
+  },
+): Promise<void> {
+  if (!mirrorJobId) return;
+  await updateJob(mirrorJobId, { atlasTelemetry: JSON.stringify(telemetry) });
+}
+
 // ── Shared helpers ────────────────────────────────────────────────────────────
 
 type JsonMap = Record<string, unknown>;
@@ -388,6 +408,15 @@ async function runPhaseJPass(
           entityTotal: entities.length,
           entityNames: JSON.stringify([entity.name]),
         });
+        await updateAtlasTelemetry(mirrorJobId, {
+          stage: "PHASE J ATTRIBUTION",
+          status: "active",
+          targetName: entity.name,
+          targetType: entity.type,
+          toolIds: ["domain-resolver", "digital-footprint", "contact-attribution", "graph", "source-cooldowns"],
+          activeToolId: "domain-resolver",
+          inputSummary: `J4–J9 attribution pass ${idx + 1}/${entities.length} · one target at a time`,
+        });
       }
 
       const meta = parseJson<JsonMap>(entity.metadata, {});
@@ -402,6 +431,17 @@ async function runPhaseJPass(
         sourceRegistries: entity.sourceRegistries,
       });
       if (domainInfo.domain) totals.domains += 1;
+      await updateAtlasTelemetry(mirrorJobId, {
+        stage: "PHASE J · J4 DOMAIN RESOLUTION",
+        status: "active",
+        targetName: entity.name,
+        targetType: entity.type,
+        toolIds: ["domain-resolver", "digital-footprint", "contact-attribution", "graph", "source-cooldowns"],
+        activeToolId: "digital-footprint",
+        inputSummary: domainInfo.domain
+          ? `Resolved domain ${domainInfo.domain} · confidence ${(domainInfo.confidence * 100).toFixed(0)}%`
+          : "No employer domain resolved yet; continuing with public evidence and graph context",
+      });
 
       // ── J8: Load graph neighbours for contextual query enrichment ─────────
       const savedEdges = parseJson<GraphEdge[]>(entity.savedGraphContext, []);
@@ -442,6 +482,17 @@ async function runPhaseJPass(
         domainInfo.officialContactPaths,
         cooldowns,
       );
+      await updateAtlasTelemetry(mirrorJobId, {
+        stage: "PHASE J · J5 DIGITAL FOOTPRINT",
+        status: "active",
+        targetName: entity.name,
+        targetType: entity.type,
+        toolIds: ["domain-resolver", "digital-footprint", "contact-attribution", "graph", "source-cooldowns"],
+        activeToolId: "contact-attribution",
+        inputSummary: `${footprint.queriesRun} public footprint queries · ${footprint.evidence.length} evidence candidates`,
+        sources: footprint.queriesRun,
+        evidence: footprint.evidence.length,
+      });
 
       // ── Merge results: in-house + footprint ───────────────────────────────
       const mergedSources = [...inHouseResult.sources];
@@ -501,6 +552,18 @@ async function runPhaseJPass(
       // URL and explicit target-person attribution.
       exactClaimObserved: false,
       targetPersonEvidence: false,
+      });
+      await updateAtlasTelemetry(mirrorJobId, {
+        stage: "PHASE J · J6 ATTRIBUTION",
+        status: "active",
+        targetName: entity.name,
+        targetType: entity.type,
+        toolIds: ["domain-resolver", "digital-footprint", "contact-attribution", "graph", "source-cooldowns"],
+        activeToolId: "graph",
+        inputSummary: `${mergedSources.length} evidence sources · ${neighbourNames.length} graph neighbours · attribution score ${(attribution.score * 100).toFixed(0)}/100`,
+        sources: mergedSources.length,
+        evidence: footprint.evidence.length + inHouseResult.evidence.length,
+        contacts: [activeEmail, bestPhone, bestLinkedIn, bestTwitter].filter(Boolean).length,
       });
 
       // Determine outcome
@@ -652,6 +715,18 @@ async function runPhaseJPass(
       });
 
       totals.persisted += 1;
+      await updateAtlasTelemetry(mirrorJobId, {
+        stage: "PHASE J · J7–J9 CHECKPOINT",
+        status: "complete",
+        targetName: entity.name,
+        targetType: entity.type,
+        toolIds: ["domain-resolver", "digital-footprint", "contact-attribution", "graph", "source-cooldowns"],
+        activeToolId: "source-cooldowns",
+        resultSummary: `${outcome.replace(/_/g, " ")} · ${mergedSources.length} sources · ${footprint.evidence.length + inHouseResult.evidence.length} evidence candidates · ${neighbourNames.length} graph neighbours`,
+        sources: mergedSources.length,
+        evidence: footprint.evidence.length + inHouseResult.evidence.length,
+        contacts: [activeEmail, bestPhone, bestLinkedIn, bestTwitter].filter(Boolean).length,
+      });
     } catch (err) {
       totals.errors += 1;
       logger.warn({ entityId: entity.id, err: err instanceof Error ? err.message : String(err) }, "Phase J entity failed");
@@ -698,6 +773,18 @@ async function runPhaseJPass(
       entityProgress: entities.length,
       entityTotal: entities.length,
       entityNames: JSON.stringify(entities.slice(-1).map((entity) => entity.name)),
+    });
+    await updateAtlasTelemetry(mirrorJobId, {
+      stage: "PHASE J COMPLETE",
+      status: "complete",
+      targetName: entities.at(-1)?.name,
+      targetType: entities.at(-1)?.type,
+      toolIds: ["domain-resolver", "digital-footprint", "contact-attribution", "graph", "source-cooldowns"],
+      activeToolId: "source-cooldowns",
+      resultSummary: `${totals.verified} direct verified · ${totals.direct} personal direct candidates · ${totals.validated} validated vectors · ${totals.organization} organization contacts · ${totals.domains} domains resolved`,
+      sources: Object.keys(byRegistry).length,
+      evidence: totals.evidence,
+      contacts: totals.direct,
     });
   }
   await setActiveJob("phase-j-pass", "");

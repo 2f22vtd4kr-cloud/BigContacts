@@ -41,6 +41,14 @@ interface AtlasLiveState {
   entityTotal: number | null;
   detail: string;
   atlasTelemetry?: any;
+  phaseJ?: {
+    status?: string;
+    progress?: number;
+    total?: number;
+    inserted?: number;
+    errors?: number;
+    message?: string;
+  } | null;
 }
 
 function parseAtlasTelemetry(raw: unknown) {
@@ -52,6 +60,33 @@ function parseAtlasTelemetry(raw: unknown) {
   } catch {
     return null;
   }
+}
+
+function fallbackAtlasTelemetry(
+  message: string,
+  phase: number,
+  entityNames: string[],
+  phaseJ?: AtlasLiveState["phaseJ"],
+) {
+  if (phase !== 8 && !/Phase J|J4-J9|attribution|digital footprint/i.test(message)) return null;
+  const pass = message.match(/J4-J9 pass\s+(\d+)\/(\d+):\s*(.+?)(?:…)?$/i);
+  const targetName = pass?.[3]?.trim() || entityNames[0] || undefined;
+  const phaseJMessage = phaseJ?.message ?? "";
+  const phaseJPass = phaseJMessage.match(/J4-J9 pass\s+(\d+)\/(\d+):\s*(.+?)(?:…)?$/i);
+  return {
+    stage: "PHASE J ATTRIBUTION",
+    status: "active",
+    targetName: phaseJPass?.[3]?.trim() || targetName,
+    targetType: "Target-scoped public-source attribution",
+    toolIds: ["domain-resolver", "digital-footprint", "contact-attribution", "graph", "source-cooldowns"],
+    activeToolId: "domain-resolver",
+    inputSummary: phaseJPass || pass
+      ? `J4–J9 attribution pass ${(phaseJPass || pass)![1]}/${(phaseJPass || pass)![2]} · one target at a time`
+      : "J4–J9 attribution and graph-assisted analysis",
+    resultSummary: phaseJ
+      ? `${phaseJ.inserted ?? 0} records persisted · ${phaseJ.errors ?? 0} errors · ${phaseJ.status ?? "running"}`
+      : "Checking employer/domain resolution, digital footprint, contact attribution, graph context, and retry eligibility.",
+  };
 }
 
 type RodStatus = "idle" | "completed" | "active" | "queued" | "skipped" | "failed";
@@ -1540,8 +1575,15 @@ export default function IntelligenceReactorPage() {
           ...structured,
           entityProgress: atlasData.entityProgress != null ? Number(atlasData.entityProgress) : null,
           entityTotal: atlasData.entityTotal != null ? Number(atlasData.entityTotal) : null,
-          currentEntities: structuredNames.length > 0 ? structuredNames : structured.currentEntities,
-           atlasTelemetry: parseAtlasTelemetry(atlasData.atlasTelemetry),
+            currentEntities: structuredNames.length > 0 ? structuredNames : structured.currentEntities,
+            phaseJ: atlasData.phaseJ ?? null,
+            atlasTelemetry: parseAtlasTelemetry(atlasData.atlasTelemetry)
+              ?? fallbackAtlasTelemetry(
+                msg,
+                structured.phase,
+                structuredNames.length > 0 ? structuredNames : structured.currentEntities,
+                atlasData.phaseJ,
+              ),
         };
         // New format: [N/21] label… or [N/21] 🍳 EntityName (x/y)…
         const stepMatch = msg.match(/\[(\d+)\/(\d+)\]/);
