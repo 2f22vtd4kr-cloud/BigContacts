@@ -944,6 +944,15 @@ export async function researchWithPerplexity(
           logger.warn({ label }, "Phase 0: direct Perplexity insufficient credits — trying cheaper model");
           continue; // try sonar fallback on same key
         }
+        if (resp.status === 401 || resp.status === 403) {
+          const errText = await resp.text().catch(() => "");
+          _exhaustedPerplexityDirectKeys.set(directKey, Date.now() + EXHAUSTED_TTL_MS);
+          logger.warn(
+            { status: resp.status, err: errText.slice(0, 200), label },
+            "Phase 0: direct Perplexity key temporarily suppressed after auth/quota response",
+          );
+          break;
+        }
         if (!resp.ok) {
           const errText = await resp.text().catch(() => "");
           logger.warn({ status: resp.status, err: errText.slice(0, 300), label }, "Phase 0: direct Perplexity API error");
@@ -1187,8 +1196,13 @@ export async function researchWithTavily(
         logger.warn("Phase 0 [tavily]: rate limit — key exhausted 5 min");
         continue;
       }
-      if (resp.status === 401 || resp.status === 403) {
-        logger.warn({ status: resp.status }, "Phase 0 [tavily]: auth error — skipping key");
+      if (resp.status === 401 || resp.status === 403 || resp.status === 432) {
+        const errText = await resp.text().catch(() => "");
+        _exhaustedTavilyKeys.set(key, Date.now() + EXHAUSTED_TTL_MS);
+        logger.warn(
+          { status: resp.status, err: errText.slice(0, 200) },
+          "Phase 0 [tavily]: key temporarily suppressed after auth/quota response",
+        );
         continue;
       }
       if (!resp.ok) {
