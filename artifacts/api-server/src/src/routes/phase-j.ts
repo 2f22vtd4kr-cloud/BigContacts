@@ -20,7 +20,7 @@ import {
   improvementLogsTable,
 } from "@workspace/db";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
-import { createJob, getActiveJob, setActiveJob, updateJob } from "../lib/job-queue";
+import { appendJobLog, createJob, getActiveJob, setActiveJob, updateJob } from "../lib/job-queue";
 import { enrichInHouse } from "../lib/enrichment/contact-enrichment";
 import {
   computeContactConfidence,
@@ -63,6 +63,20 @@ async function updateAtlasTelemetry(
 ): Promise<void> {
   if (!mirrorJobId) return;
   await updateJob(mirrorJobId, { atlasTelemetry: JSON.stringify(telemetry) });
+  await appendJobLog(mirrorJobId, `ATLAS_EVENT ${JSON.stringify({
+    kind: "telemetry",
+    stage: telemetry.stage,
+    status: telemetry.status,
+    targetName: telemetry.targetName,
+    targetType: telemetry.targetType,
+    activeToolId: telemetry.activeToolId,
+    toolIds: telemetry.toolIds,
+    inputSummary: telemetry.inputSummary?.slice(0, 600),
+    resultSummary: telemetry.resultSummary?.slice(0, 700),
+    sources: telemetry.sources,
+    evidence: telemetry.evidence,
+    contacts: telemetry.contacts,
+  })}`);
 }
 
 async function runAtlasPersonaReview(

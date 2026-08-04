@@ -20,3 +20,9 @@ The reactor route must own its scroll region: the outer routed content wrapper s
 **Why:** Nested page-level and component-level scroll containers clipped the lower mobile phases, and a visually quiet manual pipeline looked inactive without an explicit standby explanation.
 
 **How to apply:** When changing the reactor shell or layout, preserve `min-height: 0` through the flex chain, keep the route-specific outer wrapper from competing for scroll, and show live/standby status from the actual Atlas status endpoint.
+
+Durable Reactor history should be emitted at orchestration/tool boundaries through an optional target-scoped sink and stored as capped job-log events; the sink must receive summaries and counts, never raw provider payloads or secrets.
+
+**Why:** A single latest snapshot cannot explain what happened before the current poll, while instrumenting low-level providers directly can accidentally persist sensitive payloads or couple reusable enrichers to a specific UI.
+
+**How to apply:** Keep reusable enrichers callback-based and optional, append structured `ATLAS_EVENT` records beside the latest snapshot, and render history as reviewable evidence of execution rather than proof that a candidate is valid.

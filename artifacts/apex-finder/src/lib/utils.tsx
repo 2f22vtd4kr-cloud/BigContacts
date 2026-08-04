@@ -210,25 +210,25 @@ export function entityWorkSummary(entity: EntityNarrative): string | null {
   const publicRole = narrativeText(entity.twitterBio)
     ?? narrativeText(entity.telegramBio)
     ?? narrativeText(entity.linkedinHeadline)
-  if (publicRole) return `Public role or activity: ${publicRole}`;
+  if (publicRole) return `This profile caught our attention because its public profile describes this role or activity: ${publicRole}`;
 
   const filing = filingLabel(entity.notes);
   const company = companyFromNotes(entity.notes);
-  if (filing && company) return `Public filing activity: ${filing} connected to ${company}.`;
-  if (company) return `Public company record connected to ${company}.`;
-  if (filing) return `Public filing activity recorded: ${filing}.`;
+  if (filing && company) return `This profile caught our attention through a public ${filing} linked to ${company}.`;
+  if (company) return `We found a public company record linking this profile to ${company}.`;
+  if (filing) return `This profile caught our attention through a public filing: ${filing}.`;
 
   const categories = Array.from(new Set((entity.assetCategories ?? []).filter(Boolean).map(cleanCategory)));
-  if (categories.length > 0) return `Recorded activity includes ${categories.slice(0, 3).join(", ")}.`;
+  if (categories.length > 0) return `We found public records linking this profile to ${categories.slice(0, 3).join(", ")}.`;
 
   const foundation = narrativeText(entity.foundationName, 150);
-  if (foundation) return `Documented foundation activity: ${foundation}.`;
+  if (foundation) return `This profile caught our attention through documented foundation activity: ${foundation}.`;
 
   const registry = parseEntityRegistries(entity.sourceRegistries);
   const labels = Array.from(new Set(
     registry.flatMap((source) => INVOLVEMENT_LABELS.filter(([pattern]) => pattern.test(source)).map(([, label]) => label)),
   ));
-  if (labels.length > 0) return `Public records indicate ${labels.slice(0, 2).join(" and ")}.`;
+  if (labels.length > 0) return `We found public records indicating ${labels.slice(0, 2).join(" and ")}.`;
   return null;
 }
 
@@ -246,8 +246,8 @@ export function entityFindingsSummary(entity: EntityNarrative): string {
   const noteNationality = noteField(entity.notes, "Nationality");
   const noteLocation = noteField(entity.notes, "Location");
 
-  if (source) findings.push(`Source: ${source}`);
-  if (filing && company) findings.push(`${filing} connected to ${company}`);
+  if (source) findings.push(`the ${source} record`);
+  if (filing && company) findings.push(`${filing} linked to ${company}`);
   else if (filing) findings.push(filing);
   if (noteNationality || entity.nationality) findings.push(`nationality recorded as ${noteNationality ?? entity.nationality}`);
   if (noteLocation || entity.knownResidences) findings.push(`location recorded as ${noteLocation ?? entity.knownResidences}`);
@@ -257,8 +257,8 @@ export function entityFindingsSummary(entity: EntityNarrative): string {
   }
   if (entity.personalWebsite) findings.push("personal website recorded");
   if (entity.linkedinHeadline || entity.twitterBio || entity.telegramBio) findings.push("public social/profile text recorded");
-  if (findings.length === 0) return "No personal finding has been recorded beyond the entity record; further evidence review is pending.";
-  return `${findings.join(" · ")}.`;
+  if (findings.length === 0) return "We have not found a personal finding beyond the entity record yet; further evidence review is pending.";
+  return `So far, we found ${findings.join(" · ")}.`;
 }
 
 const INVOLVEMENT_LABELS: Array<[RegExp, string]> = [

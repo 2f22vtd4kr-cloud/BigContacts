@@ -41,6 +41,23 @@ interface AtlasLiveState {
   entityTotal: number | null;
   detail: string;
   atlasTelemetry?: any;
+  eventLog?: Array<{
+    timestamp?: string;
+    kind?: string;
+    stage?: string;
+    status?: string;
+    targetName?: string;
+    targetType?: string;
+    activeToolId?: string;
+    toolIds?: string[];
+    prompt?: string;
+    inputSummary?: string;
+    resultSummary?: string;
+    sources?: number;
+    evidence?: number;
+    contacts?: number;
+    raw?: string;
+  }>;
   phaseJ?: {
     status?: string;
     progress?: number;
@@ -49,6 +66,22 @@ interface AtlasLiveState {
     errors?: number;
     message?: string;
   } | null;
+}
+
+function parseAtlasEventLog(raw: unknown) {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((line) => {
+    const text = typeof line === "string" ? line : "";
+    const split = text.indexOf(" ATLAS_EVENT ");
+    const timestamp = split > 0 ? text.slice(0, split) : undefined;
+    const payload = split > 0 ? text.slice(split + " ATLAS_EVENT ".length) : text;
+    try {
+      const event = JSON.parse(payload);
+      return { ...event, timestamp, raw: text };
+    } catch {
+      return { kind: "log", resultSummary: text, timestamp, raw: text };
+    }
+  }).filter((event) => event.kind === "telemetry" || event.kind === "log");
 }
 
 function parseAtlasTelemetry(raw: unknown) {
@@ -683,12 +716,13 @@ const TELEMETRY_TOOL_LABELS: Record<string, string> = {
   prac: "PRAC",
   pitch: "PITCH",
   "persona-review": "PERSONA REVIEW",
+  sherlock: "SHERLOCK",
 };
 
-function AtlasTelemetryInspector({ telemetry }: { telemetry?: any }) {
-  if (!telemetry) return null;
-  const tools = Array.isArray(telemetry.toolIds) ? telemetry.toolIds : [];
-  const activeTool = telemetry.activeToolId ? (TELEMETRY_TOOL_LABELS[telemetry.activeToolId] ?? telemetry.activeToolId) : null;
+function AtlasTelemetryInspector({ telemetry, eventLog = [] }: { telemetry?: any; eventLog?: AtlasLiveState["eventLog"] }) {
+  if (!telemetry && eventLog.length === 0) return null;
+  const tools = Array.isArray(telemetry?.toolIds) ? telemetry.toolIds : [];
+  const activeTool = telemetry?.activeToolId ? (TELEMETRY_TOOL_LABELS[telemetry.activeToolId] ?? telemetry.activeToolId) : null;
   return (
     <div style={{
       position:"absolute", top:16, right:18, width:374, maxHeight:350, overflowY:"auto",
@@ -697,36 +731,62 @@ function AtlasTelemetryInspector({ telemetry }: { telemetry?: any }) {
       fontFamily:"'Space Mono','DM Mono','Courier New',monospace",
     }}>
       <div style={{ display:"flex", alignItems:"center", gap:7, marginBottom:8 }}>
-        <span style={{ width:6, height:6, borderRadius:"50%", background:telemetry.status === "complete" ? "#a3e635" : "#22d3ee", boxShadow:"0 0 8px #22d3ee", flexShrink:0 }} />
+        <span style={{ width:6, height:6, borderRadius:"50%", background:telemetry?.status === "complete" ? "#a3e635" : "#22d3ee", boxShadow:"0 0 8px #22d3ee", flexShrink:0 }} />
         <span style={{ fontSize:7, letterSpacing:"0.17em", color:"#22d3ee" }}>LIVE TARGET INSPECTOR</span>
-        <span style={{ marginLeft:"auto", fontSize:6.5, letterSpacing:"0.12em", color:telemetry.status === "complete" ? "#a3e635" : "#fbbf24" }}>
-          {String(telemetry.status ?? "active").toUpperCase()}
+        <span style={{ marginLeft:"auto", fontSize:6.5, letterSpacing:"0.12em", color:telemetry?.status === "complete" ? "#a3e635" : "#fbbf24" }}>
+          {String(telemetry?.status ?? "history").toUpperCase()}
         </span>
       </div>
       <div style={{ display:"grid", gridTemplateColumns:"82px 1fr", gap:"5px 8px", fontSize:7 }}>
         <span style={{ color:"#526b86", letterSpacing:"0.1em" }}>TARGET</span>
-        <span style={{ color:"#e8e0cc", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{telemetry.targetName ?? "—"}</span>
+        <span style={{ color:"#e8e0cc", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{telemetry?.targetName ?? "—"}</span>
         <span style={{ color:"#526b86", letterSpacing:"0.1em" }}>STAGE</span>
-        <span style={{ color:"#a3e635" }}>{telemetry.stage ?? "—"}</span>
+        <span style={{ color:"#a3e635" }}>{telemetry?.stage ?? "—"}</span>
         <span style={{ color:"#526b86", letterSpacing:"0.1em" }}>ACTIVE TOOL</span>
         <span style={{ color:"#22d3ee" }}>{activeTool ?? "—"}</span>
         <span style={{ color:"#526b86", letterSpacing:"0.1em" }}>TOOL SET</span>
         <span style={{ color:"#8aa4c0", lineHeight:1.5 }}>{tools.map((tool: string) => TELEMETRY_TOOL_LABELS[tool] ?? tool).join(" · ") || "—"}</span>
       </div>
-      {telemetry.inputSummary && (
+      {telemetry?.inputSummary && (
         <div style={{ marginTop:9, paddingTop:8, borderTop:"1px solid #192840", color:"#8aa4c0", fontSize:7, lineHeight:1.45 }}>
           <span style={{ color:"#526b86", letterSpacing:"0.1em" }}>INPUT  </span>{telemetry.inputSummary}
         </div>
       )}
-      {telemetry.prompt && (
+      {telemetry?.prompt && (
         <div style={{ marginTop:8, padding:"8px", border:"1px solid #a3e63530", borderRadius:4, background:"#a3e63508", color:"#cbd5a5", fontSize:6.7, lineHeight:1.5, whiteSpace:"pre-wrap", maxHeight:150, overflowY:"auto" }}>
           <div style={{ color:"#a3e635", fontSize:6.5, letterSpacing:"0.13em", marginBottom:5 }}>CURRENT PROMPT</div>
           {telemetry.prompt}
         </div>
       )}
-      {telemetry.resultSummary && (
+      {telemetry?.resultSummary && (
         <div style={{ marginTop:8, color:"#8aa4c0", fontSize:7, lineHeight:1.45 }}>
           <span style={{ color:"#526b86", letterSpacing:"0.1em" }}>RESULT  </span>{telemetry.resultSummary}
+        </div>
+      )}
+      {eventLog.length > 0 && (
+        <div style={{ marginTop:10, paddingTop:8, borderTop:"1px solid #192840" }}>
+          <div style={{ color:"#22d3ee", fontSize:6.5, letterSpacing:"0.14em", marginBottom:6 }}>
+            RESEARCH EVENT LOG · {eventLog.length} RECENT EVENTS
+          </div>
+          <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
+            {eventLog.slice(0, 10).map((event, index) => (
+              <details key={`${event.timestamp ?? "event"}-${index}`} style={{
+                border:"1px solid #192840", borderRadius:4, padding:"5px 6px", background:"#0d1525",
+              }}>
+                <summary style={{ cursor:"pointer", listStyle:"none", color:event.status === "complete" ? "#a3e635" : event.status === "review" ? "#fbbf24" : "#8aa4c0", fontSize:6.7 }}>
+                  <span style={{ color:"#526b86" }}>{event.timestamp?.slice(11, 19) ?? "--:--:--"} </span>
+                  {event.stage ?? "Research event"}
+                  <span style={{ color:"#526b86" }}> · {event.activeToolId ?? "Atlas"}</span>
+                </summary>
+                <div style={{ marginTop:5, color:"#8aa4c0", fontSize:6.5, lineHeight:1.45 }}>
+                  {event.targetName && <div><span style={{ color:"#526b86" }}>TARGET </span>{event.targetName}</div>}
+                  {event.inputSummary && <div><span style={{ color:"#526b86" }}>INPUT </span>{event.inputSummary}</div>}
+                  {event.prompt && <pre style={{ margin:"4px 0 0", maxHeight:90, overflowY:"auto", whiteSpace:"pre-wrap", color:"#cbd5a5", fontFamily:"inherit" }}>{event.prompt}</pre>}
+                  {event.resultSummary && <div><span style={{ color:"#526b86" }}>RESULT </span>{event.resultSummary}</div>}
+                </div>
+              </details>
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -1331,7 +1391,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, isL
 
       {/* Main panel */}
       <div style={{ flex:1, position:"relative", zIndex:5, overflow:"hidden" }}>
-        <AtlasTelemetryInspector telemetry={atlasState?.atlasTelemetry} />
+        <AtlasTelemetryInspector telemetry={atlasState?.atlasTelemetry} eventLog={atlasState?.eventLog} />
         {/* SVG connections */}
         <svg width={1600} height={842} style={{ position:"absolute", inset:0, zIndex:1 }}>
           <defs>
@@ -1553,6 +1613,7 @@ export default function IntelligenceReactorPage() {
             currentEntities: structuredNames.length > 0 ? structuredNames : structured.currentEntities,
             phaseJ: atlasData.phaseJ ?? null,
             atlasTelemetry,
+            eventLog: parseAtlasEventLog(atlasData.log),
         };
          // The parent message is real progress text. It is not a tool/activity
          // event, so it must not light individual Atlas nodes by keyword.

@@ -7,7 +7,7 @@
  */
 
 import { Router, type Request, type Response } from "express";
-import { createJob, getActiveJob, getLatestJob, getJob, setActiveJob, updateJob, clearActiveJobIfOwned } from "../lib/job-queue";
+import { createJob, getActiveJob, getLatestJob, getJob, getJobLog, setActiveJob, updateJob, clearActiveJobIfOwned } from "../lib/job-queue";
 import { runAtlasPipeline, type AtlasOptions } from "../lib/atlas-orchestrator";
 import { logger } from "../lib/logger";
 import { db } from "@workspace/db";
@@ -141,7 +141,8 @@ router.get("/ingest/atlas-status", async (_req: Request, res: Response): Promise
   if (!jobId) {
     const latest = await getLatestJob("atlas-run");
     if (latest) {
-      res.json({ ...latest, active: false, latest: true });
+      const log = await getJobLog(latest.jobId);
+      res.json({ ...latest, active: false, latest: true, log: log.slice(0, 80) });
       return;
     }
     res.json({ status: "idle", message: "No Atlas run in progress." });
@@ -150,10 +151,12 @@ router.get("/ingest/atlas-status", async (_req: Request, res: Response): Promise
   const job = await getJob(jobId);
   const phaseJJobId = await getActiveJob("phase-j-pass");
   const phaseJ = phaseJJobId ? await getJob(phaseJJobId) : null;
+  const log = await getJobLog(jobId);
   res.json({
     ...job,
     jobId,
     active: true,
+    log: log.slice(0, 80),
     phaseJ: phaseJ
       ? {
           jobId: phaseJ.jobId,

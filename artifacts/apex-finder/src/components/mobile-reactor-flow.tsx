@@ -43,6 +43,21 @@ interface AtlasLiveState {
   entityTotal: number | null;
   detail: string;
   atlasTelemetry?: AtlasTelemetry;
+  eventLog?: Array<{
+    timestamp?: string;
+    stage?: string;
+    status?: string;
+    targetName?: string;
+    targetType?: string;
+    activeToolId?: string;
+    prompt?: string;
+    inputSummary?: string;
+    resultSummary?: string;
+    sources?: number;
+    evidence?: number;
+    contacts?: number;
+    raw?: string;
+  }>;
   phaseJ?: {
     status?: string;
     progress?: number;
@@ -125,6 +140,14 @@ function formatTool(tool: string): string {
     pitch: "Outreach safety",
   };
   return labels[tool] ?? tool;
+}
+
+function eventTime(value?: string): string {
+  if (!value) return "";
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime())
+    ? ""
+    : parsed.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 
 function LiveResearchConsole({
@@ -284,6 +307,68 @@ function LiveResearchConsole({
             </details>
           )}
         </>
+      )}
+
+      {atlasState?.eventLog && atlasState.eventLog.length > 0 && (
+        <div className="mt-4">
+          <div className="mb-2 flex items-center justify-between gap-2 text-[9px] uppercase tracking-[0.18em] text-slate-500">
+            <span className="flex items-center gap-2">
+              <Activity className="h-3 w-3 text-cyan-400/80" />
+              Live research log
+            </span>
+            <span className="text-[8px] normal-case tracking-normal text-slate-600">
+              newest first · confirmed events
+            </span>
+          </div>
+          <div className="space-y-2">
+            {atlasState.eventLog.slice(0, 8).map((event, index) => {
+              const status = event.status ?? "active";
+              const statusColor = status === "complete"
+                ? "text-lime-300 border-lime-400/20 bg-lime-400/[0.04]"
+                : status === "review" || status === "blocked"
+                  ? "text-amber-300 border-amber-400/20 bg-amber-400/[0.04]"
+                  : "text-cyan-200 border-cyan-400/20 bg-cyan-400/[0.04]";
+              return (
+                <details key={`${event.timestamp ?? "event"}-${index}`} className={`rounded-xl border p-3 ${statusColor}`}>
+                  <summary className="cursor-pointer list-none">
+                    <div className="flex items-start gap-2">
+                      <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-current shadow-[0_0_8px_currentColor]" />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="text-[10px] font-semibold leading-4">{event.stage ?? "Research event"}</span>
+                          <span className="shrink-0 text-[8px] text-slate-500">{eventTime(event.timestamp)}</span>
+                        </div>
+                        <div className="mt-0.5 truncate text-[10px] text-slate-400">
+                          {event.activeToolId ? formatTool(event.activeToolId) : "Atlas"}{event.targetName ? ` · ${event.targetName}` : ""}
+                        </div>
+                        {event.resultSummary && (
+                          <div className="mt-1 line-clamp-2 text-[10px] leading-4 text-slate-300">{event.resultSummary}</div>
+                        )}
+                      </div>
+                    </div>
+                  </summary>
+                  <div className="mt-3 space-y-2 border-t border-white/10 pt-2 text-[10px] leading-4 text-slate-400">
+                    {event.inputSummary && <div><span className="text-slate-600">INPUT · </span>{event.inputSummary}</div>}
+                    {event.prompt && (
+                      <details className="rounded-lg border border-white/10 bg-black/20 p-2">
+                        <summary className="cursor-pointer text-[9px] uppercase tracking-wider text-slate-500">Prompt sent</summary>
+                        <div className="mt-2 max-h-40 overflow-y-auto whitespace-pre-wrap text-[9px] leading-4 text-slate-400">{event.prompt}</div>
+                      </details>
+                    )}
+                    {event.resultSummary && <div><span className="text-slate-600">RESULT · </span>{event.resultSummary}</div>}
+                    {(event.sources !== undefined || event.evidence !== undefined || event.contacts !== undefined) && (
+                      <div className="flex flex-wrap gap-2 pt-1 text-[9px] text-slate-500">
+                        {event.sources !== undefined && <span>sources {event.sources}</span>}
+                        {event.evidence !== undefined && <span>evidence {event.evidence}</span>}
+                        {event.contacts !== undefined && <span>contacts {event.contacts}</span>}
+                      </div>
+                    )}
+                  </div>
+                </details>
+              );
+            })}
+          </div>
+        </div>
       )}
 
       {!telemetry && (

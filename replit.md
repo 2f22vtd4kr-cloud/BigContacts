@@ -40,6 +40,8 @@ The API server `dev` script runs `build` then `start` every time (esbuild, ~1.5s
 
 The dashboard uses two deliberately separate scores: **Signal** reflects the strength of wealth/registry evidence, while **Access** reflects how realistically a profile can be reached through public contact evidence and directness. A strong Signal score must not imply a strong Access score.
 
+The Intelligence Reactor's durable activity feed is sourced from target-scoped Atlas telemetry events appended to the Redis job log. Event payloads contain sanitized summaries only; provider output, usernames, and search hits remain review evidence and do not bypass identity, attribution, reachability, or contact-promotion gates.
+
 The previously used Warren Buffett record is not a valid benchmark: celebrity visibility makes it unrealistically reachable. The valid controlled benchmark is a 16-person FAA aircraft-owner cohort selected from real individual turbine/multi-engine registrants, excluding Buffett, trusts, companies, obvious wrappers, and malformed names. The pre-fix run completed 16/16 with 0 errors at 13 social-only / 1 direct-contact candidate / 2 no usable contact outcomes; the stricter post-fix rerun completed 16/16 with 0 errors at 10 social-only / 0 direct-contact candidates / 6 no usable contact outcomes. Broad ingestion remains disabled unless explicitly requested.
 
 ### Controlled FAA benchmark (verified 2026-08-02)

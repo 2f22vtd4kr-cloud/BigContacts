@@ -22,7 +22,7 @@
 import { db, entitiesTable, assetsTable, contactEvidenceTable } from "@workspace/db";
 import { sql, eq, and, desc, inArray } from "drizzle-orm";
 import { logger } from "./logger";
-import { updateJob, clearJobFields, createJob, setActiveJob, ownsActiveJob, clearActiveJobIfOwned } from "./job-queue";
+import { updateJob, clearJobFields, createJob, setActiveJob, ownsActiveJob, clearActiveJobIfOwned, appendJobLog } from "./job-queue";
 import { runWesternHnwiIngestion } from "./western-hnwi-ingestion";
 import { runFaaIngestion } from "./faa-ingestor";
 import { runLandRegistryIngestion } from "./land-registry-ingestor";
@@ -39,7 +39,7 @@ import { enrichWithWhoxy } from "./whoxy-enricher";
 import { enrichWithEquasis } from "./equasis-enricher";
 import { enrichWithAdsbHistory } from "./adsbtrack-enricher";
 import { enrichWithOpenOwnership } from "./openownership-enricher";
-import { runHolehe, runMaigret } from "./python-tools";
+import { runHolehe, runMaigret, runSherlock } from "./python-tools";
 import { buildPerplexityPrompt, runFinalTargetReview } from "./ai-extractor";
 import { reconcileStoredContactEvidence } from "./contact-candidate";
 import { deriveTargetResearchDisposition } from "./final-target-review";
@@ -414,6 +414,21 @@ async function setAtlasTelemetry(
 ): Promise<void> {
   if (entityId != null && targetWasTimedOut(atlasJobId, entityId)) return;
   await updateJob(atlasJobId, { atlasTelemetry: JSON.stringify(telemetry) });
+  await appendJobLog(atlasJobId, `ATLAS_EVENT ${JSON.stringify({
+    kind: "telemetry",
+    stage: telemetry.stage,
+    status: telemetry.status,
+    targetName: telemetry.targetName,
+    targetType: telemetry.targetType,
+    activeToolId: telemetry.activeToolId,
+    toolIds: telemetry.toolIds,
+    prompt: telemetry.prompt?.slice(0, 1200),
+    inputSummary: telemetry.inputSummary?.slice(0, 600),
+    resultSummary: telemetry.resultSummary?.slice(0, 700),
+    sources: telemetry.sources,
+    evidence: telemetry.evidence,
+    contacts: telemetry.contacts,
+  })}`);
 }
 
 /** Reduce a stored social-URL or @handle to a bare handle for consistent DB storage. */
@@ -618,7 +633,24 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
       prompt: prompt.slice(0, 2200),
       inputSummary: `${entity.type} target · ${telemetryReachability.status} reachability · provider fan-out is parallel within this target`,
     }, id);
-    const aiResult = await deepWebOsintEnrich(entity as any).catch(() => null);
+    const aiResult = await deepWebOsintEnrich({
+      ...(entity as any),
+      onTelemetry: async (event: any) => {
+        await setAtlasTelemetry(atlasJobId, {
+          stage: event.stage,
+          status: event.status,
+          targetName: name,
+          targetType: entity.type,
+          toolIds: event.toolIds,
+          activeToolId: event.activeToolId,
+          inputSummary: event.inputSummary,
+          resultSummary: event.resultSummary,
+          sources: event.sources,
+          evidence: event.evidence,
+          contacts: event.contacts,
+        }, id);
+      },
+    }).catch(() => null);
     await setAtlasTelemetry(atlasJobId, {
       stage: "AI WEB OSINT",
       status: aiResult ? "complete" : "review",
@@ -697,10 +729,40 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
 
     if (rawHandle || emailForHolehe) {
       await updateJob(atlasJobId, { status: "running", message: `🕵️ ${name}: Maigret + Holehe…` });
+      await setAtlasTelemetry(atlasJobId, {
+        stage: "IDENTITY DISCOVERY",
+        status: "active",
+        targetName: name,
+        targetType: entity.type,
+        toolIds: ["maigret", "sherlock", "holehe"],
+        activeToolId: rawHandle ? "maigret" : "holehe",
+        inputSummary: `${rawHandle ? `Username candidate "${rawHandle}"` : "No username candidate"} · ${emailForHolehe ? "validated non-generic email candidate" : "no email candidate"}`,
+      }, id);
       const [maigretResult, holeheResult] = await Promise.all([
         rawHandle      ? runMaigret(rawHandle).catch(() => null)      : Promise.resolve(null),
         emailForHolehe ? runHolehe(emailForHolehe).catch(() => null)  : Promise.resolve(null),
       ]);
+      const sherlockResult = rawHandle
+        ? await runSherlock(rawHandle).catch(() => null)
+        : null;
+      await setAtlasTelemetry(atlasJobId, {
+        stage: "IDENTITY DISCOVERY",
+        status: "complete",
+        targetName: name,
+        targetType: entity.type,
+        toolIds: ["maigret", "sherlock", "holehe"],
+        activeToolId: sherlockResult ? "sherlock" : emailForHolehe ? "holehe" : "maigret",
+        inputSummary: `Review-only username and email-service checks for ${name}`,
+        resultSummary: [
+          `Maigret ${maigretResult?.found.length ?? 0} profile(s)`,
+          `Sherlock ${sherlockResult?.found.length ?? 0} profile(s)`,
+          `Holehe ${holeheResult?.found.length ?? 0} service hit(s)`,
+          "no result independently proves identity or personal access",
+        ].join(" · "),
+        sources: (maigretResult?.found.length ?? 0) + (sherlockResult?.found.length ?? 0),
+        evidence: (maigretResult?.found.length ?? 0) + (sherlockResult?.found.length ?? 0) + (holeheResult?.found.length ?? 0),
+        contacts: 0,
+      }, id);
       if (maigretResult?.found.length) {
         await db.insert(contactEvidenceTable).values(
           maigretResult.found.slice(0, 15).map((p: any) => ({
@@ -726,6 +788,25 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
             sourceReliability: 0.8, identityMatch: 0.8, recencyScore: 0.5, directnessScore: 0.7,
             independentCorroboration: 1, validationStatus: "candidate" as const,
             metadata: JSON.stringify({ platform: p.name }),
+          })),
+        ).onConflictDoNothing().catch(() => {});
+      }
+      if (sherlockResult?.found.length) {
+        await db.insert(contactEvidenceTable).values(
+          sherlockResult.found.slice(0, 15).map((p: any) => ({
+            entityId: id,
+            vectorType: "social" as const,
+            value: p.url ?? p.siteName,
+            source: "sherlock",
+            sourceUrl: p.url ?? null,
+            extractionMethod: "sherlock-username-search",
+            sourceReliability: 0.6,
+            identityMatch: 0.45,
+            recencyScore: 0.4,
+            directnessScore: 0.35,
+            independentCorroboration: 1,
+            validationStatus: "candidate" as const,
+            metadata: JSON.stringify({ siteName: p.siteName, reviewOnly: true }),
           })),
         ).onConflictDoNothing().catch(() => {});
       }
@@ -1776,9 +1857,36 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
           entityNames: JSON.stringify([String(e.id)]),
         });
         try {
+          await setAtlasTelemetry(atlasJobId, {
+            stage: "UCT / MCTS RESEARCH",
+            status: "active",
+            targetName: String(e.id),
+            targetType: "HNWI",
+            toolIds: ["mcts", "prac", "graph", "pitch"],
+            activeToolId: "mcts",
+            inputSummary: `Reachability-ranked HNWI research target ${i + 1}/${hotEntities.length} · one target at a time`,
+          });
           await runTargetResearch(e.id, 3);
           researched++;
+          await setAtlasTelemetry(atlasJobId, {
+            stage: "UCT / MCTS RESEARCH",
+            status: "complete",
+            targetName: String(e.id),
+            targetType: "HNWI",
+            toolIds: ["mcts", "prac", "graph", "pitch"],
+            activeToolId: "prac",
+            resultSummary: "Target research completed; outcome remains subject to reachability and evidence gates.",
+          });
         } catch (err: any) {
+          await setAtlasTelemetry(atlasJobId, {
+            stage: "UCT / MCTS RESEARCH",
+            status: "review",
+            targetName: String(e.id),
+            targetType: "HNWI",
+            toolIds: ["mcts", "prac", "graph", "pitch"],
+            activeToolId: "mcts",
+            resultSummary: `Target research did not complete: ${err?.message ?? "unknown error"}`,
+          });
           logger.warn({ entityId: e.id, err: err?.message }, "[Atlas] single-target MCTS failed");
         }
         await updateJob(atlasJobId, {

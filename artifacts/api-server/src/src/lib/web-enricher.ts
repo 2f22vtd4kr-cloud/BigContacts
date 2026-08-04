@@ -446,6 +446,23 @@ export interface DeepWebOsintInput {
   contactOutcome?:   string | null;
   contactConfidence?: number | null;
   notes?:            string | null;
+  /**
+   * Optional target-scoped Reactor sink. This is deliberately a callback
+   * rather than persisted input so telemetry can never become entity data.
+   */
+  onTelemetry?: (event: DeepWebTelemetryEvent) => void | Promise<void>;
+}
+
+export interface DeepWebTelemetryEvent {
+  stage: string;
+  status: "active" | "complete" | "review" | "blocked";
+  toolIds: string[];
+  activeToolId?: string;
+  inputSummary?: string;
+  resultSummary?: string;
+  sources?: number;
+  evidence?: number;
+  contacts?: number;
 }
 
 export interface DeepWebOsintResult {
@@ -476,6 +493,27 @@ export interface DeepWebEvidence {
   extractionMethod: string;
   confidence: number;
   details?: Record<string, unknown>;
+}
+
+async function emitDeepWebTelemetry(
+  entity: DeepWebOsintInput,
+  event: DeepWebTelemetryEvent,
+): Promise<void> {
+  try {
+    await entity.onTelemetry?.(event);
+  } catch (error) {
+    logger.debug(
+      { err: error instanceof Error ? error.message : String(error) },
+      "Deep web telemetry sink failed",
+    );
+  }
+}
+
+function providerTelemetrySummary(provider: string, value: any): string {
+  if (!value || value.source === "none") return `${provider} returned no usable result`;
+  const contacts = [value.email, value.phone, value.linkedin, value.instagram, value.twitter]
+    .filter(Boolean).length;
+  return `${provider} returned ${value.citations?.length ?? 0} citation(s), ${value.owners?.length ?? 0} owner lead(s), ${contacts} contact candidate(s)`;
 }
 
 const USER_AGENTS = [
@@ -1646,6 +1684,14 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   const { queries, domainTargets } = buildDeepWebQueries(entity, trading, city, country);
   if (queries.length === 0 && domainTargets.length === 0) return result;
 
+  await emitDeepWebTelemetry(entity, {
+    stage: "AI PROVIDER FAN-OUT",
+    status: "active",
+    toolIds: ["perp0", "gemini", "tavily", "exa"],
+    activeToolId: "perp0",
+    inputSummary: `${entity.type} target · ${queries.length} search query template(s) · ${domainTargets.length} domain target(s)`,
+  });
+
   const emailHits    = new Map<string, string[]>();
   const phoneHits    = new Map<string, string[]>();
   const linkedinHits = new Map<string, string[]>();
@@ -1881,21 +1927,57 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         tradingName: trading,
         city,
         reachability: realism,
+      }).then(async (value) => {
+        await emitDeepWebTelemetry(entity, {
+          stage: "AI PROVIDER FAN-OUT",
+          status: value.source === "none" ? "review" : "complete",
+          toolIds: ["perp0"],
+          activeToolId: "perp0",
+          resultSummary: providerTelemetrySummary("Perplexity", value),
+        });
+        return value;
       }),
       researchWithGemini(entity.name, entity.type, country, {
         tradingName: trading,
         city,
         reachability: realism,
+      }).then(async (value) => {
+        await emitDeepWebTelemetry(entity, {
+          stage: "AI PROVIDER FAN-OUT",
+          status: value.source === "none" ? "review" : "complete",
+          toolIds: ["gemini"],
+          activeToolId: "gemini",
+          resultSummary: providerTelemetrySummary("Gemini", value),
+        });
+        return value;
       }),
       researchWithTavily(entity.name, entity.type, country, {
         tradingName: trading,
         city,
         reachability: realism,
+      }).then(async (value) => {
+        await emitDeepWebTelemetry(entity, {
+          stage: "AI PROVIDER FAN-OUT",
+          status: value.source === "none" ? "review" : "complete",
+          toolIds: ["tavily"],
+          activeToolId: "tavily",
+          resultSummary: providerTelemetrySummary("Tavily", value),
+        });
+        return value;
       }),
       researchWithExa(entity.name, entity.type, country, {
         tradingName: trading,
         city,
         reachability: realism,
+      }).then(async (value) => {
+        await emitDeepWebTelemetry(entity, {
+          stage: "AI PROVIDER FAN-OUT",
+          status: value.source === "none" ? "review" : "complete",
+          toolIds: ["exa"],
+          activeToolId: "exa",
+          resultSummary: providerTelemetrySummary("Exa", value),
+        });
+        return value;
       }),
     ]);
     [perp, gem, tav, exa] = providerResults.map((item) =>
@@ -1927,6 +2009,14 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     } catch {
       result.aiEnsemble = ensemble;
     }
+    await emitDeepWebTelemetry(entity, {
+      stage: "AI ENSEMBLE ADJUDICATION",
+      status: result.aiEnsemble.claims.length > 0 ? "complete" : "review",
+      toolIds: ["groq", "gemini"],
+      activeToolId: result.aiEnsemble.adjudicator?.source ?? "groq",
+      resultSummary: `${result.aiEnsemble.claims.length} claim(s) retained for provenance review · provider agreement does not independently verify identity`,
+      evidence: result.aiEnsemble.claims.length,
+    });
     for (const claim of result.aiEnsemble.claims) {
       const vectorType = claim.vectorType === "linkedin"
         || claim.vectorType === "instagram"
