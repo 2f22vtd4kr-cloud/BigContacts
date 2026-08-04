@@ -44,7 +44,7 @@ import { buildPerplexityPrompt, runFinalTargetReview } from "./ai-extractor";
 import { reconcileStoredContactEvidence } from "./contact-candidate";
 import { deriveTargetResearchDisposition } from "./final-target-review";
 import { assessTargetReachability, reachabilityDirective } from "./reachability-realism";
-import { computeContactConfidence, computeContactOutcome, hasMeaningfulDirectContact } from "./contact-confidence";
+import { computeContactConfidence, computeContactOutcome, computeContactState, hasMeaningfulDirectContact } from "./contact-confidence";
 import {
   sanitizePublicEmail,
   sanitizePublicPhone,
@@ -1732,29 +1732,6 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
       `);
     }
 
-    // Backfill contact outcomes for all entities
-    await db.execute(sql`
-      UPDATE entities
-      SET contact_outcome = CASE
-        WHEN COALESCE(phone_source, '') IN ('EDGAR-Phone', 'CompaniesHouse-Phone')
-          AND (email IS NULL OR email = '') THEN 'organization_contact'
-        WHEN email IS NOT NULL AND email <> '' THEN
-          CASE
-            WHEN lower(split_part(email, '@', 1)) ~ '^(info|contact|hello|sales|support|office|admin|press|media|enquiries|inquiries|reservations|booking|investor|ir)$'
-              THEN 'organization_contact'
-            ELSE 'direct_contact_candidate'
-          END
-        WHEN phone IS NOT NULL AND phone <> ''
-          AND COALESCE(phone_source, '') NOT IN ('EDGAR-Phone', 'CompaniesHouse-Phone')
-          THEN 'direct_contact_candidate'
-        WHEN linkedin_url IS NOT NULL OR twitter_handle IS NOT NULL THEN 'social_only'
-        WHEN notes IS NOT NULL AND length(notes) > 50 THEN 'evidence_only'
-        ELSE 'none'
-      END
-      WHERE contact_outcome IS NULL
-        OR contact_outcome IN ('direct_contact_verified', 'direct_contact_candidate', 'organization_contact')
-    `);
-
     // Normalize stored social handles — strip URL prefixes so only bare handles are stored.
     // Fixes entities enriched before normalizeHandle() was added to Step C.
     await db.execute(sql`
@@ -1769,33 +1746,63 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
       UPDATE entities SET email = NULL WHERE email ILIKE '%protected%'
     `).catch(() => {});
 
-    // Backfill isHot for all entities — only a meaningful person-level direct
-    // contact vector is a priority lead.
-    // This repairs entities enriched before the isHot-stamping logic existed.
-    await db.execute(sql`
-      UPDATE entities
-      SET is_hot = (
-        (
-          (email IS NOT NULL AND email !~* '^(info|contact|hello|sales|support|office|admin|press|media|enquiries|inquiries|reservations|booking|investor|ir)@')
-          OR (phone IS NOT NULL AND COALESCE(phone_source, '') NOT IN ('EDGAR-Phone', 'CompaniesHouse-Phone'))
-        )
-        AND type NOT IN ('Corporation', 'Corp', 'Trust')
-      )
-      WHERE is_hot IS DISTINCT FROM (
-        (
-          (email IS NOT NULL AND email !~* '^(info|contact|hello|sales|support|office|admin|press|media|enquiries|inquiries|reservations|booking|investor|ir)@')
-          OR (phone IS NOT NULL AND COALESCE(phone_source, '') NOT IN ('EDGAR-Phone', 'CompaniesHouse-Phone'))
-        )
-        AND type NOT IN ('Corporation', 'Corp', 'Trust')
-      )
-    `);
-
-    // Recompute contact confidence for all
-    const confEntities = await db.select({ id: entitiesTable.id, email: entitiesTable.email, phone: entitiesTable.phone, phoneSource: entitiesTable.phoneSource, linkedinUrl: entitiesTable.linkedinUrl, twitterHandle: entitiesTable.twitterHandle, instagramHandle: entitiesTable.instagramHandle, telegramHandle: entitiesTable.telegramHandle, knownResidences: entitiesTable.knownResidences, contactConfidence: entitiesTable.contactConfidence }).from(entitiesTable).limit(50_000);
+    // Reconcile confidence, outcome, and hot status together. Keeping this
+    // pass on the shared classifier prevents a stale raw SQL backfill from
+    // promoting unverified candidate emails or registry switchboards.
+    const confEntities = await db.select({
+      id: entitiesTable.id,
+      type: entitiesTable.type,
+      email: entitiesTable.email,
+      phone: entitiesTable.phone,
+      phoneSource: entitiesTable.phoneSource,
+      linkedinUrl: entitiesTable.linkedinUrl,
+      twitterHandle: entitiesTable.twitterHandle,
+      instagramHandle: entitiesTable.instagramHandle,
+      telegramHandle: entitiesTable.telegramHandle,
+      knownResidences: entitiesTable.knownResidences,
+      metadata: entitiesTable.metadata,
+      contactConfidence: entitiesTable.contactConfidence,
+      contactOutcome: entitiesTable.contactOutcome,
+      isHot: entitiesTable.isHot,
+    }).from(entitiesTable).limit(50_000);
     for (let i = 0; i < confEntities.length; i += 1000) {
       for (const e of confEntities.slice(i, i + 1000)) {
-        const c = computeContactConfidence({ email: e.email, phone: e.phone, phoneSource: e.phoneSource, linkedinUrl: e.linkedinUrl, twitterHandle: e.twitterHandle, instagramHandle: e.instagramHandle, telegramHandle: e.telegramHandle, knownResidences: e.knownResidences });
-        if (c !== (e.contactConfidence ?? 0)) await db.update(entitiesTable).set({ contactConfidence: c }).where(eq(entitiesTable.id, e.id));
+        let metadata: Record<string, unknown> = {};
+        try {
+          const parsed = e.metadata ? JSON.parse(e.metadata) : {};
+          if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) metadata = parsed;
+        } catch {
+          // Malformed metadata remains untouched and cannot validate access.
+        }
+        const state = computeContactState({
+          type: e.type,
+          email: e.email,
+          phone: e.phone,
+          phoneSource: e.phoneSource,
+          linkedinUrl: e.linkedinUrl,
+          twitterHandle: e.twitterHandle,
+          instagramHandle: e.instagramHandle,
+          telegramHandle: e.telegramHandle,
+          knownResidences: e.knownResidences,
+          metadata: e.metadata,
+          website: typeof metadata.website === "string" ? metadata.website : null,
+          bizLocation: typeof metadata.bizLocation === "string" ? metadata.bizLocation : null,
+          emailSource: typeof metadata.emailSource === "string" ? metadata.emailSource : null,
+          validatedDirectContact: metadata.validatedDirectContact === true,
+          isGenericPrefix: metadata.isGenericPrefix === true,
+        });
+        if (
+          state.contactConfidence !== (e.contactConfidence ?? 0) ||
+          state.contactOutcome !== e.contactOutcome ||
+          state.isHot !== e.isHot
+        ) {
+          await db.update(entitiesTable).set({
+            contactConfidence: state.contactConfidence,
+            contactOutcome: state.contactOutcome,
+            isHot: state.isHot,
+            updatedAt: new Date(),
+          }).where(eq(entitiesTable.id, e.id));
+        }
       }
     }
 
