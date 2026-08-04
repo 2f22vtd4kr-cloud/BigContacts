@@ -73,3 +73,4 @@
 - [Phase J bounded workers](phase-j-bounded-workers.md) — Per-target external timeouts plus startup recovery for phase-j-pass prevent stale locks and hung contact-research batches
 - [Contact research coordinator](contact-research-coordinator.md) — Durable target cursor sequences personas, web OSINT, and targeted Phase J with restart recovery and fail-closed eligibility
 - [OSINT-only product boundary](osint-only-boundary.md) — Apex Atlas is evidence research only; legacy CRM/outreach/pitch fields are compatibility data and must not drive behavior
+- [Persona review reconciliation](persona-review-reconciliation.md) — A completed sweep means no new findings; inspect current pending rows and reconcile resolved historical findings before claiming satisfaction

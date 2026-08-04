@@ -112,6 +112,75 @@ async function onlyNovelSuggestions(
   return novel;
 }
 
+async function reconcilePersonaFindings(
+  entity: typeof entitiesTable.$inferSelect,
+  suggestions: PersonaSuggestion[],
+): Promise<{ novel: PersonaSuggestion[]; dismissed: number }> {
+  const entityId = entity.id;
+  const existing = await db
+    .select({
+      id: improvementLogsTable.id,
+      persona: improvementLogsTable.persona,
+      title: improvementLogsTable.title,
+      status: improvementLogsTable.status,
+    })
+    .from(improvementLogsTable)
+    .where(eq(improvementLogsTable.entityId, entityId));
+
+  const currentKeys = new Set(
+    suggestions.map((suggestion) => `${suggestion.persona}\u0000${suggestion.title}`),
+  );
+  const seen = new Set(existing.map((row) => `${row.persona}\u0000${row.title}`));
+  const organizationStateIsSafe =
+    (entity.type === "Corporation" || entity.type === "Trust")
+    && entity.contactOutcome === "organization_contact"
+    && Number(entity.contactConfidence ?? 0) === 0
+    && entity.isHot !== true;
+  const resolvedOrganizationOperatorTitles = new Set([
+    "Operator safety gate violated — organization route looks personal",
+    "Operator gate blocked — direct outcome conflicts with attribution",
+  ]);
+  const stalePendingIds = existing
+    .filter((row) =>
+      row.status === "pending"
+      && (
+        !currentKeys.has(`${row.persona}\u0000${row.title}`)
+        || (
+          organizationStateIsSafe
+          && row.persona === "user_operator"
+          && resolvedOrganizationOperatorTitles.has(row.title)
+        )
+      ),
+    )
+    .map((row) => row.id);
+
+  let dismissed = 0;
+  if (stalePendingIds.length > 0) {
+    const rows = await db
+      .update(improvementLogsTable)
+      .set({
+        status: "dismissed",
+        actionTaken: "Superseded by a later persona review; the current entity state no longer reproduces this finding.",
+        updatedAt: new Date(),
+      })
+      .where(and(
+        eq(improvementLogsTable.status, "pending"),
+        inArray(improvementLogsTable.id, stalePendingIds),
+      ))
+      .returning({ id: improvementLogsTable.id });
+    dismissed = rows.length;
+  }
+
+  const novel: PersonaSuggestion[] = [];
+  for (const suggestion of suggestions) {
+    const key = `${suggestion.persona}\u0000${suggestion.title}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    novel.push(suggestion);
+  }
+  return { novel, dismissed };
+}
+
 // ── POST /improve/apply-safe — apply deterministic, fail-closed findings ─────
 //
 // Recommendations that require new public evidence remain pending. This job
@@ -409,7 +478,7 @@ router.post("/improve/run", async (req: Request, res: Response): Promise<void> =
         const entity = entities[i];
         try {
           const suggestions = await runPersonasForEntity(entity);
-          const novelSuggestions = await onlyNovelSuggestions(entity.id, suggestions);
+          const { novel: novelSuggestions, dismissed } = await reconcilePersonaFindings(entity, suggestions);
           if (novelSuggestions.length > 0) {
             await db.insert(improvementLogsTable).values(
               novelSuggestions.map(s => ({
@@ -425,7 +494,7 @@ router.post("/improve/run", async (req: Request, res: Response): Promise<void> =
             );
             inserted += novelSuggestions.length;
           }
-          await appendJobLog(jobId, `[${i + 1}/${entities.length}] ${entity.name}: ${novelSuggestions.length} new suggestions`);
+          await appendJobLog(jobId, `[${i + 1}/${entities.length}] ${entity.name}: ${novelSuggestions.length} new suggestions, ${dismissed} resolved findings`);
         } catch (err: any) {
           errors++;
           await appendJobLog(jobId, `[ERROR] ${entity.name}: ${err.message}`);
@@ -478,7 +547,7 @@ router.post("/improve/run/:entityId", async (req: Request, res: Response): Promi
 
   try {
     const suggestions = await runPersonasForEntity(entity);
-    const novelSuggestions = await onlyNovelSuggestions(entity.id, suggestions);
+    const { novel: novelSuggestions } = await reconcilePersonaFindings(entity, suggestions);
     let inserted = 0;
     if (novelSuggestions.length > 0) {
       await db.insert(improvementLogsTable).values(
@@ -764,7 +833,7 @@ router.post("/improve/run-all", async (req: Request, res: Response): Promise<voi
           const entity = chunkEntities[i];
           try {
             const suggestions = await runPersonasForEntity(entity);
-            const novelSuggestions = await onlyNovelSuggestions(entity.id, suggestions);
+            const { novel: novelSuggestions } = await reconcilePersonaFindings(entity, suggestions);
             if (novelSuggestions.length > 0) {
               await db.insert(improvementLogsTable).values(
                 novelSuggestions.map(s => ({

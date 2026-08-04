@@ -80,7 +80,7 @@ export function ConfidenceBadge({ score }: { score: number | null | undefined })
   // Contact confidence — how trustworthy the extracted contact data itself is
   // (email/phone/social evidence quality), distinct from Access (reachability)
   // and Signal (wealth/registry evidence). This is the primary surfaced metric
-  // for prioritizing outreach — see reachability-rank.ts on the API side.
+  // for prioritizing evidence review — see reachability-rank.ts on the API side.
   if (score == null || typeof score !== "number" || isNaN(score)) return null;
   const pct = Math.round(score);
 

@@ -215,6 +215,7 @@ export function isPersonalContactOutcome(outcome: ContactOutcome): boolean {
  *   - smtpVerified / validatedDirectContact → direct_contact_verified
  */
 export function computeContactOutcome(entity: {
+  type?: string | null;
   email?: string | null;
   phone?: string | null;
   linkedinUrl?: string | null;
@@ -232,6 +233,25 @@ export function computeContactOutcome(entity: {
 }): ContactOutcome {
   const emailStr = entity.email?.trim() ?? "";
   const phoneStr = entity.phone?.trim() ?? "";
+  const isOrgVehicle =
+    entity.type === "Corporation" ||
+    entity.type === "Corp" ||
+    entity.type === "Trust";
+
+  // Organization/property vehicles can carry public company routes, but those
+  // routes are never personal access even when the source is not labeled as a
+  // registry phone and a downstream validator marked the vector reachable.
+  if (isOrgVehicle) {
+    if (emailStr || phoneStr) return "organization_contact";
+    if (
+      entity.linkedinUrl?.trim() ||
+      entity.twitterHandle?.trim() ||
+      entity.instagramHandle?.trim() ||
+      entity.telegramHandle?.trim()
+    ) return "social_only";
+    if (entity.website?.trim() || entity.bizLocation?.trim()) return "evidence_only";
+    return "none";
+  }
 
   // Registry phones are organization switchboards/main lines, even when a
   // separate validation step marked the number as reachable.

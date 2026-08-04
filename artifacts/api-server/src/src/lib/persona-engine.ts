@@ -118,7 +118,7 @@ function hasNonEmptyJsonObject(value: unknown): boolean {
 // This is not an impersonation of a person and it never invents preferences,
 // biography, or identity. It applies only the operator rules documented in the
 // project: public evidence only, fail closed, organization routes are not
-// personal access, and no outreach before a target-scoped review.
+// personal access, and no communication workflow inside Apex Atlas.
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function runUserOperator(entity: Entity): Promise<ImprovementSuggestion[]> {
@@ -155,14 +155,14 @@ async function runUserOperator(entity: Entity): Promise<ImprovementSuggestion[]>
       persona: "user_operator",
       category: "research",
       priority: "high",
-      title: "Operator gate requires a target-scoped review before outreach",
+      title: "Operator gate requires a target-scoped evidence review",
       description:
         `Direct target "${entity.name}" has no final target-review snapshot and no approved personal route. ` +
         "The operating rule is research-only until identity, ownership, contact, access, freshness, and source quality " +
-        "are assessed from claim-level public evidence. Do not generate outreach copy or infer access from fame, wealth, " +
+        "are assessed from claim-level public evidence. Do not infer access from fame, wealth, " +
         "assets, social visibility, or an organization contact.",
       actionTaken:
-        "Kept the target in manual research review; no outreach recommendation or personal-contact promotion is authorized.",
+        "Kept the target in manual research review; no personal-contact promotion is authorized.",
     });
   }
 
@@ -329,7 +329,7 @@ async function runDataEngineer(entity: Entity): Promise<ImprovementSuggestion[]>
   const sources: string[] = parseJsonSafe(entity.sourceRegistries, []);
 
   const hasPhysicalAddress = !!(entity.knownResidences && entity.knownResidences.length > 2 && entity.knownResidences !== "[]");
-  // Contact-vector flags only apply to HNWI and Gatekeeper — individual direct outreach targets.
+  // Contact-vector flags only apply to HNWI and Gatekeeper — individual research targets.
   // Corporation/Trust entities are reached via their officers/directors (a separate enrichment path).
   const isDirectTarget = entity.type === "HNWI" || entity.type === "Gatekeeper";
 
@@ -359,7 +359,7 @@ async function runDataEngineer(entity: Entity): Promise<ImprovementSuggestion[]>
         description:
           "Entity has a known physical address but no email, phone, or LinkedIn on record. " +
           "Physical mail and skip-tracing services can reach this entity, but a digital channel would " +
-          "significantly increase outreach velocity. Run Companies House officer lookup or web OSINT to find digital vectors.",
+          "significantly improve evidence quality. Run Companies House officer lookup or web OSINT to find digital vectors.",
         actionTaken: "Physical-address-only flag: email/phone enrichment queued at medium priority.",
       });
     } else if (!entity.phone) {
@@ -385,7 +385,7 @@ async function runDataEngineer(entity: Entity): Promise<ImprovementSuggestion[]>
       title: "Nationality / jurisdiction unknown",
       description:
         "Nationality is unset. This limits tax-residency inference, sanctions screening, and jurisdiction-specific " +
-        "outreach strategy. Cross-reference with asset jurisdictions and registry addresses to infer.",
+        "research strategy. Cross-reference with asset jurisdictions and registry addresses to investigate.",
       actionTaken: "Recommended cross-reference against asset jurisdictions.",
     });
   }
@@ -552,7 +552,7 @@ async function runDataAnalyst(entity: Entity): Promise<ImprovementSuggestion[]> 
 //    Planner (intent/geo/asset extraction) → Retriever (expandQuery + hybridSearch
 //    + SQL pre-filter) → Analyst (RRF score fusion + Bayesian weighting) → Critic
 //    (relevance pruning + final re-ranking). A complete pipeline ends with a
-//    generated pitch. Incomplete pipelines leave the entity without an outreach
+//    evidence synthesis. Incomplete pipelines leave the entity without a reviewable
 //    strategy. MCTS is Layer 4, not a sub-component of the Critic.
 //
 //  Layer 3 — Iterative Query Expansion + Relevance Feedback
@@ -567,7 +567,7 @@ async function runDataAnalyst(entity: Entity): Promise<ImprovementSuggestion[]> 
 //    through the relationship graph. Reward function based solely on real
 //    relationship types and personal identifiers from registries (direct ownership
 //    > shared assets > gatekeepers). Seeded by BFS path from Layer 1. Without
-//    sessions, the outreach layer is blind. Stale sessions may route through
+//    sessions, the research layer is incomplete. Stale sessions may route through
 //    intermediaries displaced by new ingestion.
 //
 //  Layer 5 — Bayesian-UCB Optimization
@@ -582,7 +582,7 @@ async function runIntelSystemsAnalyst(entity: Entity): Promise<ImprovementSugges
   const suggestions: ImprovementSuggestion[] = [];
 
   // Corp/Trust are property vehicles — they don't get MCTS sessions.
-  // Only HNWI and Gatekeeper are direct outreach targets.
+  // Only HNWI and Gatekeeper are individual research targets.
   const isResearchTarget = entity.type === "HNWI" || entity.type === "Gatekeeper";
 
   // ── Fetch data needed across all four layers ────────────────────────────────
@@ -636,9 +636,9 @@ async function runIntelSystemsAnalyst(entity: Entity): Promise<ImprovementSugges
         `The latest target-scoped final review approved 0 personal contact routes${candidateCount ? ` from ${candidateCount} funnel candidates` : ""}. ` +
         "This is not a successful enrichment outcome. Keep the target in research follow-up and run another bounded pass " +
         "with identity anchors, official-domain resolution, exact claim-page fetching, and validation of retained review candidates. " +
-        "Do not generate outreach or promote an organization route as personal access.",
+        "Do not promote an organization route as personal access.",
       actionTaken:
-        "Marked needs_follow_up; next pass must improve attributable candidate yield before the target can be considered outreach-ready.",
+        "Marked needs_follow_up; next pass must improve attributable candidate yield before the target can be treated as access-assessed.",
     });
   }
 
@@ -952,9 +952,9 @@ async function runUxDesigner(entity: Entity): Promise<ImprovementSuggestion[]> {
       priority: "low",
       title: "Profile notes too sparse for effective operator briefing",
       description:
-        "The notes field is empty or very short. Operators using the profile during live outreach prep " +
-        "need a quick situational brief: background, known interests, sporting affiliations, known associates, " +
-        "public personality traits. A 100–300 word brief significantly improves outreach personalisation.",
+        "The notes field is empty or very short. Operators using the profile during evidence review " +
+        "need a quick situational brief grounded in public sources: background, known interests, " +
+        "public roles, and documented associations.",
       actionTaken: "Notes quality flag: < 50 chars. Briefing notes recommended.",
     });
   }
@@ -969,7 +969,7 @@ async function runUxDesigner(entity: Entity): Promise<ImprovementSuggestion[]> {
       title: "Single-word name — may cause display and matching ambiguity",
       description:
         `Entity name "${name}" has only one word. Full names (given + family) are required for ` +
-        "disambiguation in search results and personalised pitch generation. " +
+        "disambiguation in search results and evidence attribution. " +
         "Cross-check source filings for the full registered name.",
       actionTaken: "Single-word name logged — full name lookup recommended.",
     });
@@ -1320,7 +1320,7 @@ async function runHybridArchitectureAuditor(entity: Entity): Promise<Improvement
   // ── L1: Hybrid Semantic + Keyword + Graph Search ───────────────────────────
   // Three components: BM25 keyword · TF-IDF cosine · graph traversal (RRF fusion)
 
-  if (relCount === 0) {
+  if (isResearchTarget && relCount === 0) {
     suggestions.push({
       entityId: entity.id,
       persona: "hybrid_architecture_auditor",
@@ -1376,7 +1376,7 @@ async function runHybridArchitectureAuditor(entity: Entity): Promise<Improvement
 
   // ── L2: Agentic Multi-Agent Reasoning (Planner → Retriever → Analyst → Critic) ──
 
-  if (sessions.length === 0 && isResearchTarget) {
+  if (isResearchTarget && sessions.length === 0) {
     suggestions.push({
       entityId: entity.id,
       persona: "hybrid_architecture_auditor",
@@ -1392,7 +1392,7 @@ async function runHybridArchitectureAuditor(entity: Entity): Promise<Improvement
         "Fix: trigger a research session from the Intel Terminal to activate all four agents.",
       actionTaken: "L2 pipeline: cold — 0 sessions and 0 agent invocations.",
     });
-  } else {
+  } else if (isResearchTarget) {
     const hasEvidencePath = sessions.some(s => Boolean(s.winningPath));
     if (!hasEvidencePath) {
       suggestions.push({
@@ -1459,7 +1459,7 @@ async function runHybridArchitectureAuditor(entity: Entity): Promise<Improvement
   // UCT selection · expansion · simulation · backpropagation
   // Reward = real relationship types + personal identifiers from registries
 
-  if (sessions.length === 0 && score >= 0.6 && isResearchTarget) {
+  if (isResearchTarget && sessions.length === 0 && score >= 0.6) {
     suggestions.push({
       entityId: entity.id,
       persona: "hybrid_architecture_auditor",
@@ -1477,7 +1477,7 @@ async function runHybridArchitectureAuditor(entity: Entity): Promise<Improvement
         "Fix: run a Hybrid Research session from the Intel Terminal.",
       actionTaken: `L4: 0 UCT trees built. Score ${score.toFixed(3)} → immediate Hybrid Research session recommended.`,
     });
-  } else if (sessions.length > 0) {
+  } else if (isResearchTarget && sessions.length > 0) {
     const bestPath = Math.max(...sessions.map(s => s.pathScore ?? 0));
     if (bestPath < 0.35 && relCount === 0) {
       suggestions.push({

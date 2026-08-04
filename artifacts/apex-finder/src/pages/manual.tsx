@@ -75,7 +75,7 @@ const SECTIONS = [
           Every piece of intelligence you see — every asset, every proximity connection, every contact vector — is traceable back to a public registry (FAA aircraft databases, UK Land Registry, SEC EDGAR filings, OpenCorporates). The platform never hallucinates contact information.
         </p>
         <Callout title="The Intelligence Loop">
-          Apex runs 24/7 in the background. You do not add records manually. You filter, investigate, and reach out to the entities the system automatically discovers.
+          Apex runs 24/7 in the background. You do not add records manually. You filter, investigate, and review the public evidence attached to the entities the system automatically discovers.
         </Callout>
       </>
     )
