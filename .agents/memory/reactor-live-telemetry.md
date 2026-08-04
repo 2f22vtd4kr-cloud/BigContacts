@@ -26,3 +26,9 @@ Durable Reactor history should be emitted at orchestration/tool boundaries throu
 **Why:** A single latest snapshot cannot explain what happened before the current poll, while instrumenting low-level providers directly can accidentally persist sensitive payloads or couple reusable enrichers to a specific UI.
 
 **How to apply:** Keep reusable enrichers callback-based and optional, append structured `ATLAS_EVENT` records beside the latest snapshot, and render history as reviewable evidence of execution rather than proof that a candidate is valid.
+
+The page-level Reactor render tree must derive scheduler props from the same live `atlasState.scheduler` snapshot that the poller constructs; never reference an undeclared parallel scheduler variable.
+
+**Why:** The first continuous-scheduler UI wiring passed `scheduler` into mobile and desktop renderers without declaring it in the page component, producing a mobile Vite runtime overlay and hiding the entire Reactor.
+
+**How to apply:** Keep one source of truth for scheduler state: set it from the successful `/api/ingest/atlas-status` response and pass `atlasState?.scheduler ?? null` to responsive renderers. Verify the actual `/reactor` route at a mobile viewport after scheduler UI changes.

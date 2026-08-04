@@ -1566,6 +1566,7 @@ export default function IntelligenceReactorPage() {
   const [livePhaseDetail,  setLivePhaseDetail]  = useState<string>("");
   const [atlasState,       setAtlasState]       = useState<AtlasLiveState | null>(null);
   const [exhaustedKeys,    setExhaustedKeys]    = useState<string[]>([]);
+  const scheduler = atlasState?.scheduler ?? null;
 
   const pollJobs = useCallback(async () => {
     const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
