@@ -500,18 +500,20 @@ async function runDataAnalyst(entity: Entity): Promise<ImprovementSuggestion[]> 
     });
   }
 
-  // Hot flag missing for high-scoring entity
-  if (score >= 0.7 && !entity.isHot) {
+  // Wealth is not access. A high Bayesian score must never produce a
+  // recommendation to set isHot: hot is reserved for verified, person-level
+  // direct contact and is reconciled by the shared contact-state classifier.
+  if (score >= 0.7 && !entity.isHot && entity.contactOutcome === "direct_contact_verified") {
     suggestions.push({
       entityId: entity.id,
       persona: "data_analyst",
       category: "scoring",
-      priority: "high",
-      title: "High Bayesian score not reflected in hot-leads queue",
+      priority: "medium",
+      title: "Verified contact state is not reflected in hot-leads queue",
       description:
-        `Score ${score.toFixed(3)} exceeds the 0.70 hot-lead threshold but isHot is false. ` +
-        "This entity is invisible in the hot-leads sidebar and dashboard priority stack.",
-      actionTaken: `isHot should be set to true — score ${score.toFixed(3)} ≥ 0.70 threshold.`,
+        `Score ${score.toFixed(3)} and a verified direct-contact outcome are present, ` +
+        "but isHot is false. This is a stale access-state flag, not a wealth-based promotion.",
+      actionTaken: "Reconcile isHot from the verified direct-contact state.",
     });
   }
 
