@@ -56,6 +56,7 @@ interface AtlasLiveState {
     sources?: number;
     evidence?: number;
     contacts?: number;
+    personaNames?: string[];
     raw?: string;
   }>;
   phaseJ?: {
@@ -761,6 +762,11 @@ function AtlasTelemetryInspector({ telemetry, eventLog = [] }: { telemetry?: any
       {telemetry?.resultSummary && (
         <div style={{ marginTop:8, color:"#8aa4c0", fontSize:7, lineHeight:1.45 }}>
           <span style={{ color:"#526b86", letterSpacing:"0.1em" }}>RESULT  </span>{telemetry.resultSummary}
+        </div>
+      )}
+      {telemetry?.personaNames?.length > 0 && (
+        <div style={{ marginTop:8, color:"#c4b5fd", fontSize:7, lineHeight:1.45 }}>
+          <span style={{ color:"#8b5cf6", letterSpacing:"0.1em" }}>PERSONAS  </span>{telemetry.personaNames.join(" · ")}
         </div>
       )}
       {eventLog.length > 0 && (

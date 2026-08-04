@@ -405,6 +405,7 @@ type AtlasTelemetry = {
   contacts?: number;
   nextAction?: string;
   disposition?: "contact_route_found" | "needs_follow_up";
+  personaNames?: string[];
 };
 
 async function setAtlasTelemetry(
@@ -428,6 +429,7 @@ async function setAtlasTelemetry(
     sources: telemetry.sources,
     evidence: telemetry.evidence,
     contacts: telemetry.contacts,
+    personaNames: (telemetry as AtlasTelemetry & { personaNames?: string[] }).personaNames,
   })}`);
 }
 

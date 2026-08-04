@@ -59,6 +59,7 @@ async function updateAtlasTelemetry(
     sources?: number;
     evidence?: number;
     contacts?: number;
+    personaNames?: string[];
   },
 ): Promise<void> {
   if (!mirrorJobId) return;
@@ -76,6 +77,7 @@ async function updateAtlasTelemetry(
     sources: telemetry.sources,
     evidence: telemetry.evidence,
     contacts: telemetry.contacts,
+    personaNames: telemetry.personaNames,
   })}`);
 }
 
@@ -814,6 +816,7 @@ async function runPhaseJPass(
         resultSummary:
           `${outcome.replace(/_/g, " ")} · ${personaReview.findings} new review finding(s) from ` +
           `${personaReview.personas.length || "0"} persona(s)`,
+        personaNames: personaReview.personas,
         sources: mergedSources.length,
         evidence: footprint.evidence.length + inHouseResult.evidence.length,
         contacts: [activeEmail, bestPhone, bestLinkedIn, bestTwitter].filter(Boolean).length,

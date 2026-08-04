@@ -28,6 +28,7 @@ interface AtlasTelemetry {
   contacts?: number;
   nextAction?: string;
   disposition?: "contact_route_found" | "needs_follow_up";
+  personaNames?: string[];
 }
 
 interface AtlasLiveState {
@@ -293,6 +294,18 @@ function LiveResearchConsole({
             <div className="mb-3 rounded-xl border border-amber-400/15 bg-amber-400/[0.04] p-3">
               <div className="mb-1 text-[9px] uppercase tracking-[0.18em] text-amber-300/70">Next decision</div>
               <div className="text-[11px] leading-relaxed text-slate-300">{telemetry.nextAction}</div>
+            </div>
+          )}
+
+          {telemetry.personaNames && telemetry.personaNames.length > 0 && (
+            <div className="mb-3 rounded-xl border border-violet-400/15 bg-violet-400/[0.04] p-3">
+              <div className="mb-1 flex items-center gap-2 text-[9px] uppercase tracking-[0.18em] text-violet-300/80">
+                <Users className="h-3 w-3" />
+                Persona review
+              </div>
+              <div className="text-[10px] leading-relaxed text-slate-300">
+                {telemetry.personaNames.join(" · ")}
+              </div>
             </div>
           )}
 
