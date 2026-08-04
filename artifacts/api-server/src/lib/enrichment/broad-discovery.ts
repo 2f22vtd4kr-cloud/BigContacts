@@ -58,7 +58,7 @@ async function tavilySearch(query: string): Promise<Array<{ snippet: string; url
 // ── Groq AI name extraction from aggregated text ───────────────────────────────
 
 const _groqKeyNames = ["GROQ_API_KEY"];
-for (let i = 1; i <= 8; i++) _groqKeyNames.push(`GROQ_API_KEY_${i}`);
+for (let i = 1; i <= 10; i++) _groqKeyNames.push(`GROQ_API_KEY_${i}`);
 const GROQ_KEYS = _groqKeyNames.map(k => process.env[k]).filter(Boolean) as string[];
 
 async function aiExtractPersonNames(text: string, context: string): Promise<string[]> {

@@ -25,7 +25,7 @@ import { sql, isNull, eq, or } from "drizzle-orm";
 import { logger } from "./logger";
 
 // ── API key pools ──────────────────────────────────────────────────────────────
-const GROQ_KEY_NAMES = ["GROQ_API_KEY", ...Array.from({ length: 8 }, (_, i) => `GROQ_API_KEY_${i + 1}`)];
+const GROQ_KEY_NAMES = ["GROQ_API_KEY", ...Array.from({ length: 10 }, (_, i) => `GROQ_API_KEY_${i + 1}`)];
 const GEMINI_KEY_NAMES = ["GEMINI_API_KEY", ...Array.from({ length: 10 }, (_, i) => `GEMINI_API_KEY_${i + 1}`)];
 
 const GROQ_KEYS = GROQ_KEY_NAMES.map(k => process.env[k]).filter(Boolean) as string[];

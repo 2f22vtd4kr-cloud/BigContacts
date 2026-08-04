@@ -571,7 +571,7 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
     try {
       const groqKeys: string[] = [];
       const _gNames = ["GROQ_API_KEY"];
-      for (let i = 1; i <= 8; i++) _gNames.push(`GROQ_API_KEY_${i}`);
+      for (let i = 1; i <= 10; i++) _gNames.push(`GROQ_API_KEY_${i}`);
       _gNames.forEach(k => { const v = process.env[k]; if (v) groqKeys.push(v); });
 
       if (groqKeys.length) {

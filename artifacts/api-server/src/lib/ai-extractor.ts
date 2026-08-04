@@ -70,10 +70,10 @@ const _exhaustedGeminiKeys            = new Map<string, number>(); // for Gemini
 const _exhaustedTavilyKeys            = new Map<string, number>(); // for Tavily search API
 const _exhaustedExaKeys               = new Map<string, number>(); // for Exa neural search API
 
-/** Returns all Groq API keys (GROQ_API_KEY, GROQ_API_KEY_1 … _8). */
+/** Returns all Groq API keys (GROQ_API_KEY, GROQ_API_KEY_1 … _10). */
 function getGroqKeys(): string[] {
   const names = ["GROQ_API_KEY"];
-  for (let i = 1; i <= 8; i++) names.push(`GROQ_API_KEY_${i}`);
+  for (let i = 1; i <= 10; i++) names.push(`GROQ_API_KEY_${i}`);
   return names.map(k => process.env[k] ?? "").filter(k => k.length > 0);
 }
 
@@ -1413,7 +1413,7 @@ export function getAIKeyStatus(): AIKeyStatus {
     return { index, state: "active", expiresAt: null };
   }
 
-  const groqNames = ["GROQ_API_KEY", ...Array.from({ length: 8 }, (_, i) => `GROQ_API_KEY_${i + 1}`)];
+  const groqNames = ["GROQ_API_KEY", ...Array.from({ length: 10 }, (_, i) => `GROQ_API_KEY_${i + 1}`)];
   const pplxNames = ["PERPLEXITY_API_KEY", ...Array.from({ length: 8 }, (_, i) => `PERPLEXITY_API_KEY_${i + 1}`)];
   const gemNames  = ["GEMINI_API_KEY",     ...Array.from({ length: 10 }, (_, i) => `GEMINI_API_KEY_${i + 1}`)];
   const tavNames  = ["TAVILY_API_KEY",     ...Array.from({ length: 8 }, (_, i) => `TAVILY_API_KEY_${i + 1}`)];
