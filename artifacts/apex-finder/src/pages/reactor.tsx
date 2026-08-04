@@ -140,7 +140,11 @@ function atlasPhaseFromMessage(message: string, progress = 0): number {
 }
 
 function parseAtlasLiveState(message: string, progress = 0, total = 10, runStatus: AtlasLiveState["runStatus"] = "running"): AtlasLiveState {
-  const phase = atlasPhaseFromMessage(message, progress);
+  const phase = runStatus === "done"
+    ? total
+    : runStatus === "failed"
+      ? Math.min(total, Math.max(0, progress))
+      : atlasPhaseFromMessage(message, progress);
   const source = message.match(/\[(\d+)\/(\d+)\]/);
   // Remove emojis from the raw message before matching entity names
   const cleanMessage = message.replace(/[\u{1F300}-\u{1F9FF}]/gu, "").replace(/🍳/g, "");
@@ -151,6 +155,10 @@ function parseAtlasLiveState(message: string, progress = 0, total = 10, runStatu
     .filter(Boolean)
     .slice(0, 3) ?? [];
   const phaseMeta = ATLAS_PHASES[phase] ?? ATLAS_PHASES[1];
+  const completion = message.match(/Atlas complete in ([^.]+)\.\s*(.*?)(?:\s*Phase 0:|$)/i);
+  const detail = runStatus === "done" && completion
+    ? `Completed in ${completion[1]}. ${completion[2].trim()}`
+    : cleanMessage.replace(/…$/, "").trim();
   return {
     runStatus,
     phase,
@@ -162,7 +170,7 @@ function parseAtlasLiveState(message: string, progress = 0, total = 10, runStatu
     currentEntities: names,
     entityProgress: null,
     entityTotal: null,
-    detail: cleanMessage.replace(/…$/, "").trim(),
+    detail,
   };
 }
 
