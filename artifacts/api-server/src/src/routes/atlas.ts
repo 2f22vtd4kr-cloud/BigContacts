@@ -10,8 +10,6 @@ import { Router, type Request, type Response } from "express";
 import { createJob, getActiveJob, getLatestJob, getJob, getJobLog, setActiveJob, updateJob, clearActiveJobIfOwned } from "../lib/job-queue";
 import { runAtlasPipeline, type AtlasOptions } from "../lib/atlas-orchestrator";
 import { logger } from "../lib/logger";
-import { db } from "@workspace/db";
-import { sql } from "drizzle-orm";
 
 const router = Router();
 
@@ -55,26 +53,6 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
     atlasPhase: 0, atlasPhaseTotal: 10,
     message: "Atlas pipeline initializing — 10 phases queued…",
   });
-
-  // Immediately repair isHot only for validated person-level direct contacts.
-  // Wealth/registry signals and organisation switchboards are not access signals.
-  db.execute(sql`
-    UPDATE entities
-    SET is_hot = (
-      (
-        (email IS NOT NULL AND email !~* '^(info|contact|hello|sales|support|office|admin|press|media|enquiries|inquiries|reservations|booking|investor|ir)@')
-        OR (phone IS NOT NULL AND COALESCE(phone_source, '') NOT IN ('EDGAR-Phone', 'CompaniesHouse-Phone'))
-      )
-      AND entity_type NOT IN ('Corporation', 'Corp', 'Trust')
-    )
-    WHERE is_hot IS DISTINCT FROM (
-      (
-        (email IS NOT NULL AND email !~* '^(info|contact|hello|sales|support|office|admin|press|media|enquiries|inquiries|reservations|booking|investor|ir)@')
-        OR (phone IS NOT NULL AND COALESCE(phone_source, '') NOT IN ('EDGAR-Phone', 'CompaniesHouse-Phone'))
-      )
-      AND entity_type NOT IN ('Corporation', 'Corp', 'Trust')
-    )
-  `).catch(() => {});
 
   // Fire and forget — run fully in background
   void (async () => {

@@ -117,7 +117,7 @@ After a fresh GitHub import, run these steps to get the project running:
 2. **Push DB schema:** `pnpm --filter @workspace/db run push`
 3. **Start workflows:** Redis → `artifacts/api-server: API Server` → `artifacts/apex-finder: web` (in that order)
 
-Latest verification (2026-08-04): numbered provider secret slots `GROQ_API_KEY_1` through `_10` and `GEMINI_API_KEY_1` through `_10` are present; the unnumbered base keys are absent by design, and secret values were not read or displayed. The running API discovers all 20 numbered slots. API/Redis health is green. Atlas job `feae7d88-3eee-48ae-99ee-7e9071801989` is active under one sequential worker at Phase 8/10, J4–J9 pass 9/50. The mobile Reactor now shows a live target-scoped research console and labels temporary provider 429 cooldowns as configured-key rotation rather than exhausted secrets. Do not restart the API while the run owns its active slot.
+Latest verification (2026-08-04): numbered provider secret slots `GROQ_API_KEY_1` through `_10` and `GEMINI_API_KEY_1` through `_10` are present; the unnumbered base keys are absent by design, and secret values were not read or displayed. The running API discovers all 20 numbered slots. API/Redis health is green. Atlas job `f6a999b8-fe32-45ca-bd96-50136ad21db1` is active under one sequential worker at Phase 0. The mobile Reactor now shows a live target-scoped research console and labels temporary provider 429 cooldowns as configured-key rotation rather than exhausted secrets. A safe persona remediation batch reconciled 160 entities and applied 13 deterministic findings. The next restart will activate the unified Phase 9 contact-state classifier and deterministic integrity remediation.
 
 Contact-quality hardening completed: human-name admission is fail-closed behind deterministic safety gates; AI and enrichment paths no longer construct email addresses; email/phone/social values are sanitized before every PostgreSQL, evidence, Redis, cache-restore, startup-maintenance, and merge write; confidence and hot status are recomputed from cleaned vectors rather than trusted incoming scores; organization contacts cannot inflate personal Access confidence; `isHot` requires a meaningful person-level direct contact signal; and aircraft/property/shareholder/live-flight evidence no longer creates Access-hot leads. Wealth/registry evidence remains available as Signal.
 
@@ -211,6 +211,7 @@ POST /api/registry-search              live OSINT search (GLEIF, EDGAR, OpenCorp
 POST /api/research/run                 Hybrid Research path-finding for an entity
 GET  /api/research/sessions            CRM research session list
 POST /api/improve/run                  run persona improvement loop (50 entities at a time)
+POST /api/improve/apply-safe           apply deterministic persona data-quality fixes in a bounded background job
 GET  /api/improve/stats                persona loop summary stats
 GET  /api/improve/logs                 improvement suggestions (filterable by persona/priority/status)
 ```

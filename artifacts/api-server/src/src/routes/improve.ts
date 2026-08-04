@@ -21,11 +21,44 @@ import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
-const SAFE_REMEDIATION_TITLES = [
+const SAFE_REMEDIATION_TITLES = new Set([
   "Hot-state invariant is inconsistent with verified contact outcome",
   "L5 contactConfidence stale — physical address exists but score not recomputed",
   "Organization evidence must not inflate personal access",
-];
+  "Contact email matches synthetic / generated pattern",
+  "Phone number is a known fake pattern",
+  "Synthetic-data flag in metadata — integrity violation",
+]);
+
+const PLACEHOLDER_NAME_RE = /^(test(\s+entity)?|sample(\s+entity)?|example(\s+entity)?|placeholder|mock(\s+entity)?|dummy(\s+entity)?|foo|bar|baz|john\s+doe|jane\s+doe|n\/a|unknown|entity\s+\d+|lorem ipsum|temp\s*\d*)$/i;
+
+function isSafeFindingTitle(title: string, entityName: string): boolean {
+  return SAFE_REMEDIATION_TITLES.has(title)
+    || (title === `Entity name "${entityName}" is a known placeholder`);
+}
+
+function isSyntheticMetadata(metadata: string | null): boolean {
+  const raw = (metadata ?? "").toLowerCase();
+  return [
+    "\"ismock\"", "\"synthetic\"", "\"fake\":", "\"placeholder\"",
+    "\"testdata\"", "\"mockdata\"", "\"generated\":", "\"is_mock\"",
+    "\"is_fake\"", "\"is_synthetic\"",
+  ].some(key => raw.includes(key));
+}
+
+function fakeEmail(value: string | null): boolean {
+  return Boolean(value && (
+    /^(test@|fake@|example@|placeholder@|noreply@|no-reply@|dummy@|sample@|mock@|admin@example|user@test|info@test)/i.test(value)
+    || /@(example\.|test\.|fake\.|localhost|placeholder\.|dummy\.|invalid\.)/i.test(value)
+  ));
+}
+
+function fakePhone(value: string | null): boolean {
+  if (!value) return false;
+  const stripped = value.replace(/[\s\-().+]/g, "");
+  return /^(555\d{7}|0{7,}|1{7,}|9{7,}|1234567|0000000|9999999)/.test(stripped)
+    || /^(\d)\1{6,}$/.test(stripped);
+}
 
 function contactStateInput(entity: typeof entitiesTable.$inferSelect) {
   let metadata: Record<string, unknown> = {};
@@ -103,19 +136,53 @@ router.post("/improve/apply-safe", async (_req: Request, res: Response): Promise
           if (state.contactConfidence !== entity.contactConfidence) patch.contactConfidence = state.contactConfidence;
           if (state.contactOutcome !== entity.contactOutcome) patch.contactOutcome = state.contactOutcome;
           if (state.isHot !== entity.isHot) patch.isHot = state.isHot;
+          const pendingLogs = await db
+            .select({ id: improvementLogsTable.id, title: improvementLogsTable.title })
+            .from(improvementLogsTable)
+            .where(and(
+              eq(improvementLogsTable.entityId, entity.id),
+              eq(improvementLogsTable.status, "pending"),
+            ));
+          const safeTitles = pendingLogs
+            .filter(log => isSafeFindingTitle(log.title, entity.name))
+            .map(log => log.title);
+          const integrityPatch: Record<string, unknown> = {};
+          if (safeTitles.includes("Contact email matches synthetic / generated pattern") && fakeEmail(entity.email)) {
+            integrityPatch.email = null;
+          }
+          if (safeTitles.includes("Phone number is a known fake pattern") && fakePhone(entity.phone)) {
+            integrityPatch.phone = null;
+            integrityPatch.phoneSource = null;
+          }
+          const quarantine = safeTitles.includes("Synthetic-data flag in metadata — integrity violation")
+            || safeTitles.includes(`Entity name "${entity.name}" is a known placeholder`)
+            || PLACEHOLDER_NAME_RE.test(entity.name.trim());
+          if (quarantine) {
+            integrityPatch.isHidden = true;
+            integrityPatch.isHot = false;
+            integrityPatch.contactConfidence = 0;
+            integrityPatch.contactOutcome = "none";
+            integrityPatch.email = null;
+            integrityPatch.phone = null;
+            integrityPatch.phoneSource = null;
+          }
+          Object.assign(patch, integrityPatch);
+          const safeLogIds = pendingLogs
+            .filter(log => isSafeFindingTitle(log.title, entity.name))
+            .map(log => log.id);
           if (Object.keys(patch).length > 0) {
             patch.updatedAt = new Date();
             await db.update(entitiesTable).set(patch as any).where(eq(entitiesTable.id, entity.id));
             updated++;
           }
-          if (Object.keys(patch).length > 0) {
+          if (Object.keys(patch).length > 0 && safeLogIds.length > 0) {
             const rows = await db
               .update(improvementLogsTable)
               .set({ status: "applied", updatedAt: new Date() })
               .where(and(
                 eq(improvementLogsTable.entityId, entity.id),
                 eq(improvementLogsTable.status, "pending"),
-                inArray(improvementLogsTable.title, SAFE_REMEDIATION_TITLES),
+                inArray(improvementLogsTable.id, safeLogIds),
               ))
               .returning({ id: improvementLogsTable.id });
             applied += rows.length;
