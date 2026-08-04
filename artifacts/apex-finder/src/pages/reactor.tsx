@@ -1508,13 +1508,17 @@ export default function IntelligenceReactorPage() {
       // ── Key exhaustion ────────────────────────────────────────────────────────
       if (sysData?.ai) {
         const LABELS: Record<string, string> = { groq: "Groq", perplexity: "Perplexity", gemini: "Gemini", tavily: "Tavily", exa: "Exa" };
-        const down = (Object.entries(sysData.ai) as [string, any[]][])
-          .filter(([, slots]) => slots.length > 0 && slots.every((s: any) => s.state === "exhausted" || s.state === "missing"))
-          .map(([k]) => LABELS[k] ?? k);
-        const partial = (Object.entries(sysData.ai) as [string, any[]][])
-          .filter(([, slots]) => slots.some((s: any) => s.state === "exhausted") && slots.some((s: any) => s.state === "active"))
-          .map(([k]) => `${LABELS[k] ?? k}↓`);
-        setExhaustedKeys([...down, ...partial]);
+        const providerWarnings = (Object.entries(sysData.ai) as [string, any[]][])
+          .flatMap(([k, slots]) => {
+            const configured = slots.filter((s: any) => s.state !== "missing").length;
+            const rateLimited = slots.filter((s: any) => s.state === "exhausted").length;
+            if (configured === 0 || rateLimited === 0) return [];
+            const label = LABELS[k] ?? k;
+            return rateLimited === configured
+              ? [`${label} rate-limited (${configured} configured; rotating)`]
+              : [`${label} partially rate-limited (${rateLimited}/${configured})`];
+          });
+        setExhaustedKeys(providerWarnings);
       }
 
       const nodes = new Set<string>();

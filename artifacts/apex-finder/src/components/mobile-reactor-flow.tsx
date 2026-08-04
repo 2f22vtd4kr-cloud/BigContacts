@@ -307,10 +307,10 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
       
       {/* Footer Alerts */}
       {exhaustedKeys.length > 0 && (
-        <div className="shrink-0 bg-rose-950/30 border-t border-rose-900/50 px-5 py-3">
-          <div className="flex items-center gap-2 text-rose-400 text-[10px] font-bold tracking-wider uppercase">
+        <div className="shrink-0 bg-amber-950/20 border-t border-amber-900/40 px-5 py-3">
+          <div className="flex items-center gap-2 text-amber-400 text-[10px] font-bold tracking-wider uppercase">
             <Key className="w-3.5 h-3.5" />
-            Exhausted API Keys: {exhaustedKeys.join(", ")}
+            Provider rate limit — configured keys rotating: {exhaustedKeys.join(", ")}
           </div>
         </div>
       )}
