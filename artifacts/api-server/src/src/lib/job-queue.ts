@@ -22,7 +22,7 @@ async function safeRedis<T>(fn: (rc: import("ioredis").Redis) => Promise<T>, fal
   return withPermanentClient(fn, fallback);
 }
 
-export type JobStatus = "queued" | "running" | "done" | "failed";
+export type JobStatus = "queued" | "running" | "done" | "failed" | "cancelled";
 
 export interface JobState {
   jobId: string;
@@ -46,6 +46,16 @@ export interface JobState {
   atlasTelemetry?: string;
   /** Process may finish while the research outcome remains incomplete. */
   outcome?: "complete" | "incomplete";
+  /** Durable resumable contact-research coordinator state. */
+  resumable?: string;
+  targetIds?: string;
+  targetIndex?: number;
+  targetTotal?: number;
+  currentTargetId?: number;
+  currentPhase?: string;
+  completedTargetIds?: string;
+  failedTargetIds?: string;
+  retryCounts?: string;
 }
 
 const JOB_TTL = 60 * 60 * 24 * 7; // 7 days on Upstash
@@ -121,6 +131,15 @@ export async function getJob(jobId: string): Promise<JobState | null> {
     outcome: raw["outcome"] === "incomplete" || raw["outcome"] === "complete"
       ? raw["outcome"]
       : undefined,
+    resumable: raw["resumable"],
+    targetIds: raw["targetIds"],
+    targetIndex: raw["targetIndex"] !== undefined ? Number(raw["targetIndex"]) : undefined,
+    targetTotal: raw["targetTotal"] !== undefined ? Number(raw["targetTotal"]) : undefined,
+    currentTargetId: raw["currentTargetId"] !== undefined ? Number(raw["currentTargetId"]) : undefined,
+    currentPhase: raw["currentPhase"],
+    completedTargetIds: raw["completedTargetIds"],
+    failedTargetIds: raw["failedTargetIds"],
+    retryCounts: raw["retryCounts"],
   };
 }
 

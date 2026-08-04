@@ -37,8 +37,9 @@ import {
   sanitizePublicTelegramHandle,
 } from "./contact-validation";
 import { materializeBusinessAsset } from "./business-assets";
+import { resumeContactResearchAfterRestart } from "./contact-research-orchestrator";
 
-const INGESTOR_TYPES = ["faa", "land-registry", "western-hnwi", "companies-house-enrich", "occrp", "opensky", "improve", "web-osint", "bulk-hybrid-research", "in-house-enrich", "deep-web-osint", "compute-embeddings", "social-discovery", "messenger-discovery", "foundation-filings", "broad-discovery", "atlas-run", "phase-j-pass"] as const;
+const INGESTOR_TYPES = ["faa", "land-registry", "western-hnwi", "companies-house-enrich", "occrp", "opensky", "improve", "web-osint", "bulk-hybrid-research", "in-house-enrich", "deep-web-osint", "compute-embeddings", "social-discovery", "messenger-discovery", "foundation-filings", "broad-discovery", "atlas-run", "phase-j-pass", "contact-research"] as const;
 // Startup maintenance is fire-and-forget and the HTTP server can accept a
 // request before it reaches clearGhostJobs(). Only jobs created before this
 // process boot are eligible for recovery; otherwise a legitimate new request
@@ -47,6 +48,7 @@ const PROCESS_BOOT_MS = Date.now();
 
 /**
  * Mark jobs whose worker process is dead as failed, clear their locks.
+ * Resumable contact-research jobs are restarted after this sweep.
  *
  * A queued job is also stale after a restart: the bulk research route creates
  * its Redis job before entering the async worker, so a process killed in that
@@ -67,6 +69,9 @@ async function clearGhostJobs(): Promise<void> {
           status: "failed",
           message: "Process was killed before the job completed — restart job to continue.",
           finishedAt: new Date().toISOString(),
+          ...(type === "contact-research"
+            ? { outcome: "incomplete" as const, resumable: "true" }
+            : {}),
         });
         await clearActiveJob(type);
         logger.warn({ type, jobId }, "Cleared ghost active-job lock from previous process");
@@ -1088,6 +1093,7 @@ async function verifyAndInstallPythonTools(): Promise<void> {
 export async function coldStartRecovery(): Promise<void> {
   logger.info("Cold-start recovery: checking for ghost jobs…");
   await clearGhostJobs();
+  await resumeContactResearchAfterRestart();
 
   // Always verify/install Python OSINT tools — survives re-imports automatically.
   // This runs regardless of ENABLE_AUTO_PIPELINE so tools are ready before research.

@@ -409,7 +409,17 @@ export async function runPhaseJBatch(
   jobId: string,
   batchSize: number,
   mirrorJobId?: string,
+  targetEntityIds?: number[],
 ): Promise<{ ran: number; message: string }> {
+  const targetFilter = targetEntityIds?.length
+    ? inArray(entitiesTable.id, targetEntityIds)
+    : sql`TRUE`;
+  const dueFilter = targetEntityIds?.length
+    ? sql`TRUE`
+    : sql`(
+      ${enrichmentStateTable.nextAttemptAt} IS NULL
+      OR ${enrichmentStateTable.nextAttemptAt} <= NOW()
+    )`;
   const entities = await db
     .select({
       id: entitiesTable.id, name: entitiesTable.name, type: entitiesTable.type,
@@ -425,12 +435,10 @@ export async function runPhaseJBatch(
     .from(entitiesTable)
     .leftJoin(enrichmentStateTable, eq(enrichmentStateTable.entityId, entitiesTable.id))
     .where(sql`
+      ${targetFilter} AND
       ${entitiesTable.type} IN ('HNWI', 'Gatekeeper', 'Corporation', 'Trust')
       AND COALESCE(${entitiesTable.contactOutcome}, 'none') <> 'direct_contact_verified'
-      AND (
-        ${enrichmentStateTable.nextAttemptAt} IS NULL
-        OR ${enrichmentStateTable.nextAttemptAt} <= NOW()
-      )
+      AND ${dueFilter}
     `)
     .orderBy(desc(entitiesTable.isHot), desc(entitiesTable.bayesianScore))
     .limit(batchSize);
