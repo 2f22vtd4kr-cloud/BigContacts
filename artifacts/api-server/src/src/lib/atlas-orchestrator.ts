@@ -1464,6 +1464,7 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
         inputSummary: "Exact target name sent to Open Ownership BODS lookup",
       }, e.id);
       const res = await enrichWithOpenOwnership(e.name, true) as any;
+      const ownershipCount = Number(res.totalMatches ?? res.entities?.length ?? (res.found ? 1 : 0));
       await setAtlasTelemetry(atlasJobId, {
         stage: "OWNERSHIP CROSS-REFERENCE",
         status: "complete",
@@ -1471,14 +1472,14 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
         targetType: e.type,
         toolIds: ["openownership"],
         activeToolId: "openownership",
-        resultSummary: `${res.totalEntities ?? res.found ?? 0} ownership record(s) returned; stored as registry evidence`,
-        sources: res.totalEntities ?? res.found ?? 0,
-        evidence: res.totalEntities ?? res.found ?? 0,
+        resultSummary: `${ownershipCount} ownership record(s) returned; stored as registry evidence`,
+        sources: ownershipCount,
+        evidence: ownershipCount,
         contacts: 0,
         nextAction: "Continue with foundation filings and target-scoped enrichment",
       }, e.id);
-      if ((res.totalEntities ?? res.found ?? 0) > 0) {
-        const note = `OpenOwnership BODS: ${res.totalEntities ?? res.found ?? 0} ownership record(s) found.`;
+      if (ownershipCount > 0) {
+        const note = `OpenOwnership BODS: ${ownershipCount} ownership record(s) found.`;
         const existing = (e as any).notes ?? "";
         await db.update(entitiesTable).set({ notes: existing ? `${existing}\n${note}` : note, updatedAt: new Date() }).where(eq(entitiesTable.id, e.id));
       }
