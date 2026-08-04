@@ -96,14 +96,6 @@ function parseAtlasTelemetry(raw: unknown) {
   }
 }
 
-function stripStatusDecorations(value: string): string {
-  return value
-    .replace(/[\u{1F300}-\u{1FAFF}]/gu, "")
-    .replace(/[\u{2600}-\u{27BF}]/gu, "")
-    .replace(/\s{2,}/g, " ")
-    .trim();
-}
-
 type RodStatus = "idle" | "completed" | "active" | "queued" | "skipped" | "failed";
 
 function rodStatusColor(status: RodStatus, fallback: string): string {
@@ -1636,13 +1628,11 @@ export default function IntelligenceReactorPage() {
           const stepN  = parseInt(stepMatch[1], 10);
           const total  = parseInt(stepMatch[2], 10);
           const detail = msg.slice(stepMatch[0].length).trim().replace(/…$/, "");
-           const cleanDetail = stripStatusDecorations(detail);
-           labels.push(`[${stepN}/${total}] ${cleanDetail.slice(0, 65)}`);
-           setLivePhaseDetail(`Step ${stepN}/${total} — ${cleanDetail.slice(0, 80)}`);
+          labels.push(`▶ [${stepN}/${total}] ${detail.slice(0, 65)}`);
+          setLivePhaseDetail(`Step ${stepN}/${total} — ${detail.slice(0, 80)}`);
         } else {
-           const cleanMessage = stripStatusDecorations(msg);
-           labels.push(`Atlas — ${cleanMessage.replace(/^Phase \d+\/[^:]+:\s*/i, "").slice(0, 70)}`);
-           setLivePhaseDetail(cleanMessage.slice(0, 90));
+          labels.push(`▶ Atlas — ${msg.replace(/^Phase \d+\/[^:]+:\s*/i, "").slice(0, 70)}`);
+          setLivePhaseDetail(msg.slice(0, 90));
         }
          if (atlasTelemetry?.activeToolId) {
            nodes.add(atlasTelemetry.activeToolId);

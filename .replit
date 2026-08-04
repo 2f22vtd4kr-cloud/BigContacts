@@ -1,4 +1,4 @@
-modules = ["nodejs-24", "python-base-3.13"]
+modules = ["nodejs-24", "python-3.11", "postgresql-16"]
 
 [deployment]
 router = "application"
@@ -20,14 +20,6 @@ author = "agent"
 task = "workflow.run"
 args = "Redis"
 
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "artifacts/apex-finder: web"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "artifacts/apex-mobile: expo"
-
 [[workflows.workflow]]
 name = "Redis"
 author = "agent"
@@ -35,33 +27,6 @@ author = "agent"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "redis-server --port 6379 --save '' --appendonly no"
-
-[workflows.workflow.metadata]
-outputType = "console"
-
-[[workflows.workflow]]
-name = "artifacts/apex-finder: web"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "pnpm --filter @workspace/apex-finder run dev"
-waitForPort = 23695
-
-[workflows.workflow.metadata]
-outputType = "webview"
-
-[[workflows.workflow]]
-name = "artifacts/apex-mobile: expo"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "pnpm --filter @workspace/apex-mobile run dev"
-waitForPort = 22796
-
-[workflows.workflow.metadata]
-outputType = "webview"
 
 [agent]
 stack = "PNPM_WORKSPACE"
