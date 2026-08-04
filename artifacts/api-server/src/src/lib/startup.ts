@@ -15,7 +15,7 @@ import { existsSync } from "fs";
 import { join } from "path";
 import {
   createJob, updateJob, setActiveJob, getActiveJob, getJob, clearActiveJob,
-  clearDedup, getDedupCount,
+  clearDedup, getDedupCount, getAutoPipelineScheduler, updateAutoPipelineScheduler,
 } from "./job-queue";
 import { runFaaIngestion, US_STATE_CENTROIDS, normalizeFaaName } from "./faa-ingestor";
 import { runLandRegistryIngestion } from "./land-registry-ingestor";
@@ -999,32 +999,14 @@ async function runPopulatedDbMaintenance(): Promise<void> {
     return;
   }
 
-  for (const phase of phases) {
-    if (phase.onlyIf === false) continue;
-    setTimeout(() => triggerHttp(phase.label, phase.path, phase.body), phase.delayMs);
+  // The previous implementation scheduled a 45-minute fan-out of independent
+  // timers and only entered recurring mode after that delay. Continuous Atlas
+  // research is now owned by one serialized controller below.
+  if (process.env["ENABLE_AUTO_PIPELINE"] === "true") {
+    startAutoPipelineScheduler("populated-db-maintenance");
+  } else {
+    logger.info("Auto pipeline scheduler disabled — set ENABLE_AUTO_PIPELINE=true to enable continuous Atlas research");
   }
-
-  // ── H2: Recurring background scheduler ───────────────────────────────────────
-  // After the one-shot pipeline finishes (~45 min), enter continuous mode.
-  // 5 recurring jobs keep the app searching for new HNWIs forever.
-  const RECURRING_JOBS = [
-    { intervalMs:  30 * 60 * 1_000, label: "recurring broad discovery (rotated templates)", path: "/api/ingest/broad-discovery",     body: { maxQueries: 10, rotateTemplates: true } },
-    { intervalMs:  30 * 60 * 1_000, label: "recurring deep web OSINT (hot leads)",          path: "/api/ingest/deep-web-osint",      body: { batchSize: 300, hotOnly: true } },
-    { intervalMs:  30 * 60 * 1_000, label: "recurring social discovery (gap-fill)",         path: "/api/ingest/social-discovery",    body: { batchSize: 300, onlyMissingContact: true } },
-    { intervalMs:   2 * 60 * 60 * 1_000, label: "recurring Hybrid Engine re-score",         path: "/api/research/bulk-run",          body: { batchSize: 200, skipExisting: false } },
-    { intervalMs:   4 * 60 * 60 * 1_000, label: "recurring messenger discovery",            path: "/api/ingest/messenger-discovery", body: { batchSize: 200, onlyMissingContact: true } },
-    { intervalMs:   6 * 60 * 60 * 1_000, label: "recurring registry re-verification",      path: "/api/ingest/western-hnwi",        body: { targetCount: 500 } },
-    { intervalMs:  24 * 60 * 60 * 1_000, label: "recurring persona loop",                  path: "/api/improve/run-all",            body: { chunkSize: 500, resume: true } },
-  ];
-
-  setTimeout(() => {
-    for (const job of RECURRING_JOBS) {
-      // Fire once immediately when scheduler activates, then on interval
-      triggerHttp(job.label, job.path, job.body);
-      setInterval(() => triggerHttp(job.label, job.path, job.body), job.intervalMs);
-    }
-    logger.info("Recurring background scheduler activated (H2)");
-  }, 2_800_000); // 46 min — after initial pipeline completes
 }
 
 /** Fire a POST to a local API route; log result. Non-fatal. */
@@ -1045,6 +1027,174 @@ async function triggerHttp(label: string, path: string, body?: Record<string, un
   } catch (err: any) {
     logger.warn({ err: err?.message }, `Maintenance: ${label} trigger failed (non-fatal)`);
   }
+}
+
+type HttpTriggerResult = {
+  status: number;
+  jobId?: string;
+  message?: string;
+};
+
+// Keep a full Atlas cycle bounded and serialized. The next cycle is scheduled
+// only after the prior one reaches a terminal state, so provider latency or a
+// 409 lock response cannot create an overlapping research fan-out.
+const AUTO_PIPELINE_INTERVAL_MS = 30 * 60 * 1_000;
+const AUTO_PIPELINE_POLL_MS = 10 * 1_000;
+const AUTO_PIPELINE_MAX_CYCLE_MS = 90 * 60 * 1_000;
+let autoPipelineSchedulerStarted = false;
+
+const AUTO_ATLAS_OPTIONS: Record<string, unknown> = {
+  discoveryFirst: true,
+  targetCount: 15,
+  batchSize: 50,
+  phaseJBatchSize: 10,
+  broadCategories: 3,
+  skipFaa: true,
+  runResearch: true,
+  researchLimit: 2,
+  targetTimeoutMs: 120_000,
+};
+
+async function triggerHttpDetailed(
+  label: string,
+  path: string,
+  body?: Record<string, unknown>,
+): Promise<HttpTriggerResult> {
+  const port = process.env["PORT"] ?? "8080";
+  try {
+    const res = await fetch(`http://localhost:${port}${path}`, {
+      method: "POST",
+      headers: body ? { "Content-Type": "application/json" } : {},
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    const data = await res.json().catch(() => ({})) as Record<string, unknown>;
+    const result: HttpTriggerResult = {
+      status: res.status,
+      jobId: typeof data.jobId === "string" ? data.jobId : undefined,
+      message: typeof data.message === "string" ? data.message : undefined,
+    };
+    if (res.ok) {
+      logger.info({ jobId: result.jobId, message: result.message }, `Auto Atlas: ${label} triggered`);
+    } else {
+      logger.info({ status: res.status, jobId: result.jobId, message: result.message }, `Auto Atlas: ${label} skipped`);
+    }
+    return result;
+  } catch (err: any) {
+    logger.warn({ err: err?.message }, `Auto Atlas: ${label} trigger failed (non-fatal)`);
+    return { status: 0, message: err?.message ?? "HTTP trigger failed" };
+  }
+}
+
+async function waitForAutoAtlasJob(jobId: string): Promise<{
+  status: "done" | "failed" | "cancelled" | "timeout" | "error";
+  message?: string;
+}> {
+  const port = process.env["PORT"] ?? "8080";
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < AUTO_PIPELINE_MAX_CYCLE_MS) {
+    await new Promise<void>(resolve => setTimeout(resolve, AUTO_PIPELINE_POLL_MS));
+    try {
+      const response = await fetch(`http://localhost:${port}/api/ingest/job/${jobId}`, {
+        headers: { "Cache-Control": "no-cache" },
+      });
+      if (!response.ok) {
+        return { status: "error", message: `Atlas job status returned HTTP ${response.status}` };
+      }
+      const data = await response.json() as { status?: string; message?: string };
+      if (data.status === "done" || data.status === "failed" || data.status === "cancelled") {
+        return { status: data.status, message: data.message };
+      }
+    } catch (err: any) {
+      logger.warn({ jobId, err: err?.message }, "Auto Atlas: status poll failed; continuing");
+    }
+  }
+  return {
+    status: "timeout",
+    message: `Atlas cycle exceeded ${AUTO_PIPELINE_MAX_CYCLE_MS / 60_000} minutes`,
+  };
+}
+
+async function runAutoPipelineCycle(): Promise<void> {
+  const current = await getAutoPipelineScheduler();
+  await updateAutoPipelineScheduler({
+    enabled: true,
+    active: true,
+    lastTriggerAt: new Date().toISOString(),
+    lastLabel: "continuous discovery-first Atlas cycle",
+    lastStatus: "triggered",
+    lastMessage: "Launching a serialized discovery and enrichment cycle…",
+    cycles: current.cycles + 1,
+  });
+
+  const trigger = await triggerHttpDetailed(
+    "continuous discovery-first Atlas cycle",
+    "/api/ingest/atlas-run",
+    AUTO_ATLAS_OPTIONS,
+  );
+  if (trigger.jobId) {
+    await updateAutoPipelineScheduler({ lastJobId: trigger.jobId });
+    const result = await waitForAutoAtlasJob(trigger.jobId);
+    await updateAutoPipelineScheduler({
+      lastStatus: result.status === "done" ? "completed" : "error",
+      lastMessage: result.message ?? `Atlas cycle ${result.status}.`,
+    });
+    return;
+  }
+
+  const isLockSkip = trigger.status === 409;
+  const isNoTarget = /no target|no entity|empty/i.test(trigger.message ?? "");
+  const afterSkip = await getAutoPipelineScheduler();
+  await updateAutoPipelineScheduler({
+    lastStatus: isLockSkip ? "skipped_lock" : isNoTarget ? "no_targets" : "error",
+    lastMessage: trigger.message ?? `Atlas cycle returned HTTP ${trigger.status || "network error"}.`,
+    skippedDueToLock: afterSkip.skippedDueToLock + (isLockSkip ? 1 : 0),
+    providerNoTarget: afterSkip.providerNoTarget + (isNoTarget ? 1 : 0),
+  });
+}
+
+/**
+ * Start one durable, serialized controller. It begins immediately after
+ * startup maintenance and schedules the next cycle after the current cycle,
+ * rather than waiting for a one-shot startup schedule to finish.
+ */
+function startAutoPipelineScheduler(reason: string): void {
+  if (autoPipelineSchedulerStarted) return;
+  autoPipelineSchedulerStarted = true;
+  void (async () => {
+    const activatedAt = new Date().toISOString();
+    await updateAutoPipelineScheduler({
+      enabled: true,
+      active: true,
+      activatedAt,
+      lastMessage: `Continuous Atlas scheduler activated (${reason}).`,
+    });
+    logger.info({ intervalMs: AUTO_PIPELINE_INTERVAL_MS }, "Continuous Atlas scheduler activated");
+
+    while (autoPipelineSchedulerStarted) {
+      try {
+        await runAutoPipelineCycle();
+      } catch (err: any) {
+        logger.warn({ err: err?.message }, "Continuous Atlas cycle failed (scheduler will continue)");
+        const state = await getAutoPipelineScheduler();
+        await updateAutoPipelineScheduler({
+          lastStatus: "error",
+          lastMessage: err?.message ?? "Unexpected scheduler error",
+          providerNoTarget: state.providerNoTarget,
+        });
+      }
+
+      const nextTriggerAt = new Date(Date.now() + AUTO_PIPELINE_INTERVAL_MS).toISOString();
+      await updateAutoPipelineScheduler({ active: true, nextTriggerAt });
+      await new Promise<void>(resolve => setTimeout(resolve, AUTO_PIPELINE_INTERVAL_MS));
+    }
+  })().catch((err: any) => {
+    logger.error({ err: err?.message }, "Continuous Atlas scheduler stopped unexpectedly");
+    void updateAutoPipelineScheduler({
+      active: false,
+      lastStatus: "error",
+      lastMessage: err?.message ?? "Scheduler stopped",
+    });
+  });
 }
 
 /**
@@ -1130,10 +1280,15 @@ export async function coldStartRecovery(): Promise<void> {
 
   if (entityCount > 0) {
     logger.info({ entityCount }, "DB already populated — skipping auto-ingestion; running maintenance…");
-    // Fire-and-forget maintenance (isHot sync, reclassify, geocoding, liveSource)
-    runPopulatedDbMaintenance().catch((err: any) =>
-      logger.warn({ err: err?.message }, "Populated-DB maintenance error (non-fatal)")
-    );
+    // Complete the idempotent maintenance pass before the first Atlas cycle,
+    // so contact restoration/reclassification cannot compete with enrichment.
+    void runPopulatedDbMaintenance()
+      .catch((err: any) =>
+        logger.warn({ err: err?.message }, "Populated-DB maintenance error (non-fatal)")
+      )
+      .finally(() => {
+        if (autoPipelineEnabled) startAutoPipelineScheduler("populated-db-startup");
+      });
     return;
   }
 
@@ -1184,13 +1339,15 @@ export async function coldStartRecovery(): Promise<void> {
         if (current >= THRESHOLD) {
           logger.info({ entityCount: current }, "Cold-start: data arrived — running post-ingestion maintenance & pipeline");
           await runPopulatedDbMaintenance();
+          startAutoPipelineScheduler("empty-db-bootstrap-complete");
           return;
         }
       } catch (err: any) {
         logger.warn({ err: err?.message }, "Post-ingestion watcher: DB check failed (non-fatal)");
       }
     }
-    logger.warn("Post-ingestion watcher timed out — manual relationship trigger may be needed");
+    logger.warn("Post-ingestion watcher timed out — starting continuous Atlas controller with the data available");
+    startAutoPipelineScheduler("empty-db-bootstrap-timeout");
   })().catch((err: any) =>
     logger.warn({ err: err?.message }, "Post-ingestion watcher error (non-fatal)")
   );

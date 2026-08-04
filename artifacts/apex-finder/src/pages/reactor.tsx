@@ -26,6 +26,21 @@ interface ResearchSession {
   createdAt: string;
 }
 
+interface AutoPipelineScheduler {
+  enabled: boolean;
+  active: boolean;
+  activatedAt?: string;
+  lastTriggerAt?: string;
+  nextTriggerAt?: string;
+  lastLabel?: string;
+  lastStatus?: "triggered" | "completed" | "skipped_lock" | "no_targets" | "error";
+  lastJobId?: string;
+  lastMessage?: string;
+  cycles: number;
+  skippedDueToLock: number;
+  providerNoTarget: number;
+}
+
 interface AtlasLiveState {
   runStatus: "running" | "done" | "failed";
   phase: number;
@@ -38,6 +53,7 @@ interface AtlasLiveState {
   entityProgress: number | null;
   entityTotal: number | null;
   detail: string;
+  scheduler?: AutoPipelineScheduler;
   atlasTelemetry?: any;
   eventLog?: Array<{
     timestamp?: string;
@@ -794,7 +810,7 @@ function AtlasTelemetryInspector({ telemetry, eventLog = [] }: { telemetry?: any
 }
 
 // ── Mobile layout ─────────────────────────────────────────────────────────────
-function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading, onRefresh, syncing, liveNodes, liveLabel, livePhaseDetail, atlasState, exhaustedKeys = [] }: {
+function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading, onRefresh, syncing, liveNodes, liveLabel, livePhaseDetail, atlasState, scheduler, exhaustedKeys = [] }: {
   sessions: ResearchSession[];
   totalEntities: number;
   hotCount: number;
@@ -806,6 +822,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
   liveLabel?: string;
   livePhaseDetail?: string;
   atlasState?: AtlasLiveState | null;
+  scheduler?: AutoPipelineScheduler | null;
   exhaustedKeys?: string[];
 }) {
   const hasSessions = sessions.length > 0;
@@ -1263,10 +1280,11 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
 }
 
 // ── Desktop layout ────────────────────────────────────────────────────────────
-function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, isLive, totalEntities, hotCount, totalAssets, sessionCount, latestStatus }: {
+function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, scheduler, isLive, totalEntities, hotCount, totalAssets, sessionCount, latestStatus }: {
   liveNodes?: Set<string>; liveLabel?: string; isLive?: boolean;
   livePhaseDetail?: string;
   atlasState?: AtlasLiveState | null;
+  scheduler?: AutoPipelineScheduler | null;
   totalEntities?: number; hotCount?: number; totalAssets?: number;
   sessionCount?: number;
   latestStatus?: string;
@@ -1603,6 +1621,7 @@ export default function IntelligenceReactorPage() {
           entityTotal: atlasData.entityTotal != null ? Number(atlasData.entityTotal) : null,
             currentEntities: structuredNames.length > 0 ? structuredNames : structured.currentEntities,
             phaseJ: atlasData.phaseJ ?? null,
+            scheduler: atlasData.scheduler ?? undefined,
             atlasTelemetry,
             eventLog: parseAtlasEventLog(atlasData.log),
         };
@@ -1720,6 +1739,7 @@ export default function IntelligenceReactorPage() {
           liveLabel={liveLabel}
           livePhaseDetail={livePhaseDetail}
           atlasState={atlasState}
+           scheduler={scheduler}
           exhaustedKeys={exhaustedKeys}
         />
       </div>
@@ -1736,6 +1756,7 @@ export default function IntelligenceReactorPage() {
         <div style={{ transformOrigin:"top left", transform:`scale(${scale})`, width:1600, height:960 }}>
         <DesktopReactor
           liveNodes={liveNodes} liveLabel={liveLabel} livePhaseDetail={livePhaseDetail} atlasState={atlasState}
+          scheduler={scheduler}
           isLive={liveNodes.size > 0 || atlasState?.runStatus === "running"}
           totalEntities={totalEntities} hotCount={hotCount} totalAssets={totalAssets}
           sessionCount={sessions.length}

@@ -7,7 +7,10 @@
  */
 
 import { Router, type Request, type Response } from "express";
-import { createJob, getActiveJob, getLatestJob, getJob, getJobLog, setActiveJob, updateJob, clearActiveJobIfOwned } from "../lib/job-queue";
+import {
+  createJob, getActiveJob, getLatestJob, getJob, getJobLog, setActiveJob,
+  updateJob, clearActiveJobIfOwned, getAutoPipelineScheduler,
+} from "../lib/job-queue";
 import { runAtlasPipeline, type AtlasOptions } from "../lib/atlas-orchestrator";
 import { logger } from "../lib/logger";
 
@@ -115,15 +118,16 @@ router.delete("/ingest/atlas-lock/:jobId", async (req: Request, res: Response): 
 
 // ── GET /ingest/atlas-status ──────────────────────────────────────────────────
 router.get("/ingest/atlas-status", async (_req: Request, res: Response): Promise<void> => {
+  const scheduler = await getAutoPipelineScheduler();
   const jobId = await getActiveJob("atlas-run");
   if (!jobId) {
     const latest = await getLatestJob("atlas-run");
     if (latest) {
       const log = await getJobLog(latest.jobId);
-      res.json({ ...latest, active: false, latest: true, log: log.slice(0, 80) });
+      res.json({ ...latest, active: false, latest: true, scheduler, log: log.slice(0, 80) });
       return;
     }
-    res.json({ status: "idle", message: "No Atlas run in progress." });
+    res.json({ status: "idle", message: "No Atlas run in progress.", scheduler });
     return;
   }
   const job = await getJob(jobId);
@@ -134,6 +138,7 @@ router.get("/ingest/atlas-status", async (_req: Request, res: Response): Promise
     ...job,
     jobId,
     active: true,
+    scheduler,
     log: log.slice(0, 80),
     phaseJ: phaseJ
       ? {

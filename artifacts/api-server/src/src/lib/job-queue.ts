@@ -58,8 +58,24 @@ export interface JobState {
   retryCounts?: string;
 }
 
+export type AutoPipelineSchedulerStatus = {
+  enabled: boolean;
+  active: boolean;
+  activatedAt?: string;
+  lastTriggerAt?: string;
+  nextTriggerAt?: string;
+  lastLabel?: string;
+  lastStatus?: "triggered" | "completed" | "skipped_lock" | "no_targets" | "error";
+  lastJobId?: string;
+  lastMessage?: string;
+  cycles: number;
+  skippedDueToLock: number;
+  providerNoTarget: number;
+};
+
 const JOB_TTL = 60 * 60 * 24 * 7; // 7 days on Upstash
 const LOG_CAP = 200;
+const AUTO_PIPELINE_SCHEDULER_KEY = "apex:autopipeline:scheduler";
 
 function jk(jobId: string) { return `apex:job:${jobId}`; }
 function lk(jobId: string) { return `apex:job:${jobId}:log`; }
@@ -252,6 +268,41 @@ export async function getLatestJob(type: string): Promise<JobState | null> {
     await rc.set(pointerKey, latestId, "EX", JOB_TTL);
     return getJob(latestId);
   }, null);
+}
+
+/** Durable scheduler telemetry used by the Reactor and startup recovery. */
+export async function updateAutoPipelineScheduler(
+  patch: Partial<AutoPipelineSchedulerStatus>,
+): Promise<void> {
+  const flat: Record<string, string> = {};
+  for (const [key, value] of Object.entries(patch)) {
+    if (value !== undefined) flat[key] = String(value);
+  }
+  if (Object.keys(flat).length === 0) return;
+  await safeRedis(async rc => {
+    await rc.hset(AUTO_PIPELINE_SCHEDULER_KEY, flat);
+    await rc.expire(AUTO_PIPELINE_SCHEDULER_KEY, JOB_TTL);
+  }, undefined);
+}
+
+export async function getAutoPipelineScheduler(): Promise<AutoPipelineSchedulerStatus> {
+  const raw = await safeRedis(rc => rc.hgetall(AUTO_PIPELINE_SCHEDULER_KEY), {});
+  return {
+    enabled: raw["enabled"] === "true",
+    active: raw["active"] === "true",
+    activatedAt: raw["activatedAt"],
+    lastTriggerAt: raw["lastTriggerAt"],
+    nextTriggerAt: raw["nextTriggerAt"],
+    lastLabel: raw["lastLabel"],
+    lastStatus: ["triggered", "completed", "skipped_lock", "no_targets", "error"].includes(raw["lastStatus"] ?? "")
+      ? raw["lastStatus"] as AutoPipelineSchedulerStatus["lastStatus"]
+      : undefined,
+    lastJobId: raw["lastJobId"],
+    lastMessage: raw["lastMessage"],
+    cycles: Number(raw["cycles"] ?? 0),
+    skippedDueToLock: Number(raw["skippedDueToLock"] ?? 0),
+    providerNoTarget: Number(raw["providerNoTarget"] ?? 0),
+  };
 }
 
 export async function clearActiveJob(type: string): Promise<void> {

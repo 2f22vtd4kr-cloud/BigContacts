@@ -77,6 +77,17 @@ interface AtlasLiveState {
   } | null;
 }
 
+interface AutoPipelineScheduler {
+  enabled: boolean;
+  active: boolean;
+  nextTriggerAt?: string;
+  lastStatus?: "triggered" | "completed" | "skipped_lock" | "no_targets" | "error";
+  lastMessage?: string;
+  cycles: number;
+  skippedDueToLock: number;
+  providerNoTarget: number;
+}
+
 interface MobileReactorFlowProps {
   sessions: ResearchSession[];
   totalEntities: number;
@@ -89,6 +100,7 @@ interface MobileReactorFlowProps {
   liveLabel: string;
   livePhaseDetail: string;
   atlasState: AtlasLiveState | null;
+  scheduler: AutoPipelineScheduler | null;
   exhaustedKeys: string[];
 }
 
@@ -480,6 +492,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
     liveNodes,
     liveLabel,
     atlasState,
+    scheduler,
     exhaustedKeys,
     livePhaseDetail,
     onRefresh,
@@ -559,6 +572,29 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
           <QuickStat label="Hot leads" value={hotCount} color="#a3e635" />
           <QuickStat label="Assets" value={totalAssets} color="#22d3ee" />
           <QuickStat label="Sessions" value={sessions.length} color="#a78bfa" />
+        </div>
+        <div
+          className={`mt-2 rounded-lg border px-2.5 py-2 text-[9px] ${
+            scheduler?.enabled
+              ? "border-cyan-400/20 bg-cyan-400/[0.04] text-cyan-300/80"
+              : "border-white/10 bg-white/[0.025] text-slate-500"
+          }`}
+          data-testid="status-continuous-scheduler"
+        >
+          <div className="flex items-center justify-between gap-2 uppercase tracking-[0.16em]">
+            <span>{scheduler?.enabled ? "Continuous Atlas enabled" : "Continuous Atlas paused"}</span>
+            <span className="text-[8px] text-slate-500">
+              {scheduler?.cycles ?? 0} cycle{scheduler?.cycles === 1 ? "" : "s"}
+            </span>
+          </div>
+          {scheduler?.enabled && (
+            <div className="mt-1 truncate text-[8px] text-slate-500">
+              {scheduler.nextTriggerAt
+                ? `Next cycle ${new Date(scheduler.nextTriggerAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                : scheduler.lastMessage || "Preparing next discovery cycle"}
+              {scheduler.lastStatus === "skipped_lock" ? " · waiting for active Atlas lock" : ""}
+            </div>
+          )}
         </div>
       </header>
 
