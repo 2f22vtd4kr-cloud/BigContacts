@@ -1454,7 +1454,29 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
         return { enriched: 0, skipped: 0, errors: 1, durationMs: 0 };
       });
     await runEntityBatch(atlasJobId, "Phase 0/OpenOwnership", entities0.slice(0, 100), async (e) => {
+      await setAtlasTelemetry(atlasJobId, {
+        stage: "OWNERSHIP CROSS-REFERENCE",
+        status: "active",
+        targetName: e.name,
+        targetType: e.type,
+        toolIds: ["openownership"],
+        activeToolId: "openownership",
+        inputSummary: "Exact target name sent to Open Ownership BODS lookup",
+      }, e.id);
       const res = await enrichWithOpenOwnership(e.name, true) as any;
+      await setAtlasTelemetry(atlasJobId, {
+        stage: "OWNERSHIP CROSS-REFERENCE",
+        status: "complete",
+        targetName: e.name,
+        targetType: e.type,
+        toolIds: ["openownership"],
+        activeToolId: "openownership",
+        resultSummary: `${res.totalEntities ?? res.found ?? 0} ownership record(s) returned; stored as registry evidence`,
+        sources: res.totalEntities ?? res.found ?? 0,
+        evidence: res.totalEntities ?? res.found ?? 0,
+        contacts: 0,
+        nextAction: "Continue with foundation filings and target-scoped enrichment",
+      }, e.id);
       if ((res.totalEntities ?? res.found ?? 0) > 0) {
         const note = `OpenOwnership BODS: ${res.totalEntities ?? res.found ?? 0} ownership record(s) found.`;
         const existing = (e as any).notes ?? "";
@@ -1462,7 +1484,26 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
       }
     }, 1);
     await runEntityBatch(atlasJobId, "Phase 0/FoundationFilings", entities0.filter(e => e.type === "HNWI").slice(0, 100), async (e) => {
+      await setAtlasTelemetry(atlasJobId, {
+        stage: "FOUNDATION FILINGS",
+        status: "active",
+        targetName: e.name,
+        targetType: e.type,
+        toolIds: ["foundation"],
+        activeToolId: "foundation",
+        inputSummary: "HNWI target name and known public identity context",
+      }, e.id);
       await discoverViaFoundationFilings(e as any);
+      await setAtlasTelemetry(atlasJobId, {
+        stage: "FOUNDATION FILINGS",
+        status: "complete",
+        targetName: e.name,
+        targetType: e.type,
+        toolIds: ["foundation"],
+        activeToolId: "foundation",
+        resultSummary: "Foundation filing pass completed; only attributable public evidence is retained",
+        nextAction: "Continue with discovery and full-circle enrichment",
+      }, e.id);
     }, 1);
 
     summary["Phase 0b"] = `CH contact: ${(chRes as any).enriched ?? 0} | OpenOwnership + Foundation filings done`;
