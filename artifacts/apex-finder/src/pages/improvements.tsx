@@ -57,6 +57,7 @@ interface JobState {
 }
 
 type RemediationState = "idle" | "starting" | "running" | "done" | "failed";
+type CleanupState = "idle" | "starting" | "running" | "done" | "failed";
 
 // ─── Persona config ───────────────────────────────────────────────────────────
 
@@ -320,6 +321,8 @@ export default function ImprovementsPage() {
   const [currentJob, setCurrentJob] = useState<JobState | null>(null);
   const [remediationState, setRemediationState] = useState<RemediationState>("idle");
   const [remediationJob, setRemediationJob] = useState<JobState | null>(null);
+  const [cleanupState, setCleanupState] = useState<CleanupState>("idle");
+  const [cleanupJob, setCleanupJob] = useState<JobState | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Fetch logs + stats
@@ -431,6 +434,39 @@ export default function ImprovementsPage() {
     }
   };
 
+  const handleDeduplicate = async () => {
+    setCleanupState("starting");
+    setCleanupJob(null);
+    try {
+      const result = await apiPost("/improve/deduplicate");
+      setCleanupState("running");
+      setCleanupJob({
+        jobId: result.jobId,
+        status: "queued",
+        progress: 0,
+        inserted: 0,
+        errors: 0,
+        message: "Queued…",
+      });
+      const timer = window.setInterval(async () => {
+        try {
+          const job = await apiGet(`/improve/jobs/${result.jobId}`);
+          setCleanupJob(job);
+          if (job.status === "done" || job.status === "failed") {
+            window.clearInterval(timer);
+            setCleanupState(job.status === "done" ? "done" : "failed");
+            fetchData();
+          }
+        } catch {
+          // Keep the cleanup state visible while the server continues.
+        }
+      }, 1500);
+    } catch (e: any) {
+      setError(e.message);
+      setCleanupState("failed");
+    }
+  };
+
   const pendingCount  = stats?.byPriority ? stats.byPersona.filter(s => s.status === "pending").reduce((a, s) => a + s.count, 0) : 0;
   const highCount     = stats?.byPriority?.find(p => p.priority === "high")?.count ?? 0;
   const isRunning     = runState === "running" || runState === "starting";
@@ -494,6 +530,22 @@ export default function ImprovementsPage() {
               : <><CheckCircle2 className="h-3.5 w-3.5" />Apply safe fixes</>
             }
           </button>
+          <button
+            onClick={handleDeduplicate}
+            disabled={cleanupState === "starting" || cleanupState === "running"}
+            className={cn(
+              "flex items-center gap-2 px-3 py-2 text-xs font-semibold font-mono rounded-md transition-colors border",
+              cleanupState === "starting" || cleanupState === "running"
+                ? "border-border text-muted-foreground cursor-not-allowed"
+                : "border-sky-500/40 text-sky-400 hover:bg-sky-500/10"
+            )}
+            title="Dismiss repeated findings while retaining the newest copy"
+          >
+            {cleanupState === "starting" || cleanupState === "running"
+              ? <><RefreshCw className="h-3.5 w-3.5 animate-spin" />Cleaning…</>
+              : <><Filter className="h-3.5 w-3.5" />Clean duplicates</>
+            }
+          </button>
         </div>
       </div>
 
@@ -505,6 +557,9 @@ export default function ImprovementsPage() {
         )}
         {remediationJob && (
           <JobProgressBar job={remediationJob} />
+        )}
+        {cleanupJob && (
+          <JobProgressBar job={cleanupJob} />
         )}
 
         {/* ── Error ── */}
