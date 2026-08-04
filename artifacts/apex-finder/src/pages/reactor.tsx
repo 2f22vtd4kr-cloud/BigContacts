@@ -455,19 +455,22 @@ function LiveHeaderDetail({ isLive, atlasState, liveLabel, livePhaseDetail, comp
 }) {
   if (!isLive && !atlasState) return null;
   const detail = atlasState?.detail || livePhaseDetail || liveLabel || "Processing live research";
+  const failed = atlasState?.runStatus === "failed";
+  const done = atlasState?.runStatus === "done";
+  const color = failed ? "#fb7185" : done ? "#a3e635" : "#22d3ee";
   return (
     <div style={{
       display:"flex", alignItems:"center", gap:6, minWidth:0,
       padding:compact ? "4px 6px" : "4px 8px",
-      border:`1px solid #22d3ee30`, borderRadius:4, background:"#22d3ee08",
+      border:`1px solid ${color}40`, borderRadius:4, background:`${color}08`,
     }}>
       <span style={{
         width:5, height:5, borderRadius:"50%", flexShrink:0,
-        background:"#22d3ee", boxShadow:"0 0 7px #22d3ee",
-        animation:"blink .8s ease-in-out infinite",
+         background:color, boxShadow:`0 0 7px ${color}`,
+         animation:failed || done ? "none" : "blink .8s ease-in-out infinite",
       }} />
       <span style={{
-        fontSize:compact ? 6 : 7, letterSpacing:"0.08em", color:"#22d3ee",
+         fontSize:compact ? 6 : 7, letterSpacing:"0.08em", color,
         overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
       }}>
         {detail}
@@ -738,7 +741,10 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
 }) {
   const hasSessions = sessions.length > 0;
   const pitchCount = sessions.filter(s => s.generatedPitch).length;
-  const isLive = (liveNodes?.size ?? 0) > 0 || Boolean(atlasState);
+  const atlasRunning = atlasState?.runStatus === "running";
+  const isLive = (liveNodes?.size ?? 0) > 0 || atlasRunning;
+  const atlasFailed = atlasState?.runStatus === "failed";
+  const atlasDone = atlasState?.runStatus === "done";
 
   // ── Animated dot-pulse ticker (used for banner dots only, NOT node selection) ─
   const [liveStep, setLiveStep] = useState(0);
@@ -803,16 +809,16 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
               <div style={{ display:"flex", alignItems:"center", gap:5 }}>
                 <div style={{
                   width:6, height:6, borderRadius:"50%",
-                  background: isLive ? "#22d3ee" : (hasSessions ? "#a3e635" : "#253850"),
-                  boxShadow: isLive ? "0 0 8px #22d3ee" : (hasSessions ? "0 0 6px #a3e635" : "none"),
-                  animation: (isLive || hasSessions) ? "blink 1.1s ease-in-out infinite" : "none",
+                   background: atlasFailed ? "#fb7185" : atlasDone ? "#a3e635" : isLive ? "#22d3ee" : (hasSessions ? "#a3e635" : "#253850"),
+                   boxShadow: atlasFailed ? "0 0 8px #fb7185" : atlasDone ? "0 0 6px #a3e635" : isLive ? "0 0 8px #22d3ee" : (hasSessions ? "0 0 6px #a3e635" : "none"),
+                   animation: (!atlasFailed && !atlasDone && (isLive || hasSessions)) ? "blink 1.1s ease-in-out infinite" : "none",
                 }} />
-                <span style={{ fontSize:8, letterSpacing:"0.14em", color: isLive ? "#22d3ee" : (hasSessions ? "#a3e635" : "#3a5070") }}>
-                  {isLive ? "LIVE" : (hasSessions ? "OPERATIONAL" : "STANDBY")}
+                 <span style={{ fontSize:8, letterSpacing:"0.14em", color: atlasFailed ? "#fb7185" : atlasDone ? "#a3e635" : isLive ? "#22d3ee" : (hasSessions ? "#a3e635" : "#3a5070") }}>
+                   {atlasFailed ? "FAILED" : atlasDone ? "COMPLETE" : isLive ? "LIVE" : (hasSessions ? "OPERATIONAL" : "STANDBY")}
                 </span>
               </div>
               <span style={{ fontSize:7, letterSpacing:"0.1em", color:"#526b86" }}>
-                {atlasState ? `PHASE ${atlasState.phase}/10` : "READY"}
+                 {atlasState ? `PHASE ${atlasState.phase}/10` : "READY"}
               </span>
             </div>
             <button
@@ -1213,6 +1219,9 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, isL
     ? new Set(EDGES.filter(e => liveNodes.has(e.from) || liveNodes.has(e.to)).map(e => e.id))
     : new Set<string>();
   const adaptive = Boolean(isLive && liveNodes && liveNodes.size > 0);
+  const atlasFailed = atlasState?.runStatus === "failed";
+  const atlasDone = atlasState?.runStatus === "done";
+  const atlasStatusColor = atlasFailed ? "#fb7185" : atlasDone ? "#a3e635" : isLive ? "#22d3ee" : "#a3e635";
 
   return (
     <div style={{
@@ -1267,18 +1276,18 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, isL
           <div style={{ display:"flex", alignItems:"center", gap:16, flexShrink:0 }}>
             <div style={{
               padding:"4px 10px", borderRadius:4,
-              border:`1px solid ${isLive ? "#22d3ee40" : "#a3e63530"}`,
-              background: isLive ? "#22d3ee0e" : "#a3e6350a",
+               border:`1px solid ${atlasStatusColor}40`,
+               background: `${atlasStatusColor}0e`,
               display:"flex", alignItems:"center", gap:6,
             }}>
               <div style={{
                 width:7, height:7, borderRadius:"50%",
-                background: isLive ? "#22d3ee" : "#a3e635",
-                boxShadow:`0 0 8px ${isLive ? "#22d3ee" : "#a3e635"}`,
-                animation:"blink 1.1s ease-in-out infinite",
+                 background: atlasStatusColor,
+                 boxShadow:`0 0 8px ${atlasStatusColor}`,
+                 animation: atlasFailed || atlasDone ? "none" : "blink 1.1s ease-in-out infinite",
               }} />
-              <span style={{ fontSize:8, letterSpacing:"0.18em", color: isLive ? "#22d3ee" : "#a3e635" }}>
-                {isLive ? "ATLAS LIVE" : "NOMINAL"}
+               <span style={{ fontSize:8, letterSpacing:"0.18em", color: atlasStatusColor }}>
+                 {atlasFailed ? "ATLAS FAILED" : atlasDone ? "ATLAS COMPLETE" : isLive ? "ATLAS LIVE" : "NOMINAL"}
               </span>
             </div>
             <div style={{ textAlign:"right" }}>
@@ -1513,12 +1522,14 @@ export default function IntelligenceReactorPage() {
       let nextAtlasState: AtlasLiveState | null = null;
 
       // ── Atlas job (step + content-aware for 21-source pipeline) ─────────────
-      if (atlasData?.status === "running" && atlasData?.jobId) {
+       if (atlasData?.jobId && ["running", "done", "failed"].includes(atlasData.status)) {
         const msg: string = atlasData.message ?? "";
+         const runStatus = atlasData.status === "failed" ? "failed" : atlasData.status === "done" ? "done" : "running";
         const structured = parseAtlasLiveState(
           msg,
           Number(atlasData.atlasPhase ?? atlasData.progress ?? 0),
           Number(atlasData.atlasPhaseTotal ?? 10),
+           runStatus,
         );
         const structuredNames = parseEntityNames(atlasData.entityNames);
         nextAtlasState = {
@@ -1526,7 +1537,7 @@ export default function IntelligenceReactorPage() {
           entityProgress: atlasData.entityProgress != null ? Number(atlasData.entityProgress) : null,
           entityTotal: atlasData.entityTotal != null ? Number(atlasData.entityTotal) : null,
           currentEntities: structuredNames.length > 0 ? structuredNames : structured.currentEntities,
-          atlasTelemetry: parseAtlasTelemetry(atlasData.atlasTelemetry),
+           atlasTelemetry: parseAtlasTelemetry(atlasData.atlasTelemetry),
         };
         // New format: [N/21] label… or [N/21] 🍳 EntityName (x/y)…
         const stepMatch = msg.match(/\[(\d+)\/(\d+)\]/);
@@ -1595,9 +1606,9 @@ export default function IntelligenceReactorPage() {
         setLiveNodes(nodes);
         setLiveLabel(labels.join(" · "));
       } else {
-        setLiveNodes(new Set());
-        setLiveLabel("");
-        setLivePhaseDetail("");
+           setLiveNodes(new Set());
+           setLiveLabel("");
+           setLivePhaseDetail("");
       }
       setAtlasState(nextAtlasState);
     } catch { /* non-fatal */ }
@@ -1694,7 +1705,7 @@ export default function IntelligenceReactorPage() {
         <div style={{ transformOrigin:"top left", transform:`scale(${scale})`, width:1600, height:960 }}>
         <DesktopReactor
           liveNodes={liveNodes} liveLabel={liveLabel} livePhaseDetail={livePhaseDetail} atlasState={atlasState}
-          isLive={liveNodes.size > 0 || Boolean(atlasState)}
+          isLive={liveNodes.size > 0 || atlasState?.runStatus === "running"}
           totalEntities={totalEntities} hotCount={hotCount} totalAssets={totalAssets}
           sessionCount={sessions.length}
           pitchCount={sessions.filter(s => Boolean(s.generatedPitch)).length}

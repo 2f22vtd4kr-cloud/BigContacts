@@ -61,6 +61,7 @@ export async function createJob(type: string): Promise<string> {
   await safeRedis(async rc => {
     await rc.hset(jk(jobId), state as any);
     await rc.expire(jk(jobId), JOB_TTL);
+    await rc.set(`apex:latestjob:${type}`, jobId, "EX", JOB_TTL);
   }, undefined);
   return jobId;
 }
@@ -191,6 +192,39 @@ export async function setActiveJob(type: string, jobId: string): Promise<void> {
 
 export async function getActiveJob(type: string): Promise<string | null> {
   return safeRedis(rc => rc.get(`apex:activejob:${type}`), null);
+}
+
+export async function getLatestJob(type: string): Promise<JobState | null> {
+  return safeRedis(async rc => {
+    const pointerKey = `apex:latestjob:${type}`;
+    const jobId = await rc.get(pointerKey);
+    if (jobId) return getJob(jobId);
+
+    // One-time migration for jobs created before the latest-job pointer existed.
+    let cursor = "0";
+    let latestId = "";
+    let latestStarted = "";
+    do {
+      const [next, keys] = await rc.scan(cursor, "MATCH", "apex:job:*", "COUNT", 500);
+      cursor = next;
+      const candidates = keys.filter(key => !key.endsWith(":log"));
+      if (!candidates.length) continue;
+      const pipeline = rc.pipeline();
+      candidates.forEach(key => pipeline.hmget(key, "jobId", "type", "startedAt"));
+      const rows = await pipeline.exec();
+      rows?.forEach((entry, index) => {
+        const values = entry?.[1] as string[] | null;
+        if (!values || values[1] !== type) return;
+        if (values[2] > latestStarted) {
+          latestStarted = values[2];
+          latestId = values[0] || candidates[index]!.slice("apex:job:".length);
+        }
+      });
+    } while (cursor !== "0");
+    if (!latestId) return null;
+    await rc.set(pointerKey, latestId, "EX", JOB_TTL);
+    return getJob(latestId);
+  }, null);
 }
 
 export async function clearActiveJob(type: string): Promise<void> {

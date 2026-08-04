@@ -7,7 +7,7 @@
  */
 
 import { Router, type Request, type Response } from "express";
-import { createJob, getActiveJob, getJob, setActiveJob, updateJob, clearActiveJobIfOwned } from "../lib/job-queue";
+import { createJob, getActiveJob, getLatestJob, getJob, setActiveJob, updateJob, clearActiveJobIfOwned } from "../lib/job-queue";
 import { runAtlasPipeline, type AtlasOptions } from "../lib/atlas-orchestrator";
 import { logger } from "../lib/logger";
 import { db } from "@workspace/db";
@@ -138,9 +138,17 @@ router.delete("/ingest/atlas-lock/:jobId", async (req: Request, res: Response): 
 // ── GET /ingest/atlas-status ──────────────────────────────────────────────────
 router.get("/ingest/atlas-status", async (_req: Request, res: Response): Promise<void> => {
   const jobId = await getActiveJob("atlas-run");
-  if (!jobId) { res.json({ status: "idle", message: "No Atlas run in progress." }); return; }
+  if (!jobId) {
+    const latest = await getLatestJob("atlas-run");
+    if (latest) {
+      res.json({ ...latest, active: false, latest: true });
+      return;
+    }
+    res.json({ status: "idle", message: "No Atlas run in progress." });
+    return;
+  }
   const job = await getJob(jobId);
-  res.json({ ...job, jobId });
+  res.json({ ...job, jobId, active: true });
 });
 
 export default router;
