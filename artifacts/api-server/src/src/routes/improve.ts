@@ -175,7 +175,8 @@ router.post("/improve/apply-safe", async (_req: Request, res: Response): Promise
             integrityPatch.phone = null;
             integrityPatch.phoneSource = null;
           }
-          const quarantine = safeTitles.includes("Synthetic-data flag in metadata — integrity violation")
+          const quarantine = isSyntheticMetadata(entity.metadata)
+            || safeTitles.includes("Synthetic-data flag in metadata — integrity violation")
             || safeTitles.includes(`Entity name "${entity.name}" is a known placeholder`)
             || PLACEHOLDER_NAME_RE.test(entity.name.trim());
           if (quarantine) {
@@ -206,8 +207,26 @@ router.post("/improve/apply-safe", async (_req: Request, res: Response): Promise
           if (!quarantine && state.isHot !== entity.isHot) {
             patch.isHot = state.isHot;
           }
+          const stateChanged =
+            state.contactConfidence !== entity.contactConfidence
+            || state.contactOutcome !== entity.contactOutcome
+            || state.isHot !== entity.isHot;
+          const applicableSafeTitles = new Set<string>();
+          if (stateChanged) {
+            applicableSafeTitles.add("Hot-state invariant is inconsistent with verified contact outcome");
+            applicableSafeTitles.add("L5 contactConfidence stale — physical address exists but score not recomputed");
+            applicableSafeTitles.add("Organization evidence must not inflate personal access");
+          }
+          if (fakeEmail(entity.email)) applicableSafeTitles.add("Contact email matches synthetic / generated pattern");
+          if (fakePhone(entity.phone)) applicableSafeTitles.add("Phone number is a known fake pattern");
+          if (isSyntheticMetadata(entity.metadata)) {
+            applicableSafeTitles.add("Synthetic-data flag in metadata — integrity violation");
+          }
+          if (PLACEHOLDER_NAME_RE.test(entity.name.trim())) {
+            applicableSafeTitles.add(`Entity name "${entity.name}" is a known placeholder`);
+          }
           const safeLogIds = pendingLogs
-            .filter(log => isSafeFindingTitle(log.title, entity.name))
+            .filter(log => applicableSafeTitles.has(log.title) && isSafeFindingTitle(log.title, entity.name))
             .map(log => log.id);
           if (Object.keys(patch).length > 0) {
             patch.updatedAt = new Date();
