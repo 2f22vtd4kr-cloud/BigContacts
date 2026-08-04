@@ -278,6 +278,79 @@ router.post("/improve/apply-safe", async (_req: Request, res: Response): Promise
   })();
 });
 
+// ── POST /improve/deduplicate — collapse repeated persona findings ────────────
+router.post("/improve/deduplicate", async (_req: Request, res: Response): Promise<void> => {
+  const existingJobId = await getActiveJob("improve-deduplicate");
+  if (existingJobId) {
+    const existing = await getJob(existingJobId);
+    if (existing?.status === "running") {
+      res.status(409).json({ error: "A persona finding cleanup is already running.", jobId: existingJobId });
+      return;
+    }
+  }
+
+  const jobId = await createJob("improve-deduplicate");
+  await setActiveJob("improve-deduplicate", jobId);
+  await updateJob(jobId, { status: "running", progress: 0, message: "Finding cleanup starting…" });
+  res.status(202).json({ jobId, pollUrl: `/api/improve/jobs/${jobId}` });
+
+  (async () => {
+    let dismissed = 0;
+    let errors = 0;
+    try {
+      const rows = await db
+        .select({
+          id: improvementLogsTable.id,
+          entityId: improvementLogsTable.entityId,
+          persona: improvementLogsTable.persona,
+          title: improvementLogsTable.title,
+          status: improvementLogsTable.status,
+        })
+        .from(improvementLogsTable)
+        .orderBy(desc(improvementLogsTable.createdAt), desc(improvementLogsTable.id));
+      const seen = new Set<string>();
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const key = `${row.entityId}\u0000${row.persona}\u0000${row.title}`;
+        if (seen.has(key) && row.status === "pending") {
+          try {
+            await db
+              .update(improvementLogsTable)
+              .set({ status: "dismissed", updatedAt: new Date() })
+              .where(and(eq(improvementLogsTable.id, row.id), eq(improvementLogsTable.status, "pending")));
+            dismissed++;
+          } catch {
+            errors++;
+          }
+        } else {
+          seen.add(key);
+        }
+        if ((i + 1) % 500 === 0 || i === rows.length - 1) {
+          await updateJob(jobId, {
+            progress: Math.round(((i + 1) / Math.max(rows.length, 1)) * 100),
+            inserted: dismissed,
+            errors,
+            message: `Cleaning findings ${i + 1}/${rows.length}…`,
+          });
+        }
+      }
+      await updateJob(jobId, {
+        status: "done",
+        progress: 100,
+        inserted: dismissed,
+        errors,
+        finishedAt: new Date().toISOString(),
+        message: `Finding cleanup complete — ${dismissed} duplicate pending findings dismissed.`,
+      });
+    } catch (err: any) {
+      logger.error({ err: err.message }, "Persona finding cleanup failed");
+      await updateJob(jobId, { status: "failed", errors: errors + 1, message: err.message ?? "Finding cleanup failed." });
+    } finally {
+      await clearActiveJob("improve-deduplicate");
+    }
+  })();
+});
+
 // ── POST /improve/run  — fire improvement loop for all (or N) entities ────────
 router.post("/improve/run", async (req: Request, res: Response): Promise<void> => {
   const { limit = 50, entityIds } = req.body as {
