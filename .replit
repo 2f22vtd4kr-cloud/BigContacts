@@ -42,5 +42,5 @@ channel = "stable-25_05"
 [userenv]
 
 [userenv.shared]
-ENABLE_AUTO_PIPELINE = "false"
+ENABLE_AUTO_PIPELINE = "true"
 REDIS_URL = "redis://localhost:6379"

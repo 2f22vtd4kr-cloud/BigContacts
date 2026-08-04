@@ -78,7 +78,7 @@ The long-term plan for improving the approximately 2.5% direct-contact yield is 
 | `GEMINI_API_KEY`, `_1`–`_10` | Replit Secrets (optional) | Google Gemini Flash-Lite access with key rotation; lower-quota model is used for grounded research and wealth estimation |
 | `TAVILY_API_KEY`, `_2`–`_6` | Replit Secrets (optional) | Tavily AI-native search API; returns clean excerpts fed into Groq for extraction, with key rotation |
 | `EXA_API_KEY`, `_2` | Replit Secrets (optional) | Exa neural/semantic search; excels at people + company lookups; fed into Groq for extraction, with key rotation |
-| `ENABLE_AUTO_PIPELINE` | Shared environment | Set to `false` for controlled imports and single-target research; set to `true` only when broad cold-start ingestion is explicitly requested. Do not enable it for idle-safe review-only runs. |
+| `ENABLE_AUTO_PIPELINE` | Shared environment | `true` — continuous background discovery, enrichment, analysis, and periodic persona review are enabled. Set to `false` only when intentionally pausing automatic research. |
 
 ### Adding a new Upstash Redis slot
 
@@ -144,7 +144,7 @@ The benchmark figures below are historical results from the prior populated runt
 | **Current verified state after overnight Atlas** | **22 visible / 0 hidden** | **20** | API and Redis healthy; the mixed-discovery run inserted 7 records, skipped 0, and reported 0 errors. |
 | **Current controlled development runtime** | **515 total / 0 hot** | **508** | 0 relationships, 16 research sessions, and no validated or promoted direct contacts; Atlas job `feae7d88-3eee-48ae-99ee-7e9071801989` is active in Phase 0. |
 
-**Controlled-run state:** `ENABLE_AUTO_PIPELINE=false` remains set for automatic startup scheduling. The explicitly requested Atlas job is running manually with strict sequential ownership. The durable contact-promotion validator, current-run evidence boundary, active-job ownership guard, candidate-attribution gate, and Access/Signal separation remain in place. Provider quota and plan limits reduce usable lanes, but fail-closed behavior preserves review-only outcomes.
+**Background-run state:** `ENABLE_AUTO_PIPELINE=true` is enabled for automatic startup scheduling and recurring background discovery/research. The durable contact-promotion validator, current-run evidence boundary, active-job ownership guard, candidate-attribution gate, and Access/Signal separation remain in place. Provider quota and plan limits reduce usable lanes, but fail-closed behavior preserves review-only outcomes.
 
 **Atlas audit state:** Discovery admission and target processing are strictly sequential: each source may admit one candidate, that candidate is fully cooked before the next source starts, and final target review runs before research publication, contact promotion, and new asset publication. Broad search prompts constrain geography, person-level business evidence, and source quality while retaining selected global wealth hubs. The current API runtime reports Holehe, Maigret, and Sherlock available from `.pythonlibs/bin/python3`.
 
