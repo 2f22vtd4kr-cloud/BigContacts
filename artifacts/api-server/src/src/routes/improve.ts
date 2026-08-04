@@ -131,11 +131,7 @@ router.post("/improve/apply-safe", async (_req: Request, res: Response): Promise
       for (let i = 0; i < entities.length; i++) {
         const entity = entities[i];
         try {
-          const state = computeContactState(contactStateInput(entity));
           const patch: Record<string, unknown> = {};
-          if (state.contactConfidence !== entity.contactConfidence) patch.contactConfidence = state.contactConfidence;
-          if (state.contactOutcome !== entity.contactOutcome) patch.contactOutcome = state.contactOutcome;
-          if (state.isHot !== entity.isHot) patch.isHot = state.isHot;
           const pendingLogs = await db
             .select({ id: improvementLogsTable.id, title: improvementLogsTable.title })
             .from(improvementLogsTable)
@@ -167,6 +163,24 @@ router.post("/improve/apply-safe", async (_req: Request, res: Response): Promise
             integrityPatch.phoneSource = null;
           }
           Object.assign(patch, integrityPatch);
+          // Recompute state from the post-remediation vectors. A fake email or
+          // phone must not be removed while its old outcome is retained.
+          const stateInput = contactStateInput(entity);
+          if (integrityPatch.email === null) stateInput.email = null;
+          if (integrityPatch.phone === null) {
+            stateInput.phone = null;
+            stateInput.phoneSource = null;
+          }
+          const state = computeContactState(stateInput);
+          if (!quarantine && state.contactConfidence !== entity.contactConfidence) {
+            patch.contactConfidence = state.contactConfidence;
+          }
+          if (!quarantine && state.contactOutcome !== entity.contactOutcome) {
+            patch.contactOutcome = state.contactOutcome;
+          }
+          if (!quarantine && state.isHot !== entity.isHot) {
+            patch.isHot = state.isHot;
+          }
           const safeLogIds = pendingLogs
             .filter(log => isSafeFindingTitle(log.title, entity.name))
             .map(log => log.id);
