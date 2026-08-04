@@ -87,6 +87,31 @@ function contactStateInput(entity: typeof entitiesTable.$inferSelect) {
   };
 }
 
+type PersonaSuggestion = Awaited<ReturnType<typeof runPersonasForEntity>>[number];
+
+async function onlyNovelSuggestions(
+  entityId: number,
+  suggestions: PersonaSuggestion[],
+): Promise<PersonaSuggestion[]> {
+  if (suggestions.length === 0) return [];
+  const existing = await db
+    .select({
+      persona: improvementLogsTable.persona,
+      title: improvementLogsTable.title,
+    })
+    .from(improvementLogsTable)
+    .where(eq(improvementLogsTable.entityId, entityId));
+  const seen = new Set(existing.map((row) => `${row.persona}\u0000${row.title}`));
+  const novel: PersonaSuggestion[] = [];
+  for (const suggestion of suggestions) {
+    const key = `${suggestion.persona}\u0000${suggestion.title}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    novel.push(suggestion);
+  }
+  return novel;
+}
+
 // ── POST /improve/apply-safe — apply deterministic, fail-closed findings ─────
 //
 // Recommendations that require new public evidence remain pending. This job
@@ -292,9 +317,10 @@ router.post("/improve/run", async (req: Request, res: Response): Promise<void> =
         const entity = entities[i];
         try {
           const suggestions = await runPersonasForEntity(entity);
-          if (suggestions.length > 0) {
+          const novelSuggestions = await onlyNovelSuggestions(entity.id, suggestions);
+          if (novelSuggestions.length > 0) {
             await db.insert(improvementLogsTable).values(
-              suggestions.map(s => ({
+              novelSuggestions.map(s => ({
                 entityId: s.entityId,
                 persona: s.persona,
                 category: s.category,
@@ -305,9 +331,9 @@ router.post("/improve/run", async (req: Request, res: Response): Promise<void> =
                 status: "pending",
               }))
             );
-            inserted += suggestions.length;
+            inserted += novelSuggestions.length;
           }
-          await appendJobLog(jobId, `[${i + 1}/${entities.length}] ${entity.name}: ${suggestions.length} suggestions`);
+          await appendJobLog(jobId, `[${i + 1}/${entities.length}] ${entity.name}: ${novelSuggestions.length} new suggestions`);
         } catch (err: any) {
           errors++;
           await appendJobLog(jobId, `[ERROR] ${entity.name}: ${err.message}`);
@@ -360,10 +386,11 @@ router.post("/improve/run/:entityId", async (req: Request, res: Response): Promi
 
   try {
     const suggestions = await runPersonasForEntity(entity);
+    const novelSuggestions = await onlyNovelSuggestions(entity.id, suggestions);
     let inserted = 0;
-    if (suggestions.length > 0) {
+    if (novelSuggestions.length > 0) {
       await db.insert(improvementLogsTable).values(
-        suggestions.map(s => ({
+        novelSuggestions.map(s => ({
           entityId: s.entityId,
           persona: s.persona,
           category: s.category,
@@ -374,7 +401,7 @@ router.post("/improve/run/:entityId", async (req: Request, res: Response): Promi
           status: "pending",
         }))
       );
-      inserted = suggestions.length;
+      inserted = novelSuggestions.length;
     }
 
     res.status(201).json({
@@ -645,9 +672,10 @@ router.post("/improve/run-all", async (req: Request, res: Response): Promise<voi
           const entity = chunkEntities[i];
           try {
             const suggestions = await runPersonasForEntity(entity);
-            if (suggestions.length > 0) {
+            const novelSuggestions = await onlyNovelSuggestions(entity.id, suggestions);
+            if (novelSuggestions.length > 0) {
               await db.insert(improvementLogsTable).values(
-                suggestions.map(s => ({
+                novelSuggestions.map(s => ({
                   entityId: s.entityId,
                   persona: s.persona,
                   category: s.category,
@@ -658,8 +686,8 @@ router.post("/improve/run-all", async (req: Request, res: Response): Promise<voi
                   status: "pending",
                 }))
               );
-              batchInserted += suggestions.length;
-              totalInserted += suggestions.length;
+              batchInserted += novelSuggestions.length;
+              totalInserted += novelSuggestions.length;
             }
           } catch (err: any) {
             batchErrors++;
