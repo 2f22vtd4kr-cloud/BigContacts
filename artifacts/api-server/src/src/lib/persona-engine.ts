@@ -718,7 +718,7 @@ async function runIntelSystemsAnalyst(entity: Entity): Promise<ImprovementSugges
   // ── Layer 1: Hybrid Retrieval signal coverage ──────────────────────────────
 
   // Thin source registry = weak BM25 + graph anchor for cross-entity search
-  if (sources.length <= 1 && score < 0.5) {
+  if (isResearchTarget && sources.length <= 1 && score < 0.5) {
     suggestions.push({
       entityId: entity.id,
       persona: "intel_systems_analyst",
@@ -849,23 +849,8 @@ async function runBusinessEngineer(entity: Entity): Promise<ImprovementSuggestio
           "map to private-club memberships; connect to asset-management vehicles (trusts, SPVs).",
         actionTaken: "Zero-relationship flag set — graph integration required.",
       });
-    } else {
-      // Corporation / Trust — edges come from CH co-director detection, not individual networking
-      suggestions.push({
-        entityId: entity.id,
-        persona: "business_engineer",
-        category: "structure",
-        priority: "low",
-        title: "Corporate vehicle has no relationship edges yet",
-        description:
-          `${entity.type} entity has no graph edges. Edges for corporate vehicles are built by the ` +
-          "CH Co-Directors detection pass (shared directors → SHARED_DIRECTOR edges) and the " +
-          "corporate name-series clustering (CORPORATE_SERIES edges). " +
-          "Run both passes from the Data Sources page to populate the graph.",
-        actionTaken: "Corporate vehicle edge-gap logged — run CH co-directors + name cluster detection.",
-      });
     }
-  } else if (relCount < 3) {
+  } else if (isResearchTarget && relCount < 3) {
     suggestions.push({
       entityId: entity.id,
       persona: "business_engineer",
@@ -911,6 +896,7 @@ async function runBusinessEngineer(entity: Entity): Promise<ImprovementSuggestio
 
 async function runUxDesigner(entity: Entity): Promise<ImprovementSuggestion[]> {
   const suggestions: ImprovementSuggestion[] = [];
+  const isResearchTarget = entity.type === "HNWI" || entity.type === "Gatekeeper";
 
   const mappableAssets = await db
     .select({ id: assetsTable.id })
@@ -928,7 +914,7 @@ async function runUxDesigner(entity: Entity): Promise<ImprovementSuggestion[]> {
     s => s.toLowerCase().includes("land registry") || s.toLowerCase().includes("hmlr") || s.toLowerCase().includes("price paid")
   );
 
-  if (mappableAssets.length === 0 && !isLandRegistryEntity) {
+  if (isResearchTarget && mappableAssets.length === 0 && !isLandRegistryEntity) {
     suggestions.push({
       entityId: entity.id,
       persona: "ux_designer",
@@ -960,7 +946,7 @@ async function runUxDesigner(entity: Entity): Promise<ImprovementSuggestion[]> {
   }
 
   const name = entity.name.trim();
-  if (name.split(" ").length < 2) {
+  if (isResearchTarget && name.split(" ").length < 2) {
     suggestions.push({
       entityId: entity.id,
       persona: "ux_designer",
