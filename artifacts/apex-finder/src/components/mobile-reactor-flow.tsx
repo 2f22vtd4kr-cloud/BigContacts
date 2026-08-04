@@ -16,8 +16,6 @@ interface ResearchSession {
   id: number;
   targetEntityName: string | null;
   winningPath: string | null;
-  generatedPitch: string | null;
-  crmStatus: string;
   bayesianScoreAtRuntime: number | null;
   pathScore: number | null;
   createdAt: string;
@@ -101,7 +99,7 @@ const MOBILE_PHASES = [
   { id: "ai_layer", label: "AI EXTRACTION", detail: "Search, extraction, and adaptive follow-up", nodeIds: ["perp0", "exa", "tavily", "gemini", "groq", "perpfu"] },
   { id: "synthesis", label: "VECTOR SYNTHESIS", detail: "Evidence becomes vectors and priority", nodeIds: ["semantic", "bayesian"] },
   { id: "core", label: "REACTOR CORE", detail: "Relationships and paths are evaluated", nodeIds: ["graph", "mcts", "prac"] },
-  { id: "output", label: "OUTPUT GENERATION", detail: "A research-ready outreach sequence", nodeIds: ["pitch"] },
+  { id: "output", label: "EVIDENCE REVIEW", detail: "A research path for analyst assessment", nodeIds: ["evidence"] },
 ];
 
 function QuickStat({
@@ -148,7 +146,7 @@ function formatTool(tool: string): string {
     "source-cooldowns": "Source cooldowns",
     mcts: "MCTS / UCT",
     prac: "Path review",
-    pitch: "Outreach safety",
+    evidence: "Evidence review",
   };
   return labels[tool] ?? tool;
 }

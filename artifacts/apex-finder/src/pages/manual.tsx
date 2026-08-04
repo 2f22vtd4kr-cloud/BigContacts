@@ -94,7 +94,7 @@ const SECTIONS = [
         </ul>
         <ScoreDemoGrid />
         <p className="text-sm text-muted-foreground leading-relaxed">
-          A high Signal Score does <strong className="text-foreground">not</strong> mean high contactability. Many ultra-high-net-worth individuals have massive registry footprints but perfect privacy firewalls. Focus your active outreach on the "Reachable" and "Direct" access bands.
+          A high Signal Score does <strong className="text-foreground">not</strong> prove identity or personal access. Many high-net-worth individuals have massive registry footprints but limited attributable public contact evidence. Treat the Access Score as an evidence-backed assessment, not a communication recommendation.
         </p>
       </>
     )
@@ -116,7 +116,7 @@ const SECTIONS = [
           <span className="text-xs font-mono text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded">Contactable</span>
         </div>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          When you identify a cohort, use the <code className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">Bulk Actions</code> bar to export to CSV, add them to your CRM Pipeline, or run deep-dive Hybrid Research in parallel.
+          When you identify a cohort, use the <code className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">Bulk Actions</code> bar to inspect records, compare evidence, or run deep-dive Hybrid Research in parallel.
         </p>
       </>
     )
@@ -130,7 +130,7 @@ const SECTIONS = [
           When an entity requires deeper analysis, launch a <strong className="text-foreground">Hybrid Research Session</strong>. The system branches out across multiple search vectors (BM25 + Semantic + Graph + Bayesian, with L4 UCT path exploration), dynamically evaluating approach angles based on public footprints.
         </p>
         <Callout title="Approach Vectors">
-          The research session outputs a recommended approach vector — whether to contact them via a family office, a registered gatekeeper, or directly through professional networks.
+          The research session outputs an evidence path with source context, relationship steps, attribution findings, and an access assessment. It does not recommend communication routes.
         </Callout>
       </>
     )
@@ -141,14 +141,14 @@ const SECTIONS = [
     content: (
       <>
         <p className="text-sm text-muted-foreground leading-relaxed mb-4">
-          Apex includes tools for maintaining database hygiene and refining outreach:
+          Apex includes tools for maintaining database hygiene and refining research quality:
         </p>
         <ul className="space-y-4 text-sm text-muted-foreground">
           <li className="flex gap-3">
             <Activity className="w-5 h-5 text-primary shrink-0" />
             <div>
               <strong className="text-foreground block mb-1">Persona Loop</strong>
-              Iteratively refine your automated outreach personas based on reply rates and sentiment analysis.
+              Iteratively refine deterministic research personas based on evidence coverage, source quality, attribution, and review outcomes.
             </div>
           </li>
           <li className="flex gap-3">

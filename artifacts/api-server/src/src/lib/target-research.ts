@@ -106,16 +106,13 @@ export async function runTargetResearch(
     targetEntityId: entityId,
     winningPath: JSON.stringify(mcts.winningPath),
     mctsSteps: JSON.stringify(mcts.mctsSteps),
-    crmStatus: "Research Review",
     notes: [
       "Atlas target-scoped UCT research completed.",
       `Path candidate score ${(mcts.pathScore * 100).toFixed(0)}/100 retained for manual review.`,
-      "No outreach copy was generated or scheduled.",
+      "Atlas is an OSINT research system; no communication artifact was generated.",
     ].join(" "),
     bayesianScoreAtRuntime: target.bayesianScore,
     pathScore: mcts.pathScore,
-    generatedPitch: "",
-    safeUseStatus: "manual_review",
   }).returning({ id: researchSessionsTable.id });
 
   if (session) {
@@ -131,8 +128,8 @@ export async function runTargetResearch(
         status: "done",
       },
       {
-        algo: "L6 — Outreach Safety Boundary",
-        contribution: "No outreach generated, sent, or scheduled.",
+        algo: "L6 — Research Review Boundary",
+        contribution: "Evidence remains review-only; no communication artifact was generated.",
         status: "done",
       },
     ]);

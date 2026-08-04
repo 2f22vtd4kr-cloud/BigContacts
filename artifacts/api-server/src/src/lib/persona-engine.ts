@@ -26,7 +26,7 @@
  *  L1 — Hybrid Semantic + Keyword + Graph Search (hybrid-search.ts)
  *       BM25 keyword · TF-IDF cosine · NetworkX-style graph traversal · RRF fusion · Redis cache
  *  L2 — Agentic Multi-Agent Reasoning (agent-orchestrator.ts)
- *       Planner → Retriever → Analyst → Critic pipeline; hand-off logic; pitch synthesis
+ *       Planner → Retriever → Analyst → Critic pipeline; hand-off logic; evidence synthesis
  *  L3 — Iterative Query Expansion + Relevance Feedback (agent-orchestrator.ts)
  *       expandQuery(): ASSET_EXPANSION synonyms · GEO_MAP canonical forms ·
  *       name hints · INTENT_EXPANSION background terms (single-pass, deterministic)
@@ -58,7 +58,7 @@ export type PersonaId =
 export type ImprovementCategory =
   | "data_quality"
   | "scoring"
-  | "outreach"
+  | "research"
   | "structure"
   | "display"
   | "classification"
@@ -72,8 +72,8 @@ export function shouldRequestContactFollowUp(input: {
   approvedContactValues?: unknown[] | null;
   contactOutcome?: string | null;
 }): boolean {
-  const isDirectOutreachTarget = input.entityType === "HNWI" || input.entityType === "Gatekeeper";
-  return isDirectOutreachTarget
+  const isResearchTarget = input.entityType === "HNWI" || input.entityType === "Gatekeeper";
+  return isResearchTarget
     && Array.isArray(input.approvedContactValues)
     && input.approvedContactValues.length === 0
     && input.contactOutcome !== "direct_contact_candidate"
@@ -153,7 +153,7 @@ async function runUserOperator(entity: Entity): Promise<ImprovementSuggestion[]>
     suggestions.push({
       entityId: entity.id,
       persona: "user_operator",
-      category: "outreach",
+      category: "research",
       priority: "high",
       title: "Operator gate requires a target-scoped review before outreach",
       description:
@@ -267,7 +267,7 @@ async function runOsintSpecialistsTeam(entity: Entity): Promise<ImprovementSugge
     suggestions.push({
       entityId: entity.id,
       persona: "osint_specialists_team",
-      category: "outreach",
+      category: "research",
       priority: "high",
       title: "OSINT team requires a claim-level Phase J evidence record",
       description:
@@ -583,7 +583,7 @@ async function runIntelSystemsAnalyst(entity: Entity): Promise<ImprovementSugges
 
   // Corp/Trust are property vehicles — they don't get MCTS sessions.
   // Only HNWI and Gatekeeper are direct outreach targets.
-  const isDirectOutreachTarget = entity.type === "HNWI" || entity.type === "Gatekeeper";
+  const isResearchTarget = entity.type === "HNWI" || entity.type === "Gatekeeper";
 
   // ── Fetch data needed across all four layers ────────────────────────────────
   const [sessions, relRow, assetRow] = await Promise.all([
@@ -629,7 +629,7 @@ async function runIntelSystemsAnalyst(entity: Entity): Promise<ImprovementSugges
     suggestions.push({
       entityId: entity.id,
       persona: "intel_systems_analyst",
-      category: "outreach",
+      category: "research",
       priority: "high",
       title: "Zero-yield target run — contact research must continue",
       description:
@@ -644,18 +644,18 @@ async function runIntelSystemsAnalyst(entity: Entity): Promise<ImprovementSugges
 
   // ── Layer 4: MCTS Deep Path Exploration ────────────────────────────────────
 
-  if (sessions.length === 0 && isDirectOutreachTarget) {
+  if (sessions.length === 0 && isResearchTarget) {
     suggestions.push({
       entityId: entity.id,
       persona: "intel_systems_analyst",
-      category: "outreach",
+      category: "research",
       priority: "high",
       title: "Hybrid stack not activated — no intelligence session exists",
       description:
         "This entity has never been processed by the full hybrid pipeline. Without a Hybrid Research session, " +
-        "the UCT path-finder, agent orchestrator, and pitch synthesiser have no baseline to work from. " +
-        "The Pipeline CRM card is empty, the graph layer has no path scores, and outreach is unguided. " +
-        "Start a session via the Intel Terminal to activate the Planner → Retriever → Analyst → Critic → Pitch pipeline.",
+        "the UCT path-finder and agent orchestrator have no baseline to work from. " +
+        "The graph layer has no evidence path scores and the research review is unguided. " +
+        "Start a session via the Intel Terminal to activate the Planner → Retriever → Analyst → Critic → Evidence Review pipeline.",
       actionTaken: "Entity flagged as pipeline-cold. Queued for Hybrid Research session at next cycle.",
     });
   } else if (sessions.length > 0) {
@@ -666,7 +666,7 @@ async function runIntelSystemsAnalyst(entity: Entity): Promise<ImprovementSugges
       suggestions.push({
         entityId: entity.id,
         persona: "intel_systems_analyst",
-        category: "outreach",
+        category: "research",
         priority: "medium",
         title: `Intelligence session is ${Math.floor(ageDays)}d stale — hybrid re-run recommended`,
         description:
@@ -683,7 +683,7 @@ async function runIntelSystemsAnalyst(entity: Entity): Promise<ImprovementSugges
       suggestions.push({
         entityId: entity.id,
         persona: "intel_systems_analyst",
-        category: "outreach",
+        category: "research",
         priority: "medium",
         title: "UCT path score below threshold — Bayesian-UCB exploration needed",
         description:
@@ -696,22 +696,21 @@ async function runIntelSystemsAnalyst(entity: Entity): Promise<ImprovementSugges
       });
     }
 
-    // Agent orchestrator pipeline completeness — pitch is the final synthesis step
-    const noGeneratedPitch = sessions.every(s => !s.generatedPitch);
-    if (noGeneratedPitch) {
+    // Agent orchestrator pipeline completeness — evidence review is the final synthesis step
+    const hasEvidencePath = sessions.some(s => Boolean(s.winningPath));
+    if (!hasEvidencePath) {
       suggestions.push({
         entityId: entity.id,
         persona: "intel_systems_analyst",
-        category: "outreach",
+        category: "research",
         priority: "medium",
-        title: "Agent pipeline incomplete — Critic stage has no synthesised output",
+        title: "Agent pipeline incomplete — no evidence path is available for review",
         description:
-          "Research sessions exist but the Critic agent has not produced a final outreach pitch. " +
+          "Research sessions exist but the Critic agent has not produced a persisted evidence path. " +
           "The pipeline runs: Planner (query intent) → Retriever (BM25 + graph hybrid search) → " +
-          "Analyst (RRF score fusion + Bayesian weighting) → Critic (relevance pruning) → Pitch synthesis. " +
-          "The last stage converts the winning path context and mutual-interest signals into a ready-to-deploy " +
-          "opening message. Complete the pipeline via the Intel Terminal → Generate Pitch.",
-        actionTaken: "Pipeline incomplete — pitch synthesis stage not reached.",
+          "Analyst (RRF score fusion + Bayesian weighting) → Critic (relevance pruning) → evidence synthesis. " +
+          "Re-run the research session so the resulting path and claim context can be reviewed.",
+        actionTaken: "Pipeline incomplete — evidence synthesis stage not reached.",
       });
     }
   }
@@ -770,11 +769,11 @@ async function runIntelSystemsAnalyst(entity: Entity): Promise<ImprovementSugges
   // ── Layer 5: Bayesian-UCB convergence ──────────────────────────────────────
 
   // Hot lead with no pipeline run — UCB exploitation hasn't started
-  if (score >= 0.7 && sessions.length === 0 && isDirectOutreachTarget) {
+  if (score >= 0.7 && sessions.length === 0 && isResearchTarget) {
     suggestions.push({
       entityId: entity.id,
       persona: "intel_systems_analyst",
-      category: "outreach",
+      category: "research",
       priority: "high",
       title: "High-probability target — UCB exploitation not yet initiated",
       description:
@@ -833,10 +832,10 @@ async function runBusinessEngineer(entity: Entity): Promise<ImprovementSuggestio
 
   // Corp/Trust are property vehicles — their graph edges come from CH co-director detection,
   // not personal networking. Flag isolation differently by type.
-  const isDirectOutreachTarget = entity.type === "HNWI" || entity.type === "Gatekeeper";
+  const isResearchTarget = entity.type === "HNWI" || entity.type === "Gatekeeper";
 
   if (relCount === 0) {
-    if (isDirectOutreachTarget) {
+    if (isResearchTarget) {
       suggestions.push({
         entityId: entity.id,
         persona: "business_engineer",
@@ -1001,7 +1000,7 @@ async function runArchitect(entity: Entity): Promise<ImprovementSuggestion[]> {
       title: "HNWI classification may be incorrect — name suggests corporate entity",
       description:
         `Entity name "${entity.name}" contains corporate/legal suffixes but is typed as HNWI. ` +
-        "Misclassification affects L4 path weighting, graph clustering, and CRM track assignment. " +
+        "Misclassification affects L4 path weighting, graph clustering, and research review assignment. " +
         "Review the original registry filing to determine whether this is an individual or a legal vehicle.",
       actionTaken: "Classification anomaly flag: name pattern inconsistent with HNWI type.",
     });
@@ -1316,7 +1315,7 @@ async function runHybridArchitectureAuditor(entity: Entity): Promise<Improvement
   const hasNat     = !!entity.nationality && entity.nationality.trim().length > 0;
   const hasRichMetadata = Object.keys(metadata).length > 3;
   // Corp/Trust are property vehicles — they don't get MCTS sessions.
-  const isDirectOutreachTarget = entity.type === "HNWI" || entity.type === "Gatekeeper";
+  const isResearchTarget = entity.type === "HNWI" || entity.type === "Gatekeeper";
 
   // ── L1: Hybrid Semantic + Keyword + Graph Search ───────────────────────────
   // Three components: BM25 keyword · TF-IDF cosine · graph traversal (RRF fusion)
@@ -1377,39 +1376,35 @@ async function runHybridArchitectureAuditor(entity: Entity): Promise<Improvement
 
   // ── L2: Agentic Multi-Agent Reasoning (Planner → Retriever → Analyst → Critic) ──
 
-  if (sessions.length === 0 && isDirectOutreachTarget) {
+  if (sessions.length === 0 && isResearchTarget) {
     suggestions.push({
       entityId: entity.id,
       persona: "hybrid_architecture_auditor",
-      category: "outreach",
+      category: "research",
       priority: "high",
       title: "L2 multi-agent pipeline cold — Planner has never decomposed a query for this entity",
       description:
         "The L2 pipeline runs four agents in sequence: Planner (decomposes query intent into asset/geo/name filters), " +
         "Retriever (runs L1 hybrid search with expanded query), Analyst (validates against real ingested data, " +
         "applies signal boosts), Critic (re-ranks, removes noise, produces final output). None of these agents " +
-        "have been invoked for this entity. The CRM has no pitch, the graph has no path score, and the " +
+        "have been invoked for this entity. The graph has no evidence path score, and the " +
         "Bayesian-UCB layer (L5) has no session evidence to exploit. " +
         "Fix: trigger a research session from the Intel Terminal to activate all four agents.",
-      actionTaken: "L2 pipeline: cold — 0 sessions, 0 agent invocations, 0 pitches.",
+      actionTaken: "L2 pipeline: cold — 0 sessions and 0 agent invocations.",
     });
   } else {
-    const hasPitch = sessions.some(s => s.generatedPitch && s.generatedPitch.trim().length > 0);
-    if (!hasPitch) {
+    const hasEvidencePath = sessions.some(s => Boolean(s.winningPath));
+    if (!hasEvidencePath) {
       suggestions.push({
         entityId: entity.id,
         persona: "hybrid_architecture_auditor",
-        category: "outreach",
+        category: "research",
         priority: "medium",
-        title: "L2 Critic stage incomplete — sessions exist but no pitch synthesised",
+        title: "L2 evidence stage incomplete — sessions have no reviewable path",
         description:
-          `${sessions.length} research session(s) on record, but the Critic agent has not produced a final pitch. ` +
-          "The L2 pipeline: Planner → Retriever → Analyst → Critic → Pitch synthesis. The last stage converts " +
-          "the Critic's re-ranked path context and mutual-interest signals into a deployable opening message. " +
-          "Without a pitch, the CRM card is empty and outreach cannot proceed. " +
-          "Fix: re-run the research session via the Intel Terminal — the current implementation calls orchestrate() " +
-          "and appends the critiqueNote to the session record on every POST /research/run.",
-        actionTaken: `L2 Critic: ${sessions.length} session(s), 0 pitches synthesised.`,
+          `${sessions.length} research session(s) on record, but none has a persisted evidence path. ` +
+          "Re-run the research session via the Intel Terminal so the claim context can be reviewed.",
+        actionTaken: `L2 evidence review: ${sessions.length} session(s), 0 reviewable paths.`,
       });
     }
   }
@@ -1443,7 +1438,7 @@ async function runHybridArchitectureAuditor(entity: Entity): Promise<Improvement
       suggestions.push({
         entityId: entity.id,
         persona: "hybrid_architecture_auditor",
-        category: "outreach",
+        category: "research",
         priority: "low",
         title: "L3 relevance feedback stagnant — path scores below 0.45 after 3+ sessions",
         description:
@@ -1464,11 +1459,11 @@ async function runHybridArchitectureAuditor(entity: Entity): Promise<Improvement
   // UCT selection · expansion · simulation · backpropagation
   // Reward = real relationship types + personal identifiers from registries
 
-  if (sessions.length === 0 && score >= 0.6 && isDirectOutreachTarget) {
+  if (sessions.length === 0 && score >= 0.6 && isResearchTarget) {
     suggestions.push({
       entityId: entity.id,
       persona: "hybrid_architecture_auditor",
-      category: "outreach",
+      category: "research",
       priority: "high",
       title: "L4 UCT path-finding never run — high-value target has no path exploration",
       description:
@@ -1477,7 +1472,7 @@ async function runHybridArchitectureAuditor(entity: Entity): Promise<Improvement
         "L4 uses UCT formula: Q(v)/N(v) + C√(ln N_parent / N(v)). " +
         "The reward function scores path steps on real relationship types from registries " +
         "(direct ownership > shared assets > gatekeeper proximity > corporate co-membership). " +
-        "Without a tree, there is no ranked warm-introduction path, no winning route to the CRM, " +
+        "Without a tree, there is no ranked evidence path for analyst review, " +
         "and the Bayesian-UCB layer (L5) has no visit counts to exploit. " +
         "Fix: run a Hybrid Research session from the Intel Terminal.",
       actionTaken: `L4: 0 UCT trees built. Score ${score.toFixed(3)} → immediate Hybrid Research session recommended.`,
@@ -1488,7 +1483,7 @@ async function runHybridArchitectureAuditor(entity: Entity): Promise<Improvement
       suggestions.push({
         entityId: entity.id,
         persona: "hybrid_architecture_auditor",
-        category: "outreach",
+        category: "research",
         priority: "medium",
         title: "L4 UCT reward always near-zero — isolated entity has no real relationship paths",
         description:
@@ -1542,7 +1537,7 @@ async function runHybridArchitectureAuditor(entity: Entity): Promise<Improvement
     suggestions.push({
       entityId: entity.id,
       persona: "hybrid_architecture_auditor",
-      category: "outreach",
+      category: "research",
       priority: "high",
       title: "L5 UCB cannot exploit contact signal — zero contact confidence on high-value target",
       description:

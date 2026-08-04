@@ -22,11 +22,11 @@ const LEVELS = [
     content: [
       {
         heading: 'The core idea',
-        body: "HNWIs don't respond to strangers. They respond to warm introductions through people they already trust — their private banker, art dealer, family office manager. ApexFinder maps those relationships from public data so you know exactly who to reach first.",
+        body: "ApexFinder is an OSINT research tool. It maps public evidence, relationships, attribution, and access signals without inferring personal identity or creating communication workflows.",
       },
       {
         heading: 'Your 5-step playbook',
-        body: '1. Entity Ledger — add targets\n2. Live Intel — run registry searches\n3. Network Graph — map connections\n4. MCTS Terminal — find warmest path\n5. Pipeline CRM — track outreach',
+        body: '1. Entity Ledger — add targets\n2. Live Intel — run registry searches\n3. Network Graph — map connections\n4. MCTS Terminal — review evidence paths\n5. Research Review — inspect attribution and access evidence',
       },
       {
         heading: 'Getting started',
@@ -54,8 +54,8 @@ const LEVELS = [
         body: 'US SEC filings. Catches Schedule 13D/G (large share purchases >5%) and DEF 14A (proxy statements naming directors). Essential for any US-listed exposure.',
       },
       {
-        heading: 'CRM Pipeline stages',
-        body: 'Lead Gen → Identified → Graph Mapped → MCTS Path Found → Pitch Generated → Contacted → Follow-Up → Closed.\n\nNever skip a stage. Each is a quality gate.',
+        heading: 'Research review stages',
+        body: 'Targeted → Evidence Collected → Attribution Review → Access Assessment → Research Review.\n\nNever treat a search hit, organization route, or username as proof of personal identity or access.',
       },
     ],
   },
@@ -76,7 +76,7 @@ const LEVELS = [
       },
       {
         heading: 'Strategy',
-        body: '1. Select your target in the dropdown\n2. Find amber (Gatekeeper) nodes — these are your entry points\n3. Spot gatekeepers connected to people you already know\n4. That shared connection = your warm intro angle\n5. Run MCTS to get a ranked, scored path',
+        body: '1. Select your target in the dropdown\n2. Review amber intermediary nodes as evidence only\n3. Check each relationship against its source\n4. Separate wealth and signal from access\n5. Run MCTS to get a ranked, reviewable evidence path',
       },
     ],
   },

@@ -4,10 +4,7 @@ import { db, entitiesTable, contactEvidenceTable, researchEvidenceTable, researc
 import {
   ListResearchSessionsQueryParams,
   GetResearchSessionParams,
-  UpdateResearchStatusParams,
-  UpdateResearchStatusBody,
 } from "@workspace/api-zod";
-import { canApproveForManualOutreach, getSafeUseDecision, type SafeUseStatus } from "../../lib/safe-use";
 import { deriveIntroPathCandidate } from "../../lib/intro-path-candidate";
 
 const router = Router();
@@ -73,7 +70,7 @@ router.get("/research/sessions", async (req, res): Promise<void> => {
   const sessions = rows
     .filter((r) => {
       if (entityId && r.session.targetEntityId !== entityId) return false;
-      if (status && r.session.crmStatus !== status) return false;
+      if (status && status !== "research_review") return false;
       return true;
     })
     .map(({ session, entityName, entityMetadata }) => ({
@@ -81,6 +78,7 @@ router.get("/research/sessions", async (req, res): Promise<void> => {
       targetEntityName: entityName ?? null,
       candidateFunnel: candidateFunnelFromMetadata(entityMetadata),
       createdAt: session.createdAt.toISOString(),
+      researchStatus: "research_review",
     }));
 
   res.json(sessions);
@@ -110,7 +108,7 @@ router.get("/research/sessions/:id", async (req, res): Promise<void> => {
     targetEntityName: row.entityName ?? null,
     candidateFunnel: candidateFunnelFromMetadata(row.entityMetadata),
     createdAt: row.session.createdAt.toISOString(),
-    safeUse: getSafeUseDecision(row.session.safeUseStatus),
+    researchStatus: "research_review",
   });
 });
 
@@ -171,104 +169,6 @@ router.get("/research/sessions/:id/audit", async (req, res): Promise<void> => {
     ...row,
     createdAt: row.createdAt.toISOString(),
   })));
-});
-
-// PATCH /research/sessions/:id/safety
-// This approves a draft for manual review only; it never sends or schedules contact.
-router.patch("/research/sessions/:id/safety", async (req, res): Promise<void> => {
-  const params = GetResearchSessionParams.safeParse(req.params);
-  if (!params.success) {
-    res.status(400).json({ error: params.error.message });
-    return;
-  }
-  const status = req.body?.status as SafeUseStatus;
-  const reviewerNote = typeof req.body?.reviewerNote === "string" ? req.body.reviewerNote.trim() : "";
-  if (!["manual_review", "approved_for_manual_outreach", "blocked"].includes(status)) {
-    res.status(400).json({ error: "status must be manual_review, approved_for_manual_outreach, or blocked." });
-    return;
-  }
-  const [existing] = await db
-    .select()
-    .from(researchSessionsTable)
-    .where(eq(researchSessionsTable.id, params.data.id));
-  if (!existing) {
-    res.status(404).json({ error: "Research session not found" });
-    return;
-  }
-  if (
-    status === "approved_for_manual_outreach" &&
-    !canApproveForManualOutreach({
-      reviewerNote,
-      identityScore: existing.identityScore,
-      accessScore: existing.accessScore,
-    })
-  ) {
-    res.status(422).json({
-      error: "Manual approval requires a reviewer note, identity score ≥ 0.65, and access score ≥ 0.35.",
-    });
-    return;
-  }
-  const [updated] = await db
-    .update(researchSessionsTable)
-    .set({
-      safeUseStatus: status,
-      safeUseReviewedAt: status === "manual_review" ? null : new Date(),
-      safeUseNote: reviewerNote || null,
-      updatedAt: new Date(),
-    })
-    .where(eq(researchSessionsTable.id, params.data.id))
-    .returning();
-  res.json({
-    ...updated,
-    safeUse: getSafeUseDecision(updated!.safeUseStatus),
-  });
-});
-
-// PATCH /research/sessions/:id/status
-router.patch("/research/sessions/:id/status", async (req, res): Promise<void> => {
-  const params = UpdateResearchStatusParams.safeParse(req.params);
-  if (!params.success) {
-    res.status(400).json({ error: params.error.message });
-    return;
-  }
-  const body = UpdateResearchStatusBody.safeParse(req.body);
-  if (!body.success) {
-    res.status(400).json({ error: body.error.message });
-    return;
-  }
-
-  const updateData: Record<string, unknown> = {
-    crmStatus: body.data.crmStatus,
-    updatedAt: new Date(),
-  };
-  if (body.data.lastContactDate) updateData.lastContactDate = body.data.lastContactDate;
-  // Accept notes and followUpDate from request body even if not in Zod schema
-  const extra = req.body as Record<string, unknown>;
-  if (typeof extra.notes === "string" || extra.notes === null) updateData.notes = extra.notes;
-  if (typeof extra.followUpDate === "string" || extra.followUpDate === null) updateData.followUpDate = extra.followUpDate;
-
-  const [session] = await db
-    .update(researchSessionsTable)
-    .set(updateData)
-    .where(eq(researchSessionsTable.id, params.data.id))
-    .returning();
-
-  if (!session) {
-    res.status(404).json({ error: "Research session not found" });
-    return;
-  }
-
-  const [entityRow] = await db
-    .select({ name: entitiesTable.name })
-    .from(entitiesTable)
-    .where(eq(entitiesTable.id, session.targetEntityId));
-
-  res.json({
-    ...session,
-    targetEntityName: entityRow?.name ?? null,
-    createdAt: session.createdAt.toISOString(),
-    safeUse: getSafeUseDecision(session.safeUseStatus),
-  });
 });
 
 export default router;

@@ -2,8 +2,8 @@
  * MCTS Research Agent — Monte Carlo Tree Search for warm-introduction path finding
  *
  * Uses the UCT (Upper Confidence Bound for Trees) formula to guide autonomous
- * exploration of the entity relationship graph, simulating outreach pathways
- * and selecting the highest-probability "warm introduction" route.
+ * exploration of the entity relationship graph, ranking evidence-backed
+ * intermediary and access-assessment paths for analyst review.
  *
  * UCT formula for node selection:
  *   UCT(v) = Q(v)/N(v) + C × √(ln(N(parent)) / N(v))
@@ -45,7 +45,6 @@ export interface MctsResult {
   winningPath: PathStep[];
   mctsSteps: MctsStep[];
   pathScore: number;
-  crmStatus: string;
 }
 
 export interface PathStep {
@@ -69,8 +68,8 @@ function uctScore(node: MctsNode, parentVisits: number): number {
 }
 
 /**
- * Evaluate the "warmth" of a vertex as an outreach point.
- * Higher warmth = easier to approach = better path step.
+ * Evaluate the research utility of a vertex.
+ * Higher utility = stronger evidence-backed path candidate.
  *
  * G3: degree centrality bonus — well-connected entities have more paths to
  *     the target and are therefore higher-value intermediaries.
@@ -100,7 +99,7 @@ function evaluateWarmth(vertex: GraphVertex, depth: number, degree = 0, provenan
   else if (vertex.contactEmail || vertex.contactPhone) warmth += 0.1;
 
   // G3: degree centrality — each additional connection adds a small bonus (capped at +0.12)
-  // High-degree nodes are hub entities: more paths through them → more outreach options
+  // High-degree nodes are hub entities: more paths through them → more research context
   if (degree > 0) warmth += Math.min(0.12, degree * 0.008);
 
   // A structurally convenient edge is not necessarily a usable route. Penalize
@@ -126,7 +125,7 @@ function getRegistry(vertex: GraphVertex): string {
 function getActionRequired(vertex: GraphVertex, role: string): string {
   if (role === "GATEKEEPER") {
     if (vertex.nodeType === "Gatekeeper" && (vertex.contactEmail || vertex.contactPhone)) {
-      return "Review the stored public contact vector and verify the gatekeeper relationship before any outreach";
+      return "Review the stored public contact vector and verify the intermediary relationship before any access assessment";
     }
     return "No actionable route: corroborate a named intermediary and a public contact vector first";
   }
@@ -152,7 +151,7 @@ function getReasoning(vertex: GraphVertex, step: number, depth: number, warmth: 
     Gatekeeper: [
       `${vertex.label} is labelled as a gatekeeper in the stored graph. ` +
       `${registry} is evidence to review, not proof of personal access. ` +
-      `${vertex.contactEmail || vertex.contactPhone ? "A public contact vector is stored; verify attribution and relationship before outreach." : "No public contact vector is stored, so this remains a review candidate."}`,
+      `${vertex.contactEmail || vertex.contactPhone ? "A public contact vector is stored; verify attribution and relationship before treating it as an access signal." : "No public contact vector is stored, so this remains a review candidate."}`,
       `${vertex.label} may be a relevant intermediary node, but the graph does not by itself establish authorization or direct access. ` +
       `Warmth is limited to ${(warmth * 100).toFixed(0)}% until a cited relationship and contact route are corroborated.`,
     ],
@@ -173,7 +172,7 @@ function getReasoning(vertex: GraphVertex, step: number, depth: number, warmth: 
     Aviation: [
       `FAA/EASA evidence for ${vertex.label} can support identity or control analysis only. ` +
       `FBO staff, charter brokers, and maintenance providers are not assumed to have authorized access.`,
-      `The aviation node ${vertex.label} is a research lead, not an outreach route. ` +
+      `The aviation node ${vertex.label} is a research lead, not a personal access route. ` +
       `Any intermediary claim requires a named person, cited source, and attributable public contact.`,
     ],
     Marine: [
@@ -186,12 +185,12 @@ function getReasoning(vertex: GraphVertex, step: number, depth: number, warmth: 
     HNWI: [
       `Target confirmed: ${vertex.label}. Bayesian score ${vertex.bayesianScore ? (vertex.bayesianScore * 100).toFixed(0) + "%" : "—"}. ` +
       (hasMeaningfulContact
-        ? `Contact VERIFIED: ${vertex.contactEmail}. Direct outreach pathway open — gatekeeper step may be skippable.`
+        ? `Contact VERIFIED: ${vertex.contactEmail}. A direct public vector is recorded; personal access remains unproven.`
         : vertex.contactEmail || vertex.contactPhone
           ? "Organization or unverified contact evidence is stored; direct access is not established. Use a corroborated gatekeeper path."
           : vertex.contactConfidence && vertex.contactConfidence >= 50
           ? `Contact confidence: ${vertex.contactConfidence}% — enriched entity. Proceed via gatekeeper until direct contact confirmed.`
-          : `Direct approach is NOT recommended at this stage — gatekeeper contact must precede any HNWI touchpoint.`),
+          : `Personal access is NOT established at this stage — retain the path for research review only.`),
     ],
   };
 
@@ -374,9 +373,9 @@ export function runMcts(
     return acc + warmth * (1 / (i + 1)); // depth-weighted
   }, 0) / Math.max(bestPath.length, 1);
 
-  // F5: gatekeeper-presence bonus — a path containing a Gatekeeper node produces
-  // much higher-quality pitch output (pitch-generator classifies by gatekeeper archetype).
-  // Boost path score by 0.05 so UCT and bulk-run prefer gatekeeper-inclusive paths.
+  // F5: intermediary-presence bonus — a path containing a Gatekeeper node
+  // provides additional research context for access assessment.
+  // Boost path score by 0.05 so UCT and bulk-run prefer corroborated paths.
   const hasGatekeeperInPath = bestPath.some((vId) => graph.vertices.get(vId)?.nodeType === "Gatekeeper");
   const pathScore = rawPathScore + (hasGatekeeperInPath ? 0.05 : 0);
 
@@ -384,7 +383,6 @@ export function runMcts(
     winningPath,
     mctsSteps: steps,
     pathScore: parseFloat(Math.min(0.99, pathScore).toFixed(3)),
-    crmStatus: "MCTS Path Selected",
   };
 }
 

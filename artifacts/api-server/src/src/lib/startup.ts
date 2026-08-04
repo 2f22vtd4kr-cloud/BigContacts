@@ -980,7 +980,6 @@ async function runPopulatedDbMaintenance(): Promise<void> {
     { delayMs:   480_000, label: "auto in-house enricher (pass 2 — faa)",             path: "/api/ingest/in-house-enrich",       body: { batchSize: 5000, targetMode: "faa" } },
     { delayMs:   540_000, label: "auto social discovery (pass 2 — all HNWI)",         path: "/api/ingest/social-discovery",      body: { batchSize: 1000, hotOnly: false } },
     { delayMs:   600_000, label: "auto in-house enricher (pass 3 — edgar force)",     path: "/api/ingest/in-house-enrich",       body: { batchSize: 5000, targetMode: "edgar", force: true } },
-    { delayMs:   660_000, label: "auto pitch backfill",                               path: "/api/research/backfill-pitches" },
 
     // ── PHASE 6: RESEARCH + SCORING (900s–2700s) ─────────────────────────────
     { delayMs:   900_000, label: "auto persona improvement loop (pass 1)",            path: "/api/improve/run-all",              body: { chunkSize: 500, resume: true } },

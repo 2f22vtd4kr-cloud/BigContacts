@@ -21,8 +21,6 @@ interface ResearchSession {
   id: number;
   targetEntityName: string | null;
   winningPath: string | null;
-  generatedPitch: string | null;
-  crmStatus: string;
   bayesianScoreAtRuntime: number | null;
   pathScore: number | null;
   createdAt: string;
@@ -120,7 +118,7 @@ const ATLAS_PHASES = [
   { n: 7, label: "FORENSICS", detail: "Leaks, WHOIS, vessels, and flight history" },
   { n: 8, label: "ATTRIBUTION", detail: "Domain, footprint, and graph-assisted attribution" },
   { n: 9, label: "SEMANTIC", detail: "Embeddings, wealth, confidence, and outcomes" },
-  { n: 10, label: "UCT RESEARCH", detail: "Adaptive paths and outreach sequences" },
+  { n: 10, label: "UCT RESEARCH", detail: "Adaptive paths and evidence review" },
 ];
 
 function atlasPhaseFromMessage(message: string, progress = 0): number {
@@ -214,7 +212,7 @@ const NODES: NodeDef[] = [
   { id:"graph",   label:"GRAPH ENGINE",    sub:"Relationship Synthesis",     cx:260,  cy:652, w:178, h:62,  type:"core",     Icon:Network,    color:"#a78bfa" },
   { id:"mcts",    label:"UCT CORE",        sub:"Adaptive Pathfinding",       cx:800,  cy:657, w:228, h:78,  type:"reactor",  Icon:Cpu,        color:"#a3e635" },
   { id:"prac",    label:"PRAC ENGINE",     sub:"Planner · Analyst · Critic", cx:1340, cy:652, w:178, h:62,  type:"core",     Icon:Activity,   color:"#a78bfa" },
-  { id:"pitch",   label:"PITCH GENERATOR", sub:"Custom Outreach Sequence",   cx:800,  cy:768, w:244, h:54,  type:"output",   Icon:Target,     color:"#fbbf24" },
+  { id:"evidence", label:"EVIDENCE REVIEW", sub:"Research Path Assessment", cx:800, cy:768, w:244, h:54, type:"output", Icon:Target, color:"#fbbf24" },
 ];
 
 const NM = Object.fromEntries(NODES.map(n => [n.id, n]));
@@ -267,8 +265,8 @@ const EDGES: EdgeDef[] = [
   {id:"bay-pr",   from:"bayesian",to:"prac"  },
   {id:"gr-mc",    from:"graph",  to:"mcts"   },
   {id:"mc-pr",    from:"mcts",   to:"prac"   },
-  {id:"mc-pit",   from:"mcts",   to:"pitch"  },
-  {id:"pr-pit",   from:"prac",   to:"pitch"  },
+  {id:"mc-evidence", from:"mcts", to:"evidence" },
+  {id:"pr-evidence", from:"prac", to:"evidence" },
   {id:"mc-groq-a",from:"mcts",   to:"groq",  adaptive:true},
   {id:"mc-fu-a",  from:"mcts",   to:"perpfu",adaptive:true},
   {id:"pr-fu-a",  from:"prac",   to:"perpfu",adaptive:true},
@@ -285,8 +283,8 @@ const WAVES: Wave[] = [
   { nodes:["graph"],                                 edges:["gr-mc"],                                                        label:"GRAPH ENGINE  —  relationship network" },
   { nodes:["mcts"],                                  edges:["mc-pr","mc-groq-a","mc-fu-a"],                                 label:"UCT CORE  —  adaptive pathfinding", adaptive:true },
   { nodes:["groq","perpfu"],                         edges:["groq-fu","fu-bay","pr-fu-a"],                                  label:"ADAPTIVE LOOP  —  re-querying with new graph evidence", adaptive:true },
-  { nodes:["prac"],                                  edges:["pr-pit","mc-pit"],                                             label:"PRAC ENGINE  —  planner · retriever · analyst · critic" },
-  { nodes:["pitch"],                                 edges:[],                                                               label:"OUTPUT  —  generating custom outreach sequence" },
+  { nodes:["prac"],                                  edges:["pr-evidence","mc-evidence"],                                 label:"PRAC ENGINE  —  planner · retriever · analyst · critic" },
+  { nodes:["evidence"],                              edges:[],                                                               label:"OUTPUT  —  evidence path ready for analyst review" },
   { nodes:[],                                        edges:[],                                                               label:"REACTOR COOLING  —  cycle complete" },
 ];
 
@@ -298,7 +296,7 @@ const MOBILE_PHASES = [
   { label:"AI LAYER",   detail:"Search, extraction, and adaptive follow-up", nodeIds:["perp0","exa","tavily","gemini","groq","perpfu"]       },
   { label:"SYNTHESIS",  detail:"Evidence becomes vectors and priority", nodeIds:["semantic","bayesian"]                                 },
   { label:"CORE",       detail:"Relationships and paths are evaluated", nodeIds:["graph","mcts","prac"]                                 },
-  { label:"OUTPUT",     detail:"A research-ready outreach sequence", nodeIds:["pitch"]                                               },
+  { label:"OUTPUT",     detail:"An evidence path ready for analyst review", nodeIds:["evidence"]                                 },
 ];
 
 const REGISTRY_NODE_IDS = ["faa","edgar","hmlr","ch","hnwi","occrp","brreg","whoxy"];
@@ -315,7 +313,7 @@ const MOBILE_NODE_POS: Record<string, { x:number; y:number }> = {
   gemini: { x:84, y:428 }, perpfu: { x:168, y:428 },
   semantic: { x:84, y:512 }, bayesian: { x:276, y:512 },
   graph: { x:54, y:594 }, mcts: { x:180, y:594 }, prac: { x:306, y:594 },
-  pitch: { x:180, y:690 },
+  evidence: { x:180, y:690 },
 };
 
 // ── Job → node mapping for live reactor state ────────────────────────────────
@@ -349,7 +347,7 @@ const ATLAS_PHASE_NODES: Record<number, string[]> = {
   7:  ["whoxy","occrp","deepweb","opensky"],
   8:  ["semantic","bayesian","graph"],
   9:  ["semantic","bayesian","inhouse"],
-  10: ["mcts","prac","graph","pitch","target"],             // MCTS generates outreach pitch
+  10: ["mcts","prac","graph","evidence","target"],
 };
 
 function rodStatus(id: string, atlasState: AtlasLiveState | null | undefined, liveNodes?: Set<string>): RodStatus {
@@ -391,7 +389,7 @@ const JOB_NODE_MAP: Record<string, string[]> = {
   // ── Analysis ─────────────────────────────────────────────────────────────────
   "compute-embeddings":   ["semantic"],
   "semantic-dedup":       ["semantic","bayesian"],
-  "bulk-hybrid-research": ["mcts","prac","bayesian","graph","pitch"],
+  "bulk-hybrid-research": ["mcts","prac","bayesian","graph","evidence"],
   "auto-detect":          ["graph","bayesian"],
   "auto-detect-clusters": ["graph","semantic"],
 };
@@ -471,18 +469,17 @@ function QuickStat({ label, value, color, compact = false }: {
   );
 }
 
-function QuickStats({ totalEntities, hotCount, totalAssets, sessionCount, pitchCount, compact = false }: {
+function QuickStats({ totalEntities, hotCount, totalAssets, sessionCount, compact = false }: {
   totalEntities: number;
   hotCount: number;
   totalAssets: number;
   sessionCount: number;
-  pitchCount: number;
   compact?: boolean;
 }) {
   return (
     <div style={{
       display:"grid",
-      gridTemplateColumns:compact ? "repeat(4, minmax(0, 1fr))" : "repeat(5, minmax(72px, 1fr))",
+      gridTemplateColumns:"repeat(4, minmax(72px, 1fr))",
       gap:compact ? 4 : 6,
       minWidth:0,
       flex:compact ? undefined : 1,
@@ -491,7 +488,6 @@ function QuickStats({ totalEntities, hotCount, totalAssets, sessionCount, pitchC
       <QuickStat label="HOT LEADS" value={hotCount} color="#a3e635" compact={compact} />
       <QuickStat label="ASSETS" value={totalAssets} color="#22d3ee" compact={compact} />
       <QuickStat label="RESEARCH" value={sessionCount} color="#a78bfa" compact={compact} />
-      {!compact && <QuickStat label="OUTREACH" value={pitchCount} color="#fbbf24" />}
     </div>
   );
 }
@@ -585,16 +581,6 @@ function MobileNodeCard({ n, on, dim, status = "idle", compact = false }: { n: N
       }} />
     </div>
   );
-}
-
-// ── CRM status colour ─────────────────────────────────────────────────────────
-function crmColor(status: string) {
-  switch (status) {
-    case "contacted": return "#a3e635";
-    case "replied":   return "#22d3ee";
-    case "converted": return "#fbbf24";
-    default:          return "#3a5070";
-  }
 }
 
 function formatDate(iso: string) {
@@ -723,7 +709,7 @@ const TELEMETRY_TOOL_LABELS: Record<string, string> = {
   graph: "GRAPH",
   mcts: "UCT / MCTS",
   prac: "PRAC",
-  pitch: "PITCH",
+  evidence: "EVIDENCE REVIEW",
   "persona-review": "PERSONA REVIEW",
   sherlock: "SHERLOCK",
 };
@@ -823,7 +809,6 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
   exhaustedKeys?: string[];
 }) {
   const hasSessions = sessions.length > 0;
-  const pitchCount = sessions.filter(s => s.generatedPitch).length;
   const atlasRunning = atlasState?.runStatus === "running";
   const isLive = (liveNodes?.size ?? 0) > 0 || atlasRunning;
   const atlasFailed = atlasState?.runStatus === "failed";
@@ -930,7 +915,6 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
           hotCount={hotCount}
           totalAssets={totalAssets}
           sessionCount={sessions.length}
-          pitchCount={pitchCount}
           compact
         />
         <EntityWorkbench state={atlasState} liveNodes={liveNodes} compact />
@@ -1042,7 +1026,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                   const pos = MOBILE_NODE_POS[n.id];
                   if (!pos) return null;
                   const isTarget = n.id === "target";
-                  const isOutput = n.id === "pitch";
+                  const isOutput = n.id === "evidence";
                   return (
                       <div key={n.id} style={{
                       position:"absolute", zIndex:2,
@@ -1226,11 +1210,11 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                         </div>
                         <div style={{
                           fontSize:8, letterSpacing:"0.12em", flexShrink:0,
-                          color: crmColor(s.crmStatus),
-                          padding:"2px 6px", border:`1px solid ${crmColor(s.crmStatus)}40`,
-                          borderRadius:3, background:`${crmColor(s.crmStatus)}10`,
+                          color:"#a78bfa",
+                          padding:"2px 6px", border:"1px solid #a78bfa40",
+                          borderRadius:3, background:"#a78bfa10",
                         }}>
-                          {s.crmStatus.toUpperCase()}
+                          RESEARCH REVIEW
                         </div>
                       </div>
 
@@ -1250,12 +1234,6 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                             <span style={{ fontSize:12, fontWeight:700, color:"#38bdf8", lineHeight:1 }}>
                               {s.bayesianScoreAtRuntime.toFixed(1)}
                             </span>
-                          </div>
-                        )}
-                        {s.generatedPitch && (
-                          <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-                            <Target style={{ width:9, height:9, color:"#fbbf24" }} />
-                            <span style={{ fontSize:8, letterSpacing:"0.1em", color:"#fbbf24" }}>PITCH READY</span>
                           </div>
                         )}
                         <div style={{ marginLeft:"auto", fontSize:8, color:"#253850", letterSpacing:"0.08em" }}>
@@ -1285,12 +1263,12 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
 }
 
 // ── Desktop layout ────────────────────────────────────────────────────────────
-function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, isLive, totalEntities, hotCount, totalAssets, sessionCount, pitchCount, latestStatus }: {
+function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, isLive, totalEntities, hotCount, totalAssets, sessionCount, latestStatus }: {
   liveNodes?: Set<string>; liveLabel?: string; isLive?: boolean;
   livePhaseDetail?: string;
   atlasState?: AtlasLiveState | null;
   totalEntities?: number; hotCount?: number; totalAssets?: number;
-  sessionCount?: number; pitchCount?: number;
+  sessionCount?: number;
   latestStatus?: string;
 }) {
   // Only live job state lights rods. Standby never simulates an entity moving
@@ -1388,7 +1366,6 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, isL
               hotCount={hotCount ?? 0}
               totalAssets={totalAssets ?? 0}
               sessionCount={sessionCount ?? 0}
-              pitchCount={pitchCount ?? 0}
             />
           </div>
           <EntityWorkbench state={atlasState} liveNodes={liveNodes} compact />
@@ -1762,7 +1739,6 @@ export default function IntelligenceReactorPage() {
           isLive={liveNodes.size > 0 || atlasState?.runStatus === "running"}
           totalEntities={totalEntities} hotCount={hotCount} totalAssets={totalAssets}
           sessionCount={sessions.length}
-          pitchCount={sessions.filter(s => Boolean(s.generatedPitch)).length}
         />
         </div>
       </div>

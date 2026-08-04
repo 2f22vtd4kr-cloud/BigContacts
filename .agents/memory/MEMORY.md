@@ -72,3 +72,4 @@
   - [Intro path candidates](intro-path-candidate.md) — At most one review-only intermediary route per target; never promote it to personal contact or outreach
 - [Phase J bounded workers](phase-j-bounded-workers.md) — Per-target external timeouts plus startup recovery for phase-j-pass prevent stale locks and hung contact-research batches
 - [Contact research coordinator](contact-research-coordinator.md) — Durable target cursor sequences personas, web OSINT, and targeted Phase J with restart recovery and fail-closed eligibility
+- [OSINT-only product boundary](osint-only-boundary.md) — Apex Atlas is evidence research only; legacy CRM/outreach/pitch fields are compatibility data and must not drive behavior

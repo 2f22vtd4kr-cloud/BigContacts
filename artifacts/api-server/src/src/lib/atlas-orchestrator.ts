@@ -224,7 +224,7 @@ async function recordTargetTimeout(
   }).from(entitiesTable).where(eq(entitiesTable.id, entity.id)).then((rows: any[]) => rows[0]);
   const metadata = safeJson<Record<string, unknown>>(row?.metadata ?? entity.metadata, {});
   const timeoutAt = new Date().toISOString();
-  const nextAction = "Retry a target-scoped OSINT pass before treating this target as outreach-ready.";
+  const nextAction = "Retry a target-scoped OSINT pass before treating this target as complete.";
   metadata.atlasTargetOutcome = "timeout_review";
   metadata.atlasLastError = `Target enrichment exceeded ${Math.round(timeoutMs / 1_000)}s in ${phase}.`;
   metadata.atlasTimeoutAt = timeoutAt;
@@ -1175,9 +1175,8 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
         contactOutcome:    computeContactOutcome(fresh),
         bayesianScore:     Math.max(entity.bayesianScore ?? 0, bayesScore),
         isHot,
-        // `cookedAt` means ready for outreach. A safe review with zero
-        // approved personal routes is a completed pass, not a completed
-        // research outcome, so leave it retryable and explicit.
+        // `cookedAt` is reserved for a completed research disposition.
+        // A safe review with no validated personal route remains retryable.
         cookedAt:          researchDisposition.disposition === "contact_route_found" ? new Date() : null,
         updatedAt:         new Date(),
       }).where(eq(entitiesTable.id, id));
@@ -1202,7 +1201,7 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
   } catch (err: any) {
     if (err instanceof AtlasCancelledError || err instanceof AtlasTargetTimeoutError) throw err;
     logger.warn({ entityId: id, name, err: err.message }, "[Atlas] Full-circle enrichment failed (non-fatal)");
-    // Do not stamp cookedAt on an error: cookedAt is the outreach-ready
+    // Do not stamp cookedAt on an error: cookedAt marks completed research
     // boundary, and failed enrichment must remain eligible for retry.
     await db.update(entitiesTable).set({ cookedAt: null, updatedAt: new Date() }).where(eq(entitiesTable.id, id)).catch(() => {});
   }
@@ -1288,7 +1287,7 @@ async function runSingleTargetPipeline(
       status: "active",
       targetName: target.name,
       targetType: target.type,
-      toolIds: ["graph", "mcts", "prac", "pitch"],
+      toolIds: ["graph", "mcts", "prac", "evidence-review"],
       activeToolId: "mcts",
       inputSummary: "One completed target journey; reachability-gated adaptive research",
     });
@@ -1344,7 +1343,7 @@ async function runSingleTargetPipeline(
     status: processOutcome === "complete" ? "complete" : "review",
     targetName: target.name,
     targetType: target.type,
-    toolIds: ["target", "inhouse", "webdisc", "deepweb", "perp0", "exa", "tavily", "gemini", "groq", "maigret", "occrp", "whoxy", "graph", "mcts", "prac", "pitch"],
+    toolIds: ["target", "inhouse", "webdisc", "deepweb", "perp0", "exa", "tavily", "gemini", "groq", "maigret", "occrp", "whoxy", "graph", "mcts", "prac", "evidence-review"],
     inputSummary: `Exact entity ID ${targetId}`,
     resultSummary: `${finalMsg} Disposition: ${disposition}. Next action: ${nextAction}`,
     nextAction,
@@ -1913,7 +1912,7 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
             status: "active",
             targetName: String(e.id),
             targetType: "HNWI",
-            toolIds: ["mcts", "prac", "graph", "pitch"],
+            toolIds: ["mcts", "prac", "graph", "evidence-review"],
             activeToolId: "mcts",
             inputSummary: `Reachability-ranked HNWI research target ${i + 1}/${hotEntities.length} · one target at a time`,
           });
@@ -1924,7 +1923,7 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
             status: "complete",
             targetName: String(e.id),
             targetType: "HNWI",
-            toolIds: ["mcts", "prac", "graph", "pitch"],
+            toolIds: ["mcts", "prac", "graph", "evidence-review"],
             activeToolId: "prac",
             resultSummary: "Target research completed; outcome remains subject to reachability and evidence gates.",
           });
@@ -1934,7 +1933,7 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
             status: "review",
             targetName: String(e.id),
             targetType: "HNWI",
-            toolIds: ["mcts", "prac", "graph", "pitch"],
+            toolIds: ["mcts", "prac", "graph", "evidence-review"],
             activeToolId: "mcts",
             resultSummary: `Target research did not complete: ${err?.message ?? "unknown error"}`,
           });

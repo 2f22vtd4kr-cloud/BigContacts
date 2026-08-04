@@ -8,7 +8,7 @@ import {
   Plus, Search, Trash2, Globe, ChevronDown, ChevronUp, X, Loader2,
   ChevronRight, Network, Target as TargetIcon, Download, ShieldAlert,
   Filter, IdCard,
-  CheckSquare, Square, Users2, ListPlus, CheckCheck, Database, XCircle,
+  CheckSquare, Square, Users2, CheckCheck, Database, XCircle,
   Star, EyeOff, Eye, CheckCircle2, Flame,
 } from "lucide-react";
 
@@ -383,8 +383,6 @@ export default function EntityLedger() {
 
   // Bulk selection state
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-  const [bulkLoading, setBulkLoading] = useState(false);
-  const [bulkDone, setBulkDone]   = useState<string | null>(null);
   const [page, setPage]           = useState(0);
   // Infinite-scroll accumulation
   const [allEntities, setAllEntities] = useState<any[]>([]);
@@ -409,27 +407,6 @@ export default function EntityLedger() {
   const handleBulkExportCsv = () => {
     const sel = (entities ?? []).filter((e: any) => selectedIds.has(e.id));
     exportToCsv(sel);
-  };
-
-  const handleBulkAddToCrm = async () => {
-    if (selectedIds.size === 0) return;
-    setBulkLoading(true);
-    setBulkDone(null);
-    let added = 0;
-    const base = (import.meta as any).env.BASE_URL.replace(/\/$/, "");
-    for (const id of selectedIds) {
-      try {
-        await fetch(`${base}/api/research/lead`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ targetEntityId: id }),
-        });
-        added++;
-      } catch { /* non-fatal */ }
-    }
-    setBulkLoading(false);
-    setBulkDone(`${added} lead${added !== 1 ? "s" : ""} added to CRM`);
-    setTimeout(() => setBulkDone(null), 3000);
   };
 
   const handleBulkMcts = () => {
@@ -892,42 +869,24 @@ export default function EntityLedger() {
               {selectedIds.size} selected
             </span>
             <div className="flex-1" />
-            {bulkDone ? (
-              <span className="text-[10px] font-mono text-primary flex items-center gap-1.5">
-                <CheckCheck className="w-3.5 h-3.5" /> {bulkDone}
-              </span>
-            ) : (
-              <>
-                <button
-                  onClick={handleBulkExportCsv}
-                  className="flex items-center gap-1 px-2 py-1 rounded border border-border text-muted-foreground hover:text-foreground font-mono text-[9px] uppercase tracking-wider transition-all"
-                >
-                  <Download className="w-2.5 h-2.5" /> Export CSV
-                </button>
-                <button
-                  onClick={handleBulkAddToCrm}
-                  disabled={bulkLoading}
-                  className="flex items-center gap-1 px-2 py-1 rounded border border-secondary/40 bg-secondary/10 text-secondary font-mono text-[9px] uppercase tracking-wider hover:bg-secondary/20 disabled:opacity-40 transition-all"
-                >
-                  {bulkLoading
-                    ? <Loader2 className="w-2.5 h-2.5 animate-spin" />
-                    : <ListPlus className="w-2.5 h-2.5" />}
-                  {bulkLoading ? "Adding…" : "Add to CRM"}
-                </button>
-                <button
-                  onClick={handleBulkMcts}
-                  className="flex items-center gap-1 px-2 py-1 rounded border border-primary/40 bg-primary/10 text-primary font-mono text-[9px] uppercase tracking-wider hover:bg-primary/20 transition-all"
-                >
-                  <TargetIcon className="w-2.5 h-2.5" /> Run Research
-                </button>
-                <button
-                  onClick={() => setSelectedIds(new Set())}
-                  className="text-[9px] font-mono text-muted-foreground hover:text-foreground transition-colors ml-1 uppercase tracking-wider"
-                >
-                  <><X className="w-3 h-3" /> Clear</>
-                </button>
-              </>
-            )}
+            <button
+              onClick={handleBulkExportCsv}
+              className="flex items-center gap-1 px-2 py-1 rounded border border-border text-muted-foreground hover:text-foreground font-mono text-[9px] uppercase tracking-wider transition-all"
+            >
+              <Download className="w-2.5 h-2.5" /> Export CSV
+            </button>
+            <button
+              onClick={handleBulkMcts}
+              className="flex items-center gap-1 px-2 py-1 rounded border border-primary/40 bg-primary/10 text-primary font-mono text-[9px] uppercase tracking-wider hover:bg-primary/20 transition-all"
+            >
+              <TargetIcon className="w-2.5 h-2.5" /> Run Research
+            </button>
+            <button
+              onClick={() => setSelectedIds(new Set())}
+              className="text-[9px] font-mono text-muted-foreground hover:text-foreground transition-colors ml-1 uppercase tracking-wider"
+            >
+              <><X className="w-3 h-3" /> Clear</>
+            </button>
           </div>
         )}
 
@@ -1295,31 +1254,18 @@ export default function EntityLedger() {
               {selectedIds.size} selected
             </span>
             <div className="flex-1" />
-            {bulkDone ? (
-              <span className="text-xs font-mono text-primary flex items-center gap-1">
-                <CheckCheck className="w-3.5 h-3.5" /> {bulkDone}
-              </span>
-            ) : (
-              <>
-                <button onClick={handleBulkExportCsv}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded border border-border text-muted-foreground font-mono text-[10px] uppercase tracking-wider">
-                  <Download className="w-3 h-3" /> CSV
-                </button>
-                <button onClick={handleBulkAddToCrm} disabled={bulkLoading}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded border border-secondary/40 bg-secondary/10 text-secondary font-mono text-[10px] uppercase tracking-wider disabled:opacity-40">
-                  {bulkLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <ListPlus className="w-3 h-3" />}
-                  CRM
-                </button>
-                <button onClick={handleBulkMcts}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded border border-primary/40 bg-primary/10 text-primary font-mono text-[10px] uppercase tracking-wider">
-                  <TargetIcon className="w-3 h-3" /> Research
-                </button>
-                <button onClick={() => setSelectedIds(new Set())}
-                  className="text-[10px] font-mono text-muted-foreground hover:text-foreground ml-1">
-                  <X className="w-3 h-3" />
-                </button>
-              </>
-            )}
+            <button onClick={handleBulkExportCsv}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded border border-border text-muted-foreground font-mono text-[10px] uppercase tracking-wider">
+              <Download className="w-3 h-3" /> CSV
+            </button>
+            <button onClick={handleBulkMcts}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded border border-primary/40 bg-primary/10 text-primary font-mono text-[10px] uppercase tracking-wider">
+              <TargetIcon className="w-3 h-3" /> Research
+            </button>
+            <button onClick={() => setSelectedIds(new Set())}
+              className="text-[10px] font-mono text-muted-foreground hover:text-foreground ml-1">
+              <X className="w-3 h-3" />
+            </button>
           </div>
         )}
 

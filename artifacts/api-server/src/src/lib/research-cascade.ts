@@ -1,16 +1,16 @@
-export type CascadeStage = "retrieval" | "graph" | "critic" | "outreach";
+export type CascadeStage = "retrieval" | "graph" | "critic" | "evidence-review";
 
 export interface CascadeDecision {
   runCritic: boolean;
-  runOutreach: boolean;
+  runEvidenceReview: boolean;
   reason: string;
   completedStages: CascadeStage[];
 }
 
 /**
  * Decide whether a deeper stage can add meaningful evidence. Retrieval and
- * graph inspection are cheap foundations; critic/orchestration and outreach
- * are only justified when uncertainty or missing corroboration remains.
+ * graph inspection are cheap foundations; critic/orchestration and evidence
+ * review are only justified when uncertainty or missing corroboration remains.
  */
 export function decideResearchCascade(input: {
   hybridCandidates: number;
@@ -36,7 +36,7 @@ export function decideResearchCascade(input: {
   if (reliableDirectRoute || reliableIntermediaryRoute) {
     return {
       runCritic: false,
-      runOutreach: false,
+      runEvidenceReview: false,
       reason: reliableDirectRoute
         ? "Validated direct route is already present; skipped redundant broad critic search."
         : "Corroborated gatekeeper path is already present; skipped redundant broad critic search.",
@@ -50,7 +50,7 @@ export function decideResearchCascade(input: {
     input.pathNodes <= 1;
   return {
     runCritic: true,
-    runOutreach: false,
+    runEvidenceReview: false,
     reason: sparseEvidence
       ? "Evidence is sparse; critic search is required to test identity and relationship hypotheses."
       : `Evidence remains mixed (${input.hybridCandidates} candidates, ${input.independentSources} source families); critic search retained.`,

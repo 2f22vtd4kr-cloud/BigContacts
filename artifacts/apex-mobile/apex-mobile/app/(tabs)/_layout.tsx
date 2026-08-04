@@ -22,7 +22,7 @@ function NativeTabLayout() {
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="approach">
         <Icon sf={{ default: 'arrow.triangle.branch', selected: 'arrow.triangle.branch' }} />
-        <Label>Approach</Label>
+        <Label>Evidence Path</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="connections">
         <Icon sf={{ default: 'person.2', selected: 'person.2.fill' }} />
@@ -97,7 +97,7 @@ function ClassicTabLayout() {
       <Tabs.Screen
         name="approach"
         options={{
-          title: 'Approach',
+          title: 'Evidence Path',
           tabBarIcon: ({ color }) =>
             isIOS ? (
               <SymbolView name="arrow.triangle.branch" tintColor={color} size={22} />

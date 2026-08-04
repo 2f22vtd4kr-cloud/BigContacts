@@ -305,7 +305,7 @@ export default function MctsScreen() {
           >
             <Feather name="map" size={15} color={colors.secondary} />
             <Text style={[styles.approachButtonText, { color: colors.secondary, fontFamily: 'Inter_600SemiBold' }]}>
-              View Approach
+              View Evidence Path
             </Text>
           </Pressable>
         )}

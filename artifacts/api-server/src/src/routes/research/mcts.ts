@@ -5,7 +5,6 @@ import { RunResearchBody } from "@workspace/api-zod";
 import { buildGraph, findShortestPath, identityPairKey } from "../../lib/graph-engine";
 import { computeBayesianScore } from "../../lib/bayesian-scorer";
 import { runMcts } from "../../lib/mcts-agent";
-import { generateOutreachSequence } from "../../lib/pitch-generator";
 import { hybridSearch } from "../../lib/hybrid-search";
 import { orchestrate } from "../../lib/agent-orchestrator";
 import { assessTargetReachability } from "../../lib/reachability-realism";
@@ -322,7 +321,7 @@ router.post("/research/run", async (req, res): Promise<void> => {
       `Reachability preflight: ${reachability.status} (${reachability.score}/100).`,
       ...reachability.reasons.map((r) => `Evidence: ${r}.`),
       ...reachability.blockers.map((b) => `Constraint: ${b}.`),
-      "Expensive retrieval, critic/orchestration, MCTS, and outreach generation were skipped.",
+      "Expensive retrieval, critic/orchestration, and MCTS were skipped.",
       "A future run may resume after a validated direct vector or corroborated intermediary path is added.",
     ].join(" ");
     const [session] = await db
@@ -331,11 +330,9 @@ router.post("/research/run", async (req, res): Promise<void> => {
         targetEntityId: entityId,
         winningPath: JSON.stringify([]),
         mctsSteps: JSON.stringify([]),
-        crmStatus: "Research Review",
         notes: reason,
         bayesianScoreAtRuntime: updatedScore,
         pathScore: 0,
-        generatedPitch: "",
         identityScore: scorecard.identity,
         ownershipScore: scorecard.ownership,
         contactScore: scorecard.contact,
@@ -344,7 +341,6 @@ router.post("/research/run", async (req, res): Promise<void> => {
         freshnessScore: scorecard.freshness,
         sourceQualityScore: scorecard.sourceQuality,
         scoreBreakdown: JSON.stringify(scorecard),
-        safeUseStatus: "manual_review",
       })
       .returning();
     if (session) {
@@ -535,52 +531,6 @@ router.post("/research/run", async (req, res): Promise<void> => {
     },
   ];
 
-  const entityAssets = await db
-    .select()
-    .from(assetsTable)
-    .where(eq(assetsTable.ownerEntityId, entityId));
-
-  const gatekeeper = mctsResult.winningPath.find((p) => p.role === "GATEKEEPER") ?? null;
-  const pitchCtx = {
-    targetEntity: {
-      name: targetEntity.name,
-      type: targetEntity.type,
-      nationality: targetEntity.nationality,
-      estimatedNetWorth: targetEntity.estimatedNetWorth,
-      knownResidences: targetEntity.knownResidences,
-      notes: targetEntity.notes,
-      contactEmail: targetEntity.email,
-      contactPhone: targetEntity.phone,
-      contactOutcome: targetEntity.contactOutcome,
-      contactConfidence: targetEntity.contactConfidence,
-    },
-    gatekeeper,
-    assets: entityAssets.map((a) => ({
-      category: a.category,
-      identifier: a.identifier,
-      jurisdiction: a.jurisdiction,
-      estimatedValue: a.estimatedValue,
-      address: a.address,
-    })),
-    winningPath: mctsResult.winningPath,
-    pathScore: mctsResult.pathScore,
-  };
-  let pitchText = "";
-  if (finalReviewApproved) {
-    try {
-      const outreach = generateOutreachSequence(pitchCtx);
-      pitchText = [
-        outreach.initial,
-        "---\n**7-day follow-up:**",
-        outreach.followUp,
-        "---\n**Intro script for gatekeeper:**",
-        outreach.introScript,
-      ].join("\n\n");
-    } catch (pitchErr: any) {
-      pitchText = `[Auto-pitch pending: ${pitchErr?.message ?? "generation error"}. Run /research/backfill-pitches to retry.]`;
-    }
-  }
-
   const publishedWinningPath = finalReviewApproved ? mctsResult.winningPath : [];
   const publishedMctsSteps = finalReviewApproved ? mctsResult.mctsSteps : [];
   const [session] = await db
@@ -589,16 +539,8 @@ router.post("/research/run", async (req, res): Promise<void> => {
       targetEntityId: entityId,
       winningPath: JSON.stringify(publishedWinningPath),
       mctsSteps: JSON.stringify(publishedMctsSteps),
-      crmStatus: !finalReviewApproved
-        ? "Research Review"
-        : pitchText.startsWith("[Auto-pitch pending")
-        ? "Pitch Pending"
-        : gatekeeper
-          ? "Pitch Generated"
-          : "Research Review",
       bayesianScoreAtRuntime: updatedScore,
       pathScore: finalReviewApproved ? mctsResult.pathScore : 0,
-      generatedPitch: pitchText,
       identityScore: scorecard.identity,
       ownershipScore: scorecard.ownership,
       contactScore: scorecard.contact,
@@ -607,7 +549,6 @@ router.post("/research/run", async (req, res): Promise<void> => {
       freshnessScore: scorecard.freshness,
       sourceQualityScore: scorecard.sourceQuality,
       scoreBreakdown: JSON.stringify(scorecard),
-      safeUseStatus: "manual_review",
     })
     .returning();
   if (session) {

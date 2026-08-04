@@ -6,7 +6,6 @@ import {
   useListRelationships,
   useListResearchSessions,
   useRunResearch,
-  useGeneratePitch,
   useCreateRelationship,
   useDeleteRelationship,
 } from "@workspace/api-client-react";
@@ -90,16 +89,6 @@ const ASSET_COLORS: Record<string, string> = {
   RealEstate:   "#10B981",
   Marine:       "#06B6D4",
   PrivateClub:  "#A855F7",
-};
-
-const CRM_COLORS: Record<string, string> = {
-  "New Lead":        "text-primary bg-primary/10 border-primary/30",
-  "In Research":     "text-secondary bg-secondary/10 border-secondary/30",
-  "Pitch Generated": "text-amber-400 bg-amber-400/10 border-amber-400/30",
-  "Research Review": "text-sky-400 bg-sky-400/10 border-sky-400/30",
-  Contacted:         "text-blue-400 bg-blue-400/10 border-blue-400/30",
-  "In Negotiation":  "text-purple-400 bg-purple-400/10 border-purple-400/30",
-  Closed:            "text-emerald-400 bg-emerald-400/10 border-emerald-400/30",
 };
 
 const CAT_COLORS: Record<string, string> = {
@@ -322,13 +311,10 @@ export default function ApexProfile() {
   const { data: sessions = [],  refetch: refetchSessions } = useListResearchSessions({ entityId, limit: 10 });
 
   const runResearch       = useRunResearch();
-  const generatePitch     = useGeneratePitch();
   const createRelationship = useCreateRelationship();
   const deleteRelationship = useDeleteRelationship();
 
   const [selectedIdx, setSelectedIdx] = useState(0);
-  const [pitchingId, setPitchingId]   = useState<number | null>(null);
-  const [pitchExpanded, setPitchExpanded] = useState(false);
   const [isEnriching, setIsEnriching]     = useState(false);
   const [enrichError, setEnrichError]     = useState<string | null>(null);
   const [enrichDone, setEnrichDone]       = useState(false);
@@ -511,10 +497,8 @@ export default function ApexProfile() {
   const selectedSession = (sessions as any[])[selectedIdx] ?? null;
   let winningPath: PathStep[] = [];
   let mctsSteps:   any[]      = [];
-  let pitchData:   any[]      = [];
   try { winningPath = selectedSession ? JSON.parse(selectedSession.winningPath ?? "[]") : []; } catch {}
   try { mctsSteps   = selectedSession ? JSON.parse(selectedSession.mctsSteps   ?? "[]") : []; } catch {}
-  try { pitchData   = selectedSession?.generatedPitch ? JSON.parse(selectedSession.generatedPitch) : []; } catch {}
 
   // ── Handlers ───────────────────────────────────────────────────────────────
 
@@ -522,17 +506,6 @@ export default function ApexProfile() {
     runResearch.mutate(
       { data: { entityId, depth: 4 } },
       { onSuccess: () => { refetchSessions(); setSelectedIdx(0); } },
-    );
-  };
-
-  const handleGeneratePitch = (sid: number) => {
-    setPitchingId(sid);
-    generatePitch.mutate(
-      { id: sid },
-      {
-        onSuccess: () => { setPitchingId(null); setPitchExpanded(true); refetchSessions(); },
-        onError:   () => setPitchingId(null),
-      },
     );
   };
 
@@ -1605,7 +1578,7 @@ export default function ApexProfile() {
                       {confidence.overall >= 75
                         ? "High-confidence target. Multiple registry verifications confirmed."
                         : confidence.overall >= 50
-                        ? "Moderate confidence. Additional verification recommended before outreach."
+                        ? "Moderate confidence. Additional attribution verification recommended before access assessment."
                         : "Low confidence. Expand data sources and run registry search first."}
                     </div>
                   </div>
@@ -1969,8 +1942,8 @@ export default function ApexProfile() {
                 <TargetIcon className="w-10 h-10 opacity-20" />
                 <p className="text-sm font-mono">No research sessions yet</p>
                 <p className="text-[11px] font-mono text-center max-w-sm leading-relaxed">
-                  Run Hybrid Research to compute the optimal approach path, gatekeeper mapping,
-                  and personalized outreach sequence for this entity.
+                  Run Hybrid Research to collect evidence, map graph paths,
+                  and assess identity, attribution, and access for this entity.
                 </p>
               </div>
             )}
@@ -1991,7 +1964,7 @@ export default function ApexProfile() {
                     {(sessions as any[]).slice(0, 6).map((s: any, i: number) => (
                       <button
                         key={s.id}
-                        onClick={() => { setSelectedIdx(i); setPitchExpanded(false); }}
+                        onClick={() => { setSelectedIdx(i); }}
                         className={cn(
                           "px-2.5 py-1 rounded border font-mono text-[10px] uppercase transition-colors",
                           selectedIdx === i
@@ -2010,9 +1983,9 @@ export default function ApexProfile() {
                     <div className="flex items-center gap-3 flex-wrap">
                       <span className={cn(
                         "text-[10px] font-mono font-bold px-2.5 py-1 rounded border uppercase",
-                        CRM_COLORS[selectedSession.crmStatus] ?? "text-muted-foreground border-border",
+                        "text-sky-400 bg-sky-400/10 border-sky-400/30",
                       )}>
-                        {selectedSession.crmStatus}
+                        Research Review
                       </span>
                       {selectedSession.pathScore != null && (
                         <span className="text-[10px] font-mono text-muted-foreground">

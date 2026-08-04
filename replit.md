@@ -102,7 +102,7 @@ Tables (all in `lib/db/src/schema/`):
 | `entities` | Core HNWI/Corp/Trust/Gatekeeper profiles |
 | `assets` | BusinessInterest, Aviation, RealEstate, Marine, PrivateClub and other public asset evidence |
 | `relationships` | Entity→Entity and Entity→Asset edges |
-| `research_sessions` | Hybrid Research outreach path results + CRM status |
+| `research_sessions` | Evidence-focused research sessions and review paths |
 | `improvement_logs` | Persona-loop suggestions per entity |
 
 Schema push: `pnpm --filter @workspace/db run push`
@@ -208,8 +208,8 @@ GET  /api/dashboard/hot-leads          top entities by Bayesian score + real ass
 GET  /api/dashboard/map-data           assets with lat/lng for map
 POST /api/search/intelligent           hybrid BM25 + TF-IDF + Bayesian search
 POST /api/registry-search              live OSINT search (GLEIF, EDGAR, OpenCorporates, Companies House)
-POST /api/research/run                 Hybrid Research path-finding for an entity
-GET  /api/research/sessions            CRM research session list
+POST /api/research/run                 Evidence-focused hybrid research for an entity
+GET  /api/research/sessions            Research session list and evidence review state
 POST /api/improve/run                  run persona improvement loop (50 entities at a time)
 POST /api/improve/apply-safe           apply deterministic persona data-quality fixes in a bounded background job
 GET  /api/improve/stats                persona loop summary stats
@@ -253,12 +253,12 @@ GET  /api/improve/logs                 improvement suggestions (filterable by pe
 |---|---|
 | UI refresh | **HNWI-first responsive research desk** — dashboard prioritizes people cards, separate Signal/Access scoring, public contact-path cues, and real empty/loading/error states; desktop and mobile shell/navigation tuned without changing API routes or data behavior |
 | 1–3 | Core DB schema, Bayesian scorer, Express API, React frontend |
-| 4 | Hybrid Research agent (L4 UCT graph traversal), research sessions, CRM pipeline |
+| 4 | Hybrid Research agent (L4 UCT graph traversal), research sessions, evidence review |
 | 5 | Hybrid BM25 + TF-IDF + Bayesian search, network graph |
 | 6 | FAA aircraft registry ingestor, Western HNWI engine (SEC EDGAR + BRREG + Companies House) |
 | 7 | Persona improvement loop (11 deterministic personas: 8 core specialists plus User / Principal Operator, Development Team, and OSINT Specialists Team), `improvement_logs` table, `/improvements` UI page; Atlas Phase J runs the same review after each persisted target checkpoint |
 | 8 | OCCRP Aleph enricher, HMLR OCOD ingestor (replaced by PPD CSV), OpenSky live-flight enricher, Data Sources dashboard |
-| 9 (UX) | Single-pass query expansion (`expandQuery` in agent-orchestrator.ts); Entity Ledger clickable contact vectors (mailto/tel/LinkedIn); Profile page Direct Contact Vectors action bar; Intel Terminal search bar + 500-entity limit + `?entity=` URL pre-selection; CRM empty-state guidance; `improve/run` inArray SQL fix; Intel Systems Analyst persona text updated to reflect expansion mechanics |
+| 9 (UX) | Single-pass query expansion (`expandQuery` in agent-orchestrator.ts); Entity Ledger evidence vectors; Profile research review; Intel Terminal search bar + 500-entity limit + `?entity=` URL pre-selection; `improve/run` inArray SQL fix; Intel Systems Analyst persona text updated to reflect expansion mechanics |
 | 10 | **Redis contact cache** — enriched contacts now persist across GitHub imports and DB resets. `REDIS_URL_2` (Upstash slot 2) stores `contact:v1:{stableKey}` entries permanently. Startup restore (Redis → PG) and backfill (PG → Redis) steps run on every boot. Enricher mirrors to Redis after every DB write. |
 | 11 | **Pipeline recovery hardening** — stale queued Hybrid Research locks are invalidated safely; shared public-email validation rejects search-engine diagnostics/placeholders; boot sanitation repairs PostgreSQL and Redis contact records; verified two 300-session research passes plus a fresh 100-entity Persona Loop pass with 0 errors. |
 | 12 | **Phase H complete + full audit** — pipeline inverted (web-first), recurring scheduler (7 jobs forever), 3 enrichment modules (social-discovery, messenger-discovery, foundation-filings), 9 new schema columns, 8-vector contact panel UI. Full audit pass: confirmed all Phase H modules exist and route correctly; fixed 2 bugs: (1) `research.tsx` terminal placeholder "MCTS" → "UCT" (user-facing string); (2) `ingest-enrichment.ts` foundation-filings `db.select()` was missing all 5 social columns, causing `computeContactConfidence` to systematically undercount social signals. No other user-facing MCTS strings exist. All 300/300 Hybrid Research sessions and 100-entity Persona Loop pass with 0 errors verified. |

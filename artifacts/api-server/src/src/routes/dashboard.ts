@@ -66,22 +66,22 @@ router.get("/dashboard/hot-leads", async (req, res): Promise<void> => {
     }
   }
 
-  // Get CRM status from latest research session per entity
-  const crmMap: Record<number, string> = {};
+  // Research status is intentionally derived from session existence only.
+  const researchMap: Record<number, string> = {};
   const sessionIds: Record<number, boolean> = {};
   if (entities.length > 0) {
     const ids = entities.map((e) => e.id);
     const sessions = await db
       .select({
         entityId: researchSessionsTable.targetEntityId,
-        status: researchSessionsTable.crmStatus,
+        status: sql<string>`'research_review'`,
       })
       .from(researchSessionsTable)
       .where(sql`${researchSessionsTable.targetEntityId} = ANY(${sql.raw(`ARRAY[${ids.join(",")}]::int[]`)})`)
       .orderBy(desc(researchSessionsTable.createdAt));
     for (const s of sessions) {
-      if (!crmMap[s.entityId]) {
-        crmMap[s.entityId] = s.status;
+      if (!researchMap[s.entityId]) {
+        researchMap[s.entityId] = s.status;
         sessionIds[s.entityId] = true;
       }
     }
@@ -143,7 +143,7 @@ router.get("/dashboard/hot-leads", async (req, res): Promise<void> => {
     signalDate: activityMap[e.id] ?? new Date().toISOString().split("T")[0]!,
     assetCount: assetCountMap[e.id] ?? 0,
     estimatedNetWorth: e.estimatedNetWorth,
-    crmStatus: crmMap[e.id] ?? null,
+    researchStatus: researchMap[e.id] ?? null,
     hasResearchSession: sessionIds[e.id] ?? false,
     nationality: e.nationality,
     linkedinHeadline: e.linkedinHeadline,
@@ -184,7 +184,7 @@ router.get("/dashboard/stats", async (_req, res): Promise<void> => {
     [avgScore],
     [hotCount],
     [sessionCount],
-    crmBreakdown,
+    [researchBreakdownRow],
     assetsByCategory,
     topScorers,
   ] = await Promise.all([
@@ -208,11 +208,10 @@ router.get("/dashboard/stats", async (_req, res): Promise<void> => {
     db.select({ cnt: sql<number>`count(*)::int` }).from(researchSessionsTable),
     db
       .select({
-        status: researchSessionsTable.crmStatus,
+        status: sql<string>`'research_review'`,
         count: sql<number>`count(*)::int`,
       })
-      .from(researchSessionsTable)
-      .groupBy(researchSessionsTable.crmStatus),
+      .from(researchSessionsTable),
     db
       .select({
         category: assetsTable.category,
@@ -327,7 +326,11 @@ router.get("/dashboard/stats", async (_req, res): Promise<void> => {
       hnw:      wealthTiersRow?.hnw      ?? 0,  // $4M–$30M
       unknown:  wealthTiersRow?.unknown  ?? 0,  // null or <$4M
     },
-    crmBreakdown: crmBreakdown.map((r) => ({ status: r.status, count: r.count })),
+    // Keep the generated client contract stable while the product state is
+    // research-only; this field remains for generated-client compatibility.
+    crmBreakdown: researchBreakdownRow
+      ? [{ status: researchBreakdownRow.status, count: researchBreakdownRow.count }]
+      : [],
     assetsByCategory: assetsByCategory.map((r) => ({
       category: r.category,
       count: r.count,

@@ -5,39 +5,8 @@ import { createJob, updateJob, setActiveJob, getActiveJob, getJob, clearActiveJo
 import { buildGraph, findShortestPath } from "../../lib/graph-engine";
 import { computeBayesianScore } from "../../lib/bayesian-scorer";
 import { runMcts } from "../../lib/mcts-agent";
-import { generateOutreachSequence } from "../../lib/pitch-generator";
 
 const router = Router();
-
-// POST /research/lead — create a bare Lead Gen session without running MCTS
-router.post("/research/lead", async (req, res): Promise<void> => {
-  const { targetEntityId } = req.body as { targetEntityId?: number };
-  if (!targetEntityId || typeof targetEntityId !== "number") {
-    res.status(400).json({ error: "targetEntityId is required" });
-    return;
-  }
-  const [entity] = await db.select({ id: entitiesTable.id, score: entitiesTable.bayesianScore })
-    .from(entitiesTable).where(eq(entitiesTable.id, targetEntityId));
-  if (!entity) { res.status(404).json({ error: "Entity not found" }); return; }
-
-  // Upsert: if a session already exists for this entity, just return it
-  const [existing] = await db.select().from(researchSessionsTable)
-    .where(eq(researchSessionsTable.targetEntityId, targetEntityId))
-    .orderBy(desc(researchSessionsTable.createdAt))
-    .limit(1);
-  if (existing) { res.json(existing); return; }
-
-  const [session] = await db.insert(researchSessionsTable).values({
-    targetEntityId,
-    crmStatus: "Lead Gen",
-    bayesianScoreAtRuntime: entity.score ?? 0,
-    pathScore: 0,
-    winningPath: null,
-    mctsSteps: null,
-    safeUseStatus: "manual_review",
-  }).returning();
-  res.status(201).json(session);
-});
 
 // POST /research/bulk-run — run Hybrid Research on top N hot leads in a single background job
 router.post("/research/bulk-run", async (req, res): Promise<void> => {
@@ -197,45 +166,13 @@ router.post("/research/bulk-run", async (req, res): Promise<void> => {
               ? `Bulk run — ${pathNodes}-hop path found, no confirmed gatekeeper. Score: ${(mctsResult.pathScore * 100).toFixed(0)}/100.`
               : `Bulk run — Isolated entity. 0 edges. Score: ${(mctsResult.pathScore * 100).toFixed(0)}/100. Run CH enrichment to build graph.`;
 
-          const gatekeeper = mctsResult.winningPath.find(p => p.role === "GATEKEEPER") ?? null;
-          let pitchText = "";
-          try {
-            const outreach = generateOutreachSequence({
-              targetEntity: {
-                name: targetEntity.name, type: targetEntity.type,
-                nationality: targetEntity.nationality, estimatedNetWorth: targetEntity.estimatedNetWorth,
-                knownResidences: targetEntity.knownResidences, notes: targetEntity.notes,
-                contactEmail: targetEntity.email, contactPhone: targetEntity.phone,
-              },
-              gatekeeper,
-              assets: targetAssets.map(a => ({
-                category: a.category, identifier: a.identifier, jurisdiction: a.jurisdiction,
-                estimatedValue: a.estimatedValue, address: a.address,
-              })),
-              winningPath: mctsResult.winningPath,
-              pathScore: mctsResult.pathScore,
-            });
-            pitchText = [
-              outreach.initial,
-              "---\n**7-day follow-up:**",
-              outreach.followUp,
-              "---\n**Intro script for gatekeeper:**",
-              outreach.introScript,
-            ].join("\n\n");
-          } catch {
-            pitchText = `[Bulk Research pitch — ${targetEntity.name}. Path score: ${(mctsResult.pathScore * 100).toFixed(0)}/100. Run /research/backfill-pitches to regenerate.]`;
-          }
-
           await db.insert(researchSessionsTable).values({
             targetEntityId: entityId,
             winningPath: JSON.stringify(mctsResult.winningPath),
             mctsSteps: JSON.stringify(mctsResult.mctsSteps),
-            crmStatus: "Pitch Generated",
             bayesianScoreAtRuntime: updatedScore,
             pathScore: mctsResult.pathScore,
-            generatedPitch: pitchText,
             notes: critiqueNote,
-            safeUseStatus: "manual_review",
           });
 
           done++;
