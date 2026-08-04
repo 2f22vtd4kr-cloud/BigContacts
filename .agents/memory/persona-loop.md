@@ -1,12 +1,12 @@
 ---
 name: Persona Improvement Loop
-description: Persona improvement engine, its routes/UI, current eight-persona scope, and runtime caveats
+description: Persona improvement engine, its routes/UI, eleven-persona scope, Atlas checkpoint review, and runtime caveats
 ---
 
 ## Architecture
 
 - **DB table:** `improvement_logs` (`lib/db/src/schema/improvement_logs.ts`) — FK → entities (cascade delete), columns: persona, category, priority, title, description, action_taken, status (pending/applied/dismissed)
-- **Persona engine:** `artifacts/api-server/src/lib/persona-engine.ts` — 8 deterministic runners, no external AI; each queries DB directly and returns `ImprovementSuggestion[]`
+- **Persona engine:** `artifacts/api-server/src/lib/persona-engine.ts` — 11 deterministic runners, no external AI; each queries DB directly and returns `ImprovementSuggestion[]`
 - **Routes:** `artifacts/api-server/src/routes/improve.ts` — mounted via `routes/index.ts`
 - **Frontend page:** `artifacts/apex-finder/src/pages/improvements.tsx` — route `/improvements`, nav label "Persona Loop"
 
@@ -21,6 +21,9 @@ description: Persona improvement engine, its routes/UI, current eight-persona sc
 | `architect` | Type classification accuracy, deduplication |
 | `data_integrity_auditor` | Zero-synthetic-data and provenance compliance |
 | `hybrid_architecture_auditor` | End-to-end coverage across the five hybrid architecture layers |
+| `user_operator` | Documented operator rules: public evidence only, fail-closed access, no outreach before target review |
+| `development_team` | Persisted Atlas checkpoint, metadata, and hot-state implementation invariants |
+| `osint_specialists_team` | Claim-level public-source provenance, attribution, and organization-vs-personal access separation |
 
 ## API surface
 - `POST /improve/run` — background job (Redis-tracked, same pattern as /ingest/western-hnwi)
@@ -30,6 +33,8 @@ description: Persona improvement engine, its routes/UI, current eight-persona sc
 - `GET /improve/logs/:entityId` — entity-scoped list
 - `PATCH /improve/logs/:logId` — status update
 - `GET /improve/stats` — counts by persona × status and by priority
+
+Atlas integration: after a Phase J target checkpoint is persisted, the Atlas worker runs all 11 personas sequentially for that target and writes duplicate-safe pending findings to `improvement_logs`. The Reactor receives an explicit `PERSONA REVIEW` telemetry lane. This hook takes effect when the API process is safely restarted after any active Atlas worker releases its slot.
 
 **Why:** All analysis is deterministic TypeScript — no external AI APIs per the master prompt rule. The job queue reuses the Upstash-backed pattern from the ingestion pipeline (requires permanent Redis / REDIS_URL_1 for job tracking to persist across restarts).
 

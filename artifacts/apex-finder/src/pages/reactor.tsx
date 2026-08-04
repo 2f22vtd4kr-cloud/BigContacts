@@ -682,6 +682,7 @@ const TELEMETRY_TOOL_LABELS: Record<string, string> = {
   mcts: "UCT / MCTS",
   prac: "PRAC",
   pitch: "PITCH",
+  "persona-review": "PERSONA REVIEW",
 };
 
 function AtlasTelemetryInspector({ telemetry }: { telemetry?: any }) {

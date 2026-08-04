@@ -17,6 +17,7 @@ import {
   contactEvidenceTable,
   enrichmentStateTable,
   phaseJCheckpointsTable,
+  improvementLogsTable,
 } from "@workspace/db";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { createJob, getActiveJob, setActiveJob, updateJob } from "../lib/job-queue";
@@ -40,6 +41,7 @@ import { discoverDigitalFootprint } from "../lib/digital-footprint";
 import { scoreAttribution, isGenericLocalPart } from "../lib/contact-attribution";
 import { logger } from "../lib/logger";
 import { canonicalizeUrl } from "../lib/evidence-ledger";
+import { runPersonasForEntity } from "../lib/persona-engine";
 
 const router = Router();
 
@@ -61,6 +63,50 @@ async function updateAtlasTelemetry(
 ): Promise<void> {
   if (!mirrorJobId) return;
   await updateJob(mirrorJobId, { atlasTelemetry: JSON.stringify(telemetry) });
+}
+
+async function runAtlasPersonaReview(
+  entityId: number,
+): Promise<{ findings: number; personas: string[] }> {
+  const [entity] = await db
+    .select()
+    .from(entitiesTable)
+    .where(eq(entitiesTable.id, entityId))
+    .limit(1);
+  if (!entity) return { findings: 0, personas: [] };
+
+  const suggestions = await runPersonasForEntity(entity);
+  let findings = 0;
+  const personas = new Set<string>();
+
+  for (const suggestion of suggestions) {
+    const existing = await db
+      .select({ id: improvementLogsTable.id })
+      .from(improvementLogsTable)
+      .where(sql`
+        ${improvementLogsTable.entityId} = ${suggestion.entityId}
+        AND ${improvementLogsTable.persona} = ${suggestion.persona}
+        AND ${improvementLogsTable.title} = ${suggestion.title}
+        AND ${improvementLogsTable.status} = 'pending'
+      `)
+      .limit(1);
+    if (existing.length > 0) continue;
+
+    await db.insert(improvementLogsTable).values({
+      entityId: suggestion.entityId,
+      persona: suggestion.persona,
+      category: suggestion.category,
+      priority: suggestion.priority,
+      title: suggestion.title,
+      description: suggestion.description,
+      actionTaken: suggestion.actionTaken,
+      status: "pending",
+    });
+    findings += 1;
+    personas.add(suggestion.persona);
+  }
+
+  return { findings, personas: [...personas] };
 }
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
@@ -716,13 +762,44 @@ async function runPhaseJPass(
 
       totals.persisted += 1;
       await updateAtlasTelemetry(mirrorJobId, {
-        stage: "PHASE J · J7–J9 CHECKPOINT",
-        status: "complete",
+        stage: "PHASE J · PERSONA REVIEW",
+        status: "active",
         targetName: entity.name,
         targetType: entity.type,
-        toolIds: ["domain-resolver", "digital-footprint", "contact-attribution", "graph", "source-cooldowns"],
-        activeToolId: "source-cooldowns",
-        resultSummary: `${outcome.replace(/_/g, " ")} · ${mergedSources.length} sources · ${footprint.evidence.length + inHouseResult.evidence.length} evidence candidates · ${neighbourNames.length} graph neighbours`,
+        toolIds: [
+          "domain-resolver", "digital-footprint", "contact-attribution", "graph",
+          "source-cooldowns", "persona-review",
+        ],
+        activeToolId: "persona-review",
+        inputSummary: "11 deterministic personas reviewing the persisted Phase J checkpoint",
+        sources: mergedSources.length,
+        evidence: footprint.evidence.length + inHouseResult.evidence.length,
+        contacts: [activeEmail, bestPhone, bestLinkedIn, bestTwitter].filter(Boolean).length,
+      });
+
+      let personaReview: { findings: number; personas: string[] } = { findings: 0, personas: [] };
+      try {
+        personaReview = await runAtlasPersonaReview(entity.id);
+      } catch (reviewError) {
+        logger.warn(
+          { entityId: entity.id, err: reviewError instanceof Error ? reviewError.message : String(reviewError) },
+          "Atlas persona review failed after Phase J checkpoint",
+        );
+      }
+
+      await updateAtlasTelemetry(mirrorJobId, {
+        stage: "PHASE J · PERSONA REVIEW",
+        status: personaReview.findings > 0 ? "review" : "complete",
+        targetName: entity.name,
+        targetType: entity.type,
+        toolIds: [
+          "domain-resolver", "digital-footprint", "contact-attribution", "graph",
+          "source-cooldowns", "persona-review",
+        ],
+        activeToolId: "persona-review",
+        resultSummary:
+          `${outcome.replace(/_/g, " ")} · ${personaReview.findings} new review finding(s) from ` +
+          `${personaReview.personas.length || "0"} persona(s)`,
         sources: mergedSources.length,
         evidence: footprint.evidence.length + inHouseResult.evidence.length,
         contacts: [activeEmail, bestPhone, bestLinkedIn, bestTwitter].filter(Boolean).length,

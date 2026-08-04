@@ -1,7 +1,7 @@
 /**
- * Persona Improvement Engine — Phase 7 + Hybrid Architecture Auditor
+ * Persona Improvement Engine — Phase 7 + Atlas review personas
  *
- * Eight specialist personas each analyse an entity and produce concrete
+ * Eleven deterministic personas each analyse an entity and produce concrete
  * improvement suggestions. All logic is deterministic TypeScript; no
  * external AI APIs are used.
  *
@@ -18,6 +18,9 @@
  *                                      L1 Hybrid Search · L2 Multi-Agent Reasoning ·
  *                                      L3 Query Expansion · L4 MCTS Path Exploration ·
  *                                      L5 Bayesian-UCB Optimisation
+ *  9. User / Principal Operator      — documented operator rules and fail-closed gates
+ * 10. Development Team               — implementation/checkpoint consistency
+ * 11. OSINT Specialists Team         — public-source provenance and attribution quality
  *
  * Core Hybrid Architecture (all deterministic, no external AI):
  *  L1 — Hybrid Semantic + Keyword + Graph Search (hybrid-search.ts)
@@ -47,7 +50,10 @@ export type PersonaId =
   | "ux_designer"
   | "architect"
   | "data_integrity_auditor"
-  | "hybrid_architecture_auditor";
+   | "hybrid_architecture_auditor"
+   | "user_operator"
+   | "development_team"
+   | "osint_specialists_team";
 
 export type ImprovementCategory =
   | "data_quality"
@@ -95,6 +101,222 @@ function parseJsonSafe<T>(val: string | null | undefined, fallback: T): T {
 
 function ageInDays(isoDate: string): number {
   return (Date.now() - new Date(isoDate).getTime()) / 86_400_000;
+}
+
+function isDirectTarget(entity: Entity): boolean {
+  return entity.type === "HNWI" || entity.type === "Gatekeeper";
+}
+
+function hasNonEmptyJsonObject(value: unknown): boolean {
+  return !!value && typeof value === "object" && !Array.isArray(value)
+    && Object.keys(value as Record<string, unknown>).length > 0;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Persona 9 — User / Principal Operator
+//
+// This is not an impersonation of a person and it never invents preferences,
+// biography, or identity. It applies only the operator rules documented in the
+// project: public evidence only, fail closed, organization routes are not
+// personal access, and no outreach before a target-scoped review.
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function runUserOperator(entity: Entity): Promise<ImprovementSuggestion[]> {
+  const suggestions: ImprovementSuggestion[] = [];
+  const metadata = parseJsonSafe<Record<string, unknown>>(entity.metadata, {});
+  const phaseJ = metadata.phaseJ;
+  const finalReview = metadata.finalTargetReview;
+  const hasDirectOutcome =
+    entity.contactOutcome === "direct_contact_candidate" ||
+    entity.contactOutcome === "direct_contact_verified";
+  const isOrgVehicle = entity.type === "Corporation" || entity.type === "Trust";
+
+  if (isOrgVehicle && (hasDirectOutcome || entity.contactConfidence > 0 || entity.isHot)) {
+    suggestions.push({
+      entityId: entity.id,
+      persona: "user_operator",
+      category: "integrity",
+      priority: "high",
+      title: "Operator safety gate violated — organization route looks personal",
+      description:
+        `${entity.type} "${entity.name}" has ${hasDirectOutcome ? `contact outcome "${entity.contactOutcome}"` : "personal-access state"} ` +
+        "even though corporations and trusts are property or organization vehicles. The operator rule is to keep " +
+        "organization evidence separate from personal access and never use a switchboard, shared inbox, or vehicle record " +
+        "as proof of access to an individual.",
+      actionTaken:
+        "Flagged for fail-closed reconciliation; organization evidence must remain review-only until a named person-level route is independently attributed.",
+    });
+  }
+
+  if (isDirectTarget(entity) && !hasDirectOutcome && hasNonEmptyJsonObject(finalReview) === false
+      && entity.contactOutcome !== "direct_contact_verified") {
+    suggestions.push({
+      entityId: entity.id,
+      persona: "user_operator",
+      category: "outreach",
+      priority: "high",
+      title: "Operator gate requires a target-scoped review before outreach",
+      description:
+        `Direct target "${entity.name}" has no final target-review snapshot and no approved personal route. ` +
+        "The operating rule is research-only until identity, ownership, contact, access, freshness, and source quality " +
+        "are assessed from claim-level public evidence. Do not generate outreach copy or infer access from fame, wealth, " +
+        "assets, social visibility, or an organization contact.",
+      actionTaken:
+        "Kept the target in manual research review; no outreach recommendation or personal-contact promotion is authorized.",
+    });
+  }
+
+  if (hasDirectOutcome && phaseJ && typeof phaseJ === "object"
+      && (phaseJ as Record<string, unknown>).J6attributed === false) {
+    suggestions.push({
+      entityId: entity.id,
+      persona: "user_operator",
+      category: "integrity",
+      priority: "high",
+      title: "Operator gate blocked — direct outcome conflicts with attribution",
+      description:
+        `The stored Phase J checkpoint for "${entity.name}" says the contact was not attributed, ` +
+        `but the entity outcome is "${entity.contactOutcome}". A provider hit or username is not enough to authorize a route.`,
+      actionTaken:
+        "Flagged for immediate fail-closed reconciliation; retain the evidence for review and clear any unsubstantiated personal outcome.",
+    });
+  }
+
+  return suggestions;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Persona 10 — Development Team
+//
+// Audits implementation state, not the target's worth. Every finding below is
+// derived from persisted fields and is actionable by the engineering team.
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function runDevelopmentTeam(entity: Entity): Promise<ImprovementSuggestion[]> {
+  const suggestions: ImprovementSuggestion[] = [];
+  const metadata = parseJsonSafe<Record<string, unknown>>(entity.metadata, {});
+  const phaseJ = metadata.phaseJ;
+  const hasValidMetadata = !!entity.metadata && hasNonEmptyJsonObject(metadata);
+
+  if (entity.metadata && !hasValidMetadata) {
+    suggestions.push({
+      entityId: entity.id,
+      persona: "development_team",
+      category: "data_quality",
+      priority: "medium",
+      title: "Development checkpoint found malformed or empty metadata",
+      description:
+        `Entity "${entity.name}" has a metadata payload that cannot be used as a structured pipeline checkpoint. ` +
+        "Downstream Atlas stages rely on this JSON for source provenance, phase outcomes, and review state; silently " +
+        "treating malformed metadata as empty would erase operational context.",
+      actionTaken:
+        "Flagged for a safe metadata repair from durable evidence; no inferred values were written.",
+    });
+  }
+
+  if (entity.isHot && entity.contactOutcome !== "direct_contact_verified") {
+    suggestions.push({
+      entityId: entity.id,
+      persona: "development_team",
+      category: "integrity",
+      priority: "high",
+      title: "Hot-state invariant is inconsistent with verified contact outcome",
+      description:
+        `Entity "${entity.name}" is marked hot while its stored contact outcome is "${entity.contactOutcome ?? "none"}". ` +
+        "The current access contract requires a meaningful, evidence-backed person-level direct contact signal before " +
+        "isHot can be true. Wealth, assets, registry records, or organization routes must not activate this state.",
+      actionTaken:
+        "Flagged for deterministic hot-state recomputation from validated contact evidence.",
+    });
+  }
+
+  if (isDirectTarget(entity) && hasNonEmptyJsonObject(phaseJ) === false && entity.cookedAt) {
+    suggestions.push({
+      entityId: entity.id,
+      persona: "development_team",
+      category: "structure",
+      priority: "medium",
+      title: "Cooked target is missing the Phase J audit checkpoint",
+      description:
+        `Target "${entity.name}" has a cooked timestamp but no stored J4–J9 checkpoint in metadata. ` +
+        "The Atlas contract requires domain resolution, digital-footprint results, attribution, source cooldowns, and " +
+        "graph context to remain auditable before a target is treated as fully processed.",
+      actionTaken:
+        "Flagged for checkpoint reconciliation; the team must restore or rerun the bounded Phase J review from real sources.",
+    });
+  }
+
+  return suggestions;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Persona 11 — OSINT Specialists Team
+//
+// Reviews public-source evidence semantics. It never promotes a contact and
+// never treats a provider label, username, or organization route as identity.
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function runOsintSpecialistsTeam(entity: Entity): Promise<ImprovementSuggestion[]> {
+  const suggestions: ImprovementSuggestion[] = [];
+  const metadata = parseJsonSafe<Record<string, unknown>>(entity.metadata, {});
+  const phaseJ = metadata.phaseJ;
+  const directTarget = isDirectTarget(entity);
+
+  if (directTarget && (!hasNonEmptyJsonObject(phaseJ)
+      || typeof (phaseJ as Record<string, unknown>).J5evidenceCount !== "number")) {
+    suggestions.push({
+      entityId: entity.id,
+      persona: "osint_specialists_team",
+      category: "outreach",
+      priority: "high",
+      title: "OSINT team requires a claim-level Phase J evidence record",
+      description:
+        `Direct target "${entity.name}" has no complete J4–J9 evidence checkpoint. Public-source research must retain ` +
+        "the target anchor, exact claim URL, source family, attribution decision, and negative findings before any " +
+        "contact candidate can be considered. Search-provider output alone is not admissible identity or access evidence.",
+      actionTaken:
+        "Marked the target research-only pending a bounded public-source pass with claim-level provenance and attribution.",
+    });
+  }
+
+  const sourceNames = parseJsonSafe<unknown[]>(entity.sourceRegistries, []);
+  const meaningfulSources = sourceNames.filter(source =>
+    typeof source === "string" && source.trim().length > 0
+      && !/^(web-discovery|broad-discovery|ai-osint|provider|unknown)$/i.test(source.trim()),
+  );
+  if (directTarget && sourceNames.length > 0 && meaningfulSources.length === 0) {
+    suggestions.push({
+      entityId: entity.id,
+      persona: "osint_specialists_team",
+      category: "data_quality",
+      priority: "medium",
+      title: "OSINT source list contains provider labels but no named registry",
+      description:
+        `The source list for "${entity.name}" contains only internal/provider labels. Those labels describe how a lead ` +
+        "was found, not independent public corroboration. Preserve the exact public source domain and claim URL before " +
+        "using the record for identity, ownership, or access decisions.",
+      actionTaken:
+        "Kept provider-only discovery as review context; no contact or identity promotion was performed.",
+    });
+  }
+
+  if (entity.contactOutcome === "organization_contact" && directTarget && entity.contactConfidence > 0) {
+    suggestions.push({
+      entityId: entity.id,
+      persona: "osint_specialists_team",
+      category: "integrity",
+      priority: "high",
+      title: "Organization evidence must not inflate personal access",
+      description:
+        `Target "${entity.name}" is labelled organization_contact but has contact confidence ${entity.contactConfidence}. ` +
+        "An organization inbox, switchboard, venue, or company website is useful research evidence but does not establish " +
+        "a personal route to the named individual.",
+      actionTaken:
+        "Flagged for contact adjudication; preserve the organization evidence separately and recalculate personal access.",
+    });
+  }
+
+  return suggestions;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1354,14 +1576,17 @@ async function runHybridArchitectureAuditor(entity: Entity): Promise<Improvement
 // ─────────────────────────────────────────────────────────────────────────────
 
 const PERSONA_RUNNERS: Record<PersonaId, (e: Entity) => Promise<ImprovementSuggestion[]>> = {
-  data_engineer:              runDataEngineer,
-  data_analyst:               runDataAnalyst,
-  intel_systems_analyst:      runIntelSystemsAnalyst,
-  business_engineer:          runBusinessEngineer,
-  ux_designer:                runUxDesigner,
-  architect:                  runArchitect,
-  data_integrity_auditor:     runDataIntegrityAuditor,
+  data_engineer:               runDataEngineer,
+  data_analyst:                runDataAnalyst,
+  intel_systems_analyst:       runIntelSystemsAnalyst,
+  business_engineer:           runBusinessEngineer,
+  ux_designer:                 runUxDesigner,
+  architect:                   runArchitect,
+  data_integrity_auditor:      runDataIntegrityAuditor,
   hybrid_architecture_auditor: runHybridArchitectureAuditor,
+  user_operator:               runUserOperator,
+  development_team:            runDevelopmentTeam,
+  osint_specialists_team:      runOsintSpecialistsTeam,
 };
 
 export const ALL_PERSONAS: PersonaId[] = Object.keys(PERSONA_RUNNERS) as PersonaId[];
@@ -1388,4 +1613,7 @@ export const PERSONA_META: Record<PersonaId, { label: string; icon: string; colo
   architect:                   { label: "Architect",                   icon: "Layers",       color: "#06B6D4" },
   data_integrity_auditor:      { label: "Data Integrity Auditor",      icon: "ShieldCheck",  color: "#EF4444" },
   hybrid_architecture_auditor: { label: "Hybrid Architecture Auditor", icon: "GitBranch",    color: "#F97316" },
+  user_operator:               { label: "User / Principal Operator",   icon: "User",         color: "#F43F5E" },
+  development_team:            { label: "Development Team",            icon: "Code2",        color: "#14B8A6" },
+  osint_specialists_team:      { label: "OSINT Specialists Team",      icon: "SearchCheck",  color: "#EAB308" },
 };

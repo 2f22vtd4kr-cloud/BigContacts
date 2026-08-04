@@ -253,7 +253,7 @@ GET  /api/improve/logs                 improvement suggestions (filterable by pe
 | 4 | Hybrid Research agent (L4 UCT graph traversal), research sessions, CRM pipeline |
 | 5 | Hybrid BM25 + TF-IDF + Bayesian search, network graph |
 | 6 | FAA aircraft registry ingestor, Western HNWI engine (SEC EDGAR + BRREG + Companies House) |
-| 7 | Persona improvement loop (8 deterministic personas), `improvement_logs` table, `/improvements` UI page |
+| 7 | Persona improvement loop (11 deterministic personas: 8 core specialists plus User / Principal Operator, Development Team, and OSINT Specialists Team), `improvement_logs` table, `/improvements` UI page; Atlas Phase J runs the same review after each persisted target checkpoint |
 | 8 | OCCRP Aleph enricher, HMLR OCOD ingestor (replaced by PPD CSV), OpenSky live-flight enricher, Data Sources dashboard |
 | 9 (UX) | Single-pass query expansion (`expandQuery` in agent-orchestrator.ts); Entity Ledger clickable contact vectors (mailto/tel/LinkedIn); Profile page Direct Contact Vectors action bar; Intel Terminal search bar + 500-entity limit + `?entity=` URL pre-selection; CRM empty-state guidance; `improve/run` inArray SQL fix; Intel Systems Analyst persona text updated to reflect expansion mechanics |
 | 10 | **Redis contact cache** — enriched contacts now persist across GitHub imports and DB resets. `REDIS_URL_2` (Upstash slot 2) stores `contact:v1:{stableKey}` entries permanently. Startup restore (Redis → PG) and backfill (PG → Redis) steps run on every boot. Enricher mirrors to Redis after every DB write. |

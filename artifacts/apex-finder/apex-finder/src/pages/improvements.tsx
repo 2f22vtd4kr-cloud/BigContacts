@@ -4,7 +4,7 @@ import {
   Bot, Database, TrendingUp, Network, Briefcase,
   Palette, Layers, Play, CheckCircle2, XCircle, Clock,
   AlertTriangle, ChevronDown, ChevronUp, RefreshCw, Filter,
-  User, Zap, ShieldCheck, GitBranch,
+  User, Zap, ShieldCheck, GitBranch, Code2, SearchCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -13,7 +13,8 @@ import { cn } from "@/lib/utils";
 type PersonaId =
   | "data_engineer" | "data_analyst" | "intel_systems_analyst"
   | "business_engineer" | "ux_designer" | "architect"
-  | "data_integrity_auditor" | "hybrid_architecture_auditor";
+   | "data_integrity_auditor" | "hybrid_architecture_auditor"
+   | "user_operator" | "development_team" | "osint_specialists_team";
 
 type Priority = "high" | "medium" | "low";
 type LogStatus = "pending" | "applied" | "dismissed";
@@ -66,6 +67,9 @@ const PERSONA_META: Record<PersonaId, { label: string; Icon: React.FC<any>; colo
   architect:                   { label: "Architect",                   Icon: Layers,      color: "#06B6D4", bg: "rgba(6,182,212,0.1)"    },
   data_integrity_auditor:      { label: "Data Integrity Auditor",      Icon: ShieldCheck, color: "#EF4444", bg: "rgba(239,68,68,0.1)"    },
   hybrid_architecture_auditor: { label: "Hybrid Architecture Auditor", Icon: GitBranch,   color: "#F97316", bg: "rgba(249,115,22,0.1)"   },
+  user_operator:               { label: "User / Principal Operator",   Icon: User,         color: "#F43F5E", bg: "rgba(244,63,94,0.1)"    },
+  development_team:            { label: "Development Team",            Icon: Code2,        color: "#14B8A6", bg: "rgba(20,184,166,0.1)"   },
+  osint_specialists_team:      { label: "OSINT Specialists Team",      Icon: SearchCheck,  color: "#EAB308", bg: "rgba(234,179,8,0.1)"    },
 };
 
 const ALL_PERSONAS = Object.keys(PERSONA_META) as PersonaId[];
@@ -405,7 +409,7 @@ export default function ImprovementsPage() {
               Persona Loop
             </h1>
             <p className="text-xs text-muted-foreground hidden md:block">
-              8 deterministic personas analyse every entity and surface concrete improvements
+              11 deterministic personas analyse every entity and surface concrete improvements
             </p>
           </div>
         </div>
