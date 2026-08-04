@@ -286,6 +286,18 @@ function LiveResearchConsole({
         </>
       )}
 
+      {!telemetry && (
+        <div className="mb-3 rounded-xl border border-amber-400/15 bg-amber-400/[0.04] p-3">
+          <div className="mb-1 flex items-center gap-2 text-[9px] uppercase tracking-[0.18em] text-amber-300/70">
+            <AlertTriangle className="h-3 w-3" />
+            Lane telemetry unavailable
+          </div>
+          <div className="text-[11px] leading-relaxed text-slate-300">
+            Showing only confirmed Atlas job progress. No research tool or result is inferred from the parent status message.
+          </div>
+        </div>
+      )}
+
       {phaseJ && !telemetry?.sources && (
         <div className="mb-3 grid grid-cols-3 gap-2">
           <QuickStat label="J4–J9 pass" value={phaseJPass ? `${phaseJPass[1]}/${phaseJPass[2]}` : "—"} color="#38bdf8" />

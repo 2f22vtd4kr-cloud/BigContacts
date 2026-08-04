@@ -62,33 +62,6 @@ function parseAtlasTelemetry(raw: unknown) {
   }
 }
 
-function fallbackAtlasTelemetry(
-  message: string,
-  phase: number,
-  entityNames: string[],
-  phaseJ?: AtlasLiveState["phaseJ"],
-) {
-  if (phase !== 8 && !/Phase J|J4-J9|attribution|digital footprint/i.test(message)) return null;
-  const pass = message.match(/J4-J9 pass\s+(\d+)\/(\d+):\s*(.+?)(?:…)?$/i);
-  const targetName = pass?.[3]?.trim() || entityNames[0] || undefined;
-  const phaseJMessage = phaseJ?.message ?? "";
-  const phaseJPass = phaseJMessage.match(/J4-J9 pass\s+(\d+)\/(\d+):\s*(.+?)(?:…)?$/i);
-  return {
-    stage: "PHASE J ATTRIBUTION",
-    status: "active",
-    targetName: phaseJPass?.[3]?.trim() || targetName,
-    targetType: "Target-scoped public-source attribution",
-    toolIds: ["domain-resolver", "digital-footprint", "contact-attribution", "graph", "source-cooldowns"],
-    activeToolId: "domain-resolver",
-    inputSummary: phaseJPass || pass
-      ? `J4–J9 attribution pass ${(phaseJPass || pass)![1]}/${(phaseJPass || pass)![2]} · one target at a time`
-      : "J4–J9 attribution and graph-assisted analysis",
-    resultSummary: phaseJ
-      ? `${phaseJ.inserted ?? 0} records persisted · ${phaseJ.errors ?? 0} errors · ${phaseJ.status ?? "running"}`
-      : "Checking employer/domain resolution, digital footprint, contact attribution, graph context, and retry eligibility.",
-  };
-}
-
 type RodStatus = "idle" | "completed" | "active" | "queued" | "skipped" | "failed";
 
 function rodStatusColor(status: RodStatus, fallback: string): string {
@@ -1570,73 +1543,32 @@ export default function IntelligenceReactorPage() {
           Number(atlasData.atlasPhaseTotal ?? 10),
            runStatus,
         );
-        const structuredNames = parseEntityNames(atlasData.entityNames);
+         const structuredNames = parseEntityNames(atlasData.entityNames);
+         const atlasTelemetry = parseAtlasTelemetry(atlasData.atlasTelemetry);
         nextAtlasState = {
           ...structured,
           entityProgress: atlasData.entityProgress != null ? Number(atlasData.entityProgress) : null,
           entityTotal: atlasData.entityTotal != null ? Number(atlasData.entityTotal) : null,
             currentEntities: structuredNames.length > 0 ? structuredNames : structured.currentEntities,
             phaseJ: atlasData.phaseJ ?? null,
-            atlasTelemetry: parseAtlasTelemetry(atlasData.atlasTelemetry)
-              ?? fallbackAtlasTelemetry(
-                msg,
-                structured.phase,
-                structuredNames.length > 0 ? structuredNames : structured.currentEntities,
-                atlasData.phaseJ,
-              ),
+            atlasTelemetry,
         };
-        // New format: [N/21] label… or [N/21] 🍳 EntityName (x/y)…
+         // The parent message is real progress text. It is not a tool/activity
+         // event, so it must not light individual Atlas nodes by keyword.
         const stepMatch = msg.match(/\[(\d+)\/(\d+)\]/);
         if (stepMatch) {
           const stepN  = parseInt(stepMatch[1], 10);
           const total  = parseInt(stepMatch[2], 10);
-          atlasStepToNodes(stepN, msg).forEach((n: string) => nodes.add(n));
           const detail = msg.slice(stepMatch[0].length).trim().replace(/…$/, "");
           labels.push(`▶ [${stepN}/${total}] ${detail.slice(0, 65)}`);
           setLivePhaseDetail(`Step ${stepN}/${total} — ${detail.slice(0, 80)}`);
         } else {
-          // Entity-level enrichment messages (inner loop overwrites outer [N/21])
-          // Detect enrichment phase from message keywords / emojis.
-          // Rules are additive — multiple can match so all relevant nodes light.
-          const enrichNodes: string[] = [];
-          // ── Full-circle enrichment phases ────────────────────────────────────
-          // Maigret/Holehe = Phase D; Phases A–C already ran for this entity,
-          // so light the whole stack — this is accurate and avoids a dark reactor.
-          if (/Maigret|Holehe|🕵/.test(msg))
-            enrichNodes.push("maigret","inhouse","deepweb","perp0","exa","tavily","gemini","groq");
-          if (/AI OSINT|web.enrich|web.osint/i.test(msg))
-            enrichNodes.push("perp0","exa","tavily","gemini","groq","inhouse","deepweb");
-          if (/🍳/.test(msg))
-            enrichNodes.push("inhouse","perp0","exa","tavily","gemini","groq","deepweb","maigret","semantic","bayesian");
-          // ── Individual AI providers ───────────────────────────────────────────
-          if (/Perplexity|Sonar/i.test(msg))              enrichNodes.push("perp0","perpfu");
-          if (/Gemini/i.test(msg))                        enrichNodes.push("gemini");
-          if (/Tavily/i.test(msg))                        enrichNodes.push("tavily");
-          if (/\bExa\b/i.test(msg))                       enrichNodes.push("exa");
-          if (/Groq|Llama/i.test(msg))                    enrichNodes.push("groq");
-          // ── Tool-specific phases ──────────────────────────────────────────────
-          if (/In-house|Wikidata|GitHub|RDAP/i.test(msg)) enrichNodes.push("inhouse");
-          if (/deep.web|multi.source/i.test(msg))         enrichNodes.push("deepweb","gemini","perpfu");
-          if (/OCCRP|Aleph|sanction/i.test(msg))          enrichNodes.push("occrp");
-          if (/OpenSky|flight|aircraft/i.test(msg))       enrichNodes.push("opensky");
-          if (/Whoxy|WHOIS|forensic/i.test(msg))          enrichNodes.push("whoxy","deepweb","occrp");
-          if (/ICIJ|offshore|leak/i.test(msg))            enrichNodes.push("occrp","deepweb");
-          // ── Analysis + synthesis phases ───────────────────────────────────────
-          if (/Phase J|footprint|attrib/i.test(msg))      enrichNodes.push("semantic","bayesian","graph");
-          if (/domain.resol|digital.foot/i.test(msg))     enrichNodes.push("semantic","bayesian","graph");
-          if (/confidence|cookedAt|scoring|embed/i.test(msg)) enrichNodes.push("semantic","bayesian");
-          if (/MCTS|UCT|research.*target|hot.lead/i.test(msg)) enrichNodes.push("mcts","prac","graph","pitch");
-          if (/graph|cluster|relation/i.test(msg))        enrichNodes.push("graph","semantic");
-          // ── Fallback: legacy Phase X/10 format ───────────────────────────────
-          if (enrichNodes.length === 0) {
-            const phaseMatch = msg.match(/Phase\s+(\d+)/i);
-            const phase = phaseMatch ? parseInt(phaseMatch[1], 10) : 0;
-            (ATLAS_PHASE_NODES[phase] ?? ATLAS_PHASE_NODES[0]).forEach((n: string) => enrichNodes.push(n));
-          }
-          enrichNodes.forEach((n: string) => nodes.add(n));
           labels.push(`▶ Atlas — ${msg.replace(/^Phase \d+\/[^:]+:\s*/i, "").slice(0, 70)}`);
           setLivePhaseDetail(msg.slice(0, 90));
         }
+         if (atlasTelemetry?.activeToolId) {
+           nodes.add(atlasTelemetry.activeToolId);
+         }
       }
 
       // ── Regular jobs ─────────────────────────────────────────────────────────
