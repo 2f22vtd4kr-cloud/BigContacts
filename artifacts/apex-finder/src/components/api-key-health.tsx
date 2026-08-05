@@ -235,7 +235,7 @@ export function ApiKeyHealth() {
           {healthCopy.label}
         </span>
         <span className={cn("font-mono text-[10px] font-bold sm:hidden", healthCopy.className)}>
-          {health === "loading" || health === "offline" ? "—" : `${summary.active}/${summary.configured}`}
+          {health === "loading" || health === "offline" ? "WEB —" : `WEB ${summary.active}/${summary.configured}`}
         </span>
         <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground/70 transition-transform", open && "rotate-180")} />
       </button>
@@ -245,7 +245,7 @@ export function ApiKeyHealth() {
           id="api-key-health-panel"
           role="dialog"
           aria-label="API key status"
-          className="absolute right-0 top-[calc(100%+0.5rem)] z-50 w-[min(410px,calc(100vw-2rem))] overflow-hidden rounded-xl border border-border bg-popover/95 p-4 shadow-2xl shadow-black/40 backdrop-blur-xl"
+          className="fixed left-2 right-2 top-[4.5rem] z-50 max-h-[calc(100dvh-6rem)] overflow-y-auto rounded-xl border border-border bg-popover p-4 shadow-2xl shadow-black/50 backdrop-blur-xl sm:absolute sm:left-auto sm:right-0 sm:top-[calc(100%+0.5rem)] sm:max-h-none sm:w-[min(410px,calc(100vw-2rem))]"
         >
           <div className="flex items-start justify-between gap-4 border-b border-border/60 pb-3">
             <div className="flex min-w-0 items-start gap-2.5">
@@ -256,7 +256,7 @@ export function ApiKeyHealth() {
                 <KeyRound className="h-3.5 w-3.5" />
               </div>
               <div className="min-w-0">
-                <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground/60">OSINT access layer</div>
+                <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground/60">Web OSINT access layer</div>
                 <div className={cn("mt-1 font-mono text-[12px] font-bold tracking-wide", healthCopy.className)}>
                   {healthCopy.label}
                 </div>
@@ -269,9 +269,13 @@ export function ApiKeyHealth() {
             </div>
           </div>
 
-          <div className="mt-3">
+          <div className="mt-3 rounded-lg border border-primary/15 bg-background/45 px-3">
+            <div className="flex items-center justify-between gap-3 border-b border-border/50 py-2">
+              <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground/60">Key category</span>
+              <span className="font-mono text-[10px] font-bold text-primary">WEB OSINT</span>
+            </div>
             {health === "rate-limited" && soonestResetLabel && (
-              <div className="mb-3 flex items-center justify-between gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5">
+              <div className="my-3 flex items-center justify-between gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5">
                 <div className="flex min-w-0 items-center gap-2">
                   <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-400" />
                   <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-amber-300">

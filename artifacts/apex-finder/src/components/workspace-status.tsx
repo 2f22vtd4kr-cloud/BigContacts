@@ -195,6 +195,20 @@ export function WorkspaceStatus() {
             : ShieldCheck;
   const nextCycle = formatNextCycle(atlas?.scheduler?.nextTriggerAt);
   const refreshedNow = now;
+  const persistentRedisTotal = system?.databases.upstash.length ?? 0;
+  const persistentRedisHealthy = system?.databases.upstash.filter(
+    (slot) => slot.status === "ready" || slot.status === "ok",
+  ).length ?? 0;
+  const databaseState = !system
+    ? "DB —"
+    : persistentRedisTotal > 0
+      ? `DB ${persistentRedisHealthy}/${persistentRedisTotal}`
+      : servicesHealthy
+        ? "DB OK"
+        : "DB !";
+  const databaseDetail = !system
+    ? "Database status is still loading."
+    : `PostgreSQL and local Redis are ${servicesHealthy ? "healthy" : "available"}; persistent Redis capacity is ${persistentRedisHealthy}/${persistentRedisTotal || "—"} slots healthy.`;
 
   return (
     <div ref={rootRef} className="relative">
@@ -216,8 +230,8 @@ export function WorkspaceStatus() {
         <span className={cn("hidden truncate font-mono text-[10px] font-bold tracking-[0.1em] sm:inline", copy.className)}>
           {copy.label}
         </span>
-        <span className={cn("font-mono text-[10px] font-bold sm:hidden", copy.className)}>
-          {state === "researching" ? "LIVE" : state === "queued" ? "NEXT" : state === "ready" ? "READY" : "—"}
+        <span className={cn("font-mono text-[10px] font-bold sm:hidden", servicesHealthy ? "text-primary" : copy.className)}>
+          {databaseState}
         </span>
         <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-muted-foreground/70 transition-transform", open && "rotate-180")} />
       </button>
@@ -227,7 +241,7 @@ export function WorkspaceStatus() {
           id="workspace-status-panel"
           role="dialog"
           aria-label="Whole workspace status"
-          className="absolute right-0 top-[calc(100%+0.5rem)] z-50 w-[min(390px,calc(100vw-2rem))] overflow-hidden rounded-xl border border-border bg-popover/95 p-4 shadow-2xl shadow-black/40 backdrop-blur-xl"
+          className="fixed left-2 right-2 top-[4.5rem] z-50 max-h-[calc(100dvh-6rem)] overflow-y-auto rounded-xl border border-border bg-popover p-4 shadow-2xl shadow-black/50 backdrop-blur-xl sm:absolute sm:left-auto sm:right-0 sm:top-[calc(100%+0.5rem)] sm:max-h-none sm:w-[min(390px,calc(100vw-2rem))]"
         >
           <div className="flex items-start justify-between gap-4 border-b border-border/60 pb-3">
             <div className="flex min-w-0 items-start gap-2.5">
@@ -251,7 +265,7 @@ export function WorkspaceStatus() {
           </div>
 
           <div className="mt-3 space-y-2">
-            <div className="rounded-lg border border-border/60 bg-background/35 px-3 py-2.5">
+            <div className="rounded-lg border border-border/60 bg-background/70 px-3 py-2.5">
               <div className="flex items-center justify-between gap-3">
                 <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground/60">Research engine</span>
                   <span className={cn("font-mono text-[10px] font-bold", active ? (providerDegraded ? "text-amber-300" : "text-cyan-300") : schedulerEnabled ? "text-amber-300" : "text-muted-foreground")}>
@@ -273,9 +287,18 @@ export function WorkspaceStatus() {
               <div className="rounded-lg border border-border/60 px-3 py-2">
                 <div className="font-mono text-[9px] uppercase tracking-widest text-muted-foreground/55">AI capacity</div>
                 <div className={cn("mt-1 font-mono text-[11px] font-bold", summary.active > 0 ? "text-primary" : "text-amber-300")}>
-                  {summary.active}/{summary.configured || "—"} ACTIVE
+                  WEB {summary.active}/{summary.configured || "—"}
                 </div>
               </div>
+            </div>
+            <div className="rounded-lg border border-border/60 bg-background/70 px-3 py-2.5">
+              <div className="flex items-center justify-between gap-3">
+                <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground/60">Database / persistence</span>
+                <span className={cn("font-mono text-[10px] font-bold", servicesHealthy ? "text-primary" : "text-amber-300")}>
+                  {databaseState}
+                </span>
+              </div>
+              <div className="mt-1 text-[11px] leading-4 text-foreground/80">{databaseDetail}</div>
             </div>
           </div>
 
