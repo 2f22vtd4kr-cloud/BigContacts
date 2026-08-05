@@ -1604,20 +1604,27 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
   const sourcesToRun = selectedBroadCategories
     ? DISCOVERY_SOURCES.filter(source => source.kind === "registry" || selectedBroadCategories.has(source.category))
     : DISCOVERY_SOURCES;
+  const targetLimit = Math.max(0, opts.targetCount ?? (opts.discoveryFirst ? 500 : 15_000));
+  let admittedTargets = 0;
   let sourceRound = 0;
   const phaseJJobId = await createJob("phase-j-pass");
 
   for (const source of sourcesToRun) {
     await ensureAtlasActive(atlasJobId);
+    if (admittedTargets >= targetLimit) {
+      logger.info({ targetLimit, admittedTargets, sourceRound }, "[Atlas] Target admission limit reached; ending discovery loop");
+      break;
+    }
     sourceRound++;
     const runStart = new Date();
+    const remainingTargetBudget = targetLimit - admittedTargets;
 
     try {
       await status(`[${sourceRound}/${sourcesToRun.length}] ${source.label}…`, 1);
 
       if (source.kind === "broad") {
         const { discoverSingleTemplate } = await import("./enrichment/broad-discovery");
-        const broadRes = await discoverSingleTemplate(source.category, 10)
+        const broadRes = await discoverSingleTemplate(source.category, 10, Math.min(1, remainingTargetBudget))
           .catch(e => { logger.error({ err: e.message }, "[Atlas] Broad discovery failed"); return { entitiesDiscovered: 0, queriesFired: 0, resultsScraped: 0, entitiesSkipped: 0, newEntities: [] }; });
         totalIngested += broadRes.entitiesDiscovered;
       } else {
@@ -1626,7 +1633,7 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
         const hnwiRes = await runWesternHnwiIngestion({
           // This is an admission round, not a bulk import. Full-circle
           // enrichment below must finish before another target is admitted.
-          targetCount: 1,
+          targetCount: Math.min(1, remainingTargetBudget),
           batchSize: 1,
           jobId: hnwiJobId,
           clearDedupFirst: (source as any).clearFirst ?? false,
@@ -1667,6 +1674,7 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
       .limit(1);
 
     logger.info({ sourceRound, label: source.label, newCount: newEntities.length }, "[Atlas] Starting full-circle enrichment");
+    admittedTargets += newEntities.length;
 
     if (newEntities.length > 0) {
       const batchResult = await runEntityBatch(
@@ -1701,7 +1709,7 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
     summary[`Src ${sourceRound}`] = `${source.label.split("(")[0].trim()}: ${newEntities.length} → cooked`;
   }
 
-  summary["Discovery loop"] = `${cookedCount} entities fully cooked across ${sourceRound} sources`;
+  summary["Discovery loop"] = `${totalEnriched} target journeys completed across ${sourceRound} sources (admitted ${admittedTargets}/${targetLimit}; contact-route completions remain separately gated)`;
 
   // ── Phase 3: Metadata population ───────────────────────────────────────────
   await ensureAtlasActive(atlasJobId);

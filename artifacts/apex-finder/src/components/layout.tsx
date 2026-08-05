@@ -91,13 +91,23 @@ export function Layout({ children }: { children: React.ReactNode }) {
       mobile ? "w-[min(300px,86vw)]" : "w-[250px] shrink-0",
     )}>
       <div className="flex h-[76px] shrink-0 items-center border-b border-sidebar-border px-5">
-        <div className="grid h-8 w-8 place-items-center rounded-lg bg-primary text-primary-foreground shadow-[0_0_15px_rgba(var(--primary),0.3)]">
+        <Link
+          href="/"
+          aria-label="Apex Atlas home"
+          data-testid="link-sidebar-apex-atlas-mark"
+          className="grid h-8 w-8 place-items-center rounded-lg bg-primary text-primary-foreground shadow-[0_0_15px_rgba(var(--primary),0.3)] focus-visible:ring-2 focus-visible:ring-primary/50"
+        >
           <Crosshair className="h-[18px] w-[18px]" />
-        </div>
-        <div className="ml-3 min-w-0">
+        </Link>
+        <Link
+          href="/"
+          aria-label="Apex Atlas home"
+          data-testid="link-apex-atlas-home"
+          className="ml-3 min-w-0 rounded-md focus-visible:ring-2 focus-visible:ring-primary/50"
+        >
           <div className="font-display text-[15px] font-bold tracking-[0.14em] text-foreground">APEX ATLAS</div>
           <div className="mt-0.5 font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground/70">Private workspace</div>
-        </div>
+        </Link>
         {mobile && (
           <button
             onClick={() => setSidebarOpen(false)}
@@ -145,7 +155,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
   );
 
   const active = allNav.find((item) => isActive(item.href));
-  const mobileTitle = location.startsWith("/profile/") ? "Profile" : active?.name ?? "Overview";
+  const pageTitle = location.startsWith("/profile/") ? "Profile" : active?.name ?? "Overview";
+  const pageDescription = location === "/reactor"
+    ? "Live public-source research, adaptive search, and evidence review"
+    : location === "/"
+      ? "Private public-records research workspace"
+      : "Evidence workspace";
   const isReactorRoute = location === "/reactor";
 
   return (
@@ -165,15 +180,18 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
         <div className="atlas-grid pointer-events-none absolute inset-0" />
         <header className="relative z-20 flex h-14 shrink-0 items-center border-b border-border/80 bg-background/85 px-4 backdrop-blur-md md:h-16 md:px-6">
-          <div className="flex min-w-0 items-center">
-            <div className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-primary text-primary-foreground shadow-[0_0_10px_rgba(var(--primary),0.3)] md:hidden">
+          <div className="mr-3 flex min-w-0 items-center md:mr-0">
+            <Link
+              href="/"
+              aria-label="Apex Atlas home"
+              data-testid="link-mobile-apex-atlas-home"
+              className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-primary text-primary-foreground shadow-[0_0_10px_rgba(var(--primary),0.3)] focus-visible:ring-2 focus-visible:ring-primary/50 md:hidden"
+            >
               <Crosshair className="h-4 w-4" />
-            </div>
-            <div className="ml-2 min-w-0 md:ml-0">
-              <div className="hidden font-mono text-[9px] uppercase tracking-[0.24em] text-muted-foreground/55 md:block">Apex Atlas / Research desk</div>
-              <div className="truncate font-mono text-[11px] font-bold tracking-[0.14em] text-foreground md:mt-1 md:text-sm">
-                {mobileTitle}
-              </div>
+            </Link>
+            <div className="ml-2 hidden min-w-0 md:block">
+              <div className="font-mono text-[9px] uppercase tracking-[0.24em] text-muted-foreground/55">Apex Atlas / Research desk</div>
+              <div className="mt-1 font-mono text-sm font-bold tracking-[0.14em] text-foreground">Private OSINT cockpit</div>
             </div>
           </div>
           <div className="ml-auto flex items-center gap-2">
@@ -189,6 +207,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </button>
           </div>
         </header>
+        <div className="relative z-10 shrink-0 border-b border-border/70 bg-background/70 px-4 py-3.5 backdrop-blur-sm md:px-6 md:py-4">
+          <div className="mx-auto w-full max-w-[1800px]">
+            <div className="font-mono text-[9px] uppercase tracking-[0.22em] text-primary/65">Apex Atlas / research desk</div>
+            <h1 className="mt-1 font-display text-xl font-bold tracking-[-0.03em] text-foreground md:text-2xl" data-testid="text-page-title">
+              {pageTitle}
+            </h1>
+            <p className="mt-1 max-w-2xl text-[11px] leading-4 text-muted-foreground md:text-xs">{pageDescription}</p>
+          </div>
+        </div>
         <div className={`relative z-10 flex min-h-0 flex-1 flex-col overflow-x-hidden ${isReactorRoute ? "overflow-hidden" : "overflow-y-auto"}`}>
           {children}
         </div>

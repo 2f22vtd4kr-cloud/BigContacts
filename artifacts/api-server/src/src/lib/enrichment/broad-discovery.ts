@@ -844,10 +844,19 @@ export async function runBroadDiscovery(options: {
  * Used by the per-entity full-circle orchestrator to interleave
  * one category at a time with registry batches.
  */
-export async function discoverSingleTemplate(category: number, maxQueries = 10): Promise<BroadDiscoveryResult> {
+export async function discoverSingleTemplate(
+  category: number,
+  maxQueries = 10,
+  maxEntities = 1,
+): Promise<BroadDiscoveryResult> {
   const cat = Math.max(1, Math.min(15, category));
   // Atlas uses this adapter between full-circle target runs. Search broadly,
-  // but admit exactly one target before returning so the caller can fully cook
-  // it before the next discovery round.
-  return runBroadDiscovery({ templateSet: cat, rotateTemplates: false, maxQueries, maxEntities: 1 });
+  // but cap admissions so the caller can fully cook each target before the
+  // next discovery round and enforce a run-wide target budget.
+  return runBroadDiscovery({
+    templateSet: cat,
+    rotateTemplates: false,
+    maxQueries,
+    maxEntities: Math.max(0, maxEntities),
+  });
 }

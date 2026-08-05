@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
-  Plane, Building2, Globe, Search, Brain, Zap, Network,
+  Plane, Building2, Globe, Search, Brain, Zap, Network, Atom,
   Target, Cpu, Radio, Activity, BarChart2, Shield,
   TrendingUp, Eye, RefreshCw, GitMerge, Layers, Crosshair, MapPin,
   Sparkles, Compass, Rss, Users,
@@ -747,17 +747,22 @@ function AtlasTelemetryInspector({ telemetry, eventLog = [] }: { telemetry?: any
   const researchTools = tools.filter((tool: string) => !isPersonaReviewTool(tool));
   const hasPersonaReview = tools.some((tool: string) => isPersonaReviewTool(tool)) || Boolean(telemetry?.personaNames?.length);
   const activeTool = telemetry?.activeToolId ? telemetryToolLabel(telemetry.activeToolId) : null;
+  const activeIsPersona = telemetry?.activeToolId === PERSONA_REVIEW_TOOL;
+  const statusColor = activeIsPersona ? "#c4b5fd" : telemetry?.status === "complete" ? "#a3e635" : "#22d3ee";
+  const activeEvent = eventLog.find((event) => event.activeToolId || event.resultSummary);
+  const query = telemetry?.inputSummary || activeEvent?.inputSummary;
+  const result = telemetry?.resultSummary || activeEvent?.resultSummary;
   return (
     <div style={{
-      position:"absolute", top:16, right:18, width:374, maxHeight:350, overflowY:"auto",
-      zIndex:30, padding:"11px 12px", border:"1px solid #22d3ee55", borderRadius:7,
+      position:"absolute", top:16, right:18, width:390, maxHeight:430, overflowY:"auto",
+      zIndex:30, padding:"12px 13px", border:`1px solid ${statusColor}55`, borderRadius:8,
       background:"rgba(7,15,29,0.96)", boxShadow:"0 0 24px #0008", backdropFilter:"blur(10px)",
       fontFamily:"'Space Mono','DM Mono','Courier New',monospace",
     }}>
       <div style={{ display:"flex", alignItems:"center", gap:7, marginBottom:8 }}>
-        <span style={{ width:6, height:6, borderRadius:"50%", background:telemetry?.status === "complete" ? "#a3e635" : "#22d3ee", boxShadow:"0 0 8px #22d3ee", flexShrink:0 }} />
-        <span style={{ fontSize:7, letterSpacing:"0.17em", color:"#22d3ee" }}>LIVE TARGET INSPECTOR</span>
-        <span style={{ marginLeft:"auto", fontSize:6.5, letterSpacing:"0.12em", color:telemetry?.status === "complete" ? "#a3e635" : "#fbbf24" }}>
+        <span style={{ width:6, height:6, borderRadius:"50%", background:statusColor, boxShadow:`0 0 8px ${statusColor}`, flexShrink:0 }} />
+        <span style={{ fontSize:7, letterSpacing:"0.17em", color:statusColor }}>LIVE EVIDENCE ACTIVITY</span>
+        <span style={{ marginLeft:"auto", fontSize:6.5, letterSpacing:"0.12em", color:statusColor }}>
           {String(telemetry?.status ?? "history").toUpperCase()}
         </span>
       </div>
@@ -766,11 +771,35 @@ function AtlasTelemetryInspector({ telemetry, eventLog = [] }: { telemetry?: any
         <span style={{ color:"#e8e0cc", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{telemetry?.targetName ?? "—"}</span>
         <span style={{ color:"#526b86", letterSpacing:"0.1em" }}>STAGE</span>
         <span style={{ color:"#a3e635" }}>{telemetry?.stage ?? "—"}</span>
-        <span style={{ color:"#526b86", letterSpacing:"0.1em" }}>ACTIVE LANE</span>
-        <span style={{ color:telemetry?.activeToolId === PERSONA_REVIEW_TOOL ? "#c4b5fd" : "#22d3ee" }}>{activeTool ?? "—"}</span>
+        <span style={{ color:"#526b86", letterSpacing:"0.1em" }}>CURRENT LANE</span>
+        <span style={{ color:activeIsPersona ? "#c4b5fd" : "#22d3ee" }}>{activeTool ?? "No lane reported"}</span>
       </div>
-      {(researchTools.length > 0 || hasPersonaReview) && (
+      {!activeIsPersona && (telemetry?.prompt || query || result) && (
         <div style={{ marginTop:10, display:"flex", flexDirection:"column", gap:7 }}>
+          {telemetry?.prompt && (
+            <div style={{ padding:"8px", border:"1px solid #a3e63530", borderRadius:5, background:"#a3e63508", color:"#cbd5a5", fontSize:6.8, lineHeight:1.5 }}>
+              <div style={{ color:"#a3e635", fontSize:6.5, letterSpacing:"0.13em", marginBottom:4 }}>PROMPT PURPOSE</div>
+              <div style={{ maxHeight:54, overflow:"hidden" }}>{telemetry.prompt}</div>
+            </div>
+          )}
+          {query && (
+            <div style={{ padding:"7px 8px", border:"1px solid #22d3ee28", borderRadius:5, background:"#22d3ee06", color:"#8aa4c0", fontSize:6.8, lineHeight:1.45 }}>
+              <span style={{ color:"#67e8f9", letterSpacing:"0.1em" }}>QUERY / INPUT  </span>{query}
+            </div>
+          )}
+          {result && (
+            <div style={{ padding:"7px 8px", border:"1px solid #a3e63528", borderRadius:5, background:"#a3e63506", color:"#b9c79a", fontSize:6.8, lineHeight:1.45 }}>
+              <span style={{ color:"#a3e635", letterSpacing:"0.1em" }}>EVIDENCE / RESULT  </span>{result}
+            </div>
+          )}
+        </div>
+      )}
+      {(researchTools.length > 0 || hasPersonaReview) && (
+        <details style={{ marginTop:10 }}>
+          <summary style={{ cursor:"pointer", listStyle:"none", color:"#526b86", fontSize:6.7, letterSpacing:"0.13em" }}>
+            SHOW LANE DETAILS · {tools.length} REPORTED
+          </summary>
+          <div style={{ marginTop:8, display:"flex", flexDirection:"column", gap:7 }}>
           {researchTools.length > 0 && (
             <div style={{ padding:"7px 8px", border:"1px solid #22d3ee28", borderRadius:4, background:"#22d3ee06" }}>
               <div style={{ color:"#67e8f9", fontSize:6.5, letterSpacing:"0.13em", marginBottom:4 }}>
@@ -794,33 +823,23 @@ function AtlasTelemetryInspector({ telemetry, eventLog = [] }: { telemetry?: any
               </div>
             </div>
           )}
-        </div>
-      )}
-      {telemetry?.inputSummary && (
-        <div style={{ marginTop:9, paddingTop:8, borderTop:"1px solid #192840", color:"#8aa4c0", fontSize:7, lineHeight:1.45 }}>
-          <span style={{ color:"#526b86", letterSpacing:"0.1em" }}>INPUT  </span>{telemetry.inputSummary}
-        </div>
-      )}
-      {telemetry?.prompt && (
-        <div style={{ marginTop:8, padding:"8px", border:"1px solid #a3e63530", borderRadius:4, background:"#a3e63508", color:"#cbd5a5", fontSize:6.7, lineHeight:1.5, whiteSpace:"pre-wrap", maxHeight:150, overflowY:"auto" }}>
-          <div style={{ color:"#a3e635", fontSize:6.5, letterSpacing:"0.13em", marginBottom:5 }}>CURRENT PROMPT</div>
-          {telemetry.prompt}
-        </div>
-      )}
-      {telemetry?.resultSummary && (
-        <div style={{ marginTop:8, color:"#8aa4c0", fontSize:7, lineHeight:1.45 }}>
-          <span style={{ color:"#526b86", letterSpacing:"0.1em" }}>RESULT  </span>{telemetry.resultSummary}
-        </div>
+          </div>
+        </details>
       )}
       {telemetry?.personaNames?.length > 0 && (
-        <div style={{ marginTop:8, color:"#c4b5fd", fontSize:7, lineHeight:1.45 }}>
-          <span style={{ color:"#8b5cf6", letterSpacing:"0.1em" }}>REVIEW ROLES  </span>{telemetry.personaNames.join(" · ")}
-        </div>
+        <details style={{ marginTop:9 }}>
+          <summary style={{ cursor:"pointer", listStyle:"none", color:"#8b5cf6", fontSize:6.7, letterSpacing:"0.1em" }}>SHOW REVIEW ROLES</summary>
+          <div style={{ marginTop:6, color:"#c4b5fd", fontSize:7, lineHeight:1.45 }}>{telemetry.personaNames.join(" · ")}</div>
+        </details>
       )}
       {eventLog.length > 0 && (
-        <div style={{ marginTop:10, paddingTop:8, borderTop:"1px solid #192840" }}>
+        <details style={{ marginTop:10, paddingTop:8, borderTop:"1px solid #192840" }}>
+          <summary style={{ cursor:"pointer", listStyle:"none", color:"#526b86", fontSize:6.5, letterSpacing:"0.14em" }}>
+            SHOW CONFIRMED EVENT LOG · {eventLog.length}
+          </summary>
+          <div style={{ marginTop:7 }}>
           <div style={{ color:"#22d3ee", fontSize:6.5, letterSpacing:"0.14em", marginBottom:6 }}>
-            RESEARCH EVENT LOG · {eventLog.length} RECENT EVENTS
+            LOW-SIGNAL TELEMETRY · CONFIRMED EVENTS
           </div>
           <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
             {eventLog.slice(0, 10).map((event, index) => (
@@ -841,7 +860,8 @@ function AtlasTelemetryInspector({ telemetry, eventLog = [] }: { telemetry?: any
               </details>
             ))}
           </div>
-        </div>
+          </div>
+        </details>
       )}
     </div>
   );
@@ -914,7 +934,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
             textShadow: hasSessions ? "0 0 12px #a3e63544" : "none",
             animation: hasSessions ? "breathe 3s ease-in-out infinite" : "none",
             transition:"all 0.4s",
-          }}>☢</span>
+          }}><Atom className="h-7 w-7" /></span>
 
           <div style={{ flex:1, minWidth:0 }}>
             <div style={{
@@ -1162,7 +1182,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                 <div style={{ display:"flex", alignItems:"center", gap:6, paddingLeft:13 }}>
                   <span style={{ fontSize:7.5, letterSpacing:"0.14em", color:"#a3e63599",
                     flex:1, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                    ▸ {livePhaseDetail || "processing…"}
+                    {livePhaseDetail || "Processing live research"}
                   </span>
                   {/* Pulse dots — one per live node */}
                   <div style={{ display:"flex", gap:2, flexShrink:0 }}>
@@ -1381,7 +1401,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
             boxShadow:`0 0 14px ${adaptive ? "#22d3ee55" : "#a3e63555"}`,
             animation: adaptive ? "pulseGlow 0.7s ease-in-out infinite" : "breathe 3s ease-in-out infinite",
           }}>
-            <span style={{ lineHeight:1, display:"block", marginTop:1 }}>☢</span>
+            <Atom className="h-5 w-5" />
           </div>
           <div style={{ minWidth:230, flexShrink:0 }}>
             <div style={{ fontSize:12, fontWeight:700, letterSpacing:"0.2em", color:"#e8e0cc" }}>
@@ -1538,7 +1558,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                   color: visible ? statusColor : "#253850", lineHeight:1.2,
                   transition:"color 0.35s", whiteSpace:"nowrap",
                 }}>
-                  {isReactor && on ? "◉  " : ""}{n.label}
+                  {n.label}
                 </div>
                 <div style={{
                   fontSize:7.5, letterSpacing:"0.1em",
@@ -1691,10 +1711,10 @@ export default function IntelligenceReactorPage() {
           const stepN  = parseInt(stepMatch[1], 10);
           const total  = parseInt(stepMatch[2], 10);
           const detail = msg.slice(stepMatch[0].length).trim().replace(/…$/, "");
-          labels.push(`▶ [${stepN}/${total}] ${detail.slice(0, 65)}`);
+           labels.push(`Step [${stepN}/${total}] ${detail.slice(0, 65)}`);
           setLivePhaseDetail(`Step ${stepN}/${total} — ${detail.slice(0, 80)}`);
         } else {
-          labels.push(`▶ Atlas — ${msg.replace(/^Phase \d+\/[^:]+:\s*/i, "").slice(0, 70)}`);
+           labels.push(`Atlas — ${msg.replace(/^Phase \d+\/[^:]+:\s*/i, "").slice(0, 70)}`);
           setLivePhaseDetail(msg.slice(0, 90));
         }
          if (atlasTelemetry?.activeToolId) {
