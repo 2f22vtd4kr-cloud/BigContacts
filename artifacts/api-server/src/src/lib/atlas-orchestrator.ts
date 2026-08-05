@@ -963,6 +963,7 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
     await ensureAtlasActive(atlasJobId, id);
     const reviewEntity = await db.select({
       metadata: entitiesTable.metadata,
+      notes: entitiesTable.notes,
       sourceRegistries: entitiesTable.sourceRegistries,
       knownResidences: entitiesTable.knownResidences,
       estimatedNetWorth: entitiesTable.estimatedNetWorth,
@@ -1062,8 +1063,20 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
       instagramHandle: baselineContacts.instagramHandle ?? (publish ? normalizeHandle(approvedInstagram) : null),
       twitterHandle: baselineContacts.twitterHandle ?? (publish ? normalizeHandle(approvedTwitter) : null),
     };
+    const {
+      atlasTargetOutcome: _previousTargetOutcome,
+      atlasLastError: _previousLastError,
+      atlasTimeoutAt: _previousTimeoutAt,
+      ...priorMetadata
+    } = safeJson<Record<string, unknown>>(reviewEntity?.metadata ?? entity.metadata, {});
+    const cleanNotes = String(reviewEntity?.notes ?? "")
+      .split("\n")
+      .filter((line) => !line.startsWith("Atlas timeout review:"))
+      .join("\n")
+      .trim() || null;
     const reviewMetadata = {
-      ...safeJson<Record<string, unknown>>(reviewEntity?.metadata ?? entity.metadata, {}),
+      ...priorMetadata,
+      atlasTargetOutcome: "completed_review",
       finalTargetReview: finalReview,
       finalTargetReviewAt: new Date().toISOString(),
       atlasResearchDisposition: researchDisposition.disposition,
@@ -1076,6 +1089,7 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
       linkedinUrl: finalContacts.linkedinUrl,
       instagramHandle: finalContacts.instagramHandle,
       twitterHandle: finalContacts.twitterHandle,
+      notes: cleanNotes,
       metadata: JSON.stringify(reviewMetadata),
       updatedAt: new Date(),
     }).where(eq(entitiesTable.id, id));

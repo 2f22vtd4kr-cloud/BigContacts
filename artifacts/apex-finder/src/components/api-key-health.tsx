@@ -107,15 +107,19 @@ function SlotSummary({ slots, now }: { slots: AIKeySlot[]; now: number }) {
     .sort((a, b) => Date.parse(a) - Date.parse(b))[0] ?? null;
 
   return (
-    <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5 font-mono text-[10px]">
-      <span className="text-primary">{active} up</span>
+    <div className="flex min-w-0 max-w-full flex-wrap items-center justify-end gap-x-1.5 gap-y-0.5 text-right font-mono text-[10px]">
+      <span className="whitespace-nowrap text-primary">{active} up</span>
       {rateLimited > 0 && (
-        <span className="text-amber-400">
-          {active === 0 ? "ALL TEMPORARILY RATE-LIMITED" : `${rateLimited} cooling`}
+        <span className="max-w-full break-words [overflow-wrap:anywhere] text-amber-400">
+          {active === 0 ? "ALL COOLING" : `${rateLimited} cooling`}
         </span>
       )}
-      {missing > 0 && <span className="text-muted-foreground/55">{missing} missing</span>}
-      {nextReset && <span className="w-full text-right text-[9px] text-amber-400/80">refresh {formatResetTime(nextReset, now)}</span>}
+      {missing > 0 && <span className="whitespace-nowrap text-muted-foreground/55">{missing} missing</span>}
+      {nextReset && (
+        <span className="w-full max-w-full break-words [overflow-wrap:anywhere] text-[9px] text-amber-400/80">
+          refresh {formatResetTime(nextReset, now)}
+        </span>
+      )}
     </div>
   );
 }
@@ -134,8 +138,8 @@ function ProviderRow({
   const state = active > 0 ? (rateLimited > 0 ? "degraded" : "healthy") : rateLimited > 0 ? "degraded" : "missing";
 
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-border/50 py-2.5 last:border-0">
-      <div className="flex min-w-0 items-center gap-2.5">
+    <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-border/50 py-2.5 last:border-0">
+      <div className="flex min-w-[7rem] flex-1 items-center gap-2.5">
         <span
           className={cn(
             "h-2 w-2 shrink-0 rounded-full",
@@ -146,7 +150,9 @@ function ProviderRow({
         />
         <span className="truncate font-mono text-[11px] text-foreground">{PROVIDER_LABELS[name]}</span>
       </div>
-      <SlotSummary slots={slots} now={now} />
+      <div className="min-w-0 max-w-full flex-1">
+        <SlotSummary slots={slots} now={now} />
+      </div>
     </div>
   );
 }
@@ -245,7 +251,7 @@ export function ApiKeyHealth() {
           id="api-key-health-panel"
           role="dialog"
           aria-label="API key status"
-          className="fixed left-2 right-2 top-[4.5rem] z-50 max-h-[calc(100dvh-6rem)] overflow-y-auto rounded-xl border border-border bg-popover p-4 shadow-2xl shadow-black/50 backdrop-blur-xl sm:absolute sm:left-auto sm:right-0 sm:top-[calc(100%+0.5rem)] sm:max-h-none sm:w-[min(410px,calc(100vw-2rem))]"
+          className="fixed left-2 right-2 top-[4.5rem] z-50 max-h-[calc(100dvh-6rem)] overflow-x-hidden overflow-y-auto rounded-xl border border-border bg-popover p-4 shadow-2xl shadow-black/50 backdrop-blur-xl sm:absolute sm:left-auto sm:right-0 sm:top-[calc(100%+0.5rem)] sm:max-h-none sm:w-[min(410px,calc(100vw-2rem))]"
         >
           <div className="flex items-start justify-between gap-4 border-b border-border/60 pb-3">
             <div className="flex min-w-0 items-start gap-2.5">
@@ -263,7 +269,7 @@ export function ApiKeyHealth() {
                 <p className="mt-1 max-w-[280px] text-[11px] leading-4 text-muted-foreground">{healthCopy.detail}</p>
               </div>
             </div>
-            <div className="shrink-0 text-right">
+            <div className="min-w-0 shrink-0 text-right">
               <div className="font-mono text-xl font-bold text-foreground">{summary.active}<span className="text-muted-foreground/40">/{summary.configured}</span></div>
               <div className="font-mono text-[9px] uppercase tracking-widest text-muted-foreground/60">active / configured</div>
             </div>

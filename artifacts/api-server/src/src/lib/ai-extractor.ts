@@ -57,9 +57,11 @@ const TAVILY_API = "https://api.tavily.com/search";
 // Exa — neural/semantic search API; excels at people + company lookups
 const EXA_API = "https://api.exa.ai/search";
 
-// Track temporary 429 cooldowns only. These are not account quota exhaustion:
-// a key returns to the active pool automatically after Retry-After / fallback TTL.
+// Track temporary 429 cooldowns separately from provider/account quota exhaustion.
+// Quota-exhausted keys are skipped until the API process restarts or the daily
+// circuit-breaker expires; this prevents a dead pool from retrying every slot.
 const EXHAUSTED_TTL_MS = 5 * 60 * 1000;
+const PROVIDER_QUOTA_TTL_MS = 24 * 60 * 60 * 1000;
 
 function isExhausted(map: Map<string, number>, key: string): boolean {
   const exp = map.get(key);
@@ -88,6 +90,7 @@ const _exhaustedORKeys                = new Map<string, number>(); // for llama 
 const _exhaustedPerplexityKeys        = new Map<string, number>(); // for OpenRouter-routed Sonar only
 const _exhaustedPerplexityDirectKeys  = new Map<string, number>(); // for direct Perplexity API only
 const _exhaustedGeminiKeys            = new Map<string, number>(); // for Gemini Flash grounded search
+const _quotaExhaustedTavilyKeys       = new Map<string, number>(); // provider/account quota response
 const _exhaustedTavilyKeys            = new Map<string, number>(); // for Tavily search API
 const _exhaustedExaKeys               = new Map<string, number>(); // for Exa neural search API
 
@@ -122,8 +125,13 @@ function getGeminiKeys(): string[] {
 
 /** Returns all Tavily API keys (TAVILY_API_KEY, TAVILY_API_KEY_1 … _8). */
 function getTavilyKeys(): string[] {
-  const names = ["TAVILY_API_KEY"];
-  for (let i = 1; i <= 8; i++) names.push(`TAVILY_API_KEY_${i}`);
+  // The newest slot is intentionally first so a freshly added quota pool is
+  // used before older account-exhausted slots. The 432 circuit-breaker below
+  // suppresses old exhausted slots after their first observed rejection.
+  const names = ["TAVILY_API_KEY_6", "TAVILY_API_KEY"];
+  for (let i = 1; i <= 8; i++) {
+    if (i !== 6) names.push(`TAVILY_API_KEY_${i}`);
+  }
   return names.map(k => process.env[k] ?? "").filter(k => k.length > 0);
 }
 
@@ -1313,9 +1321,14 @@ export async function researchWithTavily(
       }
       if (resp.status === 401 || resp.status === 403 || resp.status === 432) {
         const errText = await resp.text().catch(() => "");
+        if (resp.status === 432) {
+          _quotaExhaustedTavilyKeys.set(key, Date.now() + PROVIDER_QUOTA_TTL_MS);
+        }
         logger.warn(
-          { status: resp.status, err: errText.slice(0, 200) },
-          "Phase 0 [tavily]: provider rejected request; key remains configured",
+          { status: resp.status, quotaExhausted: resp.status === 432, err: errText.slice(0, 200) },
+          resp.status === 432
+            ? "Phase 0 [tavily]: account quota exhausted; suppressing this key until the next daily refresh"
+            : "Phase 0 [tavily]: provider rejected request; key remains configured",
         );
         continue;
       }
@@ -1577,9 +1590,12 @@ export function getAIKeyStatus(): AIKeyStatus {
     envName:   string,
     exhausted: Map<string, number>,
     index:     number,
+    quotaExhausted?: Map<string, number>,
   ): AIKeySlot {
     const val = process.env[envName];
     if (!val) return { index, state: "missing", expiresAt: null };
+    const quotaExp = quotaExhausted?.get(val);
+    if (quotaExp && quotaExp > now) return { index, state: "rate_limited", expiresAt: new Date(quotaExp).toISOString() };
     const exp = exhausted.get(val);
     if (exp && exp > now) return { index, state: "rate_limited", expiresAt: new Date(exp).toISOString() };
     return { index, state: "active", expiresAt: null };
@@ -1595,7 +1611,7 @@ export function getAIKeyStatus(): AIKeyStatus {
     groq:       groqNames.map((n, i) => slotState(n, _exhaustedGroqKeys,             i)),
     perplexity: pplxNames.map((n, i) => slotState(n, _exhaustedPerplexityDirectKeys, i)),
     gemini:     gemNames .map((n, i) => slotState(n, _exhaustedGeminiKeys,           i)),
-    tavily:     tavNames .map((n, i) => slotState(n, _exhaustedTavilyKeys,           i)),
+    tavily:     tavNames .map((n, i) => slotState(n, _exhaustedTavilyKeys,           i, _quotaExhaustedTavilyKeys)),
     exa:        exaNames .map((n, i) => slotState(n, _exhaustedExaKeys,              i)),
   };
 }
