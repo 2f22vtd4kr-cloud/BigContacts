@@ -209,7 +209,9 @@ async function callGemini(prompt: string): Promise<WealthEstimate[]> {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.1, maxOutputTokens: 4096 },
+        // Keep wealth backfill on the lower-credit Flash-Lite path and avoid
+        // spending tokens on unnecessarily long reasoning responses.
+        generationConfig: { temperature: 0.1, maxOutputTokens: 2048 },
       }),
       signal: AbortSignal.timeout(45_000),
     }

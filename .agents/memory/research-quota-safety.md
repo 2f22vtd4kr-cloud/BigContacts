@@ -3,7 +3,7 @@ name: Research quota safety
 description: Provider and pipeline safeguards for controlled, one-target-at-a-time research.
 ---
 
-Gemini research uses the lower-quota Flash-Lite model, rotates across configured keys, spaces requests per key, and caps output tokens. Full web research is serialized across entry points; Atlas entity processing is also single-target.
+Gemini research uses the lower-credit Flash-Lite model, rotates across configured keys, and caps output tokens. Groq, Gemini, Tavily, and Exa calls start from shared per-provider round-robin cursors so parallel calls do not repeatedly hit slot zero. Full web research is serialized across entry points; Atlas entity processing is also single-target.
 
 Provider key presence and provider quota are separate facts: multiple configured keys can still receive 429 responses during a provider/project cooldown, so UI status must say rate-limited/rotating rather than implying the secrets are missing or invalid. The project uses several quota-limited public research providers, and concurrent target work can create avoidable bursts and 429 responses.
 

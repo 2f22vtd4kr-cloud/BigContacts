@@ -41,9 +41,11 @@ const PERPLEXITY_DIRECT_API      = "https://api.perplexity.ai/chat/completions";
 const PERPLEXITY_DIRECT_MODEL    = "sonar-pro";   // model name WITHOUT the "perplexity/" prefix when calling directly
 const PERPLEXITY_DIRECT_FALLBACK = "sonar";       // cheaper direct fallback
 
-// Gemini Flash-Lite with Google Search Grounding — lower-quota model; searches Google in real-time
+// Gemini Flash-Lite with Google Search Grounding — lowest-credit grounded model;
+// searches Google in real-time without paying for a larger Gemini tier.
 const GEMINI_MODEL = "gemini-2.0-flash-lite";
 const GEMINI_API   = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+const GEMINI_MAX_OUTPUT_TOKENS = 1600;
 
 // Tavily — AI-native search API; returns clean excerpts; structure extracted by Groq
 const TAVILY_API = "https://api.tavily.com/search";
@@ -111,6 +113,28 @@ function getExaKeys(): string[] {
   const names = ["EXA_API_KEY"];
   for (let i = 1; i <= 8; i++) names.push(`EXA_API_KEY_${i}`);
   return names.map(k => process.env[k] ?? "").filter(k => k.length > 0);
+}
+
+// Provider calls can arrive in parallel within one research target (for example,
+// Tavily and Exa both hand excerpts to Groq). Starting every call at slot 0
+// defeats key rotation and makes freshly-created pools look quota-exhausted.
+// Advance the starting slot synchronously before the first await so concurrent
+// callers receive different keys.
+const keyCursors = {
+  groq: 0,
+  gemini: 0,
+  tavily: 0,
+  exa: 0,
+};
+
+function roundRobinKeys(
+  keys: string[],
+  provider: keyof typeof keyCursors,
+): string[] {
+  if (keys.length < 2) return keys;
+  const start = keyCursors[provider] % keys.length;
+  keyCursors[provider] = (start + 1) % keys.length;
+  return [...keys.slice(start), ...keys.slice(0, start)];
 }
 
 /** Personal contact vector for a named owner/founder discovered in text */
@@ -1021,7 +1045,7 @@ export async function researchWithGemini(
         body: JSON.stringify({
           contents: [{ role: "user", parts: [{ text: prompt }] }],
           tools: [{ google_search: {} }],
-          generationConfig: { temperature: 0.1, maxOutputTokens: 2000 },
+          generationConfig: { temperature: 0.1, maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS },
         }),
         signal: AbortSignal.timeout(35_000),
       });
@@ -1118,7 +1142,7 @@ export async function researchWithTavily(
 
   logger.info({ entityName, entityType, country, query }, "Phase 0 [tavily]: firing Tavily search");
 
-  for (const key of keys) {
+  for (const key of roundRobinKeys(keys, "tavily")) {
     if (isExhausted(_exhaustedTavilyKeys, key)) continue;
     try {
       const resp = await fetch(TAVILY_API, {
@@ -1234,7 +1258,7 @@ export async function researchWithExa(
 
   logger.info({ entityName, entityType, country, query }, "Phase 0 [exa]: firing Exa neural search");
 
-  for (const key of keys) {
+  for (const key of roundRobinKeys(keys, "exa")) {
     if (isExhausted(_exhaustedExaKeys, key)) continue;
     try {
       const resp = await fetch(EXA_API, {
@@ -1342,7 +1366,9 @@ export async function extractWithAI(
 
   try {
     // ── 1. Try all Groq keys ────────────────────────────────────────────────
-    for (const key of getGroqKeys()) {
+    // Start at a rotating slot so parallel extraction calls do not all spend
+    // their first attempt against GROQ_API_KEY.
+    for (const key of roundRobinKeys(getGroqKeys(), "groq")) {
       if (isExhausted(_exhaustedGroqKeys, key)) continue;
 
       // Primary model
