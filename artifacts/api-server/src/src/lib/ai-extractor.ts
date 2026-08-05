@@ -57,7 +57,8 @@ const TAVILY_API = "https://api.tavily.com/search";
 // Exa — neural/semantic search API; excels at people + company lookups
 const EXA_API = "https://api.exa.ai/search";
 
-// Track which keys hit rate-limits. Map<key, expiresAtMs> — keys auto-recover after 5 min.
+// Track temporary 429 cooldowns only. These are not account quota exhaustion:
+// a key returns to the active pool automatically after Retry-After / fallback TTL.
 const EXHAUSTED_TTL_MS = 5 * 60 * 1000;
 
 function isExhausted(map: Map<string, number>, key: string): boolean {
@@ -65,6 +66,20 @@ function isExhausted(map: Map<string, number>, key: string): boolean {
   if (!exp) return false;
   if (Date.now() > exp) { map.delete(key); return false; }
   return true;
+}
+
+function retryAfterMs(response: Response, fallbackMs = EXHAUSTED_TTL_MS): number {
+  const value = response.headers.get("retry-after");
+  if (!value) return fallbackMs;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds >= 0) {
+    return Math.min(Math.max(seconds * 1000, 1_000), 15 * 60 * 1000);
+  }
+  const timestamp = Date.parse(value);
+  if (Number.isFinite(timestamp)) {
+    return Math.min(Math.max(timestamp - Date.now(), 1_000), 15 * 60 * 1000);
+  }
+  return fallbackMs;
 }
 
 // IMPORTANT: each provider uses a SEPARATE exhaustion map — a 429 on one must NOT block others.
@@ -1083,8 +1098,12 @@ export async function researchWithGemini(
       });
 
       if (resp.status === 429) {
-        _exhaustedGeminiKeys.set(key, Date.now() + EXHAUSTED_TTL_MS);
-        logger.warn(`Phase 0 [${GEMINI_MODEL}]: rate limit — key exhausted 5 min`);
+        const cooldownMs = retryAfterMs(resp);
+        _exhaustedGeminiKeys.set(key, Date.now() + cooldownMs);
+        logger.warn(
+          { cooldownMs },
+          `Phase 0 [${GEMINI_MODEL}]: temporary rate limit — key cooling down`,
+        );
         continue;
       }
       if (resp.status === 403) {
@@ -1179,9 +1198,11 @@ export async function researchWithTavily(
     try {
       const resp = await fetch(TAVILY_API, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Authorization": `Bearer ${key}`,
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
-          api_key: key,
           query,
           search_depth: "advanced",
           include_answer: true,
@@ -1192,16 +1213,16 @@ export async function researchWithTavily(
       });
 
       if (resp.status === 429) {
-        _exhaustedTavilyKeys.set(key, Date.now() + EXHAUSTED_TTL_MS);
-        logger.warn("Phase 0 [tavily]: rate limit — key exhausted 5 min");
+        const cooldownMs = retryAfterMs(resp);
+        _exhaustedTavilyKeys.set(key, Date.now() + cooldownMs);
+        logger.warn({ cooldownMs }, "Phase 0 [tavily]: temporary rate limit — key cooling down");
         continue;
       }
       if (resp.status === 401 || resp.status === 403 || resp.status === 432) {
         const errText = await resp.text().catch(() => "");
-        _exhaustedTavilyKeys.set(key, Date.now() + EXHAUSTED_TTL_MS);
         logger.warn(
           { status: resp.status, err: errText.slice(0, 200) },
-          "Phase 0 [tavily]: key temporarily suppressed after auth/quota response",
+          "Phase 0 [tavily]: provider rejected request; key remains configured",
         );
         continue;
       }
@@ -1443,7 +1464,7 @@ export async function extractWithAI(
 
 export interface AIKeySlot {
   index:     number;
-  state:     "active" | "exhausted" | "missing";
+  state:     "active" | "rate_limited" | "missing";
   expiresAt: string | null;
 }
 
@@ -1457,7 +1478,11 @@ export interface AIKeyStatus {
 
 /**
  * Returns a per-slot snapshot of every AI provider key pool:
- * active, exhausted (with expiry timestamp), or missing (env var not set).
+ * active, temporary rate_limited (with expiry timestamp), or missing.
+ *
+ * "Active" means configured and not in a temporary 429 cooldown. It does not
+ * claim that the provider account has remaining credits; account-level usage
+ * errors must never be converted into per-key exhaustion.
  */
 export function getAIKeyStatus(): AIKeyStatus {
   const now = Date.now();
@@ -1470,7 +1495,7 @@ export function getAIKeyStatus(): AIKeyStatus {
     const val = process.env[envName];
     if (!val) return { index, state: "missing", expiresAt: null };
     const exp = exhausted.get(val);
-    if (exp && exp > now) return { index, state: "exhausted", expiresAt: new Date(exp).toISOString() };
+    if (exp && exp > now) return { index, state: "rate_limited", expiresAt: new Date(exp).toISOString() };
     return { index, state: "active", expiresAt: null };
   }
 

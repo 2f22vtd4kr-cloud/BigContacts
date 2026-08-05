@@ -14,7 +14,10 @@
 
 ---
 
-## Current State (2026-08-04 — continuous Atlas scheduler verified live)
+## Current State (2026-08-05 — provider key status correction verified live)
+
+- The API-key health bug is corrected. Tavily's main enrichment request now uses the documented `Authorization: Bearer` header instead of placing the key in the JSON body. Tavily 401/403/432 provider/account responses no longer suppress individual keys; Gemini/Tavily 429s are temporary `rate_limited` cooldowns honoring `Retry-After`, not `exhausted` keys.
+- After the API restart cleared stale in-memory cooldowns, live `/api/system/status` reported Groq 5/5 active, Gemini 4/4 active, Tavily 6/6 active, Exa 2/2 active, and zero temporary cooldowns. The screenshot's Tavily account-credit display is separate from per-key configuration state.
 
 - Apex Atlas is now strictly an OSINT/evidence research tool. CRM, outreach, pitch generation, communication approval, message export, and lead-creation behavior are removed or unavailable; historical database columns remain compatibility-only and do not drive product behavior.
 - Final verification completed: API production build and 244 API tests pass; web production build passes; Expo iOS/Android static bundles pass; API/Redis health and dashboard stats return 200; retired pitch, safety, status-mutation, and lead endpoints return 404; final web preview has no browser errors.

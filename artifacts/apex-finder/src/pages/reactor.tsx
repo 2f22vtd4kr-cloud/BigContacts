@@ -1648,7 +1648,7 @@ export default function IntelligenceReactorPage() {
         const providerWarnings = (Object.entries(sysData.ai) as [string, any[]][])
           .flatMap(([k, slots]) => {
             const configured = slots.filter((s: any) => s.state !== "missing").length;
-            const rateLimited = slots.filter((s: any) => s.state === "exhausted").length;
+            const rateLimited = slots.filter((s: any) => s.state === "rate_limited").length;
             if (configured === 0 || rateLimited === 0) return [];
             const label = LABELS[k] ?? k;
             return rateLimited === configured

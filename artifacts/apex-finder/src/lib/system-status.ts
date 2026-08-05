@@ -1,6 +1,6 @@
 export interface AIKeySlot {
   index: number;
-  state: "active" | "exhausted" | "missing";
+  state: "active" | "rate_limited" | "missing";
   expiresAt: string | null;
 }
 
@@ -49,7 +49,7 @@ export const PROVIDER_LABELS: Record<keyof AIKeyStatus, string> = {
 
 export interface ApiKeySummary {
   active: number;
-  exhausted: number;
+  rateLimited: number;
   missing: number;
   configured: number;
   total: number;
@@ -63,19 +63,19 @@ export function summarizeApiKeys(status: SystemStatus | null): ApiKeySummary {
         summary.total += 1;
         if (slot.state !== "missing") summary.configured += 1;
         if (slot.state === "active") summary.active += 1;
-        if (slot.state === "exhausted") summary.exhausted += 1;
+        if (slot.state === "rate_limited") summary.rateLimited += 1;
         if (slot.state === "missing") summary.missing += 1;
       }
       return summary;
     },
-    { active: 0, exhausted: 0, missing: 0, configured: 0, total: 0 },
+    { active: 0, rateLimited: 0, missing: 0, configured: 0, total: 0 },
   );
 }
 
 export function getSoonestReset(status: SystemStatus | null): string | null {
   const timestamps = AI_PROVIDERS.flatMap((provider) =>
     (status?.ai?.[provider] ?? [])
-      .filter((slot) => slot.state === "exhausted" && slot.expiresAt)
+      .filter((slot) => slot.state === "rate_limited" && slot.expiresAt)
       .map((slot) => slot.expiresAt as string),
   );
   return timestamps.sort((a, b) => Date.parse(a) - Date.parse(b))[0] ?? null;

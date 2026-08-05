@@ -15,7 +15,7 @@ const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 interface AIKeySlot {
   index: number;
-  state: "active" | "exhausted" | "missing";
+  state: "active" | "rate_limited" | "missing";
   expiresAt: string | null;
 }
 
@@ -70,7 +70,7 @@ function SlotDot({ slot }: { slot: AIKeySlot }) {
       <div className={cn(
         "h-4 w-4 rounded-full border transition-colors",
         slot.state === "active"    && "bg-primary border-primary shadow-[0_0_6px_rgba(132,204,22,0.5)]",
-        slot.state === "exhausted" && "bg-amber-500/80 border-amber-400 animate-pulse",
+        slot.state === "rate_limited" && "bg-amber-500/80 border-amber-400 animate-pulse",
         slot.state === "missing"   && "bg-muted/30 border-muted/50",
       )} />
       {/* Tooltip */}
@@ -84,7 +84,7 @@ function SlotDot({ slot }: { slot: AIKeySlot }) {
 
 function ProviderCard({ name, slots }: { name: keyof AIKeyStatus; slots: AIKeySlot[] }) {
   const active    = slots.filter(s => s.state === "active").length;
-  const exhausted = slots.filter(s => s.state === "exhausted").length;
+  const rateLimited = slots.filter(s => s.state === "rate_limited").length;
   const missing   = slots.filter(s => s.state === "missing").length;
   const configured = slots.filter(s => s.state !== "missing").length;
 
@@ -101,10 +101,10 @@ function ProviderCard({ name, slots }: { name: keyof AIKeyStatus; slots: AIKeySl
         <span className={cn(
           "rounded-full px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider",
           active > 0    ? "bg-primary/20 text-primary"       :
-          exhausted > 0 ? "bg-amber-500/20 text-amber-400"  :
+          rateLimited > 0 ? "bg-amber-500/20 text-amber-400"  :
                           "bg-muted/30 text-muted-foreground",
         )}>
-          {active > 0 ? `${active} active` : exhausted > 0 ? "rate limited" : "not configured"}
+          {active > 0 ? `${active} active` : rateLimited > 0 ? "cooling down" : "not configured"}
         </span>
       </div>
 
@@ -114,7 +114,7 @@ function ProviderCard({ name, slots }: { name: keyof AIKeyStatus; slots: AIKeySl
 
       <div className="mt-2.5 flex gap-3 font-mono text-[10px] text-muted-foreground">
         <span className="text-primary">{active} active</span>
-        {exhausted > 0 && <span className="text-amber-400">{exhausted} rate-limited</span>}
+        {rateLimited > 0 && <span className="text-amber-400">{rateLimited} temporary cooldown</span>}
         {missing   > 0 && <span className="text-muted-foreground/60">{missing} unconfigured</span>}
       </div>
     </div>
@@ -270,7 +270,7 @@ export default function SystemStatusPage() {
           ))}
         </div>
         <p className="mt-2.5 font-mono text-[10px] text-muted-foreground/50">
-          Hover a dot to see slot details. Exhausted slots auto-recover after the provider's rate-limit window.
+          Hover a dot to see slot details. Temporary 429 cooldowns auto-recover after the provider's rate-limit window; configured keys are not account-credit claims.
         </p>
       </section>
 
@@ -355,7 +355,7 @@ export default function SystemStatusPage() {
           <div className="h-3 w-3 rounded-full bg-primary" /> Active — key operational
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="h-3 w-3 rounded-full bg-amber-500" /> Exhausted — rate-limited (auto-recovers)
+          <div className="h-3 w-3 rounded-full bg-amber-500" /> Temporary cooldown — provider returned 429 (auto-recovers)
         </div>
         <div className="flex items-center gap-1.5">
           <div className="h-3 w-3 rounded-full border border-muted/50 bg-muted/20" /> Missing — secret not configured

@@ -27,7 +27,7 @@ import {
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const POLL_INTERVAL_MS = 15_000;
 
-type HealthState = "loading" | "healthy" | "degraded" | "quota-exhausted" | "down" | "offline";
+type HealthState = "loading" | "healthy" | "degraded" | "rate-limited" | "down" | "offline";
 
 function getHealthState(
   summary: ReturnType<typeof summarizeApiKeys>,
@@ -37,9 +37,9 @@ function getHealthState(
   if (loading && summary.total === 0) return "loading";
   if (hasError && summary.total === 0) return "offline";
   if (summary.configured === 0) return "down";
-  if (summary.active === 0 && summary.exhausted > 0) return "quota-exhausted";
+  if (summary.active === 0 && summary.rateLimited > 0) return "rate-limited";
   if (summary.active === 0) return "down";
-  if (summary.exhausted > 0) return "degraded";
+  if (summary.rateLimited > 0) return "degraded";
   return "healthy";
 }
 
@@ -59,9 +59,9 @@ const HEALTH_COPY: Record<HealthState, { label: string; detail: string; classNam
     detail: "Some configured slots are rate-limited; research can continue.",
     className: "text-amber-400",
   },
-  "quota-exhausted": {
-    label: "ALL QUOTA EXHAUSTED",
-    detail: "Every configured AI key is rate-limited. OSINT will resume automatically when the earliest quota window resets.",
+  "rate-limited": {
+    label: "KEYS RATE-LIMITED",
+    detail: "Every configured key is temporarily cooling down from a provider 429. Keys remain configured and will re-enter rotation automatically.",
     className: "text-amber-400",
   },
   down: {
@@ -99,19 +99,19 @@ function formatResetTime(timestamp: string | null, now: number): string | null {
 
 function SlotSummary({ slots, now }: { slots: AIKeySlot[]; now: number }) {
   const active = slots.filter((slot) => slot.state === "active").length;
-  const exhausted = slots.filter((slot) => slot.state === "exhausted").length;
+  const rateLimited = slots.filter((slot) => slot.state === "rate_limited").length;
   const missing = slots.filter((slot) => slot.state === "missing").length;
   const nextReset = slots
-    .filter((slot) => slot.state === "exhausted" && slot.expiresAt)
+    .filter((slot) => slot.state === "rate_limited" && slot.expiresAt)
     .map((slot) => slot.expiresAt as string)
     .sort((a, b) => Date.parse(a) - Date.parse(b))[0] ?? null;
 
   return (
     <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5 font-mono text-[10px]">
       <span className="text-primary">{active} up</span>
-      {exhausted > 0 && (
+      {rateLimited > 0 && (
         <span className="text-amber-400">
-          {active === 0 ? "ALL QUOTA EXHAUSTED" : `${exhausted} limited`}
+          {active === 0 ? "ALL TEMPORARILY RATE-LIMITED" : `${rateLimited} cooling`}
         </span>
       )}
       {missing > 0 && <span className="text-muted-foreground/55">{missing} missing</span>}
@@ -130,8 +130,8 @@ function ProviderRow({
   now: number;
 }) {
   const active = slots.filter((slot) => slot.state === "active").length;
-  const exhausted = slots.filter((slot) => slot.state === "exhausted").length;
-  const state = active > 0 ? (exhausted > 0 ? "degraded" : "healthy") : exhausted > 0 ? "degraded" : "missing";
+  const rateLimited = slots.filter((slot) => slot.state === "rate_limited").length;
+  const state = active > 0 ? (rateLimited > 0 ? "degraded" : "healthy") : rateLimited > 0 ? "degraded" : "missing";
 
   return (
     <div className="flex items-center justify-between gap-3 border-b border-border/50 py-2.5 last:border-0">
@@ -212,7 +212,7 @@ export function ApiKeyHealth() {
   const healthCopy = HEALTH_COPY[health];
   const soonestReset = getSoonestReset(status);
   const soonestResetLabel = formatResetTime(soonestReset, now);
-  const icon = health === "healthy" ? ShieldCheck : health === "degraded" || health === "quota-exhausted" ? AlertTriangle : health === "loading" ? Loader2 : ShieldAlert;
+  const icon = health === "healthy" ? ShieldCheck : health === "degraded" || health === "rate-limited" ? AlertTriangle : health === "loading" ? Loader2 : ShieldAlert;
   const HealthIcon = icon;
 
   return (
@@ -251,7 +251,7 @@ export function ApiKeyHealth() {
             <div className="flex min-w-0 items-start gap-2.5">
               <div className={cn(
                 "mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-muted/70",
-                health === "down" || health === "offline" ? "text-destructive" : health === "degraded" || health === "quota-exhausted" ? "text-amber-400" : "text-primary",
+                health === "down" || health === "offline" ? "text-destructive" : health === "degraded" || health === "rate-limited" ? "text-amber-400" : "text-primary",
               )}>
                 <KeyRound className="h-3.5 w-3.5" />
               </div>
@@ -270,12 +270,12 @@ export function ApiKeyHealth() {
           </div>
 
           <div className="mt-3">
-            {health === "quota-exhausted" && soonestResetLabel && (
+            {health === "rate-limited" && soonestResetLabel && (
               <div className="mb-3 flex items-center justify-between gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5">
                 <div className="flex min-w-0 items-center gap-2">
                   <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-400" />
                   <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-amber-300">
-                    All configured keys are out of quota
+                    Temporary provider cooldown
                   </span>
                 </div>
                 <span className="shrink-0 text-right font-mono text-[10px] text-amber-200">
