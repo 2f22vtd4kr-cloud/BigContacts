@@ -8,3 +8,9 @@ The Replit-managed Git push helper can publish a new GitHub branch but may rejec
 **Why:** The local checkout can contain valid commits and an internal backup ref without those commits being present on the user’s GitHub default branch. A clean local status is not proof of remote publication.
 
 **How to apply:** Before declaring work wrapped up, inspect the GitHub remote, compare hashes, and verify publication with a remote ref or PR URL. Compare the merged remote tree before replaying a milestone: a PR may legitimately contain only a small delta when the implementation is already upstream. Never claim `main` was updated unless the remote hash confirms it.
+
+The Replit Git activity feed can retain red-X entries for failed sync attempts even after a later push or PR merge succeeds. Verify GitHub directly via `git ls-remote origin refs/heads/main` or the GitHub commit API before treating those entries as the current repository state.
+
+**Why:** The activity feed records each attempted sync independently and can make an old failed attempt look like the current branch status.
+
+**How to apply:** When the Git pane shows red-X commit entries, refresh the GitHub `main` ref and inspect the commit URL/API; do not retry or diagnose from the feed alone.
