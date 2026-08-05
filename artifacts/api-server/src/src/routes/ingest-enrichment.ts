@@ -402,6 +402,8 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
         meta["deepWebQueriesFired"] = result.queriesFired;
         meta["deepWebPagesScraped"] = result.pagesScraped;
         meta["deepWebCandidateFunnel"] = result.candidateFunnel;
+        meta["investigatorResearchPlan"] = result.researchPlan;
+        meta["routeHierarchy"] = result.routeHierarchy;
         meta["deepWebEvidenceRunId"] = runId;
         if (result.emailConfidence > 0) meta["deepWebEmailConf"] = result.emailConfidence;
         if (result.phoneConfidence > 0) meta["deepWebPhoneConf"] = result.phoneConfidence;
@@ -587,6 +589,36 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
                 },
               });
             }
+            // Shared inboxes remain useful organization evidence, but they
+            // must never retain a stale person attribution from an older run.
+            await db.update(contactEvidenceTable)
+              .set({
+                identityMatch: 0.2,
+                metadata: sql`jsonb_strip_nulls(
+                  jsonb_set(
+                    jsonb_set(
+                      jsonb_set(
+                        (${contactEvidenceTable.metadata}::jsonb
+                          - 'personName'
+                          - 'personNames'
+                          - 'exactClaimObserved'),
+                        '{scope}', '"organization"'::jsonb, true
+                      ),
+                      '{relationship}', '"operator-parent-route"'::jsonb, true
+                    ),
+                    '{routeTier}', '"operator_parent"'::jsonb, true
+                  )
+                )::text`,
+              })
+              .where(and(
+                eq(contactEvidenceTable.entityId, entity.id),
+                eq(contactEvidenceTable.vectorType, "email"),
+                sql`lower(split_part(${contactEvidenceTable.value}, '@', 1)) IN (
+                  'info', 'contact', 'hello', 'office', 'admin', 'general',
+                  'support', 'sales', 'enquiries', 'inquiries', 'press',
+                  'media', 'compliance', 'investor.relations'
+                )`,
+              ));
           } catch (evidenceErr: any) {
             // Do not silently turn a persistence failure into an enriched
             // result. Keep the job alive, but make the audit gap explicit.

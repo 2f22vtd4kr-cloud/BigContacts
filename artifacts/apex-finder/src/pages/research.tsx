@@ -87,6 +87,23 @@ type CandidateFunnel = {
   candidates: ContactCandidate[];
 };
 
+type RankedResearchRoute = {
+  rank: number;
+  tier: string;
+  tierLabel: string;
+  vectorType: string;
+  value: string;
+  personName: string | null;
+  role: string | null;
+  relationship: string | null;
+  state: string;
+  score: number;
+  scope: string;
+  sourceUrls: string[];
+  sourceDomains: string[];
+  note: string;
+};
+
 type IntroPathCandidate = {
   status: "review_required";
   routeKind: "intermediary_candidate" | "organization_route";
@@ -302,6 +319,55 @@ function CandidateFunnelPanel({ funnel }: { funnel: CandidateFunnel | null }) {
   );
 }
 
+function RouteHierarchyPanel({ routes }: { routes: RankedResearchRoute[] | null }) {
+  if (!routes || routes.length === 0) return null;
+  return (
+    <div className="border-t border-border/50 bg-[#0A0E17] px-4 md:px-5 py-4 flex-shrink-0">
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div>
+          <h3 className="text-xs font-mono text-amber-300 uppercase tracking-widest flex items-center gap-2">
+            <GitBranch className="w-3.5 h-3.5" /> Investigator Route Hierarchy
+          </h3>
+          <p className="text-[11px] text-muted-foreground mt-1">
+            Direct named-person routes lead the list. Operator, executive, intermediary, and organization routes remain available as manual paths.
+          </p>
+        </div>
+        <span className="text-[10px] font-mono text-muted-foreground whitespace-nowrap">{routes.length} ranked routes</span>
+      </div>
+      <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
+        {routes.slice(0, 12).map((route) => (
+          <div key={`${route.rank}-${route.vectorType}-${route.value}`} className="rounded border border-border/50 bg-background/40 px-2.5 py-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[10px] font-mono text-amber-300 w-5">#{route.rank}</span>
+              <span className="text-[10px] uppercase tracking-wider text-primary">{route.tierLabel}</span>
+              <span className="text-[10px] font-mono text-muted-foreground">{route.state.replaceAll("_", " ")}</span>
+              <span className="text-[10px] font-mono text-muted-foreground ml-auto">score {route.score}</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 mt-1">
+              {route.vectorType === "email" ? <Mail className="w-3 h-3 text-primary" /> : route.vectorType === "phone" ? <Phone className="w-3 h-3 text-primary" /> : <ExternalLink className="w-3 h-3 text-primary" />}
+              <span className="text-xs text-foreground break-all">{route.value}</span>
+              {route.personName && <span className="text-xs text-amber-200">· {route.personName}</span>}
+              {route.role && <span className="text-[10px] text-muted-foreground">· {route.role.replaceAll("_", " ")}</span>}
+            </div>
+            <div className="text-[10px] text-muted-foreground mt-1">
+              {route.relationship?.replaceAll("-", " ") ?? route.scope} · {route.note}
+            </div>
+            {route.sourceUrls.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-1.5">
+                {route.sourceUrls.slice(0, 3).map((url) => (
+                  <a key={url} href={url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[10px] text-primary hover:underline">
+                    <ExternalLink className="w-2.5 h-2.5" /> {new URL(url).hostname.replace(/^www\./, "")}
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function IntroPathPanel({ candidate }: { candidate: IntroPathCandidate | null }) {
   return (
     <div className="border-t border-border/50 bg-[#0B0F19] px-4 md:px-5 py-4 flex-shrink-0">
@@ -423,6 +489,7 @@ export default function IntelTerminal() {
   const [algorithmPipeline, setAlgorithmPipeline] = useState<Array<{ algo: string; contribution: string; status: string }> | null>(null);
   const [scorecard, setScorecard] = useState<ResearchScorecard | null>(null);
   const [candidateFunnel, setCandidateFunnel] = useState<CandidateFunnel | null>(null);
+  const [routeHierarchy, setRouteHierarchy] = useState<RankedResearchRoute[] | null>(null);
   const [introPathCandidate, setIntroPathCandidate] = useState<IntroPathCandidate | null>(null);
   const logEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -433,9 +500,32 @@ export default function IntelTerminal() {
   useEffect(() => {
     if (!selectedEntityId) {
       setIntroPathCandidate(null);
+      setCandidateFunnel(null);
+      setRouteHierarchy(null);
       return;
     }
     let active = true;
+    fetch(`/api/entities/${selectedEntityId}`, { cache: "no-store" })
+      .then((response) => response.ok ? response.json() : null)
+      .then((entity) => {
+        if (!active) return;
+        try {
+          const metadata = JSON.parse(entity?.metadata ?? "{}") as Record<string, unknown>;
+          setCandidateFunnel((metadata.deepWebCandidateFunnel as CandidateFunnel | null) ?? null);
+          setRouteHierarchy(Array.isArray(metadata.routeHierarchy)
+            ? metadata.routeHierarchy as RankedResearchRoute[]
+            : null);
+        } catch {
+          setCandidateFunnel(null);
+          setRouteHierarchy(null);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setCandidateFunnel(null);
+          setRouteHierarchy(null);
+        }
+      });
     fetch(`/api/research/intro-path/${selectedEntityId}`, { cache: "no-store" })
       .then((response) => response.ok ? response.json() : null)
       .then((payload) => {
@@ -458,6 +548,7 @@ export default function IntelTerminal() {
     setAlgorithmPipeline(null);
     setScorecard(null);
     setCandidateFunnel(null);
+    setRouteHierarchy(null);
     setIntroPathCandidate(null);
     setIsComputing(true);
     setMobilePickerOpen(false);
@@ -477,6 +568,7 @@ export default function IntelTerminal() {
           setPathScore(data.pathScore ?? 0);
           try { setScorecard(data.scoreBreakdown ? JSON.parse(data.scoreBreakdown) : null); } catch { setScorecard(null); }
           setCandidateFunnel((data as any).candidateFunnel ?? null);
+          setRouteHierarchy((data as any).routeHierarchy ?? null);
           if ((data as any).algorithmPipeline) setAlgorithmPipeline((data as any).algorithmPipeline);
 
           let i = 0;
@@ -757,6 +849,7 @@ export default function IntelTerminal() {
         )}
         {!isComputing && <Scorecard score={scorecard} />}
         {!isComputing && <CandidateFunnelPanel funnel={candidateFunnel} />}
+        {!isComputing && <RouteHierarchyPanel routes={routeHierarchy} />}
         {!isComputing && <IntroPathPanel candidate={introPathCandidate} />}
 
         {/* ── Winning Path Visualization ── */}

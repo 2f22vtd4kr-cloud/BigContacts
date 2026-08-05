@@ -51,6 +51,26 @@ function candidateFunnelFromMetadata(metadata: string | null | undefined): unkno
   }
 }
 
+function investigatorResearchPlanFromMetadata(metadata: string | null | undefined): unknown {
+  if (!metadata) return null;
+  try {
+    const parsed = JSON.parse(metadata) as Record<string, unknown>;
+    return parsed.investigatorResearchPlan ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function routeHierarchyFromMetadata(metadata: string | null | undefined): unknown {
+  if (!metadata) return null;
+  try {
+    const parsed = JSON.parse(metadata) as Record<string, unknown>;
+    return parsed.routeHierarchy ?? null;
+  } catch {
+    return null;
+  }
+}
+
 // GET /research/sessions
 router.get("/research/sessions", async (req, res): Promise<void> => {
   const parsed = ListResearchSessionsQueryParams.safeParse(req.query);
@@ -77,6 +97,8 @@ router.get("/research/sessions", async (req, res): Promise<void> => {
       ...session,
       targetEntityName: entityName ?? null,
       candidateFunnel: candidateFunnelFromMetadata(entityMetadata),
+      investigatorResearchPlan: investigatorResearchPlanFromMetadata(entityMetadata),
+      routeHierarchy: routeHierarchyFromMetadata(entityMetadata),
       createdAt: session.createdAt.toISOString(),
       researchStatus: "research_review",
     }));
@@ -107,6 +129,8 @@ router.get("/research/sessions/:id", async (req, res): Promise<void> => {
     ...row.session,
     targetEntityName: row.entityName ?? null,
     candidateFunnel: candidateFunnelFromMetadata(row.entityMetadata),
+    investigatorResearchPlan: investigatorResearchPlanFromMetadata(row.entityMetadata),
+    routeHierarchy: routeHierarchyFromMetadata(row.entityMetadata),
     createdAt: row.session.createdAt.toISOString(),
     researchStatus: "research_review",
   });

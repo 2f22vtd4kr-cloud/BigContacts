@@ -274,7 +274,7 @@ GET  /api/improve/logs                 improvement suggestions (filterable by pe
 | Research provenance | **Fail-closed candidate evidence** — exact fetched page URLs and registry records are the provenance unit; flattened search snippets and aggregate AI extraction remain capped review signals; independent publisher domains corroborate, while contradictory values from one publisher remain disputed. |
 | Username discovery | **Maigret primary + Sherlock fallback** — Sherlock is availability-checked and review-only, runs only when Maigret is unavailable/sparse, and cannot promote identity/contact fields or trigger automatic re-entry. |
 | Atlas publication gate | **Final target-scoped web/LLM sanity review** — exact supplied evidence only; research-only targets cannot promote contacts; organization/person scope is enforced; rejected evidence and reasons remain reviewable. |
-| Runtime verification | **Live Atlas run** — API/Redis healthy; job `feae7d88-3eee-48ae-99ee-7e9071801989` is active at Phase 8/10, J4–J9 pass 9/50, and the mobile Reactor shows the live target-scoped console. Previous failed Atlas outcomes remain visible instead of being reported as idle. Do not restart the API until this run finishes or is safely cancelled. |
+| Runtime verification | **Controlled benchmark complete** — API/Redis/web are healthy and no continuous Atlas cycle is running (`ENABLE_AUTO_PIPELINE=false`). The Amaron Helsingborg Topasen 7 AB benchmark completed 1/1 with 0 errors: `amaron.se` and Amaron Real Estate AB remain in the research plan; Martin Mildner, Stefan Wilhelmson, and Kjell Rudsby are review-only named executive routes; shared operator mailboxes remain organization-only. |
 
 ---
 

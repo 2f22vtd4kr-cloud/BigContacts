@@ -225,6 +225,8 @@ router.post("/ingest/deep-web-osint", async (req: Request, res: Response): Promi
         meta["deepWebOsintSources"] = result.sources;
         meta["deepWebQueriesFired"] = result.queriesFired;
         meta["deepWebCandidateFunnel"] = result.candidateFunnel;
+        meta["investigatorResearchPlan"] = result.researchPlan;
+        meta["routeHierarchy"] = result.routeHierarchy;
         if (result.emailConfidence) meta["deepWebEmailConf"] = result.emailConfidence;
         if (result.phoneConfidence) meta["deepWebPhoneConf"] = result.phoneConfidence;
         // Store discovered person names as review-only candidates — never auto-merged

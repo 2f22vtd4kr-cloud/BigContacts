@@ -64,6 +64,28 @@ describe("AI response safety helpers", () => {
     expect(prompt).toContain("they are not independently verified evidence");
   });
 
+  it("passes explicit operator leads into provider queries", () => {
+    const query = buildProviderSearchQuery("Amaron Helsingborg Topasen 7 AB", "Corporation", "SE", {
+      tradingName: "Amaron Helsingborg Topasen 7",
+      relatedOrganizations: ["Amaron Real Estate AB"],
+      lane: "semantic_discovery",
+    });
+    expect(query).toContain('"Amaron Real Estate AB"');
+    expect(query).toContain("ownership control parent operating company principal");
+  });
+
+  it("requires parent/operator expansion for property and holding vehicles", () => {
+    const prompt = buildPerplexityPrompt("Amaron Helsingborg Topasen 7 AB", "Corporation", "SE", {
+      city: "Helsingborg",
+      lane: "contact_routes",
+      anchors: ["source registry: GLEIF LEI Register", "lei: 636700UQP96H853NEX42"],
+    });
+    expect(prompt).toContain("special-purpose, property, holding, or zero-employee vehicle");
+    expect(prompt).toContain("official parent/operator team and contact pages");
+    expect(prompt).toContain("STEP 0 — CORPORATE-STRUCTURE HANDOFF");
+    expect(prompt).toContain("named executives of an explicitly linked parent/operator group");
+  });
+
   it("builds lane-specific, anchored provider queries", () => {
     const query = buildProviderSearchQuery("Example Holdings", "Corporation", "US", {
       tradingName: "Example",

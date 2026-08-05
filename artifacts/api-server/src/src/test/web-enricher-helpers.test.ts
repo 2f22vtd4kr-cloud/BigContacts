@@ -14,10 +14,15 @@ import { describe, it, expect } from "vitest";
 import {
   deriveTradingName,
   guessCompanyDomainWithCity,
+  guessRelatedOrganizationDomains,
   extractCity,
+  extractRelatedOrganizationNames,
+  buildRouteHierarchy,
   looksLikePersonName,
   hasTargetLinkedPersonEvidence,
+  extractOfficialRoleLinkedPersonNames,
 } from "../lib/web-enricher";
+import { buildInvestigatorResearchPlan } from "../lib/research-plan";
 
 // ── deriveTradingName ────────────────────────────────────────────────────────
 
@@ -112,6 +117,32 @@ describe("guessCompanyDomainWithCity", () => {
   });
 });
 
+describe("related organization domain expansion", () => {
+  it("tries the shortened operator brand domain before generic guesses", () => {
+    expect(guessRelatedOrganizationDomains("Amaron Real Estate AB", "SE", "Malmö")[0])
+      .toBe("amaron.se");
+    expect(guessRelatedOrganizationDomains("Amaron Real Estate AB", "SE", "Malmö"))
+      .toContain("amaron.com");
+  });
+});
+
+describe("official team-page person extraction", () => {
+  it("extracts names placed immediately before concrete roles", () => {
+    const text = [
+      "Our Team | Meet Our Experts",
+      "Kjell Rudsby Risk Manager, Compliance Officer, Partner",
+      "Stefan Wilhelmson Managing Director, Board Director, Partner, Investment Team Member",
+      "Martin Mildner Portfolio Manager, Board Director, Partner, Head of Investment Team",
+    ].join(" ");
+
+    expect(extractOfficialRoleLinkedPersonNames(text)).toEqual([
+      "Kjell Rudsby",
+      "Stefan Wilhelmson",
+      "Martin Mildner",
+    ]);
+  });
+});
+
 // ── extractCity ──────────────────────────────────────────────────────────────
 
 describe("extractCity", () => {
@@ -162,6 +193,131 @@ describe("extractCity", () => {
     // "United Kingdom" is recognised as a country → beforeCountry is "London"
     const city = extractCity("123 Oxford Street, London, United Kingdom", null);
     expect(city).toBe("London");
+  });
+});
+
+describe("investigator research planning", () => {
+  it("promotes a C/O operator into an explicit related-organization target", () => {
+    expect(extractRelatedOrganizationNames(
+      "C/O Amaron Real Estate AB, Södergatan 28, Malmö, 211 34, SE",
+      null,
+      null,
+    )).toContain("Amaron Real Estate AB");
+  });
+
+  it("plans structure and people before route ranking", () => {
+    const plan = buildInvestigatorResearchPlan({
+      legalName: "Amaron Helsingborg Topasen 7 AB",
+      tradingName: "Amaron Helsingborg Topasen 7",
+      city: "Helsingborg",
+      country: "SE",
+      entityType: "Corporation",
+      relatedOrganizations: ["Amaron Real Estate AB"],
+    });
+    expect(plan.method).toBe("investigator_v1");
+    expect(plan.stages.map((stage) => stage.id)).toEqual([
+      "identity", "structure", "people", "official_routes", "person_followups", "route_ranking",
+    ]);
+    expect(plan.stages[1]?.targetNames).toContain("Amaron Real Estate AB");
+  });
+
+  it("ranks a named direct route above executive, operator, and organization routes", () => {
+    const evidence = [
+      {
+        vectorType: "email" as const,
+        value: "target@example.com",
+        source: "official",
+        sourceUrl: "https://target.example/contact",
+        extractionMethod: "page",
+        confidence: 90,
+        details: { scope: "target_person", relationship: "target-person-extraction" },
+      },
+      {
+        vectorType: "email" as const,
+        value: "executive@amaron.se",
+        source: "official",
+        sourceUrl: "https://amaron.se/team",
+        extractionMethod: "page",
+        confidence: 88,
+        details: {
+          scope: "person_candidate",
+          personName: "Martin Mildner",
+          role: "operator",
+          relationship: "named-executive-official-page",
+        },
+      },
+      {
+        vectorType: "phone" as const,
+        value: "+46 40 000 000",
+        source: "official",
+        sourceUrl: "https://amaron.se/contact",
+        extractionMethod: "page",
+        confidence: 80,
+        details: { scope: "organization", relationship: "operator-parent-route" },
+      },
+    ];
+    const funnel = {
+      totalCandidates: 3,
+      discovered: 0,
+      sourceLinked: 2,
+      attributionReview: 1,
+      independentlyCorroborated: 0,
+      verifiedDirectRoute: 1,
+      rejected: 0,
+      organizationOnly: 1,
+      conflicted: 0,
+      independentSourceDomains: 3,
+      candidates: [
+        {
+          key: "email|target@example.com",
+          vectorType: "email" as const,
+          value: "target@example.com",
+          providers: ["official"],
+          sourceDomains: ["target.example"],
+          sourceUrls: ["https://target.example/contact"],
+          scopes: ["target_person" as const],
+          personNames: [],
+          state: "verified_direct_route" as const,
+          conflictCount: 0,
+          exactClaimObserved: true,
+          blockedSourceUrls: [],
+        },
+        {
+          key: "email|executive@amaron.se",
+          vectorType: "email" as const,
+          value: "executive@amaron.se",
+          providers: ["official"],
+          sourceDomains: ["amaron.se"],
+          sourceUrls: ["https://amaron.se/team"],
+          scopes: ["person_candidate" as const],
+          personNames: ["Martin Mildner"],
+          state: "source_linked" as const,
+          conflictCount: 0,
+          exactClaimObserved: true,
+          blockedSourceUrls: [],
+        },
+        {
+          key: "phone|4640000000",
+          vectorType: "phone" as const,
+          value: "+46 40 000 000",
+          providers: ["official"],
+          sourceDomains: ["amaron.se"],
+          sourceUrls: ["https://amaron.se/contact"],
+          scopes: ["organization" as const],
+          personNames: [],
+          state: "source_linked" as const,
+          conflictCount: 0,
+          exactClaimObserved: true,
+          blockedSourceUrls: [],
+        },
+      ],
+    };
+    const routes = buildRouteHierarchy(evidence, funnel);
+    expect(routes.map((route) => route.tier)).toEqual([
+      "direct_person", "executive", "operator_parent",
+    ]);
+    expect(routes[1]?.personName).toBe("Martin Mildner");
+    expect(routes[2]?.note).toMatch(/operator|parent/i);
   });
 });
 

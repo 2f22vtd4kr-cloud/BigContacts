@@ -809,6 +809,9 @@ export default function ApexProfile() {
         const sourceUrls = Array.isArray(meta.deepWebOwnershipSources)
           ? meta.deepWebOwnershipSources.filter((url: unknown): url is string => typeof url === "string" && /^https?:\/\//i.test(url))
           : [];
+        const routeHierarchy = Array.isArray(meta.routeHierarchy)
+          ? meta.routeHierarchy.filter((route: any) => route && typeof route === "object" && typeof route.value === "string")
+          : [];
         const people = resolutions.length > 0
           ? resolutions
           : atlasPersonCandidates.length > 0
@@ -825,7 +828,7 @@ export default function ApexProfile() {
               email: null,
             }));
         const isOrg = e.type === "Corporation" || e.type === "Trust";
-        if (!isOrg && people.length === 0 && !summary) return null;
+        if (!isOrg && people.length === 0 && !summary && routeHierarchy.length === 0) return null;
         const ownerCount = people.filter((person: any) =>
           person.role === "owner" || person.role === "beneficial_owner" || person.role === "controller",
         ).length;
@@ -920,6 +923,51 @@ export default function ApexProfile() {
                     </div>
                   );
                 })}
+              </div>
+            )}
+            {routeHierarchy.length > 0 && (
+              <div className="mt-4 pt-3 border-t border-amber-500/15">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <div className="text-[9px] font-mono uppercase tracking-widest text-amber-400/80">
+                    Public route hierarchy
+                  </div>
+                  <div className="text-[9px] font-mono text-muted-foreground/60">
+                    direct first · indirect retained
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  {routeHierarchy.slice(0, 8).map((route: any, index: number) => {
+                    const urls = Array.isArray(route.sourceUrls)
+                      ? route.sourceUrls.filter((url: unknown): url is string => typeof url === "string" && /^https?:\/\//i.test(url))
+                      : [];
+                    return (
+                      <div key={`${route.rank ?? index}-${route.value}`} className="rounded border border-border/60 bg-background/40 px-2.5 py-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-[9px] font-mono text-amber-300">#{route.rank ?? index + 1}</span>
+                          <span className="text-[9px] font-mono uppercase tracking-wider text-primary">
+                            {String(route.tierLabel ?? route.tier ?? "route")}
+                          </span>
+                          <span className="text-[9px] font-mono text-muted-foreground ml-auto">
+                            {String(route.state ?? "review").replaceAll("_", " ")}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 mt-1">
+                          <span className="text-[10px] font-mono text-foreground break-all">{route.value}</span>
+                          {route.personName && <span className="text-[10px] text-amber-200">· {route.personName}</span>}
+                          {route.role && <span className="text-[9px] text-muted-foreground">· {String(route.role).replaceAll("_", " ")}</span>}
+                        </div>
+                        <div className="text-[9px] text-muted-foreground mt-1">
+                          {String(route.relationship ?? route.scope ?? "public evidence").replaceAll("-", " ")}
+                        </div>
+                        {urls.slice(0, 2).map((url: string) => (
+                          <a key={url} href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 mr-3 mt-1 text-[9px] font-mono text-amber-400/70 hover:underline">
+                            Evidence↗
+                          </a>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </section>

@@ -265,6 +265,8 @@ export type AIResearchLane =
 export interface AIResearchContext {
   tradingName?: string | null;
   city?: string | null;
+  /** Explicit C/O, operator, parent, or management-company leads. */
+  relatedOrganizations?: string[];
   reachability?: ReachabilityDirective;
   /**
    * Entity-record anchors such as registry IDs, source registries, or a
@@ -299,6 +301,10 @@ export function buildProviderSearchQuery(
   if (context.tradingName && context.tradingName !== entityName) parts.push(quoted(context.tradingName));
   if (context.city) parts.push(quoted(context.city));
   if (country) parts.push(quoted(country));
+  parts.push(...(context.relatedOrganizations ?? [])
+    .map((organization) => quoted(organization))
+    .filter((organization): organization is string => Boolean(organization))
+    .slice(0, 2));
 
   const anchors = (context.anchors ?? [])
     .map((anchor) => anchor.trim().replace(/\s+/g, " "))
@@ -811,13 +817,13 @@ export function buildPerplexityPrompt(
   const lane = context.lane ?? "people_press";
   const laneInstruction: Record<AIResearchLane, string> = {
     official_records:
-      "Prioritize official team/people pages, filings, registries, legal notices, and first-party organizational pages. Prefer exact titles and registration identifiers over broad biography pages.",
+      "Prioritize official team/people pages, filings, registries, legal notices, and first-party organizational pages. Prefer exact titles and registration identifiers over broad biography pages. If this is a special-purpose, property, holding, or zero-employee vehicle, resolve its parent fund/operator and inspect the parent's official leadership/contact page before concluding that no decision-maker route exists.",
     people_press:
-      "Prioritize named-person relationships in reputable reporting, interviews, conference biographies, and official team pages. Resolve the person-to-target link before looking for contact vectors.",
+      "Prioritize named-person relationships in reputable reporting, interviews, conference biographies, and official team pages. Resolve the person-to-target link before looking for contact vectors. For a special-purpose or property vehicle, follow the explicit parent/operator relationship to the people who make decisions for the asset.",
     contact_routes:
-      "Prioritize explicit public contact routes: named-person pages, official team biographies, direct public emails, personal professional profiles, and explicitly corroborated authorized intermediaries. Do not substitute organization switchboards.",
+      "Prioritize explicit public contact routes: named-person pages, official team biographies, direct public emails, personal professional profiles, and explicitly corroborated authorized intermediaries. For a special-purpose, property, holding, or zero-employee vehicle, search the official parent/operator team and contact pages for named executives. Do not substitute organization switchboards.",
     semantic_discovery:
-      "Prioritize ownership/control relationships, parent and operating entities, distinctive business language, and people who recur in the target's source set. Treat semantic similarity as discovery only until page-level evidence confirms it.",
+      "Prioritize ownership/control relationships, parent and operating entities, distinctive business language, and people who recur in the target's source set. Treat semantic similarity as discovery only until page-level evidence confirms it. Parent-group resolution is a required discovery step for SPVs and property vehicles.",
   };
   const anchors = (context.anchors ?? [])
     .map((anchor) => anchor.trim())
@@ -851,6 +857,9 @@ RESEARCH CONTRACT — apply this before extracting any person or contact:
 - Record useful negative findings and search gaps instead of filling them with assumptions.
 
 ${isOrg ? `This is a company/business/institution. Execute this research in order:
+
+STEP 0 — CORPORATE-STRUCTURE HANDOFF (highest priority for special-purpose vehicles):
+Determine whether the exact target is a special-purpose, property, holding company, subsidiary, or zero-employee vehicle. If so, identify the explicitly linked parent fund, operating company, or management group and search that parent's official team/contact pages. Return the named executives who can make decisions for the target, while keeping their relationship as "parent/operator executive" or "associated_person" unless direct control is proven. Do not stop at the SPV's statutory officers.
 
 STEP 1 — NAMED DECISION-MAKERS (highest priority for contact purposes):
 Find ALL named partners, principals, and executives. For venture capital / private equity / investment firms specifically:
@@ -940,6 +949,7 @@ Return ONLY this JSON — no preamble, no explanation, no markdown:
 Hard requirements:
 - Return up to 12 named HUMAN individuals — sector/strategy heads and executives first, then owners.
 - Named executives with director_officer role are MORE valuable than institutional shareholders for contact purposes. Always include them even when the beneficial owner is a state body or holding company.
+- For a property/SPV target, named executives of an explicitly linked parent/operator group are valuable decision-maker candidates even when they are not statutory officers of the SPV. Preserve the parent/operator relationship and exact source URL.
 - Never construct or infer direct individual emails from a naming pattern.
 - ownershipSummary must not describe an inferred email pattern as evidence.
 - Social accounts, press visibility, wealth, assets, and public biographies are not access evidence.
@@ -1210,7 +1220,14 @@ export async function researchWithGemini(
   context: AIResearchContext = {},
 ): Promise<AIExtractResult> {
   const keys = getGeminiKeys();
-  if (keys.length === 0) return EMPTY;
+  if (keys.length === 0) {
+    const deepResearchConfigured = getGeminiDeepResearchKeys().length > 0;
+    logger.warn(
+      { entityName, deepResearchConfigured },
+      "Phase 0 [gemini-flash]: lane unavailable because no regular Gemini keys are configured",
+    );
+    return EMPTY;
+  }
 
   logger.info({ entityName, entityType, country, lane: context.lane ?? "people_press" }, `Phase 0 [${GEMINI_MODEL}]: firing Gemini grounded search`);
   const prompt = buildPerplexityPrompt(entityName, entityType, country, context);

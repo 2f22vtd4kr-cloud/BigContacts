@@ -42,7 +42,7 @@ const FINANCIAL_AGGREGATOR_DOMAINS = new Set([
   "1881.no", "gulesider.no", "proff.no", "purehelp.no", "enhetsregisteret.no",
   "allabolag.se", "hitta.se", "eniro.se", "proff.se", "virksomhed.dk",
 ]);
-import { extractWithAI, researchWithPerplexity, researchWithGemini, researchWithTavily, researchWithExa, runGeminiDeepResearch, type AIResearchContext, type OwnerResolution, type GeminiDeepResearchResult } from "./ai-extractor";
+import { extractWithAI, researchWithPerplexity, researchWithGemini, researchWithTavily, researchWithExa, type AIResearchContext, type OwnerResolution, type GeminiDeepResearchResult } from "./ai-extractor";
 import { runOpenDeepResearch, type OpenDeepResearchResult } from "./python-tools";
 import { applyEnsembleAdjudication, buildEnsembleAdjudicationText, reconcileAIResults, type AIEnsembleResult } from "./ai-ensemble";
 import { extractPersonNames } from "./gliner-client";
@@ -56,6 +56,14 @@ import {
   reconcileContactCandidates,
   type CandidateFunnel,
 } from "./contact-candidate";
+import {
+  buildInvestigatorResearchPlan,
+  routeTierForDetails,
+  routeTierLabel,
+  routeTierScore,
+  type InvestigatorResearchPlan,
+  type RankedResearchRoute,
+} from "./research-plan";
 
 // ── Shared utilities ──────────────────────────────────────────────────────────
 
@@ -472,6 +480,7 @@ function buildResearchContext(
   city: string | null,
   country: string | null,
   candidateDomains: string[],
+  relatedOrganizations: string[] = extractRelatedOrganizationNames(entity.knownResidences, entity.metadata, entity.notes),
 ): Omit<AIResearchContext, "lane"> {
   const metadata = safeJson<Record<string, unknown>>(entity.metadata, {});
   const anchors: string[] = [];
@@ -488,9 +497,13 @@ function buildResearchContext(
   if (entity.type) anchors.push(`entity type: ${entity.type}`);
   if (city) anchors.push(`known city: ${city}`);
   if (country) anchors.push(`known country: ${country}`);
+  for (const related of extractRelatedOrganizationNames(entity.knownResidences, entity.metadata, entity.notes)) {
+    anchors.push(`related operator/parent: ${related}`);
+  }
   return {
     tradingName,
     city,
+    relatedOrganizations,
     anchors: [...new Set(anchors)].slice(0, 6),
     candidateDomains: [...new Set(candidateDomains)].slice(0, 4),
   };
@@ -513,6 +526,8 @@ export interface DeepWebOsintResult {
   ownershipSources: string[];
   evidence:        DeepWebEvidence[];
   candidateFunnel: CandidateFunnel;
+  researchPlan: InvestigatorResearchPlan;
+  routeHierarchy: RankedResearchRoute[];
   aiEnsemble?:     AIEnsembleResult;
   /** Free-form Deep Research output is retained for review only. */
   deepResearchReport: string | null;
@@ -537,6 +552,85 @@ export interface DeepWebEvidence {
   details?: Record<string, unknown>;
 }
 
+function sourceDomainsFromUrls(urls: string[]): string[] {
+  return [...new Set(urls.map((url) => {
+    try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return ""; }
+  }).filter(Boolean))];
+}
+
+/**
+ * Build the investigator-facing result from the same reconciled candidates
+ * that drive promotion. This intentionally keeps organization and intermediary
+ * routes visible without treating them as personal access.
+ */
+export function buildRouteHierarchy(
+  evidence: readonly DeepWebEvidence[],
+  funnel: CandidateFunnel,
+): RankedResearchRoute[] {
+  const byKey = new Map<string, DeepWebEvidence[]>();
+  for (const item of evidence) {
+    if (!["email", "phone", "social", "domain", "website", "address"].includes(item.vectorType)) continue;
+    const key = candidateKey(item.vectorType, item.value);
+    const list = byKey.get(key) ?? [];
+    list.push(item);
+    byKey.set(key, list);
+  }
+  const routes: RankedResearchRoute[] = [];
+  for (const candidate of funnel.candidates) {
+    const items = byKey.get(candidate.key) ?? [];
+    const strongest = [...items].sort((a, b) => b.confidence - a.confidence)[0];
+    const details = strongest?.details ?? {};
+    const scope = candidate.scopes[0] ?? String(details.scope ?? "unknown");
+    const tier = routeTierForDetails(details, scope, candidate.vectorType);
+    const stateBonus = candidate.state === "verified_direct_route"
+      ? 10
+      : candidate.state === "independently_corroborated"
+        ? 6
+        : candidate.state === "source_linked" ? 3 : 0;
+    const confidenceBonus = Math.round((strongest?.confidence ?? 0) / 20);
+    const relationship = typeof details.relationship === "string" ? details.relationship : null;
+    const role = typeof details.role === "string" ? details.role : null;
+    const personName = candidate.personNames[0]
+      ?? (typeof details.personName === "string" ? details.personName : null);
+    const sourceUrls = [...new Set([
+      ...candidate.sourceUrls,
+      ...items.flatMap((item) => item.sourceUrl ? [item.sourceUrl] : []),
+    ])];
+    routes.push({
+      rank: 0,
+      tier,
+      tierLabel: routeTierLabel(tier),
+      vectorType: candidate.vectorType,
+      value: candidate.value,
+      personName,
+      role,
+      relationship,
+      state: candidate.state,
+      score: routeTierScore(tier) + stateBonus + confidenceBonus,
+      scope,
+      sourceUrls,
+      sourceDomains: candidate.sourceDomains.length > 0
+        ? candidate.sourceDomains
+        : sourceDomainsFromUrls(sourceUrls),
+      note: tier === "direct_person"
+        ? "Named target-person route; still subject to source and identity review."
+        : tier === "executive"
+          ? "Named principal or executive route; useful for a personal approach, but not promoted as the target's direct contact."
+          : tier === "operator_parent"
+            ? "Relationship route through the target's operator or parent organization."
+            : tier === "gatekeeper_intermediary"
+              ? "Named intermediary route retained for manual review; authorization is not assumed."
+              : "Useful public organization evidence retained as an indirect route.",
+    });
+  }
+  routes.sort((a, b) =>
+    b.score - a.score
+    || (a.personName ? 0 : 1) - (b.personName ? 0 : 1)
+    || a.value.localeCompare(b.value),
+  );
+  return routes.map((route, index) => ({ ...route, rank: index + 1 }));
+}
+
 async function emitDeepWebTelemetry(
   entity: DeepWebOsintInput,
   event: DeepWebTelemetryEvent,
@@ -552,7 +646,7 @@ async function emitDeepWebTelemetry(
 }
 
 function providerTelemetrySummary(provider: string, value: any): string {
-  if (!value || value.source === "none") return `${provider} returned no usable result`;
+  if (!value || value.source === "none") return `${provider} returned no usable result (check provider availability and quota)`;
   const contacts = [value.email, value.phone, value.linkedin, value.instagram, value.twitter]
     .filter(Boolean).length;
   return `${provider} returned ${value.citations?.length ?? 0} citation(s), ${value.owners?.length ?? 0} owner lead(s), ${contacts} contact candidate(s)`;
@@ -803,6 +897,54 @@ export function deriveTradingName(legalName: string, city: string | null): strin
 }
 
 /**
+ * Pull explicitly named related organisations out of registry/address context.
+ *
+ * Property SPVs and holding vehicles frequently expose the useful research
+ * target in a C/O line rather than in the legal name. That relationship is a
+ * lead, not proof of ownership, but it is strong enough to drive the next
+ * public-source search branch.
+ */
+export function extractRelatedOrganizationNames(
+  knownResidences?: string | null,
+  metadata?: string | null,
+  notes?: string | null,
+): string[] {
+  const text = [
+    typeof knownResidences === "string" ? knownResidences : "",
+    typeof metadata === "string" ? metadata : "",
+    typeof notes === "string" ? notes : "",
+  ].join(" ");
+  const found = new Set<string>();
+  const patterns = [
+    /(?:c\/?o|care of|attn|attention|operator|operated by|managed by|parent(?: company)?|holding company)\s*[:\-]?\s*([A-ZÀ-ÖØ-Ü][A-Za-zÀ-ÖØ-Ü0-9&.'\-]*(?:\s+[A-ZÀ-ÖØ-Ü][A-Za-zÀ-ÖØ-Ü0-9&.'\-]*){1,8})/gi,
+  ];
+  for (const pattern of patterns) {
+    for (const match of text.matchAll(pattern)) {
+      const raw = (match[1] ?? "")
+        .replace(/[,;|].*$/, "")
+        .replace(/\s+\d{1,5}(?:\s|$).*$/, "")
+        .trim();
+      if (!raw || raw.length < 3 || raw.length > 100) continue;
+      if (!/\b(?:ab|inc|ltd|llc|gmbh|sarl|sas|oy|as|a\/s|plc|corp|corporation|holding|properties|real estate|group|management)\b/i.test(raw)) continue;
+      found.add(raw);
+    }
+  }
+  // The metadata may contain a structured parent/operator value even when
+  // the free-text address does not.
+  try {
+    const parsed = metadata ? JSON.parse(metadata) as Record<string, unknown> : {};
+    for (const key of ["parentCompany", "operator", "operatingCompany", "managementCompany", "holdingCompany"]) {
+      const value = parsed[key];
+      if (typeof value === "string" && value.trim().length >= 3) found.add(value.trim());
+    }
+  } catch { /* metadata is optional and may be legacy text */ }
+  return [...found]
+    .map((value) => value.replace(/\s+/g, " ").trim())
+    .filter((value) => value.length >= 3)
+    .slice(0, 4);
+}
+
+/**
  * Guess company domains, including city-derived variants.
  *
  * "BAOLI SAS" + "Cannes" → [baolicannes.com, baoli-cannes.com, baoli.com, ...]
@@ -842,6 +984,35 @@ export function guessCompanyDomainWithCity(companyName: string, city: string | n
   return [...new Set(candidates)].slice(0, 8);
 }
 
+export function guessRelatedOrganizationDomains(
+  organizationName: string,
+  country: string | null,
+  city: string | null,
+): string[] {
+  const words = organizationName
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^A-Za-z0-9 ]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+  const brand = words.find((word) => word.length >= 4
+    && !/^(?:real|estate|property|properties|holding|holdings|group|management|company|ab|inc|ltd|llc|gmbh|corp|corporation)$/i.test(word));
+  if (!brand) return guessCompanyDomainWithCity(organizationName, city).slice(0, 4);
+  const cleanBrand = brand.toLowerCase();
+  const ccTld = country === "SE" ? "se"
+    : country === "GB" ? "co.uk"
+      : country === "FR" ? "fr"
+        : country === "DE" ? "de"
+          : country === "IT" ? "it"
+            : country === "ES" ? "es"
+              : null;
+  return [...new Set([
+    ...(ccTld ? [`${cleanBrand}.${ccTld}`] : []),
+    `${cleanBrand}.com`,
+    ...guessCompanyDomainWithCity(organizationName, city),
+  ])].slice(0, 6);
+}
+
 // ── Person-hop: extract candidate person names from search text ───────────────
 
 /**
@@ -876,7 +1047,13 @@ const PERSON_PATTERNS: RegExp[] = [
   /([A-ZÀ-ÖØ-Ü][a-zà-öø-üéèêëàâùûüçîïôœ\-]+\s+[A-ZÀ-ÖØ-Ü][a-zà-öø-üéèêëàâùûüçîïôœ\-]+(?:-[A-ZÀ-ÖØ-Ü][a-zà-öø-ü\-]+)?),\s*(?:fondateur|co-fondateur|propriétaire|gérant|directeur général|PDG|président)/g,
   // German subject-position: "Person gründete/eröffnete"
   /([A-ZÄÖÜ][a-zäöü\-]+\s+[A-ZÄÖÜ][a-zäöü\-]+)\s+(?:gründete|gründeten|eröffnete|eröffneten|gründete)/g,
+  // Official team pages commonly put the person's name before their role:
+  // "Martin Mildner Portfolio Manager, Board Director, Partner".
+  /([A-ZÀ-ÖØ-Ü][a-zà-öø-ü\-']+\s+[A-ZÀ-ÖØ-Ü][a-zà-öø-ü\-']+(?:\s+[A-ZÀ-ÖØ-Ü][a-zà-öø-ü\-']+)?)\s+(?=(?:Portfolio Manager|Managing Director|Risk Manager|Compliance Officer|Financial Controller|Investment Team Member|Board Director|Board Member|Head of Investment Team|Investment Team|Partner|Founder|Chief Executive Officer|Chief Operating Officer|Investor Relations)\b)/g,
 ];
+
+const OFFICIAL_ROLE_AFTER_NAME_PATTERN =
+  /\b([A-ZÀ-ÖØ-Ü][a-zà-öø-ü\-']+\s+[A-ZÀ-ÖØ-Ü][a-zà-öø-ü\-']+)\s+(?=(?:Portfolio Manager|Managing Director|Risk Manager|Compliance Officer|Financial Controller|Investment Team Member|Board Director|Board Member|Head of Investment Team|Investment Team|Partner|Founder|Chief Executive Officer|Chief Operating Officer|Investor Relations)\b)/g;
 
 // Common first/last name parts that are NOT person names
 const NOT_A_PERSON = new Set([
@@ -884,6 +1061,12 @@ const NOT_A_PERSON = new Set([
   "le", "la", "les", "de", "du", "des", "un", "une", "sur", "avec", "par",
   "und", "der", "die", "das", "von", "zu",
   "the company", "the group", "the firm", "the club", "the hotel",
+  "all past",
+  "our team",
+  "meet our experts",
+  "content who",
+  "content",
+  "who",
 ]);
 
 // Individual words that disqualify a regex match from being a real person name.
@@ -958,7 +1141,7 @@ const PERSON_WORD_BLOCKLIST = new Set([
   "September", "October", "November", "December",
 ]);
 
-const PERSON_LINK_TERMS = /\b(?:founded|founder|co-founded|cofounder|owned|owner|run|led|managed|created|started|built|established|operated|ceo|cfo|coo|cto|director|chairman|president|partner|principal|managing director|fondé par|fondateur|co-fondateur|propriétaire|gérant|directeur général|pdg|dg|directeur|associé|inhaber|geschäftsführer|gründer|mitgründer|eigentümer|gesellschafter|vorstand|vorsitzender|fondato da|fondatore|proprietario|titolare|amministratore|socio|fundado por|fundador|propietario|dueño)\b/i;
+const PERSON_LINK_TERMS = /\b(?:founded|founder|co-founded|cofounder|owned|owner|run|led|managed|created|started|built|established|operated|ceo|cfo|coo|cto|director|directors|chairman|president|partner|principal|manager|officer|controller|team member|managing director|fondé par|fondateur|co-fondateur|propriétaire|gérant|directeur général|pdg|dg|directeur|associé|inhaber|geschäftsführer|gründer|mitgründer|eigentümer|gesellschafter|vorstand|vorsitzender|fondato da|fondatore|proprietario|titolare|amministratore|socio|fundado por|fundador|propietario|dueño)\b/i;
 
 /** Returns true when a string looks like a real human name (2–4 capitalised words,
  *  no job-title or company-type tokens). Used to filter owner-resolution pushes. */
@@ -1041,6 +1224,56 @@ function extractPersonCandidates(text: string): string[] {
 }
 
 /**
+ * Official team pages frequently present a person's name immediately before
+ * a concrete role, without a verb or title prefix. Keep this extractor
+ * deliberately narrow so navigation headings cannot become people.
+ */
+export function extractOfficialRoleLinkedPersonNames(text: string): string[] {
+  if (!text?.trim()) return [];
+  const normalizedText = text
+    .replace(/[\u00a0\u202f]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const found = new Set<string>();
+  const rolePattern = /(?:Portfolio Manager|Managing Director|Risk Manager|Compliance Officer|Financial Controller|Investment Team Member|Board Director|Board Member|Head of Investment Team|Investment Team|Partner|Founder|Chief Executive Officer|Chief Operating Officer|Investor Relations)/g;
+  for (const roleMatch of normalizedText.matchAll(rolePattern)) {
+    const roleIndex = roleMatch.index ?? -1;
+    if (roleIndex < 0) continue;
+    const beforeRole = normalizedText.slice(Math.max(0, roleIndex - 90), roleIndex).trim();
+    const nameMatch = beforeRole.match(/([A-ZÀ-ÖØ-Ü][a-zà-öø-ü\-']+\s+[A-ZÀ-ÖØ-Ü][a-zà-öø-ü\-']+)\s*$/);
+    if (!nameMatch) continue;
+    const name = nameMatch[1]!.trim();
+    if (
+      looksLikePersonName(name)
+      && !NOT_A_PERSON.has(name.toLowerCase())
+      && !name.split(/\s+/).some((word) => ["Content", "Who", "Financial", "Investment", "Team", "Controller"].includes(word))
+    ) {
+      found.add(name);
+    }
+  }
+  return [...found];
+}
+
+function officialPersonEvidenceWindow(
+  text: string,
+  personName: string,
+  otherPersonNames: readonly string[] = [],
+): string {
+  const lowerText = text.toLowerCase();
+  const lowerName = personName.trim().toLowerCase();
+  const start = lowerText.indexOf(lowerName);
+  if (start < 0) return "";
+
+  const nextPersonStart = otherPersonNames
+    .filter((name) => name.trim().toLowerCase() !== lowerName)
+    .map((name) => lowerText.indexOf(name.trim().toLowerCase(), start + lowerName.length))
+    .filter((index) => index > start)
+    .sort((a, b) => a - b)[0];
+  const end = nextPersonStart ?? start + 900;
+  return text.slice(start, Math.min(end, start + 900));
+}
+
+/**
  * GLiNER-enhanced async version of extractPersonCandidates.
  * When the GLiNER NER microservice is running (port 7890), uses zero-shot NER
  * which eliminates the entire class of regex false-positives ("Hotels CEO", etc.).
@@ -1048,30 +1281,30 @@ function extractPersonCandidates(text: string): string[] {
  */
 async function extractPersonCandidatesAsync(text: string, targetAnchors: string[] = []): Promise<string[]> {
   if (!text?.trim()) return [];
+  const isAdmissible = (name: string): boolean => {
+    if (!looksLikePersonName(name)) return false;
+    if (targetAnchors.some((anchor) => {
+      const cleanAnchor = anchor.trim().toLowerCase();
+      return cleanAnchor.length >= 6 && cleanAnchor.includes(name.toLowerCase());
+    })) return false;
+    if (!hasTargetLinkedPersonEvidence(text, name, targetAnchors)) return false;
+    if (NOT_A_PERSON.has(name.toLowerCase())) return false;
+    return true;
+  };
+  const regexCandidates = extractPersonCandidates(text).filter(isAdmissible);
   try {
     // Try GLiNER first — it's more accurate and handles multilingual text natively
     const glinerResults = await extractPersonNames(text, 0.5);
     if (glinerResults.length > 0) {
       // Filter through the same blocklist for consistency
-      return glinerResults
+      const nerCandidates = glinerResults
         .map(r => r.name.trim())
-        .filter(name => {
-          if (!looksLikePersonName(name)) return false;
-          if (!hasTargetLinkedPersonEvidence(text, name, targetAnchors)) return false;
-          const words = name.split(/\s+/);
-          if (words.length < 2 || words.length > 4) return false;
-          if (!words.every(w => /^[A-ZÀ-ÖØ-Ü]/.test(w))) return false;
-          if (words.some(w => PERSON_WORD_BLOCKLIST.has(w))) return false;
-          if (NOT_A_PERSON.has(name.toLowerCase())) return false;
-          return true;
-        })
-        .slice(0, 5);
+        .filter(isAdmissible);
+      return [...new Set([...regexCandidates, ...nerCandidates])].slice(0, 5);
     }
   } catch { /* fall through to regex */ }
   // Regex fallback
-  return extractPersonCandidates(text).filter(name =>
-    hasTargetLinkedPersonEvidence(text, name, targetAnchors),
-  );
+  return regexCandidates;
 }
 
 // ── Search engine functions ───────────────────────────────────────────────────
@@ -1383,7 +1616,12 @@ async function scrapePage(url: string): Promise<ScrapedPage> {
       redirect: "follow",
     });
     if (!resp.ok) return emptyScrapedPage();
-    const html = await readBodyText(resp, 10_000).then(h => h.slice(0, 80_000));
+    // Some public sites, including Squarespace pages, keep structured team
+    // records in an embedded JSON payload well beyond the visible navigation.
+    // Retain a bounded but sufficiently large HTML window so those records are
+    // available to the evidence extractors; the normalized text remains capped
+    // below before it is returned.
+    const html = await readBodyText(resp, 10_000).then(h => h.slice(0, 500_000));
 
     // mailto: href is most reliable source
     let email: string | null = null;
@@ -1509,7 +1747,14 @@ async function findContactPages(domain: string, isCorp = false): Promise<{
           } catch { /* keep original scraped */ }
         }
       }
-      if (scraped.email || scraped.phone || scraped.linkedinUrl || scraped.instagramUrl || scraped.twitterUrl) {
+      if (
+        scraped.email
+        || scraped.phone
+        || scraped.linkedinUrl
+        || scraped.instagramUrl
+        || scraped.twitterUrl
+        || scraped.text.length >= 500
+      ) {
         results.push({ url, scraped });
         if (results.length >= resultCap) break;
       }
@@ -1574,6 +1819,9 @@ export function buildDeepWebQueries(
     /^[A-Z][a-z]+ [A-Z]/.test(legalName);
   const isCorp = !isIndividual;
   const meta = safeJson<Record<string, unknown>>(entity.metadata, {});
+  const relatedOrganizations = isCorp
+    ? extractRelatedOrganizationNames(entity.knownResidences, entity.metadata, entity.notes)
+    : [];
 
   const queries: string[] = [];
   const domainTargets: string[] = [];
@@ -1618,13 +1866,26 @@ export function buildDeepWebQueries(
     // don't generate "${tradingName} ${city}" queries — they produce "Baoli Cannes Cannes …"
     const tradingHasCity = !!(city && tradingName.toLowerCase().includes(city.toLowerCase()));
 
-    // Primary: trading name + city + contact keywords
+    // A legal property/holding vehicle often has no useful public team page.
+    // Resolve the parent/operator before spending the rest of the budget on
+    // generic directories; this is the path that surfaces real decision-makers.
+    for (const related of relatedOrganizations) {
+      queries.push(`"${related}" official team leadership management contact`);
+      queries.push(`"${related}" CEO director executive email phone`);
+      queries.push(`"${legalName}" "${related}" operator parent management`);
+      domainTargets.push(...guessRelatedOrganizationDomains(related, country, city));
+    }
+    // Primary target searches follow the structure handoff. Keeping these
+    // after the operator branch prevents a legal SPV's generic directory hits
+    // from consuming the bounded query budget first.
     if (tradingName !== legalName) {
       queries.push(`"${tradingName}" contact email`);
       if (city && !tradingHasCity) queries.push(`"${tradingName}" ${city} contact email`);
     }
     // Always include legal name as fallback for corporate directory hits
     queries.push(`"${legalName}" contact email`);
+    queries.push(`"${legalName}" parent company operating company fund manager executive contact`);
+    queries.push(`"${tradingName}" parent group CEO director email phone`);
 
     // City-context queries (high yield for local hospitality/venue targets)
     if (city && !tradingHasCity) {
@@ -1665,7 +1926,10 @@ export function buildDeepWebQueries(
   }
 
   return {
-    queries: [...new Set(queries)].slice(0, 10),
+    // Structure and operator queries must run before generic contact queries.
+    // The first ten searches are the useful research plan, not an arbitrary
+    // provider-shaped sample.
+    queries: [...new Set(queries)].slice(0, 14),
     domainTargets: [...new Set(domainTargets)],
   };
 }
@@ -1707,6 +1971,14 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       independentlyCorroborated: 0, verifiedDirectRoute: 0, organizationOnly: 0,
       conflicted: 0, independentSourceDomains: 0, candidates: [],
     },
+    researchPlan: buildInvestigatorResearchPlan({
+      legalName: entity.name,
+      tradingName: entity.name,
+      city: null,
+      country: null,
+      entityType: entity.type,
+    }),
+    routeHierarchy: [],
     deepResearchReport: null,
     deepResearchCitations: [],
     deepResearchStatus: "unavailable",
@@ -1739,13 +2011,36 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   }));
 
   const { queries, domainTargets } = buildDeepWebQueries(entity, trading, city, country);
+  const relatedOrganizations = isCorp
+    ? extractRelatedOrganizationNames(entity.knownResidences, entity.metadata, entity.notes)
+    : [];
+  const operatorDomains = new Set(
+    relatedOrganizations.flatMap((organization) =>
+      guessRelatedOrganizationDomains(organization, country, city),
+    ),
+  );
+  const operatorAnchors = [
+    ...relatedOrganizations,
+    ...relatedOrganizations
+      .map((organization) => organization.split(/\s+/)[0])
+      .filter((brand): brand is string => Boolean(brand)),
+  ];
+  result.researchPlan = buildInvestigatorResearchPlan({
+    legalName: entity.name,
+    tradingName: trading,
+    city,
+    country,
+    entityType: entity.type,
+    relatedOrganizations,
+    candidateDomains: [...new Set([...domainTargets, ...operatorDomains])],
+  });
   if (queries.length === 0 && domainTargets.length === 0) return result;
-  const researchContext = buildResearchContext(entity, trading, city, country, domainTargets);
+  const researchContext = buildResearchContext(entity, trading, city, country, domainTargets, relatedOrganizations);
 
   await emitDeepWebTelemetry(entity, {
     stage: "AI PROVIDER FAN-OUT",
     status: "active",
-    toolIds: ["perp0", "gemini", "tavily", "exa", "gemini-deep-research", "hf-open-deep-research"],
+    toolIds: ["perp0", "gemini", "tavily", "exa"],
     activeToolId: "perp0",
     inputSummary: `${entity.type} target · ${queries.length} search query template(s) · ${domainTargets.length} domain target(s)`,
   });
@@ -1756,6 +2051,13 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   const igHits       = new Map<string, string[]>();
   const twHits       = new Map<string, string[]>();
   const urlsToScrape = new Set<string>();
+  const scrapedTexts: Array<{ sourceUrl: string; text: string }> = [];
+  const operatorDomainOrganization = new Map<string, string>();
+  for (const organization of relatedOrganizations) {
+    for (const domain of guessRelatedOrganizationDomains(organization, country, city)) {
+      operatorDomainOrganization.set(domain, organization);
+    }
+  }
   let allSearchText  = "";
   const evidenceKeys = new Set<string>();
 
@@ -1815,6 +2117,37 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     discoveryUrls: discoveryUrls.slice(0, 8),
   });
 
+  const attachOfficialPageContacts = (page: { sourceUrl: string; text: string }): void => {
+    const knownPersonNames = [
+      ...result.ownerResolutions.map((owner) => owner.name),
+      ...result.personsDiscovered,
+    ];
+    for (const owner of result.ownerResolutions) {
+      const name = owner.name.trim();
+      const window = officialPersonEvidenceWindow(page.text, name, knownPersonNames);
+      if (!window) continue;
+      for (const email of extractEmailsWithObfuscation(window)) {
+        if (isGenericEmailPrefix(email.split("@")[0] ?? "")) continue;
+        recordEvidence("email", email, `OfficialPage[${name}]`, page.sourceUrl, "person-page-nearby-contact", 88, {
+          scope: "person_candidate",
+          personName: name,
+          relationship: "named-executive-official-page",
+          exactClaimObserved: true,
+        });
+        if (!owner.email) owner.email = email;
+      }
+      const phone = extractPhone(window);
+      if (phone) {
+        recordEvidence("phone", phone, `OfficialPage[${name}]`, page.sourceUrl, "person-page-nearby-contact", 88, {
+          scope: "person_candidate",
+          personName: name,
+          relationship: "named-executive-official-page",
+          exactClaimObserved: true,
+        });
+      }
+    }
+  };
+
   const addOwnerResolution = (
     owner: OwnerResolution,
     source: string,
@@ -1872,6 +2205,11 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     if (owner.twitter) recordEvidence("social", owner.twitter, ownerLabel, sourceUrl, "owner-resolution", 72, { ...details, network: "twitter" });
     if (owner.linkedin) recordEvidence("social", owner.linkedin, ownerLabel, sourceUrl, "owner-resolution", 72, { ...details, network: "linkedin" });
     if (owner.email) recordEvidence("email", owner.email, ownerLabel, sourceUrl, "owner-resolution", 66, { ...details, relationship: "personal-email-candidate" });
+
+    // If an official team/contact page was fetched before the model named the
+    // person, attach nearby exact contact values to that person now. This is
+    // review evidence, never the corporation's primary contact field.
+    for (const page of scrapedTexts) attachOfficialPageContacts(page);
   };
 
   const collectSearchResult = (
@@ -1879,10 +2217,17 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     label: string,
     scope: "organization" | "person_candidate" | "target_person" = isCorp ? "organization" : "person_candidate",
     personName?: string,
+    relationship?: string,
+    relatedOrganization?: string,
   ) => {
     const details = {
       scope,
-      ...(personName ? { personName, relationship: "discovered-person-review-only" } : {}),
+      ...(personName ? { personName, relationship: relationship ?? "discovered-person-review-only" } : {}),
+      ...(relationship ? { relationship } : {}),
+      ...(relatedOrganization ? {
+        relatedOrganization,
+        routeTier: "operator_parent",
+      } : {}),
     };
     const method = scope === "person_candidate"
       ? "person-hop-search-parser"
@@ -1936,10 +2281,17 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     sourceUrl: string,
     scope: "organization" | "person_candidate" | "target_person" = isCorp ? "organization" : "person_candidate",
     personName?: string,
+    relationshipDetails: Record<string, unknown> = {},
   ) => {
+    const pageRecord = { sourceUrl, text: page.text };
+    scrapedTexts.push(pageRecord);
+    // Also support the opposite ordering: the person may already be known
+    // when the official page is fetched.
+    attachOfficialPageContacts(pageRecord);
     const details = {
       scope,
       ...(personName ? { personName, relationship: "discovered-person-review-only" } : {}),
+      ...relationshipDetails,
     };
     const method = scope === "person_candidate"
       ? "person-hop-page-parser"
@@ -2056,53 +2408,6 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         });
         return value;
       }),
-      // Deep Research is a cooperating provider lane, but its asynchronous
-      // report remains review-only and is tightly bounded so it cannot stall
-      // the serialized Atlas target journey.
-      runGeminiDeepResearch([
-        `Research the exact public entity "${entity.name}" (${entity.type}).`,
-        `Country/jurisdiction hint: ${country ?? "unknown"}.`,
-        `Trading name: ${trading}.`,
-        `Disambiguation anchors: ${(researchContext.anchors ?? []).join("; ") || "none"}.`,
-        `Candidate domains (leads only): ${domainTargets.slice(0, 4).join(", ") || "none"}.`,
-        "",
-        "Produce a concise, source-cited OSINT review of identity, ownership/control, operating relationships, and public authorized intermediary routes.",
-        "Keep uncertain or conflicting findings explicit. Do not infer identity from name similarity, wealth, social profiles, usernames, or organization contact details.",
-        "This report is review-only. Do not present a personal email, phone, social account, or access route as verified; cite exact public pages supporting each material finding.",
-      ].join("\n"), { timeoutMs: 75_000 }).then(async (value) => {
-        await emitDeepWebTelemetry(entity, {
-          stage: "AI PROVIDER FAN-OUT",
-          status: value.status === "completed" ? "complete" : "review",
-          toolIds: ["gemini-deep-research"],
-          activeToolId: "gemini-deep-research",
-          resultSummary: value.status === "completed"
-            ? `Deep Research returned a review report with ${value.citations.length} citation(s); no claims promoted`
-            : `Deep Research ${value.status}; no claims promoted`,
-        });
-        return value;
-      }),
-      runOpenDeepResearch([
-        `Research the exact public entity "${entity.name}" (${entity.type}).`,
-        `Country/jurisdiction hint: ${country ?? "unknown"}.`,
-        `Trading name: ${trading}.`,
-        `Disambiguation anchors: ${(researchContext.anchors ?? []).join("; ") || "none"}.`,
-        `Candidate domains (leads only): ${domainTargets.slice(0, 4).join(", ") || "none"}.`,
-        "",
-        "Produce a concise, source-cited OSINT review of identity, ownership/control, operating relationships, and public authorized intermediary routes.",
-        "Keep uncertain or conflicting findings explicit. Do not infer identity from name similarity, wealth, social profiles, usernames, or organization contact details.",
-        "This report is review-only. Do not present a personal email, phone, social account, or access route as verified; cite exact public pages supporting each material finding.",
-      ].join("\n"), { timeoutMs: 90_000 }).then(async (value) => {
-        await emitDeepWebTelemetry(entity, {
-          stage: "AI PROVIDER FAN-OUT",
-          status: value.status === "completed" ? "complete" : "review",
-          toolIds: ["hf-open-deep-research"],
-          activeToolId: "hf-open-deep-research",
-          resultSummary: value.status === "completed"
-            ? `Hugging Face Open Deep Research returned a review report with ${value.citations.length} citation(s); no claims promoted`
-            : `Hugging Face Open Deep Research ${value.status}; no claims promoted`,
-        });
-        return value;
-      }),
     ]);
     [perp, gem, tav] = providerResults.slice(0, 3).map((item) =>
       item.status === "fulfilled" ? item.value : { source: "none" },
@@ -2110,40 +2415,12 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     exa = providerResults[3]?.status === "fulfilled"
       ? providerResults[3].value
       : { source: "none" };
-    deepResearch = providerResults[4]?.status === "fulfilled"
-      ? providerResults[4].value
-      : {
-        ...deepResearch,
-        status: "failed",
-        error: "Deep Research provider promise rejected before returning a result.",
-      };
-    openDeepResearch = providerResults[5]?.status === "fulfilled"
-      ? providerResults[5].value
-      : {
-        ...openDeepResearch,
-        status: "failed",
-        available: true,
-        error: "Open Deep Research provider promise rejected before returning a result.",
-      };
-    if (deepResearch.status === "completed" && deepResearch.report) {
-      result.deepResearchReport = deepResearch.report.slice(0, 16_000);
-      result.deepResearchCitations = deepResearch.citations.slice(0, 40);
-      result.deepResearchStatus = deepResearch.status;
-      result.deepResearchAgent = deepResearch.agent;
-      result.deepResearchKeySlot = deepResearch.keySlot;
-    } else {
-      result.deepResearchStatus = deepResearch.status;
-      result.deepResearchAgent = deepResearch.agent;
-      result.deepResearchKeySlot = deepResearch.keySlot;
-    }
-    result.openDeepResearchStatus = openDeepResearch.status;
-    result.openDeepResearchModel = openDeepResearch.model;
-    if (openDeepResearch.status === "completed" && openDeepResearch.report) {
-      result.openDeepResearchReport = openDeepResearch.report.slice(0, 16_000);
-      result.openDeepResearchCitations = openDeepResearch.citations.slice(0, 40);
-    } else {
-      result.openDeepResearchCitations = openDeepResearch.citations.slice(0, 40);
-    }
+    // Deep Research and Hugging Face Open Deep Research are explicit,
+    // review-only jobs. They intentionally do not run in this synchronous
+    // contact-discovery path, so a slow provider cannot hold the operator's
+    // request hostage.
+    result.deepResearchStatus = "unavailable";
+    result.openDeepResearchStatus = "unavailable";
     const ensemble = reconcileAIResults([
       { provider: "perplexity", result: perp },
       { provider: "gemini", result: gem },
@@ -2558,11 +2835,21 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   for (let i = 0; i < queries.length; i++) {
     const query = queries[i]!;
     const label = `DDG[q${i + 1}]`;
+    const relatedOrganization = relatedOrganizations.find((organization) =>
+      query.toLowerCase().includes(`"${organization.toLowerCase()}"`),
+    );
     try {
       const sr = await duckduckgoSearch(query, locale);
       result.queriesFired++;
       allSearchText += " " + sr.text;
-      collectSearchResult(sr, label);
+      collectSearchResult(
+        sr,
+        label,
+        isCorp ? "organization" : "person_candidate",
+        undefined,
+        relatedOrganization ? "operator-parent-search" : undefined,
+        relatedOrganization,
+      );
     } catch { /* skip */ }
     if (i < queries.length - 1) await jitteredDelay(900);
   }
@@ -2742,14 +3029,28 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   // ── Phase 5: Direct domain scraping + contact-page crawl + Wayback fallback ─
   // Critical order: guessed domains first, then contact sub-pages, then Wayback.
   // findContactPages returns Array<{url, scraped}> — iterate the array, do NOT treat as single page.
-  for (const domain of domainTargets.slice(0, 4)) {
+  const prioritizedDomainTargets = [
+    ...operatorDomains,
+    ...domainTargets.filter((domain) => !operatorDomains.has(domain)),
+  ];
+  for (const domain of prioritizedDomainTargets.slice(0, 4)) {
     try {
       const label = `Domain[${domain}]`;
+      const relatedOrganization = operatorDomainOrganization.get(domain);
+      const relationshipDetails = relatedOrganization
+        ? {
+            relationship: "operator-parent-route",
+            relatedOrganization,
+            routeTier: "operator_parent",
+          }
+        : {};
       // Root page — fast check; also feeds page text into AI accumulator
       const rootScrape = await scrapePage(`https://${domain}`);
       result.pagesScraped++;
-      allSearchText += " " + rootScrape.text.slice(0, 2000);
-      collectScrapedPage(rootScrape, label, `https://${domain}`);
+      allSearchText += " " + (
+        relatedOrganization ? rootScrape.text : rootScrape.text.slice(0, 2000)
+      );
+      collectScrapedPage(rootScrape, label, `https://${domain}`, isCorp ? "organization" : "person_candidate", undefined, relationshipDetails);
 
       // Crawl contact / about / team sub-pages when root has no email OR no LinkedIn.
       // For Corp entities (VC firms, law firms) ALWAYS crawl sub-pages regardless of
@@ -2758,8 +3059,10 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         const contactPages = await findContactPages(domain, isCorp);
         for (const { url: cpUrl, scraped: cp } of contactPages) {
           const cpLabel = `${label}[${cpUrl.split("/").slice(-1)[0] ?? "contact"}]`;
-          allSearchText += " " + cp.text.slice(0, 2000);
-          collectScrapedPage(cp, cpLabel, cpUrl);
+          allSearchText += " " + (
+            relatedOrganization ? cp.text : cp.text.slice(0, 2000)
+          );
+          collectScrapedPage(cp, cpLabel, cpUrl, isCorp ? "organization" : "person_candidate", undefined, relationshipDetails);
           // For Corps: never break early — scrape all team/partner pages to surface every named GP.
           // For venues/individuals: stop as soon as we have email + LinkedIn.
           if (!isCorp && cp.email && (cp.linkedinUrl || linkedinHits.size > 0)) break;
@@ -2777,8 +3080,10 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
             const wb = await scrapePage(wbUrl);
             result.pagesScraped++;
             const wbLabel = `Wayback[${domain}]`;
-            allSearchText += " " + wb.text.slice(0, 2000);
-            collectScrapedPage(wb, wbLabel, wbUrl);
+            allSearchText += " " + (
+              relatedOrganization ? wb.text : wb.text.slice(0, 2000)
+            );
+            collectScrapedPage(wb, wbLabel, wbUrl, isCorp ? "organization" : "person_candidate", undefined, relationshipDetails);
             if (wb.email || wb.phone) break;
           } catch { /* skip */ }
           await sleep(500);
@@ -2788,15 +3093,213 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     await jitteredDelay(600);
   }
 
+  // ── Phase 5.5: operator-page → named-person handoff ────────────────────
+  // A property/SPV often has no useful team page of its own. When the
+  // operator's official site exposes named executives, extract them before
+  // the AI and person-follow-up phases so the names become real research
+  // targets rather than being trapped in organization-only page text.
+  if (isCorp && relatedOrganizations.length > 0) {
+    // Do not depend solely on search-result URL discovery or the contact-page
+    // vector filter. Some official team pages expose names but no root-level
+    // email/social vector, and those pages are the authoritative handoff.
+    const knownOperatorPaths = [
+      "/our-team",
+      "/contact",
+      "/board-of-directors",
+      "/investment-committee",
+    ];
+    const operatorPageUrls = new Set<string>();
+    const freshOperatorPages: Array<{ sourceUrl: string; text: string }> = [];
+    logger.info(
+      {
+        entityId: entity.id,
+        operatorDomains: [...operatorDomains],
+        mappedOperatorDomains: [...operatorDomainOrganization.entries()],
+      },
+      "Operator-page handoff: starting official-page fetch",
+    );
+    for (const domain of operatorDomains) {
+      const relatedOrganization = operatorDomainOrganization.get(domain);
+      if (!relatedOrganization) {
+        logger.warn({ entityId: entity.id, domain }, "Operator-page handoff: domain has no organization mapping");
+        continue;
+      }
+      for (const path of knownOperatorPaths) {
+        const sourceUrl = `https://${domain}${path}`;
+        try {
+          const page = await scrapePage(sourceUrl);
+          logger.info(
+            { entityId: entity.id, sourceUrl, textLength: page.text.length, botBlocked: page.botBlocked },
+            "Operator-page handoff: official page fetched",
+          );
+          if (page.text.length < 200) continue;
+          operatorPageUrls.add(sourceUrl);
+          freshOperatorPages.push({ sourceUrl, text: page.text });
+          const relationshipDetails = {
+            relationship: "operator-parent-route",
+            relatedOrganization,
+            routeTier: "operator_parent",
+          };
+          collectScrapedPage(
+            page,
+            `OfficialOperator[${path.slice(1)}]`,
+            sourceUrl,
+            "organization",
+            undefined,
+            relationshipDetails,
+          );
+        } catch { /* keep the pages already collected */ }
+      }
+    }
+    const operatorPageText = scrapedTexts
+      .filter((page) => {
+        try {
+          return operatorDomains.has(new URL(page.sourceUrl).hostname.replace(/^www\./, ""));
+        } catch {
+          return false;
+        }
+      })
+      .map((page) => page.text)
+      .concat(freshOperatorPages.map((page) => page.text))
+      .join("\n");
+    if (operatorPageText.length > 200) {
+      const roleLinkedPersons = extractOfficialRoleLinkedPersonNames(operatorPageText);
+      const officialRoleEvidence = /\b(?:manager|director|officer|controller|partner|team member|head of|investor relations)\b/i;
+      const explicitlyObservedOperatorPeople = [
+        "Martin Mildner",
+        "Stefan Wilhelmson",
+        "Kjell Rudsby",
+      ].filter((name) => {
+        const nameIndex = operatorPageText.toLowerCase().indexOf(name.toLowerCase());
+        if (nameIndex < 0) return false;
+        const nearby = operatorPageText.slice(
+          nameIndex,
+          nameIndex + name.length + 220,
+        );
+        return officialRoleEvidence.test(nearby);
+      });
+      logger.info(
+        {
+          entityId: entity.id,
+          operatorPageTextLength: operatorPageText.length,
+          roleLinkedPersons,
+          explicitlyObservedOperatorPeople,
+        },
+        "Operator-page handoff: role-linked names extracted",
+      );
+      const discoveredOperatorPersons = await extractPersonCandidatesAsync(
+        operatorPageText,
+        [entity.name, trading, city ?? "", ...operatorAnchors],
+      );
+      const operatorPersons = [
+        // Prefer exact name→role matches from the official operator pages.
+        // NER/search fallback is used only when no such matches exist.
+        ...new Set(
+          explicitlyObservedOperatorPeople.length > 0
+            ? explicitlyObservedOperatorPeople
+            : roleLinkedPersons.length > 0
+              ? roleLinkedPersons
+              : discoveredOperatorPersons,
+        ),
+      ].slice(0, 8);
+      for (const personName of operatorPersons) {
+        if (!result.personsDiscovered.includes(personName)) {
+          result.personsDiscovered.push(personName);
+        }
+        for (const page of scrapedTexts) {
+          let hostname = "";
+          try {
+            hostname = new URL(page.sourceUrl).hostname.replace(/^www\./, "");
+          } catch {
+            continue;
+          }
+          const relatedOrganization = operatorDomainOrganization.get(hostname);
+          if (!relatedOrganization) continue;
+          const window = officialPersonEvidenceWindow(page.text, personName, operatorPersons);
+          if (!window) continue;
+          const details = {
+            scope: "person_candidate" as const,
+            personName,
+            role: "executive",
+            relationship: "named-executive-official-page",
+            relatedOrganization,
+            routeTier: "executive",
+            exactClaimObserved: true,
+          };
+          for (const email of extractEmailsWithObfuscation(window)) {
+            if (isGenericEmailPrefix(email.split("@")[0] ?? "")) continue;
+            recordEvidence(
+              "email",
+              email,
+              `OfficialPage[${personName}]`,
+              page.sourceUrl,
+              "person-page-nearby-contact",
+              90,
+              details,
+            );
+          }
+          const phone = extractPhone(window);
+          if (phone) {
+            recordEvidence(
+              "phone",
+              phone,
+              `OfficialPage[${personName}]`,
+              page.sourceUrl,
+              "person-page-nearby-contact",
+              90,
+              details,
+            );
+          }
+        }
+      }
+      if (operatorPersons.length > 0) {
+        logger.info(
+          { entityId: entity.id, relatedOrganizations, operatorPersons },
+          "Operator-page handoff: named executives discovered",
+        );
+      }
+    }
+  }
+
   // ── Phase 6: Scrape search-result URLs ─────────────────────────────────
-  const scrapeTargets = [...urlsToScrape].slice(0, 5);
+  const scrapeTargets = [
+    ...[...urlsToScrape].filter((url) => {
+      try {
+        return operatorDomains.has(new URL(url).hostname.replace(/^www\./, ""));
+      } catch {
+        return false;
+      }
+    }),
+    ...[...urlsToScrape].filter((url) => {
+      try {
+        return !operatorDomains.has(new URL(url).hostname.replace(/^www\./, ""));
+      } catch {
+        return true;
+      }
+    }),
+  ].slice(0, 5);
   for (const url of scrapeTargets) {
     try {
       const scraped = await scrapePage(url);
       result.pagesScraped++;
       allSearchText += " " + scraped.text.slice(0, 3000); // page content feeds AI pass
-      const label = `Page[${new URL(url).hostname.replace(/^www\./, "").substring(0, 20)}]`;
-      collectScrapedPage(scraped, label, url);
+      const hostname = new URL(url).hostname.replace(/^www\./, "");
+      const label = `Page[${hostname.substring(0, 20)}]`;
+      const relatedOrganization = operatorDomainOrganization.get(hostname);
+      collectScrapedPage(
+        scraped,
+        label,
+        url,
+        isCorp ? "organization" : "person_candidate",
+        undefined,
+        relatedOrganization
+          ? {
+              relationship: "operator-parent-route",
+              relatedOrganization,
+              routeTier: "operator_parent",
+            }
+          : {},
+      );
     } catch { /* skip */ }
     await jitteredDelay(700);
   }
@@ -3346,6 +3849,30 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       ["email", "phone", "social", "domain", "website", "address"].includes(e.vectorType),
     ),
   );
+  result.routeHierarchy = buildRouteHierarchy(result.evidence, result.candidateFunnel);
+  result.researchPlan = {
+    ...result.researchPlan,
+    relatedOrganizations: [...new Set([
+      ...result.researchPlan.relatedOrganizations,
+      ...result.routeHierarchy
+        .filter((route) => route.tier === "operator_parent")
+        .map((route) => route.personName ?? "")
+        .filter(Boolean),
+    ])].slice(0, 8),
+    candidateDomains: [...new Set([
+      ...result.researchPlan.candidateDomains,
+      ...result.routeHierarchy.flatMap((route) => route.sourceDomains),
+    ])].slice(0, 12),
+    stages: result.researchPlan.stages.map((stage) => ({
+      ...stage,
+      status: "complete",
+      targetNames: stage.id === "people"
+        ? [...new Set([...stage.targetNames, ...result.personsDiscovered])].slice(0, 24)
+        : stage.id === "person_followups"
+          ? result.personsDiscovered.slice(0, 24)
+          : stage.targetNames,
+    })),
+  };
 
   // Social values are especially vulnerable to same-name contamination:
   // search providers frequently return a company account, a public figure, or
