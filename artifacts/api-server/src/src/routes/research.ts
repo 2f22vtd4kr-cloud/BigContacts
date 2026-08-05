@@ -4,11 +4,13 @@ import { Router, type IRouter } from "express";
 import mctsRouter     from "./research/mcts";
 import sessionsRouter  from "./research/sessions";
 import bulkRouter      from "./research/bulk";
+import deepResearchRouter from "./research/deep-research";
 
 const router: IRouter = Router();
 
 router.use(mctsRouter);
 router.use(sessionsRouter);
 router.use(bulkRouter);
+router.use(deepResearchRouter);
 
 export default router;

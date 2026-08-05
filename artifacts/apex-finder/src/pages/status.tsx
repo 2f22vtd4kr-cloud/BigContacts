@@ -23,6 +23,7 @@ interface AIKeyStatus {
   groq:       AIKeySlot[];
   perplexity: AIKeySlot[];
   gemini:     AIKeySlot[];
+  geminiDeepResearch: AIKeySlot[];
   tavily:     AIKeySlot[];
   exa:        AIKeySlot[];
 }
@@ -52,6 +53,7 @@ const PROVIDER_LABELS: Record<keyof AIKeyStatus, string> = {
   groq:       "Groq LLaMA",
   perplexity: "Perplexity",
   gemini:     "Gemini",
+  geminiDeepResearch: "Gemini Deep Research",
   tavily:     "Tavily",
   exa:        "Exa",
 };
@@ -183,7 +185,7 @@ export default function SystemStatusPage() {
 
   const aiProviders = status?.ai
     ? (Object.keys(status.ai) as Array<keyof AIKeyStatus>)
-    : (["groq", "perplexity", "gemini", "tavily", "exa"] as Array<keyof AIKeyStatus>);
+    : (["groq", "perplexity", "gemini", "geminiDeepResearch", "tavily", "exa"] as Array<keyof AIKeyStatus>);
 
   const totalActive = status?.ai
     ? aiProviders.reduce((sum, k) => sum + (status.ai[k]?.filter(s => s.state === "active").length ?? 0), 0)

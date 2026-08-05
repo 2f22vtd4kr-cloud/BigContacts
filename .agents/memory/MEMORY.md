@@ -78,3 +78,4 @@
 - [Persistent API key health](persistent-api-key-health.md) — Keep a compact live key-pool indicator in the shared header with expandable provider diagnostics on every web route
 - [Global workspace status](global-workspace-status.md) — Shared header combines live Atlas activity, infrastructure health, and provider capacity without inferring work from history
 - [Research query lanes](research-query-lanes.md) — Share compact target anchors across Phase 0 providers while assigning distinct evidence lanes; never forward raw residence text
+- [Gemini Deep Research lane](gemini-deep-research-lane.md) — Keep expensive asynchronous research explicit, target-scoped, dedicated to keys 11–13, and review-only

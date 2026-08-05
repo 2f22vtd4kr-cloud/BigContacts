@@ -56,6 +56,8 @@ export interface JobState {
   completedTargetIds?: string;
   failedTargetIds?: string;
   retryCounts?: string;
+  /** JSON-encoded result for bounded provider jobs such as Deep Research. */
+  result?: string;
 }
 
 export type AutoPipelineSchedulerStatus = {
@@ -156,6 +158,7 @@ export async function getJob(jobId: string): Promise<JobState | null> {
     completedTargetIds: raw["completedTargetIds"],
     failedTargetIds: raw["failedTargetIds"],
     retryCounts: raw["retryCounts"],
+    result: raw["result"],
   };
 }
 
