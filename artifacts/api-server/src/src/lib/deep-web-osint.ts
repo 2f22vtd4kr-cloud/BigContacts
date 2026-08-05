@@ -18,7 +18,7 @@
  */
 
 import { logger } from "./logger";
-import { extractWithAI, researchWithPerplexity, researchWithGemini, researchWithTavily, researchWithExa } from "./ai-extractor";
+import { extractWithAI, researchWithPerplexity, researchWithGemini, researchWithTavily, researchWithExa, type AIResearchContext } from "./ai-extractor";
 import {
   applyEnsembleAdjudication,
   buildEnsembleAdjudicationText,
@@ -494,12 +494,34 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       notes: entity.notes,
       sourceRegistries: entity.sourceRegistries,
     }));
+    const metadata = safeJson<Record<string, unknown>>(entity.metadata, {});
+    const researchContext: Omit<AIResearchContext, "lane"> = {
+      tradingName: entity.name,
+      city: null,
+      anchors: [
+        ...(entity.sourceRegistries ? [`source registry: ${entity.sourceRegistries}`] : []),
+        ...Object.entries(metadata)
+          .filter(([key, value]) =>
+            /(^|_)(id|number|lei|cik|imo|icao|nnumber|chid|registration)(_|$)/i.test(key)
+            && (typeof value === "string" || typeof value === "number"),
+          )
+          .map(([key, value]) => `${key}: ${String(value).trim()}`),
+      ].filter(Boolean).slice(0, 6),
+    };
 
     const providerResults = await Promise.allSettled([
-      researchWithPerplexity(entity.name, entity.type, countryHint, { reachability: realism }),
-      researchWithGemini(entity.name, entity.type, countryHint, { reachability: realism }),
-      researchWithTavily(entity.name, entity.type, countryHint, { reachability: realism }),
-      researchWithExa(entity.name, entity.type, countryHint, { reachability: realism }),
+      researchWithPerplexity(entity.name, entity.type, countryHint, {
+        ...researchContext, lane: "people_press", reachability: realism,
+      }),
+      researchWithGemini(entity.name, entity.type, countryHint, {
+        ...researchContext, lane: "official_records", reachability: realism,
+      }),
+      researchWithTavily(entity.name, entity.type, countryHint, {
+        ...researchContext, lane: "contact_routes", reachability: realism,
+      }),
+      researchWithExa(entity.name, entity.type, countryHint, {
+        ...researchContext, lane: "semantic_discovery", reachability: realism,
+      }),
     ]);
     const [perp, gem, tav, exa] = providerResults.map((item) =>
       item.status === "fulfilled" ? item.value : { source: "none" },

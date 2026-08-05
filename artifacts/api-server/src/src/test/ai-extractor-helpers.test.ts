@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildPerplexityPrompt, extractJsonObject } from "../lib/ai-extractor";
+import { buildPerplexityPrompt, buildProviderSearchQuery, extractJsonObject } from "../lib/ai-extractor";
 
 describe("AI response safety helpers", () => {
   it("extracts the first balanced JSON object instead of greedily merging objects", () => {
@@ -48,5 +48,35 @@ describe("AI response safety helpers", () => {
     expect(prompt).toContain('"identityAssessment": "confirmed | probable | ambiguous | not_established"');
     expect(prompt).toContain('"negativeFindings"');
     expect(prompt).toContain('"searchGaps"');
+  });
+
+  it("passes target-record anchors into the prompt without treating them as proof", () => {
+    const prompt = buildPerplexityPrompt("Example Holdings", "Corporation", "US", {
+      city: "New York",
+      anchors: ["source registry: EDGAR", "cik: 0000123456"],
+      candidateDomains: ["exampleholdings.com"],
+      lane: "official_records",
+    });
+    expect(prompt).toContain("source registry: EDGAR");
+    expect(prompt).toContain("cik: 0000123456");
+    expect(prompt).toContain("Candidate domains surfaced by the pipeline");
+    expect(prompt).toContain("official team/people pages, filings, registries");
+    expect(prompt).toContain("they are not independently verified evidence");
+  });
+
+  it("builds lane-specific, anchored provider queries", () => {
+    const query = buildProviderSearchQuery("Example Holdings", "Corporation", "US", {
+      tradingName: "Example",
+      city: "New York",
+      anchors: ["cik: 0000123456"],
+      candidateDomains: ["exampleholdings.com"],
+      lane: "official_records",
+    });
+    expect(query).toContain('"Example Holdings"');
+    expect(query).toContain('"Example"');
+    expect(query).toContain('"New York"');
+    expect(query).toContain("cik: 0000123456");
+    expect(query).toContain("official team people registry filing");
+    expect(query).toContain("site:exampleholdings.com");
   });
 });

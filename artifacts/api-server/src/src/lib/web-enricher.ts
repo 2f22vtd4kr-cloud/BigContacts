@@ -42,7 +42,7 @@ const FINANCIAL_AGGREGATOR_DOMAINS = new Set([
   "1881.no", "gulesider.no", "proff.no", "purehelp.no", "enhetsregisteret.no",
   "allabolag.se", "hitta.se", "eniro.se", "proff.se", "virksomhed.dk",
 ]);
-import { extractWithAI, researchWithPerplexity, researchWithGemini, researchWithTavily, researchWithExa, type OwnerResolution } from "./ai-extractor";
+import { extractWithAI, researchWithPerplexity, researchWithGemini, researchWithTavily, researchWithExa, type AIResearchContext, type OwnerResolution } from "./ai-extractor";
 import { applyEnsembleAdjudication, buildEnsembleAdjudicationText, reconcileAIResults, type AIEnsembleResult } from "./ai-ensemble";
 import { extractPersonNames } from "./gliner-client";
 import { assessTargetReachability, reachabilityDirective } from "./reachability-realism";
@@ -463,6 +463,36 @@ export interface DeepWebTelemetryEvent {
   sources?: number;
   evidence?: number;
   contacts?: number;
+}
+
+function buildResearchContext(
+  entity: DeepWebOsintInput,
+  tradingName: string,
+  city: string | null,
+  country: string | null,
+  candidateDomains: string[],
+): Omit<AIResearchContext, "lane"> {
+  const metadata = safeJson<Record<string, unknown>>(entity.metadata, {});
+  const anchors: string[] = [];
+  const registries = safeJson<unknown[]>(entity.sourceRegistries, []);
+  for (const registry of registries) {
+    if (typeof registry === "string" && registry.trim()) anchors.push(`source registry: ${registry.trim()}`);
+  }
+  for (const [key, value] of Object.entries(metadata)) {
+    if (!/(^|_)(id|number|lei|cik|imo|icao|nnumber|chid|registration)(_|$)/i.test(key)) continue;
+    if (typeof value === "string" || typeof value === "number") {
+      anchors.push(`${key}: ${String(value).trim()}`);
+    }
+  }
+  if (entity.type) anchors.push(`entity type: ${entity.type}`);
+  if (city) anchors.push(`known city: ${city}`);
+  if (country) anchors.push(`known country: ${country}`);
+  return {
+    tradingName,
+    city,
+    anchors: [...new Set(anchors)].slice(0, 6),
+    candidateDomains: [...new Set(candidateDomains)].slice(0, 4),
+  };
 }
 
 export interface DeepWebOsintResult {
@@ -1683,6 +1713,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
 
   const { queries, domainTargets } = buildDeepWebQueries(entity, trading, city, country);
   if (queries.length === 0 && domainTargets.length === 0) return result;
+  const researchContext = buildResearchContext(entity, trading, city, country, domainTargets);
 
   await emitDeepWebTelemetry(entity, {
     stage: "AI PROVIDER FAN-OUT",
@@ -1924,8 +1955,8 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   try {
     const providerResults = await Promise.allSettled([
       researchWithPerplexity(entity.name, entity.type, country, {
-        tradingName: trading,
-        city,
+        ...researchContext,
+        lane: "people_press",
         reachability: realism,
       }).then(async (value) => {
         await emitDeepWebTelemetry(entity, {
@@ -1938,8 +1969,8 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         return value;
       }),
       researchWithGemini(entity.name, entity.type, country, {
-        tradingName: trading,
-        city,
+        ...researchContext,
+        lane: "official_records",
         reachability: realism,
       }).then(async (value) => {
         await emitDeepWebTelemetry(entity, {
@@ -1952,8 +1983,8 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         return value;
       }),
       researchWithTavily(entity.name, entity.type, country, {
-        tradingName: trading,
-        city,
+        ...researchContext,
+        lane: "contact_routes",
         reachability: realism,
       }).then(async (value) => {
         await emitDeepWebTelemetry(entity, {
@@ -1966,8 +1997,8 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         return value;
       }),
       researchWithExa(entity.name, entity.type, country, {
-        tradingName: trading,
-        city,
+        ...researchContext,
+        lane: "semantic_discovery",
         reachability: realism,
       }).then(async (value) => {
         await emitDeepWebTelemetry(entity, {
@@ -2655,23 +2686,27 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         logger.info({ entityId: entity.id, personName }, "Phase 7.5: follow-up Perplexity+Gemini+Tavily+Exa for discovered person");
         const followUpResults = await Promise.allSettled([
           researchWithPerplexity(personName, "HNWI", country, {
+            ...researchContext,
             tradingName: entity.name,
-            city,
+            lane: "people_press",
             reachability: realism,
           }),
           researchWithGemini(personName, "HNWI", country, {
+            ...researchContext,
             tradingName: entity.name,
-            city,
+            lane: "official_records",
             reachability: realism,
           }),
           researchWithTavily(personName, "HNWI", country, {
+            ...researchContext,
             tradingName: entity.name,
-            city,
+            lane: "contact_routes",
             reachability: realism,
           }),
           researchWithExa(personName, "HNWI", country, {
+            ...researchContext,
             tradingName: entity.name,
-            city,
+            lane: "semantic_discovery",
             reachability: realism,
           }),
         ]);

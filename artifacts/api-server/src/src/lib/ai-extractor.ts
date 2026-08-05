@@ -225,6 +225,79 @@ export interface AIExtractResult {
   searchGaps?: string[];
 }
 
+export type AIResearchLane =
+  | "official_records"
+  | "people_press"
+  | "contact_routes"
+  | "semantic_discovery";
+
+export interface AIResearchContext {
+  tradingName?: string | null;
+  city?: string | null;
+  reachability?: ReachabilityDirective;
+  /**
+   * Entity-record anchors such as registry IDs, source registries, or a
+   * verified business category. These are disambiguation context, not proof.
+   */
+  anchors?: string[];
+  /**
+   * Candidate domains discovered by the pipeline. They are leads only until
+   * the page is fetched and the target relationship is confirmed.
+   */
+  candidateDomains?: string[];
+  /** Gives each provider a distinct research job instead of repeating one query. */
+  lane?: AIResearchLane;
+}
+
+/**
+ * Build a provider-specific search query from the same target fingerprint used
+ * by the structured prompt. Keeping this in one place prevents Tavily and Exa
+ * from drifting back to generic "owner contact" searches.
+ */
+export function buildProviderSearchQuery(
+  entityName: string,
+  entityType: string,
+  country: string | null,
+  context: AIResearchContext = {},
+): string {
+  const quoted = (value: string | null | undefined): string | null => {
+    const clean = value?.trim().replace(/\s+/g, " ");
+    return clean ? `"${clean.slice(0, 120)}"` : null;
+  };
+  const parts = [quoted(entityName)];
+  if (context.tradingName && context.tradingName !== entityName) parts.push(quoted(context.tradingName));
+  if (context.city) parts.push(quoted(context.city));
+  if (country) parts.push(quoted(country));
+
+  const anchors = (context.anchors ?? [])
+    .map((anchor) => anchor.trim().replace(/\s+/g, " "))
+    .filter(Boolean)
+    .slice(0, 3);
+  parts.push(...anchors.map((anchor) => quoted(anchor)));
+
+  const laneTerms: Record<AIResearchLane, string> = {
+    official_records: "official team people registry filing director officer",
+    people_press: "founder owner director partner executive interview profile",
+    contact_routes: "public email direct contact LinkedIn authorized intermediary",
+    semantic_discovery: "ownership control parent operating company principal",
+  };
+  parts.push(laneTerms[context.lane ?? "people_press"]);
+  if (entityType === "Corporation" || entityType === "Trust") {
+    parts.push("company organization");
+  } else {
+    parts.push("individual identity");
+  }
+  if (context.reachability?.mode === "research_only") {
+    parts.push("identity verification no viable access assumption");
+  }
+  const domains = (context.candidateDomains ?? [])
+    .map((domain) => domain.trim().replace(/^https?:\/\//i, "").replace(/\/.*$/, ""))
+    .filter(Boolean)
+    .slice(0, 2);
+  if (domains.length > 0) parts.push(domains.map((domain) => `site:${domain}`).join(" OR "));
+  return parts.filter((part): part is string => Boolean(part)).join(" ");
+}
+
 function bindResolutionsToCitations(
   parsed: AIExtractResult,
   citations: string[],
@@ -688,7 +761,7 @@ export function buildPerplexityPrompt(
   entityName: string,
   entityType: string,
   country: string | null,
-  context: { tradingName?: string | null; city?: string | null; reachability?: ReachabilityDirective } = {},
+  context: AIResearchContext = {},
 ): string {
   const ctx = country ? ` in ${country}` : "";
   const publicName = context.tradingName && context.tradingName !== entityName
@@ -704,10 +777,38 @@ export function buildPerplexityPrompt(
     ? `\nSCOPE LOCK: You are researching ONLY the ${locationCtx}-based ${isOrg ? "company/institution" : "individual"} named ${publicName}. If any other entity (retailer, sports team, consumer brand, government body, etc.) shares this name or a similar name, IGNORE it entirely. Do NOT mix data from different entities. All output must relate exclusively to the ${locationCtx} entity.`
     : "";
   const realism = formatReachabilityDirective(context.reachability);
+  const lane = context.lane ?? "people_press";
+  const laneInstruction: Record<AIResearchLane, string> = {
+    official_records:
+      "Prioritize official team/people pages, filings, registries, legal notices, and first-party organizational pages. Prefer exact titles and registration identifiers over broad biography pages.",
+    people_press:
+      "Prioritize named-person relationships in reputable reporting, interviews, conference biographies, and official team pages. Resolve the person-to-target link before looking for contact vectors.",
+    contact_routes:
+      "Prioritize explicit public contact routes: named-person pages, official team biographies, direct public emails, personal professional profiles, and explicitly corroborated authorized intermediaries. Do not substitute organization switchboards.",
+    semantic_discovery:
+      "Prioritize ownership/control relationships, parent and operating entities, distinctive business language, and people who recur in the target's source set. Treat semantic similarity as discovery only until page-level evidence confirms it.",
+  };
+  const anchors = (context.anchors ?? [])
+    .map((anchor) => anchor.trim())
+    .filter(Boolean)
+    .slice(0, 6);
+  const candidateDomains = (context.candidateDomains ?? [])
+    .map((domain) => domain.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, ""))
+    .filter(Boolean)
+    .slice(0, 4);
+  const anchorBlock = anchors.length > 0
+    ? `\nKnown target-record anchors (use for disambiguation; they are not independently verified evidence):\n${anchors.map((anchor) => `- ${anchor}`).join("\n")}`
+    : "\nNo additional target-record anchors were supplied. Do not invent them.";
+  const domainBlock = candidateDomains.length > 0
+    ? `\nCandidate domains surfaced by the pipeline (leads only; verify before attributing claims): ${candidateDomains.join(", ")}`
+    : "";
 
   return `You are conducting Phase 0 OSINT for ${publicName}${ctx}. Goal: find every named human decision-maker and their evidence-backed contact path.${city}${disambig}
 
 ${realism}
+
+RESEARCH LANE — ${lane}:
+${laneInstruction[lane]}${anchorBlock}${domainBlock}
 
 RESEARCH CONTRACT — apply this before extracting any person or contact:
 - Establish the target fingerprint first: exact legal/trading name plus location, domain, registry identifier, business category, or another distinctive anchor. If fewer than two independent anchors agree, set identityAssessment to "ambiguous" or "not_established" and keep claims review-only.
@@ -887,9 +988,9 @@ export async function researchWithPerplexity(
   entityName: string,
   entityType: string,
   country: string | null = null,
-  context: { tradingName?: string | null; city?: string | null; reachability?: ReachabilityDirective } = {},
+  context: AIResearchContext = {},
 ): Promise<AIExtractResult> {
-  logger.info({ entityName, entityType, country }, "Phase 0: firing Perplexity Sonar research");
+  logger.info({ entityName, entityType, country, lane: context.lane ?? "people_press" }, "Phase 0: firing Perplexity Sonar research");
   const prompt = buildPerplexityPrompt(entityName, entityType, country, context);
 
   /** Shared response parser — same for both direct and OpenRouter paths. */
@@ -1075,12 +1176,12 @@ export async function researchWithGemini(
   entityName: string,
   entityType: string,
   country: string | null = null,
-  context: { tradingName?: string | null; city?: string | null; reachability?: ReachabilityDirective } = {},
+  context: AIResearchContext = {},
 ): Promise<AIExtractResult> {
   const keys = getGeminiKeys();
   if (keys.length === 0) return EMPTY;
 
-  logger.info({ entityName, entityType, country }, `Phase 0 [${GEMINI_MODEL}]: firing Gemini grounded search`);
+  logger.info({ entityName, entityType, country, lane: context.lane ?? "people_press" }, `Phase 0 [${GEMINI_MODEL}]: firing Gemini grounded search`);
   const prompt = buildPerplexityPrompt(entityName, entityType, country, context);
 
   for (const key of keys) {
@@ -1176,22 +1277,14 @@ export async function researchWithTavily(
   entityName: string,
   entityType: string,
   country: string | null = null,
-  context: { tradingName?: string | null; city?: string | null; reachability?: ReachabilityDirective } = {},
+  context: AIResearchContext = {},
 ): Promise<AIExtractResult> {
   const keys = getTavilyKeys();
   if (keys.length === 0) return EMPTY;
 
-  // Build a targeted OSINT search query
-  const queryParts: string[] = [entityName];
-  if (context.tradingName && context.tradingName !== entityName) queryParts.push(context.tradingName);
-  if (context.city) queryParts.push(context.city);
-  if (country) queryParts.push(country);
-  queryParts.push(context.reachability?.mode === "research_only"
-    ? "identity control authorized intermediary route no viable route"
-    : "owner contact email phone authorized intermediary");
-  const query = queryParts.join(" ");
+  const query = buildProviderSearchQuery(entityName, entityType, country, context);
 
-  logger.info({ entityName, entityType, country, query }, "Phase 0 [tavily]: firing Tavily search");
+  logger.info({ entityName, entityType, country, lane: context.lane ?? "contact_routes", query }, "Phase 0 [tavily]: firing Tavily search");
 
   for (const key of keys) {
     if (isExhausted(_exhaustedTavilyKeys, key)) continue;
@@ -1299,22 +1392,15 @@ export async function researchWithExa(
   entityName: string,
   entityType: string,
   country: string | null = null,
-  context: { tradingName?: string | null; city?: string | null; reachability?: ReachabilityDirective } = {},
+  context: AIResearchContext = {},
 ): Promise<AIExtractResult> {
   const keys = getExaKeys();
   if (keys.length === 0) return EMPTY;
 
-  // Build a targeted OSINT search query — Exa's autoprompt will further refine it
-  const queryParts: string[] = [entityName];
-  if (context.tradingName && context.tradingName !== entityName) queryParts.push(context.tradingName);
-  if (context.city) queryParts.push(context.city);
-  if (country) queryParts.push(country);
-  queryParts.push(context.reachability?.mode === "research_only"
-    ? "identity control authorized intermediary route no viable route"
-    : "owner contact email authorized intermediary");
-  const query = queryParts.join(" ");
+  // Build a targeted OSINT search query — Exa's autoprompt will further refine it.
+  const query = buildProviderSearchQuery(entityName, entityType, country, context);
 
-  logger.info({ entityName, entityType, country, query }, "Phase 0 [exa]: firing Exa neural search");
+  logger.info({ entityName, entityType, country, lane: context.lane ?? "semantic_discovery", query }, "Phase 0 [exa]: firing Exa neural search");
 
   for (const key of keys) {
     if (isExhausted(_exhaustedExaKeys, key)) continue;
