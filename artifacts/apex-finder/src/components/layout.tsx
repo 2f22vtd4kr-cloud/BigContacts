@@ -19,6 +19,7 @@ import {
   Telescope,
   X,
 } from "lucide-react";
+import { ApiKeyHealth } from "@/components/api-key-health";
 
 const mainNav = [
   { name: "Overview", href: "/", icon: Crosshair },
@@ -162,21 +163,29 @@ export function Layout({ children }: { children: React.ReactNode }) {
       )}
       <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
         <div className="atlas-grid pointer-events-none absolute inset-0" />
-        <header className="relative z-20 flex h-14 shrink-0 items-center border-b border-border/80 bg-background/85 px-4 backdrop-blur-md md:hidden">
-          <div className="grid h-7 w-7 place-items-center rounded-md bg-primary text-primary-foreground shadow-[0_0_10px_rgba(var(--primary),0.3)]">
-            <Crosshair className="h-4 w-4" />
+        <header className="relative z-20 flex h-14 shrink-0 items-center border-b border-border/80 bg-background/85 px-4 backdrop-blur-md md:h-16 md:px-6">
+          <div className="flex min-w-0 items-center">
+            <div className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-primary text-primary-foreground shadow-[0_0_10px_rgba(var(--primary),0.3)] md:hidden">
+              <Crosshair className="h-4 w-4" />
+            </div>
+            <div className="ml-2 min-w-0 md:ml-0">
+              <div className="hidden font-mono text-[9px] uppercase tracking-[0.24em] text-muted-foreground/55 md:block">Apex Atlas / Research desk</div>
+              <div className="truncate font-mono text-[11px] font-bold tracking-[0.14em] text-foreground md:mt-1 md:text-sm">
+                {mobileTitle}
+              </div>
+            </div>
           </div>
-          <span className="ml-2 font-mono text-[11px] font-bold tracking-[0.14em] text-foreground">APEX ATLAS</span>
-          <span className="mx-2 text-muted-foreground/40">/</span>
-          <span className="truncate text-xs text-muted-foreground">{mobileTitle}</span>
-          <button
-            onClick={() => setSidebarOpen(true)}
-            aria-label="Open menu"
-            data-testid="button-open-menu"
-            className="ml-auto rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            <Menu className="h-5 w-5" />
-          </button>
+          <div className="ml-auto flex items-center gap-2">
+            <ApiKeyHealth />
+            <button
+              onClick={() => setSidebarOpen(true)}
+              aria-label="Open menu"
+              data-testid="button-open-menu"
+              className="rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground md:hidden"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+          </div>
         </header>
         <div className={`relative z-10 flex min-h-0 flex-1 flex-col overflow-x-hidden ${isReactorRoute ? "overflow-hidden" : "overflow-y-auto"}`}>
           {children}

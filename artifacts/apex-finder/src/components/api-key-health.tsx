@@ -1,0 +1,260 @@
+import { useEffect, useRef, useState } from "react";
+import { Link } from "wouter";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  ChevronDown,
+  ExternalLink,
+  KeyRound,
+  Loader2,
+  RefreshCw,
+  ShieldAlert,
+  ShieldCheck,
+  XCircle,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import {
+  AI_PROVIDERS,
+  PROVIDER_LABELS,
+  fetchSystemStatus,
+  summarizeApiKeys,
+  type AIKeySlot,
+  type AIKeyStatus,
+  type SystemStatus,
+} from "@/lib/system-status";
+
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+const POLL_INTERVAL_MS = 15_000;
+
+type HealthState = "loading" | "healthy" | "degraded" | "down" | "offline";
+
+function getHealthState(
+  summary: ReturnType<typeof summarizeApiKeys>,
+  hasError: boolean,
+  loading: boolean,
+): HealthState {
+  if (loading && summary.total === 0) return "loading";
+  if (hasError && summary.total === 0) return "offline";
+  if (summary.active === 0) return "down";
+  if (summary.exhausted > 0) return "degraded";
+  return "healthy";
+}
+
+const HEALTH_COPY: Record<HealthState, { label: string; detail: string; className: string }> = {
+  loading: {
+    label: "CHECKING KEYS",
+    detail: "Reading provider key pools…",
+    className: "text-muted-foreground",
+  },
+  healthy: {
+    label: "KEYS NOMINAL",
+    detail: "All configured provider pools have an active slot.",
+    className: "text-primary",
+  },
+  degraded: {
+    label: "KEYS DEGRADED",
+    detail: "Some configured slots are rate-limited; research can continue.",
+    className: "text-amber-400",
+  },
+  down: {
+    label: "KEYS DOWN",
+    detail: "No AI key slots are currently active. OSINT coverage is impaired.",
+    className: "text-destructive",
+  },
+  offline: {
+    label: "KEY STATUS OFFLINE",
+    detail: "The API status endpoint could not be reached.",
+    className: "text-destructive",
+  },
+};
+
+function SlotSummary({ slots }: { slots: AIKeySlot[] }) {
+  const active = slots.filter((slot) => slot.state === "active").length;
+  const exhausted = slots.filter((slot) => slot.state === "exhausted").length;
+  const missing = slots.filter((slot) => slot.state === "missing").length;
+
+  return (
+    <div className="flex shrink-0 items-center gap-1.5 font-mono text-[10px]">
+      <span className="text-primary">{active} up</span>
+      {exhausted > 0 && <span className="text-amber-400">{exhausted} limited</span>}
+      {missing > 0 && <span className="text-muted-foreground/55">{missing} missing</span>}
+    </div>
+  );
+}
+
+function ProviderRow({
+  name,
+  slots,
+}: {
+  name: keyof AIKeyStatus;
+  slots: AIKeySlot[];
+}) {
+  const active = slots.filter((slot) => slot.state === "active").length;
+  const exhausted = slots.filter((slot) => slot.state === "exhausted").length;
+  const state = active > 0 ? (exhausted > 0 ? "degraded" : "healthy") : exhausted > 0 ? "degraded" : "missing";
+
+  return (
+    <div className="flex items-center justify-between gap-3 border-b border-border/50 py-2.5 last:border-0">
+      <div className="flex min-w-0 items-center gap-2.5">
+        <span
+          className={cn(
+            "h-2 w-2 shrink-0 rounded-full",
+            state === "healthy" && "bg-primary shadow-[0_0_7px_rgba(132,204,22,0.6)]",
+            state === "degraded" && "bg-amber-400 shadow-[0_0_7px_rgba(251,191,36,0.45)]",
+            state === "missing" && "bg-muted-foreground/35",
+          )}
+        />
+        <span className="truncate font-mono text-[11px] text-foreground">{PROVIDER_LABELS[name]}</span>
+      </div>
+      <SlotSummary slots={slots} />
+    </div>
+  );
+}
+
+export function ApiKeyHealth() {
+  const [status, setStatus] = useState<SystemStatus | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let mounted = true;
+
+    const refresh = async () => {
+      try {
+        const nextStatus = await fetchSystemStatus(BASE, controller.signal);
+        if (!mounted) return;
+        setStatus(nextStatus);
+        setError(null);
+      } catch (nextError) {
+        if (!mounted || controller.signal.aborted) return;
+        setError(nextError instanceof Error ? nextError.message : "Status unavailable");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    refresh();
+    const interval = window.setInterval(refresh, POLL_INTERVAL_MS);
+    return () => {
+      mounted = false;
+      controller.abort();
+      window.clearInterval(interval);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
+
+  const summary = summarizeApiKeys(status);
+  const health = getHealthState(summary, Boolean(error), loading);
+  const healthCopy = HEALTH_COPY[health];
+  const icon = health === "healthy" ? ShieldCheck : health === "degraded" ? AlertTriangle : health === "loading" ? Loader2 : ShieldAlert;
+  const HealthIcon = icon;
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        aria-expanded={open}
+        aria-controls="api-key-health-panel"
+        aria-label={`${healthCopy.label}. Open API key status details.`}
+        data-testid="button-api-key-health"
+        className={cn(
+          "group flex h-9 items-center gap-2 rounded-lg border px-2.5 transition-colors sm:px-3",
+          "border-border/70 bg-background/70 hover:border-primary/40 hover:bg-muted/50",
+          health === "down" || health === "offline" ? "border-destructive/40" : "",
+        )}
+      >
+        <HealthIcon className={cn("h-3.5 w-3.5 shrink-0", healthCopy.className, health === "loading" && "animate-spin")} />
+        <span className={cn("hidden font-mono text-[10px] font-bold tracking-[0.12em] sm:inline", healthCopy.className)}>
+          {healthCopy.label}
+        </span>
+        <span className={cn("font-mono text-[10px] font-bold sm:hidden", healthCopy.className)}>
+          {health === "loading" || health === "offline" ? "—" : `${summary.active}/${summary.total}`}
+        </span>
+        <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground/70 transition-transform", open && "rotate-180")} />
+      </button>
+
+      {open && (
+        <div
+          id="api-key-health-panel"
+          role="dialog"
+          aria-label="API key status"
+          className="absolute right-0 top-[calc(100%+0.5rem)] z-50 w-[min(410px,calc(100vw-2rem))] overflow-hidden rounded-xl border border-border bg-popover/95 p-4 shadow-2xl shadow-black/40 backdrop-blur-xl"
+        >
+          <div className="flex items-start justify-between gap-4 border-b border-border/60 pb-3">
+            <div className="flex min-w-0 items-start gap-2.5">
+              <div className={cn(
+                "mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-muted/70",
+                health === "down" || health === "offline" ? "text-destructive" : health === "degraded" ? "text-amber-400" : "text-primary",
+              )}>
+                <KeyRound className="h-3.5 w-3.5" />
+              </div>
+              <div className="min-w-0">
+                <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground/60">OSINT access layer</div>
+                <div className={cn("mt-1 font-mono text-[12px] font-bold tracking-wide", healthCopy.className)}>
+                  {healthCopy.label}
+                </div>
+                <p className="mt-1 max-w-[280px] text-[11px] leading-4 text-muted-foreground">{healthCopy.detail}</p>
+              </div>
+            </div>
+            <div className="shrink-0 text-right">
+              <div className="font-mono text-xl font-bold text-foreground">{summary.active}<span className="text-muted-foreground/40">/{summary.total}</span></div>
+              <div className="font-mono text-[9px] uppercase tracking-widest text-muted-foreground/60">active slots</div>
+            </div>
+          </div>
+
+          <div className="mt-3">
+            {loading && !status ? (
+              <div className="flex items-center gap-2 py-3 font-mono text-[11px] text-muted-foreground">
+                <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                Reading provider pools…
+              </div>
+            ) : error && !status ? (
+              <div className="flex items-center gap-2 rounded-lg border border-destructive/25 bg-destructive/5 px-3 py-3 font-mono text-[11px] text-destructive">
+                <XCircle className="h-3.5 w-3.5 shrink-0" />
+                API status unavailable
+              </div>
+            ) : (
+              AI_PROVIDERS.map((provider) => (
+                <ProviderRow key={provider} name={provider} slots={status?.ai?.[provider] ?? []} />
+              ))
+            )}
+          </div>
+
+          <div className="mt-3 flex items-center justify-between gap-3 border-t border-border/60 pt-3">
+            <div className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground/55">
+              {status?.cached ? `Cached ${Math.round(status.cachedAgoMs / 1000)}s ago` : status ? "Live status" : "Awaiting API"}
+            </div>
+            <Link
+              href="/status"
+              onClick={() => setOpen(false)}
+              data-testid="link-api-key-status"
+              className="flex items-center gap-1.5 rounded-md px-2 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-primary transition-colors hover:bg-primary/10"
+            >
+              Full diagnostics
+              <ExternalLink className="h-3 w-3" />
+            </Link>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

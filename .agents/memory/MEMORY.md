@@ -75,3 +75,4 @@
 - [OSINT-only product boundary](osint-only-boundary.md) — Apex Atlas is evidence research only; legacy CRM/outreach/pitch fields are compatibility data and must not drive behavior
 - [Persona review reconciliation](persona-review-reconciliation.md) — A completed sweep means no new findings; inspect current pending rows and reconcile resolved historical findings before claiming satisfaction
 - [Unavailable source fallback policy](unavailable-source-fallbacks.md) — Preserve source provenance while using free fallbacks: OFAC for sanctions, adsb.lol/Airplanes.Live for ADS-B, ICIJ confirmed-match filtering, and fail-soft registry outages
+- [Persistent API key health](persistent-api-key-health.md) — Keep a compact live key-pool indicator in the shared header with expandable provider diagnostics on every web route
