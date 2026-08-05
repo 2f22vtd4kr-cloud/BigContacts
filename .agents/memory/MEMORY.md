@@ -76,4 +76,5 @@
 - [Persona review reconciliation](persona-review-reconciliation.md) — A completed sweep means no new findings; inspect current pending rows and reconcile resolved historical findings before claiming satisfaction
 - [Unavailable source fallback policy](unavailable-source-fallbacks.md) — Preserve source provenance while using free fallbacks: OFAC for sanctions, adsb.lol/Airplanes.Live for ADS-B, ICIJ confirmed-match filtering, and fail-soft registry outages
 - [Persistent API key health](persistent-api-key-health.md) — Keep a compact live key-pool indicator in the shared header with expandable provider diagnostics on every web route
+- [Global workspace status](global-workspace-status.md) — Shared header combines live Atlas activity, infrastructure health, and provider capacity without inferring work from history
 - [Research query lanes](research-query-lanes.md) — Share compact target anchors across Phase 0 providers while assigning distinct evidence lanes; never forward raw residence text
