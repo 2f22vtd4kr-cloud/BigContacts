@@ -378,7 +378,8 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
         const cleanTwitterHandle = sanitizePublicSocialHandle(result.twitterUrl, "twitter");
 
         const hasSignal = cleanLinkedIn || cleanEmail || cleanPhone
-          || cleanInstagram || cleanTwitter || result.evidence.length > 0;
+          || cleanInstagram || cleanTwitter || result.evidence.length > 0
+          || result.deepResearchReport || result.deepResearchCitations.length > 0;
         if (!hasSignal) {
           skipped++;
           continue;
@@ -415,6 +416,15 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
         if (result.ownershipSources.length > 0) {
           meta["deepWebOwnershipSources"] = [...new Set(result.ownershipSources)].slice(0, 8);
         }
+        meta["geminiDeepResearch"] = {
+          status: result.deepResearchStatus,
+          agent: result.deepResearchAgent,
+          keySlot: result.deepResearchKeySlot,
+          report: result.deepResearchReport,
+          citations: result.deepResearchCitations,
+          reviewOnly: true,
+          claimsPromoted: false,
+        };
         meta["liveSource"] = true;
 
         const nextContactOutcome = computeContactOutcome({

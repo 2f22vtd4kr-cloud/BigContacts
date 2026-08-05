@@ -630,7 +630,7 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
       status: "active",
       targetName: name,
       targetType: entity.type,
-      toolIds: ["perp0", "gemini", "tavily", "exa", "groq"],
+      toolIds: ["perp0", "gemini", "tavily", "exa", "gemini-deep-research", "groq"],
       activeToolId: "perp0",
       prompt: prompt.slice(0, 2200),
       inputSummary: `${entity.type} target · ${telemetryReachability.status} reachability · provider fan-out is parallel within this target`,
@@ -653,12 +653,29 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
         }, id);
       },
     }).catch(() => null);
+    if (aiResult?.deepResearchStatus && (
+      aiResult.deepResearchReport || aiResult.deepResearchCitations.length > 0
+    )) {
+      const metadata = safeJson<Record<string, unknown>>(entity.metadata, {});
+      metadata.geminiDeepResearch = {
+        status: aiResult.deepResearchStatus,
+        agent: aiResult.deepResearchAgent,
+        keySlot: aiResult.deepResearchKeySlot,
+        report: aiResult.deepResearchReport,
+        citations: aiResult.deepResearchCitations,
+        reviewOnly: true,
+        claimsPromoted: false,
+      };
+      await db.update(entitiesTable)
+        .set({ metadata: JSON.stringify(metadata), updatedAt: new Date() })
+        .where(eq(entitiesTable.id, id));
+    }
     await setAtlasTelemetry(atlasJobId, {
       stage: "AI WEB OSINT",
       status: aiResult ? "complete" : "review",
       targetName: name,
       targetType: entity.type,
-      toolIds: ["perp0", "gemini", "tavily", "exa", "groq"],
+      toolIds: ["perp0", "gemini", "tavily", "exa", "gemini-deep-research", "groq"],
       activeToolId: "groq",
       prompt: prompt.slice(0, 2200),
       inputSummary: `${entity.type} target · ${telemetryReachability.status} reachability`,

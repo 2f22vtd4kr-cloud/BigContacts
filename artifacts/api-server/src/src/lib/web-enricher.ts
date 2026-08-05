@@ -42,7 +42,7 @@ const FINANCIAL_AGGREGATOR_DOMAINS = new Set([
   "1881.no", "gulesider.no", "proff.no", "purehelp.no", "enhetsregisteret.no",
   "allabolag.se", "hitta.se", "eniro.se", "proff.se", "virksomhed.dk",
 ]);
-import { extractWithAI, researchWithPerplexity, researchWithGemini, researchWithTavily, researchWithExa, type AIResearchContext, type OwnerResolution } from "./ai-extractor";
+import { extractWithAI, researchWithPerplexity, researchWithGemini, researchWithTavily, researchWithExa, runGeminiDeepResearch, type AIResearchContext, type OwnerResolution, type GeminiDeepResearchResult } from "./ai-extractor";
 import { applyEnsembleAdjudication, buildEnsembleAdjudicationText, reconcileAIResults, type AIEnsembleResult } from "./ai-ensemble";
 import { extractPersonNames } from "./gliner-client";
 import { assessTargetReachability, reachabilityDirective } from "./reachability-realism";
@@ -513,6 +513,12 @@ export interface DeepWebOsintResult {
   evidence:        DeepWebEvidence[];
   candidateFunnel: CandidateFunnel;
   aiEnsemble?:     AIEnsembleResult;
+  /** Free-form Deep Research output is retained for review only. */
+  deepResearchReport: string | null;
+  deepResearchCitations: string[];
+  deepResearchStatus: GeminiDeepResearchResult["status"];
+  deepResearchAgent: string | null;
+  deepResearchKeySlot: number | null;
 }
 
 export interface DeepWebEvidence {
@@ -957,6 +963,12 @@ export function looksLikePersonName(name: string): boolean {
   if (/\d/.test(name)) return false;
   const words = name.trim().split(/\s+/);
   if (words.length < 2 || words.length > 4) return false;
+  // Search snippets often concatenate a sentence fragment into a
+  // capitalized-looking span. Repeated tokens and connector-like words are
+  // strong indicators of that noise, not a human name.
+  const normalizedWords = words.map((word) => word.toLowerCase());
+  if (new Set(normalizedWords).size !== normalizedWords.length) return false;
+  if (words.some((word) => /^(?:is|are|was|were|everywhere|the|and|of|for|with|from|about)$/i.test(word))) return false;
   // Every word must open with a true uppercase letter and contain only letters/hyphens
   if (!words.every(w => /^[A-ZÀ-ÖØ-Ü][a-zA-ZÀ-öø-ÿ\-']*$/.test(w))) return false;
   // Reject if any word is a known role or company-type indicator
@@ -1689,6 +1701,11 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       independentlyCorroborated: 0, verifiedDirectRoute: 0, organizationOnly: 0,
       conflicted: 0, independentSourceDomains: 0, candidates: [],
     },
+    deepResearchReport: null,
+    deepResearchCitations: [],
+    deepResearchStatus: "unavailable",
+    deepResearchAgent: null,
+    deepResearchKeySlot: null,
   };
 
   // ── Derive context from entity ──────────────────────────────────────────
@@ -1718,7 +1735,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   await emitDeepWebTelemetry(entity, {
     stage: "AI PROVIDER FAN-OUT",
     status: "active",
-    toolIds: ["perp0", "gemini", "tavily", "exa"],
+    toolIds: ["perp0", "gemini", "tavily", "exa", "gemini-deep-research"],
     activeToolId: "perp0",
     inputSummary: `${entity.type} target · ${queries.length} search query template(s) · ${domainTargets.length} domain target(s)`,
   });
@@ -1952,6 +1969,15 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   // NOTE: declared outside the try so Phases 0.5/0.6/0.7 can access them even
   // if perp's own processing throws — all 4 providers must contribute results.
   let perp: any, gem: any, tav: any, exa: any;
+  let deepResearch: GeminiDeepResearchResult = {
+    agent: "deep-research-pro-preview-12-2025",
+    interactionId: null,
+    status: "unavailable",
+    report: null,
+    citations: [],
+    keySlot: null,
+    error: null,
+  };
   try {
     const providerResults = await Promise.allSettled([
       researchWithPerplexity(entity.name, entity.type, country, {
@@ -2010,10 +2036,56 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         });
         return value;
       }),
+      // Deep Research is a cooperating provider lane, but its asynchronous
+      // report remains review-only and is tightly bounded so it cannot stall
+      // the serialized Atlas target journey.
+      runGeminiDeepResearch([
+        `Research the exact public entity "${entity.name}" (${entity.type}).`,
+        `Country/jurisdiction hint: ${country ?? "unknown"}.`,
+        `Trading name: ${trading}.`,
+        `Disambiguation anchors: ${(researchContext.anchors ?? []).join("; ") || "none"}.`,
+        `Candidate domains (leads only): ${domainTargets.slice(0, 4).join(", ") || "none"}.`,
+        "",
+        "Produce a concise, source-cited OSINT review of identity, ownership/control, operating relationships, and public authorized intermediary routes.",
+        "Keep uncertain or conflicting findings explicit. Do not infer identity from name similarity, wealth, social profiles, usernames, or organization contact details.",
+        "This report is review-only. Do not present a personal email, phone, social account, or access route as verified; cite exact public pages supporting each material finding.",
+      ].join("\n"), { timeoutMs: 75_000 }).then(async (value) => {
+        await emitDeepWebTelemetry(entity, {
+          stage: "AI PROVIDER FAN-OUT",
+          status: value.status === "completed" ? "complete" : "review",
+          toolIds: ["gemini-deep-research"],
+          activeToolId: "gemini-deep-research",
+          resultSummary: value.status === "completed"
+            ? `Deep Research returned a review report with ${value.citations.length} citation(s); no claims promoted`
+            : `Deep Research ${value.status}; no claims promoted`,
+        });
+        return value;
+      }),
     ]);
-    [perp, gem, tav, exa] = providerResults.map((item) =>
+    [perp, gem, tav] = providerResults.slice(0, 3).map((item) =>
       item.status === "fulfilled" ? item.value : { source: "none" },
     ) as any[];
+    exa = providerResults[3]?.status === "fulfilled"
+      ? providerResults[3].value
+      : { source: "none" };
+    deepResearch = providerResults[4]?.status === "fulfilled"
+      ? providerResults[4].value
+      : {
+        ...deepResearch,
+        status: "failed",
+        error: "Deep Research provider promise rejected before returning a result.",
+      };
+    if (deepResearch.status === "completed" && deepResearch.report) {
+      result.deepResearchReport = deepResearch.report.slice(0, 16_000);
+      result.deepResearchCitations = deepResearch.citations.slice(0, 40);
+      result.deepResearchStatus = deepResearch.status;
+      result.deepResearchAgent = deepResearch.agent;
+      result.deepResearchKeySlot = deepResearch.keySlot;
+    } else {
+      result.deepResearchStatus = deepResearch.status;
+      result.deepResearchAgent = deepResearch.agent;
+      result.deepResearchKeySlot = deepResearch.keySlot;
+    }
     const ensemble = reconcileAIResults([
       { provider: "perplexity", result: perp },
       { provider: "gemini", result: gem },
@@ -2022,12 +2094,16 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     ].filter(({ result }) => result?.source && result.source !== "none"));
     try {
       const adjudicator = await extractWithAI(
-        buildEnsembleAdjudicationText(entity.name, entity.type, [
+        `${buildEnsembleAdjudicationText(entity.name, entity.type, [
           { provider: "perplexity", result: perp },
           { provider: "gemini", result: gem },
           { provider: "tavily", result: tav },
           { provider: "exa", result: exa },
-        ].filter(({ result }) => result?.source && result.source !== "none")),
+        ].filter(({ result }) => result?.source && result.source !== "none"))}${
+          result.deepResearchReport
+            ? `\nDEEP RESEARCH REVIEW-ONLY CONTEXT (not a provider claim and not a contact source):\n${result.deepResearchReport.slice(0, 7_000)}`
+            : ""
+        }`,
         entity.name,
         entity.type,
         country,
@@ -2357,6 +2433,39 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     }
   } catch (err: any) {
     logger.warn({ err: err?.message }, "Phase 0.7: Exa processing failed");
+  }
+
+  // Deep Research contributes only bounded review context and citation leads.
+  // It never enters contact hits, owner resolution, or the candidate funnel.
+  try {
+    if (result.deepResearchReport || result.deepResearchCitations.length > 0) {
+      const label = "Gemini[deep-research]";
+      result.sources.push(label);
+      result.queriesFired++;
+      // Do not append the free-form report to allSearchText: that accumulator
+      // is consumed by the contact extractor. Deep Research may guide the
+      // ensemble review and citation fetches, but its claims must not become
+      // contact candidates merely because the report mentions them.
+      for (const url of result.deepResearchCitations.slice(0, 8)) urlsToScrape.add(url);
+      const deepDomains: string[] = [];
+      for (const url of result.deepResearchCitations) {
+        try {
+          const hostname = new URL(url).hostname.replace(/^www\./, "");
+          if (!CITATION_SKIP_DOMAINS.has(hostname) && !deepDomains.includes(hostname)) {
+            deepDomains.push(hostname);
+          }
+        } catch { /* ignore malformed report citations */ }
+      }
+      if (deepDomains.length > 0) {
+        domainTargets.unshift(...deepDomains.slice(0, 3));
+        logger.info(
+          { entityId: entity.id, deepDomains, status: result.deepResearchStatus },
+          "Phase 0.8: injected Gemini Deep Research citation domains into scrape targets",
+        );
+      }
+    }
+  } catch (err: any) {
+    logger.warn({ err: err?.message, entityId: entity.id }, "Phase 0.8: Deep Research processing failed");
   }
 
   // ── Phase 1: DDG search (locale-aware) ─────────────────────────────────

@@ -5,8 +5,8 @@ description: Durable boundary for the asynchronous Gemini Deep Research integrat
 
 ## Rule
 
-Gemini Deep Research is an explicit, target-scoped review lane, separate from high-volume Gemini Flash-Lite work. It uses only the dedicated key slots 11–13, runs asynchronously, and must never directly promote identity, ownership, access, contacts, or outreach state.
+Gemini Deep Research is a bounded, target-scoped provider lane inside canonical web OSINT, separate from high-volume Gemini Flash-Lite work. It uses only dedicated key slots 11–13, runs asynchronously, and must never directly promote identity, ownership, access, contacts, or outreach state.
 
-**Why:** Deep Research jobs are expensive and multi-minute, while Apex Atlas must remain evidence-led and fail closed. Keeping the lane opt-in prevents continuous scheduling from silently spending quota or turning an AI report into authoritative evidence.
+**Why:** Deep Research is expensive and asynchronous, while Apex Atlas must remain evidence-led and fail closed. Embedding it in the normal fan-out gives discovery/enrichment one cooperating research surface without allowing a free-form report to become authoritative evidence or stall a target.
 
-**How to apply:** Start it only through the dedicated research job route, persist the report and citations for human review, expose its key pool separately in status health, and verify the configured Google agent identifier before switching to a newer preview version.
+**How to apply:** Keep it target-scoped and independently fail-soft with a short timeout. Persist report/citation metadata as review-only, send citations through ordinary exact-page validation, never append report text to contact extraction, expose its key pool separately in status health, and retain the standalone route only as compatibility.
