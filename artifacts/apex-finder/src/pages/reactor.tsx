@@ -6,6 +6,7 @@ import {
   Sparkles, Compass, Rss, Users,
 } from "lucide-react";
 import { MobileReactorFlow } from "../components/mobile-reactor-flow";
+import { formatSchedulerCountdown, schedulerWaitRemaining } from "../components/scheduler-utils";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface NodeDef {
@@ -860,6 +861,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
   livePhaseDetail?: string;
   atlasState?: AtlasLiveState | null;
   scheduler?: AutoPipelineScheduler | null;
+  schedulerNow: number;
   exhaustedKeys?: string[];
 }) {
   const hasSessions = sessions.length > 0;
@@ -1317,11 +1319,12 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
 }
 
 // ── Desktop layout ────────────────────────────────────────────────────────────
-function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, scheduler, isLive, totalEntities, hotCount, totalAssets, sessionCount, latestStatus }: {
+function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, scheduler, schedulerNow, isLive, totalEntities, hotCount, totalAssets, sessionCount, latestStatus }: {
   liveNodes?: Set<string>; liveLabel?: string; isLive?: boolean;
   livePhaseDetail?: string;
   atlasState?: AtlasLiveState | null;
   scheduler?: AutoPipelineScheduler | null;
+  schedulerNow: number;
   totalEntities?: number; hotCount?: number; totalAssets?: number;
   sessionCount?: number;
   latestStatus?: string;
@@ -1337,7 +1340,9 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
   const adaptive = Boolean(isLive && liveNodes && liveNodes.size > 0);
   const atlasFailed = atlasState?.runStatus === "failed";
   const atlasDone = atlasState?.runStatus === "done";
-  const atlasStatusColor = atlasFailed ? "#fb7185" : atlasDone ? "#a3e635" : isLive ? "#22d3ee" : "#a3e635";
+  const schedulerCountdown = formatSchedulerCountdown(schedulerWaitRemaining(scheduler, schedulerNow));
+  const waitingForNextCycle = Boolean(!isLive && !atlasFailed && schedulerCountdown);
+  const atlasStatusColor = atlasFailed ? "#fb7185" : waitingForNextCycle ? "#fbbf24" : atlasDone ? "#a3e635" : isLive ? "#22d3ee" : "#a3e635";
 
   return (
     <div style={{
@@ -1389,24 +1394,31 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
           <div style={{ flex:1, minWidth:260 }}>
             <AtlasPhaseStrip state={atlasState} compact />
           </div>
-          <div style={{ display:"flex", alignItems:"center", gap:16, flexShrink:0 }}>
-            <div style={{
-              padding:"4px 10px", borderRadius:4,
+            <div style={{ display:"flex", alignItems:"center", gap:16, flexShrink:0 }}>
+              <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4 }}>
+                <div style={{
+                  padding:"4px 10px", borderRadius:4,
                border:`1px solid ${atlasStatusColor}40`,
                background: `${atlasStatusColor}0e`,
-              display:"flex", alignItems:"center", gap:6,
-            }}>
-              <div style={{
-                width:7, height:7, borderRadius:"50%",
-                 background: atlasStatusColor,
-                 boxShadow:`0 0 8px ${atlasStatusColor}`,
-                 animation: atlasFailed || atlasDone ? "none" : "blink 1.1s ease-in-out infinite",
-              }} />
-               <span style={{ fontSize:8, letterSpacing:"0.18em", color: atlasStatusColor }}>
-                 {atlasFailed ? "ATLAS FAILED" : atlasDone ? "ATLAS COMPLETE" : isLive ? "ATLAS LIVE" : "NOMINAL"}
-              </span>
-            </div>
-            <div style={{ textAlign:"right" }}>
+                  display:"flex", alignItems:"center", gap:6,
+                }}>
+                  <div style={{
+                    width:7, height:7, borderRadius:"50%",
+                    background: atlasStatusColor,
+                    boxShadow:`0 0 8px ${atlasStatusColor}`,
+                    animation: atlasFailed || atlasDone || waitingForNextCycle ? "none" : "blink 1.1s ease-in-out infinite",
+                  }} />
+                  <span style={{ fontSize:8, letterSpacing:"0.18em", color: atlasStatusColor }}>
+                    {atlasFailed ? "ATLAS FAILED" : isLive ? "ATLAS LIVE" : waitingForNextCycle ? "NEXT CYCLE QUEUED" : atlasDone ? "ATLAS COMPLETE" : "NOMINAL"}
+                  </span>
+                </div>
+                {waitingForNextCycle && (
+                  <div style={{ fontSize:7, letterSpacing:"0.12em", color:"#fbbf24", whiteSpace:"nowrap" }} data-testid="status-scheduler-countdown">
+                    NEXT CYCLE IN {schedulerCountdown}
+                  </div>
+                )}
+              </div>
+              <div style={{ textAlign:"right" }}>
               <div style={{ fontSize:7, letterSpacing:"0.16em", color:"#3a5070" }}>ENTITY FLOW</div>
               <div style={{ fontSize:11, fontWeight:700, color:isLive ? "#22d3ee" : "#3a5070", lineHeight:1, marginTop:3, letterSpacing:"0.12em" }}>
                 {atlasState ? `${atlasState.phase}/10` : "IDLE"}
@@ -1603,7 +1615,16 @@ export default function IntelligenceReactorPage() {
   const [livePhaseDetail,  setLivePhaseDetail]  = useState<string>("");
   const [atlasState,       setAtlasState]       = useState<AtlasLiveState | null>(null);
   const [exhaustedKeys,    setExhaustedKeys]    = useState<string[]>([]);
+  const [schedulerNow,     setSchedulerNow]     = useState(() => Date.now());
   const scheduler = atlasState?.scheduler ?? null;
+
+  // Keep the standby countdown moving between API polls. The API remains the
+  // source of truth; this clock only renders the elapsed time since its last
+  // confirmed nextTriggerAt snapshot.
+  useEffect(() => {
+    const id = window.setInterval(() => setSchedulerNow(Date.now()), 1_000);
+    return () => window.clearInterval(id);
+  }, []);
 
   const pollJobs = useCallback(async () => {
     const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -1778,6 +1799,7 @@ export default function IntelligenceReactorPage() {
           livePhaseDetail={livePhaseDetail}
           atlasState={atlasState}
            scheduler={scheduler}
+           schedulerNow={schedulerNow}
           exhaustedKeys={exhaustedKeys}
         />
       </div>
@@ -1795,6 +1817,7 @@ export default function IntelligenceReactorPage() {
         <DesktopReactor
           liveNodes={liveNodes} liveLabel={liveLabel} livePhaseDetail={livePhaseDetail} atlasState={atlasState}
           scheduler={scheduler}
+           schedulerNow={schedulerNow}
           isLive={liveNodes.size > 0 || atlasState?.runStatus === "running"}
           totalEntities={totalEntities} hotCount={hotCount} totalAssets={totalAssets}
           sessionCount={sessions.length}

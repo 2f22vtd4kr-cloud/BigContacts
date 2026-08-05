@@ -44,3 +44,9 @@ Keep actual public-source research tools visually separate from the deterministi
 **Why:** Showing `persona-review` beside search providers and evidence tools made it look like another OSINT collector, obscuring that it only audits the persisted Phase J result.
 
 **How to apply:** Label the first group `OSINT & Evidence` and describe it as public-source search/extraction/attribution. Label the second group `Post-research quality review` and explicitly state that the 11 personas do not search the web or add contacts; show this distinction outside collapsed details on mobile.
+
+When the serialized scheduler is between Atlas cycles, the Reactor must distinguish a scheduled wait from both an idle system and the previous completed run.
+
+**Why:** A completed run followed by the intentional scheduler interval looked silent to the operator even though continuous Atlas remained enabled and a next trigger was already scheduled.
+
+**How to apply:** Derive a client-side countdown only from the API's `nextTriggerAt` snapshot and a local clock; show an explicit queued/standby state and countdown without lighting research rods or implying active OSINT.

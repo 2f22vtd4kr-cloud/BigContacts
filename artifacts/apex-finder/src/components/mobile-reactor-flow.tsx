@@ -11,6 +11,7 @@ import {
   Target,
   Users,
 } from "lucide-react";
+import { formatSchedulerCountdown, schedulerWaitRemaining } from "./scheduler-utils";
 
 interface ResearchSession {
   id: number;
@@ -101,6 +102,7 @@ interface MobileReactorFlowProps {
   livePhaseDetail: string;
   atlasState: AtlasLiveState | null;
   scheduler: AutoPipelineScheduler | null;
+  schedulerNow: number;
   exhaustedKeys: string[];
 }
 
@@ -558,6 +560,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
     liveLabel,
     atlasState,
     scheduler,
+    schedulerNow,
     exhaustedKeys,
     livePhaseDetail,
     onRefresh,
@@ -569,18 +572,22 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
   const isLive = atlasState
     ? atlasState.runStatus === "running"
     : liveNodes.size > 0;
+  const schedulerCountdown = formatSchedulerCountdown(schedulerWaitRemaining(scheduler, schedulerNow));
+  const waitingForNextCycle = Boolean(!isLive && schedulerCountdown);
   const statusLabel = atlasState?.runStatus === "failed"
     ? "Failed"
     : atlasState?.runStatus === "done"
-      ? "Complete"
+      ? waitingForNextCycle ? "Next cycle queued" : "Complete"
       : isLive
         ? "Active"
-        : "Nominal";
+        : waitingForNextCycle ? "Next cycle queued" : "Nominal";
   const statusClass = atlasState?.runStatus === "failed"
     ? "border-rose-400/30 bg-rose-400/10 text-rose-300"
-    : atlasState?.runStatus === "done"
-      ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
-      : isLive
+    : waitingForNextCycle
+      ? "border-amber-400/30 bg-amber-400/10 text-amber-300"
+      : atlasState?.runStatus === "done"
+        ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
+        : isLive
         ? "border-cyan-400/30 bg-cyan-400/10 text-cyan-300"
         : "border-lime-400/30 bg-lime-400/10 text-lime-300";
 
@@ -608,16 +615,18 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
             >
               {isLive
                 ? liveLabel || livePhaseDetail || "Live Atlas research in progress"
-                : atlasState?.runStatus === "done"
-                  ? "Standby · last Atlas run completed"
-                  : atlasState?.runStatus === "failed"
-                    ? "Standby · last Atlas run failed"
-                    : "Standby · Atlas is idle by design — no research run in progress"}
+                : waitingForNextCycle
+                  ? `Standby · next Atlas cycle in ${schedulerCountdown}`
+                  : atlasState?.runStatus === "done"
+                    ? "Standby · last Atlas run completed"
+                    : atlasState?.runStatus === "failed"
+                      ? "Standby · last Atlas run failed"
+                      : "Standby · Atlas is idle by design — no research run in progress"}
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <span className={`flex items-center gap-1.5 rounded border px-2 py-1 text-[9px] font-bold uppercase tracking-widest ${statusClass}`} data-testid="status-reactor">
-              <span className={`h-1.5 w-1.5 rounded-full ${isLive ? "animate-pulse bg-cyan-400" : atlasState?.runStatus === "failed" ? "bg-rose-400" : "bg-lime-400"}`} />
+              <span className={`h-1.5 w-1.5 rounded-full ${isLive ? "animate-pulse bg-cyan-400" : atlasState?.runStatus === "failed" ? "bg-rose-400" : waitingForNextCycle ? "bg-amber-300" : "bg-lime-400"}`} />
               {statusLabel}
             </span>
             <button
@@ -653,10 +662,12 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
             </span>
           </div>
           {scheduler?.enabled && (
-            <div className="mt-1 truncate text-[8px] text-slate-500">
-              {scheduler.nextTriggerAt
-                ? `Next cycle ${new Date(scheduler.nextTriggerAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
-                : scheduler.lastMessage || "Preparing next discovery cycle"}
+            <div className="mt-1 truncate text-[8px] text-slate-500" data-testid="status-scheduler-countdown">
+              {schedulerCountdown
+                ? `Next cycle in ${schedulerCountdown} · ${scheduler.nextTriggerAt ? new Date(scheduler.nextTriggerAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}`
+                : scheduler.nextTriggerAt
+                  ? `Next cycle ${new Date(scheduler.nextTriggerAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                  : scheduler.lastMessage || "Preparing next discovery cycle"}
               {scheduler.lastStatus === "skipped_lock" ? " · waiting for active Atlas lock" : ""}
             </div>
           )}
