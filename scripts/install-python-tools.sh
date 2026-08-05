@@ -48,8 +48,16 @@ install_package maigret && echo "  ✓ maigret installed" || echo "  ✗ maigret
 echo "[3/4] Installing sherlock-project..."
 install_package sherlock-project && echo "  ✓ sherlock installed" || echo "  ✗ sherlock failed (non-fatal)"
 
+# ── Open Deep Research — optional Hugging Face agent + Serper browser ─────────
+echo "[4/5] Open Deep Research — optional (smolagents + browser adapter)"
+install_package "smolagents>=1.21.0" && echo "  ✓ smolagents installed" || echo "  ✗ smolagents failed (optional)"
+install_package "beautifulsoup4>=4.12.0" && echo "  ✓ beautifulsoup4 installed" || echo "  ✗ beautifulsoup4 failed (optional)"
+install_package "markdownify>=0.14.0" && echo "  ✓ markdownify installed" || echo "  ✗ markdownify failed (optional)"
+install_package "python-dotenv>=1.0.0" && echo "  ✓ python-dotenv installed" || echo "  ✗ python-dotenv failed (optional)"
+install_package "requests>=2.32.0" && echo "  ✓ requests installed" || echo "  ✗ requests failed (optional)"
+
 # ── theHarvester requires Python ≥3.12 ───────────────────────────────────────
-echo "[4/4] theHarvester — optional (requires Python ≥3.12 and upstream package)"
+echo "[5/5] theHarvester — optional (requires Python ≥3.12 and upstream package)"
 echo "      Current interpreter: $("$PYTHON_BIN" --version 2>&1)"
 
 echo ""
@@ -57,6 +65,8 @@ echo "=== Tool availability ==="
 "$PYTHON_BIN" -c "import holehe; print('  holehe:       ✓')" 2>/dev/null || echo "  holehe:       ✗"
 "$PYTHON_BIN" -c "import maigret; print('  maigret:      ✓')" 2>/dev/null || echo "  maigret:      ✗"
 "$PYTHON_BIN" -c "import sherlock_project; print('  sherlock:     ✓')" 2>/dev/null || echo "  sherlock:     ✗"
+"$PYTHON_BIN" -c "import smolagents; print('  smolagents:   ✓')" 2>/dev/null || echo "  smolagents:   ✗ (optional)"
+"$PYTHON_BIN" -c "import bs4, markdownify, requests; print('  research web: ✓')" 2>/dev/null || echo "  research web: ✗ (optional)"
 "$PYTHON_BIN" -c "import gliner;  print('  gliner:       ✓')" 2>/dev/null || echo "  gliner:       ✗ (optional — heavy deps)"
 
 echo ""

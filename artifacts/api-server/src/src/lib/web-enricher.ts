@@ -43,6 +43,7 @@ const FINANCIAL_AGGREGATOR_DOMAINS = new Set([
   "allabolag.se", "hitta.se", "eniro.se", "proff.se", "virksomhed.dk",
 ]);
 import { extractWithAI, researchWithPerplexity, researchWithGemini, researchWithTavily, researchWithExa, runGeminiDeepResearch, type AIResearchContext, type OwnerResolution, type GeminiDeepResearchResult } from "./ai-extractor";
+import { runOpenDeepResearch, type OpenDeepResearchResult } from "./python-tools";
 import { applyEnsembleAdjudication, buildEnsembleAdjudicationText, reconcileAIResults, type AIEnsembleResult } from "./ai-ensemble";
 import { extractPersonNames } from "./gliner-client";
 import { assessTargetReachability, reachabilityDirective } from "./reachability-realism";
@@ -519,6 +520,11 @@ export interface DeepWebOsintResult {
   deepResearchStatus: GeminiDeepResearchResult["status"];
   deepResearchAgent: string | null;
   deepResearchKeySlot: number | null;
+  /** Hugging Face smolagents + Serper report; always review-only. */
+  openDeepResearchReport: string | null;
+  openDeepResearchCitations: string[];
+  openDeepResearchStatus: OpenDeepResearchResult["status"];
+  openDeepResearchModel: string | null;
 }
 
 export interface DeepWebEvidence {
@@ -1706,6 +1712,10 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     deepResearchStatus: "unavailable",
     deepResearchAgent: null,
     deepResearchKeySlot: null,
+    openDeepResearchReport: null,
+    openDeepResearchCitations: [],
+    openDeepResearchStatus: "unavailable",
+    openDeepResearchModel: null,
   };
 
   // ── Derive context from entity ──────────────────────────────────────────
@@ -1735,7 +1745,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   await emitDeepWebTelemetry(entity, {
     stage: "AI PROVIDER FAN-OUT",
     status: "active",
-    toolIds: ["perp0", "gemini", "tavily", "exa", "gemini-deep-research"],
+    toolIds: ["perp0", "gemini", "tavily", "exa", "gemini-deep-research", "hf-open-deep-research"],
     activeToolId: "perp0",
     inputSummary: `${entity.type} target · ${queries.length} search query template(s) · ${domainTargets.length} domain target(s)`,
   });
@@ -1962,7 +1972,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     }
   };
 
-  // ── Phase 0: Perplexity Sonar + Gemini Flash — live web research ──────────
+  // ── Phase 0: provider fan-out — live web research ─────────────────────────
   // Both fire in parallel before DDG/Bing — different search indexes means
   // complementary coverage. Perplexity excels at regional press; Gemini
   // excels at Google-indexed official pages and LinkedIn.
@@ -1977,6 +1987,16 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     citations: [],
     keySlot: null,
     error: null,
+  };
+  let openDeepResearch: OpenDeepResearchResult = {
+    status: "unavailable",
+    report: null,
+    citations: [],
+    searches: 0,
+    pages: 0,
+    model: null,
+    available: false,
+    reviewOnly: true,
   };
   try {
     const providerResults = await Promise.allSettled([
@@ -2061,6 +2081,28 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         });
         return value;
       }),
+      runOpenDeepResearch([
+        `Research the exact public entity "${entity.name}" (${entity.type}).`,
+        `Country/jurisdiction hint: ${country ?? "unknown"}.`,
+        `Trading name: ${trading}.`,
+        `Disambiguation anchors: ${(researchContext.anchors ?? []).join("; ") || "none"}.`,
+        `Candidate domains (leads only): ${domainTargets.slice(0, 4).join(", ") || "none"}.`,
+        "",
+        "Produce a concise, source-cited OSINT review of identity, ownership/control, operating relationships, and public authorized intermediary routes.",
+        "Keep uncertain or conflicting findings explicit. Do not infer identity from name similarity, wealth, social profiles, usernames, or organization contact details.",
+        "This report is review-only. Do not present a personal email, phone, social account, or access route as verified; cite exact public pages supporting each material finding.",
+      ].join("\n"), { timeoutMs: 90_000 }).then(async (value) => {
+        await emitDeepWebTelemetry(entity, {
+          stage: "AI PROVIDER FAN-OUT",
+          status: value.status === "completed" ? "complete" : "review",
+          toolIds: ["hf-open-deep-research"],
+          activeToolId: "hf-open-deep-research",
+          resultSummary: value.status === "completed"
+            ? `Hugging Face Open Deep Research returned a review report with ${value.citations.length} citation(s); no claims promoted`
+            : `Hugging Face Open Deep Research ${value.status}; no claims promoted`,
+        });
+        return value;
+      }),
     ]);
     [perp, gem, tav] = providerResults.slice(0, 3).map((item) =>
       item.status === "fulfilled" ? item.value : { source: "none" },
@@ -2075,6 +2117,14 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         status: "failed",
         error: "Deep Research provider promise rejected before returning a result.",
       };
+    openDeepResearch = providerResults[5]?.status === "fulfilled"
+      ? providerResults[5].value
+      : {
+        ...openDeepResearch,
+        status: "failed",
+        available: true,
+        error: "Open Deep Research provider promise rejected before returning a result.",
+      };
     if (deepResearch.status === "completed" && deepResearch.report) {
       result.deepResearchReport = deepResearch.report.slice(0, 16_000);
       result.deepResearchCitations = deepResearch.citations.slice(0, 40);
@@ -2085,6 +2135,14 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       result.deepResearchStatus = deepResearch.status;
       result.deepResearchAgent = deepResearch.agent;
       result.deepResearchKeySlot = deepResearch.keySlot;
+    }
+    result.openDeepResearchStatus = openDeepResearch.status;
+    result.openDeepResearchModel = openDeepResearch.model;
+    if (openDeepResearch.status === "completed" && openDeepResearch.report) {
+      result.openDeepResearchReport = openDeepResearch.report.slice(0, 16_000);
+      result.openDeepResearchCitations = openDeepResearch.citations.slice(0, 40);
+    } else {
+      result.openDeepResearchCitations = openDeepResearch.citations.slice(0, 40);
     }
     const ensemble = reconcileAIResults([
       { provider: "perplexity", result: perp },
@@ -2466,6 +2524,34 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     }
   } catch (err: any) {
     logger.warn({ err: err?.message, entityId: entity.id }, "Phase 0.8: Deep Research processing failed");
+  }
+
+  // Hugging Face Open Deep Research contributes only bounded review context
+  // and citation leads. It never enters contact hits or the candidate funnel.
+  try {
+    if (result.openDeepResearchReport || result.openDeepResearchCitations.length > 0) {
+      result.sources.push("HuggingFace[open-deep-research]");
+      result.queriesFired += 1;
+      for (const url of result.openDeepResearchCitations.slice(0, 8)) urlsToScrape.add(url);
+      const openDeepDomains: string[] = [];
+      for (const url of result.openDeepResearchCitations) {
+        try {
+          const hostname = new URL(url).hostname.replace(/^www\./, "");
+          if (!CITATION_SKIP_DOMAINS.has(hostname) && !openDeepDomains.includes(hostname)) {
+            openDeepDomains.push(hostname);
+          }
+        } catch { /* ignore malformed adapter citations */ }
+      }
+      if (openDeepDomains.length > 0) {
+        domainTargets.unshift(...openDeepDomains.slice(0, 3));
+        logger.info(
+          { entityId: entity.id, openDeepDomains, status: result.openDeepResearchStatus },
+          "Phase 0.9: injected Hugging Face Open Deep Research citation domains into scrape targets",
+        );
+      }
+    }
+  } catch (err: any) {
+    logger.warn({ err: err?.message, entityId: entity.id }, "Phase 0.9: Open Deep Research processing failed");
   }
 
   // ── Phase 1: DDG search (locale-aware) ─────────────────────────────────

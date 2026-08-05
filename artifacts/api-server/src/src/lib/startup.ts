@@ -1217,14 +1217,15 @@ async function verifyAndInstallPythonTools(): Promise<void> {
     catch { return false; }
   };
 
-  const [holehe, maigret, sherlock] = await Promise.all([
+  const [holehe, maigret, sherlock, smolagents] = await Promise.all([
     check("holehe"),
     check("maigret"),
     check("sherlock_project"),
+    check("smolagents"),
   ]);
 
   if (!holehe || !maigret || !sherlock) {
-    logger.warn({ holehe, maigret, sherlock }, "⚠️  Python OSINT tools missing — auto-installing (Holehe + Maigret + Sherlock)…");
+    logger.warn({ holehe, maigret, sherlock, smolagents }, "⚠️  Python OSINT tools missing — auto-installing (Holehe + Maigret + Sherlock + Open Deep Research)…");
     try {
       // Resolve from workspace root: dist/index.mjs → dist/ → api-server/ → artifacts/ → workspace/
       const wsRoot = new URL("../../..", import.meta.url).pathname;
@@ -1234,7 +1235,7 @@ async function verifyAndInstallPythonTools(): Promise<void> {
       logger.error({ err: err?.message }, "❌ Python OSINT tools installation FAILED — optional username discovery tools may be unavailable this session");
     }
   } else {
-    logger.info("✅ Python OSINT tools verified: holehe ✓  maigret ✓  sherlock ✓");
+    logger.info(`✅ Python OSINT tools verified: holehe ✓  maigret ✓  sherlock ✓${smolagents ? "  smolagents ✓" : "  smolagents ✗ (optional)"}`);
   }
 }
 

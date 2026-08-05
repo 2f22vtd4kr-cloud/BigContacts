@@ -379,7 +379,8 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
 
         const hasSignal = cleanLinkedIn || cleanEmail || cleanPhone
           || cleanInstagram || cleanTwitter || result.evidence.length > 0
-          || result.deepResearchReport || result.deepResearchCitations.length > 0;
+          || result.deepResearchReport || result.deepResearchCitations.length > 0
+          || result.openDeepResearchReport || result.openDeepResearchCitations.length > 0;
         if (!hasSignal) {
           skipped++;
           continue;
@@ -422,6 +423,14 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
           keySlot: result.deepResearchKeySlot,
           report: result.deepResearchReport,
           citations: result.deepResearchCitations,
+          reviewOnly: true,
+          claimsPromoted: false,
+        };
+        meta["huggingFaceOpenDeepResearch"] = {
+          status: result.openDeepResearchStatus,
+          model: result.openDeepResearchModel,
+          report: result.openDeepResearchReport,
+          citations: result.openDeepResearchCitations,
           reviewOnly: true,
           claimsPromoted: false,
         };

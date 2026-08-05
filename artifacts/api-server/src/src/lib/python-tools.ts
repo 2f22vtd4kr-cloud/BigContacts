@@ -1,7 +1,8 @@
 /**
  * Python Tool Subprocess Runner
  *
- * Wraps Python OSINT CLI tools (Holehe, Maigret, Sherlock, theHarvester, GLiNER)
+ * Wraps Python OSINT CLI tools (Holehe, Maigret, Sherlock, theHarvester,
+ * Open Deep Research, GLiNER)
  * as async TypeScript functions. Each tool is called via child_process.spawn
  * with a timeout, and output is parsed from JSON or stdout.
  *
@@ -373,6 +374,112 @@ export async function runSherlock(username: string): Promise<SherlockResult> {
   }
 }
 
+// ── Open Deep Research: Hugging Face smolagents + Serper ─────────────────────
+
+export interface OpenDeepResearchResult {
+  status: "completed" | "failed" | "timeout" | "unavailable";
+  report: string | null;
+  citations: string[];
+  searches: number;
+  pages: number;
+  model: string | null;
+  available: boolean;
+  reviewOnly: true;
+  error?: string;
+}
+
+function findWorkspaceScript(scriptName: string): string | null {
+  const candidates = [
+    path.join(process.cwd(), "scripts", scriptName),
+    path.resolve(process.cwd(), "..", "..", "scripts", scriptName),
+    path.resolve(process.cwd(), "..", "..", "..", "scripts", scriptName),
+  ];
+  return candidates.find((candidate) => existsSync(candidate)) ?? null;
+}
+
+function parseLastJsonLine(stdout: string): Record<string, unknown> | null {
+  for (const line of stdout.trim().split(/\r?\n/).reverse()) {
+    try {
+      const parsed = JSON.parse(line) as unknown;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch { /* smolagents/provider logs may precede the JSON result */ }
+  }
+  return null;
+}
+
+/**
+ * Run the Hugging Face Open Deep Research adapter as an isolated, bounded
+ * subprocess. The report and citations are review-only; this function never
+ * writes entity/contact state.
+ */
+export async function runOpenDeepResearch(
+  prompt: string,
+  options: { timeoutMs?: number } = {},
+): Promise<OpenDeepResearchResult> {
+  const base: OpenDeepResearchResult = {
+    status: "unavailable",
+    report: null,
+    citations: [],
+    searches: 0,
+    pages: 0,
+    model: null,
+    available: false,
+    reviewOnly: true,
+  };
+  const script = findWorkspaceScript("open_deep_research.py");
+  if (!script) return { ...base, error: "Open Deep Research adapter script not found." };
+  if (!process.env.HF_TOKEN || !process.env.SERPER_API_KEY) {
+    return { ...base, error: "HF_TOKEN and SERPER_API_KEY are not configured." };
+  }
+
+  const timeoutMs = Math.min(Math.max(options.timeoutMs ?? 90_000, 30_000), 180_000);
+  const subprocess = await runSubprocess(PYTHON_BIN, [script, prompt.slice(0, 12_000)], timeoutMs, {
+    HF_TOKEN: process.env.HF_TOKEN,
+    SERPER_API_KEY: process.env.SERPER_API_KEY,
+    HF_DEEP_RESEARCH_MODEL: process.env.HF_DEEP_RESEARCH_MODEL || "Qwen/Qwen2.5-7B-Instruct",
+  });
+  if (subprocess.exitCode === -1) {
+    return { ...base, status: "timeout", available: true, error: "Open Deep Research subprocess timed out." };
+  }
+  const payload = parseLastJsonLine(subprocess.stdout);
+  if (!payload) {
+    return {
+      ...base,
+      status: "failed",
+      available: true,
+      error: subprocess.stderr.trim().slice(0, 500) || "Open Deep Research returned no JSON result.",
+    };
+  }
+  const status = payload.status === "completed" ? "completed"
+    : payload.status === "timeout" ? "timeout"
+      : payload.status === "unavailable" ? "unavailable" : "failed";
+  const citations = Array.isArray(payload.citations)
+    ? payload.citations.filter((value): value is string => typeof value === "string").slice(0, 40)
+    : [];
+  const report = typeof payload.report === "string" ? payload.report.slice(0, 16_000) : null;
+  const result: OpenDeepResearchResult = {
+    ...base,
+    status,
+    report,
+    citations,
+    searches: typeof payload.searches === "number" ? payload.searches : 0,
+    pages: typeof payload.pages === "number" ? payload.pages : 0,
+    model: typeof payload.model === "string" ? payload.model : null,
+    available: true,
+    ...(typeof payload.error === "string" ? { error: payload.error.slice(0, 500) } : {}),
+  };
+  logger.info({
+    status: result.status,
+    searches: result.searches,
+    pages: result.pages,
+    citations: result.citations.length,
+    model: result.model,
+  }, "[Open Deep Research] bounded run complete");
+  return result;
+}
+
 // ── theHarvester: domain → emails/subdomains ─────────────────────────────────
 
 export interface HarvesterResult {
@@ -468,6 +575,7 @@ export async function checkPythonToolsAvailability(): Promise<Record<string, boo
     isPythonModuleAvailable("maigret"),
     isPythonModuleAvailable("sherlock_project"),
     isToolAvailable("theHarvester").then(async v => v || isPythonModuleAvailable("theHarvester")),
+    isPythonModuleAvailable("smolagents"),
   ]);
 
   return {
@@ -475,5 +583,6 @@ export async function checkPythonToolsAvailability(): Promise<Record<string, boo
     maigret: checks[1]!,
     sherlock: checks[2]!,
     theHarvester: checks[3]!,
+    openDeepResearch: checks[4]!,
   };
 }

@@ -630,7 +630,7 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
       status: "active",
       targetName: name,
       targetType: entity.type,
-      toolIds: ["perp0", "gemini", "tavily", "exa", "gemini-deep-research", "groq"],
+      toolIds: ["perp0", "gemini", "tavily", "exa", "gemini-deep-research", "hf-open-deep-research", "groq"],
       activeToolId: "perp0",
       prompt: prompt.slice(0, 2200),
       inputSummary: `${entity.type} target · ${telemetryReachability.status} reachability · provider fan-out is parallel within this target`,
@@ -653,8 +653,13 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
         }, id);
       },
     }).catch(() => null);
-    if (aiResult?.deepResearchStatus && (
-      aiResult.deepResearchReport || aiResult.deepResearchCitations.length > 0
+    if (aiResult && (
+      (aiResult.deepResearchStatus && (
+        aiResult.deepResearchReport || aiResult.deepResearchCitations.length > 0
+      )) ||
+      (aiResult.openDeepResearchStatus && (
+        aiResult.openDeepResearchReport || aiResult.openDeepResearchCitations.length > 0
+      ))
     )) {
       const metadata = safeJson<Record<string, unknown>>(entity.metadata, {});
       metadata.geminiDeepResearch = {
@@ -663,6 +668,14 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
         keySlot: aiResult.deepResearchKeySlot,
         report: aiResult.deepResearchReport,
         citations: aiResult.deepResearchCitations,
+        reviewOnly: true,
+        claimsPromoted: false,
+      };
+      metadata.huggingFaceOpenDeepResearch = {
+        status: aiResult.openDeepResearchStatus,
+        model: aiResult.openDeepResearchModel,
+        report: aiResult.openDeepResearchReport,
+        citations: aiResult.openDeepResearchCitations,
         reviewOnly: true,
         claimsPromoted: false,
       };
@@ -675,7 +688,7 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
       status: aiResult ? "complete" : "review",
       targetName: name,
       targetType: entity.type,
-      toolIds: ["perp0", "gemini", "tavily", "exa", "gemini-deep-research", "groq"],
+      toolIds: ["perp0", "gemini", "tavily", "exa", "gemini-deep-research", "hf-open-deep-research", "groq"],
       activeToolId: "groq",
       prompt: prompt.slice(0, 2200),
       inputSummary: `${entity.type} target · ${telemetryReachability.status} reachability`,

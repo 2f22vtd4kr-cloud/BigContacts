@@ -77,6 +77,9 @@ The long-term plan for improving the approximately 2.5% direct-contact yield is 
 | `OPENROUTER_API_KEY`, `_2`, `_3`, `_4` | Replit Secrets (optional) | OpenRouter model access, with key rotation |
 | `GEMINI_API_KEY`, `_1`–`_10` | Replit Secrets (optional) | Google Gemini Flash-Lite access with key rotation; lower-quota model is used for grounded research and wealth estimation |
 | `GEMINI_API_KEY_11`–`_13` | Replit Secrets (optional) | Dedicated Gemini Deep Research Pro Preview pool; participates as a bounded web-OSINT provider lane and remains isolated from Flash-Lite quota |
+| `HF_TOKEN` | Replit Secret (optional) | Hugging Face inference for the bounded `smolagents` Open Deep Research provider lane |
+| `SERPER_API_KEY` | Replit Secret (optional) | Serper live public-web search tool used by the Hugging Face Open Deep Research lane |
+| `HF_DEEP_RESEARCH_MODEL` | Shared environment (optional) | Hugging Face model override; defaults to `Qwen/Qwen2.5-7B-Instruct` for bounded latency |
 | `TAVILY_API_KEY`, `_2`–`_6` | Replit Secrets (optional) | Tavily AI-native search API; returns clean excerpts fed into Groq for extraction, with key rotation. `_6` is the fresh-quota slot; 432 quota responses are circuit-broken until the next API refresh |
 | `EXA_API_KEY`, `_2` | Replit Secrets (optional) | Exa neural/semantic search; excels at people + company lookups; fed into Groq for extraction, with key rotation |
 | `ENABLE_AUTO_PIPELINE` | Shared environment | `true` — enables the serialized, discovery-first Atlas controller. It starts immediately after startup maintenance, waits for each bounded cycle to finish, then starts the next cycle after 30 minutes. Set to `false` only when intentionally pausing automatic research. |
