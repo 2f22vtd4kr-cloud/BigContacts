@@ -33,6 +33,18 @@ const SOURCE_PROFILES: Array<{
     profile: { reliability: 0.86, identity: 0.88, ownership: 0.9, contact: 0.08, freshness: 0.76, rationale: "Official land records support property and recorded ownership claims." },
   },
   {
+    match: /ofac|sdn|sanctions/i,
+    profile: { reliability: 0.97, identity: 0.92, ownership: 0.35, contact: 0.02, freshness: 0.9, rationale: "Official sanctions list evidence is strong compliance data, but is not ownership or personal-access proof." },
+  },
+  {
+    match: /adsb\.lol|airplanes\.live|live ads-b|opensky/i,
+    profile: { reliability: 0.78, identity: 0.9, ownership: 0.25, contact: 0.02, freshness: 0.98, rationale: "Public aviation telemetry supports aircraft activity and identity, not personal access or ownership by itself." },
+  },
+  {
+    match: /icij|offshore leaks/i,
+    profile: { reliability: 0.86, identity: 0.78, ownership: 0.7, contact: 0.05, freshness: 0.72, rationale: "Investigative leak datasets provide attributable offshore-structure evidence and require identity corroboration." },
+  },
+  {
     match: /gleif|lei register/i,
     profile: { reliability: 0.84, identity: 0.9, ownership: 0.76, contact: 0.12, freshness: 0.84, rationale: "Global legal-entity identifier and relationship register." },
   },

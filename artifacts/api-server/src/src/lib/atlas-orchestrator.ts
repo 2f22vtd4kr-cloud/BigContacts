@@ -5,7 +5,7 @@
  * enricher, and OSINT tool in the optimal cross-reference order.
  *
  * Phase 0  — Mass ingestion (parallel): FAA + Western HNWI (EDGAR/CH/BRREG) + optional Land Registry
- * Phase 1  — Registry cross-reference (parallel): OCCRP Aleph + OpenSky live flights + CH Company Officers
+ * Phase 1  — Registry cross-reference (parallel): OCCRP/OFAC + live ADS-B + CH Company Officers
  * Phase 2  — Identity & ownership (parallel): CH contact enrichment + OpenOwnership BODS + Foundation filings
  * Phase 3  — Populate metadata: notes + stock assets + live source markers
  * Phase 4  — In-house OSINT (7 free sources): Wikidata, GitHub, RDAP, DNS, Gravatar, ProPublica 990
@@ -1411,8 +1411,8 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
   // ── Phase 0: Pre-run cross-references ──────────────────────────────────────
   // Cross-reference whatever is already in the DB. Run once at the start.
   if (!opts.skipIngestion) {
-    // ── Pre-run: OCCRP + OpenSky + CH Officers (cross-reference existing DB) ──
-    await status("Phase 0/10: Pre-run cross-references — OCCRP + OpenSky + CH Officers…", 0);
+    // ── Pre-run: OCCRP/OFAC + live ADS-B + CH Officers (cross-reference existing DB) ──
+    await status("Phase 0/10: Pre-run cross-references — OCCRP/OFAC + live ADS-B + CH Officers…", 0);
 
     const occrpJobId   = await createJob("occrp");
     const openskyJobId = await createJob("opensky");
@@ -1437,7 +1437,7 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
       })(),
     ]);
 
-    summary["Phase 0"] = `OCCRP: ${occrpRes.inserted ?? 0} | OpenSky: ${(openskyRes as any).inserted ?? 0} live | CH Officers: ${(officersRes as any).enriched ?? 0}`;
+    summary["Phase 0"] = `OCCRP/OFAC: ${occrpRes.inserted ?? 0} | Live ADS-B: ${(openskyRes as any).inserted ?? 0} matched | CH Officers: ${(officersRes as any).enriched ?? 0}`;
 
     // Identity passes: CH contact enrichment + OpenOwnership + Foundation filings
     const chEnrichJobId = await createJob("companies-house-enrich");

@@ -305,9 +305,26 @@ interface AlephSearchResponse {
   total: { value: number };
 }
 
+interface OfacEntry {
+  uid: string;
+  name: string;
+  aliases: string[];
+  programs: string[];
+}
+
+interface ComplianceHit {
+  id: string;
+  caption: string;
+  schema: string;
+  datasets: string[];
+  source: "OCCRP Aleph" | "OFAC SDN";
+  url: string;
+}
+
 const SANCTIONS_SIGNAL = /sanction|watchlist|ofac|interpol|fatf|pep|oligarch|crimea|russia/i;
 
 const ALEPH_BASE = "https://aleph.occrp.org/api/2";
+const OFAC_SDN_URL = "https://www.treasury.gov/ofac/downloads/sdn.xml";
 const RATE_LIMIT_MS = 1_100;
 
 function alephSleep(ms: number) {
@@ -332,6 +349,80 @@ async function searchAleph(name: string): Promise<AlephEntity[]> {
 
   const data = (await res.json()) as AlephSearchResponse;
   return data.results ?? [];
+}
+
+function decodeXml(value: string): string {
+  return value
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+async function loadOfacSdn(): Promise<OfacEntry[]> {
+  const response = await fetch(OFAC_SDN_URL, {
+    headers: {
+      Accept: "application/xml,text/xml",
+      "User-Agent": "ApexAtlas/1.0 (public OSINT research)",
+    },
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (!response.ok) throw new Error(`OFAC SDN HTTP ${response.status}`);
+  const xml = await response.text();
+  const entries: OfacEntry[] = [];
+
+  for (const block of xml.matchAll(/<sdnEntry\b[^>]*>([\s\S]*?)<\/sdnEntry>/gi)) {
+    const body = block[1] ?? "";
+    const text = (tag: string): string =>
+      decodeXml(body.match(new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)<\\/${tag}>`, "i"))?.[1] ?? "");
+    const name = [text("firstName"), text("lastName")].filter(Boolean).join(" ").trim();
+    if (!name) continue;
+
+    const aliases = [...body.matchAll(/<aka\b[\s\S]*?<\/aka>/gi)]
+      .map((aka) => {
+        const first = decodeXml(aka[0].match(/<firstName\b[^>]*>([\s\S]*?)<\/firstName>/i)?.[1] ?? "");
+        const last = decodeXml(aka[0].match(/<lastName\b[^>]*>([\s\S]*?)<\/lastName>/i)?.[1] ?? "");
+        return [first, last].filter(Boolean).join(" ").trim();
+      })
+      .filter(Boolean);
+
+    entries.push({
+      uid: text("uid"),
+      name,
+      aliases,
+      programs: [...body.matchAll(/<program\b[^>]*>([\s\S]*?)<\/program>/gi)]
+        .map((program) => decodeXml(program[1] ?? ""))
+        .filter(Boolean),
+    });
+  }
+
+  if (entries.length === 0) throw new Error("OFAC SDN feed contained no entries");
+  return entries;
+}
+
+function findOfacMatch(name: string, entries: OfacEntry[]): ComplianceHit | null {
+  let best: { entry: OfacEntry; caption: string; score: number } | null = null;
+  for (const entry of entries) {
+    for (const caption of [entry.name, ...entry.aliases]) {
+      const score = nameOverlap(name, caption);
+      if (score >= 0.75 && (!best || score > best.score)) {
+        best = { entry, caption, score };
+      }
+    }
+  }
+  if (!best) return null;
+  return {
+    id: best.entry.uid,
+    caption: best.caption,
+    schema: "SanctionsEntry",
+    datasets: ["OFAC SDN", ...best.entry.programs.slice(0, 10)],
+    source: "OFAC SDN",
+    url: `https://sanctionssearch.ofac.treas.gov/Details.aspx?id=${encodeURIComponent(best.entry.uid)}`,
+  };
 }
 
 function nameOverlap(a: string, b: string): number {
@@ -372,32 +463,66 @@ export async function runOccrpEnrichment(params: OccrpEnrichParams): Promise<Occ
   });
   await appendJobLog(jobId, `🔍 Loaded ${entities.length} entities. Starting Aleph cross-reference…`);
 
+  let ofacEntries: OfacEntry[] = [];
+  try {
+    ofacEntries = await loadOfacSdn();
+    await appendJobLog(jobId, `✅ OFAC SDN fallback loaded (${ofacEntries.length.toLocaleString()} entries).`);
+  } catch (err: any) {
+    logger.warn({ err: err.message }, "OFAC SDN fallback unavailable");
+    await appendJobLog(jobId, `⚠️ OFAC fallback unavailable: ${err.message}`);
+  }
+
   for (let i = 0; i < entities.length; i++) {
     const entity = entities[i]!;
 
     try {
-      const hits = await searchAleph(entity.name);
-      await alephSleep(RATE_LIMIT_MS);
-
-      const match = hits.find((h) => nameOverlap(entity.name, h.caption) >= 0.75);
+      let match: ComplianceHit | null = null;
+      try {
+        const hits = await searchAleph(entity.name);
+        await alephSleep(RATE_LIMIT_MS);
+        const alephMatch = hits.find((h) => nameOverlap(entity.name, h.caption) >= 0.75);
+        if (alephMatch) {
+          match = {
+            id: alephMatch.id,
+            caption: alephMatch.caption,
+            schema: alephMatch.schema,
+            datasets: alephMatch.datasets,
+            source: "OCCRP Aleph",
+            url: `https://aleph.occrp.org/entities/${alephMatch.id}`,
+          };
+        }
+      } catch (err: any) {
+        logger.warn({ err: err.message, entity: entity.name }, "OCCRP unavailable; using OFAC fallback");
+      }
+      if (!match && ofacEntries.length > 0) match = findOfacMatch(entity.name, ofacEntries);
 
       if (!match) {
         skipped++;
       } else {
-        const isSanctioned = match.datasets.some((d) => SANCTIONS_SIGNAL.test(d));
+        const isSanctioned = match.source === "OFAC SDN" || match.datasets.some((d) => SANCTIONS_SIGNAL.test(d));
         const existingMeta = (() => {
           try { return JSON.parse(entity.metadata ?? "{}"); } catch { return {}; }
         })();
 
         const updatedMeta = {
           ...existingMeta,
-          aleph: {
+          ...(match.source === "OCCRP Aleph" ? {
+            aleph: {
+              id: match.id,
+              caption: match.caption,
+              schema: match.schema,
+              datasets: match.datasets.slice(0, 10),
+              url: match.url,
+              enrichedAt: new Date().toISOString(),
+            },
+          } : {}),
+          sanctions: {
+            source: match.source,
             id: match.id,
             caption: match.caption,
-            schema: match.schema,
             datasets: match.datasets.slice(0, 10),
-            url: `https://aleph.occrp.org/entities/${match.id}`,
-            enrichedAt: new Date().toISOString(),
+            url: match.url,
+            matchedAt: new Date().toISOString(),
           },
         };
 
@@ -405,12 +530,11 @@ export async function runOccrpEnrichment(params: OccrpEnrichParams): Promise<Occ
           .update(entitiesTable)
           .set({
             metadata: JSON.stringify(updatedMeta),
-            isHot: entity.isHot || isSanctioned,
             sourceRegistries: sql`
               CASE
-                WHEN ${entitiesTable.sourceRegistries} IS NULL THEN '["OCCRP Aleph"]'
-                WHEN ${entitiesTable.sourceRegistries} NOT LIKE '%OCCRP Aleph%'
-                  THEN json_concat_array(${entitiesTable.sourceRegistries}, '["OCCRP Aleph"]')
+                WHEN ${entitiesTable.sourceRegistries} IS NULL THEN ${JSON.stringify([match.source])}
+                WHEN ${entitiesTable.sourceRegistries} NOT LIKE ${`%${match.source}%`}
+                  THEN json_concat_array(${entitiesTable.sourceRegistries}, ${JSON.stringify([match.source])})
                 ELSE ${entitiesTable.sourceRegistries}
               END`,
           })
@@ -419,7 +543,7 @@ export async function runOccrpEnrichment(params: OccrpEnrichParams): Promise<Occ
         enriched++;
 
         if (isSanctioned) {
-          await appendJobLog(jobId, `🚨 SANCTIONS HIT: ${entity.name} — datasets: ${match.datasets.slice(0, 3).join(", ")}`);
+          await appendJobLog(jobId, `🚨 SANCTIONS HIT (${match.source}): ${entity.name} — datasets: ${match.datasets.slice(0, 3).join(", ")}`);
         }
       }
     } catch (err: any) {

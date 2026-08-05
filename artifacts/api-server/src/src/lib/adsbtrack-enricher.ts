@@ -9,9 +9,9 @@
  *   - Network connections (frequent co-location with other aircraft)
  *
  * Sources (in priority order):
- *   1. ADSBExchange Globe API — public, no auth, 30-day rolling window
- *   2. OpenSky Network historical API — free researcher access, up to 30 days back
- *   3. ADS-B.nl GLOBE history — community ADS-B aggregator
+ *   1. Airplanes.Live targeted public feed — registration/hex lookup
+ *   2. ADSBExchange Globe API — public, no auth, 30-day rolling window
+ *   3. OpenSky Network historical API — compatibility fallback
  *
  * The ADSBExchange approach is inspired by github.com/frankea/adsbtrack.
  */
@@ -63,10 +63,29 @@ function nNumberToIcao(nNumber: string): string | null {
   return null;
 }
 
-/** Look up ICAO hex for a registration via OpenSky metadata */
+/** Look up ICAO hex for a registration via free targeted ADS-B sources. */
 async function resolveIcaoFromReg(registration: string): Promise<string | null> {
+  const reg = registration.replace(/^N/i, "N").toUpperCase();
+
   try {
-    const reg = registration.replace(/^N/i, "N").toUpperCase();
+    const url = `https://api.airplanes.live/v2/registration/${encodeURIComponent(reg)}`;
+    const resp = await fetch(url, {
+      headers: {
+        "User-Agent": "ApexFinder-OSINT/2.0 (research@apexfinder.private)",
+        Accept: "application/json",
+      },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (resp.ok) {
+      const data = await resp.json() as any;
+      const icao = data?.ac?.[0]?.hex ?? data?.hex;
+      if (typeof icao === "string" && icao.trim()) return icao.trim().toLowerCase();
+    }
+  } catch {
+    // Continue to the compatibility fallback.
+  }
+
+  try {
     const url = `https://opensky-network.org/api/metadata/aircraft/registration/${encodeURIComponent(reg)}`;
     const resp = await fetch(url, {
       headers: { "User-Agent": "ApexFinder-OSINT/2.0 (research@apexfinder.private)" },
@@ -77,6 +96,38 @@ async function resolveIcaoFromReg(registration: string): Promise<string | null> 
     return data?.icao24 ?? null;
   } catch {
     return null;
+  }
+}
+
+/** Query Airplanes.Live for the latest targeted aircraft evidence. */
+async function fetchFromAirplanesLive(icao: string): Promise<FlightRecord[]> {
+  try {
+    const url = `https://api.airplanes.live/v2/hex/${encodeURIComponent(icao.toLowerCase())}`;
+    const resp = await fetch(url, {
+      headers: {
+        "User-Agent": "ApexFinder-OSINT/2.0 (research@apexfinder.private)",
+        Accept: "application/json",
+      },
+      signal: AbortSignal.timeout(12_000),
+    });
+    if (!resp.ok) return [];
+    const data = await resp.json() as any;
+    const aircraft = data?.ac?.[0];
+    if (!aircraft) return [];
+
+    return [{
+      icao24: String(aircraft.hex ?? icao).toLowerCase(),
+      callsign: aircraft.r ?? aircraft.flight?.trim() ?? undefined,
+      departureTime: aircraft.seen
+        ? new Date(Date.now() - Number(aircraft.seen) * 1000).toISOString()
+        : new Date().toISOString(),
+      originAirport: aircraft.dep ?? undefined,
+      destAirport: aircraft.dest ?? aircraft.des ?? undefined,
+      source: "airplanes.live",
+    }];
+  } catch (err: any) {
+    logger.debug({ icao, err: err.message }, "[ADSB] Airplanes.Live query failed");
+    return [];
   }
 }
 
@@ -284,7 +335,8 @@ export async function enrichWithAdsbHistory(
   }
 
   // Fetch from multiple sources in parallel
-  const [liveFlights, openSkyFlights] = await Promise.all([
+  const [targetedFlights, liveFlights, openSkyFlights] = await Promise.all([
+    fetchFromAirplanesLive(icao),
     fetchFromAdsbExchange(icao),
     fetchFromOpenSky(icao, safedays),
   ]);
@@ -306,7 +358,7 @@ export async function enrichWithAdsbHistory(
   }
 
   // Merge and deduplicate by departure time
-  const allFlights = [...liveFlights, ...openSkyFlights, ...archiveFlights];
+  const allFlights = [...targetedFlights, ...liveFlights, ...openSkyFlights, ...archiveFlights];
   const seen = new Set<string>();
   const uniqueFlights: FlightRecord[] = [];
   for (const f of allFlights) {

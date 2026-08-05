@@ -73,7 +73,7 @@ The long-term plan for improving the approximately 2.5% direct-contact yield is 
 | `COMPANIES_HOUSE_API_KEY` | Replit Secret (optional) | UK Companies House officer harvester |
 | `GROQ_API_KEY`, `_1`–`_10` | Replit Secrets (optional) | Groq-powered structured extraction during web enrichment, with key rotation |
 | `PERPLEXITY_API_KEY`, `_2`–`_6` | Replit Secrets (optional) | Perplexity-powered public web discovery and enrichment, with key rotation |
-| `WHOXY_API_KEY` | Replit Secret (optional) | Whoxy domain and DNS intelligence lookups |
+| `WHOXY_API_KEY` | Replit Secret (optional) | Optional reverse-WHOIS enrichment; free RDAP, DNS, certificate-transparency, and archive sources remain the required domain-intelligence path |
 | `OPENROUTER_API_KEY`, `_2`, `_3`, `_4` | Replit Secrets (optional) | OpenRouter model access, with key rotation |
 | `GEMINI_API_KEY`, `_1`–`_10` | Replit Secrets (optional) | Google Gemini Flash-Lite access with key rotation; lower-quota model is used for grounded research and wealth estimation |
 | `TAVILY_API_KEY`, `_2`–`_6` | Replit Secrets (optional) | Tavily AI-native search API; returns clean excerpts fed into Groq for extraction, with key rotation |
@@ -163,8 +163,8 @@ All jobs are background — POST returns `{jobId}`, poll with `GET /api/ingest/j
 | `POST /api/ingest/faa` | FAA ReleasableAircraft.zip | Downloads ~70MB ZIP, extracts MASTER.txt (314,848 lines). Uses in-memory dedup + batch Upstash writes. ~73s for 30,000 records. |
 | `POST /api/ingest/land-registry` | HMLR PPD bulk CSV (S3) | Downloads `pp-YYYY.csv` (~160MB/year) via `curl -L`. Streams, filters £1M+. Uses in-memory dedup. ~8min for 50,000 records. |
 | `POST /api/ingest/western-hnwi` | SEC EDGAR + BRREG Norway + Companies House | Live API calls. Slow (~1 req/s rate limit). |
-| `POST /api/ingest/occrp` | OCCRP Aleph API | Enrichment only — cross-references existing entities against aleph.occrp.org. |
-| `POST /api/ingest/opensky` | OpenSky Network API | Live flight enrichment. |
+| `POST /api/ingest/occrp` | OCCRP Aleph + official OFAC SDN XML | Enrichment only — OCCRP is preferred; OFAC is a free sanctions-evidence fallback and never creates personal access. |
+| `POST /api/ingest/opensky` | Public live ADS-B (`adsb.lol`, OpenSky fallback) | Live flight enrichment using aircraft registration matching. |
 | `DELETE /api/ingest/dedup` | — | Clears the Upstash dedup set. Use before full re-ingest. |
 
 Body params (all optional): `{ "force": true }` — bypasses cache and re-downloads source files.

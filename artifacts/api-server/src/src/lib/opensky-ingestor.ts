@@ -1,5 +1,5 @@
 /**
- * OpenSky Network — Live Private Jet Tracking Enricher
+ * Live ADS-B — Private Jet Tracking Enricher
  *
  * Fetches the live aircraft state vectors from the OpenSky Network REST API
  * and matches them against aviation assets already in our database (ingested
@@ -10,13 +10,15 @@
  * This is a *live enrichment* pass, not a bulk ingest. Run it periodically
  * to keep the "last seen flying" intelligence current.
  *
- * API: https://opensky-network.org/api/states/all
- *      No authentication required for public aircraft states.
- *      Returns ~9000 state vectors for all aircraft currently in the air.
+ * Primary API: https://api.adsb.lol/v2/point/0/0/25000
+ *      Free, public global ADS-B feed; no application key required.
+ * Fallback API: https://api.airplanes.live/v2/{registration|hex|callsign}/...
+ *      Free public targeted lookup when the global feed is unavailable.
  *
  * Matching strategy:
- *   OpenSky callsign (trimmed) === our aviation asset identifier (N-number)
- *   e.g. callsign "N12345  " ↔ identifier "N12345"
+ *   ADS-B registration (or OpenSky callsign) === our aviation asset identifier
+ *   (N-number). The adsb.lol readsb feed exposes registration as `r`, while
+ *   OpenSky exposes the same value through its callsign field.
  *
  * State vector fields (array index):
  *   0=icao24, 1=callsign, 2=origin_country, 3=time_position,
@@ -52,6 +54,27 @@ interface OpenSkyResponse {
 }
 
 const OPENSKY_URL = "https://opensky-network.org/api/states/all";
+const ADSB_LOL_GLOBAL_URL = "https://api.adsb.lol/v2/point/0/0/25000";
+
+interface ReadsbAircraft {
+  hex?: string;
+  flight?: string;
+  r?: string;
+  ownOp?: string;
+  lat?: number;
+  lon?: number;
+  alt_baro?: number | string;
+  gs?: number;
+  track?: number;
+  squawk?: string;
+  seen?: number;
+  on_ground?: boolean;
+}
+
+interface ReadsbResponse {
+  ac?: ReadsbAircraft[];
+  total?: number;
+}
 
 // ── Helper ────────────────────────────────────────────────────────────────────
 
@@ -61,6 +84,69 @@ function mpsToKnots(mps: number | null): number | null {
 
 function metersToFt(m: number | null): number | null {
   return m == null ? null : Math.round(m * 3.281);
+}
+
+async function fetchReadsb(url: string): Promise<ReadsbAircraft[]> {
+  const response = await fetch(url, {
+    headers: {
+      Accept: "application/json",
+      "User-Agent": "ApexAtlas/1.0 (public OSINT research)",
+    },
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const data = (await response.json()) as ReadsbResponse;
+  return data.ac ?? [];
+}
+
+export function readsbToStateVector(aircraft: ReadsbAircraft): StateVector {
+  const altitude = typeof aircraft.alt_baro === "number" ? aircraft.alt_baro / 3.281 : null;
+  const speed = typeof aircraft.gs === "number" ? aircraft.gs / 1.944 : null;
+  return [
+    aircraft.hex ?? null,
+    // Keep the registration in the callsign slot used by the matching loop.
+    // For readsb feeds this is more reliable than the operator callsign.
+    aircraft.r ?? aircraft.flight ?? null,
+    aircraft.ownOp ?? null,
+    null,
+    null,
+    typeof aircraft.lon === "number" ? aircraft.lon : null,
+    typeof aircraft.lat === "number" ? aircraft.lat : null,
+    altitude,
+    aircraft.on_ground ?? (typeof aircraft.alt_baro === "string" && aircraft.alt_baro === "ground"),
+    speed,
+    typeof aircraft.track === "number" ? aircraft.track : null,
+    null,
+    null,
+    null,
+    aircraft.squawk ?? null,
+  ];
+}
+
+async function fetchLiveStates(): Promise<{ states: StateVector[]; source: string }> {
+  const failures: string[] = [];
+  try {
+    const aircraft = await fetchReadsb(ADSB_LOL_GLOBAL_URL);
+    return { states: aircraft.map(readsbToStateVector), source: "adsb.lol" };
+  } catch (err: any) {
+    failures.push(`adsb.lol: ${err.message}`);
+  }
+
+  // OpenSky remains a compatibility fallback for installations where the
+  // public ADS-B feed is temporarily unavailable.
+  try {
+    const res = await fetch(OPENSKY_URL, {
+      headers: { Accept: "application/json", "User-Agent": "ApexAtlas/1.0" },
+      signal: AbortSignal.timeout(30_000),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = (await res.json()) as OpenSkyResponse;
+    return { states: data.states ?? [], source: "opensky-network" };
+  } catch (err: any) {
+    failures.push(`OpenSky: ${err.message}`);
+  }
+
+  throw new Error(`No live ADS-B source available (${failures.join("; ")})`);
 }
 
 // ── Main enrichment function ──────────────────────────────────────────────────
@@ -75,30 +161,23 @@ export async function runOpenSkyEnrichment(
   let errors = 0;
 
   // ── Step 1: Fetch live state vectors ──────────────────────────────────────
-  await updateJob(jobId, { message: "Querying OpenSky Network for live aircraft positions…", progress: 5 });
-  await appendJobLog(jobId, "✈️  Fetching live state vectors from opensky-network.org…");
+  await updateJob(jobId, { message: "Querying free public ADS-B feeds for live aircraft positions…", progress: 5 });
+  await appendJobLog(jobId, "✈️  Fetching live state vectors from adsb.lol (OpenSky compatibility fallback enabled)…");
 
   let states: StateVector[] = [];
+  let liveSource = "unknown";
 
   try {
-    const res = await fetch(OPENSKY_URL, {
-      headers: { Accept: "application/json" },
-      signal: AbortSignal.timeout(30_000),
-    });
-
-    if (!res.ok) {
-      throw new Error(`OpenSky API returned HTTP ${res.status}. The free tier may be rate-limited (60 requests/hour). Try again shortly.`);
-    }
-
-    const data = (await res.json()) as OpenSkyResponse;
-    states = data.states ?? [];
-    await appendJobLog(jobId, `📡 ${states.length.toLocaleString()} aircraft currently in the air globally.`);
+    const live = await fetchLiveStates();
+    states = live.states;
+    liveSource = live.source;
+    await appendJobLog(jobId, `📡 ${states.length.toLocaleString()} aircraft returned by ${live.source}.`);
   } catch (err: any) {
-    throw new Error(`OpenSky fetch failed: ${err.message}`);
+    throw new Error(`Live ADS-B fetch failed: ${err.message}`);
   }
 
-  // ── Step 2: Build callsign lookup map ────────────────────────────────────
-  await updateJob(jobId, { message: `Building callsign index (${states.length} live aircraft)…`, progress: 15, total: states.length });
+  // ── Step 2: Build registration/callsign lookup map ───────────────────────
+  await updateJob(jobId, { message: `Building aircraft registration index (${states.length} live aircraft)…`, progress: 15, total: states.length });
 
   const callsignMap = new Map<string, StateVector>();
   for (const sv of states) {
@@ -124,7 +203,7 @@ export async function runOpenSkyEnrichment(
 
   await updateJob(jobId, {
     total: assets.length,
-    message: `Cross-referencing ${assets.length} aviation assets against ${callsignMap.size} live callsigns…`,
+    message: `Cross-referencing ${assets.length} aviation assets against ${callsignMap.size} live registrations…`,
     progress: 25,
   });
   await appendJobLog(jobId, `🗂  ${assets.length} aviation assets loaded. Matching against live traffic…`);
@@ -164,7 +243,7 @@ export async function runOpenSkyEnrichment(
         trackDeg: track != null ? Math.round(track) : null,
         squawk,
         lastSeenAt: new Date().toISOString(),
-        source: "opensky-network",
+        source: liveSource,
       };
 
       await db
@@ -204,7 +283,7 @@ export async function runOpenSkyEnrichment(
 
   await appendJobLog(
     jobId,
-    `🏁 OpenSky enrichment complete: ${updated} jets actively tracked, ${skipped} on ground or not flying, ${errors} errors.`,
+    `🏁 Live ADS-B enrichment complete: ${updated} jets actively tracked, ${skipped} on ground or not flying, ${errors} errors.`,
   );
 
   return {

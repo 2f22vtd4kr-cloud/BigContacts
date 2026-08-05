@@ -174,9 +174,8 @@ describe("GET /api/entities/:id/opensky", () => {
 });
 
 // ── 6. Registry search ───────────────────────────────────────────────────────
-// Note: OpenCorporates requires an API key; without one this endpoint returns
-// an error from upstream. The smoke test only verifies the endpoint is reachable
-// and returns a JSON object (not a 404/500 from our server itself).
+// OpenCorporates may be unavailable without a current entitlement. The API
+// returns a truthful empty/partial result instead of turning that into 500.
 
 describe("POST /api/registry-search", () => {
   it("endpoint is reachable and returns a JSON body", async () => {
@@ -186,9 +185,7 @@ describe("POST /api/registry-search", () => {
       body: JSON.stringify({ query: "Holdings", registry: "opencorporates", limit: 3 }),
     });
     const body = await res.json();
-    // We accept 200 (API key present) or 500 (upstream auth error) —
-    // both indicate our server handled the request, not a routing 404.
-    expect([200, 500]).toContain(res.status);
+    expect(res.status).toBe(200);
     // Either way the body must be a JSON object
     expect(typeof body).toBe("object");
     expect(body).not.toBeNull();

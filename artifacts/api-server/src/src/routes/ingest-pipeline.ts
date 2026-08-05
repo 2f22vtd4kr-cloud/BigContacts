@@ -489,7 +489,7 @@ const KNOWN_JOB_TYPES = [
   { id: "in-house-enrich",           label: "In-House OSINT Enricher",        category: "Enrichment" },
   { id: "deep-web-osint",            label: "Deep Web OSINT",                 category: "Enrichment" },
   { id: "occrp",                     label: "OCCRP Aleph Enricher",           category: "Enrichment" },
-  { id: "opensky",                   label: "OpenSky Live Flights",           category: "Enrichment" },
+  { id: "opensky",                   label: "Live ADS-B (adsb.lol + OpenSky)", category: "Enrichment" },
   { id: "ch-company-officers",       label: "CH Company Officers",            category: "Enrichment" },
   { id: "web-osint-enrich",          label: "Web OSINT Enricher",             category: "Enrichment" },
   { id: "compute-embeddings",        label: "Semantic Embeddings",            category: "Analysis" },

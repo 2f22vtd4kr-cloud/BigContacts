@@ -2,7 +2,7 @@
  * Live Registry Client — fetches real entity data from public OSINT registries.
  *
  * Supported registries:
- *   - OpenCorporates  (free, no key, ~50 req/day)
+ *   - OpenCorporates  (optional API access; explicit-only)
  *   - Companies House UK (free API key required: COMPANIES_HOUSE_API_KEY)
  *   - SEC EDGAR (free, no key)
  *   - GLEIF LEI Register (free, no key)
@@ -15,6 +15,7 @@
 
 import { searchGleif } from "./gleif-client";
 import { REGISTRY_COVERAGE_MATRIX } from "./registry-matrix";
+import { logger } from "./logger";
 
 export interface RegistryResult {
   name: string;
@@ -467,6 +468,26 @@ export function normalizeAresEntity(item: any): RegistryResult | null {
 }
 
 async function searchAres(query: string, limit: number): Promise<RegistryResult[]> {
+  const normalizedQuery = query.trim();
+  // ARES has a separate exact-record endpoint. Prefer it for IČO queries so
+  // a numeric identifier never gets sent through the broad name search.
+  if (/^\d{8}$/.test(normalizedQuery)) {
+    const exact = await fetch(
+      `https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty/${encodeURIComponent(normalizedQuery)}`,
+      {
+        headers: { Accept: "application/json" },
+        signal: AbortSignal.timeout(12_000),
+      },
+    );
+    if (exact.status === 404) return [];
+    if (!exact.ok) {
+      const body = await exact.text().catch(() => "");
+      throw new Error(`ARES ${exact.status}: ${body.slice(0, 200) || exact.statusText}`);
+    }
+    const result = normalizeAresEntity(await exact.json());
+    return result ? [result] : [];
+  }
+
   const resp = await fetch(
     "https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty/vyhledat",
     {
@@ -481,6 +502,11 @@ async function searchAres(query: string, limit: number): Promise<RegistryResult[
   );
   if (!resp.ok) {
     const body = await resp.text().catch(() => "");
+    if (resp.status === 400 && /příliš mnoho výsledků|too many results/i.test(body)) {
+      throw new Error(
+        "ARES query is too broad. Search with a more specific Czech company name or an 8-digit IČO.",
+      );
+    }
     throw new Error(`ARES ${resp.status}: ${body.slice(0, 200) || resp.statusText}`);
   }
   const data = (await resp.json()) as any;

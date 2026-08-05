@@ -78,7 +78,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
     // There are eleven numbered checkpoints (0 through 10). `total: 10`
     // remains the phase maximum, while the UI renders all eleven checkpoints.
     phases: [
-      "0 — Pre-run cross-references (OCCRP, OpenSky, Companies House, ownership)",
+      "0 — Pre-run cross-references (OCCRP/OFAC, live ADS-B, Companies House, ownership)",
       "1 — Discovery + full-circle entity enrichment loop",
       "2 — Identity and contact evidence",
       "3 — Metadata, notes, and registry assets",

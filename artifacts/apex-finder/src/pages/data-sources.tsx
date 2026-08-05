@@ -138,7 +138,7 @@ const SOURCES: SourceDef[] = [
   },
   {
     id: "opencorporates",
-    label: "OpenCorporates",
+    label: "OpenCorporates (optional)",
     description: "World's largest open database of companies — 200m+ companies across 140 jurisdictions.",
     kind: "enricher",
     Icon: Search,
@@ -196,7 +196,7 @@ const SOURCES: SourceDef[] = [
   },
   {
     id: "opensky",
-    label: "OpenSky Network",
+    label: "Live ADS-B (adsb.lol + OpenSky)",
     description: "Live ADS-B flight tracking — matches airborne jets against FAA-ingested aircraft to detect which private jets are flying right now.",
     kind: "enricher",
     Icon: Activity,
@@ -283,7 +283,7 @@ const SOURCES: SourceDef[] = [
     bg: "rgba(244,63,94,0.1)",
     phase: 11,
     homepage: "https://offshoreleaks.icij.org",
-    note: "No API key required. Free reconciliation API at offshoreleaks.icij.org/reconcile.",
+    note: "No API key required. Free reconciliation API at offshoreleaks.icij.org/api/v1/reconcile.",
   },
   {
     id: "openownership",
@@ -301,16 +301,16 @@ const SOURCES: SourceDef[] = [
   },
   {
     id: "whoxy-rdap",
-    label: "Whoxy Reverse WHOIS",
+    label: "RDAP + Certificate/Archive Domain Intelligence",
     description:
-      "Finds all domains registered by a known email address or registrant name — reveals corporate infrastructure, personal domains, and holding company networks. Runs automatically in in-house enrichment after email discovery.",
+      "Uses free RDAP, certificate-transparency, DNS, and archived public pages to validate domain ownership clues without treating registrar infrastructure as personal access.",
     kind: "enricher",
     Icon: AtSign,
     color: "#10B981",
     bg: "rgba(16,185,129,0.1)",
     phase: 11,
-    homepage: "https://www.whoxy.com",
-    note: "Requires WHOXY_API_KEY secret. Gracefully skipped without it.",
+    homepage: "https://rdap.org",
+    note: "Free public evidence sources run automatically. Paid reverse-WHOIS is optional and never required.",
   },
   {
     id: "equasis-vessels",
@@ -330,7 +330,7 @@ const SOURCES: SourceDef[] = [
     id: "adsb-history",
     label: "ADS-B Historical Flight Traces",
     description:
-      "Retrieves historical flight paths for known aircraft registration numbers via ADSBExchange and OpenSky historical APIs. Reveals habitual destinations, home airports, and travel patterns for private jet owners.",
+      "Retrieves historical flight traces for known aircraft registration numbers using public ADS-B history sources, with OpenSky/ADSBExchange retained only as compatibility fallbacks.",
     kind: "enricher",
     Icon: Plane,
     color: "#F59E0B",

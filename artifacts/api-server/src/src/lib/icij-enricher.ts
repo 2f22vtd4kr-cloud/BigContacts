@@ -7,7 +7,7 @@
  * and Offshore Leaks — 810,000+ offshore entities with UBOs, intermediaries,
  * and registered agents.
  *
- * API: POST https://offshoreleaks.icij.org/reconcile
+ * API: POST https://offshoreleaks.icij.org/api/v1/reconcile
  * No auth required. Free. No rate limits documented.
  *
  * Docs: https://offshoreleaks.icij.org/docs/reconciliation
@@ -15,7 +15,7 @@
 
 import { logger } from "./logger";
 
-const RECONCILE_URL = "https://offshoreleaks.icij.org/reconcile";
+const RECONCILE_URL = "https://offshoreleaks.icij.org/api/v1/reconcile";
 const ENTITY_DETAIL_URL = "https://offshoreleaks.icij.org/nodes";
 
 export interface IcijMatch {
@@ -46,18 +46,32 @@ export interface IcijEnrichResult {
   error?: string;
 }
 
-/** POST the reconciliation API with up to 5 queries at once */
+/**
+ * ICIJ reconciliation returns fuzzy suggestions as well as confirmed matches.
+ * Suggestions have match=false and must remain out of persisted evidence.
+ */
+export function isAcceptedIcijMatch(match: IcijMatch): boolean {
+  return match.match === true;
+}
+
+/** POST the current ICIJ reconciliation API with up to 5 queries at once. */
 async function reconcile(
   queries: Record<string, { query: string; type?: string; limit?: number }>
-): Promise<Record<string, { result: IcijMatch[] }>> {
+): Promise<Record<string, { result: IcijMatch[] }> | { result: IcijMatch[] }> {
   const resp = await fetch(RECONCILE_URL, {
     method: "POST",
     headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
+      "Content-Type": "application/json",
       "User-Agent": "ApexFinder-OSINT/2.0 (research@apexfinder.private)",
       "Accept": "application/json",
     },
-    body: `queries=${encodeURIComponent(JSON.stringify(queries))}`,
+    body: JSON.stringify({
+      type: "Officer",
+      queries: Object.fromEntries(Object.entries(queries).map(([key, query]) => [
+        key,
+        { query: query.query },
+      ])),
+    }),
     signal: AbortSignal.timeout(15_000),
   });
 
@@ -65,7 +79,7 @@ async function reconcile(
     throw new Error(`ICIJ reconcile HTTP ${resp.status}: ${resp.statusText}`);
   }
 
-  return resp.json() as Promise<Record<string, { result: IcijMatch[] }>>;
+  return resp.json() as Promise<Record<string, { result: IcijMatch[] }> | { result: IcijMatch[] }>;
 }
 
 /** Fetch extended node detail from the ICIJ graph */
@@ -128,7 +142,12 @@ export async function enrichWithIcij(
 
   let rawResults: Record<string, { result: IcijMatch[] }>;
   try {
-    rawResults = await reconcile(queries);
+    const response = await reconcile(queries);
+    // The current ICIJ service returns a single {result: []} object for a
+    // batch containing one query, and a keyed object for a true batch.
+    rawResults = "result" in response
+      ? { q0: response }
+      : response;
   } catch (err: any) {
     logger.warn({ err: err.message, entityName }, "[ICIJ] reconcile API error");
     return { found: false, totalMatches: 0, matches: [], sources: [], queryName, error: err.message };
@@ -139,6 +158,7 @@ export async function enrichWithIcij(
   const allMatches: IcijMatch[] = [];
   for (const key of Object.keys(queries)) {
     for (const match of rawResults[key]?.result ?? []) {
+      if (!isAcceptedIcijMatch(match)) continue;
       if (!seen.has(match.id)) {
         seen.add(match.id);
         allMatches.push(match);

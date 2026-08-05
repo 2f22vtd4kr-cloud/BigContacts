@@ -9,9 +9,9 @@
  * POST /ingest/faa               — FAA Releasable Aircraft Database
  * GET  /ingest/job/:jobId        — poll job status + log tail
  * GET  /ingest/status            — overall ingestion status
- * POST /ingest/occrp             — OCCRP Aleph enricher
+ * POST /ingest/occrp             — OCCRP Aleph + OFAC SDN enricher
  * POST /ingest/land-registry     — UK HMLR OCOD property ingestion
- * POST /ingest/opensky           — OpenSky live flight enricher
+ * POST /ingest/opensky           — live ADS-B enricher (adsb.lol + OpenSky fallback)
  *
  * Sub-routers mounted below:
  *   ingest-migrations  — sync/backfill routes (sync-faa-coordinates, reclassify, etc.)
@@ -100,15 +100,14 @@ router.post("/registry-search", async (req: Request, res: Response): Promise<voi
     }
   }));
 
-  if (allResults.length === 0 && Object.keys(sourceErrors).length === requested.length) {
-    const firstMsg = Object.values(sourceErrors)[0];
-    res.status(500).json({ error: firstMsg, sourceErrors });
-    return;
-  }
-
+  // Provider outages are research telemetry, not application failures. Return
+  // truthful empty/partial results so callers can continue with other lanes.
   res.json({
     results: allResults,
     message: `${allResults.length} result(s) from ${requested.join(", ")}.`,
+    ...(allResults.length === 0 && Object.keys(sourceErrors).length === requested.length
+      ? { unavailable: true }
+      : {}),
     ...(Object.keys(sourceErrors).length ? { sourceErrors } : {}),
   });
 });
@@ -308,7 +307,7 @@ router.post("/ingest/occrp", async (req, res): Promise<void> => {
 
   (async () => {
     try {
-      await updateJob(jobId, { status: "running", total: safeLimit, message: "OCCRP Aleph enrichment running…" });
+      await updateJob(jobId, { status: "running", total: safeLimit, message: "OCCRP Aleph + OFAC SDN enrichment running…" });
       const result = await runOccrpEnrichment({ jobId, limit: safeLimit });
       await updateJob(jobId, {
         status: "done",
@@ -317,7 +316,7 @@ router.post("/ingest/occrp", async (req, res): Promise<void> => {
         skipped: result.skipped,
         errors: result.errors,
         finishedAt: new Date().toISOString(),
-        message: `Done — ${result.inserted} entities enriched from OCCRP Aleph in ${(result.durationMs / 1000).toFixed(1)}s`,
+        message: `Done — ${result.inserted} entities enriched from OCCRP/OFAC in ${(result.durationMs / 1000).toFixed(1)}s`,
       });
     } catch (err: any) {
       logger.error({ err: err.message }, "OCCRP enrichment job failed");
@@ -327,7 +326,7 @@ router.post("/ingest/occrp", async (req, res): Promise<void> => {
 
   res.status(202).json({
     jobId,
-    message: `OCCRP Aleph enrichment started for up to ${safeLimit} entities.`,
+    message: `OCCRP/OFAC enrichment started for up to ${safeLimit} entities.`,
     pollUrl: `/api/ingest/job/${jobId}`,
   });
 });
@@ -400,7 +399,7 @@ router.post("/ingest/opensky", async (req, res): Promise<void> => {
 
   (async () => {
     try {
-      await updateJob(jobId, { status: "running", message: "Querying OpenSky live aircraft positions…" });
+      await updateJob(jobId, { status: "running", message: "Querying public live ADS-B feeds (adsb.lol + OpenSky fallback)…" });
       const result = await runOpenSkyEnrichment({ jobId });
       await updateJob(jobId, {
         status: "done",
@@ -419,9 +418,9 @@ router.post("/ingest/opensky", async (req, res): Promise<void> => {
 
   res.status(202).json({
     jobId,
-    message: "OpenSky live flight enrichment started.",
+    message: "Live ADS-B flight enrichment started.",
     pollUrl: `/api/ingest/job/${jobId}`,
-    note: "Fetches ~9000 live aircraft state vectors from opensky-network.org and matches against your aviation assets.",
+    note: "Queries the free adsb.lol feed first, then OpenSky if needed, and matches aircraft registrations against your aviation assets.",
   });
 });
 
