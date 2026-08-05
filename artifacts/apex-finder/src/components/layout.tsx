@@ -20,6 +20,7 @@ import {
   X,
 } from "lucide-react";
 import { ApiKeyHealth } from "@/components/api-key-health";
+import { WorkspaceStatus } from "@/components/workspace-status";
 
 const mainNav = [
   { name: "Overview", href: "/", icon: Crosshair },
@@ -176,6 +177,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </div>
           </div>
           <div className="ml-auto flex items-center gap-2">
+            <WorkspaceStatus />
             <ApiKeyHealth />
             <button
               onClick={() => setSidebarOpen(true)}
