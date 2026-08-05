@@ -15,6 +15,7 @@ import { useRouter } from 'expo-router';
 import { useRunResearch } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { useSelection, MctsStep, PathStep } from '@/context/SelectionContext';
+import { MobileProviderStatus } from '@/components/MobileProviderStatus';
 
 // ─── Role color helper ────────────────────────────────────────────────────────
 
@@ -184,14 +185,17 @@ export default function MctsScreen() {
             </Text>
           )}
         </View>
-        {isStreaming && <ActivityIndicator color={colors.primary} size="small" />}
-        {isComplete && (
-          <View style={[styles.completeBadge, { backgroundColor: colors.primary + '22', borderColor: colors.primary + '44' }]}>
-            <Text style={[styles.completeBadgeText, { color: colors.primary, fontFamily: 'Inter_600SemiBold' }]}>
-              DONE
-            </Text>
-          </View>
-        )}
+        <View style={styles.headerActions}>
+          <MobileProviderStatus />
+          {isStreaming && <ActivityIndicator color={colors.primary} size="small" />}
+          {isComplete && (
+            <View style={[styles.completeBadge, { backgroundColor: colors.primary + '22', borderColor: colors.primary + '44' }]}>
+              <Text style={[styles.completeBadgeText, { color: colors.primary, fontFamily: 'Inter_600SemiBold' }]}>
+                DONE
+              </Text>
+            </View>
+          )}
+        </View>
       </View>
 
       {/* Terminal area */}
@@ -318,6 +322,7 @@ export default function MctsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
 
   header: {
     paddingHorizontal: 20,

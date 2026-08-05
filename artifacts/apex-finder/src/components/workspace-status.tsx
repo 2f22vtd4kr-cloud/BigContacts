@@ -209,6 +209,8 @@ export function WorkspaceStatus() {
   const databaseDetail = !system
     ? "Database status is still loading."
     : `PostgreSQL and local Redis are ${servicesHealthy ? "healthy" : "available"}; persistent Redis capacity is ${persistentRedisHealthy}/${persistentRedisTotal || "—"} slots healthy.`;
+  const openResearchReady = system?.openResearch?.state === "ready";
+  const openResearchState = system?.openResearch?.state === "incomplete" ? "INCOMPLETE" : openResearchReady ? "READY" : "UNAVAILABLE";
 
   return (
     <div ref={rootRef} className="relative">
@@ -299,6 +301,20 @@ export function WorkspaceStatus() {
                 </span>
               </div>
               <div className="mt-1 text-[11px] leading-4 text-foreground/80">{databaseDetail}</div>
+            </div>
+            <div className="rounded-lg border border-border/60 bg-background/70 px-3 py-2.5">
+              <div className="flex items-center justify-between gap-3">
+                <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground/60">Open Research</span>
+                <span className={cn(
+                  "font-mono text-[10px] font-bold",
+                  openResearchReady ? "text-primary" : system?.openResearch?.state === "incomplete" ? "text-amber-300" : "text-muted-foreground",
+                )}>
+                  {openResearchState}
+                </span>
+              </div>
+              <div className="mt-1 text-[11px] leading-4 text-foreground/80">
+                Hugging Face model + Serper search · review-only
+              </div>
             </div>
           </div>
 

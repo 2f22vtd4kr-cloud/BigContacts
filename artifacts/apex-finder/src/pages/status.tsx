@@ -28,6 +28,13 @@ interface AIKeyStatus {
   exa:        AIKeySlot[];
 }
 
+interface OpenResearchStatus {
+  state: "ready" | "incomplete" | "unavailable";
+  huggingFace: { configured: boolean };
+  serper: { configured: boolean };
+  adapter: { available: boolean; model: string };
+}
+
 interface UpstashSlot {
   slot: number;
   status: string;
@@ -37,6 +44,7 @@ interface UpstashSlot {
 
 interface SystemStatus {
   ai: AIKeyStatus;
+  openResearch?: OpenResearchStatus;
   databases: {
     postgres:   { status: "ok" | "error"; latencyMs: number | null };
     localRedis: { status: string;         latencyMs: number | null };
@@ -57,6 +65,12 @@ const PROVIDER_LABELS: Record<keyof AIKeyStatus, string> = {
   tavily:     "Tavily",
   exa:        "Exa",
 };
+
+const OPEN_RESEARCH_LABELS = {
+  ready: "ready",
+  incomplete: "incomplete",
+  unavailable: "unavailable",
+} as const;
 
 const PROVIDER_COLORS: Record<string, string> = {
   groq:       "from-orange-500/20 border-orange-500/30",
@@ -274,6 +288,50 @@ export default function SystemStatusPage() {
         <p className="mt-2.5 font-mono text-[10px] text-muted-foreground/50">
           Hover a dot to see slot details. Temporary 429 cooldowns auto-recover after the provider's rate-limit window; configured keys are not account-credit claims.
         </p>
+      </section>
+
+      {/* Open research lane */}
+      <section>
+        <div className="mb-4 flex items-center gap-2">
+          <Wifi className="h-4 w-4 text-primary" />
+          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground">
+            Open Research Lane
+          </h2>
+          <span className={cn(
+            "ml-auto rounded-full px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider",
+            status?.openResearch?.state === "ready"
+              ? "bg-primary/15 text-primary"
+              : status?.openResearch?.state === "incomplete"
+                ? "bg-amber-500/15 text-amber-400"
+                : "bg-muted/30 text-muted-foreground",
+          )}>
+            {OPEN_RESEARCH_LABELS[status?.openResearch?.state ?? "unavailable"]}
+          </span>
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {[
+            { label: "Hugging Face model", configured: status?.openResearch?.huggingFace.configured ?? false },
+            { label: "Serper live search", configured: status?.openResearch?.serper.configured ?? false },
+          ].map((item) => (
+            <div key={item.label} className="flex items-center justify-between rounded-xl border border-border/60 bg-gradient-to-br from-primary/5 to-transparent px-4 py-3">
+              <span className="font-mono text-[11px] text-foreground">{item.label}</span>
+              <span className={cn("font-mono text-[10px] font-bold uppercase tracking-wider", item.configured ? "text-primary" : "text-muted-foreground")}>
+                {item.configured ? "configured" : "missing"}
+              </span>
+            </div>
+          ))}
+        </div>
+        <div className="mt-2 rounded-lg border border-border/50 px-4 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px]">
+            <span className="text-muted-foreground">Bounded smolagents adapter</span>
+            <span className={status?.openResearch?.adapter.available ? "text-primary" : "text-muted-foreground"}>
+              {status?.openResearch?.adapter.available ? "installed" : "unavailable"}
+            </span>
+          </div>
+          <div className="mt-1 truncate font-mono text-[9px] text-muted-foreground/55">
+            {status?.openResearch?.adapter.model ?? "Qwen/Qwen2.5-7B-Instruct"} · review-only, no direct promotion
+          </div>
+        </div>
       </section>
 
       {/* Databases */}

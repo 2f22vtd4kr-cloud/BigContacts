@@ -21,6 +21,7 @@ import {
   summarizeApiKeys,
   type AIKeySlot,
   type AIKeyStatus,
+  type OpenResearchStatus,
   type SystemStatus,
 } from "@/lib/system-status";
 
@@ -157,6 +158,26 @@ function ProviderRow({
   );
 }
 
+function OpenResearchRow({
+  label,
+  configured,
+}: {
+  label: string;
+  configured: boolean;
+}) {
+  return (
+    <div className="flex min-w-0 items-center justify-between gap-3 py-2">
+      <span className="truncate font-mono text-[10px] text-foreground">{label}</span>
+      <span className={cn(
+        "shrink-0 rounded-full px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-wider",
+        configured ? "bg-primary/15 text-primary" : "bg-muted/40 text-muted-foreground/70",
+      )}>
+        {configured ? "configured" : "missing"}
+      </span>
+    </div>
+  );
+}
+
 export function ApiKeyHealth() {
   const [status, setStatus] = useState<SystemStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -218,33 +239,54 @@ export function ApiKeyHealth() {
   const healthCopy = HEALTH_COPY[health];
   const soonestReset = getSoonestReset(status);
   const soonestResetLabel = formatResetTime(soonestReset, now);
+  const openResearch: OpenResearchStatus | undefined = status?.openResearch;
+  const openResearchReady = openResearch?.state === "ready";
+  const openResearchLabel = openResearchReady ? "ready" : openResearch?.state === "incomplete" ? "incomplete" : "unavailable";
   const icon = health === "healthy" ? ShieldCheck : health === "degraded" || health === "rate-limited" ? AlertTriangle : health === "loading" ? Loader2 : ShieldAlert;
   const HealthIcon = icon;
 
   return (
     <div ref={rootRef} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((current) => !current)}
-        aria-expanded={open}
-        aria-controls="api-key-health-panel"
-        aria-label={`${healthCopy.label}. Open API key status details.`}
-        data-testid="button-api-key-health"
-        className={cn(
-          "group flex h-9 items-center gap-2 rounded-lg border px-2.5 transition-colors sm:px-3",
-          "border-border/70 bg-background/70 hover:border-primary/40 hover:bg-muted/50",
-          health === "down" || health === "offline" ? "border-destructive/40" : "",
-        )}
-      >
-        <HealthIcon className={cn("h-3.5 w-3.5 shrink-0", healthCopy.className, health === "loading" && "animate-spin")} />
-        <span className={cn("hidden font-mono text-[10px] font-bold tracking-[0.12em] sm:inline", healthCopy.className)}>
-          {healthCopy.label}
+      <div className="flex items-center gap-1.5">
+        <button
+          type="button"
+          onClick={() => setOpen((current) => !current)}
+          aria-expanded={open}
+          aria-controls="api-key-health-panel"
+          aria-label={`${healthCopy.label}. Open API key status details.`}
+          data-testid="button-api-key-health"
+          className={cn(
+            "group flex h-9 items-center gap-2 rounded-lg border px-2.5 transition-colors sm:px-3",
+            "border-border/70 bg-background/70 hover:border-primary/40 hover:bg-muted/50",
+            health === "down" || health === "offline" ? "border-destructive/40" : "",
+          )}
+        >
+          <HealthIcon className={cn("h-3.5 w-3.5 shrink-0", healthCopy.className, health === "loading" && "animate-spin")} />
+          <span className={cn("hidden font-mono text-[10px] font-bold tracking-[0.12em] sm:inline", healthCopy.className)}>
+            {healthCopy.label}
+          </span>
+          <span className={cn("font-mono text-[10px] font-bold sm:hidden", healthCopy.className)}>
+            {health === "loading" || health === "offline" ? "WEB —" : `WEB ${summary.active}/${summary.configured}`}
+          </span>
+          <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground/70 transition-transform", open && "rotate-180")} />
+        </button>
+        <span
+          title={`Open Research: ${openResearchLabel}`}
+          aria-label={`Open Research ${openResearchLabel}`}
+          className={cn(
+            "flex h-9 items-center gap-1 rounded-lg border px-2 font-mono text-[9px] font-bold uppercase tracking-wider",
+            openResearchReady
+              ? "border-primary/25 bg-primary/5 text-primary"
+              : openResearch?.state === "incomplete"
+                ? "border-amber-500/30 bg-amber-500/5 text-amber-300"
+                : "border-border/70 bg-background/70 text-muted-foreground/70",
+          )}
+        >
+          <span className={cn("h-1.5 w-1.5 rounded-full", openResearchReady ? "bg-primary" : openResearch?.state === "incomplete" ? "bg-amber-400" : "bg-muted-foreground/50")} />
+          <span className="hidden sm:inline">OPEN</span>
+          <span>{openResearchReady ? "OK" : openResearch?.state === "incomplete" ? "!" : "—"}</span>
         </span>
-        <span className={cn("font-mono text-[10px] font-bold sm:hidden", healthCopy.className)}>
-          {health === "loading" || health === "offline" ? "WEB —" : `WEB ${summary.active}/${summary.configured}`}
-        </span>
-        <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground/70 transition-transform", open && "rotate-180")} />
-      </button>
+      </div>
 
       {open && (
         <div
@@ -304,9 +346,27 @@ export function ApiKeyHealth() {
                 API status unavailable
               </div>
             ) : (
-              AI_PROVIDERS.map((provider) => (
-                <ProviderRow key={provider} name={provider} slots={status?.ai?.[provider] ?? []} now={now} />
-              ))
+              <>
+                {AI_PROVIDERS.map((provider) => (
+                  <ProviderRow key={provider} name={provider} slots={status?.ai?.[provider] ?? []} now={now} />
+                ))}
+                <div className="mt-3 border-t border-border/60 pt-3">
+                  <div className="mb-1 flex items-center justify-between gap-3">
+                    <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground/60">Open Research lane</span>
+                    <span className={cn(
+                      "font-mono text-[9px] font-bold uppercase tracking-wider",
+                      openResearchReady ? "text-primary" : openResearch?.state === "incomplete" ? "text-amber-300" : "text-muted-foreground",
+                    )}>
+                      {openResearchLabel}
+                    </span>
+                  </div>
+                  <OpenResearchRow label="Hugging Face model" configured={Boolean(openResearch?.huggingFace.configured)} />
+                  <OpenResearchRow label="Serper live search" configured={Boolean(openResearch?.serper.configured)} />
+                  <div className="mt-1 truncate font-mono text-[9px] text-muted-foreground/55">
+                    {openResearch?.adapter.available ? `Adapter ready · ${openResearch.adapter.model}` : "Python adapter unavailable"}
+                  </div>
+                </div>
+              </>
             )}
           </div>
 

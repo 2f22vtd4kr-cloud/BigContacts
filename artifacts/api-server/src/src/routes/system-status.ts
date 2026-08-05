@@ -15,6 +15,7 @@ import { Router, type IRouter } from "express";
 import { sql }                  from "drizzle-orm";
 import { db }                   from "@workspace/db";
 import { getAIKeyStatus }       from "../lib/ai-extractor";
+import { checkPythonToolsAvailability } from "../lib/python-tools";
 import {
   getLocalRedisStatus,
   getPermanentClientStatuses,
@@ -35,6 +36,23 @@ router.get("/system/status", async (_req, res) => {
 
     // ── AI providers ──────────────────────────────────────────────────────────
     const ai = getAIKeyStatus();
+    const pythonTools = await checkPythonToolsAvailability();
+    const huggingFaceConfigured = Boolean(process.env.HF_TOKEN);
+    const serperConfigured = Boolean(process.env.SERPER_API_KEY);
+    const openResearchReady = huggingFaceConfigured && serperConfigured && pythonTools.openDeepResearch;
+    const openResearch = {
+      state: openResearchReady
+        ? "ready"
+        : huggingFaceConfigured || serperConfigured || pythonTools.openDeepResearch
+          ? "incomplete"
+          : "unavailable",
+      huggingFace: { configured: huggingFaceConfigured },
+      serper: { configured: serperConfigured },
+      adapter: {
+        available: pythonTools.openDeepResearch,
+        model: process.env.HF_DEEP_RESEARCH_MODEL || "Qwen/Qwen2.5-7B-Instruct",
+      },
+    } as const;
 
     // ── PostgreSQL ────────────────────────────────────────────────────────────
     let pgStatus: "ok" | "error" = "ok";
@@ -56,6 +74,7 @@ router.get("/system/status", async (_req, res) => {
 
     const payload = {
       ai,
+      openResearch,
       databases: {
         postgres:   { status: pgStatus, latencyMs: pgLatencyMs },
         localRedis: { ...localInfo, latencyMs: localLatencyMs },
