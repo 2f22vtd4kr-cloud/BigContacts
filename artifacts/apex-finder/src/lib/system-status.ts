@@ -61,6 +61,7 @@ export function summarizeApiKeys(status: SystemStatus | null): ApiKeySummary {
       const slots = status?.ai?.[provider] ?? [];
       for (const slot of slots) {
         summary.total += 1;
+        if (slot.state !== "missing") summary.configured += 1;
         if (slot.state === "active") summary.active += 1;
         if (slot.state === "exhausted") summary.exhausted += 1;
         if (slot.state === "missing") summary.missing += 1;
@@ -69,6 +70,15 @@ export function summarizeApiKeys(status: SystemStatus | null): ApiKeySummary {
     },
     { active: 0, exhausted: 0, missing: 0, configured: 0, total: 0 },
   );
+}
+
+export function getSoonestReset(status: SystemStatus | null): string | null {
+  const timestamps = AI_PROVIDERS.flatMap((provider) =>
+    (status?.ai?.[provider] ?? [])
+      .filter((slot) => slot.state === "exhausted" && slot.expiresAt)
+      .map((slot) => slot.expiresAt as string),
+  );
+  return timestamps.sort((a, b) => Date.parse(a) - Date.parse(b))[0] ?? null;
 }
 
 export async function fetchSystemStatus(base: string, signal?: AbortSignal): Promise<SystemStatus> {

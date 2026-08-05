@@ -17,6 +17,7 @@ import {
   AI_PROVIDERS,
   PROVIDER_LABELS,
   fetchSystemStatus,
+  getSoonestReset,
   summarizeApiKeys,
   type AIKeySlot,
   type AIKeyStatus,
@@ -26,7 +27,7 @@ import {
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const POLL_INTERVAL_MS = 15_000;
 
-type HealthState = "loading" | "healthy" | "degraded" | "down" | "offline";
+type HealthState = "loading" | "healthy" | "degraded" | "quota-exhausted" | "down" | "offline";
 
 function getHealthState(
   summary: ReturnType<typeof summarizeApiKeys>,
@@ -35,6 +36,8 @@ function getHealthState(
 ): HealthState {
   if (loading && summary.total === 0) return "loading";
   if (hasError && summary.total === 0) return "offline";
+  if (summary.configured === 0) return "down";
+  if (summary.active === 0 && summary.exhausted > 0) return "quota-exhausted";
   if (summary.active === 0) return "down";
   if (summary.exhausted > 0) return "degraded";
   return "healthy";
@@ -56,6 +59,11 @@ const HEALTH_COPY: Record<HealthState, { label: string; detail: string; classNam
     detail: "Some configured slots are rate-limited; research can continue.",
     className: "text-amber-400",
   },
+  "quota-exhausted": {
+    label: "ALL QUOTA EXHAUSTED",
+    detail: "Every configured AI key is rate-limited. OSINT will resume automatically when the earliest quota window resets.",
+    className: "text-amber-400",
+  },
   down: {
     label: "KEYS DOWN",
     detail: "No AI key slots are currently active. OSINT coverage is impaired.",
@@ -68,16 +76,46 @@ const HEALTH_COPY: Record<HealthState, { label: string; detail: string; classNam
   },
 };
 
-function SlotSummary({ slots }: { slots: AIKeySlot[] }) {
+function formatCountdown(milliseconds: number): string {
+  const seconds = Math.max(0, Math.ceil(milliseconds / 1000));
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  const remainder = seconds % 60;
+  if (minutes < 60) return `${minutes}m ${String(remainder).padStart(2, "0")}s`;
+  const hours = Math.floor(minutes / 60);
+  return `${hours}h ${String(minutes % 60).padStart(2, "0")}m`;
+}
+
+function formatResetTime(timestamp: string | null, now: number): string | null {
+  if (!timestamp) return null;
+  const remaining = Date.parse(timestamp) - now;
+  if (remaining <= 0) return "refreshing";
+  return `${formatCountdown(remaining)} · ${new Date(timestamp).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  })}`;
+}
+
+function SlotSummary({ slots, now }: { slots: AIKeySlot[]; now: number }) {
   const active = slots.filter((slot) => slot.state === "active").length;
   const exhausted = slots.filter((slot) => slot.state === "exhausted").length;
   const missing = slots.filter((slot) => slot.state === "missing").length;
+  const nextReset = slots
+    .filter((slot) => slot.state === "exhausted" && slot.expiresAt)
+    .map((slot) => slot.expiresAt as string)
+    .sort((a, b) => Date.parse(a) - Date.parse(b))[0] ?? null;
 
   return (
-    <div className="flex shrink-0 items-center gap-1.5 font-mono text-[10px]">
+    <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5 font-mono text-[10px]">
       <span className="text-primary">{active} up</span>
-      {exhausted > 0 && <span className="text-amber-400">{exhausted} limited</span>}
+      {exhausted > 0 && (
+        <span className="text-amber-400">
+          {active === 0 ? "ALL QUOTA EXHAUSTED" : `${exhausted} limited`}
+        </span>
+      )}
       {missing > 0 && <span className="text-muted-foreground/55">{missing} missing</span>}
+      {nextReset && <span className="w-full text-right text-[9px] text-amber-400/80">refresh {formatResetTime(nextReset, now)}</span>}
     </div>
   );
 }
@@ -85,9 +123,11 @@ function SlotSummary({ slots }: { slots: AIKeySlot[] }) {
 function ProviderRow({
   name,
   slots,
+  now,
 }: {
   name: keyof AIKeyStatus;
   slots: AIKeySlot[];
+  now: number;
 }) {
   const active = slots.filter((slot) => slot.state === "active").length;
   const exhausted = slots.filter((slot) => slot.state === "exhausted").length;
@@ -106,7 +146,7 @@ function ProviderRow({
         />
         <span className="truncate font-mono text-[11px] text-foreground">{PROVIDER_LABELS[name]}</span>
       </div>
-      <SlotSummary slots={slots} />
+      <SlotSummary slots={slots} now={now} />
     </div>
   );
 }
@@ -116,6 +156,7 @@ export function ApiKeyHealth() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -146,6 +187,11 @@ export function ApiKeyHealth() {
   }, []);
 
   useEffect(() => {
+    const interval = window.setInterval(() => setNow(Date.now()), 1_000);
+    return () => window.clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
     if (!open) return;
     const onPointerDown = (event: PointerEvent) => {
       if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
@@ -164,7 +210,9 @@ export function ApiKeyHealth() {
   const summary = summarizeApiKeys(status);
   const health = getHealthState(summary, Boolean(error), loading);
   const healthCopy = HEALTH_COPY[health];
-  const icon = health === "healthy" ? ShieldCheck : health === "degraded" ? AlertTriangle : health === "loading" ? Loader2 : ShieldAlert;
+  const soonestReset = getSoonestReset(status);
+  const soonestResetLabel = formatResetTime(soonestReset, now);
+  const icon = health === "healthy" ? ShieldCheck : health === "degraded" || health === "quota-exhausted" ? AlertTriangle : health === "loading" ? Loader2 : ShieldAlert;
   const HealthIcon = icon;
 
   return (
@@ -187,7 +235,7 @@ export function ApiKeyHealth() {
           {healthCopy.label}
         </span>
         <span className={cn("font-mono text-[10px] font-bold sm:hidden", healthCopy.className)}>
-          {health === "loading" || health === "offline" ? "—" : `${summary.active}/${summary.total}`}
+          {health === "loading" || health === "offline" ? "—" : `${summary.active}/${summary.configured}`}
         </span>
         <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground/70 transition-transform", open && "rotate-180")} />
       </button>
@@ -203,7 +251,7 @@ export function ApiKeyHealth() {
             <div className="flex min-w-0 items-start gap-2.5">
               <div className={cn(
                 "mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-muted/70",
-                health === "down" || health === "offline" ? "text-destructive" : health === "degraded" ? "text-amber-400" : "text-primary",
+                health === "down" || health === "offline" ? "text-destructive" : health === "degraded" || health === "quota-exhausted" ? "text-amber-400" : "text-primary",
               )}>
                 <KeyRound className="h-3.5 w-3.5" />
               </div>
@@ -216,12 +264,25 @@ export function ApiKeyHealth() {
               </div>
             </div>
             <div className="shrink-0 text-right">
-              <div className="font-mono text-xl font-bold text-foreground">{summary.active}<span className="text-muted-foreground/40">/{summary.total}</span></div>
-              <div className="font-mono text-[9px] uppercase tracking-widest text-muted-foreground/60">active slots</div>
+              <div className="font-mono text-xl font-bold text-foreground">{summary.active}<span className="text-muted-foreground/40">/{summary.configured}</span></div>
+              <div className="font-mono text-[9px] uppercase tracking-widest text-muted-foreground/60">active / configured</div>
             </div>
           </div>
 
           <div className="mt-3">
+            {health === "quota-exhausted" && soonestResetLabel && (
+              <div className="mb-3 flex items-center justify-between gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5">
+                <div className="flex min-w-0 items-center gap-2">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-400" />
+                  <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-amber-300">
+                    All configured keys are out of quota
+                  </span>
+                </div>
+                <span className="shrink-0 text-right font-mono text-[10px] text-amber-200">
+                  next refresh {soonestResetLabel}
+                </span>
+              </div>
+            )}
             {loading && !status ? (
               <div className="flex items-center gap-2 py-3 font-mono text-[11px] text-muted-foreground">
                 <RefreshCw className="h-3.5 w-3.5 animate-spin" />
@@ -234,7 +295,7 @@ export function ApiKeyHealth() {
               </div>
             ) : (
               AI_PROVIDERS.map((provider) => (
-                <ProviderRow key={provider} name={provider} slots={status?.ai?.[provider] ?? []} />
+                <ProviderRow key={provider} name={provider} slots={status?.ai?.[provider] ?? []} now={now} />
               ))
             )}
           </div>
