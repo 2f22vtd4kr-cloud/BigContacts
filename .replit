@@ -1,4 +1,4 @@
-modules = ["nodejs-24", "python-base-3.13"]
+modules = ["nodejs-24", "python-base-3.13", "postgresql-16"]
 
 [deployment]
 router = "application"
@@ -27,9 +27,6 @@ author = "agent"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "redis-server --port 6379 --save '' --appendonly no"
-
-[workflows.workflow.metadata]
-outputType = "console"
 
 [agent]
 stack = "PNPM_WORKSPACE"

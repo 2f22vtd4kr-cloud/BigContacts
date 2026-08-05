@@ -79,4 +79,4 @@
 - [Global workspace status](global-workspace-status.md) — Shared header combines live Atlas activity, infrastructure health, and provider capacity without inferring work from history
 - [Research query lanes](research-query-lanes.md) — Share compact target anchors across Phase 0 providers while assigning distinct evidence lanes; never forward raw residence text
 - [Gemini Deep Research lane](gemini-deep-research-lane.md) — Keep expensive asynchronous research explicit, target-scoped, dedicated to keys 11–13, and review-only
-- [Hugging Face OSINT proposal decision](huggingface-osint-proposal.md) — Existing smolagents/Serper is sufficient; any future HF upgrade must be benchmarked, bounded, and review-only
+- [Hugging Face OSINT proposal](huggingface-osint-proposal.md) — Keep extra HF research integrations review-only and benchmarked; do not add them to the evidence admission pipeline

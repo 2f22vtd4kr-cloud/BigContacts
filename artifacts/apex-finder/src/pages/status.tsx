@@ -290,7 +290,6 @@ export default function SystemStatusPage() {
         </p>
       </section>
 
-      {/* Open research lane */}
       <section>
         <div className="mb-4 flex items-center gap-2">
           <Wifi className="h-4 w-4 text-primary" />
