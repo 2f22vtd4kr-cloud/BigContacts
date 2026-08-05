@@ -14,3 +14,9 @@ The Replit Git activity feed can retain red-X entries for failed sync attempts e
 **Why:** The activity feed records each attempted sync independently and can make an old failed attempt look like the current branch status.
 
 **How to apply:** When the Git pane shows red-X commit entries, refresh the GitHub `main` ref and inspect the commit URL/API; do not retry or diagnose from the feed alone.
+
+Direct HTTPS pushes can still fail with “Invalid username or token” even when the remote is readable and the Replit helper can create a PR. In that case, treat the sync branch and PR as the safe handoff; do not force-push or invent a merge confirmation.
+
+**Why:** Read access to a public repository does not imply an authenticated write session, and the local GitHub connector may report `not_setup` independently of the configured remote.
+
+**How to apply:** Verify `refs/heads/main` and the sync branch with `git ls-remote`; report the PR URL and unchanged `main` hash until an authenticated merge is completed.
