@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
 import { useSelection } from '@/context/SelectionContext';
+import { MobileProviderStatus } from '@/components/MobileProviderStatus';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -122,10 +123,13 @@ export default function ConnectionsScreen() {
             </Text>
           )}
         </View>
-        <View style={[styles.countBadge, { backgroundColor: colors.primary + '18', borderColor: colors.primary + '30' }]}>
-          <Text style={[styles.countText, { color: colors.primary, fontFamily: 'Inter_700Bold' }]}>
-            {relationships.length}
-          </Text>
+        <View style={styles.headerActions}>
+          <MobileProviderStatus />
+          <View style={[styles.countBadge, { backgroundColor: colors.primary + '18', borderColor: colors.primary + '30' }]}>
+            <Text style={[styles.countText, { color: colors.primary, fontFamily: 'Inter_700Bold' }]}>
+              {relationships.length}
+            </Text>
+          </View>
         </View>
       </View>
 
@@ -173,6 +177,7 @@ export default function ConnectionsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

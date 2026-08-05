@@ -16,6 +16,7 @@ import { Feather } from '@expo/vector-icons';
 import { useListEntities } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { useSelection } from '@/context/SelectionContext';
+import { MobileProviderStatus } from '@/components/MobileProviderStatus';
 
 // ─── Score badge ──────────────────────────────────────────────────────────────
 
@@ -174,10 +175,13 @@ export default function TargetsScreen() {
             {entities ? `${entities.length} entities` : 'Classified Registry'}
           </Text>
         </View>
-        <View style={[styles.headerBadge, { backgroundColor: colors.primary + '22', borderColor: colors.primary + '44' }]}>
-          <Text style={[styles.headerBadgeText, { color: colors.primary, fontFamily: 'Inter_600SemiBold' }]}>
-            LIVE
-          </Text>
+        <View style={styles.headerActions}>
+          <MobileProviderStatus />
+          <View style={[styles.headerBadge, { backgroundColor: colors.primary + '22', borderColor: colors.primary + '44' }]}>
+            <Text style={[styles.headerBadgeText, { color: colors.primary, fontFamily: 'Inter_600SemiBold' }]}>
+              LIVE
+            </Text>
+          </View>
         </View>
       </View>
 
@@ -226,6 +230,7 @@ export default function TargetsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   loadingText: { fontSize: 13 },
 

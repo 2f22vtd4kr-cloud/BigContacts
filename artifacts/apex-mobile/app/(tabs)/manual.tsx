@@ -9,6 +9,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
+import { MobileProviderStatus } from '@/components/MobileProviderStatus';
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
 
@@ -195,7 +196,7 @@ export default function FieldManualScreen() {
         <View style={styles.headerIcon}>
           <Feather name="book-open" size={16} color="#10B981" />
         </View>
-        <View>
+        <View style={styles.headerText}>
           <Text style={[styles.headerTitle, { color: colors.foreground, fontFamily: 'Inter_700Bold' }]}>
             FIELD MANUAL
           </Text>
@@ -203,6 +204,7 @@ export default function FieldManualScreen() {
             Read top to bottom
           </Text>
         </View>
+        <MobileProviderStatus />
       </View>
 
       {/* Content */}
@@ -245,6 +247,7 @@ export default function FieldManualScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  headerText: { flex: 1 },
 
   header: {
     flexDirection: 'row',

@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { Feather } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
+import { MobileProviderStatus } from '@/components/MobileProviderStatus';
 import { useSelection, PathStep } from '@/context/SelectionContext';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -436,13 +437,16 @@ export default function ApproachScreen() {
             </Text>
           )}
         </View>
-        <View style={[styles.scorePill, { backgroundColor: colors.primary + '22', borderColor: colors.primary + '44' }]}>
-          <Text style={[styles.scoreText, { color: colors.primary, fontFamily: 'Inter_700Bold' }]}>
-            {(pathScore * 100).toFixed(0)}
-          </Text>
-          <Text style={[styles.scoreLabel, { color: colors.primary, fontFamily: 'Inter_400Regular' }]}>
-            SCORE
-          </Text>
+        <View style={styles.headerActions}>
+          <MobileProviderStatus />
+          <View style={[styles.scorePill, { backgroundColor: colors.primary + '22', borderColor: colors.primary + '44' }]}>
+            <Text style={[styles.scoreText, { color: colors.primary, fontFamily: 'Inter_700Bold' }]}>
+              {(pathScore * 100).toFixed(0)}
+            </Text>
+            <Text style={[styles.scoreLabel, { color: colors.primary, fontFamily: 'Inter_400Regular' }]}>
+              SCORE
+            </Text>
+          </View>
         </View>
       </View>
 
@@ -538,6 +542,7 @@ export default function ApproachScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   header: {
     paddingHorizontal: 20,
     paddingBottom: 10,

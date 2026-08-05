@@ -13,6 +13,13 @@ export interface AIKeyStatus {
   exa: AIKeySlot[];
 }
 
+export interface OpenResearchStatus {
+  state: "ready" | "incomplete" | "unavailable";
+  huggingFace: { configured: boolean };
+  serper: { configured: boolean };
+  adapter: { available: boolean; model: string };
+}
+
 export interface UpstashSlot {
   slot: number;
   status: string;
@@ -22,6 +29,7 @@ export interface UpstashSlot {
 
 export interface SystemStatus {
   ai: AIKeyStatus;
+  openResearch?: OpenResearchStatus;
   databases: {
     postgres: { status: "ok" | "error"; latencyMs: number | null };
     localRedis: { status: string; latencyMs: number | null };
@@ -30,6 +38,10 @@ export interface SystemStatus {
   generatedAt: string;
   cached: boolean;
   cachedAgoMs: number;
+}
+
+export function getOpenResearchState(status: SystemStatus | null): OpenResearchStatus["state"] {
+  return status?.openResearch?.state ?? "unavailable";
 }
 
 export const AI_PROVIDERS: Array<keyof AIKeyStatus> = [
