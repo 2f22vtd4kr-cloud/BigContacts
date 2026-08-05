@@ -245,6 +245,132 @@ function safeJson<T>(str: string | null | undefined, fallback: T): T {
   try { return str ? JSON.parse(str) as T : fallback; } catch { return fallback; }
 }
 
+type ReviewOnlyPersonCandidate = {
+  name: string;
+  role: string;
+  ownershipStatus: string;
+  basis: string | null;
+  sourceUrls: string[];
+  jurisdiction: string | null;
+  evidence: Array<{
+    source: string;
+    sourceUrl: string | null;
+    extractionMethod: string;
+    confidence: number;
+  }>;
+  reviewOnly: true;
+  admission: "not_an_hnwi";
+};
+
+function inferEntityJurisdiction(
+  entity: { nationality?: string | null; knownResidences?: string | null; sourceRegistries?: string | null },
+  metadata: Record<string, unknown>,
+): string | null {
+  const direct = [
+    metadata.country,
+    metadata.countryName,
+    metadata.jurisdiction,
+    entity.nationality,
+  ].find((value): value is string => typeof value === "string" && value.trim().length > 1);
+  if (direct) return direct.trim();
+
+  const context = [
+    entity.knownResidences,
+    entity.sourceRegistries,
+    typeof metadata.bizLocation === "string" ? metadata.bizLocation : null,
+    typeof metadata.entityLocation === "string" ? metadata.entityLocation : null,
+  ].filter(Boolean).join(" ").toLowerCase();
+  const jurisdictionHints: Array<[RegExp, string]> = [
+    [/\bsweden|swedish|brreg\b/, "Sweden"],
+    [/\bnorway|norwegian\b/, "Norway"],
+    [/\bunited kingdom|england|scotland|wales|companies house\b/, "United Kingdom"],
+    [/\bfrance|french\b/, "France"],
+    [/\bgermany|german\b/, "Germany"],
+    [/\bitaly|italian\b/, "Italy"],
+    [/\bspain|spanish\b/, "Spain"],
+    [/\bdenmark|danish\b/, "Denmark"],
+    [/\bfinland|finnish\b/, "Finland"],
+  ];
+  return jurisdictionHints.find(([pattern]) => pattern.test(context))?.[1] ?? null;
+}
+
+/**
+ * Turn named people found while researching an organization into a durable,
+ * review-only handoff. This deliberately does not create an entity, classify
+ * an HNWI, create a relationship, or promote a contact.
+ */
+function buildReviewOnlyPersonCandidates(
+  result: {
+    personsDiscovered?: string[];
+    ownerResolutions?: Array<Record<string, unknown>>;
+    evidence?: Array<Record<string, unknown>>;
+  },
+  jurisdiction: string | null,
+): ReviewOnlyPersonCandidate[] {
+  const byName = new Map<string, ReviewOnlyPersonCandidate>();
+  const ownerResolutions = Array.isArray(result.ownerResolutions) ? result.ownerResolutions : [];
+  const evidence = Array.isArray(result.evidence) ? result.evidence : [];
+
+  const evidenceFor = (name: string) => evidence
+    .filter((item) => {
+      const details = item.details && typeof item.details === "object"
+        ? item.details as Record<string, unknown>
+        : {};
+      return details.personName === name;
+    })
+    .slice(0, 12)
+    .map((item) => ({
+      source: typeof item.source === "string" ? item.source : "web-osint",
+      sourceUrl: typeof item.sourceUrl === "string" ? item.sourceUrl : null,
+      extractionMethod: typeof item.extractionMethod === "string" ? item.extractionMethod : "person-discovery",
+      confidence: typeof item.confidence === "number" ? item.confidence : 0,
+    }));
+
+  const add = (raw: Record<string, unknown>) => {
+    const name = typeof raw.name === "string" ? raw.name.trim() : "";
+    if (!name) return;
+    const key = name.toLocaleLowerCase();
+    const existing = byName.get(key);
+    const sourceUrls = Array.isArray(raw.sourceUrls)
+      ? raw.sourceUrls.filter((url): url is string => typeof url === "string" && /^https?:\/\//i.test(url)).slice(0, 8)
+      : [];
+    const candidate: ReviewOnlyPersonCandidate = {
+      name,
+      role: typeof raw.role === "string" && raw.role.trim() ? raw.role : "associated_person",
+      ownershipStatus: typeof raw.ownershipStatus === "string" && raw.ownershipStatus.trim()
+        ? raw.ownershipStatus
+        : "not_established",
+      basis: typeof raw.basis === "string" && raw.basis.trim() ? raw.basis.trim() : null,
+      sourceUrls: [...new Set(sourceUrls)],
+      jurisdiction,
+      evidence: evidenceFor(name),
+      reviewOnly: true,
+      admission: "not_an_hnwi",
+    };
+    if (!existing) {
+      byName.set(key, candidate);
+      return;
+    }
+    existing.sourceUrls = [...new Set([...existing.sourceUrls, ...candidate.sourceUrls])].slice(0, 8);
+    existing.evidence = [...existing.evidence, ...candidate.evidence]
+      .filter((item, index, items) => items.findIndex((other) =>
+        other.source === item.source && other.sourceUrl === item.sourceUrl,
+      ) === index)
+      .slice(0, 12);
+    if (existing.role === "associated_person" && candidate.role !== "associated_person") existing.role = candidate.role;
+    if (existing.ownershipStatus === "not_established" && candidate.ownershipStatus !== "not_established") {
+      existing.ownershipStatus = candidate.ownershipStatus;
+    }
+    if (!existing.basis && candidate.basis) existing.basis = candidate.basis;
+  };
+
+  for (const owner of ownerResolutions) add(owner);
+  for (const name of Array.isArray(result.personsDiscovered) ? result.personsDiscovered : []) {
+    add({ name });
+  }
+  return [...byName.values()].slice(0, 24);
+}
+
 /** Fetch a page of entities suitable for per-entity enrichment. */
 async function fetchEntities(opts: {
   batchSize: number;
@@ -653,6 +779,38 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
         }, id);
       },
     }).catch(() => null);
+    const aiReviewCandidates = aiResult
+      ? buildReviewOnlyPersonCandidates(
+        aiResult as any,
+        inferEntityJurisdiction(entity as any, safeJson<Record<string, unknown>>(entity.metadata, {})),
+      )
+      : [];
+    if (aiResult && (aiReviewCandidates.length > 0 || aiResult.ownershipSummary || aiResult.ownershipSources.length > 0)) {
+      // Persist named principals independently of contact discovery. A company
+      // can have useful director/operator evidence even when no personal email,
+      // phone, or social vector is found.
+      const metadata = safeJson<Record<string, unknown>>(entity.metadata, {});
+      if (aiResult.personsDiscovered.length > 0) {
+        metadata.deepWebPersonsDiscovered = [...new Set(aiResult.personsDiscovered)].slice(0, 24);
+      }
+      if (aiResult.ownerResolutions.length > 0) {
+        metadata.deepWebOwnerResolutions = aiResult.ownerResolutions.slice(0, 24);
+      }
+      if (aiResult.ownershipSummary) {
+        metadata.deepWebOwnershipSummary = aiResult.ownershipSummary;
+      }
+      if (aiResult.ownershipSources.length > 0) {
+        metadata.deepWebOwnershipSources = [...new Set(aiResult.ownershipSources)].slice(0, 8);
+      }
+      if (aiReviewCandidates.length > 0) {
+        metadata.atlasPersonCandidates = aiReviewCandidates;
+        metadata.atlasPersonCandidateCount = aiReviewCandidates.length;
+        metadata.atlasPersonCandidatesReviewOnly = true;
+      }
+      await db.update(entitiesTable)
+        .set({ metadata: JSON.stringify(metadata), updatedAt: new Date() })
+        .where(eq(entitiesTable.id, id));
+    }
     if (aiResult && (
       (aiResult.deepResearchStatus && (
         aiResult.deepResearchReport || aiResult.deepResearchCitations.length > 0
@@ -662,6 +820,13 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
       ))
     )) {
       const metadata = safeJson<Record<string, unknown>>(entity.metadata, {});
+      // Preserve the person handoff written above; this metadata write is
+      // intentionally additive because it happens after the AI result returns.
+      const existingMetadata = await db.select({ metadata: entitiesTable.metadata })
+        .from(entitiesTable)
+        .where(eq(entitiesTable.id, id))
+        .then((rows: any[]) => rows[0]?.metadata ?? entity.metadata);
+      Object.assign(metadata, safeJson<Record<string, unknown>>(existingMetadata, {}));
       metadata.geminiDeepResearch = {
         status: aiResult.deepResearchStatus,
         agent: aiResult.deepResearchAgent,
@@ -693,7 +858,7 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
       prompt: prompt.slice(0, 2200),
       inputSummary: `${entity.type} target · ${telemetryReachability.status} reachability`,
       resultSummary: aiResult
-        ? `${aiResult.sources.length} provider/source lanes · ${aiResult.queriesFired} web queries · ${aiResult.pagesScraped} pages · ${aiResult.evidence?.length ?? 0} evidence candidates`
+        ? `${aiResult.sources.length} provider/source lanes · ${aiResult.queriesFired} web queries · ${aiResult.pagesScraped} pages · ${aiResult.evidence?.length ?? 0} evidence candidates · ${aiReviewCandidates.length} named person candidates (review-only)`
         : "No usable AI/web result returned; retained review-only state",
       sources: aiResult?.sources.length ?? 0,
       evidence: aiResult?.evidence?.length ?? 0,

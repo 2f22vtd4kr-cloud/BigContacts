@@ -800,6 +800,9 @@ export default function ApexProfile() {
         const legacyPeople = Array.isArray(meta.deepWebPersonsDiscovered)
           ? meta.deepWebPersonsDiscovered
           : [];
+        const atlasPersonCandidates = Array.isArray(meta.atlasPersonCandidates)
+          ? meta.atlasPersonCandidates
+          : [];
         const summary = typeof meta.deepWebOwnershipSummary === "string"
           ? meta.deepWebOwnershipSummary
           : null;
@@ -808,6 +811,8 @@ export default function ApexProfile() {
           : [];
         const people = resolutions.length > 0
           ? resolutions
+          : atlasPersonCandidates.length > 0
+            ? atlasPersonCandidates
           : legacyPeople.map((name: string) => ({
               name,
               role: "associated_person",
@@ -873,7 +878,7 @@ export default function ApexProfile() {
               </div>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
-                {people.slice(0, 8).map((person: any, index: number) => {
+                  {people.slice(0, 8).map((person: any, index: number) => {
                   const role = String(person.role ?? "associated_person").replaceAll("_", " ");
                   const status = String(person.ownershipStatus ?? "not_established").replaceAll("_", " ");
                   const isSupported = person.ownershipStatus === "confirmed" || person.ownershipStatus === "probable";
@@ -891,7 +896,7 @@ export default function ApexProfile() {
                           "text-[9px] font-mono uppercase tracking-wider flex-shrink-0",
                           isSupported ? "text-emerald-400" : "text-muted-foreground/65",
                         )}>
-                          {status}
+                          {person.reviewOnly ? "review-only" : status}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 mt-1.5 flex-wrap">

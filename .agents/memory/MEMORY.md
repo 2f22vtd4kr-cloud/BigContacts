@@ -69,6 +69,7 @@
  - [AI research prompt contract](ai-research-prompt-contract.md) — Require target anchors, claim-level provenance, and explicit uncertainty; usernames and service hits never prove personal identity/access
  - [Atlas run monitoring](atlas-run-monitoring.md) — Track progress freshness, not only active locks; stalled provider steps must be visible and safely cancellable
 - [Atlas research handoff](atlas-research-handoff.md) — Persist real target-scoped UCT paths in manual review and never describe organization vectors as direct access
+- [Corporation-to-person handoff](corporate-person-handoff.md) — Preserve named principals from company research as linked review-only candidates even when no personal contact vector exists
   - [Provider JSON transport](provider-json-transport.md) — Normalize wrapped/HTML-escaped provider JSON before extraction while keeping strict evidence adjudication downstream
   - [Intro path candidates](intro-path-candidate.md) — At most one review-only intermediary route per target; never promote it to personal contact or outreach
 - [Phase J bounded workers](phase-j-bounded-workers.md) — Per-target external timeouts plus startup recovery for phase-j-pass prevent stale locks and hung contact-research batches
