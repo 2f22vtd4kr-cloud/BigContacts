@@ -5,7 +5,7 @@
  *
  *   SEARCH / RESEARCH (return structured answers directly):
  *   - Perplexity Sonar Pro — live web-search model; synthesises from real sources
- *   - Gemini Flash — live-probed model with Google Search grounding; different index from Perplexity
+ *   - Gemini Flash — catalog-selected model with Google Search grounding via the current Interactions API; different index from Perplexity
  *
  *   SEARCH + GROQ EXTRACTION (return raw text excerpts, Groq extracts structure):
  *   - Tavily              — AI-native search; 7 live sources per query

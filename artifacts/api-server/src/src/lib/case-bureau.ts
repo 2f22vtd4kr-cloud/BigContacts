@@ -125,6 +125,7 @@ export type DiscoveryCaseFile = {
  */
 export const GEMINI_BOSS_MODEL_PENDING = "auto-low-cost-pending";
 const GEMINI_MODELS_API = "https://generativelanguage.googleapis.com/v1beta/models";
+const GEMINI_INTERACTIONS_API = "https://generativelanguage.googleapis.com/v1beta/interactions";
 const GEMINI_KEY_NAMES = [
   "GEMINI_API_KEY",
   ...Array.from({ length: 13 }, (_, index) => `GEMINI_API_KEY_${index + 1}`),
@@ -179,11 +180,11 @@ function modelVersion(name: string): [number, number] {
 function modelRank(name: string): [number, number, number, number, string] {
   const normalized = name.toLowerCase();
   const [major, minor] = modelVersion(normalized);
-  // Flash-Lite is preferred over Flash, and both are preferred over Pro or
-  // specialized/preview models for the Boss's broad first-pass work.
-  const family = normalized.includes("flash-lite")
+  // Prefer the current full Flash family for the Interactions API, then
+  // Flash-Lite, and keep both ahead of Pro or specialized models.
+  const family = normalized.includes("flash") && !normalized.includes("flash-lite")
     ? 0
-    : normalized.includes("flash")
+    : normalized.includes("flash-lite")
       ? 1
       : 2;
   const lifecycle = normalized.includes("preview") || normalized.includes("experimental") ? 1 : 0;
@@ -206,15 +207,9 @@ function chooseGeminiModelCandidates(entries: GeminiModelCatalogEntry[]): string
     .filter((name) => /^gemini-\d+(?:\.\d+)?-flash(?:-preview)?$/i.test(name))
     .filter((name) => !/embedding|aqa|robotics|image|tts|deep-research|latest|001/i.test(name))
     .sort((left, right) => {
-      // Prefer the currently usable concrete Flash preview before newer
-      // catalog entries that may be visible but unavailable to this project.
-      const preferred = (name: string) => name.toLowerCase() === "gemini-3-flash-preview" ? 0 : 1;
-      const aPreferred = preferred(left);
-      const bPreferred = preferred(right);
-      if (aPreferred !== bPreferred) return aPreferred - bPreferred;
       const a = modelRank(left);
       const b = modelRank(right);
-      return b[3] - a[3] || a[4].localeCompare(b[4]);
+      return a[0] - b[0] || a[2] - b[2] || b[3] - a[3] || a[4].localeCompare(b[4]);
     });
 }
 
@@ -325,6 +320,43 @@ function parseBossDiscoveryResponse(raw: string): {
   }
 }
 
+type GeminiInteractionResponse = {
+  status?: string;
+  steps?: Array<{
+    type?: string;
+    content?: Array<{
+      type?: string;
+      text?: string;
+      annotations?: Array<{
+        type?: string;
+        url?: string;
+      }>;
+    }>;
+  }>;
+};
+
+function extractGeminiInteractionOutput(payload: GeminiInteractionResponse): {
+  text: string;
+  citations: string[];
+} {
+  const outputBlocks = (payload.steps ?? [])
+    .filter((step) => step.type === "model_output")
+    .flatMap((step) => step.content ?? [])
+    .filter((block) => block.type === "text" && typeof block.text === "string");
+  const text = outputBlocks
+    .map((block) => block.text!.trim())
+    .filter(Boolean)
+    .join("\n")
+    .trim();
+  const citations = outputBlocks
+    .flatMap((block) => block.annotations ?? [])
+    .filter((annotation) => annotation.type === "url_citation" && typeof annotation.url === "string")
+    .map((annotation) => annotation.url!)
+    .filter((url, index, values) => values.indexOf(url) === index)
+    .slice(0, 40);
+  return { text, citations };
+}
+
 /**
  * Opening Boss request for a discovery case. This is deliberately separate
  * from target-scoped extraction: the mission is the subject, Google grounding
@@ -382,19 +414,12 @@ Candidates are review-only. Never invent a name, wealth claim, relationship, con
   for (const model of models) {
     for (const key of requestKeys) {
       try {
-        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
-      const requestBody = {
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        tools: [{ google_search: {} }],
-        generationConfig: {
-          temperature: 0.1,
-          // Keep this contract identical to the already-running Gemini
-          // grounded-search lane. Some projects reject JSON MIME mode when
-          // Google Search grounding is enabled, even though the model catalog
-          // advertises generateContent support.
-          maxOutputTokens: 2000,
-        },
-      };
+        const endpoint = GEMINI_INTERACTIONS_API;
+        const requestBody = {
+          model,
+          input: prompt,
+          tools: [{ type: "google_search" }],
+        };
       const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json", "x-goog-api-key": key },
@@ -423,30 +448,21 @@ Candidates are review-only. Never invent a name, wealth claim, relationship, con
         }
       }
       if (!response.ok) continue;
-      const payload = await response.json() as {
-        candidates?: Array<{
-          content?: { parts?: Array<{ text?: string }> };
-          groundingMetadata?: { groundingChunks?: Array<{ web?: { uri?: string } }> };
-        }>;
-      };
-      const candidate = payload.candidates?.[0];
-      const raw = candidate?.content?.parts?.map((part) => part.text ?? "").join("\n").trim() ?? "";
+      const payload = await response.json() as GeminiInteractionResponse;
+      const output = extractGeminiInteractionOutput(payload);
+      const raw = output.text;
       if (!raw) {
         lastProviderError = "Gemini returned no text for the preliminary Boss request.";
         logger.warn({ model: selection.model }, "Case Bureau Boss opening returned no text");
         continue;
       }
       const parsed = parseBossDiscoveryResponse(raw);
-      const citations = (candidate?.groundingMetadata?.groundingChunks ?? [])
-        .map((chunk) => chunk.web?.uri)
-        .filter((url): url is string => typeof url === "string" && /^https?:\/\//i.test(url))
-        .slice(0, 40);
       return {
         status: "completed",
         model,
         report: parsed.report || raw,
         candidates: parsed.candidates,
-        citations,
+        citations: output.citations,
         error: null,
       };
       } catch (error) {
