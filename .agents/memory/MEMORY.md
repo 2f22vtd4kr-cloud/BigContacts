@@ -89,3 +89,5 @@
 - [Yield widening](yield-widening.md) — Expand bounded discovery and handoff before adjudication; measure useful yield without loosening promotion gates
 - [Campione benchmark](benchmark-campione.md) — First controlled comparison showed focused official-domain research beat Atlas on useful yield for an Italian casino entity
 - [Adaptive research director](adaptive-research-director.md) — Bounded target-scoped action selection now re-plans from evidence gaps while preserving exact-page and fail-closed publication gates
+- [Case Bureau architecture](case-bureau.md) — Discovery-first cases become target investigations only after broad Boss review and human-safe evidence gates
+- [Gemini Boss quota behavior](gemini-boss-quota.md) — Model catalog resolution can succeed while every generation key returns quota 429; fail closed before mixed-source discovery

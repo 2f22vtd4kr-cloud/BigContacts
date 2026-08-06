@@ -416,7 +416,7 @@ function LiveResearchConsole({
                     )}
                   </div>
                 )}
-                {!telemetry.toolIds?.length && telemetry.personaNames?.length > 0 && (
+                {!telemetry.toolIds?.length && (telemetry.personaNames?.length ?? 0) > 0 && (
                   <div className="rounded-lg border border-violet-400/25 bg-violet-400/[0.06] px-2.5 py-2">
                     <div className="mb-1 flex items-center gap-1.5 text-[8px] uppercase tracking-[0.16em] text-violet-300">
                       <Users className="h-3 w-3" />

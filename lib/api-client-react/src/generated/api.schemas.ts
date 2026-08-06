@@ -276,6 +276,78 @@ export interface ResearchRunEvent {
   createdAt: string;
 }
 
+export interface ResearchCaseInput {
+  entityId: number;
+  objective?: string;
+  motivation?: string;
+  directorModel?: string;
+}
+
+export interface BureauDiscoveryInput {
+  /** @minLength 1 */
+  objective: string;
+  /** @minLength 1 */
+  motivation: string;
+  geography?: string;
+  exclusions?: string[];
+}
+
+export interface BureauInitialResearchInput {
+  /** @minLength 1 */
+  researchResponse: string;
+  bossCommentary?: string;
+  sourceUrls?: string[];
+}
+
+export interface BureauPromoteTargetInput {
+  entityId: number;
+}
+
+export interface ResearchCaseDirectiveInput {
+  /** @minLength 1 */
+  directive: string;
+}
+
+export interface ResearchCase {
+  id: number;
+  /** @nullable */
+  targetEntityId: number | null;
+  caseType?: string;
+  /** @nullable */
+  targetEntityName?: string | null;
+  /** @nullable */
+  targetEntityType?: string | null;
+  status: string;
+  directorMode: string;
+  directorProvider?: string;
+  directorModel?: string;
+  objective: string;
+  motivation: string;
+  openingPrompt?: string;
+  caseFile: string;
+  /** @nullable */
+  currentAction?: string | null;
+  iteration: number;
+  /** @nullable */
+  lastDecisionAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type BureauCase = ResearchCase;
+
+export interface ResearchCaseEvent {
+  id: number;
+  caseId: number;
+  iteration: number;
+  actorRole: string;
+  eventType: string;
+  status: string;
+  summary: string;
+  payload: string;
+  createdAt: string;
+}
+
 export interface ResearchRunInput {
   entityId: number;
   depth?: number;
@@ -552,6 +624,10 @@ entityId?: number;
 export type ListResearchSessionsParams = {
 entityId?: number;
 status?: string;
+limit?: number;
+};
+
+export type ListResearchCaseEventsParams = {
 limit?: number;
 };
 

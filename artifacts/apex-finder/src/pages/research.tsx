@@ -122,6 +122,101 @@ type IntroPathCandidate = {
   warnings: string[];
 };
 
+type BureauSpecialist = {
+  id: string;
+  title: string;
+  mission: string;
+  tools: string[];
+  status: "ready" | "waiting_for_key";
+};
+
+type BureauAction = {
+  id: string;
+  title: string;
+  purpose: string;
+  specialistId: string;
+  tools: string[];
+  priority: number;
+  status: "queued" | "active" | "complete" | "review";
+  rationale: string;
+};
+
+type BureauContactRoute = {
+  rank: number;
+  tier: string;
+  tierLabel: string;
+  value: string;
+  vectorType: string;
+  personName: string | null;
+  role: string | null;
+  relationship: string | null;
+  score: number;
+  state: string;
+  sourceUrls: string[];
+  sourceDomains: string[];
+  rationale: string;
+  humanReview: "use_judgment";
+};
+
+type BureauCaseFile = {
+  specialistRoster: BureauSpecialist[];
+  actionQueue: BureauAction[];
+  contactRoutes: BureauContactRoute[];
+  humanDirectives: string[];
+  decisionLog: Array<{ iteration: number; decision: string; reason: string; createdAt: string }>;
+  nextBestAction: BureauAction | null;
+  evidenceSummary: {
+    sourceRegistries: string[];
+    discoveredPeople: string[];
+    relatedOrganizations: string[];
+    evidenceCount: number;
+    searchGaps: string[];
+    negativeFindings: string[];
+  };
+};
+
+type BureauCase = {
+  id: number;
+  targetEntityId: number | null;
+  caseType?: string;
+  targetEntityName: string | null;
+  targetEntityType: string | null;
+  status: string;
+  directorMode: string;
+  directorProvider?: string;
+  directorModel: string;
+  objective: string;
+  motivation: string;
+  openingPrompt?: string;
+  caseFile: string;
+  currentAction: string | null;
+  iteration: number;
+  lastDecisionAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type DiscoveryCaseFile = {
+  caseType: "discovery";
+  humanBrief: {
+    geography: string;
+    exclusions: string[];
+  };
+  bossPremise: string;
+  initialAction: {
+    title: string;
+    purpose: string;
+    status: string;
+  };
+  initialResearch: {
+    status: string;
+    researchResponse: string | null;
+    bossCommentary: string | null;
+    sourceUrls: string[];
+    recordedAt: string | null;
+  };
+};
+
 const HYBRID_PIPELINE = "L1: BM25+Semantic+Graph · L2: Planner→Retriever→Analyst→Critic · L3: QueryExpansion · L4: UCT(120 rollouts) · L5: Bayesian-UCB";
 
 function roleIcon(role: string) {
@@ -148,6 +243,445 @@ function getActionColor(action: string) {
   if (action === "GATEKEEPER LOCKED") return "text-primary font-bold";
   if (action === "TARGET IDENTIFIED") return "text-amber-500";
   return "text-secondary";
+}
+
+function parseBureauCaseFile(value: string | null | undefined): BureauCaseFile | null {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(value) as BureauCaseFile;
+    return parsed && Array.isArray(parsed.actionQueue) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function parseDiscoveryCaseFile(value: string | null | undefined): DiscoveryCaseFile | null {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(value) as DiscoveryCaseFile;
+    return parsed?.caseType === "discovery" ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function sourceDomain(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return "source";
+  }
+}
+
+function BureauCasePanel({
+  entityId,
+  bureauCase,
+  onCaseChange,
+}: {
+  entityId: number | null;
+  bureauCase: BureauCase | null;
+  onCaseChange: (next: BureauCase | null) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [directive, setDirective] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const file = parseBureauCaseFile(bureauCase?.caseFile);
+
+  useEffect(() => {
+    if (!entityId) {
+      onCaseChange(null);
+      return;
+    }
+    let active = true;
+    setError(null);
+    fetch(`/api/research/cases/${entityId}`, { cache: "no-store" })
+      .then(async (response) => {
+        if (response.status === 404) return null;
+        if (!response.ok) throw new Error("Unable to load the bureau case");
+        return response.json() as Promise<BureauCase>;
+      })
+      .then((next) => {
+        if (active) onCaseChange(next);
+      })
+      .catch((reason: unknown) => {
+        if (active) setError(reason instanceof Error ? reason.message : "Unable to load the bureau case");
+      });
+    return () => {
+      active = false;
+    };
+  }, [entityId, onCaseChange]);
+
+  const request = async (url: string, body?: unknown) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: body ? { "Content-Type": "application/json" } : undefined,
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(payload?.error ?? "Bureau request failed");
+      onCaseChange(payload as BureauCase);
+      return true;
+    } catch (reason: unknown) {
+      setError(reason instanceof Error ? reason.message : "Bureau request failed");
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!entityId) return null;
+  if (!bureauCase) {
+    return (
+      <div className="border-t border-border/50 bg-[#080C14] px-4 md:px-5 py-4 flex-shrink-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h3 className="text-xs font-mono text-primary uppercase tracking-widest">Head Investigator Case</h3>
+            <p className="text-[11px] text-muted-foreground mt-1">Open a living target case to coordinate specialist investigators and rank every contact route.</p>
+          </div>
+          <button
+            disabled={busy}
+            onClick={() => void request("/api/research/cases", { entityId })}
+            className="inline-flex items-center justify-center gap-2 rounded border border-primary/50 bg-primary/15 px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-primary hover:bg-primary/25 disabled:opacity-50"
+          >
+            <Play className="w-3 h-3" /> {busy ? "Opening…" : "Open bureau case"}
+          </button>
+        </div>
+        {error && <div className="mt-2 text-[10px] text-rose-300">{error}</div>}
+      </div>
+    );
+  }
+
+  const nextAction = file?.nextBestAction;
+  const roster = file?.specialistRoster ?? [];
+  const routes = file?.contactRoutes ?? [];
+  const activeSpecialist = roster.find((specialist) => specialist.id === nextAction?.specialistId);
+
+  return (
+    <div className="border-t border-border/50 bg-[#080C14] px-4 md:px-5 py-4 flex-shrink-0">
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div>
+          <h3 className="text-xs font-mono text-primary uppercase tracking-widest flex items-center gap-2">
+            <Cpu className="w-3.5 h-3.5" /> Head Investigator Case
+          </h3>
+          <p className="text-[11px] text-muted-foreground mt-1 max-w-3xl">{bureauCase.objective}</p>
+        </div>
+        <span className="text-[10px] font-mono text-muted-foreground whitespace-nowrap">
+          iteration {bureauCase.iteration} · {bureauCase.status}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-3">
+        <div className="rounded border border-primary/25 bg-primary/5 p-3">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[10px] uppercase tracking-wider font-mono text-primary">Next best investigation action</span>
+            <button
+              disabled={busy}
+              onClick={() => void request(`/api/research/cases/${entityId}/advance`)}
+              className="inline-flex items-center gap-1 rounded border border-primary/40 px-2 py-1 text-[10px] font-mono text-primary hover:bg-primary/15 disabled:opacity-50"
+            >
+              <ChevronRight className="w-3 h-3" /> {busy ? "Thinking…" : "Advance case"}
+            </button>
+          </div>
+          {nextAction ? (
+            <>
+              <div className="text-sm font-semibold text-foreground mt-2">{nextAction.title}</div>
+              <div className="text-[11px] text-muted-foreground mt-1 leading-relaxed">{nextAction.purpose}</div>
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                <span className="rounded border border-border/60 px-1.5 py-0.5 text-[9px] font-mono text-amber-300">
+                  {activeSpecialist?.title ?? nextAction.specialistId}
+                </span>
+                {nextAction.tools.slice(0, 5).map((tool) => (
+                  <span key={tool} className="rounded border border-border/60 px-1.5 py-0.5 text-[9px] font-mono text-muted-foreground">{tool}</span>
+                ))}
+              </div>
+              <div className="text-[10px] text-muted-foreground/80 mt-2">Why now: {nextAction.rationale}</div>
+            </>
+          ) : (
+            <div className="text-xs text-muted-foreground mt-2">No queued action. Add a directive or connect the model-backed director.</div>
+          )}
+        </div>
+
+        <div className="rounded border border-border/60 bg-background/30 p-3">
+          <div className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground">Bureau roster</div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 mt-2">
+            {roster.map((specialist) => (
+              <div key={specialist.id} className="rounded border border-border/50 bg-card/30 px-2 py-1.5">
+                <div className="flex items-center gap-1.5">
+                  <span className={cn("h-1.5 w-1.5 rounded-full", specialist.status === "ready" ? "bg-emerald-400" : "bg-amber-400")} />
+                  <span className="text-[10px] font-mono text-foreground">{specialist.title}</span>
+                </div>
+                <div className="text-[9px] text-muted-foreground mt-1 leading-snug">{specialist.mission}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-3 rounded border border-border/60 bg-background/25 p-3">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[10px] uppercase tracking-wider font-mono text-amber-300">Human operator directive</span>
+          <span className="text-[9px] font-mono text-muted-foreground">stored in case context</span>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-2 mt-2">
+          <input
+            value={directive}
+            onChange={(event) => setDirective(event.target.value)}
+            placeholder="e.g. prioritise the target's hotel, gym, yacht club, and named associates"
+            className="flex-1 rounded border border-border bg-background px-2.5 py-2 text-xs text-foreground outline-none focus:border-primary/60"
+          />
+          <button
+            disabled={busy || !directive.trim()}
+            onClick={async () => {
+              const sent = await request(`/api/research/cases/${entityId}/directive`, { directive: directive.trim() });
+              if (sent) setDirective("");
+            }}
+            className="inline-flex items-center justify-center gap-1 rounded border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-amber-300 hover:bg-amber-400/20 disabled:opacity-50"
+          >
+            <CheckCircle2 className="w-3 h-3" /> Add directive
+          </button>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2 mt-3 text-[10px] font-mono text-muted-foreground">
+        <span className="rounded border border-border/60 px-2 py-1">people: {file?.evidenceSummary.discoveredPeople.length ?? 0}</span>
+        <span className="rounded border border-border/60 px-2 py-1">organizations: {file?.evidenceSummary.relatedOrganizations.length ?? 0}</span>
+        <span className="rounded border border-border/60 px-2 py-1">contact routes: {routes.length}</span>
+        <span className="rounded border border-border/60 px-2 py-1">evidence signals: {file?.evidenceSummary.evidenceCount ?? 0}</span>
+      </div>
+      {routes.length > 0 && (
+        <div className="mt-3">
+          <div className="text-[10px] uppercase tracking-wider font-mono text-primary mb-2">Contact hierarchy from the case file</div>
+          <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
+            {routes.slice(0, 12).map((route) => (
+              <div key={`${route.rank}-${route.value}`} className="rounded border border-border/50 bg-background/30 px-2.5 py-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[10px] font-mono text-amber-300">#{route.rank}</span>
+                  <span className="text-[10px] uppercase tracking-wider text-primary">{route.tierLabel}</span>
+                  <span className="text-xs text-foreground break-all">{route.value}</span>
+                  <span className="text-[10px] font-mono text-muted-foreground ml-auto">{route.score}/100 · human review</span>
+                </div>
+                <div className="text-[10px] text-muted-foreground mt-1">
+                  {route.personName ?? "No named person"}{route.role ? ` · ${route.role}` : ""} · {route.rationale}
+                </div>
+                {route.sourceUrls.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {route.sourceUrls.slice(0, 2).map((url) => (
+                      <a key={url} href={url} target="_blank" rel="noreferrer" className="text-[9px] text-primary hover:underline">{sourceDomain(url)}</a>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {error && <div className="mt-2 text-[10px] text-rose-300">{error}</div>}
+    </div>
+  );
+}
+
+function DiscoveryBureauPanel({
+  discoveryCase,
+  entities,
+  onCaseChange,
+  onPromote,
+}: {
+  discoveryCase: BureauCase | null;
+  entities: Array<{ id: number; name: string; type?: string }> | undefined;
+  onCaseChange: (next: BureauCase | null) => void;
+  onPromote: (entityId: number) => void;
+}) {
+  const [objective, setObjective] = useState("");
+  const [motivation, setMotivation] = useState("");
+  const [geography, setGeography] = useState("Western countries, prioritizing realistic regional and professional access over fame.");
+  const [researchResponse, setResearchResponse] = useState("");
+  const [bossCommentary, setBossCommentary] = useState("");
+  const [sourceUrls, setSourceUrls] = useState("");
+  const [promotionEntityId, setPromotionEntityId] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const file = parseDiscoveryCaseFile(discoveryCase?.caseFile);
+
+  const request = async (url: string, body: unknown) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(payload?.error ?? "Discovery bureau request failed");
+      onCaseChange(payload as BureauCase);
+      return true;
+    } catch (reason: unknown) {
+      setError(reason instanceof Error ? reason.message : "Discovery bureau request failed");
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!discoveryCase) {
+    return (
+      <div className="border-b border-primary/20 bg-[#080C14] p-4 md:p-5 flex-shrink-0">
+        <div className="flex items-start gap-3">
+          <div className="rounded border border-primary/30 bg-primary/10 p-2">
+            <Cpu className="w-5 h-5 text-primary" />
+          </div>
+          <div>
+            <div className="text-[10px] font-mono text-primary uppercase tracking-[0.18em]">Discovery-first Investigation Bureau</div>
+            <h2 className="text-base md:text-lg font-semibold text-foreground mt-1">Start with the mission, not a preselected target</h2>
+            <p className="text-[11px] text-muted-foreground mt-1 max-w-3xl leading-relaxed">
+              The Boss will turn your broad objective into the opening public-web research brief. When Gemini keys are available, the server inspects that key's model catalog and selects the lowest-cost suitable model; until then the choice remains automatic and pending.
+            </p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mt-4">
+          <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">
+            Human mission
+            <textarea
+              value={objective}
+              onChange={(event) => setObjective(event.target.value)}
+              placeholder="Find realistic potential investors for my startup in the Western world..."
+              className="mt-1 w-full min-h-24 rounded border border-border bg-background px-3 py-2 text-xs normal-case tracking-normal text-foreground outline-none focus:border-primary/60"
+            />
+          </label>
+          <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">
+            Why this matters
+            <textarea
+              value={motivation}
+              onChange={(event) => setMotivation(event.target.value)}
+              placeholder="I invested my time and money and need practical routes to real investor conversations..."
+              className="mt-1 w-full min-h-24 rounded border border-border bg-background px-3 py-2 text-xs normal-case tracking-normal text-foreground outline-none focus:border-primary/60"
+            />
+          </label>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-2 mt-3">
+          <input
+            value={geography}
+            onChange={(event) => setGeography(event.target.value)}
+            className="flex-1 rounded border border-border bg-background px-3 py-2 text-xs text-foreground outline-none focus:border-primary/60"
+            placeholder="Geography and access preference"
+          />
+          <button
+            disabled={busy || !objective.trim() || !motivation.trim()}
+            onClick={() => void request("/api/research/bureau/cases", { objective, motivation, geography })}
+            className="inline-flex items-center justify-center gap-2 rounded border border-primary/50 bg-primary/15 px-4 py-2 text-[10px] font-mono uppercase tracking-wider text-primary hover:bg-primary/25 disabled:opacity-50"
+          >
+            <Play className="w-3 h-3" /> {busy ? "Writing brief…" : "Open Boss case"}
+          </button>
+        </div>
+        {error && <div className="mt-2 text-[10px] text-rose-300">{error}</div>}
+      </div>
+    );
+  }
+
+  return (
+    <div className="border-b border-primary/20 bg-[#080C14] p-4 md:p-5 flex-shrink-0">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="text-[10px] font-mono text-primary uppercase tracking-[0.18em]">Boss discovery case #{discoveryCase.id}</div>
+          <h2 className="text-base font-semibold text-foreground mt-1">Gemini Boss opening brief</h2>
+          <p className="text-[11px] text-muted-foreground mt-1 max-w-3xl">{file?.bossPremise}</p>
+        </div>
+        <div className="text-right text-[10px] font-mono text-muted-foreground">
+          <div className="text-amber-300">{discoveryCase.directorModel === "auto-low-cost-pending" ? "AUTO · LOWEST AVAILABLE" : discoveryCase.directorModel}</div>
+          <div>{discoveryCase.directorMode.replaceAll("_", " ")} · {file?.initialResearch.status ?? "not started"}</div>
+        </div>
+      </div>
+      <details className="mt-3 rounded border border-border/60 bg-background/25">
+        <summary className="cursor-pointer px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-primary">View Boss opening prompt</summary>
+        <pre className="max-h-72 overflow-auto whitespace-pre-wrap border-t border-border/50 px-3 py-3 text-[10px] leading-relaxed text-muted-foreground">{discoveryCase.openingPrompt}</pre>
+      </details>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mt-3">
+        <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">
+          Broad web research response
+          <textarea
+            value={researchResponse}
+            onChange={(event) => setResearchResponse(event.target.value)}
+            placeholder="Paste or receive the first Gemini / Google-style discovery response here..."
+            className="mt-1 w-full min-h-28 rounded border border-border bg-background px-3 py-2 text-xs normal-case tracking-normal text-foreground outline-none focus:border-primary/60"
+          />
+        </label>
+        <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">
+          Boss review and next direction
+          <textarea
+            value={bossCommentary}
+            onChange={(event) => setBossCommentary(event.target.value)}
+            placeholder="What did the Boss accept, reject, or prioritize from the initial response?"
+            className="mt-1 w-full min-h-28 rounded border border-border bg-background px-3 py-2 text-xs normal-case tracking-normal text-foreground outline-none focus:border-primary/60"
+          />
+        </label>
+      </div>
+      <div className="flex flex-col sm:flex-row gap-2 mt-3">
+        <input
+          value={sourceUrls}
+          onChange={(event) => setSourceUrls(event.target.value)}
+          placeholder="Source URLs, separated by commas"
+          className="flex-1 rounded border border-border bg-background px-3 py-2 text-xs text-foreground outline-none focus:border-primary/60"
+        />
+        <button
+          disabled={busy || !researchResponse.trim()}
+          onClick={async () => {
+            const saved = await request(`/api/research/bureau/cases/${discoveryCase.id}/initial-research`, {
+              researchResponse,
+              bossCommentary,
+              sourceUrls: sourceUrls.split(",").map((url) => url.trim()).filter(Boolean),
+            });
+            if (saved) {
+              setResearchResponse("");
+              setBossCommentary("");
+              setSourceUrls("");
+            }
+          }}
+          className="inline-flex items-center justify-center gap-2 rounded border border-amber-400/40 bg-amber-400/10 px-4 py-2 text-[10px] font-mono uppercase tracking-wider text-amber-300 hover:bg-amber-400/20 disabled:opacity-50"
+        >
+          <CheckCircle2 className="w-3 h-3" /> {busy ? "Recording…" : "Write into case context"}
+        </button>
+      </div>
+      <div className="mt-3 rounded border border-emerald-400/20 bg-emerald-400/5 p-3">
+        <div className="flex flex-col lg:flex-row lg:items-center gap-2">
+          <div className="flex-1">
+            <div className="text-[10px] uppercase tracking-wider font-mono text-emerald-300">Reviewed candidate handoff</div>
+            <div className="text-[10px] text-muted-foreground mt-1">
+              Only promote an existing entity after the broad response has passed identity, attribution, provenance, and practical-reachability review.
+            </div>
+          </div>
+          <select
+            value={promotionEntityId}
+            onChange={(event) => setPromotionEntityId(event.target.value)}
+            className="min-w-0 lg:w-72 rounded border border-border bg-background px-2.5 py-2 text-xs text-foreground outline-none focus:border-emerald-400/60"
+          >
+            <option value="">Select reviewed entity…</option>
+            {(entities ?? []).map((entity) => (
+              <option key={entity.id} value={entity.id}>{entity.name} · {entity.type ?? "Unknown"}</option>
+            ))}
+          </select>
+          <button
+            disabled={busy || !promotionEntityId}
+            onClick={async () => {
+              const promoted = await request(`/api/research/bureau/cases/${discoveryCase.id}/promote-target`, {
+                entityId: Number(promotionEntityId),
+              });
+              if (promoted) {
+                onPromote(Number(promotionEntityId));
+                setPromotionEntityId("");
+              }
+            }}
+            className="inline-flex items-center justify-center gap-2 rounded border border-emerald-400/40 bg-emerald-400/10 px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-emerald-300 hover:bg-emerald-400/20 disabled:opacity-50"
+          >
+            <ChevronRight className="w-3 h-3" /> Promote to target case
+          </button>
+        </div>
+      </div>
+      {error && <div className="mt-2 text-[10px] text-rose-300">{error}</div>}
+    </div>
+  );
 }
 
 function EvidenceLedger({ sessionId }: { sessionId: number | null }) {
@@ -491,6 +1025,8 @@ export default function IntelTerminal() {
   const [candidateFunnel, setCandidateFunnel] = useState<CandidateFunnel | null>(null);
   const [routeHierarchy, setRouteHierarchy] = useState<RankedResearchRoute[] | null>(null);
   const [introPathCandidate, setIntroPathCandidate] = useState<IntroPathCandidate | null>(null);
+  const [bureauCase, setBureauCase] = useState<BureauCase | null>(null);
+  const [discoveryCase, setDiscoveryCase] = useState<BureauCase | null>(null);
   const logEndRef = useRef<HTMLDivElement | null>(null);
 
   // Mobile entity picker state
@@ -502,6 +1038,7 @@ export default function IntelTerminal() {
       setIntroPathCandidate(null);
       setCandidateFunnel(null);
       setRouteHierarchy(null);
+      setBureauCase(null);
       return;
     }
     let active = true;
@@ -538,6 +1075,25 @@ export default function IntelTerminal() {
       active = false;
     };
   }, [selectedEntityId]);
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/research/bureau/cases/latest", { cache: "no-store" })
+      .then(async (response) => {
+        if (response.status === 404) return null;
+        if (!response.ok) throw new Error("Unable to load the discovery bureau");
+        return response.json() as Promise<BureauCase>;
+      })
+      .then((next) => {
+        if (active && next) setDiscoveryCase(next);
+      })
+      .catch(() => {
+        // An empty discovery desk is a valid first-run state.
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const startAnalysis = () => {
     if (!selectedEntityId) return;
@@ -827,6 +1383,16 @@ export default function IntelTerminal() {
           <div ref={(el) => { logEndRef.current = el; }} />
         </div>
 
+        <DiscoveryBureauPanel
+          discoveryCase={discoveryCase}
+          entities={entities}
+          onCaseChange={setDiscoveryCase}
+          onPromote={(entityId) => {
+            setDiscoveryCase(null);
+            setSelectedEntityId(entityId);
+          }}
+        />
+
         {/* ── Algorithm Pipeline Summary ── */}
         {algorithmPipeline && !isComputing && (
           <div className="border-t border-border/50 bg-[#080C14] px-4 md:px-5 py-3 flex-shrink-0 animate-in slide-in-from-bottom-4">
@@ -846,6 +1412,13 @@ export default function IntelTerminal() {
               ))}
             </div>
           </div>
+        )}
+        {!isComputing && (
+          <BureauCasePanel
+            entityId={selectedEntityId}
+            bureauCase={bureauCase}
+            onCaseChange={setBureauCase}
+          />
         )}
         {!isComputing && <Scorecard score={scorecard} />}
         {!isComputing && <CandidateFunnelPanel funnel={candidateFunnel} />}

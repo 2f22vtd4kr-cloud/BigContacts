@@ -23,6 +23,10 @@ import type {
   Asset,
   AssetInput,
   AssetUpdate,
+  BureauCase,
+  BureauDiscoveryInput,
+  BureauInitialResearchInput,
+  BureauPromoteTargetInput,
   ConnectionPath,
   DashboardStats,
   Entity,
@@ -45,10 +49,15 @@ import type {
   ListImprovementLogs200,
   ListImprovementLogsParams,
   ListRelationshipsParams,
+  ListResearchCaseEventsParams,
   ListResearchSessionsParams,
   MapAsset,
   Relationship,
   RelationshipInput,
+  ResearchCase,
+  ResearchCaseDirectiveInput,
+  ResearchCaseEvent,
+  ResearchCaseInput,
   ResearchEvidence,
   ResearchRunEvent,
   ResearchRunInput,
@@ -1455,6 +1464,755 @@ export function useListResearchRunAudit<TData = Awaited<ReturnType<typeof listRe
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListResearchRunAuditQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getOpenResearchCaseUrl = () => {
+
+
+
+
+  return `/api/research/cases`
+}
+
+/**
+ * @summary Open or resume the target-scoped bureau case
+ */
+export const openResearchCase = async (researchCaseInput: ResearchCaseInput, options?: RequestInit): Promise<ResearchCase> => {
+
+  return customFetch<ResearchCase>(getOpenResearchCaseUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(researchCaseInput)
+  }
+);}
+
+
+
+
+
+export const getOpenResearchCaseMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof openResearchCase>>, TError,{data: BodyType<ResearchCaseInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof openResearchCase>>, TError,{data: BodyType<ResearchCaseInput>}, TContext> => {
+
+const mutationKey = ['openResearchCase'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof openResearchCase>>, {data: BodyType<ResearchCaseInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  openResearchCase(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type OpenResearchCaseMutationResult = NonNullable<Awaited<ReturnType<typeof openResearchCase>>>
+    export type OpenResearchCaseMutationBody = BodyType<ResearchCaseInput>
+    export type OpenResearchCaseMutationError = ErrorType<void>
+
+    /**
+ * @summary Open or resume the target-scoped bureau case
+ */
+export const useOpenResearchCase = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof openResearchCase>>, TError,{data: BodyType<ResearchCaseInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof openResearchCase>>,
+        TError,
+        {data: BodyType<ResearchCaseInput>},
+        TContext
+      > => {
+      return useMutation(getOpenResearchCaseMutationOptions(options));
+    }
+
+export const getOpenBureauDiscoveryCaseUrl = () => {
+
+
+
+
+  return `/api/research/bureau/cases`
+}
+
+/**
+ * @summary Open a discovery-first investigation and write the Boss opening brief
+ */
+export const openBureauDiscoveryCase = async (bureauDiscoveryInput: BureauDiscoveryInput, options?: RequestInit): Promise<BureauCase> => {
+
+  return customFetch<BureauCase>(getOpenBureauDiscoveryCaseUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(bureauDiscoveryInput)
+  }
+);}
+
+
+
+
+
+export const getOpenBureauDiscoveryCaseMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof openBureauDiscoveryCase>>, TError,{data: BodyType<BureauDiscoveryInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof openBureauDiscoveryCase>>, TError,{data: BodyType<BureauDiscoveryInput>}, TContext> => {
+
+const mutationKey = ['openBureauDiscoveryCase'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof openBureauDiscoveryCase>>, {data: BodyType<BureauDiscoveryInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  openBureauDiscoveryCase(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type OpenBureauDiscoveryCaseMutationResult = NonNullable<Awaited<ReturnType<typeof openBureauDiscoveryCase>>>
+    export type OpenBureauDiscoveryCaseMutationBody = BodyType<BureauDiscoveryInput>
+    export type OpenBureauDiscoveryCaseMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Open a discovery-first investigation and write the Boss opening brief
+ */
+export const useOpenBureauDiscoveryCase = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof openBureauDiscoveryCase>>, TError,{data: BodyType<BureauDiscoveryInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof openBureauDiscoveryCase>>,
+        TError,
+        {data: BodyType<BureauDiscoveryInput>},
+        TContext
+      > => {
+      return useMutation(getOpenBureauDiscoveryCaseMutationOptions(options));
+    }
+
+export const getGetLatestBureauDiscoveryCaseUrl = () => {
+
+
+
+
+  return `/api/research/bureau/cases/latest`
+}
+
+/**
+ * @summary Get the latest discovery-first bureau case
+ */
+export const getLatestBureauDiscoveryCase = async ( options?: RequestInit): Promise<BureauCase> => {
+
+  return customFetch<BureauCase>(getGetLatestBureauDiscoveryCaseUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetLatestBureauDiscoveryCaseQueryKey = () => {
+    return [
+    `/api/research/bureau/cases/latest`
+    ] as const;
+    }
+
+
+export const getGetLatestBureauDiscoveryCaseQueryOptions = <TData = Awaited<ReturnType<typeof getLatestBureauDiscoveryCase>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLatestBureauDiscoveryCase>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetLatestBureauDiscoveryCaseQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getLatestBureauDiscoveryCase>>> = ({ signal }) => getLatestBureauDiscoveryCase({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getLatestBureauDiscoveryCase>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetLatestBureauDiscoveryCaseQueryResult = NonNullable<Awaited<ReturnType<typeof getLatestBureauDiscoveryCase>>>
+export type GetLatestBureauDiscoveryCaseQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get the latest discovery-first bureau case
+ */
+
+export function useGetLatestBureauDiscoveryCase<TData = Awaited<ReturnType<typeof getLatestBureauDiscoveryCase>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLatestBureauDiscoveryCase>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetLatestBureauDiscoveryCaseQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetBureauCaseUrl = (caseId: number,) => {
+
+
+
+
+  return `/api/research/bureau/cases/${caseId}`
+}
+
+/**
+ * @summary Get a discovery or target bureau case
+ */
+export const getBureauCase = async (caseId: number, options?: RequestInit): Promise<BureauCase> => {
+
+  return customFetch<BureauCase>(getGetBureauCaseUrl(caseId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBureauCaseQueryKey = (caseId: number,) => {
+    return [
+    `/api/research/bureau/cases/${caseId}`
+    ] as const;
+    }
+
+
+export const getGetBureauCaseQueryOptions = <TData = Awaited<ReturnType<typeof getBureauCase>>, TError = ErrorType<void>>(caseId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBureauCase>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBureauCaseQueryKey(caseId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBureauCase>>> = ({ signal }) => getBureauCase(caseId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: caseId !== null && caseId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBureauCase>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBureauCaseQueryResult = NonNullable<Awaited<ReturnType<typeof getBureauCase>>>
+export type GetBureauCaseQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get a discovery or target bureau case
+ */
+
+export function useGetBureauCase<TData = Awaited<ReturnType<typeof getBureauCase>>, TError = ErrorType<void>>(
+ caseId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBureauCase>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBureauCaseQueryOptions(caseId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRecordBureauInitialResearchUrl = (caseId: number,) => {
+
+
+
+
+  return `/api/research/bureau/cases/${caseId}/initial-research`
+}
+
+/**
+ * @summary Store the broad web response and Boss commentary in the case context
+ */
+export const recordBureauInitialResearch = async (caseId: number,
+    bureauInitialResearchInput: BureauInitialResearchInput, options?: RequestInit): Promise<BureauCase> => {
+
+  return customFetch<BureauCase>(getRecordBureauInitialResearchUrl(caseId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(bureauInitialResearchInput)
+  }
+);}
+
+
+
+
+
+export const getRecordBureauInitialResearchMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordBureauInitialResearch>>, TError,{caseId: number;data: BodyType<BureauInitialResearchInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordBureauInitialResearch>>, TError,{caseId: number;data: BodyType<BureauInitialResearchInput>}, TContext> => {
+
+const mutationKey = ['recordBureauInitialResearch'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordBureauInitialResearch>>, {caseId: number;data: BodyType<BureauInitialResearchInput>}> = (props) => {
+          const {caseId,data} = props ?? {};
+
+          return  recordBureauInitialResearch(caseId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordBureauInitialResearchMutationResult = NonNullable<Awaited<ReturnType<typeof recordBureauInitialResearch>>>
+    export type RecordBureauInitialResearchMutationBody = BodyType<BureauInitialResearchInput>
+    export type RecordBureauInitialResearchMutationError = ErrorType<void>
+
+    /**
+ * @summary Store the broad web response and Boss commentary in the case context
+ */
+export const useRecordBureauInitialResearch = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordBureauInitialResearch>>, TError,{caseId: number;data: BodyType<BureauInitialResearchInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof recordBureauInitialResearch>>,
+        TError,
+        {caseId: number;data: BodyType<BureauInitialResearchInput>},
+        TContext
+      > => {
+      return useMutation(getRecordBureauInitialResearchMutationOptions(options));
+    }
+
+export const getPromoteBureauCaseTargetUrl = (caseId: number,) => {
+
+
+
+
+  return `/api/research/bureau/cases/${caseId}/promote-target`
+}
+
+/**
+ * @summary Attach an existing validated entity to a discovery case
+ */
+export const promoteBureauCaseTarget = async (caseId: number,
+    bureauPromoteTargetInput: BureauPromoteTargetInput, options?: RequestInit): Promise<BureauCase> => {
+
+  return customFetch<BureauCase>(getPromoteBureauCaseTargetUrl(caseId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(bureauPromoteTargetInput)
+  }
+);}
+
+
+
+
+
+export const getPromoteBureauCaseTargetMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof promoteBureauCaseTarget>>, TError,{caseId: number;data: BodyType<BureauPromoteTargetInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof promoteBureauCaseTarget>>, TError,{caseId: number;data: BodyType<BureauPromoteTargetInput>}, TContext> => {
+
+const mutationKey = ['promoteBureauCaseTarget'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof promoteBureauCaseTarget>>, {caseId: number;data: BodyType<BureauPromoteTargetInput>}> = (props) => {
+          const {caseId,data} = props ?? {};
+
+          return  promoteBureauCaseTarget(caseId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PromoteBureauCaseTargetMutationResult = NonNullable<Awaited<ReturnType<typeof promoteBureauCaseTarget>>>
+    export type PromoteBureauCaseTargetMutationBody = BodyType<BureauPromoteTargetInput>
+    export type PromoteBureauCaseTargetMutationError = ErrorType<void>
+
+    /**
+ * @summary Attach an existing validated entity to a discovery case
+ */
+export const usePromoteBureauCaseTarget = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof promoteBureauCaseTarget>>, TError,{caseId: number;data: BodyType<BureauPromoteTargetInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof promoteBureauCaseTarget>>,
+        TError,
+        {caseId: number;data: BodyType<BureauPromoteTargetInput>},
+        TContext
+      > => {
+      return useMutation(getPromoteBureauCaseTargetMutationOptions(options));
+    }
+
+export const getGetResearchCaseUrl = (entityId: number,) => {
+
+
+
+
+  return `/api/research/cases/${entityId}`
+}
+
+/**
+ * @summary Get the living case file for a target
+ */
+export const getResearchCase = async (entityId: number, options?: RequestInit): Promise<ResearchCase> => {
+
+  return customFetch<ResearchCase>(getGetResearchCaseUrl(entityId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetResearchCaseQueryKey = (entityId: number,) => {
+    return [
+    `/api/research/cases/${entityId}`
+    ] as const;
+    }
+
+
+export const getGetResearchCaseQueryOptions = <TData = Awaited<ReturnType<typeof getResearchCase>>, TError = ErrorType<void>>(entityId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getResearchCase>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetResearchCaseQueryKey(entityId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getResearchCase>>> = ({ signal }) => getResearchCase(entityId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: entityId !== null && entityId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getResearchCase>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetResearchCaseQueryResult = NonNullable<Awaited<ReturnType<typeof getResearchCase>>>
+export type GetResearchCaseQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get the living case file for a target
+ */
+
+export function useGetResearchCase<TData = Awaited<ReturnType<typeof getResearchCase>>, TError = ErrorType<void>>(
+ entityId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getResearchCase>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetResearchCaseQueryOptions(entityId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAdvanceResearchCaseUrl = (entityId: number,) => {
+
+
+
+
+  return `/api/research/cases/${entityId}/advance`
+}
+
+/**
+ * @summary Let the Head Investigator select the next bounded action
+ */
+export const advanceResearchCase = async (entityId: number, options?: RequestInit): Promise<ResearchCase> => {
+
+  return customFetch<ResearchCase>(getAdvanceResearchCaseUrl(entityId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getAdvanceResearchCaseMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof advanceResearchCase>>, TError,{entityId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof advanceResearchCase>>, TError,{entityId: number}, TContext> => {
+
+const mutationKey = ['advanceResearchCase'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof advanceResearchCase>>, {entityId: number}> = (props) => {
+          const {entityId} = props ?? {};
+
+          return  advanceResearchCase(entityId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdvanceResearchCaseMutationResult = NonNullable<Awaited<ReturnType<typeof advanceResearchCase>>>
+
+    export type AdvanceResearchCaseMutationError = ErrorType<void>
+
+    /**
+ * @summary Let the Head Investigator select the next bounded action
+ */
+export const useAdvanceResearchCase = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof advanceResearchCase>>, TError,{entityId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof advanceResearchCase>>,
+        TError,
+        {entityId: number},
+        TContext
+      > => {
+      return useMutation(getAdvanceResearchCaseMutationOptions(options));
+    }
+
+export const getAddResearchCaseDirectiveUrl = (entityId: number,) => {
+
+
+
+
+  return `/api/research/cases/${entityId}/directive`
+}
+
+/**
+ * @summary Add a human operator directive to the living case
+ */
+export const addResearchCaseDirective = async (entityId: number,
+    researchCaseDirectiveInput: ResearchCaseDirectiveInput, options?: RequestInit): Promise<ResearchCase> => {
+
+  return customFetch<ResearchCase>(getAddResearchCaseDirectiveUrl(entityId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(researchCaseDirectiveInput)
+  }
+);}
+
+
+
+
+
+export const getAddResearchCaseDirectiveMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addResearchCaseDirective>>, TError,{entityId: number;data: BodyType<ResearchCaseDirectiveInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addResearchCaseDirective>>, TError,{entityId: number;data: BodyType<ResearchCaseDirectiveInput>}, TContext> => {
+
+const mutationKey = ['addResearchCaseDirective'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addResearchCaseDirective>>, {entityId: number;data: BodyType<ResearchCaseDirectiveInput>}> = (props) => {
+          const {entityId,data} = props ?? {};
+
+          return  addResearchCaseDirective(entityId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddResearchCaseDirectiveMutationResult = NonNullable<Awaited<ReturnType<typeof addResearchCaseDirective>>>
+    export type AddResearchCaseDirectiveMutationBody = BodyType<ResearchCaseDirectiveInput>
+    export type AddResearchCaseDirectiveMutationError = ErrorType<void>
+
+    /**
+ * @summary Add a human operator directive to the living case
+ */
+export const useAddResearchCaseDirective = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addResearchCaseDirective>>, TError,{entityId: number;data: BodyType<ResearchCaseDirectiveInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof addResearchCaseDirective>>,
+        TError,
+        {entityId: number;data: BodyType<ResearchCaseDirectiveInput>},
+        TContext
+      > => {
+      return useMutation(getAddResearchCaseDirectiveMutationOptions(options));
+    }
+
+export const getListResearchCaseEventsUrl = (entityId: number,
+    params?: ListResearchCaseEventsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/research/cases/${entityId}/events?${stringifiedParams}` : `/api/research/cases/${entityId}/events`
+}
+
+/**
+ * @summary List the case decision and investigation history
+ */
+export const listResearchCaseEvents = async (entityId: number,
+    params?: ListResearchCaseEventsParams, options?: RequestInit): Promise<ResearchCaseEvent[]> => {
+
+  return customFetch<ResearchCaseEvent[]>(getListResearchCaseEventsUrl(entityId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListResearchCaseEventsQueryKey = (entityId: number,
+    params?: ListResearchCaseEventsParams,) => {
+    return [
+    `/api/research/cases/${entityId}/events`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListResearchCaseEventsQueryOptions = <TData = Awaited<ReturnType<typeof listResearchCaseEvents>>, TError = ErrorType<void>>(entityId: number,
+    params?: ListResearchCaseEventsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listResearchCaseEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListResearchCaseEventsQueryKey(entityId,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listResearchCaseEvents>>> = ({ signal }) => listResearchCaseEvents(entityId,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: entityId !== null && entityId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listResearchCaseEvents>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListResearchCaseEventsQueryResult = NonNullable<Awaited<ReturnType<typeof listResearchCaseEvents>>>
+export type ListResearchCaseEventsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List the case decision and investigation history
+ */
+
+export function useListResearchCaseEvents<TData = Awaited<ReturnType<typeof listResearchCaseEvents>>, TError = ErrorType<void>>(
+ entityId: number,
+    params?: ListResearchCaseEventsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listResearchCaseEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListResearchCaseEventsQueryOptions(entityId,params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
