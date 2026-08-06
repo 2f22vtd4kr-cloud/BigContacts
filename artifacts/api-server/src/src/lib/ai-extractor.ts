@@ -465,7 +465,7 @@ Rules:
 - email/phone: prefer the primary business/venue contact (reservations@, contact@, info@)
 - phone: must have ≥7 digits; include country code when present
 - instagram/twitter (top level): the venue or org account (handle matches the business name)
-- ownerResolutions: max 8 people; full name required (at least First + Last)
+- ownerResolutions: max 12 people; full name required (at least First + Last)
   * instagram/twitter in ownerResolutions: their PERSONAL handles (not the venue account)
     e.g. if text says "Christophe Caucino (@christoph_cau)" → instagram: "https://instagram.com/christoph_cau"
   * linkedin in ownerContacts: /in/ profiles only (not /company/)
@@ -679,9 +679,9 @@ function parseAIResponse(raw: string, source: AIExtractResult["source"]): AIExtr
       ),
       instagram:     sanitizePublicSocialUrl(normIG(parsed["instagram"]), "instagram", "person"),
       twitter:       sanitizePublicSocialUrl(normTW(parsed["twitter"]), "twitter", "person"),
-      owners:        owners.slice(0, 5),
-      ownerContacts: ownerContacts.slice(0, 5),
-      ownerResolutions: ownerResolutions.slice(0, 8),
+      owners:        owners.slice(0, 12),
+      ownerContacts: ownerContacts.slice(0, 12),
+      ownerResolutions: ownerResolutions.slice(0, 16),
       ownershipSummary: clean(parsed["ownershipSummary"]),
       ownershipSources: Array.isArray(parsed["sources"])
         ? parsed["sources"]
@@ -1035,7 +1035,7 @@ Return ONLY this JSON — no preamble:
 }
 
 Hard requirements:
-- Return up to 8 sector/strategy heads.
+- Return up to 12 sector/strategy heads.
 - Do NOT repeat names already in the executive committee (CEO/Co-CEO/Chairman/President).
 - Never construct or infer direct emails from a verified or guessed pattern.
 `;
@@ -1061,7 +1061,7 @@ export async function researchWithPerplexity(
     label: string,
   ): AIExtractResult | null {
     const raw: string = data?.choices?.[0]?.message?.content ?? "";
-    const citations: string[] = Array.isArray(data?.citations) ? data.citations.slice(0, 8) : [];
+    const citations: string[] = Array.isArray(data?.citations) ? data.citations.slice(0, 12) : [];
     logger.info({ entityName, rawLen: raw.length, citations: citations.length, label }, "Phase 0: Perplexity raw response received");
 
     const jsonObject = extractJsonObject(raw);
@@ -1082,7 +1082,7 @@ export async function researchWithPerplexity(
     );
     return {
       ...parsed, citations,
-      ownershipSources: citations.slice(0, 8),
+      ownershipSources: citations.slice(0, 12),
       ownerResolutions: bindResolutionsToCitations(parsed, citations),
     };
   }
@@ -1295,7 +1295,7 @@ export async function researchWithGemini(
       const citations: string[] = chunks
         .map((c: any) => c?.web?.uri)
         .filter((u: unknown): u is string => typeof u === "string" && /^https?:\/\//i.test(u))
-        .slice(0, 8);
+        .slice(0, 12);
 
       logger.info(
         { entityName, rawLen: raw.length, citations: citations.length },
@@ -1322,7 +1322,7 @@ export async function researchWithGemini(
       return {
         ...parsed,
         citations,
-        ownershipSources: citations.slice(0, 8),
+        ownershipSources: citations.slice(0, 12),
         ownerResolutions: bindResolutionsToCitations(parsed, citations),
       };
     } catch (err: any) {
@@ -1592,7 +1592,7 @@ export async function researchWithTavily(
       const citations: string[] = (data.results ?? [])
         .map(r => r.url)
         .filter((u): u is string => typeof u === "string" && /^https?:\/\//i.test(u))
-        .slice(0, 8);
+        .slice(0, 12);
 
       // Combine Tavily's synthesised answer + top per-source excerpts
       const textParts: string[] = [];
@@ -1627,7 +1627,7 @@ export async function researchWithTavily(
         ...extracted,
         source: "tavily",
         citations,
-        ownershipSources: citations.slice(0, 8),
+        ownershipSources: citations.slice(0, 12),
         ownerResolutions: bindResolutionsToCitations(extracted, citations),
       };
     } catch (err: any) {
@@ -1702,11 +1702,11 @@ export async function researchWithExa(
       const citations: string[] = (data.results ?? [])
         .map(r => r.url)
         .filter((u): u is string => typeof u === "string" && /^https?:\/\//i.test(u))
-        .slice(0, 8);
+        .slice(0, 12);
 
       // Concatenate per-source excerpts — Exa returns page text, not a synthesised answer
       const textParts: string[] = [];
-      for (const r of (data.results ?? []).slice(0, 7)) {
+      for (const r of (data.results ?? []).slice(0, 10)) {
         if (r.text) textParts.push(`[${r.title ?? r.url}]\n${r.text}`);
       }
       const text = textParts.join("\n\n");
@@ -1735,7 +1735,7 @@ export async function researchWithExa(
         ...extracted,
         source: "exa",
         citations,
-        ownershipSources: citations.slice(0, 8),
+        ownershipSources: citations.slice(0, 12),
         ownerResolutions: bindResolutionsToCitations(extracted, citations),
       };
     } catch (err: any) {

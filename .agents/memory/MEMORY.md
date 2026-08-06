@@ -86,3 +86,4 @@
 - [Operator page fetch boundary](operator-page-fetch-boundary.md) — Large official pages can hide team records in embedded JSON; retain a larger bounded HTML window and segment person attribution
 - [Manual research honesty](manual-research-honesty.md) — Distinguish ad hoc web investigation from a completed Atlas evidence pipeline; disclose unrun lanes and unresolved claims
 - [Source coverage status](source-coverage-status.md) — Preserve lane-specific success, blocked pages, unavailable providers, negative findings, and search gaps
+- [Yield widening](yield-widening.md) — Expand bounded discovery and handoff before adjudication; measure useful yield without loosening promotion gates

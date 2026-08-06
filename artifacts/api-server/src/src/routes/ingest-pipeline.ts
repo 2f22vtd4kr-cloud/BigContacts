@@ -230,6 +230,7 @@ router.post("/ingest/deep-web-osint", async (req: Request, res: Response): Promi
         meta["deepWebLaneStatus"] = result.laneStatus;
         meta["deepWebNegativeFindings"] = result.negativeFindings;
         meta["deepWebSearchGaps"] = result.searchGaps;
+        meta["deepWebYieldMetrics"] = result.yieldMetrics;
         if (result.emailConfidence) meta["deepWebEmailConf"] = result.emailConfidence;
         if (result.phoneConfidence) meta["deepWebPhoneConf"] = result.phoneConfidence;
         // Store discovered person names as review-only candidates — never auto-merged

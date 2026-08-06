@@ -124,4 +124,11 @@ describe("AI response safety helpers", () => {
     expect(prompt).toContain("Target subject kind: brand");
     expect(prompt).toContain("Venice Simplon-Orient-Express / Belmond is a separate related subject");
   });
+
+  it("requests a broad named-person set without relaxing evidence requirements", () => {
+    const prompt = buildPerplexityPrompt("Example Holdings", "Corporation", "US");
+    expect(prompt).toContain("Return up to 12 named HUMAN individuals");
+    expect(prompt).toContain("Never construct or infer direct individual emails");
+    expect(prompt).toContain("sourceUrls and sources: only real URLs from your search");
+  });
 });

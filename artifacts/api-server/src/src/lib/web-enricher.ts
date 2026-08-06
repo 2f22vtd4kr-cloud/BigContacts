@@ -593,6 +593,17 @@ export interface DeepWebOsintResult {
   negativeFindings: string[];
   searchGaps: string[];
   laneStatus: Record<AIResearchLane, ResearchCoverageStatus>;
+  yieldMetrics: {
+    queriesFired: number;
+    pagesScraped: number;
+    evidenceRows: number;
+    peopleDiscovered: number;
+    ownerResolutions: number;
+    candidateRoutes: number;
+    verifiedDirectRoutes: number;
+    reviewRoutes: number;
+    sourceDomains: number;
+  };
 }
 
 export interface DeepWebEvidence {
@@ -1273,7 +1284,7 @@ function extractPersonCandidates(text: string): string[] {
       found.add(name);
     }
   }
-  return [...found].slice(0, 5); // max 5 person candidates per entity
+  return [...found].slice(0, 12); // broad discovery; promotion remains fail-closed
 }
 
 /**
@@ -1353,7 +1364,7 @@ async function extractPersonCandidatesAsync(text: string, targetAnchors: string[
       const nerCandidates = glinerResults
         .map(r => r.name.trim())
         .filter(isAdmissible);
-      return [...new Set([...regexCandidates, ...nerCandidates])].slice(0, 5);
+      return [...new Set([...regexCandidates, ...nerCandidates])].slice(0, 12);
     }
   } catch { /* fall through to regex */ }
   // Regex fallback
@@ -1808,7 +1819,7 @@ async function findContactPages(domain: string, isCorp = false): Promise<{
   // Corp cap raised — we want all team pages, not just the first email.
   // 16 paths × 10s max each = 160s worst case (acceptable for VC/Corp research).
   const cap = isCorp ? 16 : 12;
-  const resultCap = isCorp ? 8 : 4;
+  const resultCap = isCorp ? 14 : 6;
   const candidates = paths.slice(0, cap).map(path => `https://${domain}${path}`);
   const seen = new Set<string>();
   const results: Array<{ url: string; scraped: ScrapedPage }> = [];
@@ -2015,7 +2026,7 @@ export function buildDeepWebQueries(
     // Structure and operator queries must run before generic contact queries.
     // The first ten searches are the useful research plan, not an arbitrary
     // provider-shaped sample.
-    queries: [...new Set(queries)].slice(0, 14),
+    queries: [...new Set(queries)].slice(0, 20),
     domainTargets: [...new Set(domainTargets)],
   };
 }
@@ -2081,6 +2092,17 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       people_press: "unavailable",
       contact_routes: "unavailable",
       semantic_discovery: "unavailable",
+    },
+    yieldMetrics: {
+      queriesFired: 0,
+      pagesScraped: 0,
+      evidenceRows: 0,
+      peopleDiscovered: 0,
+      ownerResolutions: 0,
+      candidateRoutes: 0,
+      verifiedDirectRoutes: 0,
+      reviewRoutes: 0,
+      sourceDomains: 0,
     },
   };
 
@@ -3034,7 +3056,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
 
   // ── Phase 2: Qwant for French entities (much better French coverage) ───
   const qwantQueries = isFrench
-    ? queries.filter(q => q.includes(trading) || (city && q.includes(city))).slice(0, 3)
+    ? queries.filter(q => q.includes(trading) || (city && q.includes(city))).slice(0, 5)
     : [];
   for (let i = 0; i < qwantQueries.length; i++) {
     const query = qwantQueries[i]!;
@@ -3053,7 +3075,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   // linkedin queries far more reliably than DDG for company page discovery).
   const bingQueries = queries.filter(q =>
     q.includes("email") || q.includes("contact") || q.includes("réservations") || q.includes("linkedin")
-  ).slice(0, 3);
+  ).slice(0, 5);
   for (let i = 0; i < bingQueries.length; i++) {
     const query = bingQueries[i]!;
     const label = `Bing[q${i + 1}]`;
@@ -3091,7 +3113,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       result.personsDiscovered.push(...persons);
       logger.info({ entityId: entity.id, persons }, "Corp→Person hop: discovered person candidates");
 
-      for (const personName of persons.slice(0, 3)) {
+      for (const personName of persons.slice(0, 8)) {
         const label = `PersonHop[${personName.split(" ")[0]}]`;
 
         // Primary: contact/LinkedIn search. These results remain review-only:
@@ -3252,7 +3274,12 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     // vector filter. Some official team pages expose names but no root-level
     // email/social vector, and those pages are the authoritative handoff.
     const knownOperatorPaths = [
+      "/team",
       "/our-team",
+      "/people",
+      "/partners",
+      "/leadership",
+      "/management",
       "/contact",
       "/board-of-directors",
       "/investment-committee",
@@ -3350,7 +3377,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
               ? roleLinkedPersons
               : discoveredOperatorPersons,
         ),
-      ].slice(0, 8);
+      ].slice(0, 16);
       for (const personName of operatorPersons) {
         if (!result.personsDiscovered.includes(personName)) {
           result.personsDiscovered.push(personName);
@@ -3517,14 +3544,15 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   // Fire targeted Perplexity sonar calls on those persons — this closes the
   // Gemini gap: find a name → immediately ask Perplexity about that person
   // in context of the entity → get personal contacts/social handles.
-  // Cap at 2 persons and 1 extra domain scrape to control credit spend.
+  // Keep the discovery fan-out bounded, but do not discard the majority of
+  // named operator/owner candidates before exact-page adjudication.
   {
     const alreadyQueriedNames = new Set(
       result.ownerResolutions.map(o => o.name.toLowerCase()),
     );
     const followUpPersons = result.personsDiscovered
       .filter(n => looksLikePersonName(n) && !alreadyQueriedNames.has(n.toLowerCase()))
-      .slice(0, 2);
+      .slice(0, 6);
 
     const alreadyScrapedUrls = new Set<string>([...urlsToScrape]);
 
@@ -3720,7 +3748,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     }
 
     // ── Phase 7.6: Scrape new URLs surfaced by follow-up Perplexity ────────
-    const newScrapeUrls = [...urlsToScrape].filter(u => !alreadyScrapedUrls.has(u)).slice(0, 3);
+    const newScrapeUrls = [...urlsToScrape].filter(u => !alreadyScrapedUrls.has(u)).slice(0, 10);
     for (const url of newScrapeUrls) {
       try {
         const scraped = await scrapePage(url);
@@ -3789,10 +3817,10 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
           if (seenClaimUrls.has(url)) continue;
           seenClaimUrls.add(url);
           claimUrls.push(url);
-          if (claimUrls.length >= 6) break;
+          if (claimUrls.length >= 12) break;
         } catch { /* ignore malformed provider citations */ }
       }
-      if (claimUrls.length >= 6) break;
+      if (claimUrls.length >= 12) break;
     }
 
     for (const url of claimUrls) {
@@ -3999,6 +4027,22 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     ),
   );
   result.routeHierarchy = buildRouteHierarchy(result.evidence, result.candidateFunnel);
+  result.yieldMetrics = {
+    queriesFired: result.queriesFired,
+    pagesScraped: result.pagesScraped,
+    evidenceRows: result.evidence.length,
+    peopleDiscovered: result.personsDiscovered.length,
+    ownerResolutions: result.ownerResolutions.length,
+    candidateRoutes: result.candidateFunnel.candidates.length,
+    verifiedDirectRoutes: result.routeHierarchy.filter((route) => route.tier === "direct_person").length,
+    reviewRoutes: result.routeHierarchy.filter((route) => route.tier !== "direct_person").length,
+    sourceDomains: new Set([
+      ...result.evidence.map((evidence) => evidence.sourceUrl).filter(Boolean),
+      ...result.routeHierarchy.flatMap((route) => route.sourceDomains),
+    ].map((url) => {
+      try { return new URL(url as string).hostname.replace(/^www\./, ""); } catch { return ""; }
+    }).filter(Boolean)).size,
+  };
   result.researchPlan = {
     ...result.researchPlan,
     relatedOrganizations: [...new Set([
