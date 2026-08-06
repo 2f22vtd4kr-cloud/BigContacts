@@ -26,9 +26,10 @@ import {
   buildBossOpeningPrompt,
   buildDiscoveryCaseFile,
   buildInitialCaseFile,
-  GEMINI_BOSS_MODEL,
+  GEMINI_BOSS_MODEL_PENDING,
   parseDiscoveryCaseFile,
   parseCaseFile,
+  resolveGeminiBossModel,
   DEFAULT_DISCOVERY_MOTIVATION,
   DEFAULT_DISCOVERY_OBJECTIVE,
 } from "../../lib/case-bureau";
@@ -81,13 +82,14 @@ router.post("/research/bureau/cases", async (req, res): Promise<void> => {
     geography: parsed.data.geography,
     exclusions: parsed.data.exclusions,
   });
+  const bossModel = await resolveGeminiBossModel();
   const [created] = await db.insert(researchCasesTable).values({
     targetEntityId: null,
     caseType: "discovery",
     status: "ready",
     directorMode: "gemini_boss_pending",
     directorProvider: "gemini",
-    directorModel: GEMINI_BOSS_MODEL,
+    directorModel: bossModel.model,
     objective,
     motivation,
     openingPrompt,
@@ -107,7 +109,9 @@ router.post("/research/bureau/cases", async (req, res): Promise<void> => {
     payload: JSON.stringify({
       caseType: "discovery",
       directorProvider: "gemini",
-      directorModel: GEMINI_BOSS_MODEL,
+      directorModel: bossModel.model,
+      modelSelectionStatus: bossModel.status,
+      modelCandidateCount: bossModel.candidateCount,
       openingPromptReady: true,
     }),
   });
@@ -295,7 +299,7 @@ router.post("/research/cases", async (req, res): Promise<void> => {
     // Keep legacy target-case creation on the same cost-safe Boss policy.
     // The old request field remains accepted for client compatibility but no
     // longer permits an expensive model to become the default silently.
-    directorModel: GEMINI_BOSS_MODEL,
+    directorModel: (await resolveGeminiBossModel()).model,
     caseFile: JSON.stringify(caseFile),
     currentAction: caseFile.nextBestAction?.id ?? null,
     iteration: 0,

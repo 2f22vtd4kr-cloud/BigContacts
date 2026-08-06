@@ -118,14 +118,127 @@ export type DiscoveryCaseFile = {
 };
 
 /**
- * Cost policy for the future Gemini Boss adapter.
- *
- * Flash-Lite supports the Boss contract's text, search-grounding, structured
- * output, and function-calling needs without putting Pro Preview on the
- * default path. Keep this centralized so case creation and later execution
- * cannot drift to different models.
+ * The Boss model is selected from the catalog exposed by the configured
+ * Gemini key. We intentionally do not hard-code a version because model
+ * availability and pricing vary by key/project and change over time.
  */
-export const GEMINI_BOSS_MODEL = "gemini-3.1-flash-lite";
+export const GEMINI_BOSS_MODEL_PENDING = "auto-low-cost-pending";
+const GEMINI_MODELS_API = "https://generativelanguage.googleapis.com/v1beta/models";
+const GEMINI_KEY_NAMES = [
+  "GEMINI_API_KEY",
+  ...Array.from({ length: 13 }, (_, index) => `GEMINI_API_KEY_${index + 1}`),
+];
+
+type GeminiModelCatalogEntry = {
+  name?: string;
+  supportedGenerationMethods?: string[];
+};
+
+export type GeminiBossModelSelection = {
+  model: string;
+  status: "resolved" | "pending" | "unavailable";
+  inspectedKeyCount: number;
+  candidateCount: number;
+};
+
+function getGeminiKeys(): string[] {
+  return GEMINI_KEY_NAMES
+    .map((name) => process.env[name] ?? "")
+    .filter(Boolean);
+}
+
+function modelVersion(name: string): [number, number] {
+  const match = name.match(/gemini-(\d+)(?:\.(\d+))?/i);
+  return [Number(match?.[1] ?? 99), Number(match?.[2] ?? 99)];
+}
+
+function modelRank(name: string): [number, number, number, number, string] {
+  const normalized = name.toLowerCase();
+  const [major, minor] = modelVersion(normalized);
+  // Flash-Lite is preferred over Flash, and both are preferred over Pro or
+  // specialized/preview models for the Boss's broad first-pass work.
+  const family = normalized.includes("flash-lite")
+    ? 0
+    : normalized.includes("flash")
+      ? 1
+      : 2;
+  const lifecycle = normalized.includes("preview") || normalized.includes("experimental") ? 1 : 0;
+  const specialized = normalized.includes("image")
+    || normalized.includes("audio")
+    || normalized.includes("embedding")
+    || normalized.includes("tts")
+    || normalized.includes("deep-research")
+    ? 1
+    : 0;
+  return [family, specialized, lifecycle, major * 100 + minor, normalized];
+}
+
+function chooseLowestCostGeminiModel(entries: GeminiModelCatalogEntry[]): string | null {
+  const candidates = entries
+    .filter((entry) => entry.name && entry.supportedGenerationMethods?.includes("generateContent"))
+    .map((entry) => entry.name!.replace(/^models\//, ""))
+    .filter((name) => /^gemini-/i.test(name))
+    .filter((name) => !/embedding|aqa|robotics|image-generation|tts|deep-research/i.test(name))
+    .sort((left, right) => {
+      const a = modelRank(left);
+      const b = modelRank(right);
+      for (let index = 0; index < a.length; index += 1) {
+        if (a[index] < b[index]) return -1;
+        if (a[index] > b[index]) return 1;
+      }
+      return 0;
+    });
+  return candidates[0] ?? null;
+}
+
+let cachedBossModelSelection: { expiresAt: number; selection: GeminiBossModelSelection } | null = null;
+
+export async function resolveGeminiBossModel(): Promise<GeminiBossModelSelection> {
+  const keys = getGeminiKeys();
+  if (keys.length === 0) {
+    return {
+      model: GEMINI_BOSS_MODEL_PENDING,
+      status: "pending",
+      inspectedKeyCount: 0,
+      candidateCount: 0,
+    };
+  }
+  if (cachedBossModelSelection && cachedBossModelSelection.expiresAt > Date.now()) {
+    return cachedBossModelSelection.selection;
+  }
+
+  for (const key of keys) {
+    try {
+      const response = await fetch(`${GEMINI_MODELS_API}?key=${encodeURIComponent(key)}`, {
+        headers: { Accept: "application/json" },
+      });
+      if (!response.ok) continue;
+      const payload = await response.json() as { models?: GeminiModelCatalogEntry[] };
+      const entries = Array.isArray(payload.models) ? payload.models : [];
+      const model = chooseLowestCostGeminiModel(entries);
+      if (!model) continue;
+      const selection: GeminiBossModelSelection = {
+        model,
+        status: "resolved",
+        inspectedKeyCount: 1,
+        candidateCount: entries.filter((entry) =>
+          entry.name && entry.supportedGenerationMethods?.includes("generateContent")
+        ).length,
+      };
+      cachedBossModelSelection = { expiresAt: Date.now() + 10 * 60 * 1000, selection };
+      return selection;
+    } catch {
+      // Try the next configured slot without exposing key or provider details.
+    }
+  }
+
+  return {
+    model: GEMINI_BOSS_MODEL_PENDING,
+    status: "unavailable",
+    inspectedKeyCount: keys.length,
+    candidateCount: 0,
+  };
+}
 
 const SPECIALISTS: BureauSpecialist[] = [
   {
