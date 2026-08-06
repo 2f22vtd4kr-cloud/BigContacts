@@ -5,7 +5,7 @@
  *
  *   SEARCH / RESEARCH (return structured answers directly):
  *   - Perplexity Sonar Pro — live web-search model; synthesises from real sources
- *   - Gemini 2.0 Flash-Lite — Google Search grounding; lower-quota model, different index from Perplexity
+ *   - Gemini Flash — live-probed model with Google Search grounding; different index from Perplexity
  *
  *   SEARCH + GROQ EXTRACTION (return raw text excerpts, Groq extracts structure):
  *   - Tavily              — AI-native search; 7 live sources per query
@@ -32,6 +32,7 @@ import {
   type FinalTargetReviewInput,
   type FinalTargetReviewResult,
 } from "./final-target-review";
+import { resolveGeminiBossModel } from "./case-bureau";
 
 const GROQ_API        = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_MODEL      = "llama-3.3-70b-versatile";
