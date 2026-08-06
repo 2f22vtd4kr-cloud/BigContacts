@@ -372,6 +372,11 @@ export function ApiKeyHealth() {
                       : "Mistral web search not configured"}
                   </div>
                   <div className="mt-1 truncate font-mono text-[9px] text-muted-foreground/55">
+                    {status?.geminiBoss?.configured
+                      ? `Gemini Boss · ${status.geminiBoss.model} · text planning only`
+                      : "Gemini Boss not configured"}
+                  </div>
+                  <div className="mt-1 truncate font-mono text-[9px] text-muted-foreground/55">
                     {status?.bureauReasoning?.configured
                       ? `Boss's right hand · ${status.bureauReasoning.model} · advisory only`
                       : "Boss's right-hand advisor not configured"}

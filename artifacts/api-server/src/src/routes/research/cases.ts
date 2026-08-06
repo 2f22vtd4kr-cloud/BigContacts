@@ -23,6 +23,7 @@ import {
 } from "@workspace/api-zod";
 import {
   advanceCaseFile,
+  applyGeminiBossPlan,
   buildBossOpeningPrompt,
   buildDiscoveryCaseFile,
   buildInitialCaseFile,
@@ -30,13 +31,14 @@ import {
   parseDiscoveryCaseFile,
   parseCaseFile,
   recordRightHandAdvice,
+  recordGeminiBossPlan,
   runGeminiBossDiscovery,
   resolveGeminiBossModel,
   DEFAULT_DISCOVERY_MOTIVATION,
   DEFAULT_DISCOVERY_OBJECTIVE,
   runMistralWebSearch,
-  getNvidiaNimCaseReasoningStatus,
   runNvidiaNimCaseReasoning,
+  runGeminiBossPlan,
 } from "../../lib/case-bureau";
 import { runBroadDiscovery } from "../../lib/enrichment/broad-discovery";
 import { searchRegistry, type RegistryId } from "../../lib/registry-client";
@@ -605,7 +607,7 @@ router.post("/research/cases", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const { entityId, objective, motivation, directorModel } = parsed.data;
+  const { entityId, objective, motivation } = parsed.data;
   const [entity] = await db.select().from(entitiesTable).where(eq(entitiesTable.id, entityId));
   if (!entity) {
     res.status(404).json({ error: "Entity not found" });
@@ -617,17 +619,15 @@ router.post("/research/cases", async (req, res): Promise<void> => {
     return;
   }
   const caseFile = buildInitialCaseFile(entity);
+  const bossModel = await resolveGeminiBossModel();
   const [created] = await db.insert(researchCasesTable).values({
     targetEntityId: entityId,
     caseType: "target",
-    directorMode: "gemini_boss_pending",
+    directorMode: bossModel.status === "resolved" ? "gemini_boss" : "gemini_boss_pending",
     directorProvider: "gemini",
     objective: objective?.trim() || "Find the strongest practical public route to the target and map the surrounding ownership and relationship context.",
     motivation: motivation?.trim() || "Search broadly across public life, organizations, people, venues, digital traces, and relationship paths; return an organized case for human judgment.",
-    // Keep legacy target-case creation on the same cost-safe Boss policy.
-    // The old request field remains accepted for client compatibility but no
-    // longer permits an expensive model to become the default silently.
-    directorModel: (await resolveGeminiBossModel()).model,
+    directorModel: bossModel.model,
     caseFile: JSON.stringify(caseFile),
     currentAction: caseFile.nextBestAction?.id ?? null,
     iteration: 0,
@@ -692,8 +692,7 @@ router.post("/research/cases/:entityId/advance", async (req, res): Promise<void>
   // Boss remains the Head Investigator and owns the final queue decision.
   // GLM is a right-hand advisor: preserve its recommendation in case context,
   // but never let it directly select or activate the Boss's action.
-  const bossDecisionFile = advanceCaseFile(file, nextIteration);
-  const updatedFile = recordRightHandAdvice(bossDecisionFile, {
+  const advisedFile = recordRightHandAdvice(file, {
     model: reasoning.model,
     status: reasoning.status,
     actionId: reasoning.actionId,
@@ -702,6 +701,23 @@ router.post("/research/cases/:entityId/advance", async (req, res): Promise<void>
     confidence: reasoning.confidence,
     error: reasoning.error,
   });
+  const bossPlan = await runGeminiBossPlan({
+    file: advisedFile,
+    rightHandAdvice: advisedFile.rightHandAdvice,
+    iteration: nextIteration,
+  });
+  const bossDecisionFile = bossPlan.status === "completed"
+    && bossPlan.actionId
+    && bossPlan.decision
+    && bossPlan.reason
+    ? applyGeminiBossPlan(advisedFile, {
+        actionId: bossPlan.actionId,
+        decision: bossPlan.decision,
+        reason: bossPlan.reason,
+        iteration: nextIteration,
+      }) ?? advanceCaseFile(advisedFile, nextIteration)
+    : advanceCaseFile(advisedFile, nextIteration);
+  const updatedFile = recordGeminiBossPlan(bossDecisionFile, bossPlan);
   const now = new Date();
   const [updated] = await db.update(researchCasesTable).set({
     caseFile: JSON.stringify(updatedFile),
@@ -722,8 +738,6 @@ router.post("/research/cases/:entityId/advance", async (req, res): Promise<void>
       : "GLM right-hand advisor unavailable; Boss used the local planning fallback.",
     payload: JSON.stringify({
       advisor: updatedFile.rightHandAdvice,
-      bossAction: action,
-      bossDecision: updatedFile.decisionLog.at(-1),
     }),
   });
   await db.insert(researchCaseEventsTable).values({
@@ -731,8 +745,15 @@ router.post("/research/cases/:entityId/advance", async (req, res): Promise<void>
     iteration: nextIteration,
     actorRole: "boss",
     eventType: "decision",
-    summary: action ? `Boss assigned ${action.title} to ${action.specialistId}.` : "Boss left no queued action; case is ready for review.",
-    payload: JSON.stringify({ action, decision: updatedFile.decisionLog.at(-1), advisorConsulted: reasoning.status === "completed" }),
+    summary: action
+      ? `Boss assigned ${action.title} to ${action.specialistId}.`
+      : "Boss left no queued action; case is ready for review.",
+    payload: JSON.stringify({
+      action,
+      decision: updatedFile.decisionLog.at(-1),
+      bossPlan: updatedFile.bossPlan,
+      advisorConsulted: reasoning.status === "completed",
+    }),
   });
   const [entity] = await db.select({ name: entitiesTable.name, type: entitiesTable.type }).from(entitiesTable).where(eq(entitiesTable.id, params.data.entityId));
   res.json(serializeCase(updated!, entity ?? null));

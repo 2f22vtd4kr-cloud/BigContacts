@@ -22,6 +22,7 @@ import {
   pingRedis,
 }                               from "../lib/redis";
 import { getMistralWebSearchStatus } from "../lib/mistral-web-search";
+import { getGeminiBossStatus } from "../lib/case-bureau";
 import { getNvidiaNimCaseReasoningStatus } from "../lib/nvidia-nim-case-reasoning";
 
 const router: IRouter = Router();
@@ -57,6 +58,7 @@ router.get("/system/status", async (_req, res) => {
       mistral: getMistralWebSearchStatus(),
     } as const;
     const bureauReasoning = getNvidiaNimCaseReasoningStatus();
+    const geminiBoss = await getGeminiBossStatus();
 
     // ── PostgreSQL ────────────────────────────────────────────────────────────
     let pgStatus: "ok" | "error" = "ok";
@@ -79,6 +81,7 @@ router.get("/system/status", async (_req, res) => {
     const payload = {
       ai,
       openResearch,
+      geminiBoss,
       bureauReasoning,
       databases: {
         postgres:   { status: pgStatus, latencyMs: pgLatencyMs },

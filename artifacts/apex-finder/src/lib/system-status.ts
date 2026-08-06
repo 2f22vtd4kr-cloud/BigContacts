@@ -29,6 +29,14 @@ export interface BureauReasoningStatus {
   capability: "case_file_reasoning_only";
 }
 
+export interface GeminiBossStatus {
+  configured: boolean;
+  model: string;
+  role: "head_investigator";
+  capability: "text_generation_and_case_planning";
+  webSearchGrounding: false;
+}
+
 export interface UpstashSlot {
   slot: number;
   status: string;
@@ -40,6 +48,7 @@ export interface SystemStatus {
   ai: AIKeyStatus;
   openResearch?: OpenResearchStatus;
   bureauReasoning?: BureauReasoningStatus;
+  geminiBoss?: GeminiBossStatus;
   databases: {
     postgres: { status: "ok" | "error"; latencyMs: number | null };
     localRedis: { status: string; latencyMs: number | null };

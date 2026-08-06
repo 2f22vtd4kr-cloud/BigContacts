@@ -174,6 +174,20 @@ type BureauCaseFile = {
     error: string | null;
     createdAt: string;
   };
+  bossPlan?: {
+    model: string;
+    status: "completed" | "unavailable";
+    actionId: string | null;
+    decision: string | null;
+    reason: string | null;
+    investigatorPrompt: string | null;
+    restrictions: string[];
+    tools: string[];
+    evidenceRequirements: string[];
+    confidence: number | null;
+    error: string | null;
+    createdAt: string;
+  };
   nextBestAction: BureauAction | null;
   evidenceSummary: {
     sourceRegistries: string[];
@@ -427,6 +441,39 @@ function BureauCasePanel({
             </>
           ) : (
             <div className="text-[10px] text-muted-foreground mt-2">No GLM recommendation recorded yet. The Boss can proceed with the local planning fallback.</div>
+          )}
+        </div>
+
+        <div className="rounded border border-primary/20 bg-primary/5 p-3 lg:col-span-2">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[10px] uppercase tracking-wider font-mono text-primary">Gemini Boss plan</span>
+            <span className="text-[9px] font-mono text-muted-foreground">text-only · no web grounding</span>
+          </div>
+          {file?.bossPlan?.status === "completed" ? (
+            <>
+              <div className="text-[10px] text-foreground mt-2">
+                {file.bossPlan.model} assigned <span className="text-primary">{file.bossPlan.actionId}</span>
+              </div>
+              <div className="text-[10px] text-muted-foreground mt-1">{file.bossPlan.reason}</div>
+              {file.bossPlan.investigatorPrompt && (
+                <details className="mt-2">
+                  <summary className="cursor-pointer text-[9px] font-mono uppercase tracking-wider text-primary">Show investigator prompt</summary>
+                  <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap rounded border border-border/50 bg-background/40 p-2 text-[9px] leading-relaxed text-muted-foreground">{file.bossPlan.investigatorPrompt}</pre>
+                </details>
+              )}
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {file.bossPlan.tools.map((tool) => (
+                  <span key={tool} className="rounded border border-primary/25 px-1.5 py-0.5 text-[9px] font-mono text-primary">{tool}</span>
+                ))}
+              </div>
+              <div className="mt-2 text-[9px] text-muted-foreground">
+                Restrictions: {file.bossPlan.restrictions.join(" · ")}
+              </div>
+            </>
+          ) : (
+            <div className="text-[10px] text-muted-foreground mt-2">
+              Gemini Boss has not produced a plan yet. The local Boss planner remains the safe fallback.
+            </div>
           )}
         </div>
 

@@ -44,6 +44,14 @@ interface BureauReasoningStatus {
   capability: "case_file_reasoning_only";
 }
 
+interface GeminiBossStatus {
+  configured: boolean;
+  model: string;
+  role: "head_investigator";
+  capability: "text_generation_and_case_planning";
+  webSearchGrounding: false;
+}
+
 interface UpstashSlot {
   slot: number;
   status: string;
@@ -55,6 +63,7 @@ interface SystemStatus {
   ai: AIKeyStatus;
   openResearch?: OpenResearchStatus;
   bureauReasoning?: BureauReasoningStatus;
+  geminiBoss?: GeminiBossStatus;
   databases: {
     postgres:   { status: "ok" | "error"; latencyMs: number | null };
     localRedis: { status: string;         latencyMs: number | null };
@@ -345,6 +354,19 @@ export default function SystemStatusPage() {
             {status?.openResearch?.mistral.configured
               ? `Mistral ${status.openResearch.mistral.model} · ${status.openResearch.mistral.rateLimit}`
               : "Mistral web search not configured"}
+          </div>
+        </div>
+        <div className="mt-3 rounded-lg border border-border/50 px-4 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px]">
+            <span className="text-muted-foreground">Gemini Boss</span>
+            <span className={status?.geminiBoss?.configured ? "text-primary" : "text-muted-foreground"}>
+              {status?.geminiBoss?.configured ? "configured" : "missing"}
+            </span>
+          </div>
+          <div className="mt-1 truncate font-mono text-[9px] text-muted-foreground/55">
+            {status?.geminiBoss?.configured
+              ? `${status.geminiBoss.model} · head investigator · text only · no web grounding`
+              : "Gemini Boss text-planning model not configured"}
           </div>
         </div>
         <div className="mt-3 rounded-lg border border-border/50 px-4 py-3">
