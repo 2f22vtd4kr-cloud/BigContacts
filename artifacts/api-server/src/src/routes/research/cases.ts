@@ -20,6 +20,12 @@ import {
   PromoteBureauCaseTargetParams,
   RecordBureauInitialResearchBody,
   RecordBureauInitialResearchParams,
+  RunBureauCaseDiscoveryParams,
+  RunBureauCaseDiscoveryResponse,
+  RunBureauCaseNextPassParams,
+  RunBureauCaseBossReviewParams,
+  RunBureauCaseNextPassResponse,
+  RunBureauCaseBossReviewResponse,
 } from "@workspace/api-zod";
 import {
   advanceCaseFile,
@@ -249,11 +255,12 @@ router.get("/research/bureau/cases/:caseId/events", async (req, res): Promise<vo
  * candidate into a target case.
  */
 router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Promise<void> => {
-  const caseId = Number(req.params.caseId);
-  if (!Number.isInteger(caseId) || caseId <= 0) {
-    res.status(400).json({ error: "Invalid bureau case ID" });
+  const params = RunBureauCaseDiscoveryParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
     return;
   }
+  const caseId = params.data.caseId;
   const [current] = await db.select().from(researchCasesTable)
     .where(eq(researchCasesTable.id, caseId))
     .limit(1);
@@ -745,13 +752,14 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
     }
   })();
 
-  res.status(202).json({
+  const response = {
     caseId,
     jobId,
     pollUrl: `/api/ingest/job/${jobId}`,
     caseUrl: `/api/research/bureau/cases/${caseId}`,
     message: "Boss opening request and bounded mixed-source discovery started; candidates remain review-only.",
-  });
+  };
+  res.status(202).json(RunBureauCaseDiscoveryResponse.parse(response));
 });
 
 /**
@@ -761,11 +769,12 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
  * paths. Results remain review-only and are appended to the same case shaft.
  */
 router.post("/research/bureau/cases/:caseId/run-next-pass", async (req, res): Promise<void> => {
-  const caseId = Number(req.params.caseId);
-  if (!Number.isInteger(caseId) || caseId <= 0) {
-    res.status(400).json({ error: "Invalid bureau case ID" });
+  const params = RunBureauCaseNextPassParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
     return;
   }
+  const caseId = params.data.caseId;
   const [current] = await db.select().from(researchCasesTable)
     .where(eq(researchCasesTable.id, caseId))
     .limit(1);
@@ -1094,13 +1103,14 @@ router.post("/research/bureau/cases/:caseId/run-next-pass", async (req, res): Pr
     }
   })();
 
-  res.status(202).json({
+  const response = {
     caseId,
     jobId,
     pollUrl: `/api/ingest/job/${jobId}`,
     caseUrl: `/api/research/bureau/cases/${caseId}`,
     message: "Boss-directed verification pass started; candidates remain review-only.",
-  });
+  };
+  res.status(202).json(RunBureauCaseNextPassResponse.parse(response));
 });
 
 /**
@@ -1109,11 +1119,12 @@ router.post("/research/bureau/cases/:caseId/run-next-pass", async (req, res): Pr
  * unavailable; it must not repeat web or registry work.
  */
 router.post("/research/bureau/cases/:caseId/run-boss-review", async (req, res): Promise<void> => {
-  const caseId = Number(req.params.caseId);
-  if (!Number.isInteger(caseId) || caseId <= 0) {
-    res.status(400).json({ error: "Invalid bureau case ID" });
+  const params = RunBureauCaseBossReviewParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
     return;
   }
+  const caseId = params.data.caseId;
   const [current] = await db.select().from(researchCasesTable)
     .where(eq(researchCasesTable.id, caseId))
     .limit(1);
@@ -1339,13 +1350,14 @@ router.post("/research/bureau/cases/:caseId/run-boss-review", async (req, res): 
     }
   })();
 
-  res.status(202).json({
+  const response = {
     caseId,
     jobId,
     pollUrl: `/api/ingest/job/${jobId}`,
     caseUrl: `/api/research/bureau/cases/${caseId}`,
     message: "Boss closure review retry started; evidence lanes will not be repeated.",
-  });
+  };
+  res.status(202).json(RunBureauCaseBossReviewResponse.parse(response));
 });
 
 router.post("/research/bureau/cases/:caseId/initial-research", async (req, res): Promise<void> => {

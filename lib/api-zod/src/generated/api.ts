@@ -690,8 +690,11 @@ export const GetLatestBureauDiscoveryCaseResponse = zod.object({
 /**
  * @summary Get a discovery or target bureau case
  */
+
+
+
 export const GetBureauCaseParams = zod.object({
-  "caseId": zod.coerce.number()
+  "caseId": zod.coerce.number().min(1)
 })
 
 export const GetBureauCaseResponse = zod.object({
@@ -717,10 +720,32 @@ export const GetBureauCaseResponse = zod.object({
 
 
 /**
+ * @summary Run the initial bounded discovery pass for a bureau case
+ */
+
+
+
+export const RunBureauCaseDiscoveryParams = zod.object({
+  "caseId": zod.coerce.number().min(1)
+})
+
+export const RunBureauCaseDiscoveryResponse = zod.object({
+  "caseId": zod.number(),
+  "jobId": zod.string(),
+  "pollUrl": zod.string(),
+  "caseUrl": zod.string(),
+  "message": zod.string()
+})
+
+
+/**
  * @summary Store the broad web response and Boss commentary in the case context
  */
+
+
+
 export const RecordBureauInitialResearchParams = zod.object({
-  "caseId": zod.coerce.number()
+  "caseId": zod.coerce.number().min(1)
 })
 
 
@@ -784,6 +809,44 @@ export const PromoteBureauCaseTargetResponse = zod.object({
   "lastDecisionAt": zod.string().nullish(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Run the next bounded verification pass over the shared case context
+ */
+
+
+
+export const RunBureauCaseNextPassParams = zod.object({
+  "caseId": zod.coerce.number().min(1)
+})
+
+export const RunBureauCaseNextPassResponse = zod.object({
+  "caseId": zod.number(),
+  "jobId": zod.string(),
+  "pollUrl": zod.string(),
+  "caseUrl": zod.string(),
+  "message": zod.string()
+})
+
+
+/**
+ * @summary Retry the Boss closure review without repeating evidence lanes
+ */
+
+
+
+export const RunBureauCaseBossReviewParams = zod.object({
+  "caseId": zod.coerce.number().min(1)
+})
+
+export const RunBureauCaseBossReviewResponse = zod.object({
+  "caseId": zod.number(),
+  "jobId": zod.string(),
+  "pollUrl": zod.string(),
+  "caseUrl": zod.string(),
+  "message": zod.string()
 })
 
 

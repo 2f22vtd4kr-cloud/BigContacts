@@ -4,3 +4,4 @@
 - [Gemini Boss orchestration](gemini-boss-orchestration.md) — Gemini is the authoritative text-only Head Investigator; search-capable lanes gather evidence separately.
 - [TypeScript project-reference outputs](typescript-project-reference-outputs.md) — consuming artifacts must rebuild ignored library declarations before typechecking.
 - [Discovery case-context shaft](discovery-case-context-shaft.md) — discovery lanes append ordered reports to one durable context before Boss/right-hand review.
+- [Bureau continuation contract](bureau-continuation-contract.md) — async continuation mutations return job-start envelopes; clients refetch the case instead of treating 202 output as case state.

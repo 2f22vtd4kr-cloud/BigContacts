@@ -345,7 +345,7 @@ type GeminiTextGenerationResult = {
  * immediately try the next lower compatible model from the same catalog
  * instead of retrying the same model or starting another search lane.
  */
-async function generateGeminiBossText(
+export async function generateGeminiBossText(
   selection: GeminiBossModelSelection,
   prompt: string,
 ): Promise<GeminiTextGenerationResult> {
@@ -387,7 +387,7 @@ async function generateGeminiBossText(
         const detail = (await response.text().catch(() => "")).slice(0, 300);
         lastError = `Gemini Boss ${model} HTTP ${response.status}${detail ? `: ${detail}` : ""}`;
         if (models.length > 1) {
-          console.warn(`[Gemini Boss] ${model} unavailable (${response.status}); trying lower model.`);
+          logger.warn({ model, status: response.status }, "Gemini Boss model unavailable; trying lower model");
           continue;
         }
         continue;

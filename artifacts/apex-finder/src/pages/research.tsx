@@ -1,6 +1,14 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
-import { getListResearchEvidenceQueryKey, useListEntities, useRunResearch, useListResearchEvidence } from "@workspace/api-client-react";
+import {
+  getBureauCase,
+  getListResearchEvidenceQueryKey,
+  runBureauCaseBossReview,
+  runBureauCaseNextPass,
+  useListEntities,
+  useRunResearch,
+  useListResearchEvidence,
+} from "@workspace/api-client-react";
 import { Terminal, Play, Cpu, ChevronRight, Hash, CheckCircle2, GitBranch, Target, Shield, ChevronDown, Search, X, Mail, Phone, Copy, CheckCheck, Layers, ExternalLink, FileCheck2, CircleAlert } from "lucide-react";
 import { cn, formatEntityName } from "@/lib/utils";
 import { ScoreBadge } from "@/lib/utils";
@@ -641,6 +649,33 @@ function DiscoveryBureauPanel({
     }
   };
 
+  const continueInvestigation = async (retryBossReview: boolean) => {
+    setBusy(true);
+    setError(null);
+    try {
+      if (retryBossReview) {
+        await runBureauCaseBossReview(discoveryCase!.id);
+      } else {
+        await runBureauCaseNextPass(discoveryCase!.id);
+      }
+      const refreshed = await getBureauCase(discoveryCase!.id, { cache: "no-store" });
+      onCaseChange({
+        ...refreshed,
+        targetEntityName: refreshed.targetEntityName ?? null,
+        targetEntityType: refreshed.targetEntityType ?? null,
+        directorModel: refreshed.directorModel ?? "",
+        currentAction: refreshed.currentAction ?? null,
+        lastDecisionAt: refreshed.lastDecisionAt ?? null,
+      });
+      return true;
+    } catch (reason: unknown) {
+      setError(reason instanceof Error ? reason.message : "Discovery bureau request failed");
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  };
+
   if (!discoveryCase) {
     return (
       <div className="border-b border-primary/20 bg-[#080C14] p-4 md:p-5 flex-shrink-0">
@@ -860,10 +895,7 @@ function DiscoveryBureauPanel({
           </div>
           <button
             disabled={busy || discoveryCase.status === "active"}
-            onClick={() => void request(
-              `/api/research/bureau/cases/${discoveryCase.id}/${file.nextInvestigation?.boss?.status === "unavailable" ? "run-boss-review" : "run-next-pass"}`,
-              {},
-            )}
+            onClick={() => void continueInvestigation(file.nextInvestigation?.boss?.status === "unavailable")}
             className="inline-flex items-center justify-center gap-2 rounded border border-primary/50 bg-primary/15 px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-primary hover:bg-primary/25 disabled:opacity-50"
           >
             <Play className="w-3 h-3" /> {busy || discoveryCase.status === "active"
