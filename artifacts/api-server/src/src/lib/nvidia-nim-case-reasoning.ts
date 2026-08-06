@@ -1,4 +1,4 @@
-import type { BureauAction, ResearchCaseFile } from "./case-bureau";
+import type { BureauAction, DiscoveryCaseFile, ResearchCaseFile } from "./case-bureau";
 import { logger } from "./logger";
 
 export const NVIDIA_NIM_CASE_REASONING_MODEL = "z-ai/glm-5.2";
@@ -18,6 +18,16 @@ export type NvidiaNimCaseReasoningResult = {
   actionId: string | null;
   decision: string | null;
   reason: string | null;
+  confidence: number | null;
+  error: string | null;
+};
+
+export type NvidiaNimDiscoveryAdviceResult = {
+  status: "completed" | "unavailable";
+  model: string;
+  decision: string | null;
+  reason: string | null;
+  focusLanes: string[];
   confidence: number | null;
   error: string | null;
 };
@@ -118,6 +128,113 @@ Return ONLY this JSON object:
 
 Choose only from these currently queued actions:
 ${JSON.stringify(queuedActions, null, 2)}`;
+}
+
+function buildDiscoveryAdvicePrompt(file: DiscoveryCaseFile, iteration: number): string {
+  return `You are the right-hand advisor to Gemini, the Head Investigator of a public-record discovery Bureau.
+
+You have no web access and must reason only over this discovery mission and its opening prompt.
+Recommend how Gemini should frame the first broad discovery pass. Your recommendation is advisory only.
+Do not invent people, wealth, relationships, URLs, evidence, or contact routes. Do not select a target.
+Keep the mission within Western countries, prioritize practical proximity over fame, and preserve human review.
+
+Iteration: ${iteration}
+<discovery_case>
+${JSON.stringify({
+  humanBrief: file.humanBrief,
+  bossPremise: file.bossPremise,
+  investigationRules: file.investigationRules,
+  candidateLanes: file.candidateLanes,
+  openingAction: file.initialAction,
+}, null, 2)}
+</discovery_case>
+
+<opening_prompt>
+${JSON.stringify(file.humanBrief, null, 2)}
+</opening_prompt>
+
+Return ONLY this JSON:
+{
+  "decision": "recommended framing for the Boss's opening discovery",
+  "reason": "mission- and evidence-discipline-based rationale",
+  "focusLanes": ["exact candidate lane names from the discovery case"],
+  "confidence": 0.0
+}`;
+}
+
+function parseDiscoveryAdvice(raw: string, file: DiscoveryCaseFile): Pick<NvidiaNimDiscoveryAdviceResult, "decision" | "reason" | "focusLanes" | "confidence"> | null {
+  const json = extractJsonObject(raw);
+  if (!json) return null;
+  try {
+    const parsed = JSON.parse(json) as Record<string, unknown>;
+    const decision = typeof parsed.decision === "string" ? parsed.decision.trim() : "";
+    const reason = typeof parsed.reason === "string" ? parsed.reason.trim() : "";
+    const focusLanes = Array.isArray(parsed.focusLanes)
+      ? parsed.focusLanes.filter((lane): lane is string => typeof lane === "string" && file.candidateLanes.includes(lane)).slice(0, 4)
+      : [];
+    const rawConfidence = typeof parsed.confidence === "number" ? parsed.confidence : null;
+    if (!decision || !reason) return null;
+    return {
+      decision: decision.slice(0, 600),
+      reason: reason.slice(0, 700),
+      focusLanes,
+      confidence: rawConfidence === null ? null : Math.max(0, Math.min(1, rawConfidence)),
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function runNvidiaNimDiscoveryAdvice(input: {
+  file: DiscoveryCaseFile;
+  iteration: number;
+}): Promise<NvidiaNimDiscoveryAdviceResult> {
+  const key = getNvidiaNimKey();
+  const unavailable = (error: string): NvidiaNimDiscoveryAdviceResult => ({
+    status: "unavailable",
+    model: NVIDIA_NIM_CASE_REASONING_MODEL,
+    decision: null,
+    reason: null,
+    focusLanes: [],
+    confidence: null,
+    error,
+  });
+  if (!key) return unavailable("NVIDIA_NIM_API_KEY is not configured.");
+  try {
+    const response = await fetch(NVIDIA_NIM_CHAT_API, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify({
+        model: NVIDIA_NIM_CASE_REASONING_MODEL,
+        messages: [
+          {
+            role: "system",
+            content: "You are a case-file reasoning engine. You cannot search online and must never invent evidence.",
+          },
+          { role: "user", content: buildDiscoveryAdvicePrompt(input.file, input.iteration) },
+        ],
+        temperature: 0.2,
+        max_tokens: 1200,
+        stream: false,
+      }),
+      signal: AbortSignal.timeout(45_000),
+    });
+    if (!response.ok) {
+      const detail = (await response.text().catch(() => "")).slice(0, 300);
+      return unavailable(`NVIDIA NIM ${NVIDIA_NIM_CASE_REASONING_MODEL} HTTP ${response.status}${detail ? `: ${detail}` : ""}`);
+    }
+    const payload = await response.json() as ChatCompletionResponse;
+    const parsed = parseDiscoveryAdvice(payload.choices?.[0]?.message?.content?.trim() ?? "", input.file);
+    return parsed
+      ? { status: "completed", model: NVIDIA_NIM_CASE_REASONING_MODEL, ...parsed, error: null }
+      : unavailable("NVIDIA NIM returned an invalid discovery advisory.");
+  } catch (error) {
+    return unavailable(error instanceof Error ? error.message : "NVIDIA NIM discovery advice failed.");
+  }
 }
 
 export async function runNvidiaNimCaseReasoning(input: {

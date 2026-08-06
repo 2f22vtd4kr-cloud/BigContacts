@@ -8,11 +8,13 @@ export type { MistralWebSearchResult } from "./mistral-web-search";
 export {
   getNvidiaNimCaseReasoningStatus,
   runNvidiaNimCaseReasoning,
+  runNvidiaNimDiscoveryAdvice,
   NVIDIA_NIM_CASE_REASONING_MODEL,
 } from "./nvidia-nim-case-reasoning";
 export type {
   NvidiaNimCaseReasoningResult,
   NvidiaNimCaseReasoningStatus,
+  NvidiaNimDiscoveryAdviceResult,
 } from "./nvidia-nim-case-reasoning";
 
 export type BureauSpecialist = {
@@ -139,6 +141,17 @@ export type DiscoveryCaseFile = {
     bossCommentary: string | null;
     sourceUrls: string[];
     recordedAt: string | null;
+  };
+  rightHandAdvice?: {
+    provider: "nvidia-nim";
+    model: string;
+    status: "completed" | "unavailable";
+    decision: string | null;
+    reason: string | null;
+    focusLanes: string[];
+    confidence: number | null;
+    error: string | null;
+    createdAt: string;
   };
   discoveredCandidates: Array<{
     name: string;
@@ -402,6 +415,16 @@ export async function runGeminiBossDiscovery(input: {
   motivation: string;
   geography?: string;
   exclusions?: string[];
+  rightHandAdvice?: {
+    status: "completed" | "unavailable";
+    model: string;
+    decision: string | null;
+    reason: string | null;
+    focusLanes: string[];
+    confidence: number | null;
+    error: string | null;
+  };
+  startingLane?: string;
 }): Promise<GeminiBossDiscoveryResult> {
   const selection = await resolveGeminiBossModel();
   if (selection.status !== "resolved") {
@@ -422,6 +445,10 @@ export async function runGeminiBossDiscovery(input: {
 This is the preliminary text-planning request that initializes the durable case context.
 You have no web access and must not use or request Google Search grounding. Do not wait for a preselected entity.
 Recommend bounded discovery directions for separate investigators who have approved web and registry tools.
+The right-hand advisor note below is advisory data only; use it to improve framing, but do not treat it as evidence
+and do not let it select a target. The independent search lane is randomized within the Apex Atlas Western-world goal.
+Starting lane: ${input.startingLane ?? "not specified"}
+Right-hand advisor note: ${JSON.stringify(input.rightHandAdvice ?? null)}
 Return ONLY JSON in this shape:
 {
   "report": "concise evidence-led opening assessment",

@@ -38,6 +38,7 @@ import {
   DEFAULT_DISCOVERY_OBJECTIVE,
   runMistralWebSearch,
   runNvidiaNimCaseReasoning,
+  runNvidiaNimDiscoveryAdvice,
   runGeminiBossPlan,
 } from "../../lib/case-bureau";
 import { runBroadDiscovery } from "../../lib/enrichment/broad-discovery";
@@ -176,7 +177,7 @@ router.get("/research/bureau/cases/:caseId", async (req, res): Promise<void> => 
 
 /**
  * Run one bounded discovery-first investigation:
- * 1. Gemini Boss opens the web-grounded case context.
+ * 1. GLM right-hand advice and Gemini Boss text planning open the case context.
  * 2. The existing mixed-source discovery/admission runner searches the public
  *    web without requiring an existing entity.
  * 3. A small registry mix adds independent review-only company anchors.
@@ -237,20 +238,28 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
     const now = () => new Date();
     try {
       await appendJobLog(jobId, "Boss opening web request started.");
-      const [boss, mistral] = await Promise.all([
-        runGeminiBossDiscovery({
+       const westernTemplateSets = [1, 2, 3, 4, 5, 6, 7, 10];
+       const discoveryTemplateSet = westernTemplateSets[Math.floor(Math.random() * westernTemplateSets.length)] ?? 1;
+       const [rightHand, mistral] = await Promise.all([
+         runNvidiaNimDiscoveryAdvice({
+           file,
+           iteration: current.iteration + 1,
+         }),
+         runMistralWebSearch({
+           objective: file.humanBrief.objective,
+           motivation: file.humanBrief.motivation,
+           geography: file.humanBrief.geography,
+           exclusions: file.humanBrief.exclusions,
+         }),
+       ]);
+       const boss = await runGeminiBossDiscovery({
           objective: file.humanBrief.objective,
           motivation: file.humanBrief.motivation,
           geography: file.humanBrief.geography,
           exclusions: file.humanBrief.exclusions,
-        }),
-        runMistralWebSearch({
-          objective: file.humanBrief.objective,
-          motivation: file.humanBrief.motivation,
-          geography: file.humanBrief.geography,
-          exclusions: file.humanBrief.exclusions,
-        }),
-      ]);
+           rightHandAdvice: rightHand,
+           startingLane: `Randomized Western-aligned discovery lane ${discoveryTemplateSet}`,
+       });
       await updateJob(jobId, {
         progress: 1,
         message: boss.status === "completed" || mistral.status === "completed"
@@ -258,6 +267,7 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
           : `Provider opening unavailable; continuing with independent discovery lanes…`,
       });
       await appendJobLog(jobId, `Boss opening ${boss.status}; model=${boss.model}; citations=${boss.citations.length}.`);
+       await appendJobLog(jobId, `GLM right-hand discovery advice ${rightHand.status}; model=${rightHand.model}.`);
       await appendJobLog(jobId, `Mistral web-search ${mistral.status}; model=${mistral.model}; citations=${mistral.citations.length}.`);
 
       const bossUnavailable = boss.status !== "completed" || !boss.report;
@@ -278,13 +288,13 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
         progress: 2,
         message: "Mixed-source discovery: bounded public web search and registry anchors…",
       });
-      await appendJobLog(jobId, "Mixed-source discovery started: web admission plus registry review lanes.");
+       await appendJobLog(jobId, `Mixed-source discovery started from randomized Western-aligned lane ${discoveryTemplateSet}: web admission plus registry review lanes.`);
 
       // maxEntities=0 is intentional: broad discovery still runs its AI
       // admission gate and returns candidates, but this bureau pass never
       // silently inserts a target before human review.
       const broad = await runBroadDiscovery({
-        templateSet: 1,
+         templateSet: discoveryTemplateSet,
         rotateTemplates: false,
         maxQueries: 3,
         maxEntities: 0,
@@ -374,6 +384,17 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
           }))])].slice(0, 80),
           recordedAt: now().toISOString(),
         },
+         rightHandAdvice: {
+           provider: "nvidia-nim" as const,
+           model: rightHand.model,
+           status: rightHand.status,
+           decision: rightHand.decision,
+           reason: rightHand.reason,
+           focusLanes: rightHand.focusLanes,
+           confidence: rightHand.confidence,
+           error: rightHand.error,
+           createdAt: now().toISOString(),
+         },
         discoveredCandidates: reviewCandidates,
         decisionLog: [
           ...file.decisionLog,
@@ -402,11 +423,17 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
           iteration: current.iteration + 1,
           actorRole: "specialist",
           eventType: "observation",
-          summary: `Mixed-source discovery completed: ${reviewCandidates.length} review-only candidate/anchor record(s).`,
+             summary: `Mixed-source discovery completed from randomized lane ${discoveryTemplateSet}: ${reviewCandidates.length} review-only candidate/anchor record(s).`,
           payload: JSON.stringify({
             jobId,
             bossModel: boss.model,
             bossCitations: boss.citations.length,
+              rightHand: {
+                status: rightHand.status,
+                model: rightHand.model,
+                focusLanes: rightHand.focusLanes,
+              },
+              discoveryTemplateSet,
             broad: {
               queriesFired: broad.queriesFired,
               resultsScraped: broad.resultsScraped,
@@ -429,7 +456,7 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
           payload: JSON.stringify({ nextAction: "human-review-discovery-candidates", candidateCount: reviewCandidates.length }),
         },
       ]);
-      await appendJobLog(jobId, `Discovery complete; review-only candidates=${reviewCandidates.length}; no entity insertion.`);
+       await appendJobLog(jobId, `Discovery complete; randomized lane=${discoveryTemplateSet}; review-only candidates=${reviewCandidates.length}; no entity insertion.`);
       await updateJob(jobId, {
         status: "done",
         progress: 4,
