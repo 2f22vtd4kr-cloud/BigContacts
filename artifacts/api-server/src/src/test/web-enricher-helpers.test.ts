@@ -21,6 +21,7 @@ import {
   looksLikePersonName,
   hasTargetLinkedPersonEvidence,
   extractOfficialRoleLinkedPersonNames,
+  extractReviewPersonCandidates,
   classifyScrapedPageCoverage,
 } from "../lib/web-enricher";
 import { buildInvestigatorResearchPlan } from "../lib/research-plan";
@@ -376,6 +377,21 @@ describe("looksLikePersonName", () => {
     expect(looksLikePersonName("Der Fußballklub")).toBe(false);
     expect(looksLikePersonName("Fußballvereine Kölner")).toBe(false);
     expect(looksLikePersonName("Accessibility Feedback Deutsch")).toBe(false);
+  });
+});
+
+describe("broad search-card person discovery", () => {
+  it("retains a professional-card name without treating it as verified identity", () => {
+    const candidates = extractReviewPersonCandidates(
+      "Lev van der Eng — Managing Director at CarCollect. LinkedIn profile and company context.",
+    );
+    expect(candidates).toContain("Lev van der Eng");
+  });
+
+  it("does not admit generic company text as a person lead", () => {
+    expect(extractReviewPersonCandidates(
+      "CarCollect is a vehicle marketplace. Contact the executive team for details.",
+    )).toEqual([]);
   });
 });
 

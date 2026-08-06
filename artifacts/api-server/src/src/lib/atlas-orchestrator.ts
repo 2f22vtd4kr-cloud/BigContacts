@@ -302,6 +302,7 @@ function inferEntityJurisdiction(
 function buildReviewOnlyPersonCandidates(
   result: {
     personsDiscovered?: string[];
+    discoveryCandidates?: Array<Record<string, unknown>>;
     ownerResolutions?: Array<Record<string, unknown>>;
     evidence?: Array<Record<string, unknown>>;
   },
@@ -365,6 +366,14 @@ function buildReviewOnlyPersonCandidates(
   };
 
   for (const owner of ownerResolutions) add(owner);
+  for (const candidate of Array.isArray(result.discoveryCandidates) ? result.discoveryCandidates : []) {
+    add({
+      ...candidate,
+      role: candidate.role ?? "associated_person",
+      ownershipStatus: "not_established",
+      basis: candidate.basis ?? "Broad provider discovery lead; target attribution remains unresolved.",
+    });
+  }
   for (const name of Array.isArray(result.personsDiscovered) ? result.personsDiscovered : []) {
     add({ name });
   }
@@ -795,6 +804,10 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
       }
       if (aiResult.ownerResolutions.length > 0) {
         metadata.deepWebOwnerResolutions = aiResult.ownerResolutions.slice(0, 24);
+      }
+      if (aiResult.discoveryCandidates.length > 0) {
+        metadata.deepWebDiscoveryCandidates = aiResult.discoveryCandidates.slice(0, 24);
+        metadata.deepWebDiscoveryCandidatesReviewOnly = true;
       }
       if (aiResult.ownershipSummary) {
         metadata.deepWebOwnershipSummary = aiResult.ownershipSummary;

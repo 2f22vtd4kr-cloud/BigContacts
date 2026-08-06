@@ -42,7 +42,7 @@ const FINANCIAL_AGGREGATOR_DOMAINS = new Set([
   "1881.no", "gulesider.no", "proff.no", "purehelp.no", "enhetsregisteret.no",
   "allabolag.se", "hitta.se", "eniro.se", "proff.se", "virksomhed.dk",
 ]);
-import { extractWithAI, researchWithPerplexity, researchWithGemini, researchWithTavily, researchWithExa, type AIResearchContext, type OwnerResolution, type GeminiDeepResearchResult, type TargetSubjectKind, type AIResearchLane } from "./ai-extractor";
+import { extractWithAI, researchWithPerplexity, researchWithGemini, researchWithTavily, researchWithExa, type AIResearchContext, type OwnerResolution, type DiscoveryPersonCandidate, type GeminiDeepResearchResult, type TargetSubjectKind, type AIResearchLane } from "./ai-extractor";
 import { runOpenDeepResearch, type OpenDeepResearchResult } from "./python-tools";
 import { applyEnsembleAdjudication, buildEnsembleAdjudicationText, reconcileAIResults, type AIEnsembleResult } from "./ai-ensemble";
 import { extractPersonNames } from "./gliner-client";
@@ -575,6 +575,7 @@ export interface DeepWebOsintResult {
   queriesFired:    number;
   pagesScraped:    number;
   personsDiscovered: string[];
+  discoveryCandidates: DiscoveryPersonCandidate[];
   ownerResolutions: OwnerResolution[];
   ownershipSummary: string | null;
   ownershipSources: string[];
@@ -1119,7 +1120,7 @@ const PERSON_PATTERNS: RegExp[] = [
   /([A-ZÄÖÜ][a-zäöü\-]+\s+[A-ZÄÖÜ][a-zäöü\-]+)\s+(?:gründete|gründeten|eröffnete|eröffneten|gründete)/g,
   // Official team pages commonly put the person's name before their role:
   // "Martin Mildner Portfolio Manager, Board Director, Partner".
-  /([A-ZÀ-ÖØ-Ü][a-zà-öø-ü\-']+\s+[A-ZÀ-ÖØ-Ü][a-zà-öø-ü\-']+(?:\s+[A-ZÀ-ÖØ-Ü][a-zà-öø-ü\-']+)?)\s+(?=(?:Portfolio Manager|Managing Director|Risk Manager|Compliance Officer|Financial Controller|Investment Team Member|Board Director|Board Member|Head of Investment Team|Investment Team|Partner|Founder|Chief Executive Officer|Chief Operating Officer|Investor Relations)\b)/g,
+  /([A-ZÀ-ÖØ-Ü][a-zà-öø-ü\-']+(?:\s+(?:van|der|de|den|von|di|da|del)\s+){0,2}[A-ZÀ-ÖØ-Ü][a-zà-öø-ü\-']+(?:\s+[A-ZÀ-ÖØ-Ü][a-zà-öø-ü\-']+)?)\s+(?=(?:Portfolio Manager|Managing Director|Risk Manager|Compliance Officer|Financial Controller|Investment Team Member|Board Director|Board Member|Head of Investment Team|Investment Team|Partner|Founder|Chief Executive Officer|Chief Operating Officer|Chief Commercial Officer|Investor Relations)\b)/g,
 ];
 
 const OFFICIAL_ROLE_AFTER_NAME_PATTERN =
@@ -1173,6 +1174,11 @@ const PERSON_WORD_BLOCKLIST = new Set([
   // Product, service, and institution words from search snippets
   "Endpoint", "Acrylic", "Powder", "Gel", "Polish",
   "Air", "Force", "Marine", "Corps", "Coast", "Guard",
+  "Atlanta", "Braves", "Official", "Website",
+  "Experts", "Member",
+  "Risk", "Manager", "Compliance", "Officer", "Managing", "Director",
+  "Portfolio", "Board", "Partner", "Head", "Investment", "Chief",
+  "Executive", "Operating", "Commercial", "Relations",
   "United", "States",
   // Wikipedia / religious-text and placeholder nouns leaking from generic
   // corporation searches are not named business decision-makers.
@@ -1228,8 +1234,12 @@ export function looksLikePersonName(name: string): boolean {
   const normalizedWords = words.map((word) => word.toLowerCase());
   if (new Set(normalizedWords).size !== normalizedWords.length) return false;
   if (words.some((word) => /^(?:is|are|was|were|everywhere|the|and|of|for|with|from|about)$/i.test(word))) return false;
-  // Every word must open with a true uppercase letter and contain only letters/hyphens
-  if (!words.every(w => /^[A-ZÀ-ÖØ-Ü][a-zA-ZÀ-öø-ÿ\-']*$/.test(w))) return false;
+  // Every normal name word must open with a true uppercase letter. Dutch and
+  // similar name particles are legitimately lowercase.
+  const nameParticles = new Set(["van", "der", "de", "den", "von", "di", "da", "del"]);
+  if (!words.every(w =>
+    nameParticles.has(w.toLowerCase()) || /^[A-ZÀ-ÖØ-Ü][a-zA-ZÀ-öø-ÿ\-']*$/.test(w),
+  )) return false;
   // Reject if any word is a known role or company-type indicator
   if (words.some(w => PERSON_WORD_BLOCKLIST.has(w))) return false;
   // Reject if all words are ALL-CAPS (abbreviations, company codes)
@@ -1305,23 +1315,39 @@ export function extractOfficialRoleLinkedPersonNames(text: string): string[] {
     .replace(/\s+/g, " ")
     .trim();
   const found = new Set<string>();
-  const rolePattern = /(?:Portfolio Manager|Managing Director|Risk Manager|Compliance Officer|Financial Controller|Investment Team Member|Board Director|Board Member|Head of Investment Team|Investment Team|Partner|Founder|Chief Executive Officer|Chief Operating Officer|Investor Relations)/g;
+  const rolePattern = /(?:Portfolio Manager|Managing Director|Risk Manager|Compliance Officer|Financial Controller|Investment Team Member|Board Director|Board Member|Head of Investment Team|Investment Team|Partner|Founder|Chief Executive Officer|Chief Operating Officer|Chief Commercial Officer|Investor Relations)/g;
   for (const roleMatch of normalizedText.matchAll(rolePattern)) {
     const roleIndex = roleMatch.index ?? -1;
     if (roleIndex < 0) continue;
     const beforeRole = normalizedText.slice(Math.max(0, roleIndex - 90), roleIndex).trim();
-    const nameMatch = beforeRole.match(/([A-ZÀ-ÖØ-Ü][a-zà-öø-ü\-']+\s+[A-ZÀ-ÖØ-Ü][a-zà-öø-ü\-']+)\s*$/);
-    if (!nameMatch) continue;
-    const name = nameMatch[1]!.trim();
-    if (
-      looksLikePersonName(name)
-      && !NOT_A_PERSON.has(name.toLowerCase())
-      && !name.split(/\s+/).some((word) => ["Content", "Who", "Financial", "Investment", "Team", "Controller"].includes(word))
-    ) {
-      found.add(name);
+    const tokens = beforeRole
+      .split(/\s+/)
+      .map((token) => token.replace(/^[^A-Za-zÀ-ÖØ-öø-ÿ'-]+|[^A-Za-zÀ-ÖØ-öø-ÿ'-]+$/g, ""))
+      .filter(Boolean);
+    for (const width of [4, 3, 2]) {
+      if (tokens.length < width) continue;
+      const candidate = tokens.slice(-width).join(" ");
+      if (
+        looksLikePersonName(candidate)
+        && !NOT_A_PERSON.has(candidate.toLowerCase())
+        && !candidate.split(/\s+/).some((word) => ["Content", "Who", "Financial", "Investment", "Team", "Controller"].includes(word))
+      ) {
+        found.add(candidate);
+        break;
+      }
     }
   }
   return [...found];
+}
+
+export function extractReviewPersonCandidates(text: string): string[] {
+  if (!text?.trim()) return [];
+  return [...new Set([
+    ...extractOfficialRoleLinkedPersonNames(text),
+    ...extractPersonCandidates(text),
+  ])]
+    .filter((name) => looksLikePersonName(name))
+    .slice(0, 16);
 }
 
 function officialPersonEvidenceWindow(
@@ -1353,6 +1379,7 @@ async function extractPersonCandidatesAsync(text: string, targetAnchors: string[
   if (!text?.trim()) return [];
   const isAdmissible = (name: string): boolean => {
     if (!looksLikePersonName(name)) return false;
+    if (name.split(/\s+/).some((word) => PERSON_WORD_BLOCKLIST.has(word))) return false;
     if (targetAnchors.some((anchor) => {
       const cleanAnchor = anchor.trim().toLowerCase();
       return cleanAnchor.length >= 6 && cleanAnchor.includes(name.toLowerCase());
@@ -2065,6 +2092,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     twitterUrl: null,
     sources: [], queriesFired: 0, pagesScraped: 0,
     personsDiscovered: [],
+    discoveryCandidates: [],
     ownerResolutions: [],
     ownershipSummary: null,
     ownershipSources: [],
@@ -2357,6 +2385,84 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     for (const page of scrapedTexts) attachOfficialPageContacts(page);
   };
 
+  /**
+   * Admit broad provider discoveries into a separate review-only lane.
+   * This intentionally does not require ownership, target identity, or a
+   * personal handle to be established.
+   */
+  const addDiscoveryCandidate = (
+    candidate: DiscoveryPersonCandidate,
+    source: string,
+  ): void => {
+    const name = candidate.name.trim();
+    if (!name || !looksLikePersonName(name)) return;
+    const existing = result.discoveryCandidates.find((item) =>
+      item.name.toLowerCase() === name.toLowerCase()
+      && (item.organization ?? "").toLowerCase() === (candidate.organization ?? "").toLowerCase(),
+    );
+    if (existing) {
+      existing.sourceUrls = [...new Set([...existing.sourceUrls, ...candidate.sourceUrls])].slice(0, 8);
+      existing.role = existing.role ?? candidate.role;
+      existing.organization = existing.organization ?? candidate.organization;
+      existing.basis = existing.basis ?? candidate.basis;
+      existing.instagram = existing.instagram ?? candidate.instagram;
+      existing.twitter = existing.twitter ?? candidate.twitter;
+      existing.linkedin = existing.linkedin ?? candidate.linkedin;
+      if (existing.attributionStatus === "unverified" && candidate.attributionStatus !== "unverified") {
+        existing.attributionStatus = candidate.attributionStatus;
+      }
+    } else {
+      result.discoveryCandidates.push({
+        ...candidate,
+        name,
+        sourceUrls: [...new Set(candidate.sourceUrls)].slice(0, 8),
+      });
+    }
+    if (!result.personsDiscovered.some((person) => person.toLowerCase() === name.toLowerCase())) {
+      result.personsDiscovered.push(name);
+    }
+    const details = {
+      scope: "person_candidate" as const,
+      personName: name,
+      role: candidate.role,
+      relatedOrganization: candidate.organization,
+      basis: candidate.basis,
+      relationship: "discovery-candidate-review-only",
+      attributionStatus: candidate.attributionStatus,
+      discoveryCandidate: true,
+      reviewOnly: true,
+      sourceUrls: candidate.sourceUrls.slice(0, 8),
+    };
+    recordEvidence(
+      "ownership",
+      name,
+      source,
+      candidate.sourceUrls[0] ?? null,
+      "provider-discovery-candidate",
+      candidate.attributionStatus === "probable" ? 58 : 45,
+      details,
+    );
+    if (candidate.instagram) {
+      recordEvidence("social", candidate.instagram, `${source}[${name}]`, candidate.sourceUrls[0] ?? null,
+        "provider-discovery-candidate", 48, { ...details, network: "instagram" });
+    }
+    if (candidate.twitter) {
+      recordEvidence("social", candidate.twitter, `${source}[${name}]`, candidate.sourceUrls[0] ?? null,
+        "provider-discovery-candidate", 48, { ...details, network: "twitter" });
+    }
+    if (candidate.linkedin) {
+      recordEvidence("social", candidate.linkedin, `${source}[${name}]`, candidate.sourceUrls[0] ?? null,
+        "provider-discovery-candidate", 48, { ...details, network: "linkedin" });
+    }
+  };
+
+  const addDiscoveryCandidates = (
+    candidates: readonly DiscoveryPersonCandidate[] | null | undefined,
+    source: string,
+  ) => {
+    for (const candidate of candidates ?? []) addDiscoveryCandidate(candidate, source);
+  };
+
   const collectSearchResult = (
     sr: SearchResult,
     label: string,
@@ -2518,6 +2624,9 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     }
     for (const person of adaptive.discoveredPeople) {
       if (!result.personsDiscovered.includes(person)) result.personsDiscovered.push(person);
+    }
+    for (const item of adaptive.providerResults) {
+      addDiscoveryCandidates(item.result.discoveryCandidates, `Adaptive[${item.provider}]`);
     }
     for (const domain of adaptive.candidateDomains) {
       if (!domainTargets.includes(domain)) domainTargets.push(domain);
@@ -2808,6 +2917,14 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       if (item.status === "rejected") {
         logger.warn({ providerIndex: index, err: item.reason?.message ?? String(item.reason) }, "Phase 0 provider failed independently");
       }
+    }
+    for (const [provider, value] of [
+      ["perplexity", perp],
+      ["gemini", gem],
+      ["tavily", tav],
+      ["exa", exa],
+    ] as const) {
+      addDiscoveryCandidates(value?.discoveryCandidates, `AI[${provider}]`);
     }
     if (perp.source === "perplexity-sonar") {
       const label = "Perplexity[sonar]";
@@ -3651,6 +3768,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         for (const owner of ai.ownerResolutions) {
           addOwnerResolution(owner, label);
         }
+        addDiscoveryCandidates(ai.discoveryCandidates, label);
 
         // ── Integrate per-owner personal social handles ──────────────────
         // This is the Google/Gemini parity gap: when the LLM sees "Christophe Caucino
@@ -3698,7 +3816,13 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     const alreadyQueriedNames = new Set(
       result.ownerResolutions.map(o => o.name.toLowerCase()),
     );
-    const followUpPersons = result.personsDiscovered
+    const followUpPersons = [
+      ...result.personsDiscovered,
+      ...result.discoveryCandidates.map((candidate) => candidate.name),
+    ]
+      .filter((name, index, names) =>
+        names.findIndex((candidate) => candidate.toLowerCase() === name.toLowerCase()) === index,
+      )
       .filter(n => looksLikePersonName(n) && !alreadyQueriedNames.has(n.toLowerCase()))
       .slice(0, 6);
 

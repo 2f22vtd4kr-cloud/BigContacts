@@ -20,3 +20,9 @@ Direct HTTPS pushes can still fail with “Invalid username or token” even whe
 **Why:** Read access to a public repository does not imply an authenticated write session, and the local GitHub connector may report `not_setup` independently of the configured remote.
 
 **How to apply:** Verify `refs/heads/main` and the sync branch with `git ls-remote`; report the PR URL and unchanged `main` hash until an authenticated merge is completed.
+
+The push helper can also refuse a newly named sync branch when its local upstream still points at `origin/main`; unset that branch's upstream before retrying a normal push.
+
+**Why:** A branch created from remote `main` may inherit tracking metadata even though its intended publication target is a separate remote branch.
+
+**How to apply:** Check `git status -sb` before publishing. If the sync branch tracks `origin/main`, use `git branch --unset-upstream`, then push the explicit sync-branch name without force.
