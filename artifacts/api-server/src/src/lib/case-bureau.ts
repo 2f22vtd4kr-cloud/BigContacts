@@ -362,8 +362,11 @@ Candidates are review-only. Never invent a name, wealth claim, relationship, con
         tools: [{ google_search: {} }],
         generationConfig: {
           temperature: 0.1,
-          maxOutputTokens: 3500,
-          responseMimeType: "application/json",
+          // Keep this contract identical to the already-running Gemini
+          // grounded-search lane. Some projects reject JSON MIME mode when
+          // Google Search grounding is enabled, even though the model catalog
+          // advertises generateContent support.
+          maxOutputTokens: 2000,
         },
       };
       let response = await fetch(endpoint, {
@@ -380,33 +383,6 @@ Candidates are review-only. Never invent a name, wealth claim, relationship, con
           { model: selection.model, status: response.status, detail: responseText },
           "Case Bureau Boss opening provider rejection",
         );
-        // Google grounding plus JSON MIME mode is not accepted by every
-        // catalog-advertised Flash-Lite revision. Retry the same key with the
-        // stable generation contract used by the existing Gemini lane.
-        if (response.status === 400) {
-          const fallbackBody = {
-            contents: requestBody.contents,
-            tools: requestBody.tools,
-            generationConfig: {
-              temperature: 0.1,
-              maxOutputTokens: 3500,
-            },
-          };
-          response = await fetch(endpoint, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Accept: "application/json" },
-            body: JSON.stringify(fallbackBody),
-            signal: AbortSignal.timeout(45_000),
-          });
-          if (!response.ok) {
-            responseText = (await response.text().catch(() => "")).slice(0, 300);
-            lastProviderError = `Gemini fallback HTTP ${response.status}${responseText ? `: ${responseText}` : ""}`;
-            logger.warn(
-              { model: selection.model, status: response.status, detail: responseText },
-              "Case Bureau Boss opening fallback rejected",
-            );
-          }
-        }
       }
       if (!response.ok) continue;
       const payload = await response.json() as {
