@@ -460,6 +460,112 @@ paths:
         "404":
           description: Entity not found
 
+  /research/bureau/cases:
+    post:
+      operationId: openBureauDiscoveryCase
+      tags: [research]
+      summary: Open a discovery-first investigation and write the Boss opening brief
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BureauDiscoveryInput"
+      responses:
+        "201":
+          description: Discovery case opened
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BureauCase"
+
+  /research/bureau/cases/latest:
+    get:
+      operationId: getLatestBureauDiscoveryCase
+      tags: [research]
+      summary: Get the latest discovery-first bureau case
+      responses:
+        "200":
+          description: Latest discovery case
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BureauCase"
+        "404":
+          description: No discovery case exists
+
+  /research/bureau/cases/{caseId}:
+    get:
+      operationId: getBureauCase
+      tags: [research]
+      summary: Get a discovery or target bureau case
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Bureau case
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BureauCase"
+        "404":
+          description: Case not found
+
+  /research/bureau/cases/{caseId}/initial-research:
+    post:
+      operationId: recordBureauInitialResearch
+      tags: [research]
+      summary: Store the broad web response and Boss commentary in the case context
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BureauInitialResearchInput"
+      responses:
+        "200":
+          description: Initial research recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BureauCase"
+        "404":
+          description: Case not found
+
+  /research/bureau/cases/{caseId}/promote-target:
+    post:
+      operationId: promoteBureauCaseTarget
+      tags: [research]
+      summary: Attach an existing validated entity to a discovery case
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BureauPromoteTargetInput"
+      responses:
+        "200":
+          description: Discovery case promoted to a target case
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BureauCase"
+        "404":
+          description: Case or entity not found
+
   /research/cases/{entityId}:
     get:
       operationId: getResearchCase
@@ -1246,6 +1352,29 @@ components:
         motivation: { type: string }
         directorModel: { type: string }
 
+    BureauDiscoveryInput:
+      type: object
+      required: [objective, motivation]
+      properties:
+        objective: { type: string, minLength: 1 }
+        motivation: { type: string, minLength: 1 }
+        geography: { type: string }
+        exclusions: { type: array, items: { type: string } }
+
+    BureauInitialResearchInput:
+      type: object
+      required: [researchResponse]
+      properties:
+        researchResponse: { type: string, minLength: 1 }
+        bossCommentary: { type: string }
+        sourceUrls: { type: array, items: { type: string } }
+
+    BureauPromoteTargetInput:
+      type: object
+      required: [entityId]
+      properties:
+        entityId: { type: integer }
+
     ResearchCaseDirectiveInput:
       type: object
       required: [directive]
@@ -1257,20 +1386,28 @@ components:
       required: [id, targetEntityId, status, directorMode, objective, motivation, caseFile, iteration, createdAt, updatedAt]
       properties:
         id: { type: integer }
-        targetEntityId: { type: integer }
+        targetEntityId: { type: ["integer", "null"] }
+        caseType: { type: string }
         targetEntityName: { type: ["string", "null"] }
         targetEntityType: { type: ["string", "null"] }
         status: { type: string }
         directorMode: { type: string }
-        directorModel: { type: ["string", "null"] }
+        directorProvider: { type: string }
+        directorModel: { type: string }
         objective: { type: string }
         motivation: { type: string }
+        openingPrompt: { type: string }
         caseFile: { type: string }
         currentAction: { type: ["string", "null"] }
         iteration: { type: integer }
         lastDecisionAt: { type: ["string", "null"] }
         createdAt: { type: string }
         updatedAt: { type: string }
+
+    BureauCase:
+      allOf:
+        - $ref: "#/components/schemas/ResearchCase"
+
 
     ResearchCaseEvent:
       type: object

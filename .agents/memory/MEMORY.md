@@ -89,4 +89,4 @@
 - [Yield widening](yield-widening.md) — Expand bounded discovery and handoff before adjudication; measure useful yield without loosening promotion gates
 - [Campione benchmark](benchmark-campione.md) — First controlled comparison showed focused official-domain research beat Atlas on useful yield for an Italian casino entity
 - [Adaptive research director](adaptive-research-director.md) — Bounded target-scoped action selection now re-plans from evidence gaps while preserving exact-page and fail-closed publication gates
-- [Case Bureau architecture](case-bureau.md) — Durable target-scoped cases coordinate specialist lanes and human review above adaptive research
+- [Case Bureau architecture](case-bureau.md) — Discovery-first cases become target investigations only after broad Boss review and human-safe evidence gates

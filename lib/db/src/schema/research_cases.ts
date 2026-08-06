@@ -4,19 +4,23 @@ import { z } from "zod/v4";
 import { entitiesTable } from "./entities";
 
 /**
- * One durable, target-scoped investigation. The JSON caseFile is a compact
- * working snapshot; the append-only case events table remains the audit trail.
+ * One durable investigation. A case starts as discovery (no entity required)
+ * and can later become target-scoped after the Boss identifies a candidate.
+ * The JSON caseFile is a compact working snapshot; the append-only case
+ * events table remains the audit trail.
  */
 export const researchCasesTable = pgTable("research_cases", {
   id: serial("id").primaryKey(),
   targetEntityId: integer("target_entity_id")
-    .notNull()
     .references(() => entitiesTable.id, { onDelete: "cascade" }),
+  caseType: text("case_type").notNull().default("discovery"), // discovery | target
   status: text("status").notNull().default("ready"), // ready | active | paused | complete | review
-  directorMode: text("director_mode").notNull().default("local_planner"), // local_planner | llm_director
-  directorModel: text("director_model"),
+  directorMode: text("director_mode").notNull().default("gemini_boss_pending"), // gemini_boss_pending | gemini_boss | local_planner
+  directorProvider: text("director_provider").notNull().default("gemini"),
+  directorModel: text("director_model").notNull().default("gemini-3.1-pro-preview"),
   objective: text("objective").notNull(),
   motivation: text("motivation").notNull(),
+  openingPrompt: text("opening_prompt").notNull().default(""),
   caseFile: text("case_file").notNull().default("{}"),
   currentAction: text("current_action"),
   iteration: integer("iteration").notNull().default(0),

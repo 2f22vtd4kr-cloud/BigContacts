@@ -606,14 +606,178 @@ export const OpenResearchCaseBody = zod.object({
 
 export const OpenResearchCaseResponse = zod.object({
   "id": zod.number(),
-  "targetEntityId": zod.number(),
+  "targetEntityId": zod.number().nullable(),
+  "caseType": zod.string().optional(),
   "targetEntityName": zod.string().nullish(),
   "targetEntityType": zod.string().nullish(),
   "status": zod.string(),
   "directorMode": zod.string(),
-  "directorModel": zod.string().nullish(),
+  "directorProvider": zod.string().optional(),
+  "directorModel": zod.string().optional(),
   "objective": zod.string(),
   "motivation": zod.string(),
+  "openingPrompt": zod.string().optional(),
+  "caseFile": zod.string(),
+  "currentAction": zod.string().nullish(),
+  "iteration": zod.number(),
+  "lastDecisionAt": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Open a discovery-first investigation and write the Boss opening brief
+ */
+
+
+
+
+export const OpenBureauDiscoveryCaseBody = zod.object({
+  "objective": zod.string().min(1),
+  "motivation": zod.string().min(1),
+  "geography": zod.string().optional(),
+  "exclusions": zod.array(zod.string()).optional()
+})
+
+export const OpenBureauDiscoveryCaseResponse = zod.object({
+  "id": zod.number(),
+  "targetEntityId": zod.number().nullable(),
+  "caseType": zod.string().optional(),
+  "targetEntityName": zod.string().nullish(),
+  "targetEntityType": zod.string().nullish(),
+  "status": zod.string(),
+  "directorMode": zod.string(),
+  "directorProvider": zod.string().optional(),
+  "directorModel": zod.string().optional(),
+  "objective": zod.string(),
+  "motivation": zod.string(),
+  "openingPrompt": zod.string().optional(),
+  "caseFile": zod.string(),
+  "currentAction": zod.string().nullish(),
+  "iteration": zod.number(),
+  "lastDecisionAt": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Get the latest discovery-first bureau case
+ */
+export const GetLatestBureauDiscoveryCaseResponse = zod.object({
+  "id": zod.number(),
+  "targetEntityId": zod.number().nullable(),
+  "caseType": zod.string().optional(),
+  "targetEntityName": zod.string().nullish(),
+  "targetEntityType": zod.string().nullish(),
+  "status": zod.string(),
+  "directorMode": zod.string(),
+  "directorProvider": zod.string().optional(),
+  "directorModel": zod.string().optional(),
+  "objective": zod.string(),
+  "motivation": zod.string(),
+  "openingPrompt": zod.string().optional(),
+  "caseFile": zod.string(),
+  "currentAction": zod.string().nullish(),
+  "iteration": zod.number(),
+  "lastDecisionAt": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Get a discovery or target bureau case
+ */
+export const GetBureauCaseParams = zod.object({
+  "caseId": zod.coerce.number()
+})
+
+export const GetBureauCaseResponse = zod.object({
+  "id": zod.number(),
+  "targetEntityId": zod.number().nullable(),
+  "caseType": zod.string().optional(),
+  "targetEntityName": zod.string().nullish(),
+  "targetEntityType": zod.string().nullish(),
+  "status": zod.string(),
+  "directorMode": zod.string(),
+  "directorProvider": zod.string().optional(),
+  "directorModel": zod.string().optional(),
+  "objective": zod.string(),
+  "motivation": zod.string(),
+  "openingPrompt": zod.string().optional(),
+  "caseFile": zod.string(),
+  "currentAction": zod.string().nullish(),
+  "iteration": zod.number(),
+  "lastDecisionAt": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Store the broad web response and Boss commentary in the case context
+ */
+export const RecordBureauInitialResearchParams = zod.object({
+  "caseId": zod.coerce.number()
+})
+
+
+
+
+export const RecordBureauInitialResearchBody = zod.object({
+  "researchResponse": zod.string().min(1),
+  "bossCommentary": zod.string().optional(),
+  "sourceUrls": zod.array(zod.string()).optional()
+})
+
+export const RecordBureauInitialResearchResponse = zod.object({
+  "id": zod.number(),
+  "targetEntityId": zod.number().nullable(),
+  "caseType": zod.string().optional(),
+  "targetEntityName": zod.string().nullish(),
+  "targetEntityType": zod.string().nullish(),
+  "status": zod.string(),
+  "directorMode": zod.string(),
+  "directorProvider": zod.string().optional(),
+  "directorModel": zod.string().optional(),
+  "objective": zod.string(),
+  "motivation": zod.string(),
+  "openingPrompt": zod.string().optional(),
+  "caseFile": zod.string(),
+  "currentAction": zod.string().nullish(),
+  "iteration": zod.number(),
+  "lastDecisionAt": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Attach an existing validated entity to a discovery case
+ */
+export const PromoteBureauCaseTargetParams = zod.object({
+  "caseId": zod.coerce.number()
+})
+
+export const PromoteBureauCaseTargetBody = zod.object({
+  "entityId": zod.number()
+})
+
+export const PromoteBureauCaseTargetResponse = zod.object({
+  "id": zod.number(),
+  "targetEntityId": zod.number().nullable(),
+  "caseType": zod.string().optional(),
+  "targetEntityName": zod.string().nullish(),
+  "targetEntityType": zod.string().nullish(),
+  "status": zod.string(),
+  "directorMode": zod.string(),
+  "directorProvider": zod.string().optional(),
+  "directorModel": zod.string().optional(),
+  "objective": zod.string(),
+  "motivation": zod.string(),
+  "openingPrompt": zod.string().optional(),
   "caseFile": zod.string(),
   "currentAction": zod.string().nullish(),
   "iteration": zod.number(),
@@ -632,14 +796,17 @@ export const GetResearchCaseParams = zod.object({
 
 export const GetResearchCaseResponse = zod.object({
   "id": zod.number(),
-  "targetEntityId": zod.number(),
+  "targetEntityId": zod.number().nullable(),
+  "caseType": zod.string().optional(),
   "targetEntityName": zod.string().nullish(),
   "targetEntityType": zod.string().nullish(),
   "status": zod.string(),
   "directorMode": zod.string(),
-  "directorModel": zod.string().nullish(),
+  "directorProvider": zod.string().optional(),
+  "directorModel": zod.string().optional(),
   "objective": zod.string(),
   "motivation": zod.string(),
+  "openingPrompt": zod.string().optional(),
   "caseFile": zod.string(),
   "currentAction": zod.string().nullish(),
   "iteration": zod.number(),
@@ -658,14 +825,17 @@ export const AdvanceResearchCaseParams = zod.object({
 
 export const AdvanceResearchCaseResponse = zod.object({
   "id": zod.number(),
-  "targetEntityId": zod.number(),
+  "targetEntityId": zod.number().nullable(),
+  "caseType": zod.string().optional(),
   "targetEntityName": zod.string().nullish(),
   "targetEntityType": zod.string().nullish(),
   "status": zod.string(),
   "directorMode": zod.string(),
-  "directorModel": zod.string().nullish(),
+  "directorProvider": zod.string().optional(),
+  "directorModel": zod.string().optional(),
   "objective": zod.string(),
   "motivation": zod.string(),
+  "openingPrompt": zod.string().optional(),
   "caseFile": zod.string(),
   "currentAction": zod.string().nullish(),
   "iteration": zod.number(),
@@ -691,14 +861,17 @@ export const AddResearchCaseDirectiveBody = zod.object({
 
 export const AddResearchCaseDirectiveResponse = zod.object({
   "id": zod.number(),
-  "targetEntityId": zod.number(),
+  "targetEntityId": zod.number().nullable(),
+  "caseType": zod.string().optional(),
   "targetEntityName": zod.string().nullish(),
   "targetEntityType": zod.string().nullish(),
   "status": zod.string(),
   "directorMode": zod.string(),
-  "directorModel": zod.string().nullish(),
+  "directorProvider": zod.string().optional(),
+  "directorModel": zod.string().optional(),
   "objective": zod.string(),
   "motivation": zod.string(),
+  "openingPrompt": zod.string().optional(),
   "caseFile": zod.string(),
   "currentAction": zod.string().nullish(),
   "iteration": zod.number(),

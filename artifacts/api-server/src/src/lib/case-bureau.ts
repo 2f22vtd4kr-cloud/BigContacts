@@ -38,6 +38,12 @@ export type BureauContactRoute = {
 
 export type ResearchCaseFile = {
   version: 1;
+  discoveryContext?: {
+    caseId: number;
+    humanBrief: DiscoveryCaseFile["humanBrief"];
+    bossPremise: string;
+    initialResearch: DiscoveryCaseFile["initialResearch"];
+  };
   target: {
     name: string;
     type: string;
@@ -65,6 +71,49 @@ export type ResearchCaseFile = {
     createdAt: string;
   }>;
   nextBestAction: BureauAction | null;
+  lastUpdatedBy: string;
+};
+
+export type DiscoveryCaseFile = {
+  version: 2;
+  caseType: "discovery";
+  humanBrief: {
+    objective: string;
+    motivation: string;
+    geography: string;
+    exclusions: string[];
+  };
+  bossPremise: string;
+  investigationRules: string[];
+  candidateLanes: string[];
+  initialAction: {
+    id: "broad-web-discovery";
+    title: string;
+    purpose: string;
+    status: "ready" | "waiting_for_gemini";
+  };
+  initialResearch: {
+    status: "not_started" | "recorded" | "reviewed";
+    researchResponse: string | null;
+    bossCommentary: string | null;
+    sourceUrls: string[];
+    recordedAt: string | null;
+  };
+  discoveredCandidates: Array<{
+    name: string;
+    type: string;
+    relevance: string;
+    reachability: string;
+    sourceUrls: string[];
+    state: "review_only";
+  }>;
+  humanDirectives: string[];
+  decisionLog: Array<{
+    iteration: number;
+    decision: string;
+    reason: string;
+    createdAt: string;
+  }>;
   lastUpdatedBy: string;
 };
 
@@ -112,6 +161,134 @@ const SPECIALISTS: BureauSpecialist[] = [
     status: "ready",
   },
 ];
+
+export const DEFAULT_DISCOVERY_OBJECTIVE =
+  "Find realistic potential investor routes for a startup founder seeking conversations with genuinely wealthy, relevant people in Western countries.";
+
+export const DEFAULT_DISCOVERY_MOTIVATION =
+  "The founder has invested substantial personal time and money into a startup and wants practical paths to present the idea to real potential investors, not celebrity names or unreachable institutions.";
+
+export const DEFAULT_DISCOVERY_GEOGRAPHY = "Western countries, prioritizing realistic regional and professional access over fame.";
+
+export const DEFAULT_DISCOVERY_EXCLUSIONS = [
+  "Do not invent people, companies, wealth, contact details, relationships, or source claims.",
+  "Do not prioritize celebrity billionaires or famous public figures who are unrealistic to reach without a documented connection.",
+  "Do not stop at generic reception numbers or irrelevant shared inboxes when a closer public route exists.",
+  "Do not treat job titles, company association, fame, or search snippets as proof of personal wealth.",
+];
+
+export function buildBossOpeningPrompt(input: {
+  objective: string;
+  motivation: string;
+  geography?: string;
+  exclusions?: string[];
+}): string {
+  const geography = input.geography?.trim() || DEFAULT_DISCOVERY_GEOGRAPHY;
+  const exclusions = input.exclusions?.length ? input.exclusions : DEFAULT_DISCOVERY_EXCLUSIONS;
+  return `You are the Boss Investigator opening a new discovery-first public-web research case.
+
+Human mission:
+${input.objective.trim()}
+
+Why this matters:
+${input.motivation.trim()}
+
+Geographic premise:
+${geography}
+
+Research broadly and begin with discovery. Do not assume a target company or person in advance. Look for real companies, founders, investors, family offices, investment groups, business owners, operators, advisors, portfolio relationships, and other plausible routes that could lead to a useful investor conversation.
+
+The goal is practical proximity to a real decision-maker, not fame alone. Rank direct routes first, followed by named executives or operators, relevant intermediaries, professional or portfolio relationships, social routes, and organization routes. Search public web sources only and preserve exact source URLs and what each source proves.
+
+Opening research must:
+1. Discover promising candidates rather than force a preselected target.
+2. Separate evidence of wealth, investment activity, relevance, and practical reachability.
+3. Retain plausible candidates for human review even when identity or access is unresolved.
+4. Explicitly report uncertainty, name collisions, missing evidence, search gaps, and negative findings.
+5. Recommend the strongest next investigation directions after the first broad pass.
+
+Guardrails:
+${exclusions.map((rule) => `- ${rule}`).join("\n")}
+
+Return a structured research report with:
+- discovered people, companies, and organizations
+- why each is relevant to the human mission
+- evidence of wealth, investment activity, ownership, or influence
+- practical public contact or introduction routes
+- exact supporting source URLs
+- realistic versus merely famous target assessment
+- unresolved identity and attribution questions
+- strongest next research directions
+
+Do not claim that a person is wealthy, connected, or reachable unless the public evidence supports that specific claim.`;
+}
+
+export function buildDiscoveryCaseFile(input: {
+  objective: string;
+  motivation: string;
+  geography?: string;
+  exclusions?: string[];
+  now?: string;
+}): DiscoveryCaseFile {
+  const objective = input.objective.trim();
+  const motivation = input.motivation.trim();
+  const geography = input.geography?.trim() || DEFAULT_DISCOVERY_GEOGRAPHY;
+  const exclusions = input.exclusions?.filter((value) => value.trim()).map((value) => value.trim()).length
+    ? input.exclusions.filter((value) => value.trim()).map((value) => value.trim())
+    : DEFAULT_DISCOVERY_EXCLUSIONS;
+  return {
+    version: 2,
+    caseType: "discovery",
+    humanBrief: { objective, motivation, geography, exclusions },
+    bossPremise: "Start broad. Discover realistic public-world investor routes before resolving any one target in depth.",
+    investigationRules: [
+      "Public evidence only; preserve claim-level provenance.",
+      "Wealth, relevance, identity, and practical access are separate questions.",
+      "Famous or wealthy does not mean reachable.",
+      "Candidates remain review-only until exact identity and attribution are established.",
+      "The human operator remains the final decision-maker for contact use.",
+    ],
+    candidateLanes: [
+      "Founder and operator-investors",
+      "Family offices and investment groups",
+      "Regional business owners and private-company principals",
+      "Portfolio-company and advisor relationships",
+      "Professional intermediaries and practical introduction routes",
+      "Public social and organization routes",
+    ],
+    initialAction: {
+      id: "broad-web-discovery",
+      title: "Broad public-web discovery",
+      purpose: "Find realistic investor candidates and routes without assuming a target in advance.",
+      status: "waiting_for_gemini",
+    },
+    initialResearch: {
+      status: "not_started",
+      researchResponse: null,
+      bossCommentary: null,
+      sourceUrls: [],
+      recordedAt: null,
+    },
+    discoveredCandidates: [],
+    humanDirectives: [],
+    decisionLog: [{
+      iteration: 0,
+      decision: "Open a discovery-first case and prepare the Boss broad research brief.",
+      reason: "The human request identifies a mission, not a validated target entity.",
+      createdAt: input.now ?? new Date().toISOString(),
+    }],
+    lastUpdatedBy: "boss-brief-generator",
+  };
+}
+
+export function parseDiscoveryCaseFile(value: string): DiscoveryCaseFile | null {
+  try {
+    const parsed = JSON.parse(value) as DiscoveryCaseFile;
+    return parsed?.caseType === "discovery" && parsed.version === 2 ? parsed : null;
+  } catch {
+    return null;
+  }
+}
 
 function parseJson<T>(value: string | null | undefined, fallback: T): T {
   if (!value) return fallback;
