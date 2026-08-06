@@ -87,3 +87,4 @@
 - [Manual research honesty](manual-research-honesty.md) — Distinguish ad hoc web investigation from a completed Atlas evidence pipeline; disclose unrun lanes and unresolved claims
 - [Source coverage status](source-coverage-status.md) — Preserve lane-specific success, blocked pages, unavailable providers, negative findings, and search gaps
 - [Yield widening](yield-widening.md) — Expand bounded discovery and handoff before adjudication; measure useful yield without loosening promotion gates
+- [Campione benchmark](benchmark-campione.md) — First controlled comparison showed focused official-domain research beat Atlas on useful yield for an Italian casino entity
