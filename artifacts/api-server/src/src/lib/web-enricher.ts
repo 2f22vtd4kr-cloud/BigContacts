@@ -65,6 +65,10 @@ import {
   type RankedResearchRoute,
   type ResearchCoverageStatus,
 } from "./research-plan";
+import {
+  runAdaptiveResearchDirector,
+  type AdaptiveResearchDirectorResult,
+} from "./adaptive-research-director";
 
 // ── Shared utilities ──────────────────────────────────────────────────────────
 
@@ -593,6 +597,8 @@ export interface DeepWebOsintResult {
   negativeFindings: string[];
   searchGaps: string[];
   laneStatus: Record<AIResearchLane, ResearchCoverageStatus>;
+  /** Bounded, gap-driven pre-pass that feeds domains/people into the canonical extractor. */
+  adaptiveResearch?: AdaptiveResearchDirectorResult;
   yieldMetrics: {
     queriesFired: number;
     pagesScraped: number;
@@ -2093,6 +2099,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       contact_routes: "unavailable",
       semantic_discovery: "unavailable",
     },
+    adaptiveResearch: undefined,
     yieldMetrics: {
       queriesFired: 0,
       pagesScraped: 0,
@@ -2470,6 +2477,138 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     }
   };
 
+  // ── Adaptive research director: bounded, gap-driven pre-pass ─────────────
+  // This is intentionally before the legacy provider fan-out. The director's
+  // output is still discovery/review evidence; exact fetched pages and the
+  // existing candidate funnel remain the only publication boundary.
+  let adaptiveLaneResults: Partial<Record<AIResearchLane, any>> = {};
+  try {
+    await emitDeepWebTelemetry(entity, {
+      stage: "ADAPTIVE RESEARCH DIRECTOR",
+      status: "active",
+      toolIds: ["adaptive-director"],
+      activeToolId: "adaptive-director",
+      inputSummary: `${entity.type} target · selecting next action from identity, structure, people, and route gaps`,
+    });
+    const adaptive = await runAdaptiveResearchDirector({
+      targetName: entity.name,
+      targetType: entity.type,
+      country,
+      context: {
+        ...researchContext,
+        candidateDomains: [...new Set([...domainTargets, ...operatorDomains])],
+      },
+      maxActions: 5,
+      onStep: async ({ action, status, summary }) => {
+        await emitDeepWebTelemetry(entity, {
+          stage: "ADAPTIVE RESEARCH DIRECTOR",
+          status,
+          toolIds: ["adaptive-director"],
+          activeToolId: action.lane ?? "adaptive-director",
+          inputSummary: `${action.kind}: ${action.subject}`,
+          resultSummary: summary ?? action.reason,
+        });
+      },
+    });
+    result.adaptiveResearch = adaptive;
+    for (const item of adaptive.providerResults) {
+      if (item.action.lane && item.result.source !== "none") {
+        adaptiveLaneResults[item.action.lane] = item.result;
+      }
+    }
+    for (const person of adaptive.discoveredPeople) {
+      if (!result.personsDiscovered.includes(person)) result.personsDiscovered.push(person);
+    }
+    for (const domain of adaptive.candidateDomains) {
+      if (!domainTargets.includes(domain)) domainTargets.push(domain);
+    }
+    for (const gap of adaptive.searchGaps) addSearchGap(gap);
+    for (const finding of adaptive.negativeFindings) addNegativeFinding(finding);
+
+    // Preserve every adaptive claim in the same review ledger used by the
+    // legacy fan-out. Provider citations remain discoveryUrls until a page is
+    // fetched; they do not independently promote a contact.
+    for (const item of adaptive.providerResults) {
+      const value = item.result;
+      const label = `Adaptive[${item.provider}:${item.action.kind}]`;
+      if (value.source === "none") continue;
+      result.sources.push(label);
+      result.queriesFired++;
+      if (value.email) {
+        const hits = emailHits.get(value.email) ?? [];
+        hits.push(label);
+        emailHits.set(value.email, hits);
+        recordEvidence("email", value.email, label, null, "adaptive-provider-review", 68, topLevelDetails(label, value.citations));
+      }
+      if (value.phone) {
+        const hits = phoneHits.get(value.phone) ?? [];
+        hits.push(label);
+        phoneHits.set(value.phone, hits);
+        recordEvidence("phone", value.phone, label, null, "adaptive-provider-review", 68, topLevelDetails(label, value.citations));
+      }
+      const socialValues: Array<["linkedin" | "instagram" | "twitter", string | null]> = [
+        ["linkedin", value.linkedin],
+        ["instagram", value.instagram],
+        ["twitter", value.twitter],
+      ];
+      for (const [network, social] of socialValues) {
+        if (!social) continue;
+        const map = network === "linkedin" ? linkedinHits : network === "instagram" ? igHits : twHits;
+        const hits = map.get(social) ?? [];
+        hits.push(label);
+        map.set(social, hits);
+        recordEvidence("social", social, label, null, "adaptive-provider-review", 62, {
+          ...topLevelDetails(label, value.citations),
+          network,
+        });
+      }
+      if (value.ownershipSummary && !result.ownershipSummary) {
+        result.ownershipSummary = value.ownershipSummary;
+      }
+      for (const owner of value.ownerResolutions ?? []) addOwnerResolution(owner, label);
+      for (const owner of value.ownerContacts ?? []) {
+        if (!value.ownerResolutions?.some((candidate) =>
+          candidate.name.toLowerCase() === owner.name.toLowerCase(),
+        )) {
+          addOwnerResolution({
+            ...owner,
+            role: "associated_person",
+            ownershipStatus: "not_established",
+            basis: null,
+            sourceUrls: [],
+          }, label);
+        }
+      }
+      for (const url of (value.citations ?? []).slice(0, 8)) {
+        urlsToScrape.add(url);
+      }
+      allSearchText += " " + JSON.stringify({
+        action: item.action,
+        ownershipSummary: value.ownershipSummary,
+        ownerResolutions: value.ownerResolutions,
+        owners: value.owners,
+      });
+    }
+    await emitDeepWebTelemetry(entity, {
+      stage: "ADAPTIVE RESEARCH DIRECTOR",
+      status: adaptive.actions.some((action) => action.kind !== "stop_review") ? "complete" : "review",
+      toolIds: ["adaptive-director"],
+      activeToolId: "adaptive-director",
+      resultSummary: `${adaptive.actions.length} bounded action(s) · ${adaptive.discoveredPeople.length} person lead(s) · ${adaptive.candidateDomains.length} domain lead(s) · ${adaptive.stoppedBecause}`,
+      sources: adaptive.providerResults.reduce((count, item) => count + (item.result.citations?.length ?? 0), 0),
+      evidence: adaptive.providerResults.length,
+    });
+  } catch (error) {
+    addSearchGap(`adaptive research director unavailable: ${error instanceof Error ? error.message : "unknown error"}`);
+    await emitDeepWebTelemetry(entity, {
+      stage: "ADAPTIVE RESEARCH DIRECTOR",
+      status: "review",
+      toolIds: ["adaptive-director"],
+      activeToolId: "adaptive-director",
+      resultSummary: "director failed closed; continuing with the canonical bounded enrichment path",
+    });
+  }
+
   // ── Phase 0: provider fan-out — live web research ─────────────────────────
   // Both fire in parallel before DDG/Bing — different search indexes means
   // complementary coverage. Perplexity excels at regional press; Gemini
@@ -2498,7 +2637,9 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   };
   try {
     const providerResults = await Promise.allSettled([
-      researchWithPerplexity(entity.name, entity.type, country, {
+      adaptiveLaneResults.people_press
+        ? Promise.resolve({ source: "none" })
+        : researchWithPerplexity(entity.name, entity.type, country, {
         ...researchContext,
         lane: "people_press",
         reachability: realism,
@@ -2512,7 +2653,9 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         });
         return value;
       }),
-      researchWithGemini(entity.name, entity.type, country, {
+      adaptiveLaneResults.official_records
+        ? Promise.resolve({ source: "none" })
+        : researchWithGemini(entity.name, entity.type, country, {
         ...researchContext,
         lane: "official_records",
         reachability: realism,
@@ -2526,7 +2669,9 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         });
         return value;
       }),
-      researchWithTavily(entity.name, entity.type, country, {
+      adaptiveLaneResults.contact_routes
+        ? Promise.resolve({ source: "none" })
+        : researchWithTavily(entity.name, entity.type, country, {
         ...researchContext,
         lane: "contact_routes",
         reachability: realism,
@@ -2540,7 +2685,9 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         });
         return value;
       }),
-      researchWithExa(entity.name, entity.type, country, {
+      adaptiveLaneResults.semantic_discovery
+        ? Promise.resolve({ source: "none" })
+        : researchWithExa(entity.name, entity.type, country, {
         ...researchContext,
         lane: "semantic_discovery",
         reachability: realism,
@@ -2568,23 +2715,24 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       ["semantic_discovery", exa],
     ];
     for (const [lane, value] of laneEntries) {
-      if (!value || value.source === "none") {
+      const effectiveValue = value?.source !== "none" ? value : adaptiveLaneResults[lane];
+      if (!effectiveValue || effectiveValue.source === "none") {
         result.laneStatus[lane] = "unavailable";
         addSearchGap(`provider lane unavailable: ${lane}`);
       } else {
         const hasUsefulOutput = Boolean(
-          value.citations?.length
-          || value.ownerResolutions?.length
-          || value.owners?.length
-          || value.email
-          || value.phone
-          || value.linkedin
-          || value.ownershipSummary,
+          effectiveValue.citations?.length
+          || effectiveValue.ownerResolutions?.length
+          || effectiveValue.owners?.length
+          || effectiveValue.email
+          || effectiveValue.phone
+          || effectiveValue.linkedin
+          || effectiveValue.ownershipSummary,
         );
         result.laneStatus[lane] = hasUsefulOutput ? "complete" : "review";
       }
-      for (const finding of value?.negativeFindings ?? []) addNegativeFinding(String(finding));
-      for (const gap of value?.searchGaps ?? []) addSearchGap(String(gap));
+      for (const finding of effectiveValue?.negativeFindings ?? []) addNegativeFinding(String(finding));
+      for (const gap of effectiveValue?.searchGaps ?? []) addSearchGap(String(gap));
     }
     // Deep Research and Hugging Face Open Deep Research are explicit,
     // review-only jobs. They intentionally do not run in this synchronous

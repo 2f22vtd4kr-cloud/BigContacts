@@ -21,6 +21,7 @@ import {
   setActiveJob, getActiveJob, ownsActiveJob, clearActiveJobIfOwned,
 } from "../lib/job-queue";
 import { deepWebOsintEnrich } from "../lib/enrichment/web-discovery";
+import { summarizeAdaptiveResearch } from "../lib/adaptive-research-director";
 import { computeContactConfidence, computeContactOutcome } from "../lib/contact-confidence";
 import { sanitizePublicEmail, sanitizePublicPhone, sanitizePublicSocialUrl } from "../lib/contact-validation";
 import { contactCacheSet } from "../lib/redis";
@@ -231,6 +232,9 @@ router.post("/ingest/deep-web-osint", async (req: Request, res: Response): Promi
         meta["deepWebNegativeFindings"] = result.negativeFindings;
         meta["deepWebSearchGaps"] = result.searchGaps;
         meta["deepWebYieldMetrics"] = result.yieldMetrics;
+         if (result.adaptiveResearch) {
+           meta["adaptiveResearchTrace"] = summarizeAdaptiveResearch(result.adaptiveResearch);
+         }
         if (result.emailConfidence) meta["deepWebEmailConf"] = result.emailConfidence;
         if (result.phoneConfidence) meta["deepWebPhoneConf"] = result.phoneConfidence;
         // Store discovered person names as review-only candidates — never auto-merged

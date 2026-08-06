@@ -33,6 +33,7 @@ import {
 } from "../lib/job-queue";
 import { runCompaniesHouseEnrichment } from "../lib/enrichment/structured-verification";
 import { deepWebOsintEnrich } from "../lib/enrichment/web-discovery";
+import { summarizeAdaptiveResearch } from "../lib/adaptive-research-director";
 import { enrichInHouse } from "../lib/enrichment/contact-enrichment";
 import { runMaigret, runSherlock, runHolehe } from "../lib/python-tools";
 import { discoverSocialPresence } from "../lib/enrichment/social-discovery";
@@ -408,6 +409,9 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
         meta["deepWebNegativeFindings"] = result.negativeFindings;
         meta["deepWebSearchGaps"] = result.searchGaps;
         meta["deepWebYieldMetrics"] = result.yieldMetrics;
+         if (result.adaptiveResearch) {
+           meta["adaptiveResearchTrace"] = summarizeAdaptiveResearch(result.adaptiveResearch);
+         }
         meta["deepWebEvidenceRunId"] = runId;
         if (result.emailConfidence > 0) meta["deepWebEmailConf"] = result.emailConfidence;
         if (result.phoneConfidence > 0) meta["deepWebPhoneConf"] = result.phoneConfidence;

@@ -14,6 +14,14 @@
 
 ---
 
+## Current State (2026-08-06 — adaptive research director verified)
+
+- Added a bounded, target-scoped adaptive research director before the canonical Phase 0 provider pass. It keeps explicit state for identity, structure, official domains, named people, follow-ups, provider lanes, progress, and stop conditions; each result selects the next action instead of blindly repeating a fixed ladder.
+- The director supports identity resolution, operator/parent structure, official-route discovery, named-person follow-up, exact-claim verification, complementary provider lanes, and bounded review stops. It filters navigation/page-noise names and prioritizes official domains before generic routes.
+- Adaptive results feed the existing canonical `web-enricher.ts` evidence path: discovered people and domains influence exact-page scraping and later follow-ups, while provider citations and contacts remain review-only until exact-page/provenance adjudication. No guessed contacts, AI-only promotion, organization-to-person promotion, or outreach behavior was added.
+- A compact `adaptiveResearchTrace` is persisted alongside the existing investigator plan, lane coverage, search gaps, route hierarchy, and `deepWebYieldMetrics` in both enrichment routes. Full provider payloads remain in the evidence ledger rather than being duplicated in entity metadata.
+- Validation: focused adaptive tests and the existing cascade tests passed; full API suite passed 40 files / 267 tests; production API build passed; managed API workflow restarted successfully; `/api/healthz` returned Redis-healthy `200`. No live Atlas benchmark was launched, so useful-yield superiority remains unclaimed until measured.
+
 ## Current State (2026-08-06 — yield widening and runtime metrics verified)
 
 - The evidence-hardening pass is followed by a bounded yield-widening pass. Person extraction now retains up to 12 candidates, corporation person-hop follow-up covers up to 8 names, and targeted AI follow-up covers up to 6 names; existing identity, attribution, exact-page, generic-mailbox, and reachability gates are unchanged.

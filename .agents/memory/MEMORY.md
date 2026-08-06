@@ -88,3 +88,4 @@
 - [Source coverage status](source-coverage-status.md) — Preserve lane-specific success, blocked pages, unavailable providers, negative findings, and search gaps
 - [Yield widening](yield-widening.md) — Expand bounded discovery and handoff before adjudication; measure useful yield without loosening promotion gates
 - [Campione benchmark](benchmark-campione.md) — First controlled comparison showed focused official-domain research beat Atlas on useful yield for an Italian casino entity
+- [Adaptive research director](adaptive-research-director.md) — Bounded target-scoped action selection now re-plans from evidence gaps while preserving exact-page and fail-closed publication gates
