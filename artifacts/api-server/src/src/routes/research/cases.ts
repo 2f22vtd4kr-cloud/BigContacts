@@ -29,10 +29,22 @@ import {
   GEMINI_BOSS_MODEL_PENDING,
   parseDiscoveryCaseFile,
   parseCaseFile,
+  runGeminiBossDiscovery,
   resolveGeminiBossModel,
   DEFAULT_DISCOVERY_MOTIVATION,
   DEFAULT_DISCOVERY_OBJECTIVE,
 } from "../../lib/case-bureau";
+import { runBroadDiscovery } from "../../lib/enrichment/broad-discovery";
+import { searchRegistry, type RegistryId } from "../../lib/registry-client";
+import {
+  appendJobLog,
+  clearActiveJobIfOwned,
+  createJob,
+  getActiveJob,
+  getJob,
+  setActiveJob,
+  updateJob,
+} from "../../lib/job-queue";
 
 const router = Router();
 
@@ -154,6 +166,310 @@ router.get("/research/bureau/cases/:caseId", async (req, res): Promise<void> => 
     return;
   }
   res.json(serializeBureauCase(row.case, row.entityName ? { name: row.entityName, type: row.entityType ?? "Unknown" } : null));
+});
+
+/**
+ * Run one bounded discovery-first investigation:
+ * 1. Gemini Boss opens the web-grounded case context.
+ * 2. The existing mixed-source discovery/admission runner searches the public
+ *    web without requiring an existing entity.
+ * 3. A small registry mix adds independent review-only company anchors.
+ *
+ * This route intentionally does not run Atlas-wide ingestion or promote any
+ * candidate into a target case.
+ */
+router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Promise<void> => {
+  const caseId = Number(req.params.caseId);
+  if (!Number.isInteger(caseId) || caseId <= 0) {
+    res.status(400).json({ error: "Invalid bureau case ID" });
+    return;
+  }
+  const [current] = await db.select().from(researchCasesTable)
+    .where(eq(researchCasesTable.id, caseId))
+    .limit(1);
+  if (!current) {
+    res.status(404).json({ error: "Bureau case not found" });
+    return;
+  }
+  const file = parseDiscoveryCaseFile(current.caseFile);
+  if (!file) {
+    res.status(409).json({ error: "Only a discovery case can run the preliminary investigation" });
+    return;
+  }
+  const existingJobId = await getActiveJob("case-bureau-discovery");
+  if (existingJobId) {
+    const existing = await getJob(existingJobId);
+    if (existing?.status === "running" || existing?.status === "queued") {
+      res.status(409).json({ error: "A bureau discovery investigation is already running.", jobId: existingJobId });
+      return;
+    }
+  }
+
+  const jobId = await createJob("case-bureau-discovery");
+  await setActiveJob("case-bureau-discovery", jobId);
+  await updateJob(jobId, {
+    status: "running",
+    progress: 0,
+    total: 4,
+    message: "Boss opening preliminary web request…",
+  });
+  await db.update(researchCasesTable).set({
+    status: "active",
+    currentAction: "boss-opening-web-research",
+    updatedAt: new Date(),
+  }).where(eq(researchCasesTable.id, caseId));
+  await db.insert(researchCaseEventsTable).values({
+    caseId,
+    iteration: current.iteration,
+    actorRole: "head_investigator",
+    eventType: "assignment",
+    summary: "Boss opening web request assigned before mixed-source discovery.",
+    payload: JSON.stringify({ jobId, lanes: ["gemini-boss", "broad-web-discovery", "registry-mix"] }),
+  });
+
+  void (async () => {
+    const now = () => new Date();
+    try {
+      await appendJobLog(jobId, "Boss opening web request started.");
+      const boss = await runGeminiBossDiscovery({
+        objective: file.humanBrief.objective,
+        motivation: file.humanBrief.motivation,
+        geography: file.humanBrief.geography,
+        exclusions: file.humanBrief.exclusions,
+      });
+      await updateJob(jobId, {
+        progress: 1,
+        message: boss.status === "completed"
+          ? `Boss opening complete with ${boss.candidates.length} review-only candidate(s); mixed discovery starting…`
+          : `Boss opening ${boss.status}: ${boss.error ?? "no report"}`,
+      });
+      await appendJobLog(jobId, `Boss opening ${boss.status}; model=${boss.model}; citations=${boss.citations.length}.`);
+
+      if (boss.status !== "completed" || !boss.report) {
+        const failedFile = {
+          ...file,
+          initialResearch: {
+            ...file.initialResearch,
+            status: "not_started" as const,
+            bossCommentary: boss.error,
+          },
+          lastUpdatedBy: "gemini-boss-unavailable",
+        };
+        await db.update(researchCasesTable).set({
+          caseFile: JSON.stringify(failedFile),
+          status: "review",
+          currentAction: "boss-opening-web-research",
+          updatedAt: now(),
+        }).where(eq(researchCasesTable.id, caseId));
+        await db.insert(researchCaseEventsTable).values({
+          caseId,
+          iteration: current.iteration,
+          actorRole: "head_investigator",
+          eventType: "observation",
+          summary: `Boss opening did not complete: ${boss.error ?? boss.status}. Mixed-source admission was not started.`,
+          payload: JSON.stringify({ jobId, status: boss.status, model: boss.model }),
+        });
+        await updateJob(jobId, {
+          status: "failed",
+          errors: 1,
+          message: boss.error ?? "Boss opening did not complete.",
+          finishedAt: now().toISOString(),
+        });
+        return;
+      }
+
+      await updateJob(jobId, {
+        progress: 2,
+        message: "Mixed-source discovery: bounded public web search and registry anchors…",
+      });
+      await appendJobLog(jobId, "Mixed-source discovery started: web admission plus registry review lanes.");
+
+      // maxEntities=0 is intentional: broad discovery still runs its AI
+      // admission gate and returns candidates, but this bureau pass never
+      // silently inserts a target before human review.
+      const broad = await runBroadDiscovery({
+        templateSet: 1,
+        rotateTemplates: false,
+        maxQueries: 3,
+        maxEntities: 0,
+      });
+      const registryQuery = `${file.humanBrief.geography} investment family office`.slice(0, 120);
+      const registryIds: RegistryId[] = [
+        "gleif",
+        "sec-edgar",
+        ...(process.env.COMPANIES_HOUSE_API_KEY ? ["companies-house" as RegistryId] : []),
+      ];
+      const registryResults = await Promise.all(registryIds.map(async (registry) => {
+        try {
+          return { registry, results: await searchRegistry({ query: registryQuery, registry, limit: 3 }), error: null };
+        } catch (error) {
+          return { registry, results: [], error: error instanceof Error ? error.message : "registry request failed" };
+        }
+      }));
+      const registryErrors = registryResults.filter((entry) => entry.error);
+      const reviewCandidates = [
+        ...boss.candidates.map((candidate) => ({
+          name: candidate.name,
+          type: candidate.type ?? "review_candidate",
+          relevance: candidate.relevance ?? "Returned by the Boss opening request; exact attribution requires review.",
+          reachability: candidate.reachability ?? "Unresolved until exact identity and route evidence are checked.",
+          sourceUrls: [...new Set([...(candidate.sourceUrls ?? []), ...boss.citations])].slice(0, 8),
+          state: "review_only" as const,
+        })),
+        ...broad.newEntities.map((candidate) => ({
+          name: candidate.name,
+          type: "review_candidate",
+          relevance: "Passed the existing broad-discovery admission gate; retained here without insertion.",
+          reachability: "Unresolved; no access claim is made.",
+          sourceUrls: [] as string[],
+          state: "review_only" as const,
+        })),
+        ...registryResults.flatMap(({ registry, results }) => results.map((result) => ({
+          name: result.name,
+          type: result.type,
+          relevance: `Registry anchor from ${registry}; ownership, wealth, and mission relevance remain unconfirmed.`,
+          reachability: "Registry record only; no access claim is made.",
+          sourceUrls: [] as string[],
+          state: "review_only" as const,
+        }))),
+      ].filter((candidate, index, all) =>
+        candidate.name && all.findIndex((other) => other.name.toLowerCase() === candidate.name.toLowerCase()) === index
+      ).slice(0, 50);
+      const mixedReport = [
+        `Boss opening report:\n${boss.report}`,
+        `\nMixed-source discovery summary: ${broad.queriesFired} web queries, ${broad.resultsScraped} web result excerpts, ${broad.newEntities.length} admission-gated web candidate(s) retained without insertion.`,
+        `Registry lanes: ${registryResults.map((entry) => `${entry.registry}=${entry.results.length}`).join(", ")}.`,
+        registryErrors.length ? `Registry gaps: ${registryErrors.map((entry) => `${entry.registry}: ${entry.error}`).join("; ")}` : "Registry gaps: none reported.",
+      ].join("\n");
+      const commentary = [
+        "The Boss opening completed and established the first durable case context.",
+        `Retain ${reviewCandidates.length} candidate/anchor record(s) for human review only.`,
+        "Next decision: review identity, mission relevance, provenance, and realistic reachability before promoting any candidate into target-scoped research.",
+      ].join(" ");
+      const updatedFile = {
+        ...file,
+        initialResearch: {
+          status: "recorded" as const,
+          researchResponse: mixedReport,
+          bossCommentary: commentary,
+          sourceUrls: [...new Set([...boss.citations, ...registryResults.flatMap((entry) => entry.results.flatMap((result) => {
+            try {
+              const metadata = result.metadata ? JSON.parse(result.metadata) as Record<string, unknown> : {};
+              return typeof metadata.url === "string" ? [metadata.url] : [];
+            } catch {
+              return [];
+            }
+          }))])].slice(0, 80),
+          recordedAt: now().toISOString(),
+        },
+        discoveredCandidates: reviewCandidates,
+        decisionLog: [
+          ...file.decisionLog,
+          {
+            iteration: current.iteration + 1,
+            decision: "Run one bounded mixed-source discovery pass and hold all candidates for human review.",
+            reason: "The Boss opening supplied preliminary web context; promotion requires exact identity, attribution, provenance, and reachability review.",
+            createdAt: now().toISOString(),
+          },
+        ].slice(-50),
+        lastUpdatedBy: "gemini-boss-mixed-source-discovery",
+      };
+      const [updated] = await db.update(researchCasesTable).set({
+        caseFile: JSON.stringify(updatedFile),
+        status: "review",
+        currentAction: "human-review-discovery-candidates",
+        iteration: current.iteration + 1,
+        lastDecisionAt: now(),
+        updatedAt: now(),
+      }).where(eq(researchCasesTable.id, caseId)).returning();
+      await db.insert(researchCaseEventsTable).values([
+        {
+          caseId,
+          iteration: current.iteration + 1,
+          actorRole: "specialist",
+          eventType: "observation",
+          summary: `Mixed-source discovery completed: ${reviewCandidates.length} review-only candidate/anchor record(s).`,
+          payload: JSON.stringify({
+            jobId,
+            bossModel: boss.model,
+            bossCitations: boss.citations.length,
+            broad: {
+              queriesFired: broad.queriesFired,
+              resultsScraped: broad.resultsScraped,
+              candidates: broad.newEntities.length,
+              inserted: broad.entitiesDiscovered,
+            },
+            registries: registryResults.map((entry) => ({
+              registry: entry.registry,
+              results: entry.results.length,
+              error: entry.error,
+            })),
+          }),
+        },
+        {
+          caseId,
+          iteration: current.iteration + 1,
+          actorRole: "head_investigator",
+          eventType: "decision",
+          summary: commentary,
+          payload: JSON.stringify({ nextAction: "human-review-discovery-candidates", candidateCount: reviewCandidates.length }),
+        },
+      ]);
+      await appendJobLog(jobId, `Discovery complete; review-only candidates=${reviewCandidates.length}; no entity insertion.`);
+      await updateJob(jobId, {
+        status: "done",
+        progress: 4,
+        total: 4,
+        inserted: 0,
+        skipped: 0,
+        errors: registryErrors.length,
+        message: `Discovery complete: ${reviewCandidates.length} review-only candidate/anchor record(s); no target promoted.`,
+        result: JSON.stringify({
+          caseId,
+          bossModel: boss.model,
+          bossCitations: boss.citations.length,
+          webQueries: broad.queriesFired,
+          webResults: broad.resultsScraped,
+          reviewCandidates: reviewCandidates.length,
+          registryErrors: registryErrors.map((entry) => entry.registry),
+          caseStatus: updated?.status ?? "review",
+        }),
+        finishedAt: now().toISOString(),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Bureau discovery failed";
+      await appendJobLog(jobId, `Discovery failed: ${message}`);
+      await db.update(researchCasesTable).set({
+        status: "review",
+        currentAction: "discovery-run-failed",
+        updatedAt: now(),
+      }).where(eq(researchCasesTable.id, caseId));
+      await db.insert(researchCaseEventsTable).values({
+        caseId,
+        iteration: current.iteration,
+        actorRole: "head_investigator",
+        eventType: "status",
+        summary: `Discovery run failed safely: ${message}`,
+        payload: JSON.stringify({ jobId }),
+      });
+      await updateJob(jobId, {
+        status: "failed",
+        errors: 1,
+        message,
+        finishedAt: now().toISOString(),
+      });
+    } finally {
+      await clearActiveJobIfOwned("case-bureau-discovery", jobId);
+    }
+  })();
+
+  res.status(202).json({
+    caseId,
+    jobId,
+    pollUrl: `/api/ingest/job/${jobId}`,
+    caseUrl: `/api/research/bureau/cases/${caseId}`,
+    message: "Boss opening request and bounded mixed-source discovery started; candidates remain review-only.",
+  });
 });
 
 router.post("/research/bureau/cases/:caseId/initial-research", async (req, res): Promise<void> => {

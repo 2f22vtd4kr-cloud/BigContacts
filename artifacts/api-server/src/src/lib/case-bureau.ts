@@ -1,4 +1,5 @@
 import type { Entity } from "@workspace/db";
+import { logger } from "./logger";
 
 export type BureauSpecialist = {
   id: string;
@@ -141,6 +142,21 @@ export type GeminiBossModelSelection = {
   candidateCount: number;
 };
 
+export type GeminiBossDiscoveryResult = {
+  status: "completed" | "pending" | "unavailable";
+  model: string;
+  report: string | null;
+  candidates: Array<{
+    name: string;
+    type?: string;
+    relevance?: string;
+    reachability?: string;
+    sourceUrls?: string[];
+  }>;
+  citations: string[];
+  error: string | null;
+};
+
 function getGeminiKeys(): string[] {
   return GEMINI_KEY_NAMES
     .map((name) => process.env[name] ?? "")
@@ -237,6 +253,201 @@ export async function resolveGeminiBossModel(): Promise<GeminiBossModelSelection
     status: "unavailable",
     inspectedKeyCount: keys.length,
     candidateCount: 0,
+  };
+}
+
+function extractJsonObject(value: string): string | null {
+  const fenced = value.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim();
+  const source = fenced || value.trim();
+  const objectStart = source.indexOf("{");
+  const arrayStart = source.indexOf("[");
+  const start = objectStart < 0 ? arrayStart : arrayStart < 0 ? objectStart : Math.min(objectStart, arrayStart);
+  if (start < 0) return null;
+  const open = source[start];
+  const close = open === "{" ? "}" : "]";
+  const end = source.lastIndexOf(close);
+  return end > start ? source.slice(start, end + 1) : null;
+}
+
+function parseBossDiscoveryResponse(raw: string): {
+  report: string;
+  candidates: GeminiBossDiscoveryResult["candidates"];
+} {
+  const json = extractJsonObject(raw);
+  if (!json) return { report: raw.trim(), candidates: [] };
+  try {
+    const parsed = JSON.parse(json) as Record<string, unknown>;
+    const rawCandidates = Array.isArray(parsed.candidates)
+      ? parsed.candidates
+      : Array.isArray(parsed.discoveredCandidates)
+        ? parsed.discoveredCandidates
+        : [];
+    const candidates = rawCandidates
+      .filter((value): value is Record<string, unknown> => Boolean(value) && typeof value === "object")
+      .map((candidate) => ({
+        name: String(candidate.name ?? "").trim(),
+        type: typeof candidate.type === "string" ? candidate.type : undefined,
+        relevance: typeof candidate.relevance === "string" ? candidate.relevance : undefined,
+        reachability: typeof candidate.reachability === "string" ? candidate.reachability : undefined,
+        sourceUrls: Array.isArray(candidate.sourceUrls)
+          ? candidate.sourceUrls.filter((url): url is string => typeof url === "string" && /^https?:\/\//i.test(url)).slice(0, 8)
+          : undefined,
+      }))
+      .filter((candidate) => candidate.name.length >= 3)
+      .slice(0, 30);
+    const report = typeof parsed.report === "string"
+      ? parsed.report
+      : typeof parsed.summary === "string"
+        ? parsed.summary
+        : raw.trim();
+    return { report, candidates };
+  } catch {
+    return { report: raw.trim(), candidates: [] };
+  }
+}
+
+/**
+ * Opening Boss request for a discovery case. This is deliberately separate
+ * from target-scoped extraction: the mission is the subject, Google grounding
+ * supplies the first web context, and all returned people remain review-only.
+ */
+export async function runGeminiBossDiscovery(input: {
+  objective: string;
+  motivation: string;
+  geography?: string;
+  exclusions?: string[];
+}): Promise<GeminiBossDiscoveryResult> {
+  const selection = await resolveGeminiBossModel();
+  if (selection.status !== "resolved") {
+    return {
+      status: selection.status,
+      model: selection.model,
+      report: null,
+      candidates: [],
+      citations: [],
+      error: selection.status === "pending"
+        ? "No Gemini model is available because no Gemini key is configured."
+        : "Configured Gemini keys did not expose a usable Boss model.",
+    };
+  }
+
+  const keys = getGeminiKeys();
+  const prompt = `${buildBossOpeningPrompt(input)}
+
+This is the preliminary web request that initializes the durable case context.
+Use Google Search grounding now. Do not wait for a preselected entity.
+Return ONLY JSON in this shape:
+{
+  "report": "concise evidence-led opening assessment",
+  "candidates": [
+    {
+      "name": "candidate name",
+      "type": "person | company | investment_group | intermediary",
+      "relevance": "why this candidate fits the mission",
+      "reachability": "realistic public route or unresolved",
+      "sourceUrls": ["exact URLs supporting this candidate"]
+    }
+  ],
+  "nextDirections": ["bounded next investigation direction"],
+  "uncertainties": ["identity, attribution, or access uncertainty"]
+}
+Candidates are review-only. Never invent a name, wealth claim, relationship, contact detail, or URL.`;
+
+  let lastProviderError = "All configured Gemini keys failed for the preliminary Boss request.";
+  for (const key of keys) {
+    try {
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(selection.model)}:generateContent?key=${encodeURIComponent(key)}`;
+      const requestBody = {
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        tools: [{ google_search: {} }],
+        generationConfig: {
+          temperature: 0.1,
+          maxOutputTokens: 3500,
+          responseMimeType: "application/json",
+        },
+      };
+      let response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify(requestBody),
+        signal: AbortSignal.timeout(45_000),
+      });
+      let responseText = "";
+      if (!response.ok) {
+        responseText = (await response.text().catch(() => "")).slice(0, 300);
+        lastProviderError = `Gemini HTTP ${response.status}${responseText ? `: ${responseText}` : ""}`;
+        logger.warn(
+          { model: selection.model, status: response.status, detail: responseText },
+          "Case Bureau Boss opening provider rejection",
+        );
+        // Google grounding plus JSON MIME mode is not accepted by every
+        // catalog-advertised Flash-Lite revision. Retry the same key with the
+        // stable generation contract used by the existing Gemini lane.
+        if (response.status === 400) {
+          const fallbackBody = {
+            contents: requestBody.contents,
+            tools: requestBody.tools,
+            generationConfig: {
+              temperature: 0.1,
+              maxOutputTokens: 3500,
+            },
+          };
+          response = await fetch(endpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Accept: "application/json" },
+            body: JSON.stringify(fallbackBody),
+            signal: AbortSignal.timeout(45_000),
+          });
+          if (!response.ok) {
+            responseText = (await response.text().catch(() => "")).slice(0, 300);
+            lastProviderError = `Gemini fallback HTTP ${response.status}${responseText ? `: ${responseText}` : ""}`;
+            logger.warn(
+              { model: selection.model, status: response.status, detail: responseText },
+              "Case Bureau Boss opening fallback rejected",
+            );
+          }
+        }
+      }
+      if (!response.ok) continue;
+      const payload = await response.json() as {
+        candidates?: Array<{
+          content?: { parts?: Array<{ text?: string }> };
+          groundingMetadata?: { groundingChunks?: Array<{ web?: { uri?: string } }> };
+        }>;
+      };
+      const candidate = payload.candidates?.[0];
+      const raw = candidate?.content?.parts?.map((part) => part.text ?? "").join("\n").trim() ?? "";
+      if (!raw) {
+        lastProviderError = "Gemini returned no text for the preliminary Boss request.";
+        logger.warn({ model: selection.model }, "Case Bureau Boss opening returned no text");
+        continue;
+      }
+      const parsed = parseBossDiscoveryResponse(raw);
+      const citations = (candidate?.groundingMetadata?.groundingChunks ?? [])
+        .map((chunk) => chunk.web?.uri)
+        .filter((url): url is string => typeof url === "string" && /^https?:\/\//i.test(url))
+        .slice(0, 40);
+      return {
+        status: "completed",
+        model: selection.model,
+        report: parsed.report || raw,
+        candidates: parsed.candidates,
+        citations,
+        error: null,
+      };
+    } catch (error) {
+      lastProviderError = error instanceof Error ? error.message : "Gemini request failed.";
+      logger.warn({ model: selection.model, err: lastProviderError }, "Case Bureau Boss opening request threw");
+    }
+  }
+
+  return {
+    status: "unavailable",
+    model: selection.model,
+    report: null,
+    candidates: [],
+    citations: [],
+    error: lastProviderError,
   };
 }
 
