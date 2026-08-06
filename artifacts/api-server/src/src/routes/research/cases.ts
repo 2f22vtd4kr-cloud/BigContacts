@@ -16,6 +16,7 @@ import {
   OpenResearchCaseBody,
   GetBureauCaseParams,
   OpenBureauDiscoveryCaseBody,
+  AdmitBureauCaseCandidateBody,
   PromoteBureauCaseTargetBody,
   PromoteBureauCaseTargetParams,
   RecordBureauInitialResearchBody,
@@ -84,6 +85,65 @@ function serializeBureauCase(
   return serializeCase(row, entity);
 }
 
+function candidateTypeToEntityType(type: string): "HNWI" | "Corporation" | "Trust" | "Gatekeeper" {
+  const normalized = type.toLowerCase();
+  if (normalized.includes("person") || normalized.includes("individual") || normalized.includes("investor")) return "HNWI";
+  if (normalized.includes("intermediary") || normalized.includes("gatekeeper") || normalized.includes("advisor")) return "Gatekeeper";
+  if (normalized.includes("trust") || normalized.includes("foundation")) return "Trust";
+  return "Corporation";
+}
+
+function mergeContactEvidence(
+  ...groups: Array<Array<{
+    vectorType: string;
+    value: string;
+    scope: string;
+    personName: string | null;
+    role: string | null;
+    sourceUrls: string[];
+    note: string | null;
+  }> | undefined>
+) {
+  return groups.flatMap((group) => group ?? [])
+    .filter((item) => item.value.trim())
+    .filter((item, index, all) => all.findIndex((other) =>
+      other.vectorType === item.vectorType
+      && other.value.toLowerCase() === item.value.toLowerCase()
+      && (other.personName ?? "").toLowerCase() === (item.personName ?? "").toLowerCase(),
+    ) === index)
+    .slice(0, 20);
+}
+
+type DiscoveryCandidate = ReturnType<typeof parseDiscoveryCaseFile> extends infer T
+  ? Exclude<T, null>["discoveredCandidates"][number]
+  : never;
+
+function mergeDiscoveryCandidates(
+  existing: DiscoveryCandidate[],
+  additions: DiscoveryCandidate[],
+): DiscoveryCandidate[] {
+  const merged = new Map<string, DiscoveryCandidate>();
+  for (const candidate of [...existing, ...additions]) {
+    const key = candidate.name.trim().toLowerCase();
+    if (!key) continue;
+    const prior = merged.get(key);
+    if (!prior) {
+      merged.set(key, candidate);
+      continue;
+    }
+    merged.set(key, {
+      ...prior,
+      type: prior.type || candidate.type,
+      relevance: candidate.relevance || prior.relevance,
+      reachability: candidate.reachability || prior.reachability,
+      sourceUrls: [...new Set([...prior.sourceUrls, ...candidate.sourceUrls])].slice(0, 20),
+      contactEvidence: mergeContactEvidence(prior.contactEvidence, candidate.contactEvidence),
+      admittedEntityId: prior.admittedEntityId ?? candidate.admittedEntityId ?? null,
+    });
+  }
+  return [...merged.values()].slice(0, 80);
+}
+
 async function persistDiscoveryCheckpoint(
   caseId: number,
   iteration: number,
@@ -110,6 +170,7 @@ async function persistDiscoveryCheckpoint(
       candidateNames: report.candidateNames,
       sourceUrls: report.sourceUrls,
       nextQuestions: report.nextQuestions,
+      contactEvidence: report.contactEvidence ?? [],
       error: report.error,
     }),
   });
@@ -348,6 +409,7 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
         candidateNames: mistral.candidates.map((candidate) => candidate.name),
         sourceUrls: mistral.citations,
         nextQuestions: [...mistral.nextDirections, ...mistral.uncertainties],
+        contactEvidence: mistral.candidates.flatMap((candidate) => candidate.contactEvidence ?? []),
         error: mistral.error,
       }, `Mistral web-search ${mistral.status}; report checkpointed into shared case context.`);
       await appendJobLog(jobId, `Mistral web-search ${mistral.status}; model=${mistral.model}; citations=${mistral.citations.length}.`);
@@ -371,6 +433,7 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
         candidateNames: boss.candidates.map((candidate) => candidate.name),
         sourceUrls: boss.citations,
         nextQuestions: [...boss.nextDirections, ...boss.uncertainties],
+        contactEvidence: boss.candidates.flatMap((candidate) => candidate.contactEvidence ?? []),
         error: boss.error,
       }, `Gemini Boss opening ${boss.status}; report checkpointed after reading prior lane reports.`);
       await updateJob(jobId, {
@@ -429,6 +492,7 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
           relevance: candidate.relevance ?? "Returned by the Boss opening request; exact attribution requires review.",
           reachability: candidate.reachability ?? "Unresolved until exact identity and route evidence are checked.",
           sourceUrls: [...new Set([...(candidate.sourceUrls ?? []), ...boss.citations])].slice(0, 8),
+          contactEvidence: candidate.contactEvidence ?? [],
           state: "review_only" as const,
         })),
         ...mistral.candidates.map((candidate) => ({
@@ -437,6 +501,7 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
           relevance: candidate.relevance ?? "Returned by the Mistral web-search lane; exact attribution requires review.",
           reachability: candidate.reachability ?? "Unresolved until exact identity and route evidence are checked.",
           sourceUrls: [...new Set([...(candidate.sourceUrls ?? []), ...mistral.citations])].slice(0, 8),
+          contactEvidence: candidate.contactEvidence ?? [],
           state: "review_only" as const,
         })),
         ...broad.newEntities.map((candidate) => ({
@@ -445,6 +510,7 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
           relevance: "Passed the existing broad-discovery admission gate; retained here without insertion.",
           reachability: "Unresolved; no access claim is made.",
           sourceUrls: [] as string[],
+          contactEvidence: [],
           state: "review_only" as const,
         })),
         ...registryResults.flatMap(({ registry, results }) => results.map((result) => ({
@@ -453,14 +519,14 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
           relevance: `Registry anchor from ${registry}; ownership, wealth, and mission relevance remain unconfirmed.`,
           reachability: "Registry record only; no access claim is made.",
           sourceUrls: [] as string[],
+          contactEvidence: [],
           state: "review_only" as const,
         }))),
-      ].filter((candidate, index, all) =>
-        candidate.name && all.findIndex((other) => other.name.toLowerCase() === candidate.name.toLowerCase()) === index
-      ).slice(0, 50);
+      ];
+      const mergedReviewCandidates = mergeDiscoveryCandidates([], reviewCandidates);
       workingFile = {
         ...workingFile,
-        discoveredCandidates: reviewCandidates,
+        discoveredCandidates: mergedReviewCandidates,
         initialResearch: {
           ...workingFile.initialResearch,
           status: "recorded",
@@ -601,7 +667,7 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
           ? "The Gemini Boss opening was unavailable, so its provider gap is preserved explicitly."
           : "The Boss opening completed and established the first durable case context.",
         "The remaining bounded public-web and registry lanes ran without treating the unavailable Boss as a fatal case error.",
-        `Retain ${reviewCandidates.length} candidate/anchor record(s) for human review only.`,
+         `Retain ${mergedReviewCandidates.length} candidate/anchor record(s) for human review only.`,
         "Next decision: review identity, mission relevance, provenance, and realistic reachability before promoting any candidate into target-scoped research.",
       ].join(" ");
       const updatedFile = {
@@ -641,7 +707,7 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
            error: finalRightHand.error,
            createdAt: now().toISOString(),
          },
-        discoveredCandidates: reviewCandidates,
+         discoveredCandidates: mergedReviewCandidates,
         decisionLog: [
           ...workingFile.decisionLog,
           {
@@ -797,6 +863,7 @@ router.post("/research/bureau/cases/:caseId/run-next-pass", async (req, res): Pr
   }
 
   const directions = [
+    "For every persisted candidate, perform a dedicated public-contact audit: identify named investment decision-makers, official professional profiles, public personal or organization email/phone routes, and warm-introduction paths. Return an explicit contactEvidence array or explicitly state that no structured route was found.",
     ...(file.nextInvestigation?.boss?.nextDirections ?? []),
     ...(file.currentProgress.openQuestions ?? []),
   ].filter((direction, index, all) => direction.trim() && all.indexOf(direction) === index).slice(0, 8);
@@ -852,6 +919,7 @@ router.post("/research/bureau/cases/:caseId/run-next-pass", async (req, res): Pr
         candidateNames: mistral.candidates.map((candidate) => candidate.name),
         sourceUrls: mistral.citations,
         nextQuestions: [...mistral.nextDirections, ...mistral.uncertainties],
+        contactEvidence: mistral.candidates.flatMap((candidate) => candidate.contactEvidence ?? []),
         error: mistral.error,
       }, `Mistral verification search ${mistral.status}; report appended to the shared case context.`);
       await updateJob(jobId, {
@@ -956,6 +1024,7 @@ router.post("/research/bureau/cases/:caseId/run-next-pass", async (req, res): Pr
         candidateNames: boss.candidates.map((candidate) => candidate.name),
         sourceUrls: boss.citations,
         nextQuestions: [...boss.nextDirections, ...boss.uncertainties],
+        contactEvidence: boss.candidates.flatMap((candidate) => candidate.contactEvidence ?? []),
         error: boss.error,
       }, `Gemini Boss verification review ${boss.status}; next directions refreshed.`);
 
@@ -966,6 +1035,7 @@ router.post("/research/bureau/cases/:caseId/run-next-pass", async (req, res): Pr
           relevance: candidate.relevance ?? "Returned by the verification lane; exact attribution requires review.",
           reachability: candidate.reachability ?? "Unresolved until exact identity and route evidence are checked.",
           sourceUrls: [...new Set([...(candidate.sourceUrls ?? []), ...mistral.citations])].slice(0, 8),
+          contactEvidence: candidate.contactEvidence ?? [],
           state: "review_only" as const,
         })),
         ...boss.candidates.map((candidate) => ({
@@ -974,14 +1044,11 @@ router.post("/research/bureau/cases/:caseId/run-next-pass", async (req, res): Pr
           relevance: candidate.relevance ?? "Returned by the Boss verification review; exact attribution requires review.",
           reachability: candidate.reachability ?? "Unresolved until exact identity and route evidence are checked.",
           sourceUrls: [...new Set(candidate.sourceUrls ?? [])].slice(0, 8),
+          contactEvidence: candidate.contactEvidence ?? [],
           state: "review_only" as const,
         })),
       ];
-      const mergedCandidates = [...workingFile.discoveredCandidates, ...newCandidates]
-        .filter((candidate, index, all) =>
-          candidate.name && all.findIndex((other) => other.name.toLowerCase() === candidate.name.toLowerCase()) === index,
-        )
-        .slice(0, 80);
+      const mergedCandidates = mergeDiscoveryCandidates(workingFile.discoveredCandidates, newCandidates);
       const finalFile = {
         ...workingFile,
         discoveredCandidates: mergedCandidates,
@@ -1413,6 +1480,116 @@ router.post("/research/bureau/cases/:caseId/initial-research", async (req, res):
       researchResponse: body.data.researchResponse,
       bossCommentary: body.data.bossCommentary ?? null,
       sourceUrls: body.data.sourceUrls ?? [],
+    }),
+  });
+  res.json(serializeBureauCase(updated!, null));
+});
+
+router.post("/research/bureau/cases/:caseId/admit-candidate", async (req, res): Promise<void> => {
+  const params = GetBureauCaseParams.safeParse(req.params);
+  const body = AdmitBureauCaseCandidateBody.safeParse(req.body);
+  if (!params.success || !body.success) {
+    res.status(400).json({ error: !params.success ? params.error.message : body.error.message });
+    return;
+  }
+  const [current] = await db.select().from(researchCasesTable)
+    .where(eq(researchCasesTable.id, params.data.caseId))
+    .limit(1);
+  if (!current) {
+    res.status(404).json({ error: "Bureau case not found" });
+    return;
+  }
+  const discoveryFile = parseDiscoveryCaseFile(current.caseFile);
+  if (!discoveryFile) {
+    res.status(409).json({ error: "Only a discovery case can admit a candidate" });
+    return;
+  }
+  const candidate = discoveryFile.discoveredCandidates.find(
+    (item) => item.name.trim().toLowerCase() === body.data.candidateName.trim().toLowerCase(),
+  );
+  if (!candidate) {
+    res.status(409).json({ error: "Candidate is not present in this persisted case file" });
+    return;
+  }
+  if (candidate.admittedEntityId) {
+    res.status(409).json({ error: `Candidate has already been admitted as review entity ${candidate.admittedEntityId}` });
+    return;
+  }
+
+  const entityType = candidateTypeToEntityType(candidate.type);
+  const now = new Date();
+  const [entity] = await db.insert(entitiesTable).values({
+    name: candidate.name,
+    type: entityType,
+    bayesianScore: 0.05,
+    contactConfidence: 0,
+    contactOutcome: "evidence_only",
+    isHot: false,
+    isStarred: false,
+    isHidden: false,
+    sourceRegistries: JSON.stringify(["Case Bureau discovery"]),
+    notes: "Admitted manually from a persisted Case Bureau discovery candidate. Identity, attribution, provenance, contactability, and target promotion remain under human review.",
+    metadata: JSON.stringify({
+      reviewOnly: true,
+      admission: "case-bureau-candidate",
+      caseId: current.id,
+      admittedAt: now.toISOString(),
+      candidate: {
+        name: candidate.name,
+        type: candidate.type,
+        relevance: candidate.relevance,
+        reachability: candidate.reachability,
+        sourceUrls: candidate.sourceUrls,
+        contactEvidence: candidate.contactEvidence ?? [],
+      },
+    }),
+  }).returning();
+  if (!entity) {
+    res.status(500).json({ error: "Unable to admit candidate" });
+    return;
+  }
+
+  const updatedCandidates = discoveryFile.discoveredCandidates.map((item) =>
+    item.name.trim().toLowerCase() === candidate.name.trim().toLowerCase()
+      ? { ...item, admittedEntityId: entity.id }
+      : item,
+  );
+  const updatedFile = {
+    ...discoveryFile,
+    discoveredCandidates: updatedCandidates,
+    decisionLog: [
+      ...discoveryFile.decisionLog,
+      {
+        iteration: current.iteration + 1,
+        decision: `Human admitted ${candidate.name} as review-only entity ${entity.id}.`,
+        reason: "Candidate provenance and any contact evidence were copied into review metadata; no target or contact promotion occurred.",
+        createdAt: now.toISOString(),
+      },
+    ].slice(-50),
+    lastUpdatedBy: "human-candidate-admission",
+  };
+  const [updated] = await db.update(researchCasesTable).set({
+    caseFile: JSON.stringify(updatedFile),
+    status: "review",
+    currentAction: "human-review-discovery-candidates",
+    iteration: current.iteration + 1,
+    lastDecisionAt: now,
+    updatedAt: now,
+  }).where(eq(researchCasesTable.id, current.id)).returning();
+  await db.insert(researchCaseEventsTable).values({
+    caseId: current.id,
+    iteration: current.iteration + 1,
+    actorRole: "human",
+    eventType: "decision",
+    summary: `Candidate admitted as review-only entity: ${candidate.name}.`,
+    payload: JSON.stringify({
+      entityId: entity.id,
+      entityType,
+      candidateName: candidate.name,
+      sourceUrls: candidate.sourceUrls,
+      contactEvidenceCount: candidate.contactEvidence?.length ?? 0,
+      targetPromoted: false,
+      contactPromoted: false,
     }),
   });
   res.json(serializeBureauCase(updated!, null));

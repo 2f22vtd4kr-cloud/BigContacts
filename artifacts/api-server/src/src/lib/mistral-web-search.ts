@@ -14,11 +14,22 @@ export type MistralWebSearchResult = {
     relevance?: string;
     reachability?: string;
     sourceUrls?: string[];
+    contactEvidence?: MistralContactEvidence[];
   }>;
   citations: string[];
   nextDirections: string[];
   uncertainties: string[];
   error: string | null;
+};
+
+export type MistralContactEvidence = {
+  vectorType: "email" | "phone" | "linkedin" | "twitter" | "instagram" | "telegram" | "website" | "organization_contact" | "other";
+  value: string;
+  scope: "person" | "organization" | "unknown";
+  personName: string | null;
+  role: string | null;
+  sourceUrls: string[];
+  note: string | null;
 };
 
 let lastRequestAt = 0;
@@ -128,6 +139,7 @@ function parseReport(raw: string, citations: string[]): {
                 : []),
               ...citations,
             ].filter((url, index, urls) => urls.indexOf(url) === index).slice(0, 12),
+             contactEvidence: parseContactEvidence(item.contactEvidence),
           }];
         })
       : [];
@@ -144,6 +156,33 @@ function parseReport(raw: string, citations: string[]): {
   } catch {
     return { report: raw.slice(0, 16_000), candidates: [], nextDirections: [], uncertainties: [] };
   }
+}
+
+function parseContactEvidence(value: unknown): MistralContactEvidence[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const vectors = new Set<MistralContactEvidence["vectorType"]>([
+    "email", "phone", "linkedin", "twitter", "instagram", "telegram", "website", "organization_contact", "other",
+  ]);
+  const evidence = value.flatMap((entry) => {
+    if (!entry || typeof entry !== "object") return [];
+    const item = entry as Record<string, unknown>;
+    const valueText = typeof item.value === "string" ? item.value.trim() : "";
+    if (!valueText) return [];
+    return [{
+      vectorType: typeof item.vectorType === "string" && vectors.has(item.vectorType as MistralContactEvidence["vectorType"])
+        ? item.vectorType as MistralContactEvidence["vectorType"]
+        : "other",
+      value: valueText.slice(0, 500),
+      scope: item.scope === "person" || item.scope === "organization" ? item.scope : "unknown",
+      personName: typeof item.personName === "string" && item.personName.trim() ? item.personName.trim().slice(0, 200) : null,
+      role: typeof item.role === "string" && item.role.trim() ? item.role.trim().slice(0, 200) : null,
+      sourceUrls: Array.isArray(item.sourceUrls)
+        ? item.sourceUrls.filter((url): url is string => typeof url === "string" && /^https?:\/\//i.test(url)).slice(0, 8)
+        : [],
+      note: typeof item.note === "string" && item.note.trim() ? item.note.trim().slice(0, 500) : null,
+    } satisfies MistralContactEvidence];
+  });
+  return evidence.length > 0 ? evidence.slice(0, 12) : undefined;
 }
 
 export async function runMistralWebSearch(input: {
@@ -190,13 +229,24 @@ Use web search when useful. Return ONLY JSON:
       "relevance": "why this candidate fits the mission",
       "reachability": "realistic public route or unresolved",
       "sourceUrls": ["exact URLs supporting this candidate"]
+       ,"contactEvidence": [
+         {
+           "vectorType": "email | phone | linkedin | twitter | instagram | telegram | website | organization_contact | other",
+           "value": "exact publicly reported value",
+           "scope": "person | organization | unknown",
+           "personName": "person attributed to the route or null",
+           "role": "role at the organization or null",
+           "sourceUrls": ["exact URLs that visibly support this route"],
+           "note": "attribution or verification caveat"
+         }
+       ]
     }
   ],
   "nextDirections": ["bounded next investigation direction"],
   "uncertainties": ["identity, attribution, or access uncertainty"]
 }
 
-All candidates are review-only. Never invent names, wealth claims, relationships, contact details, or URLs.`;
+All candidates are review-only. Only include contactEvidence when the exact value is explicitly visible in a cited public source. Never infer, construct, guess, or synthesize an email, phone number, profile URL, or relationship. If no contact route is found, return an empty array and say so in the report.`;
 
   try {
     const response = await withMistralRateLimit(() => fetch(MISTRAL_CONVERSATIONS_API, {

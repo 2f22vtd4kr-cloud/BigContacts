@@ -23,6 +23,7 @@ import type {
   Asset,
   AssetInput,
   AssetUpdate,
+  BureauAdmitCandidateInput,
   BureauCase,
   BureauCaseContinuationResponse,
   BureauDiscoveryInput,
@@ -1986,6 +1987,78 @@ export const usePromoteBureauCaseTarget = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getPromoteBureauCaseTargetMutationOptions(options));
+    }
+
+export const getAdmitBureauCaseCandidateUrl = (caseId: number,) => {
+
+
+
+
+  return `/api/research/bureau/cases/${caseId}/admit-candidate`
+}
+
+/**
+ * @summary Create a review-only entity from one persisted discovery candidate
+ */
+export const admitBureauCaseCandidate = async (caseId: number,
+    bureauAdmitCandidateInput: BureauAdmitCandidateInput, options?: RequestInit): Promise<BureauCase> => {
+
+  return customFetch<BureauCase>(getAdmitBureauCaseCandidateUrl(caseId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(bureauAdmitCandidateInput)
+  }
+);}
+
+
+
+
+
+export const getAdmitBureauCaseCandidateMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof admitBureauCaseCandidate>>, TError,{caseId: number;data: BodyType<BureauAdmitCandidateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof admitBureauCaseCandidate>>, TError,{caseId: number;data: BodyType<BureauAdmitCandidateInput>}, TContext> => {
+
+const mutationKey = ['admitBureauCaseCandidate'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof admitBureauCaseCandidate>>, {caseId: number;data: BodyType<BureauAdmitCandidateInput>}> = (props) => {
+          const {caseId,data} = props ?? {};
+
+          return  admitBureauCaseCandidate(caseId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdmitBureauCaseCandidateMutationResult = NonNullable<Awaited<ReturnType<typeof admitBureauCaseCandidate>>>
+    export type AdmitBureauCaseCandidateMutationBody = BodyType<BureauAdmitCandidateInput>
+    export type AdmitBureauCaseCandidateMutationError = ErrorType<void>
+
+    /**
+ * @summary Create a review-only entity from one persisted discovery candidate
+ */
+export const useAdmitBureauCaseCandidate = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof admitBureauCaseCandidate>>, TError,{caseId: number;data: BodyType<BureauAdmitCandidateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof admitBureauCaseCandidate>>,
+        TError,
+        {caseId: number;data: BodyType<BureauAdmitCandidateInput>},
+        TContext
+      > => {
+      return useMutation(getAdmitBureauCaseCandidateMutationOptions(options));
     }
 
 export const getRunBureauCaseNextPassUrl = (caseId: number,) => {

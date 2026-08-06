@@ -53,6 +53,16 @@ export type BureauContactRoute = {
   humanReview: "use_judgment";
 };
 
+export type DiscoveryContactEvidence = {
+  vectorType: "email" | "phone" | "linkedin" | "twitter" | "instagram" | "telegram" | "website" | "organization_contact" | "other";
+  value: string;
+  scope: "person" | "organization" | "unknown";
+  personName: string | null;
+  role: string | null;
+  sourceUrls: string[];
+  note: string | null;
+};
+
 export type ResearchCaseFile = {
   version: 1;
   discoveryContext?: {
@@ -153,6 +163,7 @@ export type DiscoveryCaseFile = {
     candidateNames: string[];
     sourceUrls: string[];
     nextQuestions: string[];
+    contactEvidence?: DiscoveryContactEvidence[];
     error: string | null;
     createdAt: string;
   }>;
@@ -200,7 +211,9 @@ export type DiscoveryCaseFile = {
     relevance: string;
     reachability: string;
     sourceUrls: string[];
+    contactEvidence?: DiscoveryContactEvidence[];
     state: "review_only";
+    admittedEntityId?: number | null;
   }>;
   humanDirectives: string[];
   decisionLog: Array<{
@@ -248,6 +261,7 @@ export type GeminiBossDiscoveryResult = {
     relevance?: string;
     reachability?: string;
     sourceUrls?: string[];
+    contactEvidence?: DiscoveryContactEvidence[];
   }>;
   citations: string[];
   nextDirections: string[];
@@ -519,6 +533,7 @@ function parseBossDiscoveryResponse(raw: string): {
         sourceUrls: Array.isArray(candidate.sourceUrls)
           ? candidate.sourceUrls.filter((url): url is string => typeof url === "string" && /^https?:\/\//i.test(url)).slice(0, 8)
           : undefined,
+        contactEvidence: parseDiscoveryContactEvidence(candidate.contactEvidence),
       }))
       .filter((candidate) => candidate.name.length >= 3)
       .slice(0, 30);
@@ -537,6 +552,34 @@ function parseBossDiscoveryResponse(raw: string): {
   } catch {
     return { report: raw.trim(), candidates: [], nextDirections: [], uncertainties: [] };
   }
+}
+
+function parseDiscoveryContactEvidence(value: unknown): DiscoveryContactEvidence[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const validVectors = new Set<DiscoveryContactEvidence["vectorType"]>([
+    "email", "phone", "linkedin", "twitter", "instagram", "telegram", "website", "organization_contact", "other",
+  ]);
+  const evidence = value.flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const record = item as Record<string, unknown>;
+    const valueText = typeof record.value === "string" ? record.value.trim() : "";
+    const vectorType = typeof record.vectorType === "string" && validVectors.has(record.vectorType as DiscoveryContactEvidence["vectorType"])
+      ? record.vectorType as DiscoveryContactEvidence["vectorType"]
+      : "other";
+    if (!valueText) return [];
+    return [{
+      vectorType,
+      value: valueText.slice(0, 500),
+      scope: record.scope === "person" || record.scope === "organization" ? record.scope : "unknown",
+      personName: typeof record.personName === "string" && record.personName.trim() ? record.personName.trim().slice(0, 200) : null,
+      role: typeof record.role === "string" && record.role.trim() ? record.role.trim().slice(0, 200) : null,
+      sourceUrls: Array.isArray(record.sourceUrls)
+        ? record.sourceUrls.filter((url): url is string => typeof url === "string" && /^https?:\/\//i.test(url)).slice(0, 8)
+        : [],
+      note: typeof record.note === "string" && record.note.trim() ? record.note.trim().slice(0, 500) : null,
+    } satisfies DiscoveryContactEvidence];
+  });
+  return evidence.length > 0 ? evidence.slice(0, 12) : undefined;
 }
 
 /**
@@ -591,7 +634,7 @@ Right-hand advisor note: ${JSON.stringify(input.rightHandAdvice ?? null)}
 Current shared case context:
 ${input.file ? buildDiscoveryProgressSnapshot(input.file) : "No prior investigator reports exist; this is the opening brief."}
 Return ONLY JSON in this shape:
-{
+     {
   "report": "concise evidence-led opening assessment",
   "candidates": [
     {
@@ -599,7 +642,18 @@ Return ONLY JSON in this shape:
       "type": "person | company | investment_group | intermediary",
       "relevance": "why this candidate fits the mission",
       "reachability": "realistic public route or unresolved",
-      "sourceUrls": ["exact URLs supporting this candidate"]
+       "sourceUrls": ["exact URLs supporting this candidate"],
+       "contactEvidence": [
+         {
+           "vectorType": "email | phone | linkedin | twitter | instagram | telegram | website | organization_contact | other",
+           "value": "exact publicly reported value",
+           "scope": "person | organization | unknown",
+           "personName": "person attributed to the route or null",
+           "role": "role at the organization or null",
+           "sourceUrls": ["exact URLs that visibly support this route"],
+           "note": "attribution or verification caveat"
+         }
+       ]
     }
   ],
   "nextDirections": ["bounded next investigation direction"],

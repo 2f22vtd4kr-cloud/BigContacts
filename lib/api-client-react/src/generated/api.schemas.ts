@@ -303,6 +303,11 @@ export interface BureauPromoteTargetInput {
   entityId: number;
 }
 
+export interface BureauAdmitCandidateInput {
+  /** @minLength 1 */
+  candidateName: string;
+}
+
 export interface BureauCaseContinuationResponse {
   caseId: number;
   jobId: string;
