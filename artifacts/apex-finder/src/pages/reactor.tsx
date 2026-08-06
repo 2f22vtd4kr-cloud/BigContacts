@@ -222,7 +222,6 @@ const NODES: NodeDef[] = [
   { id:"exa",     label:"EXA NEURAL",      sub:"Semantic People Search",     cx:345,  cy:420, w:148, h:62,  type:"ai-cyan",  Icon:Compass,    color:"#22d3ee" },
   { id:"tavily",  label:"TAVILY AI",       sub:"AI-native Web Search",       cx:545,  cy:420, w:148, h:62,  type:"ai-cyan",  Icon:Rss,        color:"#22d3ee" },
   { id:"groq",    label:"GROQ LLM",        sub:"Llama 3.3 · Extraction",     cx:800,  cy:420, w:160, h:62,  type:"ai-lime",  Icon:Brain,      color:"#a3e635" },
-  { id:"gemini",  label:"GEMINI",          sub:"Google · Grounded Search",   cx:1040, cy:420, w:148, h:62,  type:"ai-cyan",  Icon:Sparkles,   color:"#22d3ee" },
   { id:"perpfu",  label:"PERPLEXITY+",     sub:"Adaptive Follow-up",         cx:1250, cy:420, w:160, h:62,  type:"ai-cyan",  Icon:RefreshCw,  color:"#22d3ee" },
   { id:"semantic",label:"SEMANTIC ENGINE", sub:"MiniLM · Embeddings",        cx:460,  cy:540, w:192, h:62,  type:"analysis", Icon:GitMerge,   color:"#a78bfa" },
   { id:"bayesian",label:"BAYESIAN SCORE",  sub:"Dynamic Priority",           cx:1020, cy:540, w:192, h:62,  type:"analysis", Icon:Layers,     color:"#a78bfa" },
@@ -258,21 +257,17 @@ const EDGES: EdgeDef[] = [
   {id:"web-tav",  from:"webdisc",to:"tavily" },
   {id:"web-groq", from:"webdisc",to:"groq"   },
   {id:"dw-groq",  from:"deepweb",to:"groq"   },
-  {id:"dw-gem",   from:"deepweb",to:"gemini" },
   {id:"dw-fu",    from:"deepweb",to:"perpfu" },
   {id:"sky-fu",   from:"opensky",to:"perpfu" },
   {id:"sky-mai",  from:"opensky",to:"maigret"},
   {id:"web-mai",  from:"webdisc",to:"maigret"},
   {id:"mai-groq", from:"maigret",to:"groq"   },
   {id:"mai-bay",  from:"maigret",to:"bayesian"},
-  {id:"web-gem",  from:"webdisc",to:"gemini" },
   {id:"p0-groq",  from:"perp0",  to:"groq"   },
   {id:"exa-groq", from:"exa",    to:"groq"   },
   {id:"tav-groq", from:"tavily", to:"groq"   },
   {id:"groq-fu",  from:"groq",   to:"perpfu" },
-  {id:"gem-fu",   from:"gemini", to:"perpfu" },
   {id:"p0-sem",   from:"perp0",  to:"semantic"},
-  {id:"gem-sem",  from:"gemini", to:"semantic"},
   {id:"groq-sem", from:"groq",   to:"semantic"},
   {id:"groq-bay", from:"groq",   to:"bayesian"},
   {id:"fu-bay",   from:"perpfu", to:"bayesian"},
@@ -292,8 +287,8 @@ const EDGES: EdgeDef[] = [
 const WAVES: Wave[] = [
   { nodes:["target"],                               edges:["t-faa","t-edgar","t-hmlr","t-ch","t-hnwi","t-occrp","t-brreg","t-whoxy"],            label:"TARGETING  —  parsing entity query" },
   { nodes:["faa","edgar","hmlr","ch","hnwi","occrp","brreg","whoxy"],edges:["faa-inh","edgar-web","hmlr-web","ch-inh","hnwi-dw","occrp-sky","brreg-inh","whoxy-inh"],label:"REGISTRY STACK  —  scanning eight public registries in parallel" },
-  { nodes:["inhouse","webdisc","deepweb","opensky","maigret"], edges:["inh-p0","inh-exa","web-p0","web-exa","web-tav","web-groq","web-gem","web-mai","dw-groq","dw-gem","dw-fu","sky-fu","sky-mai"], label:"DISCOVERY LAYER  —  web sources + Maigret cross-platform expansion" },
-  { nodes:["perp0","exa","tavily","gemini"],          edges:["p0-groq","exa-groq","tav-groq","p0-sem","gem-sem","gem-fu"],    label:"AI PHASE 0  —  Perplexity · Gemini · Tavily · Exa in parallel" },
+  { nodes:["inhouse","webdisc","deepweb","opensky","maigret"], edges:["inh-p0","inh-exa","web-p0","web-exa","web-tav","web-groq","web-mai","dw-groq","dw-fu","sky-fu","sky-mai"], label:"DISCOVERY LAYER  —  web sources + Maigret cross-platform expansion" },
+  { nodes:["perp0","exa","tavily"],                    edges:["p0-groq","exa-groq","tav-groq","p0-sem"],                         label:"AI PHASE 0  —  Perplexity · Exa · Tavily in parallel" },
   { nodes:["groq"],                                  edges:["groq-fu","groq-sem","groq-bay"],                                label:"GROQ LLM  —  structured extraction from Exa · Tavily · web text" },
   { nodes:["perpfu"],                                edges:["fu-bay","mai-groq","mai-bay"],                                  label:"PERPLEXITY+  —  iterative follow-up" },
   { nodes:["semantic","bayesian"],                   edges:["sem-gr","sem-mc","bay-mc","bay-pr"],                            label:"SYNTHESIS  —  embedding profiles, scoring priorities" },
@@ -310,7 +305,7 @@ const MOBILE_PHASES = [
   { label:"INPUT",      detail:"Target becomes a research brief", nodeIds:["target"]                                              },
   { label:"REGISTRIES", detail:"Public records establish the evidence base", nodeIds:["faa","edgar","hmlr","ch","hnwi","occrp","brreg","whoxy"] },
   { label:"DISCOVERY",  detail:"Open sources expand identity and activity", nodeIds:["inhouse","webdisc","deepweb","opensky","maigret"]     },
-  { label:"AI LAYER",   detail:"Search, extraction, and adaptive follow-up", nodeIds:["perp0","exa","tavily","gemini","groq","perpfu"]       },
+  { label:"AI LAYER",   detail:"Search, extraction, and adaptive follow-up", nodeIds:["perp0","exa","tavily","groq","perpfu"]                 },
   { label:"SYNTHESIS",  detail:"Evidence becomes vectors and priority", nodeIds:["semantic","bayesian"]                                 },
   { label:"CORE",       detail:"Relationships and paths are evaluated", nodeIds:["graph","mcts","prac"]                                 },
   { label:"OUTPUT",     detail:"An evidence path ready for analyst review", nodeIds:["evidence"]                                 },
@@ -327,7 +322,7 @@ const MOBILE_NODE_POS: Record<string, { x:number; y:number }> = {
   inhouse: { x:42, y:246 }, webdisc: { x:126, y:246 }, deepweb: { x:210, y:246 }, opensky: { x:294, y:246 },
   maigret: { x:180, y:296 },
   perp0: { x:42, y:378 }, exa: { x:126, y:378 }, tavily: { x:210, y:378 }, groq: { x:294, y:378 },
-  gemini: { x:84, y:428 }, perpfu: { x:168, y:428 },
+  perpfu: { x:168, y:428 },
   semantic: { x:84, y:512 }, bayesian: { x:276, y:512 },
   graph: { x:54, y:594 }, mcts: { x:180, y:594 }, prac: { x:306, y:594 },
   evidence: { x:180, y:690 },
@@ -342,7 +337,7 @@ const ATLAS_REGISTRY_STEPS = new Set([2, 5, 8, 11, 14, 18]);
 function atlasStepToNodes(stepN: number, msg: string): string[] {
   // Entity cooking -> full enrichment stack including deep-web + maigret
   if (msg.includes("cooked") || msg.includes("enrich")) {
-    return ["inhouse","perp0","exa","tavily","gemini","groq","deepweb","maigret","semantic","bayesian"];
+    return ["inhouse","perp0","exa","tavily","groq","deepweb","maigret","semantic","bayesian"];
   }
   // Registry batch → ingestion nodes
   if (ATLAS_REGISTRY_STEPS.has(stepN)) {
@@ -360,7 +355,7 @@ const ATLAS_PHASE_NODES: Record<number, string[]> = {
   3:  ["hnwi","target","edgar"],
   4:  ["inhouse","target"],
   5:  ["webdisc","inhouse","maigret"],
-  6:  ["perp0","exa","tavily","gemini","groq","maigret","webdisc","deepweb"],
+  6:  ["perp0","exa","tavily","groq","maigret","webdisc","deepweb"],
   7:  ["whoxy","occrp","deepweb","opensky"],
   8:  ["semantic","bayesian","graph"],
   9:  ["semantic","bayesian","inhouse"],
@@ -392,8 +387,8 @@ const JOB_NODE_MAP: Record<string, string[]> = {
   "atlas-run":            ["target","faa","hnwi","webdisc","ch","occrp","opensky"],
   // ── Enrichment ───────────────────────────────────────────────────────────────
   "in-house-enrich":      ["inhouse","perp0","exa"],
-  "web-osint-enrich":     ["webdisc","perp0","exa","tavily","gemini","groq","maigret"],
-  "deep-web-osint":       ["deepweb","gemini","perpfu"],
+  "web-osint-enrich":     ["webdisc","perp0","exa","tavily","groq","maigret"],
+  "deep-web-osint":       ["deepweb","perpfu"],
   "social-discovery":     ["webdisc","inhouse"],
   // ── Registry cross-reference ─────────────────────────────────────────────────
   "occrp":                ["occrp"],

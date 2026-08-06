@@ -15,7 +15,6 @@ type ProviderStatus = {
   groq?: KeySlot[];
   perplexity?: KeySlot[];
   gemini?: KeySlot[];
-  geminiDeepResearch?: KeySlot[];
   tavily?: KeySlot[];
   exa?: KeySlot[];
 };

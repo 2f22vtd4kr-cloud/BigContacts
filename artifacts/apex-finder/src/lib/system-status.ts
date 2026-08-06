@@ -8,7 +8,6 @@ export interface AIKeyStatus {
   groq: AIKeySlot[];
   perplexity: AIKeySlot[];
   gemini: AIKeySlot[];
-  geminiDeepResearch: AIKeySlot[];
   tavily: AIKeySlot[];
   exa: AIKeySlot[];
 }
@@ -67,7 +66,6 @@ export const AI_PROVIDERS: Array<keyof AIKeyStatus> = [
   "groq",
   "perplexity",
   "gemini",
-  "geminiDeepResearch",
   "tavily",
   "exa",
 ];
@@ -76,7 +74,6 @@ export const PROVIDER_LABELS: Record<keyof AIKeyStatus, string> = {
   groq: "Groq LLaMA",
   perplexity: "Perplexity",
   gemini: "Gemini",
-  geminiDeepResearch: "Gemini Deep Research",
   tavily: "Tavily",
   exa: "Exa",
 };

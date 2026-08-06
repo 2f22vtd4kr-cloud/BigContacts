@@ -334,6 +334,87 @@ function chooseGeminiModelCandidates(entries: GeminiModelCatalogEntry[]): string
 
 let cachedBossModelSelection: { expiresAt: number; selection: GeminiBossModelSelection } | null = null;
 
+type GeminiTextGenerationResult = {
+  model: string;
+  raw: string | null;
+  error: string | null;
+};
+
+/**
+ * Gemini is a text-only Boss. If the selected model is temporarily busy,
+ * immediately try the next lower compatible model from the same catalog
+ * instead of retrying the same model or starting another search lane.
+ */
+async function generateGeminiBossText(
+  selection: GeminiBossModelSelection,
+  prompt: string,
+): Promise<GeminiTextGenerationResult> {
+  const key = selection.keyName ? process.env[selection.keyName] : undefined;
+  if (!key) {
+    return { model: selection.model, raw: null, error: "The resolved Gemini Boss key is unavailable." };
+  }
+
+  const models = [...new Set([
+    selection.model,
+    ...(selection.candidateModels ?? []),
+  ])];
+  let lastError = `Gemini Boss ${selection.model} did not return text.`;
+
+  for (const model of models) {
+    try {
+      const response = await fetch(
+        `${GEMINI_MODELS_API.replace("/models", `/models/${encodeURIComponent(model)}:generateContent`)}`,
+        {
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+            "x-goog-api-key": key,
+          },
+          body: JSON.stringify({
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.2,
+              maxOutputTokens: 8192,
+              responseMimeType: "application/json",
+            },
+          }),
+          signal: AbortSignal.timeout(45_000),
+        },
+      );
+
+      if (response.status === 429 || response.status === 503) {
+        const detail = (await response.text().catch(() => "")).slice(0, 300);
+        lastError = `Gemini Boss ${model} HTTP ${response.status}${detail ? `: ${detail}` : ""}`;
+        if (models.length > 1) {
+          console.warn(`[Gemini Boss] ${model} unavailable (${response.status}); trying lower model.`);
+          continue;
+        }
+        continue;
+      }
+      if (!response.ok) {
+        const detail = (await response.text().catch(() => "")).slice(0, 300);
+        return {
+          model,
+          raw: null,
+          error: `Gemini Boss ${model} HTTP ${response.status}${detail ? `: ${detail}` : ""}`,
+        };
+      }
+
+      const payload = await response.json() as {
+        candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+      };
+      const raw = payload.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("").trim() ?? "";
+      if (raw) return { model, raw, error: null };
+      lastError = `Gemini Boss ${model} returned no text.`;
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : "Gemini Boss generation failed.";
+    }
+  }
+
+  return { model: selection.model, raw: null, error: lastError };
+}
+
 export async function getGeminiBossStatus(): Promise<GeminiBossStatus> {
   const selection = await resolveGeminiBossModel();
   return {
@@ -525,74 +606,25 @@ Return ONLY JSON in this shape:
   "uncertainties": ["identity, attribution, or access uncertainty"]
 }
 Candidates are review-only. Never invent a name, wealth claim, relationship, contact detail, or URL.`;
-  const key = selection.keyName ? process.env[selection.keyName] : undefined;
-  if (!key) {
-    return {
-      status: "unavailable",
-      model: selection.model,
-      report: null,
-      candidates: [],
-      citations: [],
-      nextDirections: [],
-      uncertainties: [],
-      error: "The resolved Gemini Boss key is unavailable.",
-    };
-  }
   try {
-    const response = await fetch(
-      `${GEMINI_MODELS_API.replace("/models", `/models/${encodeURIComponent(selection.model)}:generateContent`)}`,
-      {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          "x-goog-api-key": key,
-        },
-        body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.2,
-            maxOutputTokens: 8192,
-            responseMimeType: "application/json",
-          },
-        }),
-        signal: AbortSignal.timeout(45_000),
-      },
-    );
-    if (!response.ok) {
-      const detail = (await response.text().catch(() => "")).slice(0, 300);
+    const generated = await generateGeminiBossText(selection, prompt);
+    if (!generated.raw) {
       return {
         status: "unavailable",
-        model: selection.model,
+        model: generated.model,
         report: null,
         candidates: [],
         citations: [],
         nextDirections: [],
         uncertainties: [],
-        error: `Gemini Boss ${selection.model} HTTP ${response.status}${detail ? `: ${detail}` : ""}`,
+        error: generated.error ?? "Gemini Boss returned no text for the discovery brief.",
       };
     }
-    const payload = await response.json() as {
-      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-    };
-    const raw = payload.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("").trim() ?? "";
-    if (!raw) {
-      return {
-        status: "unavailable",
-        model: selection.model,
-        report: null,
-        candidates: [],
-        citations: [],
-        nextDirections: [],
-        uncertainties: [],
-        error: "Gemini Boss returned no text for the discovery brief.",
-      };
-    }
-    const parsed = parseBossDiscoveryResponse(raw);
+    const parsed = parseBossDiscoveryResponse(generated.raw);
     return {
       status: "completed",
-      model: selection.model,
-      report: parsed.report || raw,
+      model: generated.model,
+      report: parsed.report || generated.raw,
       candidates: parsed.candidates,
       citations: [],
       nextDirections: parsed.nextDirections,
@@ -726,32 +758,14 @@ export async function runGeminiBossPlan(input: {
       ? "No Gemini Boss model is available because no Gemini key is configured."
       : "Configured Gemini keys did not expose a usable Boss text model.");
   }
-  const key = selection.keyName ? process.env[selection.keyName] : undefined;
   const queuedActions = input.file.actionQueue.filter((action) => action.status === "queued");
-  if (!key) return unavailable("The resolved Gemini Boss key is unavailable.");
   if (queuedActions.length === 0) return unavailable("The case file has no queued actions.");
   try {
-    const response = await fetch(
-      `${GEMINI_MODELS_API.replace("/models", `/models/${encodeURIComponent(selection.model)}:generateContent`)}`,
-      {
-        method: "POST",
-        headers: { Accept: "application/json", "Content-Type": "application/json", "x-goog-api-key": key },
-        body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: buildGeminiBossPlanPrompt(input) }] }],
-          generationConfig: { temperature: 0.2, maxOutputTokens: 8192, responseMimeType: "application/json" },
-        }),
-        signal: AbortSignal.timeout(45_000),
-      },
-    );
-    if (!response.ok) {
-      const detail = (await response.text().catch(() => "")).slice(0, 300);
-      return unavailable(`Gemini Boss ${selection.model} HTTP ${response.status}${detail ? `: ${detail}` : ""}`);
-    }
-    const payload = await response.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
-    const raw = payload.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("").trim() ?? "";
-    const parsed = parseBossPlanResponse(raw, queuedActions);
+    const generated = await generateGeminiBossText(selection, buildGeminiBossPlanPrompt(input));
+    if (!generated.raw) return unavailable(generated.error ?? "Gemini Boss returned no text.");
+    const parsed = parseBossPlanResponse(generated.raw, queuedActions);
     return parsed
-      ? { status: "completed", model: selection.model, ...parsed, error: null }
+      ? { status: "completed", model: generated.model, ...parsed, error: null }
       : unavailable("Gemini Boss returned an invalid or unsafe investigator plan.");
   } catch (error) {
     return unavailable(error instanceof Error ? error.message : "Gemini Boss planning failed.");
@@ -777,7 +791,7 @@ const SPECIALISTS: BureauSpecialist[] = [
     id: "web",
     title: "Open-Web Investigator",
     mission: "Search official sites, press, biographies, venues, memberships, and public activity for useful leads.",
-    tools: ["web-enricher", "Gemini", "Perplexity", "Tavily", "Exa"],
+    tools: ["web-enricher", "Perplexity", "Tavily", "Exa"],
     status: "waiting_for_key",
   },
   {
@@ -1092,7 +1106,7 @@ function buildActions(file: Omit<ResearchCaseFile, "actionQueue" | "nextBestActi
       title: "Discover named people",
       purpose: "Find principals, executives, operators, staff, and relevant public people tied to the target.",
       specialistId: "web",
-      tools: ["web-enricher", "Gemini", "Perplexity", "Tavily", "Exa"],
+      tools: ["web-enricher", "Perplexity", "Tavily", "Exa"],
       priority: 100,
       status: "queued",
       rationale: "The case has no named people to follow yet.",

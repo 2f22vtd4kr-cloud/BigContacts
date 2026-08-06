@@ -10,7 +10,7 @@
  * Phase 3  — Populate metadata: notes + stock assets + live source markers
  * Phase 4  — In-house OSINT (7 free sources): Wikidata, GitHub, RDAP, DNS, Gravatar, ProPublica 990
  * Phase 5  — Social / Messenger / Broad discovery
- * Phase 6  — AI OSINT sweep: Perplexity + Gemini + Tavily + Exa + Groq extraction
+ * Phase 6  — AI OSINT sweep: Perplexity + Tavily + Exa + Groq extraction
  *              → Maigret (3 000+ platforms) + Holehe (120+ services)
  *              → Web-OSINT re-run if Maigret finds 3+ new signals
  * Phase 7  — Forensic cross-reference (parallel): ICIJ Offshore Leaks + Whoxy + Equasis + ADSB history + OpenOwnership
@@ -740,7 +740,7 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
     }
 
     await ensureAtlasActive(atlasJobId, id);
-    // ── Step C: AI OSINT sweep (Perplexity + Gemini + Tavily + Exa + Groq) ────
+    // ── Step C: AI OSINT sweep (Perplexity + Tavily + Exa + Groq) ────
     await updateJob(atlasJobId, { status: "running", message: `🤖 ${name}: AI OSINT…` });
     const telemetryReachability = assessTargetReachability({
       type: entity.type,
@@ -765,7 +765,7 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
       status: "active",
       targetName: name,
       targetType: entity.type,
-      toolIds: ["perp0", "gemini", "tavily", "exa", "gemini-deep-research", "hf-open-deep-research", "groq"],
+      toolIds: ["perp0", "tavily", "exa", "hf-open-deep-research", "groq"],
       activeToolId: "perp0",
       prompt: prompt.slice(0, 2200),
       inputSummary: `${entity.type} target · ${telemetryReachability.status} reachability · provider fan-out is parallel within this target`,
@@ -824,13 +824,8 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
         .set({ metadata: JSON.stringify(metadata), updatedAt: new Date() })
         .where(eq(entitiesTable.id, id));
     }
-    if (aiResult && (
-      (aiResult.deepResearchStatus && (
-        aiResult.deepResearchReport || aiResult.deepResearchCitations.length > 0
-      )) ||
-      (aiResult.openDeepResearchStatus && (
-        aiResult.openDeepResearchReport || aiResult.openDeepResearchCitations.length > 0
-      ))
+    if (aiResult && aiResult.openDeepResearchStatus && (
+      aiResult.openDeepResearchReport || aiResult.openDeepResearchCitations.length > 0
     )) {
       const metadata = safeJson<Record<string, unknown>>(entity.metadata, {});
       // Preserve the person handoff written above; this metadata write is
@@ -840,15 +835,6 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
         .where(eq(entitiesTable.id, id))
         .then((rows: any[]) => rows[0]?.metadata ?? entity.metadata);
       Object.assign(metadata, safeJson<Record<string, unknown>>(existingMetadata, {}));
-      metadata.geminiDeepResearch = {
-        status: aiResult.deepResearchStatus,
-        agent: aiResult.deepResearchAgent,
-        keySlot: aiResult.deepResearchKeySlot,
-        report: aiResult.deepResearchReport,
-        citations: aiResult.deepResearchCitations,
-        reviewOnly: true,
-        claimsPromoted: false,
-      };
       metadata.huggingFaceOpenDeepResearch = {
         status: aiResult.openDeepResearchStatus,
         model: aiResult.openDeepResearchModel,
@@ -866,7 +852,7 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
       status: aiResult ? "complete" : "review",
       targetName: name,
       targetType: entity.type,
-      toolIds: ["perp0", "gemini", "tavily", "exa", "gemini-deep-research", "hf-open-deep-research", "groq"],
+      toolIds: ["perp0", "tavily", "exa", "hf-open-deep-research", "groq"],
       activeToolId: "groq",
       prompt: prompt.slice(0, 2200),
       inputSummary: `${entity.type} target · ${telemetryReachability.status} reachability`,
@@ -1565,7 +1551,7 @@ async function runSingleTargetPipeline(
     status: processOutcome === "complete" ? "complete" : "review",
     targetName: target.name,
     targetType: target.type,
-    toolIds: ["target", "inhouse", "webdisc", "deepweb", "perp0", "exa", "tavily", "gemini", "groq", "maigret", "occrp", "whoxy", "graph", "mcts", "prac", "evidence-review"],
+    toolIds: ["target", "inhouse", "webdisc", "deepweb", "perp0", "exa", "tavily", "groq", "maigret", "occrp", "whoxy", "graph", "mcts", "prac", "evidence-review"],
     inputSummary: `Exact entity ID ${targetId}`,
     resultSummary: `${finalMsg} Disposition: ${disposition}. Next action: ${nextAction}`,
     nextAction,

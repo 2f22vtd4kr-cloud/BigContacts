@@ -166,7 +166,7 @@ export function buildInvestigatorResearchPlan(input: {
         status: "planned",
         targetNames: [],
         queryFamilies: ["person + organization", "person + role", "person + public contact", "person + professional profile"],
-        tools: ["Tavily", "Exa", "Perplexity", "Gemini", "web search"],
+        tools: ["Tavily", "Exa", "Perplexity", "official pages", "web search"],
       },
       {
         id: "route_ranking",

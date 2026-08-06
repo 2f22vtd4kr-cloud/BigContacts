@@ -187,7 +187,6 @@ router.post("/ingest/deep-web-osint", async (req: Request, res: Response): Promi
         const hasSignal = result.email || result.phone || result.linkedinUrl
           || result.instagramUrl || result.twitterUrl || result.personsDiscovered.length > 0
           || result.ownerResolutions.length > 0 || result.ownershipSummary
-          || result.deepResearchReport || result.deepResearchCitations.length > 0
           || result.openDeepResearchReport || result.openDeepResearchCitations.length > 0;
 
         if (!hasSignal) { skipped++; continue; }
@@ -250,15 +249,6 @@ router.post("/ingest/deep-web-osint", async (req: Request, res: Response): Promi
         if (result.ownershipSources.length > 0) {
           meta["deepWebOwnershipSources"] = [...new Set(result.ownershipSources)].slice(0, 8);
         }
-        meta["geminiDeepResearch"] = {
-          status: result.deepResearchStatus,
-          agent: result.deepResearchAgent,
-          keySlot: result.deepResearchKeySlot,
-          report: result.deepResearchReport,
-          citations: result.deepResearchCitations,
-          reviewOnly: true,
-          claimsPromoted: false,
-        };
         meta["huggingFaceOpenDeepResearch"] = {
           status: result.openDeepResearchStatus,
           model: result.openDeepResearchModel,

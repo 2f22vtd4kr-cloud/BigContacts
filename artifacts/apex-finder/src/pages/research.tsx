@@ -701,12 +701,22 @@ function DiscoveryBureauPanel({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="text-[10px] font-mono text-primary uppercase tracking-[0.18em]">Boss discovery case #{discoveryCase.id}</div>
-          <h2 className="text-base font-semibold text-foreground mt-1">Gemini Boss opening brief</h2>
+          <h2 className="text-base font-semibold text-foreground mt-1">
+            {file?.nextInvestigation?.boss?.status === "completed"
+              ? "Case review complete — human gates remain"
+              : "Gemini Boss opening brief"}
+          </h2>
           <p className="text-[11px] text-muted-foreground mt-1 max-w-3xl">{file?.bossPremise}</p>
         </div>
         <div className="text-right text-[10px] font-mono text-muted-foreground">
           <div className="text-amber-300">{discoveryCase.directorModel === "auto-low-cost-pending" ? "AUTO · LOWEST AVAILABLE" : discoveryCase.directorModel}</div>
-          <div>{discoveryCase.directorMode.replaceAll("_", " ")} · {file?.initialResearch.status ?? "not started"}</div>
+          <div>
+            {file?.nextInvestigation?.boss?.status === "completed"
+              ? "gemini boss reviewed"
+              : discoveryCase.directorMode.replaceAll("_", " ")}
+            {" · "}
+            {file?.initialResearch.status ?? "not started"}
+          </div>
         </div>
       </div>
       <details className="mt-3 rounded border border-border/60 bg-background/25">
@@ -838,6 +848,32 @@ function DiscoveryBureauPanel({
           </div>
         </div>
       )}
+      {file?.nextInvestigation?.boss?.nextDirections?.length ? (
+        <div className="mt-3 flex flex-col sm:flex-row sm:items-center gap-3 rounded border border-primary/25 bg-primary/5 p-3">
+          <div className="flex-1">
+            <div className="text-[10px] uppercase tracking-wider font-mono text-primary">Continue the Bureau investigation</div>
+            <div className="text-[10px] text-muted-foreground mt-1">
+              {file.nextInvestigation.boss?.status === "unavailable"
+                ? "The evidence lanes are complete, but the Boss closure review hit a provider gap. Retry only the Boss review without repeating searches."
+                : "The opening discovery pass is complete. Run the Boss-selected verification directions against the shared case context; results remain review-only."}
+            </div>
+          </div>
+          <button
+            disabled={busy || discoveryCase.status === "active"}
+            onClick={() => void request(
+              `/api/research/bureau/cases/${discoveryCase.id}/${file.nextInvestigation?.boss?.status === "unavailable" ? "run-boss-review" : "run-next-pass"}`,
+              {},
+            )}
+            className="inline-flex items-center justify-center gap-2 rounded border border-primary/50 bg-primary/15 px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-primary hover:bg-primary/25 disabled:opacity-50"
+          >
+            <Play className="w-3 h-3" /> {busy || discoveryCase.status === "active"
+              ? "Review running…"
+              : file.nextInvestigation.boss?.status === "unavailable"
+                ? "Retry Boss closure review"
+                : "Run next verification pass"}
+          </button>
+        </div>
+      ) : null}
       <div className="mt-3 rounded border border-emerald-400/20 bg-emerald-400/5 p-3">
         <div className="flex flex-col lg:flex-row lg:items-center gap-2">
           <div className="flex-1">
