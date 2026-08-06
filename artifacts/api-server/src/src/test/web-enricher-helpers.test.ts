@@ -21,6 +21,7 @@ import {
   looksLikePersonName,
   hasTargetLinkedPersonEvidence,
   extractOfficialRoleLinkedPersonNames,
+  classifyScrapedPageCoverage,
 } from "../lib/web-enricher";
 import { buildInvestigatorResearchPlan } from "../lib/research-plan";
 
@@ -221,6 +222,33 @@ describe("investigator research planning", () => {
     expect(plan.stages[1]?.targetNames).toContain("Amaron Real Estate AB");
   });
 
+  it("retains target subject metadata and explicit coverage gaps", () => {
+    const plan = buildInvestigatorResearchPlan({
+      legalName: "Orient Express",
+      tradingName: "Orient Express",
+      city: null,
+      country: "FR",
+      entityType: "Corporation",
+      subjectKind: "brand",
+      anchors: ["Accor", "LVMH"],
+      disambiguationNotes: ["Belmond and Arsenale are related but separate subjects"],
+      coverage: {
+        lanes: {
+          official_records: "review",
+          people_press: "complete",
+          contact_routes: "blocked",
+          semantic_discovery: "unavailable",
+        },
+        negativeFindings: ["No person-attributed direct route found"],
+        searchGaps: ["Arsenale page blocked by anti-bot challenge"],
+      },
+    });
+    expect(plan.target.subjectKind).toBe("brand");
+    expect(plan.target.anchors).toEqual(["Accor", "LVMH"]);
+    expect(plan.coverage?.lanes.contact_routes).toBe("blocked");
+    expect(plan.coverage?.searchGaps[0]).toContain("blocked");
+  });
+
   it("ranks a named direct route above executive, operator, and organization routes", () => {
     const evidence = [
       {
@@ -318,6 +346,17 @@ describe("investigator research planning", () => {
     ]);
     expect(routes[1]?.personName).toBe("Martin Mildner");
     expect(routes[2]?.note).toMatch(/operator|parent/i);
+  });
+});
+
+describe("scraped page coverage", () => {
+  it("distinguishes usable, bot-blocked, and unavailable pages", () => {
+    expect(classifyScrapedPageCoverage({ unavailableReason: null, botBlocked: false }))
+      .toBe("usable");
+    expect(classifyScrapedPageCoverage({ unavailableReason: null, botBlocked: true }))
+      .toBe("blocked");
+    expect(classifyScrapedPageCoverage({ unavailableReason: "http_403", botBlocked: false }))
+      .toBe("unavailable");
   });
 });
 

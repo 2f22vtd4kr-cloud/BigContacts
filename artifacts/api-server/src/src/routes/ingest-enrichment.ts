@@ -404,6 +404,9 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
         meta["deepWebCandidateFunnel"] = result.candidateFunnel;
         meta["investigatorResearchPlan"] = result.researchPlan;
         meta["routeHierarchy"] = result.routeHierarchy;
+        meta["deepWebLaneStatus"] = result.laneStatus;
+        meta["deepWebNegativeFindings"] = result.negativeFindings;
+        meta["deepWebSearchGaps"] = result.searchGaps;
         meta["deepWebEvidenceRunId"] = runId;
         if (result.emailConfidence > 0) meta["deepWebEmailConf"] = result.emailConfidence;
         if (result.phoneConfidence > 0) meta["deepWebPhoneConf"] = result.phoneConfidence;

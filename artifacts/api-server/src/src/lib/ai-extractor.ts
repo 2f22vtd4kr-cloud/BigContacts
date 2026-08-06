@@ -262,9 +262,21 @@ export type AIResearchLane =
   | "contact_routes"
   | "semantic_discovery";
 
+export type TargetSubjectKind =
+  | "person"
+  | "legal_entity"
+  | "brand"
+  | "operating_asset"
+  | "property_vehicle"
+  | "unknown";
+
 export interface AIResearchContext {
   tradingName?: string | null;
   city?: string | null;
+  /** Prevents a shared brand/trading name from being treated as one legal subject. */
+  subjectKind?: TargetSubjectKind;
+  /** Compact public disambiguation notes; never raw residence text. */
+  disambiguationNotes?: string[];
   /** Explicit C/O, operator, parent, or management-company leads. */
   relatedOrganizations?: string[];
   reachability?: ReachabilityDirective;
@@ -311,6 +323,11 @@ export function buildProviderSearchQuery(
     .filter(Boolean)
     .slice(0, 3);
   parts.push(...anchors.map((anchor) => quoted(anchor)));
+  parts.push(...(context.disambiguationNotes ?? [])
+    .map((note) => quoted(note))
+    .filter((note): note is string => Boolean(note))
+    .slice(0, 3));
+  if (context.subjectKind) parts.push(`subject:${context.subjectKind}`);
 
   const laneTerms: Record<AIResearchLane, string> = {
     official_records: "official team people registry filing director officer",
@@ -839,8 +856,12 @@ export function buildPerplexityPrompt(
   const domainBlock = candidateDomains.length > 0
     ? `\nCandidate domains surfaced by the pipeline (leads only; verify before attributing claims): ${candidateDomains.join(", ")}`
     : "";
+  const disambiguationBlock = [
+    context.subjectKind ? `\nTarget subject kind: ${context.subjectKind}` : "",
+    ...(context.disambiguationNotes ?? []).slice(0, 5).map((note) => `\nDisambiguation note: ${note}`),
+  ].join("");
 
-  return `You are conducting Phase 0 OSINT for ${publicName}${ctx}. Goal: find every named human decision-maker and their evidence-backed contact path.${city}${disambig}
+  return `You are conducting Phase 0 OSINT for ${publicName}${ctx}. Goal: find every named human decision-maker and their evidence-backed contact path.${city}${disambig}${disambiguationBlock}
 
 ${realism}
 

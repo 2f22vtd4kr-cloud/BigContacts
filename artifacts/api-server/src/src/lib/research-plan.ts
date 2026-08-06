@@ -6,7 +6,9 @@ export type ResearchStageId =
   | "person_followups"
   | "route_ranking";
 
-export type ResearchStageStatus = "planned" | "active" | "complete" | "review";
+export type ResearchStageStatus = "planned" | "active" | "complete" | "review" | "blocked" | "unavailable";
+
+export type ResearchCoverageStatus = "complete" | "review" | "blocked" | "unavailable";
 
 export type RouteTier =
   | "direct_person"
@@ -35,10 +37,18 @@ export interface InvestigatorResearchPlan {
     city: string | null;
     country: string | null;
     entityType: string;
+    subjectKind?: string;
+    anchors?: string[];
+    disambiguationNotes?: string[];
   };
   relatedOrganizations: string[];
   candidateDomains: string[];
   stages: ResearchPlanStage[];
+  coverage?: {
+    lanes: Record<string, ResearchCoverageStatus>;
+    negativeFindings: string[];
+    searchGaps: string[];
+  };
 }
 
 export interface RankedResearchRoute {
@@ -84,6 +94,10 @@ export function buildInvestigatorResearchPlan(input: {
   entityType: string;
   relatedOrganizations?: string[];
   candidateDomains?: string[];
+  subjectKind?: string;
+  anchors?: string[];
+  disambiguationNotes?: string[];
+  coverage?: InvestigatorResearchPlan["coverage"];
 }): InvestigatorResearchPlan {
   const relatedOrganizations = [...new Set((input.relatedOrganizations ?? []).filter(Boolean))].slice(0, 6);
   const candidateDomains = [...new Set((input.candidateDomains ?? []).filter(Boolean))].slice(0, 8);
@@ -97,9 +111,15 @@ export function buildInvestigatorResearchPlan(input: {
       city: input.city,
       country: input.country,
       entityType: input.entityType,
+      ...(input.subjectKind ? { subjectKind: input.subjectKind } : {}),
+      ...(input.anchors?.length ? { anchors: [...new Set(input.anchors)].slice(0, 8) } : {}),
+      ...(input.disambiguationNotes?.length
+        ? { disambiguationNotes: [...new Set(input.disambiguationNotes)].slice(0, 8) }
+        : {}),
     },
     relatedOrganizations,
     candidateDomains,
+    ...(input.coverage ? { coverage: input.coverage } : {}),
     stages: [
       {
         id: "identity",

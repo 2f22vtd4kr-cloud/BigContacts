@@ -101,4 +101,27 @@ describe("AI response safety helpers", () => {
     expect(query).toContain("official team people registry filing");
     expect(query).toContain("site:exampleholdings.com");
   });
+
+  it("includes subject kind and disambiguation notes in provider queries", () => {
+    const query = buildProviderSearchQuery("Orient Express", "Corporation", "FR", {
+      subjectKind: "brand",
+      disambiguationNotes: [
+        "brand/platform subject; do not collapse related legal entities",
+        "related organizations are leads to verify, not automatic ownership proof",
+      ],
+      lane: "official_records",
+    });
+    expect(query).toContain("subject:brand");
+    expect(query).toContain('"brand/platform subject; do not collapse related legal entities"');
+    expect(query).toContain("official team people registry filing");
+  });
+
+  it("keeps brand disambiguation explicit in the research prompt", () => {
+    const prompt = buildPerplexityPrompt("Orient Express", "Corporation", "FR", {
+      subjectKind: "brand",
+      disambiguationNotes: ["Venice Simplon-Orient-Express / Belmond is a separate related subject"],
+    });
+    expect(prompt).toContain("Target subject kind: brand");
+    expect(prompt).toContain("Venice Simplon-Orient-Express / Belmond is a separate related subject");
+  });
 });

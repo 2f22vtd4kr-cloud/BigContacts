@@ -42,7 +42,7 @@ const FINANCIAL_AGGREGATOR_DOMAINS = new Set([
   "1881.no", "gulesider.no", "proff.no", "purehelp.no", "enhetsregisteret.no",
   "allabolag.se", "hitta.se", "eniro.se", "proff.se", "virksomhed.dk",
 ]);
-import { extractWithAI, researchWithPerplexity, researchWithGemini, researchWithTavily, researchWithExa, type AIResearchContext, type OwnerResolution, type GeminiDeepResearchResult } from "./ai-extractor";
+import { extractWithAI, researchWithPerplexity, researchWithGemini, researchWithTavily, researchWithExa, type AIResearchContext, type OwnerResolution, type GeminiDeepResearchResult, type TargetSubjectKind, type AIResearchLane } from "./ai-extractor";
 import { runOpenDeepResearch, type OpenDeepResearchResult } from "./python-tools";
 import { applyEnsembleAdjudication, buildEnsembleAdjudicationText, reconcileAIResults, type AIEnsembleResult } from "./ai-ensemble";
 import { extractPersonNames } from "./gliner-client";
@@ -63,6 +63,7 @@ import {
   routeTierScore,
   type InvestigatorResearchPlan,
   type RankedResearchRoute,
+  type ResearchCoverageStatus,
 } from "./research-plan";
 
 // ── Shared utilities ──────────────────────────────────────────────────────────
@@ -503,10 +504,59 @@ function buildResearchContext(
   return {
     tradingName,
     city,
+    subjectKind: inferTargetSubjectKind(entity, relatedOrganizations),
+    disambiguationNotes: inferDisambiguationNotes(entity, tradingName, relatedOrganizations),
     relatedOrganizations,
     anchors: [...new Set(anchors)].slice(0, 6),
     candidateDomains: [...new Set(candidateDomains)].slice(0, 4),
   };
+}
+
+function inferTargetSubjectKind(
+  entity: DeepWebOsintInput,
+  relatedOrganizations: string[],
+): TargetSubjectKind {
+  const metadata = safeJson<Record<string, unknown>>(entity.metadata, {});
+  const explicit = String(
+    metadata["subjectKind"] ?? metadata["targetSubjectKind"] ?? metadata["researchSubjectKind"] ?? "",
+  ).toLowerCase().replace(/[\s-]+/g, "_");
+  const allowed: TargetSubjectKind[] = [
+    "person", "legal_entity", "brand", "operating_asset", "property_vehicle", "unknown",
+  ];
+  if (allowed.includes(explicit as TargetSubjectKind)) return explicit as TargetSubjectKind;
+  const context = [
+    entity.name,
+    entity.notes ?? "",
+    entity.knownResidences ?? "",
+    ...relatedOrganizations,
+  ].join(" ").toLowerCase();
+  if (/\b(property vehicle|spv|special purpose|holding vehicle|topco|propco)\b/.test(context)) {
+    return "property_vehicle";
+  }
+  if (/\b(brand|platform|hospitality concept|trading name)\b/.test(context)) return "brand";
+  if (entity.type === "HNWI" || entity.type === "Gatekeeper") return "person";
+  if (entity.type === "Corporation" || entity.type === "Corp" || entity.type === "Trust") {
+    return "legal_entity";
+  }
+  return "unknown";
+}
+
+function inferDisambiguationNotes(
+  entity: DeepWebOsintInput,
+  tradingName: string,
+  relatedOrganizations: string[],
+): string[] {
+  const metadata = safeJson<Record<string, unknown>>(entity.metadata, {});
+  const notes: string[] = [];
+  if (tradingName && tradingName !== entity.name) notes.push(`public trading name: ${tradingName}`);
+  for (const key of ["businessCategory", "industry", "assetType", "relationshipType"]) {
+    const value = metadata[key];
+    if (typeof value === "string" && value.trim()) notes.push(`${key}: ${value.trim()}`);
+  }
+  if (relatedOrganizations.length > 0) {
+    notes.push(`related organizations are leads to verify, not automatic ownership proof: ${relatedOrganizations.slice(0, 3).join(", ")}`);
+  }
+  return [...new Set(notes)].slice(0, 6);
 }
 
 export interface DeepWebOsintResult {
@@ -540,6 +590,9 @@ export interface DeepWebOsintResult {
   openDeepResearchCitations: string[];
   openDeepResearchStatus: OpenDeepResearchResult["status"];
   openDeepResearchModel: string | null;
+  negativeFindings: string[];
+  searchGaps: string[];
+  laneStatus: Record<AIResearchLane, ResearchCoverageStatus>;
 }
 
 export interface DeepWebEvidence {
@@ -1509,10 +1562,31 @@ interface ScrapedPage {
   links: string[];
   /** True when the response is a Cloudflare/bot-protection challenge, not real page content. */
   botBlocked: boolean;
+  /** Non-null when the page could not be used as evidence. */
+  unavailableReason: string | null;
 }
 
-function emptyScrapedPage(): ScrapedPage {
-  return { email: null, phone: null, linkedinUrl: null, instagramUrl: null, twitterUrl: null, text: "", links: [], botBlocked: false };
+function emptyScrapedPage(unavailableReason: string | null = null): ScrapedPage {
+  return {
+    email: null,
+    phone: null,
+    linkedinUrl: null,
+    instagramUrl: null,
+    twitterUrl: null,
+    text: "",
+    links: [],
+    botBlocked: false,
+    unavailableReason,
+  };
+}
+
+export function classifyScrapedPageCoverage(page: {
+  unavailableReason: string | null;
+  botBlocked: boolean;
+}): "usable" | "blocked" | "unavailable" {
+  if (page.unavailableReason) return "unavailable";
+  if (page.botBlocked) return "blocked";
+  return "usable";
 }
 
 function extractPageLinks(html: string, pageUrl: string): string[] {
@@ -1615,7 +1689,7 @@ async function scrapePage(url: string): Promise<ScrapedPage> {
       },
       redirect: "follow",
     });
-    if (!resp.ok) return emptyScrapedPage();
+    if (!resp.ok) return emptyScrapedPage(`http_${resp.status}`);
     // Some public sites, including Squarespace pages, keep structured team
     // records in an embedded JSON payload well beyond the visible navigation.
     // Retain a bounded but sufficiently large HTML window so those records are
@@ -1667,9 +1741,19 @@ async function scrapePage(url: string): Promise<ScrapedPage> {
     if (!instagramUrl) instagramUrl = extractInstagram(text);
     if (!twitterUrl) twitterUrl = extractTwitter(text);
 
-    return { email, phone, linkedinUrl, instagramUrl, twitterUrl, text, links: extractPageLinks(html, url), botBlocked };
+    return {
+      email,
+      phone,
+      linkedinUrl,
+      instagramUrl,
+      twitterUrl,
+      text,
+      links: extractPageLinks(html, url),
+      botBlocked,
+      unavailableReason: null,
+    };
   } catch {
-    return emptyScrapedPage();
+    return emptyScrapedPage("fetch_or_timeout");
   }
 }
 
@@ -1819,9 +1903,11 @@ export function buildDeepWebQueries(
     /^[A-Z][a-z]+ [A-Z]/.test(legalName);
   const isCorp = !isIndividual;
   const meta = safeJson<Record<string, unknown>>(entity.metadata, {});
-  const relatedOrganizations = isCorp
-    ? extractRelatedOrganizationNames(entity.knownResidences, entity.metadata, entity.notes)
-    : [];
+  const relatedOrganizations = extractRelatedOrganizationNames(
+    entity.knownResidences,
+    entity.metadata,
+    entity.notes,
+  );
 
   const queries: string[] = [];
   const domainTargets: string[] = [];
@@ -1988,6 +2074,14 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     openDeepResearchCitations: [],
     openDeepResearchStatus: "unavailable",
     openDeepResearchModel: null,
+    negativeFindings: [],
+    searchGaps: [],
+    laneStatus: {
+      official_records: "unavailable",
+      people_press: "unavailable",
+      contact_routes: "unavailable",
+      semantic_discovery: "unavailable",
+    },
   };
 
   // ── Derive context from entity ──────────────────────────────────────────
@@ -2025,6 +2119,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       .map((organization) => organization.split(/\s+/)[0])
       .filter((brand): brand is string => Boolean(brand)),
   ];
+  const researchContext = buildResearchContext(entity, trading, city, country, domainTargets, relatedOrganizations);
   result.researchPlan = buildInvestigatorResearchPlan({
     legalName: entity.name,
     tradingName: trading,
@@ -2033,9 +2128,22 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     entityType: entity.type,
     relatedOrganizations,
     candidateDomains: [...new Set([...domainTargets, ...operatorDomains])],
+    subjectKind: researchContext.subjectKind,
+    anchors: researchContext.anchors,
+    disambiguationNotes: researchContext.disambiguationNotes,
   });
-  if (queries.length === 0 && domainTargets.length === 0) return result;
-  const researchContext = buildResearchContext(entity, trading, city, country, domainTargets, relatedOrganizations);
+  if (queries.length === 0 && domainTargets.length === 0) {
+    result.searchGaps.push("no bounded public-web query or candidate domain was available for this target");
+    result.researchPlan = {
+      ...result.researchPlan,
+      coverage: {
+        lanes: result.laneStatus,
+        negativeFindings: result.negativeFindings,
+        searchGaps: result.searchGaps,
+      },
+    };
+    return result;
+  }
 
   await emitDeepWebTelemetry(entity, {
     stage: "AI PROVIDER FAN-OUT",
@@ -2060,6 +2168,14 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   }
   let allSearchText  = "";
   const evidenceKeys = new Set<string>();
+  const addSearchGap = (gap: string): void => {
+    const clean = gap.trim();
+    if (clean && !result.searchGaps.includes(clean)) result.searchGaps.push(clean);
+  };
+  const addNegativeFinding = (finding: string): void => {
+    const clean = finding.trim();
+    if (clean && !result.negativeFindings.includes(clean)) result.negativeFindings.push(clean);
+  };
 
   const recordEvidence = (
     vectorType: DeepWebEvidence["vectorType"],
@@ -2283,6 +2399,14 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     personName?: string,
     relationshipDetails: Record<string, unknown> = {},
   ) => {
+    if (page.unavailableReason) {
+      addSearchGap(`${sourceUrl}: ${page.unavailableReason}`);
+      return;
+    }
+    if (page.botBlocked) {
+      addSearchGap(`${sourceUrl}: bot_or_human_verification`);
+      return;
+    }
     const pageRecord = { sourceUrl, text: page.text };
     scrapedTexts.push(pageRecord);
     // Also support the opposite ordering: the person may already be known
@@ -2415,6 +2539,31 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     exa = providerResults[3]?.status === "fulfilled"
       ? providerResults[3].value
       : { source: "none" };
+    const laneEntries: Array<[AIResearchLane, any]> = [
+      ["people_press", perp],
+      ["official_records", gem],
+      ["contact_routes", tav],
+      ["semantic_discovery", exa],
+    ];
+    for (const [lane, value] of laneEntries) {
+      if (!value || value.source === "none") {
+        result.laneStatus[lane] = "unavailable";
+        addSearchGap(`provider lane unavailable: ${lane}`);
+      } else {
+        const hasUsefulOutput = Boolean(
+          value.citations?.length
+          || value.ownerResolutions?.length
+          || value.owners?.length
+          || value.email
+          || value.phone
+          || value.linkedin
+          || value.ownershipSummary,
+        );
+        result.laneStatus[lane] = hasUsefulOutput ? "complete" : "review";
+      }
+      for (const finding of value?.negativeFindings ?? []) addNegativeFinding(String(finding));
+      for (const gap of value?.searchGaps ?? []) addSearchGap(String(gap));
+    }
     // Deep Research and Hugging Face Open Deep Research are explicit,
     // review-only jobs. They intentionally do not run in this synchronous
     // contact-discovery path, so a slow provider cannot hold the operator's
@@ -3863,9 +4012,24 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       ...result.researchPlan.candidateDomains,
       ...result.routeHierarchy.flatMap((route) => route.sourceDomains),
     ])].slice(0, 12),
+    coverage: {
+      lanes: result.laneStatus,
+      negativeFindings: result.negativeFindings.slice(0, 24),
+      searchGaps: result.searchGaps.slice(0, 48),
+    },
     stages: result.researchPlan.stages.map((stage) => ({
       ...stage,
-      status: "complete",
+      status: (() => {
+        const lane =
+          stage.id === "identity" ? result.laneStatus.official_records :
+          stage.id === "structure" ? result.laneStatus.semantic_discovery :
+          stage.id === "people" || stage.id === "person_followups" ? result.laneStatus.people_press :
+          stage.id === "official_routes" ? result.laneStatus.contact_routes :
+          "complete";
+        if (lane === "unavailable") return "unavailable";
+        if (lane === "blocked") return "blocked";
+        return lane === "complete" && result.searchGaps.length === 0 ? "complete" : "review";
+      })(),
       targetNames: stage.id === "people"
         ? [...new Set([...stage.targetNames, ...result.personsDiscovered])].slice(0, 24)
         : stage.id === "person_followups"
