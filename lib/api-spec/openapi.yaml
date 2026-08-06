@@ -433,6 +433,124 @@ paths:
         "404":
           description: Research session not found
 
+  /research/cases:
+    post:
+      operationId: openResearchCase
+      tags: [research]
+      summary: Open or resume the target-scoped bureau case
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResearchCaseInput"
+      responses:
+        "200":
+          description: Existing case resumed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResearchCase"
+        "201":
+          description: New case opened
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResearchCase"
+        "404":
+          description: Entity not found
+
+  /research/cases/{entityId}:
+    get:
+      operationId: getResearchCase
+      tags: [research]
+      summary: Get the living case file for a target
+      parameters:
+        - name: entityId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Target-scoped case file
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResearchCase"
+        "404":
+          description: Case not found
+
+  /research/cases/{entityId}/advance:
+    post:
+      operationId: advanceResearchCase
+      tags: [research]
+      summary: Let the Head Investigator select the next bounded action
+      parameters:
+        - name: entityId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Case advanced
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResearchCase"
+        "404":
+          description: Case not found
+
+  /research/cases/{entityId}/directive:
+    post:
+      operationId: addResearchCaseDirective
+      tags: [research]
+      summary: Add a human operator directive to the living case
+      parameters:
+        - name: entityId
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResearchCaseDirectiveInput"
+      responses:
+        "200":
+          description: Directive recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResearchCase"
+        "404":
+          description: Case not found
+
+  /research/cases/{entityId}/events:
+    get:
+      operationId: listResearchCaseEvents
+      tags: [research]
+      summary: List the case decision and investigation history
+      parameters:
+        - name: entityId
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 100 }
+      responses:
+        "200":
+          description: Case events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ResearchCaseEvent"
+        "404":
+          description: Case not found
+
   /research/sessions/{id}/status:
     patch:
       operationId: updateResearchStatus
@@ -1117,6 +1235,55 @@ components:
         durationMs: { type: integer }
         message: { type: string }
         metadata: { type: string }
+        createdAt: { type: string }
+
+    ResearchCaseInput:
+      type: object
+      required: [entityId]
+      properties:
+        entityId: { type: integer }
+        objective: { type: string }
+        motivation: { type: string }
+        directorModel: { type: string }
+
+    ResearchCaseDirectiveInput:
+      type: object
+      required: [directive]
+      properties:
+        directive: { type: string, minLength: 1 }
+
+    ResearchCase:
+      type: object
+      required: [id, targetEntityId, status, directorMode, objective, motivation, caseFile, iteration, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        targetEntityId: { type: integer }
+        targetEntityName: { type: ["string", "null"] }
+        targetEntityType: { type: ["string", "null"] }
+        status: { type: string }
+        directorMode: { type: string }
+        directorModel: { type: ["string", "null"] }
+        objective: { type: string }
+        motivation: { type: string }
+        caseFile: { type: string }
+        currentAction: { type: ["string", "null"] }
+        iteration: { type: integer }
+        lastDecisionAt: { type: ["string", "null"] }
+        createdAt: { type: string }
+        updatedAt: { type: string }
+
+    ResearchCaseEvent:
+      type: object
+      required: [id, caseId, iteration, actorRole, eventType, status, summary, payload, createdAt]
+      properties:
+        id: { type: integer }
+        caseId: { type: integer }
+        iteration: { type: integer }
+        actorRole: { type: string }
+        eventType: { type: string }
+        status: { type: string }
+        summary: { type: string }
+        payload: { type: string }
         createdAt: { type: string }
 
     ResearchRunInput:

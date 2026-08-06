@@ -276,6 +276,53 @@ export interface ResearchRunEvent {
   createdAt: string;
 }
 
+export interface ResearchCaseInput {
+  entityId: number;
+  objective?: string;
+  motivation?: string;
+  directorModel?: string;
+}
+
+export interface ResearchCaseDirectiveInput {
+  /** @minLength 1 */
+  directive: string;
+}
+
+export interface ResearchCase {
+  id: number;
+  targetEntityId: number;
+  /** @nullable */
+  targetEntityName?: string | null;
+  /** @nullable */
+  targetEntityType?: string | null;
+  status: string;
+  directorMode: string;
+  /** @nullable */
+  directorModel?: string | null;
+  objective: string;
+  motivation: string;
+  caseFile: string;
+  /** @nullable */
+  currentAction?: string | null;
+  iteration: number;
+  /** @nullable */
+  lastDecisionAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ResearchCaseEvent {
+  id: number;
+  caseId: number;
+  iteration: number;
+  actorRole: string;
+  eventType: string;
+  status: string;
+  summary: string;
+  payload: string;
+  createdAt: string;
+}
+
 export interface ResearchRunInput {
   entityId: number;
   depth?: number;
@@ -552,6 +599,10 @@ entityId?: number;
 export type ListResearchSessionsParams = {
 entityId?: number;
 status?: string;
+limit?: number;
+};
+
+export type ListResearchCaseEventsParams = {
 limit?: number;
 };
 

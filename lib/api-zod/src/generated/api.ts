@@ -594,6 +594,147 @@ export const ListResearchRunAuditResponseItem = zod.object({
 export const ListResearchRunAuditResponse = zod.array(ListResearchRunAuditResponseItem)
 
 
+/**
+ * @summary Open or resume the target-scoped bureau case
+ */
+export const OpenResearchCaseBody = zod.object({
+  "entityId": zod.number(),
+  "objective": zod.string().optional(),
+  "motivation": zod.string().optional(),
+  "directorModel": zod.string().optional()
+})
+
+export const OpenResearchCaseResponse = zod.object({
+  "id": zod.number(),
+  "targetEntityId": zod.number(),
+  "targetEntityName": zod.string().nullish(),
+  "targetEntityType": zod.string().nullish(),
+  "status": zod.string(),
+  "directorMode": zod.string(),
+  "directorModel": zod.string().nullish(),
+  "objective": zod.string(),
+  "motivation": zod.string(),
+  "caseFile": zod.string(),
+  "currentAction": zod.string().nullish(),
+  "iteration": zod.number(),
+  "lastDecisionAt": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Get the living case file for a target
+ */
+export const GetResearchCaseParams = zod.object({
+  "entityId": zod.coerce.number()
+})
+
+export const GetResearchCaseResponse = zod.object({
+  "id": zod.number(),
+  "targetEntityId": zod.number(),
+  "targetEntityName": zod.string().nullish(),
+  "targetEntityType": zod.string().nullish(),
+  "status": zod.string(),
+  "directorMode": zod.string(),
+  "directorModel": zod.string().nullish(),
+  "objective": zod.string(),
+  "motivation": zod.string(),
+  "caseFile": zod.string(),
+  "currentAction": zod.string().nullish(),
+  "iteration": zod.number(),
+  "lastDecisionAt": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Let the Head Investigator select the next bounded action
+ */
+export const AdvanceResearchCaseParams = zod.object({
+  "entityId": zod.coerce.number()
+})
+
+export const AdvanceResearchCaseResponse = zod.object({
+  "id": zod.number(),
+  "targetEntityId": zod.number(),
+  "targetEntityName": zod.string().nullish(),
+  "targetEntityType": zod.string().nullish(),
+  "status": zod.string(),
+  "directorMode": zod.string(),
+  "directorModel": zod.string().nullish(),
+  "objective": zod.string(),
+  "motivation": zod.string(),
+  "caseFile": zod.string(),
+  "currentAction": zod.string().nullish(),
+  "iteration": zod.number(),
+  "lastDecisionAt": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Add a human operator directive to the living case
+ */
+export const AddResearchCaseDirectiveParams = zod.object({
+  "entityId": zod.coerce.number()
+})
+
+
+
+
+export const AddResearchCaseDirectiveBody = zod.object({
+  "directive": zod.string().min(1)
+})
+
+export const AddResearchCaseDirectiveResponse = zod.object({
+  "id": zod.number(),
+  "targetEntityId": zod.number(),
+  "targetEntityName": zod.string().nullish(),
+  "targetEntityType": zod.string().nullish(),
+  "status": zod.string(),
+  "directorMode": zod.string(),
+  "directorModel": zod.string().nullish(),
+  "objective": zod.string(),
+  "motivation": zod.string(),
+  "caseFile": zod.string(),
+  "currentAction": zod.string().nullish(),
+  "iteration": zod.number(),
+  "lastDecisionAt": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary List the case decision and investigation history
+ */
+export const ListResearchCaseEventsParams = zod.object({
+  "entityId": zod.coerce.number()
+})
+
+export const listResearchCaseEventsQueryLimitDefault = 100;
+
+export const ListResearchCaseEventsQueryParams = zod.object({
+  "limit": zod.coerce.number().default(listResearchCaseEventsQueryLimitDefault)
+})
+
+export const ListResearchCaseEventsResponseItem = zod.object({
+  "id": zod.number(),
+  "caseId": zod.number(),
+  "iteration": zod.number(),
+  "actorRole": zod.string(),
+  "eventType": zod.string(),
+  "status": zod.string(),
+  "summary": zod.string(),
+  "payload": zod.string(),
+  "createdAt": zod.string()
+})
+export const ListResearchCaseEventsResponse = zod.array(ListResearchCaseEventsResponseItem)
+
+
 export const UpdateResearchStatusParams = zod.object({
   "id": zod.coerce.number()
 })

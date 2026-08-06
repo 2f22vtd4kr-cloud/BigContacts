@@ -107,6 +107,8 @@ Tables (all in `lib/db/src/schema/`):
 | `assets` | BusinessInterest, Aviation, RealEstate, Marine, PrivateClub and other public asset evidence |
 | `relationships` | Entity→Entity and Entity→Asset edges |
 | `research_sessions` | Evidence-focused research sessions and review paths |
+| `research_cases` | Durable target-scoped Case Bureau working snapshots |
+| `research_case_events` | Append-only Head Investigator, specialist, system, and human directive events |
 | `improvement_logs` | Persona-loop suggestions per entity |
 
 Schema push: `pnpm --filter @workspace/db run push`
@@ -132,6 +134,10 @@ HNWI/entity card UX updated: dashboard priority cards, People ledger cards, and 
 Research evidence hardening completed: provider output is reconciled into reviewable contact candidates keyed by normalized vector, with canonical source URLs/domains, organization-vs-person scope, attribution, conflicts, and explicit promotion states. Candidate funnel metadata is persisted through existing `contact_evidence` rows and shown on the Research desk. The independent scorecard separates identity, ownership, contact, practical access, wealth, freshness, and source quality; provider repetition, asset/graph volume, and wealth cannot promote access or verified contact. `/research` is registered and API route coverage is verified after bundling the full imported source tree. No ingestion or research job runs automatically.
 
 The adaptive research director is now part of canonical web enrichment. It runs a bounded target-scoped pre-pass, chooses the next identity/structure/official-route/person-follow-up/claim-verification/provider-lane action from current evidence gaps, feeds new domains and names into exact-page research, and stops on evidence sufficiency or stalled progress. Adaptive provider output is review-only until the existing exact-page, attribution, corroboration, and reachability gates pass. The compact action trace is persisted with the investigator plan and yield metrics. Full API tests (40 files / 267 tests), production build, API restart, and Redis-healthy `/api/healthz` verification passed on 2026-08-06; no benchmark was run.
+
+The Case Bureau now sits on top of that adaptive foundation. `research_cases` stores one living case per target with objective, motivation, director mode, iteration, current action, and a serialized shared case file; `research_case_events` is append-only for decisions, assignments, observations, status changes, and human directives. The provider-key-independent local Head Investigator selects bounded next actions from current evidence gaps and assigns existing identity, structure, web, footprint, contact, and skeptic tool lanes. The Research desk exposes the case status, specialist roster, next action, directives, evidence counts, and a broad ranked contact hierarchy for human review. The bureau layer does not promote contacts, infer identity, or generate outreach.
+
+The case flow was live-tested on 2026-08-06 with one clearly labeled synthetic fixture and then cleaned up. The temporary entity was deleted and foreign-key cascade verification returned zero matching entity, case, and event rows. No synthetic data remains in the development database.
 
 Two fixes were needed after the first import:
 - Added `"pg-cloudflare"` to the `external` list in `artifacts/api-server/build.mjs` (pg optional dep that esbuild couldn't resolve)
