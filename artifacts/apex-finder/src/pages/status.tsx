@@ -36,6 +36,14 @@ interface OpenResearchStatus {
   mistral: { configured: boolean; model: string; rateLimit: string };
 }
 
+interface BureauReasoningStatus {
+  configured: boolean;
+  model: string;
+  endpoint: string;
+  role: "right_hand_advisor";
+  capability: "case_file_reasoning_only";
+}
+
 interface UpstashSlot {
   slot: number;
   status: string;
@@ -46,6 +54,7 @@ interface UpstashSlot {
 interface SystemStatus {
   ai: AIKeyStatus;
   openResearch?: OpenResearchStatus;
+  bureauReasoning?: BureauReasoningStatus;
   databases: {
     postgres:   { status: "ok" | "error"; latencyMs: number | null };
     localRedis: { status: string;         latencyMs: number | null };
@@ -336,6 +345,19 @@ export default function SystemStatusPage() {
             {status?.openResearch?.mistral.configured
               ? `Mistral ${status.openResearch.mistral.model} · ${status.openResearch.mistral.rateLimit}`
               : "Mistral web search not configured"}
+          </div>
+        </div>
+        <div className="mt-3 rounded-lg border border-border/50 px-4 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px]">
+            <span className="text-muted-foreground">Boss's right-hand advisor</span>
+            <span className={status?.bureauReasoning?.configured ? "text-primary" : "text-muted-foreground"}>
+              {status?.bureauReasoning?.configured ? "configured" : "missing"}
+            </span>
+          </div>
+          <div className="mt-1 truncate font-mono text-[9px] text-muted-foreground/55">
+            {status?.bureauReasoning?.configured
+              ? `${status.bureauReasoning.model} · advisory only · no web search`
+              : "NVIDIA NIM right-hand advisor not configured"}
           </div>
         </div>
       </section>

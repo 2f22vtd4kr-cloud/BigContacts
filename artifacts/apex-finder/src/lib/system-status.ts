@@ -21,6 +21,14 @@ export interface OpenResearchStatus {
   mistral: { configured: boolean; model: string; rateLimit: string };
 }
 
+export interface BureauReasoningStatus {
+  configured: boolean;
+  model: string;
+  endpoint: string;
+  role: "right_hand_advisor";
+  capability: "case_file_reasoning_only";
+}
+
 export interface UpstashSlot {
   slot: number;
   status: string;
@@ -31,6 +39,7 @@ export interface UpstashSlot {
 export interface SystemStatus {
   ai: AIKeyStatus;
   openResearch?: OpenResearchStatus;
+  bureauReasoning?: BureauReasoningStatus;
   databases: {
     postgres: { status: "ok" | "error"; latencyMs: number | null };
     localRedis: { status: string; latencyMs: number | null };

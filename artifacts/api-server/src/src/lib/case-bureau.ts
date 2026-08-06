@@ -5,6 +5,15 @@ export {
   runMistralWebSearch,
 } from "./mistral-web-search";
 export type { MistralWebSearchResult } from "./mistral-web-search";
+export {
+  getNvidiaNimCaseReasoningStatus,
+  runNvidiaNimCaseReasoning,
+  NVIDIA_NIM_CASE_REASONING_MODEL,
+} from "./nvidia-nim-case-reasoning";
+export type {
+  NvidiaNimCaseReasoningResult,
+  NvidiaNimCaseReasoningStatus,
+} from "./nvidia-nim-case-reasoning";
 
 export type BureauSpecialist = {
   id: string;
@@ -76,6 +85,17 @@ export type ResearchCaseFile = {
     reason: string;
     createdAt: string;
   }>;
+  rightHandAdvice?: {
+    provider: "nvidia-nim";
+    model: string;
+    status: "completed" | "unavailable";
+    actionId: string | null;
+    decision: string | null;
+    reason: string | null;
+    confidence: number | null;
+    error: string | null;
+    createdAt: string;
+  };
   nextBestAction: BureauAction | null;
   lastUpdatedBy: string;
 };
@@ -735,7 +755,7 @@ function normalizeRoutes(metadata: Record<string, unknown>): BureauContactRoute[
           Array.isArray(route.sourceDomains) ? route.sourceDomains : domainsFromUrls(urls),
         ),
         rationale: String(route.note ?? "Public route retained for human review."),
-        humanReview: "use_judgment",
+        humanReview: "use_judgment" as const,
       };
     })
     .sort((a, b) => b.score - a.score)
@@ -864,7 +884,7 @@ export function buildInitialCaseFile(entity: Entity): ResearchCaseFile {
     contactRoutes: normalizeRoutes(metadata),
     humanDirectives: [],
     decisionLog: [],
-    lastUpdatedBy: "local-head-investigator",
+    lastUpdatedBy: "boss-local-planner",
   };
   const actionQueue = buildActions(base);
   return {
@@ -889,13 +909,43 @@ export function advanceCaseFile(file: ResearchCaseFile, iteration: number, now =
     action.id === next?.id ? { ...action, status: "active" as const } : action,
   );
   const decision = next
-    ? `Assign ${next.title} to ${file.specialistRoster.find((specialist) => specialist.id === next.specialistId)?.title ?? next.specialistId}.`
+    ? `Boss assigns ${next.title} to ${file.specialistRoster.find((specialist) => specialist.id === next.specialistId)?.title ?? next.specialistId}.`
     : "No queued action remains; keep the case open for a human directive or model-backed re-plan.";
   return {
     ...file,
     actionQueue: updatedQueue,
     nextBestAction: next ? { ...next, status: "active" } : null,
     decisionLog: [...file.decisionLog, { iteration, decision, reason: next?.rationale ?? "Action queue exhausted.", createdAt: now }].slice(-50),
-    lastUpdatedBy: "local-head-investigator",
+    lastUpdatedBy: "boss-local-planner",
+  };
+}
+
+export function recordRightHandAdvice(
+  file: ResearchCaseFile,
+  input: {
+    model: string;
+    status: "completed" | "unavailable";
+    actionId: string | null;
+    decision: string | null;
+    reason: string | null;
+    confidence: number | null;
+    error: string | null;
+    now?: string;
+  },
+): ResearchCaseFile {
+  const now = input.now ?? new Date().toISOString();
+  return {
+    ...file,
+    rightHandAdvice: {
+      provider: "nvidia-nim",
+      model: input.model,
+      status: input.status,
+      actionId: input.actionId,
+      decision: input.decision,
+      reason: input.reason,
+      confidence: input.confidence,
+      error: input.error,
+      createdAt: now,
+    },
   };
 }

@@ -371,6 +371,11 @@ export function ApiKeyHealth() {
                       ? `Mistral ${openResearch.mistral.model} · ${openResearch.mistral.rateLimit}`
                       : "Mistral web search not configured"}
                   </div>
+                  <div className="mt-1 truncate font-mono text-[9px] text-muted-foreground/55">
+                    {status?.bureauReasoning?.configured
+                      ? `Boss's right hand · ${status.bureauReasoning.model} · advisory only`
+                      : "Boss's right-hand advisor not configured"}
+                  </div>
                 </div>
               </>
             )}

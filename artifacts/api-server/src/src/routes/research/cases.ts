@@ -29,11 +29,14 @@ import {
   GEMINI_BOSS_MODEL_PENDING,
   parseDiscoveryCaseFile,
   parseCaseFile,
+  recordRightHandAdvice,
   runGeminiBossDiscovery,
   resolveGeminiBossModel,
   DEFAULT_DISCOVERY_MOTIVATION,
   DEFAULT_DISCOVERY_OBJECTIVE,
   runMistralWebSearch,
+  getNvidiaNimCaseReasoningStatus,
+  runNvidiaNimCaseReasoning,
 } from "../../lib/case-bureau";
 import { runBroadDiscovery } from "../../lib/enrichment/broad-discovery";
 import { searchRegistry, type RegistryId } from "../../lib/registry-client";
@@ -617,7 +620,7 @@ router.post("/research/cases", async (req, res): Promise<void> => {
   const [created] = await db.insert(researchCasesTable).values({
     targetEntityId: entityId,
     caseType: "target",
-    directorMode: "local_planner",
+    directorMode: "gemini_boss_pending",
     directorProvider: "gemini",
     objective: objective?.trim() || "Find the strongest practical public route to the target and map the surrounding ownership and relationship context.",
     motivation: motivation?.trim() || "Search broadly across public life, organizations, people, venues, digital traces, and relationship paths; return an organized case for human judgment.",
@@ -636,7 +639,7 @@ router.post("/research/cases", async (req, res): Promise<void> => {
   }
   await db.insert(researchCaseEventsTable).values({
     caseId: created.id,
-    actorRole: "head_investigator",
+    actorRole: "boss",
     eventType: "case_opened",
     summary: "Case opened with a target-scoped bureau roster and initial action queue.",
     payload: JSON.stringify({ actionCount: caseFile.actionQueue.length, specialistCount: caseFile.specialistRoster.length }),
@@ -682,7 +685,23 @@ router.post("/research/cases/:entityId/advance", async (req, res): Promise<void>
     return;
   }
   const nextIteration = current.iteration + 1;
-  const updatedFile = advanceCaseFile(file, nextIteration);
+  const reasoning = await runNvidiaNimCaseReasoning({
+    file,
+    iteration: nextIteration,
+  });
+  // Boss remains the Head Investigator and owns the final queue decision.
+  // GLM is a right-hand advisor: preserve its recommendation in case context,
+  // but never let it directly select or activate the Boss's action.
+  const bossDecisionFile = advanceCaseFile(file, nextIteration);
+  const updatedFile = recordRightHandAdvice(bossDecisionFile, {
+    model: reasoning.model,
+    status: reasoning.status,
+    actionId: reasoning.actionId,
+    decision: reasoning.decision,
+    reason: reasoning.reason,
+    confidence: reasoning.confidence,
+    error: reasoning.error,
+  });
   const now = new Date();
   const [updated] = await db.update(researchCasesTable).set({
     caseFile: JSON.stringify(updatedFile),
@@ -696,10 +715,24 @@ router.post("/research/cases/:entityId/advance", async (req, res): Promise<void>
   await db.insert(researchCaseEventsTable).values({
     caseId: current.id,
     iteration: nextIteration,
-    actorRole: "head_investigator",
+    actorRole: "right_hand_advisor",
     eventType: "decision",
-    summary: action ? `Assigned ${action.title} to ${action.specialistId}.` : "No queued action remains; case is ready for review.",
-    payload: JSON.stringify({ action, decision: updatedFile.decisionLog.at(-1) }),
+    summary: reasoning.status === "completed"
+      ? `GLM right-hand advisory recommendation: ${reasoning.actionId ?? "none"}. Boss decision remains authoritative.`
+      : "GLM right-hand advisor unavailable; Boss used the local planning fallback.",
+    payload: JSON.stringify({
+      advisor: updatedFile.rightHandAdvice,
+      bossAction: action,
+      bossDecision: updatedFile.decisionLog.at(-1),
+    }),
+  });
+  await db.insert(researchCaseEventsTable).values({
+    caseId: current.id,
+    iteration: nextIteration,
+    actorRole: "boss",
+    eventType: "decision",
+    summary: action ? `Boss assigned ${action.title} to ${action.specialistId}.` : "Boss left no queued action; case is ready for review.",
+    payload: JSON.stringify({ action, decision: updatedFile.decisionLog.at(-1), advisorConsulted: reasoning.status === "completed" }),
   });
   const [entity] = await db.select({ name: entitiesTable.name, type: entitiesTable.type }).from(entitiesTable).where(eq(entitiesTable.id, params.data.entityId));
   res.json(serializeCase(updated!, entity ?? null));
@@ -752,8 +785,12 @@ router.post("/research/cases/:entityId/directive", async (req, res): Promise<voi
 router.get("/research/cases/:entityId/events", async (req, res): Promise<void> => {
   const params = ListResearchCaseEventsParams.safeParse(req.params);
   const query = ListResearchCaseEventsQueryParams.safeParse(req.query);
-  if (!params.success || !query.success) {
-    res.status(400).json({ error: !params.success ? params.error.message : query.error.message });
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  if (!query.success) {
+    res.status(400).json({ error: query.error.message });
     return;
   }
   const current = await findCase(params.data.entityId);

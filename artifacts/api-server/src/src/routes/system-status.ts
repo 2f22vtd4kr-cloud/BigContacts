@@ -22,6 +22,7 @@ import {
   pingRedis,
 }                               from "../lib/redis";
 import { getMistralWebSearchStatus } from "../lib/mistral-web-search";
+import { getNvidiaNimCaseReasoningStatus } from "../lib/nvidia-nim-case-reasoning";
 
 const router: IRouter = Router();
 
@@ -55,6 +56,7 @@ router.get("/system/status", async (_req, res) => {
       },
       mistral: getMistralWebSearchStatus(),
     } as const;
+    const bureauReasoning = getNvidiaNimCaseReasoningStatus();
 
     // ── PostgreSQL ────────────────────────────────────────────────────────────
     let pgStatus: "ok" | "error" = "ok";
@@ -77,6 +79,7 @@ router.get("/system/status", async (_req, res) => {
     const payload = {
       ai,
       openResearch,
+      bureauReasoning,
       databases: {
         postgres:   { status: pgStatus, latencyMs: pgLatencyMs },
         localRedis: { ...localInfo, latencyMs: localLatencyMs },

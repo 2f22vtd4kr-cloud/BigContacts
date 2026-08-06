@@ -1,3 +1,4 @@
 - [Import setup](import-setup.md) — workspace re-import steps, workflow names, and env vars required to bring BigContacts online from scratch.
 - [Mistral Bureau web-search lane](mistral-bureau-lane.md) — Conversations API web search is review-only and rate-limited to one request per second.
+- [NVIDIA NIM Bureau reasoning](nvidia-nim-bureau-reasoning.md) — GLM-5.2 reasons over the case file only; invalid or unavailable recommendations use the local planner.
 - [TypeScript project-reference outputs](typescript-project-reference-outputs.md) — consuming artifacts must rebuild ignored library declarations before typechecking.

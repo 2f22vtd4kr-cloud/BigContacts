@@ -164,6 +164,16 @@ type BureauCaseFile = {
   contactRoutes: BureauContactRoute[];
   humanDirectives: string[];
   decisionLog: Array<{ iteration: number; decision: string; reason: string; createdAt: string }>;
+  rightHandAdvice?: {
+    model: string;
+    status: "completed" | "unavailable";
+    actionId: string | null;
+    decision: string | null;
+    reason: string | null;
+    confidence: number | null;
+    error: string | null;
+    createdAt: string;
+  };
   nextBestAction: BureauAction | null;
   evidenceSummary: {
     sourceRegistries: string[];
@@ -338,8 +348,8 @@ function BureauCasePanel({
       <div className="border-t border-border/50 bg-[#080C14] px-4 md:px-5 py-4 flex-shrink-0">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h3 className="text-xs font-mono text-primary uppercase tracking-widest">Head Investigator Case</h3>
-            <p className="text-[11px] text-muted-foreground mt-1">Open a living target case to coordinate specialist investigators and rank every contact route.</p>
+            <h3 className="text-xs font-mono text-primary uppercase tracking-widest">Boss Case Bureau</h3>
+            <p className="text-[11px] text-muted-foreground mt-1">The Boss leads the case; GLM serves as a bounded right-hand advisor.</p>
           </div>
           <button
             disabled={busy}
@@ -364,7 +374,7 @@ function BureauCasePanel({
       <div className="flex items-start justify-between gap-3 mb-3">
         <div>
           <h3 className="text-xs font-mono text-primary uppercase tracking-widest flex items-center gap-2">
-            <Cpu className="w-3.5 h-3.5" /> Head Investigator Case
+            <Cpu className="w-3.5 h-3.5" /> Boss Case Bureau
           </h3>
           <p className="text-[11px] text-muted-foreground mt-1 max-w-3xl">{bureauCase.objective}</p>
         </div>
@@ -382,7 +392,7 @@ function BureauCasePanel({
               onClick={() => void request(`/api/research/cases/${entityId}/advance`)}
               className="inline-flex items-center gap-1 rounded border border-primary/40 px-2 py-1 text-[10px] font-mono text-primary hover:bg-primary/15 disabled:opacity-50"
             >
-              <ChevronRight className="w-3 h-3" /> {busy ? "Thinking…" : "Advance case"}
+              <ChevronRight className="w-3 h-3" /> {busy ? "Boss reviewing…" : "Ask Boss to advance"}
             </button>
           </div>
           {nextAction ? (
@@ -400,7 +410,23 @@ function BureauCasePanel({
               <div className="text-[10px] text-muted-foreground/80 mt-2">Why now: {nextAction.rationale}</div>
             </>
           ) : (
-            <div className="text-xs text-muted-foreground mt-2">No queued action. Add a directive or connect the model-backed director.</div>
+            <div className="text-xs text-muted-foreground mt-2">No queued action. Add a directive or ask the Boss for a new plan.</div>
+          )}
+        </div>
+
+        <div className="rounded border border-amber-400/20 bg-amber-400/5 p-3">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[10px] uppercase tracking-wider font-mono text-amber-300">Boss's right-hand advisor</span>
+            <span className="text-[9px] font-mono text-muted-foreground">advisory only</span>
+          </div>
+          {file?.rightHandAdvice?.status === "completed" ? (
+            <>
+              <div className="text-[10px] text-foreground mt-2">{file.rightHandAdvice.model} recommends <span className="text-amber-300">{file.rightHandAdvice.actionId}</span></div>
+              <div className="text-[10px] text-muted-foreground mt-1">{file.rightHandAdvice.reason}</div>
+              <div className="text-[9px] text-muted-foreground/70 mt-2">Boss remains authoritative and may choose a different action.</div>
+            </>
+          ) : (
+            <div className="text-[10px] text-muted-foreground mt-2">No GLM recommendation recorded yet. The Boss can proceed with the local planning fallback.</div>
           )}
         </div>
 
