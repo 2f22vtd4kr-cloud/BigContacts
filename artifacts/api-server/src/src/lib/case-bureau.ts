@@ -141,6 +141,7 @@ export type GeminiBossModelSelection = {
   inspectedKeyCount: number;
   candidateCount: number;
   candidateModels?: string[];
+  keyName?: string;
 };
 
 export type GeminiBossDiscoveryResult = {
@@ -162,6 +163,12 @@ function getGeminiKeys(): string[] {
   return GEMINI_KEY_NAMES
     .map((name) => process.env[name] ?? "")
     .filter(Boolean);
+}
+
+function getGeminiKeyEntries(): Array<{ name: string; key: string }> {
+  return GEMINI_KEY_NAMES
+    .map((name) => ({ name, key: process.env[name] ?? "" }))
+    .filter((entry) => Boolean(entry.key));
 }
 
 function modelVersion(name: string): [number, number] {
@@ -213,8 +220,14 @@ function chooseGeminiModelCandidates(entries: GeminiModelCatalogEntry[]): string
 
 let cachedBossModelSelection: { expiresAt: number; selection: GeminiBossModelSelection } | null = null;
 
-export async function resolveGeminiBossModel(): Promise<GeminiBossModelSelection> {
-  const keys = getGeminiKeys();
+export async function resolveGeminiBossModel(preferredKeyName?: string): Promise<GeminiBossModelSelection> {
+  const entries = getGeminiKeyEntries();
+  const keys = preferredKeyName
+    ? [
+        ...entries.filter((entry) => entry.name === preferredKeyName),
+        ...entries.filter((entry) => entry.name !== preferredKeyName),
+      ]
+    : entries;
   if (keys.length === 0) {
     return {
       model: GEMINI_BOSS_MODEL_PENDING,
@@ -223,13 +236,13 @@ export async function resolveGeminiBossModel(): Promise<GeminiBossModelSelection
       candidateCount: 0,
     };
   }
-  if (cachedBossModelSelection && cachedBossModelSelection.expiresAt > Date.now()) {
+  if (!preferredKeyName && cachedBossModelSelection && cachedBossModelSelection.expiresAt > Date.now()) {
     return cachedBossModelSelection.selection;
   }
 
-  for (const key of keys) {
+  for (const entry of keys) {
     try {
-      const response = await fetch(`${GEMINI_MODELS_API}?key=${encodeURIComponent(key)}`, {
+      const response = await fetch(`${GEMINI_MODELS_API}?key=${encodeURIComponent(entry.key)}`, {
         headers: { Accept: "application/json" },
       });
       if (!response.ok) continue;
@@ -243,8 +256,11 @@ export async function resolveGeminiBossModel(): Promise<GeminiBossModelSelection
         inspectedKeyCount: 1,
         candidateCount: candidates.length,
         candidateModels: candidates,
+        keyName: entry.name,
       };
-      cachedBossModelSelection = { expiresAt: Date.now() + 10 * 60 * 1000, selection };
+      if (!preferredKeyName) {
+        cachedBossModelSelection = { expiresAt: Date.now() + 10 * 60 * 1000, selection };
+      }
       return selection;
     } catch {
       // Try the next configured slot without exposing key or provider details.
@@ -320,7 +336,9 @@ export async function runGeminiBossDiscovery(input: {
   geography?: string;
   exclusions?: string[];
 }): Promise<GeminiBossDiscoveryResult> {
-  const selection = await resolveGeminiBossModel();
+  // This bounded verification run intentionally uses the second configured
+  // Google account, not the first key slot used by earlier Bureau attempts.
+  const selection = await resolveGeminiBossModel("GEMINI_API_KEY_2");
   if (selection.status !== "resolved") {
     return {
       status: selection.status,
@@ -334,7 +352,9 @@ export async function runGeminiBossDiscovery(input: {
     };
   }
 
-  const keys = getGeminiKeys();
+  const requestKey = selection.keyName
+    ? process.env[selection.keyName]
+    : undefined;
   const prompt = `${buildBossOpeningPrompt(input)}
 
 This is the preliminary web request that initializes the durable case context.
@@ -360,7 +380,7 @@ Candidates are review-only. Never invent a name, wealth claim, relationship, con
   const models = selection.candidateModels?.length ? selection.candidateModels.slice(0, 4) : [selection.model];
   // Gemini free-tier request limits are project-wide, not independent per
   // secret. Do not fan a single failed request across every key in the pool.
-  const requestKeys = keys.slice(0, 1);
+  const requestKeys = requestKey ? [requestKey] : [];
   for (const model of models) {
     for (const key of requestKeys) {
       try {
