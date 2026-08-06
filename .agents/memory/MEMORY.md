@@ -1,2 +1,3 @@
 - [Import setup](import-setup.md) — workspace re-import steps, workflow names, and env vars required to bring BigContacts online from scratch.
 - [Mistral Bureau web-search lane](mistral-bureau-lane.md) — Conversations API web search is review-only and rate-limited to one request per second.
+- [TypeScript project-reference outputs](typescript-project-reference-outputs.md) — consuming artifacts must rebuild ignored library declarations before typechecking.
