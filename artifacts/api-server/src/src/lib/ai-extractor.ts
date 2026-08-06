@@ -47,9 +47,6 @@ const PERPLEXITY_DIRECT_API      = "https://api.perplexity.ai/chat/completions";
 const PERPLEXITY_DIRECT_MODEL    = "sonar-pro";   // model name WITHOUT the "perplexity/" prefix when calling directly
 const PERPLEXITY_DIRECT_FALLBACK = "sonar";       // cheaper direct fallback
 
-// Gemini Flash-Lite with Google Search Grounding — lower-quota model; searches Google in real-time
-const GEMINI_MODEL = "gemini-2.0-flash-lite";
-const GEMINI_API   = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 // Deep Research Pro Preview is an asynchronous Interactions API agent.
 // Its dedicated quota pool is intentionally isolated from Flash-Lite.
 const GEMINI_DEEP_RESEARCH_AGENT = "deep-research-pro-preview-12-2025";
@@ -1308,15 +1305,25 @@ export async function researchWithGemini(
     return EMPTY;
   }
 
-  logger.info({ entityName, entityType, country, lane: context.lane ?? "people_press" }, `Phase 0 [${GEMINI_MODEL}]: firing Gemini grounded search`);
+  const modelSelection = await resolveGeminiBossModel();
+  if (modelSelection.status !== "resolved") {
+    logger.warn(
+      { entityName, status: modelSelection.status, probeStatus: modelSelection.probeStatus },
+      "Phase 0 [gemini]: no model passed the live generation probe",
+    );
+    return EMPTY;
+  }
+  const geminiModel = modelSelection.model;
+  const geminiApi = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent`;
+  logger.info({ entityName, entityType, country, lane: context.lane ?? "people_press", model: geminiModel }, "Phase 0 [gemini]: firing grounded search");
   const prompt = buildPerplexityPrompt(entityName, entityType, country, context);
 
   for (const key of keys) {
     if (isExhausted(_exhaustedGeminiKeys, key)) continue;
     try {
-      const resp = await fetch(`${GEMINI_API}?key=${key}`, {
+      const resp = await fetch(geminiApi, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-goog-api-key": key },
         body: JSON.stringify({
           contents: [{ role: "user", parts: [{ text: prompt }] }],
           tools: [{ google_search: {} }],
@@ -1330,18 +1337,18 @@ export async function researchWithGemini(
         _exhaustedGeminiKeys.set(key, Date.now() + cooldownMs);
         logger.warn(
           { cooldownMs },
-          `Phase 0 [${GEMINI_MODEL}]: temporary rate limit — key cooling down`,
+          `Phase 0 [gemini:${geminiModel}]: temporary rate limit — key cooling down`,
         );
         continue;
       }
       if (resp.status === 403) {
         const errText = await resp.text().catch(() => "");
-        logger.warn({ err: errText.slice(0, 200) }, `Phase 0 [${GEMINI_MODEL}]: quota/auth error — skipping key`);
+        logger.warn({ err: errText.slice(0, 200) }, `Phase 0 [gemini:${geminiModel}]: quota/auth error — skipping key`);
         continue;
       }
       if (!resp.ok) {
         const errText = await resp.text().catch(() => "");
-        logger.warn({ status: resp.status, err: errText.slice(0, 300) }, `Phase 0 [${GEMINI_MODEL}]: API error`);
+        logger.warn({ status: resp.status, err: errText.slice(0, 300) }, `Phase 0 [gemini:${geminiModel}]: API error`);
         continue;
       }
 
@@ -1357,12 +1364,12 @@ export async function researchWithGemini(
 
       logger.info(
         { entityName, rawLen: raw.length, citations: citations.length },
-        `Phase 0 [${GEMINI_MODEL}]: raw response received`,
+        `Phase 0 [gemini:${geminiModel}]: raw response received`,
       );
 
       const jsonObject = extractJsonObject(raw);
       if (!jsonObject) {
-        logger.warn({ raw: raw.slice(0, 300) }, `Phase 0 [${GEMINI_MODEL}]: no JSON block in response`);
+        logger.warn({ raw: raw.slice(0, 300) }, `Phase 0 [gemini:${geminiModel}]: no JSON block in response`);
         continue;
       }
 
@@ -1374,7 +1381,7 @@ export async function researchWithGemini(
           entityName, hasEmail: !!parsed.email, hasPhone: !!parsed.phone,
           hasLinkedIn: !!parsed.linkedin, owners: parsed.owners.length, citations: citations.length,
         },
-        `Phase 0 [${GEMINI_MODEL}]: research complete`,
+        `Phase 0 [gemini:${geminiModel}]: research complete`,
       );
 
       return {
@@ -1384,11 +1391,11 @@ export async function researchWithGemini(
         ownerResolutions: bindResolutionsToCitations(parsed, citations),
       };
     } catch (err: any) {
-      logger.warn({ err: err?.message }, `Phase 0 [${GEMINI_MODEL}]: call threw`);
+      logger.warn({ err: err?.message }, `Phase 0 [gemini:${geminiModel}]: call threw`);
     }
   }
 
-  logger.warn({ entityName }, `Phase 0 [${GEMINI_MODEL}]: no usable data — all keys failed`);
+  logger.warn({ entityName, model: geminiModel }, "Phase 0 [gemini]: no usable data — all keys failed");
   return EMPTY;
 }
 

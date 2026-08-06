@@ -140,6 +140,7 @@ export type GeminiBossModelSelection = {
   status: "resolved" | "pending" | "unavailable";
   inspectedKeyCount: number;
   candidateCount: number;
+  probeStatus?: number;
 };
 
 export type GeminiBossDiscoveryResult = {
@@ -207,6 +208,23 @@ function chooseLowestCostGeminiModel(entries: GeminiModelCatalogEntry[]): string
   return candidates[0] ?? null;
 }
 
+function chooseGeminiModelCandidates(entries: GeminiModelCatalogEntry[]): string[] {
+  return entries
+    .filter((entry) => entry.name && entry.supportedGenerationMethods?.includes("generateContent"))
+    .map((entry) => entry.name!.replace(/^models\//, ""))
+    .filter((name) => /^gemini-/i.test(name))
+    .filter((name) => !/embedding|aqa|robotics|image-generation|tts|deep-research/i.test(name))
+    .sort((left, right) => {
+      const a = modelRank(left);
+      const b = modelRank(right);
+      for (let index = 0; index < a.length; index += 1) {
+        if (a[index] < b[index]) return -1;
+        if (a[index] > b[index]) return 1;
+      }
+      return 0;
+    });
+}
+
 let cachedBossModelSelection: { expiresAt: number; selection: GeminiBossModelSelection } | null = null;
 
 export async function resolveGeminiBossModel(): Promise<GeminiBossModelSelection> {
@@ -223,6 +241,7 @@ export async function resolveGeminiBossModel(): Promise<GeminiBossModelSelection
     return cachedBossModelSelection.selection;
   }
 
+  let lastProbeStatus: number | undefined;
   for (const key of keys) {
     try {
       const response = await fetch(`${GEMINI_MODELS_API}?key=${encodeURIComponent(key)}`, {
@@ -231,18 +250,55 @@ export async function resolveGeminiBossModel(): Promise<GeminiBossModelSelection
       if (!response.ok) continue;
       const payload = await response.json() as { models?: GeminiModelCatalogEntry[] };
       const entries = Array.isArray(payload.models) ? payload.models : [];
-      const model = chooseLowestCostGeminiModel(entries);
-      if (!model) continue;
-      const selection: GeminiBossModelSelection = {
-        model,
-        status: "resolved",
-        inspectedKeyCount: 1,
-        candidateCount: entries.filter((entry) =>
-          entry.name && entry.supportedGenerationMethods?.includes("generateContent")
-        ).length,
-      };
-      cachedBossModelSelection = { expiresAt: Date.now() + 10 * 60 * 1000, selection };
-      return selection;
+      const candidates = chooseGeminiModelCandidates(entries);
+      if (!candidates.length) continue;
+
+      // The catalog is only capability metadata. It can list models that are
+      // retired for new users or have a project-specific free-tier limit of
+      // zero. Probe a tiny generation request before selecting the Boss model.
+      for (const model of candidates) {
+        try {
+          const probe = await fetch(
+            `${GEMINI_MODELS_API}/${encodeURIComponent(model)}:generateContent`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-goog-api-key": key,
+              },
+              body: JSON.stringify({
+                contents: [{ role: "user", parts: [{ text: "Reply with exactly OK." }] }],
+                generationConfig: { temperature: 0, maxOutputTokens: 8 },
+              }),
+              signal: AbortSignal.timeout(20_000),
+            },
+          );
+          lastProbeStatus = probe.status;
+          if (!probe.ok) continue;
+          const probePayload = await probe.json() as {
+            candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+          };
+          const probeText = probePayload.candidates?.[0]?.content?.parts
+            ?.map((part) => part.text ?? "").join("").trim();
+          if (!probeText) continue;
+
+          const selection: GeminiBossModelSelection = {
+            model,
+            status: "resolved",
+            inspectedKeyCount: 1,
+            candidateCount: candidates.length,
+            probeStatus: probe.status,
+          };
+          cachedBossModelSelection = { expiresAt: Date.now() + 10 * 60 * 1000, selection };
+          logger.info(
+            { model, candidateCount: candidates.length, probeStatus: probe.status },
+            "Gemini Boss model passed live generation probe",
+          );
+          return selection;
+        } catch {
+          // Try the next catalog candidate without exposing the key.
+        }
+      }
     } catch {
       // Try the next configured slot without exposing key or provider details.
     }
@@ -253,6 +309,7 @@ export async function resolveGeminiBossModel(): Promise<GeminiBossModelSelection
     status: "unavailable",
     inspectedKeyCount: keys.length,
     candidateCount: 0,
+    probeStatus: lastProbeStatus,
   };
 }
 
