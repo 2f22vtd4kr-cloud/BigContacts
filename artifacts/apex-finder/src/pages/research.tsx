@@ -247,6 +247,24 @@ type DiscoveryCaseFile = {
     sourceUrls: string[];
     recordedAt: string | null;
   };
+  discoveredCandidates?: Array<{
+    name: string;
+    type: string;
+    relevance: string;
+    reachability: string;
+    sourceUrls: string[];
+    state: string;
+    admittedEntityId?: number | null;
+    contactEvidence?: Array<{
+      vectorType: string;
+      value: string;
+      scope: string;
+      personName: string | null;
+      role: string | null;
+      sourceUrls: string[];
+      note: string | null;
+    }>;
+  }>;
   investigatorReports?: Array<{
     id: string;
     lane: string;
@@ -258,6 +276,15 @@ type DiscoveryCaseFile = {
     candidateNames: string[];
     sourceUrls: string[];
     nextQuestions: string[];
+    contactEvidence?: Array<{
+      vectorType: string;
+      value: string;
+      scope: string;
+      personName: string | null;
+      role: string | null;
+      sourceUrls: string[];
+      note: string | null;
+    }>;
     error: string | null;
     createdAt: string;
   }>;
@@ -623,6 +650,7 @@ function DiscoveryBureauPanel({
   const [bossCommentary, setBossCommentary] = useState("");
   const [sourceUrls, setSourceUrls] = useState("");
   const [promotionEntityId, setPromotionEntityId] = useState("");
+  const [admissionCandidate, setAdmissionCandidate] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const file = parseDiscoveryCaseFile(discoveryCase?.caseFile);
@@ -867,6 +895,100 @@ function DiscoveryBureauPanel({
           )}
         </div>
       )}
+      {file?.discoveredCandidates?.length ? (
+        <div className="mt-3 rounded border border-amber-400/20 bg-amber-400/5 p-3">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <div className="text-[10px] uppercase tracking-wider font-mono text-amber-300">Candidate and contact review ledger</div>
+              <div className="text-[10px] text-muted-foreground mt-1">
+                Contact routes are shown only when an investigator returned an exact value with source evidence. Empty means no structured contact evidence was captured—not that the person is unreachable.
+              </div>
+            </div>
+            <span className="text-[9px] font-mono text-muted-foreground">{file.discoveredCandidates.length} review candidates</span>
+          </div>
+          <div className="mt-3 grid grid-cols-1 xl:grid-cols-2 gap-2 max-h-[34rem] overflow-y-auto pr-1">
+            {file.discoveredCandidates.map((candidate) => {
+              const contacts = candidate.contactEvidence ?? [];
+              return (
+                <div key={candidate.name} className="rounded border border-border/60 bg-background/40 p-3">
+                  <div className="flex items-start gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs font-semibold text-foreground">{candidate.name}</span>
+                        <span className="rounded border border-border/60 px-1.5 py-0.5 text-[9px] font-mono text-muted-foreground">{candidate.type}</span>
+                        {candidate.admittedEntityId ? (
+                          <span className="rounded border border-emerald-400/30 px-1.5 py-0.5 text-[9px] font-mono text-emerald-300">admitted · entity {candidate.admittedEntityId}</span>
+                        ) : null}
+                      </div>
+                      <div className="mt-1 text-[10px] leading-relaxed text-muted-foreground">{candidate.relevance}</div>
+                    </div>
+                    {!candidate.admittedEntityId ? (
+                      <button
+                        disabled={busy || admissionCandidate === candidate.name}
+                        onClick={async () => {
+                          setAdmissionCandidate(candidate.name);
+                          const admitted = await request(`/api/research/bureau/cases/${discoveryCase.id}/admit-candidate`, {
+                            candidateName: candidate.name,
+                          });
+                          if (admitted) setAdmissionCandidate(null);
+                          else setAdmissionCandidate(null);
+                        }}
+                        className="shrink-0 rounded border border-amber-400/40 bg-amber-400/10 px-2 py-1 text-[9px] font-mono uppercase tracking-wider text-amber-300 hover:bg-amber-400/20 disabled:opacity-50"
+                      >
+                        {admissionCandidate === candidate.name ? "Admitting…" : "Admit for review"}
+                      </button>
+                    ) : null}
+                  </div>
+                  <div className="mt-2 text-[10px] text-muted-foreground">
+                    <span className="text-foreground/80">Reachability:</span> {candidate.reachability}
+                  </div>
+                  <div className="mt-2 rounded border border-border/50 bg-background/50 p-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[9px] uppercase tracking-wider font-mono text-cyan-300">Contact evidence</span>
+                      <span className={cn("text-[9px] font-mono", contacts.length ? "text-emerald-300" : "text-muted-foreground")}>
+                        {contacts.length ? `${contacts.length} route${contacts.length === 1 ? "" : "s"}` : "none structured"}
+                      </span>
+                    </div>
+                    {contacts.length ? (
+                      <div className="mt-1.5 space-y-1.5">
+                        {contacts.map((contact, index) => (
+                          <div key={`${candidate.name}-${contact.vectorType}-${contact.value}-${index}`} className="text-[10px]">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="text-primary uppercase font-mono">{contact.vectorType}</span>
+                              <span className="break-all text-foreground">{contact.value}</span>
+                              <span className="text-muted-foreground">· {contact.scope}</span>
+                              {contact.personName ? <span className="text-amber-200">· {contact.personName}</span> : null}
+                            </div>
+                            {contact.role || contact.note ? <div className="text-muted-foreground mt-0.5">{[contact.role, contact.note].filter(Boolean).join(" · ")}</div> : null}
+                            {contact.sourceUrls.length ? (
+                              <div className="flex flex-wrap gap-2 mt-1">
+                                {contact.sourceUrls.slice(0, 3).map((url) => (
+                                  <a key={url} href={url} target="_blank" rel="noreferrer" className="text-[9px] text-primary hover:underline">{sourceDomain(url)}</a>
+                                ))}
+                              </div>
+                            ) : <div className="text-[9px] text-rose-300">No source URL captured for this route</div>}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="mt-1 text-[10px] text-muted-foreground">No structured email, phone, social, website, or organization contact was persisted for this candidate in the completed passes.</div>
+                    )}
+                  </div>
+                  {candidate.sourceUrls.length ? (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {candidate.sourceUrls.slice(0, 4).map((url) => (
+                        <a key={url} href={url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[9px] text-primary hover:underline">
+                          <ExternalLink className="w-2.5 h-2.5" /> {sourceDomain(url)}
+                        </a>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
       {file?.nextInvestigation && (
         <div className="mt-3 grid grid-cols-1 lg:grid-cols-2 gap-3">
           <div className="rounded border border-amber-400/20 bg-amber-400/5 p-3">

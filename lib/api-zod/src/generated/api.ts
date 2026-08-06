@@ -813,6 +813,45 @@ export const PromoteBureauCaseTargetResponse = zod.object({
 
 
 /**
+ * @summary Create a review-only entity from one persisted discovery candidate
+ */
+
+
+
+export const AdmitBureauCaseCandidateParams = zod.object({
+  "caseId": zod.coerce.number().min(1)
+})
+
+
+
+
+export const AdmitBureauCaseCandidateBody = zod.object({
+  "candidateName": zod.string().min(1)
+})
+
+export const AdmitBureauCaseCandidateResponse = zod.object({
+  "id": zod.number(),
+  "targetEntityId": zod.number().nullable(),
+  "caseType": zod.string().optional(),
+  "targetEntityName": zod.string().nullish(),
+  "targetEntityType": zod.string().nullish(),
+  "status": zod.string(),
+  "directorMode": zod.string(),
+  "directorProvider": zod.string().optional(),
+  "directorModel": zod.string().optional(),
+  "objective": zod.string(),
+  "motivation": zod.string(),
+  "openingPrompt": zod.string().optional(),
+  "caseFile": zod.string(),
+  "currentAction": zod.string().nullish(),
+  "iteration": zod.number(),
+  "lastDecisionAt": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
  * @summary Run the next bounded verification pass over the shared case context
  */
 

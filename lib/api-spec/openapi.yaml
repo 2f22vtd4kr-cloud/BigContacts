@@ -590,6 +590,36 @@ paths:
         "404":
           description: Case or entity not found
 
+  /research/bureau/cases/{caseId}/admit-candidate:
+    post:
+      operationId: admitBureauCaseCandidate
+      tags: [research]
+      summary: Create a review-only entity from one persisted discovery candidate
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BureauAdmitCandidateInput"
+      responses:
+        "200":
+          description: Candidate admitted as a review-only entity; target promotion remains separate
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BureauCase"
+        "400":
+          description: Invalid request
+        "404":
+          description: Case not found
+        "409":
+          description: Candidate is not available or has already been admitted
+
   /research/bureau/cases/{caseId}/run-next-pass:
     post:
       operationId: runBureauCaseNextPass
@@ -1446,6 +1476,12 @@ components:
       required: [entityId]
       properties:
         entityId: { type: integer }
+
+    BureauAdmitCandidateInput:
+      type: object
+      required: [candidateName]
+      properties:
+        candidateName: { type: string, minLength: 1 }
 
     BureauCaseContinuationResponse:
       type: object
