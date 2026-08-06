@@ -140,7 +140,7 @@ export type GeminiBossModelSelection = {
   status: "resolved" | "pending" | "unavailable";
   inspectedKeyCount: number;
   candidateCount: number;
-  probeStatus?: number;
+  candidateModels?: string[];
 };
 
 export type GeminiBossDiscoveryResult = {
@@ -190,38 +190,24 @@ function modelRank(name: string): [number, number, number, number, string] {
   return [family, specialized, lifecycle, major * 100 + minor, normalized];
 }
 
-function chooseLowestCostGeminiModel(entries: GeminiModelCatalogEntry[]): string | null {
-  const candidates = entries
-    .filter((entry) => entry.name && entry.supportedGenerationMethods?.includes("generateContent"))
-    .map((entry) => entry.name!.replace(/^models\//, ""))
-    .filter((name) => /^gemini-/i.test(name))
-    .filter((name) => !/embedding|aqa|robotics|image-generation|tts|deep-research/i.test(name))
-    .sort((left, right) => {
-      const a = modelRank(left);
-      const b = modelRank(right);
-      for (let index = 0; index < a.length; index += 1) {
-        if (a[index] < b[index]) return -1;
-        if (a[index] > b[index]) return 1;
-      }
-      return 0;
-    });
-  return candidates[0] ?? null;
-}
-
 function chooseGeminiModelCandidates(entries: GeminiModelCatalogEntry[]): string[] {
   return entries
     .filter((entry) => entry.name && entry.supportedGenerationMethods?.includes("generateContent"))
     .map((entry) => entry.name!.replace(/^models\//, ""))
     .filter((name) => /^gemini-/i.test(name))
-    .filter((name) => !/embedding|aqa|robotics|image-generation|tts|deep-research/i.test(name))
+    .filter((name) => /flash/i.test(name))
+    .filter((name) => /^gemini-\d+(?:\.\d+)?-flash(?:-preview)?$/i.test(name))
+    .filter((name) => !/embedding|aqa|robotics|image|tts|deep-research|latest|001/i.test(name))
     .sort((left, right) => {
+      // Prefer the currently usable concrete Flash preview before newer
+      // catalog entries that may be visible but unavailable to this project.
+      const preferred = (name: string) => name.toLowerCase() === "gemini-3-flash-preview" ? 0 : 1;
+      const aPreferred = preferred(left);
+      const bPreferred = preferred(right);
+      if (aPreferred !== bPreferred) return aPreferred - bPreferred;
       const a = modelRank(left);
       const b = modelRank(right);
-      for (let index = 0; index < a.length; index += 1) {
-        if (a[index] < b[index]) return -1;
-        if (a[index] > b[index]) return 1;
-      }
-      return 0;
+      return b[3] - a[3] || a[4].localeCompare(b[4]);
     });
 }
 
@@ -241,7 +227,6 @@ export async function resolveGeminiBossModel(): Promise<GeminiBossModelSelection
     return cachedBossModelSelection.selection;
   }
 
-  let lastProbeStatus: number | undefined;
   for (const key of keys) {
     try {
       const response = await fetch(`${GEMINI_MODELS_API}?key=${encodeURIComponent(key)}`, {
@@ -252,53 +237,15 @@ export async function resolveGeminiBossModel(): Promise<GeminiBossModelSelection
       const entries = Array.isArray(payload.models) ? payload.models : [];
       const candidates = chooseGeminiModelCandidates(entries);
       if (!candidates.length) continue;
-
-      // The catalog is only capability metadata. It can list models that are
-      // retired for new users or have a project-specific free-tier limit of
-      // zero. Probe a tiny generation request before selecting the Boss model.
-      for (const model of candidates) {
-        try {
-          const probe = await fetch(
-            `${GEMINI_MODELS_API}/${encodeURIComponent(model)}:generateContent`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "x-goog-api-key": key,
-              },
-              body: JSON.stringify({
-                contents: [{ role: "user", parts: [{ text: "Reply with exactly OK." }] }],
-                generationConfig: { temperature: 0, maxOutputTokens: 8 },
-              }),
-              signal: AbortSignal.timeout(20_000),
-            },
-          );
-          lastProbeStatus = probe.status;
-          if (!probe.ok) continue;
-          const probePayload = await probe.json() as {
-            candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-          };
-          const probeText = probePayload.candidates?.[0]?.content?.parts
-            ?.map((part) => part.text ?? "").join("").trim();
-          if (!probeText) continue;
-
-          const selection: GeminiBossModelSelection = {
-            model,
-            status: "resolved",
-            inspectedKeyCount: 1,
-            candidateCount: candidates.length,
-            probeStatus: probe.status,
-          };
-          cachedBossModelSelection = { expiresAt: Date.now() + 10 * 60 * 1000, selection };
-          logger.info(
-            { model, candidateCount: candidates.length, probeStatus: probe.status },
-            "Gemini Boss model passed live generation probe",
-          );
-          return selection;
-        } catch {
-          // Try the next catalog candidate without exposing the key.
-        }
-      }
+      const selection: GeminiBossModelSelection = {
+        model: candidates[0],
+        status: "resolved",
+        inspectedKeyCount: 1,
+        candidateCount: candidates.length,
+        candidateModels: candidates,
+      };
+      cachedBossModelSelection = { expiresAt: Date.now() + 10 * 60 * 1000, selection };
+      return selection;
     } catch {
       // Try the next configured slot without exposing key or provider details.
     }
@@ -309,7 +256,6 @@ export async function resolveGeminiBossModel(): Promise<GeminiBossModelSelection
     status: "unavailable",
     inspectedKeyCount: keys.length,
     candidateCount: 0,
-    probeStatus: lastProbeStatus,
   };
 }
 
@@ -410,10 +356,15 @@ Return ONLY JSON in this shape:
 }
 Candidates are review-only. Never invent a name, wealth claim, relationship, contact detail, or URL.`;
 
-  let lastProviderError = "All configured Gemini keys failed for the preliminary Boss request.";
-  for (const key of keys) {
-    try {
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(selection.model)}:generateContent?key=${encodeURIComponent(key)}`;
+  let lastProviderError = "All configured Gemini models and keys failed for the preliminary Boss request.";
+  const models = selection.candidateModels?.length ? selection.candidateModels.slice(0, 4) : [selection.model];
+  // Gemini free-tier request limits are project-wide, not independent per
+  // secret. Do not fan a single failed request across every key in the pool.
+  const requestKeys = keys.slice(0, 1);
+  for (const model of models) {
+    for (const key of requestKeys) {
+      try {
+        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
       const requestBody = {
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         tools: [{ google_search: {} }],
@@ -426,20 +377,32 @@ Candidates are review-only. Never invent a name, wealth claim, relationship, con
           maxOutputTokens: 2000,
         },
       };
-      let response = await fetch(endpoint, {
+      const response = await fetch(endpoint, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        headers: { "Content-Type": "application/json", Accept: "application/json", "x-goog-api-key": key },
         body: JSON.stringify(requestBody),
         signal: AbortSignal.timeout(45_000),
       });
       let responseText = "";
       if (!response.ok) {
         responseText = (await response.text().catch(() => "")).slice(0, 300);
-        lastProviderError = `Gemini HTTP ${response.status}${responseText ? `: ${responseText}` : ""}`;
+        lastProviderError = `Gemini ${model} HTTP ${response.status}${responseText ? `: ${responseText}` : ""}`;
         logger.warn(
-          { model: selection.model, status: response.status, detail: responseText },
+          { model, status: response.status, detail: responseText },
           "Case Bureau Boss opening provider rejection",
         );
+        // A 429 is a project/model quota response. Rotating keys or trying
+        // more catalog models immediately only amplifies the same failure.
+        if (response.status === 429) {
+          return {
+            status: "unavailable",
+            model,
+            report: null,
+            candidates: [],
+            citations: [],
+            error: lastProviderError,
+          };
+        }
       }
       if (!response.ok) continue;
       const payload = await response.json() as {
@@ -462,15 +425,16 @@ Candidates are review-only. Never invent a name, wealth claim, relationship, con
         .slice(0, 40);
       return {
         status: "completed",
-        model: selection.model,
+        model,
         report: parsed.report || raw,
         candidates: parsed.candidates,
         citations,
         error: null,
       };
-    } catch (error) {
-      lastProviderError = error instanceof Error ? error.message : "Gemini request failed.";
-      logger.warn({ model: selection.model, err: lastProviderError }, "Case Bureau Boss opening request threw");
+      } catch (error) {
+        lastProviderError = error instanceof Error ? error.message : "Gemini request failed.";
+        logger.warn({ model, err: lastProviderError }, "Case Bureau Boss opening request threw");
+      }
     }
   }
 
