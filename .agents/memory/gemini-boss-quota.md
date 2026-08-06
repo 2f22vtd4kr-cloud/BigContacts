@@ -7,4 +7,4 @@ The Gemini catalog can identify models that are not actually usable by the curre
 
 **Why:** Catalog access and generation quota are separate provider decisions; changing accounts did not change the provider response. The prior legacy generateContent path and old preview model were also stale relative to the current Google docs.
 
-**How to apply:** Treat model-catalog results as candidates only, keep the selected model paired with the key that exposed it, use Interactions for the Boss, preserve model-specific 429/404 failures, and stop on project-level quota responses rather than rotating through the whole key pool.
+**How to apply:** Treat model-catalog results as candidates only, keep the selected model paired with the key that exposed it, use Interactions for the Boss, preserve model-specific 429/404 failures, and distinguish ordinary text quota from the separately billed Gemini 3.x Search-grounding entitlement. If grounding is unavailable, continue independent discovery lanes.

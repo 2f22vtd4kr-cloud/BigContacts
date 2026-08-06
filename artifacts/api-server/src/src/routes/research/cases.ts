@@ -241,41 +241,16 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
         progress: 1,
         message: boss.status === "completed"
           ? `Boss opening complete with ${boss.candidates.length} review-only candidate(s); mixed discovery starting…`
-          : `Boss opening ${boss.status}: ${boss.error ?? "no report"}`,
+          : `Boss opening ${boss.status}; continuing with non-Gemini discovery lanes…`,
       });
       await appendJobLog(jobId, `Boss opening ${boss.status}; model=${boss.model}; citations=${boss.citations.length}.`);
 
-      if (boss.status !== "completed" || !boss.report) {
-        const failedFile = {
-          ...file,
-          initialResearch: {
-            ...file.initialResearch,
-            status: "not_started" as const,
-            bossCommentary: boss.error,
-          },
-          lastUpdatedBy: "gemini-boss-unavailable",
-        };
-        await db.update(researchCasesTable).set({
-          caseFile: JSON.stringify(failedFile),
-          status: "review",
-          currentAction: "boss-opening-web-research",
-          updatedAt: now(),
-        }).where(eq(researchCasesTable.id, caseId));
-        await db.insert(researchCaseEventsTable).values({
-          caseId,
-          iteration: current.iteration,
-          actorRole: "head_investigator",
-          eventType: "observation",
-          summary: `Boss opening did not complete: ${boss.error ?? boss.status}. Mixed-source admission was not started.`,
-          payload: JSON.stringify({ jobId, status: boss.status, model: boss.model }),
-        });
-        await updateJob(jobId, {
-          status: "failed",
-          errors: 1,
-          message: boss.error ?? "Boss opening did not complete.",
-          finishedAt: now().toISOString(),
-        });
-        return;
+      const bossUnavailable = boss.status !== "completed" || !boss.report;
+      if (bossUnavailable) {
+        await appendJobLog(
+          jobId,
+          `Gemini Boss unavailable (${boss.error ?? boss.status}); preserving this provider gap and continuing with free discovery lanes.`,
+        );
       }
 
       await updateJob(jobId, {
@@ -336,13 +311,18 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
         candidate.name && all.findIndex((other) => other.name.toLowerCase() === candidate.name.toLowerCase()) === index
       ).slice(0, 50);
       const mixedReport = [
-        `Boss opening report:\n${boss.report}`,
+        bossUnavailable
+          ? `Boss opening provider gap:\n${boss.error ?? `Gemini Boss returned ${boss.status}.`}`
+          : `Boss opening report:\n${boss.report}`,
         `\nMixed-source discovery summary: ${broad.queriesFired} web queries, ${broad.resultsScraped} web result excerpts, ${broad.newEntities.length} admission-gated web candidate(s) retained without insertion.`,
         `Registry lanes: ${registryResults.map((entry) => `${entry.registry}=${entry.results.length}`).join(", ")}.`,
         registryErrors.length ? `Registry gaps: ${registryErrors.map((entry) => `${entry.registry}: ${entry.error}`).join("; ")}` : "Registry gaps: none reported.",
       ].join("\n");
       const commentary = [
-        "The Boss opening completed and established the first durable case context.",
+        bossUnavailable
+          ? "The Gemini Boss opening was unavailable, so its provider gap is preserved explicitly."
+          : "The Boss opening completed and established the first durable case context.",
+        "The remaining bounded public-web and registry lanes ran without treating the unavailable Boss as a fatal case error.",
         `Retain ${reviewCandidates.length} candidate/anchor record(s) for human review only.`,
         "Next decision: review identity, mission relevance, provenance, and realistic reachability before promoting any candidate into target-scoped research.",
       ].join(" ");
@@ -368,11 +348,13 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
           {
             iteration: current.iteration + 1,
             decision: "Run one bounded mixed-source discovery pass and hold all candidates for human review.",
-            reason: "The Boss opening supplied preliminary web context; promotion requires exact identity, attribution, provenance, and reachability review.",
+            reason: bossUnavailable
+              ? "The Gemini Boss provider was unavailable; continue with independent discovery lanes while preserving the gap. Promotion still requires exact identity, attribution, provenance, and reachability review."
+              : "The Boss opening supplied preliminary web context; promotion requires exact identity, attribution, provenance, and reachability review.",
             createdAt: now().toISOString(),
           },
         ].slice(-50),
-        lastUpdatedBy: "gemini-boss-mixed-source-discovery",
+        lastUpdatedBy: bossUnavailable ? "mixed-source-discovery-gemini-gap" : "gemini-boss-mixed-source-discovery",
       };
       const [updated] = await db.update(researchCasesTable).set({
         caseFile: JSON.stringify(updatedFile),
