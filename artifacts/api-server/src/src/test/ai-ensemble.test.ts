@@ -11,6 +11,7 @@ const result = (overrides: Partial<AIExtractResult>): AIExtractResult => ({
   owners: [],
   ownerContacts: [],
   ownerResolutions: [],
+  discoveryCandidates: [],
   ownershipSummary: null,
   ownershipSources: [],
   source: "none",

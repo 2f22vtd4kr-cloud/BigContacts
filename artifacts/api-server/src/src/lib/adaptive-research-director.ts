@@ -368,7 +368,7 @@ export async function runAdaptiveResearchDirector(
       result = {
         source: "none",
         email: null, phone: null, linkedin: null, instagram: null, twitter: null,
-        owners: [], ownerContacts: [], ownerResolutions: [], ownershipSummary: null,
+        owners: [], ownerContacts: [], ownerResolutions: [], discoveryCandidates: [], ownershipSummary: null,
         ownershipSources: [], citations: [], negativeFindings: [],
         searchGaps: [error instanceof Error ? error.message : "provider call failed"],
       };
@@ -380,6 +380,9 @@ export async function runAdaptiveResearchDirector(
     }
     for (const owner of result.ownerContacts ?? []) {
       if (usablePersonName(owner.name, input.targetName)) addUnique(discoveredPeople, [owner.name], 12);
+    }
+    for (const candidate of result.discoveryCandidates ?? []) {
+      if (usablePersonName(candidate.name, input.targetName)) addUnique(discoveredPeople, [candidate.name], 12);
     }
     addUnique(candidateDomains, domainsFromResult(result), 12);
     addUnique(state.discoveredPeople, discoveredPeople.slice(beforePeople), 12);

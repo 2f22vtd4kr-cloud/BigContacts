@@ -190,6 +190,18 @@ export interface OwnerResolution extends OwnerContact {
   sourceUrls: string[];
 }
 
+export interface DiscoveryPersonCandidate {
+  name: string;
+  role: string | null;
+  organization: string | null;
+  basis: string | null;
+  sourceUrls: string[];
+  instagram: string | null;
+  twitter: string | null;
+  linkedin: string | null;
+  attributionStatus: "unverified" | "ambiguous" | "probable";
+}
+
 /** Run the final target-scoped publication review through the existing
  * server-side provider pool. Any provider failure is a review outcome. */
 export async function runFinalTargetReview(
@@ -240,6 +252,8 @@ export interface AIExtractResult {
   owners:        string[];        // flat list of owner names (backward compat)
   ownerContacts: OwnerContact[];  // structured per-owner data with personal handles
   ownerResolutions: OwnerResolution[]; // role + ownership basis; never auto-merged
+  /** Broad leads retained for review and bounded follow-up; never trusted contact state. */
+  discoveryCandidates: DiscoveryPersonCandidate[];
   ownershipSummary: string | null;
   ownershipSources: string[];
   source:    "groq-llama-70b" | "groq-llama-8b" | "openrouter" | "perplexity-sonar" | "gemini-flash" | "tavily" | "exa" | "none";
@@ -375,7 +389,7 @@ function bindResolutionsToCitations(
 const EMPTY: AIExtractResult = {
   email: null, phone: null, linkedin: null,
   instagram: null, twitter: null,
-  owners: [], ownerContacts: [], ownerResolutions: [],
+  owners: [], ownerContacts: [], ownerResolutions: [], discoveryCandidates: [],
   ownershipSummary: null, ownershipSources: [],
   source: "none",
   citations: [],
@@ -447,6 +461,19 @@ Return ONLY valid JSON — no explanation, no markdown:
       "email": "personal or direct email if explicitly stated or null"
     }
   ],
+  "discoveryCandidates": [
+    {
+      "name": "Full Name",
+      "role": "exactly stated role or null",
+      "organization": "exactly stated related organization or null",
+      "basis": "short exact relationship or search-card context, or null",
+      "sourceUrls": ["https://source-url.example/profile"],
+      "instagram": "personal Instagram URL or null",
+      "twitter": "personal Twitter/X URL or null",
+      "linkedin": "personal LinkedIn /in/ profile URL or null",
+      "attributionStatus": "unverified | ambiguous | probable"
+    }
+  ],
   "identityAssessment": "confirmed | probable | ambiguous | not_established",
   "identityBasis": "short evidence-backed explanation or null",
   "negativeFindings": ["important searched route with no qualifying result"],
@@ -460,6 +487,8 @@ Rules:
 - If sources conflict, return the conflicting field as null and explain the uncertainty in the ownershipSummary/basis
 - ownershipSummary must explicitly say when ownership is not established
 - ownerResolutions is the primary output; return named people even when they are only directors/operators, but label those roles honestly
+- discoveryCandidates is the broad recall lane: retain plausible named people and personal handles from search cards, professional pages, social results, and related-company context even when target attribution is not established. These are review-only.
+- Never use discoveryCandidates to promote an entity contact, infer ownership, or claim personal identity. Return [] when no plausible person lead exists.
 - basis must be a short quote or faithful paraphrase from the text, never an invented explanation
 - sourceUrls must contain only URLs explicitly present in the text; return [] when none are present
 - email/phone: prefer the primary business/venue contact (reservations@, contact@, info@)
@@ -644,6 +673,34 @@ function parseAIResponse(raw: string, source: AIExtractResult["source"]): AIExtr
         });
       }
     }
+    const discoveryCandidates: DiscoveryPersonCandidate[] = [];
+    if (Array.isArray(parsed["discoveryCandidates"])) {
+      for (const rawCandidate of parsed["discoveryCandidates"]) {
+        if (!rawCandidate || typeof rawCandidate !== "object") continue;
+        const candidate = rawCandidate as Record<string, unknown>;
+        const name = clean(candidate.name);
+        if (!name) continue;
+        const attributionStatus = ["unverified", "ambiguous", "probable"].includes(String(candidate.attributionStatus))
+          ? String(candidate.attributionStatus) as DiscoveryPersonCandidate["attributionStatus"]
+          : "unverified";
+        const normalized: DiscoveryPersonCandidate = {
+          name,
+          role: clean(candidate.role),
+          organization: clean(candidate.organization),
+          basis: clean(candidate.basis),
+          sourceUrls: Array.isArray(candidate.sourceUrls)
+            ? candidate.sourceUrls.filter((url): url is string => typeof url === "string" && /^https?:\/\//i.test(url)).slice(0, 8)
+            : [],
+          instagram: sanitizePublicSocialUrl(candidate.instagram, "instagram", "person"),
+          twitter: sanitizePublicSocialUrl(candidate.twitter, "twitter", "person"),
+          linkedin: sanitizePublicSocialUrl(candidate.linkedin, "linkedin", "person"),
+          attributionStatus,
+        };
+        if (!discoveryCandidates.some((existing) => existing.name.toLowerCase() === normalized.name.toLowerCase())) {
+          discoveryCandidates.push(normalized);
+        }
+      }
+    }
 
     if (owners.length === 0 && Array.isArray(parsed["owners"])) {
       for (const o of parsed["owners"]) {
@@ -682,6 +739,7 @@ function parseAIResponse(raw: string, source: AIExtractResult["source"]): AIExtr
       owners:        owners.slice(0, 12),
       ownerContacts: ownerContacts.slice(0, 12),
       ownerResolutions: ownerResolutions.slice(0, 16),
+      discoveryCandidates: discoveryCandidates.slice(0, 24),
       ownershipSummary: clean(parsed["ownershipSummary"]),
       ownershipSources: Array.isArray(parsed["sources"])
         ? parsed["sources"]
