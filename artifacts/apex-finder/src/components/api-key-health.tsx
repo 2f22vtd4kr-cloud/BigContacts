@@ -362,8 +362,14 @@ export function ApiKeyHealth() {
                   </div>
                   <OpenResearchRow label="Hugging Face model" configured={Boolean(openResearch?.huggingFace.configured)} />
                   <OpenResearchRow label="Serper live search" configured={Boolean(openResearch?.serper.configured)} />
+                  <OpenResearchRow label="Mistral web search" configured={Boolean(openResearch?.mistral.configured)} />
                   <div className="mt-1 truncate font-mono text-[9px] text-muted-foreground/55">
                     {openResearch?.adapter.available ? `Adapter ready · ${openResearch.adapter.model}` : "Python adapter unavailable"}
+                  </div>
+                  <div className="mt-1 truncate font-mono text-[9px] text-muted-foreground/55">
+                    {openResearch?.mistral.configured
+                      ? `Mistral ${openResearch.mistral.model} · ${openResearch.mistral.rateLimit}`
+                      : "Mistral web search not configured"}
                   </div>
                 </div>
               </>

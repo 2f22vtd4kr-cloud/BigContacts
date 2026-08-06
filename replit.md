@@ -74,6 +74,9 @@ The long-term plan for improving the approximately 2.5% direct-contact yield is 
 | `GROQ_API_KEY`, `_1`–`_10` | Replit Secrets (optional) | Groq-powered structured extraction during web enrichment, with key rotation |
 | `PERPLEXITY_API_KEY`, `_2`–`_6` | Replit Secrets (optional) | Perplexity-powered public web discovery and enrichment, with key rotation |
 | `WHOXY_API_KEY` | Replit Secret (optional) | Optional reverse-WHOIS enrichment; free RDAP, DNS, certificate-transparency, and archive sources remain the required domain-intelligence path |
+| `MISTRAL_API_KEY` | Replit Secret (optional) | Mistral Conversations API web-search lane for explicitly started, review-only Bureau discovery; guarded to 1 request/second |
+| `HF_TOKEN` | Replit Secret (optional) | Hugging Face Open Deep Research model adapter |
+| `SERPER_API_KEY` | Replit Secret (optional) | Google-backed Serper search tool used by the bounded Hugging Face adapter |
 | `OPENROUTER_API_KEY`, `_2`, `_3`, `_4` | Replit Secrets (optional) | OpenRouter model access, with key rotation |
 | `GEMINI_API_KEY`, `_1`–`_10` | Replit Secrets (optional) | Google Gemini access with key rotation; the Boss inspects the model catalog and uses the current Interactions API with Google Search grounding |
 | `GEMINI_API_KEY_11`–`_13` | Replit Secrets (optional) | Dedicated Gemini Deep Research Pro Preview pool; participates as a bounded web-OSINT provider lane and remains isolated from Flash-Lite quota |

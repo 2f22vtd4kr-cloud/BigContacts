@@ -1,0 +1,231 @@
+import { logger } from "./logger";
+
+const MISTRAL_CONVERSATIONS_API = "https://api.mistral.ai/v1/conversations";
+const DEFAULT_MISTRAL_WEB_SEARCH_MODEL = "mistral-medium-latest";
+const MIN_REQUEST_INTERVAL_MS = 1_000;
+
+export type MistralWebSearchResult = {
+  status: "completed" | "unavailable" | "failed";
+  model: string;
+  report: string | null;
+  candidates: Array<{
+    name: string;
+    type?: string;
+    relevance?: string;
+    reachability?: string;
+    sourceUrls?: string[];
+  }>;
+  citations: string[];
+  error: string | null;
+};
+
+let lastRequestAt = 0;
+let requestQueue = Promise.resolve();
+
+function getMistralKey(): string | null {
+  const value = process.env.MISTRAL_API_KEY?.trim();
+  return value || null;
+}
+
+export function getMistralWebSearchStatus() {
+  return {
+    configured: Boolean(getMistralKey()),
+    model: process.env.MISTRAL_WEB_SEARCH_MODEL?.trim() || DEFAULT_MISTRAL_WEB_SEARCH_MODEL,
+    rateLimit: "1 request/second",
+  } as const;
+}
+
+async function waitForRequestSlot(): Promise<void> {
+  const waitMs = Math.max(0, MIN_REQUEST_INTERVAL_MS - (Date.now() - lastRequestAt));
+  if (waitMs > 0) {
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
+  }
+  lastRequestAt = Date.now();
+}
+
+async function withMistralRateLimit<T>(operation: () => Promise<T>): Promise<T> {
+  const previous = requestQueue;
+  let release!: () => void;
+  requestQueue = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await previous;
+  try {
+    await waitForRequestSlot();
+    return await operation();
+  } finally {
+    release();
+  }
+}
+
+function collectText(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return value.map(collectText).filter(Boolean).join("\n");
+  if (!value || typeof value !== "object") return "";
+  const record = value as Record<string, unknown>;
+  return [
+    collectText(record.text),
+    collectText(record.content),
+    collectText(record.output),
+    collectText(record.message),
+  ].filter(Boolean).join("\n");
+}
+
+function collectUrls(value: unknown, output: string[] = []): string[] {
+  if (typeof value === "string") {
+    for (const match of value.matchAll(/https?:\/\/[^\s"'<>()[\]]+/g)) {
+      const url = match[0]!.replace(/[.,;:]+$/, "");
+      if (!output.includes(url)) output.push(url);
+    }
+    return output;
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) collectUrls(item, output);
+    return output;
+  }
+  if (value && typeof value === "object") {
+    for (const item of Object.values(value as Record<string, unknown>)) {
+      collectUrls(item, output);
+    }
+  }
+  return output;
+}
+
+function extractJsonObject(value: string): string | null {
+  const fenced = value.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim();
+  const source = fenced || value.trim();
+  const start = source.indexOf("{");
+  const end = source.lastIndexOf("}");
+  return start >= 0 && end > start ? source.slice(start, end + 1) : null;
+}
+
+function parseReport(raw: string, citations: string[]): {
+  report: string;
+  candidates: MistralWebSearchResult["candidates"];
+} {
+  const json = extractJsonObject(raw);
+  if (!json) return { report: raw.slice(0, 16_000), candidates: [] };
+  try {
+    const parsed = JSON.parse(json) as Record<string, unknown>;
+    const candidates = Array.isArray(parsed.candidates)
+      ? parsed.candidates.flatMap((candidate) => {
+          if (!candidate || typeof candidate !== "object") return [];
+          const item = candidate as Record<string, unknown>;
+          if (typeof item.name !== "string" || !item.name.trim()) return [];
+          return [{
+            name: item.name.trim(),
+            type: typeof item.type === "string" ? item.type : undefined,
+            relevance: typeof item.relevance === "string" ? item.relevance : undefined,
+            reachability: typeof item.reachability === "string" ? item.reachability : undefined,
+            sourceUrls: [
+              ...(Array.isArray(item.sourceUrls)
+                ? item.sourceUrls.filter((url): url is string => typeof url === "string")
+                : []),
+              ...citations,
+            ].filter((url, index, urls) => urls.indexOf(url) === index).slice(0, 12),
+          }];
+        })
+      : [];
+    return {
+      report: typeof parsed.report === "string" ? parsed.report.slice(0, 16_000) : raw.slice(0, 16_000),
+      candidates,
+    };
+  } catch {
+    return { report: raw.slice(0, 16_000), candidates: [] };
+  }
+}
+
+export async function runMistralWebSearch(input: {
+  objective: string;
+  motivation: string;
+  geography?: string;
+  exclusions?: string[];
+}): Promise<MistralWebSearchResult> {
+  const model = getMistralWebSearchStatus().model;
+  const key = getMistralKey();
+  if (!key) {
+    return {
+      status: "unavailable",
+      model,
+      report: null,
+      candidates: [],
+      citations: [],
+      error: "MISTRAL_API_KEY is not configured.",
+    };
+  }
+
+  const prompt = `You are a bounded public-web research specialist supporting an investigatory bureau.
+Mission: ${input.objective}
+Motivation: ${input.motivation}
+Geography: ${input.geography || "not specified"}
+Exclusions: ${(input.exclusions ?? []).join(", ") || "none"}
+
+Use web search when useful. Return ONLY JSON:
+{
+  "report": "concise evidence-led opening assessment",
+  "candidates": [
+    {
+      "name": "candidate name",
+      "type": "person | company | investment_group | intermediary",
+      "relevance": "why this candidate fits the mission",
+      "reachability": "realistic public route or unresolved",
+      "sourceUrls": ["exact URLs supporting this candidate"]
+    }
+  ],
+  "nextDirections": ["bounded next investigation direction"],
+  "uncertainties": ["identity, attribution, or access uncertainty"]
+}
+
+All candidates are review-only. Never invent names, wealth claims, relationships, contact details, or URLs.`;
+
+  try {
+    const response = await withMistralRateLimit(() => fetch(MISTRAL_CONVERSATIONS_API, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        inputs: [{ role: "user", content: prompt }],
+        tools: [{ type: "web_search" }],
+        store: false,
+      }),
+      signal: AbortSignal.timeout(60_000),
+    }));
+    if (!response.ok) {
+      const detail = (await response.text().catch(() => "")).slice(0, 300);
+      const error = `Mistral ${model} HTTP ${response.status}${detail ? `: ${detail}` : ""}`;
+      logger.warn({ model, status: response.status }, "Mistral web-search request rejected");
+      return { status: "failed", model, report: null, candidates: [], citations: [], error };
+    }
+
+    const payload = await response.json() as Record<string, unknown>;
+    const raw = collectText(payload);
+    if (!raw.trim()) {
+      return {
+        status: "failed",
+        model,
+        report: null,
+        candidates: [],
+        citations: collectUrls(payload).slice(0, 40),
+        error: "Mistral returned no text.",
+      };
+    }
+    const citations = collectUrls(payload).slice(0, 40);
+    const parsed = parseReport(raw, citations);
+    return {
+      status: "completed",
+      model,
+      report: parsed.report,
+      candidates: parsed.candidates,
+      citations,
+      error: null,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Mistral web-search request failed.";
+    logger.warn({ model, err: message }, "Mistral web-search request threw");
+    return { status: "failed", model, report: null, candidates: [], citations: [], error: message };
+  }
+}

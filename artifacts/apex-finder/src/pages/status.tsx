@@ -33,6 +33,7 @@ interface OpenResearchStatus {
   huggingFace: { configured: boolean };
   serper: { configured: boolean };
   adapter: { available: boolean; model: string };
+  mistral: { configured: boolean; model: string; rateLimit: string };
 }
 
 interface UpstashSlot {
@@ -311,6 +312,7 @@ export default function SystemStatusPage() {
           {[
             { label: "Hugging Face model", configured: status?.openResearch?.huggingFace.configured ?? false },
             { label: "Serper live search", configured: status?.openResearch?.serper.configured ?? false },
+            { label: "Mistral web search", configured: status?.openResearch?.mistral.configured ?? false },
           ].map((item) => (
             <div key={item.label} className="flex items-center justify-between rounded-xl border border-border/60 bg-gradient-to-br from-primary/5 to-transparent px-4 py-3">
               <span className="font-mono text-[11px] text-foreground">{item.label}</span>
@@ -329,6 +331,11 @@ export default function SystemStatusPage() {
           </div>
           <div className="mt-1 truncate font-mono text-[9px] text-muted-foreground/55">
             {status?.openResearch?.adapter.model ?? "Qwen/Qwen2.5-7B-Instruct"} · review-only, no direct promotion
+          </div>
+          <div className="mt-1 truncate font-mono text-[9px] text-muted-foreground/55">
+            {status?.openResearch?.mistral.configured
+              ? `Mistral ${status.openResearch.mistral.model} · ${status.openResearch.mistral.rateLimit}`
+              : "Mistral web search not configured"}
           </div>
         </div>
       </section>

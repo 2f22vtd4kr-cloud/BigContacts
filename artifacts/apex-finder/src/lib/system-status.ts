@@ -18,6 +18,7 @@ export interface OpenResearchStatus {
   huggingFace: { configured: boolean };
   serper: { configured: boolean };
   adapter: { available: boolean; model: string };
+  mistral: { configured: boolean; model: string; rateLimit: string };
 }
 
 export interface UpstashSlot {

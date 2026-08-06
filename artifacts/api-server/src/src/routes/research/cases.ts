@@ -33,6 +33,7 @@ import {
   resolveGeminiBossModel,
   DEFAULT_DISCOVERY_MOTIVATION,
   DEFAULT_DISCOVERY_OBJECTIVE,
+  runMistralWebSearch,
 } from "../../lib/case-bureau";
 import { runBroadDiscovery } from "../../lib/enrichment/broad-discovery";
 import { searchRegistry, type RegistryId } from "../../lib/registry-client";
@@ -231,25 +232,40 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
     const now = () => new Date();
     try {
       await appendJobLog(jobId, "Boss opening web request started.");
-      const boss = await runGeminiBossDiscovery({
-        objective: file.humanBrief.objective,
-        motivation: file.humanBrief.motivation,
-        geography: file.humanBrief.geography,
-        exclusions: file.humanBrief.exclusions,
-      });
+      const [boss, mistral] = await Promise.all([
+        runGeminiBossDiscovery({
+          objective: file.humanBrief.objective,
+          motivation: file.humanBrief.motivation,
+          geography: file.humanBrief.geography,
+          exclusions: file.humanBrief.exclusions,
+        }),
+        runMistralWebSearch({
+          objective: file.humanBrief.objective,
+          motivation: file.humanBrief.motivation,
+          geography: file.humanBrief.geography,
+          exclusions: file.humanBrief.exclusions,
+        }),
+      ]);
       await updateJob(jobId, {
         progress: 1,
-        message: boss.status === "completed"
-          ? `Boss opening complete with ${boss.candidates.length} review-only candidate(s); mixed discovery starting…`
-          : `Boss opening ${boss.status}; continuing with non-Gemini discovery lanes…`,
+        message: boss.status === "completed" || mistral.status === "completed"
+          ? `Provider opening complete with ${boss.candidates.length + mistral.candidates.length} review-only candidate(s); mixed discovery starting…`
+          : `Provider opening unavailable; continuing with independent discovery lanes…`,
       });
       await appendJobLog(jobId, `Boss opening ${boss.status}; model=${boss.model}; citations=${boss.citations.length}.`);
+      await appendJobLog(jobId, `Mistral web-search ${mistral.status}; model=${mistral.model}; citations=${mistral.citations.length}.`);
 
       const bossUnavailable = boss.status !== "completed" || !boss.report;
       if (bossUnavailable) {
         await appendJobLog(
           jobId,
           `Gemini Boss unavailable (${boss.error ?? boss.status}); preserving this provider gap and continuing with free discovery lanes.`,
+        );
+      }
+      if (mistral.status !== "completed") {
+        await appendJobLog(
+          jobId,
+          `Mistral web-search unavailable (${mistral.error ?? mistral.status}); preserving this provider gap and continuing with other discovery lanes.`,
         );
       }
 
@@ -291,6 +307,14 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
           sourceUrls: [...new Set([...(candidate.sourceUrls ?? []), ...boss.citations])].slice(0, 8),
           state: "review_only" as const,
         })),
+        ...mistral.candidates.map((candidate) => ({
+          name: candidate.name,
+          type: candidate.type ?? "review_candidate",
+          relevance: candidate.relevance ?? "Returned by the Mistral web-search lane; exact attribution requires review.",
+          reachability: candidate.reachability ?? "Unresolved until exact identity and route evidence are checked.",
+          sourceUrls: [...new Set([...(candidate.sourceUrls ?? []), ...mistral.citations])].slice(0, 8),
+          state: "review_only" as const,
+        })),
         ...broad.newEntities.map((candidate) => ({
           name: candidate.name,
           type: "review_candidate",
@@ -314,6 +338,9 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
         bossUnavailable
           ? `Boss opening provider gap:\n${boss.error ?? `Gemini Boss returned ${boss.status}.`}`
           : `Boss opening report:\n${boss.report}`,
+        mistral.status === "completed"
+          ? `\nMistral web-search report:\n${mistral.report ?? "No report returned."}`
+          : `\nMistral web-search provider gap:\n${mistral.error ?? `Mistral returned ${mistral.status}.`}`,
         `\nMixed-source discovery summary: ${broad.queriesFired} web queries, ${broad.resultsScraped} web result excerpts, ${broad.newEntities.length} admission-gated web candidate(s) retained without insertion.`,
         `Registry lanes: ${registryResults.map((entry) => `${entry.registry}=${entry.results.length}`).join(", ")}.`,
         registryErrors.length ? `Registry gaps: ${registryErrors.map((entry) => `${entry.registry}: ${entry.error}`).join("; ")}` : "Registry gaps: none reported.",
@@ -348,9 +375,9 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
           {
             iteration: current.iteration + 1,
             decision: "Run one bounded mixed-source discovery pass and hold all candidates for human review.",
-            reason: bossUnavailable
-              ? "The Gemini Boss provider was unavailable; continue with independent discovery lanes while preserving the gap. Promotion still requires exact identity, attribution, provenance, and reachability review."
-              : "The Boss opening supplied preliminary web context; promotion requires exact identity, attribution, provenance, and reachability review.",
+            reason: bossUnavailable && mistral.status !== "completed"
+              ? "The Gemini and Mistral opening providers were unavailable; continue with independent discovery lanes while preserving both gaps. Promotion still requires exact identity, attribution, provenance, and reachability review."
+              : "The opening provider lanes supplied preliminary web context; promotion requires exact identity, attribution, provenance, and reachability review.",
             createdAt: now().toISOString(),
           },
         ].slice(-50),

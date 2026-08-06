@@ -1,5 +1,10 @@
 import type { Entity } from "@workspace/db";
 import { logger } from "./logger";
+export {
+  getMistralWebSearchStatus,
+  runMistralWebSearch,
+} from "./mistral-web-search";
+export type { MistralWebSearchResult } from "./mistral-web-search";
 
 export type BureauSpecialist = {
   id: string;
@@ -91,7 +96,7 @@ export type DiscoveryCaseFile = {
     id: "broad-web-discovery";
     title: string;
     purpose: string;
-    status: "ready" | "waiting_for_gemini";
+    status: "ready" | "waiting_for_gemini" | "waiting_for_provider";
   };
   initialResearch: {
     status: "not_started" | "recorded" | "reviewed";
@@ -625,7 +630,7 @@ export function buildDiscoveryCaseFile(input: {
       id: "broad-web-discovery",
       title: "Broad public-web discovery",
       purpose: "Find realistic investor candidates and routes without assuming a target in advance.",
-      status: "waiting_for_gemini",
+      status: "waiting_for_provider",
     },
     initialResearch: {
       status: "not_started",

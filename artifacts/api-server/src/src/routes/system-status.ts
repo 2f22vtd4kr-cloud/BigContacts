@@ -21,6 +21,7 @@ import {
   getPermanentClientStatuses,
   pingRedis,
 }                               from "../lib/redis";
+import { getMistralWebSearchStatus } from "../lib/mistral-web-search";
 
 const router: IRouter = Router();
 
@@ -52,6 +53,7 @@ router.get("/system/status", async (_req, res) => {
         available: pythonTools.openDeepResearch,
         model: process.env.HF_DEEP_RESEARCH_MODEL || "Qwen/Qwen2.5-7B-Instruct",
       },
+      mistral: getMistralWebSearchStatus(),
     } as const;
 
     // ── PostgreSQL ────────────────────────────────────────────────────────────
