@@ -18,7 +18,7 @@
  */
 
 import { logger } from "./logger";
-import { extractWithAI, researchWithPerplexity, researchWithGemini, researchWithTavily, researchWithExa, type AIResearchContext } from "./ai-extractor";
+import { extractWithAI, researchWithPerplexity, researchWithTavily, researchWithExa, type AIResearchContext } from "./ai-extractor";
 import {
   applyEnsembleAdjudication,
   buildEnsembleAdjudicationText,
@@ -471,10 +471,9 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   // Hoist aiOwners so Phase 0 (Perplexity) can populate it before Phase 3.7 runs
   type AiOwner = { name: string; instagram: string | null; twitter: string | null; linkedin: string | null };
   const aiOwners: AiOwner[] = [];
-  // ── Phase 0: Perplexity Sonar + Gemini Flash — live web research ─────────
-  // Both fire in parallel before DDG/Bing. Perplexity and Gemini use different
-  // search indexes — complementary coverage for owner names, contacts, and
-  // regional press (e.g. Nice-Matin for French HNWIs).
+  // ── Phase 0: independent search providers — live web research ────────────
+  // Gemini is intentionally absent: it is reserved for text-only Bureau
+  // planning and never receives search tools or search prompts.
   try {
     // Derive country hint from knownResidences (e.g. "Port Pierre Canto, Cannes, France" → "France")
     const countryHint = (() => {
@@ -513,9 +512,6 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       researchWithPerplexity(entity.name, entity.type, countryHint, {
         ...researchContext, lane: "people_press", reachability: realism,
       }),
-      researchWithGemini(entity.name, entity.type, countryHint, {
-        ...researchContext, lane: "official_records", reachability: realism,
-      }),
       researchWithTavily(entity.name, entity.type, countryHint, {
         ...researchContext, lane: "contact_routes", reachability: realism,
       }),
@@ -523,12 +519,11 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         ...researchContext, lane: "semantic_discovery", reachability: realism,
       }),
     ]);
-    const [perp, gem, tav, exa] = providerResults.map((item) =>
+    const [perp, tav, exa] = providerResults.map((item) =>
       item.status === "fulfilled" ? item.value : { source: "none" },
     ) as any[];
     const ensemble = reconcileAIResults([
       { provider: "perplexity", result: perp },
-      { provider: "gemini", result: gem },
       { provider: "tavily", result: tav },
       { provider: "exa", result: exa },
     ].filter(({ result }) => result?.source && result.source !== "none"));
@@ -536,7 +531,6 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       const adjudicator = await extractWithAI(
         buildEnsembleAdjudicationText(entity.name, entity.type, [
           { provider: "perplexity", result: perp },
-          { provider: "gemini", result: gem },
           { provider: "tavily", result: tav },
           { provider: "exa", result: exa },
         ].filter(({ result }) => result?.source && result.source !== "none")),
@@ -575,30 +569,6 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       }
       for (const url of perp.citations.slice(0, 4)) urlsToScrape.add(url);
       allSearchText += " " + JSON.stringify({ owners: perp.owners, ownerContacts: perp.ownerContacts });
-      result.sources.push(label);
-    }
-
-    // Process Gemini results
-    if (gem.source === "gemini-flash") {
-      const label = "Gemini[flash]";
-      sourceUrlsByLabel.set(label, []);
-      if (gem.email)    { const a = emailHits.get(gem.email) ?? [];       a.push(label); emailHits.set(gem.email, a); }
-      if (gem.phone)    { const a = phoneHits.get(gem.phone) ?? [];       a.push(label); phoneHits.set(gem.phone, a); }
-      if (gem.linkedin) { const a = linkedinHits.get(gem.linkedin) ?? []; a.push(label); linkedinHits.set(gem.linkedin, a); }
-      if (gem.instagram){ const a = igHits.get(gem.instagram) ?? [];      a.push(label); igHits.set(gem.instagram, a); }
-      if (gem.twitter)  { const a = twHits.get(gem.twitter) ?? [];        a.push(label); twHits.set(gem.twitter, a); }
-      for (const oc of gem.ownerContacts) {
-        if (!aiOwners.some(o => o.name.toLowerCase() === oc.name.toLowerCase())) {
-          aiOwners.push({ name: oc.name, instagram: oc.instagram, twitter: oc.twitter, linkedin: oc.linkedin });
-        }
-        if (!isCorp) {
-          if (oc.instagram) { const a = igHits.get(oc.instagram) ?? [];      a.push(`${label}-owner`); igHits.set(oc.instagram, a); }
-          if (oc.twitter)   { const a = twHits.get(oc.twitter) ?? [];        a.push(`${label}-owner`); twHits.set(oc.twitter, a); }
-        }
-        if (oc.linkedin)  { const a = linkedinHits.get(oc.linkedin) ?? []; a.push(`${label}-owner`); linkedinHits.set(oc.linkedin, a); }
-      }
-      for (const url of gem.citations.slice(0, 4)) urlsToScrape.add(url);
-      allSearchText += " " + JSON.stringify({ owners: gem.owners, ownerContacts: gem.ownerContacts });
       result.sources.push(label);
     }
 
@@ -650,7 +620,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       result.sources.push(label);
     }
   } catch (err: any) {
-    logger.warn({ err: err?.message, name: err?.name }, "Phase 0: Perplexity/Gemini/Tavily research failed");
+    logger.warn({ err: err?.message, name: err?.name }, "Phase 0: search-provider research failed");
   }
 
   // ── Phase 1: DDG HTML search on all queries ──────────────────────────────

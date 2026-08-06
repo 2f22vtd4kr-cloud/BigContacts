@@ -24,6 +24,7 @@ import type {
   AssetInput,
   AssetUpdate,
   BureauCase,
+  BureauCaseContinuationResponse,
   BureauDiscoveryInput,
   BureauInitialResearchInput,
   BureauPromoteTargetInput,
@@ -1772,6 +1773,77 @@ export function useGetBureauCase<TData = Awaited<ReturnType<typeof getBureauCase
 
 
 
+export const getRunBureauCaseDiscoveryUrl = (caseId: number,) => {
+
+
+
+
+  return `/api/research/bureau/cases/${caseId}/run-discovery`
+}
+
+/**
+ * @summary Run the initial bounded discovery pass for a bureau case
+ */
+export const runBureauCaseDiscovery = async (caseId: number, options?: RequestInit): Promise<BureauCaseContinuationResponse> => {
+
+  return customFetch<BureauCaseContinuationResponse>(getRunBureauCaseDiscoveryUrl(caseId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRunBureauCaseDiscoveryMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runBureauCaseDiscovery>>, TError,{caseId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof runBureauCaseDiscovery>>, TError,{caseId: number}, TContext> => {
+
+const mutationKey = ['runBureauCaseDiscovery'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof runBureauCaseDiscovery>>, {caseId: number}> = (props) => {
+          const {caseId} = props ?? {};
+
+          return  runBureauCaseDiscovery(caseId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RunBureauCaseDiscoveryMutationResult = NonNullable<Awaited<ReturnType<typeof runBureauCaseDiscovery>>>
+
+    export type RunBureauCaseDiscoveryMutationError = ErrorType<void>
+
+    /**
+ * @summary Run the initial bounded discovery pass for a bureau case
+ */
+export const useRunBureauCaseDiscovery = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runBureauCaseDiscovery>>, TError,{caseId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof runBureauCaseDiscovery>>,
+        TError,
+        {caseId: number},
+        TContext
+      > => {
+      return useMutation(getRunBureauCaseDiscoveryMutationOptions(options));
+    }
+
 export const getRecordBureauInitialResearchUrl = (caseId: number,) => {
 
 
@@ -1914,6 +1986,148 @@ export const usePromoteBureauCaseTarget = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getPromoteBureauCaseTargetMutationOptions(options));
+    }
+
+export const getRunBureauCaseNextPassUrl = (caseId: number,) => {
+
+
+
+
+  return `/api/research/bureau/cases/${caseId}/run-next-pass`
+}
+
+/**
+ * @summary Run the next bounded verification pass over the shared case context
+ */
+export const runBureauCaseNextPass = async (caseId: number, options?: RequestInit): Promise<BureauCaseContinuationResponse> => {
+
+  return customFetch<BureauCaseContinuationResponse>(getRunBureauCaseNextPassUrl(caseId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRunBureauCaseNextPassMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runBureauCaseNextPass>>, TError,{caseId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof runBureauCaseNextPass>>, TError,{caseId: number}, TContext> => {
+
+const mutationKey = ['runBureauCaseNextPass'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof runBureauCaseNextPass>>, {caseId: number}> = (props) => {
+          const {caseId} = props ?? {};
+
+          return  runBureauCaseNextPass(caseId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RunBureauCaseNextPassMutationResult = NonNullable<Awaited<ReturnType<typeof runBureauCaseNextPass>>>
+
+    export type RunBureauCaseNextPassMutationError = ErrorType<void>
+
+    /**
+ * @summary Run the next bounded verification pass over the shared case context
+ */
+export const useRunBureauCaseNextPass = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runBureauCaseNextPass>>, TError,{caseId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof runBureauCaseNextPass>>,
+        TError,
+        {caseId: number},
+        TContext
+      > => {
+      return useMutation(getRunBureauCaseNextPassMutationOptions(options));
+    }
+
+export const getRunBureauCaseBossReviewUrl = (caseId: number,) => {
+
+
+
+
+  return `/api/research/bureau/cases/${caseId}/run-boss-review`
+}
+
+/**
+ * @summary Retry the Boss closure review without repeating evidence lanes
+ */
+export const runBureauCaseBossReview = async (caseId: number, options?: RequestInit): Promise<BureauCaseContinuationResponse> => {
+
+  return customFetch<BureauCaseContinuationResponse>(getRunBureauCaseBossReviewUrl(caseId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRunBureauCaseBossReviewMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runBureauCaseBossReview>>, TError,{caseId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof runBureauCaseBossReview>>, TError,{caseId: number}, TContext> => {
+
+const mutationKey = ['runBureauCaseBossReview'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof runBureauCaseBossReview>>, {caseId: number}> = (props) => {
+          const {caseId} = props ?? {};
+
+          return  runBureauCaseBossReview(caseId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RunBureauCaseBossReviewMutationResult = NonNullable<Awaited<ReturnType<typeof runBureauCaseBossReview>>>
+
+    export type RunBureauCaseBossReviewMutationError = ErrorType<void>
+
+    /**
+ * @summary Retry the Boss closure review without repeating evidence lanes
+ */
+export const useRunBureauCaseBossReview = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof runBureauCaseBossReview>>, TError,{caseId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof runBureauCaseBossReview>>,
+        TError,
+        {caseId: number},
+        TContext
+      > => {
+      return useMutation(getRunBureauCaseBossReviewMutationOptions(options));
     }
 
 export const getGetResearchCaseUrl = (entityId: number,) => {

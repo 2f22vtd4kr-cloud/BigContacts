@@ -1,11 +1,11 @@
 /**
  * AI Extractor — Multi-source AI extraction layer for contact & person intelligence
  *
- * Five AI sources fire in parallel at Phase 0 of the enrichment pipeline:
+ * Search and extraction providers support the enrichment pipeline:
  *
  *   SEARCH / RESEARCH (return structured answers directly):
  *   - Perplexity Sonar Pro — live web-search model; synthesises from real sources
- *   - Gemini Flash — catalog-selected model with Google Search grounding via the current Interactions API; different index from Perplexity
+ *   - Gemini is intentionally absent from this search layer; it is text-only for Boss planning/review
  *
  *   SEARCH + GROQ EXTRACTION (return raw text excerpts, Groq extracts structure):
  *   - Tavily              — AI-native search; 7 live sources per query
@@ -32,7 +32,6 @@ import {
   type FinalTargetReviewInput,
   type FinalTargetReviewResult,
 } from "./final-target-review";
-import { resolveGeminiBossModel } from "./case-bureau";
 
 const GROQ_API        = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_MODEL      = "llama-3.3-70b-versatile";
@@ -47,13 +46,6 @@ const PERPLEXITY_FALLBACK  = "perplexity/sonar";                   // via OpenRo
 const PERPLEXITY_DIRECT_API      = "https://api.perplexity.ai/chat/completions";
 const PERPLEXITY_DIRECT_MODEL    = "sonar-pro";   // model name WITHOUT the "perplexity/" prefix when calling directly
 const PERPLEXITY_DIRECT_FALLBACK = "sonar";       // cheaper direct fallback
-
-// Deep Research Pro Preview is an asynchronous Interactions API agent.
-// Its dedicated quota pool is intentionally isolated from Flash-Lite.
-const GEMINI_DEEP_RESEARCH_AGENT = "deep-research-pro-preview-12-2025";
-const GEMINI_INTERACTIONS_API = "https://generativelanguage.googleapis.com/v1beta/interactions";
-const GEMINI_DEEP_RESEARCH_MAX_MS = 12 * 60 * 1000;
-const GEMINI_DEEP_RESEARCH_POLL_MS = 10 * 1000;
 
 // Tavily — AI-native search API; returns clean excerpts; structure extracted by Groq
 const TAVILY_API = "https://api.tavily.com/search";
@@ -93,8 +85,6 @@ const _exhaustedGroqKeys              = new Map<string, number>();
 const _exhaustedORKeys                = new Map<string, number>(); // for llama text extraction only
 const _exhaustedPerplexityKeys        = new Map<string, number>(); // for OpenRouter-routed Sonar only
 const _exhaustedPerplexityDirectKeys  = new Map<string, number>(); // for direct Perplexity API only
-const _exhaustedGeminiKeys            = new Map<string, number>(); // for Gemini Flash grounded search
-const _exhaustedGeminiDeepResearchKeys = new Map<string, number>(); // for Deep Research Pro Preview
 const _quotaExhaustedTavilyKeys       = new Map<string, number>(); // provider/account quota response
 const _exhaustedTavilyKeys            = new Map<string, number>(); // for Tavily search API
 const _exhaustedExaKeys               = new Map<string, number>(); // for Exa neural search API
@@ -119,29 +109,6 @@ function getPerplexityDirectKeys(): string[] {
   const names = ["PERPLEXITY_API_KEY"];
   for (let i = 1; i <= 8; i++) names.push(`PERPLEXITY_API_KEY_${i}`);
   return names.map(k => process.env[k] ?? "").filter(k => k.length > 0);
-}
-
-/** Returns all Gemini API keys (GEMINI_API_KEY, GEMINI_API_KEY_1 … _10). */
-function getGeminiKeys(): string[] {
-  const names = ["GEMINI_API_KEY"];
-  for (let i = 1; i <= 10; i++) names.push(`GEMINI_API_KEY_${i}`);
-  return names.map(k => process.env[k] ?? "").filter(k => k.length > 0);
-}
-
-/** Only the dedicated Gemini Deep Research slots use this agent. */
-function getGeminiDeepResearchKeys(): string[] {
-  return [11, 12, 13]
-    .map((slot) => process.env[`GEMINI_API_KEY_${slot}`] ?? "")
-    .filter((key) => key.length > 0);
-}
-
-let geminiDeepResearchCursor = 0;
-
-function roundRobinDeepResearchKeys(keys: string[]): string[] {
-  if (keys.length < 2) return keys;
-  const start = geminiDeepResearchCursor % keys.length;
-  geminiDeepResearchCursor = (start + 1) % keys.length;
-  return [...keys.slice(start), ...keys.slice(0, start)];
 }
 
 /** Returns all Tavily API keys (TAVILY_API_KEY, TAVILY_API_KEY_1 … _8). */
@@ -254,7 +221,7 @@ export interface AIExtractResult {
   discoveryCandidates: DiscoveryPersonCandidate[];
   ownershipSummary: string | null;
   ownershipSources: string[];
-  source:    "groq-llama-70b" | "groq-llama-8b" | "openrouter" | "perplexity-sonar" | "gemini-flash" | "tavily" | "exa" | "none";
+  source:    "groq-llama-70b" | "groq-llama-8b" | "openrouter" | "perplexity-sonar" | "tavily" | "exa" | "none";
   citations: string[];            // URLs the model actually searched — use as evidence sources
   reachability?: {
     status: "direct" | "intermediary" | "bounded" | "research_only" | "unknown";
@@ -1285,307 +1252,6 @@ export async function researchWithPerplexity(
 }
 
 /**
- * Fire a live Gemini Flash research query with Google Search Grounding.
- * Gemini searches Google in real-time — complementary to Perplexity (different search index).
- * Uses the same buildPerplexityPrompt so JSON schema is identical; results merge cleanly.
- * Returns structured contact + owner data with grounding URLs Gemini actually visited.
- */
-export async function researchWithGemini(
-  entityName: string,
-  entityType: string,
-  country: string | null = null,
-  context: AIResearchContext = {},
-): Promise<AIExtractResult> {
-  const keys = getGeminiKeys();
-  if (keys.length === 0) {
-    const deepResearchConfigured = getGeminiDeepResearchKeys().length > 0;
-    logger.warn(
-      { entityName, deepResearchConfigured },
-      "Phase 0 [gemini-flash]: lane unavailable because no regular Gemini keys are configured",
-    );
-    return EMPTY;
-  }
-
-  const modelSelection = await resolveGeminiBossModel();
-  if (modelSelection.status !== "resolved") {
-    logger.warn(
-      { entityName, status: modelSelection.status, probeStatus: modelSelection.probeStatus },
-      "Phase 0 [gemini]: no model passed the live generation probe",
-    );
-    return EMPTY;
-  }
-  const geminiModel = modelSelection.model;
-  const geminiApi = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent`;
-  logger.info({ entityName, entityType, country, lane: context.lane ?? "people_press", model: geminiModel }, "Phase 0 [gemini]: firing grounded search");
-  const prompt = buildPerplexityPrompt(entityName, entityType, country, context);
-
-  for (const key of keys) {
-    if (isExhausted(_exhaustedGeminiKeys, key)) continue;
-    try {
-      const resp = await fetch(geminiApi, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-        body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-          tools: [{ google_search: {} }],
-          generationConfig: { temperature: 0.1, maxOutputTokens: 2000 },
-        }),
-        signal: AbortSignal.timeout(35_000),
-      });
-
-      if (resp.status === 429) {
-        const cooldownMs = retryAfterMs(resp);
-        _exhaustedGeminiKeys.set(key, Date.now() + cooldownMs);
-        logger.warn(
-          { cooldownMs },
-          `Phase 0 [gemini:${geminiModel}]: temporary rate limit — key cooling down`,
-        );
-        continue;
-      }
-      if (resp.status === 403) {
-        const errText = await resp.text().catch(() => "");
-        logger.warn({ err: errText.slice(0, 200) }, `Phase 0 [gemini:${geminiModel}]: quota/auth error — skipping key`);
-        continue;
-      }
-      if (!resp.ok) {
-        const errText = await resp.text().catch(() => "");
-        logger.warn({ status: resp.status, err: errText.slice(0, 300) }, `Phase 0 [gemini:${geminiModel}]: API error`);
-        continue;
-      }
-
-      const data = await resp.json() as any;
-      const raw: string = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-
-      // Extract grounding citations from groundingMetadata
-      const chunks: any[] = data?.candidates?.[0]?.groundingMetadata?.groundingChunks ?? [];
-      const citations: string[] = chunks
-        .map((c: any) => c?.web?.uri)
-        .filter((u: unknown): u is string => typeof u === "string" && /^https?:\/\//i.test(u))
-        .slice(0, 12);
-
-      logger.info(
-        { entityName, rawLen: raw.length, citations: citations.length },
-        `Phase 0 [gemini:${geminiModel}]: raw response received`,
-      );
-
-      const jsonObject = extractJsonObject(raw);
-      if (!jsonObject) {
-        logger.warn({ raw: raw.slice(0, 300) }, `Phase 0 [gemini:${geminiModel}]: no JSON block in response`);
-        continue;
-      }
-
-      const parsed = parseAIResponse(jsonObject, "gemini-flash");
-      if (!parsed) continue;
-
-      logger.info(
-        {
-          entityName, hasEmail: !!parsed.email, hasPhone: !!parsed.phone,
-          hasLinkedIn: !!parsed.linkedin, owners: parsed.owners.length, citations: citations.length,
-        },
-        `Phase 0 [gemini:${geminiModel}]: research complete`,
-      );
-
-      return {
-        ...parsed,
-        citations,
-        ownershipSources: citations.slice(0, 12),
-        ownerResolutions: bindResolutionsToCitations(parsed, citations),
-      };
-    } catch (err: any) {
-      logger.warn({ err: err?.message }, `Phase 0 [gemini:${geminiModel}]: call threw`);
-    }
-  }
-
-  logger.warn({ entityName, model: geminiModel }, "Phase 0 [gemini]: no usable data — all keys failed");
-  return EMPTY;
-}
-
-export interface GeminiDeepResearchResult {
-  agent: string;
-  interactionId: string | null;
-  status: "completed" | "failed" | "timeout" | "unavailable";
-  report: string | null;
-  citations: string[];
-  keySlot: number | null;
-  error: string | null;
-}
-
-function extractInteractionText(interaction: any): string {
-  const outputs = Array.isArray(interaction?.outputs) ? interaction.outputs : [];
-  const steps = Array.isArray(interaction?.steps) ? interaction.steps : [];
-  const candidates = [...outputs, ...steps].reverse();
-  for (const item of candidates) {
-    const content = Array.isArray(item?.content) ? item.content : [];
-    const text = content
-      .map((part: any) => typeof part?.text === "string" ? part.text : "")
-      .filter(Boolean)
-      .join("\n")
-      .trim();
-    if (text) return text;
-    if (typeof item?.text === "string" && item.text.trim()) return item.text.trim();
-  }
-  return typeof interaction?.output_text === "string" ? interaction.output_text.trim() : "";
-}
-
-function extractInteractionCitations(interaction: any, report: string): string[] {
-  const found = new Set<string>();
-  const visit = (value: any): void => {
-    if (!value) return;
-    if (typeof value === "string") {
-      for (const match of value.matchAll(/https?:\/\/[^\s)\]>"']+/gi)) {
-        const url = match[0].replace(/[.,;:]+$/, "");
-        if (url.length < 200) found.add(url);
-      }
-      return;
-    }
-    if (Array.isArray(value)) {
-      for (const item of value) visit(item);
-      return;
-    }
-    if (typeof value === "object") {
-      for (const [key, child] of Object.entries(value)) {
-        if (/url|uri|citation|source/i.test(key)) visit(child);
-      }
-    }
-  };
-  visit(interaction);
-  visit(report);
-  return [...found].slice(0, 40);
-}
-
-/**
- * Run one explicit target-scoped Gemini Deep Research investigation.
- *
- * This is intentionally not part of the continuous Phase 0 fan-out:
- * Deep Research is expensive and asynchronous. The returned report remains
- * review-only; callers must not promote its claims to contact fields without
- * the normal evidence adjudication gates.
- */
-export async function runGeminiDeepResearch(
-  prompt: string,
-  options: { timeoutMs?: number } = {},
-): Promise<GeminiDeepResearchResult> {
-  const keys = roundRobinDeepResearchKeys(getGeminiDeepResearchKeys());
-  if (keys.length === 0) {
-    return {
-      agent: GEMINI_DEEP_RESEARCH_AGENT,
-      interactionId: null,
-      status: "unavailable",
-      report: null,
-      citations: [],
-      keySlot: null,
-      error: "No Deep Research keys configured.",
-    };
-  }
-
-  const timeoutMs = Math.min(
-    Math.max(options.timeoutMs ?? GEMINI_DEEP_RESEARCH_MAX_MS, 30_000),
-    GEMINI_DEEP_RESEARCH_MAX_MS,
-  );
-  const startedAt = Date.now();
-
-  for (const key of keys) {
-    if (isExhausted(_exhaustedGeminiDeepResearchKeys, key)) continue;
-    const keySlot = [11, 12, 13].find((slot) => process.env[`GEMINI_API_KEY_${slot}`] === key) ?? null;
-    try {
-      const createResponse = await fetch(GEMINI_INTERACTIONS_API, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-        body: JSON.stringify({
-          agent: GEMINI_DEEP_RESEARCH_AGENT,
-          input: prompt,
-          background: true,
-        }),
-        signal: AbortSignal.timeout(35_000),
-      });
-
-      if (createResponse.status === 429) {
-        _exhaustedGeminiDeepResearchKeys.set(key, Date.now() + retryAfterMs(createResponse));
-        continue;
-      }
-      if (createResponse.status === 403) {
-        _exhaustedGeminiDeepResearchKeys.set(key, Date.now() + 24 * 60 * 60 * 1000);
-        continue;
-      }
-      if (!createResponse.ok) {
-        const detail = (await createResponse.text().catch(() => "")).slice(0, 300);
-        logger.warn({ status: createResponse.status, detail }, "Gemini Deep Research interaction creation failed");
-        continue;
-      }
-
-      const created = await createResponse.json() as any;
-      const interactionId = typeof created?.id === "string" ? created.id : null;
-      if (!interactionId) continue;
-
-      logger.info({ interactionId, keySlot }, `Gemini [${GEMINI_DEEP_RESEARCH_AGENT}] started`);
-      while (Date.now() - startedAt < timeoutMs) {
-        const pollResponse = await fetch(`${GEMINI_INTERACTIONS_API}/${encodeURIComponent(interactionId)}`, {
-          headers: { "x-goog-api-key": key },
-          signal: AbortSignal.timeout(35_000),
-        });
-        if (pollResponse.status === 429) {
-          _exhaustedGeminiDeepResearchKeys.set(key, Date.now() + retryAfterMs(pollResponse));
-          return { agent: GEMINI_DEEP_RESEARCH_AGENT, interactionId, status: "failed", report: null, citations: [], keySlot, error: "Deep Research polling was rate-limited." };
-        }
-        if (!pollResponse.ok) {
-          const detail = (await pollResponse.text().catch(() => "")).slice(0, 300);
-          return { agent: GEMINI_DEEP_RESEARCH_AGENT, interactionId, status: "failed", report: null, citations: [], keySlot, error: `Polling failed with HTTP ${pollResponse.status}: ${detail}` };
-        }
-
-        const interaction = await pollResponse.json() as any;
-        const status = String(interaction?.status ?? "").toLowerCase();
-        if (status === "completed" || status === "complete") {
-          const report = extractInteractionText(interaction);
-          return {
-            agent: GEMINI_DEEP_RESEARCH_AGENT,
-            interactionId,
-            status: "completed",
-            report: report || null,
-            citations: extractInteractionCitations(interaction, report),
-            keySlot,
-            error: report ? null : "Deep Research completed without report text.",
-          };
-        }
-        if (status === "failed" || status === "cancelled" || status === "canceled") {
-          return {
-            agent: GEMINI_DEEP_RESEARCH_AGENT,
-            interactionId,
-            status: "failed",
-            report: null,
-            citations: [],
-            keySlot,
-            error: String(interaction?.error?.message ?? interaction?.error ?? `Interaction ${status}.`),
-          };
-        }
-        await new Promise((resolve) => setTimeout(resolve, GEMINI_DEEP_RESEARCH_POLL_MS));
-      }
-
-      return {
-        agent: GEMINI_DEEP_RESEARCH_AGENT,
-        interactionId,
-        status: "timeout",
-        report: null,
-        citations: [],
-        keySlot,
-        error: `Deep Research did not complete within ${Math.round(timeoutMs / 60_000)} minutes.`,
-      };
-    } catch (error: any) {
-      logger.warn({ err: error?.message, keySlot }, "Gemini Deep Research interaction failed");
-    }
-  }
-
-  return {
-    agent: GEMINI_DEEP_RESEARCH_AGENT,
-    interactionId: null,
-    status: "unavailable",
-    report: null,
-    citations: [],
-    keySlot: null,
-    error: "All configured Deep Research keys failed or are cooling down.",
-  };
-}
-
-/**
  * Fire a Tavily AI-native search then extract structured contacts via Groq.
  * Tavily returns clean, LLM-ready excerpts from up to 7 live web sources.
  * Those excerpts are fed into Groq (llama-3.3-70b) using the same ownership/
@@ -1883,7 +1549,6 @@ export interface AIKeyStatus {
   groq:       AIKeySlot[];
   perplexity: AIKeySlot[];
   gemini:     AIKeySlot[];
-  geminiDeepResearch: AIKeySlot[];
   tavily:     AIKeySlot[];
   exa:        AIKeySlot[];
 }
@@ -1917,17 +1582,13 @@ export function getAIKeyStatus(): AIKeyStatus {
   const groqNames = ["GROQ_API_KEY", ...Array.from({ length: 10 }, (_, i) => `GROQ_API_KEY_${i + 1}`)];
   const pplxNames = ["PERPLEXITY_API_KEY", ...Array.from({ length: 8 }, (_, i) => `PERPLEXITY_API_KEY_${i + 1}`)];
   const gemNames  = ["GEMINI_API_KEY",     ...Array.from({ length: 10 }, (_, i) => `GEMINI_API_KEY_${i + 1}`)];
-  const gemDeepNames = [11, 12, 13].map((i) => `GEMINI_API_KEY_${i}`);
   const tavNames  = ["TAVILY_API_KEY",     ...Array.from({ length: 8 }, (_, i) => `TAVILY_API_KEY_${i + 1}`)];
   const exaNames  = ["EXA_API_KEY",        ...Array.from({ length: 8 }, (_, i) => `EXA_API_KEY_${i + 1}`)];
 
   return {
     groq:       groqNames.map((n, i) => slotState(n, _exhaustedGroqKeys,             i)),
     perplexity: pplxNames.map((n, i) => slotState(n, _exhaustedPerplexityDirectKeys, i)),
-    gemini:     gemNames .map((n, i) => slotState(n, _exhaustedGeminiKeys,           i)),
-    // Keep the real slot numbers so the UI shows dedicated slots 11–13,
-    // rather than relabelling this separate pool as slots 1–3.
-    geminiDeepResearch: gemDeepNames.map((n, i) => slotState(n, _exhaustedGeminiDeepResearchKeys, i + 10)),
+    gemini:     gemNames .map((n, i) => slotState(n, new Map(),                            i)),
     tavily:     tavNames .map((n, i) => slotState(n, _exhaustedTavilyKeys,           i, _quotaExhaustedTavilyKeys)),
     exa:        exaNames .map((n, i) => slotState(n, _exhaustedExaKeys,              i)),
   };

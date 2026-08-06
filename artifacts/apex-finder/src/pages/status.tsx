@@ -23,7 +23,6 @@ interface AIKeyStatus {
   groq:       AIKeySlot[];
   perplexity: AIKeySlot[];
   gemini:     AIKeySlot[];
-  geminiDeepResearch: AIKeySlot[];
   tavily:     AIKeySlot[];
   exa:        AIKeySlot[];
 }
@@ -33,6 +32,23 @@ interface OpenResearchStatus {
   huggingFace: { configured: boolean };
   serper: { configured: boolean };
   adapter: { available: boolean; model: string };
+  mistral: { configured: boolean; model: string; rateLimit: string };
+}
+
+interface BureauReasoningStatus {
+  configured: boolean;
+  model: string;
+  endpoint: string;
+  role: "right_hand_advisor";
+  capability: "case_file_reasoning_only";
+}
+
+interface GeminiBossStatus {
+  configured: boolean;
+  model: string;
+  role: "head_investigator";
+  capability: "text_generation_and_case_planning";
+  webSearchGrounding: false;
 }
 
 interface UpstashSlot {
@@ -45,6 +61,8 @@ interface UpstashSlot {
 interface SystemStatus {
   ai: AIKeyStatus;
   openResearch?: OpenResearchStatus;
+  bureauReasoning?: BureauReasoningStatus;
+  geminiBoss?: GeminiBossStatus;
   databases: {
     postgres:   { status: "ok" | "error"; latencyMs: number | null };
     localRedis: { status: string;         latencyMs: number | null };
@@ -61,7 +79,6 @@ const PROVIDER_LABELS: Record<keyof AIKeyStatus, string> = {
   groq:       "Groq LLaMA",
   perplexity: "Perplexity",
   gemini:     "Gemini",
-  geminiDeepResearch: "Gemini Deep Research",
   tavily:     "Tavily",
   exa:        "Exa",
 };
@@ -199,7 +216,7 @@ export default function SystemStatusPage() {
 
   const aiProviders = status?.ai
     ? (Object.keys(status.ai) as Array<keyof AIKeyStatus>)
-    : (["groq", "perplexity", "gemini", "geminiDeepResearch", "tavily", "exa"] as Array<keyof AIKeyStatus>);
+    : (["groq", "perplexity", "gemini", "tavily", "exa"] as Array<keyof AIKeyStatus>);
 
   const totalActive = status?.ai
     ? aiProviders.reduce((sum, k) => sum + (status.ai[k]?.filter(s => s.state === "active").length ?? 0), 0)
@@ -311,6 +328,7 @@ export default function SystemStatusPage() {
           {[
             { label: "Hugging Face model", configured: status?.openResearch?.huggingFace.configured ?? false },
             { label: "Serper live search", configured: status?.openResearch?.serper.configured ?? false },
+            { label: "Mistral web search", configured: status?.openResearch?.mistral.configured ?? false },
           ].map((item) => (
             <div key={item.label} className="flex items-center justify-between rounded-xl border border-border/60 bg-gradient-to-br from-primary/5 to-transparent px-4 py-3">
               <span className="font-mono text-[11px] text-foreground">{item.label}</span>
@@ -329,6 +347,37 @@ export default function SystemStatusPage() {
           </div>
           <div className="mt-1 truncate font-mono text-[9px] text-muted-foreground/55">
             {status?.openResearch?.adapter.model ?? "Qwen/Qwen2.5-7B-Instruct"} · review-only, no direct promotion
+          </div>
+          <div className="mt-1 truncate font-mono text-[9px] text-muted-foreground/55">
+            {status?.openResearch?.mistral.configured
+              ? `Mistral ${status.openResearch.mistral.model} · ${status.openResearch.mistral.rateLimit}`
+              : "Mistral web search not configured"}
+          </div>
+        </div>
+        <div className="mt-3 rounded-lg border border-border/50 px-4 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px]">
+            <span className="text-muted-foreground">Gemini Boss</span>
+            <span className={status?.geminiBoss?.configured ? "text-primary" : "text-muted-foreground"}>
+              {status?.geminiBoss?.configured ? "configured" : "missing"}
+            </span>
+          </div>
+          <div className="mt-1 truncate font-mono text-[9px] text-muted-foreground/55">
+            {status?.geminiBoss?.configured
+              ? `${status.geminiBoss.model} · head investigator · text only · no web grounding`
+              : "Gemini Boss text-planning model not configured"}
+          </div>
+        </div>
+        <div className="mt-3 rounded-lg border border-border/50 px-4 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px]">
+            <span className="text-muted-foreground">Boss's right-hand advisor</span>
+            <span className={status?.bureauReasoning?.configured ? "text-primary" : "text-muted-foreground"}>
+              {status?.bureauReasoning?.configured ? "configured" : "missing"}
+            </span>
+          </div>
+          <div className="mt-1 truncate font-mono text-[9px] text-muted-foreground/55">
+            {status?.bureauReasoning?.configured
+              ? `${status.bureauReasoning.model} · advisory only · no web search`
+              : "NVIDIA NIM right-hand advisor not configured"}
           </div>
         </div>
       </section>

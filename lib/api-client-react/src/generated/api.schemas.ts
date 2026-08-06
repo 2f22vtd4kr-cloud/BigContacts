@@ -303,6 +303,14 @@ export interface BureauPromoteTargetInput {
   entityId: number;
 }
 
+export interface BureauCaseContinuationResponse {
+  caseId: number;
+  jobId: string;
+  pollUrl: string;
+  caseUrl: string;
+  message: string;
+}
+
 export interface ResearchCaseDirectiveInput {
   /** @minLength 1 */
   directive: string;

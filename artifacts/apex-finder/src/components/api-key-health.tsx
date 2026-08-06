@@ -362,8 +362,24 @@ export function ApiKeyHealth() {
                   </div>
                   <OpenResearchRow label="Hugging Face model" configured={Boolean(openResearch?.huggingFace.configured)} />
                   <OpenResearchRow label="Serper live search" configured={Boolean(openResearch?.serper.configured)} />
+                  <OpenResearchRow label="Mistral web search" configured={Boolean(openResearch?.mistral.configured)} />
                   <div className="mt-1 truncate font-mono text-[9px] text-muted-foreground/55">
                     {openResearch?.adapter.available ? `Adapter ready · ${openResearch.adapter.model}` : "Python adapter unavailable"}
+                  </div>
+                  <div className="mt-1 truncate font-mono text-[9px] text-muted-foreground/55">
+                    {openResearch?.mistral.configured
+                      ? `Mistral ${openResearch.mistral.model} · ${openResearch.mistral.rateLimit}`
+                      : "Mistral web search not configured"}
+                  </div>
+                  <div className="mt-1 truncate font-mono text-[9px] text-muted-foreground/55">
+                    {status?.geminiBoss?.configured
+                      ? `Gemini Boss · ${status.geminiBoss.model} · text planning only`
+                      : "Gemini Boss not configured"}
+                  </div>
+                  <div className="mt-1 truncate font-mono text-[9px] text-muted-foreground/55">
+                    {status?.bureauReasoning?.configured
+                      ? `Boss's right hand · ${status.bureauReasoning.model} · advisory only`
+                      : "Boss's right-hand advisor not configured"}
                   </div>
                 </div>
               </>

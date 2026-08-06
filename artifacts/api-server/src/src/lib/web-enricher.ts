@@ -42,7 +42,7 @@ const FINANCIAL_AGGREGATOR_DOMAINS = new Set([
   "1881.no", "gulesider.no", "proff.no", "purehelp.no", "enhetsregisteret.no",
   "allabolag.se", "hitta.se", "eniro.se", "proff.se", "virksomhed.dk",
 ]);
-import { extractWithAI, researchWithPerplexity, researchWithGemini, researchWithTavily, researchWithExa, type AIResearchContext, type OwnerResolution, type DiscoveryPersonCandidate, type GeminiDeepResearchResult, type TargetSubjectKind, type AIResearchLane } from "./ai-extractor";
+import { extractWithAI, researchWithPerplexity, researchWithTavily, researchWithExa, type AIResearchContext, type OwnerResolution, type DiscoveryPersonCandidate, type TargetSubjectKind, type AIResearchLane } from "./ai-extractor";
 import { runOpenDeepResearch, type OpenDeepResearchResult } from "./python-tools";
 import { applyEnsembleAdjudication, buildEnsembleAdjudicationText, reconcileAIResults, type AIEnsembleResult } from "./ai-ensemble";
 import { extractPersonNames } from "./gliner-client";
@@ -584,12 +584,6 @@ export interface DeepWebOsintResult {
   researchPlan: InvestigatorResearchPlan;
   routeHierarchy: RankedResearchRoute[];
   aiEnsemble?:     AIEnsembleResult;
-  /** Free-form Deep Research output is retained for review only. */
-  deepResearchReport: string | null;
-  deepResearchCitations: string[];
-  deepResearchStatus: GeminiDeepResearchResult["status"];
-  deepResearchAgent: string | null;
-  deepResearchKeySlot: number | null;
   /** Hugging Face smolagents + Serper report; always review-only. */
   openDeepResearchReport: string | null;
   openDeepResearchCitations: string[];
@@ -2110,11 +2104,6 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       entityType: entity.type,
     }),
     routeHierarchy: [],
-    deepResearchReport: null,
-    deepResearchCitations: [],
-    deepResearchStatus: "unavailable",
-    deepResearchAgent: null,
-    deepResearchKeySlot: null,
     openDeepResearchReport: null,
     openDeepResearchCitations: [],
     openDeepResearchStatus: "unavailable",
@@ -2205,7 +2194,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   await emitDeepWebTelemetry(entity, {
     stage: "AI PROVIDER FAN-OUT",
     status: "active",
-    toolIds: ["perp0", "gemini", "tavily", "exa"],
+    toolIds: ["perp0", "tavily", "exa"],
     activeToolId: "perp0",
     inputSummary: `${entity.type} target · ${queries.length} search query template(s) · ${domainTargets.length} domain target(s)`,
   });
@@ -2719,21 +2708,10 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   }
 
   // ── Phase 0: provider fan-out — live web research ─────────────────────────
-  // Both fire in parallel before DDG/Bing — different search indexes means
-  // complementary coverage. Perplexity excels at regional press; Gemini
-  // excels at Google-indexed official pages and LinkedIn.
+  // Search-capable providers fire in parallel before DDG/Bing.
   // NOTE: declared outside the try so Phases 0.5/0.6/0.7 can access them even
   // if perp's own processing throws — all 4 providers must contribute results.
-  let perp: any, gem: any, tav: any, exa: any;
-  let deepResearch: GeminiDeepResearchResult = {
-    agent: "deep-research-pro-preview-12-2025",
-    interactionId: null,
-    status: "unavailable",
-    report: null,
-    citations: [],
-    keySlot: null,
-    error: null,
-  };
+  let perp: any, official: any, tav: any, exa: any;
   let openDeepResearch: OpenDeepResearchResult = {
     status: "unavailable",
     report: null,
@@ -2762,22 +2740,9 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         });
         return value;
       }),
-      adaptiveLaneResults.official_records
-        ? Promise.resolve({ source: "none" })
-        : researchWithGemini(entity.name, entity.type, country, {
-        ...researchContext,
-        lane: "official_records",
-        reachability: realism,
-      }).then(async (value) => {
-        await emitDeepWebTelemetry(entity, {
-          stage: "AI PROVIDER FAN-OUT",
-          status: value.source === "none" ? "review" : "complete",
-          toolIds: ["gemini"],
-          activeToolId: "gemini",
-          resultSummary: providerTelemetrySummary("Gemini", value),
-        });
-        return value;
-      }),
+      // Official-record work is handled by registry/domain investigators and
+      // remains unavailable here when the adaptive director did not already cover it.
+      Promise.resolve({ source: "none" }),
       adaptiveLaneResults.contact_routes
         ? Promise.resolve({ source: "none" })
         : researchWithTavily(entity.name, entity.type, country, {
@@ -2811,15 +2776,12 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         return value;
       }),
     ]);
-    [perp, gem, tav] = providerResults.slice(0, 3).map((item) =>
+    [perp, official, tav, exa] = providerResults.map((item) =>
       item.status === "fulfilled" ? item.value : { source: "none" },
     ) as any[];
-    exa = providerResults[3]?.status === "fulfilled"
-      ? providerResults[3].value
-      : { source: "none" };
     const laneEntries: Array<[AIResearchLane, any]> = [
       ["people_press", perp],
-      ["official_records", gem],
+      ["official_records", official],
       ["contact_routes", tav],
       ["semantic_discovery", exa],
     ];
@@ -2843,15 +2805,13 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       for (const finding of effectiveValue?.negativeFindings ?? []) addNegativeFinding(String(finding));
       for (const gap of effectiveValue?.searchGaps ?? []) addSearchGap(String(gap));
     }
-    // Deep Research and Hugging Face Open Deep Research are explicit,
+    // Hugging Face Open Deep Research is an explicit,
     // review-only jobs. They intentionally do not run in this synchronous
     // contact-discovery path, so a slow provider cannot hold the operator's
     // request hostage.
-    result.deepResearchStatus = "unavailable";
     result.openDeepResearchStatus = "unavailable";
     const ensemble = reconcileAIResults([
       { provider: "perplexity", result: perp },
-      { provider: "gemini", result: gem },
       { provider: "tavily", result: tav },
       { provider: "exa", result: exa },
     ].filter(({ result }) => result?.source && result.source !== "none"));
@@ -2859,14 +2819,9 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       const adjudicator = await extractWithAI(
         `${buildEnsembleAdjudicationText(entity.name, entity.type, [
           { provider: "perplexity", result: perp },
-          { provider: "gemini", result: gem },
           { provider: "tavily", result: tav },
           { provider: "exa", result: exa },
-        ].filter(({ result }) => result?.source && result.source !== "none"))}${
-          result.deepResearchReport
-            ? `\nDEEP RESEARCH REVIEW-ONLY CONTEXT (not a provider claim and not a contact source):\n${result.deepResearchReport.slice(0, 7_000)}`
-            : ""
-        }`,
+        ].filter(({ result }) => result?.source && result.source !== "none"))}`,
         entity.name,
         entity.type,
         country,
@@ -2882,7 +2837,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     await emitDeepWebTelemetry(entity, {
       stage: "AI ENSEMBLE ADJUDICATION",
       status: result.aiEnsemble.claims.length > 0 ? "complete" : "review",
-      toolIds: ["groq", "gemini"],
+      toolIds: ["groq"],
       activeToolId: result.aiEnsemble.adjudicator?.source ?? "groq",
       resultSummary: `${result.aiEnsemble.claims.length} claim(s) retained for provenance review · provider agreement does not independently verify identity`,
       evidence: result.aiEnsemble.claims.length,
@@ -2920,7 +2875,6 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     }
     for (const [provider, value] of [
       ["perplexity", perp],
-      ["gemini", gem],
       ["tavily", tav],
       ["exa", exa],
     ] as const) {
@@ -3002,78 +2956,12 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       result.queriesFired++;
     }
   } catch (err: any) {
-    logger.warn({ err: err?.message, name: err?.name }, "Phase 0: Perplexity/Gemini research failed");
+    logger.warn({ err: err?.message, name: err?.name }, "Phase 0: Perplexity research failed");
   }
 
-  // ── Phase 0.5: Gemini Flash results (already fetched above in parallel) ──
-  try {
-    if (typeof gem !== "undefined" && gem.source === "gemini-flash") {
-      const label = "Gemini[flash]";
-      result.sources.push(label);
-      if (gem.email) {
-        const arr = emailHits.get(gem.email) ?? []; arr.push(label); emailHits.set(gem.email, arr);
-        recordEvidence("email", gem.email, label, null, "ai-gemini-flash", 80, topLevelDetails(label, gem.citations));
-      }
-      if (gem.phone) {
-        const arr = phoneHits.get(gem.phone) ?? []; arr.push(label); phoneHits.set(gem.phone, arr);
-        recordEvidence("phone", gem.phone, label, null, "ai-gemini-flash", 80, topLevelDetails(label, gem.citations));
-      }
-      if (gem.linkedin) {
-        const arr = linkedinHits.get(gem.linkedin) ?? []; arr.push(label); linkedinHits.set(gem.linkedin, arr);
-        recordEvidence("social", gem.linkedin, label, null, "ai-gemini-flash", 75, { ...topLevelDetails(label, gem.citations), network: "linkedin" });
-      }
-      if (gem.instagram) {
-        const arr = igHits.get(gem.instagram) ?? []; arr.push(label); igHits.set(gem.instagram, arr);
-        recordEvidence("social", gem.instagram, label, null, "ai-gemini-flash", 75, { ...topLevelDetails(label, gem.citations), network: "instagram" });
-      }
-      if (gem.twitter) {
-        const arr = twHits.get(gem.twitter) ?? []; arr.push(label); twHits.set(gem.twitter, arr);
-        recordEvidence("social", gem.twitter, label, null, "ai-gemini-flash", 75, { ...topLevelDetails(label, gem.citations), network: "twitter" });
-      }
-      if (gem.ownershipSummary && !result.ownershipSummary) result.ownershipSummary = gem.ownershipSummary;
-      for (const owner of gem.ownerResolutions) {
-        addOwnerResolution(owner, label);
-      }
-      for (const oc of gem.ownerContacts) {
-        if (!gem.ownerResolutions.some((o: OwnerResolution) => o.name.toLowerCase() === oc.name.toLowerCase())) {
-          addOwnerResolution({
-            ...oc,
-            role: "associated_person",
-            ownershipStatus: "not_established",
-            basis: null,
-            sourceUrls: [],
-          }, label);
-        }
-      }
-      // Grounding URLs → scrape queue + domain injection (same logic as Perplexity citations)
-      for (const url of gem.citations.slice(0, 4)) urlsToScrape.add(url);
-      const gemDomains: string[] = [];
-      for (const url of gem.citations) {
-        try {
-          const hostname = new URL(url).hostname.replace(/^www\./, "");
-          if (!CITATION_SKIP_DOMAINS.has(hostname) && !gemDomains.includes(hostname)) {
-            gemDomains.push(hostname);
-          }
-        } catch { /* ignore malformed URLs */ }
-      }
-      if (gemDomains.length > 0) {
-        domainTargets.unshift(...gemDomains.slice(0, 3));
-        logger.info({ entityId: entity.id, gemDomains }, "Phase 0.5: injected Gemini grounding domains into scrape targets");
-      }
-      allSearchText += " " + JSON.stringify({
-        ownershipSummary: gem.ownershipSummary,
-        ownerResolutions: gem.ownerResolutions,
-        owners: gem.owners,
-      });
-      result.queriesFired++;
-    }
-  } catch (err: any) {
-    logger.warn({ err: err?.message }, "Phase 0.5: Gemini Flash processing failed");
-  }
-
-  // ── Phase 0.6: Tavily results (already fetched above in parallel) ────────
-  // Tavily returns clean AI-ready excerpts from 7 live sources — different
-  // index from both Perplexity and Gemini. Structure extracted by Groq internally.
+  // ── Phase 0.5: Tavily results (already fetched above in parallel) ────────
+      // Tavily returns clean AI-ready excerpts from 7 live sources — a different
+      // index from Perplexity. Structure is extracted by Groq internally.
   try {
     if (typeof tav !== "undefined" && tav.source === "tavily") {
       const label = "Tavily";
@@ -3140,8 +3028,8 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   }
 
   // ── Phase 0.7: Exa results (already fetched above in parallel) ──────────
-  // Exa uses neural/semantic retrieval — different ranking model from Perplexity,
-  // Gemini, and Tavily. Especially strong for people + company identity lookups.
+  // Exa uses neural/semantic retrieval — a different ranking model from
+  // Perplexity and Tavily. Especially strong for people + company identity lookups.
   try {
     if (typeof exa !== "undefined" && exa.source === "exa") {
       const label = "Exa";
@@ -3204,39 +3092,6 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     }
   } catch (err: any) {
     logger.warn({ err: err?.message }, "Phase 0.7: Exa processing failed");
-  }
-
-  // Deep Research contributes only bounded review context and citation leads.
-  // It never enters contact hits, owner resolution, or the candidate funnel.
-  try {
-    if (result.deepResearchReport || result.deepResearchCitations.length > 0) {
-      const label = "Gemini[deep-research]";
-      result.sources.push(label);
-      result.queriesFired++;
-      // Do not append the free-form report to allSearchText: that accumulator
-      // is consumed by the contact extractor. Deep Research may guide the
-      // ensemble review and citation fetches, but its claims must not become
-      // contact candidates merely because the report mentions them.
-      for (const url of result.deepResearchCitations.slice(0, 8)) urlsToScrape.add(url);
-      const deepDomains: string[] = [];
-      for (const url of result.deepResearchCitations) {
-        try {
-          const hostname = new URL(url).hostname.replace(/^www\./, "");
-          if (!CITATION_SKIP_DOMAINS.has(hostname) && !deepDomains.includes(hostname)) {
-            deepDomains.push(hostname);
-          }
-        } catch { /* ignore malformed report citations */ }
-      }
-      if (deepDomains.length > 0) {
-        domainTargets.unshift(...deepDomains.slice(0, 3));
-        logger.info(
-          { entityId: entity.id, deepDomains, status: result.deepResearchStatus },
-          "Phase 0.8: injected Gemini Deep Research citation domains into scrape targets",
-        );
-      }
-    }
-  } catch (err: any) {
-    logger.warn({ err: err?.message, entityId: entity.id }, "Phase 0.8: Deep Research processing failed");
   }
 
   // Hugging Face Open Deep Research contributes only bounded review context
@@ -3804,12 +3659,11 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     }
   }
 
-  // ── Phase 7.5: Iterative Perplexity follow-up on newly discovered persons ─
+  // ── Phase 7.5: Iterative provider follow-up on newly discovered persons ───
   // Phase 0 queried the entity. By now (after DDG/scraping/AI) we know real
   // person names (founders, owners, directors) that weren't in Phase 0.
   // Fire targeted Perplexity sonar calls on those persons — this closes the
-  // Gemini gap: find a name → immediately ask Perplexity about that person
-  // in context of the entity → get personal contacts/social handles.
+  // Search-capable providers handle the follow-up; Gemini remains text-only.
   // Keep the discovery fan-out bounded, but do not discard the majority of
   // named operator/owner candidates before exact-page adjudication.
   {
@@ -3830,18 +3684,12 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
 
     for (const personName of followUpPersons) {
       try {
-        logger.info({ entityId: entity.id, personName }, "Phase 7.5: follow-up Perplexity+Gemini+Tavily+Exa for discovered person");
+        logger.info({ entityId: entity.id, personName }, "Phase 7.5: follow-up Perplexity+Tavily+Exa for discovered person");
         const followUpResults = await Promise.allSettled([
           researchWithPerplexity(personName, "HNWI", country, {
             ...researchContext,
             tradingName: entity.name,
             lane: "people_press",
-            reachability: realism,
-          }),
-          researchWithGemini(personName, "HNWI", country, {
-            ...researchContext,
-            tradingName: entity.name,
-            lane: "official_records",
             reachability: realism,
           }),
           researchWithTavily(personName, "HNWI", country, {
@@ -3857,7 +3705,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
             reachability: realism,
           }),
         ]);
-        const [fuPerp, fuGem, fuTav, fuExa] = followUpResults.map((item) =>
+        const [fuPerp, fuTav, fuExa] = followUpResults.map((item) =>
           item.status === "fulfilled" ? item.value : { source: "none" },
         ) as any[];
         for (const [index, item] of followUpResults.entries()) {
@@ -3900,43 +3748,6 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
             } catch { /* skip malformed */ }
           }
           allSearchText += " " + JSON.stringify({ personName, ownershipSummary: fuPerp.ownershipSummary, ownerResolutions: fuPerp.ownerResolutions });
-          result.queriesFired++;
-        }
-
-        // Process Gemini follow-up
-        if (fuGem.source === "gemini-flash") {
-          const label = `Gemini[fu:${personName.split(" ")[0]}]`;
-          result.sources.push(label);
-          const pdDetails = { scope: "person_candidate" as const, personName, relationship: "personal-contact-followup" };
-          if (fuGem.email) {
-            const arr = emailHits.get(fuGem.email) ?? []; arr.push(label); emailHits.set(fuGem.email, arr);
-            recordEvidence("email", fuGem.email, label, null, "ai-gemini-flash-followup", 76, pdDetails);
-          }
-          if (fuGem.phone) {
-            const arr = phoneHits.get(fuGem.phone) ?? []; arr.push(label); phoneHits.set(fuGem.phone, arr);
-            recordEvidence("phone", fuGem.phone, label, null, "ai-gemini-flash-followup", 76, pdDetails);
-          }
-          if (fuGem.linkedin) {
-            const arr = linkedinHits.get(fuGem.linkedin) ?? []; arr.push(label); linkedinHits.set(fuGem.linkedin, arr);
-            recordEvidence("social", fuGem.linkedin, label, null, "ai-gemini-flash-followup", 72, { ...pdDetails, network: "linkedin" });
-          }
-          if (fuGem.instagram) {
-            recordEvidence("social", fuGem.instagram, label, null, "ai-gemini-flash-followup", 72, { ...pdDetails, network: "instagram" });
-          }
-          if (fuGem.twitter) {
-            recordEvidence("social", fuGem.twitter, label, null, "ai-gemini-flash-followup", 72, { ...pdDetails, network: "twitter" });
-          }
-          for (const owner of fuGem.ownerResolutions) {
-            addOwnerResolution(owner, label);
-          }
-          for (const url of fuGem.citations.slice(0, 3)) urlsToScrape.add(url);
-          for (const url of fuGem.citations) {
-            try {
-              const hostname = new URL(url).hostname.replace(/^www\./, "");
-              if (!CITATION_SKIP_DOMAINS.has(hostname) && !domainTargets.includes(hostname)) domainTargets.push(hostname);
-            } catch { /* skip malformed */ }
-          }
-          allSearchText += " " + JSON.stringify({ personName, ownershipSummary: fuGem.ownershipSummary, ownerResolutions: fuGem.ownerResolutions });
           result.queriesFired++;
         }
 
@@ -4014,7 +3825,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
           result.queriesFired++;
         }
       } catch (err: any) {
-        logger.warn({ err: err?.message, personName }, "Phase 7.5: follow-up Perplexity/Gemini/Tavily/Exa failed");
+        logger.warn({ err: err?.message, personName }, "Phase 7.5: follow-up Perplexity/Tavily/Exa failed");
       }
       await jitteredDelay(500);
     }

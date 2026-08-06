@@ -1,6 +1,5 @@
 import {
   researchWithExa,
-  researchWithGemini,
   researchWithPerplexity,
   researchWithTavily,
   type AIExtractResult,
@@ -44,7 +43,7 @@ export interface AdaptiveAction {
 }
 
 export interface AdaptiveProviderResult {
-  provider: "perplexity" | "gemini" | "tavily" | "exa";
+  provider: "perplexity" | "tavily" | "exa";
   action: AdaptiveAction;
   result: AIExtractResult;
 }
@@ -282,7 +281,7 @@ export function selectNextAdaptiveAction(
 }
 
 function providerForAction(action: AdaptiveAction): AdaptiveProviderResult["provider"] {
-  if (action.lane === "official_records") return "gemini";
+  if (action.lane === "official_records") return "tavily";
   if (action.lane === "semantic_discovery") return "exa";
   if (action.lane === "contact_routes") return "tavily";
   return "perplexity";
@@ -326,7 +325,6 @@ async function runProvider(
     ? "HNWI"
     : input.targetType;
   const context = contextForAction(input, state, action);
-  if (provider === "gemini") return researchWithGemini(subject, type, input.country, context);
   if (provider === "tavily") return researchWithTavily(subject, type, input.country, context);
   if (provider === "exa") return researchWithExa(subject, type, input.country, context);
   return researchWithPerplexity(subject, type, input.country, context);

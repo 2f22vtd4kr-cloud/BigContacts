@@ -503,7 +503,7 @@ paths:
         - name: caseId
           in: path
           required: true
-          schema: { type: integer }
+          schema: { type: integer, minimum: 1 }
       responses:
         "200":
           description: Bureau case
@@ -514,6 +514,30 @@ paths:
         "404":
           description: Case not found
 
+  /research/bureau/cases/{caseId}/run-discovery:
+    post:
+      operationId: runBureauCaseDiscovery
+      tags: [research]
+      summary: Run the initial bounded discovery pass for a bureau case
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "202":
+          description: Discovery pass started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BureauCaseContinuationResponse"
+        "400":
+          description: Invalid case ID
+        "404":
+          description: Case not found
+        "409":
+          description: Case is not eligible or another investigation is running
+
   /research/bureau/cases/{caseId}/initial-research:
     post:
       operationId: recordBureauInitialResearch
@@ -523,7 +547,7 @@ paths:
         - name: caseId
           in: path
           required: true
-          schema: { type: integer }
+          schema: { type: integer, minimum: 1 }
       requestBody:
         required: true
         content:
@@ -565,6 +589,54 @@ paths:
                 $ref: "#/components/schemas/BureauCase"
         "404":
           description: Case or entity not found
+
+  /research/bureau/cases/{caseId}/run-next-pass:
+    post:
+      operationId: runBureauCaseNextPass
+      tags: [research]
+      summary: Run the next bounded verification pass over the shared case context
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "202":
+          description: Verification pass started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BureauCaseContinuationResponse"
+        "400":
+          description: Invalid case ID
+        "404":
+          description: Case not found
+        "409":
+          description: Case is not eligible or another investigation is running
+
+  /research/bureau/cases/{caseId}/run-boss-review:
+    post:
+      operationId: runBureauCaseBossReview
+      tags: [research]
+      summary: Retry the Boss closure review without repeating evidence lanes
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        "202":
+          description: Boss closure review started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BureauCaseContinuationResponse"
+        "400":
+          description: Invalid case ID
+        "404":
+          description: Case not found
+        "409":
+          description: Case is not eligible or another investigation is running
 
   /research/cases/{entityId}:
     get:
@@ -1374,6 +1446,16 @@ components:
       required: [entityId]
       properties:
         entityId: { type: integer }
+
+    BureauCaseContinuationResponse:
+      type: object
+      required: [caseId, jobId, pollUrl, caseUrl, message]
+      properties:
+        caseId: { type: integer }
+        jobId: { type: string }
+        pollUrl: { type: string }
+        caseUrl: { type: string }
+        message: { type: string }
 
     ResearchCaseDirectiveInput:
       type: object

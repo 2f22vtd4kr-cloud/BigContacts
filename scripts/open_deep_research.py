@@ -3,7 +3,7 @@
 
 This is intentionally smaller than the upstream GAIA example:
   * ToolCallingAgent prevents arbitrary local code execution.
-  * Serper is the only search provider and page fetching is bounded.
+  * Serper is the Google-backed search provider and page fetching is bounded.
   * The process emits one JSON object, suitable for the TypeScript subprocess
     runner; credentials are read only from the environment.
   * The result is review-only. Callers must validate exact pages before using
@@ -58,7 +58,7 @@ def compact_text(value: str, limit: int = MAX_PAGE_CHARS) -> str:
 class SerperSearchTool(Tool):
     name = "search_public_web"
     description = (
-        "Search the live public web using Google results. Return titles, URLs, "
+        "Search the live public web using Google results from Serper. Return titles, URLs, "
         "and snippets. Search exact names with jurisdiction and registry anchors "
         "for disambiguation. Do not treat snippets as verified evidence."
     )

@@ -1,6 +1,14 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
-import { getListResearchEvidenceQueryKey, useListEntities, useRunResearch, useListResearchEvidence } from "@workspace/api-client-react";
+import {
+  getBureauCase,
+  getListResearchEvidenceQueryKey,
+  runBureauCaseBossReview,
+  runBureauCaseNextPass,
+  useListEntities,
+  useRunResearch,
+  useListResearchEvidence,
+} from "@workspace/api-client-react";
 import { Terminal, Play, Cpu, ChevronRight, Hash, CheckCircle2, GitBranch, Target, Shield, ChevronDown, Search, X, Mail, Phone, Copy, CheckCheck, Layers, ExternalLink, FileCheck2, CircleAlert } from "lucide-react";
 import { cn, formatEntityName } from "@/lib/utils";
 import { ScoreBadge } from "@/lib/utils";
@@ -164,6 +172,30 @@ type BureauCaseFile = {
   contactRoutes: BureauContactRoute[];
   humanDirectives: string[];
   decisionLog: Array<{ iteration: number; decision: string; reason: string; createdAt: string }>;
+  rightHandAdvice?: {
+    model: string;
+    status: "completed" | "unavailable";
+    actionId: string | null;
+    decision: string | null;
+    reason: string | null;
+    confidence: number | null;
+    error: string | null;
+    createdAt: string;
+  };
+  bossPlan?: {
+    model: string;
+    status: "completed" | "unavailable";
+    actionId: string | null;
+    decision: string | null;
+    reason: string | null;
+    investigatorPrompt: string | null;
+    restrictions: string[];
+    tools: string[];
+    evidenceRequirements: string[];
+    confidence: number | null;
+    error: string | null;
+    createdAt: string;
+  };
   nextBestAction: BureauAction | null;
   evidenceSummary: {
     sourceRegistries: string[];
@@ -214,6 +246,47 @@ type DiscoveryCaseFile = {
     bossCommentary: string | null;
     sourceUrls: string[];
     recordedAt: string | null;
+  };
+  investigatorReports?: Array<{
+    id: string;
+    lane: string;
+    provider: string;
+    status: string;
+    iteration: number;
+    summary: string;
+    findings: string[];
+    candidateNames: string[];
+    sourceUrls: string[];
+    nextQuestions: string[];
+    error: string | null;
+    createdAt: string;
+  }>;
+  currentProgress?: {
+    reportCount: number;
+    completedLanes: string[];
+    openQuestions: string[];
+    lastReviewedBy: string | null;
+    refreshedAt: string | null;
+  };
+  nextInvestigation?: {
+    rightHand: {
+      status: string;
+      decision: string | null;
+      reason: string | null;
+      focusLanes: string[];
+      confidence: number | null;
+      error: string | null;
+      reviewedAt: string;
+    } | null;
+    boss: {
+      status: string;
+      decision: string | null;
+      candidateNames: string[];
+      nextDirections: string[];
+      uncertainties: string[];
+      error: string | null;
+      reviewedAt: string;
+    } | null;
   };
 };
 
@@ -338,8 +411,8 @@ function BureauCasePanel({
       <div className="border-t border-border/50 bg-[#080C14] px-4 md:px-5 py-4 flex-shrink-0">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h3 className="text-xs font-mono text-primary uppercase tracking-widest">Head Investigator Case</h3>
-            <p className="text-[11px] text-muted-foreground mt-1">Open a living target case to coordinate specialist investigators and rank every contact route.</p>
+            <h3 className="text-xs font-mono text-primary uppercase tracking-widest">Boss Case Bureau</h3>
+            <p className="text-[11px] text-muted-foreground mt-1">The Boss leads the case; GLM serves as a bounded right-hand advisor.</p>
           </div>
           <button
             disabled={busy}
@@ -364,7 +437,7 @@ function BureauCasePanel({
       <div className="flex items-start justify-between gap-3 mb-3">
         <div>
           <h3 className="text-xs font-mono text-primary uppercase tracking-widest flex items-center gap-2">
-            <Cpu className="w-3.5 h-3.5" /> Head Investigator Case
+            <Cpu className="w-3.5 h-3.5" /> Boss Case Bureau
           </h3>
           <p className="text-[11px] text-muted-foreground mt-1 max-w-3xl">{bureauCase.objective}</p>
         </div>
@@ -382,7 +455,7 @@ function BureauCasePanel({
               onClick={() => void request(`/api/research/cases/${entityId}/advance`)}
               className="inline-flex items-center gap-1 rounded border border-primary/40 px-2 py-1 text-[10px] font-mono text-primary hover:bg-primary/15 disabled:opacity-50"
             >
-              <ChevronRight className="w-3 h-3" /> {busy ? "Thinking…" : "Advance case"}
+              <ChevronRight className="w-3 h-3" /> {busy ? "Boss reviewing…" : "Ask Boss to advance"}
             </button>
           </div>
           {nextAction ? (
@@ -400,7 +473,56 @@ function BureauCasePanel({
               <div className="text-[10px] text-muted-foreground/80 mt-2">Why now: {nextAction.rationale}</div>
             </>
           ) : (
-            <div className="text-xs text-muted-foreground mt-2">No queued action. Add a directive or connect the model-backed director.</div>
+            <div className="text-xs text-muted-foreground mt-2">No queued action. Add a directive or ask the Boss for a new plan.</div>
+          )}
+        </div>
+
+        <div className="rounded border border-amber-400/20 bg-amber-400/5 p-3">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[10px] uppercase tracking-wider font-mono text-amber-300">Boss's right-hand advisor</span>
+            <span className="text-[9px] font-mono text-muted-foreground">advisory only</span>
+          </div>
+          {file?.rightHandAdvice?.status === "completed" ? (
+            <>
+              <div className="text-[10px] text-foreground mt-2">{file.rightHandAdvice.model} recommends <span className="text-amber-300">{file.rightHandAdvice.actionId}</span></div>
+              <div className="text-[10px] text-muted-foreground mt-1">{file.rightHandAdvice.reason}</div>
+              <div className="text-[9px] text-muted-foreground/70 mt-2">Boss remains authoritative and may choose a different action.</div>
+            </>
+          ) : (
+            <div className="text-[10px] text-muted-foreground mt-2">No GLM recommendation recorded yet. The Boss can proceed with the local planning fallback.</div>
+          )}
+        </div>
+
+        <div className="rounded border border-primary/20 bg-primary/5 p-3 lg:col-span-2">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[10px] uppercase tracking-wider font-mono text-primary">Gemini Boss plan</span>
+            <span className="text-[9px] font-mono text-muted-foreground">text-only · no web grounding</span>
+          </div>
+          {file?.bossPlan?.status === "completed" ? (
+            <>
+              <div className="text-[10px] text-foreground mt-2">
+                {file.bossPlan.model} assigned <span className="text-primary">{file.bossPlan.actionId}</span>
+              </div>
+              <div className="text-[10px] text-muted-foreground mt-1">{file.bossPlan.reason}</div>
+              {file.bossPlan.investigatorPrompt && (
+                <details className="mt-2">
+                  <summary className="cursor-pointer text-[9px] font-mono uppercase tracking-wider text-primary">Show investigator prompt</summary>
+                  <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap rounded border border-border/50 bg-background/40 p-2 text-[9px] leading-relaxed text-muted-foreground">{file.bossPlan.investigatorPrompt}</pre>
+                </details>
+              )}
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {file.bossPlan.tools.map((tool) => (
+                  <span key={tool} className="rounded border border-primary/25 px-1.5 py-0.5 text-[9px] font-mono text-primary">{tool}</span>
+                ))}
+              </div>
+              <div className="mt-2 text-[9px] text-muted-foreground">
+                Restrictions: {file.bossPlan.restrictions.join(" · ")}
+              </div>
+            </>
+          ) : (
+            <div className="text-[10px] text-muted-foreground mt-2">
+              Gemini Boss has not produced a plan yet. The local Boss planner remains the safe fallback.
+            </div>
           )}
         </div>
 
@@ -504,6 +626,7 @@ function DiscoveryBureauPanel({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const file = parseDiscoveryCaseFile(discoveryCase?.caseFile);
+  const investigatorReports = file?.investigatorReports ?? [];
 
   const request = async (url: string, body: unknown) => {
     setBusy(true);
@@ -517,6 +640,33 @@ function DiscoveryBureauPanel({
       const payload = await response.json().catch(() => null);
       if (!response.ok) throw new Error(payload?.error ?? "Discovery bureau request failed");
       onCaseChange(payload as BureauCase);
+      return true;
+    } catch (reason: unknown) {
+      setError(reason instanceof Error ? reason.message : "Discovery bureau request failed");
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const continueInvestigation = async (retryBossReview: boolean) => {
+    setBusy(true);
+    setError(null);
+    try {
+      if (retryBossReview) {
+        await runBureauCaseBossReview(discoveryCase!.id);
+      } else {
+        await runBureauCaseNextPass(discoveryCase!.id);
+      }
+      const refreshed = await getBureauCase(discoveryCase!.id, { cache: "no-store" });
+      onCaseChange({
+        ...refreshed,
+        targetEntityName: refreshed.targetEntityName ?? null,
+        targetEntityType: refreshed.targetEntityType ?? null,
+        directorModel: refreshed.directorModel ?? "",
+        currentAction: refreshed.currentAction ?? null,
+        lastDecisionAt: refreshed.lastDecisionAt ?? null,
+      });
       return true;
     } catch (reason: unknown) {
       setError(reason instanceof Error ? reason.message : "Discovery bureau request failed");
@@ -586,12 +736,22 @@ function DiscoveryBureauPanel({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="text-[10px] font-mono text-primary uppercase tracking-[0.18em]">Boss discovery case #{discoveryCase.id}</div>
-          <h2 className="text-base font-semibold text-foreground mt-1">Gemini Boss opening brief</h2>
+          <h2 className="text-base font-semibold text-foreground mt-1">
+            {file?.nextInvestigation?.boss?.status === "completed"
+              ? "Case review complete — human gates remain"
+              : "Gemini Boss opening brief"}
+          </h2>
           <p className="text-[11px] text-muted-foreground mt-1 max-w-3xl">{file?.bossPremise}</p>
         </div>
         <div className="text-right text-[10px] font-mono text-muted-foreground">
           <div className="text-amber-300">{discoveryCase.directorModel === "auto-low-cost-pending" ? "AUTO · LOWEST AVAILABLE" : discoveryCase.directorModel}</div>
-          <div>{discoveryCase.directorMode.replaceAll("_", " ")} · {file?.initialResearch.status ?? "not started"}</div>
+          <div>
+            {file?.nextInvestigation?.boss?.status === "completed"
+              ? "gemini boss reviewed"
+              : discoveryCase.directorMode.replaceAll("_", " ")}
+            {" · "}
+            {file?.initialResearch.status ?? "not started"}
+          </div>
         </div>
       </div>
       <details className="mt-3 rounded border border-border/60 bg-background/25">
@@ -644,6 +804,108 @@ function DiscoveryBureauPanel({
           <CheckCircle2 className="w-3 h-3" /> {busy ? "Recording…" : "Write into case context"}
         </button>
       </div>
+      {file && investigatorReports.length > 0 && (
+        <div className="mt-3 rounded border border-cyan-400/20 bg-cyan-400/5 p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <div className="text-[10px] uppercase tracking-wider font-mono text-cyan-300">Shared case-context shaft</div>
+              <div className="text-[10px] text-muted-foreground mt-1">
+                Each lane reads the latest snapshot, writes a report, and hands the refreshed context to the next reviewer.
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-1.5 text-[9px] font-mono">
+              <span className="rounded border border-cyan-400/25 px-1.5 py-0.5 text-cyan-300">{file.currentProgress?.reportCount ?? investigatorReports.length} reports</span>
+              <span className="rounded border border-border/60 px-1.5 py-0.5 text-muted-foreground">{file.currentProgress?.completedLanes?.length ?? 0} lanes complete</span>
+              <span className="rounded border border-border/60 px-1.5 py-0.5 text-muted-foreground">reviewed by {file.currentProgress?.lastReviewedBy ?? "pending"}</span>
+            </div>
+          </div>
+          <div className="mt-3 space-y-1.5 max-h-64 overflow-y-auto pr-1">
+            {investigatorReports.slice().reverse().map((report) => (
+              <details key={report.id} className="rounded border border-border/50 bg-background/40 px-2.5 py-2">
+                <summary className="cursor-pointer list-none">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={cn(
+                      "h-1.5 w-1.5 rounded-full",
+                      report.status === "completed" ? "bg-emerald-400" : report.status === "failed" ? "bg-rose-400" : "bg-amber-400",
+                    )} />
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-cyan-200">{report.lane}</span>
+                    <span className="text-[9px] text-muted-foreground">{report.provider}</span>
+                    <span className="ml-auto text-[9px] font-mono text-muted-foreground">iteration {report.iteration}</span>
+                  </div>
+                  <div className="mt-1 text-[10px] leading-relaxed text-foreground/85">{report.summary}</div>
+                </summary>
+                <div className="mt-2 border-t border-border/40 pt-2 space-y-2">
+                  {report.findings.length > 0 && (
+                    <div>
+                      <div className="text-[9px] uppercase tracking-wider font-mono text-muted-foreground">Findings</div>
+                      <ul className="mt-1 space-y-1 text-[10px] text-muted-foreground">
+                        {report.findings.slice(0, 8).map((finding, index) => <li key={`${report.id}-finding-${index}`}>• {finding}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                  {report.candidateNames.length > 0 && <div className="text-[10px] text-amber-200">Candidates: {report.candidateNames.join(" · ")}</div>}
+                  {report.nextQuestions.length > 0 && <div className="text-[10px] text-cyan-200/80">Next questions: {report.nextQuestions.join(" · ")}</div>}
+                  {report.sourceUrls.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {report.sourceUrls.slice(0, 6).map((url) => <a key={url} href={url} target="_blank" rel="noreferrer" className="text-[9px] text-primary hover:underline">{sourceDomain(url)}</a>)}
+                    </div>
+                  )}
+                  {report.error && <div className="text-[10px] text-rose-300">Provider gap: {report.error}</div>}
+                </div>
+              </details>
+            ))}
+          </div>
+          {file.currentProgress?.openQuestions && file.currentProgress.openQuestions.length > 0 && (
+            <div className="mt-3 border-t border-border/40 pt-2">
+              <div className="text-[9px] uppercase tracking-wider font-mono text-muted-foreground">Open questions carried forward</div>
+              <div className="mt-1 flex flex-wrap gap-1.5">
+                {file.currentProgress.openQuestions.slice(-8).map((question) => (
+                  <span key={question} className="rounded border border-cyan-400/20 px-1.5 py-1 text-[9px] text-cyan-200/80">{question}</span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      {file?.nextInvestigation && (
+        <div className="mt-3 grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <div className="rounded border border-amber-400/20 bg-amber-400/5 p-3">
+            <div className="text-[10px] uppercase tracking-wider font-mono text-amber-300">Right-hand review</div>
+            <div className="text-[10px] text-foreground mt-2">{file.nextInvestigation.rightHand?.decision ?? "No advisory decision returned."}</div>
+            {file.nextInvestigation.rightHand?.focusLanes?.length ? <div className="text-[9px] text-muted-foreground mt-1">Focus: {file.nextInvestigation.rightHand.focusLanes.join(" · ")}</div> : null}
+            {file.nextInvestigation.rightHand?.reason && <div className="text-[9px] text-muted-foreground mt-1">{file.nextInvestigation.rightHand.reason}</div>}
+          </div>
+          <div className="rounded border border-primary/20 bg-primary/5 p-3">
+            <div className="text-[10px] uppercase tracking-wider font-mono text-primary">Boss next rabbit hole</div>
+            <div className="text-[10px] text-foreground mt-2">{file.nextInvestigation.boss?.decision ?? "No final Boss review returned."}</div>
+            {file.nextInvestigation.boss?.nextDirections?.length ? <div className="text-[9px] text-primary/80 mt-1">Next: {file.nextInvestigation.boss.nextDirections.join(" · ")}</div> : null}
+            {file.nextInvestigation.boss?.uncertainties?.length ? <div className="text-[9px] text-muted-foreground mt-1">Uncertainties: {file.nextInvestigation.boss.uncertainties.join(" · ")}</div> : null}
+          </div>
+        </div>
+      )}
+      {file?.nextInvestigation?.boss?.nextDirections?.length ? (
+        <div className="mt-3 flex flex-col sm:flex-row sm:items-center gap-3 rounded border border-primary/25 bg-primary/5 p-3">
+          <div className="flex-1">
+            <div className="text-[10px] uppercase tracking-wider font-mono text-primary">Continue the Bureau investigation</div>
+            <div className="text-[10px] text-muted-foreground mt-1">
+              {file.nextInvestigation.boss?.status === "unavailable"
+                ? "The evidence lanes are complete, but the Boss closure review hit a provider gap. Retry only the Boss review without repeating searches."
+                : "The opening discovery pass is complete. Run the Boss-selected verification directions against the shared case context; results remain review-only."}
+            </div>
+          </div>
+          <button
+            disabled={busy || discoveryCase.status === "active"}
+            onClick={() => void continueInvestigation(file.nextInvestigation?.boss?.status === "unavailable")}
+            className="inline-flex items-center justify-center gap-2 rounded border border-primary/50 bg-primary/15 px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-primary hover:bg-primary/25 disabled:opacity-50"
+          >
+            <Play className="w-3 h-3" /> {busy || discoveryCase.status === "active"
+              ? "Review running…"
+              : file.nextInvestigation.boss?.status === "unavailable"
+                ? "Retry Boss closure review"
+                : "Run next verification pass"}
+          </button>
+        </div>
+      ) : null}
       <div className="mt-3 rounded border border-emerald-400/20 bg-emerald-400/5 p-3">
         <div className="flex flex-col lg:flex-row lg:items-center gap-2">
           <div className="flex-1">
