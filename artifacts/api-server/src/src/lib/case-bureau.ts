@@ -118,7 +118,7 @@ export type ResearchCaseFile = {
 };
 
 export type DiscoveryCaseFile = {
-  version: 2;
+  version: 3;
   caseType: "discovery";
   humanBrief: {
     objective: string;
@@ -141,6 +141,47 @@ export type DiscoveryCaseFile = {
     bossCommentary: string | null;
     sourceUrls: string[];
     recordedAt: string | null;
+  };
+  investigatorReports: Array<{
+    id: string;
+    lane: "gemini-boss" | "nvidia-right-hand" | "mistral-web" | "broad-web" | "registry";
+    provider: string;
+    status: "completed" | "unavailable" | "failed";
+    iteration: number;
+    summary: string;
+    findings: string[];
+    candidateNames: string[];
+    sourceUrls: string[];
+    nextQuestions: string[];
+    error: string | null;
+    createdAt: string;
+  }>;
+  currentProgress: {
+    reportCount: number;
+    completedLanes: string[];
+    openQuestions: string[];
+    lastReviewedBy: string | null;
+    refreshedAt: string | null;
+  };
+  nextInvestigation?: {
+    rightHand: {
+      status: "completed" | "unavailable";
+      decision: string | null;
+      reason: string | null;
+      focusLanes: string[];
+      confidence: number | null;
+      error: string | null;
+      reviewedAt: string;
+    } | null;
+    boss: {
+      status: "completed" | "unavailable";
+      decision: string | null;
+      candidateNames: string[];
+      nextDirections: string[];
+      uncertainties: string[];
+      error: string | null;
+      reviewedAt: string;
+    } | null;
   };
   rightHandAdvice?: {
     provider: "nvidia-nim";
@@ -209,8 +250,12 @@ export type GeminiBossDiscoveryResult = {
     sourceUrls?: string[];
   }>;
   citations: string[];
+  nextDirections: string[];
+  uncertainties: string[];
   error: string | null;
 };
+
+export type DiscoveryInvestigatorReport = DiscoveryCaseFile["investigatorReports"][number];
 
 export type GeminiBossPlanResult = {
   status: "completed" | "unavailable";
@@ -371,9 +416,11 @@ function extractJsonObject(value: string): string | null {
 function parseBossDiscoveryResponse(raw: string): {
   report: string;
   candidates: GeminiBossDiscoveryResult["candidates"];
+  nextDirections: string[];
+  uncertainties: string[];
 } {
   const json = extractJsonObject(raw);
-  if (!json) return { report: raw.trim(), candidates: [] };
+  if (!json) return { report: raw.trim(), candidates: [], nextDirections: [], uncertainties: [] };
   try {
     const parsed = JSON.parse(json) as Record<string, unknown>;
     const rawCandidates = Array.isArray(parsed.candidates)
@@ -399,9 +446,15 @@ function parseBossDiscoveryResponse(raw: string): {
       : typeof parsed.summary === "string"
         ? parsed.summary
         : raw.trim();
-    return { report, candidates };
+    const nextDirections = Array.isArray(parsed.nextDirections)
+      ? uniqueStrings(parsed.nextDirections, 12)
+      : [];
+    const uncertainties = Array.isArray(parsed.uncertainties)
+      ? uniqueStrings(parsed.uncertainties, 12)
+      : [];
+    return { report, candidates, nextDirections, uncertainties };
   } catch {
-    return { report: raw.trim(), candidates: [] };
+    return { report: raw.trim(), candidates: [], nextDirections: [], uncertainties: [] };
   }
 }
 
@@ -411,6 +464,7 @@ function parseBossDiscoveryResponse(raw: string): {
  * search-capable investigators supply web context and all returned people remain review-only.
  */
 export async function runGeminiBossDiscovery(input: {
+  file?: DiscoveryCaseFile;
   objective: string;
   motivation: string;
   geography?: string;
@@ -434,6 +488,8 @@ export async function runGeminiBossDiscovery(input: {
       report: null,
       candidates: [],
       citations: [],
+      nextDirections: [],
+      uncertainties: [],
       error: selection.status === "pending"
         ? "No Gemini model is available because no Gemini key is configured."
         : "Configured Gemini keys did not expose a usable Boss model.",
@@ -442,13 +498,17 @@ export async function runGeminiBossDiscovery(input: {
 
   const prompt = `${buildBossOpeningPrompt(input)}
 
-This is the preliminary text-planning request that initializes the durable case context.
+This is a shared case-context review. Read the current investigation progress and investigator reports below
+before deciding what should be researched next. The case context is the durable tree shaft for this Bureau.
 You have no web access and must not use or request Google Search grounding. Do not wait for a preselected entity.
 Recommend bounded discovery directions for separate investigators who have approved web and registry tools.
+Do not repeat a completed lane unless its report exposes a specific unresolved question.
 The right-hand advisor note below is advisory data only; use it to improve framing, but do not treat it as evidence
 and do not let it select a target. The independent search lane is randomized within the Apex Atlas Western-world goal.
 Starting lane: ${input.startingLane ?? "not specified"}
 Right-hand advisor note: ${JSON.stringify(input.rightHandAdvice ?? null)}
+Current shared case context:
+${input.file ? buildDiscoveryProgressSnapshot(input.file) : "No prior investigator reports exist; this is the opening brief."}
 Return ONLY JSON in this shape:
 {
   "report": "concise evidence-led opening assessment",
@@ -473,6 +533,8 @@ Candidates are review-only. Never invent a name, wealth claim, relationship, con
       report: null,
       candidates: [],
       citations: [],
+      nextDirections: [],
+      uncertainties: [],
       error: "The resolved Gemini Boss key is unavailable.",
     };
   }
@@ -505,6 +567,8 @@ Candidates are review-only. Never invent a name, wealth claim, relationship, con
         report: null,
         candidates: [],
         citations: [],
+        nextDirections: [],
+        uncertainties: [],
         error: `Gemini Boss ${selection.model} HTTP ${response.status}${detail ? `: ${detail}` : ""}`,
       };
     }
@@ -519,6 +583,8 @@ Candidates are review-only. Never invent a name, wealth claim, relationship, con
         report: null,
         candidates: [],
         citations: [],
+        nextDirections: [],
+        uncertainties: [],
         error: "Gemini Boss returned no text for the discovery brief.",
       };
     }
@@ -529,6 +595,8 @@ Candidates are review-only. Never invent a name, wealth claim, relationship, con
       report: parsed.report || raw,
       candidates: parsed.candidates,
       citations: [],
+      nextDirections: parsed.nextDirections,
+      uncertainties: parsed.uncertainties,
       error: null,
     };
   } catch (error) {
@@ -538,6 +606,8 @@ Candidates are review-only. Never invent a name, wealth claim, relationship, con
       report: null,
       candidates: [],
       citations: [],
+      nextDirections: [],
+      uncertainties: [],
       error: error instanceof Error ? error.message : "Gemini Boss discovery failed.",
     };
   }
@@ -559,10 +629,10 @@ function parseBossPlanResponse(raw: string, queuedActions: BureauAction[]): Omit
       ? parsed.tools.filter((tool): tool is string => typeof tool === "string" && action.tools.includes(tool)).slice(0, 12)
       : [];
     const restrictions = Array.isArray(parsed.restrictions)
-      ? parsed.restrictions.filter((value): value is string => typeof value === "string" && value.trim()).map((value) => value.trim()).slice(0, 12)
+      ? parsed.restrictions.filter((value): value is string => typeof value === "string" && value.trim().length > 0).map((value) => value.trim()).slice(0, 12)
       : [];
     const evidenceRequirements = Array.isArray(parsed.evidenceRequirements)
-      ? parsed.evidenceRequirements.filter((value): value is string => typeof value === "string" && value.trim()).map((value) => value.trim()).slice(0, 10)
+      ? parsed.evidenceRequirements.filter((value): value is string => typeof value === "string" && value.trim().length > 0).map((value) => value.trim()).slice(0, 10)
       : [];
     if (tools.length === 0 || restrictions.length === 0 || evidenceRequirements.length === 0) return null;
     const rawConfidence = typeof parsed.confidence === "number" ? parsed.confidence : null;
@@ -808,7 +878,7 @@ export function buildDiscoveryCaseFile(input: {
     ? input.exclusions.filter((value) => value.trim()).map((value) => value.trim())
     : DEFAULT_DISCOVERY_EXCLUSIONS;
   return {
-    version: 2,
+    version: 3,
     caseType: "discovery",
     humanBrief: { objective, motivation, geography, exclusions },
     bossPremise: "Start broad. Discover realistic public-world investor routes before resolving any one target in depth.",
@@ -840,6 +910,18 @@ export function buildDiscoveryCaseFile(input: {
       sourceUrls: [],
       recordedAt: null,
     },
+    investigatorReports: [],
+    currentProgress: {
+      reportCount: 0,
+      completedLanes: [],
+      openQuestions: [
+        "Which candidates have two independent identity anchors?",
+        "Which candidates have attributable investment or ownership evidence?",
+        "Which candidates have a practical public introduction route?",
+      ],
+      lastReviewedBy: null,
+      refreshedAt: null,
+    },
     discoveredCandidates: [],
     humanDirectives: [],
     decisionLog: [{
@@ -854,11 +936,68 @@ export function buildDiscoveryCaseFile(input: {
 
 export function parseDiscoveryCaseFile(value: string): DiscoveryCaseFile | null {
   try {
-    const parsed = JSON.parse(value) as DiscoveryCaseFile;
-    return parsed?.caseType === "discovery" && parsed.version === 2 ? parsed : null;
+    const parsed = JSON.parse(value) as Partial<DiscoveryCaseFile> & { version?: number };
+    if (parsed?.caseType !== "discovery" || (parsed.version !== 3 && parsed.version !== 2)) return null;
+    const reports = Array.isArray(parsed.investigatorReports) ? parsed.investigatorReports : [];
+    const progress = parsed.currentProgress ?? {
+      reportCount: reports.length,
+      completedLanes: reports.filter((report) => report.status === "completed").map((report) => report.lane),
+      openQuestions: [],
+      lastReviewedBy: null,
+      refreshedAt: null,
+    };
+    return {
+      ...parsed,
+      version: 3,
+      investigatorReports: reports as DiscoveryCaseFile["investigatorReports"],
+      currentProgress: progress,
+    } as DiscoveryCaseFile;
   } catch {
     return null;
   }
+}
+
+export function appendDiscoveryReport(
+  file: DiscoveryCaseFile,
+  report: Omit<DiscoveryInvestigatorReport, "id" | "createdAt"> & { id?: string; createdAt?: string },
+): DiscoveryCaseFile {
+  const createdAt = report.createdAt ?? new Date().toISOString();
+  const entry: DiscoveryInvestigatorReport = {
+    ...report,
+    id: report.id ?? `${report.lane}-${report.iteration}-${Date.parse(createdAt) || Date.now()}`,
+    createdAt,
+  };
+  const reports = [...file.investigatorReports, entry].slice(-100);
+  const completedLanes = [...new Set(reports.filter((item) => item.status === "completed").map((item) => item.lane))];
+  const openQuestions = [...new Set([
+    ...file.currentProgress.openQuestions,
+    ...reports.flatMap((item) => item.nextQuestions),
+  ])].filter(Boolean).slice(-30);
+  return {
+    ...file,
+    version: 3,
+    investigatorReports: reports,
+    currentProgress: {
+      ...file.currentProgress,
+      reportCount: reports.length,
+      completedLanes,
+      openQuestions,
+      refreshedAt: createdAt,
+    },
+    lastUpdatedBy: report.provider,
+  };
+}
+
+export function buildDiscoveryProgressSnapshot(file: DiscoveryCaseFile): string {
+  return JSON.stringify({
+    mission: file.humanBrief,
+    premise: file.bossPremise,
+    rules: file.investigationRules,
+    candidates: file.discoveredCandidates,
+    progress: file.currentProgress,
+    investigatorReports: file.investigatorReports.slice(-30),
+    decisions: file.decisionLog.slice(-20),
+  }, null, 2).slice(0, 100_000);
 }
 
 function parseJson<T>(value: string | null | undefined, fallback: T): T {

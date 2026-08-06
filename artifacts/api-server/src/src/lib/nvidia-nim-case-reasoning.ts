@@ -146,6 +146,9 @@ ${JSON.stringify({
   investigationRules: file.investigationRules,
   candidateLanes: file.candidateLanes,
   openingAction: file.initialAction,
+  currentProgress: file.currentProgress,
+  investigatorReports: file.investigatorReports.slice(-30),
+  discoveredCandidates: file.discoveredCandidates,
 }, null, 2)}
 </discovery_case>
 
@@ -218,10 +221,10 @@ export async function runNvidiaNimDiscoveryAdvice(input: {
           { role: "user", content: buildDiscoveryAdvicePrompt(input.file, input.iteration) },
         ],
         temperature: 0.2,
-        max_tokens: 1200,
+        max_tokens: 800,
         stream: false,
       }),
-      signal: AbortSignal.timeout(45_000),
+      signal: AbortSignal.timeout(90_000),
     });
     if (!response.ok) {
       const detail = (await response.text().catch(() => "")).slice(0, 300);

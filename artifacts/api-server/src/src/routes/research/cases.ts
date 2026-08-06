@@ -26,6 +26,8 @@ import {
   applyGeminiBossPlan,
   buildBossOpeningPrompt,
   buildDiscoveryCaseFile,
+  appendDiscoveryReport,
+  buildDiscoveryProgressSnapshot,
   buildInitialCaseFile,
   GEMINI_BOSS_MODEL_PENDING,
   parseDiscoveryCaseFile,
@@ -74,6 +76,38 @@ function serializeBureauCase(
   entity: { name: string; type: string } | null,
 ) {
   return serializeCase(row, entity);
+}
+
+async function persistDiscoveryCheckpoint(
+  caseId: number,
+  iteration: number,
+  file: ReturnType<typeof parseDiscoveryCaseFile> extends infer T ? Exclude<T, null> : never,
+  report: Parameters<typeof appendDiscoveryReport>[1],
+  summary: string,
+) {
+  const updatedFile = appendDiscoveryReport(file, report);
+  await db.update(researchCasesTable).set({
+    caseFile: JSON.stringify(updatedFile),
+    updatedAt: new Date(),
+  }).where(eq(researchCasesTable.id, caseId));
+  await db.insert(researchCaseEventsTable).values({
+    caseId,
+    iteration,
+    actorRole: report.lane === "nvidia-right-hand" ? "right_hand_advisor" : report.lane === "gemini-boss" ? "head_investigator" : "specialist",
+    eventType: "observation",
+    summary,
+    payload: JSON.stringify({
+      provider: report.provider,
+      lane: report.lane,
+      status: report.status,
+      reportId: updatedFile.investigatorReports.at(-1)?.id ?? null,
+      candidateNames: report.candidateNames,
+      sourceUrls: report.sourceUrls,
+      nextQuestions: report.nextQuestions,
+      error: report.error,
+    }),
+  });
+  return updatedFile;
 }
 
 async function findCase(entityId: number) {
@@ -175,6 +209,35 @@ router.get("/research/bureau/cases/:caseId", async (req, res): Promise<void> => 
   res.json(serializeBureauCase(row.case, row.entityName ? { name: row.entityName, type: row.entityType ?? "Unknown" } : null));
 });
 
+router.get("/research/bureau/cases/:caseId/events", async (req, res): Promise<void> => {
+  const caseId = Number(req.params.caseId);
+  const query = ListResearchCaseEventsQueryParams.safeParse(req.query);
+  if (!Number.isInteger(caseId) || caseId <= 0) {
+    res.status(400).json({ error: "Invalid bureau case ID" });
+    return;
+  }
+  if (!query.success) {
+    res.status(400).json({ error: query.error.message });
+    return;
+  }
+  const [current] = await db.select({ id: researchCasesTable.id })
+    .from(researchCasesTable)
+    .where(eq(researchCasesTable.id, caseId))
+    .limit(1);
+  if (!current) {
+    res.status(404).json({ error: "Bureau case not found" });
+    return;
+  }
+  const rows = await db.select().from(researchCaseEventsTable)
+    .where(eq(researchCaseEventsTable.caseId, current.id))
+    .orderBy(desc(researchCaseEventsTable.createdAt))
+    .limit(query.data.limit);
+  res.json(rows.map((row) => ({
+    ...row,
+    createdAt: row.createdAt.toISOString(),
+  })));
+});
+
 /**
  * Run one bounded discovery-first investigation:
  * 1. GLM right-hand advice and Gemini Boss text planning open the case context.
@@ -238,21 +301,52 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
     const now = () => new Date();
     try {
       await appendJobLog(jobId, "Boss opening web request started.");
-       const westernTemplateSets = [1, 2, 3, 4, 5, 6, 7, 10];
-       const discoveryTemplateSet = westernTemplateSets[Math.floor(Math.random() * westernTemplateSets.length)] ?? 1;
-       const [rightHand, mistral] = await Promise.all([
-         runNvidiaNimDiscoveryAdvice({
-           file,
-           iteration: current.iteration + 1,
-         }),
-         runMistralWebSearch({
-           objective: file.humanBrief.objective,
-           motivation: file.humanBrief.motivation,
-           geography: file.humanBrief.geography,
-           exclusions: file.humanBrief.exclusions,
-         }),
-       ]);
-       const boss = await runGeminiBossDiscovery({
+      const westernTemplateSets = [1, 2, 3, 4, 5, 6, 7, 10];
+      const discoveryTemplateSet = westernTemplateSets[Math.floor(Math.random() * westernTemplateSets.length)] ?? 1;
+      let workingFile = file;
+      const openingIteration = current.iteration + 1;
+      const rightHand = await runNvidiaNimDiscoveryAdvice({
+        file: workingFile,
+        iteration: openingIteration,
+      });
+      workingFile = await persistDiscoveryCheckpoint(caseId, openingIteration, workingFile, {
+        lane: "nvidia-right-hand",
+        provider: `NVIDIA NIM ${rightHand.model}`,
+        status: rightHand.status,
+        iteration: openingIteration,
+        summary: rightHand.decision ?? rightHand.error ?? "Right-hand discovery review unavailable.",
+        findings: rightHand.reason ? [rightHand.reason] : [],
+        candidateNames: [],
+        sourceUrls: [],
+        nextQuestions: rightHand.focusLanes,
+        error: rightHand.error,
+      }, `Right-hand discovery review ${rightHand.status}; shared case context checkpointed.`);
+      await appendJobLog(jobId, `GLM right-hand discovery advice ${rightHand.status}; model=${rightHand.model}.`);
+
+      const mistral = await runMistralWebSearch({
+        objective: workingFile.humanBrief.objective,
+        motivation: workingFile.humanBrief.motivation,
+        geography: workingFile.humanBrief.geography,
+        exclusions: workingFile.humanBrief.exclusions,
+        caseContext: buildDiscoveryProgressSnapshot(workingFile),
+        nextDirections: workingFile.currentProgress.openQuestions,
+      });
+      workingFile = await persistDiscoveryCheckpoint(caseId, openingIteration, workingFile, {
+        lane: "mistral-web",
+        provider: `Mistral ${mistral.model}`,
+        status: mistral.status === "completed" ? "completed" : mistral.status,
+        iteration: openingIteration,
+        summary: mistral.report ?? mistral.error ?? "Mistral web-search report unavailable.",
+        findings: mistral.nextDirections,
+        candidateNames: mistral.candidates.map((candidate) => candidate.name),
+        sourceUrls: mistral.citations,
+        nextQuestions: [...mistral.nextDirections, ...mistral.uncertainties],
+        error: mistral.error,
+      }, `Mistral web-search ${mistral.status}; report checkpointed into shared case context.`);
+      await appendJobLog(jobId, `Mistral web-search ${mistral.status}; model=${mistral.model}; citations=${mistral.citations.length}.`);
+
+      const boss = await runGeminiBossDiscovery({
+          file: workingFile,
           objective: file.humanBrief.objective,
           motivation: file.humanBrief.motivation,
           geography: file.humanBrief.geography,
@@ -260,15 +354,23 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
            rightHandAdvice: rightHand,
            startingLane: `Randomized Western-aligned discovery lane ${discoveryTemplateSet}`,
        });
+      workingFile = await persistDiscoveryCheckpoint(caseId, openingIteration, workingFile, {
+        lane: "gemini-boss",
+        provider: `Gemini ${boss.model}`,
+        status: boss.status === "completed" ? "completed" : "unavailable",
+        iteration: openingIteration,
+        summary: boss.report ?? boss.error ?? "Gemini Boss opening unavailable.",
+        findings: boss.nextDirections,
+        candidateNames: boss.candidates.map((candidate) => candidate.name),
+        sourceUrls: boss.citations,
+        nextQuestions: [...boss.nextDirections, ...boss.uncertainties],
+        error: boss.error,
+      }, `Gemini Boss opening ${boss.status}; report checkpointed after reading prior lane reports.`);
       await updateJob(jobId, {
-        progress: 1,
-        message: boss.status === "completed" || mistral.status === "completed"
-          ? `Provider opening complete with ${boss.candidates.length + mistral.candidates.length} review-only candidate(s); mixed discovery starting…`
-          : `Provider opening unavailable; continuing with independent discovery lanes…`,
+        progress: 2,
+        message: `Opening context reviewed; ${workingFile.investigatorReports.length} lane report(s) recorded. Mixed discovery starting…`,
       });
-      await appendJobLog(jobId, `Boss opening ${boss.status}; model=${boss.model}; citations=${boss.citations.length}.`);
-       await appendJobLog(jobId, `GLM right-hand discovery advice ${rightHand.status}; model=${rightHand.model}.`);
-      await appendJobLog(jobId, `Mistral web-search ${mistral.status}; model=${mistral.model}; citations=${mistral.citations.length}.`);
+      await appendJobLog(jobId, `Gemini Boss opening ${boss.status}; model=${boss.model}; reports-read=${workingFile.investigatorReports.length}.`);
 
       const bossUnavailable = boss.status !== "completed" || !boss.report;
       if (bossUnavailable) {
@@ -349,6 +451,133 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
       ].filter((candidate, index, all) =>
         candidate.name && all.findIndex((other) => other.name.toLowerCase() === candidate.name.toLowerCase()) === index
       ).slice(0, 50);
+      workingFile = {
+        ...workingFile,
+        discoveredCandidates: reviewCandidates,
+        initialResearch: {
+          ...workingFile.initialResearch,
+          status: "recorded",
+          recordedAt: now().toISOString(),
+        },
+        lastUpdatedBy: "discovery-lanes",
+      };
+      workingFile = await persistDiscoveryCheckpoint(caseId, openingIteration, workingFile, {
+        lane: "broad-web",
+        provider: "Tavily/DDG + Groq admission gate",
+        status: "completed",
+        iteration: openingIteration,
+        summary: `Broad discovery searched ${broad.queriesFired} queries and reviewed ${broad.resultsScraped} excerpts.`,
+        findings: broad.newEntities.map((candidate) => `${candidate.name}: ${candidate.snippet}`).slice(0, 20),
+        candidateNames: broad.newEntities.map((candidate) => candidate.name),
+        sourceUrls: [],
+        nextQuestions: [
+          "Which broad-web candidates can be tied to an exact legal or professional identity?",
+          "Which broad-web candidates have attributable wealth or investment evidence?",
+        ],
+        error: null,
+      }, `Broad web discovery completed; ${broad.newEntities.length} admission-gated candidate(s) written to the shared case context.`);
+      for (const entry of registryResults) {
+        workingFile = await persistDiscoveryCheckpoint(caseId, openingIteration, workingFile, {
+          lane: "registry",
+          provider: entry.registry,
+          status: entry.error ? "failed" : "completed",
+          iteration: openingIteration,
+          summary: `${entry.registry} returned ${entry.results.length} registry anchor(s).`,
+          findings: entry.results.map((result) => `${result.name} (${result.type})`).slice(0, 20),
+          candidateNames: entry.results.map((result) => result.name),
+          sourceUrls: entry.results.flatMap((result) => {
+            try {
+              const metadata = result.metadata ? JSON.parse(result.metadata) as Record<string, unknown> : {};
+              return typeof metadata.url === "string" ? [metadata.url] : [];
+            } catch {
+              return [];
+            }
+          }),
+          nextQuestions: [
+            `Can ${entry.registry} anchors be linked to a named decision-maker and the mission?`,
+          ],
+          error: entry.error,
+        }, `${entry.registry} registry lane ${entry.error ? "failed" : "completed"}; result written to shared case context.`);
+      }
+      const finalRightHand = await runNvidiaNimDiscoveryAdvice({
+        file: workingFile,
+        iteration: openingIteration + 1,
+      });
+      workingFile = await persistDiscoveryCheckpoint(caseId, openingIteration + 1, workingFile, {
+        lane: "nvidia-right-hand",
+        provider: `NVIDIA NIM ${finalRightHand.model}`,
+        status: finalRightHand.status,
+        iteration: openingIteration + 1,
+        summary: finalRightHand.decision ?? finalRightHand.error ?? "Right-hand post-research review unavailable.",
+        findings: finalRightHand.reason ? [finalRightHand.reason] : [],
+        candidateNames: [],
+        sourceUrls: [],
+        nextQuestions: finalRightHand.focusLanes,
+        error: finalRightHand.error,
+      }, `Right-hand post-research review ${finalRightHand.status}; refreshed shaft read completed.`);
+      const finalBoss = await runGeminiBossDiscovery({
+        file: workingFile,
+        objective: workingFile.humanBrief.objective,
+        motivation: workingFile.humanBrief.motivation,
+        geography: workingFile.humanBrief.geography,
+        exclusions: workingFile.humanBrief.exclusions,
+        rightHandAdvice: finalRightHand,
+        startingLane: `Post-research rabbit-hole review from randomized lane ${discoveryTemplateSet}`,
+      });
+      workingFile = await persistDiscoveryCheckpoint(caseId, openingIteration + 1, workingFile, {
+        lane: "gemini-boss",
+        provider: `Gemini ${finalBoss.model}`,
+        status: finalBoss.status === "completed" ? "completed" : "unavailable",
+        iteration: openingIteration + 1,
+        summary: finalBoss.report ?? finalBoss.error ?? "Gemini post-research review unavailable.",
+        findings: finalBoss.nextDirections,
+        candidateNames: finalBoss.candidates.map((candidate) => candidate.name),
+        sourceUrls: finalBoss.citations,
+        nextQuestions: [...finalBoss.nextDirections, ...finalBoss.uncertainties],
+        error: finalBoss.error,
+      }, `Gemini Boss post-research review ${finalBoss.status}; next rabbit-hole directions recorded.`);
+      workingFile = {
+        ...workingFile,
+        nextInvestigation: {
+          rightHand: {
+            status: finalRightHand.status,
+            decision: finalRightHand.decision,
+            reason: finalRightHand.reason,
+            focusLanes: finalRightHand.focusLanes,
+            confidence: finalRightHand.confidence,
+            error: finalRightHand.error,
+            reviewedAt: now().toISOString(),
+          },
+          boss: {
+            status: finalBoss.status === "completed" ? "completed" : "unavailable",
+            decision: finalBoss.report,
+            candidateNames: finalBoss.candidates.map((candidate) => candidate.name),
+            nextDirections: finalBoss.nextDirections,
+            uncertainties: finalBoss.uncertainties,
+            error: finalBoss.error,
+            reviewedAt: now().toISOString(),
+          },
+        },
+        currentProgress: {
+          ...workingFile.currentProgress,
+          lastReviewedBy: "gemini-boss",
+          refreshedAt: now().toISOString(),
+        },
+        initialResearch: {
+          ...workingFile.initialResearch,
+          status: "reviewed",
+          researchResponse: [
+            finalBoss.report ? `Final Boss review:\n${finalBoss.report}` : `Final Boss gap: ${finalBoss.error ?? finalBoss.status}`,
+            ...workingFile.investigatorReports.slice(-8).map((report) => `\n[${report.lane}] ${report.summary}`),
+          ].join("\n"),
+          bossCommentary: finalBoss.nextDirections.length
+            ? `Next rabbit-hole directions: ${finalBoss.nextDirections.join("; ")}`
+            : "No verified next direction was returned; human review remains required.",
+          sourceUrls: [...new Set(workingFile.investigatorReports.flatMap((report) => report.sourceUrls))].slice(0, 80),
+          recordedAt: now().toISOString(),
+        },
+        lastUpdatedBy: "gemini-boss-post-research-review",
+      };
       const mixedReport = [
         bossUnavailable
           ? `Boss opening provider gap:\n${boss.error ?? `Gemini Boss returned ${boss.status}.`}`
@@ -369,12 +598,22 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
         "Next decision: review identity, mission relevance, provenance, and realistic reachability before promoting any candidate into target-scoped research.",
       ].join(" ");
       const updatedFile = {
-        ...file,
+        ...workingFile,
         initialResearch: {
-          status: "recorded" as const,
-          researchResponse: mixedReport,
-          bossCommentary: commentary,
-          sourceUrls: [...new Set([...boss.citations, ...registryResults.flatMap((entry) => entry.results.flatMap((result) => {
+          ...workingFile.initialResearch,
+          status: "reviewed" as const,
+          researchResponse: [
+            workingFile.initialResearch.researchResponse ?? "",
+            mixedReport,
+          ].filter(Boolean).join("\n\n").slice(-40_000),
+          bossCommentary: [
+            workingFile.initialResearch.bossCommentary ?? "",
+            commentary,
+            finalBoss.nextDirections.length
+              ? `Next rabbit-hole directions: ${finalBoss.nextDirections.join("; ")}`
+              : "",
+          ].filter(Boolean).join(" ").slice(-8_000),
+          sourceUrls: [...new Set([...workingFile.initialResearch.sourceUrls, ...boss.citations, ...mistral.citations, ...registryResults.flatMap((entry) => entry.results.flatMap((result) => {
             try {
               const metadata = result.metadata ? JSON.parse(result.metadata) as Record<string, unknown> : {};
               return typeof metadata.url === "string" ? [metadata.url] : [];
@@ -384,30 +623,32 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
           }))])].slice(0, 80),
           recordedAt: now().toISOString(),
         },
-         rightHandAdvice: {
+        rightHandAdvice: {
            provider: "nvidia-nim" as const,
-           model: rightHand.model,
-           status: rightHand.status,
-           decision: rightHand.decision,
-           reason: rightHand.reason,
-           focusLanes: rightHand.focusLanes,
-           confidence: rightHand.confidence,
-           error: rightHand.error,
+           model: finalRightHand.model,
+           status: finalRightHand.status,
+           decision: finalRightHand.decision,
+           reason: finalRightHand.reason,
+           focusLanes: finalRightHand.focusLanes,
+           confidence: finalRightHand.confidence,
+           error: finalRightHand.error,
            createdAt: now().toISOString(),
          },
         discoveredCandidates: reviewCandidates,
         decisionLog: [
-          ...file.decisionLog,
+          ...workingFile.decisionLog,
           {
-            iteration: current.iteration + 1,
-            decision: "Run one bounded mixed-source discovery pass and hold all candidates for human review.",
-            reason: bossUnavailable && mistral.status !== "completed"
-              ? "The Gemini and Mistral opening providers were unavailable; continue with independent discovery lanes while preserving both gaps. Promotion still requires exact identity, attribution, provenance, and reachability review."
-              : "The opening provider lanes supplied preliminary web context; promotion requires exact identity, attribution, provenance, and reachability review.",
+            iteration: openingIteration + 1,
+            decision: finalBoss.nextDirections.length
+              ? `Boss reviewed the refreshed case shaft and queued the next rabbit-hole directions: ${finalBoss.nextDirections.join("; ")}`
+              : "Boss reviewed the refreshed case shaft and left all candidates in human review.",
+            reason: finalBoss.uncertainties.length
+              ? `Open uncertainties: ${finalBoss.uncertainties.join("; ")}`
+              : "Identity, attribution, provenance, wealth, and practical reachability still require human review.",
             createdAt: now().toISOString(),
           },
         ].slice(-50),
-        lastUpdatedBy: bossUnavailable ? "mixed-source-discovery-gemini-gap" : "gemini-boss-mixed-source-discovery",
+        lastUpdatedBy: "gemini-boss-post-research-review",
       };
       const [updated] = await db.update(researchCasesTable).set({
         caseFile: JSON.stringify(updatedFile),

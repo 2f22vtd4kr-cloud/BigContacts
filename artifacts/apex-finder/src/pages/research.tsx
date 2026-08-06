@@ -239,6 +239,47 @@ type DiscoveryCaseFile = {
     sourceUrls: string[];
     recordedAt: string | null;
   };
+  investigatorReports?: Array<{
+    id: string;
+    lane: string;
+    provider: string;
+    status: string;
+    iteration: number;
+    summary: string;
+    findings: string[];
+    candidateNames: string[];
+    sourceUrls: string[];
+    nextQuestions: string[];
+    error: string | null;
+    createdAt: string;
+  }>;
+  currentProgress?: {
+    reportCount: number;
+    completedLanes: string[];
+    openQuestions: string[];
+    lastReviewedBy: string | null;
+    refreshedAt: string | null;
+  };
+  nextInvestigation?: {
+    rightHand: {
+      status: string;
+      decision: string | null;
+      reason: string | null;
+      focusLanes: string[];
+      confidence: number | null;
+      error: string | null;
+      reviewedAt: string;
+    } | null;
+    boss: {
+      status: string;
+      decision: string | null;
+      candidateNames: string[];
+      nextDirections: string[];
+      uncertainties: string[];
+      error: string | null;
+      reviewedAt: string;
+    } | null;
+  };
 };
 
 const HYBRID_PIPELINE = "L1: BM25+Semantic+Graph · L2: Planner→Retriever→Analyst→Critic · L3: QueryExpansion · L4: UCT(120 rollouts) · L5: Bayesian-UCB";
@@ -577,6 +618,7 @@ function DiscoveryBureauPanel({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const file = parseDiscoveryCaseFile(discoveryCase?.caseFile);
+  const investigatorReports = file?.investigatorReports ?? [];
 
   const request = async (url: string, body: unknown) => {
     setBusy(true);
@@ -717,6 +759,85 @@ function DiscoveryBureauPanel({
           <CheckCircle2 className="w-3 h-3" /> {busy ? "Recording…" : "Write into case context"}
         </button>
       </div>
+      {file && investigatorReports.length > 0 && (
+        <div className="mt-3 rounded border border-cyan-400/20 bg-cyan-400/5 p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <div className="text-[10px] uppercase tracking-wider font-mono text-cyan-300">Shared case-context shaft</div>
+              <div className="text-[10px] text-muted-foreground mt-1">
+                Each lane reads the latest snapshot, writes a report, and hands the refreshed context to the next reviewer.
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-1.5 text-[9px] font-mono">
+              <span className="rounded border border-cyan-400/25 px-1.5 py-0.5 text-cyan-300">{file.currentProgress?.reportCount ?? investigatorReports.length} reports</span>
+              <span className="rounded border border-border/60 px-1.5 py-0.5 text-muted-foreground">{file.currentProgress?.completedLanes?.length ?? 0} lanes complete</span>
+              <span className="rounded border border-border/60 px-1.5 py-0.5 text-muted-foreground">reviewed by {file.currentProgress?.lastReviewedBy ?? "pending"}</span>
+            </div>
+          </div>
+          <div className="mt-3 space-y-1.5 max-h-64 overflow-y-auto pr-1">
+            {investigatorReports.slice().reverse().map((report) => (
+              <details key={report.id} className="rounded border border-border/50 bg-background/40 px-2.5 py-2">
+                <summary className="cursor-pointer list-none">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={cn(
+                      "h-1.5 w-1.5 rounded-full",
+                      report.status === "completed" ? "bg-emerald-400" : report.status === "failed" ? "bg-rose-400" : "bg-amber-400",
+                    )} />
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-cyan-200">{report.lane}</span>
+                    <span className="text-[9px] text-muted-foreground">{report.provider}</span>
+                    <span className="ml-auto text-[9px] font-mono text-muted-foreground">iteration {report.iteration}</span>
+                  </div>
+                  <div className="mt-1 text-[10px] leading-relaxed text-foreground/85">{report.summary}</div>
+                </summary>
+                <div className="mt-2 border-t border-border/40 pt-2 space-y-2">
+                  {report.findings.length > 0 && (
+                    <div>
+                      <div className="text-[9px] uppercase tracking-wider font-mono text-muted-foreground">Findings</div>
+                      <ul className="mt-1 space-y-1 text-[10px] text-muted-foreground">
+                        {report.findings.slice(0, 8).map((finding, index) => <li key={`${report.id}-finding-${index}`}>• {finding}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                  {report.candidateNames.length > 0 && <div className="text-[10px] text-amber-200">Candidates: {report.candidateNames.join(" · ")}</div>}
+                  {report.nextQuestions.length > 0 && <div className="text-[10px] text-cyan-200/80">Next questions: {report.nextQuestions.join(" · ")}</div>}
+                  {report.sourceUrls.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {report.sourceUrls.slice(0, 6).map((url) => <a key={url} href={url} target="_blank" rel="noreferrer" className="text-[9px] text-primary hover:underline">{sourceDomain(url)}</a>)}
+                    </div>
+                  )}
+                  {report.error && <div className="text-[10px] text-rose-300">Provider gap: {report.error}</div>}
+                </div>
+              </details>
+            ))}
+          </div>
+          {file.currentProgress?.openQuestions && file.currentProgress.openQuestions.length > 0 && (
+            <div className="mt-3 border-t border-border/40 pt-2">
+              <div className="text-[9px] uppercase tracking-wider font-mono text-muted-foreground">Open questions carried forward</div>
+              <div className="mt-1 flex flex-wrap gap-1.5">
+                {file.currentProgress.openQuestions.slice(-8).map((question) => (
+                  <span key={question} className="rounded border border-cyan-400/20 px-1.5 py-1 text-[9px] text-cyan-200/80">{question}</span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      {file?.nextInvestigation && (
+        <div className="mt-3 grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <div className="rounded border border-amber-400/20 bg-amber-400/5 p-3">
+            <div className="text-[10px] uppercase tracking-wider font-mono text-amber-300">Right-hand review</div>
+            <div className="text-[10px] text-foreground mt-2">{file.nextInvestigation.rightHand?.decision ?? "No advisory decision returned."}</div>
+            {file.nextInvestigation.rightHand?.focusLanes?.length ? <div className="text-[9px] text-muted-foreground mt-1">Focus: {file.nextInvestigation.rightHand.focusLanes.join(" · ")}</div> : null}
+            {file.nextInvestigation.rightHand?.reason && <div className="text-[9px] text-muted-foreground mt-1">{file.nextInvestigation.rightHand.reason}</div>}
+          </div>
+          <div className="rounded border border-primary/20 bg-primary/5 p-3">
+            <div className="text-[10px] uppercase tracking-wider font-mono text-primary">Boss next rabbit hole</div>
+            <div className="text-[10px] text-foreground mt-2">{file.nextInvestigation.boss?.decision ?? "No final Boss review returned."}</div>
+            {file.nextInvestigation.boss?.nextDirections?.length ? <div className="text-[9px] text-primary/80 mt-1">Next: {file.nextInvestigation.boss.nextDirections.join(" · ")}</div> : null}
+            {file.nextInvestigation.boss?.uncertainties?.length ? <div className="text-[9px] text-muted-foreground mt-1">Uncertainties: {file.nextInvestigation.boss.uncertainties.join(" · ")}</div> : null}
+          </div>
+        </div>
+      )}
       <div className="mt-3 rounded border border-emerald-400/20 bg-emerald-400/5 p-3">
         <div className="flex flex-col lg:flex-row lg:items-center gap-2">
           <div className="flex-1">

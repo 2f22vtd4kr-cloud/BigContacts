@@ -3,3 +3,4 @@
 - [NVIDIA NIM Bureau reasoning](nvidia-nim-bureau-reasoning.md) — GLM-5.2 reasons over the case file only; invalid or unavailable recommendations use the local planner.
 - [Gemini Boss orchestration](gemini-boss-orchestration.md) — Gemini is the authoritative text-only Head Investigator; search-capable lanes gather evidence separately.
 - [TypeScript project-reference outputs](typescript-project-reference-outputs.md) — consuming artifacts must rebuild ignored library declarations before typechecking.
+- [Discovery case-context shaft](discovery-case-context-shaft.md) — discovery lanes append ordered reports to one durable context before Boss/right-hand review.
