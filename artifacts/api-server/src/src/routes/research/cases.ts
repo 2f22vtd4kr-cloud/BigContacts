@@ -26,6 +26,7 @@ import {
   buildBossOpeningPrompt,
   buildDiscoveryCaseFile,
   buildInitialCaseFile,
+  GEMINI_BOSS_MODEL,
   parseDiscoveryCaseFile,
   parseCaseFile,
   DEFAULT_DISCOVERY_MOTIVATION,
@@ -86,7 +87,7 @@ router.post("/research/bureau/cases", async (req, res): Promise<void> => {
     status: "ready",
     directorMode: "gemini_boss_pending",
     directorProvider: "gemini",
-    directorModel: "gemini-3.1-pro-preview",
+    directorModel: GEMINI_BOSS_MODEL,
     objective,
     motivation,
     openingPrompt,
@@ -106,7 +107,7 @@ router.post("/research/bureau/cases", async (req, res): Promise<void> => {
     payload: JSON.stringify({
       caseType: "discovery",
       directorProvider: "gemini",
-      directorModel: "gemini-3.1-pro-preview",
+      directorModel: GEMINI_BOSS_MODEL,
       openingPromptReady: true,
     }),
   });
@@ -291,7 +292,10 @@ router.post("/research/cases", async (req, res): Promise<void> => {
     directorProvider: "gemini",
     objective: objective?.trim() || "Find the strongest practical public route to the target and map the surrounding ownership and relationship context.",
     motivation: motivation?.trim() || "Search broadly across public life, organizations, people, venues, digital traces, and relationship paths; return an organized case for human judgment.",
-    directorModel: directorModel?.trim() || "gemini-3.1-pro-preview",
+    // Keep legacy target-case creation on the same cost-safe Boss policy.
+    // The old request field remains accepted for client compatibility but no
+    // longer permits an expensive model to become the default silently.
+    directorModel: GEMINI_BOSS_MODEL,
     caseFile: JSON.stringify(caseFile),
     currentAction: caseFile.nextBestAction?.id ?? null,
     iteration: 0,

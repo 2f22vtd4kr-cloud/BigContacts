@@ -17,7 +17,7 @@ export const researchCasesTable = pgTable("research_cases", {
   status: text("status").notNull().default("ready"), // ready | active | paused | complete | review
   directorMode: text("director_mode").notNull().default("gemini_boss_pending"), // gemini_boss_pending | gemini_boss | local_planner
   directorProvider: text("director_provider").notNull().default("gemini"),
-  directorModel: text("director_model").notNull().default("gemini-3.1-pro-preview"),
+  directorModel: text("director_model").notNull().default("gemini-3.1-flash-lite"),
   objective: text("objective").notNull(),
   motivation: text("motivation").notNull(),
   openingPrompt: text("opening_prompt").notNull().default(""),

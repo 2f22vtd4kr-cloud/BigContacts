@@ -117,6 +117,16 @@ export type DiscoveryCaseFile = {
   lastUpdatedBy: string;
 };
 
+/**
+ * Cost policy for the future Gemini Boss adapter.
+ *
+ * Flash-Lite supports the Boss contract's text, search-grounding, structured
+ * output, and function-calling needs without putting Pro Preview on the
+ * default path. Keep this centralized so case creation and later execution
+ * cannot drift to different models.
+ */
+export const GEMINI_BOSS_MODEL = "gemini-3.1-flash-lite";
+
 const SPECIALISTS: BureauSpecialist[] = [
   {
     id: "identity",

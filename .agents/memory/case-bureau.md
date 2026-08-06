@@ -7,4 +7,4 @@ The Case Bureau is the durable coordination layer above the adaptive research di
 
 **Why:** The investigation should adapt from evidence gaps without creating a parallel pipeline, while the human remains the final decision-maker for contact routes and prior evidence cannot be silently rewritten.
 
-**How to apply:** Keep the initial local director provider-key independent and mark Gemini Boss mode pending until configured; connect future LLM directing to the same case/action/event contract. Preserve broad direct-to-organization route summaries as review-only evidence, and never let the bureau promote contacts, infer identity, or generate outreach.
+**How to apply:** Keep the initial local director provider-key independent and mark Gemini Boss mode pending until configured; when keys are added, use the centralized cost-safe `gemini-3.1-flash-lite` Boss model rather than Pro Preview. Connect future LLM directing to the same case/action/event contract. Preserve broad direct-to-organization route summaries as review-only evidence, and never let the bureau promote contacts, infer identity, or generate outreach.

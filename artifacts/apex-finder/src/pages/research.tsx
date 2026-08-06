@@ -537,7 +537,7 @@ function DiscoveryBureauPanel({
             <div className="text-[10px] font-mono text-primary uppercase tracking-[0.18em]">Discovery-first Investigation Bureau</div>
             <h2 className="text-base md:text-lg font-semibold text-foreground mt-1">Start with the mission, not a preselected target</h2>
             <p className="text-[11px] text-muted-foreground mt-1 max-w-3xl leading-relaxed">
-              The Boss will turn your broad objective into the opening public-web research brief. Gemini is reserved as the future Boss model; no provider key is called from this screen yet.
+              The Boss will turn your broad objective into the opening public-web research brief. Gemini is reserved as the future Boss model and will use the cost-safe Flash-Lite lane; no provider key is called from this screen yet.
             </p>
           </div>
         </div>
