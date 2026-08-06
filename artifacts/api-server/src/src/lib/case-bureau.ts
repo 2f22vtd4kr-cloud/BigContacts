@@ -336,9 +336,7 @@ export async function runGeminiBossDiscovery(input: {
   geography?: string;
   exclusions?: string[];
 }): Promise<GeminiBossDiscoveryResult> {
-  // This bounded verification run intentionally uses the second configured
-  // Google account, not the first key slot used by earlier Bureau attempts.
-  const selection = await resolveGeminiBossModel("GEMINI_API_KEY_2");
+  const selection = await resolveGeminiBossModel();
   if (selection.status !== "resolved") {
     return {
       status: selection.status,
