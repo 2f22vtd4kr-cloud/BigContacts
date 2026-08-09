@@ -4,13 +4,6 @@
 #
 # Runs automatically after every GitHub import merge.
 # Safe to run repeatedly (idempotent).
-#
-# What this does:
-#   1. Installs all pnpm workspace dependencies
-#   2. Applies any new DB schema columns/tables (additive only)
-#   3. Verifies no synthetic data crept in
-#   4. Installs Python OSINT tools
-#   5. Applies Bureau investigation-progress + research-depth wire-up
 # ============================================================
 
 set -e
@@ -27,7 +20,7 @@ bash scripts/check-no-synthetic-data.sh
 echo "=== [4/5] Installing Python OSINT tools (Holehe · Maigret) ==="
 bash scripts/install-python-tools.sh
 
-echo "=== [5/5] Applying Bureau progress + research-depth wire-up ==="
+echo "=== [5/5] Applying Bureau progress + research-depth + discovery mixer ==="
 if [ -f scripts/apply-bureau-progress.mjs ]; then
   node scripts/apply-bureau-progress.mjs
 else
@@ -38,10 +31,16 @@ if [ -f scripts/apply-research-depth.mjs ]; then
 else
   echo "WARN: scripts/apply-research-depth.mjs missing — skip"
 fi
+if [ -f scripts/apply-discovery-mixer.mjs ]; then
+  node scripts/apply-discovery-mixer.mjs
+else
+  echo "WARN: scripts/apply-discovery-mixer.mjs missing — skip"
+fi
 
 echo ""
 echo "✅ Post-merge setup complete."
 echo "   Start workflows: Redis → API Server → apex-finder web"
 echo "   RESEARCH_DEPTH=fast|standard|deep (default fast — Replit cost-safe)"
+echo "   Discovery: randomized mix of Western registries + FAA + web recipes"
 echo "   All Python OSINT tools (Holehe, Maigret) verified above."
 echo "   API server will auto-start ingestion if DB is empty."
