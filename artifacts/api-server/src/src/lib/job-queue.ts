@@ -12,12 +12,6 @@ import { randomUUID } from "crypto";
 import { withPermanentClient, permSadd, permSismember, permScard } from "./redis";
 import { logger } from "./logger";
 
-/**
- * Execute a Redis command with automatic quota-exhaustion retry.
- * If the first client throws "max requests limit exceeded", marks it exhausted
- * immediately (before the ioredis error event fires) and retries with the next
- * healthy slot.  Falls back to `fallback` if all slots are exhausted.
- */
 async function safeRedis<T>(fn: (rc: import("ioredis").Redis) => Promise<T>, fallback: T): Promise<T> {
   return withPermanentClient(fn, fallback);
 }
@@ -28,25 +22,21 @@ export interface JobState {
   jobId: string;
   type: string;
   status: JobStatus;
-  progress: number;   // 0–100
+  progress: number;
   inserted: number;
-  skipped: number;    // deduped
+  skipped: number;
   errors: number;
   total: number;
   startedAt: string;
   finishedAt?: string;
   message: string;
-  /** Optional structured progress for the Atlas reactor. */
   atlasPhase?: number;
   atlasPhaseTotal?: number;
   entityProgress?: number;
   entityTotal?: number;
   entityNames?: string;
-  /** Structured, target-scoped telemetry for the Intelligence Reactor inspector. */
   atlasTelemetry?: string;
-  /** Process may finish while the research outcome remains incomplete. */
   outcome?: "complete" | "incomplete";
-  /** Durable resumable contact-research coordinator state. */
   resumable?: string;
   targetIds?: string;
   targetIndex?: number;
@@ -56,7 +46,6 @@ export interface JobState {
   completedTargetIds?: string;
   failedTargetIds?: string;
   retryCounts?: string;
-  /** JSON-encoded result for bounded provider jobs such as Deep Research. */
   result?: string;
 }
 
@@ -75,7 +64,7 @@ export type AutoPipelineSchedulerStatus = {
   providerNoTarget: number;
 };
 
-const JOB_TTL = 60 * 60 * 24 * 7; // 7 days on Upstash
+const JOB_TTL = 60 * 60 * 24 * 7;
 const LOG_CAP = 200;
 const AUTO_PIPELINE_SCHEDULER_KEY = "apex:autopipeline:scheduler";
 
@@ -107,7 +96,6 @@ export async function updateJob(jobId: string, patch: Partial<JobState>): Promis
   }, undefined);
 }
 
-/** Remove optional structured fields when a job moves to a new phase. */
 export async function clearJobFields(jobId: string, fields: string[]): Promise<void> {
   if (fields.length === 0) return;
   await safeRedis(async rc => {
@@ -123,6 +111,10 @@ export async function appendJobLog(jobId: string, line: string): Promise<void> {
     await rc.ltrim(lk(jobId), 0, LOG_CAP - 1);
     await rc.expire(lk(jobId), JOB_TTL);
   }, undefined);
+  // Non-blocking mirror into Bureau Live (noise-gated + rate-limited)
+  void import("./bureau-live-log")
+    .then(m => m.mirrorJobLogLine(jobId, line))
+    .catch(() => undefined);
 }
 
 export async function getJob(jobId: string): Promise<JobState | null> {
@@ -166,29 +158,21 @@ export async function getJobLog(jobId: string): Promise<string[]> {
   return safeRedis(rc => rc.lrange(lk(jobId), 0, LOG_CAP - 1), []);
 }
 
-// ── Deduplication (Upstash SET — permanent across restarts) ──────────────────
-
 const DEDUP_KEY = "apex:dedup:hnwi";
 
-/** Returns true if this key has already been ingested */
 export async function isDuplicate(key: string): Promise<boolean> {
   return permSismember(DEDUP_KEY, key);
 }
 
-/** Mark a key as ingested */
 export async function markSeen(key: string): Promise<void> {
   await permSadd(DEDUP_KEY, key);
 }
 
-/** How many unique records have been seen */
 export async function getDedupCount(): Promise<number> {
   return permScard(DEDUP_KEY);
 }
 
-/** Clear dedup set — use before a full re-ingest */
 export async function clearDedup(): Promise<void> {
-  // batchMarkSeen and preloadDedupPrefix both use `apex:${DEDUP_KEY}` as the raw key
-  // (because permSadd applies PERM_PREFIX "apex:" → actual Upstash key = "apex:apex:dedup:hnwi").
   const FULL_KEY = `apex:${DEDUP_KEY}`;
   await withPermanentClient(async rc => {
     await rc.del(FULL_KEY);
@@ -196,16 +180,9 @@ export async function clearDedup(): Promise<void> {
   }, undefined);
 }
 
-/**
- * Pre-load dedup set members matching a prefix into a local in-memory Set.
- * Use this at the start of an ingestor to avoid per-record Upstash round-trips.
- * The caller can then check/update the returned Set locally and call batchMarkSeen()
- * after each batch flush.
- */
 export async function preloadDedupPrefix(prefix: string): Promise<Set<string>> {
   const seen = new Set<string>();
   await withPermanentClient(async rc => {
-    // The actual Redis key has the PERM_PREFIX applied by permSadd/permSismember
     const fullKey = `apex:${DEDUP_KEY}`;
     let cursor = "0";
     do {
@@ -218,10 +195,6 @@ export async function preloadDedupPrefix(prefix: string): Promise<Set<string>> {
   return seen;
 }
 
-/**
- * Batch-write multiple keys into the permanent dedup set in one round-trip.
- * Use after each successful batch flush.
- */
 export async function batchMarkSeen(keys: string[]): Promise<void> {
   if (keys.length === 0) return;
   const fullKey = `apex:${DEDUP_KEY}`;
@@ -229,8 +202,6 @@ export async function batchMarkSeen(keys: string[]): Promise<void> {
     await rc.sadd(fullKey, ...keys);
   }, undefined);
 }
-
-// ── Active job tracking ───────────────────────────────────────────────────────
 
 export async function setActiveJob(type: string, jobId: string): Promise<void> {
   await safeRedis(rc => rc.set(`apex:activejob:${type}`, jobId, "EX", JOB_TTL), null);
@@ -246,7 +217,6 @@ export async function getLatestJob(type: string): Promise<JobState | null> {
     const jobId = await rc.get(pointerKey);
     if (jobId) return getJob(jobId);
 
-    // One-time migration for jobs created before the latest-job pointer existed.
     let cursor = "0";
     let latestId = "";
     let latestStarted = "";
@@ -273,7 +243,6 @@ export async function getLatestJob(type: string): Promise<JobState | null> {
   }, null);
 }
 
-/** Durable scheduler telemetry used by the Reactor and startup recovery. */
 export async function updateAutoPipelineScheduler(
   patch: Partial<AutoPipelineSchedulerStatus>,
 ): Promise<void> {
@@ -312,15 +281,10 @@ export async function clearActiveJob(type: string): Promise<void> {
   await safeRedis(rc => rc.del(`apex:activejob:${type}`), null);
 }
 
-/** True only while this worker still owns the active job slot for its type. */
 export async function ownsActiveJob(type: string, jobId: string): Promise<boolean> {
   return (await getActiveJob(type)) === jobId;
 }
 
-/**
- * Clear an active slot only if it still points at this worker's job.
- * A stale worker must never clear a newer replacement job's lock.
- */
 export async function clearActiveJobIfOwned(type: string, jobId: string): Promise<boolean> {
   if (!(await ownsActiveJob(type, jobId))) return false;
   await clearActiveJob(type);
