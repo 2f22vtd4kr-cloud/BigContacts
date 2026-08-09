@@ -1,11 +1,12 @@
 /**
  * Shared creative OSINT guidance injected into Boss → investigator prompts.
  * Real public data only. No synthetic contacts.
+ * Depth fallback matches Replit default (fast) — bulk cost-safe.
  */
 
 import type { InvestigationProgress } from "./investigation-progress";
 import { formatProgressForPrompt } from "./investigation-progress";
-import type { ResearchDepth } from "./research-depth";
+import { DEFAULT_RESEARCH_DEPTH, type ResearchDepth } from "./research-depth";
 
 export function buildCreativeInvestigatorAngles(input: {
   targetName: string;
@@ -22,7 +23,7 @@ export function buildCreativeInvestigatorAngles(input: {
   const domains = (input.candidateDomains ?? []).slice(0, 6).join("; ") || "none yet";
   const orgs = (input.relatedOrganizations ?? []).slice(0, 6).join("; ") || "none yet";
   const country = input.country?.trim() || "unknown jurisdiction";
-  const depth = input.depth ?? "standard";
+  const depth = input.depth ?? DEFAULT_RESEARCH_DEPTH;
 
   return `CREATIVE PUBLIC-OSINT ANGLES (use only real public sources; never invent contacts):
 1. Official team / about / leadership / contact pages on candidate domains: ${domains}
