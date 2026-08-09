@@ -36,6 +36,11 @@ const GLOBAL_KEY = "apex:bureau:live:events";
 const CAP = 300;
 const TTL_SEC = 60 * 60 * 24 * 3;
 
+let mirrorWindowStart = 0;
+let mirrorWindowCount = 0;
+const MIRROR_WINDOW_MS = 10_000;
+const MIRROR_MAX_PER_WINDOW = 40;
+
 function caseKey(caseId: string) {
   return `apex:bureau:live:case:${caseId}`;
 }
@@ -69,7 +74,6 @@ export function createBureauEvent(
   };
 }
 
-/** Persist event (global + optional per-case). Newest first. */
 export async function publishBureauEvent(
   input: Omit<BureauLiveEvent, "id" | "timestamp" | "tsMs"> & {
     id?: string;
@@ -115,7 +119,6 @@ export async function listBureauEvents(options?: {
   return out;
 }
 
-/** Parse structured job-log lines emitted as BUREAU|{json} */
 export function tryParseBureauLogLine(line: string): BureauLiveEvent | null {
   const idx = line.indexOf("BUREAU|");
   if (idx < 0) return null;
@@ -129,7 +132,6 @@ export function tryParseBureauLogLine(line: string): BureauLiveEvent | null {
   }
 }
 
-/** Human one-liner for reactor / SSE fallback text */
 export function formatBureauEventLine(event: BureauLiveEvent): string {
   const bits = [
     event.timestamp,
@@ -143,6 +145,61 @@ export function formatBureauEventLine(event: BureauLiveEvent): string {
   return bits.join(" · ");
 }
 
+export function classifyJobLogLine(line: string): {
+  publish: boolean;
+  actor: BureauActor;
+  title: string;
+} {
+  const trimmed = (line || "").trim();
+  if (trimmed.length < 8) return { publish: false, actor: "system", title: trimmed };
+
+  const lower = trimmed.toLowerCase();
+  if (/^\d+%/.test(trimmed)) return { publish: false, actor: "system", title: trimmed };
+  if (/\b(heartbeat|ping|noop)\b/.test(lower) && trimmed.length < 40) {
+    return { publish: false, actor: "system", title: trimmed };
+  }
+
+  let actor: BureauActor = "system";
+  if (/\b(gemini|boss|case bureau decision|decision:)\b/.test(lower)) actor = "boss";
+  else if (/\b(nvidia|right[- ]hand|advisor)\b/.test(lower)) actor = "right_hand";
+  else if (/\b(tavily|perplexity|exa|web search|open-web|serper)\b/.test(lower)) actor = "web";
+  else if (/\b(maigret|holehe|sherlock|python-tool|footprint)\b/.test(lower)) actor = "tool";
+  else if (/\b(registry|edgar|companies house|brreg|bodacc|gleif)\b/.test(lower)) actor = "registry";
+  else if (/\b(discovery|broad categor|intake)\b/.test(lower)) actor = "discovery";
+
+  const interesting =
+    actor !== "system" ||
+    /\b(phase|started|failed|error|complete|admitted|target|contact|email|phone|telegram|instagram)\b/.test(lower);
+
+  return { publish: interesting, actor, title: trimmed.slice(0, 240) };
+}
+
+/** Rate-limited mirror used by job-queue.appendJobLog */
+export async function mirrorJobLogLine(jobId: string, line: string): Promise<void> {
+  const structured = tryParseBureauLogLine(line);
+  if (structured) {
+    await publishBureauEvent({ ...structured, jobId: structured.jobId ?? jobId });
+    return;
+  }
+  const { publish, actor, title } = classifyJobLogLine(line);
+  if (!publish) return;
+
+  const now = Date.now();
+  if (now - mirrorWindowStart > MIRROR_WINDOW_MS) {
+    mirrorWindowStart = now;
+    mirrorWindowCount = 0;
+  }
+  if (mirrorWindowCount >= MIRROR_MAX_PER_WINDOW) return;
+  mirrorWindowCount += 1;
+
+  await publishBureauEvent({
+    actor,
+    title,
+    jobId,
+    detail: line.length > 240 ? line.slice(0, 500) : undefined,
+  });
+}
+
 export function writeSseHeaders(res: {
   setHeader: (k: string, v: string) => void;
   write: (chunk: string) => unknown;
@@ -152,6 +209,7 @@ export function writeSseHeaders(res: {
   res.setHeader("Cache-Control", "no-cache, no-transform");
   res.setHeader("Connection", "keep-alive");
   res.setHeader("X-Accel-Buffering", "no");
+  res.setHeader("Access-Control-Allow-Origin", "*");
   res.flushHeaders?.();
 }
 
