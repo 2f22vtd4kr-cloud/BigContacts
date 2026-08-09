@@ -15,6 +15,7 @@ import phaseJRouter from "./phase-j";
 import contactResearchRouter from "./contact-research";
 import extendedOsintRouter from "./extended-osint";
 import atlasRouter from "./atlas";
+import bureauStreamRouter from "./bureau-stream";
 import systemStatusRouter from "./system-status";
 
 const router: IRouter = Router();
@@ -35,6 +36,7 @@ router.use(phaseJRouter);
 router.use(contactResearchRouter);
 router.use(extendedOsintRouter);
 router.use(atlasRouter);
+router.use(bureauStreamRouter);
 router.use(systemStatusRouter);
 
 export default router;
