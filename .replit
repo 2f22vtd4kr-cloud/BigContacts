@@ -11,6 +11,7 @@ env = { "CI" = "true" }
 [workflows]
 runButton = "Project"
 
+# Fan-out: Redis + API + web together (Redis is long-running; do not sequential-wait on it)
 [[workflows.workflow]]
 name = "Project"
 mode = "parallel"
@@ -20,6 +21,14 @@ author = "agent"
 task = "workflow.run"
 args = "Redis"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "API Server"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "web"
+
 [[workflows.workflow]]
 name = "Redis"
 author = "agent"
@@ -28,13 +37,27 @@ author = "agent"
 task = "shell.exec"
 args = "redis-server --port 6379 --save '' --appendonly no"
 
+# Optional: app stack when Redis is already running
+[[workflows.workflow]]
+name = "App"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "API Server"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "web"
+
 [agent]
 stack = "PNPM_WORKSPACE"
 expertMode = true
 
 [postMerge]
 path = "scripts/post-merge.sh"
-timeoutMs = 20000
+timeoutMs = 300000
 
 [nix]
 channel = "stable-25_05"
@@ -44,3 +67,4 @@ channel = "stable-25_05"
 [userenv.shared]
 ENABLE_AUTO_PIPELINE = "false"
 REDIS_URL = "redis://localhost:6379"
+RESEARCH_DEPTH = "fast"
