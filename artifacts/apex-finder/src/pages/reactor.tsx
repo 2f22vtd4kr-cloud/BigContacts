@@ -362,6 +362,50 @@ const ATLAS_PHASE_NODES: Record<number, string[]> = {
   10: ["mcts","prac","graph","evidence","target"],
 };
 
+// Map telemetry / job tool ids → reactor node ids (safer lighting)
+const TOOL_ID_TO_NODE: Record<string, string> = {
+  perplexity: "perp0",
+  perp0: "perp0",
+  "perplexity-fu": "perpfu",
+  perpfu: "perpfu",
+  exa: "exa",
+  tavily: "tavily",
+  groq: "groq",
+  gemini: "gemini",
+  maigret: "maigret",
+  holehe: "maigret",
+  sherlock: "maigret",
+  occrp: "occrp",
+  opensky: "opensky",
+  whoxy: "whoxy",
+  "companies-house": "ch",
+  ch: "ch",
+  edgar: "edgar",
+  hmlr: "hmlr",
+  faa: "faa",
+  brreg: "brreg",
+  inhouse: "inhouse",
+  "in-house": "inhouse",
+  webdisc: "webdisc",
+  "web-discovery": "webdisc",
+  deepweb: "deepweb",
+  "deep-web": "deepweb",
+  semantic: "semantic",
+  bayesian: "bayesian",
+  graph: "graph",
+  mcts: "mcts",
+  prac: "prac",
+  evidence: "evidence",
+  target: "target",
+  hnwi: "hnwi",
+  "persona-review": "evidence",
+};
+
+function resolveToolNode(toolId: string | null | undefined): string | null {
+  if (!toolId) return null;
+  return TOOL_ID_TO_NODE[toolId] ?? TOOL_ID_TO_NODE[toolId.toLowerCase()] ?? null;
+}
+
 function rodStatus(id: string, atlasState: AtlasLiveState | null | undefined, liveNodes?: Set<string>): RodStatus {
   if (!atlasState) return liveNodes?.has(id) ? "active" : "idle";
   if (atlasState.runStatus === "failed") {
@@ -734,6 +778,174 @@ function isPersonaReviewTool(tool: string): boolean {
 
 function telemetryToolLabel(tool: string): string {
   return TELEMETRY_TOOL_LABELS[tool] ?? tool;
+}
+
+// ── Bureau LIVE event types (mirrors api-server bureau-live-log) ───────────────
+type BureauActor = "boss" | "right_hand" | "web" | "tool" | "system" | "registry" | "discovery";
+
+interface BureauLiveEvent {
+  id: string;
+  timestamp: string;
+  tsMs: number;
+  actor: BureauActor;
+  title: string;
+  caseId?: string;
+  jobId?: string;
+  targetName?: string;
+  provider?: string;
+  kind?: string;
+  why?: string;
+  ask?: string;
+  responseSummary?: string;
+  detail?: string;
+  level?: "info" | "warn" | "error";
+}
+
+const ACTOR_COLORS: Record<string, string> = {
+  boss: "#c4b5fd",
+  right_hand: "#2dd4bf",
+  web: "#7dd3fc",
+  tool: "#fbbf24",
+  system: "#94a3b8",
+  registry: "#86efac",
+  discovery: "#67e8f9",
+};
+
+function bureauTime(ts?: string): string {
+  if (!ts) return "";
+  try {
+    const d = new Date(ts);
+    if (!Number.isFinite(d.getTime())) return ts.slice(11, 19) || ts;
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
+  } catch {
+    return ts.slice(11, 19) || ts;
+  }
+}
+
+function BureauLivePanel({
+  events = [],
+  connected = false,
+  collapsed = false,
+  onToggle,
+}: {
+  events: BureauLiveEvent[];
+  connected: boolean;
+  collapsed?: boolean;
+  onToggle?: () => void;
+}) {
+  const [filter, setFilter] = useState<string>("all");
+  const actors = ["all", "boss", "right_hand", "web", "tool", "system", "registry", "discovery"];
+  const filtered = filter === "all" ? events : events.filter((e) => e.actor === filter);
+
+  if (collapsed) {
+    return (
+      <button
+        type="button"
+        onClick={onToggle}
+        style={{
+          position: "absolute", top: 12, right: 12, zIndex: 40,
+          border: "1px solid #192840", background: "rgba(8,14,22,0.95)",
+          color: "#2dd4bf", borderRadius: 4, padding: "6px 10px",
+          fontSize: 9, letterSpacing: "0.12em", fontFamily: "inherit", cursor: "pointer",
+        }}
+      >
+        BUREAU LIVE {connected ? "●" : "○"}
+      </button>
+    );
+  }
+
+  return (
+    <aside
+      style={{
+        position: "absolute", top: 8, right: 8, bottom: 8, width: 340, zIndex: 40,
+        border: "1px solid #192840", borderRadius: 6,
+        background: "rgba(8,14,22,0.98)",
+        display: "flex", flexDirection: "column",
+        boxShadow: "0 8px 32px rgba(0,0,0,0.45)",
+        fontFamily: "'Space Mono','DM Mono','Courier New',monospace",
+        pointerEvents: "auto",
+      }}
+      data-testid="bureau-live-panel"
+    >
+      <div style={{
+        display: "flex", alignItems: "center", gap: 8, padding: "8px 10px",
+        borderBottom: "1px solid #192840", fontSize: 10, fontWeight: 700,
+        letterSpacing: "0.12em", color: "#2dd4bf",
+      }}>
+        BUREAU LIVE{" "}
+        <span style={{ color: connected ? "#34d399" : "#64748b", fontWeight: 400, fontSize: 9 }}>
+          {connected ? "● stream" : "○ offline"}
+        </span>
+        <button
+          type="button"
+          onClick={onToggle}
+          style={{
+            marginLeft: "auto", border: "1px solid #334155", background: "transparent",
+            color: "#94a3b8", borderRadius: 4, padding: "2px 8px", fontSize: 9,
+            fontFamily: "inherit", cursor: "pointer",
+          }}
+        >
+          HIDE
+        </button>
+      </div>
+
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 4, padding: "6px 8px", borderBottom: "1px solid #192840" }}>
+        {actors.map((a) => (
+          <button
+            key={a}
+            type="button"
+            onClick={() => setFilter(a)}
+            style={{
+              border: `1px solid ${filter === a ? "#2dd4bf" : "#334155"}`,
+              background: filter === a ? "rgba(45,212,191,0.12)" : "transparent",
+              borderRadius: 4, padding: "1px 6px", fontSize: 8, color: "#cbd5e1",
+              fontFamily: "inherit", cursor: "pointer",
+            }}
+          >
+            {a}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ flex: 1, overflow: "auto", padding: 8, fontSize: 10 }}>
+        {filtered.length === 0 && (
+          <div style={{ color: "#475569", fontSize: 9, letterSpacing: "0.08em", padding: 8 }}>
+            Waiting for bureau events…
+          </div>
+        )}
+        {filtered.map((ev) => {
+          const color = ACTOR_COLORS[ev.actor] ?? "#64748b";
+          return (
+            <div
+              key={ev.id}
+              style={{ borderLeft: `2px solid ${color}`, padding: "5px 0 5px 8px", marginBottom: 8 }}
+            >
+              <div style={{ color: "#94a3b8", fontSize: 9 }}>
+                <b style={{ color, fontWeight: 700 }}>{ev.actor.toUpperCase()}</b>
+                {ev.kind ? ` · ${ev.kind}` : ""}
+                {ev.provider ? ` · ${ev.provider}` : ""}
+                {ev.caseId ? ` · ${ev.caseId}` : ""}
+                {" · "}
+                {bureauTime(ev.timestamp)}
+              </div>
+              <div style={{ color: "#e2e8f0", marginTop: 2 }}>{ev.title}</div>
+              {ev.why && (
+                <div style={{ color: "#fcd34d", marginTop: 2 }}>WHY {ev.why}</div>
+              )}
+              {ev.ask && (
+                <div style={{ color: "#7dd3fc", marginTop: 2 }}>ASK {ev.ask}</div>
+              )}
+              {(ev.responseSummary || ev.detail) && (
+                <div style={{ color: "#a7f3d0", marginTop: 2 }}>
+                  OUT {ev.responseSummary || ev.detail}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </aside>
+  );
 }
 
 function AtlasTelemetryInspector({ telemetry, eventLog = [] }: { telemetry?: any; eventLog?: AtlasLiveState["eventLog"] }) {
@@ -1334,7 +1546,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
 }
 
 // ── Desktop layout ────────────────────────────────────────────────────────────
-function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, scheduler, schedulerNow, isLive, totalEntities, hotCount, totalAssets, sessionCount, latestStatus }: {
+function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, scheduler, schedulerNow, isLive, totalEntities, hotCount, totalAssets, sessionCount, latestStatus, bureauEvents = [], bureauConnected = false }: {
   liveNodes?: Set<string>; liveLabel?: string; isLive?: boolean;
   livePhaseDetail?: string;
   atlasState?: AtlasLiveState | null;
@@ -1343,7 +1555,10 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
   totalEntities?: number; hotCount?: number; totalAssets?: number;
   sessionCount?: number;
   latestStatus?: string;
+  bureauEvents?: BureauLiveEvent[];
+  bureauConnected?: boolean;
 }) {
+  const [bureauCollapsed, setBureauCollapsed] = useState(false);
   // Only live job state lights rods. Standby never simulates an entity moving
   // through the reactor.
   const AN = (isLive && liveNodes && liveNodes.size > 0) ? liveNodes : new Set<string>();
@@ -1465,6 +1680,12 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
       {/* Main panel */}
       <div style={{ flex:1, position:"relative", zIndex:5, overflow:"hidden" }}>
         <AtlasTelemetryInspector telemetry={atlasState?.atlasTelemetry} eventLog={atlasState?.eventLog} />
+        <BureauLivePanel
+          events={bureauEvents}
+          connected={bureauConnected}
+          collapsed={bureauCollapsed}
+          onToggle={() => setBureauCollapsed((v) => !v)}
+        />
         {/* SVG connections */}
         <svg width={1600} height={842} style={{ position:"absolute", inset:0, zIndex:1 }}>
           <defs>
@@ -1631,6 +1852,8 @@ export default function IntelligenceReactorPage() {
   const [atlasState,       setAtlasState]       = useState<AtlasLiveState | null>(null);
   const [exhaustedKeys,    setExhaustedKeys]    = useState<string[]>([]);
   const [schedulerNow,     setSchedulerNow]     = useState(() => Date.now());
+  const [bureauEvents,     setBureauEvents]     = useState<BureauLiveEvent[]>([]);
+  const [bureauConnected,  setBureauConnected]  = useState(false);
   const scheduler = atlasState?.scheduler ?? null;
 
   // Keep the standby countdown moving between API polls. The API remains the
@@ -1713,7 +1936,8 @@ export default function IntelligenceReactorPage() {
           setLivePhaseDetail(msg.slice(0, 90));
         }
          if (atlasTelemetry?.activeToolId) {
-           nodes.add(atlasTelemetry.activeToolId);
+           const mapped = resolveToolNode(atlasTelemetry.activeToolId);
+           if (mapped) nodes.add(mapped);
          }
       }
 
@@ -1744,6 +1968,67 @@ export default function IntelligenceReactorPage() {
     const id = setInterval(pollJobs, 3_000);
     return () => clearInterval(id);
   }, [pollJobs]);
+
+  // Bureau LIVE SSE — snapshot bootstrap + live bureau events
+  useEffect(() => {
+    const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+    const url = `${BASE}/api/ingest/bureau-stream`;
+    let es: EventSource | null = null;
+    let closed = false;
+    let retryTimer: number | undefined;
+
+    const mergeEvents = (incoming: BureauLiveEvent[]) => {
+      setBureauEvents((prev) => {
+        const byId = new Map<string, BureauLiveEvent>();
+        for (const e of [...incoming, ...prev]) {
+          if (e?.id) byId.set(e.id, e);
+        }
+        return Array.from(byId.values())
+          .sort((a, b) => (b.tsMs || 0) - (a.tsMs || 0))
+          .slice(0, 120);
+      });
+    };
+
+    const connect = () => {
+      if (closed) return;
+      try {
+        es = new EventSource(url);
+      } catch {
+        setBureauConnected(false);
+        retryTimer = window.setTimeout(connect, 4_000);
+        return;
+      }
+
+      es.addEventListener("open", () => setBureauConnected(true));
+      es.addEventListener("error", () => {
+        setBureauConnected(false);
+        es?.close();
+        es = null;
+        if (!closed) retryTimer = window.setTimeout(connect, 4_000);
+      });
+      es.addEventListener("snapshot", (ev) => {
+        try {
+          const data = JSON.parse((ev as MessageEvent).data);
+          if (Array.isArray(data?.events)) mergeEvents(data.events);
+          setBureauConnected(true);
+        } catch { /* ignore */ }
+      });
+      es.addEventListener("bureau", (ev) => {
+        try {
+          const event = JSON.parse((ev as MessageEvent).data) as BureauLiveEvent;
+          if (event?.id) mergeEvents([event]);
+        } catch { /* ignore */ }
+      });
+      es.addEventListener("heartbeat", () => setBureauConnected(true));
+    };
+
+    connect();
+    return () => {
+      closed = true;
+      if (retryTimer) window.clearTimeout(retryTimer);
+      es?.close();
+    };
+  }, []);
 
   const fetchData = useCallback(async (isBackground = false) => {
     if (isBackground) {
@@ -1816,6 +2101,8 @@ export default function IntelligenceReactorPage() {
            scheduler={scheduler}
            schedulerNow={schedulerNow}
           exhaustedKeys={exhaustedKeys}
+          bureauEvents={bureauEvents}
+          bureauConnected={bureauConnected}
         />
       </div>
     );
@@ -1836,6 +2123,8 @@ export default function IntelligenceReactorPage() {
           isLive={liveNodes.size > 0 || atlasState?.runStatus === "running"}
           totalEntities={totalEntities} hotCount={hotCount} totalAssets={totalAssets}
           sessionCount={sessions.length}
+          bureauEvents={bureauEvents}
+          bureauConnected={bureauConnected}
         />
         </div>
       </div>

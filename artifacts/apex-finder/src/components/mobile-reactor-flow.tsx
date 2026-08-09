@@ -89,6 +89,26 @@ interface AutoPipelineScheduler {
   providerNoTarget: number;
 }
 
+type BureauActor = "boss" | "right_hand" | "web" | "tool" | "system" | "registry" | "discovery";
+
+interface BureauLiveEvent {
+  id: string;
+  timestamp: string;
+  tsMs: number;
+  actor: BureauActor;
+  title: string;
+  caseId?: string;
+  jobId?: string;
+  targetName?: string;
+  provider?: string;
+  kind?: string;
+  why?: string;
+  ask?: string;
+  responseSummary?: string;
+  detail?: string;
+  level?: "info" | "warn" | "error";
+}
+
 interface MobileReactorFlowProps {
   sessions: ResearchSession[];
   totalEntities: number;
@@ -104,6 +124,8 @@ interface MobileReactorFlowProps {
   scheduler: AutoPipelineScheduler | null;
   schedulerNow: number;
   exhaustedKeys: string[];
+  bureauEvents?: BureauLiveEvent[];
+  bureauConnected?: boolean;
 }
 
 const MOBILE_PHASES = [
@@ -460,6 +482,54 @@ function LiveResearchConsole({
         </>
       )}
 
+      {/* Bureau LIVE structured feed */}
+      <div className="rounded-xl border border-white/10 bg-black/30 p-3">
+        <div className="mb-2 flex items-center gap-2">
+          <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-teal-300">Bureau LIVE</span>
+          <span className={`text-[9px] ${bureauConnected ? "text-emerald-400" : "text-slate-500"}`}>
+            {bureauConnected ? "● stream" : "○ offline"}
+          </span>
+          <span className="ml-auto text-[9px] text-slate-500">{bureauEvents.length}</span>
+        </div>
+        {bureauEvents.length === 0 ? (
+          <div className="text-[9px] tracking-wide text-slate-600">Waiting for bureau events…</div>
+        ) : (
+          <div className="max-h-56 space-y-2 overflow-y-auto">
+            {bureauEvents.slice(0, 12).map((ev) => {
+              const color =
+                ev.actor === "boss" ? "border-violet-300"
+                : ev.actor === "right_hand" ? "border-teal-300"
+                : ev.actor === "web" ? "border-sky-300"
+                : ev.actor === "tool" ? "border-amber-300"
+                : "border-slate-500";
+              const actorColor =
+                ev.actor === "boss" ? "text-violet-300"
+                : ev.actor === "right_hand" ? "text-teal-300"
+                : ev.actor === "web" ? "text-sky-300"
+                : ev.actor === "tool" ? "text-amber-300"
+                : "text-slate-400";
+              return (
+                <div key={ev.id} className={`border-l-2 ${color} pl-2`}>
+                  <div className="text-[9px] text-slate-500">
+                    <span className={`font-bold ${actorColor}`}>{ev.actor.toUpperCase()}</span>
+                    {ev.kind ? ` · ${ev.kind}` : ""}
+                    {ev.provider ? ` · ${ev.provider}` : ""}
+                    {" · "}
+                    {eventTime(ev.timestamp)}
+                  </div>
+                  <div className="mt-0.5 text-[10px] font-semibold leading-4 text-slate-200">{ev.title}</div>
+                  {ev.why && <div className="mt-0.5 text-[9px] text-amber-200">WHY {ev.why}</div>}
+                  {ev.ask && <div className="mt-0.5 text-[9px] text-sky-300">ASK {ev.ask}</div>}
+                  {(ev.responseSummary || ev.detail) && (
+                    <div className="mt-0.5 text-[9px] text-emerald-200">OUT {ev.responseSummary || ev.detail}</div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       {atlasState?.eventLog && atlasState.eventLog.length > 0 && (
         <details className="rounded-xl border border-white/10 bg-black/20" data-testid="details-event-feed">
           <summary className="flex min-h-[46px] cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 touch-manipulation">
@@ -565,6 +635,8 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
     livePhaseDetail,
     onRefresh,
     syncing,
+    bureauEvents = [],
+    bureauConnected = false,
   } = props;
 
   // A failed or completed run is never presented as active. Without Atlas
