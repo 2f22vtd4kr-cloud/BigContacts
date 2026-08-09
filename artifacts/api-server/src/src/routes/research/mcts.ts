@@ -56,7 +56,7 @@ router.post("/research/run", async (req, res): Promise<void> => {
       .filter((candidate) => entityIdSet.has(candidate.entityId) || entityIdSet.has(candidate.candidateEntityId))
       .map((candidate) => identityPairKey(candidate.entityId, candidate.candidateEntityId)),
   );
-  const graph = buildGraph(allEntities as any, allAssets as any, allRelationships, acceptedIdentityPairs)
+  const graph = buildGraph(allEntities as any, allAssets as any, allRelationships, acceptedIdentityPairs);
 
   // Target assets need full columns (activity dates, etc.) — load directly for this entity.
   const targetAssets = await db.select().from(assetsTable).where(eq(assetsTable.ownerEntityId, entityId));

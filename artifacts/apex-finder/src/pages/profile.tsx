@@ -171,11 +171,15 @@ function buildLedger(entity: any, assets: any[], relationships: any[]): LedgerEn
     });
   }
   for (const rel of relationships) {
+    const inbound = rel.targetType === "Entity" && Number(rel.targetId) === Number(entity.id);
+    const otherName = inbound
+      ? (rel.sourceEntityName ?? `Entity #${rel.sourceEntityId}`)
+      : (rel.targetName ?? `Entity #${rel.targetId}`);
     entries.push({
       id: `rel-${rel.id}`,
       category: "Network",
       dataPoint: rel.relationshipType,
-      value: rel.targetName ?? `Entity #${rel.targetId}`,
+      value: otherName,
       source: rel.notes?.substring(0, 40) ?? "Internal",
       verified: false,
     });
