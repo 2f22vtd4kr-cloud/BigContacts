@@ -42,6 +42,6 @@ fi
 echo ""
 echo "✅ Post-merge setup complete."
 echo "   Start workflows: Redis → API Server → apex-finder web"
-echo "   Optional: RESEARCH_DEPTH=fast|standard|deep (default standard)"
+echo "   RESEARCH_DEPTH=fast|standard|deep (default fast — Replit cost-safe)"
 echo "   All Python OSINT tools (Holehe, Maigret) verified above."
 echo "   API server will auto-start ingestion if DB is empty."

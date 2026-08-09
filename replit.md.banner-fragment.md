@@ -1,17 +1,16 @@
-# ⚠️ MANDATORY — Bureau progress wire-up (auto, one command)
+# ⚠️ MANDATORY — Bureau progress + research depth (auto)
 
-**Status (2026-08-09):** Modules on `main`. Full wire-up is **automatic** — do not ask the human to paste tasks.
-
-On every session start / after GitHub import / after `pnpm install`, run (also step 5 of `scripts/post-merge.sh`):
+**Do not ask the human to paste tasks.** After GitHub import / `pnpm install`:
 
 ```bash
 node scripts/apply-bureau-progress.mjs
+node scripts/apply-research-depth.mjs
 ```
 
-Then rebuild/restart API Server and web. Idempotent.
+(Also `scripts/post-merge.sh` step 5.)
 
-See: `AGENT_NEXT_TASK.md` · `REPLIT_BUREAU_PROGRESS_APPLY.md`
+**Replit cost default:** unset `RESEARCH_DEPTH` → **`fast`** (5 adaptive actions). Set `standard` or `deep` only when you want richer single-target work.
 
-If `replit.md` does not already start with this banner, the agent must prepend this fragment to the top of `replit.md` and commit it — then run the script.
+Details: `AGENT_RESEARCH_DEPTH.md` · `AGENT_NEXT_TASK.md` · `REPLIT_BUREAU_PROGRESS_APPLY.md`
 
 ---

@@ -1,30 +1,30 @@
-# Research depth + adaptive improvements (on main)
+# Research depth (Replit-optimised)
 
-## Env
+## Env (Replit Secret or Shared env)
 
 ```
 RESEARCH_DEPTH=fast|standard|deep
 ```
 
-Defaults to `standard` (8 adaptive actions, 4 person follow-ups, 2 domain follow-ups).
+**Default when unset: `fast`** (5 adaptive actions — same cost envelope as the legacy director, safe for thousands of targets).
 
-- `fast` — bulk scale (5 actions)
-- `deep` — VIP thorough pass (12 actions max)
+| Value | Adaptive actions | Person follow-ups | Domain follow-ups | Use when |
+|-------|------------------|-------------------|-------------------|----------|
+| `fast` (default) | 5 | 2 | 1 | Bulk / auto-pipeline / cost control |
+| `standard` | 8 | 4 | 2 | Normal single-target Bureau cases |
+| `deep` | 12 (hard cap) | 6 | 3 | VIP / explicit thorough pass only |
 
-## Auto-apply after import
+## Auto-apply after GitHub import (no manual paste)
 
 ```bash
 node scripts/apply-bureau-progress.mjs
 node scripts/apply-research-depth.mjs
 ```
 
-Both are hooked in `scripts/post-merge.sh`.
+Both run from `scripts/post-merge.sh` step 5.
 
-## What improved
+## Rules
 
-1. Depth tiers control adaptive budget without a rigid pipeline
-2. Multi person/domain follow-ups inside adaptive director
-3. Prefer `contact_routes` once people/domains exist
-4. Boss prompts embed creative OSINT angles + pending vectors
-5. Right-hand prefers follow-up on existing leads
-6. Real public data only — no synthetic contacts
+- Real public data only — never invent contacts
+- Adaptive / gap-driven — not a rigid pipeline
+- All routes visible; verified personal marked after progress wire-up

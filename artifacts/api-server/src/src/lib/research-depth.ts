@@ -1,11 +1,11 @@
 /**
- * Research depth tiers — scale-safe quality control for Apex Atlas.
+ * Research depth tiers — scale-safe quality control for Apex Atlas (Replit-optimised).
  *
- * fast     → bulk / thousands of targets (cheap)
- * standard → default target-scoped enrichment
- * deep     → VIP / human-requested thorough pass (Gemini-class effort)
+ * fast     → DEFAULT — bulk / thousands of targets (same budget as legacy 5-action cap)
+ * standard → richer single-target enrichment (set RESEARCH_DEPTH=standard)
+ * deep     → VIP / human-requested thorough pass (set RESEARCH_DEPTH=deep)
  *
- * Override with env RESEARCH_DEPTH=fast|standard|deep
+ * Override with Replit Secret / env: RESEARCH_DEPTH=fast|standard|deep
  */
 
 export type ResearchDepth = "fast" | "standard" | "deep";
@@ -56,13 +56,16 @@ const CONFIGS: Record<ResearchDepth, ResearchDepthConfig> = {
   },
 };
 
-/** Hard ceiling so a bad env value cannot explode cost. */
+/** Hard ceiling so a bad env value cannot explode Replit / provider cost. */
 export const ABSOLUTE_ADAPTIVE_ACTION_CAP = 12;
+
+/** Default for unset / invalid env — keeps bulk runs cheap on Replit. */
+export const DEFAULT_RESEARCH_DEPTH: ResearchDepth = "fast";
 
 export function parseResearchDepth(raw: string | null | undefined): ResearchDepth {
   const value = String(raw ?? "").trim().toLowerCase();
   if (value === "fast" || value === "standard" || value === "deep") return value;
-  return "standard";
+  return DEFAULT_RESEARCH_DEPTH;
 }
 
 export function resolveResearchDepth(options?: {
