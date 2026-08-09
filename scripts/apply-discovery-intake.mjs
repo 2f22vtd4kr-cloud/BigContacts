@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Idempotent: wire discovery-intake (shuffle + approachable preference) into Atlas.
+ * Idempotent: wire discovery-intake into Atlas + rank broad-discovery admissions.
  */
 const fs = require("fs");
 const path = require("path");
@@ -8,6 +8,7 @@ const path = require("path");
 const root = path.resolve(__dirname, "..");
 const atlas = path.join(root, "artifacts/api-server/src/src/lib/atlas-orchestrator.ts");
 const caseBureau = path.join(root, "artifacts/api-server/src/src/lib/case-bureau.ts");
+const broad = path.join(root, "artifacts/api-server/src/src/lib/enrichment/broad-discovery.ts");
 
 function patchAtlas() {
   if (!fs.existsSync(atlas)) {
@@ -18,16 +19,10 @@ function patchAtlas() {
   let changed = false;
 
   if (!src.includes('from "./discovery-intake"')) {
-    const anchors = [
-      'from "./logger";',
-      'from "./job-queue";',
-    ];
+    const anchors = ['from "./logger";', 'from "./job-queue";'];
     for (const a of anchors) {
       if (src.includes(a)) {
-        src = src.replace(
-          a,
-          a + '\nimport { buildSourcesToRun } from "./discovery-intake";',
-        );
+        src = src.replace(a, a + '\nimport { buildSourcesToRun } from "./discovery-intake";');
         changed = true;
         console.log("atlas: import discovery-intake");
         break;
@@ -105,6 +100,80 @@ function patchCaseBureau() {
   if (changed) fs.writeFileSync(caseBureau, src);
 }
 
+function patchBroad() {
+  if (!fs.existsSync(broad)) {
+    console.warn("skip broad-discovery — missing");
+    return;
+  }
+  let src = fs.readFileSync(broad, "utf8");
+  let changed = false;
+
+  if (!src.includes('from "../discovery-intake"')) {
+    const a = 'import { getPermanentClient } from "../redis";';
+    if (src.includes(a)) {
+      src = src.replace(
+        a,
+        a + '\nimport { rankCandidatesForAdmission, scoreApproachableCandidate } from "../discovery-intake";',
+      );
+      changed = true;
+      console.log("broad-discovery: import discovery-intake");
+    }
+  }
+
+  const rankAnchor = `    newEntities = [];
+  }
+
+  // Insert new entities
+  let inserted = 0;
+  for (const { name, snippet, query } of newEntities) {`;
+
+  const rankInsert = `    newEntities = [];
+  }
+
+  // Prefer operator / approachable public signals when the admission budget is tight
+  newEntities = rankCandidatesForAdmission(newEntities);
+  if (newEntities.length > 0) {
+    logger.info(
+      {
+        top: newEntities.slice(0, 5).map((e) => ({
+          name: e.name,
+          score: scoreApproachableCandidate(e),
+        })),
+      },
+      "Broad discovery: ranked candidates for approachable/operator preference",
+    );
+  }
+
+  // Insert new entities
+  let inserted = 0;
+  for (const { name, snippet, query } of newEntities) {`;
+
+  if (src.includes(rankAnchor) && !src.includes("rankCandidatesForAdmission(newEntities)")) {
+    src = src.replace(rankAnchor, rankInsert);
+    changed = true;
+    console.log("broad-discovery: rank before insert");
+  } else if (src.includes("rankCandidatesForAdmission(newEntities)")) {
+    console.log("broad-discovery: rank already wired");
+  } else {
+    console.warn("broad-discovery: rank anchor not found");
+  }
+
+  if (src.includes("bayesianScore: 0.3,") && src.includes("scoreApproachableCandidate")) {
+    src = src.replace(
+      "bayesianScore: 0.3,",
+      "bayesianScore: scoreApproachableCandidate({ name: finalName, snippet, query }),",
+    );
+    changed = true;
+    console.log("broad-discovery: approachable bayesianScore");
+  } else if (src.includes("scoreApproachableCandidate({ name: finalName")) {
+    console.log("broad-discovery: bayesianScore already approachable");
+  }
+
+  if (changed) fs.writeFileSync(broad, src);
+  else console.log("broad-discovery: no file write needed");
+}
+
 patchAtlas();
 patchCaseBureau();
+patchBroad();
 console.log("DONE apply-discovery-intake");
