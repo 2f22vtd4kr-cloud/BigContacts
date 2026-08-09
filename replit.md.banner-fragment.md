@@ -12,4 +12,6 @@ Then rebuild/restart API Server and web. Idempotent.
 
 See: `AGENT_NEXT_TASK.md` · `REPLIT_BUREAU_PROGRESS_APPLY.md`
 
+If `replit.md` does not already start with this banner, the agent must prepend this fragment to the top of `replit.md` and commit it — then run the script.
+
 ---
