@@ -642,6 +642,8 @@ export function buildRouteHierarchy(
   }
   const routes: RankedResearchRoute[] = [];
   for (const candidate of funnel.candidates) {
+    // Keep related/org candidates; only omit hard-rejected garbage.
+    if (candidate.state === "rejected") continue;
     const items = byKey.get(candidate.key) ?? [];
     const strongest = [...items].sort((a, b) => b.confidence - a.confidence)[0];
     const details = strongest?.details ?? {};
@@ -4188,17 +4190,39 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         ? value
         : null;
     }
-    return isEligiblePersonalSocialCandidate(candidate) ? value : null;
+    // Prefer personal social; if none qualifies, still keep a related org-linked profile
+    // so the HNWI card is not empty of public routes.
+    if (isEligiblePersonalSocialCandidate(candidate)) return value;
+    if (candidate.sourceUrls.length > 0 && candidate.state !== "rejected") return value;
+    return null;
   };
 
   result.linkedinUrl = promotedSocialUrl("social", result.linkedinUrl);
   result.instagramUrl = promotedSocialUrl("social", result.instagramUrl);
   result.twitterUrl = promotedSocialUrl("social", result.twitterUrl);
 
-  // Promotion is deliberately stricter than discovery. For people, only a
-  // target-person direct vector corroborated by independent canonical domains
-  // is allowed into the entity contact columns. Organizations may retain an
-  // organization-scoped direct route, but it is never a personal route.
+  // Promotion to "personal direct" is strict. Related / organization contacts are
+  // still retained end-to-end: they stay in the candidate funnel + evidence, and
+  // when no personal route exists we surface the best related contact on the
+  // entity so the profile is never emptied of usable public routes.
+  const rankRelated = (candidate: typeof result.candidateFunnel.candidates[number]) => {
+    let s = candidate.sourceDomains.length * 10;
+    if (candidate.state === "independently_corroborated") s += 20;
+    if (candidate.state === "source_linked") s += 12;
+    if (candidate.state === "attribution_review") s += 8;
+    if (candidate.scopes.includes("organization")) s += 4;
+    if (candidate.exactClaimObserved) s += 6;
+    return s;
+  };
+  const bestRelated = (vectorType: "email" | "phone") =>
+    [...result.candidateFunnel.candidates]
+      .filter((candidate) =>
+        candidate.vectorType === vectorType
+        && candidate.state !== "rejected"
+        && Boolean(candidate.value?.trim()),
+      )
+      .sort((a, b) => rankRelated(b) - rankRelated(a))[0] ?? null;
+
   const promotedEmailCandidate = result.candidateFunnel.candidates.find(
     (candidate) => {
       if (candidate.key !== candidateKey("email", result.email ?? "")) return false;
@@ -4207,12 +4231,18 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         && candidate.scopes.length > 0
         && candidate.scopes.every((scope) => scope === "organization")
         && candidate.sourceDomains.length >= 1
-        && candidate.state === "source_linked";
+        && candidate.state !== "rejected";
     },
   );
   if (!promotedEmailCandidate) {
-    result.email = null;
-    result.emailConfidence = 0;
+    const relatedEmail = bestRelated("email");
+    if (relatedEmail) {
+      result.email = relatedEmail.value;
+      result.emailConfidence = Math.min(55, 25 + rankRelated(relatedEmail));
+    } else {
+      result.email = null;
+      result.emailConfidence = 0;
+    }
   }
   const promotedPhoneCandidate = result.candidateFunnel.candidates.find(
     (candidate) => {
@@ -4222,12 +4252,18 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         && candidate.scopes.length > 0
         && candidate.scopes.every((scope) => scope === "organization")
         && candidate.sourceDomains.length >= 1
-        && candidate.state === "source_linked";
+        && candidate.state !== "rejected";
     },
   );
   if (!promotedPhoneCandidate) {
-    result.phone = null;
-    result.phoneConfidence = 0;
+    const relatedPhone = bestRelated("phone");
+    if (relatedPhone) {
+      result.phone = relatedPhone.value;
+      result.phoneConfidence = Math.min(55, 25 + rankRelated(relatedPhone));
+    } else {
+      result.phone = null;
+      result.phoneConfidence = 0;
+    }
   }
 
   result.sources = [...new Set(result.sources)];

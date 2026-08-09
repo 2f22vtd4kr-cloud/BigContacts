@@ -498,13 +498,14 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
                   : scopes.includes("person_candidate")
                     ? 0.4
                     : scopes.includes("organization")
-                      ? 0.2
+                      ? 0.35
                       : 0.5,
                 recencyScore: 0.7,
-                directnessScore:
-                  ev.vectorType === "email" ? 0.9 :
-                  ev.vectorType === "phone" ? 0.85 :
-                  ev.vectorType === "social" ? 0.6 : 0.4,
+                directnessScore: scopes.includes("organization")
+                  ? (ev.vectorType === "email" || ev.vectorType === "phone" ? 0.35 : 0.25)
+                  : scopes.includes("target_person")
+                    ? (ev.vectorType === "email" ? 0.9 : ev.vectorType === "phone" ? 0.85 : ev.vectorType === "social" ? 0.6 : 0.4)
+                    : (ev.vectorType === "email" ? 0.55 : ev.vectorType === "phone" ? 0.5 : ev.vectorType === "social" ? 0.45 : 0.35),
                 independentCorroboration: candidate?.sourceDomains.length ?? 0,
                 validationStatus: candidate?.state === "rejected"
                   ? "rejected"

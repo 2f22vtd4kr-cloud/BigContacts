@@ -320,32 +320,30 @@ export function reconcileContactCandidates(
     const hasPersonAttribution = hasTargetAttribution || candidate.scopes.includes("person_candidate");
     const organizationOnly = candidate.scopes.length > 0
       && candidate.scopes.every((scope) => scope === "organization");
+    // Only hard-reject unusable values (garbage/blocked publishers), never "merely related"
+    // organization or ambiguous routes — those must reach end-of-research and stay visible.
     const rejected = (candidate.vectorType === "email" || candidate.vectorType === "phone")
       && candidate.sourceDomains.length === 0
       && candidate.blockedSourceUrls.length > 0;
     const valueRejectionReason = candidateValueRejectionReason(candidate.vectorType, candidate.value);
-    const organizationSocialRejected = candidate.vectorType === "social" && organizationOnly;
-    const attributionRejected = candidate.scopes.includes("unknown")
+    const ambiguousAttribution = candidate.scopes.includes("unknown")
       && candidate.sourceUrls.length > 0
       && candidate.exactClaimObserved === false
       && candidate.providers.some((provider) => provider.toLowerCase().includes("attribution-rejected"));
     const rejectionReason = rejected
       ? "Only blocked lead-directory or people-search publishers supplied this direct-contact value."
-      : organizationSocialRejected
-        ? "Social profile is organization-only and cannot be promoted as a personal route."
-        : valueRejectionReason
-          ? valueRejectionReason
-          : attributionRejected
-            ? "Attribution did not distinguish the candidate from a same-name or unrelated person."
-            : null;
+      : valueRejectionReason
+        ? valueRejectionReason
+        : null;
     const state: CandidateState =
       rejectionReason ? "rejected"
+      // Organization / related routes are retained as reviewable contacts, not discarded.
       : organizationOnly ? (candidate.sourceDomains.length ? "source_linked" : "discovered")
       : hasTargetAttribution && isDirectVector && candidate.sourceDomains.length >= 2
         ? "verified_direct_route"
         : candidate.sourceDomains.length >= 2
           ? "independently_corroborated"
-        : hasPersonAttribution
+        : hasPersonAttribution || ambiguousAttribution
           ? "attribution_review"
           : candidate.sourceDomains.length
             ? "source_linked"

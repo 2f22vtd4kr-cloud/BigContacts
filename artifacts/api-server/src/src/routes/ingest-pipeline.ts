@@ -296,12 +296,14 @@ router.post("/ingest/deep-web-osint", async (req: Request, res: Response): Promi
                 // confidence 0-100 → sourceReliability 0.0-1.0
                 sourceReliability: Math.min(1, Math.max(0, e.confidence / 100)),
                 // Person-hop candidates have lower identity match — not yet confirmed as the entity's own contact
-                identityMatch: isTargetPerson ? 0.9 : isPersonHop ? 0.4 : scopes.includes("organization") ? 0.2 : 0.5,
+                identityMatch: isTargetPerson ? 0.9 : isPersonHop ? 0.4 : scopes.includes("organization") ? 0.35 : 0.5,
                 recencyScore: 0.7,
-                directnessScore:
-                  e.vectorType === "email" ? 0.9 :
-                  e.vectorType === "phone" ? 0.85 :
-                  e.vectorType === "social" ? 0.6 : 0.4,
+                // Related/org routes stay durable with lower directness — not discarded.
+                directnessScore: scopes.includes("organization")
+                  ? (e.vectorType === "email" || e.vectorType === "phone" ? 0.35 : 0.25)
+                  : isTargetPerson
+                    ? (e.vectorType === "email" ? 0.9 : e.vectorType === "phone" ? 0.85 : e.vectorType === "social" ? 0.6 : 0.4)
+                    : (e.vectorType === "email" ? 0.55 : e.vectorType === "phone" ? 0.5 : e.vectorType === "social" ? 0.45 : 0.35),
                 independentCorroboration: candidate?.sourceDomains.length ?? 0,
                 validationStatus: candidate?.state === "rejected"
                   ? "rejected"
