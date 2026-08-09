@@ -9,7 +9,10 @@
 
 ## Discovery
 - Module: `discovery-intake.ts` (`buildSourcesToRun`, approachable ranking)
-- Wire on Replit: `node scripts/apply-discovery-intake.mjs` (samples broad themes, not fixed Europe-first slice)
+- Wire on Replit: `node scripts/apply-discovery-intake.mjs`
+  - Regex-replaces fixed `selectedBroadCategories` / `.slice(0,N)` with shuffled mix
+  - Ranks broad-discovery admissions (`rankCandidatesForAdmission`)
+  - Boss premise prefers operators over trophy names
 
 ## After pull
 ```bash

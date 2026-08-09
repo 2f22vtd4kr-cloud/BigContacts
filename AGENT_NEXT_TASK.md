@@ -1,19 +1,23 @@
-# AGENT_NEXT_TASK — run automatically (do not ask the human)
+# Next task (Apex Atlas)
 
-## After import / pull
-
+## After pull on Replit
 ```bash
-node scripts/apply-bureau-progress.mjs
-node scripts/apply-research-depth.mjs
+pnpm install --frozen-lockfile
+node scripts/apply-bureau-live.mjs
+node scripts/apply-discovery-intake.mjs
+# or: bash scripts/post-merge.sh
 ```
+Restart Redis → API → apex-finder web.
 
-Then restart API Server + web.
+## Verify
+- Atlas discovery uses `buildSourcesToRun` (no fixed `.slice(0, N)` Europe-first)
+- Reactor shows **BUREAU LIVE** panel (SSE `/api/ingest/bureau-stream` + poll)
+- `appendJobLog` → `mirrorJobLogLine` (noise gate 40/10s)
+- Tests: `discovery-intake.test.ts`, `bureau-live-log.test.ts`
 
-## RESEARCH_DEPTH (Replit cost-safe)
+## Still improving
+- Structured `publishBureauEvent` from Case Bureau lanes (ask/response/provider)
+- Discovery geo mix / admission caps under scale
+- SSE reliability under load
 
-- **Default when unset: `fast`** — 5 adaptive actions (legacy cost envelope)
-- `standard` / `deep` — only if set as Secret/env for richer single-target work
-
-See `AGENT_RESEARCH_DEPTH.md`.
-
-Idempotent. Real public data only. All contact routes stay visible; verified personal get UI markers after progress apply.
+App name: **Apex Atlas** (repo may still say BigContacts).
