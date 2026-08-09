@@ -20,7 +20,7 @@ bash scripts/check-no-synthetic-data.sh
 echo "=== [4/5] Installing Python OSINT tools (Holehe · Maigret) ==="
 bash scripts/install-python-tools.sh
 
-echo "=== [5/5] Applying Bureau progress + research-depth + discovery mixer ==="
+echo "=== [5/5] Applying Bureau progress + research-depth + discovery intake ==="
 if [ -f scripts/apply-bureau-progress.mjs ]; then
   node scripts/apply-bureau-progress.mjs
 else
@@ -31,16 +31,16 @@ if [ -f scripts/apply-research-depth.mjs ]; then
 else
   echo "WARN: scripts/apply-research-depth.mjs missing — skip"
 fi
-if [ -f scripts/apply-discovery-mixer.mjs ]; then
-  node scripts/apply-discovery-mixer.mjs
+if [ -f scripts/apply-discovery-intake.mjs ]; then
+  node scripts/apply-discovery-intake.mjs
 else
-  echo "WARN: scripts/apply-discovery-mixer.mjs missing — skip"
+  echo "WARN: scripts/apply-discovery-intake.mjs missing — skip"
 fi
 
 echo ""
 echo "✅ Post-merge setup complete."
 echo "   Start workflows: Redis → API Server → apex-finder web"
 echo "   RESEARCH_DEPTH=fast|standard|deep (default fast — Replit cost-safe)"
-echo "   Discovery: randomized mix of Western registries + FAA + web recipes"
+echo "   Discovery intake: mixed themes + operator/approachable preference"
 echo "   All Python OSINT tools (Holehe, Maigret) verified above."
 echo "   API server will auto-start ingestion if DB is empty."
