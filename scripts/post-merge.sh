@@ -33,14 +33,16 @@ else
 fi
 if [ -f scripts/apply-discovery-intake.mjs ]; then
   node scripts/apply-discovery-intake.mjs
+elif [ -f scripts/apply-discovery-mixer.mjs ]; then
+  node scripts/apply-discovery-mixer.mjs
 else
-  echo "WARN: scripts/apply-discovery-intake.mjs missing — skip"
+  echo "WARN: discovery intake/mixer apply script missing — skip"
 fi
 
 echo ""
 echo "✅ Post-merge setup complete."
 echo "   Start workflows: Redis → API Server → apex-finder web"
 echo "   RESEARCH_DEPTH=fast|standard|deep (default fast — Replit cost-safe)"
-echo "   Discovery intake: mixed themes + operator/approachable preference"
+echo "   Discovery: mixed themes + operator/approachable preference"
 echo "   All Python OSINT tools (Holehe, Maigret) verified above."
 echo "   API server will auto-start ingestion if DB is empty."
