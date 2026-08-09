@@ -363,8 +363,14 @@ export async function generateGeminiBossText(
   selection: GeminiBossModelSelection,
   prompt: string,
 ): Promise<GeminiTextGenerationResult> {
-  const key = selection.keyName ? process.env[selection.keyName] : undefined;
-  if (!key) {
+  // Text generation only: no tools, no Google Search grounding, no web research.
+  // 429/503 here means text-generation capacity — not a web-search constraint.
+  const primaryName = selection.keyName;
+  const keyEntries = [
+    ...getGeminiKeyEntries().filter((e) => e.name === primaryName),
+    ...getGeminiKeyEntries().filter((e) => e.name !== primaryName),
+  ];
+  if (keyEntries.length === 0) {
     return { model: selection.model, raw: null, error: "The resolved Gemini Boss key is unavailable." };
   }
 
@@ -374,55 +380,62 @@ export async function generateGeminiBossText(
   ])];
   let lastError = `Gemini Boss ${selection.model} did not return text.`;
 
-  for (const model of models) {
-    try {
-      const response = await fetch(
-        `${GEMINI_MODELS_API.replace("/models", `/models/${encodeURIComponent(model)}:generateContent`)}`,
-        {
-          method: "POST",
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-            "x-goog-api-key": key,
-          },
-          body: JSON.stringify({
-            contents: [{ role: "user", parts: [{ text: prompt }] }],
-            generationConfig: {
-              temperature: 0.2,
-              maxOutputTokens: 8192,
-              responseMimeType: "application/json",
+  for (const entry of keyEntries) {
+    for (const model of models) {
+      try {
+        const response = await fetch(
+          `${GEMINI_MODELS_API.replace("/models", `/models/${encodeURIComponent(model)}:generateContent`)}`,
+          {
+            method: "POST",
+            headers: {
+              Accept: "application/json",
+              "Content-Type": "application/json",
+              "x-goog-api-key": entry.key,
             },
-          }),
-          signal: AbortSignal.timeout(45_000),
-        },
-      );
+            body: JSON.stringify({
+              contents: [{ role: "user", parts: [{ text: prompt }] }],
+              generationConfig: {
+                temperature: 0.2,
+                maxOutputTokens: 8192,
+                responseMimeType: "application/json",
+              },
+            }),
+            signal: AbortSignal.timeout(45_000),
+          },
+        );
 
-      if (response.status === 429 || response.status === 503) {
-        const detail = (await response.text().catch(() => "")).slice(0, 300);
-        lastError = `Gemini Boss ${model} HTTP ${response.status}${detail ? `: ${detail}` : ""}`;
-        if (models.length > 1) {
-          logger.warn({ model, status: response.status }, "Gemini Boss model unavailable; trying lower model");
+        if (response.status === 429 || response.status === 503) {
+          const detail = (await response.text().catch(() => "")).slice(0, 300);
+          lastError = `Gemini Boss ${model} text-generation HTTP ${response.status}${detail ? `: ${detail}` : ""}`;
+          logger.warn(
+            { model, status: response.status, keyName: entry.name },
+            "Gemini Boss text-generation capacity busy; trying next model/key (not a web-search failure)",
+          );
           continue;
         }
-        continue;
-      }
-      if (!response.ok) {
-        const detail = (await response.text().catch(() => "")).slice(0, 300);
-        return {
-          model,
-          raw: null,
-          error: `Gemini Boss ${model} HTTP ${response.status}${detail ? `: ${detail}` : ""}`,
-        };
-      }
+        if (!response.ok) {
+          const detail = (await response.text().catch(() => "")).slice(0, 300);
+          // Auth failures: try next key. Other errors: fail fast on this model.
+          if (response.status === 401 || response.status === 403) {
+            lastError = `Gemini Boss ${model} HTTP ${response.status}${detail ? `: ${detail}` : ""}`;
+            break;
+          }
+          return {
+            model,
+            raw: null,
+            error: `Gemini Boss ${model} HTTP ${response.status}${detail ? `: ${detail}` : ""}`,
+          };
+        }
 
-      const payload = await response.json() as {
-        candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-      };
-      const raw = payload.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("").trim() ?? "";
-      if (raw) return { model, raw, error: null };
-      lastError = `Gemini Boss ${model} returned no text.`;
-    } catch (error) {
-      lastError = error instanceof Error ? error.message : "Gemini Boss generation failed.";
+        const payload = await response.json() as {
+          candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+        };
+        const raw = payload.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("").trim() ?? "";
+        if (raw) return { model, raw, error: null };
+        lastError = `Gemini Boss ${model} returned no text.`;
+      } catch (error) {
+        lastError = error instanceof Error ? error.message : "Gemini Boss generation failed.";
+      }
     }
   }
 
