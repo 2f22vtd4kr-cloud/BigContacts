@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db, entitiesTable, assetsTable, contactEvidenceTable, enrichmentRunsTable, identityCandidatesTable, relationshipsTable, researchEvidenceTable, researchSessionsTable } from "@workspace/db";
 import { RunResearchBody } from "@workspace/api-zod";
 import { buildGraph, findShortestPath, identityPairKey } from "../../lib/graph-engine";
+import { loadNeighborhood } from "../../lib/graph-load";
 import { computeBayesianScore } from "../../lib/bayesian-scorer";
 import { runMcts } from "../../lib/mcts-agent";
 import { hybridSearch } from "../../lib/hybrid-search";
@@ -37,26 +38,31 @@ router.post("/research/run", async (req, res): Promise<void> => {
     return;
   }
 
-  const [allEntities, allAssets, allRelationships, acceptedIdentityCandidates] = await Promise.all([
-    db.select().from(entitiesTable),
-    db.select().from(assetsTable),
-    db.select().from(relationshipsTable),
-    db.select().from(identityCandidatesTable),
-  ]);
-  const allTargetContactEvidence = await db
-    .select()
-    .from(contactEvidenceTable)
-    .where(eq(contactEvidenceTable.entityId, entityId));
+  // Bound graph load to the research target neighborhood (avoids full-registry OOM).
+  const neighDepth = Math.min(Math.max((depth ?? 3) + 2, 3), 5);
+  const neighborhood = await loadNeighborhood(entityId, neighDepth);
+  const allEntities = neighborhood.entities;
+  const allAssets = neighborhood.assets;
+  const allRelationships = neighborhood.relationships;
 
+  const entityIdSet = new Set(allEntities.map((e) => e.id));
+  const [acceptedIdentityCandidates, allTargetContactEvidence] = await Promise.all([
+    db.select().from(identityCandidatesTable),
+    db.select().from(contactEvidenceTable).where(eq(contactEvidenceTable.entityId, entityId)),
+  ]);
   const acceptedIdentityPairs = new Set(
     acceptedIdentityCandidates
       .filter((candidate) => candidate.status === "confirmed" && candidate.identityDecision === "accepted")
+      .filter((candidate) => entityIdSet.has(candidate.entityId) || entityIdSet.has(candidate.candidateEntityId))
       .map((candidate) => identityPairKey(candidate.entityId, candidate.candidateEntityId)),
   );
-  const graph = buildGraph(allEntities, allAssets, allRelationships, acceptedIdentityPairs);
+  const graph = buildGraph(allEntities as any, allAssets as any, allRelationships, acceptedIdentityPairs)
 
-  const targetAssets = allAssets.filter((a) => a.ownerEntityId === entityId);
-  const targetRelationships = allRelationships.filter((r) => r.sourceEntityId === entityId);
+  // Target assets need full columns (activity dates, etc.) — load directly for this entity.
+  const targetAssets = await db.select().from(assetsTable).where(eq(assetsTable.ownerEntityId, entityId));
+  const targetRelationships = allRelationships.filter(
+    (r) => r.sourceEntityId === entityId || (r.targetType === "Entity" && r.targetId === entityId),
+  );
   const hasGatekeeperConn = targetRelationships.some((r) => {
     if (r.targetType !== "Entity") return false;
     const connEntity = allEntities.find((e) => e.id === r.targetId);

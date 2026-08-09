@@ -3,6 +3,7 @@ import { eq, desc, sql, and, inArray } from "drizzle-orm";
 import { db, entitiesTable, assetsTable, relationshipsTable, researchSessionsTable } from "@workspace/db";
 import { createJob, updateJob, setActiveJob, getActiveJob, getJob, clearActiveJob } from "../../lib/job-queue";
 import { buildGraph, findShortestPath } from "../../lib/graph-engine";
+import { loadNeighborhood } from "../../lib/graph-load";
 import { computeBayesianScore } from "../../lib/bayesian-scorer";
 import { runMcts } from "../../lib/mcts-agent";
 
@@ -91,14 +92,7 @@ router.post("/research/bulk-run", async (req, res): Promise<void> => {
     let errors = 0;
 
     try {
-      await updateJob(jobId, { progress: 0, total: targets.length, inserted: 0, message: "Loading graph from database…" });
-
-      const [allEntities, allAssets, allRelationships] = await Promise.all([
-        db.select().from(entitiesTable),
-        db.select().from(assetsTable),
-        db.select().from(relationshipsTable),
-      ]);
-      const graph = buildGraph(allEntities, allAssets, allRelationships);
+      await updateJob(jobId, { progress: 0, total: targets.length, inserted: 0, message: "Starting neighborhood Hybrid Research…" });
 
       for (const targetEntity of targets) {
         try {
@@ -111,8 +105,14 @@ router.post("/research/bulk-run", async (req, res): Promise<void> => {
           });
 
           const entityId = targetEntity.id;
-          const targetAssets = allAssets.filter(a => a.ownerEntityId === entityId);
-          const targetRelationships = allRelationships.filter(r => r.sourceEntityId === entityId);
+          const neighborhood = await loadNeighborhood(entityId, 4);
+          const allEntities = neighborhood.entities;
+          const allRelationships = neighborhood.relationships;
+          const graph = buildGraph(allEntities as any, neighborhood.assets as any, allRelationships);
+          const targetAssets = await db.select().from(assetsTable).where(eq(assetsTable.ownerEntityId, entityId));
+          const targetRelationships = allRelationships.filter(
+            (r) => r.sourceEntityId === entityId || (r.targetType === "Entity" && r.targetId === entityId),
+          );
           const assetCategories = [...new Set(targetAssets.map(a => a.category))];
           const totalAssetValue = targetAssets.reduce((s, a) => s + (a.estimatedValue ?? 0), 0);
           const hasGatekeeperConn = targetRelationships.some(r => {
