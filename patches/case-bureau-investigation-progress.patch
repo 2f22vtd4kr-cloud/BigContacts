@@ -1,1 +1,15 @@
-See repo artifacts after apply — placeholder
+--- artifacts/api-server/src/src/lib/case-bureau.ts
++++ artifacts/api-server/src/src/lib/case-bureau.ts
+@@ -1,5 +1,12 @@
+ import type { Entity } from "@workspace/db";
+ import { logger } from "./logger";
++import {
++  computeInvestigationProgress,
++  formatProgressForPrompt,
++  classifyRouteMarker,
++  type InvestigationProgress,
++} from "./investigation-progress";
++export type { InvestigationProgress, ContactVectorProgress, ContactVectorId } from "./investigation-progress";
+ export {
+   getMistralWebSearchStatus,
+   runMistralWebSearch,
