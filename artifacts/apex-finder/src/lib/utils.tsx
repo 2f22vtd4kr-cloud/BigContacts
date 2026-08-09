@@ -158,6 +158,8 @@ type EntityNarrative = {
   telegramBio?: string | null;
   personalWebsite?: string | null;
   foundationName?: string | null;
+  estimatedNetWorth?: number | null;
+  name?: string | null;
   sourceRegistries?: string | string[] | null;
   signal?: string | null;
   assetCount?: number | null;
@@ -207,28 +209,35 @@ function cleanCategory(category: string): string {
 }
 
 export function entityWorkSummary(entity: EntityNarrative): string | null {
+  // Bad Rudi voice: short, human, role-first — what this person actually does.
   const publicRole = narrativeText(entity.twitterBio)
     ?? narrativeText(entity.telegramBio)
-    ?? narrativeText(entity.linkedinHeadline)
-  if (publicRole) return `This profile caught our attention because its public profile describes this role or activity: ${publicRole}`;
+    ?? narrativeText(entity.linkedinHeadline);
+  if (publicRole) return publicRole;
 
   const filing = filingLabel(entity.notes);
   const company = companyFromNotes(entity.notes);
-  if (filing && company) return `This profile caught our attention through a public ${filing} linked to ${company}.`;
-  if (company) return `We found a public company record linking this profile to ${company}.`;
-  if (filing) return `This profile caught our attention through a public filing: ${filing}.`;
+  if (filing && company) return `Shows up in a public ${filing} for ${company}.`;
+  if (company) return `Tied to ${company} in public company records.`;
+  if (filing) return `Named in a public filing: ${filing}.`;
 
   const categories = Array.from(new Set((entity.assetCategories ?? []).filter(Boolean).map(cleanCategory)));
-  if (categories.length > 0) return `We found public records linking this profile to ${categories.slice(0, 3).join(", ")}.`;
+  if (categories.includes("aviation") || categories.some((c) => c.includes("aircraft"))) {
+    return "Private aircraft on the public register — not a hobby fleet for most people.";
+  }
+  if (categories.some((c) => c.includes("real estate") || c.includes("property"))) {
+    return "High-value property sits under their name in public land records.";
+  }
+  if (categories.length > 0) return `Public records point at ${categories.slice(0, 3).join(", ")}.`;
 
   const foundation = narrativeText(entity.foundationName, 150);
-  if (foundation) return `This profile caught our attention through documented foundation activity: ${foundation}.`;
+  if (foundation) return `Linked to foundation work: ${foundation}.`;
 
   const registry = parseEntityRegistries(entity.sourceRegistries);
   const labels = Array.from(new Set(
     registry.flatMap((source) => INVOLVEMENT_LABELS.filter(([pattern]) => pattern.test(source)).map(([, label]) => label)),
   ));
-  if (labels.length > 0) return `We found public records indicating ${labels.slice(0, 2).join(" and ")}.`;
+  if (labels.length > 0) return `Public trail in ${labels.slice(0, 2).join(" and ")}.`;
   return null;
 }
 
@@ -238,7 +247,8 @@ export function entityBio(entity: EntityNarrative): string | null {
 }
 
 export function entityFindingsSummary(entity: EntityNarrative): string {
-  const findings: string[] = [];
+  // Plain spoken dossier notes — what turned up, not a checklist of system fields.
+  const bits: string[] = [];
   const source = parseEntityRegistries(entity.sourceRegistries)
     .filter((item) => !/^(manual|user|seed|imported)$/i.test(item.trim()))[0];
   const filing = filingLabel(entity.notes);
@@ -246,19 +256,75 @@ export function entityFindingsSummary(entity: EntityNarrative): string {
   const noteNationality = noteField(entity.notes, "Nationality");
   const noteLocation = noteField(entity.notes, "Location");
 
-  if (source) findings.push(`the ${source} record`);
-  if (filing && company) findings.push(`${filing} linked to ${company}`);
-  else if (filing) findings.push(filing);
-  if (noteNationality || entity.nationality) findings.push(`nationality recorded as ${noteNationality ?? entity.nationality}`);
-  if (noteLocation || entity.knownResidences) findings.push(`location recorded as ${noteLocation ?? entity.knownResidences}`);
+  if (source) bits.push(`first hit came from ${source}`);
+  if (filing && company) bits.push(`${filing} names them with ${company}`);
+  else if (filing) bits.push(`filing on record: ${filing}`);
+  if (noteNationality || entity.nationality) bits.push(`nationality looks like ${noteNationality ?? entity.nationality}`);
+  if (noteLocation || entity.knownResidences) {
+    const loc = (noteLocation ?? entity.knownResidences ?? "").split(",")[0]?.trim();
+    if (loc) bits.push(`ties to ${loc}`);
+  }
   if ((entity.assetCount ?? 0) > 0) {
     const categories = Array.from(new Set((entity.assetCategories ?? []).filter(Boolean).map(cleanCategory)));
-    findings.push(`${entity.assetCount} linked public asset${entity.assetCount === 1 ? "" : "s"}${categories.length ? ` (${categories.slice(0, 2).join(", ")})` : ""}`);
+    const cat = categories.slice(0, 2).join(" and ");
+    bits.push(
+      entity.assetCount === 1
+        ? `one public asset on file${cat ? ` (${cat})` : ""}`
+        : `${entity.assetCount} public assets on file${cat ? ` (${cat})` : ""}`,
+    );
   }
-  if (entity.personalWebsite) findings.push("personal website recorded");
-  if (entity.linkedinHeadline || entity.twitterBio || entity.telegramBio) findings.push("public social/profile text recorded");
-  if (findings.length === 0) return "We have not found a personal finding beyond the entity record yet; further evidence review is pending.";
-  return `So far, we found ${findings.join(" · ")}.`;
+  if (entity.personalWebsite) bits.push("a personal site is on the record");
+  if (entity.linkedinHeadline || entity.twitterBio || entity.telegramBio) bits.push("public profile text is available");
+  if (bits.length === 0) return "Still thin. Name is on file; the personal picture has not filled in yet.";
+  return bits.join(". ") + ".";
+}
+
+/** Why this person sits in the HNWI ledger — wealth signal in plain language. */
+export function entityWhyHnwi(entity: EntityNarrative): string {
+  const name = typeof entity.name === "string" && entity.name.trim() ? entity.name.trim().split(/\s+/)[0] : "They";
+  const registry = parseEntityRegistries(entity.sourceRegistries);
+  const reg = registry.find((item) => !/^(manual|user|seed|imported)$/i.test(item.trim())) ?? "";
+  const categories = Array.from(new Set((entity.assetCategories ?? []).filter(Boolean).map(cleanCategory)));
+  const company = companyFromNotes(entity.notes);
+  const filing = filingLabel(entity.notes);
+  const worth = entity.estimatedNetWorth;
+
+  if (/faa/i.test(reg) || categories.some((c) => c.includes("aviation") || c.includes("aircraft"))) {
+    const n = entity.assetCount ?? 0;
+    return n > 1
+      ? `${name} lands here because the FAA list shows ${n} aircraft under their name. Jets are not a lifestyle flex we invent — they are public, expensive, and hard to fake.`
+      : `${name} lands here because the FAA register shows aircraft ownership. That is public, costly to run, and a clean wealth signal.`;
+  }
+  if (/edgar|sec/i.test(reg)) {
+    if (company) {
+      return `${name} is on the list because SEC filings put them next to ${company} as an owner or senior name. Public markets leave a paper trail.`;
+    }
+    return `${name} is on the list because SEC EDGAR names them in ownership or board filings. That is the open record, not a rumour.`;
+  }
+  if (/land.?reg|hmlr/i.test(reg) || categories.some((c) => c.includes("real estate") || c.includes("property"))) {
+    return `${name} is here because UK land records show high-value property in their name. Property of that class is a durable wealth marker.`;
+  }
+  if (/companies.?house/i.test(reg)) {
+    return company
+      ? `${name} shows up as a director or controller around ${company} at Companies House. That is how the UK keeps score on who runs the shop.`
+      : `${name} shows up in Companies House as a director or person with significant control. Official register, not a magazine list.`;
+  }
+  if (/brreg|norway/i.test(reg)) {
+    return `${name} is listed as a director or key officer in Norway's BRREG. We use that plus company scale as the wealth filter.`;
+  }
+  if (filing && company) {
+    return `${name} is on the desk because a public ${filing} links them to ${company}. Role plus public paper is enough to open a card.`;
+  }
+  if (worth != null && worth > 0) {
+    return `${name} carries an estimated wealth signal on file. Treat the number as a lead, not a verdict — the registries and assets are the real story.`;
+  }
+  if (company) {
+    return `${name} is tied to ${company} in public records. That business link is why the card exists.`;
+  }
+  if (reg) {
+    return `${name} appears in ${reg}, a public register we watch for people with serious assets or control.`;
+  }
+  return `${name} is on a research card. The public case for wealth and role is still being filled in.`;
 }
 
 const INVOLVEMENT_LABELS: Array<[RegExp, string]> = [

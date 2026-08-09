@@ -45,7 +45,7 @@ import {
   Phone,
   Crosshair, Flame,
 } from "lucide-react";
-import { cn, entityFindingsSummary, entityWorkSummary, formatCurrency, formatEntityName, AccessScoreBadge, ConfidenceBadge, ScoreBadge } from "@/lib/utils";
+import { cn, entityFindingsSummary, entityWorkSummary, entityWhyHnwi, formatCurrency, formatEntityName, AccessScoreBadge, ConfidenceBadge, ScoreBadge } from "@/lib/utils";
 import { entityMeta, EntityTypeMark, entityMetric } from "@/lib/entity-taxonomy";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -494,6 +494,11 @@ export default function ApexProfile() {
     assetCount: (assets as any[]).length,
     assetCategories: (assets as any[]).map((asset: any) => asset.category),
   });
+  const profileWhy = entityWhyHnwi({
+    ...entity,
+    assetCount: (assets as any[]).length,
+    assetCategories: (assets as any[]).map((asset: any) => asset.category),
+  });
   const mapCenter: [number, number] = geoAssets.length > 0
     ? [
         geoAssets.reduce((s: number, a: any) => s + a.latitude,  0) / geoAssets.length,
@@ -749,12 +754,16 @@ export default function ApexProfile() {
           )}
            <div className="mt-3 space-y-2">
              <div className="rounded-lg border border-primary/15 bg-primary/[0.035] px-3 py-2.5">
-                <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-primary/75">What they do</div>
-                <p className="mt-1 text-[11px] leading-5 text-foreground/80">{profileWorkSummary ?? "No documented role or activity is recorded yet."}</p>
+                <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-primary/75">The job</div>
+                <p className="mt-1 text-[12px] leading-5 text-foreground/85">{profileWorkSummary ?? "Role still quiet on the public record."}</p>
              </div>
              <div className="rounded-lg border border-secondary/15 bg-secondary/[0.035] px-3 py-2.5">
-                <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-secondary/80">What we found</div>
-                <p className="mt-1 text-[11px] leading-5 text-foreground/80">{profileFindings}</p>
+                <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-secondary/80">The paper trail</div>
+                <p className="mt-1 text-[12px] leading-5 text-foreground/85">{profileFindings}</p>
+             </div>
+             <div className="rounded-lg border border-amber-500/20 bg-amber-500/[0.04] px-3 py-2.5">
+                <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-amber-500/80">Why they are on the list</div>
+                <p className="mt-1 text-[12px] leading-5 text-foreground/85">{profileWhy}</p>
              </div>
            </div>
           {/* Score cards */}
@@ -1143,10 +1152,10 @@ export default function ApexProfile() {
                             ? item.value
                             : null;
                     const badge = personal
-                      ? { label: "Direct / personal", cls: "text-emerald-300 border-emerald-500/40 bg-emerald-500/10" }
+                      ? { label: "Looks personal", cls: "text-emerald-300 border-emerald-500/40 bg-emerald-500/10" }
                       : orgish
-                        ? { label: "Related / org", cls: "text-sky-300 border-sky-500/30 bg-sky-500/10" }
-                        : { label: item.validationStatus === "verified" ? "Verified" : "Candidate", cls: "text-amber-300 border-amber-500/30 bg-amber-500/10" };
+                        ? { label: "Company / related", cls: "text-sky-300 border-sky-500/30 bg-sky-500/10" }
+                        : { label: item.validationStatus === "verified" ? "Checked out" : "Still a lead", cls: "text-amber-300 border-amber-500/30 bg-amber-500/10" };
                     const card = (
                       <div
                         className={
@@ -1163,8 +1172,15 @@ export default function ApexProfile() {
                           <span className={"text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded border " + badge.cls}>{badge.label}</span>
                         </div>
                         <div className="text-xs font-mono text-foreground break-all mt-1">{item.value}</div>
-                        <div className="mt-1.5 text-[9px] font-mono text-muted-foreground/70">
-                          direct {((item.directnessScore ?? 0) * 100).toFixed(0)}% · match {((item.identityMatch ?? 0) * 100).toFixed(0)}% · {item.source}
+                        <div className="mt-1.5 text-[10px] text-muted-foreground/75 leading-snug">
+                          {((item.directnessScore ?? 0) >= 0.65
+                            ? "Reads close to them"
+                            : (item.directnessScore ?? 0) >= 0.4
+                              ? "Related, not necessarily personal"
+                              : "Loose link — still on the table")}
+                          {" · "}
+                          {item.source}
+                          {item.sourceUrl ? " · has source page" : ""}
                         </div>
                       </div>
                     );
@@ -1506,50 +1522,15 @@ export default function ApexProfile() {
 
       {/* ── Why this person is in this database (always visible) ─────────── */}
       {(() => {
-        const e = entity as any;
-        let srcRegsLocal: string[] = [];
-        try { srcRegsLocal = JSON.parse(e.sourceRegistries ?? "[]"); } catch {}
-        const primaryReg = srcRegsLocal[0] ?? "";
-        const pName = formatEntityName(e.name || "This person");
-        const assetArr = assets as any[];
-
-        const lines: string[] = [];
-        if (/edgar|sec/i.test(primaryReg)) {
-          const is13 = primaryReg.toLowerCase().includes("13");
-          lines.push(is13
-            ? `${pName} filed a beneficial ownership disclosure with the U.S. Securities and Exchange Commission (SEC EDGAR Form 13D or 13G). Anyone who controls more than 5% of a publicly traded company is legally required to file this — it's not optional, it's a federal requirement, and it's public record.`
-            : `${pName} appears in executive compensation filings submitted to the U.S. Securities and Exchange Commission (SEC EDGAR DEF 14A). Board directors and named executives of public companies must file these annually — that's how we know they hold a senior role.`);
-        } else if (/faa/i.test(primaryReg)) {
-          const jets = assetArr.filter((a: any) => a.category === "Aviation");
-          lines.push(`${pName} owns ${jets.length > 1 ? `${jets.length} aircraft` : "an aircraft"} registered with the FAA — the U.S. Federal Aviation Administration. Every private aircraft in the U.S. must be registered with the FAA, and that registry is public. Turbine aircraft (jets and large turboprops) cost millions to own and operate, which is why FAA ownership is one of our strongest wealth signals.`);
-        } else if (/land.?reg|hmlr/i.test(primaryReg)) {
-          const props = assetArr.filter((a: any) => a.category === "RealEstate");
-          lines.push(`${pName} shows up in the UK Land Registry as the buyer or registered owner of ${props.length > 1 ? `${props.length} properties` : "a property"} above £1 million. Every property transaction in England and Wales is filed with the Land Registry — it's how the UK tracks real estate ownership, and it's freely accessible.`);
-        } else if (/brreg/i.test(primaryReg)) {
-          lines.push(`${pName} is listed in Norway's official business registry (BRREG) as a director or key officer. BRREG is the public record of every registered company in Norway — we cross-reference officer names with company turnover data to identify high-net-worth individuals.`);
-        } else if (/companies.?house/i.test(primaryReg)) {
-          lines.push(`${pName} appears in UK Companies House as a director or person of significant control. Companies House is the UK's official register of companies and their officers — anyone with >25% ownership or voting control must be listed. That's the statutory basis for their inclusion here.`);
-         } else if (/^manual$/i.test(primaryReg)) {
-           lines.push(`${pName} is a manually created research record. No public registry or asset evidence is recorded yet.`);
-         } else if (primaryReg) {
-          lines.push(`${pName} appears in ${primaryReg} — a public registry we monitor for high-net-worth individuals and significant asset holders.`);
-        }
-        if (e.estimatedNetWorth != null) {
-          lines.push(`Estimated net worth or AUM: ${formatCurrency(e.estimatedNetWorth)}.`);
-        }
-        if (assetArr.length > 0) {
-          const cats = [...new Set(assetArr.map((a: any) => a.category))];
-          lines.push(`Registered assets on file: ${assetArr.length} (${cats.join(", ")}).`);
-        }
-
-        if (!lines.length) return null;
+        // Keep a single plain-spoken "why this card exists" strip under contacts.
+        if (!profileWhy) return null;
         return (
-          <div className="flex-shrink-0 border-b border-border px-4 md:px-6 py-3 bg-muted/20">
-            <div className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground/50 mb-1.5">
-              Why {pName} is in this database
+          <div className="flex-shrink-0 border-b border-border px-4 md:px-6 py-3 bg-muted/15">
+            <div className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground/55 mb-1.5">
+              Why this card exists
             </div>
-            <p className="text-[11px] text-muted-foreground/75 leading-relaxed">
-              {lines.join(" ")}
+            <p className="text-[12px] text-foreground/80 leading-relaxed max-w-3xl">
+              {profileWhy}
             </p>
           </div>
         );
