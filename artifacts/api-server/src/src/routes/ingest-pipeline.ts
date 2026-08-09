@@ -23,7 +23,7 @@ import {
 import { deepWebOsintEnrich } from "../lib/enrichment/web-discovery";
 import { summarizeAdaptiveResearch } from "../lib/adaptive-research-director";
 import { computeContactConfidence, computeContactOutcome } from "../lib/contact-confidence";
-import { sanitizePublicEmail, sanitizePublicPhone, sanitizePublicSocialUrl } from "../lib/contact-validation";
+import { sanitizePublicEmail, sanitizePublicPhone, sanitizePublicSocialUrl, isGenericEmailPrefix } from "../lib/contact-validation";
 import { contactCacheSet } from "../lib/redis";
 import { logger } from "../lib/logger";
 
@@ -200,6 +200,10 @@ router.post("/ingest/deep-web-osint", async (req: Request, res: Response): Promi
         const cleanTwitter = sanitizePublicSocialUrl(result.twitterUrl, "twitter", "person");
         if (cleanEmail)         updates["email"]       = cleanEmail;
         else if (!entity.email) updates["email"]       = null;
+        if (cleanEmail) {
+          const local = cleanEmail.split("@")[0] ?? "";
+          updates["isGenericPrefix"] = isGenericEmailPrefix(local);
+        }
         if (cleanPhone)         updates["phone"]       = cleanPhone;
         else if (force)         updates["phone"]       = null; // clear stale
         if (cleanLinkedIn)      updates["linkedinUrl"] = cleanLinkedIn;

@@ -131,14 +131,14 @@ function LeadCard({ lead, index }: { lead: any; index: number }) {
 
       <div className="relative mt-4 space-y-2.5">
         <div className="rounded-lg border border-primary/15 bg-primary/[0.035] px-3 py-2.5">
-          <div className="font-mono text-[8px] uppercase tracking-[0.14em] text-primary/75">What they do</div>
+          <div className="font-mono text-[8px] uppercase tracking-[0.14em] text-primary/75">The job</div>
           <p className="mt-1 text-[11px] leading-5 text-foreground/80">
             {workSummary ?? "No documented role or activity is recorded yet."}
           </p>
         </div>
         <div className="flex items-start gap-2 text-[10px] leading-4 text-muted-foreground">
           <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-secondary" />
-          <span><span className="font-mono text-[8px] uppercase tracking-[0.12em] text-muted-foreground/65">What we found · </span>{findingsSummary}</span>
+          <span><span className="font-mono text-[8px] uppercase tracking-[0.12em] text-muted-foreground/65">The paper trail · </span>{findingsSummary}</span>
         </div>
       </div>
 

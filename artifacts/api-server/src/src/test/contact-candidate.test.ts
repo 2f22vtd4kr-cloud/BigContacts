@@ -140,7 +140,7 @@ describe("contact candidate reconciliation", () => {
     expect(funnel.candidates.every((candidate) => candidate.conflictCount === 1)).toBe(true);
   });
 
-  it("blocks organization-only and uncorroborated same-name social candidates", () => {
+  it("keeps organization-only social as related, not personal-eligible", () => {
     const organization = reconcileContactCandidates([{
       vectorType: "social",
       value: "https://instagram.com/company-account",
@@ -158,8 +158,10 @@ describe("contact candidate reconciliation", () => {
 
     expect(isEligiblePersonalSocialCandidate(organization)).toBe(false);
     expect(isEligiblePersonalSocialCandidate(sameName)).toBe(false);
-    expect(organization.state).toBe("rejected");
-    expect(organization.rejectionReason).toContain("organization-only");
+    expect(organization.state).not.toBe("rejected");
+    expect(["discovered", "source_linked"]).toContain(organization.state);
+    // Still not treated as a personal social promotion target
+    expect(organization.scopes.every((s) => s === "organization")).toBe(true);
   });
 
   it("matches social claims by normalized profile URL and requires fetched-claim metadata", () => {

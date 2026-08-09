@@ -672,17 +672,23 @@ export default function ApexProfile() {
                 </span>
               ))}
             </div>
-             <div className="mt-3 grid max-w-3xl gap-2 sm:grid-cols-2">
+             <div className="mt-3 grid max-w-3xl gap-2 sm:grid-cols-2 lg:grid-cols-3">
                <div className="rounded-lg border border-primary/15 bg-primary/[0.035] px-3 py-2.5">
-                  <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-primary/75">What they do</div>
-                 <p className="mt-1 text-[11px] leading-5 text-foreground/80">
-                    {profileWorkSummary ?? "No documented role or activity is recorded yet."}
+                  <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-primary/75">The job</div>
+                 <p className="mt-1 text-[12px] leading-5 text-foreground/85">
+                    {profileWorkSummary ?? "Role still quiet on the public record."}
                  </p>
                </div>
                <div className="rounded-lg border border-secondary/15 bg-secondary/[0.035] px-3 py-2.5">
-                  <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-secondary/80">What we found</div>
-                 <p className="mt-1 text-[11px] leading-5 text-foreground/80">
+                  <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-secondary/80">The paper trail</div>
+                 <p className="mt-1 text-[12px] leading-5 text-foreground/85">
                     {profileFindings}
+                 </p>
+               </div>
+               <div className="rounded-lg border border-amber-500/20 bg-amber-500/[0.04] px-3 py-2.5 sm:col-span-2 lg:col-span-1">
+                  <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-amber-500/80">Why they are on the list</div>
+                 <p className="mt-1 text-[12px] leading-5 text-foreground/85">
+                    {profileWhy}
                  </p>
                </div>
              </div>
@@ -994,11 +1000,44 @@ export default function ApexProfile() {
       {(() => {
         const e = entity as any;
         const activeEvidence = contactEvidence.filter((item) => item.validationStatus !== "rejected");
-        const hasContact = activeEvidence.length > 0 || !!(
+        // Pull related routes from enrichment hierarchy that never landed in contact_evidence rows
+        // (e.g. bureau / deep-web hierarchy) so the card is not emptier than research.
+        let hierarchyRoutes: Array<{ vectorType: string; value: string; source: string; sourceUrl: string | null; validationStatus: string; directnessScore: number; identityMatch: number; sourceReliability: number; id: number }> = [];
+        try {
+          const meta = JSON.parse(e.metadata ?? "{}");
+          const rh = Array.isArray(meta.routeHierarchy) ? meta.routeHierarchy : [];
+          const seenVals = new Set(activeEvidence.map((item) => `${item.vectorType}:${item.value}`.toLowerCase()));
+          hierarchyRoutes = rh
+            .filter((route: any) => route && typeof route.value === "string" && route.value.trim())
+            .filter((route: any) => String(route.state ?? "") !== "rejected")
+            .map((route: any, index: number) => {
+              const vectorType = String(route.vectorType ?? "other");
+              const value = String(route.value).trim();
+              const key = `${vectorType}:${value}`.toLowerCase();
+              if (seenVals.has(key)) return null;
+              seenVals.add(key);
+              const tier = String(route.tier ?? route.scope ?? "");
+              const orgish = /organization|org/i.test(tier) || /info@|contact@|office@|admin@/i.test(value);
+              return {
+                id: -1000 - index,
+                vectorType,
+                value,
+                source: "route-hierarchy",
+                sourceUrl: Array.isArray(route.sourceUrls) && typeof route.sourceUrls[0] === "string" ? route.sourceUrls[0] : null,
+                validationStatus: "candidate",
+                directnessScore: orgish ? 0.35 : typeof route.score === "number" ? Math.min(0.7, route.score / 100) : 0.45,
+                identityMatch: orgish ? 0.35 : 0.5,
+                sourceReliability: 0.5,
+              };
+            })
+            .filter(Boolean) as typeof hierarchyRoutes;
+        } catch { /* ignore bad metadata */ }
+        const mergedEvidence = [...activeEvidence, ...hierarchyRoutes];
+        const hasContact = mergedEvidence.length > 0 || !!(
           e.email || e.phone || e.linkedinUrl || e.twitterHandle ||
           e.instagramHandle || e.telegramHandle || e.personalWebsite || e.foundationName
         );
-        const rankEvidence = (item: typeof contactEvidence[number]) => {
+        const rankEvidence = (item: typeof mergedEvidence[number]) => {
           let s = 0;
           if (item.validationStatus === "verified") s += 120;
           else if (item.validationStatus === "candidate") s += 50;
@@ -1008,7 +1047,7 @@ export default function ApexProfile() {
           if (item.vectorType === "email" || item.vectorType === "phone") s += 8;
           return s;
         };
-        const rankedEvidence = [...activeEvidence].sort((a, b) => rankEvidence(b) - rankEvidence(a));
+        const rankedEvidence = [...mergedEvidence].sort((a, b) => rankEvidence(b) - rankEvidence(a));
         const isPersonalHigh = (item: typeof contactEvidence[number]) =>
           item.validationStatus === "verified" ||
           ((item.directnessScore ?? 0) >= 0.65 && (item.identityMatch ?? 0) >= 0.5);

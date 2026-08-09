@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Link, useLocation, useSearch } from "wouter";
 import { useListEntities, useCreateEntity, useDeleteEntity } from "@workspace/api-client-react";
-import { entityFindingsSummary, entityEvidenceLabel, entityWorkSummary, formatCurrency, formatEntityName, AccessScoreBadge, ConfidenceBadge, parseEntityRegistries } from "@/lib/utils";
+import { entityFindingsSummary, entityEvidenceLabel, entityWorkSummary, entityWhyHnwi, formatCurrency, formatEntityName, AccessScoreBadge, ConfidenceBadge, parseEntityRegistries } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { entityMeta, EntityTypeMark, entityMetric, ENTITY_TYPES } from "@/lib/entity-taxonomy";
 import {
@@ -239,11 +239,11 @@ function MobileEntityCard({
         <div className="px-4 pb-4 pt-1 animate-in slide-in-from-top-2 fade-in duration-200">
            <div className="mb-4 grid gap-2">
              <div className="rounded-lg border border-primary/15 bg-primary/[0.035] px-3 py-2.5">
-                <div className="text-[9px] font-mono uppercase tracking-wider text-primary/75">What they do</div>
+                <div className="text-[9px] font-mono uppercase tracking-wider text-primary/75">The job</div>
                 <p className="mt-1 text-xs leading-5 text-foreground/80">{workSummary ?? "No documented role or activity is recorded yet."}</p>
              </div>
              <div className="rounded-lg border border-secondary/15 bg-secondary/[0.035] px-3 py-2.5">
-                <div className="text-[9px] font-mono uppercase tracking-wider text-secondary/80">What we found</div>
+                <div className="text-[9px] font-mono uppercase tracking-wider text-secondary/80">The paper trail</div>
                 <p className="mt-1 text-xs leading-5 text-foreground/80">{findingsSummary}</p>
              </div>
            </div>
