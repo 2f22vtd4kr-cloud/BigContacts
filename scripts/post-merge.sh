@@ -9,6 +9,8 @@
 #   1. Installs all pnpm workspace dependencies
 #   2. Applies any new DB schema columns/tables (additive only)
 #   3. Verifies no synthetic data crept in
+#   4. Installs Python OSINT tools
+#   5. Applies Bureau investigation-progress wire-up (idempotent)
 #
 # What happens automatically AFTER this (on API server boot):
 #   - Ghost active-job locks from the previous process are cleared
@@ -30,20 +32,29 @@
 
 set -e
 
-echo "=== [1/4] Installing dependencies ==="
+echo "=== [1/5] Installing dependencies ==="
 pnpm install --frozen-lockfile
 
-echo "=== [2/4] Applying DB schema (additive) ==="
+echo "=== [2/5] Applying DB schema (additive) ==="
 pnpm --filter @workspace/db run push
 
-echo "=== [3/4] Checking for synthetic data ==="
+echo "=== [3/5] Checking for synthetic data ==="
 bash scripts/check-no-synthetic-data.sh
 
-echo "=== [4/4] Installing Python OSINT tools (Holehe · Maigret) ==="
+echo "=== [4/5] Installing Python OSINT tools (Holehe · Maigret) ==="
 # MANDATORY — Apex Atlas must not run research without these tools installed.
 # Holehe: email → 120+ platform presence check
 # Maigret: username → 3,000+ social platform dossier
 bash scripts/install-python-tools.sh
+
+echo "=== [5/5] Applying Bureau investigation-progress wire-up ==="
+# Idempotent: wires investigationProgress + Apex Atlas Boss prompt + verified-personal UI markers
+# Modules already on main; this completes case-bureau.ts + research.tsx integration.
+if [ -f scripts/apply-bureau-progress.mjs ]; then
+  node scripts/apply-bureau-progress.mjs
+else
+  echo "WARN: scripts/apply-bureau-progress.mjs missing — skip (pull latest main)"
+fi
 
 echo ""
 echo "✅ Post-merge setup complete."
