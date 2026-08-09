@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, isNotNull, sql, and } from "drizzle-orm";
+import { eq, isNotNull, sql, and, or, inArray, desc } from "drizzle-orm";
 import { db, relationshipsTable, entitiesTable, assetsTable } from "@workspace/db";
 import { getAllEmbeddings } from "../lib/semantic-engine";
 import {
@@ -10,7 +10,13 @@ import {
 
 const router: IRouter = Router();
 
+/** Safety caps so unbounded relationship lists cannot OOM the API. */
+const MAX_RELATIONSHIPS_FOR_ENTITY = 2_000;
+const MAX_RELATIONSHIPS_GLOBAL = 500;
+
 // GET /relationships
+// When entityId is set: return edges where the entity is source OR (entity is target and targetType=Entity).
+// Previously only source-side edges were returned, which hid inbound network on profiles.
 router.get("/relationships", async (req, res): Promise<void> => {
   const parsed = ListRelationshipsQueryParams.safeParse(req.query);
   if (!parsed.success) {
@@ -20,10 +26,27 @@ router.get("/relationships", async (req, res): Promise<void> => {
   const { entityId } = parsed.data;
 
   const rows = entityId
-    ? await db.select().from(relationshipsTable).where(eq(relationshipsTable.sourceEntityId, entityId))
-    : await db.select().from(relationshipsTable).orderBy(relationshipsTable.createdAt);
+    ? await db
+        .select()
+        .from(relationshipsTable)
+        .where(
+          or(
+            eq(relationshipsTable.sourceEntityId, entityId),
+            and(
+              eq(relationshipsTable.targetId, entityId),
+              eq(relationshipsTable.targetType, "Entity"),
+            ),
+          ),
+        )
+        .orderBy(desc(relationshipsTable.createdAt))
+        .limit(MAX_RELATIONSHIPS_FOR_ENTITY)
+    : await db
+        .select()
+        .from(relationshipsTable)
+        .orderBy(desc(relationshipsTable.createdAt))
+        .limit(MAX_RELATIONSHIPS_GLOBAL);
 
-  // Resolve names for display
+  // Resolve names only for IDs present in the result set (never full-table scan).
   const allEntityIds = new Set<number>();
   const allAssetIds = new Set<number>();
   for (const r of rows) {
@@ -35,12 +58,20 @@ router.get("/relationships", async (req, res): Promise<void> => {
   const entityNames: Record<number, string> = {};
   const assetNames: Record<number, string> = {};
 
-  if (allEntityIds.size > 0) {
-    const entityRows = await db.select({ id: entitiesTable.id, name: entitiesTable.name }).from(entitiesTable);
+  const entityIdList = [...allEntityIds];
+  if (entityIdList.length > 0) {
+    const entityRows = await db
+      .select({ id: entitiesTable.id, name: entitiesTable.name })
+      .from(entitiesTable)
+      .where(inArray(entitiesTable.id, entityIdList));
     for (const e of entityRows) entityNames[e.id] = e.name;
   }
-  if (allAssetIds.size > 0) {
-    const assetRows = await db.select({ id: assetsTable.id, identifier: assetsTable.identifier, category: assetsTable.category }).from(assetsTable);
+  const assetIdList = [...allAssetIds];
+  if (assetIdList.length > 0) {
+    const assetRows = await db
+      .select({ id: assetsTable.id, identifier: assetsTable.identifier, category: assetsTable.category })
+      .from(assetsTable)
+      .where(inArray(assetsTable.id, assetIdList));
     for (const a of assetRows) assetNames[a.id] = `${a.category}: ${a.identifier}`;
   }
 

@@ -1920,24 +1920,32 @@ export default function ApexProfile() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/30">
-                    {(relationships as any[]).map((rel: any) => (
+                    {(relationships as any[]).map((rel: any) => {
+                      const inbound = rel.targetType === "Entity" && Number(rel.targetId) === Number(entityId);
+                      const otherId = inbound ? rel.sourceEntityId : rel.targetId;
+                      const otherName = inbound
+                        ? (rel.sourceEntityName ?? `#${rel.sourceEntityId}`)
+                        : (rel.targetName ?? (rel.targetType === "Asset" ? `Asset #${rel.targetId}` : `#${rel.targetId}`));
+                      const otherType = inbound ? "Entity" : rel.targetType;
+                      const relLabel = String(rel.relationshipType ?? "").replace(/_/g, " ");
+                      return (
                       <tr key={rel.id} className="hover:bg-muted/10 transition-colors group">
                         <td className="px-4 py-2.5">
-                          {rel.targetType === "Entity" ? (
-                            <Link href={`/profile/${rel.targetId}`} className="text-xs font-mono text-primary hover:underline">
-                              {rel.targetName ?? `#${rel.targetId}`}
+                          {otherType === "Entity" ? (
+                            <Link href={`/profile/${otherId}`} className="text-xs font-mono text-primary hover:underline">
+                              {otherName}
                             </Link>
                           ) : (
-                            <span className="text-xs font-mono text-foreground/70">{rel.targetName ?? `Asset #${rel.targetId}`}</span>
+                            <span className="text-xs font-mono text-foreground/70">{otherName}</span>
                           )}
                         </td>
                         <td className="px-4 py-2.5">
                           <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-muted text-muted-foreground uppercase">
-                            {rel.targetType}
+                            {otherType}{inbound ? " · in" : " · out"}
                           </span>
                         </td>
                         <td className="px-4 py-2.5 text-xs font-mono text-foreground/80">
-                          {(rel.relationshipType as string).replace(/_/g, " ")}
+                          {relLabel}
                         </td>
                         <td className="px-4 py-2.5">
                           <div className="flex items-center gap-2">
@@ -1960,7 +1968,8 @@ export default function ApexProfile() {
                           </button>
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

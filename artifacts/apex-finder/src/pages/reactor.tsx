@@ -1989,22 +1989,30 @@ export default function IntelligenceReactorPage() {
       });
     };
 
+    let attempt = 0;
     const connect = () => {
       if (closed) return;
       try {
         es = new EventSource(url);
       } catch {
         setBureauConnected(false);
-        retryTimer = window.setTimeout(connect, 4_000);
+        const delay = Math.min(30_000, 2_000 * Math.pow(2, attempt++));
+        retryTimer = window.setTimeout(connect, delay);
         return;
       }
 
-      es.addEventListener("open", () => setBureauConnected(true));
+      es.addEventListener("open", () => {
+        attempt = 0;
+        setBureauConnected(true);
+      });
       es.addEventListener("error", () => {
         setBureauConnected(false);
         es?.close();
         es = null;
-        if (!closed) retryTimer = window.setTimeout(connect, 4_000);
+        if (!closed) {
+          const delay = Math.min(30_000, 2_000 * Math.pow(2, attempt++));
+          retryTimer = window.setTimeout(connect, delay);
+        }
       });
       es.addEventListener("snapshot", (ev) => {
         try {

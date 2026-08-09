@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and } from "drizzle-orm";
+import { eq, and, or, isNull } from "drizzle-orm";
 import { db, assetsTable, entitiesTable } from "@workspace/db";
 import {
   ListAssetsQueryParams,
@@ -25,6 +25,9 @@ router.get("/assets", async (req, res): Promise<void> => {
   if (category) conditions.push(eq(assetsTable.category, category));
   if (entityId !== undefined) conditions.push(eq(assetsTable.ownerEntityId, entityId));
 
+  // Bound global asset lists. Profile/entity views pass entityId and stay complete.
+  const listLimit = entityId !== undefined ? 2_000 : 500;
+
   const rows = await db
     .select({
       asset: assetsTable,
@@ -32,8 +35,12 @@ router.get("/assets", async (req, res): Promise<void> => {
     })
     .from(assetsTable)
     .leftJoin(entitiesTable, eq(assetsTable.ownerEntityId, entitiesTable.id))
-    .where(conditions.length > 0 ? and(...conditions) : undefined)
-    .orderBy(assetsTable.createdAt);
+    .where(and(
+      ...(conditions.length > 0 ? conditions : []),
+      or(isNull(assetsTable.ownerEntityId), eq(entitiesTable.isHidden, false)),
+    ))
+    .orderBy(assetsTable.createdAt)
+    .limit(listLimit);
 
   const assets = rows.map(({ asset, ownerName }) => ({
     ...asset,

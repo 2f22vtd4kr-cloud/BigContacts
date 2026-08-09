@@ -111,10 +111,12 @@ async function loadNeighborhood(centerEntityId: number, depth: number): Promise<
   let truncated = false;
 
   let frontier = new Set<number>([centerEntityId]);
+  const expanded = new Set<number>(); // already BFS-expanded entity ids
 
   for (let d = 0; d < depth; d++) {
     if (frontier.size === 0) break;
     const frontierIds = [...frontier];
+    for (const id of frontierIds) expanded.add(id);
     // Chunk IN clauses for safety
     const chunkSize = 200;
     const batchRels: (typeof relationshipsTable.$inferSelect)[] = [];
@@ -150,12 +152,8 @@ async function loadNeighborhood(centerEntityId: number, depth: number): Promise<
       entityIds.add(r.sourceEntityId);
       if (r.targetType === "Entity") {
         entityIds.add(r.targetId);
-        if (!frontier.has(r.targetId) && r.targetId !== centerEntityId) {
-          nextFrontier.add(r.targetId);
-        }
-        if (!frontier.has(r.sourceEntityId) && r.sourceEntityId !== centerEntityId) {
-          nextFrontier.add(r.sourceEntityId);
-        }
+        if (!expanded.has(r.targetId)) nextFrontier.add(r.targetId);
+        if (!expanded.has(r.sourceEntityId)) nextFrontier.add(r.sourceEntityId);
       } else if (r.targetType === "Asset") {
         assetIds.add(r.targetId);
       }

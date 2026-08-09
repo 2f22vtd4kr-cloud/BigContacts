@@ -37,9 +37,11 @@ export default function GraphViewer() {
   const params = useMemo(() => new URLSearchParams(search), [search]);
   const entityIdFromUrl = params.get("entity");
 
-  const [targetId, setTargetId] = useState<number>(
-    entityIdFromUrl ? parseInt(entityIdFromUrl, 10) : 0
-  );
+  const [targetId, setTargetId] = useState<number>(() => {
+    if (!entityIdFromUrl) return 0;
+    const parsed = parseInt(entityIdFromUrl, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+  });
 
   // On initial load with no ?entity= param, pick the most-connected entity instead of #1
   useEffect(() => {
@@ -824,6 +826,13 @@ export default function GraphViewer() {
 
       {/* ── Dismiss context menu on outside click ── */}
       {ctxMenu && <div className="fixed inset-0 z-40" onClick={() => setCtxMenu(null)} />}
+      {/* ── Dismiss entity selector / filter sheets ── */}
+      {(selectorOpen || filterOpen) && (
+        <div
+          className="fixed inset-0 z-40"
+          onClick={() => { setSelectorOpen(false); setFilterOpen(false); }}
+        />
+      )}
 
       {/* ── Add Relationship Modal ── */}
       <Dialog open={addRelOpen} onOpenChange={(o) => { setAddRelOpen(o); if (!o) { setRelError(null); setRelSearchResults([]); } }}>

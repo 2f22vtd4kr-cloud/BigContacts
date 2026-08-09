@@ -16,6 +16,11 @@ import IntelTerminal from "@/pages/research";
 import NotFound from "@/pages/not-found";
 import SystemStatusPage from "@/pages/status";
 
+function GraphLegacyRedirect() {
+  const s = useSearch();
+  return <Redirect to={`/network${s ? `?${s}` : ""}`} />;
+}
+
 export default function AppRouter() {
   return (
     <Layout>
@@ -40,7 +45,7 @@ export default function AppRouter() {
 
         {/* ── Legacy route aliases ── */}
         <Route path="/entities">{() => <Redirect to="/profiles" />}</Route>
-        <Route path="/graph">{() => { const s = useSearch(); return <Redirect to={`/network${s ? `?${s}` : ""}`} />; }}</Route>
+        <Route path="/graph" component={GraphLegacyRedirect} />
         <Route path="/deep-search">{() => <Redirect to="/search" />}</Route>
         <Route path="/ledger">{() => <Redirect to="/profiles" />}</Route>
 
