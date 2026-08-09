@@ -347,15 +347,18 @@ export default function ApexProfile() {
     extractionMethod: string | null;
     validationStatus: string;
     sourceReliability: number;
+    identityMatch?: number;
     directnessScore: number;
     independentCorroboration: number;
     observedAt: string;
+    rejectionReason?: string | null;
   }>>([]);
   const [contactEvidenceLoading, setContactEvidenceLoading] = useState(false);
   const baseUrl = (import.meta as any).env.BASE_URL.replace(/\/$/, "");
 
   useEffect(() => {
-    if (!showContactEvidence || !entityId) return;
+    // Always load end-of-research contacts for this entity (not only when Audit is open).
+    if (!entityId) return;
     let cancelled = false;
     setContactEvidenceLoading(true);
     fetch(`${baseUrl}/api/entities/${entityId}/contact-evidence`)
@@ -373,7 +376,7 @@ export default function ApexProfile() {
         if (!cancelled) setContactEvidenceLoading(false);
       });
     return () => { cancelled = true; };
-  }, [showContactEvidence, entityId, baseUrl, contactEvidenceKey]);
+  }, [entityId, baseUrl, contactEvidenceKey]);
 
   const handleRejectContact = async (field: string) => {
     const step = rejectStep[field] ?? 0;
@@ -981,10 +984,25 @@ export default function ApexProfile() {
       {/* ── Direct Contact Vectors (8-vector panel — H5) ───────────────────── */}
       {(() => {
         const e = entity as any;
-        const hasContact = !!(
+        const activeEvidence = contactEvidence.filter((item) => item.validationStatus !== "rejected");
+        const hasContact = activeEvidence.length > 0 || !!(
           e.email || e.phone || e.linkedinUrl || e.twitterHandle ||
           e.instagramHandle || e.telegramHandle || e.personalWebsite || e.foundationName
         );
+        const rankEvidence = (item: typeof contactEvidence[number]) => {
+          let s = 0;
+          if (item.validationStatus === "verified") s += 120;
+          else if (item.validationStatus === "candidate") s += 50;
+          s += Math.max(0, Math.min(1, item.directnessScore ?? 0)) * 50;
+          s += Math.max(0, Math.min(1, item.sourceReliability ?? 0)) * 20;
+          s += Math.max(0, Math.min(1, item.identityMatch ?? 0)) * 25;
+          if (item.vectorType === "email" || item.vectorType === "phone") s += 8;
+          return s;
+        };
+        const rankedEvidence = [...activeEvidence].sort((a, b) => rankEvidence(b) - rankEvidence(a));
+        const isPersonalHigh = (item: typeof contactEvidence[number]) =>
+          item.validationStatus === "verified" ||
+          ((item.directnessScore ?? 0) >= 0.65 && (item.identityMatch ?? 0) >= 0.5);
         const dbConf = typeof e.contactConfidence === "number" ? e.contactConfidence : null;
         const conf = dbConf !== null ? dbConf :
           Math.min(100,
@@ -1004,7 +1022,7 @@ export default function ApexProfile() {
         return (
           <div className={cn("flex-shrink-0 border-b border-border px-4 md:px-6 py-3", hasContact && "bg-primary/5")}>
             <div className="flex items-center justify-between mb-2 gap-2">
-               <span className="text-[9px] font-mono font-bold text-primary uppercase tracking-widest">Public Contact Vectors</span>
+               <span className="text-[9px] font-mono font-bold text-primary uppercase tracking-widest">Research contacts</span>
               <div className="flex items-center gap-1.5">
                 {hasContact && (
                   <button
@@ -1101,20 +1119,81 @@ export default function ApexProfile() {
                   </a>
                 )}
               </div>
-            ) : (
+            ) : null}
+            {/* All end-of-research contacts (related to this HNWI), ranked */}
+            {rankedEvidence.length > 0 && (
+              <div className="mt-3 space-y-2">
+                <p className="text-[10px] font-mono text-muted-foreground/70">
+                  Every contact that reached end-of-research and is related to this target. Direct/personal routes are highlighted; related routes stay visible.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {rankedEvidence.map((item) => {
+                    const personal = isPersonalHigh(item);
+                    const orgish = !personal && (
+                      (item.directnessScore ?? 0) < 0.45 ||
+                      /info@|contact@|office@|admin@|support@|hello@/i.test(item.value)
+                    );
+                    const href = item.sourceUrl && /^https?:\/\//i.test(item.sourceUrl)
+                      ? item.sourceUrl
+                      : item.vectorType === "email"
+                        ? `mailto:${item.value}`
+                        : item.vectorType === "phone"
+                          ? `tel:${item.value}`
+                          : /^https?:\/\//i.test(item.value)
+                            ? item.value
+                            : null;
+                    const badge = personal
+                      ? { label: "Direct / personal", cls: "text-emerald-300 border-emerald-500/40 bg-emerald-500/10" }
+                      : orgish
+                        ? { label: "Related / org", cls: "text-sky-300 border-sky-500/30 bg-sky-500/10" }
+                        : { label: item.validationStatus === "verified" ? "Verified" : "Candidate", cls: "text-amber-300 border-amber-500/30 bg-amber-500/10" };
+                    const card = (
+                      <div
+                        className={
+                          "rounded-md border px-3 py-2.5 min-w-[200px] max-w-full sm:max-w-[320px] " +
+                          (personal
+                            ? "border-emerald-500/40 bg-emerald-500/5"
+                            : orgish
+                              ? "border-sky-500/25 bg-sky-500/5"
+                              : "border-border bg-card/40")
+                        }
+                      >
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground">{item.vectorType}</span>
+                          <span className={"text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded border " + badge.cls}>{badge.label}</span>
+                        </div>
+                        <div className="text-xs font-mono text-foreground break-all mt-1">{item.value}</div>
+                        <div className="mt-1.5 text-[9px] font-mono text-muted-foreground/70">
+                          direct {((item.directnessScore ?? 0) * 100).toFixed(0)}% · match {((item.identityMatch ?? 0) * 100).toFixed(0)}% · {item.source}
+                        </div>
+                      </div>
+                    );
+                    return href ? (
+                      <a key={item.id} href={href} target={href.startsWith("http") ? "_blank" : undefined} rel="noopener noreferrer" className="block hover:opacity-90">
+                        {card}
+                      </a>
+                    ) : card;
+                  })}
+                </div>
+              </div>
+            )}
+            {rankedEvidence.length === 0 && !hasContact && (
               <p className="text-xs font-mono text-muted-foreground/50 italic">
                 {isEnriching
                   ? "Running research pipeline…"
                   : enrichDone
-                  ? "Research complete — no public contact data found for this entity."
-                  : "No direct contact data. Use Rerun Research to search public sources."}
+                  ? "Research complete — no related contact candidates were retained for this entity."
+                  : "No research contacts yet. Use Rerun Research to search public sources."}
               </p>
+            )}
+            {contactEvidenceLoading && rankedEvidence.length === 0 && (
+              <p className="text-xs font-mono text-muted-foreground/60 mt-1">Loading research contacts…</p>
             )}
             {enrichError && (
               <p className="text-xs font-mono text-red-400 mt-1.5">{enrichError}</p>
             )}
             {/* ── Contact Evidence Panel ─────────────────────────────────── */}
-            {showContactEvidence && hasContact && (() => {
+            {showContactEvidence && (() => {
               const e2 = entity as any;
 
               // Parse enrichment sources stored in metadata
