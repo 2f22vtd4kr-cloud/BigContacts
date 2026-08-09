@@ -57,3 +57,28 @@ describe("adaptive research director action selection", () => {
     expect(action.kind).toBe("stop_review");
   });
 });
+
+  it("discovers official domain for corporations before people-press noise", () => {
+    const action = selectNextAdaptiveAction(state({
+      identityAssessment: "confirmed",
+      completedActions: ["resolve_identity"],
+      completedLanes: ["official_records"],
+      candidateDomains: [],
+      discoveredPeople: [],
+    }));
+    expect(action.kind).toBe("official_routes");
+    expect(action.reason.toLowerCase()).toContain("domain");
+  });
+
+  it("follows each candidate domain for leadership pages", () => {
+    const action = selectNextAdaptiveAction(state({
+      identityAssessment: "confirmed",
+      completedActions: ["resolve_identity"],
+      completedLanes: ["official_records"],
+      candidateDomains: ["casinocampioneditalia.it"],
+      followedDomains: [],
+    }));
+    expect(action.kind).toBe("official_routes");
+    expect(action.subject).toBe("casinocampioneditalia.it");
+  });
+

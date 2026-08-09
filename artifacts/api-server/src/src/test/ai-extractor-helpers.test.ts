@@ -100,6 +100,9 @@ describe("AI response safety helpers", () => {
     expect(query).toContain("cik: 0000123456");
     expect(query).toContain("official team people registry filing");
     expect(query).toContain("site:exampleholdings.com");
+    // Domain constraint should lead the query so providers hit leadership pages first.
+    expect(query.indexOf("site:exampleholdings.com")).toBeLessThan(query.indexOf("official team"));
+    expect(query).toMatch(/leadership|management|team|about us/i);
   });
 
   it("includes subject kind and disambiguation notes in provider queries", () => {

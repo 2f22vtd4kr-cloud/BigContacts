@@ -251,6 +251,26 @@ export function selectNextAdaptiveAction(
     };
   }
 
+  // Corporations/trusts without a known domain must discover the official website
+  // before people-press noise (Campione: independent research found leadership on
+  // the official domain; Atlas spent budget on unrelated org signals).
+  const isOrg = state.targetType === "Corporation" || state.targetType === "Trust";
+  if (
+    isOrg &&
+    state.candidateDomains.length === 0 &&
+    !hasAction("official_routes") &&
+    (state.identityAssessment === "confirmed" || hasAction("resolve_identity"))
+  ) {
+    return {
+      kind: "official_routes",
+      lane: "official_records",
+      subject: state.targetName,
+      reason:
+        "no official domain known yet — discover the organization website and leadership/contact pages before people-press noise",
+      signature: `official-discover:${state.targetName.toLowerCase()}`,
+    };
+  }
+
   const nextDomain = state.candidateDomains.find((d) => !state.followedDomains.includes(d));
   if (nextDomain && state.followedDomains.length < maxDomain) {
     return {
@@ -328,12 +348,21 @@ function providerForAction(action: AdaptiveAction): AdaptiveProviderResult["prov
   return "perplexity";
 }
 
+function looksLikeDomain(value: string): boolean {
+  const v = value.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+  return /^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/i.test(v) && !/\s/.test(v);
+}
+
 function contextForAction(
   input: AdaptiveResearchDirectorInput,
   state: AdaptiveResearchState,
   action: AdaptiveAction,
 ): AIResearchContext {
   const isPersonFollowUp = action.kind === "follow_person" || action.kind === "verify_exact_claim";
+  const isOfficialDomain = action.kind === "official_routes" && looksLikeDomain(action.subject);
+  const domainFocus = isOfficialDomain
+    ? action.subject.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "")
+    : null;
   return {
     ...input.context,
     lane: action.lane ?? "people_press",
@@ -341,14 +370,23 @@ function contextForAction(
       ...(input.context.relatedOrganizations ?? []),
       ...(isPersonFollowUp ? [input.targetName] : []),
     ].slice(0, 6),
-    candidateDomains: state.candidateDomains.slice(0, 4),
+    candidateDomains: domainFocus
+      ? [domainFocus, ...state.candidateDomains.filter((d) => d !== domainFocus)].slice(0, 4)
+      : state.candidateDomains.slice(0, 4),
     anchors: [
       ...(input.context.anchors ?? []),
       ...(isPersonFollowUp ? [`target relationship: ${input.targetName}`, `research subject: ${action.subject}`] : []),
+      ...(domainFocus
+        ? [
+            `official domain: ${domainFocus}`,
+            `fetch leadership team management about contact pages on ${domainFocus}`,
+          ]
+        : []),
     ].slice(0, 8),
     disambiguationNotes: [
       ...(input.context.disambiguationNotes ?? []),
       ...(isPersonFollowUp ? [`follow-up role/person lead: ${action.subject}`] : []),
+      ...(domainFocus ? [`prefer primary pages on ${domainFocus} over press reprints`] : []),
     ].slice(0, 8),
   };
 }
@@ -438,7 +476,10 @@ export async function runAdaptiveResearchDirector(
     state.completedActions.push(action.kind);
     if (action.lane && !state.completedLanes.includes(action.lane)) state.completedLanes.push(action.lane);
     if (action.kind === "follow_person") state.followedPeople.push(action.subject);
-    if (action.kind === "official_routes") state.followedDomains.push(action.subject);
+    if (action.kind === "official_routes" && looksLikeDomain(action.subject)) {
+      const domain = action.subject.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+      if (!state.followedDomains.includes(domain)) state.followedDomains.push(domain);
+    }
     for (const gap of result.searchGaps ?? []) if (!searchGaps.includes(gap)) searchGaps.push(gap);
     for (const finding of result.negativeFindings ?? []) if (!negativeFindings.includes(finding)) negativeFindings.push(finding);
     if (beforePeople === discoveredPeople.length && beforeDomains === candidateDomains.length && result.citations?.length === 0) {
