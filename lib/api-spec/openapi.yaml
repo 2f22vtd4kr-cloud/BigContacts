@@ -1645,6 +1645,10 @@ components:
         estimatedValue: { type: ["number", "null"] }
         metadata: { type: ["string", "null"] }
         nationality: { type: ["string", "null"] }
+        contactConfidence: { type: ["number", "null"] }
+        contactEmail: { type: ["string", "null"] }
+        contactPhone: { type: ["string", "null"] }
+        contactOutcome: { type: ["string", "null"] }
         isTarget: { type: boolean }
         isCentral: { type: boolean }
 
@@ -1657,6 +1661,12 @@ components:
         target: { type: string }
         label: { type: string }
         strength: { type: ["number", "null"] }
+        provenanceScore: { type: ["number", "null"] }
+        citationCount: { type: integer }
+        freshnessScore: { type: ["number", "null"] }
+        evidenceStatus:
+          type: string
+          enum: [supported, review, disputed, rejected]
 
     EntityGraph:
       type: object
@@ -1672,6 +1682,7 @@ components:
             $ref: "#/components/schemas/GraphEdge"
         centralNodeId: { type: string }
         depth: { type: integer }
+        truncated: { type: boolean }
 
     ConnectionPath:
       type: object

@@ -1,4 +1,5 @@
 import { getGetEntityGraphQueryKey, useGetEntityGraph, useListEntities, useCreateRelationship } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { useSearch, useLocation, Link } from "wouter";
 import ForceGraph2D, { ForceGraphMethods } from "react-force-graph-2d";
@@ -8,16 +9,24 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose,
 } from "@/components/ui/dialog";
 
-function useWindowSize() {
+function useGraphContainerSize() {
   const [size, setSize] = useState([0, 0]);
   useEffect(() => {
-    function updateSize() {
-      const container = document.getElementById("graph-container");
-      if (container) setSize([container.clientWidth, container.clientHeight]);
-    }
-    window.addEventListener("resize", updateSize);
+    const container = document.getElementById("graph-container");
+    if (!container) return;
+
+    const updateSize = () => {
+      setSize([container.clientWidth, container.clientHeight]);
+    };
     updateSize();
-    return () => window.removeEventListener("resize", updateSize);
+
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(updateSize) : null;
+    ro?.observe(container);
+    window.addEventListener("resize", updateSize);
+    return () => {
+      ro?.disconnect();
+      window.removeEventListener("resize", updateSize);
+    };
   }, []);
   return size;
 }
@@ -35,10 +44,15 @@ export default function GraphViewer() {
   // On initial load with no ?entity= param, pick the most-connected entity instead of #1
   useEffect(() => {
     if (!entityIdFromUrl && targetId === 0) {
-      fetch(`${import.meta.env.BASE_URL}api/graph/hub-entity`)
-        .then(r => r.json())
-        .then((d: { entityId: number }) => setTargetId(d.entityId ?? 1))
-        .catch(() => setTargetId(1));
+      const base = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
+      fetch(`${base}/api/graph/hub-entity`)
+        .then((r) => r.json())
+        .then((d: { entityId: number | null }) => {
+          if (d.entityId && Number.isFinite(d.entityId) && d.entityId > 0) {
+            setTargetId(d.entityId);
+          }
+        })
+        .catch(() => undefined);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -55,7 +69,7 @@ export default function GraphViewer() {
     query: { enabled: targetId > 0, queryKey: getGetEntityGraphQueryKey(targetId) },
   });
   const { data: allEntities } = useListEntities({ limit: 200 });
-  const [width, height] = useWindowSize();
+  const [width, height] = useGraphContainerSize();
   const fgRef = useRef<ForceGraphMethods | undefined>(undefined);
   const [selectedNode, setSelectedNode] = useState<any>(null);
   const [selectorOpen, setSelectorOpen] = useState(false);
@@ -79,6 +93,7 @@ export default function GraphViewer() {
   const [relSearchQ, setRelSearchQ] = useState("");
   const [relSearchResults, setRelSearchResults] = useState<{ id: number; name: string }[]>([]);
 
+  const queryClient = useQueryClient();
   const createRelationship = useCreateRelationship();
 
   const currentEntity = allEntities?.find((e) => e.id === targetId);
@@ -141,7 +156,11 @@ export default function GraphViewer() {
     createRelationship.mutate(
       { data: { sourceEntityId: relSourceId, targetId: relTargetId, targetType: "Entity", relationshipType: relType, strength: relStrength, notes: relNotes || undefined } },
       {
-        onSuccess: () => { setRelSaving(false); setAddRelOpen(false); },
+        onSuccess: () => {
+          setRelSaving(false);
+          setAddRelOpen(false);
+          void queryClient.invalidateQueries({ queryKey: getGetEntityGraphQueryKey(targetId) });
+        },
         onError: (err: any) => { setRelSaving(false); setRelError(err?.message ?? "Failed to save"); },
       }
     );
@@ -162,7 +181,14 @@ export default function GraphViewer() {
       nodes: filteredNodes.map((n: any) => ({ ...n, val: n.isTarget ? 3 : n.isCentral ? 2 : 1 })),
       links: ((graphData as any).edges ?? [])
         .filter((e: any) => filteredIds.has(e.source) && filteredIds.has(e.target))
-        .map((e: any) => ({ source: e.source, target: e.target, label: e.label, strength: e.strength })),
+        .map((e: any) => ({
+          source: e.source,
+          target: e.target,
+          label: e.label,
+          strength: e.strength,
+          evidenceStatus: e.evidenceStatus,
+          provenanceScore: e.provenanceScore,
+        })),
     };
   }, [graphData, minScore, assetTypeFilter]);
 
@@ -230,7 +256,8 @@ export default function GraphViewer() {
     if (conf <= 0) return;
 
     const baseR = node.isTarget ? 3 : node.isCentral ? 2 : 1;
-    const r = (baseR * 6) / globalScale + 2.5 / globalScale;
+    // Match nodeCanvasObject radius (graph units); only stroke width scales with zoom
+    const r = Math.sqrt(baseR) * 6 + 2.5;
 
     const color = conf >= 70 ? "rgba(16,185,129,0.85)"  // green — high confidence
                 : conf >= 30 ? "rgba(245,158,11,0.70)"  // amber — partial
@@ -240,7 +267,7 @@ export default function GraphViewer() {
     ctx.beginPath();
     ctx.arc(node.x, node.y, r, 0, 2 * Math.PI);
     ctx.strokeStyle = color;
-    ctx.lineWidth = 1.4 / globalScale;
+    ctx.lineWidth = Math.max(0.6, 1.4 / globalScale);
     ctx.stroke();
 
     // Tiny contact-confidence label at high zoom
@@ -283,12 +310,75 @@ export default function GraphViewer() {
           <ChevronDown className={cn("w-4 h-4 text-muted-foreground ml-2 flex-shrink-0 transition-transform", selectorOpen && "rotate-180")} />
         </button>
         <button
+          onClick={() => setFilterOpen((o) => !o)}
+          className={cn(
+            "w-9 h-9 flex items-center justify-center rounded border flex-shrink-0",
+            filterOpen || minScore > 0 || assetTypeFilter
+              ? "bg-primary/10 border-primary/50 text-primary"
+              : "bg-muted border-border text-muted-foreground hover:text-foreground"
+          )}
+          title="Filter"
+        >
+          <Filter className="w-4 h-4" />
+        </button>
+        <button
           onClick={() => fgRef.current?.zoomToFit(400, 50)}
           className="w-9 h-9 flex items-center justify-center rounded bg-muted border border-border text-muted-foreground hover:text-foreground flex-shrink-0"
         >
           <Maximize className="w-4 h-4" />
         </button>
       </div>
+
+
+      {/* ── Mobile filter sheet ── */}
+      {filterOpen && (
+        <div className="md:hidden absolute left-3 right-3 top-[57px] z-50 bg-card border border-border rounded shadow-2xl p-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">Graph Filters</span>
+            <button onClick={() => setFilterOpen(false)} className="text-muted-foreground hover:text-foreground">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div>
+            <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-2 block">
+              Min Signal Score: {minScore}%
+            </label>
+            <input
+              type="range" min={0} max={90} step={5}
+              value={minScore}
+              onChange={(e) => setMinScore(Number(e.target.value))}
+              className="w-full accent-primary"
+            />
+          </div>
+          <div>
+            <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-2 block">
+              Asset Type
+            </label>
+            <div className="grid grid-cols-2 gap-1">
+              {["Aviation", "Marine", "RealEstate", "PrivateClub"].map((type) => (
+                <button
+                  key={type}
+                  onClick={() => setAssetTypeFilter((f) => (f === type ? null : type))}
+                  className={cn(
+                    "text-[10px] font-mono px-2 py-1 rounded border transition-colors",
+                    assetTypeFilter === type
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border text-muted-foreground hover:border-primary/50"
+                  )}
+                >
+                  {type === "RealEstate" ? "Real Estate" : type}
+                </button>
+              ))}
+            </div>
+          </div>
+          <button
+            onClick={() => { setMinScore(0); setAssetTypeFilter(null); setFilterOpen(false); }}
+            className="w-full text-[10px] font-mono text-muted-foreground hover:text-foreground border border-border rounded py-1.5 transition-colors"
+          >
+            Clear Filters
+          </button>
+        </div>
+      )}
 
       {/* ── Desktop floating toolbar ── */}
       <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 hidden md:flex items-center space-x-2 max-w-[90vw]">
@@ -361,7 +451,7 @@ export default function GraphViewer() {
           </button>
 
           {filterOpen && (
-            <div className="absolute top-full mt-2 right-0 w-64 bg-card border border-border rounded shadow-2xl z-50 p-4 space-y-4">
+            <div className="absolute top-full mt-2 right-0 w-64 bg-card border border-border rounded shadow-2xl z-50 p-4 space-y-4 hidden md:block">
               <div>
                 <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-2 block">
                   Min Signal Score: {minScore}%
@@ -466,6 +556,14 @@ export default function GraphViewer() {
         <div className="flex items-center"><div className="w-2.5 h-2.5 rounded-full bg-muted-foreground mr-1.5 md:mr-2" /> Asset</div>
       </div>
 
+      
+      {/* ── Truncation notice ── */}
+      {(graphData as any)?.truncated && (
+        <div className="absolute top-16 md:top-20 left-1/2 -translate-x-1/2 z-20 max-w-[90vw] px-3 py-1.5 rounded border border-amber-500/40 bg-amber-500/10 text-[10px] md:text-xs font-mono text-amber-200/90 text-center">
+          Dense neighborhood truncated for performance — filters and target focus still apply
+        </div>
+      )}
+
       {/* ── Error state — entity not found or graph API error ── */}
       {isError && (
         <div className="absolute inset-0 flex flex-col items-center justify-center z-20 text-muted-foreground font-mono space-y-3">
@@ -524,8 +622,16 @@ export default function GraphViewer() {
           nodeLabel={() => ""}
           nodeColor={nodeColor}
           nodeRelSize={6}
-          linkColor={() => "rgba(255, 255, 255, 0.18)"}
-          linkWidth={1.2}
+          linkColor={(link: any) => {
+            const status = link.evidenceStatus as string | undefined;
+            if (status === "disputed" || status === "rejected") return "rgba(248, 113, 113, 0.35)";
+            if (status === "supported") return "rgba(52, 211, 153, 0.28)";
+            return "rgba(255, 255, 255, 0.18)";
+          }}
+          linkWidth={(link: any) => {
+            const s = typeof link.strength === "number" ? link.strength : 0.4;
+            return 0.8 + Math.min(1, Math.max(0, s)) * 1.6;
+          }}
           linkDirectionalArrowLength={4}
           linkDirectionalArrowRelPos={1}
           onNodeClick={(node) => { setSelectedNode(node); setCtxMenu(null); }}
@@ -621,6 +727,18 @@ export default function GraphViewer() {
                 <div className="flex justify-between items-center p-3 border border-amber-500/30 bg-amber-500/5 rounded">
                   <span className="text-amber-500/70">Role</span>
                   <span className="text-amber-500 font-bold">CENTRAL NODE</span>
+                </div>
+              )}
+              {selectedNode.contactOutcome && (
+                <div className="flex justify-between items-center p-3 border border-border bg-muted/10 rounded">
+                  <span className="text-muted-foreground">Contact Outcome</span>
+                  <span className="text-foreground text-xs">{String(selectedNode.contactOutcome).replace(/_/g, " ")}</span>
+                </div>
+              )}
+              {typeof selectedNode.contactConfidence === "number" && selectedNode.contactConfidence > 0 && (
+                <div className="flex justify-between items-center p-3 border border-border bg-muted/10 rounded">
+                  <span className="text-muted-foreground">Access Confidence</span>
+                  <span className="text-foreground">{selectedNode.contactConfidence}</span>
                 </div>
               )}
             </div>

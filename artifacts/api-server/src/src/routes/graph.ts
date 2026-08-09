@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, inArray, or, sql } from "drizzle-orm";
 import { db, entitiesTable, assetsTable, relationshipsTable } from "@workspace/db";
 import { GetEntityGraphParams, GetEntityGraphQueryParams, GetConnectionPathQueryParams } from "@workspace/api-zod";
 import {
@@ -9,9 +9,18 @@ import {
   computeCentrality,
   type GraphVertex,
   type GraphArc,
+  type EntityRow,
+  type AssetRow,
+  type RelationshipRow,
 } from "../lib/graph-engine";
 
 const router: IRouter = Router();
+
+/** Hard caps so a pathological dense hub cannot OOM the API. */
+const MAX_GRAPH_ENTITIES = 400;
+const MAX_GRAPH_ASSETS = 400;
+const MAX_GRAPH_RELATIONSHIPS = 1200;
+const MAX_PATH_HOPS = 6;
 
 function vertexToNode(v: GraphVertex, centralSet: Set<string>, targetId: string) {
   return {
@@ -24,28 +33,288 @@ function vertexToNode(v: GraphVertex, centralSet: Set<string>, targetId: string)
     nationality: v.nationality ?? null,
     contactConfidence: v.contactConfidence ?? null,
     contactEmail: v.contactEmail ?? null,
+    contactPhone: v.contactPhone ?? null,
+    contactOutcome: v.contactOutcome ?? null,
     isTarget: v.id === targetId,
     isCentral: centralSet.has(v.id),
   };
 }
 
 function arcToEdge(arc: GraphArc) {
-  // Strip reverse suffixes for clean IDs
   return {
     id: arc.id.replace("_rev", ""),
     source: arc.source,
     target: arc.target,
     label: arc.label,
     strength: arc.strength ?? null,
+    provenanceScore: arc.provenanceScore ?? null,
+    citationCount: arc.citationCount ?? 0,
+    freshnessScore: arc.freshnessScore ?? null,
+    evidenceStatus: arc.evidenceStatus ?? "review",
   };
 }
 
-// GET /graph/hub-entity — returns a well-connected entity ID for use as graph default.
-// Prefers PROPERTY_AREA_PEER hubs (geographic clusters, visually meaningful networks).
-// Falls back to any moderate hub (10–150 edges) if no geographic hub exists.
+function toEntityRow(e: typeof entitiesTable.$inferSelect): EntityRow {
+  return {
+    id: e.id,
+    name: e.name,
+    type: e.type,
+    bayesianScore: e.bayesianScore ?? 0,
+    nationality: e.nationality,
+    estimatedNetWorth: e.estimatedNetWorth,
+    metadata: e.metadata,
+    contactEmail: e.email,
+    contactPhone: e.phone,
+    contactConfidence: e.contactConfidence,
+    phoneSource: e.phoneSource ?? null,
+    contactOutcome: e.contactOutcome ?? null,
+  };
+}
+
+function toAssetRow(a: typeof assetsTable.$inferSelect): AssetRow {
+  return {
+    id: a.id,
+    category: a.category,
+    identifier: a.identifier,
+    jurisdiction: a.jurisdiction ?? "",
+    estimatedValue: a.estimatedValue,
+    ownerEntityId: a.ownerEntityId,
+  };
+}
+
+function toRelRow(r: typeof relationshipsTable.$inferSelect): RelationshipRow {
+  return {
+    id: r.id,
+    sourceEntityId: r.sourceEntityId,
+    targetId: r.targetId,
+    targetType: r.targetType,
+    relationshipType: r.relationshipType,
+    strength: r.strength,
+    notes: r.notes,
+  };
+}
+
+/**
+ * Load only the neighborhood of a center entity up to `depth` hops.
+ * Avoids full-table scans that OOM / stall on large registries.
+ */
+async function loadNeighborhood(centerEntityId: number, depth: number): Promise<{
+  entities: EntityRow[];
+  assets: AssetRow[];
+  relationships: RelationshipRow[];
+  truncated: boolean;
+}> {
+  const entityIds = new Set<number>([centerEntityId]);
+  const assetIds = new Set<number>();
+  const seenRelIds = new Set<number>();
+  const relationships: RelationshipRow[] = [];
+  let truncated = false;
+
+  let frontier = new Set<number>([centerEntityId]);
+
+  for (let d = 0; d < depth; d++) {
+    if (frontier.size === 0) break;
+    const frontierIds = [...frontier];
+    // Chunk IN clauses for safety
+    const chunkSize = 200;
+    const batchRels: (typeof relationshipsTable.$inferSelect)[] = [];
+
+    for (let i = 0; i < frontierIds.length; i += chunkSize) {
+      const chunk = frontierIds.slice(i, i + chunkSize);
+      const rows = await db
+        .select()
+        .from(relationshipsTable)
+        .where(
+          or(
+            inArray(relationshipsTable.sourceEntityId, chunk),
+            and(
+              inArray(relationshipsTable.targetId, chunk),
+              eq(relationshipsTable.targetType, "Entity"),
+            ),
+          ),
+        )
+        .limit(MAX_GRAPH_RELATIONSHIPS);
+      batchRels.push(...rows);
+    }
+
+    const nextFrontier = new Set<number>();
+    for (const r of batchRels) {
+      if (seenRelIds.has(r.id)) continue;
+      if (relationships.length >= MAX_GRAPH_RELATIONSHIPS) {
+        truncated = true;
+        break;
+      }
+      seenRelIds.add(r.id);
+      relationships.push(toRelRow(r));
+
+      entityIds.add(r.sourceEntityId);
+      if (r.targetType === "Entity") {
+        entityIds.add(r.targetId);
+        if (!frontier.has(r.targetId) && r.targetId !== centerEntityId) {
+          nextFrontier.add(r.targetId);
+        }
+        if (!frontier.has(r.sourceEntityId) && r.sourceEntityId !== centerEntityId) {
+          nextFrontier.add(r.sourceEntityId);
+        }
+      } else if (r.targetType === "Asset") {
+        assetIds.add(r.targetId);
+      }
+    }
+
+    // Also pull entity→asset ownership edges for entities already in the set
+    // (depth still advances only for entity hops via nextFrontier)
+    if (entityIds.size > 0 && assetIds.size < MAX_GRAPH_ASSETS) {
+      const entList = [...entityIds];
+      for (let i = 0; i < entList.length; i += chunkSize) {
+        const chunk = entList.slice(i, i + chunkSize);
+        const assetRels = await db
+          .select()
+          .from(relationshipsTable)
+          .where(
+            and(
+              inArray(relationshipsTable.sourceEntityId, chunk),
+              eq(relationshipsTable.targetType, "Asset"),
+            ),
+          )
+          .limit(MAX_GRAPH_ASSETS);
+        for (const r of assetRels) {
+          if (seenRelIds.has(r.id)) continue;
+          if (relationships.length >= MAX_GRAPH_RELATIONSHIPS) {
+            truncated = true;
+            break;
+          }
+          seenRelIds.add(r.id);
+          relationships.push(toRelRow(r));
+          assetIds.add(r.targetId);
+        }
+      }
+    }
+
+    // Bound entity growth
+    for (const id of nextFrontier) {
+      if (entityIds.size >= MAX_GRAPH_ENTITIES) {
+        truncated = true;
+        nextFrontier.clear();
+        break;
+      }
+      entityIds.add(id);
+    }
+    frontier = nextFrontier;
+  }
+
+  const entityIdList = [...entityIds].slice(0, MAX_GRAPH_ENTITIES);
+  if (entityIds.size > MAX_GRAPH_ENTITIES) truncated = true;
+
+  const entities =
+    entityIdList.length === 0
+      ? []
+      : (
+          await db.select().from(entitiesTable).where(inArray(entitiesTable.id, entityIdList))
+        ).map(toEntityRow);
+
+  const assetIdList = [...assetIds].slice(0, MAX_GRAPH_ASSETS);
+  if (assetIds.size > MAX_GRAPH_ASSETS) truncated = true;
+
+  const assets =
+    assetIdList.length === 0
+      ? []
+      : (
+          await db.select().from(assetsTable).where(inArray(assetsTable.id, assetIdList))
+        ).map(toAssetRow);
+
+  return { entities, assets, relationships, truncated };
+}
+
+/**
+ * Expand a connected component between two entities up to MAX_PATH_HOPS
+ * without loading the full registry graph.
+ */
+async function loadPathNeighborhood(sourceId: number, targetId: number): Promise<{
+  entities: EntityRow[];
+  assets: AssetRow[];
+  relationships: RelationshipRow[];
+}> {
+  // Bidirectional expansion: grow from both ends until they meet or hop cap.
+  const left = new Set<number>([sourceId]);
+  const right = new Set<number>([targetId]);
+  const allEntityIds = new Set<number>([sourceId, targetId]);
+  const seenRelIds = new Set<number>();
+  const relationships: RelationshipRow[] = [];
+
+  let leftFrontier = new Set<number>([sourceId]);
+  let rightFrontier = new Set<number>([targetId]);
+
+  for (let hop = 0; hop < MAX_PATH_HOPS; hop++) {
+    const expand = async (frontier: Set<number>, side: Set<number>) => {
+      if (frontier.size === 0) return new Set<number>();
+      const ids = [...frontier];
+      const rows = await db
+        .select()
+        .from(relationshipsTable)
+        .where(
+          or(
+            inArray(relationshipsTable.sourceEntityId, ids),
+            and(
+              inArray(relationshipsTable.targetId, ids),
+              eq(relationshipsTable.targetType, "Entity"),
+            ),
+          ),
+        )
+        .limit(800);
+
+      const next = new Set<number>();
+      for (const r of rows) {
+        if (seenRelIds.has(r.id)) continue;
+        seenRelIds.add(r.id);
+        relationships.push(toRelRow(r));
+        if (r.targetType !== "Entity") continue;
+        allEntityIds.add(r.sourceEntityId);
+        allEntityIds.add(r.targetId);
+        if (!side.has(r.sourceEntityId)) next.add(r.sourceEntityId);
+        if (!side.has(r.targetId)) next.add(r.targetId);
+        side.add(r.sourceEntityId);
+        side.add(r.targetId);
+      }
+      return next;
+    };
+
+    leftFrontier = await expand(leftFrontier, left);
+    // Early exit if frontiers intersect
+    for (const id of left) {
+      if (right.has(id) && id !== sourceId && id !== targetId) {
+        leftFrontier = new Set();
+        rightFrontier = new Set();
+        break;
+      }
+    }
+    if (left.has(targetId) || right.has(sourceId)) break;
+
+    rightFrontier = await expand(rightFrontier, right);
+    for (const id of right) {
+      if (left.has(id)) {
+        leftFrontier = new Set();
+        rightFrontier = new Set();
+        break;
+      }
+    }
+    if (left.has(targetId) || right.has(sourceId)) break;
+    if (allEntityIds.size >= MAX_GRAPH_ENTITIES) break;
+  }
+
+  const entityIdList = [...allEntityIds].slice(0, MAX_GRAPH_ENTITIES);
+  const entities =
+    entityIdList.length === 0
+      ? []
+      : (
+          await db.select().from(entitiesTable).where(inArray(entitiesTable.id, entityIdList))
+        ).map(toEntityRow);
+
+  return { entities, assets: [], relationships };
+}
+
+// GET /graph/hub-entity — well-connected entity for graph default
 router.get("/graph/hub-entity", async (_req, res): Promise<void> => {
   try {
-    // First: prefer a geographic-peer hub (UK property area clusters) with 5–80 edges
     const geoRows = await db.execute<{ id: number; cnt: string }>(sql`
       SELECT source_entity_id AS id, COUNT(*) AS cnt
       FROM relationships
@@ -61,7 +330,6 @@ router.get("/graph/hub-entity", async (_req, res): Promise<void> => {
       return;
     }
 
-    // Fallback: any hub with 10–150 edges
     const fallbackRows = await db.execute<{ id: number; cnt: string }>(sql`
       SELECT from_e AS id, COUNT(*) AS cnt
       FROM (
@@ -75,9 +343,20 @@ router.get("/graph/hub-entity", async (_req, res): Promise<void> => {
       LIMIT 1
     `);
     const fallbackId = (fallbackRows as any).rows?.[0]?.id ?? (fallbackRows as any)[0]?.id;
-    res.json({ entityId: fallbackId ? Number(fallbackId) : 1 });
+    if (fallbackId) {
+      res.json({ entityId: Number(fallbackId) });
+      return;
+    }
+
+    // Last resort: any existing entity — never invent id 1 when DB is empty/sparse
+    const [anyEntity] = await db
+      .select({ id: entitiesTable.id })
+      .from(entitiesTable)
+      .orderBy(entitiesTable.id)
+      .limit(1);
+    res.json({ entityId: anyEntity?.id ?? null });
   } catch {
-    res.json({ entityId: 1 });
+    res.json({ entityId: null });
   }
 });
 
@@ -91,7 +370,7 @@ router.get("/graph/entity/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const depth = query.success ? (query.data.depth ?? 2) : 2;
+  const depth = Math.min(Math.max(query.success ? (query.data.depth ?? 2) : 2, 1), 4);
   const entityId = params.data.id;
 
   const [entity] = await db.select().from(entitiesTable).where(eq(entitiesTable.id, entityId));
@@ -100,22 +379,15 @@ router.get("/graph/entity/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  // Load full graph
-  const [allEntities, allAssets, allRelationships] = await Promise.all([
-    db.select().from(entitiesTable),
-    db.select().from(assetsTable),
-    db.select().from(relationshipsTable),
-  ]);
-
-  const graph = buildGraph(allEntities, allAssets, allRelationships);
+  const { entities, assets, relationships, truncated } = await loadNeighborhood(entityId, depth);
+  const graph = buildGraph(entities, assets, relationships);
   const centerVertexId = `e:${entityId}`;
   const { nodes: subNodes, edges: subEdges } = extractSubgraph(graph, centerVertexId, depth);
 
-  // Compute centrality for this subgraph to mark hubs
+  // Centrality within the loaded neighborhood (not global full-graph)
   const centralityRanking = computeCentrality(graph);
   const topCentral = new Set(centralityRanking.slice(0, 5).map((c) => c.vertexId));
 
-  // De-duplicate edges (forward + reverse)
   const seenEdgeIds = new Set<string>();
   const uniqueEdges: typeof subEdges = [];
   for (const e of subEdges) {
@@ -131,6 +403,7 @@ router.get("/graph/entity/:id", async (req, res): Promise<void> => {
     edges: uniqueEdges.map(arcToEdge),
     centralNodeId: centerVertexId,
     depth,
+    truncated: truncated || undefined,
   });
 });
 
@@ -153,13 +426,31 @@ router.get("/graph/path", async (req, res): Promise<void> => {
     return;
   }
 
-  const [allEntities, allAssets, allRelationships] = await Promise.all([
-    db.select().from(entitiesTable),
-    db.select().from(assetsTable),
-    db.select().from(relationshipsTable),
-  ]);
+  if (sourceId === targetId) {
+    res.json({
+      found: true,
+      path: [
+        vertexToNode(
+          {
+            id: `e:${sourceId}`,
+            label: sourceEntity.name,
+            nodeType: sourceEntity.type,
+            bayesianScore: sourceEntity.bayesianScore,
+          },
+          new Set(),
+          `e:${targetId}`,
+        ),
+      ],
+      edges: [],
+      hops: 0,
+      pathScore: 1,
+      recommendation: "Source and target are the same entity.",
+    });
+    return;
+  }
 
-  const graph = buildGraph(allEntities, allAssets, allRelationships);
+  const { entities, assets, relationships } = await loadPathNeighborhood(sourceId, targetId);
+  const graph = buildGraph(entities, assets, relationships);
   const sourceVId = `e:${sourceId}`;
   const targetVId = `e:${targetId}`;
 
@@ -172,7 +463,8 @@ router.get("/graph/path", async (req, res): Promise<void> => {
       edges: [],
       hops: 0,
       pathScore: null,
-      recommendation: "No direct connection path found. Consider expanding the entity registry or running Hybrid Research to discover indirect routes via asset cross-ownership.",
+      recommendation:
+        "No connection path found within searchable neighborhood. Expand the entity registry or run Hybrid Research to discover indirect routes via asset cross-ownership.",
     });
     return;
   }
@@ -187,18 +479,17 @@ router.get("/graph/path", async (req, res): Promise<void> => {
 
   const pathEdges = pathResult.arcs.map(arcToEdge);
 
-  // Calculate path score: deterministic — weighted by hops only. No random noise.
   const hops = pathResult.path.length - 1;
-  const pathScore = Math.max(0.1, 1 - hops * 0.15);
+  // Path score: hop penalty + average edge provenance
+  const avgProv =
+    pathEdges.length > 0
+      ? pathEdges.reduce((s, e) => s + (e.provenanceScore ?? 0.35), 0) / pathEdges.length
+      : 1;
+  const pathScore = Math.max(0.05, Math.min(1, (1 - hops * 0.12) * (0.55 + 0.45 * avgProv)));
 
-  // Build recommendation
   const gatekeeperNode = pathNodes.find((n) => n.nodeType === "Gatekeeper");
   const recommendation = gatekeeperNode
-    ? `Optimal path via ${gatekeeperNode.label}. Approach vector: ${
-        gatekeeperNode.nodeType === "Gatekeeper"
-          ? "WhatsApp/Email with referral commission offer (5%)"
-          : "Professional introduction"
-      }. Path confidence: ${(pathScore * 100).toFixed(0)}%.`
+    ? `Optimal path via ${gatekeeperNode.label}. Approach vector: professional introduction via gatekeeper. Path confidence: ${(pathScore * 100).toFixed(0)}%.`
     : `${hops}-hop path identified. Run Hybrid Research for gatekeeper identification and optimal approach strategy.`;
 
   res.json({

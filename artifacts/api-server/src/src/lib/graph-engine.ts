@@ -70,6 +70,21 @@ export interface RelationshipRow {
   notes?: string | null;
 }
 
+export function baseArcId(arcId: string): string {
+  return arcId.endsWith("_rev") ? arcId.slice(0, -4) : arcId;
+}
+
+/** Prefer the non-reversed orientation for API/UI edges. */
+export function forwardArc(arc: GraphArc): GraphArc {
+  if (!arc.id.endsWith("_rev")) return { ...arc, id: baseArcId(arc.id) };
+  return {
+    ...arc,
+    id: baseArcId(arc.id),
+    source: arc.target,
+    target: arc.source,
+  };
+}
+
 function deriveArcProvenance(relationship: RelationshipRow): Pick<GraphArc, "provenanceScore" | "citationCount" | "freshnessScore" | "evidenceStatus"> {
   const notes = relationship.notes ?? "";
   const citationCount = (notes.match(/https?:\/\/|source\s*:/gi) ?? []).length;
@@ -121,7 +136,10 @@ export function buildGraph(
 
     // Also add reverse edge for undirected traversal
     const revList = adjacency.get(arc.target) ?? [];
-    revList.push({ neighbor: arc.source, arc: { ...arc, source: arc.target, target: arc.source, id: arc.id + "_rev" } });
+    revList.push({
+      neighbor: arc.source,
+      arc: { ...arc, source: arc.target, target: arc.source, id: arc.id + "_rev" },
+    });
     adjacency.set(arc.target, revList);
   };
 
@@ -156,9 +174,14 @@ export function buildGraph(
       r.targetType === "Entity" &&
       isIdentityRelationship(r.relationshipType) &&
       !acceptedIdentityPairs.has(identityPairKey(r.sourceEntityId, r.targetId))
-    ) continue;
+    ) {
+      continue;
+    }
     const sourceId = `e:${r.sourceEntityId}`;
     const targetId = r.targetType === "Asset" ? `a:${r.targetId}` : `e:${r.targetId}`;
+
+    // Skip dangling edges (missing endpoints) — common when loading a bounded neighborhood
+    if (!vertices.has(sourceId) || !vertices.has(targetId)) continue;
 
     if (!adjacency.has(sourceId)) adjacency.set(sourceId, []);
     if (!adjacency.has(targetId)) adjacency.set(targetId, []);
@@ -205,7 +228,7 @@ export function findShortestPath(
       if (visited.has(neighbor)) continue;
       visited.add(neighbor);
       const newPath = [...current.path, neighbor];
-      const newArcs = [...current.arcs, arc];
+      const newArcs = [...current.arcs, forwardArc(arc)];
 
       if (neighbor === targetVertexId) {
         return { path: newPath, arcs: newArcs };
@@ -219,12 +242,17 @@ export function findShortestPath(
 
 /**
  * Extract subgraph up to `depth` hops from a given entity vertex.
+ * Edges are always returned in their forward (non-_rev) orientation.
  */
 export function extractSubgraph(
   graph: InMemoryGraph,
   centerVertexId: string,
   depth: number,
 ): { nodes: GraphVertex[]; edges: GraphArc[] } {
+  if (!graph.vertices.has(centerVertexId)) {
+    return { nodes: [], edges: [] };
+  }
+
   const visited = new Map<string, number>(); // id -> depth reached
   const arcsSeen = new Set<string>();
   const resultEdges: GraphArc[] = [];
@@ -238,11 +266,10 @@ export function extractSubgraph(
 
     const neighbors = graph.adjacency.get(id) ?? [];
     for (const { neighbor, arc } of neighbors) {
-      // De-duplicate arcs (we add both directions)
-      const baseArcId = arc.id.replace("_rev", "");
-      if (!arcsSeen.has(baseArcId)) {
-        arcsSeen.add(baseArcId);
-        resultEdges.push(arc);
+      const normalized = forwardArc(arc);
+      if (!arcsSeen.has(normalized.id)) {
+        arcsSeen.add(normalized.id);
+        resultEdges.push(normalized);
       }
 
       if (!visited.has(neighbor)) {
@@ -261,7 +288,7 @@ export function extractSubgraph(
 
 /**
  * Compute degree centrality for each vertex.
- * Returns top N central vertices (potential gatekeepers).
+ * Returns vertices sorted by unique neighbor degree (desc).
  */
 export function computeCentrality(
   graph: InMemoryGraph,
@@ -269,7 +296,6 @@ export function computeCentrality(
   const degrees: Array<{ vertexId: string; degree: number }> = [];
 
   for (const [id, neighbors] of graph.adjacency.entries()) {
-    // Deduplicate reverse edges
     const uniqueNeighbors = new Set(neighbors.map((n) => n.neighbor));
     degrees.push({ vertexId: id, degree: uniqueNeighbors.size });
   }
@@ -279,7 +305,6 @@ export function computeCentrality(
 
 /**
  * Identify entities that serve as central "gatekeeper" hubs.
- * These are typically geometri, lawyers, wealth managers, club secretaries.
  */
 export function identifyGatekeepers(
   graph: InMemoryGraph,
@@ -291,11 +316,9 @@ export function identifyGatekeepers(
     entities.filter((e) => e.type === "Gatekeeper").map((e) => `e:${e.id}`),
   );
 
-  const candidates = central
+  return central
     .filter((c) => c.vertexId.startsWith("e:"))
     .filter((c) => gatekeeperSet.has(c.vertexId) || c.degree >= 2)
     .slice(0, topN)
     .map((c) => c.vertexId);
-
-  return candidates;
 }
