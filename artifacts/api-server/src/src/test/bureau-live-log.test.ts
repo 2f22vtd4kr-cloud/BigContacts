@@ -55,6 +55,6 @@ describe("bureau-live-log classification", () => {
     expect(line).toContain("WEB");
     expect(line).toContain("Search done");
     expect(line).toContain("ASK:");
-    expect(line).toContain("RESPONSE:");
+    expect(line).toContain("OUT:");
   });
 });

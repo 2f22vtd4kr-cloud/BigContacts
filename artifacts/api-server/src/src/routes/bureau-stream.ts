@@ -91,6 +91,8 @@ router.post("/ingest/bureau-events", async (req: Request, res: Response): Promis
     jobId: body.jobId,
     targetName: body.targetName,
     provider: body.provider,
+    kind: typeof body.kind === "string" ? body.kind : undefined,
+    why: typeof body.why === "string" ? body.why : undefined,
     ask: body.ask,
     responseSummary: body.responseSummary,
     detail: body.detail,
