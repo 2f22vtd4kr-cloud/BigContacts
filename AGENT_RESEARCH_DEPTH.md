@@ -28,3 +28,4 @@ Both run from `scripts/post-merge.sh` step 5.
 - Real public data only — never invent contacts
 - Adaptive / gap-driven — not a rigid pipeline
 - All routes visible; verified personal marked after progress wire-up
+- Unset env stays on `fast` — do not set `deep` for bulk runs on Replit

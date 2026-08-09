@@ -5,18 +5,15 @@
 ```bash
 node scripts/apply-bureau-progress.mjs
 node scripts/apply-research-depth.mjs
-node scripts/apply-discovery-mixer.mjs
 ```
 
 Then restart API Server + web.
 
-## RESEARCH_DEPTH (Replit)
+## RESEARCH_DEPTH (Replit cost-safe)
 
-- **Default: `fast`** — cheap, scale-safe (5 adaptive actions)
-- `standard` / `deep` — only if set as Secret/env for richer cases
+- **Default when unset: `fast`** — 5 adaptive actions (legacy cost envelope)
+- `standard` / `deep` — only if set as Secret/env for richer single-target work
 
-## Discovery
+See `AGENT_RESEARCH_DEPTH.md`.
 
-Randomized **Western ally** mix: registries (CH/EDGAR/BRREG/…) + FAA owners + web recipes (Nordic investment, Dubai tech, Japan, UK/US FO/PE). See `AGENT_DISCOVERY_MIXER.md`.
-
-Idempotent. Real public data only.
+Idempotent. Real public data only. All contact routes stay visible; verified personal get UI markers after progress apply.
