@@ -6,6 +6,11 @@ import {
   type AIResearchContext,
   type AIResearchLane,
 } from "./ai-extractor";
+import {
+  ABSOLUTE_ADAPTIVE_ACTION_CAP,
+  resolveResearchDepth,
+  type ResearchDepthConfig,
+} from "./research-depth";
 
 export type AdaptiveActionKind =
   | "resolve_identity"
@@ -25,6 +30,7 @@ export interface AdaptiveResearchState {
   candidateDomains: string[];
   discoveredPeople: string[];
   followedPeople: string[];
+  followedDomains: string[];
   completedActions: AdaptiveActionKind[];
   completedLanes: AIResearchLane[];
   identityAssessment: AIExtractResult["identityAssessment"];
@@ -32,6 +38,7 @@ export interface AdaptiveResearchState {
   evidenceCount: number;
   claimUrls: number;
   noProgressPasses: number;
+  depth: ResearchDepthConfig;
 }
 
 export interface AdaptiveAction {
@@ -118,6 +125,8 @@ export interface AdaptiveResearchDirectorInput {
   country: string | null;
   context: Omit<AIResearchContext, "lane">;
   maxActions?: number;
+  /** fast | standard | deep — default from env RESEARCH_DEPTH or standard */
+  depth?: string | null;
   onStep?: (step: {
     action: AdaptiveAction;
     status: "active" | "complete" | "review";
@@ -174,6 +183,7 @@ function addUnique(target: string[], values: readonly string[], limit: number): 
 }
 
 export function createAdaptiveResearchState(input: AdaptiveResearchDirectorInput): AdaptiveResearchState {
+  const depth = resolveResearchDepth({ explicit: input.depth });
   return {
     targetName: input.targetName,
     targetType: input.targetType,
@@ -182,6 +192,7 @@ export function createAdaptiveResearchState(input: AdaptiveResearchDirectorInput
     candidateDomains: [...new Set(input.context.candidateDomains ?? [])].slice(0, 8),
     discoveredPeople: [],
     followedPeople: [],
+    followedDomains: [],
     completedActions: [],
     completedLanes: [],
     identityAssessment: "not_established",
@@ -189,6 +200,7 @@ export function createAdaptiveResearchState(input: AdaptiveResearchDirectorInput
     evidenceCount: 0,
     claimUrls: 0,
     noProgressPasses: 0,
+    depth,
   };
 }
 
@@ -204,13 +216,19 @@ export function selectNextAdaptiveAction(
   const hasAction = (kind: AdaptiveActionKind) => state.completedActions.includes(kind);
   const hasLane = (lane: AIResearchLane) => state.completedLanes.includes(lane);
   const subject = state.targetName;
+  const depth = state.depth;
+  const noProgressLimit = depth.noProgressLimit;
+  const maxPerson = depth.maxPersonFollowUps;
+  const maxDomain = depth.maxDomainFollowUps;
 
-  if (state.completedActions.length >= maxActions || state.noProgressPasses >= 2) {
+  if (state.completedActions.length >= maxActions || state.noProgressPasses >= noProgressLimit) {
     return {
       kind: "stop_review",
       lane: null,
       subject,
-      reason: state.noProgressPasses >= 2 ? "two consecutive passes added no new research lead" : "adaptive action budget exhausted",
+      reason: state.noProgressPasses >= noProgressLimit
+        ? "consecutive passes added no new research lead"
+        : "adaptive action budget exhausted",
       signature: `stop:${state.completedActions.length}:${state.noProgressPasses}`,
     };
   }
@@ -232,6 +250,17 @@ export function selectNextAdaptiveAction(
       signature: `structure:${state.relatedOrganizations[0]!.toLowerCase()}`,
     };
   }
+
+  const nextDomain = state.candidateDomains.find((d) => !state.followedDomains.includes(d));
+  if (nextDomain && state.followedDomains.length < maxDomain) {
+    return {
+      kind: "official_routes",
+      lane: "official_records",
+      subject: nextDomain,
+      reason: "candidate official domain available — fetch team, leadership, contact, and about pages",
+      signature: `official:${nextDomain}`,
+    };
+  }
   if (state.candidateDomains.length > 0 && !hasAction("official_routes")) {
     return {
       kind: "official_routes",
@@ -241,13 +270,14 @@ export function selectNextAdaptiveAction(
       signature: `official:${state.candidateDomains.slice(0, 3).join(",")}`,
     };
   }
+
   const nextPerson = state.discoveredPeople.find((person) => !state.followedPeople.includes(person));
-  if (nextPerson) {
+  if (nextPerson && state.followedPeople.length < maxPerson) {
     return {
       kind: "follow_person",
       lane: "people_press",
       subject: nextPerson,
-      reason: "a named person was discovered; search that person in the target and role context",
+      reason: "named person discovered — person-scoped press, bio, LinkedIn, and public contact search in target context",
       signature: `person:${nextPerson.toLowerCase()}`,
     };
   }
@@ -260,6 +290,17 @@ export function selectNextAdaptiveAction(
       signature: `claim:${state.discoveredPeople[0]!.toLowerCase()}:${state.candidateDomains[0]}`,
     };
   }
+
+  if ((state.discoveredPeople.length > 0 || state.candidateDomains.length > 0) && !hasLane("contact_routes")) {
+    return {
+      kind: "complementary_lane",
+      lane: "contact_routes",
+      subject,
+      reason: "people or domains are on the case — prioritize public contact routes (email, phone, socials)",
+      signature: "lane:contact_routes",
+    };
+  }
+
   const lanes: AIResearchLane[] = ["semantic_discovery", "people_press", "contact_routes", "official_records"];
   const missingLane = lanes.find((lane) => !hasLane(lane));
   if (missingLane) {
@@ -341,7 +382,9 @@ export async function runAdaptiveResearchDirector(
   const searchGaps: string[] = [];
   const negativeFindings: string[] = [];
   const seenSignatures = new Set<string>();
-  const maxActions = Math.max(1, Math.min(input.maxActions ?? ACTION_LIMIT, ACTION_LIMIT));
+  const depth = state.depth;
+  const budget = input.maxActions ?? depth.adaptiveMaxActions;
+  const maxActions = Math.max(1, Math.min(budget, ABSOLUTE_ADAPTIVE_ACTION_CAP));
 
   for (;;) {
     const action = selectNextAdaptiveAction(state, maxActions);
@@ -351,7 +394,7 @@ export async function runAdaptiveResearchDirector(
     }
     if (seenSignatures.has(action.signature)) {
       state.noProgressPasses++;
-      if (state.noProgressPasses >= 2) break;
+      if (state.noProgressPasses >= depth.noProgressLimit) break;
       continue;
     }
     seenSignatures.add(action.signature);
@@ -395,6 +438,7 @@ export async function runAdaptiveResearchDirector(
     state.completedActions.push(action.kind);
     if (action.lane && !state.completedLanes.includes(action.lane)) state.completedLanes.push(action.lane);
     if (action.kind === "follow_person") state.followedPeople.push(action.subject);
+    if (action.kind === "official_routes") state.followedDomains.push(action.subject);
     for (const gap of result.searchGaps ?? []) if (!searchGaps.includes(gap)) searchGaps.push(gap);
     for (const finding of result.negativeFindings ?? []) if (!negativeFindings.includes(finding)) negativeFindings.push(finding);
     if (beforePeople === discoveredPeople.length && beforeDomains === candidateDomains.length && result.citations?.length === 0) {
