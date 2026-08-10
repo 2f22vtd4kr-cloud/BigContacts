@@ -86,6 +86,7 @@ function serializeCase(
     bossOutcome: string | null;
     progressAssessment: string | null;
   } | null = null;
+  let discoveryQuality: ReturnType<typeof computeDiscoveryQualityMetrics> | null = null;
   try {
     const parsed = JSON.parse(row.caseFile) as Record<string, unknown>;
     const progress = parsed.investigationProgress as
@@ -110,8 +111,21 @@ function serializeCase(
         progressAssessment: bossPlan?.progressAssessment ?? null,
       };
     }
+    const candidates = parsed.discoveredCandidates;
+    if (Array.isArray(candidates) && candidates.length > 0) {
+      discoveryQuality = computeDiscoveryQualityMetrics(
+        candidates as Array<{
+          name: string;
+          type?: string | null;
+          relevance?: string | null;
+          reachability?: string | null;
+          contactEvidence?: Array<{ value?: string | null }> | null;
+        }>,
+      );
+    }
   } catch {
     progressSummary = null;
+    discoveryQuality = null;
   }
   return {
     ...row,
@@ -121,6 +135,7 @@ function serializeCase(
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     progressSummary,
+    discoveryQuality,
   };
 }
 

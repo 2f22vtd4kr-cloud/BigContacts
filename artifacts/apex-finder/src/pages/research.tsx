@@ -250,6 +250,16 @@ type BureauCase = {
     bossOutcome: string | null;
     progressAssessment: string | null;
   } | null;
+  discoveryQuality?: {
+    total: number;
+    personShaped: number;
+    withAnyEvidence: number;
+    fameRejected: number;
+    nonPersonRejected: number;
+    approachableMean: number;
+    personAdmitRate: number;
+    evidenceRate: number;
+  } | null;
 };
 
 type DiscoveryCaseFile = {
@@ -1075,7 +1085,17 @@ function DiscoveryBureauPanel({
                 Contact routes are shown only when an investigator returned an exact value with source evidence. Empty means no structured contact evidence was captured—not that the person is unreachable.
               </div>
             </div>
-            <span className="text-[9px] font-mono text-muted-foreground">{file.discoveredCandidates.length} review candidates</span>
+            <span className="text-[9px] font-mono text-muted-foreground text-right">
+              {file.discoveredCandidates.length} review candidates
+              {discoveryCase.discoveryQuality ? (
+                <span className="block text-amber-200/80 mt-0.5">
+                  person={discoveryCase.discoveryQuality.personShaped}
+                  {" · "}evidence={discoveryCase.discoveryQuality.withAnyEvidence}
+                  {" · "}fameReject={discoveryCase.discoveryQuality.fameRejected}
+                  {" · "}rate={(discoveryCase.discoveryQuality.personAdmitRate * 100).toFixed(0)}%
+                </span>
+              ) : null}
+            </span>
           </div>
           <div className="mt-3 grid grid-cols-1 xl:grid-cols-2 gap-2 max-h-[34rem] overflow-y-auto pr-1">
             {file.discoveredCandidates.map((candidate) => {
