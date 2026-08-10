@@ -2074,19 +2074,35 @@ router.post("/research/cases/:entityId/advance", async (req, res): Promise<void>
       advisor: updatedFile.rightHandAdvice,
     }),
   });
+  const progressSnap = updatedFile.investigationProgress;
+  const progressBits = progressSnap
+    ? `coverage=${Math.round((progressSnap.coverageRatio ?? 0) * 100)}% foundAny=${progressSnap.foundAnyCount} personal=${progressSnap.foundPersonalCount} pending=${(progressSnap.pendingVectors ?? []).length}`
+    : "progress=none";
+  const bossOutcome = updatedFile.bossPlan?.outcome ?? bossPlan.outcome ?? "proceed";
+  const lanesHonesty = {
+    rightHand: reasoning.status,
+    boss: bossPlan.status,
+    bossOutcome,
+    progressAssessment: updatedFile.bossPlan?.progressAssessment ?? bossPlan.progressAssessment ?? null,
+    reprioritize: updatedFile.bossPlan?.reprioritize ?? bossPlan.reprioritize ?? [],
+    noProgressStreak: updatedFile.noProgressStreak ?? 0,
+    researchDepth: updatedFile.researchDepth ?? null,
+  };
   await db.insert(researchCaseEventsTable).values({
     caseId: current.id,
     iteration: nextIteration,
     actorRole: "boss",
     eventType: "decision",
     summary: action
-      ? `Boss assigned ${action.title} to ${action.specialistId}.`
-      : "Boss left no queued action; case is ready for review.",
+      ? `Boss assigned ${action.title} to ${action.specialistId} (${progressBits}; rightHand=${reasoning.status}; boss=${bossPlan.status}).`
+      : `Boss left no queued action; case is ready for review (${progressBits}; rightHand=${reasoning.status}; boss=${bossPlan.status}; outcome=${bossOutcome}).`,
     payload: JSON.stringify({
       action,
       decision: updatedFile.decisionLog.at(-1),
       bossPlan: updatedFile.bossPlan,
       advisorConsulted: reasoning.status === "completed",
+      investigationProgress: progressSnap ?? null,
+      lanes: lanesHonesty,
     }),
   });
   const [entity] = await db.select({ name: entitiesTable.name, type: entitiesTable.type }).from(entitiesTable).where(eq(entitiesTable.id, params.data.entityId));
