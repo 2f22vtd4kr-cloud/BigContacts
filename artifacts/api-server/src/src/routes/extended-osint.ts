@@ -116,14 +116,38 @@ router.post("/enrich/whoxy", async (req: Request, res: Response): Promise<void> 
 
     const summary = summariseWhoxyFindings(result.allUniqueDomains);
 
-    if (entity && summary) {
-      const existing = entity.notes ?? "";
-      const newNotes = existing
-        ? `${existing}\n\n--- Whoxy Reverse WHOIS (${new Date().toISOString().slice(0, 10)}) ---\n${summary}`
-        : summary;
-      await db.update(entitiesTable)
-        .set({ notes: newNotes.slice(0, 10_000), updatedAt: new Date() })
-        .where(eq(entitiesTable.id, entity.id));
+    if (entity) {
+      const domains = Array.isArray(result.allUniqueDomains) ? result.allUniqueDomains : [];
+      const domainVectors = domains.slice(0, 20)
+        .filter((d: unknown): d is string => typeof d === "string" && d.trim().length > 0)
+        .map((d: string) => {
+          const host = d.replace(/^https?:\/\//i, "").split("/")[0] ?? d;
+          const url = /^https?:\/\//i.test(d) ? d : `https://${host}`;
+          return {
+            vectorType: "domain",
+            value: host,
+            scope: "organization",
+            personName: entity.name,
+            role: null,
+            sourceUrls: [url],
+            note: "Whoxy reverse WHOIS domain claim — related/org lead only",
+            tier: "candidate",
+            state: "review_only",
+          };
+        });
+      if (domainVectors.length) {
+        await persistBureauContactsForEntity(entity.id, domainVectors, "whoxy");
+      }
+
+      if (summary) {
+        const existing = entity.notes ?? "";
+        const newNotes = existing
+          ? `${existing}\n\n--- Whoxy Reverse WHOIS (${new Date().toISOString().slice(0, 10)}) ---\n${summary}`
+          : summary;
+        await db.update(entitiesTable)
+          .set({ notes: newNotes.slice(0, 10_000), updatedAt: new Date() })
+          .where(eq(entitiesTable.id, entity.id));
+      }
     }
 
     res.json({ ...result, summary });
