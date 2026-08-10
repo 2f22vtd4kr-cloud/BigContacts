@@ -31,7 +31,7 @@ async function pollJob(jobId) {
     const pct = job.progress ?? 0;
     const msg = job.message ?? "";
     process.stdout.write(`\r  [${pct}%] ${msg.slice(0, 80).padEnd(80)}`);
-    if (job.status === "done" || job.status === "failed") {
+    if (job.status === "done" || job.status === "failed" || job.status === "cancelled") {
       process.stdout.write("\n");
       return job;
     }
