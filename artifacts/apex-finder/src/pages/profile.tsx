@@ -1065,9 +1065,10 @@ export default function ApexProfile() {
           return s;
         };
         const rankedEvidence = [...mergedEvidence].sort((a, b) => rankEvidence(b) - rankEvidence(a));
+        // Fail-closed: only verified evidence gets the personal highlight.
+        // High directness alone stays "Still a lead" until validationStatus is verified.
         const isPersonalHigh = (item: typeof mergedEvidence[number]) =>
-          item.validationStatus === "verified" ||
-          ((item.directnessScore ?? 0) >= 0.65 && (item.identityMatch ?? 0) >= 0.5);
+          item.validationStatus === "verified";
         const dbConf = typeof e.contactConfidence === "number" ? e.contactConfidence : null;
         const conf = dbConf !== null ? dbConf :
           Math.min(100,
