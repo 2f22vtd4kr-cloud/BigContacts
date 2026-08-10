@@ -174,7 +174,7 @@ function PersonaLoopTab() {
       const r = await fetch(`${BASE}/api/improve/jobs/${id}`);
       if (!r.ok) return;
       const d = await r.json();
-      if (d.status === "done" || d.status === "failed") {
+      if (d.status === "done" || d.status === "failed" || d.status === "cancelled") {
         setRunning(false);
         if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
         // Refresh
@@ -528,7 +528,7 @@ export default function BackgroundJobs() {
               ...j, status: d2.status ?? j.status, progress: d2.progress ?? 0,
               inserted: d2.inserted ?? 0, skipped: d2.skipped ?? 0, errors: d2.errors ?? 0, message: d2.message ?? "",
             } : j));
-            if (d2.status === "done" || d2.status === "failed") clearInterval(pollThis);
+            if (d2.status === "done" || d2.status === "failed" || d2.status === "cancelled") clearInterval(pollThis);
           } catch { clearInterval(pollThis); }
         }, 1500);
       } else {
