@@ -1025,8 +1025,8 @@ function PythonToolsPanel() {
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs font-semibold text-foreground">{GLINER_META.label}</span>
                 <ToolStatusBadge
-                  ready={status?.gliner.available ?? false}
-                  label={!checked ? undefined : status?.gliner.available ? "Online" : "Offline"}
+                  ready={status?.gliner?.available ?? false}
+                  label={!checked ? undefined : status?.gliner?.available ? "Online" : "Offline"}
                 />
                 <UsageBadge usage={GLINER_META.usage} />
               </div>
@@ -1035,7 +1035,7 @@ function PythonToolsPanel() {
                 <span className="text-[9px] font-mono text-blue-400/80">{GLINER_META.usageNote}</span>
                 <span className="text-[9px] font-mono text-muted-foreground/60">{GLINER_META.fallback}</span>
               </div>
-              {checked && !status?.gliner.available && (
+              {checked && !status?.gliner?.available && (
                 <div className="mt-1.5 flex items-center gap-1.5">
                   <span className="text-[9px] font-mono text-muted-foreground">Start:</span>
                   <code className="text-[9px] font-mono text-amber-400/90 bg-muted/60 px-1.5 py-0.5 rounded select-all">

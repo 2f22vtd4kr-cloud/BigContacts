@@ -564,9 +564,9 @@ export default function DeepSearch() {
                 name="Planner"
                 description="Decomposes query intent, extracts asset/geo/name filters, selects strategy."
                 status={steps.planner as StepStatus}
-                durationMs={p?.planner.durationMs}
+                durationMs={p?.planner?.durationMs}
                 metric={p ? `Intent: ${p.planner.intent} · Strategy: ${p.planner.strategy}` : undefined}
-                detail={p?.planner.reasoning}
+                detail={p?.planner?.reasoning}
               />
 
               <StepCard
@@ -574,7 +574,7 @@ export default function DeepSearch() {
                 name="Retriever"
                 description="Expands query terms, runs BM25 + TF-IDF cosine + SQL pre-filter, merges candidates."
                 status={steps.retriever as StepStatus}
-                durationMs={p?.retriever.durationMs}
+                durationMs={p?.retriever?.durationMs}
                 metric={p ? `BM25: ${p.retriever.bm25Hits} · Semantic: ${p.retriever.semanticHits} · Embed: ${p.retriever.embeddingHits ?? 0} · ${p.retriever.totalCandidates} candidates` : undefined}
                 detail={p ? [
                   p.retriever.expandedQuery && p.retriever.expandedQuery !== result?.query
@@ -590,7 +590,7 @@ export default function DeepSearch() {
                 name="Analyst"
                 description="Validates source registries, applies Bayesian signal boost, generates per-entity reasoning."
                 status={steps.analyst as StepStatus}
-                durationMs={p?.analyst.durationMs}
+                durationMs={p?.analyst?.durationMs}
                 metric={p ? `${p.analyst.candidateCount} candidates scored` : undefined}
                 detail={p ? `${p.analyst.candidateCount} entities analysed — sources validated, confidence assigned.` : undefined}
               />
@@ -600,7 +600,7 @@ export default function DeepSearch() {
                 name="Critic"
                 description="Re-ranks by RRF + confidence + hot-lead boost, removes low-signal noise."
                 status={steps.critic as StepStatus}
-                durationMs={p?.critic.durationMs}
+                durationMs={p?.critic?.durationMs}
                 metric={p ? `${p.critic.finalCount} final · ${p.critic.removed} removed` : undefined}
                 detail={p ? `${p.critic.finalCount} results surfaced. ${p.critic.removed} low-signal candidates filtered.` : undefined}
               />

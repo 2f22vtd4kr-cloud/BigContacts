@@ -728,10 +728,10 @@ function BureauCasePanel({
       </div>
 
       <div className="flex flex-wrap gap-2 mt-3 text-[10px] font-mono text-muted-foreground">
-        <span className="rounded border border-border/60 px-2 py-1">people: {file?.evidenceSummary.discoveredPeople.length ?? 0}</span>
-        <span className="rounded border border-border/60 px-2 py-1">organizations: {file?.evidenceSummary.relatedOrganizations.length ?? 0}</span>
+        <span className="rounded border border-border/60 px-2 py-1">people: {file?.evidenceSummary?.discoveredPeople?.length ?? 0}</span>
+        <span className="rounded border border-border/60 px-2 py-1">organizations: {file?.evidenceSummary?.relatedOrganizations?.length ?? 0}</span>
         <span className="rounded border border-border/60 px-2 py-1">contact routes: {routes.length}</span>
-        <span className="rounded border border-border/60 px-2 py-1">evidence signals: {file?.evidenceSummary.evidenceCount ?? 0}</span>
+        <span className="rounded border border-border/60 px-2 py-1">evidence signals: {file?.evidenceSummary?.evidenceCount ?? 0}</span>
       </div>
       {routes.length > 0 && (
         <div className="mt-3">
@@ -972,7 +972,7 @@ function DiscoveryBureauPanel({
               ? "gemini boss reviewed"
               : String(discoveryCase.directorMode ?? "manual").replaceAll("_", " ")}
             {" · "}
-            {file?.initialResearch.status ?? "not started"}
+            {file?.initialResearch?.status ?? "not started"}
           </div>
         </div>
       </div>

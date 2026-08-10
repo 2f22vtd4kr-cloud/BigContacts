@@ -326,9 +326,9 @@ export default function SystemStatusPage() {
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {[
-            { label: "Hugging Face model", configured: status?.openResearch?.huggingFace.configured ?? false },
-            { label: "Serper live search", configured: status?.openResearch?.serper.configured ?? false },
-            { label: "Mistral web search", configured: status?.openResearch?.mistral.configured ?? false },
+            { label: "Hugging Face model", configured: status?.openResearch?.huggingFace?.configured ?? false },
+            { label: "Serper live search", configured: status?.openResearch?.serper?.configured ?? false },
+            { label: "Mistral web search", configured: status?.openResearch?.mistral?.configured ?? false },
           ].map((item) => (
             <div key={item.label} className="flex items-center justify-between rounded-xl border border-border/60 bg-gradient-to-br from-primary/5 to-transparent px-4 py-3">
               <span className="font-mono text-[11px] text-foreground">{item.label}</span>
@@ -341,15 +341,15 @@ export default function SystemStatusPage() {
         <div className="mt-2 rounded-lg border border-border/50 px-4 py-3">
           <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px]">
             <span className="text-muted-foreground">Bounded smolagents adapter</span>
-            <span className={status?.openResearch?.adapter.available ? "text-primary" : "text-muted-foreground"}>
-              {status?.openResearch?.adapter.available ? "installed" : "unavailable"}
+            <span className={status?.openResearch?.adapter?.available ? "text-primary" : "text-muted-foreground"}>
+              {status?.openResearch?.adapter?.available ? "installed" : "unavailable"}
             </span>
           </div>
           <div className="mt-1 truncate font-mono text-[9px] text-muted-foreground/55">
-            {status?.openResearch?.adapter.model ?? "Qwen/Qwen2.5-7B-Instruct"} · review-only, no direct promotion
+            {status?.openResearch?.adapter?.model ?? "Qwen/Qwen2.5-7B-Instruct"} · review-only, no direct promotion
           </div>
           <div className="mt-1 truncate font-mono text-[9px] text-muted-foreground/55">
-            {status?.openResearch?.mistral.configured
+            {status?.openResearch?.mistral?.configured
               ? `Mistral ${status.openResearch.mistral.model} · ${status.openResearch.mistral.rateLimit}`
               : "Mistral web search not configured"}
           </div>

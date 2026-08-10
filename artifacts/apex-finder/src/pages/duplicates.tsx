@@ -83,7 +83,7 @@ function EntityCard({ entity, role }: { entity: EntityStub; role: "primary" | "t
           {entity.type}
         </span>
         <span className={cn("text-xs font-mono flex-shrink-0 ml-auto", scoreColor(entity.bayesianScore))}>
-          {(entity.bayesianScore * 100).toFixed(0)}%
+          {((entity.bayesianScore ?? 0) * 100).toFixed(0)}%
         </span>
       </div>
       <p className="text-sm font-medium leading-tight break-words">{entity.name}</p>
@@ -236,7 +236,7 @@ function SameSourceClusterRow({ cluster }: { cluster: SameSourceCluster }) {
               </span>
               <span className="text-sm truncate flex-1">{formatEntityName(entity.name)}</span>
               <span className={cn("text-xs font-mono flex-shrink-0", scoreColor(entity.bayesianScore))}>
-                {(entity.bayesianScore * 100).toFixed(0)}%
+                {((entity.bayesianScore ?? 0) * 100).toFixed(0)}%
               </span>
               <span className="text-[10px] text-muted-foreground font-mono">#{entity.id}</span>
             </div>
