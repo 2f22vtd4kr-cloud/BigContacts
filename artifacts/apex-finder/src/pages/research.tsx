@@ -185,6 +185,7 @@ type BureauCaseFile = {
   bossPlan?: {
     model: string;
     status: "completed" | "unavailable";
+    outcome?: "proceed" | "reject_target" | "reframe";
     actionId: string | null;
     decision: string | null;
     reason: string | null;
@@ -193,9 +194,18 @@ type BureauCaseFile = {
     tools: string[];
     evidenceRequirements: string[];
     confidence: number | null;
+    progressAssessment?: string | null;
+    reprioritize?: string[];
     error: string | null;
     createdAt: string;
   };
+  investigationProgress?: {
+    coverageRatio?: number;
+    foundAnyCount?: number;
+    foundPersonalCount?: number;
+    pendingVectors?: string[];
+  };
+  noProgressStreak?: number;
   nextBestAction: BureauAction | null;
   evidenceSummary: {
     sourceRegistries: string[];
@@ -226,6 +236,15 @@ type BureauCase = {
   lastDecisionAt: string | null;
   createdAt: string;
   updatedAt: string;
+  progressSummary?: {
+    coverageRatio: number;
+    foundAnyCount: number;
+    foundPersonalCount: number;
+    pendingVectors: string[];
+    noProgressStreak: number | null;
+    bossOutcome: string | null;
+    progressAssessment: string | null;
+  } | null;
 };
 
 type DiscoveryCaseFile = {
@@ -520,6 +539,64 @@ function BureauCasePanel({
           )}
         </div>
 
+        {(bureauCase.progressSummary || file?.investigationProgress || file?.bossPlan?.progressAssessment) && (
+          <div className="rounded border border-border/60 bg-background/30 p-3 lg:col-span-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground">Investigation progress</span>
+              <span className="text-[9px] font-mono text-muted-foreground">
+                {bureauCase.progressSummary?.bossOutcome
+                  ? `outcome=${bureauCase.progressSummary.bossOutcome}`
+                  : file?.bossPlan?.outcome
+                    ? `outcome=${file.bossPlan.outcome}`
+                    : "live"}
+              </span>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-2 text-[10px] text-muted-foreground">
+              <span>
+                coverage{" "}
+                {Math.round(
+                  ((bureauCase.progressSummary?.coverageRatio
+                    ?? file?.investigationProgress?.coverageRatio
+                    ?? 0) * 100),
+                )}
+                %
+              </span>
+              <span>
+                found{" "}
+                {bureauCase.progressSummary?.foundAnyCount
+                  ?? file?.investigationProgress?.foundAnyCount
+                  ?? 0}
+              </span>
+              <span>
+                personal{" "}
+                {bureauCase.progressSummary?.foundPersonalCount
+                  ?? file?.investigationProgress?.foundPersonalCount
+                  ?? 0}
+              </span>
+              <span>
+                pending{" "}
+                {(bureauCase.progressSummary?.pendingVectors
+                  ?? file?.investigationProgress?.pendingVectors
+                  ?? []).length}
+              </span>
+              {(bureauCase.progressSummary?.noProgressStreak
+                ?? file?.noProgressStreak
+                ?? 0) > 0 && (
+                <span className="text-amber-300">
+                  stalled×{bureauCase.progressSummary?.noProgressStreak ?? file?.noProgressStreak}
+                </span>
+              )}
+            </div>
+            {(bureauCase.progressSummary?.progressAssessment
+              || file?.bossPlan?.progressAssessment) && (
+              <div className="text-[10px] text-muted-foreground mt-2">
+                {bureauCase.progressSummary?.progressAssessment
+                  || file?.bossPlan?.progressAssessment}
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="rounded border border-primary/20 bg-primary/5 p-3 lg:col-span-2">
           <div className="flex items-center justify-between gap-2">
             <span className="text-[10px] uppercase tracking-wider font-mono text-primary">Gemini Boss plan</span>
@@ -528,7 +605,10 @@ function BureauCasePanel({
           {file?.bossPlan?.status === "completed" ? (
             <>
               <div className="text-[10px] text-foreground mt-2">
-                {file.bossPlan.model} assigned <span className="text-primary">{file.bossPlan.actionId}</span>
+                {file.bossPlan.model}{" "}
+                {file.bossPlan.outcome && file.bossPlan.outcome !== "proceed"
+                  ? <span className="text-amber-300">{file.bossPlan.outcome}</span>
+                  : <>assigned <span className="text-primary">{file.bossPlan.actionId}</span></>}
               </div>
               <div className="text-[10px] text-muted-foreground mt-1">{file.bossPlan.reason}</div>
               {file.bossPlan.investigatorPrompt && (
