@@ -388,13 +388,15 @@ async function materializeDiscoveryReviewCandidates(input: {
       sourceTag,
     );
 
-    // Queue person-shaped for bounded secondary expansion (LinkedIn / public claims as leads).
+    // Queue person-shaped (and a few corp shells) for bounded secondary expansion.
+    // Runs even when LinkedIn is already present so Signal/crt/claims still fire.
     const personShaped =
       entityType === "HNWI"
       || entityType === "Gatekeeper"
       || (name.includes(" ") && !/llc|ltd|inc|corp|plc|gmbh|sa\b|bv\b|nv\b/i.test(name));
-    const alreadyHasLinkedIn = urlEvidence.some((u) => /linkedin/i.test(u.vectorType) || /linkedin\.com/i.test(u.value));
-    if (personShaped && !alreadyHasLinkedIn && secondaryQueue.length < 5) {
+    const corpShaped = entityType === "Corporation" || entityType === "Trust"
+      || /llc|ltd|inc|corp|plc|gmbh|sa\b|bv\b|nv\b/i.test(name);
+    if ((personShaped || corpShaped) && secondaryQueue.length < 8) {
       secondaryQueue.push({ entityId, name, entityType });
     }
 
@@ -411,9 +413,144 @@ async function materializeDiscoveryReviewCandidates(input: {
         // non-fatal
       }
     }
+    // Registry officer expansion: corp anchors → named people as review entities.
+    try {
+      const officerAdds = await expandRegistryOfficersFromCandidates({
+        caseId: input.caseId,
+        candidates: updated,
+        limit: 6,
+      });
+      if (officerAdds.materialized > 0) {
+        materialized += officerAdds.materialized;
+        const byName = new Map(updated.map((c) => [c.name.trim().toLowerCase(), c]));
+        for (const oc of officerAdds.candidates) {
+          const key = oc.name.trim().toLowerCase();
+          if (!byName.has(key)) {
+            byName.set(key, oc);
+            updated.push(oc);
+          }
+        }
+      }
+    } catch {
+      // non-fatal
+    }
   }
 
   return { materialized, secondaryExpanded, candidates: updated };
+}
+
+/**
+ * Corp/registry anchors → named officers as review-only entities + evidence.
+ * Bounded; never invents; never Personal.
+ */
+async function expandRegistryOfficersFromCandidates(input: {
+  caseId: number;
+  candidates: DiscoveryCandidate[];
+  limit?: number;
+}): Promise<{ materialized: number; candidates: DiscoveryCandidate[] }> {
+  const limit = input.limit ?? 6;
+  const out: DiscoveryCandidate[] = [];
+  let materialized = 0;
+  if (!process.env.COMPANIES_HOUSE_API_KEY) return { materialized: 0, candidates: out };
+
+  const corpAnchors = input.candidates
+    .filter((c) => {
+      const t = String(c.type ?? "").toLowerCase();
+      const n = String(c.name ?? "");
+      return t.includes("corp") || t.includes("company") || /llc|ltd|inc|plc|gmbh/i.test(n);
+    })
+    .slice(0, 4);
+
+  try {
+    const { searchRegistry } = await import("../../lib/registry-client");
+    for (const anchor of corpAnchors) {
+      if (out.length >= limit) break;
+      let results: Array<{ name: string; type?: string; metadata?: string; notes?: string }> = [];
+      try {
+        results = await searchRegistry({
+          query: anchor.name,
+          registry: "companies-house",
+          limit: 5,
+        });
+      } catch {
+        continue;
+      }
+      for (const r of results) {
+        if (out.length >= limit) break;
+        const personName = String(r.name ?? "").trim();
+        if (!personName || personName.toLowerCase() === anchor.name.trim().toLowerCase()) continue;
+        const looksPerson = personName.includes(" ") && !/llc|ltd|inc|plc|gmbh|limited/i.test(personName);
+        if (!looksPerson) continue;
+
+        const existing = await db
+          .select({ id: entitiesTable.id })
+          .from(entitiesTable)
+          .where(sql`lower(btrim(${entitiesTable.name})) = ${personName.toLowerCase()}`)
+          .limit(1);
+        let entityId = existing[0]?.id ?? null;
+        if (!entityId) {
+          try {
+            const [entity] = await db.insert(entitiesTable).values({
+              name: personName,
+              type: "HNWI",
+              bayesianScore: 0.05,
+              contactConfidence: 0,
+              contactOutcome: "evidence_only",
+              isHot: false,
+              isStarred: false,
+              isHidden: false,
+              sourceRegistries: JSON.stringify(["Companies House officers"]),
+              notes: `Registry officer expanded from corp anchor "${anchor.name}" (case ${input.caseId}). Review-only; not Personal.`,
+              metadata: JSON.stringify({
+                reviewOnly: true,
+                admission: "registry-officer-expansion",
+                caseId: input.caseId,
+                parentCorp: anchor.name,
+                candidate: { name: personName, type: r.type, notes: r.notes },
+              }),
+            }).returning();
+            entityId = entity?.id ?? null;
+          } catch {
+            entityId = null;
+          }
+        }
+        if (!entityId) continue;
+
+        let sourceUrls: string[] = [];
+        try {
+          const meta = r.metadata ? JSON.parse(r.metadata) as Record<string, unknown> : {};
+          if (typeof meta.url === "string") sourceUrls = [meta.url];
+        } catch { /* ignore */ }
+
+        await persistBureauContactsForEntity(entityId, [{
+          vectorType: "website",
+          value: sourceUrls[0] ?? `companies-house:${personName}`,
+          scope: "candidate",
+          personName,
+          role: "officer",
+          sourceUrls,
+          note: `Companies House officer related to ${anchor.name}`,
+          tier: "candidate",
+          state: "review_only",
+        }], "registry-officer-expansion");
+
+        materialized += 1;
+        out.push({
+          name: personName,
+          type: "review_candidate",
+          relevance: `Officer expanded from registry for corp anchor ${anchor.name}`,
+          reachability: "Registry officer record; secondary surface may still be incomplete.",
+          sourceUrls,
+          contactEvidence: [],
+          state: "review_only",
+          admittedEntityId: entityId,
+        } as DiscoveryCandidate);
+      }
+    }
+  } catch {
+    // non-fatal
+  }
+  return { materialized, candidates: out };
 }
 
 async function persistDiscoveryCheckpoint(

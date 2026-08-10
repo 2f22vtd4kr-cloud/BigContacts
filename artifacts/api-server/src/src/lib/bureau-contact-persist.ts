@@ -267,18 +267,18 @@ export async function expandSecondaryPublicSurface(input: {
       out.website = true;
     }
 
-    // Signal.nfx / investor profile surface (public pages only) via free OSINT.
+    // Signal.nfx / OpenVC / Angel / First Round public directory surface.
     try {
-      const signalHit = await lookupPublicInvestorProfile(name);
-      if (signalHit) {
+      const directoryHits = await lookupPublicInvestorDirectories(name);
+      for (const hit of directoryHits) {
         vectors.push({
           vectorType: "website",
-          value: signalHit,
+          value: hit.url,
           scope: "candidate",
           personName: name,
           role: null,
-          sourceUrls: [signalHit],
-          note: "Public investor / Signal-style profile from secondary expansion — lead only",
+          sourceUrls: [hit.url],
+          note: `Public ${hit.directory} profile from secondary expansion — lead only`,
           tier: "candidate",
           state: "review_only",
         });
@@ -309,6 +309,55 @@ export async function expandSecondaryPublicSurface(input: {
       } catch {
         // non-fatal
       }
+
+      // Certificate transparency (crt.sh) — claimed emails from cert SANs as leads only.
+      try {
+        const domain = result.website.replace(/^https?:\/\//i, "").split("/")[0]?.replace(/^www\./i, "");
+        if (domain && domain.includes(".")) {
+          const ctEmails = await lookupCrtShEmails(domain);
+          for (const email of ctEmails) {
+            vectors.push({
+              vectorType: "email",
+              value: email,
+              scope: /^(info|contact|office|press|hello|admin|sales|support|webmaster)@/i.test(email)
+                ? "organization"
+                : "candidate",
+              personName: name,
+              role: null,
+              sourceUrls: [`https://crt.sh/?q=${encodeURIComponent(domain)}`],
+              note: `crt.sh certificate transparency claim on ${domain} — lead only, not Personal`,
+              tier: "candidate",
+              state: "review_only",
+            });
+            out.email = true;
+          }
+        }
+      } catch {
+        // non-fatal
+      }
+    }
+
+    // Public web claims that look like emails with a source URL — always candidate/lead.
+    try {
+      const claimed = await lookupPublicEmailClaims(name);
+      for (const claim of claimed) {
+        vectors.push({
+          vectorType: "email",
+          value: claim.email,
+          scope: /^(info|contact|office|press|hello|admin|sales|support)@/i.test(claim.email)
+            ? "organization"
+            : "candidate",
+          personName: name,
+          role: null,
+          sourceUrls: claim.sourceUrl ? [claim.sourceUrl] : [],
+          note: "Public aggregator/web claim — lead only with source; never Personal",
+          tier: "candidate",
+          state: "review_only",
+        });
+        out.email = true;
+      }
+    } catch {
+      // non-fatal
     }
 
     if (vectors.length) {
@@ -364,14 +413,21 @@ async function lookupLeadershipPages(website: string, personName: string): Promi
   return found;
 }
 
-/** Best-effort public investor profile URL (Signal.nfx, similar directories). Never invents. */
-async function lookupPublicInvestorProfile(name: string): Promise<string | null> {
+/** Public investor/angel directory hits (Signal, OpenVC, AngelList, First Round). Never invents. */
+async function lookupPublicInvestorDirectories(
+  name: string,
+): Promise<Array<{ url: string; directory: string }>> {
   const queries = [
-    `"${name}" site:signal.nfx.com`,
-    `"${name}" site:signal.nfx.com investor`,
-    `"${name}" "angel" OR "investor" site:signal.nfx.com OR site:openvc.app OR site:angel.co`,
+    { q: `"${name}" site:signal.nfx.com`, dir: "Signal.nfx" },
+    { q: `"${name}" site:openvc.app`, dir: "OpenVC" },
+    { q: `"${name}" site:angel.co OR site:wellfound.com`, dir: "AngelList/Wellfound" },
+    { q: `"${name}" site:firstround.com angels`, dir: "First Round" },
+    { q: `"${name}" "angel investor" OR "seed investor" site:firstround.com OR site:signal.nfx.com`, dir: "angel-directory" },
   ];
-  for (const q of queries) {
+  const hits: Array<{ url: string; directory: string }> = [];
+  const seen = new Set<string>();
+  for (const { q, dir } of queries) {
+    if (hits.length >= 5) break;
     try {
       const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(q)}&kl=wt-wt`;
       const resp = await fetch(url, {
@@ -383,15 +439,109 @@ async function lookupPublicInvestorProfile(name: string): Promise<string | null>
       });
       if (!resp.ok) continue;
       const html = await resp.text();
-      const signalM = html.match(/https?:\/\/(?:www\.)?signal\.nfx\.com\/[a-zA-Z0-9\-._/?=&%]+/i);
-      if (signalM?.[0]) return signalM[0].replace(/&amp;/g, "&").split("&")[0] ?? signalM[0];
-      const openVcM = html.match(/https?:\/\/(?:www\.)?openvc\.app\/[a-zA-Z0-9\-._/?=&%]+/i);
-      if (openVcM?.[0]) return openVcM[0].replace(/&amp;/g, "&").split("&")[0] ?? openVcM[0];
-      const angelM = html.match(/https?:\/\/(?:www\.)?angel\.co\/[a-zA-Z0-9\-._/?=&%]+/i);
-      if (angelM?.[0]) return angelM[0].replace(/&amp;/g, "&").split("&")[0] ?? angelM[0];
+      const patterns: Array<{ re: RegExp; directory: string }> = [
+        { re: /https?:\/\/(?:www\.)?signal\.nfx\.com\/[a-zA-Z0-9\-._/?=&%]+/gi, directory: "Signal.nfx" },
+        { re: /https?:\/\/(?:www\.)?openvc\.app\/[a-zA-Z0-9\-._/?=&%]+/gi, directory: "OpenVC" },
+        { re: /https?:\/\/(?:www\.)?(?:angel\.co|wellfound\.com)\/[a-zA-Z0-9\-._/?=&%]+/gi, directory: "AngelList/Wellfound" },
+        { re: /https?:\/\/(?:www\.)?firstround\.com\/[a-zA-Z0-9\-._/?=&%]+/gi, directory: "First Round" },
+      ];
+      for (const { re, directory } of patterns) {
+        const matches = html.match(re) ?? [];
+        for (const raw of matches) {
+          const clean = raw.replace(/&amp;/g, "&").split("&")[0] ?? raw;
+          const key = clean.toLowerCase();
+          if (seen.has(key)) continue;
+          seen.add(key);
+          hits.push({ url: clean, directory: directory || dir });
+          if (hits.length >= 5) break;
+        }
+        if (hits.length >= 5) break;
+      }
     } catch {
-      // try next query
+      // try next
     }
   }
-  return null;
+  return hits;
+}
+
+/** crt.sh certificate transparency — emails from cert SANs only. Never invents. */
+async function lookupCrtShEmails(domain: string): Promise<string[]> {
+  try {
+    const url = `https://crt.sh/?q=${encodeURIComponent("%." + domain)}&output=json`;
+    const resp = await fetch(url, {
+      headers: { Accept: "application/json", "User-Agent": "ApexAtlas/1.0" },
+      signal: AbortSignal.timeout(12_000),
+    });
+    if (!resp.ok) return [];
+    const certs = (await resp.json()) as Array<{ name_value?: string; common_name?: string }>;
+    if (!Array.isArray(certs)) return [];
+    const emails = new Set<string>();
+    for (const cert of certs.slice(0, 40)) {
+      const blob = `${cert?.name_value ?? ""}\n${cert?.common_name ?? ""}`;
+      for (const m of blob.matchAll(/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g)) {
+        const email = m[0].toLowerCase();
+        if (email.endsWith(`.${domain}`) || email.includes(`@${domain}`) || email.includes(domain)) {
+          emails.add(email);
+        }
+      }
+    }
+    return [...emails].slice(0, 5);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Public web claims that look like emails near the person name.
+ * Stores only with a source URL; never promotes to Personal.
+ */
+async function lookupPublicEmailClaims(
+  name: string,
+): Promise<Array<{ email: string; sourceUrl: string | null }>> {
+  const queries = [
+    `"${name}" email OR contact OR "@"`,
+    `"${name}" "@" (gmail.com OR outlook.com OR proton.me OR company)`,
+  ];
+  const out: Array<{ email: string; sourceUrl: string | null }> = [];
+  const seen = new Set<string>();
+  const generic = /^(info|contact|office|press|hello|admin|sales|support|noreply|no-reply)@/i;
+  for (const q of queries) {
+    if (out.length >= 5) break;
+    try {
+      const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(q)}&kl=wt-wt`;
+      const resp = await fetch(url, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (compatible; ApexAtlas/1.0)",
+          Accept: "text/html",
+        },
+        signal: AbortSignal.timeout(8_000),
+      });
+      if (!resp.ok) continue;
+      const html = await resp.text();
+      // Capture emails and nearby http links as weak source attribution.
+      const emailMatches = html.match(/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g) ?? [];
+      const linkMatches = html.match(/https?:\/\/[^\s"'<>]+/g) ?? [];
+      for (const raw of emailMatches) {
+        const email = raw.toLowerCase();
+        if (seen.has(email)) continue;
+        if (generic.test(email) && !name.split(/\s+/).some((p) => p.length > 2 && email.includes(p.toLowerCase()))) {
+          // Keep org emails but mark them; still visible as related.
+        }
+        // Skip obvious trash
+        if (/example\.com|domain\.com|email\.com|sentry\.io|wixpress|schema\.org/i.test(email)) continue;
+        seen.add(email);
+        const sourceUrl = linkMatches.find((l) => /linkedin|about|contact|team|company|profile/i.test(l))
+          ?? linkMatches[0]
+          ?? null;
+        out.push({
+          email,
+          sourceUrl: sourceUrl ? sourceUrl.replace(/&amp;/g, "&").split("&")[0] ?? sourceUrl : null,
+        });
+        if (out.length >= 5) break;
+      }
+    } catch {
+      // try next
+    }
+  }
+  return out;
 }
