@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { evaluateTargetFitness, shouldRejectTarget, suggestReframe } from "../lib/target-fitness";
 import { applyGeminiBossPlan, type ResearchCaseFile } from "../lib/case-bureau";
 import { computeInvestigationProgress, evaluateInvestigationStop } from "../lib/investigation-progress";
+import { evaluateDiscoveryStop } from "../lib/discovery-metrics";
+import { contactEvidenceToRoutes, mergeContactRoutes } from "../lib/case-bureau";
 import { collectDiscoveryContactsForTarget } from "../lib/bureau-contact-persist";
 import { scoreOfflineCohort, FAME_NEGATIVE_CONTROLS, QUIET_OPERATOR_FIXTURES } from "../lib/eval-cohort";
 
@@ -230,5 +232,75 @@ describe("offline eval cohort", () => {
     expect(card.zeroInventedContacts).toBe(true);
     expect(FAME_NEGATIVE_CONTROLS.length).toBeGreaterThan(3);
     expect(QUIET_OPERATOR_FIXTURES.length).toBeGreaterThan(2);
+  });
+});
+
+
+describe("discovery stop residual", () => {
+  it("stops next-pass when person-shaped evidence is already retained", () => {
+    const candidates = [
+      { name: "Helen Vargas", type: "HNWI", contactEvidence: [{ value: "helen@example.com" }] },
+      { name: "Marta Ellison", type: "HNWI", contactEvidence: [{ value: "marta@example.com" }] },
+      { name: "Owen Park", type: "HNWI", contactEvidence: [{ value: "owen@example.com" }] },
+    ];
+    const stop = evaluateDiscoveryStop({
+      candidates,
+      iteration: 2,
+      mode: "next-pass",
+    });
+    expect(stop.stop).toBe(true);
+    expect(stop.reason).toBe("evidence_sufficient");
+  });
+
+  it("stops run-discovery when reports and candidates already exist", () => {
+    const stop = evaluateDiscoveryStop({
+      candidates: [
+        { name: "Helen Vargas", type: "HNWI" },
+        { name: "Marta Ellison", type: "HNWI" },
+        { name: "Owen Park", type: "HNWI" },
+      ],
+      iteration: 1,
+      mode: "run-discovery",
+      hasInvestigatorReports: true,
+    });
+    expect(stop.stop).toBe(true);
+    expect(stop.reason).toBe("evidence_sufficient");
+  });
+
+  it("stops boss-review when already completed", () => {
+    const stop = evaluateDiscoveryStop({
+      candidates: [],
+      iteration: 3,
+      mode: "boss-review",
+      bossReviewCompleted: true,
+    });
+    expect(stop.stop).toBe(true);
+    expect(stop.reason).toBe("already_reviewed");
+  });
+});
+
+describe("contact route merge residual", () => {
+  it("converts discovery evidence into case routes without inventing values", () => {
+    const routes = contactEvidenceToRoutes([
+      { vectorType: "email", value: "helen@example.com", scope: "person", personName: "Helen Vargas" },
+      { vectorType: "email", value: "helen@example.com", scope: "person" },
+      { vectorType: "phone", value: "", scope: "person" },
+    ]);
+    expect(routes).toHaveLength(1);
+    expect(routes[0]!.value).toBe("helen@example.com");
+    expect(routes[0]!.tier).toBe("person");
+    expect(routes[0]!.state).toBe("review_only");
+  });
+
+  it("merges routes by vector+value and keeps richer sources", () => {
+    const a = contactEvidenceToRoutes([
+      { vectorType: "email", value: "a@example.com", scope: "organization", sourceUrls: ["https://a.example"] },
+    ]);
+    const b = contactEvidenceToRoutes([
+      { vectorType: "email", value: "a@example.com", scope: "person", sourceUrls: ["https://b.example"] },
+    ]);
+    const merged = mergeContactRoutes(a, b);
+    expect(merged).toHaveLength(1);
+    expect(merged[0]!.sourceUrls).toEqual(expect.arrayContaining(["https://a.example", "https://b.example"]));
   });
 });

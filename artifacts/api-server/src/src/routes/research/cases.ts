@@ -3,6 +3,7 @@ import { desc, eq } from "drizzle-orm";
 import {
   db,
   entitiesTable,
+  contactEvidenceTable,
   researchCaseEventsTable,
   researchCasesTable,
 } from "@workspace/db";
@@ -14,7 +15,7 @@ import {
   filterDiscoveryCandidatesByFitness,
   rankDiscoveryReviewCandidates,
 } from "../../lib/discovery-intake";
-import { computeDiscoveryQualityMetrics } from "../../lib/discovery-metrics";
+import { computeDiscoveryQualityMetrics, evaluateDiscoveryStop } from "../../lib/discovery-metrics";
 import {
   AddResearchCaseDirectiveBody,
   AddResearchCaseDirectiveParams,
@@ -45,6 +46,8 @@ import {
   appendDiscoveryReport,
   buildDiscoveryProgressSnapshot,
   buildInitialCaseFile,
+  contactEvidenceToRoutes,
+  mergeContactRoutes,
   GEMINI_BOSS_MODEL_PENDING,
   parseDiscoveryCaseFile,
   parseCaseFile,
@@ -73,6 +76,42 @@ import {
 
 const router = Router();
 
+/** C residual: load durable contact_evidence into case-file route shape (non-rejected only). */
+async function loadEntityContactRoutes(entityId: number) {
+  const rows = await db
+    .select({
+      vectorType: contactEvidenceTable.vectorType,
+      value: contactEvidenceTable.value,
+      sourceUrl: contactEvidenceTable.sourceUrl,
+      validationStatus: contactEvidenceTable.validationStatus,
+      metadata: contactEvidenceTable.metadata,
+    })
+    .from(contactEvidenceTable)
+    .where(eq(contactEvidenceTable.entityId, entityId))
+    .limit(80);
+  const items = rows
+    .filter((row) => row.validationStatus !== "rejected" && row.value?.trim())
+    .map((row) => {
+      let scope: string | null = null;
+      try {
+        const meta = JSON.parse(row.metadata || "{}") as Record<string, unknown>;
+        scope = typeof meta.scope === "string" ? meta.scope : typeof meta.personScope === "string" ? meta.personScope : null;
+      } catch {
+        scope = null;
+      }
+      return {
+        vectorType: row.vectorType,
+        value: row.value,
+        scope,
+        sourceUrls: row.sourceUrl ? [row.sourceUrl] : [],
+        state: row.validationStatus === "verified" ? "verified" : "candidate",
+        note: `From contact_evidence (${row.validationStatus})`,
+      };
+    });
+  return contactEvidenceToRoutes(items);
+}
+
+
 function serializeCase(
   row: typeof researchCasesTable.$inferSelect,
   entity: { name: string; type: string } | null,
@@ -85,6 +124,7 @@ function serializeCase(
     noProgressStreak: number | null;
     bossOutcome: string | null;
     progressAssessment: string | null;
+    lanesHonesty: Record<string, unknown> | null;
   } | null = null;
   let discoveryQuality: ReturnType<typeof computeDiscoveryQualityMetrics> | null = null;
   try {
@@ -100,7 +140,8 @@ function serializeCase(
     const bossPlan = parsed.bossPlan as
       | { outcome?: string; progressAssessment?: string | null }
       | undefined;
-    if (progress || bossPlan) {
+    const lanesHonesty = (parsed.lastLanesHonesty as Record<string, unknown> | undefined) ?? null;
+    if (progress || bossPlan || lanesHonesty) {
       progressSummary = {
         coverageRatio: progress?.coverageRatio ?? 0,
         foundAnyCount: progress?.foundAnyCount ?? 0,
@@ -109,6 +150,7 @@ function serializeCase(
         noProgressStreak: typeof parsed.noProgressStreak === "number" ? parsed.noProgressStreak : null,
         bossOutcome: bossPlan?.outcome ?? null,
         progressAssessment: bossPlan?.progressAssessment ?? null,
+        lanesHonesty,
       };
     }
     const candidates = parsed.discoveredCandidates;
@@ -396,6 +438,23 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
   const file = parseDiscoveryCaseFile(current.caseFile);
   if (!file) {
     res.status(409).json({ error: "Only a discovery case can run the preliminary investigation" });
+    return;
+  }
+  // B residual: do not re-burn opening discovery when reports + candidates already exist.
+  const openingStop = evaluateDiscoveryStop({
+    candidates: file.discoveredCandidates ?? [],
+    iteration: current.iteration,
+    mode: "run-discovery",
+    hasInvestigatorReports: (file.investigatorReports ?? []).length > 0,
+  });
+  if (openingStop.stop) {
+    res.status(409).json({
+      error: openingStop.detail,
+      stop: true,
+      reason: openingStop.reason,
+      metrics: openingStop.metrics,
+      reportCount: (file.investigatorReports ?? []).length,
+    });
     return;
   }
   const existingJobId = await getActiveJob("case-bureau-discovery");
@@ -941,32 +1000,20 @@ router.post("/research/bureau/cases/:caseId/run-next-pass", async (req, res): Pr
     return;
   }
 
-  // B residual: deterministic stop gate for discovery-adjacent verification.
-  // Do not burn provider budget when iteration depth or evidence retention already justifies review.
-  const discoveryMetrics = computeDiscoveryQualityMetrics(file.discoveredCandidates ?? []);
-  const discoveryMaxPasses = 4;
-  const nextPassIteration = current.iteration + 1;
-  if (nextPassIteration > discoveryMaxPasses) {
+  // B residual: shared discovery stop gate (depth + evidence retention).
+  const discoveryStop = evaluateDiscoveryStop({
+    candidates: file.discoveredCandidates ?? [],
+    iteration: current.iteration,
+    maxPasses: 4,
+    mode: "next-pass",
+  });
+  if (discoveryStop.stop) {
     res.status(409).json({
-      error: "Discovery verification depth budget exhausted; surface candidates for human review instead of another pass.",
+      error: discoveryStop.detail,
       stop: true,
-      reason: "budget_depth_hit",
+      reason: discoveryStop.reason,
       iteration: current.iteration,
-      maxPasses: discoveryMaxPasses,
-      metrics: discoveryMetrics,
-    });
-    return;
-  }
-  if (
-    discoveryMetrics.personShaped >= 3 &&
-    discoveryMetrics.withAnyEvidence >= 2 &&
-    discoveryMetrics.evidenceRate >= 0.25
-  ) {
-    res.status(409).json({
-      error: "Discovery already retains person-shaped candidates with contact evidence; prefer human review over further verification spend.",
-      stop: true,
-      reason: "evidence_sufficient",
-      metrics: discoveryMetrics,
+      metrics: discoveryStop.metrics,
     });
     return;
   }
@@ -1332,6 +1379,24 @@ router.post("/research/bureau/cases/:caseId/run-boss-review", async (req, res): 
   const file = parseDiscoveryCaseFile(current.caseFile);
   if (!file) {
     res.status(409).json({ error: "Only a discovery case can retry the Boss review" });
+    return;
+  }
+  // B residual: skip redundant Boss closure when already completed successfully.
+  const bossAlreadyDone = file.nextInvestigation?.boss?.status === "completed"
+    && !(file.nextInvestigation?.boss?.error);
+  const reviewStop = evaluateDiscoveryStop({
+    candidates: file.discoveredCandidates ?? [],
+    iteration: current.iteration,
+    mode: "boss-review",
+    bossReviewCompleted: Boolean(bossAlreadyDone),
+  });
+  if (reviewStop.stop) {
+    res.status(409).json({
+      error: reviewStop.detail,
+      stop: true,
+      reason: reviewStop.reason,
+      metrics: reviewStop.metrics,
+    });
     return;
   }
   const existingJobId = await getActiveJob("case-bureau-discovery");
@@ -1800,8 +1865,17 @@ router.post("/research/bureau/cases/:caseId/promote-target", async (req, res): P
   const targetFile = buildInitialCaseFile(entity);
   const { computeInvestigationProgress } = await import("../../lib/investigation-progress");
   const now = new Date();
+  // C residual: seed contactRoutes from discovery contact evidence so the target
+  // case file carries investigator-found vectors, not only entity metadata hierarchy.
+  const promoteContacts = collectDiscoveryContactsForTarget(
+    entity.name,
+    discoveryFile.discoveredCandidates,
+  );
+  const discoveryRoutes = contactEvidenceToRoutes(promoteContacts);
+  const seededRoutes = mergeContactRoutes(targetFile.contactRoutes, discoveryRoutes);
   const promotedFile = {
     ...targetFile,
+    contactRoutes: seededRoutes,
     discoveryContext: {
       caseId: current.id,
       humanBrief: discoveryFile.humanBrief,
@@ -1809,7 +1883,7 @@ router.post("/research/bureau/cases/:caseId/promote-target", async (req, res): P
       initialResearch: discoveryFile.initialResearch,
     },
     investigationProgress: computeInvestigationProgress({
-      routes: targetFile.contactRoutes ?? [],
+      routes: seededRoutes,
       sourceRegistries: targetFile.evidenceSummary?.sourceRegistries ?? [],
       searchGaps: targetFile.evidenceSummary?.searchGaps ?? [],
       negativeFindings: targetFile.evidenceSummary?.negativeFindings ?? [],
@@ -1830,11 +1904,6 @@ router.post("/research/bureau/cases/:caseId/promote-target", async (req, res): P
   }).where(eq(researchCasesTable.id, current.id)).returning();
 
   // Copy discovery + case hierarchy contacts onto the target entity for profile cards.
-  // Whole-deck person-named evidence, not only the exact-name matched candidate row.
-  const promoteContacts = collectDiscoveryContactsForTarget(
-    entity.name,
-    discoveryFile.discoveredCandidates,
-  );
   await persistBureauContactsForEntity(entity.id, promoteContacts, "case-bureau-promote");
   await persistBureauContactsForEntity(
     entity.id,
@@ -1900,12 +1969,16 @@ router.post("/research/cases", async (req, res): Promise<void> => {
     return;
   }
   const baseCaseFile = buildInitialCaseFile(entity);
+  // C residual: merge durable contact_evidence into case routes so cards and progress see truth.
+  const evidenceRoutes = await loadEntityContactRoutes(entityId);
+  const openRoutes = mergeContactRoutes(baseCaseFile.contactRoutes, evidenceRoutes);
   // Seed mandatory progress map on open so Boss decisions always have progress in/out.
   const { computeInvestigationProgress } = await import("../../lib/investigation-progress");
   const caseFile = {
     ...baseCaseFile,
+    contactRoutes: openRoutes,
     investigationProgress: computeInvestigationProgress({
-      routes: baseCaseFile.contactRoutes ?? [],
+      routes: openRoutes,
       sourceRegistries: baseCaseFile.evidenceSummary?.sourceRegistries ?? [],
       searchGaps: baseCaseFile.evidenceSummary?.searchGaps ?? [],
       negativeFindings: baseCaseFile.evidenceSummary?.negativeFindings ?? [],
@@ -1989,7 +2062,7 @@ router.post("/research/cases/:entityId/advance", async (req, res): Promise<void>
     res.status(404).json({ error: "Research case not found" });
     return;
   }
-  const file = parseCaseFile(current.caseFile);
+  let file = parseCaseFile(current.caseFile);
   if (!file) {
     res.status(500).json({ error: "Research case file is invalid" });
     return;
@@ -2015,6 +2088,13 @@ router.post("/research/cases/:entityId/advance", async (req, res): Promise<void>
   const { resolveResearchDepth } = await import("../../lib/research-depth");
   const { publishBureauEvent } = await import("../../lib/bureau-live-log");
   const { evaluateTargetFitness, shouldRejectTarget } = await import("../../lib/target-fitness");
+
+  // C residual: refresh contactRoutes from durable evidence before progress/stop.
+  const evidenceRoutes = await loadEntityContactRoutes(params.data.entityId);
+  file = {
+    ...file,
+    contactRoutes: mergeContactRoutes(file.contactRoutes, evidenceRoutes),
+  };
 
   const depthCfg = resolveResearchDepth({ explicit: file.researchDepth ?? null });
   const priorFoundAny = file.investigationProgress?.foundAnyCount ?? 0;
@@ -2178,11 +2258,21 @@ router.post("/research/cases/:entityId/advance", async (req, res): Promise<void>
       : advanceCaseFile(advisedFile, nextIteration);
 
 
+  const lanesHonestyPreview = {
+    rightHand: reasoning.status,
+    boss: bossPlan.status,
+    bossOutcome: bossPlan.outcome ?? "proceed",
+    progressAssessment: bossPlan.progressAssessment ?? null,
+    reprioritize: bossPlan.reprioritize ?? [],
+    noProgressStreak,
+    researchDepth: depthCfg.depth,
+  };
   const updatedFile = {
     ...recordGeminiBossPlan(bossDecisionFile, bossPlan),
     investigationProgress: progress,
     researchDepth: depthCfg.depth,
     noProgressStreak,
+    lastLanesHonesty: lanesHonestyPreview,
   };
   const now = new Date();
   const [updated] = await db.update(researchCasesTable).set({

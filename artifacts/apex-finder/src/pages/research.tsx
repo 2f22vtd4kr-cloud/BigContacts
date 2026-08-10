@@ -249,6 +249,7 @@ type BureauCase = {
     noProgressStreak: number | null;
     bossOutcome: string | null;
     progressAssessment: string | null;
+    lanesHonesty?: Record<string, unknown> | null;
   } | null;
   discoveryQuality?: {
     total: number;
@@ -625,6 +626,16 @@ function BureauCasePanel({
               <div className="text-[10px] text-muted-foreground mt-2">
                 {bureauCase.progressSummary?.progressAssessment
                   || file?.bossPlan?.progressAssessment}
+              </div>
+            )}
+            {bureauCase.progressSummary?.lanesHonesty && (
+              <div className="text-[9px] font-mono text-muted-foreground/80 mt-2 border-t border-border/40 pt-2">
+                lanes · rightHand={String((bureauCase.progressSummary.lanesHonesty as { rightHand?: string }).rightHand ?? "?")}
+                {" · "}boss={String((bureauCase.progressSummary.lanesHonesty as { boss?: string }).boss ?? "?")}
+                {" · "}outcome={String((bureauCase.progressSummary.lanesHonesty as { bossOutcome?: string }).bossOutcome ?? "?")}
+                {(bureauCase.progressSummary.lanesHonesty as { researchDepth?: string }).researchDepth
+                  ? ` · depth=${(bureauCase.progressSummary.lanesHonesty as { researchDepth?: string }).researchDepth}`
+                  : ""}
               </div>
             )}
           </div>

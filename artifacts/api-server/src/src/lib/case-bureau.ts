@@ -1500,6 +1500,100 @@ export function applyGeminiBossPlan(
 }
 
 
+
+/**
+ * Convert discovery/investigator contact evidence into BureauContactRoute rows.
+ * Fail-closed: does not mark verified personal; state stays candidate/review.
+ */
+export function contactEvidenceToRoutes(
+  items: readonly Array<{
+    vectorType?: string | null;
+    value?: string | null;
+    scope?: string | null;
+    personName?: string | null;
+    role?: string | null;
+    sourceUrls?: string[] | null;
+    note?: string | null;
+    state?: string | null;
+  }> | null | undefined,
+  startRank = 1,
+): BureauContactRoute[] {
+  if (!items?.length) return [];
+  const out: BureauContactRoute[] = [];
+  const seen = new Set<string>();
+  let rank = startRank;
+  for (const item of items) {
+    const value = typeof item.value === "string" ? item.value.trim() : "";
+    if (!value) continue;
+    const vectorType = String(item.vectorType ?? "other").toLowerCase() || "other";
+    const key = `${vectorType}|${value.toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const scope = String(item.scope ?? "").toLowerCase();
+    const tier =
+      scope === "person" || scope === "personal"
+        ? "person"
+        : scope === "organization" || scope === "org"
+          ? "organization"
+          : "candidate";
+    const tierLabel =
+      tier === "person"
+        ? "Person-scoped candidate route"
+        : tier === "organization"
+          ? "Organization route"
+          : "Candidate route";
+    out.push({
+      rank: rank++,
+      tier,
+      tierLabel,
+      value,
+      vectorType,
+      personName: item.personName ?? null,
+      role: item.role ?? null,
+      relationship: scope || null,
+      score: tier === "person" ? 55 : tier === "organization" ? 38 : 30,
+      state: item.state ?? "review_only",
+      sourceUrls: Array.isArray(item.sourceUrls) ? item.sourceUrls.filter(Boolean).slice(0, 8) : [],
+      sourceDomains: [],
+      rationale: item.note ?? "Captured from investigator or discovery contact evidence; human review required before personal promotion.",
+      humanReview: "use_judgment",
+    });
+  }
+  return out;
+}
+
+/** Merge routes by vectorType|value; prefer richer sourceUrls / higher score. */
+export function mergeContactRoutes(
+  existing: readonly BureauContactRoute[] | null | undefined,
+  incoming: readonly BureauContactRoute[] | null | undefined,
+): BureauContactRoute[] {
+  const map = new Map<string, BureauContactRoute>();
+  for (const route of [...(existing ?? []), ...(incoming ?? [])]) {
+    const value = route.value?.trim();
+    if (!value) continue;
+    const key = `${String(route.vectorType ?? "other").toLowerCase()}|${value.toLowerCase()}`;
+    const prior = map.get(key);
+    if (!prior) {
+      map.set(key, route);
+      continue;
+    }
+    map.set(key, {
+      ...prior,
+      ...route,
+      rank: Math.min(prior.rank, route.rank),
+      score: Math.max(prior.score, route.score),
+      sourceUrls: [...new Set([...(prior.sourceUrls ?? []), ...(route.sourceUrls ?? [])])].slice(0, 12),
+      sourceDomains: [...new Set([...(prior.sourceDomains ?? []), ...(route.sourceDomains ?? [])])].slice(0, 12),
+      personName: prior.personName || route.personName,
+      role: prior.role || route.role,
+      rationale: route.rationale || prior.rationale,
+    });
+  }
+  return [...map.values()]
+    .sort((a, b) => b.score - a.score || a.rank - b.rank)
+    .map((route, index) => ({ ...route, rank: index + 1 }));
+}
+
 export function recordGeminiBossPlan(
   file: ResearchCaseFile,
   input: GeminiBossPlanResult & { now?: string },

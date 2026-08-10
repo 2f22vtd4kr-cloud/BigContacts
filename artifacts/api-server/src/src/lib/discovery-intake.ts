@@ -116,6 +116,10 @@ export function scoreApproachableCandidate(input: {
   if (/\b(founder|co-founder|cofounder|operator|managing partner|general partner|ceo|chief executive|owner-operator|proprietor)\b/i.test(text)) {
     score += 0.25;
   }
+  // E residual: prefer officer / director / shareholder person recipes over corp shells.
+  if (/\b(officer|director|board member|non-executive|shareholder|psc|beneficial owner|partner)\b/i.test(text)) {
+    score += 0.18;
+  }
   if (/\b(founder|operator|managing partner|gp)\b/i.test(input.name) === false && /\b(founded|launched|built|started)\b/i.test(text)) {
     score += 0.1;
   }

@@ -68,3 +68,80 @@ export function computeDiscoveryQualityMetrics(
     evidenceRate: total ? Number((withAnyEvidence / total).toFixed(3)) : 0,
   };
 }
+
+export type DiscoveryStopReason = "budget_depth_hit" | "evidence_sufficient" | "already_reviewed";
+
+export type DiscoveryStopDecision = {
+  stop: boolean;
+  reason: DiscoveryStopReason | null;
+  detail: string;
+  metrics: DiscoveryQualityMetrics;
+};
+
+/**
+ * Deterministic stop for discovery-adjacent passes (next-pass, re-run discovery, boss review retry).
+ * Does not invent contacts — only reads candidate metrics + iteration budget.
+ */
+export function evaluateDiscoveryStop(input: {
+  candidates: readonly DiscoveryCandidateMetricInput[];
+  iteration: number;
+  maxPasses?: number;
+  /** True when Gemini Boss closure already completed successfully. */
+  bossReviewCompleted?: boolean;
+  /** True when preliminary discovery already produced investigator reports. */
+  hasInvestigatorReports?: boolean;
+  mode?: "next-pass" | "run-discovery" | "boss-review";
+}): DiscoveryStopDecision {
+  const metrics = computeDiscoveryQualityMetrics(input.candidates);
+  const maxPasses = Math.max(1, input.maxPasses ?? 4);
+  const mode = input.mode ?? "next-pass";
+  const nextIteration = input.iteration + 1;
+
+  if (mode === "boss-review" && input.bossReviewCompleted) {
+    return {
+      stop: true,
+      reason: "already_reviewed",
+      detail: "Boss closure review already completed; retry only after a provider gap, not by default.",
+      metrics,
+    };
+  }
+
+  if (mode === "run-discovery" && input.hasInvestigatorReports && metrics.total >= 3) {
+    return {
+      stop: true,
+      reason: "evidence_sufficient",
+      detail: "Preliminary discovery already recorded investigator reports and candidates; use next-pass or human review instead of re-running opening discovery.",
+      metrics,
+    };
+  }
+
+  if (nextIteration > maxPasses) {
+    return {
+      stop: true,
+      reason: "budget_depth_hit",
+      detail: `Discovery depth budget exhausted (iteration ${input.iteration}, max ${maxPasses}); surface candidates for human review.`,
+      metrics,
+    };
+  }
+
+  if (
+    mode === "next-pass" &&
+    metrics.personShaped >= 3 &&
+    metrics.withAnyEvidence >= 2 &&
+    metrics.evidenceRate >= 0.25
+  ) {
+    return {
+      stop: true,
+      reason: "evidence_sufficient",
+      detail: "Discovery already retains person-shaped candidates with contact evidence; prefer human review over further verification spend.",
+      metrics,
+    };
+  }
+
+  return {
+    stop: false,
+    reason: null,
+    detail: "Continue discovery within budget.",
+    metrics,
+  };
+}
