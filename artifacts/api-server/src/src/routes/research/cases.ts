@@ -14,6 +14,7 @@ import {
   filterDiscoveryCandidatesByFitness,
   rankDiscoveryReviewCandidates,
 } from "../../lib/discovery-intake";
+import { computeDiscoveryQualityMetrics } from "../../lib/discovery-metrics";
 import {
   AddResearchCaseDirectiveBody,
   AddResearchCaseDirectiveParams,
@@ -827,13 +828,13 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
             nextAction: "human-review-discovery-candidates",
             candidateCount: mergedReviewCandidates.length,
             fameDropped,
-            discoveryQuality: (await import("../../lib/discovery-metrics")).computeDiscoveryQualityMetrics(
+            discoveryQuality: computeDiscoveryQualityMetrics(
               mergedReviewCandidates,
             ),
           }),
         },
       ]);
-      const quality = (await import("../../lib/discovery-metrics")).computeDiscoveryQualityMetrics(
+      const quality = computeDiscoveryQualityMetrics(
         mergedReviewCandidates,
       );
       await appendJobLog(
@@ -1186,7 +1187,7 @@ router.post("/research/bureau/cases/:caseId/run-next-pass", async (req, res): Pr
         lastDecisionAt: now(),
         updatedAt: now(),
       }).where(eq(researchCasesTable.id, caseId)).returning();
-      const verificationQuality = (await import("../../lib/discovery-metrics")).computeDiscoveryQualityMetrics(
+      const verificationQuality = computeDiscoveryQualityMetrics(
         mergedCandidates,
       );
       await db.insert(researchCaseEventsTable).values({
