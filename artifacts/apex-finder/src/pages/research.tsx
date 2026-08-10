@@ -754,7 +754,11 @@ function DiscoveryBureauPanel({
         body: JSON.stringify(body),
       });
       const payload = await response.json().catch(() => null);
-      if (!response.ok) throw new Error(payload?.error ?? "Discovery bureau request failed");
+      if (!response.ok) {
+        const fit = typeof payload?.fit === "string" ? ` [${payload.fit}]` : "";
+        const reframe = typeof payload?.reframe === "string" ? ` — ${payload.reframe}` : "";
+        throw new Error(`${payload?.error ?? "Discovery bureau request failed"}${fit}${reframe}`);
+      }
       onCaseChange(payload as BureauCase);
       return true;
     } catch (reason: unknown) {
