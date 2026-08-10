@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { evaluateTargetFitness, shouldRejectTarget, suggestReframe } from "../lib/target-fitness";
 import { applyGeminiBossPlan, type ResearchCaseFile } from "../lib/case-bureau";
 import { computeInvestigationProgress, evaluateInvestigationStop } from "../lib/investigation-progress";
+import { collectDiscoveryContactsForTarget } from "../lib/bureau-contact-persist";
+import { scoreOfflineCohort, FAME_NEGATIVE_CONTROLS, QUIET_OPERATOR_FIXTURES } from "../lib/eval-cohort";
 
 describe("target fitness contract", () => {
   it("rejects fame-only household names with reframe guidance", () => {
@@ -161,7 +163,6 @@ describe("Boss control-loop contract", () => {
   });
 });
 
-import { collectDiscoveryContactsForTarget } from "../lib/bureau-contact-persist";
 
 describe("discovery contact collect for cards", () => {
   it("pulls person-named vectors from the whole deck", () => {
@@ -195,7 +196,6 @@ describe("discovery contact collect for cards", () => {
   });
 });
 
-import { scoreOfflineCohort, FAME_NEGATIVE_CONTROLS, QUIET_OPERATOR_FIXTURES } from "../lib/eval-cohort";
 
 describe("offline eval cohort", () => {
   it("rejects all fame controls and admits quiet operators", () => {
