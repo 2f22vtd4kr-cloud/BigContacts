@@ -1647,7 +1647,7 @@ export default function EntityLedger() {
                     Cancel
                   </button>
                   <button type="button" onClick={handleAddEntity} disabled={!addForm.name.trim() || createEntity.isPending}
-                    className="px-5 py-2.5 bg-primary text-primary-foreground rounded-lg font-mono text-sm uppercase tracking-wider hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-2">
+                    className="px-5 py-2.5 bg-primary text-primary-foreground rounded-lg font-mono text-sm uppercase tracking-wider hover:bg-primary/90 disabled:opacity-30 disabled:bg-primary/40 disabled:cursor-not-allowed transition-colors flex items-center gap-2">
                     {createEntity.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                     Register
                   </button>
@@ -1736,7 +1736,7 @@ export default function EntityLedger() {
                       type="button"
                       onClick={() => void handleExtractImport()}
                       disabled={!importText.trim() || isExtracting || importText.length > 500_000}
-                      className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 font-mono text-xs uppercase tracking-wider text-primary-foreground hover:bg-primary/90 disabled:opacity-40"
+                      className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 font-mono text-xs uppercase tracking-wider text-primary-foreground hover:bg-primary/90 disabled:opacity-30 disabled:bg-primary/40"
                     >
                       {isExtracting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                       {isExtracting ? "Extracting…" : "Extract entities"}
@@ -1880,7 +1880,7 @@ export default function EntityLedger() {
                     type="button"
                     onClick={() => void handleBatchImport()}
                     disabled={!importSelected.size || isImporting}
-                    className="px-4 sm:px-5 py-2.5 bg-primary text-primary-foreground rounded-lg font-mono text-xs sm:text-sm uppercase tracking-wider hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                    className="px-4 sm:px-5 py-2.5 bg-primary text-primary-foreground rounded-lg font-mono text-xs sm:text-sm uppercase tracking-wider hover:bg-primary/90 disabled:opacity-30 disabled:bg-primary/40 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
                   >
                     {isImporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Database className="w-4 h-4" />}
                     Register {importSelected.size || ""}

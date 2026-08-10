@@ -56,6 +56,16 @@ export default defineConfig({
     fs: {
       strict: true,
     },
+    ...(process.env.MOCK_API_PROXY
+      ? {
+          proxy: {
+            '/api': {
+              target: process.env.MOCK_API_PROXY,
+              changeOrigin: true,
+            },
+          },
+        }
+      : {}),
   },
   preview: {
     port,
