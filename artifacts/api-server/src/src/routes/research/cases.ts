@@ -531,7 +531,15 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
           state: "review_only" as const,
         }))),
       ];
+      const preFilterCount = reviewCandidates.length;
       const mergedReviewCandidates = mergeDiscoveryCandidates([], reviewCandidates);
+      const fameDropped = Math.max(0, preFilterCount - mergedReviewCandidates.length);
+      if (fameDropped > 0) {
+        await appendJobLog(
+          jobId,
+          `Fitness filter removed ${fameDropped} fame-only or empty candidate(s) from discovery review deck; retained ${mergedReviewCandidates.length}.`,
+        );
+      }
       workingFile = {
         ...workingFile,
         discoveredCandidates: mergedReviewCandidates,
