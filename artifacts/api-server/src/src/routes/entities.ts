@@ -24,6 +24,8 @@ import {
   sanitizePublicSocialHandle,
 } from "../lib/contact-validation";
 import { loadPresentedContactsForEntities } from "../lib/presented-contacts";
+import { extractImportDrafts, type ImportDraftEntity } from "../lib/manual-import-extract";
+import { persistBureauContactsForEntity } from "../lib/bureau-contact-persist";
 
 const router: IRouter = Router();
 
@@ -337,6 +339,212 @@ router.get("/entities/:id/opensky", async (req, res): Promise<void> => {
     })
     .filter(Boolean);
   res.json({ flights });
+});
+
+/**
+ * POST /entities/import/extract
+ * Body: { text: string, filename?: string, preferLlm?: boolean }
+ * Returns review drafts extracted from paste/file content (LLM + structured + heuristic).
+ * Never invents contacts; never marks Personal.
+ */
+router.post("/entities/import/extract", async (req, res): Promise<void> => {
+  try {
+    const text = String(req.body?.text ?? "");
+    if (!text.trim()) {
+      res.status(400).json({ error: "text is required (paste research notes or file contents)" });
+      return;
+    }
+    if (text.length > 500_000) {
+      res.status(400).json({ error: "text too large (max ~500KB)" });
+      return;
+    }
+    const result = await extractImportDrafts({
+      text,
+      filename: req.body?.filename ? String(req.body.filename) : null,
+      preferLlm: req.body?.preferLlm !== false,
+    });
+    res.json({
+      method: result.method,
+      sourceBytes: result.sourceBytes,
+      count: result.drafts.length,
+      drafts: result.drafts,
+      honesty: {
+        note: "Contacts are candidate/organization only. Personal marks require separate verification.",
+        invented: false,
+      },
+    });
+  } catch (err: unknown) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
+/**
+ * POST /entities/import/batch
+ * Body: { drafts: ImportDraftEntity[], skipDuplicates?: boolean }
+ * Creates entities + contact_evidence rows. Contacts stored as candidate/related — never auto-Personal.
+ */
+router.post("/entities/import/batch", async (req, res): Promise<void> => {
+  try {
+    const drafts = Array.isArray(req.body?.drafts) ? (req.body.drafts as ImportDraftEntity[]) : [];
+    if (!drafts.length) {
+      res.status(400).json({ error: "drafts array is required" });
+      return;
+    }
+    if (drafts.length > 50) {
+      res.status(400).json({ error: "max 50 drafts per batch" });
+      return;
+    }
+    const skipDuplicates = req.body?.skipDuplicates !== false;
+    const created: Array<{ id: number; name: string; type: string }> = [];
+    const skipped: Array<{ name: string; reason: string }> = [];
+    const errors: Array<{ name: string; error: string }> = [];
+
+    for (const draft of drafts) {
+      const name = String(draft?.name ?? "").trim();
+      if (!name) {
+        skipped.push({ name: "", reason: "empty name" });
+        continue;
+      }
+      try {
+        if (skipDuplicates) {
+          const existing = await db
+            .select({ id: entitiesTable.id, name: entitiesTable.name })
+            .from(entitiesTable)
+            .where(sql`lower(btrim(${entitiesTable.name})) = ${name.toLowerCase()}`)
+            .limit(1);
+          if (existing[0]) {
+            skipped.push({ name, reason: `duplicate of entity ${existing[0].id}` });
+            // Still attach new contact evidence to existing entity
+            if (Array.isArray(draft.contacts) && draft.contacts.length) {
+              await persistBureauContactsForEntity(
+                existing[0].id,
+                draft.contacts.map((c) => ({
+                  vectorType: c.vectorType,
+                  value: c.value,
+                  scope: c.scope === "organization" ? "organization" : "candidate",
+                  personName: name,
+                  role: null,
+                  sourceUrls: c.sourceUrls ?? [],
+                  note: c.note ?? "manual batch import",
+                  tier: "candidate",
+                  state: "review_only",
+                })),
+                "manual-batch-import",
+              );
+            }
+            continue;
+          }
+        }
+
+        const type = ["HNWI", "Corporation", "Trust", "Gatekeeper"].includes(String(draft.type))
+          ? String(draft.type)
+          : "HNWI";
+        const sourceRegs = Array.isArray(draft.sourceRegistries) && draft.sourceRegistries.length
+          ? draft.sourceRegistries
+          : ["manual-import"];
+        const [entity] = await db.insert(entitiesTable).values({
+          name,
+          type,
+          nationality: draft.nationality ? String(draft.nationality) : null,
+          estimatedNetWorth: typeof draft.estimatedNetWorth === "number" ? draft.estimatedNetWorth : null,
+          knownResidences: draft.knownResidences ? String(draft.knownResidences) : null,
+          linkedinUrl: draft.linkedinUrl ? String(draft.linkedinUrl) : null,
+          phone: draft.phone ? String(draft.phone) : null,
+          email: draft.email ? String(draft.email).toLowerCase() : null,
+          contactMethod: draft.contactMethod ? String(draft.contactMethod) : null,
+          notes: draft.notes
+            ? String(draft.notes).slice(0, 4000)
+            : `Imported via manual batch (${sourceRegs.join(", ")}). Contacts are candidate/related until verified.`,
+          sourceRegistries: JSON.stringify(sourceRegs),
+          bayesianScore: 0.05,
+          contactConfidence: 0,
+          contactOutcome: "evidence_only",
+          isHot: false,
+          isStarred: false,
+          isHidden: false,
+          metadata: JSON.stringify({
+            reviewOnly: true,
+            admission: "manual-batch-import",
+            importConfidence: draft.confidence ?? "medium",
+            sourceSnippet: draft.sourceSnippet ?? null,
+          }),
+        }).returning();
+
+        if (!entity) {
+          errors.push({ name, error: "insert returned empty" });
+          continue;
+        }
+
+        const contactVectors = [
+          ...(Array.isArray(draft.contacts) ? draft.contacts : []),
+        ];
+        // Ensure primary fields also land in contact_evidence
+        if (draft.email && !contactVectors.some((c) => c.vectorType === "email" && c.value === draft.email)) {
+          contactVectors.push({
+            vectorType: "email",
+            value: String(draft.email).toLowerCase(),
+            scope: "candidate",
+            note: "manual batch primary email",
+          });
+        }
+        if (draft.phone && !contactVectors.some((c) => c.vectorType === "phone")) {
+          contactVectors.push({
+            vectorType: "phone",
+            value: String(draft.phone),
+            scope: "candidate",
+            note: "manual batch primary phone",
+          });
+        }
+        if (draft.linkedinUrl && !contactVectors.some((c) => c.vectorType === "linkedin")) {
+          contactVectors.push({
+            vectorType: "linkedin",
+            value: String(draft.linkedinUrl),
+            scope: "candidate",
+            note: "manual batch linkedin",
+            sourceUrls: [String(draft.linkedinUrl)],
+          });
+        }
+
+        if (contactVectors.length) {
+          await persistBureauContactsForEntity(
+            entity.id,
+            contactVectors.map((c) => ({
+              vectorType: c.vectorType,
+              value: c.value,
+              scope: c.scope === "organization" ? "organization" : "candidate",
+              personName: name,
+              role: null,
+              sourceUrls: c.sourceUrls ?? [],
+              note: c.note ?? "manual batch import",
+              tier: "candidate",
+              state: "review_only",
+            })),
+            "manual-batch-import",
+          );
+        }
+
+        created.push({ id: entity.id, name: entity.name, type: entity.type });
+      } catch (err: unknown) {
+        errors.push({ name, error: err instanceof Error ? err.message : String(err) });
+      }
+    }
+
+    await Promise.all([
+      delCachePattern("entities:list:*"),
+      delCachePattern("dashboard:*"),
+    ]);
+
+    res.status(201).json({
+      created: created.length,
+      skipped: skipped.length,
+      errors: errors.length,
+      entities: created,
+      skippedDetail: skipped,
+      errorDetail: errors,
+    });
+  } catch (err: unknown) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+  }
 });
 
 // POST /entities

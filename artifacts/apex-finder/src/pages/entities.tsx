@@ -9,7 +9,7 @@ import {
   ChevronRight, Network, Target as TargetIcon, Download, ShieldAlert,
   Filter, IdCard,
   CheckSquare, Square, Users2, CheckCheck, Database, XCircle,
-  Star, EyeOff, Eye, CheckCircle2, Flame,
+  Star, EyeOff, Eye, CheckCircle2, Flame, Upload, FileText, Sparkles,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -469,6 +469,17 @@ export default function EntityLedger() {
   const [showFilters, setShowFilters] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [addForm, setAddForm] = useState<AddEntityForm>(EMPTY_FORM);
+  const [addMode, setAddMode] = useState<"manual" | "import">("manual");
+  const [importText, setImportText] = useState("");
+  const [importFilename, setImportFilename] = useState<string | null>(null);
+  const [importDrafts, setImportDrafts] = useState<any[]>([]);
+  const [importMethod, setImportMethod] = useState<string | null>(null);
+  const [importSelected, setImportSelected] = useState<Set<number>>(new Set());
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importResult, setImportResult] = useState<string | null>(null);
+  const importFileRef = useRef<HTMLInputElement>(null);
 
   // View mode: all (default, hides hidden), starred, hidden
   type ViewMode = "all" | "starred" | "hidden";
@@ -628,6 +639,14 @@ export default function EntityLedger() {
 
   const openAddModal = (prefill?: Partial<AddEntityForm>) => {
     setAddForm(prefill ? { ...EMPTY_FORM, ...prefill } : EMPTY_FORM);
+    setAddMode(prefill ? "manual" : "manual");
+    setImportText("");
+    setImportFilename(null);
+    setImportDrafts([]);
+    setImportMethod(null);
+    setImportSelected(new Set());
+    setImportError(null);
+    setImportResult(null);
     setShowAddModal(true);
   };
 
@@ -649,6 +668,77 @@ export default function EntityLedger() {
     createEntity.mutate({ data: body as any }, {
       onSuccess: () => { setShowAddModal(false); setAddForm(EMPTY_FORM); refetch(); },
     });
+  };
+
+  const handleImportFile = async (file: File) => {
+    setImportError(null);
+    setImportResult(null);
+    const name = file.name.toLowerCase();
+    const textLike = /\.(txt|md|csv|json|html?|tsv|log|rtf)$/i.test(name) || file.type.startsWith("text/") || file.type === "application/json" || file.type === "text/csv";
+    if (!textLike && file.size > 2_000_000) {
+      setImportError("Binary files over 2MB are not supported. Paste text, or use .txt / .md / .csv / .json.");
+      return;
+    }
+    try {
+      const text = await file.text();
+      setImportText(text);
+      setImportFilename(file.name);
+    } catch {
+      setImportError("Could not read file as text. Try pasting the content instead.");
+    }
+  };
+
+  const handleExtractImport = async () => {
+    if (!importText.trim()) return;
+    setIsExtracting(true);
+    setImportError(null);
+    setImportResult(null);
+    setImportDrafts([]);
+    try {
+      const resp = await fetch("/api/entities/import/extract", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: importText,
+          filename: importFilename,
+          preferLlm: true,
+        }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error ?? "Extract failed");
+      const drafts = Array.isArray(data.drafts) ? data.drafts : [];
+      setImportDrafts(drafts);
+      setImportMethod(data.method ?? null);
+      setImportSelected(new Set(drafts.map((_: any, i: number) => i)));
+      if (!drafts.length) setImportError("No entities found in the source. Try richer notes or a CSV with a Name column.");
+    } catch (err: any) {
+      setImportError(err?.message ?? "Extract failed");
+    } finally {
+      setIsExtracting(false);
+    }
+  };
+
+  const handleBatchImport = async () => {
+    const selected = importDrafts.filter((_, i) => importSelected.has(i));
+    if (!selected.length) return;
+    setIsImporting(true);
+    setImportError(null);
+    setImportResult(null);
+    try {
+      const resp = await fetch("/api/entities/import/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ drafts: selected, skipDuplicates: true }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error ?? "Batch import failed");
+      setImportResult(`Registered ${data.created ?? 0} · skipped ${data.skipped ?? 0} · errors ${data.errors ?? 0}`);
+      refetch();
+    } catch (err: any) {
+      setImportError(err?.message ?? "Batch import failed");
+    } finally {
+      setIsImporting(false);
+    }
   };
 
   const handleRegistrySearch = async () => {
@@ -1361,90 +1451,260 @@ export default function EntityLedger() {
         <Plus className="w-5 h-5 text-black" />
       </button>
 
-      {/* Add entity modal */}
+      {/* Add entity modal — manual fields OR batch import from text/files */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex">
           <div className="flex-1 bg-black/60 backdrop-blur-sm" onClick={() => setShowAddModal(false)} />
-          <div className="w-full max-w-[480px] bg-card border-l border-border flex flex-col shadow-2xl animate-in slide-in-from-right-full duration-300">
+          <div className="w-full max-w-[560px] bg-card border-l border-border flex flex-col shadow-2xl animate-in slide-in-from-right-full duration-300">
             <div className="p-5 border-b border-border flex items-center justify-between flex-shrink-0">
               <div>
                 <h2 className="text-sm font-bold font-mono tracking-widest uppercase text-foreground">New Intelligence Target</h2>
-                <p className="text-xs text-muted-foreground font-mono mt-0.5">Register entity in classified registry</p>
+                <p className="text-xs text-muted-foreground font-mono mt-0.5">
+                  {addMode === "manual" ? "Register entity in classified registry" : "Paste research or load files → extract → batch register"}
+                </p>
               </div>
               <button onClick={() => setShowAddModal(false)} className="p-1.5 text-muted-foreground hover:text-foreground rounded bg-muted border border-border">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-5 space-y-4">
-              {[
-                { label: "Full Name *", field: "name", placeholder: "e.g. James Worthington III" },
-              ].map(({ label, field, placeholder }) => (
-                <div key={field}>
-                  <label className="block text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">{label}</label>
-                  <input
-                    type="text" value={(addForm as any)[field]} placeholder={placeholder}
-                    onChange={(e) => setAddForm((f) => ({ ...f, [field]: e.target.value }))}
-                    className="w-full bg-background border border-border rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-primary"
-                  />
-                </div>
-              ))}
-              <div>
-                <label className="block text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">Classification *</label>
-                <select value={addForm.type} onChange={(e) => setAddForm((f) => ({ ...f, type: e.target.value as EntityType }))}
-                  className="w-full bg-background border border-border rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-primary">
-                  <option value="HNWI">HNWI — High Net Worth Individual</option>
-                  <option value="Corporation">Corporation — Company / Shell</option>
-                  <option value="Trust">Trust — Offshore / Fiduciary</option>
-                  <option value="Gatekeeper">Gatekeeper — Contact / Introducer</option>
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  { label: "Nationality", field: "nationality", placeholder: "e.g. British" },
-                  { label: addForm.type === "HNWI" ? "Estimated wealth (USD)" : entityMeta(addForm.type).metricLabel, field: "estimatedNetWorth", placeholder: addForm.type === "HNWI" ? "e.g. 50000000" : "Optional numeric signal" },
-                ].map(({ label, field, placeholder }) => (
-                  <div key={field}>
-                    <label className="block text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">{label}</label>
-                    <input type={field === "estimatedNetWorth" ? "number" : "text"} value={(addForm as any)[field]} placeholder={placeholder}
-                      onChange={(e) => setAddForm((f) => ({ ...f, [field]: e.target.value }))}
-                      className="w-full bg-background border border-border rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-primary" />
-                  </div>
-                ))}
-              </div>
-              {[
-                { label: "Known Residences", field: "knownResidences", placeholder: "London, UK / Monaco / Dubai" },
-                { label: "Contact Method", field: "contactMethod", placeholder: "Personal WhatsApp / Family Office / Gatekeeper…" },
-                { label: "Phone", field: "phone", placeholder: "+44 7..." },
-                { label: "Email", field: "email", placeholder: "private@..." },
-                { label: "Source Registries", field: "sourceRegistries", placeholder: "Companies House, OpenCorporates, FAA…" },
-              ].map(({ label, field, placeholder }) => (
-                <div key={field}>
-                  <label className="block text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">{label}</label>
-                  <input type="text" value={(addForm as any)[field]} placeholder={placeholder}
-                    onChange={(e) => setAddForm((f) => ({ ...f, [field]: e.target.value }))}
-                    className="w-full bg-background border border-border rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-primary" />
-                </div>
-              ))}
-              <div>
-                <label className="block text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">Intelligence Notes</label>
-                <textarea value={addForm.notes} onChange={(e) => setAddForm((f) => ({ ...f, notes: e.target.value }))}
-                  rows={4} placeholder="Background, approach angles, personal context, seasonal windows…"
-                  className="w-full bg-background border border-border rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-primary resize-none" />
-              </div>
+            {/* Mode tabs */}
+            <div className="flex border-b border-border flex-shrink-0">
+              <button
+                onClick={() => setAddMode("manual")}
+                className={cn(
+                  "flex-1 px-4 py-2.5 font-mono text-[11px] uppercase tracking-wider transition-colors",
+                  addMode === "manual" ? "text-primary border-b-2 border-primary bg-primary/5" : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                Manual fields
+              </button>
+              <button
+                onClick={() => setAddMode("import")}
+                className={cn(
+                  "flex-1 px-4 py-2.5 font-mono text-[11px] uppercase tracking-wider transition-colors flex items-center justify-center gap-1.5",
+                  addMode === "import" ? "text-primary border-b-2 border-primary bg-primary/5" : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <Upload className="w-3.5 h-3.5" /> Import batch
+              </button>
             </div>
 
-            <div className="p-5 border-t border-border flex items-center justify-between flex-shrink-0 bg-muted/20">
-              <button onClick={() => setShowAddModal(false)}
-                className="px-4 py-2 bg-muted text-muted-foreground border border-border rounded font-mono text-sm hover:text-foreground transition-colors">
-                Cancel
-              </button>
-              <button onClick={handleAddEntity} disabled={!addForm.name.trim() || createEntity.isPending}
-                className="px-5 py-2 bg-primary text-primary-foreground rounded font-mono text-sm uppercase tracking-wider hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-2">
-                {createEntity.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                Register Entity
-              </button>
-            </div>
+            {addMode === "manual" ? (
+              <>
+                <div className="flex-1 overflow-y-auto p-5 space-y-4">
+                  {[
+                    { label: "Full Name *", field: "name", placeholder: "e.g. James Worthington III" },
+                  ].map(({ label, field, placeholder }) => (
+                    <div key={field}>
+                      <label className="block text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">{label}</label>
+                      <input
+                        type="text" value={(addForm as any)[field]} placeholder={placeholder}
+                        onChange={(e) => setAddForm((f) => ({ ...f, [field]: e.target.value }))}
+                        className="w-full bg-background border border-border rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-primary"
+                      />
+                    </div>
+                  ))}
+                  <div>
+                    <label className="block text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">Classification *</label>
+                    <select value={addForm.type} onChange={(e) => setAddForm((f) => ({ ...f, type: e.target.value as EntityType }))}
+                      className="w-full bg-background border border-border rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-primary">
+                      <option value="HNWI">HNWI — High Net Worth Individual</option>
+                      <option value="Corporation">Corporation — Company / Shell</option>
+                      <option value="Trust">Trust — Offshore / Fiduciary</option>
+                      <option value="Gatekeeper">Gatekeeper — Contact / Introducer</option>
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      { label: "Nationality", field: "nationality", placeholder: "e.g. British" },
+                      { label: addForm.type === "HNWI" ? "Estimated wealth (USD)" : entityMeta(addForm.type).metricLabel, field: "estimatedNetWorth", placeholder: addForm.type === "HNWI" ? "e.g. 50000000" : "Optional numeric signal" },
+                    ].map(({ label, field, placeholder }) => (
+                      <div key={field}>
+                        <label className="block text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">{label}</label>
+                        <input type={field === "estimatedNetWorth" ? "number" : "text"} value={(addForm as any)[field]} placeholder={placeholder}
+                          onChange={(e) => setAddForm((f) => ({ ...f, [field]: e.target.value }))}
+                          className="w-full bg-background border border-border rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-primary" />
+                      </div>
+                    ))}
+                  </div>
+                  {[
+                    { label: "Known Residences", field: "knownResidences", placeholder: "London, UK / Monaco / Dubai" },
+                    { label: "Contact Method", field: "contactMethod", placeholder: "Personal WhatsApp / Family Office / Gatekeeper…" },
+                    { label: "Phone", field: "phone", placeholder: "+44 7..." },
+                    { label: "Email", field: "email", placeholder: "private@..." },
+                    { label: "Source Registries", field: "sourceRegistries", placeholder: "Companies House, OpenCorporates, FAA…" },
+                  ].map(({ label, field, placeholder }) => (
+                    <div key={field}>
+                      <label className="block text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">{label}</label>
+                      <input type="text" value={(addForm as any)[field]} placeholder={placeholder}
+                        onChange={(e) => setAddForm((f) => ({ ...f, [field]: e.target.value }))}
+                        className="w-full bg-background border border-border rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-primary" />
+                    </div>
+                  ))}
+                  <div>
+                    <label className="block text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">Intelligence Notes</label>
+                    <textarea value={addForm.notes} onChange={(e) => setAddForm((f) => ({ ...f, notes: e.target.value }))}
+                      rows={4} placeholder="Background, approach angles, personal context, seasonal windows…"
+                      className="w-full bg-background border border-border rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-primary resize-none" />
+                  </div>
+                </div>
+                <div className="p-5 border-t border-border flex items-center justify-between flex-shrink-0 bg-muted/20">
+                  <button onClick={() => setShowAddModal(false)}
+                    className="px-4 py-2 bg-muted text-muted-foreground border border-border rounded font-mono text-sm hover:text-foreground transition-colors">
+                    Cancel
+                  </button>
+                  <button onClick={handleAddEntity} disabled={!addForm.name.trim() || createEntity.isPending}
+                    className="px-5 py-2 bg-primary text-primary-foreground rounded font-mono text-sm uppercase tracking-wider hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-2">
+                    {createEntity.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                    Register Entity
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex-1 overflow-y-auto p-5 space-y-4">
+                  <div className="rounded-lg border border-border bg-muted/20 p-3 text-[11px] text-muted-foreground font-mono leading-relaxed">
+                    Paste Grok / research notes or load .txt .md .csv .json. Apex extracts named people & companies with LLM (Groq/Gemini) — contacts stay <span className="text-foreground">candidate / related</span>, never auto-Personal.
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => importFileRef.current?.click()}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 font-mono text-[11px] uppercase tracking-wider text-foreground hover:border-primary/60"
+                    >
+                      <FileText className="w-3.5 h-3.5" /> Load file
+                    </button>
+                    <input
+                      ref={importFileRef}
+                      type="file"
+                      accept=".txt,.md,.csv,.json,.html,.htm,.tsv,.log,.rtf,text/plain,application/json,text/csv"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) void handleImportFile(f);
+                        e.target.value = "";
+                      }}
+                    />
+                    {importFilename ? (
+                      <span className="inline-flex items-center gap-1 rounded border border-border bg-card px-2 py-1 font-mono text-[10px] text-muted-foreground">
+                        {importFilename}
+                        <button type="button" onClick={() => { setImportFilename(null); }} className="text-muted-foreground hover:text-foreground"><X className="w-3 h-3" /></button>
+                      </span>
+                    ) : null}
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">Research text</label>
+                    <textarea
+                      value={importText}
+                      onChange={(e) => setImportText(e.target.value)}
+                      rows={8}
+                      placeholder={"Paste notes, e.g.\n\nTrace Cohen — angel investor, Signal.nfx profile…\nemail@example.com · linkedin.com/in/…\n\nor a CSV with Name, Email, Phone columns"}
+                      className="w-full bg-background border border-border rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-primary resize-y min-h-[140px]"
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => void handleExtractImport()}
+                    disabled={!importText.trim() || isExtracting}
+                    className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 font-mono text-xs uppercase tracking-wider text-primary-foreground hover:bg-primary/90 disabled:opacity-40"
+                  >
+                    {isExtracting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                    Extract entities
+                  </button>
+
+                  {importError ? (
+                    <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive font-mono">{importError}</div>
+                  ) : null}
+                  {importResult ? (
+                    <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300 font-mono">{importResult}</div>
+                  ) : null}
+
+                  {importDrafts.length > 0 ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                          {importDrafts.length} draft{importDrafts.length === 1 ? "" : "s"}
+                          {importMethod ? ` · via ${importMethod}` : ""}
+                          {" · "}{importSelected.size} selected
+                        </div>
+                        <button
+                          type="button"
+                          className="font-mono text-[10px] text-primary hover:underline"
+                          onClick={() => {
+                            if (importSelected.size === importDrafts.length) setImportSelected(new Set());
+                            else setImportSelected(new Set(importDrafts.map((_, i) => i)));
+                          }}
+                        >
+                          {importSelected.size === importDrafts.length ? "Deselect all" : "Select all"}
+                        </button>
+                      </div>
+                      <div className="max-h-[280px] space-y-2 overflow-y-auto pr-1">
+                        {importDrafts.map((d, i) => {
+                          const selected = importSelected.has(i);
+                          return (
+                            <button
+                              key={`${d.name}-${i}`}
+                              type="button"
+                              onClick={() => {
+                                setImportSelected((prev) => {
+                                  const next = new Set(prev);
+                                  if (next.has(i)) next.delete(i);
+                                  else next.add(i);
+                                  return next;
+                                });
+                              }}
+                              className={cn(
+                                "w-full text-left rounded-lg border px-3 py-2.5 transition-colors",
+                                selected ? "border-primary/50 bg-primary/10" : "border-border bg-card/40 hover:bg-card/70",
+                              )}
+                            >
+                              <div className="flex items-start gap-2">
+                                {selected ? <CheckSquare className="w-3.5 h-3.5 text-primary mt-0.5 flex-shrink-0" /> : <Square className="w-3.5 h-3.5 text-muted-foreground mt-0.5 flex-shrink-0" />}
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-mono text-sm font-semibold text-foreground truncate">{d.name}</span>
+                                    <span className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground flex-shrink-0">{d.type}</span>
+                                  </div>
+                                  <div className="mt-1 flex flex-wrap gap-1.5">
+                                    {(d.contacts ?? []).slice(0, 4).map((c: any, j: number) => (
+                                      <span key={j} className="rounded border border-border bg-background/60 px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground truncate max-w-[160px]">
+                                        {c.vectorType}: {c.value}
+                                      </span>
+                                    ))}
+                                    {d.email && !(d.contacts ?? []).some((c: any) => c.vectorType === "email") ? (
+                                      <span className="rounded border border-border bg-background/60 px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground">email: {d.email}</span>
+                                    ) : null}
+                                  </div>
+                                  {d.notes ? <p className="mt-1 text-[10px] text-muted-foreground line-clamp-2">{d.notes}</p> : null}
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+                <div className="p-5 border-t border-border flex items-center justify-between flex-shrink-0 bg-muted/20">
+                  <button onClick={() => setShowAddModal(false)}
+                    className="px-4 py-2 bg-muted text-muted-foreground border border-border rounded font-mono text-sm hover:text-foreground transition-colors">
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => void handleBatchImport()}
+                    disabled={!importSelected.size || isImporting}
+                    className="px-5 py-2 bg-primary text-primary-foreground rounded font-mono text-sm uppercase tracking-wider hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                  >
+                    {isImporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Database className="w-4 h-4" />}
+                    Register {importSelected.size || ""} selected
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
