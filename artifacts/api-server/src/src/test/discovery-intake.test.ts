@@ -4,8 +4,11 @@ import {
   sampleBroadCategories,
   scoreApproachableCandidate,
   rankCandidatesForAdmission,
+  filterDiscoveryCandidatesByFitness,
+  rankDiscoveryReviewCandidates,
   type DiscoverySource,
 } from "../lib/discovery-intake";
+import { evaluateTargetFitness, shouldRejectTarget } from "../lib/target-fitness";
 
 const SOURCES: DiscoverySource[] = [
   { kind: "broad", category: 1, label: "FO" },
@@ -72,5 +75,35 @@ describe("discovery-intake", () => {
       { name: "Active GP", snippet: "managing partner general partner founder portfolio" },
     ]);
     expect(ranked[0]!.name).toBe("Active GP");
+  });
+
+  it("hard-rejects Cook-class fame-only names and scores them zero", () => {
+    for (const name of ["Tim Cook", "Bernard Arnault", "Jensen Huang", "Warren Buffett"]) {
+      const fit = evaluateTargetFitness({ name, personScoped: true });
+      expect(shouldRejectTarget(fit)).toBe(true);
+      expect(fit.fit).toBe("reject_fame_only");
+      expect(scoreApproachableCandidate({ name, snippet: "CEO billionaire" })).toBe(0);
+    }
+  });
+
+  it("drops fame-only from discovery review deck and ranks quiet principals first", () => {
+    const filtered = filterDiscoveryCandidatesByFitness([
+      { name: "Tim Cook", type: "person", relevance: "CEO of Apple" },
+      { name: "Quiet Operator", type: "person", relevance: "founder managing partner portfolio company" },
+      { name: "Shell Holdings Ltd", type: "corporation", relevance: "holding company" },
+    ]);
+    expect(filtered.some((c) => /tim cook/i.test(c.name))).toBe(false);
+    expect(filtered.some((c) => /quiet operator/i.test(c.name))).toBe(true);
+    expect(filtered.some((c) => /shell holdings/i.test(c.name))).toBe(true);
+    const ranked = rankDiscoveryReviewCandidates(filtered);
+    expect(ranked[0]!.name).toMatch(/quiet operator/i);
+  });
+
+  it("keeps quiet person-shaped officers above zero score", () => {
+    const score = scoreApproachableCandidate({
+      name: "Marta Ellison",
+      snippet: "Managing director and founder of a regional family office; LinkedIn and team page",
+    });
+    expect(score).toBeGreaterThan(0.4);
   });
 });
