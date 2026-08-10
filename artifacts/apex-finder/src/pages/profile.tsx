@@ -1002,7 +1002,21 @@ export default function ApexProfile() {
         const activeEvidence = contactEvidence.filter((item) => item.validationStatus !== "rejected");
         // Pull related routes from enrichment hierarchy that never landed in contact_evidence rows
         // (e.g. bureau / deep-web hierarchy) so the card is not emptier than research.
-        let hierarchyRoutes: Array<{ vectorType: string; value: string; source: string; sourceUrl: string | null; validationStatus: string; directnessScore: number; identityMatch: number; sourceReliability: number; id: number }> = [];
+        let hierarchyRoutes: Array<{
+          id: number;
+          vectorType: string;
+          value: string;
+          source: string;
+          sourceUrl: string | null;
+          extractionMethod: string | null;
+          validationStatus: string;
+          sourceReliability: number;
+          identityMatch?: number;
+          directnessScore: number;
+          independentCorroboration: number;
+          observedAt: string;
+          rejectionReason?: string | null;
+        }> = [];
         try {
           const meta = JSON.parse(e.metadata ?? "{}");
           const rh = Array.isArray(meta.routeHierarchy) ? meta.routeHierarchy : [];
@@ -1024,10 +1038,13 @@ export default function ApexProfile() {
                 value,
                 source: "route-hierarchy",
                 sourceUrl: Array.isArray(route.sourceUrls) && typeof route.sourceUrls[0] === "string" ? route.sourceUrls[0] : null,
+                extractionMethod: "route-hierarchy",
                 validationStatus: "candidate",
                 directnessScore: orgish ? 0.35 : typeof route.score === "number" ? Math.min(0.7, route.score / 100) : 0.45,
                 identityMatch: orgish ? 0.35 : 0.5,
                 sourceReliability: 0.5,
+                independentCorroboration: 0,
+                observedAt: new Date().toISOString(),
               };
             })
             .filter(Boolean) as typeof hierarchyRoutes;
@@ -1048,7 +1065,7 @@ export default function ApexProfile() {
           return s;
         };
         const rankedEvidence = [...mergedEvidence].sort((a, b) => rankEvidence(b) - rankEvidence(a));
-        const isPersonalHigh = (item: typeof contactEvidence[number]) =>
+        const isPersonalHigh = (item: typeof mergedEvidence[number]) =>
           item.validationStatus === "verified" ||
           ((item.directnessScore ?? 0) >= 0.65 && (item.identityMatch ?? 0) >= 0.5);
         const dbConf = typeof e.contactConfidence === "number" ? e.contactConfidence : null;

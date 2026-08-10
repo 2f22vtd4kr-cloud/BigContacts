@@ -222,10 +222,14 @@ function LiveResearchConsole({
   atlasState,
   livePhaseDetail,
   isLive,
+  bureauEvents = [],
+  bureauConnected = false,
 }: {
   atlasState: AtlasLiveState | null;
   livePhaseDetail: string;
   isLive: boolean;
+  bureauEvents?: BureauLiveEvent[];
+  bureauConnected?: boolean;
 }) {
   const telemetry = atlasState?.atlasTelemetry;
   const phaseJ = atlasState?.phaseJ;
@@ -495,7 +499,7 @@ function LiveResearchConsole({
           <div className="text-[9px] tracking-wide text-slate-600">Waiting for bureau events…</div>
         ) : (
           <div className="max-h-56 space-y-2 overflow-y-auto">
-            {bureauEvents.slice(0, 12).map((ev) => {
+            {bureauEvents.slice(0, 12).map((ev: BureauLiveEvent) => {
               const color =
                 ev.actor === "boss" ? "border-violet-300"
                 : ev.actor === "right_hand" ? "border-teal-300"
@@ -748,7 +752,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
 
       <div className="atlas-grid atlas-grid-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4" style={{ WebkitOverflowScrolling: "touch" }}>
         <div className="mx-auto max-w-md">
-          <LiveResearchConsole atlasState={atlasState} livePhaseDetail={livePhaseDetail} isLive={isLive} />
+          <LiveResearchConsole atlasState={atlasState} livePhaseDetail={livePhaseDetail} isLive={isLive} bureauEvents={bureauEvents} bureauConnected={bureauConnected} />
 
           <section aria-labelledby="pipeline-map-title" data-testid="section-pipeline-map">
             <div className="mb-2.5 flex items-center justify-between gap-2">
