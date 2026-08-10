@@ -1669,6 +1669,23 @@ router.post("/research/bureau/cases/:caseId/promote-target", async (req, res): P
     res.status(409).json({ error: "Only a discovery case can be promoted to a target" });
     return;
   }
+  // Fitness gate on promote — fame trophies must not become target-scoped research.
+  const { evaluateTargetFitness, shouldRejectTarget, suggestReframe } = await import("../../lib/target-fitness");
+  const promoteFitness = evaluateTargetFitness({
+    name: entity.name,
+    type: entity.type,
+    notes: entity.notes ?? null,
+    personScoped: true,
+  });
+  if (shouldRejectTarget(promoteFitness)) {
+    res.status(422).json({
+      error: "Target fitness gate rejected this entity for target promotion",
+      fit: promoteFitness.fit,
+      reasons: promoteFitness.reasons,
+      reframe: suggestReframe({ name: entity.name, fit: promoteFitness.fit }),
+    });
+    return;
+  }
   const targetFile = buildInitialCaseFile(entity);
   const { computeInvestigationProgress } = await import("../../lib/investigation-progress");
   const now = new Date();
