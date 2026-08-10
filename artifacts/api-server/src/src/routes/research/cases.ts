@@ -1959,7 +1959,7 @@ router.post("/research/cases/:entityId/advance", async (req, res): Promise<void>
     provider: bossPlan.model,
     why: bossPlan.reason ?? "Boss plan",
     ask: bossPlan.decision ?? "Select or reject",
-    responseSummary: `OUT: ${bossPlan.status}; outcome=${bossPlan.outcome}; actionId=${bossPlan.actionId ?? "none"}`,
+    responseSummary: `OUT: ${bossPlan.status}; outcome=${bossPlan.outcome}; actionId=${bossPlan.actionId ?? "none"}; progress=${bossPlan.progressAssessment ? "yes" : "no"}; reprioritize=${(bossPlan.reprioritize ?? []).length}`,
     level: bossPlan.outcome === "reject_target" ? "warn" : "info",
   });
   const bossDecisionFile =
@@ -1971,6 +1971,7 @@ router.post("/research/cases/:entityId/advance", async (req, res): Promise<void>
               decision: bossPlan.decision,
               reason: bossPlan.reason,
               suggestedScope: bossPlan.suggestedScope,
+              progressAssessment: bossPlan.progressAssessment,
               iteration: nextIteration,
             }) ?? advanceCaseFile(advisedFile, nextIteration)
           : bossPlan.actionId
@@ -1979,6 +1980,8 @@ router.post("/research/cases/:entityId/advance", async (req, res): Promise<void>
                 actionId: bossPlan.actionId,
                 decision: bossPlan.decision,
                 reason: bossPlan.reason,
+                progressAssessment: bossPlan.progressAssessment,
+                reprioritize: bossPlan.reprioritize,
                 iteration: nextIteration,
               }) ?? advanceCaseFile(advisedFile, nextIteration)
             : advanceCaseFile(advisedFile, nextIteration))

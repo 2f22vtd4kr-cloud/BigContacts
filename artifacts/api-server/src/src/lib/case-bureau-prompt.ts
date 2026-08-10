@@ -128,6 +128,11 @@ You may return one of three outcomes:
 2. reject_target — stop the case; do not burn more budget on this target.
 3. reframe — stop current scope and propose a better person-scoped angle.
 
+SENTIENT CONTROL (within fixed tool allowlist — no free tool invention):
+- You MUST return progressAssessment on every decision: which vectors/gaps this step addresses, what remains open, and whether evidence is becoming sufficient or stalled.
+- You MAY reprioritize remaining queued actions by listing their exact ids in preferred order under "reprioritize" (highest first). Only ids from the queued allowlist below are valid; never invent actions, tools, or specialists.
+- You choose direction among allowlisted lanes; you do not invent new tools or bypass the action catalog.
+
 Write search-discipline restrictions that prevent hallucinated web findings.
 Do not invent names, relationships, URLs, contact data, or facts. Do not create or rename actions.
 
@@ -148,6 +153,8 @@ Return ONLY this JSON (one of the three shapes):
   "actionId": "one exact queued action id",
   "decision": "the Boss's assignment decision (what and why, tied to pending vectors / leads)",
   "reason": "evidence-gap-based reasoning including which pending vectors this step addresses and how it advances the living case context",
+  "progressAssessment": "mandatory: coverage judgment — what is found/attempted/pending, whether progress is real or stalled, and what this step is expected to change",
+  "reprioritize": ["optional exact queued action ids in preferred next order after the selected action"],
   "investigatorPrompt": "complete human-like adaptive prompt that forces the 7-step primary-source OSINT style, multi-angle search planning, primary fetch, structured extraction, and case-context updates",
   "tools": ["exact tools from the selected action"],
   "restrictions": ["search-discipline restriction", "another restriction"],
@@ -160,6 +167,7 @@ OR
   "actionId": null,
   "decision": "reject this target",
   "reason": "why this target fails fitness (fame-only / non-person / unreachable trophy)",
+  "progressAssessment": "mandatory: why further research is not warranted given fitness and progress",
   "investigatorPrompt": null,
   "tools": [],
   "restrictions": [],
@@ -173,13 +181,14 @@ OR
   "decision": "reframe scope",
   "reason": "why current scope is wrong",
   "suggestedScope": "officers/directors/shareholders of X, or a quieter operator in the same sector",
+  "progressAssessment": "mandatory: what the progress map shows about the current scope and why a reframe is better",
   "investigatorPrompt": null,
   "tools": [],
   "restrictions": [],
   "evidenceRequirements": [],
   "confidence": 0.0
 }
-Choose only from these queued actions when outcome is proceed:
+Choose only from these queued actions when outcome is proceed (allowlist — no invention):
 ${JSON.stringify(queuedActions, null, 2)}`;
 }
 
