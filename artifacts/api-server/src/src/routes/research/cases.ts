@@ -1517,12 +1517,31 @@ router.post("/research/bureau/cases/:caseId/admit-candidate", async (req, res): 
     return;
   }
 
+  // Phase 1 fitness gate — do not admit fame-only trophies or pure shells as person targets.
+  const { evaluateTargetFitness, shouldRejectTarget, suggestReframe } = await import("../../lib/target-fitness");
+  const fitness = evaluateTargetFitness({
+    name: candidate.name,
+    type: candidate.type,
+    snippet: `${candidate.relevance ?? ""} ${candidate.reachability ?? ""}`,
+    personScoped: true,
+  });
+  if (shouldRejectTarget(fitness)) {
+    res.status(422).json({
+      error: "Target fitness gate rejected this candidate",
+      fit: fitness.fit,
+      reasons: fitness.reasons,
+      reframe: suggestReframe({ name: candidate.name, fit: fitness.fit }),
+    });
+    return;
+  }
+
   const entityType = candidateTypeToEntityType(candidate.type);
   const now = new Date();
   const [entity] = await db.insert(entitiesTable).values({
     name: candidate.name,
     type: entityType,
     bayesianScore: 0.05,
+
     contactConfidence: 0,
     contactOutcome: "evidence_only",
     isHot: false,
@@ -1798,17 +1817,28 @@ router.post("/research/cases/:entityId/advance", async (req, res): Promise<void>
     rightHandAdvice: advisedFile.rightHandAdvice,
     iteration: nextIteration,
   });
-  const bossDecisionFile = bossPlan.status === "completed"
-    && bossPlan.actionId
-    && bossPlan.decision
-    && bossPlan.reason
-    ? applyGeminiBossPlan(advisedFile, {
-        actionId: bossPlan.actionId,
-        decision: bossPlan.decision,
-        reason: bossPlan.reason,
-        iteration: nextIteration,
-      }) ?? advanceCaseFile(advisedFile, nextIteration)
-    : advanceCaseFile(advisedFile, nextIteration);
+  const bossDecisionFile =
+    bossPlan.status === "completed" && bossPlan.decision && bossPlan.reason
+      ? (bossPlan.outcome === "reject_target" || bossPlan.outcome === "reframe"
+          ? applyGeminiBossPlan(advisedFile, {
+              outcome: bossPlan.outcome,
+              actionId: null,
+              decision: bossPlan.decision,
+              reason: bossPlan.reason,
+              suggestedScope: bossPlan.suggestedScope,
+              iteration: nextIteration,
+            }) ?? advanceCaseFile(advisedFile, nextIteration)
+          : bossPlan.actionId
+            ? applyGeminiBossPlan(advisedFile, {
+                outcome: "proceed",
+                actionId: bossPlan.actionId,
+                decision: bossPlan.decision,
+                reason: bossPlan.reason,
+                iteration: nextIteration,
+              }) ?? advanceCaseFile(advisedFile, nextIteration)
+            : advanceCaseFile(advisedFile, nextIteration))
+      : advanceCaseFile(advisedFile, nextIteration);
+
   const updatedFile = recordGeminiBossPlan(bossDecisionFile, bossPlan);
   const now = new Date();
   const [updated] = await db.update(researchCasesTable).set({

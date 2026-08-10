@@ -7,6 +7,8 @@
  * - Real public signals only; never invent openness or contacts
  */
 
+import { evaluateTargetFitness, shouldRejectTarget } from "./target-fitness";
+
 export type DiscoverySourceKind = "broad" | "registry" | "faa";
 
 export type DiscoverySource =
@@ -90,6 +92,7 @@ export function buildSourcesToRun(input: {
 /**
  * Lightweight public-signal score for "worth a proposal" principals.
  * Higher = prefer admit/cook first. Does not invent facts — only reads text.
+ * Fame-only / non-person targets score 0 so they are never preferred under budget.
  */
 export function scoreApproachableCandidate(input: {
   name: string;
@@ -97,6 +100,16 @@ export function scoreApproachableCandidate(input: {
   query?: string | null;
   notes?: string | null;
 }): number {
+  const fitness = evaluateTargetFitness({
+    name: input.name,
+    snippet: input.snippet,
+    notes: `${input.query ?? ""}\n${input.notes ?? ""}`,
+    personScoped: true,
+  });
+  if (shouldRejectTarget(fitness)) {
+    return 0;
+  }
+
   const text = `${input.name}\n${input.snippet ?? ""}\n${input.query ?? ""}\n${input.notes ?? ""}`.toLowerCase();
   let score = 0.3;
 
@@ -126,9 +139,12 @@ export function scoreApproachableCandidate(input: {
   }
 
   const nameParts = input.name.trim().split(/\s+/);
-  if (nameParts.length >= 2 && nameParts.length <= 4 && /^[A-Za-zÀ-ÿ'’-]+$/.test(nameParts[0] ?? "")) {
+  if (nameParts.length >= 2 && nameParts.length <= 4 && /^[A-Za-zÀ-ÿ'\u2019\-]+$/.test(nameParts[0] ?? "")) {
     score += 0.05;
   }
+
+  // Blend deterministic fitness so strong operators rise and trophies stay low.
+  score = score * 0.7 + fitness.score * 0.3;
 
   return Math.max(0, Math.min(1, Number(score.toFixed(3))));
 }

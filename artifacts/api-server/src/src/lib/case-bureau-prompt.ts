@@ -116,7 +116,18 @@ Also enforce in every investigatorPrompt:
 - Require primary-source fetch + structured extraction + case-context-ready output.
 - Require uncertainty labeling, identity disambiguation, and stopping when evidence conflicts.
 
-Select exactly one existing queued action. Choose only tools listed on that action.
+TARGET FITNESS (product scorecard — non-negotiable):
+- Reachability > fame. Operators / founders / officers > household-name trophies.
+- If the target is an ultra-public celebrity or fame-only figure with no realistic direct route (Tim Cook, Bernard Arnault, Jensen Huang, Buffett-class, etc.), you MUST NOT select a research action.
+- Instead return outcome "reject_target" with a clear reason, or "reframe" with a suggested scope (e.g. officers of X, not X the brand).
+- Pure corp shells under a person-scoped budget → reject_target or reframe to named principals.
+- Only proceed with an actionId when the target has operator/principal signal or is a quiet reachable person.
+
+You may return one of three outcomes:
+1. proceed — select exactly one existing queued action and fill the investigator fields.
+2. reject_target — stop the case; do not burn more budget on this target.
+3. reframe — stop current scope and propose a better person-scoped angle.
+
 Write search-discipline restrictions that prevent hallucinated web findings.
 Do not invent names, relationships, URLs, contact data, or facts. Do not create or rename actions.
 
@@ -131,8 +142,9 @@ ${JSON.stringify(input.file, null, 2).slice(0, 100_000)}
 ${JSON.stringify(input.rightHandAdvice ?? null, null, 2)}
 </right_hand_advice>
 
-Return ONLY this JSON:
+Return ONLY this JSON (one of the three shapes):
 {
+  "outcome": "proceed",
   "actionId": "one exact queued action id",
   "decision": "the Boss's assignment decision (what and why, tied to pending vectors / leads)",
   "reason": "evidence-gap-based reasoning including which pending vectors this step addresses and how it advances the living case context",
@@ -142,6 +154,32 @@ Return ONLY this JSON:
   "evidenceRequirements": ["structured evidence the investigator must return so the case context document can be updated"],
   "confidence": 0.0
 }
-Choose only from these queued actions:
+OR
+{
+  "outcome": "reject_target",
+  "actionId": null,
+  "decision": "reject this target",
+  "reason": "why this target fails fitness (fame-only / non-person / unreachable trophy)",
+  "investigatorPrompt": null,
+  "tools": [],
+  "restrictions": [],
+  "evidenceRequirements": [],
+  "confidence": 0.0
+}
+OR
+{
+  "outcome": "reframe",
+  "actionId": null,
+  "decision": "reframe scope",
+  "reason": "why current scope is wrong",
+  "suggestedScope": "officers/directors/shareholders of X, or a quieter operator in the same sector",
+  "investigatorPrompt": null,
+  "tools": [],
+  "restrictions": [],
+  "evidenceRequirements": [],
+  "confidence": 0.0
+}
+Choose only from these queued actions when outcome is proceed:
 ${JSON.stringify(queuedActions, null, 2)}`;
 }
+
