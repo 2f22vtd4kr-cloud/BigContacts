@@ -861,7 +861,7 @@ export default function ApexProfile() {
                 <div className="flex items-center gap-2">
                   <ShieldAlert className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
                   <span className="text-[10px] font-mono font-bold text-amber-400 uppercase tracking-widest">
-                    Ownership / Control
+                    Who sits behind it
                   </span>
                   {ownerCount > 0 && (
                     <span className="text-[9px] font-mono text-emerald-400/80 uppercase">
@@ -870,7 +870,7 @@ export default function ApexProfile() {
                   )}
                 </div>
                 <p className="text-[10px] text-muted-foreground/70 mt-1.5 leading-relaxed max-w-3xl">
-                  Phase 0 resolves the people behind the entity first. Director, operator, founder, and owner are kept distinct; names remain review-only until independently confirmed.
+                  We start with the people who appear to run or own the thing — director, operator, founder, owner kept separate. Names stay review-only until the paper backs them up.
                 </p>
               </div>
               {sourceUrls[0] && (
@@ -886,7 +886,7 @@ export default function ApexProfile() {
             </div>
             <div className="rounded border border-amber-500/15 bg-background/40 px-3 py-2.5 mb-3">
               <div className="text-[9px] font-mono uppercase tracking-widest text-amber-400/60 mb-1">
-                Phase 0 finding
+                What the record says
               </div>
               <div className={cn(
                 "text-xs font-mono leading-relaxed",
@@ -899,7 +899,7 @@ export default function ApexProfile() {
             </div>
             {people.length === 0 ? (
               <div className="text-[10px] font-mono text-muted-foreground/60 italic">
-                No named principals returned yet. The next Phase 0 pass will search owners, controllers, founders, operators, and officers separately.
+                No named principals yet. The next pass will dig for owners, controllers, founders, and officers on their own.
               </div>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">

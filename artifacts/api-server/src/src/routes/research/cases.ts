@@ -6,6 +6,7 @@ import {
   researchCaseEventsTable,
   researchCasesTable,
 } from "@workspace/db";
+import { persistBureauContactsForEntity } from "../../lib/bureau-contact-persist";
 import {
   AddResearchCaseDirectiveBody,
   AddResearchCaseDirectiveParams,
@@ -1549,6 +1550,9 @@ router.post("/research/bureau/cases/:caseId/admit-candidate", async (req, res): 
     return;
   }
 
+  // Related contacts from the discovery brief stay on the HNWI card — not discarded.
+  await persistBureauContactsForEntity(entity.id, candidate.contactEvidence ?? [], "case-bureau-admit");
+
   const updatedCandidates = discoveryFile.discoveredCandidates.map((item) =>
     item.name.trim().toLowerCase() === candidate.name.trim().toLowerCase()
       ? { ...item, admittedEntityId: entity.id }
@@ -1641,6 +1645,28 @@ router.post("/research/bureau/cases/:caseId/promote-target", async (req, res): P
     lastDecisionAt: now,
     updatedAt: now,
   }).where(eq(researchCasesTable.id, current.id)).returning();
+
+  // Copy discovery + case hierarchy contacts onto the target entity for profile cards.
+  const matched = discoveryFile.discoveredCandidates.find(
+    (item) => item.name.trim().toLowerCase() === entity.name.trim().toLowerCase(),
+  );
+  await persistBureauContactsForEntity(entity.id, matched?.contactEvidence ?? [], "case-bureau-promote");
+  await persistBureauContactsForEntity(
+    entity.id,
+    (promotedFile.contactRoutes ?? []).map((route) => ({
+      vectorType: route.vectorType,
+      value: route.value,
+      scope: route.tier,
+      personName: route.personName,
+      role: route.role,
+      sourceUrls: route.sourceUrls,
+      note: route.tierLabel,
+      tier: route.tier,
+      state: route.state,
+    })),
+    "case-bureau-routes",
+  );
+
   await db.insert(researchCaseEventsTable).values({
     caseId: current.id,
     iteration: current.iteration + 1,
@@ -1688,6 +1714,21 @@ router.post("/research/cases", async (req, res): Promise<void> => {
     res.status(500).json({ error: "Unable to open research case" });
     return;
   }
+  await persistBureauContactsForEntity(
+    entityId,
+    (caseFile.contactRoutes ?? []).map((route) => ({
+      vectorType: route.vectorType,
+      value: route.value,
+      scope: route.tier,
+      personName: route.personName,
+      role: route.role,
+      sourceUrls: route.sourceUrls,
+      note: route.tierLabel,
+      tier: route.tier,
+      state: route.state,
+    })),
+    "case-bureau-open",
+  );
   await db.insert(researchCaseEventsTable).values({
     caseId: created.id,
     actorRole: "boss",
@@ -1778,6 +1819,21 @@ router.post("/research/cases/:entityId/advance", async (req, res): Promise<void>
     lastDecisionAt: now,
     updatedAt: now,
   }).where(eq(researchCasesTable.id, current.id)).returning();
+  await persistBureauContactsForEntity(
+    params.data.entityId,
+    (updatedFile.contactRoutes ?? []).map((route) => ({
+      vectorType: route.vectorType,
+      value: route.value,
+      scope: route.tier,
+      personName: route.personName,
+      role: route.role,
+      sourceUrls: route.sourceUrls,
+      note: route.tierLabel,
+      tier: route.tier,
+      state: route.state,
+    })),
+    "case-bureau-advance",
+  );
   const action = updatedFile.nextBestAction;
   await db.insert(researchCaseEventsTable).values({
     caseId: current.id,
