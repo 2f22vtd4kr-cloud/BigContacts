@@ -72,8 +72,9 @@ function collectContacts(entity: any): PresentedContact[] {
     });
   };
   const org = entity.type === "Corporation" || entity.type === "Corp" || entity.type === "Trust";
+  const phoneOrg = org || /org|registry|company/i.test(String(entity.phoneSource ?? ""));
   push("email", entity.email, org ? "organization" : "personal");
-  push("phone", entity.phone, org ? "organization" : "personal");
+  push("phone", entity.phone, phoneOrg ? "organization" : "personal");
   push("social", entity.linkedinUrl, "candidate");
   if (entity.twitterHandle) push("social", entity.twitterHandle, "candidate");
   if (entity.instagramHandle) push("social", entity.instagramHandle, "candidate");
