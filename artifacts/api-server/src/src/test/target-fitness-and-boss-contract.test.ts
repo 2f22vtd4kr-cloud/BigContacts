@@ -159,3 +159,37 @@ describe("Boss control-loop contract", () => {
     expect(stop.reason).toMatch(/fitness/i);
   });
 });
+
+import { collectDiscoveryContactsForTarget } from "../lib/bureau-contact-persist";
+
+describe("discovery contact collect for cards", () => {
+  it("pulls person-named vectors from the whole deck", () => {
+    const contacts = collectDiscoveryContactsForTarget("Helen Vargas", [
+      {
+        name: "Helen Vargas",
+        contactEvidence: [
+          { vectorType: "email", value: "helen@example.com", personName: "Helen Vargas", scope: "person" },
+        ],
+      },
+      {
+        name: "Vargas Capital Ltd",
+        contactEvidence: [
+          { vectorType: "email", value: "info@vargas.example", personName: null, scope: "organization" },
+          { vectorType: "linkedin", value: "https://linkedin.com/in/helen-vargas", personName: "Helen Vargas", scope: "person" },
+        ],
+      },
+      {
+        name: "Unrelated Person",
+        contactEvidence: [
+          { vectorType: "email", value: "other@example.com", personName: "Other", scope: "person" },
+        ],
+      },
+    ]);
+    const values = contacts.map((c) => c.value).sort();
+    expect(values).toContain("helen@example.com");
+    expect(values).toContain("https://linkedin.com/in/helen-vargas");
+    expect(values).not.toContain("other@example.com");
+    // Org shell email on a different candidate without personName match is not pulled.
+    expect(values).not.toContain("info@vargas.example");
+  });
+});
