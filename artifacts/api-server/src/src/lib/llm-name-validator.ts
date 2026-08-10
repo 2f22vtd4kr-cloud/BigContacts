@@ -18,7 +18,11 @@ import { logger } from "./logger";
 
 const _groqKeyNames = ["GROQ_API_KEY"];
 for (let i = 1; i <= 10; i++) _groqKeyNames.push(`GROQ_API_KEY_${i}`);
-const GROQ_KEYS = _groqKeyNames.map(k => process.env[k]).filter(Boolean) as string[];
+
+/** Read Groq keys at call time so a restarted process with secrets works. */
+function getGroqKeysLive(): string[] {
+  return _groqKeyNames.map((k) => process.env[k] ?? "").filter((k) => k.length > 0);
+}
 
 /**
  * Filter a batch of candidate name strings down to those that are genuine
@@ -26,12 +30,14 @@ const GROQ_KEYS = _groqKeyNames.map(k => process.env[k]).filter(Boolean) as stri
  *
  * Uses llama-3.1-8b-instant (fast + cheap) — we only need binary yes/no.
  * Batches up to 60 names per call to minimise API round trips.
- * Fail-closed: returns no candidates when the provider cannot validate them.
+ * Fail-closed for *broad web discovery*: no Groq → no candidates from search noise.
+ * Registry officer/director admission uses a deterministic fallback (see western-hnwi).
  */
 export async function filterHumanNamesWithLLM(candidates: string[]): Promise<string[]> {
   if (candidates.length === 0) return [];
   const safeCandidates = candidates.filter(isDeterministicallySafeHumanName);
-  if (GROQ_KEYS.length === 0) {
+  const groqKeys = getGroqKeysLive();
+  if (groqKeys.length === 0) {
     logger.warn("llm-name-validator: no GROQ keys — rejecting candidates fail-closed");
     return [];
   }
@@ -69,7 +75,7 @@ export async function validateDiscoveryCandidatesWithLLM(
     isDeterministicallySafeHumanName(candidate.name),
   );
   if (safe.length === 0) return [];
-  if (GROQ_KEYS.length === 0) {
+  if (getGroqKeysLive().length === 0) {
     logger.warn("llm-discovery-validator: no GROQ keys — rejecting candidates fail-closed");
     return [];
   }
@@ -130,7 +136,7 @@ const NON_PERSON_WORDS = new Set([
   "owner", "partner", "president", "principal", "trustee", "vice",
 ]);
 
-function isDeterministicallySafeHumanName(value: string): boolean {
+export function isDeterministicallySafeHumanName(value: string): boolean {
   const name = value.trim().replace(/\s+/g, " ");
   if (name.length < 5 || name.length > 80 || /[\d\n\r\t]/.test(name)) return false;
   const words = name.split(" ");
@@ -144,7 +150,9 @@ function isDeterministicallySafeHumanName(value: string): boolean {
 }
 
 async function _validateBatch(names: string[]): Promise<string[]> {
-  const key = GROQ_KEYS[Math.floor(Math.random() * GROQ_KEYS.length)];
+  const _keys = getGroqKeysLive();
+  if (_keys.length === 0) return [];
+  const key = _keys[Math.floor(Math.random() * _keys.length)];
 
   const prompt = `You are a quality gate for a private-wealth OSINT database. Your job: decide whether each name is a REAL, CURRENTLY LIVING private individual who could plausibly be a high-net-worth research target.
 
@@ -196,9 +204,11 @@ async function requestIndexGate(
   candidateCount: number,
   gateName: string,
 ): Promise<number[]> {
-  const start = Math.floor(Math.random() * GROQ_KEYS.length);
-  for (let attempt = 0; attempt < GROQ_KEYS.length; attempt++) {
-    const key = GROQ_KEYS[(start + attempt) % GROQ_KEYS.length]!;
+  const keys = getGroqKeysLive();
+  if (keys.length === 0) return [];
+  const start = Math.floor(Math.random() * keys.length);
+  for (let attempt = 0; attempt < keys.length; attempt++) {
+    const key = keys[(start + attempt) % keys.length]!;
     try {
     const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
@@ -238,7 +248,7 @@ async function requestIndexGate(
     return (parsed as number[]).filter(index => index >= 1 && index <= candidateCount);
     } catch (err: any) {
       logger.warn({ err: err?.message, gateName, attempt: attempt + 1 }, "llm validator: request failed — trying next key");
-      if (attempt === GROQ_KEYS.length - 1) {
+      if (attempt === keys.length - 1) {
         return [];
       }
     }

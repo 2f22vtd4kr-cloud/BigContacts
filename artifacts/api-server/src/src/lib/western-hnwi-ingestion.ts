@@ -22,7 +22,7 @@ import type { InsertEntity, InsertAsset } from "@workspace/db";
 import { computeBayesianScore } from "./bayesian-scorer";
 import { isDuplicate, markSeen, updateJob, appendJobLog, clearDedup } from "./job-queue";
 import { logger } from "./logger";
-import { filterHumanNamesWithLLM } from "./llm-name-validator";
+import { filterHumanNamesWithLLM, isDeterministicallySafeHumanName } from "./llm-name-validator";
 import {
   getRandomDiscoveryRegistries,
   searchRegistry,
@@ -853,7 +853,7 @@ export interface IngestionResult {
 export async function runWesternHnwiIngestion(opts: IngestionOptions): Promise<IngestionResult> {
   const { targetCount, batchSize = 100, jobId, clearDedupFirst = false } = opts;
   // Small Atlas admission budgets must not be burned on random company shells.
-  const preferPersons = Boolean(opts.preferPersons) || targetCount > 0 && targetCount <= 10;
+  const preferPersons = Boolean(opts.preferPersons) || (targetCount > 0 && targetCount <= 10);
   const t0 = Date.now();
   let inserted = 0, skipped = 0, errors = 0;
 
@@ -922,7 +922,21 @@ export async function runWesternHnwiIngestion(opts: IngestionOptions): Promise<I
       const candidateNames = entityBatch
         .filter((e) => e.type === "HNWI" || e.type === "Gatekeeper")
         .map(e => e.name ?? "");
-      const validNames = new Set(await filterHumanNamesWithLLM(candidateNames));
+      let validNames = new Set(await filterHumanNamesWithLLM(candidateNames));
+      // Registry officer/director paths already passed looksLikePerson. If Groq
+      // is unavailable, fail-closed LLM would zero out the entire preferPersons
+      // admission budget — fall back to deterministic human-name safety only.
+      if (preferPersons && validNames.size === 0 && candidateNames.length > 0) {
+        validNames = new Set(
+          candidateNames.filter((n) => isDeterministicallySafeHumanName(n)),
+        );
+        if (validNames.size > 0) {
+          logger.warn(
+            { kept: validNames.size, total: candidateNames.length },
+            "preferPersons admission: Groq unavailable — using deterministic human-name gate only",
+          );
+        }
+      }
       const preCount = entityBatch.length;
       entityBatch = entityBatch.filter((e) => {
         if (preferPersons && (e.type === "Corporation" || e.type === "Trust")) return false;
