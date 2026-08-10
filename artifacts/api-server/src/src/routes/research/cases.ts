@@ -76,6 +76,42 @@ function serializeCase(
   row: typeof researchCasesTable.$inferSelect,
   entity: { name: string; type: string } | null,
 ) {
+  let progressSummary: {
+    coverageRatio: number;
+    foundAnyCount: number;
+    foundPersonalCount: number;
+    pendingVectors: string[];
+    noProgressStreak: number | null;
+    bossOutcome: string | null;
+    progressAssessment: string | null;
+  } | null = null;
+  try {
+    const parsed = JSON.parse(row.caseFile) as Record<string, unknown>;
+    const progress = parsed.investigationProgress as
+      | {
+          coverageRatio?: number;
+          foundAnyCount?: number;
+          foundPersonalCount?: number;
+          pendingVectors?: string[];
+        }
+      | undefined;
+    const bossPlan = parsed.bossPlan as
+      | { outcome?: string; progressAssessment?: string | null }
+      | undefined;
+    if (progress || bossPlan) {
+      progressSummary = {
+        coverageRatio: progress?.coverageRatio ?? 0,
+        foundAnyCount: progress?.foundAnyCount ?? 0,
+        foundPersonalCount: progress?.foundPersonalCount ?? 0,
+        pendingVectors: progress?.pendingVectors ?? [],
+        noProgressStreak: typeof parsed.noProgressStreak === "number" ? parsed.noProgressStreak : null,
+        bossOutcome: bossPlan?.outcome ?? null,
+        progressAssessment: bossPlan?.progressAssessment ?? null,
+      };
+    }
+  } catch {
+    progressSummary = null;
+  }
   return {
     ...row,
     targetEntityName: entity?.name ?? null,
@@ -83,6 +119,7 @@ function serializeCase(
     lastDecisionAt: row.lastDecisionAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
+    progressSummary,
   };
 }
 
