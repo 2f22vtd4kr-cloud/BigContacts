@@ -786,25 +786,40 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
           actorRole: "head_investigator",
           eventType: "decision",
           summary: commentary,
-          payload: JSON.stringify({ nextAction: "human-review-discovery-candidates", candidateCount: reviewCandidates.length }),
+          payload: JSON.stringify({
+            nextAction: "human-review-discovery-candidates",
+            candidateCount: mergedReviewCandidates.length,
+            fameDropped,
+            discoveryQuality: (await import("../../lib/discovery-metrics")).computeDiscoveryQualityMetrics(
+              mergedReviewCandidates,
+            ),
+          }),
         },
       ]);
-       await appendJobLog(jobId, `Discovery complete; randomized lane=${discoveryTemplateSet}; review-only candidates=${reviewCandidates.length}; no entity insertion.`);
+      const quality = (await import("../../lib/discovery-metrics")).computeDiscoveryQualityMetrics(
+        mergedReviewCandidates,
+      );
+      await appendJobLog(
+        jobId,
+        `Discovery complete; randomized lane=${discoveryTemplateSet}; review-only candidates=${mergedReviewCandidates.length}; fameDropped=${fameDropped}; personShaped=${quality.personShaped}; evidenceRate=${quality.evidenceRate}; no entity insertion.`,
+      );
       await updateJob(jobId, {
         status: "done",
         progress: 4,
         total: 4,
         inserted: 0,
-        skipped: 0,
+        skipped: fameDropped,
         errors: registryErrors.length,
-        message: `Discovery complete: ${reviewCandidates.length} review-only candidate/anchor record(s); no target promoted.`,
+        message: `Discovery complete: ${mergedReviewCandidates.length} review-only candidate/anchor record(s); fameDropped=${fameDropped}; personShaped=${quality.personShaped}; no target promoted.`,
         result: JSON.stringify({
           caseId,
           bossModel: boss.model,
           bossCitations: boss.citations.length,
           webQueries: broad.queriesFired,
           webResults: broad.resultsScraped,
-          reviewCandidates: reviewCandidates.length,
+          reviewCandidates: mergedReviewCandidates.length,
+          fameDropped,
+          discoveryQuality: quality,
           registryErrors: registryErrors.map((entry) => entry.registry),
           caseStatus: updated?.status ?? "review",
         }),
