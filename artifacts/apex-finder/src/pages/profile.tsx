@@ -1211,7 +1211,7 @@ export default function ApexProfile() {
                     const badge = personal
                       ? { label: "Looks personal", cls: "text-emerald-300 border-emerald-500/40 bg-emerald-500/10" }
                       : orgish
-                        ? { label: "Company / related", cls: "text-sky-300 border-sky-500/30 bg-sky-500/10" }
+                        ? { label: "Company · related", cls: "text-sky-300 border-sky-500/30 bg-sky-500/10" }
                         : { label: item.validationStatus === "verified" ? "Checked out" : "Still a lead", cls: "text-amber-300 border-amber-500/30 bg-amber-500/10" };
                     const card = (
                       <div
