@@ -392,7 +392,7 @@ function DuplicatesTab() {
 // ─── Live Activity tab ────────────────────────────────────────────────────────
 function LiveActivityTab({ jobs }: { jobs: Job[] }) {
   const active = jobs.filter(j => j.status === "running" || j.status === "queued");
-  const recent = jobs.filter(j => j.status === "done" || j.status === "failed").slice(0, 10);
+  const recent = jobs.filter(j => j.status === "done" || j.status === "failed" || j.status === "cancelled").slice(0, 10);
   const idle = jobs.filter(j => j.status === "idle");
 
   return (
