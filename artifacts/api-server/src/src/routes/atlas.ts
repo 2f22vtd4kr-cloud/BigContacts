@@ -116,13 +116,30 @@ router.delete("/ingest/atlas-lock/:jobId", async (req: Request, res: Response): 
   res.json({ cleared: true, jobId, message: "Atlas job marked failed." });
 });
 
+// Terminal Atlas jobs older than this are not surfaced as "current" Reactor
+// state. Permanent Redis keeps history for 7 days; without a freshness gate a
+// completed single-target pass (e.g. CarCollect) stays stuck on the Reactor
+// across re-imports and idle continuous cycles.
+const ATLAS_LATEST_DISPLAY_TTL_MS = 15 * 60 * 1_000;
+
+function isFreshAtlasTerminal(job: { status?: string; finishedAt?: string; startedAt?: string }): boolean {
+  if (job.status !== "done" && job.status !== "failed" && job.status !== "cancelled") return false;
+  const finishedMs = job.finishedAt ? Date.parse(job.finishedAt) : NaN;
+  const startedMs = job.startedAt ? Date.parse(job.startedAt) : NaN;
+  const anchor = Number.isFinite(finishedMs) ? finishedMs : startedMs;
+  if (!Number.isFinite(anchor)) return false;
+  return Date.now() - anchor < ATLAS_LATEST_DISPLAY_TTL_MS;
+}
+
 // ── GET /ingest/atlas-status ──────────────────────────────────────────────────
 router.get("/ingest/atlas-status", async (_req: Request, res: Response): Promise<void> => {
   const scheduler = await getAutoPipelineScheduler();
   const jobId = await getActiveJob("atlas-run");
   if (!jobId) {
     const latest = await getLatestJob("atlas-run");
-    if (latest) {
+    // Only expose a terminal latest job while it is still "just finished".
+    // Stale completed runs must not appear as CURRENT TARGET in the Reactor.
+    if (latest && isFreshAtlasTerminal(latest)) {
       const log = await getJobLog(latest.jobId);
       res.json({ ...latest, active: false, latest: true, scheduler, log: log.slice(0, 80) });
       return;
