@@ -99,7 +99,7 @@ async function searchOpenOwnership(name: string, limit = 10): Promise<BodsEntity
       }));
 
       return {
-        id: item?.id ?? item?.entity_id ?? String(Math.random()),
+        id: item?.id ?? item?.entity_id ?? `oo:${(item?.name ?? item?.company_name ?? name ?? "unknown").toString().toLowerCase().replace(/\s+/g, "-").slice(0, 80)}`,
         name: item?.name ?? item?.company_name ?? name,
         jurisdiction: item?.jurisdiction ?? item?.country ?? undefined,
         incorporationDate: item?.incorporation_date ?? undefined,

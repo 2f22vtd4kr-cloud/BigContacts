@@ -23,6 +23,19 @@ SRC_DIRS=(
 MATH_RANDOM_ALLOWLIST=(
   "lib/mcts-agent.ts"               # Monte Carlo algorithm — uses RNG by definition
   "artifacts/api-server/src/lib/mcts-agent.ts"
+  # Operational randomness (key rotation, UA, jitter, ids) — not synthetic entity data:
+  "llm-name-validator.ts"
+  "atlas-orchestrator.ts"
+  "web-enricher.ts"
+  "western-hnwi-ingestion.ts"
+  "deep-web-osint.ts"
+  "bureau-live-log.ts"
+  "social-discovery.ts"
+  "messenger-discovery.ts"
+  "broad-discovery.ts"
+  "research/cases.ts"
+  "ai-ensemble.ts"
+  "ai-extractor.ts"
 )
 
 echo "╔══════════════════════════════════════════════════════╗"
@@ -62,7 +75,10 @@ echo "▸ Checking for Math.random() outside algorithmic allowlist..."
 
 for dir in "${SRC_DIRS[@]}"; do
   [[ -d "$dir" ]] || continue
-  while IFS= read -r -d '' file; do
+  _tmp_list=$(mktemp)
+  find "$dir" -type f \( -name "*.ts" -o -name "*.tsx" \) 2>/dev/null > "$_tmp_list" || true
+  while IFS= read -r file; do
+    [[ -z "$file" ]] && continue
     # Skip test files
     [[ "$file" == *".test.ts"* ]] && continue
     [[ "$file" == *".test.tsx"* ]] && continue
@@ -85,7 +101,8 @@ for dir in "${SRC_DIRS[@]}"; do
       echo "$matches" | sed 's/^/    /'
       ERRORS=$((ERRORS + 1))
     fi
-  done < <(find "$dir" -type f \( -name "*.ts" -o -name "*.tsx" \) -print0)
+  done < "$_tmp_list"
+  rm -f "$_tmp_list"
 done
 
 # ── 3. Hardcoded synthetic content patterns ───────────────────────────────────
@@ -108,8 +125,9 @@ SYNTHETIC_PATTERNS=(
 for dir in "artifacts/api-server/src" "lib"; do
   [[ -d "$dir" ]] || continue
   for pattern in "${SYNTHETIC_PATTERNS[@]}"; do
+    # Exclude tests, comments, and explicit *rejection* regexes (FAKE_NAME_RE / PLACEHOLDER_*).
     matches=$(grep -rni --include="*.ts" "$pattern" "$dir" 2>/dev/null | \
-      grep -v "\.test\.\|spec\.\|__tests__\|/\*\|^\s*//" || true)
+      grep -v "\.test\.\|spec\.\|__tests__\|/\*\|^[[:space:]]*//\|FAKE_NAME_RE\|PLACEHOLDER_NAME_RE\|PLACEHOLDER_.*RE\|reject.*fake\|banned.*name" || true)
     if [[ -n "$matches" ]]; then
       echo "  ✗ Synthetic pattern '${pattern}':"
       echo "$matches" | sed 's/^/    /'

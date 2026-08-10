@@ -35,18 +35,24 @@ function markContact(args: {
   entityPhone?: string | null;
   entityType?: string | null;
   phoneSource?: string | null;
+  contactOutcome?: string | null;
 }): "personal" | "organization" | "candidate" {
   if (args.validationStatus === "rejected") return "candidate";
   if (ORGANIZATION_ENTITY_TYPES.has(args.entityType ?? "")) return "organization";
   const meta = parseEvidenceMeta(args.metadata);
   const scope = String(meta.scope ?? meta.personScope ?? meta.routeScope ?? "").toLowerCase();
   if (scope === "organization" || scope === "org" || scope === "company") return "organization";
-  // Fail-closed personal mark: only verified evidence (or entity columns already
-  // promoted through the contact pipeline) may display as personal.
-  // Bureau/discovery "scope=person" stays candidate until verification.
+  // Fail-closed personal mark: only verified evidence (or entity columns promoted
+  // through the contact pipeline to direct_contact_verified) may display as personal.
+  // Manual import / discovery write email/phone onto the entity as candidates —
+  // matching those columns must NOT auto-promote to personal.
   if (args.validationStatus === "verified") return "personal";
-  if (args.vectorType === "email" && args.entityEmail && args.value === args.entityEmail) return "personal";
-  if (args.vectorType === "phone" && args.entityPhone && args.value === args.entityPhone) {
+  const outcome = String(args.contactOutcome ?? "").toLowerCase();
+  const verifiedRoute = outcome === "direct_contact_verified";
+  if (verifiedRoute && args.vectorType === "email" && args.entityEmail && args.value === args.entityEmail) {
+    return "personal";
+  }
+  if (verifiedRoute && args.vectorType === "phone" && args.entityPhone && args.value === args.entityPhone) {
     const ps = String(args.phoneSource ?? "").toLowerCase();
     if (ps.includes("org") || ps.includes("registry") || ps.includes("company")) return "organization";
     return "personal";
@@ -75,6 +81,7 @@ export async function loadPresentedContactsForEntities(
     twitterHandle?: string | null;
     instagramHandle?: string | null;
     telegramHandle?: string | null;
+    contactOutcome?: string | null;
   }>,
 ): Promise<Record<number, PresentedContact[]>> {
   const out: Record<number, PresentedContact[]> = {};
@@ -122,6 +129,7 @@ export async function loadPresentedContactsForEntities(
       entityPhone: entity.phone,
       entityType: entity.type,
       phoneSource: entity.phoneSource,
+      contactOutcome: entity.contactOutcome,
     });
     out[row.entityId].push({
       vectorType: row.vectorType,
@@ -150,6 +158,7 @@ export async function loadPresentedContactsForEntities(
         entityPhone: e.phone,
         entityType: e.type,
         phoneSource: e.phoneSource,
+        contactOutcome: e.contactOutcome,
       });
       out[e.id].push({
         vectorType,

@@ -56,7 +56,10 @@ type PresentedContact = {
   label: string;
 };
 
-/** Build display list from API `contacts` or fall back to primary entity fields. */
+/** Build display list from API `contacts` or fall back to primary entity fields.
+ * Fail-closed: only direct_contact_verified (or org types) get personal/org marks.
+ * Manual import and discovery candidates stay "Still a lead".
+ */
 function collectContacts(entity: any): PresentedContact[] {
   const fromApi = Array.isArray(entity.contacts) ? (entity.contacts as PresentedContact[]) : [];
   if (fromApi.length > 0) return fromApi;
@@ -72,9 +75,13 @@ function collectContacts(entity: any): PresentedContact[] {
     });
   };
   const org = entity.type === "Corporation" || entity.type === "Corp" || entity.type === "Trust";
-  const phoneOrg = org || /org|registry|company/i.test(String(entity.phoneSource ?? ""));
-  push("email", entity.email, org ? "organization" : "personal");
-  push("phone", entity.phone, phoneOrg ? "organization" : "personal");
+  const outcome = String(entity.contactOutcome ?? "").toLowerCase();
+  const verified = outcome === "direct_contact_verified";
+  const orgOutcome = outcome === "organization_contact" || org;
+  const phoneOrg = orgOutcome || /org|registry|company/i.test(String(entity.phoneSource ?? ""));
+  // Never auto-personal from mere presence of email/phone columns (import writes candidates there).
+  push("email", entity.email, orgOutcome ? "organization" : verified ? "personal" : "candidate");
+  push("phone", entity.phone, phoneOrg ? "organization" : verified ? "personal" : "candidate");
   push("social", entity.linkedinUrl, "candidate");
   if (entity.twitterHandle) push("social", entity.twitterHandle, "candidate");
   if (entity.instagramHandle) push("social", entity.instagramHandle, "candidate");
