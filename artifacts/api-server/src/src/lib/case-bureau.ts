@@ -1418,6 +1418,7 @@ export function applyGeminiBossPlan(
       : "";
 
   // Phase 1: reject or reframe — do not activate a research action.
+  // Park remaining queued actions so a later advance cannot burn budget on a rejected target.
   if (outcome === "reject_target" || outcome === "reframe") {
     const decisionText =
       outcome === "reject_target"
@@ -1426,6 +1427,9 @@ export function applyGeminiBossPlan(
     return {
       ...file,
       nextBestAction: null,
+      actionQueue: file.actionQueue.map((action) =>
+        action.status === "queued" ? { ...action, status: "review" as const } : action,
+      ),
       decisionLog: [
         ...file.decisionLog,
         {
