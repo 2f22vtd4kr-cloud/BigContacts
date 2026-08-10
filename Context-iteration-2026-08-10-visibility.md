@@ -29,3 +29,12 @@ c4fc077 feat(bureau): contact refresh on read, job registry-shallow honesty, per
 - Phase B secondary expansion (LinkedIn, Signal, aggregator claims as leads on person-shaped retention).
 - Full proof run against quiet officer / Trace-Cohen-class lead.
 - Healthz honesty surface polish.
+
+## Phase B shipped (4880308)
+- `expandSecondaryPublicSurface` in bureau-contact-persist.ts
+- On materialize: up to 5 person-shaped candidates get free OSINT LinkedIn/email/phone/website as candidate leads only
+- UI labels aligned: Looks personal / Company · related / Still a lead
+
+## Commits
+- 22ac95e Phase A visibility + active-job 200-when-idle
+- 4880308 Phase B secondary expansion

@@ -68,7 +68,7 @@ function collectContacts(entity: any): PresentedContact[] {
       vectorType,
       value: v,
       mark,
-      label: mark === "personal" ? "Personal" : mark === "organization" ? "Org" : "Candidate",
+      label: mark === "personal" ? "Looks personal" : mark === "organization" ? "Company · related" : "Still a lead",
     });
   };
   const org = entity.type === "Corporation" || entity.type === "Corp" || entity.type === "Trust";
@@ -79,6 +79,9 @@ function collectContacts(entity: any): PresentedContact[] {
   if (entity.twitterHandle) push("social", entity.twitterHandle, "candidate");
   if (entity.instagramHandle) push("social", entity.instagramHandle, "candidate");
   if (entity.telegramHandle) push("social", entity.telegramHandle, "candidate");
+  // Ranking law: Personal → Related/Org → Candidate/Lead
+  const rank = (m: string) => (m === "personal" ? 0 : m === "organization" ? 1 : 2);
+  out.sort((a, b) => rank(a.mark) - rank(b.mark) || a.vectorType.localeCompare(b.vectorType));
   return out;
 }
 
