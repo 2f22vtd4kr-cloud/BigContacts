@@ -57,10 +57,10 @@ function markContact(args: {
 }
 
 function contactLabel(vectorType: string, mark: string): string {
-  if (mark === "personal") return "Personal";
-  if (mark === "organization") return "Org";
-  if (vectorType === "social") return "Social";
-  return "Candidate";
+  if (mark === "personal") return "Looks personal";
+  if (mark === "organization") return "Company · related";
+  if (vectorType === "social") return "Still a lead";
+  return "Still a lead";
 }
 
 export async function loadPresentedContactsForEntities(
@@ -168,7 +168,8 @@ export async function loadPresentedContactsForEntities(
     if (e.telegramHandle) add("social", e.telegramHandle.startsWith("http") ? e.telegramHandle : `@${e.telegramHandle.replace(/^@/, "")}`, "entity-telegram");
   }
 
-  const rank = (m: string) => (m === "personal" ? 0 : m === "candidate" ? 1 : 2);
+  // Ranking law: Personal → Related/Org (strong attribution) → Candidate/Lead
+  const rank = (m: string) => (m === "personal" ? 0 : m === "organization" ? 1 : 2);
   for (const id of ids) {
     out[id].sort((a, b) => rank(a.mark) - rank(b.mark) || a.vectorType.localeCompare(b.vectorType));
   }

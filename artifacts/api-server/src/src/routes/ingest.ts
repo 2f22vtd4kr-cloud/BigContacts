@@ -255,22 +255,25 @@ router.get("/ingest/job/active/:type", async (req, res): Promise<void> => {
     res.status(400).json({ error: "Invalid job type." });
     return;
   }
+  // Phase D: never 404 when idle — multi-case queues treat empty as success.
+  // Terminal statuses are done | failed | cancelled (not "completed").
   const jobId = await getActiveJob(type);
   if (!jobId) {
-    res.status(404).json({ error: "No active job for this type.", type, jobId: null });
+    res.status(200).json({ type, jobId: null, job: null, active: false });
     return;
   }
   const job = await getJob(jobId);
   if (!job || job.status !== "running") {
-    res.status(404).json({
-      error: "No running job for this type.",
+    res.status(200).json({
       type,
       jobId,
+      job: job ?? null,
+      active: false,
       jobStatus: job?.status ?? null,
     });
     return;
   }
-  res.json({ type, jobId, job });
+  res.json({ type, jobId, job, active: true });
 });
 
 // ── GET /ingest/job/:jobId ─────────────────────────────────────────────────────

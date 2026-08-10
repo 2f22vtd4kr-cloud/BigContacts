@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import {
   db,
   entitiesTable,
@@ -265,6 +265,130 @@ function mergeDiscoveryCandidates(
   return rankDiscoveryReviewCandidates(
     filterDiscoveryCandidatesByFitness([...merged.values()]),
   ).slice(0, 80);
+}
+
+/**
+ * Phase A visibility floor: materialize non-trash discovery review candidates
+ * into durable review entities + contact_evidence so the entity ledger /
+ * "People worth knowing" is never stuck at zero after candidate-producing runs.
+ *
+ * - Never invents contacts or marks Personal.
+ * - Does not auto-promote to target cases.
+ * - Skips candidates that already have admittedEntityId.
+ * - Requires a non-empty name; prefers candidates with sourceUrls or contactEvidence.
+ */
+async function materializeDiscoveryReviewCandidates(input: {
+  caseId: number;
+  candidates: DiscoveryCandidate[];
+  sourceTag?: string;
+}): Promise<{ materialized: number; candidates: DiscoveryCandidate[] }> {
+  const sourceTag = input.sourceTag ?? "case-bureau-discovery";
+  const nowIso = new Date().toISOString();
+  let materialized = 0;
+  const updated: DiscoveryCandidate[] = [];
+
+  for (const candidate of input.candidates) {
+    const name = String(candidate.name ?? "").trim();
+    if (!name) {
+      updated.push(candidate);
+      continue;
+    }
+    if (candidate.admittedEntityId) {
+      updated.push(candidate);
+      continue;
+    }
+
+    const hasSurface =
+      (Array.isArray(candidate.sourceUrls) && candidate.sourceUrls.length > 0)
+      || (Array.isArray(candidate.contactEvidence) && candidate.contactEvidence.length > 0)
+      || Boolean(String(candidate.relevance ?? "").trim())
+      || Boolean(String(candidate.reachability ?? "").trim());
+    // Keep named person-shaped or registry anchors even when surface is thin —
+    // empty-name / pure noise already filtered by mergeDiscoveryCandidates.
+    if (!hasSurface && !name.includes(" ")) {
+      updated.push(candidate);
+      continue;
+    }
+
+    // Dedup against existing entities with the same name (case-insensitive).
+    const existing = await db
+      .select({ id: entitiesTable.id })
+      .from(entitiesTable)
+      .where(sql`lower(btrim(${entitiesTable.name})) = ${name.toLowerCase()}`)
+      .limit(1);
+
+    let entityId = existing[0]?.id ?? null;
+    if (!entityId) {
+      const entityType = candidateTypeToEntityType(String(candidate.type ?? "review_candidate"));
+      try {
+        const [entity] = await db.insert(entitiesTable).values({
+          name,
+          type: entityType,
+          bayesianScore: 0.05,
+          contactConfidence: 0,
+          contactOutcome: "evidence_only",
+          isHot: false,
+          isStarred: false,
+          isHidden: false,
+          sourceRegistries: JSON.stringify(["Case Bureau discovery"]),
+          notes: `Auto-materialized as review-only from Case Bureau discovery (case ${input.caseId}). Not promoted to target; Personal mark requires verified evidence.`,
+          metadata: JSON.stringify({
+            reviewOnly: true,
+            admission: "case-bureau-discovery-auto",
+            caseId: input.caseId,
+            materializedAt: nowIso,
+            candidate: {
+              name,
+              type: candidate.type,
+              relevance: candidate.relevance,
+              reachability: candidate.reachability,
+              sourceUrls: candidate.sourceUrls ?? [],
+              contactEvidence: candidate.contactEvidence ?? [],
+            },
+          }),
+        }).returning();
+        entityId = entity?.id ?? null;
+      } catch (err) {
+        // Race or unique constraint — leave candidate without entity id.
+        entityId = null;
+      }
+    }
+
+    if (!entityId) {
+      updated.push(candidate);
+      continue;
+    }
+
+    const contacts = collectDiscoveryContactsForTarget(name, input.candidates);
+    const evidence = contacts.length
+      ? contacts
+      : (candidate.contactEvidence ?? []);
+    // Also persist source profile URLs as website/social candidate vectors.
+    const urlEvidence = (candidate.sourceUrls ?? [])
+      .filter((u): u is string => typeof u === "string" && /^https?:\/\//i.test(u))
+      .slice(0, 8)
+      .map((url) => ({
+        vectorType: /linkedin\.com/i.test(url) ? "linkedin" : "website",
+        value: url,
+        scope: "candidate",
+        personName: name,
+        role: null,
+        sourceUrls: [url],
+        note: "Profile / source URL from discovery review candidate",
+        tier: "candidate",
+        state: "review_only",
+      }));
+    await persistBureauContactsForEntity(
+      entityId,
+      [...evidence, ...urlEvidence],
+      sourceTag,
+    );
+
+    materialized += 1;
+    updated.push({ ...candidate, admittedEntityId: entityId });
+  }
+
+  return { materialized, candidates: updated };
 }
 
 async function persistDiscoveryCheckpoint(
@@ -811,12 +935,27 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
         `Registry lanes: ${registryResults.map((entry) => `${entry.registry}=${entry.results.length}`).join(", ")}.`,
         registryErrors.length ? `Registry gaps: ${registryErrors.map((entry) => `${entry.registry}: ${entry.error}`).join("; ")}` : "Registry gaps: none reported.",
       ].join("\n");
+      // Phase A: materialize non-trash review candidates into entity ledger + contact_evidence.
+      // Related/org/candidate stay visible; no Personal mark; no target promotion.
+      const materialization = await materializeDiscoveryReviewCandidates({
+        caseId,
+        candidates: mergedReviewCandidates,
+        sourceTag: "case-bureau-discovery",
+      });
+      const ledgerCandidates = materialization.candidates;
+      if (materialization.materialized > 0) {
+        await appendJobLog(
+          jobId,
+          `Visibility floor: materialized ${materialization.materialized} review candidate(s) into entity ledger + contact_evidence (not promoted; Personal remains verified-only).`,
+        );
+      }
+
       const commentary = [
         bossUnavailable
           ? "The Gemini Boss opening was unavailable, so its provider gap is preserved explicitly."
           : "The Boss opening completed and established the first durable case context.",
         "The remaining bounded public-web and registry lanes ran without treating the unavailable Boss as a fatal case error.",
-         `Retain ${mergedReviewCandidates.length} candidate/anchor record(s) for human review only.`,
+         `Retain ${ledgerCandidates.length} candidate/anchor record(s) for human review; ${materialization.materialized} written to entity ledger for visibility.`,
         "Next decision: review identity, mission relevance, provenance, and realistic reachability before promoting any candidate into target-scoped research.",
       ].join(" ");
       const updatedFile = {
@@ -856,7 +995,7 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
            error: finalRightHand.error,
            createdAt: now().toISOString(),
          },
-         discoveredCandidates: mergedReviewCandidates,
+         discoveredCandidates: ledgerCandidates,
         decisionLog: [
           ...workingFile.decisionLog,
           {
@@ -927,27 +1066,28 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
         },
       ]);
       const quality = computeDiscoveryQualityMetrics(
-        mergedReviewCandidates,
+        ledgerCandidates,
       );
       await appendJobLog(
         jobId,
-        `Discovery complete; randomized lane=${discoveryTemplateSet}; review-only candidates=${mergedReviewCandidates.length}; fameDropped=${fameDropped}; personShaped=${quality.personShaped}; evidenceRate=${quality.evidenceRate}; no entity insertion.`,
+        `Discovery complete; randomized lane=${discoveryTemplateSet}; review candidates=${ledgerCandidates.length}; ledgerMaterialized=${materialization.materialized}; fameDropped=${fameDropped}; personShaped=${quality.personShaped}; evidenceRate=${quality.evidenceRate}; no target promotion.`,
       );
       await updateJob(jobId, {
         status: "done",
         progress: 4,
         total: 4,
-        inserted: 0,
+        inserted: materialization.materialized,
         skipped: fameDropped,
         errors: registryErrors.length,
-        message: `Discovery complete: ${mergedReviewCandidates.length} review-only candidate/anchor record(s); fameDropped=${fameDropped}; personShaped=${quality.personShaped}; no target promoted.`,
+        message: `Discovery complete: ${ledgerCandidates.length} review candidate(s); ${materialization.materialized} in entity ledger; fameDropped=${fameDropped}; personShaped=${quality.personShaped}; no target promoted.`,
         result: JSON.stringify({
           caseId,
           bossModel: boss.model,
           bossCitations: boss.citations.length,
           webQueries: broad.queriesFired,
           webResults: broad.resultsScraped,
-          reviewCandidates: mergedReviewCandidates.length,
+          reviewCandidates: ledgerCandidates.length,
+          ledgerMaterialized: materialization.materialized,
           fameDropped,
           discoveryQuality: quality,
           registryErrors: registryErrors.map((entry) => entry.registry),
@@ -1233,9 +1373,22 @@ router.post("/research/bureau/cases/:caseId/run-next-pass", async (req, res): Pr
         })),
       ];
       const mergedCandidates = mergeDiscoveryCandidates(workingFile.discoveredCandidates, newCandidates);
+      // Phase A: materialize any new review candidates into ledger + contact_evidence.
+      const materialization = await materializeDiscoveryReviewCandidates({
+        caseId,
+        candidates: mergedCandidates,
+        sourceTag: "case-bureau-verification",
+      });
+      const ledgerCandidates = materialization.candidates;
+      if (materialization.materialized > 0) {
+        await appendJobLog(
+          jobId,
+          `Visibility floor: materialized ${materialization.materialized} verification candidate(s) into entity ledger + contact_evidence.`,
+        );
+      }
       const finalFile = {
         ...workingFile,
-        discoveredCandidates: mergedCandidates,
+        discoveredCandidates: ledgerCandidates,
         nextInvestigation: {
           rightHand: {
             status: rightHand.status,
@@ -1266,7 +1419,7 @@ router.post("/research/bureau/cases/:caseId/run-next-pass", async (req, res): Pr
           status: "reviewed" as const,
           bossCommentary: [
             workingFile.initialResearch.bossCommentary ?? "",
-            "Verification pass completed; all results remain review-only.",
+            `Verification pass completed; ${materialization.materialized} candidate(s) written to entity ledger; results remain review-only (no target promotion).`,
             boss.nextDirections.length ? `Next rabbit-hole directions: ${boss.nextDirections.join("; ")}` : "",
           ].filter(Boolean).join(" ").slice(-8_000),
           sourceUrls: [...new Set([
@@ -1300,40 +1453,42 @@ router.post("/research/bureau/cases/:caseId/run-next-pass", async (req, res): Pr
         updatedAt: now(),
       }).where(eq(researchCasesTable.id, caseId)).returning();
       const verificationQuality = computeDiscoveryQualityMetrics(
-        mergedCandidates,
+        ledgerCandidates,
       );
       await db.insert(researchCaseEventsTable).values({
         caseId,
         iteration,
         actorRole: "head_investigator",
         eventType: "decision",
-        summary: `Boss-directed verification pass completed with ${mergedCandidates.length} review-only candidate/anchor record(s); personShaped=${verificationQuality.personShaped}; no target promoted.`,
+        summary: `Boss-directed verification pass completed with ${ledgerCandidates.length} review candidate(s); ledgerMaterialized=${materialization.materialized}; personShaped=${verificationQuality.personShaped}; no target promoted.`,
         payload: JSON.stringify({
           jobId,
           mistral: { status: mistral.status, citations: mistral.citations.length, candidates: mistral.candidates.length },
           rightHand: { status: rightHand.status, model: rightHand.model },
           boss: { status: boss.status, candidates: boss.candidates.length, nextDirections: boss.nextDirections },
-          candidateCount: mergedCandidates.length,
+          candidateCount: ledgerCandidates.length,
+          ledgerMaterialized: materialization.materialized,
           discoveryQuality: verificationQuality,
-          inserted: 0,
+          inserted: materialization.materialized,
           promoted: 0,
         }),
       });
       await appendJobLog(
         jobId,
-        `Verification complete; candidates=${mergedCandidates.length}; personShaped=${verificationQuality.personShaped}; evidenceRate=${verificationQuality.evidenceRate}; fameRejected=${verificationQuality.fameRejected}; no entity insertion or target promotion.`,
+        `Verification complete; candidates=${ledgerCandidates.length}; ledgerMaterialized=${materialization.materialized}; personShaped=${verificationQuality.personShaped}; evidenceRate=${verificationQuality.evidenceRate}; fameRejected=${verificationQuality.fameRejected}; no target promotion.`,
       );
       await updateJob(jobId, {
         status: "done",
         progress: 4,
         total: 4,
-        inserted: 0,
+        inserted: materialization.materialized,
         skipped: verificationQuality.fameRejected,
         errors: 0,
-        message: `Verification complete: ${mergedCandidates.length} review-only candidate/anchor record(s); personShaped=${verificationQuality.personShaped}; no target promoted.`,
+        message: `Verification complete: ${ledgerCandidates.length} review candidate(s); ${materialization.materialized} in entity ledger; personShaped=${verificationQuality.personShaped}; no target promoted.`,
         result: JSON.stringify({
           caseId,
-          reviewCandidates: mergedCandidates.length,
+          reviewCandidates: ledgerCandidates.length,
+          ledgerMaterialized: materialization.materialized,
           discoveryQuality: verificationQuality,
           caseStatus: updated?.status ?? "review",
         }),
