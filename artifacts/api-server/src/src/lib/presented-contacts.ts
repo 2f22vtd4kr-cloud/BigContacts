@@ -41,8 +41,10 @@ function markContact(args: {
   const meta = parseEvidenceMeta(args.metadata);
   const scope = String(meta.scope ?? meta.personScope ?? meta.routeScope ?? "").toLowerCase();
   if (scope === "organization" || scope === "org" || scope === "company") return "organization";
+  // Fail-closed personal mark: only verified evidence (or entity columns already
+  // promoted through the contact pipeline) may display as personal.
+  // Bureau/discovery "scope=person" stays candidate until verification.
   if (args.validationStatus === "verified") return "personal";
-  if (scope === "person" || scope === "personal" || scope === "individual") return "personal";
   if (args.vectorType === "email" && args.entityEmail && args.value === args.entityEmail) return "personal";
   if (args.vectorType === "phone" && args.entityPhone && args.value === args.entityPhone) {
     const ps = String(args.phoneSource ?? "").toLowerCase();
@@ -50,6 +52,7 @@ function markContact(args: {
     return "personal";
   }
   if (args.vectorType === "social") return "candidate";
+  // Person-scoped but unverified remains visible as candidate — never mislabeled personal.
   return "candidate";
 }
 
