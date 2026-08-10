@@ -222,7 +222,7 @@ export default function SystemStatusPage() {
     ? aiProviders.reduce((sum, k) => sum + (status.ai[k]?.filter(s => s.state === "active").length ?? 0), 0)
     : 0;
 
-  const upstashSlots = status?.databases.upstash ?? [];
+  const upstashSlots = status?.databases?.upstash ?? [];
 
   return (
     <div className="mx-auto max-w-4xl space-y-8 px-4 py-8">
@@ -393,14 +393,14 @@ export default function SystemStatusPage() {
         <div className="space-y-2">
           <DbRow
             label="PostgreSQL"
-            status={status?.databases.postgres.status ?? "—"}
-            latency={status?.databases.postgres.latencyMs ?? null}
+            status={status?.databases?.postgres?.status ?? "—"}
+            latency={status?.databases?.postgres?.latencyMs ?? null}
             icon={Server}
           />
           <DbRow
             label="Local Redis (cache)"
-            status={status?.databases.localRedis.status ?? "—"}
-            latency={status?.databases.localRedis.latencyMs ?? null}
+            status={status?.databases?.localRedis?.status ?? "—"}
+            latency={status?.databases?.localRedis?.latencyMs ?? null}
             icon={Layers}
           />
         </div>

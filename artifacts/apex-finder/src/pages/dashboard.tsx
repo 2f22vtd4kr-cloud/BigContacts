@@ -100,8 +100,8 @@ function LeadCard({ lead, index }: { lead: any; index: number }) {
   const findingsSummary = entityFindingsSummary(lead);
   return (
     <Link
-      href={`/profile/${lead.entityId}`}
-      data-testid={`card-entity-${lead.entityId}`}
+      href={`/profile/${lead.entityId ?? lead.id}`}
+      data-testid={`card-entity-${lead.entityId ?? lead.id}`}
       className="group relative flex min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-card/50 p-5 transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:bg-card hover:shadow-lg hover:shadow-primary/5 focus-visible:border-primary"
     >
       <div className="absolute right-0 top-0 h-24 w-24 rounded-bl-[100px] bg-primary/[0.03] transition-colors group-hover:bg-primary/[0.08]" />
@@ -110,7 +110,7 @@ function LeadCard({ lead, index }: { lead: any; index: number }) {
           {initials(lead.entityName)}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="truncate font-display text-[15px] font-semibold text-foreground" data-testid={`text-lead-name-${lead.entityId}`}>
+          <div className="truncate font-display text-[15px] font-semibold text-foreground" data-testid={`text-lead-name-${lead.entityId ?? lead.id}`}>
             {lead.entityName || "Unnamed entity"}
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-2 font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
@@ -165,12 +165,12 @@ function LeadCard({ lead, index }: { lead: any; index: number }) {
       <div className="relative mt-6 grid grid-cols-2 gap-3">
         <div className="rounded-lg border border-border/70 bg-background/45 px-3 py-2.5">
           <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">Confidence</div>
-          <div className={`mt-1 font-mono text-lg font-bold ${scoreTone(confidence)}`} data-testid={`text-confidence-${lead.entityId}`}>{scorePercent(confidence)}</div>
+          <div className={`mt-1 font-mono text-lg font-bold ${scoreTone(confidence)}`} data-testid={`text-confidence-${lead.entityId ?? lead.id}`}>{scorePercent(confidence)}</div>
           <div className="mt-0.5 text-[10px] text-muted-foreground">contact data trust</div>
         </div>
         <div className="rounded-lg border border-border/70 bg-background/45 px-3 py-2.5 transition-colors group-hover:border-primary/20">
           <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">Access</div>
-          <div className={`mt-1 font-mono text-lg font-bold ${scoreTone(access)}`} data-testid={`text-access-${lead.entityId}`}>{scorePercent(access)}</div>
+          <div className={`mt-1 font-mono text-lg font-bold ${scoreTone(access)}`} data-testid={`text-access-${lead.entityId ?? lead.id}`}>{scorePercent(access)}</div>
           <div className="mt-0.5 text-[10px] text-muted-foreground">public reachability</div>
         </div>
       </div>
@@ -283,7 +283,7 @@ export default function Dashboard() {
         {hasError ? <ErrorState onRetry={() => { void statsQuery.refetch(); void leadsQuery.refetch(); }} /> :
           isLoading ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">{[0, 1, 2, 3].map((item) => <LeadSkeleton key={item} />)}</div> :
           leads.length === 0 ? <EmptyLeads /> :
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">{leads.map((lead: any, index: number) => <LeadCard key={lead.entityId} lead={lead} index={index} />)}</div>}
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">{leads.map((lead: any, index: number) => <LeadCard key={lead.entityId ?? lead.id ?? index} lead={lead} index={index} />)}</div>}
       </section>
 
       <section className="atlas-enter mt-10 grid gap-4 border-t border-border/70 pt-7 md:grid-cols-[1fr_auto]" style={{ animationDelay: "210ms" }}>

@@ -970,7 +970,7 @@ function DiscoveryBureauPanel({
           <div>
             {file?.nextInvestigation?.boss?.status === "completed"
               ? "gemini boss reviewed"
-              : discoveryCase.directorMode.replaceAll("_", " ")}
+              : String(discoveryCase.directorMode ?? "manual").replaceAll("_", " ")}
             {" · "}
             {file?.initialResearch.status ?? "not started"}
           </div>
@@ -1383,7 +1383,7 @@ function CandidateFunnelPanel({ funnel }: { funnel: CandidateFunnel | null }) {
     ["Verified direct", funnel.verifiedDirectRoute, "text-emerald-300"],
     ["Rejected", funnel.rejected, "text-rose-300"],
   ];
-  const stateLabel = (state: string) => state.replaceAll("_", " ");
+  const stateLabel = (state: string) => String(state ?? "").replaceAll("_", " ");
   return (
     <div className="border-t border-border/50 bg-[#080C14] px-4 md:px-5 py-4 flex-shrink-0">
       <div className="flex items-start justify-between gap-3 mb-3">
@@ -1465,17 +1465,17 @@ function RouteHierarchyPanel({ routes }: { routes: RankedResearchRoute[] | null 
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-[10px] font-mono text-amber-300 w-5">#{route.rank}</span>
               <span className="text-[10px] uppercase tracking-wider text-primary">{route.tierLabel}</span>
-              <span className="text-[10px] font-mono text-muted-foreground">{route.state.replaceAll("_", " ")}</span>
+              <span className="text-[10px] font-mono text-muted-foreground">{String(route.state ?? "review").replaceAll("_", " ")}</span>
               <span className="text-[10px] font-mono text-muted-foreground ml-auto">score {route.score}</span>
             </div>
             <div className="flex flex-wrap items-center gap-2 mt-1">
               {route.vectorType === "email" ? <Mail className="w-3 h-3 text-primary" /> : route.vectorType === "phone" ? <Phone className="w-3 h-3 text-primary" /> : <ExternalLink className="w-3 h-3 text-primary" />}
               <span className="text-xs text-foreground break-all">{route.value}</span>
               {route.personName && <span className="text-xs text-amber-200">· {route.personName}</span>}
-              {route.role && <span className="text-[10px] text-muted-foreground">· {route.role.replaceAll("_", " ")}</span>}
+              {route.role && <span className="text-[10px] text-muted-foreground">· {String(route.role ?? "").replaceAll("_", " ")}</span>}
             </div>
             <div className="text-[10px] text-muted-foreground mt-1">
-              {route.relationship?.replaceAll("-", " ") ?? route.scope} · {route.note}
+              {String(route.relationship ?? route.scope ?? "public").replaceAll("-", " ")} · {route.note}
             </div>
             {route.sourceUrls.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-1.5">
@@ -1514,7 +1514,7 @@ function IntroPathPanel({ candidate }: { candidate: IntroPathCandidate | null })
       ) : (
         <div className="rounded border border-amber-400/30 bg-amber-400/5 p-3 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[10px] uppercase tracking-wider font-mono text-amber-300">{candidate.routeKind.replaceAll("_", " ")}</span>
+            <span className="text-[10px] uppercase tracking-wider font-mono text-amber-300">{String(candidate.routeKind ?? "route").replaceAll("_", " ")}</span>
             <span className="text-xs font-semibold text-foreground">{candidate.route.label}</span>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs font-mono">

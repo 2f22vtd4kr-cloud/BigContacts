@@ -475,6 +475,11 @@ function FunnelPanel() {
         return body as FunnelData;
       })
       .then(d => {
+        if (!d || typeof d !== "object" || d.conversionRate == null) {
+          setData(null);
+          setLoadError("Funnel payload incomplete");
+          return;
+        }
         setData(d);
         setLoadError(null);
       })
@@ -530,10 +535,10 @@ function FunnelPanel() {
           {/* Conversion summary */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
-              { label: "Direct Contact", value: ((data.conversionRate.toDirectCandidate ?? 0) * 100).toFixed(2) + "%", color: "text-emerald-400" },
-              { label: "Social Only",    value: ((data.conversionRate.toSocialOnly     ?? 0) * 100).toFixed(1) + "%",  color: "text-blue-400" },
-              { label: "Evidence Only",  value: ((data.conversionRate.toEvidenceOnly   ?? 0) * 100).toFixed(1) + "%",  color: "text-amber-400" },
-              { label: "Not Enriched",   value: ((data.conversionRate.notEnriched      ?? 0) * 100).toFixed(1) + "%",  color: "text-muted-foreground" },
+              { label: "Direct Contact", value: (((data.conversionRate?.toDirectCandidate) ?? 0) * 100).toFixed(2) + "%", color: "text-emerald-400" },
+              { label: "Social Only",    value: (((data.conversionRate?.toSocialOnly)     ?? 0) * 100).toFixed(1) + "%",  color: "text-blue-400" },
+              { label: "Evidence Only",  value: (((data.conversionRate?.toEvidenceOnly)   ?? 0) * 100).toFixed(1) + "%",  color: "text-amber-400" },
+              { label: "Not Enriched",   value: (((data.conversionRate?.notEnriched)      ?? 0) * 100).toFixed(1) + "%",  color: "text-muted-foreground" },
             ].map(s => (
               <div key={s.label} className="text-center">
                 <div className={`text-xl font-bold font-mono ${s.color}`}>{s.value}</div>
@@ -790,9 +795,9 @@ function IdentityResolutionPanel() {
       .catch(() => setStats(null));
   }, []);
 
-  const pending   = stats?.candidates.pending   ?? 0;
-  const confirmed = stats?.candidates.confirmed ?? 0;
-  const rejected  = stats?.candidates.rejected  ?? 0;
+  const pending   = stats?.candidates?.pending   ?? 0;
+  const confirmed = stats?.candidates?.confirmed ?? 0;
+  const rejected  = stats?.candidates?.rejected  ?? 0;
 
   return (
     <section className="rounded-xl border border-border bg-card/60 p-4">
@@ -928,7 +933,16 @@ function PythonToolsPanel() {
     const base = import.meta.env.BASE_URL.replace(/\/$/, "");
     fetch(`${base}/api/enrich/python-tools`)
       .then(r => r.json())
-      .then(d => { setStatus(d as PythonToolsStatus); setLoading(false); setChecked(true); })
+      .then(d => {
+        // Reject non-object / incomplete payloads (mock empty arrays crash status.tools[k]).
+        if (!d || typeof d !== "object" || Array.isArray(d) || !d.tools || typeof d.tools !== "object") {
+          setStatus(null);
+        } else {
+          setStatus(d as PythonToolsStatus);
+        }
+        setLoading(false);
+        setChecked(true);
+      })
       .catch(() => { setLoading(false); setChecked(true); });
   };
 
@@ -938,13 +952,13 @@ function PythonToolsPanel() {
   // "pip-installable" tools — the install script can actually fix these
   const pipTools = ["holehe", "maigret", "sherlock"];
   const readyCount = status
-    ? toolKeys.filter(k => status.tools[k]).length + (status.gliner.available ? 1 : 0)
+    ? toolKeys.filter(k => status.tools?.[k]).length + (status.gliner?.available ? 1 : 0)
     : 0;
   const totalCount = toolKeys.length + 1; // +1 for GLiNER
   const allReady = readyCount === totalCount;
   // Only suggest the install script when a pip-installable tool is missing
   const needsInstallScript = checked && status
-    ? pipTools.some(k => !status.tools[k])
+    ? pipTools.some(k => !status.tools?.[k])
     : false;
 
   return (

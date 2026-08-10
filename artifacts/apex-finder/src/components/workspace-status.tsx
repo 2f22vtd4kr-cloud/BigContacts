@@ -156,13 +156,14 @@ export function WorkspaceStatus() {
   }, [open]);
 
   const summary = summarizeApiKeys(system);
+  const upstashSlots = system?.databases?.upstash ?? [];
   const upstashHealthy = Boolean(
-    system?.databases.upstash.length &&
-    system.databases.upstash.every((slot) => slot.status === "ready" || slot.status === "ok"),
+    upstashSlots.length &&
+    upstashSlots.every((slot) => slot.status === "ready" || slot.status === "ok"),
   );
   const servicesHealthy = Boolean(
-    system?.databases.postgres.status === "ok" &&
-    (system?.databases.localRedis.status === "ready" || system?.databases.localRedis.status === "ok") &&
+    system?.databases?.postgres?.status === "ok" &&
+    (system?.databases?.localRedis?.status === "ready" || system?.databases?.localRedis?.status === "ok") &&
     upstashHealthy,
   );
   const active = Boolean(atlas?.active);
@@ -195,10 +196,10 @@ export function WorkspaceStatus() {
             : ShieldCheck;
   const nextCycle = formatNextCycle(atlas?.scheduler?.nextTriggerAt);
   const refreshedNow = now;
-  const persistentRedisTotal = system?.databases.upstash.length ?? 0;
-  const persistentRedisHealthy = system?.databases.upstash.filter(
+  const persistentRedisTotal = upstashSlots.length;
+  const persistentRedisHealthy = upstashSlots.filter(
     (slot) => slot.status === "ready" || slot.status === "ok",
-  ).length ?? 0;
+  ).length;
   const databaseState = !system
     ? "DB —"
     : persistentRedisTotal > 0
