@@ -56,9 +56,10 @@ function markContact(args: {
   return "candidate";
 }
 
-function contactLabel(vectorType: string, mark: string): string {
+function contactLabel(vectorType: string, mark: string, value?: string): string {
   if (mark === "personal") return "Looks personal";
   if (mark === "organization") return "Company · related";
+  if (value && /^linkedin:not-found:/i.test(value)) return "LinkedIn not found";
   if (vectorType === "social") return "Still a lead";
   return "Still a lead";
 }
@@ -129,7 +130,7 @@ export async function loadPresentedContactsForEntities(
       sourceUrl: row.sourceUrl,
       validationStatus: row.validationStatus,
       mark,
-      label: contactLabel(row.vectorType, mark),
+      label: contactLabel(row.vectorType, mark, value),
     });
   }
 
@@ -157,7 +158,7 @@ export async function loadPresentedContactsForEntities(
         sourceUrl: vectorType === "social" && v.startsWith("http") ? v : null,
         validationStatus: "candidate",
         mark,
-        label: contactLabel(vectorType, mark),
+        label: contactLabel(vectorType, mark, v),
       });
     };
     add("email", e.email, "entity");
