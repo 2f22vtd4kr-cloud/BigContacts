@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { evaluateTargetFitness, shouldRejectTarget, suggestReframe } from "../lib/target-fitness";
-import { applyGeminiBossPlan, buildInitialCaseFile, type ResearchCaseFile } from "../lib/case-bureau";
+import { applyGeminiBossPlan, type ResearchCaseFile } from "../lib/case-bureau";
 import { computeInvestigationProgress, evaluateInvestigationStop } from "../lib/investigation-progress";
 
 describe("target fitness contract", () => {
