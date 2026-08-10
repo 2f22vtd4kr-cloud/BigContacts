@@ -142,6 +142,26 @@ function LeadCard({ lead, index }: { lead: any; index: number }) {
         </div>
       </div>
 
+      {Array.isArray(lead.contacts) && lead.contacts.length > 0 && (
+        <div className="relative mt-4 space-y-1">
+          <div className="font-mono text-[8px] uppercase tracking-[0.14em] text-muted-foreground">Contacts</div>
+          {lead.contacts.slice(0, 6).map((c: any, i: number) => {
+            const color = c.mark === "personal" ? "#10B981" : c.mark === "organization" ? "#F59E0B" : "#64748B";
+            return (
+              <div key={`${c.vectorType}-${c.value}-${i}`} className="flex items-center gap-1.5 min-w-0">
+                <span
+                  className="inline-block text-[8px] font-mono px-1 rounded flex-shrink-0"
+                  style={{ color, background: color + "18", border: `1px solid ${color}33` }}
+                >
+                  {c.label}
+                </span>
+                <span className="truncate font-mono text-[10px] text-foreground/85" title={c.value}>{c.value}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       <div className="relative mt-6 grid grid-cols-2 gap-3">
         <div className="rounded-lg border border-border/70 bg-background/45 px-3 py-2.5">
           <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">Confidence</div>

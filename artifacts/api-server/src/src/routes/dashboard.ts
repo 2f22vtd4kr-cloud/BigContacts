@@ -5,6 +5,7 @@ import { GetHotLeadsQueryParams } from "@workspace/api-zod";
 import { getCache, setCache } from "../lib/redis";
 import { computeAccessScore } from "../lib/access-score";
 import { reachabilityOrderExpr } from "../lib/reachability-rank";
+import { loadPresentedContactsForEntities } from "../lib/presented-contacts";
 
 const router: IRouter = Router();
 
@@ -131,6 +132,7 @@ router.get("/dashboard/hot-leads", async (req, res): Promise<void> => {
     evidence_only:            2,
   };
 
+  const contactMap = await loadPresentedContactsForEntities(entities);
   const hotLeads = entities.map((e) => ({
     entityId: e.id,
     entityName: e.name,
@@ -151,6 +153,7 @@ router.get("/dashboard/hot-leads", async (req, res): Promise<void> => {
     telegramBio: e.telegramBio,
     personalWebsite: e.personalWebsite,
     foundationName: e.foundationName,
+    contacts: contactMap[e.id] ?? [],
   }));
 
   res.json(

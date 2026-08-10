@@ -45,6 +45,100 @@ const EMPTY_FORM: AddEntityForm = {
   notes: "", sourceRegistries: "",
 };
 
+
+type PresentedContact = {
+  vectorType: string;
+  value: string;
+  source?: string;
+  sourceUrl?: string | null;
+  validationStatus?: string;
+  mark: "personal" | "organization" | "candidate";
+  label: string;
+};
+
+/** Build display list from API `contacts` or fall back to primary entity fields. */
+function collectContacts(entity: any): PresentedContact[] {
+  const fromApi = Array.isArray(entity.contacts) ? (entity.contacts as PresentedContact[]) : [];
+  if (fromApi.length > 0) return fromApi;
+  const out: PresentedContact[] = [];
+  const push = (vectorType: string, value: string | null | undefined, mark: PresentedContact["mark"]) => {
+    const v = String(value ?? "").trim();
+    if (!v) return;
+    out.push({
+      vectorType,
+      value: v,
+      mark,
+      label: mark === "personal" ? "Personal" : mark === "organization" ? "Org" : "Candidate",
+    });
+  };
+  const org = entity.type === "Corporation" || entity.type === "Corp" || entity.type === "Trust";
+  push("email", entity.email, org ? "organization" : "personal");
+  push("phone", entity.phone, org ? "organization" : "personal");
+  push("social", entity.linkedinUrl, "candidate");
+  if (entity.twitterHandle) push("social", entity.twitterHandle, "candidate");
+  if (entity.instagramHandle) push("social", entity.instagramHandle, "candidate");
+  if (entity.telegramHandle) push("social", entity.telegramHandle, "candidate");
+  return out;
+}
+
+function ContactMarkBadge({ mark, label }: { mark: string; label: string }) {
+  const color =
+    mark === "personal" ? "#10B981" :
+    mark === "organization" ? "#F59E0B" :
+    "#64748B";
+  return (
+    <span
+      className="inline-block text-[9px] font-mono px-1 py-0 rounded flex-shrink-0"
+      style={{ color, background: color + "18", border: `1px solid ${color}33` }}
+      title={mark === "personal" ? "Attributed personal contact" : mark === "organization" ? "Organization / company route" : "Review candidate — not discarded"}
+    >
+      {label}
+    </span>
+  );
+}
+
+function ContactsList({ entity, compact = false }: { entity: any; compact?: boolean }) {
+  const contacts = collectContacts(entity);
+  if (contacts.length === 0) {
+    return <span className="text-muted-foreground/40 font-mono text-[11px] italic">—</span>;
+  }
+  return (
+    <div className={compact ? "flex flex-col gap-0.5 min-w-0" : "flex flex-col gap-1 min-w-0"}>
+      {contacts.slice(0, compact ? 6 : 12).map((c, i) => {
+        const href =
+          c.vectorType === "email" ? `mailto:${c.value}` :
+          c.vectorType === "phone" ? `tel:${c.value}` :
+          c.sourceUrl || (c.value.startsWith("http") ? c.value : undefined);
+        return (
+          <div key={`${c.vectorType}-${c.value}-${i}`} className="flex items-center gap-1.5 min-w-0">
+            <ContactMarkBadge mark={c.mark} label={c.label} />
+            {href ? (
+              <a
+                href={href}
+                target={c.vectorType === "social" ? "_blank" : undefined}
+                rel={c.vectorType === "social" ? "noopener noreferrer" : undefined}
+                className="text-[11px] font-mono text-primary hover:underline truncate min-w-0"
+                title={`${c.vectorType}: ${c.value}`}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {c.value}
+              </a>
+            ) : (
+              <span className="text-[11px] font-mono text-foreground truncate min-w-0" title={c.value}>
+                {c.value}
+              </span>
+            )}
+          </div>
+        );
+      })}
+      {contacts.length > (compact ? 6 : 12) && (
+        <span className="text-[9px] font-mono text-muted-foreground">+{contacts.length - (compact ? 6 : 12)} more</span>
+      )}
+    </div>
+  );
+}
+
+
 // ─── Contact richness filter ──────────────────────────────────────────────────
 
 type ContactRichness = null | "any" | "direct" | "verified";
@@ -260,14 +354,12 @@ function MobileEntityCard({
           
           <div className="mb-3">
              <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-0.5">
-               {organizationLike ? "Organization route" : "Contact"}
+               Contacts
              </div>
-            <div className="text-xs text-foreground font-mono truncate">
-              {entity.email ? entity.email : entity.phone ? entity.phone : entity.linkedinUrl ? "LinkedIn" : "—"}
-            </div>
+            <ContactsList entity={entity} />
              <div className="text-[10px] text-muted-foreground/75 mt-1">
                {organizationLike
-                 ? `${contactState} · not a personal route`
+                 ? `${contactState} · org routes shown, only Personal is marked personal`
                  : contactState}
              </div>
             {entity.contactOutcome && OUTCOME_BADGES[entity.contactOutcome] && (
@@ -981,44 +1073,7 @@ export default function EntityLedger() {
                     <td className="px-4 py-3"><AccessScoreBadge score={entity.accessScore} /></td>
                     <td className="px-4 py-3 text-xs max-w-[220px]">
                       <div className="flex flex-col gap-0.5">
-                        {entity.email && (
-                          <a
-                            href={`mailto:${entity.email}`}
-                            className="flex items-center gap-1 text-primary hover:underline truncate font-mono"
-                            title={entity.email}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
-                            <span className="truncate text-[11px]" title={entity.email}>{entity.email}</span>
-                          </a>
-                        )}
-                        {entity.phone && (
-                          <a
-                            href={`tel:${entity.phone}`}
-                            className="flex items-center gap-1 text-secondary hover:underline font-mono"
-                            title={entity.phone}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
-                            <span className="text-[11px]" title={entity.phone}>{entity.phone}</span>
-                          </a>
-                        )}
-                        {entity.linkedinUrl && !entity.email && !entity.phone && (
-                          <a
-                            href={entity.linkedinUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1 text-blue-400 hover:underline font-mono"
-                            title={entity.linkedinUrl}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <svg className="w-3 h-3 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
-                            <span className="text-[11px] truncate" title={entity.linkedinUrl}>LinkedIn</span>
-                          </a>
-                        )}
-                        {!entity.email && !entity.phone && !entity.linkedinUrl && (
-                          <span className="text-muted-foreground/40 font-mono text-[11px] italic">—</span>
-                        )}
+                        <ContactsList entity={entity} compact />
                         {/* Outcome quality badge */}
                         {entity.contactOutcome && OUTCOME_BADGES[entity.contactOutcome] && (
                           <span

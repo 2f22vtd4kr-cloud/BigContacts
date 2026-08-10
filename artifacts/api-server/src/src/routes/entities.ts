@@ -23,6 +23,7 @@ import {
   sanitizePublicSocialUrl,
   sanitizePublicSocialHandle,
 } from "../lib/contact-validation";
+import { loadPresentedContactsForEntities } from "../lib/presented-contacts";
 
 const router: IRouter = Router();
 
@@ -46,6 +47,7 @@ function normalizePresentedContactOutcome(entity: {
   }
   return entity.contactOutcome ?? null;
 }
+
 
 const BOOLEAN_QUERY_KEYS = [
   "starred",
@@ -195,6 +197,7 @@ router.get("/entities", async (req, res): Promise<void> => {
     }
   }
 
+  const contactMap = await loadPresentedContactsForEntities(rows);
   const entities = rows.map((e) => ({
     ...e,
     bayesianScore: e.bayesianScore,
@@ -203,6 +206,7 @@ router.get("/entities", async (req, res): Promise<void> => {
     estimatedNetWorth: e.estimatedNetWorth,
     createdAt: e.createdAt.toISOString(),
     assetCount: assetCounts[e.id] ?? 0,
+    contacts: contactMap[e.id] ?? [],
   }));
 
   await setCache(cacheKey, entities, 30);
@@ -582,12 +586,14 @@ router.get("/entities/:id", async (req, res): Promise<void> => {
     .from(assetsTable)
     .where(eq(assetsTable.ownerEntityId, entity.id));
 
+  const contactMap = await loadPresentedContactsForEntities([entity]);
   res.json({
     ...entity,
     contactOutcome: normalizePresentedContactOutcome(entity),
     accessScore: computeAccessScore(entity),
     createdAt: entity.createdAt.toISOString(),
     assetCount: cnt?.cnt ?? 0,
+    contacts: contactMap[entity.id] ?? [],
   });
 });
 

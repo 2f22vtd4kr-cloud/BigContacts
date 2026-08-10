@@ -674,20 +674,23 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
         entity = { ...entity, twitterHandle: ihTwitter };
       }
       if (ihResult.evidence?.length) {
+        // Keep every non-trash vector as evidence. Only strip obvious invalid
+        // emails/phones/socials — never drop unknown networks or review-only hits.
         const cleanEvidence = ihResult.evidence.filter((ev: any) => {
           if (ev.vectorType === "email") return Boolean(sanitizePublicEmail(ev.value));
           if (ev.vectorType === "phone") return Boolean(sanitizePublicPhone(ev.value));
           if (ev.vectorType === "social") {
             const network = ev.details?.network;
-            return network === "linkedin"
-              ? Boolean(sanitizePublicSocialUrl(ev.value, "linkedin", "person"))
-              : network === "twitter"
-                ? isValidPublicSocialHandle(ev.value, "twitter")
-                : network === "instagram"
-                  ? isValidPublicSocialHandle(ev.value, "instagram")
-                  : false;
+            if (network === "linkedin") return Boolean(sanitizePublicSocialUrl(ev.value, "linkedin", "person"));
+            if (network === "twitter") return isValidPublicSocialHandle(ev.value, "twitter");
+            if (network === "instagram") return isValidPublicSocialHandle(ev.value, "instagram");
+            // Telegram / other / unknown: keep if non-empty public-looking value
+            const v = String(ev.value ?? "").trim();
+            return v.length >= 3 && v.length <= 500;
           }
-          return true;
+          // domain | website | address | other
+          const v = String(ev.value ?? "").trim();
+          return v.length >= 3 && v.length <= 500;
         });
         if (cleanEvidence.length) {
           await db.insert(contactEvidenceTable).values(cleanEvidence.map((ev: any) => ({
@@ -881,20 +884,20 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
       if (cleanTwitter  && !entity.twitterHandle)   entity = { ...entity, twitterHandle:   normalizeHandle(cleanTwitter) };
       if (cleanInstagram && !entity.instagramHandle) entity = { ...entity, instagramHandle: normalizeHandle(cleanInstagram) };
       if (aiResult.evidence?.length) {
+        // Persist all non-trash web hits as candidates — only mark personal later.
         const cleanEvidence = aiResult.evidence.filter((ev: any) => {
           if (ev.vectorType === "email") return Boolean(sanitizePublicEmail(ev.value));
           if (ev.vectorType === "phone") return Boolean(sanitizePublicPhone(ev.value));
           if (ev.vectorType === "social") {
             const network = ev.details?.network;
-            return network === "linkedin"
-              ? Boolean(sanitizePublicSocialUrl(ev.value, "linkedin", "person"))
-              : network === "twitter"
-                ? isValidPublicSocialHandle(ev.value, "twitter")
-                : network === "instagram"
-                  ? isValidPublicSocialHandle(ev.value, "instagram")
-                  : false;
+            if (network === "linkedin") return Boolean(sanitizePublicSocialUrl(ev.value, "linkedin", "person"));
+            if (network === "twitter") return isValidPublicSocialHandle(ev.value, "twitter");
+            if (network === "instagram") return isValidPublicSocialHandle(ev.value, "instagram");
+            const v = String(ev.value ?? "").trim();
+            return v.length >= 3 && v.length <= 500;
           }
-          return true;
+          const v = String(ev.value ?? "").trim();
+          return v.length >= 3 && v.length <= 500;
         });
         if (cleanEvidence.length) {
           await db.insert(contactEvidenceTable).values(cleanEvidence.map((ev: any) => ({
