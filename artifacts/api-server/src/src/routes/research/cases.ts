@@ -1670,6 +1670,7 @@ router.post("/research/bureau/cases/:caseId/promote-target", async (req, res): P
     return;
   }
   const targetFile = buildInitialCaseFile(entity);
+  const { computeInvestigationProgress } = await import("../../lib/investigation-progress");
   const now = new Date();
   const promotedFile = {
     ...targetFile,
@@ -1679,6 +1680,14 @@ router.post("/research/bureau/cases/:caseId/promote-target", async (req, res): P
       bossPremise: discoveryFile.bossPremise,
       initialResearch: discoveryFile.initialResearch,
     },
+    investigationProgress: computeInvestigationProgress({
+      routes: targetFile.contactRoutes ?? [],
+      sourceRegistries: targetFile.evidenceSummary?.sourceRegistries ?? [],
+      searchGaps: targetFile.evidenceSummary?.searchGaps ?? [],
+      negativeFindings: targetFile.evidenceSummary?.negativeFindings ?? [],
+      completedActionIds: [],
+    }),
+    noProgressStreak: 0,
     lastUpdatedBy: "boss-target-promotion",
   };
   const [updated] = await db.update(researchCasesTable).set({
