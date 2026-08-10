@@ -18,6 +18,9 @@ export type {
   NvidiaNimDiscoveryAdviceResult,
 } from "./nvidia-nim-case-reasoning";
 
+/** Boss may proceed with an allowlisted action, reject the target, or reframe scope. */
+export type BossPlanOutcome = "proceed" | "reject_target" | "reframe";
+
 export type BureauSpecialist = {
   id: string;
   title: string;
@@ -113,6 +116,7 @@ export type ResearchCaseFile = {
     provider: "gemini";
     model: string;
     status: "completed" | "unavailable";
+    outcome?: BossPlanOutcome;
     actionId: string | null;
     decision: string | null;
     reason: string | null;
@@ -121,6 +125,9 @@ export type ResearchCaseFile = {
     tools: string[];
     evidenceRequirements: string[];
     confidence: number | null;
+    progressAssessment?: string | null;
+    reprioritize?: string[];
+    suggestedScope?: string | null;
     error: string | null;
     createdAt: string;
   };
@@ -277,9 +284,6 @@ export type GeminiBossDiscoveryResult = {
 };
 
 export type DiscoveryInvestigatorReport = DiscoveryCaseFile["investigatorReports"][number];
-
-/** Boss may proceed with an allowlisted action, reject the target, or reframe scope. */
-export type BossPlanOutcome = "proceed" | "reject_target" | "reframe";
 
 export type GeminiBossPlanResult = {
   status: "completed" | "unavailable";
@@ -1499,6 +1503,7 @@ export function recordGeminiBossPlan(
       provider: "gemini",
       model: input.model,
       status: input.status,
+      outcome: input.outcome,
       actionId: input.actionId,
       decision: input.decision,
       reason: input.reason,
@@ -1507,6 +1512,9 @@ export function recordGeminiBossPlan(
       tools: input.tools,
       evidenceRequirements: input.evidenceRequirements,
       confidence: input.confidence,
+      progressAssessment: input.progressAssessment,
+      reprioritize: input.reprioritize ?? [],
+      suggestedScope: input.suggestedScope,
       error: input.error,
       createdAt: input.now ?? new Date().toISOString(),
     },
