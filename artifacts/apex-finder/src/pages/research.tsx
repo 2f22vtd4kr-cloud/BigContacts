@@ -617,14 +617,18 @@ function BureauCasePanel({
                   <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap rounded border border-border/50 bg-background/40 p-2 text-[9px] leading-relaxed text-muted-foreground">{file.bossPlan.investigatorPrompt}</pre>
                 </details>
               )}
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {file.bossPlan.tools.map((tool) => (
-                  <span key={tool} className="rounded border border-primary/25 px-1.5 py-0.5 text-[9px] font-mono text-primary">{tool}</span>
-                ))}
-              </div>
-              <div className="mt-2 text-[9px] text-muted-foreground">
-                Restrictions: {file.bossPlan.restrictions.join(" · ")}
-              </div>
+              {(file.bossPlan.tools?.length ?? 0) > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {file.bossPlan.tools.map((tool) => (
+                    <span key={tool} className="rounded border border-primary/25 px-1.5 py-0.5 text-[9px] font-mono text-primary">{tool}</span>
+                  ))}
+                </div>
+              )}
+              {(file.bossPlan.restrictions?.length ?? 0) > 0 && (
+                <div className="mt-2 text-[9px] text-muted-foreground">
+                  Restrictions: {file.bossPlan.restrictions.join(" · ")}
+                </div>
+              )}
             </>
           ) : (
             <div className="text-[10px] text-muted-foreground mt-2">
