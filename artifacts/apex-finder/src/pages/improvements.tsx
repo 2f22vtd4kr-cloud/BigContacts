@@ -357,7 +357,7 @@ export default function ImprovementsPage() {
       try {
         const job = await apiGet(`/improve/jobs/${jobId}`);
         setCurrentJob(job);
-        if (job.status === "done" || job.status === "failed") {
+        if (job.status === "done" || job.status === "failed" || job.status === "cancelled") {
           clearInterval(pollRef.current!);
           pollRef.current = null;
           setRunState("done");
@@ -419,7 +419,7 @@ export default function ImprovementsPage() {
         try {
           const job = await apiGet(`/improve/jobs/${result.jobId}`);
           setRemediationJob(job);
-          if (job.status === "done" || job.status === "failed") {
+          if (job.status === "done" || job.status === "failed" || job.status === "cancelled") {
             window.clearInterval(timer);
             setRemediationState(job.status === "done" ? "done" : "failed");
             fetchData();
@@ -452,7 +452,7 @@ export default function ImprovementsPage() {
         try {
           const job = await apiGet(`/improve/jobs/${result.jobId}`);
           setCleanupJob(job);
-          if (job.status === "done" || job.status === "failed") {
+          if (job.status === "done" || job.status === "failed" || job.status === "cancelled") {
             window.clearInterval(timer);
             setCleanupState(job.status === "done" ? "done" : "failed");
             fetchData();
