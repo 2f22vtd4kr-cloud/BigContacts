@@ -8,6 +8,10 @@ import {
 } from "@workspace/db";
 import { persistBureauContactsForEntity } from "../../lib/bureau-contact-persist";
 import {
+  filterDiscoveryCandidatesByFitness,
+  rankDiscoveryReviewCandidates,
+} from "../../lib/discovery-intake";
+import {
   AddResearchCaseDirectiveBody,
   AddResearchCaseDirectiveParams,
   AdvanceResearchCaseParams,
@@ -142,7 +146,10 @@ function mergeDiscoveryCandidates(
       admittedEntityId: prior.admittedEntityId ?? candidate.admittedEntityId ?? null,
     });
   }
-  return [...merged.values()].slice(0, 80);
+  // Fame-only trophies out; person-first ranking; shells kept only with reframe annotation.
+  return rankDiscoveryReviewCandidates(
+    filterDiscoveryCandidatesByFitness([...merged.values()]),
+  ).slice(0, 80);
 }
 
 async function persistDiscoveryCheckpoint(

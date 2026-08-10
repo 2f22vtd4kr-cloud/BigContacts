@@ -159,3 +159,63 @@ export function rankCandidatesForAdmission<T extends { name: string; snippet?: s
     return sb - sa;
   });
 }
+
+/**
+ * Drop fame-only trophies from discovery review lists.
+ * Pure corp shells are kept but annotated so operators reframe to officers —
+ * never presented as person targets without a person path.
+ */
+export function filterDiscoveryCandidatesByFitness<T extends {
+  name: string;
+  type?: string | null;
+  relevance?: string | null;
+  reachability?: string | null;
+}>(candidates: T[]): T[] {
+  const kept: T[] = [];
+  for (const candidate of candidates) {
+    const fitness = evaluateTargetFitness({
+      name: candidate.name,
+      type: candidate.type,
+      snippet: `${candidate.relevance ?? ""} ${candidate.reachability ?? ""}`,
+      personScoped: true,
+    });
+    if (fitness.fit === "reject_fame_only") {
+      // Ultra-public household names never enter the discovery review deck.
+      continue;
+    }
+    if (fitness.fit === "reject_non_person") {
+      const relevance = String(candidate.relevance ?? "").trim();
+      const note = "Corp/shell under person-scoped discovery — reframe to named officers/directors/shareholders before admission.";
+      kept.push({
+        ...candidate,
+        relevance: relevance.includes("reframe") ? relevance : `${relevance ? `${relevance} ` : ""}${note}`.trim(),
+        reachability: candidate.reachability
+          ? String(candidate.reachability)
+          : "Organization shell only; no person path claimed.",
+      });
+      continue;
+    }
+    kept.push(candidate);
+  }
+  return kept;
+}
+
+/** Rank discovery review candidates: approachable principals first, shells last. */
+export function rankDiscoveryReviewCandidates<T extends {
+  name: string;
+  type?: string | null;
+  relevance?: string | null;
+  reachability?: string | null;
+}>(candidates: T[]): T[] {
+  return [...candidates].sort((a, b) => {
+    const sb = scoreApproachableCandidate({
+      name: b.name,
+      snippet: `${b.relevance ?? ""} ${b.reachability ?? ""}`,
+    });
+    const sa = scoreApproachableCandidate({
+      name: a.name,
+      snippet: `${a.relevance ?? ""} ${a.reachability ?? ""}`,
+    });
+    return sb - sa;
+  });
+}
