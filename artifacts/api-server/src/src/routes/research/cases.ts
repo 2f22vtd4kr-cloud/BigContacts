@@ -2376,6 +2376,16 @@ router.post("/research/cases", async (req, res): Promise<void> => {
     })),
     "case-bureau-open",
   );
+  // Phase B on single-target open: bounded secondary public surface (leads only).
+  try {
+    await expandSecondaryPublicSurface({
+      entityId,
+      name: entity.name,
+      entityType: entity.type,
+    });
+  } catch {
+    // non-fatal
+  }
   await db.insert(researchCaseEventsTable).values({
     caseId: created.id,
     actorRole: "boss",
