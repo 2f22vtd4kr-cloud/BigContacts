@@ -6,7 +6,10 @@ import {
   researchCaseEventsTable,
   researchCasesTable,
 } from "@workspace/db";
-import { persistBureauContactsForEntity } from "../../lib/bureau-contact-persist";
+import {
+  collectDiscoveryContactsForTarget,
+  persistBureauContactsForEntity,
+} from "../../lib/bureau-contact-persist";
 import {
   filterDiscoveryCandidatesByFitness,
   rankDiscoveryReviewCandidates,
@@ -1585,7 +1588,16 @@ router.post("/research/bureau/cases/:caseId/admit-candidate", async (req, res): 
   }
 
   // Related contacts from the discovery brief stay on the HNWI card — not discarded.
-  await persistBureauContactsForEntity(entity.id, candidate.contactEvidence ?? [], "case-bureau-admit");
+  // Pull matching person-named vectors from the whole deck, not only the single candidate row.
+  const admitContacts = collectDiscoveryContactsForTarget(
+    candidate.name,
+    discoveryFile.discoveredCandidates,
+  );
+  await persistBureauContactsForEntity(
+    entity.id,
+    admitContacts.length ? admitContacts : (candidate.contactEvidence ?? []),
+    "case-bureau-admit",
+  );
 
   const updatedCandidates = discoveryFile.discoveredCandidates.map((item) =>
     item.name.trim().toLowerCase() === candidate.name.trim().toLowerCase()
@@ -1681,10 +1693,12 @@ router.post("/research/bureau/cases/:caseId/promote-target", async (req, res): P
   }).where(eq(researchCasesTable.id, current.id)).returning();
 
   // Copy discovery + case hierarchy contacts onto the target entity for profile cards.
-  const matched = discoveryFile.discoveredCandidates.find(
-    (item) => item.name.trim().toLowerCase() === entity.name.trim().toLowerCase(),
+  // Whole-deck person-named evidence, not only the exact-name matched candidate row.
+  const promoteContacts = collectDiscoveryContactsForTarget(
+    entity.name,
+    discoveryFile.discoveredCandidates,
   );
-  await persistBureauContactsForEntity(entity.id, matched?.contactEvidence ?? [], "case-bureau-promote");
+  await persistBureauContactsForEntity(entity.id, promoteContacts, "case-bureau-promote");
   await persistBureauContactsForEntity(
     entity.id,
     (promotedFile.contactRoutes ?? []).map((route) => ({
@@ -1748,7 +1762,20 @@ router.post("/research/cases", async (req, res): Promise<void> => {
     res.status(200).json(serializeCase(existing, entity));
     return;
   }
-  const caseFile = buildInitialCaseFile(entity);
+  const baseCaseFile = buildInitialCaseFile(entity);
+  // Seed mandatory progress map on open so Boss decisions always have progress in/out.
+  const { computeInvestigationProgress } = await import("../../lib/investigation-progress");
+  const caseFile = {
+    ...baseCaseFile,
+    investigationProgress: computeInvestigationProgress({
+      routes: baseCaseFile.contactRoutes ?? [],
+      sourceRegistries: baseCaseFile.evidenceSummary?.sourceRegistries ?? [],
+      searchGaps: baseCaseFile.evidenceSummary?.searchGaps ?? [],
+      negativeFindings: baseCaseFile.evidenceSummary?.negativeFindings ?? [],
+      completedActionIds: [],
+    }),
+    noProgressStreak: 0,
+  };
   const bossModel = await resolveGeminiBossModel();
   const [created] = await db.insert(researchCasesTable).values({
     targetEntityId: entityId,

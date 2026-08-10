@@ -131,3 +131,43 @@ export async function persistBureauContactsForEntity(
     return 0;
   }
 }
+
+type DiscoveryCandidateContactSource = {
+  name: string;
+  contactEvidence?: BureauContactLike[] | null;
+};
+
+/**
+ * Collect non-trash contact vectors for a target from the discovery deck.
+ * Includes the matched candidate plus any evidence rows that name the same person.
+ * Never invents values — only copies public evidence already on the case.
+ */
+export function collectDiscoveryContactsForTarget(
+  targetName: string,
+  candidates: readonly DiscoveryCandidateContactSource[] | null | undefined,
+): BureauContactLike[] {
+  const normalized = targetName.trim().toLowerCase();
+  if (!normalized || !candidates?.length) return [];
+  const out: BureauContactLike[] = [];
+  const seen = new Set<string>();
+  for (const candidate of candidates) {
+    const candidateName = candidate.name.trim().toLowerCase();
+    const isMatch = candidateName === normalized;
+    for (const item of candidate.contactEvidence ?? []) {
+      const value = typeof item.value === "string" ? item.value.trim() : "";
+      if (!value) continue;
+      const person = String(item.personName ?? "").trim().toLowerCase();
+      const personMatches = Boolean(person) && (person === normalized || person.includes(normalized) || normalized.includes(person));
+      if (!isMatch && !personMatches) continue;
+      const key = `${String(item.vectorType ?? "other").toLowerCase()}|${value.toLowerCase()}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({
+        ...item,
+        value,
+        personName: item.personName ?? (isMatch ? targetName : item.personName ?? null),
+      });
+    }
+  }
+  return out;
+}
