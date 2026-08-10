@@ -141,6 +141,25 @@ describe("Boss control-loop contract", () => {
     expect(next!.actionQueue.every((a) => a.status !== "queued")).toBe(true);
   });
 
+  it("leaves remaining priorities untouched when reprioritize is empty", () => {
+    const file = minimalFile();
+    const before = file.actionQueue.filter((a) => a.id !== "expand-contact-routes").map((a) => ({ id: a.id, priority: a.priority }));
+    const next = applyGeminiBossPlan(file, {
+      outcome: "proceed",
+      actionId: "expand-contact-routes",
+      decision: "expand routes",
+      reason: "pending contact vectors",
+      progressAssessment: "pending phone/email",
+      reprioritize: [],
+      iteration: 1,
+    });
+    expect(next).not.toBeNull();
+    for (const prior of before) {
+      const after = next!.actionQueue.find((a) => a.id === prior.id);
+      expect(after?.priority).toBe(prior.priority);
+    }
+  });
+
   it("stop gate fires on fitness reject without requiring more provider burn", () => {
     const progress = computeInvestigationProgress({
       routes: [],
