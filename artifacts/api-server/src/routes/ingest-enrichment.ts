@@ -1086,7 +1086,7 @@ router.post("/ingest/social-discovery", async (req: Request, res: Response): Pro
         await new Promise(r => setTimeout(r, 3_500));
       }
 
-      await updateJob(jobId, { status: "completed", message: `Social discovery complete: ${enriched}/${rows.length} entities enriched`, progress: rows.length, total: rows.length, finishedAt: new Date().toISOString() } as any);
+      await updateJob(jobId, { status: "done", message: `Social discovery complete: ${enriched}/${rows.length} entities enriched`, progress: rows.length, total: rows.length, finishedAt: new Date().toISOString() } as any);
     } catch (err: any) {
       await updateJob(jobId, { status: "failed", message: err?.message ?? "Unknown error", finishedAt: new Date().toISOString() } as any);
     } finally {
@@ -1171,7 +1171,7 @@ router.post("/ingest/messenger-discovery", async (req: Request, res: Response): 
         await new Promise(r => setTimeout(r, 1_000));
       }
 
-      await updateJob(jobId, { status: "completed", message: `Messenger discovery complete: ${enriched}/${rows.length} Telegram handles found`, progress: rows.length, total: rows.length, finishedAt: new Date().toISOString() } as any);
+      await updateJob(jobId, { status: "done", message: `Messenger discovery complete: ${enriched}/${rows.length} Telegram handles found`, progress: rows.length, total: rows.length, finishedAt: new Date().toISOString() } as any);
     } catch (err: any) {
       await updateJob(jobId, { status: "failed", message: err?.message ?? "Unknown error", finishedAt: new Date().toISOString() } as any);
     } finally {
@@ -1265,7 +1265,7 @@ router.post("/ingest/foundation-filings", async (req: Request, res: Response): P
         await new Promise(r => setTimeout(r, 600));
       }
 
-      await updateJob(jobId, { status: "completed", message: `Foundation filings complete: ${enriched}/${rows.length} foundations found`, progress: rows.length, total: rows.length, finishedAt: new Date().toISOString() } as any);
+      await updateJob(jobId, { status: "done", message: `Foundation filings complete: ${enriched}/${rows.length} foundations found`, progress: rows.length, total: rows.length, finishedAt: new Date().toISOString() } as any);
     } catch (err: any) {
       await updateJob(jobId, { status: "failed", message: err?.message ?? "Unknown error", finishedAt: new Date().toISOString() } as any);
     } finally {
@@ -1300,7 +1300,7 @@ router.post("/ingest/broad-discovery", async (req: Request, res: Response): Prom
       await updateJob(jobId, { status: "running", message: "Broad discovery: querying open web…" } as any);
       const result = await runBroadDiscovery({ templateSet, rotateTemplates, maxQueries });
       await updateJob(jobId, {
-        status: "completed",
+        status: "done",
         message: `Broad discovery complete: ${result.entitiesDiscovered} new entities from ${result.queriesFired} queries (${result.entitiesSkipped} duplicates skipped)`,
         progress: result.queriesFired,
         total: result.queriesFired,
