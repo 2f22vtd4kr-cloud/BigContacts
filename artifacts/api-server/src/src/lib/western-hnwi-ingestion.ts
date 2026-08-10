@@ -833,6 +833,14 @@ export interface IngestionOptions {
   batchSize?: number;
   clearDedupFirst?: boolean;
   jobId?: string;
+  /**
+   * When true (Atlas single-target / small discovery admission), skip the
+   * random live-registry company mix and only insert person-typed records
+   * from officer/director/shareholder harvesters. Prevents corporate shells
+   * (e.g. BODACC "Partners" / Danish ApS) from consuming a 1-target budget
+   * before any individual is admitted.
+   */
+  preferPersons?: boolean;
 }
 
 export interface IngestionResult {
@@ -844,6 +852,8 @@ export interface IngestionResult {
 
 export async function runWesternHnwiIngestion(opts: IngestionOptions): Promise<IngestionResult> {
   const { targetCount, batchSize = 100, jobId, clearDedupFirst = false } = opts;
+  // Small Atlas admission budgets must not be burned on random company shells.
+  const preferPersons = Boolean(opts.preferPersons) || targetCount > 0 && targetCount <= 10;
   const t0 = Date.now();
   let inserted = 0, skipped = 0, errors = 0;
 
@@ -914,11 +924,11 @@ export async function runWesternHnwiIngestion(opts: IngestionOptions): Promise<I
         .map(e => e.name ?? "");
       const validNames = new Set(await filterHumanNamesWithLLM(candidateNames));
       const preCount = entityBatch.length;
-      entityBatch = entityBatch.filter((e) =>
-        e.type === "Corporation" ||
-        e.type === "Trust" ||
-        validNames.has(e.name ?? ""),
-      );
+      entityBatch = entityBatch.filter((e) => {
+        if (preferPersons && (e.type === "Corporation" || e.type === "Trust")) return false;
+        if (e.type === "Corporation" || e.type === "Trust") return true;
+        return validNames.has(e.name ?? "");
+      });
       const rejected = preCount - entityBatch.length;
       if (rejected > 0) {
         logger.info({ rejected }, "LLM name validator: rejected non-human names from batch");
@@ -941,11 +951,17 @@ export async function runWesternHnwiIngestion(opts: IngestionOptions): Promise<I
   // The source itself is shuffled on every run. Query terms are deliberately
   // broad but bounded, so this creates a changing company/lead mix without
   // pretending that a registry hit proves wealth or ownership.
-  const randomDiscoveryBudget = Math.min(
-    Math.max(12, Math.floor(targetCount * 0.15)),
-    Math.max(0, targetCount),
-    250,
-  );
+  //
+  // CRITICAL: when preferPersons / small targetCount, budget is 0. Otherwise a
+  // single BODACC/BRREG company shell fills targetCount=1 and person harvesters
+  // never run — producing empty personal-contact OSINT.
+  const randomDiscoveryBudget = preferPersons
+    ? 0
+    : Math.min(
+        Math.max(12, Math.floor(targetCount * 0.15)),
+        Math.max(0, targetCount),
+        250,
+      );
   const shuffledRegistries = [...randomDiscoveryRegistries].sort(() => Math.random() - 0.5);
   const randomQueryOrder = [...RANDOM_REGISTRY_QUERIES].sort(() => Math.random() - 0.5);
   let randomDiscoveryInserted = 0;
@@ -987,6 +1003,9 @@ export async function runWesternHnwiIngestion(opts: IngestionOptions): Promise<I
   }
   await flushBatch();
   await log(`[Random registry mix] Added ${randomDiscoveryInserted} candidate record(s) from shuffled live sources`);
+  if (preferPersons) {
+    await log(`[Admission] preferPersons=true — skipping corporate shells; officer/director/shareholder harvesters only`);
+  }
 
   // ── Run harvesters sequentially ──────────────────────────────────────────────
   for (const [harvester, sourceName] of harvesters) {

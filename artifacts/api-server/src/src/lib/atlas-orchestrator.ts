@@ -1765,10 +1765,17 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
           .map(source => source.category),
       )
     : null;
-  const sourcesToRun = selectedBroadCategories
-    ? DISCOVERY_SOURCES.filter(source => source.kind === "registry" || selectedBroadCategories.has(source.category))
-    : DISCOVERY_SOURCES;
   const targetLimit = Math.max(0, opts.targetCount ?? (opts.discoveryFirst ? 500 : 15_000));
+  // For small admission budgets, run person-oriented broad sources first and
+  // defer pure registry company batches so officer/web leads fill the slots.
+  let sourcesToRun = selectedBroadCategories
+    ? DISCOVERY_SOURCES.filter(source => source.kind === "registry" || selectedBroadCategories.has(source.category))
+    : [...DISCOVERY_SOURCES];
+  if (targetLimit > 0 && targetLimit <= 10) {
+    const broad = sourcesToRun.filter((s) => s.kind === "broad");
+    const registry = sourcesToRun.filter((s) => s.kind === "registry");
+    sourcesToRun = [...broad, ...registry];
+  }
   let admittedTargets = 0;
   let sourceRound = 0;
   const phaseJJobId = await createJob("phase-j-pass");
@@ -1797,10 +1804,12 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
         const hnwiRes = await runWesternHnwiIngestion({
           // This is an admission round, not a bulk import. Full-circle
           // enrichment below must finish before another target is admitted.
+          // preferPersons: never burn a 1-target Atlas slot on a bare company shell.
           targetCount: Math.min(1, remainingTargetBudget),
           batchSize: 1,
           jobId: hnwiJobId,
           clearDedupFirst: (source as any).clearFirst ?? false,
+          preferPersons: true,
         }).catch(e => { logger.error({ err: e.message }, "[Atlas] HNWI ingestion failed"); return { inserted: 0, skipped: 0, errors: 1, durationMs: 0 }; });
         await setActiveJob("western-hnwi", "");
         totalIngested += hnwiRes.inserted;
@@ -1819,7 +1828,9 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
       logger.error({ err: e.message, sourceRound }, "[Atlas] Discovery source failed");
     }
 
-    // Fetch entities created in this batch that haven't been cooked yet
+    // Fetch entities created in this batch that haven't been cooked yet.
+    // Prefer person-typed rows so corporate shells never consume the admission
+    // budget for a bounded Atlas run.
     const newEntities = await db.select({
       id: entitiesTable.id, name: entitiesTable.name, type: entitiesTable.type,
       email: entitiesTable.email, phone: entitiesTable.phone,
@@ -1833,6 +1844,7 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
       .where(and(
         sql`${entitiesTable.createdAt} >= ${runStart.toISOString()}`,
         sql`${entitiesTable.cookedAt} IS NULL`,
+        sql`(${entitiesTable.type} = 'HNWI' OR ${entitiesTable.type} = 'Gatekeeper')`,
       ))
       .orderBy(desc(entitiesTable.createdAt))
       .limit(1);
