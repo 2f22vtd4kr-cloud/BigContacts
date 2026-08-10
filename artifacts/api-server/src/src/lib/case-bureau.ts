@@ -125,9 +125,15 @@ export type ResearchCaseFile = {
   };
   nextBestAction: BureauAction | null;
   lastUpdatedBy: string;
+  /** Phase 2: mandatory contact-vector progress map */
+  investigationProgress?: import("./investigation-progress").InvestigationProgress;
+  researchDepth?: import("./research-depth").ResearchDepth;
+  /** Consecutive advances with no increase in foundAnyCount */
+  noProgressStreak?: number;
 };
 
 export type DiscoveryCaseFile = {
+
   version: 3;
   caseType: "discovery";
   humanBrief: {

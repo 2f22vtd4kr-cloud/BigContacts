@@ -1816,14 +1816,116 @@ router.post("/research/cases/:entityId/advance", async (req, res): Promise<void>
     return;
   }
   const nextIteration = current.iteration + 1;
+
+  // Phase 2: recompute mandatory progress map + deterministic stop gate.
+  const {
+    computeInvestigationProgress,
+    evaluateInvestigationStop,
+  } = await import("../../lib/investigation-progress");
+  const { resolveResearchDepth } = await import("../../lib/research-depth");
+  const { publishBureauEvent } = await import("../../lib/bureau-live-log");
+  const { evaluateTargetFitness, shouldRejectTarget } = await import("../../lib/target-fitness");
+
+  const depthCfg = resolveResearchDepth({ explicit: file.researchDepth ?? null });
+  const priorFoundAny = file.investigationProgress?.foundAnyCount ?? 0;
+  const progress = computeInvestigationProgress({
+    routes: file.contactRoutes ?? [],
+    sourceRegistries: file.evidenceSummary?.sourceRegistries ?? [],
+    searchGaps: file.evidenceSummary?.searchGaps ?? [],
+    negativeFindings: file.evidenceSummary?.negativeFindings ?? [],
+    completedActionIds: (file.actionQueue ?? [])
+      .filter((a) => a.status === "complete" || a.status === "active" || a.status === "review")
+      .map((a) => a.id),
+
+  });
+  const foundIncreased = progress.foundAnyCount > priorFoundAny;
+  const noProgressStreak = foundIncreased ? 0 : (file.noProgressStreak ?? 0) + 1;
+  const fitness = evaluateTargetFitness({
+    name: file.target?.name ?? "",
+    type: file.target?.type ?? null,
+    personScoped: true,
+  });
+  const stopDecision = evaluateInvestigationStop({
+    progress,
+    iteration: nextIteration,
+    maxActions: depthCfg.adaptiveMaxActions,
+    noProgressStreak,
+    noProgressLimit: depthCfg.noProgressLimit,
+    fitnessReject: shouldRejectTarget(fitness),
+    queuedActionCount: (file.actionQueue ?? []).filter((a) => a.status === "queued").length,
+  });
+
+  let workingFile = {
+    ...file,
+    investigationProgress: progress,
+    researchDepth: depthCfg.depth,
+    noProgressStreak,
+  };
+
+  // Deterministic stop: do not burn right-hand / Boss provider calls when already done.
+  if (stopDecision.stop) {
+    const now = new Date();
+    const stopFile = {
+      ...workingFile,
+      nextBestAction: null,
+      decisionLog: [
+        ...(workingFile.decisionLog ?? []),
+        {
+          iteration: nextIteration,
+          decision: `stop:${stopDecision.reason}`,
+          reason: stopDecision.detail,
+          createdAt: now.toISOString(),
+        },
+      ].slice(-50),
+      lastUpdatedBy: "stop-gate",
+    };
+    const [updated] = await db.update(researchCasesTable).set({
+      caseFile: JSON.stringify(stopFile),
+      currentAction: null,
+      iteration: nextIteration,
+      status: "review",
+      lastDecisionAt: now,
+      updatedAt: now,
+    }).where(eq(researchCasesTable.id, current.id)).returning();
+    await db.insert(researchCaseEventsTable).values({
+      caseId: current.id,
+      iteration: nextIteration,
+      actorRole: "head_investigator",
+      eventType: "decision",
+      summary: `Bureau stop: ${stopDecision.reason} — ${stopDecision.detail}`,
+      payload: JSON.stringify({
+        stop: true,
+        reason: stopDecision.reason,
+        evidenceSufficient: stopDecision.evidenceSufficient,
+        stalled: stopDecision.stalled,
+        progress,
+        depth: depthCfg.depth,
+      }),
+    });
+    void publishBureauEvent({
+      actor: "boss",
+      kind: "decision",
+      title: `Stop · ${stopDecision.reason}`,
+      caseId: String(current.id),
+      targetName: file.target?.name,
+      why: stopDecision.detail,
+      ask: "No further investigator action — surface evidence for human review",
+      responseSummary: `OUT: stop (${stopDecision.reason}); personal=${progress.foundPersonalCount}; any=${progress.foundAnyCount}`,
+      level: stopDecision.reason === "fitness_reject" ? "warn" : "info",
+    });
+    const [entity] = await db.select().from(entitiesTable).where(eq(entitiesTable.id, params.data.entityId)).limit(1);
+    res.json(serializeCase(updated!, entity ? { name: entity.name, type: entity.type } : null));
+    return;
+  }
+
   const reasoning = await runNvidiaNimCaseReasoning({
-    file,
+    file: workingFile,
     iteration: nextIteration,
   });
   // Boss remains the Head Investigator and owns the final queue decision.
   // GLM is a right-hand advisor: preserve its recommendation in case context,
   // but never let it directly select or activate the Boss's action.
-  const advisedFile = recordRightHandAdvice(file, {
+  const advisedFile = recordRightHandAdvice(workingFile, {
     model: reasoning.model,
     status: reasoning.status,
     actionId: reasoning.actionId,
@@ -1832,10 +1934,33 @@ router.post("/research/cases/:entityId/advance", async (req, res): Promise<void>
     confidence: reasoning.confidence,
     error: reasoning.error,
   });
+  void publishBureauEvent({
+    actor: "right_hand",
+    kind: "plan",
+    title: "Right-hand advisory",
+    caseId: String(current.id),
+    targetName: file.target?.name,
+    provider: reasoning.model,
+    why: reasoning.reason ?? "Advisory pass",
+    ask: reasoning.decision ?? "Recommend next queued action",
+    responseSummary: `OUT: ${reasoning.status}; actionId=${reasoning.actionId ?? "none"}`,
+  });
   const bossPlan = await runGeminiBossPlan({
     file: advisedFile,
     rightHandAdvice: advisedFile.rightHandAdvice,
     iteration: nextIteration,
+  });
+  void publishBureauEvent({
+    actor: "boss",
+    kind: "decision",
+    title: `Boss · ${bossPlan.outcome ?? "proceed"}`,
+    caseId: String(current.id),
+    targetName: file.target?.name,
+    provider: bossPlan.model,
+    why: bossPlan.reason ?? "Boss plan",
+    ask: bossPlan.decision ?? "Select or reject",
+    responseSummary: `OUT: ${bossPlan.status}; outcome=${bossPlan.outcome}; actionId=${bossPlan.actionId ?? "none"}`,
+    level: bossPlan.outcome === "reject_target" ? "warn" : "info",
   });
   const bossDecisionFile =
     bossPlan.status === "completed" && bossPlan.decision && bossPlan.reason
@@ -1859,7 +1984,13 @@ router.post("/research/cases/:entityId/advance", async (req, res): Promise<void>
             : advanceCaseFile(advisedFile, nextIteration))
       : advanceCaseFile(advisedFile, nextIteration);
 
-  const updatedFile = recordGeminiBossPlan(bossDecisionFile, bossPlan);
+
+  const updatedFile = {
+    ...recordGeminiBossPlan(bossDecisionFile, bossPlan),
+    investigationProgress: progress,
+    researchDepth: depthCfg.depth,
+    noProgressStreak,
+  };
   const now = new Date();
   const [updated] = await db.update(researchCasesTable).set({
     caseFile: JSON.stringify(updatedFile),
@@ -1869,6 +2000,7 @@ router.post("/research/cases/:entityId/advance", async (req, res): Promise<void>
     lastDecisionAt: now,
     updatedAt: now,
   }).where(eq(researchCasesTable.id, current.id)).returning();
+
   await persistBureauContactsForEntity(
     params.data.entityId,
     (updatedFile.contactRoutes ?? []).map((route) => ({

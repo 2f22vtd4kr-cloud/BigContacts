@@ -255,6 +255,103 @@ export function formatProgressForPrompt(progress: InvestigationProgress): string
   ].join("\n");
 }
 
+/** Phase 2 stop reasons — Boss / advance path may halt without inventing work. */
+export type InvestigationStopReason =
+  | "evidence_sufficient"
+  | "stalled_progress"
+  | "budget_depth_hit"
+  | "fitness_reject"
+  | "queue_exhausted";
+
+export type InvestigationStopDecision = {
+  stop: boolean;
+  reason: InvestigationStopReason | null;
+  detail: string;
+  evidenceSufficient: boolean;
+  stalled: boolean;
+};
+
+/**
+ * Deterministic stop gate for Case Bureau advance.
+ * Does not invent contacts — only reads progress + iteration budget.
+ */
+export function evaluateInvestigationStop(input: {
+  progress: InvestigationProgress;
+  iteration: number;
+  maxActions?: number;
+  noProgressStreak?: number;
+  noProgressLimit?: number;
+  fitnessReject?: boolean;
+  queuedActionCount?: number;
+}): InvestigationStopDecision {
+  const maxActions = Math.max(1, input.maxActions ?? 5);
+  const noProgressLimit = Math.max(1, input.noProgressLimit ?? 2);
+  const noProgressStreak = Math.max(0, input.noProgressStreak ?? 0);
+  const queued = input.queuedActionCount ?? 0;
+
+  if (input.fitnessReject) {
+    return {
+      stop: true,
+      reason: "fitness_reject",
+      detail: "Target fitness gate rejected this case; do not spend further research budget.",
+      evidenceSufficient: false,
+      stalled: false,
+    };
+  }
+
+  const evidenceSufficient =
+    input.progress.foundPersonalCount >= 1 ||
+    (input.progress.foundAnyCount >= 3 && input.progress.coverageRatio >= 0.4);
+
+  if (evidenceSufficient && input.progress.foundPersonalCount >= 1) {
+    return {
+      stop: true,
+      reason: "evidence_sufficient",
+      detail: `Verified personal route present (${input.progress.foundPersonalCount}); further spend is optional review, not required discovery.`,
+      evidenceSufficient: true,
+      stalled: false,
+    };
+  }
+
+  if (input.iteration >= maxActions) {
+    return {
+      stop: true,
+      reason: "budget_depth_hit",
+      detail: `Iteration ${input.iteration} reached depth budget (${maxActions}). Surface what was found; do not invent more actions.`,
+      evidenceSufficient,
+      stalled: noProgressStreak >= noProgressLimit,
+    };
+  }
+
+  if (queued === 0) {
+    return {
+      stop: true,
+      reason: "queue_exhausted",
+      detail: "No queued Bureau actions remain.",
+      evidenceSufficient,
+      stalled: true,
+    };
+  }
+
+  if (noProgressStreak >= noProgressLimit) {
+    return {
+      stop: true,
+      reason: "stalled_progress",
+      detail: `${noProgressStreak} consecutive passes without new vector coverage (limit ${noProgressLimit}). Prefer human review over more spend.`,
+      evidenceSufficient,
+      stalled: true,
+    };
+  }
+
+  return {
+    stop: false,
+    reason: null,
+    detail: "Continue adaptive investigation within budget.",
+    evidenceSufficient,
+    stalled: false,
+  };
+}
+
 /**
  * Classify a route for UI: personal verified, personal review, org, or context.
  * Display ALL routes; only the marker changes.
@@ -263,6 +360,7 @@ export function classifyRouteMarker(route: RouteLike): {
   marker: "verified_personal" | "personal_review" | "organization" | "context";
   label: string;
 } {
+
   if (isVerifiedPersonal(route)) {
     return { marker: "verified_personal", label: "Verified personal" };
   }
