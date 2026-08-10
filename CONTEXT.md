@@ -1,3 +1,10 @@
+# Apex Atlas — Live session tip
+
+**Tip:** `f591024` (2026-08-10)
+**Posture:** full OSINT desk; related always visible; never invent; Personal rare.
+**Shipped:** Phase A materialize review candidates → entity ledger + contact_evidence; Phase B secondary LinkedIn/Signal as leads; Phase D active-job 200 + healthz honesty; ranking/labels.
+**Proof:** `node scripts/check-visibility-floor.mjs` (11/11). Live operator proof still required on quiet officer lead.
+
 # ApexFinder Pro — Session Context
 
 **Date:** 2026-07-19  
