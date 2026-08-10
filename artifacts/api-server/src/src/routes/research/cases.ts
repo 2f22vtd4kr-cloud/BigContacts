@@ -1898,6 +1898,17 @@ router.post("/research/cases/:entityId/advance", async (req, res): Promise<void>
     res.status(500).json({ error: "Research case file is invalid" });
     return;
   }
+  // Already rejected/reframed by Boss — do not burn more provider budget.
+  const alreadyRejected = (file.decisionLog ?? []).some((entry) =>
+    /^reject_target:|^reframe:/i.test(String(entry.decision ?? "")),
+  );
+  if (alreadyRejected) {
+    res.status(409).json({
+      error: "Case was already rejected or reframed by Boss; open a new case or reframe the target instead of advancing.",
+      status: current.status,
+    });
+    return;
+  }
   const nextIteration = current.iteration + 1;
 
   // Phase 2: recompute mandatory progress map + deterministic stop gate.
