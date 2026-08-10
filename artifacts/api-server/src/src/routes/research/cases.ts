@@ -1186,32 +1186,44 @@ router.post("/research/bureau/cases/:caseId/run-next-pass", async (req, res): Pr
         lastDecisionAt: now(),
         updatedAt: now(),
       }).where(eq(researchCasesTable.id, caseId)).returning();
+      const verificationQuality = (await import("../../lib/discovery-metrics")).computeDiscoveryQualityMetrics(
+        mergedCandidates,
+      );
       await db.insert(researchCaseEventsTable).values({
         caseId,
         iteration,
         actorRole: "head_investigator",
         eventType: "decision",
-        summary: `Boss-directed verification pass completed with ${mergedCandidates.length} review-only candidate/anchor record(s); no target promoted.`,
+        summary: `Boss-directed verification pass completed with ${mergedCandidates.length} review-only candidate/anchor record(s); personShaped=${verificationQuality.personShaped}; no target promoted.`,
         payload: JSON.stringify({
           jobId,
           mistral: { status: mistral.status, citations: mistral.citations.length, candidates: mistral.candidates.length },
           rightHand: { status: rightHand.status, model: rightHand.model },
           boss: { status: boss.status, candidates: boss.candidates.length, nextDirections: boss.nextDirections },
           candidateCount: mergedCandidates.length,
+          discoveryQuality: verificationQuality,
           inserted: 0,
           promoted: 0,
         }),
       });
-      await appendJobLog(jobId, `Verification complete; candidates=${mergedCandidates.length}; no entity insertion or target promotion.`);
+      await appendJobLog(
+        jobId,
+        `Verification complete; candidates=${mergedCandidates.length}; personShaped=${verificationQuality.personShaped}; evidenceRate=${verificationQuality.evidenceRate}; fameRejected=${verificationQuality.fameRejected}; no entity insertion or target promotion.`,
+      );
       await updateJob(jobId, {
         status: "done",
         progress: 4,
         total: 4,
         inserted: 0,
-        skipped: 0,
+        skipped: verificationQuality.fameRejected,
         errors: 0,
-        message: `Verification complete: ${mergedCandidates.length} review-only candidate/anchor record(s); no target promoted.`,
-        result: JSON.stringify({ caseId, reviewCandidates: mergedCandidates.length, caseStatus: updated?.status ?? "review" }),
+        message: `Verification complete: ${mergedCandidates.length} review-only candidate/anchor record(s); personShaped=${verificationQuality.personShaped}; no target promoted.`,
+        result: JSON.stringify({
+          caseId,
+          reviewCandidates: mergedCandidates.length,
+          discoveryQuality: verificationQuality,
+          caseStatus: updated?.status ?? "review",
+        }),
         finishedAt: now().toISOString(),
       });
     } catch (error) {
