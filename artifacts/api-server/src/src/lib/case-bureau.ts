@@ -1451,30 +1451,33 @@ export function applyGeminiBossPlan(
 
   // Apply optional allowlist reprioritization to remaining queued actions only.
   // Boss cannot invent tools or new action ids — only reorder existing ones.
+  // When no reprioritize list is provided, leave remaining priorities untouched.
   const preferred = (input.reprioritize ?? []).filter(
     (id) => id !== next.id && file.actionQueue.some((a) => a.id === id && a.status === "queued"),
   );
-  const preferredSet = new Set(preferred);
-  const remainingQueued = file.actionQueue
-    .filter((a) => a.status === "queued" && a.id !== next.id && !preferredSet.has(a.id))
-    .sort((a, b) => b.priority - a.priority);
-  const reorderedTail = [
-    ...preferred
-      .map((id) => file.actionQueue.find((a) => a.id === id && a.status === "queued"))
-      .filter((a): a is BureauAction => Boolean(a)),
-    ...remainingQueued,
-  ].map((action, index) => ({
-    ...action,
-    // Preserve relative Boss preference as priority bands without inventing actions.
-    priority: Math.max(1, 90 - index),
-  }));
-  const reorderedById = new Map(reorderedTail.map((a) => [a.id, a]));
-
-  const updatedQueue = file.actionQueue.map((action) => {
-    if (action.id === next.id) return { ...action, status: "active" as const };
-    const reprioritized = reorderedById.get(action.id);
-    return reprioritized ?? action;
-  });
+  let updatedQueue = file.actionQueue.map((action) =>
+    action.id === next.id ? { ...action, status: "active" as const } : action,
+  );
+  if (preferred.length > 0) {
+    const preferredSet = new Set(preferred);
+    const remainingQueued = file.actionQueue
+      .filter((a) => a.status === "queued" && a.id !== next.id && !preferredSet.has(a.id))
+      .sort((a, b) => b.priority - a.priority);
+    const reorderedTail = [
+      ...preferred
+        .map((id) => file.actionQueue.find((a) => a.id === id && a.status === "queued"))
+        .filter((a): a is BureauAction => Boolean(a)),
+      ...remainingQueued,
+    ].map((action, index) => ({
+      ...action,
+      priority: Math.max(1, 90 - index),
+    }));
+    const reorderedById = new Map(reorderedTail.map((a) => [a.id, a]));
+    updatedQueue = updatedQueue.map((action) => {
+      if (action.id === next.id) return action;
+      return reorderedById.get(action.id) ?? action;
+    });
+  }
 
   const reprioritizeNote =
     preferred.length > 0 ? ` | reprioritize: ${preferred.join(" → ")}` : "";
