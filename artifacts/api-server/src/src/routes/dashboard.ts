@@ -299,8 +299,18 @@ router.get("/dashboard/stats", async (_req, res): Promise<void> => {
       verified: sql<number>`count(*) filter (where contact_outcome = 'direct_contact_verified')::int`,
       org:      sql<number>`count(*) filter (where contact_outcome = 'organization_contact')::int`,
       social:   sql<number>`count(*) filter (where contact_outcome = 'social_only')::int`,
+      evidence: sql<number>`count(*) filter (where contact_outcome = 'evidence_only')::int`,
     }).from(entitiesTable).where(visibleEntity),
   ]);
+
+  // Review-only discovery materializations must count toward People worth knowing.
+  const [reviewOnlyRow] = await db
+    .select({ cnt: sql<number>`count(*)::int` })
+    .from(entitiesTable)
+    .where(and(
+      visibleEntity,
+      sql`(${entitiesTable.metadata} LIKE '%"reviewOnly":true%' OR ${entitiesTable.contactOutcome} = 'evidence_only')`,
+    ));
 
   const total = entityCount?.cnt ?? 0;
   const enrichmentCoverage = total > 0
@@ -317,6 +327,9 @@ router.get("/dashboard/stats", async (_req, res): Promise<void> => {
     activeResearchSessions: sessionCount?.cnt ?? 0,
     contactableCount: contactableCount?.cnt ?? 0,
     enrichmentCoverage,
+    // Visibility floor counters — not stuck at zero after candidate-producing runs.
+    reviewCandidates: reviewOnlyRow?.cnt ?? 0,
+    evidenceOnly: contactOutcomeRow?.evidence ?? 0,
     // L2: true contact breakdown — personal vs org vs social-only
     reachablePersonal: contactOutcomeRow?.personal ?? 0,
     reachableVerified: contactOutcomeRow?.verified ?? 0,

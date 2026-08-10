@@ -30,6 +30,7 @@ import { enrichWithAdsbHistory, summariseAdsbHistory } from "../lib/adsbtrack-en
 import { enrichWithOpenOwnership, summariseOwnershipFindings } from "../lib/openownership-enricher";
 import { runHolehe, runMaigret, runSherlock, runTheHarvester, checkPythonToolsAvailability } from "../lib/python-tools";
 import { getGlinerStatus } from "../lib/gliner-client";
+import { persistBureauContactsForEntity } from "../lib/bureau-contact-persist";
 
 const router = Router();
 
@@ -253,10 +254,41 @@ router.post("/enrich/theharvester", async (req: Request, res: Response): Promise
     const result = await runTheHarvester(resolvedDomain, sources);
 
     if (entity && (result.emails.length > 0 || result.subdomains.length > 0)) {
+      // Visibility floor: harvest claims → contact_evidence as candidate/lead only.
+      // Never Personal. Org-ish prefixes stay organization-scoped.
+      const harvestVectors = [
+        ...result.emails.slice(0, 25).map((email: string) => ({
+          vectorType: "email",
+          value: email,
+          scope: /^(info|contact|office|press|hello|admin|sales|support)@/i.test(email)
+            ? "organization"
+            : "candidate",
+          personName: entity.name,
+          role: null,
+          sourceUrls: [`https://${resolvedDomain}`],
+          note: `theHarvester claim on ${resolvedDomain} — lead only, not Personal`,
+          tier: "candidate",
+          state: "review_only",
+        })),
+        ...result.subdomains.slice(0, 15).map((sub: string) => ({
+          vectorType: "domain",
+          value: sub,
+          scope: "organization",
+          personName: entity.name,
+          role: null,
+          sourceUrls: [`https://${sub}`],
+          note: `theHarvester subdomain on ${resolvedDomain}`,
+          tier: "candidate",
+          state: "review_only",
+        })),
+      ];
+      await persistBureauContactsForEntity(entity.id, harvestVectors, "theharvester");
+
       const summary = [
         `theHarvester Scan (${new Date().toISOString().slice(0, 10)}) — domain: ${resolvedDomain}`,
         result.emails.length > 0 ? `  Emails: ${result.emails.slice(0, 10).join(", ")}` : null,
         result.subdomains.length > 0 ? `  Subdomains: ${result.subdomains.slice(0, 10).join(", ")}` : null,
+        `  contact_evidence rows written as candidate/lead only (not Personal).`,
       ].filter(Boolean).join("\n");
       const existing = entity.notes ?? "";
       const newNotes = existing ? `${existing}\n\n${summary}` : summary;
@@ -265,7 +297,7 @@ router.post("/enrich/theharvester", async (req: Request, res: Response): Promise
         .where(eq(entitiesTable.id, entity.id));
     }
 
-    res.json(result);
+    res.json({ ...result, evidencePersisted: Boolean(entity) });
   } catch (err: any) {
     logger.error({ err: err.message }, "[theHarvester] route error");
     res.status(500).json({ error: err.message });

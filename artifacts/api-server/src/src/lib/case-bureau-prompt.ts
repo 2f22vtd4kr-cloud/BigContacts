@@ -122,6 +122,7 @@ TARGET FITNESS (product scorecard — non-negotiable):
 - Instead return outcome "reject_target" with a clear reason, or "reframe" with a suggested scope (e.g. officers of X, not X the brand).
 - Pure corp shells under a person-scoped budget → reject_target or reframe to named principals.
 - Only proceed with an actionId when the target has operator/principal signal or is a quiet reachable person.
+- VISIBILITY LAW: reject_target / reframe stops further budget burn only. Never instruct erasure of related/org/candidate contacts, profile URLs, or contact_evidence already found. Related surface stays visible; Personal remains rare and verified-only.
 
 You may return one of three outcomes:
 1. proceed — select exactly one existing queued action and fill the investigator fields.

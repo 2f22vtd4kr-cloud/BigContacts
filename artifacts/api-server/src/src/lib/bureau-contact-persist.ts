@@ -288,6 +288,29 @@ export async function expandSecondaryPublicSurface(input: {
       // non-fatal
     }
 
+    // Official domain leadership / about / team pages when a website is known.
+    if (result.website) {
+      try {
+        const leadership = await lookupLeadershipPages(result.website, name);
+        for (const page of leadership) {
+          vectors.push({
+            vectorType: "website",
+            value: page,
+            scope: "organization",
+            personName: name,
+            role: null,
+            sourceUrls: [page],
+            note: "Official leadership/about/team page from secondary expansion",
+            tier: "candidate",
+            state: "review_only",
+          });
+          out.website = true;
+        }
+      } catch {
+        // non-fatal
+      }
+    }
+
     if (vectors.length) {
       await persistBureauContactsForEntity(input.entityId, vectors, "secondary-public-surface");
     }
@@ -298,6 +321,47 @@ export async function expandSecondaryPublicSurface(input: {
     );
   }
   return out;
+}
+
+/** Probe common leadership/about/team paths on an official domain. Never invents contacts. */
+async function lookupLeadershipPages(website: string, personName: string): Promise<string[]> {
+  let host = website.trim();
+  if (!/^https?:\/\//i.test(host)) host = `https://${host}`;
+  let origin: string;
+  try {
+    origin = new URL(host).origin;
+  } catch {
+    return [];
+  }
+  const paths = ["/about", "/about-us", "/team", "/leadership", "/our-team", "/people", "/company"];
+  const found: string[] = [];
+  for (const path of paths) {
+    if (found.length >= 3) break;
+    const url = `${origin}${path}`;
+    try {
+      const resp = await fetch(url, {
+        method: "GET",
+        headers: {
+          "User-Agent": "Mozilla/5.0 (compatible; ApexAtlas/1.0)",
+          Accept: "text/html",
+        },
+        redirect: "follow",
+        signal: AbortSignal.timeout(5_000),
+      });
+      if (!resp.ok) continue;
+      const ct = resp.headers.get("content-type") ?? "";
+      if (!/html/i.test(ct)) continue;
+      const html = (await resp.text()).slice(0, 80_000);
+      // Keep page if it mentions the person or looks like a team/leadership page.
+      const mentionsPerson = personName.split(/\s+/).filter((p) => p.length > 2)
+        .some((part) => new RegExp(part, "i").test(html));
+      const teamish = /leadership|our team|about us|board of directors|management team/i.test(html);
+      if (mentionsPerson || teamish) found.push(url);
+    } catch {
+      // try next path
+    }
+  }
+  return found;
 }
 
 /** Best-effort public investor profile URL (Signal.nfx, similar directories). Never invents. */
