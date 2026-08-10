@@ -47,7 +47,10 @@ async function waitForJob(jobId) {
       last = job.progress;
     }
     if (job.status === "done")   return job;
-    if (job.status === "failed") { log(`  JOB FAILED: ${job.message}`); return job; }
+    if (job.status === "failed" || job.status === "cancelled") {
+      log(`  JOB ${String(job.status).toUpperCase()}: ${job.message}`);
+      return job;
+    }
     await sleep(POLL_MS);
   }
 }
