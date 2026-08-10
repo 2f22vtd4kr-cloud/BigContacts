@@ -38,3 +38,10 @@ c4fc077 feat(bureau): contact refresh on read, job registry-shallow honesty, per
 ## Commits
 - 22ac95e Phase A visibility + active-job 200-when-idle
 - 4880308 Phase B secondary expansion
+
+## Phase B+ / D continuation
+- healthz: lanesHonesty + registryShallowRisk + companiesHouse slot
+- lanes-honesty: companiesHouse count
+- secondary expansion: Signal.nfx / OpenVC / Angel public profile lookup; explicit linkedin:not-found honesty marker
+- jobs UI: cancelled is a first-class terminal status
+

@@ -13,6 +13,7 @@ export type LanesHonestySnapshot = {
   gemini: number;
   mistral: number;
   nvidiaNim: number;
+  companiesHouse: number;
   webSearchActive: number;
   /** True when no Perplexity/Tavily/Exa slots are active — registry-only risk. */
   registryShallowRisk: boolean;
@@ -38,6 +39,7 @@ export function buildLanesHonestySnapshot(): LanesHonestySnapshot {
     gemini: activeCount(status.gemini),
     mistral: mistral.configured ? 1 : 0,
     nvidiaNim: nvidia.configured ? 1 : 0,
+    companiesHouse: process.env.COMPANIES_HOUSE_API_KEY ? 1 : 0,
     webSearchActive,
     registryShallowRisk: webSearchActive === 0,
     assessedAt: new Date().toISOString(),

@@ -406,7 +406,7 @@ async function materializeDiscoveryReviewCandidates(input: {
     for (const item of secondaryQueue) {
       try {
         const result = await expandSecondaryPublicSurface(item);
-        if (result.linkedin || result.email || result.phone) secondaryExpanded += 1;
+        if (result.linkedin || result.email || result.phone || result.signal || result.website) secondaryExpanded += 1;
       } catch {
         // non-fatal
       }

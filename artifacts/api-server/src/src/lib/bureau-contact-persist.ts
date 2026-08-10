@@ -174,16 +174,18 @@ export function collectDiscoveryContactsForTarget(
 
 /**
  * Phase B — bounded secondary public surface for person-shaped review entities.
- * Runs after materialization: public LinkedIn (and any email/phone found by the
- * existing free OSINT lane) are stored as candidate/lead only. Never Personal.
- * Bounded + rate-limited; failures are silent (honesty = no invention).
+ * Runs after materialization: public LinkedIn, Signal.nfx-style investor profiles,
+ * official/leadership-ish websites, and any claimed email/phone from the free
+ * OSINT lane are stored as candidate/lead only. Never Personal.
+ * When LinkedIn is not found, an explicit "not found" candidate note is stored
+ * so missing secondary surface is visible honesty, not silent gap.
  */
 export async function expandSecondaryPublicSurface(input: {
   entityId: number;
   name: string;
   entityType?: string | null;
-}): Promise<{ linkedin: boolean; email: boolean; phone: boolean }> {
-  const out = { linkedin: false, email: false, phone: false };
+}): Promise<{ linkedin: boolean; email: boolean; phone: boolean; signal: boolean; website: boolean }> {
+  const out = { linkedin: false, email: false, phone: false, signal: false, website: false };
   const name = String(input.name ?? "").trim();
   if (!input.entityId || name.length < 3) return out;
 
@@ -208,6 +210,19 @@ export async function expandSecondaryPublicSurface(input: {
         state: "review_only",
       });
       out.linkedin = true;
+    } else {
+      // Explicit not-found so operators see the gap instead of silence.
+      vectors.push({
+        vectorType: "social",
+        value: `linkedin:not-found:${name}`,
+        scope: "candidate",
+        personName: name,
+        role: null,
+        sourceUrls: [],
+        note: "LinkedIn public profile not found in secondary expansion — gap recorded, not invented",
+        tier: "candidate",
+        state: "review_only",
+      });
     }
     if (result.email) {
       vectors.push({
@@ -216,8 +231,8 @@ export async function expandSecondaryPublicSurface(input: {
         scope: "candidate",
         personName: name,
         role: null,
-        sourceUrls: result.sources?.length ? [] : [],
-        note: `Claimed email from secondary expansion — lead only, not Personal`,
+        sourceUrls: [],
+        note: "Claimed email from secondary expansion — lead only, not Personal",
         tier: "candidate",
         state: "review_only",
       });
@@ -231,7 +246,7 @@ export async function expandSecondaryPublicSurface(input: {
         personName: name,
         role: null,
         sourceUrls: [],
-        note: `Claimed phone from secondary expansion — lead only, not Personal`,
+        note: "Claimed phone from secondary expansion — lead only, not Personal",
         tier: "candidate",
         state: "review_only",
       });
@@ -245,10 +260,32 @@ export async function expandSecondaryPublicSurface(input: {
         personName: name,
         role: null,
         sourceUrls: [result.website],
-        note: "Website from secondary expansion",
+        note: "Website / domain from secondary expansion",
         tier: "candidate",
         state: "review_only",
       });
+      out.website = true;
+    }
+
+    // Signal.nfx / investor profile surface (public pages only) via free OSINT.
+    try {
+      const signalHit = await lookupPublicInvestorProfile(name);
+      if (signalHit) {
+        vectors.push({
+          vectorType: "website",
+          value: signalHit,
+          scope: "candidate",
+          personName: name,
+          role: null,
+          sourceUrls: [signalHit],
+          note: "Public investor / Signal-style profile from secondary expansion — lead only",
+          tier: "candidate",
+          state: "review_only",
+        });
+        out.signal = true;
+      }
+    } catch {
+      // non-fatal
     }
 
     if (vectors.length) {
@@ -261,4 +298,36 @@ export async function expandSecondaryPublicSurface(input: {
     );
   }
   return out;
+}
+
+/** Best-effort public investor profile URL (Signal.nfx, similar directories). Never invents. */
+async function lookupPublicInvestorProfile(name: string): Promise<string | null> {
+  const queries = [
+    `"${name}" site:signal.nfx.com`,
+    `"${name}" site:signal.nfx.com investor`,
+    `"${name}" "angel" OR "investor" site:signal.nfx.com OR site:openvc.app OR site:angel.co`,
+  ];
+  for (const q of queries) {
+    try {
+      const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(q)}&kl=wt-wt`;
+      const resp = await fetch(url, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (compatible; ApexAtlas/1.0; +https://github.com/2f22vtd4kr-cloud/BigContacts)",
+          Accept: "text/html",
+        },
+        signal: AbortSignal.timeout(8_000),
+      });
+      if (!resp.ok) continue;
+      const html = await resp.text();
+      const signalM = html.match(/https?:\/\/(?:www\.)?signal\.nfx\.com\/[a-zA-Z0-9\-._/?=&%]+/i);
+      if (signalM?.[0]) return signalM[0].replace(/&amp;/g, "&").split("&")[0] ?? signalM[0];
+      const openVcM = html.match(/https?:\/\/(?:www\.)?openvc\.app\/[a-zA-Z0-9\-._/?=&%]+/i);
+      if (openVcM?.[0]) return openVcM[0].replace(/&amp;/g, "&").split("&")[0] ?? openVcM[0];
+      const angelM = html.match(/https?:\/\/(?:www\.)?angel\.co\/[a-zA-Z0-9\-._/?=&%]+/i);
+      if (angelM?.[0]) return angelM[0].replace(/&amp;/g, "&").split("&")[0] ?? angelM[0];
+    } catch {
+      // try next query
+    }
+  }
+  return null;
 }

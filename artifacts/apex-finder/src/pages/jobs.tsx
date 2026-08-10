@@ -14,7 +14,7 @@ const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 interface Job {
   id: string; label: string; description: string; phase: number; category: string;
   endpoint?: string; body?: Record<string, unknown>;
-  status: "idle" | "queued" | "running" | "done" | "failed";
+  status: "idle" | "queued" | "running" | "done" | "failed" | "cancelled";
   jobId?: string; progress: number; inserted: number; skipped: number;
   errors: number; message: string; startedAt?: string; finishedAt?: string;
 }
@@ -48,6 +48,7 @@ function statusIcon(status: Job["status"]) {
   if (status === "running" || status === "queued") return <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />;
   if (status === "done") return <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />;
   if (status === "failed") return <XCircle className="w-3.5 h-3.5 text-red-400" />;
+  if (status === "cancelled") return <XCircle className="w-3.5 h-3.5 text-muted-foreground" />;
   return <div className="w-3.5 h-3.5 rounded-full border border-border bg-muted/30" />;
 }
 
@@ -55,6 +56,7 @@ function statusColor(status: Job["status"]) {
   if (status === "running" || status === "queued") return "text-primary";
   if (status === "done") return "text-emerald-400";
   if (status === "failed") return "text-red-400";
+  if (status === "cancelled") return "text-muted-foreground";
   return "text-muted-foreground/40";
 }
 

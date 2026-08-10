@@ -3,6 +3,7 @@ import { pingRedis, getRedisClient } from "../lib/redis";
 import { getAIKeyStatus } from "../lib/ai-extractor";
 import { getMistralWebSearchStatus } from "../lib/mistral-web-search";
 import { getNvidiaNimCaseReasoningStatus } from "../lib/nvidia-nim-case-reasoning";
+import { buildLanesHonestySnapshot } from "../lib/lanes-honesty";
 
 const router: IRouter = Router();
 
@@ -15,6 +16,7 @@ router.get("/healthz", async (_req, res) => {
     : "not_connected";
 
   let providers: Record<string, number> | undefined;
+  let lanesHonesty: ReturnType<typeof buildLanesHonestySnapshot> | undefined;
   try {
     const status = getAIKeyStatus();
     const active = (slots: Array<{ state: string }>) =>
@@ -30,10 +32,17 @@ router.get("/healthz", async (_req, res) => {
       // Bureau lanes: 1 = configured, 0 = missing (never secret values).
       mistral: mistral.configured ? 1 : 0,
       nvidiaNim: nvidia.configured ? 1 : 0,
+      companiesHouse: process.env.COMPANIES_HOUSE_API_KEY ? 1 : 0,
     };
+    lanesHonesty = buildLanesHonestySnapshot();
   } catch {
     providers = undefined;
+    lanesHonesty = undefined;
   }
+
+  const registryShallowRisk = lanesHonesty?.registryShallowRisk ?? (providers
+    ? (providers.perplexity + providers.tavily + providers.exa) === 0
+    : true);
 
   res.json({
     status: "ok",
@@ -44,7 +53,11 @@ router.get("/healthz", async (_req, res) => {
     // Active key slot counts only — never secret values. 0 means restart API
     // after adding Replit secrets or OSINT will stay registry-shallow.
     providers,
-    note: "Restart the API process after any secret change so provider slot counts refresh. ENABLE_AUTO_PIPELINE=false is the safe operator floor — do not auto-start research jobs.",
+    lanesHonesty,
+    registryShallowRisk,
+    note: registryShallowRisk
+      ? "registryShallowRisk=true: no Perplexity/Tavily/Exa slots active — discovery may be registry-only. Restart API after secret changes."
+      : "Restart the API process after any secret change so provider slot counts refresh. ENABLE_AUTO_PIPELINE=false is the safe operator floor.",
     autoPipeline: process.env.ENABLE_AUTO_PIPELINE === "true",
   });
 });
