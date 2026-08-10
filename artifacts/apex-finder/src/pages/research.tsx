@@ -12,6 +12,11 @@ import {
 import { Terminal, Play, Cpu, ChevronRight, Hash, CheckCircle2, GitBranch, Target, Shield, ChevronDown, Search, X, Mail, Phone, Copy, CheckCheck, Layers, ExternalLink, FileCheck2, CircleAlert } from "lucide-react";
 import { cn, formatEntityName } from "@/lib/utils";
 import { ScoreBadge } from "@/lib/utils";
+import {
+  fetchSystemStatus,
+  type SystemStatus,
+  PROVIDER_LABELS,
+} from "@/lib/system-status";
 
 // ── Correct types matching the API ──────────────────────────────────────────
 type MctsStep = {
@@ -430,6 +435,16 @@ function BureauCasePanel({
     };
   }, [entityId, onCaseChange]);
 
+  const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void fetchSystemStatus("", controller.signal)
+      .then(setSystemStatus)
+      .catch(() => setSystemStatus(null));
+    return () => controller.abort();
+  }, []);
+
   const request = async (url: string, body?: unknown) => {
     setBusy(true);
     setError(null);
@@ -494,6 +509,10 @@ function BureauCasePanel({
         <span className="text-[10px] font-mono text-muted-foreground whitespace-nowrap">
           iteration {bureauCase.iteration} · {bureauCase.status}
         </span>
+      </div>
+
+      <div className="mb-3">
+        <ProviderHonestyBanner status={systemStatus} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-3">
@@ -720,6 +739,50 @@ function BureauCasePanel({
   );
 }
 
+function ProviderHonestyBanner({ status }: { status: SystemStatus | null }) {
+  if (!status) return null;
+  const webLanes = (["perplexity", "tavily", "exa"] as const)
+    .map((p) => {
+      const slots = status.ai?.[p] ?? [];
+      const active = slots.filter((s) => s.state === "active").length;
+      return { key: p, label: PROVIDER_LABELS[p], active, total: slots.length };
+    });
+  const geminiOk = (status.geminiBoss?.configured ?? false) || (status.ai?.gemini ?? []).some((s) => s.state === "active");
+  const mistralOk = status.openResearch?.mistral?.configured ?? false;
+  const rightHandOk = status.bureauReasoning?.configured ?? false;
+  const webActive = webLanes.reduce((n, l) => n + l.active, 0);
+  const shallow = webActive === 0;
+  return (
+    <div
+      className={cn(
+        "rounded border px-3 py-2 text-[10px] font-mono",
+        shallow
+          ? "border-amber-400/40 bg-amber-400/10 text-amber-100"
+          : "border-border/60 bg-background/40 text-muted-foreground",
+      )}
+    >
+      <div className="uppercase tracking-wider text-[9px] mb-1">
+        Provider honesty {shallow ? "· registry-shallow risk" : "· lanes live"}
+      </div>
+      <div className="flex flex-wrap gap-x-3 gap-y-1">
+        {webLanes.map((lane) => (
+          <span key={lane.key}>
+            {lane.label}: {lane.active}/{lane.total || "?"}
+          </span>
+        ))}
+        <span>Gemini Boss: {geminiOk ? "ok" : "missing"}</span>
+        <span>Mistral: {mistralOk ? "ok" : "missing"}</span>
+        <span>Right-hand: {rightHandOk ? "ok" : "missing"}</span>
+      </div>
+      {shallow ? (
+        <div className="mt-1 text-amber-200/90">
+          No web-search keys active — runs will be registry/official-source only; do not treat as full AI OSINT success.
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function DiscoveryBureauPanel({
   discoveryCase,
   entities,
@@ -741,8 +804,18 @@ function DiscoveryBureauPanel({
   const [admissionCandidate, setAdmissionCandidate] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
   const file = parseDiscoveryCaseFile(discoveryCase?.caseFile);
   const investigatorReports = file?.investigatorReports ?? [];
+
+  useEffect(() => {
+    const base = "";
+    const controller = new AbortController();
+    void fetchSystemStatus(base, controller.signal)
+      .then(setSystemStatus)
+      .catch(() => setSystemStatus(null));
+    return () => controller.abort();
+  }, []);
 
   const request = async (url: string, body: unknown) => {
     setBusy(true);
@@ -811,6 +884,9 @@ function DiscoveryBureauPanel({
             </p>
           </div>
         </div>
+        <div className="mt-3">
+          <ProviderHonestyBanner status={systemStatus} />
+        </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mt-4">
           <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">
             Human mission
@@ -873,6 +949,9 @@ function DiscoveryBureauPanel({
             {file?.initialResearch.status ?? "not started"}
           </div>
         </div>
+      </div>
+      <div className="mt-3">
+        <ProviderHonestyBanner status={systemStatus} />
       </div>
       <details className="mt-3 rounded border border-border/60 bg-background/25">
         <summary className="cursor-pointer px-3 py-2 text-[10px] font-mono uppercase tracking-wider text-primary">View Boss opening prompt</summary>

@@ -925,6 +925,37 @@ router.post("/research/bureau/cases/:caseId/run-next-pass", async (req, res): Pr
     res.status(409).json({ error: "Only a discovery case can run the verification pass" });
     return;
   }
+
+  // B residual: deterministic stop gate for discovery-adjacent verification.
+  // Do not burn provider budget when iteration depth or evidence retention already justifies review.
+  const discoveryMetrics = computeDiscoveryQualityMetrics(file.discoveredCandidates ?? []);
+  const discoveryMaxPasses = 4;
+  const nextPassIteration = current.iteration + 1;
+  if (nextPassIteration > discoveryMaxPasses) {
+    res.status(409).json({
+      error: "Discovery verification depth budget exhausted; surface candidates for human review instead of another pass.",
+      stop: true,
+      reason: "budget_depth_hit",
+      iteration: current.iteration,
+      maxPasses: discoveryMaxPasses,
+      metrics: discoveryMetrics,
+    });
+    return;
+  }
+  if (
+    discoveryMetrics.personShaped >= 3 &&
+    discoveryMetrics.withAnyEvidence >= 2 &&
+    discoveryMetrics.evidenceRate >= 0.25
+  ) {
+    res.status(409).json({
+      error: "Discovery already retains person-shaped candidates with contact evidence; prefer human review over further verification spend.",
+      stop: true,
+      reason: "evidence_sufficient",
+      metrics: discoveryMetrics,
+    });
+    return;
+  }
+
   const existingJobId = await getActiveJob("case-bureau-discovery");
   if (existingJobId) {
     const existing = await getJob(existingJobId);
