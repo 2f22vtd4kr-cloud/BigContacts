@@ -123,7 +123,7 @@ describe("Boss control-loop contract", () => {
     expect(next!.decisionLog.at(-1)?.reason).toMatch(/reprioritize:/);
   });
 
-  it("records reject_target without activating an action", () => {
+  it("records reject_target without activating an action and parks the queue", () => {
     const file = minimalFile();
     const next = applyGeminiBossPlan(file, {
       outcome: "reject_target",
@@ -136,6 +136,7 @@ describe("Boss control-loop contract", () => {
     expect(next).not.toBeNull();
     expect(next!.nextBestAction).toBeNull();
     expect(next!.decisionLog.at(-1)?.decision).toMatch(/reject_target/);
+    expect(next!.actionQueue.every((a) => a.status !== "queued")).toBe(true);
   });
 
   it("stop gate fires on fitness reject without requiring more provider burn", () => {
