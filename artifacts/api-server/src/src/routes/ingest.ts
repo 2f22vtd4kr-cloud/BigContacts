@@ -245,6 +245,34 @@ router.post("/ingest/faa", async (req, res): Promise<void> => {
   });
 });
 
+// ── GET /ingest/job/active/:type ───────────────────────────────────────────────
+// Safety-lock probe for queue runners / operators. Must be registered BEFORE
+// /ingest/job/:jobId so "active" is not captured as a jobId.
+// Terminal job statuses are: done | failed | cancelled (not "completed").
+router.get("/ingest/job/active/:type", async (req, res): Promise<void> => {
+  const type = String((req.params as { type: string }).type ?? "").trim();
+  if (!type || type.length > 80) {
+    res.status(400).json({ error: "Invalid job type." });
+    return;
+  }
+  const jobId = await getActiveJob(type);
+  if (!jobId) {
+    res.status(404).json({ error: "No active job for this type.", type, jobId: null });
+    return;
+  }
+  const job = await getJob(jobId);
+  if (!job || job.status !== "running") {
+    res.status(404).json({
+      error: "No running job for this type.",
+      type,
+      jobId,
+      jobStatus: job?.status ?? null,
+    });
+    return;
+  }
+  res.json({ type, jobId, job });
+});
+
 // ── GET /ingest/job/:jobId ─────────────────────────────────────────────────────
 router.get("/ingest/job/:jobId", async (req, res): Promise<void> => {
   const { jobId } = req.params as { jobId: string };
@@ -259,6 +287,7 @@ router.get("/ingest/job/:jobId", async (req, res): Promise<void> => {
 
 // ── GET /ingest/status ────────────────────────────────────────────────────────
 router.get("/ingest/status", async (_req, res): Promise<void> => {
+
   const [dedupCount, entityCount, assetCount, faaCount] = await Promise.all([
     getDedupCount(),
     db.select({ cnt: sql<number>`count(*)::int` }).from(entitiesTable)

@@ -1709,6 +1709,25 @@ router.post("/research/cases", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Entity not found" });
     return;
   }
+
+  // Phase 1 fitness gate — refuse fame-only trophies for person-scoped target cases.
+  const { evaluateTargetFitness, shouldRejectTarget, suggestReframe } = await import("../../lib/target-fitness");
+  const openFitness = evaluateTargetFitness({
+    name: entity.name,
+    type: entity.type,
+    notes: entity.notes ?? null,
+    personScoped: true,
+  });
+  if (shouldRejectTarget(openFitness)) {
+    res.status(422).json({
+      error: "Target fitness gate rejected this entity for a person-scoped case",
+      fit: openFitness.fit,
+      reasons: openFitness.reasons,
+      reframe: suggestReframe({ name: entity.name, fit: openFitness.fit }),
+    });
+    return;
+  }
+
   const existing = await findCase(entityId);
   if (existing) {
     res.status(200).json(serializeCase(existing, entity));
@@ -1719,6 +1738,7 @@ router.post("/research/cases", async (req, res): Promise<void> => {
   const [created] = await db.insert(researchCasesTable).values({
     targetEntityId: entityId,
     caseType: "target",
+
     directorMode: bossModel.status === "resolved" ? "gemini_boss" : "gemini_boss_pending",
     directorProvider: "gemini",
     objective: objective?.trim() || "Find the strongest practical public route to the target and map the surrounding ownership and relationship context.",
