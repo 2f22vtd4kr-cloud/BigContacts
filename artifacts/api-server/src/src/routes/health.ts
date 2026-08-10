@@ -44,7 +44,8 @@ router.get("/healthz", async (_req, res) => {
     // Active key slot counts only — never secret values. 0 means restart API
     // after adding Replit secrets or OSINT will stay registry-shallow.
     providers,
-    note: "Restart the API process after any secret change so provider slot counts refresh.",
+    note: "Restart the API process after any secret change so provider slot counts refresh. ENABLE_AUTO_PIPELINE=false is the safe operator floor — do not auto-start research jobs.",
+    autoPipeline: process.env.ENABLE_AUTO_PIPELINE === "true",
   });
 });
 
