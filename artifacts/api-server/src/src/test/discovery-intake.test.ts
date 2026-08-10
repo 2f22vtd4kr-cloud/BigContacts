@@ -107,3 +107,26 @@ describe("discovery-intake", () => {
     expect(score).toBeGreaterThan(0.4);
   });
 });
+
+import { computeDiscoveryQualityMetrics } from "../lib/discovery-metrics";
+
+describe("discovery quality metrics", () => {
+  it("counts fame rejects and person-shaped rates without inventing contacts", () => {
+    const metrics = computeDiscoveryQualityMetrics([
+      { name: "Tim Cook", type: "person", relevance: "CEO" },
+      {
+        name: "Quiet Operator",
+        type: "person",
+        relevance: "founder managing partner",
+        contactEvidence: [{ value: "ops@example.com" }],
+      },
+      { name: "Shell Holdings Ltd", type: "corporation", relevance: "holding company" },
+    ]);
+    expect(metrics.total).toBe(3);
+    expect(metrics.fameRejected).toBe(1);
+    expect(metrics.nonPersonRejected).toBe(1);
+    expect(metrics.personShaped).toBe(1);
+    expect(metrics.withAnyEvidence).toBe(1);
+    expect(metrics.evidenceRate).toBeCloseTo(1 / 3, 3);
+  });
+});
