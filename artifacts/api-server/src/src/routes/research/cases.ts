@@ -9,6 +9,7 @@ import {
 } from "@workspace/db";
 import {
   collectDiscoveryContactsForTarget,
+  expandSecondaryPublicSurface,
   persistBureauContactsForEntity,
 } from "../../lib/bureau-contact-persist";
 import {
@@ -281,11 +282,14 @@ async function materializeDiscoveryReviewCandidates(input: {
   caseId: number;
   candidates: DiscoveryCandidate[];
   sourceTag?: string;
-}): Promise<{ materialized: number; candidates: DiscoveryCandidate[] }> {
+  expandSecondary?: boolean;
+}): Promise<{ materialized: number; secondaryExpanded: number; candidates: DiscoveryCandidate[] }> {
   const sourceTag = input.sourceTag ?? "case-bureau-discovery";
   const nowIso = new Date().toISOString();
   let materialized = 0;
+  let secondaryExpanded = 0;
   const updated: DiscoveryCandidate[] = [];
+  const secondaryQueue: Array<{ entityId: number; name: string; entityType: string }> = [];
 
   for (const candidate of input.candidates) {
     const name = String(candidate.name ?? "").trim();
@@ -318,8 +322,8 @@ async function materializeDiscoveryReviewCandidates(input: {
       .limit(1);
 
     let entityId = existing[0]?.id ?? null;
+    const entityType = candidateTypeToEntityType(String(candidate.type ?? "review_candidate"));
     if (!entityId) {
-      const entityType = candidateTypeToEntityType(String(candidate.type ?? "review_candidate"));
       try {
         const [entity] = await db.insert(entitiesTable).values({
           name,
@@ -348,7 +352,7 @@ async function materializeDiscoveryReviewCandidates(input: {
           }),
         }).returning();
         entityId = entity?.id ?? null;
-      } catch (err) {
+      } catch {
         // Race or unique constraint — leave candidate without entity id.
         entityId = null;
       }
@@ -384,11 +388,32 @@ async function materializeDiscoveryReviewCandidates(input: {
       sourceTag,
     );
 
+    // Queue person-shaped for bounded secondary expansion (LinkedIn / public claims as leads).
+    const personShaped =
+      entityType === "HNWI"
+      || entityType === "Gatekeeper"
+      || (name.includes(" ") && !/llc|ltd|inc|corp|plc|gmbh|sa\b|bv\b|nv\b/i.test(name));
+    const alreadyHasLinkedIn = urlEvidence.some((u) => /linkedin/i.test(u.vectorType) || /linkedin\.com/i.test(u.value));
+    if (personShaped && !alreadyHasLinkedIn && secondaryQueue.length < 5) {
+      secondaryQueue.push({ entityId, name, entityType });
+    }
+
     materialized += 1;
     updated.push({ ...candidate, admittedEntityId: entityId });
   }
 
-  return { materialized, candidates: updated };
+  if (input.expandSecondary !== false) {
+    for (const item of secondaryQueue) {
+      try {
+        const result = await expandSecondaryPublicSurface(item);
+        if (result.linkedin || result.email || result.phone) secondaryExpanded += 1;
+      } catch {
+        // non-fatal
+      }
+    }
+  }
+
+  return { materialized, secondaryExpanded, candidates: updated };
 }
 
 async function persistDiscoveryCheckpoint(
@@ -943,10 +968,10 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
         sourceTag: "case-bureau-discovery",
       });
       const ledgerCandidates = materialization.candidates;
-      if (materialization.materialized > 0) {
+      if (materialization.materialized > 0 || materialization.secondaryExpanded > 0) {
         await appendJobLog(
           jobId,
-          `Visibility floor: materialized ${materialization.materialized} review candidate(s) into entity ledger + contact_evidence (not promoted; Personal remains verified-only).`,
+          `Visibility floor: materialized ${materialization.materialized} review candidate(s) into entity ledger + contact_evidence; secondaryExpanded=${materialization.secondaryExpanded} (not promoted; Personal remains verified-only).`,
         );
       }
 

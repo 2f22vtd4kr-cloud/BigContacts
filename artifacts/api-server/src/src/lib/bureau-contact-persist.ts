@@ -171,3 +171,94 @@ export function collectDiscoveryContactsForTarget(
   }
   return out;
 }
+
+/**
+ * Phase B — bounded secondary public surface for person-shaped review entities.
+ * Runs after materialization: public LinkedIn (and any email/phone found by the
+ * existing free OSINT lane) are stored as candidate/lead only. Never Personal.
+ * Bounded + rate-limited; failures are silent (honesty = no invention).
+ */
+export async function expandSecondaryPublicSurface(input: {
+  entityId: number;
+  name: string;
+  entityType?: string | null;
+}): Promise<{ linkedin: boolean; email: boolean; phone: boolean }> {
+  const out = { linkedin: false, email: false, phone: false };
+  const name = String(input.name ?? "").trim();
+  if (!input.entityId || name.length < 3) return out;
+
+  try {
+    const { enrichEntityOsint } = await import("./web-enricher");
+    const result = await enrichEntityOsint({
+      name,
+      type: input.entityType ?? "HNWI",
+    } as any);
+
+    const vectors: BureauContactLike[] = [];
+    if (result.linkedinUrl) {
+      vectors.push({
+        vectorType: "linkedin",
+        value: result.linkedinUrl,
+        scope: "candidate",
+        personName: name,
+        role: null,
+        sourceUrls: [result.linkedinUrl],
+        note: `Public LinkedIn from secondary expansion (${(result.sources ?? []).join(", ") || "osint"})`,
+        tier: "candidate",
+        state: "review_only",
+      });
+      out.linkedin = true;
+    }
+    if (result.email) {
+      vectors.push({
+        vectorType: "email",
+        value: result.email,
+        scope: "candidate",
+        personName: name,
+        role: null,
+        sourceUrls: result.sources?.length ? [] : [],
+        note: `Claimed email from secondary expansion — lead only, not Personal`,
+        tier: "candidate",
+        state: "review_only",
+      });
+      out.email = true;
+    }
+    if (result.phone) {
+      vectors.push({
+        vectorType: "phone",
+        value: result.phone,
+        scope: "candidate",
+        personName: name,
+        role: null,
+        sourceUrls: [],
+        note: `Claimed phone from secondary expansion — lead only, not Personal`,
+        tier: "candidate",
+        state: "review_only",
+      });
+      out.phone = true;
+    }
+    if (result.website) {
+      vectors.push({
+        vectorType: "website",
+        value: result.website,
+        scope: "candidate",
+        personName: name,
+        role: null,
+        sourceUrls: [result.website],
+        note: "Website from secondary expansion",
+        tier: "candidate",
+        state: "review_only",
+      });
+    }
+
+    if (vectors.length) {
+      await persistBureauContactsForEntity(input.entityId, vectors, "secondary-public-surface");
+    }
+  } catch (err) {
+    logger.warn(
+      { err: err instanceof Error ? err.message : String(err), entityId: input.entityId, name },
+      "Secondary public surface expansion failed (non-fatal)",
+    );
+  }
+  return out;
+}
