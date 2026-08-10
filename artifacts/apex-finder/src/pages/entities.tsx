@@ -471,7 +471,7 @@ export default function EntityLedger() {
   const [addForm, setAddForm] = useState<AddEntityForm>(EMPTY_FORM);
   const [addMode, setAddMode] = useState<"manual" | "import">("manual");
   const [importText, setImportText] = useState("");
-  const [importFilename, setImportFilename] = useState<string | null>(null);
+  const [importFilenames, setImportFilenames] = useState<string[]>([]);
   const [importDrafts, setImportDrafts] = useState<any[]>([]);
   const [importMethod, setImportMethod] = useState<string | null>(null);
   const [importSelected, setImportSelected] = useState<Set<number>>(new Set());
@@ -479,7 +479,9 @@ export default function EntityLedger() {
   const [isImporting, setIsImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const [importResult, setImportResult] = useState<string | null>(null);
+  const [importDragOver, setImportDragOver] = useState(false);
   const importFileRef = useRef<HTMLInputElement>(null);
+  const importAbortRef = useRef<AbortController | null>(null);
 
   // View mode: all (default, hides hidden), starred, hidden
   type ViewMode = "all" | "starred" | "hidden";
@@ -637,16 +639,25 @@ export default function EntityLedger() {
     }
   };
 
-  const openAddModal = (prefill?: Partial<AddEntityForm>) => {
-    setAddForm(prefill ? { ...EMPTY_FORM, ...prefill } : EMPTY_FORM);
-    setAddMode(prefill ? "manual" : "manual");
+  const resetImportState = () => {
+    importAbortRef.current?.abort();
+    importAbortRef.current = null;
     setImportText("");
-    setImportFilename(null);
+    setImportFilenames([]);
     setImportDrafts([]);
     setImportMethod(null);
     setImportSelected(new Set());
     setImportError(null);
     setImportResult(null);
+    setImportDragOver(false);
+    setIsExtracting(false);
+    setIsImporting(false);
+  };
+
+  const openAddModal = (prefill?: Partial<AddEntityForm>) => {
+    setAddForm(prefill ? { ...EMPTY_FORM, ...prefill } : EMPTY_FORM);
+    setAddMode("manual");
+    resetImportState();
     setShowAddModal(true);
   };
 
@@ -670,26 +681,68 @@ export default function EntityLedger() {
     });
   };
 
-  const handleImportFile = async (file: File) => {
+  const isTextLikeFile = (file: File) => {
+    const name = file.name.toLowerCase();
+    return (
+      /\.(txt|md|csv|json|html?|tsv|log|rtf)$/i.test(name)
+      || file.type.startsWith("text/")
+      || file.type === "application/json"
+      || file.type === "text/csv"
+    );
+  };
+
+  const handleImportFiles = async (files: FileList | File[]) => {
     setImportError(null);
     setImportResult(null);
-    const name = file.name.toLowerCase();
-    const textLike = /\.(txt|md|csv|json|html?|tsv|log|rtf)$/i.test(name) || file.type.startsWith("text/") || file.type === "application/json" || file.type === "text/csv";
-    if (!textLike && file.size > 2_000_000) {
-      setImportError("Binary files over 2MB are not supported. Paste text, or use .txt / .md / .csv / .json.");
-      return;
+    const list = Array.from(files).slice(0, 8);
+    if (!list.length) return;
+    const chunks: string[] = [];
+    const names: string[] = [];
+    let total = 0;
+    for (const file of list) {
+      if (!isTextLikeFile(file) && file.size > 2_000_000) {
+        setImportError(`Skipped ${file.name}: binary over 2MB. Use .txt / .md / .csv / .json.`);
+        continue;
+      }
+      if (file.size > 500_000) {
+        setImportError(`${file.name} is over 500KB — trim the source or split the batch.`);
+        continue;
+      }
+      try {
+        const text = await file.text();
+        total += text.length;
+        if (total > 500_000) {
+          setImportError("Combined text exceeds ~500KB. Remove a file or paste a shorter excerpt.");
+          break;
+        }
+        chunks.push(`\n\n===== FILE: ${file.name} =====\n${text}`);
+        names.push(file.name);
+      } catch {
+        setImportError(`Could not read ${file.name} as text.`);
+      }
     }
-    try {
-      const text = await file.text();
-      setImportText(text);
-      setImportFilename(file.name);
-    } catch {
-      setImportError("Could not read file as text. Try pasting the content instead.");
+    if (!chunks.length) return;
+    setImportText((prev) => (prev.trim() ? `${prev.trim()}\n${chunks.join("")}` : chunks.join("").trim()));
+    setImportFilenames((prev) => [...prev, ...names].slice(0, 12));
+  };
+
+  const dedupeDrafts = (drafts: any[]) => {
+    const seen = new Set<string>();
+    const out: any[] = [];
+    for (const d of drafts) {
+      const key = String(d?.name ?? "").trim().toLowerCase();
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      out.push(d);
     }
+    return out;
   };
 
   const handleExtractImport = async () => {
-    if (!importText.trim()) return;
+    if (!importText.trim() || isExtracting) return;
+    importAbortRef.current?.abort();
+    const ac = new AbortController();
+    importAbortRef.current = ac;
     setIsExtracting(true);
     setImportError(null);
     setImportResult(null);
@@ -700,27 +753,32 @@ export default function EntityLedger() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           text: importText,
-          filename: importFilename,
+          filename: importFilenames[0] ?? null,
           preferLlm: true,
         }),
+        signal: ac.signal,
       });
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.error ?? "Extract failed");
-      const drafts = Array.isArray(data.drafts) ? data.drafts : [];
+      const drafts = dedupeDrafts(Array.isArray(data.drafts) ? data.drafts : []);
       setImportDrafts(drafts);
       setImportMethod(data.method ?? null);
       setImportSelected(new Set(drafts.map((_: any, i: number) => i)));
-      if (!drafts.length) setImportError("No entities found in the source. Try richer notes or a CSV with a Name column.");
+      if (!drafts.length) {
+        setImportError("No entities found. Try richer notes, or a CSV with a Name column.");
+      }
     } catch (err: any) {
+      if (err?.name === "AbortError") return;
       setImportError(err?.message ?? "Extract failed");
     } finally {
+      if (importAbortRef.current === ac) importAbortRef.current = null;
       setIsExtracting(false);
     }
   };
 
   const handleBatchImport = async () => {
     const selected = importDrafts.filter((_, i) => importSelected.has(i));
-    if (!selected.length) return;
+    if (!selected.length || isImporting) return;
     setIsImporting(true);
     setImportError(null);
     setImportResult(null);
@@ -732,13 +790,25 @@ export default function EntityLedger() {
       });
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.error ?? "Batch import failed");
-      setImportResult(`Registered ${data.created ?? 0} · skipped ${data.skipped ?? 0} · errors ${data.errors ?? 0}`);
+      const created = data.created ?? 0;
+      const skipped = data.skipped ?? 0;
+      const errors = data.errors ?? 0;
+      setImportResult(`Registered ${created} · skipped ${skipped} · errors ${errors}`);
+      if (created > 0 || skipped > 0) {
+        // Drop successfully handled drafts from the review list
+        setImportDrafts((prev) => prev.filter((_, i) => !importSelected.has(i)));
+        setImportSelected(new Set());
+      }
       refetch();
     } catch (err: any) {
       setImportError(err?.message ?? "Batch import failed");
     } finally {
       setIsImporting(false);
     }
+  };
+
+  const updateImportDraft = (index: number, patch: Record<string, unknown>) => {
+    setImportDrafts((prev) => prev.map((d, i) => (i === index ? { ...d, ...patch } : d)));
   };
 
   const handleRegistrySearch = async () => {
@@ -1453,36 +1523,53 @@ export default function EntityLedger() {
 
       {/* Add entity modal — manual fields OR batch import from text/files */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex">
-          <div className="flex-1 bg-black/60 backdrop-blur-sm" onClick={() => setShowAddModal(false)} />
-          <div className="w-full max-w-[560px] bg-card border-l border-border flex flex-col shadow-2xl animate-in slide-in-from-right-full duration-300">
-            <div className="p-5 border-b border-border flex items-center justify-between flex-shrink-0">
-              <div>
+        <div className="fixed inset-0 z-50 flex items-stretch justify-end">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => { setShowAddModal(false); resetImportState(); }} />
+          <div
+            className={cn(
+              "relative z-10 flex h-full w-full flex-col border-border bg-card shadow-2xl",
+              "sm:max-w-[560px] sm:border-l",
+              "animate-in slide-in-from-right-full duration-300",
+            )}
+            role="dialog"
+            aria-modal="true"
+            aria-label="New intelligence target"
+          >
+            <div className="flex items-start justify-between gap-3 border-b border-border p-4 sm:p-5 flex-shrink-0">
+              <div className="min-w-0">
                 <h2 className="text-sm font-bold font-mono tracking-widest uppercase text-foreground">New Intelligence Target</h2>
-                <p className="text-xs text-muted-foreground font-mono mt-0.5">
-                  {addMode === "manual" ? "Register entity in classified registry" : "Paste research or load files → extract → batch register"}
+                <p className="mt-0.5 text-[11px] text-muted-foreground font-mono leading-snug">
+                  {addMode === "manual"
+                    ? "Register a single entity in the ledger"
+                    : "Paste research or load files → extract → batch register"}
                 </p>
               </div>
-              <button onClick={() => setShowAddModal(false)} className="p-1.5 text-muted-foreground hover:text-foreground rounded bg-muted border border-border">
+              <button
+                type="button"
+                onClick={() => { setShowAddModal(false); resetImportState(); }}
+                className="p-2 text-muted-foreground hover:text-foreground rounded-md bg-muted border border-border flex-shrink-0"
+                aria-label="Close"
+              >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Mode tabs */}
             <div className="flex border-b border-border flex-shrink-0">
               <button
+                type="button"
                 onClick={() => setAddMode("manual")}
                 className={cn(
-                  "flex-1 px-4 py-2.5 font-mono text-[11px] uppercase tracking-wider transition-colors",
+                  "flex-1 px-3 py-3 font-mono text-[10px] sm:text-[11px] uppercase tracking-wider transition-colors",
                   addMode === "manual" ? "text-primary border-b-2 border-primary bg-primary/5" : "text-muted-foreground hover:text-foreground",
                 )}
               >
                 Manual fields
               </button>
               <button
+                type="button"
                 onClick={() => setAddMode("import")}
                 className={cn(
-                  "flex-1 px-4 py-2.5 font-mono text-[11px] uppercase tracking-wider transition-colors flex items-center justify-center gap-1.5",
+                  "flex-1 px-3 py-3 font-mono text-[10px] sm:text-[11px] uppercase tracking-wider transition-colors inline-flex items-center justify-center gap-1.5",
                   addMode === "import" ? "text-primary border-b-2 border-primary bg-primary/5" : "text-muted-foreground hover:text-foreground",
                 )}
               >
@@ -1492,41 +1579,46 @@ export default function EntityLedger() {
 
             {addMode === "manual" ? (
               <>
-                <div className="flex-1 overflow-y-auto p-5 space-y-4">
-                  {[
-                    { label: "Full Name *", field: "name", placeholder: "e.g. James Worthington III" },
-                  ].map(({ label, field, placeholder }) => (
-                    <div key={field}>
-                      <label className="block text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">{label}</label>
-                      <input
-                        type="text" value={(addForm as any)[field]} placeholder={placeholder}
-                        onChange={(e) => setAddForm((f) => ({ ...f, [field]: e.target.value }))}
-                        className="w-full bg-background border border-border rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-primary"
-                      />
-                    </div>
-                  ))}
+                <div className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5 space-y-4">
+                  <div>
+                    <label className="block text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">Full Name *</label>
+                    <input
+                      type="text"
+                      value={addForm.name}
+                      placeholder="e.g. James Worthington III"
+                      onChange={(e) => setAddForm((f) => ({ ...f, name: e.target.value }))}
+                      className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-sm font-mono text-foreground focus:outline-none focus:border-primary"
+                      autoFocus
+                    />
+                  </div>
                   <div>
                     <label className="block text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">Classification *</label>
-                    <select value={addForm.type} onChange={(e) => setAddForm((f) => ({ ...f, type: e.target.value as EntityType }))}
-                      className="w-full bg-background border border-border rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-primary">
+                    <select
+                      value={addForm.type}
+                      onChange={(e) => setAddForm((f) => ({ ...f, type: e.target.value as EntityType }))}
+                      className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-sm font-mono text-foreground focus:outline-none focus:border-primary"
+                    >
                       <option value="HNWI">HNWI — High Net Worth Individual</option>
                       <option value="Corporation">Corporation — Company / Shell</option>
                       <option value="Trust">Trust — Offshore / Fiduciary</option>
                       <option value="Gatekeeper">Gatekeeper — Contact / Introducer</option>
                     </select>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    {[
-                      { label: "Nationality", field: "nationality", placeholder: "e.g. British" },
-                      { label: addForm.type === "HNWI" ? "Estimated wealth (USD)" : entityMeta(addForm.type).metricLabel, field: "estimatedNetWorth", placeholder: addForm.type === "HNWI" ? "e.g. 50000000" : "Optional numeric signal" },
-                    ].map(({ label, field, placeholder }) => (
-                      <div key={field}>
-                        <label className="block text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">{label}</label>
-                        <input type={field === "estimatedNetWorth" ? "number" : "text"} value={(addForm as any)[field]} placeholder={placeholder}
-                          onChange={(e) => setAddForm((f) => ({ ...f, [field]: e.target.value }))}
-                          className="w-full bg-background border border-border rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-primary" />
-                      </div>
-                    ))}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">Nationality</label>
+                      <input type="text" value={addForm.nationality} placeholder="e.g. British"
+                        onChange={(e) => setAddForm((f) => ({ ...f, nationality: e.target.value }))}
+                        className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-sm font-mono text-foreground focus:outline-none focus:border-primary" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">
+                        {addForm.type === "HNWI" ? "Estimated wealth (USD)" : entityMeta(addForm.type).metricLabel}
+                      </label>
+                      <input type="number" value={addForm.estimatedNetWorth} placeholder={addForm.type === "HNWI" ? "e.g. 50000000" : "Optional"}
+                        onChange={(e) => setAddForm((f) => ({ ...f, estimatedNetWorth: e.target.value }))}
+                        className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-sm font-mono text-foreground focus:outline-none focus:border-primary" />
+                    </div>
                   </div>
                   {[
                     { label: "Known Residences", field: "knownResidences", placeholder: "London, UK / Monaco / Dubai" },
@@ -1539,96 +1631,156 @@ export default function EntityLedger() {
                       <label className="block text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">{label}</label>
                       <input type="text" value={(addForm as any)[field]} placeholder={placeholder}
                         onChange={(e) => setAddForm((f) => ({ ...f, [field]: e.target.value }))}
-                        className="w-full bg-background border border-border rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-primary" />
+                        className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-sm font-mono text-foreground focus:outline-none focus:border-primary" />
                     </div>
                   ))}
                   <div>
                     <label className="block text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">Intelligence Notes</label>
                     <textarea value={addForm.notes} onChange={(e) => setAddForm((f) => ({ ...f, notes: e.target.value }))}
-                      rows={4} placeholder="Background, approach angles, personal context, seasonal windows…"
-                      className="w-full bg-background border border-border rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-primary resize-none" />
+                      rows={4} placeholder="Background, approach angles, personal context…"
+                      className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-sm font-mono text-foreground focus:outline-none focus:border-primary resize-none" />
                   </div>
                 </div>
-                <div className="p-5 border-t border-border flex items-center justify-between flex-shrink-0 bg-muted/20">
-                  <button onClick={() => setShowAddModal(false)}
-                    className="px-4 py-2 bg-muted text-muted-foreground border border-border rounded font-mono text-sm hover:text-foreground transition-colors">
+                <div className="p-4 sm:p-5 border-t border-border flex items-center justify-between gap-3 flex-shrink-0 bg-muted/20 safe-pb">
+                  <button type="button" onClick={() => { setShowAddModal(false); resetImportState(); }}
+                    className="px-4 py-2.5 bg-muted text-muted-foreground border border-border rounded-lg font-mono text-sm hover:text-foreground transition-colors">
                     Cancel
                   </button>
-                  <button onClick={handleAddEntity} disabled={!addForm.name.trim() || createEntity.isPending}
-                    className="px-5 py-2 bg-primary text-primary-foreground rounded font-mono text-sm uppercase tracking-wider hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-2">
+                  <button type="button" onClick={handleAddEntity} disabled={!addForm.name.trim() || createEntity.isPending}
+                    className="px-5 py-2.5 bg-primary text-primary-foreground rounded-lg font-mono text-sm uppercase tracking-wider hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-2">
                     {createEntity.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                    Register Entity
+                    Register
                   </button>
                 </div>
               </>
             ) : (
               <>
-                <div className="flex-1 overflow-y-auto p-5 space-y-4">
-                  <div className="rounded-lg border border-border bg-muted/20 p-3 text-[11px] text-muted-foreground font-mono leading-relaxed">
-                    Paste Grok / research notes or load .txt .md .csv .json. Apex extracts named people & companies with LLM (Groq/Gemini) — contacts stay <span className="text-foreground">candidate / related</span>, never auto-Personal.
+                <div className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5 space-y-4">
+                  <div className="rounded-lg border border-border bg-muted/20 px-3 py-2.5 text-[11px] text-muted-foreground font-mono leading-relaxed">
+                    Paste research notes or drop files (.txt .md .csv .json). Extraction uses Groq → Gemini → heuristic. Contacts stay <span className="text-foreground">candidate / related</span> — never auto-Personal.
                   </div>
 
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => importFileRef.current?.click()}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 font-mono text-[11px] uppercase tracking-wider text-foreground hover:border-primary/60"
-                    >
-                      <FileText className="w-3.5 h-3.5" /> Load file
-                    </button>
-                    <input
-                      ref={importFileRef}
-                      type="file"
-                      accept=".txt,.md,.csv,.json,.html,.htm,.tsv,.log,.rtf,text/plain,application/json,text/csv"
-                      className="hidden"
-                      onChange={(e) => {
-                        const f = e.target.files?.[0];
-                        if (f) void handleImportFile(f);
-                        e.target.value = "";
-                      }}
-                    />
-                    {importFilename ? (
-                      <span className="inline-flex items-center gap-1 rounded border border-border bg-card px-2 py-1 font-mono text-[10px] text-muted-foreground">
-                        {importFilename}
-                        <button type="button" onClick={() => { setImportFilename(null); }} className="text-muted-foreground hover:text-foreground"><X className="w-3 h-3" /></button>
-                      </span>
+                  <div
+                    onDragOver={(e) => { e.preventDefault(); setImportDragOver(true); }}
+                    onDragLeave={() => setImportDragOver(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setImportDragOver(false);
+                      if (e.dataTransfer.files?.length) void handleImportFiles(e.dataTransfer.files);
+                    }}
+                    className={cn(
+                      "rounded-lg border border-dashed px-3 py-4 transition-colors",
+                      importDragOver ? "border-primary bg-primary/10" : "border-border bg-background/40",
+                    )}
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => importFileRef.current?.click()}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 font-mono text-[11px] uppercase tracking-wider text-foreground hover:border-primary/60"
+                      >
+                        <FileText className="w-3.5 h-3.5" /> Load files
+                      </button>
+                      <span className="font-mono text-[10px] text-muted-foreground">or drag & drop · up to 8 files</span>
+                      <input
+                        ref={importFileRef}
+                        type="file"
+                        multiple
+                        accept=".txt,.md,.csv,.json,.html,.htm,.tsv,.log,.rtf,text/plain,application/json,text/csv"
+                        className="hidden"
+                        onChange={(e) => {
+                          if (e.target.files?.length) void handleImportFiles(e.target.files);
+                          e.target.value = "";
+                        }}
+                      />
+                    </div>
+                    {importFilenames.length > 0 ? (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {importFilenames.map((name) => (
+                          <span key={name} className="inline-flex items-center gap-1 rounded border border-border bg-card px-2 py-0.5 font-mono text-[10px] text-muted-foreground max-w-full">
+                            <span className="truncate max-w-[160px]">{name}</span>
+                          </span>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() => { setImportFilenames([]); }}
+                          className="font-mono text-[10px] text-muted-foreground hover:text-foreground underline"
+                        >
+                          clear names
+                        </button>
+                      </div>
                     ) : null}
                   </div>
 
                   <div>
-                    <label className="block text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">Research text</label>
+                    <div className="mb-1.5 flex items-center justify-between gap-2">
+                      <label className="text-xs font-mono text-muted-foreground uppercase tracking-wider">Research text</label>
+                      <span className={cn(
+                        "font-mono text-[10px]",
+                        importText.length > 450_000 ? "text-destructive" : "text-muted-foreground",
+                      )}>
+                        {importText.length.toLocaleString()} chars
+                      </span>
+                    </div>
                     <textarea
                       value={importText}
                       onChange={(e) => setImportText(e.target.value)}
-                      rows={8}
-                      placeholder={"Paste notes, e.g.\n\nTrace Cohen — angel investor, Signal.nfx profile…\nemail@example.com · linkedin.com/in/…\n\nor a CSV with Name, Email, Phone columns"}
-                      className="w-full bg-background border border-border rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-primary resize-y min-h-[140px]"
+                      rows={7}
+                      placeholder={"Paste notes, e.g.\n\nTrace Cohen — angel investor…\nemail@example.com · linkedin.com/in/…\n\nor CSV with Name, Email, Phone columns"}
+                      className="w-full bg-background border border-border rounded-lg px-3 py-2.5 text-sm font-mono text-foreground focus:outline-none focus:border-primary resize-y min-h-[120px] max-h-[40vh]"
                     />
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => void handleExtractImport()}
-                    disabled={!importText.trim() || isExtracting}
-                    className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 font-mono text-xs uppercase tracking-wider text-primary-foreground hover:bg-primary/90 disabled:opacity-40"
-                  >
-                    {isExtracting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                    Extract entities
-                  </button>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void handleExtractImport()}
+                      disabled={!importText.trim() || isExtracting || importText.length > 500_000}
+                      className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 font-mono text-xs uppercase tracking-wider text-primary-foreground hover:bg-primary/90 disabled:opacity-40"
+                    >
+                      {isExtracting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                      {isExtracting ? "Extracting…" : "Extract entities"}
+                    </button>
+                    {isExtracting ? (
+                      <button
+                        type="button"
+                        onClick={() => { importAbortRef.current?.abort(); setIsExtracting(false); }}
+                        className="rounded-lg border border-border bg-muted px-4 py-2.5 font-mono text-xs text-muted-foreground hover:text-foreground"
+                      >
+                        Cancel
+                      </button>
+                    ) : null}
+                    {importText.trim() && !isExtracting ? (
+                      <button
+                        type="button"
+                        onClick={() => { setImportText(""); setImportFilenames([]); setImportDrafts([]); setImportSelected(new Set()); setImportError(null); setImportResult(null); setImportMethod(null); }}
+                        className="rounded-lg border border-border bg-muted px-4 py-2.5 font-mono text-xs text-muted-foreground hover:text-foreground"
+                      >
+                        Clear
+                      </button>
+                    ) : null}
+                  </div>
 
                   {importError ? (
-                    <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive font-mono">{importError}</div>
+                    <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive font-mono leading-relaxed">{importError}</div>
                   ) : null}
                   {importResult ? (
-                    <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300 font-mono">{importResult}</div>
+                    <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300 font-mono leading-relaxed">{importResult}</div>
                   ) : null}
 
-                  {importDrafts.length > 0 ? (
+                  {isExtracting ? (
+                    <div className="rounded-lg border border-border bg-card/40 px-4 py-8 text-center">
+                      <Loader2 className="mx-auto h-6 w-6 animate-spin text-primary" />
+                      <p className="mt-3 font-mono text-xs text-muted-foreground">Reading source · Groq / Gemini / heuristic</p>
+                    </div>
+                  ) : null}
+
+                  {!isExtracting && importDrafts.length > 0 ? (
                     <div className="space-y-2">
-                      <div className="flex items-center justify-between">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
                         <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
                           {importDrafts.length} draft{importDrafts.length === 1 ? "" : "s"}
-                          {importMethod ? ` · via ${importMethod}` : ""}
+                          {importMethod ? ` · ${importMethod}` : ""}
                           {" · "}{importSelected.size} selected
                         </div>
                         <button
@@ -1642,65 +1794,96 @@ export default function EntityLedger() {
                           {importSelected.size === importDrafts.length ? "Deselect all" : "Select all"}
                         </button>
                       </div>
-                      <div className="max-h-[280px] space-y-2 overflow-y-auto pr-1">
+                      <div className="max-h-[min(320px,42vh)] space-y-2 overflow-y-auto overscroll-contain pr-0.5">
                         {importDrafts.map((d, i) => {
                           const selected = importSelected.has(i);
                           return (
-                            <button
+                            <div
                               key={`${d.name}-${i}`}
-                              type="button"
-                              onClick={() => {
-                                setImportSelected((prev) => {
-                                  const next = new Set(prev);
-                                  if (next.has(i)) next.delete(i);
-                                  else next.add(i);
-                                  return next;
-                                });
-                              }}
                               className={cn(
-                                "w-full text-left rounded-lg border px-3 py-2.5 transition-colors",
-                                selected ? "border-primary/50 bg-primary/10" : "border-border bg-card/40 hover:bg-card/70",
+                                "rounded-lg border px-3 py-2.5 transition-colors",
+                                selected ? "border-primary/50 bg-primary/10" : "border-border bg-card/40",
                               )}
                             >
                               <div className="flex items-start gap-2">
-                                {selected ? <CheckSquare className="w-3.5 h-3.5 text-primary mt-0.5 flex-shrink-0" /> : <Square className="w-3.5 h-3.5 text-muted-foreground mt-0.5 flex-shrink-0" />}
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-mono text-sm font-semibold text-foreground truncate">{d.name}</span>
-                                    <span className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground flex-shrink-0">{d.type}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setImportSelected((prev) => {
+                                      const next = new Set(prev);
+                                      if (next.has(i)) next.delete(i);
+                                      else next.add(i);
+                                      return next;
+                                    });
+                                  }}
+                                  className="mt-1 flex-shrink-0 text-muted-foreground hover:text-primary"
+                                  aria-label={selected ? "Deselect" : "Select"}
+                                >
+                                  {selected ? <CheckSquare className="w-4 h-4 text-primary" /> : <Square className="w-4 h-4" />}
+                                </button>
+                                <div className="min-w-0 flex-1 space-y-1.5">
+                                  <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center">
+                                    <input
+                                      type="text"
+                                      value={d.name ?? ""}
+                                      onChange={(e) => updateImportDraft(i, { name: e.target.value })}
+                                      className="min-w-0 flex-1 bg-background/80 border border-border rounded px-2 py-1 font-mono text-sm font-semibold text-foreground focus:outline-none focus:border-primary"
+                                    />
+                                    <select
+                                      value={d.type ?? "HNWI"}
+                                      onChange={(e) => updateImportDraft(i, { type: e.target.value })}
+                                      className="bg-background border border-border rounded px-2 py-1 font-mono text-[10px] uppercase text-muted-foreground focus:outline-none focus:border-primary sm:w-[130px]"
+                                    >
+                                      <option value="HNWI">HNWI</option>
+                                      <option value="Corporation">Corporation</option>
+                                      <option value="Trust">Trust</option>
+                                      <option value="Gatekeeper">Gatekeeper</option>
+                                    </select>
                                   </div>
-                                  <div className="mt-1 flex flex-wrap gap-1.5">
-                                    {(d.contacts ?? []).slice(0, 4).map((c: any, j: number) => (
-                                      <span key={j} className="rounded border border-border bg-background/60 px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground truncate max-w-[160px]">
+                                  <div className="flex flex-wrap gap-1">
+                                    {(d.contacts ?? []).slice(0, 6).map((c: any, j: number) => (
+                                      <span key={j} className="rounded border border-border bg-background/60 px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground truncate max-w-[100%] sm:max-w-[180px]" title={c.value}>
                                         {c.vectorType}: {c.value}
                                       </span>
                                     ))}
                                     {d.email && !(d.contacts ?? []).some((c: any) => c.vectorType === "email") ? (
-                                      <span className="rounded border border-border bg-background/60 px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground">email: {d.email}</span>
+                                      <span className="rounded border border-border bg-background/60 px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground truncate max-w-full">email: {d.email}</span>
+                                    ) : null}
+                                    {d.confidence ? (
+                                      <span className="rounded border border-border/60 px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground/80">{d.confidence}</span>
                                     ) : null}
                                   </div>
-                                  {d.notes ? <p className="mt-1 text-[10px] text-muted-foreground line-clamp-2">{d.notes}</p> : null}
+                                  {d.notes ? (
+                                    <p className="text-[10px] text-muted-foreground line-clamp-2 leading-relaxed">{d.notes}</p>
+                                  ) : null}
                                 </div>
                               </div>
-                            </button>
+                            </div>
                           );
                         })}
                       </div>
                     </div>
                   ) : null}
+
+                  {!isExtracting && !importDrafts.length && importText.trim() && !importError ? (
+                    <div className="rounded-lg border border-dashed border-border px-4 py-6 text-center font-mono text-[11px] text-muted-foreground">
+                      Ready to extract. Run <span className="text-foreground">Extract entities</span> to build draft cards.
+                    </div>
+                  ) : null}
                 </div>
-                <div className="p-5 border-t border-border flex items-center justify-between flex-shrink-0 bg-muted/20">
-                  <button onClick={() => setShowAddModal(false)}
-                    className="px-4 py-2 bg-muted text-muted-foreground border border-border rounded font-mono text-sm hover:text-foreground transition-colors">
-                    Cancel
+                <div className="p-4 sm:p-5 border-t border-border flex items-center justify-between gap-3 flex-shrink-0 bg-muted/20">
+                  <button type="button" onClick={() => { setShowAddModal(false); resetImportState(); }}
+                    className="px-4 py-2.5 bg-muted text-muted-foreground border border-border rounded-lg font-mono text-sm hover:text-foreground transition-colors">
+                    Close
                   </button>
                   <button
+                    type="button"
                     onClick={() => void handleBatchImport()}
                     disabled={!importSelected.size || isImporting}
-                    className="px-5 py-2 bg-primary text-primary-foreground rounded font-mono text-sm uppercase tracking-wider hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                    className="px-4 sm:px-5 py-2.5 bg-primary text-primary-foreground rounded-lg font-mono text-xs sm:text-sm uppercase tracking-wider hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
                   >
                     {isImporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Database className="w-4 h-4" />}
-                    Register {importSelected.size || ""} selected
+                    Register {importSelected.size || ""}
                   </button>
                 </div>
               </>
