@@ -16,6 +16,7 @@ import {
   rankDiscoveryReviewCandidates,
 } from "../../lib/discovery-intake";
 import { computeDiscoveryQualityMetrics, evaluateDiscoveryStop } from "../../lib/discovery-metrics";
+import { buildLanesHonestySnapshot } from "../../lib/lanes-honesty";
 import {
   AddResearchCaseDirectiveBody,
   AddResearchCaseDirectiveParams,
@@ -110,6 +111,22 @@ async function loadEntityContactRoutes(entityId: number) {
     });
   return contactEvidenceToRoutes(items);
 }
+
+/** D residual: stamp discovery jobs with lane honesty + registry-shallow risk. */
+async function stampDiscoveryJobHonesty(jobId: string, message?: string): Promise<void> {
+  const lanes = buildLanesHonestySnapshot();
+  await updateJob(jobId, {
+    message: message
+      ?? (lanes.registryShallowRisk
+        ? "Registry-shallow risk: no active web-search provider slots"
+        : undefined),
+    result: JSON.stringify({
+      lanesHonesty: lanes,
+      registryShallowRisk: lanes.registryShallowRisk,
+    }),
+  });
+}
+
 
 
 function serializeCase(
@@ -468,6 +485,7 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
 
   const jobId = await createJob("case-bureau-discovery");
   await setActiveJob("case-bureau-discovery", jobId);
+  await stampDiscoveryJobHonesty(jobId);
   await updateJob(jobId, {
     status: "running",
     progress: 0,
@@ -1039,6 +1057,7 @@ router.post("/research/bureau/cases/:caseId/run-next-pass", async (req, res): Pr
 
   const jobId = await createJob("case-bureau-discovery");
   await setActiveJob("case-bureau-discovery", jobId);
+  await stampDiscoveryJobHonesty(jobId);
   const iteration = current.iteration + 1;
   await updateJob(jobId, {
     status: "running",
@@ -1410,6 +1429,7 @@ router.post("/research/bureau/cases/:caseId/run-boss-review", async (req, res): 
 
   const jobId = await createJob("case-bureau-discovery");
   await setActiveJob("case-bureau-discovery", jobId);
+  await stampDiscoveryJobHonesty(jobId);
   const iteration = current.iteration + 1;
   await updateJob(jobId, {
     status: "running",
@@ -2048,7 +2068,40 @@ router.get("/research/cases/:entityId", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Research case not found" });
     return;
   }
-  res.json(serializeCase(row.case, row.entityName ? { name: row.entityName, type: row.entityType ?? "Unknown" } : null));
+  // C residual: always surface durable contact_evidence on read so operators
+  // never need Redis digs for vectors found after the case was opened.
+  let caseRow = row.case;
+  if (caseRow.targetEntityId) {
+    const file = parseCaseFile(caseRow.caseFile);
+    if (file) {
+      const evidenceRoutes = await loadEntityContactRoutes(caseRow.targetEntityId);
+      const merged = mergeContactRoutes(file.contactRoutes, evidenceRoutes);
+      const beforeSig = (file.contactRoutes ?? []).map((r) => `${r.vectorType}|${r.value}`).sort().join(";");
+      const afterSig = merged.map((r) => `${r.vectorType}|${r.value}`).sort().join(";");
+      if (afterSig !== beforeSig) {
+        const refreshed = {
+          ...file,
+          contactRoutes: merged,
+          investigationProgress: (await import("../../lib/investigation-progress")).computeInvestigationProgress({
+            routes: merged,
+            sourceRegistries: file.evidenceSummary?.sourceRegistries ?? [],
+            searchGaps: file.evidenceSummary?.searchGaps ?? [],
+            negativeFindings: file.evidenceSummary?.negativeFindings ?? [],
+            completedActionIds: (file.actionQueue ?? [])
+              .filter((a) => a.status === "complete" || a.status === "active" || a.status === "review")
+              .map((a) => a.id),
+          }),
+          lastUpdatedBy: "contact-evidence-refresh",
+        };
+        const [updated] = await db.update(researchCasesTable).set({
+          caseFile: JSON.stringify(refreshed),
+          updatedAt: new Date(),
+        }).where(eq(researchCasesTable.id, caseRow.id)).returning();
+        if (updated) caseRow = updated;
+      }
+    }
+  }
+  res.json(serializeCase(caseRow, row.entityName ? { name: row.entityName, type: row.entityType ?? "Unknown" } : null));
 });
 
 router.post("/research/cases/:entityId/advance", async (req, res): Promise<void> => {
@@ -2258,6 +2311,7 @@ router.post("/research/cases/:entityId/advance", async (req, res): Promise<void>
       : advanceCaseFile(advisedFile, nextIteration);
 
 
+  const providerLanes = buildLanesHonestySnapshot();
   const lanesHonestyPreview = {
     rightHand: reasoning.status,
     boss: bossPlan.status,
@@ -2266,6 +2320,11 @@ router.post("/research/cases/:entityId/advance", async (req, res): Promise<void>
     reprioritize: bossPlan.reprioritize ?? [],
     noProgressStreak,
     researchDepth: depthCfg.depth,
+    registryShallowRisk: providerLanes.registryShallowRisk,
+    webSearchActive: providerLanes.webSearchActive,
+    perplexity: providerLanes.perplexity,
+    tavily: providerLanes.tavily,
+    exa: providerLanes.exa,
   };
   const updatedFile = {
     ...recordGeminiBossPlan(bossDecisionFile, bossPlan),

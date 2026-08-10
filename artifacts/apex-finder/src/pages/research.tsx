@@ -636,6 +636,11 @@ function BureauCasePanel({
                 {(bureauCase.progressSummary.lanesHonesty as { researchDepth?: string }).researchDepth
                   ? ` · depth=${(bureauCase.progressSummary.lanesHonesty as { researchDepth?: string }).researchDepth}`
                   : ""}
+                {(bureauCase.progressSummary.lanesHonesty as { registryShallowRisk?: boolean }).registryShallowRisk
+                  ? " · REGISTRY-SHALLOW RISK (no web-search keys)"
+                  : (typeof (bureauCase.progressSummary.lanesHonesty as { webSearchActive?: number }).webSearchActive === "number"
+                    ? ` · web=${(bureauCase.progressSummary.lanesHonesty as { webSearchActive?: number }).webSearchActive}`
+                    : "")}
               </div>
             )}
           </div>

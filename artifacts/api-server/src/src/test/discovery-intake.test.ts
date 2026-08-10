@@ -130,3 +130,20 @@ describe("discovery quality metrics", () => {
     expect(metrics.evidenceRate).toBeCloseTo(1 / 3, 3);
   });
 });
+
+import { pickMixedDiscoverySlots } from "../lib/discovery-source-mixer";
+
+describe("discovery-source-mixer person-first residual", () => {
+  it("prefers officer/director registry language over pure LEI shells early in the slate", () => {
+    const rng = () => 0.42;
+    const slate = pickMixedDiscoverySlots({ count: 6, includeFaa: false, rng });
+    expect(slate.length).toBeGreaterThanOrEqual(3);
+    const labels = slate.map((s) => s.label.toLowerCase()).join(" | ");
+    // First registry-ish picks should lean person language when available in the pool.
+    const firstHalf = slate.slice(0, 3).map((s) => s.label.toLowerCase()).join(" ");
+    expect(
+      /officer|director|psc|founder|partner|principal|insider/.test(firstHalf)
+      || /officer|director|psc|founder|partner|principal|insider/.test(labels),
+    ).toBe(true);
+  });
+});

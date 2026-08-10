@@ -206,6 +206,39 @@ function shuffleInPlace<T>(items: T[], rng: () => number = Math.random): T[] {
  * Ensures variety: try to include at least one registry, one web, and optionally FAA
  * without repeating the same slot id back-to-back when priorIds provided.
  */
+
+/** E residual: prefer officer/director/shareholder/founder recipes over pure entity shells. */
+function personRecipeScore(slot: MixedDiscoverySlot): number {
+  const queries =
+    slot.kind === "broad_web" && Array.isArray(slot.exampleQueries)
+      ? slot.exampleQueries.join(" ")
+      : "";
+  const hint = slot.kind === "registry" ? String(slot.registryHint ?? "") : "";
+  const text = `${slot.label} ${queries} ${hint}`.toLowerCase();
+  let score = 0;
+  if (/\b(officer|director|psc|shareholder|beneficial owner|board)\b/.test(text)) score += 3;
+  if (/\b(founder|co-founder|managing partner|general partner|principal|ceo|operator)\b/.test(text)) score += 2;
+  if (slot.kind === "broad_web") score += 1;
+  if (slot.kind === "registry") score += 1;
+  // Pure legal-entity anchors without person language rank lower for person-scoped discovery.
+  if (/\b(lei|legal-entity|legal entity)\b/.test(text) && !/\b(officer|director|psc|shareholder)\b/.test(text)) {
+    score -= 2;
+  }
+  return score;
+}
+
+function sortByPersonRecipe(slots: MixedDiscoverySlot[], rng: () => number): MixedDiscoverySlot[] {
+  // Stable-ish: score desc, then light shuffle within same score band.
+  const scored = slots.map((slot, index) => ({
+    slot,
+    score: personRecipeScore(slot),
+    jitter: rng(),
+    index,
+  }));
+  scored.sort((a, b) => b.score - a.score || a.jitter - b.jitter || a.index - b.index);
+  return scored.map((row) => row.slot);
+}
+
 export function pickMixedDiscoverySlots(options?: {
   count?: number;
   includeFaa?: boolean;
@@ -222,8 +255,9 @@ export function pickMixedDiscoverySlots(options?: {
     return true;
   });
 
-  const registries = shuffleInPlace(pool.filter((s) => s.kind === "registry"), rng);
-  const webs = shuffleInPlace(pool.filter((s) => s.kind === "broad_web"), rng);
+  // Person-first within each kind: officers/directors/founders before pure shells.
+  const registries = sortByPersonRecipe(pool.filter((s) => s.kind === "registry"), rng);
+  const webs = sortByPersonRecipe(pool.filter((s) => s.kind === "broad_web"), rng);
   const faas = shuffleInPlace(pool.filter((s) => s.kind === "faa"), rng);
 
   const picked: MixedDiscoverySlot[] = [];
@@ -236,9 +270,12 @@ export function pickMixedDiscoverySlots(options?: {
     return true;
   };
 
+  // Prefer highest person-recipe registry + web first.
   take(registries.find((s) => !prior.has(s.id)) ?? registries[0]);
   take(webs.find((s) => !prior.has(s.id)) ?? webs[0]);
   if (includeFaa) take(faas[0]);
+  // Second person-leaning registry when budget allows (officer/director harvest).
+  take(registries.find((s) => !used.has(s.id) && !prior.has(s.id)));
 
   const remainder = shuffleInPlace(
     pool.filter((s) => !used.has(s.id)),
