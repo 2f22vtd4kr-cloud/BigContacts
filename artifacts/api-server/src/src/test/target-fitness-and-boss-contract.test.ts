@@ -194,3 +194,22 @@ describe("discovery contact collect for cards", () => {
     expect(values).not.toContain("info@vargas.example");
   });
 });
+
+import { scoreOfflineCohort, FAME_NEGATIVE_CONTROLS, QUIET_OPERATOR_FIXTURES } from "../lib/eval-cohort";
+
+describe("offline eval cohort", () => {
+  it("rejects all fame controls and admits quiet operators", () => {
+    const card = scoreOfflineCohort({
+      rejectFame: (name) => shouldRejectTarget(evaluateTargetFitness({ name, personScoped: true })),
+      admitQuiet: (name, role, snippet) =>
+        !shouldRejectTarget(
+          evaluateTargetFitness({ name, role, snippet, personScoped: true }),
+        ),
+    });
+    expect(card.fameRejectPrecision).toBe(1);
+    expect(card.quietAdmitRate).toBe(1);
+    expect(card.zeroInventedContacts).toBe(true);
+    expect(FAME_NEGATIVE_CONTROLS.length).toBeGreaterThan(3);
+    expect(QUIET_OPERATOR_FIXTURES.length).toBeGreaterThan(2);
+  });
+});
