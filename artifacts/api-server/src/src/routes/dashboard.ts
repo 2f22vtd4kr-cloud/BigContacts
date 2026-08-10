@@ -6,6 +6,7 @@ import { getCache, setCache } from "../lib/redis";
 import { computeAccessScore } from "../lib/access-score";
 import { reachabilityOrderExpr } from "../lib/reachability-rank";
 import { loadPresentedContactsForEntities } from "../lib/presented-contacts";
+import { buildLanesHonestySnapshot } from "../lib/lanes-honesty";
 
 const router: IRouter = Router();
 
@@ -330,6 +331,13 @@ router.get("/dashboard/stats", async (_req, res): Promise<void> => {
     // Visibility floor counters — not stuck at zero after candidate-producing runs.
     reviewCandidates: reviewOnlyRow?.cnt ?? 0,
     evidenceOnly: contactOutcomeRow?.evidence ?? 0,
+    // Lane honesty on the main desk so operators never misread a shallow run.
+    lanesHonesty: (() => {
+      try { return buildLanesHonestySnapshot(); } catch { return null; }
+    })(),
+    registryShallowRisk: (() => {
+      try { return buildLanesHonestySnapshot().registryShallowRisk; } catch { return true; }
+    })(),
     // L2: true contact breakdown — personal vs org vs social-only
     reachablePersonal: contactOutcomeRow?.personal ?? 0,
     reachableVerified: contactOutcomeRow?.verified ?? 0,

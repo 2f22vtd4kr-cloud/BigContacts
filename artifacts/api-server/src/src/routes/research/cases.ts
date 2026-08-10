@@ -2111,6 +2111,16 @@ router.post("/research/bureau/cases/:caseId/admit-candidate", async (req, res): 
     admitContacts.length ? admitContacts : (candidate.contactEvidence ?? []),
     "case-bureau-admit",
   );
+  // Phase B: secondary public surface on admit — LinkedIn/Signal/claims as leads (never Personal).
+  try {
+    await expandSecondaryPublicSurface({
+      entityId: entity.id,
+      name: candidate.name,
+      entityType,
+    });
+  } catch {
+    // non-fatal
+  }
 
   const updatedCandidates = discoveryFile.discoveredCandidates.map((item) =>
     item.name.trim().toLowerCase() === candidate.name.trim().toLowerCase()
@@ -2242,6 +2252,15 @@ router.post("/research/bureau/cases/:caseId/promote-target", async (req, res): P
 
   // Copy discovery + case hierarchy contacts onto the target entity for profile cards.
   await persistBureauContactsForEntity(entity.id, promoteContacts, "case-bureau-promote");
+  try {
+    await expandSecondaryPublicSurface({
+      entityId: entity.id,
+      name: entity.name,
+      entityType: entity.type,
+    });
+  } catch {
+    // non-fatal
+  }
   await persistBureauContactsForEntity(
     entity.id,
     (promotedFile.contactRoutes ?? []).map((route) => ({

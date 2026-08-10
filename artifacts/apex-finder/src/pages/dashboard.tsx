@@ -254,6 +254,17 @@ export default function Dashboard() {
         </div>
       </section>
 
+      {(stats as any)?.registryShallowRisk ? (
+        <div className="mt-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs text-amber-200" data-testid="banner-registry-shallow-risk">
+          <span className="font-semibold">registryShallowRisk:</span> no Perplexity/Tavily/Exa web slots active — discovery may be registry-only. Restart the API after adding secrets. Review candidates still materialize into the entity ledger when found.
+        </div>
+      ) : null}
+      {(stats as any)?.reviewCandidates != null ? (
+        <div className="mt-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground" data-testid="stat-review-candidates">
+          Review candidates in ledger: {(stats as any).reviewCandidates} · evidence-only: {(stats as any).evidenceOnly ?? "—"}
+        </div>
+      ) : null}
+
       <section className="atlas-enter grid grid-cols-2 gap-3 py-6 md:grid-cols-4" style={{ animationDelay: "70ms" }}>
         <StatTile label="Entities in view" value={stats?.totalEntities ?? "—"} detail="people, companies, trusts, access" icon={Users} testId="stat-total-entities" />
         <StatTile label="Priority routes" value={stats?.hotLeadsCount ?? "—"} detail="most reachable records" icon={Sparkles} testId="stat-hot-leads" />

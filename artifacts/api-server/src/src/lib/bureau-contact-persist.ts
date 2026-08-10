@@ -360,6 +360,52 @@ export async function expandSecondaryPublicSurface(input: {
       // non-fatal
     }
 
+    // Public X/Twitter identity surface when relevant.
+    try {
+      const xHit = await lookupPublicXProfile(name);
+      if (xHit) {
+        vectors.push({
+          vectorType: "social",
+          value: xHit,
+          scope: "candidate",
+          personName: name,
+          role: null,
+          sourceUrls: [xHit],
+          note: "Public X/Twitter profile from secondary expansion — lead only",
+          tier: "candidate",
+          state: "review_only",
+        });
+      }
+    } catch {
+      // non-fatal
+    }
+
+    // Wayback archived contact/about pages when domain known.
+    if (result.website) {
+      try {
+        const domain = result.website.replace(/^https?:\/\//i, "").split("/")[0]?.replace(/^www\./i, "");
+        if (domain) {
+          const wb = await lookupWaybackContactPages(domain);
+          for (const page of wb) {
+            vectors.push({
+              vectorType: "website",
+              value: page,
+              scope: "organization",
+              personName: name,
+              role: null,
+              sourceUrls: [page],
+              note: "Wayback archived contact/about page — attribution lead only",
+              tier: "candidate",
+              state: "review_only",
+            });
+            out.website = true;
+          }
+        }
+      } catch {
+        // non-fatal
+      }
+    }
+
     if (vectors.length) {
       await persistBureauContactsForEntity(input.entityId, vectors, "secondary-public-surface");
     }
@@ -421,13 +467,16 @@ async function lookupPublicInvestorDirectories(
     { q: `"${name}" site:signal.nfx.com`, dir: "Signal.nfx" },
     { q: `"${name}" site:openvc.app`, dir: "OpenVC" },
     { q: `"${name}" site:angel.co OR site:wellfound.com`, dir: "AngelList/Wellfound" },
-    { q: `"${name}" site:firstround.com angels`, dir: "First Round" },
-    { q: `"${name}" "angel investor" OR "seed investor" site:firstround.com OR site:signal.nfx.com`, dir: "angel-directory" },
+    { q: `"${name}" site:firstround.com`, dir: "First Round" },
+    { q: `"${name}" site:techcoastangels.com`, dir: "Tech Coast Angels" },
+    { q: `"${name}" site:bandangels.com OR site:bandofangels.com`, dir: "Band of Angels" },
+    { q: `"${name}" site:eban.org`, dir: "EBAN" },
+    { q: `"${name}" "angel investor" OR "seed investor"`, dir: "angel-web" },
   ];
   const hits: Array<{ url: string; directory: string }> = [];
   const seen = new Set<string>();
   for (const { q, dir } of queries) {
-    if (hits.length >= 5) break;
+    if (hits.length >= 8) break;
     try {
       const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(q)}&kl=wt-wt`;
       const resp = await fetch(url, {
@@ -444,6 +493,9 @@ async function lookupPublicInvestorDirectories(
         { re: /https?:\/\/(?:www\.)?openvc\.app\/[a-zA-Z0-9\-._/?=&%]+/gi, directory: "OpenVC" },
         { re: /https?:\/\/(?:www\.)?(?:angel\.co|wellfound\.com)\/[a-zA-Z0-9\-._/?=&%]+/gi, directory: "AngelList/Wellfound" },
         { re: /https?:\/\/(?:www\.)?firstround\.com\/[a-zA-Z0-9\-._/?=&%]+/gi, directory: "First Round" },
+        { re: /https?:\/\/(?:www\.)?techcoastangels\.com\/[a-zA-Z0-9\-._/?=&%]+/gi, directory: "Tech Coast Angels" },
+        { re: /https?:\/\/(?:www\.)?band(?:of)?angels\.com\/[a-zA-Z0-9\-._/?=&%]+/gi, directory: "Band of Angels" },
+        { re: /https?:\/\/(?:www\.)?eban\.org\/[a-zA-Z0-9\-._/?=&%]+/gi, directory: "EBAN" },
       ];
       for (const { re, directory } of patterns) {
         const matches = html.match(re) ?? [];
@@ -453,9 +505,9 @@ async function lookupPublicInvestorDirectories(
           if (seen.has(key)) continue;
           seen.add(key);
           hits.push({ url: clean, directory: directory || dir });
-          if (hits.length >= 5) break;
+          if (hits.length >= 8) break;
         }
-        if (hits.length >= 5) break;
+        if (hits.length >= 8) break;
       }
     } catch {
       // try next
@@ -544,4 +596,64 @@ async function lookupPublicEmailClaims(
     }
   }
   return out;
+}
+
+/** Public X/Twitter profile URL when identity-relevant. Never invents. */
+async function lookupPublicXProfile(name: string): Promise<string | null> {
+  const queries = [
+    `"${name}" (site:x.com OR site:twitter.com)`,
+    `"${name}" twitter OR "x.com"`,
+  ];
+  for (const q of queries) {
+    try {
+      const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(q)}&kl=wt-wt`;
+      const resp = await fetch(url, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (compatible; ApexAtlas/1.0)",
+          Accept: "text/html",
+        },
+        signal: AbortSignal.timeout(8_000),
+      });
+      if (!resp.ok) continue;
+      const html = await resp.text();
+      const m = html.match(/https?:\/\/(?:www\.)?(?:x|twitter)\.com\/([A-Za-z0-9_]{2,30})(?:\/|\s|"|'|<|$)/i);
+      if (m?.[0] && m[1] && !/^(search|home|explore|i|intent|share|hashtag)$/i.test(m[1])) {
+        return `https://x.com/${m[1]}`;
+      }
+    } catch {
+      // try next
+    }
+  }
+  return null;
+}
+
+/** Wayback CDX archived contact/about/team pages for a domain. Never invents contacts. */
+async function lookupWaybackContactPages(domain: string): Promise<string[]> {
+  const paths = ["contact", "about", "team", "contact-us", "about-us", "leadership"];
+  const found: string[] = [];
+  for (const path of paths) {
+    if (found.length >= 3) break;
+    try {
+      const cdxUrl =
+        `https://web.archive.org/cdx/search/cdx?url=${encodeURIComponent(domain)}/${path}` +
+        `*&output=json&fl=original,timestamp&limit=2&filter=statuscode:200&collapse=urlkey`;
+      const resp = await fetch(cdxUrl, {
+        headers: { "User-Agent": "ApexAtlas/1.0" },
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (!resp.ok) continue;
+      const data = (await resp.json()) as string[][];
+      if (!Array.isArray(data) || data.length < 2) continue;
+      for (const row of data.slice(1)) {
+        const orig = row?.[0];
+        const ts = row?.[1];
+        if (!orig || !ts) continue;
+        found.push(`https://web.archive.org/web/${ts}/${orig}`);
+        if (found.length >= 3) break;
+      }
+    } catch {
+      // try next path
+    }
+  }
+  return found;
 }
