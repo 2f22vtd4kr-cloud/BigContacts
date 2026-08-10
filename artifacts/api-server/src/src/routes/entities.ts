@@ -442,23 +442,55 @@ router.post("/entities/import/batch", async (req, res): Promise<void> => {
         const sourceRegs = Array.isArray(draft.sourceRegistries) && draft.sourceRegistries.length
           ? draft.sourceRegistries
           : ["manual-import"];
+
+        // Derive outcome + confidence from data fullness (never auto-Personal / verified).
+        const contactList = Array.isArray(draft.contacts) ? draft.contacts : [];
+        const hasEmail = Boolean(draft.email) || contactList.some((c) => String(c?.vectorType) === "email" && c?.value);
+        const hasPhone = Boolean(draft.phone) || contactList.some((c) => String(c?.vectorType) === "phone" && c?.value);
+        const hasSocial = Boolean(draft.linkedinUrl)
+          || contactList.some((c) => ["linkedin", "social"].includes(String(c?.vectorType)) && c?.value);
+        const orgOnly = hasEmail && contactList.every((c) => String(c?.vectorType) !== "email" || c?.scope === "organization")
+          && (!draft.email || /^(info|contact|office|press|hello|admin|sales|support)@/i.test(String(draft.email)));
+        let contactOutcome = "evidence_only";
+        let contactConfidence = 0;
+        if (hasEmail || hasPhone) {
+          if (orgOnly && !hasPhone) {
+            contactOutcome = "organization_contact";
+            contactConfidence = 25;
+          } else {
+            contactOutcome = "direct_contact_candidate";
+            contactConfidence = hasEmail && hasPhone ? 55 : 40;
+          }
+        } else if (hasSocial) {
+          contactOutcome = "social_only";
+          contactConfidence = 20;
+        }
+
+        const emailVal = draft.email ? String(draft.email).toLowerCase().trim() : null;
+        const phoneVal = draft.phone ? String(draft.phone).trim() : null;
+        const linkedinVal = draft.linkedinUrl ? String(draft.linkedinUrl).trim() : null;
+
         const [entity] = await db.insert(entitiesTable).values({
           name,
           type,
           nationality: draft.nationality ? String(draft.nationality) : null,
-          estimatedNetWorth: typeof draft.estimatedNetWorth === "number" ? draft.estimatedNetWorth : null,
+          estimatedNetWorth: typeof draft.estimatedNetWorth === "number" && Number.isFinite(draft.estimatedNetWorth)
+            ? draft.estimatedNetWorth
+            : null,
           knownResidences: draft.knownResidences ? String(draft.knownResidences) : null,
-          linkedinUrl: draft.linkedinUrl ? String(draft.linkedinUrl) : null,
-          phone: draft.phone ? String(draft.phone) : null,
-          email: draft.email ? String(draft.email).toLowerCase() : null,
-          contactMethod: draft.contactMethod ? String(draft.contactMethod) : null,
+          linkedinUrl: linkedinVal,
+          phone: phoneVal,
+          email: emailVal,
+          contactMethod: draft.contactMethod
+            ? String(draft.contactMethod)
+            : (hasEmail ? "Email" : hasSocial ? "LinkedIn" : hasPhone ? "Phone" : null),
           notes: draft.notes
             ? String(draft.notes).slice(0, 4000)
             : `Imported via manual batch (${sourceRegs.join(", ")}). Contacts are candidate/related until verified.`,
           sourceRegistries: JSON.stringify(sourceRegs),
           bayesianScore: 0.05,
-          contactConfidence: 0,
-          contactOutcome: "evidence_only",
+          contactConfidence,
+          contactOutcome,
           isHot: false,
           isStarred: false,
           isHidden: false,
@@ -467,6 +499,7 @@ router.post("/entities/import/batch", async (req, res): Promise<void> => {
             admission: "manual-batch-import",
             importConfidence: draft.confidence ?? "medium",
             sourceSnippet: draft.sourceSnippet ?? null,
+            dataFullness: { hasEmail, hasPhone, hasSocial, contactOutcome },
           }),
         }).returning();
 
@@ -478,30 +511,30 @@ router.post("/entities/import/batch", async (req, res): Promise<void> => {
         const contactVectors = [
           ...(Array.isArray(draft.contacts) ? draft.contacts : []),
         ];
-        // Ensure primary fields also land in contact_evidence
-        if (draft.email && !contactVectors.some((c) => c.vectorType === "email" && c.value === draft.email)) {
+        // Ensure primary fields also land in contact_evidence (normalized, deduped).
+        if (emailVal && !contactVectors.some((c) => String(c.vectorType) === "email" && String(c.value).toLowerCase() === emailVal)) {
           contactVectors.push({
             vectorType: "email",
-            value: String(draft.email).toLowerCase(),
-            scope: "candidate",
+            value: emailVal,
+            scope: /^(info|contact|office|press|hello|admin|sales|support)@/i.test(emailVal) ? "organization" : "candidate",
             note: "manual batch primary email",
           });
         }
-        if (draft.phone && !contactVectors.some((c) => c.vectorType === "phone")) {
+        if (phoneVal && !contactVectors.some((c) => String(c.vectorType) === "phone")) {
           contactVectors.push({
             vectorType: "phone",
-            value: String(draft.phone),
+            value: phoneVal,
             scope: "candidate",
             note: "manual batch primary phone",
           });
         }
-        if (draft.linkedinUrl && !contactVectors.some((c) => c.vectorType === "linkedin")) {
+        if (linkedinVal && !contactVectors.some((c) => String(c.vectorType) === "linkedin")) {
           contactVectors.push({
             vectorType: "linkedin",
-            value: String(draft.linkedinUrl),
+            value: linkedinVal,
             scope: "candidate",
             note: "manual batch linkedin",
-            sourceUrls: [String(draft.linkedinUrl)],
+            sourceUrls: [linkedinVal],
           });
         }
 
