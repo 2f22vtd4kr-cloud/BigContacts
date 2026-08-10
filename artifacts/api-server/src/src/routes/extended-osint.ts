@@ -150,8 +150,26 @@ router.post("/enrich/holehe", async (req: Request, res: Response): Promise<void>
     const result = await runHolehe(resolvedEmail);
 
     if (entity && result.found.length > 0) {
+      // Visibility: platform presence URLs as candidate social leads (never Personal).
+      const socialVectors = result.found.slice(0, 25)
+        .filter((p: { url?: string }) => typeof p.url === "string" && /^https?:\/\//i.test(p.url))
+        .map((p: { name?: string; url: string }) => ({
+          vectorType: "social",
+          value: p.url,
+          scope: "candidate",
+          personName: entity.name,
+          role: null,
+          sourceUrls: [p.url],
+          note: `Holehe platform hit${p.name ? ` (${p.name})` : ""} for ${resolvedEmail} — lead only`,
+          tier: "candidate",
+          state: "review_only",
+        }));
+      if (socialVectors.length) {
+        await persistBureauContactsForEntity(entity.id, socialVectors, "holehe");
+      }
+
       const summary = `Holehe Platform Check (${new Date().toISOString().slice(0, 10)}) — ${result.totalFound} platforms:\n` +
-        result.found.slice(0, 20).map(p => `  • ${p.name}${p.url ? ` (${p.url})` : ""}`).join("\n");
+        result.found.slice(0, 20).map((p: { name?: string; url?: string }) => `  • ${p.name}${p.url ? ` (${p.url})` : ""}`).join("\n");
       const existing = entity.notes ?? "";
       const newNotes = existing ? `${existing}\n\n${summary}` : summary;
       await db.update(entitiesTable)
@@ -182,8 +200,25 @@ router.post("/enrich/maigret", async (req: Request, res: Response): Promise<void
     const result = await runMaigret(username);
 
     if (entity && result.found.length > 0) {
+      const socialVectors = result.found.slice(0, 25)
+        .filter((p: { url?: string }) => typeof p.url === "string" && /^https?:\/\//i.test(p.url))
+        .map((p: { siteName?: string; url: string }) => ({
+          vectorType: "social",
+          value: p.url,
+          scope: "candidate",
+          personName: entity.name,
+          role: null,
+          sourceUrls: [p.url],
+          note: `Maigret profile${p.siteName ? ` (${p.siteName})` : ""} for @${username} — lead only`,
+          tier: "candidate",
+          state: "review_only",
+        }));
+      if (socialVectors.length) {
+        await persistBureauContactsForEntity(entity.id, socialVectors, "maigret");
+      }
+
       const summary = `Maigret Dossier (${new Date().toISOString().slice(0, 10)}) — ${result.found.length} profiles:\n` +
-        result.found.slice(0, 20).map(p => `  • ${p.siteName}${p.url ? ` → ${p.url}` : ""}`).join("\n");
+        result.found.slice(0, 20).map((p: { siteName?: string; url?: string }) => `  • ${p.siteName}${p.url ? ` → ${p.url}` : ""}`).join("\n");
       const existing = entity.notes ?? "";
       const newNotes = existing ? `${existing}\n\n${summary}` : summary;
       await db.update(entitiesTable)
@@ -214,8 +249,25 @@ router.post("/enrich/sherlock", async (req: Request, res: Response): Promise<voi
   try {
     const result = await runSherlock(username);
     if (entity && result.found.length > 0) {
+      const socialVectors = result.found.slice(0, 25)
+        .filter((p: { url?: string }) => typeof p.url === "string" && /^https?:\/\//i.test(p.url))
+        .map((p: { siteName?: string; url: string }) => ({
+          vectorType: "social",
+          value: p.url,
+          scope: "candidate",
+          personName: entity.name,
+          role: null,
+          sourceUrls: [p.url],
+          note: `Sherlock profile${p.siteName ? ` (${p.siteName})` : ""} for @${username} — lead only`,
+          tier: "candidate",
+          state: "review_only",
+        }));
+      if (socialVectors.length) {
+        await persistBureauContactsForEntity(entity.id, socialVectors, "sherlock");
+      }
+
       const summary = `Sherlock Supplementary Dossier (${new Date().toISOString().slice(0, 10)}) — ${result.found.length} review-only profiles:\n` +
-        result.found.slice(0, 20).map(p => `  • ${p.siteName} → ${p.url}`).join("\n");
+        result.found.slice(0, 20).map((p: { siteName?: string; url?: string }) => `  • ${p.siteName} → ${p.url}`).join("\n");
       const existing = entity.notes ?? "";
       const newNotes = existing ? `${existing}\n\n${summary}` : summary;
       await db.update(entitiesTable)
