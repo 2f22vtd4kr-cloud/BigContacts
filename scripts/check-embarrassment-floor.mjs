@@ -90,6 +90,11 @@ ok("deep-web scrape depth >= 8",
 ok("agentic ReAct web research module",
   read("artifacts/api-server/src/src/lib/agentic-web-research.ts").includes("runAgenticWebResearch") &&
   read("artifacts/api-server/src/src/lib/agentic-web-research.ts").includes("web_search"));
+ok("bureau agentic pass module",
+  read("artifacts/api-server/src/src/lib/bureau-agentic-pass.ts").includes("runBureauAgenticWebPass"));
+ok("bureau cases wire agentic",
+  read("artifacts/api-server/src/src/routes/research/cases.ts").includes("runBureauAgenticWebPass") &&
+  read("artifacts/api-server/src/src/routes/research/cases.ts").includes("isWebSpecialistAction"));
 ok("secondary runs agentic loop",
   persist.includes("runAgenticWebResearch") && persist.includes("Agentic web research"));
 ok("secondary email requires website URL",

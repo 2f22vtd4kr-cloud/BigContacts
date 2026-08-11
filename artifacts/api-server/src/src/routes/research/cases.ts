@@ -40,6 +40,7 @@ import {
   RunBureauCaseNextPassResponse,
   RunBureauCaseBossReviewResponse,
 } from "@workspace/api-zod";
+import { isWebSpecialistAction, runBureauAgenticWebPass } from "../../lib/bureau-agentic-pass";
 import {
   advanceCaseFile,
   applyGeminiBossPlan,
@@ -848,6 +849,36 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
       }, `Mistral web-search ${mistral.status}; report checkpointed into shared case context.`);
       await appendJobLog(jobId, `Mistral web-search ${mistral.status}; model=${mistral.model}; citations=${mistral.citations.length}.`);
 
+      // Agentic ReAct body — same as Atlas secondary; Boss web path is not Mistral-only
+      const agenticDiscovery = await runBureauAgenticWebPass({
+        targetName: workingFile.humanBrief.objective.slice(0, 120) || "discovery target",
+        companyName: null,
+        objective: [
+          workingFile.humanBrief.objective,
+          workingFile.humanBrief.motivation,
+          workingFile.humanBrief.geography ? `Geography: ${workingFile.humanBrief.geography}` : "",
+          "Multi-hop agentic search. Visit primary pages. Never invent contacts.",
+        ].filter(Boolean).join("\n"),
+        caseId,
+        maxIterations: 8,
+      });
+      workingFile = await persistDiscoveryCheckpoint(caseId, openingIteration, workingFile, {
+        lane: "broad-web",
+        provider: `Agentic-ReAct ${agenticDiscovery.model}`,
+        status: agenticDiscovery.status === "completed" ? "completed" : agenticDiscovery.status === "unavailable" ? "unavailable" : "failed",
+        iteration: openingIteration,
+        summary: `Agentic web pass: ${agenticDiscovery.findings.length} findings; searches=${agenticDiscovery.searches}; visits=${agenticDiscovery.visits}`,
+        findings: agenticDiscovery.trajectory.slice(-8),
+        candidateNames: agenticDiscovery.findings
+          .map((f) => f.personName)
+          .filter((n): n is string => Boolean(n)),
+        sourceUrls: agenticDiscovery.findings.flatMap((f) => f.sourceUrls).slice(0, 20),
+        nextQuestions: [],
+        contactEvidence: agenticDiscovery.contactEvidence,
+        error: agenticDiscovery.error,
+      }, `Agentic ReAct web pass ${agenticDiscovery.status}; findings=${agenticDiscovery.findings.length}.`);
+      await appendJobLog(jobId, `Agentic ReAct web ${agenticDiscovery.status}; model=${agenticDiscovery.model}; findings=${agenticDiscovery.findings.length}; searches=${agenticDiscovery.searches}.`);
+
       const boss = await runGeminiBossDiscovery({
           file: workingFile,
           objective: file.humanBrief.objective,
@@ -1415,6 +1446,33 @@ router.post("/research/bureau/cases/:caseId/run-next-pass", async (req, res): Pr
         contactEvidence: mistral.candidates.flatMap((candidate) => candidate.contactEvidence ?? []),
         error: mistral.error,
       }, `Mistral verification search ${mistral.status}; report appended to the shared case context.`);
+
+      const agenticVerify = await runBureauAgenticWebPass({
+        targetName: directions[0] ?? workingFile.humanBrief.objective.slice(0, 120),
+        companyName: null,
+        objective: [
+          "Boss-directed verification pass — agentic multi-hop web research.",
+          ...directions.slice(0, 6),
+          "Visit official contact/about/team pages. Never invent contacts.",
+        ].join("\n"),
+        caseId,
+        maxIterations: 8,
+      });
+      workingFile = await persistDiscoveryCheckpoint(caseId, iteration, workingFile, {
+        lane: "broad-web",
+        provider: `Agentic-ReAct ${agenticVerify.model}`,
+        status: agenticVerify.status === "completed" ? "completed" : agenticVerify.status === "unavailable" ? "unavailable" : "failed",
+        iteration,
+        summary: `Agentic verification: ${agenticVerify.findings.length} findings`,
+        findings: agenticVerify.trajectory.slice(-8),
+        candidateNames: agenticVerify.findings.map((f) => f.personName).filter((n): n is string => Boolean(n)),
+        sourceUrls: agenticVerify.findings.flatMap((f) => f.sourceUrls).slice(0, 20),
+        nextQuestions: [],
+        contactEvidence: agenticVerify.contactEvidence,
+        error: agenticVerify.error,
+      }, `Agentic ReAct verification ${agenticVerify.status}; findings=${agenticVerify.findings.length}.`);
+      await appendJobLog(jobId, `Agentic ReAct verification ${agenticVerify.status}; findings=${agenticVerify.findings.length}.`);
+
       await updateJob(jobId, {
         progress: 1,
         total: 4,
@@ -2715,7 +2773,55 @@ router.post("/research/cases/:entityId/advance", async (req, res): Promise<void>
     })),
     "case-bureau-advance",
   );
+
+  // Boss-selected web/contact/footprint actions: same ReAct body as Atlas secondary
   const action = updatedFile.nextBestAction;
+  if (action && isWebSpecialistAction(action.specialistId)) {
+    let companyName: string | null = null;
+    try {
+      const [ent] = await db.select({
+        name: entitiesTable.name,
+        metadata: entitiesTable.metadata,
+        notes: entitiesTable.notes,
+      }).from(entitiesTable).where(eq(entitiesTable.id, params.data.entityId)).limit(1);
+      try {
+        const meta = ent?.metadata ? JSON.parse(ent.metadata) as Record<string, unknown> : {};
+        companyName = typeof meta.companyName === "string" ? meta.companyName : null;
+      } catch { companyName = null; }
+      const targetName = updatedFile.target?.name ?? ent?.name ?? "target";
+      const agenticAdv = await runBureauAgenticWebPass({
+        targetName,
+        companyName,
+        objective: [
+          bossPlan.investigatorPrompt ?? action.purpose,
+          action.rationale,
+          "Boss-selected web action — agentic multi-hop. Never invent contacts.",
+        ].filter(Boolean).join("\n"),
+        caseId: current.id,
+        entityId: params.data.entityId,
+        persist: true,
+        maxIterations: 8,
+      });
+      await db.insert(researchCaseEventsTable).values({
+        caseId: current.id,
+        iteration: nextIteration,
+        actorRole: "specialist",
+        eventType: "observation",
+        summary: `Agentic ReAct (${action.specialistId}): ${agenticAdv.status}; findings=${agenticAdv.findings.length}; searches=${agenticAdv.searches}; visits=${agenticAdv.visits}`,
+        payload: JSON.stringify({
+          lane: "agentic-react",
+          actionId: action.id,
+          specialistId: action.specialistId,
+          model: agenticAdv.model,
+          findings: agenticAdv.contactEvidence,
+          trajectory: agenticAdv.trajectory.slice(-12),
+          error: agenticAdv.error ?? null,
+        }),
+      });
+    } catch (err: any) {
+      // non-fatal — Boss plan still stands
+    }
+  }
   await db.insert(researchCaseEventsTable).values({
     caseId: current.id,
     iteration: nextIteration,
