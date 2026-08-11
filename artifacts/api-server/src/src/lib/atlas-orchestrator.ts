@@ -1520,6 +1520,36 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
           logger.info({ entityId: id }, "[Atlas] G5 contactOutcome → organization_contact (org evidence present)");
         }
       }
+
+      // G7: related people sharing the same issuer/companyName already in the ledger.
+      // Review-only contact_evidence anchors — never auto-Personal, never invent names.
+      if (companyName) {
+        const peers = await db.select({
+          id: entitiesTable.id,
+          name: entitiesTable.name,
+        }).from(entitiesTable)
+          .where(and(
+            sql`${entitiesTable.id} <> ${id}`,
+            sql`${entitiesTable.metadata} LIKE ${"%" + companyName.replace(/%/g, "").slice(0, 80) + "%"}`,
+            sql`(${entitiesTable.type} = 'HNWI' OR ${entitiesTable.type} = 'Gatekeeper')`,
+          ))
+          .limit(12);
+        if (peers.length) {
+          const peerItems = peers.map((peer) => ({
+            vectorType: "other",
+            value: `related-person:${peer.name}`,
+            scope: "candidate",
+            personName: peer.name,
+            role: "same_issuer_peer",
+            sourceUrls: [] as string[],
+            note: `Co-entity on issuer "${companyName}" — related review lead, not Personal`,
+            tier: "candidate",
+            state: "review_only",
+          }));
+          const peerN = await persistBureauContactsForEntity(id, peerItems, "atlas-issuer-related-peers");
+          logger.info({ entityId: id, companyName, peerN, peers: peers.map((p) => p.name) }, "[Atlas] G7 issuer-related peers persisted");
+        }
+      }
     } catch (err: any) {
       logger.warn({ entityId: id, err: err?.message }, "[Atlas] Registry org surface skipped (non-fatal)");
     }
@@ -1898,9 +1928,11 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
     ? DISCOVERY_SOURCES.filter(source => source.kind === "registry" || selectedBroadCategories.has(source.category))
     : [...DISCOVERY_SOURCES];
   if (targetLimit > 0 && targetLimit <= 10) {
+    // Gold standard: registry-first for bounded jobs so Groq 429 on broad web
+    // cannot starve the entire admit pool before EDGAR/CH/BRREG run.
     const broad = sourcesToRun.filter((s) => s.kind === "broad");
     const registry = sourcesToRun.filter((s) => s.kind === "registry");
-    sourcesToRun = [...broad, ...registry];
+    sourcesToRun = [...registry, ...broad];
   }
   let admittedTargets = 0;
   let sourceRound = 0;

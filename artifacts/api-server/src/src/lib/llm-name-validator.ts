@@ -38,8 +38,9 @@ export async function filterHumanNamesWithLLM(candidates: string[]): Promise<str
   const safeCandidates = candidates.filter(isDeterministicallySafeHumanName);
   const groqKeys = getGroqKeysLive();
   if (groqKeys.length === 0) {
-    logger.warn("llm-name-validator: no GROQ keys — rejecting candidates fail-closed");
-    return [];
+    const det = safeCandidates;
+    logger.warn({ kept: det.length }, "llm-name-validator: no GROQ keys — deterministic human-name fallback");
+    return det;
   }
 
   const results: string[] = [];
@@ -76,8 +77,9 @@ export async function validateDiscoveryCandidatesWithLLM(
   );
   if (safe.length === 0) return [];
   if (getGroqKeysLive().length === 0) {
-    logger.warn("llm-discovery-validator: no GROQ keys — rejecting candidates fail-closed");
-    return [];
+    const det = safe.filter(c => isDeterministicallySafeHumanName(c.name)).map(c => c.name);
+    logger.warn({ kept: det.length }, "llm-discovery-validator: no GROQ keys — deterministic fallback");
+    return det;
   }
 
   const accepted: string[] = [];
@@ -113,7 +115,14 @@ ${batch.map((candidate, index) => [
 Respond ONLY with a compact JSON array of passing 1-based indices.`;
 
     const validIndices = await requestIndexGate(prompt, batch.length, "discovery");
-    accepted.push(...validIndices.map(index => batch[index - 1].name));
+    if (validIndices == null) {
+      // Provider failure: keep only deterministically safe names (still no invention)
+      const det = batch.filter(c => isDeterministicallySafeHumanName(c.name)).map(c => c.name);
+      logger.warn({ kept: det.length, total: batch.length }, "discovery-validator: Groq provider failure — deterministic fallback");
+      accepted.push(...det);
+    } else {
+      accepted.push(...validIndices.map(index => batch[index - 1]!.name));
+    }
   }
   return accepted;
 }
@@ -187,6 +196,12 @@ If ALL pass, respond with all indices. If ALL fail, respond with [].
 Output nothing else.`;
 
   const validIndices = await requestIndexGate(prompt, names.length, "name");
+  // null ⇒ provider failure: deterministic human-name gate only (registry-safe fallback)
+  if (validIndices == null) {
+    const det = names.filter(isDeterministicallySafeHumanName);
+    logger.warn({ kept: det.length, total: names.length }, "llm-name-validator: Groq provider failure — deterministic fallback");
+    return det;
+  }
   const accepted = validIndices
     .map(i => names[i - 1])
     .filter(Boolean);
@@ -205,7 +220,7 @@ async function requestIndexGate(
   gateName: string,
 ): Promise<number[]> {
   const keys = getGroqKeysLive();
-  if (keys.length === 0) return [];
+  if (keys.length === 0) return null as unknown as number[];
   const start = Math.floor(Math.random() * keys.length);
   for (let attempt = 0; attempt < keys.length; attempt++) {
     const key = keys[(start + attempt) % keys.length]!;
@@ -249,10 +264,10 @@ async function requestIndexGate(
     } catch (err: any) {
       logger.warn({ err: err?.message, gateName, attempt: attempt + 1 }, "llm validator: request failed — trying next key");
       if (attempt === keys.length - 1) {
-        return [];
+        return null as unknown as number[];
       }
     }
   }
-  logger.warn({ gateName }, "llm validator: all Groq keys unavailable — rejecting candidates fail-closed");
-  return [];
+  logger.warn({ gateName }, "llm validator: all Groq keys unavailable — provider failure (not content reject)");
+  return null as unknown as number[]; // signal provider failure to callers
 }
