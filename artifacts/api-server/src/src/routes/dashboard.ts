@@ -338,6 +338,9 @@ router.get("/dashboard/stats", async (_req, res): Promise<void> => {
     registryShallowRisk: (() => {
       try { return buildLanesHonestySnapshot().registryShallowRisk; } catch { return true; }
     })(),
+    groqAdmissionFallback: (() => {
+      try { return buildLanesHonestySnapshot().groqAdmissionFallback; } catch { return true; }
+    })(),
     // L2: true contact breakdown — personal vs org vs social-only
     reachablePersonal: contactOutcomeRow?.personal ?? 0,
     reachableVerified: contactOutcomeRow?.verified ?? 0,

@@ -259,6 +259,11 @@ export default function Dashboard() {
           <span className="font-semibold">registryShallowRisk:</span> no Perplexity/Tavily/Exa web slots active — discovery may be registry-only. Restart the API after adding secrets. Review candidates still materialize into the entity ledger when found.
         </div>
       ) : null}
+      {(stats as any)?.groqAdmissionFallback ? (
+        <div className="mt-2 rounded-lg border border-orange-500/40 bg-orange-500/10 px-4 py-3 text-xs text-orange-200" data-testid="banner-groq-admission-fallback">
+          <span className="font-semibold">groqAdmissionFallback:</span> no Groq keys active — name admission uses deterministic human-name gate only (no invention; registry paths still admit).
+        </div>
+      ) : null}
       {(stats as any)?.reviewCandidates != null ? (
         <div className="mt-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground" data-testid="stat-review-candidates">
           Review candidates in ledger: {(stats as any).reviewCandidates} · evidence-only: {(stats as any).evidenceOnly ?? "—"}
