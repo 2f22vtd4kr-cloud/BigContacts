@@ -886,13 +886,26 @@ router.get("/entities/:id", async (req, res): Promise<void> => {
     .where(eq(assetsTable.ownerEntityId, entity.id));
 
   const contactMap = await loadPresentedContactsForEntities([entity]);
+  let contacts = contactMap[entity.id] ?? [];
+  let outcome = normalizePresentedContactOutcome(entity);
+  const hasOrgMark = contacts.some((c) => c.mark === "organization");
+  if (hasOrgMark && (outcome === "none" || outcome === "evidence_only")) {
+    const hasPersonalCols = Boolean(String(entity.email ?? "").trim() || String(entity.phone ?? "").trim());
+    if (!hasPersonalCols) {
+      outcome = "organization_contact";
+      await db.update(entitiesTable).set({
+        contactOutcome: "organization_contact",
+        updatedAt: new Date(),
+      }).where(eq(entitiesTable.id, entity.id)).catch(() => {});
+    }
+  }
   res.json({
     ...entity,
-    contactOutcome: normalizePresentedContactOutcome(entity),
+    contactOutcome: outcome,
     accessScore: computeAccessScore(entity),
     createdAt: entity.createdAt.toISOString(),
     assetCount: cnt?.cnt ?? 0,
-    contacts: contactMap[entity.id] ?? [],
+    contacts,
   });
 });
 
