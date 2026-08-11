@@ -43,6 +43,7 @@ ok("healthz honesty", !!health?.includes("registryShallowRisk") && !!health?.inc
 ok("active job idle 200", !!ingest?.includes("active: false"));
 ok("free tools → evidence", !!extended?.includes('"theharvester"') && !!extended?.includes('"whoxy"'));
 ok("Boss no erase related", !!prompt?.includes("Never instruct erasure of related"));
+ok("Boss right-hand disposition contract", !!prompt?.includes("rightHandDisposition"));
 ok("dashboard reviewCandidates+shallow", !!dash?.includes("reviewCandidates") && !!dash?.includes("registryShallowRisk"));
 ok("dashboard UI shallow banner", !!dashUi?.includes("banner-registry-shallow-risk"));
 

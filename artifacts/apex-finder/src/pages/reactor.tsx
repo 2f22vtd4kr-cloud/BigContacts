@@ -935,9 +935,14 @@ function BureauLivePanel({
               {ev.ask && (
                 <div style={{ color: "#7dd3fc", marginTop: 2 }}>ASK {ev.ask}</div>
               )}
-              {(ev.responseSummary || ev.detail) && (
+              {ev.responseSummary && (
                 <div style={{ color: "#a7f3d0", marginTop: 2 }}>
-                  OUT {ev.responseSummary || ev.detail}
+                  OUT {ev.responseSummary}
+                </div>
+              )}
+              {ev.detail && (
+                <div style={{ color: "#c4b5fd", marginTop: 2 }}>
+                  RH {ev.detail}
                 </div>
               )}
             </div>

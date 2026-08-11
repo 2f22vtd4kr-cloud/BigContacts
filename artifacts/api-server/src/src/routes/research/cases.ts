@@ -156,7 +156,12 @@ function serializeCase(
         }
       | undefined;
     const bossPlan = parsed.bossPlan as
-      | { outcome?: string; progressAssessment?: string | null }
+      | {
+          outcome?: string;
+          progressAssessment?: string | null;
+          rightHandDisposition?: string | null;
+          rightHandNote?: string | null;
+        }
       | undefined;
     const lanesHonesty = (parsed.lastLanesHonesty as Record<string, unknown> | undefined) ?? null;
     if (progress || bossPlan || lanesHonesty) {
@@ -168,6 +173,8 @@ function serializeCase(
         noProgressStreak: typeof parsed.noProgressStreak === "number" ? parsed.noProgressStreak : null,
         bossOutcome: bossPlan?.outcome ?? null,
         progressAssessment: bossPlan?.progressAssessment ?? null,
+        rightHandDisposition: bossPlan?.rightHandDisposition ?? null,
+        rightHandNote: bossPlan?.rightHandNote ?? null,
         lanesHonesty,
       };
     }
@@ -2628,8 +2635,9 @@ router.post("/research/cases/:entityId/advance", async (req, res): Promise<void>
     provider: bossPlan.model,
     why: bossPlan.reason ?? "Boss plan",
     ask: bossPlan.decision ?? "Select or reject",
-    responseSummary: `OUT: ${bossPlan.status}; outcome=${bossPlan.outcome}; actionId=${bossPlan.actionId ?? "none"}; progress=${bossPlan.progressAssessment ? "yes" : "no"}; reprioritize=${(bossPlan.reprioritize ?? []).length}`,
-    level: bossPlan.outcome === "reject_target" ? "warn" : "info",
+    responseSummary: `OUT: ${bossPlan.status}; outcome=${bossPlan.outcome}; actionId=${bossPlan.actionId ?? "none"}; rh=${bossPlan.rightHandDisposition ?? "unknown"}; progress=${bossPlan.progressAssessment ? "yes" : "no"}; reprioritize=${(bossPlan.reprioritize ?? []).length}`,
+    detail: bossPlan.rightHandNote ?? undefined,
+    level: bossPlan.outcome === "reject_target" ? "warn" : bossPlan.rightHandDisposition === "override" ? "warn" : "info",
   });
   const bossDecisionFile =
     bossPlan.status === "completed" && bossPlan.decision && bossPlan.reason
@@ -2663,6 +2671,9 @@ router.post("/research/cases/:entityId/advance", async (req, res): Promise<void>
     boss: bossPlan.status,
     bossOutcome: bossPlan.outcome ?? "proceed",
     progressAssessment: bossPlan.progressAssessment ?? null,
+    rightHandDisposition: bossPlan.rightHandDisposition ?? "unknown",
+    rightHandNote: bossPlan.rightHandNote ?? null,
+    rightHandActionId: reasoning.actionId ?? null,
     reprioritize: bossPlan.reprioritize ?? [],
     noProgressStreak,
     researchDepth: depthCfg.depth,
