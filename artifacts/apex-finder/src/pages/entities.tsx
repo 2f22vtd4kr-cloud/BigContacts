@@ -62,7 +62,15 @@ type PresentedContact = {
  */
 function collectContacts(entity: any): PresentedContact[] {
   const fromApi = Array.isArray(entity.contacts) ? (entity.contacts as PresentedContact[]) : [];
-  if (fromApi.length > 0) return fromApi;
+  if (fromApi.length > 0) {
+    const rank = (c: PresentedContact) => {
+      if (c.mark === "personal") return 0;
+      if (c.mark === "organization") return 1;
+      if (/collision|weak match/i.test(c.label) || (c as any).identityCollisionRisk) return 3;
+      return 2;
+    };
+    return [...fromApi].sort((a, b) => rank(a) - rank(b) || a.vectorType.localeCompare(b.vectorType));
+  }
   const out: PresentedContact[] = [];
   const push = (vectorType: string, value: string | null | undefined, mark: PresentedContact["mark"]) => {
     const v = String(value ?? "").trim();
@@ -96,6 +104,8 @@ function ContactMarkBadge({ mark, label }: { mark: string; label: string }) {
   const color =
     mark === "personal" ? "#10B981" :
     mark === "organization" ? "#F59E0B" :
+    /collision|weak match/i.test(label) ? "#F97316" :
+    /same filing|related ·/i.test(label) ? "#A78BFA" :
     "#64748B";
   return (
     <span
