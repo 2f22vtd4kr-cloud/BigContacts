@@ -62,10 +62,17 @@ function markContact(args: {
   return "candidate";
 }
 
-function contactLabel(vectorType: string, mark: string, value?: string): string {
+function contactLabel(
+  vectorType: string,
+  mark: string,
+  value?: string,
+  collisionRisk?: boolean,
+): string {
   if (mark === "personal") return "Looks personal";
   if (mark === "organization") return "Company · related";
   if (value && /^linkedin:not-found:/i.test(value)) return "LinkedIn not found";
+  if (value && /^related-person:/i.test(value)) return "Related · same filing/issuer";
+  if (collisionRisk) return "Weak match · possible name collision";
   if (vectorType === "social") return "Still a lead";
   return "Still a lead";
 }
@@ -120,6 +127,8 @@ export async function loadPresentedContactsForEntities(
     if (!seen.has(row.entityId)) seen.set(row.entityId, new Set());
     if (seen.get(row.entityId)!.has(key)) continue;
     seen.get(row.entityId)!.add(key);
+    const meta = parseEvidenceMeta(row.metadata);
+    const collisionRisk = meta.identityCollisionRisk === true;
     const mark = markContact({
       vectorType: row.vectorType,
       value,
@@ -131,14 +140,17 @@ export async function loadPresentedContactsForEntities(
       phoneSource: entity.phoneSource,
       contactOutcome: entity.contactOutcome,
     });
+    // Collision-prone personal candidates never display as personal
+    const safeMark = collisionRisk && mark === "personal" ? "candidate" : mark;
     out[row.entityId].push({
       vectorType: row.vectorType,
       value,
       source: row.source,
       sourceUrl: row.sourceUrl,
       validationStatus: row.validationStatus,
-      mark,
-      label: contactLabel(row.vectorType, mark, value),
+      mark: safeMark,
+      label: contactLabel(row.vectorType, safeMark, value, collisionRisk),
+      identityCollisionRisk: collisionRisk,
     });
   }
 
@@ -178,10 +190,15 @@ export async function loadPresentedContactsForEntities(
     if (e.telegramHandle) add("social", e.telegramHandle.startsWith("http") ? e.telegramHandle : `@${e.telegramHandle.replace(/^@/, "")}`, "entity-telegram");
   }
 
-  // Ranking law: Personal → Related/Org (strong attribution) → Candidate/Lead
-  const rank = (m: string) => (m === "personal" ? 0 : m === "organization" ? 1 : 2);
+  // Ranking law: Personal → Related/Org → Candidate → collision-weak candidates last
+  const rank = (c: PresentedContact) => {
+    if (c.mark === "personal") return 0;
+    if (c.mark === "organization") return 1;
+    if (c.identityCollisionRisk) return 3;
+    return 2;
+  };
   for (const id of ids) {
-    out[id].sort((a, b) => rank(a.mark) - rank(b.mark) || a.vectorType.localeCompare(b.vectorType));
+    out[id].sort((a, b) => rank(a) - rank(b) || a.vectorType.localeCompare(b.vectorType));
   }
   return out;
 }

@@ -11,12 +11,15 @@ export type LanesHonestySnapshot = {
   tavily: number;
   exa: number;
   gemini: number;
+  groq: number;
   mistral: number;
   nvidiaNim: number;
   companiesHouse: number;
   webSearchActive: number;
   /** True when no Perplexity/Tavily/Exa slots are active — registry-only risk. */
   registryShallowRisk: boolean;
+  /** True when Groq admission keys are missing — deterministic name gate only. */
+  groqAdmissionFallback: boolean;
   assessedAt: string;
 };
 
@@ -32,16 +35,23 @@ export function buildLanesHonestySnapshot(): LanesHonestySnapshot {
   const tavily = activeCount(status.tavily);
   const exa = activeCount(status.exa);
   const webSearchActive = perplexity + tavily + exa;
+  const groqKeys = [
+    process.env.GROQ_API_KEY,
+    ...Array.from({ length: 10 }, (_, i) => process.env[`GROQ_API_KEY_${i + 1}`]),
+  ].filter((k) => typeof k === "string" && k.trim().length > 0);
+  const groq = groqKeys.length;
   return {
     perplexity,
     tavily,
     exa,
     gemini: activeCount(status.gemini),
+    groq,
     mistral: mistral.configured ? 1 : 0,
     nvidiaNim: nvidia.configured ? 1 : 0,
     companiesHouse: process.env.COMPANIES_HOUSE_API_KEY ? 1 : 0,
     webSearchActive,
     registryShallowRisk: webSearchActive === 0,
+    groqAdmissionFallback: groq === 0,
     assessedAt: new Date().toISOString(),
   };
 }
