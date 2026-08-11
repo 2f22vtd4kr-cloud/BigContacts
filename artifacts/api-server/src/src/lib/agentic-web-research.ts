@@ -793,6 +793,37 @@ export async function runAgenticWebResearch(input: {
   let orgEmailSearchDone = false;
 
   for (let i = 0; i < maxIter; i++) {
+    // If company is locked but no company-host URL is queued yet, search the company surface
+    // before visiting partner/blog SERP hits (prevents Team-Financial-style first visits).
+    if (
+      searches >= 1
+      && visits === 0
+      && input.companyName
+      && !candidateUrls.some((u) => {
+        const co = input.companyName!.toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 8);
+        return co.length >= 4 && u.toLowerCase().replace(/[^a-z0-9]/g, "").includes(co.slice(0, 5));
+      })
+      && i < maxIter - 1
+      && !history.some((h) => h.includes("force_company_surface_search"))
+    ) {
+      const co = input.companyName;
+      const q = `"${co}" (contact OR "contact us" OR phone OR address OR website) -zoominfo -rocketreach`;
+      searches++;
+      history.push(`step${i + 1}: force_company_surface_search ${q}`);
+      const sr = await toolWebSearch(q);
+      for (const u of sr.urls) {
+        if (/^https?:\/\//i.test(u) && !candidateUrls.includes(u)) candidateUrls.push(u);
+      }
+      seedCompanyContactPaths(sr.urls);
+      const snippetEmails = findingsFromSearchSnippet(sr.text, sr.urls, input.companyName || name);
+      if (snippetEmails.length) {
+        findings = mergeFindings(findings, snippetEmails);
+        history.push(`step${i + 1}: serp_email_findings=${snippetEmails.length}`);
+      }
+      lastObservation =
+        `COMPANY SURFACE search:\nURLs: ${sr.urls.slice(0, 8).join(" | ")}\n\n${sr.text.slice(0, MAX_OBS)}`;
+      continue;
+    }
     // Force-visit as soon as we have SERP URLs and zero visits (parity with general agents).
     // Prefer high-rank contact/about/terms pages; do not wait for a second search.
     if (searches >= 1 && visits === 0 && candidateUrls.length > 0) {
@@ -836,6 +867,18 @@ export async function runAgenticWebResearch(input: {
       lastObservation =
         `SEARCH results for org email: ${q}\nURLs: ${sr.urls.slice(0, 8).join(" | ")}\n\n${sr.text.slice(0, MAX_OBS)}\n\n` +
         `NEXT: visit company /contact /contact-us pages. Emit EMAIL findings (info@, contact@) with exact sourceUrl. Do not invent.`;
+      // Prefer Facebook company page when present (common host for info@ on SMBs)
+      const fbFirst = [...new Set(candidateUrls)]
+        .filter((u) => !visitedUrls.has(u) && /facebook\.com\//i.test(u))
+        .sort((a, b) => rankVisitUrl(a) - rankVisitUrl(b))[0];
+      if (fbFirst) {
+        const idx = candidateUrls.indexOf(fbFirst);
+        if (idx > 0) {
+          candidateUrls.splice(idx, 1);
+          candidateUrls.unshift(fbFirst);
+        }
+        history.push(`step${i + 1}: prioritize_facebook_org ${fbFirst}`);
+      }
       // Prefer an unvisited contact path immediately
       const contactFirst = [...new Set(candidateUrls)]
         .filter((u) => !visitedUrls.has(u) && /\/(contact|get-in-touch|connect)/i.test(u))

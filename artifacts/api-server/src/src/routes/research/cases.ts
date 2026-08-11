@@ -1377,15 +1377,20 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
 
         const urls = (cand.sourceUrls ?? []).filter((u) => typeof u === "string" && /^https?:\/\//i.test(u));
         const alignedUrls = urls.filter(hostOk);
-        const evidence = (cand.contactEvidence ?? []).filter((ev) => {
+        const evidence = (cand.contactEvidence ?? []).flatMap((ev) => {
           const evUrls = (ev.sourceUrls ?? []).filter((u) => typeof u === "string" && /^https?:\/\//i.test(u));
-          if (evUrls.length === 0) return false;
+          if (evUrls.length === 0) return [];
           // Company-domain org email may be published on FB/LinkedIn company pages —
           // keep it when the mailbox itself is company-aligned (info@dyna-products.com).
           const companyMailbox = ev.vectorType === "email" && valueAligned(ev);
-          if (companyMailbox && evUrls.some((u) => hostOk(u) || publicOrgSurfaceHost(u))) return true;
-          if (!evUrls.some(hostOk)) return false;
-          return valueAligned(ev);
+          let keptUrls = evUrls.filter(hostOk);
+          if (companyMailbox) {
+            const social = evUrls.filter(publicOrgSurfaceHost);
+            keptUrls = [...new Set([...keptUrls, ...social])];
+          }
+          if (keptUrls.length === 0) return [];
+          if (!valueAligned(ev) && !companyMailbox) return [];
+          return [{ ...ev, sourceUrls: keptUrls.slice(0, 8) }];
         });
         if (isPerson && alignedUrls.length === 0 && evidence.length === 0) {
           if (cand.name.toLowerCase() === agenticTargetName.toLowerCase()) {
