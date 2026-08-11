@@ -72,6 +72,19 @@ ok("shared web sub-query planner", !!read("artifacts/api-server/src/src/lib/web-
 ok("Atlas cookedAt on full-circle complete", !!atlas?.includes("cookedAt = full-circle research completed") || (atlas?.includes("cookedAt:") && atlas?.includes("new Date()") && !atlas?.includes('contact_route_found" ? new Date() : null')));
 
 
+
+
+// Company-lock + org-email recovery (mid-market parity vs identity pollution / missing info@)
+const agentic = read("artifacts/api-server/src/src/lib/agentic-web-research.ts");
+ok("company-lock scrub on review deck", !!cases?.includes("scrubCompanyLockedSurface") || !!cases?.includes("Company-lock scrub applied"));
+ok("company-lock person/company hostOk", !!cases?.includes("Company-locked to") || !!cases?.includes("sourceAlignedWithCompany") || !!cases?.includes("hostOk"));
+ok("agentic force org-email search", !!agentic?.includes("force_org_email_search"));
+ok("agentic hasOrgEmail separate from phone", !!agentic?.includes("hasOrgEmail") && !!agentic?.includes("hasOrgPhone"));
+ok("agentic expanded contact path seeds", !!agentic?.includes("/get-in-touch") && !!agentic?.includes("/leadership"));
+ok("agentic related co-founder query", !!agentic?.includes("co-founder") && !!agentic?.includes("co-owner"));
+ok("agentic obfuscated email [at] extract", !!agentic?.includes("[at]") && !!agentic?.includes("(at)"));
+ok("PERSON / COMPANY slash objective parse", !!cases?.includes("slashPair") || !!cases?.includes("PERSON / COMPANY"));
+
 const failed = checks.filter((c) => !c.pass);
 console.log(`\n${checks.length - failed.length}/${checks.length} passed`);
 if (failed.length) { process.exitCode = 1; console.error("Failed:", failed.map((f) => f.name).join(", ")); }

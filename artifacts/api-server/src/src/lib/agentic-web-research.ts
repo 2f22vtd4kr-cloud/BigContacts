@@ -151,6 +151,13 @@ function extractContactFactsFromHtml(html: string): string {
       push(`EMAIL: ${addr}`);
     }
   }
+  // Obfuscated org inboxes common on WordPress/SMB sites: info [at] domain.com
+  for (const m of html.matchAll(
+    /\b((?:info|contact|sales|office|admin|support|hello)(?:\s*\[at\]\s*|\s*\(at\)\s*|\s+at\s+)[a-z0-9.-]+\.[a-z]{2,})\b/gi,
+  )) {
+    const normalized = m[1]!.toLowerCase().replace(/\s*\[at\]\s*|\s*\(at\)\s*|\s+at\s+/g, "@");
+    if (normalized.includes("@")) push(`EMAIL: ${normalized}`);
+  }
   for (const m of html.matchAll(/href=["']tel:([^"']+)/gi)) {
     push(`PHONE: ${m[1]!.replace(/\s+/g, " ").trim()}`);
   }
@@ -660,7 +667,12 @@ export async function runAgenticWebResearch(input: {
 
   /** From SERP hits, seed /contact and /terms on real company domains so we don't stop at chamber pages. */
   const seedCompanyContactPaths = (urls: string[]) => {
-    const paths = ["/contact", "/contact-us", "/terms-and-conditions", "/terms", "/about", "/company/contact", "/dealer", "/dealers", "/team", "/about-us"];
+    const paths = [
+      "/contact", "/contact-us", "/contactus", "/get-in-touch", "/connect",
+      "/pages/contact", "/company/contact", "/about/contact",
+      "/terms-and-conditions", "/terms", "/about", "/about-us",
+      "/dealer", "/dealers", "/team", "/our-team", "/leadership", "/people",
+    ];
     for (const u of urls) {
       if (isAggregatorHost(u)) continue;
       try {
@@ -705,16 +717,18 @@ export async function runAgenticWebResearch(input: {
     return true;
   };
 
-  const hasOrgEmailOrPhone = () =>
-    findings.some((f) => f.vectorType === "email" || f.vectorType === "phone");
+  const hasOrgEmail = () => findings.some((f) => f.vectorType === "email");
+  const hasOrgPhone = () => findings.some((f) => f.vectorType === "phone");
+  const hasOrgEmailOrPhone = () => hasOrgEmail() || hasOrgPhone();
   const hasRelatedPerson = () =>
     findings.some(
       (f) =>
         f.personName
         && f.personName.toLowerCase() !== name.toLowerCase()
-        && f.note?.toLowerCase().includes("related"),
+        && (f.note?.toLowerCase().includes("related") || f.role === "related_contact"),
     );
   let relatedPeopleSearchDone = false;
+  let orgEmailSearchDone = false;
 
   for (let i = 0; i < maxIter; i++) {
     // Force-visit as soon as we have SERP URLs and zero visits (parity with general agents).
@@ -734,6 +748,51 @@ export async function runAgenticWebResearch(input: {
       const forced = await forceVisitNext(`step${i + 1}`);
       if (forced) continue;
     }
+    // Phones without org email is a common mid-market gap vs general agents.
+    // Force an email-focused SERP + re-seed contact paths once.
+    if (
+      hasOrgPhone()
+      && !hasOrgEmail()
+      && !orgEmailSearchDone
+      && i < maxIter - 2
+    ) {
+      orgEmailSearchDone = true;
+      const co = input.companyName || name;
+      const q = `"${co}" (email OR "info@" OR "contact@" OR "sales@" OR mailto) (contact OR "contact us") -zoominfo -rocketreach -linkedin`;
+      searches++;
+      history.push(`step${i + 1}: force_org_email_search ${q}`);
+      const sr = await toolWebSearch(q);
+      for (const u of sr.urls) {
+        if (!candidateUrls.includes(u)) candidateUrls.push(u);
+      }
+      seedCompanyContactPaths(sr.urls.length ? sr.urls : candidateUrls);
+      lastObservation =
+        `SEARCH results for org email: ${q}\nURLs: ${sr.urls.slice(0, 8).join(" | ")}\n\n${sr.text.slice(0, MAX_OBS)}\n\n` +
+        `NEXT: visit company /contact /contact-us pages. Emit EMAIL findings (info@, contact@) with exact sourceUrl. Do not invent.`;
+      // Prefer an unvisited contact path immediately
+      const contactFirst = [...new Set(candidateUrls)]
+        .filter((u) => !visitedUrls.has(u) && /\/(contact|get-in-touch|connect)/i.test(u))
+        .sort((a, b) => rankVisitUrl(a) - rankVisitUrl(b))[0];
+      if (contactFirst) {
+        const idx = candidateUrls.indexOf(contactFirst);
+        if (idx > 0) {
+          candidateUrls.splice(idx, 1);
+          candidateUrls.unshift(contactFirst);
+        }
+      }
+      continue;
+    }
+    // Still missing email: keep force-visiting contact-ranked pages
+    if (
+      hasOrgPhone()
+      && !hasOrgEmail()
+      && orgEmailSearchDone
+      && candidateUrls.some((u) => !visitedUrls.has(u) && rankVisitUrl(u) <= 2)
+      && i < maxIter - 1
+    ) {
+      const forced = await forceVisitNext(`step${i + 1}`);
+      if (forced) continue;
+    }
     // After primary surface: force a related-people SERP hop (BBB / officers) once
     if (
       hasOrgEmailOrPhone()
@@ -744,7 +803,7 @@ export async function runAgenticWebResearch(input: {
       relatedPeopleSearchDone = true;
       const co = input.companyName || name;
       // Prefer company /dealer /team pages (BBB is often Cloudflare-blocked to plain fetch)
-      const q = `"${co}" (BBB OR owner OR officers OR "principal contact" OR "company contact" OR dealer) -zoominfo -rocketreach`;
+      const q = `"${co}" (BBB OR owner OR "co-owner" OR "co-founder" OR partner OR officers OR "principal contact" OR "company contact" OR dealer OR president) -zoominfo -rocketreach`;
       searches++;
       history.push(`step${i + 1}: force_related_search ${q}`);
       const sr = await toolWebSearch(q);
@@ -914,7 +973,7 @@ export async function runAgenticWebResearch(input: {
       history.push(`step${i + 1}: done_rejected (related-people hop required)`);
       relatedPeopleSearchDone = true;
       const co = input.companyName || name;
-      const q = `"${co}" (BBB OR owner OR "principal contact" OR officers)`;
+      const q = `"${co}" (BBB OR owner OR "co-owner" OR "co-founder" OR partner OR "principal contact" OR officers OR president)`;
       searches++;
       history.push(`step${i + 1}: force_related_search ${q}`);
       const sr = await toolWebSearch(q);
@@ -923,7 +982,7 @@ export async function runAgenticWebResearch(input: {
       }
       lastObservation =
         `Primary surface found. RELATED PEOPLE search:\nURLs: ${sr.urls.slice(0, 8).join(" | ")}\n\n${sr.text.slice(0, MAX_OBS)}\n\n` +
-        `Visit BBB/about pages. Emit PERSON findings. Then you may done.`;
+        `Visit BBB/about/team pages. Emit PERSON findings (owners, co-founders, officers) with personName+role. Then you may done.`;
       continue;
     }
     findings = mergeFindings(findings, action.findings);
