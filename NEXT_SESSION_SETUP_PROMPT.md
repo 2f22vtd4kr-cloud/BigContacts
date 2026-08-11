@@ -31,7 +31,7 @@ Read **`CONTEXT.md`** fully before coding. Prefer real code over invention. Surg
 
 **Points 25–27:** Superior-to-Grok metric defined; no celebrity theater for proof; proof scripts present.
 
-Tip was `ac95606` at last handoff — confirm after pull.
+Tip was `39612cb` at last handoff — confirm after pull.
 
 ## Your first actions
 1. Acknowledge posture: Apex is the superior OSINT desk; related always visible; never invent.  
