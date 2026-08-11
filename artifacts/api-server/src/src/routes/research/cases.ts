@@ -854,7 +854,7 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
       // so the loop behaves like a general agent (not a diluted discovery brief).
       const objText = workingFile.humanBrief.objective || "";
       const personMatch = objText.match(/\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+){1,3})\b/);
-      const companyMatch = objText.match(/\b([A-Z][A-Za-z0-9&.'-]*(?:\s+[A-Z][A-Za-z0-9&.']*){0,5}\s+(?:Company|Co\.?|Corp\.?|Inc\.?|LLC|Manufacturing|Holdings|Group|Partners))\b/);
+      const companyMatch = objText.match(/\b([A-Z][A-Za-z0-9&.'-]*(?:\s+[A-Z][A-Za-z0-9&.']*){0,5}\s+(?:Company|Co\.?|Corp\.?|Inc\.?|LLC|LLP|Manufacturing|Holdings|Group|Partners|Capital|Foundation|Advisors?|Management|Investments?))\b/);
       const agenticTargetName = (personMatch?.[1] || objText.slice(0, 80) || "discovery target").trim();
       const agenticCompanyName = companyMatch?.[1]?.trim() || null;
       const agenticDiscovery = await runBureauAgenticWebPass({
