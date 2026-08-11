@@ -914,6 +914,31 @@ export async function runAgenticWebResearch(input: {
       const forced = await forceVisitNext(`step${i + 1}`);
       if (forced) continue;
     }
+    // Registry footprint hop (OpenCorporates / EDGAR / BBB) once after related search
+    if (
+      relatedPeopleSearchDone
+      && !(findings.some((f) => (f.sourceUrls || []).some((u) => /opencorporates|sec\.gov|bbb\.org|companieshouse/i.test(u))))
+      && i < maxIter - 2
+      && !history.some((h) => h.includes("force_registry_search"))
+    ) {
+      const co = input.companyName || name;
+      const q = `"${co}" (site:opencorporates.com OR site:sec.gov OR site:bbb.org OR "companies house" OR GLEIF)`;
+      searches++;
+      history.push(`step${i + 1}: force_registry_search ${q}`);
+      const sr = await toolWebSearch(q);
+      for (const u of sr.urls) {
+        if (/^https?:\/\//i.test(u) && !candidateUrls.includes(u)) candidateUrls.push(u);
+      }
+      const snippetEmails = findingsFromSearchSnippet(sr.text, sr.urls, input.companyName || name);
+      if (snippetEmails.length) {
+        findings = mergeFindings(findings, snippetEmails);
+        history.push(`step${i + 1}: serp_email_findings=${snippetEmails.length}`);
+      }
+      lastObservation =
+        `REGISTRY / BBB search:\nURLs: ${sr.urls.slice(0, 8).join(" | ")}\n\n${sr.text.slice(0, MAX_OBS)}\n\n` +
+        `Visit registry or BBB pages for officers and legal name. Do not invent IDs.`;
+      continue;
+    }
     // Prefer /dealer /team pages after related search
     if (
       relatedPeopleSearchDone

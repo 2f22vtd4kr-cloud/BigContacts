@@ -1427,6 +1427,45 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
         );
       }
 
+
+      // GHOST-style: dedupe person rows that share the same normalized name (keep denser evidence)
+      const normPerson = (n: string) => n.toLowerCase().replace(/[^a-z\s]/g, " ").replace(/\s+/g, " ").trim();
+      const deduped: typeof mergedReviewCandidates = [];
+      for (const cand of mergedReviewCandidates) {
+        const isP = cand.type === "person" || cand.type === "review_candidate";
+        if (!isP || cand.name.split(/\s+/).length < 2) {
+          deduped.push(cand);
+          continue;
+        }
+        const key = normPerson(cand.name);
+        const existingIdx = deduped.findIndex(
+          (d) => (d.type === "person" || d.type === "review_candidate") && normPerson(d.name) === key,
+        );
+        if (existingIdx < 0) {
+          deduped.push(cand);
+          continue;
+        }
+        const prev = deduped[existingIdx]!;
+        const denser =
+          (cand.contactEvidence?.length ?? 0) + (cand.sourceUrls?.length ?? 0)
+          >= (prev.contactEvidence?.length ?? 0) + (prev.sourceUrls?.length ?? 0)
+            ? cand
+            : prev;
+        const thinner = denser === cand ? prev : cand;
+        denser.contactEvidence = [
+          ...(denser.contactEvidence ?? []),
+          ...(thinner.contactEvidence ?? []).filter(
+            (e) => !(denser.contactEvidence ?? []).some(
+              (x) => x.vectorType === e.vectorType && String(x.value).toLowerCase() === String(e.value).toLowerCase(),
+            ),
+          ),
+        ].slice(0, 24);
+        denser.sourceUrls = [...new Set([...(denser.sourceUrls ?? []), ...(thinner.sourceUrls ?? [])])].slice(0, 12);
+        deduped[existingIdx] = denser;
+      }
+      mergedReviewCandidates.length = 0;
+      mergedReviewCandidates.push(...deduped);
+
       // GHOST-style entity graph: link person rows to company row when company is locked
       const entityLinks: Array<{
         from: string;
@@ -1454,10 +1493,28 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
         }
       }
 
+      // Claude-OSINT org-footprint checklist from deck evidence (fail-closed, no invention)
+      const allEv = mergedReviewCandidates.flatMap((c) => c.contactEvidence ?? []);
+      const allUrls = mergedReviewCandidates.flatMap((c) => c.sourceUrls ?? []);
+      const orgFootprint = {
+        website: allEv.some((e) => e.vectorType === "website") || allUrls.some((u) => /^https?:\/\//i.test(u)),
+        orgPhone: allEv.some((e) => e.vectorType === "phone"),
+        orgEmail: allEv.some((e) => e.vectorType === "email"),
+        address: allEv.some((e) => e.vectorType === "other" && /\d/.test(String(e.value || "")) && /street|rd|ave|drive|blvd|mi |state/i.test(String(e.value || ""))),
+        relatedOfficers: entityLinks.length > 0 || mergedReviewCandidates.filter((c) => c.type === "person").length >= 2,
+        registryMention: allUrls.some((u) => /opencorporates|sec\.gov|companieshouse|gleif|bbb\.org/i.test(u)),
+        notes: [
+          lockCompany ? `Locked company: ${lockCompany}` : "No company lock",
+          `entityLinks=${entityLinks.length}`,
+          `candidates=${mergedReviewCandidates.length}`,
+        ],
+      };
+
       workingFile = {
         ...workingFile,
         discoveredCandidates: mergedReviewCandidates,
         entityLinks: entityLinks.length ? entityLinks : (workingFile as { entityLinks?: unknown }).entityLinks,
+        orgFootprint,
         initialResearch: {
           ...workingFile.initialResearch,
           status: "recorded",

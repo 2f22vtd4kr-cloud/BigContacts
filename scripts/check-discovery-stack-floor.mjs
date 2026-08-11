@@ -57,6 +57,14 @@ ok("browser-fetch ZenRows path", !!browser?.includes("zenrows") || !!browser?.in
 ok("browser-fetch Playwright fallback", !!browser?.includes("playwright") || !!browser?.includes("Playwright") || !!browser?.includes("chromium"));
 
 // karpathy overnight NOT required here
+
+ok("DiscoveryCaseFile entityLinks type", !!bureau?.includes("entityLinks?:"));
+ok("DiscoveryCaseFile orgFootprint type", !!bureau?.includes("orgFootprint?:"));
+ok("cases orgFootprint checklist", !!cases?.includes("orgFootprint") && !!cases?.includes("registryMention"));
+ok("cases person dedupe denser evidence", !!cases?.includes("normPerson") || !!cases?.includes("denser"));
+ok("agentic force_registry_search", !!agentic?.includes("force_registry_search"));
+ok("score-discovery-case scorecard script", existsSync(join(root, "scripts/score-discovery-case.mjs")));
+
 ok("no requirement for overnight cohort runner in this floor", true);
 
 const failed = checks.filter((c) => !c.pass);

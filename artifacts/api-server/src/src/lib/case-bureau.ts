@@ -231,6 +231,23 @@ export type DiscoveryCaseFile = {
     state: "review_only";
     admittedEntityId?: number | null;
   }>;
+  /** GHOST-style person↔org graph for the review deck (evidence-backed only). */
+  entityLinks?: Array<{
+    from: string;
+    to: string;
+    relation: string;
+    evidence: string[];
+  }>;
+  /** Org-footprint checklist status after discovery lanes (Claude-OSINT style). */
+  orgFootprint?: {
+    website: boolean;
+    orgPhone: boolean;
+    orgEmail: boolean;
+    address: boolean;
+    relatedOfficers: boolean;
+    registryMention: boolean;
+    notes: string[];
+  };
   humanDirectives: string[];
   decisionLog: Array<{
     iteration: number;
