@@ -2774,48 +2774,81 @@ router.post("/research/cases/:entityId/advance", async (req, res): Promise<void>
     "case-bureau-advance",
   );
 
-  // Boss-selected web/contact/footprint actions: same ReAct body as Atlas secondary
+  // Boss-selected web/contact/footprint: full Atlas secondary cascade + Boss-guided agentic
   const action = updatedFile.nextBestAction;
   if (action && isWebSpecialistAction(action.specialistId)) {
-    let companyName: string | null = null;
     try {
       const [ent] = await db.select({
         name: entitiesTable.name,
+        type: entitiesTable.type,
         metadata: entitiesTable.metadata,
         notes: entitiesTable.notes,
       }).from(entitiesTable).where(eq(entitiesTable.id, params.data.entityId)).limit(1);
+      let companyName: string | null = null;
       try {
         const meta = ent?.metadata ? JSON.parse(ent.metadata) as Record<string, unknown> : {};
         companyName = typeof meta.companyName === "string" ? meta.companyName : null;
       } catch { companyName = null; }
+      if (!companyName && ent?.notes) {
+        const fromNotes = String(ent.notes).match(/Company:\s*([^\.\n]+)/i)
+          || String(ent.notes).match(/connected to\s+([A-Z][^\.\n]{3,80})/i)
+          || String(ent.notes).match(/\b([A-Z][A-Za-z0-9&.,' -]{2,60}\s+(?:Manufacturing|Holdings|Corporation|Company|Inc\.?|LLC|Ltd\.?|Co\.?|LLP|PLC|AG|SA)\b)/);
+        if (fromNotes?.[1]) companyName = fromNotes[1].trim().slice(0, 120);
+      }
       const targetName = updatedFile.target?.name ?? ent?.name ?? "target";
+
+      // 1) Full Atlas secondary surface (enrichEntityOsint + directories + CT + Wayback + EDGAR + agentic)
+      const secondary = await expandSecondaryPublicSurface({
+        entityId: params.data.entityId,
+        name: targetName,
+        entityType: ent?.type ?? updatedFile.target?.type ?? "HNWI",
+        companyName,
+      });
+      let companySecondary: typeof secondary | null = null;
+      if (companyName && companyName.toLowerCase() !== targetName.toLowerCase()) {
+        companySecondary = await expandSecondaryPublicSurface({
+          entityId: params.data.entityId,
+          name: companyName,
+          entityType: "Corporation",
+          companyName,
+        }).catch(() => null);
+      }
+
+      // 2) Extra Boss-guided agentic pass (investigatorPrompt steers multi-hop — secondary's agentic is generic)
       const agenticAdv = await runBureauAgenticWebPass({
         targetName,
         companyName,
         objective: [
           bossPlan.investigatorPrompt ?? action.purpose,
           action.rationale,
-          "Boss-selected web action — agentic multi-hop. Never invent contacts.",
+          "Boss-selected web action — agentic multi-hop on top of Atlas secondary tools. Never invent contacts.",
         ].filter(Boolean).join("\n"),
         caseId: current.id,
         entityId: params.data.entityId,
         persist: true,
         maxIterations: 8,
       });
+
       await db.insert(researchCaseEventsTable).values({
         caseId: current.id,
         iteration: nextIteration,
         actorRole: "specialist",
         eventType: "observation",
-        summary: `Agentic ReAct (${action.specialistId}): ${agenticAdv.status}; findings=${agenticAdv.findings.length}; searches=${agenticAdv.searches}; visits=${agenticAdv.visits}`,
+        summary: `Atlas secondary + Agentic (${action.specialistId}): secondary li=${secondary.linkedin} email=${secondary.email} web=${secondary.website} related=${secondary.relatedPeople}; agentic findings=${agenticAdv.findings.length} searches=${agenticAdv.searches} visits=${agenticAdv.visits}`,
         payload: JSON.stringify({
-          lane: "agentic-react",
+          lane: "atlas-secondary+agentic-react",
           actionId: action.id,
           specialistId: action.specialistId,
-          model: agenticAdv.model,
-          findings: agenticAdv.contactEvidence,
-          trajectory: agenticAdv.trajectory.slice(-12),
-          error: agenticAdv.error ?? null,
+          companyName,
+          secondary,
+          companySecondary,
+          agentic: {
+            status: agenticAdv.status,
+            model: agenticAdv.model,
+            findings: agenticAdv.contactEvidence,
+            trajectory: agenticAdv.trajectory.slice(-12),
+            error: agenticAdv.error ?? null,
+          },
         }),
       });
     } catch (err: any) {

@@ -95,6 +95,9 @@ ok("bureau agentic pass module",
 ok("bureau cases wire agentic",
   read("artifacts/api-server/src/src/routes/research/cases.ts").includes("runBureauAgenticWebPass") &&
   read("artifacts/api-server/src/src/routes/research/cases.ts").includes("isWebSpecialistAction"));
+ok("bureau advance runs Atlas secondary",
+  read("artifacts/api-server/src/src/routes/research/cases.ts").includes("atlas-secondary+agentic-react") &&
+  read("artifacts/api-server/src/src/routes/research/cases.ts").includes("expandSecondaryPublicSurface"));
 ok("secondary runs agentic loop",
   persist.includes("runAgenticWebResearch") && persist.includes("Agentic web research"));
 ok("secondary email requires website URL",
