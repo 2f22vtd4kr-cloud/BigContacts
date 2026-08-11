@@ -361,13 +361,20 @@ function modelRank(name: string): [number, number, number, number, string] {
 }
 
 function chooseGeminiModelCandidates(entries: GeminiModelCatalogEntry[]): string[] {
+  // Models Google has retired for new API users (404 on generateContent).
+  // Keep denylist explicit so catalog drift cannot re-select a dead id.
+  const RETIRED =
+    /^(gemini-1\.5-flash|gemini-1\.0-pro|gemini-2\.5-flash|gemini-2\.5-pro|gemini-pro|gemini-pro-vision)(?:-|$)/i;
+
   return entries
     .filter((entry) => entry.name && entry.supportedGenerationMethods?.includes("generateContent"))
     .map((entry) => entry.name!.replace(/^models\//, ""))
     .filter((name) => /^gemini-/i.test(name))
     .filter((name) => /flash/i.test(name))
-    .filter((name) => /^gemini-\d+(?:\.\d+)?-flash(?:-preview)?$/i.test(name))
-    .filter((name) => !/embedding|aqa|robotics|image|tts|deep-research|latest|001/i.test(name))
+    // Allow gemini-3.6-flash, gemini-2.0-flash, gemini-2.0-flash-001, optional -preview suffix
+    .filter((name) => /^gemini-\d+(?:\.\d+)?-flash(?:-[a-z0-9]+)?$/i.test(name))
+    .filter((name) => !/embedding|aqa|robotics|image|tts|deep-research|latest/i.test(name))
+    .filter((name) => !RETIRED.test(name))
     .sort((left, right) => {
       const a = modelRank(left);
       const b = modelRank(right);
@@ -444,16 +451,20 @@ export async function generateGeminiBossText(
         }
         if (!response.ok) {
           const detail = (await response.text().catch(() => "")).slice(0, 300);
-          // Auth failures: try next key. Other errors: fail fast on this model.
+          lastError = `Gemini Boss ${model} HTTP ${response.status}${detail ? `: ${detail}` : ""}`;
+          // Auth failures: abandon this key, try next key.
           if (response.status === 401 || response.status === 403) {
-            lastError = `Gemini Boss ${model} HTTP ${response.status}${detail ? `: ${detail}` : ""}`;
             break;
           }
-          return {
-            model,
-            raw: null,
-            error: `Gemini Boss ${model} HTTP ${response.status}${detail ? `: ${detail}` : ""}`,
-          };
+          // 404 / retired model / other: try next candidate model instead of aborting Boss.
+          if (response.status === 404) {
+            cachedBossModelSelection = null;
+            logger.warn(
+              { model, status: 404, keyName: entry.name },
+              "Gemini Boss model retired or missing; trying next catalog candidate",
+            );
+          }
+          continue;
         }
 
         const payload = await response.json() as {
