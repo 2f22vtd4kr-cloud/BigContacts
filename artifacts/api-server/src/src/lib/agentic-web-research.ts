@@ -92,6 +92,56 @@ async function toolWebSearch(query: string): Promise<{ text: string; urls: strin
   }
 }
 
+/** Deterministic contact-surface extractor from raw HTML — survives passage filter.
+ *  Prepends high-signal emails/phones/addresses/titles so agentic LLM cannot miss
+ *  org inboxes (info@) or phone lines that score poorly against a bare URL query.
+ */
+function extractContactFactsFromHtml(html: string): string {
+  const facts: string[] = [];
+  const seen = new Set<string>();
+  const push = (s: string) => {
+    const t = s.trim();
+    if (t.length < 5 || t.length > 200 || seen.has(t.toLowerCase())) return;
+    seen.add(t.toLowerCase());
+    facts.push(t);
+  };
+
+  for (const m of html.matchAll(/href=["']mailto:([^"'?\s]+)/gi)) {
+    push(`EMAIL: ${m[1]!.toLowerCase()}`);
+  }
+  for (const m of html.matchAll(/\b([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})\b/gi)) {
+    const addr = m[1]!.toLowerCase();
+    if (!/example\.|sentry\.|schema\.|wixpress|cloudflare|wordpress|github\.com|google\.com/.test(addr)) {
+      push(`EMAIL: ${addr}`);
+    }
+  }
+  for (const m of html.matchAll(/href=["']tel:([^"']+)/gi)) {
+    push(`PHONE: ${m[1]!.replace(/\s+/g, " ").trim()}`);
+  }
+  // US-centric phone patterns common on company contact pages
+  for (const m of html.matchAll(/(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]\d{3}[-.\s]\d{4}/g)) {
+    push(`PHONE: ${m[0]!.replace(/\s+/g, " ").trim()}`);
+  }
+  // Street-ish address lines (city + state zip or N/S/E/W street)
+  for (const m of html.matchAll(
+    /\b\d{1,5}\s+[A-Za-z0-9.'\-\s]{3,40}(?:Street|St\.?|Avenue|Ave\.?|Road|Rd\.?|Drive|Dr\.?|Boulevard|Blvd\.?|Lane|Ln\.?|Court|Ct\.?|Way|Highway|Hwy\.?)\b[^<\n]{0,40}/gi,
+  )) {
+    push(`ADDRESS: ${m[0]!.replace(/\s+/g, " ").trim().slice(0, 120)}`);
+  }
+  for (const m of html.matchAll(/\b[A-Za-z .'-]+,\s*[A-Z]{2}\s+\d{5}(?:-\d{4})?\b/g)) {
+    push(`ADDRESS: ${m[0]!.trim()}`);
+  }
+  // Role / title cues near officer names (proxy language)
+  for (const m of html.matchAll(
+    /\b((?:Co-)?(?:Chief Executive Officer|CEO|President|Director|Chairman|Vice President|VP|Secretary|Treasurer)[^.<]{0,60})/gi,
+  )) {
+    push(`ROLE: ${m[1]!.replace(/\s+/g, " ").trim().slice(0, 100)}`);
+  }
+
+  if (facts.length === 0) return "";
+  return "CONTACT FACTS (visible on page):\n" + facts.slice(0, 25).join("\n") + "\n\n";
+}
+
 async function toolVisit(url: string): Promise<string> {
   try {
     const resp = await fetch(url, {
@@ -105,7 +155,10 @@ async function toolVisit(url: string): Promise<string> {
     });
     if (!resp.ok) return `HTTP ${resp.status}`;
     const html = (await resp.text()).slice(0, 120_000);
-    return filterPassagesForQuery(stripHtml(html), url, { maxChars: MAX_OBS, minScore: 0.05 });
+    const facts = extractContactFactsFromHtml(html);
+    const body = filterPassagesForQuery(stripHtml(html), url, { maxChars: MAX_OBS, minScore: 0.05 });
+    // Always surface contact facts first so LLM can emit findings with sourceUrls.
+    return (facts + body).slice(0, MAX_OBS + 800);
   } catch (err: any) {
     return `visit failed: ${err?.message ?? "error"}`;
   }
@@ -249,11 +302,13 @@ TOOLS (choose exactly one per turn):
 
 RULES:
 - Never invent emails, phones, or profiles. Only report values VISIBLE in observations with exact sourceUrls.
-- Prefer primary sources: company contact/about/team pages, registries, LinkedIn, filings, SEC/EDGAR, officer tables.
-- Multi-hop: if you learn a company domain, visit /contact /about /team. If you learn a person title, search person+company+title.
-- Organization inboxes are fine as organization scope. Do not mark Personal.
+- Prefer primary sources: company contact/about/team/terms pages, registries, LinkedIn, filings, SEC/EDGAR, officer tables.
+- Multi-hop: if you learn a company domain, immediately visit /contact /about /team /terms-and-conditions (and root). If CONTACT FACTS appear, emit them as findings with that page as sourceUrl.
+- Search "TARGET company EDGAR" or "TARGET SC 13D" or site:sec.gov for officer/co-filer tables; report related persons as other/related with role sc13_co_filer or director.
+- Organization inboxes (info@, contact@, office@) are fine as organization scope. Do not mark Personal.
 - FIRST ACTION must be web_search when trajectory is empty. Do not return done until you have run at least 2 web_search actions (or 1 search + 1 visit that yielded surface).
 - When the TARGET is a named person and a RELATED COMPANY is given, search the exact pair first (person + company + city/state if known) before any broad discovery.
+- Recover role history (president, co-CEO, director since YYYY) when visible on proxy or about pages.
 - When you have useful public surface OR 2+ real search attempts with nothing, action=done.
 
 TRAJECTORY SO FAR:

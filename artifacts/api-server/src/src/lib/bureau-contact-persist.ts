@@ -586,7 +586,7 @@ export async function expandSecondaryPublicSurface(input: {
       }
     }
 
-    // G7 live: SC 13D/G co-display names for issuer — related people, review-only.
+    // G7 live: SC 13D/G + DEF 14A display names for issuer — related people, review-only.
     const issuer = String(input.companyName ?? "").trim();
     if (issuer.length >= 3) {
       try {
@@ -598,8 +598,10 @@ export async function expandSecondaryPublicSurface(input: {
             scope: "candidate",
             personName: person,
             role: "sc13_co_filer",
-            sourceUrls: [`https://efts.sec.gov/LATEST/search-index?q=${encodeURIComponent(issuer)}&forms=SC+13D,SC+13G`],
-            note: `EDGAR SC 13D/G co-display name for issuer "${issuer}" — related lead only, not Personal`,
+            sourceUrls: [
+              `https://efts.sec.gov/LATEST/search-index?q=${encodeURIComponent(issuer)}&forms=SC+13D,SC+13G,DEF+14A&dateRange=custom&startdt=1995-01-01`,
+            ],
+            note: `EDGAR SC 13D/G or DEF 14A co-display / officer name for issuer "${issuer}" — related lead only, not Personal`,
             tier: "candidate",
             state: "review_only",
           });
@@ -661,10 +663,11 @@ export async function expandSecondaryPublicSurface(input: {
 async function lookupEdgarRelatedPeople(issuer: string, excludeName: string): Promise<string[]> {
   // Deep history: many SC 13D/G co-filer groups for legacy issuers (e.g. Hastings) are 2001–2005.
   // 2010+ window returns zero hits for those cases. enddt kept current.
+  // Also include DEF 14A so officer/director tables surface related names.
   const url =
     `https://efts.sec.gov/LATEST/search-index` +
     `?q=${encodeURIComponent('"' + issuer.slice(0, 80) + '"')}` +
-    `&forms=SC+13D,SC+13G&dateRange=custom&startdt=1995-01-01&enddt=2026-12-31&from=0`;
+    `&forms=SC+13D,SC+13G,DEF+14A&dateRange=custom&startdt=1995-01-01&enddt=2026-12-31&from=0`;
   try {
     const resp = await fetch(url, {
       headers: {
@@ -737,10 +740,12 @@ async function lookupLeadershipPages(website: string, personName: string): Promi
     "/contact", "/contact-us", "/contactus", "/about", "/about-us",
     "/team", "/leadership", "/our-team", "/people", "/company",
     "/management", "/executives", "/locations",
+    // Org-email often lives on legal/terms pages (e.g. info@hastingsmfg.com)
+    "/terms", "/terms-and-conditions", "/terms-of-use", "/privacy", "/legal",
   ];
   const found: string[] = [];
   for (const path of paths) {
-    if (found.length >= 6) break;
+    if (found.length >= 8) break;
     const url = `${origin}${path}`;
     try {
       const resp = await fetch(url, {
@@ -756,11 +761,13 @@ async function lookupLeadershipPages(website: string, personName: string): Promi
       const ct = resp.headers.get("content-type") ?? "";
       if (!/html/i.test(ct)) continue;
       const html = (await resp.text()).slice(0, 80_000);
-      // Keep page if it mentions the person or looks like a team/leadership page.
+      // Keep page if it mentions the person, looks like team/leadership, or publishes contact vectors.
       const mentionsPerson = personName.split(/\s+/).filter((p) => p.length > 2)
         .some((part) => new RegExp(part, "i").test(html));
       const teamish = /leadership|our team|about us|board of directors|management team/i.test(html);
-      if (mentionsPerson || teamish) found.push(url);
+      const hasContactSurface =
+        /mailto:|info@|contact@|office@|press@|\(\d{3}\)|\+1[-.\s]?\d{3}/i.test(html);
+      if (mentionsPerson || teamish || hasContactSurface) found.push(url);
     } catch {
       // try next path
     }
