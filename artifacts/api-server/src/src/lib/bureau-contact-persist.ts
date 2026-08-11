@@ -368,7 +368,8 @@ export async function expandSecondaryPublicSurface(input: {
         personName: name,
         role: null,
         sourceUrls: [result.website],
-        note: "Website / domain from secondary expansion",
+        note: "Website / domain from secondary expansion — org/public surface",
+        scope: "organization",
         tier: "candidate",
         state: "review_only",
       });
