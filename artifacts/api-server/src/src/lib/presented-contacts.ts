@@ -4,6 +4,7 @@
  */
 import { and, desc, sql } from "drizzle-orm";
 import { db, contactEvidenceTable } from "@workspace/db";
+import { isTrashContactValue } from "./contact-validation";
 
 export type PresentedContact = {
   vectorType: string;
@@ -123,6 +124,7 @@ export async function loadPresentedContactsForEntities(
     if (!entity) continue;
     const value = String(row.value ?? "").trim();
     if (!value) continue;
+    if (isTrashContactValue(row.vectorType, value)) continue;
     const key = `${row.vectorType}|${value.toLowerCase()}`;
     if (!seen.has(row.entityId)) seen.set(row.entityId, new Set());
     if (seen.get(row.entityId)!.has(key)) continue;
