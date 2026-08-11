@@ -25,7 +25,7 @@ import {
 } from "../lib/contact-validation";
 import { loadPresentedContactsForEntities } from "../lib/presented-contacts";
 import { extractImportDrafts, type ImportDraftEntity } from "../lib/manual-import-extract";
-import { persistBureauContactsForEntity } from "../lib/bureau-contact-persist";
+import { persistBureauContactsForEntity, expandSecondaryPublicSurface } from "../lib/bureau-contact-persist";
 
 const router: IRouter = Router();
 
@@ -803,6 +803,64 @@ router.get("/entities/:id/contact-evidence", async (req, res): Promise<void> => 
   } catch (err: unknown) {
     res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
   }
+});
+
+
+// POST /entities/:id/refresh-surface — bounded secondary + issuer org re-expand (never invents Personal)
+router.post("/entities/:id/refresh-surface", async (req, res): Promise<void> => {
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id) || id <= 0) {
+    res.status(400).json({ error: "invalid entity id" });
+    return;
+  }
+  const [entity] = await db.select().from(entitiesTable).where(eq(entitiesTable.id, id)).limit(1);
+  if (!entity) {
+    res.status(404).json({ error: "Entity not found" });
+    return;
+  }
+  let companyName: string | null = null;
+  try {
+    const meta = entity.metadata ? JSON.parse(entity.metadata) as Record<string, unknown> : {};
+    companyName = typeof meta.companyName === "string" ? meta.companyName : null;
+  } catch { companyName = null; }
+  if (!companyName && entity.notes) {
+    const m = String(entity.notes).match(/Company:\s*([^\.\n]+)/i);
+    if (m?.[1]) companyName = m[1].trim().slice(0, 120);
+  }
+  const secondary = await expandSecondaryPublicSurface({
+    entityId: id,
+    name: entity.name,
+    entityType: entity.type,
+    companyName,
+  });
+  if (companyName) {
+    await expandSecondaryPublicSurface({
+      entityId: id,
+      name: companyName,
+      entityType: "Corporation",
+      companyName,
+    }).catch(() => null);
+    await persistBureauContactsForEntity(id, [{
+      vectorType: "domain",
+      value: companyName,
+      scope: "organization",
+      personName: entity.name,
+      role: "related_issuer",
+      sourceUrls: [],
+      note: `Issuer/company refresh — related org anchor (not Personal)`,
+      tier: "candidate",
+      state: "review_only",
+    }], "atlas-registry-org-surface").catch(() => 0);
+  }
+  const contactMap = await loadPresentedContactsForEntities([entity]);
+  const [fresh] = await db.select().from(entitiesTable).where(eq(entitiesTable.id, id)).limit(1);
+  res.json({
+    ok: true,
+    secondary,
+    companyName,
+    contacts: contactMap[id] ?? [],
+    contactOutcome: fresh?.contactOutcome ?? entity.contactOutcome,
+  });
 });
 
 // GET /entities/:id
