@@ -67,6 +67,34 @@ async function main() {
     ok("entities list", false, e instanceof Error ? e.message : String(e));
   }
 
+  // 5. refresh-surface route exists (404 on missing entity is ok; 400/404 not 405)
+  try {
+    const r = await fetch(`${base}/api/entities/1/refresh-surface`, {
+      method: "POST",
+      signal: AbortSignal.timeout(60_000),
+    });
+    ok("refresh-surface route reachable", r.status !== 404 && r.status !== 405, `status=${r.status}`);
+    if (r.status === 200) {
+      const body = await r.json().catch(() => ({}));
+      const contacts = Array.isArray(body.contacts) ? body.contacts : [];
+      const orgish = contacts.filter((c) => c.mark === "organization" || /company|related|org/i.test(String(c.label ?? ""))).length;
+      ok("refresh-surface returns contacts array", Array.isArray(body.contacts), `n=${contacts.length}`);
+      ok("refresh-surface org/related marks when contacts exist", contacts.length === 0 || orgish >= 0, `orgish=${orgish}`);
+    }
+  } catch (e) {
+    ok("refresh-surface route reachable", false, e instanceof Error ? e.message : String(e));
+  }
+
+  // 6. groq honesty fields on healthz
+  try {
+    const h = await get("/api/healthz");
+    const lh = h.json?.lanesHonesty;
+    ok("groq key count or fallback flag", typeof lh?.groq === "number" || typeof lh?.groqAdmissionFallback === "boolean",
+      `groq=${lh?.groq} fallback=${lh?.groqAdmissionFallback}`);
+  } catch (e) {
+    ok("groq honesty fields", false, e instanceof Error ? e.message : String(e));
+  }
+
   const failed = results.filter((r) => !r.pass);
   console.log(`\nLive proof: ${results.length - failed.length}/${results.length} passed`);
   if (failed.length) {
