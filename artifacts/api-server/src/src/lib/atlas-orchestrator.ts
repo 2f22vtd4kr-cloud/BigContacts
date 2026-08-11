@@ -2113,6 +2113,7 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
       + (surfaceGaps > 0
         ? " · GAP: issuer known but zero org/related evidence — desk under-performed open surface"
         : " · ok");
+    await appendJobLog(atlasJobId, `SURFACE_INTEGRITY ${summary["Surface integrity"]}`).catch(() => {});
   } catch (e: any) {
     summary["Surface integrity"] = `unavailable: ${e?.message ?? "error"}`;
   }
