@@ -283,8 +283,9 @@ export async function expandSecondaryPublicSurface(input: {
   entityId: number;
   name: string;
   entityType?: string | null;
-}): Promise<{ linkedin: boolean; email: boolean; phone: boolean; signal: boolean; website: boolean }> {
-  const out = { linkedin: false, email: false, phone: false, signal: false, website: false };
+  companyName?: string | null;
+}): Promise<{ linkedin: boolean; email: boolean; phone: boolean; signal: boolean; website: boolean; relatedPeople: number }> {
+  const out = { linkedin: false, email: false, phone: false, signal: false, website: false, relatedPeople: 0 };
   const name = String(input.name ?? "").trim();
   if (!input.entityId || name.length < 3) return out;
 
@@ -505,6 +506,30 @@ export async function expandSecondaryPublicSurface(input: {
       }
     }
 
+    // G7 live: SC 13D/G co-display names for issuer — related people, review-only.
+    const issuer = String(input.companyName ?? "").trim();
+    if (issuer.length >= 3) {
+      try {
+        const related = await lookupEdgarRelatedPeople(issuer, name);
+        for (const person of related) {
+          vectors.push({
+            vectorType: "other",
+            value: `related-person:${person}`,
+            scope: "candidate",
+            personName: person,
+            role: "sc13_co_filer",
+            sourceUrls: [`https://efts.sec.gov/LATEST/search-index?q=${encodeURIComponent(issuer)}&forms=SC+13D,SC+13G`],
+            note: `EDGAR SC 13D/G co-display name for issuer "${issuer}" — related lead only, not Personal`,
+            tier: "candidate",
+            state: "review_only",
+          });
+          out.relatedPeople++;
+        }
+      } catch {
+        // non-fatal
+      }
+    }
+
     if (vectors.length) {
       await persistBureauContactsForEntity(input.entityId, vectors, "secondary-public-surface");
     }
@@ -515,6 +540,48 @@ export async function expandSecondaryPublicSurface(input: {
     );
   }
   return out;
+}
+
+/** Bounded EDGAR EFTS lookup: other person-like display names on same issuer. Never invents. */
+async function lookupEdgarRelatedPeople(issuer: string, excludeName: string): Promise<string[]> {
+  const url =
+    `https://efts.sec.gov/LATEST/search-index` +
+    `?q=${encodeURIComponent('"' + issuer.slice(0, 80) + '"')}` +
+    `&forms=SC+13D,SC+13G&dateRange=custom&startdt=2010-01-01&from=0`;
+  try {
+    const resp = await fetch(url, {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "ApexAtlas/1.0 OSINT-Research research@apexfinder.private",
+      },
+      signal: AbortSignal.timeout(12_000),
+    });
+    if (!resp.ok) return [];
+    const data = await resp.json() as { hits?: { hits?: Array<{ _source?: { display_names?: string[] } }> } };
+    const hits = data?.hits?.hits ?? [];
+    const exclude = excludeName.toLowerCase();
+    const found = new Set<string>();
+    for (const hit of hits.slice(0, 15)) {
+      const names = hit?._source?.display_names ?? [];
+      for (const raw of names) {
+        const clean = String(raw).replace(/\s*\(CIK\s*\d+\)\s*$/i, "").trim();
+        if (clean.length < 5 || clean.length > 80) continue;
+        if (clean.toLowerCase() === exclude) continue;
+        if (clean.toLowerCase() === issuer.toLowerCase()) continue;
+        // Person-like: 2–4 capitalized words, no corp suffix
+        if (/\b(inc|llc|ltd|corp|company|holdings|trust|lp|plc|ag|sa)\b/i.test(clean)) continue;
+        const words = clean.split(/\s+/);
+        if (words.length < 2 || words.length > 5) continue;
+        if (!words.every((w) => /^[A-ZÀ-ÖØ-Ü]/.test(w))) continue;
+        found.add(clean);
+        if (found.size >= 8) break;
+      }
+      if (found.size >= 8) break;
+    }
+    return [...found];
+  } catch {
+    return [];
+  }
 }
 
 /** Probe common leadership/about/team paths on an official domain. Never invents contacts. */

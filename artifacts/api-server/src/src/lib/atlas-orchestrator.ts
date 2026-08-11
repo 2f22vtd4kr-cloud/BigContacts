@@ -1412,10 +1412,16 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
     // Writes LinkedIn / not-found, claimed emails/phones, directories, websites as candidate/org —
     // never Personal. Closes the empty-card gap vs open-agent OSINT on the same names.
     try {
+      let companyNameForSecondary: string | null = null;
+      try {
+        const m = entity.metadata ? JSON.parse(entity.metadata) as Record<string, unknown> : {};
+        companyNameForSecondary = typeof m.companyName === "string" ? m.companyName : null;
+      } catch { companyNameForSecondary = null; }
       const secondary = await expandSecondaryPublicSurface({
         entityId: id,
         name,
         entityType: entity.type,
+        companyName: companyNameForSecondary,
       });
       logger.info({ entityId: id, name, secondary }, "[Atlas] Secondary public surface expansion done");
     } catch (err: any) {

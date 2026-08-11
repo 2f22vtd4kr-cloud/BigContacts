@@ -53,6 +53,7 @@ ok("555 trash phone gate", !!contactVal?.includes('exchange === "555"') && !!con
 ok("Atlas surface integrity summary", !!atlas?.includes("Surface integrity") && !!atlas?.includes("surfaceGaps"));
 ok("persist uses isTrashContactValue", !!persist?.includes("isTrashContactValue"));
 ok("Atlas registry-first bounded jobs", !!atlas?.includes("registry-first") && !!atlas?.includes("[...registry, ...broad]"));
+ok("EDGAR related people lookup", !!persist?.includes("lookupEdgarRelatedPeople"));
 ok("Atlas G7 issuer peers", !!atlas?.includes("atlas-issuer-related-peers"));
 ok("Groq provider deterministic fallback", !!contactVal?.includes("deterministic fallback") || !!(read("artifacts/api-server/src/src/lib/llm-name-validator.ts")?.includes("deterministic fallback")));
 ok("Atlas cookedAt on full-circle complete", !!atlas?.includes("cookedAt = full-circle research completed") || (atlas?.includes("cookedAt:") && atlas?.includes("new Date()") && !atlas?.includes('contact_route_found" ? new Date() : null')));
