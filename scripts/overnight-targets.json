@@ -1,0 +1,16 @@
+[
+  {
+    "id": "dyna",
+    "objective": "Nathan Miller / DYNA Products, Millington MI — recover public contact surface, related officers, org email/phone/address with source URLs. Fail-closed.",
+    "motivation": "Overnight primary: close info@ gap vs Grok Agent",
+    "geography": "United States",
+    "expectEmailDomain": "dyna-products.com"
+  },
+  {
+    "id": "mensch",
+    "objective": "Mensch Manufacturing Michigan — recover public contact surface for the company and named principals, org email/phone/address with source URLs. Fail-closed.",
+    "motivation": "Overnight secondary mid-market manufacturer",
+    "geography": "United States",
+    "expectEmailDomain": null
+  }
+]
