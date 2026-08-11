@@ -596,6 +596,46 @@ function findingsFromContactFacts(
   return out;
 }
 
+
+/** Pull company-domain org inboxes out of SERP snippet text (e.g. Facebook About lists info@). */
+function findingsFromSearchSnippet(
+  text: string,
+  urls: string[],
+  companyName?: string | null,
+): AgenticFinding[] {
+  const out: AgenticFinding[] = [];
+  if (!text) return out;
+  const co = (companyName || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+  const emails = text.match(/\b([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})\b/gi) || [];
+  for (const raw of emails) {
+    const email = raw.toLowerCase();
+    const domain = email.split("@")[1] || "";
+    const domFlat = domain.replace(/[^a-z0-9]/g, "");
+    const companyDomain =
+      (co.length >= 4 && (domFlat.includes(co.slice(0, Math.min(8, co.length))) || co.includes(domFlat.slice(0, 6))))
+      || /^(info|contact|sales|office|support|hello)@/i.test(email) && co.length >= 4 && domain.includes(co.slice(0, 4));
+    if (!companyDomain) continue;
+    if (/example\.|sentry\.|schema\.|wixpress|cloudflare|wordpress|github\.com|google\.com/.test(email)) continue;
+    // Prefer a URL that mentions the company or is a public org surface
+    const src =
+      urls.find((u) => /facebook\.com|linkedin\.com|instagram\.com/i.test(u))
+      || urls.find((u) => co.length >= 4 && u.toLowerCase().replace(/[^a-z0-9]/g, "").includes(co.slice(0, 6)))
+      || urls[0]
+      || null;
+    if (!src || !/^https?:\/\//i.test(src)) continue;
+    out.push({
+      vectorType: "email",
+      value: email,
+      personName: null,
+      role: null,
+      scope: "organization",
+      sourceUrls: [src],
+      note: `Org inbox visible in search snippet; source ${src}`,
+    });
+  }
+  return out;
+}
+
 function mergeFindings(existing: AgenticFinding[], incoming: AgenticFinding[]): AgenticFinding[] {
   const key = (f: AgenticFinding) => `${f.vectorType}|${f.value.toLowerCase()}`;
   const map = new Map<string, AgenticFinding>();
@@ -759,7 +799,7 @@ export async function runAgenticWebResearch(input: {
     // Phones without org email is a common mid-market gap vs general agents.
     // Force an email-focused SERP + re-seed contact paths once.
     if (
-      hasOrgPhone()
+      (hasOrgPhone() || hasOrgEmailOrPhone() || visits >= 1)
       && !hasOrgEmail()
       && !orgEmailSearchDone
       && i < maxIter - 2
@@ -774,6 +814,11 @@ export async function runAgenticWebResearch(input: {
         if (!candidateUrls.includes(u)) candidateUrls.push(u);
       }
       seedCompanyContactPaths(sr.urls.length ? sr.urls : candidateUrls);
+      const snippetEmails = findingsFromSearchSnippet(sr.text, sr.urls, input.companyName || name);
+      if (snippetEmails.length) {
+        findings = mergeFindings(findings, snippetEmails);
+        history.push(`step${i + 1}: serp_email_findings=${snippetEmails.length}`);
+      }
       lastObservation =
         `SEARCH results for org email: ${q}\nURLs: ${sr.urls.slice(0, 8).join(" | ")}\n\n${sr.text.slice(0, MAX_OBS)}\n\n` +
         `NEXT: visit company /contact /contact-us pages. Emit EMAIL findings (info@, contact@) with exact sourceUrl. Do not invent.`;
@@ -930,6 +975,11 @@ export async function runAgenticWebResearch(input: {
       }
       // Seed /contact /terms on company domains so force-visit does not stop at chamber directories
       seedCompanyContactPaths(sr.urls);
+      const snippetEmails = findingsFromSearchSnippet(sr.text, sr.urls, input.companyName || name);
+      if (snippetEmails.length) {
+        findings = mergeFindings(findings, snippetEmails);
+        history.push(`step${i + 1}: serp_email_findings=${snippetEmails.length}`);
+      }
       lastObservation = `SEARCH results for: ${action.query}\nURLs: ${sr.urls.slice(0, 8).join(" | ")}\n\n${sr.text.slice(0, MAX_OBS)}`;
       // Soft nudge: if we already have company-looking URLs and no visits yet, tell the model to visit
       if (visits === 0 && sr.urls.length > 0) {
