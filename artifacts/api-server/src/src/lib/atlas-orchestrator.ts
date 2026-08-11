@@ -1411,8 +1411,9 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
     // Gate 1: secondary public surface on EVERY completed Atlas target (not only bureau cases).
     // Writes LinkedIn / not-found, claimed emails/phones, directories, websites as candidate/org —
     // never Personal. Closes the empty-card gap vs open-agent OSINT on the same names.
+    // Hoisted so notes-recovered issuer is visible to the registry-org / G7 block below.
+    let companyNameForSecondary: string | null = null;
     try {
-      let companyNameForSecondary: string | null = null;
       try {
         const m = entity.metadata ? JSON.parse(entity.metadata) as Record<string, unknown> : {};
         companyNameForSecondary = typeof m.companyName === "string" ? m.companyName : null;

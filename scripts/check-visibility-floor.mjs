@@ -60,6 +60,7 @@ ok("Groq provider deterministic fallback", !!contactVal?.includes("deterministic
 const entitiesRoute = read("artifacts/api-server/src/src/routes/entities.ts");
 ok("refresh-surface route", !!entitiesRoute?.includes("refresh-surface") && !!entitiesRoute?.includes("expandSecondaryPublicSurface"));
 ok("profile Refresh Surface button", !!read("artifacts/apex-finder/src/pages/profile.tsx")?.includes("button-refresh-surface"));
+ok("Atlas companyNameForSecondary hoisted", !!atlas?.includes("Hoisted so notes-recovered issuer") || (atlas?.includes("let companyNameForSecondary") && atlas.indexOf("let companyNameForSecondary") < atlas.indexOf("Registry org anchors")));
 ok("Atlas cookedAt on full-circle complete", !!atlas?.includes("cookedAt = full-circle research completed") || (atlas?.includes("cookedAt:") && atlas?.includes("new Date()") && !atlas?.includes('contact_route_found" ? new Date() : null')));
 
 
