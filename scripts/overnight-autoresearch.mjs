@@ -28,7 +28,7 @@ const API = process.env.APEX_API || "http://127.0.0.1:8080";
 const STOP = process.env.STOP_FILE || "/tmp/apex-overnight-STOP";
 const LOG = process.env.LOG_FILE || "/tmp/apex-overnight-log.jsonl";
 const STATUS = process.env.STATUS_FILE || "/tmp/apex-overnight-status.json";
-const MAX_HOURS = Number(process.env.MAX_HOURS || "10");
+const MAX_HOURS = Number(process.env.MAX_HOURS || "12");
 const CYCLE_SLEEP_MS = Number(process.env.CYCLE_SLEEP_MS || "45000");
 const STARTED = Date.now();
 const PAT = process.env.GITHUB_PAT || "";
@@ -401,8 +401,14 @@ async function main() {
         sh(`git -c user.email=apex@atlas.local -c user.name="Apex Overnight" commit -m "overnight(keep): ${exp.id} metric=${m} — ${exp.description.slice(0, 60)}"`);
         if (PAT) {
           sh(`git remote set-url origin ${REMOTE_AUTH}`);
-          sh("git push origin main");
+          try {
+            sh("git push origin main");
+          } catch (pe) {
+            log({ event: "push_retry", id: exp.id, error: String(pe?.message || pe).slice(0, 200) });
+            sh("sleep 5; git push origin main");
+          }
           sh("git remote set-url origin https://github.com/2f22vtd4kr-cloud/BigContacts.git");
+          log({ event: "KEEP_PUSHED", id: exp.id, metric: m, tip: sh("git log --oneline -1").trim() });
         } else {
           log({ event: "KEEP_local_only", id: exp.id, metric: m, note: "no GITHUB_PAT" });
         }
@@ -416,6 +422,60 @@ async function main() {
       rebuild();
     }
     execSync(`sleep ${CYCLE_SLEEP_MS / 1000}`);
+  }
+
+  // Round 2+: re-apply experiment queue on current tip until time limit (still keep/discard + push)
+  for (let round = 2; round <= 6 && !shouldStop(); round++) {
+    log({ event: "round_start", round });
+    for (let expIdx = 0; expIdx < EXPERIMENTS.length && !shouldStop(); expIdx++) {
+      const exp = EXPERIMENTS[expIdx];
+      try { sh("git checkout -- ."); } catch { /* */ }
+      try {
+        sh(`git remote set-url origin ${REMOTE_AUTH}`);
+        sh("git pull --ff-only origin main || true");
+        sh("git remote set-url origin https://github.com/2f22vtd4kr-cloud/BigContacts.git");
+      } catch { /* */ }
+      let applied = false;
+      try { applied = exp.apply(); } catch (e) {
+        log({ event: "experiment_apply_error", round, id: exp.id, error: String(e?.message || e).slice(0, 200) });
+        continue;
+      }
+      if (!applied) {
+        log({ event: "experiment_skip", round, id: exp.id });
+        continue;
+      }
+      log({ event: "experiment_apply", round, id: exp.id });
+      if (!rebuild()) { try { sh("git checkout -- ."); } catch { /* */ } continue; }
+      let results;
+      try { results = await runCohort(); } catch (e) {
+        log({ event: "cohort_error", round, id: exp.id, error: String(e?.message || e).slice(0, 200) });
+        try { sh("git checkout -- ."); } catch { /* */ }
+        continue;
+      }
+      const m = metric(results);
+      log({ event: "experiment_score", round, id: exp.id, metric: m, best, results });
+      if (m > best) {
+        best = m;
+        try {
+          sh("git add artifacts/api-server/src/src/lib/agentic-web-research.ts || true");
+          sh(`git -c user.email=apex@atlas.local -c user.name="Apex Overnight" commit -m "overnight(keep): r${round} ${exp.id} metric=${m}"`);
+          if (PAT) {
+            sh(`git remote set-url origin ${REMOTE_AUTH}`);
+            sh("git push origin main");
+            sh("git remote set-url origin https://github.com/2f22vtd4kr-cloud/BigContacts.git");
+            log({ event: "KEEP_PUSHED", round, id: exp.id, metric: m, tip: sh("git log --oneline -1").trim() });
+          }
+          log({ event: "KEEP", round, id: exp.id, metric: m });
+        } catch (e) {
+          log({ event: "commit_push_error", round, id: exp.id, error: String(e?.message || e).slice(0, 300) });
+        }
+      } else {
+        try { sh("git checkout -- ."); } catch { /* */ }
+        log({ event: "DISCARD", round, id: exp.id, metric: m, best });
+        rebuild();
+      }
+      execSync(`sleep ${CYCLE_SLEEP_MS / 1000}`);
+    }
   }
 
   // continue cycling best tip with re-scores until time limit (measurement only)
