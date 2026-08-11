@@ -568,7 +568,7 @@ export async function runAgenticWebResearch(input: {
 
   /** From SERP hits, seed /contact and /terms on real company domains so we don't stop at chamber pages. */
   const seedCompanyContactPaths = (urls: string[]) => {
-    const paths = ["/contact", "/contact-us", "/terms-and-conditions", "/terms", "/about", "/company/contact"];
+    const paths = ["/contact", "/contact-us", "/terms-and-conditions", "/terms", "/about", "/company/contact", "/dealer", "/dealers", "/team", "/about-us"];
     for (const u of urls) {
       if (isAggregatorHost(u)) continue;
       try {
@@ -651,7 +651,8 @@ export async function runAgenticWebResearch(input: {
     ) {
       relatedPeopleSearchDone = true;
       const co = input.companyName || name;
-      const q = `"${co}" (BBB OR owner OR officers OR "principal contact" OR "company contact")`;
+      // Prefer company /dealer /team pages (BBB is often Cloudflare-blocked to plain fetch)
+      const q = `"${co}" (owner OR officers OR dealer OR team OR "company contact" OR director) -zoominfo -rocketreach`;
       searches++;
       history.push(`step${i + 1}: force_related_search ${q}`);
       const sr = await toolWebSearch(q);
@@ -659,9 +660,21 @@ export async function runAgenticWebResearch(input: {
         if (/^https?:\/\//i.test(u) && !candidateUrls.includes(u)) candidateUrls.push(u);
       }
       seedCompanyContactPaths(sr.urls);
+      // Always queue company dealer/team paths when domain known from findings
+      for (const f of findings) {
+        if (f.vectorType === "website" && /^https?:\/\//i.test(f.value)) {
+          try {
+            const host = new URL(f.value).hostname;
+            for (const p of ["/dealer", "/dealers", "/team", "/about", "/about-us"]) {
+              const seeded = `https://${host}${p}`;
+              if (!candidateUrls.includes(seeded)) candidateUrls.push(seeded);
+            }
+          } catch { /* skip */ }
+        }
+      }
       lastObservation =
         `SEARCH results for related people: ${q}\nURLs: ${sr.urls.slice(0, 8).join(" | ")}\n\n${sr.text.slice(0, MAX_OBS)}\n\n` +
-        `NEXT: visit BBB/about/team pages from the list. Emit PERSON findings with personName+role. Do not invent names.`;
+        `NEXT: visit company /dealer /team /about pages (prefer company domain over directories). Emit PERSON and named-email findings. Do not invent names.`;
       continue;
     }
     // Visit remaining high-rank pages (BBB/about) after related search
