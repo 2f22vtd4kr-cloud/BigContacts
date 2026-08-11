@@ -945,11 +945,25 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
         maxQueries: 3,
         maxEntities: 0,
       });
-      const registryQuery = `${file.humanBrief.geography} investment family office`.slice(0, 120);
+      // TARGET-LOCKED: query the named person/company, not "geography + family office"
+      // (that query is what flooded US cases with irrelevant UK CH family-office shells).
+      const namedForRegistry = (file.humanBrief.objective || "")
+        .replace(/—.*$/, "")
+        .replace(/\s+recover\b.*/i, "")
+        .trim()
+        .slice(0, 100);
+      const registryQuery = (namedForRegistry || `${file.humanBrief.geography} company`).slice(0, 120);
+      const geoLower = (file.humanBrief.geography || "").toLowerCase();
+      const isUsFocused = /\b(united states|u\.?s\.?a?\.?|america)\b/i.test(geoLower)
+        || /\b(CA|NY|TX|MI|FL|WA|IL|MA|CO|Austin|San Francisco|Boston|Hastings)\b/.test(file.humanBrief.objective || "");
+      const isUkFocused = /\b(united kingdom|u\.?k\.?|england|scotland|wales|britain)\b/i.test(geoLower);
       const registryIds: RegistryId[] = [
         "gleif",
         "sec-edgar",
-        ...(process.env.COMPANIES_HOUSE_API_KEY ? ["companies-house" as RegistryId] : []),
+        // Companies House only when UK-focused or geography is open (not pure US person+firm)
+        ...((process.env.COMPANIES_HOUSE_API_KEY && (!isUsFocused || isUkFocused))
+          ? ["companies-house" as RegistryId]
+          : []),
       ];
       const registryResults = await Promise.all(registryIds.map(async (registry) => {
         try {
@@ -1494,10 +1508,12 @@ router.post("/research/bureau/cases/:caseId/run-next-pass", async (req, res): Pr
       const registryAnchors = workingFile.discoveredCandidates
         .filter((candidate) => candidate.type.toLowerCase().includes("corpor") || candidate.type.toLowerCase() === "hnwi")
         .slice(0, 10);
+      const verifyGeo = (workingFile.humanBrief.geography || "").toLowerCase();
+      const verifyUs = /\b(united states|u\.?s\.?a?\.?|america)\b/i.test(verifyGeo);
       const registryIds: RegistryId[] = [
         "gleif",
         "sec-edgar",
-        ...(process.env.COMPANIES_HOUSE_API_KEY ? ["companies-house" as RegistryId] : []),
+        ...((process.env.COMPANIES_HOUSE_API_KEY && !verifyUs) ? ["companies-house" as RegistryId] : []),
       ];
       for (const registry of registryIds) {
         const registryResults = (await Promise.all(registryAnchors.map(async (anchor) => {
