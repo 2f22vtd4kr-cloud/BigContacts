@@ -947,12 +947,32 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
       });
       // TARGET-LOCKED: query the named person/company, not "geography + family office"
       // (that query is what flooded US cases with irrelevant UK CH family-office shells).
-      const namedForRegistry = (file.humanBrief.objective || "")
-        .replace(/—.*$/, "")
-        .replace(/\s+recover\b.*/i, "")
-        .trim()
-        .slice(0, 100);
-      const registryQuery = (namedForRegistry || `${file.humanBrief.geography} company`).slice(0, 120);
+      // Discovery missions (no named person): prefer a short industry+geo query so EDGAR/GLEIF
+      // can return real registrant anchors instead of zero hits on a long objective sentence.
+      const objForReg = file.humanBrief.objective || "";
+      const namedPersonCo = objForReg.match(
+        /\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+){1,3})\s*\/\s*([A-Z][A-Za-z0-9&.' -]{2,60})/,
+      );
+      const namedForRegistry = namedPersonCo
+        ? `${namedPersonCo[1]} ${namedPersonCo[2]}`.trim()
+        : objForReg
+            .replace(/—.*$/, "")
+            .replace(/\s+recover\b.*/i, "")
+            .replace(/\bFind realistic public contact routes to\b/i, "")
+            .replace(/\bwho appear in\b.*/i, "")
+            .trim()
+            .slice(0, 100);
+      const discoveryIndustryQuery = (() => {
+        if (namedPersonCo) return null;
+        const geo = (file.humanBrief.geography || "United States").split(/[,—]/)[0].trim();
+        if (/\bmanufactur/i.test(objForReg)) return `${geo} manufacturing`;
+        if (/\bindustrial/i.test(objForReg)) return `${geo} industrial`;
+        if (/\bfamily office/i.test(objForReg)) return `${geo} investment`;
+        return `${geo} company`;
+      })();
+      const registryQuery = (namedForRegistry && namedForRegistry.split(/\s+/).length <= 8
+        ? namedForRegistry
+        : (discoveryIndustryQuery || `${file.humanBrief.geography} company`)).slice(0, 120);
       const geoLower = (file.humanBrief.geography || "").toLowerCase();
       const isUsFocused = /\b(united states|u\.?s\.?a?\.?|america)\b/i.test(geoLower)
         || /\b(CA|NY|TX|MI|FL|WA|IL|MA|CO|Austin|San Francisco|Boston|Hastings)\b/.test(file.humanBrief.objective || "");
@@ -973,6 +993,68 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
         }
       }));
       const registryErrors = registryResults.filter((entry) => entry.error);
+      // Promote agentic CONTACT FACTS into review candidates so findings are not
+      // lost between the ReAct loop and the discovery deck (parity gap vs general agent).
+      const agenticReviewCandidates: Array<{
+        name: string;
+        type: string;
+        relevance: string;
+        reachability: string;
+        sourceUrls: string[];
+        contactEvidence: Array<{
+          vectorType: string;
+          value: string;
+          scope: string;
+          personName: string | null;
+          role: string | null;
+          sourceUrls: string[];
+          note: string;
+        }>;
+        state: "review_only";
+      }> = [];
+      {
+        const byName = new Map<string, (typeof agenticReviewCandidates)[number]>();
+        for (const f of agenticDiscovery.findings ?? []) {
+          const person = (f.personName || "").trim();
+          const isOrg = f.scope === "organization" || /info@|contact@|office@|support@/i.test(f.value || "");
+          const name = person
+            || (isOrg && agenticCompanyName ? agenticCompanyName : "")
+            || (f.role ? String(f.role).slice(0, 80) : "")
+            || "";
+          if (!name || name.length < 3) continue;
+          const key = name.toLowerCase();
+          let row = byName.get(key);
+          if (!row) {
+            row = {
+              name,
+              type: person ? "person" : "company",
+              relevance: "Surfaced by agentic ReAct web pass with source-backed contact fact(s); review-only until dual identity anchors.",
+              reachability: "Public web surface recovered; no access claim is made.",
+              sourceUrls: [...(f.sourceUrls ?? [])].slice(0, 8),
+              contactEvidence: [],
+              state: "review_only" as const,
+            };
+            byName.set(key, row);
+            agenticReviewCandidates.push(row);
+          }
+          row.contactEvidence.push({
+            vectorType: f.vectorType,
+            value: f.value,
+            scope: f.scope === "organization" ? "organization" : f.scope === "candidate" ? "unknown" : "person",
+            personName: f.personName ?? null,
+            role: f.role ?? null,
+            sourceUrls: f.sourceUrls ?? [],
+            note: f.note ?? "agentic web research",
+          });
+          for (const u of f.sourceUrls ?? []) {
+            if (typeof u === "string" && /^https?:\/\//i.test(u) && !row.sourceUrls.includes(u)) {
+              row.sourceUrls.push(u);
+            }
+          }
+          row.sourceUrls = row.sourceUrls.slice(0, 8);
+        }
+      }
+
       const reviewCandidates = [
         ...boss.candidates.map((candidate) => ({
           name: candidate.name,
@@ -992,6 +1074,7 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
           contactEvidence: candidate.contactEvidence ?? [],
           state: "review_only" as const,
         })),
+        ...agenticReviewCandidates,
         ...broad.newEntities.map((candidate) => ({
           name: candidate.name,
           type: "review_candidate",
