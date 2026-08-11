@@ -555,10 +555,12 @@ export async function expandSecondaryPublicSurface(input: {
 
 /** Bounded EDGAR EFTS lookup: other person-like display names on same issuer. Never invents. */
 async function lookupEdgarRelatedPeople(issuer: string, excludeName: string): Promise<string[]> {
+  // Deep history: many SC 13D/G co-filer groups for legacy issuers (e.g. Hastings) are 2001–2005.
+  // 2010+ window returns zero hits for those cases. enddt kept current.
   const url =
     `https://efts.sec.gov/LATEST/search-index` +
     `?q=${encodeURIComponent('"' + issuer.slice(0, 80) + '"')}` +
-    `&forms=SC+13D,SC+13G&dateRange=custom&startdt=2010-01-01&from=0`;
+    `&forms=SC+13D,SC+13G&dateRange=custom&startdt=1995-01-01&enddt=2026-12-31&from=0`;
   try {
     const resp = await fetch(url, {
       headers: {
@@ -570,20 +572,42 @@ async function lookupEdgarRelatedPeople(issuer: string, excludeName: string): Pr
     if (!resp.ok) return [];
     const data = await resp.json() as { hits?: { hits?: Array<{ _source?: { display_names?: string[] } }> } };
     const hits = data?.hits?.hits ?? [];
-    const exclude = excludeName.toLowerCase();
+    // Token-overlap self-exclude: EDGAR display_names are often LAST FIRST
+    // ("JOHNSON ANDREW F") while entity.name is "Andrew F. Johnson".
+    const excludeTokens = new Set(
+      excludeName
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, " ")
+        .split(/\s+/)
+        .filter((t) => t.length >= 2),
+    );
     const found = new Set<string>();
-    for (const hit of hits.slice(0, 15)) {
+    // Broader corp denylist so "HASTINGS MANUFACTURING CO" etc. never pass person-like filter.
+    const corpRe =
+      /\b(inc|llc|ltd|corp|corporation|company|co|mfg|manufacturing|holdings|holding|group|trust|lp|llp|plc|ag|sa|nv|bv|gmbh|pty|partners?|capital|fund|management|advisors?|associates?)\b/i;
+    for (const hit of hits.slice(0, 20)) {
       const names = hit?._source?.display_names ?? [];
       for (const raw of names) {
         const clean = String(raw).replace(/\s*\(CIK\s*\d+\)\s*$/i, "").trim();
         if (clean.length < 5 || clean.length > 80) continue;
-        if (clean.toLowerCase() === exclude) continue;
         if (clean.toLowerCase() === issuer.toLowerCase()) continue;
-        // Person-like: 2–4 capitalized words, no corp suffix
-        if (/\b(inc|llc|ltd|corp|company|holdings|trust|lp|plc|ag|sa)\b/i.test(clean)) continue;
+        if (corpRe.test(clean)) continue;
         const words = clean.split(/\s+/);
         if (words.length < 2 || words.length > 5) continue;
-        if (!words.every((w) => /^[A-ZÀ-ÖØ-Ü]/.test(w))) continue;
+        // Prefer title-case / initial-capital person shapes; allow all-caps LAST FIRST from EDGAR.
+        const looksPerson =
+          words.every((w) => /^[A-ZÀ-ÖØ-Ü]/.test(w)) ||
+          words.every((w) => /^[A-Z0-9.&'-]+$/.test(w));
+        if (!looksPerson) continue;
+        // Token-overlap self-exclude (≥2 shared tokens of length ≥2, or single strong last-name match when both short).
+        const tokens = clean
+          .toLowerCase()
+          .replace(/[^a-z0-9\s]/g, " ")
+          .split(/\s+/)
+          .filter((t) => t.length >= 2);
+        const overlap = tokens.filter((t) => excludeTokens.has(t)).length;
+        if (overlap >= 2) continue;
+        if (overlap === 1 && tokens.length <= 3 && excludeTokens.size <= 3) continue;
         found.add(clean);
         if (found.size >= 8) break;
       }
