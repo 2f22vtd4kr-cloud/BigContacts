@@ -1,0 +1,100 @@
+name: Overnight Autoresearch
+
+on:
+  workflow_dispatch:
+    inputs:
+      max_hours:
+        description: Max hours to run (capped by job timeout)
+        required: false
+        default: "5"
+  schedule:
+    - cron: "0 21 * * *"
+
+jobs:
+  overnight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GH_PAT }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install pnpm
+        run: npm install -g pnpm@9
+
+      - name: Install deps
+        run: pnpm install --filter @workspace/db --filter @workspace/api-server --filter @workspace/api-zod --ignore-scripts
+
+      - name: Install esbuild binary
+        run: node node_modules/.pnpm/esbuild@0.27.3/node_modules/esbuild/install.js || true
+
+      - name: Setup Postgres and Redis
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql redis-server
+          sudo service postgresql start || true
+          sudo service redis-server start || true
+          sudo -u postgres psql -c "CREATE USER apex WITH PASSWORD 'apex_local_dev' SUPERUSER;" || true
+          sudo -u postgres psql -c "CREATE DATABASE apex OWNER apex;" || true
+
+      - name: Schema and build
+        env:
+          DATABASE_URL: postgresql://apex:apex_local_dev@127.0.0.1:5432/apex
+        run: |
+          cd lib/db && npx drizzle-kit push --config ./drizzle.config.ts
+          cd ../../artifacts/api-server && node ./build.mjs
+
+      - name: Run overnight loop
+        env:
+          DATABASE_URL: postgresql://apex:apex_local_dev@127.0.0.1:5432/apex
+          REDIS_URL: redis://127.0.0.1:6379
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_API_KEY_1: ${{ secrets.GEMINI_API_KEY_1 }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+          EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
+          EXA_API_KEY_1: ${{ secrets.EXA_API_KEY_1 }}
+          SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
+          SCRAPFLY_API_KEY: ${{ secrets.SCRAPFLY_API_KEY }}
+          ZENROWS_API_KEY: ${{ secrets.ZENROWS_API_KEY }}
+          NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
+          COMPANIES_HOUSE_API_KEY: ${{ secrets.COMPANIES_HOUSE_API_KEY }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          WHOXY_API_KEY: ${{ secrets.WHOXY_API_KEY }}
+          GITHUB_PAT: ${{ secrets.GH_PAT }}
+          APEX_ROOT: ${{ github.workspace }}
+          MAX_HOURS: ${{ github.event.inputs.max_hours || '5' }}
+          CYCLE_SLEEP_MS: "20000"
+          BROWSER_FETCH_MAX_PER_CASE: "8"
+          PORT: "8080"
+          ENABLE_AUTO_PIPELINE: "false"
+          NODE_ENV: "development"
+        run: |
+          redis-cli ping || sudo service redis-server start || true
+          node artifacts/api-server/dist/index.mjs > /tmp/api.log 2>&1 &
+          for i in $(seq 1 30); do
+            sleep 1
+            code=$(curl -s -m 2 -o /dev/null -w "%{http_code}" http://127.0.0.1:8080/ || echo 000)
+            [ "$code" != "000" ] && break
+          done
+          node scripts/overnight-autoresearch.mjs
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: overnight-logs
+          path: |
+            /tmp/apex-overnight-log.jsonl
+            /tmp/apex-overnight-status.json
+            /tmp/overnight-stdout.log
+          if-no-files-found: ignore

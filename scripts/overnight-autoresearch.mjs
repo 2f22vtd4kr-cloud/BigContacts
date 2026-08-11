@@ -49,6 +49,32 @@ function sh(cmd, opts = {}) {
   return execSync(cmd, { cwd: ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], ...opts });
 }
 
+
+function pushProgressMarker(metricVal, results) {
+  try {
+    const dir = join(ROOT, "scripts");
+    const progressPath = join(dir, "overnight-progress.jsonl");
+    const line = JSON.stringify({
+      ts: new Date().toISOString(),
+      metric: metricVal,
+      results,
+      tip: sh("git log --oneline -1").trim(),
+    }) + "\n";
+    appendFileSync(progressPath, line);
+    if (!PAT) return;
+    sh("git add scripts/overnight-progress.jsonl");
+    // commit may be empty if no change — ignore
+    try {
+      sh(`git -c user.email=apex@atlas.local -c user.name="Apex Overnight" commit -m "overnight(progress): metric=${metricVal}"`);
+    } catch { /* nothing to commit */ }
+    sh(`git remote set-url origin ${REMOTE_AUTH}`);
+    try { sh("git push origin main"); } catch { try { sh("sleep 3; git push origin main"); } catch { /* */ } }
+    sh("git remote set-url origin https://github.com/2f22vtd4kr-cloud/BigContacts.git");
+  } catch (e) {
+    log({ event: "progress_marker_error", error: String(e?.message || e).slice(0, 200) });
+  }
+}
+
 function shouldStop() {
   if (existsSync(STOP)) return "stop_file";
   if ((Date.now() - STARTED) / 3600000 >= MAX_HOURS) return "max_hours";
@@ -344,6 +370,7 @@ async function main() {
     const baseline = await runCohort();
     best = metric(baseline);
     log({ event: "baseline", metric: best, results: baseline });
+    pushProgressMarker(best, baseline);
   } catch (e) {
     log({ event: "baseline_error", error: String(e?.message || e) });
   }
@@ -485,6 +512,7 @@ async function main() {
       const results = await runCohort();
       const m = metric(results);
       log({ event: "monitor", metric: m, best, results });
+      pushProgressMarker(m, results);
     } catch (e) {
       log({ event: "monitor_error", error: String(e?.message || e).slice(0, 200) });
     }
