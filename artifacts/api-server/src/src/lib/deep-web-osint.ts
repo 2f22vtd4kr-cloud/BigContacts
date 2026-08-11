@@ -28,6 +28,7 @@ import {
 import { assessTargetReachability, reachabilityDirective } from "./reachability-realism";
 import { scoreCorroboration } from "./evidence-ledger";
 import { buildWebSearchSubQueries } from "./web-search-queries";
+import { filterPassagesForQuery } from "./passage-filter";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -661,7 +662,8 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       // would manufacture provenance. Page scraping below creates the exact
       // URL binding when a candidate is actually observed on a page.
       sourceUrlsByLabel.set(label, []);
-      allSearchText += " " + sr.text;
+      const filtered = filterPassagesForQuery(sr.text, query, { maxChars: 3_500 });
+      allSearchText += " " + filtered;
 
       if (sr.text) {
         for (const e of extractEmails(sr.text)) {
@@ -705,7 +707,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       // Same fail-closed rule as DDG: result URLs are discovery context until
       // one is fetched and the value is observed in that page.
       sourceUrlsByLabel.set(label, []);
-      allSearchText += " " + sr.text;
+      allSearchText += " " + filterPassagesForQuery(sr.text, query, { maxChars: 3_500 });
 
       if (sr.text) {
         for (const e of extractEmails(sr.text)) {
@@ -752,7 +754,10 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         if (scraped.instagramUrl) { const a = igHits.get(scraped.instagramUrl) ?? [];            a.push(label); igHits.set(scraped.instagramUrl, a); }
         if (scraped.twitterUrl)   { const a = twHits.get(scraped.twitterUrl) ?? [];              a.push(label); twHits.set(scraped.twitterUrl, a); }
       }
-      if (scraped.rawText)      { allSearchText += " " + scraped.rawText.slice(0, 3_000); }
+      if (scraped.rawText) {
+        const filteredPage = filterPassagesForQuery(scraped.rawText, entity.name, { maxChars: 2_500 });
+        allSearchText += " " + filteredPage;
+      }
     } catch { /* skip */ }
 
     await jitteredDelay(700);
@@ -812,7 +817,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         const sr = await duckduckgoSearch(q);
         result.queriesFired++;
         sourceUrlsByLabel.set(`Hop[${firstName}]`, []);
-        allSearchText += " " + sr.text.slice(0, 2_000);
+        allSearchText += " " + filterPassagesForQuery(sr.text, q, { maxChars: 2_000 });
 
         for (const m of (sr.text.match(INSTAGRAM_RE) ?? [])) {
           const clean = m.replace(/\/$/, "");

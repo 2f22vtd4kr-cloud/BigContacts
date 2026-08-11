@@ -1,5 +1,6 @@
 import { logger } from "./logger";
 import { buildWebSearchSubQueries } from "./web-search-queries";
+import { filterClaimUrls } from "./passage-filter";
 
 const MISTRAL_CONVERSATIONS_API = "https://api.mistral.ai/v1/conversations";
 const DEFAULT_MISTRAL_WEB_SEARCH_MODEL = "mistral-medium-latest";
@@ -178,15 +179,7 @@ function parseContactEvidence(value: unknown, allowedUrls?: Set<string>): Mistra
     const valueText = typeof item.value === "string" ? item.value.trim() : "";
     if (!valueText) return [];
     // Fail-closed: contact routes require at least one http(s) source URL.
-    const sourceUrls = Array.isArray(item.sourceUrls)
-      ? item.sourceUrls.filter((url): url is string => typeof url === "string" && /^https?:\/\//i.test(url)).slice(0, 8)
-      : [];
-    if (sourceUrls.length === 0) return [];
-    // When provider citations exist, keep only URLs that appear in the allowed set
-    // (candidate sourceUrls ∪ provider citations). Prevents model-invented URLs.
-    const filteredUrls = allowedUrls && allowedUrls.size > 0
-      ? sourceUrls.filter((url) => allowedUrls.has(url) || [...allowedUrls].some((a) => url.includes(a) || a.includes(url)))
-      : sourceUrls;
+    const filteredUrls = filterClaimUrls(item.sourceUrls, allowedUrls);
     if (filteredUrls.length === 0) return [];
     return [{
       vectorType: typeof item.vectorType === "string" && vectors.has(item.vectorType as MistralContactEvidence["vectorType"])

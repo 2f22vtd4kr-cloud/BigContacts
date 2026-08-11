@@ -164,3 +164,23 @@ Success proof = refresh-surface on entity 1 shows org/related, zero trash, no fa
 No synthetic contacts · Personal only when verified · related/org never discarded for being non-personal · no GAZ branding · no nationality targeting · surgical diffs · never commit PAT.
 
 End of setup. Execute. Apex Atlas is the full OSINT desk.
+
+## Post-handoff commits (Grok session 2026-08-11 continued)
+
+Tip advanced beyond original handoff:
+
+| Commit | Summary |
+|--------|---------|
+| `8eef16a` | EDGAR co-filer: date 1995–2026, LAST-FIRST token exclude, CO/MFG denylist |
+| `2191834` | Gemini Boss ↔ z-AI/GLM rightHandDisposition accept/override |
+| `c7e3d52` | Claim→URL fail-closed; operator-aware deep-web sub-queries |
+| `d4e3e53` | Disposition on SSE / lanesHonesty / Reactor RH line; floor 38 |
+| `c938a74` | Shared `buildWebSearchSubQueries` for Mistral + deep-web |
+| *(this tip)* | `passage-filter` before AI synthesis; claim URL unit tests |
+
+Operator after pull:
+```bash
+git pull origin main
+# restart API
+node scripts/check-visibility-floor.mjs   # expect 38/38
+```
