@@ -36,7 +36,7 @@ Read **`CONTEXT.md`** fully before coding.
 ---
 
 ## Tip at handoff (2026-08-11)
-Confirm after pull: tip should be at or after **`1a04337`**.
+Confirm after pull: tip should be at or after **`29d4c1c`**.
 
 ```
 1a04337 docs: tip after batch-import phone sanitize

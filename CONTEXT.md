@@ -3,7 +3,7 @@
 **Product names:** Apex Atlas · ApexFinder Pro · BigContacts  
 **GitHub:** https://github.com/2f22vtd4kr-cloud/BigContacts  
 **Branch:** `main`  
-**Tip at handoff write:** `1a04337` (confirm with `git log -1 --oneline` after pull) — gold-standard recovery + batch phone sanitize; see NEXT_SESSION_SETUP_PROMPT.md for 2026-08-11 EDGAR co-filer gaps and Replit proof
+**Tip at handoff write:** `29d4c1c` (confirm with `git log -1 --oneline` after pull) — gold-standard recovery + batch phone sanitize; see NEXT_SESSION_SETUP_PROMPT.md for 2026-08-11 EDGAR co-filer gaps and Replit proof
 **PAT:** use the owner-provided PAT from the in-session setup message only. Do not invent credentials. Do not commit PATs into the repo (GitHub push protection will reject them).
 
 ---
