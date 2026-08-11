@@ -701,12 +701,17 @@ export async function runAgenticWebResearch(input: {
     const hostMatch = coToken && lower.replace(/[^a-z0-9]/g, "").includes(coToken.slice(0, 6));
     // Primary company contact/terms pages first (where org email/phone actually live)
     if (hostMatch && /\/(contact|terms|about|team|people|leadership|privacy|impressum|dealer)/i.test(lower)) return 0;
-    if (/\/(contact|terms-and-conditions|terms|about\/contact|dealer|dealers|team)/i.test(lower) && !isAggregatorHost(lower)) return 1;
+    if (hostMatch && /\/(contact|terms|about|team|people|leadership|privacy|dealer)/i.test(lower)) return 0;
+    if (/\/(contact|terms-and-conditions|terms|about\/contact|dealer|dealers|team)/i.test(lower) && hostMatch) return 0;
     // BBB may be CF-walled; still rank if reachable
     if (/bbb\.org/i.test(lower)) return 2;
     if (hostMatch) return 3;
-    if (/\/(about|team|people|leadership|company)/i.test(lower)) return 4;
+    // Public social often carries org email for SMBs
+    if (/facebook\.com|linkedin\.com\/company/i.test(lower) && coToken) return 4;
+    if (/\/(about|team|people|leadership|company)/i.test(lower) && hostMatch) return 3;
     if (/investor\.|\/ir\/|\/governance|sec\.gov|edgar/i.test(lower)) return 5;
+    // Non-company hosts rank last when company is locked (avoid Team Financial pollution visits)
+    if (coToken && !hostMatch && !/bbb\.org|sec\.gov/i.test(lower)) return 8;
     if (/\.(com|org|io|co|net)\b/i.test(lower) && !/linkedin|facebook|twitter|youtube|wikipedia|reddit/i.test(lower))
       return 5;
     if (/linkedin\.com\/in\//i.test(lower)) return 6;
@@ -765,7 +770,16 @@ export async function runAgenticWebResearch(input: {
     return true;
   };
 
-  const hasOrgEmail = () => findings.some((f) => f.vectorType === "email");
+  const emailMatchesCompany = (email: string): boolean => {
+    const domain = (email.split("@")[1] || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (!domain) return false;
+    const co = (input.companyName || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+    if (co.length >= 4 && domain.includes(co.slice(0, Math.min(8, co.length)))) return true;
+    if (co.length >= 4 && co.includes(domain.slice(0, 6))) return true;
+    return false;
+  };
+  const hasOrgEmail = () =>
+    findings.some((f) => f.vectorType === "email" && (!input.companyName || emailMatchesCompany(f.value)));
   const hasOrgPhone = () => findings.some((f) => f.vectorType === "phone");
   const hasOrgEmailOrPhone = () => hasOrgEmail() || hasOrgPhone();
   const hasRelatedPerson = () =>
@@ -1019,6 +1033,21 @@ export async function runAgenticWebResearch(input: {
     if (action.findings.length === 0 && findings.length === 0 && visits === 0 && candidateUrls.length > 0 && i < maxIter - 1) {
       history.push(`step${i + 1}: done_rejected (need visit before empty done; ${candidateUrls.length} URLs queued)`);
       await forceVisitNext(`step${i + 1}`);
+      continue;
+    }
+    // Reject done until company-domain org email search attempted (when company locked)
+    if (
+      input.companyName
+      && !hasOrgEmail()
+      && !orgEmailSearchDone
+      && visits >= 1
+      && i < maxIter - 2
+    ) {
+      history.push(`step${i + 1}: done_rejected (org-email hop required)`);
+      // fall through to force_org_email block on next loop by not setting done
+      orgEmailSearchDone = false;
+      lastObservation =
+        `Need company-domain org email (info@/contact@) for ${input.companyName}. Search and visit contact/Facebook pages before done.`;
       continue;
     }
     // Reject done before related-people hop when primary surface already found (Grok parity)
