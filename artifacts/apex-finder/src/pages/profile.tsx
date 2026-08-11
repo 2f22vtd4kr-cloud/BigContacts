@@ -1208,11 +1208,19 @@ export default function ApexProfile() {
                           : /^https?:\/\//i.test(item.value)
                             ? item.value
                             : null;
+                    const collision = Boolean((item as any).identityCollisionRisk)
+                      || /possible name collision|weak match/i.test(String((item as any).label ?? ""));
+                    const relatedPerson = /^related-person:/i.test(String(item.value ?? ""))
+                      || /same filing\/issuer/i.test(String((item as any).label ?? ""));
                     const badge = personal
                       ? { label: "Looks personal", cls: "text-emerald-300 border-emerald-500/40 bg-emerald-500/10" }
                       : orgish
                         ? { label: "Company · related", cls: "text-sky-300 border-sky-500/30 bg-sky-500/10" }
-                        : { label: item.validationStatus === "verified" ? "Checked out" : "Still a lead", cls: "text-amber-300 border-amber-500/30 bg-amber-500/10" };
+                        : collision
+                          ? { label: "Weak match · possible name collision", cls: "text-orange-300 border-orange-500/30 bg-orange-500/10" }
+                          : relatedPerson
+                            ? { label: "Related · same filing/issuer", cls: "text-violet-300 border-violet-500/30 bg-violet-500/10" }
+                            : { label: (item as any).label || (item.validationStatus === "verified" ? "Checked out" : "Still a lead"), cls: "text-amber-300 border-amber-500/30 bg-amber-500/10" };
                     const card = (
                       <div
                         className={
