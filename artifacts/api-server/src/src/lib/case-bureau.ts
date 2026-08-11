@@ -128,6 +128,8 @@ export type ResearchCaseFile = {
     progressAssessment?: string | null;
     reprioritize?: string[];
     suggestedScope?: string | null;
+    rightHandDisposition?: "accept" | "override" | "unknown";
+    rightHandNote?: string | null;
     error: string | null;
     createdAt: string;
   };
@@ -305,6 +307,10 @@ export type GeminiBossPlanResult = {
    * Only ids that already exist in the case file queue are applied; no tool invention.
    */
   reprioritize: string[];
+  /** Explicit coordination with z-AI/GLM right-hand: accept or override advisory. */
+  rightHandDisposition: "accept" | "override" | "unknown";
+  /** One-line note: why accept, or which right-hand action was overridden and why. */
+  rightHandNote: string | null;
   error: string | null;
 };
 
@@ -767,6 +773,14 @@ function parseBossPlanResponse(raw: string, queuedActions: BureauAction[]): Omit
       : [];
 
     // Phase 1: Boss may reject or reframe without selecting an action.
+    const rawDisp = typeof parsed.rightHandDisposition === "string" ? parsed.rightHandDisposition.trim().toLowerCase() : "";
+    const rightHandDisposition: "accept" | "override" | "unknown" =
+      rawDisp === "accept" || rawDisp === "override" ? rawDisp : "unknown";
+    const rightHandNote =
+      typeof parsed.rightHandNote === "string" && parsed.rightHandNote.trim().length > 0
+        ? parsed.rightHandNote.trim().slice(0, 400)
+        : null;
+
     if (outcome === "reject_target" || outcome === "reframe") {
       if (!decision || !reason) return null;
       return {
@@ -782,6 +796,8 @@ function parseBossPlanResponse(raw: string, queuedActions: BureauAction[]): Omit
         suggestedScope: outcome === "reframe" ? suggestedScope : null,
         progressAssessment,
         reprioritize: [],
+        rightHandDisposition,
+        rightHandNote,
       };
     }
 
@@ -804,6 +820,16 @@ function parseBossPlanResponse(raw: string, queuedActions: BureauAction[]): Omit
       ? parsed.evidenceRequirements.filter((value): value is string => typeof value === "string" && value.trim().length > 0).map((value) => value.trim()).slice(0, 10)
       : [];
     if (tools.length === 0 || restrictions.length === 0 || evidenceRequirements.length === 0) return null;
+    // Soft coordination: if disposition missing, infer accept when action matches
+    // a known right-hand preference encoded in reason; else unknown (do not fail plan).
+    const dispositionNote =
+      rightHandNote ??
+      (rightHandDisposition === "override"
+        ? `Override: selected ${action.id} over right-hand advisory`
+        : rightHandDisposition === "accept"
+          ? `Accept: aligned with right-hand on ${action.id}`
+          : null);
+
     return {
       outcome: "proceed",
       actionId: action.id,
@@ -818,6 +844,8 @@ function parseBossPlanResponse(raw: string, queuedActions: BureauAction[]): Omit
       progressAssessment: assessed,
       // Do not include the selected action in remaining reorder list.
       reprioritize: reprioritize.filter((id) => id !== action.id),
+      rightHandDisposition,
+      rightHandNote: dispositionNote,
     };
   } catch {
     return null;
@@ -861,6 +889,8 @@ export async function runGeminiBossPlan(input: {
     suggestedScope: null,
     progressAssessment: null,
     reprioritize: [],
+    rightHandDisposition: "unknown",
+    rightHandNote: null,
     error,
   });
   if (selection.status !== "resolved") {
@@ -1616,6 +1646,8 @@ export function recordGeminiBossPlan(
       progressAssessment: input.progressAssessment,
       reprioritize: input.reprioritize ?? [],
       suggestedScope: input.suggestedScope,
+      rightHandDisposition: input.rightHandDisposition ?? "unknown",
+      rightHandNote: input.rightHandNote ?? null,
       error: input.error,
       createdAt: input.now ?? new Date().toISOString(),
     },

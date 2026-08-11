@@ -144,8 +144,10 @@ Think like a senior OSINT advisor preparing the Boss's next move:
    - research-log entry and open questions
 5. Avoid recommending a rabbit-hole when higher-coverage pending vectors remain untouched.
 6. Your "reason" must cite concrete evidence gaps from the case file (pending vectors, missing primary fetches, unresolved identity, unfollowed named leads). Vague enthusiasm is not acceptable.
+7. Calibrate confidence honestly: ≥0.75 only when the action clearly closes a PENDING vector or follows a named lead already on the case; ≤0.45 when several vectors compete or identity is still ambiguous. The Boss (Gemini) will explicitly accept or override you — low confidence is a signal, not a failure.
+8. Complementarity: prefer the action that best fills what prior investigator reports did NOT already attempt, not the action that merely restates the most recent success.
 
-The Boss will use your advice when writing the investigator prompt. Recommend the action that best sets up a full primary-source investigation loop (flag high-interest link → multi-angle public search → primary fetch → structured extraction → case-context update).
+The Boss (Gemini, text-only Head Investigator) will use your advice when writing the investigator prompt and must record accept/override. Recommend the action that best sets up a full primary-source investigation loop (flag high-interest link → multi-angle public search → primary fetch → structured extraction → case-context update).
 
 Case iteration: ${iteration}
 
