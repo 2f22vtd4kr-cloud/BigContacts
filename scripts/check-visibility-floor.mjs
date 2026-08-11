@@ -57,6 +57,9 @@ ok("Atlas registry-first bounded jobs", !!atlas?.includes("registry-first") && !
 ok("EDGAR related people lookup", !!persist?.includes("lookupEdgarRelatedPeople"));
 ok("Atlas G7 issuer peers", !!atlas?.includes("atlas-issuer-related-peers"));
 ok("Groq provider deterministic fallback", !!contactVal?.includes("deterministic fallback") || !!(read("artifacts/api-server/src/src/lib/llm-name-validator.ts")?.includes("deterministic fallback")));
+const entitiesRoute = read("artifacts/api-server/src/src/routes/entities.ts");
+ok("refresh-surface route", !!entitiesRoute?.includes("refresh-surface") && !!entitiesRoute?.includes("expandSecondaryPublicSurface"));
+ok("profile Refresh Surface button", !!read("artifacts/apex-finder/src/pages/profile.tsx")?.includes("button-refresh-surface"));
 ok("Atlas cookedAt on full-circle complete", !!atlas?.includes("cookedAt = full-circle research completed") || (atlas?.includes("cookedAt:") && atlas?.includes("new Date()") && !atlas?.includes('contact_route_found" ? new Date() : null')));
 
 
