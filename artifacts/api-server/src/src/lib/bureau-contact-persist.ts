@@ -297,11 +297,13 @@ export async function expandSecondaryPublicSurface(input: {
     } as any);
 
     const vectors: BureauContactLike[] = [];
+    const isOrgEntity = /corp|company|organization|trust/i.test(String(input.entityType ?? ""));
+    const defaultScope = isOrgEntity ? "organization" : "candidate";
     if (result.linkedinUrl) {
       vectors.push({
         vectorType: "linkedin",
         value: result.linkedinUrl,
-        scope: "candidate",
+        scope: defaultScope,
         personName: name,
         role: null,
         sourceUrls: [result.linkedinUrl],
@@ -310,8 +312,8 @@ export async function expandSecondaryPublicSurface(input: {
         state: "review_only",
       });
       out.linkedin = true;
-    } else {
-      // Explicit not-found so operators see the gap instead of silence.
+    } else if (!isOrgEntity) {
+      // Explicit not-found for persons only — company-name expands must not spam not-found noise.
       vectors.push({
         vectorType: "social",
         value: `linkedin:not-found:${name}`,
@@ -328,11 +330,15 @@ export async function expandSecondaryPublicSurface(input: {
       vectors.push({
         vectorType: "email",
         value: result.email,
-        scope: "candidate",
+        scope: isOrgEntity || /^(info|contact|office|press|hello|admin|sales|support)@/i.test(result.email)
+          ? "organization"
+          : "candidate",
         personName: name,
         role: null,
         sourceUrls: [],
-        note: "Claimed email from secondary expansion — lead only, not Personal",
+        note: isOrgEntity
+          ? "Company email from secondary expansion — org route, not Personal"
+          : "Claimed email from secondary expansion — lead only, not Personal",
         tier: "candidate",
         state: "review_only",
       });
@@ -342,11 +348,13 @@ export async function expandSecondaryPublicSurface(input: {
       vectors.push({
         vectorType: "phone",
         value: result.phone,
-        scope: "candidate",
+        scope: isOrgEntity ? "organization" : "candidate",
         personName: name,
         role: null,
         sourceUrls: [],
-        note: "Claimed phone from secondary expansion — lead only, not Personal",
+        note: isOrgEntity
+          ? "Company phone from secondary expansion — org route, not Personal"
+          : "Claimed phone from secondary expansion — lead only, not Personal",
         tier: "candidate",
         state: "review_only",
       });
