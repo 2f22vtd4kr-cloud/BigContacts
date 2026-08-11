@@ -1305,22 +1305,17 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
           state: "review_only" as const,
         }))),
       ];
-      // Final company-lock scrub: strip person evidence/URLs from domains that are not
-      // the named company (or trusted directories). Closes same-name pollution that
-      // arrives via Boss/mistral/broad lanes or partial agentic attach.
+      // Final company-lock scrub: strip evidence/URLs from domains that are not the
+      // named company (or trusted directories). Applies to person AND company rows so
+      // partner-blog phones/emails (e.g. Team Financial) do not land on DYNA surface.
       const lockCompany = agenticCompanyName;
-      const scrubPersonSurface = <T extends {
+      const scrubCompanyLockedSurface = <T extends {
         name: string;
         type?: string;
         sourceUrls?: string[];
         contactEvidence?: Array<{ sourceUrls?: string[]; value?: string; vectorType?: string }>;
       }>(cand: T): T | null => {
         if (!lockCompany) return cand;
-        const isPerson = (cand.type === "person" || cand.type === "review_candidate")
-          && !/inc\.?|llc|corp|company|products|manufacturing|holdings|group\b/i.test(cand.name)
-          && cand.name.split(/\s+/).length >= 2;
-        if (!isPerson) return cand;
-        const FREE = new Set(["gmail.com", "yahoo.com", "hotmail.com", "outlook.com", "aol.com", "icloud.com"]);
         const TRUSTED = new Set([
           "bbb.org", "yellowpages.com", "yelp.com", "mapquest.com", "google.com", "bing.com",
           "opencorporates.com", "sec.gov", "edgar.sec.gov", "companieshouse.gov.uk",
@@ -1336,23 +1331,42 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
             if (TRUSTED.has(reg) || [...TRUSTED].some((d) => host === d || host.endsWith(`.${d}`))) return true;
             if (slug.length >= 4 && (host.includes(slug) || reg.includes(slug))) return true;
             if (slugDash.length >= 4 && (host.includes(slugDash) || reg.includes(slugDash))) return true;
-            // Company email domains often match website; allow *.com when host starts with slug prefix >= 6
             if (slug.length >= 6 && (host.startsWith(slug.slice(0, 6)) || reg.startsWith(slug.slice(0, 6)))) return true;
             return false;
           } catch {
             return false;
           }
         };
+        // Also reject evidence values whose email domain is clearly not the company
+        const valueAligned = (ev: { value?: string; vectorType?: string }): boolean => {
+          if (ev.vectorType === "email" && typeof ev.value === "string" && ev.value.includes("@")) {
+            const host = ev.value.split("@")[1]?.toLowerCase().trim() ?? "";
+            if (!host) return false;
+            if (slug.length >= 4 && (host.includes(slug) || host.includes(slugDash))) return true;
+            if (slug.length >= 6 && host.startsWith(slug.slice(0, 6))) return true;
+            // Generic free email is not an org inbox for the locked company
+            if (/gmail|yahoo|hotmail|outlook|aol|icloud|protonmail/.test(host)) return false;
+            // Foreign corp email domains without company slug are partner pollution
+            return false;
+          }
+          return true;
+        };
+        const isPerson = (cand.type === "person" || cand.type === "review_candidate")
+          && !/inc\.?|llc|corp|company|products|manufacturing|holdings|group\b/i.test(cand.name)
+          && cand.name.split(/\s+/).length >= 2;
+        const isLockedCompanyRow = cand.type === "company"
+          || (lockCompany && cand.name.toLowerCase() === lockCompany.toLowerCase());
+        if (!isPerson && !isLockedCompanyRow) return cand;
+
         const urls = (cand.sourceUrls ?? []).filter((u) => typeof u === "string" && /^https?:\/\//i.test(u));
         const alignedUrls = urls.filter(hostOk);
         const evidence = (cand.contactEvidence ?? []).filter((ev) => {
           const evUrls = (ev.sourceUrls ?? []).filter((u) => typeof u === "string" && /^https?:\/\//i.test(u));
           if (evUrls.length === 0) return false;
-          return evUrls.some(hostOk);
+          if (!evUrls.some(hostOk)) return false;
+          return valueAligned(ev);
         });
-        // Drop person candidate if nothing company-aligned remains (fail-closed on pollution)
-        if (alignedUrls.length === 0 && evidence.length === 0) {
-          // Keep primary target name as a stub only if it matches agenticTargetName
+        if (isPerson && alignedUrls.length === 0 && evidence.length === 0) {
           if (cand.name.toLowerCase() === agenticTargetName.toLowerCase()) {
             return {
               ...cand,
@@ -1365,7 +1379,7 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
         }
         return {
           ...cand,
-          sourceUrls: alignedUrls.slice(0, 8),
+          sourceUrls: (alignedUrls.length ? alignedUrls : urls.filter(hostOk)).slice(0, 8),
           contactEvidence: evidence,
           relevance: (cand as { relevance?: string }).relevance
             ?? `Company-locked to ${lockCompany}; only aligned sources retained.`,
@@ -1373,7 +1387,7 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
       };
 
       const companyLockedReview = reviewCandidates
-        .map((c) => scrubPersonSurface(c))
+        .map((c) => scrubCompanyLockedSurface(c))
         .filter((c): c is NonNullable<typeof c> => c != null);
 
       const preFilterCount = companyLockedReview.length;
