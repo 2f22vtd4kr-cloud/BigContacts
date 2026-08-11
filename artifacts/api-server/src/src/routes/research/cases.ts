@@ -1305,13 +1305,90 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
           state: "review_only" as const,
         }))),
       ];
-      const preFilterCount = reviewCandidates.length;
-      const mergedReviewCandidates = mergeDiscoveryCandidates([], reviewCandidates);
+      // Final company-lock scrub: strip person evidence/URLs from domains that are not
+      // the named company (or trusted directories). Closes same-name pollution that
+      // arrives via Boss/mistral/broad lanes or partial agentic attach.
+      const lockCompany = agenticCompanyName;
+      const scrubPersonSurface = <T extends {
+        name: string;
+        type?: string;
+        sourceUrls?: string[];
+        contactEvidence?: Array<{ sourceUrls?: string[]; value?: string; vectorType?: string }>;
+      }>(cand: T): T | null => {
+        if (!lockCompany) return cand;
+        const isPerson = (cand.type === "person" || cand.type === "review_candidate")
+          && !/inc\.?|llc|corp|company|products|manufacturing|holdings|group\b/i.test(cand.name)
+          && cand.name.split(/\s+/).length >= 2;
+        if (!isPerson) return cand;
+        const FREE = new Set(["gmail.com", "yahoo.com", "hotmail.com", "outlook.com", "aol.com", "icloud.com"]);
+        const TRUSTED = new Set([
+          "bbb.org", "yellowpages.com", "yelp.com", "mapquest.com", "google.com", "bing.com",
+          "opencorporates.com", "sec.gov", "edgar.sec.gov", "companieshouse.gov.uk",
+          "chamberofcommerce.com", "dnb.com",
+        ]);
+        const slug = lockCompany.toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 24);
+        const slugDash = lockCompany.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+        const hostOk = (url: string): boolean => {
+          try {
+            const host = new URL(url).hostname.replace(/^www\./i, "").toLowerCase();
+            const parts = host.split(".");
+            const reg = parts.length >= 2 ? parts.slice(-2).join(".") : host;
+            if (TRUSTED.has(reg) || [...TRUSTED].some((d) => host === d || host.endsWith(`.${d}`))) return true;
+            if (slug.length >= 4 && (host.includes(slug) || reg.includes(slug))) return true;
+            if (slugDash.length >= 4 && (host.includes(slugDash) || reg.includes(slugDash))) return true;
+            // Company email domains often match website; allow *.com when host starts with slug prefix >= 6
+            if (slug.length >= 6 && (host.startsWith(slug.slice(0, 6)) || reg.startsWith(slug.slice(0, 6)))) return true;
+            return false;
+          } catch {
+            return false;
+          }
+        };
+        const urls = (cand.sourceUrls ?? []).filter((u) => typeof u === "string" && /^https?:\/\//i.test(u));
+        const alignedUrls = urls.filter(hostOk);
+        const evidence = (cand.contactEvidence ?? []).filter((ev) => {
+          const evUrls = (ev.sourceUrls ?? []).filter((u) => typeof u === "string" && /^https?:\/\//i.test(u));
+          if (evUrls.length === 0) return false;
+          return evUrls.some(hostOk);
+        });
+        // Drop person candidate if nothing company-aligned remains (fail-closed on pollution)
+        if (alignedUrls.length === 0 && evidence.length === 0) {
+          // Keep primary target name as a stub only if it matches agenticTargetName
+          if (cand.name.toLowerCase() === agenticTargetName.toLowerCase()) {
+            return {
+              ...cand,
+              sourceUrls: [],
+              contactEvidence: [],
+              relevance: `Name locked to ${lockCompany}; unrelated-domain surface stripped. Review-only.`,
+            };
+          }
+          return null;
+        }
+        return {
+          ...cand,
+          sourceUrls: alignedUrls.slice(0, 8),
+          contactEvidence: evidence,
+          relevance: (cand as { relevance?: string }).relevance
+            ?? `Company-locked to ${lockCompany}; only aligned sources retained.`,
+        };
+      };
+
+      const companyLockedReview = reviewCandidates
+        .map((c) => scrubPersonSurface(c))
+        .filter((c): c is NonNullable<typeof c> => c != null);
+
+      const preFilterCount = companyLockedReview.length;
+      const mergedReviewCandidates = mergeDiscoveryCandidates([], companyLockedReview);
       const fameDropped = Math.max(0, preFilterCount - mergedReviewCandidates.length);
       if (fameDropped > 0) {
         await appendJobLog(
           jobId,
           `Fitness filter removed ${fameDropped} fame-only or empty candidate(s) from discovery review deck; retained ${mergedReviewCandidates.length}.`,
+        );
+      }
+      if (lockCompany) {
+        await appendJobLog(
+          jobId,
+          `Company-lock scrub applied for "${lockCompany}"; person surface limited to company-aligned domains.`,
         );
       }
       workingFile = {
