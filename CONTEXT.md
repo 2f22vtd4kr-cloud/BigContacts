@@ -3,7 +3,7 @@
 **Product names:** Apex Atlas · ApexFinder Pro · BigContacts  
 **GitHub:** https://github.com/2f22vtd4kr-cloud/BigContacts  
 **Branch:** `main`  
-**Tip at handoff write:** `fe520ab` (confirm with `git log -1 --oneline` after pull) — gold-standard recovery: Atlas secondary+org surface, cookedAt boundary, 555 trash, collision labels, EDGAR co-filers, Groq-429 deterministic fallback, registry-first, related-person rank+display, companyNameForSecondary hoist, broadened issuer notes recovery  
+**Tip at handoff write:** `7a554af` (confirm with `git log -1 --oneline` after pull) — gold-standard recovery: Atlas secondary+org surface, cookedAt boundary, 555 trash, collision labels, EDGAR co-filers, Groq-429 deterministic fallback, registry-first, related-person rank+display, companyNameForSecondary hoist, broadened issuer notes recovery  
 **PAT:** use the owner-provided PAT from the in-session setup message only. Do not invent credentials. Do not commit PATs into the repo (GitHub push protection will reject them).
 
 ---
