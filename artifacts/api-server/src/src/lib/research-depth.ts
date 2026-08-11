@@ -29,7 +29,7 @@ export type ResearchDepthConfig = {
 const CONFIGS: Record<ResearchDepth, ResearchDepthConfig> = {
   fast: {
     depth: "fast",
-    adaptiveMaxActions: 5,
+    adaptiveMaxActions: 8,
     noProgressLimit: 2,
     maxPersonFollowUps: 2,
     maxDomainFollowUps: 1,
@@ -38,18 +38,18 @@ const CONFIGS: Record<ResearchDepth, ResearchDepthConfig> = {
   },
   standard: {
     depth: "standard",
-    adaptiveMaxActions: 8,
+    adaptiveMaxActions: 12,
     noProgressLimit: 2,
-    maxPersonFollowUps: 4,
+    maxPersonFollowUps: 5,
     maxDomainFollowUps: 2,
     forcePendingVectorBias: true,
     challengePass: true,
   },
   deep: {
     depth: "deep",
-    adaptiveMaxActions: 12,
+    adaptiveMaxActions: 16,
     noProgressLimit: 3,
-    maxPersonFollowUps: 6,
+    maxPersonFollowUps: 8,
     maxDomainFollowUps: 3,
     forcePendingVectorBias: true,
     challengePass: true,

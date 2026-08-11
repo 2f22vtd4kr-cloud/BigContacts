@@ -610,6 +610,41 @@ export async function expandSecondaryPublicSurface(input: {
       }
     }
 
+    // Agentic ReAct loop — LLM invents queries/visits (not a playbook). Same model class as
+    // Grok Agent + live search/visit tools. Fail-closed: findings need sourceUrls.
+    try {
+      const { runAgenticWebResearch } = await import("./agentic-web-research");
+      const agentic = await runAgenticWebResearch({
+        targetName: name,
+        companyName: input.companyName ?? null,
+        objective: `Find public contact routes and related org surface for ${name}${input.companyName ? ` / ${input.companyName}` : ""}. Multi-hop. Visit company contact pages. Never invent.`,
+        maxIterations: 8,
+      });
+      logger.info(
+        { entityId: input.entityId, status: agentic.status, model: agentic.model, searches: agentic.searches, visits: agentic.visits, findings: agentic.findings.length },
+        "[Atlas] Agentic web research loop finished",
+      );
+      for (const f of agentic.findings) {
+        vectors.push({
+          vectorType: f.vectorType,
+          value: f.value,
+          scope: f.scope,
+          personName: f.personName ?? name,
+          role: f.role,
+          sourceUrls: f.sourceUrls,
+          note: `agentic:${f.note}`,
+          tier: "candidate",
+          state: "review_only",
+        });
+        if (f.vectorType === "email") out.email = true;
+        if (f.vectorType === "phone") out.phone = true;
+        if (f.vectorType === "linkedin") out.linkedin = true;
+        if (f.vectorType === "website") out.website = true;
+      }
+    } catch (err: any) {
+      logger.warn({ entityId: input.entityId, err: err?.message }, "[Atlas] Agentic web research skipped (non-fatal)");
+    }
+
     if (vectors.length) {
       await persistBureauContactsForEntity(input.entityId, vectors, "secondary-public-surface");
     }

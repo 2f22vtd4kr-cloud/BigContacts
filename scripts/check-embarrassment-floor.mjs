@@ -87,6 +87,11 @@ ok("leadership contact page scrape",
   persist.includes("/contact-us") && persist.includes("mailto on official page"));
 ok("deep-web scrape depth >= 8",
   read("artifacts/api-server/src/src/lib/deep-web-osint.ts").includes("slice(0, 8)"));
+ok("agentic ReAct web research module",
+  read("artifacts/api-server/src/src/lib/agentic-web-research.ts").includes("runAgenticWebResearch") &&
+  read("artifacts/api-server/src/src/lib/agentic-web-research.ts").includes("web_search"));
+ok("secondary runs agentic loop",
+  persist.includes("runAgenticWebResearch") && persist.includes("Agentic web research"));
 ok("secondary email requires website URL",
   persist.includes("result.email && result.website"));
 
