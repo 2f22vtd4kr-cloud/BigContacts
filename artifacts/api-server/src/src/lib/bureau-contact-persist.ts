@@ -3,7 +3,8 @@
  * rows so HNWI profile cards show related routes without waiting for a full
  * deep-web enrich pass.
  */
-import { db, contactEvidenceTable } from "@workspace/db";
+import { db, contactEvidenceTable, entitiesTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
 import { sanitizePublicEmail, sanitizePublicPhone, isTrashContactValue } from "./contact-validation";
 import { logger } from "./logger";
 
@@ -48,12 +49,96 @@ function sanitizeValue(vectorType: string, value: string): string | null {
  * Persist related bureau contacts as candidate evidence. Never marks them
  * verified_direct — fail-closed promotion stays elsewhere.
  */
+
+function nameTokens(value: string | null | undefined): string[] {
+  return String(value ?? "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .map((t) => t.trim())
+    .filter((t) => t.length >= 3 && !["the", "and", "for", "inc", "llc", "ltd", "company", "corp"].includes(t));
+}
+
+/** True when source URL/host or note likely refers to a different person/org than the target. */
+function assessIdentityCollision(input: {
+  targetName: string;
+  companyName?: string | null;
+  personName?: string | null;
+  value: string;
+  sourceUrls: string[];
+  note?: string | null;
+}): { risk: boolean; identityMatch: number; reason: string | null } {
+  const targetToks = nameTokens(input.targetName);
+  const companyToks = nameTokens(input.companyName);
+  const blob = [
+    input.personName ?? "",
+    input.value,
+    input.note ?? "",
+    ...input.sourceUrls,
+  ].join(" ").toLowerCase();
+
+  // Strong org/company alignment → not a collision for org-scoped vectors
+  if (companyToks.length && companyToks.some((t) => blob.includes(t))) {
+    return { risk: false, identityMatch: 0.55, reason: null };
+  }
+
+  const overlap = targetToks.filter((t) => blob.includes(t));
+  // Common false friends: finance advisors, banks, unrelated filings with same first+last
+  const collisionHosts = [
+    "edwardjones", "edward-jones", "immunovant", "alvarezandmarsal", "alvarez-marsal",
+    "fidelity", "vanguard", "schwab", "morganstanley", "goldmansachs",
+  ];
+  const hostHit = collisionHosts.some((h) => blob.includes(h));
+  if (hostHit && companyToks.length && !companyToks.some((t) => blob.includes(t))) {
+    return {
+      risk: true,
+      identityMatch: 0.15,
+      reason: "source host/org does not match target issuer; likely name collision",
+    };
+  }
+  if (targetToks.length >= 2 && overlap.length === 0) {
+    return {
+      risk: true,
+      identityMatch: 0.2,
+      reason: "no name-token overlap between target and evidence blob",
+    };
+  }
+  if (targetToks.length >= 2 && overlap.length === 1 && hostHit) {
+    return {
+      risk: true,
+      identityMatch: 0.25,
+      reason: "weak name overlap with collision-prone host",
+    };
+  }
+  return {
+    risk: false,
+    identityMatch: overlap.length >= 2 ? 0.65 : 0.45,
+    reason: null,
+  };
+}
+
 export async function persistBureauContactsForEntity(
   entityId: number,
   items: readonly BureauContactLike[] | null | undefined,
   source = "case-bureau",
 ): Promise<number> {
   if (!entityId || !items?.length) return 0;
+
+  let targetName = "";
+  let companyName: string | null = null;
+  try {
+    const ent = await db.select({
+      name: entitiesTable.name,
+      metadata: entitiesTable.metadata,
+    }).from(entitiesTable).where(eq(entitiesTable.id, entityId)).limit(1);
+    targetName = ent[0]?.name ?? "";
+    try {
+      const meta = ent[0]?.metadata ? JSON.parse(ent[0].metadata) as Record<string, unknown> : {};
+      companyName = typeof meta.companyName === "string" ? meta.companyName : null;
+    } catch { companyName = null; }
+  } catch {
+    // non-fatal — collision assessment degrades to token-only on item fields
+  }
 
   const rows: Array<{
     entityId: number;
@@ -93,6 +178,17 @@ export async function persistBureauContactsForEntity(
       ? item.sourceUrls.filter((u): u is string => typeof u === "string" && /^https?:\/\//i.test(u))
       : [];
 
+    const collision = assessIdentityCollision({
+      targetName,
+      companyName,
+      personName: item.personName ?? null,
+      value,
+      sourceUrls: urls,
+      note: item.note ?? null,
+    });
+    // Org-scoped vectors stay orgish; collision-prone personal vectors get demoted not dropped
+    // (visibility law: show as weak candidate, never hide silently, never promote).
+    const identityMatch = orgish ? Math.min(0.35, collision.identityMatch) : collision.identityMatch;
     rows.push({
       entityId,
       vectorType,
@@ -100,8 +196,8 @@ export async function persistBureauContactsForEntity(
       source,
       sourceUrl: urls[0] ?? null,
       extractionMethod: "case-bureau-contact",
-      sourceReliability: 0.55,
-      identityMatch: orgish ? 0.35 : 0.5,
+      sourceReliability: collision.risk ? 0.35 : 0.55,
+      identityMatch,
       recencyScore: 0.7,
       directnessScore: orgish ? 0.35 : (vectorType === "email" || vectorType === "phone" ? 0.5 : 0.4),
       independentCorroboration: urls.length > 0 ? 1 : 0,
@@ -116,6 +212,8 @@ export async function persistBureauContactsForEntity(
         tier: item.tier ?? null,
         sourceUrls: urls.slice(0, 5),
         fromBureau: true,
+        identityCollisionRisk: collision.risk,
+        identityCollisionReason: collision.reason,
       }),
     });
   }
