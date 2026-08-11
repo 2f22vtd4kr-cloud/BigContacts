@@ -1121,6 +1121,10 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
           const cleaned = pName.replace(/^(Mr\.|Ms\.|Mrs\.|Dr\.)\s+/i, "").trim();
           if (!cleaned || cleaned.split(/\s+/).length < 2) return null;
           if (/directors,\s*officers|shareholders,\s*managers/i.test(cleaned)) return null;
+          // Reject parse debris ("Nathan Miller put", trailing verbs/prepositions)
+          if (/\b(put|their|dreams|built|and|the|with|from|for|our|into)\b/i.test(cleaned)) return null;
+          if (cleaned.split(/\s+/).length > 4) return null;
+
           // Reject person-row names that are actually the company string
           if (agenticCompanyName && cleaned.toLowerCase() === agenticCompanyName.toLowerCase()) return null;
           // Company-lock on person row creation: reject unrelated-domain surface for named company missions
@@ -1321,6 +1325,10 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
           "opencorporates.com", "sec.gov", "edgar.sec.gov", "companieshouse.gov.uk",
           "chamberofcommerce.com", "dnb.com",
         ]);
+        // Public pages that often list org inboxes for SMB manufacturers (not lead-gen directories)
+        const PUBLIC_ORG_SURFACE = new Set([
+          "facebook.com", "fb.com", "linkedin.com", "instagram.com", "x.com", "twitter.com",
+        ]);
         const slug = lockCompany.toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 24);
         const slugDash = lockCompany.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
         const hostOk = (url: string): boolean => {
@@ -1333,6 +1341,15 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
             if (slugDash.length >= 4 && (host.includes(slugDash) || reg.includes(slugDash))) return true;
             if (slug.length >= 6 && (host.startsWith(slug.slice(0, 6)) || reg.startsWith(slug.slice(0, 6)))) return true;
             return false;
+          } catch {
+            return false;
+          }
+        };
+        const publicOrgSurfaceHost = (url: string): boolean => {
+          try {
+            const host = new URL(url).hostname.replace(/^www\./i, "").toLowerCase();
+            const reg = host.split(".").slice(-2).join(".");
+            return PUBLIC_ORG_SURFACE.has(reg) || [...PUBLIC_ORG_SURFACE].some((d) => host === d || host.endsWith(`.${d}`));
           } catch {
             return false;
           }
@@ -1363,6 +1380,10 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
         const evidence = (cand.contactEvidence ?? []).filter((ev) => {
           const evUrls = (ev.sourceUrls ?? []).filter((u) => typeof u === "string" && /^https?:\/\//i.test(u));
           if (evUrls.length === 0) return false;
+          // Company-domain org email may be published on FB/LinkedIn company pages —
+          // keep it when the mailbox itself is company-aligned (info@dyna-products.com).
+          const companyMailbox = ev.vectorType === "email" && valueAligned(ev);
+          if (companyMailbox && evUrls.some((u) => hostOk(u) || publicOrgSurfaceHost(u))) return true;
           if (!evUrls.some(hostOk)) return false;
           return valueAligned(ev);
         });

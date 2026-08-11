@@ -161,6 +161,14 @@ function extractContactFactsFromHtml(html: string): string {
   for (const m of html.matchAll(/href=["']tel:([^"']+)/gi)) {
     push(`PHONE: ${m[1]!.replace(/\s+/g, " ").trim()}`);
   }
+  // Twin/co-founder narrative: "Norman and Nathan Miller" (require 2-token full names)
+  for (const m of html.matchAll(
+    /\b(?:twin brothers|brothers|co-founders?)[,:]?\s+([A-Z][a-z]+)\s+and\s+([A-Z][a-z]+)\s+([A-Z][a-z]+)\b/gi,
+  )) {
+    const last = m[3]!.trim();
+    push(`PERSON: ${m[1]!.trim()} ${last} — co-founder`);
+    push(`PERSON: ${m[2]!.trim()} ${last} — co-founder`);
+  }
   // US-centric phone patterns common on company contact pages
   for (const m of html.matchAll(/(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]\d{3}[-.\s]\d{4}/g)) {
     push(`PHONE: ${m[0]!.replace(/\s+/g, " ").trim()}`);
@@ -669,8 +677,8 @@ export async function runAgenticWebResearch(input: {
   const seedCompanyContactPaths = (urls: string[]) => {
     const paths = [
       "/contact", "/contact-us", "/contactus", "/get-in-touch", "/connect",
-      "/pages/contact", "/company/contact", "/about/contact",
-      "/terms-and-conditions", "/terms", "/about", "/about-us",
+      "/pages/contact", "/company/contact", "/about/contact", "/sales-contact-form",
+      "/contact-page", "/terms-and-conditions", "/terms", "/about", "/about-us",
       "/dealer", "/dealers", "/team", "/our-team", "/leadership", "/people",
     ];
     for (const u of urls) {
@@ -758,7 +766,7 @@ export async function runAgenticWebResearch(input: {
     ) {
       orgEmailSearchDone = true;
       const co = input.companyName || name;
-      const q = `"${co}" (email OR "info@" OR "contact@" OR "sales@" OR mailto) (contact OR "contact us") -zoominfo -rocketreach -linkedin`;
+      const q = `"${co}" ("info@" OR "contact@" OR email OR mailto) (contact OR facebook OR "contact us") -zoominfo -rocketreach`;
       searches++;
       history.push(`step${i + 1}: force_org_email_search ${q}`);
       const sr = await toolWebSearch(q);
