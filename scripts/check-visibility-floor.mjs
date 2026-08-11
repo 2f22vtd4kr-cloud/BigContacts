@@ -33,7 +33,7 @@ ok("public email claims", !!persist?.includes("lookupPublicEmailClaims"));
 ok("leadership pages", !!persist?.includes("lookupLeadershipPages"));
 ok("X/Twitter public", !!persist?.includes("lookupPublicXProfile"));
 ok("Wayback contact pages", !!persist?.includes("lookupWaybackContactPages"));
-ok("ranking Personal→Org→Candidate", !!presented?.includes("organization") && (!!presented?.includes('m === "organization" ? 1') || !!presented?.includes("identityCollisionRisk")));
+ok("ranking Personal→Org→Candidate", !!presented?.includes("organization") && !!presented?.includes("related-person:") && !!presented?.includes("identityCollisionRisk"));
 ok("card labels", !!presented?.includes("Looks personal") && !!presented?.includes("Company · related"));
 ok("collision weak-match label", !!presented?.includes("Weak match · possible name collision") && !!presented?.includes("Related · same filing/issuer"));
 ok("fail-closed personal mark", !!presented?.includes('direct_contact_verified') && !!presented?.includes("contactOutcome") && !!presented?.includes("never mislabeled personal"));

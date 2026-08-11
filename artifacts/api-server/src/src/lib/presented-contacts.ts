@@ -14,6 +14,7 @@ export type PresentedContact = {
   validationStatus: string;
   mark: "personal" | "organization" | "candidate";
   label: string;
+  identityCollisionRisk?: boolean;
 };
 
 const ORGANIZATION_ENTITY_TYPES = new Set(["Corporation", "Corp", "Trust"]);
@@ -193,10 +194,11 @@ export async function loadPresentedContactsForEntities(
     if (e.telegramHandle) add("social", e.telegramHandle.startsWith("http") ? e.telegramHandle : `@${e.telegramHandle.replace(/^@/, "")}`, "entity-telegram");
   }
 
-  // Ranking law: Personal → Related/Org → Candidate → collision-weak candidates last
+  // Ranking law: Personal → Related/Org (incl. EDGAR co-filer related-person) → Candidate → collision-weak last
   const rank = (c: PresentedContact) => {
     if (c.mark === "personal") return 0;
     if (c.mark === "organization") return 1;
+    if (c.value && /^related-person:/i.test(c.value)) return 1; // same filing/issuer — surface with org
     if (c.identityCollisionRisk) return 3;
     return 2;
   };

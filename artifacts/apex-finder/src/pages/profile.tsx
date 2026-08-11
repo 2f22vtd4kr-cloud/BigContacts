@@ -1262,7 +1262,7 @@ export default function ApexProfile() {
                           <span className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground">{item.vectorType}</span>
                           <span className={"text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded border " + badge.cls}>{badge.label}</span>
                         </div>
-                        <div className="text-xs font-mono text-foreground break-all mt-1">{item.value}</div>
+                        <div className="text-xs font-mono text-foreground break-all mt-1">{String(item.value ?? "").replace(/^related-person:/i, "")}</div>
                         <div className="mt-1.5 text-[10px] text-muted-foreground/75 leading-snug">
                           {((item.directnessScore ?? 0) >= 0.65
                             ? "Reads close to them"

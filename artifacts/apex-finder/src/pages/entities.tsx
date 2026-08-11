@@ -66,6 +66,7 @@ function collectContacts(entity: any): PresentedContact[] {
     const rank = (c: PresentedContact) => {
       if (c.mark === "personal") return 0;
       if (c.mark === "organization") return 1;
+      if (/related-person:|^Related ·/i.test(String(c.value ?? "") + " " + String(c.label ?? ""))) return 1;
       if (/collision|weak match/i.test(c.label) || (c as any).identityCollisionRisk) return 3;
       return 2;
     };
@@ -139,14 +140,14 @@ function ContactsList({ entity, compact = false }: { entity: any; compact?: bool
                 target={c.vectorType === "social" ? "_blank" : undefined}
                 rel={c.vectorType === "social" ? "noopener noreferrer" : undefined}
                 className="text-[11px] font-mono text-primary hover:underline truncate min-w-0"
-                title={`${c.vectorType}: ${c.value}`}
+                title={`${c.vectorType}: ${String(c.value ?? "").replace(/^related-person:/i, "")}`}
                 onClick={(e) => e.stopPropagation()}
               >
                 {c.value}
               </a>
             ) : (
-              <span className="text-[11px] font-mono text-foreground truncate min-w-0" title={c.value}>
-                {c.value}
+              <span className="text-[11px] font-mono text-foreground truncate min-w-0" title={String(c.value ?? "").replace(/^related-person:/i, "")}>
+                {String(c.value ?? "").replace(/^related-person:/i, "")}
               </span>
             )}
           </div>
@@ -1860,7 +1861,7 @@ export default function EntityLedger() {
                                   <div className="flex flex-wrap gap-1">
                                     {(d.contacts ?? []).slice(0, 6).map((c: any, j: number) => (
                                       <span key={j} className="rounded border border-border bg-background/60 px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground truncate max-w-[100%] sm:max-w-[180px]" title={c.value}>
-                                        {c.vectorType}: {c.value}
+                                        {c.vectorType}: {String(c.value ?? "").replace(/^related-person:/i, "")}
                                       </span>
                                     ))}
                                     {d.email && !(d.contacts ?? []).some((c: any) => c.vectorType === "email") ? (
