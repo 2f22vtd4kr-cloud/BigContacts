@@ -60,7 +60,41 @@ function stripHtml(html: string): string {
     .trim();
 }
 
+async function toolWebSearchSerper(query: string): Promise<{ text: string; urls: string[] } | null> {
+  const key = process.env.SERPER_API_KEY ?? "";
+  if (!key) return null;
+  try {
+    const resp = await fetch("https://google.serper.dev/search", {
+      method: "POST",
+      headers: { "X-API-KEY": key, "Content-Type": "application/json" },
+      body: JSON.stringify({ q: query, num: 10, gl: "us", hl: "en" }),
+      signal: AbortSignal.timeout(12_000),
+    });
+    if (!resp.ok) return null;
+    const data = (await resp.json()) as {
+      organic?: Array<{ title?: string; link?: string; snippet?: string }>;
+      knowledgeGraph?: { description?: string };
+    };
+    const urls: string[] = [];
+    const parts: string[] = [];
+    if (data.knowledgeGraph?.description) parts.push(data.knowledgeGraph.description);
+    for (const row of data.organic ?? []) {
+      if (row.link && /^https?:\/\//i.test(row.link)) urls.push(row.link);
+      if (row.title || row.snippet) parts.push([row.title, row.snippet].filter(Boolean).join(" — "));
+    }
+    const text = filterPassagesForQuery(parts.join("\n"), query, { maxChars: MAX_OBS });
+    return { text, urls: [...new Set(urls)].slice(0, 10) };
+  } catch (err: any) {
+    logger.debug({ err: err?.message, query }, "agentic serper search failed");
+    return null;
+  }
+}
+
 async function toolWebSearch(query: string): Promise<{ text: string; urls: string[] }> {
+  // Prefer Serper when keyed (stable SERP + real result URLs); DDG HTML is a free fallback.
+  const serper = await toolWebSearchSerper(query);
+  if (serper && serper.urls.length > 0) return serper;
+
   const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}&kl=us-en`;
   try {
     const resp = await fetch(url, {
@@ -71,7 +105,7 @@ async function toolWebSearch(query: string): Promise<{ text: string; urls: strin
         "Accept-Language": "en-US,en;q=0.9",
       },
     });
-    if (!resp.ok) return { text: "", urls: [] };
+    if (!resp.ok) return serper ?? { text: "", urls: [] };
     const html = await resp.text();
     const urls: string[] = [];
     for (const m of html.matchAll(/uddg=([^&"]+)/g)) {
@@ -85,10 +119,12 @@ async function toolWebSearch(query: string): Promise<{ text: string; urls: strin
       if (!/duckduckgo|google\.|bing\.|yahoo\./i.test(u)) urls.push(u);
     }
     const text = filterPassagesForQuery(stripHtml(html), query, { maxChars: MAX_OBS });
-    return { text, urls: [...new Set(urls)].slice(0, 10) };
+    const out = { text, urls: [...new Set(urls)].slice(0, 10) };
+    if (out.urls.length === 0 && serper) return serper;
+    return out;
   } catch (err: any) {
     logger.debug({ err: err?.message, query }, "agentic web_search failed");
-    return { text: "", urls: [] };
+    return serper ?? { text: "", urls: [] };
   }
 }
 
@@ -277,8 +313,9 @@ async function callGeminiJson(prompt: string): Promise<{ model: string; raw: str
 }
 
 async function llmStep(prompt: string): Promise<{ model: string; raw: string } | null> {
-  // Prefer Gemini (Boss stack), fall back to Groq — same frontier class as general agents
-  return (await callGeminiJson(prompt)) ?? (await callGroqJson(prompt));
+  // Prefer Groq for agentic ReAct (lower latency, avoids Gemini text-gen 429 capacity fights
+  // with Boss). Fall back to Gemini so the loop still runs when Groq is unavailable.
+  return (await callGroqJson(prompt)) ?? (await callGeminiJson(prompt));
 }
 
 function buildStepPrompt(input: {

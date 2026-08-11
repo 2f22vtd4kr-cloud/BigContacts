@@ -447,6 +447,8 @@ export async function generateGeminiBossText(
             { model, status: response.status, keyName: entry.name },
             "Gemini Boss text-generation capacity busy; trying next model/key (not a web-search failure)",
           );
+          // Capacity backoff: avoid tight-looping the same rate-limited pool
+          await new Promise((r) => setTimeout(r, 1200 + Math.floor(Math.random() * 1800)));
           continue;
         }
         if (!response.ok) {
