@@ -443,14 +443,19 @@ router.post("/entities/import/batch", async (req, res): Promise<void> => {
           ? draft.sourceRegistries
           : ["manual-import"];
 
-        // Derive outcome + confidence from data fullness (never auto-Personal / verified).
+        // Deterministic trash gate first: never let 555 / placeholder inflate outcome or columns
+        const emailVal = draft.email ? sanitizePublicEmail(String(draft.email)) : null;
+        const phoneVal = draft.phone ? sanitizePublicPhone(String(draft.phone)) : null;
+        const linkedinVal = draft.linkedinUrl ? String(draft.linkedinUrl).trim() : null;
+
+        // Derive outcome + confidence from cleaned data fullness (never auto-Personal / verified).
         const contactList = Array.isArray(draft.contacts) ? draft.contacts : [];
-        const hasEmail = Boolean(draft.email) || contactList.some((c) => String(c?.vectorType) === "email" && c?.value);
-        const hasPhone = Boolean(draft.phone) || contactList.some((c) => String(c?.vectorType) === "phone" && c?.value);
-        const hasSocial = Boolean(draft.linkedinUrl)
+        const hasEmail = Boolean(emailVal) || contactList.some((c) => String(c?.vectorType) === "email" && c?.value && sanitizePublicEmail(String(c.value)));
+        const hasPhone = Boolean(phoneVal) || contactList.some((c) => String(c?.vectorType) === "phone" && c?.value && sanitizePublicPhone(String(c.value)));
+        const hasSocial = Boolean(linkedinVal)
           || contactList.some((c) => ["linkedin", "social"].includes(String(c?.vectorType)) && c?.value);
         const orgOnly = hasEmail && contactList.every((c) => String(c?.vectorType) !== "email" || c?.scope === "organization")
-          && (!draft.email || /^(info|contact|office|press|hello|admin|sales|support)@/i.test(String(draft.email)));
+          && (!emailVal || /^(info|contact|office|press|hello|admin|sales|support)@/i.test(emailVal));
         let contactOutcome = "evidence_only";
         let contactConfidence = 0;
         if (hasEmail || hasPhone) {
@@ -465,10 +470,6 @@ router.post("/entities/import/batch", async (req, res): Promise<void> => {
           contactOutcome = "social_only";
           contactConfidence = 20;
         }
-
-        const emailVal = draft.email ? String(draft.email).toLowerCase().trim() : null;
-        const phoneVal = draft.phone ? String(draft.phone).trim() : null;
-        const linkedinVal = draft.linkedinUrl ? String(draft.linkedinUrl).trim() : null;
 
         const [entity] = await db.insert(entitiesTable).values({
           name,

@@ -5,6 +5,7 @@
  */
 import { logger } from "./logger";
 import { extractJsonObject } from "./ai-extractor";
+import { sanitizePublicEmail, sanitizePublicPhone } from "./contact-validation";
 
 export type ImportDraftContact = {
   vectorType: "email" | "phone" | "linkedin" | "website" | "social" | "address";
@@ -378,7 +379,8 @@ function parseLlmEntityJson(raw: string, source: string): ImportDraftEntity[] {
       contacts.push({ vectorType: "email", value: String(row.email).toLowerCase(), scope: scopeForEmail(String(row.email)), note: `LLM extract (${source})` });
     }
     if (row.phone && !contacts.some((c) => c.vectorType === "phone")) {
-      contacts.push({ vectorType: "phone", value: String(row.phone), scope: "candidate", note: `LLM extract (${source})` });
+      const cleanPh = sanitizePublicPhone(String(row.phone));
+      if (cleanPh) contacts.push({ vectorType: "phone", value: cleanPh, scope: "candidate", note: `LLM extract (${source})` });
     }
     if (row.linkedinUrl && !contacts.some((c) => c.vectorType === "linkedin")) {
       contacts.push({
@@ -396,8 +398,8 @@ function parseLlmEntityJson(raw: string, source: string): ImportDraftEntity[] {
       estimatedNetWorth: typeof row.estimatedNetWorth === "number" ? row.estimatedNetWorth : null,
       knownResidences: row.knownResidences ? String(row.knownResidences) : null,
       linkedinUrl: row.linkedinUrl ? String(row.linkedinUrl) : null,
-      phone: row.phone ? String(row.phone) : null,
-      email: row.email ? String(row.email).toLowerCase() : null,
+      phone: row.phone ? sanitizePublicPhone(String(row.phone)) : null,
+      email: row.email ? sanitizePublicEmail(String(row.email)) : null,
       notes: row.notes ? String(row.notes).slice(0, 2000) : null,
       sourceRegistries: [`manual-import-${source}`],
       contacts,
