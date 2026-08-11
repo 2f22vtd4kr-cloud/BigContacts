@@ -1246,10 +1246,36 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
           error: entry.error,
         }, `${entry.registry} registry lane ${entry.error ? "failed" : "completed"}; result written to shared case context.`);
       }
-      const finalRightHand = await runNvidiaNimDiscoveryAdvice({
-        file: workingFile,
-        iteration: openingIteration + 1,
-      });
+      // Bound post-research reviews so discovery reaches status=done even when NIM/Gemini stall
+      const withTimeout = async <T,>(p: Promise<T>, ms: number, fallback: T): Promise<T> => {
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        try {
+          return await Promise.race([
+            p,
+            new Promise<T>((resolve) => {
+              timer = setTimeout(() => resolve(fallback), ms);
+            }),
+          ]);
+        } finally {
+          if (timer) clearTimeout(timer);
+        }
+      };
+      const finalRightHand = await withTimeout(
+        runNvidiaNimDiscoveryAdvice({
+          file: workingFile,
+          iteration: openingIteration + 1,
+        }),
+        45_000,
+        {
+          status: "unavailable" as const,
+          model: "timeout",
+          decision: null,
+          reason: "Right-hand post-research timed out; discovery candidates already recorded.",
+          focusLanes: [] as string[],
+          confidence: 0,
+          error: "timeout",
+        },
+      );
       workingFile = await persistDiscoveryCheckpoint(caseId, openingIteration + 1, workingFile, {
         lane: "nvidia-right-hand",
         provider: `NVIDIA NIM ${finalRightHand.model}`,
@@ -1262,15 +1288,28 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
         nextQuestions: finalRightHand.focusLanes,
         error: finalRightHand.error,
       }, `Right-hand post-research review ${finalRightHand.status}; refreshed shaft read completed.`);
-      const finalBoss = await runGeminiBossDiscovery({
-        file: workingFile,
-        objective: workingFile.humanBrief.objective,
-        motivation: workingFile.humanBrief.motivation,
-        geography: workingFile.humanBrief.geography,
-        exclusions: workingFile.humanBrief.exclusions,
-        rightHandAdvice: finalRightHand,
-        startingLane: `Post-research rabbit-hole review from randomized lane ${discoveryTemplateSet}`,
-      });
+      const finalBoss = await withTimeout(
+        runGeminiBossDiscovery({
+          file: workingFile,
+          objective: workingFile.humanBrief.objective,
+          motivation: workingFile.humanBrief.motivation,
+          geography: workingFile.humanBrief.geography,
+          exclusions: workingFile.humanBrief.exclusions,
+          rightHandAdvice: finalRightHand,
+          startingLane: `Post-research rabbit-hole review from randomized lane ${discoveryTemplateSet}`,
+        }),
+        60_000,
+        {
+          status: "unavailable" as const,
+          model: "timeout",
+          report: null,
+          candidates: [],
+          citations: [],
+          nextDirections: [],
+          uncertainties: ["Post-research Boss review timed out; review deck already populated from agentic/registry lanes."],
+          error: "timeout",
+        },
+      );
       workingFile = await persistDiscoveryCheckpoint(caseId, openingIteration + 1, workingFile, {
         lane: "gemini-boss",
         provider: `Gemini ${finalBoss.model}`,

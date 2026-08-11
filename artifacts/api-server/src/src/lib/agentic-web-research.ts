@@ -435,6 +435,25 @@ ${input.lastObservation.slice(0, MAX_OBS) || "(none — start with web_search on
 Return ONE JSON object only.`;
 }
 
+/** True when email domain aligns with company site or name (drops dealer-network noise). */
+function isCompanyAlignedEmail(email: string, companyName?: string | null, pageUrl?: string): boolean {
+  const domain = (email.split("@")[1] || "").toLowerCase();
+  if (!domain) return false;
+  try {
+    if (pageUrl) {
+      const host = new URL(pageUrl).hostname.replace(/^www\./, "").toLowerCase();
+      const root = host.split(".").slice(-2).join(".");
+      if (domain === host || domain === root || host.endsWith(domain)) return true;
+    }
+  } catch { /* ignore */ }
+  if (companyName) {
+    const token = companyName.toLowerCase().replace(/[^a-z0-9]+/g, "");
+    const domFlat = domain.replace(/[^a-z0-9]/g, "");
+    if (token.length >= 4 && domFlat.includes(token.slice(0, Math.min(6, token.length)))) return true;
+  }
+  return false;
+}
+
 /** Parse CONTACT FACTS block from a visited page into structured findings (fail-closed, org scope). */
 function findingsFromContactFacts(
   pageText: string,
@@ -446,19 +465,25 @@ function findingsFromContactFacts(
   const block = pageText.match(/CONTACT FACTS \(visible on page\):([\s\S]*?)(?:\n\n|$)/i)?.[1] ?? "";
   if (!block.trim()) return out;
   for (const line of block.split("\n")) {
-    const email = line.match(/EMAIL:\s*(\S+@\S+)/i)?.[1];
-    if (email) {
-      const cleaned = sanitizePublicEmail(email);
-      if (cleaned && !isTrashContactValue("email", cleaned)) {
-        out.push({
-          vectorType: "email",
-          value: cleaned,
-          personName: null,
-          role: null,
-          scope: "organization",
-          sourceUrls: [sourceUrl],
-          note: `Extracted from ${sourceUrl}`,
-        });
+    // PERSON_EMAIL is handled below with personName — bare EMAIL drops off-domain dealer noise
+    if (!/^PERSON_EMAIL:/i.test(line.trim())) {
+      const email = line.match(/EMAIL:\s*(\S+@\S+)/i)?.[1];
+      if (email) {
+        const cleaned = sanitizePublicEmail(email);
+        if (cleaned && !isTrashContactValue("email", cleaned)) {
+          if (!isCompanyAlignedEmail(cleaned, companyName, sourceUrl)) {
+            continue;
+          }
+          out.push({
+            vectorType: "email",
+            value: cleaned,
+            personName: null,
+            role: null,
+            scope: "organization",
+            sourceUrls: [sourceUrl],
+            note: `Extracted from ${sourceUrl}`,
+          });
+        }
       }
     }
     const phone = line.match(/PHONE:\s*(.+)/i)?.[1]?.trim();
@@ -589,6 +614,12 @@ export async function runAgenticWebResearch(input: {
   const maxIter = Math.min(input.maxIterations ?? MAX_ITER, 12);
   const objective = input.objective
     ?? `Find publicly documented contact routes (email, phone, LinkedIn, website, related people) for ${name}${input.companyName ? ` related to ${input.companyName}` : ""}. Be thorough and creative.`;
+
+  // Fresh browser-escalate budget per agentic pass (Scrapfly/ZenRows)
+  try {
+    const { resetBrowserFetchCount } = await import("./browser-fetch");
+    resetBrowserFetchCount();
+  } catch { /* optional */ }
 
   const history: string[] = [];
   let lastObservation = "Begin. Choose an initial web_search query — do not wait for instructions.";
