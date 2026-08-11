@@ -43,6 +43,7 @@ function markContact(args: {
   const meta = parseEvidenceMeta(args.metadata);
   const scope = String(meta.scope ?? meta.personScope ?? meta.routeScope ?? "").toLowerCase();
   if (scope === "organization" || scope === "org" || scope === "company") return "organization";
+  if (/^related-person:/i.test(args.value)) return "candidate";
   // Fail-closed personal mark: only verified evidence (or entity columns promoted
   // through the contact pipeline to direct_contact_verified) may display as personal.
   // Manual import / discovery write email/phone onto the entity as candidates —
