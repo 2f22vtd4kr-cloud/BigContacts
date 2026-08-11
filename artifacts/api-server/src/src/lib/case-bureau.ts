@@ -760,18 +760,13 @@ Return ONLY JSON in this shape:
 }
 Candidates are review-only. Never invent a name, wealth claim, relationship, contact detail, or URL.`;
   try {
-    let generated = await generateGeminiBossText(selection, prompt);
-    // Groq capacity fallback when Gemini text-gen is rate-limited (429/503 pool exhaustion).
-    // Same fail-closed JSON contract; keeps TARGET-LOCKED discovery moving without inventing contacts.
+    // Groq-first for discovery brief text: Gemini is text-only Boss (no web search) and
+    // often 429s on capacity. Groq keeps the shaft moving; Gemini still tried as upgrade.
+    let generated = await generateGroqBossText(prompt);
     if (!generated.raw) {
-      const groq = await generateGroqBossText(prompt);
-      if (groq.raw) {
-        logger.warn(
-          { geminiError: generated.error, groqModel: groq.model },
-          "Gemini Boss text unavailable; using Groq capacity fallback for discovery brief",
-        );
-        generated = groq;
-      }
+      const gem = await generateGeminiBossText(selection, prompt);
+      if (gem.raw) generated = gem;
+      else generated = { model: gem.model || generated.model, raw: null, error: gem.error || generated.error };
     }
     if (!generated.raw) {
       return {
@@ -782,7 +777,7 @@ Candidates are review-only. Never invent a name, wealth claim, relationship, con
         citations: [],
         nextDirections: [],
         uncertainties: [],
-        error: generated.error ?? "Gemini Boss returned no text for the discovery brief.",
+        error: generated.error ?? "Boss text generation returned no text for the discovery brief.",
       };
     }
     const parsed = parseBossDiscoveryResponse(generated.raw);
@@ -971,24 +966,21 @@ export async function runGeminiBossPlan(input: {
   const queuedActions = input.file.actionQueue.filter((action) => action.status === "queued");
   if (queuedActions.length === 0) return unavailable("The case file has no queued actions.");
   try {
-    let generated = await generateGeminiBossText(selection, buildGeminiBossPlanPrompt(input));
+    const planPrompt = buildGeminiBossPlanPrompt(input);
+    // Groq-first: avoid Gemini text-gen 429 stalls on plan steps (Gemini has no web search here)
+    let generated = await generateGroqBossText(planPrompt);
     if (!generated.raw) {
-      const groq = await generateGroqBossText(buildGeminiBossPlanPrompt(input));
-      if (groq.raw) {
-        logger.warn(
-          { geminiError: generated.error, groqModel: groq.model },
-          "Gemini Boss plan text unavailable; using Groq capacity fallback",
-        );
-        generated = groq;
-      }
+      const gem = await generateGeminiBossText(selection, planPrompt);
+      if (gem.raw) generated = gem;
+      else generated = { model: gem.model || generated.model, raw: null, error: gem.error || generated.error };
     }
-    if (!generated.raw) return unavailable(generated.error ?? "Gemini Boss returned no text.");
+    if (!generated.raw) return unavailable(generated.error ?? "Boss plan text generation returned no text.");
     const parsed = parseBossPlanResponse(generated.raw, queuedActions);
     return parsed
       ? { status: "completed", model: generated.model, ...parsed, error: null }
-      : unavailable("Gemini Boss returned an invalid or unsafe investigator plan.");
+      : unavailable("Boss returned an invalid or unsafe investigator plan.");
   } catch (error) {
-    return unavailable(error instanceof Error ? error.message : "Gemini Boss planning failed.");
+    return unavailable(error instanceof Error ? error.message : "Boss planning failed.");
   }
 }
 

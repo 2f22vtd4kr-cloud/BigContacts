@@ -501,14 +501,57 @@ export async function runAgenticWebResearch(input: {
   const candidateUrls: string[] = [];
   const visitedUrls = new Set<string>();
 
+  const isAggregatorHost = (u: string): boolean =>
+    /zoominfo|rocketreach|adapt\.io|signalhire|contactout|growjo|apollo\.io|clearbit|hunter\.io|mibarry|chamber|yelp|bbb\.org|dnb\.com|bloomberg\.com\/profile|crunchbase|pitchbook|linkedin\.com\/company/i.test(
+      u,
+    );
+
   const rankVisitUrl = (u: string): number => {
     const lower = u.toLowerCase();
-    if (/\/(contact|about|team|people|leadership|company|terms|privacy|impressum)/i.test(lower)) return 0;
-    if (/investor\.|\/ir\/|\/governance|sec\.gov|edgar/i.test(lower)) return 1;
-    if (input.companyName && lower.includes(input.companyName.toLowerCase().split(/\s+/)[0]!.slice(0, 8))) return 2;
-    if (/\.(com|org|io|co|net)\b/i.test(lower) && !/linkedin|facebook|twitter|youtube|wikipedia|reddit/i.test(lower)) return 3;
-    if (/linkedin\.com\/in\//i.test(lower)) return 4;
-    return 5;
+    // Directory/aggregator pages pollute contact facts — visit last
+    if (isAggregatorHost(lower)) return 9;
+    const coToken = input.companyName
+      ? input.companyName.toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 10)
+      : "";
+    const hostMatch = coToken && lower.replace(/[^a-z0-9]/g, "").includes(coToken.slice(0, 6));
+    // Primary company contact/terms pages first (where org email/phone actually live)
+    if (hostMatch && /\/(contact|terms|about|team|people|leadership|privacy|impressum)/i.test(lower)) return 0;
+    if (/\/(contact|terms-and-conditions|terms|about\/contact)/i.test(lower) && !isAggregatorHost(lower)) return 1;
+    if (hostMatch) return 2;
+    if (/\/(about|team|people|leadership|company)/i.test(lower)) return 3;
+    if (/investor\.|\/ir\/|\/governance|sec\.gov|edgar/i.test(lower)) return 4;
+    if (/\.(com|org|io|co|net)\b/i.test(lower) && !/linkedin|facebook|twitter|youtube|wikipedia|reddit/i.test(lower))
+      return 5;
+    if (/linkedin\.com\/in\//i.test(lower)) return 6;
+    return 7;
+  };
+
+  /** From SERP hits, seed /contact and /terms on real company domains so we don't stop at chamber pages. */
+  const seedCompanyContactPaths = (urls: string[]) => {
+    const paths = ["/contact", "/terms-and-conditions", "/terms", "/about", "/company/contact"];
+    for (const u of urls) {
+      if (isAggregatorHost(u)) continue;
+      try {
+        const parsed = new URL(u);
+        if (!/\.(com|org|io|co|net|us)$/i.test(parsed.hostname)) continue;
+        if (/linkedin|facebook|twitter|youtube|wikipedia|sec\.gov/i.test(parsed.hostname)) continue;
+        const coToken = input.companyName
+          ? input.companyName.toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 8)
+          : "";
+        const hostFlat = parsed.hostname.replace(/[^a-z0-9]/g, "");
+        // Prefer domains that look like the company; also seed any non-aggregator corporate host
+        if (coToken && !hostFlat.includes(coToken.slice(0, 5)) && !hostFlat.includes(coToken.slice(0, 4))) {
+          // still seed if path already contact-like
+          if (!/\/(contact|terms|about)/i.test(parsed.pathname)) continue;
+        }
+        for (const p of paths) {
+          const seeded = `${parsed.protocol}//${parsed.hostname}${p}`;
+          if (!candidateUrls.includes(seeded)) candidateUrls.push(seeded);
+        }
+      } catch {
+        /* skip */
+      }
+    }
   };
 
   const forceVisitNext = async (stepLabel: string): Promise<boolean> => {
@@ -530,12 +573,26 @@ export async function runAgenticWebResearch(input: {
     return true;
   };
 
+  const hasOrgEmailOrPhone = () =>
+    findings.some((f) => f.vectorType === "email" || f.vectorType === "phone");
+
   for (let i = 0; i < maxIter; i++) {
     // Force-visit as soon as we have SERP URLs and zero visits (parity with general agents).
     // Prefer high-rank contact/about/terms pages; do not wait for a second search.
     if (searches >= 1 && visits === 0 && candidateUrls.length > 0) {
       await forceVisitNext(`step${i + 1}`);
       continue;
+    }
+    // Keep opening high-rank company pages until we have org email/phone or no URLs left
+    if (
+      visits >= 1
+      && searches >= 1
+      && !hasOrgEmailOrPhone()
+      && candidateUrls.some((u) => !visitedUrls.has(u) && rankVisitUrl(u) <= 3)
+      && i < maxIter - 1
+    ) {
+      const forced = await forceVisitNext(`step${i + 1}`);
+      if (forced) continue;
     }
     // After a visit still zero findings and unused URLs remain, force one more high-rank page
     if (visits >= 1 && findings.length === 0 && searches >= 1 && i < maxIter - 1) {
@@ -578,11 +635,13 @@ export async function runAgenticWebResearch(input: {
       for (const u of sr.urls) {
         if (/^https?:\/\//i.test(u) && !candidateUrls.includes(u)) candidateUrls.push(u);
       }
+      // Seed /contact /terms on company domains so force-visit does not stop at chamber directories
+      seedCompanyContactPaths(sr.urls);
       lastObservation = `SEARCH results for: ${action.query}\nURLs: ${sr.urls.slice(0, 8).join(" | ")}\n\n${sr.text.slice(0, MAX_OBS)}`;
       // Soft nudge: if we already have company-looking URLs and no visits yet, tell the model to visit
       if (visits === 0 && sr.urls.length > 0) {
         lastObservation +=
-          `\n\nNEXT: Prefer action=visit on a primary company/contact/about/investor URL from the list above. ` +
+          `\n\nNEXT: Prefer action=visit on the COMPANY domain contact/terms/about page — not chamber, ZoomInfo, or directory pages. ` +
           `Do not only search again.`;
       }
       continue;
