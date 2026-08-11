@@ -330,3 +330,7 @@ GET  /api/improve/logs                 improvement suggestions (filterable by pe
    - **Web-OSINT re-runs** automatically if Maigret finds 3+ cross-platform profiles — Maigret output becomes extra context for the AI.
    - **Holehe runs in parallel with Maigret** whenever an email is known.
    - Any phase can be re-triggered at any point. Never treat the pipeline as one-way. New signals at any stage should feed back into earlier phases.
+
+
+## Gold-standard recovery (2026-08-11)
+Tip `f06f06c`: Atlas secondary+org surface, cookedAt, 555 trash, collision, EDGAR co-filers, Groq-429 fallback, refresh-surface, surface integrity log.
