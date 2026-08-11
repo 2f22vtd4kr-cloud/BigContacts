@@ -863,7 +863,9 @@ router.post("/entities/:id/refresh-surface", async (req, res): Promise<void> => 
       scope: "organization",
       personName: entity.name,
       role: "related_issuer",
-      sourceUrls: [],
+      sourceUrls: [
+        `https://efts.sec.gov/LATEST/search-index?q=${encodeURIComponent('"' + companyName.slice(0, 80) + '"')}&forms=SC+13D,SC+13G`,
+      ],
       note: `Issuer/company refresh — related org anchor (not Personal)`,
       tier: "candidate",
       state: "review_only",

@@ -184,3 +184,6 @@ git pull origin main
 # restart API
 node scripts/check-visibility-floor.mjs   # expect 38/38
 ```
+
+
+Hard admission boundary (post 7e15a50): persist drops email/phone/social without http(s) sourceUrls.

@@ -63,6 +63,11 @@ ok("refresh-surface route", !!entitiesRoute?.includes("refresh-surface") && !!en
 ok("profile Refresh Surface button", !!read("artifacts/apex-finder/src/pages/profile.tsx")?.includes("button-refresh-surface"));
 ok("Atlas companyNameForSecondary hoisted", !!atlas?.includes("Hoisted so notes-recovered issuer") || (atlas?.includes("let companyNameForSecondary") && atlas.indexOf("let companyNameForSecondary") < atlas.indexOf("Registry org anchors")));
 ok("batch import sanitizes phone", !!entitiesRoute?.includes("sanitizePublicPhone") && !!entitiesRoute?.includes("draft.phone"));
+
+ok("persist claim-URL admission for email/phone", !!persist?.includes("needsClaimUrl") && !!persist?.includes("if (needsClaimUrl && urls.length === 0) continue"));
+ok("EDGAR co-filer startdt 1995", !!persist?.includes("startdt=1995-01-01"));
+ok("passage filter wired", !!read("artifacts/api-server/src/src/lib/deep-web-osint.ts")?.includes("filterPassagesForQuery"));
+ok("shared web sub-query planner", !!read("artifacts/api-server/src/src/lib/web-search-queries.ts")?.includes("buildWebSearchSubQueries"));
 ok("Atlas cookedAt on full-circle complete", !!atlas?.includes("cookedAt = full-circle research completed") || (atlas?.includes("cookedAt:") && atlas?.includes("new Date()") && !atlas?.includes('contact_route_found" ? new Date() : null')));
 
 

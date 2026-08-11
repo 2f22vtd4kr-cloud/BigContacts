@@ -176,9 +176,29 @@ export async function persistBureauContactsForEntity(
     const scope = String(item.scope ?? item.tier ?? "unknown").toLowerCase();
     const orgish = scope.includes("organization") || scope.includes("org")
       || /^(info|contact|office|press|hello|admin|sales)@/i.test(value);
-    const urls = Array.isArray(item.sourceUrls)
+    let urls = Array.isArray(item.sourceUrls)
       ? item.sourceUrls.filter((u): u is string => typeof u === "string" && /^https?:\/\//i.test(u))
       : [];
+
+    // Fail-closed admission for direct contact vectors: no URL ⇒ do not persist.
+    // Related-person / org-name anchors may attach a deterministic public search URL.
+    const needsClaimUrl = ["email", "phone", "linkedin", "twitter", "instagram", "telegram"].includes(vectorType);
+    if (needsClaimUrl && urls.length === 0) continue;
+
+    // related-person without URL: attach issuer EDGAR search when company known; else drop
+    if (urls.length === 0 && /^related-person:/i.test(value)) {
+      if (!companyName) continue;
+      urls = [
+        `https://efts.sec.gov/LATEST/search-index?q=${encodeURIComponent('"' + companyName.slice(0, 80) + '"')}&forms=SC+13D,SC+13G`,
+      ];
+    }
+    // Org issuer name anchor without URL: attach EDGAR search, never a fake contact
+    if (urls.length === 0 && (vectorType === "domain" || vectorType === "organization" || vectorType === "other")
+        && orgish && companyName) {
+      urls = [
+        `https://efts.sec.gov/LATEST/search-index?q=${encodeURIComponent('"' + companyName.slice(0, 80) + '"')}&forms=SC+13D,SC+13G`,
+      ];
+    }
 
     const collision = assessIdentityCollision({
       targetName,
@@ -328,7 +348,9 @@ export async function expandSecondaryPublicSurface(input: {
         state: "review_only",
       });
     }
-    if (result.email) {
+    // Only persist email/phone when we have a concrete public page URL (fail-closed).
+    // Website, crt.sh, and public claim lookups below carry real sourceUrls.
+    if (result.email && result.website) {
       vectors.push({
         vectorType: "email",
         value: result.email,
@@ -337,7 +359,7 @@ export async function expandSecondaryPublicSurface(input: {
           : "candidate",
         personName: name,
         role: null,
-        sourceUrls: [],
+        sourceUrls: [result.website],
         note: isOrgEntity
           ? "Company email from secondary expansion — org route, not Personal"
           : "Claimed email from secondary expansion — lead only, not Personal",
@@ -346,14 +368,14 @@ export async function expandSecondaryPublicSurface(input: {
       });
       out.email = true;
     }
-    if (result.phone) {
+    if (result.phone && result.website) {
       vectors.push({
         vectorType: "phone",
         value: result.phone,
         scope: isOrgEntity ? "organization" : "candidate",
         personName: name,
         role: null,
-        sourceUrls: [],
+        sourceUrls: [result.website],
         note: isOrgEntity
           ? "Company phone from secondary expansion — org route, not Personal"
           : "Claimed phone from secondary expansion — lead only, not Personal",
@@ -366,12 +388,11 @@ export async function expandSecondaryPublicSurface(input: {
       vectors.push({
         vectorType: "website",
         value: result.website,
-        scope: "candidate",
+        scope: "organization",
         personName: name,
         role: null,
         sourceUrls: [result.website],
         note: "Website / domain from secondary expansion — org/public surface",
-        scope: "organization",
         tier: "candidate",
         state: "review_only",
       });

@@ -1564,7 +1564,9 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
             scope: "candidate",
             personName: peer.name,
             role: "same_issuer_peer",
-            sourceUrls: [] as string[],
+            sourceUrls: [
+              `https://efts.sec.gov/LATEST/search-index?q=${encodeURIComponent('"' + companyName.slice(0, 80) + '"')}&forms=SC+13D,SC+13G`,
+            ],
             note: `Co-entity on issuer "${companyName}" — related review lead, not Personal`,
             tier: "candidate",
             state: "review_only",
