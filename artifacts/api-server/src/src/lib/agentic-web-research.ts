@@ -244,6 +244,15 @@ function parseAction(raw: string): AgentAction | null {
           if (!p || isTrashContactValue("phone", p)) continue;
           finalValue = p;
         }
+        // Drop CSS/HTML chrome and non-contact "other" noise (chamber page pollution)
+        if (
+          vectorType === "other"
+          && (/[{};]|rmp-|style=|--columns|standard-menu|Directory Search|\.rmp-/i.test(finalValue)
+            || finalValue.length < 6
+            || !/[A-Za-z0-9@]/.test(finalValue))
+        ) {
+          continue;
+        }
         cleaned.push({
           vectorType,
           value: finalValue.slice(0, 500),
@@ -401,7 +410,12 @@ function findingsFromContactFacts(
       }
     }
     const addr = line.match(/ADDRESS:\s*(.+)/i)?.[1]?.trim();
-    if (addr && addr.length >= 10) {
+    if (
+      addr
+      && addr.length >= 10
+      && !/[{};]|rmp-|style=|--columns|standard-menu|Directory Search/i.test(addr)
+      && /\d/.test(addr)
+    ) {
       out.push({
         vectorType: "other",
         value: addr.slice(0, 160),
@@ -413,7 +427,7 @@ function findingsFromContactFacts(
       });
     }
     const role = line.match(/ROLE:\s*(.+)/i)?.[1]?.trim();
-    if (role && role.length >= 3) {
+    if (role && role.length >= 3 && !/[{};]|rmp-|style=|--columns/i.test(role)) {
       out.push({
         vectorType: "other",
         value: role.slice(0, 120),
@@ -517,13 +531,14 @@ export async function runAgenticWebResearch(input: {
   };
 
   for (let i = 0; i < maxIter; i++) {
-    // After ≥2 searches with zero visits, force open the best SERP URL (parity with general agents)
-    if (searches >= 2 && visits === 0 && candidateUrls.length > 0) {
+    // Force-visit as soon as we have SERP URLs and zero visits (parity with general agents).
+    // Prefer high-rank contact/about/terms pages; do not wait for a second search.
+    if (searches >= 1 && visits === 0 && candidateUrls.length > 0) {
       await forceVisitNext(`step${i + 1}`);
       continue;
     }
     // After a visit still zero findings and unused URLs remain, force one more high-rank page
-    if (visits >= 1 && findings.length === 0 && searches >= 2 && i < maxIter - 1) {
+    if (visits >= 1 && findings.length === 0 && searches >= 1 && i < maxIter - 1) {
       const forced = await forceVisitNext(`step${i + 1}`);
       if (forced) continue;
     }
