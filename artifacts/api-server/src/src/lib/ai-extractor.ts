@@ -356,15 +356,32 @@ function bindResolutionsToCitations(
       .map((url) => [canonicalizeUrl(url), url] as const)
       .filter((entry): entry is readonly [string, string] => Boolean(entry[0])),
   );
-  return parsed.ownerResolutions.map((owner) => ({
-    ...owner,
-    sourceUrls: owner.sourceUrls
+  // Fail-closed claim binding: drop contact vectors that cannot be tied to a
+  // provider-returned citation URL. Name + role may remain as review leads.
+  return parsed.ownerResolutions.map((owner) => {
+    const boundUrls = owner.sourceUrls
       .map((url) => {
         const canonical = canonicalizeUrl(url);
         return canonical ? citationByCanonicalUrl.get(canonical) : undefined;
       })
-      .filter((url): url is string => Boolean(url)),
-  }));
+      .filter((url): url is string => Boolean(url));
+    const hasCite = boundUrls.length > 0;
+    // When the provider returned zero citations, keep model-supplied http URLs
+    // only if they look real; still strip contact fields without any URL.
+    const fallbackUrls = citations.length === 0
+      ? owner.sourceUrls.filter((url) => /^https?:\/\//i.test(url)).slice(0, 8)
+      : boundUrls;
+    const urls = hasCite ? boundUrls : fallbackUrls;
+    const grounded = urls.length > 0;
+    return {
+      ...owner,
+      sourceUrls: urls,
+      email: grounded ? owner.email : null,
+      linkedin: grounded ? owner.linkedin : null,
+      instagram: grounded ? owner.instagram : null,
+      twitter: grounded ? owner.twitter : null,
+    };
+  });
 }
 
 const EMPTY: AIExtractResult = {
@@ -705,6 +722,24 @@ function parseAIResponse(raw: string, source: AIExtractResult["source"]): AIExtr
             : [],
         }
       : { status: "unknown" as const, viableRoute: false, evidence: [] };
+    // Fail-closed: owner contact vectors without any source URL become name-only leads.
+    for (let i = 0; i < ownerResolutions.length; i++) {
+      const o = ownerResolutions[i]!;
+      if (!o.sourceUrls || o.sourceUrls.length === 0) {
+        ownerResolutions[i] = {
+          ...o,
+          email: null,
+          linkedin: null,
+          instagram: null,
+          twitter: null,
+        };
+        const c = ownerContacts[i];
+        if (c && c.name === o.name) {
+          ownerContacts[i] = { ...c, email: null, linkedin: null, instagram: null, twitter: null };
+        }
+      }
+    }
+
     return {
       email:         rawTopEmail && !isPlaceholderEmail(rawTopEmail)
         ? sanitizePublicEmail(rawTopEmail)

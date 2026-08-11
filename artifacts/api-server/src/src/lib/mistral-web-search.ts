@@ -135,11 +135,19 @@ function parseReport(raw: string, citations: string[]): {
             reachability: typeof item.reachability === "string" ? item.reachability : undefined,
             sourceUrls: [
               ...(Array.isArray(item.sourceUrls)
-                ? item.sourceUrls.filter((url): url is string => typeof url === "string")
+                ? item.sourceUrls.filter((url): url is string => typeof url === "string" && /^https?:\/\//i.test(url))
                 : []),
               ...citations,
             ].filter((url, index, urls) => urls.indexOf(url) === index).slice(0, 12),
-             contactEvidence: parseContactEvidence(item.contactEvidence),
+            contactEvidence: parseContactEvidence(
+              item.contactEvidence,
+              new Set([
+                ...(Array.isArray(item.sourceUrls)
+                  ? item.sourceUrls.filter((url): url is string => typeof url === "string" && /^https?:\/\//i.test(url))
+                  : []),
+                ...citations,
+              ]),
+            ),
           }];
         })
       : [];
@@ -158,7 +166,7 @@ function parseReport(raw: string, citations: string[]): {
   }
 }
 
-function parseContactEvidence(value: unknown): MistralContactEvidence[] | undefined {
+function parseContactEvidence(value: unknown, allowedUrls?: Set<string>): MistralContactEvidence[] | undefined {
   if (!Array.isArray(value)) return undefined;
   const vectors = new Set<MistralContactEvidence["vectorType"]>([
     "email", "phone", "linkedin", "twitter", "instagram", "telegram", "website", "organization_contact", "other",
@@ -168,6 +176,17 @@ function parseContactEvidence(value: unknown): MistralContactEvidence[] | undefi
     const item = entry as Record<string, unknown>;
     const valueText = typeof item.value === "string" ? item.value.trim() : "";
     if (!valueText) return [];
+    // Fail-closed: contact routes require at least one http(s) source URL.
+    const sourceUrls = Array.isArray(item.sourceUrls)
+      ? item.sourceUrls.filter((url): url is string => typeof url === "string" && /^https?:\/\//i.test(url)).slice(0, 8)
+      : [];
+    if (sourceUrls.length === 0) return [];
+    // When provider citations exist, keep only URLs that appear in the allowed set
+    // (candidate sourceUrls ∪ provider citations). Prevents model-invented URLs.
+    const filteredUrls = allowedUrls && allowedUrls.size > 0
+      ? sourceUrls.filter((url) => allowedUrls.has(url) || [...allowedUrls].some((a) => url.includes(a) || a.includes(url)))
+      : sourceUrls;
+    if (filteredUrls.length === 0) return [];
     return [{
       vectorType: typeof item.vectorType === "string" && vectors.has(item.vectorType as MistralContactEvidence["vectorType"])
         ? item.vectorType as MistralContactEvidence["vectorType"]
@@ -176,9 +195,7 @@ function parseContactEvidence(value: unknown): MistralContactEvidence[] | undefi
       scope: item.scope === "person" || item.scope === "organization" ? item.scope : "unknown",
       personName: typeof item.personName === "string" && item.personName.trim() ? item.personName.trim().slice(0, 200) : null,
       role: typeof item.role === "string" && item.role.trim() ? item.role.trim().slice(0, 200) : null,
-      sourceUrls: Array.isArray(item.sourceUrls)
-        ? item.sourceUrls.filter((url): url is string => typeof url === "string" && /^https?:\/\//i.test(url)).slice(0, 8)
-        : [],
+      sourceUrls: filteredUrls,
       note: typeof item.note === "string" && item.note.trim() ? item.note.trim().slice(0, 500) : null,
     } satisfies MistralContactEvidence];
   });

@@ -357,29 +357,29 @@ function buildQueries(entity: DeepWebOsintInput): string[] {
   const isCorp = !isIndividual;
 
   const queries: string[] = [];
+  // Operator-aware multi-angle sub-queries (quoted phrases + site: + OR).
+  // Mirrors 2026 agentic search planners: decompose identity, contact, org, geo.
 
   if (isIndividual) {
-    // Core contact queries
-    queries.push(`"${name}" email contact`);
-    queries.push(`"${name}" linkedin`);
+    queries.push(`"${name}" (email OR contact OR "phone")`);
+    queries.push(`"${name}" site:linkedin.com/in`);
 
-    // Aviation context — N-number and aircraft type are strong identifiers
     const nNumber = typeof meta["nNumber"] === "string" ? meta["nNumber"] as string : null;
     if (nNumber) {
-      queries.push(`"${nNumber}" aircraft owner contact email`);
-      queries.push(`"${name}" pilot aviation email`);
+      queries.push(`"${nNumber}" (owner OR registrant) (email OR contact)`);
+      queries.push(`"${name}" (pilot OR aviation OR aircraft) (email OR contact)`);
     }
 
-    // Company / filing context
     const companyName = typeof meta["companyName"] === "string" ? (meta["companyName"] as string).trim() : null;
     if (companyName && companyName !== name) {
-      queries.push(`"${name}" "${companyName.substring(0, 40)}" contact`);
+      const shortCo = companyName.substring(0, 48);
+      queries.push(`"${name}" "${shortCo}" (director OR officer OR contact)`);
+      queries.push(`"${shortCo}" (team OR leadership OR about) "${name.split(" ").slice(-1)[0]}"`);
     } else if (typeof meta["formType"] === "string") {
-      // EDGAR-sourced entity — professional investor context
-      queries.push(`"${name}" investor director SEC contact email`);
+      queries.push(`"${name}" (investor OR director OR "beneficial owner") (SEC OR EDGAR OR "13D" OR "13G")`);
+      queries.push(`"${name}" site:sec.gov`);
     }
 
-    // Geographic context — narrows to the right person
     const bizLocation = typeof meta["bizLocation"] === "string" ? meta["bizLocation"] as string : null;
     const residences = safeJson<string | string[]>(entity.knownResidences, []);
     const firstResidence = Array.isArray(residences) ? residences[0] : residences;
@@ -387,31 +387,44 @@ function buildQueries(entity: DeepWebOsintInput): string[] {
     if (geoContext) {
       const city = geoContext.split(",")[0]?.trim();
       if (city && city.length > 2 && city !== name) {
-        queries.push(`"${name}" "${city}" contact email phone`);
+        queries.push(`"${name}" "${city}" (email OR phone OR contact OR linkedin)`);
       }
+    }
+
+    // Profile / press angle when still thin
+    if (queries.length < 5) {
+      queries.push(`"${name}" ("about" OR biography OR profile) (contact OR email)`);
     }
   }
 
   if (isCorp) {
-    // Strip legal suffix for cleaner search
     const clean = name
       .replace(/\b(llc|ltd|limited|corp|corporation|inc|incorporated|group|holdings|trust|co)\b\.?$/gi, "")
       .trim();
 
-    queries.push(`"${name}" CEO director email contact`);
-    queries.push(`"${clean}" registered office contact phone`);
-    queries.push(`"${name}" head office address`);
+    queries.push(`"${name}" (CEO OR director OR "management team") (email OR contact)`);
+    queries.push(`"${clean}" ("registered office" OR "head office") (phone OR address OR contact)`);
+    queries.push(`"${name}" (about OR team OR leadership) (email OR contact)`);
 
-    // CH-registered companies
     const chId = typeof meta["chId"] === "string" ? meta["chId"] as string : null;
     if (chId || /uk|ltd|plc/i.test(entity.sourceRegistries ?? "")) {
       queries.push(`site:companies-house.gov.uk "${clean}"`);
     }
-
-    queries.push(`"${name}" management team email`);
+    if (/sec|edgar|us/i.test(entity.sourceRegistries ?? "") || typeof meta["cik"] === "string") {
+      queries.push(`site:sec.gov "${clean}"`);
+    }
   }
 
-  return queries.slice(0, 7);
+  // Deduplicate while preserving order; cap at 8 for cost/latency.
+  const seen = new Set<string>();
+  const unique: string[] = [];
+  for (const q of queries) {
+    const key = q.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(q);
+  }
+  return unique.slice(0, 8);
 }
 
 // ─── Cross-validation scoring ─────────────────────────────────────────────────
