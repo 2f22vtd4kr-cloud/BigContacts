@@ -484,6 +484,50 @@ export async function generateGeminiBossText(
   return { model: selection.model, raw: null, error: lastError };
 }
 
+/** Groq text fallback for Boss discovery/plan when Gemini capacity is exhausted. */
+async function generateGroqBossText(prompt: string): Promise<GeminiTextGenerationResult> {
+  const keys = ["GROQ_API_KEY", ...Array.from({ length: 5 }, (_, i) => `GROQ_API_KEY_${i + 1}`)]
+    .map((n) => process.env[n] ?? "")
+    .filter((k) => k.length > 0);
+  if (!keys.length) {
+    return { model: "groq-none", raw: null, error: "No GROQ_API_KEY configured for Boss capacity fallback." };
+  }
+  let lastError = "Groq Boss fallback returned no text.";
+  for (const key of keys) {
+    try {
+      const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "llama-3.3-70b-versatile",
+          temperature: 0.2,
+          max_tokens: 4096,
+          response_format: { type: "json_object" },
+          messages: [
+            {
+              role: "system",
+              content:
+                "You are the Boss Investigator for a public-web research bureau. Reply with ONE JSON object only. Never invent contacts, people, or URLs.",
+            },
+            { role: "user", content: prompt },
+          ],
+        }),
+        signal: AbortSignal.timeout(45_000),
+      });
+      if (!resp.ok) {
+        lastError = `Groq Boss HTTP ${resp.status}`;
+        continue;
+      }
+      const data = (await resp.json()) as { choices?: Array<{ message?: { content?: string } }> };
+      const raw = data.choices?.[0]?.message?.content?.trim() ?? "";
+      if (raw) return { model: "llama-3.3-70b-versatile", raw, error: null };
+    } catch (err: any) {
+      lastError = err?.message ?? "Groq Boss fallback failed.";
+    }
+  }
+  return { model: "llama-3.3-70b-versatile", raw: null, error: lastError };
+}
+
 export async function getGeminiBossStatus(): Promise<GeminiBossStatus> {
   const selection = await resolveGeminiBossModel();
   return {
@@ -716,7 +760,19 @@ Return ONLY JSON in this shape:
 }
 Candidates are review-only. Never invent a name, wealth claim, relationship, contact detail, or URL.`;
   try {
-    const generated = await generateGeminiBossText(selection, prompt);
+    let generated = await generateGeminiBossText(selection, prompt);
+    // Groq capacity fallback when Gemini text-gen is rate-limited (429/503 pool exhaustion).
+    // Same fail-closed JSON contract; keeps TARGET-LOCKED discovery moving without inventing contacts.
+    if (!generated.raw) {
+      const groq = await generateGroqBossText(prompt);
+      if (groq.raw) {
+        logger.warn(
+          { geminiError: generated.error, groqModel: groq.model },
+          "Gemini Boss text unavailable; using Groq capacity fallback for discovery brief",
+        );
+        generated = groq;
+      }
+    }
     if (!generated.raw) {
       return {
         status: "unavailable",
@@ -915,7 +971,17 @@ export async function runGeminiBossPlan(input: {
   const queuedActions = input.file.actionQueue.filter((action) => action.status === "queued");
   if (queuedActions.length === 0) return unavailable("The case file has no queued actions.");
   try {
-    const generated = await generateGeminiBossText(selection, buildGeminiBossPlanPrompt(input));
+    let generated = await generateGeminiBossText(selection, buildGeminiBossPlanPrompt(input));
+    if (!generated.raw) {
+      const groq = await generateGroqBossText(buildGeminiBossPlanPrompt(input));
+      if (groq.raw) {
+        logger.warn(
+          { geminiError: generated.error, groqModel: groq.model },
+          "Gemini Boss plan text unavailable; using Groq capacity fallback",
+        );
+        generated = groq;
+      }
+    }
     if (!generated.raw) return unavailable(generated.error ?? "Gemini Boss returned no text.");
     const parsed = parseBossPlanResponse(generated.raw, queuedActions);
     return parsed
