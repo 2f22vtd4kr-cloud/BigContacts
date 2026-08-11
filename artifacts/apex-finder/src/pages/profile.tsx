@@ -320,6 +320,7 @@ export default function ApexProfile() {
 
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [isEnriching, setIsEnriching]     = useState(false);
+  const [isRefreshingSurface, setIsRefreshingSurface] = useState(false);
   const [enrichError, setEnrichError]     = useState<string | null>(null);
   const [enrichDone, setEnrichDone]       = useState(false);
   // ── Tab state ──────────────────────────────────────────────────────────────
@@ -513,6 +514,21 @@ export default function ApexProfile() {
   try { mctsSteps   = selectedSession ? JSON.parse(selectedSession.mctsSteps   ?? "[]") : []; } catch {}
 
   // ── Handlers ───────────────────────────────────────────────────────────────
+
+
+  const handleRefreshSurface = async () => {
+    setIsRefreshingSurface(true);
+    try {
+      const r = await fetch(`${baseUrl}/api/entities/${entityId}/refresh-surface`, { method: "POST" });
+      if (!r.ok) throw new Error("refresh-surface failed");
+      await refetchEntity();
+      setContactEvidenceKey((k: number) => (typeof k === "number" ? k + 1 : 1));
+    } catch {
+      /* non-fatal */
+    } finally {
+      setIsRefreshingSurface(false);
+    }
+  };
 
   const handleRunResearch = () => {
     runResearch.mutate(
@@ -719,6 +735,16 @@ export default function ApexProfile() {
               >
                 <Network className="w-3 h-3" /> <span className="hidden sm:inline">Graph</span>
               </Link>
+              <button
+                onClick={handleRefreshSurface}
+                disabled={isRefreshingSurface}
+                className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded border border-sky-500/30 bg-sky-500/10 text-sky-300 hover:bg-sky-500/20 font-mono text-[10px] uppercase tracking-wider transition-colors disabled:opacity-50"
+                title="Refresh public/org surface"
+                data-testid="button-refresh-surface"
+              >
+                {isRefreshingSurface ? <Loader2 className="w-3 h-3 animate-spin" /> : <TargetIcon className="w-3 h-3" />}
+                <span className="hidden sm:inline">{isRefreshingSurface ? "Surface…" : "Refresh Surface"}</span>
+              </button>
               <button
                 onClick={handleEnrich}
                 disabled={isEnriching}
