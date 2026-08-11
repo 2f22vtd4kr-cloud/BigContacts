@@ -1426,9 +1426,38 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
           `Company-lock scrub applied for "${lockCompany}"; person surface limited to company-aligned domains.`,
         );
       }
+
+      // GHOST-style entity graph: link person rows to company row when company is locked
+      const entityLinks: Array<{
+        from: string;
+        to: string;
+        relation: string;
+        evidence: string[];
+      }> = [];
+      const companyRow = mergedReviewCandidates.find(
+        (c) => c.type === "company" || (lockCompany && c.name.toLowerCase() === lockCompany.toLowerCase()),
+      );
+      if (companyRow) {
+        for (const person of mergedReviewCandidates) {
+          if (person === companyRow) continue;
+          if (person.type !== "person" && person.type !== "review_candidate") continue;
+          if (person.name.split(/\s+/).length < 2) continue;
+          const roleHint = (person.contactEvidence ?? [])
+            .map((e) => String(e.role || e.value || ""))
+            .find((s) => /founder|owner|officer|ceo|president|director|principal/i.test(s));
+          entityLinks.push({
+            from: person.name,
+            to: companyRow.name,
+            relation: roleHint ? String(roleHint).slice(0, 80) : "related_to_organization",
+            evidence: (person.sourceUrls ?? []).slice(0, 4),
+          });
+        }
+      }
+
       workingFile = {
         ...workingFile,
         discoveredCandidates: mergedReviewCandidates,
+        entityLinks: entityLinks.length ? entityLinks : (workingFile as { entityLinks?: unknown }).entityLinks,
         initialResearch: {
           ...workingFile.initialResearch,
           status: "recorded",

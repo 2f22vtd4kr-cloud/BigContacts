@@ -1089,6 +1089,7 @@ Opening research must:
 3. Rank organization / related-person surface honestly; never auto-promote Personal without verified evidence.
 4. Explicitly report name collisions, missing evidence, and search gaps.
 5. Recommend the strongest next investigation directions after the first pass.
+6. ORG FOOTPRINT PASS (required when a company is named): recover legal/trade name, official website, /contact surface, org phone, mailing address, org inbox (info@/contact@) if public, and related officers/co-founders from primary pages or registries (GLEIF, OpenCorporates, EDGAR, Companies House, state SOS, BBB). Do not stop at a single directory hit.
 
 Guardrails:
 ${exclusions.map((rule) => `- ${rule}`).join("\n")}

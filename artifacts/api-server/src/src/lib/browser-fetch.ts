@@ -1,3 +1,6 @@
+/** toolVisit chain: plain fetch → Scrapfly → ZenRows → Browserless → Playwright (firecrawl/MCP-class primary-source fetch).
+ * Fail-closed HTML only; never invent contacts from challenge pages.
+ */
 /**
  * Optional browser / anti-bot scrape fallback for toolVisit.
  *

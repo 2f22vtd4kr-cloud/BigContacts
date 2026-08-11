@@ -870,7 +870,7 @@ export async function runAgenticWebResearch(input: {
       relatedPeopleSearchDone = true;
       const co = input.companyName || name;
       // Prefer company /dealer /team pages (BBB is often Cloudflare-blocked to plain fetch)
-      const q = `"${co}" (BBB OR owner OR "co-owner" OR "co-founder" OR partner OR officers OR "principal contact" OR "company contact" OR dealer OR president) -zoominfo -rocketreach`;
+      const q = `"${co}" (BBB OR owner OR "co-owner" OR "co-founder" OR partner OR officers OR "principal contact" OR "company contact" OR dealer OR president OR OpenCorporates OR "companies house" OR EDGAR) -zoominfo -rocketreach`;
       searches++;
       history.push(`step${i + 1}: force_related_search ${q}`);
       const sr = await toolWebSearch(q);
@@ -1060,7 +1060,7 @@ export async function runAgenticWebResearch(input: {
       history.push(`step${i + 1}: done_rejected (related-people hop required)`);
       relatedPeopleSearchDone = true;
       const co = input.companyName || name;
-      const q = `"${co}" (BBB OR owner OR "co-owner" OR "co-founder" OR partner OR "principal contact" OR officers OR president)`;
+      const q = `"${co}" (BBB OR owner OR "co-owner" OR "co-founder" OR partner OR "principal contact" OR officers OR president OR OpenCorporates OR EDGAR)`;
       searches++;
       history.push(`step${i + 1}: force_related_search ${q}`);
       const sr = await toolWebSearch(q);
