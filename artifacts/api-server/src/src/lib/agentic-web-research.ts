@@ -190,7 +190,13 @@ async function toolVisit(url: string): Promise<string> {
       redirect: "follow",
     });
     if (!resp.ok) return `HTTP ${resp.status}`;
-    const html = (await resp.text()).slice(0, 120_000);
+    // Read more of the page; WordPress/Astra themes dump 100k+ of CSS before contact blocks.
+    let html = (await resp.text()).slice(0, 500_000);
+    // Strip style/script so CONTACT FACTS extraction sees real body content, not theme chrome
+    html = html
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, " ")
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, " ")
+      .replace(/<noscript[^>]*>[\s\S]*?<\/noscript>/gi, " ");
     const facts = extractContactFactsFromHtml(html);
     const body = filterPassagesForQuery(stripHtml(html), url, { maxChars: MAX_OBS, minScore: 0.05 });
     // Always surface contact facts first so LLM can emit findings with sourceUrls.
@@ -244,12 +250,13 @@ function parseAction(raw: string): AgentAction | null {
           if (!p || isTrashContactValue("phone", p)) continue;
           finalValue = p;
         }
-        // Drop CSS/HTML chrome and non-contact "other" noise (chamber page pollution)
+        // Drop CSS/HTML chrome and non-contact "other" noise (theme/directory pollution)
         if (
           vectorType === "other"
-          && (/[{};]|rmp-|style=|--columns|standard-menu|Directory Search|\.rmp-/i.test(finalValue)
+          && (/[{};]|rmp-|style=|--columns|standard-menu|Directory Search|\.rmp-|\bast-|\buagb-|\bwp-block|\binline-on-mobile/i.test(finalValue)
             || finalValue.length < 6
-            || !/[A-Za-z0-9@]/.test(finalValue))
+            || !/[A-Za-z0-9@]/.test(finalValue)
+            || (finalValue.match(/\s/g) || []).length > 20 && !/\d{3}/.test(finalValue))
         ) {
           continue;
         }
@@ -528,7 +535,7 @@ export async function runAgenticWebResearch(input: {
 
   /** From SERP hits, seed /contact and /terms on real company domains so we don't stop at chamber pages. */
   const seedCompanyContactPaths = (urls: string[]) => {
-    const paths = ["/contact", "/terms-and-conditions", "/terms", "/about", "/company/contact"];
+    const paths = ["/contact", "/contact-us", "/terms-and-conditions", "/terms", "/about", "/company/contact"];
     for (const u of urls) {
       if (isAggregatorHost(u)) continue;
       try {
