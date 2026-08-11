@@ -1417,6 +1417,13 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
         const m = entity.metadata ? JSON.parse(entity.metadata) as Record<string, unknown> : {};
         companyNameForSecondary = typeof m.companyName === "string" ? m.companyName : null;
       } catch { companyNameForSecondary = null; }
+      // Recover issuer from notes when metadata.companyName was never set (legacy EDGAR rows).
+      if (!companyNameForSecondary && entity.notes) {
+        const fromNotes = String(entity.notes).match(/Company:\s*([^\.\n]+)/i)
+          || String(entity.notes).match(/connected to\s+([A-Z][^\.\n]{3,80})/i)
+          || String(entity.notes).match(/\b([A-Z][A-Za-z0-9&.,' -]{2,60}\s+(?:Manufacturing|Holdings|Corporation|Company|Inc\.?|LLC|Ltd\.?)\b)/);
+        if (fromNotes?.[1]) companyNameForSecondary = fromNotes[1].trim().slice(0, 120);
+      }
       const secondary = await expandSecondaryPublicSurface({
         entityId: id,
         name,
@@ -1434,7 +1441,16 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
       try {
         meta = entity.metadata ? JSON.parse(entity.metadata) as Record<string, unknown> : {};
       } catch { meta = {}; }
-      const companyName = typeof meta.companyName === "string" ? meta.companyName.trim() : "";
+      const companyName = (typeof meta.companyName === "string" && meta.companyName.trim())
+        ? meta.companyName.trim()
+        : (companyNameForSecondary ?? "");
+      if (companyName && !meta.companyName) {
+        meta.companyName = companyName;
+        await db.update(entitiesTable).set({
+          metadata: JSON.stringify(meta),
+          updatedAt: new Date(),
+        }).where(eq(entitiesTable.id, id)).catch(() => {});
+      }
       const bizLocation = typeof meta.bizLocation === "string" ? meta.bizLocation.trim()
         : (typeof meta.entityLocation === "string" ? meta.entityLocation.trim() : "");
       const edgarUrl = typeof meta.edgarUrl === "string" ? meta.edgarUrl.trim() : "";
