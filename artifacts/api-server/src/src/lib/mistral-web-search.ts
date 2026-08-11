@@ -1,4 +1,5 @@
 import { logger } from "./logger";
+import { buildWebSearchSubQueries } from "./web-search-queries";
 
 const MISTRAL_CONVERSATIONS_API = "https://api.mistral.ai/v1/conversations";
 const DEFAULT_MISTRAL_WEB_SEARCH_MODEL = "mistral-medium-latest";
@@ -235,8 +236,14 @@ Use it to avoid repeating completed work and to sharpen the next bounded public-
 ${input.caseContext ?? "No prior investigator report exists."}
 Suggested directions from the current case context:
 ${(input.nextDirections ?? []).join("\n") || "None yet."}
+Suggested operator-aware sub-queries (use or refine; do not invent contacts):
+${buildWebSearchSubQueries({
+  name: input.objective.slice(0, 120),
+  geography: input.geography,
+  extraAngles: (input.nextDirections ?? []).slice(0, 3),
+}).map((q) => `- ${q}`).join("\n") || "- (none)"}
 
-Use web search when useful. Return ONLY JSON:
+Use web search when useful. Prefer multi-angle queries (quotes, site:, OR groups). Return ONLY JSON:
 {
   "report": "concise evidence-led opening assessment",
   "candidates": [

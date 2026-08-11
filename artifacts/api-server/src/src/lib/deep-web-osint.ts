@@ -27,6 +27,7 @@ import {
 } from "./ai-ensemble";
 import { assessTargetReachability, reachabilityDirective } from "./reachability-realism";
 import { scoreCorroboration } from "./evidence-ledger";
+import { buildWebSearchSubQueries } from "./web-search-queries";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -358,19 +359,34 @@ function buildQueries(entity: DeepWebOsintInput): string[] {
 
   const queries: string[] = [];
   // Operator-aware multi-angle sub-queries (quoted phrases + site: + OR).
-  // Mirrors 2026 agentic search planners: decompose identity, contact, org, geo.
+  // Shared planner first, then domain-specific angles below.
+  const companyName = typeof meta["companyName"] === "string" ? (meta["companyName"] as string).trim() : null;
+  const nNumber = typeof meta["nNumber"] === "string" ? meta["nNumber"] as string : null;
+  const formType = typeof meta["formType"] === "string" ? meta["formType"] as string : null;
+  const bizLocation = typeof meta["bizLocation"] === "string" ? meta["bizLocation"] as string : null;
+  const residences = safeJson<string | string[]>(entity.knownResidences, []);
+  const firstResidence = Array.isArray(residences) ? residences[0] : residences;
+  const geoContext = bizLocation || (typeof firstResidence === "string" ? firstResidence : null);
+
+  queries.push(...buildWebSearchSubQueries({
+    name,
+    type: entity.type,
+    companyName,
+    geography: geoContext,
+    sourceRegistries: entity.sourceRegistries,
+    nNumber,
+    formType,
+  }));
 
   if (isIndividual) {
     queries.push(`"${name}" (email OR contact OR "phone")`);
     queries.push(`"${name}" site:linkedin.com/in`);
 
-    const nNumber = typeof meta["nNumber"] === "string" ? meta["nNumber"] as string : null;
     if (nNumber) {
       queries.push(`"${nNumber}" (owner OR registrant) (email OR contact)`);
       queries.push(`"${name}" (pilot OR aviation OR aircraft) (email OR contact)`);
     }
 
-    const companyName = typeof meta["companyName"] === "string" ? (meta["companyName"] as string).trim() : null;
     if (companyName && companyName !== name) {
       const shortCo = companyName.substring(0, 48);
       queries.push(`"${name}" "${shortCo}" (director OR officer OR contact)`);
@@ -380,10 +396,6 @@ function buildQueries(entity: DeepWebOsintInput): string[] {
       queries.push(`"${name}" site:sec.gov`);
     }
 
-    const bizLocation = typeof meta["bizLocation"] === "string" ? meta["bizLocation"] as string : null;
-    const residences = safeJson<string | string[]>(entity.knownResidences, []);
-    const firstResidence = Array.isArray(residences) ? residences[0] : residences;
-    const geoContext = bizLocation || (typeof firstResidence === "string" ? firstResidence : null);
     if (geoContext) {
       const city = geoContext.split(",")[0]?.trim();
       if (city && city.length > 2 && city !== name) {
