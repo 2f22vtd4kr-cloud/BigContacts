@@ -866,13 +866,24 @@ router.post("/entities/:id/refresh-surface", async (req, res): Promise<void> => 
       state: "review_only",
     }], "atlas-registry-org-surface").catch(() => 0);
   }
-  const contactMap = await loadPresentedContactsForEntities([entity]);
+  const contactMap = await loadPresentedContactsForEntities([{ ...entity, id }]);
+  let contacts = contactMap[id] ?? [];
+  const hasOrg = contacts.some((c) => c.mark === "organization");
+  if (hasOrg) {
+    const hasPersonalCols = Boolean(String(entity.email ?? "").trim() || String(entity.phone ?? "").trim());
+    if (!hasPersonalCols) {
+      await db.update(entitiesTable).set({
+        contactOutcome: "organization_contact",
+        updatedAt: new Date(),
+      }).where(eq(entitiesTable.id, id)).catch(() => {});
+    }
+  }
   const [fresh] = await db.select().from(entitiesTable).where(eq(entitiesTable.id, id)).limit(1);
   res.json({
     ok: true,
     secondary,
     companyName,
-    contacts: contactMap[id] ?? [],
+    contacts,
     contactOutcome: fresh?.contactOutcome ?? entity.contactOutcome,
   });
 });
