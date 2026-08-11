@@ -78,6 +78,15 @@ ok("deep-web uses passage filter",
   read("artifacts/api-server/src/src/lib/deep-web-osint.ts").includes("filterPassagesForQuery"));
 
 // 8) Secondary email/phone only with website URL
+ok("Grok-parity person+company query",
+  queries.includes("email OR contact OR phone OR linkedin") || queries.includes("official website"));
+ok("enrichEntityOsint company-aware",
+  read("artifacts/api-server/src/src/lib/web-enricher.ts").includes("companyName") &&
+  read("artifacts/api-server/src/src/lib/web-enricher.ts").includes("Email-Domain"));
+ok("leadership contact page scrape",
+  persist.includes("/contact-us") && persist.includes("mailto on official page"));
+ok("deep-web scrape depth >= 8",
+  read("artifacts/api-server/src/src/lib/deep-web-osint.ts").includes("slice(0, 8)"));
 ok("secondary email requires website URL",
   persist.includes("result.email && result.website"));
 

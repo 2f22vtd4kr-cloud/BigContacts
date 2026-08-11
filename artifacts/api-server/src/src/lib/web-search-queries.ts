@@ -31,13 +31,18 @@ export function buildWebSearchSubQueries(ctx: WebSearchQueryContext): string[] {
   if (!isCorp) {
     queries.push(`"${name}" (email OR contact OR phone)`);
     queries.push(`"${name}" site:linkedin.com/in`);
+    // Grok-parity: person + company is the highest-yield public OSINT angle
+    if (ctx.companyName && ctx.companyName !== name) {
+      const shortCo = ctx.companyName.slice(0, 48);
+      queries.push(`"${name}" "${shortCo}" (email OR contact OR phone OR linkedin)`);
+      queries.push(`"${name}" "${shortCo}" (director OR officer OR president OR owner)`);
+      queries.push(`"${shortCo}" (contact OR "about us" OR team OR leadership) (email OR phone)`);
+      queries.push(`"${shortCo}" official website`);
+    }
     if (ctx.nNumber) {
       queries.push(`"${ctx.nNumber}" (owner OR registrant) (email OR contact)`);
     }
-    if (ctx.companyName && ctx.companyName !== name) {
-      const shortCo = ctx.companyName.slice(0, 48);
-      queries.push(`"${name}" "${shortCo}" (director OR officer OR contact)`);
-    } else if (ctx.formType) {
+    if (ctx.formType && !(ctx.companyName && ctx.companyName !== name)) {
       queries.push(`"${name}" (investor OR director OR "beneficial owner") (SEC OR EDGAR)`);
       queries.push(`"${name}" site:sec.gov`);
     }

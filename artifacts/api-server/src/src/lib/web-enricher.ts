@@ -337,42 +337,87 @@ export async function enrichEntityOsint(entity: EntityOsintInput): Promise<Osint
   const name = entity.name.trim();
   if (!name || name.length < 3) return result;
 
-  const isIndividual = entity.type === "HNWI" || /^[A-Z][a-z]+ [A-Z]/.test(name);
-  const isCorp = entity.type === "Corporation" || entity.type === "Trust";
+  const isIndividual = entity.type === "HNWI" || entity.type === "Gatekeeper" || /^[A-Z][a-z]+ [A-Z]/.test(name);
+  const isCorp = entity.type === "Corporation" || entity.type === "Trust" || entity.type === "Company";
   const country = detectCountry(entity.nationality, entity.knownResidences, entity.metadata);
   const locale = countryToLocale(country);
-
-  // Step 1: LinkedIn URL via DDG instant answer
+  let companyName: string | null = null;
   try {
-    const liQuery = isIndividual ? `${name} linkedin profile` : `${name} company linkedin`;
-    const ddgResult = await ddgInstantAnswer(liQuery);
-    const allText = [ddgResult.abstract, ddgResult.url, ...ddgResult.relatedTopics].join(" ");
-    const li = extractLinkedIn(allText);
-    if (li) { result.linkedinUrl = li; result.sources.push("DuckDuckGo-LinkedIn"); }
+    const meta = entity.metadata ? JSON.parse(entity.metadata) as Record<string, unknown> : {};
+    if (typeof meta.companyName === "string" && meta.companyName.trim()) companyName = meta.companyName.trim();
+  } catch { /* ignore */ }
+
+  // Step 1: LinkedIn — person, person+company, company
+  try {
+    const liQueries = isIndividual
+      ? [
+          companyName ? `"${name}" "${companyName}" site:linkedin.com/in` : null,
+          `"${name}" site:linkedin.com/in`,
+          `${name} linkedin profile`,
+        ].filter(Boolean) as string[]
+      : [`"${name}" company linkedin`, `${name} linkedin`];
+    for (const liQuery of liQueries) {
+      if (result.linkedinUrl) break;
+      const ddgResult = await ddgInstantAnswer(liQuery);
+      const allText = [ddgResult.abstract, ddgResult.url, ...ddgResult.relatedTopics].join(" ");
+      const li = extractLinkedIn(allText);
+      if (li) { result.linkedinUrl = li; result.sources.push("DuckDuckGo-LinkedIn"); break; }
+      await sleep(250);
+    }
   } catch (err: any) {
     logger.debug({ err: err.message }, "DDG LinkedIn search failed");
   }
 
-  await sleep(400);
+  await sleep(300);
 
-  // Step 2: Email via DDG HTML deep search (locale-aware)
+  // Step 2: Multi-angle email/contact HTML search (Grok-parity person+company first)
   try {
-    const emailQuery = isIndividual
-      ? `"${name}" email contact site:linkedin.com OR site:bloomberg.com OR site:crunchbase.com`
-      : `"${name}" contact email official`;
-    const html = await ddgHtmlSearch(emailQuery, locale);
-    if (html) {
-      const email = extractEmailSimple(html);
-      if (email) { result.email = email; result.sources.push("DuckDuckGo-Email"); }
-      const phone = extractPhoneSimple(html);
-      if (phone && !result.phone) { result.phone = phone; result.sources.push("DuckDuckGo-Phone"); }
+    const emailQueries = isIndividual
+      ? [
+          companyName ? `"${name}" "${companyName}" (email OR contact OR phone)` : null,
+          `"${name}" email contact site:linkedin.com OR site:bloomberg.com OR site:crunchbase.com`,
+          companyName ? `"${companyName}" (contact OR "about us" OR team) (email OR phone)` : null,
+        ].filter(Boolean) as string[]
+      : [`"${name}" contact email official`, `"${name}" ("about us" OR team OR leadership) contact`];
+    for (const emailQuery of emailQueries) {
+      const html = await ddgHtmlSearch(emailQuery, locale);
+      if (!html) { await sleep(250); continue; }
+      if (!result.email) {
+        const email = extractEmailSimple(html);
+        if (email) { result.email = email; result.sources.push("DuckDuckGo-Email"); }
+      }
+      if (!result.phone) {
+        const phone = extractPhoneSimple(html);
+        if (phone) { result.phone = phone; result.sources.push("DuckDuckGo-Phone"); }
+      }
       if (!result.linkedinUrl) {
         const li = extractLinkedIn(html);
         if (li) { result.linkedinUrl = li; result.sources.push("DuckDuckGo-HTML-LinkedIn"); }
       }
+      // Pull website candidates from HTML anchors when company known
+      if (!result.website && companyName) {
+        const m = html.match(/https?:\/\/(?:www\.)?([a-z0-9.-]+\.[a-z]{2,})\//i);
+        if (m && !/duckduckgo|google|linkedin|facebook|twitter|bloomberg/i.test(m[0])) {
+          result.website = `https://${m[1]}`;
+          result.sources.push("DuckDuckGo-Website");
+        }
+      }
+      if (result.email && result.linkedinUrl) break;
+      await sleep(300);
     }
   } catch (err: any) {
     logger.debug({ err: err.message }, "DDG HTML search failed");
+  }
+
+  // Grok-parity: derive company domain from work email when no website yet
+  if (result.email && !result.website) {
+    const domain = result.email.split("@")[1]?.toLowerCase() ?? "";
+    const free = /^(gmail|yahoo|hotmail|outlook|icloud|aol|proton|mail|live|msn)\./i.test(domain)
+      || /^(gmail|yahoo|hotmail|outlook|icloud|aol|protonmail|mail|live|msn)\.com$/i.test(domain);
+    if (domain && domain.includes(".") && !free) {
+      result.website = `https://${domain}`;
+      result.sources.push("Email-Domain");
+    }
   }
 
   await sleep(400);

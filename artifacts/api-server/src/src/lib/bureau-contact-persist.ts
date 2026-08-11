@@ -316,6 +316,9 @@ export async function expandSecondaryPublicSurface(input: {
     const result = await enrichEntityOsint({
       name,
       type: input.entityType ?? "HNWI",
+      metadata: input.companyName
+        ? JSON.stringify({ companyName: input.companyName })
+        : null,
     } as any);
 
     const vectors: BureauContactLike[] = [];
@@ -432,11 +435,56 @@ export async function expandSecondaryPublicSurface(input: {
             personName: name,
             role: null,
             sourceUrls: [page],
-            note: "Official leadership/about/team page from secondary expansion",
+            note: "Official leadership/about/team/contact page from secondary expansion",
             tier: "candidate",
             state: "review_only",
           });
           out.website = true;
+          // Scrape page for published mailto/tel (org surface) — fail-closed with page URL
+          try {
+            const resp = await fetch(page, {
+              headers: { "User-Agent": "Mozilla/5.0 (compatible; ApexAtlas/1.0)", Accept: "text/html" },
+              signal: AbortSignal.timeout(6_000),
+              redirect: "follow",
+            });
+            if (resp.ok) {
+              const html = (await resp.text()).slice(0, 100_000);
+              const mailto = [...html.matchAll(/href=["']mailto:([^"'?\s]+)/gi)].map((m) => m[1]!.toLowerCase());
+              for (const addr of mailto.slice(0, 3)) {
+                if (!addr.includes("@") || addr.length > 80) continue;
+                vectors.push({
+                  vectorType: "email",
+                  value: addr,
+                  scope: /^(info|contact|office|press|hello|admin|sales|support|webmaster)@/i.test(addr)
+                    ? "organization"
+                    : "candidate",
+                  personName: name,
+                  role: null,
+                  sourceUrls: [page],
+                  note: `mailto on official page ${page} — lead/org only, not Personal`,
+                  tier: "candidate",
+                  state: "review_only",
+                });
+                out.email = true;
+              }
+              const tel = html.match(/href=["']tel:([^"']+)/i)?.[1]
+                || html.match(/(\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]\d{3}[-.\s]\d{4}/)?.[0];
+              if (tel) {
+                vectors.push({
+                  vectorType: "phone",
+                  value: tel.replace(/^tel:/i, "").trim(),
+                  scope: "organization",
+                  personName: name,
+                  role: null,
+                  sourceUrls: [page],
+                  note: `Phone on official page ${page} — org route, not Personal`,
+                  tier: "candidate",
+                  state: "review_only",
+                });
+                out.phone = true;
+              }
+            }
+          } catch { /* non-fatal */ }
         }
       } catch {
         // non-fatal
@@ -650,10 +698,14 @@ async function lookupLeadershipPages(website: string, personName: string): Promi
   } catch {
     return [];
   }
-  const paths = ["/about", "/about-us", "/team", "/leadership", "/our-team", "/people", "/company"];
+  const paths = [
+    "/contact", "/contact-us", "/contactus", "/about", "/about-us",
+    "/team", "/leadership", "/our-team", "/people", "/company",
+    "/management", "/executives", "/locations",
+  ];
   const found: string[] = [];
   for (const path of paths) {
-    if (found.length >= 3) break;
+    if (found.length >= 6) break;
     const url = `${origin}${path}`;
     try {
       const resp = await fetch(url, {

@@ -59,6 +59,8 @@ describe("buildWebSearchSubQueries", () => {
     expect(qs.length).toBeGreaterThanOrEqual(3);
     expect(qs.some((q) => q.includes("linkedin.com/in"))).toBe(true);
     expect(qs.some((q) => q.includes("Hastings Manufacturing"))).toBe(true);
+    expect(qs.some((q) => /email OR contact OR phone OR linkedin/i.test(q))).toBe(true);
+    expect(qs.some((q) => /official website/i.test(q))).toBe(true);
   });
 
   it("adds registry site filters for corps", () => {

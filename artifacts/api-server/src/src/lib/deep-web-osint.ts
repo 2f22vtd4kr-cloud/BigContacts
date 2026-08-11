@@ -687,7 +687,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
 
       // Collect result URLs for later scraping (cap at 6 total)
       for (const u of sr.urls) {
-        if (urlsToScrape.size < 6) urlsToScrape.add(u);
+        if (urlsToScrape.size < 12) urlsToScrape.add(u);
       }
     } catch { /* skip failed query */ }
 
@@ -696,7 +696,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   }
 
   // ── Phase 2: Bing on top 2 most specific queries (different index) ────────
-  const bingQueries = queries.filter(q => q.includes("email") || q.includes("contact")).slice(0, 2);
+  const bingQueries = queries.filter(q => /email|contact|linkedin|phone|site:/i.test(q)).slice(0, 4);
   for (let i = 0; i < bingQueries.length; i++) {
     const query = bingQueries[i]!;
     const label = `Bing[q${i + 1}]`;
@@ -730,7 +730,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       }
 
       for (const u of sr.urls) {
-        if (urlsToScrape.size < 6) urlsToScrape.add(u);
+        if (urlsToScrape.size < 12) urlsToScrape.add(u);
       }
     } catch { /* skip */ }
 
@@ -738,7 +738,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   }
 
   // ── Phase 3: Scrape top result URLs for actual page content ──────────────
-  const scrapeTargets = [...urlsToScrape].slice(0, 3);
+  const scrapeTargets = [...urlsToScrape].slice(0, 8);
   for (const url of scrapeTargets) {
     try {
       const scraped = await scrapePage(url);
