@@ -1491,6 +1491,35 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
         const n = await persistBureauContactsForEntity(id, orgItems, "atlas-registry-org-surface");
         logger.info({ entityId: id, orgRows: n }, "[Atlas] Registry org surface persisted");
       }
+
+      // G5: if issuer/org evidence exists and outcome is still none, promote outcome to
+      // organization_contact — never Personal. Cards and dashboard must not read "none"
+      // when related org surface was deliberately persisted.
+      const orgEvidence = await db.select({ id: contactEvidenceTable.id })
+        .from(contactEvidenceTable)
+        .where(and(
+          eq(contactEvidenceTable.entityId, id),
+          sql`(${contactEvidenceTable.source} = 'atlas-registry-org-surface'
+            OR ${contactEvidenceTable.source} = 'secondary-public-surface'
+            OR ${contactEvidenceTable.metadata} LIKE '%"scope":"organization"%')`,
+        ))
+        .limit(1);
+      if (orgEvidence.length) {
+        const current = await db.select({
+          contactOutcome: entitiesTable.contactOutcome,
+          email: entitiesTable.email,
+          phone: entitiesTable.phone,
+        }).from(entitiesTable).where(eq(entitiesTable.id, id)).limit(1);
+        const outcome = current[0]?.contactOutcome ?? "none";
+        const hasPersonalCols = Boolean(current[0]?.email?.trim() || current[0]?.phone?.trim());
+        if (!hasPersonalCols && (outcome === "none" || outcome === "evidence_only")) {
+          await db.update(entitiesTable).set({
+            contactOutcome: "organization_contact",
+            updatedAt: new Date(),
+          }).where(eq(entitiesTable.id, id));
+          logger.info({ entityId: id }, "[Atlas] G5 contactOutcome → organization_contact (org evidence present)");
+        }
+      }
     } catch (err: any) {
       logger.warn({ entityId: id, err: err?.message }, "[Atlas] Registry org surface skipped (non-fatal)");
     }
