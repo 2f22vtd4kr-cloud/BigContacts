@@ -981,10 +981,60 @@ export function buildBossOpeningPrompt(input: {
 }): string {
   const geography = input.geography?.trim() || DEFAULT_DISCOVERY_GEOGRAPHY;
   const exclusions = input.exclusions?.length ? input.exclusions : DEFAULT_DISCOVERY_EXCLUSIONS;
+  const objective = input.objective.trim();
+  // Named person + company already supplied → target-locked mode (parity with general agents).
+  const namedTarget =
+    /\b(for|about|on|regarding)\s+[A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+\b/.test(objective) ||
+    /\b[A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+){1,3}\b.+\b(Company|Co\.|Corp|Inc|LLC|Manufacturing|Holdings)\b/i.test(objective) ||
+    /\b(Andrew|John|Mark|David|Michael|Robert|James|William|Thomas|Richard)\s+[A-Z]\.?\s*[A-Z][a-z]+\b/.test(objective);
+
+  if (namedTarget) {
+    return `You are the Boss Investigator opening a TARGET-LOCKED public-web research case.
+
+Human mission:
+${objective}
+
+Why this matters:
+${input.motivation.trim()}
+
+Geographic premise:
+${geography}
+
+A specific person and/or company is already named. Do NOT expand into unrelated family offices, random PE firms, or fame-only candidates. Recover the public contact and related surface for the NAMED subject at least as thoroughly as a capable general agent would on the same lead.
+
+Priority surface (in order):
+1. Exact person + company identity confirmation and role history
+2. Company address, phone, website, org email
+3. SEC/EDGAR filings, officer tables, co-filers, related-person rows
+4. Historical residential or officer addresses with source URLs
+5. LinkedIn / professional profiles when public
+6. Bankruptcy, ownership transitions, and current operator if relevant
+
+Opening research must:
+1. Lock onto the named person and company first — do not "discover" substitute targets.
+2. Preserve exact source URLs for every contact vector and every role claim.
+3. Rank organization / related-person surface honestly; never auto-promote Personal without verified evidence.
+4. Explicitly report name collisions, missing evidence, and search gaps.
+5. Recommend the strongest next investigation directions after the first pass.
+
+Guardrails:
+${exclusions.map((rule) => `- ${rule}`).join("\n")}
+
+Return a structured research report with:
+- the named person and company with confirmed public identity anchors
+- role history and related officers / co-filers
+- practical public contact routes (org phone, address, email, website) with exact source URLs
+- related-person surface from filings when present
+- unresolved identity questions and search gaps
+- strongest next research directions
+
+Do not invent contacts. Do not dilute the named target with unrelated discovery noise.`;
+  }
+
   return `You are the Boss Investigator opening a new discovery-first public-web research case.
 
 Human mission:
-${input.objective.trim()}
+${objective}
 
 Why this matters:
 ${input.motivation.trim()}

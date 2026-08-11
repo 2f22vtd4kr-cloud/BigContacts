@@ -249,16 +249,18 @@ TOOLS (choose exactly one per turn):
 
 RULES:
 - Never invent emails, phones, or profiles. Only report values VISIBLE in observations with exact sourceUrls.
-- Prefer primary sources: company contact/about/team pages, registries, LinkedIn, filings.
+- Prefer primary sources: company contact/about/team pages, registries, LinkedIn, filings, SEC/EDGAR, officer tables.
 - Multi-hop: if you learn a company domain, visit /contact /about /team. If you learn a person title, search person+company+title.
 - Organization inboxes are fine as organization scope. Do not mark Personal.
-- When you have useful public surface OR 2+ thin search attempts with nothing, action=done.
+- FIRST ACTION must be web_search when trajectory is empty. Do not return done until you have run at least 2 web_search actions (or 1 search + 1 visit that yielded surface).
+- When the TARGET is a named person and a RELATED COMPANY is given, search the exact pair first (person + company + city/state if known) before any broad discovery.
+- When you have useful public surface OR 2+ real search attempts with nothing, action=done.
 
 TRAJECTORY SO FAR:
 ${input.history.join("\n") || "(start)"}
 
 LAST OBSERVATION:
-${input.lastObservation.slice(0, MAX_OBS) || "(none — start with web_search)"}
+${input.lastObservation.slice(0, MAX_OBS) || "(none — start with web_search on the exact TARGET + company)"}
 
 Return ONE JSON object only.`;
 }
@@ -333,7 +335,16 @@ export async function runAgenticWebResearch(input: {
       continue;
     }
 
-    // done
+    // done — reject empty early exits so we never finish with searches=0
+    const minSearches = 2;
+    if (searches < minSearches && action.findings.length === 0 && i < maxIter - 1) {
+      history.push(`step${i + 1}: done_rejected (need >=${minSearches} searches before empty done; have ${searches})`);
+      lastObservation =
+        `You returned done with zero findings after only ${searches} search(es). ` +
+        `You MUST run web_search on the exact TARGET${input.companyName ? ` + "${input.companyName}"` : ""} first. ` +
+        `Invent a precise query now (person + company + city/state or EDGAR/phone/address).`;
+      continue;
+    }
     findings = action.findings;
     history.push(`step${i + 1}: done findings=${findings.length}`);
     return {

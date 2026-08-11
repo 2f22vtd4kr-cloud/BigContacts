@@ -849,15 +849,24 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
       }, `Mistral web-search ${mistral.status}; report checkpointed into shared case context.`);
       await appendJobLog(jobId, `Mistral web-search ${mistral.status}; model=${mistral.model}; citations=${mistral.citations.length}.`);
 
-      // Agentic ReAct body — same as Atlas secondary; Boss web path is not Mistral-only
+      // Agentic ReAct body — same as Atlas secondary; Boss web path is not Mistral-only.
+      // Extract a tight person/company target from the human objective when present
+      // so the loop behaves like a general agent (not a diluted discovery brief).
+      const objText = workingFile.humanBrief.objective || "";
+      const personMatch = objText.match(/\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+){1,3})\b/);
+      const companyMatch = objText.match(/\b([A-Z][A-Za-z0-9&.'-]*(?:\s+[A-Z][A-Za-z0-9&.']*){0,5}\s+(?:Company|Co\.?|Corp\.?|Inc\.?|LLC|Manufacturing|Holdings|Group|Partners))\b/);
+      const agenticTargetName = (personMatch?.[1] || objText.slice(0, 80) || "discovery target").trim();
+      const agenticCompanyName = companyMatch?.[1]?.trim() || null;
       const agenticDiscovery = await runBureauAgenticWebPass({
-        targetName: workingFile.humanBrief.objective.slice(0, 120) || "discovery target",
-        companyName: null,
+        targetName: agenticTargetName,
+        companyName: agenticCompanyName,
         objective: [
           workingFile.humanBrief.objective,
           workingFile.humanBrief.motivation,
           workingFile.humanBrief.geography ? `Geography: ${workingFile.humanBrief.geography}` : "",
-          "Multi-hop agentic search. Visit primary pages. Never invent contacts.",
+          agenticCompanyName
+            ? `Lock onto ${agenticTargetName} at ${agenticCompanyName}. Search the exact pair first. Recover address, phone, email, EDGAR/officers, related-person surface.`
+            : "Multi-hop agentic search. Visit primary pages. Never invent contacts.",
         ].filter(Boolean).join("\n"),
         caseId,
         maxIterations: 8,
