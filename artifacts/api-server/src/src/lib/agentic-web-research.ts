@@ -40,7 +40,7 @@ type AgentAction =
   | { action: "visit"; url: string; thought?: string }
   | { action: "done"; findings: AgenticFinding[]; thought?: string };
 
-const MAX_ITER = 8;
+const MAX_ITER = 12;
 const MAX_OBS = 3_500;
 
 function randomUA(): string {
@@ -158,24 +158,37 @@ function extractContactFactsFromHtml(html: string): string {
   for (const m of html.matchAll(/(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]\d{3}[-.\s]\d{4}/g)) {
     push(`PHONE: ${m[0]!.replace(/\s+/g, " ").trim()}`);
   }
-  // Street-ish address lines (city + state zip or N/S/E/W street)
+  // Street-ish address lines — require real street type tokens (blocks CSS class noise)
   for (const m of html.matchAll(
-    /\b\d{1,5}\s+[A-Za-z0-9.'\-\s]{3,40}(?:Street|St\.?|Avenue|Ave\.?|Road|Rd\.?|Drive|Dr\.?|Boulevard|Blvd\.?|Lane|Ln\.?|Court|Ct\.?|Way|Highway|Hwy\.?)\b[^<\n]{0,40}/gi,
+    /\b\d{1,5}\s+[A-Za-z0-9.'\-]+(?:\s+[A-Za-z0-9.'\-]+){0,4}\s+(?:Street|St\.?|Avenue|Ave\.?|Road|Rd\.?|Drive|Dr\.?|Boulevard|Blvd\.?|Lane|Ln\.?|Court|Ct\.?|Way|Highway|Hwy\.?|HWY)\b[^<\n]{0,40}/gi,
   )) {
-    push(`ADDRESS: ${m[0]!.replace(/\s+/g, " ").trim().slice(0, 120)}`);
+    const line = m[0]!.replace(/\s+/g, " ").trim().slice(0, 120);
+    if (!/\bast-|\buagb-|\bwp-|\brmp-|[{};]/.test(line)) push(`ADDRESS: ${line}`);
   }
-  for (const m of html.matchAll(/\b[A-Za-z .'-]+,\s*[A-Z]{2}\s+\d{5}(?:-\d{4})?\b/g)) {
+  for (const m of html.matchAll(/\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*,\s*[A-Z]{2}\s+\d{5}(?:-\d{4})?\b/g)) {
     push(`ADDRESS: ${m[0]!.trim()}`);
   }
   // Role / title cues near officer names (proxy language)
   for (const m of html.matchAll(
-    /\b((?:Co-)?(?:Chief Executive Officer|CEO|President|Director|Chairman|Vice President|VP|Secretary|Treasurer)[^.<]{0,60})/gi,
+    /\b((?:Co-)?(?:Chief Executive Officer|CEO|President|Director|Chairman|Vice President|VP|Secretary|Treasurer|Owner|Principal)[^.<]{0,60})/gi,
   )) {
-    push(`ROLE: ${m[1]!.replace(/\s+/g, " ").trim().slice(0, 100)}`);
+    const role = m[1]!.replace(/\s+/g, " ").trim().slice(0, 100);
+    if (!/\bast-|\buagb-|[{};]/.test(role)) push(`ROLE: ${role}`);
+  }
+  // Related people on BBB / about / team pages: "Mr. Name, Owner" / "Name, Company Contact"
+  for (const m of html.matchAll(
+    /\b(?:Mr\.|Ms\.|Mrs\.|Dr\.)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z'.-]+){1,3})\s*,\s*((?:Owner|President|CEO|Director|Principal|Company Contact|Manager|Secretary|Treasurer)[^<\n,]{0,40})/g,
+  )) {
+    push(`PERSON: ${m[1]!.trim()} — ${m[2]!.replace(/\s+/g, " ").trim().slice(0, 60)}`);
+  }
+  for (const m of html.matchAll(
+    /\b([A-Z][a-z]+\s+[A-Z][a-z]+)\s*[,–—-]\s*((?:Owner|President|CEO|Director|Principal Contact|Company Contact)[^<\n,]{0,30})/g,
+  )) {
+    push(`PERSON: ${m[1]!.trim()} — ${m[2]!.replace(/\s+/g, " ").trim().slice(0, 60)}`);
   }
 
   if (facts.length === 0) return "";
-  return "CONTACT FACTS (visible on page):\n" + facts.slice(0, 25).join("\n") + "\n\n";
+  return "CONTACT FACTS (visible on page):\n" + facts.slice(0, 30).join("\n") + "\n\n";
 }
 
 async function toolVisit(url: string): Promise<string> {
@@ -355,16 +368,18 @@ TOOLS (choose exactly one per turn):
 
 RULES:
 - Never invent emails, phones, or profiles. Only report values VISIBLE in observations with exact sourceUrls.
-- Prefer primary sources: company contact/about/team/terms pages, registries, LinkedIn, filings, SEC/EDGAR, officer tables.
-- Multi-hop: if you learn a company domain, immediately visit /contact /about /team /terms-and-conditions (and root). If CONTACT FACTS appear, emit them as findings with that page as sourceUrl.
-- Search "TARGET company EDGAR" or "TARGET SC 13D" or site:sec.gov for officer/co-filer tables; report related persons as other/related with role sc13_co_filer or director.
+- Prefer primary sources: company contact/about/team/terms pages, BBB profiles, registries, LinkedIn, filings, SEC/EDGAR, officer tables.
+- Multi-hop: if you learn a company domain, immediately visit /contact /contact-us /about /team (and root). If CONTACT FACTS appear, emit them as findings with that page as sourceUrl.
+- AFTER org email/phone/address are known, do NOT stop. Search "{company} BBB" or "{company} owner officers contacts" and visit BBB/about pages to recover RELATED people (owners, company contacts, co-officers). Emit each as findings with personName + role.
+- When CONTACT FACTS lists PERSON: lines, emit each as a finding (vectorType other, personName set, role set, sourceUrls set).
+- Search "TARGET company EDGAR" or site:sec.gov for officer tables when public-company context appears.
 - Organization inboxes (info@, contact@, office@) are fine as organization scope. Do not mark Personal.
-- FIRST ACTION must be web_search when trajectory is empty. Do not return done until you have run at least 2 web_search actions AND at least 1 visit (unless SERP returned zero URLs).
-- After any web_search that returns URLs, your NEXT action should usually be visit on the best company/contact/about/investor/LinkedIn URL — do not only search repeatedly.
-- When the TARGET is a named person and a RELATED COMPANY is given, search the exact pair first (person + company + city/state if known) before any broad discovery.
-- Recover role history (president, co-CEO, director since YYYY) when visible on proxy or about pages.
-- When CONTACT FACTS appear in an observation, emit them as done.findings with that page as sourceUrl (organization scope for info@/phone/address).
-- When you have useful public surface OR (2+ searches AND 1+ visits with nothing), action=done.
+- FIRST ACTION must be web_search when trajectory is empty. Do not return done until: (a) at least 2 web_search AND 1 visit, AND (b) either related people found OR a dedicated related-people search was attempted.
+- After any web_search that returns URLs, NEXT action should usually be visit on company/contact/BBB/about — not another search.
+- When TARGET is a named person + RELATED COMPANY, search the exact pair first.
+- Recover role history when visible. Never invent names.
+- When CONTACT FACTS appear, include them in done.findings with that page as sourceUrl.
+- Only action=done when public surface is recovered AND related-people hop was attempted (or SERP empty).
 
 TRAJECTORY SO FAR:
 ${input.history.join("\n") || "(start)"}
@@ -434,7 +449,7 @@ function findingsFromContactFacts(
       });
     }
     const role = line.match(/ROLE:\s*(.+)/i)?.[1]?.trim();
-    if (role && role.length >= 3 && !/[{};]|rmp-|style=|--columns/i.test(role)) {
+    if (role && role.length >= 3 && !/[{};]|rmp-|style=|--columns|ast-/i.test(role)) {
       out.push({
         vectorType: "other",
         value: role.slice(0, 120),
@@ -444,6 +459,22 @@ function findingsFromContactFacts(
         sourceUrls: [sourceUrl],
         note: `Role cue on ${sourceUrl}`,
       });
+    }
+    // Related officers / contacts (BBB, about, team)
+    const person = line.match(/PERSON:\s*(.+)/i)?.[1]?.trim();
+    if (person && person.length >= 5 && !/[{};]|ast-|uagb-/i.test(person)) {
+      const [pName, pRole] = person.split(/\s*[—–-]\s*/).map((s) => s.trim());
+      if (pName && pName.split(/\s+/).length >= 2) {
+        out.push({
+          vectorType: "other",
+          value: person.slice(0, 160),
+          personName: pName.slice(0, 120),
+          role: (pRole || "related_contact").slice(0, 80),
+          scope: "organization",
+          sourceUrls: [sourceUrl],
+          note: `Related person on ${sourceUrl}`,
+        });
+      }
     }
   }
   // Website finding for non-junk primary domains
@@ -509,7 +540,7 @@ export async function runAgenticWebResearch(input: {
   const visitedUrls = new Set<string>();
 
   const isAggregatorHost = (u: string): boolean =>
-    /zoominfo|rocketreach|adapt\.io|signalhire|contactout|growjo|apollo\.io|clearbit|hunter\.io|mibarry|chamber|yelp|bbb\.org|dnb\.com|bloomberg\.com\/profile|crunchbase|pitchbook|linkedin\.com\/company/i.test(
+    /zoominfo|rocketreach|adapt\.io|signalhire|contactout|growjo|apollo\.io|clearbit|hunter\.io|mibarry|chamber|yelp|dnb\.com|bloomberg\.com\/profile|crunchbase|pitchbook|linkedin\.com\/company/i.test(
       u,
     );
 
@@ -524,9 +555,11 @@ export async function runAgenticWebResearch(input: {
     // Primary company contact/terms pages first (where org email/phone actually live)
     if (hostMatch && /\/(contact|terms|about|team|people|leadership|privacy|impressum)/i.test(lower)) return 0;
     if (/\/(contact|terms-and-conditions|terms|about\/contact)/i.test(lower) && !isAggregatorHost(lower)) return 1;
-    if (hostMatch) return 2;
-    if (/\/(about|team|people|leadership|company)/i.test(lower)) return 3;
-    if (/investor\.|\/ir\/|\/governance|sec\.gov|edgar/i.test(lower)) return 4;
+    // BBB profiles list Principal/Company Contacts (related people hop)
+    if (/bbb\.org/i.test(lower)) return 2;
+    if (hostMatch) return 3;
+    if (/\/(about|team|people|leadership|company)/i.test(lower)) return 4;
+    if (/investor\.|\/ir\/|\/governance|sec\.gov|edgar/i.test(lower)) return 5;
     if (/\.(com|org|io|co|net)\b/i.test(lower) && !/linkedin|facebook|twitter|youtube|wikipedia|reddit/i.test(lower))
       return 5;
     if (/linkedin\.com\/in\//i.test(lower)) return 6;
@@ -582,6 +615,14 @@ export async function runAgenticWebResearch(input: {
 
   const hasOrgEmailOrPhone = () =>
     findings.some((f) => f.vectorType === "email" || f.vectorType === "phone");
+  const hasRelatedPerson = () =>
+    findings.some(
+      (f) =>
+        f.personName
+        && f.personName.toLowerCase() !== name.toLowerCase()
+        && f.note?.toLowerCase().includes("related"),
+    );
+  let relatedPeopleSearchDone = false;
 
   for (let i = 0; i < maxIter; i++) {
     // Force-visit as soon as we have SERP URLs and zero visits (parity with general agents).
@@ -596,6 +637,38 @@ export async function runAgenticWebResearch(input: {
       && searches >= 1
       && !hasOrgEmailOrPhone()
       && candidateUrls.some((u) => !visitedUrls.has(u) && rankVisitUrl(u) <= 3)
+      && i < maxIter - 1
+    ) {
+      const forced = await forceVisitNext(`step${i + 1}`);
+      if (forced) continue;
+    }
+    // After primary surface: force a related-people SERP hop (BBB / officers) once
+    if (
+      hasOrgEmailOrPhone()
+      && !relatedPeopleSearchDone
+      && !hasRelatedPerson()
+      && i < maxIter - 2
+    ) {
+      relatedPeopleSearchDone = true;
+      const co = input.companyName || name;
+      const q = `"${co}" (BBB OR owner OR officers OR "principal contact" OR "company contact")`;
+      searches++;
+      history.push(`step${i + 1}: force_related_search ${q}`);
+      const sr = await toolWebSearch(q);
+      for (const u of sr.urls) {
+        if (/^https?:\/\//i.test(u) && !candidateUrls.includes(u)) candidateUrls.push(u);
+      }
+      seedCompanyContactPaths(sr.urls);
+      lastObservation =
+        `SEARCH results for related people: ${q}\nURLs: ${sr.urls.slice(0, 8).join(" | ")}\n\n${sr.text.slice(0, MAX_OBS)}\n\n` +
+        `NEXT: visit BBB/about/team pages from the list. Emit PERSON findings with personName+role. Do not invent names.`;
+      continue;
+    }
+    // Visit remaining high-rank pages (BBB/about) after related search
+    if (
+      relatedPeopleSearchDone
+      && !hasRelatedPerson()
+      && candidateUrls.some((u) => !visitedUrls.has(u) && (/bbb\.org|about|team|people|leadership/i.test(u) || rankVisitUrl(u) <= 4))
       && i < maxIter - 1
     ) {
       const forced = await forceVisitNext(`step${i + 1}`);
@@ -683,6 +756,28 @@ export async function runAgenticWebResearch(input: {
     if (action.findings.length === 0 && findings.length === 0 && visits === 0 && candidateUrls.length > 0 && i < maxIter - 1) {
       history.push(`step${i + 1}: done_rejected (need visit before empty done; ${candidateUrls.length} URLs queued)`);
       await forceVisitNext(`step${i + 1}`);
+      continue;
+    }
+    // Reject done before related-people hop when primary surface already found (Grok parity)
+    if (
+      hasOrgEmailOrPhone()
+      && !relatedPeopleSearchDone
+      && !hasRelatedPerson()
+      && i < maxIter - 2
+    ) {
+      history.push(`step${i + 1}: done_rejected (related-people hop required)`);
+      relatedPeopleSearchDone = true;
+      const co = input.companyName || name;
+      const q = `"${co}" (BBB OR owner OR "principal contact" OR officers)`;
+      searches++;
+      history.push(`step${i + 1}: force_related_search ${q}`);
+      const sr = await toolWebSearch(q);
+      for (const u of sr.urls) {
+        if (/^https?:\/\//i.test(u) && !candidateUrls.includes(u)) candidateUrls.push(u);
+      }
+      lastObservation =
+        `Primary surface found. RELATED PEOPLE search:\nURLs: ${sr.urls.slice(0, 8).join(" | ")}\n\n${sr.text.slice(0, MAX_OBS)}\n\n` +
+        `Visit BBB/about pages. Emit PERSON findings. Then you may done.`;
       continue;
     }
     findings = mergeFindings(findings, action.findings);
