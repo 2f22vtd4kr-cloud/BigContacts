@@ -87,6 +87,8 @@ function assessIdentityCollision(input: {
   const collisionHosts = [
     "edwardjones", "edward-jones", "immunovant", "alvarezandmarsal", "alvarez-marsal",
     "fidelity", "vanguard", "schwab", "morganstanley", "goldmansachs",
+    "andrewjohnsonbank", "bankofamerica", "wellsfargo", "jpmorgan", "citigroup",
+    "raymondjames", "ameriprise", "northwesternmutual", "prudential",
   ];
   const hostHit = collisionHosts.some((h) => blob.includes(h));
   if (hostHit && companyToks.length && !companyToks.some((t) => blob.includes(t))) {
