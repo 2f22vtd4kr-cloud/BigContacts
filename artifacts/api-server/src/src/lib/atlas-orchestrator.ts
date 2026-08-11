@@ -58,6 +58,10 @@ import { reachabilityOrderExpr } from "./reachability-rank";
 import { backfillWealthLLM } from "./wealth-estimator";
 import { materializeBusinessAsset } from "./business-assets";
 import { runTargetResearch } from "./target-research";
+import {
+  expandSecondaryPublicSurface,
+  persistBureauContactsForEntity,
+} from "./bureau-contact-persist";
 
 // ── Jurisdiction → approximate coordinates lookup (for asset geocoding) ───────
 const JURISDICTION_COORDS: Record<string, [number, number]> = {
@@ -1386,9 +1390,10 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
         contactOutcome:    computeContactOutcome(fresh),
         bayesianScore:     Math.max(entity.bayesianScore ?? 0, bayesScore),
         isHot,
-        // `cookedAt` is reserved for a completed research disposition.
-        // A safe review with no validated personal route remains retryable.
-        cookedAt:          researchDisposition.disposition === "contact_route_found" ? new Date() : null,
+        // cookedAt = full-circle research completed for this target (admission boundary).
+        // Contact outcome stays honest: needs_follow_up is not a personal-route win.
+        // Without this stamp, the same uncooked HNWI is re-admitted every continuation.
+        cookedAt:          new Date(),
         updatedAt:         new Date(),
       }).where(eq(entitiesTable.id, id));
     }
@@ -1400,6 +1405,93 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
       sourceRegistries: entity.sourceRegistries,
       metadata: entity.metadata,
     }).catch((err: any) => logger.warn({ entityId: id, err: err?.message }, "[Atlas] Business asset materialization skipped"));
+
+    // Gate 1: secondary public surface on EVERY completed Atlas target (not only bureau cases).
+    // Writes LinkedIn / not-found, claimed emails/phones, directories, websites as candidate/org —
+    // never Personal. Closes the empty-card gap vs open-agent OSINT on the same names.
+    try {
+      const secondary = await expandSecondaryPublicSurface({
+        entityId: id,
+        name,
+        entityType: entity.type,
+      });
+      logger.info({ entityId: id, name, secondary }, "[Atlas] Secondary public surface expansion done");
+    } catch (err: any) {
+      logger.warn({ entityId: id, err: err?.message }, "[Atlas] Secondary expansion skipped (non-fatal)");
+    }
+
+    // Registry org anchors from EDGAR/CH metadata — durable related surface, not Personal.
+    try {
+      let meta: Record<string, unknown> = {};
+      try {
+        meta = entity.metadata ? JSON.parse(entity.metadata) as Record<string, unknown> : {};
+      } catch { meta = {}; }
+      const companyName = typeof meta.companyName === "string" ? meta.companyName.trim() : "";
+      const bizLocation = typeof meta.bizLocation === "string" ? meta.bizLocation.trim()
+        : (typeof meta.entityLocation === "string" ? meta.entityLocation.trim() : "");
+      const edgarUrl = typeof meta.edgarUrl === "string" ? meta.edgarUrl.trim() : "";
+      const formType = typeof meta.formType === "string" ? meta.formType : "registry";
+      const orgItems: Array<{
+        vectorType: string; value: string; scope: string; personName: string;
+        role: string | null; sourceUrls: string[]; note: string; tier: string; state: string;
+      }> = [];
+      if (companyName) {
+        orgItems.push({
+          vectorType: "domain",
+          value: companyName,
+          scope: "organization",
+          personName: name,
+          role: "related_issuer",
+          sourceUrls: edgarUrl && /^https?:\/\//i.test(edgarUrl) ? [edgarUrl] : [],
+          note: `Issuer/company from ${formType} — related org anchor (not Personal)`,
+          tier: "candidate",
+          state: "review_only",
+        });
+        // Secondary expansion keyed on company name to pull public HQ/web/phone as org.
+        try {
+          const companySecondary = await expandSecondaryPublicSurface({
+            entityId: id,
+            name: companyName,
+            entityType: "Corporation",
+          });
+          logger.info({ entityId: id, companyName, companySecondary }, "[Atlas] Company secondary expansion done");
+        } catch (err: any) {
+          logger.warn({ entityId: id, companyName, err: err?.message }, "[Atlas] Company secondary expansion skipped");
+        }
+      }
+      if (bizLocation) {
+        orgItems.push({
+          vectorType: "address",
+          value: bizLocation,
+          scope: "organization",
+          personName: name,
+          role: null,
+          sourceUrls: edgarUrl && /^https?:\/\//i.test(edgarUrl) ? [edgarUrl] : [],
+          note: `Business location from ${formType} metadata — related/org attribution`,
+          tier: "candidate",
+          state: "review_only",
+        });
+      }
+      if (edgarUrl && /^https?:\/\//i.test(edgarUrl)) {
+        orgItems.push({
+          vectorType: "website",
+          value: edgarUrl,
+          scope: "organization",
+          personName: name,
+          role: null,
+          sourceUrls: [edgarUrl],
+          note: `SEC EDGAR browse URL from ${formType} — source attribution`,
+          tier: "candidate",
+          state: "review_only",
+        });
+      }
+      if (orgItems.length) {
+        const n = await persistBureauContactsForEntity(id, orgItems, "atlas-registry-org-surface");
+        logger.info({ entityId: id, orgRows: n }, "[Atlas] Registry org surface persisted");
+      }
+    } catch (err: any) {
+      logger.warn({ entityId: id, err: err?.message }, "[Atlas] Registry org surface skipped (non-fatal)");
+    }
 
     logger.info({
       entityId: id,

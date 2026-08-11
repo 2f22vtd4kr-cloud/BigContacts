@@ -45,6 +45,12 @@ ok("Boss no erase related", !!prompt?.includes("Never instruct erasure of relate
 ok("dashboard reviewCandidates+shallow", !!dash?.includes("reviewCandidates") && !!dash?.includes("registryShallowRisk"));
 ok("dashboard UI shallow banner", !!dashUi?.includes("banner-registry-shallow-risk"));
 
+const atlas = read("artifacts/api-server/src/src/lib/atlas-orchestrator.ts");
+ok("Atlas calls expandSecondaryPublicSurface", !!atlas?.includes("expandSecondaryPublicSurface"));
+ok("Atlas registry org surface persist", !!atlas?.includes("atlas-registry-org-surface"));
+ok("Atlas cookedAt on full-circle complete", !!atlas?.includes("cookedAt = full-circle research completed") || (atlas?.includes("cookedAt:") && atlas?.includes("new Date()") && !atlas?.includes('contact_route_found" ? new Date() : null')));
+
+
 const failed = checks.filter((c) => !c.pass);
 console.log(`\n${checks.length - failed.length}/${checks.length} passed`);
 if (failed.length) { process.exitCode = 1; console.error("Failed:", failed.map((f) => f.name).join(", ")); }
