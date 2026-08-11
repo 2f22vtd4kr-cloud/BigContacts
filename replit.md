@@ -333,4 +333,4 @@ GET  /api/improve/logs                 improvement suggestions (filterable by pe
 
 
 ## Gold-standard recovery (2026-08-11)
-Tip `f06f06c`: Atlas secondary+org surface, cookedAt, 555 trash, collision, EDGAR co-filers, Groq-429 fallback, refresh-surface, surface integrity log.
+Tip `959ed22`: Atlas secondary+org surface, cookedAt, 555 trash, collision labels, EDGAR co-filers, Groq-429 deterministic fallback, registry-first, refresh-surface, surface integrity log, related-person rank+display, companyNameForSecondary hoist for notes-recovered issuers.
