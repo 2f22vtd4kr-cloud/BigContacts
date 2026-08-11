@@ -853,10 +853,18 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
       // Extract a tight person/company target from the human objective when present
       // so the loop behaves like a general agent (not a diluted discovery brief).
       const objText = workingFile.humanBrief.objective || "";
-      const personMatch = objText.match(/\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+){1,3})\b/);
-      const companyMatch = objText.match(/\b([A-Z][A-Za-z0-9&.'-]*(?:\s+[A-Z][A-Za-z0-9&.']*){0,5}\s+(?:Company|Co\.?|Corp\.?|Inc\.?|LLC|LLP|Manufacturing|Holdings|Group|Partners|Capital|Foundation|Advisors?|Management|Investments?))\b/);
-      const agenticTargetName = (personMatch?.[1] || objText.slice(0, 80) || "discovery target").trim();
-      const agenticCompanyName = companyMatch?.[1]?.trim() || null;
+      // Prefer explicit "PERSON / COMPANY" objective form used in bureau cases
+      const slashPair = objText.match(
+        /\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z'-]+){0,3})\s*\/\s*([A-Z][A-Za-z0-9&.'-]{1,}(?:\s+[A-Z][A-Za-z0-9&.']*){0,5})/,
+      );
+      const personMatch = slashPair
+        ? null
+        : objText.match(/\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z'-]+){1,3})\b/);
+      const companyMatch = slashPair
+        ? null
+        : objText.match(/\b([A-Z][A-Za-z0-9&.'-]*(?:\s+[A-Z][A-Za-z0-9&.']*){0,5}\s+(?:Company|Co\.?|Corp\.?|Inc\.?|LLC|LLP|Manufacturing|Products|Holdings|Group|Partners|Capital|Foundation|Advisors?|Management|Investments?))\b/);
+      const agenticTargetName = (slashPair?.[1] || personMatch?.[1] || objText.slice(0, 80) || "discovery target").trim();
+      const agenticCompanyName = (slashPair?.[2] || companyMatch?.[1] || null)?.trim() || null;
       const agenticDiscovery = await runBureauAgenticWebPass({
         targetName: agenticTargetName,
         companyName: agenticCompanyName,
@@ -1025,10 +1033,100 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
           }
           return false;
         };
+
+        // Company-lock: when companyName is set, person candidates must not absorb
+        // surface from unrelated domains (e.g. same-name "Nathan Miller" at Team Financial
+        // when the mission is DYNA Products). Fail-closed: drop rather than invent.
+        const FREE_EMAIL_HOSTS = new Set([
+          "gmail.com", "yahoo.com", "hotmail.com", "outlook.com", "aol.com", "icloud.com",
+          "protonmail.com", "mail.com", "live.com", "msn.com",
+        ]);
+        const TRUSTED_DIR_HOSTS = new Set([
+          "bbb.org", "yellowpages.com", "yelp.com", "mapquest.com", "google.com",
+          "bing.com", "duckduckgo.com", "opencorporates.com", "sec.gov", "edgar.sec.gov",
+          "companieshouse.gov.uk", "dnb.com", "chamberofcommerce.com",
+        ]);
+        const hostnameOf = (url: string): string | null => {
+          try {
+            return new URL(url).hostname.replace(/^www\./i, "").toLowerCase();
+          } catch {
+            return null;
+          }
+        };
+        const registrable = (host: string): string => {
+          const parts = host.split(".");
+          if (parts.length >= 2) return parts.slice(-2).join(".");
+          return host;
+        };
+        const companySlug = (agenticCompanyName || "")
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "")
+          .slice(0, 24);
+        const companyDomains = new Set<string>();
+        if (companySlug.length >= 4) {
+          // Seed plausible domains from company name (e.g. dyna-products → dynaproducts / dyna-products)
+          const dashed = (agenticCompanyName || "")
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-|-$/g, "");
+          if (dashed.length >= 4) {
+            companyDomains.add(`${dashed}.com`);
+            companyDomains.add(registrable(`${dashed}.com`));
+          }
+          companyDomains.add(`${companySlug}.com`);
+        }
+        for (const f of agenticDiscovery.findings ?? []) {
+          if (f.vectorType === "website" && f.value) {
+            const host = hostnameOf(/^https?:\/\//i.test(f.value) ? f.value : `https://${f.value}`);
+            if (host && !FREE_EMAIL_HOSTS.has(registrable(host))) {
+              companyDomains.add(registrable(host));
+              companyDomains.add(host);
+            }
+          }
+          if (f.vectorType === "email" && f.value?.includes("@")) {
+            const host = f.value.split("@")[1]?.toLowerCase().trim();
+            if (host && !FREE_EMAIL_HOSTS.has(host) && (f.scope === "organization" || /^(info|contact|office|sales|admin)@/i.test(f.value))) {
+              companyDomains.add(host);
+              companyDomains.add(registrable(host));
+            }
+          }
+          for (const u of f.sourceUrls ?? []) {
+            const host = hostnameOf(u);
+            if (!host) continue;
+            const reg = registrable(host);
+            if (companySlug.length >= 4 && (host.includes(companySlug) || reg.includes(companySlug.slice(0, 8)))) {
+              companyDomains.add(reg);
+              companyDomains.add(host);
+            }
+          }
+        }
+
+        const sourceAlignedWithCompany = (sourceUrls: string[] | null | undefined): boolean => {
+          if (!agenticCompanyName) return true; // no company lock when company unknown
+          const urls = (sourceUrls ?? []).filter((u) => typeof u === "string" && /^https?:\/\//i.test(u));
+          if (urls.length === 0) return false; // fail-closed: no source → no attach under lock
+          for (const u of urls) {
+            const host = hostnameOf(u);
+            if (!host) continue;
+            const reg = registrable(host);
+            if (TRUSTED_DIR_HOSTS.has(reg) || [...TRUSTED_DIR_HOSTS].some((d) => host.endsWith(`.${d}`))) return true;
+            if (companyDomains.has(host) || companyDomains.has(reg)) return true;
+            if (companySlug.length >= 4 && (host.includes(companySlug) || reg.includes(companySlug.slice(0, 8)))) return true;
+            // Path/title often embeds company on directories we already allow via TRUSTED
+          }
+          return false;
+        };
+
         const ensurePersonRow = (pName: string, opts?: { related?: boolean; sourceUrls?: string[] }) => {
           const cleaned = pName.replace(/^(Mr\.|Ms\.|Mrs\.|Dr\.)\s+/i, "").trim();
           if (!cleaned || cleaned.split(/\s+/).length < 2) return null;
-          if (/directors,\s*officers|shareholders,\s*managers|Mensch Manufacturing/i.test(cleaned)) return null;
+          if (/directors,\s*officers|shareholders,\s*managers/i.test(cleaned)) return null;
+          // Reject person-row names that are actually the company string
+          if (agenticCompanyName && cleaned.toLowerCase() === agenticCompanyName.toLowerCase()) return null;
+          // Company-lock on person row creation: reject unrelated-domain surface for named company missions
+          if (agenticCompanyName && opts?.sourceUrls && opts.sourceUrls.length > 0 && !sourceAlignedWithCompany(opts.sourceUrls)) {
+            return null;
+          }
           const key = cleaned.toLowerCase();
           let row = byName.get(key);
           if (!row) {
@@ -1071,6 +1169,14 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
           row: (typeof agenticReviewCandidates)[number],
           f: (typeof agenticDiscovery.findings)[number],
         ) => {
+          // Company-lock: do not attach person-scoped evidence from unrelated domains
+          if (
+            agenticCompanyName
+            && row.type === "person"
+            && !sourceAlignedWithCompany(f.sourceUrls)
+          ) {
+            return;
+          }
           row.contactEvidence.push({
             vectorType: f.vectorType,
             value: f.value,
@@ -1107,7 +1213,11 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
             && person.split(/\s+/).length >= 2;
 
           // Person-attributed facts → that person's row (not the company dump)
+          // Company-lock drops unrelated-domain hits before row creation / evidence attach
           if (isRelatedPerson || isPrimaryPerson || isPersonNamedEmail) {
+            if (agenticCompanyName && !sourceAlignedWithCompany(f.sourceUrls)) {
+              continue;
+            }
             const row = ensurePersonRow(person, {
               related: isRelatedPerson,
               sourceUrls: f.sourceUrls,
@@ -1134,6 +1244,9 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
             continue;
           }
           if (person && person.split(/\s+/).length >= 2) {
+            if (agenticCompanyName && !sourceAlignedWithCompany(f.sourceUrls)) {
+              continue;
+            }
             const row = ensurePersonRow(person, { sourceUrls: f.sourceUrls });
             if (row) pushEvidence(row, f);
             continue;
@@ -1141,10 +1254,13 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
           // Last resort: attach to company or target name
           const fallback = agenticCompanyName || agenticTargetName;
           if (fallback) {
-            const row = agenticCompanyName
-              ? ensureCompanyRow(agenticCompanyName, f.sourceUrls)
-              : ensurePersonRow(agenticTargetName, { sourceUrls: f.sourceUrls });
-            if (row) pushEvidence(row, f);
+            if (agenticCompanyName) {
+              const row = ensureCompanyRow(agenticCompanyName, f.sourceUrls);
+              if (row) pushEvidence(row, f);
+            } else {
+              const row = ensurePersonRow(agenticTargetName, { sourceUrls: f.sourceUrls });
+              if (row) pushEvidence(row, f);
+            }
           }
         }
       }
