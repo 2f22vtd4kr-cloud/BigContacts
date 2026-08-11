@@ -223,9 +223,27 @@ async function toolVisit(url: string): Promise<string> {
       },
       redirect: "follow",
     });
-    if (!resp.ok) return `HTTP ${resp.status}`;
-    // Read more of the page; WordPress/Astra themes dump 100k+ of CSS before contact blocks.
-    let html = (await resp.text()).slice(0, 500_000);
+    let html = "";
+    if (!resp.ok) {
+      html = `HTTP ${resp.status}`;
+    } else {
+      // Read more of the page; WordPress/Astra themes dump 100k+ of CSS before contact blocks.
+      html = (await resp.text()).slice(0, 500_000);
+    }
+
+    // Escalate only when blocked and a browser/scrape provider is configured (see docs/PLAYWRIGHT_FALLBACK.md)
+    const { isChallengeHtml, browserFetchConfigured, browserFetchHtml } = await import("./browser-fetch");
+    if ((isChallengeHtml(html) || /^HTTP 403/.test(html) || /^HTTP 503/.test(html)) && browserFetchConfigured()) {
+      const escalated = await browserFetchHtml(url);
+      if (escalated.html && !isChallengeHtml(escalated.html)) {
+        html = escalated.html.slice(0, 500_000);
+      } else if (isChallengeHtml(html) || /^HTTP 40|^HTTP 50/.test(html)) {
+        return `visit blocked (anti-bot): ${url}`;
+      }
+    } else if (isChallengeHtml(html)) {
+      return `visit blocked (anti-bot): ${url}`;
+    }
+
     // Strip style/script so CONTACT FACTS extraction sees real body content, not theme chrome
     html = html
       .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, " ")
