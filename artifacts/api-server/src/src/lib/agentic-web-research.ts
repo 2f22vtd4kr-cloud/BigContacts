@@ -187,8 +187,29 @@ function extractContactFactsFromHtml(html: string): string {
     push(`PERSON: ${m[1]!.trim()} — ${m[2]!.replace(/\s+/g, " ").trim().slice(0, 60)}`);
   }
 
+  // Dealer / team pages: "Tom Jansen … Tel: … tom@domain.com"
+  const plain = stripHtml(html).slice(0, 80_000);
+  for (const m of plain.matchAll(
+    /\b([A-Z][a-z]{1,20}\s+[A-Z][a-z]{1,20})\s+(?:USA|Canada|Tel|Phone|Fax|Email|Distributor|Factory)[:\s][^@]{0,80}?([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})/gi,
+  )) {
+    const pName = m[1]!.replace(/\s+/g, " ").trim();
+    const email = m[2]!.toLowerCase();
+    if (pName.split(/\s+/).length === 2 && !/Mensch Manufacturing|Contact Us|Quality Equipment|Home of/i.test(pName)) {
+      push(`PERSON: ${pName} — related_contact`);
+      push(`EMAIL: ${email}`);
+      push(`PERSON_EMAIL: ${pName} | ${email}`);
+    }
+  }
+  for (const m of html.matchAll(
+    />([A-Z][a-z]+\s+[A-Z][a-z]+)<[^>]{0,200}href=["']mailto:([^"'?\s]+)/gi,
+  )) {
+    push(`PERSON: ${m[1]!.trim()} — related_contact`);
+    push(`EMAIL: ${m[2]!.toLowerCase()}`);
+    push(`PERSON_EMAIL: ${m[1]!.trim()} | ${m[2]!.toLowerCase()}`);
+  }
+
   if (facts.length === 0) return "";
-  return "CONTACT FACTS (visible on page):\n" + facts.slice(0, 30).join("\n") + "\n\n";
+  return "CONTACT FACTS (visible on page):\n" + facts.slice(0, 40).join("\n") + "\n\n";
 }
 
 async function toolVisit(url: string): Promise<string> {
@@ -460,7 +481,7 @@ function findingsFromContactFacts(
         note: `Role cue on ${sourceUrl}`,
       });
     }
-    // Related officers / contacts (BBB, about, team)
+    // Related officers / contacts (BBB, about, team, dealer)
     const person = line.match(/PERSON:\s*(.+)/i)?.[1]?.trim();
     if (person && person.length >= 5 && !/[{};]|ast-|uagb-/i.test(person)) {
       const [pName, pRole] = person.split(/\s*[—–-]\s*/).map((s) => s.trim());
@@ -473,6 +494,22 @@ function findingsFromContactFacts(
           scope: "organization",
           sourceUrls: [sourceUrl],
           note: `Related person on ${sourceUrl}`,
+        });
+      }
+    }
+    const personEmail = line.match(/PERSON_EMAIL:\s*(.+)/i)?.[1]?.trim();
+    if (personEmail) {
+      const [pName, emailRaw] = personEmail.split(/\s*\|\s*/).map((s) => s.trim());
+      const cleaned = emailRaw ? sanitizePublicEmail(emailRaw) : null;
+      if (pName && pName.split(/\s+/).length >= 2 && cleaned && !isTrashContactValue("email", cleaned)) {
+        out.push({
+          vectorType: "email",
+          value: cleaned,
+          personName: pName.slice(0, 120),
+          role: "related_contact",
+          scope: "organization",
+          sourceUrls: [sourceUrl],
+          note: `Named contact email on ${sourceUrl}`,
         });
       }
     }
@@ -553,9 +590,9 @@ export async function runAgenticWebResearch(input: {
       : "";
     const hostMatch = coToken && lower.replace(/[^a-z0-9]/g, "").includes(coToken.slice(0, 6));
     // Primary company contact/terms pages first (where org email/phone actually live)
-    if (hostMatch && /\/(contact|terms|about|team|people|leadership|privacy|impressum)/i.test(lower)) return 0;
-    if (/\/(contact|terms-and-conditions|terms|about\/contact)/i.test(lower) && !isAggregatorHost(lower)) return 1;
-    // BBB profiles list Principal/Company Contacts (related people hop)
+    if (hostMatch && /\/(contact|terms|about|team|people|leadership|privacy|impressum|dealer)/i.test(lower)) return 0;
+    if (/\/(contact|terms-and-conditions|terms|about\/contact|dealer|dealers|team)/i.test(lower) && !isAggregatorHost(lower)) return 1;
+    // BBB may be CF-walled; still rank if reachable
     if (/bbb\.org/i.test(lower)) return 2;
     if (hostMatch) return 3;
     if (/\/(about|team|people|leadership|company)/i.test(lower)) return 4;
@@ -677,11 +714,33 @@ export async function runAgenticWebResearch(input: {
         `NEXT: visit company /dealer /team /about pages (prefer company domain over directories). Emit PERSON and named-email findings. Do not invent names.`;
       continue;
     }
-    // Visit remaining high-rank pages (BBB/about) after related search
+    // Prefer /dealer /team pages after related search (open HTML, not Cloudflare BBB)
     if (
       relatedPeopleSearchDone
       && !hasRelatedPerson()
-      && candidateUrls.some((u) => !visitedUrls.has(u) && (/bbb\.org|about|team|people|leadership/i.test(u) || rankVisitUrl(u) <= 4))
+      && candidateUrls.some((u) => !visitedUrls.has(u) && /\/(dealer|dealers|team|about|about-us)/i.test(u))
+      && i < maxIter - 1
+    ) {
+      const dealerFirst = [...new Set(candidateUrls)]
+        .filter((u) => !visitedUrls.has(u) && /\/(dealer|dealers|team|about|about-us)/i.test(u))
+        .sort((a, b) => rankVisitUrl(a) - rankVisitUrl(b))[0];
+      if (dealerFirst) {
+        // Temporarily prioritize by visiting this URL via forceVisitNext stack:
+        // push to front by ranking — forceVisitNext already sorts by rank; boost dealer hosts
+        const idx = candidateUrls.indexOf(dealerFirst);
+        if (idx > 0) {
+          candidateUrls.splice(idx, 1);
+          candidateUrls.unshift(dealerFirst);
+        }
+      }
+      const forced = await forceVisitNext(`step${i + 1}`);
+      if (forced) continue;
+    }
+    // Visit remaining high-rank pages after related search
+    if (
+      relatedPeopleSearchDone
+      && !hasRelatedPerson()
+      && candidateUrls.some((u) => !visitedUrls.has(u) && (/bbb\.org|about|team|people|leadership|dealer/i.test(u) || rankVisitUrl(u) <= 4))
       && i < maxIter - 1
     ) {
       const forced = await forceVisitNext(`step${i + 1}`);

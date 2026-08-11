@@ -108,7 +108,7 @@ export async function runBureauAgenticWebPass(input: {
       companyName: input.companyName ?? null,
       objective: input.objective
         ?? `Find publicly documented contact routes for ${name}${input.companyName ? ` related to ${input.companyName}` : ""}. Multi-hop. Visit primary pages. Never invent.`,
-      maxIterations: input.maxIterations ?? 8,
+      maxIterations: input.maxIterations ?? 12,
     });
 
     const contactEvidence = findingsToContactEvidence(agentic.findings);

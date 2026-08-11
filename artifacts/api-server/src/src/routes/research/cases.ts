@@ -865,11 +865,11 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
           workingFile.humanBrief.motivation,
           workingFile.humanBrief.geography ? `Geography: ${workingFile.humanBrief.geography}` : "",
           agenticCompanyName
-            ? `Lock onto ${agenticTargetName} at ${agenticCompanyName}. Search the exact pair first. Recover address, phone, email, EDGAR/officers, related-person surface.`
-            : "Multi-hop agentic search. Visit primary pages. Never invent contacts.",
+            ? `Lock onto ${agenticTargetName} at ${agenticCompanyName}. Search the exact pair first. Recover address, phone, email, EDGAR/officers, related-person surface (visit company /dealer /team after primary contact).`
+            : "Multi-hop agentic search. Visit primary pages and related-people pages. Never invent contacts.",
         ].filter(Boolean).join("\n"),
         caseId,
-        maxIterations: 8,
+        maxIterations: 12,
       });
       workingFile = await persistDiscoveryCheckpoint(caseId, openingIteration, workingFile, {
         lane: "broad-web",
@@ -1014,21 +1014,48 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
       }> = [];
       {
         const byName = new Map<string, (typeof agenticReviewCandidates)[number]>();
+        const isJunkEvidence = (value: string, vectorType: string) => {
+          if (!value || value.length < 3) return true;
+          if (vectorType === "other" || vectorType === "website") {
+            if (/[{};]|rmp-|style=|--columns|standard-menu|Directory Search|\bast-|\buagb-|\bwp-block|\binline-on-mobile/i.test(value))
+              return true;
+            // Website must look like a URL host, not an address line mis-tagged
+            if (vectorType === "website" && !/^https?:\/\//i.test(value) && !/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(value))
+              return true;
+          }
+          return false;
+        };
         for (const f of agenticDiscovery.findings ?? []) {
+          if (isJunkEvidence(f.value || "", f.vectorType)) continue;
           const person = (f.personName || "").trim();
-          const isOrg = f.scope === "organization" || /info@|contact@|office@|support@/i.test(f.value || "");
-          const name = person
-            || (isOrg && agenticCompanyName ? agenticCompanyName : "")
-            || (f.role ? String(f.role).slice(0, 80) : "")
-            || "";
+          const isOrg =
+            f.scope === "organization"
+            || /info@|contact@|office@|support@/i.test(f.value || "")
+            || (f.vectorType === "website" && !person);
+          // Related people (personName != primary target) become their own person candidates
+          const relatedPerson =
+            person
+            && person.toLowerCase() !== agenticTargetName.toLowerCase()
+            && person.split(/\s+/).length >= 2;
+          const name = relatedPerson
+            ? person
+            : person
+              || (isOrg && agenticCompanyName ? agenticCompanyName : "")
+              || (isOrg && agenticTargetName ? agenticTargetName : "")
+              || (f.role ? String(f.role).slice(0, 80) : "")
+              || "";
           if (!name || name.length < 3) continue;
+          // Drop role-string-as-name noise (e.g. "directors, officers, shareholders…")
+          if (/directors,\s*officers|shareholders,\s*managers/i.test(name)) continue;
           const key = name.toLowerCase();
           let row = byName.get(key);
           if (!row) {
             row = {
               name,
-              type: person ? "person" : "company",
-              relevance: "Surfaced by agentic ReAct web pass with source-backed contact fact(s); review-only until dual identity anchors.",
+              type: relatedPerson || (person && person.split(/\s+/).length >= 2) ? "person" : "company",
+              relevance: relatedPerson
+                ? "Related contact/officer surfaced by agentic multi-hop with source URL; review-only."
+                : "Surfaced by agentic ReAct web pass with source-backed contact fact(s); review-only until dual identity anchors.",
               reachability: "Public web surface recovered; no access claim is made.",
               sourceUrls: [...(f.sourceUrls ?? [])].slice(0, 8),
               contactEvidence: [],
