@@ -176,8 +176,14 @@ function extractContactFactsFromHtml(html: string): string {
     if (!/\bast-|\buagb-|[{};]/.test(role)) push(`ROLE: ${role}`);
   }
   // Related people on BBB / about / team pages: "Mr. Name, Owner" / "Name, Company Contact"
+  // Also match inside <dd>…</dd> after CF escalate (Scrapfly returns full BBB HTML)
   for (const m of html.matchAll(
     /\b(?:Mr\.|Ms\.|Mrs\.|Dr\.)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z'.-]+){1,3})\s*,\s*((?:Owner|President|CEO|Director|Principal|Company Contact|Manager|Secretary|Treasurer)[^<\n,]{0,40})/g,
+  )) {
+    push(`PERSON: ${m[1]!.trim()} — ${m[2]!.replace(/\s+/g, " ").trim().slice(0, 60)}`);
+  }
+  for (const m of html.matchAll(
+    /<dd[^>]*>\s*(?:Mr\.|Ms\.|Mrs\.|Dr\.)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z'.-]+){1,3})\s*,\s*([^<]{2,40})<\/dd>/gi,
   )) {
     push(`PERSON: ${m[1]!.trim()} — ${m[2]!.replace(/\s+/g, " ").trim().slice(0, 60)}`);
   }
@@ -707,7 +713,7 @@ export async function runAgenticWebResearch(input: {
       relatedPeopleSearchDone = true;
       const co = input.companyName || name;
       // Prefer company /dealer /team pages (BBB is often Cloudflare-blocked to plain fetch)
-      const q = `"${co}" (owner OR officers OR dealer OR team OR "company contact" OR director) -zoominfo -rocketreach`;
+      const q = `"${co}" (BBB OR owner OR officers OR "principal contact" OR "company contact" OR dealer) -zoominfo -rocketreach`;
       searches++;
       history.push(`step${i + 1}: force_related_search ${q}`);
       const sr = await toolWebSearch(q);
@@ -729,10 +735,29 @@ export async function runAgenticWebResearch(input: {
       }
       lastObservation =
         `SEARCH results for related people: ${q}\nURLs: ${sr.urls.slice(0, 8).join(" | ")}\n\n${sr.text.slice(0, MAX_OBS)}\n\n` +
-        `NEXT: visit company /dealer /team /about pages (prefer company domain over directories). Emit PERSON and named-email findings. Do not invent names.`;
+        `NEXT: visit BBB profile (browser escalate if CF) and company /dealer /team pages. Emit PERSON findings with personName+role. Do not invent names.`;
       continue;
     }
-    // Prefer /dealer /team pages after related search (open HTML, not Cloudflare BBB)
+    // Prefer BBB when anti-bot fetch is configured (Scrapfly/ZenRows) — Principal Contacts live there
+    if (
+      relatedPeopleSearchDone
+      && !hasRelatedPerson()
+      && candidateUrls.some((u) => !visitedUrls.has(u) && /bbb\.org/i.test(u))
+      && i < maxIter - 1
+    ) {
+      const bbbFirst = [...new Set(candidateUrls)]
+        .filter((u) => !visitedUrls.has(u) && /bbb\.org/i.test(u))[0];
+      if (bbbFirst) {
+        const idx = candidateUrls.indexOf(bbbFirst);
+        if (idx > 0) {
+          candidateUrls.splice(idx, 1);
+          candidateUrls.unshift(bbbFirst);
+        }
+      }
+      const forced = await forceVisitNext(`step${i + 1}`);
+      if (forced) continue;
+    }
+    // Prefer /dealer /team pages after related search
     if (
       relatedPeopleSearchDone
       && !hasRelatedPerson()

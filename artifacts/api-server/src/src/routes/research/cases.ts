@@ -1025,45 +1025,52 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
           }
           return false;
         };
-        for (const f of agenticDiscovery.findings ?? []) {
-          if (isJunkEvidence(f.value || "", f.vectorType)) continue;
-          const person = (f.personName || "").trim();
-          const isOrg =
-            f.scope === "organization"
-            || /info@|contact@|office@|support@/i.test(f.value || "")
-            || (f.vectorType === "website" && !person);
-          // Related people (personName != primary target) become their own person candidates
-          const relatedPerson =
-            person
-            && person.toLowerCase() !== agenticTargetName.toLowerCase()
-            && person.split(/\s+/).length >= 2;
-          const name = relatedPerson
-            ? person
-            : person
-              || (isOrg && agenticCompanyName ? agenticCompanyName : "")
-              || (isOrg && agenticTargetName ? agenticTargetName : "")
-              || (f.role ? String(f.role).slice(0, 80) : "")
-              || "";
-          if (!name || name.length < 3) continue;
-          // Drop role-string-as-name noise (e.g. "directors, officers, shareholders…")
-          if (/directors,\s*officers|shareholders,\s*managers/i.test(name)) continue;
-          const key = name.toLowerCase();
+        const ensurePersonRow = (pName: string, opts?: { related?: boolean; sourceUrls?: string[] }) => {
+          const cleaned = pName.replace(/^(Mr\.|Ms\.|Mrs\.|Dr\.)\s+/i, "").trim();
+          if (!cleaned || cleaned.split(/\s+/).length < 2) return null;
+          if (/directors,\s*officers|shareholders,\s*managers|Mensch Manufacturing/i.test(cleaned)) return null;
+          const key = cleaned.toLowerCase();
           let row = byName.get(key);
           if (!row) {
+            const isRelated = Boolean(opts?.related) || cleaned.toLowerCase() !== agenticTargetName.toLowerCase();
             row = {
-              name,
-              type: relatedPerson || (person && person.split(/\s+/).length >= 2) ? "person" : "company",
-              relevance: relatedPerson
+              name: cleaned,
+              type: "person",
+              relevance: isRelated
                 ? "Related contact/officer surfaced by agentic multi-hop with source URL; review-only."
                 : "Surfaced by agentic ReAct web pass with source-backed contact fact(s); review-only until dual identity anchors.",
               reachability: "Public web surface recovered; no access claim is made.",
-              sourceUrls: [...(f.sourceUrls ?? [])].slice(0, 8),
+              sourceUrls: [...(opts?.sourceUrls ?? [])].slice(0, 8),
               contactEvidence: [],
               state: "review_only" as const,
             };
             byName.set(key, row);
             agenticReviewCandidates.push(row);
           }
+          return row;
+        };
+        const ensureCompanyRow = (cName: string, sourceUrls?: string[]) => {
+          const key = cName.toLowerCase();
+          let row = byName.get(key);
+          if (!row) {
+            row = {
+              name: cName,
+              type: "company",
+              relevance: "Organization surface from agentic web pass; review-only.",
+              reachability: "Public web surface recovered; no access claim is made.",
+              sourceUrls: [...(sourceUrls ?? [])].slice(0, 8),
+              contactEvidence: [],
+              state: "review_only" as const,
+            };
+            byName.set(key, row);
+            agenticReviewCandidates.push(row);
+          }
+          return row;
+        };
+        const pushEvidence = (
+          row: (typeof agenticReviewCandidates)[number],
+          f: (typeof agenticDiscovery.findings)[number],
+        ) => {
           row.contactEvidence.push({
             vectorType: f.vectorType,
             value: f.value,
@@ -1079,10 +1086,72 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
             }
           }
           row.sourceUrls = row.sourceUrls.slice(0, 8);
+        };
+
+        for (const f of agenticDiscovery.findings ?? []) {
+          if (isJunkEvidence(f.value || "", f.vectorType)) continue;
+          const person = (f.personName || "").trim().replace(/^(Mr\.|Ms\.|Mrs\.|Dr\.)\s+/i, "");
+          const isGenericOrgInbox = /^(info|contact|office|support|sales|admin)@/i.test(f.value || "");
+          const isPersonNamedEmail =
+            Boolean(person)
+            && f.vectorType === "email"
+            && !isGenericOrgInbox
+            && person.split(/\s+/).length >= 2;
+          const isRelatedPerson =
+            Boolean(person)
+            && person.toLowerCase() !== agenticTargetName.toLowerCase()
+            && person.split(/\s+/).length >= 2;
+          const isPrimaryPerson =
+            Boolean(person)
+            && person.toLowerCase() === agenticTargetName.toLowerCase()
+            && person.split(/\s+/).length >= 2;
+
+          // Person-attributed facts → that person's row (not the company dump)
+          if (isRelatedPerson || isPrimaryPerson || isPersonNamedEmail) {
+            const row = ensurePersonRow(person, {
+              related: isRelatedPerson,
+              sourceUrls: f.sourceUrls,
+            });
+            if (row) pushEvidence(row, f);
+            // Generic org inboxes also stay on company when present
+            if (isGenericOrgInbox && agenticCompanyName) {
+              const co = ensureCompanyRow(agenticCompanyName, f.sourceUrls);
+              pushEvidence(co, f);
+            }
+            continue;
+          }
+
+          // Org surface without a distinct personName → company (or target as person fallback)
+          const isOrg =
+            f.scope === "organization"
+            || isGenericOrgInbox
+            || (f.vectorType === "website" && !person)
+            || (f.vectorType === "phone" && !person)
+            || (f.vectorType === "email" && isGenericOrgInbox);
+          if (isOrg && agenticCompanyName) {
+            const co = ensureCompanyRow(agenticCompanyName, f.sourceUrls);
+            pushEvidence(co, f);
+            continue;
+          }
+          if (person && person.split(/\s+/).length >= 2) {
+            const row = ensurePersonRow(person, { sourceUrls: f.sourceUrls });
+            if (row) pushEvidence(row, f);
+            continue;
+          }
+          // Last resort: attach to company or target name
+          const fallback = agenticCompanyName || agenticTargetName;
+          if (fallback) {
+            const row = agenticCompanyName
+              ? ensureCompanyRow(agenticCompanyName, f.sourceUrls)
+              : ensurePersonRow(agenticTargetName, { sourceUrls: f.sourceUrls });
+            if (row) pushEvidence(row, f);
+          }
         }
       }
 
+      // Agentic evidence-first so person rows keep contactEvidence when Boss returns name-only stubs
       const reviewCandidates = [
+        ...agenticReviewCandidates,
         ...boss.candidates.map((candidate) => ({
           name: candidate.name,
           type: candidate.type ?? "review_candidate",
@@ -1101,7 +1170,6 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
           contactEvidence: candidate.contactEvidence ?? [],
           state: "review_only" as const,
         })),
-        ...agenticReviewCandidates,
         ...broad.newEntities.map((candidate) => ({
           name: candidate.name,
           type: "review_candidate",
