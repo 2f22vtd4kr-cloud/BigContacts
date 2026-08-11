@@ -4,7 +4,7 @@
  * deep-web enrich pass.
  */
 import { db, contactEvidenceTable } from "@workspace/db";
-import { sanitizePublicEmail, sanitizePublicPhone } from "./contact-validation";
+import { sanitizePublicEmail, sanitizePublicPhone, isTrashContactValue } from "./contact-validation";
 import { logger } from "./logger";
 
 export type BureauContactLike = {
@@ -81,6 +81,7 @@ export async function persistBureauContactsForEntity(
     const vectorType = mapVectorType(String(item.vectorType ?? "other"), rawValue);
     const value = sanitizeValue(vectorType, rawValue);
     if (!value) continue;
+    if (isTrashContactValue(vectorType, value)) continue;
     const key = `${vectorType}:${value.toLowerCase()}:${source}`;
     if (seen.has(key)) continue;
     seen.add(key);

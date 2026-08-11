@@ -223,6 +223,18 @@ export function normalizePhone(raw: string | null | undefined): string | null {
   // NANP area code is not assignable and is therefore extraction noise.
   if (len === 10 && !hasPlus && digits.startsWith("0")) return null;
 
+  // Trash / fictional / placeholder NANP patterns (Gold standard: never surface these).
+  // US media 555 exchange, all-same digits, trivial sequences.
+  const national = len === 11 && digits.startsWith("1") ? digits.slice(1) : digits;
+  if (national.length >= 10) {
+    const exchange = national.slice(3, 6);
+    if (exchange === "555") return null; // +1-NXX-555-XXXX fictional / directory fiction
+    if (/^(\d)\1{6,}$/.test(national)) return null; // 5555555… / 0000000…
+    if (/^(\d{3})\1+$/.test(national)) return null; // repeating blocks
+    if (national === "1234567890" || national === "0123456789") return null;
+  }
+  if (/^(\d)\1{7,}$/.test(digits)) return null;
+
   // 10-digit without leading +  →  assume NANP (+1)
   if (len === 10 && !hasPlus) return `+1${digits}`;
   // 11-digit starting with 1    →  NANP with country code
@@ -231,4 +243,21 @@ export function normalizePhone(raw: string | null | undefined): string | null {
   if (hasPlus) return `+${digits}`;
   // International without +     →  store digits only (country code unclear)
   return digits;
+}
+
+/**
+ * Gold-standard trash gate for any contact-like value before persistence.
+ * Returns true when the value must never become a durable candidate row.
+ */
+export function isTrashContactValue(vectorType: string, value: string): boolean {
+  const v = String(value ?? "").trim();
+  if (!v) return true;
+  const t = vectorType.toLowerCase();
+  if (t === "phone") return sanitizePublicPhone(v) == null;
+  if (t === "email") return sanitizePublicEmail(v) == null;
+  // Placeholder / example hosts
+  if (/example\.com|example\.org|localhost|127\.0\.0\.1|test\.test/i.test(v)) return true;
+  if (/linkedin:not-found:/i.test(v)) return false; // explicit honesty marker — keep
+  if (/^(n\/a|none|unknown|null|undefined|redacted)$/i.test(v)) return true;
+  return false;
 }

@@ -51,6 +51,7 @@ import {
   sanitizePublicSocialUrl,
   isValidPublicSocialHandle,
   isGenericEmailPrefix,
+  isTrashContactValue,
 } from "./contact-validation";
 import { contactCacheSet } from "./redis";
 import { runPhaseJBatch } from "../routes/phase-j";
@@ -681,6 +682,7 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
         // Keep every non-trash vector as evidence. Only strip obvious invalid
         // emails/phones/socials — never drop unknown networks or review-only hits.
         const cleanEvidence = ihResult.evidence.filter((ev: any) => {
+          if (isTrashContactValue(String(ev.vectorType ?? ""), String(ev.value ?? ""))) return false;
           if (ev.vectorType === "email") return Boolean(sanitizePublicEmail(ev.value));
           if (ev.vectorType === "phone") return Boolean(sanitizePublicPhone(ev.value));
           if (ev.vectorType === "social") {
@@ -1981,6 +1983,56 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
   }
 
   summary["Discovery loop"] = `${totalEnriched} target journeys completed across ${sourceRound} sources (admitted ${admittedTargets}/${targetLimit}; contact-route completions remain separately gated)`;
+
+  // Gate 0 / G6: surface integrity — never claim empty success when org/related rows exist or when public issuer has no org rows.
+  try {
+    const cookedPeople = await db.select({
+      id: entitiesTable.id,
+      name: entitiesTable.name,
+      contactOutcome: entitiesTable.contactOutcome,
+      metadata: entitiesTable.metadata,
+    }).from(entitiesTable)
+      .where(and(
+        sql`${entitiesTable.cookedAt} IS NOT NULL`,
+        sql`(${entitiesTable.type} = 'HNWI' OR ${entitiesTable.type} = 'Gatekeeper')`,
+      ))
+      .orderBy(desc(entitiesTable.cookedAt))
+      .limit(50);
+
+    let surfaceGaps = 0;
+    let totalEvidence = 0;
+    let orgishRows = 0;
+    for (const person of cookedPeople) {
+      const rows = await db.select({
+        id: contactEvidenceTable.id,
+        vectorType: contactEvidenceTable.vectorType,
+        metadata: contactEvidenceTable.metadata,
+        source: contactEvidenceTable.source,
+      }).from(contactEvidenceTable)
+        .where(eq(contactEvidenceTable.entityId, person.id))
+        .limit(200);
+      totalEvidence += rows.length;
+      const orgish = rows.filter((r) => {
+        const m = String(r.metadata ?? "");
+        return m.includes('"scope":"organization"')
+          || m.includes("organization")
+          || r.source === "atlas-registry-org-surface"
+          || r.source === "secondary-public-surface";
+      }).length;
+      orgishRows += orgish;
+      let meta: Record<string, unknown> = {};
+      try { meta = person.metadata ? JSON.parse(person.metadata) as Record<string, unknown> : {}; } catch { /* ignore */ }
+      const hasIssuer = typeof meta.companyName === "string" && meta.companyName.trim().length > 0;
+      if (hasIssuer && orgish === 0) surfaceGaps++;
+    }
+    summary["Surface integrity"] =
+      `cookedPeople=${cookedPeople.length} evidenceRows=${totalEvidence} orgRelatedRows=${orgishRows} surfaceGaps=${surfaceGaps}`
+      + (surfaceGaps > 0
+        ? " · GAP: issuer known but zero org/related evidence — desk under-performed open surface"
+        : " · ok");
+  } catch (e: any) {
+    summary["Surface integrity"] = `unavailable: ${e?.message ?? "error"}`;
+  }
 
   // ── Phase 3: Metadata population ───────────────────────────────────────────
   await ensureAtlasActive(atlasJobId);

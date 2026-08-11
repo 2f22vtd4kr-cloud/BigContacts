@@ -48,6 +48,10 @@ ok("dashboard UI shallow banner", !!dashUi?.includes("banner-registry-shallow-ri
 const atlas = read("artifacts/api-server/src/src/lib/atlas-orchestrator.ts");
 ok("Atlas calls expandSecondaryPublicSurface", !!atlas?.includes("expandSecondaryPublicSurface"));
 ok("Atlas registry org surface persist", !!atlas?.includes("atlas-registry-org-surface"));
+const contactVal = read("artifacts/api-server/src/src/lib/contact-validation.ts");
+ok("555 trash phone gate", !!contactVal?.includes('exchange === "555"') && !!contactVal?.includes("isTrashContactValue"));
+ok("Atlas surface integrity summary", !!atlas?.includes("Surface integrity") && !!atlas?.includes("surfaceGaps"));
+ok("persist uses isTrashContactValue", !!persist?.includes("isTrashContactValue"));
 ok("Atlas cookedAt on full-circle complete", !!atlas?.includes("cookedAt = full-circle research completed") || (atlas?.includes("cookedAt:") && atlas?.includes("new Date()") && !atlas?.includes('contact_route_found" ? new Date() : null')));
 
 
