@@ -827,6 +827,20 @@ router.post("/entities/:id/refresh-surface", async (req, res): Promise<void> => 
     const m = String(entity.notes).match(/Company:\s*([^\.\n]+)/i);
     if (m?.[1]) companyName = m[1].trim().slice(0, 120);
   }
+  // Purge trash phones/emails already stored (e.g. +15555555555) — visibility without noise
+  try {
+    const { isTrashContactValue } = await import("../lib/contact-validation");
+    const existing = await db.select({
+      id: contactEvidenceTable.id,
+      vectorType: contactEvidenceTable.vectorType,
+      value: contactEvidenceTable.value,
+    }).from(contactEvidenceTable).where(eq(contactEvidenceTable.entityId, id)).limit(200);
+    const trashIds = existing.filter((r) => isTrashContactValue(r.vectorType, r.value)).map((r) => r.id);
+    if (trashIds.length) {
+      await db.delete(contactEvidenceTable).where(inArray(contactEvidenceTable.id, trashIds));
+    }
+  } catch { /* non-fatal */ }
+
   const secondary = await expandSecondaryPublicSurface({
     entityId: id,
     name: entity.name,
