@@ -1422,7 +1422,7 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
       if (!companyNameForSecondary && entity.notes) {
         const fromNotes = String(entity.notes).match(/Company:\s*([^\.\n]+)/i)
           || String(entity.notes).match(/connected to\s+([A-Z][^\.\n]{3,80})/i)
-          || String(entity.notes).match(/\b([A-Z][A-Za-z0-9&.,' -]{2,60}\s+(?:Manufacturing|Holdings|Corporation|Company|Inc\.?|LLC|Ltd\.?)\b)/);
+          || String(entity.notes).match(/\b([A-Z][A-Za-z0-9&.,' -]{2,60}\s+(?:Manufacturing|Holdings|Corporation|Company|Inc\.?|LLC|Ltd\.?|Co\.?|LLP|PLC|AG|SA)\b)/);
         if (fromNotes?.[1]) companyNameForSecondary = fromNotes[1].trim().slice(0, 120);
       }
       const secondary = await expandSecondaryPublicSurface({

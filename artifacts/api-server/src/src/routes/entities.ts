@@ -824,7 +824,9 @@ router.post("/entities/:id/refresh-surface", async (req, res): Promise<void> => 
     companyName = typeof meta.companyName === "string" ? meta.companyName : null;
   } catch { companyName = null; }
   if (!companyName && entity.notes) {
-    const m = String(entity.notes).match(/Company:\s*([^\.\n]+)/i);
+    const m = String(entity.notes).match(/Company:\s*([^\.\n]+)/i)
+      || String(entity.notes).match(/connected to\s+([A-Z][^\.\n]{3,80})/i)
+      || String(entity.notes).match(/\b([A-Z][A-Za-z0-9&.,' -]{2,60}\s+(?:Manufacturing|Holdings|Corporation|Company|Inc\.?|LLC|Ltd\.?|Co\.?|LLP|PLC|AG|SA)\b)/);
     if (m?.[1]) companyName = m[1].trim().slice(0, 120);
   }
   // Purge trash phones/emails already stored (e.g. +15555555555) — visibility without noise
