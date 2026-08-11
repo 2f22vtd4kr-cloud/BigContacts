@@ -306,10 +306,12 @@ RULES:
 - Multi-hop: if you learn a company domain, immediately visit /contact /about /team /terms-and-conditions (and root). If CONTACT FACTS appear, emit them as findings with that page as sourceUrl.
 - Search "TARGET company EDGAR" or "TARGET SC 13D" or site:sec.gov for officer/co-filer tables; report related persons as other/related with role sc13_co_filer or director.
 - Organization inboxes (info@, contact@, office@) are fine as organization scope. Do not mark Personal.
-- FIRST ACTION must be web_search when trajectory is empty. Do not return done until you have run at least 2 web_search actions (or 1 search + 1 visit that yielded surface).
+- FIRST ACTION must be web_search when trajectory is empty. Do not return done until you have run at least 2 web_search actions AND at least 1 visit (unless SERP returned zero URLs).
+- After any web_search that returns URLs, your NEXT action should usually be visit on the best company/contact/about/investor/LinkedIn URL — do not only search repeatedly.
 - When the TARGET is a named person and a RELATED COMPANY is given, search the exact pair first (person + company + city/state if known) before any broad discovery.
 - Recover role history (president, co-CEO, director since YYYY) when visible on proxy or about pages.
-- When you have useful public surface OR 2+ real search attempts with nothing, action=done.
+- When CONTACT FACTS appear in an observation, emit them as done.findings with that page as sourceUrl (organization scope for info@/phone/address).
+- When you have useful public surface OR (2+ searches AND 1+ visits with nothing), action=done.
 
 TRAJECTORY SO FAR:
 ${input.history.join("\n") || "(start)"}
@@ -318,6 +320,106 @@ LAST OBSERVATION:
 ${input.lastObservation.slice(0, MAX_OBS) || "(none — start with web_search on the exact TARGET + company)"}
 
 Return ONE JSON object only.`;
+}
+
+/** Parse CONTACT FACTS block from a visited page into structured findings (fail-closed, org scope). */
+function findingsFromContactFacts(
+  pageText: string,
+  sourceUrl: string,
+  targetName: string,
+  companyName?: string | null,
+): AgenticFinding[] {
+  const out: AgenticFinding[] = [];
+  const block = pageText.match(/CONTACT FACTS \(visible on page\):([\s\S]*?)(?:\n\n|$)/i)?.[1] ?? "";
+  if (!block.trim()) return out;
+  for (const line of block.split("\n")) {
+    const email = line.match(/EMAIL:\s*(\S+@\S+)/i)?.[1];
+    if (email) {
+      const cleaned = sanitizePublicEmail(email);
+      if (cleaned && !isTrashContactValue("email", cleaned)) {
+        out.push({
+          vectorType: "email",
+          value: cleaned,
+          personName: null,
+          role: null,
+          scope: "organization",
+          sourceUrls: [sourceUrl],
+          note: `Extracted from ${sourceUrl}`,
+        });
+      }
+    }
+    const phone = line.match(/PHONE:\s*(.+)/i)?.[1]?.trim();
+    if (phone) {
+      const cleaned = sanitizePublicPhone(phone);
+      if (cleaned && !isTrashContactValue("phone", cleaned)) {
+        out.push({
+          vectorType: "phone",
+          value: cleaned,
+          personName: null,
+          role: null,
+          scope: "organization",
+          sourceUrls: [sourceUrl],
+          note: `Extracted from ${sourceUrl}`,
+        });
+      }
+    }
+    const addr = line.match(/ADDRESS:\s*(.+)/i)?.[1]?.trim();
+    if (addr && addr.length >= 10) {
+      out.push({
+        vectorType: "other",
+        value: addr.slice(0, 160),
+        personName: targetName,
+        role: companyName ? `organization_contact @ ${companyName}` : "organization_contact",
+        scope: "organization",
+        sourceUrls: [sourceUrl],
+        note: `Address on ${sourceUrl}`,
+      });
+    }
+    const role = line.match(/ROLE:\s*(.+)/i)?.[1]?.trim();
+    if (role && role.length >= 3) {
+      out.push({
+        vectorType: "other",
+        value: role.slice(0, 120),
+        personName: targetName,
+        role: role.slice(0, 80),
+        scope: "organization",
+        sourceUrls: [sourceUrl],
+        note: `Role cue on ${sourceUrl}`,
+      });
+    }
+  }
+  // Website finding for non-junk primary domains
+  try {
+    const host = new URL(sourceUrl).hostname.replace(/^www\./, "");
+    if (host && !/linkedin|facebook|twitter|sec\.gov|wikipedia|duckduckgo/i.test(host)) {
+      out.push({
+        vectorType: "website",
+        value: `https://${host}`,
+        personName: null,
+        role: null,
+        scope: "organization",
+        sourceUrls: [sourceUrl],
+        note: "Primary domain from visited page",
+      });
+    }
+  } catch { /* ignore */ }
+  return out;
+}
+
+function mergeFindings(existing: AgenticFinding[], incoming: AgenticFinding[]): AgenticFinding[] {
+  const key = (f: AgenticFinding) => `${f.vectorType}|${f.value.toLowerCase()}`;
+  const map = new Map<string, AgenticFinding>();
+  for (const f of existing) map.set(key(f), f);
+  for (const f of incoming) {
+    const k = key(f);
+    const prev = map.get(k);
+    if (!prev) map.set(k, f);
+    else {
+      const urls = [...new Set([...(prev.sourceUrls || []), ...(f.sourceUrls || [])])];
+      map.set(k, { ...prev, sourceUrls: urls, note: prev.note || f.note });
+    }
+  }
+  return [...map.values()];
 }
 
 /**
@@ -344,8 +446,51 @@ export async function runAgenticWebResearch(input: {
   let searches = 0;
   let visits = 0;
   let findings: AgenticFinding[] = [];
+  // URLs seen in SERP — used to force visits when the LLM only searches
+  const candidateUrls: string[] = [];
+  const visitedUrls = new Set<string>();
+
+  const rankVisitUrl = (u: string): number => {
+    const lower = u.toLowerCase();
+    if (/\/(contact|about|team|people|leadership|company|terms|privacy|impressum)/i.test(lower)) return 0;
+    if (/investor\.|\/ir\/|\/governance|sec\.gov|edgar/i.test(lower)) return 1;
+    if (input.companyName && lower.includes(input.companyName.toLowerCase().split(/\s+/)[0]!.slice(0, 8))) return 2;
+    if (/\.(com|org|io|co|net)\b/i.test(lower) && !/linkedin|facebook|twitter|youtube|wikipedia|reddit/i.test(lower)) return 3;
+    if (/linkedin\.com\/in\//i.test(lower)) return 4;
+    return 5;
+  };
+
+  const forceVisitNext = async (stepLabel: string): Promise<boolean> => {
+    const next = [...new Set(candidateUrls)]
+      .filter((u) => !visitedUrls.has(u))
+      .sort((a, b) => rankVisitUrl(a) - rankVisitUrl(b))[0];
+    if (!next) return false;
+    visits++;
+    visitedUrls.add(next);
+    history.push(`${stepLabel}: force_visit ${next}`);
+    const page = await toolVisit(next);
+    lastObservation = `PAGE ${next}\n\n${page.slice(0, MAX_OBS)}`;
+    // Deterministic findings from CONTACT FACTS block so we never depend solely on LLM memory
+    const extracted = findingsFromContactFacts(page, next, name, input.companyName);
+    if (extracted.length) {
+      findings = mergeFindings(findings, extracted);
+      history.push(`${stepLabel}: auto_findings=${extracted.length}`);
+    }
+    return true;
+  };
 
   for (let i = 0; i < maxIter; i++) {
+    // After ≥2 searches with zero visits, force open the best SERP URL (parity with general agents)
+    if (searches >= 2 && visits === 0 && candidateUrls.length > 0) {
+      await forceVisitNext(`step${i + 1}`);
+      continue;
+    }
+    // After a visit still zero findings and unused URLs remain, force one more high-rank page
+    if (visits >= 1 && findings.length === 0 && searches >= 2 && i < maxIter - 1) {
+      const forced = await forceVisitNext(`step${i + 1}`);
+      if (forced) continue;
+    }
+
     const prompt = buildStepPrompt({
       targetName: name,
       companyName: input.companyName,
@@ -378,15 +523,31 @@ export async function runAgenticWebResearch(input: {
       searches++;
       history.push(`step${i + 1}: search ${action.query}${action.thought ? ` (${action.thought.slice(0, 80)})` : ""}`);
       const sr = await toolWebSearch(action.query);
+      for (const u of sr.urls) {
+        if (/^https?:\/\//i.test(u) && !candidateUrls.includes(u)) candidateUrls.push(u);
+      }
       lastObservation = `SEARCH results for: ${action.query}\nURLs: ${sr.urls.slice(0, 8).join(" | ")}\n\n${sr.text.slice(0, MAX_OBS)}`;
+      // Soft nudge: if we already have company-looking URLs and no visits yet, tell the model to visit
+      if (visits === 0 && sr.urls.length > 0) {
+        lastObservation +=
+          `\n\nNEXT: Prefer action=visit on a primary company/contact/about/investor URL from the list above. ` +
+          `Do not only search again.`;
+      }
       continue;
     }
 
     if (action.action === "visit") {
       visits++;
+      visitedUrls.add(action.url);
       history.push(`step${i + 1}: visit ${action.url}`);
       const page = await toolVisit(action.url);
       lastObservation = `PAGE ${action.url}\n\n${page.slice(0, MAX_OBS)}`;
+      const extracted = findingsFromContactFacts(page, action.url, name, input.companyName);
+      if (extracted.length) {
+        findings = mergeFindings(findings, extracted);
+        history.push(`step${i + 1}: auto_findings=${extracted.length}`);
+        lastObservation += `\n\n(System extracted ${extracted.length} contact fact(s) from this page — include them in done.findings with this URL as sourceUrl.)`;
+      }
       continue;
     }
 
@@ -400,7 +561,13 @@ export async function runAgenticWebResearch(input: {
         `Invent a precise query now (person + company + city/state or EDGAR/phone/address).`;
       continue;
     }
-    findings = action.findings;
+    // Reject empty done when we never visited but still have SERP URLs to open
+    if (action.findings.length === 0 && findings.length === 0 && visits === 0 && candidateUrls.length > 0 && i < maxIter - 1) {
+      history.push(`step${i + 1}: done_rejected (need visit before empty done; ${candidateUrls.length} URLs queued)`);
+      await forceVisitNext(`step${i + 1}`);
+      continue;
+    }
+    findings = mergeFindings(findings, action.findings);
     history.push(`step${i + 1}: done findings=${findings.length}`);
     return {
       status: "completed",
