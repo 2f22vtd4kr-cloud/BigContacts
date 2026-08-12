@@ -615,7 +615,7 @@ function findingsFromSearchSnippet(
     // mid-market names like "DYNA" still match dyna-products.com when visible in SERP.
     const isClassicOrgMailbox = /^(info|contact|sales|office|support|hello|admin)@/i.test(email);
     const companyDomain =
-      (co.length >= 4 && (domFlat.includes(co.slice(0, Math.min(8, co.length))) || co.includes(domFlat.slice(0, 6))))
+      /* SERP_EMAIL_LOOSE_MATCH */ (co.length >= 3 && (domFlat.includes(co.slice(0, Math.min(8, co.length))) || co.includes(domFlat.slice(0, 5))))
       || (isClassicOrgMailbox && co.length >= 3 && (
         domFlat.includes(co.slice(0, Math.min(6, co.length)))
         || domain.includes(co.slice(0, Math.min(4, co.length)))
