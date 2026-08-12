@@ -20,7 +20,7 @@
  * Primary focus: recover company-domain org email (info@) on mid-market targets.
  */
 import { spawn, execSync } from "node:child_process";
-import { readFileSync, writeFileSync, appendFileSync, existsSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, appendFileSync, existsSync, mkdirSync, openSync } from "node:fs";
 import { join } from "node:path";
 
 const ROOT = process.env.APEX_ROOT || process.cwd();
@@ -99,13 +99,27 @@ function ensureApi() {
     NODE_ENV: "development",
     BROWSER_FETCH_MAX_PER_CASE: "8",
   };
-  const child = spawn("node", ["--enable-source-maps", "--max-old-space-size=640", "./dist/index.mjs"], {
-    cwd: join(ROOT, "artifacts/api-server"),
-    env,
-    detached: true,
-    stdio: ["ignore", "append", "append"],
-  });
-  child.unref();
+  try {
+    const outFd = openSync("/tmp/api.log", "a");
+    const child = spawn("node", ["--enable-source-maps", "--max-old-space-size=640", "./dist/index.mjs"], {
+      cwd: join(ROOT, "artifacts/api-server"),
+      env,
+      detached: true,
+      stdio: ["ignore", outFd, outFd],
+    });
+    child.unref();
+  } catch (e) {
+    // fallback: shell nohup
+    try {
+      execSync(
+        `nohup node --enable-source-maps --max-old-space-size=640 ./dist/index.mjs >>/tmp/api.log 2>&1 &`,
+        { cwd: join(ROOT, "artifacts/api-server"), env, stdio: "ignore" },
+      );
+    } catch (e2) {
+      log({ event: "api_spawn_error", error: String(e2?.message || e2).slice(0, 200) });
+      return false;
+    }
+  }
   // wait
   for (let i = 0; i < 20; i++) {
     try {
