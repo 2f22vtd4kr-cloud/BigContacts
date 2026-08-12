@@ -18,8 +18,6 @@ jobs:
       contents: write
     env:
       # Force public npm; Replit/private mirrors break on GH runners
-      npm_config_registry: https://registry.npmjs.org/
-      NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
       PNPM_NETWORK_TIMEOUT: "600000"
     steps:
       - name: Checkout
