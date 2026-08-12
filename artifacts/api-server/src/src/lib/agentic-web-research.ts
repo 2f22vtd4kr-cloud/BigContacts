@@ -40,7 +40,7 @@ type AgentAction =
   | { action: "visit"; url: string; thought?: string }
   | { action: "done"; findings: AgenticFinding[]; thought?: string };
 
-const MAX_ITER = 12;
+const MAX_ITER = 14;
 const MAX_OBS = 3_500;
 
 function randomUA(): string {
@@ -611,9 +611,15 @@ function findingsFromSearchSnippet(
     const email = raw.toLowerCase();
     const domain = email.split("@")[1] || "";
     const domFlat = domain.replace(/[^a-z0-9]/g, "");
+    // Classic org mailboxes (info@/contact@) tolerate shorter company tokens so
+    // mid-market names like "DYNA" still match dyna-products.com when visible in SERP.
+    const isClassicOrgMailbox = /^(info|contact|sales|office|support|hello|admin)@/i.test(email);
     const companyDomain =
       (co.length >= 4 && (domFlat.includes(co.slice(0, Math.min(8, co.length))) || co.includes(domFlat.slice(0, 6))))
-      || /^(info|contact|sales|office|support|hello)@/i.test(email) && co.length >= 4 && domain.includes(co.slice(0, 4));
+      || (isClassicOrgMailbox && co.length >= 3 && (
+        domFlat.includes(co.slice(0, Math.min(6, co.length)))
+        || domain.includes(co.slice(0, Math.min(4, co.length)))
+      ));
     if (!companyDomain) continue;
     if (/example\.|sentry\.|schema\.|wixpress|cloudflare|wordpress|github\.com|google\.com/.test(email)) continue;
     // Prefer a URL that mentions the company or is a public org surface
@@ -666,7 +672,7 @@ export async function runAgenticWebResearch(input: {
     return { status: "unavailable", model: "none", iterations: 0, searches: 0, visits: 0, findings: [], trajectory: [], error: "empty target" };
   }
 
-  const maxIter = Math.min(input.maxIterations ?? MAX_ITER, 12);
+  const maxIter = Math.min(input.maxIterations ?? MAX_ITER, 14);
   const objective = input.objective
     ?? `Find publicly documented contact routes (email, phone, LinkedIn, website, related people) for ${name}${input.companyName ? ` related to ${input.companyName}` : ""}. Be thorough and creative.`;
 
@@ -902,6 +908,82 @@ export async function runAgenticWebResearch(input: {
     ) {
       const forced = await forceVisitNext(`step${i + 1}`);
       if (forced) continue;
+    }
+    // Mid-market gap: Facebook About often lists info@ when the corporate /contact page does not.
+    // Fail-closed: only admit emails that appear in SERP snippet text (never invent mailboxes).
+    if (
+      input.companyName
+      && !hasOrgEmail()
+      && orgEmailSearchDone
+      && !history.some((h) => h.includes("force_facebook_company_search"))
+      && i < maxIter - 2
+    ) {
+      const co = input.companyName;
+      const q = `"${co}" site:facebook.com (info@ OR contact@ OR email OR about OR "contact")`;
+      searches++;
+      history.push(`step${i + 1}: force_facebook_company_search ${q}`);
+      const sr = await toolWebSearch(q);
+      for (const u of sr.urls) {
+        if (/^https?:\/\//i.test(u) && !candidateUrls.includes(u)) candidateUrls.push(u);
+      }
+      const snippetEmails = findingsFromSearchSnippet(sr.text, sr.urls, input.companyName || name);
+      if (snippetEmails.length) {
+        findings = mergeFindings(findings, snippetEmails);
+        history.push(`step${i + 1}: serp_email_findings=${snippetEmails.length}`);
+      }
+      const fbFirst = [...new Set(candidateUrls)]
+        .filter((u) => !visitedUrls.has(u) && /facebook\.com\//i.test(u))
+        .sort((a, b) => rankVisitUrl(a) - rankVisitUrl(b))[0];
+      if (fbFirst) {
+        const idx = candidateUrls.indexOf(fbFirst);
+        if (idx > 0) {
+          candidateUrls.splice(idx, 1);
+          candidateUrls.unshift(fbFirst);
+        }
+        history.push(`step${i + 1}: prioritize_facebook_org ${fbFirst}`);
+      }
+      lastObservation =
+        `FACEBOOK company search:\nURLs: ${sr.urls.slice(0, 6).join(" | ")}\n\n${sr.text.slice(0, MAX_OBS)}\n\n` +
+        `NEXT: visit Facebook/About or company /contact. Emit EMAIL only if visible with exact sourceUrl.`;
+      continue;
+    }
+    // When website domain is known but org email still missing, search exact quoted mailboxes.
+    // Admit ONLY if the address appears in SERP text (fail-closed — no synthetic info@).
+    if (
+      !hasOrgEmail()
+      && findings.some((f) => f.vectorType === "website")
+      && !history.some((h) => h.includes("force_domain_mailbox_search"))
+      && i < maxIter - 1
+    ) {
+      const site = findings.find((f) => f.vectorType === "website")?.value || "";
+      let domain = "";
+      try {
+        domain = new URL(site.startsWith("http") ? site : `https://${site}`).hostname.replace(/^www\./, "");
+      } catch { /* */ }
+      if (domain && domain.includes(".")) {
+        const q = `"info@${domain}" OR "contact@${domain}" OR "sales@${domain}"`;
+        searches++;
+        history.push(`step${i + 1}: force_domain_mailbox_search ${q}`);
+        const sr = await toolWebSearch(q);
+        for (const u of sr.urls) {
+          if (/^https?:\/\//i.test(u) && !candidateUrls.includes(u)) candidateUrls.push(u);
+        }
+        const snippetEmails = findingsFromSearchSnippet(
+          sr.text,
+          sr.urls.length ? sr.urls : [`https://${domain}`],
+          input.companyName || name,
+        );
+        if (snippetEmails.length) {
+          findings = mergeFindings(findings, snippetEmails);
+          history.push(`step${i + 1}: serp_email_findings=${snippetEmails.length}`);
+        }
+        seedCompanyContactPaths(sr.urls.length ? sr.urls : [`https://${domain}`]);
+        lastObservation =
+          `DOMAIN MAILBOX search:\n${q}\nURLs: ${sr.urls.slice(0, 8).join(" | ")}\n\n${sr.text.slice(0, MAX_OBS)}\n\n` +
+          `NEXT: visit company contact pages. Emit EMAIL only if visible in observation with sourceUrl.`;
+        await forceVisitNext(`step${i + 1}`);
+        continue;
+      }
     }
     // After primary surface: force a related-people SERP hop (BBB / officers) once
     if (
