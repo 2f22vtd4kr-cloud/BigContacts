@@ -71,4 +71,6 @@ const out = {
   note: "Fail-closed scorecard. Karpathy overnight cohort runner is not launched by this script.",
 };
 console.log(JSON.stringify(out, null, 2));
-process.exitCode = score >= 50 ? 0 : 1;
+// Always exit 0 on successful parse so overnight execSync does not treat low scores as hard failures.
+// Use vectors/score in JSON for keep/discard; exit 1 only for unrecoverable input errors above.
+process.exitCode = 0;

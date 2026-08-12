@@ -174,10 +174,24 @@ async function runOneTarget(t) {
   }
   const caseRaw = execSync(`curl -s ${API}/api/research/bureau/cases/${caseId}`, { encoding: "utf8", maxBuffer: 20_000_000 });
   writeFileSync(`/tmp/overnight-case-${t.id}.json`, caseRaw);
-  const scoreOut = execSync(`node ${join(ROOT, "scripts/score-discovery-case.mjs")} /tmp/overnight-case-${t.id}.json`, {
-    encoding: "utf8",
-  });
-  const score = JSON.parse(scoreOut);
+  let scoreOut = "";
+  try {
+    scoreOut = execSync(`node ${join(ROOT, "scripts/score-discovery-case.mjs")} /tmp/overnight-case-${t.id}.json`, {
+      encoding: "utf8",
+    });
+  } catch (e) {
+    // Prefer stdout even when exit code non-zero (legacy score script exited 1 for score < 50)
+    scoreOut = (e && e.stdout) ? String(e.stdout) : "";
+    if (!scoreOut.trim()) {
+      return { id: t.id, caseId, error: `score_failed: ${String(e?.message || e).slice(0, 180)}`, score: 0 };
+    }
+  }
+  let score;
+  try {
+    score = JSON.parse(scoreOut);
+  } catch {
+    return { id: t.id, caseId, error: "score_parse_failed", score: 0, raw: scoreOut.slice(0, 200) };
+  }
   // email domain bonus check
   let hasExpectedEmail = false;
   if (t.expectEmailDomain) {
