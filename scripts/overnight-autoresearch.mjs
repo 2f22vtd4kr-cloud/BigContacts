@@ -177,7 +177,8 @@ async function runOneTarget(t) {
     let j;
     try { j = JSON.parse(last); } catch { continue; }
     const st = String(j.status || "");
-    if (st === "completed" || st === "failed") {
+    // Ingest jobs use done|failed (see job-queue JobStatus)
+    if (st === "done" || st === "completed" || st === "failed") {
       terminal = true;
       break;
     }

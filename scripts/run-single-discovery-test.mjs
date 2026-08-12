@@ -129,7 +129,8 @@ function main() {
       continue;
     }
     lastStatus = String(j.status || "");
-    if (lastStatus === "completed" || lastStatus === "failed") {
+    // Job queue uses done|failed (not "completed")
+    if (lastStatus === "done" || lastStatus === "completed" || lastStatus === "failed") {
       terminal = true;
       break;
     }
