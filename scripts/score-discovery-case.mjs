@@ -29,6 +29,13 @@ const hasWeb = has("website") || candidates.some((c) => (c.sourceUrls || []).som
 const hasAddr = allEv.some((e) => e.vectorType === "other" && /\d/.test(String(e.value || "")) && (e.sourceUrls || []).length > 0);
 const persons = candidates.filter((c) => c.type === "person" || c.type === "review_candidate");
 const company = candidates.find((c) => c.type === "company");
+// Agentic / bureau often attaches principals as contactEvidence.personName on the company
+// candidate instead of separate person rows. Count those so relatedPeople is not false-negative.
+const evidencePeople = new Set(
+  allEv
+    .map((e) => (e.personName || "").trim())
+    .filter((n) => n.length >= 4 && n.split(/\s+/).length >= 2)
+);
 
 // Identity pollution heuristic: evidence host not matching company name tokens
 const co = (company?.name || links[0]?.to || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
@@ -49,7 +56,7 @@ const vectors = {
   phone: hasPhone,
   website: hasWeb,
   address: hasAddr,
-  relatedPeople: persons.length >= 2 || links.length >= 1,
+  relatedPeople: persons.length >= 2 || links.length >= 1 || evidencePeople.size >= 1,
   entityLinks: links.length > 0,
   orgFootprintRecorded: !!footprint,
   zeroPollution: pollution === 0,

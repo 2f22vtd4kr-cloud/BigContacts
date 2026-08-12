@@ -169,6 +169,17 @@ function extractContactFactsFromHtml(html: string): string {
     push(`PERSON: ${m[1]!.trim()} ${last} — co-founder`);
     push(`PERSON: ${m[2]!.trim()} ${last} — co-founder`);
   }
+  // BBB / directory principal lines
+  for (const m of html.matchAll(
+    /(?:Business Management|Principal Contacts?|Owner\/President|President)[:\s]+(?:Mr\.?|Ms\.?|Mrs\.?)?\s*([A-Z][a-z]+(?:\s+[A-Z][a-z.]+)+)/gi,
+  )) {
+    push(`PERSON: ${m[1]!.replace(/\s+/g, " ").trim()} — principal`);
+  }
+  for (const m of html.matchAll(
+    /\b(?:Mr\.?|Ms\.?|Mrs\.?)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+),\s*(Owner|President|CEO|Principal|Director|Founder)/gi,
+  )) {
+    push(`PERSON: ${m[1]!.trim()} — ${m[2]!.toLowerCase()}`);
+  }
   // US-centric phone patterns common on company contact pages
   for (const m of html.matchAll(/(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]\d{3}[-.\s]\d{4}/g)) {
     push(`PHONE: ${m[0]!.replace(/\s+/g, " ").trim()}`);
@@ -1094,6 +1105,16 @@ export async function runAgenticWebResearch(input: {
       if (peopleHits.length) {
         findings = mergeFindings(findings, peopleHits);
         history.push(`step${i + 1}: serp_people_findings=${peopleHits.length}`);
+      }
+      // Prefer BBB profile visit (principals live there); browser-escalate handles CF.
+      const bbbFirst = [...new Set(sr.urls)]
+        .filter((u) => !visitedUrls.has(u) && /bbb\.org\//i.test(u))
+        .sort((a, b) => rankVisitUrl(a) - rankVisitUrl(b))[0];
+      if (bbbFirst) {
+        const idx = candidateUrls.indexOf(bbbFirst);
+        if (idx >= 0) candidateUrls.splice(idx, 1);
+        candidateUrls.unshift(bbbFirst);
+        history.push(`step${i + 1}: prioritize_bbb ${bbbFirst}`);
       }
       seedCompanyContactPaths(sr.urls);
       // Always queue company dealer/team paths when domain known from findings
