@@ -665,6 +665,45 @@ function findingsFromSearchSnippet(
   return out;
 }
 
+/** Pull principal/owner names out of SERP/BBB snippet text (Grok parity on related people). */
+function findingsFromPeopleSnippet(
+  text: string,
+  urls: string[],
+  companyName?: string | null,
+): AgenticFinding[] {
+  const out: AgenticFinding[] = [];
+  if (!text) return out;
+  const src = urls.find((u) => /bbb\.org|opencorporates|sec\.gov/i.test(u)) || urls[0];
+  if (!src || !/^https?:\/\//i.test(src)) return out;
+  const patterns = [
+    /(?:Mr\.?|Ms\.?|Mrs\.?)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+),\s*(Owner|President|CEO|Principal|Manager|Director|Founder|Co-Founder)/g,
+    /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\s*[—\-,:]\s*(Owner|President|CEO|Principal|Manager|Director|Founder|Co-Founder)\b/g,
+    /Business Management:\s*(?:Mr\.?|Ms\.?)?\s*([A-Z][a-z]+(?:\s+[A-Z][a-z.]+)+),\s*(Owner|President|CEO)?/gi,
+    /Principal Contacts?\s*(?:Mr\.?|Ms\.?)?\s*([A-Z][a-z]+(?:\s+[A-Z][a-z.]+)+)/gi,
+  ];
+  const seen = new Set<string>();
+  for (const re of patterns) {
+    for (const m of text.matchAll(re)) {
+      const person = (m[1] || "").replace(/\s+/g, " ").trim();
+      const role = (m[2] || "principal").toLowerCase();
+      if (person.length < 4 || person.split(" ").length < 2) continue;
+      const key = person.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({
+        vectorType: "other",
+        value: person,
+        personName: person,
+        role: role || "related_contact",
+        scope: "candidate",
+        sourceUrls: [src],
+        note: `related person from snippet; ${role}`,
+      });
+    }
+  }
+  return out;
+}
+
 function mergeFindings(existing: AgenticFinding[], incoming: AgenticFinding[]): AgenticFinding[] {
   const key = (f: AgenticFinding) => `${f.vectorType}|${f.value.toLowerCase()}`;
   const map = new Map<string, AgenticFinding>();
@@ -820,7 +859,9 @@ export async function runAgenticWebResearch(input: {
       (f) =>
         f.personName
         && f.personName.toLowerCase() !== name.toLowerCase()
-        && (f.note?.toLowerCase().includes("related") || f.role === "related_contact"),
+        && f.personName.trim().split(/\s+/).length >= 2
+        // Any named person distinct from the target counts (Owner/President/CEO/etc.)
+        // Previous gate required note~"related" or role==related_contact and missed BBB principals.
     );
   let relatedPeopleSearchDone = false;
   let orgEmailSearchDone = false;
@@ -1049,6 +1090,11 @@ export async function runAgenticWebResearch(input: {
       for (const u of sr.urls) {
         if (/^https?:\/\//i.test(u) && !candidateUrls.includes(u)) candidateUrls.push(u);
       }
+      const peopleHits = findingsFromPeopleSnippet(sr.text, sr.urls, input.companyName || name);
+      if (peopleHits.length) {
+        findings = mergeFindings(findings, peopleHits);
+        history.push(`step${i + 1}: serp_people_findings=${peopleHits.length}`);
+      }
       seedCompanyContactPaths(sr.urls);
       // Always queue company dealer/team paths when domain known from findings
       for (const f of findings) {
@@ -1263,6 +1309,11 @@ export async function runAgenticWebResearch(input: {
       const sr = await toolWebSearch(q);
       for (const u of sr.urls) {
         if (/^https?:\/\//i.test(u) && !candidateUrls.includes(u)) candidateUrls.push(u);
+      }
+      const peopleHits2 = findingsFromPeopleSnippet(sr.text, sr.urls, input.companyName || name);
+      if (peopleHits2.length) {
+        findings = mergeFindings(findings, peopleHits2);
+        history.push(`step${i + 1}: serp_people_findings=${peopleHits2.length}`);
       }
       lastObservation =
         `Primary surface found. RELATED PEOPLE search:\nURLs: ${sr.urls.slice(0, 8).join(" | ")}\n\n${sr.text.slice(0, MAX_OBS)}\n\n` +
