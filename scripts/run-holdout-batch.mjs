@@ -76,35 +76,43 @@ function runOne(target) {
   };
 
   try {
-    const createBody = JSON.stringify({
-      objective,
-      motivation: `Holdout batch ${target.id} vs Grok (${target.emailHint || expectDomain})`,
-      geography: "United States",
-      directorMode: "gemini_boss_pending",
-    });
-    const created = execSync(`curl -s -X POST ${API}/api/research/bureau/cases -H 'Content-Type: application/json' -d '${createBody.replace(/'/g, "'\\''")}'`, {
-      encoding: "utf8",
-      maxBuffer: 5_000_000,
-    });
-    const cj = JSON.parse(created);
-    const caseId = cj.id || cj.caseId;
+    const motivation = `Holdout batch ${target.id} vs Grok (${target.emailHint || expectDomain})`;
+    const geography = "United States";
+    // Match run-single-discovery-test.mjs: double-JSON encode body for curl -d
+    const create = execSync(
+      `curl -s -X POST ${API}/api/research/bureau/cases -H 'Content-Type: application/json' -d ${JSON.stringify(
+        JSON.stringify({ objective, motivation, geography }),
+      )}`,
+      { encoding: "utf8", maxBuffer: 10_000_000 },
+    );
+    let caseId;
+    try {
+      caseId = JSON.parse(create).id;
+    } catch {
+      result.error = "create_failed";
+      result.rawCreate = create.slice(0, 500);
+      return result;
+    }
     result.caseId = caseId;
     if (!caseId) {
       result.error = "no_case_id";
-      result.rawCreate = created.slice(0, 500);
+      result.rawCreate = create.slice(0, 500);
       return result;
     }
 
-    // Start discovery job
+    // Must use run-discovery (not /run) — same path as working single-test
     const startRaw = execSync(
-      `curl -s -X POST ${API}/api/research/bureau/cases/${caseId}/run -H 'Content-Type: application/json' -d '{}'`,
+      `curl -s -X POST ${API}/api/research/bureau/cases/${caseId}/run-discovery -H 'Content-Type: application/json' -d '{}'`,
       { encoding: "utf8", maxBuffer: 5_000_000 },
     );
     let jobId = null;
     try {
-      const sj = JSON.parse(startRaw);
-      jobId = sj.jobId || sj.id;
-    } catch { /* */ }
+      jobId = JSON.parse(startRaw).jobId;
+    } catch {
+      result.error = "run_failed";
+      result.rawStart = startRaw.slice(0, 500);
+      return result;
+    }
     result.jobId = jobId;
 
     let lastStatus = "";
