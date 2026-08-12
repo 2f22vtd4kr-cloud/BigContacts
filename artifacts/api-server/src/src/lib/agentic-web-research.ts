@@ -235,25 +235,38 @@ function extractContactFactsFromHtml(html: string): string {
 
 async function toolVisit(url: string): Promise<string> {
   try {
-    const resp = await fetch(url, {
-      signal: AbortSignal.timeout(12_000),
-      headers: {
-        "User-Agent": randomUA(),
-        Accept: "text/html,application/xhtml+xml",
-        "Accept-Language": "en-US,en;q=0.9",
-      },
-      redirect: "follow",
-    });
+    const { isChallengeHtml, browserFetchConfigured, browserFetchHtml } = await import("./browser-fetch");
     let html = "";
-    if (!resp.ok) {
-      html = `HTTP ${resp.status}`;
-    } else {
-      // Read more of the page; WordPress/Astra themes dump 100k+ of CSS before contact blocks.
-      html = (await resp.text()).slice(0, 500_000);
+
+    // Facebook / Meta pages are almost always JS shells or login walls on plain fetch.
+    // Grok Agent reaches the About email field; we must browser-escalate first when configured.
+    const isSocialShell = /facebook\.com|fb\.com|instagram\.com|linkedin\.com\/company/i.test(url);
+    if (isSocialShell && browserFetchConfigured()) {
+      const escalated = await browserFetchHtml(url);
+      if (escalated.html && !isChallengeHtml(escalated.html) && escalated.html.length > 500) {
+        html = escalated.html.slice(0, 500_000);
+      }
     }
 
-    // Escalate only when blocked and a browser/scrape provider is configured (see docs/PLAYWRIGHT_FALLBACK.md)
-    const { isChallengeHtml, browserFetchConfigured, browserFetchHtml } = await import("./browser-fetch");
+    if (!html) {
+      const resp = await fetch(url, {
+        signal: AbortSignal.timeout(12_000),
+        headers: {
+          "User-Agent": randomUA(),
+          Accept: "text/html,application/xhtml+xml",
+          "Accept-Language": "en-US,en;q=0.9",
+        },
+        redirect: "follow",
+      });
+      if (!resp.ok) {
+        html = `HTTP ${resp.status}`;
+      } else {
+        // Read more of the page; WordPress/Astra themes dump 100k+ of CSS before contact blocks.
+        html = (await resp.text()).slice(0, 500_000);
+      }
+    }
+
+    // Escalate when blocked and a browser/scrape provider is configured (see docs/PLAYWRIGHT_FALLBACK.md)
     if ((isChallengeHtml(html) || /^HTTP 403/.test(html) || /^HTTP 503/.test(html)) && browserFetchConfigured()) {
       const escalated = await browserFetchHtml(url);
       if (escalated.html && !isChallengeHtml(escalated.html)) {
@@ -414,8 +427,9 @@ function buildStepPrompt(input: {
   history: string[];
   lastObservation: string;
 }): string {
-  return `You are running an AGENTIC web research loop (like Grok Agent / Gemini AI Mode), NOT a fixed checklist.
-You have the same cognitive ability as those agents. Invent creative multi-hop queries. Follow promising URLs. Pivot when results are thin.
+  return `You are running an AGENTIC web research loop with Grok Agent parity on public web surface.
+Your web searches and visits must recover AT LEAST what a capable Grok Agent recovers on the same target.
+Then Apex layers registries, browser escalate, and bureau tools on top. Never invent.
 
 TARGET: ${input.targetName}
 ${input.companyName ? `RELATED COMPANY / ISSUER: ${input.companyName}` : ""}
@@ -426,20 +440,25 @@ TOOLS (choose exactly one per turn):
 2) {"action":"visit","url":"https://...","thought":"..."} — open a specific page and read it
 3) {"action":"done","findings":[{"vectorType":"email|phone|linkedin|website|social|other","value":"...","personName":null,"role":null,"scope":"organization|candidate","sourceUrls":["https://exact-page"],"note":"..."}],"thought":"..."}
 
+GROK-PARITY SEARCH ORDER (follow this, then improvise):
+1. Exact TARGET + company + city/state (or "contact" / "phone" / "address")
+2. Company domain surface: "{company}" (contact OR "contact us" OR phone OR email) -zoominfo -rocketreach
+3. Org mailbox: "{company}" ("info@" OR "contact@" OR "sales@") OR site:facebook.com "{company}"
+4. Facebook / About: "{company}" site:facebook.com (about OR email OR info@ OR contact)
+5. Related people: "{company}" (owner OR "co-founder" OR officers OR BBB OR "principal contact")
+6. Visit every high-value URL before another search: company /contact, /about, /team, Facebook page, BBB
+
 RULES:
 - Never invent emails, phones, or profiles. Only report values VISIBLE in observations with exact sourceUrls.
-- Prefer primary sources: company contact/about/team/terms pages, BBB profiles, registries, LinkedIn, filings, SEC/EDGAR, officer tables.
-- Multi-hop: if you learn a company domain, immediately visit /contact /contact-us /about /team (and root). If CONTACT FACTS appear, emit them as findings with that page as sourceUrl.
-- AFTER org email/phone/address are known, do NOT stop. Search "{company} BBB" or "{company} owner officers contacts" and visit BBB/about pages to recover RELATED people (owners, company contacts, co-officers). Emit each as findings with personName + role.
-- When CONTACT FACTS lists PERSON: lines, emit each as a finding (vectorType other, personName set, role set, sourceUrls set).
-- Search "TARGET company EDGAR" or site:sec.gov for officer tables when public-company context appears.
-- Organization inboxes (info@, contact@, office@) are fine as organization scope. Do not mark Personal.
-- FIRST ACTION must be web_search when trajectory is empty. Do not return done until: (a) at least 2 web_search AND 1 visit, AND (b) either related people found OR a dedicated related-people search was attempted.
-- After any web_search that returns URLs, NEXT action should usually be visit on company/contact/BBB/about — not another search.
-- When TARGET is a named person + RELATED COMPANY, search the exact pair first.
-- Recover role history when visible. Never invent names.
+- Prefer primary sources: company contact/about/team/terms, Facebook About, BBB, registries, LinkedIn, filings, SEC/EDGAR.
+- Multi-hop: if you learn a company domain, immediately visit /contact /contact-us /about /team (and root). Emit CONTACT FACTS with that page as sourceUrl.
+- Mid-market org email often lives on Facebook About, not the corporate contact form. When company is locked and email is still missing, search site:facebook.com and VISIT the Facebook page.
+- AFTER org email/phone/address are known, do NOT stop. Recover RELATED people (owners, co-founders, officers) with personName + role.
+- Organization inboxes (info@, contact@, office@, sales@) are organization scope. Do not mark Personal.
+- FIRST ACTION must be web_search when trajectory is empty.
+- Do not return done until: (a) ≥2 web_search AND ≥1 visit, (b) company contact/Facebook hop attempted when company known, (c) related-people hop attempted OR primary surface fully recovered.
+- After any web_search that returns URLs, NEXT action should usually be visit on company/contact/Facebook/BBB/about — not another search.
 - When CONTACT FACTS appear, include them in done.findings with that page as sourceUrl.
-- Only action=done when public surface is recovered AND related-people hop was attempted (or SERP empty).
 
 TRAJECTORY SO FAR:
 ${input.history.join("\n") || "(start)"}
@@ -464,7 +483,11 @@ function isCompanyAlignedEmail(email: string, companyName?: string | null, pageU
   if (companyName) {
     const token = companyName.toLowerCase().replace(/[^a-z0-9]+/g, "");
     const domFlat = domain.replace(/[^a-z0-9]/g, "");
-    if (token.length >= 4 && domFlat.includes(token.slice(0, Math.min(6, token.length)))) return true;
+    // Mid-market short names (DYNA, etc.): 3+ token chars is enough when domain contains the stem
+    if (token.length >= 3 && (
+      domFlat.includes(token.slice(0, Math.min(6, token.length)))
+      || domain.includes(token.slice(0, Math.min(4, token.length)))
+    )) return true;
   }
   return false;
 }
