@@ -16,6 +16,11 @@ jobs:
     timeout-minutes: 360
     permissions:
       contents: write
+    env:
+      # Force public npm; Replit/private mirrors break on GH runners
+      npm_config_registry: https://registry.npmjs.org/
+      NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
+      PNPM_NETWORK_TIMEOUT: "600000"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -26,23 +31,36 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
+          registry-url: https://registry.npmjs.org/
 
       - name: Install pnpm
         run: npm install -g pnpm@9
 
+      - name: Force public npm registry
+        run: |
+          printf 'registry=https://registry.npmjs.org/\nalways-auth=false\n' > .npmrc
+          pnpm config set registry https://registry.npmjs.org/
+          pnpm config set fetch-timeout 600000
+          pnpm config set network-timeout 600000
+
       - name: Install deps
-        run: pnpm install --filter @workspace/db --filter @workspace/api-server --filter @workspace/api-zod --ignore-scripts
+        run: |
+          pnpm install --filter @workspace/db --filter @workspace/api-server --filter @workspace/api-zod --ignore-scripts --registry=https://registry.npmjs.org/
 
       - name: Install esbuild binary
-        run: node node_modules/.pnpm/esbuild@0.27.3/node_modules/esbuild/install.js || true
+        run: |
+          ESBUILD=$(find node_modules -path '*/esbuild/install.js' | head -1)
+          echo "esbuild_install=$ESBUILD"
+          node "$ESBUILD" || true
 
       - name: Setup Postgres and Redis
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq postgresql redis-server
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq postgresql redis-server
           sudo service postgresql start || true
           sudo service redis-server start || true
+          redis-server --daemonize yes || true
           sudo -u postgres psql -c "CREATE USER apex WITH PASSWORD 'apex_local_dev' SUPERUSER;" || true
           sudo -u postgres psql -c "CREATE DATABASE apex OWNER apex;" || true
 
@@ -79,13 +97,14 @@ jobs:
           ENABLE_AUTO_PIPELINE: "false"
           NODE_ENV: "development"
         run: |
-          redis-cli ping || sudo service redis-server start || true
+          redis-cli ping || redis-server --daemonize yes || true
           node artifacts/api-server/dist/index.mjs > /tmp/api.log 2>&1 &
-          for i in $(seq 1 30); do
+          for i in $(seq 1 40); do
             sleep 1
             code=$(curl -s -m 2 -o /dev/null -w "%{http_code}" http://127.0.0.1:8080/ || echo 000)
-            [ "$code" != "000" ] && break
+            [ "$code" != "000" ] && [ -n "$code" ] && break
           done
+          head -20 /tmp/api.log || true
           node scripts/overnight-autoresearch.mjs
 
       - name: Upload logs
@@ -97,4 +116,5 @@ jobs:
             /tmp/apex-overnight-log.jsonl
             /tmp/apex-overnight-status.json
             /tmp/overnight-stdout.log
+            /tmp/api.log
           if-no-files-found: ignore
