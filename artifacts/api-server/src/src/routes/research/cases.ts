@@ -853,18 +853,53 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
       // Extract a tight person/company target from the human objective when present
       // so the loop behaves like a general agent (not a diluted discovery brief).
       const objText = workingFile.humanBrief.objective || "";
-      // Prefer explicit "PERSON / COMPANY" objective form used in bureau cases
+      // Prefer explicit "PERSON / COMPANY" objective form used in bureau cases.
+      // Also accept "COMPANY / Geography" and bare company names with legal suffixes.
       const slashPair = objText.match(
-        /\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z'-]+){0,3})\s*\/\s*([A-Z][A-Za-z0-9&.'-]{1,}(?:\s+[A-Z][A-Za-z0-9&.']*){0,5})/,
+        /\b([A-Z][A-Za-z0-9&.'-]+(?:\s+[A-Z][A-Za-z0-9&.']*){0,5})\s*\/\s*([A-Z][A-Za-z0-9&.'-]{1,}(?:\s+[A-Z][A-Za-z0-9&.']*){0,5})/,
       );
-      const personMatch = slashPair
-        ? null
-        : objText.match(/\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z'-]+){1,3})\b/);
-      const companyMatch = slashPair
-        ? null
-        : objText.match(/\b([A-Z][A-Za-z0-9&.'-]*(?:\s+[A-Z][A-Za-z0-9&.']*){0,5}\s+(?:Company|Co\.?|Corp\.?|Inc\.?|LLC|LLP|Manufacturing|Products|Holdings|Group|Partners|Capital|Foundation|Advisors?|Management|Investments?))\b/);
-      const agenticTargetName = (slashPair?.[1] || personMatch?.[1] || objText.slice(0, 80) || "discovery target").trim();
-      const agenticCompanyName = (slashPair?.[2] || companyMatch?.[1] || null)?.trim() || null;
+      const CORP_SUFFIX =
+        /(?:Company|Co\.?|Corp\.?|Inc\.?|LLC|LLP|Ltd\.?|Manufacturing|Products|Industries|Holdings|Group|Partners|Capital|Foundation|Advisors?|Management|Investments?|Equipment|Machines?)/i;
+      const GEO_ONLY =
+        /^(?:United States|USA|US|Canada|UK|England|Michigan|Ohio|Texas|California|Florida|New York|Pennsylvania|Illinois|Wisconsin|Minnesota|Indiana|Georgia|North Carolina|Virginia|Washington|Arizona|Colorado|Oregon|Remus|Millington|Detroit|Chicago|Dallas|Houston|Atlanta|Boston|Seattle|Portland)(?:\s+[A-Z][a-z]+)?$/i;
+      const companyMatchAlways = objText.match(
+        new RegExp(
+          `\\b([A-Z][A-Za-z0-9&.'-]*(?:\\s+[A-Z][A-Za-z0-9&.']*){0,5}\\s+(?:Company|Co\\.?|Corp\\.?|Inc\\.?|LLC|LLP|Ltd\\.?|Manufacturing|Products|Industries|Holdings|Group|Partners|Capital|Foundation|Advisors?|Management|Investments?|Equipment|Machines?))\\b`,
+        ),
+      );
+      let agenticTargetName: string;
+      let agenticCompanyName: string | null;
+      if (slashPair) {
+        const left = slashPair[1].trim();
+        const right = slashPair[2].trim();
+        const leftIsCorp = CORP_SUFFIX.test(left);
+        const rightIsCorp = CORP_SUFFIX.test(right);
+        const rightIsGeo = GEO_ONLY.test(right);
+        const leftIsGeo = GEO_ONLY.test(left);
+        if (leftIsCorp && (rightIsGeo || !rightIsCorp)) {
+          // "Bandit Industries / Remus Michigan" or "DYNA Products / Millington MI"
+          agenticCompanyName = left;
+          agenticTargetName = left;
+        } else if (rightIsCorp && !leftIsCorp) {
+          // classic "Nathan Miller / DYNA Products"
+          agenticTargetName = left;
+          agenticCompanyName = right;
+        } else if (leftIsCorp && rightIsCorp) {
+          agenticCompanyName = left;
+          agenticTargetName = left;
+        } else {
+          // default PERSON / COMPANY assumption
+          agenticTargetName = left;
+          agenticCompanyName = rightIsGeo ? (companyMatchAlways?.[1] || null) : right;
+        }
+      } else {
+        const personMatch = objText.match(/\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z'-]+){1,3})\b/);
+        agenticCompanyName = (companyMatchAlways?.[1] || null)?.trim() || null;
+        agenticTargetName = (personMatch?.[1] || agenticCompanyName || objText.slice(0, 80) || "discovery target").trim();
+      }
+      if (agenticCompanyName && GEO_ONLY.test(agenticCompanyName)) {
+        agenticCompanyName = (companyMatchAlways?.[1] || null)?.trim() || null;
+      }
       const agenticDiscovery = await runBureauAgenticWebPass({
         targetName: agenticTargetName,
         companyName: agenticCompanyName,
