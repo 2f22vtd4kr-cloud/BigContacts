@@ -536,6 +536,7 @@ RULES:
 - Multi-hop: if you learn a company domain, immediately visit /contact /contact-us /about /team (and root). Emit CONTACT FACTS with that page as sourceUrl.
 - Mid-market org email often lives on Facebook About, not the corporate contact form. When company is locked and email is still missing, search site:facebook.com and VISIT the Facebook page.
 - AFTER org email/phone/address are known, do NOT stop. Recover RELATED people (owners, co-founders, officers) with personName + role.
+- AFTER founders are known, STILL recover the CURRENT CEO/President and sales@ / info@ from company location/contact pages. Founders ≠ sitting executives.
 - ALSO recover succession and ownership structure when visible (family-owned, generation, named CEO succession, Executive Chairman). Visit /leadership and succession blog posts. Emit those facts with sourceUrls — same pages Grok Agent would read.
 - Organization inboxes (info@, contact@, office@, sales@) are organization scope. Do not mark Personal.
 - FIRST ACTION must be web_search when trajectory is empty.
@@ -883,7 +884,7 @@ export async function runAgenticWebResearch(input: {
     if (hostMatch && /\.pdf(\?|$)/i.test(lower) && /(contact|sales|team|staff|directory|rep)/i.test(lower)) return 0;
     if (/\.pdf(\?|$)/i.test(lower) && /(contact|sales|team|staff|directory|rep)/i.test(lower) && coToken) return 1;
     // Primary company contact/terms pages first (where org email/phone actually live)
-    if (hostMatch && /\/(contact|terms|about|team|people|leadership|privacy|impressum|dealer)/i.test(lower)) return 0;
+    if (hostMatch && /\/(contact|terms|about|team|people|leadership|privacy|impressum|dealer|corporate-locations|locations)/i.test(lower)) return 0;
     if (hostMatch && /\/(contact|terms|about|team|people|leadership|privacy|dealer)/i.test(lower)) return 0;
     if (/\/(contact|terms-and-conditions|terms|about\/contact|dealer|dealers|team)/i.test(lower) && hostMatch) return 0;
     // BBB may be CF-walled; still rank if reachable
@@ -908,6 +909,7 @@ export async function runAgenticWebResearch(input: {
       "/pages/contact", "/company/contact", "/about/contact", "/sales-contact-form",
       "/contact-page", "/terms-and-conditions", "/terms", "/about", "/about-us",
       "/about-us/leadership", "/leadership", "/our-leadership", "/company/leadership",
+      "/corporate-locations", "/locations", "/our-locations", "/company/locations",
       "/dealer", "/dealers", "/team", "/our-team", "/people",
       "/blog", "/news", "/about-us/history", "/history", "/our-story",
     ];
@@ -1191,7 +1193,6 @@ export async function runAgenticWebResearch(input: {
     if (
       hasOrgEmailOrPhone()
       && !relatedPeopleSearchDone
-      && !hasRelatedPerson()
       && i < maxIter - 2
     ) {
       relatedPeopleSearchDone = true;
@@ -1276,6 +1277,46 @@ export async function runAgenticWebResearch(input: {
       lastObservation =
         `OWNERSHIP / FOUNDER search: ${q}\nURLs: ${sr.urls.slice(0, 8).join(" | ")}\n\n${sr.text.slice(0, MAX_OBS)}\n\n` +
         `NEXT: visit founder/acquisition pages and any company PDF contact sheets. Emit PERSON+role and named emails with sourceUrls.`;
+      await forceVisitNext(`step${i + 1}`);
+      continue;
+    }
+
+    // Current CEO / President hop — founders already on ledger must NOT skip sitting executives
+    if (
+      (relatedPeopleSearchDone || ownershipSearchDone)
+      && !history.some((h) => h.includes("force_current_exec_search"))
+      && i < maxIter - 2
+    ) {
+      const co = input.companyName || name;
+      const q = `"${co}" ("CEO" OR "chief executive" OR president OR appointed) (CEO OR president) -zoominfo -rocketreach`;
+      searches++;
+      history.push(`step${i + 1}: force_current_exec_search ${q}`);
+      const sr = await toolWebSearch(q);
+      for (const u of sr.urls) {
+        if (/^https?:\/\//i.test(u) && !candidateUrls.includes(u)) candidateUrls.push(u);
+      }
+      const peopleHits = findingsFromPeopleSnippet(sr.text, sr.urls, input.companyName || name);
+      if (peopleHits.length) {
+        findings = mergeFindings(findings, peopleHits);
+        history.push(`step${i + 1}: exec_people_findings=${peopleHits.length}`);
+      }
+      const snippetEmails = findingsFromSearchSnippet(sr.text, sr.urls, input.companyName || name);
+      if (snippetEmails.length) {
+        findings = mergeFindings(findings, snippetEmails);
+        history.push(`step${i + 1}: exec_serp_emails=${snippetEmails.length}`);
+      }
+      const execUrl = [...new Set(sr.urls)]
+        .filter((u) => !visitedUrls.has(u) && /(ceo|president|appoint|leadership|management|about)/i.test(u))
+        .sort((a, b) => rankVisitUrl(a) - rankVisitUrl(b))[0];
+      if (execUrl) {
+        const idx = candidateUrls.indexOf(execUrl);
+        if (idx >= 0) candidateUrls.splice(idx, 1);
+        candidateUrls.unshift(execUrl);
+        history.push(`step${i + 1}: prioritize_exec_page ${execUrl}`);
+      }
+      lastObservation =
+        `CURRENT EXEC search: ${q}\nURLs: ${sr.urls.slice(0, 8).join(" | ")}\n\n${sr.text.slice(0, MAX_OBS)}\n\n` +
+        `NEXT: visit CEO/president appointment or leadership pages. Emit PERSON+role for current executives with sourceUrls.`;
       await forceVisitNext(`step${i + 1}`);
       continue;
     }
@@ -1464,7 +1505,6 @@ export async function runAgenticWebResearch(input: {
     if (
       hasOrgEmailOrPhone()
       && !relatedPeopleSearchDone
-      && !hasRelatedPerson()
       && i < maxIter - 2
     ) {
       history.push(`step${i + 1}: done_rejected (related-people hop required)`);
