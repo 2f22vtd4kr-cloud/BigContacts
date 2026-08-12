@@ -8,16 +8,17 @@
  * Loop:
  *   1. Ensure API up
  *   2. Score baseline on cohort
- *   3. Apply next general experiment (no target hardcoding)
- *   4. Rebuild + re-score
- *   5. KEEP (commit+push) only if metric improves; else git reset --hard
- *   6. Sleep and repeat until STOP_FILE or max hours
+ *   3. Seed experiments (hand-written, often already applied → skip)
+ *   4. REAL Karpathy rounds: LLM reads metric gaps + agentic source, proposes
+ *      surgical patches → rebuild → re-score → KEEP only if metric improves
+ *   5. Sleep and repeat until STOP_FILE or max hours
  *
  * Stop: touch /tmp/apex-overnight-STOP  or  env MAX_HOURS
  * Log:  /tmp/apex-overnight-log.jsonl
  * Status: /tmp/apex-overnight-status.json
  *
  * Primary focus: recover company-domain org email (info@) on mid-market targets.
+ * Fail-closed: LLM may improve recovery code; must never invent contact values.
  */
 import { spawn, execSync } from "node:child_process";
 import { readFileSync, writeFileSync, appendFileSync, existsSync, mkdirSync, openSync } from "node:fs";
@@ -245,6 +246,182 @@ function metric(results) {
   const emailBonus = results.filter((r) => r.hasExpectedEmail).length * 15;
   return Math.round(mean + emailBonus);
 }
+
+
+/** Paths the LLM is allowed to patch (surgical discovery surface only). */
+const ALLOWED_PATCH_PATHS = new Set([
+  "artifacts/api-server/src/src/lib/agentic-web-research.ts",
+  "artifacts/api-server/src/src/lib/bureau-agentic-pass.ts",
+  "artifacts/api-server/src/src/lib/discovery-source-mixer.ts",
+  "artifacts/api-server/src/src/lib/contact-validation.ts",
+]);
+
+async function callLlmJson(prompt) {
+  const groqKeys = ["GROQ_API_KEY", ...Array.from({ length: 5 }, (_, i) => `GROQ_API_KEY_${i + 1}`)]
+    .map((n) => process.env[n] ?? "")
+    .filter(Boolean);
+  for (const key of groqKeys) {
+    try {
+      const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: process.env.OVERNIGHT_LLM_MODEL || "llama-3.3-70b-versatile",
+          temperature: 0.35,
+          max_tokens: 4096,
+          response_format: { type: "json_object" },
+          messages: [
+            {
+              role: "system",
+              content:
+                "You are an elite systems engineer improving an OSINT contact-discovery agent. Reply with ONE JSON object only.",
+            },
+            { role: "user", content: prompt },
+          ],
+        }),
+        signal: AbortSignal.timeout(90_000),
+      });
+      if (!resp.ok) continue;
+      const data = await resp.json();
+      const raw = data.choices?.[0]?.message?.content?.trim() ?? "";
+      if (raw) return { model: process.env.OVERNIGHT_LLM_MODEL || "llama-3.3-70b-versatile", raw };
+    } catch {
+      continue;
+    }
+  }
+  // Gemini REST fallback
+  const gKey = process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY_1 || "";
+  if (gKey) {
+    try {
+      const model = process.env.OVERNIGHT_GEMINI_MODEL || "gemini-2.0-flash";
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${gKey}`;
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.35, maxOutputTokens: 4096, responseMimeType: "application/json" },
+        }),
+        signal: AbortSignal.timeout(90_000),
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        const raw = data.candidates?.[0]?.content?.parts?.map((p) => p.text).join("")?.trim() ?? "";
+        if (raw) return { model, raw };
+      }
+    } catch {
+      /* fall through */
+    }
+  }
+  return null;
+}
+
+function buildProposePrompt(ctx) {
+  const agenticPath = join(ROOT, "artifacts/api-server/src/src/lib/agentic-web-research.ts");
+  let agentic = "";
+  try {
+    agentic = readFileSync(agenticPath, "utf8");
+  } catch {
+    agentic = "(unreadable)";
+  }
+  // Keep prompt bounded
+  if (agentic.length > 28000) {
+    agentic = agentic.slice(0, 14000) + "\n\n/* … middle omitted … */\n\n" + agentic.slice(-14000);
+  }
+  return `You improve Apex Atlas agentic web contact discovery.
+
+## Metric (higher is better)
+mean scorecard score across fixed mid-market cohort + 15 per target that recovers expected company-domain org email.
+Current best metric: ${ctx.best}
+Latest results JSON:
+${JSON.stringify(ctx.results, null, 2).slice(0, 4000)}
+
+## Gaps to close (priority order)
+1. Company-domain org email (info@, contact@, sales@) visible on public pages/SERP/Facebook About — fail-closed, sourceUrls required
+2. Richer surface on weak targets (phone, website, address, related officers)
+3. Do not invent contacts. Do not hardcode specific company names, emails, or phone numbers from the cohort.
+4. General mid-market manufacturing / regional operators only — no fame-CEO special cases.
+
+## Constraints
+- Return JSON: {"id":"llm_snake_case","description":"one line","rationale":"why","patches":[{"path":"artifacts/api-server/src/src/lib/agentic-web-research.ts","old":"exact substring to replace","new":"replacement"}]}
+- path MUST be one of: ${[...ALLOWED_PATCH_PATHS].join(", ")}
+- "old" must be an EXACT contiguous substring from the source below (copy carefully)
+- Prefer 1–3 small patches over rewrites
+- Never add synthetic/default emails like info@\${domain} without requiring the string appear in SERP/page text
+- Never remove fail-closed sourceUrls checks
+
+## agentic-web-research.ts (source of truth)
+\`\`\`ts
+${agentic}
+\`\`\`
+`;
+}
+
+function applyLlmPatches(patches) {
+  if (!Array.isArray(patches) || !patches.length) return { ok: false, reason: "no_patches" };
+  const touched = new Set();
+  for (const p of patches) {
+    const rel = String(p.path || "").replace(/^\.\//, "");
+    if (!ALLOWED_PATCH_PATHS.has(rel)) return { ok: false, reason: `path_not_allowed:${rel}` };
+    const abs = join(ROOT, rel);
+    let src;
+    try {
+      src = readFileSync(abs, "utf8");
+    } catch {
+      return { ok: false, reason: `read_fail:${rel}` };
+    }
+    const oldS = String(p.old ?? "");
+    const newS = String(p.new ?? "");
+    if (oldS.length < 12) return { ok: false, reason: "old_too_short" };
+    if (!src.includes(oldS)) return { ok: false, reason: `old_not_found:${rel}` };
+    if (oldS === newS) return { ok: false, reason: "noop_patch" };
+    // Reject obvious synthetic mailbox invention patterns without SERP/page gates
+    if (/value:\s*[`'"]info@\$\{/.test(newS) && !/snippet|SERP|visible|sourceUrl/i.test(newS)) {
+      return { ok: false, reason: "reject_synthetic_mailbox" };
+    }
+    writeFileSync(abs, src.replace(oldS, newS));
+    touched.add(rel);
+  }
+  return { ok: true, touched: [...touched] };
+}
+
+async function proposeLlmExperiment(ctx) {
+  const llm = await callLlmJson(buildProposePrompt(ctx));
+  if (!llm?.raw) return null;
+  let parsed;
+  try {
+    parsed = JSON.parse(llm.raw);
+  } catch {
+    // try extract JSON object
+    const m = llm.raw.match(/\{[\s\S]*\}/);
+    if (!m) return null;
+    try {
+      parsed = JSON.parse(m[0]);
+    } catch {
+      return null;
+    }
+  }
+  const id = String(parsed.id || `llm_${Date.now()}`).replace(/[^a-z0-9_]/gi, "_").slice(0, 60);
+  const description = String(parsed.description || "llm experiment").slice(0, 200);
+  const patches = parsed.patches;
+  return {
+    id,
+    description,
+    rationale: String(parsed.rationale || "").slice(0, 500),
+    model: llm.model,
+    patches,
+    apply() {
+      const r = applyLlmPatches(patches);
+      if (!r.ok) {
+        log({ event: "llm_apply_reject", id, reason: r.reason });
+        return false;
+      }
+      log({ event: "llm_apply_ok", id, touched: r.touched, model: llm.model });
+      return true;
+    },
+  };
+}
+
 
 /** Experiments: general discovery improvements aimed at org-email recovery. Applied in order. */
 const EXPERIMENTS = [
@@ -557,20 +734,103 @@ async function main() {
     }
   }
 
-  // continue cycling best tip with re-scores until time limit (measurement only)
+  // REAL Karpathy rounds: LLM proposes surgical discovery patches; KEEP only if metric rises
+  let llmRound = 0;
   while (!shouldStop()) {
     ensureApi();
+    llmRound++;
+    // clean tree + pull kept tip
+    try { sh("git checkout -- ."); } catch { /* */ }
     try {
-      const results = await runCohort();
-      const m = metric(results);
-      log({ event: "monitor", metric: m, best, results });
-      pushProgressMarker(m, results);
+      sh(`git remote set-url origin ${REMOTE_AUTH}`);
+      sh("git pull --ff-only origin main || true");
+      sh("git remote set-url origin https://github.com/2f22vtd4kr-cloud/BigContacts.git");
     } catch (e) {
-      log({ event: "monitor_error", error: String(e?.message || e).slice(0, 200) });
+      log({ event: "pull_warn", error: String(e?.message || e).slice(0, 200) });
     }
-    execSync("sleep 120");
+
+    let lastResults = [{ note: "no_prior" }];
+    try {
+      lastResults = await runCohort();
+      const m0 = metric(lastResults);
+      if (m0 > best) best = m0;
+      log({ event: "llm_round_baseline", round: llmRound, metric: m0, best, results: lastResults });
+      pushProgressMarker(m0, lastResults);
+    } catch (e) {
+      log({ event: "llm_round_baseline_error", round: llmRound, error: String(e?.message || e).slice(0, 300) });
+    }
+
+    if (shouldStop()) break;
+
+    let exp = null;
+    try {
+      exp = await proposeLlmExperiment({ best, results: lastResults, round: llmRound });
+    } catch (e) {
+      log({ event: "llm_propose_error", round: llmRound, error: String(e?.message || e).slice(0, 300) });
+    }
+    if (!exp) {
+      log({ event: "llm_propose_empty", round: llmRound });
+      execSync(`sleep ${Math.max(30, CYCLE_SLEEP_MS / 1000)}`);
+      continue;
+    }
+    log({ event: "llm_propose", round: llmRound, id: exp.id, description: exp.description, model: exp.model, rationale: exp.rationale });
+
+    let applied = false;
+    try {
+      applied = exp.apply();
+    } catch (e) {
+      log({ event: "llm_apply_error", round: llmRound, id: exp.id, error: String(e?.message || e).slice(0, 300) });
+    }
+    if (!applied) {
+      try { sh("git checkout -- ."); } catch { /* */ }
+      execSync(`sleep ${Math.max(20, CYCLE_SLEEP_MS / 1000)}`);
+      continue;
+    }
+
+    if (!rebuild()) {
+      log({ event: "rebuild_failed", round: llmRound, id: exp.id });
+      try { sh("git checkout -- ."); } catch { /* */ }
+      continue;
+    }
+
+    let results;
+    try {
+      results = await runCohort();
+    } catch (e) {
+      log({ event: "cohort_error", round: llmRound, id: exp.id, error: String(e?.message || e).slice(0, 300) });
+      try { sh("git checkout -- ."); } catch { /* */ }
+      continue;
+    }
+    const m = metric(results);
+    log({ event: "llm_experiment_score", round: llmRound, id: exp.id, metric: m, best, results });
+
+    if (m > best) {
+      best = m;
+      try {
+        for (const rel of ALLOWED_PATCH_PATHS) {
+          try { sh(`git add ${rel}`); } catch { /* */ }
+        }
+        sh(`git -c user.email=apex@atlas.local -c user.name="Apex Overnight" commit -m "overnight(keep): ${exp.id} metric=${m} — ${exp.description.slice(0, 80)}"`);
+        if (PAT) {
+          sh(`git remote set-url origin ${REMOTE_AUTH}`);
+          try { sh("git push origin main"); } catch { try { sh("sleep 5; git push origin main"); } catch { /* */ } }
+          sh("git remote set-url origin https://github.com/2f22vtd4kr-cloud/BigContacts.git");
+          log({ event: "KEEP_PUSHED", round: llmRound, id: exp.id, metric: m, tip: sh("git log --oneline -1").trim() });
+        }
+        log({ event: "KEEP", round: llmRound, id: exp.id, metric: m });
+        pushProgressMarker(m, results);
+      } catch (e) {
+        log({ event: "commit_push_error", round: llmRound, id: exp.id, error: String(e?.message || e).slice(0, 400) });
+        try { sh("git checkout -- ."); } catch { /* */ }
+      }
+    } else {
+      try { sh("git checkout -- ."); } catch { /* */ }
+      log({ event: "DISCARD", round: llmRound, id: exp.id, metric: m, best });
+      rebuild();
+    }
+    execSync(`sleep ${CYCLE_SLEEP_MS / 1000}`);
   }
-  log({ event: "done", best, reason: shouldStop() });
+  log({ event: "done", best, reason: shouldStop(), llmRounds: llmRound });
 }
 
 main().catch((e) => {
