@@ -186,10 +186,17 @@ function extractContactFactsFromHtml(html: string): string {
   }
   // Street-ish address lines — require real street type tokens (blocks CSS class noise)
   for (const m of html.matchAll(
-    /\b\d{1,5}\s+[A-Za-z0-9.'\-]+(?:\s+[A-Za-z0-9.'\-]+){0,4}\s+(?:Street|St\.?|Avenue|Ave\.?|Road|Rd\.?|Drive|Dr\.?|Boulevard|Blvd\.?|Lane|Ln\.?|Court|Ct\.?|Way|Highway|Hwy\.?|HWY)\b[^<\n]{0,40}/gi,
+    /\b\d{1,6}\s+[A-Za-z0-9.'\-]+(?:\s+[A-Za-z0-9.'\-]+){0,5}\s+(?:Street|St\.?|Avenue|Ave\.?|Road|Rd\.?|Drive|Dr\.?|Boulevard|Blvd\.?|Lane|Ln\.?|Court|Ct\.?|Way|Highway|Hwy\.?|HWY|Parkway|Pkwy\.?|Place|Pl\.?)\b[^<\n]{0,50}/gi,
   )) {
-    const line = m[0]!.replace(/\s+/g, " ").trim().slice(0, 120);
+    const line = m[0]!.replace(/\s+/g, " ").trim().slice(0, 140);
     if (!/\bast-|\buagb-|\bwp-|\brmp-|[{};]/.test(line)) push(`ADDRESS: ${line}`);
+  }
+  // Full "15700 South Waterloo Rd. Cleveland, OH 44110" contact-page blocks
+  for (const m of html.matchAll(
+    /\b\d{1,6}\s+[A-Za-z0-9.'\-\s]{3,55}?,\s*[A-Z][a-zA-Z .']{1,28},\s*[A-Z]{2}\s+\d{5}(?:-\d{4})?\b/g,
+  )) {
+    const line = m[0]!.replace(/\s+/g, " ").trim().slice(0, 160);
+    if (!/\bast-|\buagb-|[{};]/.test(line)) push(`ADDRESS: ${line}`);
   }
   for (const m of html.matchAll(/\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*,\s*[A-Z]{2}\s+\d{5}(?:-\d{4})?\b/g)) {
     push(`ADDRESS: ${m[0]!.trim()}`);
