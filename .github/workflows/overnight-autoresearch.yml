@@ -43,8 +43,11 @@ jobs:
           pnpm config set network-timeout 600000
 
       - name: Install deps
+        env:
+          CI: "false"
         run: |
-          pnpm install --filter @workspace/db --filter @workspace/api-server --filter @workspace/api-zod --ignore-scripts --registry=https://registry.npmjs.org/
+          # Lockfile was generated with autoInstallPeers=false; avoid frozen mismatch on GH
+          pnpm install --no-frozen-lockfile --filter @workspace/db --filter @workspace/api-server --filter @workspace/api-zod --ignore-scripts --registry=https://registry.npmjs.org/
 
       - name: Install esbuild binary
         run: |
