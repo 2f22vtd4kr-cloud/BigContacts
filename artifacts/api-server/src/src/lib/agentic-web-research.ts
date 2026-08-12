@@ -264,10 +264,47 @@ function extractContactFactsFromHtml(html: string): string {
   return "CONTACT FACTS (visible on page):\n" + facts.slice(0, 40).join("\n") + "\n\n";
 }
 
+/** Pull printable Latin text + emails/phones from a PDF binary (no extra deps). */
+function extractTextFromPdfBuffer(buf: ArrayBuffer): string {
+  const u8 = new Uint8Array(buf);
+  // Prefer latin1 so PDF string objects stay contiguous
+  let raw = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < u8.length; i += chunk) {
+    raw += String.fromCharCode(...u8.subarray(i, Math.min(i + chunk, u8.length)));
+  }
+  // PDF literal strings (...); keep readable runs
+  const parts: string[] = [];
+  for (const m of raw.matchAll(/\((?:\\.|[^\\)]){3,200}\)/g)) {
+    const s = m[0].slice(1, -1)
+      .replace(/\\\n/g, "")
+      .replace(/\\([nrtbf()\\])/g, (_, c) => ({ n: "\n", r: "\r", t: "\t", b: " ", f: " ", "(": "(", ")": ")", "\\": "\\" } as any)[c] ?? c)
+      .replace(/[^\x09\x0a\x0d\x20-\x7e]/g, " ");
+    if (/[A-Za-z0-9@]/.test(s)) parts.push(s);
+  }
+  // Also keep long printable runs outside streams (often emails sit here)
+  for (const m of raw.matchAll(/[\x20-\x7e]{8,}/g)) {
+    if (/@|\d{3}|Phone|Email|Fax|Mobile|President|CEO|Owner/i.test(m[0])) parts.push(m[0]);
+  }
+  const text = parts.join("\n").replace(/[ \t]{2,}/g, " ").slice(0, 200_000);
+  return text;
+}
+
+function isMostlyBinaryGarbage(s: string): boolean {
+  if (!s || s.length < 8) return false;
+  let bad = 0;
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    if (c < 9 || (c > 13 && c < 32) || c === 0xfffd || c > 0x10ffff) bad++;
+  }
+  return bad / s.length > 0.15;
+}
+
 async function toolVisit(url: string): Promise<string> {
   try {
     const { isChallengeHtml, browserFetchConfigured, browserFetchHtml } = await import("./browser-fetch");
     let html = "";
+    const isPdfUrl = /\.pdf(\?|$)/i.test(url);
 
     // Facebook / Meta pages are almost always JS shells or login walls on plain fetch.
     // Grok Agent reaches the About email field; we must browser-escalate first when configured.
@@ -284,7 +321,9 @@ async function toolVisit(url: string): Promise<string> {
         signal: AbortSignal.timeout(12_000),
         headers: {
           "User-Agent": randomUA(),
-          Accept: "text/html,application/xhtml+xml",
+          Accept: isPdfUrl
+            ? "application/pdf,application/octet-stream,*/*"
+            : "text/html,application/xhtml+xml",
           "Accept-Language": "en-US,en;q=0.9",
         },
         redirect: "follow",
@@ -292,8 +331,16 @@ async function toolVisit(url: string): Promise<string> {
       if (!resp.ok) {
         html = `HTTP ${resp.status}`;
       } else {
-        // Read more of the page; WordPress/Astra themes dump 100k+ of CSS before contact blocks.
-        html = (await resp.text()).slice(0, 500_000);
+        const ctype = (resp.headers.get("content-type") || "").toLowerCase();
+        if (isPdfUrl || ctype.includes("application/pdf") || ctype.includes("octet-stream")) {
+          const buf = await resp.arrayBuffer();
+          const pdfText = extractTextFromPdfBuffer(buf);
+          // Build a synthetic HTML-ish block so CONTACT FACTS + LLM see the same shape as a page
+          html = `<html><body><pre>PDF TEXT EXTRACT\n${pdfText}</pre></body></html>`;
+        } else {
+          // Read more of the page; WordPress/Astra themes dump 100k+ of CSS before contact blocks.
+          html = (await resp.text()).slice(0, 500_000);
+        }
       }
     }
 
@@ -351,6 +398,7 @@ function parseAction(raw: string): AgentAction | null {
         const row = f as Record<string, unknown>;
         const value = typeof row.value === "string" ? row.value.trim() : "";
         if (!value) continue;
+        if (isMostlyBinaryGarbage(value)) continue;
         const vectorType = ["email", "phone", "linkedin", "website", "other", "social"].includes(String(row.vectorType))
           ? (String(row.vectorType) as AgenticFinding["vectorType"])
           : "other";
@@ -592,7 +640,7 @@ function findingsFromContactFacts(
       });
     }
     const role = line.match(/ROLE:\s*(.+)/i)?.[1]?.trim();
-    if (role && role.length >= 3 && !/[{};]|rmp-|style=|--columns|ast-/i.test(role)) {
+    if (role && role.length >= 3 && !isMostlyBinaryGarbage(role) && !/[{};]|rmp-|style=|--columns|ast-/i.test(role)) {
       out.push({
         vectorType: "other",
         value: role.slice(0, 120),
@@ -632,7 +680,7 @@ function findingsFromContactFacts(
     const person = line.match(/PERSON:\s*(.+)/i)?.[1]?.trim();
     if (person && person.length >= 5 && !/[{};]|ast-|uagb-/i.test(person)) {
       const [pName, pRole] = person.split(/\s*[—–-]\s*/).map((s) => s.trim());
-      if (pName && pName.split(/\s+/).length >= 2) {
+      if (pName && pName.split(/\s+/).length >= 2 && !isMostlyBinaryGarbage(pName) && !(pRole && isMostlyBinaryGarbage(pRole))) {
         out.push({
           vectorType: "other",
           value: person.slice(0, 160),
