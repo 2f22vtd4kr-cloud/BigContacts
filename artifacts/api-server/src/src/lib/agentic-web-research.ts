@@ -415,6 +415,10 @@ function parseAction(raw: string): AgentAction | null {
           if (!p || isTrashContactValue("phone", p)) continue;
           finalValue = p;
         }
+        if (vectorType === "website") {
+          const host = finalValue.replace(/^https?:\/\//i, "").split("/")[0]?.toLowerCase() || "";
+          if (/bbb\.org|mapquest|zoominfo|rocketreach|yelp|dnb\.com|chamber|linkedin|facebook|twitter|wikipedia|growjo|apollo|manta|bizapedia/i.test(host)) continue;
+        }
         // Drop CSS/HTML chrome and non-contact "other" noise (theme/directory pollution)
         if (
           vectorType === "other"
@@ -710,10 +714,17 @@ function findingsFromContactFacts(
       }
     }
   }
-  // Website finding for non-junk primary domains
+  // Website finding only for real company domains — never bbb/mapquest/directories
   try {
     const host = new URL(sourceUrl).hostname.replace(/^www\./, "");
-    if (host && !/linkedin|facebook|twitter|sec\.gov|wikipedia|duckduckgo/i.test(host)) {
+    const hostFlat = host.replace(/[^a-z0-9]/g, "");
+    const coFlat = (companyName || targetName || "").toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 10);
+    const looksCompany =
+      host
+      && !/linkedin|facebook|twitter|sec\.gov|wikipedia|duckduckgo|google|bing/i.test(host)
+      && !/zoominfo|rocketreach|mapquest|bbb\.org|yelp|dnb\.com|chamber|manta|bizapedia|yellowpages|opencorporates|equilar|prospeo|thebluebook|dot\.report|growjo|apollo/i.test(host)
+      && (coFlat.length < 3 || hostFlat.includes(coFlat.slice(0, Math.min(6, coFlat.length))) || coFlat.includes(hostFlat.slice(0, 5)));
+    if (looksCompany) {
       out.push({
         vectorType: "website",
         value: `https://${host}`,
@@ -785,10 +796,13 @@ function findingsFromPeopleSnippet(
   const src = urls.find((u) => /bbb\.org|opencorporates|sec\.gov/i.test(u)) || urls[0];
   if (!src || !/^https?:\/\//i.test(src)) return out;
   const patterns = [
-    /(?:Mr\.?|Ms\.?|Mrs\.?)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+),\s*(Owner|President|CEO|Principal|Manager|Director|Founder|Co-Founder)/g,
-    /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\s*[—\-,:]\s*(Owner|President|CEO|Principal|Manager|Director|Founder|Co-Founder)\b/g,
+    /(?:Mr\.?|Ms\.?|Mrs\.?)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+),\s*(Owner|President|CEO|Principal|Manager|Director|Founder|Co-Founder|CFO|Chairman)/g,
+    /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\s*[—\-,:]\s*(Owner|President|CEO|Principal|Manager|Director|Founder|Co-Founder|CFO|Chairman)\b/g,
     /Business Management:\s*(?:Mr\.?|Ms\.?)?\s*([A-Z][a-z]+(?:\s+[A-Z][a-z.]+)+),\s*(Owner|President|CEO)?/gi,
     /Principal Contacts?\s*(?:Mr\.?|Ms\.?)?\s*([A-Z][a-z]+(?:\s+[A-Z][a-z.]+)+)/gi,
+    /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\s+(?:as\s+)?(?:CEO|President|Founder|Co-Founder|Chief Executive)\b/g,
+    /(?:CEO|President|Founder|Co-Founder|Chief Executive(?:\s+Officer)?)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b/g,
+    /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+),\s*(?:founder|retiring CEO|former CEO|retired CEO|board)/gi,
   ];
   const seen = new Set<string>();
   for (const re of patterns) {
@@ -804,7 +818,7 @@ function findingsFromPeopleSnippet(
         value: person,
         personName: person,
         role: role || "related_contact",
-        scope: "candidate",
+        scope: "organization",
         sourceUrls: [src],
         note: `related person from snippet; ${role}`,
       });
@@ -868,7 +882,7 @@ export async function runAgenticWebResearch(input: {
   const visitedUrls = new Set<string>();
 
   const isAggregatorHost = (u: string): boolean =>
-    /zoominfo|rocketreach|adapt\.io|signalhire|contactout|growjo|apollo\.io|clearbit|hunter\.io|mibarry|chamber|yelp|dnb\.com|bloomberg\.com\/profile|crunchbase|pitchbook|linkedin\.com\/company/i.test(
+    /zoominfo|rocketreach|adapt\.io|signalhire|contactout|growjo|apollo\.io|clearbit|hunter\.io|mibarry|chamber|yelp|dnb\.com|bloomberg\.com\/profile|crunchbase|pitchbook|linkedin\.com\/company|mapquest|bbb\.org|yellowpages|superpages|manta\.com|bizapedia|opencorporates|equilar|prospeo|thebluebook|dot\.report/i.test(
       u,
     );
 
