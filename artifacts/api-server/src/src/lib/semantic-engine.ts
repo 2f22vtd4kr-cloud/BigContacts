@@ -31,6 +31,15 @@ let _pipelinePromise: Promise<FeatureExtractionPipeline> | null = null;
 let _pipelineLoaded = false;
 
 async function getEmbeddingPipeline(): Promise<FeatureExtractionPipeline> {
+  // Tiny agent sandboxes / low-memory hosts: never load the ~23 MB model on cold start.
+  // Set APEX_SKIP_SEMANTIC=1 or APEX_TINY_HOST=1 to force skip; semantic returns [] gracefully.
+  if (
+    process.env.APEX_SKIP_SEMANTIC === "1" ||
+    process.env.APEX_TINY_HOST === "1" ||
+    process.env.REPL_ID // Replit free tier is often too small
+  ) {
+    throw new Error("semantic model skipped on tiny host (APEX_SKIP_SEMANTIC / APEX_TINY_HOST)");
+  }
   if (!_pipelinePromise) {
     console.log("[semantic-engine] Loading all-MiniLM-L6-v2 (first time, ~23 MB download)...");
     _pipelinePromise = pipeline(
@@ -60,11 +69,19 @@ export function isModelLoaded(): boolean {
  * Truncates to 512 chars to keep latency under 20 ms post-load.
  */
 export async function embedText(text: string): Promise<Float32Array> {
-  const pipe = await getEmbeddingPipeline();
-  // @ts-expect-error — dynamic pipeline call
-  const output = await pipe(text.slice(0, 512), { pooling: "mean", normalize: true });
-  // output.data is already a Float32Array
-  return output.data as Float32Array;
+  try {
+    const pipe = await getEmbeddingPipeline();
+    // @ts-expect-error — dynamic pipeline call
+    const output = await pipe(text.slice(0, 512), { pooling: "mean", normalize: true });
+    // output.data is already a Float32Array
+    return output.data as Float32Array;
+  } catch (err: any) {
+    if (String(err?.message || err).includes("skipped on tiny host")) {
+      // Graceful empty signal — callers already treat empty cache as "no semantic hits"
+      return new Float32Array(384);
+    }
+    throw err;
+  }
 }
 
 // ── Cosine similarity ─────────────────────────────────────────────────────────

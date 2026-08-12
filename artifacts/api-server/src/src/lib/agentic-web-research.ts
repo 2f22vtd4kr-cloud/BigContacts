@@ -25,7 +25,7 @@ export type AgenticFinding = {
 };
 
 export type AgenticWebResearchResult = {
-  status: "completed" | "unavailable" | "error";
+  status: "completed" | "unavailable" | "error" | "timeout";
   model: string;
   iterations: number;
   searches: number;
@@ -666,6 +666,8 @@ export async function runAgenticWebResearch(input: {
   companyName?: string | null;
   objective?: string;
   maxIterations?: number;
+  /** Hard wall-clock timeout (ms). On expiry return whatever findings were already accumulated. Default 150s. */
+  hardTimeoutMs?: number;
 }): Promise<AgenticWebResearchResult> {
   const name = input.targetName.trim();
   if (name.length < 2) {
@@ -673,6 +675,8 @@ export async function runAgenticWebResearch(input: {
   }
 
   const maxIter = Math.min(input.maxIterations ?? MAX_ITER, 14);
+  const hardTimeoutMs = Math.max(30_000, input.hardTimeoutMs ?? 150_000);
+  const startedAt = Date.now();
   const objective = input.objective
     ?? `Find publicly documented contact routes (email, phone, LinkedIn, website, related people) for ${name}${input.companyName ? ` related to ${input.companyName}` : ""}. Be thorough and creative.`;
 
@@ -799,6 +803,26 @@ export async function runAgenticWebResearch(input: {
   let orgEmailSearchDone = false;
 
   for (let i = 0; i < maxIter; i++) {
+    // Hard wall-clock timeout: materialize whatever agentic already found and exit.
+    // Prevents the box/worker kill from discarding 10–20 findings (Rayco case).
+    if (Date.now() - startedAt >= hardTimeoutMs) {
+      history.push(`step${i + 1}: hard_timeout after ${Math.round((Date.now() - startedAt) / 1000)}s findings=${findings.length}`);
+      logger.info(
+        { target: name, findings: findings.length, searches, visits, elapsedMs: Date.now() - startedAt },
+        "[agentic] hard timeout — returning partial findings",
+      );
+      return {
+        status: "timeout",
+        model: modelUsed,
+        iterations: i,
+        searches,
+        visits,
+        findings,
+        trajectory: history,
+        error: `hard timeout ${hardTimeoutMs}ms (partial findings preserved)`,
+      };
+    }
+
     // If company is locked but no company-host URL is queued yet, search the company surface
     // before visiting partner/blog SERP hits (prevents Team-Financial-style first visits).
     if (

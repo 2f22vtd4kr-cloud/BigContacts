@@ -10,7 +10,7 @@ import { persistBureauContactsForEntity, type BureauContactLike } from "./bureau
 import { publishBureauEvent } from "./bureau-live-log";
 
 export type BureauAgenticPassResult = {
-  status: "completed" | "unavailable" | "error" | "skipped";
+  status: "completed" | "unavailable" | "error" | "skipped" | "timeout";
   model: string;
   iterations: number;
   searches: number;
@@ -103,16 +103,20 @@ export async function runBureauAgenticWebPass(input: {
   });
 
   try {
+    // Promote agentic findings immediately after ReAct (including on hard timeout).
+    // Do not wait for any mixed-source tail — that was discarding Rayco-class partial wins.
     const agentic = await runAgenticWebResearch({
       targetName: name,
       companyName: input.companyName ?? null,
       objective: input.objective
         ?? `Find publicly documented contact routes for ${name}${input.companyName ? ` related to ${input.companyName}` : ""}. Multi-hop. Visit primary pages. Never invent.`,
       maxIterations: input.maxIterations ?? 12,
+      hardTimeoutMs: 150_000,
     });
 
     const contactEvidence = findingsToContactEvidence(agentic.findings);
 
+    // Persist as soon as ReAct returns (completed OR timeout). Partial findings must hit the ledger.
     if (input.persist && input.entityId && agentic.findings.length) {
       await persistBureauContactsForEntity(
         input.entityId,
@@ -124,7 +128,7 @@ export async function runBureauAgenticWebPass(input: {
     void publishBureauEvent({
       actor: "web",
       kind: "extract",
-      title: `Agentic web · ${agentic.findings.length} findings`,
+      title: `Agentic web · ${agentic.findings.length} findings${agentic.status === "timeout" ? " (timeout)" : ""}`,
       caseId: input.caseId != null ? String(input.caseId) : undefined,
       targetName: name,
       provider: agentic.model,
@@ -145,8 +149,14 @@ export async function runBureauAgenticWebPass(input: {
       "[Bureau] Agentic web pass finished",
     );
 
+    const mappedStatus =
+      agentic.status === "unavailable" ? "unavailable"
+      : agentic.status === "error" ? "error"
+      : agentic.status === "timeout" ? "timeout"
+      : "completed";
+
     return {
-      status: agentic.status === "unavailable" ? "unavailable" : agentic.status === "error" ? "error" : "completed",
+      status: mappedStatus,
       model: agentic.model,
       iterations: agentic.iterations,
       searches: agentic.searches,
