@@ -561,11 +561,21 @@ Return ONE JSON object only.`;
 function isCompanyAlignedEmail(email: string, companyName?: string | null, pageUrl?: string): boolean {
   const domain = (email.split("@")[1] || "").toLowerCase();
   if (!domain) return false;
+  const local = (email.split("@")[0] || "").toLowerCase();
+  const isClassicOrgMailbox = /^(info|contact|sales|office|support|hello|admin|service|parts|inquiries)$/i.test(local);
   try {
     if (pageUrl) {
       const host = new URL(pageUrl).hostname.replace(/^www\./, "").toLowerCase();
       const root = host.split(".").slice(-2).join(".");
       if (domain === host || domain === root || host.endsWith(domain)) return true;
+      // Org mailbox on a company-named host whose mail domain differs (e.g. sales@cmi79.com on custom-machine-inc.com)
+      if (isClassicOrgMailbox && companyName) {
+        const token = companyName.toLowerCase().replace(/[^a-z0-9]+/g, "");
+        const hostFlat = host.replace(/[^a-z0-9]/g, "");
+        if (token.length >= 4 && (hostFlat.includes(token.slice(0, Math.min(8, token.length))) || token.includes(hostFlat.slice(0, 6)))) {
+          return true;
+        }
+      }
     }
   } catch { /* ignore */ }
   if (companyName) {
