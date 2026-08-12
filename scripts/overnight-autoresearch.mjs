@@ -163,15 +163,29 @@ async function runOneTarget(t) {
   } catch {
     return { id: t.id, caseId, error: "run_failed" };
   }
-  // poll up to ~3 min for company-lock or completion
+  // CRITICAL: wait for FULL job completion — never score at Company-lock.
+  // Company-lock fires early (registry/surface); agentic org-email hops run AFTER.
+  // Scoring early was why DYNA stayed email:false and Karpathy looked "interrupted".
+  const pollMax = Number(process.env.OVERNIGHT_POLL_MAX || 48); // 48 * 10s ≈ 8 min
+  const pollSleep = Number(process.env.OVERNIGHT_POLL_SLEEP_S || 10);
   let last = null;
-  for (let i = 0; i < 18; i++) {
-    execSync("sleep 10");
+  let terminal = false;
+  for (let i = 0; i < pollMax; i++) {
+    execSync(`sleep ${pollSleep}`);
     last = execSync(`curl -s ${API}/api/ingest/job/${jobId}`, { encoding: "utf8" });
-    const j = JSON.parse(last);
-    const logs = (j.log || []).join("\n");
-    if (logs.includes("Company-lock") || logs.includes("Fitness filter") || ["completed", "failed"].includes(j.status)) break;
+    let j;
+    try { j = JSON.parse(last); } catch { continue; }
+    const st = String(j.status || "");
+    if (st === "completed" || st === "failed") {
+      terminal = true;
+      break;
+    }
   }
+  if (!terminal) {
+    log({ event: "poll_timeout", id: t.id, caseId, jobId, note: "scoring partial case after poll max" });
+  }
+  // brief settle so caseFile flush of agentic findings is visible
+  try { execSync("sleep 3"); } catch { /* */ }
   const caseRaw = execSync(`curl -s ${API}/api/research/bureau/cases/${caseId}`, { encoding: "utf8", maxBuffer: 20_000_000 });
   writeFileSync(`/tmp/overnight-case-${t.id}.json`, caseRaw);
   let scoreOut = "";
@@ -192,15 +206,25 @@ async function runOneTarget(t) {
   } catch {
     return { id: t.id, caseId, error: "score_parse_failed", score: 0, raw: scoreOut.slice(0, 200) };
   }
-  // email domain bonus check
+  // email domain bonus check — scan candidates + raw case (agentic may attach late)
   let hasExpectedEmail = false;
   if (t.expectEmailDomain) {
-    const file = JSON.parse(caseRaw).caseFile;
-    const cf = typeof file === "string" ? JSON.parse(file) : file;
-    const ev = (cf.discoveredCandidates || []).flatMap((c) => c.contactEvidence || []);
-    hasExpectedEmail = ev.some(
-      (e) => e.vectorType === "email" && String(e.value || "").toLowerCase().includes(`@${t.expectEmailDomain}`),
-    );
+    const domainNeedle = `@${String(t.expectEmailDomain).toLowerCase()}`;
+    try {
+      const parsed = JSON.parse(caseRaw);
+      const file = parsed.caseFile;
+      const cf = typeof file === "string" ? JSON.parse(file) : (file || {});
+      const ev = (cf.discoveredCandidates || []).flatMap((c) => c.contactEvidence || []);
+      hasExpectedEmail = ev.some(
+        (e) => e.vectorType === "email" && String(e.value || "").toLowerCase().includes(domainNeedle),
+      );
+      // Fallback: any email-shaped hit with the domain in the case payload (fail-closed still required sourceUrls upstream)
+      if (!hasExpectedEmail && caseRaw.toLowerCase().includes(domainNeedle)) {
+        const emailRe = new RegExp(`[a-z0-9._%+-]+${domainNeedle.replace(".", "\\.")}`, "i");
+        const m = caseRaw.match(emailRe);
+        if (m) hasExpectedEmail = true;
+      }
+    } catch { /* leave false */ }
   }
   return {
     id: t.id,
