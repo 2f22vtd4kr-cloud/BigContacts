@@ -478,7 +478,8 @@ GROK-PARITY SEARCH ORDER (follow this, then improvise):
 4. Facebook / About: "{company}" site:facebook.com (about OR email OR info@ OR contact)
 5. Leadership / succession / family: "{company}" (leadership OR "executive chairman" OR succession OR "family-owned" OR "fourth generation" OR CEO OR president OR officers OR BBB)
 6. Related people: "{company}" (owner OR "co-founder" OR officers OR BBB OR "principal contact")
-7. Visit every high-value URL before another search: company /contact, /about, /about-us/leadership, /leadership, /team, succession/blog posts, Facebook, BBB
+7. Visit every high-value URL before another search: company /contact, /about, /about-us/leadership, /leadership, /team, succession/blog posts, **company PDF sales/contact sheets**, Facebook, BBB
+8. Ownership path: "{company}" (founder OR acquired OR "family-owned" OR owner) — recover controlling people, not only sales reps
 RULE: If a company leadership or succession page is visible in SERP, VISIT it. Emit PERSON+role AND any succession/family-ownership facts as other findings with that page as sourceUrl. Grok Agent would; so must you.
 
 RULES:
@@ -830,6 +831,9 @@ export async function runAgenticWebResearch(input: {
       ? input.companyName.toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 10)
       : "";
     const hostMatch = coToken && lower.replace(/[^a-z0-9]/g, "").includes(coToken.slice(0, 6));
+    // Company-domain PDF contact/sales sheets often hold named person emails (Grok parity)
+    if (hostMatch && /\.pdf(\?|$)/i.test(lower) && /(contact|sales|team|staff|directory|rep)/i.test(lower)) return 0;
+    if (/\.pdf(\?|$)/i.test(lower) && /(contact|sales|team|staff|directory|rep)/i.test(lower) && coToken) return 1;
     // Primary company contact/terms pages first (where org email/phone actually live)
     if (hostMatch && /\/(contact|terms|about|team|people|leadership|privacy|impressum|dealer)/i.test(lower)) return 0;
     if (hostMatch && /\/(contact|terms|about|team|people|leadership|privacy|dealer)/i.test(lower)) return 0;
@@ -925,6 +929,7 @@ export async function runAgenticWebResearch(input: {
         // Previous gate required note~"related" or role==related_contact and missed BBB principals.
     );
   let relatedPeopleSearchDone = false;
+  let ownershipSearchDone = false;
   let orgEmailSearchDone = false;
 
   for (let i = 0; i < maxIter; i++) {
@@ -1184,6 +1189,49 @@ export async function runAgenticWebResearch(input: {
         `NEXT: visit BBB profile (browser escalate if CF) and company /dealer /team pages. Emit PERSON findings with personName+role. Do not invent names.`;
       continue;
     }
+
+    // Ownership / founder / acquisition hop — Atlas goal is contacts that lead to controlling people
+    if (
+      relatedPeopleSearchDone
+      && !ownershipSearchDone
+      && i < maxIter - 2
+    ) {
+      ownershipSearchDone = true;
+      const co = input.companyName || name;
+      const q = `"${co}" (founder OR "founded by" OR acquired OR "sold to" OR "family-owned" OR "family run" OR owner OR "economic interest" OR "board of directors") -zoominfo -rocketreach`;
+      searches++;
+      history.push(`step${i + 1}: force_ownership_search ${q}`);
+      const sr = await toolWebSearch(q);
+      for (const u of sr.urls) {
+        if (/^https?:\/\//i.test(u) && !candidateUrls.includes(u)) candidateUrls.push(u);
+      }
+      // Prioritize PDFs and acquisition/news pages on company-aligned hosts
+      const pdfFirst = [...new Set(sr.urls)]
+        .filter((u) => !visitedUrls.has(u) && /\.pdf(\?|$)/i.test(u))
+        .sort((a, b) => rankVisitUrl(a) - rankVisitUrl(b))[0];
+      if (pdfFirst) {
+        const idx = candidateUrls.indexOf(pdfFirst);
+        if (idx >= 0) candidateUrls.splice(idx, 1);
+        candidateUrls.unshift(pdfFirst);
+        history.push(`step${i + 1}: prioritize_pdf ${pdfFirst}`);
+      }
+      const peopleHits = findingsFromPeopleSnippet(sr.text, sr.urls, input.companyName || name);
+      if (peopleHits.length) {
+        findings = mergeFindings(findings, peopleHits);
+        history.push(`step${i + 1}: ownership_people_findings=${peopleHits.length}`);
+      }
+      const snippetEmails = findingsFromSearchSnippet(sr.text, sr.urls, input.companyName || name);
+      if (snippetEmails.length) {
+        findings = mergeFindings(findings, snippetEmails);
+        history.push(`step${i + 1}: ownership_serp_emails=${snippetEmails.length}`);
+      }
+      lastObservation =
+        `OWNERSHIP / FOUNDER search: ${q}\nURLs: ${sr.urls.slice(0, 8).join(" | ")}\n\n${sr.text.slice(0, MAX_OBS)}\n\n` +
+        `NEXT: visit founder/acquisition pages and any company PDF contact sheets. Emit PERSON+role and named emails with sourceUrls.`;
+      await forceVisitNext(`step${i + 1}`);
+      continue;
+    }
+
     // Prefer BBB when anti-bot fetch is configured (Scrapfly/ZenRows) — Principal Contacts live there
     if (
       relatedPeopleSearchDone
