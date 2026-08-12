@@ -208,6 +208,19 @@ function extractContactFactsFromHtml(html: string): string {
     const role = m[1]!.replace(/\s+/g, " ").trim().slice(0, 100);
     if (!/\bast-|\buagb-|[{};]/.test(role)) push(`ROLE: ${role}`);
   }
+  // Succession / family-ownership facts (Grok Agent recovers these from leadership/blog pages)
+  for (const m of html.matchAll(
+    /\b((?:family[- ]owned|fourth[- ]generation|4th[- ]generation|third[- ]generation|privately held)[^.<]{0,80})/gi,
+  )) {
+    const line = m[1]!.replace(/\s+/g, " ").trim().slice(0, 120);
+    if (line.length > 12) push(`STRUCTURE: ${line}`);
+  }
+  for (const m of html.matchAll(
+    /\b((?:succession|succeeded|succeeds|named CEO|become CEO|Executive Chairman|Chief Strategy Officer)[^.<]{0,100})/gi,
+  )) {
+    const line = m[1]!.replace(/\s+/g, " ").trim().slice(0, 140);
+    if (line.length > 10 && !/\bast-|[{};]/.test(line)) push(`SUCCESSION: ${line}`);
+  }
   // Related people on BBB / about / team pages: "Mr. Name, Owner" / "Name, Company Contact"
   // Also match inside <dd>…</dd> after CF escalate (Scrapfly returns full BBB HTML)
   for (const m of html.matchAll(
@@ -463,8 +476,10 @@ GROK-PARITY SEARCH ORDER (follow this, then improvise):
 2. Company domain surface: "{company}" (contact OR "contact us" OR phone OR email) -zoominfo -rocketreach
 3. Org mailbox: "{company}" ("info@" OR "contact@" OR "sales@") OR site:facebook.com "{company}"
 4. Facebook / About: "{company}" site:facebook.com (about OR email OR info@ OR contact)
-5. Related people: "{company}" (owner OR "co-founder" OR officers OR BBB OR "principal contact")
-6. Visit every high-value URL before another search: company /contact, /about, /team, Facebook page, BBB
+5. Leadership / succession / family: "{company}" (leadership OR "executive chairman" OR succession OR "family-owned" OR "fourth generation" OR CEO OR president OR officers OR BBB)
+6. Related people: "{company}" (owner OR "co-founder" OR officers OR BBB OR "principal contact")
+7. Visit every high-value URL before another search: company /contact, /about, /about-us/leadership, /leadership, /team, succession/blog posts, Facebook, BBB
+RULE: If a company leadership or succession page is visible in SERP, VISIT it. Emit PERSON+role AND any succession/family-ownership facts as other findings with that page as sourceUrl. Grok Agent would; so must you.
 
 RULES:
 - Never invent emails, phones, or profiles. Only report values VISIBLE in observations with exact sourceUrls.
@@ -472,6 +487,7 @@ RULES:
 - Multi-hop: if you learn a company domain, immediately visit /contact /contact-us /about /team (and root). Emit CONTACT FACTS with that page as sourceUrl.
 - Mid-market org email often lives on Facebook About, not the corporate contact form. When company is locked and email is still missing, search site:facebook.com and VISIT the Facebook page.
 - AFTER org email/phone/address are known, do NOT stop. Recover RELATED people (owners, co-founders, officers) with personName + role.
+- ALSO recover succession and ownership structure when visible (family-owned, generation, named CEO succession, Executive Chairman). Visit /leadership and succession blog posts. Emit those facts with sourceUrls — same pages Grok Agent would read.
 - Organization inboxes (info@, contact@, office@, sales@) are organization scope. Do not mark Personal.
 - FIRST ACTION must be web_search when trajectory is empty.
 - Do not return done until: (a) ≥2 web_search AND ≥1 visit, (b) company contact/Facebook hop attempted when company known, (c) related-people hop attempted OR primary surface fully recovered.
@@ -584,6 +600,31 @@ function findingsFromContactFacts(
         scope: "organization",
         sourceUrls: [sourceUrl],
         note: `Role cue on ${sourceUrl}`,
+      });
+    }
+    // Family ownership / succession facts (same public pages Grok Agent reads)
+    const structure = line.match(/STRUCTURE:\s*(.+)/i)?.[1]?.trim();
+    if (structure && structure.length >= 12 && !/[{};]|ast-/i.test(structure)) {
+      out.push({
+        vectorType: "other",
+        value: structure.slice(0, 160),
+        personName: null,
+        role: "ownership_structure",
+        scope: "organization",
+        sourceUrls: [sourceUrl],
+        note: `Structure fact on ${sourceUrl}`,
+      });
+    }
+    const succession = line.match(/SUCCESSION:\s*(.+)/i)?.[1]?.trim();
+    if (succession && succession.length >= 10 && !/[{};]|ast-/i.test(succession)) {
+      out.push({
+        vectorType: "other",
+        value: succession.slice(0, 180),
+        personName: null,
+        role: "succession",
+        scope: "organization",
+        sourceUrls: [sourceUrl],
+        note: `Succession fact on ${sourceUrl}`,
       });
     }
     // Related officers / contacts (BBB, about, team, dealer)
@@ -814,7 +855,9 @@ export async function runAgenticWebResearch(input: {
       "/contact", "/contact-us", "/contactus", "/get-in-touch", "/connect",
       "/pages/contact", "/company/contact", "/about/contact", "/sales-contact-form",
       "/contact-page", "/terms-and-conditions", "/terms", "/about", "/about-us",
-      "/dealer", "/dealers", "/team", "/our-team", "/leadership", "/people",
+      "/about-us/leadership", "/leadership", "/our-leadership", "/company/leadership",
+      "/dealer", "/dealers", "/team", "/our-team", "/people",
+      "/blog", "/news", "/about-us/history", "/history", "/our-story",
     ];
     for (const u of urls) {
       if (isAggregatorHost(u)) continue;
@@ -1101,7 +1144,7 @@ export async function runAgenticWebResearch(input: {
       relatedPeopleSearchDone = true;
       const co = input.companyName || name;
       // Prefer company /dealer /team pages (BBB is often Cloudflare-blocked to plain fetch)
-      const q = `"${co}" (BBB OR owner OR "co-owner" OR "co-founder" OR partner OR officers OR "principal contact" OR "company contact" OR dealer OR president OR OpenCorporates OR "companies house" OR EDGAR) -zoominfo -rocketreach`;
+      const q = `"${co}" (BBB OR owner OR "co-owner" OR "co-founder" OR partner OR officers OR "principal contact" OR leadership OR succession OR "family-owned" OR "executive chairman" OR "company contact" OR dealer OR president OR OpenCorporates OR "companies house" OR EDGAR) -zoominfo -rocketreach`;
       searches++;
       history.push(`step${i + 1}: force_related_search ${q}`);
       const sr = await toolWebSearch(q);
@@ -1129,7 +1172,7 @@ export async function runAgenticWebResearch(input: {
         if (f.vectorType === "website" && /^https?:\/\//i.test(f.value)) {
           try {
             const host = new URL(f.value).hostname;
-            for (const p of ["/dealer", "/dealers", "/team", "/about", "/about-us"]) {
+            for (const p of ["/dealer", "/dealers", "/team", "/about", "/about-us", "/about-us/leadership", "/leadership", "/our-leadership"]) {
               const seeded = `https://${host}${p}`;
               if (!candidateUrls.includes(seeded)) candidateUrls.push(seeded);
             }
