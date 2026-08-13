@@ -221,6 +221,16 @@ function extractContactFactsFromHtml(html: string): string {
     const name = m[1]!.replace(/\s+/g, " ").trim();
     if (name.split(/\s+/).length >= 2 && name.length < 50) push(`PERSON: ${name} — principal`);
   }
+  // Same-line Name / Title (KB Tool & Die style): "Alan G. Klinger / President"
+  for (const m of html.matchAll(
+    /\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\s*\/\s*((?:President|CEO|Owner|Founder|Vice President|VP|General Manager|Director|Principal|Treasurer|Chairman|Manager|Supervisor)[^<\n@]{0,40})/g,
+  )) {
+    const name = m[1]!.replace(/\s+/g, " ").trim();
+    const role = m[2]!.replace(/\s+/g, " ").trim().slice(0, 60);
+    if (name.split(/\s+/).length >= 2 && name.length < 60) {
+      push(`PERSON: ${name} — ${role}`);
+    }
+  }
   // Ownership transfer: "sold the business to Karl Niemela" / "acquired by John Smith" (Grok reads these)
   for (const m of html.matchAll(
     /\b(?:sold(?:\s+the\s+business)?\s+to|acquired\s+by|purchased\s+by|bought\s+by)\s+([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\b/gi,
@@ -930,7 +940,7 @@ function findingsFromPeopleSnippet(
   // Name atom allows middle initials: "Donald W. Kuchenbecker" (Grok parity — was a severe miss)
   const patterns = [
     /(?:Mr\.?|Ms\.?|Mrs\.?)\s+([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+),\s*(Owner|President|CEO|Principal|Manager|Director|Founder|Co-Founder|CFO|Chairman|Treasurer)/g,
-    /\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\s*[—\-,:]\s*(Owner|President|CEO|Principal|Manager|Director|Founder|Co-Founder|CFO|Chairman|Treasurer)\b/g,
+    /\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\s*[—\-,:/]\s*(Owner|President|CEO|Principal|Manager|Director|Founder|Co-Founder|CFO|Chairman|Treasurer|General Manager)\b/g,
     /Business Management:\s*(?:Mr\.?|Ms\.?)?\s*([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z.]+)+),\s*(Owner|President|CEO|Treasurer)?/gi,
     /Principal Contacts?\s*(?:Mr\.?|Ms\.?)?\s*([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z.]+)+)/gi,
     /\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\s+(?:as\s+)?(?:CEO|President|Founder|Co-Founder|Chief Executive|Treasurer)\b/g,
