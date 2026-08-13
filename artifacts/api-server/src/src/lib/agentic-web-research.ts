@@ -990,9 +990,13 @@ function findingsFromPeopleSnippet(
   const seen = new Set<string>();
   for (const re of patterns) {
     for (const m of text.matchAll(re)) {
-      const person = (m[1] || "").replace(/\s+/g, " ").trim();
+      let person = (m[1] || "").replace(/\s+/g, " ").trim();
+      // Normalize Jr/Sr suffixes; drop garbage captures that swallowed "Jr is the Owner"
+      person = person.replace(/\s*,?\s*(Jr\.?|Sr\.?|II|III|IV)\s*$/i, "").trim();
+      if (/\b(is the|was the|as the)\b/i.test(person)) continue;
       const role = (m[2] || "principal").toLowerCase();
       if (person.length < 4 || person.split(" ").length < 2) continue;
+      if (person.split(" ").length > 5) continue; // over-capture guard
       const key = person.toLowerCase();
       if (seen.has(key)) continue;
       seen.add(key);
