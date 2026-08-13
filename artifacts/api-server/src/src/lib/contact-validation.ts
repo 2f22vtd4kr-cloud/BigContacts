@@ -147,3 +147,54 @@ export function sanitizePublicSocialHandle(raw: string | null | undefined, platf
   }
   return h;
 }
+
+/**
+ * Contact completeness for investor-outreach decision rule (fail-closed).
+ * FULL  = personal/role email for owner/principal (Griffin-class)
+ * PARTIAL = owner identified + HNWI path + only org inbox
+ * INCOMPLETE = else
+ * Never promote info@/sales@ to Personal.
+ */
+export type ContactCompleteness = "FULL" | "PARTIAL" | "INCOMPLETE";
+
+const OWNER_ROLE_RE =
+  /\b(owner|co-?owner|president|ceo|founder|co-?founder|principal|managing\s+partner|general\s+manager|chairman|executive\s+chairman)\b/i;
+
+const ORG_ONLY_PREFIXES = /^(info|sales|contact|office|support|hello|admin|billing|help|service|enquiries|inquiry|mail|general|team|hr|jobs|careers|noreply|no-reply|donotreply|marketing|media|pr|webmaster|postmaster|abuse)@/i;
+
+export function scoreContactCompleteness(findings: Array<{
+  vectorType: string;
+  value: string;
+  personName?: string | null;
+  role?: string | null;
+  scope?: string | null;
+  note?: string | null;
+}>): { level: ContactCompleteness; reason: string } {
+  const people = findings.filter((f) => f.personName && String(f.personName).trim().split(/\s+/).length >= 2);
+  const ownerish = people.filter((f) => OWNER_ROLE_RE.test(f.role || "") || OWNER_ROLE_RE.test(f.note || ""));
+  const personalEmails = findings.filter(
+    (f) =>
+      f.vectorType === "email" &&
+      f.scope !== "organization" &&
+      !ORG_ONLY_PREFIXES.test(f.value) &&
+      f.personName,
+  );
+  const ownerPersonalEmail = personalEmails.some((f) => {
+    const roleish = OWNER_ROLE_RE.test(f.role || "") || OWNER_ROLE_RE.test(f.note || "");
+    const nameMatch = ownerish.some(
+      (o) => o.personName && f.personName && o.personName.toLowerCase() === f.personName.toLowerCase(),
+    );
+    return roleish || nameMatch;
+  });
+
+  if (ownerPersonalEmail) {
+    return { level: "FULL", reason: "personal/role email for owner/principal (Griffin-class)" };
+  }
+  if (ownerish.length > 0) {
+    return {
+      level: "PARTIAL",
+      reason: "owner/principal identified + HNWI path; only org surface or no personal email yet",
+    };
+  }
+  return { level: "INCOMPLETE", reason: "no attributable owner/principal with contact path" };
+}
