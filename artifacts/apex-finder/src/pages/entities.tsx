@@ -331,7 +331,7 @@ function MobileEntityCard({
   const isHot = Boolean(entity.isHot);
 
   return (
-      <div className={cn("border-b border-border bg-card transition-colors hover:bg-card/80", selected && "bg-primary/5", isHot && "border-l-2 border-l-amber-400/80")}>
+      <div className={cn("border-b border-border bg-card transition-colors hover:bg-card/80 focus-within:bg-card/90", selected && "bg-primary/5", isHot && "border-l-2 border-l-amber-400/80")}>
       <div 
         onClick={onToggleExpand}
         className="flex items-start px-4 py-3 cursor-pointer gap-0"

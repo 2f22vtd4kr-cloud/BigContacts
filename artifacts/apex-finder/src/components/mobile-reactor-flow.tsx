@@ -651,7 +651,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <span className={`flex items-center gap-1.5 rounded border px-2 py-1 text-[9px] font-bold uppercase tracking-widest ${statusClass}`} data-testid="status-reactor">
-              <span className={`h-1.5 w-1.5 rounded-full ${isLive ? "animate-pulse bg-cyan-400" : atlasState?.runStatus === "failed" ? "bg-rose-400" : waitingForNextCycle ? "bg-amber-300" : "bg-lime-400"}`} />
+              <span className={`h-1.5 w-1.5 rounded-full ${isLive ? "bg-cyan-400 shadow-[0_0_8px_#22d3ee] animate-pulse" : atlasState?.runStatus === "failed" ? "bg-rose-400" : waitingForNextCycle ? "bg-amber-300" : "bg-lime-400"}`} />
               {statusLabel}
             </span>
             <button

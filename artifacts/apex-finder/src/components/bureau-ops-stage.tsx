@@ -191,20 +191,31 @@ function WindowChrome({
   live?: boolean;
   compact?: boolean;
 }) {
+  // Patterns drawn from high-signal dark dashboards (glass + cut corner + live ping)
+  // without swapping the whole design system.
   return (
     <div
-      className="rounded-xl overflow-hidden border"
+      className="relative overflow-hidden border backdrop-blur-md"
       style={{
         borderColor: `${accent}55`,
-        background: "#0b1220",
+        background: "linear-gradient(165deg, rgba(17,24,39,0.92) 0%, rgba(11,18,32,0.98) 100%)",
+        borderRadius: 12,
+        // subtle cyber cut on bottom-right (Figma/cyber UI kits)
+        clipPath: "polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%)",
         boxShadow: live
-          ? `0 0 0 1px ${accent}28, 0 12px 36px rgba(0,0,0,0.45)`
-          : "0 8px 24px rgba(0,0,0,0.35)",
+          ? `0 0 0 1px ${accent}33, 0 12px 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04)`
+          : "0 8px 28px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.03)",
       }}
     >
+      {/* top sheen */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-px"
+        style={{ background: `linear-gradient(90deg, transparent, ${accent}66, transparent)` }}
+      />
       <div
         className={`flex items-center gap-2 border-b border-white/5 ${compact ? "px-2.5 py-1.5" : "px-3 py-2"}`}
-        style={{ background: "#111827" }}
+        style={{ background: "rgba(17,24,39,0.85)" }}
       >
         <div className="flex gap-1">
           <span className="w-2 h-2 rounded-full bg-[#ff5f57]" />
@@ -215,7 +226,13 @@ function WindowChrome({
           {favicon}
           <span className={`font-mono text-slate-300 truncate ${compact ? "text-[10px]" : "text-[11px]"}`}>{title}</span>
           {live && (
-            <span className="text-[8px] font-mono uppercase tracking-wider text-emerald-400 animate-pulse shrink-0">live</span>
+            <span className="relative inline-flex items-center gap-1.5 shrink-0">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400" />
+              </span>
+              <span className="text-[8px] font-mono uppercase tracking-wider text-emerald-400">live</span>
+            </span>
           )}
         </div>
       </div>
