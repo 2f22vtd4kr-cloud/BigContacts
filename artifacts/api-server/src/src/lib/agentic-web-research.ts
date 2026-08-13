@@ -1016,15 +1016,16 @@ export async function runAgenticWebResearch(input: {
   };
 
   const emailMatchesCompany = (email: string): boolean => {
-    const domain = (email.split("@")[1] || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-    if (!domain) return false;
-    const co = (input.companyName || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
-    if (co.length >= 4 && domain.includes(co.slice(0, Math.min(8, co.length)))) return true;
-    if (co.length >= 4 && co.includes(domain.slice(0, 6))) return true;
-    return false;
+    // Delegate to shared alignment (brand mail domains like cmi79 on company pages)
+    return isCompanyAlignedEmail(email, input.companyName, findings.find((f) => f.vectorType === "email" && f.value === email)?.sourceUrls?.[0]);
   };
   const hasOrgEmail = () =>
-    findings.some((f) => f.vectorType === "email" && (!input.companyName || emailMatchesCompany(f.value)));
+    findings.some((f) => {
+      if (f.vectorType !== "email") return false;
+      if (!input.companyName) return true;
+      const src = (f.sourceUrls || [])[0];
+      return isCompanyAlignedEmail(f.value, input.companyName, src);
+    });
   const hasOrgPhone = () => findings.some((f) => f.vectorType === "phone");
   const hasOrgEmailOrPhone = () => hasOrgEmail() || hasOrgPhone();
   const hasRelatedPerson = () =>
