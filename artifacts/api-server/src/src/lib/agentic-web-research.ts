@@ -193,6 +193,36 @@ function extractContactFactsFromHtml(html: string): string {
     const name = m[1]!.replace(/\s+/g, " ").trim();
     if (name.split(/\s+/).length >= 2 && name.length < 50) push(`PERSON: ${name} — principal`);
   }
+  // Ownership transfer: "sold the business to Karl Niemela" / "acquired by John Smith" (Grok reads these)
+  for (const m of html.matchAll(
+    /\b(?:sold(?:\s+the\s+business)?\s+to|acquired\s+by|purchased\s+by|bought\s+by)\s+([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\b/gi,
+  )) {
+    const name = m[1]!.replace(/\s+/g, " ").trim();
+    if (name.split(/\s+/).length >= 2 && name.length < 60 && !/^(Inc|LLC|Corp|Company|the)\b/i.test(name)) {
+      push(`PERSON: ${name} — owner`);
+      push(`SUCCESSION: sold/acquired → ${name}`);
+    }
+  }
+  // Role-line + email on same line (Micro Manufacturing style): "President / CEO - djolliffe@micromfg.com"
+  // Emit EMAIL + ROLE; when local-part looks like a person token, also emit PERSON_EMAIL lead.
+  for (const m of html.matchAll(
+    /\b((?:President|CEO|Owner|Founder|Vice President|VP|Director|Principal|Manager|Secretary|Treasurer)[^@\n<]{0,40}?)[-–—:]\s*([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})\b/gi,
+  )) {
+    const role = m[1]!.replace(/\s+/g, " ").trim().slice(0, 60);
+    const email = m[2]!.toLowerCase();
+    push(`EMAIL: ${email}`);
+    push(`ROLE: ${role}`);
+    const local = email.split("@")[0] || "";
+    // Promote only when local-part is a plausible name token (not info/sales/contact)
+    if (
+      local.length >= 3
+      && !/^(info|contact|sales|office|admin|support|hello|service|parts|inquiries|mail|office|hr|accounting)$/i.test(local)
+      && /^[a-z]+(?:[._][a-z]+)?$/i.test(local)
+    ) {
+      push(`PERSON_EMAIL: ${local} | ${email}`);
+      push(`ROLE: ${role} (${email})`);
+    }
+  }
   // BBB / directory principal lines
   for (const m of html.matchAll(
     /(?:Business Management|Principal Contacts?|Owner\/President|President)[:\s]+(?:Mr\.?|Ms\.?|Mrs\.?)?\s*([A-Z][a-z]+(?:\s+[A-Z][a-z.]+)+)/gi,
