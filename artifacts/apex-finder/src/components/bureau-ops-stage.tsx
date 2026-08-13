@@ -421,9 +421,11 @@ function SceneCard({ scene, compact }: { scene: Scene; compact?: boolean }) {
   }
 }
 
-/** Mobile: one focused scene + story + pager */
+/** Mobile: one focused scene + story + swipe + auto-advance on live */
 function MobileWorkstage({ scenes }: { scenes: Scene[] }) {
   const [idx, setIdx] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const touchX = React.useRef<number | null>(null);
   const safeIdx = Math.min(idx, Math.max(0, scenes.length - 1));
   const scene = scenes[safeIdx];
   const sceneKey = scenes.map((s) => s.id).join("|");
@@ -433,11 +435,60 @@ function MobileWorkstage({ scenes }: { scenes: Scene[] }) {
     setIdx(liveIdx >= 0 ? liveIdx : 0);
   }, [sceneKey]);
 
+  // Auto-advance every 5s while multiple scenes and not paused
+  useEffect(() => {
+    if (paused || scenes.length < 2) return;
+    const id = window.setInterval(() => {
+      setIdx((i) => (i + 1) % scenes.length);
+    }, 5200);
+    return () => window.clearInterval(id);
+  }, [paused, scenes.length, sceneKey]);
+
   if (!scene) return null;
 
+  const onTouchStart = (e: React.TouchEvent) => {
+    touchX.current = e.changedTouches[0]?.clientX ?? null;
+    setPaused(true);
+  };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    const start = touchX.current;
+    touchX.current = null;
+    if (start == null) return;
+    const dx = (e.changedTouches[0]?.clientX ?? start) - start;
+    if (Math.abs(dx) < 40) {
+      setPaused(false);
+      return;
+    }
+    if (dx < 0) setIdx((i) => Math.min(scenes.length - 1, i + 1));
+    else setIdx((i) => Math.max(0, i - 1));
+    window.setTimeout(() => setPaused(false), 4000);
+  };
+
   return (
-    <div className="space-y-2.5">
-      <div className="rounded-xl border border-cyan-400/25 bg-cyan-400/[0.06] px-3 py-2.5">
+    <div
+      className="space-y-2.5"
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+    >
+      {/* Progress of this step in the run */}
+      <div className="flex items-center gap-2">
+        <div className="flex-1 h-1 rounded-full bg-slate-800 overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all duration-500"
+            style={{
+              width: `${((safeIdx + 1) / Math.max(scenes.length, 1)) * 100}%`,
+              background: scene.live
+                ? "linear-gradient(90deg,#22d3ee,#a3e635)"
+                : "#475569",
+            }}
+          />
+        </div>
+        <span className="text-[9px] font-mono tabular-nums text-slate-500 shrink-0">
+          {safeIdx + 1}/{scenes.length}
+        </span>
+      </div>
+
+      <div className="rounded-xl border border-cyan-400/25 bg-gradient-to-br from-cyan-400/[0.09] to-transparent px-3 py-2.5">
         <div className="flex items-center gap-2 mb-1">
           <ProviderIcon kind={scene.provider} size={14} />
           <span className="text-[9px] font-mono uppercase tracking-[0.16em] text-cyan-300/90">
@@ -456,14 +507,14 @@ function MobileWorkstage({ scenes }: { scenes: Scene[] }) {
       <SceneCard scene={scene} compact />
 
       {scenes.length > 1 && (
-        <div className="flex items-center justify-between gap-2 pt-0.5">
+        <div className="flex items-center justify-between gap-2">
           <button
             type="button"
-            className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] font-mono text-slate-300 disabled:opacity-30"
+            className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] font-mono text-slate-300 disabled:opacity-30 active:scale-95"
             disabled={safeIdx <= 0}
-            onClick={() => setIdx((i) => Math.max(0, i - 1))}
+            onClick={() => { setPaused(true); setIdx((i) => Math.max(0, i - 1)); }}
           >
-            {"\u2190"} Prev
+            ← Prev
           </button>
           <div className="flex items-center gap-1.5">
             {scenes.map((s, i) => (
@@ -471,49 +522,54 @@ function MobileWorkstage({ scenes }: { scenes: Scene[] }) {
                 key={s.id}
                 type="button"
                 aria-label={`Scene ${i + 1}`}
-                onClick={() => setIdx(i)}
+                onClick={() => { setPaused(true); setIdx(i); }}
                 className="rounded-full transition-all"
                 style={{
-                  width: i === safeIdx ? 16 : 6,
+                  width: i === safeIdx ? 18 : 6,
                   height: 6,
-                  background: i === safeIdx ? (s.live ? "#22d3ee" : "#64748b") : "#1e293b",
+                  background: i === safeIdx ? (s.live ? "#22d3ee" : "#94a3b8") : "#1e293b",
                 }}
               />
             ))}
           </div>
           <button
             type="button"
-            className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] font-mono text-slate-300 disabled:opacity-30"
+            className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] font-mono text-slate-300 disabled:opacity-30 active:scale-95"
             disabled={safeIdx >= scenes.length - 1}
-            onClick={() => setIdx((i) => Math.min(scenes.length - 1, i + 1))}
+            onClick={() => { setPaused(true); setIdx((i) => Math.min(scenes.length - 1, i + 1)); }}
           >
-            Next {"\u2192"}
+            Next →
           </button>
         </div>
       )}
 
       {scenes.length > 1 && (
-        <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+        <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
           {scenes.map((s, i) => (
             <button
               key={s.id}
               type="button"
-              onClick={() => setIdx(i)}
-              className="shrink-0 rounded-lg border px-2 py-1.5 text-left max-w-[140px]"
+              onClick={() => { setPaused(true); setIdx(i); }}
+              className="shrink-0 rounded-lg border px-2 py-1.5 text-left w-[128px]"
               style={{
-                borderColor: i === safeIdx ? "#22d3ee66" : "#ffffff12",
-                background: i === safeIdx ? "#22d3ee12" : "#ffffff06",
+                borderColor: i === safeIdx ? "#22d3ee66" : "#ffffff10",
+                background: i === safeIdx ? "#22d3ee14" : "#0f172a",
               }}
             >
               <div className="flex items-center gap-1 mb-0.5">
+                <span className="text-[8px] font-mono text-slate-600">{i + 1}</span>
                 <ProviderIcon kind={s.provider} size={10} />
                 <span className="text-[8px] font-mono uppercase tracking-wider text-slate-400 truncate">{s.title}</span>
               </div>
-              <div className="text-[9px] text-slate-300 truncate leading-tight">{s.story}</div>
+              <div className="text-[9px] text-slate-300 line-clamp-2 leading-tight">{s.story}</div>
             </button>
           ))}
         </div>
       )}
+
+      <div className="text-center text-[8px] font-mono text-slate-600 tracking-wider">
+        swipe · or wait for auto-advance
+      </div>
     </div>
   );
 }
@@ -522,7 +578,7 @@ export function BureauOpsStage({
   events,
   compact = false,
   maxScenes = 6,
-  title = "BUREAU OPS · LIVE WORKSTAGE",
+  title = "LIVE DESK",
 }: {
   events: OpsEvent[];
   compact?: boolean;
