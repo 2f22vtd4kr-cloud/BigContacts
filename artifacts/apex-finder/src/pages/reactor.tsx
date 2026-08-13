@@ -1532,7 +1532,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
         {/* Dedicated Bureau Ops workstage band */}
         <div style={{
           flexShrink:0,
-          maxHeight: atlasState?.eventLog?.length ? "42%" : 0,
+          maxHeight: atlasState?.eventLog?.length ? "38%" : 0,
           overflowY:"auto",
           overflowX:"hidden",
           borderBottom: atlasState?.eventLog?.length ? "1px solid #1e3a5f" : "none",

@@ -1,8 +1,6 @@
 /**
  * Bureau Ops Stage — visual simulation of real OSINT work.
- * Every panel is driven by real Bureau / Atlas event payloads
- * (queries, prompts, URLs, tool ids). The chrome is simulated;
- * the content is not invented.
+ * Chrome is simulated; queries, URLs, prompts, results come from live events.
  */
 
 import React, { useEffect, useMemo, useState } from "react";
@@ -47,6 +45,7 @@ type Scene = {
   targetName?: string;
   timestamp?: string;
   live: boolean;
+  story: string;
 };
 
 function pickTool(e: OpsEvent): string {
@@ -57,12 +56,11 @@ function extractQuery(e: OpsEvent): string | undefined {
   const blob = [e.inputSummary, e.resultSummary, e.stage, e.raw, e.prompt].filter(Boolean).join(" ");
   const m =
     blob.match(/Query:\s*([^\n|]+)/i) ||
-    blob.match(/search(?:ing)?\s+(?:for\s+)?["“]?([^"”\n]{8,120})/i) ||
+    blob.match(/search(?:ing)?\s+(?:for\s+)?["\u201c]?([^"\u201d\n]{8,140})/i) ||
     blob.match(/site:[^\s]+[^\n]{0,80}/i);
   if (m?.[1]) return m[1].trim();
-  if (/discover|serp|search|tavily|perplexity|google|gemini/i.test(pickTool(e) + e.stage)) {
-    const t = e.targetName ? `${e.targetName} owner email contact` : undefined;
-    return t;
+  if (/discover|serp|search|tavily|perplexity|google|gemini|serper/i.test(pickTool(e) + (e.stage || ""))) {
+    return e.targetName ? `${e.targetName} owner email contact` : undefined;
   }
   return undefined;
 }
@@ -73,9 +71,29 @@ function extractUrl(e: OpsEvent): string | undefined {
   return m?.[0];
 }
 
+function storyFor(kind: SceneKind, e: OpsEvent, query?: string): string {
+  const t = e.targetName || "target";
+  switch (kind) {
+    case "google":
+      return `Searching the open web for people behind ${t}`;
+    case "browser":
+      return `Opening a public page and reading what is actually published`;
+    case "prompt":
+      return `Asking the model to extract only attributable contacts`;
+    case "domain":
+      return `Checking who registered the domain — ownership clues`;
+    case "footprint":
+      return `Looking for the same person across public platforms`;
+    case "serp":
+      return `Running ${providerLabel(detectProviderKind(pickTool(e)))} search on ${t}`;
+    default:
+      return e.stage || query || `Bureau step on ${t}`;
+  }
+}
+
 function toScene(e: OpsEvent, index: number): Scene {
   const tool = pickTool(e);
-  const provider = detectProviderKind(tool + " " + (e.stage || "") + " " + (e.resultSummary || ""));
+  const provider = detectProviderKind(`${tool} ${e.stage || ""} ${e.resultSummary || ""}`);
   const status = String(e.status || "active");
   const live = !/complete|done|success/i.test(status);
   const query = extractQuery(e);
@@ -89,28 +107,22 @@ function toScene(e: OpsEvent, index: number): Scene {
   ].filter(Boolean) as string[];
 
   let kind: SceneKind = "bureau";
-  if (provider === "google" || /google/i.test(tool + e.stage)) kind = "google";
+  if (provider === "google" || /google/i.test(tool + (e.stage || ""))) kind = "google";
   else if (provider === "gemini" && /ground/i.test(String(e.resultSummary || e.stage))) kind = "google";
-  else if (provider === "browser" || /scrapfly|zenrows|visit|fetch|mailto/i.test(tool + e.stage + e.resultSummary)) kind = "browser";
+  else if (provider === "browser" || /scrapfly|zenrows|visit|fetch|mailto/i.test(tool + (e.stage || "") + (e.resultSummary || ""))) kind = "browser";
   else if (provider === "prompt" || e.prompt || /groq|llm|extract/i.test(tool)) kind = "prompt";
-  else if (provider === "domain" || /rdap|whois/i.test(tool + e.stage)) kind = "domain";
+  else if (provider === "domain" || /rdap|whois/i.test(tool + (e.stage || ""))) kind = "domain";
   else if (provider === "sherlock" || provider === "maigret" || /footprint/i.test(e.stage || "")) kind = "footprint";
   else if (["serp", "serper", "serpapi", "tavily", "exa", "perplexity"].includes(provider)) kind = "serp";
 
   const title =
-    kind === "google"
-      ? "Google Search"
-      : kind === "browser"
-        ? "Browser session"
-        : kind === "prompt"
-          ? "Analyst prompt"
-          : kind === "domain"
-            ? "Domain surface"
-            : kind === "footprint"
-              ? "Footprint scan"
-              : kind === "serp"
-                ? `${providerLabel(provider)} search`
-                : e.stage || "Bureau desk";
+    kind === "google" ? "Google"
+      : kind === "browser" ? "Browser"
+      : kind === "prompt" ? "Analyst"
+      : kind === "domain" ? "Domain"
+      : kind === "footprint" ? "Footprint"
+      : kind === "serp" ? providerLabel(provider)
+      : e.stage || "Bureau";
 
   return {
     id: `${e.timestamp || index}-${tool}-${index}`,
@@ -121,16 +133,16 @@ function toScene(e: OpsEvent, index: number): Scene {
     query,
     url,
     prompt: e.prompt,
-    resultLines: resultLines.slice(0, 4),
+    resultLines: resultLines.slice(0, 3),
     status,
     targetName: e.targetName,
     timestamp: e.timestamp,
     live,
+    story: storyFor(kind, e, query),
   };
 }
 
-/** Typewriter for search bar / prompt lines */
-function useTyped(text: string | undefined, active: boolean, cps = 36) {
+function useTyped(text: string | undefined, active: boolean, cps = 40) {
   const [out, setOut] = useState("");
   useEffect(() => {
     if (!text) {
@@ -147,10 +159,19 @@ function useTyped(text: string | undefined, active: boolean, cps = 36) {
       i += 1;
       setOut(text.slice(0, i));
       if (i >= text.length) window.clearInterval(id);
-    }, Math.max(12, 1000 / cps));
+    }, Math.max(10, 1000 / cps));
     return () => window.clearInterval(id);
   }, [text, active]);
   return out;
+}
+
+function timeLabel(ts?: string) {
+  if (!ts) return "";
+  try {
+    return ts.slice(11, 19);
+  } catch {
+    return "";
+  }
 }
 
 function WindowChrome({
@@ -160,6 +181,7 @@ function WindowChrome({
   children,
   accent = "#22d3ee",
   live,
+  compact,
 }: {
   favicon?: React.ReactNode;
   title: string;
@@ -167,201 +189,170 @@ function WindowChrome({
   children: React.ReactNode;
   accent?: string;
   live?: boolean;
+  compact?: boolean;
 }) {
   return (
     <div
-      className="rounded-xl overflow-hidden border shadow-2xl"
+      className="rounded-xl overflow-hidden border"
       style={{
-        borderColor: `${accent}44`,
+        borderColor: `${accent}55`,
         background: "#0b1220",
-        boxShadow: live ? `0 0 0 1px ${accent}33, 0 18px 50px rgba(0,0,0,0.55)` : "0 12px 40px rgba(0,0,0,0.4)",
+        boxShadow: live
+          ? `0 0 0 1px ${accent}28, 0 12px 36px rgba(0,0,0,0.45)`
+          : "0 8px 24px rgba(0,0,0,0.35)",
       }}
     >
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-white/5" style={{ background: "#111827" }}>
-        <div className="flex gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-[#ff5f57]" />
-          <span className="w-2.5 h-2.5 rounded-full bg-[#febc2e]" />
-          <span className="w-2.5 h-2.5 rounded-full bg-[#28c840]" />
+      <div
+        className={`flex items-center gap-2 border-b border-white/5 ${compact ? "px-2.5 py-1.5" : "px-3 py-2"}`}
+        style={{ background: "#111827" }}
+      >
+        <div className="flex gap-1">
+          <span className="w-2 h-2 rounded-full bg-[#ff5f57]" />
+          <span className="w-2 h-2 rounded-full bg-[#febc2e]" />
+          <span className="w-2 h-2 rounded-full bg-[#28c840]" />
         </div>
-        <div className="flex-1 flex items-center gap-2 min-w-0">
+        <div className="flex-1 flex items-center gap-1.5 min-w-0">
           {favicon}
-          <span className="text-[10px] font-mono text-slate-300 truncate">{title}</span>
+          <span className={`font-mono text-slate-300 truncate ${compact ? "text-[10px]" : "text-[11px]"}`}>{title}</span>
           {live && (
-            <span className="text-[9px] font-mono uppercase tracking-wider text-emerald-400 animate-pulse">live</span>
+            <span className="text-[8px] font-mono uppercase tracking-wider text-emerald-400 animate-pulse shrink-0">live</span>
           )}
         </div>
       </div>
       {urlBar != null && (
-        <div className="px-3 py-2 border-b border-white/5 bg-[#0f172a]">
-          <div className="flex items-center gap-2 rounded-full bg-[#1e293b] px-3 py-1.5 border border-white/5">
-            <span className="text-[10px] text-slate-500">🔒</span>
-            <span className="text-[11px] font-mono text-slate-300 truncate">{urlBar}</span>
+        <div className={`border-b border-white/5 bg-[#0f172a] ${compact ? "px-2.5 py-1.5" : "px-3 py-2"}`}>
+          <div className="flex items-center gap-1.5 rounded-full bg-[#1e293b] px-2.5 py-1 border border-white/5">
+            <span className="text-[9px] text-slate-500 shrink-0">{"\uD83D\uDD12"}</span>
+            <span className={`font-mono text-slate-300 truncate ${compact ? "text-[10px]" : "text-[11px]"}`}>{urlBar}</span>
           </div>
         </div>
       )}
-      <div className="p-3 sm:p-4">{children}</div>
+      <div className={compact ? "p-2.5" : "p-3.5"}>{children}</div>
     </div>
   );
 }
 
-function GoogleScene({ scene }: { scene: Scene }) {
-  const typed = useTyped(scene.query || scene.targetName || "owner contact email", scene.live, 42);
+function GoogleScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
+  const q = scene.query || scene.targetName || "owner contact email";
+  const typed = useTyped(q, scene.live, 44);
   return (
     <WindowChrome
-      title="Google"
+      title="Google Search"
       live={scene.live}
       accent="#4285F4"
-      favicon={<ProviderIcon kind="google" size={14} />}
-      urlBar={`https://www.google.com/search?q=${encodeURIComponent(scene.query || scene.targetName || "")}`}
+      compact={compact}
+      favicon={<ProviderIcon kind="google" size={compact ? 12 : 14} />}
+      urlBar={`google.com/search?q=${encodeURIComponent(q).slice(0, 48)}`}
     >
-      <div className="space-y-3">
-        <div className="flex items-center gap-3">
-          <ProviderIcon kind="google" size={22} />
-          <div className="flex-1 rounded-full border border-slate-600 bg-[#1f2937] px-4 py-2.5 flex items-center gap-2">
-            <span className="text-[13px] text-slate-100 font-sans tracking-tight flex-1 truncate">
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <ProviderIcon kind="google" size={compact ? 18 : 22} />
+          <div className="flex-1 rounded-full border border-slate-600 bg-[#1f2937] px-3 py-2 flex items-center gap-2 min-w-0">
+            <span className={`text-slate-100 flex-1 truncate ${compact ? "text-[12px]" : "text-[13px]"}`}>
               {typed}
-              {scene.live && typed.length < (scene.query || "").length && (
-                <span className="inline-block w-0.5 h-4 bg-slate-200 ml-0.5 animate-pulse align-middle" />
+              {scene.live && typed.length < q.length && (
+                <span className="inline-block w-0.5 h-3.5 bg-slate-200 ml-0.5 animate-pulse align-middle" />
               )}
             </span>
-            <span className="text-[11px] text-blue-400 font-mono">Search</span>
+            <span className="text-[10px] text-blue-400 font-mono shrink-0">Search</span>
           </div>
         </div>
-        <div className="space-y-2 pt-1">
-          {(scene.resultLines.length ? scene.resultLines : ["Scanning SERP for attributable contacts…"]).map((line, i) => (
-            <div key={i} className="rounded-lg bg-[#111827] border border-white/5 px-3 py-2">
-              <div className="text-[10px] text-emerald-500/80 font-mono mb-0.5">result · {i + 1}</div>
-              <div className="text-[12px] text-slate-200 leading-snug">{line}</div>
-            </div>
-          ))}
-        </div>
-        {scene.targetName && (
-          <div className="text-[10px] font-mono text-slate-500">target · {scene.targetName}</div>
-        )}
-      </div>
-    </WindowChrome>
-  );
-}
-
-function BrowserScene({ scene }: { scene: Scene }) {
-  const url = scene.url || (scene.targetName ? `https://${scene.targetName.replace(/\s+/g, "").toLowerCase()}.com/contact` : "https://…");
-  return (
-    <WindowChrome
-      title={scene.subtitle || "Page fetch"}
-      live={scene.live}
-      accent="#f59e0b"
-      favicon={<ProviderIcon kind="browser" size={14} />}
-      urlBar={url}
-    >
-      <div className="space-y-2">
-        <div className="text-[10px] font-mono uppercase tracking-widest text-amber-400/80">Rendered public surface</div>
-        <div className="rounded-lg border border-amber-500/20 bg-[#0f172a] p-3 font-mono text-[11px] text-slate-300 leading-relaxed space-y-1">
-          {(scene.resultLines.length ? scene.resultLines : ["Extracting mailto:, tel:, team cards…"]).map((l, i) => (
-            <div key={i}>
-              {/mailto:|@/.test(l) ? <span className="text-cyan-300">{l}</span> : l}
-            </div>
-          ))}
-        </div>
-      </div>
-    </WindowChrome>
-  );
-}
-
-function PromptScene({ scene }: { scene: Scene }) {
-  const body = scene.prompt || scene.resultLines[0] || scene.subtitle || "";
-  const typed = useTyped(body.slice(0, 280), scene.live, 55);
-  return (
-    <WindowChrome
-      title={`${providerLabel(scene.provider)} · analyst`}
-      live={scene.live}
-      accent="#a3e635"
-      favicon={<ProviderIcon kind={scene.provider} size={14} />}
-    >
-      <div className="rounded-lg bg-black/50 border border-lime-500/20 p-3 font-mono text-[11px] text-lime-100/90 leading-relaxed min-h-[88px]">
-        <span className="text-lime-500/70">{">>> "}</span>
-        {typed}
-        {scene.live && <span className="inline-block w-1.5 h-3.5 bg-lime-400 ml-0.5 animate-pulse" />}
-      </div>
-      {scene.resultLines[0] && scene.prompt && (
-        <div className="mt-2 text-[11px] text-slate-400 font-mono">{scene.resultLines[0]}</div>
-      )}
-    </WindowChrome>
-  );
-}
-
-function DomainScene({ scene }: { scene: Scene }) {
-  return (
-    <WindowChrome
-      title="RDAP / WHOIS"
-      live={scene.live}
-      accent="#67e8f9"
-      favicon={<ProviderIcon kind="domain" size={14} />}
-      urlBar="rdap · whoisjson · domain surface"
-    >
-      <pre className="text-[11px] font-mono text-cyan-100/90 leading-relaxed whitespace-pre-wrap">
-        {(scene.resultLines.length ? scene.resultLines : ["Resolving registrant tokens…"]).join("\n")}
-      </pre>
-    </WindowChrome>
-  );
-}
-
-function SerpScene({ scene }: { scene: Scene }) {
-  const typed = useTyped(scene.query || scene.targetName || scene.subtitle || "", scene.live, 40);
-  return (
-    <WindowChrome
-      title={providerLabel(scene.provider)}
-      live={scene.live}
-      accent="#fb923c"
-      favicon={<ProviderIcon kind={scene.provider} size={14} />}
-    >
-      <div className="space-y-2">
-        <div className="rounded-lg border border-orange-400/30 bg-[#1c1917] px-3 py-2 flex items-center gap-2">
-          <ProviderIcon kind={scene.provider} size={16} />
-          <span className="text-[12px] text-orange-50 font-mono truncate flex-1">{typed || "…"}</span>
-        </div>
-        <div className="grid gap-1.5">
-          {(scene.resultLines.length ? scene.resultLines : ["Streaming hits…"]).map((l, i) => (
-            <div key={i} className="text-[11px] text-slate-300 font-mono border-l-2 border-orange-400/40 pl-2">
-              {l}
-            </div>
-          ))}
-        </div>
-      </div>
-    </WindowChrome>
-  );
-}
-
-function FootprintScene({ scene }: { scene: Scene }) {
-  return (
-    <WindowChrome
-      title="Username footprint"
-      live={scene.live}
-      accent="#c4b5fd"
-      favicon={<ProviderIcon kind="sherlock" size={14} />}
-    >
-      <div className="text-[11px] font-mono text-violet-100/90 space-y-1">
-        {(scene.resultLines.length ? scene.resultLines : ["Checking 3,000+ platforms…"]).map((l, i) => (
-          <div key={i}>▸ {l}</div>
+        {(scene.resultLines.length ? scene.resultLines : ["Scanning public results\u2026"]).slice(0, compact ? 2 : 3).map((line, i) => (
+          <div key={i} className="rounded-lg bg-[#111827] border border-white/5 px-2.5 py-1.5">
+            <div className="text-[9px] text-emerald-500/80 font-mono mb-0.5">result · {i + 1}</div>
+            <div className={`text-slate-200 leading-snug ${compact ? "text-[11px]" : "text-[12px]"}`}>{line}</div>
+          </div>
         ))}
       </div>
     </WindowChrome>
   );
 }
 
-function BureauScene({ scene }: { scene: Scene }) {
+function BrowserScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
+  const url =
+    scene.url ||
+    (scene.targetName
+      ? `https://${scene.targetName.replace(/\s+/g, "").toLowerCase()}.com/contact`
+      : "https://\u2026");
   return (
     <WindowChrome
-      title={scene.title}
+      title={scene.subtitle || "Public page"}
       live={scene.live}
-      accent="#22d3ee"
-      favicon={<ProviderIcon kind="bureau" size={14} />}
+      accent="#f59e0b"
+      compact={compact}
+      favicon={<ProviderIcon kind="browser" size={compact ? 12 : 14} />}
+      urlBar={url}
     >
       <div className="space-y-1.5">
-        {scene.targetName && (
-          <div className="text-[10px] font-mono text-cyan-400/80 uppercase tracking-wider">{scene.targetName}</div>
-        )}
-        {(scene.resultLines.length ? scene.resultLines : [scene.subtitle || "Bureau desk"]).map((l, i) => (
-          <div key={i} className="text-[12px] text-slate-200 leading-snug">
+        <div className="text-[9px] font-mono uppercase tracking-widest text-amber-400/80">On the page</div>
+        <div className="rounded-lg border border-amber-500/20 bg-[#0f172a] p-2.5 font-mono text-[11px] text-slate-300 leading-relaxed space-y-1">
+          {(scene.resultLines.length ? scene.resultLines : ["Reading mailto, tel, team cards\u2026"]).map((l, i) => (
+            <div key={i}>{/@|mailto:/i.test(l) ? <span className="text-cyan-300">{l}</span> : l}</div>
+          ))}
+        </div>
+      </div>
+    </WindowChrome>
+  );
+}
+
+function PromptScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
+  const body = scene.prompt || scene.resultLines[0] || scene.subtitle || "";
+  const typed = useTyped(body.slice(0, compact ? 160 : 260), scene.live, 52);
+  return (
+    <WindowChrome
+      title={`${providerLabel(scene.provider)} · prompt`}
+      live={scene.live}
+      accent="#a3e635"
+      compact={compact}
+      favicon={<ProviderIcon kind={scene.provider} size={compact ? 12 : 14} />}
+    >
+      <div className="rounded-lg bg-black/50 border border-lime-500/20 p-2.5 font-mono text-[11px] text-lime-100/90 leading-relaxed min-h-[72px]">
+        <span className="text-lime-500/70">{">>> "}</span>
+        {typed}
+        {scene.live && <span className="inline-block w-1.5 h-3 bg-lime-400 ml-0.5 animate-pulse" />}
+      </div>
+      {scene.resultLines[0] && scene.prompt && (
+        <div className="mt-1.5 text-[10px] text-slate-400 font-mono line-clamp-2">{scene.resultLines[0]}</div>
+      )}
+    </WindowChrome>
+  );
+}
+
+function DomainScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
+  return (
+    <WindowChrome
+      title="RDAP / WHOIS"
+      live={scene.live}
+      accent="#67e8f9"
+      compact={compact}
+      favicon={<ProviderIcon kind="domain" size={compact ? 12 : 14} />}
+      urlBar="rdap · whoisjson"
+    >
+      <pre className={`font-mono text-cyan-100/90 leading-relaxed whitespace-pre-wrap ${compact ? "text-[10px]" : "text-[11px]"}`}>
+        {(scene.resultLines.length ? scene.resultLines : ["Resolving registrant tokens\u2026"]).join("\n")}
+      </pre>
+    </WindowChrome>
+  );
+}
+
+function SerpScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
+  const q = scene.query || scene.targetName || scene.subtitle || "";
+  const typed = useTyped(q, scene.live, 40);
+  return (
+    <WindowChrome
+      title={providerLabel(scene.provider)}
+      live={scene.live}
+      accent="#fb923c"
+      compact={compact}
+      favicon={<ProviderIcon kind={scene.provider} size={compact ? 12 : 14} />}
+    >
+      <div className="space-y-2">
+        <div className="rounded-lg border border-orange-400/30 bg-[#1c1917] px-2.5 py-2 flex items-center gap-2">
+          <ProviderIcon kind={scene.provider} size={14} />
+          <span className="text-[12px] text-orange-50 font-mono truncate flex-1">{typed || "\u2026"}</span>
+        </div>
+        {(scene.resultLines.length ? scene.resultLines : ["Streaming hits\u2026"]).map((l, i) => (
+          <div key={i} className="text-[11px] text-slate-300 font-mono border-l-2 border-orange-400/40 pl-2">
             {l}
           </div>
         ))}
@@ -370,23 +361,161 @@ function BureauScene({ scene }: { scene: Scene }) {
   );
 }
 
-function SceneCard({ scene }: { scene: Scene }) {
+function FootprintScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
+  return (
+    <WindowChrome
+      title="Username footprint"
+      live={scene.live}
+      accent="#c4b5fd"
+      compact={compact}
+      favicon={<ProviderIcon kind="sherlock" size={compact ? 12 : 14} />}
+    >
+      <div className={`font-mono text-violet-100/90 space-y-1 ${compact ? "text-[10px]" : "text-[11px]"}`}>
+        {(scene.resultLines.length ? scene.resultLines : ["Checking public platforms\u2026"]).map((l, i) => (
+          <div key={i}>{"\u25B8"} {l}</div>
+        ))}
+      </div>
+    </WindowChrome>
+  );
+}
+
+function BureauScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
+  return (
+    <WindowChrome
+      title={scene.title}
+      live={scene.live}
+      accent="#22d3ee"
+      compact={compact}
+      favicon={<ProviderIcon kind="bureau" size={compact ? 12 : 14} />}
+    >
+      <div className="space-y-1">
+        {scene.targetName && (
+          <div className="text-[9px] font-mono text-cyan-400/80 uppercase tracking-wider">{scene.targetName}</div>
+        )}
+        {(scene.resultLines.length ? scene.resultLines : [scene.subtitle || "Bureau desk"]).map((l, i) => (
+          <div key={i} className={`text-slate-200 leading-snug ${compact ? "text-[11px]" : "text-[12px]"}`}>
+            {l}
+          </div>
+        ))}
+      </div>
+    </WindowChrome>
+  );
+}
+
+function SceneCard({ scene, compact }: { scene: Scene; compact?: boolean }) {
   switch (scene.kind) {
     case "google":
-      return <GoogleScene scene={scene} />;
+      return <GoogleScene scene={scene} compact={compact} />;
     case "browser":
-      return <BrowserScene scene={scene} />;
+      return <BrowserScene scene={scene} compact={compact} />;
     case "prompt":
-      return <PromptScene scene={scene} />;
+      return <PromptScene scene={scene} compact={compact} />;
     case "domain":
-      return <DomainScene scene={scene} />;
+      return <DomainScene scene={scene} compact={compact} />;
     case "serp":
-      return <SerpScene scene={scene} />;
+      return <SerpScene scene={scene} compact={compact} />;
     case "footprint":
-      return <FootprintScene scene={scene} />;
+      return <FootprintScene scene={scene} compact={compact} />;
     default:
-      return <BureauScene scene={scene} />;
+      return <BureauScene scene={scene} compact={compact} />;
   }
+}
+
+/** Mobile: one focused scene + story + pager */
+function MobileWorkstage({ scenes }: { scenes: Scene[] }) {
+  const [idx, setIdx] = useState(0);
+  const safeIdx = Math.min(idx, Math.max(0, scenes.length - 1));
+  const scene = scenes[safeIdx];
+  const sceneKey = scenes.map((s) => s.id).join("|");
+
+  useEffect(() => {
+    const liveIdx = scenes.findIndex((s) => s.live);
+    setIdx(liveIdx >= 0 ? liveIdx : 0);
+  }, [sceneKey]);
+
+  if (!scene) return null;
+
+  return (
+    <div className="space-y-2.5">
+      <div className="rounded-xl border border-cyan-400/25 bg-cyan-400/[0.06] px-3 py-2.5">
+        <div className="flex items-center gap-2 mb-1">
+          <ProviderIcon kind={scene.provider} size={14} />
+          <span className="text-[9px] font-mono uppercase tracking-[0.16em] text-cyan-300/90">
+            {scene.live ? "Now" : "Done"} · {scene.title}
+          </span>
+          {scene.timestamp && (
+            <span className="ml-auto text-[9px] font-mono text-slate-500">{timeLabel(scene.timestamp)}</span>
+          )}
+        </div>
+        <div className="text-[13px] leading-snug text-slate-100 font-medium">{scene.story}</div>
+        {scene.targetName && (
+          <div className="mt-1 text-[10px] font-mono text-slate-400 truncate">on {scene.targetName}</div>
+        )}
+      </div>
+
+      <SceneCard scene={scene} compact />
+
+      {scenes.length > 1 && (
+        <div className="flex items-center justify-between gap-2 pt-0.5">
+          <button
+            type="button"
+            className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] font-mono text-slate-300 disabled:opacity-30"
+            disabled={safeIdx <= 0}
+            onClick={() => setIdx((i) => Math.max(0, i - 1))}
+          >
+            {"\u2190"} Prev
+          </button>
+          <div className="flex items-center gap-1.5">
+            {scenes.map((s, i) => (
+              <button
+                key={s.id}
+                type="button"
+                aria-label={`Scene ${i + 1}`}
+                onClick={() => setIdx(i)}
+                className="rounded-full transition-all"
+                style={{
+                  width: i === safeIdx ? 16 : 6,
+                  height: 6,
+                  background: i === safeIdx ? (s.live ? "#22d3ee" : "#64748b") : "#1e293b",
+                }}
+              />
+            ))}
+          </div>
+          <button
+            type="button"
+            className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] font-mono text-slate-300 disabled:opacity-30"
+            disabled={safeIdx >= scenes.length - 1}
+            onClick={() => setIdx((i) => Math.min(scenes.length - 1, i + 1))}
+          >
+            Next {"\u2192"}
+          </button>
+        </div>
+      )}
+
+      {scenes.length > 1 && (
+        <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+          {scenes.map((s, i) => (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => setIdx(i)}
+              className="shrink-0 rounded-lg border px-2 py-1.5 text-left max-w-[140px]"
+              style={{
+                borderColor: i === safeIdx ? "#22d3ee66" : "#ffffff12",
+                background: i === safeIdx ? "#22d3ee12" : "#ffffff06",
+              }}
+            >
+              <div className="flex items-center gap-1 mb-0.5">
+                <ProviderIcon kind={s.provider} size={10} />
+                <span className="text-[8px] font-mono uppercase tracking-wider text-slate-400 truncate">{s.title}</span>
+              </div>
+              <div className="text-[9px] text-slate-300 truncate leading-tight">{s.story}</div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function BureauOpsStage({
@@ -402,7 +531,6 @@ export function BureauOpsStage({
 }) {
   const scenes = useMemo(() => {
     const list = (events || []).map(toScene).filter((s) => s.resultLines.length || s.query || s.prompt || s.url);
-    // Prefer live scenes first, then newest
     return list.slice(0, maxScenes);
   }, [events, maxScenes]);
 
@@ -410,18 +538,53 @@ export function BureauOpsStage({
     return (
       <div className={`rounded-xl border border-dashed border-slate-700/80 bg-slate-950/40 ${compact ? "p-3" : "p-5"}`}>
         <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-slate-500 mb-1">{title}</div>
-        <div className="text-[12px] text-slate-400">Waiting for Bureau / Discovery events…</div>
+        <div className="text-[12px] text-slate-400">Waiting for the desk to move — searches, page reads, and prompts will appear here.</div>
+      </div>
+    );
+  }
+
+  if (compact) {
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-cyan-400/90">{title}</div>
+          <div className="text-[9px] font-mono text-slate-500">{scenes.length} steps</div>
+        </div>
+        <MobileWorkstage scenes={scenes} />
       </div>
     );
   }
 
   return (
-    <div className={compact ? "space-y-3" : "space-y-4"}>
-      <div className="flex items-center justify-between gap-2">
-        <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-cyan-400/90">{title}</div>
-        <div className="text-[9px] font-mono text-slate-500">{scenes.length} active scenes · real event payloads</div>
+    <div className="space-y-3">
+      <div className="flex items-end justify-between gap-3 flex-wrap">
+        <div>
+          <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-cyan-400/90">{title}</div>
+          <div className="text-[12px] text-slate-400 mt-0.5">
+            What the desk is doing right now — real queries, pages, and prompts
+          </div>
+        </div>
+        <div className="text-[9px] font-mono text-slate-500">{scenes.length} scenes · live payloads</div>
       </div>
-      <div className={`grid gap-3 ${compact ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2"}`}>
+
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        {scenes.map((s, i) => (
+          <div
+            key={s.id}
+            className="shrink-0 rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-1.5 max-w-[200px]"
+          >
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <span className="text-[9px] font-mono text-slate-500">{i + 1}</span>
+              <ProviderIcon kind={s.provider} size={11} />
+              <span className="text-[9px] font-mono text-slate-400 truncate">{s.title}</span>
+              {s.live && <span className="text-[8px] text-emerald-400 font-mono">LIVE</span>}
+            </div>
+            <div className="text-[10px] text-slate-300 leading-snug line-clamp-2">{s.story}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid gap-3 grid-cols-1 lg:grid-cols-2">
         {scenes.map((s) => (
           <SceneCard key={s.id} scene={s} />
         ))}

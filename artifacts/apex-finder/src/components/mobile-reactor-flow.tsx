@@ -297,12 +297,19 @@ function LiveResearchConsole({
       <div className="mb-4" data-testid="bureau-ops-stage">
         <BureauOpsStage
           compact
-          maxScenes={5}
-          title="WATCH THE DESK · REAL QUERIES"
+          maxScenes={6}
+          title="LIVE DESK"
           events={(atlasState?.eventLog || []) as any[]}
         />
       </div>
 
+      <details className="mb-3 rounded-xl border border-white/10 bg-white/[0.02] group">
+        <summary className="cursor-pointer list-none px-3 py-2.5 flex items-center justify-between gap-2">
+          <span className="text-[9px] font-mono uppercase tracking-[0.16em] text-slate-500">Phase & queue detail</span>
+          <span className="text-[9px] font-mono text-slate-600 group-open:hidden">show</span>
+          <span className="text-[9px] font-mono text-slate-600 hidden group-open:inline">hide</span>
+        </summary>
+        <div className="px-2.5 pb-2.5 space-y-2">
       <div className="mb-3 grid grid-cols-2 gap-2">
         <div className="rounded-xl border border-white/10 bg-white/[0.03] p-2.5" data-testid="card-atlas-phase-progress">
           <div className="flex items-center justify-between gap-2">
@@ -337,6 +344,9 @@ function LiveResearchConsole({
           {operation || (isDone ? "Run complete; no active operation reported." : isFailed ? "Run failed; no active operation reported." : "No operation reported while Atlas is idle.")}
         </div>
       </div>
+
+        </div>
+      </details>
 
       {telemetry && (researchTools.length > 0 || hasPersonaReview) && (
         <div className="mb-3 rounded-xl border border-white/10 bg-black/20 p-3" data-testid="card-lane-explanation">
