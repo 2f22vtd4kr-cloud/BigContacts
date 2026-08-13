@@ -448,6 +448,25 @@ function extractContactFactsFromHtml(html: string): string {
     push(`EMAIL: ${m[2]!.toLowerCase()}`);
     push(`PERSON_EMAIL: ${m[1]!.trim()} | ${m[2]!.toLowerCase()}`);
   }
+  // Wix / component team cards: <h3>Name</h3> ... role ... mailto within ~2500 chars
+  // (Griffin Tool about page — 200-char window missed Lillian/Tim/Rod/Brian)
+  for (const m of html.matchAll(
+    /<h[1-4][^>]*>\s*([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\s*<\/h[1-4]>[\s\S]{0,2500}?href=["']mailto:([a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,})/gi,
+  )) {
+    const pName = m[1]!.replace(/\s+/g, " ").trim();
+    const email = m[2]!.toLowerCase();
+    if (pName.split(/\s+/).length >= 2 && pName.length < 45 && !/Contact|Griffin Tool|Meet/i.test(pName)) {
+      // Role: first strong title between heading and mailto
+      const between = (m[0] || "").replace(/<[^>]+>/g, " ");
+      const roleM = between.match(
+        /\b(Chief Executive Officer(?:\s+and\s+President)?|President|CEO|CFO|Chief Financial Officer|Owner|Office Manager|Operations Manager|Engineering Manager|Administrative Specialist|Senior Engineer|Head of CNC(?:\s+Department)?|Process Engineer|Director of Business Development|General Manager|Plant Manager|Controller|Manager|Director|Engineer)\b/i,
+      );
+      const role = roleM ? roleM[1]!.replace(/\s+/g, " ").trim() : "related_contact";
+      push(`PERSON: ${pName} — ${role}`);
+      push(`EMAIL: ${email}`);
+      push(`PERSON_EMAIL: ${pName} | ${email}`);
+    }
+  }
 
   // Griffin-style team cards: Name heading → role line → optional Extension → mailto within ~6 lines
   // (Wix/markdown about pages: ### Malcolm Cowan / Chief Executive Officer and President / Extension 229 / mailto)
