@@ -90,6 +90,11 @@ export function hasMeaningfulDirectContact(entity: {
 /**
  * Outcome labels for each enriched entity (J0).
  *
+ * DISPLAY POLICY (operator-facing cards):
+ *   Show ALL non-trash contact vectors (email, phone, social, org inbox).
+ *   Distinguish by outcome badge — never hide org/social/candidate just because
+ *   they are not verified personal. Verified is a rank, not a display gate.
+ *
  * Only direct_contact_candidate and direct_contact_verified are terminal
  * enrichment states (J1). All other outcomes keep the entity eligible for
  * follow-up passes.

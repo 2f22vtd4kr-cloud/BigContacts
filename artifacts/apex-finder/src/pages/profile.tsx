@@ -903,6 +903,20 @@ export default function ApexProfile() {
                         )}
                       </div>
                       <div className="flex items-center gap-2 mt-2 flex-wrap">
+                        {/* Show ALL non-trash contact vectors — never require verified-only */}
+                        {person.email && !isProtectedEmail(person.email) && (
+                          <a href={`mailto:${person.email}`} className="text-[9px] font-mono text-primary hover:underline truncate max-w-[200px]" title={person.email}>
+                            {/^(info|sales|contact|office|support|hello|admin|billing|help|service|enquiries|inquiry|mail|general|team|hr|jobs|careers|noreply|no-reply|donotreply|marketing|media|pr|webmaster|postmaster|abuse)@/i.test(String(person.email))
+                              ? `org · ${person.email}`
+                              : person.email}
+                          </a>
+                        )}
+                        {person.phone && (
+                          <a href={`tel:${person.phone}`} className="text-[9px] font-mono text-secondary hover:underline">{person.phone}</a>
+                        )}
+                        {person.telegram && (
+                          <span className="text-[9px] font-mono text-sky-300">tg:{String(person.telegram).replace(/^@/, "")}</span>
+                        )}
                         {person.instagram && <a href={person.instagram} target="_blank" rel="noopener noreferrer" className="text-[9px] font-mono text-pink-400 hover:underline">Instagram↗</a>}
                         {person.linkedin && <a href={person.linkedin} target="_blank" rel="noopener noreferrer" className="text-[9px] font-mono text-blue-400 hover:underline">LinkedIn↗</a>}
                         {person.twitter && <a href={person.twitter} target="_blank" rel="noopener noreferrer" className="text-[9px] font-mono text-sky-400 hover:underline">X↗</a>}
@@ -947,7 +961,35 @@ export default function ApexProfile() {
         return (
           <div className={cn("flex-shrink-0 border-b border-border px-4 md:px-6 py-3", hasContact && "bg-primary/5")}>
             <div className="flex items-center justify-between mb-2 gap-2">
-               <span className="text-[9px] font-mono font-bold text-primary uppercase tracking-widest">Public Contact Vectors</span>
+               <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                 <span className="text-[9px] font-mono font-bold text-primary uppercase tracking-widest">Public Contact Vectors</span>
+                 {e.contactOutcome && (
+                   <span
+                     className="text-[9px] font-mono px-1.5 py-0.5 rounded"
+                     style={{
+                       color: e.contactOutcome === "direct_contact_verified" ? "#10B981"
+                         : e.contactOutcome === "direct_contact_candidate" ? "#3B82F6"
+                         : e.contactOutcome === "organization_contact" ? "#8B5CF6"
+                         : e.contactOutcome === "social_only" ? "#64748B"
+                         : "#94A3B8",
+                       background: (e.contactOutcome === "direct_contact_verified" ? "#10B981"
+                         : e.contactOutcome === "direct_contact_candidate" ? "#3B82F6"
+                         : e.contactOutcome === "organization_contact" ? "#8B5CF6"
+                         : e.contactOutcome === "social_only" ? "#64748B"
+                         : "#94A3B8") + "18",
+                     }}
+                     title="Directness badge — all non-trash vectors below are shown regardless of verified status"
+                   >
+                     {e.contactOutcome === "direct_contact_verified" ? "[V] verified"
+                       : e.contactOutcome === "direct_contact_candidate" ? "direct"
+                       : e.contactOutcome === "organization_contact" ? "org"
+                       : e.contactOutcome === "social_only" ? "social"
+                       : e.contactOutcome === "evidence_only" ? "evidence"
+                       : e.contactOutcome}
+                   </span>
+                 )}
+                 <span className="text-[8px] font-mono text-muted-foreground/70 hidden sm:inline">all non-trash · ranked by directness</span>
+               </div>
               <div className="flex items-center gap-1.5">
                 {hasContact && (
                   <button
@@ -967,15 +1009,25 @@ export default function ApexProfile() {
             {hasContact ? (
               <div className="flex items-center gap-2 flex-wrap">
                 {/* Email */}
-                {e.email && !isProtectedEmail(e.email) && (
-                  <a href={`mailto:${e.email}`} title={e.email}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded border border-primary/30 bg-primary/10 text-primary font-mono text-xs hover:bg-primary/20 transition-colors min-w-0 max-w-[220px] sm:max-w-none">
+                {e.email && !isProtectedEmail(e.email) && (() => {
+                  const isOrgMail = /^(info|sales|contact|office|support|hello|admin|billing|help|service|enquiries|inquiry|mail|general|team|hr|jobs|careers|noreply|no-reply|donotreply|marketing|media|pr|webmaster|postmaster|abuse)@/i.test(String(e.email))
+                    || e.contactOutcome === "organization_contact";
+                  return (
+                  <a href={`mailto:${e.email}`} title={isOrgMail ? `Organization inbox — ${e.email}` : e.email}
+                    className={cn(
+                      "flex items-center gap-2 px-3 py-1.5 rounded border font-mono text-xs transition-colors min-w-0 max-w-[240px] sm:max-w-none",
+                      isOrgMail
+                        ? "border-violet-400/30 bg-violet-400/10 text-violet-300 hover:bg-violet-400/20"
+                        : "border-primary/30 bg-primary/10 text-primary hover:bg-primary/20",
+                    )}>
                     <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                     </svg>
+                    {isOrgMail && <span className="text-[9px] uppercase tracking-wider opacity-80">org</span>}
                     <span className="truncate">{e.email}</span>
                   </a>
-                )}
+                  );
+                })()}
                 {/* Phone */}
                 {e.phone && (
                   <a href={`tel:${e.phone}`}
