@@ -41,6 +41,7 @@ import {
   RunBureauCaseBossReviewResponse,
 } from "@workspace/api-zod";
 import { isWebSpecialistAction, runBureauAgenticWebPass } from "../../lib/bureau-agentic-pass";
+import { sanitizePublicPhone, isTrashContactValue } from "../../lib/contact-validation";
 import {
   advanceCaseFile,
   applyGeminiBossPlan,
@@ -1387,6 +1388,39 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
           // Scan contactEvidence from agentic pass too
           for (const e of agenticDiscovery.contactEvidence ?? []) {
             if (e.vectorType === "email" && e.value) attachEmail(e.value, e.sourceUrls || []);
+          }
+
+          // FORCE org phones from CONTACT FACTS / trajectory onto company row (Grok parity)
+          const phoneRe = /\b(?:PHONE:?\s*)?(\+?1[\s.-]?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}|\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4})\b/g;
+          const seenPhone = new Set<string>();
+          const attachPhone = (raw: string, sourceUrls: string[]) => {
+            const cleaned = sanitizePublicPhone(raw);
+            if (!cleaned || seenPhone.has(cleaned)) return;
+            if (isTrashContactValue("phone", cleaned)) return;
+            seenPhone.add(cleaned);
+            const co = ensureCompanyRow(agenticCompanyName!, sourceUrls);
+            pushEvidence(co, {
+              vectorType: "phone",
+              value: cleaned,
+              scope: "organization",
+              personName: null,
+              role: null,
+              sourceUrls: sourceUrls.slice(0, 4),
+              note: "force-attach org phone from CONTACT FACTS/trajectory",
+            } as (typeof agenticDiscovery.findings)[number]);
+          };
+          for (const f of agenticDiscovery.findings ?? []) {
+            if (f.vectorType === "phone" && f.value) attachPhone(f.value, f.sourceUrls || []);
+            for (const m of String(f.value || "").matchAll(phoneRe)) attachPhone(m[1]!, f.sourceUrls || []);
+            for (const m of String(f.note || "").matchAll(phoneRe)) attachPhone(m[1]!, f.sourceUrls || []);
+          }
+          for (const line of agenticDiscovery.trajectory ?? []) {
+            const urlMatch = String(line).match(/https?:\/\/[^\s]+/i);
+            const urls = urlMatch ? [urlMatch[0]] : [];
+            for (const m of String(line).matchAll(phoneRe)) attachPhone(m[1]!, urls);
+          }
+          for (const e of agenticDiscovery.contactEvidence ?? []) {
+            if (e.vectorType === "phone" && e.value) attachPhone(e.value, e.sourceUrls || []);
           }
         }
       }
