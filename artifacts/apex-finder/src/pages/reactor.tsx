@@ -473,6 +473,9 @@ const KEYFRAMES = `
   @keyframes dashFwd   { 0%{stroke-dashoffset:24} 100%{stroke-dashoffset:0}  }
   @keyframes dashBack  { 0%{stroke-dashoffset:0}  100%{stroke-dashoffset:22} }
   @keyframes flowDown  { 0%{stroke-dashoffset:0} 100%{stroke-dashoffset:-24} }
+  /* Figma-like motion: ease-out for enters, springy toggle thumb */
+  @keyframes deskIn    { from { opacity:0; transform:translateX(12px) } to { opacity:1; transform:translateX(0) } }
+  @keyframes thumbPop  { 0% { transform:scale(1) } 40% { transform:scale(1.08) } 100% { transform:scale(1) } }
 `;
 
 // ── Meter (shared) ────────────────────────────────────────────────────────────
@@ -1496,23 +1499,58 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                 </div>
                 <button
                   type="button"
+                  role="switch"
+                  aria-checked={deskOpen}
                   onClick={() => setDeskOpen((v) => !v)}
                   data-testid="button-toggle-live-desk"
+                  title={deskOpen ? "Hide Live Desk panel" : "Show Live Desk beside the reactor scheme"}
                   style={{
-                    marginLeft: 8,
-                    padding: "4px 10px",
-                    borderRadius: 4,
-                    border: deskOpen ? "1px solid #22d3ee66" : "1px solid #1e3a5f",
-                    background: deskOpen ? "#22d3ee14" : "#0f172a",
+                    marginLeft: 10,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "3px 8px 3px 4px",
+                    borderRadius: 999,
+                    border: deskOpen ? "1px solid #22d3ee55" : "1px solid #1e3a5f",
+                    background: deskOpen ? "rgba(34,211,238,0.12)" : "rgba(15,23,42,0.9)",
                     color: deskOpen ? "#67e8f9" : "#64748b",
                     fontSize: 8,
-                    letterSpacing: "0.16em",
+                    letterSpacing: "0.14em",
                     cursor: "pointer",
                     fontFamily: "inherit",
+                    transition: "background 200ms cubic-bezier(0.2, 0.8, 0.2, 1), border-color 200ms ease, color 200ms ease",
                   }}
-                  title={deskOpen ? "Hide Live Desk panel" : "Show Live Desk beside the reactor scheme"}
                 >
-                  {deskOpen ? "LIVE DESK · ON" : "LIVE DESK · OFF"}
+                  {/* Track + thumb — Figma-style boolean toggle motion */}
+                  <span
+                    aria-hidden
+                    style={{
+                      position: "relative",
+                      width: 28,
+                      height: 16,
+                      borderRadius: 999,
+                      background: deskOpen ? "#22d3ee" : "#1e293b",
+                      border: deskOpen ? "1px solid #67e8f9" : "1px solid #334155",
+                      transition: "background 220ms cubic-bezier(0.34, 1.3, 0.64, 1), border-color 200ms ease",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <span
+                      style={{
+                        position: "absolute",
+                        top: 1,
+                        left: deskOpen ? 13 : 1,
+                        width: 12,
+                        height: 12,
+                        borderRadius: "50%",
+                        background: deskOpen ? "#0b1120" : "#94a3b8",
+                        boxShadow: "0 1px 3px rgba(0,0,0,0.45)",
+                        transition: "left 220ms cubic-bezier(0.34, 1.3, 0.64, 1), background 200ms ease",
+                        animation: deskOpen ? "thumbPop 280ms cubic-bezier(0.34, 1.3, 0.64, 1)" : "none",
+                      }}
+                    />
+                  </span>
+                  LIVE DESK
                 </button>
                 {waitingForNextCycle && (
                   <div style={{ fontSize:7, letterSpacing:"0.12em", color:"#fbbf24", whiteSpace:"nowrap" }} data-testid="status-scheduler-countdown">
@@ -1691,21 +1729,27 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
 
         </div>{/* end graph canvas */}
 
-        {/* Live Desk — dockable window beside the scheme */}
-        {deskOpen && (
-          <aside
-            data-testid="live-desk-panel"
-            style={{
-              width: 440,
-              flexShrink: 0,
-              borderLeft: "1px solid #1e3a5f",
-              background: "linear-gradient(180deg, #0a1628 0%, #0b1120 100%)",
-              overflowY: "auto",
-              overflowX: "hidden",
-              padding: "12px 14px 20px",
-              zIndex: 6,
-            }}
-          >
+        {/* Live Desk — dockable; width/opacity ease like Figma smart-animate */}
+        <aside
+          data-testid="live-desk-panel"
+          aria-hidden={!deskOpen}
+          style={{
+            width: deskOpen ? 440 : 0,
+            flexShrink: 0,
+            borderLeft: deskOpen ? "1px solid #1e3a5f" : "1px solid transparent",
+            background: "linear-gradient(180deg, #0a1628 0%, #0b1120 100%)",
+            overflowY: deskOpen ? "auto" : "hidden",
+            overflowX: "hidden",
+            padding: deskOpen ? "12px 14px 20px" : "12px 0",
+            zIndex: 6,
+            opacity: deskOpen ? 1 : 0,
+            transform: deskOpen ? "translateX(0)" : "translateX(8px)",
+            transition:
+              "width 280ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 220ms ease, padding 280ms ease, border-color 200ms ease, transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1)",
+            pointerEvents: deskOpen ? "auto" : "none",
+          }}
+        >
+          <div style={{ width: 412, minWidth: 412 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
               <div style={{ fontSize: 10, letterSpacing: "0.18em", color: "#22d3ee", fontFamily: "inherit" }}>LIVE DESK</div>
               <button
@@ -1721,7 +1765,10 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                   borderRadius: 4,
                   cursor: "pointer",
                   fontFamily: "inherit",
+                  transition: "color 160ms ease, border-color 160ms ease",
                 }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = "#94a3b8"; e.currentTarget.style.borderColor = "#334155"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = "#64748b"; e.currentTarget.style.borderColor = "#1e3a5f"; }}
               >
                 CLOSE
               </button>
@@ -1738,8 +1785,8 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                 Waiting for Bureau / Atlas events. The reactor scheme stays fully visible — this panel fills when the desk moves.
               </div>
             )}
-          </aside>
-        )}
+          </div>
+        </aside>
       </div>{/* end main row */}
 
       <style>{KEYFRAMES}</style>

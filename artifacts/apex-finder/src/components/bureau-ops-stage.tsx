@@ -540,7 +540,7 @@ function MobileWorkstage({ scenes }: { scenes: Scene[] }) {
                 type="button"
                 aria-label={`Scene ${i + 1}`}
                 onClick={() => { setPaused(true); setIdx(i); }}
-                className="rounded-full transition-all"
+                className="rounded-full transition-all duration-300 ease-out"
                 style={{
                   width: i === safeIdx ? 18 : 6,
                   height: 6,
