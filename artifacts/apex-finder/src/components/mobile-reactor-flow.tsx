@@ -294,7 +294,7 @@ function LiveResearchConsole({
       </div>
 
       {/* Primary: visual simulation of real Bureau work */}
-      <div className="mb-4" data-testid="bureau-ops-stage">
+      <div className="mb-3" data-testid="bureau-ops-stage">
         <BureauOpsStage
           compact
           maxScenes={6}
@@ -699,7 +699,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
         </div>
       </header>
 
-      <div className="atlas-grid atlas-grid-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4" style={{ WebkitOverflowScrolling: "touch" }}>
+      <div className="atlas-grid atlas-grid-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-3 pb-6" style={{ WebkitOverflowScrolling: "touch" }}>
         <div className="mx-auto max-w-md">
           <LiveResearchConsole atlasState={atlasState} livePhaseDetail={livePhaseDetail} isLive={isLive} />
 
@@ -721,7 +721,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                 return (
                   <div
                     key={phase.id}
-                    className={`relative min-h-[62px] rounded-xl border p-2.5 transition-colors ${index === MOBILE_PHASES.length - 1 ? "col-span-2" : ""} ${
+                    className={`relative rounded-xl border p-2 transition-colors ${index === MOBILE_PHASES.length - 1 ? "col-span-2" : ""} ${
                       isActive
                         ? "border-cyan-400/40 bg-cyan-400/[0.08]"
                         : isCompleted

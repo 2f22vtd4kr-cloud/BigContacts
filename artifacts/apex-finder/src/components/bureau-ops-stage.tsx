@@ -567,9 +567,11 @@ function MobileWorkstage({ scenes }: { scenes: Scene[] }) {
         </div>
       )}
 
-      <div className="text-center text-[8px] font-mono text-slate-600 tracking-wider">
-        swipe · or wait for auto-advance
-      </div>
+      {scenes.length > 1 && (
+        <div className="text-center text-[8px] font-mono text-slate-600 tracking-wider pb-1">
+          swipe · or wait for auto-advance
+        </div>
+      )}
     </div>
   );
 }

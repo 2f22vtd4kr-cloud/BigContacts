@@ -1423,6 +1423,8 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
   const schedulerCountdown = formatSchedulerCountdown(schedulerWaitRemaining(scheduler, schedulerNow));
   const waitingForNextCycle = Boolean(!isLive && !atlasFailed && schedulerCountdown);
   const atlasStatusColor = atlasFailed ? "#fb7185" : waitingForNextCycle ? "#fbbf24" : atlasDone ? "#a3e635" : isLive ? "#22d3ee" : "#a3e635";
+  const hasDeskEvents = Boolean(atlasState?.eventLog && atlasState.eventLog.length > 0);
+  const [deskOpen, setDeskOpen] = useState(true);
 
   return (
     <div style={{
@@ -1492,6 +1494,26 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                     {atlasFailed ? "ATLAS FAILED" : isLive ? "ATLAS LIVE" : waitingForNextCycle ? "NEXT CYCLE QUEUED" : atlasDone ? "ATLAS COMPLETE" : "NOMINAL"}
                   </span>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setDeskOpen((v) => !v)}
+                  data-testid="button-toggle-live-desk"
+                  style={{
+                    marginLeft: 8,
+                    padding: "4px 10px",
+                    borderRadius: 4,
+                    border: deskOpen ? "1px solid #22d3ee66" : "1px solid #1e3a5f",
+                    background: deskOpen ? "#22d3ee14" : "#0f172a",
+                    color: deskOpen ? "#67e8f9" : "#64748b",
+                    fontSize: 8,
+                    letterSpacing: "0.16em",
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                  }}
+                  title={deskOpen ? "Hide Live Desk panel" : "Show Live Desk beside the reactor scheme"}
+                >
+                  {deskOpen ? "LIVE DESK · ON" : "LIVE DESK · OFF"}
+                </button>
                 {waitingForNextCycle && (
                   <div style={{ fontSize:7, letterSpacing:"0.12em", color:"#fbbf24", whiteSpace:"nowrap" }} data-testid="status-scheduler-countdown">
                     NEXT CYCLE IN {schedulerCountdown}
@@ -1527,31 +1549,13 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
         </div>
       </header>
 
-      {/* Main panel: workstage ABOVE graph — never overlay */}
-      <div style={{ flex:1, zIndex:5, overflow:"hidden", display:"flex", flexDirection:"column", minHeight:0 }}>
-        {/* Dedicated Bureau Ops workstage band */}
-        <div style={{
-          flexShrink:0,
-          maxHeight: atlasState?.eventLog?.length ? "40%" : 0,
-          overflowY:"auto",
-          overflowX:"hidden",
-          borderBottom: atlasState?.eventLog?.length ? "1px solid #1e3a5f" : "none",
-          background:"linear-gradient(180deg, #0a1628 0%, #0b1120 100%)",
-          padding: atlasState?.eventLog?.length ? "12px 20px 14px" : 0,
-          zIndex:6,
-        }}>
-          {!!atlasState?.eventLog?.length && (
-            <BureauOpsStage
-              maxScenes={4}
-              title="LIVE DESK"
-              events={(atlasState?.eventLog || []) as any[]}
-            />
-          )}
-        </div>
-
-        {/* Pipeline graph canvas — own stacking context */}
+      {/* Main: full reactor scheme + optional Live Desk side panel */}
+      <div style={{ flex:1, zIndex:5, overflow:"hidden", display:"flex", flexDirection:"row", minHeight:0 }}>
+        {/* Pipeline graph canvas — always full scheme with nodes + arrows */}
         <div style={{ flex:1, position:"relative", minHeight:0, overflow:"hidden" }}>
-        <AtlasTelemetryInspector telemetry={atlasState?.atlasTelemetry} eventLog={atlasState?.eventLog} />
+        {!deskOpen && (
+          <AtlasTelemetryInspector telemetry={atlasState?.atlasTelemetry} eventLog={atlasState?.eventLog} />
+        )}
         {/* SVG connections */}
         <svg width={1600} height={842} style={{ position:"absolute", inset:0, zIndex:1 }}>
           <defs>
@@ -1686,7 +1690,57 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
         ))}
 
         </div>{/* end graph canvas */}
-      </div>{/* end main panel column */}
+
+        {/* Live Desk — dockable window beside the scheme */}
+        {deskOpen && (
+          <aside
+            data-testid="live-desk-panel"
+            style={{
+              width: 440,
+              flexShrink: 0,
+              borderLeft: "1px solid #1e3a5f",
+              background: "linear-gradient(180deg, #0a1628 0%, #0b1120 100%)",
+              overflowY: "auto",
+              overflowX: "hidden",
+              padding: "12px 14px 20px",
+              zIndex: 6,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+              <div style={{ fontSize: 10, letterSpacing: "0.18em", color: "#22d3ee", fontFamily: "inherit" }}>LIVE DESK</div>
+              <button
+                type="button"
+                onClick={() => setDeskOpen(false)}
+                style={{
+                  border: "1px solid #1e3a5f",
+                  background: "transparent",
+                  color: "#64748b",
+                  fontSize: 9,
+                  letterSpacing: "0.12em",
+                  padding: "3px 8px",
+                  borderRadius: 4,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                }}
+              >
+                CLOSE
+              </button>
+            </div>
+            {hasDeskEvents ? (
+              <BureauOpsStage
+                compact
+                maxScenes={6}
+                title="LIVE DESK"
+                events={(atlasState?.eventLog || []) as any[]}
+              />
+            ) : (
+              <div style={{ fontSize: 12, color: "#64748b", lineHeight: 1.5 }}>
+                Waiting for Bureau / Atlas events. The reactor scheme stays fully visible — this panel fills when the desk moves.
+              </div>
+            )}
+          </aside>
+        )}
+      </div>{/* end main row */}
 
       <style>{KEYFRAMES}</style>
     </div>
