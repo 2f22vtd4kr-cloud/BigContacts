@@ -1527,15 +1527,30 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
         </div>
       </header>
 
-      {/* Main panel */}
-      <div style={{ flex:1, position:"relative", zIndex:5, overflow:"hidden" }}>
-        <div style={{ marginBottom: 14 }}>
-          <BureauOpsStage
-            maxScenes={4}
-            title="BUREAU OPS · LIVE WORKSTAGE"
-            events={(atlasState?.eventLog || []) as any[]}
-          />
+      {/* Main panel: workstage ABOVE graph — never overlay */}
+      <div style={{ flex:1, zIndex:5, overflow:"hidden", display:"flex", flexDirection:"column", minHeight:0 }}>
+        {/* Dedicated Bureau Ops workstage band */}
+        <div style={{
+          flexShrink:0,
+          maxHeight: atlasState?.eventLog?.length ? "42%" : 0,
+          overflowY:"auto",
+          overflowX:"hidden",
+          borderBottom: atlasState?.eventLog?.length ? "1px solid #1e3a5f" : "none",
+          background:"linear-gradient(180deg, #0a1628 0%, #0b1120 100%)",
+          padding: atlasState?.eventLog?.length ? "12px 20px 14px" : 0,
+          zIndex:6,
+        }}>
+          {!!atlasState?.eventLog?.length && (
+            <BureauOpsStage
+              maxScenes={4}
+              title="BUREAU OPS · LIVE WORKSTAGE"
+              events={(atlasState?.eventLog || []) as any[]}
+            />
+          )}
         </div>
+
+        {/* Pipeline graph canvas — own stacking context */}
+        <div style={{ flex:1, position:"relative", minHeight:0, overflow:"hidden" }}>
         <AtlasTelemetryInspector telemetry={atlasState?.atlasTelemetry} eventLog={atlasState?.eventLog} />
         {/* SVG connections */}
         <svg width={1600} height={842} style={{ position:"absolute", inset:0, zIndex:1 }}>
@@ -1670,7 +1685,8 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
           }} />
         ))}
 
-      </div>
+        </div>{/* end graph canvas */}
+      </div>{/* end main panel column */}
 
       <style>{KEYFRAMES}</style>
     </div>
@@ -1679,11 +1695,21 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
 
 // ── Shared breakpoint hook ────────────────────────────────────────────────────
 function useIsMobile() {
-  const [mobile, setMobile] = useState(() => window.innerWidth < 768);
+  // Phones in landscape are often >768 wide but still need the mobile workstage UI —
+  // not the 1600px pipeline canvas scaled into a postage stamp.
+  const compute = () =>
+    window.innerWidth < 1024 ||
+    window.innerHeight < 640 ||
+    (window.matchMedia && window.matchMedia("(pointer: coarse)").matches && window.innerWidth < 1200);
+  const [mobile, setMobile] = useState(compute);
   useEffect(() => {
-    const handler = () => setMobile(window.innerWidth < 768);
+    const handler = () => setMobile(compute());
     window.addEventListener("resize", handler);
-    return () => window.removeEventListener("resize", handler);
+    window.addEventListener("orientationchange", handler);
+    return () => {
+      window.removeEventListener("resize", handler);
+      window.removeEventListener("orientationchange", handler);
+    };
   }, []);
   return mobile;
 }

@@ -421,7 +421,7 @@ export function BureauOpsStage({
         <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-cyan-400/90">{title}</div>
         <div className="text-[9px] font-mono text-slate-500">{scenes.length} active scenes · real event payloads</div>
       </div>
-      <div className={`grid gap-3 ${compact ? "grid-cols-1" : "grid-cols-1 xl:grid-cols-2"}`}>
+      <div className={`grid gap-3 ${compact ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2"}`}>
         {scenes.map((s) => (
           <SceneCard key={s.id} scene={s} />
         ))}
