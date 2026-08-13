@@ -1189,6 +1189,7 @@ function findingsFromPeopleSnippet(
       let person = (m[1] || "").replace(/\s+/g, " ").trim();
       // Normalize Jr/Sr suffixes; drop garbage captures that swallowed "Jr is the Owner"
       person = person.replace(/\s*,?\s*(Jr\.?|Sr\.?|II|III|IV)\s*$/i, "").trim();
+      person = person.replace(/^(Leadership|Meet Our Team|Our Team|Team)\s+/i, "").trim();
       if (/\b(is the|was the|as the)\b/i.test(person)) continue;
       const role = (m[2] || "principal").toLowerCase();
       if (person.length < 4 || person.split(" ").length < 2) continue;

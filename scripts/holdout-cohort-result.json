@@ -1,0 +1,262 @@
+{
+  "tip": "cohort-holdout",
+  "at": "2026-08-13T09:45:49.598Z",
+  "targets": [
+    {
+      "id": "patterson",
+      "pages": [
+        {
+          "url": "https://pattersonpmfg.com/company/",
+          "ok": true,
+          "status": 200
+        },
+        {
+          "url": "https://pattersonpmfg.com/request-a-quote/",
+          "ok": true,
+          "status": 200
+        }
+      ],
+      "relatedPersons": 3,
+      "people": [
+        {
+          "personName": "Leslie Patterson",
+          "role": "Owner & CEO",
+          "email": null,
+          "scope": "candidate",
+          "sourceUrls": [
+            "https://pattersonpmfg.com/company/"
+          ]
+        },
+        {
+          "personName": "Larry Dyer",
+          "role": "Process Engineer",
+          "email": null,
+          "scope": "candidate",
+          "sourceUrls": [
+            "https://pattersonpmfg.com/company/"
+          ]
+        },
+        {
+          "personName": "Morgan Carroll",
+          "role": "Director of Business Development",
+          "email": null,
+          "scope": "candidate",
+          "sourceUrls": [
+            "https://pattersonpmfg.com/company/"
+          ]
+        }
+      ],
+      "orgEmails": [
+        "sales@pattersonpmfg.com"
+      ],
+      "phones": [
+        "+12317331913"
+      ],
+      "succession": true,
+      "ledgerHits": [
+        "Leslie Patterson",
+        "Larry Dyer",
+        "Morgan Carroll"
+      ],
+      "assert": {
+        "relatedPersonsAtLeast": true,
+        "ledgerMin": true,
+        "hasOrgPhone": true,
+        "hasOrgEmail": true,
+        "allHaveSourceUrls": true,
+        "ownerPresent": true
+      },
+      "pass": true
+    },
+    {
+      "id": "leroy",
+      "pages": [
+        {
+          "url": "https://www.leroytool.com/",
+          "ok": true,
+          "status": 200
+        },
+        {
+          "url": "https://www.leroytool.com/history/",
+          "ok": true,
+          "status": 200
+        }
+      ],
+      "relatedPersons": 4,
+      "people": [
+        {
+          "personName": "Renee Cubitt",
+          "role": "Office Manager",
+          "email": null,
+          "scope": "candidate",
+          "sourceUrls": [
+            "https://www.leroytool.com/"
+          ]
+        },
+        {
+          "personName": "Terry Wanstead",
+          "role": "Owner",
+          "email": null,
+          "scope": "candidate",
+          "sourceUrls": [
+            "https://www.leroytool.com/"
+          ]
+        },
+        {
+          "personName": "Judy Wanstead",
+          "role": "Secretary/Treasurer",
+          "email": null,
+          "scope": "candidate",
+          "sourceUrls": [
+            "https://www.leroytool.com/"
+          ]
+        },
+        {
+          "personName": "Eric Wanstead",
+          "role": "Plant Manager",
+          "email": null,
+          "scope": "candidate",
+          "sourceUrls": [
+            "https://www.leroytool.com/"
+          ]
+        }
+      ],
+      "orgEmails": [
+        "sales@leroytool.com"
+      ],
+      "phones": [
+        "+12317684336",
+        "+12317685870"
+      ],
+      "succession": true,
+      "ledgerHits": [
+        "Terry Wanstead",
+        "Judy Wanstead",
+        "Eric Wanstead",
+        "Renee Cubitt"
+      ],
+      "assert": {
+        "relatedPersonsAtLeast": true,
+        "ledgerMin": true,
+        "hasOrgPhone": true,
+        "hasOrgEmail": true,
+        "allHaveSourceUrls": true
+      },
+      "pass": true
+    },
+    {
+      "id": "griffin",
+      "pages": [
+        {
+          "url": "https://www.griffintool.com/about",
+          "ok": true,
+          "status": 200
+        },
+        {
+          "url": "https://www.griffintool.com/copy-of-contact-2",
+          "ok": true,
+          "status": 200
+        }
+      ],
+      "relatedPersons": 8,
+      "people": [
+        {
+          "personName": "Malcolm Cowan",
+          "role": "Chief Executive Officer and President",
+          "email": "malcolm@griffintool.com",
+          "scope": "candidate",
+          "sourceUrls": [
+            "https://www.griffintool.com/about"
+          ]
+        },
+        {
+          "personName": "Lillian Cowan",
+          "role": "Office Manager",
+          "email": "lillian@griffintool.com",
+          "scope": "candidate",
+          "sourceUrls": [
+            "https://www.griffintool.com/about"
+          ]
+        },
+        {
+          "personName": "Jenny Cowan",
+          "role": "Chief Financial Officer",
+          "email": "jenny@griffintool.com",
+          "scope": "candidate",
+          "sourceUrls": [
+            "https://www.griffintool.com/about"
+          ]
+        },
+        {
+          "personName": "Jason Caropepe",
+          "role": "Operations Manager",
+          "email": "jason@griffintool.com",
+          "scope": "candidate",
+          "sourceUrls": [
+            "https://www.griffintool.com/about"
+          ]
+        },
+        {
+          "personName": "Tim Dye",
+          "role": "Engineering Manager",
+          "email": "tim@griffintool.com",
+          "scope": "candidate",
+          "sourceUrls": [
+            "https://www.griffintool.com/about"
+          ]
+        },
+        {
+          "personName": "Debbie Schroeder",
+          "role": "related_contact",
+          "email": "rick.fitts@griffintool.com",
+          "scope": "candidate",
+          "sourceUrls": [
+            "https://www.griffintool.com/about"
+          ]
+        },
+        {
+          "personName": "Rod McGilvra",
+          "role": "Engineer",
+          "email": "rod.mcgilvra@griffintool.com",
+          "scope": "candidate",
+          "sourceUrls": [
+            "https://www.griffintool.com/about"
+          ]
+        },
+        {
+          "personName": "Brian Moore",
+          "role": "related_contact",
+          "email": "brian.moore@griffintool.com",
+          "scope": "candidate",
+          "sourceUrls": [
+            "https://www.griffintool.com/about"
+          ]
+        }
+      ],
+      "orgEmails": [
+        "sales@griffintool.com"
+      ],
+      "phones": [
+        "+12694294077",
+        "+12694294560"
+      ],
+      "succession": true,
+      "ledgerHits": [
+        "Malcolm Cowan",
+        "Jenny Cowan",
+        "Lillian Cowan",
+        "Jason Caropepe",
+        "Tim Dye"
+      ],
+      "assert": {
+        "relatedPersonsAtLeast": true,
+        "ledgerMin": true,
+        "hasOrgPhone": true,
+        "hasOrgEmail": true,
+        "allHaveSourceUrls": true
+      },
+      "pass": true
+    }
+  ],
+  "pass": true
+}
