@@ -1170,26 +1170,31 @@ export async function runAgenticWebResearch(input: {
         // Previous gate required note~"related" or role==related_contact and missed BBB principals.
     );
   const salvageEmailsFromHistory = () => {
+    // Classic org + any company-aligned email seen in trajectory (LLM may drop; regex backstop)
     const classicRe = /\b((?:info|contact|sales|office|support|hello|admin|service|parts|inquiries)@[a-z0-9.-]+\.[a-z]{2,})\b/gi;
     const mailtoRe = /EMAIL:\s*(\S+@\S+)/gi;
+    const anyEmailRe = /\b([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})\b/gi;
     for (const line of history) {
       const srcMatch = String(line).match(/https?:\/\/[^\s]+/i);
       const src = srcMatch ? [srcMatch[0].replace(/[),.;]+$/, "")] : [];
-      for (const re of [classicRe, mailtoRe]) {
+      for (const re of [classicRe, mailtoRe, anyEmailRe]) {
         re.lastIndex = 0;
         for (const m of String(line).matchAll(re)) {
           const email = m[1]!.toLowerCase().replace(/[),.;]+$/, "");
           if (!email.includes("@")) continue;
+          if (/example\.|sentry\.|schema\.|wixpress|cloudflare|wordpress|github\.com|google\.com/i.test(email)) continue;
           if (input.companyName && !isCompanyAlignedEmail(email, input.companyName, src[0])) continue;
           if (findings.some((f) => f.vectorType === "email" && f.value === email)) continue;
+          const local = email.split("@")[0] || "";
+          const isClassic = /^(info|contact|sales|office|support|hello|admin|service|parts|inquiries)$/i.test(local);
           findings.push({
             vectorType: "email",
             value: email,
             personName: null,
-            role: null,
+            role: isClassic ? null : "related_contact",
             scope: "organization",
             sourceUrls: src,
-            note: "salvaged from trajectory CONTACT FACTS / page text",
+            note: "salvaged from trajectory (LLM backstop)",
           });
         }
       }
