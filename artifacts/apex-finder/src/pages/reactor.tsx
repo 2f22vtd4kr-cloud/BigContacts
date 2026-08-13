@@ -6,6 +6,7 @@ import {
   Sparkles, Compass, Rss, Users,
 } from "lucide-react";
 import { MobileReactorFlow } from "../components/mobile-reactor-flow";
+import { ProviderIcon, detectProviderKind, providerLabel } from "../components/provider-icons";
 import { formatSchedulerCountdown, schedulerWaitRemaining } from "../components/scheduler-utils";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -109,6 +110,43 @@ function parseAtlasTelemetry(raw: unknown) {
   } catch {
     return null;
   }
+}
+
+/** Merge Bureau desk events into the Atlas event log for live Reactor display. */
+function mergeBureauIntoEventLog(
+  atlasLog: NonNullable<AtlasLiveState["eventLog"]>,
+  bureauEvents: any[],
+): NonNullable<AtlasLiveState["eventLog"]> {
+  const mapped = (bureauEvents || []).map((e) => {
+    const ts = e.ts || e.timestamp || e.createdAt || e.at;
+    const tool = e.toolId || e.tool || e.activeToolId || e.specialistId || e.lane || "";
+    const stage = e.stage || e.title || e.type || e.action || "Bureau event";
+    return {
+      kind: "bureau" as const,
+      timestamp: typeof ts === "string" ? ts : ts ? new Date(ts).toISOString() : undefined,
+      stage: String(stage),
+      status: e.status || e.level || "active",
+      targetName: e.targetName || e.caseId || e.entityName || undefined,
+      targetType: e.targetType,
+      activeToolId: String(tool || "bureau"),
+      toolIds: Array.isArray(e.toolIds) ? e.toolIds : tool ? [String(tool)] : ["bureau"],
+      prompt: e.prompt || e.investigatorPrompt || undefined,
+      inputSummary: e.inputSummary || e.summary || e.message || undefined,
+      resultSummary: e.resultSummary || e.result || e.detail || e.message || undefined,
+      sources: e.sources,
+      evidence: e.evidence,
+      contacts: e.contacts,
+      raw: typeof e === "string" ? e : JSON.stringify(e),
+    };
+  });
+  const combined = [...mapped, ...(atlasLog || [])];
+  // Newest first when timestamps exist
+  combined.sort((a, b) => {
+    const ta = a.timestamp ? Date.parse(a.timestamp) : 0;
+    const tb = b.timestamp ? Date.parse(b.timestamp) : 0;
+    return tb - ta;
+  });
+  return combined.slice(0, 60);
 }
 
 type RodStatus = "idle" | "completed" | "active" | "queued" | "skipped" | "failed";
@@ -780,7 +818,10 @@ function AtlasTelemetryInspector({ telemetry, eventLog = [] }: { telemetry?: any
         <span style={{ color:"#526b86", letterSpacing:"0.1em" }}>STAGE</span>
         <span style={{ color:"#a3e635" }}>{telemetry?.stage ?? "—"}</span>
         <span style={{ color:"#526b86", letterSpacing:"0.1em" }}>ACTIVE LANE</span>
-        <span style={{ color:telemetry?.activeToolId === PERSONA_REVIEW_TOOL ? "#c4b5fd" : "#22d3ee" }}>{activeTool ?? "—"}</span>
+        <span style={{ color:telemetry?.activeToolId === PERSONA_REVIEW_TOOL ? "#c4b5fd" : "#22d3ee", display:"inline-flex", alignItems:"center", gap:5 }}>
+          {telemetry?.activeToolId ? <ProviderIcon kind={detectProviderKind(String(telemetry.activeToolId))} size={12} /> : null}
+          {activeTool ?? "—"}
+        </span>
       </div>
       {(researchTools.length > 0 || hasPersonaReview) && (
         <div style={{ marginTop:10, display:"flex", flexDirection:"column", gap:7 }}>
@@ -838,21 +879,25 @@ function AtlasTelemetryInspector({ telemetry, eventLog = [] }: { telemetry?: any
           <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
             {eventLog.slice(0, 24).map((event, index) => {
               const toolId = event.activeToolId || (event.toolIds && event.toolIds[0]) || "";
-              const isBrowser = /scrapfly|zenrows|browser|visit|fetch/i.test(String(toolId) + String(event.stage||"") + String(event.resultSummary||""));
+              const blob = String(toolId) + " " + String(event.stage||"") + " " + String(event.resultSummary||"") + " " + String(event.kind||"");
+              const isBrowser = /scrapfly|zenrows|browser|visit|fetch/i.test(blob);
               const isPrompt = Boolean(event.prompt) || /prompt|gemini|groq|llm/i.test(String(toolId));
-              const isSherlock = /sherlock|maigret|holehe/i.test(String(toolId) + String(event.stage||""));
-              const isDomain = /rdap|whois|domain-surface|whoxy/i.test(String(toolId) + String(event.stage||""));
-              const kindColor = isBrowser ? "#f59e0b" : isPrompt ? "#a3e635" : isSherlock ? "#c4b5fd" : isDomain ? "#67e8f9" : event.status === "complete" ? "#a3e635" : "#8aa4c0";
-              const kindTag = isBrowser ? "BROWSER" : isPrompt ? "PROMPT" : isSherlock ? "FOOTPRINT" : isDomain ? "DOMAIN" : (event.status || "ACTION").toString().toUpperCase();
+              const isSherlock = /sherlock|maigret|holehe/i.test(blob);
+              const isDomain = /rdap|whois|domain-surface|whoxy/i.test(blob);
+              const isDiscovery = /discover|webdisc|broad-discovery|force.related|serp|tavily|exa|perplexity|serper|serpapi/i.test(blob);
+              const isBureau = /bureau|case-bureau|investigator|boss|specialist/i.test(blob) || event.kind === "bureau";
+              const kindColor = isBureau ? "#22d3ee" : isBrowser ? "#f59e0b" : isDiscovery ? "#fb923c" : isPrompt ? "#a3e635" : isSherlock ? "#c4b5fd" : isDomain ? "#67e8f9" : event.status === "complete" ? "#a3e635" : "#8aa4c0";
+              const kindTag = isBureau ? "BUREAU" : isBrowser ? "BROWSER" : isDiscovery ? "DISCOVERY" : isPrompt ? "PROMPT" : isSherlock ? "FOOTPRINT" : isDomain ? "DOMAIN" : (event.status || "ACTION").toString().toUpperCase();
               return (
               <details key={`${event.timestamp ?? "event"}-${index}`} style={{
                 border:`1px solid ${kindColor}33`, borderRadius:4, padding:"5px 6px", background:"#0d1525",
               }}>
-                <summary style={{ cursor:"pointer", listStyle:"none", color:kindColor, fontSize:6.7 }}>
-                  <span style={{ color:"#526b86" }}>{event.timestamp?.slice(11, 19) ?? "--:--:--"} </span>
-                  <span style={{ color:kindColor, letterSpacing:"0.08em", marginRight:4 }}>[{kindTag}]</span>
-                  {event.stage ?? "Research event"}
-                  <span style={{ color:"#526b86" }}> · {toolId === PERSONA_REVIEW_TOOL ? "Post-research quality review" : toolId ? telemetryToolLabel(toolId) : "Atlas"}</span>
+                <summary style={{ cursor:"pointer", listStyle:"none", color:kindColor, fontSize:6.7, display:"flex", alignItems:"center", gap:5, flexWrap:"wrap" }}>
+                  <span style={{ color:"#526b86" }}>{event.timestamp?.slice(11, 19) ?? "--:--:--"}</span>
+                  <ProviderIcon kind={detectProviderKind(String(toolId || event.stage || event.resultSummary || ""))} size={11} />
+                  <span style={{ color:kindColor, letterSpacing:"0.08em" }}>[{kindTag}]</span>
+                  <span>{event.stage ?? "Research event"}</span>
+                  <span style={{ color:"#526b86" }}>· {toolId === PERSONA_REVIEW_TOOL ? "Post-research quality review" : toolId ? telemetryToolLabel(toolId) : "Atlas"}</span>
                 </summary>
                 <div style={{ marginTop:5, color:"#8aa4c0", fontSize:6.5, lineHeight:1.45 }}>
                   {event.targetName && <div><span style={{ color:"#526b86" }}>TARGET </span>{event.targetName}</div>}
@@ -1664,7 +1709,7 @@ export default function IntelligenceReactorPage() {
     const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
     try {
       // Poll jobs, atlas status, AND key health in parallel
-      const [jobsData, atlasData, sysData] = await Promise.all([
+      const [jobsData, atlasData, sysData, bureauData] = await Promise.all([
         fetch(`${BASE}/api/ingest/jobs`, { cache: "no-store" })
           .then(r => r.ok ? r.json() : { jobs: [] })
           .catch(() => ({ jobs: [] })),
@@ -1674,6 +1719,9 @@ export default function IntelligenceReactorPage() {
         fetch(`${BASE}/api/system/status`, { cache: "no-store" })
           .then(r => r.ok ? r.json() : null)
           .catch(() => null),
+        fetch(`${BASE}/api/ingest/bureau-events?limit=40`, { cache: "no-store" })
+          .then(r => r.ok ? r.json() : { events: [] })
+          .catch(() => ({ events: [] })),
       ]);
 
       // ── Key exhaustion ────────────────────────────────────────────────────────
@@ -1716,7 +1764,10 @@ export default function IntelligenceReactorPage() {
             phaseJ: atlasData.phaseJ ?? null,
             scheduler: atlasData.scheduler ?? undefined,
             atlasTelemetry,
-            eventLog: parseAtlasEventLog(atlasData.log),
+            eventLog: mergeBureauIntoEventLog(
+              parseAtlasEventLog(atlasData.log),
+              Array.isArray(bureauData?.events) ? bureauData.events : [],
+            ),
         };
          // The parent message is real progress text. It is not a tool/activity
          // event, so it must not light individual Atlas nodes by keyword.
@@ -1734,6 +1785,27 @@ export default function IntelligenceReactorPage() {
          if (atlasTelemetry?.activeToolId) {
            nodes.add(atlasTelemetry.activeToolId);
          }
+      }
+
+      // Bureau-only activity (discovery desk running without full Atlas job)
+      if (!nextAtlasState && Array.isArray(bureauData?.events) && bureauData.events.length > 0) {
+        nextAtlasState = {
+          runStatus: "running",
+          phase: 1,
+          phaseLabel: "BUREAU / DISCOVERY",
+          phaseProgress: 0,
+          phaseTotal: 10,
+          sourceStep: null,
+          sourceTotal: null,
+          currentEntities: [],
+          entityProgress: null,
+          entityTotal: null,
+          detail: "Bureau desk live — discovery and investigation events",
+          eventLog: mergeBureauIntoEventLog([], bureauData.events),
+        };
+        nodes.add("webdisc");
+        nodes.add("inhouse");
+        labels.push("▶ Bureau / Discovery live");
       }
 
       // ── Regular jobs ─────────────────────────────────────────────────────────

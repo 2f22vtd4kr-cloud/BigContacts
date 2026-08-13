@@ -12,6 +12,7 @@ import {
   Users,
 } from "lucide-react";
 import { formatSchedulerCountdown, schedulerWaitRemaining } from "./scheduler-utils";
+import { ProviderIcon, detectProviderKind } from "./provider-icons";
 
 interface ResearchSession {
   id: number;
@@ -488,7 +489,10 @@ function LiveResearchConsole({
                       <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-current" />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start justify-between gap-2">
-                          <span className="text-[10px] font-semibold leading-4">{event.stage ?? "Research event"}</span>
+                          <span className="flex items-center gap-1.5 text-[10px] font-semibold leading-4">
+                            <ProviderIcon kind={detectProviderKind(String(event.activeToolId || event.stage || ""))} size={12} />
+                            {event.stage ?? "Research event"}
+                          </span>
                           <span className="shrink-0 text-[8px] text-slate-500">{eventTime(event.timestamp)}</span>
                         </div>
                         <div className="mt-0.5 truncate text-[9px] text-slate-400">
