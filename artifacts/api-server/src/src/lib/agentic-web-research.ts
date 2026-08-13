@@ -330,7 +330,7 @@ function extractContactFactsFromHtml(html: string): string {
   }
   // Plain-text multi-line: "Nelson Reyes\nPresident..." / "### Frank K. Chesek\n#### CEO/Company President"
   for (const m of stripHtml(html).matchAll(
-    /(?:^|\n)\s*#{0,4}\s*([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\s*\n\s*#{0,4}\s*((?:President|CEO|Chief Executive Officer|Owner|Founder|Vice President|VP|CFO|Chief Financial Officer|COO|Chief Operating Officer|Director|Principal|Treasurer|Chairman|Executive Chairman|Executive Assistant|Manager|Controller|Engineer|Supervisor)[^\n]{0,60})/gm,
+    /(?:^|\n)\s*#{0,4}\s*([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\s*\n\s*#{0,4}\s*((?:President|CEO|Chief Executive Officer|Owner|Founder|Vice President|VP|CFO|Chief Financial Officer|COO|Chief Operating Officer|Director|Principal|Treasurer|Chairman|Executive Chairman|Executive Assistant|Manager|Controller|Engineer|Supervisor|Managing Partner|Project Coordinator|Human Resources|Technical Sales|Quality Manager|VP of Manufacturing|second-generation owner)[^\n]{0,60})/gm,
   )) {
     const name = m[1]!.replace(/\s+/g, " ").trim();
     const role = m[2]!.replace(/\s+/g, " ").trim().slice(0, 60);
@@ -483,6 +483,16 @@ function extractContactFactsFromHtml(html: string): string {
   }
   for (const m of plain.matchAll(/\b(bc1[a-zA-HJ-NP-Z0-9]{25,62})\b/g)) {
     push(`WALLET: btc | ${m[1]!.toLowerCase()}`);
+  }
+
+  // Lowercase team cards (Rapid Tool style): "jamie tissue\nbusiness owner\ndie maker"
+  for (const m of plain.matchAll(
+    /\b([a-z][a-z]+[ \t]+[a-z][a-z]+)[ \t]*\n[ \t]*(business\s+owner|owner|president|project\s+manager|office\s+manager|die\s+maker)[^\n]{0,40}/gi,
+  )) {
+    const raw = m[1]!.replace(/\s+/g, " ").trim();
+    const pName = raw.split(/\s+/).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+    const role = m[2]!.replace(/\s+/g, " ").trim().slice(0, 40);
+    if (pName.split(/\s+/).length === 2) push(`PERSON: ${pName} — ${role}`);
   }
 
   // Directory blocks: split on emails; each segment looks for Name + role just above that email.
