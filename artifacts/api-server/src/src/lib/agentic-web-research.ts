@@ -151,7 +151,7 @@ function extractContactFactsFromHtml(html: string): string {
       push(`EMAIL: ${addr}`);
     }
   }
-  // Obfuscated org inboxes common on WordPress/SMB sites: info [at] domain.com / info (at) domain.com
+  // Obfuscated org inboxes common on WordPress/SMB sites: info [at] domain.com
   for (const m of html.matchAll(
     /\b((?:info|contact|sales|office|admin|support|hello)(?:\s*\[at\]\s*|\s*\(at\)\s*|\s+at\s+)[a-z0-9.-]+\.[a-z]{2,})\b/gi,
   )) {
