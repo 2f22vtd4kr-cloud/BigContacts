@@ -627,7 +627,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#0b1120] font-sans text-slate-200">
+    <div className="flex h-full min-h-0 max-w-[100vw] flex-col overflow-hidden bg-[#0b1120] font-sans text-slate-200">
       <header className="shrink-0 border-b border-white/10 bg-black/25 px-4 py-2.5 backdrop-blur-md">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">

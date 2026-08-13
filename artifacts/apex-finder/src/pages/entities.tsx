@@ -249,9 +249,11 @@ function ContactVectorsStrip({ entity, compact = false }: { entity: any; compact
     social: "Social",
     related: "Related person",
   };
+  const shown = compact ? vectors.slice(0, 4) : vectors;
+  const extra = compact ? Math.max(0, vectors.length - shown.length) : 0;
   return (
-    <div className={cn("flex flex-wrap gap-1.5", compact && "gap-1")}>
-      {vectors.map((v, i) => {
+    <div className={cn("flex flex-wrap gap-1.5 max-w-full", compact && "gap-1")}>
+      {shown.map((v, i) => {
         const href =
           v.kind === "email" ? `mailto:${v.value}`
           : v.kind === "phone" ? `tel:${v.value}`
@@ -259,14 +261,14 @@ function ContactVectorsStrip({ entity, compact = false }: { entity: any; compact
           : undefined;
         const body = (
           <>
-            <span className="opacity-70 uppercase tracking-wider text-[8px]">{v.kind === "person" ? (v.label || "person") : v.kind}</span>
-            <span className={cn("truncate font-mono", compact ? "text-[10px] max-w-[120px]" : "text-[11px] max-w-[160px]")}>
+            <span className="opacity-70 uppercase tracking-wider text-[8px] shrink-0">{v.kind === "person" ? (v.label || "person") : v.kind}</span>
+            <span className={cn("truncate font-mono", compact ? "text-[10px] max-w-[100px]" : "text-[11px] max-w-[160px]")}>
               {v.label && v.kind !== "person" ? `${v.label}: ` : ""}{v.value}
             </span>
           </>
         );
         const cls = cn(
-          "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5",
+          "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 max-w-full",
           tierStyle[v.tier] || tierStyle.social,
         );
         return href ? (
@@ -279,6 +281,11 @@ function ContactVectorsStrip({ entity, compact = false }: { entity: any; compact
           </span>
         );
       })}
+      {extra > 0 && (
+        <span className="inline-flex items-center rounded-md border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[9px] font-mono text-slate-400">
+          +{extra} more
+        </span>
+      )}
     </div>
   );
 }
@@ -740,7 +747,7 @@ export default function EntityLedger() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* ── Desktop ── */}
-      <div className="hidden md:flex flex-col h-full overflow-hidden">
+      <div className="hidden lg:flex flex-col h-full overflow-hidden">
         {/* Active filter banner */}
         {(hotOnly || anyContactFilter) && (
           <div className={cn(
@@ -1236,7 +1243,7 @@ export default function EntityLedger() {
       </div>
 
       {/* ── Mobile ── */}
-      <div className="flex md:hidden flex-col h-full overflow-hidden">
+      <div className="flex lg:hidden flex-col h-full overflow-hidden">
         {/* Mobile active filter banner */}
         {(hotOnly || anyContactFilter) && (
           <div className={cn(
@@ -1270,7 +1277,7 @@ export default function EntityLedger() {
           </div>
         </div>
         {/* Mobile view mode + filter chips */}
-        <div className="flex md:hidden flex-col border-b border-border bg-card/30 shrink-0">
+        <div className="flex lg:hidden flex-col border-b border-border bg-card/30 shrink-0 overflow-x-hidden">
           {/* View mode row */}
           <div className="flex items-center gap-1.5 px-3 py-2 border-b border-border/50" style={{ scrollbarWidth: "none" }}>
             {([
@@ -1407,7 +1414,7 @@ export default function EntityLedger() {
       {/* Mobile FAB */}
       <button
         onClick={() => openAddModal()}
-        className="fixed bottom-6 right-5 w-12 h-12 rounded-full flex items-center justify-center shadow-lg z-40 md:hidden"
+        className="fixed bottom-6 right-5 w-12 h-12 rounded-full flex items-center justify-center shadow-lg z-40 lg:hidden"
         style={{ backgroundColor: "#10B981", boxShadow: "0 0 20px rgba(16,185,129,0.4)" }}
       >
         <Plus className="w-5 h-5 text-black" />

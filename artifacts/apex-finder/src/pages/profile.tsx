@@ -262,7 +262,7 @@ function ProfileCompleteness({ entity, assets, relationships, sessions }: {
   const txtCls    = pct >= 80 ? "text-primary" : pct >= 50 ? "text-amber-500" : "text-orange-400";
 
   return (
-    <div className="border-b border-border px-4 md:px-6 py-3 bg-card/20 flex-shrink-0">
+    <div className="border-b border-border px-4 lg:px-6 py-3 bg-card/20 flex-shrink-0">
       <div className="flex items-center justify-between mb-2">
         <span className="text-[9px] font-mono font-bold text-muted-foreground/70 uppercase tracking-widest">Profile Completeness</span>
         <span className={cn("text-[10px] font-mono font-bold", txtCls)}>
@@ -609,7 +609,7 @@ export default function ApexProfile() {
     <div className="flex flex-col min-h-full overflow-visible">
 
       {/* ── Desktop Header ────────────────────────────────────────────── */}
-      <div className="hidden md:block flex-shrink-0 border-b border-border bg-card/60 px-4 md:px-6 py-4">
+      <div className="hidden md:block flex-shrink-0 border-b border-border bg-card/60 px-4 lg:px-6 py-4">
         <div className="flex items-start gap-3 md:gap-4">
           <Link
             href="/entities"
@@ -715,8 +715,8 @@ export default function ApexProfile() {
         </div>
       </div>
 
-      {/* Mobile Hero - md:hidden */}
-      <div className="md:hidden bg-card border-b border-border flex-shrink-0">
+      {/* Mobile Hero - lg:hidden */}
+      <div className="lg:hidden bg-card border-b border-border flex-shrink-0">
         {/* Hero content */}
         <div className="px-4 pt-4 pb-4">
           <div className="flex items-center justify-between mb-2">
@@ -825,7 +825,7 @@ export default function ApexProfile() {
           person.role === "owner" || person.role === "beneficial_owner" || person.role === "controller",
         ).length;
         return (
-          <section className="flex-shrink-0 border-b border-border px-4 md:px-6 py-4 bg-amber-500/[0.03]">
+          <section className="flex-shrink-0 border-b border-border px-4 lg:px-6 py-4 bg-amber-500/[0.03]">
             <div className="flex items-start justify-between gap-3 mb-3">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
@@ -968,7 +968,7 @@ export default function ApexProfile() {
           : conf >= 30 ? "text-amber-500 border-amber-500/30 bg-amber-500/10"
           : "text-muted-foreground border-border bg-muted/20";
         return (
-          <div className={cn("flex-shrink-0 border-b border-border px-4 md:px-6 py-3", hasContact && "bg-primary/5")}>
+          <div className={cn("flex-shrink-0 border-b border-border px-4 lg:px-6 py-3", hasContact && "bg-primary/5")}>
             <div className="flex items-center justify-between mb-2 gap-2">
                <div className="flex items-center gap-2 min-w-0 flex-wrap">
                  <span className="text-[9px] font-mono font-bold text-primary uppercase tracking-widest">Public Contact Vectors</span>
@@ -1469,7 +1469,7 @@ export default function ApexProfile() {
 
         if (!lines.length) return null;
         return (
-          <div className="flex-shrink-0 border-b border-border px-4 md:px-6 py-3 bg-muted/20">
+          <div className="flex-shrink-0 border-b border-border px-4 lg:px-6 py-3 bg-muted/20">
             <div className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground/50 mb-1.5">
               Why {pName} is in this database
             </div>
@@ -1489,7 +1489,7 @@ export default function ApexProfile() {
       />
 
       {/* ── Tab Bar ──────────────────────────────────────────────────────── */}
-      <div className="flex-shrink-0 border-b border-border bg-card/60 px-4 md:px-6 sticky top-0 md:static z-10">
+      <div className="flex-shrink-0 border-b border-border bg-card/60 px-4 lg:px-6 sticky top-0 md:static z-10">
         <div className="flex items-center overflow-x-auto" style={{ scrollbarWidth: "none" }}>
           {([
             { id: "assets"   as const, label: "Assets & Sources", mobileLabel: "Assets", icon: <Layers    className="w-3.5 h-3.5" /> },
@@ -2128,7 +2128,7 @@ export default function ApexProfile() {
       </div>
 
       {/* Mobile Action Bar */}
-      <div className="md:hidden shrink-0 h-[72px] bg-background border-t border-border px-4 flex items-center gap-3 z-20">
+      <div className="lg:hidden shrink-0 h-[72px] bg-background border-t border-border px-4 flex items-center gap-3 z-20">
         <button
           onClick={handleEnrich}
           disabled={isEnriching}

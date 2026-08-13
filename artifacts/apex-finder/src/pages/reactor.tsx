@@ -1428,7 +1428,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
 
   return (
     <div style={{
-      width:"100%", height:"100%", minWidth:1600, minHeight:960,
+      width:"100%", height:"100%", minWidth:1100, minHeight:720,
       background:"#0b1120",
       fontFamily:"'Space Mono','DM Mono','Courier New',monospace",
       display:"flex", flexDirection:"column",
