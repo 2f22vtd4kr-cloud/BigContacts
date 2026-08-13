@@ -1072,14 +1072,14 @@ function findingsFromPeopleSnippet(
   // Name atom allows middle initials: "Donald W. Kuchenbecker" (Grok parity — was a severe miss)
   const patterns = [
     /(?:Mr\.?|Ms\.?|Mrs\.?)\s+([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+),\s*(Owner|President|CEO|Principal|Manager|Director|Founder|Co-Founder|CFO|Chairman|Treasurer)/g,
-    /\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\s*[—\-,:/]\s*(Owner|President|CEO|Principal|Manager|Director|Founder|Co-Founder|CFO|Chairman|Treasurer|General Manager)\b/g,
+    /\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\s*[—\-,:/]\s*(Owner|President|CEO|Principal|Manager|Director|Founder|Co-Founder|CFO|Chairman|Treasurer|General Manager|Supervisor|Controller|Managing Partner)\b/g,
     /Business Management:\s*(?:Mr\.?|Ms\.?)?\s*([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z.]+)+),\s*(Owner|President|CEO|Treasurer)?/gi,
     /Principal Contacts?\s*(?:Mr\.?|Ms\.?)?\s*([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z.]+)+)/gi,
     /\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\s+(?:as\s+)?(?:CEO|President|Founder|Co-Founder|Chief Executive|Treasurer)\b/g,
     /(?:CEO|President|Founder|Co-Founder|Chief Executive(?:\s+Officer)?|Treasurer)\s+([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\b/g,
     /\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+),\s*(?:founder|retiring CEO|former CEO|retired CEO|board|President|Owner)/gi,
     // Directory proximity: name within ~40 chars of role; allow one newline (heading style)
-    /\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\b(?:[^\n.]{0,40}|\s*\n\s*)\b(Owner|President|CEO|Principal|Treasurer|Founder|CFO|Chairman)\b/gi,
+    /\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\b(?:[^\n.]{0,40}|\s*\n\s*)\b(Owner|President|CEO|Principal|Treasurer|Founder|CFO|Chairman|General Manager|Manager|Director|Controller|Supervisor|Managing Partner)\b/gi,
   ];
   const seen = new Set<string>();
   for (const re of patterns) {
