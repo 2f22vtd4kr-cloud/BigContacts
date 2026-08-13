@@ -6,8 +6,6 @@ import {
   Sparkles, Compass, Rss, Users,
 } from "lucide-react";
 import { MobileReactorFlow } from "../components/mobile-reactor-flow";
-import { ProviderIcon, detectProviderKind, providerLabel } from "../components/provider-icons";
-import { BureauOpsStage } from "../components/bureau-ops-stage";
 import { formatSchedulerCountdown, schedulerWaitRemaining } from "../components/scheduler-utils";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -113,43 +111,6 @@ function parseAtlasTelemetry(raw: unknown) {
   }
 }
 
-/** Merge Bureau desk events into the Atlas event log for live Reactor display. */
-function mergeBureauIntoEventLog(
-  atlasLog: NonNullable<AtlasLiveState["eventLog"]>,
-  bureauEvents: any[],
-): NonNullable<AtlasLiveState["eventLog"]> {
-  const mapped = (bureauEvents || []).map((e) => {
-    const ts = e.ts || e.timestamp || e.createdAt || e.at;
-    const tool = e.toolId || e.tool || e.activeToolId || e.specialistId || e.lane || "";
-    const stage = e.stage || e.title || e.type || e.action || "Bureau event";
-    return {
-      kind: "bureau" as const,
-      timestamp: typeof ts === "string" ? ts : ts ? new Date(ts).toISOString() : undefined,
-      stage: String(stage),
-      status: e.status || e.level || "active",
-      targetName: e.targetName || e.caseId || e.entityName || undefined,
-      targetType: e.targetType,
-      activeToolId: String(tool || "bureau"),
-      toolIds: Array.isArray(e.toolIds) ? e.toolIds : tool ? [String(tool)] : ["bureau"],
-      prompt: e.prompt || e.investigatorPrompt || undefined,
-      inputSummary: e.inputSummary || e.summary || e.message || undefined,
-      resultSummary: e.resultSummary || e.result || e.detail || e.message || undefined,
-      sources: e.sources,
-      evidence: e.evidence,
-      contacts: e.contacts,
-      raw: typeof e === "string" ? e : JSON.stringify(e),
-    };
-  });
-  const combined = [...mapped, ...(atlasLog || [])];
-  // Newest first when timestamps exist
-  combined.sort((a, b) => {
-    const ta = a.timestamp ? Date.parse(a.timestamp) : 0;
-    const tb = b.timestamp ? Date.parse(b.timestamp) : 0;
-    return tb - ta;
-  });
-  return combined.slice(0, 60);
-}
-
 type RodStatus = "idle" | "completed" | "active" | "queued" | "skipped" | "failed";
 
 function rodStatusColor(status: RodStatus, fallback: string): string {
@@ -191,36 +152,6 @@ function atlasPhaseFromMessage(message: string, progress = 0): number {
   if (/identity|ownership|Foundation|OpenOwnership|Companies House contact/i.test(message)) return 2;
   if (/\[\d+\/\d+\]|discovery|registry|cooked|enrich/i.test(message)) return 1;
   return Math.min(10, Math.max(0, progress));
-}
-
-
-/** Visual inspection only — /reactor?demo=1 */
-function buildDemoAtlasState(): AtlasLiveState {
-  const now = new Date();
-  const ts = (s: number) => new Date(now.getTime() - s * 1000).toISOString();
-  return {
-    runStatus: "running", phase: 1, phaseLabel: "DISCOVERY", phaseProgress: 4, phaseTotal: 10,
-    sourceStep: 4, sourceTotal: 12,
-    currentEntities: ["Griffin Tool Co.", "Malcolm Cowan", "Jenny Cowan"],
-    entityProgress: 1, entityTotal: 3,
-    detail: "[4/12] DISCOVERY — WEB DISC. Tavily + Gemini grounded search on Griffin Tool owners",
-    atlasTelemetry: {
-      stage: "discovery", status: "active", targetName: "Griffin Tool Co.", targetType: "company",
-      activeToolId: "tavily", toolIds: ["tavily", "gemini", "web", "ch", "edgar"],
-      prompt: "List officers with personal or role emails only. Never invent contacts.",
-      inputSummary: "Griffin Tool Co. owner founder email contact Michigan",
-      resultSummary: "RDAP + WhoisJSON hop complete; team page mailto recovered",
-      sources: 6, evidence: 4, contacts: 2, personaNames: ["Malcolm Cowan", "Jenny Cowan"],
-    },
-    eventLog: [
-      { timestamp: ts(5), kind: "telemetry", stage: "discovery", status: "active", activeToolId: "tavily", inputSummary: "Griffin Tool Co. owner founder email contact Michigan", resultSummary: "AI-native search · 8 hits", sources: 8 },
-      { timestamp: ts(15), kind: "telemetry", stage: "discovery", status: "active", activeToolId: "google", inputSummary: "Griffin Tool Co. owner founder email contact Michigan", resultSummary: "SERP surface · ownership candidates", sources: 6 },
-      { timestamp: ts(25), kind: "telemetry", stage: "discovery", status: "active", activeToolId: "web", inputSummary: "https://griffintool.com/contact", resultSummary: "mailto:robert@griffintool.com recovered from team card", sources: 1, contacts: 1 },
-      { timestamp: ts(35), kind: "telemetry", stage: "ai", status: "active", activeToolId: "gemini", prompt: "List officers with personal or role emails only. Never invent contacts.", resultSummary: "Malcolm Cowan · Jenny Cowan", sources: 2, contacts: 2 },
-      { timestamp: ts(45), kind: "telemetry", stage: "domain", status: "complete", activeToolId: "whoisjson", resultSummary: "RDAP + WhoisJSON hop complete", sources: 2, evidence: 1 },
-      { timestamp: ts(55), kind: "telemetry", stage: "footprint", status: "active", activeToolId: "sherlock", inputSummary: "malcolm.cowan", resultSummary: "Username footprint scan queued", sources: 0 },
-    ],
-  };
 }
 
 function parseAtlasLiveState(message: string, progress = 0, total = 10, runStatus: AtlasLiveState["runStatus"] = "running"): AtlasLiveState {
@@ -503,9 +434,6 @@ const KEYFRAMES = `
   @keyframes dashFwd   { 0%{stroke-dashoffset:24} 100%{stroke-dashoffset:0}  }
   @keyframes dashBack  { 0%{stroke-dashoffset:0}  100%{stroke-dashoffset:22} }
   @keyframes flowDown  { 0%{stroke-dashoffset:0} 100%{stroke-dashoffset:-24} }
-  /* Figma-like motion: ease-out for enters, springy toggle thumb */
-  @keyframes deskIn    { from { opacity:0; transform:translateX(12px) } to { opacity:1; transform:translateX(0) } }
-  @keyframes thumbPop  { 0% { transform:scale(1) } 40% { transform:scale(1.08) } 100% { transform:scale(1) } }
 `;
 
 // ── Meter (shared) ────────────────────────────────────────────────────────────
@@ -781,39 +709,26 @@ function EntityWorkbench({ state, liveNodes, compact = false }: {
 }
 
 const TELEMETRY_TOOL_LABELS: Record<string, string> = {
-  target: "TARGET LOCK",
-  inhouse: "IN-HOUSE REGISTRY",
+  target: "TARGET",
+  inhouse: "IN-HOUSE",
   webdisc: "WEB DISCOVERY",
-  deepweb: "DEEP WEB OSINT",
+  deepweb: "DEEP WEB",
   perp0: "PERPLEXITY",
   perpfu: "PERPLEXITY+",
-  exa: "EXA NEURAL",
+  exa: "EXA",
   tavily: "TAVILY",
-  gemini: "GEMINI BOSS",
+  gemini: "GEMINI",
   groq: "GROQ",
-  maigret: "MAIGRET FOOTPRINT",
-  holehe: "HOLEHE EMAIL",
-  occrp: "OCCRP ALEPH",
-  whoxy: "WHOXY (SKIP IF BALANCE 0)",
-  rdap: "RDAP DOMAIN",
-  whoisjson: "WHOISJSON",
-  "domain-surface": "DOMAIN SURFACE (RDAP+WHOISJSON)",
-  graph: "GRAPH ENGINE",
+  maigret: "MAIGRET",
+  holehe: "HOLEHE",
+  occrp: "OCCRP",
+  whoxy: "WHOXY",
+  graph: "GRAPH",
   mcts: "UCT / MCTS",
   prac: "PRAC",
   evidence: "EVIDENCE REVIEW",
   "persona-review": "11-PERSONA QUALITY REVIEW",
-  sherlock: "SHERLOCK USERNAMES",
-  scrapfly: "BROWSER · SCRAPFLY",
-  zenrows: "BROWSER · ZENROWS",
-  "browser-fetch": "BROWSER FETCH",
-  "agentic-web": "AGENTIC WEB LOOP",
-  "contact-facts": "CONTACT FACTS HTML",
-  serper: "SERPER SERP",
-  serpapi: "SERPAPI",
-  "force-related": "FORCE RELATED-PEOPLE",
-  "companies-house": "COMPANIES HOUSE",
-  edgar: "SEC EDGAR",
+  sherlock: "SHERLOCK",
 };
 
 const PERSONA_REVIEW_TOOL = "persona-review";
@@ -841,43 +756,40 @@ function AtlasTelemetryInspector({ telemetry, eventLog = [] }: { telemetry?: any
     }}>
       <div style={{ display:"flex", alignItems:"center", gap:7, marginBottom:8 }}>
         <span style={{ width:6, height:6, borderRadius:"50%", background:telemetry?.status === "complete" ? "#a3e635" : "#22d3ee", boxShadow:"0 0 8px #22d3ee", flexShrink:0 }} />
-        <span style={{ fontSize:8, letterSpacing:"0.17em", color:"#22d3ee" }}>LIVE TARGET INSPECTOR</span>
-        <span style={{ marginLeft:"auto", fontSize:7.5, letterSpacing:"0.12em", color:telemetry?.status === "complete" ? "#a3e635" : "#fbbf24" }}>
+        <span style={{ fontSize:7, letterSpacing:"0.17em", color:"#22d3ee" }}>LIVE TARGET INSPECTOR</span>
+        <span style={{ marginLeft:"auto", fontSize:6.5, letterSpacing:"0.12em", color:telemetry?.status === "complete" ? "#a3e635" : "#fbbf24" }}>
           {String(telemetry?.status ?? "history").toUpperCase()}
         </span>
       </div>
-      <div style={{ display:"grid", gridTemplateColumns:"82px 1fr", gap:"5px 8px", fontSize:8 }}>
+      <div style={{ display:"grid", gridTemplateColumns:"82px 1fr", gap:"5px 8px", fontSize:7 }}>
         <span style={{ color:"#526b86", letterSpacing:"0.1em" }}>TARGET</span>
         <span style={{ color:"#e8e0cc", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{telemetry?.targetName ?? "—"}</span>
         <span style={{ color:"#526b86", letterSpacing:"0.1em" }}>STAGE</span>
         <span style={{ color:"#a3e635" }}>{telemetry?.stage ?? "—"}</span>
         <span style={{ color:"#526b86", letterSpacing:"0.1em" }}>ACTIVE LANE</span>
-        <span style={{ color:telemetry?.activeToolId === PERSONA_REVIEW_TOOL ? "#c4b5fd" : "#22d3ee", display:"inline-flex", alignItems:"center", gap:5 }}>
-          {telemetry?.activeToolId ? <ProviderIcon kind={detectProviderKind(String(telemetry.activeToolId))} size={12} /> : null}
-          {activeTool ?? "—"}
-        </span>
+        <span style={{ color:telemetry?.activeToolId === PERSONA_REVIEW_TOOL ? "#c4b5fd" : "#22d3ee" }}>{activeTool ?? "—"}</span>
       </div>
       {(researchTools.length > 0 || hasPersonaReview) && (
         <div style={{ marginTop:10, display:"flex", flexDirection:"column", gap:7 }}>
           {researchTools.length > 0 && (
             <div style={{ padding:"7px 8px", border:"1px solid #22d3ee28", borderRadius:4, background:"#22d3ee06" }}>
-              <div style={{ color:"#67e8f9", fontSize:7.5, letterSpacing:"0.13em", marginBottom:4 }}>
+              <div style={{ color:"#67e8f9", fontSize:6.5, letterSpacing:"0.13em", marginBottom:4 }}>
                 OSINT &amp; EVIDENCE TOOLS
               </div>
-              <div style={{ color:"#8aa4c0", fontSize:7.5, lineHeight:1.45, marginBottom:5 }}>
+              <div style={{ color:"#8aa4c0", fontSize:6.7, lineHeight:1.45, marginBottom:5 }}>
                 Public-source search, extraction, domain resolution, and contact attribution.
               </div>
-              <div style={{ color:"#8aa4c0", fontSize:7.5, lineHeight:1.5 }}>
+              <div style={{ color:"#8aa4c0", fontSize:6.7, lineHeight:1.5 }}>
                 {researchTools.map((tool: string) => telemetryToolLabel(tool)).join(" · ")}
               </div>
             </div>
           )}
           {hasPersonaReview && (
             <div style={{ padding:"7px 8px", border:"1px solid #8b5cf650", borderRadius:4, background:"#8b5cf610" }}>
-              <div style={{ color:"#c4b5fd", fontSize:7.5, letterSpacing:"0.13em", marginBottom:4 }}>
+              <div style={{ color:"#c4b5fd", fontSize:6.5, letterSpacing:"0.13em", marginBottom:4 }}>
                 POST-RESEARCH QUALITY REVIEW
               </div>
-              <div style={{ color:"#c4b5fd", fontSize:7.5, lineHeight:1.5 }}>
+              <div style={{ color:"#c4b5fd", fontSize:6.7, lineHeight:1.5 }}>
                 11 deterministic personas inspect the saved Phase J result. This lane does not search the web, add contacts, or perform OSINT.
               </div>
             </div>
@@ -890,8 +802,8 @@ function AtlasTelemetryInspector({ telemetry, eventLog = [] }: { telemetry?: any
         </div>
       )}
       {telemetry?.prompt && (
-        <div style={{ marginTop:8, padding:"8px", border:"1px solid #a3e63530", borderRadius:4, background:"#a3e63508", color:"#cbd5a5", fontSize:7.5, lineHeight:1.5, whiteSpace:"pre-wrap", maxHeight:150, overflowY:"auto" }}>
-          <div style={{ color:"#a3e635", fontSize:7.5, letterSpacing:"0.13em", marginBottom:5 }}>CURRENT PROMPT</div>
+        <div style={{ marginTop:8, padding:"8px", border:"1px solid #a3e63530", borderRadius:4, background:"#a3e63508", color:"#cbd5a5", fontSize:6.7, lineHeight:1.5, whiteSpace:"pre-wrap", maxHeight:150, overflowY:"auto" }}>
+          <div style={{ color:"#a3e635", fontSize:6.5, letterSpacing:"0.13em", marginBottom:5 }}>CURRENT PROMPT</div>
           {telemetry.prompt}
         </div>
       )}
@@ -907,52 +819,27 @@ function AtlasTelemetryInspector({ telemetry, eventLog = [] }: { telemetry?: any
       )}
       {eventLog.length > 0 && (
         <div style={{ marginTop:10, paddingTop:8, borderTop:"1px solid #192840" }}>
-          <div style={{ color:"#22d3ee", fontSize:7.5, letterSpacing:"0.14em", marginBottom:6 }}>
-            LIVE ACTION LOG · {eventLog.length} EVENTS (BROWSER · PROMPTS · TOOLS)
+          <div style={{ color:"#22d3ee", fontSize:6.5, letterSpacing:"0.14em", marginBottom:6 }}>
+            RESEARCH EVENT LOG · {eventLog.length} RECENT EVENTS
           </div>
           <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
-            {eventLog.slice(0, 24).map((event, index) => {
-              const toolId = event.activeToolId || (event.toolIds && event.toolIds[0]) || "";
-              const blob = String(toolId) + " " + String(event.stage||"") + " " + String(event.resultSummary||"") + " " + String(event.kind||"");
-              const isBrowser = /scrapfly|zenrows|browser|visit|fetch/i.test(blob);
-              const isPrompt = Boolean(event.prompt) || /prompt|gemini|groq|llm/i.test(String(toolId));
-              const isSherlock = /sherlock|maigret|holehe/i.test(blob);
-              const isDomain = /rdap|whois|domain-surface|whoxy/i.test(blob);
-              const isDiscovery = /discover|webdisc|broad-discovery|force.related|serp|tavily|exa|perplexity|serper|serpapi/i.test(blob);
-              const isBureau = /bureau|case-bureau|investigator|boss|specialist/i.test(blob) || event.kind === "bureau";
-              const kindColor = isBureau ? "#22d3ee" : isBrowser ? "#f59e0b" : isDiscovery ? "#fb923c" : isPrompt ? "#a3e635" : isSherlock ? "#c4b5fd" : isDomain ? "#67e8f9" : event.status === "complete" ? "#a3e635" : "#8aa4c0";
-              const kindTag = isBureau ? "BUREAU" : isBrowser ? "BROWSER" : isDiscovery ? "DISCOVERY" : isPrompt ? "PROMPT" : isSherlock ? "FOOTPRINT" : isDomain ? "DOMAIN" : (event.status || "ACTION").toString().toUpperCase();
-              return (
+            {eventLog.slice(0, 10).map((event, index) => (
               <details key={`${event.timestamp ?? "event"}-${index}`} style={{
-                border:`1px solid ${kindColor}33`, borderRadius:4, padding:"5px 6px", background:"#0d1525",
+                border:"1px solid #192840", borderRadius:4, padding:"5px 6px", background:"#0d1525",
               }}>
-                <summary style={{ cursor:"pointer", listStyle:"none", color:kindColor, fontSize:7.5, display:"flex", alignItems:"center", gap:5, flexWrap:"wrap" }}>
-                  <span style={{ color:"#526b86" }}>{event.timestamp?.slice(11, 19) ?? "--:--:--"}</span>
-                  <ProviderIcon kind={detectProviderKind(String(toolId || event.stage || event.resultSummary || ""))} size={11} />
-                  <span style={{ color:kindColor, letterSpacing:"0.08em" }}>[{kindTag}]</span>
-                  <span>{event.stage ?? "Research event"}</span>
-                  <span style={{ color:"#526b86" }}>· {toolId === PERSONA_REVIEW_TOOL ? "Post-research quality review" : toolId ? telemetryToolLabel(toolId) : "Atlas"}</span>
+                <summary style={{ cursor:"pointer", listStyle:"none", color:event.status === "complete" ? "#a3e635" : event.status === "review" ? "#fbbf24" : "#8aa4c0", fontSize:6.7 }}>
+                  <span style={{ color:"#526b86" }}>{event.timestamp?.slice(11, 19) ?? "--:--:--"} </span>
+                  {event.stage ?? "Research event"}
+                  <span style={{ color:"#526b86" }}> · {event.activeToolId === PERSONA_REVIEW_TOOL ? "Post-research quality review" : event.activeToolId ? telemetryToolLabel(event.activeToolId) : "Atlas"}</span>
                 </summary>
-                <div style={{ marginTop:5, color:"#8aa4c0", fontSize:7.5, lineHeight:1.45 }}>
+                <div style={{ marginTop:5, color:"#8aa4c0", fontSize:6.5, lineHeight:1.45 }}>
                   {event.targetName && <div><span style={{ color:"#526b86" }}>TARGET </span>{event.targetName}</div>}
                   {event.inputSummary && <div><span style={{ color:"#526b86" }}>INPUT </span>{event.inputSummary}</div>}
-                  {event.sources != null && <div><span style={{ color:"#526b86" }}>SOURCES </span>{event.sources}</div>}
-                  {event.contacts != null && <div><span style={{ color:"#526b86" }}>CONTACTS </span>{event.contacts}</div>}
-                  {event.evidence != null && <div><span style={{ color:"#526b86" }}>EVIDENCE </span>{event.evidence}</div>}
-                  {event.prompt && (
-                    <div style={{ marginTop:4 }}>
-                      <div style={{ color:"#a3e635", letterSpacing:"0.1em", marginBottom:2 }}>PROMPT</div>
-                      <pre style={{ margin:0, maxHeight:120, overflowY:"auto", whiteSpace:"pre-wrap", color:"#cbd5a5", fontFamily:"inherit" }}>{event.prompt}</pre>
-                    </div>
-                  )}
-                  {event.resultSummary && <div style={{ marginTop:3 }}><span style={{ color:"#526b86" }}>RESULT </span>{event.resultSummary}</div>}
-                  {event.toolIds && event.toolIds.length > 1 && (
-                    <div style={{ marginTop:3 }}><span style={{ color:"#526b86" }}>TOOLS </span>{event.toolIds.map((t: string) => telemetryToolLabel(t)).join(" · ")}</div>
-                  )}
+                  {event.prompt && <pre style={{ margin:"4px 0 0", maxHeight:90, overflowY:"auto", whiteSpace:"pre-wrap", color:"#cbd5a5", fontFamily:"inherit" }}>{event.prompt}</pre>}
+                  {event.resultSummary && <div><span style={{ color:"#526b86" }}>RESULT </span>{event.resultSummary}</div>}
                 </div>
               </details>
-              );
-            })}
+            ))}
           </div>
         </div>
       )}
@@ -1456,12 +1343,10 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
   const schedulerCountdown = formatSchedulerCountdown(schedulerWaitRemaining(scheduler, schedulerNow));
   const waitingForNextCycle = Boolean(!isLive && !atlasFailed && schedulerCountdown);
   const atlasStatusColor = atlasFailed ? "#fb7185" : waitingForNextCycle ? "#fbbf24" : atlasDone ? "#a3e635" : isLive ? "#22d3ee" : "#a3e635";
-  const hasDeskEvents = Boolean(atlasState?.eventLog && atlasState.eventLog.length > 0);
-  const [deskOpen, setDeskOpen] = useState(true);
 
   return (
     <div style={{
-      width:"100%", height:"100%", minWidth:1280, minHeight:800,
+      width:"100%", height:"100%", minWidth:1600, minHeight:960,
       background:"#0b1120",
       fontFamily:"'Space Mono','DM Mono','Courier New',monospace",
       display:"flex", flexDirection:"column",
@@ -1527,61 +1412,6 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                     {atlasFailed ? "ATLAS FAILED" : isLive ? "ATLAS LIVE" : waitingForNextCycle ? "NEXT CYCLE QUEUED" : atlasDone ? "ATLAS COMPLETE" : "NOMINAL"}
                   </span>
                 </div>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={deskOpen}
-                  onClick={() => setDeskOpen((v) => !v)}
-                  data-testid="button-toggle-live-desk"
-                  title={deskOpen ? "Hide Live Desk panel" : "Show Live Desk beside the reactor scheme"}
-                  style={{
-                    marginLeft: 10,
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 8,
-                    padding: "3px 8px 3px 4px",
-                    borderRadius: 999,
-                    border: deskOpen ? "1px solid #22d3ee55" : "1px solid #1e3a5f",
-                    background: deskOpen ? "rgba(34,211,238,0.12)" : "rgba(15,23,42,0.9)",
-                    color: deskOpen ? "#67e8f9" : "#64748b",
-                    fontSize: 8,
-                    letterSpacing: "0.14em",
-                    cursor: "pointer",
-                    fontFamily: "inherit",
-                    transition: "background 200ms cubic-bezier(0.2, 0.8, 0.2, 1), border-color 200ms ease, color 200ms ease",
-                  }}
-                >
-                  {/* Track + thumb — Figma-style boolean toggle motion */}
-                  <span
-                    aria-hidden
-                    style={{
-                      position: "relative",
-                      width: 28,
-                      height: 16,
-                      borderRadius: 999,
-                      background: deskOpen ? "#22d3ee" : "#1e293b",
-                      border: deskOpen ? "1px solid #67e8f9" : "1px solid #334155",
-                      transition: "background 220ms cubic-bezier(0.34, 1.3, 0.64, 1), border-color 200ms ease",
-                      flexShrink: 0,
-                    }}
-                  >
-                    <span
-                      style={{
-                        position: "absolute",
-                        top: 1,
-                        left: deskOpen ? 13 : 1,
-                        width: 12,
-                        height: 12,
-                        borderRadius: "50%",
-                        background: deskOpen ? "#0b1120" : "#94a3b8",
-                        boxShadow: "0 1px 3px rgba(0,0,0,0.45)",
-                        transition: "left 220ms cubic-bezier(0.34, 1.3, 0.64, 1), background 200ms ease",
-                        animation: deskOpen ? "thumbPop 280ms cubic-bezier(0.34, 1.3, 0.64, 1)" : "none",
-                      }}
-                    />
-                  </span>
-                  LIVE DESK
-                </button>
                 {waitingForNextCycle && (
                   <div style={{ fontSize:7, letterSpacing:"0.12em", color:"#fbbf24", whiteSpace:"nowrap" }} data-testid="status-scheduler-countdown">
                     NEXT CYCLE IN {schedulerCountdown}
@@ -1617,13 +1447,9 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
         </div>
       </header>
 
-      {/* Main: full reactor scheme + optional Live Desk side panel */}
-      <div style={{ flex:1, zIndex:5, overflow:"hidden", display:"flex", flexDirection:"row", minHeight:0 }}>
-        {/* Pipeline graph canvas — always full scheme with nodes + arrows */}
-        <div style={{ flex:1, position:"relative", minHeight:0, overflow:"hidden" }}>
-        {!deskOpen && (
-          <AtlasTelemetryInspector telemetry={atlasState?.atlasTelemetry} eventLog={atlasState?.eventLog} />
-        )}
+      {/* Main panel */}
+      <div style={{ flex:1, position:"relative", zIndex:5, overflow:"hidden" }}>
+        <AtlasTelemetryInspector telemetry={atlasState?.atlasTelemetry} eventLog={atlasState?.eventLog} />
         {/* SVG connections */}
         <svg width={1600} height={842} style={{ position:"absolute", inset:0, zIndex:1 }}>
           <defs>
@@ -1757,67 +1583,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
           }} />
         ))}
 
-        </div>{/* end graph canvas */}
-
-        {/* Live Desk — dockable; width/opacity ease like Figma smart-animate */}
-        <aside
-          data-testid="live-desk-panel"
-          aria-hidden={!deskOpen}
-          style={{
-            width: deskOpen ? 440 : 0,
-            flexShrink: 0,
-            borderLeft: deskOpen ? "1px solid #1e3a5f" : "1px solid transparent",
-            background: "linear-gradient(180deg, #0a1628 0%, #0b1120 100%)",
-            overflowY: deskOpen ? "auto" : "hidden",
-            overflowX: "hidden",
-            padding: deskOpen ? "12px 14px 20px" : "12px 0",
-            zIndex: 6,
-            opacity: deskOpen ? 1 : 0,
-            transform: deskOpen ? "translateX(0)" : "translateX(8px)",
-            transition:
-              "width 280ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 220ms ease, padding 280ms ease, border-color 200ms ease, transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1)",
-            pointerEvents: deskOpen ? "auto" : "none",
-          }}
-        >
-          <div style={{ width: 412, minWidth: 412 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-              <div style={{ fontSize: 10, letterSpacing: "0.18em", color: "#22d3ee", fontFamily: "inherit" }}>LIVE DESK</div>
-              <button
-                type="button"
-                onClick={() => setDeskOpen(false)}
-                style={{
-                  border: "1px solid #1e3a5f",
-                  background: "transparent",
-                  color: "#64748b",
-                  fontSize: 9,
-                  letterSpacing: "0.12em",
-                  padding: "3px 8px",
-                  borderRadius: 4,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                  transition: "color 160ms ease, border-color 160ms ease",
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = "#94a3b8"; e.currentTarget.style.borderColor = "#334155"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = "#64748b"; e.currentTarget.style.borderColor = "#1e3a5f"; }}
-              >
-                CLOSE
-              </button>
-            </div>
-            {hasDeskEvents ? (
-              <BureauOpsStage
-                compact
-                maxScenes={6}
-                title="LIVE DESK"
-                events={(atlasState?.eventLog || []) as any[]}
-              />
-            ) : (
-              <div style={{ fontSize: 12, color: "#64748b", lineHeight: 1.5 }}>
-                Desk idle. Scheme stays up — this fills when work starts.
-              </div>
-            )}
-          </div>
-        </aside>
-      </div>{/* end main row */}
+      </div>
 
       <style>{KEYFRAMES}</style>
     </div>
@@ -1826,21 +1592,11 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
 
 // ── Shared breakpoint hook ────────────────────────────────────────────────────
 function useIsMobile() {
-  // Phones in landscape are often >768 wide but still need the mobile workstage UI —
-  // not the 1600px pipeline canvas scaled into a postage stamp.
-  const compute = () =>
-    window.innerWidth < 1024 ||
-    window.innerHeight < 640 ||
-    (window.matchMedia && window.matchMedia("(pointer: coarse)").matches && window.innerWidth < 1200);
-  const [mobile, setMobile] = useState(compute);
+  const [mobile, setMobile] = useState(() => window.innerWidth < 768);
   useEffect(() => {
-    const handler = () => setMobile(compute());
+    const handler = () => setMobile(window.innerWidth < 768);
     window.addEventListener("resize", handler);
-    window.addEventListener("orientationchange", handler);
-    return () => {
-      window.removeEventListener("resize", handler);
-      window.removeEventListener("orientationchange", handler);
-    };
+    return () => window.removeEventListener("resize", handler);
   }, []);
   return mobile;
 }
@@ -1874,7 +1630,7 @@ export default function IntelligenceReactorPage() {
     const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
     try {
       // Poll jobs, atlas status, AND key health in parallel
-      const [jobsData, atlasData, sysData, bureauData] = await Promise.all([
+      const [jobsData, atlasData, sysData] = await Promise.all([
         fetch(`${BASE}/api/ingest/jobs`, { cache: "no-store" })
           .then(r => r.ok ? r.json() : { jobs: [] })
           .catch(() => ({ jobs: [] })),
@@ -1884,9 +1640,6 @@ export default function IntelligenceReactorPage() {
         fetch(`${BASE}/api/system/status`, { cache: "no-store" })
           .then(r => r.ok ? r.json() : null)
           .catch(() => null),
-        fetch(`${BASE}/api/ingest/bureau-events?limit=40`, { cache: "no-store" })
-          .then(r => r.ok ? r.json() : { events: [] })
-          .catch(() => ({ events: [] })),
       ]);
 
       // ── Key exhaustion ────────────────────────────────────────────────────────
@@ -1929,10 +1682,7 @@ export default function IntelligenceReactorPage() {
             phaseJ: atlasData.phaseJ ?? null,
             scheduler: atlasData.scheduler ?? undefined,
             atlasTelemetry,
-            eventLog: mergeBureauIntoEventLog(
-              parseAtlasEventLog(atlasData.log),
-              Array.isArray(bureauData?.events) ? bureauData.events : [],
-            ),
+            eventLog: parseAtlasEventLog(atlasData.log),
         };
          // The parent message is real progress text. It is not a tool/activity
          // event, so it must not light individual Atlas nodes by keyword.
@@ -1952,27 +1702,6 @@ export default function IntelligenceReactorPage() {
          }
       }
 
-      // Bureau-only activity (discovery desk running without full Atlas job)
-      if (!nextAtlasState && Array.isArray(bureauData?.events) && bureauData.events.length > 0) {
-        nextAtlasState = {
-          runStatus: "running",
-          phase: 1,
-          phaseLabel: "BUREAU / DISCOVERY",
-          phaseProgress: 0,
-          phaseTotal: 10,
-          sourceStep: null,
-          sourceTotal: null,
-          currentEntities: [],
-          entityProgress: null,
-          entityTotal: null,
-          detail: "Bureau desk live — discovery and investigation events",
-          eventLog: mergeBureauIntoEventLog([], bureauData.events),
-        };
-        nodes.add("webdisc");
-        nodes.add("inhouse");
-        labels.push("▶ Bureau / Discovery live");
-      }
-
       // ── Regular jobs ─────────────────────────────────────────────────────────
       const running = (jobsData.jobs ?? []).filter((j: any) =>
         j.status === "running" || j.status === "active"
@@ -1989,15 +1718,6 @@ export default function IntelligenceReactorPage() {
            setLiveNodes(new Set());
            setLiveLabel("");
            setLivePhaseDetail("");
-      }
-      if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("demo") === "1") {
-        const demo = buildDemoAtlasState();
-        setAtlasState(demo);
-        setLiveNodes(new Set(["target", "tavily", "web", "gemini", "ch", "edgar", "groq", "mcts"]));
-        setLiveLabel("▶ [4/12] DISCOVERY — WEB DISC · Griffin Tool Co.");
-        setLivePhaseDetail("Step 4/12 — WEB DISC. Tavily + Gemini on Griffin Tool owners");
-        setTotalEntities(3); setHotCount(2); setTotalAssets(1);
-        return;
       }
       setAtlasState(nextAtlasState);
     } catch { /* non-fatal */ }
