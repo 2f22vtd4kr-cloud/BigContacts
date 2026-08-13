@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { formatSchedulerCountdown, schedulerWaitRemaining } from "./scheduler-utils";
 import { ProviderIcon, detectProviderKind } from "./provider-icons";
+import { BureauOpsStage } from "./bureau-ops-stage";
 
 interface ResearchSession {
   id: number;
@@ -290,6 +291,16 @@ function LiveResearchConsole({
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Primary: visual simulation of real Bureau work */}
+      <div className="mb-4" data-testid="bureau-ops-stage">
+        <BureauOpsStage
+          compact
+          maxScenes={5}
+          title="WATCH THE DESK · REAL QUERIES"
+          events={(atlasState?.eventLog || []) as any[]}
+        />
       </div>
 
       <div className="mb-3 grid grid-cols-2 gap-2">

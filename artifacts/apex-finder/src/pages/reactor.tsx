@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { MobileReactorFlow } from "../components/mobile-reactor-flow";
 import { ProviderIcon, detectProviderKind, providerLabel } from "../components/provider-icons";
+import { BureauOpsStage } from "../components/bureau-ops-stage";
 import { formatSchedulerCountdown, schedulerWaitRemaining } from "../components/scheduler-utils";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -1528,6 +1529,13 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
 
       {/* Main panel */}
       <div style={{ flex:1, position:"relative", zIndex:5, overflow:"hidden" }}>
+        <div style={{ marginBottom: 14 }}>
+          <BureauOpsStage
+            maxScenes={4}
+            title="BUREAU OPS · LIVE WORKSTAGE"
+            events={(atlasState?.eventLog || []) as any[]}
+          />
+        </div>
         <AtlasTelemetryInspector telemetry={atlasState?.atlasTelemetry} eventLog={atlasState?.eventLog} />
         {/* SVG connections */}
         <svg width={1600} height={842} style={{ position:"absolute", inset:0, zIndex:1 }}>
