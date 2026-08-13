@@ -1152,17 +1152,40 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
             // (blocks other-city "Custom Machine Inc" BBB profiles)
             if (TRUSTED_DIR_HOSTS.has(reg) || [...TRUSTED_DIR_HOSTS].some((d) => host.endsWith(`.${d}`))) {
               if (companySlug.length >= 4 && urlFlat.includes(companySlug.slice(0, Math.min(10, companySlug.length)))) {
-                // Optional geography gate from brief
+                // Optional geography gate from brief — reject wrong-state BBB/YP/Yelp profiles
                 const geo = (workingFile.humanBrief.geography || "").toLowerCase();
-                const geoToken = geo.match(/\b(ohio|michigan|texas|florida|california|indiana|wisconsin|minnesota|tiffin|remus|lebanon|wooster|elyria)\b/i)?.[1]?.toLowerCase();
-                if (geoToken && /bbb\.org|yellowpages|yelp/i.test(host)) {
-                  // Prefer city/state in URL when geography is set
-                  if (urlFlat.includes(geoToken.replace(/[^a-z]/g, "")) || urlFlat.includes("oh") && geoToken === "ohio") {
-                    return true;
+                const STATE_CODE: Record<string, string> = {
+                  alabama: "al", alaska: "ak", arizona: "az", arkansas: "ar", california: "ca",
+                  colorado: "co", connecticut: "ct", delaware: "de", florida: "fl", georgia: "ga",
+                  hawaii: "hi", idaho: "id", illinois: "il", indiana: "in", iowa: "ia",
+                  kansas: "ks", kentucky: "ky", louisiana: "la", maine: "me", maryland: "md",
+                  massachusetts: "ma", michigan: "mi", minnesota: "mn", mississippi: "ms", missouri: "mo",
+                  montana: "mt", nebraska: "ne", nevada: "nv", "new hampshire": "nh", "new jersey": "nj",
+                  "new mexico": "nm", "new york": "ny", "north carolina": "nc", "north dakota": "nd",
+                  ohio: "oh", oklahoma: "ok", oregon: "or", pennsylvania: "pa", "rhode island": "ri",
+                  "south carolina": "sc", "south dakota": "sd", tennessee: "tn", texas: "tx", utah: "ut",
+                  vermont: "vt", virginia: "va", washington: "wa", "west virginia": "wv", wisconsin: "wi", wyoming: "wy",
+                };
+                let stateCode: string | null = null;
+                let geoToken: string | null = null;
+                for (const [name, code] of Object.entries(STATE_CODE)) {
+                  if (geo.includes(name)) { stateCode = code; geoToken = name; break; }
+                }
+                // Also accept bare 2-letter state in geography
+                if (!stateCode) {
+                  const bare = geo.match(/\b([a-z]{2})\b/);
+                  if (bare && Object.values(STATE_CODE).includes(bare[1]!)) {
+                    stateCode = bare[1]!;
+                    geoToken = bare[1]!;
                   }
-                  // If BBB URL has a different state code, reject
-                  if (/\/us\/[a-z]{2}\//i.test(u) && geoToken === "ohio" && !/\/us\/oh\//i.test(u)) continue;
-                  if (/\/us\/[a-z]{2}\//i.test(u) && geoToken === "michigan" && !/\/us\/mi\//i.test(u)) continue;
+                }
+                if (stateCode && /bbb\.org|yellowpages|yelp/i.test(host)) {
+                  // Prefer city/state token or matching /us/XX/ state code in URL
+                  const tokenFlat = (geoToken || "").replace(/[^a-z]/g, "");
+                  if (tokenFlat && urlFlat.includes(tokenFlat)) return true;
+                  if (urlFlat.includes(stateCode)) return true;
+                  // Explicit wrong-state BBB path → reject
+                  if (/\/us\/[a-z]{2}\//i.test(u) && !new RegExp(`/us/${stateCode}/`, "i").test(u)) continue;
                 }
                 return true;
               }
