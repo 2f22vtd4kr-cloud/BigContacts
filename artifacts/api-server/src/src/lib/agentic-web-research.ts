@@ -330,7 +330,7 @@ function extractContactFactsFromHtml(html: string): string {
   }
   // Plain-text multi-line: "Nelson Reyes\nPresident..." / "### Frank K. Chesek\n#### CEO/Company President"
   for (const m of stripHtml(html).matchAll(
-    /(?:^|\n)\s*#{0,4}\s*([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\s*\n\s*#{0,4}\s*((?:President|CEO|Chief Executive Officer|Owner|Founder|Vice President|VP|CFO|Chief Financial Officer|COO|Chief Operating Officer|Director|Principal|Treasurer|Chairman|Executive Chairman|Executive Assistant|Manager|Controller|Engineer|Supervisor|Managing Partner|Project Coordinator|Human Resources|Technical Sales|Quality Manager|VP of Manufacturing|second-generation owner|Office Manager|Operations Manager|Engineering Manager|Administrative Specialist|Head of CNC|Process Engineer|Director of Business Development|Plant Manager)[^\n]{0,60})/gm,
+    /(?:^|\n)\s*#{0,4}\s*([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\s*\n\s*#{0,4}\s*((?:President|CEO|Chief Executive Officer|Owner|Founder|Vice President|VP|CFO|Chief Financial Officer|COO|Chief Operating Officer|Director|Principal|Treasurer|Chairman|Executive Chairman|Executive Assistant|Manager|Controller|Engineer|Supervisor|Managing Partner|Project Coordinator|Human Resources|Technical Sales|Quality Manager|VP of Manufacturing|VP OF HR|VP OF SALES|VP OF MANUFACTURING|VP OF ENGINEERING|FOUNDER|second-generation owner|Office Manager|Operations Manager|Engineering Manager|Administrative Specialist|Head of CNC|Process Engineer|Director of Business Development|Plant Manager)[^\n]{0,60})/gm,
   )) {
     const name = m[1]!.replace(/\s+/g, " ").trim();
     const role = m[2]!.replace(/\s+/g, " ").trim().slice(0, 60);
