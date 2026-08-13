@@ -42,6 +42,13 @@ OBJECTIVE: Grok is the floor on public org surface. Apex must hold MORE attribut
 (owners, officers, founders with role + email/phone when visible) via multi-hop, registries, and primary pages.
 Never invent. Never mark org inboxes Personal.
 
+WALLET-FIRST DISCOVERY (when objective or seed is a crypto wallet):
+- Parse address; classify EOA vs contract; skip labeled exchange/mixer/protocol treasuries.
+- Attribute holder only from public citable sources (ENS, news, filings, personal/company pages).
+- No holder attribution → do not run contact hops; report unattributed.
+- After person lock → maximize people-contacts via the normal surface stack; wallet value is wealth evidence only.
+- Never invent holder, email, or phone from chain analysis alone.
+
 SURFACE RECOVERY (Gemini Boss + investigators — mandatory when visible on a page):
 - Officers: Name/Title slash, multi-line headings, compound titles ("President and CEO X"), middle initials
 - Ownership: sold/acquired/bought by, founder, co-founder, current owner and president
