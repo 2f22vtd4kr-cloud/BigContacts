@@ -808,12 +808,12 @@ function AtlasTelemetryInspector({ telemetry, eventLog = [] }: { telemetry?: any
     }}>
       <div style={{ display:"flex", alignItems:"center", gap:7, marginBottom:8 }}>
         <span style={{ width:6, height:6, borderRadius:"50%", background:telemetry?.status === "complete" ? "#a3e635" : "#22d3ee", boxShadow:"0 0 8px #22d3ee", flexShrink:0 }} />
-        <span style={{ fontSize:7, letterSpacing:"0.17em", color:"#22d3ee" }}>LIVE TARGET INSPECTOR</span>
-        <span style={{ marginLeft:"auto", fontSize:6.5, letterSpacing:"0.12em", color:telemetry?.status === "complete" ? "#a3e635" : "#fbbf24" }}>
+        <span style={{ fontSize:8, letterSpacing:"0.17em", color:"#22d3ee" }}>LIVE TARGET INSPECTOR</span>
+        <span style={{ marginLeft:"auto", fontSize:7.5, letterSpacing:"0.12em", color:telemetry?.status === "complete" ? "#a3e635" : "#fbbf24" }}>
           {String(telemetry?.status ?? "history").toUpperCase()}
         </span>
       </div>
-      <div style={{ display:"grid", gridTemplateColumns:"82px 1fr", gap:"5px 8px", fontSize:7 }}>
+      <div style={{ display:"grid", gridTemplateColumns:"82px 1fr", gap:"5px 8px", fontSize:8 }}>
         <span style={{ color:"#526b86", letterSpacing:"0.1em" }}>TARGET</span>
         <span style={{ color:"#e8e0cc", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{telemetry?.targetName ?? "—"}</span>
         <span style={{ color:"#526b86", letterSpacing:"0.1em" }}>STAGE</span>
@@ -828,23 +828,23 @@ function AtlasTelemetryInspector({ telemetry, eventLog = [] }: { telemetry?: any
         <div style={{ marginTop:10, display:"flex", flexDirection:"column", gap:7 }}>
           {researchTools.length > 0 && (
             <div style={{ padding:"7px 8px", border:"1px solid #22d3ee28", borderRadius:4, background:"#22d3ee06" }}>
-              <div style={{ color:"#67e8f9", fontSize:6.5, letterSpacing:"0.13em", marginBottom:4 }}>
+              <div style={{ color:"#67e8f9", fontSize:7.5, letterSpacing:"0.13em", marginBottom:4 }}>
                 OSINT &amp; EVIDENCE TOOLS
               </div>
-              <div style={{ color:"#8aa4c0", fontSize:6.7, lineHeight:1.45, marginBottom:5 }}>
+              <div style={{ color:"#8aa4c0", fontSize:7.5, lineHeight:1.45, marginBottom:5 }}>
                 Public-source search, extraction, domain resolution, and contact attribution.
               </div>
-              <div style={{ color:"#8aa4c0", fontSize:6.7, lineHeight:1.5 }}>
+              <div style={{ color:"#8aa4c0", fontSize:7.5, lineHeight:1.5 }}>
                 {researchTools.map((tool: string) => telemetryToolLabel(tool)).join(" · ")}
               </div>
             </div>
           )}
           {hasPersonaReview && (
             <div style={{ padding:"7px 8px", border:"1px solid #8b5cf650", borderRadius:4, background:"#8b5cf610" }}>
-              <div style={{ color:"#c4b5fd", fontSize:6.5, letterSpacing:"0.13em", marginBottom:4 }}>
+              <div style={{ color:"#c4b5fd", fontSize:7.5, letterSpacing:"0.13em", marginBottom:4 }}>
                 POST-RESEARCH QUALITY REVIEW
               </div>
-              <div style={{ color:"#c4b5fd", fontSize:6.7, lineHeight:1.5 }}>
+              <div style={{ color:"#c4b5fd", fontSize:7.5, lineHeight:1.5 }}>
                 11 deterministic personas inspect the saved Phase J result. This lane does not search the web, add contacts, or perform OSINT.
               </div>
             </div>
@@ -857,8 +857,8 @@ function AtlasTelemetryInspector({ telemetry, eventLog = [] }: { telemetry?: any
         </div>
       )}
       {telemetry?.prompt && (
-        <div style={{ marginTop:8, padding:"8px", border:"1px solid #a3e63530", borderRadius:4, background:"#a3e63508", color:"#cbd5a5", fontSize:6.7, lineHeight:1.5, whiteSpace:"pre-wrap", maxHeight:150, overflowY:"auto" }}>
-          <div style={{ color:"#a3e635", fontSize:6.5, letterSpacing:"0.13em", marginBottom:5 }}>CURRENT PROMPT</div>
+        <div style={{ marginTop:8, padding:"8px", border:"1px solid #a3e63530", borderRadius:4, background:"#a3e63508", color:"#cbd5a5", fontSize:7.5, lineHeight:1.5, whiteSpace:"pre-wrap", maxHeight:150, overflowY:"auto" }}>
+          <div style={{ color:"#a3e635", fontSize:7.5, letterSpacing:"0.13em", marginBottom:5 }}>CURRENT PROMPT</div>
           {telemetry.prompt}
         </div>
       )}
@@ -874,7 +874,7 @@ function AtlasTelemetryInspector({ telemetry, eventLog = [] }: { telemetry?: any
       )}
       {eventLog.length > 0 && (
         <div style={{ marginTop:10, paddingTop:8, borderTop:"1px solid #192840" }}>
-          <div style={{ color:"#22d3ee", fontSize:6.5, letterSpacing:"0.14em", marginBottom:6 }}>
+          <div style={{ color:"#22d3ee", fontSize:7.5, letterSpacing:"0.14em", marginBottom:6 }}>
             LIVE ACTION LOG · {eventLog.length} EVENTS (BROWSER · PROMPTS · TOOLS)
           </div>
           <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
@@ -893,14 +893,14 @@ function AtlasTelemetryInspector({ telemetry, eventLog = [] }: { telemetry?: any
               <details key={`${event.timestamp ?? "event"}-${index}`} style={{
                 border:`1px solid ${kindColor}33`, borderRadius:4, padding:"5px 6px", background:"#0d1525",
               }}>
-                <summary style={{ cursor:"pointer", listStyle:"none", color:kindColor, fontSize:6.7, display:"flex", alignItems:"center", gap:5, flexWrap:"wrap" }}>
+                <summary style={{ cursor:"pointer", listStyle:"none", color:kindColor, fontSize:7.5, display:"flex", alignItems:"center", gap:5, flexWrap:"wrap" }}>
                   <span style={{ color:"#526b86" }}>{event.timestamp?.slice(11, 19) ?? "--:--:--"}</span>
                   <ProviderIcon kind={detectProviderKind(String(toolId || event.stage || event.resultSummary || ""))} size={11} />
                   <span style={{ color:kindColor, letterSpacing:"0.08em" }}>[{kindTag}]</span>
                   <span>{event.stage ?? "Research event"}</span>
                   <span style={{ color:"#526b86" }}>· {toolId === PERSONA_REVIEW_TOOL ? "Post-research quality review" : toolId ? telemetryToolLabel(toolId) : "Atlas"}</span>
                 </summary>
-                <div style={{ marginTop:5, color:"#8aa4c0", fontSize:6.5, lineHeight:1.45 }}>
+                <div style={{ marginTop:5, color:"#8aa4c0", fontSize:7.5, lineHeight:1.45 }}>
                   {event.targetName && <div><span style={{ color:"#526b86" }}>TARGET </span>{event.targetName}</div>}
                   {event.inputSummary && <div><span style={{ color:"#526b86" }}>INPUT </span>{event.inputSummary}</div>}
                   {event.sources != null && <div><span style={{ color:"#526b86" }}>SOURCES </span>{event.sources}</div>}

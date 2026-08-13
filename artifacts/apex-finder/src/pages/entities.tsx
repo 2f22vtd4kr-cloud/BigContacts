@@ -385,7 +385,7 @@ function MobileEntityCard({
           </div>
 
           {/* Row 4: role / activity — secondary */}
-          <div className="mt-1.5 text-[10px] leading-4 text-muted-foreground/75 line-clamp-1">
+          <div className="mt-1.5 text-[10px] leading-4 text-muted-foreground/75 line-clamp-2">
             {workSummary ?? entity.linkedinHeadline ?? "No role line yet"}
           </div>
 

@@ -340,7 +340,7 @@ function LiveResearchConsole({
 
       <div className="mb-3 rounded-xl border border-cyan-400/15 bg-cyan-400/[0.04] p-3" data-testid="card-current-operation">
         <div className="mb-1 text-[8px] uppercase tracking-[0.18em] text-cyan-400/70">Current operation</div>
-        <div className="text-[11px] leading-relaxed text-slate-200">
+        <div className="text-[12px] leading-relaxed text-slate-200">
           {operation || (isDone ? "Run complete; no active operation reported." : isFailed ? "Run failed; no active operation reported." : "No operation reported while Atlas is idle.")}
         </div>
       </div>
