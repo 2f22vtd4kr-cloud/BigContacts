@@ -279,6 +279,30 @@ function extractContactFactsFromHtml(html: string): string {
     const name = m[1]!.replace(/\s+/g, " ").trim();
     if (name.split(/\s+/).length >= 2 && name.length < 50) push(`PERSON: ${name} — owner`);
   }
+  // "Vince is the second-generation owner" / "Vince Petek\nPresident" narrative
+  for (const m of stripHtml(html).matchAll(
+    /\b([A-Z][a-z]+)\s+is\s+the\s+(second-generation\s+owner|owner|president|CEO|managing\s+partner)\b/gi,
+  )) {
+    // first name only — try to expand from nearby full name later; still emit as lead
+    const first = m[1]!.trim();
+    const role = m[2]!.replace(/\s+/g, " ").trim();
+    if (first.length >= 3) push(`PERSON: ${first} — ${role}`);
+  }
+  for (const m of stripHtml(html).matchAll(
+    /\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\s+is\s+the\s+(second-generation\s+owner|owner|president|CEO|managing\s+partner)\b/gi,
+  )) {
+    const name = m[1]!.replace(/\s+/g, " ").trim();
+    const role = m[2]!.replace(/\s+/g, " ").trim();
+    if (name.split(/\s+/).length >= 2 && name.length < 50) push(`PERSON: ${name} — ${role}`);
+  }
+  // "Logan Conrad\nManaging Partner" / name then Managing Partner within 2 lines
+  for (const m of stripHtml(html).matchAll(
+    /\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\s*\n\s*(Managing\s+Partner|General\s+Manager|Project\s+Coordinator|VP\s+of\s+Manufacturing)/gi,
+  )) {
+    const name = m[1]!.replace(/\s+/g, " ").trim();
+    const role = m[2]!.replace(/\s+/g, " ").trim();
+    if (name.split(/\s+/).length >= 2 && name.length < 50) push(`PERSON: ${name} — ${role}`);
+  }
   // "Kendra Fennig who is the Vice President and Secretary Treasurer"
   for (const m of stripHtml(html).matchAll(
     /\b([A-Z][a-z]+(?:\s+[A-Z]\.)?(?:\s+[A-Z][a-z]+)+)\s+who\s+is\s+the\s+((?:Vice\s+President|President|CEO|Owner|Secretary|Treasurer)(?:\s+and\s+(?:Secretary|Treasurer|President|Owner))?)/gi,
@@ -859,6 +883,10 @@ function isCompanyAlignedEmail(email: string, companyName?: string | null, pageU
           return true;
         }
       }
+      // Shared long token: "Rathburn Precision Machining" ↔ rathburntool.com / rathburnmachining.com
+      for (const w of words) {
+        if (w.length >= 6 && domFlat.includes(w.slice(0, Math.min(8, w.length)))) return true;
+      }
     }
   }
   // Classic org mailbox with company context even without pageUrl (SERP snippet path)
@@ -1109,7 +1137,7 @@ function findingsFromPeopleSnippet(
     /(?:CEO|President|Founder|Co-Founder|Chief Executive(?:\s+Officer)?|Treasurer)\s+([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\b/g,
     /\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+),\s*(?:founder|retiring CEO|former CEO|retired CEO|board|President|Owner)/gi,
     // Directory proximity: name within ~40 chars of role; allow one newline (heading style)
-    /\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\b(?:[^\n.]{0,40}|\s*\n\s*)\b(Owner|President|CEO|Principal|Treasurer|Founder|CFO|Chairman|General Manager|Manager|Director|Controller|Supervisor|Managing Partner)\b/gi,
+    /\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\b(?:[^\n.]{0,40}|\s*\n\s*)\b(Owner|President|CEO|Principal|Treasurer|Founder|CFO|Chairman|General Manager|Manager|Director|Controller|Supervisor|Managing Partner|VP of Manufacturing|Project Coordinator)\b/gi,
   ];
   const seen = new Set<string>();
   for (const re of patterns) {

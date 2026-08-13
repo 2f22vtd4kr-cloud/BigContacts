@@ -1,6 +1,7 @@
 import type { Entity } from "@workspace/db";
 import { logger } from "./logger";
 import { buildApexAtlasBossPlanPrompt } from "./case-bureau-prompt";
+import { extractWalletSeedsFromText, buildWalletSeedPlan, formatWalletSeedPlanForPrompt, objectiveLooksWalletFirst } from "./wallet-seed";
 export {
   getMistralWebSearchStatus,
   runMistralWebSearch,
@@ -1173,11 +1174,23 @@ export function buildDiscoveryCaseFile(input: {
   const exclusions = input.exclusions?.filter((value) => value.trim()).map((value) => value.trim()).length
     ? input.exclusions.filter((value) => value.trim()).map((value) => value.trim())
     : DEFAULT_DISCOVERY_EXCLUSIONS;
+  const walletSeeds = extractWalletSeedsFromText(`${objective}\n${motivation}`);
+  const walletFirst = walletSeeds.length > 0 || objectiveLooksWalletFirst(objective);
+  const walletPlanText = walletSeeds[0]
+    ? formatWalletSeedPlanForPrompt(buildWalletSeedPlan(walletSeeds[0], { geography }))
+    : null;
+  const bossPremise = walletFirst
+    ? (
+        walletPlanText
+          ? `Wallet-first discovery.\n${walletPlanText}\nAfter holder attribution, maximize people-contacts. Fail-closed.`
+          : "Wallet-first discovery. Attribute any crypto-wallet holder from public sources before contact hops. Reject exchange/mixer/treasuries. Never invent holder or contacts."
+      )
+    : "Start broad. Discover realistic public-world investor routes before resolving any one target in depth.";
   return {
     version: 3,
     caseType: "discovery",
     humanBrief: { objective, motivation, geography, exclusions },
-    bossPremise: "Start broad. Discover realistic public-world investor routes before resolving any one target in depth.",
+    bossPremise,
     investigationRules: [
       "Public evidence only; preserve claim-level provenance.",
       "Wealth, relevance, identity, and practical access are separate questions.",
@@ -1212,11 +1225,17 @@ export function buildDiscoveryCaseFile(input: {
     currentProgress: {
       reportCount: 0,
       completedLanes: [],
-      openQuestions: [
-        "Which candidates have two independent identity anchors?",
-        "Which candidates have attributable investment or ownership evidence?",
-        "Which candidates have a practical public introduction route?",
-      ],
+      openQuestions: walletFirst
+        ? [
+            "Is the wallet attributable to a named human (public sources only)?",
+            "Is the wallet a non-human entity (exchange, mixer, protocol treasury)?",
+            "After holder lock: which contact routes are attributable?",
+          ]
+        : [
+            "Which candidates have two independent identity anchors?",
+            "Which candidates have attributable investment or ownership evidence?",
+            "Which candidates have a practical public introduction route?",
+          ],
       lastReviewedBy: null,
       refreshedAt: null,
     },
