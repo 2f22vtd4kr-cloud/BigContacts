@@ -613,7 +613,7 @@ export function BureauOpsStage({
     return (
       <div className={`rounded-xl border border-dashed border-slate-700/80 bg-slate-950/40 ${compact ? "p-3" : "p-5"}`}>
         <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-slate-500 mb-1">{title}</div>
-        <div className="text-[12px] text-slate-400">Idle — when Atlas runs, search queries, page fetches, and analyst prompts stream here with full detail.</div>
+        <div className="text-[12px] text-slate-400">Idle. Queries, pages, and prompts appear here when the desk moves.</div>
       </div>
     );
   }

@@ -662,13 +662,13 @@ export default function ApexProfile() {
             </div>
              <div className="mt-3 grid max-w-3xl gap-2 sm:grid-cols-2">
                <div className="rounded-lg border border-primary/15 bg-primary/[0.035] px-3 py-2.5">
-                  <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-primary/75">What they do</div>
+                  <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-primary/75">Role</div>
                  <p className="mt-1 text-[11px] leading-5 text-foreground/80">
                     {profileWorkSummary ?? "No documented role or activity is recorded yet."}
                  </p>
                </div>
                <div className="rounded-lg border border-secondary/15 bg-secondary/[0.035] px-3 py-2.5">
-                  <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-secondary/80">What we found</div>
+                  <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-secondary/80">Findings</div>
                  <p className="mt-1 text-[11px] leading-5 text-foreground/80">
                     {profileFindings}
                  </p>
@@ -764,7 +764,7 @@ export default function ApexProfile() {
             if (!reachEmail && !phone && !orgEmail && related.length === 0) return null;
             return (
               <div className="mt-3 rounded-xl border border-emerald-400/25 bg-emerald-400/[0.06] px-3 py-2.5">
-                <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-emerald-400/90 mb-1.5">Reach · primary</div>
+                <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-emerald-400/90 mb-1.5">Reach</div>
                 {reachEmail && (
                   <a href={`mailto:${reachEmail}`} className="block text-[14px] font-mono text-emerald-300 truncate hover:underline">{reachEmail}</a>
                 )}
@@ -788,11 +788,11 @@ export default function ApexProfile() {
           })()}
            <div className="mt-3 space-y-2">
              <div className="rounded-lg border border-primary/15 bg-primary/[0.035] px-3 py-2.5">
-                <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-primary/75">What they do</div>
+                <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-primary/75">Role</div>
                 <p className="mt-1 text-[11px] leading-5 text-foreground/80">{profileWorkSummary ?? "No documented role or activity is recorded yet."}</p>
              </div>
              <div className="rounded-lg border border-secondary/15 bg-secondary/[0.035] px-3 py-2.5">
-                <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-secondary/80">What we found</div>
+                <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-secondary/80">Findings</div>
                 <p className="mt-1 text-[11px] leading-5 text-foreground/80">{profileFindings}</p>
              </div>
            </div>

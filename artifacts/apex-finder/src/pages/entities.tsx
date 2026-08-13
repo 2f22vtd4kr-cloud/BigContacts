@@ -236,7 +236,7 @@ function ContactVectorsStrip({ entity, compact = false }: { entity: any; compact
   if (!vectors.length) {
     return (
       <div className="text-[10px] font-mono text-muted-foreground/70">
-        No contact vectors yet — desk still working or surface is thin
+        No contacts yet
       </div>
     );
   }
@@ -386,7 +386,7 @@ function MobileEntityCard({
 
           {/* Row 4: role / activity — secondary */}
           <div className="mt-1.5 text-[10px] leading-4 text-muted-foreground/75 line-clamp-2">
-            {workSummary ?? entity.linkedinHeadline ?? "No role line yet"}
+            {workSummary ?? entity.linkedinHeadline ?? "—"}
           </div>
 
           <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">

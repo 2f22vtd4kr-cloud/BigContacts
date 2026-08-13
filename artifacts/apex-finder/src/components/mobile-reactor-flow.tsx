@@ -267,7 +267,7 @@ function LiveResearchConsole({
                 ? "Atlas has reported a completed run"
                 : isFailed
                   ? "Atlas stopped with a reported failure"
-                  : "Standby · Atlas is idle by design — no research run in progress"}
+                  : "Standby · idle"}
           </div>
         </div>
         <span
@@ -279,7 +279,7 @@ function LiveResearchConsole({
       </div>
 
       <div className="mb-3 rounded-xl border border-white/10 bg-black/25 px-3 py-2.5" data-testid="card-current-target">
-        <div className="mb-1 text-[8px] uppercase tracking-[0.18em] text-cyan-400/70">Working target</div>
+        <div className="mb-1 text-[8px] uppercase tracking-[0.18em] text-cyan-400/70">Target</div>
         <div className="flex items-start gap-2">
           <Target className="mt-0.5 h-4 w-4 shrink-0 text-cyan-400" />
           <div className="min-w-0">
@@ -339,7 +339,7 @@ function LiveResearchConsole({
       </div>
 
       <div className="mb-3 rounded-xl border border-cyan-400/15 bg-cyan-400/[0.04] p-3" data-testid="card-current-operation">
-        <div className="mb-1 text-[8px] uppercase tracking-[0.18em] text-cyan-400/70">Current operation</div>
+        <div className="mb-1 text-[8px] uppercase tracking-[0.18em] text-cyan-400/70">Now</div>
         <div className="text-[12px] leading-relaxed text-slate-200">
           {operation || (isDone ? "Run complete; no active operation reported." : isFailed ? "Run failed; no active operation reported." : "No operation reported while Atlas is idle.")}
         </div>
@@ -631,7 +631,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
       <header className="shrink-0 border-b border-white/10 bg-black/25 px-4 py-2.5 backdrop-blur-md">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-500">Reactor status</div>
+            <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-500">Reactor</div>
             <div
               className={`mt-1 truncate text-[10px] font-mono tracking-wide ${isLive ? "text-cyan-400/80" : "text-slate-500"}`}
               role="status"
@@ -646,7 +646,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                     ? "Standby · last Atlas run completed"
                     : atlasState?.runStatus === "failed"
                       ? "Standby · last Atlas run failed"
-                      : "Standby · Atlas is idle by design — no research run in progress"}
+                      : "Standby · idle"}
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">

@@ -1782,7 +1782,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
               />
             ) : (
               <div style={{ fontSize: 12, color: "#64748b", lineHeight: 1.5 }}>
-                Waiting for Bureau / Atlas events. The reactor scheme stays fully visible — this panel fills when the desk moves.
+                Desk idle. Scheme stays up — this fills when work starts.
               </div>
             )}
           </div>
