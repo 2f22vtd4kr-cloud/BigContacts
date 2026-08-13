@@ -1324,11 +1324,15 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
         }
 
         // FORCE classic org emails onto company row (Grok parity: sales@cmi79 on about-us must score)
+        // Also normalize obfuscated forms (info [at] / info (at) / info at domain) from CONTACT FACTS / trajectory.
         if (agenticCompanyName) {
           const classicRe = /\b((?:info|contact|sales|office|support|hello|admin|service|parts|inquiries)@[a-z0-9.-]+\.[a-z]{2,})\b/gi;
+          const obfuscatedRe =
+            /\b((?:info|contact|sales|office|support|hello|admin|service|parts|inquiries)(?:\s*\[at\]\s*|\s*\(at\)\s*|\s+at\s+)[a-z0-9.-]+\.[a-z]{2,})\b/gi;
           const seenEmail = new Set<string>();
           const attachEmail = (raw: string, sourceUrls: string[]) => {
-            const email = raw.toLowerCase().trim();
+            let email = raw.toLowerCase().trim();
+            email = email.replace(/\s*\[at\]\s*|\s*\(at\)\s*|\s+at\s+/g, "@");
             if (!email || seenEmail.has(email)) return;
             if (!/^(info|contact|sales|office|support|hello|admin|service|parts|inquiries)@/i.test(email)) return;
             seenEmail.add(email);
@@ -1345,17 +1349,17 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
           };
           for (const f of agenticDiscovery.findings ?? []) {
             if (f.vectorType === "email" && f.value) attachEmail(f.value, f.sourceUrls || []);
-            // Also scan finding value/note text
+            // Also scan finding value/note text (classic + obfuscated)
             for (const m of String(f.value || "").matchAll(classicRe)) attachEmail(m[1]!, f.sourceUrls || []);
             for (const m of String(f.note || "").matchAll(classicRe)) attachEmail(m[1]!, f.sourceUrls || []);
+            for (const m of String(f.value || "").matchAll(obfuscatedRe)) attachEmail(m[1]!, f.sourceUrls || []);
+            for (const m of String(f.note || "").matchAll(obfuscatedRe)) attachEmail(m[1]!, f.sourceUrls || []);
           }
           for (const line of agenticDiscovery.trajectory ?? []) {
-            for (const m of String(line).matchAll(classicRe)) {
-              // Prefer company-domain URL from trajectory if present
-              const urlMatch = String(line).match(/https?:\/\/[^\s]+/i);
-              const urls = urlMatch ? [urlMatch[0]] : [];
-              attachEmail(m[1]!, urls);
-            }
+            const urlMatch = String(line).match(/https?:\/\/[^\s]+/i);
+            const urls = urlMatch ? [urlMatch[0]] : [];
+            for (const m of String(line).matchAll(classicRe)) attachEmail(m[1]!, urls);
+            for (const m of String(line).matchAll(obfuscatedRe)) attachEmail(m[1]!, urls);
           }
           // Scan contactEvidence from agentic pass too
           for (const e of agenticDiscovery.contactEvidence ?? []) {
