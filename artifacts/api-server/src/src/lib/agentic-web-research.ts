@@ -19,6 +19,7 @@ import {
   formatWalletSeedPlanForPrompt,
   objectiveLooksWalletFirst,
 } from "./wallet-seed";
+import { lookupDomainSurface, findingsFromDomainSurface } from "./domain-surface";
 
 export type AgenticFinding = {
   vectorType: "email" | "phone" | "linkedin" | "website" | "other" | "social";
@@ -1282,6 +1283,7 @@ export async function runAgenticWebResearch(input: {
   // URLs seen in SERP — used to force visits when the LLM only searches
   const candidateUrls: string[] = [];
   const visitedUrls = new Set<string>();
+  const domainSurfaceDone = new Set<string>(); // one RDAP/WhoisJSON hop per primary domain
 
   const isAggregatorHost = (u: string): boolean =>
     /zoominfo|rocketreach|adapt\.io|signalhire|contactout|growjo|apollo\.io|clearbit|hunter\.io|mibarry|chamber|yelp|dnb\.com|bloomberg\.com\/profile|crunchbase|pitchbook|linkedin\.com\/company|mapquest|bbb\.org|yellowpages|superpages|manta\.com|bizapedia|opencorporates|equilar|prospeo|thebluebook|dot\.report/i.test(
@@ -1370,6 +1372,25 @@ export async function runAgenticWebResearch(input: {
       findings = mergeFindings(findings, extracted);
       history.push(`${stepLabel}: auto_findings=${extracted.length}`);
     }
+    // Permanent domain surface hop (RDAP-first + WhoisJSON): longevity / stability signal only.
+    // Fail-closed — never invent registrant contacts from privacy-redacted records.
+    try {
+      const site = extracted.find((f) => f.vectorType === "website") || findings.find((f) => f.vectorType === "website");
+      if (site?.value) {
+        const host = new URL(site.value).hostname.replace(/^www\./, "");
+        if (host && !domainSurfaceDone.has(host)) {
+          domainSurfaceDone.add(host);
+          const surface = await lookupDomainSurface(host);
+          const domainFindings = findingsFromDomainSurface(surface, next);
+          if (domainFindings.length) {
+            findings = mergeFindings(findings, domainFindings as any);
+            history.push(`${stepLabel}: domain_surface ${surface.summary}`);
+          } else {
+            history.push(`${stepLabel}: domain_surface ${surface.summary}`);
+          }
+        }
+      }
+    } catch { /* non-fatal */ }
     return true;
   };
 
@@ -1917,6 +1938,22 @@ export async function runAgenticWebResearch(input: {
         history.push(`step${i + 1}: auto_findings=${extracted.length}`);
         lastObservation += `\n\n(System extracted ${extracted.length} contact fact(s) from this page — include them in done.findings with this URL as sourceUrl.)`;
       }
+      // Permanent domain surface hop (RDAP-first + WhoisJSON)
+      try {
+        const site = extracted.find((f) => f.vectorType === "website") || findings.find((f) => f.vectorType === "website");
+        if (site?.value) {
+          const host = new URL(site.value).hostname.replace(/^www\./, "");
+          if (host && !domainSurfaceDone.has(host)) {
+            domainSurfaceDone.add(host);
+            const surface = await lookupDomainSurface(host);
+            const domainFindings = findingsFromDomainSurface(surface, action.url);
+            if (domainFindings.length) {
+              findings = mergeFindings(findings, domainFindings as any);
+            }
+            history.push(`step${i + 1}: domain_surface ${surface.summary}`);
+          }
+        }
+      } catch { /* non-fatal */ }
       continue;
     }
 
