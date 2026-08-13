@@ -252,7 +252,7 @@ function ContactVectorsStrip({ entity, compact = false }: { entity: any; compact
     social: "Social",
     related: "Related person",
   };
-  const shown = compact ? vectors.slice(0, 4) : vectors;
+  const shown = compact ? vectors.slice(0, 6) : vectors;
   const extra = compact ? Math.max(0, vectors.length - shown.length) : 0;
   return (
     <div className={cn("flex flex-wrap gap-1.5 max-w-full", compact && "gap-1")}>

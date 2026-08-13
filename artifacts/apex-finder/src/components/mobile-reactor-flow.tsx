@@ -303,7 +303,7 @@ function LiveResearchConsole({
         />
       </div>
 
-      <details className="mb-3 rounded-xl border border-white/10 bg-white/[0.02] group">
+      <details className="mb-3 rounded-xl border border-white/10 bg-white/[0.02] group" open={Boolean(isLive)}>
         <summary className="cursor-pointer list-none px-3 py-2.5 flex items-center justify-between gap-2">
           <span className="text-[9px] font-mono uppercase tracking-[0.16em] text-slate-500">Phase & queue detail</span>
           <span className="text-[9px] font-mono text-slate-600 group-open:hidden">show</span>
