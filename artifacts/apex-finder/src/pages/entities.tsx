@@ -218,14 +218,17 @@ function collectContactVectors(entity: any): Array<{
     }
   } catch { /* ignore bad metadata */ }
 
-  // de-dupe by kind+value
+  // de-dupe by kind+value, then rank: personal → related → org → social
   const seen = new Set<string>();
-  return out.filter((v) => {
-    const k = `${v.kind}:${v.value.toLowerCase()}`;
-    if (seen.has(k)) return false;
-    seen.add(k);
-    return true;
-  });
+  const rank: Record<string, number> = { personal: 0, related: 1, org: 2, social: 3 };
+  return out
+    .filter((v) => {
+      const k = `${v.kind}:${v.value.toLowerCase()}`;
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    })
+    .sort((a, b) => (rank[a.tier] ?? 9) - (rank[b.tier] ?? 9));
 }
 
 function ContactVectorsStrip({ entity, compact = false }: { entity: any; compact?: boolean }) {
@@ -322,55 +325,92 @@ function MobileEntityCard({
             ? "Public vector — review"
             : "No public route";
 
+  const vectors = collectContactVectors(entity);
+  const bestReach = vectors.find((v) => v.tier === "personal" && (v.kind === "email" || v.kind === "phone"));
+  const relatedPeople = vectors.filter((v) => v.kind === "person").slice(0, 2);
+  const isHot = Boolean(entity.isHot);
+
   return (
-      <div className={cn("border-b border-border bg-card transition-colors hover:bg-card/80", selected && "bg-primary/5")}>
+      <div className={cn("border-b border-border bg-card transition-colors hover:bg-card/80", selected && "bg-primary/5", isHot && "border-l-2 border-l-amber-400/80")}>
       <div 
         onClick={onToggleExpand}
-        className="flex items-center px-4 py-3 cursor-pointer"
+        className="flex items-start px-4 py-3 cursor-pointer gap-0"
       >
-        <button onClick={onToggleSelect} className="shrink-0 mr-3" aria-label={selected ? "Deselect" : "Select"}>
+        <button onClick={onToggleSelect} className="shrink-0 mr-3 mt-0.5" aria-label={selected ? "Deselect" : "Select"}>
           {selected ? <CheckSquare className="w-4 h-4 text-primary" /> : <Square className="w-4 h-4 text-muted-foreground" />}
         </button>
         <div className="flex-1 min-w-0 pr-2">
-          <div className="font-semibold text-[14px] text-foreground truncate">
-            {formatEntityName(entity.name)}
+          {/* Row 1: name + value badges */}
+          <div className="flex items-start gap-2 min-w-0">
+            <div className="font-semibold text-[14px] text-foreground truncate min-w-0 flex-1">
+              {formatEntityName(entity.name)}
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              {isHot && (
+                <span className="text-[8px] font-mono font-bold uppercase tracking-wider text-amber-300 bg-amber-400/15 border border-amber-400/30 px-1.5 py-0.5 rounded">Hot</span>
+              )}
+              <CompletenessBadge entity={entity} />
+            </div>
           </div>
-          {entity.linkedinHeadline && (
-            <div className="text-[10px] text-muted-foreground/60 font-mono truncate mt-0.5" title={entity.linkedinHeadline}>
-              {entity.linkedinHeadline}
+
+          {/* Row 2: PRIMARY REACH — the money line */}
+          {bestReach ? (
+            <div className="mt-1.5 flex items-center gap-1.5 min-w-0">
+              <span className="text-[8px] font-mono uppercase tracking-wider text-emerald-400/90 shrink-0">Reach</span>
+              <a
+                href={bestReach.kind === "email" ? `mailto:${bestReach.value}` : `tel:${bestReach.value}`}
+                className="text-[12px] font-mono text-emerald-300 truncate hover:underline"
+                onClick={(e) => e.stopPropagation()}
+                title={bestReach.value}
+              >
+                {bestReach.value}
+              </a>
+            </div>
+          ) : relatedPeople.length > 0 ? (
+            <div className="mt-1.5 flex items-center gap-1.5 min-w-0">
+              <span className="text-[8px] font-mono uppercase tracking-wider text-amber-300/90 shrink-0">People</span>
+              <span className="text-[12px] text-amber-100/90 truncate">
+                {relatedPeople.map((p) => p.value).join(" · ")}
+              </span>
+            </div>
+          ) : (
+            <div className="mt-1.5 text-[11px] font-mono text-muted-foreground/70 truncate">
+              {contactState}
             </div>
           )}
-          <div className="mt-2 text-[10px] leading-4 text-muted-foreground/80 line-clamp-2">
-            {workSummary ?? "No documented role or activity recorded"}
-          </div>
+
+          {/* Row 3: all contact vectors */}
           <div className="mt-1.5">
             <ContactVectorsStrip entity={entity} compact />
           </div>
-          <div className="mt-1.5">
+
+          {/* Row 4: role / activity — secondary */}
+          <div className="mt-1.5 text-[10px] leading-4 text-muted-foreground/75 line-clamp-1">
+            {workSummary ?? entity.linkedinHeadline ?? "No role line yet"}
+          </div>
+
+          <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
             <span
               className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded flex items-center gap-1 w-max"
               style={{ color: typeColor, backgroundColor: typeColor + "18" }}
             >
               <EntityTypeMark type={entity.type} compact />
             </span>
+            {entity.contactOutcome && OUTCOME_BADGES[entity.contactOutcome] && (
+              <span
+                className="text-[9px] font-mono px-1.5 py-0.5 rounded"
+                style={{
+                  color: OUTCOME_BADGES[entity.contactOutcome].color,
+                  background: OUTCOME_BADGES[entity.contactOutcome].color + "18",
+                }}
+              >
+                {OUTCOME_BADGES[entity.contactOutcome].label}
+              </span>
+            )}
           </div>
         </div>
-        <div className="shrink-0 flex items-center gap-2">
-          {organizationLike ? (
-            <span
-              className={cn(
-                "text-[9px] font-mono font-bold uppercase tracking-wide px-1.5 py-1 rounded border whitespace-nowrap",
-                entity.contactOutcome === "organization_contact"
-                  ? "text-violet-300 border-violet-400/30 bg-violet-400/10"
-                  : "text-muted-foreground border-border bg-muted/30",
-              )}
-              title={entity.contactOutcome === "organization_contact"
-                ? "Organization contact route — not a personal access route"
-                : "No validated personal access route is recorded for this organization"}
-            >
-              {contactState}
-            </span>
-          ) : (
+        <div className="shrink-0 flex flex-col items-end gap-1.5 pt-0.5">
+          {!organizationLike && (
             <>
               <ConfidenceBadge score={entity.contactConfidence} />
               <AccessScoreBadge score={entity.accessScore} />
@@ -1098,7 +1138,23 @@ export default function EntityLedger() {
                           </span>
                         )}
                          <div className="min-w-0">
-                          <div className="font-semibold text-sm text-foreground whitespace-nowrap">{formatEntityName(entity.name)}</div>
+                          <div className="font-semibold text-sm text-foreground whitespace-nowrap flex items-center gap-2">
+                            {formatEntityName(entity.name)}
+                            <CompletenessBadge entity={entity} />
+                          </div>
+                          {(() => {
+                            const v = collectContactVectors(entity).find((x) => x.tier === "personal" && (x.kind === "email" || x.kind === "phone"));
+                            if (!v) return null;
+                            return (
+                              <a
+                                href={v.kind === "email" ? `mailto:${v.value}` : `tel:${v.value}`}
+                                className="mt-0.5 block max-w-[240px] truncate text-[11px] font-mono text-emerald-400 hover:underline"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {v.value}
+                              </a>
+                            );
+                          })()}
                            <div className="mt-1 max-w-[260px] truncate text-[10px] leading-4 text-muted-foreground/65" title={entityWorkSummary(entity) ?? undefined}>
                              {entityWorkSummary(entity) ?? entityFindingsSummary(entity)}
                            </div>
