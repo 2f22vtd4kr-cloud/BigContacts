@@ -13,6 +13,12 @@
 import { logger } from "./logger";
 import { filterClaimUrls, filterPassagesForQuery } from "./passage-filter";
 import { sanitizePublicEmail, sanitizePublicPhone, isTrashContactValue } from "./contact-validation";
+import {
+  extractWalletSeedsFromText,
+  buildWalletSeedPlan,
+  formatWalletSeedPlanForPrompt,
+  objectiveLooksWalletFirst,
+} from "./wallet-seed";
 
 export type AgenticFinding = {
   vectorType: "email" | "phone" | "linkedin" | "website" | "other" | "social";
@@ -1143,8 +1149,26 @@ export async function runAgenticWebResearch(input: {
   const maxIter = Math.min(input.maxIterations ?? MAX_ITER, 14);
   const hardTimeoutMs = Math.max(30_000, input.hardTimeoutMs ?? 150_000);
   const startedAt = Date.now();
-  const objective = input.objective
+  let objective = input.objective
     ?? `Find publicly documented contact routes (email, phone, LinkedIn, website, related people) for ${name}${input.companyName ? ` related to ${input.companyName}` : ""}. Be thorough and creative.`;
+
+  // Wallet-first seed: if objective/target carries a wallet, prepend fail-closed attribution plan
+  {
+    const walletText = `${objective}\n${name}\n${input.companyName || ""}`;
+    const seeds = extractWalletSeedsFromText(walletText);
+    if (seeds.length > 0 || objectiveLooksWalletFirst(objective)) {
+      const seed = seeds[0] || null;
+      if (seed) {
+        const plan = buildWalletSeedPlan(seed);
+        objective = `${formatWalletSeedPlanForPrompt(plan)}\n\nThen maximize attributable people-contacts for the attributed holder.\n\n${objective}`;
+      } else {
+        objective =
+          `WALLET-FIRST mode: objective suggests crypto-wallet discovery. ` +
+          `Attribute any holder from public sources before contact hops. ` +
+          `Reject exchange/mixer/protocol treasuries. Never invent holder or contacts.\n\n${objective}`;
+      }
+    }
+  }
 
   // Fresh browser-escalate budget per agentic pass (Scrapfly/ZenRows)
   try {
