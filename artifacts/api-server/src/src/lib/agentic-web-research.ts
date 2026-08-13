@@ -585,6 +585,7 @@ Return ONE JSON object only.`;
 function isCompanyAlignedEmail(email: string, companyName?: string | null, pageUrl?: string): boolean {
   const domain = (email.split("@")[1] || "").toLowerCase();
   if (!domain) return false;
+  if (/example\.|sentry\.|schema\.|wixpress|cloudflare|wordpress|github\.com|google\.com|microsoft\.com/.test(domain)) return false;
   const local = (email.split("@")[0] || "").toLowerCase();
   const isClassicOrgMailbox = /^(info|contact|sales|office|support|hello|admin|service|parts|inquiries)$/i.test(local);
   try {
@@ -600,17 +601,26 @@ function isCompanyAlignedEmail(email: string, companyName?: string | null, pageU
           return true;
         }
       }
+      // Classic org mailbox on a non-directory page we deliberately visited under company research
+      if (
+        isClassicOrgMailbox
+        && host
+        && !/zoominfo|rocketreach|mapquest|bbb\.org|yelp|facebook|linkedin|twitter|wikipedia|chamber/i.test(host)
+      ) {
+        return true;
+      }
     }
   } catch { /* ignore */ }
   if (companyName) {
     const token = companyName.toLowerCase().replace(/[^a-z0-9]+/g, "");
     const domFlat = domain.replace(/[^a-z0-9]/g, "");
-    // Mid-market short names (DYNA, etc.): 3+ token chars is enough when domain contains the stem
     if (token.length >= 3 && (
       domFlat.includes(token.slice(0, Math.min(6, token.length)))
       || domain.includes(token.slice(0, Math.min(4, token.length)))
     )) return true;
   }
+  // Classic org mailbox with company context even without pageUrl (SERP snippet path)
+  if (isClassicOrgMailbox && companyName && companyName.replace(/[^a-z0-9]/gi, "").length >= 4) return true;
   return false;
 }
 
