@@ -115,7 +115,7 @@ export function WorkspaceStatus() {
       if (!mounted) return;
       let nextError = true;
       if (atlasResult.status === "fulfilled" && atlasResult.value.ok) {
-        setAtlas(await atlasResult.value.json() as AtlasStatus);
+        try { setAtlas(await atlasResult.value.json() as AtlasStatus); } catch { /* offline */ }
         nextError = false;
       }
       if (systemResult.status === "fulfilled") {

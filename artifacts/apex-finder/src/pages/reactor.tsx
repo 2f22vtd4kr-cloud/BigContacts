@@ -154,6 +154,36 @@ function atlasPhaseFromMessage(message: string, progress = 0): number {
   return Math.min(10, Math.max(0, progress));
 }
 
+
+/** Visual inspection only — /reactor?demo=1 seeds Griffin-class live telemetry (not production data). */
+function buildDemoAtlasState(): AtlasLiveState {
+  const now = new Date();
+  const ts = (s: number) => new Date(now.getTime() - s * 1000).toISOString();
+  return {
+    runStatus: "running", phase: 1, phaseLabel: "DISCOVERY", phaseProgress: 4, phaseTotal: 10,
+    sourceStep: 4, sourceTotal: 12,
+    currentEntities: ["Griffin Tool Co.", "Malcolm Cowan", "Jenny Cowan"],
+    entityProgress: 1, entityTotal: 3,
+    detail: "[4/12] DISCOVERY — WEB DISC. Tavily + Gemini grounded search on Griffin Tool owners",
+    atlasTelemetry: {
+      stage: "discovery", status: "active", targetName: "Griffin Tool Co.", targetType: "company",
+      activeToolId: "tavily", toolIds: ["tavily", "gemini", "web", "ch", "edgar"],
+      prompt: "List officers with personal or role emails only. Never invent contacts.",
+      inputSummary: "Griffin Tool Co. owner founder email contact Michigan",
+      resultSummary: "RDAP + WhoisJSON hop complete; team page mailto recovered",
+      sources: 6, evidence: 4, contacts: 2, personaNames: ["Malcolm Cowan", "Jenny Cowan"],
+    },
+    eventLog: [
+      { timestamp: ts(8), kind: "telemetry", stage: "discovery", status: "active", activeToolId: "tavily", inputSummary: "Griffin Tool Co. owner founder email contact Michigan", resultSummary: "AI-native search · 8 hits · mid-market ownership", sources: 8, contacts: 0 },
+      { timestamp: ts(22), kind: "telemetry", stage: "discovery", status: "active", activeToolId: "web", inputSummary: "https://griffintool.com/contact", resultSummary: "mailto recovered from team card", sources: 1, contacts: 1 },
+      { timestamp: ts(35), kind: "telemetry", stage: "ai", status: "active", activeToolId: "gemini", prompt: "List officers with personal or role emails only. Never invent contacts.", resultSummary: "Streaming structured candidates · Malcolm Cowan · Jenny Cowan", sources: 2, contacts: 2 },
+      { timestamp: ts(48), kind: "telemetry", stage: "registry", status: "active", activeToolId: "ch", resultSummary: "Companies House officers surface queued", sources: 1, evidence: 1 },
+      { timestamp: ts(60), kind: "telemetry", stage: "domain", status: "complete", activeToolId: "whoisjson", resultSummary: "RDAP + WhoisJSON hop complete", sources: 2, evidence: 1 },
+      { timestamp: ts(75), kind: "telemetry", stage: "discovery", status: "active", activeToolId: "edgar", resultSummary: "EDGAR co-filers queued", sources: 0 },
+    ],
+  };
+}
+
 function parseAtlasLiveState(message: string, progress = 0, total = 10, runStatus: AtlasLiveState["runStatus"] = "running"): AtlasLiveState {
   const phase = runStatus === "done"
     ? total
@@ -1718,6 +1748,15 @@ export default function IntelligenceReactorPage() {
            setLiveNodes(new Set());
            setLiveLabel("");
            setLivePhaseDetail("");
+      }
+      if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("demo") === "1") {
+        const demo = buildDemoAtlasState();
+        setAtlasState(demo);
+        setLiveNodes(new Set(["target", "tavily", "web", "gemini", "ch", "edgar", "groq", "mcts"]));
+        setLiveLabel("▶ [4/12] DISCOVERY — WEB DISC · Griffin Tool Co.");
+        setLivePhaseDetail("Step 4/12 — WEB DISC. Tavily + Gemini on Griffin Tool owners");
+        setTotalEntities(3); setHotCount(2); setTotalAssets(1);
+        return;
       }
       setAtlasState(nextAtlasState);
     } catch { /* non-fatal */ }

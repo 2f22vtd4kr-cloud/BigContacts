@@ -251,8 +251,8 @@ export default function Dashboard() {
         </div>
         {hasError ? <ErrorState onRetry={() => { void statsQuery.refetch(); void leadsQuery.refetch(); }} /> :
           isLoading ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">{[0, 1, 2, 3].map((item) => <LeadSkeleton key={item} />)}</div> :
-          leads.length === 0 ? <EmptyLeads /> :
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">{leads.map((lead: any, index: number) => <LeadCard key={lead.entityId} lead={lead} index={index} />)}</div>}
+          (!Array.isArray(leads) || leads.length === 0) ? <EmptyLeads /> :
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">{(Array.isArray(leads) ? leads : []).map((lead: any, index: number) => <LeadCard key={lead.entityId} lead={lead} index={index} />)}</div>}
       </section>
 
       <section className="atlas-enter mt-10 grid gap-4 border-t border-border/70 pt-7 md:grid-cols-[1fr_auto]" style={{ animationDelay: "210ms" }}>
