@@ -221,6 +221,24 @@ function extractContactFactsFromHtml(html: string): string {
     const name = m[1]!.replace(/\s+/g, " ").trim();
     if (name.split(/\s+/).length >= 2 && name.length < 50) push(`PERSON: ${name} — principal`);
   }
+  // Compound title then name: "President and CEO Bryon Shafer" / "CFO Rick Sykora" (PR buyout style)
+  for (const m of html.matchAll(
+    /\b(?:President\s+and\s+CEO|CEO\s+and\s+President|President|CEO|Chief Executive Officer|CFO|Chief Financial Officer|COO|Chief Operating Officer|Executive Chairman)\s+([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)?)\b/g,
+  )) {
+    const name = m[1]!.replace(/\s+/g, " ").trim();
+    if (name.split(/\s+/).length >= 2 && name.length < 50 && !/^(Inc|LLC|Corp|Company|Board|the)\b/i.test(name)) {
+      push(`PERSON: ${name} — principal`);
+    }
+  }
+  for (const m of html.matchAll(
+    /\bco-?founder\s+([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)?)\b/gi,
+  )) {
+    const name = m[1]!.replace(/\s+/g, " ").trim();
+    if (name.split(/\s+/).length >= 2 && name.length < 50) {
+      push(`PERSON: ${name} — co-founder`);
+    }
+  }
+
   // Same-line Name / Title (KB Tool & Die style): "Alan G. Klinger / President"
   for (const m of html.matchAll(
     /\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\s*\/\s*((?:President|CEO|Owner|Founder|Vice President|VP|General Manager|Director|Principal|Treasurer|Chairman|Manager|Supervisor)[^<\n@]{0,40})/g,
