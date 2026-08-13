@@ -465,7 +465,7 @@ function LiveResearchConsole({
           <summary className="flex min-h-[46px] cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 touch-manipulation">
             <span className="flex min-w-0 items-center gap-2">
               <Activity className="h-3.5 w-3.5 shrink-0 text-cyan-400/80" />
-              <span className="truncate text-[9px] uppercase tracking-[0.16em] text-slate-500">Confirmed event feed</span>
+              <span className="truncate text-[9px] uppercase tracking-[0.16em] text-slate-500">Live action log · browser · prompts · tools</span>
               <span className="rounded-full bg-white/[0.06] px-1.5 py-0.5 text-[8px] tabular-nums text-slate-500">
                 {atlasState.eventLog.length}
               </span>
@@ -473,7 +473,7 @@ function LiveResearchConsole({
             <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-600" />
           </summary>
           <div className="space-y-2 border-t border-white/10 px-3 pb-3 pt-3">
-            {atlasState.eventLog.slice(0, 8).map((event, index) => {
+            {atlasState.eventLog.slice(0, 16).map((event, index) => {
               const status = event.status ?? "active";
               const statusColor =
                 status === "complete"

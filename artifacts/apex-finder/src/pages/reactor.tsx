@@ -709,26 +709,39 @@ function EntityWorkbench({ state, liveNodes, compact = false }: {
 }
 
 const TELEMETRY_TOOL_LABELS: Record<string, string> = {
-  target: "TARGET",
-  inhouse: "IN-HOUSE",
+  target: "TARGET LOCK",
+  inhouse: "IN-HOUSE REGISTRY",
   webdisc: "WEB DISCOVERY",
-  deepweb: "DEEP WEB",
+  deepweb: "DEEP WEB OSINT",
   perp0: "PERPLEXITY",
   perpfu: "PERPLEXITY+",
-  exa: "EXA",
+  exa: "EXA NEURAL",
   tavily: "TAVILY",
-  gemini: "GEMINI",
+  gemini: "GEMINI BOSS",
   groq: "GROQ",
-  maigret: "MAIGRET",
-  holehe: "HOLEHE",
-  occrp: "OCCRP",
-  whoxy: "WHOXY",
-  graph: "GRAPH",
+  maigret: "MAIGRET FOOTPRINT",
+  holehe: "HOLEHE EMAIL",
+  occrp: "OCCRP ALEPH",
+  whoxy: "WHOXY (SKIP IF BALANCE 0)",
+  rdap: "RDAP DOMAIN",
+  whoisjson: "WHOISJSON",
+  "domain-surface": "DOMAIN SURFACE (RDAP+WHOISJSON)",
+  graph: "GRAPH ENGINE",
   mcts: "UCT / MCTS",
   prac: "PRAC",
   evidence: "EVIDENCE REVIEW",
   "persona-review": "11-PERSONA QUALITY REVIEW",
-  sherlock: "SHERLOCK",
+  sherlock: "SHERLOCK USERNAMES",
+  scrapfly: "BROWSER · SCRAPFLY",
+  zenrows: "BROWSER · ZENROWS",
+  "browser-fetch": "BROWSER FETCH",
+  "agentic-web": "AGENTIC WEB LOOP",
+  "contact-facts": "CONTACT FACTS HTML",
+  serper: "SERPER SERP",
+  serpapi: "SERPAPI",
+  "force-related": "FORCE RELATED-PEOPLE",
+  "companies-house": "COMPANIES HOUSE",
+  edgar: "SEC EDGAR",
 };
 
 const PERSONA_REVIEW_TOOL = "persona-review";
@@ -820,26 +833,47 @@ function AtlasTelemetryInspector({ telemetry, eventLog = [] }: { telemetry?: any
       {eventLog.length > 0 && (
         <div style={{ marginTop:10, paddingTop:8, borderTop:"1px solid #192840" }}>
           <div style={{ color:"#22d3ee", fontSize:6.5, letterSpacing:"0.14em", marginBottom:6 }}>
-            RESEARCH EVENT LOG · {eventLog.length} RECENT EVENTS
+            LIVE ACTION LOG · {eventLog.length} EVENTS (BROWSER · PROMPTS · TOOLS)
           </div>
           <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
-            {eventLog.slice(0, 10).map((event, index) => (
+            {eventLog.slice(0, 24).map((event, index) => {
+              const toolId = event.activeToolId || (event.toolIds && event.toolIds[0]) || "";
+              const isBrowser = /scrapfly|zenrows|browser|visit|fetch/i.test(String(toolId) + String(event.stage||"") + String(event.resultSummary||""));
+              const isPrompt = Boolean(event.prompt) || /prompt|gemini|groq|llm/i.test(String(toolId));
+              const isSherlock = /sherlock|maigret|holehe/i.test(String(toolId) + String(event.stage||""));
+              const isDomain = /rdap|whois|domain-surface|whoxy/i.test(String(toolId) + String(event.stage||""));
+              const kindColor = isBrowser ? "#f59e0b" : isPrompt ? "#a3e635" : isSherlock ? "#c4b5fd" : isDomain ? "#67e8f9" : event.status === "complete" ? "#a3e635" : "#8aa4c0";
+              const kindTag = isBrowser ? "BROWSER" : isPrompt ? "PROMPT" : isSherlock ? "FOOTPRINT" : isDomain ? "DOMAIN" : (event.status || "ACTION").toString().toUpperCase();
+              return (
               <details key={`${event.timestamp ?? "event"}-${index}`} style={{
-                border:"1px solid #192840", borderRadius:4, padding:"5px 6px", background:"#0d1525",
+                border:`1px solid ${kindColor}33`, borderRadius:4, padding:"5px 6px", background:"#0d1525",
               }}>
-                <summary style={{ cursor:"pointer", listStyle:"none", color:event.status === "complete" ? "#a3e635" : event.status === "review" ? "#fbbf24" : "#8aa4c0", fontSize:6.7 }}>
+                <summary style={{ cursor:"pointer", listStyle:"none", color:kindColor, fontSize:6.7 }}>
                   <span style={{ color:"#526b86" }}>{event.timestamp?.slice(11, 19) ?? "--:--:--"} </span>
+                  <span style={{ color:kindColor, letterSpacing:"0.08em", marginRight:4 }}>[{kindTag}]</span>
                   {event.stage ?? "Research event"}
-                  <span style={{ color:"#526b86" }}> · {event.activeToolId === PERSONA_REVIEW_TOOL ? "Post-research quality review" : event.activeToolId ? telemetryToolLabel(event.activeToolId) : "Atlas"}</span>
+                  <span style={{ color:"#526b86" }}> · {toolId === PERSONA_REVIEW_TOOL ? "Post-research quality review" : toolId ? telemetryToolLabel(toolId) : "Atlas"}</span>
                 </summary>
                 <div style={{ marginTop:5, color:"#8aa4c0", fontSize:6.5, lineHeight:1.45 }}>
                   {event.targetName && <div><span style={{ color:"#526b86" }}>TARGET </span>{event.targetName}</div>}
                   {event.inputSummary && <div><span style={{ color:"#526b86" }}>INPUT </span>{event.inputSummary}</div>}
-                  {event.prompt && <pre style={{ margin:"4px 0 0", maxHeight:90, overflowY:"auto", whiteSpace:"pre-wrap", color:"#cbd5a5", fontFamily:"inherit" }}>{event.prompt}</pre>}
-                  {event.resultSummary && <div><span style={{ color:"#526b86" }}>RESULT </span>{event.resultSummary}</div>}
+                  {event.sources != null && <div><span style={{ color:"#526b86" }}>SOURCES </span>{event.sources}</div>}
+                  {event.contacts != null && <div><span style={{ color:"#526b86" }}>CONTACTS </span>{event.contacts}</div>}
+                  {event.evidence != null && <div><span style={{ color:"#526b86" }}>EVIDENCE </span>{event.evidence}</div>}
+                  {event.prompt && (
+                    <div style={{ marginTop:4 }}>
+                      <div style={{ color:"#a3e635", letterSpacing:"0.1em", marginBottom:2 }}>PROMPT</div>
+                      <pre style={{ margin:0, maxHeight:120, overflowY:"auto", whiteSpace:"pre-wrap", color:"#cbd5a5", fontFamily:"inherit" }}>{event.prompt}</pre>
+                    </div>
+                  )}
+                  {event.resultSummary && <div style={{ marginTop:3 }}><span style={{ color:"#526b86" }}>RESULT </span>{event.resultSummary}</div>}
+                  {event.toolIds && event.toolIds.length > 1 && (
+                    <div style={{ marginTop:3 }}><span style={{ color:"#526b86" }}>TOOLS </span>{event.toolIds.map((t: string) => telemetryToolLabel(t)).join(" · ")}</div>
+                  )}
                 </div>
               </details>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

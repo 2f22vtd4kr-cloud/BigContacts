@@ -67,6 +67,40 @@ const OUTCOME_BADGES: Record<string, { label: string; color: string }> = {
   evidence_only:            { label: "evidence",      color: "#374151" },
 };
 
+/** Outreach completeness: FULL = personal/role email for owner path; PARTIAL = owner ID + org only; else INCOMPLETE */
+function deriveCompleteness(entity: any): { level: "FULL" | "PARTIAL" | "INCOMPLETE"; color: string } {
+  const outcome = String(entity.contactOutcome || "");
+  const hasPersonal =
+    outcome === "direct_contact_verified" ||
+    outcome === "direct_contact_candidate" ||
+    (entity.email && !/^(info|sales|contact|office|support|hello|admin|billing|help|service|enquiries|inquiry|mail|general|team|hr|jobs|careers|noreply|no-reply|donotreply|marketing|media|pr|webmaster|postmaster|abuse)@/i.test(String(entity.email)));
+  const ownerish = /owner|president|ceo|founder|principal|partner|chairman/i.test(
+    `${entity.linkedinHeadline || ""} ${entity.notes || ""} ${entity.contactMethod || ""}`,
+  );
+  if (hasPersonal && (ownerish || outcome === "direct_contact_verified")) {
+    return { level: "FULL", color: "#10B981" };
+  }
+  if (ownerish || outcome === "organization_contact" || outcome === "social_only") {
+    return { level: "PARTIAL", color: "#F59E0B" };
+  }
+  if (hasPersonal) return { level: "PARTIAL", color: "#F59E0B" };
+  return { level: "INCOMPLETE", color: "#64748B" };
+}
+
+function CompletenessBadge({ entity }: { entity: any }) {
+  const { level, color } = deriveCompleteness(entity);
+  return (
+    <span
+      className="inline-block text-[9px] font-mono font-bold px-1.5 py-0.5 rounded"
+      style={{ color, background: color + "18" }}
+      title="Outreach completeness — FULL = personal/role email for owner/principal"
+      data-testid="badge-completeness"
+    >
+      {level}
+    </span>
+  );
+}
+
 // ─── CSV export ───────────────────────────────────────────────────────────────
 
 function exportToCsv(entities: any[]) {
@@ -270,17 +304,20 @@ function MobileEntityCard({
                  ? `${contactState} · not a personal route`
                  : contactState}
              </div>
-            {entity.contactOutcome && OUTCOME_BADGES[entity.contactOutcome] && (
-              <span
-                className="inline-block text-[9px] font-mono px-1.5 py-0.5 rounded mt-0.5"
-                style={{
-                  color: OUTCOME_BADGES[entity.contactOutcome].color,
-                  background: OUTCOME_BADGES[entity.contactOutcome].color + "18",
-                }}
-              >
-                {OUTCOME_BADGES[entity.contactOutcome].label}
-              </span>
-            )}
+            <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+              {entity.contactOutcome && OUTCOME_BADGES[entity.contactOutcome] && (
+                <span
+                  className="inline-block text-[9px] font-mono px-1.5 py-0.5 rounded"
+                  style={{
+                    color: OUTCOME_BADGES[entity.contactOutcome].color,
+                    background: OUTCOME_BADGES[entity.contactOutcome].color + "18",
+                  }}
+                >
+                  {OUTCOME_BADGES[entity.contactOutcome].label}
+                </span>
+              )}
+              <CompletenessBadge entity={entity} />
+            </div>
           </div>
 
           {registries.length > 0 && (
@@ -1019,7 +1056,7 @@ export default function EntityLedger() {
                         {!entity.email && !entity.phone && !entity.linkedinUrl && (
                           <span className="text-muted-foreground/40 font-mono text-[11px] italic">—</span>
                         )}
-                        {/* Outcome quality badge */}
+                        {/* Outcome quality + completeness */}
                         {entity.contactOutcome && OUTCOME_BADGES[entity.contactOutcome] && (
                           <span
                             className="text-[9px] font-mono px-1.5 py-0.5 rounded w-max"
@@ -1031,6 +1068,7 @@ export default function EntityLedger() {
                             {OUTCOME_BADGES[entity.contactOutcome].label}
                           </span>
                         )}
+                        <CompletenessBadge entity={entity} />
                       </div>
                     </td>
                     <td className="px-4 py-3 text-right text-[10px] font-mono text-muted-foreground">
