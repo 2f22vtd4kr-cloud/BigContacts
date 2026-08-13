@@ -330,7 +330,7 @@ function extractContactFactsFromHtml(html: string): string {
   }
   // Plain-text multi-line: "Nelson Reyes\nPresident..." / "### Frank K. Chesek\n#### CEO/Company President"
   for (const m of stripHtml(html).matchAll(
-    /(?:^|\n)\s*#{0,4}\s*([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\s*\n\s*#{0,4}\s*((?:President|CEO|Chief Executive Officer|Owner|Founder|Vice President|VP|CFO|Chief Financial Officer|COO|Chief Operating Officer|Director|Principal|Treasurer|Chairman|Executive Chairman|Executive Assistant|Manager|Controller|Engineer|Supervisor|Managing Partner|Project Coordinator|Human Resources|Technical Sales|Quality Manager|VP of Manufacturing|second-generation owner)[^\n]{0,60})/gm,
+    /(?:^|\n)\s*#{0,4}\s*([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\s*\n\s*#{0,4}\s*((?:President|CEO|Chief Executive Officer|Owner|Founder|Vice President|VP|CFO|Chief Financial Officer|COO|Chief Operating Officer|Director|Principal|Treasurer|Chairman|Executive Chairman|Executive Assistant|Manager|Controller|Engineer|Supervisor|Managing Partner|Project Coordinator|Human Resources|Technical Sales|Quality Manager|VP of Manufacturing|second-generation owner|Office Manager|Operations Manager|Engineering Manager|Administrative Specialist|Head of CNC|Process Engineer|Director of Business Development|Plant Manager)[^\n]{0,60})/gm,
   )) {
     const name = m[1]!.replace(/\s+/g, " ").trim();
     const role = m[2]!.replace(/\s+/g, " ").trim().slice(0, 60);
@@ -447,6 +447,21 @@ function extractContactFactsFromHtml(html: string): string {
     push(`PERSON: ${m[1]!.trim()} — related_contact`);
     push(`EMAIL: ${m[2]!.toLowerCase()}`);
     push(`PERSON_EMAIL: ${m[1]!.trim()} | ${m[2]!.toLowerCase()}`);
+  }
+
+  // Griffin-style team cards: Name heading → role line → optional Extension → mailto within ~6 lines
+  // (Wix/markdown about pages: ### Malcolm Cowan / Chief Executive Officer and President / Extension 229 / mailto)
+  for (const m of plain.matchAll(
+    /(?:^|\n)\s*#{0,4}\s*([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\s*\n\s*((?:Chief Executive Officer(?:\s+and\s+President)?|President|CEO|CFO|Chief Financial Officer|Owner|Office Manager|Operations Manager|Engineering Manager|Administrative Specialist|Senior Engineer|Head of CNC(?:\s+Department)?|Process Engineer|Director of Business Development|General Manager|Plant Manager|Controller|Manager|Director|Engineer)[^\n]{0,50})\s*(?:\n\s*Extension\s*\d+)?\s*(?:\n[^\n]{0,80}){0,4}?([a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,})/gim,
+  )) {
+    const pName = m[1]!.replace(/\s+/g, " ").trim();
+    const role = m[2]!.replace(/\s+/g, " ").trim().slice(0, 70);
+    const email = m[3]!.toLowerCase();
+    if (pName.split(/\s+/).length >= 2 && pName.length < 45 && !/Griffin Tool|Contact Us|Meet Our/i.test(pName)) {
+      push(`PERSON: ${pName} — ${role}`);
+      push(`EMAIL: ${email}`);
+      push(`PERSON_EMAIL: ${pName} | ${email}`);
+    }
   }
 
   // Name then "Role email@" on next line (Rathburn style): "Angie Holt\nPresident aholt@rathburn..."
