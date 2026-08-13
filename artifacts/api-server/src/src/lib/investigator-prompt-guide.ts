@@ -2,11 +2,23 @@
  * Shared creative OSINT guidance injected into Boss → investigator prompts.
  * Real public data only. No synthetic contacts.
  * Depth fallback matches Replit default (fast) — bulk cost-safe.
+ *
+ * Canonical shape: docs/GOLDEN_STANDARD_CASE_REFERENCE.md
+ * Boss and right-hand treat that document as the textbook execution target
+ * for mid-market public-surface cases (mixed-randomised discovery → org lock →
+ * force related-people → refuse-done → HNWI-path distinction).
  */
 
 import type { InvestigationProgress } from "./investigation-progress";
 import { formatProgressForPrompt } from "./investigation-progress";
 import { DEFAULT_RESEARCH_DEPTH, type ResearchDepth } from "./research-depth";
+
+/** Short pointer injected so Boss always sees the golden-standard reference. */
+export const GOLDEN_STANDARD_REFERENCE =
+  "GOLDEN STANDARD REFERENCE: docs/GOLDEN_STANDARD_CASE_REFERENCE.md — " +
+  "textbook mixed-randomised discovery → org surface lock → force related-people SERP → " +
+  "refuse-done until people attached → Personal vs Company·related vs org-mailbox distinction → " +
+  "HNWI-path owners/partners flagged. Match that shape. Grok is the floor.";
 
 export function buildCreativeInvestigatorAngles(input: {
   targetName: string;
@@ -25,7 +37,9 @@ export function buildCreativeInvestigatorAngles(input: {
   const country = input.country?.trim() || "unknown jurisdiction";
   const depth = input.depth ?? DEFAULT_RESEARCH_DEPTH;
 
-  return `CREATIVE PUBLIC-OSINT ANGLES (use only real public sources; never invent contacts):
+  return `${GOLDEN_STANDARD_REFERENCE}
+
+CREATIVE PUBLIC-OSINT ANGLES (use only real public sources; never invent contacts):
 1. Official team / about / leadership / contact pages on candidate domains: ${domains}
 2. Press, interviews, conference bios, award lists, club/venue pages tied to "${input.targetName}"
 3. Parent / operator / C/O groups: ${orgs} — then team pages and named officers on those entities

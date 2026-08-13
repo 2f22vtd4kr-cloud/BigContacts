@@ -1182,10 +1182,11 @@ export function buildDiscoveryCaseFile(input: {
   const bossPremise = walletFirst
     ? (
         walletPlanText
-          ? `Wallet-first discovery.\n${walletPlanText}\nAfter holder attribution, maximize people-contacts. Fail-closed.`
-          : "Wallet-first discovery. Attribute any crypto-wallet holder from public sources before contact hops. Reject exchange/mixer/treasuries. Never invent holder or contacts."
+          ? `Wallet-first discovery.\n${walletPlanText}\nAfter holder attribution, maximize people-contacts. Fail-closed. Match docs/GOLDEN_STANDARD_CASE_REFERENCE.md shape after person lock.`
+          : "Wallet-first discovery. Attribute any crypto-wallet holder from public sources before contact hops. Reject exchange/mixer/treasuries. Never invent holder or contacts. Match docs/GOLDEN_STANDARD_CASE_REFERENCE.md after attribution."
       )
-    : "Start broad. Discover realistic public-world investor routes before resolving any one target in depth.";
+    : "Start broad. Discover realistic public-world investor routes before resolving any one target in depth. " +
+      "Company-first public surface: match docs/GOLDEN_STANDARD_CASE_REFERENCE.md — mixed-randomised sources → org lock → force related-people → refuse-done until people attached → Personal vs Company·related vs org-mailbox; HNWI-path owners/partners flagged. Grok is the floor.";
   return {
     version: 3,
     caseType: "discovery",
