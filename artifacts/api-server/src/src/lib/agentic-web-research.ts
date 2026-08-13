@@ -697,9 +697,18 @@ function isCompanyAlignedEmail(email: string, companyName?: string | null, pageU
       domFlat.includes(token.slice(0, Math.min(6, token.length)))
       || domain.includes(token.slice(0, Math.min(4, token.length)))
     )) return true;
+    // Brand-short domains: "Accurate Manufacturing" → acc-mfg.com / "Custom Machine" → cmi79.com
+    // Grok keeps tlindblom@acc-mfg.com; Apex must not drop on full-name vs short-domain mismatch.
+    const words = companyName.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 3);
+    if (words.length >= 1 && domFlat.length >= 3 && domFlat.length <= 20) {
+      const prefixes = words.map((w) => w.slice(0, 3));
+      if (prefixes.some((p) => domFlat.includes(p))) return true;
+    }
   }
   // Classic org mailbox with company context even without pageUrl (SERP snippet path)
   if (isClassicOrgMailbox && companyName && companyName.replace(/[^a-z0-9]/gi, "").length >= 4) return true;
+  // Reject free-mail as company-aligned unless classic org local (already handled above)
+  if (/^(gmail|yahoo|hotmail|outlook|aol|icloud|netzero|protonmail|mail)\./i.test(domain)) return false;
   return false;
 }
 
