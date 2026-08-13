@@ -1,12 +1,14 @@
-# UI screenshots — fidelity notes
+# UI screenshots — use these
 
-## Canonical (full density)
-- `01-reactor-desktop.png` — early production scheme baseline
-- `18-reactor-scheme-desk-side.png` / `22-reactor-scheme-full-density.png` — full 26 nodes / 52 edges + Live Desk side
-- `06`–`11` — earlier live captures of reactor / desk
+## Desktop reactor (full density — 26 nodes / 52 edges + Live Desk side)
+- **`23-desktop-reactor-FULL.png`** ← current desktop reference
+- `18-reactor-scheme-desk-side.png` / `22-reactor-scheme-full-density.png` — same topology
 
-## Treated as non-canonical (simplified HTML stand-ins — do not use as design source)
-- Older sparse versions of 14 / 16 / 19 / 20 / 21 were mock layouts, same failure mode as the sparse scheme the operator rejected.
-- 14 and 21 were replaced with the full-density scheme render.
+## Mobile Live Desk (content-tight, no empty tail)
+- **`23-mobile-desk-TIGHT.png`** / `20-mobile-desk-assets.png`
 
-Production UI source of truth: `artifacts/apex-finder/src/pages/reactor.tsx` (NODES + EDGES).
+## Do NOT use
+- Anything that shows a sparse 6-box “REACTOR SCHEME” grid or stacked mobile+desktop with black voids — those were rejected stand-ins.
+- Old `21-desktop-scheme-desk-assets.png` was removed (cache poison).
+
+Source of truth for the graph: `artifacts/apex-finder/src/pages/reactor.tsx` (NODES + EDGES).
