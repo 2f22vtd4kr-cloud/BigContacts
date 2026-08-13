@@ -203,6 +203,27 @@ function extractContactFactsFromHtml(html: string): string {
       push(`SUCCESSION: sold/acquired → ${name}`);
     }
   }
+  // Heading adjacency: "## Nelson Reyes\n### President and Chief Executive Officer" (Grok reads structure)
+  // Allow one newline between name and title — common on about/who-we-are pages.
+  for (const m of html.matchAll(
+    /(?:<h[1-4][^>]*>|\n)\s*([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\s*(?:<\/h[1-4]>)?\s*(?:\n|<br\s*\/?>|\s)*\s*(?:<h[1-4][^>]*>)?\s*((?:President|CEO|Chief Executive Officer|Owner|Founder|Vice President|VP|CFO|Chief Financial Officer|COO|Director|Principal|Treasurer|Chairman)[^<\n]{0,50})/gi,
+  )) {
+    const name = m[1]!.replace(/\s+/g, " ").trim();
+    const role = m[2]!.replace(/\s+/g, " ").trim().slice(0, 60);
+    if (name.split(/\s+/).length >= 2 && name.length < 60 && !/^(Inc|LLC|Corp|Company|About|Contact|Home)\b/i.test(name)) {
+      push(`PERSON: ${name} — ${role}`);
+    }
+  }
+  // Plain-text multi-line: "Nelson Reyes\nPresident and Chief Executive Officer"
+  for (const m of stripHtml(html).matchAll(
+    /\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\s*\n\s*((?:President|CEO|Chief Executive Officer|Owner|Founder|Vice President|VP|CFO|Chief Financial Officer|COO|Director|Principal|Treasurer|Chairman)[^\n]{0,50})/g,
+  )) {
+    const name = m[1]!.replace(/\s+/g, " ").trim();
+    const role = m[2]!.replace(/\s+/g, " ").trim().slice(0, 60);
+    if (name.split(/\s+/).length >= 2 && name.length < 60) {
+      push(`PERSON: ${name} — ${role}`);
+    }
+  }
   // Role-line + email on same line (Micro Manufacturing style): "President / CEO - djolliffe@micromfg.com"
   // Emit EMAIL + ROLE; when local-part looks like a person token, also emit PERSON_EMAIL lead.
   for (const m of html.matchAll(
@@ -878,8 +899,8 @@ function findingsFromPeopleSnippet(
     /\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\s+(?:as\s+)?(?:CEO|President|Founder|Co-Founder|Chief Executive|Treasurer)\b/g,
     /(?:CEO|President|Founder|Co-Founder|Chief Executive(?:\s+Officer)?|Treasurer)\s+([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\b/g,
     /\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+),\s*(?:founder|retiring CEO|former CEO|retired CEO|board|President|Owner)/gi,
-    // Directory proximity: name within 40 chars of role (AllBiz-style)
-    /\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\b[^\n.]{0,40}?\b(Owner|President|CEO|Principal|Treasurer|Founder)\b/gi,
+    // Directory proximity: name within ~40 chars of role; allow one newline (heading style)
+    /\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\b(?:[^\n.]{0,40}|\s*\n\s*)\b(Owner|President|CEO|Principal|Treasurer|Founder|CFO|Chairman)\b/gi,
   ];
   const seen = new Set<string>();
   for (const re of patterns) {
