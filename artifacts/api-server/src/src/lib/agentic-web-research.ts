@@ -169,6 +169,30 @@ function extractContactFactsFromHtml(html: string): string {
     push(`PERSON: ${m[1]!.trim()} ${last} — co-founder`);
     push(`PERSON: ${m[2]!.trim()} ${last} — co-founder`);
   }
+  // About-page ownership narrative (Grok reads these; Apex must emit PERSON findings)
+  // "founder Harold A. Biddle" / "founded by John Smith"
+  for (const m of html.matchAll(
+    /\b(?:founder|founded by|co-founder)\s+([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\b/gi,
+  )) {
+    const name = m[1]!.replace(/\s+/g, " ").trim();
+    if (name.split(/\s+/).length >= 2 && name.length < 60) push(`PERSON: ${name} — founder`);
+  }
+  // "sold to current owner and president, David Hammer" / "current owner and president David Hammer"
+  for (const m of html.matchAll(
+    /\b(?:current\s+)?(?:owner|president|ceo)(?:\s+and\s+(?:owner|president|ceo))?[,\s]+([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\b/gi,
+  )) {
+    const name = m[1]!.replace(/\s+/g, " ").trim();
+    if (name.split(/\s+/).length >= 2 && name.length < 60 && !/^(Inc|LLC|Corp|Company)\b/i.test(name)) {
+      push(`PERSON: ${name} — owner`);
+    }
+  }
+  // "David Hammer, President" already partially covered; add "President/Owner David Hammer"
+  for (const m of html.matchAll(
+    /\b(?:President|Owner|CEO|Founder)\s*\/?\s*(?:Owner|President)?\s*,?\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b/g,
+  )) {
+    const name = m[1]!.replace(/\s+/g, " ").trim();
+    if (name.split(/\s+/).length >= 2 && name.length < 50) push(`PERSON: ${name} — principal`);
+  }
   // BBB / directory principal lines
   for (const m of html.matchAll(
     /(?:Business Management|Principal Contacts?|Owner\/President|President)[:\s]+(?:Mr\.?|Ms\.?|Mrs\.?)?\s*([A-Z][a-z]+(?:\s+[A-Z][a-z.]+)+)/gi,
@@ -1507,6 +1531,17 @@ export async function runAgenticWebResearch(input: {
     // Reject empty done when we never visited but still have SERP URLs to open
     if (action.findings.length === 0 && findings.length === 0 && visits === 0 && candidateUrls.length > 0 && i < maxIter - 1) {
       history.push(`step${i + 1}: done_rejected (need visit before empty done; ${candidateUrls.length} URLs queued)`);
+      await forceVisitNext(`step${i + 1}`);
+      continue;
+    }
+    // Reject done if about/contact still queued and primary surface incomplete (Grok would open them)
+    if (
+      action.action === "done"
+      && i < maxIter - 2
+      && candidateUrls.some((u) => !visitedUrls.has(u) && /\/(about|contact|leadership|team|corporate-locations)/i.test(u) && rankVisitUrl(u) <= 3)
+      && (!hasOrgEmail() || !hasRelatedPerson())
+    ) {
+      history.push(`step${i + 1}: done_rejected (about/contact still queued)`);
       await forceVisitNext(`step${i + 1}`);
       continue;
     }
