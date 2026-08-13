@@ -79,16 +79,18 @@ export function SerpIcon(props: IconProps) {
 
 /** Gemini (Google AI) — four-point sparkle in Google blue */
 export function GeminiIcon(props: IconProps) {
+  // Unique gradient id per instance so multiple Gemini marks don't clash
+  const gid = `gem-${Math.random().toString(36).slice(2, 9)}`;
   return (
     <Svg {...props} title={props.title ?? "Gemini"}>
       <defs>
-        <linearGradient id="gem" x1="0" y1="0" x2="24" y2="24">
+        <linearGradient id={gid} x1="0" y1="0" x2="24" y2="24">
           <stop offset="0%" stopColor="#4285F4" />
-          <stop offset="50%" stopColor="#9B72CB" />
+          <stop offset="45%" stopColor="#9B72CB" />
           <stop offset="100%" stopColor="#D96570" />
         </linearGradient>
       </defs>
-      <path fill="url(#gem)" d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8L12 2z" />
+      <path fill={`url(#${gid})`} d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8L12 2z" />
     </Svg>
   );
 }
@@ -241,6 +243,17 @@ export function detectProviderKind(raw: string): ProviderKind {
   if (/discover|webdisc|broad-discovery|force.related/.test(s)) return "discovery";
   if (/prompt|llm|extract/.test(s)) return "prompt";
   return "atlas";
+}
+
+
+/** LinkedIn — simplified official mark proportions */
+export function LinkedInIcon(props: IconProps) {
+  return (
+    <Svg {...props} title={props.title ?? "LinkedIn"}>
+      <rect width="24" height="24" rx="4" fill="#0A66C2" />
+      <path fill="#fff" d="M7.1 9.5H9.4V17H7.1V9.5zM8.25 6.2c.74 0 1.35.6 1.35 1.34S9 8.88 8.25 8.88s-1.35-.6-1.35-1.34.6-1.34 1.35-1.34zM12.1 9.5h2.2v1.02h.03c.3-.58 1.05-1.2 2.16-1.2 2.31 0 2.74 1.52 2.74 3.5V17h-2.3v-3.35c0-.8-.02-1.83-1.12-1.83-1.12 0-1.29.87-1.29 1.77V17h-2.3V9.5z" />
+    </Svg>
+  );
 }
 
 export function ProviderIcon({ kind, size = 14, ...rest }: IconProps & { kind: ProviderKind }) {

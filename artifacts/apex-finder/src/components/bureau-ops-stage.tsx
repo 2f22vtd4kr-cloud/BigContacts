@@ -217,10 +217,10 @@ function WindowChrome({
         className={`flex items-center gap-2 border-b border-white/5 ${compact ? "px-2.5 py-1.5" : "px-3 py-2"}`}
         style={{ background: "rgba(17,24,39,0.85)" }}
       >
-        <div className="flex gap-1">
-          <span className="w-2 h-2 rounded-full bg-[#ff5f57]" />
-          <span className="w-2 h-2 rounded-full bg-[#febc2e]" />
-          <span className="w-2 h-2 rounded-full bg-[#28c840]" />
+        <div className="flex items-center gap-[6px] pl-0.5">
+          <span className="w-[10px] h-[10px] rounded-full bg-[#FF5F57] shadow-[inset_0_-0.5px_0_rgba(0,0,0,0.15)]" />
+          <span className="w-[10px] h-[10px] rounded-full bg-[#FEBC2E] shadow-[inset_0_-0.5px_0_rgba(0,0,0,0.15)]" />
+          <span className="w-[10px] h-[10px] rounded-full bg-[#28C840] shadow-[inset_0_-0.5px_0_rgba(0,0,0,0.15)]" />
         </div>
         <div className="flex-1 flex items-center gap-1.5 min-w-0">
           {favicon}
