@@ -259,6 +259,34 @@ function extractContactFactsFromHtml(html: string): string {
       push(`SUCCESSION: sold/acquired → ${name}`);
     }
   }
+  // "John H. Fennig, who is the owner and President" / "owned and led by Charles Reitsma"
+  for (const m of stripHtml(html).matchAll(
+    /\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+),\s*who\s+is\s+the\s+(owner\s+and\s+President|President\s+and\s+owner|owner|President|CEO|founder)/gi,
+  )) {
+    const name = m[1]!.replace(/\s+/g, " ").trim();
+    const role = m[2]!.replace(/\s+/g, " ").trim().slice(0, 40);
+    if (name.split(/\s+/).length >= 2 && name.length < 50) push(`PERSON: ${name} — ${role}`);
+  }
+  for (const m of stripHtml(html).matchAll(
+    /\b(?:owned\s+and\s+led\s+by|led\s+by|founded\s+by)\s+([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\b/gi,
+  )) {
+    const name = m[1]!.replace(/\s+/g, " ").trim();
+    if (name.split(/\s+/).length >= 2 && name.length < 50) push(`PERSON: ${name} — owner`);
+  }
+  // "Kendra Fennig who is the Vice President and Secretary Treasurer"
+  for (const m of stripHtml(html).matchAll(
+    /\b([A-Z][a-z]+(?:\s+[A-Z]\.)?(?:\s+[A-Z][a-z]+)+)\s+who\s+is\s+the\s+((?:Vice\s+President|President|CEO|Owner|Secretary|Treasurer)(?:\s+and\s+(?:Secretary|Treasurer|President|Owner))?)/gi,
+  )) {
+    const name = m[1]!.replace(/\s+/g, " ").trim();
+    const role = m[2]!.replace(/\s+/g, " ").trim().slice(0, 50);
+    if (
+      name.split(/\s+/).length >= 2
+      && name.length < 40
+      && !/\b(who|the|and|date|owner|president)\b/i.test(name)
+    ) {
+      push(`PERSON: ${name} — ${role}`);
+    }
+  }
   // Heading adjacency: "## Nelson Reyes\n### President and Chief Executive Officer" (Grok reads structure)
   // Allow one newline between name and title — common on about/who-we-are pages.
   for (const m of html.matchAll(
@@ -389,6 +417,34 @@ function extractContactFactsFromHtml(html: string): string {
     push(`PERSON: ${m[1]!.trim()} — related_contact`);
     push(`EMAIL: ${m[2]!.toLowerCase()}`);
     push(`PERSON_EMAIL: ${m[1]!.trim()} | ${m[2]!.toLowerCase()}`);
+  }
+
+  // Name then "Role email@" on next line (Rathburn style): "Angie Holt\nPresident aholt@rathburn..."
+  for (const m of plain.matchAll(
+    /\b([A-Z][a-z]+(?:[ \t]+[A-Z]\.?)?(?:[ \t]+[A-Z][a-z]+)+)[ \t]*\n[ \t]*((?:President|Owner|CEO|CFO|COO|Controller|Manager|Director|Engineer|Supervisor|Secretary|Treasurer|VP|Vice President)[^\n@]{0,40})[ \t]+([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})\b/gi,
+  )) {
+    const pName = m[1]!.replace(/\s+/g, " ").trim();
+    const role = m[2]!.replace(/\s+/g, " ").trim().slice(0, 60);
+    const email = m[3]!.toLowerCase();
+    if (pName.split(/\s+/).length >= 2 && pName.length < 40) {
+      push(`PERSON: ${pName} — ${role}`);
+      push(`EMAIL: ${email}`);
+      push(`PERSON_EMAIL: ${pName} | ${email}`);
+    }
+  }
+  // ALL-CAPS name line then Role + email (Rathburn: "APRIL WINFIELD\nOperations Manager\nawinfield@...")
+  for (const m of plain.matchAll(
+    /\b([A-Z][A-Z]+(?:[ \t]+[A-Z][A-Z]+)+)[ \t]*\n[ \t]*((?:President|Owner|CEO|CFO|COO|Controller|Manager|Director|Engineer|Supervisor|Secretary|Treasurer|Operations|Quality|Human Resources|Technical Sales)[^\n@]{0,40})[ \t]*\n[ \t]*([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})\b/g,
+  )) {
+    const raw = m[1]!.replace(/\s+/g, " ").trim();
+    const pName = raw.split(/\s+/).map((w) => w.charAt(0) + w.slice(1).toLowerCase()).join(" ");
+    const role = m[2]!.replace(/\s+/g, " ").trim().slice(0, 60);
+    const email = m[3]!.toLowerCase();
+    if (pName.split(/\s+/).length >= 2 && pName.length < 40) {
+      push(`PERSON: ${pName} — ${role}`);
+      push(`EMAIL: ${email}`);
+      push(`PERSON_EMAIL: ${pName} | ${email}`);
+    }
   }
 
   // Directory blocks: split on emails; each segment looks for Name + role just above that email.
