@@ -740,6 +740,52 @@ export default function ApexProfile() {
               {(entity as any).nationality}{(entity as any).knownResidences ? ` · ${(entity as any).knownResidences.split(",")[0]?.trim()}` : ""}
             </p>
           )}
+          {/* REACH — value first on mobile profile */}
+          {(() => {
+            const e = entity as any;
+            const orgRe = /^(info|sales|contact|office|support|hello|admin|billing|help|service|enquiries|inquiry|mail|general|team|hr|jobs|careers|noreply|no-reply|donotreply|marketing|media|pr|webmaster|postmaster|abuse)@/i;
+            const email = e.email && !isProtectedEmail(e.email) ? String(e.email) : null;
+            const phone = e.phone ? String(e.phone) : null;
+            const personalEmail = email && !orgRe.test(email) ? email : null;
+            const orgEmail = email && orgRe.test(email) ? email : null;
+            let related: { name: string; email?: string }[] = [];
+            try {
+              const meta = JSON.parse(e.metadata ?? "{}");
+              const people = [
+                ...(Array.isArray(meta.deepWebOwnerResolutions) ? meta.deepWebOwnerResolutions : []),
+                ...(Array.isArray(meta.deepWebPersonsDiscovered) ? meta.deepWebPersonsDiscovered : []),
+              ];
+              related = people.filter((p: any) => p && (p.name || p.fullName)).slice(0, 3).map((p: any) => ({
+                name: String(p.name || p.fullName),
+                email: p.email && !isProtectedEmail(p.email) ? String(p.email) : undefined,
+              }));
+            } catch { /* ignore */ }
+            const reachEmail = personalEmail || related.find((r) => r.email && !orgRe.test(r.email || ""))?.email;
+            if (!reachEmail && !phone && !orgEmail && related.length === 0) return null;
+            return (
+              <div className="mt-3 rounded-xl border border-emerald-400/25 bg-emerald-400/[0.06] px-3 py-2.5">
+                <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-emerald-400/90 mb-1.5">Reach · primary</div>
+                {reachEmail && (
+                  <a href={`mailto:${reachEmail}`} className="block text-[14px] font-mono text-emerald-300 truncate hover:underline">{reachEmail}</a>
+                )}
+                {phone && (
+                  <a href={`tel:${phone}`} className="block mt-1 text-[13px] font-mono text-emerald-200/90 truncate hover:underline">{phone}</a>
+                )}
+                {!reachEmail && orgEmail && (
+                  <a href={`mailto:${orgEmail}`} className="block text-[13px] font-mono text-violet-300 truncate hover:underline" title="Organization inbox">org · {orgEmail}</a>
+                )}
+                {related.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {related.map((r) => (
+                      <span key={r.name} className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-amber-400/30 bg-amber-400/10 text-amber-100">
+                        {r.name}{r.email ? ` · ${r.email}` : ""}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
            <div className="mt-3 space-y-2">
              <div className="rounded-lg border border-primary/15 bg-primary/[0.035] px-3 py-2.5">
                 <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-primary/75">What they do</div>

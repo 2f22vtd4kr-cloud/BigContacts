@@ -488,7 +488,7 @@ function MobileWorkstage({ scenes }: { scenes: Scene[] }) {
         </span>
       </div>
 
-      <div className="rounded-xl border border-cyan-400/25 bg-gradient-to-br from-cyan-400/[0.09] to-transparent px-3 py-2.5">
+      <div className="rounded-xl border border-cyan-400/35 bg-gradient-to-br from-cyan-400/[0.11] to-transparent px-3 py-2.5 shadow-[0_0_24px_rgba(34,211,238,0.06)]">
         <div className="flex items-center gap-2 mb-1">
           <ProviderIcon kind={scene.provider} size={14} />
           <span className="text-[9px] font-mono uppercase tracking-[0.16em] text-cyan-300/90">
