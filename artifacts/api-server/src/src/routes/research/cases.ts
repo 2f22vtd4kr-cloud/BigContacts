@@ -1144,10 +1144,30 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
             const host = hostnameOf(u);
             if (!host) continue;
             const reg = registrable(host);
-            if (TRUSTED_DIR_HOSTS.has(reg) || [...TRUSTED_DIR_HOSTS].some((d) => host.endsWith(`.${d}`))) return true;
+            const urlFlat = u.toLowerCase().replace(/[^a-z0-9]/g, "");
+            // Company domain always OK
             if (companyDomains.has(host) || companyDomains.has(reg)) return true;
             if (companySlug.length >= 4 && (host.includes(companySlug) || reg.includes(companySlug.slice(0, 8)))) return true;
-            // Path/title often embeds company on directories we already allow via TRUSTED
+            // Trusted directories only when URL path/slug clearly embeds company name
+            // (blocks other-city "Custom Machine Inc" BBB profiles)
+            if (TRUSTED_DIR_HOSTS.has(reg) || [...TRUSTED_DIR_HOSTS].some((d) => host.endsWith(`.${d}`))) {
+              if (companySlug.length >= 4 && urlFlat.includes(companySlug.slice(0, Math.min(10, companySlug.length)))) {
+                // Optional geography gate from brief
+                const geo = (workingFile.humanBrief.geography || "").toLowerCase();
+                const geoToken = geo.match(/\b(ohio|michigan|texas|florida|california|indiana|wisconsin|minnesota|tiffin|remus|lebanon|wooster|elyria)\b/i)?.[1]?.toLowerCase();
+                if (geoToken && /bbb\.org|yellowpages|yelp/i.test(host)) {
+                  // Prefer city/state in URL when geography is set
+                  if (urlFlat.includes(geoToken.replace(/[^a-z]/g, "")) || urlFlat.includes("oh") && geoToken === "ohio") {
+                    return true;
+                  }
+                  // If BBB URL has a different state code, reject
+                  if (/\/us\/[a-z]{2}\//i.test(u) && geoToken === "ohio" && !/\/us\/oh\//i.test(u)) continue;
+                  if (/\/us\/[a-z]{2}\//i.test(u) && geoToken === "michigan" && !/\/us\/mi\//i.test(u)) continue;
+                }
+                return true;
+              }
+              continue; // trusted dir without company slug in URL → not aligned
+            }
           }
           return false;
         };
@@ -1300,6 +1320,46 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
               const row = ensurePersonRow(agenticTargetName, { sourceUrls: f.sourceUrls });
               if (row) pushEvidence(row, f);
             }
+          }
+        }
+
+        // FORCE classic org emails onto company row (Grok parity: sales@cmi79 on about-us must score)
+        if (agenticCompanyName) {
+          const classicRe = /\b((?:info|contact|sales|office|support|hello|admin|service|parts|inquiries)@[a-z0-9.-]+\.[a-z]{2,})\b/gi;
+          const seenEmail = new Set<string>();
+          const attachEmail = (raw: string, sourceUrls: string[]) => {
+            const email = raw.toLowerCase().trim();
+            if (!email || seenEmail.has(email)) return;
+            if (!/^(info|contact|sales|office|support|hello|admin|service|parts|inquiries)@/i.test(email)) return;
+            seenEmail.add(email);
+            const co = ensureCompanyRow(agenticCompanyName!, sourceUrls);
+            pushEvidence(co, {
+              vectorType: "email",
+              value: email,
+              scope: "organization",
+              personName: null,
+              role: null,
+              sourceUrls: sourceUrls.slice(0, 4),
+              note: "force-attach classic org mailbox",
+            } as (typeof agenticDiscovery.findings)[number]);
+          };
+          for (const f of agenticDiscovery.findings ?? []) {
+            if (f.vectorType === "email" && f.value) attachEmail(f.value, f.sourceUrls || []);
+            // Also scan finding value/note text
+            for (const m of String(f.value || "").matchAll(classicRe)) attachEmail(m[1]!, f.sourceUrls || []);
+            for (const m of String(f.note || "").matchAll(classicRe)) attachEmail(m[1]!, f.sourceUrls || []);
+          }
+          for (const line of agenticDiscovery.trajectory ?? []) {
+            for (const m of String(line).matchAll(classicRe)) {
+              // Prefer company-domain URL from trajectory if present
+              const urlMatch = String(line).match(/https?:\/\/[^\s]+/i);
+              const urls = urlMatch ? [urlMatch[0]] : [];
+              attachEmail(m[1]!, urls);
+            }
+          }
+          // Scan contactEvidence from agentic pass too
+          for (const e of agenticDiscovery.contactEvidence ?? []) {
+            if (e.vectorType === "email" && e.value) attachEmail(e.value, e.sourceUrls || []);
           }
         }
       }

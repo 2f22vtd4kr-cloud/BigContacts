@@ -1037,6 +1037,33 @@ export async function runAgenticWebResearch(input: {
         // Any named person distinct from the target counts (Owner/President/CEO/etc.)
         // Previous gate required note~"related" or role==related_contact and missed BBB principals.
     );
+  const salvageEmailsFromHistory = () => {
+    const classicRe = /\b((?:info|contact|sales|office|support|hello|admin|service|parts|inquiries)@[a-z0-9.-]+\.[a-z]{2,})\b/gi;
+    const mailtoRe = /EMAIL:\s*(\S+@\S+)/gi;
+    for (const line of history) {
+      const srcMatch = String(line).match(/https?:\/\/[^\s]+/i);
+      const src = srcMatch ? [srcMatch[0].replace(/[),.;]+$/, "")] : [];
+      for (const re of [classicRe, mailtoRe]) {
+        re.lastIndex = 0;
+        for (const m of String(line).matchAll(re)) {
+          const email = m[1]!.toLowerCase().replace(/[),.;]+$/, "");
+          if (!email.includes("@")) continue;
+          if (input.companyName && !isCompanyAlignedEmail(email, input.companyName, src[0])) continue;
+          if (findings.some((f) => f.vectorType === "email" && f.value === email)) continue;
+          findings.push({
+            vectorType: "email",
+            value: email,
+            personName: null,
+            role: null,
+            scope: "organization",
+            sourceUrls: src,
+            note: "salvaged from trajectory CONTACT FACTS / page text",
+          });
+        }
+      }
+    }
+  };
+
   let relatedPeopleSearchDone = false;
   let ownershipSearchDone = false;
   let orgEmailSearchDone = false;
@@ -1050,6 +1077,7 @@ export async function runAgenticWebResearch(input: {
         { target: name, findings: findings.length, searches, visits, elapsedMs: Date.now() - startedAt },
         "[agentic] hard timeout — returning partial findings",
       );
+      salvageEmailsFromHistory();
       return {
         status: "timeout",
         model: modelUsed,
@@ -1599,6 +1627,7 @@ export async function runAgenticWebResearch(input: {
     }
     findings = mergeFindings(findings, action.findings);
     history.push(`step${i + 1}: done findings=${findings.length}`);
+    salvageEmailsFromHistory();
     return {
       status: "completed",
       model: modelUsed,
@@ -1610,6 +1639,7 @@ export async function runAgenticWebResearch(input: {
     };
   }
 
+  salvageEmailsFromHistory();
   return {
     status: "completed",
     model: modelUsed,
