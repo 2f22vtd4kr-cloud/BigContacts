@@ -270,13 +270,13 @@ function extractContactFactsFromHtml(html: string): string {
       push(`PERSON: ${name} — ${role}`);
     }
   }
-  // Plain-text multi-line: "Nelson Reyes\nPresident and Chief Executive Officer"
+  // Plain-text multi-line: "Nelson Reyes\nPresident..." / "### Frank K. Chesek\n#### CEO/Company President"
   for (const m of stripHtml(html).matchAll(
-    /\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\s*\n\s*((?:President|CEO|Chief Executive Officer|Owner|Founder|Vice President|VP|CFO|Chief Financial Officer|COO|Chief Operating Officer|Director|Principal|Treasurer|Chairman|Executive Chairman)[^\n]{0,50})/g,
+    /(?:^|\n)\s*#{0,4}\s*([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\s*\n\s*#{0,4}\s*((?:President|CEO|Chief Executive Officer|Owner|Founder|Vice President|VP|CFO|Chief Financial Officer|COO|Chief Operating Officer|Director|Principal|Treasurer|Chairman|Executive Chairman|Executive Assistant|Manager|Controller|Engineer|Supervisor)[^\n]{0,60})/gm,
   )) {
     const name = m[1]!.replace(/\s+/g, " ").trim();
     const role = m[2]!.replace(/\s+/g, " ").trim().slice(0, 60);
-    if (name.split(/\s+/).length >= 2 && name.length < 60) {
+    if (name.split(/\s+/).length >= 2 && name.length < 60 && !/^(About|Contact|Home|Sales|Company|Directory|General)\b/i.test(name)) {
       push(`PERSON: ${name} — ${role}`);
     }
   }
