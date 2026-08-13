@@ -740,10 +740,17 @@ function isCompanyAlignedEmail(email: string, companyName?: string | null, pageU
     )) return true;
     // Brand-short domains: "Accurate Manufacturing" → acc-mfg.com / "Custom Machine" → cmi79.com
     // Grok keeps tlindblom@acc-mfg.com; Apex must not drop on full-name vs short-domain mismatch.
-    const words = companyName.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 3);
+    const words = companyName.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 3 && !/^(and|the|inc|llc|corp|company|co|ltd|of)$/i.test(w));
     if (words.length >= 1 && domFlat.length >= 3 && domFlat.length <= 20) {
       const prefixes = words.map((w) => w.slice(0, 3));
       if (prefixes.some((p) => domFlat.includes(p))) return true;
+      // Acronym domains: "South Shore Tool Die" → sstd.net (first letters of significant words)
+      if (words.length >= 2) {
+        const acronym = words.map((w) => w[0]).join("");
+        if (acronym.length >= 3 && (domFlat === acronym || domFlat.startsWith(acronym) || acronym.startsWith(domFlat.slice(0, Math.min(4, domFlat.length))))) {
+          return true;
+        }
+      }
     }
   }
   // Classic org mailbox with company context even without pageUrl (SERP snippet path)
