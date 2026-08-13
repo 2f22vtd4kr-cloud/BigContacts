@@ -904,15 +904,24 @@ export default function ApexProfile() {
                       </div>
                       <div className="flex items-center gap-2 mt-2 flex-wrap">
                         {/* Show ALL non-trash contact vectors — never require verified-only */}
-                        {person.email && !isProtectedEmail(person.email) && (
-                          <a href={`mailto:${person.email}`} className="text-[9px] font-mono text-primary hover:underline truncate max-w-[200px]" title={person.email}>
-                            {/^(info|sales|contact|office|support|hello|admin|billing|help|service|enquiries|inquiry|mail|general|team|hr|jobs|careers|noreply|no-reply|donotreply|marketing|media|pr|webmaster|postmaster|abuse)@/i.test(String(person.email))
-                              ? `org · ${person.email}`
-                              : person.email}
-                          </a>
-                        )}
+                        {person.email && !isProtectedEmail(person.email) && (() => {
+                          const isOrg = /^(info|sales|contact|office|support|hello|admin|billing|help|service|enquiries|inquiry|mail|general|team|hr|jobs|careers|noreply|no-reply|donotreply|marketing|media|pr|webmaster|postmaster|abuse)@/i.test(String(person.email));
+                          return (
+                            <a
+                              href={`mailto:${person.email}`}
+                              title={isOrg ? `Org inbox · ${person.email}` : `Personal/role · ${person.email}`}
+                              className={
+                                isOrg
+                                  ? "text-[9px] font-mono px-1.5 py-0.5 rounded border border-violet-400/35 bg-violet-400/10 text-violet-300 truncate max-w-[200px]"
+                                  : "text-[9px] font-mono px-1.5 py-0.5 rounded border border-emerald-400/35 bg-emerald-400/10 text-emerald-300 truncate max-w-[200px]"
+                              }
+                            >
+                              {isOrg ? `org · ${person.email}` : person.email}
+                            </a>
+                          );
+                        })()}
                         {person.phone && (
-                          <a href={`tel:${person.phone}`} className="text-[9px] font-mono text-secondary hover:underline">{person.phone}</a>
+                          <a href={`tel:${person.phone}`} className="text-[9px] font-mono px-1.5 py-0.5 rounded border border-emerald-400/30 bg-emerald-400/10 text-emerald-200 hover:underline">{person.phone}</a>
                         )}
                         {person.telegram && (
                           <span className="text-[9px] font-mono text-sky-300">tg:{String(person.telegram).replace(/^@/, "")}</span>

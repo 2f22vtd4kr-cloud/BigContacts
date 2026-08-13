@@ -151,7 +151,7 @@ const SECTIONS = [
           <li className="flex gap-2"><Database className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" /><span><strong className="text-foreground">DOMAIN</strong> — RDAP-first + WhoisJSON domain surface hop (registration longevity as ownership-stability signal).</span></li>
         </ul>
         <Callout title="Live Action Log">
-          Expand any event row to see target, input summary, full prompt text, tool IDs, sources/contacts/evidence counts, and result summary.
+          The <strong className="text-foreground">LIVE DESK</strong> on the Reactor shows simulated tool chrome (Google search bar, browser windows, analyst prompts) driven by real Bureau/Atlas payloads — swipe on mobile, story rail on desktop. Expand any event row for full prompt text, tool IDs, and counts.
           Desktop and mobile share the same event stream (mobile uses a stacked flow layout).
         </Callout>
       </>
@@ -174,6 +174,15 @@ const SECTIONS = [
         </ul>
         <Callout title="Org vs Personal" tone="warn">
           info@, sales@, contact@, office@ and similar prefixes are forced to organization scope.
+
+          On entity cards and profiles, contact chips use a fixed palette so you can scan fast:
+          <ul className="list-disc pl-5 space-y-1 mt-2 text-muted-foreground">
+            <li><span className="text-emerald-300">Emerald</span> — personal or role contact (what outreach wants)</li>
+            <li><span className="text-violet-300">Violet</span> — organization inbox (kept, never labeled Personal)</li>
+            <li><span className="text-sky-300">Sky</span> — social handles</li>
+            <li><span className="text-amber-200">Amber</span> — related people from ownership resolution</li>
+          </ul>
+          All non-trash vectors are shown. Verification ranks; it does not hide.
           Only role-aligned named mailboxes (e.g. malcolm@, alan@, joe.cherluck@) can be Personal.
         </Callout>
       </>

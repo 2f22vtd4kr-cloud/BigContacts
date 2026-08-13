@@ -178,6 +178,112 @@ function RerunButton({ entityId }: { entityId: number }) {
 
 // ─── Mobile card ──────────────────────────────────────────────────────────────
 
+
+/** Collect every non-trash contact vector for display — show all, badge directness. */
+function collectContactVectors(entity: any): Array<{
+  kind: "email" | "phone" | "linkedin" | "twitter" | "instagram" | "telegram" | "person";
+  value: string;
+  tier: "personal" | "org" | "social" | "related";
+  label?: string;
+}> {
+  const out: Array<{ kind: any; value: string; tier: any; label?: string }> = [];
+  const orgRe = /^(info|sales|contact|office|support|hello|admin|billing|help|service|enquiries|inquiry|mail|general|team|hr|jobs|careers|noreply|no-reply|donotreply|marketing|media|pr|webmaster|postmaster|abuse)@/i;
+
+  if (entity.email && typeof entity.email === "string" && !/protected|javascript:/i.test(entity.email)) {
+    out.push({ kind: "email", value: entity.email, tier: orgRe.test(entity.email) ? "org" : "personal" });
+  }
+  if (entity.phone && String(entity.phone).trim()) {
+    out.push({ kind: "phone", value: String(entity.phone).trim(), tier: "personal" });
+  }
+  if (entity.linkedinUrl) out.push({ kind: "linkedin", value: entity.linkedinUrl, tier: "social", label: "LinkedIn" });
+  if (entity.twitterHandle) out.push({ kind: "twitter", value: String(entity.twitterHandle).replace(/^@/, ""), tier: "social", label: "X" });
+  if (entity.instagramHandle) out.push({ kind: "instagram", value: String(entity.instagramHandle).replace(/^@/, ""), tier: "social", label: "IG" });
+  if (entity.telegramHandle) out.push({ kind: "telegram", value: String(entity.telegramHandle).replace(/^@/, ""), tier: "social", label: "TG" });
+
+  // Related people from deep-web owner resolutions (never hide non-trash)
+  try {
+    const meta = typeof entity.metadata === "string" ? JSON.parse(entity.metadata) : entity.metadata;
+    const people = [
+      ...(Array.isArray(meta?.deepWebOwnerResolutions) ? meta.deepWebOwnerResolutions : []),
+      ...(Array.isArray(meta?.deepWebPersonsDiscovered) ? meta.deepWebPersonsDiscovered : []),
+    ];
+    for (const p of people.slice(0, 6)) {
+      if (!p || typeof p !== "object") continue;
+      const name = p.name || p.fullName;
+      if (name) out.push({ kind: "person", value: String(name), tier: "related", label: p.role || p.ownershipStatus || "related" });
+      if (p.email && !/protected/i.test(p.email)) {
+        out.push({ kind: "email", value: String(p.email), tier: orgRe.test(p.email) ? "org" : "personal", label: name ? String(name).split(" ")[0] : undefined });
+      }
+      if (p.phone) out.push({ kind: "phone", value: String(p.phone), tier: "personal", label: name ? String(name).split(" ")[0] : undefined });
+    }
+  } catch { /* ignore bad metadata */ }
+
+  // de-dupe by kind+value
+  const seen = new Set<string>();
+  return out.filter((v) => {
+    const k = `${v.kind}:${v.value.toLowerCase()}`;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+}
+
+function ContactVectorsStrip({ entity, compact = false }: { entity: any; compact?: boolean }) {
+  const vectors = collectContactVectors(entity);
+  if (!vectors.length) {
+    return (
+      <div className="text-[10px] font-mono text-muted-foreground/70">
+        No contact vectors yet — desk still working or surface is thin
+      </div>
+    );
+  }
+  const tierStyle: Record<string, string> = {
+    personal: "border-emerald-400/35 bg-emerald-400/10 text-emerald-300",
+    org: "border-violet-400/35 bg-violet-400/10 text-violet-300",
+    social: "border-sky-400/30 bg-sky-400/10 text-sky-300",
+    related: "border-amber-400/30 bg-amber-400/10 text-amber-200",
+  };
+  const tierHint: Record<string, string> = {
+    personal: "Personal / role",
+    org: "Org inbox",
+    social: "Social",
+    related: "Related person",
+  };
+  return (
+    <div className={cn("flex flex-wrap gap-1.5", compact && "gap-1")}>
+      {vectors.map((v, i) => {
+        const href =
+          v.kind === "email" ? `mailto:${v.value}`
+          : v.kind === "phone" ? `tel:${v.value}`
+          : v.kind === "linkedin" ? v.value
+          : undefined;
+        const body = (
+          <>
+            <span className="opacity-70 uppercase tracking-wider text-[8px]">{v.kind === "person" ? (v.label || "person") : v.kind}</span>
+            <span className={cn("truncate font-mono", compact ? "text-[10px] max-w-[120px]" : "text-[11px] max-w-[160px]")}>
+              {v.label && v.kind !== "person" ? `${v.label}: ` : ""}{v.value}
+            </span>
+          </>
+        );
+        const cls = cn(
+          "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5",
+          tierStyle[v.tier] || tierStyle.social,
+        );
+        return href ? (
+          <a key={`${v.kind}-${v.value}-${i}`} href={href} title={`${tierHint[v.tier]} · ${v.value}`} className={cls} onClick={(e) => e.stopPropagation()}>
+            {body}
+          </a>
+        ) : (
+          <span key={`${v.kind}-${v.value}-${i}`} title={`${tierHint[v.tier]} · ${v.value}`} className={cls}>
+            {body}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+
 function MobileEntityCard({
   entity, selected, onToggleSelect, isExpanded, onToggleExpand, onToggleStar, onToggleHide,
 }: {
@@ -230,7 +336,10 @@ function MobileEntityCard({
           <div className="mt-2 text-[10px] leading-4 text-muted-foreground/80 line-clamp-2">
             {workSummary ?? "No documented role or activity recorded"}
           </div>
-          <div className="mt-1">
+          <div className="mt-1.5">
+            <ContactVectorsStrip entity={entity} compact />
+          </div>
+          <div className="mt-1.5">
             <span
               className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded flex items-center gap-1 w-max"
               style={{ color: typeColor, backgroundColor: typeColor + "18" }}
@@ -293,31 +402,31 @@ function MobileEntityCard({
           </div>
           
           <div className="mb-3">
-             <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-0.5">
-               {organizationLike ? "Organization route" : "Contact"}
+             <div className="flex items-center justify-between gap-2 mb-1.5">
+               <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">
+                 Contacts · all non-trash
+               </div>
+               <div className="flex items-center gap-1.5">
+                 {entity.contactOutcome && OUTCOME_BADGES[entity.contactOutcome] && (
+                   <span
+                     className="inline-block text-[9px] font-mono px-1.5 py-0.5 rounded"
+                     style={{
+                       color: OUTCOME_BADGES[entity.contactOutcome].color,
+                       background: OUTCOME_BADGES[entity.contactOutcome].color + "18",
+                     }}
+                   >
+                     {OUTCOME_BADGES[entity.contactOutcome].label}
+                   </span>
+                 )}
+                 <CompletenessBadge entity={entity} />
+               </div>
              </div>
-            <div className="text-xs text-foreground font-mono truncate">
-              {entity.email ? entity.email : entity.phone ? entity.phone : entity.linkedinUrl ? "LinkedIn" : "—"}
-            </div>
-             <div className="text-[10px] text-muted-foreground/75 mt-1">
+             <ContactVectorsStrip entity={entity} />
+             <div className="text-[10px] text-muted-foreground/70 mt-1.5">
                {organizationLike
-                 ? `${contactState} · not a personal route`
-                 : contactState}
+                 ? `${contactState} · emerald = personal/role · violet = org inbox`
+                 : `${contactState} · emerald = personal · sky = social · amber = related`}
              </div>
-            <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-              {entity.contactOutcome && OUTCOME_BADGES[entity.contactOutcome] && (
-                <span
-                  className="inline-block text-[9px] font-mono px-1.5 py-0.5 rounded"
-                  style={{
-                    color: OUTCOME_BADGES[entity.contactOutcome].color,
-                    background: OUTCOME_BADGES[entity.contactOutcome].color + "18",
-                  }}
-                >
-                  {OUTCOME_BADGES[entity.contactOutcome].label}
-                </span>
-              )}
-              <CompletenessBadge entity={entity} />
-            </div>
           </div>
 
           {registries.length > 0 && (
@@ -1016,59 +1125,23 @@ export default function EntityLedger() {
                       )}
                     </td>
                     <td className="px-4 py-3"><AccessScoreBadge score={entity.accessScore} /></td>
-                    <td className="px-4 py-3 text-xs max-w-[220px]">
-                      <div className="flex flex-col gap-0.5">
-                        {entity.email && (
-                          <a
-                            href={`mailto:${entity.email}`}
-                            className="flex items-center gap-1 text-primary hover:underline truncate font-mono"
-                            title={entity.email}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
-                            <span className="truncate text-[11px]" title={entity.email}>{entity.email}</span>
-                          </a>
-                        )}
-                        {entity.phone && (
-                          <a
-                            href={`tel:${entity.phone}`}
-                            className="flex items-center gap-1 text-secondary hover:underline font-mono"
-                            title={entity.phone}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
-                            <span className="text-[11px]" title={entity.phone}>{entity.phone}</span>
-                          </a>
-                        )}
-                        {entity.linkedinUrl && !entity.email && !entity.phone && (
-                          <a
-                            href={entity.linkedinUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1 text-blue-400 hover:underline font-mono"
-                            title={entity.linkedinUrl}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <svg className="w-3 h-3 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
-                            <span className="text-[11px] truncate" title={entity.linkedinUrl}>LinkedIn</span>
-                          </a>
-                        )}
-                        {!entity.email && !entity.phone && !entity.linkedinUrl && (
-                          <span className="text-muted-foreground/40 font-mono text-[11px] italic">—</span>
-                        )}
-                        {/* Outcome quality + completeness */}
-                        {entity.contactOutcome && OUTCOME_BADGES[entity.contactOutcome] && (
-                          <span
-                            className="text-[9px] font-mono px-1.5 py-0.5 rounded w-max"
-                            style={{
-                              color: OUTCOME_BADGES[entity.contactOutcome].color,
-                              background: OUTCOME_BADGES[entity.contactOutcome].color + "18",
-                            }}
-                          >
-                            {OUTCOME_BADGES[entity.contactOutcome].label}
-                          </span>
-                        )}
-                        <CompletenessBadge entity={entity} />
+                    <td className="px-4 py-3 text-xs max-w-[280px]">
+                      <div className="flex flex-col gap-1.5" onClick={(e) => e.stopPropagation()}>
+                        <ContactVectorsStrip entity={entity} compact />
+                        <div className="flex flex-wrap items-center gap-1">
+                          {entity.contactOutcome && OUTCOME_BADGES[entity.contactOutcome] && (
+                            <span
+                              className="text-[9px] font-mono px-1.5 py-0.5 rounded w-max"
+                              style={{
+                                color: OUTCOME_BADGES[entity.contactOutcome].color,
+                                background: OUTCOME_BADGES[entity.contactOutcome].color + "18",
+                              }}
+                            >
+                              {OUTCOME_BADGES[entity.contactOutcome].label}
+                            </span>
+                          )}
+                          <CompletenessBadge entity={entity} />
+                        </div>
                       </div>
                     </td>
                     <td className="px-4 py-3 text-right text-[10px] font-mono text-muted-foreground">
