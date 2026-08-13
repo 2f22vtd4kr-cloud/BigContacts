@@ -453,6 +453,14 @@ function extractContactFactsFromHtml(html: string): string {
     }
   }
 
+  // Public wallet mentions on page (wealth evidence after person lock — not a contact)
+  for (const m of plain.matchAll(/\b(0x[a-fA-F0-9]{40})\b/g)) {
+    push(`WALLET: eth | ${m[1]!.toLowerCase()}`);
+  }
+  for (const m of plain.matchAll(/\b(bc1[a-zA-HJ-NP-Z0-9]{25,62})\b/g)) {
+    push(`WALLET: btc | ${m[1]!.toLowerCase()}`);
+  }
+
   // Directory blocks: split on emails; each segment looks for Name + role just above that email.
   // Willis Machinery team pages — hold EVERY attributable person (Apex objective).
   {
@@ -990,6 +998,22 @@ function findingsFromContactFacts(
           scope: "organization",
           sourceUrls: [sourceUrl],
           note: `Named contact email on ${sourceUrl}`,
+        });
+      }
+    }
+    const walletLine = line.match(/WALLET:\s*(.+)/i)?.[1]?.trim();
+    if (walletLine) {
+      const [chainRaw, addrRaw] = walletLine.split(/\s*\|\s*/).map((s) => s.trim());
+      const addr = (addrRaw || "").trim();
+      if (addr && (/^0x[a-fA-F0-9]{40}$/i.test(addr) || /^bc1[a-z0-9]{25,62}$/i.test(addr))) {
+        out.push({
+          vectorType: "other",
+          value: addr,
+          personName: null,
+          role: `wallet:${(chainRaw || "unknown").toLowerCase()}`,
+          scope: "candidate",
+          sourceUrls: [sourceUrl],
+          note: `Public wallet mention on ${sourceUrl} — wealth evidence only after person attribution`,
         });
       }
     }
