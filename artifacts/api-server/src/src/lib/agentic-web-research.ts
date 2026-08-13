@@ -51,6 +51,23 @@ function randomUA(): string {
   return uas[Math.floor(Math.random() * uas.length)]!;
 }
 
+/** Decode Cloudflare email-protection href hashes (Grok parity on contact pages). */
+function decodeCloudflareEmail(hex: string): string | null {
+  try {
+    const data = hex.replace(/[^a-fA-F0-9]/g, "");
+    if (data.length < 4 || data.length % 2 !== 0) return null;
+    const key = parseInt(data.slice(0, 2), 16);
+    let out = "";
+    for (let i = 2; i < data.length; i += 2) {
+      out += String.fromCharCode(parseInt(data.slice(i, i + 2), 16) ^ key);
+    }
+    if (!/^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i.test(out)) return null;
+    return out.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
 function stripHtml(html: string): string {
   return html
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
@@ -144,6 +161,17 @@ function extractContactFactsFromHtml(html: string): string {
 
   for (const m of html.matchAll(/href=["']mailto:([^"'?\s]+)/gi)) {
     push(`EMAIL: ${m[1]!.toLowerCase()}`);
+  }
+  // Cloudflare email-protection (mastermfg.com and many SMB sites)
+  for (const m of html.matchAll(
+    /(?:email-protection|cdn-cgi\/l\/email-protection)[#/]([a-fA-F0-9]{4,})/gi,
+  )) {
+    const decoded = decodeCloudflareEmail(m[1]!);
+    if (decoded) push(`EMAIL: ${decoded}`);
+  }
+  for (const m of html.matchAll(/data-cfemail=["']([a-fA-F0-9]+)["']/gi)) {
+    const decoded = decodeCloudflareEmail(m[1]!);
+    if (decoded) push(`EMAIL: ${decoded}`);
   }
   for (const m of html.matchAll(/\b([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})\b/gi)) {
     const addr = m[1]!.toLowerCase();
