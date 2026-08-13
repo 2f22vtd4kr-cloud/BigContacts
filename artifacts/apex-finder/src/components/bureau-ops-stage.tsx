@@ -200,8 +200,8 @@ function WindowChrome({
         borderColor: `${accent}55`,
         background: "linear-gradient(165deg, rgba(17,24,39,0.92) 0%, rgba(11,18,32,0.98) 100%)",
         borderRadius: 12,
-        // subtle cyber cut on bottom-right (Figma/cyber UI kits)
-        clipPath: "polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%)",
+        // cut-corner only on roomy desktop chrome — compact mobile must not clip content
+        clipPath: compact ? undefined : "polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%)",
         boxShadow: live
           ? `0 0 0 1px ${accent}33, 0 12px 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04)`
           : "0 8px 28px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.03)",

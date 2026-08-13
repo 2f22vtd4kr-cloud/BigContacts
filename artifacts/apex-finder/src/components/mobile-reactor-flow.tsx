@@ -267,7 +267,7 @@ function LiveResearchConsole({
                 ? "Atlas has reported a completed run"
                 : isFailed
                   ? "Atlas stopped with a reported failure"
-                  : "Standby · idle"}
+                  : "Standby · no run in progress"}
           </div>
         </div>
         <span
@@ -646,7 +646,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                     ? "Standby · last Atlas run completed"
                     : atlasState?.runStatus === "failed"
                       ? "Standby · last Atlas run failed"
-                      : "Standby · idle"}
+                      : "Standby · no run in progress"}
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">

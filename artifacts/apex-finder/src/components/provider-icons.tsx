@@ -3,7 +3,7 @@
  * Simple recognisable marks — not full trademark reproductions.
  */
 
-import type { CSSProperties } from "react";
+import { useId, type CSSProperties } from "react";
 
 type IconProps = { size?: number; className?: string; style?: CSSProperties; title?: string };
 
@@ -79,8 +79,8 @@ export function SerpIcon(props: IconProps) {
 
 /** Gemini (Google AI) — four-point sparkle in Google blue */
 export function GeminiIcon(props: IconProps) {
-  // Unique gradient id per instance so multiple Gemini marks don't clash
-  const gid = `gem-${Math.random().toString(36).slice(2, 9)}`;
+  // Stable unique gradient id (never Math.random — that re-rolls every render)
+  const gid = `gem-${useId().replace(/:/g, "")}`;
   return (
     <Svg {...props} title={props.title ?? "Gemini"}>
       <defs>
