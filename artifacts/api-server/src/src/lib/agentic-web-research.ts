@@ -641,9 +641,11 @@ function buildStepPrompt(input: {
   history: string[];
   lastObservation: string;
 }): string {
-  return `You are running an AGENTIC web research loop with Grok Agent parity on public web surface.
-Your web searches and visits must recover AT LEAST what a capable Grok Agent recovers on the same target.
-Then Apex layers registries, browser escalate, and bureau tools on top. Never invent.
+  return `You are running an AGENTIC web research loop for Apex Atlas.
+GROK IS THE FLOOR, NOT THE CEILING. Recover at least every public org vector Grok would (phone, address, info@/sales@, named officers on contact/about pages).
+Then MAXIMIZE attributable RELATED PERSON contacts: owners, presidents, CEOs, founders, co-founders, officers — with personName + role + any role-email or direct phone visible on primary sources.
+Apex's objective is to hold MORE strongly-sourced people-contacts than a general agent. Never invent. Never mark org inboxes Personal.
+Registries, browser escalate, and bureau tools layer on top of this web loop.
 
 TARGET: ${input.targetName}
 ${input.companyName ? `RELATED COMPANY / ISSUER: ${input.companyName}` : ""}
@@ -675,7 +677,7 @@ RULES:
 - ALSO recover succession and ownership structure when visible (family-owned, generation, named CEO succession, Executive Chairman). Visit /leadership and succession blog posts. Emit those facts with sourceUrls — same pages Grok Agent would read.
 - Organization inboxes (info@, contact@, office@, sales@) are organization scope. Do not mark Personal.
 - FIRST ACTION must be web_search when trajectory is empty.
-- Do not return done until: (a) ≥2 web_search AND ≥1 visit, (b) company contact/Facebook hop attempted when company known, (c) related-people hop attempted OR primary surface fully recovered.
+- Do not return done until: (a) ≥2 web_search AND ≥1 visit, (b) company contact/Facebook hop attempted when company known, (c) related-people hop attempted, (d) when org phone/email exists you have emitted ≥1 RELATED person (owner/president/CEO/founder/officer) with personName+role when any such person is visible in observations — do not leave people on the table.
 - After any web_search that returns URLs, NEXT action should usually be visit on company/contact/Facebook/BBB/about — not another search.
 - When CONTACT FACTS appear, include them in done.findings with that page as sourceUrl.
 
@@ -1747,7 +1749,7 @@ export async function runAgenticWebResearch(input: {
         `Need company-domain org email (info@/contact@) for ${input.companyName}. Search and visit contact/Facebook pages before done.`;
       continue;
     }
-    // Reject done before related-people hop when primary surface already found (Grok parity)
+    // Reject done before related-people hop when primary surface already found
     if (
       hasOrgEmailOrPhone()
       && !relatedPeopleSearchDone
@@ -1770,7 +1772,22 @@ export async function runAgenticWebResearch(input: {
       }
       lastObservation =
         `Primary surface found. RELATED PEOPLE search:\nURLs: ${sr.urls.slice(0, 8).join(" | ")}\n\n${sr.text.slice(0, MAX_OBS)}\n\n` +
-        `Visit BBB/about/team pages. Emit PERSON findings (owners, co-founders, officers) with personName+role. Then you may done.`;
+        `Visit BBB/about/team pages. Emit EVERY visible PERSON (owners, co-founders, officers) with personName+role+any role-email. Apex must hold more people-contacts than a general agent. Then you may done.`;
+      continue;
+    }
+    // Apex objective: do not finish with org surface but zero related persons when people were visible
+    if (
+      action.action === "done"
+      && hasOrgEmailOrPhone()
+      && !hasRelatedPerson()
+      && i < maxIter - 1
+    ) {
+      history.push(`step${i + 1}: done_rejected (need related person — Apex holds people-contacts)`);
+      lastObservation =
+        `You returned done with org phone/email but ZERO related persons. ` +
+        `Re-read observations and SERP for any Owner/President/CEO/Founder/officer. ` +
+        `Emit PERSON findings with personName+role (and PERSON_EMAIL when a role-email is visible). ` +
+        `Apex's objective is to maximize attributable people-contacts — do not leave them on the table.`;
       continue;
     }
     findings = mergeFindings(findings, action.findings);

@@ -38,6 +38,10 @@ PENDING STANDARD VECTORS TO RING THIS PASS (if this action is contact/footprint 
 NAMED PEOPLE ALREADY ON THE CASE (follow with person-scoped public search when relevant): ${people}
 DEPTH TIER: ${depth} — be adaptive and evidence-led; do not run a rigid checklist in fixed order.
 RETURN every public contact found (personal and organization). UI marks verified personal separately.
+OBJECTIVE: Grok is the floor on public org surface. Apex must hold MORE attributable people-contacts
+(owners, officers, founders with role + email/phone when visible) via multi-hop, registries, and primary pages.
+Never invent. Never mark org inboxes Personal.
+
 SURFACE RECOVERY (Gemini Boss + investigators — mandatory when visible on a page):
 - Officers: Name/Title slash, multi-line headings, compound titles ("President and CEO X"), middle initials
 - Ownership: sold/acquired/bought by, founder, co-founder, current owner and president
