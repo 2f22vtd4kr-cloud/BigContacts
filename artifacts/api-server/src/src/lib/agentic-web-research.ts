@@ -679,6 +679,19 @@ RULES:
 - After any web_search that returns URLs, NEXT action should usually be visit on company/contact/Facebook/BBB/about — not another search.
 - When CONTACT FACTS appear, include them in done.findings with that page as sourceUrl.
 
+LLM EXTRACTION MANDATE (you must catch these even if early SERP is noisy/trash — regex is a backstop, not the only path):
+- Name / Title same line: "Alan G. Klinger / President", "Name — Role", "Name, President"
+- Multi-line headings: Name on one line, title on the next (about/who-we-are pages)
+- Compound titles before name: "President and CEO Bryon Shafer", "CFO Rick Sykora", "Executive Chairman Craig Cook"
+- Ownership transfer: "sold the business to X", "acquired by X", "current owner and president, X"
+- Middle initials: "Donald W. Kuchenbecker", "Frank K. Chesek", "Alan G. Klinger"
+- Role-line emails: "President / CEO - djolliffe@domain.com"
+- Cloudflare-protected emails when visible in observation text or decoded
+- Brand-short domains: person@acc-mfg.com for "Accurate Manufacturing" — still company-aligned
+- Org phones and classic org mailboxes (info@, sales@, contact@) — force onto company row, never Personal
+- Succession / family-owned / MBE / co-founder facts as other findings with sourceUrls
+If a page shows any of the above, emit findings. Do not wait for perfect SERP. Early trash search results do not excuse missing surface on a later successful visit.
+
 TRAJECTORY SO FAR:
 ${input.history.join("\n") || "(start)"}
 
