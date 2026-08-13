@@ -391,6 +391,42 @@ function extractContactFactsFromHtml(html: string): string {
     push(`PERSON_EMAIL: ${m[1]!.trim()} | ${m[2]!.toLowerCase()}`);
   }
 
+  // Directory blocks: split on emails; each segment looks for Name + role just above that email.
+  // Willis Machinery team pages — hold EVERY attributable person (Apex objective).
+  {
+    const parts = plain.split(/\b([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})\b/i);
+    for (let i = 1; i < parts.length; i += 2) {
+      const email = (parts[i] || "").toLowerCase();
+      const local = email.split("@")[0] || "";
+      if (!email.includes("@")) continue;
+      if (/^(info|sales|contact|support|office|admin|hello|service|parts|inquiries)$/i.test(local)) continue;
+      const before = (parts[i - 1] || "").slice(-300);
+      const lines = before.split(/\n/).map((l) => l.replace(/\s+/g, " ").trim()).filter(Boolean);
+      let pName: string | null = null;
+      let role = "related_contact";
+      for (let li = lines.length - 1; li >= 0; li--) {
+        const line = lines[li]!;
+        if (!pName) {
+          const nm = line.match(/^([A-Z][a-z]+(?:[ \t]+[A-Z]\.?)?(?:[ \t]+[A-Z][a-z]+)+)$/);
+          if (nm && nm[1]!.split(/\s+/).length >= 2 && nm[1]!.length < 40
+            && !/^(Contact|About|Home|Sales|Company|With|Regional|Shared|Office|Service|Directory|President|Owner)\b/i.test(nm[1]!)) {
+            pName = nm[1]!.trim();
+            // role may be on line below name (already passed) — scan forward in lines after name
+            for (let rj = li + 1; rj < lines.length; rj++) {
+              const rm = lines[rj]!.match(/\b((?:President|Owner|CEO|CFO|COO|Controller|Manager|Director|Technician|Machinist|Secretary|Treasurer)(?:[ \t]*\/[ \t]*(?:Owner|President|CEO|Manager))?)\b/i);
+              if (rm) { role = rm[1]!.replace(/\s+/g, " ").trim().slice(0, 60); break; }
+            }
+            break;
+          }
+        }
+      }
+      if (!pName) continue;
+      push(`PERSON: ${pName} — ${role}`);
+      push(`EMAIL: ${email}`);
+      push(`PERSON_EMAIL: ${pName} | ${email}`);
+    }
+  }
+
   if (facts.length === 0) return "";
   return "CONTACT FACTS (visible on page):\n" + facts.slice(0, 40).join("\n") + "\n\n";
 }
