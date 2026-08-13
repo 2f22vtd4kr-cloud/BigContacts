@@ -244,7 +244,7 @@ function extractContactFactsFromHtml(html: string): string {
   // Heading adjacency: "## Nelson Reyes\n### President and Chief Executive Officer" (Grok reads structure)
   // Allow one newline between name and title — common on about/who-we-are pages.
   for (const m of html.matchAll(
-    /(?:<h[1-4][^>]*>|\n)\s*([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\s*(?:<\/h[1-4]>)?\s*(?:\n|<br\s*\/?>|\s)*\s*(?:<h[1-4][^>]*>)?\s*((?:President|CEO|Chief Executive Officer|Owner|Founder|Vice President|VP|CFO|Chief Financial Officer|COO|Director|Principal|Treasurer|Chairman)[^<\n]{0,50})/gi,
+    /(?:<h[1-4][^>]*>|\n)\s*([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\s*(?:<\/h[1-4]>)?\s*(?:\n|<br\s*\/?>|\s)*\s*(?:<h[1-4][^>]*>)?\s*((?:President|CEO|Chief Executive Officer|Owner|Founder|Vice President|VP|CFO|Chief Financial Officer|COO|Chief Operating Officer|Director|Principal|Treasurer|Chairman|Executive Chairman)[^<\n]{0,50})/gi,
   )) {
     const name = m[1]!.replace(/\s+/g, " ").trim();
     const role = m[2]!.replace(/\s+/g, " ").trim().slice(0, 60);
@@ -254,7 +254,7 @@ function extractContactFactsFromHtml(html: string): string {
   }
   // Plain-text multi-line: "Nelson Reyes\nPresident and Chief Executive Officer"
   for (const m of stripHtml(html).matchAll(
-    /\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\s*\n\s*((?:President|CEO|Chief Executive Officer|Owner|Founder|Vice President|VP|CFO|Chief Financial Officer|COO|Director|Principal|Treasurer|Chairman)[^\n]{0,50})/g,
+    /\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\s*\n\s*((?:President|CEO|Chief Executive Officer|Owner|Founder|Vice President|VP|CFO|Chief Financial Officer|COO|Chief Operating Officer|Director|Principal|Treasurer|Chairman|Executive Chairman)[^\n]{0,50})/g,
   )) {
     const name = m[1]!.replace(/\s+/g, " ").trim();
     const role = m[2]!.replace(/\s+/g, " ").trim().slice(0, 60);
