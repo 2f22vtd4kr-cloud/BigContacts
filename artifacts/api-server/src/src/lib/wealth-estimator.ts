@@ -78,6 +78,14 @@ function buildContextBlock(e: EntityContext): string {
   if (wallets?.length) {
     lines.push(`PUBLIC WALLET MENTIONS (attribution-required; on-chain value is a wealth signal when holder is this person): ${[...new Set(wallets)].slice(0, 5).join(", ")}`);
   }
+  // Formal probed balance (from wallet-seed.probeWalletBalance) when present in metadata
+  try {
+    const meta = e.metadata ? JSON.parse(e.metadata) as Record<string, unknown> : {};
+    const probed = meta.walletBalanceUsd ?? meta.walletUsdApprox ?? meta.probedWalletUsd;
+    if (typeof probed === "number" && probed > 0) {
+      lines.push(`PROBED PUBLIC WALLET USD (fail-closed Ethplorer/etc; only after holder attribution): ~$${Math.round(probed).toLocaleString()}`);
+    }
+  } catch { /* ignore */ }
 
   // Source registries are a strong signal for wealth tier
   if (e.sourceRegistries) {
