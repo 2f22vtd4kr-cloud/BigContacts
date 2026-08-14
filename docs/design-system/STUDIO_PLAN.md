@@ -60,7 +60,7 @@ Easing: `cubic-bezier(0.22, 1, 0.36, 1)` for enter; linear for shimmer loops.
 
 **Phase B (this sprint):** Formal CSS motion tokens, design doc in repo, Figma system file, token wiring in components  
 
-**Phase C (next):** Shared `reactor-pressable` utility class, focus rings, a11y audit pass, desktop scene strip interaction  
+**Phase C (done):** Shared `reactor-pressable`, focus-visible rings, desktop scene-strip tabs, REACH/live a11y contrast
 
 ---
 
