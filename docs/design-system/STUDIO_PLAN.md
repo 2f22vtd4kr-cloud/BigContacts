@@ -317,3 +317,18 @@ Make “where am I / can I pause / what’s live” readable at a glance without
 
 ### Intent
 Focus attention on the tool workstage during live runs; keep secondary chrome legible.
+
+---
+
+## Screenshots (required for studio review)
+
+Path: `docs/ui-screenshots-20260814/` and `/home/workdir/artifacts/reactor-screenshots/`
+
+| File | State |
+|------|--------|
+| NOW-01-live-desk-reach.png | Live + REACH + LIVE tool + pause + chips |
+| NOW-02-history-archive.png | History / archive (slate) |
+| NOW-03-arming.png | 400ms tool-shaped arming |
+| NOW-04-nav-pause.png | Chips · dots · 44px prev/next · pause pill |
+
+Every phase must leave **PNG** captures in the folder — not HTML-only.

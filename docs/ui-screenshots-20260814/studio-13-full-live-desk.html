@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+<title>Apex Atlas · Full Live Desk</title>
+<style>
+  :root {
+    --cyan: #22d3ee; --emerald: #34d399; --canvas: #0b1120; --desk: #071018;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+    background: #05080f; color: #e2e8f0;
+    min-height: 100vh; display: flex; flex-wrap: wrap; gap: 20px;
+    align-items: flex-start; justify-content: center; padding: 20px;
+  }
+  .phone {
+    width: 390px; border-radius: 28px; border: 1px solid rgba(255,255,255,0.08);
+    background: var(--canvas); overflow: hidden;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.55);
+  }
+  header {
+    padding: 14px 16px 12px; border-bottom: 1px solid rgba(255,255,255,0.08);
+    background: rgba(0,0,0,0.55); backdrop-filter: blur(12px);
+  }
+  .live-row { display: flex; align-items: center; gap: 8px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 8px var(--cyan); animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .live-label { font-size: 10px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; color: #a5f3fc; text-shadow: 0 0 12px rgba(34,211,238,.45); }
+  .target { font-size: 16px; font-weight: 600; color: #fff; margin-top: 4px; }
+  .sub { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+  .reach {
+    margin-top: 10px; border-radius: 12px; border: 1px solid rgba(52,211,153,.7);
+    background: linear-gradient(135deg, rgba(52,211,153,.18), rgba(16,185,129,.08));
+    padding: 10px 12px; box-shadow: 0 0 28px rgba(52,211,153,.22);
+    animation: reachIn .32s cubic-bezier(.22,1,.36,1) both;
+  }
+  @keyframes reachIn {
+    0% { opacity: 0; transform: scale(.92) translateY(6px); }
+    60% { opacity: 1; transform: scale(1.02); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+  .reach-l { font-size: 10px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: #a7f3d0; }
+  .reach-b { font-size: 13px; color: #ecfdf5; margin-top: 4px; line-height: 1.4; }
+  .body { padding: 12px; }
+  .panel {
+    border-radius: 16px; border: 1px solid rgba(34,211,238,.25);
+    background: var(--desk); padding: 12px;
+    box-shadow: 0 0 40px rgba(34,211,238,.06);
+  }
+  .panel-h { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .panel-t { font-size: 10px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: rgba(103,232,249,.9); }
+  .panel-n { font-size: 10px; font-family: ui-monospace, monospace; color: #64748b; }
+  .chrome {
+    border-radius: 12px; border: 1px solid rgba(34,211,238,.55);
+    background: linear-gradient(165deg, rgba(17,24,39,.92), rgba(11,18,32,.98));
+    box-shadow: 0 0 0 1px rgba(34,211,238,.3), 0 0 24px rgba(34,211,238,.15);
+    overflow: hidden;
+  }
+  .titlebar {
+    display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+    border-bottom: 1px solid rgba(255,255,255,.05); background: rgba(17,24,39,.85);
+  }
+  .tl { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .title { font-family: ui-monospace, monospace; font-size: 11px; color: #cbd5e1; }
+  .live-pill {
+    margin-left: auto; display: inline-flex; align-items: center; gap: 6px;
+    border-radius: 999px; border: 1px solid rgba(52,211,153,.6);
+    background: rgba(52,211,153,.2); padding: 2px 8px;
+    box-shadow: 0 0 12px rgba(52,211,153,.25);
+  }
+  .live-pill i { width: 8px; height: 8px; border-radius: 50%; background: #34d399; box-shadow: 0 0 8px #34d399; }
+  .live-pill span { font-size: 9px; font-family: ui-monospace, monospace; font-weight: 700; letter-spacing: .08em; color: #a7f3d0; }
+  .url {
+    margin: 0; padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,.05);
+    background: #0f172a; position: relative; overflow: hidden;
+  }
+  .url-inner {
+    border-radius: 999px; background: #1e293b; border: 1px solid rgba(255,255,255,.05);
+    padding: 6px 12px; font-family: ui-monospace, monospace; font-size: 11px; color: #94a3b8;
+  }
+  .shimmer {
+    position: absolute; inset: 0; width: 33%;
+    background: linear-gradient(90deg, transparent, rgba(34,211,238,.35), transparent);
+    animation: shimmer 1.4s ease-in-out infinite; opacity: .4;
+  }
+  @keyframes shimmer { 0%{transform:translateX(-120%)} 100%{transform:translateX(320%)} }
+  .content { padding: 12px; font-size: 12px; color: #cbd5e1; line-height: 1.5; }
+  .prog { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .bar { flex: 1; height: 6px; border-radius: 999px; background: #1e293b; overflow: hidden; position: relative; }
+  .bar > div { height: 100%; width: 40%; border-radius: 999px; background: linear-gradient(90deg,#22d3ee,#a3e635); box-shadow: 0 0 10px rgba(34,211,238,.45); }
+  .bar .sh { position: absolute; inset: 0; background: linear-gradient(90deg,transparent,rgba(255,255,255,.4),transparent); animation: shimmer 1.4s ease-in-out infinite; opacity: .5; }
+  .step { font-size: 9px; font-family: ui-monospace, monospace; color: #22d3ee; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
+  .nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 12px; }
+  .btn {
+    border-radius: 8px; border: 1px solid rgba(255,255,255,.15); background: rgba(255,255,255,.05);
+    padding: 10px 12px; font-size: 10px; font-family: ui-monospace, monospace; color: #e2e8f0;
+    min-height: 44px; min-width: 72px;
+  }
+  .dots { display: flex; gap: 6px; align-items: center; }
+  .d { height: 8px; border-radius: 999px; background: #334155; width: 8px; }
+  .d.on { width: 20px; background: #22d3ee; box-shadow: 0 0 12px #22d3eecc; }
+  .pause {
+    margin-top: 12px; display: flex; align-items: center; justify-content: center; gap: 6px;
+    border-radius: 999px; border: 1px solid rgba(34,211,238,.4); background: rgba(34,211,238,.1);
+    padding: 6px 12px; font-size: 9px; font-family: ui-monospace, monospace; text-transform: uppercase;
+    letter-spacing: .08em; color: #e0f2fe; box-shadow: 0 0 16px rgba(34,211,238,.12);
+  }
+  .pause i { width: 6px; height: 6px; border-radius: 50%; background: #67e8f9; }
+  .chips { display: flex; gap: 6px; margin-top: 12px; overflow: hidden; }
+  .chip {
+    width: 136px; min-height: 52px; border-radius: 8px; border: 1px solid #22d3ee99;
+    background: #22d3ee18; box-shadow: 0 0 16px rgba(34,211,238,.2), inset 0 0 0 1px rgba(34,211,238,.15);
+    padding: 8px; flex-shrink: 0;
+  }
+  .chip.m { border-color: #ffffff12; background: #0f172a; box-shadow: none; }
+  .chip .r { display: flex; align-items: center; gap: 4px; margin-bottom: 4px; font-size: 8px; font-family: ui-monospace, monospace; color: #94a3b8; }
+  .chip .r .n { color: #22d3ee; }
+  .chip .s { font-size: 9px; line-height: 1.3; color: #f8fafc; }
+  .chip.m .s { color: #94a3b8; }
+  .pip { width: 8px; height: 8px; border-radius: 50%; background: #34d399; box-shadow: 0 0 8px #34d399; margin-left: auto; }
+  .cap { text-align: center; font-size: 11px; color: #64748b; margin-top: 12px; padding-bottom: 8px; }
+  .tag { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: #64748b; text-align: center; width: 100%; margin-bottom: -8px; }
+</style>
+</head>
+<body>
+  <div class="tag">Apex Atlas · Live Desk · REACH + LIVE tool + pause</div>
+  <div class="phone">
+    <header>
+      <div class="live-row"><span class="dot"></span><span class="live-label">Live</span></div>
+      <div class="target">Griffin Tool &amp; Die</div>
+      <div class="sub">Working public sources · Tavily</div>
+      <div class="reach">
+        <div class="reach-l">Contact found · REACH</div>
+        <div class="reach-b">mailto:jgriffin@griffin-tool.com · owner/operator vector</div>
+      </div>
+    </header>
+    <div class="body">
+      <div class="panel">
+        <div class="panel-h">
+          <span class="panel-t">Under the hood</span>
+          <span class="panel-n">4 steps</span>
+        </div>
+        <div class="prog">
+          <div class="bar"><div></div><span class="sh"></span></div>
+          <span style="font-size:9px;font-family:ui-monospace,monospace;color:#94a3b8">2/4</span>
+        </div>
+        <div class="step">Live step 2 of 4 · tavily search</div>
+        <div class="chrome">
+          <div class="titlebar">
+            <span class="tl" style="background:#FF5F57"></span>
+            <span class="tl" style="background:#FEBC2E"></span>
+            <span class="tl" style="background:#28C840"></span>
+            <span class="title">tavily · search</span>
+            <span class="live-pill"><i></i><span>LIVE</span></span>
+          </div>
+          <div class="url"><span class="shimmer"></span><div class="url-inner">site:griffintool.com owner OR operator</div></div>
+          <div class="content">Query streaming · owner/operator extraction into evidence vectors.</div>
+        </div>
+        <div class="nav">
+          <button class="btn">← Prev</button>
+          <div class="dots"><span class="d"></span><span class="d on"></span><span class="d"></span><span class="d"></span></div>
+          <button class="btn">Next →</button>
+        </div>
+        <div class="pause"><i></i> Reading pause · 6s · tap to resume</div>
+        <div class="chips">
+          <div class="chip">
+            <div class="r"><span class="n">2</span> · tavily <span class="pip"></span></div>
+            <div class="s">Owner/operator extraction from public pages</div>
+          </div>
+          <div class="chip m">
+            <div class="r">3 · browser</div>
+            <div class="s">griffintool.com/about · entity surface</div>
+          </div>
+        </div>
+      </div>
+      <p class="cap">Swipe · arrows · space pauses · edge-swipe → history</p>
+    </div>
+  </div>
+</body>
+</html>
