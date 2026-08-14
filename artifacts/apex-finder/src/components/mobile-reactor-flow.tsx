@@ -677,8 +677,8 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
           <button
             type="button"
             onClick={() => setShowHistory((v) => !v)}
-            className={`flex h-10 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-[10px] font-bold uppercase tracking-wider ${
-              showHistory ? "border-cyan-400/40 bg-cyan-400/10 text-cyan-300" : "border-white/10 bg-white/[0.04] text-slate-400"
+            className={`flex h-10 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-[10px] font-bold uppercase tracking-wider transition-all duration-150 ease-out active:scale-[0.97] active:opacity-85 touch-manipulation ${
+              showHistory ? "border-cyan-400/40 bg-cyan-400/10 text-cyan-300" : "border-white/10 bg-white/[0.04] text-slate-400 hover:border-white/20"
             }`}
             data-testid="button-history"
             aria-pressed={showHistory}
@@ -690,7 +690,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
             type="button"
             onClick={onRefresh}
             disabled={syncing}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-slate-400 disabled:opacity-50"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-slate-400 transition-all duration-150 ease-out active:scale-[0.97] active:opacity-85 touch-manipulation hover:border-cyan-400/30 hover:text-cyan-300 disabled:opacity-50 disabled:active:scale-100"
             aria-label="Refresh"
             data-testid="button-refresh-atlas"
           >
@@ -745,9 +745,11 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
             </section>
           ) : liveEvents.length > 0 ? (
             <section
+              key={showHistory ? "history" : "live"}
               className="rounded-2xl border border-cyan-400/25 bg-[#071018] p-3 shadow-[0_0_40px_rgba(34,211,238,0.06)]"
               data-testid="panel-live-desk-mobile"
               aria-label={showHistory ? "Target history" : "Live research window"}
+              style={{ animation: "armIn 280ms ease-out both" }}
             >
               <div className="mb-3 flex items-center justify-between gap-2 px-0.5">
                 <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300/90">
@@ -770,13 +772,29 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
             </section>
           ) : (
             <div
-              className="flex min-h-[320px] flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 bg-white/[0.02] px-6 text-center"
+              className={`flex min-h-[320px] flex-col items-center justify-center rounded-2xl border px-6 text-center transition-colors duration-300 ${
+                isLive
+                  ? "border-cyan-400/20 bg-cyan-400/[0.03]"
+                  : "border-dashed border-white/10 bg-white/[0.02]"
+              }`}
               data-testid="panel-live-desk-idle"
             >
-              <Radio className="mb-3 h-8 w-8 text-slate-600" />
-              <div className="text-[14px] font-medium text-slate-300">Waiting for live work</div>
+              <div className="relative mb-3">
+                <Radio className={`h-8 w-8 ${isLive ? "text-cyan-400/80" : "text-slate-600"}`} />
+                {isLive && (
+                  <span className="absolute -right-0.5 -top-0.5 flex h-2.5 w-2.5">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-400 opacity-50" />
+                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-cyan-400" />
+                  </span>
+                )}
+              </div>
+              <div className="text-[14px] font-medium text-slate-300">
+                {isLive ? "Desk is live — waiting for first tool scene" : "Waiting for live work"}
+              </div>
               <div className="mt-2 max-w-xs text-[12px] leading-relaxed text-slate-500">
-                When Atlas runs, this window shows each tool as it works — search, page reads, extraction, contact recovery — so you can see progress while contacts arrive.
+                {isLive
+                  ? "Atlas is running. The first search, page read, or extraction window will appear here as soon as a tool reports."
+                  : "When Atlas runs, this window shows each tool as it works — search, page reads, extraction, contact recovery — so you can see progress while contacts arrive."}
               </div>
             </div>
           )}

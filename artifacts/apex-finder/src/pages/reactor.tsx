@@ -444,6 +444,10 @@ const KEYFRAMES = `
     60% { opacity: 1; transform: scale(1.02) translateY(0); }
     100% { opacity: 1; transform: scale(1) translateY(0); }
   }
+  @keyframes armIn {
+    0% { opacity: 0; transform: translateY(6px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
       animation-duration: 0.01ms !important;
@@ -1482,6 +1486,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
               border:"1px solid #22d3ee40", borderRadius:8,
               background:"rgba(7,15,29,0.97)", boxShadow:"0 0 28px #000a",
               backdropFilter:"blur(12px)",
+              animation:"armIn 280ms ease-out both",
             }}
           >
             {contactFound && (
@@ -1491,6 +1496,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                   marginBottom:10, padding:"8px 10px", borderRadius:6,
                   border:"1px solid #34d39966", background:"rgba(52,211,153,0.1)",
                   fontSize:11, color:"#a7f3d0", lineHeight:1.4,
+                  animation:"reachIn 320ms cubic-bezier(0.22,1,0.36,1) both",
                 }}
               >
                 <span style={{ fontWeight:700, letterSpacing:"0.12em", color:"#6ee7b7", fontSize:9 }}>CONTACT FOUND · REACH · </span>
@@ -1507,7 +1513,10 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                   fontSize:9, letterSpacing:"0.1em", color:"#526b86",
                   background:"transparent", border:"1px solid #192840",
                   borderRadius:4, padding:"3px 8px", cursor:"pointer",
+                  transition:"border-color 150ms ease, color 150ms ease",
                 }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#22d3ee55"; e.currentTarget.style.color = "#94a3b8"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#192840"; e.currentTarget.style.color = "#526b86"; }}
               >HIDE</button>
             </div>
             <BureauOpsStage
@@ -1527,7 +1536,12 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
               fontSize:9, letterSpacing:"0.14em", fontWeight:700,
               color:"#67e8f9", background:"rgba(34,211,238,0.08)",
               border:"1px solid #22d3ee55", borderRadius:4, padding:"6px 10px", cursor:"pointer",
+              animation:"armIn 220ms ease-out both",
+              transition:"transform 150ms ease, background 150ms ease",
             }}
+            onMouseDown={(e) => { e.currentTarget.style.transform = "scale(0.97)"; }}
+            onMouseUp={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
           >LIVE DESK ON</button>
         )}
         {/* SVG connections */}
