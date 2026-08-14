@@ -1,200 +1,234 @@
 /**
- * Contact sanitization + trash gate (fail-closed).
- * Never invent contacts. Org inboxes stay organization-scoped.
- * Trash-phone gate stays on: US 555-exchange, all-same-digit, trivial sequences rejected.
+ * Validation for public contact evidence extracted from web pages and search
+ * results. Search-engine diagnostics, placeholder addresses, and privacy
+ * relay addresses are not person or organization contact vectors.
+ *
+ * K1: REGISTRAR_DOMAINS — email domains belonging to registrars / CDN infra.
+ * K2: GENERIC_PREFIXES  — local-parts indicating shared organisational inboxes.
+ * K5: normalizePhone    — E.164 normalisation + range validation (8–15 digits).
+ * K6: script-extension / IP-like domain rejection.
  */
 
-const ORG_MAILBOX_PREFIXES = new Set([
-  "info", "contact", "office", "press", "hello", "admin", "sales", "support",
-  "billing", "help", "service", "enquiries", "inquiry", "mail", "general",
-  "team", "hr", "jobs", "careers", "noreply", "no-reply", "donotreply",
-  "marketing", "media", "pr", "webmaster", "postmaster", "abuse",
+// ── K1: Registrar / hosting-infrastructure domain blocklist ──────────────────
+// An RDAP/WHOIS result whose email domain is in this set belongs to the
+// registrar or infrastructure provider, not the entity being researched.
+export const REGISTRAR_DOMAINS = new Set([
+  // Domain registrars
+  "web.com", "namebright.com", "godaddy.com", "networksolutions.com",
+  "enom.com", "hugedomains.com", "domainsbyproxy.com", "namesilo.com",
+  "register.com", "name.com", "porkbun.com", "dynadot.com",
+  "1and1.com", "ionos.com", "hover.com", "gandi.net", "namecheap.com",
+  "directnic.com", "domain.com", "dotster.com", "123-reg.co.uk",
+  "name.com", "launchpad.com", "safenames.net", "marcaria.com",
+  // Hosting / CDN infrastructure
+  "amazonaws.com", "awsdns.com", "amazon.com", "cloudflare.com",
+  "squarespace.com", "wix.com", "bluehost.com", "hostgator.com",
+  "siteground.com", "dreamhost.com", "wpengine.com", "kinsta.com",
+  "pantheon.io", "netlify.com", "vercel.com",
+  // Privacy / WHOIS proxy services
+  "whoisguard.com", "privacyprotect.org", "whoisprivacycorp.com",
+  "contactprivacy.com", "withheldforprivacy.com", "identity.digital",
+  "registrant.com", "anonymize.com", "anonymization.net",
 ]);
 
-const TRASH_EMAIL_LOCALS = new Set([
-  "test", "example", "sample", "dummy", "fake", "noreply", "no-reply",
-  "donotreply", "mailer-daemon", "postmaster", "abuse",
+// ── K2: Generic corporate email local-parts (shared inboxes, not personal) ──
+const GENERIC_PREFIXES = new Set([
+  "info", "contact", "sales", "support", "press", "admin", "hello", "office",
+  "noreply", "no-reply", "donotreply", "billing", "ops", "team", "media",
+  "pr", "legal", "hr", "webmaster", "enquiries", "enquiry", "general",
+  "reception", "invest", "ir", "investor", "investor.relations",
+  "pressinquiries", "press.inquiries", "mediarelations", "media.relations",
+  "customerservice", "customer.service", "help", "jobs", "careers",
+  "recruitment", "marketing", "accounts", "mail", "postmaster", "abuse",
+  "security", "privacy", "newsletter", "notifications", "alerts",
+  "service", "services", "business", "commercial", "connect", "info-",
+  "partnership", "partnerships", "sponsors", "sponsorship",
+  "membership", "memberships", "frontdesk", "front.desk", "main",
 ]);
 
-/** Normalize phone to digits-only for trash checks. */
-export function normalizePhone(raw: string): string | null {
-  if (!raw || typeof raw !== "string") return null;
-  const digits = raw.replace(/\D/g, "");
-  if (digits.length < 7 || digits.length > 15) return null;
+export function isGenericEmailPrefix(local: string): boolean {
+  return GENERIC_PREFIXES.has(local.toLowerCase().trim());
+}
 
-  // US 555-exchange (555-0100 style fictionals)
-  if (digits.length === 10 || digits.length === 11) {
-    const national = digits.length === 11 && digits.startsWith("1") ? digits.slice(1) : digits;
-    if (national.length === 10) {
-      const exchange = national.slice(3, 6);
-      if (exchange === "555") return null;
-    }
-  }
+// ── K6: Script-extension and IP-like domain rejection ────────────────────────
+// Prevents JavaScript filenames (e.g. 10.5.13.module.js) parsed as email domains.
+const SCRIPT_EXTENSION_RE = /\.(js|mjs|cjs|jsx|ts|tsx|py|rb|php|sh|css|html|json|wasm|map|lock)$/i;
+const IP_LIKE_DOMAIN_RE   = /^\d+\.\d+/; // matches 10.x, 192.x, etc.
 
-  // All-same-digit
-  if (/^(\d)\1+$/.test(digits)) return null;
+// ── Core blocklists (unchanged) ───────────────────────────────────────────────
+const BLOCKED_EMAIL_DOMAINS = new Set([
+  "example.com", "domain.com", "email.com", "test.com", "foo.com",
+  "bar.com", "sample.com", "invalid.com", "localhost", "placeholder.com",
+  "yourname.com", "company.com", "yourdomain.com", "noreply.com",
+  "no-reply.com", "privacy.com", "domains.com", "domainsbyproxy.com",
+  "whoisguard.com", "privacyprotect.org", "whoisprivacycorp.com",
+  "registrant.com", "duckduckgo.com", "bing.com", "google.com",
+  "search.yahoo.com",
+]);
 
-  // Trivial sequences
-  const trivial = new Set([
-    "1234567890", "0123456789", "9876543210", "1234567", "12345678",
-    "123456789", "1111111111", "0000000000", "9999999999",
+const BLOCKED_EMAIL_LOCAL_PARTS = new Set([
+  "error", "error-lite", "noreply", "no-reply", "donotreply", "do-not-reply",
+  "webmaster",
+]);
+
+const EMAIL_RE = /^[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}$/i;
+
+export function isValidPublicEmail(value: string | null | undefined): boolean {
+  const email = value?.trim().toLowerCase() ?? "";
+  if (!email || email.length > 254 || !EMAIL_RE.test(email)) return false;
+  const at = email.lastIndexOf("@");
+  const local = email.slice(0, at);
+  const domain = email.slice(at + 1);
+  // RFC-style local-part guard: leading/trailing dots and consecutive dots
+  // are malformed addresses and commonly come from scraped/generated noise.
+  if (local.startsWith(".") || local.endsWith(".") || local.includes("..")) return false;
+  if (BLOCKED_EMAIL_DOMAINS.has(domain)) return false;
+  if ([...REGISTRAR_DOMAINS].some(blocked => domain === blocked || domain.endsWith(`.${blocked}`))) return false;
+  if (BLOCKED_EMAIL_LOCAL_PARTS.has(local)) return false;
+  if (domain.includes("privacy") || domain.includes("proxy")) return false;
+  // K6: reject script filenames parsed as email domains
+  if (SCRIPT_EXTENSION_RE.test(domain)) return false;
+  if (IP_LIKE_DOMAIN_RE.test(domain)) return false;
+  return true;
+}
+
+export function sanitizePublicEmail(value: string | null | undefined): string | null {
+  const email = value?.trim().toLowerCase() ?? "";
+  return isValidPublicEmail(email) ? email : null;
+}
+
+// ── Public social URL validation ──────────────────────────────────────────────
+// Social URLs are evidence only when they point to a real profile path.  Search
+// snippets frequently contain the network homepage, tracking URLs, or a company
+// page where a personal handle was expected.
+const SOCIAL_HANDLE_RE = /^[a-zA-Z0-9._-]{2,80}$/;
+
+export function isValidPublicSocialHandle(
+  value: string | null | undefined,
+  network: "instagram" | "twitter",
+): boolean {
+  const handle = value?.trim().replace(/^@/, "") ?? "";
+  if (!SOCIAL_HANDLE_RE.test(handle)) return false;
+  const blocked = new Set([
+    "about", "login", "signup", "privacy", "terms", "explore", "home",
+    "search", "hashtag", "intent", "share", "status", "i", "company",
+    "instagram", "twitter", "x", "linkedin", "accounts", "p", "reel",
   ]);
-  if (trivial.has(digits) || trivial.has(digits.slice(-10))) return null;
-
-  // Repeating short patterns
-  if (/^(\d{2,4})\1+$/.test(digits) && digits.length >= 8) return null;
-
-  return digits;
+  if (blocked.has(handle.toLowerCase())) return false;
+  // Twitter handles are limited to 15 characters. Instagram allows longer
+  // handles, but both must remain simple profile identifiers.
+  return network === "twitter" ? handle.length <= 15 : handle.length <= 30;
 }
 
-export function isTrashContactValue(kind: "email" | "phone" | string, value: string): boolean {
-  if (!value || typeof value !== "string") return true;
-  const v = value.trim().toLowerCase();
-  if (!v) return true;
-
-  if (kind === "phone" || /^\+?[\d\s().-]{7,}$/.test(value)) {
-    const norm = normalizePhone(value);
-    if (!norm) return true;
-    // Re-check 555 after normalize
-    if (norm.length >= 10) {
-      const national = norm.length === 11 && norm.startsWith("1") ? norm.slice(1) : norm;
-      if (national.length === 10 && national.slice(3, 6) === "555") return true;
+export function sanitizePublicSocialHandle(
+  value: string | null | undefined,
+  network: "instagram" | "twitter",
+): string | null {
+  const raw = value?.trim() ?? "";
+  if (!raw) return null;
+  if (raw.includes("://")) {
+    const url = sanitizePublicSocialUrl(raw, network, "person");
+    if (!url) return null;
+    try {
+      const pathPart = new URL(url).pathname.split("/").filter(Boolean)[0] ?? "";
+      return isValidPublicSocialHandle(pathPart, network) ? pathPart : null;
+    } catch {
+      return null;
     }
-    return false;
   }
-
-  if (kind === "email" || v.includes("@")) {
-    const at = v.indexOf("@");
-    if (at < 1) return true;
-    const local = v.slice(0, at);
-    const domain = v.slice(at + 1);
-    if (!domain.includes(".") || domain.length < 3) return true;
-    if (TRASH_EMAIL_LOCALS.has(local)) return true;
-    if (/^(test|example|sample|dummy|fake|xxx|asdf)/i.test(local)) return true;
-    if (domain === "example.com" || domain === "test.com" || domain.endsWith(".invalid")) return true;
-    return false;
-  }
-
-  return false;
+  const handle = raw.replace(/^@/, "");
+  return isValidPublicSocialHandle(handle, network) ? handle : null;
 }
 
-export function sanitizePublicEmail(raw: string | null | undefined): string | null {
-  if (!raw || typeof raw !== "string") return null;
-  let s = raw.trim().toLowerCase();
-  // Cloudflare email-protection style remnants
-  s = s.replace(/\[at\]/gi, "@").replace(/\[dot\]/gi, ".").replace(/\s*\(at\)\s*/gi, "@").replace(/\s*\(dot\)\s*/gi, ".");
-  s = s.replace(/\s+/g, "");
-  if (!/^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}$/i.test(s)) return null;
-  if (isTrashContactValue("email", s)) return null;
-  return s;
-}
-
-export function sanitizePublicPhone(raw: string | null | undefined): string | null {
-  if (!raw || typeof raw !== "string") return null;
-  const norm = normalizePhone(raw);
-  if (!norm) return null;
-  if (isTrashContactValue("phone", norm)) return null;
-  // Prefer E.164-ish display for US
-  if (norm.length === 10) return `+1${norm}`;
-  if (norm.length === 11 && norm.startsWith("1")) return `+${norm}`;
-  return `+${norm}`;
-}
-
-export function isOrgMailbox(email: string | null | undefined): boolean {
-  if (!email) return false;
-  const local = email.split("@")[0]?.toLowerCase() ?? "";
-  return ORG_MAILBOX_PREFIXES.has(local) || /^(info|sales|support|contact|admin|office)\b/i.test(local);
+export function sanitizePublicTelegramHandle(value: string | null | undefined): string | null {
+  const handle = value?.trim().replace(/^@/, "") ?? "";
+  return /^[a-zA-Z0-9_]{2,64}$/.test(handle) ? handle : null;
 }
 
 export function sanitizePublicSocialUrl(
-  raw: string | null | undefined,
-  platform?: string,
-  _scope?: string
+  value: string | null | undefined,
+  network: "linkedin" | "instagram" | "twitter",
+  scope: "person" | "organization" = "person",
 ): string | null {
-  if (!raw || typeof raw !== "string") return null;
-  let u = raw.trim();
-  if (!u) return null;
-  if (!/^https?:\/\//i.test(u)) {
-    if (platform === "linkedin" && /linkedin\.com/i.test(u)) u = `https://${u.replace(/^\/+/, "")}`;
-    else if (platform === "twitter" || platform === "x") {
-      if (/^(twitter|x)\.com/i.test(u)) u = `https://${u.replace(/^\/+/, "")}`;
-      else if (/^@?[\w]+$/.test(u)) u = `https://x.com/${u.replace(/^@/, "")}`;
-    } else if (platform === "instagram" && !u.includes(".")) {
-      u = `https://instagram.com/${u.replace(/^@/, "")}`;
-    } else return null;
-  }
+  const raw = value?.trim() ?? "";
+  if (!raw) return null;
+  let url: URL;
   try {
-    const parsed = new URL(u);
-    if (!["http:", "https:"].includes(parsed.protocol)) return null;
-    // Basic platform host check
-    const host = parsed.hostname.toLowerCase();
-    if (platform === "linkedin" && !host.includes("linkedin.com")) return null;
-    if ((platform === "twitter" || platform === "x") && !host.includes("twitter.com") && !host.includes("x.com")) return null;
-    if (platform === "instagram" && !host.includes("instagram.com")) return null;
-    return parsed.toString().replace(/\/$/, "");
+    url = new URL(raw.startsWith("@") ? `https://${network === "twitter" ? "x.com" : `${network}.com`}/${raw.slice(1)}` : raw);
   } catch {
     return null;
   }
+
+  const host = url.hostname.toLowerCase().replace(/^www\./, "");
+  const allowedHosts = network === "linkedin"
+    ? new Set(["linkedin.com"])
+    : network === "instagram"
+      ? new Set(["instagram.com"])
+      : new Set(["twitter.com", "x.com"]);
+  if (!allowedHosts.has(host)) return null;
+
+  const parts = url.pathname.split("/").filter(Boolean);
+  const expectedPath = network === "linkedin"
+    ? (scope === "organization" ? "company" : "in")
+    : null;
+  if (network === "linkedin") {
+    if (parts.length < 2 || parts[0] !== expectedPath || !SOCIAL_HANDLE_RE.test(parts[1]!)) return null;
+  } else if (parts.length < 1 || !SOCIAL_HANDLE_RE.test(parts[0]!)) {
+    return null;
+  }
+
+  const slug = parts[parts.length - 1]!;
+  const blocked = new Set([
+    "about", "login", "signup", "privacy", "terms", "explore", "home",
+    "search", "hashtag", "intent", "share", "status", "i", "company",
+    "instagram", "twitter", "x", "linkedin",
+  ]);
+  if (blocked.has(slug.toLowerCase())) return null;
+
+  const canonicalHost = network === "twitter" ? "x.com" : network === "linkedin" ? "www.linkedin.com" : "instagram.com";
+  return `https://${canonicalHost}/${parts.join("/")}`;
 }
 
-export function sanitizePublicSocialHandle(raw: string | null | undefined, platform?: string): string | null {
-  if (!raw || typeof raw !== "string") return null;
-  let h = raw.trim().replace(/^@/, "");
-  if (!h || h.includes(" ") || h.length > 64) return null;
-  if (platform === "linkedin" && h.includes("linkedin.com")) {
-    const m = h.match(/linkedin\.com\/in\/([^/?#]+)/i);
-    return m ? m[1] : null;
-  }
-  return h;
+export function sanitizePublicPhone(value: string | null | undefined): string | null {
+  return normalizePhone(value);
 }
 
-/**
- * Contact completeness for investor-outreach decision rule (fail-closed).
- * FULL  = personal/role email for owner/principal (Griffin-class)
- * PARTIAL = owner identified + HNWI path + only org inbox
- * INCOMPLETE = else
- * Never promote info@/sales@ to Personal.
- */
-export type ContactCompleteness = "FULL" | "PARTIAL" | "INCOMPLETE";
+// ── K5: E.164-oriented phone normalisation ───────────────────────────────────
+// Returns null when the input is clearly invalid (blocklist, too short, too long).
+// ITU-T E.164 max is 15 digits. We require ≥ 8 to filter 7-digit and shorter noise.
+const PHONE_NOISE_RE   = /[^\d+]/g;
+const PHONE_BLOCKLIST_RE = /redacted|privacy|not\s+public|unavailable|unknown|n\/a|none/i;
 
-const OWNER_ROLE_RE =
-  /\b(owner|co-?owner|president|ceo|founder|co-?founder|principal|managing\s+partner|general\s+manager|chairman|executive\s+chairman)\b/i;
+export function normalizePhone(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const s = raw.trim();
+  if (!s || PHONE_BLOCKLIST_RE.test(s)) return null;
 
-const ORG_ONLY_PREFIXES = /^(info|sales|contact|office|support|hello|admin|billing|help|service|enquiries|inquiry|mail|general|team|hr|jobs|careers|noreply|no-reply|donotreply|marketing|media|pr|webmaster|postmaster|abuse)@/i;
+  const hasPlus = s.startsWith("+");
+  const digits  = s.replace(/[^\d]/g, "");
+  const len     = digits.length;
+  const plusCount = (s.match(/\+/g) ?? []).length;
 
-export function scoreContactCompleteness(findings: Array<{
-  vectorType: string;
-  value: string;
-  personName?: string | null;
-  role?: string | null;
-  scope?: string | null;
-  note?: string | null;
-}>): { level: ContactCompleteness; reason: string } {
-  const people = findings.filter((f) => f.personName && String(f.personName).trim().split(/\s+/).length >= 2);
-  const ownerish = people.filter((f) => OWNER_ROLE_RE.test(f.role || "") || OWNER_ROLE_RE.test(f.note || ""));
-  const personalEmails = findings.filter(
-    (f) =>
-      f.vectorType === "email" &&
-      f.scope !== "organization" &&
-      !ORG_ONLY_PREFIXES.test(f.value) &&
-      f.personName,
-  );
-  const ownerPersonalEmail = personalEmails.some((f) => {
-    const roleish = OWNER_ROLE_RE.test(f.role || "") || OWNER_ROLE_RE.test(f.note || "");
-    const nameMatch = ownerish.some(
-      (o) => o.personName && f.personName && o.personName.toLowerCase() === f.personName.toLowerCase(),
-    );
-    return roleish || nameMatch;
-  });
+  // A phone number may have one leading plus only. Repeated plus signs are
+  // extraction noise, not a valid international number.
+  if (plusCount > 1 || (plusCount === 1 && !hasPlus)) return null;
 
-  if (ownerPersonalEmail) {
-    return { level: "FULL", reason: "personal/role email for owner/principal (Griffin-class)" };
-  }
-  if (ownerish.length > 0) {
-    return {
-      level: "PARTIAL",
-      reason: "owner/principal identified + HNWI path; only org surface or no personal email yet",
-    };
-  }
-  return { level: "INCOMPLETE", reason: "no attributable owner/principal with contact path" };
+  // Reject out-of-range lengths (ITU-T E.164: 1–15 digits; require ≥ 8)
+  if (len < 8 || len > 15) return null;
+  // Registry identifiers and filing numbers are frequently extracted beside
+  // real phone values. They commonly begin with a zero run (for example
+  // "0001738758"), which is not a valid E.164 country-code representation.
+  if (/^0{2,}/.test(digits)) return null;
+  // A bare ten-digit value is interpreted as NANP below; a zero-leading
+  // NANP area code is not assignable and is therefore extraction noise.
+  if (len === 10 && !hasPlus && digits.startsWith("0")) return null;
+
+  // 10-digit without leading +  →  assume NANP (+1)
+  if (len === 10 && !hasPlus) return `+1${digits}`;
+  // 11-digit starting with 1    →  NANP with country code
+  if (len === 11 && digits.startsWith("1")) return `+${digits}`;
+  // Already had a leading +     →  keep normalised
+  if (hasPlus) return `+${digits}`;
+  // International without +     →  store digits only (country code unclear)
+  return digits;
 }
