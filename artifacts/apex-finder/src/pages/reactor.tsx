@@ -444,12 +444,30 @@ const KEYFRAMES = `
     --reactor-desk: #071018;
   }
   .reactor-pressable {
-    transition: transform var(--reactor-fast) ease-out, opacity var(--reactor-fast) ease-out, border-color var(--reactor-fast) ease-out;
+    transition: transform var(--reactor-fast) ease-out, opacity var(--reactor-fast) ease-out, border-color var(--reactor-fast) ease-out, box-shadow var(--reactor-fast) ease-out;
     touch-action: manipulation;
   }
   .reactor-pressable:active {
     transform: scale(0.97);
     opacity: 0.85;
+  }
+  .reactor-pressable:focus-visible,
+  button:focus-visible,
+  [role="button"]:focus-visible {
+    outline: 2px solid var(--reactor-cyan);
+    outline-offset: 2px;
+  }
+  .reactor-reach {
+    border-color: rgba(52, 211, 153, 0.55);
+    background: rgba(52, 211, 153, 0.14);
+    color: #ecfdf5;
+  }
+  .reactor-reach-label {
+    color: #6ee7b7;
+    letter-spacing: 0.16em;
+  }
+  .reactor-live-label {
+    color: #67e8f9;
   }
   @keyframes blink     { 0%,100%{opacity:1}  50%{opacity:0.35} }
   @keyframes breathe   { 0%,100%{opacity:0.8} 50%{opacity:1}   }

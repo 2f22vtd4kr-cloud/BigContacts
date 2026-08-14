@@ -657,7 +657,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <span className={`h-2 w-2 shrink-0 rounded-full ${isLive ? "animate-pulse bg-cyan-400 shadow-[0_0_8px_#22d3ee]" : atlasState?.runStatus === "failed" ? "bg-rose-400" : "bg-slate-600"}`} />
-              <span className={`text-[10px] font-bold uppercase tracking-[0.18em] ${isLive ? "text-cyan-300" : "text-slate-500"}`}>
+              <span className={`text-[10px] font-bold uppercase tracking-[0.18em] ${isLive ? "reactor-live-label" : "text-slate-400"}`}>
                 {isLive ? "Live" : statusLabel}
               </span>
             </div>
@@ -677,35 +677,36 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
           <button
             type="button"
             onClick={() => setShowHistory((v) => !v)}
-            className={`flex h-10 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-[10px] font-bold uppercase tracking-wider transition-all duration-150 ease-out active:scale-[0.97] active:opacity-85 touch-manipulation ${
+            className={`reactor-pressable flex h-10 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-[10px] font-bold uppercase tracking-wider ${
               showHistory ? "border-cyan-400/40 bg-cyan-400/10 text-cyan-300" : "border-white/10 bg-white/[0.04] text-slate-400 hover:border-white/20"
             }`}
             data-testid="button-history"
             aria-pressed={showHistory}
           >
-            <History className="h-3.5 w-3.5" />
+            <History className="h-3.5 w-3.5" aria-hidden />
             {showHistory ? "Live" : "History"}
           </button>
           <button
             type="button"
             onClick={onRefresh}
             disabled={syncing}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-slate-400 transition-all duration-150 ease-out active:scale-[0.97] active:opacity-85 touch-manipulation hover:border-cyan-400/30 hover:text-cyan-300 disabled:opacity-50 disabled:active:scale-100"
-            aria-label="Refresh"
+            className="reactor-pressable flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-slate-400 hover:border-cyan-400/30 hover:text-cyan-300 disabled:opacity-50 disabled:pointer-events-none"
+            aria-label="Refresh Atlas status"
             data-testid="button-refresh-atlas"
           >
-            <RefreshCw className={`h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`} />
+            <RefreshCw className={`h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`} aria-hidden />
           </button>
         </div>
         {(atlasState?.atlasTelemetry?.disposition === "contact_route_found"
           || (atlasState?.atlasTelemetry?.contacts != null && atlasState.atlasTelemetry.contacts > 0)) && (
           <div
-            className="mt-3 rounded-xl border border-emerald-400/45 bg-emerald-400/[0.12] px-3 py-2.5 shadow-[0_0_24px_rgba(52,211,153,0.15)]"
+            className="reactor-reach mt-3 rounded-xl border px-3 py-2.5 shadow-[0_0_24px_rgba(52,211,153,0.18)]"
             data-testid="card-reach-contact-found"
             role="status"
-            style={{ animation: "reachIn 320ms cubic-bezier(0.22,1,0.36,1) both" }}
+            aria-live="polite"
+            style={{ animation: "reachIn var(--reactor-celebrate, 320ms) var(--reactor-ease, cubic-bezier(0.22,1,0.36,1)) both" }}
           >
-            <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-300">Contact found · REACH</div>
+            <div className="reactor-reach-label text-[10px] font-bold uppercase">Contact found · REACH</div>
             <div className="mt-1 text-[13px] leading-snug text-emerald-50">
               {atlasState?.atlasTelemetry?.resultSummary
                 || `${atlasState?.atlasTelemetry?.contacts} attributable vector(s)`}

@@ -716,9 +716,10 @@ function MobileWorkstage({
         <div className="flex items-center justify-between gap-2">
           <button
             type="button"
-            className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] font-mono text-slate-300 transition-all duration-150 ease-out disabled:opacity-30 active:scale-[0.97] active:opacity-85 touch-manipulation min-h-[40px]"
+            className="reactor-pressable rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] font-mono text-slate-300 disabled:opacity-30 disabled:pointer-events-none min-h-[40px]"
             disabled={safeIdx <= 0}
             onClick={goPrev}
+            aria-label="Previous scene"
           >
             ← Prev
           </button>
@@ -746,9 +747,10 @@ function MobileWorkstage({
           </div>
           <button
             type="button"
-            className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] font-mono text-slate-300 transition-all duration-150 ease-out disabled:opacity-30 active:scale-[0.97] active:opacity-85 touch-manipulation min-h-[40px]"
+            className="reactor-pressable rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] font-mono text-slate-300 disabled:opacity-30 disabled:pointer-events-none min-h-[40px]"
             disabled={safeIdx >= scenes.length - 1}
             onClick={goNext}
+            aria-label="Next scene"
           >
             Next →
           </button>
@@ -776,7 +778,8 @@ function MobileWorkstage({
                 setSlideDir(i > safeIdx ? 1 : -1);
                 setIdx(i);
               }}
-              className="shrink-0 rounded-lg border px-2 py-1.5 text-left w-[128px] active:scale-[0.97] transition-all duration-150 ease-out touch-manipulation"
+              className="reactor-pressable shrink-0 rounded-lg border px-2 py-1.5 text-left w-[128px]"
+              aria-current={i === safeIdx ? "true" : undefined}
               style={{
                 borderColor: i === safeIdx ? "#22d3ee66" : s.live ? "#22d3ee33" : "#ffffff10",
                 background: i === safeIdx ? "#22d3ee14" : "#0f172a",
@@ -847,6 +850,14 @@ export function BureauOpsStage({
     );
   }
 
+  const [focusId, setFocusId] = React.useState<string | null>(
+    () => scenes.find((s) => s.live)?.id ?? scenes[0]?.id ?? null,
+  );
+  React.useEffect(() => {
+    const live = scenes.find((s) => s.live);
+    if (live) setFocusId(live.id);
+  }, [scenes]);
+
   return (
     <div className="space-y-3">
       <div className="flex items-end justify-between gap-3 flex-wrap">
@@ -856,35 +867,56 @@ export function BureauOpsStage({
         <div className="text-[9px] font-mono text-slate-500 tabular-nums">{scenes.length}</div>
       </div>
 
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        {scenes.map((s, i) => (
-          <div
-            key={s.id}
-            className="shrink-0 rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-1.5 max-w-[200px]"
-          >
-            <div className="flex items-center gap-1.5 mb-0.5">
-              <span className="text-[9px] font-mono text-slate-500">{i + 1}</span>
-              <ProviderIcon kind={s.provider} size={11} />
-              <span className="text-[9px] font-mono text-slate-400 truncate">{s.title}</span>
-              {s.live && <span className="text-[8px] text-emerald-400 font-mono">LIVE</span>}
-            </div>
-            <div className="text-[10px] text-slate-300 leading-snug line-clamp-2">{s.story}</div>
-          </div>
-        ))}
+      <div className="flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Live Desk scenes">
+        {scenes.map((s, i) => {
+          const selected = (focusId ?? scenes[0]?.id) === s.id;
+          return (
+            <button
+              key={s.id}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              onClick={() => {
+                setFocusId(s.id);
+                const el = document.getElementById(`desk-scene-${s.id}`);
+                el?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+              }}
+              className="reactor-pressable shrink-0 rounded-lg border px-2.5 py-1.5 max-w-[200px] text-left"
+              style={{
+                borderColor: selected ? "#22d3ee66" : s.live ? "#22d3ee40" : "#ffffff18",
+                background: selected ? "#22d3ee14" : "#ffffff08",
+                boxShadow: selected ? "0 0 12px rgba(34,211,238,0.12)" : undefined,
+              }}
+            >
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <span className="text-[9px] font-mono text-slate-500">{i + 1}</span>
+                <ProviderIcon kind={s.provider} size={11} />
+                <span className="text-[9px] font-mono text-slate-300 truncate">{s.title}</span>
+                {s.live && <span className="text-[8px] text-emerald-300 font-mono font-bold">LIVE</span>}
+              </div>
+              <div className="text-[10px] text-slate-300 leading-snug line-clamp-2">{s.story}</div>
+            </button>
+          );
+        })}
       </div>
 
       <div className="grid gap-3 grid-cols-1 lg:grid-cols-2">
         {scenes.map((s) => {
           const anyLive = scenes.some((x) => x.live);
-          const dim = anyLive && !s.live;
+          const focused = (focusId ?? scenes.find((x) => x.live)?.id ?? scenes[0]?.id) === s.id;
+          const dim = anyLive ? !s.live && !focused : !focused && scenes.length > 1;
           return (
             <div
               key={s.id}
+              id={`desk-scene-${s.id}`}
+              role="tabpanel"
               style={{
                 opacity: dim ? 0.55 : 1,
                 transform: dim ? "scale(0.985)" : "scale(1)",
                 transition: "opacity 220ms ease, transform 220ms ease",
                 filter: dim ? "saturate(0.7)" : undefined,
+                outline: focused ? "1px solid rgba(34,211,238,0.35)" : undefined,
+                borderRadius: 8,
               }}
             >
               <SceneCard scene={s} />
