@@ -242,12 +242,15 @@ function WindowChrome({
           {favicon}
           <span className={`font-mono text-slate-300 truncate ${compact ? "text-[10px]" : "text-[11px]"}`}>{title}</span>
           {live && (
-            <span className="relative inline-flex items-center gap-1 shrink-0 rounded-full border border-emerald-400/50 bg-emerald-400/15 px-1.5 py-0.5">
-              <span className="relative flex h-1.5 w-1.5">
+            <span
+              className="relative inline-flex items-center gap-1.5 shrink-0 rounded-full border border-emerald-400/60 bg-emerald-400/20 px-2 py-0.5 shadow-[0_0_12px_rgba(52,211,153,0.25)]"
+              aria-label="Tool is live"
+            >
+              <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-70" />
-                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400 shadow-[0_0_6px_#34d399]" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400 shadow-[0_0_8px_#34d399]" />
               </span>
-              <span className="text-[8px] font-mono font-bold uppercase tracking-wider text-emerald-300">live</span>
+              <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-emerald-200">LIVE</span>
             </span>
           )}
         </div>
@@ -771,7 +774,7 @@ function MobileWorkstage({
           {safeIdx + 1}/{scenes.length}
         </span>
       </div>
-      <div className="text-[8px] font-mono uppercase tracking-wider text-slate-500 px-0.5">
+      <div className={`text-[9px] font-mono uppercase tracking-wider px-0.5 ${scene.live ? "text-cyan-400/90" : "text-slate-500"}`}>
         {scene.live ? "Live step" : "Step"} {safeIdx + 1} of {scenes.length}
         {scene.title ? ` · ${scene.title}` : ""}
       </div>

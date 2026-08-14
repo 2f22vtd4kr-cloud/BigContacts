@@ -274,3 +274,21 @@ https://www.figma.com/design/TpHSxn1Cvo9Frdf9IEVWlT
 
 ### Also this block
 - Live-empty state: subtle shimmer + ghost metric cards when run is live but no scenes yet (continuity with arming metaphor)
+
+---
+
+## Phase H — Live signal amplification (Apex Atlas Live Desk)
+
+**Product name:** Apex Atlas (repo continues as BigContacts; UI copy and a11y use Apex Atlas).
+
+### Delivered
+1. **LIVE pill** on WindowChrome — larger dot, stronger border/glow, uppercase LIVE, aria-label
+2. **Desktop Live Desk panel**
+   - `data-live` + stronger cyan border/glow when run is active
+   - `role="complementary"` + `aria-label="Apex Atlas Live Desk"`
+   - ACTIVE badge next to LIVE DESK header when live
+3. **Step label** — cyan when live for clearer mid-run position
+
+### Rules reinforced
+- Live tool must read as live at a glance (pill + border + shimmer)
+- Desktop and mobile share the same live language

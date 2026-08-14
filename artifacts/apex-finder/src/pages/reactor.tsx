@@ -1462,11 +1462,18 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
         {deskOn && (
           <div
             data-testid="panel-live-desk"
+            data-live={isLive ? "true" : "false"}
+            role="complementary"
+            aria-label="Apex Atlas Live Desk"
             style={{
               position:"absolute", top:12, right:18, width:420, maxHeight:"calc(100% - 24px)",
               overflowY:"auto", zIndex:28, padding:"12px 12px 14px",
-              border:"1px solid #22d3ee40", borderRadius:8,
-              background:"rgba(7,15,29,0.97)", boxShadow:"0 0 28px #000a",
+              border: isLive ? "1px solid #22d3ee88" : "1px solid #22d3ee40",
+              borderRadius:8,
+              background:"rgba(7,15,29,0.97)",
+              boxShadow: isLive
+                ? "0 0 32px rgba(34,211,238,0.14), 0 0 28px #000a"
+                : "0 0 28px #000a",
               backdropFilter:"blur(12px)",
               animation:`armIn ${REACTOR_UI_MS + 60}ms ease-out both`,
             }}
@@ -1491,10 +1498,24 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
               </div>
             )}
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
-              <span style={{ fontSize:9, letterSpacing:"0.18em", color:"#67e8f9", fontWeight:700 }}>
+              <span style={{ fontSize:9, letterSpacing:"0.18em", color:"#67e8f9", fontWeight:700, display:"flex", alignItems:"center", gap:8 }}>
                 LIVE DESK
+                {isLive && (
+                  <span
+                    style={{
+                      display:"inline-flex", alignItems:"center", gap:4,
+                      fontSize:8, letterSpacing:"0.12em", fontWeight:700,
+                      color:"#a7f3d0", background:"rgba(52,211,153,0.15)",
+                      border:"1px solid rgba(52,211,153,0.45)", borderRadius:999,
+                      padding:"2px 7px",
+                    }}
+                  >
+                    <span style={{ width:6, height:6, borderRadius:"50%", background:"#34d399", boxShadow:"0 0 6px #34d399" }} />
+                    ACTIVE
+                  </span>
+                )}
                 {deskEvents.length > 0 && (
-                  <span style={{ marginLeft:8, fontWeight:500, color:"#64748b", letterSpacing:"0.06em" }}>
+                  <span style={{ fontWeight:500, color:"#64748b", letterSpacing:"0.06em" }}>
                     {deskEvents.length} event{deskEvents.length === 1 ? "" : "s"}
                   </span>
                 )}

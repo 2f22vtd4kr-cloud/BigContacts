@@ -69,3 +69,12 @@ See `MOTION.md` / `src/lib/reactor-motion.ts`. No magic numbers in timers.
 | Arming (400ms) | Traffic lights + URL bar + prompt line + 2 metric cards + shimmer |
 | Reduced motion | Arming skipped; no shimmer loops |
 | Live empty | Cyan border + radio pulse + "first tool window incoming" |
+
+## Phase H — Live signal
+
+| Surface | Expected |
+|---------|----------|
+| WindowChrome live | LIVE pill (uppercase, larger pip, glow) |
+| Desktop Live Desk | Stronger border + ACTIVE badge when isLive |
+| Step label | Cyan when scene.live |
+| a11y | complementary region labeled Apex Atlas Live Desk |
