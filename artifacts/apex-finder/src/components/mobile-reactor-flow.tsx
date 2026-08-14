@@ -405,17 +405,27 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
           )}
 
           <p className="px-1 text-center text-[10px] leading-relaxed text-slate-600">
-            Swipe or use arrows to step tools. Space pauses auto-advance. Each view matches the work: search, browser, domain, analyst.
+            Swipe or arrows step tools · Space pauses · edge-swipe opens history. Views match the work: search, browser, domain, analyst.
           </p>
         </div>
       </div>
 
 
       {exhaustedKeys.length > 0 && (
-        <div className="shrink-0 border-t border-amber-900/40 bg-amber-950/20 px-4 py-2.5" role="alert" data-testid="alert-provider-rate-limit">
-          <div className="flex items-start gap-2 text-[9px] font-bold uppercase leading-4 tracking-wider text-amber-400">
-            <Key className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-            <span>Provider rate limit — configured keys rotating: {exhaustedKeys.join(", ")}</span>
+        <div className="shrink-0 border-t border-amber-500/30 bg-amber-950/35 px-4 py-2.5" role="alert" data-testid="alert-provider-rate-limit">
+          <div className="flex items-start gap-2">
+            <Key className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400" aria-hidden />
+            <div className="min-w-0 flex-1">
+              <div className="text-[9px] font-bold uppercase leading-4 tracking-wider text-amber-300">
+                Provider rate limit
+              </div>
+              <div className="mt-0.5 text-[11px] leading-snug text-amber-100/90">
+                Rotating configured keys
+                {exhaustedKeys.length > 0 && (
+                  <span className="text-amber-200/80"> · {exhaustedKeys.slice(0, 4).join(", ")}{exhaustedKeys.length > 4 ? ` +${exhaustedKeys.length - 4}` : ""}</span>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}

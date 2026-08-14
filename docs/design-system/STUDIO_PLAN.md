@@ -216,3 +216,12 @@ https://www.figma.com/design/TpHSxn1Cvo9Frdf9IEVWlT
 - Desktop tabpanel scroll-margin for strip → card
 - Progress bar role="progressbar" + valuemin/max/now
 
+
+---
+
+## Continue-11
+
+- Rate-limit banner hierarchy (title + body, key overflow)
+- Footer mentions edge-swipe history
+- Bureau empty idle copy clarity
+
