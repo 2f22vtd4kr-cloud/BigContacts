@@ -6,6 +6,7 @@ import {
   Sparkles, Compass, Rss, Users,
 } from "lucide-react";
 import { MobileReactorFlow } from "../components/mobile-reactor-flow";
+import { BureauOpsStage } from "../components/bureau-ops-stage";
 import { isMockMode, mockAtlasLiveState, mockLiveNodes } from "@/lib/dev-mock-data";
 import { formatSchedulerCountdown, schedulerWaitRemaining } from "../components/scheduler-utils";
 
@@ -1344,6 +1345,10 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
   const schedulerCountdown = formatSchedulerCountdown(schedulerWaitRemaining(scheduler, schedulerNow));
   const waitingForNextCycle = Boolean(!isLive && !atlasFailed && schedulerCountdown);
   const atlasStatusColor = atlasFailed ? "#fb7185" : waitingForNextCycle ? "#fbbf24" : atlasDone ? "#a3e635" : isLive ? "#22d3ee" : "#a3e635";
+  const [deskOn, setDeskOn] = useState(true);
+  const deskEvents = atlasState?.eventLog ?? [];
+  const contactFound = atlasState?.atlasTelemetry?.disposition === "contact_route_found"
+    || (atlasState?.atlasTelemetry?.contacts != null && atlasState.atlasTelemetry.contacts > 0);
 
   return (
     <div style={{
@@ -1451,6 +1456,64 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
       {/* Main panel */}
       <div style={{ flex:1, position:"relative", zIndex:5, overflow:"hidden" }}>
         <AtlasTelemetryInspector telemetry={atlasState?.atlasTelemetry} eventLog={atlasState?.eventLog} />
+        {/* Live Desk — side panel; scheme stays primary */}
+        {deskOn && (
+          <div
+            data-testid="panel-live-desk"
+            style={{
+              position:"absolute", top:12, right:18, width:400, maxHeight:"calc(100% - 24px)",
+              overflowY:"auto", zIndex:28, padding:"12px 12px 14px",
+              border:"1px solid #22d3ee40", borderRadius:8,
+              background:"rgba(7,15,29,0.97)", boxShadow:"0 0 28px #000a",
+              backdropFilter:"blur(12px)",
+            }}
+          >
+            {contactFound && (
+              <div
+                data-testid="card-reach-contact-found-desktop"
+                style={{
+                  marginBottom:10, padding:"8px 10px", borderRadius:6,
+                  border:"1px solid #34d39966", background:"rgba(52,211,153,0.1)",
+                  fontSize:11, color:"#a7f3d0", lineHeight:1.4,
+                }}
+              >
+                <span style={{ fontWeight:700, letterSpacing:"0.12em", color:"#6ee7b7", fontSize:9 }}>CONTACT FOUND · REACH · </span>
+                {atlasState?.atlasTelemetry?.resultSummary
+                  || `${atlasState?.atlasTelemetry?.contacts ?? 1} attributable vector(s)`}
+              </div>
+            )}
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
+              <span style={{ fontSize:9, letterSpacing:"0.18em", color:"#67e8f9", fontWeight:700 }}>LIVE DESK</span>
+              <button
+                type="button"
+                onClick={() => setDeskOn(false)}
+                style={{
+                  fontSize:9, letterSpacing:"0.1em", color:"#526b86",
+                  background:"transparent", border:"1px solid #192840",
+                  borderRadius:4, padding:"3px 8px", cursor:"pointer",
+                }}
+              >HIDE</button>
+            </div>
+            <BureauOpsStage
+              events={deskEvents as any}
+              maxScenes={5}
+              title="LIVE DESK"
+            />
+          </div>
+        )}
+        {!deskOn && (
+          <button
+            type="button"
+            data-testid="button-live-desk-on"
+            onClick={() => setDeskOn(true)}
+            style={{
+              position:"absolute", top:12, right:18, zIndex:28,
+              fontSize:9, letterSpacing:"0.14em", fontWeight:700,
+              color:"#67e8f9", background:"rgba(34,211,238,0.08)",
+              border:"1px solid #22d3ee55", borderRadius:4, padding:"6px 10px", cursor:"pointer",
+            }}
+          >LIVE DESK ON</button>
+        )}
         {/* SVG connections */}
         <svg width={1600} height={842} style={{ position:"absolute", inset:0, zIndex:1 }}>
           <defs>
