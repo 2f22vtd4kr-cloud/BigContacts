@@ -747,14 +747,27 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
           ) : liveEvents.length > 0 ? (
             <section
               key={showHistory ? "history" : "live"}
-              className="rounded-2xl border border-cyan-400/25 bg-[#071018] p-3 shadow-[0_0_40px_rgba(34,211,238,0.06)]"
+              className={`rounded-2xl border p-3 ${
+                showHistory
+                  ? "border-slate-500/35 bg-[#0a0f18] shadow-[0_0_32px_rgba(100,116,139,0.08)]"
+                  : "border-cyan-400/25 bg-[#071018] shadow-[0_0_40px_rgba(34,211,238,0.06)]"
+              }`}
               data-testid="panel-live-desk-mobile"
               aria-label={showHistory ? "Target history" : "Live research window"}
               style={{ animation: "armIn 280ms ease-out both" }}
             >
               <div className="mb-3 flex items-center justify-between gap-2 px-0.5">
-                <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300/90">
-                  {showHistory ? "History" : "Under the hood"}
+                <div className="flex items-center gap-2">
+                  <div className={`text-[10px] font-bold uppercase tracking-[0.2em] ${
+                    showHistory ? "text-slate-300" : "text-cyan-300/90"
+                  }`}>
+                    {showHistory ? "History" : "Under the hood"}
+                  </div>
+                  {showHistory && (
+                    <span className="rounded-full border border-slate-500/40 bg-slate-500/15 px-1.5 py-0.5 text-[8px] font-mono font-bold uppercase tracking-wider text-slate-300">
+                      archive
+                    </span>
+                  )}
                 </div>
                 <div className="text-[10px] font-mono tabular-nums text-slate-500">
                   {liveEvents.length} step{liveEvents.length === 1 ? "" : "s"}
@@ -770,6 +783,11 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                   if (dir === "next" && showHistory) setShowHistory(false);
                 }}
               />
+              <div className={`mt-2 text-center text-[8px] font-mono uppercase tracking-wider ${
+                showHistory ? "text-slate-500" : "text-slate-600"
+              }`}>
+                {showHistory ? "Swipe right or tap Live to return" : "Swipe left at start for history"}
+              </div>
             </section>
           ) : (
             <div
