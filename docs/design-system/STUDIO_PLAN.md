@@ -639,3 +639,22 @@ Every tab is operator-facing. Technical stack stays under the hood unless the op
 
 ### Rule
 Profile is a workspace, not a schema dump.
+
+---
+
+## Phase Y — Field Manual + workspace status
+
+**Studio goal:** Docs and status chrome match product language.
+
+### Delivered
+1. **Field Manual**
+   - Clearer intro
+   - Section search
+   - Accordion a11y (`aria-expanded`, regions, focus rings)
+   - Reactor section = live activity language (not tool dump)
+   - Footer: operator honesty rules
+2. **WorkspaceStatus**
+   - Details in plain English (what the operator should do/know)
+
+### Rule
+Help and status are product surfaces, not internal notes.

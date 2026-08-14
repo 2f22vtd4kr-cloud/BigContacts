@@ -136,7 +136,7 @@ const SECTIONS = [
   },
   {
     id: "reactor",
-    title: "4. Intelligence Reactor (live under-the-hood)",
+    title: "4. Intelligence Reactor (live activity)",
     content: (
       <>
         <p className="text-sm text-muted-foreground leading-relaxed mb-4">
@@ -144,11 +144,11 @@ const SECTIONS = [
           While a run is active it shows:
         </p>
         <ul className="space-y-3 text-sm text-muted-foreground mb-4">
-          <li className="flex gap-2"><Cpu className="w-4 h-4 text-primary shrink-0 mt-0.5" /><span><strong className="text-foreground">Phase / stage / active lane</strong> — which rod is working the current target.</span></li>
-          <li className="flex gap-2"><Globe className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" /><span><strong className="text-foreground">BROWSER</strong> tags — Scrapfly / ZenRows / page visits as they fire.</span></li>
-          <li className="flex gap-2"><Activity className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" /><span><strong className="text-foreground">PROMPT</strong> blocks — the exact Boss / investigator prompt in use.</span></li>
-          <li className="flex gap-2"><Shield className="w-4 h-4 text-violet-400 shrink-0 mt-0.5" /><span><strong className="text-foreground">FOOTPRINT</strong> — Sherlock / Maigret / Holehe username and email checks.</span></li>
-          <li className="flex gap-2"><Database className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" /><span><strong className="text-foreground">DOMAIN</strong> — RDAP-first + WhoisJSON domain surface hop (registration longevity as ownership-stability signal).</span></li>
+          <li className="flex gap-2"><Cpu className="w-4 h-4 text-primary shrink-0 mt-0.5" /><span><strong className="text-foreground">Phase and active tool</strong> — which step is working the current target.</span></li>
+          <li className="flex gap-2"><Globe className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" /><span><strong className="text-foreground">Browser steps</strong> — opening public pages and reading what they say about the target.</span></li>
+          <li className="flex gap-2"><Activity className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" /><span><strong className="text-foreground">Analyst steps</strong> — writing down only contacts that can be proven.</span></li>
+          <li className="flex gap-2"><Shield className="w-4 h-4 text-violet-400 shrink-0 mt-0.5" /><span><strong className="text-foreground">Footprint steps</strong> — checking whether the same name shows up on other public sites.</span></li>
+          <li className="flex gap-2"><Database className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" /><span><strong className="text-foreground">Domain steps</strong> — checking who registered the website and when.</span></li>
         </ul>
         <Callout title="Live Action Log">
           The <strong className="text-foreground">LIVE DESK</strong> on the Reactor shows simulated tool chrome (Google search bar, browser windows, analyst prompts) driven by real Bureau/Atlas payloads — swipe on mobile, story rail on desktop. Expand any event row for full prompt text, tool IDs, and counts.
@@ -276,40 +276,73 @@ const SECTIONS = [
 
 export default function ManualPage() {
   const [openId, setOpenId] = useState<string | null>("overview");
+  const [query, setQuery] = useState("");
+  const q = query.trim().toLowerCase();
+  const visible = q
+    ? SECTIONS.filter((s) => s.title.toLowerCase().includes(q) || s.id.includes(q))
+    : SECTIONS;
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 sm:py-10">
       <div className="flex items-center gap-3 mb-2">
-        <BookOpen className="w-6 h-6 text-primary" />
+        <BookOpen className="w-6 h-6 text-primary" aria-hidden />
         <h1 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">Field manual</h1>
       </div>
-      <p className="text-sm text-muted-foreground mb-8 leading-relaxed">
-        Operator guide for Apex Atlas on Replit — company-first contact maximizer, Intelligence Reactor, completeness scoring, and fail-closed rules.
-        Desktop and mobile share the same content; navigation collapses on small screens.
+      <p className="text-sm text-muted-foreground mb-5 leading-relaxed">
+        How Apex Atlas works: find reachable people, run live research, read scores, and stay honest about what is proven.
       </p>
 
-      <div className="space-y-2">
-        {SECTIONS.map((section) => {
+      <label className="sr-only" htmlFor="manual-search">Search manual sections</label>
+      <input
+        id="manual-search"
+        data-testid="input-manual-search"
+        type="search"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search sections…"
+        className="mb-5 w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:border-primary"
+        autoComplete="off"
+      />
+
+      <div className="space-y-2" role="list">
+        {visible.length === 0 && (
+          <div className="rounded-lg border border-border bg-card px-4 py-8 text-center text-sm text-muted-foreground" data-testid="manual-search-empty">
+            No sections match “{query.trim()}”.
+          </div>
+        )}
+        {visible.map((section) => {
           const open = openId === section.id;
           return (
-            <div key={section.id} className="border border-border rounded-lg bg-card overflow-hidden">
+            <div key={section.id} className="border border-border rounded-lg bg-card overflow-hidden" role="listitem">
               <button
                 type="button"
                 onClick={() => setOpenId(open ? null : section.id)}
-                className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-muted/40 transition-colors"
+                aria-expanded={open}
+                aria-controls={`manual-panel-${section.id}`}
+                id={`manual-tab-${section.id}`}
+                className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-muted/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
                 data-testid={`manual-section-${section.id}`}
               >
                 <span className="text-sm font-semibold text-foreground">{section.title}</span>
-                {open ? <ChevronUp className="w-4 h-4 text-muted-foreground shrink-0" /> : <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />}
+                {open ? <ChevronUp className="w-4 h-4 text-muted-foreground shrink-0" aria-hidden /> : <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" aria-hidden />}
               </button>
-              {open && <div className="px-4 pb-5 border-t border-border pt-4">{section.content}</div>}
+              {open && (
+                <div
+                  id={`manual-panel-${section.id}`}
+                  role="region"
+                  aria-labelledby={`manual-tab-${section.id}`}
+                  className="px-4 pb-5 border-t border-border pt-4"
+                >
+                  {section.content}
+                </div>
+              )}
             </div>
           );
         })}
       </div>
 
-      <div className="mt-10 text-[11px] font-mono text-muted-foreground/70 leading-relaxed">
-        Apex Atlas · fail-closed · Grok is the floor · session keys only · tip includes domain-surface + completeness score + wave-3 holdouts
+      <div className="mt-10 text-[11px] text-muted-foreground/70 leading-relaxed">
+        Apex Atlas · never invent contacts · org inboxes stay company · Grok is the floor
       </div>
     </div>
   );
