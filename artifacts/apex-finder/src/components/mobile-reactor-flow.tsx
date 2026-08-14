@@ -531,10 +531,10 @@ function LiveResearchConsole({
         <div className="mt-3 rounded-xl border border-amber-400/15 bg-amber-400/[0.04] p-3" data-testid="status-telemetry-unavailable">
           <div className="mb-1 flex items-center gap-2 text-[9px] uppercase tracking-[0.18em] text-amber-300/70">
             <AlertTriangle className="h-3 w-3" />
-            Lane telemetry unavailable
+            Telemetry offline
           </div>
           <div className="text-[10px] leading-relaxed text-slate-300">
-            Showing only confirmed Atlas job progress. No research tool or result is inferred from the parent status message.
+            Confirmed progress only.
           </div>
         </div>
       )}

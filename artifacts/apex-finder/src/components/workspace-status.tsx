@@ -115,8 +115,11 @@ export function WorkspaceStatus() {
       if (!mounted) return;
       let nextError = true;
       if (atlasResult.status === "fulfilled" && atlasResult.value.ok) {
-        setAtlas(await atlasResult.value.json() as AtlasStatus);
-        nextError = false;
+        const contentType = atlasResult.value.headers.get("content-type") || "";
+        if (contentType.includes("application/json")) {
+          setAtlas(await atlasResult.value.json() as AtlasStatus);
+          nextError = false;
+        }
       }
       if (systemResult.status === "fulfilled") {
         setSystem(systemResult.value);

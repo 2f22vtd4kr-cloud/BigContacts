@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { MobileReactorFlow } from "../components/mobile-reactor-flow";
 import { formatSchedulerCountdown, schedulerWaitRemaining } from "../components/scheduler-utils";
+import { BureauOpsStage } from "../components/bureau-ops-stage";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface NodeDef {
@@ -1343,6 +1344,9 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
   const schedulerCountdown = formatSchedulerCountdown(schedulerWaitRemaining(scheduler, schedulerNow));
   const waitingForNextCycle = Boolean(!isLive && !atlasFailed && schedulerCountdown);
   const atlasStatusColor = atlasFailed ? "#fb7185" : waitingForNextCycle ? "#fbbf24" : atlasDone ? "#a3e635" : isLive ? "#22d3ee" : "#a3e635";
+  // Live Desk side panel (Bureau Ops) — toggle; never replaces the scheme
+  const [deskOn, setDeskOn] = useState(true);
+  const deskEvents = atlasState?.eventLog ?? [];
 
   return (
     <div style={{
@@ -1418,6 +1422,21 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                   </div>
                 )}
               </div>
+              <button
+                type="button"
+                data-testid="button-live-desk-toggle"
+                onClick={() => setDeskOn((v) => !v)}
+                style={{
+                  padding:"4px 10px", borderRadius:4, cursor:"pointer",
+                  border: deskOn ? "1px solid #22d3ee55" : "1px solid #192840",
+                  background: deskOn ? "rgba(34,211,238,0.08)" : "transparent",
+                  color: deskOn ? "#67e8f9" : "#526b86",
+                  fontSize:8, letterSpacing:"0.14em", fontFamily:"inherit",
+                }}
+                title="Toggle Live Desk side panel (Bureau Ops). Scheme stays primary."
+              >
+                LIVE DESK {deskOn ? "ON" : "OFF"}
+              </button>
               <div style={{ textAlign:"right" }}>
               <div style={{ fontSize:7, letterSpacing:"0.16em", color:"#3a5070" }}>ENTITY FLOW</div>
               <div style={{ fontSize:11, fontWeight:700, color:isLive ? "#22d3ee" : "#3a5070", lineHeight:1, marginTop:3, letterSpacing:"0.12em" }}>
@@ -1450,6 +1469,25 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
       {/* Main panel */}
       <div style={{ flex:1, position:"relative", zIndex:5, overflow:"hidden" }}>
         <AtlasTelemetryInspector telemetry={atlasState?.atlasTelemetry} eventLog={atlasState?.eventLog} />
+        {/* Live Desk — Bureau Ops side panel (scheme remains primary; stacks under inspector) */}
+        {deskOn && (
+          <div
+            data-testid="panel-live-desk"
+            style={{
+              position:"absolute", top:370, right:18, width:400, maxHeight:"calc(100% - 390px)",
+              overflowY:"auto", zIndex:28, padding:"12px 12px 14px",
+              border:"1px solid #22d3ee40", borderRadius:8,
+              background:"rgba(7,15,29,0.97)", boxShadow:"0 0 28px #000a",
+              backdropFilter:"blur(12px)",
+            }}
+          >
+            <BureauOpsStage
+              events={deskEvents}
+              maxScenes={4}
+              title="LIVE DESK"
+            />
+          </div>
+        )}
         {/* SVG connections */}
         <svg width={1600} height={842} style={{ position:"absolute", inset:0, zIndex:1 }}>
           <defs>

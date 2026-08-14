@@ -84,5 +84,9 @@ export function getSoonestReset(status: SystemStatus | null): string | null {
 export async function fetchSystemStatus(base: string, signal?: AbortSignal): Promise<SystemStatus> {
   const response = await fetch(`${base}/api/system/status`, { signal });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) {
+    throw new Error(`Expected JSON, got ${contentType || "unknown content-type"}`);
+  }
   return response.json() as Promise<SystemStatus>;
 }
