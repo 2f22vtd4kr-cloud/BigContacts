@@ -12,6 +12,7 @@ Source: `artifacts/apex-finder/src/lib/reactor-motion.ts`
 | CELEBRATE | 320 | `--reactor-celebrate` | REACH one-shot |
 | ARM | 400 | `--reactor-arm` | Desk arming skeleton |
 | PAUSE | 8000 | `--reactor-pause` | Reading pause after touch |
+| AUTO_ADVANCE | 5200 | — | Live scene auto-advance when not paused |
 | SHIMMER | 1400 | `--reactor-shimmer` | Live URL/progress shimmer loop |
 
 Easing: `cubic-bezier(0.22, 1, 0.36, 1)` for enters.

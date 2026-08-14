@@ -10,6 +10,8 @@ export const REACTOR_SCENE_MS = 280;
 export const REACTOR_CELEBRATE_MS = 320;
 export const REACTOR_ARM_MS = 400;
 export const REACTOR_PAUSE_MS = 8000;
+/** Auto-advance between live scenes when not paused */
+export const REACTOR_AUTO_ADVANCE_MS = 5200;
 export const REACTOR_SHIMMER_MS = 1400;
 
 export const REACTOR_EASE = "cubic-bezier(0.22, 1, 0.36, 1)";

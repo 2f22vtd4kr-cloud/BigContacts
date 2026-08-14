@@ -10,7 +10,7 @@ import {
   providerLabel,
   type ProviderKind,
 } from "./provider-icons";
-import { REACTOR_PAUSE_MS, REACTOR_SCENE_MS, REACTOR_SHIMMER_MS, REACTOR_UI_MS } from "../lib/reactor-motion";
+import { REACTOR_PAUSE_MS, REACTOR_SCENE_MS, REACTOR_SHIMMER_MS, REACTOR_UI_MS, REACTOR_AUTO_ADVANCE_MS } from "../lib/reactor-motion";
 
 export type OpsEvent = {
   timestamp?: string;
@@ -540,7 +540,7 @@ function MobileWorkstage({
     const id = window.setInterval(() => {
       setSlideDir(1);
       setIdx((i) => (i + 1) % scenes.length);
-    }, 5200);
+    }, REACTOR_AUTO_ADVANCE_MS);
     return () => window.clearInterval(id);
   }, [paused, scenes.length, sceneKey]);
 
