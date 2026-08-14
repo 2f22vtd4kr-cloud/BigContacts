@@ -67,38 +67,85 @@ const OUTCOME_BADGES: Record<string, { label: string; color: string }> = {
   evidence_only:            { label: "evidence",      color: "#374151" },
 };
 
-/** Outreach completeness: FULL = personal/role email for owner path; PARTIAL = owner ID + org only; else INCOMPLETE */
-function deriveCompleteness(entity: any): { level: "FULL" | "PARTIAL" | "INCOMPLETE"; color: string } {
-  const outcome = String(entity.contactOutcome || "");
-  const hasPersonal =
-    outcome === "direct_contact_verified" ||
-    outcome === "direct_contact_candidate" ||
-    (entity.email && !/^(info|sales|contact|office|support|hello|admin|billing|help|service|enquiries|inquiry|mail|general|team|hr|jobs|careers|noreply|no-reply|donotreply|marketing|media|pr|webmaster|postmaster|abuse)@/i.test(String(entity.email)));
-  const ownerish = /owner|president|ceo|founder|principal|partner|chairman/i.test(
-    `${entity.linkedinHeadline || ""} ${entity.notes || ""} ${entity.contactMethod || ""}`,
-  );
-  if (hasPersonal && (ownerish || outcome === "direct_contact_verified")) {
-    return { level: "FULL", color: "#10B981" };
-  }
-  if (ownerish || outcome === "organization_contact" || outcome === "social_only") {
-    return { level: "PARTIAL", color: "#F59E0B" };
-  }
-  if (hasPersonal) return { level: "PARTIAL", color: "#F59E0B" };
-  return { level: "INCOMPLETE", color: "#64748B" };
+/** Org inbox prefixes — never labeled Personal (fail-closed). */
+const ORG_INBOX_RE = /^(info|sales|contact|office|support|admin|hello|team|enquiries|inquiry|press|media|hr|jobs|careers|billing|accounts|noreply|no-reply)@/i;
+
+function isOrgInbox(email?: string | null): boolean {
+  if (!email) return false;
+  const local = email.trim().split("@")[0] ?? "";
+  return ORG_INBOX_RE.test(`${local}@`);
 }
 
-function CompletenessBadge({ entity }: { entity: any }) {
-  const { level, color } = deriveCompleteness(entity);
-  return (
+/** REACH chip: emerald personal · violet org · sky social */
+function ReachChip({
+  kind,
+  label,
+  href,
+  title,
+}: {
+  kind: "personal" | "org" | "social";
+  label: string;
+  href?: string;
+  title?: string;
+}) {
+  const styles =
+    kind === "personal"
+      ? "text-emerald-300 border-emerald-400/35 bg-emerald-400/10"
+      : kind === "org"
+        ? "text-violet-300 border-violet-400/35 bg-violet-400/10"
+        : "text-sky-300 border-sky-400/35 bg-sky-400/10";
+  const tag = kind === "personal" ? "REACH · personal" : kind === "org" ? "REACH · org" : "REACH · social";
+  const body = (
     <span
-      className="inline-block text-[9px] font-mono font-bold px-1.5 py-0.5 rounded"
-      style={{ color, background: color + "18" }}
-      title="Outreach completeness — FULL = personal/role email for owner/principal"
-      data-testid="badge-completeness"
+      className={cn(
+        "inline-flex max-w-full items-center gap-1 rounded border px-1.5 py-0.5 font-mono text-[10px] leading-tight",
+        styles,
+      )}
+      title={title ?? tag}
     >
-      {level}
+      <span className="shrink-0 text-[8px] uppercase tracking-wider opacity-70">
+        {kind === "personal" ? "P" : kind === "org" ? "ORG" : "SOC"}
+      </span>
+      <span className="truncate">{label}</span>
     </span>
   );
+  if (href) {
+    return (
+      <a href={href} className="max-w-full hover:opacity-90" onClick={(e) => e.stopPropagation()} title={title ?? label}>
+        {body}
+      </a>
+    );
+  }
+  return body;
+}
+
+function entityReachVectors(entity: any): Array<{ kind: "personal" | "org" | "social"; label: string; href?: string; title?: string }> {
+  const out: Array<{ kind: "personal" | "org" | "social"; label: string; href?: string; title?: string }> = [];
+  if (entity.email) {
+    const org = isOrgInbox(entity.email) || entity.contactOutcome === "organization_contact";
+    out.push({
+      kind: org ? "org" : "personal",
+      label: entity.email,
+      href: `mailto:${entity.email}`,
+      title: org ? `Org inbox — not Personal · ${entity.email}` : `Personal reach · ${entity.email}`,
+    });
+  }
+  if (entity.phone) {
+    out.push({
+      kind: "personal",
+      label: entity.phone,
+      href: `tel:${entity.phone}`,
+      title: `Personal reach · ${entity.phone}`,
+    });
+  }
+  if (entity.linkedinUrl) {
+    out.push({ kind: "social", label: "LinkedIn", href: entity.linkedinUrl, title: entity.linkedinUrl });
+  }
+  if (entity.twitterHandle) {
+    const h = String(entity.twitterHandle).replace(/^@/, "");
+    out.push({ kind: "social", label: `@${h}`, href: `https://x.com/${h}`, title: `X/Twitter @${h}` });
+  }
+  return out;
 }
 
 // ─── CSV export ───────────────────────────────────────────────────────────────
@@ -178,122 +225,6 @@ function RerunButton({ entityId }: { entityId: number }) {
 
 // ─── Mobile card ──────────────────────────────────────────────────────────────
 
-
-/** Collect every non-trash contact vector for display — show all, badge directness. */
-function collectContactVectors(entity: any): Array<{
-  kind: "email" | "phone" | "linkedin" | "twitter" | "instagram" | "telegram" | "person";
-  value: string;
-  tier: "personal" | "org" | "social" | "related";
-  label?: string;
-}> {
-  const out: Array<{ kind: any; value: string; tier: any; label?: string }> = [];
-  const orgRe = /^(info|sales|contact|office|support|hello|admin|billing|help|service|enquiries|inquiry|mail|general|team|hr|jobs|careers|noreply|no-reply|donotreply|marketing|media|pr|webmaster|postmaster|abuse)@/i;
-
-  if (entity.email && typeof entity.email === "string" && !/protected|javascript:/i.test(entity.email)) {
-    out.push({ kind: "email", value: entity.email, tier: orgRe.test(entity.email) ? "org" : "personal" });
-  }
-  if (entity.phone && String(entity.phone).trim()) {
-    out.push({ kind: "phone", value: String(entity.phone).trim(), tier: "personal" });
-  }
-  if (entity.linkedinUrl) out.push({ kind: "linkedin", value: entity.linkedinUrl, tier: "social", label: "LinkedIn" });
-  if (entity.twitterHandle) out.push({ kind: "twitter", value: String(entity.twitterHandle).replace(/^@/, ""), tier: "social", label: "X" });
-  if (entity.instagramHandle) out.push({ kind: "instagram", value: String(entity.instagramHandle).replace(/^@/, ""), tier: "social", label: "IG" });
-  if (entity.telegramHandle) out.push({ kind: "telegram", value: String(entity.telegramHandle).replace(/^@/, ""), tier: "social", label: "TG" });
-
-  // Related people from deep-web owner resolutions (never hide non-trash)
-  try {
-    const meta = typeof entity.metadata === "string" ? JSON.parse(entity.metadata) : entity.metadata;
-    const people = [
-      ...(Array.isArray(meta?.deepWebOwnerResolutions) ? meta.deepWebOwnerResolutions : []),
-      ...(Array.isArray(meta?.deepWebPersonsDiscovered) ? meta.deepWebPersonsDiscovered : []),
-    ];
-    for (const p of people.slice(0, 6)) {
-      if (!p || typeof p !== "object") continue;
-      const name = p.name || p.fullName;
-      if (name) out.push({ kind: "person", value: String(name), tier: "related", label: p.role || p.ownershipStatus || "related" });
-      if (p.email && !/protected/i.test(p.email)) {
-        out.push({ kind: "email", value: String(p.email), tier: orgRe.test(p.email) ? "org" : "personal", label: name ? String(name).split(" ")[0] : undefined });
-      }
-      if (p.phone) out.push({ kind: "phone", value: String(p.phone), tier: "personal", label: name ? String(name).split(" ")[0] : undefined });
-    }
-  } catch { /* ignore bad metadata */ }
-
-  // de-dupe by kind+value, then rank: personal → related → org → social
-  const seen = new Set<string>();
-  const rank: Record<string, number> = { personal: 0, related: 1, org: 2, social: 3 };
-  return out
-    .filter((v) => {
-      const k = `${v.kind}:${v.value.toLowerCase()}`;
-      if (seen.has(k)) return false;
-      seen.add(k);
-      return true;
-    })
-    .sort((a, b) => (rank[a.tier] ?? 9) - (rank[b.tier] ?? 9));
-}
-
-function ContactVectorsStrip({ entity, compact = false }: { entity: any; compact?: boolean }) {
-  const vectors = collectContactVectors(entity);
-  if (!vectors.length) {
-    return (
-      <div className="text-[10px] font-mono text-muted-foreground/70">
-        No contacts yet — surface thin or desk still running
-      </div>
-    );
-  }
-  const tierStyle: Record<string, string> = {
-    personal: "border-emerald-400/35 bg-emerald-400/10 text-emerald-300",
-    org: "border-violet-400/35 bg-violet-400/10 text-violet-300",
-    social: "border-sky-400/30 bg-sky-400/10 text-sky-300",
-    related: "border-amber-400/30 bg-amber-400/10 text-amber-200",
-  };
-  const tierHint: Record<string, string> = {
-    personal: "Personal / role",
-    org: "Org inbox",
-    social: "Social",
-    related: "Related person",
-  };
-  const shown = compact ? vectors.slice(0, 6) : vectors;
-  const extra = compact ? Math.max(0, vectors.length - shown.length) : 0;
-  return (
-    <div className={cn("flex flex-wrap gap-1.5 max-w-full", compact && "gap-1")}>
-      {shown.map((v, i) => {
-        const href =
-          v.kind === "email" ? `mailto:${v.value}`
-          : v.kind === "phone" ? `tel:${v.value}`
-          : v.kind === "linkedin" ? v.value
-          : undefined;
-        const body = (
-          <>
-            <span className="opacity-70 uppercase tracking-wider text-[8px] shrink-0">{v.kind === "person" ? (v.label || "person") : v.kind}</span>
-            <span className={cn("truncate font-mono", compact ? "text-[10px] max-w-[100px]" : "text-[11px] max-w-[160px]")}>
-              {v.label && v.kind !== "person" ? `${v.label}: ` : ""}{v.value}
-            </span>
-          </>
-        );
-        const cls = cn(
-          "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 max-w-full",
-          tierStyle[v.tier] || tierStyle.social,
-        );
-        return href ? (
-          <a key={`${v.kind}-${v.value}-${i}`} href={href} title={`${tierHint[v.tier]} · ${v.value}`} className={cls} onClick={(e) => e.stopPropagation()}>
-            {body}
-          </a>
-        ) : (
-          <span key={`${v.kind}-${v.value}-${i}`} title={`${tierHint[v.tier]} · ${v.value}`} className={cls}>
-            {body}
-          </span>
-        );
-      })}
-      {extra > 0 && (
-        <span className="inline-flex items-center rounded-md border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[9px] font-mono text-slate-400">
-          +{extra} more
-        </span>
-      )}
-    </div>
-  );
-}
-
-
 function MobileEntityCard({
   entity, selected, onToggleSelect, isExpanded, onToggleExpand, onToggleStar, onToggleHide,
 }: {
@@ -311,106 +242,66 @@ function MobileEntityCard({
   const hasPublicVector = Boolean(entity.email || entity.phone || entity.linkedinUrl || entity.twitterHandle || entity.instagramHandle || entity.telegramHandle);
   const contactState = organizationLike
     ? entity.contactOutcome === "organization_contact"
-      ? "Organization route"
+      ? "REACH · org"
       : hasPublicVector
-        ? "Public vector — review"
-        : "No public route"
+        ? "REACH · review"
+        : "No reach vector"
     : entity.contactOutcome === "direct_contact_verified"
-      ? "Verified direct"
+      ? "REACH · personal [V]"
       : entity.contactOutcome === "direct_contact_candidate"
-        ? "Direct candidate"
+        ? "REACH · personal"
         : entity.contactOutcome === "social_only"
-          ? "Social only"
+          ? "REACH · social"
           : hasPublicVector
-            ? "Public vector — review"
-            : "No public route";
-
-  const vectors = collectContactVectors(entity);
-  const bestReach = vectors.find((v) => v.tier === "personal" && (v.kind === "email" || v.kind === "phone"));
-  const relatedPeople = vectors.filter((v) => v.kind === "person").slice(0, 2);
-  const isHot = Boolean(entity.isHot);
+            ? "REACH · review"
+            : "No reach vector";
 
   return (
-      <div className={cn("border-b border-border bg-card transition-colors hover:bg-card/80 focus-within:bg-card/90", selected && "bg-primary/5", isHot && "border-l-2 border-l-amber-400/80")}>
+      <div className={cn("border-b border-border bg-card transition-colors hover:bg-card/80", selected && "bg-primary/5")}>
       <div 
         onClick={onToggleExpand}
-        className="flex items-start px-4 py-3 cursor-pointer gap-0"
+        className="flex items-center px-4 py-3 cursor-pointer"
       >
-        <button onClick={onToggleSelect} className="shrink-0 mr-3 mt-0.5" aria-label={selected ? "Deselect" : "Select"}>
+        <button onClick={onToggleSelect} className="shrink-0 mr-3" aria-label={selected ? "Deselect" : "Select"}>
           {selected ? <CheckSquare className="w-4 h-4 text-primary" /> : <Square className="w-4 h-4 text-muted-foreground" />}
         </button>
         <div className="flex-1 min-w-0 pr-2">
-          {/* Row 1: name + value badges */}
-          <div className="flex items-start gap-2 min-w-0">
-            <div className="font-semibold text-[14px] text-foreground truncate min-w-0 flex-1">
-              {formatEntityName(entity.name)}
-            </div>
-            <div className="flex items-center gap-1 shrink-0">
-              {isHot && (
-                <span className="text-[8px] font-mono font-bold uppercase tracking-wider text-amber-300 bg-amber-400/15 border border-amber-400/30 px-1.5 py-0.5 rounded">Hot</span>
-              )}
-              <CompletenessBadge entity={entity} />
-            </div>
+          <div className="font-semibold text-[14px] text-foreground truncate">
+            {formatEntityName(entity.name)}
           </div>
-
-          {/* Row 2: PRIMARY REACH — the money line */}
-          {bestReach ? (
-            <div className="mt-1.5 flex items-center gap-1.5 min-w-0">
-              <span className="text-[8px] font-mono uppercase tracking-wider text-emerald-400/90 shrink-0">Reach</span>
-              <a
-                href={bestReach.kind === "email" ? `mailto:${bestReach.value}` : `tel:${bestReach.value}`}
-                className="text-[12px] font-mono text-emerald-300 truncate hover:underline"
-                onClick={(e) => e.stopPropagation()}
-                title={bestReach.value}
-              >
-                {bestReach.value}
-              </a>
-            </div>
-          ) : relatedPeople.length > 0 ? (
-            <div className="mt-1.5 flex items-center gap-1.5 min-w-0">
-              <span className="text-[8px] font-mono uppercase tracking-wider text-amber-300/90 shrink-0">People</span>
-              <span className="text-[12px] text-amber-100/90 truncate">
-                {relatedPeople.map((p) => p.value).join(" · ")}
-              </span>
-            </div>
-          ) : (
-            <div className="mt-1.5 text-[11px] font-mono text-muted-foreground/70 truncate">
-              {contactState}
+          {entity.linkedinHeadline && (
+            <div className="text-[10px] text-muted-foreground/60 font-mono truncate mt-0.5" title={entity.linkedinHeadline}>
+              {entity.linkedinHeadline}
             </div>
           )}
-
-          {/* Row 3: all contact vectors */}
-          <div className="mt-1.5">
-            <ContactVectorsStrip entity={entity} compact />
+          <div className="mt-2 text-[10px] leading-4 text-muted-foreground/80 line-clamp-2">
+            {workSummary ?? "No documented role or activity recorded"}
           </div>
-
-          {/* Row 4: role / activity — secondary */}
-          <div className="mt-1.5 text-[10px] leading-4 text-muted-foreground/75 line-clamp-2">
-            {workSummary ?? entity.linkedinHeadline ?? "No role line"}
-          </div>
-
-          <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+          <div className="mt-1">
             <span
               className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded flex items-center gap-1 w-max"
               style={{ color: typeColor, backgroundColor: typeColor + "18" }}
             >
               <EntityTypeMark type={entity.type} compact />
             </span>
-            {entity.contactOutcome && OUTCOME_BADGES[entity.contactOutcome] && (
-              <span
-                className="text-[9px] font-mono px-1.5 py-0.5 rounded"
-                style={{
-                  color: OUTCOME_BADGES[entity.contactOutcome].color,
-                  background: OUTCOME_BADGES[entity.contactOutcome].color + "18",
-                }}
-              >
-                {OUTCOME_BADGES[entity.contactOutcome].label}
-              </span>
-            )}
           </div>
         </div>
-        <div className="shrink-0 flex flex-col items-end gap-1.5 pt-0.5">
-          {!organizationLike && (
+        <div className="shrink-0 flex items-center gap-2">
+          {organizationLike ? (
+            <span
+              className={cn(
+                "text-[9px] font-mono font-bold uppercase tracking-wide px-1.5 py-1 rounded border whitespace-nowrap",
+                entity.contactOutcome === "organization_contact"
+                  ? "text-violet-300 border-violet-400/30 bg-violet-400/10"
+                  : "text-muted-foreground border-border bg-muted/30",
+              )}
+              title={entity.contactOutcome === "organization_contact"
+                ? "Organization contact route — not a personal access route"
+                : "No validated personal access route is recorded for this organization"}
+            >
+              {contactState}
+            </span>
+          ) : (
             <>
               <ConfidenceBadge score={entity.contactConfidence} />
               <AccessScoreBadge score={entity.accessScore} />
@@ -449,31 +340,28 @@ function MobileEntityCard({
           </div>
           
           <div className="mb-3">
-             <div className="flex items-center justify-between gap-2 mb-1.5">
-               <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">
-                 Contacts · all non-trash
-               </div>
-               <div className="flex items-center gap-1.5">
-                 {entity.contactOutcome && OUTCOME_BADGES[entity.contactOutcome] && (
-                   <span
-                     className="inline-block text-[9px] font-mono px-1.5 py-0.5 rounded"
-                     style={{
-                       color: OUTCOME_BADGES[entity.contactOutcome].color,
-                       background: OUTCOME_BADGES[entity.contactOutcome].color + "18",
-                     }}
-                   >
-                     {OUTCOME_BADGES[entity.contactOutcome].label}
-                   </span>
-                 )}
-                 <CompletenessBadge entity={entity} />
-               </div>
+             <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-0.5">
+               {organizationLike ? "Organization route" : "Contact"}
              </div>
-             <ContactVectorsStrip entity={entity} />
-             <div className="text-[10px] text-muted-foreground/70 mt-1.5">
+            <div className="text-xs text-foreground font-mono truncate">
+              {entity.email ? entity.email : entity.phone ? entity.phone : entity.linkedinUrl ? "LinkedIn" : "—"}
+            </div>
+             <div className="text-[10px] text-muted-foreground/75 mt-1">
                {organizationLike
-                 ? `${contactState} · emerald = personal/role · violet = org inbox`
-                 : `${contactState} · emerald = personal · sky = social · amber = related`}
+                 ? `${contactState} · not a personal route`
+                 : contactState}
              </div>
+            {entity.contactOutcome && OUTCOME_BADGES[entity.contactOutcome] && (
+              <span
+                className="inline-block text-[9px] font-mono px-1.5 py-0.5 rounded mt-0.5"
+                style={{
+                  color: OUTCOME_BADGES[entity.contactOutcome].color,
+                  background: OUTCOME_BADGES[entity.contactOutcome].color + "18",
+                }}
+              >
+                {OUTCOME_BADGES[entity.contactOutcome].label}
+              </span>
+            )}
           </div>
 
           {registries.length > 0 && (
@@ -787,7 +675,7 @@ export default function EntityLedger() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* ── Desktop ── */}
-      <div className="hidden lg:flex flex-col h-full overflow-hidden">
+      <div className="hidden md:flex flex-col h-full overflow-hidden">
         {/* Active filter banner */}
         {(hotOnly || anyContactFilter) && (
           <div className={cn(
@@ -1099,7 +987,7 @@ export default function EntityLedger() {
                       : <Square className="w-3.5 h-3.5" />}
                   </button>
                 </th>
-                {["Name", "Type", "Nationality", "Contact Score", "Access", "Public vector", "Entity signal"].map((h) => (
+                {["Name", "Type", "Nationality", "Contact Score", "Access", "REACH", "Entity signal"].map((h) => (
                   <th key={h} className={cn(
                     "px-4 py-3 text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap",
                     h === "Entity signal" ? "text-right" : "text-left"
@@ -1138,23 +1026,7 @@ export default function EntityLedger() {
                           </span>
                         )}
                          <div className="min-w-0">
-                          <div className="font-semibold text-sm text-foreground whitespace-nowrap flex items-center gap-2">
-                            {formatEntityName(entity.name)}
-                            <CompletenessBadge entity={entity} />
-                          </div>
-                          {(() => {
-                            const v = collectContactVectors(entity).find((x) => x.tier === "personal" && (x.kind === "email" || x.kind === "phone"));
-                            if (!v) return null;
-                            return (
-                              <a
-                                href={v.kind === "email" ? `mailto:${v.value}` : `tel:${v.value}`}
-                                className="mt-0.5 block max-w-[240px] truncate text-[11px] font-mono text-emerald-400 hover:underline"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                {v.value}
-                              </a>
-                            );
-                          })()}
+                          <div className="font-semibold text-sm text-foreground whitespace-nowrap">{formatEntityName(entity.name)}</div>
                            <div className="mt-1 max-w-[260px] truncate text-[10px] leading-4 text-muted-foreground/65" title={entityWorkSummary(entity) ?? undefined}>
                              {entityWorkSummary(entity) ?? entityFindingsSummary(entity)}
                            </div>
@@ -1188,23 +1060,28 @@ export default function EntityLedger() {
                       )}
                     </td>
                     <td className="px-4 py-3"><AccessScoreBadge score={entity.accessScore} /></td>
-                    <td className="px-4 py-3 text-xs max-w-[280px]">
-                      <div className="flex flex-col gap-1.5" onClick={(e) => e.stopPropagation()}>
-                        <ContactVectorsStrip entity={entity} compact />
-                        <div className="flex flex-wrap items-center gap-1">
-                          {entity.contactOutcome && OUTCOME_BADGES[entity.contactOutcome] && (
-                            <span
-                              className="text-[9px] font-mono px-1.5 py-0.5 rounded w-max"
-                              style={{
-                                color: OUTCOME_BADGES[entity.contactOutcome].color,
-                                background: OUTCOME_BADGES[entity.contactOutcome].color + "18",
-                              }}
-                            >
-                              {OUTCOME_BADGES[entity.contactOutcome].label}
-                            </span>
-                          )}
-                          <CompletenessBadge entity={entity} />
-                        </div>
+                    <td className="px-4 py-3 text-xs max-w-[240px]">
+                      <div className="flex flex-col gap-1">
+                        {(() => {
+                          const vectors = entityReachVectors(entity);
+                          if (vectors.length === 0) {
+                            return <span className="text-muted-foreground/40 font-mono text-[11px] italic">—</span>;
+                          }
+                          return vectors.map((v, i) => (
+                            <ReachChip key={`${v.kind}-${v.label}-${i}`} kind={v.kind} label={v.label} href={v.href} title={v.title} />
+                          ));
+                        })()}
+                        {entity.contactOutcome && OUTCOME_BADGES[entity.contactOutcome] && (
+                          <span
+                            className="text-[9px] font-mono px-1.5 py-0.5 rounded w-max"
+                            style={{
+                              color: OUTCOME_BADGES[entity.contactOutcome].color,
+                              background: OUTCOME_BADGES[entity.contactOutcome].color + "18",
+                            }}
+                          >
+                            {OUTCOME_BADGES[entity.contactOutcome].label}
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td className="px-4 py-3 text-right text-[10px] font-mono text-muted-foreground">
@@ -1299,7 +1176,7 @@ export default function EntityLedger() {
       </div>
 
       {/* ── Mobile ── */}
-      <div className="flex lg:hidden flex-col h-full overflow-hidden">
+      <div className="flex md:hidden flex-col h-full overflow-hidden">
         {/* Mobile active filter banner */}
         {(hotOnly || anyContactFilter) && (
           <div className={cn(
@@ -1333,7 +1210,7 @@ export default function EntityLedger() {
           </div>
         </div>
         {/* Mobile view mode + filter chips */}
-        <div className="flex lg:hidden flex-col border-b border-border bg-card/30 shrink-0 overflow-x-hidden">
+        <div className="flex md:hidden flex-col border-b border-border bg-card/30 shrink-0">
           {/* View mode row */}
           <div className="flex items-center gap-1.5 px-3 py-2 border-b border-border/50" style={{ scrollbarWidth: "none" }}>
             {([
@@ -1470,7 +1347,7 @@ export default function EntityLedger() {
       {/* Mobile FAB */}
       <button
         onClick={() => openAddModal()}
-        className="fixed bottom-6 right-5 w-12 h-12 rounded-full flex items-center justify-center shadow-lg z-40 lg:hidden"
+        className="fixed bottom-6 right-5 w-12 h-12 rounded-full flex items-center justify-center shadow-lg z-40 md:hidden"
         style={{ backgroundColor: "#10B981", boxShadow: "0 0 20px rgba(16,185,129,0.4)" }}
       >
         <Plus className="w-5 h-5 text-black" />

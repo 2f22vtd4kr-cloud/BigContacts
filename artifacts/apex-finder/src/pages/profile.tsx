@@ -262,7 +262,7 @@ function ProfileCompleteness({ entity, assets, relationships, sessions }: {
   const txtCls    = pct >= 80 ? "text-primary" : pct >= 50 ? "text-amber-500" : "text-orange-400";
 
   return (
-    <div className="border-b border-border px-4 lg:px-6 py-3 bg-card/20 flex-shrink-0">
+    <div className="border-b border-border px-4 md:px-6 py-3 bg-card/20 flex-shrink-0">
       <div className="flex items-center justify-between mb-2">
         <span className="text-[9px] font-mono font-bold text-muted-foreground/70 uppercase tracking-widest">Profile Completeness</span>
         <span className={cn("text-[10px] font-mono font-bold", txtCls)}>
@@ -609,7 +609,7 @@ export default function ApexProfile() {
     <div className="flex flex-col min-h-full overflow-visible">
 
       {/* ── Desktop Header ────────────────────────────────────────────── */}
-      <div className="hidden md:block flex-shrink-0 border-b border-border bg-card/60 px-4 lg:px-6 py-4">
+      <div className="hidden md:block flex-shrink-0 border-b border-border bg-card/60 px-4 md:px-6 py-4">
         <div className="flex items-start gap-3 md:gap-4">
           <Link
             href="/entities"
@@ -662,13 +662,13 @@ export default function ApexProfile() {
             </div>
              <div className="mt-3 grid max-w-3xl gap-2 sm:grid-cols-2">
                <div className="rounded-lg border border-primary/15 bg-primary/[0.035] px-3 py-2.5">
-                  <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-primary/75">Role</div>
+                  <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-primary/75">What they do</div>
                  <p className="mt-1 text-[11px] leading-5 text-foreground/80">
                     {profileWorkSummary ?? "No documented role or activity is recorded yet."}
                  </p>
                </div>
                <div className="rounded-lg border border-secondary/15 bg-secondary/[0.035] px-3 py-2.5">
-                  <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-secondary/80">Findings</div>
+                  <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-secondary/80">What we found</div>
                  <p className="mt-1 text-[11px] leading-5 text-foreground/80">
                     {profileFindings}
                  </p>
@@ -715,8 +715,8 @@ export default function ApexProfile() {
         </div>
       </div>
 
-      {/* Mobile Hero - lg:hidden */}
-      <div className="lg:hidden bg-card border-b border-border flex-shrink-0">
+      {/* Mobile Hero - md:hidden */}
+      <div className="md:hidden bg-card border-b border-border flex-shrink-0">
         {/* Hero content */}
         <div className="px-4 pt-4 pb-4">
           <div className="flex items-center justify-between mb-2">
@@ -740,59 +740,13 @@ export default function ApexProfile() {
               {(entity as any).nationality}{(entity as any).knownResidences ? ` · ${(entity as any).knownResidences.split(",")[0]?.trim()}` : ""}
             </p>
           )}
-          {/* REACH — value first on mobile profile */}
-          {(() => {
-            const e = entity as any;
-            const orgRe = /^(info|sales|contact|office|support|hello|admin|billing|help|service|enquiries|inquiry|mail|general|team|hr|jobs|careers|noreply|no-reply|donotreply|marketing|media|pr|webmaster|postmaster|abuse)@/i;
-            const email = e.email && !isProtectedEmail(e.email) ? String(e.email) : null;
-            const phone = e.phone ? String(e.phone) : null;
-            const personalEmail = email && !orgRe.test(email) ? email : null;
-            const orgEmail = email && orgRe.test(email) ? email : null;
-            let related: { name: string; email?: string }[] = [];
-            try {
-              const meta = JSON.parse(e.metadata ?? "{}");
-              const people = [
-                ...(Array.isArray(meta.deepWebOwnerResolutions) ? meta.deepWebOwnerResolutions : []),
-                ...(Array.isArray(meta.deepWebPersonsDiscovered) ? meta.deepWebPersonsDiscovered : []),
-              ];
-              related = people.filter((p: any) => p && (p.name || p.fullName)).slice(0, 3).map((p: any) => ({
-                name: String(p.name || p.fullName),
-                email: p.email && !isProtectedEmail(p.email) ? String(p.email) : undefined,
-              }));
-            } catch { /* ignore */ }
-            const reachEmail = personalEmail || related.find((r) => r.email && !orgRe.test(r.email || ""))?.email;
-            if (!reachEmail && !phone && !orgEmail && related.length === 0) return null;
-            return (
-              <div className="mt-3 rounded-xl border border-emerald-400/25 bg-emerald-400/[0.06] px-3 py-2.5">
-                <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-emerald-400/90 mb-1.5">Reach</div>
-                {reachEmail && (
-                  <a href={`mailto:${reachEmail}`} className="block text-[14px] font-mono text-emerald-300 truncate hover:underline">{reachEmail}</a>
-                )}
-                {phone && (
-                  <a href={`tel:${phone}`} className="block mt-1 text-[13px] font-mono text-emerald-200/90 truncate hover:underline">{phone}</a>
-                )}
-                {!reachEmail && orgEmail && (
-                  <a href={`mailto:${orgEmail}`} className="block text-[13px] font-mono text-violet-300 truncate hover:underline" title="Organization inbox">org · {orgEmail}</a>
-                )}
-                {related.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {related.map((r) => (
-                      <span key={r.name} className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-amber-400/30 bg-amber-400/10 text-amber-100">
-                        {r.name}{r.email ? ` · ${r.email}` : ""}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })()}
            <div className="mt-3 space-y-2">
              <div className="rounded-lg border border-primary/15 bg-primary/[0.035] px-3 py-2.5">
-                <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-primary/75">Role</div>
+                <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-primary/75">What they do</div>
                 <p className="mt-1 text-[11px] leading-5 text-foreground/80">{profileWorkSummary ?? "No documented role or activity is recorded yet."}</p>
              </div>
              <div className="rounded-lg border border-secondary/15 bg-secondary/[0.035] px-3 py-2.5">
-                <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-secondary/80">Findings</div>
+                <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-secondary/80">What we found</div>
                 <p className="mt-1 text-[11px] leading-5 text-foreground/80">{profileFindings}</p>
              </div>
            </div>
@@ -871,7 +825,7 @@ export default function ApexProfile() {
           person.role === "owner" || person.role === "beneficial_owner" || person.role === "controller",
         ).length;
         return (
-          <section className="flex-shrink-0 border-b border-border px-4 lg:px-6 py-4 bg-amber-500/[0.03]">
+          <section className="flex-shrink-0 border-b border-border px-4 md:px-6 py-4 bg-amber-500/[0.03]">
             <div className="flex items-start justify-between gap-3 mb-3">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
@@ -949,29 +903,6 @@ export default function ApexProfile() {
                         )}
                       </div>
                       <div className="flex items-center gap-2 mt-2 flex-wrap">
-                        {/* Show ALL non-trash contact vectors — never require verified-only */}
-                        {person.email && !isProtectedEmail(person.email) && (() => {
-                          const isOrg = /^(info|sales|contact|office|support|hello|admin|billing|help|service|enquiries|inquiry|mail|general|team|hr|jobs|careers|noreply|no-reply|donotreply|marketing|media|pr|webmaster|postmaster|abuse)@/i.test(String(person.email));
-                          return (
-                            <a
-                              href={`mailto:${person.email}`}
-                              title={isOrg ? `Org inbox · ${person.email}` : `Personal/role · ${person.email}`}
-                              className={
-                                isOrg
-                                  ? "text-[9px] font-mono px-1.5 py-0.5 rounded border border-violet-400/35 bg-violet-400/10 text-violet-300 truncate max-w-[200px]"
-                                  : "text-[9px] font-mono px-1.5 py-0.5 rounded border border-emerald-400/35 bg-emerald-400/10 text-emerald-300 truncate max-w-[200px]"
-                              }
-                            >
-                              {isOrg ? `org · ${person.email}` : person.email}
-                            </a>
-                          );
-                        })()}
-                        {person.phone && (
-                          <a href={`tel:${person.phone}`} className="text-[9px] font-mono px-1.5 py-0.5 rounded border border-emerald-400/30 bg-emerald-400/10 text-emerald-200 hover:underline">{person.phone}</a>
-                        )}
-                        {person.telegram && (
-                          <span className="text-[9px] font-mono text-sky-300">tg:{String(person.telegram).replace(/^@/, "")}</span>
-                        )}
                         {person.instagram && <a href={person.instagram} target="_blank" rel="noopener noreferrer" className="text-[9px] font-mono text-pink-400 hover:underline">Instagram↗</a>}
                         {person.linkedin && <a href={person.linkedin} target="_blank" rel="noopener noreferrer" className="text-[9px] font-mono text-blue-400 hover:underline">LinkedIn↗</a>}
                         {person.twitter && <a href={person.twitter} target="_blank" rel="noopener noreferrer" className="text-[9px] font-mono text-sky-400 hover:underline">X↗</a>}
@@ -1014,37 +945,9 @@ export default function ApexProfile() {
           : conf >= 30 ? "text-amber-500 border-amber-500/30 bg-amber-500/10"
           : "text-muted-foreground border-border bg-muted/20";
         return (
-          <div className={cn("flex-shrink-0 border-b border-border px-4 lg:px-6 py-3", hasContact && "bg-primary/5")}>
+          <div className={cn("flex-shrink-0 border-b border-border px-4 md:px-6 py-3", hasContact && "bg-primary/5")}>
             <div className="flex items-center justify-between mb-2 gap-2">
-               <div className="flex items-center gap-2 min-w-0 flex-wrap">
-                 <span className="text-[9px] font-mono font-bold text-primary uppercase tracking-widest">Public Contact Vectors</span>
-                 {e.contactOutcome && (
-                   <span
-                     className="text-[9px] font-mono px-1.5 py-0.5 rounded"
-                     style={{
-                       color: e.contactOutcome === "direct_contact_verified" ? "#10B981"
-                         : e.contactOutcome === "direct_contact_candidate" ? "#3B82F6"
-                         : e.contactOutcome === "organization_contact" ? "#8B5CF6"
-                         : e.contactOutcome === "social_only" ? "#64748B"
-                         : "#94A3B8",
-                       background: (e.contactOutcome === "direct_contact_verified" ? "#10B981"
-                         : e.contactOutcome === "direct_contact_candidate" ? "#3B82F6"
-                         : e.contactOutcome === "organization_contact" ? "#8B5CF6"
-                         : e.contactOutcome === "social_only" ? "#64748B"
-                         : "#94A3B8") + "18",
-                     }}
-                     title="Directness badge — all non-trash vectors below are shown regardless of verified status"
-                   >
-                     {e.contactOutcome === "direct_contact_verified" ? "[V] verified"
-                       : e.contactOutcome === "direct_contact_candidate" ? "direct"
-                       : e.contactOutcome === "organization_contact" ? "org"
-                       : e.contactOutcome === "social_only" ? "social"
-                       : e.contactOutcome === "evidence_only" ? "evidence"
-                       : e.contactOutcome}
-                   </span>
-                 )}
-                 <span className="text-[8px] font-mono text-muted-foreground/70 hidden sm:inline">all non-trash · ranked by directness</span>
-               </div>
+               <span className="text-[9px] font-mono font-bold text-primary uppercase tracking-widest">Public Contact Vectors</span>
               <div className="flex items-center gap-1.5">
                 {hasContact && (
                   <button
@@ -1063,50 +966,49 @@ export default function ApexProfile() {
             </div>
             {hasContact ? (
               <div className="flex items-center gap-2 flex-wrap">
-                {/* Email */}
+                {/* Email — REACH: emerald personal · violet org (never mark info@/sales@ as Personal) */}
                 {e.email && !isProtectedEmail(e.email) && (() => {
-                  const isOrgMail = /^(info|sales|contact|office|support|hello|admin|billing|help|service|enquiries|inquiry|mail|general|team|hr|jobs|careers|noreply|no-reply|donotreply|marketing|media|pr|webmaster|postmaster|abuse)@/i.test(String(e.email))
-                    || e.contactOutcome === "organization_contact";
+                  const orgInbox = /^(info|sales|contact|office|support|admin|hello|team|enquiries|inquiry|press|media|hr|jobs|careers|billing|accounts|noreply|no-reply)@/i.test(e.email);
+                  const isOrg = orgInbox || e.contactOutcome === "organization_contact";
                   return (
-                  <a href={`mailto:${e.email}`} title={isOrgMail ? `Organization inbox — ${e.email}` : e.email}
-                    className={cn(
-                      "flex items-center gap-2 px-3 py-1.5 rounded border font-mono text-xs transition-colors min-w-0 max-w-[240px] sm:max-w-none",
-                      isOrgMail
-                        ? "border-violet-400/30 bg-violet-400/10 text-violet-300 hover:bg-violet-400/20"
-                        : "border-primary/30 bg-primary/10 text-primary hover:bg-primary/20",
-                    )}>
-                    <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                    </svg>
-                    {isOrgMail && <span className="text-[9px] uppercase tracking-wider opacity-80">org</span>}
-                    <span className="truncate">{e.email}</span>
-                  </a>
+                    <a
+                      href={`mailto:${e.email}`}
+                      title={isOrg ? `REACH · org — ${e.email}` : `REACH · personal — ${e.email}`}
+                      className={cn(
+                        "flex items-center gap-2 px-3 py-1.5 rounded border font-mono text-xs transition-colors min-w-0 max-w-[220px] sm:max-w-none",
+                        isOrg
+                          ? "border-violet-400/35 bg-violet-400/10 text-violet-300 hover:bg-violet-400/20"
+                          : "border-emerald-400/35 bg-emerald-400/10 text-emerald-300 hover:bg-emerald-400/20",
+                      )}
+                    >
+                      <span className="text-[8px] uppercase tracking-wider opacity-70 shrink-0">{isOrg ? "ORG" : "P"}</span>
+                      <span className="truncate">{e.email}</span>
+                    </a>
                   );
                 })()}
-                {/* Phone */}
+                {/* Phone — REACH · personal */}
                 {e.phone && (
-                  <a href={`tel:${e.phone}`}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded border border-secondary/30 bg-secondary/10 text-secondary font-mono text-xs hover:bg-secondary/20 transition-colors">
-                    <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                    </svg>
+                  <a
+                    href={`tel:${e.phone}`}
+                    title={`REACH · personal — ${e.phone}`}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded border border-emerald-400/35 bg-emerald-400/10 text-emerald-300 font-mono text-xs hover:bg-emerald-400/20 transition-colors"
+                  >
+                    <span className="text-[8px] uppercase tracking-wider opacity-70 shrink-0">P</span>
                     {e.phone}
                   </a>
                 )}
-                {/* LinkedIn */}
+                {/* LinkedIn — REACH · social */}
                 {e.linkedinUrl && (
                   <a href={e.linkedinUrl} target="_blank" rel="noopener noreferrer"
-                    title={e.linkedinHeadline ?? "LinkedIn Profile"}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded border border-blue-400/30 bg-blue-400/10 text-blue-400 font-mono text-xs hover:bg-blue-400/20 transition-colors">
-                    <svg className="w-3.5 h-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
-                    </svg>
+                    title={e.linkedinHeadline ?? "REACH · social · LinkedIn"}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded border border-sky-400/35 bg-sky-400/10 text-sky-300 font-mono text-xs hover:bg-sky-400/20 transition-colors">
+                    <span className="text-[8px] uppercase tracking-wider opacity-70 shrink-0">SOC</span>
                     {e.linkedinHeadline ? (
                       <span className="truncate max-w-[160px]">{e.linkedinHeadline.slice(0, 40)}</span>
                     ) : "LinkedIn"}
                   </a>
                 )}
-                {/* Twitter/X */}
+                {/* Twitter/X — REACH · social */}
                 {cleanHandle(e.twitterHandle) && (
                   <a href={`https://x.com/${cleanHandle(e.twitterHandle)}`} target="_blank" rel="noopener noreferrer"
                     title={e.twitterBio ?? `@${cleanHandle(e.twitterHandle)} on X/Twitter`}
@@ -1515,7 +1417,7 @@ export default function ApexProfile() {
 
         if (!lines.length) return null;
         return (
-          <div className="flex-shrink-0 border-b border-border px-4 lg:px-6 py-3 bg-muted/20">
+          <div className="flex-shrink-0 border-b border-border px-4 md:px-6 py-3 bg-muted/20">
             <div className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground/50 mb-1.5">
               Why {pName} is in this database
             </div>
@@ -1535,7 +1437,7 @@ export default function ApexProfile() {
       />
 
       {/* ── Tab Bar ──────────────────────────────────────────────────────── */}
-      <div className="flex-shrink-0 border-b border-border bg-card/60 px-4 lg:px-6 sticky top-0 md:static z-10">
+      <div className="flex-shrink-0 border-b border-border bg-card/60 px-4 md:px-6 sticky top-0 md:static z-10">
         <div className="flex items-center overflow-x-auto" style={{ scrollbarWidth: "none" }}>
           {([
             { id: "assets"   as const, label: "Assets & Sources", mobileLabel: "Assets", icon: <Layers    className="w-3.5 h-3.5" /> },
@@ -2174,7 +2076,7 @@ export default function ApexProfile() {
       </div>
 
       {/* Mobile Action Bar */}
-      <div className="lg:hidden shrink-0 h-[72px] bg-background border-t border-border px-4 flex items-center gap-3 z-20">
+      <div className="md:hidden shrink-0 h-[72px] bg-background border-t border-border px-4 flex items-center gap-3 z-20">
         <button
           onClick={handleEnrich}
           disabled={isEnriching}
