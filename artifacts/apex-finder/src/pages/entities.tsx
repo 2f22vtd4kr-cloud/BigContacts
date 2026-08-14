@@ -356,12 +356,20 @@ function MobileEntityCard({
   );
 }
 
-function MobileLedgerState({ kind }: { kind: "loading" | "unavailable" | "empty" }) {
+function MobileLedgerState({
+  kind,
+  searchTerm,
+  onClearSearch,
+}: {
+  kind: "loading" | "unavailable" | "empty";
+  searchTerm?: string;
+  onClearSearch?: () => void;
+}) {
   if (kind === "loading") {
     return (
       <div className="flex flex-col items-center justify-center gap-3 px-6 py-16 text-center text-muted-foreground">
         <Loader2 className="w-6 h-6 text-primary animate-spin" aria-hidden="true" />
-        <p className="text-xs font-mono uppercase tracking-wider">Loading entity ledger</p>
+        <p className="text-xs font-mono uppercase tracking-wider">Loading profiles</p>
       </div>
     );
   }
@@ -371,24 +379,54 @@ function MobileLedgerState({ kind }: { kind: "loading" | "unavailable" | "empty"
       <div className="flex flex-col items-center justify-center gap-3 px-6 py-14 text-center text-muted-foreground">
         <XCircle className="w-7 h-7 text-amber-400/80" aria-hidden="true" />
         <div>
-          <p className="text-sm font-mono text-foreground">Entity data is temporarily unavailable.</p>
-          <p className="text-xs leading-relaxed mt-1">
-            The registry database did not respond. Try again shortly or review active tasks.
+          <p className="text-sm font-semibold text-foreground">Profiles are temporarily unavailable</p>
+          <p className="text-xs leading-relaxed mt-1.5 text-muted-foreground">
+            We could not reach the database. Try again in a moment, or check background tasks.
           </p>
         </div>
-        <Link href="/jobs" className="text-xs font-mono text-primary hover:underline">
+        <Link href="/jobs" className="text-xs font-mono text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded">
           View background tasks →
         </Link>
       </div>
     );
   }
 
+  const q = (searchTerm || "").trim();
   return (
-    <div className="flex flex-col items-center justify-center gap-3 px-6 py-14 text-center text-muted-foreground">
-      <Database className="w-8 h-8 opacity-30" aria-hidden="true" />
+    <div className="flex flex-col items-center justify-center gap-3 px-6 py-14 text-center" data-testid="profiles-empty">
+      <Database className="w-8 h-8 text-muted-foreground/40" aria-hidden="true" />
       <div>
-        <p className="text-sm font-mono text-foreground">No entities match these filters.</p>
-        <p className="text-xs leading-relaxed mt-1">Clear a filter or run ingestion to populate the ledger.</p>
+        <p className="text-sm font-semibold text-foreground">
+          {q ? `No profiles match “${q}”` : "No profiles match these filters"}
+        </p>
+        <p className="text-xs leading-relaxed mt-1.5 text-muted-foreground max-w-[280px] mx-auto">
+          {q
+            ? "Try a shorter name, clear the search, or open Search to look across registries."
+            : "Clear a filter, or run research from the Intelligence Reactor to add people and companies."}
+        </p>
+      </div>
+      <div className="flex flex-wrap items-center justify-center gap-2 mt-1">
+        {q && onClearSearch && (
+          <button
+            type="button"
+            onClick={onClearSearch}
+            className="rounded-lg border border-border bg-card/60 px-3 py-2 text-xs font-medium text-foreground hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            Clear search
+          </button>
+        )}
+        <Link
+          href="/search"
+          className="rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-xs font-medium text-primary hover:bg-primary/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        >
+          Open Search
+        </Link>
+        <Link
+          href="/reactor"
+          className="rounded-lg border border-border bg-card/60 px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        >
+          Reactor
+        </Link>
       </div>
     </div>
   );
@@ -436,6 +474,17 @@ export default function EntityLedger() {
     setAllEntities([]);
     setHasMore(true);
   }, [searchTerm, typeFilter, hotOnly, contactRichness, minConfidence, viewMode]);
+
+  // Keep ?q= in the URL so Reactor REACH deep-links and share links stay honest
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const q = searchTerm.trim();
+    if (q) params.set("q", q);
+    else params.delete("q");
+    const next = params.toString();
+    const path = window.location.pathname + (next ? `?${next}` : "");
+    window.history.replaceState(null, "", path);
+  }, [searchTerm]);
 
   const toggleSelect = (id: number) =>
     setSelectedIds((prev) => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
@@ -672,7 +721,7 @@ export default function EntityLedger() {
             <Search className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
             <input
               type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search entities…"
+              placeholder="Search people or companies…"
               className="flex-1 bg-transparent text-sm font-mono text-foreground outline-none placeholder:text-muted-foreground/50"
             />
             {searchTerm && <button onClick={() => setSearchTerm("")}><X className="w-3.5 h-3.5 text-muted-foreground" /></button>}
@@ -844,7 +893,7 @@ export default function EntityLedger() {
                 <input
                   type="text" value={registryQuery} onChange={(e) => setRegistryQuery(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleRegistrySearch()}
-                  placeholder="Search name, company, or filing…"
+                  placeholder="Search people, companies, or filings…"
                   className="flex-1 bg-transparent text-sm font-mono text-foreground outline-none placeholder:text-muted-foreground/50"
                 />
               </div>
@@ -1104,8 +1153,31 @@ export default function EntityLedger() {
                   <td colSpan={8} className="px-6 py-12 text-center">
                     <div className="flex flex-col items-center justify-center text-muted-foreground">
                       <Database className="w-8 h-8 mb-3 opacity-20" />
-                      <div className="font-mono text-sm mb-1">No entities found.</div>
-                      <div className="text-xs opacity-60">Run ingestion from Data Sources to populate the database</div>
+                      <div className="text-sm font-semibold text-foreground mb-1">
+                        {searchTerm.trim() ? `No profiles match “${searchTerm.trim()}”` : "No profiles found"}
+                      </div>
+                      <div className="text-xs text-muted-foreground max-w-sm mx-auto">
+                        {searchTerm.trim()
+                          ? "Try a shorter name, clear search, or use Search to look across public registries."
+                          : "Run research from the Reactor or import from Data Sources to build the ledger."}
+                      </div>
+                      <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                        {searchTerm.trim() && (
+                          <button
+                            type="button"
+                            onClick={() => setSearchTerm("")}
+                            className="rounded-lg border border-border px-3 py-1.5 text-xs hover:border-primary/40"
+                          >
+                            Clear search
+                          </button>
+                        )}
+                        <Link href="/search" className="rounded-lg border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs text-primary">
+                          Open Search
+                        </Link>
+                        <Link href="/reactor" className="rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground">
+                          Reactor
+                        </Link>
+                      </div>
                     </div>
                   </td>
                 </tr>
@@ -1163,7 +1235,7 @@ export default function EntityLedger() {
             <Search className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
             <input
               type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search entities…"
+              placeholder="Search people or companies…"
               className="flex-1 bg-transparent text-sm font-mono text-foreground outline-none placeholder:text-muted-foreground/50"
             />
             {searchTerm && <button onClick={() => setSearchTerm("")}><X className="w-3.5 h-3.5 text-muted-foreground" /></button>}
@@ -1295,7 +1367,9 @@ export default function EntityLedger() {
               onToggleHide={handleToggleHide}
             />
           ))}
-          {!showLoading && !showError && displayEntities.length === 0 && <MobileLedgerState kind="empty" />}
+          {!showLoading && !showError && displayEntities.length === 0 && (
+            <MobileLedgerState kind="empty" searchTerm={searchTerm} onClearSearch={() => setSearchTerm("")} />
+          )}
           {showLoading && page > 0 && (
             <div className="flex justify-center py-4">
               <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />

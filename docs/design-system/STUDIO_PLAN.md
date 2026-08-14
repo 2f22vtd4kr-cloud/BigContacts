@@ -595,3 +595,29 @@ Text says the action; motion shows the class of work.
 - Removed orbiting pip and scale pulse (misaligned “glow dots”)
 - Icon = work type always (search stays search when done)
 - Live motion: opacity breathe on fill only; geometry locked
+
+---
+
+## Phase W — Product-wide UI (beyond Reactor)
+
+**Studio goal:** Apex Atlas is one product. Profiles, Search, Research, and Dashboard get the same clarity bar as Live Desk.
+
+### Delivered
+1. **Profiles (`/profiles`)**
+   - Empty states name the query when search misses
+   - Clear search + Open Search + Reactor CTAs
+   - `?q=` stays in the URL (Reactor REACH deep-links stay honest)
+   - Placeholder: “Search people or companies…”
+2. **Search (`/search`)**
+   - Engine jargon subtitle → plain ranking description
+   - Empty / idle copy for operators, not engineers
+   - Focus ring on search field
+3. **Research (`/research`)**
+   - Standby copy explains what will happen
+   - Pipeline banner in product language
+   - “score=” instead of raw “UCT=” in the live log (title keeps detail)
+4. **Dashboard**
+   - Primary empty CTA focus-visible
+
+### Rule
+Every tab is operator-facing. Technical stack stays under the hood unless the operator asks for it.

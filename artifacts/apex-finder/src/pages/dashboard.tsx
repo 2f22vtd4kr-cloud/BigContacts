@@ -200,7 +200,7 @@ function EmptyLeads() {
       <div className="mx-auto grid h-12 w-12 place-items-center rounded-full border border-primary/25 bg-primary/10 text-primary"><Radar className="h-5 w-5" /></div>
       <h2 className="mt-5 font-display text-lg font-semibold">Your priority desk is clear</h2>
       <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">Search public registries for people, companies, trusts, and access contacts with evidence worth reviewing.</p>
-      <Link href="/search" data-testid="link-empty-discover" className="mt-6 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground hover:bg-primary/90">
+      <Link href="/search" data-testid="link-empty-discover" className="mt-6 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background">
         <Search className="h-3.5 w-3.5" /> Discover entities <ChevronRight className="h-3.5 w-3.5" />
       </Link>
     </div>

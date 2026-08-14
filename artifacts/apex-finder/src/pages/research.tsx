@@ -105,7 +105,7 @@ type IntroPathCandidate = {
   warnings: string[];
 };
 
-const HYBRID_PIPELINE = "L1: BM25+Semantic+Graph · L2: Planner→Retriever→Analyst→Critic · L3: QueryExpansion · L4: UCT(120 rollouts) · L5: Bayesian-UCB";
+const HYBRID_PIPELINE = "Atlas ranks public records, expands the query, then explores introduction paths — same engine that powers Reactor.";
 
 function roleIcon(role: string) {
   if (role === "TARGET") return <Target className="w-3 h-3 text-primary" />;
@@ -151,7 +151,7 @@ function EvidenceLedger({ sessionId }: { sessionId: number | null }) {
         <span className="text-[10px] font-mono text-muted-foreground">{isLoading ? "loading…" : `${evidence.length} claims`}</span>
       </div>
       {evidence.length === 0 && !isLoading ? (
-        <div className="rounded border border-dashed border-border p-3 text-xs text-muted-foreground font-mono">No claim-level evidence was recorded for this run.</div>
+        <div className="rounded border border-dashed border-border p-3 text-xs text-muted-foreground font-mono">No verified evidence was saved for this run.</div>
       ) : (
         <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
           {evidence.map((item) => {
@@ -318,7 +318,7 @@ function IntroPathPanel({ candidate }: { candidate: IntroPathCandidate | null })
       </div>
       {!candidate ? (
         <div className="rounded border border-dashed border-border p-3 text-xs text-muted-foreground font-mono">
-          No evidence-backed introduction route was found.
+          No proven introduction path was found yet.
         </div>
       ) : (
         <div className="rounded border border-amber-400/30 bg-amber-400/5 p-3 space-y-2">
@@ -626,7 +626,7 @@ export default function IntelTerminal() {
               type="text"
               value={entitySearch}
               onChange={(e) => setEntitySearch(e.target.value)}
-              placeholder="Filter targets…"
+              placeholder="Filter people or companies…"
               className="flex-1 bg-transparent text-xs font-mono text-foreground outline-none placeholder:text-muted-foreground/50"
             />
             {entitySearch && (
@@ -655,7 +655,7 @@ export default function IntelTerminal() {
             </div>
           ))}
           {entities?.length === 0 && (
-            <div className="text-[10px] font-mono text-muted-foreground/50 text-center py-4">No matches</div>
+            <div className="text-[10px] font-mono text-muted-foreground/50 text-center py-4">No targets match that filter</div>
           )}
         </div>
 
@@ -713,7 +713,7 @@ export default function IntelTerminal() {
               <Terminal className="w-8 h-8 opacity-20" />
               <span className="italic text-sm">Awaiting target selection...</span>
               <div className="text-[11px] text-center opacity-60 max-w-sm leading-relaxed">
-                5-layer hybrid architecture: L1 Hybrid Retrieval (BM25+Semantic+Graph) surfaces candidates · L2 Multi-Agent Reasoning (Planner→Retriever→Analyst→Critic) coordinates · L3 Query Expansion enriches the search · L4 UCT Deep Path Exploration (120 rollouts) finds the optimal warm-introduction route · L5 Bayesian-UCB tunes scoring and direction.
+                Atlas is standing by. Pick a target and run research — you will see each step as it searches registries, pages, and contacts.
               </div>
             </div>
           )}
@@ -726,7 +726,7 @@ export default function IntelTerminal() {
                 <span className="text-purple-400 whitespace-nowrap flex-shrink-0">[{log.registry}]</span>
                 <span className="text-foreground whitespace-nowrap flex-shrink-0">{log.target}</span>
                 <span className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">({log.targetType})</span>
-                <span className="text-amber-500 whitespace-nowrap flex-shrink-0">UCT={log.uctScore.toFixed(3)}</span>
+                <span className="text-amber-500 whitespace-nowrap flex-shrink-0" title="Path strength score">score={log.uctScore.toFixed(3)}</span>
                 <span className={cn(getWarmthColor(log.warmthScore), "whitespace-nowrap flex-shrink-0")}>
                   W={Math.round(log.warmthScore * 100)}%
                 </span>

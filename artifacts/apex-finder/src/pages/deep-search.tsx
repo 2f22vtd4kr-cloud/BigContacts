@@ -370,7 +370,7 @@ export default function DeepSearch() {
         </div>
         <p className="text-[11px] sm:text-xs font-mono text-muted-foreground mb-4">
           <span className="sm:hidden">Search public registry intelligence with ranked evidence.</span>
-          <span className="hidden sm:inline">BM25 · TF-IDF cosine · Graph/Bayesian · RRF fusion · Planner → Retriever → Analyst → Critic</span>
+          <span className="hidden sm:inline">Searches public records and your ledger — ranked by relevance, links, and confidence</span>
         </p>
 
         {/* Search bar */}
@@ -382,7 +382,7 @@ export default function DeepSearch() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="e.g. US private jet owners in Texas, British directors…"
-              className="w-full bg-background border border-border rounded-lg pl-10 pr-4 h-[48px] md:h-auto md:py-2.5 text-sm font-mono text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary transition-colors"
+              className="w-full bg-background border border-border rounded-lg pl-10 pr-4 h-[48px] md:h-auto md:py-2.5 text-sm font-mono text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-primary/40 transition-colors"
             />
           </div>
           <button
@@ -543,7 +543,7 @@ export default function DeepSearch() {
           <div className="m-6 flex items-center gap-3 border border-amber-500/30 bg-amber-500/5 rounded-lg p-4">
             <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0" />
             <span className="text-xs font-mono text-amber-400">
-              No results found. Run an ingestion first (Intelligence HQ → Ingest) to load real public registry data.
+              No matches yet. Try a broader query, or load registry data from Data Sources first.
             </span>
           </div>
         )}
@@ -683,7 +683,7 @@ export default function DeepSearch() {
           <div className="flex flex-col items-center justify-center h-full text-center px-8">
             <Search className="w-12 h-12 text-muted-foreground mb-4 opacity-30" />
             <p className="text-sm font-mono text-muted-foreground">
-              Run a search to find entities
+              Search for people, companies, or assets to start
             </p>
           </div>
         )}
