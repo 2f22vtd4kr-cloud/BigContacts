@@ -232,3 +232,13 @@ https://www.figma.com/design/TpHSxn1Cvo9Frdf9IEVWlT
 
 - WindowChrome URL/query bar aria-label (live vs idle)
 
+
+---
+
+## Continue-13
+
+- Mobile header sticky + stronger blur
+- Edge toast sticky under header
+- Desktop Live Desk width 420
+- Stage overscroll-behavior-x contain
+
