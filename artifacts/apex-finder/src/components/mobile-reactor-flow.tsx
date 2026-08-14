@@ -368,7 +368,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                 )}
               </div>
               <div className="text-[14px] font-medium text-slate-300">
-                {isLive ? "Desk is live — waiting for first tool scene" : "Waiting for live work"}
+                {isLive ? "Desk is live — first tool window incoming" : "Standby — no live tool scenes yet"}
               </div>
               <div className="mt-2 max-w-xs text-[12px] leading-relaxed text-slate-500">
                 {isLive

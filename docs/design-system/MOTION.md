@@ -30,3 +30,6 @@ Never hardcode `8000` / `400` / `280` in components. Import from `reactor-motion
 
 `prefers-reduced-motion: reduce` forces near-zero animation duration and single iteration.
 
+
+| SWIPE_PX | 56 | — | Min horizontal drag to change scene |
+| SWIPE_VELOCITY | 0.45 px/ms | — | Flick threshold (uses smaller distance) |
