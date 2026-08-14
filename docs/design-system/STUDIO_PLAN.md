@@ -271,3 +271,6 @@ https://www.figma.com/design/TpHSxn1Cvo9Frdf9IEVWlT
 - No spinner as primary wait
 - Feedback ≤ 300ms; arm 400ms
 
+
+### Also this block
+- Live-empty state: subtle shimmer + ghost metric cards when run is live but no scenes yet (continuity with arming metaphor)
