@@ -1710,13 +1710,25 @@ export default function IntelligenceReactorPage() {
       // Poll jobs, atlas status, AND key health in parallel
       const [jobsData, atlasData, sysData] = await Promise.all([
         fetch(`${BASE}/api/ingest/jobs`, { cache: "no-store" })
-          .then(r => r.ok ? r.json() : { jobs: [] })
+          .then(async r => {
+            if (!r.ok) return { jobs: [] };
+            const t = (await r.text()).trim();
+            return t.startsWith("{") || t.startsWith("[") ? JSON.parse(t) : { jobs: [] };
+          })
           .catch(() => ({ jobs: [] })),
         fetch(`${BASE}/api/ingest/atlas-status`, { cache: "no-store" })
-          .then(r => r.ok ? r.json() : null)
+          .then(async r => {
+            if (!r.ok) return null;
+            const t = (await r.text()).trim();
+            return t.startsWith("{") || t.startsWith("[") ? JSON.parse(t) : null;
+          })
           .catch(() => null),
         fetch(`${BASE}/api/system/status`, { cache: "no-store" })
-          .then(r => r.ok ? r.json() : null)
+          .then(async r => {
+            if (!r.ok) return null;
+            const t = (await r.text()).trim();
+            return t.startsWith("{") || t.startsWith("[") ? JSON.parse(t) : null;
+          })
           .catch(() => null),
       ]);
 

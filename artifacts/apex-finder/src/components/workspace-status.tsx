@@ -115,10 +115,15 @@ export function WorkspaceStatus() {
       if (!mounted) return;
       let nextError = true;
       if (atlasResult.status === "fulfilled" && atlasResult.value.ok) {
-        const ct = atlasResult.value.headers.get("content-type") || "";
-        if (ct.includes("application/json")) {
-          setAtlas(await atlasResult.value.json() as AtlasStatus);
-          nextError = false;
+        try {
+          const body = await atlasResult.value.text();
+          const trimmed = body.trim();
+          if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+            setAtlas(JSON.parse(trimmed) as AtlasStatus);
+            nextError = false;
+          }
+        } catch {
+          /* HTML/proxy error body — stay degraded, never throw into overlay */
         }
       }
       if (systemResult.status === "fulfilled") {
