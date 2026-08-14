@@ -487,3 +487,23 @@ Every phase must leave **PNG** captures in the folder — not HTML-only.
 ### Rules reinforced
 - Time is operator-relative during live work
 - REACH climax registers on the primary scheme, not only the panel
+
+---
+
+## Phase R — Event count pulse + session list polish (Apex Atlas)
+
+**Studio goal:** New tool steps should register as a count flash, not only a scene change. Session records should feel interactive and readable.
+
+### Delivered
+1. **Event count pulse** (desktop Live Desk + mobile step count)
+   - On count increase: cyan flash + “· new” while live
+   - 900ms settle; respects quiet after pulse
+2. **Research sessions list**
+   - Hover border/glow (reactor-pressable)
+   - Empty-state contrast slate-400/500
+   - Date color readable; title attribute for absolute ISO
+3. Test ids: `desk-event-count`, `mobile-step-count`, `session-card-*`
+
+### Rules reinforced
+- Live progress is countable at a glance
+- Historical sessions are first-class UI, not muted stubs

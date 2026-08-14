@@ -1260,11 +1260,11 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                 }}>
                   <Cpu style={{ width:22, height:22, color:"#253850" }} />
                   <div>
-                    <div style={{ fontSize:9, fontWeight:700, letterSpacing:"0.16em", color:"#253850", marginBottom:4 }}>
+                    <div style={{ fontSize:9, fontWeight:700, letterSpacing:"0.16em", color:"#64748b", marginBottom:4 }}>
                       NO SESSIONS YET
                     </div>
-                    <div style={{ fontSize:8, color:"#1e3050", letterSpacing:"0.08em", lineHeight:1.6 }}>
-                      Run Hybrid Research from a profile{"\n"}to see real UCT work here.
+                    <div style={{ fontSize:9, color:"#94a3b8", letterSpacing:"0.06em", lineHeight:1.55 }}>
+                      Run Hybrid Research from a profile to see real UCT work here.
                     </div>
                   </div>
                 </div>
@@ -1272,13 +1272,27 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                 // Real session list
                 <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
                   {sessions.slice(0, 12).map(s => (
-                    <div key={s.id} style={{
+                    <div
+                      key={s.id}
+                      data-testid={`session-card-${s.id}`}
+                      className="reactor-pressable"
+                      style={{
                       padding:"10px 12px",
-                      border:"1px solid #192840",
+                      border:"1px solid #243044",
                       borderRadius:7,
                       background:"#0d1525",
                       display:"flex", flexDirection:"column", gap:6,
-                    }}>
+                      transition: "border-color 150ms ease, box-shadow 150ms ease",
+                    }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = "#22d3ee55";
+                        e.currentTarget.style.boxShadow = "0 0 12px rgba(34,211,238,0.08)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = "#243044";
+                        e.currentTarget.style.boxShadow = "none";
+                      }}
+                    >
                       {/* Row 1: name + status */}
                       <div style={{ display:"flex", alignItems:"center", gap:8, minWidth:0 }}>
                         <Cpu style={{ width:11, height:11, color:"#a78bfa", flexShrink:0 }} />
@@ -1318,7 +1332,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                             </span>
                           </div>
                         )}
-                        <div style={{ marginLeft:"auto", fontSize:8, color:"#253850", letterSpacing:"0.08em" }}>
+                        <div style={{ marginLeft:"auto", fontSize:9, color:"#64748b", letterSpacing:"0.06em" }} title={s.createdAt}>
                           {formatDate(s.createdAt)}
                         </div>
                       </div>
@@ -1392,6 +1406,18 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
   /** Phase O — keyboard focus on scheme nodes */
   const [schemeFocusId, setSchemeFocusId] = useState<string | null>(null);
   const [deskQuery, setDeskQuery] = useState("");
+  const [eventCountPulse, setEventCountPulse] = useState(false);
+  const prevEventCountRef = useRef(0);
+  useEffect(() => {
+    const n = deskEvents.length;
+    if (n > prevEventCountRef.current && prevEventCountRef.current > 0) {
+      setEventCountPulse(true);
+      const t = window.setTimeout(() => setEventCountPulse(false), 900);
+      prevEventCountRef.current = n;
+      return () => window.clearTimeout(t);
+    }
+    prevEventCountRef.current = n;
+  }, [deskEvents.length]);
   const filteredDeskEvents = useMemo(() => {
     const q = deskQuery.trim().toLowerCase();
     if (!q) return deskEvents;
@@ -1646,8 +1672,18 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                   >FAILED</span>
                 )}
                 {deskEvents.length > 0 && (
-                  <span style={{ fontWeight:500, color:"#64748b", letterSpacing:"0.06em" }}>
+                  <span
+                    data-testid="desk-event-count"
+                    style={{
+                      fontWeight:600,
+                      letterSpacing:"0.06em",
+                      color: eventCountPulse ? "#67e8f9" : isLive ? "#94a3b8" : "#64748b",
+                      textShadow: eventCountPulse ? "0 0 10px rgba(34,211,238,0.55)" : undefined,
+                      transition: "color 200ms ease, text-shadow 200ms ease",
+                    }}
+                  >
                     {deskEvents.length} event{deskEvents.length === 1 ? "" : "s"}
+                    {isLive && eventCountPulse ? " · new" : ""}
                   </span>
                 )}
               </span>

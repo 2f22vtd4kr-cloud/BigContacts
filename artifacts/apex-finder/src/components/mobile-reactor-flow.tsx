@@ -145,6 +145,8 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
   const [rateLimitDismissed, setRateLimitDismissed] = React.useState(false);
   /** Phase O — history text search */
   const [historyQuery, setHistoryQuery] = React.useState("");
+  const [eventCountPulse, setEventCountPulse] = React.useState(false);
+  const prevEventCountRef = React.useRef(0);
   const wasLiveRef = React.useRef(false);
   React.useEffect(() => {
     if (isLive && !wasLiveRef.current) {
@@ -223,6 +225,17 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
     return list;
   }, [deskEvents, showHistory, historyFilter, historyQuery]);
   const liveEvents = showHistory ? filteredDeskEvents : deskEvents.slice(-6);
+
+  React.useEffect(() => {
+    const n = deskEvents.length;
+    if (n > prevEventCountRef.current && prevEventCountRef.current > 0) {
+      setEventCountPulse(true);
+      const t = window.setTimeout(() => setEventCountPulse(false), 900);
+      prevEventCountRef.current = n;
+      return () => window.clearTimeout(t);
+    }
+    prevEventCountRef.current = n;
+  }, [deskEvents.length]);
 
   // Keyboard: Escape returns from History; "/" focuses history search
   React.useEffect(() => {
@@ -535,8 +548,15 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                     </span>
                   )}
                 </div>
-                <div className="text-[10px] font-mono tabular-nums text-slate-500">
+                <div
+                  className={`text-[10px] font-mono tabular-nums transition-colors ${
+                    eventCountPulse ? "text-cyan-300" : "text-slate-500"
+                  }`}
+                  data-testid="mobile-step-count"
+                  style={eventCountPulse ? { textShadow: "0 0 10px rgba(34,211,238,0.45)" } : undefined}
+                >
                   {liveEvents.length} step{liveEvents.length === 1 ? "" : "s"}
+                  {eventCountPulse && isLive && !showHistory ? " · new" : ""}
                 </div>
               </div>
               {showHistory && deskEvents.length > 0 && (

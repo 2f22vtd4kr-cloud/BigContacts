@@ -166,3 +166,12 @@ See `MOTION.md` / `src/lib/reactor-motion.ts`. No magic numbers in timers.
 | Scene timestamp | just now / s / m ago; title = absolute Z |
 | Scheme reactor node + REACH | reach pill + emerald glow |
 | Sibling dim | REACH core node not dimmed |
+
+## Phase R — Event pulse + sessions
+
+| Surface | Expected |
+|---------|----------|
+| New desk event while live | Count cyan flash · “new” |
+| Mobile step count | Same pulse |
+| Session card hover | Cyan border tint |
+| Empty sessions | Readable slate copy |
