@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { formatSchedulerCountdown, schedulerWaitRemaining } from "./scheduler-utils";
 import { BureauOpsStage } from "./bureau-ops-stage";
-import { REACTOR_ARM_MS, REACTOR_CSS, REACTOR_CELEBRATE_MS, REACTOR_SHIMMER_MS, REACTOR_SCENE_MS } from "../lib/reactor-motion";
+import { REACTOR_ARM_MS, REACTOR_CSS, REACTOR_CELEBRATE_MS, REACTOR_SHIMMER_MS, REACTOR_SCENE_MS, motionOrNone } from "../lib/reactor-motion";
 
 interface ResearchSession {
   id: number;
@@ -267,7 +267,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
             data-testid="card-reach-contact-found"
             role="status"
             aria-live="polite"
-            style={{ animation: `reachIn ${REACTOR_CELEBRATE_MS}ms var(--reactor-ease, cubic-bezier(0.22,1,0.36,1)) both` }}
+            style={{ animation: motionOrNone(`reachIn ${REACTOR_CELEBRATE_MS}ms var(--reactor-ease, cubic-bezier(0.22,1,0.36,1)) both`) }}
           >
             <div className="reactor-reach-label text-[10px] font-bold uppercase">Contact found · REACH</div>
             <div className="mt-1 text-[13px] leading-snug text-emerald-50">
@@ -297,7 +297,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                   <span className="h-2.5 w-2.5 rounded-full bg-[#FEBC2E]" />
                   <span className="h-2.5 w-2.5 rounded-full bg-[#28C840]" />
                   <div className="ml-1 h-2 flex-1 overflow-hidden rounded bg-slate-800">
-                    <div className="h-full w-2/3" style={{ background: "linear-gradient(90deg,transparent,rgba(34,211,238,.25),transparent)", animation: `reactorShimmer ${REACTOR_SHIMMER_MS}ms ease-in-out infinite` }} />
+                    <div className="h-full w-2/3" style={{ background: "linear-gradient(90deg,transparent,rgba(34,211,238,.25),transparent)", animation: motionOrNone(`reactorShimmer ${REACTOR_SHIMMER_MS}ms ease-in-out infinite`) }} />
                   </div>
                 </div>
                 <div className="space-y-2 p-3">
@@ -317,7 +317,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
               }`}
               data-testid="panel-live-desk-mobile"
               aria-label={showHistory ? "Target history" : "Live research window"}
-              style={{ animation: `armIn ${REACTOR_SCENE_MS}ms ease-out both` }}
+              style={{ animation: motionOrNone(`armIn ${REACTOR_SCENE_MS}ms ease-out both`) }}
             >
               <div className="mb-3 flex items-center justify-between gap-2 px-0.5">
                 <div className="flex items-center gap-2">

@@ -172,3 +172,13 @@ https://www.figma.com/design/TpHSxn1Cvo9Frdf9IEVWlT
 - Footer hints reflect pause state
 - Space not stolen from buttons
 
+
+---
+
+## Continue-6
+
+- Desk mode aria-live announcer
+- Desktop event count on LIVE DESK
+- motionOrNone on scene slide + shimmer + REACH/arm
+- data-live on WindowChrome
+
