@@ -77,3 +77,14 @@ button:focus-visible,
 export const REACTOR_SWIPE_PX = 56;
 /** Swipe: velocity threshold (px/ms) for flick advance */
 export const REACTOR_SWIPE_VELOCITY = 0.45;
+
+/** Client-only: true when user prefers reduced motion */
+export function prefersReducedMotion(): boolean {
+  if (typeof window === "undefined") return false;
+  return !!window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+}
+
+/** Use for inline animation style values — returns "none" when reduced */
+export function motionOrNone(animation: string): string {
+  return prefersReducedMotion() ? "none" : animation;
+}

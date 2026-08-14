@@ -493,6 +493,8 @@ function MobileWorkstage({
 }) {
   const [idx, setIdx] = useState(0);
   const [paused, setPaused] = useState(false);
+  const [pauseEndsAt, setPauseEndsAt] = useState<number | null>(null);
+  const [pauseLeft, setPauseLeft] = useState(0);
   const [dragX, setDragX] = useState(0);
   const [slideDir, setSlideDir] = useState<1 | -1>(1);
   const rootRef = React.useRef<HTMLDivElement | null>(null);
@@ -513,10 +515,14 @@ function MobileWorkstage({
   /** Pause auto-advance for 8s after any touch/nav (audit P2) */
   const pauseForReading = React.useCallback((ms = REACTOR_PAUSE_MS) => {
     setPaused(true);
+    const ends = Date.now() + ms;
+    setPauseEndsAt(ends);
+    setPauseLeft(Math.ceil(ms / 1000));
     if (pauseTimerRef.current) window.clearTimeout(pauseTimerRef.current);
     pauseTimerRef.current = window.setTimeout(() => {
       setPaused(false);
-      pauseTimerRef.current = null;
+      setPauseEndsAt(null);
+      setPauseLeft(0);
     }, ms);
   }, []);
 
@@ -543,6 +549,21 @@ function MobileWorkstage({
     }, REACTOR_AUTO_ADVANCE_MS);
     return () => window.clearInterval(id);
   }, [paused, scenes.length, sceneKey]);
+
+  // Countdown label while reading pause is held
+  React.useEffect(() => {
+    if (!paused || !pauseEndsAt) return;
+    const id = window.setInterval(() => {
+      const left = Math.max(0, Math.ceil((pauseEndsAt - Date.now()) / 1000));
+      setPauseLeft(left);
+      if (left <= 0) {
+        setPaused(false);
+        setPauseEndsAt(null);
+      }
+    }, 250);
+    return () => window.clearInterval(id);
+  }, [paused, pauseEndsAt]);
+
 
   const goPrev = React.useCallback(() => {
     pauseForReading(REACTOR_PAUSE_MS);
@@ -793,11 +814,11 @@ function MobileWorkstage({
 
       {paused && scenes.some((s) => s.live) && (
         <div
-          className="text-center text-[8px] font-mono uppercase tracking-wider text-cyan-400/70"
+          className="text-center text-[8px] font-mono uppercase tracking-wider text-cyan-200"
           data-testid="status-reading-pause"
-          style={{ animation: "armIn 220ms ease-out both" }}
+          style={{ animation: `armIn ${REACTOR_UI_MS}ms ease-out both` }}
         >
-          Reading pause · auto-advance held
+          {`Reading pause · ${pauseLeft}s`}
         </div>
       )}
 

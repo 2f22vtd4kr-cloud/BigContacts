@@ -144,3 +144,12 @@ https://www.figma.com/design/TpHSxn1Cvo9Frdf9IEVWlT
 - Live WindowChrome stronger border + glow
 - SR-only scene announcement for AT
 
+
+---
+
+## Continue-2
+
+- `motionOrNone` on desktop scheme animations
+- Reading pause countdown (seconds remaining)
+- Pause cue contrast improved
+

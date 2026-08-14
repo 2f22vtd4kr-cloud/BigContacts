@@ -6,7 +6,7 @@ import {
   Sparkles, Compass, Rss, Users,
 } from "lucide-react";
 import { MobileReactorFlow } from "../components/mobile-reactor-flow";
-import { REACTOR_CSS, REACTOR_CELEBRATE_MS, REACTOR_UI_MS } from "../lib/reactor-motion";
+import { REACTOR_CSS, REACTOR_CELEBRATE_MS, REACTOR_UI_MS, motionOrNone } from "../lib/reactor-motion";
 import { BureauOpsStage } from "../components/bureau-ops-stage";
 import { isMockMode, mockAtlasLiveState, mockLiveNodes } from "@/lib/dev-mock-data";
 import { formatSchedulerCountdown, schedulerWaitRemaining } from "../components/scheduler-utils";
@@ -533,7 +533,7 @@ function LiveHeaderDetail({ isLive, atlasState, liveLabel, livePhaseDetail, comp
       <span style={{
         width:5, height:5, borderRadius:"50%", flexShrink:0,
          background:color, boxShadow:`0 0 7px ${color}`,
-         animation:failed || done ? "none" : "blink .8s ease-in-out infinite",
+         animation:failed || done ? "none" : motionOrNone("blink .8s ease-in-out infinite"),
       }} />
       <span style={{
          fontSize:compact ? 6 : 7, letterSpacing:"0.08em", color,
@@ -596,7 +596,7 @@ function MobileNodeCard({ n, on, dim, status = "idle", compact = false }: { n: N
          width:compact ? 4 : 5, height:compact ? 4 : 5, borderRadius:"50%", flexShrink:0,
          background: on ? statusColor : dim ? statusColor+"70" : "#192840",
          boxShadow: on ? `0 0 6px ${statusColor}` : dim ? `0 0 3px ${statusColor}50` : "none",
-         animation: on ? "blink 1.1s ease-in-out infinite" : dim && !muted ? "breathe 2s ease-in-out infinite" : "none",
+         animation: on ? motionOrNone("blink 1.1s ease-in-out infinite") : dim && !muted ? motionOrNone("breathe 2s ease-in-out infinite") : "none",
         transition:"all 0.4s",
       }} />
     </div>
@@ -681,7 +681,7 @@ function EntityWorkbench({ state, liveNodes, compact = false }: {
         <div style={{
           width:compact ? 5 : 6, height:compact ? 5 : 6, borderRadius:"50%",
           flexShrink:0, background:"#22d3ee", boxShadow:"0 0 8px #22d3ee",
-          animation:"blink .8s ease-in-out infinite",
+          animation: motionOrNone("blink .8s ease-in-out infinite"),
         }} />
         <span style={{ fontSize:compact ? 6.5 : 7.5, letterSpacing:"0.14em", color:"#22d3ee" }}>
           CURRENT ENTITY WORKBENCH
@@ -915,7 +915,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
             fontSize:32, lineHeight:1, flexShrink:0,
             color: hasSessions ? "#a3e635" : "#253850",
             textShadow: hasSessions ? "0 0 12px #a3e63544" : "none",
-            animation: hasSessions ? "breathe 3s ease-in-out infinite" : "none",
+            animation: hasSessions ? motionOrNone("breathe 3s ease-in-out infinite") : "none",
             transition:"all 0.4s",
           }}>☢</span>
 
@@ -938,7 +938,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                   width:6, height:6, borderRadius:"50%",
                    background: atlasFailed ? "#fb7185" : atlasDone ? "#a3e635" : isLive ? "#22d3ee" : (hasSessions ? "#a3e635" : "#253850"),
                    boxShadow: atlasFailed ? "0 0 8px #fb7185" : atlasDone ? "0 0 6px #a3e635" : isLive ? "0 0 8px #22d3ee" : (hasSessions ? "0 0 6px #a3e635" : "none"),
-                   animation: (!atlasFailed && !atlasDone && (isLive || hasSessions)) ? "blink 1.1s ease-in-out infinite" : "none",
+                   animation: (!atlasFailed && !atlasDone && (isLive || hasSessions)) ? motionOrNone("blink 1.1s ease-in-out infinite") : "none",
                 }} />
                  <span style={{ fontSize:8, letterSpacing:"0.14em", color: atlasFailed ? "#fb7185" : atlasDone ? "#a3e635" : isLive ? "#22d3ee" : (hasSessions ? "#a3e635" : "#3a5070") }}>
                    {atlasFailed ? "FAILED" : atlasDone ? "COMPLETE" : isLive ? "LIVE" : (hasSessions ? "OPERATIONAL" : "STANDBY")}
@@ -962,7 +962,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
             >
               <RefreshCw style={{
                 width:10, height:10,
-                animation: syncing ? "blink 0.6s linear infinite" : "none",
+                animation: syncing ? motionOrNone("blink 0.6s linear infinite") : "none",
               }} />
             </button>
           </div>
@@ -1001,7 +1001,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
             <div style={{
               width:28, height:28, borderRadius:"50%",
               border:"2px solid #192840", borderTopColor:"#a3e635",
-              animation:"blink 0.7s linear infinite",
+              animation: motionOrNone("blink 0.7s linear infinite"),
             }} />
             <span style={{ fontSize:9, letterSpacing:"0.18em", color:"#3a5070" }}>
               LOADING SESSIONS…
@@ -1152,7 +1152,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                   <div style={{
                     width:5, height:5, borderRadius:"50%",
                     background:"#22d3ee", boxShadow:"0 0 6px #22d3ee",
-                    animation:"blink 0.6s ease-in-out infinite", flexShrink:0,
+                    animation: motionOrNone("blink 0.6s ease-in-out infinite"), flexShrink:0,
                   }} />
                   <span style={{
                     fontSize:8, letterSpacing:"0.12em", color:"#22d3ee",
@@ -1387,7 +1387,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
             display:"flex", alignItems:"center", justifyContent:"center",
             lineHeight:1, color: adaptive ? "#22d3ee" : "#a3e635", fontSize:18,
             boxShadow:`0 0 14px ${adaptive ? "#22d3ee55" : "#a3e63555"}`,
-            animation: adaptive ? "pulseGlow 0.7s ease-in-out infinite" : "breathe 3s ease-in-out infinite",
+            animation: adaptive ? motionOrNone("pulseGlow 0.7s ease-in-out infinite") : motionOrNone("breathe 3s ease-in-out infinite"),
           }}>
             <span style={{ lineHeight:1, display:"block", marginTop:1 }}>☢</span>
           </div>
@@ -1414,7 +1414,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                     width:7, height:7, borderRadius:"50%",
                     background: atlasStatusColor,
                     boxShadow:`0 0 8px ${atlasStatusColor}`,
-                    animation: atlasFailed || atlasDone || waitingForNextCycle ? "none" : "blink 1.1s ease-in-out infinite",
+                    animation: atlasFailed || atlasDone || waitingForNextCycle ? "none" : motionOrNone("blink 1.1s ease-in-out infinite"),
                   }} />
                   <span style={{ fontSize:8, letterSpacing:"0.18em", color: atlasStatusColor }}>
                     {atlasFailed ? "ATLAS FAILED" : isLive ? "ATLAS LIVE" : waitingForNextCycle ? "NEXT CYCLE QUEUED" : atlasDone ? "ATLAS COMPLETE" : "NOMINAL"}
@@ -1642,7 +1642,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                 width:6, height:6, borderRadius:"50%", flexShrink:0,
                 background: on ? c : "#192840",
                 boxShadow: on ? `0 0 8px ${c}` : "none",
-                animation: on ? "blink 1.1s ease-in-out infinite" : "none",
+                animation: on ? motionOrNone("blink 1.1s ease-in-out infinite") : "none",
                 transition:"all 0.35s",
               }} />
             </div>
