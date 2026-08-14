@@ -135,6 +135,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
     ? atlasState.runStatus === "running"
     : liveNodes.size > 0;
   const [showHistory, setShowHistory] = React.useState(false);
+  const [edgeHint, setEdgeHint] = React.useState<string | null>(null);
   // P2 desk arming — brief scaffold when a run first goes live
   const [arming, setArming] = React.useState(false);
   const wasLiveRef = React.useRef(false);
@@ -278,6 +279,15 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
         )}
       </header>
 
+      {edgeHint && (
+        <div
+          role="status"
+          className="shrink-0 px-4 py-1.5 text-center text-[9px] font-mono uppercase tracking-wider text-cyan-200 bg-cyan-400/10 border-b border-cyan-400/20"
+          style={{ animation: "armIn 220ms ease-out both" }}
+        >
+          {edgeHint}
+        </div>
+      )}
       {/* Primary: immersive tool window — what Atlas is doing right now */}
       <div
         className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4"
@@ -342,8 +352,16 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                 maxScenes={showHistory ? 14 : 8}
                 title=""
                 onEdgeSwipe={(dir) => {
-                  if (dir === "prev" && !showHistory) setShowHistory(true);
-                  if (dir === "next" && showHistory) setShowHistory(false);
+                  if (dir === "prev" && !showHistory) {
+                    setShowHistory(true);
+                    setEdgeHint("Opened history archive");
+                    window.setTimeout(() => setEdgeHint(null), 1800);
+                  }
+                  if (dir === "next" && showHistory) {
+                    setShowHistory(false);
+                    setEdgeHint("Back to live desk");
+                    window.setTimeout(() => setEdgeHint(null), 1800);
+                  }
                 }}
               />
               <div className={`mt-2 text-center text-[8px] font-mono uppercase tracking-wider ${

@@ -192,3 +192,10 @@ https://www.figma.com/design/TpHSxn1Cvo9Frdf9IEVWlT
 - Header controls h-11 (44px)
 - Timestamp HH:MMZ + contrast
 
+
+---
+
+## Continue-8
+
+- Edge-swipe toast: "Opened history archive" / "Back to live desk" (~1.8s)
+
