@@ -329,12 +329,13 @@ function LiveResearchConsole({
         </div>
       </div>
 
-      {/* Contact-found moment — REACH vector recovered (never invents; only when telemetry reports it) */}
+      {/* Contact-found moment — one-shot 320ms spring, then quiet (audit P0) */}
       {(telemetry?.disposition === "contact_route_found" || (telemetry?.contacts != null && telemetry.contacts > 0)) && (
         <div
           className="mb-3 rounded-xl border border-emerald-400/40 bg-emerald-400/[0.09] p-3 shadow-[0_0_24px_rgba(52,211,153,0.12)]"
           data-testid="card-reach-contact-found"
           role="status"
+          style={{ animation: "reachIn 320ms cubic-bezier(0.22,1,0.36,1) both" }}
         >
           <div className="mb-1 flex items-center gap-2 text-[9px] font-bold uppercase tracking-[0.16em] text-emerald-300">
             <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />

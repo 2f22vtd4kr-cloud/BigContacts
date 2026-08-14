@@ -243,10 +243,20 @@ function WindowChrome({
         </div>
       </div>
       {urlBar != null && (
-        <div className={`border-b border-white/5 bg-[#0f172a] ${compact ? "px-2.5 py-1.5" : "px-3 py-2"}`}>
-          <div className="flex items-center gap-1.5 rounded-full bg-[#1e293b] px-2.5 py-1 border border-white/5">
+        <div className={`relative border-b border-white/5 bg-[#0f172a] ${compact ? "px-2.5 py-1.5" : "px-3 py-2"}`}>
+          <div className="flex items-center gap-1.5 rounded-full bg-[#1e293b] px-2.5 py-1 border border-white/5 overflow-hidden">
             <span className="text-[9px] text-slate-500 shrink-0">{"\uD83D\uDD12"}</span>
             <span className={`font-mono text-slate-300 truncate ${compact ? "text-[10px]" : "text-[11px]"}`}>{urlBar}</span>
+            {live && (
+              <span
+                aria-hidden
+                className="pointer-events-none absolute inset-y-0 left-0 w-1/3 opacity-40"
+                style={{
+                  background: "linear-gradient(90deg, transparent, rgba(34,211,238,0.35), transparent)",
+                  animation: "reactorShimmer 1.4s ease-in-out infinite",
+                }}
+              />
+            )}
           </div>
         </div>
       )}
@@ -480,12 +490,14 @@ function MobileWorkstage({
   const [idx, setIdx] = useState(0);
   const [paused, setPaused] = useState(false);
   const [dragX, setDragX] = useState(0);
+  const [slideDir, setSlideDir] = useState<1 | -1>(1);
   const rootRef = React.useRef<HTMLDivElement | null>(null);
   const touchStart = React.useRef<{ x: number; y: number; t: number } | null>(null);
   const axisLock = React.useRef<"h" | "v" | null>(null);
   const idxRef = React.useRef(0);
   const scenesLenRef = React.useRef(scenes.length);
   const onEdgeRef = React.useRef(onEdgeSwipe);
+  const pauseTimerRef = React.useRef<number | null>(null);
   const safeIdx = Math.min(idx, Math.max(0, scenes.length - 1));
   const scene = scenes[safeIdx];
   const sceneKey = scenes.map((s) => s.id).join("|");
@@ -494,25 +506,43 @@ function MobileWorkstage({
   scenesLenRef.current = scenes.length;
   onEdgeRef.current = onEdgeSwipe;
 
+  /** Pause auto-advance for 8s after any touch/nav (audit P2) */
+  const pauseForReading = React.useCallback((ms = 8000) => {
+    setPaused(true);
+    if (pauseTimerRef.current) window.clearTimeout(pauseTimerRef.current);
+    pauseTimerRef.current = window.setTimeout(() => {
+      setPaused(false);
+      pauseTimerRef.current = null;
+    }, ms);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (pauseTimerRef.current) window.clearTimeout(pauseTimerRef.current);
+    };
+  }, []);
+
   useEffect(() => {
     const liveIdx = scenes.findIndex((s) => s.live);
     setIdx(liveIdx >= 0 ? liveIdx : Math.max(0, scenes.length - 1));
     setDragX(0);
   }, [sceneKey]);
 
-  // Auto-advance every 5s while multiple scenes and not paused (live mode only)
+  // Auto-advance every 5.2s while multiple scenes and not paused (live mode only)
   useEffect(() => {
     if (paused || scenes.length < 2) return;
     const hasLive = scenes.some((s) => s.live);
     if (!hasLive) return; // history: user-driven only
     const id = window.setInterval(() => {
+      setSlideDir(1);
       setIdx((i) => (i + 1) % scenes.length);
     }, 5200);
     return () => window.clearInterval(id);
   }, [paused, scenes.length, sceneKey]);
 
   const goPrev = React.useCallback(() => {
-    setPaused(true);
+    pauseForReading(8000);
+    setSlideDir(-1);
     setIdx((i) => {
       if (i <= 0) {
         onEdgeRef.current?.("prev");
@@ -520,10 +550,11 @@ function MobileWorkstage({
       }
       return i - 1;
     });
-  }, []);
+  }, [pauseForReading]);
 
   const goNext = React.useCallback(() => {
-    setPaused(true);
+    pauseForReading(8000);
+    setSlideDir(1);
     setIdx((i) => {
       if (i >= scenesLenRef.current - 1) {
         onEdgeRef.current?.("next");
@@ -531,7 +562,7 @@ function MobileWorkstage({
       }
       return i + 1;
     });
-  }, []);
+  }, [pauseForReading]);
 
   // Native non-passive listeners so preventDefault works on horizontal lock
   useEffect(() => {
@@ -543,7 +574,7 @@ function MobileWorkstage({
       if (!t) return;
       touchStart.current = { x: t.clientX, y: t.clientY, t: Date.now() };
       axisLock.current = null;
-      setPaused(true);
+      pauseForReading(8000);
       setDragX(0);
     };
 
@@ -573,7 +604,7 @@ function MobileWorkstage({
       axisLock.current = null;
       setDragX(0);
       if (!start || lock !== "h") {
-        setPaused(false);
+        pauseForReading(8000);
         return;
       }
       const t = e.changedTouches[0];
@@ -582,19 +613,19 @@ function MobileWorkstage({
       const velocity = Math.abs(dx) / dt; // px/ms
       const threshold = velocity > 0.5 ? 24 : 48;
       if (Math.abs(dx) < threshold) {
-        window.setTimeout(() => setPaused(false), 2000);
+        pauseForReading(8000);
         return;
       }
       if (dx < 0) goNext();
       else goPrev();
-      window.setTimeout(() => setPaused(false), 4000);
+      // goNext/goPrev already schedule 8s pause
     };
 
     const onCancel = () => {
       touchStart.current = null;
       axisLock.current = null;
       setDragX(0);
-      setPaused(false);
+      pauseForReading(8000);
     };
 
     el.addEventListener("touchstart", onStart, { passive: true });
@@ -607,7 +638,7 @@ function MobileWorkstage({
       el.removeEventListener("touchend", onEnd);
       el.removeEventListener("touchcancel", onCancel);
     };
-  }, [goNext, goPrev]);
+  }, [goNext, goPrev, pauseForReading]);
 
   if (!scene) return null;
 
@@ -658,8 +689,17 @@ function MobileWorkstage({
           willChange: "transform",
         }}
       >
-        {/* Immersive (not compact): full tool chrome so wait-time is legible */}
-        <SceneCard scene={scene} compact={false} />
+        {/* Scene enter: 280ms direction-aware slide (audit P0) */}
+        <div
+          key={scene.id}
+          style={{
+            animation: dragX
+              ? undefined
+              : `${slideDir === 1 ? "sceneSlideLeft" : "sceneSlideRight"} 280ms cubic-bezier(0.22,1,0.36,1) both`,
+          }}
+        >
+          <SceneCard scene={scene} compact={false} />
+        </div>
       </div>
 
       {scenes.length > 1 && (
@@ -678,7 +718,11 @@ function MobileWorkstage({
                 key={s.id}
                 type="button"
                 aria-label={`Scene ${i + 1}`}
-                onClick={() => { setPaused(true); setIdx(i); }}
+                onClick={() => {
+                  pauseForReading(8000);
+                  setSlideDir(i > safeIdx ? 1 : -1);
+                  setIdx(i);
+                }}
                 className="rounded-full transition-all duration-300 ease-out"
                 style={{
                   width: i === safeIdx ? 18 : 6,
@@ -699,14 +743,24 @@ function MobileWorkstage({
         </div>
       )}
 
+      {paused && scenes.some((s) => s.live) && (
+        <div className="text-center text-[8px] font-mono uppercase tracking-wider text-slate-500" data-testid="status-reading-pause">
+          Reading pause · auto-advance held
+        </div>
+      )}
+
       {scenes.length > 1 && (
         <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
           {scenes.map((s, i) => (
             <button
               key={s.id}
               type="button"
-              onClick={() => { setPaused(true); setIdx(i); }}
-              className="shrink-0 rounded-lg border px-2 py-1.5 text-left w-[128px]"
+              onClick={() => {
+                pauseForReading(8000);
+                setSlideDir(i > safeIdx ? 1 : -1);
+                setIdx(i);
+              }}
+              className="shrink-0 rounded-lg border px-2 py-1.5 text-left w-[128px] active:scale-95 transition-transform"
               style={{
                 borderColor: i === safeIdx ? "#22d3ee66" : "#ffffff10",
                 background: i === safeIdx ? "#22d3ee14" : "#0f172a",
