@@ -208,3 +208,11 @@ https://www.figma.com/design/TpHSxn1Cvo9Frdf9IEVWlT
 - Arming panel aria-busy + label
 - Explicit .animate-ping/.animate-pulse kill under reduced motion
 
+
+---
+
+## Continue-10
+
+- Desktop tabpanel scroll-margin for strip → card
+- Progress bar role="progressbar" + valuemin/max/now
+

@@ -734,7 +734,14 @@ function MobileWorkstage({
 
       {/* Progress of this step in the run */}
       <div className="flex items-center gap-2">
-        <div className={`relative flex-1 rounded-full bg-slate-800 overflow-hidden ${scene.live ? "h-1.5" : "h-1"}`}>
+        <div
+          className={`relative flex-1 rounded-full bg-slate-800 overflow-hidden ${scene.live ? "h-1.5" : "h-1"}`}
+          role="progressbar"
+          aria-valuenow={safeIdx + 1}
+          aria-valuemin={1}
+          aria-valuemax={Math.max(scenes.length, 1)}
+          aria-label={`Scene progress, ${safeIdx + 1} of ${scenes.length}`}
+        >
           <div
             className="h-full rounded-full"
             style={{
@@ -1023,6 +1030,7 @@ export function BureauOpsStage({
                 filter: dim ? "saturate(0.7)" : undefined,
                 outline: focused ? "1px solid rgba(34,211,238,0.35)" : undefined,
                 borderRadius: 8,
+                scrollMarginTop: 12,
               }}
             >
               <SceneCard scene={s} />
