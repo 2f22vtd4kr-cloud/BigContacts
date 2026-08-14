@@ -35,7 +35,7 @@ export const REGISTRAR_DOMAINS = new Set([
 const GENERIC_PREFIXES = new Set([
   "info", "contact", "sales", "support", "press", "admin", "hello", "office",
   "noreply", "no-reply", "donotreply", "billing", "ops", "team", "media",
-  "pr", "legal", "hr", "webmaster", "enquiries", "enquiry", "general",
+  "pr", "legal", "hr", "webmaster", "enquiries", "enquiry", "inquiries", "inquiry", "general",
   "reception", "invest", "ir", "investor", "investor.relations",
   "customerservice", "customer.service", "help", "jobs", "careers",
   "recruitment", "marketing", "accounts", "mail", "postmaster", "abuse",

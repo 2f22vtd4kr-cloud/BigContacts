@@ -38,6 +38,7 @@ import { db, entitiesTable, assetsTable, relationshipsTable, researchSessionsTab
 import { eq, count, sql } from "drizzle-orm";
 import type { Entity } from "@workspace/db";
 import { logger } from "./logger";
+import { isTrashPhone } from "./contact-validation";
 
 export type PersonaId =
   | "data_engineer"
@@ -907,24 +908,20 @@ async function runDataIntegrityAuditor(entity: Entity): Promise<ImprovementSugge
     }
   }
 
-  // ── 5. Fake phone numbers ─────────────────────────────────────────────────
-  if (entity.phone) {
-    const stripped = entity.phone.replace(/[\s\-().+]/g, "");
-    const FAKE_PHONE_RE = /^(555\d{7}|0{7,}|1{7,}|9{7,}|1234567|0000000|9999999)/;
-    if (FAKE_PHONE_RE.test(stripped) || /^(\d)\1{6,}$/.test(stripped)) {
-      suggestions.push({
-        entityId: entity.id,
-        persona: "data_integrity_auditor",
-        category: "integrity",
-        priority: "high",
-        title: "Phone number is a known fake pattern",
-        description:
-          `Phone "${entity.phone}" matches a known synthetic-data pattern (555-xxxx, ` +
-          "all-same-digit, sequential, or zero-padded). " +
-          "Only real phone numbers from verified registry filings are permitted.",
-        actionTaken: "INTEGRITY VIOLATION — fake phone detected. Contact field must be cleared.",
-      });
-    }
+  // ── 5. Fake phone numbers (shared trash-phone gate — fail-closed) ─────────
+  if (entity.phone && isTrashPhone(entity.phone)) {
+    suggestions.push({
+      entityId: entity.id,
+      persona: "data_integrity_auditor",
+      category: "integrity",
+      priority: "high",
+      title: "Phone number is a known fake pattern",
+      description:
+        `Phone "${entity.phone}" matches a known synthetic-data pattern (555-xxxx, ` +
+        "all-same-digit, sequential, or zero-padded). " +
+        "Only real phone numbers from verified registry filings are permitted.",
+      actionTaken: "INTEGRITY VIOLATION — fake phone detected. Contact field must be cleared.",
+    });
   }
 
   // ── 6. Asset identifier integrity check ──────────────────────────────────
