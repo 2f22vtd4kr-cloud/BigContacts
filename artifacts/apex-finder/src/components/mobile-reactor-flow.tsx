@@ -201,6 +201,9 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
     >
       {/* Fallback tokens if parent did not inject KEYFRAMES */}
       <style>{REACTOR_CSS}</style>
+      <div className="sr-only" aria-live="polite" data-testid="status-desk-mode" style={{ position:"absolute", width:1, height:1, padding:0, margin:-1, overflow:"hidden", clip:"rect(0,0,0,0)", whiteSpace:"nowrap", border:0 }}>
+        {showHistory ? "History archive open" : isLive ? "Live desk" : "Desk standby"}
+      </div>
       {/* Minimal chrome — target + live pulse only */}
       <header
         className="shrink-0 border-b border-white/10 bg-black/40 px-4 py-3 backdrop-blur-md"
@@ -353,7 +356,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
             <div
               className={`flex min-h-[320px] flex-col items-center justify-center rounded-2xl border px-6 text-center transition-colors duration-300 ${
                 isLive
-                  ? "border-cyan-400/20 bg-cyan-400/[0.03]"
+                  ? "border-cyan-400/30 bg-cyan-400/[0.05]"
                   : "border-dashed border-white/10 bg-white/[0.02]"
               }`}
               data-testid="panel-live-desk-idle"

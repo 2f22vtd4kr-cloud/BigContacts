@@ -206,6 +206,7 @@ function WindowChrome({
   return (
     <div
       className="relative overflow-hidden border backdrop-blur-md"
+      data-live={live ? "true" : "false"}
       style={{
         borderColor: live ? `${accent}99` : `${accent}55`,
         background: "linear-gradient(165deg, rgba(17,24,39,0.92) 0%, rgba(11,18,32,0.98) 100%)",
