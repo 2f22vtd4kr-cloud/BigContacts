@@ -225,3 +225,10 @@ https://www.figma.com/design/TpHSxn1Cvo9Frdf9IEVWlT
 - Footer mentions edge-swipe history
 - Bureau empty idle copy clarity
 
+
+---
+
+## Continue-12
+
+- WindowChrome URL/query bar aria-label (live vs idle)
+
