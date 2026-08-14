@@ -83,3 +83,31 @@ Easing: `cubic-bezier(0.22, 1, 0.36, 1)` for enter; linear for shimmer loops.
 - Footer hint: swipe guidance for Live ↔ History
 - Chip scroller: edge fade mask (scroll affordance)
 
+
+---
+
+## Phase E — Systemic session (mobile tokens + safe area)
+
+**Critical fix:** Mobile reactor path did not inject `KEYFRAMES`. Pressable, REACH motion, scene slides, and focus rings were desktop-only in practice.
+
+### Delivered this session
+1. `<style>{KEYFRAMES}</style>` on mobile page branch
+2. Self-contained token + keyframe fallback inside `MobileReactorFlow`
+3. Safe-area insets (top header / bottom shell)
+4. Header `history` chip when archive mode is on
+5. History subtitle: “Archive of this target’s tool steps”
+
+### Design QA checklist
+- [ ] Mobile Live: LIVE label glow, REACH spring, tool LIVE pill
+- [ ] Mobile History: slate panel, archive badge, Live CTA
+- [ ] Mobile empty live: cyan pulse + copy
+- [ ] Mobile arming: 400ms skeleton
+- [ ] Scene slide 280ms both directions
+- [ ] 8s reading pause after touch
+- [ ] focus-visible cyan ring (keyboard)
+- [ ] Desktop strip tabs + focus-dim
+- [ ] prefers-reduced-motion kills loops
+
+### Figma
+https://www.figma.com/design/TpHSxn1Cvo9Frdf9IEVWlT
+

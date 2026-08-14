@@ -650,9 +650,46 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#0b1120] font-sans text-slate-200">
+    <div
+      className="flex h-full min-h-0 flex-col overflow-hidden bg-[#0b1120] font-sans text-slate-200"
+      style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+    >
+      {/* Fallback tokens if parent did not inject KEYFRAMES */}
+      <style>{`
+        :root {
+          --reactor-fast: 150ms; --reactor-ui: 220ms; --reactor-scene: 280ms;
+          --reactor-celebrate: 320ms; --reactor-arm: 400ms; --reactor-pause: 8000ms;
+          --reactor-ease: cubic-bezier(0.22, 1, 0.36, 1);
+          --reactor-cyan: #22d3ee; --reactor-emerald: #34d399;
+        }
+        .reactor-pressable { transition: transform var(--reactor-fast) ease-out, opacity var(--reactor-fast) ease-out; touch-action: manipulation; }
+        .reactor-pressable:active { transform: scale(0.97); opacity: 0.85; }
+        .reactor-pressable:focus-visible, button:focus-visible { outline: 2px solid var(--reactor-cyan); outline-offset: 2px; }
+        .reactor-reach {
+          border-color: rgba(52, 211, 153, 0.7);
+          background: linear-gradient(135deg, rgba(52, 211, 153, 0.18), rgba(16, 185, 129, 0.08));
+          box-shadow: 0 0 28px rgba(52, 211, 153, 0.22), inset 0 1px 0 rgba(167, 243, 208, 0.12);
+        }
+        .reactor-reach-label { color: #a7f3d0; letter-spacing: 0.16em; }
+        .reactor-live-label { color: #a5f3fc; text-shadow: 0 0 12px rgba(34, 211, 238, 0.45); }
+        @keyframes reachIn {
+          0% { opacity: 0; transform: scale(0.92) translateY(6px); }
+          60% { opacity: 1; transform: scale(1.02) translateY(0); }
+          100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes armIn { 0% { opacity: 0; transform: translateY(6px); } 100% { opacity: 1; transform: translateY(0); } }
+        @keyframes reactorShimmer { 0% { transform: translateX(-120%); } 100% { transform: translateX(220%); } }
+        @keyframes sceneSlideLeft { 0% { opacity: 0; transform: translateX(18px); } 100% { opacity: 1; transform: translateX(0); } }
+        @keyframes sceneSlideRight { 0% { opacity: 0; transform: translateX(-18px); } 100% { opacity: 1; transform: translateX(0); } }
+        @media (prefers-reduced-motion: reduce) {
+          *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+        }
+      `}</style>
       {/* Minimal chrome — target + live pulse only */}
-      <header className="shrink-0 border-b border-white/10 bg-black/40 px-4 py-3 backdrop-blur-md">
+      <header
+        className="shrink-0 border-b border-white/10 bg-black/40 px-4 py-3 backdrop-blur-md"
+        style={{ paddingTop: "max(12px, env(safe-area-inset-top, 12px))" }}
+      >
         <div className="flex items-center gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
@@ -660,6 +697,11 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
               <span className={`text-[10px] font-bold uppercase tracking-[0.18em] ${isLive ? "reactor-live-label" : "text-slate-400"}`}>
                 {isLive ? "Live" : statusLabel}
               </span>
+              {showHistory && (
+                <span className="rounded-full border border-slate-500/40 bg-slate-500/15 px-1.5 py-0.5 text-[8px] font-mono font-bold uppercase tracking-wider text-slate-300">
+                  history
+                </span>
+              )}
             </div>
             <div className="mt-1 truncate text-[16px] font-semibold text-white" data-testid="status-reactor-summary">
               {atlasState?.atlasTelemetry?.targetName
@@ -667,7 +709,9 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                 || (isLive ? "Researching…" : "Atlas idle")}
             </div>
             <div className="mt-0.5 truncate text-[11px] text-slate-500">
-              {isLive
+              {showHistory
+                ? "Archive of this target’s tool steps"
+                : isLive
                 ? (liveLabel || livePhaseDetail || atlasState?.detail || "Working public sources")
                 : waitingForNextCycle
                   ? `Next cycle in ${schedulerCountdown}`
