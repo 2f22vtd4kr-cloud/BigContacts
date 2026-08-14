@@ -294,8 +294,8 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
       )}
       {/* Primary: immersive tool window — what Atlas is doing right now */}
       <div
-        className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4" style={{ scrollPaddingTop: 8 }}
-        style={{ WebkitOverflowScrolling: "touch" }}
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4"
+        style={{ scrollPaddingTop: 8, WebkitOverflowScrolling: "touch" }}
       >
         <div className="mx-auto flex w-full max-w-lg flex-col gap-3 pb-8">
           {arming ? (
