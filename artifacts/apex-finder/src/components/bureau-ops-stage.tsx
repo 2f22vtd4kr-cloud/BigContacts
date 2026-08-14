@@ -820,10 +820,11 @@ function MobileWorkstage({
                 }}
                 className="reactor-pressable rounded-full touch-manipulation"
                 style={{
-                  width: i === safeIdx ? 18 : 6,
-                  height: 6,
+                  width: i === safeIdx ? 18 : 8,
+                  height: i === safeIdx ? 8 : 8,
                   background: i === safeIdx ? (s.live ? "#22d3ee" : "#94a3b8") : "#1e293b",
-                  boxShadow: i === safeIdx && s.live ? "0 0 8px #22d3ee88" : undefined,
+                  boxShadow: i === safeIdx && s.live ? "0 0 10px #22d3eecc" : undefined,
+                  minWidth: i === safeIdx ? 18 : 8,
                 }}
               />
             ))}
@@ -891,7 +892,7 @@ function MobileWorkstage({
                   <span className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399]" />
                 )}
               </div>
-              <div className="text-[9px] text-slate-300 line-clamp-2 leading-tight">{s.story}</div>
+              <div className={`text-[9px] line-clamp-2 leading-tight ${i === safeIdx ? "text-slate-100" : "text-slate-300"}`}>{s.story}</div>
             </button>
           ))}
         </div>

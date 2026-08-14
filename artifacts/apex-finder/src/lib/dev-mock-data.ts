@@ -278,6 +278,15 @@ export function mockAtlasLiveState() {
         inputSummary: "mailto candidate + public page corroboration",
         resultSummary: "mailto:jgriffin@griffin-tool.com — REACH personal vector · sourceUrls attached",
       },
+      {
+        timestamp: "2026-08-14T05:14:40Z",
+        stage: "Evidence package",
+        status: "complete",
+        targetName: "James R. Griffin",
+        activeToolId: "contact-attribution",
+        inputSummary: "Package attributable vectors for analyst review",
+        resultSummary: "1 personal email · sourceUrls attached · REACH closed",
+      },
     ],
 
   };
