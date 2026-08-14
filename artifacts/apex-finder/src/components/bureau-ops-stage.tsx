@@ -46,6 +46,8 @@ type Scene = {
   targetName?: string;
   timestamp?: string;
   live: boolean;
+  /** Phase K */
+  terminal?: "done" | "failed" | null;
   story: string;
 };
 
@@ -99,6 +101,7 @@ function toScene(e: OpsEvent, index: number): Scene {
   const provider = detectProviderKind(`${tool} ${e.stage || ""} ${e.resultSummary || ""}`);
   const status = String(e.status || "active");
   const live = !/complete|done|success/i.test(status);
+  const terminal: "done" | "failed" | null = /fail|error|blocked/i.test(status) ? "failed" : (!live ? "done" : null);
   const query = extractQuery(e);
   const url = extractUrl(e);
   const resultLines = [
@@ -145,6 +148,7 @@ function toScene(e: OpsEvent, index: number): Scene {
     targetName: e.targetName,
     timestamp: e.timestamp,
     live,
+    terminal,
     story: storyFor(kind, e, query),
   };
 }
@@ -197,6 +201,7 @@ function WindowChrome({
   accent = "#22d3ee",
   live,
   compact,
+  terminal,
 }: {
   favicon?: React.ReactNode;
   title: string;
@@ -205,6 +210,8 @@ function WindowChrome({
   accent?: string;
   live?: boolean;
   compact?: boolean;
+  /** Phase K — when tool finished (not live): done | failed */
+  terminal?: "done" | "failed" | null;
 }) {
   // Patterns drawn from high-signal dark dashboards (glass + cut corner + live ping)
   // without swapping the whole design system.
@@ -253,6 +260,24 @@ function WindowChrome({
               <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-emerald-200">LIVE</span>
             </span>
           )}
+          {!live && terminal === "done" && (
+            <span
+              className="inline-flex items-center gap-1 shrink-0 rounded-full border border-emerald-400/40 bg-emerald-400/10 px-2 py-0.5"
+              aria-label="Tool complete"
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-emerald-200/90">DONE</span>
+            </span>
+          )}
+          {!live && terminal === "failed" && (
+            <span
+              className="inline-flex items-center gap-1 shrink-0 rounded-full border border-rose-400/40 bg-rose-400/10 px-2 py-0.5"
+              aria-label="Tool failed"
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-rose-400" />
+              <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-rose-200/90">FAIL</span>
+            </span>
+          )}
         </div>
       </div>
       {urlBar != null && (
@@ -287,7 +312,7 @@ function GoogleScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
   return (
     <WindowChrome
       title="Google Search"
-      live={scene.live}
+      live={scene.live} terminal={scene.terminal}
       accent="#4285F4"
       compact={compact}
       favicon={<ProviderIcon kind="google" size={compact ? 12 : 14} />}
@@ -328,7 +353,7 @@ function BrowserScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
   return (
     <WindowChrome
       title={scene.subtitle || "Public page"}
-      live={scene.live}
+      live={scene.live} terminal={scene.terminal}
       accent={contactHit ? "#34d399" : "#f59e0b"}
       compact={compact}
       favicon={<ProviderIcon kind="browser" size={compact ? 12 : 14} />}
@@ -361,7 +386,7 @@ function PromptScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
   return (
     <WindowChrome
       title={`${providerLabel(scene.provider)} · prompt`}
-      live={scene.live}
+      live={scene.live} terminal={scene.terminal}
       accent="#a3e635"
       compact={compact}
       favicon={<ProviderIcon kind={scene.provider} size={compact ? 12 : 14} />}
@@ -382,7 +407,7 @@ function DomainScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
   return (
     <WindowChrome
       title="RDAP / WHOIS"
-      live={scene.live}
+      live={scene.live} terminal={scene.terminal}
       accent="#67e8f9"
       compact={compact}
       favicon={<ProviderIcon kind="domain" size={compact ? 12 : 14} />}
@@ -402,7 +427,7 @@ function SerpScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
   return (
     <WindowChrome
       title={`${providerLabel(scene.provider)} · web search`}
-      live={scene.live}
+      live={scene.live} terminal={scene.terminal}
       accent="#38bdf8"
       compact={compact}
       favicon={<ProviderIcon kind={scene.provider} size={compact ? 12 : 14} />}
@@ -438,7 +463,7 @@ function FootprintScene({ scene, compact }: { scene: Scene; compact?: boolean })
   return (
     <WindowChrome
       title="Username footprint"
-      live={scene.live}
+      live={scene.live} terminal={scene.terminal}
       accent="#c4b5fd"
       compact={compact}
       favicon={<ProviderIcon kind="sherlock" size={compact ? 12 : 14} />}
@@ -456,7 +481,7 @@ function BureauScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
   return (
     <WindowChrome
       title={scene.title}
-      live={scene.live}
+      live={scene.live} terminal={scene.terminal}
       accent="#22d3ee"
       compact={compact}
       favicon={<ProviderIcon kind="bureau" size={compact ? 12 : 14} />}
@@ -920,6 +945,12 @@ function MobileWorkstage({
                     className="ml-auto h-2 w-2 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]"
                     aria-hidden
                   />
+                )}
+                {!s.live && s.terminal === "done" && (
+                  <span className="ml-auto text-[7px] font-mono font-bold uppercase tracking-wider text-emerald-400/80">done</span>
+                )}
+                {!s.live && s.terminal === "failed" && (
+                  <span className="ml-auto text-[7px] font-mono font-bold uppercase tracking-wider text-rose-400/80">fail</span>
                 )}
               </div>
               <div className={`text-[9px] line-clamp-2 leading-tight ${i === safeIdx ? "text-slate-50" : "text-slate-400"}`}>{s.story}</div>

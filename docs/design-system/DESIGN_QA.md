@@ -96,3 +96,15 @@ See `MOTION.md` / `src/lib/reactor-motion.ts`. No magic numbers in timers.
 | Mobile footer / swipe hints | slate-400 (not 600) |
 | Desktop scheme + Live Desk open + live | SVG opacity ~0.72 |
 | Sibling nodes (focusedToolId) | unchanged 0.32 dim |
+
+## Phase K — Terminal + archive
+
+| Surface | Expected |
+|---------|----------|
+| Run done | Emerald terminal banner · not LIVE chrome |
+| Run failed | Rose terminal banner · role=alert |
+| REACH | Spring in → settled label “Contact route locked” |
+| History mode | Archive panel class · ARCHIVE badge · History archive title |
+| WindowChrome complete | DONE pill (not LIVE) |
+| WindowChrome failed | FAIL pill |
+| Scene chip complete | tiny “done” tag |

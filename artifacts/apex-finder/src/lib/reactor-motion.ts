@@ -78,6 +78,33 @@ button:focus-visible,
     animation: none !important;
   }
 }
+/* Phase K — terminal + archive */
+.reactor-done-label { color: #a7f3d0; letter-spacing: 0.14em; text-shadow: 0 0 10px rgba(52, 211, 153, 0.35); }
+.reactor-fail-label { color: #fecdd3; letter-spacing: 0.14em; }
+.reactor-archive-panel {
+  border-color: rgba(148, 163, 184, 0.28) !important;
+  background: linear-gradient(165deg, rgba(15, 23, 42, 0.96) 0%, rgba(7, 16, 24, 0.98) 100%) !important;
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.08), 0 12px 36px rgba(0,0,0,0.45) !important;
+}
+.reactor-terminal-banner { border-radius: 12px; border-width: 1px; padding: 10px 12px; }
+.reactor-terminal-banner[data-kind="done"] {
+  border-color: rgba(52, 211, 153, 0.45);
+  background: linear-gradient(135deg, rgba(52, 211, 153, 0.12), rgba(15, 23, 42, 0.6));
+  box-shadow: 0 0 20px rgba(52, 211, 153, 0.12);
+}
+.reactor-terminal-banner[data-kind="failed"] {
+  border-color: rgba(251, 113, 133, 0.45);
+  background: linear-gradient(135deg, rgba(251, 113, 133, 0.12), rgba(15, 23, 42, 0.6));
+  box-shadow: 0 0 20px rgba(251, 113, 133, 0.1);
+}
+@keyframes terminalIn { 0% { opacity: 0; transform: translateY(4px); } 100% { opacity: 1; transform: translateY(0); } }
+@keyframes reachSettle {
+  0% { box-shadow: 0 0 32px rgba(52, 211, 153, 0.35), inset 0 1px 0 rgba(167, 243, 208, 0.18); }
+  100% { box-shadow: 0 0 20px rgba(52, 211, 153, 0.16), inset 0 1px 0 rgba(167, 243, 208, 0.1); }
+}
+.reactor-reach[data-settled="true"] {
+  animation: reachSettle 600ms var(--reactor-ease, cubic-bezier(0.22,1,0.36,1)) both;
+}
 `;
 
 /** Swipe: minimum horizontal delta (px) to change scene */

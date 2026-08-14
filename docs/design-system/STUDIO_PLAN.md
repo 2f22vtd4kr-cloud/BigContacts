@@ -332,3 +332,30 @@ Path: `docs/ui-screenshots-20260814/` and `/home/workdir/artifacts/reactor-scree
 | NOW-04-nav-pause.png | Chips · dots · 44px prev/next · pause pill |
 
 Every phase must leave **PNG** captures in the folder — not HTML-only.
+
+---
+
+## Phase K — Terminal states + archive identity (Apex Atlas)
+
+**Studio goal:** When a run ends, the desk must not still feel “live”. History must read as an archive, not a second live strip. REACH celebrates once, then quiets.
+
+### Delivered
+1. **Terminal banners** (mobile)
+   - `runStatus === "done"` → emerald **Run complete** banner (`banner-run-terminal`)
+   - `runStatus === "failed"` → rose **Run failed** banner
+   - Uses `terminalIn` + `REACTOR_UI_MS`; not a spinner
+2. **REACH settle**
+   - One-shot `reachIn`, then `data-settled` + label → “Contact route locked · REACH”
+   - Quiet after celebrate (audit rule: climax once)
+3. **History archive panel**
+   - `reactor-archive-panel` slate treatment + stronger ARCHIVE badge
+   - Label: “History archive”; `data-mode="archive"`
+4. **WindowChrome DONE / FAIL pills**
+   - When tool not live: **DONE** (emerald) or **FAIL** (rose)
+   - Scene chips show tiny `done` / `fail` tags
+5. Motion tokens extended in `reactor-motion.ts` (terminal + archive CSS)
+
+### Rules reinforced
+- No live language on finished runs
+- Archive ≠ live strip
+- Celebrate once, then quiet

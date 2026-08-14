@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { formatSchedulerCountdown, schedulerWaitRemaining } from "./scheduler-utils";
 import { BureauOpsStage } from "./bureau-ops-stage";
-import { REACTOR_ARM_MS, REACTOR_CSS, REACTOR_CELEBRATE_MS, REACTOR_SHIMMER_MS, REACTOR_SCENE_MS, motionOrNone, prefersReducedMotion } from "../lib/reactor-motion";
+import { REACTOR_ARM_MS, REACTOR_CSS, REACTOR_CELEBRATE_MS, REACTOR_SHIMMER_MS, REACTOR_SCENE_MS, REACTOR_UI_MS, motionOrNone, prefersReducedMotion } from "../lib/reactor-motion";
 
 interface ResearchSession {
   id: number;
@@ -138,6 +138,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
   const [edgeHint, setEdgeHint] = React.useState<string | null>(null);
   // P2 desk arming — brief scaffold when a run first goes live
   const [arming, setArming] = React.useState(false);
+  const [reachSettled, setReachSettled] = React.useState(false);
   const wasLiveRef = React.useRef(false);
   React.useEffect(() => {
     if (isLive && !wasLiveRef.current) {
@@ -155,6 +156,25 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
       setArming(false);
     }
   }, [isLive]);
+
+
+  // Phase K — REACH one-shot then soft settle (celebrate once, then quiet)
+  const hasReach =
+    atlasState?.atlasTelemetry?.disposition === "contact_route_found"
+    || (atlasState?.atlasTelemetry?.contacts != null && atlasState.atlasTelemetry.contacts > 0);
+  React.useEffect(() => {
+    if (!hasReach) {
+      setReachSettled(false);
+      return;
+    }
+    setReachSettled(false);
+    if (prefersReducedMotion()) {
+      setReachSettled(true);
+      return;
+    }
+    const t = window.setTimeout(() => setReachSettled(true), REACTOR_CELEBRATE_MS + 40);
+    return () => window.clearTimeout(t);
+  }, [hasReach, atlasState?.atlasTelemetry?.disposition, atlasState?.atlasTelemetry?.contacts]);
 
   // Keyboard: Escape returns from History to Live desk
   React.useEffect(() => {
@@ -270,11 +290,14 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
           <div
             className="reactor-reach mt-3 rounded-xl border px-3 py-2.5 shadow-[0_0_24px_rgba(52,211,153,0.18)]"
             data-testid="card-reach-contact-found"
+            data-settled={reachSettled ? "true" : "false"}
             role="status"
             aria-live="polite"
             style={{ animation: motionOrNone(`reachIn ${REACTOR_CELEBRATE_MS}ms var(--reactor-ease, cubic-bezier(0.22,1,0.36,1)) both`) }}
           >
-            <div className="reactor-reach-label text-[10px] font-bold uppercase">Contact found · REACH</div>
+            <div className="reactor-reach-label text-[10px] font-bold uppercase tracking-[0.16em]">
+              {reachSettled ? "Contact route locked · REACH" : "Contact found · REACH"}
+            </div>
             <div className="mt-1 text-[13px] leading-snug text-emerald-50">
               {atlasState?.atlasTelemetry?.resultSummary
                 || `${atlasState?.atlasTelemetry?.contacts} attributable vector(s)`}
@@ -282,6 +305,37 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
           </div>
         )}
       </header>
+
+
+      {/* Phase K — terminal run state (done / failed) — clear end of wait without looking live */}
+      {!isLive && atlasState?.runStatus === "done" && (
+        <div
+          className="reactor-terminal-banner mx-3 mt-2 border"
+          data-kind="done"
+          data-testid="banner-run-terminal"
+          role="status"
+          style={{ animation: motionOrNone(`terminalIn ${REACTOR_UI_MS}ms var(--reactor-ease, cubic-bezier(0.22,1,0.36,1)) both`) }}
+        >
+          <div className="reactor-done-label text-[10px] font-bold uppercase">Run complete</div>
+          <div className="mt-1 text-[12px] leading-snug text-emerald-50/90">
+            {atlasState.detail || atlasState.phaseLabel || "Atlas finished this target. Review tools below or open History."}
+          </div>
+        </div>
+      )}
+      {!isLive && atlasState?.runStatus === "failed" && (
+        <div
+          className="reactor-terminal-banner mx-3 mt-2 border"
+          data-kind="failed"
+          data-testid="banner-run-terminal"
+          role="alert"
+          style={{ animation: motionOrNone(`terminalIn ${REACTOR_UI_MS}ms var(--reactor-ease, cubic-bezier(0.22,1,0.36,1)) both`) }}
+        >
+          <div className="reactor-fail-label text-[10px] font-bold uppercase">Run failed</div>
+          <div className="mt-1 text-[12px] leading-snug text-rose-50/90">
+            {atlasState.detail || "Atlas could not finish this pass. Refresh or retry when keys and targets are ready."}
+          </div>
+        </div>
+      )}
 
       {edgeHint && (
         <div
@@ -364,11 +418,12 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
               key={showHistory ? "history" : "live"}
               className={`rounded-2xl border p-3 ${
                 showHistory
-                  ? "border-slate-500/35 bg-[#0a0f18] shadow-[0_0_32px_rgba(100,116,139,0.08)]"
+                  ? "reactor-archive-panel border-slate-500/35"
                   : "border-cyan-400/25 bg-[#071018] shadow-[0_0_40px_rgba(34,211,238,0.06)]"
               }`}
               data-testid="panel-live-desk-mobile"
-              aria-label={showHistory ? "Target history" : "Live research window"}
+              aria-label={showHistory ? "Target history archive" : "Live research window"}
+              data-mode={showHistory ? "archive" : "live"}
               style={{ animation: motionOrNone(`armIn ${REACTOR_SCENE_MS}ms ease-out both`) }}
             >
               <div className="mb-3 flex items-center justify-between gap-2 px-0.5">
@@ -376,10 +431,10 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                   <div className={`text-[10px] font-bold uppercase tracking-[0.2em] ${
                     showHistory ? "text-slate-300" : "text-cyan-300/90"
                   }`}>
-                    {showHistory ? "History" : "Under the hood"}
+                    {showHistory ? "History archive" : "Under the hood"}
                   </div>
                   {showHistory && (
-                    <span className="rounded-full border border-slate-500/40 bg-slate-500/15 px-1.5 py-0.5 text-[8px] font-mono font-bold uppercase tracking-wider text-slate-300">
+                    <span className="rounded-full border border-slate-400/50 bg-slate-500/20 px-1.5 py-0.5 text-[8px] font-mono font-bold uppercase tracking-wider text-slate-200">
                       archive
                     </span>
                   )}
