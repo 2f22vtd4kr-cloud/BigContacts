@@ -192,8 +192,30 @@ export function sanitizePublicPhone(value: string | null | undefined): string | 
 // ── K5: E.164-oriented phone normalisation ───────────────────────────────────
 // Returns null when the input is clearly invalid (blocklist, too short, too long).
 // ITU-T E.164 max is 15 digits. We require ≥ 8 to filter 7-digit and shorter noise.
+// Trash-phone gate (fail-closed): synthetic / placeholder patterns never pass.
 const PHONE_NOISE_RE   = /[^\d+]/g;
 const PHONE_BLOCKLIST_RE = /redacted|privacy|not\s+public|unavailable|unknown|n\/a|none/i;
+
+/**
+ * Trash-phone gate — stays on always.
+ * Rejects Hollywood 555-xxxx, all-same-digit runs, obvious sequential fillers,
+ * and common synthetic fixtures. Persona review and improve routes share this
+ * definition so enrichment and quality review cannot diverge.
+ */
+export function isTrashPhone(raw: string | null | undefined): boolean {
+  if (!raw) return true;
+  const digits = String(raw).replace(/[^\d]/g, "");
+  if (digits.length < 7) return true;
+  // Hollywood / directory fiction: 555-0100 style (NANP 555 exchange reserved)
+  if (/^1?555\d{7}$/.test(digits)) return true;
+  if (/555\d{4}$/.test(digits) && digits.length <= 11) return true;
+  // All same digit, sequential fillers, zero-padded fixtures
+  if (/^(0{7,}|1{7,}|2{7,}|3{7,}|4{7,}|5{7,}|6{7,}|7{7,}|8{7,}|9{7,})$/.test(digits)) return true;
+  if (/^(1234567|12345678|123456789|1234567890|0000000|9999999|0123456789)$/.test(digits)) return true;
+  // Repeated 2–3 digit blocks (e.g. 12121212, 123123123)
+  if (/^(\d{2,3})\1{3,}$/.test(digits)) return true;
+  return false;
+}
 
 export function normalizePhone(raw: string | null | undefined): string | null {
   if (!raw) return null;
@@ -211,6 +233,9 @@ export function normalizePhone(raw: string | null | undefined): string | null {
 
   // Reject out-of-range lengths (ITU-T E.164: 1–15 digits; require ≥ 8)
   if (len < 8 || len > 15) return null;
+
+  // Trash-phone gate — never store synthetic numbers as reach vectors
+  if (isTrashPhone(digits)) return null;
 
   // 10-digit without leading +  →  assume NANP (+1)
   if (len === 10 && !hasPlus) return `+1${digits}`;
