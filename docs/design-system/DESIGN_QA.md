@@ -17,7 +17,7 @@ Last updated: Phase marathon (dead-code removal + a11y keyboard)
 | Action | Expected |
 |--------|----------|
 | Swipe scene | Axis-lock horizontal, 280ms enter, 8s reading pause |
-| ArrowLeft/Right | Prev/Next scene (bureau stage) |
+| ArrowLeft/Right | Prev/Next scene (only when stage hovered/focused) |
 | Escape | History → Live |
 | History toggle | Panel chrome swaps cyan ↔ slate |
 | Chip tap | Jump scene + pause |
@@ -37,3 +37,10 @@ See `MOTION.md` / `src/lib/reactor-motion.ts`. No magic numbers in timers.
 
 `?mock=1` → `mockAtlasLiveState()` includes `disposition: contact_route_found` and multi-step `eventLog`.
 
+
+## Desktop Live Desk
+
+- REACH uses `.reactor-reach` (parity with mobile)
+- maxScenes 8 (aligned with mobile live strip)
+- HIDE / LIVE DESK ON: pressable + aria-labels
+- Scene region: `role="region"` + `aria-live="polite"` on story line

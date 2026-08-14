@@ -10,7 +10,7 @@ import {
   providerLabel,
   type ProviderKind,
 } from "./provider-icons";
-import { REACTOR_PAUSE_MS, REACTOR_SCENE_MS, REACTOR_SHIMMER_MS, REACTOR_UI_MS, REACTOR_AUTO_ADVANCE_MS } from "../lib/reactor-motion";
+import { REACTOR_PAUSE_MS, REACTOR_SCENE_MS, REACTOR_SHIMMER_MS, REACTOR_UI_MS, REACTOR_AUTO_ADVANCE_MS, REACTOR_SWIPE_VELOCITY, REACTOR_SWIPE_PX } from "../lib/reactor-motion";
 
 export type OpsEvent = {
   timestamp?: string;
@@ -207,13 +207,13 @@ function WindowChrome({
     <div
       className="relative overflow-hidden border backdrop-blur-md"
       style={{
-        borderColor: `${accent}55`,
+        borderColor: live ? `${accent}99` : `${accent}55`,
         background: "linear-gradient(165deg, rgba(17,24,39,0.92) 0%, rgba(11,18,32,0.98) 100%)",
         borderRadius: 12,
         // cut-corner only on roomy desktop chrome — compact mobile must not clip content
         clipPath: compact ? undefined : "polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%)",
         boxShadow: live
-          ? `0 0 0 1px ${accent}33, 0 12px 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04)`
+          ? `0 0 0 1px ${accent}55, 0 0 24px ${accent}22, 0 12px 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04)`
           : "0 8px 28px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.03)",
       }}
     >
@@ -615,7 +615,7 @@ function MobileWorkstage({
       const dx = (t?.clientX ?? start.x) - start.x;
       const dt = Math.max(16, Date.now() - start.t);
       const velocity = Math.abs(dx) / dt; // px/ms
-      const threshold = velocity > 0.5 ? 24 : 48;
+      const threshold = velocity > REACTOR_SWIPE_VELOCITY ? Math.round(REACTOR_SWIPE_PX * 0.45) : REACTOR_SWIPE_PX;
       if (Math.abs(dx) < threshold) {
         pauseForReading(REACTOR_PAUSE_MS);
         return;
@@ -644,11 +644,18 @@ function MobileWorkstage({
     };
   }, [goNext, goPrev, pauseForReading]);
 
-  // Keyboard arrows when the stage is focused (a11y)
+  // Keyboard arrows only while pointer is over the stage or it contains focus
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      const root = rootRef.current;
+      if (!root) return;
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA") return;
+      const active = document.activeElement;
+      const over =
+        root.matches(":hover") ||
+        (active instanceof Node && root.contains(active));
+      if (!over) return;
       if (e.key === "ArrowRight") { e.preventDefault(); goNext(); }
       if (e.key === "ArrowLeft") { e.preventDefault(); goPrev(); }
     };
@@ -665,18 +672,27 @@ function MobileWorkstage({
       className="space-y-2.5 select-none"
       style={{ touchAction: "pan-y" }}
       data-testid="mobile-workstage-swipe"
+      tabIndex={0}
+      role="region"
+      aria-label="Tool scene workstage"
     >
+      <span className="sr-only" style={{ position:"absolute", width:1, height:1, padding:0, margin:-1, overflow:"hidden", clip:"rect(0,0,0,0)", whiteSpace:"nowrap", border:0 }}>
+        Scene {safeIdx + 1} of {scenes.length}: {scene.story}
+        {scene.live ? " (live)" : ""}
+      </span>
+
       {/* Progress of this step in the run */}
       <div className="flex items-center gap-2">
         <div className={`relative flex-1 rounded-full bg-slate-800 overflow-hidden ${scene.live ? "h-1.5" : "h-1"}`}>
           <div
-            className="h-full rounded-full transition-all duration-500"
+            className="h-full rounded-full"
             style={{
               width: `${((safeIdx + 1) / Math.max(scenes.length, 1)) * 100}%`,
               background: scene.live
                 ? "linear-gradient(90deg,#22d3ee,#a3e635)"
                 : "#475569",
               boxShadow: scene.live ? "0 0 10px rgba(34,211,238,0.45)" : undefined,
+              transition: `width ${REACTOR_UI_MS * 2}ms ease-out`,
             }}
           />
           {scene.live && (
@@ -695,7 +711,7 @@ function MobileWorkstage({
         </span>
       </div>
 
-      <div className="flex items-center gap-2 px-0.5">
+      <div className="flex items-center gap-2 px-0.5" aria-live="polite" aria-atomic="true">
         <ProviderIcon kind={scene.provider} size={14} />
         <div className="min-w-0 flex-1">
           <div className="text-[11px] font-medium text-slate-100 truncate">{scene.story}</div>
@@ -753,7 +769,7 @@ function MobileWorkstage({
                   setSlideDir(i > safeIdx ? 1 : -1);
                   setIdx(i);
                 }}
-                className="rounded-full transition-all duration-300 ease-out touch-manipulation active:scale-90"
+                className="reactor-pressable rounded-full touch-manipulation"
                 style={{
                   width: i === safeIdx ? 18 : 6,
                   height: 6,

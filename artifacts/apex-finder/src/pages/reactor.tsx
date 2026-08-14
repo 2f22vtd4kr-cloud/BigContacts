@@ -1473,15 +1473,19 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
           >
             {contactFound && (
               <div
+                className="reactor-reach"
                 data-testid="card-reach-contact-found-desktop"
+                role="status"
+                aria-live="polite"
                 style={{
-                  marginBottom:10, padding:"8px 10px", borderRadius:6,
-                  border:"1px solid #34d39966", background:"rgba(52,211,153,0.1)",
-                  fontSize:11, color:"#a7f3d0", lineHeight:1.4,
+                  marginBottom:10, padding:"10px 12px", borderRadius:8,
+                  fontSize:12, lineHeight:1.45,
                   animation:`reachIn ${REACTOR_CELEBRATE_MS}ms cubic-bezier(0.22,1,0.36,1) both`,
                 }}
               >
-                <span style={{ fontWeight:700, letterSpacing:"0.12em", color:"#6ee7b7", fontSize:9 }}>CONTACT FOUND · REACH · </span>
+                <div className="reactor-reach-label" style={{ fontWeight:700, fontSize:10, marginBottom:4 }}>
+                  CONTACT FOUND · REACH
+                </div>
                 {atlasState?.atlasTelemetry?.resultSummary
                   || `${atlasState?.atlasTelemetry?.contacts ?? 1} attributable vector(s)`}
               </div>
@@ -1490,40 +1494,40 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
               <span style={{ fontSize:9, letterSpacing:"0.18em", color:"#67e8f9", fontWeight:700 }}>LIVE DESK</span>
               <button
                 type="button"
+                className="reactor-pressable"
                 onClick={() => setDeskOn(false)}
+                aria-label="Hide Live Desk"
                 style={{
-                  fontSize:9, letterSpacing:"0.1em", color:"#526b86",
-                  background:"transparent", border:"1px solid #192840",
-                  borderRadius:4, padding:"3px 8px", cursor:"pointer",
-                  transition:"border-color 150ms ease, color 150ms ease",
+                  fontSize:9, letterSpacing:"0.1em", color:"#94a3b8",
+                  background:"transparent", border:"1px solid #334155",
+                  borderRadius:4, padding:"4px 10px", cursor:"pointer",
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#22d3ee55"; e.currentTarget.style.color = "#94a3b8"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#192840"; e.currentTarget.style.color = "#526b86"; }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#22d3ee88"; e.currentTarget.style.color = "#e2e8f0"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#334155"; e.currentTarget.style.color = "#94a3b8"; }}
               >HIDE</button>
             </div>
             <BureauOpsStage
               events={deskEvents as any}
-              maxScenes={5}
-              title="LIVE DESK"
+              maxScenes={8}
+              title=""
             />
           </div>
         )}
         {!deskOn && (
           <button
             type="button"
+            className="reactor-pressable"
             data-testid="button-live-desk-on"
             onClick={() => setDeskOn(true)}
+            aria-label="Show Live Desk"
             style={{
               position:"absolute", top:12, right:18, zIndex:28,
               fontSize:9, letterSpacing:"0.14em", fontWeight:700,
-              color:"#67e8f9", background:"rgba(34,211,238,0.08)",
-              border:"1px solid #22d3ee55", borderRadius:4, padding:"6px 10px", cursor:"pointer",
+              color:"#a5f3fc", background:"rgba(34,211,238,0.1)",
+              border:"1px solid #22d3ee88", borderRadius:6, padding:"8px 12px", cursor:"pointer",
               animation:`armIn ${REACTOR_UI_MS}ms ease-out both`,
-              transition:"transform 150ms ease, background 150ms ease",
+              boxShadow:"0 0 16px rgba(34,211,238,0.12)",
             }}
-            onMouseDown={(e) => { e.currentTarget.style.transform = "scale(0.97)"; }}
-            onMouseUp={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
           >LIVE DESK ON</button>
         )}
         {/* SVG connections */}

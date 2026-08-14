@@ -72,3 +72,8 @@ button:focus-visible,
   }
 }
 `;
+
+/** Swipe: minimum horizontal delta (px) to change scene */
+export const REACTOR_SWIPE_PX = 56;
+/** Swipe: velocity threshold (px/ms) for flick advance */
+export const REACTOR_SWIPE_VELOCITY = 0.45;
