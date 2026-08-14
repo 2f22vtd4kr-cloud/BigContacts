@@ -47,3 +47,6 @@ See `MOTION.md` / `src/lib/reactor-motion.ts`. No magic numbers in timers.
 - maxScenes 8 (aligned with mobile live strip)
 - HIDE / LIVE DESK ON: pressable + aria-labels
 - Scene region: `role="region"` + `aria-live="polite"` on story line
+
+- Progress shows **Step N of M · tool title** under the bar
+- Stage shows cyan focus ring when tabbed to

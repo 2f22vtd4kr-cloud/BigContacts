@@ -379,7 +379,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
           )}
 
           <p className="px-1 text-center text-[10px] leading-relaxed text-slate-600">
-            Swipe the window to step through tools. Each view matches the work: search, browser, domain, or analyst prompt.
+            Swipe or use arrows to step tools. Space pauses auto-advance. Each view matches the work: search, browser, domain, analyst.
           </p>
         </div>
       </div>
