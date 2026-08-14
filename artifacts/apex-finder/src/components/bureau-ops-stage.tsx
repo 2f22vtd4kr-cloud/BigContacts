@@ -254,8 +254,11 @@ function WindowChrome({
       </div>
       {urlBar != null && (
         <div className={`relative border-b border-white/5 bg-[#0f172a] ${compact ? "px-2.5 py-1.5" : "px-3 py-2"}`}>
-          <div className="flex items-center gap-1.5 rounded-full bg-[#1e293b] px-2.5 py-1 border border-white/5 overflow-hidden">
-            <span className="text-[9px] text-slate-500 shrink-0">{"\uD83D\uDD12"}</span>
+          <div
+            className="flex items-center gap-1.5 rounded-full bg-[#1e293b] px-2.5 py-1 border border-white/5 overflow-hidden"
+            aria-label={live ? `Live query or URL: ${urlBar}` : `Query or URL: ${urlBar}`}
+          >
+            <span className="text-[9px] text-slate-500 shrink-0" aria-hidden>{"\uD83D\uDD12"}</span>
             <span className={`font-mono text-slate-300 truncate ${compact ? "text-[10px]" : "text-[11px]"}`}>{urlBar}</span>
             {live && (
               <span
