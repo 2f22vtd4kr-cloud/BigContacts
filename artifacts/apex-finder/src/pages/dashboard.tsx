@@ -235,7 +235,7 @@ export default function Dashboard() {
             <Search className="h-4 w-4" /> Find an entity
           </Link>
           <Link href="/profiles" data-testid="link-dashboard-profiles" className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-border bg-card/60 px-5 text-xs font-semibold text-foreground transition-all hover:border-primary/60 hover:bg-card">
-            Browse entity ledger <ArrowUpRight className="h-3.5 w-3.5" />
+            Browse profiles <ArrowUpRight className="h-3.5 w-3.5" />
           </Link>
         </div>
       </section>

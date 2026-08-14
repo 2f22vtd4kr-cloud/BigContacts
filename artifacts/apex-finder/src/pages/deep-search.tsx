@@ -1,8 +1,8 @@
 /**
  * Intelligent Deep Search — Phase 5
  *
- * Visual interface for the hybrid BM25 + TF-IDF + Graph + RRF search engine
- * with Planner → Retriever → Analyst → Critic agent pipeline.
+ * Deep Search — operator UI for ranked public-record search across the ledger.
+ * (Engine still uses hybrid retrieval + multi-agent pipeline under the hood.)
  */
 
 import { useState, useRef } from "react";
@@ -66,9 +66,9 @@ const EXAMPLES = [
 
 // ── Score bar ─────────────────────────────────────────────────────────────────
 
-function ScoreBar({ label, value, color }: { label: string; value: number; color: string }) {
+function ScoreBar({ label, value, color, title }: { label: string; value: number; color: string; title?: string }) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2" title={title}>
       <span className="text-xs font-mono text-muted-foreground w-16 flex-shrink-0">{label}</span>
       <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
         <div
@@ -218,16 +218,16 @@ function ResultCard({ result }: { result: SearchResult }) {
 
       {/* Score breakdown */}
       <div className="space-y-1.5 mb-3">
-        <ScoreBar label="BM25"     value={result.scores.bm25}      color="bg-blue-500" />
-        <ScoreBar label="Semantic" value={result.scores.semantic}   color="bg-violet-500" />
+        <ScoreBar label="Keywords" value={result.scores.bm25}      color="bg-blue-500" title="Keyword match (BM25)" />
+        <ScoreBar label="Meaning"  value={result.scores.semantic}   color="bg-violet-500" title="Semantic similarity" />
         <div className={cn("space-y-1.5", !expandedScores && "hidden sm:block")}>
-          <ScoreBar label="Graph"    value={result.scores.graph}      color="bg-emerald-500" />
-          <ScoreBar label="Embed"    value={result.scores.embedding ?? 0} color="bg-purple-400" />
-          <ScoreBar label="Final"    value={result.scores.rrf * 10}   color="bg-primary" />
+          <ScoreBar label="Links"    value={result.scores.graph}      color="bg-emerald-500" title="Graph / relationship strength" />
+          <ScoreBar label="Similar"  value={result.scores.embedding ?? 0} color="bg-purple-400" title="Embedding similarity" />
+          <ScoreBar label="Combined" value={result.scores.rrf * 10}   color="bg-primary" title="Final fused rank (RRF)" />
         </div>
         {!expandedScores && (
-          <button onClick={() => setExpandedScores(true)} className="sm:hidden text-xs font-mono text-primary hover:underline">
-            + Show 3 more signals
+          <button type="button" onClick={() => setExpandedScores(true)} className="sm:hidden text-xs font-mono text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded">
+            + Show more signals
           </button>
         )}
       </div>
@@ -238,7 +238,7 @@ function ResultCard({ result }: { result: SearchResult }) {
         className="text-xs font-mono text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
       >
         <ChevronRight className={cn("w-3 h-3 transition-transform", expanded && "rotate-90")} />
-        Analyst reasoning
+        Why this ranked here
       </button>
 
       {expanded && (
@@ -572,15 +572,15 @@ export default function DeepSearch() {
               <StepCard
                 icon={Search}
                 name="Retriever"
-                description="Expands query terms, runs BM25 + TF-IDF cosine + SQL pre-filter, merges candidates."
+                description="Expands the query and pulls candidates from keywords, meaning, and linked records."
                 status={steps.retriever as StepStatus}
                 durationMs={p?.retriever.durationMs}
-                metric={p ? `BM25: ${p.retriever.bm25Hits} · Semantic: ${p.retriever.semanticHits} · Embed: ${p.retriever.embeddingHits ?? 0} · ${p.retriever.totalCandidates} candidates` : undefined}
+                metric={p ? `Keywords: ${p.retriever.bm25Hits} · Meaning: ${p.retriever.semanticHits} · Similar: ${p.retriever.embeddingHits ?? 0} · ${p.retriever.totalCandidates} candidates` : undefined}
                 detail={p ? [
                   p.retriever.expandedQuery && p.retriever.expandedQuery !== result?.query
                     ? `Expanded: "${p.retriever.expandedQuery}"`
                     : "No expansion (query already specific)",
-                  `BM25: ${p.retriever.bm25Hits} hits · TF-IDF: ${p.retriever.semanticHits} hits · Graph: ${p.retriever.graphHits} hits · Embedding: ${p.retriever.embeddingHits ?? 0} hits (${p.retriever.embeddingCacheSize ?? 0} cached)`,
+                  `Keywords: ${p.retriever.bm25Hits} · Meaning: ${p.retriever.semanticHits} · Links: ${p.retriever.graphHits} · Similar: ${p.retriever.embeddingHits ?? 0} (${p.retriever.embeddingCacheSize ?? 0} cached)`,
                   `SQL pre-filter: ${p.retriever.sqlPrefilter < 0 ? "none" : p.retriever.sqlPrefilter + " entities"}`,
                 ].join(" · ") : undefined}
               />
@@ -598,7 +598,7 @@ export default function DeepSearch() {
               <StepCard
                 icon={ShieldCheck}
                 name="Critic"
-                description="Re-ranks by RRF + confidence + hot-lead boost, removes low-signal noise."
+                description="Re-ranks by combined score and confidence, drops weak noise."
                 status={steps.critic as StepStatus}
                 durationMs={p?.critic.durationMs}
                 metric={p ? `${p.critic.finalCount} final · ${p.critic.removed} removed` : undefined}
@@ -618,7 +618,7 @@ export default function DeepSearch() {
                       <span className="text-foreground">{result.results.length}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>RRF k-constant</span>
+                      <span title="RRF k-constant">Rank blend</span>
                       <span className="text-foreground">60</span>
                     </div>
                   </div>
@@ -658,12 +658,12 @@ export default function DeepSearch() {
                 <>
                   <div className="flex items-center justify-between mb-4">
                     <div className="text-xs font-mono text-muted-foreground uppercase tracking-widest">
-                      {result.results.length} result{result.results.length !== 1 ? "s" : ""} — ranked by RRF fusion
+                      {result.results.length} result{result.results.length !== 1 ? "s" : ""} — best matches first
                     </div>
                     <div className="flex items-center gap-3 text-xs font-mono text-muted-foreground">
-                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />BM25</span>
-                      <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-violet-500 inline-block" />Semantic</span>
-                      <span className="hidden sm:flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />Graph</span>
+                      <span className="flex items-center gap-1" title="Keyword match"><span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />Keywords</span>
+                      <span className="flex items-center gap-1" title="Semantic similarity"><span className="w-2 h-2 rounded-full bg-violet-500 inline-block" />Meaning</span>
+                      <span className="hidden sm:flex items-center gap-1" title="Graph links"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />Links</span>
                     </div>
                   </div>
 

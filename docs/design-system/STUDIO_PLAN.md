@@ -658,3 +658,20 @@ Profile is a workspace, not a schema dump.
 
 ### Rule
 Help and status are product surfaces, not internal notes.
+
+---
+
+## Phase Z — Deep Search operator layer
+
+**Studio goal:** Search results read as ranked matches, not an IR textbook.
+
+### Delivered
+1. Score bars: **Keywords / Meaning / Links / Similar / Combined** (technical names in `title`)
+2. Results header: “best matches first”
+3. Legend uses same operator labels
+4. Pipeline descriptions in plain English
+5. “Why this ranked here” (was Analyst reasoning)
+6. Dashboard link: “Browse profiles”
+
+### Rule
+Engine metrics can live on hover; the primary UI is for operators.
