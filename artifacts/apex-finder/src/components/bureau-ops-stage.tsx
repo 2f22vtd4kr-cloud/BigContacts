@@ -716,7 +716,7 @@ function MobileWorkstage({
         <div className="flex items-center justify-between gap-2">
           <button
             type="button"
-            className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] font-mono text-slate-300 disabled:opacity-30 active:scale-95 min-h-[40px]"
+            className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] font-mono text-slate-300 transition-all duration-150 ease-out disabled:opacity-30 active:scale-[0.97] active:opacity-85 touch-manipulation min-h-[40px]"
             disabled={safeIdx <= 0}
             onClick={goPrev}
           >
@@ -727,24 +727,26 @@ function MobileWorkstage({
               <button
                 key={s.id}
                 type="button"
-                aria-label={`Scene ${i + 1}`}
+                aria-label={`Scene ${i + 1}${s.live ? " live" : ""}`}
+                aria-current={i === safeIdx ? "true" : undefined}
                 onClick={() => {
                   pauseForReading(8000);
                   setSlideDir(i > safeIdx ? 1 : -1);
                   setIdx(i);
                 }}
-                className="rounded-full transition-all duration-300 ease-out"
+                className="rounded-full transition-all duration-300 ease-out touch-manipulation active:scale-90"
                 style={{
                   width: i === safeIdx ? 18 : 6,
                   height: 6,
                   background: i === safeIdx ? (s.live ? "#22d3ee" : "#94a3b8") : "#1e293b",
+                  boxShadow: i === safeIdx && s.live ? "0 0 8px #22d3ee88" : undefined,
                 }}
               />
             ))}
           </div>
           <button
             type="button"
-            className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] font-mono text-slate-300 disabled:opacity-30 active:scale-95 min-h-[40px]"
+            className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] font-mono text-slate-300 transition-all duration-150 ease-out disabled:opacity-30 active:scale-[0.97] active:opacity-85 touch-manipulation min-h-[40px]"
             disabled={safeIdx >= scenes.length - 1}
             onClick={goNext}
           >
@@ -754,7 +756,11 @@ function MobileWorkstage({
       )}
 
       {paused && scenes.some((s) => s.live) && (
-        <div className="text-center text-[8px] font-mono uppercase tracking-wider text-slate-500" data-testid="status-reading-pause">
+        <div
+          className="text-center text-[8px] font-mono uppercase tracking-wider text-cyan-400/70"
+          data-testid="status-reading-pause"
+          style={{ animation: "armIn 220ms ease-out both" }}
+        >
           Reading pause · auto-advance held
         </div>
       )}
@@ -770,16 +776,20 @@ function MobileWorkstage({
                 setSlideDir(i > safeIdx ? 1 : -1);
                 setIdx(i);
               }}
-              className="shrink-0 rounded-lg border px-2 py-1.5 text-left w-[128px] active:scale-95 transition-transform"
+              className="shrink-0 rounded-lg border px-2 py-1.5 text-left w-[128px] active:scale-[0.97] transition-all duration-150 ease-out touch-manipulation"
               style={{
-                borderColor: i === safeIdx ? "#22d3ee66" : "#ffffff10",
+                borderColor: i === safeIdx ? "#22d3ee66" : s.live ? "#22d3ee33" : "#ffffff10",
                 background: i === safeIdx ? "#22d3ee14" : "#0f172a",
+                boxShadow: i === safeIdx ? "0 0 12px rgba(34,211,238,0.12)" : undefined,
               }}
             >
               <div className="flex items-center gap-1 mb-0.5">
                 <span className="text-[8px] font-mono text-slate-600">{i + 1}</span>
                 <ProviderIcon kind={s.provider} size={10} />
                 <span className="text-[8px] font-mono uppercase tracking-wider text-slate-400 truncate">{s.title}</span>
+                {s.live && (
+                  <span className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399]" />
+                )}
               </div>
               <div className="text-[9px] text-slate-300 line-clamp-2 leading-tight">{s.story}</div>
             </button>
@@ -864,9 +874,23 @@ export function BureauOpsStage({
       </div>
 
       <div className="grid gap-3 grid-cols-1 lg:grid-cols-2">
-        {scenes.map((s) => (
-          <SceneCard key={s.id} scene={s} />
-        ))}
+        {scenes.map((s) => {
+          const anyLive = scenes.some((x) => x.live);
+          const dim = anyLive && !s.live;
+          return (
+            <div
+              key={s.id}
+              style={{
+                opacity: dim ? 0.55 : 1,
+                transform: dim ? "scale(0.985)" : "scale(1)",
+                transition: "opacity 220ms ease, transform 220ms ease",
+                filter: dim ? "saturate(0.7)" : undefined,
+              }}
+            >
+              <SceneCard scene={s} />
+            </div>
+          );
+        })}
       </div>
     </div>
   );
