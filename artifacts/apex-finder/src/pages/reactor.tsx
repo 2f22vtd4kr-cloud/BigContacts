@@ -138,7 +138,7 @@ const ATLAS_PHASES = [
   { n: 7, label: "FORENSICS", detail: "Leaks, WHOIS, vessels, and flight history" },
   { n: 8, label: "ATTRIBUTION", detail: "Domain, footprint, and graph-assisted attribution" },
   { n: 9, label: "SEMANTIC", detail: "Embeddings, wealth, confidence, and outcomes" },
-  { n: 10, label: "UCT RESEARCH", detail: "Adaptive paths and evidence review" },
+  { n: 10, label: "PATH RESEARCH", detail: "Adaptive paths and evidence review" },
 ];
 
 function atlasPhaseFromMessage(message: string, progress = 0): number {
