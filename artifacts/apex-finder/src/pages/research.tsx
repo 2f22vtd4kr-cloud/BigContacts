@@ -215,20 +215,20 @@ function EvidenceLedger({ sessionId }: { sessionId: number | null }) {
 function Scorecard({ score }: { score: ResearchScorecard | null }) {
   if (!score) return null;
   const items: Array<[string, number, string]> = [
-    ["Identity", score.identity, "same-person confidence"],
-    ["Ownership", score.ownership, "asset/relationship basis"],
-    ["REACH", score.contact, "personal / org / social vectors"],
-    ["Access", score.access, "REACH access score"],
-    ["Wealth", score.wealth, "wealth signal only"],
-    ["Freshness", score.freshness, "recency of evidence"],
-    ["Sources", score.sourceQuality, "source diversity/quality"],
+    ["Identity", score.identity, "How sure we are this is the same person"],
+    ["Ownership", score.ownership, "Evidence of ownership or control"],
+    ["Contact", score.contact, "Email, phone, or social channels found"],
+    ["Access", score.access, "How realistically reachable they are"],
+    ["Wealth", score.wealth, "Public wealth signal only — not access"],
+    ["Freshness", score.freshness, "How recent the evidence is"],
+    ["Sources", score.sourceQuality, "Quality and diversity of sources"],
   ];
   return (
     <div className="border-t border-border/50 bg-background/30 px-4 md:px-5 py-4">
       <div className="flex items-center justify-between mb-3">
         <div>
-          <h3 className="text-xs font-mono text-primary uppercase tracking-widest">Independent Research Scorecard</h3>
-          <p className="text-[11px] text-muted-foreground mt-1">Scores answer different questions; wealth is never used as an access proxy.</p>
+          <h3 className="text-xs font-mono text-primary uppercase tracking-widest">Research scorecard</h3>
+          <p className="text-[11px] text-muted-foreground mt-1">Each score answers a different question. Wealth is never treated as reachability.</p>
         </div>
         <span className="text-xs font-mono text-foreground">{Math.round(score.overall * 100)}/100 overall</span>
       </div>
@@ -250,9 +250,9 @@ function CandidateFunnelPanel({ funnel }: { funnel: CandidateFunnel | null }) {
   const states: Array<[string, number, string]> = [
     ["Discovered", funnel.discovered, "text-muted-foreground"],
     ["Source-linked", funnel.sourceLinked, "text-sky-300"],
-    ["Attribution review", funnel.attributionReview, "text-amber-300"],
+    ["Needs check", funnel.attributionReview, "text-amber-300"],
     ["Corroborated", funnel.independentlyCorroborated, "text-cyan-300"],
-    ["Verified direct", funnel.verifiedDirectRoute, "text-emerald-300"],
+    ["Verified contact", funnel.verifiedDirectRoute, "text-emerald-300"],
     ["Rejected", funnel.rejected, "text-rose-300"],
   ];
   const stateLabel = (state: string) => state.replaceAll("_", " ");

@@ -699,3 +699,13 @@ Engine metrics can live on hover; the primary UI is for operators.
 2. Terminal actions humanized; path title “Introduction path”
 3. Evidence log (was Claim Evidence Ledger)
 4. Profiles list REACH chips: Personal / Company / Social
+
+---
+
+## Phase AC — Scorecard + scheme labels
+
+### Delivered
+1. Research **scorecard** title + human score hints
+2. Funnel: Needs check / Verified contact
+3. Reactor: PATH CORE (was UCT CORE); empty sessions plain copy
+4. Dashboard: Priority profiles · View all profiles

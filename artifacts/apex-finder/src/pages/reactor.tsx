@@ -230,7 +230,7 @@ const NODES: NodeDef[] = [
   { id:"semantic",label:"SEMANTIC ENGINE", sub:"MiniLM · Embeddings",        cx:460,  cy:540, w:192, h:62,  type:"analysis", Icon:GitMerge,   color:"#a78bfa" },
   { id:"bayesian",label:"BAYESIAN SCORE",  sub:"Dynamic Priority",           cx:1020, cy:540, w:192, h:62,  type:"analysis", Icon:Layers,     color:"#a78bfa" },
   { id:"graph",   label:"GRAPH ENGINE",    sub:"Relationship Synthesis",     cx:260,  cy:652, w:178, h:62,  type:"core",     Icon:Network,    color:"#a78bfa" },
-  { id:"mcts",    label:"UCT CORE",        sub:"Adaptive Pathfinding",       cx:800,  cy:657, w:228, h:78,  type:"reactor",  Icon:Cpu,        color:"#a3e635" },
+  { id:"mcts",    label:"PATH CORE",        sub:"Adaptive Pathfinding",       cx:800,  cy:657, w:228, h:78,  type:"reactor",  Icon:Cpu,        color:"#a3e635" },
   { id:"prac",    label:"PRAC ENGINE",     sub:"Planner · Analyst · Critic", cx:1340, cy:652, w:178, h:62,  type:"core",     Icon:Activity,   color:"#a78bfa" },
   { id:"evidence", label:"EVIDENCE REVIEW", sub:"Research Path Assessment", cx:800, cy:768, w:244, h:54, type:"output", Icon:Target, color:"#fbbf24" },
 ];
@@ -301,7 +301,7 @@ const WAVES: Wave[] = [
   { nodes:["perpfu"],                                edges:["fu-bay","mai-groq","mai-bay"],                                  label:"PERPLEXITY+  —  iterative follow-up" },
   { nodes:["semantic","bayesian"],                   edges:["sem-gr","sem-mc","bay-mc","bay-pr"],                            label:"SYNTHESIS  —  embedding profiles, scoring priorities" },
   { nodes:["graph"],                                 edges:["gr-mc"],                                                        label:"GRAPH ENGINE  —  relationship network" },
-  { nodes:["mcts"],                                  edges:["mc-pr","mc-groq-a","mc-fu-a"],                                 label:"UCT CORE  —  adaptive pathfinding", adaptive:true },
+  { nodes:["mcts"],                                  edges:["mc-pr","mc-groq-a","mc-fu-a"],                                 label:"PATH CORE  —  adaptive pathfinding", adaptive:true },
   { nodes:["groq","perpfu"],                         edges:["groq-fu","fu-bay","pr-fu-a"],                                  label:"ADAPTIVE LOOP  —  re-querying with new graph evidence", adaptive:true },
   { nodes:["prac"],                                  edges:["pr-evidence","mc-evidence"],                                 label:"PRAC ENGINE  —  planner · retriever · analyst · critic" },
   { nodes:["evidence"],                              edges:[],                                                               label:"OUTPUT  —  evidence path ready for analyst review" },
@@ -744,7 +744,7 @@ const TELEMETRY_TOOL_LABELS: Record<string, string> = {
   occrp: "OCCRP",
   whoxy: "WHOXY",
   graph: "GRAPH",
-  mcts: "UCT / MCTS",
+  mcts: "Path core",
   prac: "PRAC",
   evidence: "EVIDENCE REVIEW",
   "persona-review": "11-PERSONA QUALITY REVIEW",
@@ -944,7 +944,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
               INTELLIGENCE REACTOR
             </div>
             <div style={{ fontSize:8, letterSpacing:"0.12em", color:"#3a5070", marginTop:1 }}>
-              APEX ATLAS  ·  UCT RESEARCH ENGINE
+              APEX ATLAS  ·  RESEARCH ENGINE
             </div>
           </div>
 
@@ -1264,7 +1264,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                       NO SESSIONS YET
                     </div>
                     <div style={{ fontSize:9, color:"#94a3b8", letterSpacing:"0.06em", lineHeight:1.55 }}>
-                      Run Hybrid Research from a profile to see real UCT work here.
+                      Run research from a profile to see real Atlas work here.
                     </div>
                   </div>
                 </div>

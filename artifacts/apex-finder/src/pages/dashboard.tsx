@@ -250,10 +250,10 @@ export default function Dashboard() {
       <section className="atlas-enter pt-3" style={{ animationDelay: "140ms" }}>
         <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <div className="flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.18em] text-primary"><Sparkles className="h-3 w-3" /> Priority entities</div>
+            <div className="flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.18em] text-primary"><Sparkles className="h-3 w-3" /> Priority profiles</div>
             <h2 className="mt-2 font-display text-xl font-semibold tracking-tight text-foreground md:text-2xl">Most useful records first</h2>
           </div>
-          <Link href="/profiles" data-testid="link-view-all-leads" className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-primary">View full ledger <ChevronRight className="h-3.5 w-3.5" /></Link>
+          <Link href="/profiles" data-testid="link-view-all-leads" className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-primary">View all profiles <ChevronRight className="h-3.5 w-3.5" /></Link>
         </div>
         {hasError ? <ErrorState onRetry={() => { void statsQuery.refetch(); void leadsQuery.refetch(); }} /> :
           isLoading ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">{[0, 1, 2, 3].map((item) => <LeadSkeleton key={item} />)}</div> :
