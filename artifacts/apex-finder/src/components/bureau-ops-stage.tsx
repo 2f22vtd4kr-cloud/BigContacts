@@ -644,6 +644,19 @@ function MobileWorkstage({
     };
   }, [goNext, goPrev, pauseForReading]);
 
+  // Keyboard arrows when the stage is focused (a11y)
+  React.useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      if (e.key === "ArrowRight") { e.preventDefault(); goNext(); }
+      if (e.key === "ArrowLeft") { e.preventDefault(); goPrev(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [goNext, goPrev]);
+
+
   if (!scene) return null;
 
   return (
