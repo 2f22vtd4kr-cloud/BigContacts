@@ -507,3 +507,23 @@ Every phase must leave **PNG** captures in the folder — not HTML-only.
 ### Rules reinforced
 - Live progress is countable at a glance
 - Historical sessions are first-class UI, not muted stubs
+
+---
+
+## Phase S — Plain-language live research copy (Apex Atlas)
+
+**Studio goal:** Operators should understand the live desk without OSINT jargon. Every scene story answers: *what are we doing, to whom, where?*
+
+### Delivered
+1. **`storyFor` rewrite** — human sentences, e.g.
+   - “Typing into Google: …”
+   - “Opening walkertool.com in the browser to read what it says about …”
+   - “Checking who registered the website domain for … and when”
+   - “Searching a public company registry for …”
+   - “Pulling email and phone numbers from the page”
+2. **Status line** — “Working now / Finished · step N of M”; “In progress / Done”
+3. **Mobile chrome** — “What Atlas is doing” (was “Under the hood”); clearer empty/live desk copy
+
+### Rules reinforced
+- Tool chrome can stay metaphorical (Google/Browser windows)
+- The **story line** is plain English for non-specialists

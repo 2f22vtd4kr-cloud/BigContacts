@@ -540,7 +540,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                   <div className={`text-[10px] font-bold uppercase tracking-[0.2em] ${
                     showHistory ? "text-slate-300" : "text-cyan-300/90"
                   }`}>
-                    {showHistory ? "History archive" : "Under the hood"}
+                    {showHistory ? "History archive" : "What Atlas is doing"}
                   </div>
                   {showHistory && (
                     <span className="rounded-full border border-slate-400/50 bg-slate-500/20 px-1.5 py-0.5 text-[8px] font-mono font-bold uppercase tracking-wider text-slate-200">
@@ -660,7 +660,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
               </div>
               <div className="text-[14px] font-medium text-slate-300">
                 {isLive
-                  ? "Desk is live — first tool window incoming"
+                  ? "Desk is live — waiting for the first search or page"
                   : showHistory
                     ? "Archive empty for this target"
                     : atlasState?.runStatus === "done"
@@ -671,12 +671,12 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
               </div>
               <div className="mt-2 max-w-xs text-[12px] leading-relaxed text-slate-500">
                 {isLive
-                  ? "Atlas is running. The first search, page read, or extraction window will appear here as soon as a tool reports."
+                  ? "Atlas is running. Next you will see plain updates like “searching Google for …” or “opening a company page …”."
                   : showHistory
                     ? "When Atlas runs, every search, page read, and extraction for this target is archived here for review."
                     : atlasState?.runStatus === "done"
                       ? "Summary metrics are above. Open History after the next run to review each tool step."
-                      : "When Atlas runs, this window shows each tool as it works — search, page reads, extraction, contact recovery — so you can see progress while contacts arrive."}
+                      : "When Atlas runs, this window explains each step in plain language — what it is searching, which page it is reading, and what contacts it found."}
               </div>
               {isLive && (
                 <div className="mt-5 w-full max-w-[260px] space-y-2 opacity-60" aria-hidden>

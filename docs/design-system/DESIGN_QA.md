@@ -175,3 +175,14 @@ See `MOTION.md` / `src/lib/reactor-motion.ts`. No magic numbers in timers.
 | Mobile step count | Same pulse |
 | Session card hover | Cyan border tint |
 | Empty sessions | Readable slate copy |
+
+## Phase S — Plain-language live copy
+
+| Scene kind | Example story |
+|------------|----------------|
+| google | Typing into Google: “Walker Tool owner email” |
+| browser | Opening example.com in the browser to read… |
+| domain | Checking who registered the website domain… |
+| serp | Searching the web (Tavily) for contact details… |
+| prompt | Checking that any contacts we found really belong to… |
+| Status | Working now · step 2 of 5 |

@@ -74,25 +74,81 @@ function extractUrl(e: OpsEvent): string | undefined {
   return m?.[0];
 }
 
+/**
+ * Plain-language operator story — what Atlas is doing right now, in human terms.
+ * Prefer "searching X for Y" over tool jargon.
+ */
 function storyFor(kind: SceneKind, e: OpsEvent, query?: string): string {
-  const t = e.targetName || "target";
+  const t = (e.targetName || "this target").trim();
+  const tool = pickTool(e);
+  const blob = `${tool} ${e.stage || ""} ${e.resultSummary || ""} ${e.inputSummary || ""}`;
+  const q = (query || "").trim();
+  const shortQ = q.length > 72 ? q.slice(0, 69) + "…" : q;
+
   switch (kind) {
     case "google":
-      return `Open web · people behind ${t}`;
-    case "browser":
-      if (/mailto:|contact.?attribut/i.test(`${e.resultSummary || ""} ${e.activeToolId || ""}`))
-        return `Recovering reachable contact`;
-      return `Reading a public page`;
+      return shortQ
+        ? `Typing into Google: “${shortQ}”`
+        : `Searching Google for people and contacts behind ${t}`;
+    case "browser": {
+      const url = extractUrl(e);
+      if (/mailto:|contact.?attribut|contact.?facts|hr@|info@|purchasing@/i.test(blob)) {
+        return url
+          ? `Pulling email and phone numbers from the page`
+          : `Looking for email and phone numbers on a public page about ${t}`;
+      }
+      if (url) {
+        try {
+          const host = new URL(url).hostname.replace(/^www\./, "");
+          return `Opening ${host} in the browser to read what it says about ${t}`;
+        } catch {
+          return `Opening a public webpage about ${t}`;
+        }
+      }
+      return `Reading a public webpage about ${t}`;
+    }
     case "prompt":
-      return `Extract attributable contacts only`;
+      if (/persona|quality|review/i.test(blob)) {
+        return `Checking that any contacts we found really belong to ${t}`;
+      }
+      return `Reading the notes so far and writing down only contacts we can prove for ${t}`;
     case "domain":
-      return `Domain registration · ownership clues`;
+      if (/whois|rdap|registrar/i.test(blob)) {
+        return `Checking who registered the website domain for ${t} and when`;
+      }
+      return `Looking up the website domain for ${t} (registration and ownership clues)`;
     case "footprint":
-      return `Username footprint across platforms`;
-    case "serp":
-      return `${providerLabel(detectProviderKind(pickTool(e)))} · ${t}`;
-    default:
-      return e.stage || query || `Bureau step on ${t}`;
+      return `Checking whether ${t} shows up under the same name on social and other sites`;
+    case "serp": {
+      const provider = providerLabel(detectProviderKind(tool));
+      if (shortQ) return `Searching the web (${provider}): “${shortQ}”`;
+      if (/email|contact|phone|owner|ceo|president/i.test(blob)) {
+        return `Searching the web (${provider}) for contact details for ${t}`;
+      }
+      return `Searching the web (${provider}) for public information about ${t}`;
+    }
+    default: {
+      // Bureau / registry / generic stages — plain English from tool + stage
+      if (/opencorporates|companies.?house|sec\b|edgar|sam\.gov|registry|corporate/i.test(blob)) {
+        return `Searching a public company registry for ${t}`;
+      }
+      if (/whois|rdap|dns|domain/i.test(blob)) {
+        return `Checking domain registration records for ${t}`;
+      }
+      if (/linkedin/i.test(blob)) {
+        return `Looking for ${t} on LinkedIn and related public profiles`;
+      }
+      if (/wealth|net.?worth|hnwi/i.test(blob)) {
+        return `Gathering public wealth and background signals for ${t}`;
+      }
+      if (/graph|relationship|link/i.test(blob)) {
+        return `Connecting people and companies linked to ${t}`;
+      }
+      if (e.stage && e.stage.length < 48 && !/phase|step\s*\d/i.test(e.stage)) {
+        return `Working on ${e.stage.toLowerCase()} for ${t}`;
+      }
+      return shortQ ? `Researching ${t}: “${shortQ}”` : `Researching public records and pages about ${t}`;
+    }
   }
 }
 
@@ -814,7 +870,7 @@ function MobileWorkstage({
         </span>
       </div>
       <div className={`text-[9px] font-mono uppercase tracking-wider px-0.5 ${scene.live ? "text-cyan-400/90" : "text-slate-500"}`}>
-        {scene.live ? "Live step" : "Step"} {safeIdx + 1} of {scenes.length}
+        {scene.live ? "Working now" : "Finished"} · step {safeIdx + 1} of {scenes.length}
         {scene.title ? ` · ${scene.title}` : ""}
       </div>
 
@@ -823,7 +879,7 @@ function MobileWorkstage({
         <div className="min-w-0 flex-1">
           <div className="text-[11px] font-medium text-slate-100 line-clamp-2 leading-snug">{scene.story}</div>
           <div className="text-[9px] font-mono text-slate-400 truncate">
-            {scene.live ? "Now" : "Done"} · {scene.title}
+            {scene.live ? "In progress" : "Done"} · {scene.title}
             {scene.targetName ? ` · ${scene.targetName}` : ""}
           </div>
         </div>
