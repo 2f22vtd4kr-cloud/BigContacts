@@ -121,6 +121,20 @@ function roleColor(role: string) {
   return "border-border bg-muted/10 text-muted-foreground";
 }
 
+function roleLabel(role: string) {
+  if (role === "TARGET") return "Target";
+  if (role === "GATEKEEPER") return "Gatekeeper";
+  if (role === "INTERMEDIARY") return "Intermediary";
+  if (role === "ASSET") return "Asset";
+  return role;
+}
+
+function actionLabel(action: string) {
+  if (action === "GATEKEEPER LOCKED") return "Gatekeeper locked";
+  if (action === "TARGET IDENTIFIED") return "Target identified";
+  return action.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 function getWarmthColor(score: number) {
   if (score >= 0.75) return "text-primary font-bold";
   if (score >= 0.5) return "text-amber-400";
@@ -144,9 +158,9 @@ function EvidenceLedger({ sessionId }: { sessionId: number | null }) {
       <div className="flex items-center justify-between gap-3 mb-3">
         <div>
           <h3 className="text-xs font-mono text-primary uppercase tracking-widest flex items-center gap-2">
-            <FileCheck2 className="w-4 h-4" /> Claim Evidence Ledger
+            <FileCheck2 className="w-4 h-4" /> Evidence log
           </h3>
-          <p className="text-[11px] text-muted-foreground mt-1">Every research assertion is shown with its current support level and source basis.</p>
+          <p className="text-[11px] text-muted-foreground mt-1">Each claim with how strong the support is and where it came from.</p>
         </div>
         <span className="text-[10px] font-mono text-muted-foreground">{isLoading ? "loading…" : `${evidence.length} claims`}</span>
       </div>
@@ -601,7 +615,7 @@ export default function IntelTerminal() {
         {sessionId && !isComputing && (
           <div className="text-[10px] font-mono text-sky-300 border border-sky-400/30 bg-sky-400/5 rounded px-2 py-1.5 text-center">
             <Shield className="w-3 h-3 inline mr-1.5 align-[-2px]" />
-            Evidence collected — identity, attribution, and access remain in research review
+            Evidence collected — identity, ownership, and reachability are still under review
           </div>
         )}
       </div>
@@ -677,7 +691,7 @@ export default function IntelTerminal() {
           </button>
           {sessionId && !isComputing && (
             <div className="text-[10px] font-mono text-muted-foreground text-center">
-              Session #{sessionId} saved → OSINT research review
+              Session #{sessionId} saved
             </div>
           )}
         </div>
@@ -722,7 +736,7 @@ export default function IntelTerminal() {
             <div key={i} className="animate-in fade-in slide-in-from-bottom-1 duration-150">
               <div className="flex items-start gap-x-2 overflow-x-auto pb-0.5 scrollbar-none">
                 <span className="text-blue-400 whitespace-nowrap flex-shrink-0">[{log.step.toString().padStart(4, "0")}]</span>
-                <span className={cn(getActionColor(log.action), "whitespace-nowrap flex-shrink-0")}>[{log.action}]</span>
+                <span className={cn(getActionColor(log.action), "whitespace-nowrap flex-shrink-0")}>[{actionLabel(log.action)}]</span>
                 <span className="text-purple-400 whitespace-nowrap flex-shrink-0">[{log.registry}]</span>
                 <span className="text-foreground whitespace-nowrap flex-shrink-0">{log.target}</span>
                 <span className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">({log.targetType})</span>
@@ -776,7 +790,7 @@ export default function IntelTerminal() {
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xs font-mono text-primary uppercase tracking-widest flex items-center">
                 <CheckCircle2 className="w-4 h-4 mr-2" />
-                Evidence Path — {winningPath.length} nodes
+                Introduction path — {winningPath.length} steps
               </h3>
             </div>
 
@@ -787,7 +801,7 @@ export default function IntelTerminal() {
                   <div className={cn("flex flex-col border p-3 rounded", roleColor(node.role))}>
                     <div className="flex items-center mb-1.5 space-x-1">
                       {roleIcon(node.role)}
-                      <span className="text-[10px] font-mono uppercase tracking-widest opacity-60">{node.role}</span>
+                      <span className="text-[10px] font-mono uppercase tracking-widest opacity-60">{roleLabel(node.role)}</span>
                     </div>
                     <div className="font-bold text-foreground text-sm leading-tight mb-1">{node.label}</div>
                     <div className="text-xs opacity-50">{node.nodeType}</div>
@@ -813,7 +827,7 @@ export default function IntelTerminal() {
                     <div className={cn("flex flex-col border p-3 rounded min-w-[180px] max-w-[240px]", roleColor(node.role))}>
                       <div className="flex items-center mb-1.5 space-x-1">
                         {roleIcon(node.role)}
-                        <span className="text-[10px] font-mono uppercase tracking-widest opacity-60">{node.role}</span>
+                        <span className="text-[10px] font-mono uppercase tracking-widest opacity-60">{roleLabel(node.role)}</span>
                       </div>
                       <div className="font-bold text-foreground text-sm leading-tight mb-1">{node.label}</div>
                       <div className="text-xs opacity-50">{node.nodeType}</div>

@@ -689,3 +689,13 @@ Engine metrics can live on hover; the primary UI is for operators.
 4. Network empty: clearer copy
 5. Asset map empty: clearer “no coordinates” vs “no assets”
 6. Completeness: “Asset on file”
+
+---
+
+## Phase AB — Research path language + Profiles REACH chips
+
+### Delivered
+1. Research path roles: Target / Gatekeeper / Intermediary / Asset
+2. Terminal actions humanized; path title “Introduction path”
+3. Evidence log (was Claim Evidence Ledger)
+4. Profiles list REACH chips: Personal / Company / Social

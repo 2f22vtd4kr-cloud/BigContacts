@@ -72,7 +72,7 @@ function ReachChip({ kind, label, href, title }: { kind: "personal" | "org" | "s
     : kind === "org"
       ? "text-violet-300 border-violet-400/35 bg-violet-400/10"
       : "text-sky-300 border-sky-400/35 bg-sky-400/10";
-  const tag = kind === "personal" ? "P" : kind === "org" ? "ORG" : "SOC";
+  const tag = kind === "personal" ? "Personal" : kind === "org" ? "Company" : "Social";
   const body = (
     <span className={cn("inline-flex max-w-full items-center gap-1 rounded border px-1.5 py-0.5 font-mono text-[10px] leading-tight", styles)} title={title}>
       <span className="shrink-0 text-[8px] uppercase tracking-wider opacity-70">{tag}</span>
