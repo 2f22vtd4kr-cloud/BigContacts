@@ -178,7 +178,12 @@ function useTyped(text: string | undefined, active: boolean, cps = 40) {
 function timeLabel(ts?: string) {
   if (!ts) return "";
   try {
-    return ts.slice(11, 19);
+    // Prefer HH:MM for dense mobile chrome; fall back to slice
+    const d = new Date(ts);
+    if (!Number.isNaN(d.getTime())) {
+      return d.toISOString().slice(11, 16) + "Z";
+    }
+    return ts.slice(11, 16);
   } catch {
     return "";
   }
@@ -764,14 +769,14 @@ function MobileWorkstage({
       <div className="flex items-center gap-2 px-0.5" aria-live="polite" aria-atomic="true">
         <ProviderIcon kind={scene.provider} size={14} />
         <div className="min-w-0 flex-1">
-          <div className="text-[11px] font-medium text-slate-100 truncate">{scene.story}</div>
-          <div className="text-[9px] font-mono text-slate-500 truncate">
+          <div className="text-[11px] font-medium text-slate-100 line-clamp-2 leading-snug">{scene.story}</div>
+          <div className="text-[9px] font-mono text-slate-400 truncate">
             {scene.live ? "Now" : "Done"} · {scene.title}
             {scene.targetName ? ` · ${scene.targetName}` : ""}
           </div>
         </div>
         {scene.timestamp && (
-          <span className="shrink-0 text-[9px] font-mono text-slate-600">{timeLabel(scene.timestamp)}</span>
+          <span className="shrink-0 text-[9px] font-mono text-slate-400 tabular-nums">{timeLabel(scene.timestamp)}</span>
         )}
       </div>
 
@@ -877,7 +882,7 @@ function MobileWorkstage({
                 setSlideDir(i > safeIdx ? 1 : -1);
                 setIdx(i);
               }}
-              className="reactor-pressable shrink-0 rounded-lg border px-2 py-1.5 text-left w-[128px]"
+              className="reactor-pressable shrink-0 rounded-lg border px-2 py-2 text-left w-[136px] min-h-[52px]"
               aria-current={i === safeIdx ? "true" : undefined}
               style={{
                 borderColor: i === safeIdx ? "#22d3ee66" : s.live ? "#22d3ee33" : "#ffffff10",
@@ -982,7 +987,7 @@ export function BureauOpsStage({
                 const el = document.getElementById(`desk-scene-${s.id}`);
                 el?.scrollIntoView({ behavior: "smooth", block: "nearest" });
               }}
-              className="reactor-pressable shrink-0 rounded-lg border px-2.5 py-1.5 max-w-[200px] text-left"
+              className="reactor-pressable shrink-0 rounded-lg border px-2.5 py-2 max-w-[200px] text-left min-h-[52px]"
               style={{
                 borderColor: selected ? "#22d3ee66" : s.live ? "#22d3ee40" : "#ffffff18",
                 background: selected ? "#22d3ee14" : "#ffffff08",

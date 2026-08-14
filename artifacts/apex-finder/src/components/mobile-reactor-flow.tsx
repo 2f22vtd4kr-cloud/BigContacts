@@ -240,7 +240,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
           <button
             type="button"
             onClick={() => setShowHistory((v) => !v)}
-            className={`reactor-pressable flex h-10 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-[10px] font-bold uppercase tracking-wider ${
+            className={`reactor-pressable flex h-11 shrink-0 items-center gap-1.5 rounded-xl border px-3.5 text-[10px] font-bold uppercase tracking-wider ${
               showHistory ? "border-cyan-400/40 bg-cyan-400/10 text-cyan-300" : "border-white/10 bg-white/[0.04] text-slate-400 hover:border-white/20"
             }`}
             data-testid="button-history"
@@ -253,7 +253,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
             type="button"
             onClick={onRefresh}
             disabled={syncing}
-            className="reactor-pressable flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-slate-400 hover:border-cyan-400/30 hover:text-cyan-300 disabled:opacity-50 disabled:pointer-events-none"
+            className="reactor-pressable flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-slate-400 hover:border-cyan-400/30 hover:text-cyan-300 disabled:opacity-50 disabled:pointer-events-none"
             aria-label="Refresh Atlas status"
             data-testid="button-refresh-atlas"
           >
