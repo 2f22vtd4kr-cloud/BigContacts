@@ -825,7 +825,7 @@ function MobileWorkstage({
       )}
 
       {scenes.length > 1 && (
-        <div className="text-center text-[8px] font-mono text-slate-600 tracking-wider pb-1">
+        <div className="text-center text-[8px] font-mono text-slate-500 tracking-wider pb-1">
           swipe · history nav
         </div>
       )}
