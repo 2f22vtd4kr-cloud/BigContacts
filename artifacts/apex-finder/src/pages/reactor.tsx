@@ -1853,6 +1853,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
           const isFocus = focusedToolId != null && n.id === focusedToolId;
           const isSibling = focusedToolId != null && !isFocus && status !== "idle";
           const kbFocus = schemeFocusId === n.id;
+          const reachCue = contactFound && isReactor;
           return (
             <div
               key={n.id}
@@ -1860,20 +1861,24 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
               role="button"
               tabIndex={0}
               data-testid={`scheme-node-${n.id}`}
-              aria-label={`${n.label}, ${status}${isFocus ? ", active tool" : ""}`}
+              aria-label={`${n.label}, ${status}${isFocus ? ", active tool" : ""}${reachCue ? ", contact route found" : ""}`}
               onFocus={() => setSchemeFocusId(n.id)}
               onBlur={() => setSchemeFocusId((cur) => (cur === n.id ? null : cur))}
               onKeyDown={(e) => onSchemeNodeKey(e, n.id)}
               style={{
               position:"absolute",
               left: n.cx - n.w / 2, top: n.cy - n.h / 2,
-              width: n.w, height: n.h, zIndex: isFocus || kbFocus ? 4 : 2,
-              opacity: isSibling && !kbFocus ? 0.32 : 1,
+              width: n.w, height: n.h, zIndex: isFocus || kbFocus || reachCue ? 4 : 2,
+              opacity: isSibling && !kbFocus && !reachCue ? 0.32 : 1,
               outline: kbFocus ? `2px solid #22d3ee` : undefined,
               outlineOffset: kbFocus ? 3 : undefined,
-              boxShadow: isFocus || kbFocus ? `0 0 22px ${statusColor}55` : undefined,
+              boxShadow: reachCue
+                ? "0 0 28px rgba(52,211,153,0.35)"
+                : isFocus || kbFocus ? `0 0 22px ${statusColor}55` : undefined,
               transition: "opacity 0.35s, box-shadow 0.35s",
-              border:`${on?(isReactor?2:1.5):1}px solid ${visible?statusColor:"#192840"}`,
+              border: reachCue
+                ? "2px solid rgba(52,211,153,0.65)"
+                : `${on?(isReactor?2:1.5):1}px solid ${visible?statusColor:"#192840"}`,
               borderRadius: isReactor ? 12 : 6,
               background: on ? (isReactor?`${statusColor}14`:`${statusColor}0d`) : visible ? `${statusColor}08` : (isReactor?"#0c1830":"#0d1525"),
               padding:"0 10px",
@@ -1910,7 +1915,21 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                   {n.sub}
                 </div>
               </div>
-              {(status === "completed" || status === "failed" || status === "skipped") ? (
+              {contactFound && isReactor ? (
+                <span
+                  data-testid="scheme-reach-cue"
+                  style={{
+                    fontSize:7, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase",
+                    color:"#a7f3d0", flexShrink:0,
+                    border:"1px solid rgba(52,211,153,0.45)", borderRadius:999,
+                    background:"rgba(52,211,153,0.12)", padding:"2px 6px",
+                    boxShadow: motionOrNone("none") === "none" ? undefined : "0 0 12px rgba(52,211,153,0.25)",
+                  }}
+                  aria-label="Contact route found"
+                >
+                  reach
+                </span>
+              ) : (status === "completed" || status === "failed" || status === "skipped") ? (
                 <span
                   style={{
                     fontSize:7, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase",

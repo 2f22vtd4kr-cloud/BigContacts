@@ -158,3 +158,11 @@ See `MOTION.md` / `src/lib/reactor-motion.ts`. No magic numbers in timers.
 | edge toast | motionOrNone armIn |
 | Desktop desk search | input-desk-search when events > 2 |
 | focus-visible | cyan ring on links, inputs, scheme nodes |
+
+## Phase Q — Relative time + REACH scheme
+
+| Surface | Expected |
+|---------|----------|
+| Scene timestamp | just now / s / m ago; title = absolute Z |
+| Scheme reactor node + REACH | reach pill + emerald glow |
+| Sibling dim | REACH core node not dimmed |

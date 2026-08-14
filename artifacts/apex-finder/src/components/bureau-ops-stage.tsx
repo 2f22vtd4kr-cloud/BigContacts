@@ -179,17 +179,31 @@ function useTyped(text: string | undefined, active: boolean, cps = 40) {
   return out;
 }
 
-function timeLabel(ts?: string) {
+/** Phase Q — relative when recent, absolute clock as title fallback */
+function absoluteTimeLabel(ts?: string) {
   if (!ts) return "";
   try {
-    // Prefer HH:MM for dense mobile chrome; fall back to slice
     const d = new Date(ts);
-    if (!Number.isNaN(d.getTime())) {
-      return d.toISOString().slice(11, 16) + "Z";
-    }
+    if (!Number.isNaN(d.getTime())) return d.toISOString().slice(11, 16) + "Z";
     return ts.slice(11, 16);
   } catch {
     return "";
+  }
+}
+
+function timeLabel(ts?: string, nowMs = Date.now()) {
+  if (!ts) return "";
+  try {
+    const d = new Date(ts);
+    if (Number.isNaN(d.getTime())) return absoluteTimeLabel(ts);
+    const sec = Math.max(0, Math.floor((nowMs - d.getTime()) / 1000));
+    if (sec < 5) return "just now";
+    if (sec < 60) return `${sec}s ago`;
+    if (sec < 3600) return `${Math.floor(sec / 60)}m ago`;
+    if (sec < 86400) return `${Math.floor(sec / 3600)}h ago`;
+    return absoluteTimeLabel(ts);
+  } catch {
+    return absoluteTimeLabel(ts);
   }
 }
 
@@ -814,7 +828,10 @@ function MobileWorkstage({
           </div>
         </div>
         {scene.timestamp && (
-          <span className="shrink-0 text-[9px] font-mono text-slate-400 tabular-nums">{timeLabel(scene.timestamp)}</span>
+          <span
+            className="shrink-0 text-[9px] font-mono text-slate-400 tabular-nums"
+            title={absoluteTimeLabel(scene.timestamp)}
+          >{timeLabel(scene.timestamp)}</span>
         )}
       </div>
 

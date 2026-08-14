@@ -468,3 +468,22 @@ Every phase must leave **PNG** captures in the folder — not HTML-only.
 - No infinite motion under reduced-motion preference
 - Focus rings consistent across interactive surfaces
 - Desktop desk is searchable like mobile archive
+
+---
+
+## Phase Q — Relative time + REACH scheme cue (Apex Atlas)
+
+**Studio goal:** Step times read as “how long ago” during a run. REACH is visible on the scheme graph, not only in the side desk.
+
+### Delivered
+1. **Relative timestamps** (`bureau-ops-stage`)
+   - just now / Ns ago / Nm ago / Nh ago
+   - Absolute `HH:MMZ` on `title` hover
+2. **Scheme REACH cue** (desktop)
+   - Core/reactor node: emerald **reach** pill when contact route found
+   - Stronger border + glow; not dimmed as sibling
+   - aria-label includes “contact route found”
+
+### Rules reinforced
+- Time is operator-relative during live work
+- REACH climax registers on the primary scheme, not only the panel
