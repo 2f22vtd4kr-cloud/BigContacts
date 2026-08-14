@@ -635,177 +635,118 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#0b1120] font-sans text-slate-200">
-      <header className="shrink-0 border-b border-white/10 bg-black/25 px-4 py-2.5 backdrop-blur-md">
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-500">Reactor status</div>
-            <div
-              className={`mt-1 truncate text-[10px] font-mono tracking-wide ${isLive ? "text-cyan-400/80" : "text-slate-500"}`}
-              role="status"
-              aria-live="polite"
-              data-testid="status-reactor-summary"
-            >
+      {/* Minimal chrome — target + live pulse only */}
+      <header className="shrink-0 border-b border-white/10 bg-black/40 px-4 py-3 backdrop-blur-md">
+        <div className="flex items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <span className={`h-2 w-2 shrink-0 rounded-full ${isLive ? "animate-pulse bg-cyan-400 shadow-[0_0_8px_#22d3ee]" : atlasState?.runStatus === "failed" ? "bg-rose-400" : "bg-slate-600"}`} />
+              <span className={`text-[10px] font-bold uppercase tracking-[0.18em] ${isLive ? "text-cyan-300" : "text-slate-500"}`}>
+                {isLive ? "Live" : statusLabel}
+              </span>
+            </div>
+            <div className="mt-1 truncate text-[16px] font-semibold text-white" data-testid="status-reactor-summary">
+              {atlasState?.atlasTelemetry?.targetName
+                || atlasState?.currentEntities?.[0]
+                || (isLive ? "Researching…" : "Atlas idle")}
+            </div>
+            <div className="mt-0.5 truncate text-[11px] text-slate-500">
               {isLive
-                ? liveLabel || livePhaseDetail || "Live Atlas research in progress"
+                ? (liveLabel || livePhaseDetail || atlasState?.detail || "Working public sources")
                 : waitingForNextCycle
-                  ? `Standby · next Atlas cycle in ${schedulerCountdown}`
-                  : atlasState?.runStatus === "done"
-                    ? "Standby · last Atlas run completed"
-                    : atlasState?.runStatus === "failed"
-                      ? "Standby · last Atlas run failed"
-                      : "Standby · Atlas is idle by design — no research run in progress"}
+                  ? `Next cycle in ${schedulerCountdown}`
+                  : "Standby"}
             </div>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <span className={`flex items-center gap-1.5 rounded border px-2 py-1 text-[9px] font-bold uppercase tracking-widest ${statusClass}`} data-testid="status-reactor">
-              <span className={`h-1.5 w-1.5 rounded-full ${isLive ? "animate-pulse bg-cyan-400" : atlasState?.runStatus === "failed" ? "bg-rose-400" : waitingForNextCycle ? "bg-amber-300" : "bg-lime-400"}`} />
-              {statusLabel}
-            </span>
-            <button
-              type="button"
-              onClick={onRefresh}
-              disabled={syncing}
-              className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-slate-400 transition-colors hover:border-cyan-400/30 hover:text-cyan-300 disabled:cursor-not-allowed disabled:opacity-50"
-              aria-label={syncing ? "Refreshing Atlas data" : "Refresh Atlas data"}
-              data-testid="button-refresh-atlas"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`} />
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => setShowHistory((v) => !v)}
+            className={`flex h-10 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-[10px] font-bold uppercase tracking-wider ${
+              showHistory ? "border-cyan-400/40 bg-cyan-400/10 text-cyan-300" : "border-white/10 bg-white/[0.04] text-slate-400"
+            }`}
+            data-testid="button-history"
+            aria-pressed={showHistory}
+          >
+            <History className="h-3.5 w-3.5" />
+            {showHistory ? "Live" : "History"}
+          </button>
+          <button
+            type="button"
+            onClick={onRefresh}
+            disabled={syncing}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-slate-400 disabled:opacity-50"
+            aria-label="Refresh"
+            data-testid="button-refresh-atlas"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`} />
+          </button>
         </div>
-        <div className="mt-2 flex gap-1.5">
-          <QuickStat label="Entities" value={totalEntities} color="#38bdf8" />
-          <QuickStat label="Hot leads" value={hotCount} color="#a3e635" />
-          <QuickStat label="Assets" value={totalAssets} color="#22d3ee" />
-          <QuickStat label="Sessions" value={sessions.length} color="#a78bfa" />
-        </div>
-        <div
-          className={`mt-2 rounded-lg border px-2.5 py-2 text-[9px] ${
-            scheduler?.enabled
-              ? "border-cyan-400/20 bg-cyan-400/[0.04] text-cyan-300/80"
-              : "border-white/10 bg-white/[0.025] text-slate-500"
-          }`}
-          data-testid="status-continuous-scheduler"
-        >
-          <div className="flex items-center justify-between gap-2 uppercase tracking-[0.16em]">
-            <span>{scheduler?.enabled ? "Continuous Atlas enabled" : "Continuous Atlas paused"}</span>
-            <span className="text-[8px] text-slate-500">
-              {scheduler?.cycles ?? 0} cycle{scheduler?.cycles === 1 ? "" : "s"}
-            </span>
-          </div>
-          {scheduler?.enabled && (
-            <div className="mt-1 truncate text-[8px] text-slate-500" data-testid="status-scheduler-countdown">
-              {schedulerCountdown
-                ? `Next cycle in ${schedulerCountdown} · ${scheduler.nextTriggerAt ? new Date(scheduler.nextTriggerAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}`
-                : scheduler.nextTriggerAt
-                  ? `Next cycle ${new Date(scheduler.nextTriggerAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
-                  : scheduler.lastMessage || "Preparing next discovery cycle"}
-              {scheduler.lastStatus === "skipped_lock" ? " · waiting for active Atlas lock" : ""}
+        {(atlasState?.atlasTelemetry?.disposition === "contact_route_found"
+          || (atlasState?.atlasTelemetry?.contacts != null && atlasState.atlasTelemetry.contacts > 0)) && (
+          <div
+            className="mt-3 rounded-xl border border-emerald-400/45 bg-emerald-400/[0.12] px-3 py-2.5 shadow-[0_0_24px_rgba(52,211,153,0.15)]"
+            data-testid="card-reach-contact-found"
+            role="status"
+          >
+            <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-300">Contact found · REACH</div>
+            <div className="mt-1 text-[13px] leading-snug text-emerald-50">
+              {atlasState?.atlasTelemetry?.resultSummary
+                || `${atlasState?.atlasTelemetry?.contacts} attributable vector(s)`}
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </header>
 
-      <div className="atlas-grid atlas-grid-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3" style={{ WebkitOverflowScrolling: "touch" }}>
-        <div className="mx-auto w-full max-w-lg space-y-3 pb-6">
-          {/* Compact target strip — not the old multi-card stack */}
-          <div className="rounded-xl border border-white/10 bg-black/30 px-3 py-2.5" data-testid="card-mobile-target-strip">
-            <div className="flex items-center justify-between gap-2">
-              <div className="min-w-0">
-                <div className="text-[8px] uppercase tracking-[0.18em] text-slate-500">Current target</div>
-                <div className={`mt-0.5 truncate text-[14px] font-semibold ${atlasState?.atlasTelemetry?.targetName || atlasState?.currentEntities?.[0] ? "text-white" : "text-slate-500"}`}>
-                  {atlasState?.atlasTelemetry?.targetName || atlasState?.currentEntities?.[0] || "No target reported"}
+      {/* Primary: immersive tool window — what Atlas is doing right now */}
+      <div
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4"
+        style={{ WebkitOverflowScrolling: "touch" }}
+      >
+        <div className="mx-auto flex w-full max-w-lg flex-col gap-3 pb-8">
+          {liveEvents.length > 0 ? (
+            <section
+              className="rounded-2xl border border-cyan-400/25 bg-[#071018] p-3 shadow-[0_0_40px_rgba(34,211,238,0.06)]"
+              data-testid="panel-live-desk-mobile"
+              aria-label={showHistory ? "Target history" : "Live research window"}
+            >
+              <div className="mb-3 flex items-center justify-between gap-2 px-0.5">
+                <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300/90">
+                  {showHistory ? "History" : "Under the hood"}
                 </div>
-                <div className="mt-0.5 truncate text-[9px] text-slate-500">
-                  {atlasState?.atlasTelemetry?.targetType || atlasState?.phaseLabel || "—"}
-                  {atlasState?.detail ? ` · ${atlasState.detail.slice(0, 60)}` : ""}
+                <div className="text-[10px] font-mono tabular-nums text-slate-500">
+                  {liveEvents.length} step{liveEvents.length === 1 ? "" : "s"}
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => setShowHistory((v) => !v)}
-                className={`flex h-10 shrink-0 items-center gap-1.5 rounded-lg border px-3 text-[10px] font-bold uppercase tracking-wider transition-colors ${
-                  showHistory
-                    ? "border-cyan-400/40 bg-cyan-400/10 text-cyan-300"
-                    : "border-white/10 bg-white/[0.04] text-slate-400"
-                }`}
-                data-testid="button-history"
-                aria-pressed={showHistory}
-              >
-                <History className="h-3.5 w-3.5" />
-                History
-              </button>
-            </div>
-            {(atlasState?.atlasTelemetry?.disposition === "contact_route_found" || (atlasState?.atlasTelemetry?.contacts != null && atlasState.atlasTelemetry.contacts > 0)) && (
-              <div className="mt-2 rounded-lg border border-emerald-400/35 bg-emerald-400/[0.08] px-2.5 py-2 text-[10px] leading-4 text-emerald-200" data-testid="card-reach-contact-found">
-                <span className="font-bold uppercase tracking-wider text-emerald-300">Contact found · REACH · </span>
-                {atlasState.atlasTelemetry.resultSummary || `${atlasState.atlasTelemetry.contacts} vector(s)`}
+              <BureauOpsStage
+                events={liveEvents as any}
+                compact
+                maxScenes={showHistory ? 14 : 8}
+                title=""
+                onEdgeSwipe={(dir) => {
+                  if (dir === "prev" && !showHistory) setShowHistory(true);
+                  if (dir === "next" && showHistory) setShowHistory(false);
+                }}
+              />
+            </section>
+          ) : (
+            <div
+              className="flex min-h-[320px] flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 bg-white/[0.02] px-6 text-center"
+              data-testid="panel-live-desk-idle"
+            >
+              <Radio className="mb-3 h-8 w-8 text-slate-600" />
+              <div className="text-[14px] font-medium text-slate-300">Waiting for live work</div>
+              <div className="mt-2 max-w-xs text-[12px] leading-relaxed text-slate-500">
+                When Atlas runs, this window shows each tool as it works — search, page reads, extraction, contact recovery — so you can see progress while contacts arrive.
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
-          {/* BIG Live Desk — prompts, browser, tools, results (no scheme) */}
-          <section
-            className="rounded-2xl border border-cyan-400/30 bg-[#071525]/95 p-3 shadow-[0_0_28px_rgba(34,211,238,0.08)]"
-            data-testid="panel-live-desk-mobile"
-            aria-label="Live desk"
-          >
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-cyan-300">
-                {showHistory ? "Target history" : "Live desk"}
-              </div>
-              <div className="text-[9px] font-mono text-slate-500 tabular-nums">
-                {liveEvents.length} event{liveEvents.length === 1 ? "" : "s"}
-                {showHistory ? " · full" : " · recent"}
-              </div>
-            </div>
-            <BureauOpsStage
-              events={liveEvents as any}
-              compact
-              maxScenes={showHistory ? 12 : 6}
-              title={showHistory ? "HISTORY" : "LIVE DESK"}
-              onEdgeSwipe={(dir) => {
-                // Swipe past ends: open full History (or leave it)
-                if (dir === "prev" && !showHistory) setShowHistory(true);
-                if (dir === "next" && showHistory) setShowHistory(false);
-              }}
-            />
-          </section>
-
-          {/* Pipeline map collapsed context only — not primary */}
-          <details className="rounded-xl border border-white/[0.08] bg-white/[0.02]" data-testid="section-pipeline-map">
-            <summary className="flex min-h-[44px] cursor-pointer list-none items-center gap-2 px-3 py-2 touch-manipulation">
-              <Activity className="h-3.5 w-3.5 text-slate-500" />
-              <span className="text-[9px] font-bold uppercase tracking-[0.16em] text-slate-500">Atlas pipeline map</span>
-              <span className="ml-auto text-[8px] text-slate-600">context</span>
-            </summary>
-            <div className="grid grid-cols-2 gap-2 border-t border-white/5 p-3">
-              {MOBILE_PHASES.map((phase, index) => {
-                const isActive = isLive && index === activePhaseIndex;
-                const isCompleted = atlasState?.runStatus === "done" || (isLive && activePhaseIndex >= 0 && index < activePhaseIndex);
-                const isSibling = isLive && activePhaseIndex >= 0 && !isActive && !isCompleted;
-                return (
-                  <div
-                    key={phase.id}
-                    className={`relative min-h-[52px] rounded-xl border p-2 transition-all ${index === MOBILE_PHASES.length - 1 ? "col-span-2" : ""} ${
-                      isActive
-                        ? "border-cyan-400/50 bg-cyan-400/[0.12]"
-                        : isCompleted
-                          ? "border-emerald-400/25 bg-emerald-400/[0.045]"
-                          : "border-white/[0.08] bg-white/[0.025]"
-                    } ${isSibling ? "opacity-40" : "opacity-100"}`}
-                  >
-                    <div className={`text-[9px] font-bold tracking-[0.1em] ${isActive ? "text-cyan-300" : isCompleted ? "text-emerald-300/80" : "text-slate-400"}`}>
-                      {phase.label}
-                    </div>
-                    <div className="mt-0.5 line-clamp-2 text-[8px] text-slate-600">{phase.detail}</div>
-                  </div>
-                );
-              })}
-            </div>
-          </details>
+          <p className="px-1 text-center text-[10px] leading-relaxed text-slate-600">
+            Swipe the window to step through tools. Each view matches the work: search, browser, domain, or analyst prompt.
+          </p>
         </div>
       </div>
+
 
       {exhaustedKeys.length > 0 && (
         <div className="shrink-0 border-t border-amber-900/40 bg-amber-950/20 px-4 py-2.5" role="alert" data-testid="alert-provider-rate-limit">

@@ -77,6 +77,8 @@ function storyFor(kind: SceneKind, e: OpsEvent, query?: string): string {
     case "google":
       return `Open web · people behind ${t}`;
     case "browser":
+      if (/mailto:|contact.?attribut/i.test(`${e.resultSummary || ""} ${e.activeToolId || ""}`))
+        return `Recovering reachable contact`;
       return `Reading a public page`;
     case "prompt":
       return `Extract attributable contacts only`;
@@ -108,16 +110,16 @@ function toScene(e: OpsEvent, index: number): Scene {
 
   const toolBlob = `${tool} ${e.stage || ""} ${e.resultSummary || ""} ${e.inputSummary || ""}`;
   let kind: SceneKind = "bureau";
-  if (provider === "google" || /google/i.test(toolBlob)) kind = "google";
-  else if (provider === "gemini" && /ground/i.test(String(e.resultSummary || e.stage))) kind = "google";
+  // Order matters: specific tools first so each gets a distinct visual language
+  if (provider === "domain" || /domain-surface|domain-resolver|rdap|whois|whoxy|dns/i.test(toolBlob)) kind = "domain";
+  else if (provider === "google" || /\bgoogle\b/i.test(toolBlob)) kind = "google";
+  else if (["serp", "serper", "serpapi", "tavily", "exa", "perplexity"].includes(provider) || /tavily|exa|perplexity|serper|serpapi|web.?search/i.test(tool)) kind = "serp";
+  else if (provider === "prompt" || e.prompt || /groq|llm|extract|persona-review|gemini/i.test(tool)) kind = "prompt";
+  else if (provider === "sherlock" || provider === "maigret" || /footprint|holehe|sherlock|maigret/i.test(toolBlob)) kind = "footprint";
   else if (
     provider === "browser" ||
-    /scrapfly|zenrows|visit|fetch|mailto|domain-surface|contact-facts|browser|webdisc|inhouse/i.test(toolBlob)
+    /scrapfly|zenrows|visit|fetch|mailto|contact-attribution|contact-facts|browser|webdisc|inhouse/i.test(toolBlob)
   ) kind = "browser";
-  else if (provider === "prompt" || e.prompt || /groq|llm|extract|persona-review/i.test(tool)) kind = "prompt";
-  else if (provider === "domain" || /rdap|whois|whoxy|dns/i.test(toolBlob)) kind = "domain";
-  else if (provider === "sherlock" || provider === "maigret" || /footprint|holehe|sherlock/i.test(toolBlob)) kind = "footprint";
-  else if (["serp", "serper", "serpapi", "tavily", "exa", "perplexity"].includes(provider) || /tavily|exa|perplexity|serper|serpapi/i.test(tool)) kind = "serp";
 
   const title =
     kind === "google" ? "Google"
@@ -368,26 +370,39 @@ function DomainScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
 }
 
 function SerpScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
-  const q = scene.query || scene.targetName || scene.subtitle || "";
-  const typed = useTyped(q, scene.live, 40);
+  const q = scene.query || scene.targetName || scene.subtitle || "owner email contact";
+  const typed = useTyped(q, scene.live, 42);
+  const hits = scene.resultLines.length ? scene.resultLines : ["Streaming public results…"];
   return (
     <WindowChrome
-      title={providerLabel(scene.provider)}
+      title={`${providerLabel(scene.provider)} · web search`}
       live={scene.live}
-      accent="#fb923c"
+      accent="#38bdf8"
       compact={compact}
       favicon={<ProviderIcon kind={scene.provider} size={compact ? 12 : 14} />}
+      urlBar={`search · ${q.slice(0, 40)}`}
     >
-      <div className="space-y-2">
-        <div className="rounded-lg border border-orange-400/30 bg-[#1c1917] px-2.5 py-2 flex items-center gap-2">
-          <ProviderIcon kind={scene.provider} size={14} />
-          <span className="text-[12px] text-orange-50 font-mono truncate flex-1">{typed || "\u2026"}</span>
+      <div className="space-y-3">
+        <div className="flex items-center gap-2 rounded-full border border-sky-500/30 bg-[#0c1929] px-3 py-2.5">
+          <ProviderIcon kind={scene.provider} size={16} />
+          <span className="min-w-0 flex-1 truncate text-[13px] text-sky-50">
+            {typed}
+            {scene.live && typed.length < q.length && (
+              <span className="ml-0.5 inline-block h-3.5 w-0.5 animate-pulse bg-sky-200 align-middle" />
+            )}
+          </span>
+          <span className="shrink-0 rounded-full bg-sky-500/20 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-sky-300">
+            Search
+          </span>
         </div>
-        {(scene.resultLines.length ? scene.resultLines : ["Streaming hits\u2026"]).map((l, i) => (
-          <div key={i} className="text-[11px] text-slate-300 font-mono border-l-2 border-orange-400/40 pl-2">
-            {l}
-          </div>
-        ))}
+        <div className="space-y-2">
+          {hits.slice(0, compact ? 3 : 4).map((l, i) => (
+            <div key={i} className="rounded-lg border border-white/5 bg-[#0b1220] px-3 py-2">
+              <div className="mb-0.5 text-[9px] font-mono text-sky-500/80">result · {i + 1}</div>
+              <div className="text-[12px] leading-snug text-slate-200">{l}</div>
+            </div>
+          ))}
+        </div>
       </div>
     </WindowChrome>
   );
@@ -621,30 +636,30 @@ function MobileWorkstage({
         </span>
       </div>
 
-      <div className="rounded-xl border border-cyan-400/35 bg-gradient-to-br from-cyan-400/[0.11] to-transparent px-3 py-2.5 shadow-[0_0_24px_rgba(34,211,238,0.06)]">
-        <div className="flex items-center gap-2 mb-1">
-          <ProviderIcon kind={scene.provider} size={14} />
-          <span className="text-[9px] font-mono uppercase tracking-[0.16em] text-cyan-300/90">
+      <div className="flex items-center gap-2 px-0.5">
+        <ProviderIcon kind={scene.provider} size={14} />
+        <div className="min-w-0 flex-1">
+          <div className="text-[11px] font-medium text-slate-100 truncate">{scene.story}</div>
+          <div className="text-[9px] font-mono text-slate-500 truncate">
             {scene.live ? "Now" : "Done"} · {scene.title}
-          </span>
-          {scene.timestamp && (
-            <span className="ml-auto text-[9px] font-mono text-slate-500">{timeLabel(scene.timestamp)}</span>
-          )}
+            {scene.targetName ? ` · ${scene.targetName}` : ""}
+          </div>
         </div>
-        <div className="text-[13px] leading-snug text-slate-100 font-medium">{scene.story}</div>
-        {scene.targetName && (
-          <div className="mt-1 text-[10px] font-mono text-slate-400 truncate">on {scene.targetName}</div>
+        {scene.timestamp && (
+          <span className="shrink-0 text-[9px] font-mono text-slate-600">{timeLabel(scene.timestamp)}</span>
         )}
       </div>
 
       <div
+        className="min-h-[280px]"
         style={{
           transform: dragX ? `translate3d(${dragX}px,0,0)` : undefined,
           transition: dragX ? "none" : "transform 0.22s ease-out",
           willChange: "transform",
         }}
       >
-        <SceneCard scene={scene} compact />
+        {/* Immersive (not compact): full tool chrome so wait-time is legible */}
+        <SceneCard scene={scene} compact={false} />
       </div>
 
       {scenes.length > 1 && (
