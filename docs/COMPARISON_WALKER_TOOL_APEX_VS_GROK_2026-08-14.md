@@ -62,3 +62,30 @@ Apex multi-hop (resources page mailto + USDOT public filing + search) recovers *
 
 ## Artifact
 `scripts/holdout-walker-apex-result.json`
+
+---
+
+## Live agentic engine run (same session)
+
+**Runtime:** `artifacts/apex-runtime/` — minimal harness around production `runAgenticWebResearch`  
+**Model:** `llama-3.3-70b-versatile` via **GROQ_API_KEY**  
+**SERP:** Serper.dev via **SERPER_API_KEY** (SERPEV)  
+**Domain:** WhoisJSON  
+**Result:** `scripts/holdout-walker-agentic-result.json`
+
+| Metric | Agentic pass |
+|--------|----------------|
+| Status | completed (iteration budget) |
+| Iterations / searches / visits | 12 / 3 / 9 |
+| Phones | +1-877-925-5378, +1-616-735-6660, +1-616-453-3765 |
+| Address | 2411 Walker Ave NW, Grand Rapids, MI 49544 |
+| Website | https://walkertool.com |
+| Domain | registered 1996-11-09, Network Solutions |
+| Ownership prose | Hendricks family since founding (aboutus) |
+| Emails this pass | 0 (did not hop resources.html / USDOT before budget) |
+
+**Combined Apex (agentic + CONTACT FACTS backstop from same-day holdout):**  
+emails **hr@** + **purchasing@** (deterministic HTML) + agentic phones/address/ownership/domain.  
+That dual path is how the full bureau is designed: agentic ReAct + regex/HTML CONTACT FACTS admission.
+
+**Monorepo note:** GitHub `BigContacts` is a **sparse mirror** (205 files; no root `package.json` / Drizzle / full Express bootstrap). Full monorepo lives on Replit (`replit.com/@llhdeunvad/Wait-Instructions`). This run executes the **production agentic module** with live keys in a minimal harness.
