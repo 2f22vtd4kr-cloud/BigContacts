@@ -1463,7 +1463,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
           <div
             data-testid="panel-live-desk"
             style={{
-              position:"absolute", top:12, right:18, width:400, maxHeight:"calc(100% - 24px)",
+              position:"absolute", top:12, right:18, width:420, maxHeight:"calc(100% - 24px)",
               overflowY:"auto", zIndex:28, padding:"12px 12px 14px",
               border:"1px solid #22d3ee40", borderRadius:8,
               background:"rgba(7,15,29,0.97)", boxShadow:"0 0 28px #000a",

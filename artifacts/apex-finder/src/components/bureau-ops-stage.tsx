@@ -724,7 +724,7 @@ function MobileWorkstage({
     <div
       ref={rootRef}
       className="space-y-2.5 select-none rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#071018]"
-      style={{ touchAction: "pan-y" }}
+      style={{ touchAction: "pan-y", overscrollBehaviorX: "contain" }}
       data-testid="mobile-workstage-swipe"
       tabIndex={0}
       role="region"

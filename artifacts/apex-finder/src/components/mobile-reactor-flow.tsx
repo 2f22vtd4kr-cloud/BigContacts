@@ -211,7 +211,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
       </div>
       {/* Minimal chrome — target + live pulse only */}
       <header
-        className="shrink-0 border-b border-white/10 bg-black/40 px-4 py-3 backdrop-blur-md"
+        className="sticky top-0 z-20 shrink-0 border-b border-white/10 bg-black/70 px-4 py-3 backdrop-blur-md"
         style={{ paddingTop: "max(12px, env(safe-area-inset-top, 12px))" }}
       >
         <div className="flex items-center gap-3">
@@ -286,7 +286,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
       {edgeHint && (
         <div
           role="status"
-          className="shrink-0 px-4 py-1.5 text-center text-[9px] font-mono uppercase tracking-wider text-cyan-200 bg-cyan-400/10 border-b border-cyan-400/20"
+          className="sticky top-[52px] z-10 shrink-0 px-4 py-1.5 text-center text-[9px] font-mono uppercase tracking-wider text-cyan-200 bg-cyan-400/15 border-b border-cyan-400/20 backdrop-blur-sm"
           style={{ animation: "armIn 220ms ease-out both" }}
         >
           {edgeHint}
