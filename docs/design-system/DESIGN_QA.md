@@ -18,6 +18,9 @@ Last updated: Phase marathon (dead-code removal + a11y keyboard)
 |--------|----------|
 | Swipe scene | Axis-lock horizontal, 280ms enter, 8s reading pause |
 | ArrowLeft/Right | Prev/Next scene (only when stage hovered/focused) |
+| Home / End | First / last scene |
+| Space | Toggle reading pause |
+| Tap pause cue | Resume auto-advance immediately |
 | Escape | History → Live |
 | History toggle | Panel chrome swaps cyan ↔ slate |
 | Chip tap | Jump scene + pause |

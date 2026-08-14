@@ -153,3 +153,12 @@ https://www.figma.com/design/TpHSxn1Cvo9Frdf9IEVWlT
 - Reading pause countdown (seconds remaining)
 - Pause cue contrast improved
 
+
+---
+
+## Continue-3
+
+- Home/End first/last scene
+- Space toggles reading pause
+- Tap pause cue to resume
+
