@@ -123,3 +123,13 @@ https://www.figma.com/design/TpHSxn1Cvo9Frdf9IEVWlT
 - Mobile self-contained CSS replaced with shared REACTOR_CSS
 - Docs: `docs/design-system/MOTION.md`
 
+
+---
+
+## Phase Marathon — code health + a11y keyboard
+
+- Removed dead `LiveResearchConsole` (~380 lines) + unused helpers/icons
+- Escape exits History; ArrowLeft/Right change scenes
+- Subtitle contrast slate-500 → slate-400
+- DESIGN_QA.md state matrix
+

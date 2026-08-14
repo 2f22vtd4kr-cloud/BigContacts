@@ -644,6 +644,19 @@ function MobileWorkstage({
     };
   }, [goNext, goPrev, pauseForReading]);
 
+  // Keyboard arrows when the stage is focused (a11y)
+  React.useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      if (e.key === "ArrowRight") { e.preventDefault(); goNext(); }
+      if (e.key === "ArrowLeft") { e.preventDefault(); goPrev(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [goNext, goPrev]);
+
+
   if (!scene) return null;
 
   return (
@@ -812,7 +825,7 @@ function MobileWorkstage({
       )}
 
       {scenes.length > 1 && (
-        <div className="text-center text-[8px] font-mono text-slate-600 tracking-wider pb-1">
+        <div className="text-center text-[8px] font-mono text-slate-500 tracking-wider pb-1">
           swipe · history nav
         </div>
       )}
