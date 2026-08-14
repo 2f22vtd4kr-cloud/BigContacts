@@ -50,3 +50,9 @@ See `MOTION.md` / `src/lib/reactor-motion.ts`. No magic numbers in timers.
 
 - Progress shows **Step N of M · tool title** under the bar
 - Stage shows cyan focus ring when tabbed to
+
+## Touch targets
+
+- Header History / Refresh: 44px (`h-11`)
+- Prev / Next: `min-h-[40px]`
+- Scene chips: `min-h-[52px]`, width ~136px

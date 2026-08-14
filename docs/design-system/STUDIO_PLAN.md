@@ -182,3 +182,13 @@ https://www.figma.com/design/TpHSxn1Cvo9Frdf9IEVWlT
 - motionOrNone on scene slide + shimmer + REACH/arm
 - data-live on WindowChrome
 
+
+---
+
+## Continue-7
+
+- Story line-clamp-2 (less truncation)
+- Chip min-height 52px / width 136px
+- Header controls h-11 (44px)
+- Timestamp HH:MMZ + contrast
+
