@@ -133,3 +133,14 @@ https://www.figma.com/design/TpHSxn1Cvo9Frdf9IEVWlT
 - Subtitle contrast slate-500 → slate-400
 - DESIGN_QA.md state matrix
 
+
+---
+
+## Long session — desktop parity + interaction tokens
+
+- Desktop REACH / desk buttons share mobile system classes
+- Swipe PX/velocity constants in reactor-motion
+- Keyboard arrows scoped to stage hover/focus
+- Live WindowChrome stronger border + glow
+- SR-only scene announcement for AT
+
