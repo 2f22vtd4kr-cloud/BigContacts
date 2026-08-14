@@ -592,13 +592,30 @@ function MobileNodeCard({ n, on, dim, status = "idle", compact = false }: { n: N
           {n.sub}
         </div>
       </div>
-      <div style={{
-         width:compact ? 4 : 5, height:compact ? 4 : 5, borderRadius:"50%", flexShrink:0,
-         background: on ? statusColor : dim ? statusColor+"70" : "#192840",
-         boxShadow: on ? `0 0 6px ${statusColor}` : dim ? `0 0 3px ${statusColor}50` : "none",
-         animation: on ? motionOrNone("blink 1.1s ease-in-out infinite") : dim && !muted ? motionOrNone("breathe 2s ease-in-out infinite") : "none",
-        transition:"all 0.4s",
-      }} />
+      {status === "completed" || status === "failed" || status === "skipped" ? (
+        <span
+          style={{
+            fontSize: compact ? 6 : 7,
+            fontWeight: 700,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            color: statusColor,
+            flexShrink: 0,
+            opacity: 0.9,
+          }}
+          aria-label={status}
+        >
+          {status === "completed" ? "done" : status === "failed" ? "fail" : "skip"}
+        </span>
+      ) : (
+        <div style={{
+           width:compact ? 4 : 5, height:compact ? 4 : 5, borderRadius:"50%", flexShrink:0,
+           background: on ? statusColor : dim ? statusColor+"70" : "#192840",
+           boxShadow: on ? `0 0 6px ${statusColor}` : dim ? `0 0 3px ${statusColor}50` : "none",
+           animation: status === "active" ? motionOrNone("blink 1.1s ease-in-out infinite") : dim && !muted ? motionOrNone("breathe 2s ease-in-out infinite") : "none",
+          transition:"all 0.4s",
+        }} />
+      )}
     </div>
   );
 }
@@ -1517,6 +1534,30 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                 </div>
                 {atlasState?.atlasTelemetry?.resultSummary
                   || `${atlasState?.atlasTelemetry?.contacts ?? 1} attributable vector(s)`}
+                {(() => {
+                  const q = (
+                    atlasState?.atlasTelemetry?.targetName
+                    || atlasState?.currentEntities?.[0]
+                    || ""
+                  ).trim();
+                  if (!q) return null;
+                  return (
+                    <a
+                      href={`/profiles?q=${encodeURIComponent(q)}`}
+                      data-testid="link-reach-open-profile-desktop"
+                      className="reactor-pressable"
+                      style={{
+                        display:"inline-flex", alignItems:"center", gap:6, marginTop:8,
+                        fontSize:11, fontWeight:600, color:"#ecfdf5",
+                        border:"1px solid rgba(52,211,153,0.4)", borderRadius:6,
+                        background:"rgba(52,211,153,0.1)", padding:"6px 10px",
+                        textDecoration:"none",
+                      }}
+                    >
+                      Open in Profiles <span style={{ opacity:0.7, fontSize:9 }} aria-hidden>→</span>
+                    </a>
+                  );
+                })()}
               </div>
             )}
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
@@ -1778,13 +1819,25 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                   {n.sub}
                 </div>
               </div>
-              <div style={{
-                width:6, height:6, borderRadius:"50%", flexShrink:0,
-                background: on ? c : "#192840",
-                boxShadow: on ? `0 0 8px ${c}` : "none",
-                animation: on ? motionOrNone("blink 1.1s ease-in-out infinite") : "none",
-                transition:"all 0.35s",
-              }} />
+              {(status === "completed" || status === "failed" || status === "skipped") ? (
+                <span
+                  style={{
+                    fontSize:7, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase",
+                    color: statusColor, flexShrink:0, opacity:0.9,
+                  }}
+                  aria-label={status}
+                >
+                  {status === "completed" ? "done" : status === "failed" ? "fail" : "skip"}
+                </span>
+              ) : (
+                <div style={{
+                  width:6, height:6, borderRadius:"50%", flexShrink:0,
+                  background: on ? c : "#192840",
+                  boxShadow: on ? `0 0 8px ${c}` : "none",
+                  animation: status === "active" ? motionOrNone("blink 1.1s ease-in-out infinite") : "none",
+                  transition:"all 0.35s",
+                }} />
+              )}
             </div>
           );
         })}

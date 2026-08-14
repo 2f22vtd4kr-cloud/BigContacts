@@ -401,7 +401,7 @@ export default function EntityLedger() {
   const searchStr = useSearch();
   const urlParams = new URLSearchParams(searchStr);
 
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState(() => (urlParams.get("q") || urlParams.get("search") || "").trim());
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
   const [hotOnly, setHotOnly] = useState(() => urlParams.get("hot") === "1");
   const [hideBillionaires, setHideBillionaires] = useState(false);

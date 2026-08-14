@@ -119,3 +119,14 @@ See `MOTION.md` / `src/lib/reactor-motion.ts`. No magic numbers in timers.
 | Summary strip | Contacts/Sources/Evidence/Phase when done |
 | Desktop REACH | Settles to CONTACT ROUTE LOCKED |
 | Archive empty | “Archive empty for this target” |
+
+## Phase M — REACH CTA + scheme tags
+
+| Surface | Expected |
+|---------|----------|
+| REACH mobile | Open in Profiles link when targetName known |
+| REACH desktop | Same CTA |
+| Profiles | `?q=` pre-fills search |
+| Mobile node completed | “done” tag, no blink |
+| Desktop node completed | “done” tag, no blink |
+| Active node | “live” pip still blinks |

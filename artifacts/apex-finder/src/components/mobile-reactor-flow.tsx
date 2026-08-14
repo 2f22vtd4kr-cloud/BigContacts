@@ -302,6 +302,25 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
               {atlasState?.atlasTelemetry?.resultSummary
                 || `${atlasState?.atlasTelemetry?.contacts} attributable vector(s)`}
             </div>
+            {(() => {
+              const q = (
+                atlasState?.atlasTelemetry?.targetName
+                || atlasState?.currentEntities?.[0]
+                || ""
+              ).trim();
+              if (!q) return null;
+              const href = `/profiles?q=${encodeURIComponent(q)}`;
+              return (
+                <a
+                  href={href}
+                  data-testid="link-reach-open-profile"
+                  className="reactor-pressable mt-2 inline-flex items-center gap-1.5 rounded-lg border border-emerald-400/40 bg-emerald-400/10 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-100 hover:border-emerald-300/60 hover:bg-emerald-400/15"
+                >
+                  Open in Profiles
+                  <span className="font-mono text-[9px] opacity-70" aria-hidden>→</span>
+                </a>
+              );
+            })()}
           </div>
         )}
       </header>

@@ -382,3 +382,24 @@ Every phase must leave **PNG** captures in the folder — not HTML-only.
 ### Rules reinforced
 - Desktop and mobile share terminal language
 - Complete desk is metrics + archive, not LIVE chrome
+
+---
+
+## Phase M — REACH deep-link + scheme terminal tags (Apex Atlas)
+
+**Studio goal:** REACH is not a dead-end. Operators jump to Profiles with the target pre-filled. Scheme rods show terminal state in plain language (done/fail/skip), not only a blinking pip.
+
+### Delivered
+1. **REACH → Profiles CTA**
+   - Mobile + desktop: “Open in Profiles →”
+   - `href=/profiles?q=<targetName>`
+   - Profiles page seeds `searchTerm` from `?q=` / `?search=`
+2. **Scheme node terminal tags**
+   - Mobile node cards: `done` / `fail` / `skip` text instead of idle pip when terminal
+   - Desktop scheme nodes: same tags; live pip only while `active`
+   - Active rods still blink; completed rods do not
+3. Test ids: `link-reach-open-profile`, `link-reach-open-profile-desktop`
+
+### Rules reinforced
+- Celebrate REACH once, then offer a clear next action
+- Terminal scheme state is readable at a glance
