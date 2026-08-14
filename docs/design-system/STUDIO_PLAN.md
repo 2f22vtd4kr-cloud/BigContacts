@@ -527,3 +527,23 @@ Every phase must leave **PNG** captures in the folder — not HTML-only.
 ### Rules reinforced
 - Tool chrome can stay metaphorical (Google/Browser windows)
 - The **story line** is plain English for non-specialists
+
+---
+
+## Phase T — First-glance Now/Done stories (Apex Atlas)
+
+**Studio goal:** Anyone can understand a live step in under a second.
+
+### Delivered
+1. Every story starts with **`Now:`** / **`Done:`** / **`Failed:`**
+2. Shorter bodies, no provider jargon in the story line
+   - `Now: searching Google for “…”`
+   - `Now: opening walkertool.com to read about …`
+   - `Now: looking for emails and phone numbers for …`
+   - `Done: checking who owns the website for …`
+3. Status chrome: `Now · 2/5` (was longer phrases)
+4. Story type weight increased (13px semibold) for scanability
+5. Mobile label: **Live activity**
+
+### Rule
+If a non-researcher cannot say what Atlas is doing after one glance, the copy is wrong.

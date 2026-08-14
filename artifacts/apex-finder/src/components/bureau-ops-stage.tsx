@@ -75,81 +75,86 @@ function extractUrl(e: OpsEvent): string | undefined {
 }
 
 /**
- * Plain-language operator story — what Atlas is doing right now, in human terms.
- * Prefer "searching X for Y" over tool jargon.
+ * First-glance operator story. Short, plain English.
+ * Pattern: "Now: …" while live, "Done: …" when finished.
  */
 function storyFor(kind: SceneKind, e: OpsEvent, query?: string): string {
   const t = (e.targetName || "this target").trim();
   const tool = pickTool(e);
   const blob = `${tool} ${e.stage || ""} ${e.resultSummary || ""} ${e.inputSummary || ""}`;
   const q = (query || "").trim();
-  const shortQ = q.length > 72 ? q.slice(0, 69) + "…" : q;
+  const shortQ = q.length > 56 ? q.slice(0, 53) + "…" : q;
+  const live = !/complete|done|success/i.test(String(e.status || "active"));
+  const failed = /fail|error|blocked/i.test(String(e.status || ""));
+  const prefix = failed ? "Failed:" : live ? "Now:" : "Done:";
 
+  let body: string;
   switch (kind) {
     case "google":
-      return shortQ
-        ? `Typing into Google: “${shortQ}”`
-        : `Searching Google for people and contacts behind ${t}`;
+      body = shortQ
+        ? `searching Google for “${shortQ}”`
+        : `searching Google for ${t}`;
+      break;
     case "browser": {
       const url = extractUrl(e);
       if (/mailto:|contact.?attribut|contact.?facts|hr@|info@|purchasing@/i.test(blob)) {
-        return url
-          ? `Pulling email and phone numbers from the page`
-          : `Looking for email and phone numbers on a public page about ${t}`;
+        body = `looking for emails and phone numbers for ${t}`;
+        break;
       }
       if (url) {
         try {
           const host = new URL(url).hostname.replace(/^www\./, "");
-          return `Opening ${host} in the browser to read what it says about ${t}`;
+          body = `opening ${host} to read about ${t}`;
         } catch {
-          return `Opening a public webpage about ${t}`;
+          body = `opening a webpage about ${t}`;
         }
+        break;
       }
-      return `Reading a public webpage about ${t}`;
+      body = `reading a webpage about ${t}`;
+      break;
     }
     case "prompt":
-      if (/persona|quality|review/i.test(blob)) {
-        return `Checking that any contacts we found really belong to ${t}`;
-      }
-      return `Reading the notes so far and writing down only contacts we can prove for ${t}`;
+      body = /persona|quality|review/i.test(blob)
+        ? `checking contacts really belong to ${t}`
+        : `writing down proven contacts for ${t}`;
+      break;
     case "domain":
-      if (/whois|rdap|registrar/i.test(blob)) {
-        return `Checking who registered the website domain for ${t} and when`;
-      }
-      return `Looking up the website domain for ${t} (registration and ownership clues)`;
+      body = `checking who owns the website for ${t}`;
+      break;
     case "footprint":
-      return `Checking whether ${t} shows up under the same name on social and other sites`;
+      body = `checking if ${t} appears on other sites`;
+      break;
     case "serp": {
-      const provider = providerLabel(detectProviderKind(tool));
-      if (shortQ) return `Searching the web (${provider}): “${shortQ}”`;
-      if (/email|contact|phone|owner|ceo|president/i.test(blob)) {
-        return `Searching the web (${provider}) for contact details for ${t}`;
+      if (shortQ) {
+        body = `searching the web for “${shortQ}”`;
+      } else if (/email|contact|phone|owner|ceo|president/i.test(blob)) {
+        body = `searching the web for contacts for ${t}`;
+      } else {
+        body = `searching the web for ${t}`;
       }
-      return `Searching the web (${provider}) for public information about ${t}`;
+      break;
     }
     default: {
-      // Bureau / registry / generic stages — plain English from tool + stage
       if (/opencorporates|companies.?house|sec\b|edgar|sam\.gov|registry|corporate/i.test(blob)) {
-        return `Searching a public company registry for ${t}`;
+        body = `searching a company registry for ${t}`;
+      } else if (/whois|rdap|dns|domain/i.test(blob)) {
+        body = `checking domain records for ${t}`;
+      } else if (/linkedin/i.test(blob)) {
+        body = `looking up ${t} on LinkedIn`;
+      } else if (/wealth|net.?worth|hnwi/i.test(blob)) {
+        body = `looking up public background on ${t}`;
+      } else if (/graph|relationship|link/i.test(blob)) {
+        body = `linking people and companies around ${t}`;
+      } else if (shortQ) {
+        body = `researching “${shortQ}”`;
+      } else {
+        body = `researching ${t}`;
       }
-      if (/whois|rdap|dns|domain/i.test(blob)) {
-        return `Checking domain registration records for ${t}`;
-      }
-      if (/linkedin/i.test(blob)) {
-        return `Looking for ${t} on LinkedIn and related public profiles`;
-      }
-      if (/wealth|net.?worth|hnwi/i.test(blob)) {
-        return `Gathering public wealth and background signals for ${t}`;
-      }
-      if (/graph|relationship|link/i.test(blob)) {
-        return `Connecting people and companies linked to ${t}`;
-      }
-      if (e.stage && e.stage.length < 48 && !/phase|step\s*\d/i.test(e.stage)) {
-        return `Working on ${e.stage.toLowerCase()} for ${t}`;
-      }
-      return shortQ ? `Researching ${t}: “${shortQ}”` : `Researching public records and pages about ${t}`;
+      break;
     }
   }
+
+  return `${prefix} ${body}`;
 }
 
 function toScene(e: OpsEvent, index: number): Scene {
@@ -870,16 +875,16 @@ function MobileWorkstage({
         </span>
       </div>
       <div className={`text-[9px] font-mono uppercase tracking-wider px-0.5 ${scene.live ? "text-cyan-400/90" : "text-slate-500"}`}>
-        {scene.live ? "Working now" : "Finished"} · step {safeIdx + 1} of {scenes.length}
+        {scene.live ? "Now" : "Done"} · {safeIdx + 1}/{scenes.length}
         {scene.title ? ` · ${scene.title}` : ""}
       </div>
 
       <div className="flex items-center gap-2 px-0.5" aria-live="polite" aria-atomic="true">
         <ProviderIcon kind={scene.provider} size={14} />
         <div className="min-w-0 flex-1">
-          <div className="text-[11px] font-medium text-slate-100 line-clamp-2 leading-snug">{scene.story}</div>
+          <div className="text-[13px] font-semibold text-slate-50 line-clamp-2 leading-snug tracking-tight">{scene.story}</div>
           <div className="text-[9px] font-mono text-slate-400 truncate">
-            {scene.live ? "In progress" : "Done"} · {scene.title}
+            {scene.live ? "Now" : "Done"} · {scene.title}
             {scene.targetName ? ` · ${scene.targetName}` : ""}
           </div>
         </div>
