@@ -429,6 +429,28 @@ function adaptPath(a: NodeDef, b: NodeDef) {
 
 // ── Shared animation styles ───────────────────────────────────────────────────
 const KEYFRAMES = `
+  :root {
+    --reactor-fast: 150ms;
+    --reactor-ui: 220ms;
+    --reactor-scene: 280ms;
+    --reactor-celebrate: 320ms;
+    --reactor-arm: 400ms;
+    --reactor-pause: 8000ms;
+    --reactor-ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --reactor-cyan: #22d3ee;
+    --reactor-lime: #a3e635;
+    --reactor-emerald: #34d399;
+    --reactor-canvas: #0b1120;
+    --reactor-desk: #071018;
+  }
+  .reactor-pressable {
+    transition: transform var(--reactor-fast) ease-out, opacity var(--reactor-fast) ease-out, border-color var(--reactor-fast) ease-out;
+    touch-action: manipulation;
+  }
+  .reactor-pressable:active {
+    transform: scale(0.97);
+    opacity: 0.85;
+  }
   @keyframes blink     { 0%,100%{opacity:1}  50%{opacity:0.35} }
   @keyframes breathe   { 0%,100%{opacity:0.8} 50%{opacity:1}   }
   @keyframes pulseGlow { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.7;transform:scale(0.95)} }
