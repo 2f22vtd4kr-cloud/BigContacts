@@ -337,6 +337,31 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
         </div>
       )}
 
+      {/* Phase L — run-complete summary strip */}
+      {!isLive && atlasState?.runStatus === "done" && (
+        <div
+          className="mx-3 mt-2 flex flex-wrap gap-2"
+          data-testid="strip-run-summary"
+          aria-label="Run summary"
+        >
+          {[
+            { k: "Contacts", v: atlasState.atlasTelemetry?.contacts },
+            { k: "Sources", v: atlasState.atlasTelemetry?.sources },
+            { k: "Evidence", v: atlasState.atlasTelemetry?.evidence },
+            { k: "Phase", v: atlasState.phaseTotal ? `${atlasState.phase}/${atlasState.phaseTotal}` : atlasState.phase },
+          ].filter((x) => x.v != null && x.v !== "").map((x) => (
+            <div
+              key={x.k}
+              className="min-w-[72px] flex-1 rounded-lg border border-emerald-400/25 bg-emerald-400/[0.06] px-2.5 py-1.5"
+            >
+              <div className="text-[8px] font-mono font-bold uppercase tracking-wider text-emerald-400/80">{x.k}</div>
+              <div className="mt-0.5 text-[13px] font-semibold tabular-nums text-emerald-50">{x.v}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+
       {edgeHint && (
         <div
           role="status"
@@ -472,7 +497,9 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
               className={`flex min-h-[320px] flex-col items-center justify-center rounded-2xl border px-6 text-center transition-colors duration-300 ${
                 isLive
                   ? "border-cyan-400/30 bg-cyan-400/[0.05]"
-                  : "border-dashed border-white/10 bg-white/[0.02]"
+                  : showHistory
+                    ? "reactor-archive-panel border-slate-500/30"
+                    : "border-dashed border-white/10 bg-white/[0.02]"
               }`}
               data-testid="panel-live-desk-idle"
               aria-live="polite"
@@ -487,12 +514,24 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                 )}
               </div>
               <div className="text-[14px] font-medium text-slate-300">
-                {isLive ? "Desk is live — first tool window incoming" : "Standby — no live tool scenes yet"}
+                {isLive
+                  ? "Desk is live — first tool window incoming"
+                  : showHistory
+                    ? "Archive empty for this target"
+                    : atlasState?.runStatus === "done"
+                      ? "Run complete — no tool scenes buffered"
+                      : atlasState?.runStatus === "failed"
+                        ? "Run failed — no tool scenes to show"
+                        : "Standby — no live tool scenes yet"}
               </div>
               <div className="mt-2 max-w-xs text-[12px] leading-relaxed text-slate-500">
                 {isLive
                   ? "Atlas is running. The first search, page read, or extraction window will appear here as soon as a tool reports."
-                  : "When Atlas runs, this window shows each tool as it works — search, page reads, extraction, contact recovery — so you can see progress while contacts arrive."}
+                  : showHistory
+                    ? "When Atlas runs, every search, page read, and extraction for this target is archived here for review."
+                    : atlasState?.runStatus === "done"
+                      ? "Summary metrics are above. Open History after the next run to review each tool step."
+                      : "When Atlas runs, this window shows each tool as it works — search, page reads, extraction, contact recovery — so you can see progress while contacts arrive."}
               </div>
               {isLive && (
                 <div className="mt-5 w-full max-w-[260px] space-y-2 opacity-60" aria-hidden>

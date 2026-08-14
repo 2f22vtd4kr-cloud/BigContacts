@@ -359,3 +359,26 @@ Every phase must leave **PNG** captures in the folder — not HTML-only.
 - No live language on finished runs
 - Archive ≠ live strip
 - Celebrate once, then quiet
+
+---
+
+## Phase L — Desktop terminal parity + run summary (Apex Atlas)
+
+**Studio goal:** Mobile terminal language must land on desktop Live Desk. After a run ends, operators should see counts (contacts / sources / evidence), not a still-live panel.
+
+### Delivered
+1. **Desktop Live Desk terminal**
+   - Border/glow: emerald when done, rose when failed
+   - Title: `DESK · COMPLETE` / `DESK · FAILED` + DONE/FAILED badges
+   - `data-terminal` on panel for a11y/test hooks
+2. **Desktop banners** — RUN COMPLETE / RUN FAILED (same copy family as mobile)
+3. **Run summary strip** (mobile + desktop)
+   - Contacts · Sources · Evidence · Phase when `runStatus === "done"`
+4. **Desktop REACH settle** — same one-shot → “CONTACT ROUTE LOCKED · REACH”
+5. **Empty states**
+   - History archive empty copy
+   - Done/failed empty desk copy (no fake live)
+
+### Rules reinforced
+- Desktop and mobile share terminal language
+- Complete desk is metrics + archive, not LIVE chrome

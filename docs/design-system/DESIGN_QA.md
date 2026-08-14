@@ -108,3 +108,14 @@ See `MOTION.md` / `src/lib/reactor-motion.ts`. No magic numbers in timers.
 | WindowChrome complete | DONE pill (not LIVE) |
 | WindowChrome failed | FAIL pill |
 | Scene chip complete | tiny “done” tag |
+
+## Phase L — Desktop parity + summary
+
+| Surface | Expected |
+|---------|----------|
+| Desktop desk done | Emerald border · DESK · COMPLETE · DONE badge |
+| Desktop desk failed | Rose border · DESK · FAILED · FAILED badge |
+| Desktop banners | banner-run-terminal-desktop |
+| Summary strip | Contacts/Sources/Evidence/Phase when done |
+| Desktop REACH | Settles to CONTACT ROUTE LOCKED |
+| Archive empty | “Archive empty for this target” |

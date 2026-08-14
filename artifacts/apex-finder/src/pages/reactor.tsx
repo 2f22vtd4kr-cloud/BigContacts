@@ -6,7 +6,7 @@ import {
   Sparkles, Compass, Rss, Users,
 } from "lucide-react";
 import { MobileReactorFlow } from "../components/mobile-reactor-flow";
-import { REACTOR_CSS, REACTOR_CELEBRATE_MS, REACTOR_UI_MS, motionOrNone } from "../lib/reactor-motion";
+import { REACTOR_CSS, REACTOR_CELEBRATE_MS, REACTOR_UI_MS, motionOrNone, prefersReducedMotion } from "../lib/reactor-motion";
 import { BureauOpsStage } from "../components/bureau-ops-stage";
 import { isMockMode, mockAtlasLiveState, mockLiveNodes } from "@/lib/dev-mock-data";
 import { formatSchedulerCountdown, schedulerWaitRemaining } from "../components/scheduler-utils";
@@ -1351,6 +1351,20 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
   const contactFound = atlasState?.atlasTelemetry?.disposition === "contact_route_found"
     || (atlasState?.atlasTelemetry?.contacts != null && atlasState.atlasTelemetry.contacts > 0);
   const focusedToolId = atlasState?.atlasTelemetry?.activeToolId || (liveNodes && liveNodes.size === 1 ? [...liveNodes][0] : undefined);
+  const [reachSettled, setReachSettled] = useState(false);
+  useEffect(() => {
+    if (!contactFound) {
+      setReachSettled(false);
+      return;
+    }
+    setReachSettled(false);
+    if (prefersReducedMotion()) {
+      setReachSettled(true);
+      return;
+    }
+    const t = window.setTimeout(() => setReachSettled(true), REACTOR_CELEBRATE_MS + 40);
+    return () => window.clearTimeout(t);
+  }, [contactFound, atlasState?.atlasTelemetry?.disposition, atlasState?.atlasTelemetry?.contacts]);
 
   return (
     <div style={{
@@ -1462,18 +1476,26 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
         {deskOn && (
           <div
             data-testid="panel-live-desk"
-            data-live={isLive ? "true" : "false"}
+            data-live={isLive ? "true" : "false"} data-terminal={atlasFailed ? "failed" : atlasDone ? "done" : undefined}
             role="complementary"
             aria-label="Apex Atlas Live Desk"
             style={{
               position:"absolute", top:12, right:18, width:420, maxHeight:"calc(100% - 24px)",
               overflowY:"auto", zIndex:28, padding:"12px 12px 14px",
-              border: isLive ? "1px solid #22d3ee88" : "1px solid #22d3ee40",
+              border: atlasFailed
+                ? "1px solid #fb718566"
+                : atlasDone
+                  ? "1px solid #34d39966"
+                  : isLive ? "1px solid #22d3ee88" : "1px solid #22d3ee40",
               borderRadius:8,
               background:"rgba(7,15,29,0.97)",
               boxShadow: isLive
                 ? "0 0 32px rgba(34,211,238,0.14), 0 0 28px #000a"
-                : "0 0 28px #000a",
+                : atlasDone
+                  ? "0 0 24px rgba(52,211,153,0.1), 0 0 28px #000a"
+                  : atlasFailed
+                    ? "0 0 24px rgba(251,113,133,0.1), 0 0 28px #000a"
+                    : "0 0 28px #000a",
               backdropFilter:"blur(12px)",
               animation:`armIn ${REACTOR_UI_MS + 60}ms ease-out both`,
             }}
@@ -1481,7 +1503,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
             {contactFound && (
               <div
                 className="reactor-reach"
-                data-testid="card-reach-contact-found-desktop"
+                data-testid="card-reach-contact-found-desktop" data-settled={reachSettled ? "true" : "false"}
                 role="status"
                 aria-live="polite"
                 style={{
@@ -1490,16 +1512,16 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                   animation:`reachIn ${REACTOR_CELEBRATE_MS}ms cubic-bezier(0.22,1,0.36,1) both`,
                 }}
               >
-                <div className="reactor-reach-label" style={{ fontWeight:700, fontSize:10, marginBottom:4 }}>
-                  CONTACT FOUND · REACH
+                <div className="reactor-reach-label" style={{ fontWeight:700, fontSize:10, marginBottom:4 }} data-settled={reachSettled ? "true" : "false"}>
+                  {reachSettled ? "CONTACT ROUTE LOCKED · REACH" : "CONTACT FOUND · REACH"}
                 </div>
                 {atlasState?.atlasTelemetry?.resultSummary
                   || `${atlasState?.atlasTelemetry?.contacts ?? 1} attributable vector(s)`}
               </div>
             )}
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
-              <span style={{ fontSize:9, letterSpacing:"0.18em", color:"#67e8f9", fontWeight:700, display:"flex", alignItems:"center", gap:8 }}>
-                LIVE DESK
+              <span style={{ fontSize:9, letterSpacing:"0.18em", color: atlasFailed ? "#fda4af" : atlasDone ? "#a7f3d0" : "#67e8f9", fontWeight:700, display:"flex", alignItems:"center", gap:8 }}>
+                {isLive ? "LIVE DESK" : atlasDone ? "DESK · COMPLETE" : atlasFailed ? "DESK · FAILED" : "LIVE DESK"}
                 {isLive && (
                   <span
                     style={{
@@ -1513,6 +1535,26 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                     <span style={{ width:6, height:6, borderRadius:"50%", background:"#34d399", boxShadow:"0 0 6px #34d399" }} />
                     ACTIVE
                   </span>
+                )}
+                {!isLive && atlasDone && (
+                  <span
+                    style={{
+                      fontSize:8, letterSpacing:"0.12em", fontWeight:700,
+                      color:"#a7f3d0", background:"rgba(52,211,153,0.12)",
+                      border:"1px solid rgba(52,211,153,0.35)", borderRadius:999,
+                      padding:"2px 7px",
+                    }}
+                  >DONE</span>
+                )}
+                {!isLive && atlasFailed && (
+                  <span
+                    style={{
+                      fontSize:8, letterSpacing:"0.12em", fontWeight:700,
+                      color:"#fecdd3", background:"rgba(251,113,133,0.12)",
+                      border:"1px solid rgba(251,113,133,0.35)", borderRadius:999,
+                      padding:"2px 7px",
+                    }}
+                  >FAILED</span>
                 )}
                 {deskEvents.length > 0 && (
                   <span style={{ fontWeight:500, color:"#64748b", letterSpacing:"0.06em" }}>
@@ -1534,6 +1576,68 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                 onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#334155"; e.currentTarget.style.color = "#94a3b8"; }}
               >HIDE</button>
             </div>
+            {!isLive && atlasDone && (
+              <div
+                className="reactor-terminal-banner"
+                data-kind="done"
+                data-testid="banner-run-terminal-desktop"
+                role="status"
+                style={{
+                  marginBottom:10, border:"1px solid rgba(52,211,153,0.45)", borderRadius:8, padding:"10px 12px",
+                  background:"linear-gradient(135deg, rgba(52,211,153,0.12), rgba(15,23,42,0.6))",
+                  animation: motionOrNone(`terminalIn ${REACTOR_UI_MS}ms cubic-bezier(0.22,1,0.36,1) both`),
+                }}
+              >
+                <div className="reactor-done-label" style={{ fontSize:10, fontWeight:700, letterSpacing:"0.14em" }}>RUN COMPLETE</div>
+                <div style={{ marginTop:4, fontSize:12, lineHeight:1.4, color:"rgba(236,253,245,0.9)" }}>
+                  {atlasState?.detail || atlasState?.phaseLabel || "Atlas finished this target. Review tool scenes below."}
+                </div>
+              </div>
+            )}
+            {!isLive && atlasFailed && (
+              <div
+                className="reactor-terminal-banner"
+                data-kind="failed"
+                data-testid="banner-run-terminal-desktop"
+                role="alert"
+                style={{
+                  marginBottom:10, border:"1px solid rgba(251,113,133,0.45)", borderRadius:8, padding:"10px 12px",
+                  background:"linear-gradient(135deg, rgba(251,113,133,0.12), rgba(15,23,42,0.6))",
+                  animation: motionOrNone(`terminalIn ${REACTOR_UI_MS}ms cubic-bezier(0.22,1,0.36,1) both`),
+                }}
+              >
+                <div className="reactor-fail-label" style={{ fontSize:10, fontWeight:700, letterSpacing:"0.14em" }}>RUN FAILED</div>
+                <div style={{ marginTop:4, fontSize:12, lineHeight:1.4, color:"rgba(255,241,242,0.9)" }}>
+                  {atlasState?.detail || "Atlas could not finish this pass."}
+                </div>
+              </div>
+            )}
+            {!isLive && atlasDone && (
+              <div
+                data-testid="strip-run-summary-desktop"
+                aria-label="Run summary"
+                style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:10 }}
+              >
+                {[
+                  { k: "Contacts", v: atlasState?.atlasTelemetry?.contacts },
+                  { k: "Sources", v: atlasState?.atlasTelemetry?.sources },
+                  { k: "Evidence", v: atlasState?.atlasTelemetry?.evidence },
+                  { k: "Phase", v: atlasState?.phaseTotal ? `${atlasState.phase}/${atlasState.phaseTotal}` : atlasState?.phase },
+                ].filter((x) => x.v != null && x.v !== "").map((x) => (
+                  <div
+                    key={x.k}
+                    style={{
+                      flex:"1 1 72px", minWidth:72, borderRadius:8,
+                      border:"1px solid rgba(52,211,153,0.25)", background:"rgba(52,211,153,0.06)",
+                      padding:"6px 10px",
+                    }}
+                  >
+                    <div style={{ fontSize:8, letterSpacing:"0.12em", fontWeight:700, color:"rgba(52,211,153,0.85)", textTransform:"uppercase" }}>{x.k}</div>
+                    <div style={{ marginTop:2, fontSize:13, fontWeight:600, color:"#ecfdf5", fontVariantNumeric:"tabular-nums" }}>{x.v}</div>
+                  </div>
+                ))}
+              </div>
+            )}
             <BureauOpsStage
               events={deskEvents as any}
               maxScenes={8}
