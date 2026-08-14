@@ -111,3 +111,15 @@ Easing: `cubic-bezier(0.22, 1, 0.36, 1)` for enter; linear for shimmer loops.
 ### Figma
 https://www.figma.com/design/TpHSxn1Cvo9Frdf9IEVWlT
 
+
+---
+
+## Phase F — Deep pass: single motion source of truth
+
+- New module: `src/lib/reactor-motion.ts` (constants + REACTOR_CSS)
+- All JS timers (pause, arm) use named constants
+- Scene slide / shimmer / REACH / armIn use token ms
+- KEYFRAMES composed from REACTOR_CSS + desktop scheme keyframes
+- Mobile self-contained CSS replaced with shared REACTOR_CSS
+- Docs: `docs/design-system/MOTION.md`
+
