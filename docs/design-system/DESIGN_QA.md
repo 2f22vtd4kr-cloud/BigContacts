@@ -56,3 +56,8 @@ See `MOTION.md` / `src/lib/reactor-motion.ts`. No magic numbers in timers.
 - Header History / Refresh: 44px (`h-11`)
 - Prev / Next: `min-h-[40px]`
 - Scene chips: `min-h-[52px]`, width ~136px
+
+## Rate limit banner
+
+- `role="alert"` amber strip
+- Title + body; key list capped at 4 with +N overflow
