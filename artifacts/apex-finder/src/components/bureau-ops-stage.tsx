@@ -232,12 +232,12 @@ function WindowChrome({
           {favicon}
           <span className={`font-mono text-slate-300 truncate ${compact ? "text-[10px]" : "text-[11px]"}`}>{title}</span>
           {live && (
-            <span className="relative inline-flex items-center gap-1.5 shrink-0">
+            <span className="relative inline-flex items-center gap-1 shrink-0 rounded-full border border-emerald-400/50 bg-emerald-400/15 px-1.5 py-0.5">
               <span className="relative flex h-1.5 w-1.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
-                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400" />
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-70" />
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400 shadow-[0_0_6px_#34d399]" />
               </span>
-              <span className="text-[8px] font-mono uppercase tracking-wider text-emerald-400">live</span>
+              <span className="text-[8px] font-mono font-bold uppercase tracking-wider text-emerald-300">live</span>
             </span>
           )}
         </div>
@@ -651,7 +651,7 @@ function MobileWorkstage({
     >
       {/* Progress of this step in the run */}
       <div className="flex items-center gap-2">
-        <div className="relative flex-1 h-1 rounded-full bg-slate-800 overflow-hidden">
+        <div className={`relative flex-1 rounded-full bg-slate-800 overflow-hidden ${scene.live ? "h-1.5" : "h-1"}`}>
           <div
             className="h-full rounded-full transition-all duration-500"
             style={{
@@ -659,14 +659,15 @@ function MobileWorkstage({
               background: scene.live
                 ? "linear-gradient(90deg,#22d3ee,#a3e635)"
                 : "#475569",
+              boxShadow: scene.live ? "0 0 10px rgba(34,211,238,0.45)" : undefined,
             }}
           />
           {scene.live && (
             <div
               aria-hidden
-              className="pointer-events-none absolute inset-0 opacity-50"
+              className="pointer-events-none absolute inset-0 opacity-60"
               style={{
-                background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent)",
+                background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)",
                 animation: "reactorShimmer 1.4s ease-in-out infinite",
               }}
             />
