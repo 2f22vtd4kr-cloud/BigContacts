@@ -33,3 +33,13 @@ Never hardcode `8000` / `400` / `280` in components. Import from `reactor-motion
 
 | SWIPE_PX | 56 | — | Min horizontal drag to change scene |
 | SWIPE_VELOCITY | 0.45 px/ms | — | Flick threshold (uses smaller distance) |
+
+## Helpers
+
+```ts
+prefersReducedMotion(): boolean
+motionOrNone(animation: string): string  // "none" when reduced
+```
+
+Desktop scheme blinks/breathes go through `motionOrNone`.
+Reading pause shows remaining seconds (`Reading pause · Ns`).
