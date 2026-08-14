@@ -73,3 +73,13 @@ Easing: `cubic-bezier(0.22, 1, 0.36, 1)` for enter; linear for shimmer loops.
 5. Prefer opacity/transform over layout thrash (60fps mobile).  
 6. Respect reduced motion — cut loops; keep opacity swaps.  
 
+
+---
+
+## Phase D (this pass) — History mode distinction
+
+- History panel: slate border/shadow vs cyan live panel
+- `archive` badge when History is on
+- Footer hint: swipe guidance for Live ↔ History
+- Chip scroller: edge fade mask (scroll affordance)
+

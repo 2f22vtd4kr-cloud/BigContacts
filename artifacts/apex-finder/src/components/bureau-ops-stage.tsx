@@ -769,7 +769,13 @@ function MobileWorkstage({
       )}
 
       {scenes.length > 1 && (
-        <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
+        <div
+          className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-none"
+          style={{
+            maskImage: "linear-gradient(90deg, transparent, #000 12px, #000 calc(100% - 12px), transparent)",
+            WebkitMaskImage: "linear-gradient(90deg, transparent, #000 12px, #000 calc(100% - 12px), transparent)",
+          }}
+        >
           {scenes.map((s, i) => (
             <button
               key={s.id}
