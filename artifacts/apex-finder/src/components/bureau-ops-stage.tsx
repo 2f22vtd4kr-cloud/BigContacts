@@ -671,7 +671,7 @@ function MobileWorkstage({
       const root = rootRef.current;
       if (!root) return;
       const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "BUTTON" || tag === "A") return;
       const active = document.activeElement;
       const over =
         root.matches(":hover") ||
@@ -714,7 +714,7 @@ function MobileWorkstage({
   return (
     <div
       ref={rootRef}
-      className="space-y-2.5 select-none"
+      className="space-y-2.5 select-none rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#071018]"
       style={{ touchAction: "pan-y" }}
       data-testid="mobile-workstage-swipe"
       tabIndex={0}
@@ -751,9 +751,13 @@ function MobileWorkstage({
             />
           )}
         </div>
-        <span className="text-[9px] font-mono tabular-nums text-slate-500 shrink-0">
+        <span className="text-[9px] font-mono tabular-nums text-slate-400 shrink-0" aria-hidden>
           {safeIdx + 1}/{scenes.length}
         </span>
+      </div>
+      <div className="text-[8px] font-mono uppercase tracking-wider text-slate-500 px-0.5">
+        {scene.live ? "Live step" : "Step"} {safeIdx + 1} of {scenes.length}
+        {scene.title ? ` · ${scene.title}` : ""}
       </div>
 
       <div className="flex items-center gap-2 px-0.5" aria-live="polite" aria-atomic="true">
@@ -895,7 +899,9 @@ function MobileWorkstage({
 
       {scenes.length > 1 && (
         <div className="text-center text-[8px] font-mono text-slate-500 tracking-wider pb-1">
-          swipe · history nav
+          {paused
+            ? "auto-advance paused · space or tap cue to resume"
+            : "swipe or arrows · space pauses · home/end jumps"}
         </div>
       )}
     </div>

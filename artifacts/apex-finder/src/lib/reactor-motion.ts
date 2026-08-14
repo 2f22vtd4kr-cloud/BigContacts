@@ -52,6 +52,10 @@ button:focus-visible,
 }
 .reactor-reach-label { color: #a7f3d0; letter-spacing: 0.16em; }
 .reactor-live-label { color: #a5f3fc; text-shadow: 0 0 12px rgba(34, 211, 238, 0.45); }
+[data-testid="mobile-workstage-swipe"]:focus-visible {
+  outline: 2px solid var(--reactor-cyan);
+  outline-offset: 3px;
+}
 @keyframes reactorShimmer { 0% { transform: translateX(-120%); } 100% { transform: translateX(220%); } }
 @keyframes sceneSlideLeft { 0% { opacity: 0; transform: translateX(18px); } 100% { opacity: 1; transform: translateX(0); } }
 @keyframes sceneSlideRight { 0% { opacity: 0; transform: translateX(-18px); } 100% { opacity: 1; transform: translateX(0); } }

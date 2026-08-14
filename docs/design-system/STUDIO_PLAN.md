@@ -162,3 +162,13 @@ https://www.figma.com/design/TpHSxn1Cvo9Frdf9IEVWlT
 - Space toggles reading pause
 - Tap pause cue to resume
 
+
+---
+
+## Continue-4
+
+- Stage keyboard focus ring
+- Step N of M label under progress
+- Footer hints reflect pause state
+- Space not stolen from buttons
+
