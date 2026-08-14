@@ -621,3 +621,21 @@ Text says the action; motion shows the class of work.
 
 ### Rule
 Every tab is operator-facing. Technical stack stays under the hood unless the operator asks for it.
+
+---
+
+## Phase X — Profile detail (How to reach them)
+
+**Studio goal:** Profile is where operators act on a target. Contact UI must be obvious.
+
+### Delivered
+1. Panel title: **How to reach them** (was “Public Contact Vectors”)
+2. Empty state: plain language + **Run research** / **Open Reactor**
+3. Email chips: **Company** / **Personal** (not ORG/P)
+4. Phone chip: **Phone** label; focus rings on REACH links
+5. Header action: **Run research** / **Searching…**
+6. Score sublabels: Strong/Partial/Weak contact · Easy/Hard to reach
+7. Error strings operator-facing
+
+### Rule
+Profile is a workspace, not a schema dump.

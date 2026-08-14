@@ -387,7 +387,7 @@ export default function ApexProfile() {
       await refetchEntity();
       // Auto-trigger enrichment pipeline to search for a replacement contact
       handleEnrich();
-    } catch { setRejectError("Failed to remove contact — try again"); }
+    } catch { setRejectError("Could not remove that contact — try again"); }
     finally { setRejectLoading(false); }
   };
   // ── Relationship modal ─────────────────────────────────────────────────────
@@ -532,7 +532,7 @@ export default function ApexProfile() {
       }
       let attempts = 0;
       const poll = async () => {
-        if (attempts > 40) { setIsEnriching(false); setEnrichError("Timed out waiting for enrichment."); return; }
+        if (attempts > 40) { setIsEnriching(false); setEnrichError("Timed out waiting for research to finish."); return; }
         attempts++;
         try {
           const jr = await fetch(`${baseUrl}/api/ingest/job/${jobId}`);
@@ -546,7 +546,7 @@ export default function ApexProfile() {
           }
           if (job.status === "failed" || job.status === "error" || job.status === "cancelled") {
             setIsEnriching(false);
-            setEnrichError(job.message ?? "Enrichment finished without finding new contact data.");
+            setEnrichError(job.message ?? "Finished — no new public contacts found.");
             return;
           }
         } catch { /* ignore transient poll errors */ }
@@ -555,7 +555,7 @@ export default function ApexProfile() {
       setTimeout(poll, 2_000);
     } catch (err: any) {
       setIsEnriching(false);
-      setEnrichError(err.message ?? "Enrichment failed");
+      setEnrichError(err.message ?? "Research failed — try again");
     }
   };
 
@@ -708,7 +708,7 @@ export default function ApexProfile() {
                 title="Rerun Research"
               >
                 {isEnriching ? <Loader2 className="w-3 h-3 animate-spin" /> : <TargetIcon className="w-3 h-3" />}
-                <span className="hidden sm:inline">{isEnriching ? "Running…" : "Rerun Research"}</span>
+                <span className="hidden sm:inline">{isEnriching ? "Searching…" : "Run research"}</span>
               </button>
             </div>
           </div>
@@ -758,7 +758,7 @@ export default function ApexProfile() {
                 {typeof (entity as any).contactConfidence === "number" ? `${(entity as any).contactConfidence}%` : "—"}
               </span>
               <span className="text-[9px] text-muted-foreground">
-                {((entity as any).contactConfidence ?? 0) >= 60 ? "Strong" : ((entity as any).contactConfidence ?? 0) >= 30 ? "Partial" : "Low"}
+                {((entity as any).contactConfidence ?? 0) >= 60 ? "Strong contact" : ((entity as any).contactConfidence ?? 0) >= 30 ? "Partial contact" : "Weak contact"}
               </span>
             </div>
             <div className="flex-1 bg-background rounded border border-border/50 p-2.5 flex flex-col">
@@ -767,7 +767,7 @@ export default function ApexProfile() {
                 {entity.accessScore != null ? entity.accessScore.toFixed(2) : "—"}
               </span>
               <span className="text-[9px] text-muted-foreground">
-                {(entity.accessScore ?? 0) >= 0.8 ? "Highly Reachable" : (entity.accessScore ?? 0) >= 0.5 ? "Reachable" : "Low Access"}
+                {(entity.accessScore ?? 0) >= 0.8 ? "Easy to reach" : (entity.accessScore ?? 0) >= 0.5 ? "Reachable" : "Hard to reach"}
               </span>
             </div>
             <div className="flex-1 bg-background rounded border border-border/50 p-2.5 flex flex-col">
@@ -947,7 +947,7 @@ export default function ApexProfile() {
         return (
           <div className={cn("flex-shrink-0 border-b border-border px-4 md:px-6 py-3", hasContact && "bg-primary/5")}>
             <div className="flex items-center justify-between mb-2 gap-2">
-               <span className="text-[9px] font-mono font-bold text-primary uppercase tracking-widest">Public Contact Vectors</span>
+               <span className="text-[9px] font-mono font-bold text-primary uppercase tracking-widest">How to reach them</span>
               <div className="flex items-center gap-1.5">
                 {hasContact && (
                   <button
@@ -977,11 +977,11 @@ export default function ApexProfile() {
                       className={cn(
                         "flex items-center gap-2 px-3 py-1.5 rounded border font-mono text-xs transition-colors min-w-0 max-w-[220px] sm:max-w-none",
                         isOrg
-                          ? "border-violet-400/35 bg-violet-400/10 text-violet-300 hover:bg-violet-400/20"
-                          : "border-emerald-400/35 bg-emerald-400/10 text-emerald-300 hover:bg-emerald-400/20",
+                          ? "border-violet-400/35 bg-violet-400/10 text-violet-300 hover:bg-violet-400/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
+                          : "border-emerald-400/35 bg-emerald-400/10 text-emerald-300 hover:bg-emerald-400/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50",
                       )}
                     >
-                      <span className="text-[8px] uppercase tracking-wider opacity-70 shrink-0">{isOrg ? "ORG" : "P"}</span>
+                      <span className="text-[8px] uppercase tracking-wider opacity-70 shrink-0">{isOrg ? "Company" : "Personal"}</span>
                       <span className="truncate">{e.email}</span>
                     </a>
                   );
@@ -991,9 +991,9 @@ export default function ApexProfile() {
                   <a
                     href={`tel:${e.phone}`}
                     title={`REACH · personal — ${e.phone}`}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded border border-emerald-400/35 bg-emerald-400/10 text-emerald-300 font-mono text-xs hover:bg-emerald-400/20 transition-colors"
+                    className="flex items-center gap-2 px-3 py-1.5 rounded border border-emerald-400/35 bg-emerald-400/10 text-emerald-300 font-mono text-xs hover:bg-emerald-400/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50"
                   >
-                    <span className="text-[8px] uppercase tracking-wider opacity-70 shrink-0">P</span>
+                    <span className="text-[8px] uppercase tracking-wider opacity-70 shrink-0">Phone</span>
                     {e.phone}
                   </a>
                 )}
@@ -1002,7 +1002,7 @@ export default function ApexProfile() {
                   <a href={e.linkedinUrl} target="_blank" rel="noopener noreferrer"
                     title={e.linkedinHeadline ?? "REACH · social · LinkedIn"}
                     className="flex items-center gap-2 px-3 py-1.5 rounded border border-sky-400/35 bg-sky-400/10 text-sky-300 font-mono text-xs hover:bg-sky-400/20 transition-colors">
-                    <span className="text-[8px] uppercase tracking-wider opacity-70 shrink-0">SOC</span>
+                    <span className="text-[8px] uppercase tracking-wider opacity-70 shrink-0">Social</span>
                     {e.linkedinHeadline ? (
                       <span className="truncate max-w-[160px]">{e.linkedinHeadline.slice(0, 40)}</span>
                     ) : "LinkedIn"}
@@ -1054,13 +1054,33 @@ export default function ApexProfile() {
                 )}
               </div>
             ) : (
-              <p className="text-xs font-mono text-muted-foreground/50 italic">
-                {isEnriching
-                  ? "Running research pipeline…"
-                  : enrichDone
-                  ? "Research complete — no public contact data found for this entity."
-                  : "No direct contact data. Use Rerun Research to search public sources."}
-              </p>
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  {isEnriching
+                    ? "Searching public sources for email, phone, and profiles…"
+                    : enrichDone
+                    ? "Research finished — no public email or phone found yet."
+                    : "No public email or phone on file yet. Run research to search registries and the open web."}
+                </p>
+                {!isEnriching && (
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={handleEnrich}
+                      disabled={isEnriching}
+                      className="rounded-lg border border-primary/35 bg-primary/10 px-3 py-1.5 text-[11px] font-medium text-primary hover:bg-primary/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50"
+                    >
+                      Run research
+                    </button>
+                    <Link
+                      href="/reactor"
+                      className="rounded-lg border border-border px-3 py-1.5 text-[11px] text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    >
+                      Open Reactor
+                    </Link>
+                  </div>
+                )}
+              </div>
             )}
             {enrichError && (
               <p className="text-xs font-mono text-red-400 mt-1.5">{enrichError}</p>
