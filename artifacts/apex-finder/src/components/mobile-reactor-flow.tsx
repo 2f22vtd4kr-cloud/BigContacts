@@ -143,6 +143,8 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
   type HistoryFilter = "all" | "live" | "done" | "failed";
   const [historyFilter, setHistoryFilter] = React.useState<HistoryFilter>("all");
   const [rateLimitDismissed, setRateLimitDismissed] = React.useState(false);
+  /** Phase O — history text search */
+  const [historyQuery, setHistoryQuery] = React.useState("");
   const wasLiveRef = React.useRef(false);
   React.useEffect(() => {
     if (isLive && !wasLiveRef.current) {
@@ -180,20 +182,14 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
     return () => window.clearTimeout(t);
   }, [hasReach, atlasState?.atlasTelemetry?.disposition, atlasState?.atlasTelemetry?.contacts]);
 
-  // Keyboard: Escape returns from History to Live desk
-  React.useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && showHistory) {
-        e.preventDefault();
-        setShowHistory(false);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [showHistory]);
+  // Keyboard handlers registered after deskEvents (Phase O)
+
 
   React.useEffect(() => {
-    if (!showHistory) setHistoryFilter("all");
+    if (!showHistory) {
+      setHistoryFilter("all");
+      setHistoryQuery("");
+    }
   }, [showHistory]);
 
   React.useEffect(() => {
@@ -203,16 +199,49 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
   const deskEvents = atlasState?.eventLog ?? [];
   // Live strip = recent; History = full target action list (optional status filter)
   const filteredDeskEvents = React.useMemo(() => {
-    if (!showHistory || historyFilter === "all") return deskEvents;
-    return deskEvents.filter((e) => {
-      const s = String(e.status || "").toLowerCase();
-      if (historyFilter === "live") return !/complete|done|success|fail|error|blocked/i.test(s);
-      if (historyFilter === "done") return /complete|done|success/i.test(s);
-      if (historyFilter === "failed") return /fail|error|blocked/i.test(s);
-      return true;
-    });
-  }, [deskEvents, showHistory, historyFilter]);
+    let list = deskEvents;
+    if (showHistory && historyFilter !== "all") {
+      list = list.filter((e) => {
+        const s = String(e.status || "").toLowerCase();
+        if (historyFilter === "live") return !/complete|done|success|fail|error|blocked/i.test(s);
+        if (historyFilter === "done") return /complete|done|success/i.test(s);
+        if (historyFilter === "failed") return /fail|error|blocked/i.test(s);
+        return true;
+      });
+    }
+    const q = historyQuery.trim().toLowerCase();
+    if (showHistory && q) {
+      list = list.filter((e) => {
+        const blob = [
+          e.stage, e.status, e.targetName, e.activeToolId,
+          e.prompt, e.inputSummary, e.resultSummary, e.raw,
+          ...(e.toolIds || []),
+        ].filter(Boolean).join(" ").toLowerCase();
+        return blob.includes(q);
+      });
+    }
+    return list;
+  }, [deskEvents, showHistory, historyFilter, historyQuery]);
   const liveEvents = showHistory ? filteredDeskEvents : deskEvents.slice(-6);
+
+  // Keyboard: Escape returns from History; "/" focuses history search
+  React.useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && showHistory) {
+        e.preventDefault();
+        setShowHistory(false);
+        return;
+      }
+      if (e.key === "/" && showHistory && deskEvents.length > 0) {
+        const t = e.target as HTMLElement | null;
+        if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+        e.preventDefault();
+        document.getElementById("history-search-input")?.focus();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [showHistory, deskEvents.length]);
   const schedulerCountdown = formatSchedulerCountdown(schedulerWaitRemaining(scheduler, schedulerNow));
   const waitingForNextCycle = Boolean(!isLive && schedulerCountdown);
   const statusLabel = atlasState?.runStatus === "failed"
@@ -511,6 +540,22 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                 </div>
               </div>
               {showHistory && deskEvents.length > 0 && (
+                <div className="mb-2">
+                  <label className="sr-only" htmlFor="history-search-input">Search history steps</label>
+                  <input
+                    id="history-search-input"
+                    data-testid="input-history-search"
+                    type="search"
+                    value={historyQuery}
+                    onChange={(e) => setHistoryQuery(e.target.value)}
+                    placeholder="Search tools, results…"
+                    className="w-full rounded-lg border border-white/10 bg-slate-950/80 px-3 py-2 text-[12px] text-slate-200 outline-none placeholder:text-slate-600 focus-visible:border-cyan-400/50 focus-visible:ring-1 focus-visible:ring-cyan-400/40"
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+                </div>
+              )}
+              {showHistory && deskEvents.length > 0 && (
                 <div
                   className="mb-3 flex flex-wrap gap-1.5"
                   role="tablist"
@@ -545,7 +590,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
               )}
               {showHistory && deskEvents.length > 0 && liveEvents.length === 0 && (
                 <div className="mb-3 rounded-lg border border-dashed border-slate-600/40 bg-slate-900/40 px-3 py-3 text-center text-[11px] text-slate-400" data-testid="history-filter-empty">
-                  No {historyFilter} steps in this archive. Try All.
+                  {historyQuery.trim() ? `No steps match “${historyQuery.trim()}”.` : `No ${historyFilter} steps in this archive. Try All.`}
                 </div>
               )}
               <BureauOpsStage

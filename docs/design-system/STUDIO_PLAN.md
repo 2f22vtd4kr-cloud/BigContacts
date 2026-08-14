@@ -424,3 +424,24 @@ Every phase must leave **PNG** captures in the folder — not HTML-only.
 ### Rules reinforced
 - Archive is navigable, not a flat dump
 - Rate limit is operational guidance, not a dead end
+
+---
+
+## Phase O — History search + scheme keyboard focus (Apex Atlas)
+
+**Studio goal:** Archive is queryable. Scheme graph is keyboard-operable.
+
+### Delivered
+1. **History search**
+   - Text field in archive mode: tools, results, stage, prompts
+   - Combines with All/Live/Done/Failed chips
+   - Empty: “No steps match …”
+   - `/` focuses search (when not typing in another field); Escape exits History
+2. **Scheme keyboard focus** (desktop)
+   - Nodes are `role="button"` + `tabIndex={0}`
+   - Arrow keys / Home / End move focus
+   - Cyan outline on keyboard focus; aria-label includes status
+
+### Rules reinforced
+- Archive is scannable **and** searchable
+- Scheme is not mouse-only

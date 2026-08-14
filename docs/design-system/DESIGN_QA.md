@@ -139,3 +139,13 @@ See `MOTION.md` / `src/lib/reactor-motion.ts`. No magic numbers in timers.
 | Filter empty | “No {filter} steps… Try All” |
 | Rate limit banner | Check status + Dismiss |
 | Dismiss | Hides until exhaustedKeys change |
+
+## Phase O — History search + scheme keyboard
+
+| Surface | Expected |
+|---------|----------|
+| History search input | Visible in archive when events exist |
+| `/` key | Focuses search in archive |
+| Filter + search | AND combination |
+| Scheme node Tab | Focus ring cyan |
+| Arrow keys | Move between scheme nodes |

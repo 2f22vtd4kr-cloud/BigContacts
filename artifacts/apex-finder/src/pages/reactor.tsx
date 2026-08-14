@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
   Plane, Building2, Globe, Search, Brain, Zap, Network,
   Target, Cpu, Radio, Activity, BarChart2, Shield,
@@ -1389,6 +1389,35 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
     return () => window.clearTimeout(t);
   }, [contactFound, atlasState?.atlasTelemetry?.disposition, atlasState?.atlasTelemetry?.contacts]);
 
+  /** Phase O — keyboard focus on scheme nodes */
+  const [schemeFocusId, setSchemeFocusId] = useState<string | null>(null);
+  const schemeNodeIds = useMemo(() => NODES.map((n) => n.id), []);
+  const onSchemeNodeKey = useCallback((e: { key: string; preventDefault: () => void }, id: string) => {
+    const idx = schemeNodeIds.indexOf(id);
+    if (idx < 0) return;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+      e.preventDefault();
+      const next = schemeNodeIds[(idx + 1) % schemeNodeIds.length]!;
+      setSchemeFocusId(next);
+      document.getElementById(`scheme-node-${next}`)?.focus();
+    } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+      e.preventDefault();
+      const prev = schemeNodeIds[(idx - 1 + schemeNodeIds.length) % schemeNodeIds.length]!;
+      setSchemeFocusId(prev);
+      document.getElementById(`scheme-node-${prev}`)?.focus();
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      const first = schemeNodeIds[0]!;
+      setSchemeFocusId(first);
+      document.getElementById(`scheme-node-${first}`)?.focus();
+    } else if (e.key === "End") {
+      e.preventDefault();
+      const last = schemeNodeIds[schemeNodeIds.length - 1]!;
+      setSchemeFocusId(last);
+      document.getElementById(`scheme-node-${last}`)?.focus();
+    }
+  }, [schemeNodeIds]);
+
   return (
     <div style={{
       width:"100%", height:"100%", minWidth:1600, minHeight:960,
@@ -1780,23 +1809,36 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
           const visible = status !== "idle";
           const isFocus = focusedToolId != null && n.id === focusedToolId;
           const isSibling = focusedToolId != null && !isFocus && status !== "idle";
+          const kbFocus = schemeFocusId === n.id;
           return (
-            <div key={n.id} style={{
+            <div
+              key={n.id}
+              id={`scheme-node-${n.id}`}
+              role="button"
+              tabIndex={0}
+              data-testid={`scheme-node-${n.id}`}
+              aria-label={`${n.label}, ${status}${isFocus ? ", active tool" : ""}`}
+              onFocus={() => setSchemeFocusId(n.id)}
+              onBlur={() => setSchemeFocusId((cur) => (cur === n.id ? null : cur))}
+              onKeyDown={(e) => onSchemeNodeKey(e, n.id)}
+              style={{
               position:"absolute",
               left: n.cx - n.w / 2, top: n.cy - n.h / 2,
-              width: n.w, height: n.h, zIndex: isFocus ? 4 : 2,
-              opacity: isSibling ? 0.32 : 1,
-              boxShadow: isFocus ? `0 0 22px ${statusColor}55` : undefined,
+              width: n.w, height: n.h, zIndex: isFocus || kbFocus ? 4 : 2,
+              opacity: isSibling && !kbFocus ? 0.32 : 1,
+              outline: kbFocus ? `2px solid #22d3ee` : undefined,
+              outlineOffset: kbFocus ? 3 : undefined,
+              boxShadow: isFocus || kbFocus ? `0 0 22px ${statusColor}55` : undefined,
               transition: "opacity 0.35s, box-shadow 0.35s",
               border:`${on?(isReactor?2:1.5):1}px solid ${visible?statusColor:"#192840"}`,
               borderRadius: isReactor ? 12 : 6,
               background: on ? (isReactor?`${statusColor}14`:`${statusColor}0d`) : visible ? `${statusColor}08` : (isReactor?"#0c1830":"#0d1525"),
               padding:"0 10px",
               display:"flex", alignItems:"center", gap:9,
-              transition:"all 0.35s ease",
+              cursor: "default",
               boxShadow: on
                 ? `0 0 ${isReactor?28:14}px ${statusColor}${isReactor?"55":"30"},inset 0 0 ${isReactor?20:10}px ${statusColor}12`
-                : "none",
+                : kbFocus ? `0 0 16px rgba(34,211,238,0.25)` : "none",
             }}>
               <div style={{
                 width:30, height:30, flexShrink:0, borderRadius:5,
