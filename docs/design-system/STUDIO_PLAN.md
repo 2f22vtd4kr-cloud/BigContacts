@@ -199,3 +199,12 @@ https://www.figma.com/design/TpHSxn1Cvo9Frdf9IEVWlT
 
 - Edge-swipe toast: "Opened history archive" / "Back to live desk" (~1.8s)
 
+
+---
+
+## Continue-9
+
+- Skip desk arming when prefers-reduced-motion
+- Arming panel aria-busy + label
+- Explicit .animate-ping/.animate-pulse kill under reduced motion
+

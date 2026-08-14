@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { formatSchedulerCountdown, schedulerWaitRemaining } from "./scheduler-utils";
 import { BureauOpsStage } from "./bureau-ops-stage";
-import { REACTOR_ARM_MS, REACTOR_CSS, REACTOR_CELEBRATE_MS, REACTOR_SHIMMER_MS, REACTOR_SCENE_MS, motionOrNone } from "../lib/reactor-motion";
+import { REACTOR_ARM_MS, REACTOR_CSS, REACTOR_CELEBRATE_MS, REACTOR_SHIMMER_MS, REACTOR_SCENE_MS, motionOrNone, prefersReducedMotion } from "../lib/reactor-motion";
 
 interface ResearchSession {
   id: number;
@@ -141,9 +141,13 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
   const wasLiveRef = React.useRef(false);
   React.useEffect(() => {
     if (isLive && !wasLiveRef.current) {
+      wasLiveRef.current = true;
+      if (prefersReducedMotion()) {
+        setArming(false);
+        return;
+      }
       setArming(true);
       const t = window.setTimeout(() => setArming(false), REACTOR_ARM_MS);
-      wasLiveRef.current = true;
       return () => clearTimeout(t);
     }
     if (!isLive) {
@@ -298,7 +302,8 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
             <section
               className="rounded-2xl border border-cyan-400/25 bg-[#071018] p-3 shadow-[0_0_40px_rgba(34,211,238,0.06)]"
               data-testid="panel-live-desk-arming"
-              aria-hidden
+              aria-busy="true"
+              aria-label="Arming live desk"
             >
               <div className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300/70">Arming desk…</div>
               <div className="overflow-hidden rounded-xl border border-white/10 bg-[#0b1220]">

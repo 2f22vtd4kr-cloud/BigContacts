@@ -74,6 +74,9 @@ button:focus-visible,
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+  .animate-ping, .animate-pulse {
+    animation: none !important;
+  }
 }
 `;
 
