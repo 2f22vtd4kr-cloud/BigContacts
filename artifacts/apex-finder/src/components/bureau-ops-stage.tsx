@@ -679,10 +679,34 @@ function MobileWorkstage({
       if (!over) return;
       if (e.key === "ArrowRight") { e.preventDefault(); goNext(); }
       if (e.key === "ArrowLeft") { e.preventDefault(); goPrev(); }
+      if (e.key === "Home") {
+        e.preventDefault();
+        pauseForReading(REACTOR_PAUSE_MS);
+        setSlideDir(-1);
+        setIdx(0);
+      }
+      if (e.key === "End") {
+        e.preventDefault();
+        pauseForReading(REACTOR_PAUSE_MS);
+        setSlideDir(1);
+        setIdx(Math.max(0, scenes.length - 1));
+      }
+      if (e.key === " " || e.key === "Spacebar") {
+        // Space toggles reading pause
+        e.preventDefault();
+        if (paused) {
+          setPaused(false);
+          setPauseEndsAt(null);
+          setPauseLeft(0);
+          if (pauseTimerRef.current) window.clearTimeout(pauseTimerRef.current);
+        } else {
+          pauseForReading(REACTOR_PAUSE_MS);
+        }
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [goNext, goPrev]);
+  }, [goNext, goPrev, pauseForReading, paused, scenes.length]);
 
 
   if (!scene) return null;
@@ -813,13 +837,21 @@ function MobileWorkstage({
       )}
 
       {paused && scenes.some((s) => s.live) && (
-        <div
-          className="text-center text-[8px] font-mono uppercase tracking-wider text-cyan-200"
+        <button
+          type="button"
+          className="reactor-pressable mx-auto block text-center text-[8px] font-mono uppercase tracking-wider text-cyan-200"
           data-testid="status-reading-pause"
           style={{ animation: `armIn ${REACTOR_UI_MS}ms ease-out both` }}
+          onClick={() => {
+            setPaused(false);
+            setPauseEndsAt(null);
+            setPauseLeft(0);
+            if (pauseTimerRef.current) window.clearTimeout(pauseTimerRef.current);
+          }}
+          aria-label="Resume auto-advance"
         >
-          {`Reading pause · ${pauseLeft}s`}
-        </div>
+          {`Reading pause · ${pauseLeft}s · tap to resume`}
+        </button>
       )}
 
       {scenes.length > 1 && (
