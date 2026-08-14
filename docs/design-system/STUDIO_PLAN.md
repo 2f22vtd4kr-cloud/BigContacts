@@ -590,3 +590,8 @@ Color carries status; words carry action.
 
 ### Rule
 Text says the action; motion shows the class of work.
+
+### Glyph revision (same phase)
+- Removed orbiting pip and scale pulse (misaligned “glow dots”)
+- Icon = work type always (search stays search when done)
+- Live motion: opacity breathe on fill only; geometry locked

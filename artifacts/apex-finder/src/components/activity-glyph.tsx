@@ -1,21 +1,18 @@
 /**
- * Motion glyphs for live research steps — visual “what’s happening”
- * alongside plain-language Now:/Done: stories. Respects reduced motion.
+ * Activity glyphs — quiet, aligned status marks for live research steps.
+ * Icon = class of work. Color = Now / Done / Failed.
+ * No orbiting dots, no layout-shifting pulse.
  */
 import React from "react";
 import {
   Search,
   Globe2,
   Building2,
-  Mail,
   Sparkles,
   Users,
   FileSearch,
-  CheckCircle2,
-  XCircle,
-  Loader2,
 } from "lucide-react";
-import { motionOrNone, prefersReducedMotion, REACTOR_SHIMMER_MS } from "../lib/reactor-motion";
+import { prefersReducedMotion, motionOrNone, REACTOR_SHIMMER_MS } from "../lib/reactor-motion";
 
 export type ActivityKind =
   | "google"
@@ -34,23 +31,43 @@ type Props = {
   className?: string;
 };
 
-function ringColor(live?: boolean, terminal?: "done" | "failed" | null) {
-  if (terminal === "failed") return "rgba(251,113,133,0.55)";
-  if (terminal === "done") return "rgba(52,211,153,0.55)";
-  if (live) return "rgba(34,211,238,0.55)";
-  return "rgba(148,163,184,0.35)";
+type Tone = "live" | "done" | "failed" | "idle";
+
+function toneOf(live?: boolean, terminal?: "done" | "failed" | null): Tone {
+  if (terminal === "failed") return "failed";
+  if (terminal === "done") return "done";
+  if (live) return "live";
+  return "idle";
 }
 
-function iconColor(live?: boolean, terminal?: "done" | "failed" | null) {
-  if (terminal === "failed") return "#fda4af";
-  if (terminal === "done") return "#6ee7b7";
-  if (live) return "#67e8f9";
-  return "#94a3b8";
-}
+const TONE = {
+  live: {
+    fg: "#67e8f9",
+    border: "rgba(34, 211, 238, 0.45)",
+    bg: "rgba(34, 211, 238, 0.08)",
+    glow: "0 0 0 1px rgba(34, 211, 238, 0.12)",
+  },
+  done: {
+    fg: "#6ee7b7",
+    border: "rgba(52, 211, 153, 0.4)",
+    bg: "rgba(52, 211, 153, 0.08)",
+    glow: "none",
+  },
+  failed: {
+    fg: "#fda4af",
+    border: "rgba(251, 113, 133, 0.4)",
+    bg: "rgba(251, 113, 133, 0.08)",
+    glow: "none",
+  },
+  idle: {
+    fg: "#94a3b8",
+    border: "rgba(148, 163, 184, 0.28)",
+    bg: "rgba(148, 163, 184, 0.06)",
+    glow: "none",
+  },
+} as const;
 
-function pickIcon(kind: ActivityKind, terminal?: "done" | "failed" | null) {
-  if (terminal === "failed") return XCircle;
-  if (terminal === "done") return CheckCircle2;
+function pickIcon(kind: ActivityKind) {
   switch (kind) {
     case "google":
     case "serp":
@@ -71,69 +88,51 @@ function pickIcon(kind: ActivityKind, terminal?: "done" | "failed" | null) {
 }
 
 /**
- * Circular activity badge: icon + optional live orbit / pulse.
+ * Fixed 1:1 circular mark. Icon stays centered; live uses a soft opacity
+ * breathe on the *fill only* (no scale, no orbit, no translate).
  */
-export function ActivityGlyph({ kind, live, terminal, size = 28, className = "" }: Props) {
-  const Icon = pickIcon(kind, terminal);
+export function ActivityGlyph({ kind, live, terminal, size = 32, className = "" }: Props) {
+  const Icon = pickIcon(kind);
+  const tone = toneOf(live, terminal);
+  const t = TONE[tone];
   const reduced = prefersReducedMotion();
-  const color = iconColor(live, terminal);
-  const ring = ringColor(live, terminal);
-  const iconSize = Math.max(12, Math.round(size * 0.48));
-  const isLiveMotion = !!live && !terminal && !reduced;
+  const iconSize = Math.round(size * 0.44);
+  const breathe =
+    tone === "live" && !reduced
+      ? motionOrNone(`activityFillBreathe ${REACTOR_SHIMMER_MS * 1.2}ms ease-in-out infinite`)
+      : "none";
 
   return (
     <span
-      className={`relative inline-flex shrink-0 items-center justify-center ${className}`}
-      style={{ width: size, height: size }}
+      className={`inline-flex shrink-0 items-center justify-center ${className}`}
+      style={{
+        width: size,
+        height: size,
+        borderRadius: "999px",
+        border: `1px solid ${t.border}`,
+        background: t.bg,
+        boxShadow: t.glow,
+        animation: breathe,
+        // lock geometry so animation never shifts layout
+        boxSizing: "border-box",
+      }}
       aria-hidden
       data-testid={`activity-glyph-${kind}`}
-      data-live={live ? "true" : "false"}
-      data-terminal={terminal || undefined}
+      data-tone={tone}
     >
-      {/* outer ring */}
-      <span
-        className="absolute inset-0 rounded-full"
-        style={{
-          border: `1.5px solid ${ring}`,
-          boxShadow: live && !terminal ? `0 0 12px ${ring}` : undefined,
-          animation: isLiveMotion
-            ? motionOrNone(`activityPulse ${REACTOR_SHIMMER_MS}ms ease-in-out infinite`)
-            : "none",
-        }}
-      />
-      {/* orbit pip while live */}
-      {isLiveMotion && (
-        <span
-          className="pointer-events-none absolute inset-0"
-          style={{
-            animation: motionOrNone("activityOrbit 2.4s linear infinite"),
-          }}
-        >
-          <span
-            className="absolute left-1/2 top-0 h-1.5 w-1.5 -translate-x-1/2 rounded-full"
-            style={{ background: color, boxShadow: `0 0 6px ${color}` }}
-          />
-        </span>
-      )}
       <Icon
-        style={{
-          width: iconSize,
-          height: iconSize,
-          color,
-          animation:
-            isLiveMotion && (kind === "google" || kind === "serp")
-              ? motionOrNone("activityNudge 1.2s ease-in-out infinite")
-              : isLiveMotion && kind === "prompt"
-                ? motionOrNone("activityNudge 1.6s ease-in-out infinite")
-                : "none",
-        }}
-        strokeWidth={2.25}
+        width={iconSize}
+        height={iconSize}
+        color={t.fg}
+        strokeWidth={2}
+        absoluteStrokeWidth
+        style={{ display: "block", flexShrink: 0 }}
       />
     </span>
   );
 }
 
-/** Compact inline status for chips — tiny glyph, no orbit */
+/** Chip-scale icon — same mapping, no frame */
 export function ActivityGlyphMini({
   kind,
   live,
@@ -143,13 +142,18 @@ export function ActivityGlyphMini({
   live?: boolean;
   terminal?: "done" | "failed" | null;
 }) {
-  const Icon = pickIcon(kind, terminal);
-  const color = iconColor(live, terminal);
+  const Icon = pickIcon(kind);
+  const tone = toneOf(live, terminal);
+  const t = TONE[tone];
   return (
     <Icon
       aria-hidden
-      style={{ width: 12, height: 12, color, flexShrink: 0 }}
-      strokeWidth={2.5}
+      width={12}
+      height={12}
+      color={t.fg}
+      strokeWidth={2.25}
+      absoluteStrokeWidth
+      style={{ display: "block", flexShrink: 0 }}
     />
   );
 }
