@@ -1088,7 +1088,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                         strokeWidth={active ? 1.5 : on ? 1 : 0.75} opacity={active ? 0.9 : on ? 0.55 : queued || failed ? 0.5 : 0.42}
                         strokeDasharray={active ? (e.adaptive ? "5 3" : "1 0") : completed ? "1 0" : "3 5"}
                         markerEnd={active ? `url(#${e.adaptive ? "mobileCyan" : "mobileLime"})` : undefined}
-                        style={active ? { animation:`${e.adaptive ? "dashBack" : "dashFwd"} 1.2s linear infinite` } : {}}
+                        style={active ? { animation: motionOrNone(`${e.adaptive ? "dashBack" : "dashFwd"} 1.2s linear infinite`) } : {}}
                       />
                     );
                   })}
@@ -1391,6 +1391,19 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
 
   /** Phase O — keyboard focus on scheme nodes */
   const [schemeFocusId, setSchemeFocusId] = useState<string | null>(null);
+  const [deskQuery, setDeskQuery] = useState("");
+  const filteredDeskEvents = useMemo(() => {
+    const q = deskQuery.trim().toLowerCase();
+    if (!q) return deskEvents;
+    return deskEvents.filter((e: any) => {
+      const blob = [
+        e.stage, e.status, e.targetName, e.activeToolId,
+        e.prompt, e.inputSummary, e.resultSummary, e.raw,
+        ...(e.toolIds || []),
+      ].filter(Boolean).join(" ").toLowerCase();
+      return blob.includes(q);
+    });
+  }, [deskEvents, deskQuery]);
   const schemeNodeIds = useMemo(() => NODES.map((n) => n.id), []);
   const onSchemeNodeKey = useCallback((e: { key: string; preventDefault: () => void }, id: string) => {
     const idx = schemeNodeIds.indexOf(id);
@@ -1436,7 +1449,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
       <div style={{
         position:"absolute", left:0, right:0, height:2, pointerEvents:"none", zIndex:1,
         background:"linear-gradient(transparent,rgba(163,230,53,0.07) 50%,transparent)",
-        animation:"scanline 8s linear infinite",
+        animation: motionOrNone("scanline 8s linear infinite"),
       }} />
 
       {/* Header: all quick progress stays above the reactor canvas. */}
@@ -1549,7 +1562,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                     ? "0 0 24px rgba(251,113,133,0.1), 0 0 28px #000a"
                     : "0 0 28px #000a",
               backdropFilter:"blur(12px)",
-              animation:`armIn ${REACTOR_UI_MS + 60}ms ease-out both`,
+              animation: motionOrNone(`armIn ${REACTOR_UI_MS + 60}ms ease-out both`),
             }}
           >
             {contactFound && (
@@ -1561,7 +1574,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                 style={{
                   marginBottom:10, padding:"10px 12px", borderRadius:8,
                   fontSize:12, lineHeight:1.45,
-                  animation:`reachIn ${REACTOR_CELEBRATE_MS}ms cubic-bezier(0.22,1,0.36,1) both`,
+                  animation: motionOrNone(`reachIn ${REACTOR_CELEBRATE_MS}ms cubic-bezier(0.22,1,0.36,1) both`),
                 }}
               >
                 <div className="reactor-reach-label" style={{ fontWeight:700, fontSize:10, marginBottom:4 }} data-settled={reachSettled ? "true" : "false"}>
@@ -1714,8 +1727,38 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                 ))}
               </div>
             )}
+            {deskEvents.length > 2 && (
+              <div style={{ marginBottom: 10 }}>
+                <label htmlFor="desk-search-input" style={{ position:"absolute", width:1, height:1, overflow:"hidden", clip:"rect(0 0 0 0)" }}>
+                  Search Live Desk steps
+                </label>
+                <input
+                  id="desk-search-input"
+                  data-testid="input-desk-search"
+                  type="search"
+                  value={deskQuery}
+                  onChange={(e) => setDeskQuery(e.target.value)}
+                  placeholder="Search tools, results…"
+                  autoComplete="off"
+                  spellCheck={false}
+                  style={{
+                    width:"100%", borderRadius:6, border:"1px solid #334155",
+                    background:"#020617", color:"#e2e8f0", fontSize:11,
+                    padding:"8px 10px", outline:"none",
+                    fontFamily:"inherit",
+                  }}
+                  onFocus={(e) => { e.currentTarget.style.borderColor = "#22d3ee88"; }}
+                  onBlur={(e) => { e.currentTarget.style.borderColor = "#334155"; }}
+                />
+                {deskQuery.trim() && filteredDeskEvents.length === 0 && (
+                  <div style={{ marginTop:6, fontSize:10, color:"#94a3b8" }} data-testid="desk-search-empty">
+                    No steps match “{deskQuery.trim()}”.
+                  </div>
+                )}
+              </div>
+            )}
             <BureauOpsStage
-              events={deskEvents as any}
+              events={(deskQuery.trim() ? filteredDeskEvents : deskEvents) as any}
               maxScenes={8}
               title=""
             />
@@ -1733,7 +1776,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
               fontSize:9, letterSpacing:"0.14em", fontWeight:700,
               color:"#a5f3fc", background:"rgba(34,211,238,0.1)",
               border:"1px solid #22d3ee88", borderRadius:6, padding:"8px 12px", cursor:"pointer",
-              animation:`armIn ${REACTOR_UI_MS}ms ease-out both`,
+              animation: motionOrNone(`armIn ${REACTOR_UI_MS}ms ease-out both`),
               boxShadow:"0 0 16px rgba(34,211,238,0.12)",
             }}
           >LIVE DESK ON</button>
@@ -1785,7 +1828,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                 markerEnd={mk}
                 style={active ? {
                   filter:`drop-shadow(0 0 ${e.adaptive?5:3}px ${col})`,
-                  animation: e.adaptive ? "dashBack 1s linear infinite" : "dashFwd 1.2s linear infinite",
+                  animation: motionOrNone(e.adaptive ? "dashBack 1s linear infinite" : "dashFwd 1.2s linear infinite"),
                 } : {}}
               />
             );

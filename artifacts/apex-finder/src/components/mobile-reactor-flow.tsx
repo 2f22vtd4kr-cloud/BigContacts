@@ -437,7 +437,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
         <div
           role="status"
           className="sticky top-[52px] z-10 shrink-0 px-4 py-1.5 text-center text-[9px] font-mono uppercase tracking-wider text-cyan-200 bg-cyan-400/15 border-b border-cyan-400/20 backdrop-blur-sm"
-          style={{ animation: "armIn 220ms ease-out both" }}
+          style={{ animation: motionOrNone(`armIn ${REACTOR_UI_MS}ms ease-out both`) }}
         >
           {edgeHint}
         </div>

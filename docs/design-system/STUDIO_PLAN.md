@@ -445,3 +445,26 @@ Every phase must leave **PNG** captures in the folder — not HTML-only.
 ### Rules reinforced
 - Archive is scannable **and** searchable
 - Scheme is not mouse-only
+
+---
+
+## Phase P — Reduced-motion audit + desk search parity (Apex Atlas)
+
+**Studio goal:** Every loop respects `prefers-reduced-motion`. Desktop Live Desk gains the same search affordance as mobile archive.
+
+### Delivered
+1. **motionOrNone** on remaining unguarded animations
+   - edge toast, desk armIn, REACH enter, LIVE DESK ON
+   - scheme dashFwd/dashBack, scanline overlay
+2. **REACTOR_CSS**
+   - focus-visible for `a`, `input`, `[tabindex="0"]`
+   - reduced-motion also kills `.animate-spin` loops
+3. **Desktop Live Desk search**
+   - Appears when >2 events
+   - Same query semantics as mobile history search
+   - Empty match message
+
+### Rules reinforced
+- No infinite motion under reduced-motion preference
+- Focus rings consistent across interactive surfaces
+- Desktop desk is searchable like mobile archive

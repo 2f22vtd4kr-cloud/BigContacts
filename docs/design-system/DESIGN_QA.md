@@ -149,3 +149,12 @@ See `MOTION.md` / `src/lib/reactor-motion.ts`. No magic numbers in timers.
 | Filter + search | AND combination |
 | Scheme node Tab | Focus ring cyan |
 | Arrow keys | Move between scheme nodes |
+
+## Phase P — Reduced motion + desk search
+
+| Surface | Expected |
+|---------|----------|
+| prefers-reduced-motion | No dash/scanline/shimmer/ping/spin loops |
+| edge toast | motionOrNone armIn |
+| Desktop desk search | input-desk-search when events > 2 |
+| focus-visible | cyan ring on links, inputs, scheme nodes |

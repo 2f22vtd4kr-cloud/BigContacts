@@ -40,7 +40,10 @@ export const REACTOR_CSS = `
 .reactor-pressable:active { transform: scale(0.97); opacity: 0.85; }
 .reactor-pressable:focus-visible,
 button:focus-visible,
-[role="button"]:focus-visible {
+[role="button"]:focus-visible,
+a:focus-visible,
+input:focus-visible,
+[tabindex="0"]:focus-visible {
   outline: 2px solid var(--reactor-cyan);
   outline-offset: 2px;
 }
@@ -74,10 +77,11 @@ button:focus-visible,
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
-  .animate-ping, .animate-pulse {
+  .animate-ping, .animate-pulse, .animate-spin {
     animation: none !important;
   }
 }
+
 /* Phase K — terminal + archive */
 .reactor-done-label { color: #a7f3d0; letter-spacing: 0.14em; text-shadow: 0 0 10px rgba(52, 211, 153, 0.35); }
 .reactor-fail-label { color: #fecdd3; letter-spacing: 0.14em; }
