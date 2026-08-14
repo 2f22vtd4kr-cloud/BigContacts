@@ -602,6 +602,21 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
     ? atlasState.runStatus === "running"
     : liveNodes.size > 0;
   const [showHistory, setShowHistory] = React.useState(false);
+  // P2 desk arming — brief scaffold when a run first goes live
+  const [arming, setArming] = React.useState(false);
+  const wasLiveRef = React.useRef(false);
+  React.useEffect(() => {
+    if (isLive && !wasLiveRef.current) {
+      setArming(true);
+      const t = window.setTimeout(() => setArming(false), 400);
+      wasLiveRef.current = true;
+      return () => clearTimeout(t);
+    }
+    if (!isLive) {
+      wasLiveRef.current = false;
+      setArming(false);
+    }
+  }, [isLive]);
   const deskEvents = atlasState?.eventLog ?? [];
   // Live strip = recent; History = full target action list
   const liveEvents = showHistory ? deskEvents : deskEvents.slice(-6);
@@ -688,6 +703,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
             className="mt-3 rounded-xl border border-emerald-400/45 bg-emerald-400/[0.12] px-3 py-2.5 shadow-[0_0_24px_rgba(52,211,153,0.15)]"
             data-testid="card-reach-contact-found"
             role="status"
+            style={{ animation: "reachIn 320ms cubic-bezier(0.22,1,0.36,1) both" }}
           >
             <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-300">Contact found · REACH</div>
             <div className="mt-1 text-[13px] leading-snug text-emerald-50">
@@ -704,7 +720,30 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
         style={{ WebkitOverflowScrolling: "touch" }}
       >
         <div className="mx-auto flex w-full max-w-lg flex-col gap-3 pb-8">
-          {liveEvents.length > 0 ? (
+          {arming ? (
+            <section
+              className="rounded-2xl border border-cyan-400/25 bg-[#071018] p-3 shadow-[0_0_40px_rgba(34,211,238,0.06)]"
+              data-testid="panel-live-desk-arming"
+              aria-hidden
+            >
+              <div className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300/70">Arming desk…</div>
+              <div className="overflow-hidden rounded-xl border border-white/10 bg-[#0b1220]">
+                <div className="flex items-center gap-2 border-b border-white/5 px-3 py-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-[#FF5F57]" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-[#FEBC2E]" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-[#28C840]" />
+                  <div className="ml-1 h-2 flex-1 overflow-hidden rounded bg-slate-800">
+                    <div className="h-full w-2/3" style={{ background: "linear-gradient(90deg,transparent,rgba(34,211,238,.25),transparent)", animation: "reactorShimmer 1.4s ease-in-out infinite" }} />
+                  </div>
+                </div>
+                <div className="space-y-2 p-3">
+                  <div className="h-3 w-4/5 rounded bg-slate-800/90" />
+                  <div className="h-3 w-3/5 rounded bg-slate-800/70" />
+                  <div className="h-3 w-2/3 rounded bg-slate-800/50" />
+                </div>
+              </div>
+            </section>
+          ) : liveEvents.length > 0 ? (
             <section
               className="rounded-2xl border border-cyan-400/25 bg-[#071018] p-3 shadow-[0_0_40px_rgba(34,211,238,0.06)]"
               data-testid="panel-live-desk-mobile"

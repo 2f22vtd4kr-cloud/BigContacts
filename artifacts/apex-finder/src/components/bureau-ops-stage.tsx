@@ -651,7 +651,7 @@ function MobileWorkstage({
     >
       {/* Progress of this step in the run */}
       <div className="flex items-center gap-2">
-        <div className="flex-1 h-1 rounded-full bg-slate-800 overflow-hidden">
+        <div className="relative flex-1 h-1 rounded-full bg-slate-800 overflow-hidden">
           <div
             className="h-full rounded-full transition-all duration-500"
             style={{
@@ -661,6 +661,16 @@ function MobileWorkstage({
                 : "#475569",
             }}
           />
+          {scene.live && (
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0 opacity-50"
+              style={{
+                background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent)",
+                animation: "reactorShimmer 1.4s ease-in-out infinite",
+              }}
+            />
+          )}
         </div>
         <span className="text-[9px] font-mono tabular-nums text-slate-500 shrink-0">
           {safeIdx + 1}/{scenes.length}
