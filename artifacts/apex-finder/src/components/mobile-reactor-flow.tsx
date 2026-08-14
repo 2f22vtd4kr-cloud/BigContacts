@@ -420,6 +420,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                   : "border-dashed border-white/10 bg-white/[0.02]"
               }`}
               data-testid="panel-live-desk-idle"
+              aria-live="polite"
             >
               <div className="relative mb-3">
                 <Radio className={`h-8 w-8 ${isLive ? "text-cyan-400/80" : "text-slate-600"}`} />
@@ -438,6 +439,23 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                   ? "Atlas is running. The first search, page read, or extraction window will appear here as soon as a tool reports."
                   : "When Atlas runs, this window shows each tool as it works — search, page reads, extraction, contact recovery — so you can see progress while contacts arrive."}
               </div>
+              {isLive && (
+                <div className="mt-5 w-full max-w-[260px] space-y-2 opacity-60" aria-hidden>
+                  <div className="h-2 w-full overflow-hidden rounded bg-slate-800/80">
+                    <div
+                      className="h-full w-1/2 rounded"
+                      style={{
+                        background: "linear-gradient(90deg,transparent,rgba(34,211,238,.3),transparent)",
+                        animation: motionOrNone(`reactorShimmer ${REACTOR_SHIMMER_MS}ms ease-in-out infinite`),
+                      }}
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <div className="h-8 flex-1 rounded-lg border border-white/5 bg-slate-900/50" />
+                    <div className="h-8 flex-1 rounded-lg border border-white/5 bg-slate-900/50" />
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
