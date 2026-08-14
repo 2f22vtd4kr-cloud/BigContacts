@@ -458,16 +458,18 @@ const KEYFRAMES = `
     outline-offset: 2px;
   }
   .reactor-reach {
-    border-color: rgba(52, 211, 153, 0.55);
-    background: rgba(52, 211, 153, 0.14);
+    border-color: rgba(52, 211, 153, 0.7);
+    background: linear-gradient(135deg, rgba(52, 211, 153, 0.18), rgba(16, 185, 129, 0.08));
     color: #ecfdf5;
+    box-shadow: 0 0 28px rgba(52, 211, 153, 0.22), inset 0 1px 0 rgba(167, 243, 208, 0.12);
   }
   .reactor-reach-label {
-    color: #6ee7b7;
+    color: #a7f3d0;
     letter-spacing: 0.16em;
   }
   .reactor-live-label {
-    color: #67e8f9;
+    color: #a5f3fc;
+    text-shadow: 0 0 12px rgba(34, 211, 238, 0.45);
   }
   @keyframes blink     { 0%,100%{opacity:1}  50%{opacity:0.35} }
   @keyframes breathe   { 0%,100%{opacity:0.8} 50%{opacity:1}   }
