@@ -1347,6 +1347,9 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
   // Live Desk side panel (Bureau Ops) — toggle; never replaces the scheme
   const [deskOn, setDeskOn] = useState(true);
   const deskEvents = atlasState?.eventLog ?? [];
+  // Focused live window: when an active tool is known, dim non-matching siblings
+  const focusedToolId = atlasState?.atlasTelemetry?.activeToolId
+    || (liveNodes && liveNodes.size === 1 ? [...liveNodes][0] : null);
 
   return (
     <div style={{
@@ -1506,20 +1509,23 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
             if (!A || !B) return null;
             const fromStatus = rodStatus(e.from, atlasState, liveNodes);
             const toStatus = rodStatus(e.to, atlasState, liveNodes);
-            const active = fromStatus === "active" || toStatus === "active";
+            const touchesFocus = focusedToolId != null && (e.from === focusedToolId || e.to === focusedToolId);
+            const active = fromStatus === "active" || toStatus === "active" || touchesFocus;
             const complete = fromStatus === "completed" && toStatus === "completed";
             const failed = fromStatus === "failed" || toStatus === "failed";
             const queued = fromStatus === "queued" || toStatus === "queued";
             const on = AE.has(e.id) || complete;
             const d   = e.adaptive ? adaptPath(A, B) : fwdPath(A, B);
             const col = failed ? "#fb7185" : queued ? "#526b86" : e.adaptive ? "#22d3ee" : "#a3e635";
-            const mk  = on ? (e.adaptive ? "url(#mCyan2)" : "url(#mLime2)") : "url(#mDim2)";
+            const mk  = on || touchesFocus ? (e.adaptive ? "url(#mCyan2)" : "url(#mLime2)") : "url(#mDim2)";
+            const baseOp = active ? 0.92 : on ? 0.5 : queued || failed ? 0.45 : 0.22;
+            const opacity = focusedToolId != null && !touchesFocus && !active ? Math.min(baseOp, 0.18) : baseOp;
             return (
               <path key={e.id} d={d} fill="none"
                 stroke={col}
                 strokeWidth={active ? (e.adaptive ? 2 : 1.5) : on ? 1 : 1}
                 strokeDasharray={active ? (e.adaptive ? "7 4" : "0") : complete ? "0" : "4 5"}
-                opacity={active ? 0.92 : on ? 0.5 : queued || failed ? 0.45 : 0.22}
+                opacity={opacity}
                 markerEnd={mk}
                 style={active ? {
                   filter:`drop-shadow(0 0 ${e.adaptive?5:3}px ${col})`,
@@ -1537,35 +1543,39 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
           )}
         </svg>
 
-        {/* Nodes */}
+        {/* Nodes — focused live window dims non-matching siblings when a single tool is active */}
         {NODES.map(n => {
           const status = rodStatus(n.id, atlasState, liveNodes);
-          const on = status === "active";
+          const on = status === "active" || (focusedToolId != null && n.id === focusedToolId);
           const isReactor = n.type === "reactor";
           const c = n.color;
           const statusColor = rodStatusColor(status, c);
           const visible = status !== "idle";
+          const isFocused = focusedToolId != null && n.id === focusedToolId;
+          const isSibling = focusedToolId != null && n.id !== focusedToolId && !isReactor;
+          const nodeOpacity = isSibling ? (visible ? 0.38 : 0.22) : 1;
           return (
             <div key={n.id} style={{
               position:"absolute",
               left: n.cx - n.w / 2, top: n.cy - n.h / 2,
-              width: n.w, height: n.h, zIndex:2,
-              border:`${on?(isReactor?2:1.5):1}px solid ${visible?statusColor:"#192840"}`,
+              width: n.w, height: n.h, zIndex: isFocused ? 4 : 2,
+              opacity: nodeOpacity,
+              border:`${on||isFocused?(isReactor?2:1.5):1}px solid ${(visible||isFocused)?statusColor:"#192840"}`,
               borderRadius: isReactor ? 12 : 6,
-              background: on ? (isReactor?`${statusColor}14`:`${statusColor}0d`) : visible ? `${statusColor}08` : (isReactor?"#0c1830":"#0d1525"),
+              background: (on||isFocused) ? (isReactor?`${statusColor}14`:`${statusColor}0d`) : visible ? `${statusColor}08` : (isReactor?"#0c1830":"#0d1525"),
               padding:"0 10px",
               display:"flex", alignItems:"center", gap:9,
               transition:"all 0.35s ease",
-              boxShadow: on
-                ? `0 0 ${isReactor?28:14}px ${statusColor}${isReactor?"55":"30"},inset 0 0 ${isReactor?20:10}px ${statusColor}12`
+              boxShadow: (on||isFocused)
+                ? `0 0 ${isReactor||isFocused?28:14}px ${statusColor}${isReactor||isFocused?"55":"30"},inset 0 0 ${isReactor?20:10}px ${statusColor}12`
                 : "none",
             }}>
               <div style={{
                 width:30, height:30, flexShrink:0, borderRadius:5,
-                border:`1px solid ${visible?statusColor+"50":"#192840"}`,
-                background: visible ? statusColor+"12" : "transparent",
+                border:`1px solid ${(visible||isFocused)?statusColor+"50":"#192840"}`,
+                background: (visible||isFocused) ? statusColor+"12" : "transparent",
                 display:"flex", alignItems:"center", justifyContent:"center",
-                color: visible ? statusColor : "#253850", transition:"all 0.35s",
+                color: (visible||isFocused) ? statusColor : "#253850", transition:"all 0.35s",
               }}>
                 <n.Icon style={{ width:14, height:14 }} />
               </div>
@@ -1573,14 +1583,14 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                 <div style={{
                   fontSize: isReactor ? 11 : 9.5, fontWeight:700,
                   letterSpacing: isReactor?"0.14em":"0.12em",
-                  color: visible ? statusColor : "#253850", lineHeight:1.2,
+                  color: (visible||isFocused) ? statusColor : "#253850", lineHeight:1.2,
                   transition:"color 0.35s", whiteSpace:"nowrap",
                 }}>
-                  {isReactor && on ? "◉  " : ""}{n.label}
+                  {isReactor && (on||isFocused) ? "◉  " : ""}{n.label}
                 </div>
                 <div style={{
                   fontSize:7.5, letterSpacing:"0.1em",
-                  color: visible ? statusColor+"99" : "#1a2d42",
+                  color: (visible||isFocused) ? statusColor+"99" : "#1a2d42",
                   marginTop:3, lineHeight:1.2,
                   transition:"color 0.35s", whiteSpace:"nowrap",
                 }}>
@@ -1589,9 +1599,9 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
               </div>
               <div style={{
                 width:6, height:6, borderRadius:"50%", flexShrink:0,
-                background: on ? c : "#192840",
-                boxShadow: on ? `0 0 8px ${c}` : "none",
-                animation: on ? "blink 1.1s ease-in-out infinite" : "none",
+                background: (on||isFocused) ? c : "#192840",
+                boxShadow: (on||isFocused) ? `0 0 8px ${c}` : "none",
+                animation: (on||isFocused) ? "blink 1.1s ease-in-out infinite" : "none",
                 transition:"all 0.35s",
               }} />
             </div>
