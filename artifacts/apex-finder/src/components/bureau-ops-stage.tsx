@@ -465,11 +465,19 @@ function MobileWorkstage({
   const [idx, setIdx] = useState(0);
   const [paused, setPaused] = useState(false);
   const [dragX, setDragX] = useState(0);
+  const rootRef = React.useRef<HTMLDivElement | null>(null);
   const touchStart = React.useRef<{ x: number; y: number; t: number } | null>(null);
   const axisLock = React.useRef<"h" | "v" | null>(null);
+  const idxRef = React.useRef(0);
+  const scenesLenRef = React.useRef(scenes.length);
+  const onEdgeRef = React.useRef(onEdgeSwipe);
   const safeIdx = Math.min(idx, Math.max(0, scenes.length - 1));
   const scene = scenes[safeIdx];
   const sceneKey = scenes.map((s) => s.id).join("|");
+
+  idxRef.current = safeIdx;
+  scenesLenRef.current = scenes.length;
+  onEdgeRef.current = onEdgeSwipe;
 
   useEffect(() => {
     const liveIdx = scenes.findIndex((s) => s.live);
@@ -488,88 +496,110 @@ function MobileWorkstage({
     return () => window.clearInterval(id);
   }, [paused, scenes.length, sceneKey]);
 
-  if (!scene) return null;
-
-  const goPrev = () => {
+  const goPrev = React.useCallback(() => {
     setPaused(true);
     setIdx((i) => {
       if (i <= 0) {
-        onEdgeSwipe?.("prev");
+        onEdgeRef.current?.("prev");
         return 0;
       }
       return i - 1;
     });
-  };
-  const goNext = () => {
+  }, []);
+
+  const goNext = React.useCallback(() => {
     setPaused(true);
     setIdx((i) => {
-      if (i >= scenes.length - 1) {
-        onEdgeSwipe?.("next");
-        return scenes.length - 1;
+      if (i >= scenesLenRef.current - 1) {
+        onEdgeRef.current?.("next");
+        return Math.max(0, scenesLenRef.current - 1);
       }
       return i + 1;
     });
-  };
+  }, []);
 
-  const onTouchStart = (e: React.TouchEvent) => {
-    const t = e.changedTouches[0];
-    if (!t) return;
-    touchStart.current = { x: t.clientX, y: t.clientY, t: Date.now() };
-    axisLock.current = null;
-    setPaused(true);
-    setDragX(0);
-  };
-  const onTouchMove = (e: React.TouchEvent) => {
-    const start = touchStart.current;
-    const t = e.changedTouches[0];
-    if (!start || !t) return;
-    const dx = t.clientX - start.x;
-    const dy = t.clientY - start.y;
-    if (!axisLock.current) {
-      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
-      axisLock.current = Math.abs(dx) >= Math.abs(dy) ? "h" : "v";
-    }
-    if (axisLock.current === "h") {
-      // Resist overscroll at ends
-      let visual = dx;
-      if ((safeIdx <= 0 && dx > 0) || (safeIdx >= scenes.length - 1 && dx < 0)) {
-        visual = dx * 0.28;
+  // Native non-passive listeners so preventDefault works on horizontal lock
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+
+    const onStart = (e: TouchEvent) => {
+      const t = e.changedTouches[0];
+      if (!t) return;
+      touchStart.current = { x: t.clientX, y: t.clientY, t: Date.now() };
+      axisLock.current = null;
+      setPaused(true);
+      setDragX(0);
+    };
+
+    const onMove = (e: TouchEvent) => {
+      const start = touchStart.current;
+      const t = e.touches[0];
+      if (!start || !t) return;
+      const dx = t.clientX - start.x;
+      const dy = t.clientY - start.y;
+      if (!axisLock.current) {
+        if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+        axisLock.current = Math.abs(dx) >= Math.abs(dy) * 1.15 ? "h" : "v";
       }
-      setDragX(visual);
+      if (axisLock.current !== "h") return;
       e.preventDefault();
-    }
-  };
-  const onTouchEnd = (e: React.TouchEvent) => {
-    const start = touchStart.current;
-    touchStart.current = null;
-    const lock = axisLock.current;
-    axisLock.current = null;
-    setDragX(0);
-    if (!start || lock === "v") {
+      const i = idxRef.current;
+      const n = scenesLenRef.current;
+      let visual = dx;
+      if ((i <= 0 && dx > 0) || (i >= n - 1 && dx < 0)) visual = dx * 0.25;
+      setDragX(visual);
+    };
+
+    const onEnd = (e: TouchEvent) => {
+      const start = touchStart.current;
+      touchStart.current = null;
+      const lock = axisLock.current;
+      axisLock.current = null;
+      setDragX(0);
+      if (!start || lock !== "h") {
+        setPaused(false);
+        return;
+      }
+      const t = e.changedTouches[0];
+      const dx = (t?.clientX ?? start.x) - start.x;
+      const dt = Math.max(16, Date.now() - start.t);
+      const velocity = Math.abs(dx) / dt; // px/ms
+      const threshold = velocity > 0.5 ? 24 : 48;
+      if (Math.abs(dx) < threshold) {
+        window.setTimeout(() => setPaused(false), 2000);
+        return;
+      }
+      if (dx < 0) goNext();
+      else goPrev();
+      window.setTimeout(() => setPaused(false), 4000);
+    };
+
+    const onCancel = () => {
+      touchStart.current = null;
+      axisLock.current = null;
+      setDragX(0);
       setPaused(false);
-      return;
-    }
-    const t = e.changedTouches[0];
-    const dx = (t?.clientX ?? start.x) - start.x;
-    const dt = Math.max(1, Date.now() - start.t);
-    const velocity = Math.abs(dx) / dt; // px/ms
-    const threshold = velocity > 0.45 ? 28 : 52;
-    if (Math.abs(dx) < threshold) {
-      window.setTimeout(() => setPaused(false), 2500);
-      return;
-    }
-    if (dx < 0) goNext(); // swipe left → newer / next
-    else goPrev(); // swipe right → older / prev
-    window.setTimeout(() => setPaused(false), 4500);
-  };
+    };
+
+    el.addEventListener("touchstart", onStart, { passive: true });
+    el.addEventListener("touchmove", onMove, { passive: false });
+    el.addEventListener("touchend", onEnd, { passive: true });
+    el.addEventListener("touchcancel", onCancel, { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", onStart);
+      el.removeEventListener("touchmove", onMove);
+      el.removeEventListener("touchend", onEnd);
+      el.removeEventListener("touchcancel", onCancel);
+    };
+  }, [goNext, goPrev]);
+
+  if (!scene) return null;
 
   return (
     <div
-      className="space-y-2.5 touch-pan-y"
-      onTouchStart={onTouchStart}
-      onTouchMove={onTouchMove}
-      onTouchEnd={onTouchEnd}
-      onTouchCancel={() => { touchStart.current = null; axisLock.current = null; setDragX(0); }}
+      ref={rootRef}
+      className="space-y-2.5 select-none"
       style={{ touchAction: "pan-y" }}
       data-testid="mobile-workstage-swipe"
     >
@@ -609,7 +639,7 @@ function MobileWorkstage({
 
       <div
         style={{
-          transform: dragX ? `translateX(${dragX}px)` : undefined,
+          transform: dragX ? `translate3d(${dragX}px,0,0)` : undefined,
           transition: dragX ? "none" : "transform 0.22s ease-out",
           willChange: "transform",
         }}
@@ -621,7 +651,7 @@ function MobileWorkstage({
         <div className="flex items-center justify-between gap-2">
           <button
             type="button"
-            className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] font-mono text-slate-300 disabled:opacity-30 active:scale-95"
+            className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] font-mono text-slate-300 disabled:opacity-30 active:scale-95 min-h-[40px]"
             disabled={safeIdx <= 0}
             onClick={goPrev}
           >
@@ -645,7 +675,7 @@ function MobileWorkstage({
           </div>
           <button
             type="button"
-            className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] font-mono text-slate-300 disabled:opacity-30 active:scale-95"
+            className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] font-mono text-slate-300 disabled:opacity-30 active:scale-95 min-h-[40px]"
             disabled={safeIdx >= scenes.length - 1}
             onClick={goNext}
           >
