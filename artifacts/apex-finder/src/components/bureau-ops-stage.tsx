@@ -10,6 +10,7 @@ import {
   providerLabel,
   type ProviderKind,
 } from "./provider-icons";
+import { ActivityGlyph, ActivityGlyphMini } from "./activity-glyph";
 import { REACTOR_PAUSE_MS, REACTOR_SCENE_MS, REACTOR_SHIMMER_MS, REACTOR_UI_MS, REACTOR_AUTO_ADVANCE_MS, REACTOR_SWIPE_VELOCITY, REACTOR_SWIPE_PX, motionOrNone } from "../lib/reactor-motion";
 
 export type OpsEvent = {
@@ -909,12 +910,18 @@ function MobileWorkstage({
         {scene.title ? ` · ${scene.title}` : ""}
       </div>
 
-      <div className="flex items-center gap-2 px-0.5" aria-live="polite" aria-atomic="true">
-        <ProviderIcon kind={scene.provider} size={14} />
+      <div className="flex items-center gap-2.5 px-0.5" aria-live="polite" aria-atomic="true">
+        <ActivityGlyph
+          kind={scene.kind}
+          live={scene.live}
+          terminal={scene.terminal}
+          size={32}
+        />
         <div className="min-w-0 flex-1">
           <StoryLine story={scene.story} className="text-[13px] font-semibold text-slate-50 leading-snug tracking-tight" />
-          <div className="text-[9px] font-mono text-slate-400 truncate">
-            {scene.live ? "Now" : "Done"} · {scene.title}
+          <div className="text-[9px] font-mono text-slate-400 truncate flex items-center gap-1">
+            <ProviderIcon kind={scene.provider} size={10} />
+            <span>{scene.live ? "Now" : "Done"} · {scene.title}</span>
             {scene.targetName ? ` · ${scene.targetName}` : ""}
           </div>
         </div>
@@ -1046,7 +1053,7 @@ function MobileWorkstage({
             >
               <div className="flex items-center gap-1 mb-0.5">
                 <span className={`text-[8px] font-mono tabular-nums ${i === safeIdx ? "text-cyan-400" : "text-slate-600"}`}>{i + 1}</span>
-                <ProviderIcon kind={s.provider} size={10} />
+                <ActivityGlyphMini kind={s.kind} live={s.live} terminal={s.terminal} />
                 <span className={`text-[8px] font-mono uppercase tracking-wider truncate ${i === safeIdx ? "text-slate-200" : "text-slate-400"}`}>{s.title}</span>
                 {s.live && (
                   <span
@@ -1159,7 +1166,7 @@ export function BureauOpsStage({
             >
               <div className="flex items-center gap-1.5 mb-0.5">
                 <span className="text-[9px] font-mono text-slate-500">{i + 1}</span>
-                <ProviderIcon kind={s.provider} size={11} />
+                <ActivityGlyphMini kind={s.kind} live={s.live} terminal={s.terminal} />
                 <span className="text-[9px] font-mono text-slate-300 truncate">{s.title}</span>
                 {s.live && <span className="text-[8px] text-emerald-300 font-mono font-bold">LIVE</span>}
               </div>

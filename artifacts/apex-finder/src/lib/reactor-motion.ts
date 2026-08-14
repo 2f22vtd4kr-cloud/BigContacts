@@ -102,6 +102,18 @@ input:focus-visible,
   box-shadow: 0 0 20px rgba(251, 113, 133, 0.1);
 }
 @keyframes terminalIn { 0% { opacity: 0; transform: translateY(4px); } 100% { opacity: 1; transform: translateY(0); } }
+@keyframes activityPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.75; transform: scale(1.06); }
+}
+@keyframes activityOrbit {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes activityNudge {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-1px); }
+}
 @keyframes reachSettle {
   0% { box-shadow: 0 0 32px rgba(52, 211, 153, 0.35), inset 0 1px 0 rgba(167, 243, 208, 0.18); }
   100% { box-shadow: 0 0 20px rgba(52, 211, 153, 0.16), inset 0 1px 0 rgba(167, 243, 208, 0.1); }

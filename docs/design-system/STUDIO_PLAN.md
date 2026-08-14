@@ -562,3 +562,31 @@ If a non-researcher cannot say what Atlas is doing after one glance, the copy is
 
 ### Rule
 Color carries status; words carry action.
+
+---
+
+## Phase V — Motion activity glyphs (Apex Atlas)
+
+**Studio goal:** Show *what* is happening with motion icons, not only text. Search, page, domain, registry each get a distinct live glyph.
+
+### Delivered
+1. **`ActivityGlyph`** (`activity-glyph.tsx`)
+   - Search / Globe / FileSearch / Sparkles / Users / Building2 (lucide)
+   - Live: orbit pip + pulse ring (token-timed)
+   - Done: check · Failed: X · reduced-motion: static
+2. **Main story row** — large glyph beside Now:/Done: story
+3. **Chips + desktop tabs** — `ActivityGlyphMini`
+4. Provider mark stays as a tiny caption under the story
+
+### Visual language
+| Kind | Icon idea |
+|------|-----------|
+| google / serp | Search |
+| browser | Globe |
+| domain | FileSearch |
+| prompt | Sparkles |
+| footprint | Users |
+| bureau | Building |
+
+### Rule
+Text says the action; motion shows the class of work.
