@@ -252,7 +252,7 @@ function ProfileCompleteness({ entity, assets, relationships, sessions }: {
     { key: "email",       label: "Email",        done: !!(entity.email ?? entity.contactEmail) },
     { key: "phone",       label: "Phone",        done: !!(entity.phone ?? entity.contactPhone) },
     { key: "linkedin",    label: "LinkedIn",     done: !!entity.linkedinUrl },
-    { key: "asset",       label: "Asset ≥1",     done: assets.length >= 1 },
+    { key: "asset",       label: "Asset on file", done: assets.length >= 1 },
     { key: "rel",         label: "Connection",   done: relationships.length >= 1 },
     { key: "session",     label: "Research",     done: sessions.length >= 1 },
   ];
@@ -264,7 +264,7 @@ function ProfileCompleteness({ entity, assets, relationships, sessions }: {
   return (
     <div className="border-b border-border px-4 md:px-6 py-3 bg-card/20 flex-shrink-0">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-[9px] font-mono font-bold text-muted-foreground/70 uppercase tracking-widest">Profile Completeness</span>
+        <span className="text-[9px] font-mono font-bold text-muted-foreground/70 uppercase tracking-widest">Profile completeness</span>
         <span className={cn("text-[10px] font-mono font-bold", txtCls)}>
           {pct}% · {completed}/{fields.length}
         </span>
@@ -320,7 +320,7 @@ export default function ApexProfile() {
   const [enrichDone, setEnrichDone]       = useState(false);
   // ── Tab state ──────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<"assets" | "network" | "research">("assets");
-  const TAB_LABELS: Record<string, string> = { assets: "Assets & Sources", network: "Network", research: "Research Threads" };
+  const TAB_LABELS: Record<string, string> = { assets: "Assets & sources", network: "Network", research: "Research history" };
 
   useEffect(() => {
     window.dispatchEvent(new CustomEvent("apex-mobile-context", {
@@ -1462,7 +1462,7 @@ export default function ApexProfile() {
           {([
             { id: "assets"   as const, label: "Assets & Sources", mobileLabel: "Assets", icon: <Layers    className="w-3.5 h-3.5" /> },
             { id: "network"  as const, label: "Network",          mobileLabel: "Network", icon: <Network   className="w-3.5 h-3.5" /> },
-            { id: "research" as const, label: "Research Threads", mobileLabel: "Research", icon: <Route     className="w-3.5 h-3.5" /> },
+            { id: "research" as const, label: "Research history", mobileLabel: "Research", icon: <Route     className="w-3.5 h-3.5" /> },
           ]).map((tab) => (
             <button
               key={tab.id}
@@ -1503,7 +1503,7 @@ export default function ApexProfile() {
                   <div className="flex flex-col items-center justify-center h-full gap-2 text-muted-foreground/40 px-4 text-center" style={{ minHeight: "320px" }}>
                     <MapPin className="w-8 h-8 opacity-20" />
                     <p className="text-xs font-mono">
-                      {(assets as any[]).length > 0 ? "No map coordinates on file" : "No assets on file"}
+                      {(assets as any[]).length > 0 ? "Assets on file, but no map coordinates yet" : "No assets on file yet"}
                     </p>
                     <p className="text-[10px] font-mono leading-relaxed">
                       {(assets as any[]).length > 0
@@ -1876,9 +1876,12 @@ export default function ApexProfile() {
               }
             />
             {(relationships as any[]).length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 gap-2 text-muted-foreground/40">
-                <Network className="w-8 h-8 opacity-20" />
-                <p className="text-xs font-mono">No connections yet</p>
+              <div className="flex flex-col items-center justify-center py-10 gap-2 text-muted-foreground px-4" data-testid="profile-network-empty">
+                <Network className="w-8 h-8 opacity-30" aria-hidden />
+                <p className="text-sm font-semibold text-foreground">No connections yet</p>
+                <p className="text-[12px] text-center max-w-xs text-muted-foreground leading-relaxed">
+                  Link related people, companies, or assets — or run research to discover them.
+                </p>
                 <p className="text-[10px] font-mono text-center max-w-xs leading-relaxed">
                   Click "Add" to link this entity to another, or run Auto-detect from Data Sources to surface co-ownership signals.
                 </p>
@@ -1950,37 +1953,53 @@ export default function ApexProfile() {
           <div className="border border-border rounded-lg bg-card/30">
             <SectionHeader
               icon={<Route className="w-3.5 h-3.5" />}
-              title="Research Threads"
+              title="Research history"
               badge={(sessions as any[]).length > 0 ? `${(sessions as any[]).length} session${(sessions as any[]).length !== 1 ? "s" : ""}` : undefined}
               action={
                 <button
+                  type="button"
                   onClick={handleRunResearch}
                   disabled={runResearch.isPending}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-primary/10 border border-primary/30 text-primary font-mono text-[10px] uppercase tracking-wider hover:bg-primary/20 transition-colors disabled:opacity-50"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-primary/10 border border-primary/30 text-primary font-mono text-[10px] uppercase tracking-wider hover:bg-primary/20 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 >
                   {runResearch.isPending
                     ? <Loader2 className="w-3 h-3 animate-spin" />
                     : <Play className="w-3 h-3" />}
-                  {runResearch.isPending ? "Computing…" : "Run Research"}
+                  {runResearch.isPending ? "Searching…" : "Run research"}
                 </button>
               }
             />
 
             {(sessions as any[]).length === 0 && !runResearch.isPending && (
-              <div className="flex flex-col items-center justify-center py-12 gap-3 text-muted-foreground/40">
-                <TargetIcon className="w-10 h-10 opacity-20" />
-                <p className="text-sm font-mono">No research sessions yet</p>
-                <p className="text-[11px] font-mono text-center max-w-sm leading-relaxed">
-                  Run Hybrid Research to collect evidence, map graph paths,
-                  and assess identity, attribution, and access for this entity.
+              <div className="flex flex-col items-center justify-center py-12 gap-3 text-muted-foreground px-4" data-testid="profile-research-empty">
+                <TargetIcon className="w-10 h-10 opacity-30" aria-hidden />
+                <p className="text-sm font-semibold text-foreground">No research runs yet</p>
+                <p className="text-[12px] text-center max-w-sm leading-relaxed text-muted-foreground">
+                  Run research to collect public evidence, map introduction paths, and score how reachable this target is.
                 </p>
+                <div className="flex flex-wrap justify-center gap-2 mt-1">
+                  <button
+                    type="button"
+                    onClick={handleRunResearch}
+                    disabled={runResearch.isPending}
+                    className="rounded-lg border border-primary/35 bg-primary/10 px-3 py-1.5 text-[11px] font-medium text-primary hover:bg-primary/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50"
+                  >
+                    Run research
+                  </button>
+                  <Link
+                    href="/reactor"
+                    className="rounded-lg border border-border px-3 py-1.5 text-[11px] text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  >
+                    Open Reactor
+                  </Link>
+                </div>
               </div>
             )}
 
             {runResearch.isPending && (
-              <div className="flex items-center justify-center py-12 gap-3 text-primary/60">
-                <Loader2 className="w-5 h-5 animate-spin" />
-                <span className="text-sm font-mono">Running Hybrid Research…</span>
+              <div className="flex items-center justify-center py-12 gap-3 text-primary/80">
+                <Loader2 className="w-5 h-5 animate-spin" aria-hidden />
+                <span className="text-sm">Searching public sources…</span>
               </div>
             )}
 

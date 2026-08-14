@@ -675,3 +675,17 @@ Help and status are product surfaces, not internal notes.
 
 ### Rule
 Engine metrics can live on hover; the primary UI is for operators.
+
+---
+
+## Phase AA — Profile tabs & empty research
+
+**Studio goal:** Profile secondary tabs feel actionable, not abandoned.
+
+### Delivered
+1. Tab: **Research history** (was Research Threads)
+2. Empty research: plain copy + **Run research** + **Open Reactor**
+3. Pending: “Searching public sources…”
+4. Network empty: clearer copy
+5. Asset map empty: clearer “no coordinates” vs “no assets”
+6. Completeness: “Asset on file”
