@@ -10,7 +10,7 @@ import {
   providerLabel,
   type ProviderKind,
 } from "./provider-icons";
-import { REACTOR_PAUSE_MS, REACTOR_SCENE_MS, REACTOR_SHIMMER_MS, REACTOR_UI_MS, REACTOR_AUTO_ADVANCE_MS, REACTOR_SWIPE_VELOCITY, REACTOR_SWIPE_PX } from "../lib/reactor-motion";
+import { REACTOR_PAUSE_MS, REACTOR_SCENE_MS, REACTOR_SHIMMER_MS, REACTOR_UI_MS, REACTOR_AUTO_ADVANCE_MS, REACTOR_SWIPE_VELOCITY, REACTOR_SWIPE_PX, motionOrNone } from "../lib/reactor-motion";
 
 export type OpsEvent = {
   timestamp?: string;
@@ -206,6 +206,7 @@ function WindowChrome({
   return (
     <div
       className="relative overflow-hidden border backdrop-blur-md"
+      data-live={live ? "true" : "false"}
       style={{
         borderColor: live ? `${accent}99` : `${accent}55`,
         background: "linear-gradient(165deg, rgba(17,24,39,0.92) 0%, rgba(11,18,32,0.98) 100%)",
@@ -257,7 +258,7 @@ function WindowChrome({
                 className="pointer-events-none absolute inset-y-0 left-0 w-1/3 opacity-40"
                 style={{
                   background: "linear-gradient(90deg, transparent, rgba(34,211,238,0.35), transparent)",
-                  animation: `reactorShimmer ${REACTOR_SHIMMER_MS}ms ease-in-out infinite`,
+                  animation: motionOrNone(`reactorShimmer ${REACTOR_SHIMMER_MS}ms ease-in-out infinite`),
                 }}
               />
             )}
@@ -746,7 +747,7 @@ function MobileWorkstage({
               className="pointer-events-none absolute inset-0 opacity-60"
               style={{
                 background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)",
-                animation: `reactorShimmer ${REACTOR_SHIMMER_MS}ms ease-in-out infinite`,
+                animation: motionOrNone(`reactorShimmer ${REACTOR_SHIMMER_MS}ms ease-in-out infinite`),
               }}
             />
           )}
@@ -788,7 +789,7 @@ function MobileWorkstage({
           style={{
             animation: dragX
               ? undefined
-              : `${slideDir === 1 ? "sceneSlideLeft" : "sceneSlideRight"} ${REACTOR_SCENE_MS}ms cubic-bezier(0.22,1,0.36,1) both`,
+              : motionOrNone(`${slideDir === 1 ? "sceneSlideLeft" : "sceneSlideRight"} ${REACTOR_SCENE_MS}ms cubic-bezier(0.22,1,0.36,1) both`),
           }}
         >
           <SceneCard scene={scene} compact={false} />

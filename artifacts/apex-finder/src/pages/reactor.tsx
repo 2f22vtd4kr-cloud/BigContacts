@@ -1491,7 +1491,14 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
               </div>
             )}
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
-              <span style={{ fontSize:9, letterSpacing:"0.18em", color:"#67e8f9", fontWeight:700 }}>LIVE DESK</span>
+              <span style={{ fontSize:9, letterSpacing:"0.18em", color:"#67e8f9", fontWeight:700 }}>
+                LIVE DESK
+                {deskEvents.length > 0 && (
+                  <span style={{ marginLeft:8, fontWeight:500, color:"#64748b", letterSpacing:"0.06em" }}>
+                    {deskEvents.length} event{deskEvents.length === 1 ? "" : "s"}
+                  </span>
+                )}
+              </span>
               <button
                 type="button"
                 className="reactor-pressable"
