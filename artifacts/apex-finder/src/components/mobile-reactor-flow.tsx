@@ -139,6 +139,10 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
   // P2 desk arming — brief scaffold when a run first goes live
   const [arming, setArming] = React.useState(false);
   const [reachSettled, setReachSettled] = React.useState(false);
+  /** Phase N — history archive filter */
+  type HistoryFilter = "all" | "live" | "done" | "failed";
+  const [historyFilter, setHistoryFilter] = React.useState<HistoryFilter>("all");
+  const [rateLimitDismissed, setRateLimitDismissed] = React.useState(false);
   const wasLiveRef = React.useRef(false);
   React.useEffect(() => {
     if (isLive && !wasLiveRef.current) {
@@ -187,9 +191,28 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [showHistory]);
+
+  React.useEffect(() => {
+    if (!showHistory) setHistoryFilter("all");
+  }, [showHistory]);
+
+  React.useEffect(() => {
+    setRateLimitDismissed(false);
+  }, [exhaustedKeys.join("|")]);
+
   const deskEvents = atlasState?.eventLog ?? [];
-  // Live strip = recent; History = full target action list
-  const liveEvents = showHistory ? deskEvents : deskEvents.slice(-6);
+  // Live strip = recent; History = full target action list (optional status filter)
+  const filteredDeskEvents = React.useMemo(() => {
+    if (!showHistory || historyFilter === "all") return deskEvents;
+    return deskEvents.filter((e) => {
+      const s = String(e.status || "").toLowerCase();
+      if (historyFilter === "live") return !/complete|done|success|fail|error|blocked/i.test(s);
+      if (historyFilter === "done") return /complete|done|success/i.test(s);
+      if (historyFilter === "failed") return /fail|error|blocked/i.test(s);
+      return true;
+    });
+  }, [deskEvents, showHistory, historyFilter]);
+  const liveEvents = showHistory ? filteredDeskEvents : deskEvents.slice(-6);
   const schedulerCountdown = formatSchedulerCountdown(schedulerWaitRemaining(scheduler, schedulerNow));
   const waitingForNextCycle = Boolean(!isLive && schedulerCountdown);
   const statusLabel = atlasState?.runStatus === "failed"
@@ -487,6 +510,44 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                   {liveEvents.length} step{liveEvents.length === 1 ? "" : "s"}
                 </div>
               </div>
+              {showHistory && deskEvents.length > 0 && (
+                <div
+                  className="mb-3 flex flex-wrap gap-1.5"
+                  role="tablist"
+                  aria-label="Filter history steps"
+                  data-testid="history-filter-chips"
+                >
+                  {([
+                    ["all", "All"],
+                    ["live", "Live"],
+                    ["done", "Done"],
+                    ["failed", "Failed"],
+                  ] as const).map(([id, label]) => {
+                    const selected = historyFilter === id;
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        role="tab"
+                        aria-selected={selected}
+                        onClick={() => setHistoryFilter(id)}
+                        className={`reactor-pressable min-h-[32px] rounded-full border px-2.5 py-1 text-[10px] font-mono font-bold uppercase tracking-wider transition-colors ${
+                          selected
+                            ? "border-cyan-400/50 bg-cyan-400/15 text-cyan-200"
+                            : "border-white/10 bg-white/[0.03] text-slate-400 hover:border-white/20 hover:text-slate-300"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              {showHistory && deskEvents.length > 0 && liveEvents.length === 0 && (
+                <div className="mb-3 rounded-lg border border-dashed border-slate-600/40 bg-slate-900/40 px-3 py-3 text-center text-[11px] text-slate-400" data-testid="history-filter-empty">
+                  No {historyFilter} steps in this archive. Try All.
+                </div>
+              )}
               <BureauOpsStage
                 events={liveEvents as any}
                 compact
@@ -579,7 +640,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
       </div>
 
 
-      {exhaustedKeys.length > 0 && (
+      {exhaustedKeys.length > 0 && !rateLimitDismissed && (
         <div className="shrink-0 border-t border-amber-500/30 bg-amber-950/35 px-4 py-2.5" role="alert" data-testid="alert-provider-rate-limit">
           <div className="flex items-start gap-2">
             <Key className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400" aria-hidden />
@@ -588,10 +649,28 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                 Provider rate limit
               </div>
               <div className="mt-0.5 text-[11px] leading-snug text-amber-100/90">
-                Rotating configured keys
-                {exhaustedKeys.length > 0 && (
-                  <span className="text-amber-200/80"> · {exhaustedKeys.slice(0, 4).join(", ")}{exhaustedKeys.length > 4 ? ` +${exhaustedKeys.length - 4}` : ""}</span>
-                )}
+                Atlas is rotating configured keys and will keep working. Fresh quota usually returns within the provider window.
+                <span className="text-amber-200/80"> · {exhaustedKeys.slice(0, 4).join(", ")}{exhaustedKeys.length > 4 ? ` +${exhaustedKeys.length - 4}` : ""}</span>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="reactor-pressable inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-amber-400/40 bg-amber-400/10 px-2.5 py-1.5 text-[11px] font-semibold text-amber-100 hover:bg-amber-400/15"
+                  onClick={() => onRefresh()}
+                  disabled={syncing}
+                  data-testid="button-rate-limit-refresh"
+                >
+                  <RefreshCw className={`h-3 w-3 ${syncing ? "animate-spin" : ""}`} aria-hidden />
+                  Check status
+                </button>
+                <button
+                  type="button"
+                  className="reactor-pressable inline-flex min-h-[36px] items-center rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-[11px] font-medium text-slate-300 hover:border-white/20"
+                  onClick={() => setRateLimitDismissed(true)}
+                  data-testid="button-rate-limit-dismiss"
+                >
+                  Dismiss
+                </button>
               </div>
             </div>
           </div>

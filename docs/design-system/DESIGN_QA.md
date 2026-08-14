@@ -130,3 +130,12 @@ See `MOTION.md` / `src/lib/reactor-motion.ts`. No magic numbers in timers.
 | Mobile node completed | “done” tag, no blink |
 | Desktop node completed | “done” tag, no blink |
 | Active node | “live” pip still blinks |
+
+## Phase N — History filters + rate-limit recovery
+
+| Surface | Expected |
+|---------|----------|
+| History chips | All/Live/Done/Failed tabs when archive has events |
+| Filter empty | “No {filter} steps… Try All” |
+| Rate limit banner | Check status + Dismiss |
+| Dismiss | Hides until exhaustedKeys change |

@@ -1214,13 +1214,19 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
             )}
             {/* Key exhaustion warning when idle (no live job) */}
             {!isLive && exhaustedKeys.length > 0 && (
-              <div style={{
-                margin:"0 12px 8px", padding:"5px 10px",
-                border:"1px solid #f59e0b30", borderRadius:6, background:"#f59e0b08",
-                display:"flex", alignItems:"center", gap:6, flexShrink:0,
-              }}>
-                <span style={{ fontSize:7, letterSpacing:"0.12em", color:"#f59e0b" }}>
-                  RATE LIMITED: {exhaustedKeys.join(" · ")}
+              <div
+                data-testid="alert-provider-rate-limit-compact"
+                style={{
+                  margin:"0 12px 8px", padding:"8px 10px",
+                  border:"1px solid #f59e0b40", borderRadius:6, background:"#f59e0b0c",
+                  display:"flex", flexDirection:"column", gap:4, flexShrink:0,
+                }}
+              >
+                <span style={{ fontSize:8, letterSpacing:"0.14em", fontWeight:700, color:"#fbbf24" }}>
+                  PROVIDER RATE LIMIT
+                </span>
+                <span style={{ fontSize:9, letterSpacing:"0.04em", color:"#fcd34d", lineHeight:1.35 }}>
+                  Rotating keys · {exhaustedKeys.slice(0, 3).join(" · ")}{exhaustedKeys.length > 3 ? ` +${exhaustedKeys.length - 3}` : ""}. Atlas keeps working when quota returns.
                 </span>
               </div>
             )}

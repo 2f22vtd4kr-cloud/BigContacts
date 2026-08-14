@@ -403,3 +403,24 @@ Every phase must leave **PNG** captures in the folder — not HTML-only.
 ### Rules reinforced
 - Celebrate REACH once, then offer a clear next action
 - Terminal scheme state is readable at a glance
+
+---
+
+## Phase N — History filters + rate-limit recovery (Apex Atlas)
+
+**Studio goal:** Archive must be scannable (All / Live / Done / Failed). Rate limits must explain recovery, not only alarm.
+
+### Delivered
+1. **History filter chips** (archive mode)
+   - All · Live · Done · Failed
+   - Empty filter state: “No {filter} steps… Try All”
+   - Resets to All when leaving History
+2. **Rate-limit recovery UX** (mobile immersive desk)
+   - Clearer copy: rotating keys, keeps working
+   - **Check status** (refresh) + **Dismiss**
+   - Re-appears if exhausted key set changes
+3. Compact rate-limit strip copy on alternate mobile reactor path
+
+### Rules reinforced
+- Archive is navigable, not a flat dump
+- Rate limit is operational guidance, not a dead end
