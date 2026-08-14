@@ -791,7 +791,7 @@ function MobileWorkstage({
       </div>
 
       <div
-        className="min-h-[280px]"
+        className="min-h-[240px] sm:min-h-[280px]"
         style={{
           transform: dragX ? `translate3d(${dragX}px,0,0)` : undefined,
           transition: dragX ? "none" : `transform ${REACTOR_UI_MS}ms ease-out`,

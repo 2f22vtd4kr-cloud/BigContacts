@@ -242,3 +242,11 @@ https://www.figma.com/design/TpHSxn1Cvo9Frdf9IEVWlT
 - Desktop Live Desk width 420
 - Stage overscroll-behavior-x contain
 
+
+---
+
+## Continue-14
+
+- Main desk scroll-padding-top under sticky header
+- Scene viewport min-height 240 mobile / 280 larger
+
