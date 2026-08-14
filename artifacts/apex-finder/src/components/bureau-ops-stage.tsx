@@ -818,39 +818,41 @@ function MobileWorkstage({
         <div className="flex items-center justify-between gap-2">
           <button
             type="button"
-            className="reactor-pressable rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] font-mono text-slate-300 disabled:opacity-30 disabled:pointer-events-none min-h-[40px]"
+            className="reactor-pressable rounded-lg border border-white/15 bg-white/[0.05] px-3 py-1.5 text-[10px] font-mono text-slate-200 hover:border-cyan-400/40 hover:text-cyan-100 disabled:opacity-25 disabled:pointer-events-none min-h-[44px] min-w-[72px]"
             disabled={safeIdx <= 0}
             onClick={goPrev}
             aria-label="Previous scene"
           >
             ← Prev
           </button>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5" role="tablist" aria-label="Scene position">
             {scenes.map((s, i) => (
               <button
                 key={s.id}
                 type="button"
+                role="tab"
                 aria-label={`Scene ${i + 1}${s.live ? " live" : ""}`}
                 aria-current={i === safeIdx ? "true" : undefined}
+                aria-selected={i === safeIdx}
                 onClick={() => {
                   pauseForReading(REACTOR_PAUSE_MS);
                   setSlideDir(i > safeIdx ? 1 : -1);
                   setIdx(i);
                 }}
-                className="reactor-pressable rounded-full touch-manipulation"
+                className="reactor-pressable rounded-full touch-manipulation transition-[width,background,box-shadow] duration-150"
                 style={{
-                  width: i === safeIdx ? 18 : 8,
-                  height: i === safeIdx ? 8 : 8,
-                  background: i === safeIdx ? (s.live ? "#22d3ee" : "#94a3b8") : "#1e293b",
-                  boxShadow: i === safeIdx && s.live ? "0 0 10px #22d3eecc" : undefined,
-                  minWidth: i === safeIdx ? 18 : 8,
+                  width: i === safeIdx ? 20 : 8,
+                  height: 8,
+                  background: i === safeIdx ? (s.live ? "#22d3ee" : "#94a3b8") : "#334155",
+                  boxShadow: i === safeIdx && s.live ? "0 0 12px #22d3eecc" : i === safeIdx ? "0 0 6px rgba(148,163,184,0.4)" : undefined,
+                  minWidth: i === safeIdx ? 20 : 8,
                 }}
               />
             ))}
           </div>
           <button
             type="button"
-            className="reactor-pressable rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] font-mono text-slate-300 disabled:opacity-30 disabled:pointer-events-none min-h-[40px]"
+            className="reactor-pressable rounded-lg border border-white/15 bg-white/[0.05] px-3 py-1.5 text-[10px] font-mono text-slate-200 hover:border-cyan-400/40 hover:text-cyan-100 disabled:opacity-25 disabled:pointer-events-none min-h-[44px] min-w-[72px]"
             disabled={safeIdx >= scenes.length - 1}
             onClick={goNext}
             aria-label="Next scene"
@@ -863,9 +865,9 @@ function MobileWorkstage({
       {paused && scenes.some((s) => s.live) && (
         <button
           type="button"
-          className="reactor-pressable mx-auto block text-center text-[8px] font-mono uppercase tracking-wider text-cyan-200"
+          className="reactor-pressable mx-auto flex items-center justify-center gap-1.5 rounded-full border border-cyan-400/40 bg-cyan-400/10 px-3 py-1.5 text-center text-[9px] font-mono uppercase tracking-wider text-cyan-100 shadow-[0_0_16px_rgba(34,211,238,0.12)]"
           data-testid="status-reading-pause"
-          style={{ animation: `armIn ${REACTOR_UI_MS}ms ease-out both` }}
+          style={{ animation: motionOrNone(`armIn ${REACTOR_UI_MS}ms ease-out both`) }}
           onClick={() => {
             setPaused(false);
             setPauseEndsAt(null);
@@ -874,6 +876,7 @@ function MobileWorkstage({
           }}
           aria-label="Resume auto-advance"
         >
+          <span className="h-1.5 w-1.5 rounded-full bg-cyan-300" aria-hidden />
           {`Reading pause · ${pauseLeft}s · tap to resume`}
         </button>
       )}
@@ -895,23 +898,31 @@ function MobileWorkstage({
                 setSlideDir(i > safeIdx ? 1 : -1);
                 setIdx(i);
               }}
-              className="reactor-pressable shrink-0 rounded-lg border px-2 py-2 text-left w-[136px] min-h-[52px]"
+              className="reactor-pressable shrink-0 rounded-lg border px-2 py-2 text-left w-[136px] min-h-[52px] transition-[border-color,box-shadow,background] duration-150"
               aria-current={i === safeIdx ? "true" : undefined}
+              aria-label={`Scene ${i + 1}: ${s.title}${s.live ? ", live" : ""}`}
               style={{
-                borderColor: i === safeIdx ? "#22d3ee66" : s.live ? "#22d3ee33" : "#ffffff10",
-                background: i === safeIdx ? "#22d3ee14" : "#0f172a",
-                boxShadow: i === safeIdx ? "0 0 12px rgba(34,211,238,0.12)" : undefined,
+                borderColor: i === safeIdx ? "#22d3ee99" : s.live ? "#22d3ee55" : "#ffffff12",
+                background: i === safeIdx ? "#22d3ee18" : s.live ? "rgba(34,211,238,0.06)" : "#0f172a",
+                boxShadow: i === safeIdx
+                  ? "0 0 16px rgba(34,211,238,0.2), inset 0 0 0 1px rgba(34,211,238,0.15)"
+                  : s.live
+                  ? "0 0 8px rgba(34,211,238,0.08)"
+                  : undefined,
               }}
             >
               <div className="flex items-center gap-1 mb-0.5">
-                <span className="text-[8px] font-mono text-slate-600">{i + 1}</span>
+                <span className={`text-[8px] font-mono tabular-nums ${i === safeIdx ? "text-cyan-400" : "text-slate-600"}`}>{i + 1}</span>
                 <ProviderIcon kind={s.provider} size={10} />
-                <span className="text-[8px] font-mono uppercase tracking-wider text-slate-400 truncate">{s.title}</span>
+                <span className={`text-[8px] font-mono uppercase tracking-wider truncate ${i === safeIdx ? "text-slate-200" : "text-slate-400"}`}>{s.title}</span>
                 {s.live && (
-                  <span className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399]" />
+                  <span
+                    className="ml-auto h-2 w-2 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]"
+                    aria-hidden
+                  />
                 )}
               </div>
-              <div className={`text-[9px] line-clamp-2 leading-tight ${i === safeIdx ? "text-slate-100" : "text-slate-300"}`}>{s.story}</div>
+              <div className={`text-[9px] line-clamp-2 leading-tight ${i === safeIdx ? "text-slate-50" : "text-slate-400"}`}>{s.story}</div>
             </button>
           ))}
         </div>

@@ -78,3 +78,13 @@ See `MOTION.md` / `src/lib/reactor-motion.ts`. No magic numbers in timers.
 | Desktop Live Desk | Stronger border + ACTIVE badge when isLive |
 | Step label | Cyan when scene.live |
 | a11y | complementary region labeled Apex Atlas Live Desk |
+
+## Phase I — Nav & pause
+
+| Control | Expected |
+|---------|----------|
+| Scene chip selected | Cyan border + inset + glow; story text near-white |
+| Scene chip live (not selected) | Soft cyan wash + emerald pip |
+| Dot pager active | 20px wide; cyan if live |
+| Reading pause | Pill (border + fill) · countdown · tap resumes |
+| Prev/Next | ≥44px hit target; disabled at 25% opacity |

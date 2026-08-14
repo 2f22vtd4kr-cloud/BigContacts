@@ -292,3 +292,16 @@ https://www.figma.com/design/TpHSxn1Cvo9Frdf9IEVWlT
 ### Rules reinforced
 - Live tool must read as live at a glance (pill + border + shimmer)
 - Desktop and mobile share the same live language
+
+---
+
+## Phase I — Navigation & pause affordances (Apex Atlas)
+
+### Delivered
+1. **Scene chips** — stronger selected border/glow/inset; live scenes get subtle cyan wash + larger emerald pip; aria-labels per chip
+2. **Morphing dot pager** — wider active (20px), brighter inactive track (#334155), live glow; role="tablist"
+3. **Prev / Next** — 44px min height, clearer hover border, higher contrast labels
+4. **Reading pause cue** — pill with border + cyan fill + pip; motionOrNone on enter
+
+### Intent
+Make “where am I / can I pause / what’s live” readable at a glance without competing with tool chrome.
