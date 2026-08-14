@@ -250,3 +250,24 @@ https://www.figma.com/design/TpHSxn1Cvo9Frdf9IEVWlT
 - Main desk scroll-padding-top under sticky header
 - Scene viewport min-height 240 mobile / 280 larger
 
+
+---
+
+## Phase G — Arming desk realism (this pass)
+
+**Studio goal:** First 400ms of a live run must feel like the desk powering up — tool chrome, not a blank flash.
+
+### Delivered
+1. Arming skeleton expanded to full tool-window metaphor:
+   - Traffic-light dots + URL bar (`atlas://desk/arming…`) with shimmer
+   - Prompt / search line placeholder
+   - Two metric card skeletons
+   - Mini progress bar in header row
+2. `armIn` applied to the arming panel itself (token-aligned)
+3. Motion still gated by `prefers-reduced-motion` / `motionOrNone`
+
+### Design rules reinforced
+- Tool-shaped scenes from the first frame of live
+- No spinner as primary wait
+- Feedback ≤ 300ms; arm 400ms
+

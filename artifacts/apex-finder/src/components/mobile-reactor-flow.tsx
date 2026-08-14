@@ -304,21 +304,58 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
               data-testid="panel-live-desk-arming"
               aria-busy="true"
               aria-label="Arming live desk"
+              style={{ animation: motionOrNone(`armIn ${REACTOR_ARM_MS}ms ease-out both`) }}
             >
-              <div className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300/70">Arming desk…</div>
+              <div className="mb-3 flex items-center justify-between">
+                <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300/70">Arming desk…</div>
+                <div className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-800">
+                  <div
+                    className="h-full rounded-full bg-cyan-400/60"
+                    style={{
+                      width: "40%",
+                      animation: motionOrNone(`reactorShimmer ${REACTOR_SHIMMER_MS}ms ease-in-out infinite`),
+                    }}
+                  />
+                </div>
+              </div>
+              {/* Tool-shaped window chrome */}
               <div className="overflow-hidden rounded-xl border border-white/10 bg-[#0b1220]">
                 <div className="flex items-center gap-2 border-b border-white/5 px-3 py-2">
                   <span className="h-2.5 w-2.5 rounded-full bg-[#FF5F57]" />
                   <span className="h-2.5 w-2.5 rounded-full bg-[#FEBC2E]" />
                   <span className="h-2.5 w-2.5 rounded-full bg-[#28C840]" />
-                  <div className="ml-1 h-2 flex-1 overflow-hidden rounded bg-slate-800">
-                    <div className="h-full w-2/3" style={{ background: "linear-gradient(90deg,transparent,rgba(34,211,238,.25),transparent)", animation: motionOrNone(`reactorShimmer ${REACTOR_SHIMMER_MS}ms ease-in-out infinite`) }} />
+                  <div className="ml-1 flex h-5 flex-1 items-center overflow-hidden rounded bg-slate-800/90 px-2">
+                    <span className="truncate text-[9px] font-mono text-slate-500">atlas://desk/arming…</span>
+                    <div
+                      className="ml-auto h-2 w-8 overflow-hidden rounded bg-slate-700"
+                    >
+                      <div
+                        className="h-full w-full"
+                        style={{
+                          background: "linear-gradient(90deg,transparent,rgba(34,211,238,.35),transparent)",
+                          animation: motionOrNone(`reactorShimmer ${REACTOR_SHIMMER_MS}ms ease-in-out infinite`),
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
-                <div className="space-y-2 p-3">
-                  <div className="h-3 w-4/5 rounded bg-slate-800/90" />
-                  <div className="h-3 w-3/5 rounded bg-slate-800/70" />
-                  <div className="h-3 w-2/3 rounded bg-slate-800/50" />
+                {/* Prompt / search line placeholder */}
+                <div className="border-b border-white/5 px-3 py-2.5">
+                  <div className="flex items-center gap-2">
+                    <div className="h-2.5 w-2.5 rounded-full bg-cyan-400/40" />
+                    <div className="h-2.5 flex-1 rounded bg-slate-800/80" />
+                  </div>
+                </div>
+                {/* Two metric cards */}
+                <div className="grid grid-cols-2 gap-2 p-3">
+                  <div className="rounded-lg border border-white/5 bg-slate-900/60 p-2.5">
+                    <div className="h-2 w-10 rounded bg-slate-700/80" />
+                    <div className="mt-2 h-4 w-8 rounded bg-slate-700/50" />
+                  </div>
+                  <div className="rounded-lg border border-white/5 bg-slate-900/60 p-2.5">
+                    <div className="h-2 w-12 rounded bg-slate-700/80" />
+                    <div className="mt-2 h-4 w-6 rounded bg-slate-700/50" />
+                  </div>
                 </div>
               </div>
             </section>

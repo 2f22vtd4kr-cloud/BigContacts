@@ -61,3 +61,11 @@ See `MOTION.md` / `src/lib/reactor-motion.ts`. No magic numbers in timers.
 
 - `role="alert"` amber strip
 - Title + body; key list capped at 4 with +N overflow
+
+## Phase G — Arming realism
+
+| State | Expected |
+|-------|----------|
+| Arming (400ms) | Traffic lights + URL bar + prompt line + 2 metric cards + shimmer |
+| Reduced motion | Arming skipped; no shimmer loops |
+| Live empty | Cyan border + radio pulse + "first tool window incoming" |
