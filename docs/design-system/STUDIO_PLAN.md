@@ -305,3 +305,15 @@ https://www.figma.com/design/TpHSxn1Cvo9Frdf9IEVWlT
 
 ### Intent
 Make “where am I / can I pause / what’s live” readable at a glance without competing with tool chrome.
+
+---
+
+## Phase J — Contrast + desktop focus (Apex Atlas)
+
+### Delivered
+1. **Mobile contrast** — footer hints and swipe guidance bumped from slate-600/500 → slate-400/500 (instructional copy readable on dark canvas)
+2. **Bureau footer** — same contrast bump (9px slate-400)
+3. **Desktop scheme** — when Live Desk is open *and* run is live, scheme SVG opacity → 0.72 (eased) so tool scenes stay primary without killing the graph
+
+### Intent
+Focus attention on the tool workstage during live runs; keep secondary chrome legible.

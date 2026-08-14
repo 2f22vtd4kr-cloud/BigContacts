@@ -1558,8 +1558,16 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
             }}
           >LIVE DESK ON</button>
         )}
-        {/* SVG connections */}
-        <svg width={1600} height={842} style={{ position:"absolute", inset:0, zIndex:1 }}>
+        {/* SVG connections — subtle dim when Live Desk is open so tool scenes stay primary */}
+        <svg
+          width={1600}
+          height={842}
+          style={{
+            position:"absolute", inset:0, zIndex:1,
+            opacity: deskOn && isLive ? 0.72 : 1,
+            transition: `opacity ${REACTOR_UI_MS}ms ease-out`,
+          }}
+        >
           <defs>
             <marker id="mLime2" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
               <path d="M0,0.5 L0,6.5 L7,3.5 z" fill="#a3e635cc" />

@@ -406,8 +406,8 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                   }
                 }}
               />
-              <div className={`mt-2 text-center text-[8px] font-mono uppercase tracking-wider ${
-                showHistory ? "text-slate-500" : "text-slate-600"
+              <div className={`mt-2 text-center text-[9px] font-mono uppercase tracking-wider ${
+                showHistory ? "text-slate-400" : "text-slate-500"
               }`}>
                 {showHistory ? "Swipe right or tap Live to return" : "Swipe left at start for history"}
               </div>
@@ -459,7 +459,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
             </div>
           )}
 
-          <p className="px-1 text-center text-[10px] leading-relaxed text-slate-600">
+          <p className="px-1 text-center text-[10px] leading-relaxed text-slate-400">
             Swipe or arrows step tools · Space pauses · edge-swipe opens history. Views match the work: search, browser, domain, analyst.
           </p>
         </div>

@@ -88,3 +88,11 @@ See `MOTION.md` / `src/lib/reactor-motion.ts`. No magic numbers in timers.
 | Dot pager active | 20px wide; cyan if live |
 | Reading pause | Pill (border + fill) · countdown · tap resumes |
 | Prev/Next | ≥44px hit target; disabled at 25% opacity |
+
+## Phase J — Contrast & focus
+
+| Surface | Expected |
+|---------|----------|
+| Mobile footer / swipe hints | slate-400 (not 600) |
+| Desktop scheme + Live Desk open + live | SVG opacity ~0.72 |
+| Sibling nodes (focusedToolId) | unchanged 0.32 dim |
