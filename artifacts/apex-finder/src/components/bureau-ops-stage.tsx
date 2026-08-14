@@ -10,6 +10,7 @@ import {
   providerLabel,
   type ProviderKind,
 } from "./provider-icons";
+import { REACTOR_PAUSE_MS, REACTOR_SCENE_MS, REACTOR_SHIMMER_MS, REACTOR_UI_MS } from "../lib/reactor-motion";
 
 export type OpsEvent = {
   timestamp?: string;
@@ -155,7 +156,10 @@ function useTyped(text: string | undefined, active: boolean, cps = 40) {
       setOut("");
       return;
     }
-    if (!active) {
+    const reduced =
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    if (!active || reduced) {
       setOut(text);
       return;
     }
@@ -167,7 +171,7 @@ function useTyped(text: string | undefined, active: boolean, cps = 40) {
       if (i >= text.length) window.clearInterval(id);
     }, Math.max(10, 1000 / cps));
     return () => window.clearInterval(id);
-  }, [text, active]);
+  }, [text, active, cps]);
   return out;
 }
 
@@ -253,7 +257,7 @@ function WindowChrome({
                 className="pointer-events-none absolute inset-y-0 left-0 w-1/3 opacity-40"
                 style={{
                   background: "linear-gradient(90deg, transparent, rgba(34,211,238,0.35), transparent)",
-                  animation: "reactorShimmer 1.4s ease-in-out infinite",
+                  animation: `reactorShimmer ${REACTOR_SHIMMER_MS}ms ease-in-out infinite`,
                 }}
               />
             )}
@@ -507,7 +511,7 @@ function MobileWorkstage({
   onEdgeRef.current = onEdgeSwipe;
 
   /** Pause auto-advance for 8s after any touch/nav (audit P2) */
-  const pauseForReading = React.useCallback((ms = 8000) => {
+  const pauseForReading = React.useCallback((ms = REACTOR_PAUSE_MS) => {
     setPaused(true);
     if (pauseTimerRef.current) window.clearTimeout(pauseTimerRef.current);
     pauseTimerRef.current = window.setTimeout(() => {
@@ -541,7 +545,7 @@ function MobileWorkstage({
   }, [paused, scenes.length, sceneKey]);
 
   const goPrev = React.useCallback(() => {
-    pauseForReading(8000);
+    pauseForReading(REACTOR_PAUSE_MS);
     setSlideDir(-1);
     setIdx((i) => {
       if (i <= 0) {
@@ -553,7 +557,7 @@ function MobileWorkstage({
   }, [pauseForReading]);
 
   const goNext = React.useCallback(() => {
-    pauseForReading(8000);
+    pauseForReading(REACTOR_PAUSE_MS);
     setSlideDir(1);
     setIdx((i) => {
       if (i >= scenesLenRef.current - 1) {
@@ -574,7 +578,7 @@ function MobileWorkstage({
       if (!t) return;
       touchStart.current = { x: t.clientX, y: t.clientY, t: Date.now() };
       axisLock.current = null;
-      pauseForReading(8000);
+      pauseForReading(REACTOR_PAUSE_MS);
       setDragX(0);
     };
 
@@ -604,7 +608,7 @@ function MobileWorkstage({
       axisLock.current = null;
       setDragX(0);
       if (!start || lock !== "h") {
-        pauseForReading(8000);
+        pauseForReading(REACTOR_PAUSE_MS);
         return;
       }
       const t = e.changedTouches[0];
@@ -613,7 +617,7 @@ function MobileWorkstage({
       const velocity = Math.abs(dx) / dt; // px/ms
       const threshold = velocity > 0.5 ? 24 : 48;
       if (Math.abs(dx) < threshold) {
-        pauseForReading(8000);
+        pauseForReading(REACTOR_PAUSE_MS);
         return;
       }
       if (dx < 0) goNext();
@@ -625,7 +629,7 @@ function MobileWorkstage({
       touchStart.current = null;
       axisLock.current = null;
       setDragX(0);
-      pauseForReading(8000);
+      pauseForReading(REACTOR_PAUSE_MS);
     };
 
     el.addEventListener("touchstart", onStart, { passive: true });
@@ -668,7 +672,7 @@ function MobileWorkstage({
               className="pointer-events-none absolute inset-0 opacity-60"
               style={{
                 background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)",
-                animation: "reactorShimmer 1.4s ease-in-out infinite",
+                animation: `reactorShimmer ${REACTOR_SHIMMER_MS}ms ease-in-out infinite`,
               }}
             />
           )}
@@ -696,7 +700,7 @@ function MobileWorkstage({
         className="min-h-[280px]"
         style={{
           transform: dragX ? `translate3d(${dragX}px,0,0)` : undefined,
-          transition: dragX ? "none" : "transform 0.22s ease-out",
+          transition: dragX ? "none" : `transform ${REACTOR_UI_MS}ms ease-out`,
           willChange: "transform",
         }}
       >
@@ -706,7 +710,7 @@ function MobileWorkstage({
           style={{
             animation: dragX
               ? undefined
-              : `${slideDir === 1 ? "sceneSlideLeft" : "sceneSlideRight"} 280ms cubic-bezier(0.22,1,0.36,1) both`,
+              : `${slideDir === 1 ? "sceneSlideLeft" : "sceneSlideRight"} ${REACTOR_SCENE_MS}ms cubic-bezier(0.22,1,0.36,1) both`,
           }}
         >
           <SceneCard scene={scene} compact={false} />
@@ -732,7 +736,7 @@ function MobileWorkstage({
                 aria-label={`Scene ${i + 1}${s.live ? " live" : ""}`}
                 aria-current={i === safeIdx ? "true" : undefined}
                 onClick={() => {
-                  pauseForReading(8000);
+                  pauseForReading(REACTOR_PAUSE_MS);
                   setSlideDir(i > safeIdx ? 1 : -1);
                   setIdx(i);
                 }}
@@ -781,7 +785,7 @@ function MobileWorkstage({
               key={s.id}
               type="button"
               onClick={() => {
-                pauseForReading(8000);
+                pauseForReading(REACTOR_PAUSE_MS);
                 setSlideDir(i > safeIdx ? 1 : -1);
                 setIdx(i);
               }}

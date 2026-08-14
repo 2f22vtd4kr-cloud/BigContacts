@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { formatSchedulerCountdown, schedulerWaitRemaining } from "./scheduler-utils";
 import { BureauOpsStage } from "./bureau-ops-stage";
+import { REACTOR_ARM_MS, REACTOR_CSS, REACTOR_CELEBRATE_MS } from "../lib/reactor-motion";
 
 interface ResearchSession {
   id: number;
@@ -335,7 +336,7 @@ function LiveResearchConsole({
           className="mb-3 rounded-xl border border-emerald-400/40 bg-emerald-400/[0.09] p-3 shadow-[0_0_24px_rgba(52,211,153,0.12)]"
           data-testid="card-reach-contact-found"
           role="status"
-          style={{ animation: "reachIn 320ms cubic-bezier(0.22,1,0.36,1) both" }}
+          style={{ animation: `reachIn ${REACTOR_CELEBRATE_MS}ms cubic-bezier(0.22,1,0.36,1) both` }}
         >
           <div className="mb-1 flex items-center gap-2 text-[9px] font-bold uppercase tracking-[0.16em] text-emerald-300">
             <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
@@ -608,7 +609,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
   React.useEffect(() => {
     if (isLive && !wasLiveRef.current) {
       setArming(true);
-      const t = window.setTimeout(() => setArming(false), 400);
+      const t = window.setTimeout(() => setArming(false), REACTOR_ARM_MS);
       wasLiveRef.current = true;
       return () => clearTimeout(t);
     }
@@ -655,36 +656,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
       {/* Fallback tokens if parent did not inject KEYFRAMES */}
-      <style>{`
-        :root {
-          --reactor-fast: 150ms; --reactor-ui: 220ms; --reactor-scene: 280ms;
-          --reactor-celebrate: 320ms; --reactor-arm: 400ms; --reactor-pause: 8000ms;
-          --reactor-ease: cubic-bezier(0.22, 1, 0.36, 1);
-          --reactor-cyan: #22d3ee; --reactor-emerald: #34d399;
-        }
-        .reactor-pressable { transition: transform var(--reactor-fast) ease-out, opacity var(--reactor-fast) ease-out; touch-action: manipulation; }
-        .reactor-pressable:active { transform: scale(0.97); opacity: 0.85; }
-        .reactor-pressable:focus-visible, button:focus-visible { outline: 2px solid var(--reactor-cyan); outline-offset: 2px; }
-        .reactor-reach {
-          border-color: rgba(52, 211, 153, 0.7);
-          background: linear-gradient(135deg, rgba(52, 211, 153, 0.18), rgba(16, 185, 129, 0.08));
-          box-shadow: 0 0 28px rgba(52, 211, 153, 0.22), inset 0 1px 0 rgba(167, 243, 208, 0.12);
-        }
-        .reactor-reach-label { color: #a7f3d0; letter-spacing: 0.16em; }
-        .reactor-live-label { color: #a5f3fc; text-shadow: 0 0 12px rgba(34, 211, 238, 0.45); }
-        @keyframes reachIn {
-          0% { opacity: 0; transform: scale(0.92) translateY(6px); }
-          60% { opacity: 1; transform: scale(1.02) translateY(0); }
-          100% { opacity: 1; transform: scale(1) translateY(0); }
-        }
-        @keyframes armIn { 0% { opacity: 0; transform: translateY(6px); } 100% { opacity: 1; transform: translateY(0); } }
-        @keyframes reactorShimmer { 0% { transform: translateX(-120%); } 100% { transform: translateX(220%); } }
-        @keyframes sceneSlideLeft { 0% { opacity: 0; transform: translateX(18px); } 100% { opacity: 1; transform: translateX(0); } }
-        @keyframes sceneSlideRight { 0% { opacity: 0; transform: translateX(-18px); } 100% { opacity: 1; transform: translateX(0); } }
-        @media (prefers-reduced-motion: reduce) {
-          *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
-        }
-      `}</style>
+      <style>{REACTOR_CSS}</style>
       {/* Minimal chrome — target + live pulse only */}
       <header
         className="shrink-0 border-b border-white/10 bg-black/40 px-4 py-3 backdrop-blur-md"
@@ -748,7 +720,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
             data-testid="card-reach-contact-found"
             role="status"
             aria-live="polite"
-            style={{ animation: "reachIn var(--reactor-celebrate, 320ms) var(--reactor-ease, cubic-bezier(0.22,1,0.36,1)) both" }}
+            style={{ animation: `reachIn ${REACTOR_CELEBRATE_MS}ms var(--reactor-ease, cubic-bezier(0.22,1,0.36,1)) both` }}
           >
             <div className="reactor-reach-label text-[10px] font-bold uppercase">Contact found · REACH</div>
             <div className="mt-1 text-[13px] leading-snug text-emerald-50">

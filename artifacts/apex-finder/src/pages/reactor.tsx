@@ -6,6 +6,7 @@ import {
   Sparkles, Compass, Rss, Users,
 } from "lucide-react";
 import { MobileReactorFlow } from "../components/mobile-reactor-flow";
+import { REACTOR_CSS, REACTOR_CELEBRATE_MS, REACTOR_UI_MS } from "../lib/reactor-motion";
 import { BureauOpsStage } from "../components/bureau-ops-stage";
 import { isMockMode, mockAtlasLiveState, mockLiveNodes } from "@/lib/dev-mock-data";
 import { formatSchedulerCountdown, schedulerWaitRemaining } from "../components/scheduler-utils";
@@ -428,49 +429,7 @@ function adaptPath(a: NodeDef, b: NodeDef) {
 }
 
 // ── Shared animation styles ───────────────────────────────────────────────────
-const KEYFRAMES = `
-  :root {
-    --reactor-fast: 150ms;
-    --reactor-ui: 220ms;
-    --reactor-scene: 280ms;
-    --reactor-celebrate: 320ms;
-    --reactor-arm: 400ms;
-    --reactor-pause: 8000ms;
-    --reactor-ease: cubic-bezier(0.22, 1, 0.36, 1);
-    --reactor-cyan: #22d3ee;
-    --reactor-lime: #a3e635;
-    --reactor-emerald: #34d399;
-    --reactor-canvas: #0b1120;
-    --reactor-desk: #071018;
-  }
-  .reactor-pressable {
-    transition: transform var(--reactor-fast) ease-out, opacity var(--reactor-fast) ease-out, border-color var(--reactor-fast) ease-out, box-shadow var(--reactor-fast) ease-out;
-    touch-action: manipulation;
-  }
-  .reactor-pressable:active {
-    transform: scale(0.97);
-    opacity: 0.85;
-  }
-  .reactor-pressable:focus-visible,
-  button:focus-visible,
-  [role="button"]:focus-visible {
-    outline: 2px solid var(--reactor-cyan);
-    outline-offset: 2px;
-  }
-  .reactor-reach {
-    border-color: rgba(52, 211, 153, 0.7);
-    background: linear-gradient(135deg, rgba(52, 211, 153, 0.18), rgba(16, 185, 129, 0.08));
-    color: #ecfdf5;
-    box-shadow: 0 0 28px rgba(52, 211, 153, 0.22), inset 0 1px 0 rgba(167, 243, 208, 0.12);
-  }
-  .reactor-reach-label {
-    color: #a7f3d0;
-    letter-spacing: 0.16em;
-  }
-  .reactor-live-label {
-    color: #a5f3fc;
-    text-shadow: 0 0 12px rgba(34, 211, 238, 0.45);
-  }
+const KEYFRAMES = REACTOR_CSS + `
   @keyframes blink     { 0%,100%{opacity:1}  50%{opacity:0.35} }
   @keyframes breathe   { 0%,100%{opacity:0.8} 50%{opacity:1}   }
   @keyframes pulseGlow { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.7;transform:scale(0.95)} }
@@ -478,25 +437,6 @@ const KEYFRAMES = `
   @keyframes dashFwd   { 0%{stroke-dashoffset:24} 100%{stroke-dashoffset:0}  }
   @keyframes dashBack  { 0%{stroke-dashoffset:0}  100%{stroke-dashoffset:22} }
   @keyframes flowDown  { 0%{stroke-dashoffset:0} 100%{stroke-dashoffset:-24} }
-  @keyframes reactorShimmer { 0% { transform: translateX(-120%); } 100% { transform: translateX(220%); } }
-  @keyframes sceneSlideLeft { 0% { opacity: 0; transform: translateX(18px); } 100% { opacity: 1; transform: translateX(0); } }
-  @keyframes sceneSlideRight { 0% { opacity: 0; transform: translateX(-18px); } 100% { opacity: 1; transform: translateX(0); } }
-  @keyframes reachIn {
-    0% { opacity: 0; transform: scale(0.92) translateY(6px); }
-    60% { opacity: 1; transform: scale(1.02) translateY(0); }
-    100% { opacity: 1; transform: scale(1) translateY(0); }
-  }
-  @keyframes armIn {
-    0% { opacity: 0; transform: translateY(6px); }
-    100% { opacity: 1; transform: translateY(0); }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after {
-      animation-duration: 0.01ms !important;
-      animation-iteration-count: 1 !important;
-      transition-duration: 0.01ms !important;
-    }
-  }
 `;
 
 // ── Meter (shared) ────────────────────────────────────────────────────────────
@@ -1528,7 +1468,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
               border:"1px solid #22d3ee40", borderRadius:8,
               background:"rgba(7,15,29,0.97)", boxShadow:"0 0 28px #000a",
               backdropFilter:"blur(12px)",
-              animation:"armIn 280ms ease-out both",
+              animation:`armIn ${REACTOR_UI_MS + 60}ms ease-out both`,
             }}
           >
             {contactFound && (
@@ -1538,7 +1478,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                   marginBottom:10, padding:"8px 10px", borderRadius:6,
                   border:"1px solid #34d39966", background:"rgba(52,211,153,0.1)",
                   fontSize:11, color:"#a7f3d0", lineHeight:1.4,
-                  animation:"reachIn 320ms cubic-bezier(0.22,1,0.36,1) both",
+                  animation:`reachIn ${REACTOR_CELEBRATE_MS}ms cubic-bezier(0.22,1,0.36,1) both`,
                 }}
               >
                 <span style={{ fontWeight:700, letterSpacing:"0.12em", color:"#6ee7b7", fontSize:9 }}>CONTACT FOUND · REACH · </span>
@@ -1578,7 +1518,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
               fontSize:9, letterSpacing:"0.14em", fontWeight:700,
               color:"#67e8f9", background:"rgba(34,211,238,0.08)",
               border:"1px solid #22d3ee55", borderRadius:4, padding:"6px 10px", cursor:"pointer",
-              animation:"armIn 220ms ease-out both",
+              animation:`armIn ${REACTOR_UI_MS}ms ease-out both`,
               transition:"transform 150ms ease, background 150ms ease",
             }}
             onMouseDown={(e) => { e.currentTarget.style.transform = "scale(0.97)"; }}
