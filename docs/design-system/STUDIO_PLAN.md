@@ -547,3 +547,18 @@ Every phase must leave **PNG** captures in the folder — not HTML-only.
 
 ### Rule
 If a non-researcher cannot say what Atlas is doing after one glance, the copy is wrong.
+
+---
+
+## Phase U — Color-coded Now/Done + plain findings (Apex Atlas)
+
+**Studio goal:** Status is visible before the sentence is read.
+
+### Delivered
+1. **`StoryLine` component** — prefixes `Now:` / `Done:` / `Failed:` in cyan / emerald / rose
+2. Used on main story, scene chips, desktop desk tabs
+3. In-tool placeholders simplified (“Looking through public search results…”)
+4. “result · N” → “finding N”
+
+### Rule
+Color carries status; words carry action.

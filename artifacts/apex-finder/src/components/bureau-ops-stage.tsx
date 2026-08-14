@@ -268,6 +268,36 @@ function timeLabel(ts?: string, nowMs = Date.now()) {
   }
 }
 
+
+/** Color the Now:/Done:/Failed: prefix so status is obvious at a glance */
+function StoryLine({
+  story,
+  className = "",
+  clamp = true,
+}: {
+  story: string;
+  className?: string;
+  clamp?: boolean;
+}) {
+  const m = story.match(/^(Now|Done|Failed):\s*(.*)$/i);
+  if (!m) {
+    return (
+      <div className={`${clamp ? "line-clamp-2" : ""} ${className}`.trim()}>
+        {story}
+      </div>
+    );
+  }
+  const kind = m[1].toLowerCase();
+  const prefixColor =
+    kind === "now" ? "text-cyan-300" : kind === "failed" ? "text-rose-300" : "text-emerald-300";
+  return (
+    <div className={`${clamp ? "line-clamp-2" : ""} ${className}`.trim()}>
+      <span className={`font-bold ${prefixColor}`}>{m[1]}:</span>
+      {m[2] ? <span> {m[2]}</span> : null}
+    </div>
+  );
+}
+
 function WindowChrome({
   favicon,
   title,
@@ -406,9 +436,9 @@ function GoogleScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
             <span className="text-[10px] text-blue-400 font-mono shrink-0">Search</span>
           </div>
         </div>
-        {(scene.resultLines.length ? scene.resultLines : ["Scanning public results\u2026"]).slice(0, compact ? 2 : 3).map((line, i) => (
+        {(scene.resultLines.length ? scene.resultLines : ["Looking through public search results…"]).slice(0, compact ? 2 : 3).map((line, i) => (
           <div key={i} className="rounded-lg bg-[#111827] border border-white/5 px-2.5 py-1.5">
-            <div className="text-[9px] text-emerald-500/80 font-mono mb-0.5">result · {i + 1}</div>
+            <div className="text-[9px] text-emerald-500/80 font-mono mb-0.5">finding {i + 1}</div>
             <div className={`text-slate-200 leading-snug ${compact ? "text-[11px]" : "text-[12px]"}`}>{line}</div>
           </div>
         ))}
@@ -423,7 +453,7 @@ function BrowserScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
     (scene.targetName
       ? `https://${scene.targetName.replace(/\s+/g, "").toLowerCase()}.com/contact`
       : "https://\u2026");
-  const lines = scene.resultLines.length ? scene.resultLines : ["Reading mailto, tel, team cards\u2026"];
+  const lines = scene.resultLines.length ? scene.resultLines : ["Looking for emails, phones, and team names…"];
   const contactHit = lines.some((l) => /mailto:|[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i.test(l));
   return (
     <WindowChrome
@@ -489,7 +519,7 @@ function DomainScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
       urlBar="rdap · whoisjson"
     >
       <pre className={`font-mono text-cyan-100/90 leading-relaxed whitespace-pre-wrap ${compact ? "text-[10px]" : "text-[11px]"}`}>
-        {(scene.resultLines.length ? scene.resultLines : ["Resolving registrant tokens\u2026"]).join("\n")}
+        {(scene.resultLines.length ? scene.resultLines : ["Checking domain registration details…"]).join("\n")}
       </pre>
     </WindowChrome>
   );
@@ -498,7 +528,7 @@ function DomainScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
 function SerpScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
   const q = scene.query || scene.targetName || scene.subtitle || "owner email contact";
   const typed = useTyped(q, scene.live, 42);
-  const hits = scene.resultLines.length ? scene.resultLines : ["Streaming public results…"];
+  const hits = scene.resultLines.length ? scene.resultLines : ["Looking through public search results…"];
   return (
     <WindowChrome
       title={`${providerLabel(scene.provider)} · web search`}
@@ -524,7 +554,7 @@ function SerpScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
         <div className="space-y-2">
           {hits.slice(0, compact ? 3 : 4).map((l, i) => (
             <div key={i} className="rounded-lg border border-white/5 bg-[#0b1220] px-3 py-2">
-              <div className="mb-0.5 text-[9px] font-mono text-sky-500/80">result · {i + 1}</div>
+              <div className="mb-0.5 text-[9px] font-mono text-sky-500/80">finding {i + 1}</div>
               <div className="text-[12px] leading-snug text-slate-200">{l}</div>
             </div>
           ))}
@@ -544,7 +574,7 @@ function FootprintScene({ scene, compact }: { scene: Scene; compact?: boolean })
       favicon={<ProviderIcon kind="sherlock" size={compact ? 12 : 14} />}
     >
       <div className={`font-mono text-violet-100/90 space-y-1 ${compact ? "text-[10px]" : "text-[11px]"}`}>
-        {(scene.resultLines.length ? scene.resultLines : ["Checking public platforms\u2026"]).map((l, i) => (
+        {(scene.resultLines.length ? scene.resultLines : ["Checking public profiles and sites…"]).map((l, i) => (
           <div key={i}>{"\u25B8"} {l}</div>
         ))}
       </div>
@@ -565,7 +595,7 @@ function BureauScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
         {scene.targetName && (
           <div className="text-[9px] font-mono text-cyan-400/80 uppercase tracking-wider">{scene.targetName}</div>
         )}
-        {(scene.resultLines.length ? scene.resultLines : [scene.subtitle || "Bureau desk"]).map((l, i) => (
+        {(scene.resultLines.length ? scene.resultLines : [scene.subtitle || "Working on this target…"]).map((l, i) => (
           <div key={i} className={`text-slate-200 leading-snug ${compact ? "text-[11px]" : "text-[12px]"}`}>
             {l}
           </div>
@@ -882,7 +912,7 @@ function MobileWorkstage({
       <div className="flex items-center gap-2 px-0.5" aria-live="polite" aria-atomic="true">
         <ProviderIcon kind={scene.provider} size={14} />
         <div className="min-w-0 flex-1">
-          <div className="text-[13px] font-semibold text-slate-50 line-clamp-2 leading-snug tracking-tight">{scene.story}</div>
+          <StoryLine story={scene.story} className="text-[13px] font-semibold text-slate-50 leading-snug tracking-tight" />
           <div className="text-[9px] font-mono text-slate-400 truncate">
             {scene.live ? "Now" : "Done"} · {scene.title}
             {scene.targetName ? ` · ${scene.targetName}` : ""}
@@ -1031,7 +1061,7 @@ function MobileWorkstage({
                   <span className="ml-auto text-[7px] font-mono font-bold uppercase tracking-wider text-rose-400/80">fail</span>
                 )}
               </div>
-              <div className={`text-[9px] line-clamp-2 leading-tight ${i === safeIdx ? "text-slate-50" : "text-slate-400"}`}>{s.story}</div>
+              <StoryLine story={s.story} className={`text-[9px] leading-tight ${i === safeIdx ? "text-slate-50" : "text-slate-400"}`} />
             </button>
           ))}
         </div>
@@ -1133,7 +1163,7 @@ export function BureauOpsStage({
                 <span className="text-[9px] font-mono text-slate-300 truncate">{s.title}</span>
                 {s.live && <span className="text-[8px] text-emerald-300 font-mono font-bold">LIVE</span>}
               </div>
-              <div className="text-[10px] text-slate-300 leading-snug line-clamp-2">{s.story}</div>
+              <StoryLine story={s.story} className="text-[10px] text-slate-300 leading-snug" />
             </button>
           );
         })}
