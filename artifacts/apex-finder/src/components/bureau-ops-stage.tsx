@@ -106,14 +106,18 @@ function toScene(e: OpsEvent, index: number): Scene {
     e.evidence != null ? `${e.evidence} evidence` : null,
   ].filter(Boolean) as string[];
 
+  const toolBlob = `${tool} ${e.stage || ""} ${e.resultSummary || ""} ${e.inputSummary || ""}`;
   let kind: SceneKind = "bureau";
-  if (provider === "google" || /google/i.test(tool + (e.stage || ""))) kind = "google";
+  if (provider === "google" || /google/i.test(toolBlob)) kind = "google";
   else if (provider === "gemini" && /ground/i.test(String(e.resultSummary || e.stage))) kind = "google";
-  else if (provider === "browser" || /scrapfly|zenrows|visit|fetch|mailto/i.test(tool + (e.stage || "") + (e.resultSummary || ""))) kind = "browser";
-  else if (provider === "prompt" || e.prompt || /groq|llm|extract/i.test(tool)) kind = "prompt";
-  else if (provider === "domain" || /rdap|whois/i.test(tool + (e.stage || ""))) kind = "domain";
-  else if (provider === "sherlock" || provider === "maigret" || /footprint/i.test(e.stage || "")) kind = "footprint";
-  else if (["serp", "serper", "serpapi", "tavily", "exa", "perplexity"].includes(provider)) kind = "serp";
+  else if (
+    provider === "browser" ||
+    /scrapfly|zenrows|visit|fetch|mailto|domain-surface|contact-facts|browser|webdisc|inhouse/i.test(toolBlob)
+  ) kind = "browser";
+  else if (provider === "prompt" || e.prompt || /groq|llm|extract|persona-review/i.test(tool)) kind = "prompt";
+  else if (provider === "domain" || /rdap|whois|whoxy|dns/i.test(toolBlob)) kind = "domain";
+  else if (provider === "sherlock" || provider === "maigret" || /footprint|holehe|sherlock/i.test(toolBlob)) kind = "footprint";
+  else if (["serp", "serper", "serpapi", "tavily", "exa", "perplexity"].includes(provider) || /tavily|exa|perplexity|serper|serpapi/i.test(tool)) kind = "serp";
 
   const title =
     kind === "google" ? "Google"
@@ -291,20 +295,31 @@ function BrowserScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
     (scene.targetName
       ? `https://${scene.targetName.replace(/\s+/g, "").toLowerCase()}.com/contact`
       : "https://\u2026");
+  const lines = scene.resultLines.length ? scene.resultLines : ["Reading mailto, tel, team cards\u2026"];
+  const contactHit = lines.some((l) => /mailto:|[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i.test(l));
   return (
     <WindowChrome
       title={scene.subtitle || "Public page"}
       live={scene.live}
-      accent="#f59e0b"
+      accent={contactHit ? "#34d399" : "#f59e0b"}
       compact={compact}
       favicon={<ProviderIcon kind="browser" size={compact ? 12 : 14} />}
       urlBar={url}
     >
       <div className="space-y-1.5">
+        {contactHit && (
+          <div className="rounded-md border border-emerald-400/40 bg-emerald-500/10 px-2 py-1 text-[9px] font-mono uppercase tracking-[0.16em] text-emerald-300">
+            Contact found · reachable vector
+          </div>
+        )}
         <div className="text-[9px] font-mono uppercase tracking-widest text-amber-400/80">On the page</div>
-        <div className="rounded-lg border border-amber-500/20 bg-[#0f172a] p-2.5 font-mono text-[11px] text-slate-300 leading-relaxed space-y-1">
-          {(scene.resultLines.length ? scene.resultLines : ["Reading mailto, tel, team cards\u2026"]).map((l, i) => (
-            <div key={i}>{/@|mailto:/i.test(l) ? <span className="text-cyan-300">{l}</span> : l}</div>
+        <div className={`rounded-lg border p-2.5 font-mono text-[11px] leading-relaxed space-y-1 ${
+          contactHit ? "border-emerald-500/30 bg-[#0a1f18] text-slate-200" : "border-amber-500/20 bg-[#0f172a] text-slate-300"
+        }`}>
+          {lines.map((l, i) => (
+            <div key={i}>
+              {/@|mailto:/i.test(l) ? <span className="text-emerald-300 font-semibold">{l}</span> : l}
+            </div>
           ))}
         </div>
       </div>
