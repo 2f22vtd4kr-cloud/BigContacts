@@ -1349,6 +1349,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
   const deskEvents = atlasState?.eventLog ?? [];
   const contactFound = atlasState?.atlasTelemetry?.disposition === "contact_route_found"
     || (atlasState?.atlasTelemetry?.contacts != null && atlasState.atlasTelemetry.contacts > 0);
+  const focusedToolId = atlasState?.atlasTelemetry?.activeToolId || (liveNodes && liveNodes.size === 1 ? [...liveNodes][0] : undefined);
 
   return (
     <div style={{
@@ -1537,15 +1538,19 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
             const failed = fromStatus === "failed" || toStatus === "failed";
             const queued = fromStatus === "queued" || toStatus === "queued";
             const on = AE.has(e.id) || complete;
+            const touchesFocus = focusedToolId != null && (e.from === focusedToolId || e.to === focusedToolId);
             const d   = e.adaptive ? adaptPath(A, B) : fwdPath(A, B);
             const col = failed ? "#fb7185" : queued ? "#526b86" : e.adaptive ? "#22d3ee" : "#a3e635";
-            const mk  = on ? (e.adaptive ? "url(#mCyan2)" : "url(#mLime2)") : "url(#mDim2)";
+            const mk  = on || touchesFocus ? (e.adaptive ? "url(#mCyan2)" : "url(#mLime2)") : "url(#mDim2)";
+            const edgeOpacity = focusedToolId
+              ? (touchesFocus || active ? 0.95 : 0.12)
+              : (active ? 0.92 : on ? 0.5 : queued || failed ? 0.45 : 0.22);
             return (
               <path key={e.id} d={d} fill="none"
                 stroke={col}
-                strokeWidth={active ? (e.adaptive ? 2 : 1.5) : on ? 1 : 1}
+                strokeWidth={active || touchesFocus ? (e.adaptive ? 2 : 1.5) : on ? 1 : 1}
                 strokeDasharray={active ? (e.adaptive ? "7 4" : "0") : complete ? "0" : "4 5"}
-                opacity={active ? 0.92 : on ? 0.5 : queued || failed ? 0.45 : 0.22}
+                opacity={edgeOpacity}
                 markerEnd={mk}
                 style={active ? {
                   filter:`drop-shadow(0 0 ${e.adaptive?5:3}px ${col})`,
@@ -1571,11 +1576,16 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
           const c = n.color;
           const statusColor = rodStatusColor(status, c);
           const visible = status !== "idle";
+          const isFocus = focusedToolId != null && n.id === focusedToolId;
+          const isSibling = focusedToolId != null && !isFocus && status !== "idle";
           return (
             <div key={n.id} style={{
               position:"absolute",
               left: n.cx - n.w / 2, top: n.cy - n.h / 2,
-              width: n.w, height: n.h, zIndex:2,
+              width: n.w, height: n.h, zIndex: isFocus ? 4 : 2,
+              opacity: isSibling ? 0.32 : 1,
+              boxShadow: isFocus ? `0 0 22px ${statusColor}55` : undefined,
+              transition: "opacity 0.35s, box-shadow 0.35s",
               border:`${on?(isReactor?2:1.5):1}px solid ${visible?statusColor:"#192840"}`,
               borderRadius: isReactor ? 12 : 6,
               background: on ? (isReactor?`${statusColor}14`:`${statusColor}0d`) : visible ? `${statusColor}08` : (isReactor?"#0c1830":"#0d1525"),

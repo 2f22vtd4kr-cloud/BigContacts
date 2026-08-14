@@ -234,10 +234,11 @@ export function detectProviderKind(raw: string): ProviderKind {
   if (/serper/.test(s)) return "serper";
   if (/\bserp\b|web_search|web search/.test(s)) return "serp";
   if (/groq/.test(s)) return "groq";
-  if (/scrapfly|zenrows|browser-fetch|browser fetch|visit\b/.test(s)) return "browser";
+  if (/scrapfly|zenrows|browser-fetch|browser fetch|webdisc|\bbrowser\b|visit\b/.test(s)) return "browser";
+  if (/contact-attribution|contact-facts|digital-footprint|mailto/.test(s)) return "browser";
   if (/sherlock/.test(s)) return "sherlock";
   if (/maigret|holehe/.test(s)) return "maigret";
-  if (/rdap|whoisjson|whois|domain-surface|domain surface/.test(s)) return "domain";
+  if (/rdap|whoisjson|whois|domain-surface|domain surface|domain-resolver/.test(s)) return "domain";
   if (/companies.?house|edgar|registry|sec\.gov/.test(s)) return "registry";
   if (/bureau|case-bureau|investigator|boss/.test(s)) return "bureau";
   if (/discover|webdisc|broad-discovery|force.related/.test(s)) return "discovery";

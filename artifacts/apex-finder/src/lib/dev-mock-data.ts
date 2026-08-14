@@ -209,7 +209,7 @@ export function mockAtlasLiveState() {
       status: "active" as const,
       targetName: "James R. Griffin",
       targetType: "HNWI · Owner",
-      toolIds: ["tavily", "groq", "contact-attribution"],
+      toolIds: ["domain-surface", "tavily", "webdisc", "groq", "contact-facts", "contact-attribution"],
       activeToolId: "contact-attribution",
       prompt: undefined,
       inputSummary: "Stevensville MI · Griffin Tool filings + public web",
@@ -222,6 +222,15 @@ export function mockAtlasLiveState() {
       personaNames: undefined,
     },
     eventLog: [
+      {
+        timestamp: "2026-08-14T05:09:10Z",
+        stage: "Domain surface",
+        status: "complete",
+        targetName: "James R. Griffin",
+        activeToolId: "domain-surface",
+        inputSummary: "griffin-tool.com WHOIS / RDAP",
+        resultSummary: "Registrant org Griffin Tool · MI; admin contact pattern matches owner surname",
+      },
       {
         timestamp: "2026-08-14T05:10:00Z",
         stage: "Open web search",
@@ -252,6 +261,15 @@ export function mockAtlasLiveState() {
         resultSummary: "Candidate email jgriffin@griffin-tool.com cited on about page",
       },
       {
+        timestamp: "2026-08-14T05:13:20Z",
+        stage: "Contact facts",
+        status: "complete",
+        targetName: "James R. Griffin",
+        activeToolId: "contact-facts",
+        inputSummary: "Corroborate mailto vs org-inbox gate",
+        resultSummary: "Not info@/sales@ — personal local-part; trash-phone gate N/A for email",
+      },
+      {
         timestamp: "2026-08-14T05:14:00Z",
         stage: "Contact attribution",
         status: "active",
@@ -266,5 +284,5 @@ export function mockAtlasLiveState() {
 }
 
 export function mockLiveNodes(): Set<string> {
-  return new Set(["tavily", "groq", "contact-attribution"]);
+  return new Set(["tavily", "groq", "domain-surface", "contact-facts", "contact-attribution"]);
 }
