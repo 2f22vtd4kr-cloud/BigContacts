@@ -454,22 +454,34 @@ function SceneCard({ scene, compact }: { scene: Scene; compact?: boolean }) {
 }
 
 /** Mobile: one focused scene + story + swipe + auto-advance on live */
-function MobileWorkstage({ scenes }: { scenes: Scene[] }) {
+function MobileWorkstage({
+  scenes,
+  onEdgeSwipe,
+}: {
+  scenes: Scene[];
+  /** Called when user swipes past first/last scene — e.g. open full History */
+  onEdgeSwipe?: (dir: "prev" | "next") => void;
+}) {
   const [idx, setIdx] = useState(0);
   const [paused, setPaused] = useState(false);
-  const touchX = React.useRef<number | null>(null);
+  const [dragX, setDragX] = useState(0);
+  const touchStart = React.useRef<{ x: number; y: number; t: number } | null>(null);
+  const axisLock = React.useRef<"h" | "v" | null>(null);
   const safeIdx = Math.min(idx, Math.max(0, scenes.length - 1));
   const scene = scenes[safeIdx];
   const sceneKey = scenes.map((s) => s.id).join("|");
 
   useEffect(() => {
     const liveIdx = scenes.findIndex((s) => s.live);
-    setIdx(liveIdx >= 0 ? liveIdx : 0);
+    setIdx(liveIdx >= 0 ? liveIdx : Math.max(0, scenes.length - 1));
+    setDragX(0);
   }, [sceneKey]);
 
-  // Auto-advance every 5s while multiple scenes and not paused
+  // Auto-advance every 5s while multiple scenes and not paused (live mode only)
   useEffect(() => {
     if (paused || scenes.length < 2) return;
+    const hasLive = scenes.some((s) => s.live);
+    if (!hasLive) return; // history: user-driven only
     const id = window.setInterval(() => {
       setIdx((i) => (i + 1) % scenes.length);
     }, 5200);
@@ -478,29 +490,88 @@ function MobileWorkstage({ scenes }: { scenes: Scene[] }) {
 
   if (!scene) return null;
 
-  const onTouchStart = (e: React.TouchEvent) => {
-    touchX.current = e.changedTouches[0]?.clientX ?? null;
+  const goPrev = () => {
     setPaused(true);
+    setIdx((i) => {
+      if (i <= 0) {
+        onEdgeSwipe?.("prev");
+        return 0;
+      }
+      return i - 1;
+    });
+  };
+  const goNext = () => {
+    setPaused(true);
+    setIdx((i) => {
+      if (i >= scenes.length - 1) {
+        onEdgeSwipe?.("next");
+        return scenes.length - 1;
+      }
+      return i + 1;
+    });
+  };
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    const t = e.changedTouches[0];
+    if (!t) return;
+    touchStart.current = { x: t.clientX, y: t.clientY, t: Date.now() };
+    axisLock.current = null;
+    setPaused(true);
+    setDragX(0);
+  };
+  const onTouchMove = (e: React.TouchEvent) => {
+    const start = touchStart.current;
+    const t = e.changedTouches[0];
+    if (!start || !t) return;
+    const dx = t.clientX - start.x;
+    const dy = t.clientY - start.y;
+    if (!axisLock.current) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      axisLock.current = Math.abs(dx) >= Math.abs(dy) ? "h" : "v";
+    }
+    if (axisLock.current === "h") {
+      // Resist overscroll at ends
+      let visual = dx;
+      if ((safeIdx <= 0 && dx > 0) || (safeIdx >= scenes.length - 1 && dx < 0)) {
+        visual = dx * 0.28;
+      }
+      setDragX(visual);
+      e.preventDefault();
+    }
   };
   const onTouchEnd = (e: React.TouchEvent) => {
-    const start = touchX.current;
-    touchX.current = null;
-    if (start == null) return;
-    const dx = (e.changedTouches[0]?.clientX ?? start) - start;
-    if (Math.abs(dx) < 40) {
+    const start = touchStart.current;
+    touchStart.current = null;
+    const lock = axisLock.current;
+    axisLock.current = null;
+    setDragX(0);
+    if (!start || lock === "v") {
       setPaused(false);
       return;
     }
-    if (dx < 0) setIdx((i) => Math.min(scenes.length - 1, i + 1));
-    else setIdx((i) => Math.max(0, i - 1));
-    window.setTimeout(() => setPaused(false), 4000);
+    const t = e.changedTouches[0];
+    const dx = (t?.clientX ?? start.x) - start.x;
+    const dt = Math.max(1, Date.now() - start.t);
+    const velocity = Math.abs(dx) / dt; // px/ms
+    const threshold = velocity > 0.45 ? 28 : 52;
+    if (Math.abs(dx) < threshold) {
+      window.setTimeout(() => setPaused(false), 2500);
+      return;
+    }
+    if (dx < 0) goNext(); // swipe left → newer / next
+    else goPrev(); // swipe right → older / prev
+    window.setTimeout(() => setPaused(false), 4500);
   };
 
   return (
     <div
-      className="space-y-2.5"
+      className="space-y-2.5 touch-pan-y"
       onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
+      onTouchCancel={() => { touchStart.current = null; axisLock.current = null; setDragX(0); }}
+      style={{ touchAction: "pan-y" }}
+      data-testid="mobile-workstage-swipe"
     >
       {/* Progress of this step in the run */}
       <div className="flex items-center gap-2">
@@ -536,7 +607,15 @@ function MobileWorkstage({ scenes }: { scenes: Scene[] }) {
         )}
       </div>
 
-      <SceneCard scene={scene} compact />
+      <div
+        style={{
+          transform: dragX ? `translateX(${dragX}px)` : undefined,
+          transition: dragX ? "none" : "transform 0.22s ease-out",
+          willChange: "transform",
+        }}
+      >
+        <SceneCard scene={scene} compact />
+      </div>
 
       {scenes.length > 1 && (
         <div className="flex items-center justify-between gap-2">
@@ -544,7 +623,7 @@ function MobileWorkstage({ scenes }: { scenes: Scene[] }) {
             type="button"
             className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] font-mono text-slate-300 disabled:opacity-30 active:scale-95"
             disabled={safeIdx <= 0}
-            onClick={() => { setPaused(true); setIdx((i) => Math.max(0, i - 1)); }}
+            onClick={goPrev}
           >
             ← Prev
           </button>
@@ -568,7 +647,7 @@ function MobileWorkstage({ scenes }: { scenes: Scene[] }) {
             type="button"
             className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[10px] font-mono text-slate-300 disabled:opacity-30 active:scale-95"
             disabled={safeIdx >= scenes.length - 1}
-            onClick={() => { setPaused(true); setIdx((i) => Math.min(scenes.length - 1, i + 1)); }}
+            onClick={goNext}
           >
             Next →
           </button>
@@ -601,7 +680,7 @@ function MobileWorkstage({ scenes }: { scenes: Scene[] }) {
 
       {scenes.length > 1 && (
         <div className="text-center text-[8px] font-mono text-slate-600 tracking-wider pb-1">
-          swipe
+          swipe · history nav
         </div>
       )}
     </div>
@@ -613,11 +692,13 @@ export function BureauOpsStage({
   compact = false,
   maxScenes = 6,
   title = "LIVE DESK",
+  onEdgeSwipe,
 }: {
   events: OpsEvent[];
   compact?: boolean;
   maxScenes?: number;
   title?: string;
+  onEdgeSwipe?: (dir: "prev" | "next") => void;
 }) {
   const scenes = useMemo(() => {
     const list = (events || []).map(toScene).filter((s) => s.resultLines.length || s.query || s.prompt || s.url);
@@ -642,7 +723,7 @@ export function BureauOpsStage({
             <div className="text-[9px] font-mono text-slate-600 tabular-nums">{scenes.length}</div>
           </div>
         ) : null}
-        <MobileWorkstage scenes={scenes} />
+        <MobileWorkstage scenes={scenes} onEdgeSwipe={onEdgeSwipe} />
       </div>
     );
   }

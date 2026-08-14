@@ -115,8 +115,8 @@ export function WorkspaceStatus() {
       if (!mounted) return;
       let nextError = true;
       if (atlasResult.status === "fulfilled" && atlasResult.value.ok) {
-        const contentType = atlasResult.value.headers.get("content-type") || "";
-        if (contentType.includes("application/json")) {
+        const ct = atlasResult.value.headers.get("content-type") || "";
+        if (ct.includes("application/json")) {
           setAtlas(await atlasResult.value.json() as AtlasStatus);
           nextError = false;
         }

@@ -10,8 +10,11 @@ import {
   RefreshCw,
   Target,
   Users,
+  History,
+  Layers,
 } from "lucide-react";
 import { formatSchedulerCountdown, schedulerWaitRemaining } from "./scheduler-utils";
+import { BureauOpsStage } from "./bureau-ops-stage";
 
 interface ResearchSession {
   id: number;
@@ -326,6 +329,31 @@ function LiveResearchConsole({
         </div>
       </div>
 
+      {/* Contact-found moment — REACH vector recovered (never invents; only when telemetry reports it) */}
+      {(telemetry?.disposition === "contact_route_found" || (telemetry?.contacts != null && telemetry.contacts > 0)) && (
+        <div
+          className="mb-3 rounded-xl border border-emerald-400/40 bg-emerald-400/[0.09] p-3 shadow-[0_0_24px_rgba(52,211,153,0.12)]"
+          data-testid="card-reach-contact-found"
+          role="status"
+        >
+          <div className="mb-1 flex items-center gap-2 text-[9px] font-bold uppercase tracking-[0.16em] text-emerald-300">
+            <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+            Contact found · REACH vector
+          </div>
+          <div className="text-[11px] leading-relaxed text-emerald-100/90">
+            {telemetry?.resultSummary
+              || (telemetry.contacts === 1
+                ? "1 attributable contact recovered from public sources."
+                : `${telemetry.contacts} attributable contacts recovered from public sources.`)}
+          </div>
+          {targetName && (
+            <div className="mt-2 text-[9px] font-mono uppercase tracking-wider text-emerald-400/70">
+              Target · {targetName}
+            </div>
+          )}
+        </div>
+      )}
+
       {telemetry && (researchTools.length > 0 || hasPersonaReview) && (
         <div className="mb-3 rounded-xl border border-white/10 bg-black/20 p-3" data-testid="card-lane-explanation">
           <div className="mb-2 text-[8px] uppercase tracking-[0.18em] text-slate-500">How to read this lane</div>
@@ -531,10 +559,10 @@ function LiveResearchConsole({
         <div className="mt-3 rounded-xl border border-amber-400/15 bg-amber-400/[0.04] p-3" data-testid="status-telemetry-unavailable">
           <div className="mb-1 flex items-center gap-2 text-[9px] uppercase tracking-[0.18em] text-amber-300/70">
             <AlertTriangle className="h-3 w-3" />
-            Telemetry offline
+            Lane telemetry unavailable
           </div>
           <div className="text-[10px] leading-relaxed text-slate-300">
-            Confirmed progress only.
+            Showing only confirmed Atlas job progress. No research tool or result is inferred from the parent status message.
           </div>
         </div>
       )}
@@ -572,6 +600,10 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
   const isLive = atlasState
     ? atlasState.runStatus === "running"
     : liveNodes.size > 0;
+  const [showHistory, setShowHistory] = React.useState(false);
+  const deskEvents = atlasState?.eventLog ?? [];
+  // Live strip = recent; History = full target action list
+  const liveEvents = showHistory ? deskEvents : deskEvents.slice(-6);
   const schedulerCountdown = formatSchedulerCountdown(schedulerWaitRemaining(scheduler, schedulerNow));
   const waitingForNextCycle = Boolean(!isLive && schedulerCountdown);
   const statusLabel = atlasState?.runStatus === "failed"
@@ -674,60 +706,104 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
         </div>
       </header>
 
-      <div className="atlas-grid atlas-grid-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4" style={{ WebkitOverflowScrolling: "touch" }}>
-        <div className="mx-auto max-w-md">
-          <LiveResearchConsole atlasState={atlasState} livePhaseDetail={livePhaseDetail} isLive={isLive} />
-
-          <section aria-labelledby="pipeline-map-title" data-testid="section-pipeline-map">
-            <div className="mb-2.5 flex items-center justify-between gap-2">
-              <div className="flex min-w-0 items-center gap-2">
-                <Activity className="h-3.5 w-3.5 shrink-0 text-cyan-400/70" />
-                <h2 id="pipeline-map-title" className="truncate text-[9px] font-bold uppercase tracking-[0.2em] text-slate-500">
-                  Atlas pipeline map
-                </h2>
+      <div className="atlas-grid atlas-grid-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3" style={{ WebkitOverflowScrolling: "touch" }}>
+        <div className="mx-auto w-full max-w-lg space-y-3 pb-6">
+          {/* Compact target strip — not the old multi-card stack */}
+          <div className="rounded-xl border border-white/10 bg-black/30 px-3 py-2.5" data-testid="card-mobile-target-strip">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <div className="text-[8px] uppercase tracking-[0.18em] text-slate-500">Current target</div>
+                <div className={`mt-0.5 truncate text-[14px] font-semibold ${atlasState?.atlasTelemetry?.targetName || atlasState?.currentEntities?.[0] ? "text-white" : "text-slate-500"}`}>
+                  {atlasState?.atlasTelemetry?.targetName || atlasState?.currentEntities?.[0] || "No target reported"}
+                </div>
+                <div className="mt-0.5 truncate text-[9px] text-slate-500">
+                  {atlasState?.atlasTelemetry?.targetType || atlasState?.phaseLabel || "—"}
+                  {atlasState?.detail ? ` · ${atlasState.detail.slice(0, 60)}` : ""}
+                </div>
               </div>
-              <span className="shrink-0 text-[8px] text-slate-600">context</span>
+              <button
+                type="button"
+                onClick={() => setShowHistory((v) => !v)}
+                className={`flex h-10 shrink-0 items-center gap-1.5 rounded-lg border px-3 text-[10px] font-bold uppercase tracking-wider transition-colors ${
+                  showHistory
+                    ? "border-cyan-400/40 bg-cyan-400/10 text-cyan-300"
+                    : "border-white/10 bg-white/[0.04] text-slate-400"
+                }`}
+                data-testid="button-history"
+                aria-pressed={showHistory}
+              >
+                <History className="h-3.5 w-3.5" />
+                History
+              </button>
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            {(atlasState?.atlasTelemetry?.disposition === "contact_route_found" || (atlasState?.atlasTelemetry?.contacts != null && atlasState.atlasTelemetry.contacts > 0)) && (
+              <div className="mt-2 rounded-lg border border-emerald-400/35 bg-emerald-400/[0.08] px-2.5 py-2 text-[10px] leading-4 text-emerald-200" data-testid="card-reach-contact-found">
+                <span className="font-bold uppercase tracking-wider text-emerald-300">Contact found · REACH · </span>
+                {atlasState.atlasTelemetry.resultSummary || `${atlasState.atlasTelemetry.contacts} vector(s)`}
+              </div>
+            )}
+          </div>
+
+          {/* BIG Live Desk — prompts, browser, tools, results (no scheme) */}
+          <section
+            className="rounded-2xl border border-cyan-400/30 bg-[#071525]/95 p-3 shadow-[0_0_28px_rgba(34,211,238,0.08)]"
+            data-testid="panel-live-desk-mobile"
+            aria-label="Live desk"
+          >
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-cyan-300">
+                {showHistory ? "Target history" : "Live desk"}
+              </div>
+              <div className="text-[9px] font-mono text-slate-500 tabular-nums">
+                {liveEvents.length} event{liveEvents.length === 1 ? "" : "s"}
+                {showHistory ? " · full" : " · recent"}
+              </div>
+            </div>
+            <BureauOpsStage
+              events={liveEvents as any}
+              compact
+              maxScenes={showHistory ? 12 : 6}
+              title={showHistory ? "HISTORY" : "LIVE DESK"}
+              onEdgeSwipe={(dir) => {
+                // Swipe past ends: open full History (or leave it)
+                if (dir === "prev" && !showHistory) setShowHistory(true);
+                if (dir === "next" && showHistory) setShowHistory(false);
+              }}
+            />
+          </section>
+
+          {/* Pipeline map collapsed context only — not primary */}
+          <details className="rounded-xl border border-white/[0.08] bg-white/[0.02]" data-testid="section-pipeline-map">
+            <summary className="flex min-h-[44px] cursor-pointer list-none items-center gap-2 px-3 py-2 touch-manipulation">
+              <Activity className="h-3.5 w-3.5 text-slate-500" />
+              <span className="text-[9px] font-bold uppercase tracking-[0.16em] text-slate-500">Atlas pipeline map</span>
+              <span className="ml-auto text-[8px] text-slate-600">context</span>
+            </summary>
+            <div className="grid grid-cols-2 gap-2 border-t border-white/5 p-3">
               {MOBILE_PHASES.map((phase, index) => {
                 const isActive = isLive && index === activePhaseIndex;
                 const isCompleted = atlasState?.runStatus === "done" || (isLive && activePhaseIndex >= 0 && index < activePhaseIndex);
-                const nodeCount = phase.nodeIds.filter((id) => liveNodes.has(id)).length;
+                const isSibling = isLive && activePhaseIndex >= 0 && !isActive && !isCompleted;
                 return (
                   <div
                     key={phase.id}
-                    className={`relative min-h-[62px] rounded-xl border p-2.5 transition-colors ${index === MOBILE_PHASES.length - 1 ? "col-span-2" : ""} ${
+                    className={`relative min-h-[52px] rounded-xl border p-2 transition-all ${index === MOBILE_PHASES.length - 1 ? "col-span-2" : ""} ${
                       isActive
-                        ? "border-cyan-400/40 bg-cyan-400/[0.08]"
+                        ? "border-cyan-400/50 bg-cyan-400/[0.12]"
                         : isCompleted
                           ? "border-emerald-400/25 bg-emerald-400/[0.045]"
                           : "border-white/[0.08] bg-white/[0.025]"
-                    }`}
-                    data-testid={`pipeline-stage-${phase.id}`}
+                    } ${isSibling ? "opacity-40" : "opacity-100"}`}
                   >
-                    <div className="flex items-start gap-2">
-                      <div className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[8px] font-bold ${
-                        isActive ? "border-cyan-400 text-cyan-300" : isCompleted ? "border-emerald-400 text-emerald-300" : "border-slate-700 text-slate-600"
-                      }`}>
-                        {isCompleted ? <CheckCircle2 className="h-3 w-3" /> : String(index + 1).padStart(2, "0")}
-                      </div>
-                      <div className="min-w-0">
-                        <div className={`truncate text-[9px] font-bold tracking-[0.12em] ${isActive ? "text-cyan-300" : isCompleted ? "text-emerald-300/80" : "text-slate-400"}`}>
-                          {phase.label}
-                        </div>
-                        <div className="mt-1 line-clamp-2 text-[9px] leading-3.5 text-slate-600">{phase.detail}</div>
-                      </div>
+                    <div className={`text-[9px] font-bold tracking-[0.1em] ${isActive ? "text-cyan-300" : isCompleted ? "text-emerald-300/80" : "text-slate-400"}`}>
+                      {phase.label}
                     </div>
-                    {isActive && nodeCount > 0 && (
-                      <div className="absolute bottom-2 right-2 text-[8px] uppercase tracking-wider text-cyan-400/70">
-                        {nodeCount} live lane{nodeCount === 1 ? "" : "s"}
-                      </div>
-                    )}
+                    <div className="mt-0.5 line-clamp-2 text-[8px] text-slate-600">{phase.detail}</div>
                   </div>
                 );
               })}
             </div>
-          </section>
+          </details>
         </div>
       </div>
 

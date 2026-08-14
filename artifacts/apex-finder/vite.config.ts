@@ -16,7 +16,6 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
-    // runtimeErrorOverlay disabled for clean screenshots
     // runtimeErrorOverlay(),
     ...(process.env.NODE_ENV !== 'production' &&
     process.env.REPL_ID !== undefined
@@ -56,12 +55,6 @@ export default defineConfig({
     allowedHosts: true,
     fs: {
       strict: true,
-    },
-    proxy: {
-      '/api': {
-        target: 'http://127.0.0.1:8080',
-        changeOrigin: true,
-      },
     },
   },
   preview: {

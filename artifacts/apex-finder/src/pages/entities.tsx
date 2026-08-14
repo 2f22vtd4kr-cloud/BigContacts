@@ -4,6 +4,7 @@ import { useListEntities, useCreateEntity, useDeleteEntity } from "@workspace/ap
 import { entityFindingsSummary, entityEvidenceLabel, entityWorkSummary, formatCurrency, formatEntityName, AccessScoreBadge, ConfidenceBadge, parseEntityRegistries } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { entityMeta, EntityTypeMark, entityMetric, ENTITY_TYPES } from "@/lib/entity-taxonomy";
+import { isMockMode, MOCK_ENTITIES } from "@/lib/dev-mock-data";
 import {
   Plus, Search, Trash2, Globe, ChevronDown, ChevronUp, X, Loader2,
   ChevronRight, Network, Target as TargetIcon, Download, ShieldAlert,
@@ -59,6 +60,44 @@ const CONFIDENCE_STEPS = [25, 50, 75] as const;
 type ConfidenceStep = typeof CONFIDENCE_STEPS[number];
 
 // Small per-row badge config keyed by contactOutcome value
+
+const ORG_INBOX_RE = /^(info|sales|contact|office|support|admin|hello|team|enquiries|inquiry|inquiries|press|media|hr|jobs|careers|billing|accounts|noreply|no-reply)@/i;
+function isOrgInbox(email?: string | null): boolean {
+  if (!email) return false;
+  return ORG_INBOX_RE.test(email.trim());
+}
+function ReachChip({ kind, label, href, title }: { kind: "personal" | "org" | "social"; label: string; href?: string; title?: string }) {
+  const styles = kind === "personal"
+    ? "text-emerald-300 border-emerald-400/35 bg-emerald-400/10"
+    : kind === "org"
+      ? "text-violet-300 border-violet-400/35 bg-violet-400/10"
+      : "text-sky-300 border-sky-400/35 bg-sky-400/10";
+  const tag = kind === "personal" ? "P" : kind === "org" ? "ORG" : "SOC";
+  const body = (
+    <span className={cn("inline-flex max-w-full items-center gap-1 rounded border px-1.5 py-0.5 font-mono text-[10px] leading-tight", styles)} title={title}>
+      <span className="shrink-0 text-[8px] uppercase tracking-wider opacity-70">{tag}</span>
+      <span className="truncate">{label}</span>
+    </span>
+  );
+  if (href) return <a href={href} className="max-w-full hover:opacity-90" onClick={(e) => e.stopPropagation()} title={title ?? label}>{body}</a>;
+  return body;
+}
+function entityReachVectors(entity: any) {
+  const out: Array<{ kind: "personal" | "org" | "social"; label: string; href?: string; title?: string }> = [];
+  if (entity.email) {
+    const org = isOrgInbox(entity.email) || entity.contactOutcome === "organization_contact";
+    out.push({ kind: org ? "org" : "personal", label: entity.email, href: `mailto:${entity.email}`, title: org ? `REACH · org — ${entity.email}` : `REACH · personal — ${entity.email}` });
+  }
+  if (entity.phone) out.push({ kind: "personal", label: entity.phone, href: `tel:${entity.phone}`, title: `REACH · personal — ${entity.phone}` });
+  if (entity.linkedinUrl) out.push({ kind: "social", label: "LinkedIn", href: entity.linkedinUrl, title: entity.linkedinUrl });
+  if (entity.twitterHandle) {
+    const h = String(entity.twitterHandle).replace(/^@/, "");
+    out.push({ kind: "social", label: `@${h}`, href: `https://x.com/${h}`, title: `X @${h}` });
+  }
+  return out;
+}
+
+
 const OUTCOME_BADGES: Record<string, { label: string; color: string }> = {
   direct_contact_verified:  { label: "[V] verified",  color: "#10B981" },
   direct_contact_candidate: { label: "direct",       color: "#3B82F6" },
@@ -66,87 +105,6 @@ const OUTCOME_BADGES: Record<string, { label: string; color: string }> = {
   social_only:              { label: "social",        color: "#64748B" },
   evidence_only:            { label: "evidence",      color: "#374151" },
 };
-
-/** Org inbox prefixes — never labeled Personal (fail-closed). */
-const ORG_INBOX_RE = /^(info|sales|contact|office|support|admin|hello|team|enquiries|inquiry|press|media|hr|jobs|careers|billing|accounts|noreply|no-reply)@/i;
-
-function isOrgInbox(email?: string | null): boolean {
-  if (!email) return false;
-  const local = email.trim().split("@")[0] ?? "";
-  return ORG_INBOX_RE.test(`${local}@`);
-}
-
-/** REACH chip: emerald personal · violet org · sky social */
-function ReachChip({
-  kind,
-  label,
-  href,
-  title,
-}: {
-  kind: "personal" | "org" | "social";
-  label: string;
-  href?: string;
-  title?: string;
-}) {
-  const styles =
-    kind === "personal"
-      ? "text-emerald-300 border-emerald-400/35 bg-emerald-400/10"
-      : kind === "org"
-        ? "text-violet-300 border-violet-400/35 bg-violet-400/10"
-        : "text-sky-300 border-sky-400/35 bg-sky-400/10";
-  const tag = kind === "personal" ? "REACH · personal" : kind === "org" ? "REACH · org" : "REACH · social";
-  const body = (
-    <span
-      className={cn(
-        "inline-flex max-w-full items-center gap-1 rounded border px-1.5 py-0.5 font-mono text-[10px] leading-tight",
-        styles,
-      )}
-      title={title ?? tag}
-    >
-      <span className="shrink-0 text-[8px] uppercase tracking-wider opacity-70">
-        {kind === "personal" ? "P" : kind === "org" ? "ORG" : "SOC"}
-      </span>
-      <span className="truncate">{label}</span>
-    </span>
-  );
-  if (href) {
-    return (
-      <a href={href} className="max-w-full hover:opacity-90" onClick={(e) => e.stopPropagation()} title={title ?? label}>
-        {body}
-      </a>
-    );
-  }
-  return body;
-}
-
-function entityReachVectors(entity: any): Array<{ kind: "personal" | "org" | "social"; label: string; href?: string; title?: string }> {
-  const out: Array<{ kind: "personal" | "org" | "social"; label: string; href?: string; title?: string }> = [];
-  if (entity.email) {
-    const org = isOrgInbox(entity.email) || entity.contactOutcome === "organization_contact";
-    out.push({
-      kind: org ? "org" : "personal",
-      label: entity.email,
-      href: `mailto:${entity.email}`,
-      title: org ? `Org inbox — not Personal · ${entity.email}` : `Personal reach · ${entity.email}`,
-    });
-  }
-  if (entity.phone) {
-    out.push({
-      kind: "personal",
-      label: entity.phone,
-      href: `tel:${entity.phone}`,
-      title: `Personal reach · ${entity.phone}`,
-    });
-  }
-  if (entity.linkedinUrl) {
-    out.push({ kind: "social", label: "LinkedIn", href: entity.linkedinUrl, title: entity.linkedinUrl });
-  }
-  if (entity.twitterHandle) {
-    const h = String(entity.twitterHandle).replace(/^@/, "");
-    out.push({ kind: "social", label: `@${h}`, href: `https://x.com/${h}`, title: `X/Twitter @${h}` });
-  }
-  return out;
-}
 
 // ─── CSV export ───────────────────────────────────────────────────────────────
 
@@ -242,19 +200,19 @@ function MobileEntityCard({
   const hasPublicVector = Boolean(entity.email || entity.phone || entity.linkedinUrl || entity.twitterHandle || entity.instagramHandle || entity.telegramHandle);
   const contactState = organizationLike
     ? entity.contactOutcome === "organization_contact"
-      ? "REACH · org"
+      ? "Organization route"
       : hasPublicVector
-        ? "REACH · review"
-        : "No reach vector"
+        ? "Public vector — review"
+        : "No public route"
     : entity.contactOutcome === "direct_contact_verified"
-      ? "REACH · personal [V]"
+      ? "Verified direct"
       : entity.contactOutcome === "direct_contact_candidate"
-        ? "REACH · personal"
+        ? "Direct candidate"
         : entity.contactOutcome === "social_only"
-          ? "REACH · social"
+          ? "Social only"
           : hasPublicVector
-            ? "REACH · review"
-            : "No reach vector";
+            ? "Public vector — review"
+            : "No public route";
 
   return (
       <div className={cn("border-b border-border bg-card transition-colors hover:bg-card/80", selected && "bg-primary/5")}>
@@ -551,16 +509,15 @@ export default function EntityLedger() {
   };
 
   // Client-side filters: proximity + hot + local overrides merged in
+  // ?mock=1 / ?demo=1 → Griffin-class fake rows for UI verification (no Postgres)
   const entities = useMemo(() => {
-    if (!rawEntities) return [];
-    let list = (rawEntities as any[]).map((e: any) => {
+    const source = isMockMode() ? MOCK_ENTITIES : (rawEntities as any[] | undefined);
+    if (!source) return [];
+    let list = source.map((e: any) => {
       const overrides = localOverrides.get(e.id);
       return overrides ? { ...e, ...overrides } : e;
     });
-    if (hotOnly) list = list.filter((e: any) => e.isHot);
-    // "Hide Billionaires" — suppress ultra-wealthy ($500M+) people with zero direct contact.
-    // These are public figures (Thiel, Icahn tier) who are essentially unreachable.
-    // Entities WITH email or phone are never hidden regardless of wealth.
+    if (hotOnly) list = list.filter((e: any) => e.isHot || (e.accessScore ?? 0) >= 0.55);
     if (hideBillionaires) {
       list = list.filter((e: any) => {
         const hasDirectContact = !!(e.email || e.phone);
@@ -568,16 +525,18 @@ export default function EntityLedger() {
         return hasDirectContact || !isUltraRich;
       });
     }
-    // contactRichness + minConfidence are server-side — no client filter needed
-    // In default view, filter out any optimistically-hidden entities
     if (viewMode === "all") list = list.filter((e: any) => !e.isHidden);
-    // In starred view, filter out any optimistically-unstarred entities
     if (viewMode === "starred") list = list.filter((e: any) => e.isStarred !== false);
     return list;
-  }, [rawEntities, hotOnly, viewMode, localOverrides]);
+  }, [rawEntities, hotOnly, hideBillionaires, viewMode, localOverrides]);
 
   // Accumulate pages into allEntities (must be after rawEntities + entities + isSpecialFilter are declared)
   useEffect(() => {
+    if (isMockMode()) {
+      setAllEntities(entities as any[]);
+      setHasMore(false);
+      return;
+    }
     if (isLoadingEntities || rawEntities === undefined) return;
     const pageItems = entities as any[];
     setAllEntities(prev => {
@@ -588,7 +547,7 @@ export default function EntityLedger() {
     });
     setHasMore(!isSpecialFilter && (rawEntities as any[]).length >= 50);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rawEntities, isLoadingEntities]);
+  }, [rawEntities, isLoadingEntities, entities]);
 
   const handleLoadMore = useCallback(() => {
     if (isLoadingEntities || !hasMore || isSpecialFilter) return;
@@ -670,7 +629,10 @@ export default function EntityLedger() {
   };
 
   // Unified display list: hotOnly loads 500 at once (client-side), everything else accumulates via infinite scroll
-  const displayEntities = isSpecialFilter ? entities : allEntities;
+  const displayEntities = isMockMode() ? entities : (isSpecialFilter ? entities : allEntities);
+  // Dev mock bypasses network loading/error states
+  const showLoading = isMockMode() ? false : isLoadingEntities;
+  const showError = isMockMode() ? false : isEntitiesError;
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -1064,9 +1026,7 @@ export default function EntityLedger() {
                       <div className="flex flex-col gap-1">
                         {(() => {
                           const vectors = entityReachVectors(entity);
-                          if (vectors.length === 0) {
-                            return <span className="text-muted-foreground/40 font-mono text-[11px] italic">—</span>;
-                          }
+                          if (vectors.length === 0) return <span className="text-muted-foreground/40 font-mono text-[11px] italic">—</span>;
                           return vectors.map((v, i) => (
                             <ReachChip key={`${v.kind}-${v.label}-${i}`} kind={v.kind} label={v.label} href={v.href} title={v.title} />
                           ));
@@ -1164,7 +1124,7 @@ export default function EntityLedger() {
             {typeFilter && ` · ${typeFilter}`}
           </span>
           <div className="flex items-center gap-3">
-            {isLoadingEntities && page > 0 && <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />}
+            {showLoading && page > 0 && <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />}
             <button
               onClick={() => exportToCsv(displayEntities ?? [])}
               className="text-[10px] font-mono text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
@@ -1321,9 +1281,9 @@ export default function EntityLedger() {
         )}
 
         <div className="flex-1 overflow-y-auto" onScroll={handleMobileScroll}>
-          {isLoadingEntities && page === 0 && <MobileLedgerState kind="loading" />}
-          {!isLoadingEntities && isEntitiesError && <MobileLedgerState kind="unavailable" />}
-          {!isEntitiesError && displayEntities.map((entity: any) => (
+          {showLoading && page === 0 && <MobileLedgerState kind="loading" />}
+          {!showLoading && showError && <MobileLedgerState kind="unavailable" />}
+          {!showError && displayEntities.map((entity: any) => (
             <MobileEntityCard
               key={entity.id}
               entity={entity}
@@ -1335,8 +1295,8 @@ export default function EntityLedger() {
               onToggleHide={handleToggleHide}
             />
           ))}
-          {!isLoadingEntities && !isEntitiesError && displayEntities.length === 0 && <MobileLedgerState kind="empty" />}
-          {isLoadingEntities && page > 0 && (
+          {!showLoading && !showError && displayEntities.length === 0 && <MobileLedgerState kind="empty" />}
+          {showLoading && page > 0 && (
             <div className="flex justify-center py-4">
               <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
             </div>
