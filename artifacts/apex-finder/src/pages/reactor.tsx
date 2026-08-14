@@ -1956,7 +1956,9 @@ export default function IntelligenceReactorPage() {
   // ── Mobile ────────────────────────────────────────────────────────────────
   if (isMobile) {
     return (
-      <div style={{ display:"flex", flexDirection:"column", height:"100%", minHeight:0, overflow:"hidden", width:"100%" }}>
+      <div style={{ display:"flex", flexDirection:"column", height:"100%", minHeight:0, overflow:"hidden", width:"100%", background:"#0b1120" }}>
+        {/* Design-system tokens + motion must load on mobile — not only desktop */}
+        <style>{KEYFRAMES}</style>
         <MobileReactorFlow
           sessions={sessions}
           totalEntities={totalEntities}
