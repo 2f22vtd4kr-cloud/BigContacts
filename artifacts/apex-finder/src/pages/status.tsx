@@ -8,6 +8,7 @@ import {
   Layers, RefreshCw, Server, Wifi, WifiOff, Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { readApiJson } from "@/lib/api-json";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -196,8 +197,8 @@ export default function SystemStatusPage() {
   const fetchStatus = useCallback(async () => {
     try {
       const res = await fetch(`${BASE}/api/system/status`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      const data = await readApiJson(res);
+      if (!res.ok) throw new Error(data?.error ?? `HTTP ${res.status}`);
       setStatus(data);
       setError(null);
     } catch (e: any) {

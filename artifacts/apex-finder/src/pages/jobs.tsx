@@ -6,6 +6,7 @@ import {
   Cpu, AlertTriangle, Brain, Shield, ShieldAlert, GitMerge, Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { readApiJson } from "@/lib/api-json";
 import { Link } from "wouter";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -511,11 +512,16 @@ export default function BackgroundJobs() {
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const [apiOffline, setApiOffline] = useState(false);
+
   const fetchJobs = useCallback(async () => {
     try {
       const r = await fetch(`${BASE}/api/ingest/jobs`);
-      if (!r.ok) return;
-      const data = await r.json();
+      const data = await readApiJson(r);
+      if (!r.ok) {
+        setApiOffline(true);
+        return;
+      }
       const serverJobs: Record<string, any> = {};
       (data.jobs ?? []).forEach((j: any) => { serverJobs[j.id] = j; });
       setJobs(prev => prev.map(j => {
@@ -524,7 +530,10 @@ export default function BackgroundJobs() {
         return { ...j, status: s.status ?? j.status, jobId: s.jobId, progress: s.progress ?? 0, inserted: s.inserted ?? 0, skipped: s.skipped ?? 0, errors: s.errors ?? 0, message: s.message ?? "", startedAt: s.startedAt, finishedAt: s.finishedAt };
       }));
       setLastRefresh(new Date());
-    } catch { /* graceful — endpoint may not exist yet */ }
+      setApiOffline(false);
+    } catch (e: any) {
+      setApiOffline(/not reachable|non-JSON|HTML page/i.test(String(e?.message ?? "")));
+    }
   }, []);
 
   useEffect(() => {
@@ -543,7 +552,8 @@ export default function BackgroundJobs() {
         headers: { "Content-Type": "application/json" },
         body: def.body ? JSON.stringify(def.body) : undefined,
       });
-      const d = await r.json();
+      const d = await readApiJson(r);
+      if (!r.ok) throw new Error(d?.error ?? `HTTP ${r.status}`);
       const jobId = d.jobId;
       if (jobId) {
         setJobs(prev => prev.map(j => j.id === id ? { ...j, jobId, status: "running" } : j));
@@ -551,8 +561,8 @@ export default function BackgroundJobs() {
         const pollThis = setInterval(async () => {
           try {
             const r2 = await fetch(`${BASE}/api/ingest/job/${jobId}`);
+            const d2 = await readApiJson(r2);
             if (!r2.ok) return;
-            const d2 = await r2.json();
             setJobs(prev => prev.map(j => j.id === id ? {
               ...j, status: d2.status ?? j.status, progress: d2.progress ?? 0,
               inserted: d2.inserted ?? 0, skipped: d2.skipped ?? 0, errors: d2.errors ?? 0, message: d2.message ?? "",
@@ -597,6 +607,15 @@ export default function BackgroundJobs() {
           </button>
         </div>
       </div>
+
+      {apiOffline && (
+        <div className="mx-4 md:mx-6 mt-3 flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 text-[11px] text-amber-200/90" role="status">
+          <span className="font-semibold text-amber-300 shrink-0">API offline</span>
+          <span className="text-amber-200/80">
+            Workspace activity cannot reach api-server (HTML or non-JSON on /api). Jobs run on the server queue — not in this tab. Deploy api-server + proxy /api.
+          </span>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="border-b border-border bg-card/20 flex-shrink-0">

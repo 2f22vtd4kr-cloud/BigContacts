@@ -7,6 +7,7 @@ import {
   User, Terminal, Anchor, Cpu, ChevronDown, ChevronRight, Shuffle, Info,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { readApiJson } from "@/lib/api-json";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -393,17 +394,16 @@ async function apiPost(path: string, body?: unknown) {
     headers: { "Content-Type": "application/json" },
     body: body ? JSON.stringify(body) : undefined,
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error((err as any).error ?? `HTTP ${res.status}`);
-  }
-  return res.json();
+  const data = await readApiJson(res);
+  if (!res.ok) throw new Error(data?.error ?? `HTTP ${res.status}`);
+  return data;
 }
 
 async function apiGet(path: string) {
   const res = await fetch(`${BASE}${path}`);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+  const data = await readApiJson(res);
+  if (!res.ok) throw new Error(data?.error ?? `HTTP ${res.status}`);
+  return data;
 }
 
 // ─── J0 Funnel Panel ─────────────────────────────────────────────────────────
