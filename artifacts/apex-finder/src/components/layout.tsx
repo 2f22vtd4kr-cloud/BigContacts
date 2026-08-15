@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { ApiKeyHealth } from "@/components/api-key-health";
 import { WorkspaceStatus } from "@/components/workspace-status";
+import { LaunchAtlasButton } from "@/components/launch-atlas-button";
 
 const mainNav = [
   { name: "Overview", href: "/", icon: Crosshair },
@@ -199,6 +200,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </div>
           </div>
           <div className="ml-auto flex items-center gap-2">
+            <LaunchAtlasButton variant="header" className="!h-8 !px-2.5 !text-[10px] sm:!h-9 sm:!px-3 sm:!text-[11px]" />
             <WorkspaceStatus />
             <ApiKeyHealth />
             <button

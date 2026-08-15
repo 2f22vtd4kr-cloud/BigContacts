@@ -6,6 +6,7 @@ import {
   Sparkles, Compass, Rss, Users,
 } from "lucide-react";
 import { MobileReactorFlow } from "../components/mobile-reactor-flow";
+import { LaunchAtlasButton } from "@/components/launch-atlas-button";
 import { REACTOR_CSS, REACTOR_CELEBRATE_MS, REACTOR_UI_MS, motionOrNone, prefersReducedMotion } from "../lib/reactor-motion";
 import { BureauOpsStage } from "../components/bureau-ops-stage";
 import { isMockMode, mockAtlasLiveState, mockLiveNodes } from "@/lib/dev-mock-data";
@@ -2242,6 +2243,10 @@ export default function IntelligenceReactorPage() {
       <div style={{ display:"flex", flexDirection:"column", height:"100%", minHeight:0, overflow:"hidden", width:"100%", background:"#0b1120" }}>
         {/* Design-system tokens + motion must load on mobile — not only desktop */}
         <style>{KEYFRAMES}</style>
+        <div className="flex-shrink-0 border-b border-cyan-400/15 bg-slate-950/90 px-3 py-2.5" data-testid="reactor-launch-bar-mobile">
+          <div className="mb-1.5 font-mono text-[9px] uppercase tracking-[0.2em] text-cyan-200/60">Apex Atlas / Reactor</div>
+          <LaunchAtlasButton variant="reactor" navigateToReactor={false} label="Launch Apex Atlas" />
+        </div>
         <MobileReactorFlow
           sessions={sessions}
           totalEntities={totalEntities}
@@ -2268,6 +2273,9 @@ export default function IntelligenceReactorPage() {
       ref={containerRef}
       style={{ position:"absolute", inset:0, overflow:"hidden", background:"#0b1120", isolation:"isolate" }}
     >
+      <div className="absolute top-3 right-3 z-50 max-w-[min(100%,320px)]" data-testid="reactor-launch-bar-desktop">
+        <LaunchAtlasButton variant="reactor" navigateToReactor={false} label="Launch Apex Atlas" />
+      </div>
       <div style={{ position:"relative", overflow:"hidden", width:"100%", height:"100%" }}>
         <div style={{ transformOrigin:"top left", transform:`scale(${scale})`, width:1600, height:960 }}>
         <DesktopReactor

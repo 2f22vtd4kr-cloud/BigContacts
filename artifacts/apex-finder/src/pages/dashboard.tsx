@@ -17,6 +17,7 @@ import {
   Users,
 } from "lucide-react";
 import { Link } from "wouter";
+import { LaunchAtlasButton } from "@/components/launch-atlas-button";
 import { entityEvidenceLabel, entityFindingsSummary, entityWorkSummary } from "@/lib/utils";
 import { entityMeta, EntityTypeMark, entityMetric } from "@/lib/entity-taxonomy";
 
@@ -237,15 +238,16 @@ export default function Dashboard() {
             People worth<br className="hidden sm:block" /> knowing.
           </h1>
           <p className="mt-5 max-w-lg text-sm leading-6 text-muted-foreground md:text-[15px]">
-            A clear view of people, companies, trusts, and access contacts found in public records, with the evidence and routes that make a closer look worthwhile.
+            Launch Apex Atlas to run the full public-records pipeline — discovery, attribution, and REACH contacts — then watch live progress on the reactor desk.
           </p>
         </div>
-        <div className="flex w-full flex-col gap-2 sm:flex-row md:w-auto">
-          <Link href="/search" data-testid="link-dashboard-search" className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-5 text-xs font-bold text-primary-foreground transition-colors hover:bg-primary/90">
-            <Search className="h-4 w-4" /> Find an entity
+        <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap md:w-auto md:justify-end">
+          <LaunchAtlasButton variant="primary" />
+          <Link href="/reactor" data-testid="link-dashboard-reactor" className="inline-flex h-12 items-center justify-center gap-2 rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-5 text-xs font-semibold text-cyan-100 transition-all hover:border-cyan-300/50 hover:bg-cyan-400/15">
+            <Radar className="h-4 w-4" /> Open reactor desk
           </Link>
-          <Link href="/reactor" data-testid="link-dashboard-reactor" className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-5 text-xs font-semibold text-cyan-100 transition-all hover:border-cyan-300/50 hover:bg-cyan-400/15">
-            <Radar className="h-4 w-4" /> Live reactor
+          <Link href="/search" data-testid="link-dashboard-search" className="inline-flex h-12 items-center justify-center gap-2 rounded-lg border border-border bg-card/60 px-5 text-xs font-semibold text-foreground transition-all hover:border-primary/60 hover:bg-card">
+            <Search className="h-4 w-4" /> Find an entity
           </Link>
           <Link href="/profiles" data-testid="link-dashboard-profiles" className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-border bg-card/60 px-5 text-xs font-semibold text-foreground transition-all hover:border-primary/60 hover:bg-card">
             Entity ledger <ArrowUpRight className="h-3.5 w-3.5" />
