@@ -173,7 +173,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
     || location === "/duplicates"
     || location === "/data-sources"
     || location === "/status"
-    || location === "/osint-tools";
+    || location === "/osint-tools"
+    || location === "/search"
+    || location === "/profiles"
+    || location === "/network"
+    || location === "/manual";
 
   return (
     <div className="atlas-noise flex min-h-[100dvh] overflow-hidden bg-background text-foreground">
