@@ -18,14 +18,20 @@ function useGraphContainerSize() {
     if (!container) return;
 
     const updateSize = () => {
-      setSize([container.clientWidth, container.clientHeight]);
+      // Mobile flex column can report 0 height before layout settles — floor to viewport.
+      const w = Math.max(container.clientWidth, 320);
+      const h = Math.max(container.clientHeight, Math.floor(window.innerHeight * 0.55), 320);
+      setSize([w, h]);
     };
     updateSize();
+    // Second pass after layout (mobile chrome + flex)
+    const t = window.setTimeout(updateSize, 120);
 
     const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(updateSize) : null;
     ro?.observe(container);
     window.addEventListener("resize", updateSize);
     return () => {
+      window.clearTimeout(t);
       ro?.disconnect();
       window.removeEventListener("resize", updateSize);
     };
@@ -323,7 +329,7 @@ export default function GraphViewer() {
   }
 
   return (
-    <div className="flex h-full w-full bg-background relative overflow-hidden flex-col md:block" id="graph-container"
+    <div className="flex h-full min-h-[70vh] w-full bg-background relative overflow-hidden flex-col md:block" id="graph-container"
       onContextMenu={(e) => e.preventDefault()}
     >
 

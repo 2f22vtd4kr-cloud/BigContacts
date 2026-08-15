@@ -728,7 +728,7 @@ export default function EntityLedger() {
             </div>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
-          <div className="flex items-center gap-2 w-full sm:flex-1 min-h-[40px] px-3 py-1.5 rounded-full bg-background border border-border">
+          <div className="flex items-center gap-2 w-full sm:flex-1 min-h-[40px] px-3.5 py-1.5 rounded-xl bg-background/80 border border-border/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] focus-within:border-cyan-400/40 focus-within:ring-1 focus-within:ring-cyan-400/20">
             <Search className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" aria-hidden />
             <input
               type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
@@ -747,7 +747,7 @@ export default function EntityLedger() {
                 <button
                   key={t ?? "all"}
                   onClick={() => setTypeFilter(t)}
-                  className="flex min-h-[32px] items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase transition-all"
+                  className="flex min-h-[32px] items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-mono font-bold uppercase tracking-[0.08em] transition-all"
                   style={{
                     backgroundColor: typeFilter === t ? c : "transparent",
                     color: typeFilter === t ? "#000" : "hsl(var(--muted-foreground))",
@@ -761,7 +761,7 @@ export default function EntityLedger() {
           </div>
 
           {/* View mode tabs */}
-          <div className="flex items-center gap-1 border border-border rounded-full p-0.5 shrink-0">
+          <div className="flex items-center gap-0.5 border border-border/70 rounded-xl p-1 shrink-0 bg-card/40">
             {([
               { mode: "all",     label: "All",     icon: <Users2 className="w-3 h-3" /> },
               { mode: "starred", label: "Starred",  icon: <Star className="w-3 h-3" /> },
@@ -786,7 +786,7 @@ export default function EntityLedger() {
           <button
             onClick={() => setShowRegistry(!showRegistry)}
             className={cn(
-              "flex min-h-[36px] items-center gap-1.5 px-3 py-1.5 rounded-full border font-mono text-[10px] uppercase tracking-wider transition-all sm:ml-2",
+              "flex min-h-[36px] items-center gap-1.5 px-3 py-1.5 rounded-lg border font-mono text-[10px] uppercase tracking-wider transition-all sm:ml-2",
               showRegistry ? "bg-secondary/20 border-secondary text-secondary" : "border-border text-muted-foreground hover:text-foreground",
             )}
           >
@@ -796,7 +796,7 @@ export default function EntityLedger() {
           {entities && entities.length > 0 && (
             <button
               onClick={() => exportToCsv(entities)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border text-muted-foreground hover:text-foreground font-mono text-[10px] uppercase tracking-wider transition-all"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground font-mono text-[10px] uppercase tracking-wider transition-all"
             >
               <Download className="w-3 h-3" /> CSV
             </button>
@@ -804,19 +804,19 @@ export default function EntityLedger() {
 
           <button
             onClick={() => openAddModal()}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border bg-transparent text-muted-foreground hover:bg-muted font-mono text-[10px] uppercase tracking-wider transition-colors ml-auto"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-transparent text-muted-foreground hover:bg-muted font-mono text-[10px] uppercase tracking-wider transition-colors ml-auto"
           >
             <Plus className="w-3 h-3" /> Add
           </button>
         </div>
 
         {/* Contact richness + confidence + hot filter row */}
-        <div className="flex items-center gap-1.5 px-4 py-1.5 border-b border-border/40 bg-card/5 flex-shrink-0 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+        <div className="flex items-center gap-1.5 px-4 py-2 border-b border-border/40 bg-card/10 flex-shrink-0 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
           <span className="text-[9px] font-mono text-muted-foreground uppercase tracking-widest shrink-0">Contact:</span>
           {/* "All" pill — resets richness filter */}
           <button
             onClick={() => setContactRichness(null)}
-            className="shrink-0 h-6 px-2.5 rounded text-[10px] font-mono border transition-all whitespace-nowrap"
+            className="shrink-0 h-7 px-2.5 rounded-md text-[10px] font-mono border transition-all whitespace-nowrap"
             style={{
               background: contactRichness === null ? "rgba(100,116,139,0.15)" : "transparent",
               color: contactRichness === null ? "#94A3B8" : "hsl(var(--muted-foreground))",
@@ -829,7 +829,7 @@ export default function EntityLedger() {
             <button
               key={value}
               onClick={() => setContactRichness(contactRichness === value ? null : value)}
-              className="shrink-0 h-6 px-2.5 rounded text-[10px] font-mono border transition-all whitespace-nowrap"
+              className="shrink-0 h-7 px-2.5 rounded-md text-[10px] font-mono border transition-all whitespace-nowrap"
               style={{
                 background: contactRichness === value ? color + "20" : "transparent",
                 color: contactRichness === value ? color : "hsl(var(--muted-foreground))",
@@ -845,7 +845,7 @@ export default function EntityLedger() {
             <button
               key={step}
               onClick={() => setMinConfidence(minConfidence === step ? 0 : step)}
-              className="shrink-0 h-6 px-2.5 rounded text-[10px] font-mono border transition-all whitespace-nowrap"
+              className="shrink-0 h-7 px-2.5 rounded-md text-[10px] font-mono border transition-all whitespace-nowrap"
               style={{
                 background: minConfidence === step ? "rgba(245,158,11,0.15)" : "transparent",
                 color: minConfidence === step ? "#F59E0B" : "hsl(var(--muted-foreground))",
@@ -858,7 +858,7 @@ export default function EntityLedger() {
           <div className="w-px h-4 bg-border/60 mx-1 shrink-0" />
           <button
             onClick={() => setHotOnly(!hotOnly)}
-            className="shrink-0 h-6 px-2.5 rounded text-[10px] font-mono border transition-all whitespace-nowrap"
+            className="shrink-0 h-7 px-2.5 rounded-md text-[10px] font-mono border transition-all whitespace-nowrap"
             style={{
               background: hotOnly ? "rgba(245,158,11,0.12)" : "transparent",
               color: hotOnly ? "#F59E0B" : "hsl(var(--muted-foreground))",
@@ -871,7 +871,7 @@ export default function EntityLedger() {
           <button
             onClick={() => setHideBillionaires(!hideBillionaires)}
             title="Hide ultra-wealthy ($500M+) with no direct contact (Thiel, Icahn tier — practically unreachable)"
-            className="shrink-0 h-6 px-2.5 rounded text-[10px] font-mono border transition-all whitespace-nowrap"
+            className="shrink-0 h-7 px-2.5 rounded-md text-[10px] font-mono border transition-all whitespace-nowrap"
             style={{
               background: hideBillionaires ? "rgba(168,85,247,0.12)" : "transparent",
               color: hideBillionaires ? "#A855F7" : "hsl(var(--muted-foreground))",

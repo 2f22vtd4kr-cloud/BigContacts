@@ -501,7 +501,7 @@ function FunnelPanel() {
   ];
 
   return (
-    <div className="rounded-xl border border-border bg-card/60 p-4 flex flex-col gap-3">
+    <div className="rounded-2xl border border-border/70 bg-card/40 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Filter className="h-4 w-4 text-primary" />
@@ -630,7 +630,7 @@ function RegistryMatrixPanel() {
   }, []);
 
   return (
-    <section className="rounded-xl border border-border bg-card/60 p-4">
+    <section className="rounded-2xl border border-border/70 bg-card/40 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
       <div className="flex items-center gap-2 mb-3">
         <Globe className="h-4 w-4 text-cyan-400" />
         <span className="text-sm font-semibold font-mono uppercase tracking-widest text-cyan-400">
@@ -800,7 +800,7 @@ function IdentityResolutionPanel() {
   const rejected  = stats?.candidates?.rejected  ?? 0;
 
   return (
-    <section className="rounded-xl border border-border bg-card/60 p-4">
+    <section className="rounded-2xl border border-border/70 bg-card/40 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
       <div className="flex items-center gap-2 mb-3">
         <UserCheck className="h-4 w-4 text-violet-400" />
         <span className="text-sm font-semibold font-mono uppercase tracking-widest text-violet-400">
@@ -962,7 +962,7 @@ function PythonToolsPanel() {
     : false;
 
   return (
-    <section className="rounded-xl border border-border bg-card/60 p-4 space-y-4">
+    <section className="rounded-2xl border border-border/70 bg-card/40 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] space-y-4">
 
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -1134,7 +1134,7 @@ function SourceQualityPanel() {
   };
 
   return (
-    <section className="rounded-xl border border-border bg-card/60 p-4 space-y-4">
+    <section className="rounded-2xl border border-border/70 bg-card/40 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <BarChart3 className="h-4 w-4 text-cyan-400" />
@@ -1230,7 +1230,7 @@ function SourceQualityPanel() {
 
 function SourceCard({ src }: { src: SourceDef }) {
   return (
-    <div className="rounded-xl border border-border bg-card/60 p-4 flex flex-col gap-2.5">
+    <div className="rounded-2xl border border-border/70 bg-card/40 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] flex flex-col gap-2.5">
       <div className="flex items-start gap-3">
         <div className="rounded-lg p-2 flex-shrink-0" style={{ background: src.bg }}>
           <src.Icon className="h-4 w-4" style={{ color: src.color }} />
@@ -1291,7 +1291,7 @@ function CollapsibleSection({
   accent?: string;
 }) {
   return (
-    <details open={defaultOpen} className="group rounded-xl border border-border/70 bg-card/20 overflow-hidden">
+    <details open={defaultOpen} className="group rounded-2xl border border-border/60 bg-card/25 overflow-hidden">
       <summary className="list-none cursor-pointer select-none px-4 py-3 flex items-center gap-3 hover:bg-muted/20 transition-colors">
         <Icon className={cn("h-4 w-4 flex-shrink-0", accent)} />
         <div className="min-w-0 flex-1">
