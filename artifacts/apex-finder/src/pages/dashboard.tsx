@@ -238,7 +238,7 @@ export default function Dashboard() {
             People worth<br className="hidden sm:block" /> knowing.
           </h1>
           <p className="mt-5 max-w-lg text-sm leading-6 text-muted-foreground md:text-[15px]">
-            Launch Apex Atlas to run the full public-records pipeline — discovery, attribution, and REACH contacts — then watch live progress on the reactor desk.
+            Launch Apex Atlas to run the full public-records pipeline — discovery, attribution, and attributable contacts — then watch live progress on the reactor desk.
           </p>
         </div>
         <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap md:w-auto md:justify-end">

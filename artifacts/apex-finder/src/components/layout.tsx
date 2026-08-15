@@ -167,6 +167,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   /** Pages that already render their own title / immersive chrome */
   const hideDeskTitle =
     isReactorRoute
+    || location === "/"
     || location.startsWith("/profile/")
     || location === "/jobs"
     || location === "/improvements"
