@@ -46,6 +46,7 @@ import {
   Crosshair, Flame,
 } from "lucide-react";
 import { cn, entityFindingsSummary, entityWorkSummary, formatCurrency, formatEntityName, AccessScoreBadge, ConfidenceBadge, ScoreBadge } from "@/lib/utils";
+import { isMockMode, MOCK_ENTITIES } from "@/lib/dev-mock-data";
 import { entityMeta, EntityTypeMark, entityMetric } from "@/lib/entity-taxonomy";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -305,7 +306,20 @@ export default function ApexProfile() {
   const params = useParams<{ id: string }>();
   const entityId = parseInt(params.id ?? "0", 10);
 
-  const { data: entity, isLoading, refetch: refetchEntity } = useGetEntity(entityId);
+  const { data: entityFromApi, isLoading, refetch: refetchEntity } = useGetEntity(entityId);
+  const mockEntity = isMockMode()
+    ? (MOCK_ENTITIES.find((e) => e.id === entityId) ?? MOCK_ENTITIES[0])
+    : null;
+  const entity = mockEntity
+    ? ({
+        ...mockEntity,
+        metadata: null,
+        isHot: (mockEntity.accessScore ?? 0) >= 0.55,
+        contactEmail: mockEntity.email,
+        contactPhone: mockEntity.phone,
+      } as any)
+    : entityFromApi;
+
   const { data: assets = []       } = useListAssets({ entityId });
   const { data: relationships = [], refetch: refetchRelationships } = useListRelationships({ entityId });
   const { data: sessions = [],  refetch: refetchSessions } = useListResearchSessions({ entityId, limit: 10 });
@@ -431,7 +445,7 @@ export default function ApexProfile() {
 
   // ── Loading / error states ─────────────────────────────────────────────────
 
-  if (isLoading) {
+  if (isLoading && !mockEntity) {
     return (
       <div className="flex items-center justify-center h-full">
         <Loader2 className="w-6 h-6 animate-spin text-primary" />

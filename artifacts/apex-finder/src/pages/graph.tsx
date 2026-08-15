@@ -608,37 +608,54 @@ export default function GraphViewer() {
       )}
 
       {/* ── Error state — entity not found or graph API error ── */}
-      {isError && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center z-20 text-muted-foreground font-mono space-y-3">
-          <Network className="w-12 h-12 opacity-20" />
-          <span className="text-sm tracking-widest uppercase">Graph unavailable</span>
-          <span className="text-xs opacity-60 text-center max-w-xs">
-            Entity not found or graph data could not be loaded. Select a different entity from the dropdown.
-          </span>
+      {isError && !isMockMode() && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center z-20 px-6 text-center space-y-3">
+          <div className="grid h-14 w-14 place-items-center rounded-2xl border border-border bg-card/50">
+            <Network className="w-6 h-6 text-muted-foreground/50" aria-hidden />
+          </div>
+          <div className="font-mono text-sm font-semibold uppercase tracking-widest text-foreground">Graph unavailable</div>
+          <p className="text-xs text-muted-foreground max-w-sm leading-relaxed">
+            Entity not found or api-server graph route failed. Select another target or check System status.
+          </p>
+          <div className="flex flex-wrap justify-center gap-2 pt-1">
+            <Link href="/profiles" className="inline-flex min-h-[36px] items-center rounded-lg border border-border bg-card/60 px-3 py-1.5 text-[11px] font-semibold text-foreground hover:border-primary/40">Entity ledger</Link>
+            <Link href="/status" className="inline-flex min-h-[36px] items-center rounded-lg border border-border bg-card/60 px-3 py-1.5 text-[11px] font-semibold text-foreground hover:border-primary/40">System status</Link>
+          </div>
         </div>
       )}
 
       {/* ── No entities at all (DB empty) ── */}
       {!isError && allEntities !== undefined && allEntities.length === 0 && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center z-20 text-muted-foreground font-mono space-y-3">
-          <Network className="w-12 h-12 opacity-20" />
-          <span className="text-sm tracking-widest uppercase">No entities yet</span>
-          <span className="text-xs opacity-60">Run ingestion from Data Sources to populate the graph</span>
+        <div className="absolute inset-0 flex flex-col items-center justify-center z-20 px-6 text-center space-y-3">
+          <div className="grid h-14 w-14 place-items-center rounded-2xl border border-border bg-card/50">
+            <Network className="w-6 h-6 text-muted-foreground/50" aria-hidden />
+          </div>
+          <div className="font-mono text-sm font-semibold uppercase tracking-widest text-foreground">No entities yet</div>
+          <p className="text-xs text-muted-foreground max-w-sm leading-relaxed">
+            Load registries or run Discover so the graph has people and companies to link.
+          </p>
+          <div className="flex flex-wrap justify-center gap-2 pt-1">
+            <Link href="/data-sources" className="inline-flex min-h-[36px] items-center rounded-lg border border-primary/30 bg-primary/10 px-3 py-1.5 text-[11px] font-semibold text-primary">Data sources</Link>
+            <Link href="/search" className="inline-flex min-h-[36px] items-center rounded-lg border border-border bg-card/60 px-3 py-1.5 text-[11px] font-semibold text-foreground hover:border-primary/40">Discover</Link>
+          </div>
         </div>
       )}
 
       {/* ── Loading ── */}
       {isLoading && allEntities !== undefined && allEntities.length > 0 && (
-        <div className="absolute inset-0 flex items-center justify-center z-0 text-primary font-mono text-sm tracking-widest uppercase animate-pulse">
-          Mapping Graph...
+        <div className="absolute inset-0 flex flex-col items-center justify-center z-0 gap-2 text-primary font-mono text-sm tracking-widest uppercase">
+          <div className="h-8 w-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin" aria-hidden />
+          <span className="animate-pulse">Mapping graph…</span>
         </div>
       )}
 
       {/* ── Empty state — entity exists but has no graph connections ── */}
       {!isLoading && allEntities !== undefined && allEntities.length > 0 && gData.nodes.length === 0 && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center z-0 text-muted-foreground font-mono text-sm space-y-2">
-          <Network className="w-10 h-10 opacity-20" />
-          <span>No graph data for this entity.</span>
+        <div className="absolute inset-0 flex flex-col items-center justify-center z-0 px-6 text-center space-y-3">
+          <Network className="w-10 h-10 text-muted-foreground/30" aria-hidden />
+          <div className="text-sm font-medium text-foreground">No graph data for this entity</div>
+          <p className="text-xs text-muted-foreground max-w-sm">Relationships appear after research attaches related people and corporate links.</p>
+          <Link href="/reactor" className="inline-flex min-h-[36px] items-center rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-3 py-1.5 text-[11px] font-semibold text-cyan-100">Open live reactor</Link>
         </div>
       )}
 
