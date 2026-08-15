@@ -80,9 +80,9 @@ const PERSONA_META: Record<PersonaId, { label: string; Icon: React.FC<any>; colo
 const ALL_PERSONAS = Object.keys(PERSONA_META) as PersonaId[];
 
 const PRIORITY_CONFIG: Record<Priority, { label: string; color: string; bg: string }> = {
-  high:   { label: "HIGH",   color: "#EF4444", bg: "rgba(239,68,68,0.15)"  },
+  high:   { label: "Urgent", color: "#EF4444", bg: "rgba(239,68,68,0.15)"  },
   medium: { label: "MED",    color: "#F59E0B", bg: "rgba(245,158,11,0.15)" },
-  low:    { label: "LOW",    color: "#6B7280", bg: "rgba(107,114,128,0.15)" },
+  low:    { label: "Low",    color: "#6B7280", bg: "rgba(107,114,128,0.15)" },
 };
 
 // ─── API helpers ──────────────────────────────────────────────────────────────
@@ -561,11 +561,9 @@ export default function ImprovementsPage() {
       <div className="flex-shrink-0 border-b border-border px-4 md:px-6 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <div className="flex items-center gap-3 min-w-0">
           <Bot className="h-5 w-5 text-primary flex-shrink-0" aria-hidden />
-          <div className="min-w-0"><h1 className="text-sm md:text-base font-semibold tracking-tight text-foreground leading-tight">
-              Persona review
-            </h1>
-            <p className="text-xs text-muted-foreground hidden sm:block">
-              11 deterministic personas analyse every entity and surface concrete improvements
+          <div className="min-w-0">
+            <p className="text-[12px] text-muted-foreground leading-snug">
+              11 personas analyse entities and surface concrete improvements
             </p>
           </div>
         </div>
@@ -575,7 +573,7 @@ export default function ImprovementsPage() {
             <div className="hidden md:flex items-center gap-3 text-xs font-mono text-muted-foreground mr-2">
               {highCount > 0 && (
                 <span className="text-red-400 flex items-center gap-1">
-                  <AlertTriangle className="h-3 w-3" />{highCount} high
+                  <AlertTriangle className="h-3 w-3" />{highCount} urgent
                 </span>
               )}
               <span>{pendingCount} pending</span>

@@ -260,7 +260,14 @@ function PersonaLoopTab() {
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-center gap-2 flex-wrap min-w-0">
                 <span className="text-[9px] font-mono uppercase tracking-widest text-primary border border-primary/30 bg-primary/5 px-1.5 py-0.5 rounded">{personaLabel(log.persona)}</span>
-                <span className={cn("text-[9px] font-mono uppercase px-1.5 py-0.5 rounded border", log.priority === "HIGH" ? "text-red-400 border-red-400/20 bg-red-400/5" : log.priority === "MEDIUM" ? "text-amber-400 border-amber-400/20 bg-amber-400/5" : "text-muted-foreground border-border")}>{log.priority}</span>
+                <span className={cn(
+                  "inline-flex items-center rounded-md border px-1.5 py-0.5 text-[9px] font-mono font-medium",
+                  log.priority === "HIGH" ? "text-red-300 border-red-400/30 bg-red-400/10" :
+                  log.priority === "MEDIUM" ? "text-amber-300 border-amber-400/30 bg-amber-400/10" :
+                  "text-muted-foreground border-border bg-muted/20"
+                )}>
+                  {log.priority === "HIGH" ? "Urgent" : log.priority === "MEDIUM" ? "Normal" : log.priority === "LOW" ? "Low" : String(log.priority ?? "")}
+                </span>
                 {log.entityName && <span className="text-[10px] font-mono text-muted-foreground truncate">{log.entityName}</span>}
               </div>
               <div className="flex items-center gap-1 shrink-0">
@@ -604,8 +611,8 @@ export default function BackgroundJobs() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3 min-w-0">
             <Radio className="w-5 h-5 text-primary shrink-0" aria-hidden />
-            <div className="min-w-0"><h1 className="text-sm font-semibold tracking-tight text-foreground">Workspace activity</h1>
-              <p className="text-[11px] text-muted-foreground mt-0.5 max-w-[42ch]">Pipeline jobs · ingestors · persona loop · duplicate review</p>
+            <div className="min-w-0">
+              <p className="text-[12px] text-muted-foreground leading-snug max-w-[48ch]">Pipeline jobs · ingestors · persona loop · duplicate review</p>
             </div>
           </div>
           <button
