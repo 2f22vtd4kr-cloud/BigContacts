@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 import { LaunchAtlasButton } from "@/components/launch-atlas-button";
-import { entityEvidenceLabel, entityFindingsSummary, entityWorkSummary } from "@/lib/utils";
+import { entityEvidenceLabel, entityFindingsSummary, entityWorkSummary, NationalityCell } from "@/lib/utils";
 import { entityMeta, EntityTypeMark, entityMetric } from "@/lib/entity-taxonomy";
 
 function scorePercent(score?: number | null) {
@@ -117,7 +117,7 @@ function LeadCard({ lead, index }: { lead: any; index: number }) {
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-2 font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
             <EntityTypeMark type={lead.entityType} compact />
-            {lead.nationality && <><span className="text-border">·</span><span>{lead.nationality}</span></>}
+            {lead.nationality && <><span className="text-border">·</span><NationalityCell nationality={lead.nationality} /></>}
           </div>
         </div>
         {index < 3 && (
@@ -126,7 +126,7 @@ function LeadCard({ lead, index }: { lead: any; index: number }) {
               ? "border-emerald-400/35 bg-emerald-400/10 text-emerald-300"
               : "border-border bg-muted/60 text-muted-foreground"
           }`}>
-            {contactReady ? "REACH" : "Review"}
+            {contactReady ? "Reachable" : "Review"}
           </span>
         )}
       </div>
@@ -146,14 +146,14 @@ function LeadCard({ lead, index }: { lead: any; index: number }) {
 
       <div className="relative mt-4 sm:mt-6 grid grid-cols-2 gap-2 sm:gap-3">
         <div className="rounded-lg border border-border/70 bg-background/45 px-2.5 py-2 sm:px-3 sm:py-2.5">
-          <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">Confidence</div>
+          <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">Contact quality</div>
           <div className={`mt-1 font-mono text-base sm:text-lg font-bold ${scoreTone(confidence)}`} data-testid={`text-confidence-${lead.entityId}`}>{scorePercent(confidence)}</div>
-          <div className="mt-0.5 text-[10px] text-muted-foreground hidden sm:block">REACH confidence</div>
+          <div className="mt-0.5 text-[10px] text-muted-foreground hidden sm:block">How solid the contact evidence is</div>
         </div>
         <div className="rounded-lg border border-border/70 bg-background/45 px-2.5 py-2 sm:px-3 sm:py-2.5 transition-colors group-hover:border-primary/20">
-          <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">Access</div>
+          <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">Reachability</div>
           <div className={`mt-1 font-mono text-base sm:text-lg font-bold ${scoreTone(access)}`} data-testid={`text-access-${lead.entityId}`}>{scorePercent(access)}</div>
-          <div className="mt-0.5 text-[10px] text-muted-foreground hidden sm:block">REACH access score</div>
+          <div className="mt-0.5 text-[10px] text-muted-foreground hidden sm:block">How realistically they can be reached</div>
         </div>
       </div>
 
@@ -163,7 +163,7 @@ function LeadCard({ lead, index }: { lead: any; index: number }) {
       </div>
       {lead.email && (
         <div className="relative mt-3 truncate rounded-md border border-emerald-400/25 bg-emerald-400/10 px-2 py-1 font-mono text-[10px] text-emerald-200/90" title={lead.email}>
-          <span className="opacity-70">REACH · </span>{lead.email}
+          <span className="opacity-70">Email · </span>{lead.email}
         </div>
       )}
       <div className="relative mt-3 flex items-center gap-2 text-[10px]">
@@ -175,7 +175,7 @@ function LeadCard({ lead, index }: { lead: any; index: number }) {
           {contactReady ? <ShieldCheck className="h-3 w-3" /> : <FileSearch className="h-3 w-3" />}
         </span>
         <span className={contactReady ? "font-mono text-[10px] uppercase tracking-[0.1em] text-emerald-300/90" : "font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground"}>
-          {contactReady ? "REACH · vector present" : "REACH · incomplete"}
+          {contactReady ? "Contact path found" : "Contact path incomplete"}
         </span>
         <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-muted-foreground transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
       </div>
