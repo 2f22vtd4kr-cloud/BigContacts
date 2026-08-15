@@ -101,7 +101,7 @@ interface StepCardProps {
 function StepCard({ icon: Icon, name, description, status, metric, detail, durationMs }: StepCardProps) {
   return (
     <div className={cn(
-      "border rounded-lg p-3 sm:p-4 transition-all duration-300",
+      "border border-border/70 rounded-2xl bg-card/30 p-3 sm:p-4 transition-all duration-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]",
       status === "idle"    && "border-border bg-card/20 opacity-50",
       status === "running" && "border-primary/50 bg-primary/5 shadow-[0_0_15px_rgba(16,185,129,0.1)]",
       status === "done"    && "border-emerald-500/30 bg-emerald-500/5",
@@ -365,7 +365,7 @@ export default function DeepSearch() {
           <h1 className="text-sm sm:text-base font-semibold tracking-tight text-foreground">
             Discover
           </h1>
-          <span className="hidden sm:inline rounded-full border border-border/80 bg-muted/40 px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
+          <span className="hidden sm:inline rounded-md border border-border/70 bg-muted/30 px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
             ranked public search
           </span>
           {result && (
@@ -525,7 +525,7 @@ export default function DeepSearch() {
               <button
                 key={ex}
                 onClick={() => { setQuery(ex); run(ex); }}
-                className="text-xs font-mono text-muted-foreground border border-border rounded-full px-3 py-1 hover:border-primary hover:text-primary transition-colors"
+                className="text-xs font-mono text-muted-foreground border border-border/70 bg-card/25 rounded-xl px-3 py-1.5 hover:border-cyan-400/40 hover:text-cyan-100 transition-colors"
               >
                 {ex}
               </button>
