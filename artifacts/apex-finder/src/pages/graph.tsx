@@ -7,6 +7,7 @@ import { Network, ZoomIn, ZoomOut, Maximize, X, Search, ChevronDown, Filter, Shi
 import { cn, formatCurrency, formatEntityName, ScoreBadge } from "@/lib/utils";
 import { isMockMode, MOCK_ENTITIES } from "@/lib/dev-mock-data";
 import {
+import { readApiJson } from "@/lib/api-json";
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose,
 } from "@/components/ui/dialog";
 
@@ -53,7 +54,7 @@ export default function GraphViewer() {
       }
       const base = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
       fetch(`${base}/api/graph/hub-entity`)
-        .then((r) => r.json())
+        .then((r) => readApiJson(r))
         .then((d: { entityId: number | null }) => {
           if (d.entityId && Number.isFinite(d.entityId) && d.entityId > 0) {
             setTargetId(d.entityId);
@@ -184,7 +185,7 @@ export default function GraphViewer() {
     try {
       const base = (import.meta as any).env.BASE_URL.replace(/\/$/, "");
       const r = await fetch(`${base}/api/entities?search=${encodeURIComponent(q)}&limit=20`);
-      const d = await r.json();
+      const d = await readApiJson(r);
       const list: any[] = Array.isArray(d) ? d : (d.entities ?? []);
       setRelSearchResults(list.map((e: any) => ({ id: e.id, name: e.name })));
     } catch { setRelSearchResults([]); }

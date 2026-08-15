@@ -4,6 +4,7 @@ import { getListResearchEvidenceQueryKey, useListEntities, useRunResearch, useLi
 import { Terminal, Play, Cpu, ChevronRight, Hash, CheckCircle2, GitBranch, Target, Shield, ChevronDown, Search, X, Mail, Phone, Copy, CheckCheck, Layers, ExternalLink, FileCheck2, CircleAlert } from "lucide-react";
 import { cn, formatEntityName } from "@/lib/utils";
 import { ScoreBadge } from "@/lib/utils";
+import { readApiJson } from "@/lib/api-json";
 
 // ── Correct types matching the API ──────────────────────────────────────────
 type MctsStep = {
@@ -462,7 +463,7 @@ export default function IntelTerminal() {
     }
     let active = true;
     fetch(`/api/research/intro-path/${selectedEntityId}`, { cache: "no-store" })
-      .then((response) => response.ok ? response.json() : null)
+      .then((response) => response.ok ? readApiJson(response) : null)
       .then((payload) => {
         if (active) setIntroPathCandidate(payload?.candidate ?? null);
       })
