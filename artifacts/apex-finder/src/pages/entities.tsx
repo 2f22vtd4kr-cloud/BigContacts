@@ -814,13 +814,13 @@ export default function EntityLedger() {
 
         {/* Contact richness + confidence + hot filter row */}
         <div className="flex items-center gap-1.5 px-4 py-2 border-b border-border/40 bg-card/10 flex-shrink-0 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
-          <span className="text-[9px] font-mono text-muted-foreground uppercase tracking-widest shrink-0">Contact:</span>
+          <span className="text-[9px] font-mono text-muted-foreground uppercase tracking-widest shrink-0">Route</span>
           {/* "All" pill — resets richness filter */}
           <button
             onClick={() => setContactRichness(null)}
             className="shrink-0 h-7 px-2.5 rounded-md text-[10px] font-mono border transition-all whitespace-nowrap"
             style={{
-              background: contactRichness === null ? "rgba(100,116,139,0.15)" : "transparent",
+              background: contactRichness === null ? "rgba(100,116,139,0.2)" : "rgba(15,23,42,0.55)",
               color: contactRichness === null ? "#94A3B8" : "hsl(var(--muted-foreground))",
               borderColor: contactRichness === null ? "rgba(100,116,139,0.4)" : "hsl(var(--border))",
             }}
@@ -833,7 +833,7 @@ export default function EntityLedger() {
               onClick={() => setContactRichness(contactRichness === value ? null : value)}
               className="shrink-0 h-7 px-2.5 rounded-md text-[10px] font-mono border transition-all whitespace-nowrap"
               style={{
-                background: contactRichness === value ? color + "20" : "transparent",
+                background: contactRichness === value ? color + "28" : "rgba(15,23,42,0.55)",
                 color: contactRichness === value ? color : "hsl(var(--muted-foreground))",
                 borderColor: contactRichness === value ? color + "60" : "hsl(var(--border))",
               }}
@@ -842,14 +842,14 @@ export default function EntityLedger() {
             </button>
           ))}
           <div className="w-px h-4 bg-border/60 mx-1 shrink-0" />
-          <span className="text-[9px] font-mono text-muted-foreground uppercase tracking-widest shrink-0">Conf:</span>
+          <span className="text-[9px] font-mono text-muted-foreground uppercase tracking-widest shrink-0">Quality ≥</span>
           {CONFIDENCE_STEPS.map((step) => (
             <button
               key={step}
               onClick={() => setMinConfidence(minConfidence === step ? 0 : step)}
               className="shrink-0 h-7 px-2.5 rounded-md text-[10px] font-mono border transition-all whitespace-nowrap"
               style={{
-                background: minConfidence === step ? "rgba(245,158,11,0.15)" : "transparent",
+                background: minConfidence === step ? "rgba(245,158,11,0.2)" : "rgba(15,23,42,0.55)",
                 color: minConfidence === step ? "#F59E0B" : "hsl(var(--muted-foreground))",
                 borderColor: minConfidence === step ? "rgba(245,158,11,0.4)" : "hsl(var(--border))",
               }}
@@ -862,7 +862,7 @@ export default function EntityLedger() {
             onClick={() => setHotOnly(!hotOnly)}
             className="inline-flex shrink-0 h-7 items-center justify-center gap-1 px-2.5 rounded-md text-[10px] font-mono border transition-all whitespace-nowrap"
             style={{
-              background: hotOnly ? "rgba(245,158,11,0.18)" : "transparent",
+              background: hotOnly ? "rgba(245,158,11,0.22)" : "rgba(15,23,42,0.55)",
               color: hotOnly ? "#FBBF24" : "hsl(var(--muted-foreground))",
               borderColor: hotOnly ? "rgba(245,158,11,0.5)" : "hsl(var(--border))",
             }}
