@@ -71,7 +71,21 @@ const BLOCKED_EMAIL_LOCAL_PARTS = new Set([
   "webmaster",
 ]);
 
+/** Classic placeholder / fixture local-parts (jdoe, john.doe, …) — never personal. */
+const PLACEHOLDER_LOCAL_RE =
+  /^(jane\.?doe|john\.?doe|j\.?doe|jdoe|johndoe|janedoe|test\.?user|sample|firstname|lastname|first\.last|f\.last|j\.smith|john\.smith|your\.name|name\.surname|user|username|test|demo|foo|bar)$/i;
+
 const EMAIL_RE = /^[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}$/i;
+
+export function isPlaceholderEmail(value: string | null | undefined): boolean {
+  const email = value?.trim().toLowerCase() ?? "";
+  if (!email || !email.includes("@")) return true;
+  const local = email.slice(0, email.lastIndexOf("@"));
+  const domain = email.slice(email.lastIndexOf("@") + 1);
+  if (PLACEHOLDER_LOCAL_RE.test(local)) return true;
+  if (/^(example|test|sample|placeholder|domain|email)\.(com|org|net)$/.test(domain)) return true;
+  return false;
+}
 
 export function isValidPublicEmail(value: string | null | undefined): boolean {
   const email = value?.trim().toLowerCase() ?? "";
@@ -85,6 +99,7 @@ export function isValidPublicEmail(value: string | null | undefined): boolean {
   if (BLOCKED_EMAIL_DOMAINS.has(domain)) return false;
   if ([...REGISTRAR_DOMAINS].some(blocked => domain === blocked || domain.endsWith(`.${blocked}`))) return false;
   if (BLOCKED_EMAIL_LOCAL_PARTS.has(local)) return false;
+  if (isPlaceholderEmail(email)) return false;
   if (domain.includes("privacy") || domain.includes("proxy")) return false;
   // K6: reject script filenames parsed as email domains
   if (SCRIPT_EXTENSION_RE.test(domain)) return false;
@@ -196,8 +211,52 @@ export function sanitizePublicPhone(value: string | null | undefined): string | 
 // ── K5: E.164-oriented phone normalisation ───────────────────────────────────
 // Returns null when the input is clearly invalid (blocklist, too short, too long).
 // ITU-T E.164 max is 15 digits. We require ≥ 8 to filter 7-digit and shorter noise.
+// Trash-phone gate (fail-closed): synthetic / placeholder patterns never pass.
 const PHONE_NOISE_RE   = /[^\d+]/g;
 const PHONE_BLOCKLIST_RE = /redacted|privacy|not\s+public|unavailable|unknown|n\/a|none/i;
+
+/**
+ * Trash-phone gate — stays on always.
+ * Rejects Hollywood 555-xxxx, all-same-digit runs, obvious sequential fillers,
+ * and common synthetic fixtures. Persona review and improve routes share this
+ * definition so enrichment and quality review cannot diverge.
+ */
+export function isTrashPhone(raw: string | null | undefined): boolean {
+  if (!raw) return true;
+  const digits = String(raw).replace(/[^\d]/g, "");
+  if (digits.length < 7) return true;
+  // Hollywood / directory fiction: 555-0100 style (NANP 555 exchange reserved)
+  // Floor / tests look for the literal exchange === "555" marker in this file.
+  const exchange = digits.length >= 10 ? digits.slice(-7, -4) : "";
+  if (exchange === "555") return true;
+  if (/^1?555\d{7}$/.test(digits)) return true;
+  if (/555\d{4}$/.test(digits) && digits.length <= 11) return true;
+  // All same digit, sequential fillers, zero-padded fixtures
+  if (/^(0{7,}|1{7,}|2{7,}|3{7,}|4{7,}|5{7,}|6{7,}|7{7,}|8{7,}|9{7,})$/.test(digits)) return true;
+  if (/^(1234567|12345678|123456789|1234567890|0000000|9999999|0123456789)$/.test(digits)) return true;
+  // Repeated 2–3 digit blocks (e.g. 12121212, 123123123)
+  if (/^(\d{2,3})\1{3,}$/.test(digits)) return true;
+  return false;
+}
+
+/**
+ * Unified trash gate for contact vectors. Used by persist, presented-contacts,
+ * agentic research, and atlas orchestrator so regex scrape noise never lands
+ * in the ledger as a reach path.
+ */
+export function isTrashContactValue(vectorType: string, value: string | null | undefined): boolean {
+  const v = (value ?? "").trim();
+  if (!v) return true;
+  const t = (vectorType ?? "").toLowerCase();
+  if (t === "phone" || t === "mobile" || t === "tel") {
+    return isTrashPhone(v) || !normalizePhone(v);
+  }
+  if (t === "email" || t === "mail") {
+    if (isPlaceholderEmail(v)) return true;
+    return !isValidPublicEmail(v);
+  }
+  return false;
+}
 
 export function normalizePhone(raw: string | null | undefined): string | null {
   if (!raw) return null;
@@ -222,6 +281,9 @@ export function normalizePhone(raw: string | null | undefined): string | null {
   // A bare ten-digit value is interpreted as NANP below; a zero-leading
   // NANP area code is not assignable and is therefore extraction noise.
   if (len === 10 && !hasPlus && digits.startsWith("0")) return null;
+
+  // Trash-phone gate — never store synthetic numbers as reach vectors
+  if (isTrashPhone(digits)) return null;
 
   // 10-digit without leading +  →  assume NANP (+1)
   if (len === 10 && !hasPlus) return `+1${digits}`;

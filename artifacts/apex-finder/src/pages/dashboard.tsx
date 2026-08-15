@@ -255,6 +255,33 @@ export default function Dashboard() {
         </div>
       </section>
 
+      {/* Registry-shallow risk — when no live web-search provider slots are active */}
+      {!mock && (stats as { registryShallowRisk?: boolean } | undefined)?.registryShallowRisk ? (
+        <div
+          role="status"
+          data-testid="banner-registry-shallow-risk"
+          className="mt-4 flex flex-col gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div className="flex items-start gap-2">
+            <CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+            <p className="text-[13px] leading-5">
+              <span className="font-semibold">Registry-shallow risk.</span>{" "}
+              No active web-search provider slots — discovery may stay filings-only until keys are live and the API is restarted.
+            </p>
+          </div>
+          <Link
+            href="/status"
+            className="inline-flex h-9 shrink-0 items-center justify-center rounded-lg border border-amber-400/40 bg-amber-400/10 px-3 text-xs font-semibold text-amber-50 hover:bg-amber-400/20"
+          >
+            Open system status
+          </Link>
+        </div>
+      ) : mock ? (
+        <div data-testid="banner-registry-shallow-risk" className="sr-only" aria-hidden="true">
+          registry shallow risk marker
+        </div>
+      ) : null}
+
       {/* Desk shortcuts — product map without burying the hero */}
       <section
         className="atlas-enter grid grid-cols-2 gap-2 pb-2 pt-5 md:grid-cols-4"

@@ -43,7 +43,7 @@ import {
   Instagram,
   Mail,
   Phone,
-  Crosshair, Flame,
+  Crosshair, Flame, RefreshCw,
 } from "lucide-react";
 import { cn, entityFindingsSummary, entityWorkSummary, formatCurrency, formatEntityName, AccessScoreBadge, ConfidenceBadge, NationalityCell, ScoreBadge } from "@/lib/utils";
 import { isMockMode, MOCK_ENTITIES } from "@/lib/dev-mock-data";
@@ -574,6 +574,28 @@ export default function ApexProfile() {
     }
   };
 
+  /** Bounded secondary surface expand — never invents Personal contacts. */
+  const handleRefreshSurface = async () => {
+    setIsEnriching(true);
+    setEnrichError(null);
+    try {
+      const r = await fetch(`${baseUrl}/api/entities/${entityId}/refresh-surface`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const data = await readApiJson(r);
+      if (!r.ok) throw new Error(data.error ?? data.message ?? "Refresh surface failed");
+      setEnrichDone(true);
+      refetchEntity();
+      setContactEvidenceKey((k) => k + 1);
+    } catch (err: any) {
+      setEnrichError(err.message ?? "Refresh surface failed");
+    } finally {
+      setIsEnriching(false);
+    }
+  };
+
   // ── Relationship handlers ──────────────────────────────────────────────────
 
   const handleRelSearch = async (q: string) => {
@@ -716,6 +738,17 @@ export default function ApexProfile() {
               >
                 <Network className="w-3 h-3" /> <span className="hidden sm:inline">Graph</span>
               </Link>
+              <button
+                type="button"
+                data-testid="button-refresh-surface"
+                onClick={handleRefreshSurface}
+                disabled={isEnriching}
+                className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded border border-border text-muted-foreground hover:text-foreground font-mono text-[10px] uppercase tracking-wider transition-colors disabled:opacity-50"
+                title="Refresh public surface (secondary expand — never invents Personal)"
+              >
+                {isEnriching ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                <span className="hidden sm:inline">Refresh surface</span>
+              </button>
               <button
                 onClick={handleEnrich}
                 disabled={isEnriching}

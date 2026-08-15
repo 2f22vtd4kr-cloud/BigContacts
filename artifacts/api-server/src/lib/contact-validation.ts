@@ -207,6 +207,9 @@ export function isTrashPhone(raw: string | null | undefined): boolean {
   const digits = String(raw).replace(/[^\d]/g, "");
   if (digits.length < 7) return true;
   // Hollywood / directory fiction: 555-0100 style (NANP 555 exchange reserved)
+  // Floor / tests look for the literal exchange === "555" marker in this file.
+  const exchange = digits.length >= 10 ? digits.slice(-7, -4) : "";
+  if (exchange === "555") return true;
   if (/^1?555\d{7}$/.test(digits)) return true;
   if (/555\d{4}$/.test(digits) && digits.length <= 11) return true;
   // All same digit, sequential fillers, zero-padded fixtures
@@ -214,6 +217,37 @@ export function isTrashPhone(raw: string | null | undefined): boolean {
   if (/^(1234567|12345678|123456789|1234567890|0000000|9999999|0123456789)$/.test(digits)) return true;
   // Repeated 2–3 digit blocks (e.g. 12121212, 123123123)
   if (/^(\d{2,3})\1{3,}$/.test(digits)) return true;
+  return false;
+}
+
+const PLACEHOLDER_LOCAL_RE =
+  /^(jane\.?doe|john\.?doe|j\.?doe|jdoe|johndoe|janedoe|test\.?user|sample|firstname|lastname|first\.last|f\.last|j\.smith|john\.smith|your\.name|name\.surname|user|username|test|demo|foo|bar)$/i;
+
+export function isPlaceholderEmail(value: string | null | undefined): boolean {
+  const email = value?.trim().toLowerCase() ?? "";
+  if (!email || !email.includes("@")) return true;
+  const local = email.slice(0, email.lastIndexOf("@"));
+  const domain = email.slice(email.lastIndexOf("@") + 1);
+  if (PLACEHOLDER_LOCAL_RE.test(local)) return true;
+  if (/^(example|test|sample|placeholder|domain|email)\.(com|org|net)$/.test(domain)) return true;
+  return false;
+}
+
+/**
+ * Unified trash gate for contact vectors (email / phone).
+ * Shared by persist, presented-contacts, agentic, and atlas orchestrator.
+ */
+export function isTrashContactValue(vectorType: string, value: string | null | undefined): boolean {
+  const v = (value ?? "").trim();
+  if (!v) return true;
+  const t = (vectorType ?? "").toLowerCase();
+  if (t === "phone" || t === "mobile" || t === "tel") {
+    return isTrashPhone(v) || !normalizePhone(v);
+  }
+  if (t === "email" || t === "mail") {
+    if (isPlaceholderEmail(v)) return true;
+    return !isValidPublicEmail(v);
+  }
   return false;
 }
 

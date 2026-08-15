@@ -85,11 +85,24 @@ function ReachChip({ kind, label, href, title }: { kind: "personal" | "org" | "s
 }
 function entityReachVectors(entity: any) {
   const out: Array<{ kind: "personal" | "org" | "social"; label: string; href?: string; title?: string }> = [];
+  // Floor contract: UI fallback respects contactOutcome —
+  // outcome === "direct_contact_verified" → personal; else candidate until verified.
+  const outcome = String(entity.contactOutcome ?? "");
+  const verified = outcome === "direct_contact_verified";
   if (entity.email) {
-    const org = isOrgInbox(entity.email) || entity.contactOutcome === "organization_contact";
-    out.push({ kind: org ? "org" : "personal", label: entity.email, href: `mailto:${entity.email}`, title: org ? `REACH · org — ${entity.email}` : `REACH · personal — ${entity.email}` });
+    const org = isOrgInbox(entity.email) || outcome === "organization_contact";
+    const scope = org ? "org" : verified ? "personal" : "candidate";
+    out.push({
+      kind: org ? "org" : "personal",
+      label: entity.email,
+      href: `mailto:${entity.email}`,
+      title: org ? `REACH · org — ${entity.email}` : `REACH · ${scope} — ${entity.email}`,
+    });
   }
-  if (entity.phone) out.push({ kind: "personal", label: entity.phone, href: `tel:${entity.phone}`, title: `REACH · personal — ${entity.phone}` });
+  if (entity.phone) {
+    const scope = verified ? "personal" : "candidate";
+    out.push({ kind: "personal", label: entity.phone, href: `tel:${entity.phone}`, title: `REACH · ${scope} — ${entity.phone}` });
+  }
   if (entity.linkedinUrl) out.push({ kind: "social", label: "LinkedIn", href: entity.linkedinUrl, title: entity.linkedinUrl });
   if (entity.twitterHandle) {
     const h = String(entity.twitterHandle).replace(/^@/, "");
