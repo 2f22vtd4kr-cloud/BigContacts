@@ -148,7 +148,17 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
   const [eventCountPulse, setEventCountPulse] = React.useState(false);
   const prevEventCountRef = React.useRef(0);
   const wasLiveRef = React.useRef(false);
+  // QA: ?arming=1 holds arming scaffold; ?liveempty=1 skips auto-fill of mock scenes feel
+  const forceArming = typeof window !== "undefined"
+    && new URLSearchParams(window.location.search).has("arming");
+  const forceLiveEmpty = typeof window !== "undefined"
+    && new URLSearchParams(window.location.search).has("liveempty");
+
   React.useEffect(() => {
+    if (forceArming) {
+      setArming(true);
+      return;
+    }
     if (isLive && !wasLiveRef.current) {
       wasLiveRef.current = true;
       if (prefersReducedMotion()) {
@@ -163,7 +173,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
       wasLiveRef.current = false;
       setArming(false);
     }
-  }, [isLive]);
+  }, [isLive, forceArming]);
 
 
   // Phase K — REACH one-shot then soft settle (celebrate once, then quiet)
@@ -463,66 +473,87 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
         <div className="mx-auto flex w-full max-w-lg flex-col gap-3 pb-8">
           {arming ? (
             <section
-              className="rounded-2xl border border-cyan-400/25 bg-[#071018] p-3 shadow-[0_0_40px_rgba(34,211,238,0.06)]"
+              className="rounded-2xl border border-cyan-400/35 bg-[#071018] p-3 shadow-[0_0_48px_rgba(34,211,238,0.12)]"
               data-testid="panel-live-desk-arming"
               aria-busy="true"
               aria-label="Arming live desk"
               style={{ animation: motionOrNone(`armIn ${REACTOR_ARM_MS}ms ease-out both`) }}
             >
-              <div className="mb-3 flex items-center justify-between">
-                <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300/70">Arming desk…</div>
-                <div className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-800">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="relative flex h-2 w-2">
+                    <span className="absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-60" style={{ animation: motionOrNone(`reactorShimmer ${REACTOR_SHIMMER_MS}ms ease-in-out infinite`) }} />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-cyan-300" />
+                  </span>
+                  <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-200/90">Arming desk…</div>
+                </div>
+                <div className="h-1.5 w-20 overflow-hidden rounded-full bg-slate-800">
                   <div
-                    className="h-full rounded-full bg-cyan-400/60"
+                    className="h-full rounded-full bg-cyan-400/70"
                     style={{
-                      width: "40%",
+                      width: "55%",
                       animation: motionOrNone(`reactorShimmer ${REACTOR_SHIMMER_MS}ms ease-in-out infinite`),
                     }}
                   />
                 </div>
               </div>
-              {/* Tool-shaped window chrome */}
-              <div className="overflow-hidden rounded-xl border border-white/10 bg-[#0b1220]">
+              {/* Tool-shaped window — first frame of a live run */}
+              <div className="overflow-hidden rounded-xl border border-cyan-400/15 bg-[#0b1220] shadow-[inset_0_1px_0_rgba(34,211,238,0.06)]">
                 <div className="flex items-center gap-2 border-b border-white/5 px-3 py-2">
-                  <span className="h-2.5 w-2.5 rounded-full bg-[#FF5F57]" />
-                  <span className="h-2.5 w-2.5 rounded-full bg-[#FEBC2E]" />
-                  <span className="h-2.5 w-2.5 rounded-full bg-[#28C840]" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-[#FF5F57]" aria-hidden />
+                  <span className="h-2.5 w-2.5 rounded-full bg-[#FEBC2E]" aria-hidden />
+                  <span className="h-2.5 w-2.5 rounded-full bg-[#28C840]" aria-hidden />
                   <div className="ml-1 flex h-5 flex-1 items-center overflow-hidden rounded bg-slate-800/90 px-2">
-                    <span className="truncate text-[9px] font-mono text-slate-500">atlas://desk/arming…</span>
-                    <div
-                      className="ml-auto h-2 w-8 overflow-hidden rounded bg-slate-700"
-                    >
+                    <span className="truncate text-[9px] font-mono text-slate-400">atlas://desk/arming…</span>
+                    <div className="ml-auto h-2 w-10 overflow-hidden rounded bg-slate-700">
                       <div
                         className="h-full w-full"
                         style={{
-                          background: "linear-gradient(90deg,transparent,rgba(34,211,238,.35),transparent)",
+                          background: "linear-gradient(90deg,transparent,rgba(34,211,238,.45),transparent)",
                           animation: motionOrNone(`reactorShimmer ${REACTOR_SHIMMER_MS}ms ease-in-out infinite`),
                         }}
                       />
                     </div>
                   </div>
                 </div>
+                <div className="border-b border-white/5 px-3 py-1.5">
+                  <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-cyan-400/70">Powering channels</div>
+                </div>
                 {/* Prompt / search line placeholder */}
                 <div className="border-b border-white/5 px-3 py-2.5">
                   <div className="flex items-center gap-2">
-                    <div className="h-2.5 w-2.5 rounded-full bg-cyan-400/40" />
-                    <div className="h-2.5 flex-1 rounded bg-slate-800/80" />
+                    <div className="h-2.5 w-2.5 shrink-0 rounded-full bg-cyan-400/50" />
+                    <div className="relative h-2.5 flex-1 overflow-hidden rounded bg-slate-800/90">
+                      <div
+                        className="absolute inset-y-0 left-0 w-1/3"
+                        style={{
+                          background: "linear-gradient(90deg,transparent,rgba(34,211,238,.25),transparent)",
+                          animation: motionOrNone(`reactorShimmer ${REACTOR_SHIMMER_MS}ms ease-in-out infinite`),
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
-                {/* Two metric cards */}
+                {/* Metric cards */}
                 <div className="grid grid-cols-2 gap-2 p-3">
-                  <div className="rounded-lg border border-white/5 bg-slate-900/60 p-2.5">
-                    <div className="h-2 w-10 rounded bg-slate-700/80" />
-                    <div className="mt-2 h-4 w-8 rounded bg-slate-700/50" />
+                  <div className="rounded-lg border border-white/8 bg-slate-900/70 p-2.5">
+                    <div className="text-[8px] font-mono uppercase tracking-wider text-slate-500">Sources</div>
+                    <div className="mt-1.5 h-3.5 w-10 rounded bg-slate-700/70" />
                   </div>
-                  <div className="rounded-lg border border-white/5 bg-slate-900/60 p-2.5">
-                    <div className="h-2 w-12 rounded bg-slate-700/80" />
-                    <div className="mt-2 h-4 w-6 rounded bg-slate-700/50" />
+                  <div className="rounded-lg border border-white/8 bg-slate-900/70 p-2.5">
+                    <div className="text-[8px] font-mono uppercase tracking-wider text-slate-500">Findings</div>
+                    <div className="mt-1.5 h-3.5 w-8 rounded bg-slate-700/50" />
                   </div>
+                </div>
+                {/* Result line ghosts */}
+                <div className="space-y-1.5 border-t border-white/5 px-3 py-2.5">
+                  <div className="h-2 w-full rounded bg-slate-800/80" />
+                  <div className="h-2 w-4/5 rounded bg-slate-800/60" style={{ width: "80%" }} />
+                  <div className="h-2 w-2/3 rounded bg-slate-800/40" style={{ width: "62%" }} />
                 </div>
               </div>
             </section>
-          ) : liveEvents.length > 0 ? (
+          ) : liveEvents.length > 0 && !forceLiveEmpty ? (
             <section
               key={showHistory ? "history" : "live"}
               className={`rounded-2xl border p-3 ${
@@ -678,20 +709,38 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                       ? "Summary metrics are above. Open History after the next run to review each tool step."
                       : "When Atlas runs, each line starts with Now or Done so you can see the work at a glance."}
               </div>
-              {isLive && (
-                <div className="mt-5 w-full max-w-[260px] space-y-2 opacity-60" aria-hidden>
-                  <div className="h-2 w-full overflow-hidden rounded bg-slate-800/80">
-                    <div
-                      className="h-full w-1/2 rounded"
-                      style={{
-                        background: "linear-gradient(90deg,transparent,rgba(34,211,238,.3),transparent)",
-                        animation: motionOrNone(`reactorShimmer ${REACTOR_SHIMMER_MS}ms ease-in-out infinite`),
-                      }}
-                    />
+              {(isLive || forceLiveEmpty) && (
+                <div
+                  className="mt-5 w-full max-w-[280px] overflow-hidden rounded-xl border border-cyan-400/20 bg-[#0b1220]/90"
+                  data-testid="panel-live-empty-scaffold"
+                  aria-hidden
+                >
+                  <div className="flex items-center gap-2 border-b border-white/5 px-3 py-1.5">
+                    <span className="h-2 w-2 rounded-full bg-[#FF5F57]/80" />
+                    <span className="h-2 w-2 rounded-full bg-[#FEBC2E]/80" />
+                    <span className="h-2 w-2 rounded-full bg-[#28C840]/80" />
+                    <span className="ml-1 truncate text-[8px] font-mono text-slate-500">atlas://desk/listening…</span>
                   </div>
-                  <div className="flex gap-2">
-                    <div className="h-8 flex-1 rounded-lg border border-white/5 bg-slate-900/50" />
-                    <div className="h-8 flex-1 rounded-lg border border-white/5 bg-slate-900/50" />
+                  <div className="space-y-2 p-3">
+                    <div className="h-2 w-full overflow-hidden rounded bg-slate-800/80">
+                      <div
+                        className="h-full w-1/2 rounded"
+                        style={{
+                          background: "linear-gradient(90deg,transparent,rgba(34,211,238,.35),transparent)",
+                          animation: motionOrNone(`reactorShimmer ${REACTOR_SHIMMER_MS}ms ease-in-out infinite`),
+                        }}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="rounded-lg border border-white/5 bg-slate-900/60 p-2">
+                        <div className="text-[7px] font-mono uppercase tracking-wider text-slate-600">Sources</div>
+                        <div className="mt-1 h-3 w-8 rounded bg-slate-700/50" />
+                      </div>
+                      <div className="rounded-lg border border-white/5 bg-slate-900/60 p-2">
+                        <div className="text-[7px] font-mono uppercase tracking-wider text-slate-600">Findings</div>
+                        <div className="mt-1 h-3 w-6 rounded bg-slate-700/40" />
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
