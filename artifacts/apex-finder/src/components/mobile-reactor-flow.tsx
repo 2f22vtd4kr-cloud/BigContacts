@@ -139,6 +139,9 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
   // P2 desk arming — brief scaffold when a run first goes live
   const [arming, setArming] = React.useState(false);
   const [reachSettled, setReachSettled] = React.useState(false);
+  /** Polite live-region message — discrete milestones only (WCAG 4.1.3) */
+  const [statusAnnounce, setStatusAnnounce] = React.useState("");
+  const lastAnnounceRef = React.useRef("");
   /** Phase N — history archive filter */
   type HistoryFilter = "all" | "live" | "done" | "failed";
   const [historyFilter, setHistoryFilter] = React.useState<HistoryFilter>("all");
@@ -194,6 +197,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
     return () => window.clearTimeout(t);
   }, [hasReach, atlasState?.atlasTelemetry?.disposition, atlasState?.atlasTelemetry?.contacts]);
 
+
   // Keyboard handlers registered after deskEvents (Phase O)
 
 
@@ -235,6 +239,26 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
     return list;
   }, [deskEvents, showHistory, historyFilter, historyQuery]);
   const liveEvents = showHistory ? filteredDeskEvents : deskEvents.slice(-6);
+
+  // Discrete polite announcements: arming → first scene → REACH (no per-tick spam)
+  React.useEffect(() => {
+    let msg = "";
+    if (arming) msg = "Arming live desk";
+    else if (hasReach && !reachSettled) msg = "Contact found. REACH route available";
+    else if (hasReach && reachSettled) msg = "Contact route locked";
+    else if (isLive && liveEvents.length === 1) msg = "First research step on desk";
+    else if (isLive && liveEvents.length > 1) msg = `${liveEvents.length} steps on live desk`;
+    else if (showHistory) msg = "History archive open";
+    else if (!isLive && atlasState?.runStatus === "done") msg = "Run complete";
+    else if (!isLive && atlasState?.runStatus === "failed") msg = "Run failed";
+    else if (isLive) msg = "Live desk active";
+    if (msg && msg !== lastAnnounceRef.current) {
+      lastAnnounceRef.current = msg;
+      setStatusAnnounce(msg);
+    }
+  }, [arming, hasReach, reachSettled, isLive, liveEvents.length, showHistory, atlasState?.runStatus]);
+
+
 
   React.useEffect(() => {
     const n = deskEvents.length;
@@ -301,18 +325,30 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
     >
       {/* Fallback tokens if parent did not inject KEYFRAMES */}
       <style>{REACTOR_CSS}</style>
-      <div className="sr-only" aria-live="polite" data-testid="status-desk-mode" style={{ position:"absolute", width:1, height:1, padding:0, margin:-1, overflow:"hidden", clip:"rect(0,0,0,0)", whiteSpace:"nowrap", border:0 }}>
-        {showHistory ? "History archive open" : isLive ? "Live desk" : "Desk standby"}
+      {/* Polite status — milestones only; assertive path uses role=alert on failure banners */}
+      <div
+        className="sr-only"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        data-testid="status-desk-live"
+        style={{ position:"absolute", width:1, height:1, padding:0, margin:-1, overflow:"hidden", clip:"rect(0,0,0,0)", whiteSpace:"nowrap", border:0 }}
+      >
+        {statusAnnounce || (showHistory ? "History archive open" : isLive ? "Live desk" : "Desk standby")}
       </div>
       {/* Minimal chrome — target + live pulse only */}
       <header
-        className="sticky top-0 z-20 shrink-0 border-b border-white/10 bg-black/70 px-4 py-3 backdrop-blur-md"
+        className="sticky top-0 z-20 shrink-0 border-b border-white/10 bg-black/70 px-4 py-3 backdrop-blur-md overflow-visible"
         style={{ paddingTop: "max(12px, env(safe-area-inset-top, 12px))" }}
+        data-testid="live-desk-sticky-chrome"
       >
         <div className="flex items-center gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <span className={`h-2 w-2 shrink-0 rounded-full ${isLive ? "animate-pulse bg-cyan-400 shadow-[0_0_8px_#22d3ee]" : atlasState?.runStatus === "failed" ? "bg-rose-400" : "bg-slate-600"}`} />
+              <span
+                className={`h-2 w-2 shrink-0 rounded-full ${isLive ? "bg-cyan-400 shadow-[0_0_8px_#22d3ee]" : atlasState?.runStatus === "failed" ? "bg-rose-400" : "bg-slate-600"}`}
+                style={isLive && !prefersReducedMotion() ? { animation: "pulse 2s cubic-bezier(0.4,0,0.6,1) infinite" } : undefined}
+              />
               <span className={`text-[10px] font-bold uppercase tracking-[0.18em] ${isLive ? "reactor-live-label" : "text-slate-400"}`}>
                 {isLive ? "Live" : statusLabel}
               </span>
@@ -468,7 +504,8 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
       {/* Primary: immersive tool window — what Atlas is doing right now */}
       <div
         className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4"
-        style={{ scrollPaddingTop: 8, WebkitOverflowScrolling: "touch" }}
+        style={{ scrollPaddingTop: 72, WebkitOverflowScrolling: "touch" }}
+        data-testid="live-desk-scroll"
       >
         <div className="mx-auto flex w-full max-w-lg flex-col gap-3 pb-8">
           {arming ? (
@@ -534,8 +571,8 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                     </div>
                   </div>
                 </div>
-                {/* Metric cards */}
-                <div className="grid grid-cols-2 gap-2 p-3">
+                {/* Metric cards — decorative while arming */}
+                <div className="grid grid-cols-2 gap-2 p-3" aria-hidden="true">
                   <div className="rounded-lg border border-white/8 bg-slate-900/70 p-2.5">
                     <div className="text-[8px] font-mono uppercase tracking-wider text-slate-500">Sources</div>
                     <div className="mt-1.5 h-3.5 w-10 rounded bg-slate-700/70" />
@@ -545,8 +582,8 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                     <div className="mt-1.5 h-3.5 w-8 rounded bg-slate-700/50" />
                   </div>
                 </div>
-                {/* Result line ghosts */}
-                <div className="space-y-1.5 border-t border-white/5 px-3 py-2.5">
+                {/* Result line ghosts — decorative */}
+                <div className="space-y-1.5 border-t border-white/5 px-3 py-2.5" aria-hidden="true">
                   <div className="h-2 w-full rounded bg-slate-800/80" />
                   <div className="h-2 w-4/5 rounded bg-slate-800/60" style={{ width: "80%" }} />
                   <div className="h-2 w-2/3 rounded bg-slate-800/40" style={{ width: "62%" }} />
