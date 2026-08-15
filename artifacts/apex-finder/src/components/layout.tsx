@@ -199,15 +199,22 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <div className="mt-1 font-mono text-sm font-bold tracking-[0.14em] text-foreground">Private OSINT cockpit</div>
             </div>
           </div>
-          <div className="ml-auto flex items-center gap-2">
-            <LaunchAtlasButton variant="header" className="!h-8 !px-2.5 !text-[10px] sm:!h-9 sm:!px-3 sm:!text-[11px]" />
-            <WorkspaceStatus />
-            <ApiKeyHealth />
+          <div className="ml-auto flex min-w-0 items-center justify-end gap-1.5 sm:gap-2">
+            <LaunchAtlasButton
+              variant="header"
+              className="!h-8 !shrink-0 !px-2 !text-[10px] sm:!h-9 sm:!px-3 sm:!text-[11px]"
+            />
+            <div className="hidden min-[480px]:block">
+              <WorkspaceStatus />
+            </div>
+            <div className="hidden md:block">
+              <ApiKeyHealth />
+            </div>
             <button
               onClick={() => setSidebarOpen(true)}
               aria-label="Open menu"
               data-testid="button-open-menu"
-              className="rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground md:hidden"
+              className="shrink-0 rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground md:hidden"
             >
               <Menu className="h-5 w-5" />
             </button>

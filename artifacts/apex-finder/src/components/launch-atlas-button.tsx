@@ -77,11 +77,12 @@ export function LaunchAtlasButton({
         )}
         {busy ? "Launching…" : text}
       </button>
-      {status && variant !== "header" && (
+      {status && (
         <p
           className={cn(
             "max-w-md text-[10px] leading-relaxed font-mono",
-            status.toLowerCase().includes("fail") || status.toLowerCase().includes("could not")
+            variant === "header" && "text-right max-w-[12rem]",
+            status.toLowerCase().includes("fail") || status.toLowerCase().includes("could not") || status.toLowerCase().includes("not reachable")
               ? "text-rose-300/90"
               : "text-muted-foreground",
           )}
