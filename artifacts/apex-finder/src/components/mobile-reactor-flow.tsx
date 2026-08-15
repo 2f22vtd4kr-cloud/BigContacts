@@ -432,6 +432,58 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                 </a>
               );
             })()}
+            <div className="mt-2 flex flex-wrap items-center gap-1.5" data-testid="reach-provenance">
+              <span className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-1.5 py-0.5 text-[8px] font-mono font-bold uppercase tracking-wider text-emerald-200/90">
+                attributable
+              </span>
+              <span className="rounded-full border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[8px] font-mono uppercase tracking-wider text-slate-400">
+                public surface
+              </span>
+              {atlasState?.atlasTelemetry?.sources != null && (
+                <span className="rounded-full border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[8px] font-mono tabular-nums text-slate-400">
+                  {atlasState.atlasTelemetry.sources} source{atlasState.atlasTelemetry.sources === 1 ? "" : "s"}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+        {/* Compact telemetry chips — product density without clutter */}
+        {(isLive || hasReach) && (
+          <div
+            className="mt-2.5 flex flex-wrap gap-1.5"
+            data-testid="live-telemetry-chips"
+            aria-label="Run metrics"
+          >
+            {[
+              atlasState?.atlasTelemetry?.contacts != null
+                ? { k: "Contacts", v: String(atlasState.atlasTelemetry.contacts), hot: true }
+                : null,
+              atlasState?.atlasTelemetry?.sources != null
+                ? { k: "Sources", v: String(atlasState.atlasTelemetry.sources), hot: false }
+                : null,
+              atlasState?.atlasTelemetry?.evidence != null
+                ? { k: "Evidence", v: String(atlasState.atlasTelemetry.evidence), hot: false }
+                : null,
+              atlasState?.atlasTelemetry?.stage
+                ? { k: "Stage", v: String(atlasState.atlasTelemetry.stage).replace(/_/g, " "), hot: false }
+                : null,
+            ].filter(Boolean).map((chip: any) => (
+              <div
+                key={chip.k}
+                className={`rounded-lg border px-2 py-1 ${
+                  chip.hot
+                    ? "border-emerald-400/30 bg-emerald-400/10"
+                    : "border-white/10 bg-white/[0.03]"
+                }`}
+              >
+                <div className={`text-[7px] font-mono uppercase tracking-wider ${chip.hot ? "text-emerald-300/80" : "text-slate-500"}`}>
+                  {chip.k}
+                </div>
+                <div className={`text-[11px] font-semibold tabular-nums capitalize ${chip.hot ? "text-emerald-50" : "text-slate-200"}`}>
+                  {chip.v}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </header>
@@ -603,29 +655,48 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
               data-mode={showHistory ? "archive" : "live"}
               style={{ animation: motionOrNone(`armIn ${REACTOR_SCENE_MS}ms ease-out both`) }}
             >
-              <div className="mb-3 flex items-center justify-between gap-2 px-0.5">
-                <div className="flex items-center gap-2">
-                  <div className={`text-[10px] font-bold uppercase tracking-[0.2em] ${
-                    showHistory ? "text-slate-300" : "text-cyan-300/90"
-                  }`}>
-                    {showHistory ? "History" : "Live activity"}
+              <div className="mb-3 space-y-2 px-0.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className={`text-[10px] font-bold uppercase tracking-[0.2em] ${
+                      showHistory ? "text-slate-300" : "text-cyan-300/90"
+                    }`}>
+                      {showHistory ? "History" : "Live activity"}
+                    </div>
+                    {showHistory && (
+                      <span className="rounded-full border border-slate-400/50 bg-slate-500/20 px-1.5 py-0.5 text-[8px] font-mono font-bold uppercase tracking-wider text-slate-200">
+                        archive
+                      </span>
+                    )}
+                    {!showHistory && isLive && (
+                      <span className="rounded-full border border-cyan-400/30 bg-cyan-400/10 px-1.5 py-0.5 text-[8px] font-mono font-bold uppercase tracking-wider text-cyan-200">
+                        live
+                      </span>
+                    )}
                   </div>
-                  {showHistory && (
-                    <span className="rounded-full border border-slate-400/50 bg-slate-500/20 px-1.5 py-0.5 text-[8px] font-mono font-bold uppercase tracking-wider text-slate-200">
-                      archive
-                    </span>
-                  )}
+                  <div
+                    className={`text-[10px] font-mono tabular-nums transition-colors ${
+                      eventCountPulse ? "text-cyan-300" : "text-slate-500"
+                    }`}
+                    data-testid="mobile-step-count"
+                    style={eventCountPulse ? { textShadow: "0 0 10px rgba(34,211,238,0.45)" } : undefined}
+                  >
+                    {liveEvents.length} step{liveEvents.length === 1 ? "" : "s"}
+                    {eventCountPulse && isLive && !showHistory ? " · new" : ""}
+                  </div>
                 </div>
-                <div
-                  className={`text-[10px] font-mono tabular-nums transition-colors ${
-                    eventCountPulse ? "text-cyan-300" : "text-slate-500"
-                  }`}
-                  data-testid="mobile-step-count"
-                  style={eventCountPulse ? { textShadow: "0 0 10px rgba(34,211,238,0.45)" } : undefined}
-                >
-                  {liveEvents.length} step{liveEvents.length === 1 ? "" : "s"}
-                  {eventCountPulse && isLive && !showHistory ? " · new" : ""}
-                </div>
+                {!showHistory && liveEvents.length > 1 && (
+                  <div
+                    className="h-0.5 w-full overflow-hidden rounded-full bg-slate-800"
+                    aria-hidden
+                    data-testid="live-step-rail"
+                  >
+                    <div
+                      className="h-full rounded-full bg-cyan-400/70 transition-[width] duration-300 ease-out"
+                      style={{ width: `${Math.min(100, Math.round((liveEvents.length / Math.max(liveEvents.length, 6)) * 100))}%` }}
+                    />
+                  </div>
+                )}
               </div>
               {showHistory && deskEvents.length > 0 && (
                 <div className="mb-2">
@@ -784,8 +855,8 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
             </div>
           )}
 
-          <p className="px-1 text-center text-[10px] leading-relaxed text-slate-400">
-            Swipe or arrows step tools · Space pauses · edge-swipe opens history. Views match the work: search, browser, domain, analyst.
+          <p className="px-1 text-center text-[9px] leading-relaxed text-slate-500">
+            Swipe tools · Space pauses · edge-swipe opens history
           </p>
         </div>
       </div>
