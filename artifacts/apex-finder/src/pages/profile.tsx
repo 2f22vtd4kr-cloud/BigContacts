@@ -45,7 +45,7 @@ import {
   Phone,
   Crosshair, Flame,
 } from "lucide-react";
-import { cn, entityFindingsSummary, entityWorkSummary, formatCurrency, formatEntityName, AccessScoreBadge, ConfidenceBadge, ScoreBadge } from "@/lib/utils";
+import { cn, entityFindingsSummary, entityWorkSummary, formatCurrency, formatEntityName, AccessScoreBadge, ConfidenceBadge, NationalityCell, ScoreBadge } from "@/lib/utils";
 import { isMockMode, MOCK_ENTITIES } from "@/lib/dev-mock-data";
 import { entityMeta, EntityTypeMark, entityMetric } from "@/lib/entity-taxonomy";
 import { readApiJson } from "@/lib/api-json";
@@ -668,7 +668,7 @@ export default function ApexProfile() {
                 </span>
               )}
               {(entity as any).nationality && (
-                <span className="text-xs text-muted-foreground font-mono">{(entity as any).nationality}</span>
+                <span className="text-xs"><NationalityCell nationality={(entity as any).nationality} /></span>
               )}
               {(entity as any).estimatedNetWorth && (
                 <span className="text-xs font-mono text-foreground">{formatCurrency((entity as any).estimatedNetWorth)}</span>
@@ -699,11 +699,11 @@ export default function ApexProfile() {
             <div className="flex items-center gap-2">
               <div className="flex flex-col items-center gap-0.5">
                 <ConfidenceBadge score={typeof (entity as any).contactConfidence === "number" ? (entity as any).contactConfidence : confidence.overall} />
-                <span className="text-[8px] font-mono text-muted-foreground/50 uppercase tracking-widest">Contact</span>
+                <span className="text-[8px] font-mono text-muted-foreground/50 uppercase tracking-widest">Quality</span>
               </div>
               <div className="flex flex-col items-center gap-0.5">
                 <AccessScoreBadge score={entity.accessScore} />
-                <span className="text-[8px] font-mono text-muted-foreground/50 uppercase tracking-widest">Access</span>
+                <span className="text-[8px] font-mono text-muted-foreground/50 uppercase tracking-widest">Reach</span>
               </div>
               {primaryWealthSource && (
                 <div className="flex flex-col items-start gap-0.5 max-w-[140px]">
@@ -758,8 +758,11 @@ export default function ApexProfile() {
             {formatEntityName(entity.name)}
           </h1>
           {((entity as any).nationality || (entity as any).knownResidences) && (
-            <p className="text-[13px] text-muted-foreground">
-              {(entity as any).nationality}{(entity as any).knownResidences ? ` · ${(entity as any).knownResidences.split(",")[0]?.trim()}` : ""}
+            <p className="text-[13px] text-muted-foreground flex flex-wrap items-center gap-1.5">
+              {(entity as any).nationality && <NationalityCell nationality={(entity as any).nationality} />}
+              {(entity as any).knownResidences && (
+                <span className="text-muted-foreground/80">· {(entity as any).knownResidences.split(",")[0]?.trim()}</span>
+              )}
             </p>
           )}
            <div className="mt-3 space-y-2">
@@ -774,22 +777,30 @@ export default function ApexProfile() {
            </div>
           {/* Score cards */}
           <div className="mt-4 flex gap-2">
-            <div className="flex-1 bg-background rounded border border-border/50 p-2.5 flex flex-col">
-              <span className="font-mono text-[9px] text-muted-foreground uppercase tracking-wider mb-1">Contact</span>
-              <span className="font-mono text-[20px] text-primary font-bold leading-none mb-1">
-                {typeof (entity as any).contactConfidence === "number" ? `${(entity as any).contactConfidence}%` : "—"}
+            <div className="flex-1 rounded-xl border border-border/60 bg-background/80 p-2.5 flex flex-col">
+              <span className="font-mono text-[9px] text-muted-foreground uppercase tracking-wider mb-1">Contact quality</span>
+              <span className="font-mono text-[20px] text-cyan-200 font-bold leading-none mb-1">
+                {typeof (entity as any).contactConfidence === "number" ? `${(entity as any).contactConfidence}` : "—"}
               </span>
-              <span className="text-[9px] text-muted-foreground">
-                {((entity as any).contactConfidence ?? 0) >= 60 ? "Strong contact" : ((entity as any).contactConfidence ?? 0) >= 30 ? "Partial contact" : "Weak contact"}
+              <span className="text-[10px] text-muted-foreground leading-tight">
+                {((entity as any).contactConfidence ?? 0) >= 85 ? "Confirmed"
+                  : ((entity as any).contactConfidence ?? 0) >= 60 ? "Solid evidence"
+                  : ((entity as any).contactConfidence ?? 0) >= 30 ? "Partial evidence"
+                  : ((entity as any).contactConfidence ?? 0) > 0 ? "Thin evidence"
+                  : "No evidence"}
               </span>
             </div>
-            <div className="flex-1 bg-background rounded border border-border/50 p-2.5 flex flex-col">
-              <span className="font-mono text-[9px] text-muted-foreground uppercase tracking-wider mb-1">Access</span>
-              <span className="font-mono text-[20px] text-primary font-bold leading-none mb-1">
-                {entity.accessScore != null ? entity.accessScore.toFixed(2) : "—"}
+            <div className="flex-1 rounded-xl border border-border/60 bg-background/80 p-2.5 flex flex-col">
+              <span className="font-mono text-[9px] text-muted-foreground uppercase tracking-wider mb-1">Reachability</span>
+              <span className="font-mono text-[20px] text-cyan-200 font-bold leading-none mb-1">
+                {entity.accessScore != null ? Math.round(entity.accessScore * 100) : "—"}
               </span>
-              <span className="text-[9px] text-muted-foreground">
-                {(entity.accessScore ?? 0) >= 0.8 ? "Easy to reach" : (entity.accessScore ?? 0) >= 0.5 ? "Reachable" : "Hard to reach"}
+              <span className="text-[10px] text-muted-foreground leading-tight">
+                {(entity.accessScore ?? 0) >= 0.85 ? "Direct path"
+                  : (entity.accessScore ?? 0) >= 0.6 ? "Easy to reach"
+                  : (entity.accessScore ?? 0) >= 0.3 ? "Possible"
+                  : (entity.accessScore ?? 0) > 0 ? "Hard to reach"
+                  : "No path"}
               </span>
             </div>
             <div className="flex-1 bg-background rounded border border-border/50 p-2.5 flex flex-col">
