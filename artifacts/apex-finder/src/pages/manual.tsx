@@ -15,6 +15,8 @@ import {
   Cpu,
   Database,
   AlertTriangle,
+  Server,
+  ListOrdered,
 } from "lucide-react";
 
 function CompletenessDemo() {
@@ -241,9 +243,81 @@ const SECTIONS = [
       </>
     ),
   },
+
+  {
+    id: "job-queue",
+    title: "8. Job queue (server-side work)",
+    content: (
+      <>
+        <p className="text-sm text-muted-foreground leading-relaxed mb-4">
+          Long-running work does <strong className="text-foreground">not</strong> run in the browser.
+          The UI only starts jobs and polls status. Processing happens on{" "}
+          <span className="font-mono text-foreground">api-server</span> with state stored in Redis
+          (Upstash permanent client) so progress survives container restarts.
+        </p>
+
+        <Callout title="Request → queue → database">
+          <ol className="list-decimal list-inside space-y-2 mt-1">
+            <li>Operator clicks an action (Run Loop, Apply safe fixes, ingest, enrichment).</li>
+            <li>API returns <span className="font-mono">202</span> with a <span className="font-mono">jobId</span> immediately.</li>
+            <li>Server creates Redis hash <span className="font-mono">apex:job:&lt;jobId&gt;</span> and optional active-job lock <span className="font-mono">apex:activejob:&lt;type&gt;</span>.</li>
+            <li>Background work updates progress, message, inserted/skipped/errors.</li>
+            <li>UI polls <span className="font-mono">GET /api/…/jobs/:jobId</span> until status is done, failed, or cancelled.</li>
+            <li>Durable results land in Postgres (entities, improvement_logs, evidence) — not in the browser.</li>
+          </ol>
+        </Callout>
+
+        <div className="bg-muted/30 border border-border p-4 rounded-lg my-4 flex flex-wrap items-center gap-2">
+          <span className="text-xs font-mono text-muted-foreground">Flow:</span>
+          <span className="text-xs font-mono text-primary bg-primary/10 px-2 py-1 rounded">UI trigger</span>
+          <span className="text-xs font-mono text-muted-foreground">→</span>
+          <span className="text-xs font-mono text-cyan-400 bg-cyan-500/10 px-2 py-1 rounded">api-server</span>
+          <span className="text-xs font-mono text-muted-foreground">→</span>
+          <span className="inline-flex items-center gap-1 text-xs font-mono text-violet-400 bg-violet-500/10 px-2 py-1 rounded">
+            <Activity className="h-3 w-3" /> Redis job
+          </span>
+          <span className="text-xs font-mono text-muted-foreground">→</span>
+          <span className="inline-flex items-center gap-1 text-xs font-mono text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded">
+            <Server className="h-3 w-3" /> Postgres
+          </span>
+        </div>
+
+        <ul className="space-y-3 text-sm text-muted-foreground mb-4">
+          <li className="flex gap-3">
+            <ListOrdered className="w-5 h-5 text-primary shrink-0" />
+            <div>
+              <strong className="text-foreground block mb-1">Job types you will see</strong>
+              Persona loop (<span className="font-mono">improve</span>), safe remediation (<span className="font-mono">improve-apply</span>),
+              registry ingest, enrichment, and other Workspace Activity tasks. Only one active job per type is allowed when a lock is held (409 if already running).
+            </div>
+          </li>
+          <li className="flex gap-3">
+            <Shield className="w-5 h-5 text-emerald-400 shrink-0" />
+            <div>
+              <strong className="text-foreground block mb-1">What gets auto-written</strong>
+              Safe apply only reconciles state already proven on the entity (clear synthetic email/phone, recompute contact confidence, hide placeholders).
+              Findings that need new public evidence stay <span className="font-mono">pending</span> until research or an operator decision.
+            </div>
+          </li>
+          <li className="flex gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
+            <div>
+              <strong className="text-foreground block mb-1">Static UI alone is not enough</strong>
+              If <span className="font-mono">/api</span> is not proxied to api-server, job buttons return HTML and the desk shows an offline error.
+              Deploy frontend + api-server + Postgres + Redis together.
+            </div>
+          </li>
+        </ul>
+
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          Job records TTL for about seven days; logs are capped (newest first). Workspace Activity and Persona review are the operator surfaces for watching that queue — they do not execute personas or ingest inside the tab.
+        </p>
+      </>
+    ),
+  },
   {
     id: "floors",
-    title: "8. Safety floors & honesty",
+    title: "9. Safety floors & honesty",
     content: (
       <>
         <ul className="space-y-3 text-sm text-muted-foreground">
