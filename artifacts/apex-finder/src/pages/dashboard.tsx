@@ -103,7 +103,7 @@ function LeadCard({ lead, index }: { lead: any; index: number }) {
     <Link
       href={`/profile/${lead.entityId}`}
       data-testid={`card-entity-${lead.entityId}`}
-      className="group relative flex min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-card/50 p-5 transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:bg-card hover:shadow-lg hover:shadow-primary/5 focus-visible:border-primary"
+      className="group relative flex min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-card/50 p-3.5 sm:p-5 transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:bg-card hover:shadow-lg hover:shadow-primary/5 focus-visible:border-primary"
     >
       <div className="absolute right-0 top-0 h-24 w-24 rounded-bl-[100px] bg-primary/[0.03] transition-colors group-hover:bg-primary/[0.08]" />
       <div className="relative flex items-start gap-3">
@@ -143,23 +143,28 @@ function LeadCard({ lead, index }: { lead: any; index: number }) {
         </div>
       </div>
 
-      <div className="relative mt-6 grid grid-cols-2 gap-3">
-        <div className="rounded-lg border border-border/70 bg-background/45 px-3 py-2.5">
+      <div className="relative mt-4 sm:mt-6 grid grid-cols-2 gap-2 sm:gap-3">
+        <div className="rounded-lg border border-border/70 bg-background/45 px-2.5 py-2 sm:px-3 sm:py-2.5">
           <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">Confidence</div>
-          <div className={`mt-1 font-mono text-lg font-bold ${scoreTone(confidence)}`} data-testid={`text-confidence-${lead.entityId}`}>{scorePercent(confidence)}</div>
-          <div className="mt-0.5 text-[10px] text-muted-foreground">REACH confidence</div>
+          <div className={`mt-1 font-mono text-base sm:text-lg font-bold ${scoreTone(confidence)}`} data-testid={`text-confidence-${lead.entityId}`}>{scorePercent(confidence)}</div>
+          <div className="mt-0.5 text-[10px] text-muted-foreground hidden sm:block">REACH confidence</div>
         </div>
-        <div className="rounded-lg border border-border/70 bg-background/45 px-3 py-2.5 transition-colors group-hover:border-primary/20">
+        <div className="rounded-lg border border-border/70 bg-background/45 px-2.5 py-2 sm:px-3 sm:py-2.5 transition-colors group-hover:border-primary/20">
           <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">Access</div>
-          <div className={`mt-1 font-mono text-lg font-bold ${scoreTone(access)}`} data-testid={`text-access-${lead.entityId}`}>{scorePercent(access)}</div>
-          <div className="mt-0.5 text-[10px] text-muted-foreground">REACH access score</div>
+          <div className={`mt-1 font-mono text-base sm:text-lg font-bold ${scoreTone(access)}`} data-testid={`text-access-${lead.entityId}`}>{scorePercent(access)}</div>
+          <div className="mt-0.5 text-[10px] text-muted-foreground hidden sm:block">REACH access score</div>
         </div>
       </div>
 
-      <div className="relative mt-4 flex items-center justify-between border-t border-border/60 pt-3 text-[11px] font-mono">
+      <div className="relative mt-3 sm:mt-4 flex items-center justify-between border-t border-border/60 pt-3 text-[11px] font-mono">
         <span className="text-muted-foreground">{compactMoney(lead.estimatedNetWorth)}</span>
         <span className="text-muted-foreground">{lead.assetCount ?? 0} public assets</span>
       </div>
+      {lead.email && (
+        <div className="relative mt-3 truncate rounded-md border border-emerald-400/25 bg-emerald-400/10 px-2 py-1 font-mono text-[10px] text-emerald-200/90" title={lead.email}>
+          <span className="opacity-70">REACH · </span>{lead.email}
+        </div>
+      )}
       <div className="relative mt-3 flex items-center gap-2 text-[10px]">
         <span className={`grid h-5 w-5 place-items-center rounded-full ${
           contactReady

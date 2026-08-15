@@ -27,7 +27,7 @@ const mainNav = [
   { name: "Entity ledger", href: "/profiles", icon: List },
   { name: "Discover", href: "/search", icon: Search },
   { name: "Connections", href: "/network", icon: Network },
-  { name: "Intelligence Reactor", href: "/reactor", icon: Cpu },
+  { name: "Reactor", href: "/reactor", icon: Cpu },
 ];
 
 const referenceNav = [
