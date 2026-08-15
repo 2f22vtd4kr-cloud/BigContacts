@@ -329,7 +329,7 @@ export default function GraphViewer() {
   }
 
   return (
-    <div className="flex h-full min-h-[70vh] w-full bg-background relative overflow-hidden flex-col md:block" id="graph-container"
+    <div className="flex h-full min-h-[100dvh] md:min-h-[70vh] w-full bg-background relative overflow-hidden flex-col md:block" id="graph-container"
       onContextMenu={(e) => e.preventDefault()}
     >
 
