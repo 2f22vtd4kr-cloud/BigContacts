@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isMockMode } from "@/lib/dev-mock-data";
+import { readApiJson } from "@/lib/api-json";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -87,27 +88,6 @@ const PRIORITY_CONFIG: Record<Priority, { label: string; color: string; bg: stri
 // ─── API helpers ──────────────────────────────────────────────────────────────
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
-
-/** Backend returned HTML (SPA shell / proxy miss) instead of JSON — common offline deploy failure */
-async function readApiJson(res: Response): Promise<any> {
-  const text = await res.text();
-  const trimmed = text.trim();
-  if (!trimmed) {
-    throw new Error(res.ok ? "Empty response from API" : `API ${res.status}: empty body`);
-  }
-  if (trimmed.startsWith("<!") || trimmed.startsWith("<html") || trimmed.startsWith("<HTML")) {
-    throw new Error(
-      "Research API is not reachable (got an HTML page instead of JSON). Persona review needs the api-server job queue — not the static UI alone.",
-    );
-  }
-  try {
-    return JSON.parse(trimmed);
-  } catch {
-    throw new Error(
-      `API returned non-JSON (${res.status}). ${trimmed.slice(0, 80).replace(/\s+/g, " ")}…`,
-    );
-  }
-}
 
 async function apiPost(path: string, body?: unknown) {
   const res = await fetch(`${BASE}/api${path}`, {
@@ -569,7 +549,7 @@ export default function ImprovementsPage() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* ── Header ── */}
-      <div className="flex-shrink-0 border-b border-border px-4 md:px-6 py-4 flex items-center justify-between gap-4">
+      <div className="flex-shrink-0 border-b border-border px-4 md:px-6 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <div className="flex items-center gap-3 min-w-0">
           <Bot className="h-5 w-5 text-primary flex-shrink-0" aria-hidden />
           <div className="min-w-0">
@@ -579,13 +559,13 @@ export default function ImprovementsPage() {
             <h1 className="text-sm md:text-base font-semibold tracking-tight text-foreground leading-tight">
               Persona review
             </h1>
-            <p className="text-xs text-muted-foreground hidden md:block">
+            <p className="text-xs text-muted-foreground hidden sm:block">
               11 deterministic personas analyse every entity and surface concrete improvements
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex flex-wrap items-center gap-2 sm:flex-shrink-0">
           {stats && stats.total > 0 && (
             <div className="hidden md:flex items-center gap-3 text-xs font-mono text-muted-foreground mr-2">
               {highCount > 0 && (
@@ -617,7 +597,7 @@ export default function ImprovementsPage() {
             onClick={handleApplySafe}
             disabled={apiOffline || remediationState === "starting" || remediationState === "running"}
             className={cn(
-              "flex items-center gap-2 px-3 py-2 text-xs font-semibold font-mono rounded-md transition-colors border",
+              "flex min-h-[40px] items-center gap-2 px-3 py-2 text-xs font-semibold font-mono rounded-md transition-colors border",
               remediationState === "starting" || remediationState === "running"
                 ? "border-border text-muted-foreground cursor-not-allowed"
                 : "border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"
@@ -633,7 +613,7 @@ export default function ImprovementsPage() {
             onClick={handleDeduplicate}
             disabled={cleanupState === "starting" || cleanupState === "running"}
             className={cn(
-              "flex items-center gap-2 px-3 py-2 text-xs font-semibold font-mono rounded-md transition-colors border",
+              "flex min-h-[40px] items-center gap-2 px-3 py-2 text-xs font-semibold font-mono rounded-md transition-colors border",
               cleanupState === "starting" || cleanupState === "running"
                 ? "border-border text-muted-foreground cursor-not-allowed"
                 : "border-sky-500/40 text-sky-400 hover:bg-sky-500/10"

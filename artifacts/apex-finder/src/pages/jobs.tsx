@@ -587,7 +587,7 @@ export default function BackgroundJobs() {
     <div className="flex flex-col h-full min-h-0">
       {/* Header */}
       <div className="border-b border-border bg-card/30 px-4 md:px-6 py-4 flex-shrink-0">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3 min-w-0">
             <Radio className="w-5 h-5 text-primary shrink-0" aria-hidden />
             <div className="min-w-0">
@@ -595,12 +595,12 @@ export default function BackgroundJobs() {
                 Apex Atlas / Workspace / Activity
               </div>
               <h1 className="text-sm font-semibold tracking-tight text-foreground">Workspace activity</h1>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Pipeline jobs · ingestors · persona loop · duplicate review</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5 max-w-[42ch]">Pipeline jobs · ingestors · persona loop · duplicate review</p>
             </div>
           </div>
           <button
             onClick={fetchJobs}
-            className="flex min-h-[40px] items-center gap-1.5 rounded-lg border border-border/60 px-3 py-1.5 text-[10px] font-mono text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+            className="flex min-h-[40px] w-full sm:w-auto items-center justify-center gap-1.5 rounded-lg border border-border/60 px-3 py-1.5 text-[10px] font-mono text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
           >
             <RefreshCw className="w-3.5 h-3.5" />
             {lastRefresh ? <span className="hidden sm:block">{elapsed(lastRefresh.toISOString())}</span> : <span>Refresh</span>}

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Copy, Merge, AlertTriangle, CheckCircle2, XCircle, RefreshCw, ChevronRight, ArrowRight, Layers3 } from "lucide-react";
 import { cn, formatEntityName } from "@/lib/utils";
+import { readApiJson } from "@/lib/api-json";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -39,19 +40,7 @@ const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 async function apiFetch<T>(path: string, opts?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, { headers: { "Content-Type": "application/json" }, ...opts });
-  const text = await res.text();
-  const trimmed = text.trim();
-  if (trimmed.startsWith("<!") || trimmed.startsWith("<html") || trimmed.startsWith("<HTML")) {
-    throw new Error(
-      "Research API is not reachable (HTML instead of JSON). Duplicate review needs api-server routes.",
-    );
-  }
-  let body: any = {};
-  try {
-    body = trimmed ? JSON.parse(trimmed) : {};
-  } catch {
-    throw new Error(`API returned non-JSON (${res.status})`);
-  }
+  const body = await readApiJson(res);
   if (!res.ok) throw new Error(body?.error ?? `HTTP ${res.status}`);
   return body as T;
 }
@@ -373,7 +362,7 @@ export default function DuplicatesPage() {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex-shrink-0 px-4 md:px-6 py-4 border-b border-border bg-card/50">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="min-w-0">
             <div className="font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">
               Apex Atlas / Workspace / Duplicate review
