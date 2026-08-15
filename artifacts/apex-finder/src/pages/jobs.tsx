@@ -430,30 +430,30 @@ function LiveActivityTab({ jobs }: { jobs: Job[] }) {
 
       {active.length === 0 && (
         <div
-          className="rounded-xl border border-dashed border-border/80 bg-card/20 px-4 py-5"
+          className="rounded-2xl border border-dashed border-cyan-400/20 bg-gradient-to-br from-cyan-500/[0.05] via-card/30 to-transparent px-4 py-6"
           data-testid="text-no-running-tasks"
         >
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <div className="h-2 w-2 rounded-full bg-muted-foreground/40" aria-hidden />
-                <span className="text-xs font-semibold text-foreground">Desk is idle</span>
+              <div className="flex items-center gap-2.5">
+                <div className="h-2 w-2 rounded-full bg-muted-foreground/50" aria-hidden />
+                <span className="text-[13px] font-semibold tracking-tight text-foreground">Desk is idle</span>
               </div>
-              <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground max-w-md">
+              <p className="mt-1.5 text-[12px] leading-relaxed text-muted-foreground max-w-md">
                 No pipeline jobs running. Start an ingestor, enrichment, or review task when you are ready.
               </p>
             </div>
             <div className="flex flex-wrap gap-2 shrink-0">
               <Link
                 href="/data-sources"
-                className="inline-flex min-h-[36px] items-center rounded-lg border border-border bg-background/60 px-3 py-1.5 text-[11px] font-semibold text-foreground hover:border-primary/40"
+                className="inline-flex min-h-[40px] items-center rounded-xl border border-border/70 bg-background/50 px-3.5 py-2 text-[11px] font-semibold text-foreground hover:border-cyan-400/35"
                 data-testid="link-jobs-data-sources"
               >
                 Data sources
               </Link>
               <Link
                 href="/jobs#sources"
-                className="inline-flex min-h-[36px] items-center rounded-lg border border-primary/30 bg-primary/10 px-3 py-1.5 text-[11px] font-semibold text-primary hover:bg-primary/15"
+                className="inline-flex min-h-[40px] items-center rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-3.5 py-2 text-[11px] font-semibold text-cyan-100 hover:bg-cyan-400/15"
                 data-testid="link-trigger-task"
               >
                 Trigger a task →
