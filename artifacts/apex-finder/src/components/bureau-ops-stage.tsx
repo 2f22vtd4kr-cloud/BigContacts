@@ -1103,6 +1103,15 @@ export function BureauOpsStage({
     return list.slice(0, maxScenes);
   }, [events, maxScenes]);
 
+  // Hooks must run unconditionally (before any early return).
+  const [focusId, setFocusId] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    if (!scenes.length) return;
+    const live = scenes.find((s) => s.live);
+    if (live) setFocusId(live.id);
+    else setFocusId((prev) => prev ?? scenes[0]?.id ?? null);
+  }, [scenes]);
+
   if (!scenes.length) {
     return (
       <div className={`rounded-xl border border-dashed border-slate-700/80 bg-slate-950/40 ${compact ? "p-3" : "p-5"}`}>
@@ -1125,14 +1134,6 @@ export function BureauOpsStage({
       </div>
     );
   }
-
-  const [focusId, setFocusId] = React.useState<string | null>(
-    () => scenes.find((s) => s.live)?.id ?? scenes[0]?.id ?? null,
-  );
-  React.useEffect(() => {
-    const live = scenes.find((s) => s.live);
-    if (live) setFocusId(live.id);
-  }, [scenes]);
 
   return (
     <div className="space-y-3">
