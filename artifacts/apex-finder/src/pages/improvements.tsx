@@ -7,6 +7,7 @@ import {
   User, Zap, ShieldCheck, GitBranch, Code2, SearchCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { isMockMode } from "@/lib/dev-mock-data";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -87,20 +88,43 @@ const PRIORITY_CONFIG: Record<Priority, { label: string; color: string; bg: stri
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
+/** Backend returned HTML (SPA shell / proxy miss) instead of JSON — common offline deploy failure */
+async function readApiJson(res: Response): Promise<any> {
+  const text = await res.text();
+  const trimmed = text.trim();
+  if (!trimmed) {
+    throw new Error(res.ok ? "Empty response from API" : `API ${res.status}: empty body`);
+  }
+  if (trimmed.startsWith("<!") || trimmed.startsWith("<html") || trimmed.startsWith("<HTML")) {
+    throw new Error(
+      "Research API is not reachable (got an HTML page instead of JSON). Persona review needs the api-server job queue — not the static UI alone.",
+    );
+  }
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    throw new Error(
+      `API returned non-JSON (${res.status}). ${trimmed.slice(0, 80).replace(/\s+/g, " ")}…`,
+    );
+  }
+}
+
 async function apiPost(path: string, body?: unknown) {
   const res = await fetch(`${BASE}/api${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: body ? JSON.stringify(body) : undefined,
   });
-  if (!res.ok) throw new Error((await res.json()).error ?? res.statusText);
-  return res.json();
+  const data = await readApiJson(res);
+  if (!res.ok) throw new Error(data?.error ?? res.statusText);
+  return data;
 }
 
 async function apiGet(path: string) {
   const res = await fetch(`${BASE}/api${path}`);
-  if (!res.ok) throw new Error((await res.json()).error ?? res.statusText);
-  return res.json();
+  const data = await readApiJson(res);
+  if (!res.ok) throw new Error(data?.error ?? res.statusText);
+  return data;
 }
 
 async function apiPatch(path: string, body: unknown) {
@@ -109,8 +133,56 @@ async function apiPatch(path: string, body: unknown) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error((await res.json()).error ?? res.statusText);
-  return res.json();
+  const data = await readApiJson(res);
+  if (!res.ok) throw new Error(data?.error ?? res.statusText);
+  return data;
+}
+
+/** Demo fixtures when ?mock=1 — shows UI without api-server */
+function mockImproveBundle() {
+  const logs: ImprovementLog[] = [
+    {
+      id: 1,
+      entityId: 1,
+      entityName: "James R. Griffin",
+      entityType: "HNWI",
+      persona: "osint_specialists_team",
+      category: "contact",
+      priority: "high",
+      title: "Personal owner email recovered — keep org inboxes separate",
+      detail: "jgriffin@griffin-tool.com is attributable; info@ must stay Company.",
+      status: "pending",
+      createdAt: new Date().toISOString(),
+    } as any,
+    {
+      id: 2,
+      entityId: 2,
+      entityName: "Griffin Tool, Inc.",
+      entityType: "Corporation",
+      persona: "data_integrity_auditor",
+      category: "integrity",
+      priority: "medium",
+      title: "Organization evidence must not inflate personal access",
+      detail: "Company phone on entity card should not raise personal REACH score.",
+      status: "pending",
+      createdAt: new Date().toISOString(),
+    } as any,
+  ];
+  const stats = {
+    byPersona: [
+      { persona: "osint_specialists_team", status: "pending", count: 1 },
+      { persona: "data_integrity_auditor", status: "pending", count: 1 },
+    ],
+    byStatus: [
+      { status: "pending", count: 2 },
+      { status: "applied", count: 0 },
+    ],
+    byPriority: [
+      { priority: "high", count: 1 },
+      { priority: "medium", count: 1 },
+    ],
+  };
+  return { logs, stats };
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -326,7 +398,18 @@ export default function ImprovementsPage() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Fetch logs + stats
+  const [apiOffline, setApiOffline] = useState(false);
+
   const fetchData = async () => {
+    if (isMockMode()) {
+      const bundle = mockImproveBundle();
+      setLogs(bundle.logs);
+      setStats(bundle.stats as any);
+      setError(null);
+      setApiOffline(false);
+      setLoading(false);
+      return;
+    }
     try {
       const params = new URLSearchParams({ limit: "200" });
       if (activePersona)               params.set("persona", activePersona);
@@ -341,8 +424,12 @@ export default function ImprovementsPage() {
       setLogs(logsData.logs ?? []);
       setStats(statsData);
       setError(null);
+      setApiOffline(false);
     } catch (e: any) {
       setError(e.message);
+      setApiOffline(/not reachable|non-JSON|HTML page/i.test(String(e.message ?? "")));
+      setLogs([]);
+      setStats(null);
     } finally {
       setLoading(false);
     }
@@ -371,6 +458,14 @@ export default function ImprovementsPage() {
 
   // Run improvement loop
   const handleRun = async () => {
+    if (isMockMode()) {
+      setError("Mock mode: persona loop is server-side. Deploy api-server and clear ?mock=1 to run jobs.");
+      return;
+    }
+    if (apiOffline) {
+      setError("Cannot start loop — research API is offline. Persona jobs run on the api-server worker, not in the browser.");
+      return;
+    }
     setRunState("starting");
     setCurrentJob(null);
     try {
@@ -504,9 +599,10 @@ export default function ImprovementsPage() {
           )}
           <button
             onClick={handleRun}
-            disabled={isRunning}
+            disabled={isRunning || apiOffline}
+            title={apiOffline ? "API offline — cannot start persona jobs" : undefined}
             className={cn(
-              "flex items-center gap-2 px-3 py-2 text-xs font-semibold font-mono rounded-md transition-colors",
+              "flex min-h-[40px] items-center gap-2 px-3 py-2 text-xs font-semibold font-mono rounded-md transition-colors",
               isRunning
                 ? "bg-muted text-muted-foreground cursor-not-allowed"
                 : "bg-primary text-primary-foreground hover:bg-primary/90"
@@ -519,7 +615,7 @@ export default function ImprovementsPage() {
           </button>
           <button
             onClick={handleApplySafe}
-            disabled={remediationState === "starting" || remediationState === "running"}
+            disabled={apiOffline || remediationState === "starting" || remediationState === "running"}
             className={cn(
               "flex items-center gap-2 px-3 py-2 text-xs font-semibold font-mono rounded-md transition-colors border",
               remediationState === "starting" || remediationState === "running"
@@ -567,9 +663,21 @@ export default function ImprovementsPage() {
 
         {/* ── Error ── */}
         {error && (
-          <div className="flex items-center gap-2 text-xs text-red-400 bg-red-950/20 border border-red-800/30 rounded-lg px-4 py-3">
-            <AlertTriangle className="h-4 w-4 flex-shrink-0" />
-            {error}
+          <div
+            className="flex flex-col gap-2 rounded-lg border border-red-800/30 bg-red-950/20 px-4 py-3 text-xs text-red-300 sm:flex-row sm:items-start"
+            role="alert"
+            data-testid="alert-persona-api"
+          >
+            <AlertTriangle className="h-4 w-4 flex-shrink-0 text-red-400" aria-hidden />
+            <div className="min-w-0 space-y-1">
+              <div className="font-semibold text-red-200">Persona review needs the research API</div>
+              <p className="leading-relaxed text-red-300/90">{error}</p>
+              {apiOffline && (
+                <p className="leading-relaxed text-red-300/70">
+                  In production, <span className="font-mono">api-server</span> runs deterministic personas, writes improvement logs, and applies safe fixes via the job queue. The static UI only triggers and displays that work — it does not run LLMs in the browser.
+                </p>
+              )}
+            </div>
           </div>
         )}
 

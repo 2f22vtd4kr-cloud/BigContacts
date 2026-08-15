@@ -39,11 +39,21 @@ const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 async function apiFetch<T>(path: string, opts?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, { headers: { "Content-Type": "application/json" }, ...opts });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error((body as any)?.error ?? `HTTP ${res.status}`);
+  const text = await res.text();
+  const trimmed = text.trim();
+  if (trimmed.startsWith("<!") || trimmed.startsWith("<html") || trimmed.startsWith("<HTML")) {
+    throw new Error(
+      "Research API is not reachable (HTML instead of JSON). Duplicate review needs api-server routes.",
+    );
   }
-  return res.json() as Promise<T>;
+  let body: any = {};
+  try {
+    body = trimmed ? JSON.parse(trimmed) : {};
+  } catch {
+    throw new Error(`API returned non-JSON (${res.status})`);
+  }
+  if (!res.ok) throw new Error(body?.error ?? `HTTP ${res.status}`);
+  return body as T;
 }
 
 function scoreColor(score: number) {
