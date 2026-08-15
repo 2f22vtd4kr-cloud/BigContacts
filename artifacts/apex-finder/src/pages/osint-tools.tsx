@@ -80,8 +80,17 @@ export default function OsintToolsDirectory() {
   const [loading, setLoading]         = useState(false);
   const [error, setError]             = useState("");
 
-  // Load category list once
+  // Load category list once (mock offline demos)
   useEffect(() => {
+    if (isMockMode()) {
+      setCategories([
+        { name: "companies", count: 4 },
+        { name: "public_records", count: 3 },
+        { name: "people", count: 2 },
+        { name: "domain", count: 2 },
+      ]);
+      return;
+    }
     fetch(`${BASE}/api/osint-tools/categories`)
       .then(r => r.json())
       .then((d: { categories: CategoryCount[]; total: number }) => {
@@ -98,6 +107,11 @@ export default function OsintToolsDirectory() {
         { tool_name: "Companies House", category: "companies", short_description: "UK company officers and filings", tool_url: "https://find-and-update.company-information.service.gov.uk/" },
         { tool_name: "SEC EDGAR", category: "public_records", short_description: "US beneficial ownership and DEF 14A", tool_url: "https://www.sec.gov/edgar" },
         { tool_name: "OpenCorporates", category: "companies", short_description: "Cross-jurisdiction company index", tool_url: "https://opencorporates.com/" },
+        { tool_name: "Michigan SOS", category: "companies", short_description: "Michigan business entity search", tool_url: "https://cofs.lara.state.mi.us/SearchApi/Search/Search" },
+        { tool_name: "FAA Aircraft Registry", category: "public_records", short_description: "US civil aircraft owners", tool_url: "https://registry.faa.gov/aircraftinquiry/" },
+        { tool_name: "WhoisXML", category: "domain", short_description: "Domain WHOIS and historical records", tool_url: "https://whois.whoisxmlapi.com/" },
+        { tool_name: "Hunter.io", category: "people", short_description: "Role email patterns on public domains", tool_url: "https://hunter.io/" },
+        { tool_name: "OpenOwnership", category: "companies", short_description: "Beneficial ownership register search", tool_url: "https://register.openownership.org/" },
       ];
       const filtered = demo.filter((tool) => {
         const hay = `${tool.tool_name} ${tool.short_description}`.toLowerCase();
