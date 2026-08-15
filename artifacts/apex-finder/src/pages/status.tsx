@@ -99,60 +99,98 @@ const PROVIDER_COLORS: Record<string, string> = {
   exa:        "from-emerald-500/20 border-emerald-500/30",
 };
 
-function SlotDot({ slot }: { slot: AIKeySlot }) {
-  return (
-    <div className="group relative">
-      <div className={cn(
-        "h-4 w-4 rounded-full border transition-colors",
-        slot.state === "active"    && "bg-primary border-primary shadow-[0_0_6px_rgba(132,204,22,0.5)]",
-        slot.state === "rate_limited" && "bg-amber-500/80 border-amber-400 animate-pulse",
-        slot.state === "missing"   && "bg-muted/30 border-muted/50",
-      )} />
-      {/* Tooltip */}
-      <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1 -translate-x-1/2 whitespace-nowrap rounded bg-popover px-2 py-1 text-[10px] font-mono text-muted-foreground opacity-0 shadow-lg group-hover:opacity-100 transition-opacity">
-        Slot {slot.index + 1} — {slot.state}
-        {slot.expiresAt && ` (resets ${new Date(slot.expiresAt).toLocaleTimeString()})`}
+function SlotBar({ slots }: { slots: AIKeySlot[] }) {
+  if (!slots.length) {
+    return (
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/40">
+        <div className="h-full w-0 rounded-full bg-muted" />
       </div>
+    );
+  }
+  return (
+    <div
+      className="flex h-1.5 w-full overflow-hidden rounded-full bg-muted/30"
+      role="img"
+      aria-label={`${slots.filter((s) => s.state === "active").length} of ${slots.length} slots active`}
+    >
+      {slots.map((slot) => (
+        <div
+          key={slot.index}
+          title={`Slot ${slot.index + 1}: ${slot.state}${slot.expiresAt ? ` · resets ${new Date(slot.expiresAt).toLocaleTimeString()}` : ""}`}
+          className={cn(
+            "h-full flex-1 border-r border-background/40 last:border-r-0 transition-colors",
+            slot.state === "active" && "bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.45)]",
+            slot.state === "rate_limited" && "bg-amber-400/90 animate-pulse",
+            slot.state === "missing" && "bg-muted/50",
+          )}
+        />
+      ))}
     </div>
   );
 }
 
 function ProviderCard({ name, slots }: { name: keyof AIKeyStatus; slots: AIKeySlot[] }) {
-  const active    = slots.filter(s => s.state === "active").length;
-  const rateLimited = slots.filter(s => s.state === "rate_limited").length;
-  const missing   = slots.filter(s => s.state === "missing").length;
-  const configured = slots.filter(s => s.state !== "missing").length;
+  const active = slots.filter((s) => s.state === "active").length;
+  const rateLimited = slots.filter((s) => s.state === "rate_limited").length;
+  const missing = slots.filter((s) => s.state === "missing").length;
+  const configured = slots.filter((s) => s.state !== "missing").length;
+  const total = Math.max(slots.length, 1);
+  const health = active / total;
+
+  const tone =
+    active > 0
+      ? "border-cyan-400/25 bg-gradient-to-br from-cyan-500/[0.07] via-card/80 to-card/40"
+      : rateLimited > 0
+        ? "border-amber-400/25 bg-gradient-to-br from-amber-500/[0.07] via-card/80 to-card/40"
+        : "border-border/60 bg-card/30";
 
   return (
-    <div className={cn(
-      "rounded-xl border bg-gradient-to-br from-transparent to-transparent p-4 transition-colors",
-      PROVIDER_COLORS[name] ?? "border-border",
-      configured === 0 && "opacity-50",
-    )}>
-      <div className="mb-3 flex items-center justify-between">
-        <span className="font-mono text-[11px] font-semibold uppercase tracking-widest text-foreground">
-          {PROVIDER_LABELS[name]}
-        </span>
-        <span className={cn(
-          "rounded-full px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider",
-          active > 0    ? "bg-primary/20 text-primary"       :
-          rateLimited > 0 ? "bg-amber-500/20 text-amber-400"  :
-                          "bg-muted/30 text-muted-foreground",
-        )}>
-          {active > 0 ? `${active} active` : rateLimited > 0 ? "cooling down" : "not configured"}
+    <article
+      className={cn(
+        "group relative overflow-hidden rounded-2xl border p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-sm transition-all hover:border-cyan-400/30 hover:shadow-[0_0_24px_rgba(34,211,238,0.06)]",
+        tone,
+        configured === 0 && "opacity-55",
+      )}
+      data-testid={`provider-card-${name}`}
+    >
+      <div className="pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full bg-cyan-400/5 blur-2xl transition-opacity group-hover:opacity-100" />
+      <div className="relative flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="font-display text-[13px] font-semibold tracking-tight text-foreground">
+            {PROVIDER_LABELS[name]}
+          </div>
+          <div className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70">
+            {configured}/{total} slots keyed
+          </div>
+        </div>
+        <span
+          className={cn(
+            "shrink-0 rounded-md border px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.12em]",
+            active > 0
+              ? "border-cyan-400/35 bg-cyan-400/10 text-cyan-200"
+              : rateLimited > 0
+                ? "border-amber-400/35 bg-amber-400/10 text-amber-200"
+                : "border-border/70 bg-muted/20 text-muted-foreground",
+          )}
+        >
+          {active > 0 ? `${active} live` : rateLimited > 0 ? "cooldown" : "empty"}
         </span>
       </div>
 
-      <div className="flex items-center gap-1.5">
-        {slots.map(slot => <SlotDot key={slot.index} slot={slot} />)}
+      <div className="relative mt-4 space-y-2">
+        <SlotBar slots={slots} />
+        <div className="flex items-center justify-between gap-2 font-mono text-[10px] text-muted-foreground">
+          <span className="text-cyan-300/90">{Math.round(health * 100)}% capacity</span>
+          <span className="truncate text-right">
+            {rateLimited > 0 && <span className="text-amber-300/90">{rateLimited} cooling · </span>}
+            {missing > 0 && <span className="text-muted-foreground/55">{missing} open</span>}
+            {missing === 0 && rateLimited === 0 && active > 0 && (
+              <span className="text-emerald-300/80">all clear</span>
+            )}
+          </span>
+        </div>
       </div>
-
-      <div className="mt-2.5 flex gap-3 font-mono text-[10px] text-muted-foreground">
-        <span className="text-primary">{active} active</span>
-        {rateLimited > 0 && <span className="text-amber-400">{rateLimited} temporary cooldown</span>}
-        {missing   > 0 && <span className="text-muted-foreground/60">{missing} unconfigured</span>}
-      </div>
-    </div>
+    </article>
   );
 }
 
@@ -267,25 +305,25 @@ export default function SystemStatusPage() {
       {/* Quick-glance banner */}
       {status && (
         <div className={cn(
-          "flex items-center justify-between rounded-xl border px-5 py-3",
+          "flex flex-col gap-2 rounded-2xl border px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5",
           totalActive > 0
-            ? "border-primary/30 bg-primary/5"
+            ? "border-cyan-400/25 bg-gradient-to-r from-cyan-500/[0.08] to-transparent"
             : "border-destructive/30 bg-destructive/5",
         )}>
           <div className="flex items-center gap-3">
             <div className={cn(
-              "h-2.5 w-2.5 rounded-full",
-              totalActive > 0 ? "bg-primary animate-pulse" : "bg-destructive",
+              "h-2 w-2 rounded-full",
+              totalActive > 0 ? "bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.7)]" : "bg-destructive",
             )} />
-            <span className="font-mono text-[12px] font-semibold text-foreground">
+            <span className="text-[13px] font-semibold tracking-tight text-foreground">
               {totalActive > 0
                 ? `${totalActive} AI key slots operational`
                 : "No AI keys active"}
             </span>
           </div>
-          <div className="flex items-center gap-2 font-mono text-[11px] text-muted-foreground">
+          <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
             <Activity className="h-3.5 w-3.5" />
-            {status.cached ? `Cached (${Math.round(status.cachedAgoMs / 1000)}s ago)` : "Live"}
+            {status.cached ? `Cached · ${Math.round(status.cachedAgoMs / 1000)}s` : "Live feed"}
           </div>
         </div>
       )}
@@ -320,8 +358,8 @@ export default function SystemStatusPage() {
             />
           ))}
         </div>
-        <p className="mt-2.5 font-mono text-[10px] text-muted-foreground/50">
-          Hover a dot to see slot details. Temporary 429 cooldowns auto-recover after the provider's rate-limit window; configured keys are not account-credit claims.
+        <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground/70">
+          Segment bars show slot health. Temporary 429 cooldowns auto-recover after the provider window; configured keys are not credit claims.
         </p>
       </section>
 
@@ -342,16 +380,34 @@ export default function SystemStatusPage() {
             {OPEN_RESEARCH_LABELS[status?.openResearch?.state ?? "unavailable"]}
           </span>
         </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
           {[
-            { label: "Hugging Face model", configured: status?.openResearch?.huggingFace?.configured ?? false },
-            { label: "Serper live search", configured: status?.openResearch?.serper?.configured ?? false },
-            { label: "Mistral web search", configured: status?.openResearch?.mistral?.configured ?? false },
+            { label: "Hugging Face", sub: "Model host", configured: status?.openResearch?.huggingFace?.configured ?? false },
+            { label: "Serper", sub: "Live search", configured: status?.openResearch?.serper?.configured ?? false },
+            { label: "Mistral", sub: "Web search", configured: status?.openResearch?.mistral?.configured ?? false },
           ].map((item) => (
-            <div key={item.label} className="flex items-center justify-between rounded-xl border border-border/60 bg-gradient-to-br from-primary/5 to-transparent px-4 py-3">
-              <span className="font-mono text-[11px] text-foreground">{item.label}</span>
-              <span className={cn("font-mono text-[10px] font-bold uppercase tracking-wider", item.configured ? "text-primary" : "text-muted-foreground")}>
-                {item.configured ? "configured" : "missing"}
+            <div
+              key={item.label}
+              className={cn(
+                "flex items-center justify-between gap-3 rounded-2xl border px-4 py-3.5 transition-colors",
+                item.configured
+                  ? "border-cyan-400/20 bg-cyan-500/[0.06]"
+                  : "border-border/50 bg-card/25",
+              )}
+            >
+              <div className="min-w-0">
+                <div className="text-[13px] font-semibold tracking-tight text-foreground">{item.label}</div>
+                <div className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground/65">{item.sub}</div>
+              </div>
+              <span
+                className={cn(
+                  "shrink-0 rounded-md border px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.12em]",
+                  item.configured
+                    ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-200"
+                    : "border-border/60 bg-muted/20 text-muted-foreground",
+                )}
+              >
+                {item.configured ? "ready" : "off"}
               </span>
             </div>
           ))}
