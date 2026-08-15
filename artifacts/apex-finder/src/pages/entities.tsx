@@ -721,9 +721,8 @@ export default function EntityLedger() {
         {/* Header toolbar */}
         <div className="flex flex-col gap-2 border-b border-border bg-card/30 px-4 py-3 flex-shrink-0">
           <div className="flex items-center justify-between gap-2">
-            <div>
-              <div className="font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">Apex Atlas / Entity ledger</div>
-              <h1 className="text-sm font-semibold tracking-tight text-foreground">People & companies</h1>
+            <div className="min-w-0">
+              <p className="text-[11px] text-muted-foreground">Search and filter attributable people and companies</p>
             </div>
             <div className="hidden sm:block font-mono text-[10px] text-muted-foreground tabular-nums">
               Public surface · attributable first
@@ -743,20 +742,25 @@ export default function EntityLedger() {
 
           {/* Type filter */}
           <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-0.5">
-            {[null, ...ENTITY_TYPES].map((t) => {
-              const c = t ? entityMeta(t).color : "#10B981";
+            {[null, ...ENTITY_TYPES].map((typeKey) => {
+              const meta = typeKey ? entityMeta(typeKey) : null;
+              const c = meta?.color ?? "#10B981";
+              const Icon = meta?.Icon;
+              const active = typeFilter === typeKey;
               return (
                 <button
-                  key={t ?? "all"}
-                  onClick={() => setTypeFilter(t)}
-                  className="flex min-h-[32px] items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-mono font-bold uppercase tracking-[0.08em] transition-all"
+                  key={typeKey ?? "all"}
+                  onClick={() => setTypeFilter(typeKey)}
+                  aria-pressed={active}
+                  className="inline-flex min-h-[32px] items-center gap-1.5 rounded-lg border px-3 py-1 text-[10px] font-mono font-bold uppercase tracking-[0.08em] transition-all"
                   style={{
-                    backgroundColor: typeFilter === t ? c : "transparent",
-                    color: typeFilter === t ? "#000" : "hsl(var(--muted-foreground))",
-                    border: `1px solid ${typeFilter === t ? c : "hsl(var(--border))"}`,
+                    backgroundColor: active ? c : "rgba(15,23,42,0.65)",
+                    color: active ? "#0B1220" : "hsl(var(--muted-foreground))",
+                    borderColor: active ? c : "hsl(var(--border))",
                   }}
                 >
-                  {t ? <EntityTypeMark type={t} compact /> : "ALL"}
+                  {Icon ? <Icon className="h-3 w-3 shrink-0" aria-hidden /> : null}
+                  <span className="leading-none">{typeKey === "Corporation" ? "Company" : typeKey === "HNWI" ? "Person" : (typeKey ?? "All")}</span>
                 </button>
               );
             })}
@@ -774,7 +778,7 @@ export default function EntityLedger() {
                 onClick={() => setViewMode(mode)}
                 className="flex min-h-[32px] items-center gap-1.5 px-3 py-1 rounded-full font-mono text-[10px] uppercase tracking-wider transition-all"
                 style={{
-                  background: viewMode === mode ? "rgba(16,185,129,0.15)" : "transparent",
+                  background: viewMode === mode ? "rgba(16,185,129,0.2)" : "rgba(15,23,42,0.55)",
                   color: viewMode === mode ? "#10B981" : "hsl(var(--muted-foreground))",
                   borderRadius: "9999px",
                 }}
@@ -1286,16 +1290,16 @@ export default function EntityLedger() {
           <div className="flex items-center gap-2 px-3 py-2 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
             {[
               { label: "All entities", value: null },
-              ...ENTITY_TYPES.map((value) => ({ label: entityMeta(value).shortLabel, value })),
+              ...ENTITY_TYPES.map((value) => ({ label: value === "Corporation" ? "Company" : value === "HNWI" ? "Person" : value, value })),
             ].map(({ label, value }) => (
               <button
                 key={label}
                 onClick={() => setTypeFilter(value)}
                 className={cn(
-                  "shrink-0 h-7 px-3 rounded text-[11px] font-mono border transition-colors",
+                  "inline-flex shrink-0 h-8 items-center justify-center px-3 rounded-lg text-[11px] font-mono border transition-colors",
                   typeFilter === value
-                    ? "bg-primary/10 text-primary border-primary/30"
-                    : "bg-card text-muted-foreground border-border"
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-slate-950/60 text-muted-foreground border-border"
                 )}
               >
                 {label}
@@ -1317,7 +1321,7 @@ export default function EntityLedger() {
           {/* Contact richness + confidence chips */}
           <div className="flex items-center gap-2 px-3 pb-2 pr-6 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
             <span className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground shrink-0">
-              Contact
+              Route
             </span>
             {RICHNESS_TIERS.map(({ value, label, color }) => (
               <button
@@ -1325,7 +1329,7 @@ export default function EntityLedger() {
                 onClick={() => setContactRichness(contactRichness === value ? null : value)}
                 className="shrink-0 h-7 px-2.5 rounded text-[10px] font-mono border transition-colors"
                 style={{
-                  background: contactRichness === value ? color + "20" : "hsl(var(--card))",
+                  background: contactRichness === value ? color + "28" : "rgba(15,23,42,0.6)",
                   color: contactRichness === value ? color : "hsl(var(--muted-foreground))",
                   borderColor: contactRichness === value ? color + "60" : "hsl(var(--border))",
                 }}
@@ -1340,7 +1344,7 @@ export default function EntityLedger() {
                 onClick={() => setMinConfidence(minConfidence === step ? 0 : step)}
                 className="shrink-0 h-7 px-2.5 rounded text-[10px] font-mono border transition-colors"
                 style={{
-                  background: minConfidence === step ? "rgba(245,158,11,0.15)" : "hsl(var(--card))",
+                  background: minConfidence === step ? "rgba(245,158,11,0.22)" : "rgba(15,23,42,0.6)",
                   color: minConfidence === step ? "#F59E0B" : "hsl(var(--muted-foreground))",
                   borderColor: minConfidence === step ? "rgba(245,158,11,0.4)" : "hsl(var(--border))",
                 }}

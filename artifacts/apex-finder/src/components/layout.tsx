@@ -206,8 +206,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <Crosshair className="h-4 w-4" />
             </Link>
             <div className="ml-2 hidden min-w-0 md:block">
-              <div className="font-mono text-[9px] uppercase tracking-[0.24em] text-muted-foreground/55">Apex Atlas / Research desk</div>
-              <div className="mt-1 font-mono text-sm font-bold tracking-[0.14em] text-foreground">Private OSINT cockpit</div>
+              <div className="font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground/50">
+                Apex Atlas · Research desk
+              </div>
+              <div className="mt-0.5 truncate text-[13px] font-semibold tracking-tight text-foreground">
+                {pageTitle}
+              </div>
             </div>
           </div>
           <div className="ml-auto flex min-w-0 items-center justify-end gap-1.5 sm:gap-2">
