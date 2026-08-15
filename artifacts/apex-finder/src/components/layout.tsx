@@ -164,9 +164,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
       : "Evidence workspace";
   const isReactorRoute = location === "/reactor";
   /** Pages that already render their own title chrome */
+  /** Pages that already render their own title / immersive chrome */
   const hideDeskTitle =
     isReactorRoute
-    || location.startsWith("/profile/");
+    || location.startsWith("/profile/")
+    || location === "/jobs"
+    || location === "/improvements"
+    || location === "/duplicates"
+    || location === "/data-sources"
+    || location === "/status"
+    || location === "/osint-tools";
 
   return (
     <div className="atlas-noise flex min-h-[100dvh] overflow-hidden bg-background text-foreground">
@@ -224,8 +231,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         {!hideDeskTitle && (
         <div className="relative z-10 shrink-0 border-b border-border/70 bg-background/70 px-4 py-3.5 backdrop-blur-sm md:px-6 md:py-4">
           <div className="mx-auto w-full max-w-[1800px]">
-            <div className="font-mono text-[9px] uppercase tracking-[0.22em] text-primary/65">Apex Atlas / research desk</div>
-            <h1 className="mt-1 font-display text-xl font-bold tracking-[-0.03em] text-foreground md:text-2xl" data-testid="text-page-title">
+            <h1 className="font-display text-xl font-bold tracking-[-0.03em] text-foreground md:text-2xl" data-testid="text-page-title">
               {pageTitle}
             </h1>
             <p className="mt-1 max-w-2xl text-[11px] leading-4 text-muted-foreground md:text-xs">{pageDescription}</p>

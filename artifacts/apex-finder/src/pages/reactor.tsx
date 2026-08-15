@@ -1909,9 +1909,6 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
               opacity: isSibling && !kbFocus && !reachCue ? 0.32 : 1,
               outline: kbFocus ? `2px solid #22d3ee` : undefined,
               outlineOffset: kbFocus ? 3 : undefined,
-              boxShadow: reachCue
-                ? "0 0 28px rgba(52,211,153,0.35)"
-                : isFocus || kbFocus ? `0 0 22px ${statusColor}55` : undefined,
               transition: "opacity 0.35s, box-shadow 0.35s",
               border: reachCue
                 ? "2px solid rgba(52,211,153,0.65)"
@@ -1921,9 +1918,14 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
               padding:"0 10px",
               display:"flex", alignItems:"center", gap:9,
               cursor: "default",
-              boxShadow: on
-                ? `0 0 ${isReactor?28:14}px ${statusColor}${isReactor?"55":"30"},inset 0 0 ${isReactor?20:10}px ${statusColor}12`
-                : kbFocus ? `0 0 16px rgba(34,211,238,0.25)` : "none",
+              // Single boxShadow: reach cue > live glow > keyboard focus
+              boxShadow: reachCue
+                ? "0 0 28px rgba(52,211,153,0.35)"
+                : on
+                  ? `0 0 ${isReactor?28:14}px ${statusColor}${isReactor?"55":"30"},inset 0 0 ${isReactor?20:10}px ${statusColor}12`
+                  : isFocus || kbFocus
+                    ? `0 0 22px ${statusColor}55`
+                    : "none",
             }}>
               <div style={{
                 width:30, height:30, flexShrink:0, borderRadius:5,
