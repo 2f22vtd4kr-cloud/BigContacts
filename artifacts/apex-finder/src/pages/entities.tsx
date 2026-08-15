@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Link, useLocation, useSearch } from "wouter";
 import { useListEntities, useCreateEntity, useDeleteEntity } from "@workspace/api-client-react";
-import { entityFindingsSummary, entityEvidenceLabel, entityWorkSummary, formatCurrency, formatEntityName, AccessScoreBadge, ConfidenceBadge, parseEntityRegistries } from "@/lib/utils";
+import { entityFindingsSummary, entityEvidenceLabel, entityWorkSummary, formatCurrency, formatEntityName, AccessScoreBadge, ConfidenceBadge, NationalityCell, parseEntityRegistries } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { entityMeta, EntityTypeMark, entityMetric, ENTITY_TYPES } from "@/lib/entity-taxonomy";
 import { isMockMode, MOCK_ENTITIES } from "@/lib/dev-mock-data";
@@ -217,61 +217,63 @@ function MobileEntityCard({
 
   return (
       <div className={cn("border-b border-border bg-card transition-colors hover:bg-card/80", selected && "bg-primary/5")}>
-      <div 
+      <div
         onClick={onToggleExpand}
-        className="flex items-center px-4 py-3 cursor-pointer"
+        className="flex items-start gap-3 px-3 py-3.5 cursor-pointer"
       >
-        <button onClick={onToggleSelect} className="shrink-0 mr-3" aria-label={selected ? "Deselect" : "Select"}>
+        <button onClick={onToggleSelect} className="shrink-0 mt-0.5" aria-label={selected ? "Deselect" : "Select"}>
           {selected ? <CheckSquare className="w-4 h-4 text-primary" /> : <Square className="w-4 h-4 text-muted-foreground" />}
         </button>
-        <div className="flex-1 min-w-0 pr-2">
-          <div className="font-semibold text-[14px] text-foreground truncate">
-            {formatEntityName(entity.name)}
-          </div>
-          {entity.linkedinHeadline && (
-            <div className="text-[10px] text-muted-foreground/60 font-mono truncate mt-0.5" title={entity.linkedinHeadline}>
-              {entity.linkedinHeadline}
+        <div className="min-w-0 flex-1 space-y-2">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <div className="font-semibold text-[15px] leading-snug text-foreground break-words">
+                {formatEntityName(entity.name)}
+              </div>
+              {entity.linkedinHeadline && (
+                <div className="mt-0.5 text-[10px] text-muted-foreground/70 font-mono line-clamp-1" title={entity.linkedinHeadline}>
+                  {entity.linkedinHeadline}
+                </div>
+              )}
             </div>
-          )}
-          <div className="mt-2 text-[10px] leading-4 text-muted-foreground/80 line-clamp-2">
+            <div className="flex shrink-0 items-center gap-1 pt-0.5">
+              {entity.cookedAt && (
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" aria-label="Fully enriched" />
+              )}
+              {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+            </div>
+          </div>
+          <div className="text-[11px] leading-4 text-muted-foreground line-clamp-2">
             {workSummary ?? "No documented role or activity recorded"}
           </div>
-          <div className="mt-1">
+          <div className="flex flex-wrap items-center gap-1.5">
             <span
-              className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded flex items-center gap-1 w-max"
+              className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[9px] font-mono font-bold"
               style={{ color: typeColor, backgroundColor: typeColor + "18" }}
             >
               <EntityTypeMark type={entity.type} compact />
             </span>
+            {organizationLike ? (
+              <span
+                className={cn(
+                  "inline-flex items-center rounded-md border px-1.5 py-0.5 text-[9px] font-mono font-bold uppercase tracking-wide",
+                  entity.contactOutcome === "organization_contact"
+                    ? "text-violet-300 border-violet-400/30 bg-violet-400/10"
+                    : "text-muted-foreground border-border bg-muted/30",
+                )}
+                title={entity.contactOutcome === "organization_contact"
+                  ? "Organization contact route — not a personal access route"
+                  : "No validated personal access route is recorded for this organization"}
+              >
+                {contactState}
+              </span>
+            ) : (
+              <>
+                <ConfidenceBadge score={entity.contactConfidence} />
+                <AccessScoreBadge score={entity.accessScore} />
+              </>
+            )}
           </div>
-        </div>
-        <div className="shrink-0 flex items-center gap-2">
-          {organizationLike ? (
-            <span
-              className={cn(
-                "text-[9px] font-mono font-bold uppercase tracking-wide px-1.5 py-1 rounded border whitespace-nowrap",
-                entity.contactOutcome === "organization_contact"
-                  ? "text-violet-300 border-violet-400/30 bg-violet-400/10"
-                  : "text-muted-foreground border-border bg-muted/30",
-              )}
-              title={entity.contactOutcome === "organization_contact"
-                ? "Organization contact route — not a personal access route"
-                : "No validated personal access route is recorded for this organization"}
-            >
-              {contactState}
-            </span>
-          ) : (
-            <>
-              <ConfidenceBadge score={entity.contactConfidence} />
-              <AccessScoreBadge score={entity.accessScore} />
-            </>
-          )}
-          {entity.cookedAt && (
-            <span title={`Fully cooked — all enrichment phases complete (${new Date(entity.cookedAt).toLocaleDateString()})`}>
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
-            </span>
-          )}
-          {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
         </div>
       </div>
 
@@ -290,7 +292,7 @@ function MobileEntityCard({
           <div className="grid grid-cols-2 gap-3 mb-3">
             <div>
               <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-0.5">Nationality</div>
-              <div className="text-xs text-foreground font-mono">{entity.nationality ?? "—"}</div>
+              <div className="text-xs"><NationalityCell nationality={entity.nationality} /></div>
             </div>
             <div>
               <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-0.5">{entityMeta(entity.type).metricLabel}</div>
@@ -858,14 +860,17 @@ export default function EntityLedger() {
           <div className="w-px h-4 bg-border/60 mx-1 shrink-0" />
           <button
             onClick={() => setHotOnly(!hotOnly)}
-            className="shrink-0 h-7 px-2.5 rounded-md text-[10px] font-mono border transition-all whitespace-nowrap"
+            className="inline-flex shrink-0 h-7 items-center justify-center gap-1 px-2.5 rounded-md text-[10px] font-mono border transition-all whitespace-nowrap"
             style={{
-              background: hotOnly ? "rgba(245,158,11,0.12)" : "transparent",
-              color: hotOnly ? "#F59E0B" : "hsl(var(--muted-foreground))",
-              borderColor: hotOnly ? "rgba(245,158,11,0.4)" : "hsl(var(--border))",
+              background: hotOnly ? "rgba(245,158,11,0.18)" : "transparent",
+              color: hotOnly ? "#FBBF24" : "hsl(var(--muted-foreground))",
+              borderColor: hotOnly ? "rgba(245,158,11,0.5)" : "hsl(var(--border))",
             }}
+            aria-pressed={hotOnly}
+            title="Show priority leads only"
           >
-            <><Flame className="w-3 h-3" /> Hot</>
+            <Flame className="w-3 h-3 shrink-0" aria-hidden />
+            <span className="leading-none">Hot</span>
           </button>
           <div className="w-px h-4 bg-border/60 mx-1 shrink-0" />
           <button
@@ -1011,7 +1016,7 @@ export default function EntityLedger() {
                       : <Square className="w-3.5 h-3.5" />}
                   </button>
                 </th>
-                {["Name", "Type", "Nationality", "Contact Score", "Access", "REACH", "Entity signal"].map((h) => (
+                {["Name", "Type", "Country", "Contact quality", "Reachability", "How to reach", "Signal"].map((h) => (
                   <th key={h} className={cn(
                     "px-4 py-3 text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap",
                     h === "Entity signal" ? "text-right" : "text-left"
@@ -1070,7 +1075,7 @@ export default function EntityLedger() {
                         <EntityTypeMark type={entity.type} compact />
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground font-mono whitespace-nowrap">{entity.nationality ?? "—"}</td>
+                    <td className="px-4 py-3"><NationalityCell nationality={entity.nationality} /></td>
                     <td className="px-4 py-3">
                       {entity.type === "Corporation" || entity.type === "Corp" || entity.type === "Trust" ? (
                         <span
@@ -1221,7 +1226,7 @@ export default function EntityLedger() {
       </div>
 
       {/* ── Mobile ── */}
-      <div className="flex md:hidden flex-col h-full overflow-hidden">
+      <div className="flex md:hidden flex-col h-full overflow-hidden min-w-0">
         {/* Mobile active filter banner */}
         {(hotOnly || anyContactFilter) && (
           <div className={cn(
@@ -1257,7 +1262,7 @@ export default function EntityLedger() {
         {/* Mobile view mode + filter chips */}
         <div className="flex md:hidden flex-col border-b border-border bg-card/30 shrink-0">
           {/* View mode row */}
-          <div className="flex items-center gap-1.5 px-3 py-2 border-b border-border/50" style={{ scrollbarWidth: "none" }}>
+          <div className="flex items-center gap-1.5 px-3 py-2 pr-6 border-b border-border/50 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
             {([
               { mode: "all",     label: "All",     color: "#10B981" },
               { mode: "starred", label: "★ Starred", color: "#F59E0B" },
@@ -1299,15 +1304,18 @@ export default function EntityLedger() {
             <button
               onClick={() => setHotOnly(!hotOnly)}
               className={cn(
-                "shrink-0 h-7 px-3 rounded text-[11px] font-mono border transition-colors",
-                hotOnly ? "bg-amber-500/10 text-amber-400 border-amber-500/30" : "bg-card text-muted-foreground border-border"
+                "inline-flex shrink-0 h-8 items-center justify-center gap-1 px-3 rounded-lg text-[11px] font-mono border transition-colors",
+                hotOnly ? "bg-amber-500/15 text-amber-300 border-amber-500/40" : "bg-card text-muted-foreground border-border"
               )}
+              aria-pressed={hotOnly}
+              title="Show priority leads only"
             >
-                  <><Flame className="w-3 h-3" /> Hot</>
+              <Flame className="w-3.5 h-3.5 shrink-0" aria-hidden />
+              <span className="leading-none">Hot</span>
             </button>
           </div>
           {/* Contact richness + confidence chips */}
-          <div className="flex items-center gap-2 px-3 pb-2 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+          <div className="flex items-center gap-2 px-3 pb-2 pr-6 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
             <span className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground shrink-0">
               Contact
             </span>
