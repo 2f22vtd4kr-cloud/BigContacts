@@ -357,11 +357,7 @@ export default function ManualPage() {
     : SECTIONS;
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8 sm:py-10">
-      <div className="mb-1 font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">
-        Apex Atlas / Reference
-      </div>
-      <div className="flex items-center gap-3 mb-2">
+    <div className="max-w-3xl mx-auto px-4 py-8 sm:py-10"><div className="flex items-center gap-3 mb-2">
         <BookOpen className="w-6 h-6 text-primary" aria-hidden />
         <h1 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">Field manual</h1>
       </div>

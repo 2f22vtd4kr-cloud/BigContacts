@@ -1319,11 +1319,7 @@ export default function DataSources() {
       <div className="flex-shrink-0 px-4 md:px-6 py-4 border-b border-border flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3 min-w-0">
           <Database className="h-5 w-5 text-primary flex-shrink-0" aria-hidden />
-          <div className="min-w-0">
-            <div className="font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">
-              Apex Atlas / Workspace / Data sources
-            </div>
-            <h1 className="text-sm sm:text-base font-semibold tracking-tight text-foreground">
+          <div className="min-w-0"><h1 className="text-sm sm:text-base font-semibold tracking-tight text-foreground">
               Data sources
             </h1>
             <p className="text-xs text-muted-foreground mt-0.5">

@@ -168,11 +168,7 @@ export default function OsintToolsDirectory() {
       {/* Header */}
       <div className="flex-shrink-0 px-4 md:px-6 py-4 border-b border-border flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
         <BookOpen className="h-5 w-5 text-cyan-400 flex-shrink-0" aria-hidden />
-        <div className="flex-1 min-w-0">
-          <div className="font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">
-            Apex Atlas / Workspace / Source directory
-          </div>
-          <h1 className="text-sm sm:text-base font-semibold tracking-tight text-foreground">
+        <div className="flex-1 min-w-0"><h1 className="text-sm sm:text-base font-semibold tracking-tight text-foreground">
             Source directory
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">

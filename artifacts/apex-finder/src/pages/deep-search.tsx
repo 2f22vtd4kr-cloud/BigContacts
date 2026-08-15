@@ -201,7 +201,7 @@ function ResultCard({ result }: { result: SearchResult }) {
             {score.toFixed(0)}
           </div>
           <span className={cn("text-[9px] font-mono rounded border px-1.5 py-0.5 shrink-0 uppercase tracking-[0.1em]", confColor)} title="REACH confidence band">
-            REACH · {result.confidence}
+            {result.confidence === "high" ? "Strong match" : result.confidence === "medium" ? "Partial match" : result.confidence === "low" ? "Weak match" : String(result.confidence)}
           </span>
         </div>
       </div>
@@ -355,30 +355,20 @@ export default function DeepSearch() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
 
-      {/* ── Header ── */}
+      {/* ── Header — page title lives in global chrome ── */}
       <div className="flex-shrink-0 border-b border-border bg-card/50 px-4 sm:px-6 py-4">
-        <div className="mb-1 font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">
-          Apex Atlas / Discover
-        </div>
-        <div className="flex items-center gap-3 mb-1">
-          <Network className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" aria-hidden />
-          <h1 className="text-sm sm:text-base font-semibold tracking-tight text-foreground">
-            Discover
-          </h1>
-          <span className="hidden sm:inline rounded-md border border-border/70 bg-muted/30 px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
-            ranked public search
-          </span>
+        <div className="flex items-center gap-3 mb-2">
+          <Network className="w-4 h-4 text-primary shrink-0" aria-hidden />
+          <p className="text-[12px] text-muted-foreground leading-snug">
+            Search public records and the ledger — ranked by relevance and contact quality.
+          </p>
           {result && (
-            <span className="text-xs font-mono text-muted-foreground ml-auto flex items-center gap-1">
-              <Clock className="w-3 h-3" />{result.totalMs}ms total
+            <span className="text-xs font-mono text-muted-foreground ml-auto flex items-center gap-1 shrink-0">
+              <Clock className="w-3 h-3" />{result.totalMs}ms
               {result.cached && " · cached"}
             </span>
           )}
         </div>
-        <p className="text-[11px] sm:text-xs text-muted-foreground mb-4 max-w-2xl leading-relaxed">
-          <span className="sm:hidden">Search public registry intelligence with ranked evidence.</span>
-          <span className="hidden sm:inline">Search public records and your ledger — ranked by relevance, links, and confidence. Prefer attributable people-contacts over vanity lists.</span>
-        </p>
 
         {/* Search bar */}
         <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3">

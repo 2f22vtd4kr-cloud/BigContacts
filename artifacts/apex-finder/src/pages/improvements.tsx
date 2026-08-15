@@ -561,11 +561,7 @@ export default function ImprovementsPage() {
       <div className="flex-shrink-0 border-b border-border px-4 md:px-6 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <div className="flex items-center gap-3 min-w-0">
           <Bot className="h-5 w-5 text-primary flex-shrink-0" aria-hidden />
-          <div className="min-w-0">
-            <div className="font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">
-              Apex Atlas / Workspace / Persona review
-            </div>
-            <h1 className="text-sm md:text-base font-semibold tracking-tight text-foreground leading-tight">
+          <div className="min-w-0"><h1 className="text-sm md:text-base font-semibold tracking-tight text-foreground leading-tight">
               Persona review
             </h1>
             <p className="text-xs text-muted-foreground hidden sm:block">

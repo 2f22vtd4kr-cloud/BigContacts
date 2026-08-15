@@ -634,11 +634,7 @@ export default function ApexProfile() {
             <ArrowLeft className="w-4 h-4" />
           </Link>
 
-          <div className="flex-1 min-w-0">
-            <div className="mb-1 font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">
-              Apex Atlas / Entity ledger / Profile
-            </div>
-            <div className="flex items-center gap-2 mb-1 flex-wrap">
+          <div className="flex-1 min-w-0"><div className="flex items-center gap-2 mb-1 flex-wrap">
               {(entity as any).isHot && (
                 <span className="flex items-center gap-1 text-[10px] font-mono font-bold text-amber-500 uppercase tracking-widest">
                   <ShieldAlert className="w-3 h-3" /> Hot Lead
@@ -737,20 +733,12 @@ export default function ApexProfile() {
       {/* Mobile Hero - md:hidden */}
       <div className="md:hidden bg-card border-b border-border flex-shrink-0">
         {/* Hero content */}
-        <div className="px-4 pt-4 pb-4">
-          <div className="mb-2 font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">
-            Apex Atlas / Profile
-          </div>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold px-2 py-0.5 rounded border"
-                  style={{ color: entityMeta((entity as any).type).color,
-                           backgroundColor: entityMeta((entity as any).type).color + "18",
-                           borderColor: entityMeta((entity as any).type).color + "30" }}>
-              <EntityTypeMark type={(entity as any).type} compact />
-            </span>
+        <div className="px-4 pt-4 pb-4"><div className="flex items-center justify-between mb-2">
+            <EntityTypeMark type={(entity as any).type} compact />
             {(entity as any).isHot && (
-              <span className="text-xs font-bold px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                <><Flame className="mr-1 inline-block h-3 w-3" /> HOT</>
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                <Flame className="h-3 w-3 shrink-0" aria-hidden />
+                <span className="leading-none">Hot</span>
               </span>
             )}
           </div>

@@ -334,9 +334,7 @@ export default function GraphViewer() {
     >
 
       {/* ── Mobile top bar (entity selector + controls) ── */}
-      <div className="flex md:hidden flex-col border-b border-border bg-card/90 backdrop-blur z-30 flex-shrink-0">
-        <div className="px-3 pt-2 font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">Apex Atlas / Connections</div>
-      <div className="flex items-center gap-2 px-3 py-2">
+      <div className="flex md:hidden flex-col border-b border-border bg-card/90 backdrop-blur z-30 flex-shrink-0"><div className="flex items-center gap-2 px-3 py-2">
         {entityIdFromUrl && (
           <Link
             href={`/profile/${entityIdFromUrl}`}

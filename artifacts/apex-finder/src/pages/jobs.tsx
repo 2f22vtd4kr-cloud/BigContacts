@@ -604,11 +604,7 @@ export default function BackgroundJobs() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3 min-w-0">
             <Radio className="w-5 h-5 text-primary shrink-0" aria-hidden />
-            <div className="min-w-0">
-              <div className="font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">
-                Apex Atlas / Workspace / Activity
-              </div>
-              <h1 className="text-sm font-semibold tracking-tight text-foreground">Workspace activity</h1>
+            <div className="min-w-0"><h1 className="text-sm font-semibold tracking-tight text-foreground">Workspace activity</h1>
               <p className="text-[11px] text-muted-foreground mt-0.5 max-w-[42ch]">Pipeline jobs · ingestors · persona loop · duplicate review</p>
             </div>
           </div>

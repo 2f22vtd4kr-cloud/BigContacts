@@ -395,11 +395,7 @@ export default function DuplicatesPage() {
       {/* Header */}
       <div className="flex-shrink-0 px-4 md:px-6 py-4 border-b border-border bg-card/50">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="min-w-0">
-            <div className="font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">
-              Apex Atlas / Workspace / Duplicate review
-            </div>
-            <h1 className="text-sm md:text-base font-semibold tracking-tight flex items-center gap-2 text-foreground">
+          <div className="min-w-0"><h1 className="text-sm md:text-base font-semibold tracking-tight flex items-center gap-2 text-foreground">
               <Copy className="h-4 w-4 text-amber-400" aria-hidden />
               Duplicate review
             </h1>

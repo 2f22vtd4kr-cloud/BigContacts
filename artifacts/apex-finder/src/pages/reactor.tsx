@@ -2245,9 +2245,7 @@ export default function IntelligenceReactorPage() {
       <div style={{ display:"flex", flexDirection:"column", height:"100%", minHeight:0, overflow:"hidden", width:"100%", background:"#0b1120" }}>
         {/* Design-system tokens + motion must load on mobile — not only desktop */}
         <style>{KEYFRAMES}</style>
-        <div className="flex-shrink-0 border-b border-cyan-400/15 bg-slate-950/90 px-3 py-2.5" data-testid="reactor-launch-bar-mobile">
-          <div className="mb-1.5 font-mono text-[9px] uppercase tracking-[0.2em] text-cyan-200/60">Apex Atlas / Reactor</div>
-          <LaunchAtlasButton variant="reactor" navigateToReactor={false} label="Launch Apex Atlas" />
+        <div className="flex-shrink-0 border-b border-cyan-400/15 bg-slate-950/90 px-3 py-2.5" data-testid="reactor-launch-bar-mobile"><LaunchAtlasButton variant="reactor" navigateToReactor={false} label="Launch Apex Atlas" />
         </div>
         <MobileReactorFlow
           sessions={sessions}
