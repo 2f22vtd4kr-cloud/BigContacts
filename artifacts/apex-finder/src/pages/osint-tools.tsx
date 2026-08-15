@@ -95,22 +95,22 @@ export default function OsintToolsDirectory() {
     setError("");
     if (isMockMode()) {
       const demo: OsintTool[] = [
-        { id: 1, name: "Companies House", category: "registry", description: "UK company officers and filings", url: "https://find-and-update.company-information.service.gov.uk/", tags: ["uk", "officers"] } as any,
-        { id: 2, name: "SEC EDGAR", category: "registry", description: "US beneficial ownership and DEF 14A", url: "https://www.sec.gov/edgar", tags: ["us", "filings"] } as any,
-        { id: 3, name: "OpenCorporates", category: "registry", description: "Cross-jurisdiction company index", url: "https://opencorporates.com/", tags: ["global"] } as any,
+        { tool_name: "Companies House", category: "companies", short_description: "UK company officers and filings", tool_url: "https://find-and-update.company-information.service.gov.uk/" },
+        { tool_name: "SEC EDGAR", category: "public_records", short_description: "US beneficial ownership and DEF 14A", tool_url: "https://www.sec.gov/edgar" },
+        { tool_name: "OpenCorporates", category: "companies", short_description: "Cross-jurisdiction company index", tool_url: "https://opencorporates.com/" },
       ];
-      const filtered = demo.filter((t) => {
-        const hay = `${t.name} ${t.description}`.toLowerCase();
+      const filtered = demo.filter((tool) => {
+        const hay = `${tool.tool_name} ${tool.short_description}`.toLowerCase();
         if (q.trim() && !hay.includes(q.trim().toLowerCase())) return false;
-        if (cat && (t as any).category !== cat) return false;
+        if (cat && tool.category !== cat) return false;
         return true;
       });
       setTools(filtered);
       setTotalTools(filtered.length);
       setCategories([
-        { name: "registry", count: 3 },
-        { name: "people", count: 0 },
-      ] as any);
+        { name: "companies", count: 2 },
+        { name: "public_records", count: 1 },
+      ]);
       setLoading(false);
       return;
     }
