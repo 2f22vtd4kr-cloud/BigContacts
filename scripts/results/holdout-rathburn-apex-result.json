@@ -1,0 +1,851 @@
+{
+  "target": {
+    "name": "Rathburn Precision Machining",
+    "alt": "Rathburn Tool & Manufacturing",
+    "domains": [
+      "rathburnmachining.com",
+      "rathburntool.com"
+    ],
+    "query": "Rathburn Tool Manufacturing Auburn Indiana contact email president owner"
+  },
+  "ranAt": "2026-08-15T15:13:59.642Z",
+  "mode": "holdout-apex-extractor",
+  "searches": {
+    "Rathburn Tool Manufacturing Auburn Indiana contact email president owner": {
+      "tavilyStatus": 200,
+      "tavilyN": 12,
+      "serpStatus": 200,
+      "serpN": 9
+    },
+    "\"Rathburn Precision Machining\" OR \"Rathburn Tool & Manufacturing\" (email OR contact OR president) Auburn": {
+      "tavilyStatus": 200,
+      "tavilyN": 11,
+      "serpStatus": 200,
+      "serpN": 9
+    },
+    "site:rathburnmachining.com contact": {
+      "tavilyStatus": 200,
+      "tavilyN": 12,
+      "serpStatus": 200,
+      "serpN": 10
+    },
+    "Angie Holt Rathburn email": {
+      "tavilyStatus": 200,
+      "tavilyN": 12,
+      "serpStatus": 200,
+      "serpN": 9
+    }
+  },
+  "pages": [
+    {
+      "url": "https://rathburnmachining.com/contacts/",
+      "ok": true,
+      "status": 200,
+      "emails": [
+        "aholt@rathburnmachining.com",
+        "awinfield@rathburnmachining.com",
+        "bboger@rathburnmachining.com",
+        "sbarry@rathburnmachining.com",
+        "dcartee@rathburnmachining.com",
+        "info@rathburnmachining.com",
+        "pmartin@rathburnmachining.com",
+        "adobson@rathburnmachining.com"
+      ],
+      "phones": [
+        "(260) 925-2128",
+        "(260) 925-5158"
+      ],
+      "people": [
+        {
+          "name": "Our Team Core Values Quality Policy",
+          "role": "Quality",
+          "sourceUrls": [
+            "https://rathburnmachining.com/contacts/",
+            "https://rathburnmachining.com/",
+            "https://rathburnmachining.com/01-featured_content/rathburn-tool-manufacturing-changing-name-to-rathburn-precision-machining/",
+            "https://rathburnmachining.com/contacts",
+            "https://rathburnmachining.com/careers",
+            "https://rathburnmachining.com/newsworthy",
+            "https://rathburnmachining.com/05-community/rathburn-ceo-joins-dekalb-county-plan-commission-as-voting-member",
+            "https://rathburnmachining.com",
+            "https://rathburnmachining.com/01-featured_content/rathburn-tool-manufacturing-changing-name-to-rathburn-precision-machining",
+            "https://rathburnmachining.com/category/08-videos"
+          ]
+        },
+        {
+          "name": "Angie Holt President",
+          "role": "President",
+          "sourceUrls": [
+            "https://rathburnmachining.com/contacts/",
+            "https://rathburnmachining.com/contacts"
+          ]
+        },
+        {
+          "name": "Operations Manager",
+          "role": "Operations",
+          "sourceUrls": [
+            "https://rathburnmachining.com/contacts/",
+            "https://rathburnmachining.com/contacts"
+          ]
+        },
+        {
+          "name": "Engineering Manager",
+          "role": "Engineering",
+          "sourceUrls": [
+            "https://rathburnmachining.com/contacts/",
+            "https://rathburnmachining.com/contacts"
+          ]
+        },
+        {
+          "name": "Quality Manager",
+          "role": "Quality",
+          "sourceUrls": [
+            "https://rathburnmachining.com/contacts/",
+            "https://rathburnmachining.com/contacts"
+          ]
+        },
+        {
+          "name": "Human Resources",
+          "role": "Human Resources",
+          "sourceUrls": [
+            "https://rathburnmachining.com/contacts/",
+            "https://rathburnmachining.com/contacts"
+          ]
+        },
+        {
+          "name": "Doug Cartee Technical Sales",
+          "role": "Sales",
+          "sourceUrls": [
+            "https://rathburnmachining.com/contacts/",
+            "https://rathburnmachining.com/contacts"
+          ]
+        },
+        {
+          "name": "Angie Holt",
+          "role": "President / CEO",
+          "sourceUrls": [
+            "https://rathburnmachining.com/contacts/"
+          ]
+        },
+        {
+          "name": "Doug Cartee",
+          "role": "Technical Sales",
+          "sourceUrls": [
+            "https://rathburnmachining.com/contacts/"
+          ]
+        },
+        {
+          "name": "APRIL WINFIELD",
+          "role": "Operations Manager",
+          "sourceUrls": [
+            "https://rathburnmachining.com/contacts/",
+            "https://rathburnmachining.com/",
+            "https://rathburnmachining.com/contacts",
+            "https://rathburnmachining.com/newsworthy",
+            "https://rathburnmachining.com"
+          ]
+        },
+        {
+          "name": "PATRICK MARTIN",
+          "role": "Engineering Manager",
+          "sourceUrls": [
+            "https://rathburnmachining.com/contacts/",
+            "https://rathburnmachining.com/contacts"
+          ]
+        },
+        {
+          "name": "APRIL DOBSON",
+          "role": "Quality Manager",
+          "sourceUrls": [
+            "https://rathburnmachining.com/contacts/",
+            "https://rathburnmachining.com/contacts"
+          ]
+        },
+        {
+          "name": "SHAY BARRY",
+          "role": "Human Resources",
+          "sourceUrls": [
+            "https://rathburnmachining.com/contacts/",
+            "https://rathburnmachining.com/contacts"
+          ]
+        }
+      ]
+    },
+    {
+      "url": "https://rathburnmachining.com/",
+      "ok": true,
+      "status": 200,
+      "emails": [
+        "info@rathburnmachining.com"
+      ],
+      "phones": [
+        "(260) 925-2128",
+        "(260) 925-5158"
+      ],
+      "people": [
+        {
+          "name": "Our Team Core Values Quality Policy",
+          "role": "Quality",
+          "sourceUrls": [
+            "https://rathburnmachining.com/"
+          ]
+        },
+        {
+          "name": "April Winfield",
+          "role": "Operations Manager",
+          "sourceUrls": [
+            "https://rathburnmachining.com/"
+          ]
+        }
+      ]
+    },
+    {
+      "url": "https://rathburnmachining.com/01-featured_content/rathburn-tool-manufacturing-changing-name-to-rathburn-precision-machining/",
+      "ok": true,
+      "status": 200,
+      "emails": [
+        "info@rathburnmachining.com"
+      ],
+      "phones": [
+        "(260) 925-2128",
+        "(260) 925-5158"
+      ],
+      "people": [
+        {
+          "name": "Our Team Core Values Quality Policy",
+          "role": "Quality",
+          "sourceUrls": [
+            "https://rathburnmachining.com/01-featured_content/rathburn-tool-manufacturing-changing-name-to-rathburn-precision-machining/"
+          ]
+        },
+        {
+          "name": "Featured Content",
+          "role": "Founder",
+          "sourceUrls": [
+            "https://rathburnmachining.com/01-featured_content/rathburn-tool-manufacturing-changing-name-to-rathburn-precision-machining/",
+            "https://rathburnmachining.com/01-featured_content/rathburn-tool-manufacturing-changing-name-to-rathburn-precision-machining"
+          ]
+        },
+        {
+          "name": "Better World Featured Content",
+          "role": "Founder",
+          "sourceUrls": [
+            "https://rathburnmachining.com/01-featured_content/rathburn-tool-manufacturing-changing-name-to-rathburn-precision-machining/",
+            "https://rathburnmachining.com/01-featured_content/rathburn-tool-manufacturing-changing-name-to-rathburn-precision-machining"
+          ]
+        },
+        {
+          "name": "Angie Holt",
+          "role": "President / CEO",
+          "sourceUrls": [
+            "https://rathburnmachining.com/01-featured_content/rathburn-tool-manufacturing-changing-name-to-rathburn-precision-machining/"
+          ]
+        }
+      ]
+    },
+    {
+      "url": "https://rathburnmachining.com/contacts",
+      "ok": true,
+      "status": 200,
+      "emails": [
+        "aholt@rathburnmachining.com",
+        "awinfield@rathburnmachining.com",
+        "bboger@rathburnmachining.com",
+        "sbarry@rathburnmachining.com",
+        "dcartee@rathburnmachining.com",
+        "info@rathburnmachining.com",
+        "pmartin@rathburnmachining.com",
+        "adobson@rathburnmachining.com"
+      ],
+      "phones": [
+        "(260) 925-2128",
+        "(260) 925-5158"
+      ],
+      "people": [
+        {
+          "name": "Our Team Core Values Quality Policy",
+          "role": "Quality",
+          "sourceUrls": [
+            "https://rathburnmachining.com/contacts"
+          ]
+        },
+        {
+          "name": "Angie Holt President",
+          "role": "President",
+          "sourceUrls": [
+            "https://rathburnmachining.com/contacts"
+          ]
+        },
+        {
+          "name": "Operations Manager",
+          "role": "Operations",
+          "sourceUrls": [
+            "https://rathburnmachining.com/contacts"
+          ]
+        },
+        {
+          "name": "Engineering Manager",
+          "role": "Engineering",
+          "sourceUrls": [
+            "https://rathburnmachining.com/contacts"
+          ]
+        },
+        {
+          "name": "Quality Manager",
+          "role": "Quality",
+          "sourceUrls": [
+            "https://rathburnmachining.com/contacts"
+          ]
+        },
+        {
+          "name": "Human Resources",
+          "role": "Human Resources",
+          "sourceUrls": [
+            "https://rathburnmachining.com/contacts"
+          ]
+        },
+        {
+          "name": "Doug Cartee Technical Sales",
+          "role": "Sales",
+          "sourceUrls": [
+            "https://rathburnmachining.com/contacts"
+          ]
+        },
+        {
+          "name": "Angie Holt",
+          "role": "President / CEO",
+          "sourceUrls": [
+            "https://rathburnmachining.com/contacts"
+          ]
+        },
+        {
+          "name": "Doug Cartee",
+          "role": "Technical Sales",
+          "sourceUrls": [
+            "https://rathburnmachining.com/contacts"
+          ]
+        },
+        {
+          "name": "APRIL WINFIELD",
+          "role": "Operations Manager",
+          "sourceUrls": [
+            "https://rathburnmachining.com/contacts"
+          ]
+        },
+        {
+          "name": "PATRICK MARTIN",
+          "role": "Engineering Manager",
+          "sourceUrls": [
+            "https://rathburnmachining.com/contacts"
+          ]
+        },
+        {
+          "name": "APRIL DOBSON",
+          "role": "Quality Manager",
+          "sourceUrls": [
+            "https://rathburnmachining.com/contacts"
+          ]
+        },
+        {
+          "name": "SHAY BARRY",
+          "role": "Human Resources",
+          "sourceUrls": [
+            "https://rathburnmachining.com/contacts"
+          ]
+        }
+      ]
+    },
+    {
+      "url": "https://rathburnmachining.com/careers",
+      "ok": true,
+      "status": 200,
+      "emails": [
+        "bcole@rathburnmachining.com",
+        "info@rathburnmachining.com",
+        "jlongsworth@rathburnmachining.com"
+      ],
+      "phones": [
+        "(260) 925-2128",
+        "(260) 925-5158"
+      ],
+      "people": [
+        {
+          "name": "Our Team Core Values Quality Policy",
+          "role": "Quality",
+          "sourceUrls": [
+            "https://rathburnmachining.com/careers"
+          ]
+        },
+        {
+          "name": "Jan Longsworth",
+          "role": "President",
+          "sourceUrls": [
+            "https://rathburnmachining.com/careers"
+          ]
+        }
+      ]
+    },
+    {
+      "url": "https://rathburnmachining.com/newsworthy",
+      "ok": true,
+      "status": 200,
+      "emails": [
+        "info@rathburnmachining.com"
+      ],
+      "phones": [
+        "(260) 925-2128",
+        "(260) 925-5158"
+      ],
+      "people": [
+        {
+          "name": "Our Team Core Values Quality Policy",
+          "role": "Quality",
+          "sourceUrls": [
+            "https://rathburnmachining.com/newsworthy"
+          ]
+        },
+        {
+          "name": "Ensure Top Quality",
+          "role": "Quality",
+          "sourceUrls": [
+            "https://rathburnmachining.com/newsworthy"
+          ]
+        },
+        {
+          "name": "Solve Engineering Challenges",
+          "role": "Engineering",
+          "sourceUrls": [
+            "https://rathburnmachining.com/newsworthy"
+          ]
+        },
+        {
+          "name": "Angie Holt",
+          "role": "President",
+          "sourceUrls": [
+            "https://rathburnmachining.com/newsworthy"
+          ]
+        },
+        {
+          "name": "High Quality Bar Stock Parts",
+          "role": "Quality",
+          "sourceUrls": [
+            "https://rathburnmachining.com/newsworthy"
+          ]
+        },
+        {
+          "name": "Jerry Rathburn",
+          "role": "Founder",
+          "sourceUrls": [
+            "https://rathburnmachining.com/newsworthy"
+          ]
+        },
+        {
+          "name": "April Winfield",
+          "role": "Operations Manager",
+          "sourceUrls": [
+            "https://rathburnmachining.com/newsworthy"
+          ]
+        }
+      ]
+    },
+    {
+      "url": "https://rathburnmachining.com/05-community/rathburn-ceo-joins-dekalb-county-plan-commission-as-voting-member",
+      "ok": true,
+      "status": 200,
+      "emails": [
+        "info@rathburnmachining.com"
+      ],
+      "phones": [
+        "(260) 925-2128",
+        "(260) 925-5158"
+      ],
+      "people": [
+        {
+          "name": "Our Team Core Values Quality Policy",
+          "role": "Quality",
+          "sourceUrls": [
+            "https://rathburnmachining.com/05-community/rathburn-ceo-joins-dekalb-county-plan-commission-as-voting-member"
+          ]
+        },
+        {
+          "name": "Angie Holt",
+          "role": "President / CEO",
+          "sourceUrls": [
+            "https://rathburnmachining.com/05-community/rathburn-ceo-joins-dekalb-county-plan-commission-as-voting-member"
+          ]
+        }
+      ]
+    },
+    {
+      "url": "https://rathburnmachining.com",
+      "ok": true,
+      "status": 200,
+      "emails": [
+        "info@rathburnmachining.com"
+      ],
+      "phones": [
+        "(260) 925-2128",
+        "(260) 925-5158"
+      ],
+      "people": [
+        {
+          "name": "Our Team Core Values Quality Policy",
+          "role": "Quality",
+          "sourceUrls": [
+            "https://rathburnmachining.com"
+          ]
+        },
+        {
+          "name": "April Winfield",
+          "role": "Operations Manager",
+          "sourceUrls": [
+            "https://rathburnmachining.com"
+          ]
+        }
+      ]
+    },
+    {
+      "url": "https://rathburnmachining.com/01-featured_content/rathburn-tool-manufacturing-changing-name-to-rathburn-precision-machining",
+      "ok": true,
+      "status": 200,
+      "emails": [
+        "info@rathburnmachining.com"
+      ],
+      "phones": [
+        "(260) 925-2128",
+        "(260) 925-5158"
+      ],
+      "people": [
+        {
+          "name": "Our Team Core Values Quality Policy",
+          "role": "Quality",
+          "sourceUrls": [
+            "https://rathburnmachining.com/01-featured_content/rathburn-tool-manufacturing-changing-name-to-rathburn-precision-machining"
+          ]
+        },
+        {
+          "name": "Featured Content",
+          "role": "Founder",
+          "sourceUrls": [
+            "https://rathburnmachining.com/01-featured_content/rathburn-tool-manufacturing-changing-name-to-rathburn-precision-machining"
+          ]
+        },
+        {
+          "name": "Better World Featured Content",
+          "role": "Founder",
+          "sourceUrls": [
+            "https://rathburnmachining.com/01-featured_content/rathburn-tool-manufacturing-changing-name-to-rathburn-precision-machining"
+          ]
+        },
+        {
+          "name": "Angie Holt",
+          "role": "President / CEO",
+          "sourceUrls": [
+            "https://rathburnmachining.com/01-featured_content/rathburn-tool-manufacturing-changing-name-to-rathburn-precision-machining"
+          ]
+        }
+      ]
+    },
+    {
+      "url": "https://mep.purdue.edu/made-in-indiana/company/rathburn-precision-machining",
+      "ok": true,
+      "status": 200,
+      "emails": [
+        "dcartee@rathburntool.com",
+        "mepsupport@purdue.edu"
+      ],
+      "phones": [
+        "(260)925-2128",
+        "(317) 275-6810"
+      ],
+      "people": [
+        {
+          "name": "Doug Cartee",
+          "role": "Technical Sales",
+          "sourceUrls": [
+            "https://mep.purdue.edu/made-in-indiana/company/rathburn-precision-machining"
+          ]
+        }
+      ]
+    },
+    {
+      "url": "https://rathburnmachining.com/category/08-videos",
+      "ok": true,
+      "status": 200,
+      "emails": [
+        "info@rathburnmachining.com"
+      ],
+      "phones": [
+        "(260) 925-2128",
+        "(260) 925-5158"
+      ],
+      "people": [
+        {
+          "name": "Our Team Core Values Quality Policy",
+          "role": "Quality",
+          "sourceUrls": [
+            "https://rathburnmachining.com/category/08-videos"
+          ]
+        }
+      ]
+    }
+  ],
+  "whois": {
+    "rathburnmachining.com": {
+      "status": 200,
+      "name": "RATHBURNMACHINING.COM",
+      "created": "2024-09-05 13:34:38",
+      "registrar": "GoDaddy.com, LLC",
+      "privacy": false
+    },
+    "rathburntool.com": {
+      "status": 200,
+      "name": "RATHBURNTOOL.COM",
+      "created": "2000-08-28 14:53:29",
+      "registrar": "Tucows Domains Inc.",
+      "privacy": false
+    }
+  },
+  "merged": {
+    "emails": [
+      "presidentaholt@rathburnmachining.com",
+      "awinfield@rathburnmachining.com",
+      "pmartin@rathburnmachining.com",
+      "adobson@rathburnmachining.com",
+      "sbarry@rathburnmachining.com",
+      "dcartee@rathburnmachining.com",
+      "info@rathburnmachining.com",
+      "jlongsworth@rathburnmachining.com",
+      "aholt@rathburnmachining.com",
+      "dcartee@rathburntool.com",
+      "jdoe@rathburnmachining.com",
+      "johndoe@rathburnmachining.com",
+      "bboger@rathburnmachining.com",
+      "bcole@rathburnmachining.com",
+      "mepsupport@purdue.edu"
+    ],
+    "phones": [
+      "(260) 925-2128",
+      "(260) 925-5158",
+      "(317) 275-6810",
+      "(260)925-2128",
+      "+12609252128",
+      "+1 260-925-2128",
+      "(260) 347-0400",
+      "260-426-2640"
+    ],
+    "people": [
+      {
+        "name": "Angie Holt",
+        "role": "President / CEO",
+        "sourceUrls": [
+          "https://rathburnmachining.com/contacts",
+          "https://rathburnmachining.com/contacts/",
+          "https://rathburnmachining.com/01-featured_content/rathburn-tool-manufacturing-changing-name-to-rathburn-precision-machining/",
+          "https://rathburnmachining.com/newsworthy",
+          "https://rathburnmachining.com/05-community/rathburn-ceo-joins-dekalb-county-plan-commission-as-voting-member",
+          "https://rathburnmachining.com/01-featured_content/rathburn-tool-manufacturing-changing-name-to-rathburn-precision-machining"
+        ]
+      },
+      {
+        "name": "Doug Cartee",
+        "role": "Technical Sales",
+        "sourceUrls": [
+          "https://rathburnmachining.com/contacts",
+          "https://rathburnmachining.com/contacts/",
+          "https://mep.purdue.edu/made-in-indiana/company/rathburn-precision-machining"
+        ]
+      },
+      {
+        "name": "Jerry Rathburn",
+        "role": "Founder",
+        "sourceUrls": [
+          "https://www.facebook.com/RathburnPrecisionMachining/",
+          "https://rathburnmachining.com/newsworthy"
+        ]
+      },
+      {
+        "name": "Angela Holt",
+        "role": "President / CEO",
+        "sourceUrls": [
+          "https://www.thomasnet.com/company/rathburn-precision-machining-127617/profile"
+        ]
+      },
+      {
+        "name": "Angela (Angie) Holt",
+        "role": "President / CEO",
+        "sourceUrls": [
+          "https://www.indianamfg.com/news-and-insights/ima-announces-2025-leadership"
+        ]
+      },
+      {
+        "name": "Our Team Core Values Quality Policy",
+        "role": "Quality",
+        "sourceUrls": [
+          "https://rathburnmachining.com/contacts/",
+          "https://rathburnmachining.com/",
+          "https://rathburnmachining.com/01-featured_content/rathburn-tool-manufacturing-changing-name-to-rathburn-precision-machining/",
+          "https://rathburnmachining.com/contacts",
+          "https://rathburnmachining.com/careers",
+          "https://rathburnmachining.com/newsworthy",
+          "https://rathburnmachining.com/05-community/rathburn-ceo-joins-dekalb-county-plan-commission-as-voting-member",
+          "https://rathburnmachining.com",
+          "https://rathburnmachining.com/01-featured_content/rathburn-tool-manufacturing-changing-name-to-rathburn-precision-machining",
+          "https://rathburnmachining.com/category/08-videos"
+        ]
+      },
+      {
+        "name": "Angie Holt President",
+        "role": "President",
+        "sourceUrls": [
+          "https://rathburnmachining.com/contacts/",
+          "https://rathburnmachining.com/contacts"
+        ]
+      },
+      {
+        "name": "Operations Manager",
+        "role": "Operations",
+        "sourceUrls": [
+          "https://rathburnmachining.com/contacts/",
+          "https://rathburnmachining.com/contacts"
+        ]
+      },
+      {
+        "name": "Engineering Manager",
+        "role": "Engineering",
+        "sourceUrls": [
+          "https://rathburnmachining.com/contacts/",
+          "https://rathburnmachining.com/contacts"
+        ]
+      },
+      {
+        "name": "Quality Manager",
+        "role": "Quality",
+        "sourceUrls": [
+          "https://rathburnmachining.com/contacts/",
+          "https://rathburnmachining.com/contacts"
+        ]
+      },
+      {
+        "name": "Human Resources",
+        "role": "Human Resources",
+        "sourceUrls": [
+          "https://rathburnmachining.com/contacts/",
+          "https://rathburnmachining.com/contacts"
+        ]
+      },
+      {
+        "name": "Doug Cartee Technical Sales",
+        "role": "Sales",
+        "sourceUrls": [
+          "https://rathburnmachining.com/contacts/",
+          "https://rathburnmachining.com/contacts"
+        ]
+      },
+      {
+        "name": "APRIL WINFIELD",
+        "role": "Operations Manager",
+        "sourceUrls": [
+          "https://rathburnmachining.com/contacts/",
+          "https://rathburnmachining.com/",
+          "https://rathburnmachining.com/contacts",
+          "https://rathburnmachining.com/newsworthy",
+          "https://rathburnmachining.com"
+        ]
+      },
+      {
+        "name": "PATRICK MARTIN",
+        "role": "Engineering Manager",
+        "sourceUrls": [
+          "https://rathburnmachining.com/contacts/",
+          "https://rathburnmachining.com/contacts"
+        ]
+      },
+      {
+        "name": "APRIL DOBSON",
+        "role": "Quality Manager",
+        "sourceUrls": [
+          "https://rathburnmachining.com/contacts/",
+          "https://rathburnmachining.com/contacts"
+        ]
+      },
+      {
+        "name": "SHAY BARRY",
+        "role": "Human Resources",
+        "sourceUrls": [
+          "https://rathburnmachining.com/contacts/",
+          "https://rathburnmachining.com/contacts"
+        ]
+      },
+      {
+        "name": "Featured Content",
+        "role": "Founder",
+        "sourceUrls": [
+          "https://rathburnmachining.com/01-featured_content/rathburn-tool-manufacturing-changing-name-to-rathburn-precision-machining/",
+          "https://rathburnmachining.com/01-featured_content/rathburn-tool-manufacturing-changing-name-to-rathburn-precision-machining"
+        ]
+      },
+      {
+        "name": "Better World Featured Content",
+        "role": "Founder",
+        "sourceUrls": [
+          "https://rathburnmachining.com/01-featured_content/rathburn-tool-manufacturing-changing-name-to-rathburn-precision-machining/",
+          "https://rathburnmachining.com/01-featured_content/rathburn-tool-manufacturing-changing-name-to-rathburn-precision-machining"
+        ]
+      },
+      {
+        "name": "Jan Longsworth",
+        "role": "President",
+        "sourceUrls": [
+          "https://rathburnmachining.com/careers"
+        ]
+      },
+      {
+        "name": "Ensure Top Quality",
+        "role": "Quality",
+        "sourceUrls": [
+          "https://rathburnmachining.com/newsworthy"
+        ]
+      },
+      {
+        "name": "Solve Engineering Challenges",
+        "role": "Engineering",
+        "sourceUrls": [
+          "https://rathburnmachining.com/newsworthy"
+        ]
+      },
+      {
+        "name": "High Quality Bar Stock Parts",
+        "role": "Quality",
+        "sourceUrls": [
+          "https://rathburnmachining.com/newsworthy"
+        ]
+      }
+    ],
+    "orgEmails": [
+      "info@rathburnmachining.com"
+    ],
+    "personalEmails": [
+      "presidentaholt@rathburnmachining.com",
+      "awinfield@rathburnmachining.com",
+      "pmartin@rathburnmachining.com",
+      "adobson@rathburnmachining.com",
+      "sbarry@rathburnmachining.com",
+      "dcartee@rathburnmachining.com",
+      "jlongsworth@rathburnmachining.com",
+      "aholt@rathburnmachining.com",
+      "dcartee@rathburntool.com",
+      "jdoe@rathburnmachining.com",
+      "johndoe@rathburnmachining.com",
+      "bboger@rathburnmachining.com",
+      "bcole@rathburnmachining.com"
+    ]
+  },
+  "score": {
+    "personalEmails": 13,
+    "orgEmails": 1,
+    "peopleWithRoles": 22,
+    "peopleTotal": 22,
+    "phones": 8
+  }
+}

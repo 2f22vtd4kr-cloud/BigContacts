@@ -53,3 +53,6 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+
+# Local holdout outputs (regenerated)
+# scripts/results/
