@@ -1316,7 +1316,7 @@ export default function DataSources() {
   return (
     <div className="flex flex-col h-full">
       {/* Page header */}
-      <div className="flex-shrink-0 px-4 md:px-6 py-4 border-b border-border flex items-center justify-between gap-3">
+      <div className="flex-shrink-0 px-4 md:px-6 py-4 border-b border-border flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3 min-w-0">
           <Database className="h-5 w-5 text-primary flex-shrink-0" aria-hidden />
           <div className="min-w-0">
@@ -1333,7 +1333,7 @@ export default function DataSources() {
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden />
-          <span className="text-xs font-mono text-muted-foreground hidden sm:inline">Catalogue</span>
+          <span className="text-xs font-mono text-muted-foreground">Catalogue</span>
         </div>
       </div>
 

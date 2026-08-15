@@ -402,7 +402,7 @@ export default function GraphViewer() {
         <div className="relative">
           <button
             onClick={() => setSelectorOpen((o) => !o)}
-            className="flex items-center space-x-2 bg-card/90 backdrop-blur border border-border px-3 py-2 rounded text-sm font-mono text-foreground hover:border-primary/50 transition-colors min-w-[220px]"
+            className="flex min-h-[40px] items-center space-x-2 bg-card/90 backdrop-blur border border-border px-3 py-2 rounded text-sm font-mono text-foreground hover:border-primary/50 transition-colors min-w-0 w-full sm:min-w-[220px] sm:w-auto"
           >
             <Network className="w-3.5 h-3.5 text-primary flex-shrink-0" />
             <span className="truncate flex-1 text-left">
@@ -416,21 +416,21 @@ export default function GraphViewer() {
         <div className="flex space-x-1 bg-card/90 backdrop-blur border border-border p-1 rounded">
           <button
             onClick={() => fgRef.current?.zoom((fgRef.current.zoom() ?? 1) * 1.25)}
-            className="p-1.5 text-muted-foreground hover:text-foreground"
+            className="min-h-[36px] min-w-[36px] p-1.5 text-muted-foreground hover:text-foreground inline-flex items-center justify-center"
             title="Zoom in"
           >
             <ZoomIn className="w-4 h-4" />
           </button>
           <button
             onClick={() => fgRef.current?.zoom((fgRef.current.zoom() ?? 1) * 0.8)}
-            className="p-1.5 text-muted-foreground hover:text-foreground"
+            className="min-h-[36px] min-w-[36px] p-1.5 text-muted-foreground hover:text-foreground inline-flex items-center justify-center"
             title="Zoom out"
           >
             <ZoomOut className="w-4 h-4" />
           </button>
           <button
             onClick={() => fgRef.current?.zoomToFit(400, 50)}
-            className="p-1.5 text-muted-foreground hover:text-foreground"
+            className="min-h-[36px] min-w-[36px] p-1.5 text-muted-foreground hover:text-foreground inline-flex items-center justify-center"
             title="Fit view"
           >
             <Maximize className="w-4 h-4" />

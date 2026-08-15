@@ -228,12 +228,12 @@ export default function SystemStatusPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-8 px-4 py-8">
       {/* Header */}
-      <div className="flex items-center justify-between gap-3">
-        <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <div className="mb-1 font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">
             Apex Atlas / Workspace / System status
           </div>
-          <h1 className="font-display text-2xl font-bold tracking-tight text-foreground">
+          <h1 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-foreground">
             System status
           </h1>
           <p className="mt-1 max-w-lg text-[12px] leading-relaxed text-muted-foreground">
@@ -248,7 +248,7 @@ export default function SystemStatusPage() {
           )}
           <button
             onClick={fetchStatus}
-            className="flex min-h-[40px] items-center gap-2 rounded-lg border border-border/60 px-3 py-1.5 font-mono text-[11px] text-muted-foreground hover:border-primary/40 hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+            className="flex min-h-[40px] w-full sm:w-auto items-center justify-center gap-2 rounded-lg border border-border/60 px-3 py-1.5 font-mono text-[11px] text-muted-foreground hover:border-primary/40 hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
           >
             <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
             Refresh
@@ -283,9 +283,15 @@ export default function SystemStatusPage() {
       )}
 
       {error && (
-        <div className="flex items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-5 py-4">
-          <AlertCircle className="h-4 w-4 text-destructive" />
-          <span className="font-mono text-[12px] text-destructive">{error}</span>
+        <div className="flex flex-col gap-2 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 sm:flex-row sm:items-start sm:gap-3" role="alert">
+          <AlertCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" aria-hidden />
+          <div className="min-w-0 space-y-1">
+            <div className="font-mono text-[12px] font-semibold text-destructive">Could not load system status</div>
+            <p className="font-mono text-[11px] leading-relaxed text-destructive/90">{error}</p>
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              This page needs api-server at <span className="font-mono">/api/system/status</span>. Static UI alone will show this error.
+            </p>
+          </div>
         </div>
       )}
 

@@ -129,7 +129,7 @@ export default function OsintToolsDirectory() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex-shrink-0 px-4 md:px-6 py-4 border-b border-border flex items-center gap-3">
+      <div className="flex-shrink-0 px-4 md:px-6 py-4 border-b border-border flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
         <BookOpen className="h-5 w-5 text-cyan-400 flex-shrink-0" aria-hidden />
         <div className="flex-1 min-w-0">
           <div className="font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">
@@ -162,7 +162,7 @@ export default function OsintToolsDirectory() {
             value={query}
             onChange={e => handleQuery(e.target.value)}
             placeholder="Search tools…"
-            className="w-full pl-8 pr-3 py-1.5 text-xs font-mono bg-card border border-border rounded-lg text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-cyan-400/50"
+            className="w-full min-h-[40px] pl-8 pr-3 py-1.5 text-xs font-mono bg-card border border-border rounded-lg text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-cyan-400/50"
           />
         </div>
 
@@ -172,7 +172,7 @@ export default function OsintToolsDirectory() {
           <select
             value={category}
             onChange={e => handleCategory(e.target.value)}
-            className="pl-8 pr-6 py-1.5 text-xs font-mono bg-card border border-border rounded-lg text-foreground focus:outline-none focus:border-cyan-400/50 appearance-none cursor-pointer"
+            className="min-h-[40px] pl-8 pr-6 py-1.5 text-xs font-mono bg-card border border-border rounded-lg text-foreground focus:outline-none focus:border-cyan-400/50 appearance-none cursor-pointer"
           >
             <option value="">All categories</option>
             {categories.map(c => (
@@ -190,7 +190,7 @@ export default function OsintToolsDirectory() {
               key={c.name}
               onClick={() => handleCategory(category === c.name ? "" : c.name)}
               className={cn(
-                "text-[9px] font-mono uppercase tracking-widest px-2 py-0.5 rounded border transition-colors",
+                "min-h-[32px] text-[9px] font-mono uppercase tracking-widest px-2 py-1 rounded border transition-colors",
                 category === c.name
                   ? categoryColor(c.name)
                   : "text-muted-foreground border-border hover:border-cyan-400/30 hover:text-cyan-400"
