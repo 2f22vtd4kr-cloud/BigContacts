@@ -427,10 +427,37 @@ function LiveActivityTab({ jobs }: { jobs: Job[] }) {
       )}
 
       {active.length === 0 && (
-        <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card/20">
-          <div className="w-2 h-2 rounded-full bg-muted-foreground/30 shrink-0" />
-          <span className="text-xs font-mono text-muted-foreground" data-testid="text-no-running-tasks">No tasks currently running</span>
-          <Link href="/jobs#sources" className="text-[10px] font-mono text-primary/60 hover:text-primary ml-auto whitespace-nowrap" data-testid="link-trigger-task">Trigger a task →</Link>
+        <div
+          className="rounded-xl border border-dashed border-border/80 bg-card/20 px-4 py-5"
+          data-testid="text-no-running-tasks"
+        >
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-muted-foreground/40" aria-hidden />
+                <span className="text-xs font-semibold text-foreground">Desk is idle</span>
+              </div>
+              <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground max-w-md">
+                No pipeline jobs running. Start an ingestor, enrichment, or review task when you are ready.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2 shrink-0">
+              <Link
+                href="/data-sources"
+                className="inline-flex min-h-[36px] items-center rounded-lg border border-border bg-background/60 px-3 py-1.5 text-[11px] font-semibold text-foreground hover:border-primary/40"
+                data-testid="link-jobs-data-sources"
+              >
+                Data sources
+              </Link>
+              <Link
+                href="/jobs#sources"
+                className="inline-flex min-h-[36px] items-center rounded-lg border border-primary/30 bg-primary/10 px-3 py-1.5 text-[11px] font-semibold text-primary hover:bg-primary/15"
+                data-testid="link-trigger-task"
+              >
+                Trigger a task →
+              </Link>
+            </div>
+          </div>
         </div>
       )}
 

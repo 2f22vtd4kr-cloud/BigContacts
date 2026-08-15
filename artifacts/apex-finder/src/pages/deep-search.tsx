@@ -686,11 +686,28 @@ export default function DeepSearch() {
 
         {/* Initial state */}
         {!loading && !result && !error && (
-          <div className="flex flex-col items-center justify-center h-full text-center px-8">
-            <Search className="w-12 h-12 text-muted-foreground mb-4 opacity-30" />
-            <p className="text-sm font-mono text-muted-foreground">
-              Search for people, companies, or assets to start
+          <div className="flex flex-col items-center justify-center h-full text-center px-6 py-12">
+            <div className="grid h-14 w-14 place-items-center rounded-2xl border border-border bg-card/40 mb-4">
+              <Search className="w-6 h-6 text-muted-foreground/70" aria-hidden />
+            </div>
+            <h2 className="text-sm font-semibold text-foreground">Search the public surface</h2>
+            <p className="mt-2 max-w-md text-[12px] leading-relaxed text-muted-foreground">
+              Ranked registry and ledger search for people, companies, and assets. Prefer attributable contacts over vanity lists.
             </p>
+            <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+              <a
+                href="/data-sources"
+                className="inline-flex min-h-[36px] items-center rounded-lg border border-border bg-card/50 px-3 py-1.5 text-[11px] font-semibold text-foreground hover:border-primary/40"
+              >
+                Load registries
+              </a>
+              <a
+                href="/reactor"
+                className="inline-flex min-h-[36px] items-center rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-3 py-1.5 text-[11px] font-semibold text-cyan-100 hover:border-cyan-300/50"
+              >
+                Open live reactor
+              </a>
+            </div>
           </div>
         )}
       </div>

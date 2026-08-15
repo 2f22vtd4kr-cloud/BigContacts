@@ -972,6 +972,20 @@ export default function ApexProfile() {
               </div>
             </div>
             {hasContact ? (
+              <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-1.5" data-testid="profile-reach-provenance">
+                <span className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-1.5 py-0.5 text-[8px] font-mono font-bold uppercase tracking-wider text-emerald-200/90">
+                  REACH
+                </span>
+                <span className="rounded-full border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[8px] font-mono uppercase tracking-wider text-slate-400">
+                  attributable preferred
+                </span>
+                {typeof (entity as any).contactConfidence === "number" && (
+                  <span className="rounded-full border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[8px] font-mono tabular-nums text-slate-400">
+                    conf {(entity as any).contactConfidence}%
+                  </span>
+                )}
+              </div>
               <div className="flex items-center gap-2 flex-wrap">
                 {/* Email — REACH: emerald personal · violet org (never mark info@/sales@ as Personal) */}
                 {e.email && !isProtectedEmail(e.email) && (() => {
@@ -1059,6 +1073,7 @@ export default function ApexProfile() {
                     <span className="truncate">{e.foundationName}</span>
                   </a>
                 )}
+              </div>
               </div>
             ) : (
               <div className="space-y-2">
