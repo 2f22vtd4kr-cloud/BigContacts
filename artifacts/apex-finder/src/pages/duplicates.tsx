@@ -118,7 +118,7 @@ function CandidateRow({
   if (dismissed) return null;
 
   return (
-    <div className="border border-border rounded-lg bg-card overflow-hidden">
+    <div className="border border-border/70 rounded-2xl bg-card/50 overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] hover:border-cyan-400/25 transition-colors">
       {/* Summary row */}
       <button
         className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/30 transition-colors"
@@ -207,7 +207,7 @@ function SameSourceClusterRow({ cluster }: { cluster: SameSourceCluster }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="border border-border rounded-lg bg-card overflow-hidden">
+    <div className="border border-border/70 rounded-2xl bg-card/50 overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] hover:border-cyan-400/25 transition-colors">
       <button
         className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/30 transition-colors"
         onClick={() => setExpanded(value => !value)}
