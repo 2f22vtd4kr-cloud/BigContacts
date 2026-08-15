@@ -130,7 +130,7 @@ function mockImproveBundle() {
       category: "contact",
       priority: "high",
       title: "Personal owner email recovered — keep org inboxes separate",
-      detail: "jgriffin@griffin-tool.com is attributable; info@ must stay Company.",
+      description: "jgriffin@griffin-tool.com is attributable; info@ must stay Company.",
       status: "pending",
       createdAt: new Date().toISOString(),
     } as any,
@@ -143,12 +143,13 @@ function mockImproveBundle() {
       category: "integrity",
       priority: "medium",
       title: "Organization evidence must not inflate personal access",
-      detail: "Company phone on entity card should not raise personal REACH score.",
+      description: "Company phone on entity card should not raise personal REACH score.",
       status: "pending",
       createdAt: new Date().toISOString(),
     } as any,
   ];
   const stats = {
+    total: 2,
     byPersona: [
       { persona: "osint_specialists_team", status: "pending", count: 1 },
       { persona: "data_integrity_auditor", status: "pending", count: 1 },
