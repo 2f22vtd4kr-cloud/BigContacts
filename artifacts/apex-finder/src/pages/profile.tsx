@@ -996,7 +996,7 @@ export default function ApexProfile() {
                       href={`mailto:${e.email}`}
                       title={isOrg ? `REACH · org — ${e.email}` : `REACH · personal — ${e.email}`}
                       className={cn(
-                        "flex items-center gap-2 px-3 py-1.5 rounded border font-mono text-xs transition-colors min-w-0 max-w-[220px] sm:max-w-none",
+                        "flex min-h-[36px] items-center gap-2 px-3 py-1.5 rounded border font-mono text-xs transition-colors min-w-0 max-w-[220px] sm:max-w-none",
                         isOrg
                           ? "border-violet-400/35 bg-violet-400/10 text-violet-300 hover:bg-violet-400/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
                           : "border-emerald-400/35 bg-emerald-400/10 text-emerald-300 hover:bg-emerald-400/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50",

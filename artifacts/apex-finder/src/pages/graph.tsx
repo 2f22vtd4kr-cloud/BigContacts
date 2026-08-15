@@ -5,6 +5,7 @@ import { useSearch, useLocation, Link } from "wouter";
 import ForceGraph2D, { ForceGraphMethods } from "react-force-graph-2d";
 import { Network, ZoomIn, ZoomOut, Maximize, X, Search, ChevronDown, Filter, Shield, Plus, Link2, Loader2, ArrowLeft } from "lucide-react";
 import { cn, formatCurrency, formatEntityName, ScoreBadge } from "@/lib/utils";
+import { isMockMode, MOCK_ENTITIES } from "@/lib/dev-mock-data";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose,
 } from "@/components/ui/dialog";
@@ -46,6 +47,10 @@ export default function GraphViewer() {
   // On initial load with no ?entity= param, pick the most-connected entity instead of #1
   useEffect(() => {
     if (!entityIdFromUrl && targetId === 0) {
+      if (isMockMode()) {
+        setTargetId(MOCK_ENTITIES[0]?.id ?? 9001);
+        return;
+      }
       const base = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
       fetch(`${base}/api/graph/hub-entity`)
         .then((r) => r.json())
@@ -67,10 +72,43 @@ export default function GraphViewer() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entityIdFromUrl]);
 
-  const { data: graphData, isLoading, isError } = useGetEntityGraph(targetId, undefined, {
-    query: { enabled: targetId > 0, queryKey: getGetEntityGraphQueryKey(targetId) },
+  const { data: graphDataRaw, isLoading, isError } = useGetEntityGraph(targetId, undefined, {
+    query: { enabled: targetId > 0 && !isMockMode(), queryKey: getGetEntityGraphQueryKey(targetId) },
   });
-  const { data: allEntities } = useListEntities({ limit: 200 });
+  const { data: allEntitiesRaw } = useListEntities({ limit: 200 });
+
+  const graphData = useMemo(() => {
+    if (isMockMode()) {
+      const people = MOCK_ENTITIES.slice(0, 5);
+      const nodes = people.map((e, i) => ({
+        id: String(e.id),
+        label: e.name,
+        type: e.type,
+        isTarget: i === 0,
+        bayesianScore: e.bayesianScore ?? 70,
+        contactConfidence: e.contactConfidence ?? 50,
+      }));
+      const links = people.slice(1).map((e) => ({
+        source: String(people[0].id),
+        target: String(e.id),
+        relType: e.type === "Corporation" ? "OWNS" : "RELATED",
+      }));
+      return { nodes, edges: links, truncated: false };
+    }
+    return graphDataRaw;
+  }, [graphDataRaw]);
+
+  const allEntities = useMemo(() => {
+    if (isMockMode()) {
+      return MOCK_ENTITIES.map((e) => ({
+        id: e.id,
+        name: e.name,
+        type: e.type,
+        bayesianScore: e.bayesianScore ?? 0,
+      })) as any;
+    }
+    return allEntitiesRaw;
+  }, [allEntitiesRaw]);
   const [width, height] = useGraphContainerSize();
   const fgRef = useRef<ForceGraphMethods | undefined>(undefined);
   const [selectedNode, setSelectedNode] = useState<any>(null);

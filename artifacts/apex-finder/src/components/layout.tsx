@@ -207,6 +207,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </button>
           </div>
         </header>
+        {/* Reactor (and other immersive desks) own their chrome — skip duplicate page title on small screens */}
+        {!isReactorRoute && (
         <div className="relative z-10 shrink-0 border-b border-border/70 bg-background/70 px-4 py-3.5 backdrop-blur-sm md:px-6 md:py-4">
           <div className="mx-auto w-full max-w-[1800px]">
             <div className="font-mono text-[9px] uppercase tracking-[0.22em] text-primary/65">Apex Atlas / research desk</div>
@@ -216,6 +218,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <p className="mt-1 max-w-2xl text-[11px] leading-4 text-muted-foreground md:text-xs">{pageDescription}</p>
           </div>
         </div>
+        )}
         <div className={`relative z-10 flex min-h-0 flex-1 flex-col overflow-x-hidden ${isReactorRoute ? "overflow-hidden" : "overflow-y-auto"}`}>
           {children}
         </div>
