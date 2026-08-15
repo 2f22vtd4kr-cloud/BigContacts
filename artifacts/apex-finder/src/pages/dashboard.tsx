@@ -260,6 +260,7 @@ export default function Dashboard() {
           { href: "/search", label: "Discover", detail: "Ranked registry search", testId: "ops-discover" },
           { href: "/profiles", label: "Entity ledger", detail: "People & companies", testId: "ops-ledger" },
           { href: "/network", label: "Connections", detail: "Relationship graph", testId: "ops-network" },
+          { href: "/manual", label: "Field manual", detail: "Job queue & operator rules", testId: "ops-manual" },
         ].map((item) => (
           <Link
             key={item.href}

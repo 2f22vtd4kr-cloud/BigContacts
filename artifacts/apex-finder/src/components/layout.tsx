@@ -162,6 +162,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
       ? "Private public-records research workspace"
       : "Evidence workspace";
   const isReactorRoute = location === "/reactor";
+  /** Pages that already render their own title chrome */
+  const hideDeskTitle =
+    isReactorRoute
+    || location.startsWith("/profile/");
 
   return (
     <div className="atlas-noise flex min-h-[100dvh] overflow-hidden bg-background text-foreground">
@@ -208,7 +212,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </header>
         {/* Reactor (and other immersive desks) own their chrome — skip duplicate page title on small screens */}
-        {!isReactorRoute && (
+        {!hideDeskTitle && (
         <div className="relative z-10 shrink-0 border-b border-border/70 bg-background/70 px-4 py-3.5 backdrop-blur-sm md:px-6 md:py-4">
           <div className="mx-auto w-full max-w-[1800px]">
             <div className="font-mono text-[9px] uppercase tracking-[0.22em] text-primary/65">Apex Atlas / research desk</div>
