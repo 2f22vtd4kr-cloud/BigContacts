@@ -356,11 +356,17 @@ export default function DeepSearch() {
 
       {/* ── Header ── */}
       <div className="flex-shrink-0 border-b border-border bg-card/50 px-4 sm:px-6 py-4">
+        <div className="mb-1 font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">
+          Apex Atlas / Discover
+        </div>
         <div className="flex items-center gap-3 mb-1">
-          <Network className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" />
-          <h1 className="text-xs sm:text-sm font-mono font-bold uppercase tracking-widest text-primary">
-            Intelligent Deep Search
+          <Network className="w-4 h-4 sm:w-5 sm:h-5 text-primary shrink-0" aria-hidden />
+          <h1 className="text-sm sm:text-base font-semibold tracking-tight text-foreground">
+            Discover
           </h1>
+          <span className="hidden sm:inline rounded-full border border-border/80 bg-muted/40 px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider text-muted-foreground">
+            ranked public search
+          </span>
           {result && (
             <span className="text-xs font-mono text-muted-foreground ml-auto flex items-center gap-1">
               <Clock className="w-3 h-3" />{result.totalMs}ms total
@@ -368,9 +374,9 @@ export default function DeepSearch() {
             </span>
           )}
         </div>
-        <p className="text-[11px] sm:text-xs font-mono text-muted-foreground mb-4">
+        <p className="text-[11px] sm:text-xs text-muted-foreground mb-4 max-w-2xl leading-relaxed">
           <span className="sm:hidden">Search public registry intelligence with ranked evidence.</span>
-          <span className="hidden sm:inline">Searches public records and your ledger — ranked by relevance, links, and confidence</span>
+          <span className="hidden sm:inline">Search public records and your ledger — ranked by relevance, links, and confidence. Prefer attributable people-contacts over vanity lists.</span>
         </p>
 
         {/* Search bar */}
@@ -405,7 +411,7 @@ export default function DeepSearch() {
           <button
             onClick={() => setFiltersOpen((v) => !v)}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border font-mono text-xs uppercase tracking-wider transition-all",
+              "flex min-h-[36px] items-center gap-1.5 px-3 py-1.5 rounded-lg border font-mono text-xs uppercase tracking-wider transition-all",
               filtersOpen || activeFilterCount > 0
                 ? "bg-primary/10 border-primary/50 text-primary"
                 : "border-border text-muted-foreground hover:text-foreground",

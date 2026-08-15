@@ -200,9 +200,14 @@ function EmptyLeads() {
       <div className="mx-auto grid h-12 w-12 place-items-center rounded-full border border-primary/25 bg-primary/10 text-primary"><Radar className="h-5 w-5" /></div>
       <h2 className="mt-5 font-display text-lg font-semibold">Your priority desk is clear</h2>
       <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">Search public registries for people, companies, trusts, and access contacts with evidence worth reviewing.</p>
-      <Link href="/search" data-testid="link-empty-discover" className="mt-6 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background">
-        <Search className="h-3.5 w-3.5" /> Discover entities <ChevronRight className="h-3.5 w-3.5" />
-      </Link>
+      <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+        <Link href="/search" data-testid="link-empty-discover" className="inline-flex min-h-[40px] items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background">
+          <Search className="h-3.5 w-3.5" /> Discover entities <ChevronRight className="h-3.5 w-3.5" />
+        </Link>
+        <Link href="/reactor" data-testid="link-empty-reactor" className="inline-flex min-h-[40px] items-center gap-2 rounded-lg border border-border bg-card/60 px-4 py-2.5 text-xs font-semibold text-foreground hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50">
+          <Radar className="h-3.5 w-3.5" /> Open live reactor
+        </Link>
+      </div>
     </div>
   );
 }
@@ -234,10 +239,38 @@ export default function Dashboard() {
           <Link href="/search" data-testid="link-dashboard-search" className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-5 text-xs font-bold text-primary-foreground transition-colors hover:bg-primary/90">
             <Search className="h-4 w-4" /> Find an entity
           </Link>
+          <Link href="/reactor" data-testid="link-dashboard-reactor" className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-5 text-xs font-semibold text-cyan-100 transition-all hover:border-cyan-300/50 hover:bg-cyan-400/15">
+            <Radar className="h-4 w-4" /> Live reactor
+          </Link>
           <Link href="/profiles" data-testid="link-dashboard-profiles" className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-border bg-card/60 px-5 text-xs font-semibold text-foreground transition-all hover:border-primary/60 hover:bg-card">
-            Browse profiles <ArrowUpRight className="h-3.5 w-3.5" />
+            Entity ledger <ArrowUpRight className="h-3.5 w-3.5" />
           </Link>
         </div>
+      </section>
+
+      {/* Desk shortcuts — product map without burying the hero */}
+      <section
+        className="atlas-enter grid grid-cols-2 gap-2 pb-2 pt-5 md:grid-cols-4"
+        style={{ animationDelay: "40ms" }}
+        data-testid="dashboard-ops-strip"
+        aria-label="Desk shortcuts"
+      >
+        {[
+          { href: "/reactor", label: "Intelligence Reactor", detail: "Live public-surface runs", testId: "ops-reactor" },
+          { href: "/search", label: "Discover", detail: "Ranked registry search", testId: "ops-discover" },
+          { href: "/profiles", label: "Entity ledger", detail: "People & companies", testId: "ops-ledger" },
+          { href: "/network", label: "Connections", detail: "Relationship graph", testId: "ops-network" },
+        ].map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            data-testid={item.testId}
+            className="group rounded-xl border border-border/80 bg-card/30 px-3 py-3 transition-colors hover:border-primary/40 hover:bg-card/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+          >
+            <div className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground group-hover:text-primary/80">{item.label}</div>
+            <div className="mt-1 text-[12px] font-medium text-foreground/90">{item.detail}</div>
+          </Link>
+        ))}
       </section>
 
       <section className="atlas-enter grid grid-cols-2 gap-3 py-6 md:grid-cols-4" style={{ animationDelay: "70ms" }}>

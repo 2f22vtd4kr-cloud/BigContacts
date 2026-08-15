@@ -716,8 +716,18 @@ export default function EntityLedger() {
           </div>
         )}
         {/* Header toolbar */}
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-border bg-card/30 flex-shrink-0">
-          <div className="flex items-center gap-2 flex-1 px-3 py-1.5 rounded-full bg-background border border-border">
+        <div className="flex flex-col gap-2 border-b border-border bg-card/30 px-4 py-3 flex-shrink-0">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <div className="font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">Apex Atlas / Entity ledger</div>
+              <h1 className="text-sm font-semibold tracking-tight text-foreground">People & companies</h1>
+            </div>
+            <div className="hidden sm:block font-mono text-[10px] text-muted-foreground tabular-nums">
+              Public surface · attributable first
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 flex-1 min-h-[40px] px-3 py-1.5 rounded-full bg-background border border-border">
             <Search className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
             <input
               type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
@@ -735,7 +745,7 @@ export default function EntityLedger() {
                 <button
                   key={t ?? "all"}
                   onClick={() => setTypeFilter(t)}
-                  className="px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase transition-all flex items-center gap-1.5"
+                  className="flex min-h-[32px] items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase transition-all"
                   style={{
                     backgroundColor: typeFilter === t ? c : "transparent",
                     color: typeFilter === t ? "#000" : "hsl(var(--muted-foreground))",
@@ -758,7 +768,7 @@ export default function EntityLedger() {
               <button
                 key={mode}
                 onClick={() => setViewMode(mode)}
-                className="flex items-center gap-1.5 px-3 py-1 rounded-full font-mono text-[10px] uppercase tracking-wider transition-all"
+                className="flex min-h-[32px] items-center gap-1.5 px-3 py-1 rounded-full font-mono text-[10px] uppercase tracking-wider transition-all"
                 style={{
                   background: viewMode === mode ? "rgba(16,185,129,0.15)" : "transparent",
                   color: viewMode === mode ? "#10B981" : "hsl(var(--muted-foreground))",
@@ -868,6 +878,7 @@ export default function EntityLedger() {
           >
             {hideBillionaires ? "[X] " : ""}No Billionaires
           </button>
+        </div>
         </div>
 
         {/* Live Intel slide-over sidebar */}
