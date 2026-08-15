@@ -295,3 +295,77 @@ export function mockAtlasLiveState() {
 export function mockLiveNodes(): Set<string> {
   return new Set(["tavily", "groq", "domain-surface", "contact-facts", "contact-attribution"]);
 }
+
+/** System status fixture for ?mock=1 demos (no api-server) */
+export function mockSystemStatus() {
+  const slot = (state: "active" | "rate_limited" | "missing", index: number) => ({
+    index,
+    state,
+    expiresAt: state === "rate_limited" ? new Date(Date.now() + 60_000).toISOString() : null,
+  });
+  return {
+    ai: {
+      groq: [slot("active", 0), slot("active", 1), slot("missing", 2)],
+      perplexity: [slot("active", 0), slot("rate_limited", 1)],
+      gemini: [slot("active", 0)],
+      tavily: [slot("active", 0), slot("active", 1)],
+      exa: [slot("active", 0), slot("missing", 1)],
+    },
+    openResearch: {
+      state: "ready" as const,
+      huggingFace: { configured: true },
+      serper: { configured: true },
+      adapter: { available: true, model: "demo" },
+      mistral: { configured: true, model: "mistral-small", rateLimit: "demo" },
+    },
+    bureauReasoning: {
+      configured: true,
+      model: "nvidia-nim-demo",
+      endpoint: "demo",
+      role: "right_hand_advisor" as const,
+      capability: "case_file_reasoning_only" as const,
+    },
+    geminiBoss: {
+      configured: true,
+      model: "gemini-demo",
+      role: "head_investigator" as const,
+    },
+    databases: {
+      postgres: { status: "ok" as const, latencyMs: 12 },
+      localRedis: { status: "ready", latencyMs: 3 },
+      upstash: [
+        { index: 0, status: "ok", latencyMs: 18 },
+        { index: 1, status: "ok", latencyMs: 22 },
+      ],
+    },
+    generatedAt: new Date().toISOString(),
+    cached: false,
+    cachedAgoMs: 0,
+  };
+}
+
+/** Minimal ingest job list shape for Workspace activity mock */
+export function mockIngestJobsPayload() {
+  return {
+    jobs: [
+      {
+        id: "sec-edgar",
+        status: "idle",
+        progress: 0,
+        inserted: 0,
+        skipped: 0,
+        errors: 0,
+        message: "Ready",
+      },
+      {
+        id: "companies-house",
+        status: "idle",
+        progress: 0,
+        inserted: 0,
+        skipped: 0,
+        errors: 0,
+        message: "Ready",
+      },
+    ],
+  };
+}

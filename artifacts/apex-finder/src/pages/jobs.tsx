@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { readApiJson } from "@/lib/api-json";
+import { isMockMode, mockIngestJobsPayload } from "@/lib/dev-mock-data";
 import { Link } from "wouter";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -515,6 +516,19 @@ export default function BackgroundJobs() {
   const [apiOffline, setApiOffline] = useState(false);
 
   const fetchJobs = useCallback(async () => {
+    if (isMockMode()) {
+      const data = mockIngestJobsPayload();
+      const serverJobs: Record<string, any> = {};
+      (data.jobs ?? []).forEach((j: any) => { serverJobs[j.id] = j; });
+      setJobs(prev => prev.map(j => {
+        const s = serverJobs[j.id];
+        if (!s) return j;
+        return { ...j, status: s.status ?? j.status, progress: s.progress ?? 0, inserted: s.inserted ?? 0, skipped: s.skipped ?? 0, errors: s.errors ?? 0, message: s.message ?? "" };
+      }));
+      setLastRefresh(new Date());
+      setApiOffline(false);
+      return;
+    }
     try {
       const r = await fetch(`${BASE}/api/ingest/jobs`);
       const data = await readApiJson(r);

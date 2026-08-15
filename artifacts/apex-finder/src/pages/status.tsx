@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { readApiJson } from "@/lib/api-json";
+import { isMockMode, mockSystemStatus } from "@/lib/dev-mock-data";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -195,6 +196,13 @@ export default function SystemStatusPage() {
   const [lastFetch, setLastFetch] = useState<Date | null>(null);
 
   const fetchStatus = useCallback(async () => {
+    if (isMockMode()) {
+      setStatus(mockSystemStatus() as any);
+      setError(null);
+      setLoading(false);
+      setLastFetch(new Date());
+      return;
+    }
     try {
       const res = await fetch(`${BASE}/api/system/status`);
       const data = await readApiJson(res);
