@@ -185,25 +185,33 @@ function PersonaCard({ personaId, stats, activeFilter, onClick }: {
     <button
       onClick={onClick}
       className={cn(
-        "flex flex-col gap-2 p-4 rounded-lg border text-left transition-all",
+        "group relative flex flex-col gap-2.5 overflow-hidden rounded-2xl border p-4 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-all",
         isActive
-          ? "border-current ring-1 ring-current"
-          : "border-border hover:border-muted-foreground/40"
+          ? "ring-1 ring-current"
+          : "border-border/70 bg-card/30 hover:border-cyan-400/25 hover:bg-card/50"
       )}
-      style={isActive ? { borderColor: meta.color, background: meta.bg } : {}}
+      style={isActive ? { borderColor: meta.color, background: meta.bg } : undefined}
     >
-      <div className="flex items-center gap-2">
-        <meta.Icon className="h-4 w-4 flex-shrink-0" style={{ color: meta.color }} />
-        <span className="text-xs font-semibold text-foreground">{meta.label}</span>
+      <div className="flex items-center gap-2.5">
+        <div
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border/50 bg-background/40"
+          style={isActive ? { borderColor: meta.color + "55", background: meta.color + "18" } : undefined}
+        >
+          <meta.Icon className="h-4 w-4" style={{ color: meta.color }} />
+        </div>
+        <span className="text-[13px] font-semibold tracking-tight text-foreground">{meta.label}</span>
       </div>
-      <div className="flex items-end gap-3">
-        <span className="text-2xl font-bold font-mono" style={{ color: meta.color }}>{total}</span>
-        <div className="flex flex-col gap-0.5 pb-0.5">
+      <div className="flex items-end justify-between gap-2">
+        <span className="font-display text-2xl font-bold tracking-tight" style={{ color: meta.color }}>{total}</span>
+        <div className="flex flex-col items-end gap-0.5 pb-0.5">
           {pending > 0 && (
-            <span className="text-[10px] text-muted-foreground font-mono">{pending} pending</span>
+            <span className="font-mono text-[10px] text-amber-300/90">{pending} pending</span>
           )}
           {applied > 0 && (
-            <span className="text-[10px] text-emerald-500 font-mono">{applied} applied</span>
+            <span className="font-mono text-[10px] text-emerald-400/90">{applied} applied</span>
+          )}
+          {pending === 0 && applied === 0 && (
+            <span className="font-mono text-[10px] text-muted-foreground/60">idle</span>
           )}
         </div>
       </div>
@@ -583,7 +591,7 @@ export default function ImprovementsPage() {
             disabled={isRunning || apiOffline}
             title={apiOffline ? "API offline — cannot start persona jobs" : undefined}
             className={cn(
-              "flex min-h-[40px] items-center gap-2 px-3 py-2 text-xs font-semibold font-mono rounded-md transition-colors",
+              "flex min-h-[40px] items-center gap-2 px-3.5 py-2 text-xs font-semibold font-mono rounded-xl transition-colors",
               isRunning
                 ? "bg-muted text-muted-foreground cursor-not-allowed"
                 : "bg-primary text-primary-foreground hover:bg-primary/90"
@@ -598,7 +606,7 @@ export default function ImprovementsPage() {
             onClick={handleApplySafe}
             disabled={apiOffline || remediationState === "starting" || remediationState === "running"}
             className={cn(
-              "flex min-h-[40px] items-center gap-2 px-3 py-2 text-xs font-semibold font-mono rounded-md transition-colors border",
+              "flex min-h-[40px] items-center gap-2 px-3.5 py-2 text-xs font-semibold font-mono rounded-xl transition-colors border",
               remediationState === "starting" || remediationState === "running"
                 ? "border-border text-muted-foreground cursor-not-allowed"
                 : "border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"
@@ -614,7 +622,7 @@ export default function ImprovementsPage() {
             onClick={handleDeduplicate}
             disabled={cleanupState === "starting" || cleanupState === "running"}
             className={cn(
-              "flex min-h-[40px] items-center gap-2 px-3 py-2 text-xs font-semibold font-mono rounded-md transition-colors border",
+              "flex min-h-[40px] items-center gap-2 px-3.5 py-2 text-xs font-semibold font-mono rounded-xl transition-colors border",
               cleanupState === "starting" || cleanupState === "running"
                 ? "border-border text-muted-foreground cursor-not-allowed"
                 : "border-sky-500/40 text-sky-400 hover:bg-sky-500/10"
@@ -645,14 +653,21 @@ export default function ImprovementsPage() {
         {/* ── Error ── */}
         {error && (
           <div
-            className="flex flex-col gap-2 rounded-lg border border-red-800/30 bg-red-950/20 px-4 py-3 text-xs text-red-300 sm:flex-row sm:items-start"
+            className={cn(
+              "flex flex-col gap-2 rounded-2xl border px-4 py-3.5 text-xs sm:flex-row sm:items-start",
+              /mock mode/i.test(error)
+                ? "border-cyan-400/25 bg-cyan-500/[0.06] text-cyan-100"
+                : "border-red-800/30 bg-red-950/20 text-red-300"
+            )}
             role="alert"
             data-testid="alert-persona-api"
           >
-            <AlertTriangle className="h-4 w-4 flex-shrink-0 text-red-400" aria-hidden />
+            <AlertTriangle className={cn("h-4 w-4 flex-shrink-0", /mock mode/i.test(error) ? "text-cyan-300" : "text-red-400")} aria-hidden />
             <div className="min-w-0 space-y-1">
-              <div className="font-semibold text-red-200">Persona review needs the research API</div>
-              <p className="leading-relaxed text-red-300/90">{error}</p>
+              <div className={cn("font-semibold", /mock mode/i.test(error) ? "text-cyan-50" : "text-red-200")}>
+                {/mock mode/i.test(error) ? "Demo mode — persona loop runs on api-server" : "Persona review needs the research API"}
+              </div>
+              <p className={cn("leading-relaxed", /mock mode/i.test(error) ? "text-cyan-100/80" : "text-red-300/90")}>{error}</p>
               {apiOffline && (
                 <p className="leading-relaxed text-red-300/70">
                   In production, <span className="font-mono">api-server</span> runs deterministic personas, writes improvement logs, and applies safe fixes via the job queue. The static UI only triggers and displays that work — it does not run LLMs in the browser.

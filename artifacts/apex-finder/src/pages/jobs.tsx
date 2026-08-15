@@ -84,17 +84,17 @@ function IngestorCard({ job, onTrigger }: { job: Job; onTrigger: (id: string) =>
   const isActive = job.status === "running" || job.status === "queued";
 
   return (
-    <div className={cn("border border-border rounded-lg overflow-hidden transition-colors", isActive && "border-primary/30")} data-testid={`card-job-${job.id}`}>
+    <div className={cn("rounded-2xl border border-border/70 bg-card/30 overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-colors", isActive && "border-cyan-400/30 bg-cyan-500/[0.04]")} data-testid={`card-job-${job.id}`}>
       <button
         onClick={() => setOpen(o => !o)}
         data-testid={`button-toggle-job-${job.id}`}
-        className="w-full flex items-center gap-3 px-4 py-3 bg-card/30 hover:bg-muted/20 transition-colors text-left"
+        className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-muted/15 transition-colors text-left"
       >
         <div className="shrink-0">{categoryIcon(job.category)}</div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 min-w-0">
             <span className="text-xs font-mono font-bold text-foreground truncate">{job.label}</span>
-            <span className="text-[9px] font-mono uppercase text-muted-foreground/40 border border-border px-1 py-0.5 rounded hidden sm:block whitespace-nowrap">{job.category}</span>
+            <span className="text-[9px] font-mono uppercase tracking-[0.1em] text-muted-foreground/70 border border-border/60 bg-background/40 px-1.5 py-0.5 rounded-md hidden sm:block whitespace-nowrap">{job.category}</span>
           </div>
           <div className="text-[10px] font-mono text-muted-foreground truncate mt-0.5">{job.description}</div>
         </div>
@@ -143,10 +143,10 @@ function IngestorCard({ job, onTrigger }: { job: Job; onTrigger: (id: string) =>
               disabled={isActive}
               data-testid={`button-trigger-job-${job.id}`}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded border font-mono text-[11px] uppercase tracking-wider transition-colors",
+                "flex min-h-[36px] items-center gap-1.5 px-3.5 py-1.5 rounded-xl border font-mono text-[11px] uppercase tracking-wider transition-colors",
                 isActive
                   ? "border-border text-muted-foreground opacity-50 cursor-not-allowed"
-                  : "border-primary/40 text-primary bg-primary/5 hover:bg-primary/15"
+                  : "border-cyan-400/35 text-cyan-100 bg-cyan-400/10 hover:bg-cyan-400/15"
               )}
             >
               {isActive ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
@@ -342,7 +342,7 @@ function DuplicatesTab() {
         const isMerging = merging === key;
         return (
           <div key={key} className="border border-border rounded-lg overflow-hidden" data-testid={`card-duplicate-${key}`}>
-            <button onClick={() => setExpanded(expanded === key ? null : key)} data-testid={`button-toggle-duplicate-${key}`} className="w-full flex items-center gap-3 px-4 py-3 bg-card/30 hover:bg-muted/20 transition-colors text-left">
+            <button onClick={() => setExpanded(expanded === key ? null : key)} data-testid={`button-toggle-duplicate-${key}`} className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-muted/15 transition-colors text-left">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-mono font-medium text-foreground truncate">{pair.entity1.name}</span>
@@ -484,7 +484,7 @@ function LiveActivityTab({ jobs }: { jobs: Job[] }) {
           <div className="text-[10px] font-mono text-muted-foreground/40 uppercase tracking-widest mb-2">Idle ({idle.length} tasks)</div>
           <div className="flex flex-wrap gap-1.5">
             {idle.map(job => (
-              <span key={job.id} className="text-[9px] font-mono text-muted-foreground/30 border border-border/30 px-2 py-0.5 rounded">{job.label}</span>
+              <span key={job.id} className="text-[10px] font-mono text-muted-foreground/55 border border-border/40 bg-card/25 px-2.5 py-1 rounded-lg">{job.label}</span>
             ))}
           </div>
         </div>
@@ -639,9 +639,9 @@ export default function BackgroundJobs() {
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                "flex min-h-[44px] items-center gap-1.5 px-4 py-3 text-xs font-mono uppercase tracking-wider border-b-2 whitespace-nowrap transition-colors",
+                "flex min-h-[44px] items-center gap-1.5 px-4 py-3 text-xs font-mono uppercase tracking-[0.1em] border-b-2 whitespace-nowrap transition-colors",
                 activeTab === tab.id
-                  ? "border-primary text-primary"
+                  ? "border-cyan-400 text-cyan-200"
                   : "border-transparent text-muted-foreground hover:text-foreground"
               )}
             >
