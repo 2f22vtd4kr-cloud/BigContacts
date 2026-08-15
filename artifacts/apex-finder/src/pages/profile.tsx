@@ -612,21 +612,25 @@ export default function ApexProfile() {
       <div className="hidden md:block flex-shrink-0 border-b border-border bg-card/60 px-4 md:px-6 py-4">
         <div className="flex items-start gap-3 md:gap-4">
           <Link
-            href="/entities"
-            className="mt-0.5 p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors flex-shrink-0"
+            href="/profiles"
+            aria-label="Back to entity ledger"
+            className="mt-0.5 p-1.5 min-h-[36px] min-w-[36px] inline-flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
           >
             <ArrowLeft className="w-4 h-4" />
           </Link>
 
           <div className="flex-1 min-w-0">
+            <div className="mb-1 font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">
+              Apex Atlas / Entity ledger / Profile
+            </div>
             <div className="flex items-center gap-2 mb-1 flex-wrap">
               {(entity as any).isHot && (
                 <span className="flex items-center gap-1 text-[10px] font-mono font-bold text-amber-500 uppercase tracking-widest">
                   <ShieldAlert className="w-3 h-3" /> Hot Lead
                 </span>
               )}
-              <span className="text-[10px] font-mono text-muted-foreground/40 uppercase tracking-widest">
-                Atlas Profile Card
+              <span className="text-[10px] font-mono text-muted-foreground/50 uppercase tracking-widest">
+                Profile card
                 <span className="opacity-50"> · {TAB_LABELS[activeTab] ?? activeTab}</span>
               </span>
             </div>
@@ -719,6 +723,9 @@ export default function ApexProfile() {
       <div className="md:hidden bg-card border-b border-border flex-shrink-0">
         {/* Hero content */}
         <div className="px-4 pt-4 pb-4">
+          <div className="mb-2 font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground">
+            Apex Atlas / Profile
+          </div>
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-semibold px-2 py-0.5 rounded border"
                   style={{ color: entityMeta((entity as any).type).color,

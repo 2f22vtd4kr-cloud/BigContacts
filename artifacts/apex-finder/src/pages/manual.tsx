@@ -284,13 +284,27 @@ export default function ManualPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 sm:py-10">
+      <div className="mb-1 font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground">
+        Apex Atlas / Reference
+      </div>
       <div className="flex items-center gap-3 mb-2">
         <BookOpen className="w-6 h-6 text-primary" aria-hidden />
         <h1 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">Field manual</h1>
       </div>
-      <p className="text-sm text-muted-foreground mb-5 leading-relaxed">
+      <p className="text-sm text-muted-foreground mb-4 leading-relaxed max-w-2xl">
         How Apex Atlas works: find reachable people, run live research, read scores, and stay honest about what is proven.
       </p>
+      <div className="mb-6 flex flex-wrap gap-2" data-testid="manual-quick-links">
+        <Link href="/reactor" className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-cyan-400/25 bg-cyan-400/10 px-3 py-1.5 text-[11px] font-semibold text-cyan-100 hover:border-cyan-300/40">
+          <Cpu className="h-3.5 w-3.5" /> Live reactor
+        </Link>
+        <Link href="/search" className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-border bg-card/50 px-3 py-1.5 text-[11px] font-semibold text-foreground hover:border-primary/40">
+          Discover
+        </Link>
+        <Link href="/profiles" className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-border bg-card/50 px-3 py-1.5 text-[11px] font-semibold text-foreground hover:border-primary/40">
+          Entity ledger
+        </Link>
+      </div>
 
       <label className="sr-only" htmlFor="manual-search">Search manual sections</label>
       <input
