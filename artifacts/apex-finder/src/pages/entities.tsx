@@ -726,19 +726,20 @@ export default function EntityLedger() {
               Public surface · attributable first
             </div>
           </div>
-          <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 flex-1 min-h-[40px] px-3 py-1.5 rounded-full bg-background border border-border">
-            <Search className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+          <div className="flex items-center gap-2 w-full sm:flex-1 min-h-[40px] px-3 py-1.5 rounded-full bg-background border border-border">
+            <Search className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" aria-hidden />
             <input
               type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search people or companies…"
               className="flex-1 bg-transparent text-sm font-mono text-foreground outline-none placeholder:text-muted-foreground/50"
+              aria-label="Search entity ledger"
             />
-            {searchTerm && <button onClick={() => setSearchTerm("")}><X className="w-3.5 h-3.5 text-muted-foreground" /></button>}
+            {searchTerm && <button type="button" onClick={() => setSearchTerm("")} aria-label="Clear search"><X className="w-3.5 h-3.5 text-muted-foreground" /></button>}
           </div>
 
           {/* Type filter */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-0.5">
             {[null, ...ENTITY_TYPES].map((t) => {
               const c = t ? entityMeta(t).color : "#10B981";
               return (
@@ -759,7 +760,7 @@ export default function EntityLedger() {
           </div>
 
           {/* View mode tabs */}
-          <div className="flex items-center gap-1 border border-border rounded-full p-0.5 flex-shrink-0">
+          <div className="flex items-center gap-1 border border-border rounded-full p-0.5 shrink-0">
             {([
               { mode: "all",     label: "All",     icon: <Users2 className="w-3 h-3" /> },
               { mode: "starred", label: "Starred",  icon: <Star className="w-3 h-3" /> },
@@ -784,7 +785,7 @@ export default function EntityLedger() {
           <button
             onClick={() => setShowRegistry(!showRegistry)}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-full border font-mono text-[10px] uppercase tracking-wider transition-all ml-2",
+              "flex min-h-[36px] items-center gap-1.5 px-3 py-1.5 rounded-full border font-mono text-[10px] uppercase tracking-wider transition-all sm:ml-2",
               showRegistry ? "bg-secondary/20 border-secondary text-secondary" : "border-border text-muted-foreground hover:text-foreground",
             )}
           >

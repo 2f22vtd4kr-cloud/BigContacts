@@ -8,6 +8,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { BookOpen, Search, ExternalLink, Filter, RefreshCw, Globe, Tag, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { readApiJson } from "@/lib/api-json";
+import { isMockMode } from "@/lib/dev-mock-data";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -91,6 +93,27 @@ export default function OsintToolsDirectory() {
   const fetchTools = useCallback(async (q: string, cat: string, pg: number) => {
     setLoading(true);
     setError("");
+    if (isMockMode()) {
+      const demo: OsintTool[] = [
+        { id: 1, name: "Companies House", category: "registry", description: "UK company officers and filings", url: "https://find-and-update.company-information.service.gov.uk/", tags: ["uk", "officers"] } as any,
+        { id: 2, name: "SEC EDGAR", category: "registry", description: "US beneficial ownership and DEF 14A", url: "https://www.sec.gov/edgar", tags: ["us", "filings"] } as any,
+        { id: 3, name: "OpenCorporates", category: "registry", description: "Cross-jurisdiction company index", url: "https://opencorporates.com/", tags: ["global"] } as any,
+      ];
+      const filtered = demo.filter((t) => {
+        const hay = `${t.name} ${t.description}`.toLowerCase();
+        if (q.trim() && !hay.includes(q.trim().toLowerCase())) return false;
+        if (cat && (t as any).category !== cat) return false;
+        return true;
+      });
+      setTools(filtered);
+      setTotalTools(filtered.length);
+      setCategories([
+        { name: "registry", count: 3 },
+        { name: "people", count: 0 },
+      ] as any);
+      setLoading(false);
+      return;
+    }
     try {
       const params = new URLSearchParams({
         pageSize: String(pageSize),
@@ -99,8 +122,8 @@ export default function OsintToolsDirectory() {
       if (q.trim())  params.set("q", q.trim());
       if (cat)       params.set("category", cat);
       const res = await fetch(`${BASE}/api/osint-tools?${params}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const d = await res.json() as { tools: OsintTool[]; total: number; cached: boolean };
+      const d = await readApiJson(res) as { tools: OsintTool[]; total: number; cached: boolean };
+      if (!res.ok) throw new Error((d as any)?.error ?? `HTTP ${res.status}`);
       setTools(d.tools ?? []);
       setTotalTools(d.total ?? 0);
     } catch (err: any) {
