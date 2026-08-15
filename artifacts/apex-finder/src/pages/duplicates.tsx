@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Copy, Merge, AlertTriangle, CheckCircle2, XCircle, RefreshCw, ChevronRight, ArrowRight, Layers3 } from "lucide-react";
 import { cn, formatEntityName } from "@/lib/utils";
 import { readApiJson } from "@/lib/api-json";
+import { isMockMode } from "@/lib/dev-mock-data";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -268,6 +269,37 @@ export default function DuplicatesPage() {
     setSameSourceLoading(true);
     setError(null);
     setSameSourceError(null);
+
+    // Offline / demo: show sample pairs so the desk does not look broken without api-server.
+    if (isMockMode()) {
+      setCandidates([
+        {
+          entityA: { id: 1, name: "James R. Griffin", type: "HNWI", bayesianScore: 0.82 },
+          entityB: { id: 11, name: "James Griffin", type: "HNWI", bayesianScore: 0.61 },
+          sharedTokens: 3,
+        },
+        {
+          entityA: { id: 2, name: "Griffin Tool, Inc.", type: "Corporation", bayesianScore: 0.74 },
+          entityB: { id: 12, name: "Griffin Tool Inc", type: "Corporation", bayesianScore: 0.55 },
+          sharedTokens: 4,
+        },
+      ]);
+      setSameSourceClusters([
+        {
+          name: "Griffin Tool",
+          registry: "Michigan SOS",
+          count: 2,
+          entities: [
+            { id: 2, name: "Griffin Tool, Inc.", type: "Corporation", bayesianScore: 0.74 },
+            { id: 12, name: "Griffin Tool Inc", type: "Corporation", bayesianScore: 0.55 },
+          ],
+        },
+      ]);
+      setLoading(false);
+      setSameSourceLoading(false);
+      return;
+    }
+
     try {
       const data = await apiFetch<{ candidates: DuplicateCandidate[] }>("/api/entities/duplicate-candidates");
       setCandidates(data.candidates ?? []);
