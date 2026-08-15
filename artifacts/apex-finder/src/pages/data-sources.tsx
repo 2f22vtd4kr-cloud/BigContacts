@@ -1319,13 +1319,9 @@ export default function DataSources() {
       <div className="flex-shrink-0 px-4 md:px-6 py-4 border-b border-border flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3 min-w-0">
           <Database className="h-5 w-5 text-primary flex-shrink-0" aria-hidden />
-          <div className="min-w-0"><h1 className="text-sm sm:text-base font-semibold tracking-tight text-foreground">
-              Data sources
-            </h1>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {ingestors.length} bulk/registry sources · {enrichers.filter(s => !s.comingSoon).length} enrichers · operational view
-            </p>
-          </div>
+          <p className="text-[12px] text-muted-foreground leading-snug min-w-0">
+            {ingestors.length} bulk/registry sources · {enrichers.filter(s => !s.comingSoon).length} enrichers · operational view
+          </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden />

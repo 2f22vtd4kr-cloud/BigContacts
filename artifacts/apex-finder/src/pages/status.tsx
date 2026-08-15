@@ -275,10 +275,8 @@ export default function SystemStatusPage() {
     <div className="mx-auto max-w-4xl space-y-8 px-4 py-8">
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0"><h1 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-            System status
-          </h1>
-          <p className="mt-1 max-w-lg text-[12px] leading-relaxed text-muted-foreground">
+        <div className="min-w-0">
+          <p className="max-w-lg text-[12px] leading-relaxed text-muted-foreground">
             Provider keys, databases, and cooldown state for the research desk.
           </p>
         </div>
