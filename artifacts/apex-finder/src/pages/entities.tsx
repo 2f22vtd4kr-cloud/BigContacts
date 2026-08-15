@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { entityMeta, EntityTypeMark, entityMetric, ENTITY_TYPES } from "@/lib/entity-taxonomy";
 import { isMockMode, MOCK_ENTITIES } from "@/lib/dev-mock-data";
 import {
+import { readApiJson } from "@/lib/api-json";
   Plus, Search, Trash2, Globe, ChevronDown, ChevronUp, X, Loader2,
   ChevronRight, Network, Target as TargetIcon, Download, ShieldAlert,
   Filter, IdCard,
@@ -653,7 +654,7 @@ export default function EntityLedger() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query: registryQuery.trim(), registry: registrySource, limit: 15 }),
       });
-      const data = await resp.json();
+      const data = await readApiJson(resp);
       if (!resp.ok) throw new Error(data.error ?? "Registry search failed.");
       setRegistryResults(data.results ?? []);
     } catch (err: any) {

@@ -8,6 +8,7 @@
 import { useState, useRef } from "react";
 import { cn } from "@/lib/utils";
 import {
+import { readApiJson } from "@/lib/api-json";
   Search, Cpu, Network, Microscope, ShieldCheck,
   ChevronRight, Zap, Clock, Loader2, AlertCircle,
   Globe, Database, CheckCircle2,
@@ -339,7 +340,7 @@ export default function DeepSearch() {
         const err = await resp.json().catch(() => ({}));
         throw new Error((err as any).error ?? `HTTP ${resp.status}`);
       }
-      setResult(await resp.json());
+      setResult(await readApiJson(resp));
     } catch (e: any) {
       setError(e.message ?? "Search failed");
     } finally {

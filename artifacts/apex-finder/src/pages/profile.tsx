@@ -49,6 +49,7 @@ import { cn, entityFindingsSummary, entityWorkSummary, formatCurrency, formatEnt
 import { isMockMode, MOCK_ENTITIES } from "@/lib/dev-mock-data";
 import { entityMeta, EntityTypeMark, entityMetric } from "@/lib/entity-taxonomy";
 import {
+import { readApiJson } from "@/lib/api-json";
   Dialog, DialogContent, DialogHeader, DialogTitle,
   DialogFooter, DialogClose,
 } from "@/components/ui/dialog";
@@ -371,7 +372,7 @@ export default function ApexProfile() {
     fetch(`${baseUrl}/api/entities/${entityId}/contact-evidence`)
       .then((response) => {
         if (!response.ok) throw new Error("Failed to load evidence");
-        return response.json() as Promise<{ evidence?: typeof contactEvidence }>;
+        return readApiJson(response) as Promise<{ evidence?: typeof contactEvidence }>;
       })
       .then((data) => {
         if (!cancelled) setContactEvidence(data.evidence ?? []);
@@ -533,7 +534,7 @@ export default function ApexProfile() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ entityIds: [Number(entityId)], batchSize: 1, force: true }),
       });
-      const data = await r.json();
+      const data = await readApiJson(r);
       if (!r.ok) throw new Error(data.error ?? "Request failed");
       const { jobId } = data;
       if (!jobId) {
@@ -550,7 +551,7 @@ export default function ApexProfile() {
         attempts++;
         try {
           const jr = await fetch(`${baseUrl}/api/ingest/job/${jobId}`);
-          const job = await jr.json();
+          const job = await readApiJson(jr);
           if (job.status === "done") {
             setIsEnriching(false);
             setEnrichDone(true);
@@ -581,7 +582,7 @@ export default function ApexProfile() {
     try {
       const base = (import.meta as any).env.BASE_URL.replace(/\/$/, "");
       const r = await fetch(`${base}/api/entities?search=${encodeURIComponent(q)}&limit=20`);
-      const d = await r.json();
+      const d = await readApiJson(r);
       const list: any[] = Array.isArray(d) ? d : (d.entities ?? []);
       setRelSearchResults(list.map((e: any) => ({ id: e.id, name: e.name })));
     } catch { setRelSearchResults([]); }

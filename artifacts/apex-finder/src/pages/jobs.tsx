@@ -177,7 +177,7 @@ function PersonaLoopTab() {
     try {
       const r = await fetch(`${BASE}/api/improve/jobs/${id}`);
       if (!r.ok) return;
-      const d = await r.json();
+      const d = await readApiJson(r);
       if (d.status === "done" || d.status === "failed" || d.status === "cancelled") {
         setRunning(false);
         if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
@@ -192,7 +192,7 @@ function PersonaLoopTab() {
     setRunning(true);
     try {
       const r = await fetch(`${BASE}/api/improve/run`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ batchSize: 50 }) });
-      const d = await r.json();
+      const d = await readApiJson(r);
       const id = d.jobId;
       if (id) {
         setJobId(id);
