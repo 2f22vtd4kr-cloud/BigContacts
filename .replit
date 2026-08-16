@@ -1,21 +1,30 @@
-modules = ["nodejs-24", "postgresql-16"]
+entrypoint = "README.md"
+modules = ["nodejs-20", "postgresql-16", "web"]
 
-[[artifacts]]
-id = "artifacts/api-server"
+hidden = [".config", ".git", "node_modules", "dist", ".cache", ".local"]
 
-[[artifacts]]
-id = "artifacts/apex-finder"
+[nix]
+channel = "stable-24_05"
+packages = ["redis", "nodejs_20"]
 
 [deployment]
-router = "application"
 deploymentTarget = "cloudrun"
+router = "application"
+build = ["sh", "-c", "pnpm install && pnpm --filter @workspace/apex-finder run build && pnpm --filter @workspace/api-server run build"]
+run = ["sh", "-c", "pnpm --filter @workspace/api-server run start"]
 
-[deployment.postBuild]
-args = ["pnpm", "store", "prune"]
-compatiblePackages = []
-startCommand = "pnpm --filter @workspace/api-server run start"
+[env]
+PORT = "8080"
+ENABLE_AUTO_PIPELINE = "false"
+REDIS_URL = "redis://localhost:6379"
 
-[userenv]
+[[ports]]
+localPort = 8080
+externalPort = 80
+
+[[ports]]
+localPort = 23695
+externalPort = 3001
 
 [workflows]
 runButton = "Project"
@@ -38,6 +47,14 @@ task = "workflow.run"
 args = "Start Frontend"
 
 [[workflows.workflow]]
+name = "Redis"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "redis-server --daemonize yes --port 6379 --bind 127.0.0.1 --dir /tmp --dbfilename apex-redis.rdb --save \"\" && redis-cli ping"
+
+[[workflows.workflow]]
 name = "API Server"
 author = "agent"
 
@@ -55,26 +72,5 @@ task = "shell.exec"
 args = "pnpm --filter @workspace/apex-finder run dev"
 waitForPort = 23695
 
-[[workflows.workflow]]
-name = "Redis"
-author = "agent"
-
-[workflows.workflow.metadata]
-agentRequire = "redis"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "redis-server --daemonize yes --port 6379 --bind 127.0.0.1 --dir /tmp --dbfilename apex-redis.rdb --save \\\"\\\" && redis-cli ping"
-
 [agent]
 stack = "PNPM_WORKSPACE"
-mockUpfiles = ["artifacts/mockup-sandbox/**"]
-
-[userenv.shared]
-REDIS_URL = "redis://localhost:6379"
-PORT = "8080"
-ENABLE_AUTO_PIPELINE = "false"
-
-[nix]
-channel = "stable-24.11"
-packages = ["redis"]
