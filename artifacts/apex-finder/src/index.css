@@ -1,0 +1,53 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --font-display: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  --color-background: #070b12;
+  --color-foreground: #e8eef7;
+  --color-card: #0d1420;
+  --color-border: #1e2a3a;
+  --color-muted: #9aa8b8;
+  --color-muted-foreground: #8b9bb0;
+  --color-primary: #22d3ee;
+  --color-secondary: #64748b;
+  --color-accent: #a78bfa;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+.atlas-enter {
+  animation: atlas-enter 280ms ease-out both;
+}
+
+@keyframes atlas-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
