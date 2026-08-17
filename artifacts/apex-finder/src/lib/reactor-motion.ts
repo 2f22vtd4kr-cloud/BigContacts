@@ -28,7 +28,7 @@ export const REACTOR_CSS = `
   --reactor-gold: #fef08a;
   --reactor-canvas: #050505;
   --reactor-desk: #0a0a0a;
-  --reactor-border: #262626;
+  --reactor-border: #2e2e2e;
 }
 .reactor-pressable {
   transition: transform var(--reactor-fast) ease-out, opacity var(--reactor-fast) ease-out, border-color var(--reactor-fast) ease-out, box-shadow var(--reactor-fast) ease-out;
