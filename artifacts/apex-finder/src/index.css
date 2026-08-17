@@ -17,7 +17,7 @@
   --color-primary: #eab308;
   --color-secondary: #57534e;
   --color-accent: #facc15;
-  --color-sidebar: #080808;
+  --color-sidebar: #050505;
   --color-sidebar-foreground: #fafaf9;
   --color-sidebar-border: rgba(255, 255, 255, 0.04);
   --color-sidebar-accent: rgba(234, 179, 8, 0.08);
@@ -34,6 +34,8 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(234, 179, 8, 0.35) #0a0a0a;
 }
 
 .font-display { font-family: var(--font-display); }
@@ -287,7 +289,8 @@ body {
   .atlas-live-dot-pulse,
   .atlas-launch-glow,
   .atlas-card,
-  .atlas-pressable {
+  .atlas-pressable,
+  .atlas-outline-btn {
     animation: none !important;
     transition: none !important;
   }

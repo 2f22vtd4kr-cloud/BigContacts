@@ -157,7 +157,7 @@ function LeadCard({ lead, index }: { lead: any; index: number }) {
         </div>
       </div>
 
-      <div className="relative mt-3 sm:mt-4 flex items-center justify-between border-t border-border/60 pt-3 text-[11px] font-mono">
+      <div className="relative mt-3 sm:mt-4 flex items-center justify-between border-t border-[#eab308]/10 pt-3 text-[11px] font-mono">
         <span className="text-muted-foreground">{compactMoney(lead.estimatedNetWorth)}</span>
         <span className="text-muted-foreground">{lead.assetCount ?? 0} public assets</span>
       </div>
@@ -170,7 +170,7 @@ function LeadCard({ lead, index }: { lead: any; index: number }) {
         <span className={`grid h-5 w-5 place-items-center rounded-full ${
           contactReady
             ? "bg-[#eab308]/10 text-[#fde047] border border-[#eab308]/30"
-            : "bg-muted text-muted-foreground border border-border"
+            : "bg-muted text-muted-foreground border border-[#eab308]/12"
         }`}>
           {contactReady ? <ShieldCheck className="h-3 w-3" /> : <FileSearch className="h-3 w-3" />}
         </span>
@@ -193,7 +193,7 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
       <CircleAlert className="h-7 w-7 text-destructive" />
       <h2 className="mt-4 font-display text-lg font-semibold">The desk could not load</h2>
       <p className="mt-2 max-w-sm text-sm text-muted-foreground">Your entities and evidence are still safe. Try the workspace again.</p>
-      <button onClick={onRetry} data-testid="button-retry-dashboard" className="mt-6 inline-flex items-center gap-2 rounded-lg border border-[#eab308]/12 bg-card px-4 py-2.5 text-xs font-semibold text-foreground hover:border-primary/60">
+      <button onClick={onRetry} data-testid="button-retry-dashboard" className="atlas-outline-btn atlas-pressable mt-6 inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-semibold">
         <RefreshCw className="h-3.5 w-3.5" /> Retry
       </button>
     </div>
@@ -247,10 +247,10 @@ export default function Dashboard() {
           <Link href="/reactor" data-testid="link-dashboard-reactor" className="atlas-pressable inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-[#eab308]/35 bg-[#eab308]/10 px-5 text-xs font-semibold text-[#fde047] transition-all hover:border-[#facc15]/50 hover:bg-[#eab308]/15">
             <Radar className="h-4 w-4" /> Open reactor desk
           </Link>
-          <Link href="/search" data-testid="link-dashboard-search" className="atlas-pressable inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-[#2a2a2a] bg-[#0c0c0c] px-5 text-xs font-semibold text-stone-200 transition-all hover:border-[#eab308]/40 hover:bg-[#0c0c0c]">
+          <Link href="/search" data-testid="link-dashboard-search" className="atlas-outline-btn atlas-pressable inline-flex h-12 items-center justify-center gap-2 rounded-xl px-5 text-xs font-semibold">
             <Search className="h-4 w-4" /> Find an entity
           </Link>
-          <Link href="/profiles" data-testid="link-dashboard-profiles" className="atlas-pressable inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[#2a2a2a] bg-[#0c0c0c] px-5 text-xs font-semibold text-stone-300 transition-all hover:border-[#eab308]/35">
+          <Link href="/profiles" data-testid="link-dashboard-profiles" className="atlas-outline-btn atlas-pressable inline-flex h-11 items-center justify-center gap-2 rounded-xl px-5 text-xs font-semibold">
             Entity ledger <ArrowUpRight className="h-3.5 w-3.5" />
           </Link>
         </div>

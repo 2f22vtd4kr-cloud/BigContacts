@@ -334,11 +334,11 @@ export default function GraphViewer() {
     >
 
       {/* ── Mobile top bar (entity selector + controls) ── */}
-      <div className="flex md:hidden flex-col border-b border-border bg-card/90 backdrop-blur z-30 flex-shrink-0"><div className="flex items-center gap-2 px-3 py-2">
+      <div className="flex md:hidden flex-col border-b border-[#eab308]/12 bg-card/90 backdrop-blur z-30 flex-shrink-0"><div className="flex items-center gap-2 px-3 py-2">
         {entityIdFromUrl && (
           <Link
             href={`/profile/${entityIdFromUrl}`}
-            className="w-9 h-9 flex items-center justify-center rounded bg-muted border border-border text-muted-foreground hover:text-foreground flex-shrink-0"
+            className="w-9 h-9 flex items-center justify-center rounded bg-muted border border-[#eab308]/12 text-muted-foreground hover:text-foreground flex-shrink-0"
             title="Back to profile"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -346,7 +346,7 @@ export default function GraphViewer() {
         )}
         <button
           onClick={() => setSelectorOpen((o) => !o)}
-          className="flex-1 flex items-center justify-between px-3 py-2 rounded bg-background border border-border text-left"
+          className="flex-1 flex items-center justify-between px-3 py-2 rounded bg-background border border-[#eab308]/12 text-left"
         >
           <div className="min-w-0 flex-1">
             <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">Target</div>
@@ -362,7 +362,7 @@ export default function GraphViewer() {
             "w-9 h-9 flex items-center justify-center rounded border flex-shrink-0",
             filterOpen || minScore > 0 || assetTypeFilter
               ? "bg-primary/10 border-primary/50 text-primary"
-              : "bg-muted border-border text-muted-foreground hover:text-foreground"
+              : "bg-muted border-[#eab308]/12 text-muted-foreground hover:text-foreground"
           )}
           title="Filter"
         >
@@ -370,7 +370,7 @@ export default function GraphViewer() {
         </button>
         <button
           onClick={() => fgRef.current?.zoomToFit(400, 50)}
-          className="w-9 h-9 flex items-center justify-center rounded bg-muted border border-border text-muted-foreground hover:text-foreground flex-shrink-0"
+          className="w-9 h-9 flex items-center justify-center rounded bg-muted border border-[#eab308]/12 text-muted-foreground hover:text-foreground flex-shrink-0"
         >
           <Maximize className="w-4 h-4" />
         </button>
@@ -380,7 +380,7 @@ export default function GraphViewer() {
 
       {/* ── Mobile filter sheet ── */}
       {filterOpen && (
-        <div className="md:hidden absolute left-3 right-3 top-[57px] z-50 bg-card border border-border rounded shadow-2xl p-4 space-y-4">
+        <div className="md:hidden absolute left-3 right-3 top-[57px] z-50 bg-card border border-[#eab308]/12 rounded shadow-2xl p-4 space-y-4">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">Graph Filters</span>
             <button onClick={() => setFilterOpen(false)} className="text-muted-foreground hover:text-foreground">
@@ -411,7 +411,7 @@ export default function GraphViewer() {
                     "text-[10px] font-mono px-2 py-1 rounded border transition-colors",
                     assetTypeFilter === type
                       ? "border-primary bg-primary/10 text-primary"
-                      : "border-border text-muted-foreground hover:border-primary/50"
+                      : "border-[#eab308]/12 text-muted-foreground hover:border-primary/50"
                   )}
                 >
                   {type === "RealEstate" ? "Real Estate" : type}
@@ -421,7 +421,7 @@ export default function GraphViewer() {
           </div>
           <button
             onClick={() => { setMinScore(0); setAssetTypeFilter(null); setFilterOpen(false); }}
-            className="w-full text-[10px] font-mono text-muted-foreground hover:text-foreground border border-border rounded py-1.5 transition-colors"
+            className="w-full text-[10px] font-mono text-muted-foreground hover:text-foreground border border-[#eab308]/12 rounded py-1.5 transition-colors"
           >
             Clear Filters
           </button>
@@ -434,7 +434,7 @@ export default function GraphViewer() {
         {entityIdFromUrl && (
           <Link
             href={`/profile/${entityIdFromUrl}`}
-            className="flex items-center space-x-1.5 bg-card/90 backdrop-blur border border-border px-3 py-2 rounded text-xs font-mono text-muted-foreground hover:text-foreground transition-colors"
+            className="flex items-center space-x-1.5 bg-card/90 backdrop-blur border border-[#eab308]/12 px-3 py-2 rounded text-xs font-mono text-muted-foreground hover:text-foreground transition-colors"
             title="Back to profile"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
@@ -445,7 +445,7 @@ export default function GraphViewer() {
         <div className="relative">
           <button
             onClick={() => setSelectorOpen((o) => !o)}
-            className="flex min-h-[40px] items-center space-x-2 bg-card/90 backdrop-blur border border-border px-3 py-2 rounded text-sm font-mono text-foreground hover:border-primary/50 transition-colors min-w-0 w-full sm:min-w-[220px] sm:w-auto"
+            className="flex min-h-[40px] items-center space-x-2 bg-card/90 backdrop-blur border border-[#eab308]/12 px-3 py-2 rounded text-sm font-mono text-foreground hover:border-primary/50 transition-colors min-w-0 w-full sm:min-w-[220px] sm:w-auto"
           >
             <Network className="w-3.5 h-3.5 text-primary flex-shrink-0" />
             <span className="truncate flex-1 text-left">
@@ -456,7 +456,7 @@ export default function GraphViewer() {
         </div>
 
         {/* Zoom controls */}
-        <div className="flex space-x-1 bg-card/90 backdrop-blur border border-border p-1 rounded">
+        <div className="flex space-x-1 bg-card/90 backdrop-blur border border-[#eab308]/12 p-1 rounded">
           <button
             onClick={() => fgRef.current?.zoom((fgRef.current.zoom() ?? 1) * 1.25)}
             className="min-h-[36px] min-w-[36px] p-1.5 text-muted-foreground hover:text-foreground inline-flex items-center justify-center"
@@ -488,7 +488,7 @@ export default function GraphViewer() {
               "flex items-center space-x-1.5 bg-card/90 backdrop-blur border px-3 py-2 rounded text-xs font-mono transition-colors",
               filterOpen || minScore > 0 || assetTypeFilter
                 ? "border-primary/60 text-primary"
-                : "border-border text-muted-foreground hover:text-foreground"
+                : "border-[#eab308]/12 text-muted-foreground hover:text-foreground"
             )}
           >
             <Filter className="w-3.5 h-3.5" />
@@ -499,7 +499,7 @@ export default function GraphViewer() {
           </button>
 
           {filterOpen && (
-            <div className="absolute top-full mt-2 right-0 w-64 bg-card border border-border rounded shadow-2xl z-50 p-4 space-y-4 hidden md:block">
+            <div className="absolute top-full mt-2 right-0 w-64 bg-card border border-[#eab308]/12 rounded shadow-2xl z-50 p-4 space-y-4 hidden md:block">
               <div>
                 <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-2 block">
                   Min Signal Score: {minScore}%
@@ -528,7 +528,7 @@ export default function GraphViewer() {
                         "text-[10px] font-mono px-2 py-1 rounded border transition-colors",
                         assetTypeFilter === type
                           ? "border-primary bg-primary/10 text-primary"
-                          : "border-border text-muted-foreground hover:border-primary/50"
+                          : "border-[#eab308]/12 text-muted-foreground hover:border-primary/50"
                       )}
                     >
                       {type === "RealEstate" ? "Real Estate" : type}
@@ -539,7 +539,7 @@ export default function GraphViewer() {
 
               <button
                 onClick={() => { setMinScore(0); setAssetTypeFilter(null); setFilterOpen(false); }}
-                className="w-full text-[10px] font-mono text-muted-foreground hover:text-foreground border border-border rounded py-1 transition-colors"
+                className="w-full text-[10px] font-mono text-muted-foreground hover:text-foreground border border-[#eab308]/12 rounded py-1 transition-colors"
               >
                 Clear Filters
               </button>
@@ -551,13 +551,13 @@ export default function GraphViewer() {
       {/* ── Entity selector dropdown (shared mobile + desktop) ── */}
       {selectorOpen && (
         <div className={cn(
-          "bg-card border border-border shadow-2xl z-50 flex flex-col",
+          "bg-card border border-[#eab308]/12 shadow-2xl z-50 flex flex-col",
           // Mobile: full-width below top bar
           "md:absolute md:top-auto md:left-auto md:w-80 md:max-h-72",
           // Positioned differently per context
           "absolute left-3 right-3 top-[57px] md:top-16 md:left-4 max-h-64 rounded"
         )}>
-          <div className="p-2 border-b border-border flex items-center space-x-2">
+          <div className="p-2 border-b border-[#eab308]/12 flex items-center space-x-2">
             <Search className="w-3.5 h-3.5 text-muted-foreground" />
             <input
               autoFocus
@@ -593,7 +593,7 @@ export default function GraphViewer() {
 
       {/* ── Legend ── */}
       <div className={cn(
-        "absolute bottom-4 left-4 z-10 flex-col space-y-1 bg-card/80 backdrop-blur border border-border p-2 md:p-3 rounded text-[10px] md:text-xs font-mono",
+        "absolute bottom-4 left-4 z-10 flex-col space-y-1 bg-card/80 backdrop-blur border border-[#eab308]/12 p-2 md:p-3 rounded text-[10px] md:text-xs font-mono",
         // Hide on mobile when node detail bottom sheet is open (it sits at bottom-0 and would overlap)
         selectedNode ? "hidden md:flex" : "flex"
       )}>
@@ -615,7 +615,7 @@ export default function GraphViewer() {
       {/* ── Error state — entity not found or graph API error ── */}
       {isError && !isMockMode() && (
         <div className="absolute inset-0 flex flex-col items-center justify-center z-20 px-6 text-center space-y-3">
-          <div className="grid h-14 w-14 place-items-center rounded-2xl border border-border bg-card/50">
+          <div className="grid h-14 w-14 place-items-center rounded-2xl border border-[#eab308]/12 bg-card/50">
             <Network className="w-6 h-6 text-muted-foreground/50" aria-hidden />
           </div>
           <div className="font-mono text-sm font-semibold uppercase tracking-widest text-foreground">Graph unavailable</div>
@@ -623,8 +623,8 @@ export default function GraphViewer() {
             Entity not found or api-server graph route failed. Select another target or check System status.
           </p>
           <div className="flex flex-wrap justify-center gap-2 pt-1">
-            <Link href="/profiles" className="inline-flex min-h-[36px] items-center rounded-lg border border-border bg-card/60 px-3 py-1.5 text-[11px] font-semibold text-foreground hover:border-primary/40">Entity ledger</Link>
-            <Link href="/status" className="inline-flex min-h-[36px] items-center rounded-lg border border-border bg-card/60 px-3 py-1.5 text-[11px] font-semibold text-foreground hover:border-primary/40">System status</Link>
+            <Link href="/profiles" className="inline-flex min-h-[36px] items-center rounded-lg border border-[#eab308]/12 bg-card/60 px-3 py-1.5 text-[11px] font-semibold text-foreground hover:border-primary/40">Entity ledger</Link>
+            <Link href="/status" className="inline-flex min-h-[36px] items-center rounded-lg border border-[#eab308]/12 bg-card/60 px-3 py-1.5 text-[11px] font-semibold text-foreground hover:border-primary/40">System status</Link>
           </div>
         </div>
       )}
@@ -632,7 +632,7 @@ export default function GraphViewer() {
       {/* ── No entities at all (DB empty) ── */}
       {!isError && allEntities !== undefined && allEntities.length === 0 && (
         <div className="absolute inset-0 flex flex-col items-center justify-center z-20 px-6 text-center space-y-3">
-          <div className="grid h-14 w-14 place-items-center rounded-2xl border border-border bg-card/50">
+          <div className="grid h-14 w-14 place-items-center rounded-2xl border border-[#eab308]/12 bg-card/50">
             <Network className="w-6 h-6 text-muted-foreground/50" aria-hidden />
           </div>
           <div className="font-mono text-sm font-semibold uppercase tracking-widest text-foreground">No entities yet</div>
@@ -641,7 +641,7 @@ export default function GraphViewer() {
           </p>
           <div className="flex flex-wrap justify-center gap-2 pt-1">
             <Link href="/data-sources" className="inline-flex min-h-[36px] items-center rounded-lg border border-primary/30 bg-primary/10 px-3 py-1.5 text-[11px] font-semibold text-primary">Data sources</Link>
-            <Link href="/search" className="inline-flex min-h-[36px] items-center rounded-lg border border-border bg-card/60 px-3 py-1.5 text-[11px] font-semibold text-foreground hover:border-primary/40">Discover</Link>
+            <Link href="/search" className="inline-flex min-h-[36px] items-center rounded-lg border border-[#eab308]/12 bg-card/60 px-3 py-1.5 text-[11px] font-semibold text-foreground hover:border-primary/40">Discover</Link>
           </div>
         </div>
       )}
@@ -667,7 +667,7 @@ export default function GraphViewer() {
       {/* ── Single-node state — target loaded but no edges/neighbours yet ── */}
       {!isLoading && gData.nodes.length === 1 && gData.links.length === 0 && (
         <div className="absolute inset-0 flex flex-col items-center justify-center z-10 pointer-events-none">
-          <div className="bg-card/90 border border-border rounded-lg px-6 py-5 flex flex-col items-center gap-3 max-w-xs text-center shadow-xl">
+          <div className="bg-card/90 border border-[#eab308]/12 rounded-lg px-6 py-5 flex flex-col items-center gap-3 max-w-xs text-center shadow-xl">
             <Network className="w-8 h-8 text-muted-foreground opacity-40" />
             <p className="text-sm font-mono text-foreground">No connections mapped yet</p>
             <p className="text-xs font-mono text-muted-foreground/70 leading-relaxed">
@@ -743,13 +743,13 @@ export default function GraphViewer() {
       {/* ── Node detail panel — right sidebar on desktop, bottom sheet on mobile ── */}
       {selectedNode && (
         <div className={cn(
-          "absolute bg-card/95 backdrop-blur-md border-border z-20 flex flex-col animate-in",
+          "absolute bg-card/95 backdrop-blur-md border-[#eab308]/12 z-20 flex flex-col animate-in",
           // Mobile: bottom sheet
           "bottom-0 left-0 right-0 border-t max-h-[60vh] slide-in-from-bottom",
           // Desktop: right sidebar
           "md:top-0 md:right-0 md:bottom-0 md:left-auto md:w-96 md:border-t-0 md:border-l md:max-h-none md:slide-in-from-right"
         )}>
-          <div className="p-4 border-b border-border flex justify-between items-center bg-muted/20">
+          <div className="p-4 border-b border-[#eab308]/12 flex justify-between items-center bg-muted/20">
             <h2 className="font-bold text-sm font-mono tracking-wider flex items-center">
               <Network className="w-4 h-4 mr-2 text-secondary" /> Node Intelligence
             </h2>
@@ -771,13 +771,13 @@ export default function GraphViewer() {
 
             <div className="space-y-2 font-mono text-sm">
               {selectedNode.bayesianScore != null && (
-                <div className="flex justify-between items-center p-3 border border-border bg-muted/10 rounded">
+                <div className="flex justify-between items-center p-3 border border-[#eab308]/12 bg-muted/10 rounded">
                   <span className="text-muted-foreground">Signal Score</span>
                   <ScoreBadge score={selectedNode.bayesianScore} />
                 </div>
               )}
               {selectedNode.estimatedValue != null && (
-                <div className="flex justify-between items-center p-3 border border-border bg-muted/10 rounded">
+                <div className="flex justify-between items-center p-3 border border-[#eab308]/12 bg-muted/10 rounded">
                   <span className="text-muted-foreground">Est. Value</span>
                   <span className="text-foreground">{formatCurrency(selectedNode.estimatedValue)}</span>
                 </div>
@@ -795,13 +795,13 @@ export default function GraphViewer() {
                 </div>
               )}
               {selectedNode.contactOutcome && (
-                <div className="flex justify-between items-center p-3 border border-border bg-muted/10 rounded">
+                <div className="flex justify-between items-center p-3 border border-[#eab308]/12 bg-muted/10 rounded">
                   <span className="text-muted-foreground">Contact Outcome</span>
                   <span className="text-foreground text-xs">{String(selectedNode.contactOutcome).replace(/_/g, " ")}</span>
                 </div>
               )}
               {typeof selectedNode.contactConfidence === "number" && selectedNode.contactConfidence > 0 && (
-                <div className="flex justify-between items-center p-3 border border-border bg-muted/10 rounded">
+                <div className="flex justify-between items-center p-3 border border-[#eab308]/12 bg-muted/10 rounded">
                   <span className="text-muted-foreground">Access Confidence</span>
                   <span className="text-foreground">{selectedNode.contactConfidence}</span>
                 </div>
@@ -815,7 +815,7 @@ export default function GraphViewer() {
                 if (m.approachVector) approachVector = m.approachVector;
               } catch { /* noop */ }
               return (
-                <div className="border-t border-border pt-4">
+                <div className="border-t border-[#eab308]/12 pt-4">
                   <div className="text-xs text-muted-foreground mb-2 font-mono uppercase tracking-wider flex items-center">
                     <Shield className="w-3 h-3 mr-1.5 text-amber-500" /> How to Approach
                   </div>
@@ -827,11 +827,11 @@ export default function GraphViewer() {
             })()}
 
             {selectedNode.metadata && selectedNode.nodeType !== "Gatekeeper" && (
-              <div className="border-t border-border pt-4">
+              <div className="border-t border-[#eab308]/12 pt-4">
                 <div className="text-xs text-muted-foreground mb-2 font-mono uppercase tracking-wider">
                   Raw Intel
                 </div>
-                <pre className="text-xs text-primary whitespace-pre-wrap bg-background p-3 rounded border border-border overflow-x-auto">
+                <pre className="text-xs text-primary whitespace-pre-wrap bg-background p-3 rounded border border-[#eab308]/12 overflow-x-auto">
                   {selectedNode.metadata}
                 </pre>
               </div>
@@ -852,7 +852,7 @@ export default function GraphViewer() {
               <button
                 onClick={() => openRelModal(selectedNode.id, selectedNode.label)}
                 disabled={!selectedNode.id?.startsWith("e:")}
-                className="w-full py-2 flex items-center justify-center gap-1.5 bg-muted/20 hover:bg-muted/40 text-muted-foreground hover:text-foreground border border-border text-xs font-mono uppercase tracking-wider transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                className="w-full py-2 flex items-center justify-center gap-1.5 bg-muted/20 hover:bg-muted/40 text-muted-foreground hover:text-foreground border border-[#eab308]/12 text-xs font-mono uppercase tracking-wider transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 <Link2 className="w-3 h-3" /> Add Relationship From Here
               </button>
@@ -864,11 +864,11 @@ export default function GraphViewer() {
       {/* ── Right-click context menu ── */}
       {ctxMenu && (
         <div
-          className="fixed z-50 bg-card border border-border rounded shadow-2xl py-1 min-w-[180px]"
+          className="fixed z-50 bg-card border border-[#eab308]/12 rounded shadow-2xl py-1 min-w-[180px]"
           style={{ left: ctxMenu.x, top: ctxMenu.y }}
           onMouseLeave={() => setCtxMenu(null)}
         >
-          <div className="px-3 py-1.5 border-b border-border/50">
+          <div className="px-3 py-1.5 border-b border-[#eab308]/10">
             <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-widest">Node</div>
             <div className="text-xs font-mono text-foreground font-semibold truncate max-w-[160px]">{ctxMenu.nodeName}</div>
           </div>
@@ -910,7 +910,7 @@ export default function GraphViewer() {
             {/* Source (pre-filled, read-only) */}
             <div>
               <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1.5 block">From (Source)</label>
-              <div className="px-3 py-2 bg-muted/20 border border-border rounded text-sm font-mono text-foreground/70">
+              <div className="px-3 py-2 bg-muted/20 border border-[#eab308]/12 rounded text-sm font-mono text-foreground/70">
                 {relSourceName}
               </div>
             </div>
@@ -922,10 +922,10 @@ export default function GraphViewer() {
                 value={relTargetId ? relTargetName : relSearchQ}
                 onChange={(e) => { setRelTargetId(null); setRelTargetName(""); handleRelSearch(e.target.value); }}
                 placeholder="Search entities…"
-                className="w-full px-3 py-2 bg-background border border-border rounded text-sm font-mono text-foreground placeholder:text-muted-foreground/40 focus:border-primary/50 focus:outline-none"
+                className="w-full px-3 py-2 bg-background border border-[#eab308]/12 rounded text-sm font-mono text-foreground placeholder:text-muted-foreground/40 focus:border-primary/50 focus:outline-none"
               />
               {relSearchResults.length > 0 && !relTargetId && (
-                <div className="absolute left-0 right-0 top-full mt-1 bg-card border border-border rounded shadow-xl z-50 max-h-48 overflow-y-auto">
+                <div className="absolute left-0 right-0 top-full mt-1 bg-card border border-[#eab308]/12 rounded shadow-xl z-50 max-h-48 overflow-y-auto">
                   {relSearchResults.map((r) => (
                     <button key={r.id} onClick={() => { setRelTargetId(r.id); setRelTargetName(r.name); setRelSearchResults([]); }}
                       className="w-full text-left px-3 py-2 text-sm font-mono text-foreground hover:bg-muted/50 transition-colors border-b border-border/30 last:border-0">
@@ -940,7 +940,7 @@ export default function GraphViewer() {
             <div>
               <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1.5 block">Relationship Type</label>
               <select value={relType} onChange={(e) => setRelType(e.target.value)}
-                className="w-full px-3 py-2 bg-background border border-border rounded text-sm font-mono text-foreground focus:border-primary/50 focus:outline-none">
+                className="w-full px-3 py-2 bg-background border border-[#eab308]/12 rounded text-sm font-mono text-foreground focus:border-primary/50 focus:outline-none">
                 {["KNOWS","OWNS","CONTROLS","ASSOCIATES_WITH","EMPLOYED_BY","DIRECTS","FAMILY_OF"].map((t) => (
                   <option key={t} value={t}>{t.replace(/_/g, " ")}</option>
                 ))}
@@ -963,7 +963,7 @@ export default function GraphViewer() {
               <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1.5 block">Notes (optional)</label>
               <textarea value={relNotes} onChange={(e) => setRelNotes(e.target.value)} rows={2}
                 placeholder="Source or evidence for this link…"
-                className="w-full px-3 py-2 bg-background border border-border rounded text-sm font-mono text-foreground placeholder:text-muted-foreground/40 focus:border-primary/50 focus:outline-none resize-none" />
+                className="w-full px-3 py-2 bg-background border border-[#eab308]/12 rounded text-sm font-mono text-foreground placeholder:text-muted-foreground/40 focus:border-primary/50 focus:outline-none resize-none" />
             </div>
 
             {relError && <p className="text-xs font-mono text-red-400">{relError}</p>}
@@ -971,7 +971,7 @@ export default function GraphViewer() {
 
           <DialogFooter className="gap-2">
             <DialogClose asChild>
-              <button className="px-4 py-2 rounded border border-border text-muted-foreground font-mono text-xs uppercase tracking-wider hover:text-foreground transition-colors">Cancel</button>
+              <button className="px-4 py-2 rounded border border-[#eab308]/12 text-muted-foreground font-mono text-xs uppercase tracking-wider hover:text-foreground transition-colors">Cancel</button>
             </DialogClose>
             <button onClick={handleSaveRel} disabled={relSaving || !relTargetId}
               className="flex items-center gap-2 px-4 py-2 rounded bg-primary/20 border border-primary/40 text-primary font-mono text-xs uppercase tracking-wider hover:bg-primary/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">

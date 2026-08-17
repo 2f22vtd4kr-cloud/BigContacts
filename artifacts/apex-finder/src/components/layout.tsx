@@ -88,7 +88,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   const Sidebar = ({ mobile = false }: { mobile?: boolean }) => (
     <aside className={cn(
-      "flex h-full flex-col bg-[#070707]",
+      "flex h-full flex-col bg-[#050505]",
       mobile ? "w-[min(300px,86vw)]" : "w-[250px] shrink-0",
     )}>
       <div className="flex h-[76px] shrink-0 items-center border-b border-white/[0.04] px-5">
