@@ -92,3 +92,4 @@ body {
 .atlas-focus-ring:focus-visible { outline: 2px solid #eab308; outline-offset: 3px; }
 .atlas-divider { height: 1px; background: linear-gradient(90deg, transparent, rgba(234,179,8,0.25), transparent); }
 .atlas-live-dot { background: #eab308; box-shadow: 0 0 10px rgba(234,179,8,0.55); }
+@keyframes atlas-live-pulse { 0%,100%{opacity:1} 50%{opacity:0.55} } .atlas-live-dot-pulse { animation: atlas-live-pulse 1.8s ease-in-out infinite; }
