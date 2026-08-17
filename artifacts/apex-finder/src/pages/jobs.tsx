@@ -63,9 +63,9 @@ function statusColor(status: Job["status"]) {
 }
 
 function categoryIcon(cat: string) {
-  if (cat === "Discovery") return <Globe className="w-3.5 h-3.5 text-blue-400" />;
-  if (cat === "Enrichment") return <Search className="w-3.5 h-3.5 text-amber-400" />;
-  if (cat === "Analysis") return <Brain className="w-3.5 h-3.5 text-violet-400" />;
+  if (cat === "Discovery") return <Globe className="w-3.5 h-3.5 text-[#eab308]" />;
+  if (cat === "Enrichment") return <Search className="w-3.5 h-3.5 text-[#eab308]" />;
+  if (cat === "Analysis") return <Brain className="w-3.5 h-3.5 text-[#eab308]" />;
   if (cat === "Compliance") return <ShieldAlert className="w-3.5 h-3.5 text-red-400" />;
   return <Zap className="w-3.5 h-3.5 text-muted-foreground" />;
 }
@@ -228,7 +228,7 @@ function PersonaLoopTab() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {[
             { label: "Total Suggestions", val: stats.totalLogs ?? 0, color: "text-foreground" },
-            { label: "Pending", val: stats.pending ?? 0, color: "text-amber-400" },
+            { label: "Pending", val: stats.pending ?? 0, color: "text-[#eab308]" },
             { label: "Applied", val: stats.applied ?? 0, color: "text-[#facc15]" },
             { label: "Dismissed", val: stats.dismissed ?? 0, color: "text-muted-foreground" },
           ].map(({ label, val, color }) => (
@@ -263,7 +263,7 @@ function PersonaLoopTab() {
                 <span className={cn(
                   "inline-flex items-center rounded-md border px-1.5 py-0.5 text-[9px] font-mono font-medium",
                   log.priority === "HIGH" ? "text-red-300 border-red-400/30 bg-red-400/10" :
-                  log.priority === "MEDIUM" ? "text-amber-300 border-amber-400/30 bg-amber-400/10" :
+                  log.priority === "MEDIUM" ? "text-[#fde047] border-[#eab308]/30 bg-[#eab308]/10" :
                   "text-muted-foreground border-[#eab308]/12 bg-muted/20"
                 )}>
                   {log.priority === "HIGH" ? "Urgent" : log.priority === "MEDIUM" ? "Normal" : log.priority === "LOW" ? "Low" : String(log.priority ?? "")}
@@ -626,9 +626,9 @@ export default function BackgroundJobs() {
       </div>
 
       {apiOffline && (
-        <div className="mx-4 md:mx-6 mt-3 flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 text-[11px] text-amber-200/90" role="status">
-          <span className="font-semibold text-amber-300 shrink-0">API offline</span>
-          <span className="text-amber-200/80">
+        <div className="mx-4 md:mx-6 mt-3 flex items-start gap-2 rounded-lg border border-[#eab308]/30 bg-[#eab308]/5 px-3 py-2.5 text-[11px] text-[#fde047]/90" role="status">
+          <span className="font-semibold text-[#fde047] shrink-0">API offline</span>
+          <span className="text-[#fde047]/80">
             Workspace activity cannot reach api-server (HTML or non-JSON on /api). Jobs run on the server queue — not in this tab. Deploy api-server + proxy /api.
           </span>
         </div>

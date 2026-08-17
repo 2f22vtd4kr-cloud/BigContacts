@@ -598,16 +598,16 @@ export default function GraphViewer() {
         selectedNode ? "hidden md:flex" : "flex"
       )}>
         <div className="flex items-center"><div className="w-2.5 h-2.5 rounded-full bg-primary mr-1.5 md:mr-2" /> HNWI</div>
-        <div className="flex items-center"><div className="w-2.5 h-2.5 rounded-full bg-blue-500 mr-1.5 md:mr-2" /> Corp</div>
+        <div className="flex items-center"><div className="w-2.5 h-2.5 rounded-full bg-[#eab308] mr-1.5 md:mr-2" /> Corp</div>
         <div className="flex items-center"><div className="w-2.5 h-2.5 rounded-full bg-purple-500 mr-1.5 md:mr-2" /> Trust</div>
-        <div className="flex items-center"><div className="w-2.5 h-2.5 rounded-full bg-amber-500 mr-1.5 md:mr-2" /> Gatekeeper</div>
+        <div className="flex items-center"><div className="w-2.5 h-2.5 rounded-full bg-[#eab308] mr-1.5 md:mr-2" /> Gatekeeper</div>
         <div className="flex items-center"><div className="w-2.5 h-2.5 rounded-full bg-muted-foreground mr-1.5 md:mr-2" /> Asset</div>
       </div>
 
       
       {/* ── Truncation notice ── */}
       {(graphData as any)?.truncated && (
-        <div className="absolute top-16 md:top-20 left-1/2 -translate-x-1/2 z-20 max-w-[90vw] px-3 py-1.5 rounded border border-amber-500/40 bg-amber-500/10 text-[10px] md:text-xs font-mono text-amber-200/90 text-center">
+        <div className="absolute top-16 md:top-20 left-1/2 -translate-x-1/2 z-20 max-w-[90vw] px-3 py-1.5 rounded border border-[#eab308]/40 bg-[#eab308]/10 text-[10px] md:text-xs font-mono text-[#fde047]/90 text-center">
           Dense neighborhood truncated for performance — filters and target focus still apply
         </div>
       )}
@@ -789,9 +789,9 @@ export default function GraphViewer() {
                 </div>
               )}
               {selectedNode.isCentral && !selectedNode.isTarget && (
-                <div className="flex justify-between items-center p-3 border border-amber-500/30 bg-amber-500/5 rounded">
-                  <span className="text-amber-500/70">Role</span>
-                  <span className="text-amber-500 font-bold">CENTRAL NODE</span>
+                <div className="flex justify-between items-center p-3 border border-[#eab308]/30 bg-[#eab308]/5 rounded">
+                  <span className="text-[#eab308]/70">Role</span>
+                  <span className="text-[#eab308] font-bold">CENTRAL NODE</span>
                 </div>
               )}
               {selectedNode.contactOutcome && (
@@ -817,9 +817,9 @@ export default function GraphViewer() {
               return (
                 <div className="border-t border-[#eab308]/12 pt-4">
                   <div className="text-xs text-muted-foreground mb-2 font-mono uppercase tracking-wider flex items-center">
-                    <Shield className="w-3 h-3 mr-1.5 text-amber-500" /> How to Approach
+                    <Shield className="w-3 h-3 mr-1.5 text-[#eab308]" /> How to Approach
                   </div>
-                  <div className="text-xs font-mono text-amber-400 bg-amber-500/5 border border-amber-500/20 p-3 rounded leading-relaxed">
+                  <div className="text-xs font-mono text-[#eab308] bg-[#eab308]/5 border border-[#eab308]/20 p-3 rounded leading-relaxed">
                     {approachVector}
                   </div>
                 </div>

@@ -61,9 +61,9 @@ function CompletenessDemo() {
 }
 
 function Callout({ children, title, tone = "primary" }: { children: React.ReactNode; title?: string; tone?: "primary" | "warn" }) {
-  const border = tone === "warn" ? "border-amber-500" : "border-primary";
-  const bg = tone === "warn" ? "bg-amber-500/5" : "bg-primary/5";
-  const titleColor = tone === "warn" ? "text-amber-400" : "text-primary";
+  const border = tone === "warn" ? "border-[#eab308]" : "border-primary";
+  const bg = tone === "warn" ? "bg-[#eab308]/5" : "bg-primary/5";
+  const titleColor = tone === "warn" ? "text-[#eab308]" : "text-primary";
   return (
     <div className={cn("border-l-2 p-4 rounded-r-2xl my-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]", border, bg)}>
       {title && <div className={cn("font-mono text-xs font-bold mb-1 uppercase tracking-wider", titleColor)}>{title}</div>}
@@ -147,7 +147,7 @@ const SECTIONS = [
         </p>
         <ul className="space-y-3 text-sm text-muted-foreground mb-4">
           <li className="flex gap-2"><Cpu className="w-4 h-4 text-primary shrink-0 mt-0.5" /><span><strong className="text-foreground">Phase and active tool</strong> — which step is working the current target.</span></li>
-          <li className="flex gap-2"><Globe className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" /><span><strong className="text-foreground">Browser steps</strong> — opening public pages and reading what they say about the target.</span></li>
+          <li className="flex gap-2"><Globe className="w-4 h-4 text-[#eab308] shrink-0 mt-0.5" /><span><strong className="text-foreground">Browser steps</strong> — opening public pages and reading what they say about the target.</span></li>
           <li className="flex gap-2"><Activity className="w-4 h-4 text-[#facc15] shrink-0 mt-0.5" /><span><strong className="text-foreground">Analyst steps</strong> — writing down only contacts that can be proven.</span></li>
           <li className="flex gap-2"><Shield className="w-4 h-4 text-yellow-400 shrink-0 mt-0.5" /><span><strong className="text-foreground">Footprint steps</strong> — checking whether the same name shows up on other public sites.</span></li>
           <li className="flex gap-2"><Database className="w-4 h-4 text-yellow-400 shrink-0 mt-0.5" /><span><strong className="text-foreground">Domain steps</strong> — checking who registered the website and when.</span></li>
@@ -181,8 +181,8 @@ const SECTIONS = [
           <ul className="list-disc pl-5 space-y-1 mt-2 text-muted-foreground">
             <li><span className="text-[#fde047]">Emerald</span> — personal or role contact (what outreach wants)</li>
             <li><span className="text-yellow-300">Violet</span> — organization inbox (kept, never labeled Personal)</li>
-            <li><span className="text-sky-300">Sky</span> — social handles</li>
-            <li><span className="text-amber-200">Amber</span> — related people from ownership resolution</li>
+            <li><span className="text-stone-300">Sky</span> — social handles</li>
+            <li><span className="text-[#fde047]">Amber</span> — related people from ownership resolution</li>
           </ul>
           All non-trash vectors are shown. Verification ranks; it does not hide.
           Only role-aligned named mailboxes (e.g. malcolm@, alan@, joe.cherluck@) can be Personal.
@@ -236,7 +236,7 @@ const SECTIONS = [
             <Mail className="h-3 w-3" /> Personal channel
           </span>
           <span className="text-xs font-mono text-muted-foreground">→</span>
-          <span className="inline-flex items-center gap-1 text-xs font-mono text-amber-400 bg-amber-500/10 px-2 py-1 rounded">
+          <span className="inline-flex items-center gap-1 text-xs font-mono text-[#eab308] bg-[#eab308]/10 px-2 py-1 rounded">
             <Flame className="h-3 w-3" /> FULL
           </span>
         </div>
@@ -300,7 +300,7 @@ const SECTIONS = [
             </div>
           </li>
           <li className="flex gap-3">
-            <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
+            <AlertTriangle className="w-5 h-5 text-[#eab308] shrink-0" />
             <div>
               <strong className="text-foreground block mb-1">Static UI alone is not enough</strong>
               If <span className="font-mono">/api</span> is not proxied to api-server, job buttons return HTML and the desk shows an offline error.
@@ -322,7 +322,7 @@ const SECTIONS = [
       <>
         <ul className="space-y-3 text-sm text-muted-foreground">
           <li className="flex gap-3">
-            <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
+            <AlertTriangle className="w-5 h-5 text-[#eab308] shrink-0" />
             <div>
               <strong className="text-foreground block mb-1">Trash-phone gate</strong>
               US 555-exchange, all-same-digit, and trivial sequences are rejected. Floor script must PASS before material releases.

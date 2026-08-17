@@ -159,7 +159,7 @@ function ResultCard({ result }: { result: SearchResult }) {
 
   const confColor =
     result.confidence === "high"   ? "text-[#facc15] border-[#eab308]/30 bg-[#eab308]/10" :
-    result.confidence === "medium" ? "text-amber-400 border-amber-500/30 bg-amber-500/10" :
+    result.confidence === "medium" ? "text-[#eab308] border-[#eab308]/30 bg-[#eab308]/10" :
                                      "text-muted-foreground border-[#eab308]/12 bg-card/30";
 
   const score = (result.bayesianScore ?? 0) * 100;
@@ -167,7 +167,7 @@ function ResultCard({ result }: { result: SearchResult }) {
   return (
     <div className={cn(
       "border rounded-lg p-4 transition-all",
-      result.isHot ? "border-amber-500/30 bg-amber-500/5" : "border-[#eab308]/12 bg-card/30",
+      result.isHot ? "border-[#eab308]/30 bg-[#eab308]/5" : "border-[#eab308]/12 bg-card/30",
       "hover:border-primary/30 hover:bg-primary/5",
     )}>
       {/* Header */}
@@ -175,7 +175,7 @@ function ResultCard({ result }: { result: SearchResult }) {
         <div className="flex-1 min-w-0 mr-3">
           <div className="flex items-center gap-2 mb-1 min-w-0">
             <span className="text-xs font-mono text-muted-foreground shrink-0">#{result.rank}</span>
-            {result.isHot && <Zap className="w-3 h-3 text-amber-500 shrink-0" />}
+            {result.isHot && <Zap className="w-3 h-3 text-[#eab308] shrink-0" />}
             <h3 className="font-bold text-sm text-foreground line-clamp-1">{result.name}</h3>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -219,8 +219,8 @@ function ResultCard({ result }: { result: SearchResult }) {
 
       {/* Score breakdown */}
       <div className="space-y-1.5 mb-3">
-        <ScoreBar label="Keywords" value={result.scores.bm25}      color="bg-blue-500" title="Keyword match (BM25)" />
-        <ScoreBar label="Meaning"  value={result.scores.semantic}   color="bg-violet-500" title="Semantic similarity" />
+        <ScoreBar label="Keywords" value={result.scores.bm25}      color="bg-[#eab308]" title="Keyword match (BM25)" />
+        <ScoreBar label="Meaning"  value={result.scores.semantic}   color="bg-[#ca8a04]" title="Semantic similarity" />
         <div className={cn("space-y-1.5", !expandedScores && "hidden sm:block")}>
           <ScoreBar label="Links"    value={result.scores.graph}      color="bg-[#eab308]" title="Graph / relationship strength" />
           <ScoreBar label="Similar"  value={result.scores.embedding ?? 0} color="bg-purple-400" title="Embedding similarity" />
@@ -461,7 +461,7 @@ export default function DeepSearch() {
                     className={cn(
                       "px-2.5 py-1 rounded border text-xs font-mono font-bold uppercase transition-all",
                       filterSources.includes(j.value)
-                        ? "bg-blue-500/20 border-blue-500 text-blue-400"
+                        ? "bg-[#eab308]/20 border-blue-500 text-[#eab308]"
                         : "border-[#eab308]/12 text-muted-foreground hover:border-blue-500/50",
                     )}
                   >
@@ -537,9 +537,9 @@ export default function DeepSearch() {
 
         {/* Empty DB notice */}
         {result?.isEmpty && (
-          <div className="m-6 flex items-center gap-3 border border-amber-500/30 bg-amber-500/5 rounded-lg p-4">
-            <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0" />
-            <span className="text-xs font-mono text-amber-400">
+          <div className="m-6 flex items-center gap-3 border border-[#eab308]/30 bg-[#eab308]/5 rounded-lg p-4">
+            <AlertCircle className="w-4 h-4 text-[#eab308] flex-shrink-0" />
+            <span className="text-xs font-mono text-[#eab308]">
               No matches yet. Try a broader query, or load registry data from Data Sources first.
             </span>
           </div>
@@ -658,8 +658,8 @@ export default function DeepSearch() {
                       {result.results.length} result{result.results.length !== 1 ? "s" : ""} — best matches first
                     </div>
                     <div className="flex items-center gap-3 text-xs font-mono text-muted-foreground">
-                      <span className="flex items-center gap-1" title="Keyword match"><span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />Keywords</span>
-                      <span className="flex items-center gap-1" title="Semantic similarity"><span className="w-2 h-2 rounded-full bg-violet-500 inline-block" />Meaning</span>
+                      <span className="flex items-center gap-1" title="Keyword match"><span className="w-2 h-2 rounded-full bg-[#eab308] inline-block" />Keywords</span>
+                      <span className="flex items-center gap-1" title="Semantic similarity"><span className="w-2 h-2 rounded-full bg-[#ca8a04] inline-block" />Meaning</span>
                       <span className="hidden sm:flex items-center gap-1" title="Graph links"><span className="w-2 h-2 rounded-full bg-[#eab308] inline-block" />Links</span>
                     </div>
                   </div>

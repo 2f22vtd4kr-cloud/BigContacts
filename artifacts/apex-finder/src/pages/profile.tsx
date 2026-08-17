@@ -96,9 +96,9 @@ const ASSET_COLORS: Record<string, string> = {
 const CAT_COLORS: Record<string, string> = {
   Identity: "text-primary bg-primary/10",
   Financial: "text-yellow-400 bg-yellow-400/10",
-  Network:  "text-blue-400 bg-blue-400/10",
+  Network:  "text-[#eab308] bg-[#eab308]/10",
   Asset:    "text-secondary bg-secondary/10",
-  Registry: "text-amber-400 bg-amber-400/10",
+  Registry: "text-[#eab308] bg-[#eab308]/10",
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -187,14 +187,14 @@ function buildLedger(entity: any, assets: any[], relationships: any[]): LedgerEn
 
 function roleIcon(role: string) {
   if (role === "TARGET")     return <Target className="w-3 h-3 text-primary" />;
-  if (role === "GATEKEEPER") return <Shield className="w-3 h-3 text-amber-500" />;
+  if (role === "GATEKEEPER") return <Shield className="w-3 h-3 text-[#eab308]" />;
   if (role === "ASSET")      return <GitBranch className="w-3 h-3 text-secondary" />;
   return <ChevronRight className="w-3 h-3 text-muted-foreground" />;
 }
 
 function roleStyle(role: string) {
   if (role === "TARGET")     return "border-primary/40 bg-primary/5 text-primary";
-  if (role === "GATEKEEPER") return "border-amber-500/40 bg-amber-500/5 text-amber-400";
+  if (role === "GATEKEEPER") return "border-[#eab308]/40 bg-[#eab308]/5 text-[#eab308]";
   if (role === "ASSET")      return "border-secondary/30 bg-secondary/5 text-secondary";
   return "border-border bg-muted/10 text-muted-foreground";
 }
@@ -219,8 +219,8 @@ function SectionHeader({ icon, title, badge, action }: {
 }
 
 function ConfidenceBar({ label, score, icon }: { label: string; score: number; icon: React.ReactNode }) {
-  const barCls = score >= 75 ? "bg-primary" : score >= 50 ? "bg-amber-500" : score >= 25 ? "bg-orange-600" : "bg-muted-foreground/30";
-  const txtCls = score >= 75 ? "text-primary" : score >= 50 ? "text-amber-500" : "text-muted-foreground";
+  const barCls = score >= 75 ? "bg-primary" : score >= 50 ? "bg-[#eab308]" : score >= 25 ? "bg-orange-600" : "bg-muted-foreground/30";
+  const txtCls = score >= 75 ? "text-primary" : score >= 50 ? "text-[#eab308]" : "text-muted-foreground";
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between">
@@ -260,8 +260,8 @@ function ProfileCompleteness({ entity, assets, relationships, sessions }: {
   ];
   const completed = fields.filter((f) => f.done).length;
   const pct       = Math.round((completed / fields.length) * 100);
-  const barCls    = pct >= 80 ? "bg-primary" : pct >= 50 ? "bg-amber-500" : "bg-orange-600";
-  const txtCls    = pct >= 80 ? "text-primary" : pct >= 50 ? "text-amber-500" : "text-orange-400";
+  const barCls    = pct >= 80 ? "bg-primary" : pct >= 50 ? "bg-[#eab308]" : "bg-orange-600";
+  const txtCls    = pct >= 80 ? "text-primary" : pct >= 50 ? "text-[#eab308]" : "text-orange-400";
 
   return (
     <div className="border-b border-border px-4 md:px-6 py-3 bg-card/20 flex-shrink-0">
@@ -658,7 +658,7 @@ export default function ApexProfile() {
 
           <div className="flex-1 min-w-0"><div className="flex items-center gap-2 mb-1 flex-wrap">
               {(entity as any).isHot && (
-                <span className="flex items-center gap-1 text-[10px] font-mono font-bold text-amber-500 uppercase tracking-widest">
+                <span className="flex items-center gap-1 text-[10px] font-mono font-bold text-[#eab308] uppercase tracking-widest">
                   <ShieldAlert className="w-3 h-3" /> Hot Lead
                 </span>
               )}
@@ -769,7 +769,7 @@ export default function ApexProfile() {
         <div className="px-4 pt-4 pb-4"><div className="flex items-center justify-between mb-2">
             <EntityTypeMark type={(entity as any).type} compact />
             {(entity as any).isHot && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30">
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-md bg-[#eab308]/15 text-[#fde047] border border-[#eab308]/30">
                 <Flame className="h-3 w-3 shrink-0" aria-hidden />
                 <span className="leading-none">Hot</span>
               </span>
@@ -879,12 +879,12 @@ export default function ApexProfile() {
           person.role === "owner" || person.role === "beneficial_owner" || person.role === "controller",
         ).length;
         return (
-          <section className="flex-shrink-0 border-b border-border px-4 md:px-6 py-4 bg-amber-500/[0.03]">
+          <section className="flex-shrink-0 border-b border-border px-4 md:px-6 py-4 bg-[#eab308]/[0.03]">
             <div className="flex items-start justify-between gap-3 mb-3">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <ShieldAlert className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
-                  <span className="text-[10px] font-mono font-bold text-amber-400 uppercase tracking-widest">
+                  <ShieldAlert className="w-3.5 h-3.5 text-[#eab308] flex-shrink-0" />
+                  <span className="text-[10px] font-mono font-bold text-[#eab308] uppercase tracking-widest">
                     Ownership / Control
                   </span>
                   {ownerCount > 0 && (
@@ -902,14 +902,14 @@ export default function ApexProfile() {
                   href={sourceUrls[0]}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex-shrink-0 text-[9px] font-mono text-amber-400/80 hover:text-amber-300 underline underline-offset-2"
+                  className="flex-shrink-0 text-[9px] font-mono text-[#eab308]/80 hover:text-[#fde047] underline underline-offset-2"
                 >
                   Source↗
                 </a>
               )}
             </div>
-            <div className="rounded border border-amber-500/15 bg-background/40 px-3 py-2.5 mb-3">
-              <div className="text-[9px] font-mono uppercase tracking-widest text-amber-400/60 mb-1">
+            <div className="rounded border border-[#eab308]/15 bg-background/40 px-3 py-2.5 mb-3">
+              <div className="text-[9px] font-mono uppercase tracking-widest text-[#eab308]/60 mb-1">
                 Phase 0 finding
               </div>
               <div className={cn(
@@ -938,7 +938,7 @@ export default function ApexProfile() {
                     <div key={`${person.name}-${index}`} className="rounded border border-border/70 bg-background/50 p-3 min-w-0">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-center gap-2 min-w-0">
-                          <UserCheck className="w-3.5 h-3.5 text-amber-400/80 flex-shrink-0" />
+                          <UserCheck className="w-3.5 h-3.5 text-[#eab308]/80 flex-shrink-0" />
                           <span className="text-xs font-semibold text-foreground truncate">{person.name}</span>
                         </div>
                         <span className={cn(
@@ -949,7 +949,7 @@ export default function ApexProfile() {
                         </span>
                       </div>
                       <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                        <span className="text-[9px] font-mono uppercase text-amber-400/80">{role}</span>
+                        <span className="text-[9px] font-mono uppercase text-[#eab308]/80">{role}</span>
                         {person.basis && (
                           <span className="text-[9px] text-muted-foreground/65 truncate max-w-full" title={person.basis}>
                             · {person.basis}
@@ -958,10 +958,10 @@ export default function ApexProfile() {
                       </div>
                       <div className="flex items-center gap-2 mt-2 flex-wrap">
                         {person.instagram && <a href={person.instagram} target="_blank" rel="noopener noreferrer" className="text-[9px] font-mono text-pink-400 hover:underline">Instagram↗</a>}
-                        {person.linkedin && <a href={person.linkedin} target="_blank" rel="noopener noreferrer" className="text-[9px] font-mono text-blue-400 hover:underline">LinkedIn↗</a>}
-                        {person.twitter && <a href={person.twitter} target="_blank" rel="noopener noreferrer" className="text-[9px] font-mono text-sky-400 hover:underline">X↗</a>}
+                        {person.linkedin && <a href={person.linkedin} target="_blank" rel="noopener noreferrer" className="text-[9px] font-mono text-[#eab308] hover:underline">LinkedIn↗</a>}
+                        {person.twitter && <a href={person.twitter} target="_blank" rel="noopener noreferrer" className="text-[9px] font-mono text-[#eab308] hover:underline">X↗</a>}
                         {urls.slice(0, 2).map((url: string) => (
-                          <a key={url} href={url} target="_blank" rel="noopener noreferrer" className="text-[9px] font-mono text-amber-400/70 hover:underline truncate max-w-[180px]" title={url}>
+                          <a key={url} href={url} target="_blank" rel="noopener noreferrer" className="text-[9px] font-mono text-[#eab308]/70 hover:underline truncate max-w-[180px]" title={url}>
                             Evidence↗
                           </a>
                         ))}
@@ -996,7 +996,7 @@ export default function ApexProfile() {
           );
         const confCls =
           conf >= 60 ? "text-primary border-primary/30 bg-primary/10"
-          : conf >= 30 ? "text-amber-500 border-amber-500/30 bg-amber-500/10"
+          : conf >= 30 ? "text-[#eab308] border-[#eab308]/30 bg-[#eab308]/10"
           : "text-muted-foreground border-border bg-muted/20";
         return (
           <div className={cn("flex-shrink-0 border-b border-border px-4 md:px-6 py-3", hasContact && "bg-primary/5")}>
@@ -1009,8 +1009,8 @@ export default function ApexProfile() {
                     className={cn(
                       "flex items-center gap-1 px-2 py-1 rounded border font-mono text-[10px] uppercase tracking-wider transition-colors",
                       showContactEvidence
-                        ? "border-amber-500/40 text-amber-500 bg-amber-500/10"
-                        : "border-border text-muted-foreground hover:text-amber-500 hover:border-amber-500/40"
+                        ? "border-[#eab308]/40 text-[#eab308] bg-[#eab308]/10"
+                        : "border-border text-muted-foreground hover:text-[#eab308] hover:border-[#eab308]/40"
                     )}
                   >
                     {showContactEvidence ? "▴ Evidence" : "▾ Evidence"}
@@ -1024,11 +1024,11 @@ export default function ApexProfile() {
                 <span className="rounded-full border border-yellow-400/30 bg-yellow-400/10 px-1.5 py-0.5 text-[8px] font-mono font-bold uppercase tracking-wider text-yellow-200">
                   REACH
                 </span>
-                <span className="rounded-full border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[8px] font-mono uppercase tracking-wider text-slate-400">
+                <span className="rounded-full border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[8px] font-mono uppercase tracking-wider text-stone-400">
                   attributable preferred
                 </span>
                 {typeof (entity as any).contactConfidence === "number" && (
-                  <span className="rounded-full border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[8px] font-mono tabular-nums text-slate-400">
+                  <span className="rounded-full border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[8px] font-mono tabular-nums text-stone-400">
                     conf {(entity as any).contactConfidence}%
                   </span>
                 )}
@@ -1045,7 +1045,7 @@ export default function ApexProfile() {
                       className={cn(
                         "flex min-h-[36px] items-center gap-2 px-3 py-1.5 rounded border font-mono text-xs transition-colors min-w-0 max-w-[220px] sm:max-w-none",
                         isOrg
-                          ? "border-violet-400/35 bg-violet-400/10 text-violet-300 hover:bg-violet-400/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
+                          ? "border-[#eab308]/35 bg-[#eab308]/10 text-[#fde047] hover:bg-[#eab308]/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#eab308]/50"
                           : "border-yellow-400/35 bg-yellow-400/10 text-yellow-200 hover:bg-yellow-400/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/50",
                       )}
                     >
@@ -1069,7 +1069,7 @@ export default function ApexProfile() {
                 {e.linkedinUrl && (
                   <a href={e.linkedinUrl} target="_blank" rel="noopener noreferrer"
                     title={e.linkedinHeadline ?? "REACH · social · LinkedIn"}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded border border-sky-400/35 bg-sky-400/10 text-sky-300 font-mono text-xs hover:bg-sky-400/20 transition-colors">
+                    className="flex items-center gap-2 px-3 py-1.5 rounded border border-[#eab308]/35 bg-[#eab308]/10 text-stone-300 font-mono text-xs hover:bg-[#eab308]/20 transition-colors">
                     <span className="text-[8px] uppercase tracking-wider opacity-70 shrink-0">Social</span>
                     {e.linkedinHeadline ? (
                       <span className="truncate max-w-[160px]">{e.linkedinHeadline.slice(0, 40)}</span>
@@ -1080,7 +1080,7 @@ export default function ApexProfile() {
                 {cleanHandle(e.twitterHandle) && (
                   <a href={`https://x.com/${cleanHandle(e.twitterHandle)}`} target="_blank" rel="noopener noreferrer"
                     title={e.twitterBio ?? `@${cleanHandle(e.twitterHandle)} on X/Twitter`}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded border border-sky-400/30 bg-sky-400/10 text-sky-400 font-mono text-xs hover:bg-sky-400/20 transition-colors">
+                    className="flex items-center gap-2 px-3 py-1.5 rounded border border-[#eab308]/30 bg-[#eab308]/10 text-[#eab308] font-mono text-xs hover:bg-[#eab308]/20 transition-colors">
                     <Twitter className="w-3.5 h-3.5 flex-shrink-0" />
                     @{cleanHandle(e.twitterHandle)}
                   </a>
@@ -1105,7 +1105,7 @@ export default function ApexProfile() {
                 {/* Personal website */}
                 {e.personalWebsite && (
                   <a href={e.personalWebsite} target="_blank" rel="noopener noreferrer"
-                    className="flex items-center gap-2 px-3 py-1.5 rounded border border-violet-400/30 bg-violet-400/10 text-violet-400 font-mono text-xs hover:bg-violet-400/20 transition-colors max-w-[200px]">
+                    className="flex items-center gap-2 px-3 py-1.5 rounded border border-[#eab308]/30 bg-[#eab308]/10 text-[#eab308] font-mono text-xs hover:bg-[#eab308]/20 transition-colors max-w-[200px]">
                     <Globe className="w-3.5 h-3.5 flex-shrink-0" />
                     <span className="truncate">{e.personalWebsite.replace(/^https?:\/\//, "")}</span>
                   </a>
@@ -1115,7 +1115,7 @@ export default function ApexProfile() {
                   <a href={`https://projects.propublica.org/nonprofits/search?q=${encodeURIComponent(e.foundationName)}`}
                     target="_blank" rel="noopener noreferrer"
                     title={`IRS 990 filing: ${e.foundationName}`}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded border border-amber-400/30 bg-amber-400/10 text-amber-400 font-mono text-xs hover:bg-amber-400/20 transition-colors max-w-[200px]">
+                    className="flex items-center gap-2 px-3 py-1.5 rounded border border-[#eab308]/30 bg-[#eab308]/10 text-[#eab308] font-mono text-xs hover:bg-[#eab308]/20 transition-colors max-w-[200px]">
                     <Building2 className="w-3.5 h-3.5 flex-shrink-0" />
                     <span className="truncate">{e.foundationName}</span>
                   </a>
@@ -1213,10 +1213,10 @@ export default function ApexProfile() {
 
                 const evidenceBadge = primaryEvidence ? (
                   <span className="block mb-1.5 text-[9px] font-mono">
-                    <span className="text-amber-400/60 uppercase tracking-wider">Source: </span>
+                    <span className="text-[#eab308]/60 uppercase tracking-wider">Source: </span>
                     {primaryEvidence.sourceUrl ? (
                       <a href={primaryEvidence.sourceUrl} target="_blank" rel="noopener noreferrer"
-                        className="text-amber-400 hover:underline" title={primaryEvidence.sourceUrl}>
+                        className="text-[#eab308] hover:underline" title={primaryEvidence.sourceUrl}>
                         {primaryEvidence.source}↗
                       </a>
                     ) : (
@@ -1354,17 +1354,17 @@ export default function ApexProfile() {
               ].filter(f => !!f.value);
 
               return (
-                <div className="mt-3 border border-amber-500/20 rounded-lg bg-amber-500/5 overflow-hidden">
+                <div className="mt-3 border border-[#eab308]/20 rounded-lg bg-[#eab308]/5 overflow-hidden">
                   {/* Panel header */}
-                  <div className="px-3 py-2.5 border-b border-amber-500/10">
-                    <div className="text-[10px] font-mono font-semibold text-amber-400/80 mb-0.5">
+                  <div className="px-3 py-2.5 border-b border-[#eab308]/10">
+                    <div className="text-[10px] font-mono font-semibold text-[#eab308]/80 mb-0.5">
                       How we found these contacts
                     </div>
                     <div className="text-[10px] text-muted-foreground/60 leading-relaxed">
                       Each contact below includes a plain-English explanation of the research steps. If something looks wrong, flag it to remove it permanently.
                     </div>
                   </div>
-                  <div className="px-3 py-2 border-b border-amber-500/10">
+                  <div className="px-3 py-2 border-b border-[#eab308]/10">
                     <div className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground/60 mb-1.5">
                       Persisted evidence audit
                     </div>
@@ -1377,20 +1377,20 @@ export default function ApexProfile() {
                     ) : (
                       <div className="space-y-2.5">
                         {contactEvidence.map((item) => (
-                          <div key={item.id} className="text-[10px] font-mono border-l border-amber-500/20 pl-2 space-y-0.5">
+                          <div key={item.id} className="text-[10px] font-mono border-l border-[#eab308]/20 pl-2 space-y-0.5">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-amber-300/80 uppercase w-14 flex-shrink-0">{item.vectorType}</span>
+                              <span className="text-[#fde047]/80 uppercase w-14 flex-shrink-0">{item.vectorType}</span>
                               <span className={cn(
                                 "uppercase text-[9px] flex-shrink-0",
                                 item.validationStatus === "verified" ? "text-yellow-400" :
-                                  item.validationStatus === "rejected" ? "text-red-400" : "text-amber-400/80",
+                                  item.validationStatus === "rejected" ? "text-red-400" : "text-[#eab308]/80",
                               )}>{item.validationStatus}</span>
                               <span className="text-foreground/80 truncate flex-1" title={item.value}>{item.value}</span>
                             </div>
                             <div className="flex items-center gap-2 flex-wrap text-[9px] text-muted-foreground/60">
                               {item.sourceUrl ? (
                                 <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer"
-                                  className="text-amber-400/70 hover:text-amber-400 underline underline-offset-2 truncate max-w-[220px]"
+                                  className="text-[#eab308]/70 hover:text-[#eab308] underline underline-offset-2 truncate max-w-[220px]"
                                   title={item.sourceUrl}>
                                   {item.source}↗
                                 </a>
@@ -1413,11 +1413,11 @@ export default function ApexProfile() {
                   {cFields.map(({ field, label, value }) => {
                     const step = rejectStep[field] ?? 0;
                     return (
-                      <div key={field} className="px-3 py-3 border-b border-amber-500/10 last:border-0">
+                      <div key={field} className="px-3 py-3 border-b border-[#eab308]/10 last:border-0">
                         {/* Contact type label + value + action button */}
                         <div className="flex items-start justify-between gap-2 flex-wrap mb-2">
                           <div className="flex-1 min-w-0">
-                            <div className="text-[9px] font-mono uppercase tracking-widest text-amber-500/50 mb-0.5">{label}</div>
+                            <div className="text-[9px] font-mono uppercase tracking-widest text-[#eab308]/50 mb-0.5">{label}</div>
                             <div className="text-[11px] font-mono font-semibold text-foreground break-all">{value}</div>
                           </div>
                           <div className="flex-shrink-0 flex items-center gap-1.5 flex-wrap justify-end pt-0.5">
@@ -1443,14 +1443,14 @@ export default function ApexProfile() {
                           </div>
                         </div>
                         {/* Plain-English research explanation */}
-                        <div className="text-[10px] text-muted-foreground/55 leading-relaxed border-l-2 border-amber-500/20 pl-2.5">
+                        <div className="text-[10px] text-muted-foreground/55 leading-relaxed border-l-2 border-[#eab308]/20 pl-2.5">
                           {explainContact(field)}
                         </div>
                       </div>
                     );
                   })}
                   {rejectError && <div className="px-3 py-2 text-[10px] font-mono text-red-400">{rejectError}</div>}
-                  <div className="px-3 py-2 border-t border-amber-500/10">
+                  <div className="px-3 py-2 border-t border-[#eab308]/10">
                     <span className="text-[9px] text-muted-foreground/40">Flagging a contact as incorrect automatically re-runs the research pipeline to search for a replacement.</span>
                     {isEnriching && (
                       <div className="mt-1.5 flex items-center gap-1.5">
@@ -1664,7 +1664,7 @@ export default function ApexProfile() {
                     <div className="absolute inset-0 flex items-center justify-center">
                       <span className={cn(
                         "text-sm font-bold font-mono",
-                        confidence.overall >= 75 ? "text-primary" : confidence.overall >= 50 ? "text-amber-500" : "text-muted-foreground"
+                        confidence.overall >= 75 ? "text-primary" : confidence.overall >= 50 ? "text-[#eab308]" : "text-muted-foreground"
                       )}>
                         {confidence.overall}
                       </span>
@@ -1820,7 +1820,7 @@ export default function ApexProfile() {
                         <div key={flight.id} className="border border-border rounded p-3 bg-muted/10 space-y-2">
                           <div className="flex items-center justify-between gap-2">
                             <span className="text-sm font-mono font-bold text-foreground truncate">{flight.name}</span>
-                            <span className="text-[10px] font-mono text-blue-400 flex-shrink-0 border border-blue-400/30 bg-blue-400/10 px-1.5 py-0.5 rounded">
+                            <span className="text-[10px] font-mono text-[#eab308] flex-shrink-0 border border-[#eab308]/30 bg-[#eab308]/10 px-1.5 py-0.5 rounded">
                               {flight.identifier}
                             </span>
                           </div>
@@ -2100,7 +2100,7 @@ export default function ApexProfile() {
                     <div className="flex items-center gap-3 flex-wrap">
                       <span className={cn(
                         "text-[10px] font-mono font-bold px-2.5 py-1 rounded border uppercase",
-                        "text-sky-400 bg-sky-400/10 border-sky-400/30",
+                        "text-[#eab308] bg-[#eab308]/10 border-[#eab308]/30",
                       )}>
                         Research Review
                       </span>
@@ -2165,7 +2165,7 @@ export default function ApexProfile() {
                                 <div className="px-3 py-2 text-[10px] font-mono text-muted-foreground">{step.step}</div>
                                 <div className="px-3 py-2 text-[10px] font-mono text-foreground">{step.action}</div>
                                 <div className="px-3 py-2 text-[10px] font-mono text-secondary/80">{step.registry}</div>
-                                <div className="px-3 py-2 text-[10px] font-mono text-amber-400">{step.uctScore?.toFixed(3) ?? "—"}</div>
+                                <div className="px-3 py-2 text-[10px] font-mono text-[#eab308]">{step.uctScore?.toFixed(3) ?? "—"}</div>
                               </div>
                             ))}
                           </div>

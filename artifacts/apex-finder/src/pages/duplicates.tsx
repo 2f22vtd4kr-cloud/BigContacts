@@ -48,7 +48,7 @@ async function apiFetch<T>(path: string, opts?: RequestInit): Promise<T> {
 
 function scoreColor(score: number) {
   if (score >= 0.8) return "text-[#facc15]";
-  if (score >= 0.6) return "text-amber-400";
+  if (score >= 0.6) return "text-[#eab308]";
   return "text-muted-foreground";
 }
 
@@ -56,7 +56,7 @@ function typeColor(type: string) {
   switch (type) {
     case "HNWI": return "bg-[#eab308]/15 text-[#fde047]";
     case "Corporation": return "bg-purple-500/20 text-purple-300";
-    case "Trust": return "bg-amber-500/20 text-amber-300";
+    case "Trust": return "bg-[#eab308]/20 text-[#fde047]";
     case "Gatekeeper": return "bg-[#eab308]/20 text-[#fde047]";
     default: return "bg-muted text-muted-foreground";
   }
@@ -64,7 +64,7 @@ function typeColor(type: string) {
 
 function confidenceLabel(tokens: number): { label: string; color: string } {
   if (tokens >= 4) return { label: "High confidence", color: "text-red-400" };
-  if (tokens >= 3) return { label: "Medium confidence", color: "text-amber-400" };
+  if (tokens >= 3) return { label: "Medium confidence", color: "text-[#eab308]" };
   return { label: "Low confidence", color: "text-muted-foreground" };
 }
 
@@ -124,7 +124,7 @@ function CandidateRow({
         className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/30 transition-colors"
         onClick={() => setExpanded(e => !e)}
       >
-        <Copy className="h-3.5 w-3.5 text-amber-400 flex-shrink-0" />
+        <Copy className="h-3.5 w-3.5 text-[#eab308] flex-shrink-0" />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium truncate">
             {formatEntityName(candidate.entityA.name)}
@@ -212,11 +212,11 @@ function SameSourceClusterRow({ cluster }: { cluster: SameSourceCluster }) {
         className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/30 transition-colors"
         onClick={() => setExpanded(value => !value)}
       >
-        <Layers3 className="h-3.5 w-3.5 text-sky-400 flex-shrink-0" />
+        <Layers3 className="h-3.5 w-3.5 text-[#eab308] flex-shrink-0" />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium truncate">{formatEntityName(cluster.name)}</p>
           <p className="text-xs text-muted-foreground mt-0.5 font-mono">
-            <span className="text-sky-300">{cluster.registry}</span>
+            <span className="text-stone-300">{cluster.registry}</span>
             <span className="mx-1.5">·</span>
             {cluster.count} same-source record{cluster.count !== 1 ? "s" : ""}
           </p>
@@ -375,7 +375,7 @@ export default function DuplicatesPage() {
       <div className="flex-shrink-0 px-4 md:px-6 py-4 border-b border-border bg-card/50">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="min-w-0"><h1 className="text-sm md:text-base font-semibold tracking-tight flex items-center gap-2 text-foreground">
-              <Copy className="h-4 w-4 text-amber-400" aria-hidden />
+              <Copy className="h-4 w-4 text-[#eab308]" aria-hidden />
               Duplicate review
             </h1>
             <p className="text-xs text-muted-foreground mt-0.5">
@@ -409,7 +409,7 @@ export default function DuplicatesPage() {
           onClick={() => setActiveTab("same-source")}
           className={cn(
             "min-h-[40px] px-3 py-2 text-xs font-mono border-b-2 transition-colors",
-            activeTab === "same-source" ? "border-sky-400 text-sky-300" : "border-transparent text-muted-foreground hover:text-foreground",
+            activeTab === "same-source" ? "border-[#eab308] text-stone-300" : "border-transparent text-muted-foreground hover:text-foreground",
           )}
         >
           Same-source clusters
@@ -506,7 +506,7 @@ export default function DuplicatesPage() {
             <div className="flex items-center gap-4 text-xs font-mono text-muted-foreground pb-2 border-b border-border/50">
               <span>{sameSourceClusters.length} clusters</span>
               <span>·</span>
-              <span className="text-sky-300">Review before merging</span>
+              <span className="text-stone-300">Review before merging</span>
             </div>
             {sameSourceClusters.map(cluster => (
               <SameSourceClusterRow key={`${cluster.registry}:${cluster.name}`} cluster={cluster} />

@@ -169,7 +169,7 @@ function PersonaCard({ personaId, stats, activeFilter, onClick }: {
         <span className="font-display text-2xl font-bold tracking-tight" style={{ color: meta.color }}>{total}</span>
         <div className="flex flex-col items-end gap-0.5 pb-0.5">
           {pending > 0 && (
-            <span className="font-mono text-[10px] text-amber-300/90">{pending} pending</span>
+            <span className="font-mono text-[10px] text-[#fde047]/90">{pending} pending</span>
           )}
           {applied > 0 && (
             <span className="font-mono text-[10px] text-[#facc15]/90">{applied} applied</span>
@@ -198,7 +198,7 @@ function PriorityBadge({ priority }: { priority: Priority }) {
 function StatusBadge({ status }: { status: LogStatus }) {
   if (status === "applied")   return <span className="text-[10px] font-mono text-[#facc15] flex items-center gap-1"><CheckCircle2 className="h-3 w-3" />Applied</span>;
   if (status === "dismissed") return <span className="text-[10px] font-mono text-muted-foreground flex items-center gap-1"><XCircle className="h-3 w-3" />Dismissed</span>;
-  return <span className="text-[10px] font-mono text-amber-400 flex items-center gap-1"><Clock className="h-3 w-3" />Pending</span>;
+  return <span className="text-[10px] font-mono text-[#eab308] flex items-center gap-1"><Clock className="h-3 w-3" />Pending</span>;
 }
 
 function LogCard({ log, onStatusChange }: {
@@ -583,7 +583,7 @@ export default function ImprovementsPage() {
               "flex min-h-[40px] items-center gap-2 px-3.5 py-2 text-xs font-semibold font-mono rounded-xl transition-colors border",
               cleanupState === "starting" || cleanupState === "running"
                 ? "border-border text-muted-foreground cursor-not-allowed"
-                : "border-sky-500/40 text-sky-400 hover:bg-sky-500/10"
+                : "border-[#eab308]/40 text-[#eab308] hover:bg-[#eab308]/10"
             )}
             title="Dismiss repeated findings while retaining the newest copy"
           >

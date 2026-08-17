@@ -437,14 +437,14 @@ const OUTCOME_META: Record<string, { label: string; color: string; barColor: str
   },
   social_only: {
     label: "Social Only",
-    color: "text-blue-400",
-    barColor: "bg-blue-500",
+    color: "text-[#eab308]",
+    barColor: "bg-[#eab308]",
     description: "LinkedIn/Twitter/Telegram found — eligible for direct-contact follow-up (J1)",
   },
   evidence_only: {
     label: "Evidence Only",
-    color: "text-amber-400",
-    barColor: "bg-amber-500",
+    color: "text-[#eab308]",
+    barColor: "bg-[#eab308]",
     description: "Website or address found — eligible for social/direct-contact follow-up",
   },
   organization_contact: {
@@ -536,8 +536,8 @@ function FunnelPanel() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
               { label: "Direct Contact", value: (((data.conversionRate?.toDirectCandidate) ?? 0) * 100).toFixed(2) + "%", color: "text-[#facc15]" },
-              { label: "Social Only",    value: (((data.conversionRate?.toSocialOnly)     ?? 0) * 100).toFixed(1) + "%",  color: "text-blue-400" },
-              { label: "Evidence Only",  value: (((data.conversionRate?.toEvidenceOnly)   ?? 0) * 100).toFixed(1) + "%",  color: "text-amber-400" },
+              { label: "Social Only",    value: (((data.conversionRate?.toSocialOnly)     ?? 0) * 100).toFixed(1) + "%",  color: "text-[#eab308]" },
+              { label: "Evidence Only",  value: (((data.conversionRate?.toEvidenceOnly)   ?? 0) * 100).toFixed(1) + "%",  color: "text-[#eab308]" },
               { label: "Not Enriched",   value: (((data.conversionRate?.notEnriched)      ?? 0) * 100).toFixed(1) + "%",  color: "text-muted-foreground" },
             ].map(s => (
               <div key={s.label} className="text-center">
@@ -595,7 +595,7 @@ function FunnelPanel() {
                       <div className="text-[10px] font-mono text-[#facc15]">
                         {typeTotal > 0 ? ((direct / typeTotal) * 100).toFixed(1) : "0.0"}% direct
                       </div>
-                      <div className="text-[10px] font-mono text-blue-400">
+                      <div className="text-[10px] font-mono text-[#eab308]">
                         {typeTotal > 0 ? ((social / typeTotal) * 100).toFixed(1) : "0.0"}% social
                       </div>
                       <div className="text-[9px] font-mono text-muted-foreground">{typeTotal.toLocaleString()} total</div>
@@ -650,7 +650,7 @@ function RegistryMatrixPanel() {
             {
               label: "Explicit only",
               value: sources.filter((s) => s.runtimeMode === "explicit_only").length,
-              color: "text-amber-300",
+              color: "text-[#fde047]",
               detail: "select when needed",
             },
             {
@@ -701,7 +701,7 @@ function RegistryMatrixPanel() {
                       ? "bg-[#eab308]/10 text-[#fde047]"
                       : source.runtimeMode === "bulk_only"
                         ? "bg-yellow-400/10 text-yellow-300"
-                        : "bg-amber-400/10 text-amber-300",
+                        : "bg-[#eab308]/10 text-[#fde047]",
                   )}>
                     {source.runtimeMode === "random_mix" && <Shuffle className="h-3 w-3" />}
                     {source.runtimeMode === "random_mix" ? "random mix" : source.runtimeMode === "bulk_only" ? "bulk only" : "explicit only"}
@@ -730,7 +730,7 @@ function RegistryMatrixPanel() {
                       <p>{source.runtimeNote}</p>
                       <p className="mt-1 text-foreground/80">{source.personOfficerFields}</p>
                       <p className="mt-1">{source.accessMethod} · {source.freshness}</p>
-                      {source.notes && <p className="mt-1 text-amber-200/80">{source.notes}</p>}
+                      {source.notes && <p className="mt-1 text-[#fde047]/80">{source.notes}</p>}
                     </div>
                   )}
                 </td>
@@ -753,7 +753,7 @@ function RegistryMatrixPanel() {
               </button>
               <div className="flex items-center gap-2 text-[10px] font-mono">
                 <span className="text-yellow-300">{source.jurisdiction}</span>
-                <span className={source.runtimeMode === "random_mix" ? "text-[#fde047]" : source.runtimeMode === "bulk_only" ? "text-yellow-300" : "text-amber-300"}>
+                <span className={source.runtimeMode === "random_mix" ? "text-[#fde047]" : source.runtimeMode === "bulk_only" ? "text-yellow-300" : "text-[#fde047]"}>
                   {source.runtimeMode === "random_mix" ? "random mix" : source.runtimeMode === "bulk_only" ? "bulk only" : "explicit only"}
                 </span>
               </div>
@@ -813,7 +813,7 @@ function IdentityResolutionPanel() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
           { label: "Bundles",       value: stats?.bundles ?? "—", color: "text-yellow-300" },
-          { label: "Pending",       value: pending,               color: "text-amber-300" },
+          { label: "Pending",       value: pending,               color: "text-[#fde047]" },
           { label: "Confirmed",     value: confirmed,             color: "text-[#fde047]" },
           { label: "Rejected",      value: rejected,              color: "text-muted-foreground" },
         ].map((item) => (
@@ -914,7 +914,7 @@ function UsageBadge({ usage }: { usage: "auto" | "on-demand" }) {
     <span
       className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-mono uppercase tracking-wider ${
         usage === "auto"
-          ? "bg-blue-500/10 text-blue-400"
+          ? "bg-[#eab308]/10 text-[#eab308]"
           : "bg-muted/60 text-muted-foreground"
       }`}
     >
@@ -989,15 +989,15 @@ function PythonToolsPanel() {
           ? "border-[#eab308]/08 bg-muted/10"
           : allReady
             ? "border-[#eab308]/30 bg-[#eab308]/5"
-            : "border-amber-500/30 bg-amber-500/5"
+            : "border-[#eab308]/30 bg-[#eab308]/5"
       }`}>
         {/* Count row — always one line */}
         <div className="flex items-center gap-2">
           <span className={`h-2 w-2 rounded-full flex-shrink-0 ${
-            !checked ? "bg-muted-foreground/30" : allReady ? "bg-[#eab308]" : "bg-amber-400 animate-pulse"
+            !checked ? "bg-muted-foreground/30" : allReady ? "bg-[#eab308]" : "bg-[#eab308] animate-pulse"
           }`} />
           <span className={`text-xs font-semibold font-mono ${
-            !checked ? "text-muted-foreground" : allReady ? "text-[#facc15]" : "text-amber-400"
+            !checked ? "text-muted-foreground" : allReady ? "text-[#facc15]" : "text-[#eab308]"
           }`}>
             {!checked ? "Checking…" : `${readyCount} / ${totalCount} tools ready`}
             {allReady && " — all operational"}
@@ -1007,7 +1007,7 @@ function PythonToolsPanel() {
         {needsInstallScript && (
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-[10px] font-mono text-muted-foreground">Run:</span>
-            <code className="text-[10px] font-mono text-amber-300 bg-muted/60 px-2 py-0.5 rounded select-all">
+            <code className="text-[10px] font-mono text-[#fde047] bg-muted/60 px-2 py-0.5 rounded select-all">
               bash scripts/install-python-tools.sh
             </code>
           </div>
@@ -1032,13 +1032,13 @@ function PythonToolsPanel() {
               </div>
               <p className="text-[10px] font-mono text-muted-foreground leading-relaxed">{GLINER_META.desc}</p>
               <div className="flex flex-wrap items-center gap-3 pt-0.5">
-                <span className="text-[9px] font-mono text-blue-400/80">{GLINER_META.usageNote}</span>
+                <span className="text-[9px] font-mono text-[#eab308]/80">{GLINER_META.usageNote}</span>
                 <span className="text-[9px] font-mono text-muted-foreground/60">{GLINER_META.fallback}</span>
               </div>
               {checked && !status?.gliner?.available && (
                 <div className="mt-1.5 flex items-center gap-1.5">
                   <span className="text-[9px] font-mono text-muted-foreground">Start:</span>
-                  <code className="text-[9px] font-mono text-amber-400/90 bg-muted/60 px-1.5 py-0.5 rounded select-all">
+                  <code className="text-[9px] font-mono text-[#eab308]/90 bg-muted/60 px-1.5 py-0.5 rounded select-all">
                     {GLINER_META.startCommand}
                   </code>
                 </div>
@@ -1126,10 +1126,10 @@ function SourceQualityPanel() {
 
   const outcomeColor: Record<string, string> = {
     direct_contact_verified: "text-[#facc15]",
-    direct_contact_candidate: "text-amber-300",
+    direct_contact_candidate: "text-[#fde047]",
     social_only: "text-yellow-300",
     organization_contact: "text-rose-300",
-    evidence_only: "text-blue-300",
+    evidence_only: "text-stone-300",
     none: "text-muted-foreground",
   };
 
@@ -1198,9 +1198,9 @@ function SourceQualityPanel() {
                     <td className="px-3 py-1.5 text-muted-foreground">{row.entities_covered.toLocaleString()}</td>
                     <td className="px-3 py-1.5 text-muted-foreground">{row.total_evidence.toLocaleString()}</td>
                     <td className="px-3 py-1.5 text-[#facc15]">{row.verified_count.toLocaleString()}</td>
-                    <td className="px-3 py-1.5 text-amber-300">{row.candidate_count.toLocaleString()}</td>
+                    <td className="px-3 py-1.5 text-[#fde047]">{row.candidate_count.toLocaleString()}</td>
                     <td className="px-3 py-1.5 text-yellow-300">{(row.avg_reliability ?? 0).toFixed(2)}</td>
-                    <td className="px-3 py-1.5 text-blue-300">{(row.avg_directness ?? 0).toFixed(2)}</td>
+                    <td className="px-3 py-1.5 text-stone-300">{(row.avg_directness ?? 0).toFixed(2)}</td>
                   </tr>
                 ))}
               </tbody>
