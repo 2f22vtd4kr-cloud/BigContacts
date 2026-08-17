@@ -109,7 +109,7 @@ input:focus-visible,
 `;
 
 export const REACTOR_SWIPE_PX = 48;
-export const REACTOR_SWIPE_VELOCITY = 0.45;
+export const REACTOR_SWIPE_VELOCITY = 0.4;
 
 export function prefersReducedMotion(): boolean {
   if (typeof window === "undefined") return false;
