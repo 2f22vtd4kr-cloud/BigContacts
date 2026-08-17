@@ -10,11 +10,11 @@ const VARIANT_CLASS: Record<Variant, string> = {
   primary:
     "atlas-launch-glow h-12 w-full sm:w-auto px-7 text-sm tracking-tight",
   header:
-    "h-9 px-3.5 text-[11px] font-bold tracking-wide rounded-full bg-[#eab308]/12 text-[#fde047] border border-[#eab308]/40 hover:bg-[#eab308]/20 hover:border-[#facc15]/50",
+    "h-9 px-3.5 text-[11px] font-bold tracking-wide rounded-full bg-[#eab308]/12 text-[#fde047] border border-[#eab308]/40 hover:bg-[#eab308]/20 hover:border-[#facc15]/50 active:scale-[0.97] active:brightness-95",
   reactor:
     "atlas-launch-glow h-11 w-full sm:w-auto px-5 text-xs",
   ghost:
-    "h-10 px-4 text-xs font-semibold border border-[#2a2a2a] bg-[#0c0c0c] text-stone-200 hover:border-[#eab308]/40 hover:bg-[#eab308]/10 hover:text-[#fde047]",
+    "atlas-outline-btn h-10 px-4 text-xs font-semibold active:scale-[0.97]",
 };
 
 export function LaunchAtlasButton({
@@ -35,9 +35,12 @@ export function LaunchAtlasButton({
   const [, setLocation] = useLocation();
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
+  const [flash, setFlash] = useState(false);
 
   const handleLaunch = async () => {
     if (busy) return;
+    setFlash(true);
+    window.setTimeout(() => setFlash(false), 480);
     setBusy(true);
     setStatus(null);
     const result = await launchAtlasPipeline(opts);
@@ -63,8 +66,9 @@ export function LaunchAtlasButton({
         data-testid="button-launch-apex-atlas"
         aria-label="Launch Apex Atlas research pipeline"
         className={cn(
-          "inline-flex items-center justify-center gap-2 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/60 disabled:opacity-60 disabled:cursor-not-allowed",
+          "atlas-pressable inline-flex items-center justify-center gap-2 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/60 disabled:opacity-60 disabled:cursor-not-allowed",
           VARIANT_CLASS[variant],
+          flash && "atlas-click-flash",
           className,
         )}
       >

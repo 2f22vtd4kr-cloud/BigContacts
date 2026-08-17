@@ -73,7 +73,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         aria-current={active ? "page" : undefined}
         data-testid={`link-nav-${item.name.toLowerCase().replace(/\s+/g, "-")}`}
         className={cn(
-          "group flex min-h-[40px] items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] transition-all duration-200",
+          "atlas-pressable group flex min-h-[40px] items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] transition-all duration-200",
           active
             ? "atlas-nav-active"
             : "text-muted-foreground hover:bg-white/[0.04] hover:text-stone-200",
@@ -233,7 +233,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               onClick={() => setSidebarOpen(true)}
               aria-label="Open menu"
               data-testid="button-open-menu"
-              className="shrink-0 rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground md:hidden"
+              className="atlas-pressable shrink-0 rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground md:hidden"
             >
               <Menu className="h-5 w-5" />
             </button>
