@@ -89,3 +89,4 @@ body {
     transition: none !important;
   }
 }
+.atlas-focus-ring:focus-visible { outline: 2px solid #eab308; outline-offset: 3px; }
