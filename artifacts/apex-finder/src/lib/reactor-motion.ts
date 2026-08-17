@@ -11,7 +11,7 @@ export const REACTOR_PAUSE_MS = 8000;
 export const REACTOR_AUTO_ADVANCE_MS = 4800;
 export const REACTOR_SHIMMER_MS = 1600;
 
-export const REACTOR_EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
+export const REACTOR_EASE = "cubic-bezier(0.2, 1, 0.32, 1)";
 
 export const REACTOR_CSS = `
 :root {
