@@ -272,7 +272,7 @@ export default function SystemStatusPage() {
   const upstashSlots = status?.databases?.upstash ?? [];
 
   return (
-    <div className="mx-auto max-w-4xl space-y-8 px-4 py-8">
+    <div className="mx-auto max-w-4xl space-y-6 px-3 py-5 sm:space-y-8 sm:px-4 sm:py-8">
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
@@ -311,8 +311,8 @@ export default function SystemStatusPage() {
             )} />
             <span className="text-[13px] font-semibold tracking-tight text-foreground">
               {totalActive > 0
-                ? `${totalActive} AI key slots operational`
-                : "No AI keys active"}
+                ? `${totalActive} AI pool slot${totalActive === 1 ? "" : "s"} live`
+                : "No AI pool keys live"}
             </span>
           </div>
           <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
@@ -353,7 +353,7 @@ export default function SystemStatusPage() {
           ))}
         </div>
         <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground/70">
-          Segment bars show slot health. Temporary 429 cooldowns auto-recover after the provider window; configured keys are not credit claims.
+          Bars are capacity slots (many empty is normal). Only LIVE slots are keys you set. Tool keys (Scrapfly, Companies House, Serper…) appear under Open Research / tools — not in every AI pool row.
         </p>
       </section>
 

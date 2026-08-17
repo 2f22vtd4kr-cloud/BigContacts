@@ -108,11 +108,20 @@ function getTavilyKeys(): string[] {
   return names.map(k => process.env[k] ?? "").filter(k => k.length > 0);
 }
 
-/** Returns all Exa API keys (EXA_API_KEY, EXA_API_KEY_1 … _8). */
+/** Returns all Exa API keys (EXA_API_KEY, EXA_1/EXA_2 aliases, EXA_API_KEY_1 … _8). */
 function getExaKeys(): string[] {
-  const names = ["EXA_API_KEY"];
+  const names = ["EXA_API_KEY", "EXA_1", "EXA_2"];
   for (let i = 1; i <= 8; i++) names.push(`EXA_API_KEY_${i}`);
-  return names.map(k => process.env[k] ?? "").filter(k => k.length > 0);
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const n of names) {
+    const v = (process.env[n] ?? "").trim();
+    if (v && !seen.has(v)) {
+      seen.add(v);
+      out.push(v);
+    }
+  }
+  return out;
 }
 
 // Provider calls can arrive in parallel within one research target (for example,
@@ -1443,7 +1452,7 @@ export function getAIKeyStatus(): AIKeyStatus {
   const pplxNames = ["PERPLEXITY_API_KEY", ...Array.from({ length: 8 }, (_, i) => `PERPLEXITY_API_KEY_${i + 1}`)];
   const gemNames  = ["GEMINI_API_KEY",     ...Array.from({ length: 10 }, (_, i) => `GEMINI_API_KEY_${i + 1}`)];
   const tavNames  = ["TAVILY_API_KEY",     ...Array.from({ length: 8 }, (_, i) => `TAVILY_API_KEY_${i + 1}`)];
-  const exaNames  = ["EXA_API_KEY",        ...Array.from({ length: 8 }, (_, i) => `EXA_API_KEY_${i + 1}`)];
+  const exaNames  = ["EXA_API_KEY", "EXA_1", "EXA_2", ...Array.from({ length: 8 }, (_, i) => `EXA_API_KEY_${i + 1}`)];
 
   return {
     groq:       groqNames.map((n, i) => slotState(n, _exhaustedGroqKeys,             i)),

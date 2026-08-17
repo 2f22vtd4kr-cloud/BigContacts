@@ -25,13 +25,13 @@ export function ApiKeyHealth({ className }: { className?: string }) {
         const summary = summarizeApiKeys(status);
         if (summary.active > 0 && summary.rateLimited === 0) {
           setState("ok");
-          setLabel(`${summary.active} KEYS`);
+          setLabel(`${summary.active} LIVE`);
         } else if (summary.active > 0 || summary.configured > 0) {
           setState("degraded");
           setLabel(
             summary.rateLimited > 0
               ? `${summary.rateLimited} LTD`
-              : `${summary.active}/${summary.configured}`,
+              : `${summary.active} LIVE`,
           );
         } else {
           setState("offline");

@@ -223,12 +223,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 className="!h-8 !shrink-0 !px-2 !text-[10px] sm:!h-9 sm:!px-3 sm:!text-[11px]"
               />
             )}
-            {/* Always visible — compact on phone so operators see live keys + run state */}
-            <div className="min-w-0 max-w-[42vw] sm:max-w-none">
-              <WorkspaceStatus />
-            </div>
-            <div className="shrink-0">
-              <ApiKeyHealth />
+            {/* Status chips — scroll on narrow phones so nothing stacks wrong */}
+            <div className="atlas-h-scroll flex min-w-0 max-w-[48vw] items-center gap-1.5 sm:max-w-none sm:gap-2">
+              <div className="shrink-0">
+                <WorkspaceStatus />
+              </div>
+              <div className="shrink-0">
+                <ApiKeyHealth />
+              </div>
             </div>
             <button
               onClick={() => setSidebarOpen(true)}
