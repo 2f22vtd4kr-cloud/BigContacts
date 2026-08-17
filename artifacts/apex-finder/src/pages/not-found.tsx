@@ -1,17 +1,30 @@
 import { Link } from "wouter";
-import { AlertCircle } from "lucide-react";
+import { Crosshair } from "lucide-react";
 
 export default function NotFound() {
   return (
-    <div className="flex flex-col items-center justify-center h-full bg-background text-foreground p-4">
-      <AlertCircle className="w-16 h-16 text-primary mb-6 opacity-80" />
-      <h1 className="text-2xl font-bold font-mono tracking-widest uppercase mb-2">404 - Not Found</h1>
-      <p className="text-muted-foreground text-sm font-mono mb-8 max-w-md text-center">
-        The requested path does not exist in the intelligence registry.
+    <div className="flex h-full flex-col items-center justify-center bg-[#050505] px-4 py-16 text-stone-100">
+      <div className="grid h-14 w-14 place-items-center rounded-2xl border border-[#eab308]/30 bg-[#eab308]/10 text-[#eab308]">
+        <Crosshair className="h-6 w-6" aria-hidden />
+      </div>
+      <h1 className="mt-6 font-display text-2xl font-semibold tracking-tight">Page not found</h1>
+      <p className="mt-2 max-w-sm text-center text-sm leading-6 text-stone-400">
+        That path is not part of the research desk. Head back to Overview or open the reactor.
       </p>
-      <Link href="/" className="px-4 py-2 border border-primary text-primary font-mono text-sm uppercase tracking-wider hover:bg-primary/10 transition-colors">
-        Return to HQ
-      </Link>
+      <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
+        <Link
+          href="/"
+          className="atlas-pressable inline-flex min-h-[44px] items-center rounded-xl bg-[#eab308] px-5 text-xs font-bold text-black hover:brightness-105"
+        >
+          Overview
+        </Link>
+        <Link
+          href="/reactor"
+          className="atlas-outline-btn atlas-pressable inline-flex min-h-[44px] items-center rounded-xl px-5 text-xs font-semibold"
+        >
+          Reactor
+        </Link>
+      </div>
     </div>
   );
 }
