@@ -1046,7 +1046,7 @@ export default function ApexProfile() {
                         "flex min-h-[36px] items-center gap-2 px-3 py-1.5 rounded border font-mono text-xs transition-colors min-w-0 max-w-[220px] sm:max-w-none",
                         isOrg
                           ? "border-violet-400/35 bg-violet-400/10 text-violet-300 hover:bg-violet-400/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
-                          : "border-emerald-400/35 bg-emerald-400/10 text-emerald-300 hover:bg-emerald-400/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50",
+                          : "border-emerald-400/35 bg-emerald-400/10 text-emerald-300 hover:bg-emerald-400/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/50",
                       )}
                     >
                       <span className="text-[8px] uppercase tracking-wider opacity-70 shrink-0">{isOrg ? "Company" : "Personal"}</span>
@@ -1059,7 +1059,7 @@ export default function ApexProfile() {
                   <a
                     href={`tel:${e.phone}`}
                     title={`REACH · personal — ${e.phone}`}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded border border-emerald-400/35 bg-emerald-400/10 text-emerald-300 font-mono text-xs hover:bg-emerald-400/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/50"
+                    className="flex items-center gap-2 px-3 py-1.5 rounded border border-emerald-400/35 bg-emerald-400/10 text-emerald-300 font-mono text-xs hover:bg-emerald-400/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/50"
                   >
                     <span className="text-[8px] uppercase tracking-wider opacity-70 shrink-0">Phone</span>
                     {e.phone}
