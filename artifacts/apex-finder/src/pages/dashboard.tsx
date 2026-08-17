@@ -70,7 +70,7 @@ function StatTile({
   testId: string;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-card/40 p-4 transition-colors hover:bg-card/60" data-testid={testId}>
+    <div className="rounded-xl border border-border hover:border-yellow-500/25 bg-card/40 p-4 transition-colors hover:bg-card/60" data-testid={testId}>
       <div className="flex items-center justify-between">
         <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">{label}</span>
         <Icon className="h-4 w-4 text-muted-foreground/50" />
