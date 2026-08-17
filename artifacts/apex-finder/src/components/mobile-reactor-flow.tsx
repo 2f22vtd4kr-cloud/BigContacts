@@ -648,7 +648,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
               className={`rounded-2xl border p-3 ${
                 showHistory
                   ? "reactor-archive-panel border-slate-500/35"
-                  : "border-yellow-400/25 bg-[#050505] shadow-[0_0_40px_rgba(234,179,8,0.06)]"
+                  : "border-yellow-400/25 bg-[#050505] shadow-[0_0_48px_rgba(240,180,41,0.1)]"
               }`}
               data-testid="panel-live-desk-mobile"
               aria-label={showHistory ? "Target history archive" : "Live research window"}
