@@ -48,7 +48,7 @@ const JOB_DEFS: Array<Omit<Job, "status"|"jobId"|"progress"|"inserted"|"skipped"
 // ─── Utility ──────────────────────────────────────────────────────────────────
 function statusIcon(status: Job["status"]) {
   if (status === "running" || status === "queued") return <Loader2 className="w-3.5 h-3.5 animate-spin text-[#eab308]" />;
-  if (status === "done") return <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />;
+  if (status === "done") return <CheckCircle2 className="w-3.5 h-3.5 text-[#facc15]" />;
   if (status === "failed") return <XCircle className="w-3.5 h-3.5 text-red-400" />;
   if (status === "cancelled") return <XCircle className="w-3.5 h-3.5 text-muted-foreground" />;
   return <div className="w-3.5 h-3.5 rounded-full border border-border bg-muted/30" />;
@@ -56,7 +56,7 @@ function statusIcon(status: Job["status"]) {
 
 function statusColor(status: Job["status"]) {
   if (status === "running" || status === "queued") return "text-[#eab308]";
-  if (status === "done") return "text-emerald-400";
+  if (status === "done") return "text-[#facc15]";
   if (status === "failed") return "text-red-400";
   if (status === "cancelled") return "text-muted-foreground";
   return "text-muted-foreground/40";
@@ -101,7 +101,7 @@ function IngestorCard({ job, onTrigger }: { job: Job; onTrigger: (id: string) =>
         <div className="flex items-center gap-2 shrink-0 ml-2">
           {statusIcon(job.status)}
           {job.status === "done" && job.inserted > 0 && (
-            <span className="text-[10px] font-mono text-emerald-400 hidden sm:block">+{job.inserted.toLocaleString()}</span>
+            <span className="text-[10px] font-mono text-[#facc15] hidden sm:block">+{job.inserted.toLocaleString()}</span>
           )}
           {open ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />}
         </div>
@@ -116,7 +116,7 @@ function IngestorCard({ job, onTrigger }: { job: Job; onTrigger: (id: string) =>
                 {job.status.toUpperCase()}
                 {job.status === "done" ? " · 100%" : isActive && job.progress > 0 ? ` · ${Math.min(100, job.progress)}%` : ""}
               </span>
-              {job.inserted > 0 && <span className="text-emerald-400">+{job.inserted.toLocaleString()} inserted</span>}
+              {job.inserted > 0 && <span className="text-[#facc15]">+{job.inserted.toLocaleString()} inserted</span>}
               {job.skipped > 0 && <span className="text-muted-foreground">{job.skipped.toLocaleString()} deduped</span>}
               {job.errors > 0 && <span className="text-red-400">{job.errors} errors</span>}
               {job.startedAt && <span className="text-muted-foreground/40">{elapsed(job.startedAt)}</span>}
@@ -127,7 +127,7 @@ function IngestorCard({ job, onTrigger }: { job: Job; onTrigger: (id: string) =>
               {job.status === "queued" ? (
                 <div className="h-full rounded-full bg-primary/60 animate-pulse" style={{ width: "30%" }} />
               ) : job.status === "done" ? (
-                <div className="h-full rounded-full bg-emerald-500 transition-all duration-500" style={{ width: "100%" }} />
+                <div className="h-full rounded-full bg-[#eab308] transition-all duration-500" style={{ width: "100%" }} />
               ) : (
                 <div className="h-full rounded-full bg-primary transition-all duration-500" style={{ width: `${Math.min(100, job.progress || 5)}%` }} />
               )}
@@ -229,7 +229,7 @@ function PersonaLoopTab() {
           {[
             { label: "Total Suggestions", val: stats.totalLogs ?? 0, color: "text-foreground" },
             { label: "Pending", val: stats.pending ?? 0, color: "text-amber-400" },
-            { label: "Applied", val: stats.applied ?? 0, color: "text-emerald-400" },
+            { label: "Applied", val: stats.applied ?? 0, color: "text-[#facc15]" },
             { label: "Dismissed", val: stats.dismissed ?? 0, color: "text-muted-foreground" },
           ].map(({ label, val, color }) => (
             <div key={label} className="p-3 rounded-xl border border-border bg-card/30 text-center">
@@ -273,14 +273,14 @@ function PersonaLoopTab() {
               <div className="flex items-center gap-1 shrink-0">
                 <button onClick={() => fetch(`${BASE}/api/improve/logs/${log.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "applied" }) }).then(() => setLogs(prev => prev.map(l => l.id === log.id ? { ...l, status: "applied" } : l)))}
                   data-testid={`button-apply-suggestion-${log.id}`}
-                  className="text-[9px] font-mono text-emerald-400/60 hover:text-emerald-400 border border-emerald-400/20 px-1.5 py-0.5 rounded transition-colors">Apply</button>
+                  className="text-[9px] font-mono text-[#facc15]/60 hover:text-[#facc15] border border-[#eab308]/20 px-1.5 py-0.5 rounded transition-colors">Apply</button>
                 <button onClick={() => fetch(`${BASE}/api/improve/logs/${log.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "dismissed" }) }).then(() => setLogs(prev => prev.filter(l => l.id !== log.id)))}
                   data-testid={`button-dismiss-suggestion-${log.id}`}
                   className="text-[9px] font-mono text-muted-foreground/40 hover:text-muted-foreground border border-border/50 px-1.5 py-0.5 rounded transition-colors">Dismiss</button>
               </div>
             </div>
             <p className="text-[11px] font-mono text-foreground/80 mt-1.5 leading-relaxed">{log.suggestion}</p>
-            {log.actionTaken && <p className="text-[10px] font-mono text-emerald-400/60 mt-1 bg-emerald-400/5 border border-emerald-400/10 rounded px-2 py-1">{log.actionTaken}</p>}
+            {log.actionTaken && <p className="text-[10px] font-mono text-[#facc15]/60 mt-1 bg-[#facc15]/5 border border-[#eab308]/10 rounded px-2 py-1">{log.actionTaken}</p>}
           </div>
         ))}
       </div>
@@ -332,7 +332,7 @@ function DuplicatesTab() {
 
   if (visible.length === 0) return (
     <div className="flex flex-col items-center justify-center py-16 text-center" data-testid="empty-state-duplicates">
-      <CheckCircle2 className="w-8 h-8 text-emerald-400 mb-3" />
+      <CheckCircle2 className="w-8 h-8 text-[#facc15] mb-3" />
       <p className="text-sm font-mono text-foreground">No duplicate candidates</p>
       <p className="text-xs font-mono text-muted-foreground mt-1">All pairs reviewed or none detected</p>
     </div>
@@ -428,7 +428,7 @@ function LiveActivityTab({ jobs }: { jobs: Job[] }) {
                     </div>
                   )}
                 </div>
-                {job.inserted > 0 && <span className="text-[10px] font-mono text-emerald-400 shrink-0">+{job.inserted.toLocaleString()}</span>}
+                {job.inserted > 0 && <span className="text-[10px] font-mono text-[#facc15] shrink-0">+{job.inserted.toLocaleString()}</span>}
               </div>
             ))}
           </div>
@@ -478,7 +478,7 @@ function LiveActivityTab({ jobs }: { jobs: Job[] }) {
               <div key={job.id} className="flex items-center gap-3 px-3 py-2 rounded border border-border/50 bg-card/10">
                 {statusIcon(job.status)}
                 <span className="text-xs font-mono text-foreground/80 truncate flex-1">{job.label}</span>
-                {job.inserted > 0 && <span className="text-[10px] font-mono text-emerald-400">+{job.inserted.toLocaleString()}</span>}
+                {job.inserted > 0 && <span className="text-[10px] font-mono text-[#facc15]">+{job.inserted.toLocaleString()}</span>}
                 {job.startedAt && <span className="text-[10px] font-mono text-muted-foreground/40 shrink-0 hidden sm:block">{elapsed(job.startedAt)}</span>}
               </div>
             ))}

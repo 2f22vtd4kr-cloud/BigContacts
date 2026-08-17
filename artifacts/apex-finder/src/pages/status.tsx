@@ -96,7 +96,7 @@ const PROVIDER_COLORS: Record<string, string> = {
   perplexity: "from-blue-500/20 border-blue-500/30",
   gemini:     "from-purple-500/20 border-purple-500/30",
   tavily:     "from-yellow-500/20 border-yellow-500/30",
-  exa:        "from-emerald-500/20 border-emerald-500/30",
+  exa:        "from-[#eab308]/20 border-[#eab308]/30",
 };
 
 function SlotBar({ slots }: { slots: AIKeySlot[] }) {
@@ -185,7 +185,7 @@ function ProviderCard({ name, slots }: { name: keyof AIKeyStatus; slots: AIKeySl
             {rateLimited > 0 && <span className="text-amber-300/90">{rateLimited} cooling · </span>}
             {missing > 0 && <span className="text-muted-foreground/55">{missing} open</span>}
             {missing === 0 && rateLimited === 0 && active > 0 && (
-              <span className="text-emerald-300/80">all clear</span>
+              <span className="text-[#fde047]/80">all clear</span>
             )}
           </span>
         </div>
@@ -397,7 +397,7 @@ export default function SystemStatusPage() {
                 className={cn(
                   "shrink-0 rounded-md border px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.12em]",
                   item.configured
-                    ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-200"
+                    ? "border-[#eab308]/30 bg-[#eab308]/10 text-[#fef08a]"
                     : "border-border/60 bg-muted/20 text-muted-foreground",
                 )}
               >

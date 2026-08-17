@@ -1577,7 +1577,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
               border: atlasFailed
                 ? "1px solid #fb718566"
                 : atlasDone
-                  ? "1px solid #34d39966"
+                  ? "1px solid rgba(234,179,8,0.4)"
                   : isLive ? "1px solid #eab30888" : "1px solid #eab30840",
               borderRadius:8,
               background:"rgba(7,15,29,0.97)",
@@ -1648,7 +1648,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                       padding:"2px 7px",
                     }}
                   >
-                    <span style={{ width:6, height:6, borderRadius:"50%", background:"#34d399", boxShadow:"0 0 6px #34d399" }} />
+                    <span style={{ width:6, height:6, borderRadius:"50%", background:"#eab308", boxShadow:"0 0 6px rgba(234,179,8,0.55)" }} />
                     ACTIVE
                   </span>
                 )}

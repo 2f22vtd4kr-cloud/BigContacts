@@ -425,14 +425,14 @@ type FunnelData = {
 const OUTCOME_META: Record<string, { label: string; color: string; barColor: string; description: string }> = {
   direct_contact_candidate: {
     label: "Direct Contact",
-    color: "text-emerald-400",
-    barColor: "bg-emerald-500",
+    color: "text-[#facc15]",
+    barColor: "bg-[#eab308]",
     description: "Person-level email or phone found in public sources",
   },
   direct_contact_verified: {
     label: "Verified Contact",
-    color: "text-emerald-300",
-    barColor: "bg-emerald-400",
+    color: "text-[#fde047]",
+    barColor: "bg-[#facc15]",
     description: "Validated person-level contact with full attribution",
   },
   social_only: {
@@ -535,7 +535,7 @@ function FunnelPanel() {
           {/* Conversion summary */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
-              { label: "Direct Contact", value: (((data.conversionRate?.toDirectCandidate) ?? 0) * 100).toFixed(2) + "%", color: "text-emerald-400" },
+              { label: "Direct Contact", value: (((data.conversionRate?.toDirectCandidate) ?? 0) * 100).toFixed(2) + "%", color: "text-[#facc15]" },
               { label: "Social Only",    value: (((data.conversionRate?.toSocialOnly)     ?? 0) * 100).toFixed(1) + "%",  color: "text-blue-400" },
               { label: "Evidence Only",  value: (((data.conversionRate?.toEvidenceOnly)   ?? 0) * 100).toFixed(1) + "%",  color: "text-amber-400" },
               { label: "Not Enriched",   value: (((data.conversionRate?.notEnriched)      ?? 0) * 100).toFixed(1) + "%",  color: "text-muted-foreground" },
@@ -592,7 +592,7 @@ function FunnelPanel() {
                   return (
                     <div key={type} className="rounded-lg border border-border/40 p-2">
                       <div className="text-[10px] font-mono font-bold text-foreground mb-1">{type}</div>
-                      <div className="text-[10px] font-mono text-emerald-400">
+                      <div className="text-[10px] font-mono text-[#facc15]">
                         {typeTotal > 0 ? ((direct / typeTotal) * 100).toFixed(1) : "0.0"}% direct
                       </div>
                       <div className="text-[10px] font-mono text-blue-400">
@@ -644,7 +644,7 @@ function RegistryMatrixPanel() {
             {
               label: "Random mix",
               value: sources.filter((s) => s.runtimeMode === "random_mix").length,
-              color: "text-emerald-300",
+              color: "text-[#fde047]",
               detail: "shuffled into discovery",
             },
             {
@@ -698,7 +698,7 @@ function RegistryMatrixPanel() {
                   <span className={cn(
                     "inline-flex items-center gap-1 rounded px-1.5 py-0.5",
                     source.runtimeMode === "random_mix"
-                      ? "bg-emerald-400/10 text-emerald-300"
+                      ? "bg-[#eab308]/10 text-[#fde047]"
                       : source.runtimeMode === "bulk_only"
                         ? "bg-yellow-400/10 text-yellow-300"
                         : "bg-amber-400/10 text-amber-300",
@@ -753,7 +753,7 @@ function RegistryMatrixPanel() {
               </button>
               <div className="flex items-center gap-2 text-[10px] font-mono">
                 <span className="text-yellow-300">{source.jurisdiction}</span>
-                <span className={source.runtimeMode === "random_mix" ? "text-emerald-300" : source.runtimeMode === "bulk_only" ? "text-yellow-300" : "text-amber-300"}>
+                <span className={source.runtimeMode === "random_mix" ? "text-[#fde047]" : source.runtimeMode === "bulk_only" ? "text-yellow-300" : "text-amber-300"}>
                   {source.runtimeMode === "random_mix" ? "random mix" : source.runtimeMode === "bulk_only" ? "bulk only" : "explicit only"}
                 </span>
               </div>
@@ -814,7 +814,7 @@ function IdentityResolutionPanel() {
         {[
           { label: "Bundles",       value: stats?.bundles ?? "—", color: "text-yellow-300" },
           { label: "Pending",       value: pending,               color: "text-amber-300" },
-          { label: "Confirmed",     value: confirmed,             color: "text-emerald-300" },
+          { label: "Confirmed",     value: confirmed,             color: "text-[#fde047]" },
           { label: "Rejected",      value: rejected,              color: "text-muted-foreground" },
         ].map((item) => (
           <div key={item.label} className="rounded-lg border border-border/50 bg-muted/10 px-3 py-2">
@@ -899,11 +899,11 @@ function ToolStatusBadge({ ready, label }: { ready: boolean; label?: string }) {
     <span
       className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold ${
         ready
-          ? "bg-emerald-500/15 text-emerald-400"
+          ? "bg-[#eab308]/15 text-[#facc15]"
           : "bg-rose-500/15 text-rose-400"
       }`}
     >
-      <span className={`h-1.5 w-1.5 rounded-full ${ready ? "bg-emerald-400" : "bg-rose-400"}`} />
+      <span className={`h-1.5 w-1.5 rounded-full ${ready ? "bg-[#facc15]" : "bg-rose-400"}`} />
       {label ?? (ready ? "Ready" : "Not installed")}
     </span>
   );
@@ -988,16 +988,16 @@ function PythonToolsPanel() {
         !checked
           ? "border-border/40 bg-muted/10"
           : allReady
-            ? "border-emerald-500/30 bg-emerald-500/5"
+            ? "border-[#eab308]/30 bg-[#eab308]/5"
             : "border-amber-500/30 bg-amber-500/5"
       }`}>
         {/* Count row — always one line */}
         <div className="flex items-center gap-2">
           <span className={`h-2 w-2 rounded-full flex-shrink-0 ${
-            !checked ? "bg-muted-foreground/30" : allReady ? "bg-emerald-500" : "bg-amber-400 animate-pulse"
+            !checked ? "bg-muted-foreground/30" : allReady ? "bg-[#eab308]" : "bg-amber-400 animate-pulse"
           }`} />
           <span className={`text-xs font-semibold font-mono ${
-            !checked ? "text-muted-foreground" : allReady ? "text-emerald-400" : "text-amber-400"
+            !checked ? "text-muted-foreground" : allReady ? "text-[#facc15]" : "text-amber-400"
           }`}>
             {!checked ? "Checking…" : `${readyCount} / ${totalCount} tools ready`}
             {allReady && " — all operational"}
@@ -1125,7 +1125,7 @@ function SourceQualityPanel() {
   useEffect(() => { load(); }, []);
 
   const outcomeColor: Record<string, string> = {
-    direct_contact_verified: "text-emerald-400",
+    direct_contact_verified: "text-[#facc15]",
     direct_contact_candidate: "text-amber-300",
     social_only: "text-yellow-300",
     organization_contact: "text-rose-300",
@@ -1197,7 +1197,7 @@ function SourceQualityPanel() {
                     <td className="px-3 py-1.5 text-foreground font-medium">{row.source}</td>
                     <td className="px-3 py-1.5 text-muted-foreground">{row.entities_covered.toLocaleString()}</td>
                     <td className="px-3 py-1.5 text-muted-foreground">{row.total_evidence.toLocaleString()}</td>
-                    <td className="px-3 py-1.5 text-emerald-400">{row.verified_count.toLocaleString()}</td>
+                    <td className="px-3 py-1.5 text-[#facc15]">{row.verified_count.toLocaleString()}</td>
                     <td className="px-3 py-1.5 text-amber-300">{row.candidate_count.toLocaleString()}</td>
                     <td className="px-3 py-1.5 text-yellow-300">{(row.avg_reliability ?? 0).toFixed(2)}</td>
                     <td className="px-3 py-1.5 text-blue-300">{(row.avg_directness ?? 0).toFixed(2)}</td>
@@ -1324,7 +1324,7 @@ export default function DataSources() {
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden />
+          <span className="h-2 w-2 rounded-full bg-[#eab308]" aria-hidden />
           <span className="text-xs font-mono text-muted-foreground">Catalogue</span>
         </div>
       </div>
@@ -1336,7 +1336,7 @@ export default function DataSources() {
           subtitle="Which sources can participate in the shuffled target-discovery mix"
           icon={Shuffle}
           defaultOpen
-          accent="text-emerald-300"
+          accent="text-[#fde047]"
         >
           <RegistryMatrixPanel />
         </CollapsibleSection>

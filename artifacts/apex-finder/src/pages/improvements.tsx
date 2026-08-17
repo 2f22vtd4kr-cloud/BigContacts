@@ -172,7 +172,7 @@ function PersonaCard({ personaId, stats, activeFilter, onClick }: {
             <span className="font-mono text-[10px] text-amber-300/90">{pending} pending</span>
           )}
           {applied > 0 && (
-            <span className="font-mono text-[10px] text-emerald-400/90">{applied} applied</span>
+            <span className="font-mono text-[10px] text-[#facc15]/90">{applied} applied</span>
           )}
           {pending === 0 && applied === 0 && (
             <span className="font-mono text-[10px] text-muted-foreground/60">idle</span>
@@ -196,7 +196,7 @@ function PriorityBadge({ priority }: { priority: Priority }) {
 }
 
 function StatusBadge({ status }: { status: LogStatus }) {
-  if (status === "applied")   return <span className="text-[10px] font-mono text-emerald-400 flex items-center gap-1"><CheckCircle2 className="h-3 w-3" />Applied</span>;
+  if (status === "applied")   return <span className="text-[10px] font-mono text-[#facc15] flex items-center gap-1"><CheckCircle2 className="h-3 w-3" />Applied</span>;
   if (status === "dismissed") return <span className="text-[10px] font-mono text-muted-foreground flex items-center gap-1"><XCircle className="h-3 w-3" />Dismissed</span>;
   return <span className="text-[10px] font-mono text-amber-400 flex items-center gap-1"><Clock className="h-3 w-3" />Pending</span>;
 }
@@ -250,7 +250,7 @@ function LogCard({ log, onStatusChange }: {
             <>
               <button
                 onClick={e => { e.stopPropagation(); onStatusChange(log.id, "applied"); }}
-                className="text-emerald-500 hover:text-emerald-400 transition-colors p-1"
+                className="text-[#eab308] hover:text-[#facc15] transition-colors p-1"
                 title="Mark applied"
               >
                 <CheckCircle2 className="h-4 w-4" />
@@ -299,7 +299,7 @@ function JobProgressBar({ job }: { job: JobState }) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           {isRunning && <RefreshCw className="h-4 w-4 text-primary animate-spin" />}
-          {isDone    && <CheckCircle2 className="h-4 w-4 text-emerald-500" />}
+          {isDone    && <CheckCircle2 className="h-4 w-4 text-[#eab308]" />}
           {isFailed  && <AlertTriangle className="h-4 w-4 text-red-500" />}
           <span className="text-sm font-medium">
             {isRunning ? "Running persona loop…" : isDone ? "Loop complete" : "Loop failed"}
@@ -311,7 +311,7 @@ function JobProgressBar({ job }: { job: JobState }) {
       <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
         <div
           className={cn("h-full rounded-full transition-all duration-500",
-            isDone ? "bg-emerald-500" : isFailed ? "bg-red-500" : "bg-primary")}
+            isDone ? "bg-[#eab308]" : isFailed ? "bg-red-500" : "bg-primary")}
           style={{ width: `${job.progress}%` }}
         />
       </div>
@@ -319,7 +319,7 @@ function JobProgressBar({ job }: { job: JobState }) {
       <p className="text-xs text-muted-foreground font-mono">{job.message}</p>
 
       {isDone && (
-        <p className="text-xs text-emerald-400 font-mono">
+        <p className="text-xs text-[#facc15] font-mono">
           <><CheckCircle2 className="mr-1 inline-block h-3 w-3" />{job.inserted} suggestions generated</>
           {job.errors > 0 && ` · ${job.errors} errors`}
         </p>
@@ -567,7 +567,7 @@ export default function ImprovementsPage() {
               "flex min-h-[40px] items-center gap-2 px-3.5 py-2 text-xs font-semibold font-mono rounded-xl transition-colors border",
               remediationState === "starting" || remediationState === "running"
                 ? "border-border text-muted-foreground cursor-not-allowed"
-                : "border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"
+                : "border-[#eab308]/40 text-[#facc15] hover:bg-[#eab308]/10"
             )}
             title="Apply only deterministic state fixes supported by stored evidence"
           >

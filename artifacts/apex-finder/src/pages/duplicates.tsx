@@ -47,7 +47,7 @@ async function apiFetch<T>(path: string, opts?: RequestInit): Promise<T> {
 }
 
 function scoreColor(score: number) {
-  if (score >= 0.8) return "text-emerald-400";
+  if (score >= 0.8) return "text-[#facc15]";
   if (score >= 0.6) return "text-amber-400";
   return "text-muted-foreground";
 }
@@ -57,7 +57,7 @@ function typeColor(type: string) {
     case "HNWI": return "bg-blue-500/20 text-blue-300";
     case "Corporation": return "bg-purple-500/20 text-purple-300";
     case "Trust": return "bg-amber-500/20 text-amber-300";
-    case "Gatekeeper": return "bg-emerald-500/20 text-emerald-300";
+    case "Gatekeeper": return "bg-[#eab308]/20 text-[#fde047]";
     default: return "bg-muted text-muted-foreground";
   }
 }
@@ -192,7 +192,7 @@ function MergeToast({ state, message }: { state: MergeState; message: string }) 
     <div className={cn(
       "fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2.5 rounded-lg shadow-lg border text-sm font-mono",
       state === "merging" && "bg-card border-border text-muted-foreground",
-      state === "done" && "bg-emerald-950/80 border-emerald-600/40 text-emerald-300",
+      state === "done" && "bg-[#1a1505]/80 border-[#eab308]/40 text-[#fde047]",
       state === "error" && "bg-red-950/80 border-red-600/40 text-red-300",
     )}>
       {state === "merging" && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
@@ -434,7 +434,7 @@ export default function DuplicatesPage() {
 
         {activeTab === "cross-registry" && !loading && !error && candidates.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 text-center">
-            <CheckCircle2 className="h-8 w-8 text-emerald-400 mb-3" />
+            <CheckCircle2 className="h-8 w-8 text-[#facc15] mb-3" />
             <p className="text-sm font-medium text-foreground">No duplicate candidates found</p>
             <p className="text-xs text-muted-foreground mt-1 font-mono">All entity names have distinct token signatures</p>
           </div>
@@ -442,7 +442,7 @@ export default function DuplicatesPage() {
 
         {activeTab === "cross-registry" && !loading && !error && candidates.length > 0 && visible.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 text-center">
-            <CheckCircle2 className="h-8 w-8 text-emerald-400 mb-3" />
+            <CheckCircle2 className="h-8 w-8 text-[#facc15] mb-3" />
             <p className="text-sm font-medium text-foreground">All {candidates.length} pairs reviewed</p>
             <p className="text-xs text-muted-foreground mt-1 font-mono">
               {merged.size} merged · {dismissed.size} dismissed
@@ -459,7 +459,7 @@ export default function DuplicatesPage() {
             <div className="flex items-center gap-4 text-xs font-mono text-muted-foreground pb-2 border-b border-border/50">
               <span>{candidates.length} total candidates</span>
               <span>·</span>
-              <span className="text-emerald-400">{merged.size} merged this session</span>
+              <span className="text-[#facc15]">{merged.size} merged this session</span>
               <span>·</span>
               <span>{dismissed.size} dismissed</span>
             </div>
@@ -495,7 +495,7 @@ export default function DuplicatesPage() {
 
         {activeTab === "same-source" && !sameSourceLoading && !sameSourceError && sameSourceClusters.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 text-center">
-            <CheckCircle2 className="h-8 w-8 text-emerald-400 mb-3" />
+            <CheckCircle2 className="h-8 w-8 text-[#facc15] mb-3" />
             <p className="text-sm font-medium text-foreground">No same-source name clusters found</p>
             <p className="text-xs text-muted-foreground mt-1 font-mono">Exact names are unique within each registry</p>
           </div>

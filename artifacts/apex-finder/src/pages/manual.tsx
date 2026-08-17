@@ -148,7 +148,7 @@ const SECTIONS = [
         <ul className="space-y-3 text-sm text-muted-foreground mb-4">
           <li className="flex gap-2"><Cpu className="w-4 h-4 text-primary shrink-0 mt-0.5" /><span><strong className="text-foreground">Phase and active tool</strong> — which step is working the current target.</span></li>
           <li className="flex gap-2"><Globe className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" /><span><strong className="text-foreground">Browser steps</strong> — opening public pages and reading what they say about the target.</span></li>
-          <li className="flex gap-2"><Activity className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" /><span><strong className="text-foreground">Analyst steps</strong> — writing down only contacts that can be proven.</span></li>
+          <li className="flex gap-2"><Activity className="w-4 h-4 text-[#facc15] shrink-0 mt-0.5" /><span><strong className="text-foreground">Analyst steps</strong> — writing down only contacts that can be proven.</span></li>
           <li className="flex gap-2"><Shield className="w-4 h-4 text-yellow-400 shrink-0 mt-0.5" /><span><strong className="text-foreground">Footprint steps</strong> — checking whether the same name shows up on other public sites.</span></li>
           <li className="flex gap-2"><Database className="w-4 h-4 text-yellow-400 shrink-0 mt-0.5" /><span><strong className="text-foreground">Domain steps</strong> — checking who registered the website and when.</span></li>
         </ul>
@@ -179,7 +179,7 @@ const SECTIONS = [
 
           On entity cards and profiles, contact chips use a fixed palette so you can scan fast:
           <ul className="list-disc pl-5 space-y-1 mt-2 text-muted-foreground">
-            <li><span className="text-emerald-300">Emerald</span> — personal or role contact (what outreach wants)</li>
+            <li><span className="text-[#fde047]">Emerald</span> — personal or role contact (what outreach wants)</li>
             <li><span className="text-yellow-300">Violet</span> — organization inbox (kept, never labeled Personal)</li>
             <li><span className="text-sky-300">Sky</span> — social handles</li>
             <li><span className="text-amber-200">Amber</span> — related people from ownership resolution</li>
@@ -232,7 +232,7 @@ const SECTIONS = [
           <span className="text-xs font-mono text-muted-foreground">→</span>
           <span className="text-xs font-mono text-yellow-400 bg-yellow-500/10 px-2 py-1 rounded">Related people</span>
           <span className="text-xs font-mono text-muted-foreground">→</span>
-          <span className="inline-flex items-center gap-1 text-xs font-mono text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded">
+          <span className="inline-flex items-center gap-1 text-xs font-mono text-[#facc15] bg-[#eab308]/10 px-2 py-1 rounded">
             <Mail className="h-3 w-3" /> Personal channel
           </span>
           <span className="text-xs font-mono text-muted-foreground">→</span>
@@ -277,7 +277,7 @@ const SECTIONS = [
             <Activity className="h-3 w-3" /> Redis job
           </span>
           <span className="text-xs font-mono text-muted-foreground">→</span>
-          <span className="inline-flex items-center gap-1 text-xs font-mono text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded">
+          <span className="inline-flex items-center gap-1 text-xs font-mono text-[#facc15] bg-[#eab308]/10 px-2 py-1 rounded">
             <Server className="h-3 w-3" /> Postgres
           </span>
         </div>
@@ -292,7 +292,7 @@ const SECTIONS = [
             </div>
           </li>
           <li className="flex gap-3">
-            <Shield className="w-5 h-5 text-emerald-400 shrink-0" />
+            <Shield className="w-5 h-5 text-[#facc15] shrink-0" />
             <div>
               <strong className="text-foreground block mb-1">What gets auto-written</strong>
               Safe apply only reconciles state already proven on the entity (clear synthetic email/phone, recompute contact confidence, hide placeholders).
@@ -336,7 +336,7 @@ const SECTIONS = [
             </div>
           </li>
           <li className="flex gap-3">
-            <Crosshair className="w-5 h-5 text-emerald-400 shrink-0" />
+            <Crosshair className="w-5 h-5 text-[#facc15] shrink-0" />
             <div>
               <strong className="text-foreground block mb-1">Grok is the floor</strong>
               Holdouts document Apex recovering more reachable personal channels while staying fail-closed.

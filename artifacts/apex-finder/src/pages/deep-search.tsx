@@ -104,7 +104,7 @@ function StepCard({ icon: Icon, name, description, status, metric, detail, durat
       "border border-border/70 rounded-2xl bg-card/30 p-3 sm:p-4 transition-all duration-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]",
       status === "idle"    && "border-border bg-card/20 opacity-50",
       status === "running" && "border-primary/50 bg-primary/5 shadow-[0_0_15px_rgba(234,179,8,0.1)]",
-      status === "done"    && "border-emerald-500/30 bg-emerald-500/5",
+      status === "done"    && "border-[#eab308]/30 bg-[#eab308]/5",
     )}>
       <div className="flex items-start justify-between mb-2 gap-2">
         <div className="flex items-center gap-2 min-w-0">
@@ -112,12 +112,12 @@ function StepCard({ icon: Icon, name, description, status, metric, detail, durat
             "w-6 h-6 rounded flex items-center justify-center shrink-0",
             status === "idle"    && "bg-muted",
             status === "running" && "bg-primary/20",
-            status === "done"    && "bg-emerald-500/20",
+            status === "done"    && "bg-[#eab308]/20",
           )}>
             {status === "running" ? (
               <Loader2 className="w-3.5 h-3.5 text-primary animate-spin" />
             ) : status === "done" ? (
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+              <CheckCircle2 className="w-3.5 h-3.5 text-[#eab308]" />
             ) : (
               <Icon className="w-3.5 h-3.5 text-muted-foreground" />
             )}
@@ -126,7 +126,7 @@ function StepCard({ icon: Icon, name, description, status, metric, detail, durat
             "text-xs font-mono font-bold uppercase tracking-wider truncate",
             status === "idle"    && "text-muted-foreground",
             status === "running" && "text-primary",
-            status === "done"    && "text-emerald-400",
+            status === "done"    && "text-[#facc15]",
           )}>
             {name}
           </span>
@@ -158,7 +158,7 @@ function ResultCard({ result }: { result: SearchResult }) {
   const [expandedScores, setExpandedScores] = useState(false);
 
   const confColor =
-    result.confidence === "high"   ? "text-emerald-400 border-emerald-500/30 bg-emerald-500/10" :
+    result.confidence === "high"   ? "text-[#facc15] border-[#eab308]/30 bg-[#eab308]/10" :
     result.confidence === "medium" ? "text-amber-400 border-amber-500/30 bg-amber-500/10" :
                                      "text-muted-foreground border-border bg-card/30";
 
@@ -194,7 +194,7 @@ function ResultCard({ result }: { result: SearchResult }) {
         <div className="flex flex-col items-end gap-1.5 shrink-0">
           <div className={cn(
             "text-xs font-mono font-bold rounded px-2 py-0.5",
-            score >= 75 ? "text-emerald-400 bg-emerald-500/10 border border-emerald-500/30" :
+            score >= 75 ? "text-[#facc15] bg-[#eab308]/10 border border-[#eab308]/30" :
             score >= 55 ? "text-primary bg-primary/10 border border-primary/20" :
                           "text-muted-foreground bg-muted border border-border",
           )} title="Bayesian score">
@@ -222,7 +222,7 @@ function ResultCard({ result }: { result: SearchResult }) {
         <ScoreBar label="Keywords" value={result.scores.bm25}      color="bg-blue-500" title="Keyword match (BM25)" />
         <ScoreBar label="Meaning"  value={result.scores.semantic}   color="bg-violet-500" title="Semantic similarity" />
         <div className={cn("space-y-1.5", !expandedScores && "hidden sm:block")}>
-          <ScoreBar label="Links"    value={result.scores.graph}      color="bg-emerald-500" title="Graph / relationship strength" />
+          <ScoreBar label="Links"    value={result.scores.graph}      color="bg-[#eab308]" title="Graph / relationship strength" />
           <ScoreBar label="Similar"  value={result.scores.embedding ?? 0} color="bg-purple-400" title="Embedding similarity" />
           <ScoreBar label="Combined" value={result.scores.rrf * 10}   color="bg-primary" title="Final fused rank (RRF)" />
         </div>
@@ -660,7 +660,7 @@ export default function DeepSearch() {
                     <div className="flex items-center gap-3 text-xs font-mono text-muted-foreground">
                       <span className="flex items-center gap-1" title="Keyword match"><span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />Keywords</span>
                       <span className="flex items-center gap-1" title="Semantic similarity"><span className="w-2 h-2 rounded-full bg-violet-500 inline-block" />Meaning</span>
-                      <span className="hidden sm:flex items-center gap-1" title="Graph links"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />Links</span>
+                      <span className="hidden sm:flex items-center gap-1" title="Graph links"><span className="w-2 h-2 rounded-full bg-[#eab308] inline-block" />Links</span>
                     </div>
                   </div>
 

@@ -269,7 +269,7 @@ export default function GraphViewer() {
 
     // Text color by node type
     const _nt: string = node.nodeType ?? "";
-    const color = node.isTarget                              ? "#34d399"
+    const color = node.isTarget                              ? "#eab308"
       : _nt === "HNWI"                                      ? "#6ee7b7"
       : (_nt === "Corporation" || _nt === "Corp")           ? "#93c5fd"
       : _nt === "Trust"                                     ? "#c4b5fd"

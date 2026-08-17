@@ -51,7 +51,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 // Category colours (priority mapping for HNWI research)
 const CATEGORY_COLOR: Record<string, string> = {
-  public_records:   "text-emerald-400 border-emerald-400/30 bg-emerald-400/5",
+  public_records:   "text-[#facc15] border-[#eab308]/30 bg-[#facc15]/5",
   companies:        "text-blue-400 border-blue-400/30 bg-blue-400/5",
   people:           "text-yellow-400 border-yellow-400/30 bg-yellow-400/5",
   transport:        "text-amber-400 border-amber-400/30 bg-amber-400/5",

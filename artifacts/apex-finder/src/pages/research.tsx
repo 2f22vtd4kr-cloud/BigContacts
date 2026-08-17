@@ -174,7 +174,7 @@ function EvidenceLedger({ sessionId }: { sessionId: number | null }) {
             const disputed = item.status === "disputed";
             const rejected = item.status === "rejected";
             const statusColor = supported
-              ? "text-emerald-400"
+              ? "text-[#facc15]"
               : disputed
                 ? "text-rose-400"
                 : rejected
@@ -183,7 +183,7 @@ function EvidenceLedger({ sessionId }: { sessionId: number | null }) {
             return (
               <div key={item.id} className="rounded border border-border/70 bg-background/50 p-3">
                 <div className="flex items-start gap-2">
-                  {supported ? <FileCheck2 className="w-3.5 h-3.5 text-emerald-400 mt-0.5 shrink-0" /> : <CircleAlert className={cn("w-3.5 h-3.5 mt-0.5 shrink-0", disputed ? "text-rose-400" : rejected ? "text-slate-400" : "text-amber-400")} />}
+                  {supported ? <FileCheck2 className="w-3.5 h-3.5 text-[#facc15] mt-0.5 shrink-0" /> : <CircleAlert className={cn("w-3.5 h-3.5 mt-0.5 shrink-0", disputed ? "text-rose-400" : rejected ? "text-slate-400" : "text-amber-400")} />}
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground">{item.claimType}</span>
@@ -196,7 +196,7 @@ function EvidenceLedger({ sessionId }: { sessionId: number | null }) {
                       <span>·</span>
                       <span>{new Date(item.observedAt).toLocaleDateString()}</span>
                       <span>·</span>
-                      <span className={item.freshnessScore >= 0.7 ? "text-emerald-400" : item.freshnessScore >= 0.35 ? "text-amber-400" : "text-rose-400"}>
+                      <span className={item.freshnessScore >= 0.7 ? "text-[#facc15]" : item.freshnessScore >= 0.35 ? "text-amber-400" : "text-rose-400"}>
                         {item.freshnessScore >= 0.7 ? "current" : item.freshnessScore >= 0.35 ? "aging" : "stale"} evidence
                       </span>
                       {item.sourceUrl && <a href={item.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline"><ExternalLink className="w-3 h-3" /> source</a>}
@@ -237,7 +237,7 @@ function Scorecard({ score }: { score: ResearchScorecard | null }) {
         {items.map(([label, value, hint]) => (
           <div key={label} className="rounded border border-border/70 bg-card/50 p-2" title={hint}>
             <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-mono">{label}</div>
-            <div className={cn("text-lg font-mono mt-1", value >= 0.7 ? "text-emerald-400" : value >= 0.4 ? "text-amber-400" : "text-muted-foreground")}>{Math.round(value * 100)}</div>
+            <div className={cn("text-lg font-mono mt-1", value >= 0.7 ? "text-[#facc15]" : value >= 0.4 ? "text-amber-400" : "text-muted-foreground")}>{Math.round(value * 100)}</div>
             <div className="h-1 rounded bg-muted mt-1 overflow-hidden"><div className="h-full bg-current rounded" style={{ width: `${Math.round(value * 100)}%` }} /></div>
           </div>
         ))}
@@ -253,7 +253,7 @@ function CandidateFunnelPanel({ funnel }: { funnel: CandidateFunnel | null }) {
     ["Source-linked", funnel.sourceLinked, "text-sky-300"],
     ["Needs check", funnel.attributionReview, "text-amber-300"],
     ["Corroborated", funnel.independentlyCorroborated, "text-yellow-300"],
-    ["Verified contact", funnel.verifiedDirectRoute, "text-emerald-300"],
+    ["Verified contact", funnel.verifiedDirectRoute, "text-[#fde047]"],
     ["Rejected", funnel.rejected, "text-rose-300"],
   ];
   const stateLabel = (state: string) => state.replaceAll("_", " ");
@@ -295,7 +295,7 @@ function CandidateFunnelPanel({ funnel }: { funnel: CandidateFunnel | null }) {
                 <span className="text-xs text-foreground break-all">{candidate.value}</span>
                 <span className="text-[10px] text-muted-foreground ml-auto">{stateLabel(candidate.state)}</span>
                 {candidate.conflictCount > 0 && <span className="text-[10px] text-rose-300">conflict</span>}
-                {candidate.exactClaimObserved && <span className="text-[10px] text-emerald-300">exact claim</span>}
+                {candidate.exactClaimObserved && <span className="text-[10px] text-[#fde047]">exact claim</span>}
               </div>
               <div className="text-[10px] font-mono text-muted-foreground mt-1 flex flex-wrap gap-x-2 gap-y-0.5">
                 <span>{candidate.scopes.join(", ") || "unscoped"}</span>
@@ -397,7 +397,7 @@ function PathNodeContact({ node }: { node: PathStep }) {
               "inline-flex max-w-full items-center gap-1 rounded border px-1.5 py-0.5 font-mono text-[10px] transition-opacity hover:opacity-100",
               isOrg
                 ? "border-violet-400/35 bg-violet-400/10 text-violet-300"
-                : "border-emerald-400/35 bg-emerald-400/10 text-emerald-300",
+                : "border-[#eab308]/35 bg-[#eab308]/10 text-[#fde047]",
             )}
             title={isOrg ? `REACH · org — ${email}` : `REACH · personal — ${email}`}
             onClick={(e) => e.stopPropagation()}
@@ -409,7 +409,7 @@ function PathNodeContact({ node }: { node: PathStep }) {
         {node.contactPhone && (
           <a
             href={`tel:${node.contactPhone}`}
-            className="inline-flex items-center gap-1 rounded border border-emerald-400/35 bg-emerald-400/10 px-1.5 py-0.5 font-mono text-[10px] text-emerald-300 transition-opacity hover:opacity-100"
+            className="inline-flex items-center gap-1 rounded border border-[#eab308]/35 bg-[#eab308]/10 px-1.5 py-0.5 font-mono text-[10px] text-[#fde047] transition-opacity hover:opacity-100"
             title={`REACH · personal — ${node.contactPhone}`}
             onClick={(e) => e.stopPropagation()}
           >
