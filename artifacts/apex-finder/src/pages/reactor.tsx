@@ -16,7 +16,7 @@ import { formatSchedulerCountdown, schedulerWaitRemaining } from "../components/
 interface NodeDef {
   id: string; label: string; sub: string;
   cx: number; cy: number; w: number; h: number;
-  type: "input"|"registry"|"discovery"|"ai-cyan"|"ai-lime"|"analysis"|"core"|"reactor"|"output";
+  type: "input"|"registry"|"discovery"|"ai-yellow"|"ai-lime"|"analysis"|"core"|"reactor"|"output";
   Icon: React.ElementType; color: string;
 }
 interface EdgeDef { id: string; from: string; to: string; adaptive?: boolean }
@@ -119,7 +119,7 @@ type RodStatus = "idle" | "completed" | "active" | "queued" | "skipped" | "faile
 
 function rodStatusColor(status: RodStatus, fallback: string): string {
   switch (status) {
-    case "completed": return "#a3e635";
+    case "completed": return "#facc15";
     case "active": return "#eab308";
     case "queued": return "#526b86";
     case "skipped": return "#f59e0b";
@@ -222,16 +222,16 @@ const NODES: NodeDef[] = [
   { id:"deepweb", label:"DEEP WEB",        sub:"Multi-source OSINT",         cx:900,  cy:298, w:168, h:60,  type:"discovery",Icon:Eye,        color:"#fb923c" },
   { id:"opensky", label:"LIVE FLIGHT",     sub:"OpenSky Network",            cx:1270, cy:298, w:148, h:60,  type:"discovery",Icon:Radio,      color:"#fb923c" },
   { id:"maigret", label:"MAIGRET",         sub:"Holehe · 3,000+ Platforms",  cx:1460, cy:298, w:168, h:60,  type:"discovery",Icon:Users,      color:"#fb923c" },
-  { id:"perp0",   label:"PERPLEXITY",      sub:"Phase 0 · Live Research",    cx:140,  cy:420, w:160, h:62,  type:"ai-cyan",  Icon:Zap,        color:"#eab308" },
-  { id:"exa",     label:"EXA NEURAL",      sub:"Semantic People Search",     cx:345,  cy:420, w:148, h:62,  type:"ai-cyan",  Icon:Compass,    color:"#eab308" },
-  { id:"tavily",  label:"TAVILY AI",       sub:"AI-native Web Search",       cx:545,  cy:420, w:148, h:62,  type:"ai-cyan",  Icon:Rss,        color:"#eab308" },
-  { id:"groq",    label:"GROQ LLM",        sub:"Llama 3.3 · Extraction",     cx:800,  cy:420, w:160, h:62,  type:"ai-lime",  Icon:Brain,      color:"#a3e635" },
-  { id:"gemini",  label:"GEMINI",          sub:"Google · Grounded Search",   cx:1040, cy:420, w:148, h:62,  type:"ai-cyan",  Icon:Sparkles,   color:"#eab308" },
-  { id:"perpfu",  label:"PERPLEXITY+",     sub:"Adaptive Follow-up",         cx:1250, cy:420, w:160, h:62,  type:"ai-cyan",  Icon:RefreshCw,  color:"#eab308" },
+  { id:"perp0",   label:"PERPLEXITY",      sub:"Phase 0 · Live Research",    cx:140,  cy:420, w:160, h:62,  type:"ai-yellow",  Icon:Zap,        color:"#eab308" },
+  { id:"exa",     label:"EXA NEURAL",      sub:"Semantic People Search",     cx:345,  cy:420, w:148, h:62,  type:"ai-yellow",  Icon:Compass,    color:"#eab308" },
+  { id:"tavily",  label:"TAVILY AI",       sub:"AI-native Web Search",       cx:545,  cy:420, w:148, h:62,  type:"ai-yellow",  Icon:Rss,        color:"#eab308" },
+  { id:"groq",    label:"GROQ LLM",        sub:"Llama 3.3 · Extraction",     cx:800,  cy:420, w:160, h:62,  type:"ai-lime",  Icon:Brain,      color:"#facc15" },
+  { id:"gemini",  label:"GEMINI",          sub:"Google · Grounded Search",   cx:1040, cy:420, w:148, h:62,  type:"ai-yellow",  Icon:Sparkles,   color:"#eab308" },
+  { id:"perpfu",  label:"PERPLEXITY+",     sub:"Adaptive Follow-up",         cx:1250, cy:420, w:160, h:62,  type:"ai-yellow",  Icon:RefreshCw,  color:"#eab308" },
   { id:"semantic",label:"SEMANTIC ENGINE", sub:"MiniLM · Embeddings",        cx:460,  cy:540, w:192, h:62,  type:"analysis", Icon:GitMerge,   color:"#a78bfa" },
   { id:"bayesian",label:"BAYESIAN SCORE",  sub:"Dynamic Priority",           cx:1020, cy:540, w:192, h:62,  type:"analysis", Icon:Layers,     color:"#a78bfa" },
   { id:"graph",   label:"GRAPH ENGINE",    sub:"Relationship Synthesis",     cx:260,  cy:652, w:178, h:62,  type:"core",     Icon:Network,    color:"#a78bfa" },
-  { id:"mcts",    label:"PATH CORE",        sub:"Adaptive Pathfinding",       cx:800,  cy:657, w:228, h:78,  type:"reactor",  Icon:Cpu,        color:"#a3e635" },
+  { id:"mcts",    label:"PATH CORE",        sub:"Adaptive Pathfinding",       cx:800,  cy:657, w:228, h:78,  type:"reactor",  Icon:Cpu,        color:"#facc15" },
   { id:"prac",    label:"PRAC ENGINE",     sub:"Planner · Analyst · Critic", cx:1340, cy:652, w:178, h:62,  type:"core",     Icon:Activity,   color:"#a78bfa" },
   { id:"evidence", label:"EVIDENCE REVIEW", sub:"Research Path Assessment", cx:800, cy:768, w:244, h:54, type:"output", Icon:Target, color:"#fbbf24" },
 ];
@@ -506,7 +506,7 @@ function QuickStats({ totalEntities, hotCount, totalAssets, sessionCount, compac
       flex:compact ? undefined : 1,
     }}>
       <QuickStat label="ENTITIES" value={totalEntities} color="#38bdf8" compact={compact} />
-      <QuickStat label="HOT LEADS" value={hotCount} color="#a3e635" compact={compact} />
+      <QuickStat label="HOT LEADS" value={hotCount} color="#facc15" compact={compact} />
       <QuickStat label="ASSETS" value={totalAssets} color="#eab308" compact={compact} />
       <QuickStat label="RESEARCH" value={sessionCount} color="#a78bfa" compact={compact} />
     </div>
@@ -524,7 +524,7 @@ function LiveHeaderDetail({ isLive, atlasState, liveLabel, livePhaseDetail, comp
   const detail = atlasState?.detail || livePhaseDetail || liveLabel || "Processing live research";
   const failed = atlasState?.runStatus === "failed";
   const done = atlasState?.runStatus === "done";
-  const color = failed ? "#fb7185" : done ? "#a3e635" : "#eab308";
+  const color = failed ? "#fb7185" : done ? "#facc15" : "#eab308";
   return (
     <div style={{
       display:"flex", alignItems:"center", gap:6, minWidth:0,
@@ -647,7 +647,7 @@ function AtlasPhaseStrip({ state, compact = false }: { state?: AtlasLiveState | 
         {ATLAS_PHASES.map((phase) => {
           const complete = running && phase.n < activePhase;
           const active = running && phase.n === activePhase;
-          const color = active ? "#eab308" : complete ? "#a3e635" : "#263d59";
+          const color = active ? "#eab308" : complete ? "#facc15" : "#263d59";
           return (
             <div key={phase.n} title={`${phase.n} · ${phase.label} — ${phase.detail}`} style={{
               flex:1, minWidth:compact ? 18 : 24,
@@ -655,7 +655,7 @@ function AtlasPhaseStrip({ state, compact = false }: { state?: AtlasLiveState | 
             }}>
               <div style={{
                 height:compact ? 4 : 5, borderRadius:3,
-                background:active ? `linear-gradient(90deg,#eab308,#a3e635)` : color,
+                background:active ? `linear-gradient(90deg,#eab308,#facc15)` : color,
                 opacity:active || complete ? 1 : 0.55,
                 boxShadow:active ? "0 0 8px #eab30888" : "none",
                 transition:"all .35s ease",
@@ -716,7 +716,7 @@ function EntityWorkbench({ state, liveNodes, compact = false }: {
       </div>
       <div style={{ display:"flex", alignItems:"center", gap:8, minWidth:0 }}>
         <span style={{
-          fontSize:compact ? 6 : 7, color:"#a3e635", letterSpacing:"0.09em",
+          fontSize:compact ? 6 : 7, color:"#facc15", letterSpacing:"0.09em",
           overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", flex:1,
         }}>
           {state.detail || "Collecting evidence and passing it to the next rod"}
@@ -776,9 +776,9 @@ function AtlasTelemetryInspector({ telemetry, eventLog = [] }: { telemetry?: any
       fontFamily:"'Space Mono','DM Mono','Courier New',monospace",
     }}>
       <div style={{ display:"flex", alignItems:"center", gap:7, marginBottom:8 }}>
-        <span style={{ width:6, height:6, borderRadius:"50%", background:telemetry?.status === "complete" ? "#a3e635" : "#eab308", boxShadow:"0 0 8px #eab308", flexShrink:0 }} />
+        <span style={{ width:6, height:6, borderRadius:"50%", background:telemetry?.status === "complete" ? "#facc15" : "#eab308", boxShadow:"0 0 8px #eab308", flexShrink:0 }} />
         <span style={{ fontSize:7, letterSpacing:"0.17em", color:"#eab308" }}>LIVE TARGET INSPECTOR</span>
-        <span style={{ marginLeft:"auto", fontSize:6.5, letterSpacing:"0.12em", color:telemetry?.status === "complete" ? "#a3e635" : "#fbbf24" }}>
+        <span style={{ marginLeft:"auto", fontSize:6.5, letterSpacing:"0.12em", color:telemetry?.status === "complete" ? "#facc15" : "#fbbf24" }}>
           {String(telemetry?.status ?? "history").toUpperCase()}
         </span>
       </div>
@@ -786,7 +786,7 @@ function AtlasTelemetryInspector({ telemetry, eventLog = [] }: { telemetry?: any
         <span style={{ color:"#526b86", letterSpacing:"0.1em" }}>TARGET</span>
         <span style={{ color:"#e8e0cc", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{telemetry?.targetName ?? "—"}</span>
         <span style={{ color:"#526b86", letterSpacing:"0.1em" }}>STAGE</span>
-        <span style={{ color:"#a3e635" }}>{telemetry?.stage ?? "—"}</span>
+        <span style={{ color:"#facc15" }}>{telemetry?.stage ?? "—"}</span>
         <span style={{ color:"#526b86", letterSpacing:"0.1em" }}>ACTIVE LANE</span>
         <span style={{ color:telemetry?.activeToolId === PERSONA_REVIEW_TOOL ? "#c4b5fd" : "#eab308" }}>{activeTool ?? "—"}</span>
       </div>
@@ -823,8 +823,8 @@ function AtlasTelemetryInspector({ telemetry, eventLog = [] }: { telemetry?: any
         </div>
       )}
       {telemetry?.prompt && (
-        <div style={{ marginTop:8, padding:"8px", border:"1px solid #a3e63530", borderRadius:4, background:"#a3e63508", color:"#cbd5a5", fontSize:6.7, lineHeight:1.5, whiteSpace:"pre-wrap", maxHeight:150, overflowY:"auto" }}>
-          <div style={{ color:"#a3e635", fontSize:6.5, letterSpacing:"0.13em", marginBottom:5 }}>CURRENT PROMPT</div>
+        <div style={{ marginTop:8, padding:"8px", border:"1px solid #facc1530", borderRadius:4, background:"#facc1508", color:"#cbd5a5", fontSize:6.7, lineHeight:1.5, whiteSpace:"pre-wrap", maxHeight:150, overflowY:"auto" }}>
+          <div style={{ color:"#facc15", fontSize:6.5, letterSpacing:"0.13em", marginBottom:5 }}>CURRENT PROMPT</div>
           {telemetry.prompt}
         </div>
       )}
@@ -848,7 +848,7 @@ function AtlasTelemetryInspector({ telemetry, eventLog = [] }: { telemetry?: any
               <details key={`${event.timestamp ?? "event"}-${index}`} style={{
                 border:"1px solid #192840", borderRadius:4, padding:"5px 6px", background:"#0d1525",
               }}>
-                <summary style={{ cursor:"pointer", listStyle:"none", color:event.status === "complete" ? "#a3e635" : event.status === "review" ? "#fbbf24" : "#8aa4c0", fontSize:6.7 }}>
+                <summary style={{ cursor:"pointer", listStyle:"none", color:event.status === "complete" ? "#facc15" : event.status === "review" ? "#fbbf24" : "#8aa4c0", fontSize:6.7 }}>
                   <span style={{ color:"#526b86" }}>{event.timestamp?.slice(11, 19) ?? "--:--:--"} </span>
                   {event.stage ?? "Research event"}
                   <span style={{ color:"#526b86" }}> · {event.activeToolId === PERSONA_REVIEW_TOOL ? "Post-research quality review" : event.activeToolId ? telemetryToolLabel(event.activeToolId) : "Atlas"}</span>
@@ -931,8 +931,8 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
           {/* Nuclear icon */}
           <span style={{
             fontSize:32, lineHeight:1, flexShrink:0,
-            color: hasSessions ? "#a3e635" : "#253850",
-            textShadow: hasSessions ? "0 0 12px #a3e63544" : "none",
+            color: hasSessions ? "#facc15" : "#253850",
+            textShadow: hasSessions ? "0 0 12px #facc1544" : "none",
             animation: hasSessions ? motionOrNone("breathe 3s ease-in-out infinite") : "none",
             transition:"all 0.4s",
           }}>☢</span>
@@ -954,11 +954,11 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
               <div style={{ display:"flex", alignItems:"center", gap:5 }}>
                 <div style={{
                   width:6, height:6, borderRadius:"50%",
-                   background: atlasFailed ? "#fb7185" : atlasDone ? "#a3e635" : isLive ? "#eab308" : (hasSessions ? "#a3e635" : "#253850"),
-                   boxShadow: atlasFailed ? "0 0 8px #fb7185" : atlasDone ? "0 0 6px #a3e635" : isLive ? "0 0 8px #eab308" : (hasSessions ? "0 0 6px #a3e635" : "none"),
+                   background: atlasFailed ? "#fb7185" : atlasDone ? "#facc15" : isLive ? "#eab308" : (hasSessions ? "#facc15" : "#253850"),
+                   boxShadow: atlasFailed ? "0 0 8px #fb7185" : atlasDone ? "0 0 6px #facc15" : isLive ? "0 0 8px #eab308" : (hasSessions ? "0 0 6px #facc15" : "none"),
                    animation: (!atlasFailed && !atlasDone && (isLive || hasSessions)) ? motionOrNone("blink 1.1s ease-in-out infinite") : "none",
                 }} />
-                 <span style={{ fontSize:8, letterSpacing:"0.14em", color: atlasFailed ? "#fb7185" : atlasDone ? "#a3e635" : isLive ? "#eab308" : (hasSessions ? "#a3e635" : "#3a5070") }}>
+                 <span style={{ fontSize:8, letterSpacing:"0.14em", color: atlasFailed ? "#fb7185" : atlasDone ? "#facc15" : isLive ? "#eab308" : (hasSessions ? "#facc15" : "#3a5070") }}>
                    {atlasFailed ? "FAILED" : atlasDone ? "COMPLETE" : isLive ? "LIVE" : (hasSessions ? "OPERATIONAL" : "STANDBY")}
                 </span>
               </div>
@@ -973,7 +973,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                 width:22, height:22, borderRadius:4, border:"1px solid #253850",
                 background:"transparent", cursor:"pointer",
                 display:"flex", alignItems:"center", justifyContent:"center",
-                color: syncing ? "#a3e635" : "#3a5070",
+                color: syncing ? "#facc15" : "#3a5070",
                 transition:"all 0.25s",
                 padding:0, flexShrink:0,
               }}
@@ -1018,7 +1018,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
           }}>
             <div style={{
               width:28, height:28, borderRadius:"50%",
-              border:"2px solid #192840", borderTopColor:"#a3e635",
+              border:"2px solid #192840", borderTopColor:"#facc15",
               animation: motionOrNone("blink 0.7s linear infinite"),
             }} />
             <span style={{ fontSize:9, letterSpacing:"0.18em", color:"#3a5070" }}>
@@ -1043,7 +1043,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                 </div>
                 <div style={{ display:"flex", alignItems:"center", gap:7, fontSize:6.5, letterSpacing:"0.1em", color:"#3a5070" }}>
                   <span style={{ display:"inline-flex", alignItems:"center", gap:3 }}>
-                    <i style={{ width:6, height:2, background:"#a3e635", display:"inline-block" }} /> FORWARD
+                    <i style={{ width:6, height:2, background:"#facc15", display:"inline-block" }} /> FORWARD
                   </span>
                   <span style={{ display:"inline-flex", alignItems:"center", gap:3 }}>
                     <i style={{ width:6, height:2, background:"#eab308", display:"inline-block" }} /> FEEDBACK
@@ -1066,7 +1066,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                 }}>
                   <defs>
                     <marker id="mobileLime" markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto">
-                      <path d="M0,0 L5,2.5 L0,5 z" fill="#a3e635" />
+                      <path d="M0,0 L5,2.5 L0,5 z" fill="#facc15" />
                     </marker>
                     <marker id="mobileCyan" markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto">
                       <path d="M0,0 L5,2.5 L0,5 z" fill="#eab308" />
@@ -1082,7 +1082,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                     const failed = fromStatus === "failed" || toStatus === "failed";
                     const queued = fromStatus === "queued" || toStatus === "queued";
                     const on = active || completed;
-                    const col = failed ? "#fb7185" : queued ? "#526b86" : e.adaptive ? "#eab308" : "#a3e635";
+                    const col = failed ? "#fb7185" : queued ? "#526b86" : e.adaptive ? "#eab308" : "#facc15";
                     const d = `M ${a.x} ${a.y + 18} C ${a.x} ${(a.y + b.y) / 2} ${b.x} ${(a.y + b.y) / 2} ${b.x} ${b.y - 18}`;
                     return (
                       <path key={e.id} d={d} fill="none" stroke={on ? col : "#20344d"}
@@ -1125,7 +1125,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                   const y = [76, 210, 342, 476, 558, 658, 724][pi];
                   return <div key={`rail-${phase.label}`} style={{
                     position:"absolute", left:20, right:10, top:y, height:1,
-                    background:`linear-gradient(90deg,${phase.nodeIds.some(id => activeNodes.has(id)) ? "#a3e63530" : "#192840"},transparent)`,
+                    background:`linear-gradient(90deg,${phase.nodeIds.some(id => activeNodes.has(id)) ? "#facc1530" : "#192840"},transparent)`,
                     zIndex:1,
                   }} />;
                 })}
@@ -1140,10 +1140,10 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                    const completed = !active && phaseStatuses.some(status => status === "completed");
                    const skipped = !active && !completed && phaseStatuses.some(status => status === "skipped");
                   return <div key={`phase-note-${phase.label}`} style={{
-                     border:`1px solid ${active ? "#eab30855" : completed ? "#a3e63545" : skipped ? "#f59e0b40" : "#192840"}`,
-                     borderRadius:5, padding:"6px 7px", background:active ? "#eab3080b" : completed ? "#a3e6350b" : "#0c1422",
+                     border:`1px solid ${active ? "#eab30855" : completed ? "#facc1545" : skipped ? "#f59e0b40" : "#192840"}`,
+                     borderRadius:5, padding:"6px 7px", background:active ? "#eab3080b" : completed ? "#facc150b" : "#0c1422",
                   }}>
-                     <div style={{ fontSize:6.5, letterSpacing:"0.12em", color:active ? "#eab308" : completed ? "#a3e635" : skipped ? "#f59e0b" : "#526b86" }}>
+                     <div style={{ fontSize:6.5, letterSpacing:"0.12em", color:active ? "#eab308" : completed ? "#facc15" : skipped ? "#f59e0b" : "#526b86" }}>
                       {String(pi + 1).padStart(2,"0")} · {phase.label}
                     </div>
                     <div style={{ fontSize:6.5, lineHeight:1.35, color:"#3a5070", marginTop:3 }}>
@@ -1181,7 +1181,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                 </div>
                 {/* Current pipeline step — real detail from the running job */}
                 <div style={{ display:"flex", alignItems:"center", gap:6, paddingLeft:13 }}>
-                  <span style={{ fontSize:7.5, letterSpacing:"0.14em", color:"#a3e63599",
+                  <span style={{ fontSize:7.5, letterSpacing:"0.14em", color:"#facc1599",
                     flex:1, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                     ▸ {livePhaseDetail || "processing…"}
                   </span>
@@ -1190,8 +1190,8 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                     {liveNodesArr.slice(0, 8).map((_, i) => (
                       <div key={i} style={{
                         width:3, height:3, borderRadius:"50%",
-                        background: i === (liveStep % Math.max(liveNodesArr.length, 1)) ? "#a3e635" : "#192840",
-                        boxShadow: i === (liveStep % Math.max(liveNodesArr.length, 1)) ? "0 0 4px #a3e635" : "none",
+                        background: i === (liveStep % Math.max(liveNodesArr.length, 1)) ? "#facc15" : "#192840",
+                        boxShadow: i === (liveStep % Math.max(liveNodesArr.length, 1)) ? "0 0 4px #facc15" : "none",
                         transition:"all 0.3s",
                       }} />
                     ))}
@@ -1320,7 +1320,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                         {s.pathScore != null && (
                           <div style={{ display:"flex", flexDirection:"column", gap:1 }}>
                             <span style={{ fontSize:7, letterSpacing:"0.14em", color:"#3a5070" }}>PATH SCORE</span>
-                            <span style={{ fontSize:12, fontWeight:700, color:"#a3e635", lineHeight:1 }}>
+                            <span style={{ fontSize:12, fontWeight:700, color:"#facc15", lineHeight:1 }}>
                               {s.pathScore.toFixed(2)}
                             </span>
                           </div>
@@ -1383,7 +1383,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
   const atlasDone = atlasState?.runStatus === "done";
   const schedulerCountdown = formatSchedulerCountdown(schedulerWaitRemaining(scheduler, schedulerNow));
   const waitingForNextCycle = Boolean(!isLive && !atlasFailed && schedulerCountdown);
-  const atlasStatusColor = atlasFailed ? "#fb7185" : waitingForNextCycle ? "#fbbf24" : atlasDone ? "#a3e635" : isLive ? "#eab308" : "#a3e635";
+  const atlasStatusColor = atlasFailed ? "#fb7185" : waitingForNextCycle ? "#fbbf24" : atlasDone ? "#facc15" : isLive ? "#eab308" : "#facc15";
   const [deskOn, setDeskOn] = useState(true);
   const deskEvents = atlasState?.eventLog ?? [];
   const contactFound = atlasState?.atlasTelemetry?.disposition === "contact_route_found"
@@ -1489,10 +1489,10 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
         <div style={{ display:"flex", alignItems:"center", gap:16, minWidth:0 }}>
           <div style={{
             width:34, height:34, borderRadius:"50%", flexShrink:0,
-            border:`2px solid ${adaptive ? "#eab308" : "#a3e635"}`,
+            border:`2px solid ${adaptive ? "#eab308" : "#facc15"}`,
             display:"flex", alignItems:"center", justifyContent:"center",
-            lineHeight:1, color: adaptive ? "#eab308" : "#a3e635", fontSize:18,
-            boxShadow:`0 0 14px ${adaptive ? "#eab30855" : "#a3e63555"}`,
+            lineHeight:1, color: adaptive ? "#eab308" : "#facc15", fontSize:18,
+            boxShadow:`0 0 14px ${adaptive ? "#eab30855" : "#facc1555"}`,
             animation: adaptive ? motionOrNone("pulseGlow 0.7s ease-in-out infinite") : motionOrNone("breathe 3s ease-in-out infinite"),
           }}>
             <span style={{ lineHeight:1, display:"block", marginTop:1 }}>☢</span>
@@ -1830,7 +1830,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
         >
           <defs>
             <marker id="mLime2" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
-              <path d="M0,0.5 L0,6.5 L7,3.5 z" fill="#a3e635cc" />
+              <path d="M0,0.5 L0,6.5 L7,3.5 z" fill="#facc15cc" />
             </marker>
             <marker id="mCyan2" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
               <path d="M0,0.5 L0,6.5 L7,3.5 z" fill="#eab308cc" />
@@ -1851,7 +1851,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
             const on = AE.has(e.id) || complete;
             const touchesFocus = focusedToolId != null && (e.from === focusedToolId || e.to === focusedToolId);
             const d   = e.adaptive ? adaptPath(A, B) : fwdPath(A, B);
-            const col = failed ? "#fb7185" : queued ? "#526b86" : e.adaptive ? "#eab308" : "#a3e635";
+            const col = failed ? "#fb7185" : queued ? "#526b86" : e.adaptive ? "#eab308" : "#facc15";
             const mk  = on || touchesFocus ? (e.adaptive ? "url(#mCyan2)" : "url(#mLime2)") : "url(#mDim2)";
             const edgeOpacity = focusedToolId
               ? (touchesFocus || active ? 0.95 : 0.12)
