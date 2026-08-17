@@ -96,3 +96,4 @@ body {
 .atlas-panel { background: #0c0c0c; border: 1px solid #2a2a2a; border-radius: 12px; }
 .atlas-panel-glow:hover { border-color: rgba(234,179,8,0.3); box-shadow: 0 0 24px rgba(234,179,8,0.08); }
 .atlas-btn-yellow { background: #eab308; color: #000; font-weight: 700; }
+.atlas-btn-yellow:hover { background: #facc15; }
