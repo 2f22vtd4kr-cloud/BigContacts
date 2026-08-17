@@ -196,35 +196,33 @@ export function Layout({ children }: { children: React.ReactNode }) {
       )}
       <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
         <div className="atlas-grid pointer-events-none absolute inset-0" />
-        <header className="relative z-20 flex h-14 shrink-0 items-center gap-2.5 border-b border-white/[0.04] bg-[#050505]/92 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] pt-[env(safe-area-inset-top)] backdrop-blur-lg sm:px-5 md:h-16 md:px-6">
-          <div className="mr-3 flex min-w-0 items-center md:mr-0">
+        <header className="relative z-20 flex h-14 shrink-0 items-center gap-2 border-b border-[#eab308]/08 bg-[#050505]/95 pl-[max(1.125rem,env(safe-area-inset-left))] pr-[max(0.875rem,env(safe-area-inset-right))] pt-[env(safe-area-inset-top)] backdrop-blur-lg sm:gap-2.5 sm:px-5 md:h-16 md:px-6">
+          <div className="mr-2 flex min-w-0 items-center md:mr-0">
             <Link
               href="/"
               aria-label="Apex Atlas home"
               data-testid="link-mobile-apex-atlas-home"
-              className="ml-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#eab308] text-black shadow-[0_0_14px_rgba(234,179,8,0.3)] focus-visible:ring-2 focus-visible:ring-yellow-400/50 md:hidden"
+              className="ml-1 grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#eab308] text-black shadow-[0_0_16px_rgba(234,179,8,0.32)] focus-visible:ring-2 focus-visible:ring-yellow-400/50 md:hidden"
             >
               <Crosshair className="h-4 w-4" />
             </Link>
-            <div className="ml-2 hidden min-w-0 md:block">
-              <div className="font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground/50">
+            <div className="ml-2.5 hidden min-w-0 md:block">
+              <div className="font-mono text-[9px] uppercase tracking-[0.2em] text-stone-500">
                 Apex Atlas · Research desk
               </div>
-              <div className="mt-0.5 truncate text-[13px] font-semibold tracking-tight text-foreground">
+              <div className="mt-0.5 truncate text-[13px] font-semibold tracking-tight text-stone-100">
                 {pageTitle}
               </div>
             </div>
           </div>
           <div className="ml-auto flex min-w-0 items-center justify-end gap-1.5 sm:gap-2">
-            {/* Overview hero + Reactor desk own primary Launch — no header duplicate */}
             {location !== "/" && !isReactorRoute && (
               <LaunchAtlasButton
                 variant="header"
-                className="!h-8 !shrink-0 !px-2 !text-[10px] sm:!h-9 sm:!px-3 sm:!text-[11px]"
+                className="!h-8 !shrink-0 !px-2.5 !text-[10px] sm:!h-9 sm:!px-3 sm:!text-[11px]"
               />
             )}
-            {/* Status chips — scroll on narrow phones so nothing stacks wrong */}
-            <div className="atlas-h-scroll flex min-w-0 max-w-[48vw] items-center gap-1.5 sm:max-w-none sm:gap-2">
+            <div className="atlas-h-scroll flex min-w-0 max-w-[min(52vw,14rem)] items-center gap-1.5 sm:max-w-none sm:gap-2">
               <div className="shrink-0">
                 <WorkspaceStatus />
               </div>
@@ -236,7 +234,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               onClick={() => setSidebarOpen(true)}
               aria-label="Open menu"
               data-testid="button-open-menu"
-              className="atlas-pressable shrink-0 rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground md:hidden"
+              className="atlas-pressable shrink-0 rounded-lg p-2.5 text-stone-400 hover:bg-white/[0.06] hover:text-stone-100 md:hidden"
             >
               <Menu className="h-5 w-5" />
             </button>

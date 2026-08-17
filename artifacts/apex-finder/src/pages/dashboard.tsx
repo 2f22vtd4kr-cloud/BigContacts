@@ -202,16 +202,20 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
 
 function EmptyLeads() {
   return (
-    <div className="rounded-xl border atlas-empty border-dashed border-[#eab308]/12 bg-card/40 px-6 py-16 text-center">
-      <div className="mx-auto grid h-12 w-12 place-items-center rounded-full border border-primary/25 bg-primary/10 text-primary"><Radar className="h-5 w-5" /></div>
-      <h2 className="mt-5 font-display text-lg font-semibold">Your priority desk is clear</h2>
-      <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">Search public registries for people, companies, trusts, and access contacts with evidence worth reviewing.</p>
-      <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
-        <Link href="/search" data-testid="link-empty-discover" className="inline-flex min-h-[40px] items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background">
-          <Search className="h-3.5 w-3.5" /> Discover entities <ChevronRight className="h-3.5 w-3.5" />
+    <div className="atlas-empty rounded-2xl border border-dashed border-[#eab308]/18 bg-[#0a0a0a] px-6 py-14 text-center sm:py-16">
+      <div className="mx-auto grid h-12 w-12 place-items-center rounded-full border border-[#eab308]/30 bg-[#eab308]/10 text-[#eab308]">
+        <Radar className="h-5 w-5" />
+      </div>
+      <h2 className="mt-5 font-display text-lg font-semibold tracking-tight text-stone-100">No priority profiles yet</h2>
+      <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-stone-400">
+        Launch Atlas or discover entities from public registries. Only real research results appear here — never demo data.
+      </p>
+      <div className="mt-6 flex flex-col items-stretch justify-center gap-2 sm:flex-row sm:items-center">
+        <Link href="/search" data-testid="link-empty-discover" className="atlas-pressable inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-[#eab308] px-4 py-2.5 text-xs font-bold text-black hover:brightness-105">
+          <Search className="h-3.5 w-3.5" /> Discover entities
         </Link>
-        <Link href="/reactor" data-testid="link-empty-reactor" className="inline-flex min-h-[40px] items-center gap-2 rounded-lg border border-[#eab308]/12 bg-card/60 px-4 py-2.5 text-xs font-semibold text-foreground hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50">
-          <Radar className="h-3.5 w-3.5" /> Open live reactor
+        <Link href="/reactor" data-testid="link-empty-reactor" className="atlas-outline-btn atlas-pressable inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-semibold">
+          <Radar className="h-3.5 w-3.5" /> Open reactor
         </Link>
       </div>
     </div>
@@ -242,17 +246,16 @@ export default function Dashboard() {
             Launch Apex Atlas to run the full public-records pipeline — discovery, attribution, and attributable contacts — then watch live progress on the reactor desk.
           </p>
         </div>
-        <div className="flex w-full flex-col gap-2.5 sm:flex-row sm:flex-wrap md:w-auto md:justify-end">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center md:justify-end">
           <LaunchAtlasButton variant="primary" />
-          <Link href="/reactor" data-testid="link-dashboard-reactor" className="atlas-pressable inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-[#eab308]/35 bg-[#eab308]/10 px-5 text-xs font-semibold text-[#fde047] transition-all hover:border-[#facc15]/50 hover:bg-[#eab308]/15">
-            <Radar className="h-4 w-4" /> Open reactor desk
-          </Link>
-          <Link href="/search" data-testid="link-dashboard-search" className="atlas-outline-btn atlas-pressable inline-flex h-12 items-center justify-center gap-2 rounded-xl px-5 text-xs font-semibold">
-            <Search className="h-4 w-4" /> Find an entity
-          </Link>
-          <Link href="/profiles" data-testid="link-dashboard-profiles" className="atlas-outline-btn atlas-pressable inline-flex h-11 items-center justify-center gap-2 rounded-xl px-5 text-xs font-semibold">
-            Entity ledger <ArrowUpRight className="h-3.5 w-3.5" />
-          </Link>
+          <div className="flex gap-2">
+            <Link href="/reactor" data-testid="link-dashboard-reactor" className="atlas-outline-btn atlas-pressable inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-xl px-4 text-xs font-semibold sm:flex-none sm:px-5">
+              <Radar className="h-4 w-4" /> Reactor
+            </Link>
+            <Link href="/search" data-testid="link-dashboard-search" className="atlas-outline-btn atlas-pressable inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-xl px-4 text-xs font-semibold sm:flex-none sm:px-5">
+              <Search className="h-4 w-4" /> Discover
+            </Link>
+          </div>
         </div>
         <div className="atlas-divider absolute bottom-0 left-0 right-0" aria-hidden />
       </section>
@@ -292,20 +295,19 @@ export default function Dashboard() {
         aria-label="Desk shortcuts"
       >
         {[
-          { href: "/reactor", label: "Intelligence Reactor", detail: "Live public-surface runs", testId: "ops-reactor" },
-          { href: "/search", label: "Discover", detail: "Ranked registry search", testId: "ops-discover" },
-          { href: "/profiles", label: "Entity ledger", detail: "People & companies", testId: "ops-ledger" },
-          { href: "/network", label: "Connections", detail: "Relationship graph", testId: "ops-network" },
-          { href: "/manual", label: "Field manual", detail: "Job queue & operator rules", testId: "ops-manual" },
+          { href: "/reactor", label: "Reactor", detail: "Live research", testId: "ops-reactor" },
+          { href: "/profiles", label: "Ledger", detail: "People & companies", testId: "ops-ledger" },
+          { href: "/network", label: "Graph", detail: "Connections", testId: "ops-network" },
+          { href: "/status", label: "Status", detail: "Keys & systems", testId: "ops-status" },
         ].map((item) => (
           <Link
             key={item.href}
             href={item.href}
             data-testid={item.testId}
-            className="group rounded-xl border border-[#eab308]/12 bg-card/30 px-3 py-3 transition-colors hover:border-primary/40 hover:bg-card/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+            className="atlas-pressable group rounded-xl border border-[#eab308]/14 bg-[#0c0c0c]/80 px-3 py-3.5 transition-colors hover:border-[#eab308]/40 hover:bg-[#0c0c0c] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#eab308]/50"
           >
-            <div className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground group-hover:text-primary/80">{item.label}</div>
-            <div className="mt-1 text-[12px] font-medium text-foreground/90">{item.detail}</div>
+            <div className="font-mono text-[9px] uppercase tracking-[0.16em] text-stone-500 group-hover:text-[#eab308]">{item.label}</div>
+            <div className="mt-1 text-[12px] font-medium text-stone-200">{item.detail}</div>
           </Link>
         ))}
       </section>
