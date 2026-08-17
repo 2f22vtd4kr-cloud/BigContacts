@@ -57,7 +57,7 @@ body {
   transition: transform 150ms ease-out, opacity 150ms ease-out, border-color 150ms ease-out, box-shadow 180ms ease-out;
   touch-action: manipulation;
 }
-.atlas-pressable:active { transform: scale(0.97); opacity: 0.88; }
+.atlas-pressable:active { transform: scale(0.98); opacity: 0.88; }
 
 .atlas-card {
   background: var(--color-card);
