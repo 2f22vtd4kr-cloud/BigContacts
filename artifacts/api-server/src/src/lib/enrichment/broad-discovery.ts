@@ -597,11 +597,13 @@ async function existingNameSet(): Promise<Set<string>> {
 function isDuplicateName(candidate: string, existing: Set<string>): boolean {
   const normalized = candidate.toLowerCase().replace(/[^a-z]/g, "");
   if (existing.has(normalized)) return true;
-  // Fuzzy: check if any existing name contains all tokens of candidate
-  const tokens = candidate.toLowerCase().split(/\s+/).filter(t => t.length > 2);
+  // Collapse middle initials: "Andrew F Johnson" ≡ "Andrew Johnson"
+  const tokens = candidate.toLowerCase().split(/\s+/).filter(t => t.replace(/[^a-z]/g, "").length > 1);
+  const coreTokens = tokens.filter(t => t.replace(/\./g, "").length > 1);
   for (const ex of existing) {
-    const matchCount = tokens.filter(t => ex.includes(t)).length;
-    if (matchCount >= 2 && matchCount === tokens.length) return true;
+    if (normalized.length >= 8 && (ex.includes(normalized) || normalized.includes(ex))) return true;
+    const matchCount = coreTokens.filter(t => ex.includes(t.replace(/[^a-z]/g, ""))).length;
+    if (matchCount >= 2 && matchCount >= Math.min(2, coreTokens.length)) return true;
   }
   return false;
 }
@@ -827,6 +829,12 @@ export async function runBroadDiscovery(options: {
       // Reject plural nouns — groups/collectives, not a person (e.g. "Past Commodores", "Private Bankers")
       if (/\b(commodores?|bankers?|investors?|directors?|officers?|executives?|managers?|shareholders?|trustees?|partners?|founders?|principals?)\s*$/i.test(finalName) && !/^[A-Z][a-z]+\s+[A-Z][a-z]/.test(finalName)) continue;
       const type = classifyType(finalName);
+      // Final gate: never insert a near-duplicate of an existing ledger name
+      if (isDuplicateName(finalName, existingNames)) {
+        logger.info({ name: finalName }, "broad-discovery: skipped duplicate name at insert");
+        skipped++;
+        continue;
+      }
       await db.insert(entitiesTable).values({
         name: finalName,
         type,
@@ -840,7 +848,7 @@ export async function runBroadDiscovery(options: {
         knownResidences: null,
         contactConfidence: 0,
       } as any).onConflictDoNothing();
-       existingNames.add(finalName.toLowerCase().replace(/[^a-z]/g, "")); // prevent same-run dups
+      existingNames.add(finalName.toLowerCase().replace(/[^a-z]/g, ""));
       inserted++;
     } catch (err: any) {
       logger.debug({ err: err?.message, name }, "broad-discovery insert error (non-fatal)");

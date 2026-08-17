@@ -339,7 +339,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
       </div>
       {/* Minimal chrome — target + live pulse only */}
       <header
-        className="sticky top-0 z-20 shrink-0 border-b border-[#eab308]/12 bg-black/70 px-4 py-3 backdrop-blur-md overflow-visible"
+        className="sticky top-0 z-20 shrink-0 border-b border-[#eab308]/12 bg-black/80 px-3 py-2.5 backdrop-blur-md overflow-visible"
         style={{ paddingTop: "max(12px, env(safe-area-inset-top, 12px))" }}
         data-testid="live-desk-sticky-chrome"
       >
@@ -368,7 +368,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                 </span>
               )}
             </div>
-            <div className="mt-1 truncate text-[16px] font-semibold text-white" data-testid="status-reactor-summary">
+            <div className="mt-0.5 truncate text-[15px] font-semibold text-white" data-testid="status-reactor-summary">
               {atlasState?.atlasTelemetry?.targetName
                 || atlasState?.currentEntities?.[0]
                 || (isLive ? "Researching…" : "Atlas idle")}

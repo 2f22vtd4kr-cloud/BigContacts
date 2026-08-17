@@ -703,6 +703,11 @@ export async function runBroadDiscovery(options: {
       // Reject plural nouns — groups/collectives, not a person (e.g. "Past Commodores", "Private Bankers")
       if (/\b(commodores?|bankers?|investors?|directors?|officers?|executives?|managers?|shareholders?|trustees?|partners?|founders?|principals?)\s*$/i.test(finalName) && !/^[A-Z][a-z]+\s+[A-Z][a-z]/.test(finalName)) continue;
       const type = classifyType(finalName);
+      if (isDuplicateName(finalName, existingNames)) {
+        logger.info({ name: finalName }, "broad-discovery: skipped duplicate name at insert");
+        skipped++;
+        continue;
+      }
       await db.insert(entitiesTable).values({
         name: finalName,
         type,

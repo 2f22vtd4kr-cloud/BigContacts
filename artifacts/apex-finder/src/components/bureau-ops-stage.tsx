@@ -71,8 +71,37 @@ function extractQuery(e: OpsEvent): string | undefined {
 
 function extractUrl(e: OpsEvent): string | undefined {
   const blob = [e.resultSummary, e.inputSummary, e.raw].filter(Boolean).join(" ");
-  const m = blob.match(/https?:\/\/[^\s)'"]+/i);
-  return m?.[0];
+  const matches = blob.match(/https?:\/\/[^\s)'"<>]+/gi) || [];
+  const target = (e.targetName || "").toLowerCase().replace(/[^a-z]/g, "");
+  const TRUSTED =
+    /linkedin\.com|companieshouse\.gov|sec\.gov|edgar|opencorporates|wikidata|wikipedia|bbc\.|reuters|bloomberg|ft\.com|nytimes|wsj\.com|forbes|crunchbase|pitchbook|github\.com|archive\.org|gov\.|edu\/|courtlistener|propublica|opencorporates|dnb\.com|bloomberg/i;
+  const candidates: string[] = [];
+  for (const raw of matches) {
+    let u = raw.replace(/[.,);]+$/, "");
+    try {
+      const parsed = new URL(u);
+      if (!/^https?:$/i.test(parsed.protocol)) continue;
+      const host = parsed.hostname.replace(/^www\./, "").toLowerCase();
+      // Reject vanity domains that are just the target's name (common LLM fabrication)
+      const hostKey = host.replace(/\./g, "").replace(/[^a-z]/g, "");
+      if (target && target.length >= 8 && (hostKey === target || hostKey.startsWith(target) || target.startsWith(hostKey.replace(/com$|net$|org$/, "")))) {
+        if (!TRUSTED.test(host)) continue;
+      }
+      // Prefer institutional / registry / news hosts
+      if (TRUSTED.test(host) || parsed.pathname.length > 1) {
+        candidates.push(u);
+      }
+    } catch {
+      /* skip */
+    }
+  }
+  // Prefer trusted hosts first
+  candidates.sort((a, b) => {
+    const ta = TRUSTED.test(a) ? 0 : 1;
+    const tb = TRUSTED.test(b) ? 0 : 1;
+    return ta - tb;
+  });
+  return candidates[0];
 }
 
 /**
@@ -449,21 +478,20 @@ function GoogleScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
 }
 
 function BrowserScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
-  const url =
-    scene.url ||
-    (scene.targetName
-      ? `https://${scene.targetName.replace(/\s+/g, "").toLowerCase()}.com/contact`
-      : "https://\u2026");
-  const lines = scene.resultLines.length ? scene.resultLines : ["Looking for emails, phones, and team names…"];
+  // Never invent a vanity domain from the person's name — only real extracted URLs.
+  const url = scene.url || undefined;
+  const lines = scene.resultLines.length
+    ? scene.resultLines
+    : [url ? "Reading public page content…" : "Searching public sources — no verified page URL yet"];
   const contactHit = lines.some((l) => /mailto:|[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i.test(l));
   return (
     <WindowChrome
-      title={scene.subtitle || "Public page"}
+      title={scene.subtitle || (url ? "Public page" : "Public sources")}
       live={scene.live} terminal={scene.terminal}
-      accent={contactHit ? "#eab308" : "#f59e0b"}
+      accent={contactHit ? "#eab308" : "#eab308"}
       compact={compact}
       favicon={<ProviderIcon kind="browser" size={compact ? 12 : 14} />}
-      urlBar={url}
+      urlBar={url || "awaiting verified URL from live fetch…"}
     >
       <div className="space-y-1.5">
         {contactHit && (
