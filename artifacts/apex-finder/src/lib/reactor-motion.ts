@@ -45,7 +45,7 @@ input:focus-visible,
   outline-offset: 2px;
 }
 .reactor-reach {
-  border-color: rgba(234, 179, 8, 0.55);
+  border-color: rgba(240, 180, 41, 0.58);
   background: linear-gradient(135deg, rgba(234, 179, 8, 0.16), rgba(250, 204, 21, 0.06));
   color: #fef9c3;
   box-shadow: 0 0 28px rgba(234, 179, 8, 0.2), inset 0 1px 0 rgba(253, 224, 71, 0.12);
