@@ -58,7 +58,7 @@ input:focus-visible,
 }
 @keyframes reactorShimmer { 0% { transform: translateX(-120%); } 100% { transform: translateX(220%); } }
 @keyframes sceneSlideLeft { 0% { opacity: 0; transform: translateX(14px); } 100% { opacity: 1; transform: translateX(0); } }
-@keyframes sceneSlideRight { 0% { opacity: 0; transform: translateX(-18px); } 100% { opacity: 1; transform: translateX(0); } }
+@keyframes sceneSlideRight { 0% { opacity: 0; transform: translateX(-14px); } 100% { opacity: 1; transform: translateX(0); } }
 @keyframes reachIn {
   0% { opacity: 0; transform: scale(0.92) translateY(6px); }
   60% { opacity: 1; transform: scale(1.02) translateY(0); }
