@@ -8,11 +8,11 @@ type Variant = "primary" | "header" | "reactor" | "ghost";
 
 const VARIANT_CLASS: Record<Variant, string> = {
   primary:
-    "atlas-launch-glow h-12 w-full sm:w-auto px-6 text-sm font-bold tracking-tight bg-gradient-to-r from-yellow-500 to-yellow-600 text-slate-950 shadow-[0_0_24px_rgba(234,179,8,0.25)] hover:from-yellow-400 hover:to-yellow-500 border border-yellow-300/40",
+    "atlas-launch-glow h-12 w-full sm:w-auto px-6 text-sm font-bold tracking-tight bg-gradient-to-r from-yellow-500 to-yellow-600 text-black shadow-[0_0_24px_rgba(234,179,8,0.25)] hover:from-yellow-400 hover:to-yellow-500 border border-yellow-300/40",
   header:
     "h-9 px-3 text-[11px] font-bold tracking-wide bg-yellow-500/15 text-yellow-100 border border-yellow-400/35 hover:bg-yellow-500/25 hover:border-yellow-300/50",
   reactor:
-    "h-11 w-full sm:w-auto px-5 text-xs font-bold bg-yellow-500 text-slate-950 hover:bg-yellow-400 border border-yellow-300/50 shadow-[0_0_20px_rgba(234,179,8,0.2)]",
+    "h-11 w-full sm:w-auto px-5 text-xs font-bold bg-yellow-500 text-black hover:bg-yellow-400 border border-yellow-300/50 shadow-[0_0_20px_rgba(234,179,8,0.2)]",
   ghost:
     "h-10 px-4 text-xs font-semibold border border-border bg-card/60 text-foreground hover:border-yellow-400/40 hover:bg-yellow-400/10",
 };
