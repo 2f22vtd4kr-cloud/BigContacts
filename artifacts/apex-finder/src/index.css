@@ -103,3 +103,4 @@ body {
 .atlas-skeleton{background:#141414;border-radius:8px;position:relative;overflow:hidden}
 .atlas-skeleton::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(234,179,8,.1),transparent);animation:atlas-shimmer 1.5s ease-in-out infinite}
 .atlas-scroll{scrollbar-width:thin;scrollbar-color:#eab30833 #0a0a0a}
+/* black+yellow design system sealed */

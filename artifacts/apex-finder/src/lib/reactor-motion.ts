@@ -2,8 +2,8 @@
  * Apex Atlas Live Desk — motion & interaction tokens (black + yellow).
  */
 
-export const REACTOR_FAST_MS = 130;
-export const REACTOR_UI_MS = 190;
+export const REACTOR_FAST_MS = 135;
+export const REACTOR_UI_MS = 200;
 export const REACTOR_SCENE_MS = 250;
 export const REACTOR_CELEBRATE_MS = 300;
 export const REACTOR_ARM_MS = 360;
@@ -23,8 +23,8 @@ export const REACTOR_CSS = `
   --reactor-pause: ${REACTOR_PAUSE_MS}ms;
   --reactor-shimmer: ${REACTOR_SHIMMER_MS}ms;
   --reactor-ease: ${REACTOR_EASE};
-  --reactor-yellow: #f0b429;
-  --reactor-amber: #fde047;
+  --reactor-yellow: #eab308;
+  --reactor-amber: #facc15;
   --reactor-gold: #fef08a;
   --reactor-canvas: #050505;
   --reactor-desk: #0a0a0a;
