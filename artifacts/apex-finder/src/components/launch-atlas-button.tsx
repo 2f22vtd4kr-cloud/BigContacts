@@ -55,7 +55,7 @@ export function LaunchAtlasButton({
     (variant === "header" ? "Launch Atlas" : "Launch Apex Atlas");
 
   return (
-    <div className={cn("flex flex-col gap-1.5", variant === "header" && "items-end")}>
+    <div className={cn("flex flex-col gap-2", variant === "header" && "items-end")}>
       <button
         type="button"
         onClick={handleLaunch}
