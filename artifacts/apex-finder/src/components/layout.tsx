@@ -73,10 +73,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
         aria-current={active ? "page" : undefined}
         data-testid={`link-nav-${item.name.toLowerCase().replace(/\s+/g, "-")}`}
         className={cn(
-          "group flex min-h-[40px] items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] transition-colors",
+          "group flex min-h-[40px] items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] transition-all duration-200",
           active
-            ? "bg-primary/10 text-primary"
-            : "text-muted-foreground hover:bg-muted/70 hover:text-foreground",
+            ? "atlas-nav-active"
+            : "text-muted-foreground hover:bg-white/[0.04] hover:text-stone-200",
         )}
       >
         <item.icon className={cn("h-[17px] w-[17px] shrink-0", active ? "text-primary" : "text-muted-foreground/80")} />
@@ -96,7 +96,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           href="/"
           aria-label="Apex Atlas home"
           data-testid="link-sidebar-apex-atlas-mark"
-          className="grid h-8 w-8 place-items-center rounded-lg bg-primary text-primary-foreground shadow-[0_0_15px_rgba(var(--primary),0.3)] focus-visible:ring-2 focus-visible:ring-primary/50"
+          className="grid h-8 w-8 place-items-center rounded-lg bg-[#eab308] text-black shadow-[0_0_18px_rgba(234,179,8,0.35)] focus-visible:ring-2 focus-visible:ring-yellow-400/50"
         >
           <Crosshair className="h-[18px] w-[18px]" />
         </Link>
@@ -196,13 +196,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
       )}
       <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
         <div className="atlas-grid pointer-events-none absolute inset-0" />
-        <header className="relative z-20 flex h-14 shrink-0 border-yellow-500/5 items-center border-b border-yellow-500/10 bg-background/95 px-4 backdrop-blur-lg md:h-16 md:px-6">
+        <header className="relative z-20 flex h-14 shrink-0 border-yellow-500/5 items-center border-b border-[#2a2a2a] bg-[#050505]/92 px-4 backdrop-blur-lg md:h-16 md:px-6">
           <div className="mr-3 flex min-w-0 items-center md:mr-0">
             <Link
               href="/"
               aria-label="Apex Atlas home"
               data-testid="link-mobile-apex-atlas-home"
-              className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-primary text-primary-foreground shadow-[0_0_10px_rgba(var(--primary),0.3)] focus-visible:ring-2 focus-visible:ring-primary/50 md:hidden"
+              className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-[#eab308] text-black shadow-[0_0_14px_rgba(234,179,8,0.3)] focus-visible:ring-2 focus-visible:ring-yellow-400/50 md:hidden"
             >
               <Crosshair className="h-4 w-4" />
             </Link>

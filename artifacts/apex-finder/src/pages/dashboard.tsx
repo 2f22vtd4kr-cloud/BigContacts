@@ -229,30 +229,32 @@ export default function Dashboard() {
 
   return (
     <div className="mx-auto w-full max-w-[1480px] px-4 pb-12 sm:px-6 lg:px-10">
-      <section className="atlas-enter relative flex flex-col gap-8 border-b border-border/70 py-8 md:flex-row md:items-end md:justify-between md:py-12">
+      <section className="atlas-enter relative flex flex-col gap-8 py-8 md:flex-row md:items-end md:justify-between md:py-12">
         <div className="max-w-2xl">
-          <div className="mb-4 flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.22em] text-primary">
-            <span className="h-1.5 w-1.5 rounded-full bg-primary" /> Research desk
+          <div className="mb-4 flex items-center gap-2.5 font-mono text-[10px] uppercase tracking-[0.2em] text-[#eab308]">
+            <span className="atlas-live-dot atlas-live-dot-pulse" aria-hidden />
+            Research desk
           </div>
-          <h1 className="font-display text-[clamp(2.15rem,5vw,4.5rem)] font-semibold leading-[0.95] tracking-[-0.055em] text-foreground">
+          <h1 className="font-display text-[clamp(2.15rem,5vw,4.5rem)] font-semibold leading-[0.95] tracking-[-0.055em] text-[#fafaf9]">
             People worth<br className="hidden sm:block" /> knowing.
           </h1>
-          <p className="mt-5 max-w-lg text-sm leading-6 text-muted-foreground md:text-[15px]">
+          <p className="mt-5 max-w-lg text-sm leading-6 text-stone-400 md:text-[15px]">
             Launch Apex Atlas to run the full public-records pipeline — discovery, attribution, and attributable contacts — then watch live progress on the reactor desk.
           </p>
         </div>
-        <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap md:w-auto md:justify-end">
+        <div className="flex w-full flex-col gap-2.5 sm:flex-row sm:flex-wrap md:w-auto md:justify-end">
           <LaunchAtlasButton variant="primary" />
-          <Link href="/reactor" data-testid="link-dashboard-reactor" className="inline-flex h-12 items-center justify-center gap-2 rounded-lg border border-yellow-400/30 bg-yellow-400/10 px-5 text-xs font-semibold text-yellow-100 transition-all hover:border-yellow-300/50 hover:bg-yellow-400/15">
+          <Link href="/reactor" data-testid="link-dashboard-reactor" className="atlas-pressable inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-[#eab308]/35 bg-[#eab308]/10 px-5 text-xs font-semibold text-[#fde047] transition-all hover:border-[#facc15]/50 hover:bg-[#eab308]/15">
             <Radar className="h-4 w-4" /> Open reactor desk
           </Link>
-          <Link href="/search" data-testid="link-dashboard-search" className="inline-flex h-12 items-center justify-center gap-2 rounded-lg border border-border bg-card/60 px-5 text-xs font-semibold text-foreground transition-all hover:border-primary/60 hover:bg-card">
+          <Link href="/search" data-testid="link-dashboard-search" className="atlas-pressable inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-[#2a2a2a] bg-[#0c0c0c] px-5 text-xs font-semibold text-stone-200 transition-all hover:border-[#eab308]/40 hover:bg-[#0c0c0c]">
             <Search className="h-4 w-4" /> Find an entity
           </Link>
-          <Link href="/profiles" data-testid="link-dashboard-profiles" className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-border bg-card/60 px-5 text-xs font-semibold text-foreground transition-all hover:border-primary/60 hover:bg-card">
+          <Link href="/profiles" data-testid="link-dashboard-profiles" className="atlas-pressable inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[#2a2a2a] bg-[#0c0c0c] px-5 text-xs font-semibold text-stone-300 transition-all hover:border-[#eab308]/35">
             Entity ledger <ArrowUpRight className="h-3.5 w-3.5" />
           </Link>
         </div>
+        <div className="atlas-divider absolute bottom-0 left-0 right-0" aria-hidden />
       </section>
 
       {/* Registry-shallow risk — when no live web-search provider slots are active */}

@@ -25,7 +25,7 @@ export const REACTOR_CSS = `
   --reactor-ease: ${REACTOR_EASE};
   --reactor-yellow: #eab308;
   --reactor-amber: #facc15;
-  --reactor-gold: #fef08a;
+  --reactor-gold: #fde047;
   --reactor-canvas: #050505;
   --reactor-desk: #0a0a0a;
   --reactor-border: #2e2e2e;
