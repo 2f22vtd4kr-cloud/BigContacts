@@ -124,7 +124,7 @@ function LeadCard({ lead, index }: { lead: any; index: number }) {
           <span className={`relative rounded-full border px-2 py-1 font-mono text-[8px] uppercase tracking-[0.13em] ${
             contactReady
               ? "border-[#eab308]/35 bg-[#eab308]/10 text-[#fde047]"
-              : "border-border bg-muted/60 text-muted-foreground"
+              : "border-[#eab308]/12 bg-muted/60 text-muted-foreground"
           }`}>
             {contactReady ? "Reachable" : "Review"}
           </span>
@@ -145,12 +145,12 @@ function LeadCard({ lead, index }: { lead: any; index: number }) {
       </div>
 
       <div className="relative mt-4 sm:mt-6 grid grid-cols-2 gap-2 sm:gap-3">
-        <div className="rounded-lg border border-border/70 bg-background/45 px-2.5 py-2 sm:px-3 sm:py-2.5">
+        <div className="rounded-lg border border-[#eab308]/10 bg-background/45 px-2.5 py-2 sm:px-3 sm:py-2.5">
           <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">Contact quality</div>
           <div className={`mt-1 font-mono text-base sm:text-lg font-bold ${scoreTone(confidence)}`} data-testid={`text-confidence-${lead.entityId}`}>{scorePercent(confidence)}</div>
           <div className="mt-0.5 text-[10px] text-muted-foreground hidden sm:block">How solid the contact evidence is</div>
         </div>
-        <div className="rounded-lg border border-border/70 bg-background/45 px-2.5 py-2 sm:px-3 sm:py-2.5 transition-colors group-hover:border-primary/20">
+        <div className="rounded-lg border border-[#eab308]/10 bg-background/45 px-2.5 py-2 sm:px-3 sm:py-2.5 transition-colors group-hover:border-primary/20">
           <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">Reachability</div>
           <div className={`mt-1 font-mono text-base sm:text-lg font-bold ${scoreTone(access)}`} data-testid={`text-access-${lead.entityId}`}>{scorePercent(access)}</div>
           <div className="mt-0.5 text-[10px] text-muted-foreground hidden sm:block">How realistically they can be reached</div>
@@ -193,7 +193,7 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
       <CircleAlert className="h-7 w-7 text-destructive" />
       <h2 className="mt-4 font-display text-lg font-semibold">The desk could not load</h2>
       <p className="mt-2 max-w-sm text-sm text-muted-foreground">Your entities and evidence are still safe. Try the workspace again.</p>
-      <button onClick={onRetry} data-testid="button-retry-dashboard" className="mt-6 inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-xs font-semibold text-foreground hover:border-primary/60">
+      <button onClick={onRetry} data-testid="button-retry-dashboard" className="mt-6 inline-flex items-center gap-2 rounded-lg border border-[#eab308]/12 bg-card px-4 py-2.5 text-xs font-semibold text-foreground hover:border-primary/60">
         <RefreshCw className="h-3.5 w-3.5" /> Retry
       </button>
     </div>
@@ -202,7 +202,7 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
 
 function EmptyLeads() {
   return (
-    <div className="rounded-xl border atlas-empty border-dashed border-border bg-card/40 px-6 py-16 text-center">
+    <div className="rounded-xl border atlas-empty border-dashed border-[#eab308]/12 bg-card/40 px-6 py-16 text-center">
       <div className="mx-auto grid h-12 w-12 place-items-center rounded-full border border-primary/25 bg-primary/10 text-primary"><Radar className="h-5 w-5" /></div>
       <h2 className="mt-5 font-display text-lg font-semibold">Your priority desk is clear</h2>
       <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">Search public registries for people, companies, trusts, and access contacts with evidence worth reviewing.</p>
@@ -210,7 +210,7 @@ function EmptyLeads() {
         <Link href="/search" data-testid="link-empty-discover" className="inline-flex min-h-[40px] items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background">
           <Search className="h-3.5 w-3.5" /> Discover entities <ChevronRight className="h-3.5 w-3.5" />
         </Link>
-        <Link href="/reactor" data-testid="link-empty-reactor" className="inline-flex min-h-[40px] items-center gap-2 rounded-lg border border-border bg-card/60 px-4 py-2.5 text-xs font-semibold text-foreground hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50">
+        <Link href="/reactor" data-testid="link-empty-reactor" className="inline-flex min-h-[40px] items-center gap-2 rounded-lg border border-[#eab308]/12 bg-card/60 px-4 py-2.5 text-xs font-semibold text-foreground hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50">
           <Radar className="h-3.5 w-3.5" /> Open live reactor
         </Link>
       </div>
@@ -302,7 +302,7 @@ export default function Dashboard() {
             key={item.href}
             href={item.href}
             data-testid={item.testId}
-            className="group rounded-xl border border-border/80 bg-card/30 px-3 py-3 transition-colors hover:border-primary/40 hover:bg-card/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+            className="group rounded-xl border border-[#eab308]/12 bg-card/30 px-3 py-3 transition-colors hover:border-primary/40 hover:bg-card/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
           >
             <div className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground group-hover:text-primary/80">{item.label}</div>
             <div className="mt-1 text-[12px] font-medium text-foreground/90">{item.detail}</div>
@@ -331,15 +331,15 @@ export default function Dashboard() {
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">{leads.map((lead: any, index: number) => <LeadCard key={lead.entityId} lead={lead} index={index} />)}</div>}
       </section>
 
-      <section className="atlas-enter mt-10 grid gap-4 border-t border-border/70 pt-7 md:grid-cols-[1fr_auto]" style={{ animationDelay: "210ms" }}>
+      <section className="atlas-enter mt-10 grid gap-4 border-t border-[#eab308]/10 pt-7 md:grid-cols-[1fr_auto]" style={{ animationDelay: "210ms" }}>
         <div>
           <div className="flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground"><ShieldCheck className="h-3 w-3 text-primary" /> Evidence, not guesses</div>
           <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">Open any profile to inspect source registries, ownership, linked assets, and public contact channels before deciding what deserves your attention.</p>
         </div>
         <div className="flex items-center gap-3 text-xs text-muted-foreground md:justify-end">
-          <span className="grid h-8 w-8 place-items-center rounded-lg border border-border bg-card"><Mail className="h-3.5 w-3.5" /></span>
-          <span className="grid h-8 w-8 place-items-center rounded-lg border border-border bg-card"><Phone className="h-3.5 w-3.5" /></span>
-          <span className="grid h-8 w-8 place-items-center rounded-lg border border-border bg-card"><FileSearch className="h-3.5 w-3.5" /></span>
+          <span className="grid h-8 w-8 place-items-center rounded-lg border border-[#eab308]/12 bg-card"><Mail className="h-3.5 w-3.5" /></span>
+          <span className="grid h-8 w-8 place-items-center rounded-lg border border-[#eab308]/12 bg-card"><Phone className="h-3.5 w-3.5" /></span>
+          <span className="grid h-8 w-8 place-items-center rounded-lg border border-[#eab308]/12 bg-card"><FileSearch className="h-3.5 w-3.5" /></span>
         </div>
       </section>
     </div>

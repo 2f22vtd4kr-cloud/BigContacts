@@ -501,7 +501,7 @@ function FunnelPanel() {
   ];
 
   return (
-    <div className="rounded-2xl border border-border/70 bg-card/40 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] flex flex-col gap-3">
+    <div className="rounded-2xl border border-[#eab308]/10 bg-card/40 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Filter className="h-4 w-4 text-primary" />
@@ -520,7 +520,7 @@ function FunnelPanel() {
       </div>
 
       {!data ? (
-        <div className="rounded-lg border border-border/60 bg-muted/20 px-3 py-2">
+        <div className="rounded-lg border border-[#eab308]/12 bg-muted/20 px-3 py-2">
           <p className="text-xs font-mono text-muted-foreground">
             {loadError ? "Funnel data is unavailable right now." : "Loading funnel data…"}
           </p>
@@ -548,7 +548,7 @@ function FunnelPanel() {
           </div>
 
           {/* Outcome bars */}
-          <div className="space-y-2 border-t border-border/40 pt-3">
+          <div className="space-y-2 border-t border-[#eab308]/08 pt-3">
             {OUTCOME_ORDER.map(key => {
               const meta = OUTCOME_META[key];
               const count = data.outcomes[key] ?? 0;
@@ -582,7 +582,7 @@ function FunnelPanel() {
 
           {/* By entity type (compact) */}
           {Object.keys(data.byEntityType).length > 0 && (
-            <div className="border-t border-border/40 pt-3">
+            <div className="border-t border-[#eab308]/08 pt-3">
               <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-2">By Entity Type</p>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 {Object.entries(data.byEntityType).map(([type, outcomes]) => {
@@ -590,7 +590,7 @@ function FunnelPanel() {
                   const direct = (outcomes["direct_contact_candidate"] ?? 0) + (outcomes["direct_contact_verified"] ?? 0);
                   const social = outcomes["social_only"] ?? 0;
                   return (
-                    <div key={type} className="rounded-lg border border-border/40 p-2">
+                    <div key={type} className="rounded-lg border border-[#eab308]/08 p-2">
                       <div className="text-[10px] font-mono font-bold text-foreground mb-1">{type}</div>
                       <div className="text-[10px] font-mono text-[#facc15]">
                         {typeTotal > 0 ? ((direct / typeTotal) * 100).toFixed(1) : "0.0"}% direct
@@ -630,7 +630,7 @@ function RegistryMatrixPanel() {
   }, []);
 
   return (
-    <section className="rounded-2xl border border-border/70 bg-card/40 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+    <section className="rounded-2xl border border-[#eab308]/10 bg-card/40 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
       <div className="flex items-center gap-2 mb-3">
         <Globe className="h-4 w-4 text-yellow-400" />
         <span className="text-sm font-semibold font-mono uppercase tracking-widest text-yellow-400">
@@ -666,7 +666,7 @@ function RegistryMatrixPanel() {
               detail: "public-release checked",
             },
           ].map((item) => (
-            <div key={item.label} className="rounded-lg border border-border/50 bg-muted/10 px-2.5 py-2">
+            <div key={item.label} className="rounded-lg border border-[#eab308]/10 bg-muted/10 px-2.5 py-2">
               <div className={`text-lg font-bold font-mono ${item.color}`}>{item.value}</div>
               <div className="text-[9px] font-mono uppercase tracking-wider text-foreground">{item.label}</div>
               <div className="text-[9px] font-mono text-muted-foreground">{item.detail}</div>
@@ -680,7 +680,7 @@ function RegistryMatrixPanel() {
         <>
       <div className="hidden md:block overflow-x-auto">
         <table className="w-full text-left text-[10px] font-mono">
-          <thead className="text-muted-foreground uppercase tracking-wider border-b border-border/50">
+          <thead className="text-muted-foreground uppercase tracking-wider border-b border-[#eab308]/10">
             <tr>
               <th className="py-2 pr-3">Registry</th>
               <th className="py-2 pr-3">Jurisdiction</th>
@@ -726,7 +726,7 @@ function RegistryMatrixPanel() {
                     {expandedId === source.id ? "hide" : "inspect"}
                   </button>
                   {expandedId === source.id && (
-                    <div className="mt-2 min-w-[280px] max-w-[440px] rounded-lg border border-border/50 bg-muted/10 p-2.5 text-muted-foreground">
+                    <div className="mt-2 min-w-[280px] max-w-[440px] rounded-lg border border-[#eab308]/10 bg-muted/10 p-2.5 text-muted-foreground">
                       <p>{source.runtimeNote}</p>
                       <p className="mt-1 text-foreground/80">{source.personOfficerFields}</p>
                       <p className="mt-1">{source.accessMethod} · {source.freshness}</p>
@@ -743,7 +743,7 @@ function RegistryMatrixPanel() {
       {/* Mobile card list */}
       <div className="md:hidden space-y-2">
         {sources.map((source) => (
-          <div key={source.id} className="rounded-lg border border-border/40 p-3 space-y-1">
+          <div key={source.id} className="rounded-lg border border-[#eab308]/08 p-3 space-y-1">
               <button
                 onClick={() => setExpandedId(expandedId === source.id ? null : source.id)}
                 className="w-full flex items-center justify-between text-left"
@@ -800,7 +800,7 @@ function IdentityResolutionPanel() {
   const rejected  = stats?.candidates?.rejected  ?? 0;
 
   return (
-    <section className="rounded-2xl border border-border/70 bg-card/40 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+    <section className="rounded-2xl border border-[#eab308]/10 bg-card/40 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
       <div className="flex items-center gap-2 mb-3">
         <UserCheck className="h-4 w-4 text-yellow-400" />
         <span className="text-sm font-semibold font-mono uppercase tracking-widest text-yellow-400">
@@ -817,7 +817,7 @@ function IdentityResolutionPanel() {
           { label: "Confirmed",     value: confirmed,             color: "text-[#fde047]" },
           { label: "Rejected",      value: rejected,              color: "text-muted-foreground" },
         ].map((item) => (
-          <div key={item.label} className="rounded-lg border border-border/50 bg-muted/10 px-3 py-2">
+          <div key={item.label} className="rounded-lg border border-[#eab308]/10 bg-muted/10 px-3 py-2">
             <div className={`text-lg font-bold font-mono ${item.color}`}>
               {typeof item.value === "number" ? item.value.toLocaleString() : item.value}
             </div>
@@ -962,7 +962,7 @@ function PythonToolsPanel() {
     : false;
 
   return (
-    <section className="rounded-2xl border border-border/70 bg-card/40 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] space-y-4">
+    <section className="rounded-2xl border border-[#eab308]/10 bg-card/40 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] space-y-4">
 
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -986,7 +986,7 @@ function PythonToolsPanel() {
       {/* Health summary bar */}
       <div className={`rounded-lg border px-3 py-2.5 space-y-1.5 ${
         !checked
-          ? "border-border/40 bg-muted/10"
+          ? "border-[#eab308]/08 bg-muted/10"
           : allReady
             ? "border-[#eab308]/30 bg-[#eab308]/5"
             : "border-amber-500/30 bg-amber-500/5"
@@ -1018,7 +1018,7 @@ function PythonToolsPanel() {
       <div className="space-y-2">
 
         {/* GLiNER — microservice */}
-        <div className="rounded-lg border border-border/40 bg-muted/5 p-3">
+        <div className="rounded-lg border border-[#eab308]/08 bg-muted/5 p-3">
           <div className="flex items-start gap-3">
             <Cpu className="h-4 w-4 text-yellow-300 mt-0.5 flex-shrink-0" />
             <div className="flex-1 min-w-0 space-y-1">
@@ -1052,7 +1052,7 @@ function PythonToolsPanel() {
           const meta = TOOL_META[key]!;
           const ready = status?.tools[key] ?? false;
           return (
-            <div key={key} className="rounded-lg border border-border/40 bg-muted/5 p-3">
+            <div key={key} className="rounded-lg border border-[#eab308]/08 bg-muted/5 p-3">
               <div className="flex items-start gap-3">
                 <Terminal className="h-4 w-4 text-muted-foreground/50 mt-0.5 flex-shrink-0" />
                 <div className="flex-1 min-w-0 space-y-1">
@@ -1134,7 +1134,7 @@ function SourceQualityPanel() {
   };
 
   return (
-    <section className="rounded-2xl border border-border/70 bg-card/40 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] space-y-4">
+    <section className="rounded-2xl border border-[#eab308]/10 bg-card/40 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <BarChart3 className="h-4 w-4 text-yellow-400" />
@@ -1150,7 +1150,7 @@ function SourceQualityPanel() {
         <button
           onClick={load}
           disabled={loading}
-          className="rounded-lg px-3 py-2 text-xs font-semibold border border-border text-muted-foreground hover:text-foreground disabled:opacity-50"
+          className="rounded-lg px-3 py-2 text-xs font-semibold border border-[#eab308]/12 text-muted-foreground hover:text-foreground disabled:opacity-50"
         >
           {loading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : "Refresh"}
         </button>
@@ -1164,7 +1164,7 @@ function SourceQualityPanel() {
           <p className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-2">Contact outcome distribution</p>
           <div className="flex flex-wrap gap-2">
             {data.outcomeSummary.map(({ outcome, count, pct }) => (
-              <div key={outcome} className="rounded-lg border border-border/50 bg-muted/10 px-3 py-2 min-w-[100px]">
+              <div key={outcome} className="rounded-lg border border-[#eab308]/10 bg-muted/10 px-3 py-2 min-w-[100px]">
                 <div className={`text-base font-bold font-mono ${outcomeColor[outcome] ?? "text-foreground"}`}>
                   {Number(count).toLocaleString()}
                 </div>
@@ -1182,10 +1182,10 @@ function SourceQualityPanel() {
       {data?.bySource && data.bySource.length > 0 && (
         <div>
           <p className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-2">Evidence by source</p>
-          <div className="overflow-x-auto rounded-lg border border-border/40">
+          <div className="overflow-x-auto rounded-lg border border-[#eab308]/08">
             <table className="w-full text-[10px] font-mono">
               <thead>
-                <tr className="border-b border-border/40 bg-muted/10">
+                <tr className="border-b border-[#eab308]/08 bg-muted/10">
                   {["Source", "Entities", "Evidence", "Verified", "Candidate", "Reliability", "Directness"].map(h => (
                     <th key={h} className="px-3 py-2 text-left text-[9px] uppercase tracking-wider text-muted-foreground font-medium">{h}</th>
                   ))}
@@ -1230,7 +1230,7 @@ function SourceQualityPanel() {
 
 function SourceCard({ src }: { src: SourceDef }) {
   return (
-    <div className="rounded-2xl border border-border/70 bg-card/40 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] flex flex-col gap-2.5">
+    <div className="rounded-2xl border border-[#eab308]/10 bg-card/40 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] flex flex-col gap-2.5">
       <div className="flex items-start gap-3">
         <div className="rounded-lg p-2 flex-shrink-0" style={{ background: src.bg }}>
           <src.Icon className="h-4 w-4" style={{ color: src.color }} />
@@ -1267,7 +1267,7 @@ function SourceCard({ src }: { src: SourceDef }) {
       </div>
 
       {src.note && (
-        <p className="text-[11px] font-mono text-muted-foreground/60 border-l-2 border-border pl-2">
+        <p className="text-[11px] font-mono text-muted-foreground/60 border-l-2 border-[#eab308]/12 pl-2">
           {src.note}
         </p>
       )}
@@ -1291,7 +1291,7 @@ function CollapsibleSection({
   accent?: string;
 }) {
   return (
-    <details open={defaultOpen} className="group rounded-2xl border border-border/60 bg-card/25 overflow-hidden">
+    <details open={defaultOpen} className="group rounded-2xl border border-[#eab308]/12 bg-card/25 overflow-hidden">
       <summary className="list-none cursor-pointer select-none px-4 py-3 flex items-center gap-3 hover:bg-muted/20 transition-colors">
         <Icon className={cn("h-4 w-4 flex-shrink-0", accent)} />
         <div className="min-w-0 flex-1">
@@ -1300,7 +1300,7 @@ function CollapsibleSection({
         </div>
         <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" />
       </summary>
-      <div className="border-t border-border/50 p-3 md:p-4 space-y-4">
+      <div className="border-t border-[#eab308]/10 p-3 md:p-4 space-y-4">
         {children}
       </div>
     </details>
@@ -1316,7 +1316,7 @@ export default function DataSources() {
   return (
     <div className="flex flex-col h-full">
       {/* Page header */}
-      <div className="flex-shrink-0 px-4 md:px-6 py-4 border-b border-border flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex-shrink-0 px-4 md:px-6 py-4 border-b border-[#eab308]/12 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3 min-w-0">
           <Database className="h-5 w-5 text-primary flex-shrink-0" aria-hidden />
           <p className="text-[12px] text-muted-foreground leading-snug min-w-0">

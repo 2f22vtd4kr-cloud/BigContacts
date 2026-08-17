@@ -43,7 +43,7 @@ function CompletenessDemo() {
   return (
     <div className="space-y-2 my-4">
       {rows.map((r) => (
-        <div key={r.level} className="bg-card/50 border border-border/70 rounded-2xl p-3.5 flex items-start gap-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+        <div key={r.level} className="bg-card/50 border border-[#eab308]/10 rounded-2xl p-3.5 flex items-start gap-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
           <span
             className="text-[10px] font-mono font-bold px-2 py-0.5 rounded shrink-0"
             style={{ color: r.color, background: r.color + "22" }}
@@ -199,12 +199,12 @@ const SECTIONS = [
           Keys live in Replit Secrets / environment only — never commit them. The header key-health chip reflects pool status.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] font-mono text-muted-foreground mb-4">
-          <div className="border border-border rounded p-2">SERP / search — SerpAPI, Serper, Tavily, Exa</div>
-          <div className="border border-border rounded p-2">Browser — Scrapfly, ZenRows</div>
-          <div className="border border-border rounded p-2">LLM — Gemini (Boss), Groq, NVIDIA NIM, Mistral</div>
-          <div className="border border-border rounded p-2">Domain — WhoisJSON (RDAP is keyless); Whoxy skip if balance 0</div>
-          <div className="border border-border rounded p-2">Registry — Companies House, EDGAR (public)</div>
-          <div className="border border-border rounded p-2">Infra — Upstash Redis (session), Hugging Face</div>
+          <div className="border border-[#eab308]/12 rounded p-2">SERP / search — SerpAPI, Serper, Tavily, Exa</div>
+          <div className="border border-[#eab308]/12 rounded p-2">Browser — Scrapfly, ZenRows</div>
+          <div className="border border-[#eab308]/12 rounded p-2">LLM — Gemini (Boss), Groq, NVIDIA NIM, Mistral</div>
+          <div className="border border-[#eab308]/12 rounded p-2">Domain — WhoisJSON (RDAP is keyless); Whoxy skip if balance 0</div>
+          <div className="border border-[#eab308]/12 rounded p-2">Registry — Companies House, EDGAR (public)</div>
+          <div className="border border-[#eab308]/12 rounded p-2">Infra — Upstash Redis (session), Hugging Face</div>
         </div>
         <Callout title="Budget discipline">
           SerpAPI free tier (~250/mo) and Scrapfly (~1000/mo) are tight. Prefer RDAP before WhoisJSON.
@@ -224,7 +224,7 @@ const SECTIONS = [
           <li><strong className="text-foreground">Open the card</strong> — check FULL/PARTIAL, personal emails, ownership narrative, sourceUrls.</li>
           <li><strong className="text-foreground">Act only on FULL or intentional PARTIAL</strong> — never invent a channel; optional registry hop / enrichment only after identity lock.</li>
         </ol>
-        <div className="bg-muted/30 border border-border p-4 rounded-lg my-4 flex flex-wrap items-center gap-2">
+        <div className="bg-muted/30 border border-[#eab308]/12 p-4 rounded-lg my-4 flex flex-wrap items-center gap-2">
           <span className="text-xs font-mono text-muted-foreground">Pipeline:</span>
           <span className="text-xs font-mono text-primary bg-primary/10 px-2 py-1 rounded">Company lock</span>
           <span className="text-xs font-mono text-muted-foreground">→</span>
@@ -267,7 +267,7 @@ const SECTIONS = [
           </ol>
         </Callout>
 
-        <div className="bg-muted/30 border border-border p-4 rounded-lg my-4 flex flex-wrap items-center gap-2">
+        <div className="bg-muted/30 border border-[#eab308]/12 p-4 rounded-lg my-4 flex flex-wrap items-center gap-2">
           <span className="text-xs font-mono text-muted-foreground">Flow:</span>
           <span className="text-xs font-mono text-primary bg-primary/10 px-2 py-1 rounded">UI trigger</span>
           <span className="text-xs font-mono text-muted-foreground">→</span>
@@ -368,10 +368,10 @@ export default function ManualPage() {
         <Link href="/reactor" className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-yellow-400/25 bg-yellow-400/10 px-3 py-1.5 text-[11px] font-semibold text-yellow-100 hover:border-yellow-300/40">
           <Cpu className="h-3.5 w-3.5" /> Live reactor
         </Link>
-        <Link href="/search" className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-border bg-card/50 px-3 py-1.5 text-[11px] font-semibold text-foreground hover:border-primary/40">
+        <Link href="/search" className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-[#eab308]/12 bg-card/50 px-3 py-1.5 text-[11px] font-semibold text-foreground hover:border-primary/40">
           Discover
         </Link>
-        <Link href="/profiles" className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-border bg-card/50 px-3 py-1.5 text-[11px] font-semibold text-foreground hover:border-primary/40">
+        <Link href="/profiles" className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-[#eab308]/12 bg-card/50 px-3 py-1.5 text-[11px] font-semibold text-foreground hover:border-primary/40">
           Entity ledger
         </Link>
       </div>
@@ -384,20 +384,20 @@ export default function ManualPage() {
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Search sections…"
-        className="mb-5 w-full rounded-xl border border-border/70 bg-background/80 px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/30 focus-visible:border-yellow-400/40"
+        className="mb-5 w-full rounded-xl border border-[#eab308]/10 bg-background/80 px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/30 focus-visible:border-yellow-400/40"
         autoComplete="off"
       />
 
       <div className="space-y-2" role="list">
         {visible.length === 0 && (
-          <div className="rounded-lg border border-border bg-card px-4 py-8 text-center text-sm text-muted-foreground" data-testid="manual-search-empty">
+          <div className="rounded-lg border border-[#eab308]/12 bg-card px-4 py-8 text-center text-sm text-muted-foreground" data-testid="manual-search-empty">
             No sections match “{query.trim()}”.
           </div>
         )}
         {visible.map((section) => {
           const open = openId === section.id;
           return (
-            <div key={section.id} className="border border-border rounded-lg bg-card overflow-hidden" role="listitem">
+            <div key={section.id} className="border border-[#eab308]/12 rounded-lg bg-card overflow-hidden" role="listitem">
               <button
                 type="button"
                 onClick={() => setOpenId(open ? null : section.id)}
@@ -415,7 +415,7 @@ export default function ManualPage() {
                   id={`manual-panel-${section.id}`}
                   role="region"
                   aria-labelledby={`manual-tab-${section.id}`}
-                  className="px-4 pb-5 border-t border-border pt-4"
+                  className="px-4 pb-5 border-t border-[#eab308]/12 pt-4"
                 >
                   {section.content}
                 </div>

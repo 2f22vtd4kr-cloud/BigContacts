@@ -142,7 +142,7 @@ function ProviderCard({ name, slots }: { name: keyof AIKeyStatus; slots: AIKeySl
       ? "border-yellow-400/25 bg-gradient-to-br from-yellow-500/[0.07] via-[#0c0c0c] to-[#0a0a0a]"
       : rateLimited > 0
         ? "border-amber-400/25 bg-gradient-to-br from-amber-500/[0.07] via-[#0c0c0c] to-[#0a0a0a]"
-        : "border-border/60 bg-card/30";
+        : "border-[#eab308]/12 bg-card/30";
 
   return (
     <article
@@ -170,7 +170,7 @@ function ProviderCard({ name, slots }: { name: keyof AIKeyStatus; slots: AIKeySl
               ? "border-yellow-400/35 bg-yellow-400/10 text-yellow-200"
               : rateLimited > 0
                 ? "border-amber-400/35 bg-amber-400/10 text-amber-200"
-                : "border-border/70 bg-muted/20 text-muted-foreground",
+                : "border-[#eab308]/10 bg-muted/20 text-muted-foreground",
           )}
         >
           {active > 0 ? `${active} live` : rateLimited > 0 ? "cooldown" : "empty"}
@@ -204,7 +204,7 @@ function DbRow({
 }) {
   const ok = status === "ok" || status === "ready";
   return (
-    <div className="flex items-center justify-between rounded-lg border border-border/50 px-4 py-3">
+    <div className="flex items-center justify-between rounded-lg border border-[#eab308]/10 px-4 py-3">
       <div className="flex items-center gap-3">
         <Icon className={cn("h-4 w-4", ok ? "text-primary" : "text-destructive")} />
         <span className="font-mono text-[12px] text-foreground">{label}</span>
@@ -288,7 +288,7 @@ export default function SystemStatusPage() {
           )}
           <button
             onClick={fetchStatus}
-            className="flex min-h-[40px] w-full sm:w-auto items-center justify-center gap-2 rounded-lg border border-border/60 px-3 py-1.5 font-mono text-[11px] text-muted-foreground hover:border-primary/40 hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+            className="atlas-outline-btn atlas-pressable flex min-h-[40px] w-full sm:w-auto items-center justify-center gap-2 rounded-lg px-3 py-1.5 font-mono text-[11px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/50"
           >
             <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
             Refresh
@@ -386,7 +386,7 @@ export default function SystemStatusPage() {
                 "flex items-center justify-between gap-3 rounded-2xl border px-4 py-3.5 transition-colors",
                 item.configured
                   ? "border-yellow-400/20 bg-yellow-500/[0.06]"
-                  : "border-border/50 bg-card/25",
+                  : "border-[#eab308]/10 bg-card/25",
               )}
             >
               <div className="min-w-0">
@@ -398,7 +398,7 @@ export default function SystemStatusPage() {
                   "shrink-0 rounded-md border px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.12em]",
                   item.configured
                     ? "border-[#eab308]/30 bg-[#eab308]/10 text-[#fef08a]"
-                    : "border-border/60 bg-muted/20 text-muted-foreground",
+                    : "border-[#eab308]/12 bg-muted/20 text-muted-foreground",
                 )}
               >
                 {item.configured ? "ready" : "off"}
@@ -406,7 +406,7 @@ export default function SystemStatusPage() {
             </div>
           ))}
         </div>
-        <div className="mt-2 rounded-lg border border-border/50 px-4 py-3">
+        <div className="mt-2 rounded-lg border border-[#eab308]/10 px-4 py-3">
           <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px]">
             <span className="text-muted-foreground">Bounded smolagents adapter</span>
             <span className={status?.openResearch?.adapter?.available ? "text-primary" : "text-muted-foreground"}>
@@ -422,7 +422,7 @@ export default function SystemStatusPage() {
               : "Mistral web search not configured"}
           </div>
         </div>
-        <div className="mt-3 rounded-lg border border-border/50 px-4 py-3">
+        <div className="mt-3 rounded-lg border border-[#eab308]/10 px-4 py-3">
           <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px]">
             <span className="text-muted-foreground">Gemini Boss</span>
             <span className={status?.geminiBoss?.configured ? "text-primary" : "text-muted-foreground"}>
@@ -435,7 +435,7 @@ export default function SystemStatusPage() {
               : "Gemini Boss text-planning model not configured"}
           </div>
         </div>
-        <div className="mt-3 rounded-lg border border-border/50 px-4 py-3">
+        <div className="mt-3 rounded-lg border border-[#eab308]/10 px-4 py-3">
           <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px]">
             <span className="text-muted-foreground">Boss's right-hand advisor</span>
             <span className={status?.bureauReasoning?.configured ? "text-primary" : "text-muted-foreground"}>
@@ -495,7 +495,7 @@ export default function SystemStatusPage() {
                     ? "border-amber-500/30 bg-amber-500/5"
                     : slot.status === "ready"
                     ? "border-primary/30 bg-primary/5"
-                    : "border-border bg-muted/10",
+                    : "border-[#eab308]/10 bg-muted/10",
                 )}
               >
                 <div className="mb-1 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground/60">
@@ -526,7 +526,7 @@ export default function SystemStatusPage() {
       </section>
 
       {/* Legend */}
-      <div className="flex flex-wrap gap-4 border-t border-border/40 pt-5 font-mono text-[10px] text-muted-foreground/60">
+      <div className="flex flex-wrap gap-4 border-t border-[#eab308]/08 pt-5 font-mono text-[10px] text-muted-foreground/60">
         <div className="flex items-center gap-1.5">
           <div className="h-3 w-3 rounded-full bg-primary" /> Active — key operational
         </div>

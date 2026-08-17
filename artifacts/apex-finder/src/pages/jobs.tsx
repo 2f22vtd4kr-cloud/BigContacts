@@ -51,7 +51,7 @@ function statusIcon(status: Job["status"]) {
   if (status === "done") return <CheckCircle2 className="w-3.5 h-3.5 text-[#facc15]" />;
   if (status === "failed") return <XCircle className="w-3.5 h-3.5 text-red-400" />;
   if (status === "cancelled") return <XCircle className="w-3.5 h-3.5 text-muted-foreground" />;
-  return <div className="w-3.5 h-3.5 rounded-full border border-border bg-muted/30" />;
+  return <div className="w-3.5 h-3.5 rounded-full border border-[#eab308]/12 bg-muted/30" />;
 }
 
 function statusColor(status: Job["status"]) {
@@ -84,7 +84,7 @@ function IngestorCard({ job, onTrigger }: { job: Job; onTrigger: (id: string) =>
   const isActive = job.status === "running" || job.status === "queued";
 
   return (
-    <div className={cn("rounded-2xl border border-border/70 bg-card/30 overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-colors", isActive && "border-yellow-400/30 bg-yellow-500/[0.04]")} data-testid={`card-job-${job.id}`}>
+    <div className={cn("rounded-2xl border border-[#eab308]/10 bg-card/30 overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-colors", isActive && "border-yellow-400/30 bg-yellow-500/[0.04]")} data-testid={`card-job-${job.id}`}>
       <button
         onClick={() => setOpen(o => !o)}
         data-testid={`button-toggle-job-${job.id}`}
@@ -94,7 +94,7 @@ function IngestorCard({ job, onTrigger }: { job: Job; onTrigger: (id: string) =>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 min-w-0">
             <span className="text-xs font-mono font-bold text-foreground truncate">{job.label}</span>
-            <span className="text-[9px] font-mono uppercase tracking-[0.1em] text-muted-foreground/70 border border-border/60 bg-background/40 px-1.5 py-0.5 rounded-md hidden sm:block whitespace-nowrap">{job.category}</span>
+            <span className="text-[9px] font-mono uppercase tracking-[0.1em] text-muted-foreground/70 border border-[#eab308]/12 bg-background/40 px-1.5 py-0.5 rounded-md hidden sm:block whitespace-nowrap">{job.category}</span>
           </div>
           <div className="text-[10px] font-mono text-muted-foreground truncate mt-0.5">{job.description}</div>
         </div>
@@ -108,7 +108,7 @@ function IngestorCard({ job, onTrigger }: { job: Job; onTrigger: (id: string) =>
       </button>
 
       {open && (
-        <div className="border-t border-border/50 px-4 py-3 bg-background/30 space-y-3">
+        <div className="border-t border-[#eab308]/10 px-4 py-3 bg-background/30 space-y-3">
           {/* Metrics */}
           {job.status !== "idle" && (
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] font-mono">
@@ -145,7 +145,7 @@ function IngestorCard({ job, onTrigger }: { job: Job; onTrigger: (id: string) =>
               className={cn(
                 "flex min-h-[36px] items-center gap-1.5 px-3.5 py-1.5 rounded-xl border font-mono text-[11px] uppercase tracking-wider transition-colors",
                 isActive
-                  ? "border-border text-muted-foreground opacity-50 cursor-not-allowed"
+                  ? "border-[#eab308]/12 text-muted-foreground opacity-50 cursor-not-allowed"
                   : "border-yellow-400/35 text-yellow-100 bg-yellow-400/10 hover:bg-yellow-400/15"
               )}
             >
@@ -217,7 +217,7 @@ function PersonaLoopTab() {
           <div className="text-xs font-bold font-mono text-foreground uppercase tracking-widest">AI Analyst Suggestions</div>
           <div className="text-[10px] font-mono text-muted-foreground mt-0.5">AI models analyze profiles continuously to suggest data corrections and improvements.</div>
         </div>
-        <button onClick={handleRun} disabled={running} data-testid="button-run-ai-analysts" className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded border font-mono text-[11px] uppercase tracking-wider transition-colors", running ? "border-border text-muted-foreground opacity-50 cursor-not-allowed" : "border-primary/40 text-[#eab308] bg-primary/5 hover:bg-primary/15")}>
+        <button onClick={handleRun} disabled={running} data-testid="button-run-ai-analysts" className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded border font-mono text-[11px] uppercase tracking-wider transition-colors", running ? "border-[#eab308]/12 text-muted-foreground opacity-50 cursor-not-allowed" : "border-primary/40 text-[#eab308] bg-primary/5 hover:bg-primary/15")}>
           {running ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
           {running ? "Analyzing…" : "Run Analysts Now"}
         </button>
@@ -232,7 +232,7 @@ function PersonaLoopTab() {
             { label: "Applied", val: stats.applied ?? 0, color: "text-[#facc15]" },
             { label: "Dismissed", val: stats.dismissed ?? 0, color: "text-muted-foreground" },
           ].map(({ label, val, color }) => (
-            <div key={label} className="p-3 rounded-xl border border-border bg-card/30 text-center">
+            <div key={label} className="p-3 rounded-xl border border-[#eab308]/12 bg-card/30 text-center">
               <div className={cn("text-xl font-bold font-mono", color)}>{val.toLocaleString()}</div>
               <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-widest mt-1">{label}</div>
             </div>
@@ -242,9 +242,9 @@ function PersonaLoopTab() {
 
       {/* Persona filter */}
       <div className="flex flex-wrap gap-1.5">
-        <button onClick={() => setFilter("all")} className={cn("px-2 py-1 rounded text-[10px] font-mono uppercase tracking-wider border transition-colors", filter === "all" ? "border-primary/40 text-[#eab308] bg-primary/10" : "border-border text-muted-foreground hover:text-foreground")}>All Analysts</button>
+        <button onClick={() => setFilter("all")} className={cn("px-2 py-1 rounded text-[10px] font-mono uppercase tracking-wider border transition-colors", filter === "all" ? "border-primary/40 text-[#eab308] bg-primary/10" : "border-[#eab308]/12 text-muted-foreground hover:text-foreground")}>All Analysts</button>
         {personas.map(p => (
-          <button key={p} onClick={() => setFilter(p)} className={cn("px-2 py-1 rounded text-[10px] font-mono uppercase tracking-wider border transition-colors", filter === p ? "border-primary/40 text-[#eab308] bg-primary/10" : "border-border text-muted-foreground hover:text-foreground")}>
+          <button key={p} onClick={() => setFilter(p)} className={cn("px-2 py-1 rounded text-[10px] font-mono uppercase tracking-wider border transition-colors", filter === p ? "border-primary/40 text-[#eab308] bg-primary/10" : "border-[#eab308]/12 text-muted-foreground hover:text-foreground")}>
             {personaLabel(p).split(" ")[0]}
           </button>
         ))}
@@ -256,7 +256,7 @@ function PersonaLoopTab() {
           <div className="text-center py-8 text-xs font-mono text-muted-foreground">No suggestions yet. Run the AI Analysts to generate improvement suggestions.</div>
         )}
         {filteredLogs.map((log: any) => (
-          <div key={log.id} className="p-3 rounded-lg border border-border bg-card/30" data-testid={`card-suggestion-${log.id}`}>
+          <div key={log.id} className="p-3 rounded-lg border border-[#eab308]/12 bg-card/30" data-testid={`card-suggestion-${log.id}`}>
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-center gap-2 flex-wrap min-w-0">
                 <span className="text-[9px] font-mono uppercase tracking-widest text-[#eab308] border border-primary/30 bg-primary/5 px-1.5 py-0.5 rounded">{personaLabel(log.persona)}</span>
@@ -264,7 +264,7 @@ function PersonaLoopTab() {
                   "inline-flex items-center rounded-md border px-1.5 py-0.5 text-[9px] font-mono font-medium",
                   log.priority === "HIGH" ? "text-red-300 border-red-400/30 bg-red-400/10" :
                   log.priority === "MEDIUM" ? "text-amber-300 border-amber-400/30 bg-amber-400/10" :
-                  "text-muted-foreground border-border bg-muted/20"
+                  "text-muted-foreground border-[#eab308]/12 bg-muted/20"
                 )}>
                   {log.priority === "HIGH" ? "Urgent" : log.priority === "MEDIUM" ? "Normal" : log.priority === "LOW" ? "Low" : String(log.priority ?? "")}
                 </span>
@@ -276,7 +276,7 @@ function PersonaLoopTab() {
                   className="text-[9px] font-mono text-[#facc15]/60 hover:text-[#facc15] border border-[#eab308]/20 px-1.5 py-0.5 rounded transition-colors">Apply</button>
                 <button onClick={() => fetch(`${BASE}/api/improve/logs/${log.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "dismissed" }) }).then(() => setLogs(prev => prev.filter(l => l.id !== log.id)))}
                   data-testid={`button-dismiss-suggestion-${log.id}`}
-                  className="text-[9px] font-mono text-muted-foreground/40 hover:text-muted-foreground border border-border/50 px-1.5 py-0.5 rounded transition-colors">Dismiss</button>
+                  className="text-[9px] font-mono text-muted-foreground/40 hover:text-muted-foreground border border-[#eab308]/10 px-1.5 py-0.5 rounded transition-colors">Dismiss</button>
               </div>
             </div>
             <p className="text-[11px] font-mono text-foreground/80 mt-1.5 leading-relaxed">{log.suggestion}</p>
@@ -348,7 +348,7 @@ function DuplicatesTab() {
         const secondary = isSwapped ? pair.entity1 : pair.entity2;
         const isMerging = merging === key;
         return (
-          <div key={key} className="border border-border rounded-lg overflow-hidden" data-testid={`card-duplicate-${key}`}>
+          <div key={key} className="border border-[#eab308]/12 rounded-lg overflow-hidden" data-testid={`card-duplicate-${key}`}>
             <button onClick={() => setExpanded(expanded === key ? null : key)} data-testid={`button-toggle-duplicate-${key}`} className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-muted/15 transition-colors text-left">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
@@ -368,10 +368,10 @@ function DuplicatesTab() {
               </div>
             </button>
             {expanded === key && (
-              <div className="border-t border-border/50 p-3 bg-background/30 space-y-3">
+              <div className="border-t border-[#eab308]/10 p-3 bg-background/30 space-y-3">
                 <div className="grid sm:grid-cols-2 gap-2">
                   {[{ entity: primary, label: "KEEP" }, { entity: secondary, label: "MERGE INTO (PRIMARY)" }].map(({ entity, label }) => (
-                    <div key={entity.id} className={cn("p-3 rounded border text-xs font-mono space-y-1", label === "KEEP" ? "border-primary/30 bg-primary/5" : "border-border bg-card/30")}>
+                    <div key={entity.id} className={cn("p-3 rounded border text-xs font-mono space-y-1", label === "KEEP" ? "border-primary/30 bg-primary/5" : "border-[#eab308]/12 bg-card/30")}>
                       <div className="text-[9px] uppercase tracking-widest text-muted-foreground/50">{label}</div>
                       <div className="font-bold text-foreground">{entity.name}</div>
                       <div className="text-muted-foreground uppercase text-[9px]">{entity.entityType}</div>
@@ -380,14 +380,14 @@ function DuplicatesTab() {
                   ))}
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <button onClick={() => setSwapped(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; })} data-testid={`button-swap-duplicate-${key}`} className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-border text-muted-foreground text-[10px] font-mono uppercase hover:text-foreground hover:border-primary/40 transition-colors">
+                  <button onClick={() => setSwapped(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; })} data-testid={`button-swap-duplicate-${key}`} className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-[#eab308]/12 text-muted-foreground text-[10px] font-mono uppercase hover:text-foreground hover:border-primary/40 transition-colors">
                     <GitMerge className="w-3 h-3" /> Swap Direction
                   </button>
                   <button onClick={() => merge(pair)} disabled={isMerging} data-testid={`button-merge-duplicate-${key}`} className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-primary/40 text-[#eab308] text-[10px] font-mono uppercase bg-primary/5 hover:bg-primary/15 transition-colors disabled:opacity-50">
                     {isMerging ? <Loader2 className="w-3 h-3 animate-spin" /> : <GitMerge className="w-3 h-3" />}
                     {isMerging ? "Merging…" : "Merge"}
                   </button>
-                  <button onClick={() => dismiss(pair)} data-testid={`button-dismiss-duplicate-${key}`} className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-border text-muted-foreground text-[10px] font-mono uppercase hover:text-foreground transition-colors">
+                  <button onClick={() => dismiss(pair)} data-testid={`button-dismiss-duplicate-${key}`} className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-[#eab308]/12 text-muted-foreground text-[10px] font-mono uppercase hover:text-foreground transition-colors">
                     <Trash2 className="w-3 h-3" /> Not a Match
                   </button>
                 </div>
@@ -453,7 +453,7 @@ function LiveActivityTab({ jobs }: { jobs: Job[] }) {
             <div className="flex flex-wrap gap-2 shrink-0">
               <Link
                 href="/data-sources"
-                className="inline-flex min-h-[40px] items-center rounded-xl border border-border/70 bg-background/50 px-3.5 py-2 text-[11px] font-semibold text-foreground hover:border-yellow-400/35"
+                className="inline-flex min-h-[40px] items-center rounded-xl border border-[#eab308]/10 bg-background/50 px-3.5 py-2 text-[11px] font-semibold text-foreground hover:border-yellow-400/35"
                 data-testid="link-jobs-data-sources"
               >
                 Data sources
@@ -475,7 +475,7 @@ function LiveActivityTab({ jobs }: { jobs: Job[] }) {
           <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-2">Recent completions</div>
           <div className="space-y-1">
             {recent.map(job => (
-              <div key={job.id} className="flex items-center gap-3 px-3 py-2 rounded border border-border/50 bg-card/10">
+              <div key={job.id} className="flex items-center gap-3 px-3 py-2 rounded border border-[#eab308]/10 bg-card/10">
                 {statusIcon(job.status)}
                 <span className="text-xs font-mono text-foreground/80 truncate flex-1">{job.label}</span>
                 {job.inserted > 0 && <span className="text-[10px] font-mono text-[#facc15]">+{job.inserted.toLocaleString()}</span>}
@@ -491,7 +491,7 @@ function LiveActivityTab({ jobs }: { jobs: Job[] }) {
           <div className="text-[10px] font-mono text-muted-foreground/40 uppercase tracking-widest mb-2">Idle ({idle.length} tasks)</div>
           <div className="flex flex-wrap gap-1.5">
             {idle.map(job => (
-              <span key={job.id} className="text-[10px] font-mono text-muted-foreground/55 border border-border/40 bg-card/25 px-2.5 py-1 rounded-lg">{job.label}</span>
+              <span key={job.id} className="text-[10px] font-mono text-muted-foreground/55 border border-[#eab308]/08 bg-card/25 px-2.5 py-1 rounded-lg">{job.label}</span>
             ))}
           </div>
         </div>
@@ -607,7 +607,7 @@ export default function BackgroundJobs() {
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* Header */}
-      <div className="border-b border-border bg-card/30 px-4 md:px-6 py-4 flex-shrink-0">
+      <div className="border-b border-[#eab308]/12 bg-card/30 px-4 md:px-6 py-4 flex-shrink-0">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3 min-w-0">
             <Radio className="w-5 h-5 text-[#eab308] shrink-0" aria-hidden />
@@ -617,7 +617,7 @@ export default function BackgroundJobs() {
           </div>
           <button
             onClick={fetchJobs}
-            className="flex min-h-[40px] w-full sm:w-auto items-center justify-center gap-1.5 rounded-lg border border-border/60 px-3 py-1.5 text-[10px] font-mono text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+            className="flex min-h-[40px] w-full sm:w-auto items-center justify-center gap-1.5 rounded-lg border border-[#eab308]/12 px-3 py-1.5 text-[10px] font-mono text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
           >
             <RefreshCw className="w-3.5 h-3.5" />
             {lastRefresh ? <span className="hidden sm:block">{elapsed(lastRefresh.toISOString())}</span> : <span>Refresh</span>}
@@ -635,7 +635,7 @@ export default function BackgroundJobs() {
       )}
 
       {/* Tabs */}
-      <div className="border-b border-border bg-card/20 flex-shrink-0">
+      <div className="border-b border-[#eab308]/12 bg-card/20 flex-shrink-0">
         <div className="flex overflow-x-auto scrollbar-none px-4">
           {TABS.map(tab => (
             <button
@@ -676,7 +676,7 @@ export default function BackgroundJobs() {
               </div>
             ))}
             {/* OSINT Tools link */}
-            <div className="flex items-center gap-3 p-3 rounded-lg border border-border/50 bg-card/20">
+            <div className="flex items-center gap-3 p-3 rounded-lg border border-[#eab308]/10 bg-card/20">
               <Shield className="w-4 h-4 text-muted-foreground shrink-0" />
               <div className="flex-1 min-w-0">
                 <div className="text-xs font-mono text-foreground">OSINT Tools Directory</div>

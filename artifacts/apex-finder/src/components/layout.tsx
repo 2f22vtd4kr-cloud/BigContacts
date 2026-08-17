@@ -88,10 +88,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   const Sidebar = ({ mobile = false }: { mobile?: boolean }) => (
     <aside className={cn(
-      "flex h-full flex-col border-r border-sidebar-border bg-sidebar",
+      "flex h-full flex-col border-r border-[#eab308]/10 bg-[#080808]",
       mobile ? "w-[min(300px,86vw)]" : "w-[250px] shrink-0",
     )}>
-      <div className="flex h-[76px] shrink-0 items-center border-b border-sidebar-border px-5">
+      <div className="flex h-[76px] shrink-0 items-center border-b border-[#eab308]/08 px-5">
         <Link
           href="/"
           aria-label="Apex Atlas home"
@@ -146,7 +146,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         )}
       </nav>
 
-      <div className="border-t border-sidebar-border px-5 py-4">
+      <div className="border-t border-[#eab308]/08 px-5 py-4">
         <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground/60">
           <span className="h-1.5 w-1.5 rounded-full bg-primary" />
           Public records workspace
@@ -196,7 +196,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       )}
       <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
         <div className="atlas-grid pointer-events-none absolute inset-0" />
-        <header className="relative z-20 flex h-14 shrink-0 border-yellow-500/5 items-center border-b border-[#2a2a2a] bg-[#050505]/92 px-4 backdrop-blur-lg md:h-16 md:px-6">
+        <header className="relative z-20 flex h-14 shrink-0 border-yellow-500/5 items-center border-b border-[#eab308]/10 bg-[#050505]/92 px-4 backdrop-blur-lg md:h-16 md:px-6">
           <div className="mr-3 flex min-w-0 items-center md:mr-0">
             <Link
               href="/"
@@ -238,7 +238,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </header>
         {/* Reactor (and other immersive desks) own their chrome — skip duplicate page title on small screens */}
         {!hideDeskTitle && (
-        <div className="relative z-10 shrink-0 border-b border-border/70 bg-background/70 px-4 py-3.5 backdrop-blur-sm md:px-6 md:py-4">
+        <div className="relative z-10 shrink-0 border-b border-[#eab308]/08 bg-background/70 px-4 py-3.5 backdrop-blur-sm md:px-6 md:py-4">
           <div className="mx-auto w-full max-w-[1800px]">
             <h1 className="font-display text-xl font-bold tracking-[-0.03em] text-foreground md:text-2xl" data-testid="text-page-title">
               {pageTitle}
