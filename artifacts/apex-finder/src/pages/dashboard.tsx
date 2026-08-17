@@ -70,7 +70,7 @@ function StatTile({
   testId: string;
 }) {
   return (
-    <div className="rounded-xl border border-border hover:border-yellow-500/25 bg-card/40 p-4 transition-colors hover:bg-card/60" data-testid={testId}>
+    <div className="atlas-card p-4" data-testid={testId}>
       <div className="flex items-center justify-between">
         <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">{label}</span>
         <Icon className="h-4 w-4 text-muted-foreground/50" />
@@ -83,7 +83,7 @@ function StatTile({
 
 function LeadSkeleton() {
   return (
-    <div className="rounded-xl border border-border/70 bg-card/60 p-5">
+    <div className="atlas-card p-5">
       <div className="flex animate-pulse gap-3">
         <div className="h-10 w-10 rounded-lg bg-muted" />
         <div className="flex-1 space-y-2"><div className="h-3 w-2/3 rounded bg-muted" /><div className="h-2 w-1/3 rounded bg-muted" /></div>
@@ -104,7 +104,7 @@ function LeadCard({ lead, index }: { lead: any; index: number }) {
     <Link
       href={`/profile/${lead.entityId}`}
       data-testid={`card-entity-${lead.entityId}`}
-      className="group relative flex min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-card/50 p-3.5 sm:p-5 transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:bg-card hover:shadow-lg hover:shadow-primary/5 focus-visible:border-primary"
+      className="atlas-card atlas-pressable group relative flex min-w-0 flex-col overflow-hidden p-3.5 sm:p-5 hover:-translate-y-0.5 focus-visible:border-[#eab308]"
     >
       <div className="absolute right-0 top-0 h-24 w-24 rounded-bl-[100px] bg-primary/[0.03] transition-colors group-hover:bg-primary/[0.08]" />
       <div className="relative flex items-start gap-3">
@@ -123,7 +123,7 @@ function LeadCard({ lead, index }: { lead: any; index: number }) {
         {index < 3 && (
           <span className={`relative rounded-full border px-2 py-1 font-mono text-[8px] uppercase tracking-[0.13em] ${
             contactReady
-              ? "border-emerald-400/35 bg-emerald-400/10 text-emerald-300"
+              ? "border-[#eab308]/35 bg-[#eab308]/10 text-[#fde047]"
               : "border-border bg-muted/60 text-muted-foreground"
           }`}>
             {contactReady ? "Reachable" : "Review"}
@@ -162,14 +162,14 @@ function LeadCard({ lead, index }: { lead: any; index: number }) {
         <span className="text-muted-foreground">{lead.assetCount ?? 0} public assets</span>
       </div>
       {lead.email && (
-        <div className="relative mt-3 truncate rounded-md border border-emerald-400/25 bg-emerald-400/10 px-2 py-1 font-mono text-[10px] text-emerald-200/90" title={lead.email}>
+        <div className="relative mt-3 truncate rounded-md border border-[#eab308]/30 bg-[#eab308]/10 px-2 py-1 font-mono text-[10px] text-[#fde047]" title={lead.email}>
           <span className="opacity-70">Email · </span>{lead.email}
         </div>
       )}
       <div className="relative mt-3 flex items-center gap-2 text-[10px]">
         <span className={`grid h-5 w-5 place-items-center rounded-full ${
           contactReady
-            ? "bg-emerald-400/10 text-emerald-300 border border-emerald-400/30"
+            ? "bg-[#eab308]/10 text-[#fde047] border border-[#eab308]/30"
             : "bg-muted text-muted-foreground border border-border"
         }`}>
           {contactReady ? <ShieldCheck className="h-3 w-3" /> : <FileSearch className="h-3 w-3" />}
