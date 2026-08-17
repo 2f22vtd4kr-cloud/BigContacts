@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@source "./**/*.{tsx,ts,jsx,js}";
+@source "./*.{tsx,ts}";
 
 /* ─── Apex Atlas — black & gold design system ─── */
 @theme {
@@ -193,6 +195,58 @@ body {
   color: #fde047;
   border-color: rgba(234, 179, 8, 0.25);
   box-shadow: inset 3px 0 0 #eab308;
+}
+
+
+/* Selection */
+::selection {
+  background: rgba(234, 179, 8, 0.35);
+  color: #fafaf9;
+}
+
+/* Ambient gold wash behind hero / CTA clusters */
+.atlas-ambient-gold {
+  background:
+    radial-gradient(ellipse 80% 60% at 70% 40%, rgba(234, 179, 8, 0.09), transparent 55%),
+    radial-gradient(ellipse 50% 40% at 20% 80%, rgba(250, 204, 21, 0.04), transparent 50%);
+}
+
+/* Soft gold rim utility */
+.atlas-rim {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 0 0 1px rgba(234, 179, 8, 0.18),
+    0 12px 36px rgba(0, 0, 0, 0.5);
+}
+
+/* Stat / metric tile icon lift on hover */
+.atlas-card:hover .atlas-stat-icon {
+  color: #eab308;
+  opacity: 0.9;
+  transition: color 180ms ease, opacity 180ms ease;
+}
+
+/* Empty state dashed panel */
+.atlas-empty {
+  border: 1px dashed rgba(234, 179, 8, 0.22);
+  background: rgba(12, 12, 12, 0.6);
+  border-radius: 12px;
+}
+
+/* WebKit scrollbar gold */
+.atlas-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.atlas-scroll::-webkit-scrollbar-track {
+  background: #0a0a0a;
+}
+.atlas-scroll::-webkit-scrollbar-thumb {
+  background: rgba(234, 179, 8, 0.35);
+  border-radius: 999px;
+}
+.atlas-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(234, 179, 8, 0.55);
 }
 
 @media (prefers-reduced-motion: reduce) {

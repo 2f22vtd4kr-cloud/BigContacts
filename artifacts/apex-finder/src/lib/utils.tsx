@@ -66,7 +66,7 @@ export function AccessScoreBadge({ score }: { score: number | null | undefined }
     tip = `Reachability ${pct}/100 — solid public contact path`;
   } else {
     label = "Direct path";
-    colorClass = "text-emerald-200 border-emerald-400/35 bg-emerald-400/12";
+    colorClass = "text-[#fde047] border-[#eab308]/35 bg-[#eab308]/12";
     tip = `Reachability ${pct}/100 — direct attributable contact`;
   }
 
@@ -110,7 +110,7 @@ export function ConfidenceBadge({ score }: { score: number | null | undefined })
     tip = `Contact quality ${pct}/100 — strong public contact evidence`;
   } else {
     label = "Confirmed";
-    colorClass = "text-emerald-200 border-emerald-400/35 bg-emerald-400/12";
+    colorClass = "text-[#fde047] border-[#eab308]/35 bg-[#eab308]/12";
     tip = `Contact quality ${pct}/100 — verified attributable contact`;
   }
 

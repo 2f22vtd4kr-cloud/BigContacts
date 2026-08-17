@@ -73,7 +73,7 @@ function StatTile({
     <div className="atlas-card p-4" data-testid={testId}>
       <div className="flex items-center justify-between">
         <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">{label}</span>
-        <Icon className="h-4 w-4 text-muted-foreground/50" />
+        <Icon className="atlas-stat-icon h-4 w-4 text-muted-foreground/50 transition-colors" />
       </div>
       <div className="mt-3 font-display text-2xl font-semibold tracking-tight text-foreground">{value}</div>
       <div className="mt-1 text-[11px] text-muted-foreground">{detail}</div>
@@ -174,7 +174,7 @@ function LeadCard({ lead, index }: { lead: any; index: number }) {
         }`}>
           {contactReady ? <ShieldCheck className="h-3 w-3" /> : <FileSearch className="h-3 w-3" />}
         </span>
-        <span className={contactReady ? "font-mono text-[10px] uppercase tracking-[0.1em] text-emerald-300/90" : "font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground"}>
+        <span className={contactReady ? "font-mono text-[10px] uppercase tracking-[0.1em] text-[#fde047]/90" : "font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground"}>
           {contactReady ? "Contact path found" : "Contact path incomplete"}
         </span>
         <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-muted-foreground transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
@@ -202,7 +202,7 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
 
 function EmptyLeads() {
   return (
-    <div className="rounded-xl border border-dashed border-border bg-card/40 px-6 py-16 text-center">
+    <div className="rounded-xl border atlas-empty border-dashed border-border bg-card/40 px-6 py-16 text-center">
       <div className="mx-auto grid h-12 w-12 place-items-center rounded-full border border-primary/25 bg-primary/10 text-primary"><Radar className="h-5 w-5" /></div>
       <h2 className="mt-5 font-display text-lg font-semibold">Your priority desk is clear</h2>
       <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">Search public registries for people, companies, trusts, and access contacts with evidence worth reviewing.</p>
@@ -229,7 +229,7 @@ export default function Dashboard() {
 
   return (
     <div className="mx-auto w-full max-w-[1480px] px-4 pb-12 sm:px-6 lg:px-10">
-      <section className="atlas-enter relative flex flex-col gap-8 py-8 md:flex-row md:items-end md:justify-between md:py-12">
+      <section className="atlas-enter atlas-ambient-gold relative flex flex-col gap-8 py-8 md:flex-row md:items-end md:justify-between md:py-12">
         <div className="max-w-2xl">
           <div className="mb-4 flex items-center gap-2.5 font-mono text-[10px] uppercase tracking-[0.2em] text-[#eab308]">
             <span className="atlas-live-dot atlas-live-dot-pulse" aria-hidden />

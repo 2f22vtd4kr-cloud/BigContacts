@@ -69,7 +69,7 @@ function isOrgInbox(email?: string | null): boolean {
 }
 function ReachChip({ kind, label, href, title }: { kind: "personal" | "org" | "social"; label: string; href?: string; title?: string }) {
   const styles = kind === "personal"
-    ? "text-emerald-300 border-emerald-400/35 bg-emerald-400/10"
+    ? "text-[#fde047] border-[#eab308]/35 bg-[#eab308]/10"
     : kind === "org"
       ? "text-violet-300 border-violet-400/35 bg-violet-400/10"
       : "text-sky-300 border-sky-400/35 bg-sky-400/10";
@@ -178,7 +178,7 @@ function RerunButton({ entityId }: { entityId: number }) {
     : <TargetIcon className="w-3.5 h-3.5" />;
   const label = state === "running" ? "Running" : state === "done" ? "Done" : state === "error" ? "Failed" : "Re-run";
   const cls = state === "done"
-    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+    ? "bg-[#eab308]/10 border-[#eab308]/30 text-[#facc15]"
     : state === "error"
     ? "bg-red-500/10 border-red-500/30 text-red-400"
     : "bg-primary/10 border-primary/20 text-primary hover:bg-primary/20";
@@ -251,7 +251,7 @@ function MobileEntityCard({
             </div>
             <div className="flex shrink-0 items-center gap-1 pt-0.5">
               {entity.cookedAt && (
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" aria-label="Fully enriched" />
+                <CheckCircle2 className="w-3.5 h-3.5 text-[#eab308]" aria-label="Fully enriched" />
               )}
               {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
             </div>
@@ -1068,7 +1068,7 @@ export default function EntityLedger() {
                         {entity.isHot && <ShieldAlert className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />}
                         {entity.cookedAt && (
                           <span title={`Fully cooked — all enrichment phases complete (${new Date(entity.cookedAt).toLocaleDateString()})`}>
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+                            <CheckCircle2 className="w-3.5 h-3.5 text-[#eab308] flex-shrink-0" />
                           </span>
                         )}
                          <div className="min-w-0">
