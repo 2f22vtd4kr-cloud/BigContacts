@@ -915,7 +915,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
   return (
     <div style={{
       display:"flex", flexDirection:"column", width:"100%", height:"100%",
-      background:"#0b1120",
+      background:"#050505",
       fontFamily:"'Space Mono','DM Mono','Courier New',monospace",
       overflow:"hidden",
     }}>
@@ -1461,7 +1461,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
   return (
     <div style={{
       width:"100%", height:"100%", minWidth:1600, minHeight:960,
-      background:"#0b1120",
+      background:"#050505",
       fontFamily:"'Space Mono','DM Mono','Courier New',monospace",
       display:"flex", flexDirection:"column",
       overflow:"hidden", position:"relative",
@@ -1698,7 +1698,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                   background:"transparent", border:"1px solid #334155",
                   borderRadius:4, padding:"4px 10px", cursor:"pointer",
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#eab30888"; e.currentTarget.style.color = "#e2e8f0"; }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#eab30888"; e.currentTarget.style.color = "#fafaf9"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#334155"; e.currentTarget.style.color = "#94a3b8"; }}
               >HIDE</button>
             </div>
@@ -1780,7 +1780,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                   spellCheck={false}
                   style={{
                     width:"100%", borderRadius:6, border:"1px solid #334155",
-                    background:"#020617", color:"#e2e8f0", fontSize:11,
+                    background:"#0c0c0c", color:"#fafaf9", fontSize:11,
                     padding:"8px 10px", outline:"none",
                     fontFamily:"inherit",
                   }}
@@ -2242,10 +2242,10 @@ export default function IntelligenceReactorPage() {
   // ── Mobile ────────────────────────────────────────────────────────────────
   if (isMobile) {
     return (
-      <div style={{ display:"flex", flexDirection:"column", height:"100%", minHeight:0, overflow:"hidden", width:"100%", background:"#0b1120" }}>
+      <div style={{ display:"flex", flexDirection:"column", height:"100%", minHeight:0, overflow:"hidden", width:"100%", background:"#050505" }}>
         {/* Design-system tokens + motion must load on mobile — not only desktop */}
         <style>{KEYFRAMES}</style>
-        <div className="flex-shrink-0 border-b border-yellow-400/15 bg-slate-950/90 px-3 py-2.5" data-testid="reactor-launch-bar-mobile"><LaunchAtlasButton variant="reactor" navigateToReactor={false} label="Launch Apex Atlas" />
+        <div className="flex-shrink-0 border-b border-[#eab308]/15 bg-[#050505]/95 px-3 py-2.5" data-testid="reactor-launch-bar-mobile"><LaunchAtlasButton variant="reactor" navigateToReactor={false} label="Launch Apex Atlas" />
         </div>
         <MobileReactorFlow
           sessions={sessions}
@@ -2271,7 +2271,7 @@ export default function IntelligenceReactorPage() {
   return (
     <div
       ref={containerRef}
-      style={{ position:"absolute", inset:0, overflow:"hidden", background:"#0b1120", isolation:"isolate" }}
+      style={{ position:"absolute", inset:0, overflow:"hidden", background:"#050505", isolation:"isolate" }}
     >
       <div className="absolute top-3 right-3 z-50 max-w-[min(100%,320px)]" data-testid="reactor-launch-bar-desktop">
         <LaunchAtlasButton variant="reactor" navigateToReactor={false} label="Launch Apex Atlas" />

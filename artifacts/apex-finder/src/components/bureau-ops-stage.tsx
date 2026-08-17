@@ -434,7 +434,7 @@ function GoogleScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
                 <span className="inline-block w-0.5 h-3.5 bg-slate-200 ml-0.5 animate-pulse align-middle" />
               )}
             </span>
-            <span className="text-[10px] text-blue-400 font-mono shrink-0">Search</span>
+            <span className="text-[10px] text-[#facc15]/80 font-mono shrink-0">Search</span>
           </div>
         </div>
         {(scene.resultLines.length ? scene.resultLines : ["Looking through public search results…"]).slice(0, compact ? 2 : 3).map((line, i) => (
@@ -1114,7 +1114,7 @@ export function BureauOpsStage({
 
   if (!scenes.length) {
     return (
-      <div className={`rounded-xl border border-dashed border-slate-700/80 bg-slate-950/40 ${compact ? "p-3" : "p-5"}`}>
+      <div className={`rounded-xl border border-dashed border-[#eab308]/20 bg-[#0c0c0c]/50 ${compact ? "p-3" : "p-5"}`}>
         <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-slate-500 mb-1">{title}</div>
         <div className="text-[12px] text-slate-400">Idle — tool windows appear here when Atlas runs a step.</div>
       </div>

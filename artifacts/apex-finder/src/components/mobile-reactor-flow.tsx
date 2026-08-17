@@ -320,7 +320,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
 
   return (
     <div
-      className="flex h-full min-h-0 flex-col overflow-hidden bg-[#0b1120] font-sans text-slate-200"
+      className="flex h-full min-h-0 flex-col overflow-hidden bg-[#050505] font-sans text-stone-200"
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
       {/* Fallback tokens if parent did not inject KEYFRAMES */}
@@ -338,7 +338,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
       </div>
       {/* Minimal chrome — target + live pulse only */}
       <header
-        className="sticky top-0 z-20 shrink-0 border-b border-white/10 bg-black/70 px-4 py-3 backdrop-blur-md overflow-visible"
+        className="sticky top-0 z-20 shrink-0 border-b border-[#eab308]/12 bg-black/70 px-4 py-3 backdrop-blur-md overflow-visible"
         style={{ paddingTop: "max(12px, env(safe-area-inset-top, 12px))" }}
         data-testid="live-desk-sticky-chrome"
       >
@@ -349,7 +349,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                 className={`h-2 w-2 shrink-0 rounded-full ${isLive ? "bg-yellow-400 shadow-[0_0_8px_#eab308]" : atlasState?.runStatus === "failed" ? "bg-rose-400" : "bg-slate-600"}`}
                 style={isLive && !prefersReducedMotion() ? { animation: "pulse 2s cubic-bezier(0.4,0,0.6,1) infinite" } : undefined}
               />
-              <span className={`text-[10px] font-bold uppercase tracking-[0.18em] ${isLive ? "reactor-live-label" : "text-slate-400"}`}>
+              <span className={`text-[10px] font-bold uppercase tracking-[0.18em] ${isLive ? "reactor-live-label" : "text-muted-foreground"}`}>
                 {isLive ? "Live" : statusLabel}
               </span>
               {showHistory && (
@@ -363,7 +363,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                 || atlasState?.currentEntities?.[0]
                 || (isLive ? "Researching…" : "Atlas idle")}
             </div>
-            <div className="mt-0.5 truncate text-[11px] text-slate-400">
+            <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
               {showHistory
                 ? "Archive of this target’s tool steps"
                 : isLive
@@ -377,7 +377,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
             type="button"
             onClick={() => setShowHistory((v) => !v)}
             className={`reactor-pressable flex h-11 shrink-0 items-center gap-1.5 rounded-xl border px-3.5 text-[10px] font-bold uppercase tracking-wider ${
-              showHistory ? "border-yellow-400/40 bg-yellow-400/10 text-yellow-300" : "border-white/10 bg-white/[0.04] text-slate-400 hover:border-white/20"
+              showHistory ? "border-yellow-400/40 bg-yellow-400/10 text-yellow-300" : "border-[#eab308]/12 bg-white/[0.04] text-muted-foreground hover:border-white/20"
             }`}
             data-testid="button-history"
             aria-pressed={showHistory}
@@ -389,7 +389,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
             type="button"
             onClick={onRefresh}
             disabled={syncing}
-            className="reactor-pressable flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-slate-400 hover:border-yellow-400/30 hover:text-yellow-300 disabled:opacity-50 disabled:pointer-events-none"
+            className="reactor-pressable flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#eab308]/12 bg-white/[0.04] text-muted-foreground hover:border-yellow-400/30 hover:text-yellow-300 disabled:opacity-50 disabled:pointer-events-none"
             aria-label="Refresh Atlas status"
             data-testid="button-refresh-atlas"
           >
@@ -436,11 +436,11 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
               <span className="rounded-full border border-yellow-400/25 bg-yellow-400/10 px-1.5 py-0.5 text-[8px] font-mono font-bold uppercase tracking-wider text-yellow-200/90">
                 attributable
               </span>
-              <span className="rounded-full border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[8px] font-mono uppercase tracking-wider text-slate-400">
+              <span className="rounded-full border border-[#eab308]/12 bg-white/[0.04] px-1.5 py-0.5 text-[8px] font-mono uppercase tracking-wider text-muted-foreground">
                 public surface
               </span>
               {atlasState?.atlasTelemetry?.sources != null && (
-                <span className="rounded-full border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[8px] font-mono tabular-nums text-slate-400">
+                <span className="rounded-full border border-[#eab308]/12 bg-white/[0.04] px-1.5 py-0.5 text-[8px] font-mono tabular-nums text-muted-foreground">
                   {atlasState.atlasTelemetry.sources} source{atlasState.atlasTelemetry.sources === 1 ? "" : "s"}
                 </span>
               )}
@@ -473,13 +473,13 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                 className={`rounded-lg border px-2 py-1 ${
                   chip.hot
                     ? "border-yellow-400/30 bg-yellow-400/10"
-                    : "border-white/10 bg-white/[0.03]"
+                    : "border-[#eab308]/12 bg-white/[0.03]"
                 }`}
               >
                 <div className={`text-[7px] font-mono uppercase tracking-wider ${chip.hot ? "text-yellow-300/80" : "text-slate-500"}`}>
                   {chip.k}
                 </div>
-                <div className={`text-[11px] font-semibold tabular-nums capitalize ${chip.hot ? "text-yellow-50" : "text-slate-200"}`}>
+                <div className={`text-[11px] font-semibold tabular-nums capitalize ${chip.hot ? "text-yellow-50" : "text-stone-200"}`}>
                   {chip.v}
                 </div>
               </div>
@@ -588,12 +588,12 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
               </div>
               {/* Tool-shaped window — first frame of a live run */}
               <div className="overflow-hidden rounded-xl border border-yellow-400/15 bg-[#0a0a0a] shadow-[inset_0_1px_0_rgba(234,179,8,0.06)]">
-                <div className="flex items-center gap-2 border-b border-white/5 px-3 py-2">
+                <div className="flex items-center gap-2 border-b border-[#eab308]/08 px-3 py-2">
                   <span className="h-2.5 w-2.5 rounded-full bg-[#FF5F57]" aria-hidden />
                   <span className="h-2.5 w-2.5 rounded-full bg-[#FEBC2E]" aria-hidden />
                   <span className="h-2.5 w-2.5 rounded-full bg-[#28C840]" aria-hidden />
                   <div className="ml-1 flex h-5 flex-1 items-center overflow-hidden rounded bg-slate-800/90 px-2">
-                    <span className="truncate text-[9px] font-mono text-slate-400">atlas://desk/arming…</span>
+                    <span className="truncate text-[9px] font-mono text-muted-foreground">atlas://desk/arming…</span>
                     <div className="ml-auto h-2 w-10 overflow-hidden rounded bg-slate-700">
                       <div
                         className="h-full w-full"
@@ -605,11 +605,11 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                     </div>
                   </div>
                 </div>
-                <div className="border-b border-white/5 px-3 py-1.5">
+                <div className="border-b border-[#eab308]/08 px-3 py-1.5">
                   <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-yellow-400/70">Powering channels</div>
                 </div>
                 {/* Prompt / search line placeholder */}
-                <div className="border-b border-white/5 px-3 py-2.5">
+                <div className="border-b border-[#eab308]/08 px-3 py-2.5">
                   <div className="flex items-center gap-2">
                     <div className="h-2.5 w-2.5 shrink-0 rounded-full bg-yellow-400/50" />
                     <div className="relative h-2.5 flex-1 overflow-hidden rounded bg-slate-800/90">
@@ -625,17 +625,17 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                 </div>
                 {/* Metric cards — decorative while arming */}
                 <div className="grid grid-cols-2 gap-2 p-3" aria-hidden="true">
-                  <div className="rounded-lg border border-white/8 bg-slate-900/70 p-2.5">
+                  <div className="rounded-lg border border-[#eab308]/10 bg-[#0c0c0c]/90 p-2.5">
                     <div className="text-[8px] font-mono uppercase tracking-wider text-slate-500">Sources</div>
                     <div className="mt-1.5 h-3.5 w-10 rounded bg-slate-700/70" />
                   </div>
-                  <div className="rounded-lg border border-white/8 bg-slate-900/70 p-2.5">
+                  <div className="rounded-lg border border-[#eab308]/10 bg-[#0c0c0c]/90 p-2.5">
                     <div className="text-[8px] font-mono uppercase tracking-wider text-slate-500">Findings</div>
                     <div className="mt-1.5 h-3.5 w-8 rounded bg-slate-700/50" />
                   </div>
                 </div>
                 {/* Result line ghosts — decorative */}
-                <div className="space-y-1.5 border-t border-white/5 px-3 py-2.5" aria-hidden="true">
+                <div className="space-y-1.5 border-t border-[#eab308]/08 px-3 py-2.5" aria-hidden="true">
                   <div className="h-2 w-full rounded bg-slate-800/80" />
                   <div className="h-2 w-4/5 rounded bg-slate-800/60" style={{ width: "80%" }} />
                   <div className="h-2 w-2/3 rounded bg-slate-800/40" style={{ width: "62%" }} />
@@ -664,7 +664,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                       {showHistory ? "History" : "Live activity"}
                     </div>
                     {showHistory && (
-                      <span className="rounded-full border border-slate-400/50 bg-slate-500/20 px-1.5 py-0.5 text-[8px] font-mono font-bold uppercase tracking-wider text-slate-200">
+                      <span className="rounded-full border border-slate-400/50 bg-slate-500/20 px-1.5 py-0.5 text-[8px] font-mono font-bold uppercase tracking-wider text-stone-200">
                         archive
                       </span>
                     )}
@@ -708,7 +708,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                     value={historyQuery}
                     onChange={(e) => setHistoryQuery(e.target.value)}
                     placeholder="Search tools, results…"
-                    className="w-full rounded-lg border border-white/10 bg-slate-950/80 px-3 py-2 text-[12px] text-slate-200 outline-none placeholder:text-slate-600 focus-visible:border-yellow-400/50 focus-visible:ring-1 focus-visible:ring-yellow-400/40"
+                    className="w-full rounded-lg border border-[#eab308]/12 bg-[#0a0a0a]/90 px-3 py-2 text-[12px] text-stone-200 outline-none placeholder:text-muted-foreground/60 focus-visible:border-yellow-400/50 focus-visible:ring-1 focus-visible:ring-yellow-400/40"
                     autoComplete="off"
                     spellCheck={false}
                   />
@@ -738,7 +738,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                         className={`reactor-pressable min-h-[32px] rounded-full border px-2.5 py-1 text-[10px] font-mono font-bold uppercase tracking-wider transition-colors ${
                           selected
                             ? "border-yellow-400/50 bg-yellow-400/15 text-yellow-200"
-                            : "border-white/10 bg-white/[0.03] text-slate-400 hover:border-white/20 hover:text-slate-300"
+                            : "border-[#eab308]/12 bg-white/[0.03] text-muted-foreground hover:border-white/20 hover:text-slate-300"
                         }`}
                       >
                         {label}
@@ -748,7 +748,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                 </div>
               )}
               {showHistory && deskEvents.length > 0 && liveEvents.length === 0 && (
-                <div className="mb-3 rounded-lg border border-dashed border-slate-600/40 bg-slate-900/40 px-3 py-3 text-center text-[11px] text-slate-400" data-testid="history-filter-empty">
+                <div className="mb-3 rounded-lg border border-dashed border-[#eab308]/15 bg-[#0c0c0c]/50 px-3 py-3 text-center text-[11px] text-muted-foreground" data-testid="history-filter-empty">
                   {historyQuery.trim() ? `No steps match “${historyQuery.trim()}”.` : `No ${historyFilter} steps in this archive. Try All.`}
                 </div>
               )}
@@ -771,7 +771,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                 }}
               />
               <div className={`mt-2 text-center text-[9px] font-mono uppercase tracking-wider ${
-                showHistory ? "text-slate-400" : "text-slate-500"
+                showHistory ? "text-muted-foreground" : "text-slate-500"
               }`}>
                 {showHistory ? "Swipe right or tap Live to return" : "Swipe left at start for history"}
               </div>
@@ -783,13 +783,13 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                   ? "border-yellow-400/30 bg-yellow-400/[0.05]"
                   : showHistory
                     ? "reactor-archive-panel border-slate-500/30"
-                    : "border-dashed border-white/10 bg-white/[0.02]"
+                    : "border-dashed border-[#eab308]/12 bg-white/[0.02]"
               }`}
               data-testid="panel-live-desk-idle"
               aria-live="polite"
             >
               <div className="relative mb-3">
-                <Radio className={`h-8 w-8 ${isLive ? "text-yellow-400/80" : "text-slate-600"}`} />
+                <Radio className={`h-8 w-8 ${isLive ? "text-yellow-400/80" : "text-muted-foreground/60"}`} />
                 {isLive && (
                   <span className="absolute -right-0.5 -top-0.5 flex h-2.5 w-2.5">
                     <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-yellow-400 opacity-50" />
@@ -823,7 +823,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                   data-testid="panel-live-empty-scaffold"
                   aria-hidden
                 >
-                  <div className="flex items-center gap-2 border-b border-white/5 px-3 py-1.5">
+                  <div className="flex items-center gap-2 border-b border-[#eab308]/08 px-3 py-1.5">
                     <span className="h-2 w-2 rounded-full bg-[#FF5F57]/80" />
                     <span className="h-2 w-2 rounded-full bg-[#FEBC2E]/80" />
                     <span className="h-2 w-2 rounded-full bg-[#28C840]/80" />
@@ -840,12 +840,12 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-2">
-                      <div className="rounded-lg border border-white/5 bg-slate-900/60 p-2">
-                        <div className="text-[7px] font-mono uppercase tracking-wider text-slate-600">Sources</div>
+                      <div className="rounded-lg border border-[#eab308]/08 bg-[#0c0c0c]/70 p-2">
+                        <div className="text-[7px] font-mono uppercase tracking-wider text-muted-foreground/60">Sources</div>
                         <div className="mt-1 h-3 w-8 rounded bg-slate-700/50" />
                       </div>
-                      <div className="rounded-lg border border-white/5 bg-slate-900/60 p-2">
-                        <div className="text-[7px] font-mono uppercase tracking-wider text-slate-600">Findings</div>
+                      <div className="rounded-lg border border-[#eab308]/08 bg-[#0c0c0c]/70 p-2">
+                        <div className="text-[7px] font-mono uppercase tracking-wider text-muted-foreground/60">Findings</div>
                         <div className="mt-1 h-3 w-6 rounded bg-slate-700/40" />
                       </div>
                     </div>
@@ -887,7 +887,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                 </button>
                 <button
                   type="button"
-                  className="reactor-pressable inline-flex min-h-[36px] items-center rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-[11px] font-medium text-slate-300 hover:border-white/20"
+                  className="reactor-pressable inline-flex min-h-[36px] items-center rounded-lg border border-[#eab308]/12 bg-white/[0.04] px-2.5 py-1.5 text-[11px] font-medium text-slate-300 hover:border-white/20"
                   onClick={() => setRateLimitDismissed(true)}
                   data-testid="button-rate-limit-dismiss"
                 >

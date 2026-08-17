@@ -368,7 +368,7 @@ function IntroPathPanel({ candidate }: { candidate: IntroPathCandidate | null })
   );
 }
 
-// ── Path node contact bar (REACH: emerald personal · violet org) ──────────────
+// ── Path node contact bar (REACH: gold personal · violet org) ──────────────
 const ORG_INBOX_RE = /^(info|sales|contact|office|support|admin|hello|team|enquiries|inquiry|inquiries|press|media|hr|jobs|careers|billing|accounts|noreply|no-reply)@/i;
 
 function PathNodeContact({ node }: { node: PathStep }) {

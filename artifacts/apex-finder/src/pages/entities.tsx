@@ -707,7 +707,7 @@ export default function EntityLedger() {
         {(hotOnly || anyContactFilter) && (
           <div className={cn(
             "flex items-center justify-between px-4 py-2 border-b text-xs font-mono flex-shrink-0",
-            hotOnly ? "bg-amber-500/10 border-amber-500/30 text-amber-400" : "bg-blue-500/10 border-blue-500/30 text-blue-400"
+            hotOnly ? "bg-amber-500/10 border-amber-500/30 text-amber-400" : "bg-white/[0.04] border-[#2a2a2a] text-muted-foreground"
           )}>
             <div className="flex items-center gap-2">
               <Filter className="w-3 h-3 shrink-0" />
@@ -1248,7 +1248,7 @@ export default function EntityLedger() {
         {(hotOnly || anyContactFilter) && (
           <div className={cn(
             "flex items-center justify-between px-3 py-2 border-b text-xs font-mono flex-shrink-0",
-            hotOnly ? "bg-amber-500/10 border-amber-500/30 text-amber-400" : "bg-blue-500/10 border-blue-500/30 text-blue-400"
+            hotOnly ? "bg-amber-500/10 border-amber-500/30 text-amber-400" : "bg-white/[0.04] border-[#2a2a2a] text-muted-foreground"
           )}>
             <span className="font-bold uppercase tracking-wider truncate">
               {hotOnly ? "Hot Leads only"
@@ -1312,7 +1312,7 @@ export default function EntityLedger() {
                   "inline-flex shrink-0 h-8 items-center justify-center px-3 rounded-lg text-[11px] font-mono border transition-colors",
                   typeFilter === value
                     ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-slate-950/60 text-muted-foreground border-[#eab308]/12"
+                    : "bg-[#0c0c0c]/80 text-muted-foreground border-[#eab308]/12"
                 )}
               >
                 {label}
