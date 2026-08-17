@@ -60,12 +60,12 @@ input:focus-visible,
 @keyframes sceneSlideLeft { 0% { opacity: 0; transform: translateX(14px); } 100% { opacity: 1; transform: translateX(0); } }
 @keyframes sceneSlideRight { 0% { opacity: 0; transform: translateX(-14px); } 100% { opacity: 1; transform: translateX(0); } }
 @keyframes reachIn {
-  0% { opacity: 0; transform: scale(0.94) translateY(6px); }
+  0% { opacity: 0; transform: scale(0.94) translateY(5px); }
   60% { opacity: 1; transform: scale(1.02) translateY(0); }
   100% { opacity: 1; transform: scale(1) translateY(0); }
 }
 @keyframes armIn {
-  0% { opacity: 0; transform: translateY(6px); }
+  0% { opacity: 0; transform: translateY(5px); }
   100% { opacity: 1; transform: translateY(0); }
 }
 @keyframes terminalIn { 0% { opacity: 0; transform: translateY(4px); } 100% { opacity: 1; transform: translateY(0); } }
