@@ -498,7 +498,7 @@ export default function SystemStatusPage() {
                     : "border-border bg-muted/10",
                 )}
               >
-                <div className="mb-1 font-mono text-[10px] uppercase tracking-widest text-muted-foreground/60">
+                <div className="mb-1 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground/60">
                   Slot {slot.slot}
                 </div>
                 <div className="flex items-center justify-center gap-1.5">
