@@ -243,7 +243,7 @@ export default function Dashboard() {
         </div>
         <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap md:w-auto md:justify-end">
           <LaunchAtlasButton variant="primary" />
-          <Link href="/reactor" data-testid="link-dashboard-reactor" className="inline-flex h-12 items-center justify-center gap-2 rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-5 text-xs font-semibold text-cyan-100 transition-all hover:border-cyan-300/50 hover:bg-cyan-400/15">
+          <Link href="/reactor" data-testid="link-dashboard-reactor" className="inline-flex h-12 items-center justify-center gap-2 rounded-lg border border-yellow-400/30 bg-yellow-400/10 px-5 text-xs font-semibold text-yellow-100 transition-all hover:border-yellow-300/50 hover:bg-yellow-400/15">
             <Radar className="h-4 w-4" /> Open reactor desk
           </Link>
           <Link href="/search" data-testid="link-dashboard-search" className="inline-flex h-12 items-center justify-center gap-2 rounded-lg border border-border bg-card/60 px-5 text-xs font-semibold text-foreground transition-all hover:border-primary/60 hover:bg-card">

@@ -43,9 +43,9 @@ function toneOf(live?: boolean, terminal?: "done" | "failed" | null): Tone {
 const TONE = {
   live: {
     fg: "#67e8f9",
-    border: "rgba(34, 211, 238, 0.45)",
-    bg: "rgba(34, 211, 238, 0.08)",
-    glow: "0 0 0 1px rgba(34, 211, 238, 0.12)",
+    border: "rgba(234, 179, 8, 0.45)",
+    bg: "rgba(234, 179, 8, 0.08)",
+    glow: "0 0 0 1px rgba(234, 179, 8, 0.12)",
   },
   done: {
     fg: "#6ee7b7",

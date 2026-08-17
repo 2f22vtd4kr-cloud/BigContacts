@@ -118,50 +118,14 @@ async function apiPatch(path: string, body: unknown) {
   return data;
 }
 
-/** Demo fixtures when ?mock=1 — shows UI without api-server */
+/** Offline scaffold only — no fabricated entities or findings. */
 function mockImproveBundle() {
-  const logs: ImprovementLog[] = [
-    {
-      id: 1,
-      entityId: 1,
-      entityName: "James R. Griffin",
-      entityType: "HNWI",
-      persona: "osint_specialists_team",
-      category: "contact",
-      priority: "high",
-      title: "Personal owner email recovered — keep org inboxes separate",
-      description: "jgriffin@griffin-tool.com is attributable; info@ must stay Company.",
-      status: "pending",
-      createdAt: new Date().toISOString(),
-    } as any,
-    {
-      id: 2,
-      entityId: 2,
-      entityName: "Griffin Tool, Inc.",
-      entityType: "Corporation",
-      persona: "data_integrity_auditor",
-      category: "integrity",
-      priority: "medium",
-      title: "Organization evidence must not inflate personal access",
-      description: "Company phone on entity card should not raise personal REACH score.",
-      status: "pending",
-      createdAt: new Date().toISOString(),
-    } as any,
-  ];
+  const logs: ImprovementLog[] = [];
   const stats = {
-    total: 2,
-    byPersona: [
-      { persona: "osint_specialists_team", status: "pending", count: 1 },
-      { persona: "data_integrity_auditor", status: "pending", count: 1 },
-    ],
-    byStatus: [
-      { status: "pending", count: 2 },
-      { status: "applied", count: 0 },
-    ],
-    byPriority: [
-      { priority: "high", count: 1 },
-      { priority: "medium", count: 1 },
-    ],
+    total: 0,
+    byPersona: [] as Array<{ persona: string; status: string; count: number }>,
+    byStatus: [] as Array<{ status: string; count: number }>,
+    byPriority: [] as Array<{ priority: string; count: number }>,
   };
   return { logs, stats };
 }
@@ -188,7 +152,7 @@ function PersonaCard({ personaId, stats, activeFilter, onClick }: {
         "group relative flex flex-col gap-2.5 overflow-hidden rounded-2xl border p-4 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-all",
         isActive
           ? "ring-1 ring-current"
-          : "border-border/70 bg-card/30 hover:border-cyan-400/25 hover:bg-card/50"
+          : "border-border/70 bg-card/30 hover:border-yellow-400/25 hover:bg-card/50"
       )}
       style={isActive ? { borderColor: meta.color, background: meta.bg } : undefined}
     >
@@ -650,18 +614,18 @@ export default function ImprovementsPage() {
             className={cn(
               "flex flex-col gap-2 rounded-2xl border px-4 py-3.5 text-xs sm:flex-row sm:items-start",
               /mock mode/i.test(error)
-                ? "border-cyan-400/25 bg-cyan-500/[0.06] text-cyan-100"
+                ? "border-yellow-400/25 bg-yellow-500/[0.06] text-yellow-100"
                 : "border-red-800/30 bg-red-950/20 text-red-300"
             )}
             role="alert"
             data-testid="alert-persona-api"
           >
-            <AlertTriangle className={cn("h-4 w-4 flex-shrink-0", /mock mode/i.test(error) ? "text-cyan-300" : "text-red-400")} aria-hidden />
+            <AlertTriangle className={cn("h-4 w-4 flex-shrink-0", /mock mode/i.test(error) ? "text-yellow-300" : "text-red-400")} aria-hidden />
             <div className="min-w-0 space-y-1">
-              <div className={cn("font-semibold", /mock mode/i.test(error) ? "text-cyan-50" : "text-red-200")}>
+              <div className={cn("font-semibold", /mock mode/i.test(error) ? "text-yellow-50" : "text-red-200")}>
                 {/mock mode/i.test(error) ? "Demo mode — persona loop runs on api-server" : "Persona review needs the research API"}
               </div>
-              <p className={cn("leading-relaxed", /mock mode/i.test(error) ? "text-cyan-100/80" : "text-red-300/90")}>{error}</p>
+              <p className={cn("leading-relaxed", /mock mode/i.test(error) ? "text-yellow-100/80" : "text-red-300/90")}>{error}</p>
               {apiOffline && (
                 <p className="leading-relaxed text-red-300/70">
                   In production, <span className="font-mono">api-server</span> runs deterministic personas, writes improvement logs, and applies safe fixes via the job queue. The static UI only triggers and displays that work — it does not run LLMs in the browser.

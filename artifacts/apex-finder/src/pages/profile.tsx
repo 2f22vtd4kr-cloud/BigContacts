@@ -800,7 +800,7 @@ export default function ApexProfile() {
           <div className="mt-4 flex gap-2">
             <div className="flex-1 rounded-xl border border-border/60 bg-background/80 p-2.5 flex flex-col">
               <span className="font-mono text-[9px] text-muted-foreground uppercase tracking-wider mb-1">Contact quality</span>
-              <span className="font-mono text-[20px] text-cyan-200 font-bold leading-none mb-1">
+              <span className="font-mono text-[20px] text-yellow-200 font-bold leading-none mb-1">
                 {typeof (entity as any).contactConfidence === "number" ? `${(entity as any).contactConfidence}` : "—"}
               </span>
               <span className="text-[10px] text-muted-foreground leading-tight">
@@ -813,7 +813,7 @@ export default function ApexProfile() {
             </div>
             <div className="flex-1 rounded-xl border border-border/60 bg-background/80 p-2.5 flex flex-col">
               <span className="font-mono text-[9px] text-muted-foreground uppercase tracking-wider mb-1">Reachability</span>
-              <span className="font-mono text-[20px] text-cyan-200 font-bold leading-none mb-1">
+              <span className="font-mono text-[20px] text-yellow-200 font-bold leading-none mb-1">
                 {entity.accessScore != null ? Math.round(entity.accessScore * 100) : "—"}
               </span>
               <span className="text-[10px] text-muted-foreground leading-tight">
@@ -1097,7 +1097,7 @@ export default function ApexProfile() {
                 {e.telegramHandle && (
                   <a href={`https://t.me/${e.telegramHandle}`} target="_blank" rel="noopener noreferrer"
                     title={e.telegramBio ?? `@${e.telegramHandle} on Telegram`}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded border border-cyan-400/30 bg-cyan-400/10 text-cyan-400 font-mono text-xs hover:bg-cyan-400/20 transition-colors">
+                    className="flex items-center gap-2 px-3 py-1.5 rounded border border-yellow-400/30 bg-yellow-400/10 text-yellow-400 font-mono text-xs hover:bg-yellow-400/20 transition-colors">
                     <Send className="w-3.5 h-3.5 flex-shrink-0" />
                     t.me/{e.telegramHandle}
                   </a>

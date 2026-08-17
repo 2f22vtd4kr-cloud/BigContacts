@@ -574,7 +574,7 @@ export default function EntityLedger() {
   };
 
   // Client-side filters: proximity + hot + local overrides merged in
-  // ?mock=1 / ?demo=1 → Griffin-class fake rows for UI verification (no Postgres)
+  // ?mock=1 / ?demo=1 → empty offline scaffold (no fabricated entities)
   const entities = useMemo(() => {
     const source = isMockMode() ? MOCK_ENTITIES : (rawEntities as any[] | undefined);
     if (!source) return [];
@@ -742,7 +742,7 @@ export default function EntityLedger() {
             </div>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
-          <div className="flex items-center gap-2 w-full sm:flex-1 min-h-[40px] px-3.5 py-1.5 rounded-xl bg-background/80 border border-border/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] focus-within:border-cyan-400/40 focus-within:ring-1 focus-within:ring-cyan-400/20">
+          <div className="flex items-center gap-2 w-full sm:flex-1 min-h-[40px] px-3.5 py-1.5 rounded-xl bg-background/80 border border-border/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] focus-within:border-yellow-400/40 focus-within:ring-1 focus-within:ring-yellow-400/20">
             <Search className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" aria-hidden />
             <input
               type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}

@@ -154,9 +154,9 @@ export function RegistryIcon(props: IconProps) {
 export function BureauIcon(props: IconProps) {
   return (
     <Svg {...props} title={props.title ?? "Bureau"}>
-      <rect x="3" y="5" width="18" height="14" rx="2" fill="#0F172A" stroke="#22D3EE" strokeWidth="1.5" />
-      <path d="M3 9h18" stroke="#22D3EE" strokeWidth="1.2" />
-      <path d="M8 13h8M8 16h5" stroke="#22D3EE" strokeWidth="1.2" strokeLinecap="round" />
+      <rect x="3" y="5" width="18" height="14" rx="2" fill="#0F172A" stroke="#EAB308" strokeWidth="1.5" />
+      <path d="M3 9h18" stroke="#EAB308" strokeWidth="1.2" />
+      <path d="M8 13h8M8 16h5" stroke="#EAB308" strokeWidth="1.2" strokeLinecap="round" />
     </Svg>
   );
 }
@@ -186,8 +186,8 @@ export function PromptIcon(props: IconProps) {
 export function AtlasIcon(props: IconProps) {
   return (
     <Svg {...props} title={props.title ?? "Atlas"}>
-      <circle cx="12" cy="12" r="9" fill="none" stroke="#22D3EE" strokeWidth="1.6" />
-      <path d="M12 6v12M8 9l4 3 4-3" stroke="#22D3EE" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="12" cy="12" r="9" fill="none" stroke="#EAB308" strokeWidth="1.6" />
+      <path d="M12 6v12M8 9l4 3 4-3" stroke="#EAB308" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
     </Svg>
   );
 }

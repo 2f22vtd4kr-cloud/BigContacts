@@ -43,8 +43,8 @@ const STATE_COPY: Record<WorkspaceState, {
   researching: {
     label: "ATLAS RESEARCHING",
     detail: "Live research is running on a target.",
-    className: "text-cyan-300",
-    dotClassName: "bg-cyan-300 shadow-[0_0_8px_rgba(103,232,249,0.7)]",
+    className: "text-yellow-300",
+    dotClassName: "bg-yellow-300 shadow-[0_0_8px_rgba(103,232,249,0.7)]",
   },
   "researching-degraded": {
     label: "ATLAS ACTIVE",
@@ -276,7 +276,7 @@ export function WorkspaceStatus() {
             <div className="rounded-lg border border-border/60 bg-background/70 px-3 py-2.5">
               <div className="flex items-center justify-between gap-3">
                 <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground/60">Research engine</span>
-                  <span className={cn("font-mono text-[10px] font-bold", active ? (providerDegraded ? "text-amber-300" : "text-cyan-300") : schedulerEnabled ? "text-amber-300" : "text-muted-foreground")}>
+                  <span className={cn("font-mono text-[10px] font-bold", active ? (providerDegraded ? "text-amber-300" : "text-yellow-300") : schedulerEnabled ? "text-amber-300" : "text-muted-foreground")}>
                   {active ? (providerDegraded ? "ACTIVE · PARTIAL COVERAGE" : "DISCOVERING + ENRICHING") : schedulerEnabled ? "QUEUED" : "READY"}
                 </span>
               </div>

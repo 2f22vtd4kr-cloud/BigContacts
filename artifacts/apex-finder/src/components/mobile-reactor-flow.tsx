@@ -305,7 +305,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
       : atlasState?.runStatus === "done"
         ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
         : isLive
-        ? "border-cyan-400/30 bg-cyan-400/10 text-cyan-300"
+        ? "border-yellow-400/30 bg-yellow-400/10 text-yellow-300"
         : "border-lime-400/30 bg-lime-400/10 text-lime-300";
 
   let activePhaseIndex = -1;
@@ -346,7 +346,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <span
-                className={`h-2 w-2 shrink-0 rounded-full ${isLive ? "bg-cyan-400 shadow-[0_0_8px_#22d3ee]" : atlasState?.runStatus === "failed" ? "bg-rose-400" : "bg-slate-600"}`}
+                className={`h-2 w-2 shrink-0 rounded-full ${isLive ? "bg-yellow-400 shadow-[0_0_8px_#eab308]" : atlasState?.runStatus === "failed" ? "bg-rose-400" : "bg-slate-600"}`}
                 style={isLive && !prefersReducedMotion() ? { animation: "pulse 2s cubic-bezier(0.4,0,0.6,1) infinite" } : undefined}
               />
               <span className={`text-[10px] font-bold uppercase tracking-[0.18em] ${isLive ? "reactor-live-label" : "text-slate-400"}`}>
@@ -377,7 +377,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
             type="button"
             onClick={() => setShowHistory((v) => !v)}
             className={`reactor-pressable flex h-11 shrink-0 items-center gap-1.5 rounded-xl border px-3.5 text-[10px] font-bold uppercase tracking-wider ${
-              showHistory ? "border-cyan-400/40 bg-cyan-400/10 text-cyan-300" : "border-white/10 bg-white/[0.04] text-slate-400 hover:border-white/20"
+              showHistory ? "border-yellow-400/40 bg-yellow-400/10 text-yellow-300" : "border-white/10 bg-white/[0.04] text-slate-400 hover:border-white/20"
             }`}
             data-testid="button-history"
             aria-pressed={showHistory}
@@ -389,7 +389,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
             type="button"
             onClick={onRefresh}
             disabled={syncing}
-            className="reactor-pressable flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-slate-400 hover:border-cyan-400/30 hover:text-cyan-300 disabled:opacity-50 disabled:pointer-events-none"
+            className="reactor-pressable flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-slate-400 hover:border-yellow-400/30 hover:text-yellow-300 disabled:opacity-50 disabled:pointer-events-none"
             aria-label="Refresh Atlas status"
             data-testid="button-refresh-atlas"
           >
@@ -547,7 +547,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
       {edgeHint && (
         <div
           role="status"
-          className="sticky top-[52px] z-10 shrink-0 px-4 py-1.5 text-center text-[9px] font-mono uppercase tracking-wider text-cyan-200 bg-cyan-400/15 border-b border-cyan-400/20 backdrop-blur-sm"
+          className="sticky top-[52px] z-10 shrink-0 px-4 py-1.5 text-center text-[9px] font-mono uppercase tracking-wider text-yellow-200 bg-yellow-400/15 border-b border-yellow-400/20 backdrop-blur-sm"
           style={{ animation: motionOrNone(`armIn ${REACTOR_UI_MS}ms ease-out both`) }}
         >
           {edgeHint}
@@ -562,7 +562,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
         <div className="mx-auto flex w-full max-w-lg flex-col gap-3 pb-8">
           {arming ? (
             <section
-              className="rounded-2xl border border-cyan-400/35 bg-[#071018] p-3 shadow-[0_0_48px_rgba(34,211,238,0.12)]"
+              className="rounded-2xl border border-yellow-400/35 bg-[#071018] p-3 shadow-[0_0_48px_rgba(234,179,8,0.12)]"
               data-testid="panel-live-desk-arming"
               aria-busy="true"
               aria-label="Arming live desk"
@@ -571,14 +571,14 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
               <div className="mb-3 flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <span className="relative flex h-2 w-2">
-                    <span className="absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-60" style={{ animation: motionOrNone(`reactorShimmer ${REACTOR_SHIMMER_MS}ms ease-in-out infinite`) }} />
-                    <span className="relative inline-flex h-2 w-2 rounded-full bg-cyan-300" />
+                    <span className="absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-60" style={{ animation: motionOrNone(`reactorShimmer ${REACTOR_SHIMMER_MS}ms ease-in-out infinite`) }} />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-yellow-300" />
                   </span>
-                  <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-200/90">Arming desk…</div>
+                  <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-yellow-200/90">Arming desk…</div>
                 </div>
                 <div className="h-1.5 w-20 overflow-hidden rounded-full bg-slate-800">
                   <div
-                    className="h-full rounded-full bg-cyan-400/70"
+                    className="h-full rounded-full bg-yellow-400/70"
                     style={{
                       width: "55%",
                       animation: motionOrNone(`reactorShimmer ${REACTOR_SHIMMER_MS}ms ease-in-out infinite`),
@@ -587,7 +587,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                 </div>
               </div>
               {/* Tool-shaped window — first frame of a live run */}
-              <div className="overflow-hidden rounded-xl border border-cyan-400/15 bg-[#0b1220] shadow-[inset_0_1px_0_rgba(34,211,238,0.06)]">
+              <div className="overflow-hidden rounded-xl border border-yellow-400/15 bg-[#0b1220] shadow-[inset_0_1px_0_rgba(234,179,8,0.06)]">
                 <div className="flex items-center gap-2 border-b border-white/5 px-3 py-2">
                   <span className="h-2.5 w-2.5 rounded-full bg-[#FF5F57]" aria-hidden />
                   <span className="h-2.5 w-2.5 rounded-full bg-[#FEBC2E]" aria-hidden />
@@ -598,7 +598,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                       <div
                         className="h-full w-full"
                         style={{
-                          background: "linear-gradient(90deg,transparent,rgba(34,211,238,.45),transparent)",
+                          background: "linear-gradient(90deg,transparent,rgba(234,179,8,.45),transparent)",
                           animation: motionOrNone(`reactorShimmer ${REACTOR_SHIMMER_MS}ms ease-in-out infinite`),
                         }}
                       />
@@ -606,17 +606,17 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                   </div>
                 </div>
                 <div className="border-b border-white/5 px-3 py-1.5">
-                  <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-cyan-400/70">Powering channels</div>
+                  <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-yellow-400/70">Powering channels</div>
                 </div>
                 {/* Prompt / search line placeholder */}
                 <div className="border-b border-white/5 px-3 py-2.5">
                   <div className="flex items-center gap-2">
-                    <div className="h-2.5 w-2.5 shrink-0 rounded-full bg-cyan-400/50" />
+                    <div className="h-2.5 w-2.5 shrink-0 rounded-full bg-yellow-400/50" />
                     <div className="relative h-2.5 flex-1 overflow-hidden rounded bg-slate-800/90">
                       <div
                         className="absolute inset-y-0 left-0 w-1/3"
                         style={{
-                          background: "linear-gradient(90deg,transparent,rgba(34,211,238,.25),transparent)",
+                          background: "linear-gradient(90deg,transparent,rgba(234,179,8,.25),transparent)",
                           animation: motionOrNone(`reactorShimmer ${REACTOR_SHIMMER_MS}ms ease-in-out infinite`),
                         }}
                       />
@@ -648,7 +648,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
               className={`rounded-2xl border p-3 ${
                 showHistory
                   ? "reactor-archive-panel border-slate-500/35"
-                  : "border-cyan-400/25 bg-[#071018] shadow-[0_0_40px_rgba(34,211,238,0.06)]"
+                  : "border-yellow-400/25 bg-[#071018] shadow-[0_0_40px_rgba(234,179,8,0.06)]"
               }`}
               data-testid="panel-live-desk-mobile"
               aria-label={showHistory ? "Target history archive" : "Live research window"}
@@ -659,7 +659,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <div className={`text-[10px] font-bold uppercase tracking-[0.2em] ${
-                      showHistory ? "text-slate-300" : "text-cyan-300/90"
+                      showHistory ? "text-slate-300" : "text-yellow-300/90"
                     }`}>
                       {showHistory ? "History" : "Live activity"}
                     </div>
@@ -669,17 +669,17 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                       </span>
                     )}
                     {!showHistory && isLive && (
-                      <span className="rounded-full border border-cyan-400/30 bg-cyan-400/10 px-1.5 py-0.5 text-[8px] font-mono font-bold uppercase tracking-wider text-cyan-200">
+                      <span className="rounded-full border border-yellow-400/30 bg-yellow-400/10 px-1.5 py-0.5 text-[8px] font-mono font-bold uppercase tracking-wider text-yellow-200">
                         live
                       </span>
                     )}
                   </div>
                   <div
                     className={`text-[10px] font-mono tabular-nums transition-colors ${
-                      eventCountPulse ? "text-cyan-300" : "text-slate-500"
+                      eventCountPulse ? "text-yellow-300" : "text-slate-500"
                     }`}
                     data-testid="mobile-step-count"
-                    style={eventCountPulse ? { textShadow: "0 0 10px rgba(34,211,238,0.45)" } : undefined}
+                    style={eventCountPulse ? { textShadow: "0 0 10px rgba(234,179,8,0.45)" } : undefined}
                   >
                     {liveEvents.length} step{liveEvents.length === 1 ? "" : "s"}
                     {eventCountPulse && isLive && !showHistory ? " · new" : ""}
@@ -692,7 +692,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                     data-testid="live-step-rail"
                   >
                     <div
-                      className="h-full rounded-full bg-cyan-400/70 transition-[width] duration-300 ease-out"
+                      className="h-full rounded-full bg-yellow-400/70 transition-[width] duration-300 ease-out"
                       style={{ width: `${Math.min(100, Math.round((liveEvents.length / Math.max(liveEvents.length, 6)) * 100))}%` }}
                     />
                   </div>
@@ -708,7 +708,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                     value={historyQuery}
                     onChange={(e) => setHistoryQuery(e.target.value)}
                     placeholder="Search tools, results…"
-                    className="w-full rounded-lg border border-white/10 bg-slate-950/80 px-3 py-2 text-[12px] text-slate-200 outline-none placeholder:text-slate-600 focus-visible:border-cyan-400/50 focus-visible:ring-1 focus-visible:ring-cyan-400/40"
+                    className="w-full rounded-lg border border-white/10 bg-slate-950/80 px-3 py-2 text-[12px] text-slate-200 outline-none placeholder:text-slate-600 focus-visible:border-yellow-400/50 focus-visible:ring-1 focus-visible:ring-yellow-400/40"
                     autoComplete="off"
                     spellCheck={false}
                   />
@@ -737,7 +737,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                         onClick={() => setHistoryFilter(id)}
                         className={`reactor-pressable min-h-[32px] rounded-full border px-2.5 py-1 text-[10px] font-mono font-bold uppercase tracking-wider transition-colors ${
                           selected
-                            ? "border-cyan-400/50 bg-cyan-400/15 text-cyan-200"
+                            ? "border-yellow-400/50 bg-yellow-400/15 text-yellow-200"
                             : "border-white/10 bg-white/[0.03] text-slate-400 hover:border-white/20 hover:text-slate-300"
                         }`}
                       >
@@ -780,7 +780,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
             <div
               className={`flex min-h-[320px] flex-col items-center justify-center rounded-2xl border px-6 text-center transition-colors duration-300 ${
                 isLive
-                  ? "border-cyan-400/30 bg-cyan-400/[0.05]"
+                  ? "border-yellow-400/30 bg-yellow-400/[0.05]"
                   : showHistory
                     ? "reactor-archive-panel border-slate-500/30"
                     : "border-dashed border-white/10 bg-white/[0.02]"
@@ -789,11 +789,11 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
               aria-live="polite"
             >
               <div className="relative mb-3">
-                <Radio className={`h-8 w-8 ${isLive ? "text-cyan-400/80" : "text-slate-600"}`} />
+                <Radio className={`h-8 w-8 ${isLive ? "text-yellow-400/80" : "text-slate-600"}`} />
                 {isLive && (
                   <span className="absolute -right-0.5 -top-0.5 flex h-2.5 w-2.5">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-400 opacity-50" />
-                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-cyan-400" />
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-yellow-400 opacity-50" />
+                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-yellow-400" />
                   </span>
                 )}
               </div>
@@ -819,7 +819,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
               </div>
               {(isLive || forceLiveEmpty) && (
                 <div
-                  className="mt-5 w-full max-w-[280px] overflow-hidden rounded-xl border border-cyan-400/20 bg-[#0b1220]/90"
+                  className="mt-5 w-full max-w-[280px] overflow-hidden rounded-xl border border-yellow-400/20 bg-[#0b1220]/90"
                   data-testid="panel-live-empty-scaffold"
                   aria-hidden
                 >
@@ -834,7 +834,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                       <div
                         className="h-full w-1/2 rounded"
                         style={{
-                          background: "linear-gradient(90deg,transparent,rgba(34,211,238,.35),transparent)",
+                          background: "linear-gradient(90deg,transparent,rgba(234,179,8,.35),transparent)",
                           animation: motionOrNone(`reactorShimmer ${REACTOR_SHIMMER_MS}ms ease-in-out infinite`),
                         }}
                       />

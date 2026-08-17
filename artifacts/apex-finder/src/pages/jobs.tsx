@@ -84,7 +84,7 @@ function IngestorCard({ job, onTrigger }: { job: Job; onTrigger: (id: string) =>
   const isActive = job.status === "running" || job.status === "queued";
 
   return (
-    <div className={cn("rounded-2xl border border-border/70 bg-card/30 overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-colors", isActive && "border-cyan-400/30 bg-cyan-500/[0.04]")} data-testid={`card-job-${job.id}`}>
+    <div className={cn("rounded-2xl border border-border/70 bg-card/30 overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-colors", isActive && "border-yellow-400/30 bg-yellow-500/[0.04]")} data-testid={`card-job-${job.id}`}>
       <button
         onClick={() => setOpen(o => !o)}
         data-testid={`button-toggle-job-${job.id}`}
@@ -146,7 +146,7 @@ function IngestorCard({ job, onTrigger }: { job: Job; onTrigger: (id: string) =>
                 "flex min-h-[36px] items-center gap-1.5 px-3.5 py-1.5 rounded-xl border font-mono text-[11px] uppercase tracking-wider transition-colors",
                 isActive
                   ? "border-border text-muted-foreground opacity-50 cursor-not-allowed"
-                  : "border-cyan-400/35 text-cyan-100 bg-cyan-400/10 hover:bg-cyan-400/15"
+                  : "border-yellow-400/35 text-yellow-100 bg-yellow-400/10 hover:bg-yellow-400/15"
               )}
             >
               {isActive ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
@@ -437,7 +437,7 @@ function LiveActivityTab({ jobs }: { jobs: Job[] }) {
 
       {active.length === 0 && (
         <div
-          className="rounded-2xl border border-dashed border-cyan-400/20 bg-gradient-to-br from-cyan-500/[0.05] via-card/30 to-transparent px-4 py-6"
+          className="rounded-2xl border border-dashed border-yellow-400/20 bg-gradient-to-br from-yellow-500/[0.05] via-card/30 to-transparent px-4 py-6"
           data-testid="text-no-running-tasks"
         >
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -453,14 +453,14 @@ function LiveActivityTab({ jobs }: { jobs: Job[] }) {
             <div className="flex flex-wrap gap-2 shrink-0">
               <Link
                 href="/data-sources"
-                className="inline-flex min-h-[40px] items-center rounded-xl border border-border/70 bg-background/50 px-3.5 py-2 text-[11px] font-semibold text-foreground hover:border-cyan-400/35"
+                className="inline-flex min-h-[40px] items-center rounded-xl border border-border/70 bg-background/50 px-3.5 py-2 text-[11px] font-semibold text-foreground hover:border-yellow-400/35"
                 data-testid="link-jobs-data-sources"
               >
                 Data sources
               </Link>
               <Link
                 href="/jobs#sources"
-                className="inline-flex min-h-[40px] items-center rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-3.5 py-2 text-[11px] font-semibold text-cyan-100 hover:bg-cyan-400/15"
+                className="inline-flex min-h-[40px] items-center rounded-xl border border-yellow-400/30 bg-yellow-400/10 px-3.5 py-2 text-[11px] font-semibold text-yellow-100 hover:bg-yellow-400/15"
                 data-testid="link-trigger-task"
               >
                 Trigger a task →
@@ -644,7 +644,7 @@ export default function BackgroundJobs() {
               className={cn(
                 "flex min-h-[44px] items-center gap-1.5 px-4 py-3 text-xs font-mono uppercase tracking-[0.1em] border-b-2 whitespace-nowrap transition-colors",
                 activeTab === tab.id
-                  ? "border-cyan-400 text-cyan-200"
+                  ? "border-yellow-400 text-yellow-200"
                   : "border-transparent text-muted-foreground hover:text-foreground"
               )}
             >

@@ -4,13 +4,13 @@
   --font-sans: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
   --font-display: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
-  --color-background: #070b12;
+  --color-background: #050505;
   --color-foreground: #e8eef7;
-  --color-card: #0d1420;
-  --color-border: #1e2a3a;
+  --color-card: #0a0a0a;
+  --color-border: #1f1f1f;
   --color-muted: #9aa8b8;
   --color-muted-foreground: #8b9bb0;
-  --color-primary: #22d3ee;
+  --color-primary: #eab308;
   --color-secondary: #64748b;
   --color-accent: #a78bfa;
 }

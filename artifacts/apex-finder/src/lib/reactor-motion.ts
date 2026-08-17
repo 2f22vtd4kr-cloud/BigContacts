@@ -27,7 +27,7 @@ export const REACTOR_CSS = `
   --reactor-pause: ${REACTOR_PAUSE_MS}ms;
   --reactor-shimmer: ${REACTOR_SHIMMER_MS}ms;
   --reactor-ease: ${REACTOR_EASE};
-  --reactor-cyan: #22d3ee;
+  --reactor-cyan: #eab308;
   --reactor-lime: #a3e635;
   --reactor-emerald: #34d399;
   --reactor-canvas: #0b1120;
@@ -54,7 +54,7 @@ input:focus-visible,
   box-shadow: 0 0 28px rgba(52, 211, 153, 0.22), inset 0 1px 0 rgba(167, 243, 208, 0.12);
 }
 .reactor-reach-label { color: #a7f3d0; letter-spacing: 0.16em; }
-.reactor-live-label { color: #a5f3fc; text-shadow: 0 0 12px rgba(34, 211, 238, 0.45); }
+.reactor-live-label { color: #a5f3fc; text-shadow: 0 0 12px rgba(234, 179, 8, 0.45); }
 [data-testid="mobile-workstage-swipe"]:focus-visible {
   outline: 2px solid var(--reactor-cyan);
   outline-offset: 3px;

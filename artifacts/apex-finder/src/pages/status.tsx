@@ -95,7 +95,7 @@ const PROVIDER_COLORS: Record<string, string> = {
   groq:       "from-orange-500/20 border-orange-500/30",
   perplexity: "from-blue-500/20 border-blue-500/30",
   gemini:     "from-purple-500/20 border-purple-500/30",
-  tavily:     "from-cyan-500/20 border-cyan-500/30",
+  tavily:     "from-yellow-500/20 border-yellow-500/30",
   exa:        "from-emerald-500/20 border-emerald-500/30",
 };
 
@@ -119,7 +119,7 @@ function SlotBar({ slots }: { slots: AIKeySlot[] }) {
           title={`Slot ${slot.index + 1}: ${slot.state}${slot.expiresAt ? ` · resets ${new Date(slot.expiresAt).toLocaleTimeString()}` : ""}`}
           className={cn(
             "h-full flex-1 border-r border-background/40 last:border-r-0 transition-colors",
-            slot.state === "active" && "bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.45)]",
+            slot.state === "active" && "bg-yellow-400 shadow-[0_0_8px_rgba(234,179,8,0.45)]",
             slot.state === "rate_limited" && "bg-amber-400/90 animate-pulse",
             slot.state === "missing" && "bg-muted/50",
           )}
@@ -139,7 +139,7 @@ function ProviderCard({ name, slots }: { name: keyof AIKeyStatus; slots: AIKeySl
 
   const tone =
     active > 0
-      ? "border-cyan-400/25 bg-gradient-to-br from-cyan-500/[0.07] via-card/80 to-card/40"
+      ? "border-yellow-400/25 bg-gradient-to-br from-yellow-500/[0.07] via-card/80 to-card/40"
       : rateLimited > 0
         ? "border-amber-400/25 bg-gradient-to-br from-amber-500/[0.07] via-card/80 to-card/40"
         : "border-border/60 bg-card/30";
@@ -147,13 +147,13 @@ function ProviderCard({ name, slots }: { name: keyof AIKeyStatus; slots: AIKeySl
   return (
     <article
       className={cn(
-        "group relative overflow-hidden rounded-2xl border p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-sm transition-all hover:border-cyan-400/30 hover:shadow-[0_0_24px_rgba(34,211,238,0.06)]",
+        "group relative overflow-hidden rounded-2xl border p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-sm transition-all hover:border-yellow-400/30 hover:shadow-[0_0_24px_rgba(234,179,8,0.06)]",
         tone,
         configured === 0 && "opacity-55",
       )}
       data-testid={`provider-card-${name}`}
     >
-      <div className="pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full bg-cyan-400/5 blur-2xl transition-opacity group-hover:opacity-100" />
+      <div className="pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full bg-yellow-400/5 blur-2xl transition-opacity group-hover:opacity-100" />
       <div className="relative flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="font-display text-[13px] font-semibold tracking-tight text-foreground">
@@ -167,7 +167,7 @@ function ProviderCard({ name, slots }: { name: keyof AIKeyStatus; slots: AIKeySl
           className={cn(
             "shrink-0 rounded-md border px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.12em]",
             active > 0
-              ? "border-cyan-400/35 bg-cyan-400/10 text-cyan-200"
+              ? "border-yellow-400/35 bg-yellow-400/10 text-yellow-200"
               : rateLimited > 0
                 ? "border-amber-400/35 bg-amber-400/10 text-amber-200"
                 : "border-border/70 bg-muted/20 text-muted-foreground",
@@ -180,7 +180,7 @@ function ProviderCard({ name, slots }: { name: keyof AIKeyStatus; slots: AIKeySl
       <div className="relative mt-4 space-y-2">
         <SlotBar slots={slots} />
         <div className="flex items-center justify-between gap-2 font-mono text-[10px] text-muted-foreground">
-          <span className="text-cyan-300/90">{Math.round(health * 100)}% capacity</span>
+          <span className="text-yellow-300/90">{Math.round(health * 100)}% capacity</span>
           <span className="truncate text-right">
             {rateLimited > 0 && <span className="text-amber-300/90">{rateLimited} cooling · </span>}
             {missing > 0 && <span className="text-muted-foreground/55">{missing} open</span>}
@@ -301,13 +301,13 @@ export default function SystemStatusPage() {
         <div className={cn(
           "flex flex-col gap-2 rounded-2xl border px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5",
           totalActive > 0
-            ? "border-cyan-400/25 bg-gradient-to-r from-cyan-500/[0.08] to-transparent"
+            ? "border-yellow-400/25 bg-gradient-to-r from-yellow-500/[0.08] to-transparent"
             : "border-destructive/30 bg-destructive/5",
         )}>
           <div className="flex items-center gap-3">
             <div className={cn(
               "h-2 w-2 rounded-full",
-              totalActive > 0 ? "bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.7)]" : "bg-destructive",
+              totalActive > 0 ? "bg-yellow-400 shadow-[0_0_8px_rgba(234,179,8,0.7)]" : "bg-destructive",
             )} />
             <span className="text-[13px] font-semibold tracking-tight text-foreground">
               {totalActive > 0
@@ -385,7 +385,7 @@ export default function SystemStatusPage() {
               className={cn(
                 "flex items-center justify-between gap-3 rounded-2xl border px-4 py-3.5 transition-colors",
                 item.configured
-                  ? "border-cyan-400/20 bg-cyan-500/[0.06]"
+                  ? "border-yellow-400/20 bg-yellow-500/[0.06]"
                   : "border-border/50 bg-card/25",
               )}
             >

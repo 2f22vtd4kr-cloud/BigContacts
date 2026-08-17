@@ -62,7 +62,7 @@ export function AccessScoreBadge({ score }: { score: number | null | undefined }
     tip = `Reachability ${pct}/100 — some public route exists`;
   } else if (pct < 85) {
     label = "Easy to reach";
-    colorClass = "text-cyan-200 border-cyan-400/30 bg-cyan-400/10";
+    colorClass = "text-yellow-200 border-yellow-400/30 bg-yellow-400/10";
     tip = `Reachability ${pct}/100 — solid public contact path`;
   } else {
     label = "Direct path";
@@ -106,7 +106,7 @@ export function ConfidenceBadge({ score }: { score: number | null | undefined })
     tip = `Contact quality ${pct}/100 — some public contact data, not fully confirmed`;
   } else if (pct < 85) {
     label = "Solid evidence";
-    colorClass = "text-cyan-200 border-cyan-400/30 bg-cyan-400/10";
+    colorClass = "text-yellow-200 border-yellow-400/30 bg-yellow-400/10";
     tip = `Contact quality ${pct}/100 — strong public contact evidence`;
   } else {
     label = "Confirmed";

@@ -22,16 +22,16 @@ import {
 function CompletenessDemo() {
   const rows = [
     {
-      name: "Griffin Tool — Malcolm Cowan",
+      name: "Owner with role email on company site",
       level: "FULL",
       color: "#10B981",
-      detail: "Personal role email for owner/principal (Griffin-class)",
+      detail: "Personal or role email for owner/principal, sourced and attributable",
     },
     {
-      name: "Advance Turning — Macchia family",
+      name: "Officers known · org inbox only",
       level: "PARTIAL",
       color: "#F59E0B",
-      detail: "Owners identified + succession path; only org inbox public",
+      detail: "Named principals + succession path; only organization inboxes public",
     },
     {
       name: "Thin directory listing",
@@ -107,7 +107,7 @@ const SECTIONS = [
         </p>
         <CompletenessDemo />
         <p className="text-sm text-muted-foreground leading-relaxed">
-          <strong className="text-foreground">FULL</strong> = personal/role email (or direct cell) for an owner/principal — Griffin-class.
+          <strong className="text-foreground">FULL</strong> = personal/role email (or direct cell) for an owner/principal.
           <strong className="text-foreground"> PARTIAL</strong> = owner identified + HNWI path + only org surface.
           <strong className="text-foreground"> INCOMPLETE</strong> = no attributable owner path yet. Cards never promote info@/sales@ to Personal.
         </p>
@@ -150,7 +150,7 @@ const SECTIONS = [
           <li className="flex gap-2"><Globe className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" /><span><strong className="text-foreground">Browser steps</strong> — opening public pages and reading what they say about the target.</span></li>
           <li className="flex gap-2"><Activity className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" /><span><strong className="text-foreground">Analyst steps</strong> — writing down only contacts that can be proven.</span></li>
           <li className="flex gap-2"><Shield className="w-4 h-4 text-violet-400 shrink-0 mt-0.5" /><span><strong className="text-foreground">Footprint steps</strong> — checking whether the same name shows up on other public sites.</span></li>
-          <li className="flex gap-2"><Database className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" /><span><strong className="text-foreground">Domain steps</strong> — checking who registered the website and when.</span></li>
+          <li className="flex gap-2"><Database className="w-4 h-4 text-yellow-400 shrink-0 mt-0.5" /><span><strong className="text-foreground">Domain steps</strong> — checking who registered the website and when.</span></li>
         </ul>
         <Callout title="Live Action Log">
           The <strong className="text-foreground">LIVE DESK</strong> on the Reactor shows simulated tool chrome (Google search bar, browser windows, analyst prompts) driven by real Bureau/Atlas payloads — swipe on mobile, story rail on desktop. Expand any event row for full prompt text, tool IDs, and counts.
@@ -228,7 +228,7 @@ const SECTIONS = [
           <span className="text-xs font-mono text-muted-foreground">Pipeline:</span>
           <span className="text-xs font-mono text-primary bg-primary/10 px-2 py-1 rounded">Company lock</span>
           <span className="text-xs font-mono text-muted-foreground">→</span>
-          <span className="text-xs font-mono text-cyan-400 bg-cyan-500/10 px-2 py-1 rounded">Org surface</span>
+          <span className="text-xs font-mono text-yellow-400 bg-yellow-500/10 px-2 py-1 rounded">Org surface</span>
           <span className="text-xs font-mono text-muted-foreground">→</span>
           <span className="text-xs font-mono text-violet-400 bg-violet-500/10 px-2 py-1 rounded">Related people</span>
           <span className="text-xs font-mono text-muted-foreground">→</span>
@@ -271,7 +271,7 @@ const SECTIONS = [
           <span className="text-xs font-mono text-muted-foreground">Flow:</span>
           <span className="text-xs font-mono text-primary bg-primary/10 px-2 py-1 rounded">UI trigger</span>
           <span className="text-xs font-mono text-muted-foreground">→</span>
-          <span className="text-xs font-mono text-cyan-400 bg-cyan-500/10 px-2 py-1 rounded">api-server</span>
+          <span className="text-xs font-mono text-yellow-400 bg-yellow-500/10 px-2 py-1 rounded">api-server</span>
           <span className="text-xs font-mono text-muted-foreground">→</span>
           <span className="inline-flex items-center gap-1 text-xs font-mono text-violet-400 bg-violet-500/10 px-2 py-1 rounded">
             <Activity className="h-3 w-3" /> Redis job
@@ -339,7 +339,7 @@ const SECTIONS = [
             <Crosshair className="w-5 h-5 text-emerald-400 shrink-0" />
             <div>
               <strong className="text-foreground block mb-1">Grok is the floor</strong>
-              Holdouts (Griffin, Advance Turning, KB Tool, BTE, Northwest) document Apex recovering more reachable personal channels while staying fail-closed.
+              Holdouts document Apex recovering more reachable personal channels while staying fail-closed.
             </div>
           </li>
         </ul>
@@ -365,7 +365,7 @@ export default function ManualPage() {
         </p>
       </div>
       <div className="mb-6 flex flex-wrap gap-2" data-testid="manual-quick-links">
-        <Link href="/reactor" className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-cyan-400/25 bg-cyan-400/10 px-3 py-1.5 text-[11px] font-semibold text-cyan-100 hover:border-cyan-300/40">
+        <Link href="/reactor" className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-yellow-400/25 bg-yellow-400/10 px-3 py-1.5 text-[11px] font-semibold text-yellow-100 hover:border-yellow-300/40">
           <Cpu className="h-3.5 w-3.5" /> Live reactor
         </Link>
         <Link href="/search" className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-border bg-card/50 px-3 py-1.5 text-[11px] font-semibold text-foreground hover:border-primary/40">
@@ -384,7 +384,7 @@ export default function ManualPage() {
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Search sections…"
-        className="mb-5 w-full rounded-xl border border-border/70 bg-background/80 px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/30 focus-visible:border-cyan-400/40"
+        className="mb-5 w-full rounded-xl border border-border/70 bg-background/80 px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/30 focus-visible:border-yellow-400/40"
         autoComplete="off"
       />
 

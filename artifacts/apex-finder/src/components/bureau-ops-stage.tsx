@@ -290,7 +290,7 @@ function StoryLine({
   }
   const kind = m[1].toLowerCase();
   const prefixColor =
-    kind === "now" ? "text-cyan-300" : kind === "failed" ? "text-rose-300" : "text-emerald-300";
+    kind === "now" ? "text-yellow-300" : kind === "failed" ? "text-rose-300" : "text-emerald-300";
   return (
     <div className={`${clamp ? "line-clamp-2" : ""} ${className}`.trim()}>
       <span className={`font-bold ${prefixColor}`}>{m[1]}:</span>
@@ -304,7 +304,7 @@ function WindowChrome({
   title,
   urlBar,
   children,
-  accent = "#22d3ee",
+  accent = "#eab308",
   live,
   compact,
   terminal,
@@ -399,7 +399,7 @@ function WindowChrome({
                 aria-hidden
                 className="pointer-events-none absolute inset-y-0 left-0 w-1/3 opacity-40"
                 style={{
-                  background: "linear-gradient(90deg, transparent, rgba(34,211,238,0.35), transparent)",
+                  background: "linear-gradient(90deg, transparent, rgba(234,179,8,0.35), transparent)",
                   animation: motionOrNone(`reactorShimmer ${REACTOR_SHIMMER_MS}ms ease-in-out infinite`),
                 }}
               />
@@ -519,7 +519,7 @@ function DomainScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
       favicon={<ProviderIcon kind="domain" size={compact ? 12 : 14} />}
       urlBar="rdap · whoisjson"
     >
-      <pre className={`font-mono text-cyan-100/90 leading-relaxed whitespace-pre-wrap ${compact ? "text-[10px]" : "text-[11px]"}`}>
+      <pre className={`font-mono text-yellow-100/90 leading-relaxed whitespace-pre-wrap ${compact ? "text-[10px]" : "text-[11px]"}`}>
         {(scene.resultLines.length ? scene.resultLines : ["Checking domain registration details…"]).join("\n")}
       </pre>
     </WindowChrome>
@@ -588,13 +588,13 @@ function BureauScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
     <WindowChrome
       title={scene.title}
       live={scene.live} terminal={scene.terminal}
-      accent="#22d3ee"
+      accent="#eab308"
       compact={compact}
       favicon={<ProviderIcon kind="bureau" size={compact ? 12 : 14} />}
     >
       <div className="space-y-1">
         {scene.targetName && (
-          <div className="text-[9px] font-mono text-cyan-400/80 uppercase tracking-wider">{scene.targetName}</div>
+          <div className="text-[9px] font-mono text-yellow-400/80 uppercase tracking-wider">{scene.targetName}</div>
         )}
         {(scene.resultLines.length ? scene.resultLines : [scene.subtitle || "Working on this target…"]).map((l, i) => (
           <div key={i} className={`text-slate-200 leading-snug ${compact ? "text-[11px]" : "text-[12px]"}`}>
@@ -857,7 +857,7 @@ function MobileWorkstage({
   return (
     <div
       ref={rootRef}
-      className="space-y-2.5 select-none rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#071018]"
+      className="space-y-2.5 select-none rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#071018]"
       style={{ touchAction: "pan-y", overscrollBehaviorX: "contain" }}
       data-testid="mobile-workstage-swipe"
       tabIndex={0}
@@ -884,9 +884,9 @@ function MobileWorkstage({
             style={{
               width: `${((safeIdx + 1) / Math.max(scenes.length, 1)) * 100}%`,
               background: scene.live
-                ? "linear-gradient(90deg,#22d3ee,#a3e635)"
+                ? "linear-gradient(90deg,#eab308,#a3e635)"
                 : "#475569",
-              boxShadow: scene.live ? "0 0 10px rgba(34,211,238,0.45)" : undefined,
+              boxShadow: scene.live ? "0 0 10px rgba(234,179,8,0.45)" : undefined,
               transition: `width ${REACTOR_UI_MS * 2}ms ease-out`,
             }}
           />
@@ -905,7 +905,7 @@ function MobileWorkstage({
           {safeIdx + 1}/{scenes.length}
         </span>
       </div>
-      <div className={`text-[9px] font-mono uppercase tracking-wider px-0.5 ${scene.live ? "text-cyan-400/90" : "text-slate-500"}`}>
+      <div className={`text-[9px] font-mono uppercase tracking-wider px-0.5 ${scene.live ? "text-yellow-400/90" : "text-slate-500"}`}>
         {scene.live ? "Now" : "Done"} · {safeIdx + 1}/{scenes.length}
         {scene.title ? ` · ${scene.title}` : ""}
       </div>
@@ -958,7 +958,7 @@ function MobileWorkstage({
         <div className="flex items-center justify-between gap-2">
           <button
             type="button"
-            className="reactor-pressable rounded-lg border border-white/15 bg-white/[0.05] px-3 py-1.5 text-[10px] font-mono text-slate-200 hover:border-cyan-400/40 hover:text-cyan-100 disabled:opacity-25 disabled:pointer-events-none min-h-[44px] min-w-[72px]"
+            className="reactor-pressable rounded-lg border border-white/15 bg-white/[0.05] px-3 py-1.5 text-[10px] font-mono text-slate-200 hover:border-yellow-400/40 hover:text-yellow-100 disabled:opacity-25 disabled:pointer-events-none min-h-[44px] min-w-[72px]"
             disabled={safeIdx <= 0}
             onClick={goPrev}
             aria-label="Previous scene"
@@ -983,8 +983,8 @@ function MobileWorkstage({
                 style={{
                   width: i === safeIdx ? 20 : 8,
                   height: 8,
-                  background: i === safeIdx ? (s.live ? "#22d3ee" : "#94a3b8") : "#334155",
-                  boxShadow: i === safeIdx && s.live ? "0 0 12px #22d3eecc" : i === safeIdx ? "0 0 6px rgba(148,163,184,0.4)" : undefined,
+                  background: i === safeIdx ? (s.live ? "#eab308" : "#94a3b8") : "#334155",
+                  boxShadow: i === safeIdx && s.live ? "0 0 12px #eab308cc" : i === safeIdx ? "0 0 6px rgba(148,163,184,0.4)" : undefined,
                   minWidth: i === safeIdx ? 20 : 8,
                 }}
               />
@@ -992,7 +992,7 @@ function MobileWorkstage({
           </div>
           <button
             type="button"
-            className="reactor-pressable rounded-lg border border-white/15 bg-white/[0.05] px-3 py-1.5 text-[10px] font-mono text-slate-200 hover:border-cyan-400/40 hover:text-cyan-100 disabled:opacity-25 disabled:pointer-events-none min-h-[44px] min-w-[72px]"
+            className="reactor-pressable rounded-lg border border-white/15 bg-white/[0.05] px-3 py-1.5 text-[10px] font-mono text-slate-200 hover:border-yellow-400/40 hover:text-yellow-100 disabled:opacity-25 disabled:pointer-events-none min-h-[44px] min-w-[72px]"
             disabled={safeIdx >= scenes.length - 1}
             onClick={goNext}
             aria-label="Next scene"
@@ -1005,7 +1005,7 @@ function MobileWorkstage({
       {paused && scenes.some((s) => s.live) && (
         <button
           type="button"
-          className="reactor-pressable mx-auto flex items-center justify-center gap-1.5 rounded-full border border-cyan-400/40 bg-cyan-400/10 px-3 py-1.5 text-center text-[9px] font-mono uppercase tracking-wider text-cyan-100 shadow-[0_0_16px_rgba(34,211,238,0.12)]"
+          className="reactor-pressable mx-auto flex items-center justify-center gap-1.5 rounded-full border border-yellow-400/40 bg-yellow-400/10 px-3 py-1.5 text-center text-[9px] font-mono uppercase tracking-wider text-yellow-100 shadow-[0_0_16px_rgba(234,179,8,0.12)]"
           data-testid="status-reading-pause"
           style={{ animation: motionOrNone(`armIn ${REACTOR_UI_MS}ms ease-out both`) }}
           onClick={() => {
@@ -1016,7 +1016,7 @@ function MobileWorkstage({
           }}
           aria-label="Resume auto-advance"
         >
-          <span className="h-1.5 w-1.5 rounded-full bg-cyan-300" aria-hidden />
+          <span className="h-1.5 w-1.5 rounded-full bg-yellow-300" aria-hidden />
           {`Reading pause · ${pauseLeft}s · tap to resume`}
         </button>
       )}
@@ -1042,17 +1042,17 @@ function MobileWorkstage({
               aria-current={i === safeIdx ? "true" : undefined}
               aria-label={`Scene ${i + 1}: ${s.title}${s.live ? ", live" : ""}`}
               style={{
-                borderColor: i === safeIdx ? "#22d3ee99" : s.live ? "#22d3ee55" : "#ffffff12",
-                background: i === safeIdx ? "#22d3ee18" : s.live ? "rgba(34,211,238,0.06)" : "#0f172a",
+                borderColor: i === safeIdx ? "#eab30899" : s.live ? "#eab30855" : "#ffffff12",
+                background: i === safeIdx ? "#eab30818" : s.live ? "rgba(234,179,8,0.06)" : "#0f172a",
                 boxShadow: i === safeIdx
-                  ? "0 0 16px rgba(34,211,238,0.2), inset 0 0 0 1px rgba(34,211,238,0.15)"
+                  ? "0 0 16px rgba(234,179,8,0.2), inset 0 0 0 1px rgba(234,179,8,0.15)"
                   : s.live
-                  ? "0 0 8px rgba(34,211,238,0.08)"
+                  ? "0 0 8px rgba(234,179,8,0.08)"
                   : undefined,
               }}
             >
               <div className="flex items-center gap-1 mb-0.5">
-                <span className={`text-[8px] font-mono tabular-nums ${i === safeIdx ? "text-cyan-400" : "text-slate-600"}`}>{i + 1}</span>
+                <span className={`text-[8px] font-mono tabular-nums ${i === safeIdx ? "text-yellow-400" : "text-slate-600"}`}>{i + 1}</span>
                 <ActivityGlyphMini kind={s.kind} live={s.live} terminal={s.terminal} />
                 <span className={`text-[8px] font-mono uppercase tracking-wider truncate ${i === safeIdx ? "text-slate-200" : "text-slate-400"}`}>{s.title}</span>
                 {s.live && (
@@ -1139,7 +1139,7 @@ export function BureauOpsStage({
     <div className="space-y-3">
       <div className="flex items-end justify-between gap-3 flex-wrap">
         <div>
-          <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-cyan-400/90">{title}</div>
+          <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-yellow-400/90">{title}</div>
         </div>
         <div className="text-[9px] font-mono text-slate-500 tabular-nums">{scenes.length}</div>
       </div>
@@ -1160,9 +1160,9 @@ export function BureauOpsStage({
               }}
               className="reactor-pressable shrink-0 rounded-lg border px-2.5 py-2 max-w-[200px] text-left min-h-[52px]"
               style={{
-                borderColor: selected ? "#22d3ee66" : s.live ? "#22d3ee40" : "#ffffff18",
-                background: selected ? "#22d3ee14" : "#ffffff08",
-                boxShadow: selected ? "0 0 12px rgba(34,211,238,0.12)" : undefined,
+                borderColor: selected ? "#eab30866" : s.live ? "#eab30840" : "#ffffff18",
+                background: selected ? "#eab30814" : "#ffffff08",
+                boxShadow: selected ? "0 0 12px rgba(234,179,8,0.12)" : undefined,
               }}
             >
               <div className="flex items-center gap-1.5 mb-0.5">
@@ -1192,7 +1192,7 @@ export function BureauOpsStage({
                 transform: dim ? "scale(0.985)" : "scale(1)",
                 transition: "opacity 220ms ease, transform 220ms ease",
                 filter: dim ? "saturate(0.7)" : undefined,
-                outline: focused ? "1px solid rgba(34,211,238,0.35)" : undefined,
+                outline: focused ? "1px solid rgba(234,179,8,0.35)" : undefined,
                 borderRadius: 8,
                 scrollMarginTop: 12,
               }}

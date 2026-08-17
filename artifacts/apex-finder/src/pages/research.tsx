@@ -252,7 +252,7 @@ function CandidateFunnelPanel({ funnel }: { funnel: CandidateFunnel | null }) {
     ["Discovered", funnel.discovered, "text-muted-foreground"],
     ["Source-linked", funnel.sourceLinked, "text-sky-300"],
     ["Needs check", funnel.attributionReview, "text-amber-300"],
-    ["Corroborated", funnel.independentlyCorroborated, "text-cyan-300"],
+    ["Corroborated", funnel.independentlyCorroborated, "text-yellow-300"],
     ["Verified contact", funnel.verifiedDirectRoute, "text-emerald-300"],
     ["Rejected", funnel.rejected, "text-rose-300"],
   ];

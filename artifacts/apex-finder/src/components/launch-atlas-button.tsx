@@ -8,13 +8,13 @@ type Variant = "primary" | "header" | "reactor" | "ghost";
 
 const VARIANT_CLASS: Record<Variant, string> = {
   primary:
-    "h-12 w-full sm:w-auto px-6 text-sm font-bold tracking-tight bg-gradient-to-r from-cyan-500 to-emerald-500 text-slate-950 shadow-[0_0_24px_rgba(34,211,238,0.25)] hover:from-cyan-400 hover:to-emerald-400 border border-cyan-300/40",
+    "h-12 w-full sm:w-auto px-6 text-sm font-bold tracking-tight bg-gradient-to-r from-yellow-500 to-emerald-500 text-slate-950 shadow-[0_0_24px_rgba(234,179,8,0.25)] hover:from-yellow-400 hover:to-emerald-400 border border-yellow-300/40",
   header:
-    "h-9 px-3 text-[11px] font-bold tracking-wide bg-cyan-500/15 text-cyan-100 border border-cyan-400/35 hover:bg-cyan-500/25 hover:border-cyan-300/50",
+    "h-9 px-3 text-[11px] font-bold tracking-wide bg-yellow-500/15 text-yellow-100 border border-yellow-400/35 hover:bg-yellow-500/25 hover:border-yellow-300/50",
   reactor:
-    "h-11 w-full sm:w-auto px-5 text-xs font-bold bg-cyan-500 text-slate-950 hover:bg-cyan-400 border border-cyan-300/50 shadow-[0_0_20px_rgba(34,211,238,0.2)]",
+    "h-11 w-full sm:w-auto px-5 text-xs font-bold bg-yellow-500 text-slate-950 hover:bg-yellow-400 border border-yellow-300/50 shadow-[0_0_20px_rgba(234,179,8,0.2)]",
   ghost:
-    "h-10 px-4 text-xs font-semibold border border-border bg-card/60 text-foreground hover:border-cyan-400/40 hover:bg-cyan-400/10",
+    "h-10 px-4 text-xs font-semibold border border-border bg-card/60 text-foreground hover:border-yellow-400/40 hover:bg-yellow-400/10",
 };
 
 export function LaunchAtlasButton({
@@ -63,7 +63,7 @@ export function LaunchAtlasButton({
         data-testid="button-launch-apex-atlas"
         aria-label="Launch Apex Atlas research pipeline"
         className={cn(
-          "inline-flex items-center justify-center gap-2 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 disabled:opacity-60 disabled:cursor-not-allowed",
+          "inline-flex items-center justify-center gap-2 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/60 disabled:opacity-60 disabled:cursor-not-allowed",
           VARIANT_CLASS[variant],
           className,
         )}

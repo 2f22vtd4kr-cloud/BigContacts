@@ -632,11 +632,11 @@ function RegistryMatrixPanel() {
   return (
     <section className="rounded-2xl border border-border/70 bg-card/40 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
       <div className="flex items-center gap-2 mb-3">
-        <Globe className="h-4 w-4 text-cyan-400" />
-        <span className="text-sm font-semibold font-mono uppercase tracking-widest text-cyan-400">
+        <Globe className="h-4 w-4 text-yellow-400" />
+        <span className="text-sm font-semibold font-mono uppercase tracking-widest text-yellow-400">
           Registry Coverage Matrix
         </span>
-        <span className="text-[9px] font-mono bg-cyan-500/10 text-cyan-400 px-1.5 py-0.5 rounded uppercase tracking-wider">J2</span>
+        <span className="text-[9px] font-mono bg-yellow-500/10 text-yellow-400 px-1.5 py-0.5 rounded uppercase tracking-wider">J2</span>
       </div>
       {!loading && sources.length > 0 && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-3">
@@ -662,7 +662,7 @@ function RegistryMatrixPanel() {
             {
               label: "Production reviewed",
               value: sources.filter((s) => s.productionReviewStatus === "reviewed_for_production").length,
-              color: "text-cyan-300",
+              color: "text-yellow-300",
               detail: "public-release checked",
             },
           ].map((item) => (
@@ -693,7 +693,7 @@ function RegistryMatrixPanel() {
             {sources.map((source) => (
               <tr key={source.id} className="border-b border-border/30 last:border-0 align-top">
                 <td className="py-2 pr-3 font-semibold text-foreground whitespace-nowrap">{source.label}</td>
-                <td className="py-2 pr-3 text-cyan-300 whitespace-nowrap">{source.jurisdiction}</td>
+                <td className="py-2 pr-3 text-yellow-300 whitespace-nowrap">{source.jurisdiction}</td>
                 <td className="py-2 pr-3 whitespace-nowrap">
                   <span className={cn(
                     "inline-flex items-center gap-1 rounded px-1.5 py-0.5",
@@ -709,7 +709,7 @@ function RegistryMatrixPanel() {
                 </td>
                 <td className={cn(
                   "py-2 whitespace-nowrap",
-                  source.productionReviewStatus === "reviewed_for_production" ? "text-cyan-300" : "text-muted-foreground",
+                  source.productionReviewStatus === "reviewed_for_production" ? "text-yellow-300" : "text-muted-foreground",
                 )}>
                   {source.productionReviewStatus === "reviewed_for_production"
                     ? "production reviewed"
@@ -752,7 +752,7 @@ function RegistryMatrixPanel() {
                 {expandedId === source.id ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
               </button>
               <div className="flex items-center gap-2 text-[10px] font-mono">
-                <span className="text-cyan-300">{source.jurisdiction}</span>
+                <span className="text-yellow-300">{source.jurisdiction}</span>
                 <span className={source.runtimeMode === "random_mix" ? "text-emerald-300" : source.runtimeMode === "bulk_only" ? "text-violet-300" : "text-amber-300"}>
                   {source.runtimeMode === "random_mix" ? "random mix" : source.runtimeMode === "bulk_only" ? "bulk only" : "explicit only"}
                 </span>
@@ -812,7 +812,7 @@ function IdentityResolutionPanel() {
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: "Bundles",       value: stats?.bundles ?? "—", color: "text-cyan-300" },
+          { label: "Bundles",       value: stats?.bundles ?? "—", color: "text-yellow-300" },
           { label: "Pending",       value: pending,               color: "text-amber-300" },
           { label: "Confirmed",     value: confirmed,             color: "text-emerald-300" },
           { label: "Rejected",      value: rejected,              color: "text-muted-foreground" },
@@ -1137,9 +1137,9 @@ function SourceQualityPanel() {
     <section className="rounded-2xl border border-border/70 bg-card/40 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <BarChart3 className="h-4 w-4 text-cyan-400" />
+          <BarChart3 className="h-4 w-4 text-yellow-400" />
           <div>
-            <span className="text-sm font-semibold font-mono uppercase tracking-widest text-cyan-400">
+            <span className="text-sm font-semibold font-mono uppercase tracking-widest text-yellow-400">
               J9 Source Quality
             </span>
             <p className="text-[10px] font-mono text-muted-foreground mt-0.5">
@@ -1199,7 +1199,7 @@ function SourceQualityPanel() {
                     <td className="px-3 py-1.5 text-muted-foreground">{row.total_evidence.toLocaleString()}</td>
                     <td className="px-3 py-1.5 text-emerald-400">{row.verified_count.toLocaleString()}</td>
                     <td className="px-3 py-1.5 text-amber-300">{row.candidate_count.toLocaleString()}</td>
-                    <td className="px-3 py-1.5 text-cyan-300">{(row.avg_reliability ?? 0).toFixed(2)}</td>
+                    <td className="px-3 py-1.5 text-yellow-300">{(row.avg_reliability ?? 0).toFixed(2)}</td>
                     <td className="px-3 py-1.5 text-blue-300">{(row.avg_directness ?? 0).toFixed(2)}</td>
                   </tr>
                 ))}
@@ -1346,7 +1346,7 @@ export default function DataSources() {
           subtitle="Contact funnel, identity review, and source attribution"
           icon={BarChart3}
           defaultOpen
-          accent="text-cyan-300"
+          accent="text-yellow-300"
         >
           <FunnelPanel />
           <IdentityResolutionPanel />

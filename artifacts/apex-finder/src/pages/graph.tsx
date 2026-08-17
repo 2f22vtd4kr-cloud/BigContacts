@@ -55,7 +55,7 @@ export default function GraphViewer() {
   useEffect(() => {
     if (!entityIdFromUrl && targetId === 0) {
       if (isMockMode()) {
-        setTargetId(MOCK_ENTITIES[0]?.id ?? 9001);
+        setTargetId(MOCK_ENTITIES[0]?.id ?? 0);
         return;
       }
       const base = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
@@ -660,7 +660,7 @@ export default function GraphViewer() {
           <Network className="w-10 h-10 text-muted-foreground/30" aria-hidden />
           <div className="text-sm font-medium text-foreground">No graph data for this entity</div>
           <p className="text-xs text-muted-foreground max-w-sm">Relationships appear after research attaches related people and corporate links.</p>
-          <Link href="/reactor" className="inline-flex min-h-[36px] items-center rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-3 py-1.5 text-[11px] font-semibold text-cyan-100">Open live reactor</Link>
+          <Link href="/reactor" className="inline-flex min-h-[36px] items-center rounded-lg border border-yellow-400/30 bg-yellow-400/10 px-3 py-1.5 text-[11px] font-semibold text-yellow-100">Open live reactor</Link>
         </div>
       )}
 

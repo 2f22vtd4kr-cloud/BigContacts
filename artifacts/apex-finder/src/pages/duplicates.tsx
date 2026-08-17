@@ -118,7 +118,7 @@ function CandidateRow({
   if (dismissed) return null;
 
   return (
-    <div className="border border-border/70 rounded-2xl bg-card/50 overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] hover:border-cyan-400/25 transition-colors">
+    <div className="border border-border/70 rounded-2xl bg-card/50 overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] hover:border-yellow-400/25 transition-colors">
       {/* Summary row */}
       <button
         className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/30 transition-colors"
@@ -207,7 +207,7 @@ function SameSourceClusterRow({ cluster }: { cluster: SameSourceCluster }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="border border-border/70 rounded-2xl bg-card/50 overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] hover:border-cyan-400/25 transition-colors">
+    <div className="border border-border/70 rounded-2xl bg-card/50 overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] hover:border-yellow-400/25 transition-colors">
       <button
         className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/30 transition-colors"
         onClick={() => setExpanded(value => !value)}
@@ -270,31 +270,10 @@ export default function DuplicatesPage() {
     setError(null);
     setSameSourceError(null);
 
-    // Offline / demo: show sample pairs so the desk does not look broken without api-server.
+    // Offline: empty desk — no fabricated people or companies.
     if (isMockMode()) {
-      setCandidates([
-        {
-          entityA: { id: 1, name: "James R. Griffin", type: "HNWI", bayesianScore: 0.82 },
-          entityB: { id: 11, name: "James Griffin", type: "HNWI", bayesianScore: 0.61 },
-          sharedTokens: 3,
-        },
-        {
-          entityA: { id: 2, name: "Griffin Tool, Inc.", type: "Corporation", bayesianScore: 0.74 },
-          entityB: { id: 12, name: "Griffin Tool Inc", type: "Corporation", bayesianScore: 0.55 },
-          sharedTokens: 4,
-        },
-      ]);
-      setSameSourceClusters([
-        {
-          name: "Griffin Tool",
-          registry: "Michigan SOS",
-          count: 2,
-          entities: [
-            { id: 2, name: "Griffin Tool, Inc.", type: "Corporation", bayesianScore: 0.74 },
-            { id: 12, name: "Griffin Tool Inc", type: "Corporation", bayesianScore: 0.55 },
-          ],
-        },
-      ]);
+      setCandidates([]);
+      setSameSourceClusters([]);
       setLoading(false);
       setSameSourceLoading(false);
       return;

@@ -515,7 +515,7 @@ export default function DeepSearch() {
               <button
                 key={ex}
                 onClick={() => { setQuery(ex); run(ex); }}
-                className="text-xs font-mono text-muted-foreground border border-border/70 bg-card/25 rounded-xl px-3 py-1.5 hover:border-cyan-400/40 hover:text-cyan-100 transition-colors"
+                className="text-xs font-mono text-muted-foreground border border-border/70 bg-card/25 rounded-xl px-3 py-1.5 hover:border-yellow-400/40 hover:text-yellow-100 transition-colors"
               >
                 {ex}
               </button>
@@ -694,7 +694,7 @@ export default function DeepSearch() {
               </a>
               <a
                 href="/reactor"
-                className="inline-flex min-h-[36px] items-center rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-3 py-1.5 text-[11px] font-semibold text-cyan-100 hover:border-cyan-300/50"
+                className="inline-flex min-h-[36px] items-center rounded-lg border border-yellow-400/30 bg-yellow-400/10 px-3 py-1.5 text-[11px] font-semibold text-yellow-100 hover:border-yellow-300/50"
               >
                 Open live reactor
               </a>
