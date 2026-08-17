@@ -19,7 +19,7 @@
   --color-accent: #facc15;
   --color-sidebar: #080808;
   --color-sidebar-foreground: #fafaf9;
-  --color-sidebar-border: rgba(234, 179, 8, 0.1);
+  --color-sidebar-border: rgba(255, 255, 255, 0.04);
   --color-sidebar-accent: rgba(234, 179, 8, 0.08);
   --color-sidebar-accent-foreground: #fde047;
 }
