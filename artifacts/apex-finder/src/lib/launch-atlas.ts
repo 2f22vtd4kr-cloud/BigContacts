@@ -85,3 +85,28 @@ export async function launchAtlasPipeline(
     };
   }
 }
+
+
+export async function stopAtlasPipeline(jobId?: string): Promise<LaunchAtlasResult> {
+  if (isMockMode()) {
+    return { ok: true, mock: true, message: "Mock mode — nothing to stop." };
+  }
+  try {
+    const q = jobId ? `?jobId=${encodeURIComponent(jobId)}` : "";
+    const res = await fetch(`${BASE}/api/ingest/atlas-lock${q}`, { method: "DELETE" });
+    const data = await readApiJson(res);
+    if (!res.ok) {
+      return { ok: false, message: data?.message ?? data?.error ?? `Stop failed (HTTP ${res.status})` };
+    }
+    return {
+      ok: true,
+      jobId: data?.jobId,
+      message: data?.message ?? "Atlas research stopped.",
+    };
+  } catch (e: any) {
+    return {
+      ok: false,
+      message: e?.message ?? "Could not reach api-server to stop Atlas.",
+    };
+  }
+}

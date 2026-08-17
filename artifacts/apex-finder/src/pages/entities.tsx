@@ -694,7 +694,18 @@ export default function EntityLedger() {
   };
 
   // Unified display list: hotOnly loads 500 at once (client-side), everything else accumulates via infinite scroll
-  const displayEntities = isMockMode() ? entities : (isSpecialFilter ? entities : allEntities);
+  const rawDisplayEntities = isMockMode() ? entities : (isSpecialFilter ? entities : allEntities);
+  // Collapse exact-name duplicates in the list (keep first / richest row). Full merge is Duplicate review.
+  const displayEntities = (() => {
+    const seen = new Map<string, any>();
+    for (const e of rawDisplayEntities ?? []) {
+      const key = `${String(e?.name ?? "").trim().toLowerCase()}|${String(e?.type ?? "")}`;
+      if (!key.startsWith("|") && seen.has(key)) continue;
+      if (!key.startsWith("|")) seen.set(key, e);
+      else seen.set(`id:${e?.id}`, e);
+    }
+    return Array.from(seen.values());
+  })();
   // Dev mock bypasses network loading/error states
   const showLoading = isMockMode() ? false : isLoadingEntities;
   const showError = isMockMode() ? false : isEntitiesError;

@@ -629,10 +629,13 @@ function SceneCard({ scene, compact }: { scene: Scene; compact?: boolean }) {
 function MobileWorkstage({
   scenes,
   onEdgeSwipe,
+  jumpToLiveSignal = 0,
 }: {
   scenes: Scene[];
   /** Called when user swipes past first/last scene — e.g. open full History */
   onEdgeSwipe?: (dir: "prev" | "next") => void;
+  /** Increment to force focus on the current live scene */
+  jumpToLiveSignal?: number;
 }) {
   const [idx, setIdx] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -680,6 +683,14 @@ function MobileWorkstage({
     setIdx(liveIdx >= 0 ? liveIdx : Math.max(0, scenes.length - 1));
     setDragX(0);
   }, [sceneKey]);
+
+  useEffect(() => {
+    if (!jumpToLiveSignal) return;
+    const liveIdx = scenes.findIndex((s) => s.live);
+    setIdx(liveIdx >= 0 ? liveIdx : Math.max(0, scenes.length - 1));
+    setPaused(false);
+    setDragX(0);
+  }, [jumpToLiveSignal, sceneKey]);
 
   // Auto-advance every 5.2s while multiple scenes and not paused (live mode only)
   useEffect(() => {
@@ -1023,7 +1034,7 @@ function MobileWorkstage({
 
       {scenes.length > 1 && (
         <div
-          className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-none"
+          className="atlas-h-scroll flex gap-1.5 overflow-x-auto overscroll-x-contain touch-pan-x pb-1 pr-6"
           style={{
             maskImage: "linear-gradient(90deg, transparent, #000 12px, #000 calc(100% - 12px), transparent)",
             WebkitMaskImage: "linear-gradient(90deg, transparent, #000 12px, #000 calc(100% - 12px), transparent)",
@@ -1091,12 +1102,14 @@ export function BureauOpsStage({
   maxScenes = 6,
   title = "LIVE DESK",
   onEdgeSwipe,
+  jumpToLiveSignal = 0,
 }: {
   events: OpsEvent[];
   compact?: boolean;
   maxScenes?: number;
   title?: string;
   onEdgeSwipe?: (dir: "prev" | "next") => void;
+  jumpToLiveSignal?: number;
 }) {
   const scenes = useMemo(() => {
     const list = (events || []).map(toScene).filter((s) => s.resultLines.length || s.query || s.prompt || s.url);
@@ -1130,7 +1143,7 @@ export function BureauOpsStage({
             <div className="text-[9px] font-mono text-slate-600 tabular-nums">{scenes.length}</div>
           </div>
         ) : null}
-        <MobileWorkstage scenes={scenes} onEdgeSwipe={onEdgeSwipe} />
+        <MobileWorkstage scenes={scenes} onEdgeSwipe={onEdgeSwipe} jumpToLiveSignal={jumpToLiveSignal} />
       </div>
     );
   }

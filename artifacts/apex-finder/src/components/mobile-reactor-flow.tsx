@@ -135,6 +135,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
     ? atlasState.runStatus === "running"
     : liveNodes.size > 0;
   const [showHistory, setShowHistory] = React.useState(false);
+  const [jumpToLiveSignal, setJumpToLiveSignal] = React.useState(0);
   const [edgeHint, setEdgeHint] = React.useState<string | null>(null);
   // P2 desk arming — brief scaffold when a run first goes live
   const [arming, setArming] = React.useState(false);
@@ -349,9 +350,18 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                 className={`h-2 w-2 shrink-0 rounded-full ${isLive ? "bg-yellow-400 shadow-[0_0_8px_#eab308]" : atlasState?.runStatus === "failed" ? "bg-rose-400" : "bg-slate-600"}`}
                 style={isLive && !prefersReducedMotion() ? { animation: "pulse 2s cubic-bezier(0.4,0,0.6,1) infinite" } : undefined}
               />
-              <span className={`text-[10px] font-bold uppercase tracking-[0.18em] ${isLive ? "reactor-live-label" : "text-muted-foreground"}`}>
+              <button
+                type="button"
+                className={`text-[10px] font-bold uppercase tracking-[0.18em] ${isLive ? "reactor-live-label" : "text-muted-foreground"}`}
+                onClick={() => {
+                  setShowHistory(false);
+                  setJumpToLiveSignal((n) => n + 1);
+                }}
+                data-testid="button-jump-to-live"
+                aria-label="Jump to current live research step"
+              >
                 {isLive ? "Live" : statusLabel}
-              </span>
+              </button>
               {showHistory && (
                 <span className="rounded-full border border-slate-500/40 bg-slate-500/15 px-1.5 py-0.5 text-[8px] font-mono font-bold uppercase tracking-wider text-slate-300">
                   history
@@ -375,7 +385,14 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
           </div>
           <button
             type="button"
-            onClick={() => setShowHistory((v) => !v)}
+            onClick={() => {
+              if (showHistory) {
+                setShowHistory(false);
+                setJumpToLiveSignal((n) => n + 1);
+              } else {
+                setShowHistory(true);
+              }
+            }}
             className={`reactor-pressable flex h-11 shrink-0 items-center gap-1.5 rounded-xl border px-3.5 text-[10px] font-bold uppercase tracking-wider ${
               showHistory ? "border-yellow-400/40 bg-yellow-400/10 text-yellow-300" : "border-[#eab308]/12 bg-white/[0.04] text-muted-foreground hover:border-white/20"
             }`}
@@ -757,6 +774,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                 compact
                 maxScenes={showHistory ? 14 : 8}
                 title=""
+                jumpToLiveSignal={jumpToLiveSignal}
                 onEdgeSwipe={(dir) => {
                   if (dir === "prev" && !showHistory) {
                     setShowHistory(true);

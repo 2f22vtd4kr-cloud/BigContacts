@@ -50,15 +50,15 @@ export function AccessScoreBadge({ score }: { score: number | null | undefined }
 
   if (pct === 0) {
     label = "No path";
-    colorClass = "text-muted-foreground border-border/70 bg-muted/25";
+    colorClass = "text-stone-300 border-[#2a2a2a] bg-[#141414]";
     tip = "No public contact path found yet";
   } else if (pct < 30) {
     label = "Hard to reach";
-    colorClass = "text-orange-300 border-orange-400/25 bg-orange-400/10";
+    colorClass = "text-[#fde047] border-[#eab308]/40 bg-[#eab308]/10";
     tip = `Reachability ${pct}/100 — thin public path`;
   } else if (pct < 60) {
     label = "Possible";
-    colorClass = "text-amber-300 border-amber-400/30 bg-amber-400/10";
+    colorClass = "text-[#facc15] border-[#eab308]/35 bg-[#eab308]/10";
     tip = `Reachability ${pct}/100 — some public route exists`;
   } else if (pct < 85) {
     label = "Easy to reach";
@@ -94,15 +94,15 @@ export function ConfidenceBadge({ score }: { score: number | null | undefined })
 
   if (pct === 0) {
     label = "No evidence";
-    colorClass = "text-muted-foreground border-border/70 bg-muted/25";
+    colorClass = "text-stone-300 border-[#2a2a2a] bg-[#141414]";
     tip = "No contact evidence on file";
   } else if (pct < 30) {
     label = "Thin evidence";
-    colorClass = "text-orange-300 border-orange-400/25 bg-orange-400/10";
+    colorClass = "text-[#fde047] border-[#eab308]/40 bg-[#eab308]/10";
     tip = `Contact quality ${pct}/100 — weak or sparse public evidence`;
   } else if (pct < 60) {
     label = "Partial evidence";
-    colorClass = "text-amber-300 border-amber-400/30 bg-amber-400/10";
+    colorClass = "text-[#facc15] border-[#eab308]/35 bg-[#eab308]/10";
     tip = `Contact quality ${pct}/100 — some public contact data, not fully confirmed`;
   } else if (pct < 85) {
     label = "Solid evidence";
