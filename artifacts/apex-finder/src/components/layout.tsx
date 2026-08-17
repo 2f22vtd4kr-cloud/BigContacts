@@ -196,7 +196,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       )}
       <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
         <div className="atlas-grid pointer-events-none absolute inset-0" />
-        <header className="relative z-20 flex h-14 shrink-0 items-center border-b border-border/90 bg-background/95 px-4 backdrop-blur-lg md:h-16 md:px-6">
+        <header className="relative z-20 flex h-14 shrink-0 border-yellow-500/5 items-center border-b border-yellow-500/10 bg-background/95 px-4 backdrop-blur-lg md:h-16 md:px-6">
           <div className="mr-3 flex min-w-0 items-center md:mr-0">
             <Link
               href="/"
