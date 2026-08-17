@@ -12,7 +12,7 @@
   --color-muted-foreground: #78716c;
   --color-primary: #eab308;
   --color-secondary: #57534e;
-  --color-accent: #fde047;
+  --color-accent: #facc15;
 }
 
 html, body, #root { min-height: 100%; }
