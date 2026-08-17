@@ -8,7 +8,7 @@ type Variant = "primary" | "header" | "reactor" | "ghost";
 
 const VARIANT_CLASS: Record<Variant, string> = {
   primary:
-    "h-12 w-full sm:w-auto px-6 text-sm font-bold tracking-tight bg-gradient-to-r from-yellow-500 to-yellow-600 text-slate-950 shadow-[0_0_24px_rgba(234,179,8,0.25)] hover:from-yellow-400 hover:to-yellow-500 border border-yellow-300/40",
+    "atlas-launch-glow h-12 w-full sm:w-auto px-6 text-sm font-bold tracking-tight bg-gradient-to-r from-yellow-500 to-yellow-600 text-slate-950 shadow-[0_0_24px_rgba(234,179,8,0.25)] hover:from-yellow-400 hover:to-yellow-500 border border-yellow-300/40",
   header:
     "h-9 px-3 text-[11px] font-bold tracking-wide bg-yellow-500/15 text-yellow-100 border border-yellow-400/35 hover:bg-yellow-500/25 hover:border-yellow-300/50",
   reactor:

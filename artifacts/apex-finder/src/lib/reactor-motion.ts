@@ -1,7 +1,5 @@
 /**
- * Apex Atlas Live Desk — motion & interaction tokens.
- * Single source of truth for durations used in JS timers and CSS.
- * Keep in sync with KEYFRAMES :root in pages/reactor.tsx and MobileReactorFlow fallback.
+ * Apex Atlas Live Desk — motion & interaction tokens (black + yellow).
  */
 
 export const REACTOR_FAST_MS = 150;
@@ -10,13 +8,11 @@ export const REACTOR_SCENE_MS = 280;
 export const REACTOR_CELEBRATE_MS = 320;
 export const REACTOR_ARM_MS = 400;
 export const REACTOR_PAUSE_MS = 8000;
-/** Auto-advance between live scenes when not paused */
 export const REACTOR_AUTO_ADVANCE_MS = 5200;
 export const REACTOR_SHIMMER_MS = 1400;
 
 export const REACTOR_EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
 
-/** CSS custom-property block (inject once per tree). */
 export const REACTOR_CSS = `
 :root {
   --reactor-fast: ${REACTOR_FAST_MS}ms;
@@ -28,10 +24,11 @@ export const REACTOR_CSS = `
   --reactor-shimmer: ${REACTOR_SHIMMER_MS}ms;
   --reactor-ease: ${REACTOR_EASE};
   --reactor-yellow: #eab308;
-  --reactor-lime: #a3e635;
-  --reactor-emerald: #34d399;
-  --reactor-canvas: #0b1120;
-  --reactor-desk: #071018;
+  --reactor-amber: #facc15;
+  --reactor-gold: #fde047;
+  --reactor-canvas: #050505;
+  --reactor-desk: #0a0a0a;
+  --reactor-border: #262626;
 }
 .reactor-pressable {
   transition: transform var(--reactor-fast) ease-out, opacity var(--reactor-fast) ease-out, border-color var(--reactor-fast) ease-out, box-shadow var(--reactor-fast) ease-out;
@@ -48,13 +45,13 @@ input:focus-visible,
   outline-offset: 2px;
 }
 .reactor-reach {
-  border-color: rgba(52, 211, 153, 0.7);
-  background: linear-gradient(135deg, rgba(52, 211, 153, 0.18), rgba(16, 185, 129, 0.08));
-  color: #ecfdf5;
-  box-shadow: 0 0 28px rgba(52, 211, 153, 0.22), inset 0 1px 0 rgba(167, 243, 208, 0.12);
+  border-color: rgba(234, 179, 8, 0.55);
+  background: linear-gradient(135deg, rgba(234, 179, 8, 0.16), rgba(250, 204, 21, 0.06));
+  color: #fef9c3;
+  box-shadow: 0 0 28px rgba(234, 179, 8, 0.2), inset 0 1px 0 rgba(253, 224, 71, 0.12);
 }
-.reactor-reach-label { color: #a7f3d0; letter-spacing: 0.16em; }
-.reactor-live-label { color: #a5f3fc; text-shadow: 0 0 12px rgba(234, 179, 8, 0.45); }
+.reactor-reach-label { color: #fde047; letter-spacing: 0.16em; }
+.reactor-live-label { color: #facc15; text-shadow: 0 0 12px rgba(234, 179, 8, 0.5); }
 [data-testid="mobile-workstage-swipe"]:focus-visible {
   outline: 2px solid var(--reactor-yellow);
   outline-offset: 3px;
@@ -71,63 +68,54 @@ input:focus-visible,
   0% { opacity: 0; transform: translateY(6px); }
   100% { opacity: 1; transform: translateY(0); }
 }
+@keyframes terminalIn { 0% { opacity: 0; transform: translateY(4px); } 100% { opacity: 1; transform: translateY(0); } }
+@keyframes activityFillBreathe {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.82; }
+}
+@keyframes reachSettle {
+  0% { box-shadow: 0 0 32px rgba(234, 179, 8, 0.35), inset 0 1px 0 rgba(253, 224, 71, 0.18); }
+  100% { box-shadow: 0 0 20px rgba(234, 179, 8, 0.16), inset 0 1px 0 rgba(253, 224, 71, 0.1); }
+}
+.reactor-reach[data-settled="true"] {
+  animation: reachSettle 600ms var(--reactor-ease, cubic-bezier(0.22,1,0.36,1)) both;
+}
+.reactor-done-label { color: #fde047; letter-spacing: 0.14em; text-shadow: 0 0 10px rgba(234, 179, 8, 0.35); }
+.reactor-fail-label { color: #fecdd3; letter-spacing: 0.14em; }
+.reactor-archive-panel {
+  border-color: rgba(64, 64, 64, 0.9) !important;
+  background: linear-gradient(165deg, rgba(12, 12, 12, 0.98) 0%, rgba(5, 5, 5, 0.99) 100%) !important;
+  box-shadow: inset 0 0 0 1px rgba(234, 179, 8, 0.06), 0 12px 36px rgba(0,0,0,0.55) !important;
+}
+.reactor-terminal-banner { border-radius: 12px; border-width: 1px; padding: 10px 12px; }
+.reactor-terminal-banner[data-kind="done"] {
+  border-color: rgba(234, 179, 8, 0.45);
+  background: linear-gradient(135deg, rgba(234, 179, 8, 0.12), rgba(12, 12, 12, 0.7));
+  box-shadow: 0 0 20px rgba(234, 179, 8, 0.12);
+}
+.reactor-terminal-banner[data-kind="failed"] {
+  border-color: rgba(251, 113, 133, 0.45);
+  background: linear-gradient(135deg, rgba(251, 113, 133, 0.12), rgba(12, 12, 12, 0.7));
+  box-shadow: 0 0 20px rgba(251, 113, 133, 0.1);
+}
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
-  .animate-ping, .animate-pulse, .animate-spin {
-    animation: none !important;
-  }
-}
-
-/* Phase K — terminal + archive */
-.reactor-done-label { color: #a7f3d0; letter-spacing: 0.14em; text-shadow: 0 0 10px rgba(52, 211, 153, 0.35); }
-.reactor-fail-label { color: #fecdd3; letter-spacing: 0.14em; }
-.reactor-archive-panel {
-  border-color: rgba(148, 163, 184, 0.28) !important;
-  background: linear-gradient(165deg, rgba(15, 23, 42, 0.96) 0%, rgba(7, 16, 24, 0.98) 100%) !important;
-  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.08), 0 12px 36px rgba(0,0,0,0.45) !important;
-}
-.reactor-terminal-banner { border-radius: 12px; border-width: 1px; padding: 10px 12px; }
-.reactor-terminal-banner[data-kind="done"] {
-  border-color: rgba(52, 211, 153, 0.45);
-  background: linear-gradient(135deg, rgba(52, 211, 153, 0.12), rgba(15, 23, 42, 0.6));
-  box-shadow: 0 0 20px rgba(52, 211, 153, 0.12);
-}
-.reactor-terminal-banner[data-kind="failed"] {
-  border-color: rgba(251, 113, 133, 0.45);
-  background: linear-gradient(135deg, rgba(251, 113, 133, 0.12), rgba(15, 23, 42, 0.6));
-  box-shadow: 0 0 20px rgba(251, 113, 133, 0.1);
-}
-@keyframes terminalIn { 0% { opacity: 0; transform: translateY(4px); } 100% { opacity: 1; transform: translateY(0); } }
-/* Live glyph: opacity only — never scale/translate (avoids misaligned “dots”) */
-@keyframes activityFillBreathe {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.82; }
-}
-@keyframes reachSettle {
-  0% { box-shadow: 0 0 32px rgba(52, 211, 153, 0.35), inset 0 1px 0 rgba(167, 243, 208, 0.18); }
-  100% { box-shadow: 0 0 20px rgba(52, 211, 153, 0.16), inset 0 1px 0 rgba(167, 243, 208, 0.1); }
-}
-.reactor-reach[data-settled="true"] {
-  animation: reachSettle 600ms var(--reactor-ease, cubic-bezier(0.22,1,0.36,1)) both;
+  .animate-ping, .animate-pulse, .animate-spin { animation: none !important; }
 }
 `;
 
-/** Swipe: minimum horizontal delta (px) to change scene */
 export const REACTOR_SWIPE_PX = 56;
-/** Swipe: velocity threshold (px/ms) for flick advance */
 export const REACTOR_SWIPE_VELOCITY = 0.45;
 
-/** Client-only: true when user prefers reduced motion */
 export function prefersReducedMotion(): boolean {
   if (typeof window === "undefined") return false;
   return !!window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
 }
 
-/** Use for inline animation style values — returns "none" when reduced */
 export function motionOrNone(animation: string): string {
   return prefersReducedMotion() ? "none" : animation;
 }

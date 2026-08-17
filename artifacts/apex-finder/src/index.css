@@ -5,21 +5,17 @@
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
   --font-display: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
   --color-background: #050505;
-  --color-foreground: #e8eef7;
-  --color-card: #0a0a0a;
-  --color-border: #1f1f1f;
-  --color-muted: #9aa8b8;
-  --color-muted-foreground: #8b9bb0;
+  --color-foreground: #f5f5f4;
+  --color-card: #0c0c0c;
+  --color-border: #262626;
+  --color-muted: #a3a3a3;
+  --color-muted-foreground: #737373;
   --color-primary: #eab308;
-  --color-secondary: #64748b;
+  --color-secondary: #525252;
   --color-accent: #facc15;
 }
 
-html,
-body,
-#root {
-  min-height: 100%;
-}
+html, body, #root { min-height: 100%; }
 
 body {
   margin: 0;
@@ -27,27 +23,69 @@ body {
   color: var(--color-foreground);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-.font-display {
-  font-family: var(--font-display);
-}
+.font-display { font-family: var(--font-display); }
+.font-mono { font-family: var(--font-mono); }
 
-.font-mono {
-  font-family: var(--font-mono);
-}
-
-.atlas-enter {
-  animation: atlas-enter 280ms ease-out both;
-}
-
+.atlas-enter { animation: atlas-enter 280ms cubic-bezier(0.22, 1, 0.36, 1) both; }
 @keyframes atlas-enter {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes atlas-shimmer {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(220%); }
+}
+@keyframes atlas-pulse-yellow {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.35); }
+  50% { opacity: 0.92; box-shadow: 0 0 0 6px rgba(234, 179, 8, 0); }
+}
+
+.atlas-shimmer-sweep { position: relative; overflow: hidden; }
+.atlas-shimmer-sweep::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(234, 179, 8, 0.12), transparent);
+  animation: atlas-shimmer 1.4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.atlas-pressable {
+  transition: transform 150ms ease-out, opacity 150ms ease-out, border-color 150ms ease-out, box-shadow 180ms ease-out;
+  touch-action: manipulation;
+}
+.atlas-pressable:active { transform: scale(0.97); opacity: 0.88; }
+
+.atlas-card {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03), 0 8px 28px rgba(0,0,0,0.45);
+  transition: border-color 180ms ease, box-shadow 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.atlas-card:hover {
+  border-color: rgba(234, 179, 8, 0.28);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 10px 36px rgba(0,0,0,0.5), 0 0 24px rgba(234, 179, 8, 0.06);
+}
+
+.atlas-launch-glow {
+  box-shadow: 0 0 0 1px rgba(234, 179, 8, 0.35), 0 0 28px rgba(234, 179, 8, 0.28), 0 4px 16px rgba(0,0,0,0.4);
+  transition: box-shadow 220ms ease, transform 150ms ease;
+}
+.atlas-launch-glow:hover {
+  box-shadow: 0 0 0 1px rgba(250, 204, 21, 0.5), 0 0 40px rgba(234, 179, 8, 0.4), 0 6px 20px rgba(0,0,0,0.45);
+}
+
+.atlas-noise {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atlas-enter, .atlas-shimmer-sweep::after, .atlas-launch-glow, .atlas-card {
+    animation: none !important;
+    transition: none !important;
   }
 }
