@@ -418,7 +418,7 @@ function MobileLedgerState({
         <p className="text-xs leading-relaxed mt-1.5 text-muted-foreground max-w-[280px] mx-auto">
           {q
             ? "Try a shorter name, clear the search, or open Search to look across registries."
-            : "Clear a filter, or run research from the Intelligence Reactor to add people and companies."}
+            : "Clear a filter, or use Launch Apex Atlas to research people and companies into this ledger."}
         </p>
       </div>
       <div className="flex flex-wrap items-center justify-center gap-2 mt-1">
@@ -1420,7 +1420,7 @@ export default function EntityLedger() {
       <button
         onClick={() => openAddModal()}
         className="fixed bottom-6 right-5 w-12 h-12 rounded-full flex items-center justify-center shadow-lg z-40 md:hidden"
-        style={{ backgroundColor: "#10B981", boxShadow: "0 0 20px rgba(16,185,129,0.4)" }}
+        style={{ backgroundColor: "#eab308", boxShadow: "0 0 20px rgba(234,179,8,0.4)" }}
       >
         <Plus className="w-5 h-5 text-black" />
       </button>
