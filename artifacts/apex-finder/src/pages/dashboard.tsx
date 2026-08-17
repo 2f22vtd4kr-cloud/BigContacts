@@ -239,11 +239,11 @@ export default function Dashboard() {
             <span className="atlas-live-dot atlas-live-dot-pulse" aria-hidden />
             Research desk
           </div>
-          <h1 className="font-display text-[clamp(2.15rem,5vw,4.5rem)] font-semibold leading-[0.95] tracking-[-0.055em] text-[#fafaf9]">
+          <h1 className="font-display text-[clamp(2rem,4.8vw,4.25rem)] font-semibold leading-[0.96] tracking-[-0.05em] text-[#fafaf9]">
             People worth<br className="hidden sm:block" /> knowing.
           </h1>
           <p className="mt-5 max-w-lg text-sm leading-6 text-stone-400 md:text-[15px]">
-            Launch Apex Atlas to run the full public-records pipeline — discovery, attribution, and attributable contacts — then watch live progress on the reactor desk.
+            Run the public-records pipeline — discovery, attribution, contacts — then follow live work on the reactor. Only real research lands on this desk.
           </p>
         </div>
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center md:justify-end">
@@ -312,18 +312,18 @@ export default function Dashboard() {
         ))}
       </section>
 
-      <section className="atlas-enter grid grid-cols-2 gap-3 py-6 md:grid-cols-4" style={{ animationDelay: "70ms" }}>
-        <StatTile label="Entities in view" value={stats?.totalEntities ?? "—"} detail="people, companies, trusts, access" icon={Users} testId="stat-total-entities" />
-        <StatTile label="Priority routes" value={stats?.hotLeadsCount ?? "—"} detail="most reachable records" icon={Sparkles} testId="stat-hot-leads" />
-        <StatTile label="Public assets" value={stats?.totalAssets ?? "—"} detail="linked evidence objects" icon={Database} testId="stat-total-assets" />
-        <StatTile label="Relationships" value={stats?.totalRelationships ?? "—"} detail="known public connections" icon={Network} testId="stat-total-relationships" />
+      <section className="atlas-enter grid grid-cols-2 gap-2.5 py-6 md:grid-cols-4 md:gap-3" style={{ animationDelay: "70ms" }}>
+        <StatTile label="Entities" value={stats?.totalEntities ?? "—"} detail="people · companies · trusts" icon={Users} testId="stat-total-entities" />
+        <StatTile label="Priority" value={stats?.hotLeadsCount ?? "—"} detail="strongest contact paths" icon={Sparkles} testId="stat-hot-leads" />
+        <StatTile label="Assets" value={stats?.totalAssets ?? "—"} detail="linked public evidence" icon={Database} testId="stat-total-assets" />
+        <StatTile label="Links" value={stats?.totalRelationships ?? "—"} detail="known relationships" icon={Network} testId="stat-total-relationships" />
       </section>
 
       <section className="atlas-enter pt-3" style={{ animationDelay: "140ms" }}>
         <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <div className="flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.18em] text-primary"><Sparkles className="h-3 w-3" /> Priority profiles</div>
-            <h2 className="mt-2 font-display text-xl font-semibold tracking-tight text-foreground md:text-2xl">Most useful records first</h2>
+            <div className="atlas-section-label flex items-center gap-2"><Sparkles className="h-3 w-3" /> Priority profiles</div>
+            <h2 className="mt-2 font-display text-xl font-semibold tracking-tight text-stone-100 md:text-2xl">Strongest contact paths first</h2>
           </div>
           <Link href="/profiles" data-testid="link-view-all-leads" className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-primary">View all profiles <ChevronRight className="h-3.5 w-3.5" /></Link>
         </div>
@@ -335,8 +335,8 @@ export default function Dashboard() {
 
       <section className="atlas-enter mt-10 grid gap-4 border-t border-[#eab308]/10 pt-7 md:grid-cols-[1fr_auto]" style={{ animationDelay: "210ms" }}>
         <div>
-          <div className="flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground"><ShieldCheck className="h-3 w-3 text-primary" /> Evidence, not guesses</div>
-          <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">Open any profile to inspect source registries, ownership, linked assets, and public contact channels before deciding what deserves your attention.</p>
+          <div className="atlas-section-label flex items-center gap-2"><ShieldCheck className="h-3 w-3" /> Evidence, not guesses</div>
+          <p className="mt-2 max-w-xl text-sm leading-6 text-stone-400">Open a profile for registries, ownership, assets, and public contact channels — then decide what deserves attention.</p>
         </div>
         <div className="flex items-center gap-3 text-xs text-muted-foreground md:justify-end">
           <span className="grid h-8 w-8 place-items-center rounded-lg border border-[#eab308]/12 bg-card"><Mail className="h-3.5 w-3.5" /></span>
