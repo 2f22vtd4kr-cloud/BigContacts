@@ -139,9 +139,9 @@ function ProviderCard({ name, slots }: { name: keyof AIKeyStatus; slots: AIKeySl
 
   const tone =
     active > 0
-      ? "border-yellow-400/25 bg-gradient-to-br from-yellow-500/[0.07] via-card/80 to-card/40"
+      ? "border-yellow-400/25 bg-gradient-to-br from-yellow-500/[0.07] via-[#0c0c0c] to-[#0a0a0a]"
       : rateLimited > 0
-        ? "border-amber-400/25 bg-gradient-to-br from-amber-500/[0.07] via-card/80 to-card/40"
+        ? "border-amber-400/25 bg-gradient-to-br from-amber-500/[0.07] via-[#0c0c0c] to-[#0a0a0a]"
         : "border-border/60 bg-card/30";
 
   return (

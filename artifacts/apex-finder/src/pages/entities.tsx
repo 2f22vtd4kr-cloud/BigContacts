@@ -757,7 +757,7 @@ export default function EntityLedger() {
           <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-0.5">
             {[null, ...ENTITY_TYPES].map((typeKey) => {
               const meta = typeKey ? entityMeta(typeKey) : null;
-              const c = meta?.color ?? "#10B981";
+              const c = meta?.color ?? "#eab308";
               const Icon = meta?.Icon;
               const active = typeFilter === typeKey;
               return (
@@ -767,9 +767,9 @@ export default function EntityLedger() {
                   aria-pressed={active}
                   className="inline-flex min-h-[32px] items-center gap-1.5 rounded-lg border px-3 py-1 text-[10px] font-mono font-bold uppercase tracking-[0.08em] transition-all"
                   style={{
-                    backgroundColor: active ? c : "rgba(15,23,42,0.65)",
-                    color: active ? "#0B1220" : "hsl(var(--muted-foreground))",
-                    borderColor: active ? c : "hsl(var(--border))",
+                    backgroundColor: active ? (typeKey ? c : "#eab308") : "#0c0c0c",
+                    color: active ? "#0a0a0a" : "#a8a29e",
+                    borderColor: active ? (typeKey ? c : "#eab308") : "#2a2a2a",
                   }}
                 >
                   {Icon ? <Icon className="h-3 w-3 shrink-0" aria-hidden /> : null}
