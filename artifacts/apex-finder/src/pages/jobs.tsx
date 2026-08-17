@@ -232,7 +232,7 @@ function PersonaLoopTab() {
             { label: "Applied", val: stats.applied ?? 0, color: "text-emerald-400" },
             { label: "Dismissed", val: stats.dismissed ?? 0, color: "text-muted-foreground" },
           ].map(({ label, val, color }) => (
-            <div key={label} className="p-3 rounded-lg border border-border bg-card/30 text-center">
+            <div key={label} className="p-3 rounded-xl border border-border bg-card/30 text-center">
               <div className={cn("text-xl font-bold font-mono", color)}>{val.toLocaleString()}</div>
               <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-widest mt-1">{label}</div>
             </div>
