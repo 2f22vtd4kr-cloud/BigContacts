@@ -108,7 +108,7 @@ input:focus-visible,
 }
 `;
 
-export const REACTOR_SWIPE_PX = 56;
+export const REACTOR_SWIPE_PX = 48;
 export const REACTOR_SWIPE_VELOCITY = 0.45;
 
 export function prefersReducedMotion(): boolean {
