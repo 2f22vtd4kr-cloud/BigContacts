@@ -71,8 +71,8 @@ function ReachChip({ kind, label, href, title }: { kind: "personal" | "org" | "s
   const styles = kind === "personal"
     ? "text-[#fde047] border-[#eab308]/35 bg-[#eab308]/10"
     : kind === "org"
-      ? "text-violet-300 border-violet-400/35 bg-violet-400/10"
-      : "text-sky-300 border-sky-400/35 bg-sky-400/10";
+      ? "text-[#fde047] border-[#eab308]/35 bg-[#eab308]/10"
+      : "text-stone-300 border-stone-500/35 bg-stone-500/10";
   const tag = kind === "personal" ? "Personal" : kind === "org" ? "Company" : "Social";
   const body = (
     <span className={cn("inline-flex max-w-full items-center gap-1 rounded border px-1.5 py-0.5 font-mono text-[10px] leading-tight", styles)} title={title}>
@@ -271,7 +271,7 @@ function MobileEntityCard({
                 className={cn(
                   "inline-flex items-center rounded-md border px-1.5 py-0.5 text-[9px] font-mono font-bold uppercase tracking-wide",
                   entity.contactOutcome === "organization_contact"
-                    ? "text-violet-300 border-violet-400/30 bg-violet-400/10"
+                    ? "text-[#fde047] border-[#eab308]/30 bg-[#eab308]/10"
                     : "text-muted-foreground border-[#eab308]/12 bg-muted/30",
                 )}
                 title={entity.contactOutcome === "organization_contact"
@@ -409,37 +409,39 @@ function MobileLedgerState({
 
   const q = (searchTerm || "").trim();
   return (
-    <div className="flex flex-col items-center justify-center gap-3 px-6 py-14 text-center" data-testid="profiles-empty">
-      <Database className="w-8 h-8 text-muted-foreground/40" aria-hidden="true" />
+    <div className="atlas-empty mx-auto flex max-w-md flex-col items-center justify-center gap-3 px-6 py-14 text-center" data-testid="profiles-empty">
+      <div className="grid h-12 w-12 place-items-center rounded-full border border-[#eab308]/25 bg-[#eab308]/10">
+        <Database className="h-5 w-5 text-[#eab308]" aria-hidden="true" />
+      </div>
       <div>
-        <p className="text-sm font-semibold text-foreground">
-          {q ? `No profiles match “${q}”` : "No profiles match these filters"}
+        <p className="text-sm font-semibold text-stone-100">
+          {q ? `No profiles match “${q}”` : "Ledger is empty"}
         </p>
-        <p className="text-xs leading-relaxed mt-1.5 text-muted-foreground max-w-[280px] mx-auto">
+        <p className="mx-auto mt-1.5 max-w-[280px] text-xs leading-relaxed text-stone-400">
           {q
-            ? "Try a shorter name, clear the search, or open Search to look across registries."
-            : "Clear a filter, or use Launch Apex Atlas to research people and companies into this ledger."}
+            ? "Try a shorter name, clear search, or open Discover across registries."
+            : "Launch Apex Atlas or Discover to pull real people and companies into this ledger. No demo rows."}
         </p>
       </div>
-      <div className="flex flex-wrap items-center justify-center gap-2.5 mt-1.5">
+      <div className="mt-1.5 flex flex-wrap items-center justify-center gap-2">
         {q && onClearSearch && (
           <button
             type="button"
             onClick={onClearSearch}
-            className="rounded-lg border border-[#eab308]/12 bg-card/60 px-3 py-2 text-xs font-medium text-foreground hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            className="atlas-outline-btn atlas-pressable rounded-xl px-3 py-2.5 text-xs font-medium"
           >
             Clear search
           </button>
         )}
         <Link
           href="/search"
-          className="rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-xs font-medium text-primary hover:bg-primary/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          className="atlas-pressable inline-flex min-h-[40px] items-center rounded-xl border border-[#eab308]/35 bg-[#eab308]/15 px-3 py-2.5 text-xs font-semibold text-[#fde047] hover:bg-[#eab308]/20"
         >
-          Open Search
+          Open Discover
         </Link>
         <Link
           href="/reactor"
-          className="rounded-lg border border-[#eab308]/12 bg-card/60 px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          className="atlas-outline-btn atlas-pressable rounded-xl px-3 py-2.5 text-xs font-medium"
         >
           Reactor
         </Link>
@@ -1107,7 +1109,7 @@ export default function EntityLedger() {
                     <td className="px-4 py-3">
                       {entity.type === "Corporation" || entity.type === "Corp" || entity.type === "Trust" ? (
                         <span
-                          className="text-[9px] font-mono font-bold uppercase tracking-wide px-1.5 py-1 rounded border text-violet-300 border-violet-400/30 bg-violet-400/10 whitespace-nowrap"
+                          className="text-[9px] font-mono font-bold uppercase tracking-wide px-1.5 py-1 rounded border text-[#fde047] border-[#eab308]/30 bg-[#eab308]/10 whitespace-nowrap"
                           title="Organization evidence — this is not a personal contact confidence score"
                         >
                           Org route
