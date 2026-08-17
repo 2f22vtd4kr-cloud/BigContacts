@@ -754,7 +754,7 @@ export default function EntityLedger() {
           </div>
 
           {/* Type filter */}
-          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-0.5">
+          <div className="atlas-h-scroll flex items-center gap-1.5 overflow-x-auto overscroll-x-contain touch-pan-x pb-0.5 pr-6">
             {[null, ...ENTITY_TYPES].map((typeKey) => {
               const meta = typeKey ? entityMeta(typeKey) : null;
               const c = meta?.color ?? "#eab308";
@@ -1279,9 +1279,9 @@ export default function EntityLedger() {
         {/* Mobile view mode + filter chips */}
         <div className="flex md:hidden flex-col border-b border-[#eab308]/12 bg-card/30 shrink-0">
           {/* View mode row */}
-          <div className="flex items-center gap-1.5 px-3 py-2 pr-6 border-b border-[#eab308]/10 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+          <div className="atlas-h-scroll flex items-center gap-1.5 px-3 py-2 pr-10 border-b border-[#eab308]/10 overflow-x-auto overscroll-x-contain touch-pan-x" style={{ scrollbarWidth: "thin" }}>
             {([
-              { mode: "all",     label: "All",     color: "#10B981" },
+              { mode: "all",     label: "All",     color: "#eab308" },
               { mode: "starred", label: "★ Starred", color: "#F59E0B" },
               { mode: "hidden",  label: "◌ Hidden",  color: "#9CA3AF" },
             ] as const).map(({ mode, label, color }) => (
@@ -1300,7 +1300,7 @@ export default function EntityLedger() {
             ))}
           </div>
           {/* Type filter chips */}
-          <div className="flex items-center gap-2 px-3 py-2 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+          <div className="atlas-h-scroll flex items-center gap-2 px-3 py-2 pr-10 overflow-x-auto overscroll-x-contain touch-pan-x" style={{ scrollbarWidth: "thin" }}>
             {[
               { label: "All entities", value: null },
               ...ENTITY_TYPES.map((value) => ({ label: value === "Corporation" ? "Company" : value === "HNWI" ? "Person" : value, value })),

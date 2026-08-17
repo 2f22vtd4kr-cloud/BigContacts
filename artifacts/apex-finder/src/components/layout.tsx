@@ -181,7 +181,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     || location === "/manual";
 
   return (
-    <div className="atlas-noise flex min-h-[100dvh] overflow-hidden bg-background text-foreground">
+    <div className="atlas-noise flex min-h-[100dvh] min-h-[100svh] overflow-hidden bg-background text-foreground">
       <div className="hidden md:flex"><Sidebar /></div>
       {sidebarOpen && (
         <div className="fixed inset-0 z-50 flex md:hidden">
@@ -196,7 +196,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       )}
       <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
         <div className="atlas-grid pointer-events-none absolute inset-0" />
-        <header className="relative z-20 flex h-14 shrink-0 border-yellow-500/5 items-center border-b border-white/[0.04] bg-[#050505]/92 px-4 backdrop-blur-lg md:h-16 md:px-6">
+        <header className="relative z-20 flex h-14 shrink-0 items-center gap-2 border-b border-white/[0.04] bg-[#050505]/92 px-3 pt-[env(safe-area-inset-top)] backdrop-blur-lg sm:px-4 md:h-16 md:px-6">
           <div className="mr-3 flex min-w-0 items-center md:mr-0">
             <Link
               href="/"

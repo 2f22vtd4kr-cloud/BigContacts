@@ -333,6 +333,21 @@ button:not(:disabled):active:not(.atlas-launch-glow):not(.atlas-outline-btn):not
   opacity: 0.9;
 }
 
+
+/* Horizontal chip rows — scrollable on narrow viewports */
+.atlas-h-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(234, 179, 8, 0.3) transparent;
+  -webkit-overflow-scrolling: touch;
+}
+.atlas-h-scroll::-webkit-scrollbar {
+  height: 3px;
+}
+.atlas-h-scroll::-webkit-scrollbar-thumb {
+  background: rgba(234, 179, 8, 0.35);
+  border-radius: 999px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .atlas-enter,
   .atlas-shimmer-sweep::after,

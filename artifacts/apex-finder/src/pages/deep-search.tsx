@@ -101,8 +101,8 @@ interface StepCardProps {
 function StepCard({ icon: Icon, name, description, status, metric, detail, durationMs }: StepCardProps) {
   return (
     <div className={cn(
-      "border border-border/70 rounded-2xl bg-card/30 p-3 sm:p-4 transition-all duration-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]",
-      status === "idle"    && "border-border bg-card/20 opacity-50",
+      "border border-[#eab308]/12 rounded-2xl bg-card/30 p-3 sm:p-4 transition-all duration-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]",
+      status === "idle"    && "border-[#eab308]/12 bg-card/20 opacity-50",
       status === "running" && "border-primary/50 bg-primary/5 shadow-[0_0_15px_rgba(234,179,8,0.1)]",
       status === "done"    && "border-[#eab308]/30 bg-[#eab308]/5",
     )}>
@@ -160,14 +160,14 @@ function ResultCard({ result }: { result: SearchResult }) {
   const confColor =
     result.confidence === "high"   ? "text-[#facc15] border-[#eab308]/30 bg-[#eab308]/10" :
     result.confidence === "medium" ? "text-amber-400 border-amber-500/30 bg-amber-500/10" :
-                                     "text-muted-foreground border-border bg-card/30";
+                                     "text-muted-foreground border-[#eab308]/12 bg-card/30";
 
   const score = (result.bayesianScore ?? 0) * 100;
 
   return (
     <div className={cn(
       "border rounded-lg p-4 transition-all",
-      result.isHot ? "border-amber-500/30 bg-amber-500/5" : "border-border bg-card/30",
+      result.isHot ? "border-amber-500/30 bg-amber-500/5" : "border-[#eab308]/12 bg-card/30",
       "hover:border-primary/30 hover:bg-primary/5",
     )}>
       {/* Header */}
@@ -196,7 +196,7 @@ function ResultCard({ result }: { result: SearchResult }) {
             "text-xs font-mono font-bold rounded px-2 py-0.5",
             score >= 75 ? "text-[#facc15] bg-[#eab308]/10 border border-[#eab308]/30" :
             score >= 55 ? "text-primary bg-primary/10 border border-primary/20" :
-                          "text-muted-foreground bg-muted border border-border",
+                          "text-muted-foreground bg-muted border border-[#eab308]/12",
           )} title="Bayesian score">
             {score.toFixed(0)}
           </div>
@@ -243,7 +243,7 @@ function ResultCard({ result }: { result: SearchResult }) {
       </button>
 
       {expanded && (
-        <div className="mt-2 text-xs font-mono text-muted-foreground bg-background/50 border border-border rounded p-2 leading-relaxed">
+        <div className="mt-2 text-xs font-mono text-muted-foreground bg-background/50 border border-[#eab308]/12 rounded p-2 leading-relaxed">
           {result.reasoning}
         </div>
       )}
@@ -356,7 +356,7 @@ export default function DeepSearch() {
     <div className="flex flex-col h-full overflow-hidden">
 
       {/* ── Header — page title lives in global chrome ── */}
-      <div className="flex-shrink-0 border-b border-border bg-card/50 px-4 sm:px-6 py-4">
+      <div className="flex-shrink-0 border-b border-[#eab308]/12 bg-card/50 px-4 sm:px-6 py-4">
         <div className="flex items-center gap-3 mb-2">
           <Network className="w-4 h-4 text-primary shrink-0" aria-hidden />
           <p className="text-[12px] text-muted-foreground leading-snug">
@@ -379,7 +379,7 @@ export default function DeepSearch() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="e.g. US private jet owners in Texas, British directors…"
-              className="w-full bg-background border border-border rounded-lg pl-10 pr-4 h-[48px] md:h-auto md:py-2.5 text-sm font-mono text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-primary/40 transition-colors"
+              className="w-full bg-background border border-[#eab308]/12 rounded-lg pl-10 pr-4 h-[48px] md:h-auto md:py-2.5 text-sm font-mono text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-primary/40 transition-colors"
             />
           </div>
           <button
@@ -405,7 +405,7 @@ export default function DeepSearch() {
               "flex min-h-[36px] items-center gap-1.5 px-3 py-1.5 rounded-lg border font-mono text-xs uppercase tracking-wider transition-all",
               filtersOpen || activeFilterCount > 0
                 ? "bg-primary/10 border-primary/50 text-primary"
-                : "border-border text-muted-foreground hover:text-foreground",
+                : "border-[#eab308]/12 text-muted-foreground hover:text-foreground",
             )}
           >
             <SlidersHorizontal className="w-3 h-3" />
@@ -428,7 +428,7 @@ export default function DeepSearch() {
 
         {/* Filter panel */}
         {filtersOpen && (
-          <div className="mt-3 p-4 bg-background border border-border rounded-lg space-y-4">
+          <div className="mt-3 p-4 bg-background border border-[#eab308]/12 rounded-lg space-y-4">
             {/* Asset types */}
             <div>
               <div className="text-xs font-mono text-muted-foreground uppercase tracking-widest mb-2">Asset Type</div>
@@ -441,7 +441,7 @@ export default function DeepSearch() {
                       "px-2.5 py-1 rounded border text-xs font-mono font-bold uppercase transition-all",
                       filterAssetTypes.includes(t)
                         ? "bg-secondary/20 border-secondary text-secondary"
-                        : "border-border text-muted-foreground hover:border-secondary/50",
+                        : "border-[#eab308]/12 text-muted-foreground hover:border-secondary/50",
                     )}
                   >
                     {t}
@@ -462,7 +462,7 @@ export default function DeepSearch() {
                       "px-2.5 py-1 rounded border text-xs font-mono font-bold uppercase transition-all",
                       filterSources.includes(j.value)
                         ? "bg-blue-500/20 border-blue-500 text-blue-400"
-                        : "border-border text-muted-foreground hover:border-blue-500/50",
+                        : "border-[#eab308]/12 text-muted-foreground hover:border-blue-500/50",
                     )}
                   >
                     {j.label}
@@ -515,7 +515,7 @@ export default function DeepSearch() {
               <button
                 key={ex}
                 onClick={() => { setQuery(ex); run(ex); }}
-                className="text-xs font-mono text-muted-foreground border border-border/70 bg-card/25 rounded-xl px-3 py-1.5 hover:border-yellow-400/40 hover:text-yellow-100 transition-colors"
+                className="text-xs font-mono text-muted-foreground border border-[#eab308]/12 bg-card/25 rounded-xl px-3 py-1.5 hover:border-yellow-400/40 hover:text-yellow-100 transition-colors"
               >
                 {ex}
               </button>
@@ -550,7 +550,7 @@ export default function DeepSearch() {
           <div className="flex flex-col md:flex-row h-full overflow-hidden">
 
             {/* Left: pipeline steps */}
-            <div className="w-full md:w-80 xl:w-96 flex-shrink-0 max-h-[270px] md:max-h-none md:border-r border-border p-4 sm:p-5 overflow-y-auto">
+            <div className="w-full md:w-80 xl:w-96 flex-shrink-0 max-h-[270px] md:max-h-none md:border-r border-[#eab308]/12 p-4 sm:p-5 overflow-y-auto">
               <div className="text-xs font-mono text-muted-foreground uppercase tracking-widest mb-4">
                 Agent Pipeline
               </div>
@@ -604,7 +604,7 @@ export default function DeepSearch() {
               </div>
 
               {result && (
-                <div className="pt-3 border-t border-border">
+                <div className="pt-3 border-t border-[#eab308]/12">
                   <div className="text-xs font-mono text-muted-foreground space-y-1">
                     <div className="flex justify-between">
                       <span>Total time</span>
@@ -628,7 +628,7 @@ export default function DeepSearch() {
               {loading && !result && (
                 <div className="space-y-3">
                   {[1, 2, 3].map((i) => (
-                    <div key={i} className="border border-border bg-card/30 rounded-lg p-4 animate-pulse">
+                    <div key={i} className="border border-[#eab308]/12 bg-card/30 rounded-lg p-4 animate-pulse">
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2 w-1/2">
                           <div className="w-6 h-4 bg-muted rounded shrink-0"></div>
@@ -678,7 +678,7 @@ export default function DeepSearch() {
         {/* Initial state */}
         {!loading && !result && !error && (
           <div className="flex flex-col items-center justify-center h-full text-center px-6 py-12">
-            <div className="grid h-14 w-14 place-items-center rounded-2xl border border-border bg-card/40 mb-4">
+            <div className="grid h-14 w-14 place-items-center rounded-2xl border border-[#eab308]/12 bg-card/40 mb-4">
               <Search className="w-6 h-6 text-muted-foreground/70" aria-hidden />
             </div>
             <h2 className="text-sm font-semibold text-foreground">Search the public surface</h2>
@@ -688,7 +688,7 @@ export default function DeepSearch() {
             <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
               <a
                 href="/data-sources"
-                className="inline-flex min-h-[36px] items-center rounded-lg border border-border bg-card/50 px-3 py-1.5 text-[11px] font-semibold text-foreground hover:border-primary/40"
+                className="inline-flex min-h-[36px] items-center rounded-lg border border-[#eab308]/12 bg-card/50 px-3 py-1.5 text-[11px] font-semibold text-foreground hover:border-primary/40"
               >
                 Load registries
               </a>
