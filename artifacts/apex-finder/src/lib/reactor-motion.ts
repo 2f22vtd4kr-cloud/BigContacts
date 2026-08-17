@@ -23,7 +23,7 @@ export const REACTOR_CSS = `
   --reactor-pause: ${REACTOR_PAUSE_MS}ms;
   --reactor-shimmer: ${REACTOR_SHIMMER_MS}ms;
   --reactor-ease: ${REACTOR_EASE};
-  --reactor-yellow: #eab308;
+  --reactor-yellow: #f0b429;
   --reactor-amber: #facc15;
   --reactor-gold: #fde047;
   --reactor-canvas: #050505;
