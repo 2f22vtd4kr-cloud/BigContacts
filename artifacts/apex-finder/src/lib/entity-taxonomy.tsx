@@ -32,7 +32,7 @@ const META: Record<EntityType, EntityMeta> = {
     label: "High-net-worth individual",
     shortLabel: "Person",
     descriptor: "person and personal access profile",
-    color: "#10B981",
+    color: "#eab308",
     Icon: UserRound,
     metricLabel: "Estimated wealth",
     evidenceLabel: "public wealth and contact evidence",

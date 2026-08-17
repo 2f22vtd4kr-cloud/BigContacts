@@ -95,7 +95,7 @@ const ASSET_COLORS: Record<string, string> = {
 
 const CAT_COLORS: Record<string, string> = {
   Identity: "text-primary bg-primary/10",
-  Financial: "text-emerald-400 bg-emerald-400/10",
+  Financial: "text-yellow-400 bg-yellow-400/10",
   Network:  "text-blue-400 bg-blue-400/10",
   Asset:    "text-secondary bg-secondary/10",
   Registry: "text-amber-400 bg-amber-400/10",
@@ -888,7 +888,7 @@ export default function ApexProfile() {
                     Ownership / Control
                   </span>
                   {ownerCount > 0 && (
-                    <span className="text-[9px] font-mono text-emerald-400/80 uppercase">
+                    <span className="text-[9px] font-mono text-yellow-400/80 uppercase">
                       {ownerCount} supported {ownerCount === 1 ? "claim" : "claims"}
                     </span>
                   )}
@@ -943,7 +943,7 @@ export default function ApexProfile() {
                         </div>
                         <span className={cn(
                           "text-[9px] font-mono uppercase tracking-wider flex-shrink-0",
-                          isSupported ? "text-emerald-400" : "text-muted-foreground/65",
+                          isSupported ? "text-yellow-400" : "text-muted-foreground/65",
                         )}>
                           {status}
                         </span>
@@ -1021,7 +1021,7 @@ export default function ApexProfile() {
             {hasContact ? (
               <div className="space-y-2">
               <div className="flex flex-wrap items-center gap-1.5" data-testid="profile-reach-provenance">
-                <span className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-1.5 py-0.5 text-[8px] font-mono font-bold uppercase tracking-wider text-emerald-200/90">
+                <span className="rounded-full border border-yellow-400/30 bg-yellow-400/10 px-1.5 py-0.5 text-[8px] font-mono font-bold uppercase tracking-wider text-yellow-200">
                   REACH
                 </span>
                 <span className="rounded-full border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[8px] font-mono uppercase tracking-wider text-slate-400">
@@ -1034,7 +1034,7 @@ export default function ApexProfile() {
                 )}
               </div>
               <div className="flex items-center gap-2 flex-wrap">
-                {/* Email — REACH: emerald personal · violet org (never mark info@/sales@ as Personal) */}
+                {/* Email — REACH: gold personal · violet org (never mark info@/sales@ as Personal) */}
                 {e.email && !isProtectedEmail(e.email) && (() => {
                   const orgInbox = /^(info|sales|contact|office|support|admin|hello|team|enquiries|inquiry|press|media|hr|jobs|careers|billing|accounts|noreply|no-reply)@/i.test(e.email);
                   const isOrg = orgInbox || e.contactOutcome === "organization_contact";
@@ -1046,7 +1046,7 @@ export default function ApexProfile() {
                         "flex min-h-[36px] items-center gap-2 px-3 py-1.5 rounded border font-mono text-xs transition-colors min-w-0 max-w-[220px] sm:max-w-none",
                         isOrg
                           ? "border-violet-400/35 bg-violet-400/10 text-violet-300 hover:bg-violet-400/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/50"
-                          : "border-emerald-400/35 bg-emerald-400/10 text-emerald-300 hover:bg-emerald-400/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/50",
+                          : "border-yellow-400/35 bg-yellow-400/10 text-yellow-200 hover:bg-yellow-400/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/50",
                       )}
                     >
                       <span className="text-[8px] uppercase tracking-wider opacity-70 shrink-0">{isOrg ? "Company" : "Personal"}</span>
@@ -1059,7 +1059,7 @@ export default function ApexProfile() {
                   <a
                     href={`tel:${e.phone}`}
                     title={`REACH · personal — ${e.phone}`}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded border border-emerald-400/35 bg-emerald-400/10 text-emerald-300 font-mono text-xs hover:bg-emerald-400/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/50"
+                    className="flex items-center gap-2 px-3 py-1.5 rounded border border-yellow-400/35 bg-yellow-400/10 text-yellow-200 font-mono text-xs hover:bg-yellow-400/15 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/50"
                   >
                     <span className="text-[8px] uppercase tracking-wider opacity-70 shrink-0">Phone</span>
                     {e.phone}
@@ -1382,7 +1382,7 @@ export default function ApexProfile() {
                               <span className="text-amber-300/80 uppercase w-14 flex-shrink-0">{item.vectorType}</span>
                               <span className={cn(
                                 "uppercase text-[9px] flex-shrink-0",
-                                item.validationStatus === "verified" ? "text-emerald-400" :
+                                item.validationStatus === "verified" ? "text-yellow-400" :
                                   item.validationStatus === "rejected" ? "text-red-400" : "text-amber-400/80",
                               )}>{item.validationStatus}</span>
                               <span className="text-foreground/80 truncate flex-1" title={item.value}>{item.value}</span>
