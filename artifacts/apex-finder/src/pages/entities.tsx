@@ -478,6 +478,10 @@ export default function EntityLedger() {
 
   // Bulk selection state
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [purgeOpen, setPurgeOpen] = useState(false);
+  const [purgePhrase, setPurgePhrase] = useState("");
+  const [purgeBusy, setPurgeBusy] = useState(false);
   const [page, setPage]           = useState(0);
   // Infinite-scroll accumulation
   const [allEntities, setAllEntities] = useState<any[]>([]);
@@ -632,8 +636,73 @@ export default function EntityLedger() {
   };
 
   const handleDelete = (id: number) => {
-    if (confirm("Purge entity from registry?")) {
-      deleteEntity.mutate({ id }, { onSuccess: () => refetch() });
+    if (confirm("Delete this entity from the ledger? This cannot be undone.")) {
+      deleteEntity.mutate(
+        { id },
+        {
+          onSuccess: () => {
+            setSelectedIds((prev) => {
+              const next = new Set(prev);
+              next.delete(id);
+              return next;
+            });
+            refetch();
+          },
+        },
+      );
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    const ids = [...selectedIds];
+    if (ids.length === 0) return;
+    if (!confirm(`Delete ${ids.length} selected entit${ids.length === 1 ? "y" : "ies"} from the ledger? This cannot be undone.`)) {
+      return;
+    }
+    setBulkBusy(true);
+    try {
+      const r = await fetch("/api/entities/bulk-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      });
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        alert(err.error || `Delete failed (${r.status})`);
+        return;
+      }
+      setSelectedIds(new Set());
+      refetch();
+    } catch (e: any) {
+      alert(e?.message || "Delete failed");
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
+  const handlePurgeAll = async () => {
+    if (purgePhrase.trim() !== "DELETE ALL ENTITIES") return;
+    setPurgeBusy(true);
+    try {
+      const r = await fetch("/api/entities/purge-all", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirm: "DELETE ALL ENTITIES" }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        alert(data.error || `Purge failed (${r.status})`);
+        return;
+      }
+      setPurgeOpen(false);
+      setPurgePhrase("");
+      setSelectedIds(new Set());
+      refetch();
+      alert(`Removed ${data.deleted ?? 0} entities from the ledger.`);
+    } catch (e: any) {
+      alert(e?.message || "Purge failed");
+    } finally {
+      setPurgeBusy(false);
     }
   };
 
@@ -835,6 +904,15 @@ export default function EntityLedger() {
           )}
 
           <button
+            type="button"
+            onClick={() => { setPurgeOpen(true); setPurgePhrase(""); }}
+            className="flex items-center gap-1.5 rounded-lg border border-rose-400/30 px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-rose-300/90 transition-all hover:border-rose-400/50 hover:bg-rose-500/10"
+            title="Delete every entity in the ledger"
+          >
+            <Trash2 className="h-3 w-3" /> Clear ledger
+          </button>
+
+          <button
             onClick={() => openAddModal()}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#eab308]/12 bg-transparent text-muted-foreground hover:bg-muted font-mono text-[10px] uppercase tracking-wider transition-colors ml-auto"
           >
@@ -1004,28 +1082,35 @@ export default function EntityLedger() {
 
         {/* Bulk action bar */}
         {selectedIds.size > 0 && (
-          <div className="flex-shrink-0 flex items-center gap-3 px-4 h-9 border-b border-primary/30 bg-primary/5">
-            <span className="text-[10px] font-mono text-primary font-bold">
+          <div className="flex h-10 flex-shrink-0 items-center gap-2 border-b border-[#eab308]/25 bg-[#eab308]/5 px-4">
+            <span className="font-mono text-[10px] font-bold text-[#fde047]">
               {selectedIds.size} selected
             </span>
             <div className="flex-1" />
             <button
               onClick={handleBulkExportCsv}
-              className="flex items-center gap-1 px-2 py-1 rounded border border-[#eab308]/12 text-muted-foreground hover:text-foreground font-mono text-[9px] uppercase tracking-wider transition-all"
+              className="atlas-pressable flex items-center gap-1 rounded border border-[#eab308]/20 px-2 py-1 font-mono text-[9px] uppercase tracking-wider text-stone-400 hover:text-stone-100"
             >
-              <Download className="w-2.5 h-2.5" /> Export CSV
+              <Download className="h-2.5 w-2.5" /> CSV
             </button>
             <button
               onClick={handleBulkMcts}
-              className="flex items-center gap-1 px-2 py-1 rounded border border-primary/40 bg-primary/10 text-primary font-mono text-[9px] uppercase tracking-wider hover:bg-primary/20 transition-all"
+              className="atlas-pressable flex items-center gap-1 rounded border border-[#eab308]/40 bg-[#eab308]/10 px-2 py-1 font-mono text-[9px] uppercase tracking-wider text-[#fde047] hover:bg-[#eab308]/20"
             >
-              <TargetIcon className="w-2.5 h-2.5" /> Run Research
+              <TargetIcon className="h-2.5 w-2.5" /> Research
+            </button>
+            <button
+              onClick={() => void handleBulkDelete()}
+              disabled={bulkBusy}
+              className="atlas-pressable flex items-center gap-1 rounded border border-rose-400/40 bg-rose-500/10 px-2 py-1 font-mono text-[9px] uppercase tracking-wider text-rose-200 hover:bg-rose-500/20 disabled:opacity-50"
+            >
+              <Trash2 className="h-2.5 w-2.5" /> {bulkBusy ? "Deleting…" : "Delete"}
             </button>
             <button
               onClick={() => setSelectedIds(new Set())}
-              className="text-[9px] font-mono text-muted-foreground hover:text-foreground transition-colors ml-1 uppercase tracking-wider"
+              className="ml-1 font-mono text-[9px] uppercase tracking-wider text-stone-500 hover:text-stone-200"
             >
-              <><X className="w-3 h-3" /> Clear</>
+              <X className="h-3 w-3" />
             </button>
           </div>
         )}
@@ -1383,22 +1468,29 @@ export default function EntityLedger() {
 
         {/* Mobile bulk action bar */}
         {selectedIds.size > 0 && (
-          <div className="flex-shrink-0 flex items-center gap-2 px-3 py-2 border-b border-primary/30 bg-primary/5">
-            <span className="text-xs font-mono text-primary font-bold flex-shrink-0">
+          <div className="flex flex-shrink-0 items-center gap-2 border-b border-[#eab308]/25 bg-[#eab308]/5 px-3 py-2">
+            <span className="flex-shrink-0 font-mono text-xs font-bold text-[#fde047]">
               {selectedIds.size} selected
             </span>
             <div className="flex-1" />
-            <button onClick={handleBulkExportCsv}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded border border-[#eab308]/12 text-muted-foreground font-mono text-[10px] uppercase tracking-wider">
-              <Download className="w-3 h-3" /> CSV
+            <button
+              onClick={handleBulkExportCsv}
+              className="atlas-pressable flex items-center gap-1 rounded border border-[#eab308]/20 px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-wider text-stone-400"
+            >
+              <Download className="h-3 w-3" /> CSV
             </button>
-            <button onClick={handleBulkMcts}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded border border-primary/40 bg-primary/10 text-primary font-mono text-[10px] uppercase tracking-wider">
-              <TargetIcon className="w-3 h-3" /> Research
+            <button
+              onClick={() => void handleBulkDelete()}
+              disabled={bulkBusy}
+              className="atlas-pressable flex items-center gap-1 rounded border border-rose-400/40 bg-rose-500/10 px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-wider text-rose-200 disabled:opacity-50"
+            >
+              <Trash2 className="h-3 w-3" /> {bulkBusy ? "…" : "Delete"}
             </button>
-            <button onClick={() => setSelectedIds(new Set())}
-              className="text-[10px] font-mono text-muted-foreground hover:text-foreground ml-1">
-              <X className="w-3 h-3" />
+            <button
+              onClick={() => setSelectedIds(new Set())}
+              className="ml-1 font-mono text-[10px] text-stone-500"
+            >
+              <X className="h-3 w-3" />
             </button>
           </div>
         )}
@@ -1520,6 +1612,55 @@ export default function EntityLedger() {
                 className="px-5 py-2 bg-primary text-primary-foreground rounded font-mono text-sm uppercase tracking-wider hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-2">
                 {createEntity.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                 Register Entity
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Purge entire ledger — double confirmation */}
+      {purgeOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-4 sm:items-center"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="purge-ledger-title"
+        >
+          <div className="w-full max-w-md rounded-2xl border border-rose-400/30 bg-[#0c0c0c] p-5 shadow-2xl">
+            <h2 id="purge-ledger-title" className="font-display text-lg font-semibold text-stone-100">
+              Clear entire ledger?
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-stone-400">
+              This permanently deletes <span className="font-semibold text-stone-200">all</span> stored entities
+              from the database. Profiles, contacts, and related ledger rows will be gone. This cannot be undone.
+            </p>
+            <p className="mt-3 font-mono text-[11px] text-stone-500">
+              Type <span className="text-rose-300">DELETE ALL ENTITIES</span> to confirm.
+            </p>
+            <input
+              type="text"
+              value={purgePhrase}
+              onChange={(e) => setPurgePhrase(e.target.value)}
+              autoFocus
+              className="mt-2 w-full rounded-xl border border-[#eab308]/20 bg-[#050505] px-3 py-2.5 font-mono text-sm text-stone-100 outline-none focus:border-rose-400/50"
+              placeholder="DELETE ALL ENTITIES"
+              aria-label="Confirmation phrase"
+            />
+            <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => { setPurgeOpen(false); setPurgePhrase(""); }}
+                className="atlas-outline-btn atlas-pressable min-h-[44px] rounded-xl px-4 text-xs font-semibold"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={purgePhrase.trim() !== "DELETE ALL ENTITIES" || purgeBusy}
+                onClick={() => void handlePurgeAll()}
+                className="atlas-pressable min-h-[44px] rounded-xl border border-rose-400/50 bg-rose-500/20 px-4 text-xs font-bold text-rose-100 hover:bg-rose-500/30 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {purgeBusy ? "Purging…" : "Delete all entities"}
               </button>
             </div>
           </div>

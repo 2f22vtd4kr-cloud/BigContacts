@@ -1112,4 +1112,46 @@ router.delete("/entities/:id", async (req, res): Promise<void> => {
   res.sendStatus(204);
 });
 
+// POST /entities/bulk-delete — delete selected ids
+router.post("/entities/bulk-delete", async (req, res): Promise<void> => {
+  const idsRaw = (req.body as { ids?: unknown })?.ids;
+  const ids = Array.isArray(idsRaw)
+    ? idsRaw.map((x) => Number(x)).filter((n) => Number.isFinite(n) && n > 0)
+    : [];
+  if (ids.length === 0) {
+    res.status(400).json({ error: "ids must be a non-empty array of entity ids" });
+    return;
+  }
+  if (ids.length > 500) {
+    res.status(400).json({ error: "Refusing to delete more than 500 entities in one request" });
+    return;
+  }
+  const deleted = await db
+    .delete(entitiesTable)
+    .where(inArray(entitiesTable.id, ids))
+    .returning({ id: entitiesTable.id });
+  await Promise.all([
+    delCachePattern("entities:list:*"),
+    delCachePattern("dashboard:*"),
+  ]);
+  res.json({ deleted: deleted.length, ids: deleted.map((d) => d.id) });
+});
+
+// POST /entities/purge-all — wipe ledger (requires confirm phrase)
+router.post("/entities/purge-all", async (req, res): Promise<void> => {
+  const confirm = String((req.body as { confirm?: string })?.confirm || "").trim();
+  if (confirm !== "DELETE ALL ENTITIES") {
+    res.status(400).json({
+      error: 'Type exact phrase DELETE ALL ENTITIES to confirm purge',
+    });
+    return;
+  }
+  const deleted = await db.delete(entitiesTable).returning({ id: entitiesTable.id });
+  await Promise.all([
+    delCachePattern("entities:list:*"),
+    delCachePattern("dashboard:*"),
+  ]);
+  res.json({ deleted: deleted.length, purged: true });
+});
+
 export default router;

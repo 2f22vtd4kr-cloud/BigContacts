@@ -337,6 +337,7 @@ function WindowChrome({
   live,
   compact,
   terminal,
+  method,
 }: {
   favicon?: React.ReactNode;
   title: string;
@@ -347,70 +348,88 @@ function WindowChrome({
   compact?: boolean;
   /** Phase K — when tool finished (not live): done | failed */
   terminal?: "done" | "failed" | null;
+  /** Research method lane — drives chrome language (not browser traffic lights) */
+  method?: "browser" | "serp" | "google" | "prompt" | "domain" | "footprint" | "bureau" | "registry";
 }) {
-  // Patterns drawn from high-signal dark dashboards (glass + cut corner + live ping)
-  // without swapping the whole design system.
+  // Method-aware desk chrome (Linear/Figma-style work surface — not OS window controls)
+  const methodLabel =
+    method === "browser" ? "Fetch"
+      : method === "serp" || method === "google" ? "Search"
+      : method === "prompt" ? "Extract"
+      : method === "domain" ? "Domain"
+      : method === "footprint" ? "Footprint"
+      : method === "registry" ? "Registry"
+      : "Bureau";
+
   return (
     <div
       className="relative overflow-hidden border backdrop-blur-md"
       data-live={live ? "true" : "false"}
+      data-method={method || "bureau"}
       style={{
         borderColor: live ? `${accent}99` : `${accent}55`,
-        background: "linear-gradient(165deg, rgba(17,24,39,0.92) 0%, rgba(11,18,32,0.98) 100%)",
+        background: "linear-gradient(165deg, rgba(12,12,12,0.96) 0%, rgba(8,8,8,0.99) 100%)",
         borderRadius: 12,
-        // cut-corner only on roomy desktop chrome — compact mobile must not clip content
         clipPath: compact ? undefined : "polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%)",
         boxShadow: live
           ? `0 0 0 1px ${accent}55, 0 0 24px ${accent}22, 0 12px 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04)`
           : "0 8px 28px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.03)",
       }}
     >
-      {/* top sheen */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-0 h-px"
         style={{ background: `linear-gradient(90deg, transparent, ${accent}66, transparent)` }}
       />
       <div
-        className={`flex items-center gap-2 border-b border-[#eab308]/08 ${compact ? "px-2.5 py-1.5" : "px-3 py-2"}`}
-        style={{ background: "rgba(17,24,39,0.85)" }}
+        className={`flex items-center gap-2 border-b border-[#eab308]/10 ${compact ? "px-2.5 py-1.5" : "px-3 py-2"}`}
+        style={{ background: "rgba(10,10,10,0.92)" }}
       >
-        <div className="flex items-center gap-[6px] pl-0.5">
-          <span className="w-[10px] h-[10px] rounded-full bg-[#FF5F57] shadow-[inset_0_-0.5px_0_rgba(0,0,0,0.15)]" />
-          <span className="w-[10px] h-[10px] rounded-full bg-[#FEBC2E] shadow-[inset_0_-0.5px_0_rgba(0,0,0,0.15)]" />
-          <span className="w-[10px] h-[10px] rounded-full bg-[#28C840] shadow-[inset_0_-0.5px_0_rgba(0,0,0,0.15)]" />
+        {/* Method tile — replaces decorative traffic lights */}
+        <div
+          className="grid shrink-0 place-items-center rounded-md border border-[#eab308]/25 bg-[#eab308]/10 text-[#fde047]"
+          style={{ width: compact ? 22 : 26, height: compact ? 22 : 26 }}
+          aria-hidden
+        >
+          {favicon || (
+            <span className="font-mono text-[8px] font-bold uppercase tracking-wider">{methodLabel.slice(0, 2)}</span>
+          )}
         </div>
-        <div className="flex-1 flex items-center gap-1.5 min-w-0">
-          {favicon}
-          <span className={`font-mono text-stone-300 truncate ${compact ? "text-[10px]" : "text-[11px]"}`}>{title}</span>
+        <div className="flex min-w-0 flex-1 items-center gap-1.5">
+          <span className={`truncate font-mono text-stone-200 ${compact ? "text-[10px]" : "text-[11px]"}`}>
+            {title}
+          </span>
+          <span className="hidden shrink-0 rounded border border-stone-600/50 bg-stone-800/80 px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-wider text-stone-400 sm:inline">
+            {methodLabel}
+          </span>
           {live && (
             <span
-              className="relative inline-flex items-center gap-1.5 shrink-0 rounded-full border border-yellow-400/50 bg-yellow-400/15 px-2 py-0.5 shadow-[0_0_12px_rgba(234,179,8,0.25)]"
+              className="relative inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[#eab308]/50 bg-[#eab308]/15 px-2 py-0.5 shadow-[0_0_12px_rgba(234,179,8,0.25)]"
               aria-label="Tool is live"
             >
               <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-70" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-yellow-400 shadow-[0_0_8px_#eab308]" />
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#eab308] opacity-70" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-[#eab308] shadow-[0_0_8px_#eab308]" />
               </span>
-              <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-yellow-200">LIVE</span>
+              <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-[#fde047]">LIVE</span>
             </span>
           )}
           {!live && terminal === "done" && (
             <span
-              className="inline-flex items-center gap-1 shrink-0 rounded-full border border-yellow-400/35 bg-yellow-400/10 px-2 py-0.5"
+              className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[#eab308]/35 bg-[#eab308]/10 px-2 py-0.5"
               aria-label="Tool complete"
             >
-              <span className="h-1.5 w-1.5 rounded-full bg-yellow-400" />
-              <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-yellow-200/90">DONE</span>
+              <span className="h-1.5 w-1.5 rounded-full bg-[#eab308]" />
+              <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-[#fde047]/90">DONE</span>
             </span>
           )}
           {!live && terminal === "failed" && (
             <span
-              className="inline-flex items-center gap-1 shrink-0 rounded-full border border-rose-400/40 bg-rose-400/10 px-2 py-0.5"
+              className="inline-flex shrink-0 items-center gap-1 rounded-full border border-rose-400/40 bg-rose-400/10 px-2 py-0.5"
               aria-label="Tool failed"
             >
               <span className="h-1.5 w-1.5 rounded-full bg-rose-400" />
-              <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-rose-200/90">FAIL</span>
+              <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-rose-200/90">FAIL</span>
             </span>
           )}
         </div>
@@ -447,8 +466,9 @@ function GoogleScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
   return (
     <WindowChrome
       title="Google Search"
+      method="google"
       live={scene.live} terminal={scene.terminal}
-      accent="#4285F4"
+      accent="#eab308"
       compact={compact}
       favicon={<ProviderIcon kind="google" size={compact ? 12 : 14} />}
       urlBar={`google.com/search?q=${encodeURIComponent(q).slice(0, 48)}`}
@@ -487,8 +507,9 @@ function BrowserScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
   return (
     <WindowChrome
       title={scene.subtitle || (url ? "Public page" : "Public sources")}
+      method="browser"
       live={scene.live} terminal={scene.terminal}
-      accent={contactHit ? "#eab308" : "#eab308"}
+      accent="#eab308"
       compact={compact}
       favicon={<ProviderIcon kind="browser" size={compact ? 12 : 14} />}
       urlBar={url || "awaiting verified URL from live fetch…"}
@@ -519,9 +540,10 @@ function PromptScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
   const typed = useTyped(body.slice(0, compact ? 160 : 260), scene.live, 52);
   return (
     <WindowChrome
-      title={`${providerLabel(scene.provider)} · prompt`}
+      title={`${providerLabel(scene.provider)} · extract`}
+      method="prompt"
       live={scene.live} terminal={scene.terminal}
-      accent="#facc15"
+      accent="#eab308"
       compact={compact}
       favicon={<ProviderIcon kind={scene.provider} size={compact ? 12 : 14} />}
     >
@@ -541,8 +563,9 @@ function DomainScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
   return (
     <WindowChrome
       title="RDAP / WHOIS"
+      method="domain"
       live={scene.live} terminal={scene.terminal}
-      accent="#67e8f9"
+      accent="#eab308"
       compact={compact}
       favicon={<ProviderIcon kind="domain" size={compact ? 12 : 14} />}
       urlBar="rdap · whoisjson"
@@ -561,8 +584,9 @@ function SerpScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
   return (
     <WindowChrome
       title={`${providerLabel(scene.provider)} · web search`}
+      method="serp"
       live={scene.live} terminal={scene.terminal}
-      accent="#38bdf8"
+      accent="#eab308"
       compact={compact}
       favicon={<ProviderIcon kind={scene.provider} size={compact ? 12 : 14} />}
       urlBar={`search · ${q.slice(0, 40)}`}
@@ -597,8 +621,9 @@ function FootprintScene({ scene, compact }: { scene: Scene; compact?: boolean })
   return (
     <WindowChrome
       title="Username footprint"
+      method="footprint"
       live={scene.live} terminal={scene.terminal}
-      accent="#c4b5fd"
+      accent="#eab308"
       compact={compact}
       favicon={<ProviderIcon kind="sherlock" size={compact ? 12 : 14} />}
     >
@@ -615,6 +640,7 @@ function BureauScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
   return (
     <WindowChrome
       title={scene.title}
+      method="bureau"
       live={scene.live} terminal={scene.terminal}
       accent="#eab308"
       compact={compact}

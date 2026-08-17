@@ -605,25 +605,26 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
               </div>
               {/* Tool-shaped window — first frame of a live run */}
               <div className="overflow-hidden rounded-xl border border-[#eab308]/15 bg-[#0a0a0a] shadow-[inset_0_1px_0_rgba(234,179,8,0.06)]">
-                <div className="flex items-center gap-2 border-b border-[#eab308]/08 px-3 py-2">
-                  <span className="h-2.5 w-2.5 rounded-full bg-[#FF5F57]" aria-hidden />
-                  <span className="h-2.5 w-2.5 rounded-full bg-[#FEBC2E]" aria-hidden />
-                  <span className="h-2.5 w-2.5 rounded-full bg-[#28C840]" aria-hidden />
-                  <div className="ml-1 flex h-5 flex-1 items-center overflow-hidden rounded bg-stone-800/90 px-2">
-                    <span className="truncate text-[9px] font-mono text-muted-foreground">atlas://desk/arming…</span>
-                    <div className="ml-auto h-2 w-10 overflow-hidden rounded bg-stone-700">
-                      <div
-                        className="h-full w-full"
-                        style={{
-                          background: "linear-gradient(90deg,transparent,rgba(234,179,8,.45),transparent)",
-                          animation: motionOrNone(`reactorShimmer ${REACTOR_SHIMMER_MS}ms ease-in-out infinite`),
-                        }}
-                      />
-                    </div>
+                <div className="flex items-center gap-2 border-b border-[#eab308]/10 px-3 py-2">
+                  <div className="grid h-6 w-6 shrink-0 place-items-center rounded-md border border-[#eab308]/30 bg-[#eab308]/15 font-mono text-[8px] font-bold text-[#fde047]">
+                    BX
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate font-mono text-[10px] text-stone-200">Bureau channels</div>
+                    <div className="truncate font-mono text-[8px] uppercase tracking-wider text-stone-500">Search · Registry · Extract · Fetch</div>
+                  </div>
+                  <div className="h-1.5 w-12 overflow-hidden rounded bg-stone-800">
+                    <div
+                      className="h-full w-full"
+                      style={{
+                        background: "linear-gradient(90deg,transparent,rgba(234,179,8,.45),transparent)",
+                        animation: motionOrNone(`reactorShimmer ${REACTOR_SHIMMER_MS}ms ease-in-out infinite`),
+                      }}
+                    />
                   </div>
                 </div>
                 <div className="border-b border-[#eab308]/08 px-3 py-1.5">
-                  <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-yellow-400/70">Powering channels</div>
+                  <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-[#eab308]/80">Powering research lanes</div>
                 </div>
                 {/* Prompt / search line placeholder */}
                 <div className="border-b border-[#eab308]/08 px-3 py-2.5">
@@ -841,11 +842,11 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                   data-testid="panel-live-empty-scaffold"
                   aria-hidden
                 >
-                  <div className="flex items-center gap-2 border-b border-[#eab308]/08 px-3 py-1.5">
-                    <span className="h-2 w-2 rounded-full bg-[#FF5F57]/80" />
-                    <span className="h-2 w-2 rounded-full bg-[#FEBC2E]/80" />
-                    <span className="h-2 w-2 rounded-full bg-[#28C840]/80" />
-                    <span className="ml-1 truncate text-[8px] font-mono text-stone-500">atlas://desk/listening…</span>
+                  <div className="flex items-center gap-2 border-b border-[#eab308]/10 px-3 py-1.5">
+                    <div className="grid h-5 w-5 place-items-center rounded border border-[#eab308]/25 bg-[#eab308]/10 font-mono text-[7px] font-bold text-[#fde047]">
+                      BX
+                    </div>
+                    <span className="truncate font-mono text-[8px] text-stone-400">Listening for bureau steps…</span>
                   </div>
                   <div className="space-y-2 p-3">
                     <div className="h-2 w-full overflow-hidden rounded bg-stone-800/80">
