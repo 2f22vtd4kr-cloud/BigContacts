@@ -98,3 +98,8 @@ body {
 .atlas-btn-yellow { background: #eab308; color: #000; font-weight: 700; }
 .atlas-btn-yellow:hover { background: #facc15; }
 .atlas-chip-yellow { border: 1px solid rgba(234,179,8,0.35); background: rgba(234,179,8,0.1); color: #fde047; }
+.atlas-skeleton { background: #141414; border-radius: 8px; position: relative; overflow: hidden; }
+
+.atlas-skeleton{background:#141414;border-radius:8px;position:relative;overflow:hidden}
+.atlas-skeleton::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(234,179,8,.1),transparent);animation:atlas-shimmer 1.5s ease-in-out infinite}
+.atlas-scroll{scrollbar-width:thin;scrollbar-color:#eab30833 #0a0a0a}
