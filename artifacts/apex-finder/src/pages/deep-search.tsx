@@ -103,7 +103,7 @@ function StepCard({ icon: Icon, name, description, status, metric, detail, durat
     <div className={cn(
       "border border-border/70 rounded-2xl bg-card/30 p-3 sm:p-4 transition-all duration-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]",
       status === "idle"    && "border-border bg-card/20 opacity-50",
-      status === "running" && "border-primary/50 bg-primary/5 shadow-[0_0_15px_rgba(16,185,129,0.1)]",
+      status === "running" && "border-primary/50 bg-primary/5 shadow-[0_0_15px_rgba(234,179,8,0.1)]",
       status === "done"    && "border-emerald-500/30 bg-emerald-500/5",
     )}>
       <div className="flex items-start justify-between mb-2 gap-2">
@@ -389,7 +389,7 @@ export default function DeepSearch() {
               "flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-mono text-xs uppercase tracking-wider font-bold transition-all shrink-0",
               loading || !query.trim()
                 ? "bg-muted text-muted-foreground cursor-not-allowed"
-                : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_15px_rgba(16,185,129,0.3)]",
+                : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_15px_rgba(234,179,8,0.3)]",
             )}
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
