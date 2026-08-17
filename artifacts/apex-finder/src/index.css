@@ -240,8 +240,8 @@ body {
 /* Ambient gold wash behind hero / CTA clusters */
 .atlas-ambient-gold {
   background:
-    radial-gradient(ellipse 80% 60% at 70% 40%, rgba(234, 179, 8, 0.09), transparent 55%),
-    radial-gradient(ellipse 50% 40% at 20% 80%, rgba(250, 204, 21, 0.04), transparent 50%);
+    radial-gradient(ellipse 70% 55% at 75% 35%, rgba(234, 179, 8, 0.11), transparent 58%),
+    radial-gradient(ellipse 45% 35% at 15% 85%, rgba(250, 204, 21, 0.05), transparent 52%);
 }
 
 /* Soft gold rim utility */
