@@ -24,7 +24,7 @@ export const REACTOR_CSS = `
   --reactor-shimmer: ${REACTOR_SHIMMER_MS}ms;
   --reactor-ease: ${REACTOR_EASE};
   --reactor-yellow: #f0b429;
-  --reactor-amber: #facc15;
+  --reactor-amber: #fde047;
   --reactor-gold: #fde047;
   --reactor-canvas: #050505;
   --reactor-desk: #0a0a0a;
