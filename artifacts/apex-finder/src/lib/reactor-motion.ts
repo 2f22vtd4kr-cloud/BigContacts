@@ -34,7 +34,7 @@ export const REACTOR_CSS = `
   transition: transform var(--reactor-fast) ease-out, opacity var(--reactor-fast) ease-out, border-color var(--reactor-fast) ease-out, box-shadow var(--reactor-fast) ease-out;
   touch-action: manipulation;
 }
-.reactor-pressable:active { transform: scale(0.98); opacity: 0.85; }
+.reactor-pressable:active { transform: scale(0.98); opacity: 0.88; }
 .reactor-pressable:focus-visible,
 button:focus-visible,
 [role="button"]:focus-visible,
