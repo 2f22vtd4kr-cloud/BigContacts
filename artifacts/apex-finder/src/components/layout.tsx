@@ -196,13 +196,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
       )}
       <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
         <div className="atlas-grid pointer-events-none absolute inset-0" />
-        <header className="relative z-20 flex h-14 shrink-0 items-center gap-2 border-b border-white/[0.04] bg-[#050505]/92 px-3 pt-[env(safe-area-inset-top)] backdrop-blur-lg sm:px-4 md:h-16 md:px-6">
+        <header className="relative z-20 flex h-14 shrink-0 items-center gap-2.5 border-b border-white/[0.04] bg-[#050505]/92 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] pt-[env(safe-area-inset-top)] backdrop-blur-lg sm:px-5 md:h-16 md:px-6">
           <div className="mr-3 flex min-w-0 items-center md:mr-0">
             <Link
               href="/"
               aria-label="Apex Atlas home"
               data-testid="link-mobile-apex-atlas-home"
-              className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-[#eab308] text-black shadow-[0_0_14px_rgba(234,179,8,0.3)] focus-visible:ring-2 focus-visible:ring-yellow-400/50 md:hidden"
+              className="ml-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#eab308] text-black shadow-[0_0_14px_rgba(234,179,8,0.3)] focus-visible:ring-2 focus-visible:ring-yellow-400/50 md:hidden"
             >
               <Crosshair className="h-4 w-4" />
             </Link>
