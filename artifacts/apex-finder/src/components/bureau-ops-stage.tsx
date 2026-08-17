@@ -290,7 +290,7 @@ function StoryLine({
   }
   const kind = m[1].toLowerCase();
   const prefixColor =
-    kind === "now" ? "text-yellow-300" : kind === "failed" ? "text-rose-300" : "text-emerald-300";
+    kind === "now" ? "text-yellow-300" : kind === "failed" ? "text-rose-300" : "text-yellow-200";
   return (
     <div className={`${clamp ? "line-clamp-2" : ""} ${className}`.trim()}>
       <span className={`font-bold ${prefixColor}`}>{m[1]}:</span>
@@ -356,23 +356,23 @@ function WindowChrome({
           <span className={`font-mono text-slate-300 truncate ${compact ? "text-[10px]" : "text-[11px]"}`}>{title}</span>
           {live && (
             <span
-              className="relative inline-flex items-center gap-1.5 shrink-0 rounded-full border border-emerald-400/60 bg-emerald-400/20 px-2 py-0.5 shadow-[0_0_12px_rgba(52,211,153,0.25)]"
+              className="relative inline-flex items-center gap-1.5 shrink-0 rounded-full border border-yellow-400/50 bg-yellow-400/15 px-2 py-0.5 shadow-[0_0_12px_rgba(234,179,8,0.25)]"
               aria-label="Tool is live"
             >
               <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-70" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400 shadow-[0_0_8px_#34d399]" />
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-70" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-yellow-400 shadow-[0_0_8px_#eab308]" />
               </span>
-              <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-emerald-200">LIVE</span>
+              <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-yellow-200">LIVE</span>
             </span>
           )}
           {!live && terminal === "done" && (
             <span
-              className="inline-flex items-center gap-1 shrink-0 rounded-full border border-emerald-400/40 bg-emerald-400/10 px-2 py-0.5"
+              className="inline-flex items-center gap-1 shrink-0 rounded-full border border-yellow-400/35 bg-yellow-400/10 px-2 py-0.5"
               aria-label="Tool complete"
             >
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-              <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-emerald-200/90">DONE</span>
+              <span className="h-1.5 w-1.5 rounded-full bg-yellow-400" />
+              <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-yellow-200/90">DONE</span>
             </span>
           )}
           {!live && terminal === "failed" && (
@@ -439,7 +439,7 @@ function GoogleScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
         </div>
         {(scene.resultLines.length ? scene.resultLines : ["Looking through public search results…"]).slice(0, compact ? 2 : 3).map((line, i) => (
           <div key={i} className="rounded-lg bg-[#111827] border border-white/5 px-2.5 py-1.5">
-            <div className="text-[9px] text-emerald-500/80 font-mono mb-0.5">finding {i + 1}</div>
+            <div className="text-[9px] text-yellow-500/80 font-mono mb-0.5">finding {i + 1}</div>
             <div className={`text-slate-200 leading-snug ${compact ? "text-[11px]" : "text-[12px]"}`}>{line}</div>
           </div>
         ))}
@@ -460,24 +460,24 @@ function BrowserScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
     <WindowChrome
       title={scene.subtitle || "Public page"}
       live={scene.live} terminal={scene.terminal}
-      accent={contactHit ? "#34d399" : "#f59e0b"}
+      accent={contactHit ? "#eab308" : "#f59e0b"}
       compact={compact}
       favicon={<ProviderIcon kind="browser" size={compact ? 12 : 14} />}
       urlBar={url}
     >
       <div className="space-y-1.5">
         {contactHit && (
-          <div className="rounded-md border border-emerald-400/40 bg-emerald-500/10 px-2 py-1 text-[9px] font-mono uppercase tracking-[0.16em] text-emerald-300">
+          <div className="rounded-md border border-yellow-400/40 bg-yellow-500/10 px-2 py-1 text-[9px] font-mono uppercase tracking-[0.16em] text-yellow-200">
             Contact found · reachable vector
           </div>
         )}
         <div className="text-[9px] font-mono uppercase tracking-widest text-amber-400/80">On the page</div>
         <div className={`rounded-lg border p-2.5 font-mono text-[11px] leading-relaxed space-y-1 ${
-          contactHit ? "border-emerald-500/30 bg-[#0a1f18] text-slate-200" : "border-amber-500/20 bg-[#0f172a] text-slate-300"
+          contactHit ? "border-yellow-500/30 bg-[#1a1508] text-slate-200" : "border-amber-500/20 bg-[#0f172a] text-slate-300"
         }`}>
           {lines.map((l, i) => (
             <div key={i}>
-              {/@|mailto:/i.test(l) ? <span className="text-emerald-300 font-semibold">{l}</span> : l}
+              {/@|mailto:/i.test(l) ? <span className="text-yellow-200 font-semibold">{l}</span> : l}
             </div>
           ))}
         </div>
@@ -1057,12 +1057,12 @@ function MobileWorkstage({
                 <span className={`text-[8px] font-mono uppercase tracking-wider truncate ${i === safeIdx ? "text-slate-200" : "text-slate-400"}`}>{s.title}</span>
                 {s.live && (
                   <span
-                    className="ml-auto h-2 w-2 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]"
+                    className="ml-auto h-2 w-2 shrink-0 rounded-full bg-yellow-400 shadow-[0_0_8px_#eab308]"
                     aria-hidden
                   />
                 )}
                 {!s.live && s.terminal === "done" && (
-                  <span className="ml-auto text-[7px] font-mono font-bold uppercase tracking-wider text-emerald-400/80">done</span>
+                  <span className="ml-auto text-[7px] font-mono font-bold uppercase tracking-wider text-yellow-400/80">done</span>
                 )}
                 {!s.live && s.terminal === "failed" && (
                   <span className="ml-auto text-[7px] font-mono font-bold uppercase tracking-wider text-rose-400/80">fail</span>
@@ -1169,7 +1169,7 @@ export function BureauOpsStage({
                 <span className="text-[9px] font-mono text-slate-500">{i + 1}</span>
                 <ActivityGlyphMini kind={s.kind} live={s.live} terminal={s.terminal} />
                 <span className="text-[9px] font-mono text-slate-300 truncate">{s.title}</span>
-                {s.live && <span className="text-[8px] text-emerald-300 font-mono font-bold">LIVE</span>}
+                {s.live && <span className="text-[8px] text-yellow-200 font-mono font-bold">LIVE</span>}
               </div>
               <StoryLine story={s.story} className="text-[10px] text-slate-300 leading-snug" />
             </button>

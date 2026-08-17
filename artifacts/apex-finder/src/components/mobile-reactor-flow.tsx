@@ -303,7 +303,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
     : waitingForNextCycle
       ? "border-amber-400/30 bg-amber-400/10 text-amber-300"
       : atlasState?.runStatus === "done"
-        ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
+        ? "border-yellow-400/35 bg-yellow-400/10 text-yellow-200"
         : isLive
         ? "border-yellow-400/30 bg-yellow-400/10 text-yellow-300"
         : "border-lime-400/30 bg-lime-400/10 text-lime-300";
@@ -399,7 +399,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
         {(atlasState?.atlasTelemetry?.disposition === "contact_route_found"
           || (atlasState?.atlasTelemetry?.contacts != null && atlasState.atlasTelemetry.contacts > 0)) && (
           <div
-            className="reactor-reach mt-3 rounded-xl border px-3 py-2.5 shadow-[0_0_24px_rgba(52,211,153,0.18)]"
+            className="reactor-reach mt-3 rounded-xl border px-3 py-2.5 shadow-[0_0_24px_rgba(234,179,8,0.2)]"
             data-testid="card-reach-contact-found"
             data-settled={reachSettled ? "true" : "false"}
             role="status"
@@ -409,7 +409,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
             <div className="reactor-reach-label text-[10px] font-bold uppercase tracking-[0.16em]">
               {reachSettled ? "Contact route locked · REACH" : "Contact found · REACH"}
             </div>
-            <div className="mt-1 text-[13px] leading-snug text-emerald-50">
+            <div className="mt-1 text-[13px] leading-snug text-yellow-50">
               {atlasState?.atlasTelemetry?.resultSummary
                 || `${atlasState?.atlasTelemetry?.contacts} attributable vector(s)`}
             </div>
@@ -425,7 +425,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                 <a
                   href={href}
                   data-testid="link-reach-open-profile"
-                  className="reactor-pressable mt-2 inline-flex items-center gap-1.5 rounded-lg border border-emerald-400/40 bg-emerald-400/10 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-100 hover:border-emerald-300/60 hover:bg-emerald-400/15"
+                  className="reactor-pressable mt-2 inline-flex items-center gap-1.5 rounded-lg border border-yellow-400/35 bg-yellow-400/10 px-2.5 py-1.5 text-[11px] font-semibold text-yellow-100 hover:border-yellow-300/60 hover:bg-yellow-400/15"
                 >
                   Open in Profiles
                   <span className="font-mono text-[9px] opacity-70" aria-hidden>→</span>
@@ -433,7 +433,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
               );
             })()}
             <div className="mt-2 flex flex-wrap items-center gap-1.5" data-testid="reach-provenance">
-              <span className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-1.5 py-0.5 text-[8px] font-mono font-bold uppercase tracking-wider text-emerald-200/90">
+              <span className="rounded-full border border-yellow-400/25 bg-yellow-400/10 px-1.5 py-0.5 text-[8px] font-mono font-bold uppercase tracking-wider text-yellow-200/90">
                 attributable
               </span>
               <span className="rounded-full border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[8px] font-mono uppercase tracking-wider text-slate-400">
@@ -472,14 +472,14 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                 key={chip.k}
                 className={`rounded-lg border px-2 py-1 ${
                   chip.hot
-                    ? "border-emerald-400/30 bg-emerald-400/10"
+                    ? "border-yellow-400/30 bg-yellow-400/10"
                     : "border-white/10 bg-white/[0.03]"
                 }`}
               >
-                <div className={`text-[7px] font-mono uppercase tracking-wider ${chip.hot ? "text-emerald-300/80" : "text-slate-500"}`}>
+                <div className={`text-[7px] font-mono uppercase tracking-wider ${chip.hot ? "text-yellow-300/80" : "text-slate-500"}`}>
                   {chip.k}
                 </div>
-                <div className={`text-[11px] font-semibold tabular-nums capitalize ${chip.hot ? "text-emerald-50" : "text-slate-200"}`}>
+                <div className={`text-[11px] font-semibold tabular-nums capitalize ${chip.hot ? "text-yellow-50" : "text-slate-200"}`}>
                   {chip.v}
                 </div>
               </div>
@@ -499,7 +499,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
           style={{ animation: motionOrNone(`terminalIn ${REACTOR_UI_MS}ms var(--reactor-ease, cubic-bezier(0.22,1,0.36,1)) both`) }}
         >
           <div className="reactor-done-label text-[10px] font-bold uppercase">Run complete</div>
-          <div className="mt-1 text-[12px] leading-snug text-emerald-50/90">
+          <div className="mt-1 text-[12px] leading-snug text-yellow-50/90">
             {atlasState.detail || atlasState.phaseLabel || "Atlas finished this target. Review tools below or open History."}
           </div>
         </div>
@@ -534,10 +534,10 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
           ].filter((x) => x.v != null && x.v !== "").map((x) => (
             <div
               key={x.k}
-              className="min-w-[72px] flex-1 rounded-lg border border-emerald-400/25 bg-emerald-400/[0.06] px-2.5 py-1.5"
+              className="min-w-[72px] flex-1 rounded-lg border border-yellow-400/25 bg-yellow-400/[0.06] px-2.5 py-1.5"
             >
-              <div className="text-[8px] font-mono font-bold uppercase tracking-wider text-emerald-400/80">{x.k}</div>
-              <div className="mt-0.5 text-[13px] font-semibold tabular-nums text-emerald-50">{x.v}</div>
+              <div className="text-[8px] font-mono font-bold uppercase tracking-wider text-yellow-400/80">{x.k}</div>
+              <div className="mt-0.5 text-[13px] font-semibold tabular-nums text-yellow-50">{x.v}</div>
             </div>
           ))}
         </div>
