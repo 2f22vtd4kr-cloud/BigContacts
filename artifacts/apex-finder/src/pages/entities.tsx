@@ -244,7 +244,7 @@ function MobileEntityCard({
                 {formatEntityName(entity.name)}
               </div>
               {entity.linkedinHeadline && (
-                <div className="mt-0.5 text-[10px] text-stone-500 font-mono line-clamp-1" title={entity.linkedinHeadline}>
+                <div className="mt-0.5 text-[11px] text-stone-400 font-mono line-clamp-1" title={entity.linkedinHeadline}>
                   {entity.linkedinHeadline}
                 </div>
               )}
@@ -393,7 +393,7 @@ function MobileLedgerState({
   if (kind === "unavailable") {
     return (
       <div className="flex flex-col items-center justify-center gap-3 px-6 py-14 text-center text-muted-foreground">
-        <XCircle className="w-7 h-7 text-amber-400/80" aria-hidden="true" />
+        <XCircle className="w-7 h-7 text-[#eab308]" aria-hidden="true" />
         <div>
           <p className="text-sm font-semibold text-foreground">Profiles are temporarily unavailable</p>
           <p className="text-xs leading-relaxed mt-1.5 text-muted-foreground">
@@ -718,7 +718,7 @@ export default function EntityLedger() {
         {(hotOnly || anyContactFilter) && (
           <div className={cn(
             "flex items-center justify-between px-4 py-2 border-b text-xs font-mono flex-shrink-0",
-            hotOnly ? "bg-amber-500/10 border-amber-500/30 text-amber-400" : "bg-white/[0.04] border-[#2a2a2a] text-muted-foreground"
+            hotOnly ? "bg-[#eab308]/10 border-[#eab308]/35 text-[#fde047]" : "bg-white/[0.04] border-[#2a2a2a] text-muted-foreground"
           )}>
             <div className="flex items-center gap-2">
               <Filter className="w-3 h-3 shrink-0" />
@@ -878,7 +878,7 @@ export default function EntityLedger() {
               className="shrink-0 h-7 px-2.5 rounded-md text-[10px] font-mono border transition-all whitespace-nowrap"
               style={{
                 background: minConfidence === step ? "rgba(245,158,11,0.2)" : "rgba(15,23,42,0.55)",
-                color: minConfidence === step ? "#F59E0B" : "hsl(var(--muted-foreground))",
+                color: minConfidence === step ? "#eab308" : "hsl(var(--muted-foreground))",
                 borderColor: minConfidence === step ? "rgba(245,158,11,0.4)" : "hsl(var(--border))",
               }}
             >
@@ -1061,7 +1061,7 @@ export default function EntityLedger() {
                 return (
                   <tr key={entity.id} className={cn(
                     "group hover:bg-muted/20 transition-colors",
-                    entity.isHot && "bg-amber-500/5",
+                    entity.isHot && "bg-[#eab308]/5",
                     isSelected && "bg-primary/5 hover:bg-primary/8",
                   )}>
                     <td className="px-3 py-3 w-8">
@@ -1076,7 +1076,7 @@ export default function EntityLedger() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        {entity.isHot && <ShieldAlert className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />}
+                        {entity.isHot && <ShieldAlert className="w-3.5 h-3.5 text-[#eab308] flex-shrink-0" />}
                         {entity.cookedAt && (
                           <span title={`Fully cooked — all enrichment phases complete (${new Date(entity.cookedAt).toLocaleDateString()})`}>
                             <CheckCircle2 className="w-3.5 h-3.5 text-[#eab308] flex-shrink-0" />
@@ -1171,9 +1171,9 @@ export default function EntityLedger() {
                           onClick={() => handleToggleStar(entity)}
                           className="p-1.5 transition-colors"
                           title={entity.isStarred ? "Unstar" : "Star"}
-                          style={{ color: entity.isStarred ? "#F59E0B" : undefined }}
+                          style={{ color: entity.isStarred ? "#eab308" : undefined }}
                         >
-                          <Star className={cn("w-3.5 h-3.5", entity.isStarred ? "fill-amber-400 text-amber-400" : "text-muted-foreground hover:text-amber-400")} />
+                          <Star className={cn("w-3.5 h-3.5", entity.isStarred ? "fill-[#eab308] text-[#eab308]" : "text-muted-foreground hover:text-[#fde047]")} />
                         </button>
                         <button
                           onClick={() => handleToggleHide(entity)}
@@ -1259,7 +1259,7 @@ export default function EntityLedger() {
         {(hotOnly || anyContactFilter) && (
           <div className={cn(
             "flex items-center justify-between px-3 py-2 border-b text-xs font-mono flex-shrink-0",
-            hotOnly ? "bg-amber-500/10 border-amber-500/30 text-amber-400" : "bg-white/[0.04] border-[#2a2a2a] text-muted-foreground"
+            hotOnly ? "bg-[#eab308]/10 border-[#eab308]/35 text-[#fde047]" : "bg-white/[0.04] border-[#2a2a2a] text-muted-foreground"
           )}>
             <span className="font-bold uppercase tracking-wider truncate">
               {hotOnly ? "Hot Leads only"
@@ -1293,7 +1293,7 @@ export default function EntityLedger() {
           <div className="atlas-h-scroll flex items-center gap-1.5 px-3 py-2 pr-10 border-b border-[#eab308]/10 overflow-x-auto overscroll-x-contain touch-pan-x" style={{ scrollbarWidth: "thin" }}>
             {([
               { mode: "all",     label: "All",     color: "#eab308" },
-              { mode: "starred", label: "★ Starred", color: "#F59E0B" },
+              { mode: "starred", label: "★ Starred", color: "#eab308" },
               { mode: "hidden",  label: "◌ Hidden",  color: "#9CA3AF" },
             ] as const).map(({ mode, label, color }) => (
               <button
@@ -1333,7 +1333,7 @@ export default function EntityLedger() {
               onClick={() => setHotOnly(!hotOnly)}
               className={cn(
                 "inline-flex shrink-0 h-8 items-center justify-center gap-1 px-3 rounded-lg text-[11px] font-mono border transition-colors",
-                hotOnly ? "bg-amber-500/15 text-amber-300 border-amber-500/40" : "bg-card text-muted-foreground border-[#eab308]/12"
+                hotOnly ? "bg-[#eab308]/15 text-[#fde047] border-[#eab308]/40" : "bg-card text-muted-foreground border-[#eab308]/12"
               )}
               aria-pressed={hotOnly}
               title="Show priority leads only"
@@ -1369,7 +1369,7 @@ export default function EntityLedger() {
                 className="shrink-0 h-7 px-2.5 rounded text-[10px] font-mono border transition-colors"
                 style={{
                   background: minConfidence === step ? "rgba(245,158,11,0.22)" : "rgba(15,23,42,0.6)",
-                  color: minConfidence === step ? "#F59E0B" : "hsl(var(--muted-foreground))",
+                  color: minConfidence === step ? "#eab308" : "hsl(var(--muted-foreground))",
                   borderColor: minConfidence === step ? "rgba(245,158,11,0.4)" : "hsl(var(--border))",
                 }}
               >

@@ -147,7 +147,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </nav>
 
       <div className="border-t border-white/[0.04] px-5 py-4">
-        <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground/60">
+        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground/60">
           <span className="h-1.5 w-1.5 rounded-full bg-primary" />
           Public records workspace
         </div>

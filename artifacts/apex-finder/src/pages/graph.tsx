@@ -248,7 +248,7 @@ export default function GraphViewer() {
   function nodeColor(node: any): string {
     if (node.isTarget) return "hsl(160, 84%, 39%)";
     const t: string = node.nodeType ?? "";
-    if (t === "HNWI") return "hsl(160, 55%, 24%)";
+    if (t === "HNWI") return "hsl(45, 90%, 45%)";
     if (t === "Corporation" || t === "Corp") return "hsl(217, 80%, 52%)";
     if (t === "Trust") return "hsl(270, 65%, 45%)";
     if (t === "Gatekeeper") return "hsl(38, 90%, 45%)";
@@ -270,7 +270,7 @@ export default function GraphViewer() {
     // Text color by node type
     const _nt: string = node.nodeType ?? "";
     const color = node.isTarget                              ? "#eab308"
-      : _nt === "HNWI"                                      ? "#6ee7b7"
+      : _nt === "HNWI"                                      ? "#eab308"
       : (_nt === "Corporation" || _nt === "Corp")           ? "#93c5fd"
       : _nt === "Trust"                                     ? "#c4b5fd"
       : _nt === "Gatekeeper"                                ? "#fcd34d"

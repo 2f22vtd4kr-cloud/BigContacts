@@ -54,7 +54,7 @@ function scoreColor(score: number) {
 
 function typeColor(type: string) {
   switch (type) {
-    case "HNWI": return "bg-blue-500/20 text-blue-300";
+    case "HNWI": return "bg-[#eab308]/15 text-[#fde047]";
     case "Corporation": return "bg-purple-500/20 text-purple-300";
     case "Trust": return "bg-amber-500/20 text-amber-300";
     case "Gatekeeper": return "bg-[#eab308]/20 text-[#fde047]";
