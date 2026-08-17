@@ -121,7 +121,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         )}
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-3 py-6">
+      <nav className="atlas-scroll flex-1 overflow-y-auto px-3 py-6">
         <div className="mb-2 px-3 font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground/50">Research desk</div>
         <div className="space-y-1">
           {mainNav.map((item) => <NavLink key={item.href} item={item} />)}
