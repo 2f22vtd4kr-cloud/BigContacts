@@ -49,7 +49,7 @@ async function clearGhostJobs(): Promise<void> {
       if (job?.status === "running" || job?.status === "queued") {
         await updateJob(jobId, {
           status: "failed",
-          message: "Process was killed before the job completed — restart job to continue.",
+          message: "Research job stopped before it finished (server restarted or process ended). Tap Launch Atlas or refresh to start again.",
           finishedAt: new Date().toISOString(),
         });
         await clearActiveJob(type);

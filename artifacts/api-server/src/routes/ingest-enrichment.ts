@@ -468,7 +468,7 @@ router.delete("/ingest/web-osint-lock", async (_req: Request, res: Response): Pr
   if (!jobId) { res.json({ cleared: false, message: "No active web-osint lock found." }); return; }
   await updateJob(jobId, {
     status: "failed",
-    message: "Process was killed (server restart). Clear the lock and restart.",
+    message: "Research job stopped (server restart). Clear the lock and launch again.",
     finishedAt: new Date().toISOString(),
   } as any);
   await setActiveJob("web-osint", "");
@@ -993,7 +993,7 @@ router.post("/ingest/hunter-enrich", async (_req: Request, res: Response): Promi
 router.delete("/ingest/hunter-enrich-lock", async (_req: Request, res: Response): Promise<void> => {
   const jobId = await getActiveJob("hunter-enrich");
   if (!jobId) { res.json({ cleared: false, message: "No active hunter-enrich lock." }); return; }
-  await updateJob(jobId, { status: "failed", message: "Process killed (server restart).", finishedAt: new Date().toISOString() } as any);
+  await updateJob(jobId, { status: "failed", message: "Job stopped — server restarted.", finishedAt: new Date().toISOString() } as any);
   await setActiveJob("hunter-enrich", "");
   res.json({ cleared: true, jobId });
 });
@@ -1099,7 +1099,7 @@ router.post("/ingest/social-discovery", async (req: Request, res: Response): Pro
 router.delete("/ingest/social-discovery-lock", async (_req: Request, res: Response): Promise<void> => {
   const jobId = await getActiveJob("social-discovery");
   if (!jobId) { res.json({ cleared: false, message: "No active social-discovery lock." }); return; }
-  await updateJob(jobId, { status: "failed", message: "Process killed (server restart).", finishedAt: new Date().toISOString() } as any);
+  await updateJob(jobId, { status: "failed", message: "Job stopped — server restarted.", finishedAt: new Date().toISOString() } as any);
   await setActiveJob("social-discovery", "");
   res.json({ cleared: true, jobId });
 });
@@ -1184,7 +1184,7 @@ router.post("/ingest/messenger-discovery", async (req: Request, res: Response): 
 router.delete("/ingest/messenger-discovery-lock", async (_req: Request, res: Response): Promise<void> => {
   const jobId = await getActiveJob("messenger-discovery");
   if (!jobId) { res.json({ cleared: false, message: "No active messenger-discovery lock." }); return; }
-  await updateJob(jobId, { status: "failed", message: "Process killed (server restart).", finishedAt: new Date().toISOString() } as any);
+  await updateJob(jobId, { status: "failed", message: "Job stopped — server restarted.", finishedAt: new Date().toISOString() } as any);
   await setActiveJob("messenger-discovery", "");
   res.json({ cleared: true, jobId });
 });
@@ -1278,7 +1278,7 @@ router.post("/ingest/foundation-filings", async (req: Request, res: Response): P
 router.delete("/ingest/foundation-filings-lock", async (_req: Request, res: Response): Promise<void> => {
   const jobId = await getActiveJob("foundation-filings");
   if (!jobId) { res.json({ cleared: false, message: "No active foundation-filings lock." }); return; }
-  await updateJob(jobId, { status: "failed", message: "Process killed (server restart).", finishedAt: new Date().toISOString() } as any);
+  await updateJob(jobId, { status: "failed", message: "Job stopped — server restarted.", finishedAt: new Date().toISOString() } as any);
   await setActiveJob("foundation-filings", "");
   res.json({ cleared: true, jobId });
 });
@@ -1319,7 +1319,7 @@ router.post("/ingest/broad-discovery", async (req: Request, res: Response): Prom
 router.delete("/ingest/broad-discovery-lock", async (_req: Request, res: Response): Promise<void> => {
   const jobId = await getActiveJob("broad-discovery");
   if (!jobId) { res.json({ cleared: false, message: "No active broad-discovery lock." }); return; }
-  await updateJob(jobId, { status: "failed", message: "Process killed (server restart).", finishedAt: new Date().toISOString() } as any);
+  await updateJob(jobId, { status: "failed", message: "Job stopped — server restarted.", finishedAt: new Date().toISOString() } as any);
   await setActiveJob("broad-discovery", "");
   res.json({ cleared: true, jobId });
 });

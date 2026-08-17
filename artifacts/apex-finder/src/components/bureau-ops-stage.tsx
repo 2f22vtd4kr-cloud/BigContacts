@@ -493,7 +493,7 @@ function PromptScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
     <WindowChrome
       title={`${providerLabel(scene.provider)} · prompt`}
       live={scene.live} terminal={scene.terminal}
-      accent="#a3e635"
+      accent="#facc15"
       compact={compact}
       favicon={<ProviderIcon kind={scene.provider} size={compact ? 12 : 14} />}
     >
@@ -540,22 +540,22 @@ function SerpScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
       urlBar={`search · ${q.slice(0, 40)}`}
     >
       <div className="space-y-3">
-        <div className="flex items-center gap-2 rounded-full border border-sky-500/30 bg-[#0c1929] px-3 py-2.5">
+        <div className="flex items-center gap-2 rounded-full border border-yellow-500/30 bg-[#0a0a0a] px-3 py-2.5">
           <ProviderIcon kind={scene.provider} size={16} />
-          <span className="min-w-0 flex-1 truncate text-[13px] text-sky-50">
+          <span className="min-w-0 flex-1 truncate text-[13px] text-yellow-50">
             {typed}
             {scene.live && typed.length < q.length && (
-              <span className="ml-0.5 inline-block h-3.5 w-0.5 animate-pulse bg-sky-200 align-middle" />
+              <span className="ml-0.5 inline-block h-3.5 w-0.5 animate-pulse bg-yellow-200 align-middle" />
             )}
           </span>
-          <span className="shrink-0 rounded-full bg-sky-500/20 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-sky-300">
+          <span className="shrink-0 rounded-full bg-yellow-500/20 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-yellow-300">
             Search
           </span>
         </div>
         <div className="space-y-2">
           {hits.slice(0, compact ? 3 : 4).map((l, i) => (
             <div key={i} className="rounded-lg border border-white/5 bg-[#0b1220] px-3 py-2">
-              <div className="mb-0.5 text-[9px] font-mono text-sky-500/80">finding {i + 1}</div>
+              <div className="mb-0.5 text-[9px] font-mono text-yellow-500/80">finding {i + 1}</div>
               <div className="text-[12px] leading-snug text-slate-200">{l}</div>
             </div>
           ))}
@@ -574,7 +574,7 @@ function FootprintScene({ scene, compact }: { scene: Scene; compact?: boolean })
       compact={compact}
       favicon={<ProviderIcon kind="sherlock" size={compact ? 12 : 14} />}
     >
-      <div className={`font-mono text-violet-100/90 space-y-1 ${compact ? "text-[10px]" : "text-[11px]"}`}>
+      <div className={`font-mono text-yellow-100/90 space-y-1 ${compact ? "text-[10px]" : "text-[11px]"}`}>
         {(scene.resultLines.length ? scene.resultLines : ["Checking public profiles and sites…"]).map((l, i) => (
           <div key={i}>{"\u25B8"} {l}</div>
         ))}
@@ -884,7 +884,7 @@ function MobileWorkstage({
             style={{
               width: `${((safeIdx + 1) / Math.max(scenes.length, 1)) * 100}%`,
               background: scene.live
-                ? "linear-gradient(90deg,#eab308,#a3e635)"
+                ? "linear-gradient(90deg,#eab308,#facc15)"
                 : "#475569",
               boxShadow: scene.live ? "0 0 10px rgba(234,179,8,0.45)" : undefined,
               transition: `width ${REACTOR_UI_MS * 2}ms ease-out`,

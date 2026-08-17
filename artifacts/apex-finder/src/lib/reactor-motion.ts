@@ -27,7 +27,7 @@ export const REACTOR_CSS = `
   --reactor-pause: ${REACTOR_PAUSE_MS}ms;
   --reactor-shimmer: ${REACTOR_SHIMMER_MS}ms;
   --reactor-ease: ${REACTOR_EASE};
-  --reactor-cyan: #eab308;
+  --reactor-yellow: #eab308;
   --reactor-lime: #a3e635;
   --reactor-emerald: #34d399;
   --reactor-canvas: #0b1120;
@@ -44,7 +44,7 @@ button:focus-visible,
 a:focus-visible,
 input:focus-visible,
 [tabindex="0"]:focus-visible {
-  outline: 2px solid var(--reactor-cyan);
+  outline: 2px solid var(--reactor-yellow);
   outline-offset: 2px;
 }
 .reactor-reach {
@@ -56,7 +56,7 @@ input:focus-visible,
 .reactor-reach-label { color: #a7f3d0; letter-spacing: 0.16em; }
 .reactor-live-label { color: #a5f3fc; text-shadow: 0 0 12px rgba(234, 179, 8, 0.45); }
 [data-testid="mobile-workstage-swipe"]:focus-visible {
-  outline: 2px solid var(--reactor-cyan);
+  outline: 2px solid var(--reactor-yellow);
   outline-offset: 3px;
 }
 @keyframes reactorShimmer { 0% { transform: translateX(-120%); } 100% { transform: translateX(220%); } }
