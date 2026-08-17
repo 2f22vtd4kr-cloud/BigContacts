@@ -78,7 +78,7 @@ input:focus-visible,
   100% { box-shadow: 0 0 20px rgba(234, 179, 8, 0.16), inset 0 1px 0 rgba(253, 224, 71, 0.1); }
 }
 .reactor-reach[data-settled="true"] {
-  animation: reachSettle 600ms var(--reactor-ease, cubic-bezier(0.22,1,0.36,1)) both;
+  animation: reachSettle 520ms var(--reactor-ease, cubic-bezier(0.22,1,0.36,1)) both;
 }
 .reactor-done-label { color: #fde047; letter-spacing: 0.14em; text-shadow: 0 0 10px rgba(234, 179, 8, 0.35); }
 .reactor-fail-label { color: #fecdd3; letter-spacing: 0.14em; }
