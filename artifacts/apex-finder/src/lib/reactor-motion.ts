@@ -42,7 +42,7 @@ a:focus-visible,
 input:focus-visible,
 [tabindex="0"]:focus-visible {
   outline: 2px solid var(--reactor-yellow);
-  outline-offset: 2px;
+  outline-offset: 3px;
 }
 .reactor-reach {
   border-color: rgba(240, 180, 41, 0.58);
