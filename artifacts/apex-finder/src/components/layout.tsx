@@ -216,10 +216,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </div>
           </div>
           <div className="ml-auto flex min-w-0 items-center justify-end gap-1.5 sm:gap-2">
-            <LaunchAtlasButton
-              variant="header"
-              className="!h-8 !shrink-0 !px-2 !text-[10px] sm:!h-9 sm:!px-3 sm:!text-[11px]"
-            />
+            {/* Overview hero + Reactor desk own primary Launch — no header duplicate */}
+            {location !== "/" && !isReactorRoute && (
+              <LaunchAtlasButton
+                variant="header"
+                className="!h-8 !shrink-0 !px-2 !text-[10px] sm:!h-9 sm:!px-3 sm:!text-[11px]"
+              />
+            )}
             <div className="hidden min-[480px]:block">
               <WorkspaceStatus />
             </div>
