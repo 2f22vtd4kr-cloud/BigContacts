@@ -120,7 +120,7 @@ function SlotBar({ slots }: { slots: AIKeySlot[] }) {
           className={cn(
             "h-full flex-1 border-r border-background/40 last:border-r-0 transition-colors",
             slot.state === "active" && "bg-yellow-400 shadow-[0_0_8px_rgba(234,179,8,0.45)]",
-            slot.state === "rate_limited" && "bg-amber-400/90 animate-pulse",
+            slot.state === "rate_limited" && "bg-[#eab308]/90 animate-pulse",
             slot.state === "missing" && "bg-muted/50",
           )}
         />
@@ -141,7 +141,7 @@ function ProviderCard({ name, slots }: { name: keyof AIKeyStatus; slots: AIKeySl
     active > 0
       ? "border-yellow-400/25 bg-gradient-to-br from-yellow-500/[0.07] via-[#0c0c0c] to-[#0a0a0a]"
       : rateLimited > 0
-        ? "border-amber-400/25 bg-gradient-to-br from-amber-500/[0.07] via-[#0c0c0c] to-[#0a0a0a]"
+        ? "border-[#eab308]/25 bg-gradient-to-br from-[#eab308]/[0.07] via-[#0c0c0c] to-[#0a0a0a]"
         : "border-[#eab308]/12 bg-card/30";
 
   return (
@@ -169,7 +169,7 @@ function ProviderCard({ name, slots }: { name: keyof AIKeyStatus; slots: AIKeySl
             active > 0
               ? "border-yellow-400/35 bg-yellow-400/10 text-yellow-200"
               : rateLimited > 0
-                ? "border-amber-400/35 bg-amber-400/10 text-amber-200"
+                ? "border-[#eab308]/35 bg-[#eab308]/10 text-[#fde047]"
                 : "border-[#eab308]/10 bg-muted/20 text-muted-foreground",
           )}
         >
@@ -182,7 +182,7 @@ function ProviderCard({ name, slots }: { name: keyof AIKeyStatus; slots: AIKeySl
         <div className="flex items-center justify-between gap-2 font-mono text-[10px] text-muted-foreground">
           <span className="text-yellow-300/90">{Math.round(health * 100)}% capacity</span>
           <span className="truncate text-right">
-            {rateLimited > 0 && <span className="text-amber-300/90">{rateLimited} cooling · </span>}
+            {rateLimited > 0 && <span className="text-[#fde047]/90">{rateLimited} cooling · </span>}
             {missing > 0 && <span className="text-muted-foreground/55">{missing} open</span>}
             {missing === 0 && rateLimited === 0 && active > 0 && (
               <span className="text-[#fde047]/80">all clear</span>
@@ -368,7 +368,7 @@ export default function SystemStatusPage() {
             status?.openResearch?.state === "ready"
               ? "bg-primary/15 text-primary"
               : status?.openResearch?.state === "incomplete"
-                ? "bg-amber-500/15 text-amber-400"
+                ? "bg-[#eab308]/15 text-[#eab308]"
                 : "bg-muted/30 text-muted-foreground",
           )}>
             {OPEN_RESEARCH_LABELS[status?.openResearch?.state ?? "unavailable"]}
@@ -492,7 +492,7 @@ export default function SystemStatusPage() {
                 className={cn(
                   "rounded-lg border px-3 py-3 text-center",
                   slot.quotaExhausted
-                    ? "border-amber-500/30 bg-amber-500/5"
+                    ? "border-[#eab308]/30 bg-[#eab308]/5"
                     : slot.status === "ready"
                     ? "border-primary/30 bg-primary/5"
                     : "border-[#eab308]/10 bg-muted/10",
@@ -503,14 +503,14 @@ export default function SystemStatusPage() {
                 </div>
                 <div className="flex items-center justify-center gap-1.5">
                   {slot.quotaExhausted
-                    ? <WifiOff className="h-3.5 w-3.5 text-amber-400" />
+                    ? <WifiOff className="h-3.5 w-3.5 text-[#eab308]" />
                     : slot.status === "ready"
                     ? <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
                     : <Clock className="h-3.5 w-3.5 text-muted-foreground" />
                   }
                   <span className={cn(
                     "font-mono text-[10px] font-bold uppercase",
-                    slot.quotaExhausted ? "text-amber-400" :
+                    slot.quotaExhausted ? "text-[#eab308]" :
                     slot.status === "ready" ? "text-primary" : "text-muted-foreground",
                   )}>
                     {slot.quotaExhausted ? "quota" : slot.status}

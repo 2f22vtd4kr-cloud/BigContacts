@@ -262,10 +262,10 @@ export default function Dashboard() {
         <div
           role="status"
           data-testid="banner-registry-shallow-risk"
-          className="mt-4 flex flex-col gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100 sm:flex-row sm:items-center sm:justify-between"
+          className="mt-4 flex flex-col gap-2 rounded-xl border border-[#eab308]/30 bg-[#eab308]/10 px-4 py-3 text-sm text-[#fef3c7] sm:flex-row sm:items-center sm:justify-between"
         >
           <div className="flex items-start gap-2">
-            <CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+            <CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-[#fde047]" />
             <p className="text-[13px] leading-5">
               <span className="font-semibold">Registry-shallow risk.</span>{" "}
               No active web-search provider slots — discovery may stay filings-only until keys are live and the API is restarted.
@@ -273,7 +273,7 @@ export default function Dashboard() {
           </div>
           <Link
             href="/status"
-            className="inline-flex h-9 shrink-0 items-center justify-center rounded-lg border border-amber-400/40 bg-amber-400/10 px-3 text-xs font-semibold text-amber-50 hover:bg-amber-400/20"
+            className="inline-flex h-9 shrink-0 items-center justify-center rounded-lg border border-[#eab308]/40 bg-[#eab308]/10 px-3 text-xs font-semibold text-[#fef3c7] hover:bg-[#eab308]/20"
           >
             Open system status
           </Link>
