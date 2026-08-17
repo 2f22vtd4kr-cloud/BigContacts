@@ -49,14 +49,14 @@ const STATE_COPY: Record<WorkspaceState, {
   "researching-degraded": {
     label: "ATLAS ACTIVE",
     detail: "Research is running; some tools are temporarily limited.",
-    className: "text-amber-300",
-    dotClassName: "bg-amber-300 shadow-[0_0_8px_rgba(252,211,77,0.55)]",
+    className: "text-[#fde047]",
+    dotClassName: "bg-[#eab308] shadow-[0_0_8px_rgba(234,179,8,0.55)]",
   },
   queued: {
     label: "ATLAS STANDBY",
     detail: "Next research cycle is queued.",
-    className: "text-amber-300",
-    dotClassName: "bg-amber-300 shadow-[0_0_8px_rgba(252,211,77,0.55)]",
+    className: "text-[#fde047]",
+    dotClassName: "bg-[#eab308] shadow-[0_0_8px_rgba(234,179,8,0.55)]",
   },
   ready: {
     label: "WORKSPACE READY",
@@ -67,8 +67,8 @@ const STATE_COPY: Record<WorkspaceState, {
   degraded: {
     label: "WORKSPACE DEGRADED",
     detail: "App is up, but one or more research services need attention.",
-    className: "text-amber-300",
-    dotClassName: "bg-amber-300 shadow-[0_0_8px_rgba(252,211,77,0.55)]",
+    className: "text-[#fde047]",
+    dotClassName: "bg-[#eab308] shadow-[0_0_8px_rgba(234,179,8,0.55)]",
   },
   offline: {
     label: "WORKSPACE OFFLINE",
@@ -230,7 +230,7 @@ export function WorkspaceStatus() {
         className={cn(
           "group flex h-8 max-w-[9.5rem] items-center gap-1.5 rounded-lg border px-1.5 transition-colors sm:h-9 sm:max-w-[230px] sm:gap-2 sm:px-3",
           "border-border/70 bg-background/70 hover:border-primary/40 hover:bg-muted/50",
-          (state === "degraded" || state === "researching-degraded" || state === "offline") && "border-amber-500/30",
+          (state === "degraded" || state === "researching-degraded" || state === "offline") && "border-[#eab308]/30",
         )}
       >
         <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", copy.dotClassName, state === "researching" && "animate-pulse")} />
@@ -276,7 +276,7 @@ export function WorkspaceStatus() {
             <div className="rounded-lg border border-border/60 bg-background/70 px-3 py-2.5">
               <div className="flex items-center justify-between gap-3">
                 <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground/60">Research engine</span>
-                  <span className={cn("font-mono text-[10px] font-bold", active ? (providerDegraded ? "text-amber-300" : "text-yellow-300") : schedulerEnabled ? "text-amber-300" : "text-muted-foreground")}>
+                  <span className={cn("font-mono text-[10px] font-bold", active ? (providerDegraded ? "text-[#fde047]" : "text-yellow-300") : schedulerEnabled ? "text-[#fde047]" : "text-muted-foreground")}>
                   {active ? (providerDegraded ? "ACTIVE · PARTIAL COVERAGE" : "DISCOVERING + ENRICHING") : schedulerEnabled ? "QUEUED" : "READY"}
                 </span>
               </div>
@@ -288,13 +288,13 @@ export function WorkspaceStatus() {
             <div className="grid grid-cols-2 gap-2">
               <div className="rounded-lg border border-border/60 px-3 py-2">
                 <div className="font-mono text-[9px] uppercase tracking-widest text-muted-foreground/55">Services</div>
-                <div className={cn("mt-1 font-mono text-[11px] font-bold", servicesHealthy ? "text-primary" : "text-amber-300")}>
+                <div className={cn("mt-1 font-mono text-[11px] font-bold", servicesHealthy ? "text-primary" : "text-[#fde047]")}>
                   {servicesHealthy ? "API · DB · REDIS OK" : "ATTENTION NEEDED"}
                 </div>
               </div>
               <div className="rounded-lg border border-border/60 px-3 py-2">
                 <div className="font-mono text-[9px] uppercase tracking-widest text-muted-foreground/55">AI capacity</div>
-                <div className={cn("mt-1 font-mono text-[11px] font-bold", summary.active > 0 ? "text-primary" : "text-amber-300")}>
+                <div className={cn("mt-1 font-mono text-[11px] font-bold", summary.active > 0 ? "text-primary" : "text-[#fde047]")}>
                   WEB {summary.active}/{summary.configured || "—"}
                 </div>
               </div>
@@ -302,7 +302,7 @@ export function WorkspaceStatus() {
             <div className="rounded-lg border border-border/60 bg-background/70 px-3 py-2.5">
               <div className="flex items-center justify-between gap-3">
                 <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground/60">Database / persistence</span>
-                <span className={cn("font-mono text-[10px] font-bold", servicesHealthy ? "text-primary" : "text-amber-300")}>
+                <span className={cn("font-mono text-[10px] font-bold", servicesHealthy ? "text-primary" : "text-[#fde047]")}>
                   {databaseState}
                 </span>
               </div>

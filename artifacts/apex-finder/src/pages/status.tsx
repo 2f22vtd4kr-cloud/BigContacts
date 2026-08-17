@@ -92,10 +92,10 @@ const OPEN_RESEARCH_LABELS = {
 } as const;
 
 const PROVIDER_COLORS: Record<string, string> = {
-  groq:       "from-orange-500/20 border-orange-500/30",
-  perplexity: "from-blue-500/20 border-blue-500/30",
-  gemini:     "from-purple-500/20 border-purple-500/30",
-  tavily:     "from-yellow-500/20 border-yellow-500/30",
+  groq:       "from-[#eab308]/15 border-[#eab308]/30",
+  perplexity: "from-[#eab308]/12 border-[#eab308]/28",
+  gemini:     "from-[#ca8a04]/15 border-[#ca8a04]/30",
+  tavily:     "from-[#facc15]/15 border-[#facc15]/30",
   exa:        "from-[#eab308]/20 border-[#eab308]/30",
 };
 
@@ -119,7 +119,7 @@ function SlotBar({ slots }: { slots: AIKeySlot[] }) {
           title={`Slot ${slot.index + 1}: ${slot.state}${slot.expiresAt ? ` · resets ${new Date(slot.expiresAt).toLocaleTimeString()}` : ""}`}
           className={cn(
             "h-full flex-1 border-r border-background/40 last:border-r-0 transition-colors",
-            slot.state === "active" && "bg-yellow-400 shadow-[0_0_8px_rgba(234,179,8,0.45)]",
+            slot.state === "active" && "bg-[#eab308] shadow-[0_0_8px_rgba(234,179,8,0.45)]",
             slot.state === "rate_limited" && "bg-[#eab308]/90 animate-pulse",
             slot.state === "missing" && "bg-muted/50",
           )}
@@ -139,7 +139,7 @@ function ProviderCard({ name, slots }: { name: keyof AIKeyStatus; slots: AIKeySl
 
   const tone =
     active > 0
-      ? "border-yellow-400/25 bg-gradient-to-br from-yellow-500/[0.07] via-[#0c0c0c] to-[#0a0a0a]"
+      ? "border-[#eab308]/25 bg-gradient-to-br from-yellow-500/[0.07] via-[#0c0c0c] to-[#0a0a0a]"
       : rateLimited > 0
         ? "border-[#eab308]/25 bg-gradient-to-br from-[#eab308]/[0.07] via-[#0c0c0c] to-[#0a0a0a]"
         : "border-[#eab308]/12 bg-card/30";
@@ -147,13 +147,13 @@ function ProviderCard({ name, slots }: { name: keyof AIKeyStatus; slots: AIKeySl
   return (
     <article
       className={cn(
-        "group relative overflow-hidden rounded-2xl border border-[#2a2a2a] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-sm transition-all hover:border-yellow-400/30 hover:shadow-[0_0_24px_rgba(234,179,8,0.06)]",
+        "group relative overflow-hidden rounded-2xl border border-[#2a2a2a] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-sm transition-all hover:border-[#eab308]/30 hover:shadow-[0_0_24px_rgba(234,179,8,0.06)]",
         tone,
         configured === 0 && "opacity-55",
       )}
       data-testid={`provider-card-${name}`}
     >
-      <div className="pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full bg-yellow-400/5 blur-2xl transition-opacity group-hover:opacity-100" />
+      <div className="pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full bg-[#eab308]/5 blur-2xl transition-opacity group-hover:opacity-100" />
       <div className="relative flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="font-display text-[13px] font-semibold tracking-tight text-foreground">
@@ -167,7 +167,7 @@ function ProviderCard({ name, slots }: { name: keyof AIKeyStatus; slots: AIKeySl
           className={cn(
             "shrink-0 rounded-md border px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.12em]",
             active > 0
-              ? "border-yellow-400/35 bg-yellow-400/10 text-yellow-200"
+              ? "border-[#eab308]/35 bg-[#eab308]/10 text-[#fde047]"
               : rateLimited > 0
                 ? "border-[#eab308]/35 bg-[#eab308]/10 text-[#fde047]"
                 : "border-[#eab308]/10 bg-muted/20 text-muted-foreground",
@@ -180,7 +180,7 @@ function ProviderCard({ name, slots }: { name: keyof AIKeyStatus; slots: AIKeySl
       <div className="relative mt-4 space-y-2">
         <SlotBar slots={slots} />
         <div className="flex items-center justify-between gap-2 font-mono text-[10px] text-muted-foreground">
-          <span className="text-yellow-300/90">{Math.round(health * 100)}% capacity</span>
+          <span className="text-[#fde047]/90">{Math.round(health * 100)}% capacity</span>
           <span className="truncate text-right">
             {rateLimited > 0 && <span className="text-[#fde047]/90">{rateLimited} cooling · </span>}
             {missing > 0 && <span className="text-muted-foreground/55">{missing} open</span>}
@@ -276,8 +276,8 @@ export default function SystemStatusPage() {
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <p className="max-w-lg text-[12px] leading-relaxed text-muted-foreground">
-            Provider keys, databases, and cooldown state for the research desk.
+          <p className="max-w-lg text-[13px] leading-relaxed text-stone-400">
+            AI search pools, Redis, and database health. Other tools (Scrapfly, Companies House, etc.) show under research lanes below — not in the five pool rows.
           </p>
         </div>
         <div className="flex items-center gap-3 shrink-0">
@@ -301,18 +301,18 @@ export default function SystemStatusPage() {
         <div className={cn(
           "flex flex-col gap-2 rounded-2xl border px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5",
           totalActive > 0
-            ? "border-yellow-400/25 bg-gradient-to-r from-yellow-500/[0.08] to-transparent"
+            ? "border-[#eab308]/25 bg-gradient-to-r from-yellow-500/[0.08] to-transparent"
             : "border-destructive/30 bg-destructive/5",
         )}>
           <div className="flex items-center gap-3">
             <div className={cn(
               "h-2 w-2 rounded-full",
-              totalActive > 0 ? "bg-yellow-400 shadow-[0_0_8px_rgba(234,179,8,0.7)]" : "bg-destructive",
+              totalActive > 0 ? "bg-[#eab308] shadow-[0_0_8px_rgba(234,179,8,0.7)]" : "bg-destructive",
             )} />
-            <span className="text-[13px] font-semibold tracking-tight text-foreground">
+            <span className="text-[13px] font-semibold tracking-tight text-stone-100">
               {totalActive > 0
-                ? `${totalActive} AI pool slot${totalActive === 1 ? "" : "s"} live`
-                : "No AI pool keys live"}
+                ? `${totalActive} AI pool slot${totalActive === 1 ? "" : "s"} live (Groq · Perplexity · Gemini · Tavily · Exa)`
+                : "No AI pool keys live — check Secrets and restart API"}
             </span>
           </div>
           <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
@@ -385,7 +385,7 @@ export default function SystemStatusPage() {
               className={cn(
                 "flex items-center justify-between gap-3 rounded-2xl border px-4 py-3.5 transition-colors",
                 item.configured
-                  ? "border-yellow-400/20 bg-yellow-500/[0.06]"
+                  ? "border-[#eab308]/20 bg-yellow-500/[0.06]"
                   : "border-[#eab308]/10 bg-card/25",
               )}
             >
@@ -531,7 +531,7 @@ export default function SystemStatusPage() {
           <div className="h-3 w-3 rounded-full bg-primary" /> Active — key operational
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="h-3 w-3 rounded-full bg-amber-500" /> Temporary cooldown — provider returned 429 (auto-recovers)
+          <div className="h-3 w-3 rounded-full bg-[#eab308]" /> Temporary cooldown — provider returned 429 (auto-recovers)
         </div>
         <div className="flex items-center gap-1.5">
           <div className="h-3 w-3 rounded-full border border-muted/50 bg-muted/20" /> Missing — secret not configured
