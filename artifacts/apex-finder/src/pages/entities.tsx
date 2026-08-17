@@ -421,7 +421,7 @@ function MobileLedgerState({
             : "Clear a filter, or use Launch Apex Atlas to research people and companies into this ledger."}
         </p>
       </div>
-      <div className="flex flex-wrap items-center justify-center gap-2 mt-1">
+      <div className="flex flex-wrap items-center justify-center gap-2.5 mt-1.5">
         {q && onClearSearch && (
           <button
             type="button"
