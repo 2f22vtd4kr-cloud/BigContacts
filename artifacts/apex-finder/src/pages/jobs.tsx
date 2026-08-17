@@ -444,7 +444,7 @@ function LiveActivityTab({ jobs }: { jobs: Job[] }) {
             <div className="min-w-0">
               <div className="flex items-center gap-2.5">
                 <div className="h-2 w-2 rounded-full bg-muted-foreground/50" aria-hidden />
-                <span className="text-[13px] font-semibold tracking-tight text-foreground">Desk is idle</span>
+                <span className="text-[13px] font-semibold tracking-tight text-foreground">Desk is idle — use Launch Apex Atlas when ready</span>
               </div>
               <p className="mt-1.5 text-[12px] leading-relaxed text-muted-foreground max-w-md">
                 No pipeline jobs running. Start an ingestor, enrichment, or review task when you are ready.
