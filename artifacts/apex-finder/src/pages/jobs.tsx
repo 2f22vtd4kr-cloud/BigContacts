@@ -47,7 +47,7 @@ const JOB_DEFS: Array<Omit<Job, "status"|"jobId"|"progress"|"inserted"|"skipped"
 
 // ─── Utility ──────────────────────────────────────────────────────────────────
 function statusIcon(status: Job["status"]) {
-  if (status === "running" || status === "queued") return <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />;
+  if (status === "running" || status === "queued") return <Loader2 className="w-3.5 h-3.5 animate-spin text-[#eab308]" />;
   if (status === "done") return <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />;
   if (status === "failed") return <XCircle className="w-3.5 h-3.5 text-red-400" />;
   if (status === "cancelled") return <XCircle className="w-3.5 h-3.5 text-muted-foreground" />;
@@ -55,7 +55,7 @@ function statusIcon(status: Job["status"]) {
 }
 
 function statusColor(status: Job["status"]) {
-  if (status === "running" || status === "queued") return "text-primary";
+  if (status === "running" || status === "queued") return "text-[#eab308]";
   if (status === "done") return "text-emerald-400";
   if (status === "failed") return "text-red-400";
   if (status === "cancelled") return "text-muted-foreground";
@@ -217,7 +217,7 @@ function PersonaLoopTab() {
           <div className="text-xs font-bold font-mono text-foreground uppercase tracking-widest">AI Analyst Suggestions</div>
           <div className="text-[10px] font-mono text-muted-foreground mt-0.5">AI models analyze profiles continuously to suggest data corrections and improvements.</div>
         </div>
-        <button onClick={handleRun} disabled={running} data-testid="button-run-ai-analysts" className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded border font-mono text-[11px] uppercase tracking-wider transition-colors", running ? "border-border text-muted-foreground opacity-50 cursor-not-allowed" : "border-primary/40 text-primary bg-primary/5 hover:bg-primary/15")}>
+        <button onClick={handleRun} disabled={running} data-testid="button-run-ai-analysts" className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded border font-mono text-[11px] uppercase tracking-wider transition-colors", running ? "border-border text-muted-foreground opacity-50 cursor-not-allowed" : "border-primary/40 text-[#eab308] bg-primary/5 hover:bg-primary/15")}>
           {running ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
           {running ? "Analyzing…" : "Run Analysts Now"}
         </button>
@@ -242,9 +242,9 @@ function PersonaLoopTab() {
 
       {/* Persona filter */}
       <div className="flex flex-wrap gap-1.5">
-        <button onClick={() => setFilter("all")} className={cn("px-2 py-1 rounded text-[10px] font-mono uppercase tracking-wider border transition-colors", filter === "all" ? "border-primary/40 text-primary bg-primary/10" : "border-border text-muted-foreground hover:text-foreground")}>All Analysts</button>
+        <button onClick={() => setFilter("all")} className={cn("px-2 py-1 rounded text-[10px] font-mono uppercase tracking-wider border transition-colors", filter === "all" ? "border-primary/40 text-[#eab308] bg-primary/10" : "border-border text-muted-foreground hover:text-foreground")}>All Analysts</button>
         {personas.map(p => (
-          <button key={p} onClick={() => setFilter(p)} className={cn("px-2 py-1 rounded text-[10px] font-mono uppercase tracking-wider border transition-colors", filter === p ? "border-primary/40 text-primary bg-primary/10" : "border-border text-muted-foreground hover:text-foreground")}>
+          <button key={p} onClick={() => setFilter(p)} className={cn("px-2 py-1 rounded text-[10px] font-mono uppercase tracking-wider border transition-colors", filter === p ? "border-primary/40 text-[#eab308] bg-primary/10" : "border-border text-muted-foreground hover:text-foreground")}>
             {personaLabel(p).split(" ")[0]}
           </button>
         ))}
@@ -259,7 +259,7 @@ function PersonaLoopTab() {
           <div key={log.id} className="p-3 rounded-lg border border-border bg-card/30" data-testid={`card-suggestion-${log.id}`}>
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-center gap-2 flex-wrap min-w-0">
-                <span className="text-[9px] font-mono uppercase tracking-widest text-primary border border-primary/30 bg-primary/5 px-1.5 py-0.5 rounded">{personaLabel(log.persona)}</span>
+                <span className="text-[9px] font-mono uppercase tracking-widest text-[#eab308] border border-primary/30 bg-primary/5 px-1.5 py-0.5 rounded">{personaLabel(log.persona)}</span>
                 <span className={cn(
                   "inline-flex items-center rounded-md border px-1.5 py-0.5 text-[9px] font-mono font-medium",
                   log.priority === "HIGH" ? "text-red-300 border-red-400/30 bg-red-400/10" :
@@ -363,7 +363,7 @@ function DuplicatesTab() {
                 )}
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <span className="text-[9px] font-mono text-primary border border-primary/30 px-1.5 py-0.5 rounded">{Math.round((pair.similarity ?? 0) * 100)}%</span>
+                <span className="text-[9px] font-mono text-[#eab308] border border-primary/30 px-1.5 py-0.5 rounded">{Math.round((pair.similarity ?? 0) * 100)}%</span>
                 {expanded === key ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />}
               </div>
             </button>
@@ -375,7 +375,7 @@ function DuplicatesTab() {
                       <div className="text-[9px] uppercase tracking-widest text-muted-foreground/50">{label}</div>
                       <div className="font-bold text-foreground">{entity.name}</div>
                       <div className="text-muted-foreground uppercase text-[9px]">{entity.entityType}</div>
-                      {entity.bayesianScore != null && <div className="text-primary">Signal: {((entity.bayesianScore ?? 0) * 100).toFixed(0)}</div>}
+                      {entity.bayesianScore != null && <div className="text-[#eab308]">Signal: {((entity.bayesianScore ?? 0) * 100).toFixed(0)}</div>}
                     </div>
                   ))}
                 </div>
@@ -383,7 +383,7 @@ function DuplicatesTab() {
                   <button onClick={() => setSwapped(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; })} data-testid={`button-swap-duplicate-${key}`} className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-border text-muted-foreground text-[10px] font-mono uppercase hover:text-foreground hover:border-primary/40 transition-colors">
                     <GitMerge className="w-3 h-3" /> Swap Direction
                   </button>
-                  <button onClick={() => merge(pair)} disabled={isMerging} data-testid={`button-merge-duplicate-${key}`} className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-primary/40 text-primary text-[10px] font-mono uppercase bg-primary/5 hover:bg-primary/15 transition-colors disabled:opacity-50">
+                  <button onClick={() => merge(pair)} disabled={isMerging} data-testid={`button-merge-duplicate-${key}`} className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-primary/40 text-[#eab308] text-[10px] font-mono uppercase bg-primary/5 hover:bg-primary/15 transition-colors disabled:opacity-50">
                     {isMerging ? <Loader2 className="w-3 h-3 animate-spin" /> : <GitMerge className="w-3 h-3" />}
                     {isMerging ? "Merging…" : "Merge"}
                   </button>
@@ -414,9 +414,9 @@ function LiveActivityTab({ jobs }: { jobs: Job[] }) {
           <div className="space-y-2">
             {active.map(job => (
               <div key={job.id} className="p-3 rounded-lg border border-primary/30 bg-primary/5 flex items-center gap-3" data-testid={`card-active-job-${job.id}`}>
-                <Loader2 className="w-4 h-4 animate-spin text-primary shrink-0" />
+                <Loader2 className="w-4 h-4 animate-spin text-[#eab308] shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs font-mono font-bold text-primary truncate">{job.label}</div>
+                  <div className="text-xs font-mono font-bold text-[#eab308] truncate">{job.label}</div>
                   <div className="text-[10px] font-mono text-muted-foreground truncate">{job.message || `${job.status}…`}</div>
                   {(job.progress > 0 || job.status === "queued") && (
                     <div className="h-1 rounded-full bg-primary/20 overflow-hidden mt-1.5">
@@ -610,7 +610,7 @@ export default function BackgroundJobs() {
       <div className="border-b border-border bg-card/30 px-4 md:px-6 py-4 flex-shrink-0">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3 min-w-0">
-            <Radio className="w-5 h-5 text-primary shrink-0" aria-hidden />
+            <Radio className="w-5 h-5 text-[#eab308] shrink-0" aria-hidden />
             <div className="min-w-0">
               <p className="text-[12px] text-muted-foreground leading-snug max-w-[48ch]">Pipeline jobs · ingestors · persona loop · duplicate review</p>
             </div>
@@ -682,7 +682,7 @@ export default function BackgroundJobs() {
                 <div className="text-xs font-mono text-foreground">OSINT Tools Directory</div>
                 <div className="text-[10px] font-mono text-muted-foreground">4,400+ categorized open-source intelligence tools</div>
               </div>
-              <Link href="/_osint-tools" className="text-[10px] font-mono text-primary/60 hover:text-primary whitespace-nowrap flex items-center gap-0.5">
+              <Link href="/_osint-tools" className="text-[10px] font-mono text-[#eab308]/60 hover:text-[#eab308] whitespace-nowrap flex items-center gap-0.5">
                 Browse <ChevronRight className="w-3 h-3" />
               </Link>
             </div>

@@ -147,7 +147,7 @@ function ProviderCard({ name, slots }: { name: keyof AIKeyStatus; slots: AIKeySl
   return (
     <article
       className={cn(
-        "group relative overflow-hidden rounded-2xl border p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-sm transition-all hover:border-yellow-400/30 hover:shadow-[0_0_24px_rgba(234,179,8,0.06)]",
+        "group relative overflow-hidden rounded-2xl border border-[#2a2a2a] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-sm transition-all hover:border-yellow-400/30 hover:shadow-[0_0_24px_rgba(234,179,8,0.06)]",
         tone,
         configured === 0 && "opacity-55",
       )}

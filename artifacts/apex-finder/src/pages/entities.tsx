@@ -244,7 +244,7 @@ function MobileEntityCard({
                 {formatEntityName(entity.name)}
               </div>
               {entity.linkedinHeadline && (
-                <div className="mt-0.5 text-[10px] text-muted-foreground/70 font-mono line-clamp-1" title={entity.linkedinHeadline}>
+                <div className="mt-0.5 text-[10px] text-stone-500 font-mono line-clamp-1" title={entity.linkedinHeadline}>
                   {entity.linkedinHeadline}
                 </div>
               )}
@@ -791,8 +791,8 @@ export default function EntityLedger() {
                 onClick={() => setViewMode(mode)}
                 className="flex min-h-[32px] items-center gap-1.5 px-3 py-1 rounded-full font-mono text-[10px] uppercase tracking-wider transition-all"
                 style={{
-                  background: viewMode === mode ? "rgba(16,185,129,0.2)" : "rgba(15,23,42,0.55)",
-                  color: viewMode === mode ? "#10B981" : "hsl(var(--muted-foreground))",
+                  background: viewMode === mode ? "rgba(234,179,8,0.18)" : "rgba(12,12,12,0.9)",
+                  color: viewMode === mode ? "#eab308" : "#a8a29e",
                   borderRadius: "9999px",
                 }}
               >
