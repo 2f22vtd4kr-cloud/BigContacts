@@ -562,7 +562,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
         <div className="mx-auto flex w-full max-w-lg flex-col gap-3 pb-8">
           {arming ? (
             <section
-              className="rounded-2xl border border-yellow-400/35 bg-[#071018] p-3 shadow-[0_0_48px_rgba(234,179,8,0.12)]"
+              className="rounded-2xl border border-yellow-400/35 bg-[#050505] p-3 shadow-[0_0_48px_rgba(234,179,8,0.12)]"
               data-testid="panel-live-desk-arming"
               aria-busy="true"
               aria-label="Arming live desk"
@@ -587,7 +587,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                 </div>
               </div>
               {/* Tool-shaped window — first frame of a live run */}
-              <div className="overflow-hidden rounded-xl border border-yellow-400/15 bg-[#0b1220] shadow-[inset_0_1px_0_rgba(234,179,8,0.06)]">
+              <div className="overflow-hidden rounded-xl border border-yellow-400/15 bg-[#0a0a0a] shadow-[inset_0_1px_0_rgba(234,179,8,0.06)]">
                 <div className="flex items-center gap-2 border-b border-white/5 px-3 py-2">
                   <span className="h-2.5 w-2.5 rounded-full bg-[#FF5F57]" aria-hidden />
                   <span className="h-2.5 w-2.5 rounded-full bg-[#FEBC2E]" aria-hidden />
@@ -648,7 +648,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
               className={`rounded-2xl border p-3 ${
                 showHistory
                   ? "reactor-archive-panel border-slate-500/35"
-                  : "border-yellow-400/25 bg-[#071018] shadow-[0_0_40px_rgba(234,179,8,0.06)]"
+                  : "border-yellow-400/25 bg-[#050505] shadow-[0_0_40px_rgba(234,179,8,0.06)]"
               }`}
               data-testid="panel-live-desk-mobile"
               aria-label={showHistory ? "Target history archive" : "Live research window"}
@@ -819,7 +819,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
               </div>
               {(isLive || forceLiveEmpty) && (
                 <div
-                  className="mt-5 w-full max-w-[280px] overflow-hidden rounded-xl border border-yellow-400/20 bg-[#0b1220]/90"
+                  className="mt-5 w-full max-w-[280px] overflow-hidden rounded-xl border border-yellow-400/20 bg-[#0a0a0a]/90"
                   data-testid="panel-live-empty-scaffold"
                   aria-hidden
                 >

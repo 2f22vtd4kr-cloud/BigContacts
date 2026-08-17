@@ -554,7 +554,7 @@ function SerpScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
         </div>
         <div className="space-y-2">
           {hits.slice(0, compact ? 3 : 4).map((l, i) => (
-            <div key={i} className="rounded-lg border border-white/5 bg-[#0b1220] px-3 py-2">
+            <div key={i} className="rounded-lg border border-white/5 bg-[#0a0a0a] px-3 py-2">
               <div className="mb-0.5 text-[9px] font-mono text-yellow-500/80">finding {i + 1}</div>
               <div className="text-[12px] leading-snug text-slate-200">{l}</div>
             </div>
@@ -857,7 +857,7 @@ function MobileWorkstage({
   return (
     <div
       ref={rootRef}
-      className="space-y-2.5 select-none rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#071018]"
+      className="space-y-2.5 select-none rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#050505]"
       style={{ touchAction: "pan-y", overscrollBehaviorX: "contain" }}
       data-testid="mobile-workstage-swipe"
       tabIndex={0}

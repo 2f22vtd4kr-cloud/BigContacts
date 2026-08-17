@@ -58,7 +58,7 @@ const CATEGORY_COLOR: Record<string, string> = {
   geolocation_mapping: "text-orange-400 border-orange-400/30 bg-orange-400/5",
   dark_web_data_breaches: "text-red-400 border-red-400/30 bg-red-400/5",
   social_media:     "text-pink-400 border-pink-400/30 bg-pink-400/5",
-  search:           "text-violet-400 border-violet-400/30 bg-violet-400/5",
+  search:           "text-yellow-400 border-violet-400/30 bg-yellow-400/5",
 };
 
 function categoryColor(cat: string) {

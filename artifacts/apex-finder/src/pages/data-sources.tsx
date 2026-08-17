@@ -449,8 +449,8 @@ const OUTCOME_META: Record<string, { label: string; color: string; barColor: str
   },
   organization_contact: {
     label: "Org Contact",
-    color: "text-purple-400",
-    barColor: "bg-purple-500",
+    color: "text-yellow-400",
+    barColor: "bg-yellow-500",
     description: "Company phone/inbox found (not personal)",
   },
   none: {
@@ -656,7 +656,7 @@ function RegistryMatrixPanel() {
             {
               label: "Bulk only",
               value: sources.filter((s) => s.runtimeMode === "bulk_only").length,
-              color: "text-violet-300",
+              color: "text-yellow-300",
               detail: "periodic imports",
             },
             {
@@ -700,7 +700,7 @@ function RegistryMatrixPanel() {
                     source.runtimeMode === "random_mix"
                       ? "bg-emerald-400/10 text-emerald-300"
                       : source.runtimeMode === "bulk_only"
-                        ? "bg-violet-400/10 text-violet-300"
+                        ? "bg-yellow-400/10 text-yellow-300"
                         : "bg-amber-400/10 text-amber-300",
                   )}>
                     {source.runtimeMode === "random_mix" && <Shuffle className="h-3 w-3" />}
@@ -753,7 +753,7 @@ function RegistryMatrixPanel() {
               </button>
               <div className="flex items-center gap-2 text-[10px] font-mono">
                 <span className="text-yellow-300">{source.jurisdiction}</span>
-                <span className={source.runtimeMode === "random_mix" ? "text-emerald-300" : source.runtimeMode === "bulk_only" ? "text-violet-300" : "text-amber-300"}>
+                <span className={source.runtimeMode === "random_mix" ? "text-emerald-300" : source.runtimeMode === "bulk_only" ? "text-yellow-300" : "text-amber-300"}>
                   {source.runtimeMode === "random_mix" ? "random mix" : source.runtimeMode === "bulk_only" ? "bulk only" : "explicit only"}
                 </span>
               </div>
@@ -802,8 +802,8 @@ function IdentityResolutionPanel() {
   return (
     <section className="rounded-2xl border border-border/70 bg-card/40 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
       <div className="flex items-center gap-2 mb-3">
-        <UserCheck className="h-4 w-4 text-violet-400" />
-        <span className="text-sm font-semibold font-mono uppercase tracking-widest text-violet-400">
+        <UserCheck className="h-4 w-4 text-yellow-400" />
+        <span className="text-sm font-semibold font-mono uppercase tracking-widest text-yellow-400">
           Identity Resolution
         </span>
         <p className="text-[10px] font-mono text-muted-foreground">
@@ -967,11 +967,11 @@ function PythonToolsPanel() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Terminal className="h-4 w-4 text-violet-400" />
-          <span className="text-sm font-semibold font-mono uppercase tracking-widest text-violet-400">
+          <Terminal className="h-4 w-4 text-yellow-400" />
+          <span className="text-sm font-semibold font-mono uppercase tracking-widest text-yellow-400">
             Python OSINT Tools
           </span>
-          <span className="text-[9px] font-mono bg-violet-500/10 text-violet-400 px-1.5 py-0.5 rounded uppercase tracking-wider">Phase L</span>
+          <span className="text-[9px] font-mono bg-yellow-500/10 text-yellow-400 px-1.5 py-0.5 rounded uppercase tracking-wider">Phase L</span>
         </div>
         <button
           onClick={load}
@@ -1020,7 +1020,7 @@ function PythonToolsPanel() {
         {/* GLiNER — microservice */}
         <div className="rounded-lg border border-border/40 bg-muted/5 p-3">
           <div className="flex items-start gap-3">
-            <Cpu className="h-4 w-4 text-violet-300 mt-0.5 flex-shrink-0" />
+            <Cpu className="h-4 w-4 text-yellow-300 mt-0.5 flex-shrink-0" />
             <div className="flex-1 min-w-0 space-y-1">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs font-semibold text-foreground">{GLINER_META.label}</span>
@@ -1127,7 +1127,7 @@ function SourceQualityPanel() {
   const outcomeColor: Record<string, string> = {
     direct_contact_verified: "text-emerald-400",
     direct_contact_candidate: "text-amber-300",
-    social_only: "text-violet-300",
+    social_only: "text-yellow-300",
     organization_contact: "text-rose-300",
     evidence_only: "text-blue-300",
     none: "text-muted-foreground",
@@ -1383,7 +1383,7 @@ export default function DataSources() {
           title="Extended OSINT tools"
           subtitle={`${[...ingestors, ...enrichers].filter(s => s.phase === 11).length} tools · runtime checks and optional enrichers`}
           icon={Cpu}
-          accent="text-violet-300"
+          accent="text-yellow-300"
         >
           <PythonToolsPanel />
           <div className="grid gap-3 grid-cols-1 lg:grid-cols-2">
