@@ -63,7 +63,7 @@ export function LaunchAtlasButton({
         data-testid="button-launch-apex-atlas"
         aria-label="Launch Apex Atlas research pipeline"
         className={cn(
-          "inline-flex items-center justify-center gap-2 rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/60 disabled:opacity-60 disabled:cursor-not-allowed",
+          "inline-flex items-center justify-center gap-2 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/60 disabled:opacity-60 disabled:cursor-not-allowed",
           VARIANT_CLASS[variant],
           className,
         )}
