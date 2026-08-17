@@ -4,7 +4,7 @@
 
 export const REACTOR_FAST_MS = 130;
 export const REACTOR_UI_MS = 190;
-export const REACTOR_SCENE_MS = 260;
+export const REACTOR_SCENE_MS = 250;
 export const REACTOR_CELEBRATE_MS = 300;
 export const REACTOR_ARM_MS = 360;
 export const REACTOR_PAUSE_MS = 8000;
