@@ -223,10 +223,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 className="!h-8 !shrink-0 !px-2 !text-[10px] sm:!h-9 sm:!px-3 sm:!text-[11px]"
               />
             )}
-            <div className="hidden min-[480px]:block">
+            {/* Always visible — compact on phone so operators see live keys + run state */}
+            <div className="min-w-0 max-w-[42vw] sm:max-w-none">
               <WorkspaceStatus />
             </div>
-            <div className="hidden md:block">
+            <div className="shrink-0">
               <ApiKeyHealth />
             </div>
             <button

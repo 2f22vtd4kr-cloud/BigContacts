@@ -228,14 +228,14 @@ export function WorkspaceStatus() {
         aria-label={`${copy.label}. Open whole workspace status.`}
         data-testid="button-workspace-status"
         className={cn(
-          "group flex h-9 max-w-[230px] items-center gap-2 rounded-lg border px-2.5 transition-colors sm:px-3",
+          "group flex h-8 max-w-[9.5rem] items-center gap-1.5 rounded-lg border px-1.5 transition-colors sm:h-9 sm:max-w-[230px] sm:gap-2 sm:px-3",
           "border-border/70 bg-background/70 hover:border-primary/40 hover:bg-muted/50",
           (state === "degraded" || state === "researching-degraded" || state === "offline") && "border-amber-500/30",
         )}
       >
         <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", copy.dotClassName, state === "researching" && "animate-pulse")} />
         <Icon className={cn("h-3.5 w-3.5 shrink-0", copy.className, state === "loading" && "animate-spin")} />
-        <span className={cn("hidden truncate font-mono text-[10px] font-bold tracking-[0.1em] sm:inline", copy.className)}>
+        <span className={cn("truncate font-mono text-[8px] font-bold tracking-[0.08em] sm:text-[10px] sm:tracking-[0.1em]", copy.className)}>
           {copy.label}
         </span>
         <span className={cn("font-mono text-[10px] font-bold sm:hidden", servicesHealthy ? "text-primary" : copy.className)}>
