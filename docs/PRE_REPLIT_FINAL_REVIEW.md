@@ -332,3 +332,5 @@ Only then: generate the **ultimate Replit Agent prompt** (import `main`, ask sec
 ## Next: Stage 2
 
 Runtime, pipeline, comparison, and go/no-go: [`docs/PRE_REPLIT_FINAL_REVIEW_STAGE2.md`](./PRE_REPLIT_FINAL_REVIEW_STAGE2.md)
+
+Also: Stage 3 (hosted): [`docs/PRE_REPLIT_FINAL_REVIEW_STAGE3.md`](./PRE_REPLIT_FINAL_REVIEW_STAGE3.md)

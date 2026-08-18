@@ -269,3 +269,9 @@ Execute Stage 2 only after Stage 1 setup (Phase 0) works. You may interleave Sta
 2. Tag or note SHA: `pre-replit-stage2-pass`
 3. Generate ultimate Replit Agent prompt from S2-I frozen facts
 4. Deploy once — no mid-boot redesign
+
+---
+
+## Next: Stage 3
+
+Hosted acceptance, observability, rollback, post-deploy floor: [`docs/PRE_REPLIT_FINAL_REVIEW_STAGE3.md`](./PRE_REPLIT_FINAL_REVIEW_STAGE3.md)
