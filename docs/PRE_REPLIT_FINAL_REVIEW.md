@@ -326,3 +326,9 @@ docs/PRE_REPLIT_REVIEW_LOG.md      # filled during execution (defects + SHAs)
 ## 18. After the plan executes
 
 Only then: generate the **ultimate Replit Agent prompt** (import `main`, ask secret names, ports 8080/23695, proxy + SPA, Python tools required, `ENABLE_AUTO_PIPELINE=false`).
+
+---
+
+## Next: Stage 2
+
+Runtime, pipeline, comparison, and go/no-go: [`docs/PRE_REPLIT_FINAL_REVIEW_STAGE2.md`](./PRE_REPLIT_FINAL_REVIEW_STAGE2.md)
