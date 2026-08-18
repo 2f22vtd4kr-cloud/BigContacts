@@ -222,13 +222,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 className="!h-8 !shrink-0 !px-2.5 !text-[10px] sm:!h-9 sm:!px-3 sm:!text-[11px]"
               />
             )}
-            <div className="atlas-h-scroll flex min-w-0 max-w-[min(52vw,14rem)] items-center gap-1.5 sm:max-w-none sm:gap-2">
-              <div className="shrink-0">
-                <WorkspaceStatus />
-              </div>
-              <div className="shrink-0">
-                <ApiKeyHealth />
-              </div>
+            <div className="flex min-w-0 flex-1 items-center justify-end gap-1.5 overflow-x-auto sm:gap-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <WorkspaceStatus />
+              <ApiKeyHealth />
             </div>
             <button
               onClick={() => setSidebarOpen(true)}

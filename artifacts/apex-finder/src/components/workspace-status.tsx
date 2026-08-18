@@ -30,48 +30,57 @@ type WorkspaceState = "loading" | "researching" | "researching-degraded" | "queu
 
 const STATE_COPY: Record<WorkspaceState, {
   label: string;
+  /** Mobile header chip — must fit without truncating mid-word */
+  shortLabel: string;
   detail: string;
   className: string;
   dotClassName: string;
 }> = {
   loading: {
     label: "CHECKING WORKSPACE",
+    shortLabel: "CHECK",
     detail: "Checking whether Atlas and services are online…",
     className: "text-muted-foreground",
     dotClassName: "bg-muted-foreground/60",
   },
   researching: {
     label: "ATLAS RESEARCHING",
+    shortLabel: "LIVE",
     detail: "Live research is running on a target.",
     className: "text-yellow-300",
     dotClassName: "bg-yellow-300 shadow-[0_0_8px_rgba(103,232,249,0.7)]",
   },
   "researching-degraded": {
     label: "ATLAS ACTIVE",
+    shortLabel: "ACTIVE",
     detail: "Research is running; some tools are temporarily limited.",
     className: "text-[#fde047]",
     dotClassName: "bg-[#eab308] shadow-[0_0_8px_rgba(234,179,8,0.55)]",
   },
   queued: {
     label: "ATLAS STANDBY",
+    shortLabel: "QUEUE",
     detail: "Next research cycle is queued.",
     className: "text-[#fde047]",
     dotClassName: "bg-[#eab308] shadow-[0_0_8px_rgba(234,179,8,0.55)]",
   },
   ready: {
     label: "WORKSPACE READY",
+    shortLabel: "READY",
     detail: "Services are healthy. Atlas is ready to research.",
     className: "text-primary",
     dotClassName: "bg-primary shadow-[0_0_8px_rgba(96,165,250,0.65)]",
   },
   degraded: {
     label: "WORKSPACE DEGRADED",
+    shortLabel: "WARN",
     detail: "App is up, but one or more research services need attention.",
     className: "text-[#fde047]",
     dotClassName: "bg-[#eab308] shadow-[0_0_8px_rgba(234,179,8,0.55)]",
   },
   offline: {
     label: "WORKSPACE OFFLINE",
+    shortLabel: "OFF",
     detail: "Could not reach the API. Check connection or server status.",
     className: "text-destructive",
     dotClassName: "bg-destructive shadow-[0_0_8px_rgba(248,113,113,0.55)]",
@@ -228,20 +237,30 @@ export function WorkspaceStatus() {
         aria-label={`${copy.label}. Open whole workspace status.`}
         data-testid="button-workspace-status"
         className={cn(
-          "group flex h-8 max-w-[9.5rem] items-center gap-1.5 rounded-lg border px-1.5 transition-colors sm:h-9 sm:max-w-[230px] sm:gap-2 sm:px-3",
-          "border-border/70 bg-background/70 hover:border-primary/40 hover:bg-muted/50",
+          "group flex h-8 items-center gap-1 rounded-lg border px-1.5 transition-colors sm:h-9 sm:max-w-[230px] sm:gap-2 sm:px-3",
+          "border-[#eab308]/15 bg-background/70 hover:border-primary/40 hover:bg-muted/50",
           (state === "degraded" || state === "researching-degraded" || state === "offline") && "border-[#eab308]/30",
         )}
       >
         <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", copy.dotClassName, state === "researching" && "animate-pulse")} />
         <Icon className={cn("h-3.5 w-3.5 shrink-0", copy.className, state === "loading" && "animate-spin")} />
-        <span className={cn("truncate font-mono text-[8px] font-bold tracking-[0.08em] sm:text-[10px] sm:tracking-[0.1em]", copy.className)}>
+        {/* Mobile: short word that never truncates mid-label; desktop: full phrase */}
+        <span className={cn("font-mono text-[9px] font-bold tracking-[0.06em] sm:hidden", copy.className)}>
+          {copy.shortLabel}
+        </span>
+        <span className={cn("hidden truncate font-mono text-[10px] font-bold tracking-[0.1em] sm:inline", copy.className)}>
           {copy.label}
         </span>
-        <span className={cn("font-mono text-[10px] font-bold sm:hidden", servicesHealthy ? "text-primary" : copy.className)}>
+        <span
+          className={cn(
+            "shrink-0 font-mono text-[9px] font-bold tabular-nums sm:text-[10px]",
+            servicesHealthy ? "text-primary" : copy.className,
+          )}
+          title={databaseDetail}
+        >
           {databaseState}
         </span>
-        <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-muted-foreground/70 transition-transform", open && "rotate-180")} />
+        <ChevronDown className={cn("h-3 w-3 shrink-0 text-muted-foreground/70 transition-transform sm:h-3.5 sm:w-3.5", open && "rotate-180")} />
       </button>
 
       {open && (

@@ -68,7 +68,7 @@ export function ApiKeyHealth({ className }: { className?: string }) {
       aria-label={`API key status: ${label}`}
       title="Open System status"
       className={cn(
-        "inline-flex h-8 max-w-[6.5rem] items-center gap-1.5 truncate rounded-md border px-1.5 font-mono text-[9px] uppercase tracking-wide transition-colors hover:opacity-90 sm:max-w-none sm:px-2.5 sm:text-[10px]",
+        "inline-flex h-8 shrink-0 items-center gap-1 rounded-md border px-1.5 font-mono text-[9px] uppercase tracking-wide transition-colors hover:opacity-90 sm:gap-1.5 sm:px-2.5 sm:text-[10px]",
         tone,
         className,
       )}
@@ -78,7 +78,7 @@ export function ApiKeyHealth({ className }: { className?: string }) {
       ) : (
         <KeyRound className="h-3 w-3 shrink-0" aria-hidden />
       )}
-      <span className="truncate">{label}</span>
+      <span className="whitespace-nowrap tabular-nums">{label}</span>
     </Link>
   );
 }
