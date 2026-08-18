@@ -70,3 +70,17 @@ Vite/node_modules link — no live screenshots. Code P0s above closed.
 - S2-A Launch/Stop runtime
 - S2-E fair Grok comparison
 - Stage 3 hosted boot
+
+## Continuation — HTML/JSON crash hardening
+
+Hardened `readApiJson` on previously bare `.json()` call sites:
+
+| Surface | Calls fixed |
+|---------|-------------|
+| Profile OCCRP / OpenSky | `readApiJson` + safe empty |
+| Reactor sessions + dashboard stats | `readApiJson` |
+| Jobs improve stats/logs + duplicate candidates | `readApiJson` |
+| Data sources registry matrix | `readApiJson` |
+| OSINT tools categories | `readApiJson` |
+
+Reduces “tab crashes when API returns SPA HTML” class of bugs (Stage 1 offline axis).

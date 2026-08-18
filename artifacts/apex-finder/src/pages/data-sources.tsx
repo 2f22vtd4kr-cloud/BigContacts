@@ -623,7 +623,7 @@ function RegistryMatrixPanel() {
   useEffect(() => {
     const base = import.meta.env.BASE_URL.replace(/\/$/, "");
     fetch(`${base}/api/registry-matrix`)
-      .then((r) => r.json())
+      .then((r) => (r.ok ? readApiJson(r) : Promise.reject(new Error(String(r.status)))))
       .then((data) => setSources(Array.isArray(data?.sources) ? data.sources : []))
       .catch(() => setSources([]))
       .finally(() => setLoading(false));

@@ -169,8 +169,14 @@ function PersonaLoopTab() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    fetch(`${BASE}/api/improve/stats`).then(r => r.ok ? r.json() : null).then(d => d && setStats(d)).catch(() => {});
-    fetch(`${BASE}/api/improve/logs?limit=50`).then(r => r.ok ? r.json() : []).then(d => setLogs(Array.isArray(d) ? d : d.logs ?? [])).catch(() => {});
+    fetch(`${BASE}/api/improve/stats`)
+      .then((r) => (r.ok ? readApiJson(r) : null))
+      .then((d) => d && setStats(d))
+      .catch(() => {});
+    fetch(`${BASE}/api/improve/logs?limit=50`)
+      .then((r) => (r.ok ? readApiJson(r) : []))
+      .then((d) => setLogs(Array.isArray(d) ? d : d?.logs ?? []))
+      .catch(() => {});
   }, []);
 
   const pollJob = useCallback(async (id: string) => {
@@ -181,9 +187,14 @@ function PersonaLoopTab() {
       if (d.status === "done" || d.status === "failed" || d.status === "cancelled") {
         setRunning(false);
         if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
-        // Refresh
-        fetch(`${BASE}/api/improve/stats`).then(r => r.ok ? r.json() : null).then(d => d && setStats(d)).catch(() => {});
-        fetch(`${BASE}/api/improve/logs?limit=50`).then(r => r.ok ? r.json() : []).then(d => setLogs(Array.isArray(d) ? d : d.logs ?? [])).catch(() => {});
+        fetch(`${BASE}/api/improve/stats`)
+          .then((r) => (r.ok ? readApiJson(r) : null))
+          .then((d) => d && setStats(d))
+          .catch(() => {});
+        fetch(`${BASE}/api/improve/logs?limit=50`)
+          .then((r) => (r.ok ? readApiJson(r) : []))
+          .then((d) => setLogs(Array.isArray(d) ? d : d?.logs ?? []))
+          .catch(() => {});
       }
     } catch { /* */ }
   }, []);
@@ -299,8 +310,8 @@ function DuplicatesTab() {
 
   useEffect(() => {
     fetch(`${BASE}/api/entities/duplicate-candidates`)
-      .then(r => r.ok ? r.json() : [])
-      .then(d => { setCandidates(Array.isArray(d) ? d : d.candidates ?? []); setLoading(false); })
+      .then((r) => (r.ok ? readApiJson(r) : []))
+      .then((d) => { setCandidates(Array.isArray(d) ? d : d?.candidates ?? []); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);
 

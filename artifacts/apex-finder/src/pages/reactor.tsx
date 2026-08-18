@@ -11,6 +11,7 @@ import { REACTOR_CSS, REACTOR_CELEBRATE_MS, REACTOR_UI_MS, motionOrNone, prefers
 import { BureauOpsStage } from "../components/bureau-ops-stage";
 import { isMockMode, mockAtlasLiveState, mockLiveNodes } from "@/lib/dev-mock-data";
 import { formatSchedulerCountdown, schedulerWaitRemaining } from "../components/scheduler-utils";
+import { readApiJson } from "@/lib/api-json";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface NodeDef {
@@ -2194,8 +2195,12 @@ export default function IntelligenceReactorPage() {
     const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
     try {
       const [sess, stats] = await Promise.all([
-        fetch(`${BASE}/api/research/sessions?limit=20`, { cache: "no-store" }).then(r => r.ok ? r.json() : []).catch(() => []),
-        fetch(`${BASE}/api/dashboard/stats`, { cache: "no-store" }).then(r => r.ok ? r.json() : {}).catch(() => ({})),
+        fetch(`${BASE}/api/research/sessions?limit=20`, { cache: "no-store" })
+          .then((r) => (r.ok ? readApiJson(r) : []))
+          .catch(() => []),
+        fetch(`${BASE}/api/dashboard/stats`, { cache: "no-store" })
+          .then((r) => (r.ok ? readApiJson(r) : {}))
+          .catch(() => ({})),
       ]);
       setSessions(Array.isArray(sess) ? sess : []);
       const s = stats as { totalEntities?: number; hotLeadsCount?: number; totalAssets?: number };

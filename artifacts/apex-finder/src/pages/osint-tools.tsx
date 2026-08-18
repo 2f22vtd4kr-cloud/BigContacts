@@ -92,7 +92,7 @@ export default function OsintToolsDirectory() {
       return;
     }
     fetch(`${BASE}/api/osint-tools/categories`)
-      .then(r => r.json())
+      .then((r) => (r.ok ? readApiJson(r) : Promise.reject(new Error(String(r.status)))))
       .then((d: { categories: CategoryCount[]; total: number }) => {
         setCategories(d.categories ?? []);
       })

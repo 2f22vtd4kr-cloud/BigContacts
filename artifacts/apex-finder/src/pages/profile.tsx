@@ -432,15 +432,15 @@ export default function ApexProfile() {
     const base = (import.meta as any).env.BASE_URL.replace(/\/$/, "");
     setOccrpLoading(true);
     fetch(`${base}/api/entities/${entityId}/occrp`)
-      .then((r) => r.json())
+      .then((r) => (r.ok ? readApiJson(r) : Promise.reject(new Error(String(r.status)))))
       .then((d) => { setOccrpData(d.aleph ?? null); })
-      .catch(() => {})
+      .catch(() => { setOccrpData(null); })
       .finally(() => setOccrpLoading(false));
     setSkyLoading(true);
     fetch(`${base}/api/entities/${entityId}/opensky`)
-      .then((r) => r.json())
+      .then((r) => (r.ok ? readApiJson(r) : Promise.reject(new Error(String(r.status)))))
       .then((d) => { setSkyFlights(d.flights ?? []); })
-      .catch(() => {})
+      .catch(() => { setSkyFlights([]); })
       .finally(() => setSkyLoading(false));
   }, [entityId]);
 
