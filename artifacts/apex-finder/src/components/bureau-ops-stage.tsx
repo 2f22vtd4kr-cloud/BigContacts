@@ -934,79 +934,62 @@ function MobileWorkstage({
         {scene.live ? " (live)" : ""}
       </span>
 
-      {/* Progress of this step in the run */}
-      <div className="flex items-center gap-2">
-        <div
-          className={`relative flex-1 rounded-full bg-[#141414] overflow-hidden ${scene.live ? "h-1.5" : "h-1"}`}
-          role="progressbar"
-          aria-valuenow={safeIdx + 1}
-          aria-valuemin={1}
-          aria-valuemax={Math.max(scenes.length, 1)}
-          aria-label={`Scene progress, ${safeIdx + 1} of ${scenes.length}`}
-        >
-          <div
-            className="h-full rounded-full"
-            style={{
-              width: `${((safeIdx + 1) / Math.max(scenes.length, 1)) * 100}%`,
-              background: scene.live
-                ? "linear-gradient(90deg,#eab308,#facc15)"
-                : "#475569",
-              boxShadow: scene.live ? "0 0 10px rgba(234,179,8,0.45)" : undefined,
-              transition: `width ${REACTOR_UI_MS * 2}ms ease-out`,
-            }}
-          />
-          {scene.live && (
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-0 opacity-60"
-              style={{
-                background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)",
-                animation: motionOrNone(`reactorShimmer ${REACTOR_SHIMMER_MS}ms ease-in-out infinite`),
-              }}
-            />
-          )}
-        </div>
-        <span className="text-[9px] font-mono tabular-nums text-stone-400 shrink-0" aria-hidden>
-          {safeIdx + 1}/{scenes.length}
-        </span>
-      </div>
-      <div className={`text-[9px] font-mono uppercase tracking-wider px-0.5 ${scene.live ? "text-yellow-400/90" : "text-stone-500"}`}>
-        {scene.live ? "Now" : "Done"} · {safeIdx + 1}/{scenes.length}
-        {scene.title ? ` · ${scene.title}` : ""}
-      </div>
-
-      <div className="flex items-center gap-2.5 px-0.5" aria-live="polite" aria-atomic="true">
+      {/* Single compact status row — no duplicate Now/Done labels */}
+      <div className="flex items-center gap-2 px-0.5" aria-live="polite" aria-atomic="true">
         <ActivityGlyph
           kind={scene.kind}
           live={scene.live}
           terminal={scene.terminal}
-          size={32}
+          size={24}
         />
         <div className="min-w-0 flex-1">
-          <StoryLine story={scene.story} className="text-[13px] font-medium text-stone-100 leading-snug tracking-tight" />
-          <div className="text-[9px] font-mono text-stone-400 truncate flex items-center gap-1">
-            <ProviderIcon kind={scene.provider} size={10} />
-            <span>{scene.live ? "Now" : "Done"} · {scene.title}</span>
-            {scene.targetName ? ` · ${scene.targetName}` : ""}
+          <StoryLine story={scene.story} className="text-[12px] font-medium leading-snug tracking-tight text-stone-100 line-clamp-2" />
+          <div className="mt-0.5 flex items-center gap-1.5 font-mono text-[9px] text-stone-500">
+            <span className={scene.live ? "text-[#eab308]" : "text-stone-500"}>
+              {scene.live ? "Now" : scene.terminal === "failed" ? "Fail" : "Done"}
+            </span>
+            <span className="tabular-nums text-stone-600">{safeIdx + 1}/{scenes.length}</span>
+            {scene.title ? <span className="truncate text-stone-400">· {scene.title}</span> : null}
+            {scene.targetName ? <span className="hidden truncate text-stone-500 sm:inline">· {scene.targetName}</span> : null}
           </div>
         </div>
         {scene.timestamp && (
           <span
-            className="shrink-0 text-[9px] font-mono text-stone-400 tabular-nums"
+            className="shrink-0 font-mono text-[9px] tabular-nums text-stone-500"
             title={absoluteTimeLabel(scene.timestamp)}
-          >{timeLabel(scene.timestamp)}</span>
+          >
+            {timeLabel(scene.timestamp)}
+          </span>
         )}
       </div>
 
+      {/* Slim progress under story */}
       <div
-        className="min-h-[240px] sm:min-h-[280px]"
+        className={`relative overflow-hidden rounded-full bg-stone-800 ${scene.live ? "h-1" : "h-0.5"}`}
+        role="progressbar"
+        aria-valuenow={safeIdx + 1}
+        aria-valuemin={1}
+        aria-valuemax={Math.max(scenes.length, 1)}
+        aria-label={`Scene ${safeIdx + 1} of ${scenes.length}`}
+      >
+        <div
+          className="h-full rounded-full"
+          style={{
+            width: `${((safeIdx + 1) / Math.max(scenes.length, 1)) * 100}%`,
+            background: scene.live ? "linear-gradient(90deg,#eab308,#facc15)" : "#57534e",
+            transition: `width ${REACTOR_UI_MS * 2}ms ease-out`,
+          }}
+        />
+      </div>
+
+      <div
+        className="min-h-[180px] sm:min-h-[220px]"
         style={{
           transform: dragX ? `translate3d(${dragX}px,0,0)` : undefined,
           transition: dragX ? "none" : `transform ${REACTOR_UI_MS}ms ease-out`,
           willChange: "transform",
         }}
       >
-        {/* Scene enter: 280ms direction-aware slide (audit P0) */}
         <div
           key={scene.id}
           style={{
@@ -1015,7 +998,7 @@ function MobileWorkstage({
               : motionOrNone(`${slideDir === 1 ? "sceneSlideLeft" : "sceneSlideRight"} ${REACTOR_SCENE_MS}ms cubic-bezier(0.22,1,0.36,1) both`),
           }}
         >
-          <SceneCard scene={scene} compact={false} />
+          <SceneCard scene={scene} compact />
         </div>
       </div>
 
@@ -1023,14 +1006,14 @@ function MobileWorkstage({
         <div className="flex items-center justify-between gap-2">
           <button
             type="button"
-            className="reactor-pressable rounded-lg border border-white/15 bg-white/[0.05] px-3 py-1.5 text-[10px] font-mono text-stone-200 hover:border-yellow-400/40 hover:text-yellow-100 disabled:opacity-25 disabled:pointer-events-none min-h-[44px] min-w-[72px]"
+            className="reactor-pressable min-h-[40px] min-w-[64px] rounded-lg border border-[#eab308]/15 bg-[#0c0c0c] px-2.5 py-1 font-mono text-[10px] text-stone-300 hover:border-[#eab308]/40 hover:text-[#fde047] disabled:pointer-events-none disabled:opacity-25"
             disabled={safeIdx <= 0}
             onClick={goPrev}
             aria-label="Previous scene"
           >
             ← Prev
           </button>
-          <div className="flex items-center gap-1.5" role="tablist" aria-label="Scene position">
+          <div className="flex max-w-[40%] flex-wrap items-center justify-center gap-1" role="tablist" aria-label="Scene position">
             {scenes.map((s, i) => (
               <button
                 key={s.id}
@@ -1046,18 +1029,18 @@ function MobileWorkstage({
                 }}
                 className="reactor-pressable rounded-full touch-manipulation transition-[width,background,box-shadow] duration-150"
                 style={{
-                  width: i === safeIdx ? 20 : 8,
-                  height: 8,
-                  background: i === safeIdx ? (s.live ? "#eab308" : "#94a3b8") : "#334155",
-                  boxShadow: i === safeIdx && s.live ? "0 0 12px #eab308cc" : i === safeIdx ? "0 0 6px rgba(148,163,184,0.4)" : undefined,
-                  minWidth: i === safeIdx ? 20 : 8,
+                  width: i === safeIdx ? 16 : 6,
+                  height: 6,
+                  background: i === safeIdx ? (s.live ? "#eab308" : "#a8a29e") : "#44403c",
+                  boxShadow: i === safeIdx && s.live ? "0 0 8px #eab308aa" : undefined,
+                  minWidth: i === safeIdx ? 16 : 6,
                 }}
               />
             ))}
           </div>
           <button
             type="button"
-            className="reactor-pressable rounded-lg border border-white/15 bg-white/[0.05] px-3 py-1.5 text-[10px] font-mono text-stone-200 hover:border-yellow-400/40 hover:text-yellow-100 disabled:opacity-25 disabled:pointer-events-none min-h-[44px] min-w-[72px]"
+            className="reactor-pressable min-h-[40px] min-w-[64px] rounded-lg border border-[#eab308]/15 bg-[#0c0c0c] px-2.5 py-1 font-mono text-[10px] text-stone-300 hover:border-[#eab308]/40 hover:text-[#fde047] disabled:pointer-events-none disabled:opacity-25"
             disabled={safeIdx >= scenes.length - 1}
             onClick={goNext}
             aria-label="Next scene"
@@ -1070,9 +1053,8 @@ function MobileWorkstage({
       {paused && scenes.some((s) => s.live) && (
         <button
           type="button"
-          className="reactor-pressable mx-auto flex items-center justify-center gap-1.5 rounded-full border border-yellow-400/40 bg-yellow-400/10 px-3 py-1.5 text-center text-[9px] font-mono uppercase tracking-wider text-yellow-100 shadow-[0_0_16px_rgba(234,179,8,0.12)]"
+          className="reactor-pressable mx-auto flex items-center justify-center gap-1.5 rounded-full border border-[#eab308]/40 bg-[#eab308]/10 px-3 py-1 text-center font-mono text-[9px] uppercase tracking-wider text-[#fde047]"
           data-testid="status-reading-pause"
-          style={{ animation: motionOrNone(`armIn ${REACTOR_UI_MS}ms ease-out both`) }}
           onClick={() => {
             setPaused(false);
             setPauseEndsAt(null);
@@ -1081,17 +1063,18 @@ function MobileWorkstage({
           }}
           aria-label="Resume auto-advance"
         >
-          <span className="h-1.5 w-1.5 rounded-full bg-yellow-300" aria-hidden />
-          {`Reading pause · ${pauseLeft}s · tap to resume`}
+          <span className="h-1.5 w-1.5 rounded-full bg-[#eab308]" aria-hidden />
+          {`Paused · ${pauseLeft}s · resume`}
         </button>
       )}
 
+      {/* Compact step strip — one line per step, no story body */}
       {scenes.length > 1 && (
         <div
-          className="atlas-h-scroll flex gap-1.5 overflow-x-auto overscroll-x-contain touch-pan-x pb-1 pr-6"
+          className="atlas-h-scroll flex gap-1 overflow-x-auto overscroll-x-contain touch-pan-x pb-0.5 pr-4"
           style={{
-            maskImage: "linear-gradient(90deg, transparent, #000 12px, #000 calc(100% - 12px), transparent)",
-            WebkitMaskImage: "linear-gradient(90deg, transparent, #000 12px, #000 calc(100% - 12px), transparent)",
+            maskImage: "linear-gradient(90deg, transparent, #000 8px, #000 calc(100% - 8px), transparent)",
+            WebkitMaskImage: "linear-gradient(90deg, transparent, #000 8px, #000 calc(100% - 8px), transparent)",
           }}
         >
           {scenes.map((s, i) => (
@@ -1103,47 +1086,24 @@ function MobileWorkstage({
                 setSlideDir(i > safeIdx ? 1 : -1);
                 setIdx(i);
               }}
-              className="reactor-pressable shrink-0 rounded-lg border px-2 py-2 text-left w-[136px] min-h-[52px] transition-[border-color,box-shadow,background] duration-150"
+              className="reactor-pressable flex h-8 shrink-0 items-center gap-1 rounded-md border px-2 transition-[border-color,background] duration-150"
               aria-current={i === safeIdx ? "true" : undefined}
               aria-label={`Scene ${i + 1}: ${s.title}${s.live ? ", live" : ""}`}
               style={{
-                borderColor: i === safeIdx ? "#eab30899" : s.live ? "#eab30855" : "#ffffff12",
-                background: i === safeIdx ? "#eab30818" : s.live ? "rgba(234,179,8,0.06)" : "#0f172a",
-                boxShadow: i === safeIdx
-                  ? "0 0 16px rgba(234,179,8,0.2), inset 0 0 0 1px rgba(234,179,8,0.15)"
-                  : s.live
-                  ? "0 0 8px rgba(234,179,8,0.08)"
-                  : undefined,
+                borderColor: i === safeIdx ? "#eab30899" : s.live ? "#eab30844" : "#ffffff10",
+                background: i === safeIdx ? "#eab30814" : "#0a0a0a",
               }}
             >
-              <div className="flex items-center gap-1 mb-0.5">
-                <span className={`text-[8px] font-mono tabular-nums ${i === safeIdx ? "text-yellow-400" : "text-stone-600"}`}>{i + 1}</span>
-                <ActivityGlyphMini kind={s.kind} live={s.live} terminal={s.terminal} />
-                <span className={`text-[8px] font-mono uppercase tracking-wider truncate ${i === safeIdx ? "text-stone-200" : "text-stone-400"}`}>{s.title}</span>
-                {s.live && (
-                  <span
-                    className="ml-auto h-2 w-2 shrink-0 rounded-full bg-yellow-400 shadow-[0_0_8px_#eab308]"
-                    aria-hidden
-                  />
-                )}
-                {!s.live && s.terminal === "done" && (
-                  <span className="ml-auto text-[7px] font-mono font-bold uppercase tracking-wider text-yellow-400/80">done</span>
-                )}
-                {!s.live && s.terminal === "failed" && (
-                  <span className="ml-auto text-[7px] font-mono font-bold uppercase tracking-wider text-rose-400/80">fail</span>
-                )}
-              </div>
-              <StoryLine story={s.story} className={`text-[9px] leading-tight ${i === safeIdx ? "text-stone-50" : "text-stone-400"}`} />
+              <span className={`font-mono text-[8px] tabular-nums ${i === safeIdx ? "text-[#eab308]" : "text-stone-600"}`}>
+                {i + 1}
+              </span>
+              <ActivityGlyphMini kind={s.kind} live={s.live} terminal={s.terminal} />
+              <span className={`max-w-[72px] truncate font-mono text-[9px] uppercase tracking-wider ${i === safeIdx ? "text-stone-100" : "text-stone-500"}`}>
+                {s.title}
+              </span>
+              {s.live && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#eab308]" aria-hidden />}
             </button>
           ))}
-        </div>
-      )}
-
-      {scenes.length > 1 && (
-        <div className="text-center text-[9px] font-mono text-stone-400 tracking-wider pb-1">
-          {paused
-            ? "auto-advance paused · space or tap cue to resume"
-            : "swipe or arrows · space pauses · home/end jumps"}
         </div>
       )}
     </div>

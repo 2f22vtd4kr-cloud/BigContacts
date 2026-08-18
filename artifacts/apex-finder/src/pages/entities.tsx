@@ -198,13 +198,14 @@ function RerunButton({ entityId }: { entityId: number }) {
 // ─── Mobile card ──────────────────────────────────────────────────────────────
 
 function MobileEntityCard({
-  entity, selected, onToggleSelect, isExpanded, onToggleExpand, onToggleStar, onToggleHide,
+  entity, selected, onToggleSelect, isExpanded, onToggleExpand, onToggleStar, onToggleHide, onDelete,
 }: {
   entity: any; selected: boolean; isExpanded: boolean;
   onToggleSelect: (e: React.MouseEvent) => void;
   onToggleExpand: () => void;
   onToggleStar: (entity: any) => void;
   onToggleHide: (entity: any) => void;
+  onDelete: (id: number) => void;
 }) {
   const typeColor = entityMeta(entity.type).color;
   const registries = parseEntityRegistries(entity.sourceRegistries);
@@ -349,7 +350,7 @@ function MobileEntityCard({
             </div>
           )}
 
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-4 gap-2">
             <Link
               href={`/profile/${entity.id}`}
               className="flex flex-col items-center justify-center gap-1.5 py-2 bg-muted border border-[#eab308]/12 rounded text-muted-foreground hover:text-primary transition-colors"
@@ -365,6 +366,36 @@ function MobileEntityCard({
               <span className="text-[9px] font-mono uppercase">Network</span>
             </Link>
             <RerunButton entityId={entity.id} />
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(entity.id);
+              }}
+              className="atlas-pressable flex flex-col items-center justify-center gap-1.5 rounded border border-rose-400/35 bg-rose-500/10 py-2 text-rose-200 hover:bg-rose-500/20 transition-colors"
+              aria-label={`Delete ${formatEntityName(entity.name)} from ledger`}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              <span className="text-[9px] font-mono uppercase">Delete</span>
+            </button>
+          </div>
+          <div className="mt-2 flex gap-2">
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onToggleStar(entity); }}
+              className="atlas-pressable flex flex-1 items-center justify-center gap-1.5 rounded border border-[#eab308]/15 py-2 font-mono text-[10px] uppercase tracking-wider text-stone-400 hover:text-[#fde047]"
+            >
+              <Star className={cn("h-3.5 w-3.5", entity.isStarred && "fill-[#eab308] text-[#eab308]")} />
+              {entity.isStarred ? "Unstar" : "Star"}
+            </button>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onToggleHide(entity); }}
+              className="atlas-pressable flex flex-1 items-center justify-center gap-1.5 rounded border border-[#eab308]/15 py-2 font-mono text-[10px] uppercase tracking-wider text-stone-400 hover:text-stone-200"
+            >
+              {entity.isHidden ? <Eye className="h-3.5 w-3.5 text-orange-400" /> : <EyeOff className="h-3.5 w-3.5" />}
+              {entity.isHidden ? "Unhide" : "Hide"}
+            </button>
           </div>
         </div>
       )}
@@ -1508,6 +1539,7 @@ export default function EntityLedger() {
               onToggleSelect={(e) => { e.stopPropagation(); toggleSelect(entity.id); }}
               onToggleStar={handleToggleStar}
               onToggleHide={handleToggleHide}
+              onDelete={handleDelete}
             />
           ))}
           {!showLoading && !showError && displayEntities.length === 0 && (

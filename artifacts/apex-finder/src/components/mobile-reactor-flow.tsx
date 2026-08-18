@@ -773,7 +773,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
               <BureauOpsStage
                 events={liveEvents as any}
                 compact
-                maxScenes={showHistory ? 14 : 8}
+                maxScenes={showHistory ? 12 : 6}
                 title=""
                 jumpToLiveSignal={jumpToLiveSignal}
                 onEdgeSwipe={(dir) => {
@@ -789,11 +789,6 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                   }
                 }}
               />
-              <div className={`mt-2 text-center text-[9px] font-mono uppercase tracking-wider ${
-                showHistory ? "text-muted-foreground" : "text-stone-500"
-              }`}>
-                {showHistory ? "Tap Live to return" : "Swipe left for history"}
-              </div>
             </section>
           ) : (
             <div
@@ -874,8 +869,8 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
             </div>
           )}
 
-          <p className="px-1 text-center text-[9px] leading-relaxed text-stone-500">
-            Swipe steps · tap Live for current
+          <p className="px-1 text-center font-mono text-[8px] uppercase tracking-wider text-stone-600">
+            {showHistory ? "Tap Live · swipe steps" : "Swipe steps · Hist for archive"}
           </p>
         </div>
       </div>
