@@ -461,8 +461,8 @@ export default function DeepSearch() {
                     className={cn(
                       "px-2.5 py-1 rounded border text-xs font-mono font-bold uppercase transition-all",
                       filterSources.includes(j.value)
-                        ? "bg-[#eab308]/20 border-blue-500 text-[#eab308]"
-                        : "border-[#eab308]/12 text-muted-foreground hover:border-blue-500/50",
+                        ? "bg-[#eab308]/20 border-[#eab308] text-[#eab308]"
+                        : "border-[#eab308]/12 text-muted-foreground hover:border-[#eab308]/50",
                     )}
                   >
                     {j.label}

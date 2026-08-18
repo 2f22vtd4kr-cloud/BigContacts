@@ -6,14 +6,14 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function getScoreColor(score: number) {
-  if (score >= 0.8) return "text-primary border-primary bg-primary/10";
-  if (score >= 0.5) return "text-amber-500 border-amber-500/50 bg-amber-500/10";
+  if (score >= 0.8) return "text-[#eab308] border-[#eab308]/50 bg-[#eab308]/10";
+  if (score >= 0.5) return "text-[#fde047] border-[#eab308]/35 bg-[#eab308]/10";
   return "text-muted-foreground border-border bg-muted";
 }
 
 export function getScoreBarColor(score: number) {
-  if (score >= 0.8) return "bg-primary";
-  if (score >= 0.5) return "bg-amber-500";
+  if (score >= 0.8) return "bg-[#eab308]";
+  if (score >= 0.5) return "bg-[#ca8a04]";
   return "bg-muted-foreground";
 }
 

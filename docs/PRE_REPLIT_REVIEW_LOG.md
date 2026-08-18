@@ -34,3 +34,39 @@
 ## Defects found (UI code)
 
 None P0 from static scan on tip `d69abdc`. Visual confirmation still required once Vite runs.
+
+## Continuation — 2026-08-18 (static Stage 1+2 audit)
+
+**SHA after fixes:** (this commit)
+
+### Fixes applied
+| Item | Change |
+|------|--------|
+| Score badge mid-tier amber | `utils.tsx` → gold `#eab308` / `#fde047` / `#ca8a04` |
+| Discover source chips blue border | `deep-search.tsx` → gold borders |
+
+### Stage 2 API path audit
+| Path | Present |
+|------|---------|
+| `POST /ingest/atlas-run` | Yes |
+| `DELETE /ingest/atlas-lock` (+ `:jobId`) | Yes |
+| `GET /ingest/atlas-status` | Yes |
+| `DELETE /entities/:id` | Yes |
+| `POST /entities/bulk-delete` | Yes |
+| `POST /entities/purge-all` | Yes |
+| Trash gates on persist/orchestrator/agentic | Yes (`isTrashContactValue` / placeholder email) |
+
+### Launch control map
+| Surface | LaunchAtlasButton |
+|---------|-------------------|
+| Header (non-home, non-reactor) | Yes |
+| Overview `/` | Primary only |
+| Reactor mobile + desktop bars | Yes (not duplicated in header) |
+
+### Still blocked in this sandbox
+Vite/node_modules link — no live screenshots. Code P0s above closed.
+
+### Open for live env only
+- S2-A Launch/Stop runtime
+- S2-E fair Grok comparison
+- Stage 3 hosted boot
