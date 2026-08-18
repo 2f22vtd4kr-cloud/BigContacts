@@ -93,3 +93,30 @@ Reduces “tab crashes when API returns SPA HTML” class of bugs (Stage 1 offli
 | `data-sources.tsx` Python tools panel | `readApiJson` instead of bare `.json()` |
 
 Launch pipeline helpers already used `readApiJson`. Reactor job poll already rejects HTML via text prefix check.
+
+## Vite live screenshots — 2026-08-18
+
+**Server:** `http://127.0.0.1:5177` via `/tmp/vite-run` (npm install on /tmp; root = apex-finder; aliases to node_modules).
+**API:** not running → Workspace OFFLINE / KEYS OFF expected.
+
+### Captured (browser D+M)
+| Route | Notes |
+|-------|--------|
+| `/` Overview | Black/gold OK; single Launch; offline priority empty state |
+| `/reactor` | Idle standby; method graph on desktop; no traffic lights; Launch present |
+| `/profiles` | Empty / offline honest; **Clear ledger** visible desktop; gold filters |
+
+### Visual findings from screenshots
+1. **PASS** — no fake entities on cold boot
+2. **PASS** — Launch control present, not duplicated on overview hero + header awkwardly on home (header Launch hidden on `/` per design)
+3. **PASS** — ledger Clear ledger + filters gold
+4. **NOTE** — desktop Overview “desk could not load” for priority section when API down (acceptable offline; ensure copy stays calm)
+5. **NOTE** — mobile ledger “Profiles temporarily unavailable” when API down (good)
+6. **NOTE** — Reactor desktop pipeline graph is dense (known); live desk panel clean when idle
+7. **PASS** — mobile reactor idle copy clear; HIST control present
+
+### How to re-run Vite in this sandbox
+```bash
+cd /tmp/vite-run && npm install   # if wiped
+./node_modules/.bin/vite --config /tmp/vite-run/vite.config.ts --host 127.0.0.1 --port 5177
+```
