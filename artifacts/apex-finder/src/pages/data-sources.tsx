@@ -932,8 +932,8 @@ function PythonToolsPanel() {
     setLoading(true);
     const base = import.meta.env.BASE_URL.replace(/\/$/, "");
     fetch(`${base}/api/enrich/python-tools`)
-      .then(r => r.json())
-      .then(d => {
+      .then((r) => (r.ok ? readApiJson(r) : Promise.reject(new Error(String(r.status)))))
+      .then((d) => {
         // Reject non-object / incomplete payloads (mock empty arrays crash status.tools[k]).
         if (!d || typeof d !== "object" || Array.isArray(d) || !d.tools || typeof d.tools !== "object") {
           setStatus(null);
@@ -943,7 +943,7 @@ function PythonToolsPanel() {
         setLoading(false);
         setChecked(true);
       })
-      .catch(() => { setLoading(false); setChecked(true); });
+      .catch(() => { setLoading(false); setChecked(true); setStatus(null); });
   };
 
   useEffect(() => { load(); }, []);

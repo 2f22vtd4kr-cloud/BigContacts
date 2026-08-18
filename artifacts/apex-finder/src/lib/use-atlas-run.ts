@@ -2,6 +2,7 @@
  * Poll atlas pipeline status so Launch controls can reflect a live run.
  */
 import { useCallback, useEffect, useState } from "react";
+import { readApiJson } from "@/lib/api-json";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const POLL_MS = 4_000;
@@ -31,7 +32,7 @@ export function useAtlasRun(pollMs: number = POLL_MS) {
         setReady(true);
         return;
       }
-      const data = await res.json().catch(() => ({}));
+      const data = await readApiJson(res).catch(() => ({} as any));
       const active = Boolean(
         data?.active ||
           data?.status === "running" ||

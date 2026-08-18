@@ -84,3 +84,12 @@ Hardened `readApiJson` on previously bare `.json()` call sites:
 | OSINT tools categories | `readApiJson` |
 
 Reduces “tab crashes when API returns SPA HTML” class of bugs (Stage 1 offline axis).
+
+## Continuation — Launch status poll + Python tools
+
+| File | Fix |
+|------|-----|
+| `use-atlas-run.ts` | `readApiJson` for atlas-status poll (Launch/Stop UI) |
+| `data-sources.tsx` Python tools panel | `readApiJson` instead of bare `.json()` |
+
+Launch pipeline helpers already used `readApiJson`. Reactor job poll already rejects HTML via text prefix check.
