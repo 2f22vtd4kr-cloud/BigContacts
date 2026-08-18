@@ -247,7 +247,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
         )}
-        <div className={`relative z-10 flex min-h-0 flex-1 flex-col overflow-x-hidden ${isReactorRoute ? "overflow-hidden" : "overflow-y-auto"}`}>
+        <div className={`relative z-10 flex min-h-0 min-w-0 w-full max-w-full flex-1 flex-col overflow-x-hidden ${isReactorRoute ? "overflow-hidden" : "overflow-y-auto"}`}>
           {children}
         </div>
       </main>

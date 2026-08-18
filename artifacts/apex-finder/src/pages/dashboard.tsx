@@ -232,7 +232,7 @@ export default function Dashboard() {
   const hasError = mock ? false : (statsQuery.isError || leadsQuery.isError);
 
   return (
-    <div className="mx-auto w-full max-w-[1480px] px-4 pb-12 sm:px-6 lg:px-10">
+    <div className="atlas-page pb-12">
       <section className="atlas-enter atlas-ambient-gold relative flex flex-col gap-8 py-8 md:flex-row md:items-end md:justify-between md:py-12">
         <div className="max-w-2xl">
           <div className="mb-4 flex items-center gap-2.5 font-mono text-[10px] uppercase tracking-[0.2em] text-[#eab308]">

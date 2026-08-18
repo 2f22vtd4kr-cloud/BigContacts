@@ -348,15 +348,26 @@ button:not(:disabled):active:not(.atlas-launch-glow):not(.atlas-outline-btn):not
   border-radius: 999px;
 }
 
-/* Page shell rhythm */
+/* Page shell rhythm — never bleed past the phone edge */
 .atlas-page {
+  box-sizing: border-box;
   margin-left: auto;
   margin-right: auto;
   width: 100%;
-  max-width: 1480px;
-  padding-left: max(1rem, env(safe-area-inset-left));
-  padding-right: max(1rem, env(safe-area-inset-right));
-  padding-bottom: 3rem;
+  max-width: min(1480px, 100%);
+  min-width: 0;
+  overflow-x: clip;
+  padding-left: max(1rem, env(safe-area-inset-left, 0px));
+  padding-right: max(1rem, env(safe-area-inset-right, 0px));
+  padding-top: 1.25rem;
+  padding-bottom: max(3rem, env(safe-area-inset-bottom, 0px));
+}
+.atlas-page p,
+.atlas-page h1,
+.atlas-page h2,
+.atlas-page li {
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .atlas-section-label {

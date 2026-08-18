@@ -813,7 +813,7 @@ export default function EntityLedger() {
   const showError = isMockMode() ? false : isEntitiesError;
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex h-full min-w-0 w-full max-w-full flex-col overflow-hidden">
       {/* ── Desktop ── */}
       <div className="hidden md:flex flex-col h-full overflow-hidden">
         {/* Active filter banner */}

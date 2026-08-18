@@ -363,7 +363,7 @@ export default function ManualPage() {
     : SECTIONS;
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8 sm:py-10">
+    <div className="atlas-page max-w-3xl py-8 sm:py-10">
       <div className="flex items-start gap-3 mb-4">
         <BookOpen className="w-5 h-5 text-primary mt-0.5 shrink-0" aria-hidden />
         <p className="text-sm text-muted-foreground leading-relaxed max-w-2xl">

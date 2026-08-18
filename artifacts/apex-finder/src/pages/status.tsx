@@ -147,7 +147,7 @@ function ProviderCard({ name, slots }: { name: keyof AIKeyStatus; slots: AIKeySl
   return (
     <article
       className={cn(
-        "group relative overflow-hidden rounded-2xl border border-[#2a2a2a] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-sm transition-all hover:border-[#eab308]/30 hover:shadow-[0_0_24px_rgba(234,179,8,0.06)]",
+        "group relative min-w-0 max-w-full overflow-hidden rounded-2xl border border-[#2a2a2a] p-3.5 sm:p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-sm transition-all hover:border-[#eab308]/30 hover:shadow-[0_0_24px_rgba(234,179,8,0.06)]",
         tone,
         configured === 0 && "opacity-55",
       )}
@@ -276,11 +276,11 @@ export default function SystemStatusPage() {
   const upstashSlots = status?.databases?.upstash ?? [];
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 px-3 py-5 sm:space-y-8 sm:px-4 sm:py-8">
+    <div className="atlas-page max-w-4xl space-y-5 sm:space-y-8">
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <p className="max-w-lg text-[13px] leading-relaxed text-stone-400">
+          <p className="max-w-full text-[13px] leading-relaxed text-stone-400 break-words">
             AI search pools, Redis, and database health. Other tools (Scrapfly, Companies House, etc.) show under research lanes below — not in the five pool rows.
           </p>
         </div>
@@ -303,17 +303,17 @@ export default function SystemStatusPage() {
       {/* Quick-glance banner */}
       {status && (
         <div className={cn(
-          "flex flex-col gap-2 rounded-2xl border px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5",
+          "flex min-w-0 flex-col gap-2 rounded-2xl border px-3 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5",
           totalActive > 0
             ? "border-[#eab308]/25 bg-gradient-to-r from-yellow-500/[0.08] to-transparent"
             : "border-destructive/30 bg-destructive/5",
         )}>
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 items-start gap-3">
             <div className={cn(
-              "h-2 w-2 rounded-full",
+              "mt-1.5 h-2 w-2 shrink-0 rounded-full",
               totalActive > 0 ? "bg-[#eab308] shadow-[0_0_8px_rgba(234,179,8,0.7)]" : "bg-destructive",
             )} />
-            <span className="text-[13px] font-semibold tracking-tight text-stone-100">
+            <span className="min-w-0 text-[13px] font-semibold leading-snug tracking-tight text-stone-100 break-words">
               {totalActive > 0
                 ? `${totalActive} AI pool slot${totalActive === 1 ? "" : "s"} live (Groq · Perplexity · Gemini · Tavily · Exa)`
                 : "No AI pool keys live — check Secrets and restart API"}
