@@ -41,7 +41,8 @@ export function ScoreBadge({ score }: { score: number | null | undefined }) {
 
 export function AccessScoreBadge({ score }: { score: number | null | undefined }) {
   if (score == null || typeof score !== "number" || isNaN(score)) return null;
-  const pct = Math.round(score * 100);
+  // Accept 0–1 fractions or 0–100 percents (ledger/API historically mixed both).
+  const pct = Math.round(score > 1 ? score : score * 100);
 
   // Plain-language reachability — never cryptic jargon alone
   let label: string;

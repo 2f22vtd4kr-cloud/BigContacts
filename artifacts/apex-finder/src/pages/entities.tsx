@@ -257,9 +257,16 @@ function MobileEntityCard({
               {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
             </div>
           </div>
+          {workSummary && workSummary !== entity.linkedinHeadline && (
           <div className="text-[11px] leading-4 text-muted-foreground line-clamp-2">
-            {workSummary ?? "No documented role or activity recorded"}
+            {workSummary}
           </div>
+          )}
+          {!workSummary && !entity.linkedinHeadline && (
+          <div className="text-[11px] leading-4 text-muted-foreground line-clamp-2">
+            No documented role or activity recorded
+          </div>
+          )}
           <div className="flex flex-wrap items-center gap-1.5">
             <span
               className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[9px] font-mono font-bold"
