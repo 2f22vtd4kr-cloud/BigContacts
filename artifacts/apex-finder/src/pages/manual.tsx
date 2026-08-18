@@ -92,7 +92,7 @@ const SECTIONS = [
         </ul>
         <Callout title="Non-negotiable rules">
           Never invent contacts. Never mark org inboxes (info@, sales@, …) as Personal. Trash-phone gate stays on.
-          Every claimed fact needs sourceUrls. Grok / Gemini Agent is the floor — Apex must retain at least as much non-trash surface.
+          Every claimed fact needs a public source URL. Prefer direct personal or role emails over generic company inboxes.
         </Callout>
       </>
     ),
@@ -196,19 +196,25 @@ const SECTIONS = [
     content: (
       <>
         <p className="text-sm text-muted-foreground leading-relaxed mb-4">
-          Keys live in Replit Secrets / environment only — never commit them. The header key-health chip reflects pool status.
+          Keys live in Replit Secrets / environment only — never commit them.
+          The header chip counts <strong className="text-foreground">AI pool slots that are live</strong> (Groq, Perplexity, Gemini, Tavily, Exa).
+          Other tools are tracked on System status under <strong className="text-foreground">Open research / tools</strong>, not in that five-pool header number.
+        </p>
+        <p className="text-sm text-muted-foreground leading-relaxed mb-3">
+          On each AI pool card, <strong className="text-foreground">“2/11 live”</strong> means two secrets are active out of eleven possible rotation slots.
+          Grey segments are empty slots (no key) — that is normal. It is not “battery remaining.”
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] font-mono text-muted-foreground mb-4">
-          <div className="border border-[#eab308]/12 rounded p-2">SERP / search — SerpAPI, Serper, Tavily, Exa</div>
-          <div className="border border-[#eab308]/12 rounded p-2">Browser — Scrapfly, ZenRows</div>
-          <div className="border border-[#eab308]/12 rounded p-2">LLM — Gemini (Boss), Groq, NVIDIA NIM, Mistral</div>
-          <div className="border border-[#eab308]/12 rounded p-2">Domain — WhoisJSON (RDAP is keyless); Whoxy skip if balance 0</div>
+          <div className="border border-[#eab308]/12 rounded p-2">AI pools (header) — Groq, Perplexity, Gemini, Tavily, Exa</div>
+          <div className="border border-[#eab308]/12 rounded p-2">Open research — Hugging Face, Serper, Mistral, Scrapfly, Zenrows</div>
+          <div className="border border-[#eab308]/12 rounded p-2">Bureau — Gemini Boss, NVIDIA NIM advisor</div>
+          <div className="border border-[#eab308]/12 rounded p-2">Domain — WhoisJSON (RDAP is keyless)</div>
           <div className="border border-[#eab308]/12 rounded p-2">Registry — Companies House, EDGAR (public)</div>
-          <div className="border border-[#eab308]/12 rounded p-2">Infra — Upstash Redis (session), Hugging Face</div>
+          <div className="border border-[#eab308]/12 rounded p-2">Infra — Redis (Upstash + local), Postgres</div>
         </div>
         <Callout title="Budget discipline">
-          SerpAPI free tier (~250/mo) and Scrapfly (~1000/mo) are tight. Prefer RDAP before WhoisJSON.
-          Watch Remaining-Requests on WhoisJSON. Do not burn keys on noise queries.
+          Search and browser keys are the expensive ones. Prefer public registry pages and company sites before paid scrapes.
+          Stop research jobs when you are done — do not leave Launch running unattended.
         </Callout>
       </>
     ),
@@ -220,7 +226,7 @@ const SECTIONS = [
       <>
         <ol className="list-decimal list-inside space-y-3 text-sm text-muted-foreground mb-4 pl-1">
           <li><strong className="text-foreground">Company-first discovery</strong> — seed mid-market private operators (family/owner manufacturers preferred).</li>
-          <li><strong className="text-foreground">Watch the Reactor</strong> — confirm browser hops, prompts, and domain surface fire; refuse-done until related persons attach when org surface exists.</li>
+          <li><strong className="text-foreground">Watch the Reactor</strong> — confirm the run is opening real pages and attaching named people when a company surface exists.</li>
           <li><strong className="text-foreground">Open the card</strong> — check FULL/PARTIAL, personal emails, ownership narrative, sourceUrls.</li>
           <li><strong className="text-foreground">Act only on FULL or intentional PARTIAL</strong> — never invent a channel; optional registry hop / enrichment only after identity lock.</li>
         </ol>
@@ -325,7 +331,7 @@ const SECTIONS = [
             <AlertTriangle className="w-5 h-5 text-[#eab308] shrink-0" />
             <div>
               <strong className="text-foreground block mb-1">Trash-phone gate</strong>
-              US 555-exchange, all-same-digit, and trivial sequences are rejected. Floor script must PASS before material releases.
+              US 555-exchange, all-same-digit, and trivial sequences are rejected automatically — they never appear as real phones.
             </div>
           </li>
           <li className="flex gap-3">
@@ -338,8 +344,8 @@ const SECTIONS = [
           <li className="flex gap-3">
             <Crosshair className="w-5 h-5 text-[#facc15] shrink-0" />
             <div>
-              <strong className="text-foreground block mb-1">Grok is the floor</strong>
-              Holdouts document Apex recovering more reachable personal channels while staying fail-closed.
+              <strong className="text-foreground block mb-1">Maximise real reach</strong>
+              Prefer named people with attributable emails or phones from public pages. Stay fail-closed: if it is not on the source, it does not go on the card.
             </div>
           </li>
         </ul>
@@ -426,7 +432,7 @@ export default function ManualPage() {
       </div>
 
       <div className="mt-10 text-[11px] text-muted-foreground/70 leading-relaxed">
-        Apex Atlas · never invent contacts · org inboxes stay company · Grok is the floor
+        Apex Atlas · never invent contacts · org inboxes stay company · public sources only
       </div>
     </div>
   );

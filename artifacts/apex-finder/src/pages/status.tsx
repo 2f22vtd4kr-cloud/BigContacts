@@ -160,7 +160,7 @@ function ProviderCard({ name, slots }: { name: keyof AIKeyStatus; slots: AIKeySl
             {PROVIDER_LABELS[name]}
           </div>
           <div className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70">
-            {configured}/{total} slots keyed
+            {configured} of {total} slots have keys
           </div>
         </div>
         <span
@@ -180,12 +180,16 @@ function ProviderCard({ name, slots }: { name: keyof AIKeyStatus; slots: AIKeySl
       <div className="relative mt-4 space-y-2">
         <SlotBar slots={slots} />
         <div className="flex items-center justify-between gap-2 font-mono text-[10px] text-muted-foreground">
-          <span className="text-[#fde047]/90">{Math.round(health * 100)}% capacity</span>
+          <span className="text-[#fde047]/90">
+            {active}/{total} live
+          </span>
           <span className="truncate text-right">
             {rateLimited > 0 && <span className="text-[#fde047]/90">{rateLimited} cooling · </span>}
-            {missing > 0 && <span className="text-muted-foreground/55">{missing} open</span>}
+            {missing > 0 && (
+              <span className="text-muted-foreground/55">{missing} empty (no key)</span>
+            )}
             {missing === 0 && rateLimited === 0 && active > 0 && (
-              <span className="text-[#fde047]/80">all clear</span>
+              <span className="text-[#fde047]/80">pool full</span>
             )}
           </span>
         </div>
@@ -353,7 +357,7 @@ export default function SystemStatusPage() {
           ))}
         </div>
         <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground/70">
-          Bars are capacity slots (many empty is normal). Only LIVE slots are keys you set. Tool keys (Scrapfly, Companies House, Serper…) appear under Open Research / tools — not in every AI pool row.
+          Each bar is a key slot for that provider. Gold = live key in use; grey = empty (no secret). “2/11 live” means two keys configured out of eleven possible slots — empty slots are normal. Scrapfly, Companies House, Serper, Zenrows and similar tools appear under Open research / tools below, not in these five AI pool rows.
         </p>
       </section>
 
