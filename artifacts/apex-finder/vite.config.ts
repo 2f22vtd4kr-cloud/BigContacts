@@ -56,6 +56,13 @@ export default defineConfig({
     fs: {
       strict: true,
     },
+    // Local final-review: UI :23695 → API :8080
+    proxy: {
+      '/api': {
+        target: 'http://127.0.0.1:8080',
+        changeOrigin: true,
+      },
+    },
   },
   preview: {
     port,
