@@ -219,10 +219,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
             {location !== "/" && !isReactorRoute && (
               <LaunchAtlasButton
                 variant="header"
-                className="!h-8 !shrink-0 !px-2.5 !text-[10px] sm:!h-9 sm:!px-3 sm:!text-[11px]"
+                className="!h-8 !w-8 !shrink-0 !gap-0 !px-0 sm:!h-9 sm:!w-auto sm:!gap-2 sm:!px-3 sm:!text-[11px]"
               />
             )}
-            <div className="flex min-w-0 flex-1 items-center justify-end gap-1.5 overflow-x-auto sm:gap-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="flex shrink-0 items-center justify-end gap-1 sm:gap-2">
               <WorkspaceStatus />
               <ApiKeyHealth />
             </div>
@@ -230,7 +230,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               onClick={() => setSidebarOpen(true)}
               aria-label="Open menu"
               data-testid="button-open-menu"
-              className="atlas-pressable shrink-0 rounded-lg p-2.5 text-stone-400 hover:bg-white/[0.06] hover:text-stone-100 md:hidden"
+              className="atlas-pressable shrink-0 rounded-lg p-2 text-stone-400 hover:bg-white/[0.06] hover:text-stone-100 md:hidden"
             >
               <Menu className="h-5 w-5" />
             </button>

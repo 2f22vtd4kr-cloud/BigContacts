@@ -15,7 +15,7 @@ const VARIANT_CLASS: Record<Variant, string> = {
   primary:
     "atlas-launch-glow h-12 w-full sm:w-auto px-7 text-sm tracking-tight",
   header:
-    "h-9 px-3.5 text-[11px] font-bold tracking-wide rounded-full bg-[#eab308]/12 text-[#fde047] border border-[#eab308]/40 hover:bg-[#eab308]/20 hover:border-[#facc15]/50 active:scale-[0.97] active:brightness-95",
+    "h-9 w-9 sm:w-auto sm:px-3.5 text-[11px] font-bold tracking-wide rounded-full bg-[#eab308]/12 text-[#fde047] border border-[#eab308]/40 hover:bg-[#eab308]/20 hover:border-[#facc15]/50 active:scale-[0.97] active:brightness-95",
   reactor:
     "atlas-launch-glow h-11 w-full sm:w-auto px-5 text-xs",
   ghost:
@@ -26,7 +26,7 @@ const VARIANT_RUNNING: Record<Variant, string> = {
   primary:
     "h-12 w-full sm:w-auto px-7 text-sm tracking-tight rounded-xl border border-[#eab308]/45 bg-[#eab308]/15 text-[#fde047] shadow-[0_0_28px_rgba(234,179,8,0.2)]",
   header:
-    "h-9 px-3.5 text-[11px] font-bold tracking-wide rounded-full bg-[#eab308]/18 text-[#fde047] border border-[#eab308]/50",
+    "h-9 w-9 sm:w-auto sm:px-3.5 text-[11px] font-bold tracking-wide rounded-full bg-[#eab308]/18 text-[#fde047] border border-[#eab308]/50",
   reactor:
     "h-11 w-full sm:w-auto px-5 text-xs rounded-xl border border-[#eab308]/45 bg-[#eab308]/15 text-[#fde047]",
   ghost:
@@ -143,7 +143,13 @@ export function LaunchAtlasButton({
         ) : (
           <Radar className="h-4 w-4 shrink-0" aria-hidden />
         )}
-        <span className="truncate max-w-[14rem] sm:max-w-none">
+        <span
+          className={cn(
+            "truncate max-w-[14rem] sm:max-w-none",
+            /* Header on phone: icon-only — label lives in aria-label */
+            variant === "header" && "hidden sm:inline",
+          )}
+        >
           {running ? runningLabel : idleLabel}
         </span>
       </button>
