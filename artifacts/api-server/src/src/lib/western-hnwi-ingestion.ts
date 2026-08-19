@@ -148,6 +148,18 @@ const EDGAR_HEADERS = {
   "User-Agent": "ApexFinder/1.0 OSINT-Research research@apexfinder.private",
 };
 
+
+/** Fisher–Yates shuffle — discovery must not always admit the same first SEC name. */
+function shuffleArray<T>(items: T[], rng: () => number = Math.random): T[] {
+  const a = [...items];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+
 // Common phrases that appear in virtually all SC 13D/G filings — used as search
 // anchors to enumerate filers without a specific person query.
 const SC13_SEARCH_TERMS = [
@@ -161,12 +173,16 @@ const SC13_SEARCH_TERMS = [
 async function* harvestSecEdgar13DG(maxCount: number): AsyncGenerator<HarvestedPerson> {
   let yielded = 0;
   const seen = new Set<string>();
+  // Rotate term order + page start so the first admitted person is not always
+  // the same SEC EFTS hit (e.g. a fixed "Andrew F Johnson" from from=0 of term 0).
+  const terms = shuffleArray(SC13_SEARCH_TERMS);
+  const pageStart = Math.floor(Math.random() * 40) * 10; // 0..390
 
-  for (const term of SC13_SEARCH_TERMS) {
+  for (const term of terms) {
     if (yielded >= maxCount) break;
 
     // Paginate through results — EDGAR returns 10 per page by default
-    for (let from = 0; from < 5000 && yielded < maxCount; from += 10) {
+    for (let from = pageStart; from < pageStart + 5000 && yielded < maxCount; from += 10) {
       const url =
         `https://efts.sec.gov/LATEST/search-index` +
         `?q=${encodeURIComponent(term)}` +
@@ -261,11 +277,13 @@ const DEF14A_SEARCH_TERMS = [
 async function* harvestSecEdgarDEF14A(maxCount: number): AsyncGenerator<HarvestedPerson> {
   let yielded = 0;
   const seen = new Set<string>();
+  const terms = shuffleArray(DEF14A_SEARCH_TERMS);
+  const pageStart = Math.floor(Math.random() * 25) * 10; // 0..240
 
-  for (const term of DEF14A_SEARCH_TERMS) {
+  for (const term of terms) {
     if (yielded >= maxCount) break;
 
-    for (let from = 0; from < 2000 && yielded < maxCount; from += 10) {
+    for (let from = pageStart; from < pageStart + 2000 && yielded < maxCount; from += 10) {
       const url =
         `https://efts.sec.gov/LATEST/search-index` +
         `?q=${encodeURIComponent(term)}` +
@@ -901,14 +919,14 @@ export async function runWesternHnwiIngestion(opts: IngestionOptions): Promise<I
     ? targetCount - edgarBudget13D - edgarBudgetDEF - brregBudget
     : 0;
 
-  const harvesters: [AsyncGenerator<HarvestedPerson>, string][] = [
+  const harvesters: [AsyncGenerator<HarvestedPerson>, string][] = shuffleArray([
     [harvestSecEdgar13DG(edgarBudget13D + edgarExtraBudget), "SEC EDGAR SC 13D/G"],
     [harvestSecEdgarDEF14A(edgarBudgetDEF), "SEC EDGAR DEF 14A"],
     [harvestBRREGDirectors(brregBudget), "BRREG Norway"],
     ...(hasCompaniesHouseKey
       ? [[harvestCompaniesHouseOfficers(chBudget), "Companies House UK"] as [AsyncGenerator<HarvestedPerson>, string]]
       : []),
-  ];
+  ]);
 
   // ── Batch state ──────────────────────────────────────────────────────────────
   let entityBatch: InsertEntity[] = [];

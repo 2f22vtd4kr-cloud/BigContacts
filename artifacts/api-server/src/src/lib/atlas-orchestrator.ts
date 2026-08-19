@@ -1906,6 +1906,15 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
   // enriched through ALL phases and stamped cookedAt before the next source runs.
   await status("Phase 1/10: Discovery + full-circle enrichment loop…", 1);
 
+  function shuffleDiscoverySources<T>(items: T[]): T[] {
+    const a = [...items];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
   type DiscoverySource =
     | { kind: "broad"; category: number; label: string }
     | { kind: "registry"; label: string; clearFirst?: boolean };
@@ -1952,12 +1961,22 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
   let sourcesToRun = selectedBroadCategories
     ? DISCOVERY_SOURCES.filter(source => source.kind === "registry" || selectedBroadCategories.has(source.category))
     : [...DISCOVERY_SOURCES];
+  // Always shuffle the slate so the first admitted person is not the same SEC
+  // EFTS hit every Launch (fixed DISCOVERY_SOURCES order + EDGAR from=0 bias).
+  sourcesToRun = shuffleDiscoverySources(sourcesToRun);
   if (targetLimit > 0 && targetLimit <= 10) {
-    // Gold standard: registry-first for bounded jobs so Groq 429 on broad web
-    // cannot starve the entire admit pool before EDGAR/CH/BRREG run.
-    const broad = sourcesToRun.filter((s) => s.kind === "broad");
-    const registry = sourcesToRun.filter((s) => s.kind === "registry");
-    sourcesToRun = [...registry, ...broad];
+    // Bounded jobs: keep registries in the mix, but interleave with broad so
+    // EDGAR batch 1 is not always the first admit. Registry still present for
+    // offline resilience when web providers rate-limit.
+    const broad = shuffleDiscoverySources(sourcesToRun.filter((s) => s.kind === "broad"));
+    const registry = shuffleDiscoverySources(sourcesToRun.filter((s) => s.kind === "registry"));
+    const interleaved: typeof sourcesToRun = [];
+    const maxLen = Math.max(registry.length, broad.length);
+    for (let i = 0; i < maxLen; i++) {
+      if (i < registry.length) interleaved.push(registry[i]);
+      if (i < broad.length) interleaved.push(broad[i]);
+    }
+    sourcesToRun = interleaved;
   }
   let admittedTargets = 0;
   let sourceRound = 0;
