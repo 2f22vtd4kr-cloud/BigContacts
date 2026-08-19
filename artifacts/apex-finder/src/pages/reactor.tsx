@@ -78,6 +78,12 @@ interface AtlasLiveState {
     contacts?: number;
     personaNames?: string[];
     raw?: string;
+    story?: string;
+    actor?: string;
+    methodKind?: string;
+    sourceUrls?: string[];
+    links?: Array<{ title?: string; url: string }>;
+    caseUpdate?: string;
   }>;
   phaseJ?: {
     status?: string;
@@ -855,10 +861,23 @@ function AtlasTelemetryInspector({ telemetry, eventLog = [] }: { telemetry?: any
                   <span style={{ color:"#526b86" }}> · {event.activeToolId === PERSONA_REVIEW_TOOL ? "Post-research quality review" : event.activeToolId ? telemetryToolLabel(event.activeToolId) : "Atlas"}</span>
                 </summary>
                 <div style={{ marginTop:5, color:"#8aa4c0", fontSize:6.5, lineHeight:1.45 }}>
+                  {event.story && <div style={{ color:"#e8e0cc", marginBottom:3 }}>{event.story}</div>}
+                  {event.actor && <div><span style={{ color:"#526b86" }}>ACTOR </span>{event.actor}{event.methodKind ? ` · ${event.methodKind}` : ""}</div>}
                   {event.targetName && <div><span style={{ color:"#526b86" }}>TARGET </span>{event.targetName}</div>}
                   {event.inputSummary && <div><span style={{ color:"#526b86" }}>INPUT </span>{event.inputSummary}</div>}
+                  {event.caseUpdate && <div><span style={{ color:"#526b86" }}>CASE </span>{event.caseUpdate}</div>}
                   {event.prompt && <pre style={{ margin:"4px 0 0", maxHeight:90, overflowY:"auto", whiteSpace:"pre-wrap", color:"#cbd5a5", fontFamily:"inherit" }}>{event.prompt}</pre>}
                   {event.resultSummary && <div><span style={{ color:"#526b86" }}>RESULT </span>{event.resultSummary}</div>}
+                  {((event.links && event.links.length > 0) || (event.sourceUrls && event.sourceUrls.length > 0)) && (
+                    <div style={{ marginTop:4, display:"flex", flexDirection:"column", gap:3 }}>
+                      <span style={{ color:"#526b86" }}>SOURCES</span>
+                      {(event.links && event.links.length ? event.links : (event.sourceUrls ?? []).map((url: string) => ({ url }))).slice(0, 5).map((l: any, i: number) => (
+                        <a key={i} href={l.url} target="_blank" rel="noopener noreferrer" style={{ color:"#fde047", textDecoration:"underline", wordBreak:"break-all" }}>
+                          {l.title || l.url}
+                        </a>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </details>
             ))}

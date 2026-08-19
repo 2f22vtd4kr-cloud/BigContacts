@@ -29,9 +29,16 @@ export type OpsEvent = {
   evidence?: number;
   contacts?: number;
   raw?: string;
+  /** Preferred operator one-liner from the pipeline */
+  story?: string;
+  actor?: "boss" | "investigator" | "registry" | "tool" | "system";
+  methodKind?: string;
+  sourceUrls?: string[];
+  links?: Array<{ title?: string; url: string }>;
+  caseUpdate?: string;
 };
 
-type SceneKind = "google" | "browser" | "prompt" | "domain" | "footprint" | "serp" | "bureau";
+type SceneKind = "google" | "browser" | "prompt" | "domain" | "footprint" | "serp" | "bureau" | "boss" | "case" | "registry" | "persona";
 
 type Scene = {
   id: string;
@@ -70,6 +77,8 @@ function extractQuery(e: OpsEvent): string | undefined {
 }
 
 function extractUrl(e: OpsEvent): string | undefined {
+  if (e.links?.[0]?.url) return e.links[0].url;
+  if (e.sourceUrls?.[0]) return e.sourceUrls[0];
   const blob = [e.resultSummary, e.inputSummary, e.raw].filter(Boolean).join(" ");
   const matches = blob.match(/https?:\/\/[^\s)'"<>]+/gi) || [];
   const target = (e.targetName || "").toLowerCase().replace(/[^a-z]/g, "");
@@ -109,6 +118,15 @@ function extractUrl(e: OpsEvent): string | undefined {
  * Pattern: "Now: …" while live, "Done: …" when finished.
  */
 function storyFor(kind: SceneKind, e: OpsEvent, query?: string): string {
+  if (e.story && e.story.trim().length >= 8) return e.story.trim();
+  if (e.caseUpdate && e.caseUpdate.trim()) {
+    const live = !/complete|done|success/i.test(String(e.status || "active"));
+    return `${live ? "Now" : "Done"}: Case update — ${e.caseUpdate.trim().slice(0, 160)}`;
+  }
+  if (e.actor === "boss") {
+    const live = !/complete|done|success/i.test(String(e.status || "active"));
+    return `${live ? "Now" : "Done"}: Boss ${live ? "briefing investigators" : "issued investigator instructions"}${e.targetName ? ` · ${e.targetName}` : ""}`;
+  }
   const t = (e.targetName || "this target").trim();
   const tool = pickTool(e);
   const blob = `${tool} ${e.stage || ""} ${e.resultSummary || ""} ${e.inputSummary || ""}`;
@@ -203,23 +221,32 @@ function toScene(e: OpsEvent, index: number): Scene {
     e.evidence != null ? `${e.evidence} evidence` : null,
   ].filter(Boolean) as string[];
 
-  const toolBlob = `${tool} ${e.stage || ""} ${e.resultSummary || ""} ${e.inputSummary || ""}`;
+  const toolBlob = `${tool} ${e.stage || ""} ${e.resultSummary || ""} ${e.inputSummary || ""} ${e.methodKind || ""} ${e.actor || ""}`;
   let kind: SceneKind = "bureau";
-  // Order matters: specific tools first so each gets a distinct visual language
-  if (provider === "domain" || /domain-surface|domain-resolver|rdap|whois|whoxy|dns/i.test(toolBlob)) kind = "domain";
-  else if (provider === "google" || /\bgoogle\b/i.test(toolBlob)) kind = "google";
-  else if (["serp", "serper", "serpapi", "tavily", "exa", "perplexity"].includes(provider) || /tavily|exa|perplexity|serper|serpapi|web.?search/i.test(tool)) kind = "serp";
-  else if (provider === "prompt" || e.prompt || /groq|llm|extract|persona-review|gemini/i.test(tool)) kind = "prompt";
-  else if (provider === "sherlock" || provider === "maigret" || /footprint|holehe|sherlock|maigret/i.test(toolBlob)) kind = "footprint";
+  // Explicit pipeline method/actor first, then tool heuristics
+  if (e.methodKind === "boss" || e.actor === "boss") kind = "boss";
+  else if (e.methodKind === "case" || e.caseUpdate) kind = "case";
+  else if (e.methodKind === "registry" || e.actor === "registry" || /edgar|companies.?house|brreg|registry/i.test(toolBlob)) kind = "registry";
+  else if (e.methodKind === "persona" || /persona-review/i.test(toolBlob)) kind = "persona";
+  else if (e.methodKind === "domain" || provider === "domain" || /domain-surface|domain-resolver|rdap|whois|whoxy|dns/i.test(toolBlob)) kind = "domain";
+  else if (e.methodKind === "search" || provider === "google" || /\bgoogle\b/i.test(toolBlob)) kind = "google";
+  else if (e.methodKind === "search" || ["serp", "serper", "serpapi", "tavily", "exa", "perplexity"].includes(provider) || /tavily|exa|perplexity|serper|serpapi|web.?search/i.test(tool)) kind = "serp";
+  else if (e.methodKind === "extract" || provider === "prompt" || e.prompt || /groq|llm|extract|gemini/i.test(tool)) kind = "prompt";
+  else if (e.methodKind === "footprint" || provider === "sherlock" || provider === "maigret" || /footprint|holehe|sherlock|maigret/i.test(toolBlob)) kind = "footprint";
   else if (
+    e.methodKind === "fetch" ||
     provider === "browser" ||
     /scrapfly|zenrows|visit|fetch|mailto|contact-attribution|contact-facts|browser|webdisc|inhouse/i.test(toolBlob)
   ) kind = "browser";
 
   const title =
-    kind === "google" ? "Google"
-      : kind === "browser" ? "Browser"
-      : kind === "prompt" ? "Analyst"
+    kind === "boss" ? "Boss"
+      : kind === "case" ? "Case file"
+      : kind === "registry" ? "Registry"
+      : kind === "persona" ? "Persona review"
+      : kind === "google" ? "Web search"
+      : kind === "browser" ? "Fetch page"
+      : kind === "prompt" ? "Extract"
       : kind === "domain" ? "Domain"
       : kind === "footprint" ? "Footprint"
       : kind === "serp" ? providerLabel(provider)
@@ -241,6 +268,12 @@ function toScene(e: OpsEvent, index: number): Scene {
     live,
     terminal,
     story: storyFor(kind, e, query),
+    links: (e.links && e.links.length
+      ? e.links
+      : (e.sourceUrls ?? []).map((url) => ({ url }))
+    ).slice(0, 5),
+    actor: e.actor,
+    caseUpdate: e.caseUpdate,
   };
 }
 
@@ -300,6 +333,32 @@ function timeLabel(ts?: string, nowMs = Date.now()) {
 
 
 /** Color the Now:/Done:/Failed: prefix so status is obvious at a glance */
+function SourceLinkRow({ links }: { links?: Array<{ title?: string; url: string }> }) {
+  if (!links?.length) return null;
+  return (
+    <ul className="mt-1.5 space-y-1" data-testid="scene-source-links">
+      {links.slice(0, 5).map((l, i) => {
+        let host = "";
+        try { host = new URL(l.url).hostname.replace(/^www\./, ""); } catch { host = l.url.slice(0, 40); }
+        return (
+          <li key={`${l.url}-${i}`}>
+            <a
+              href={l.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="reactor-pressable group flex items-center gap-1.5 rounded-md border border-[#eab308]/15 bg-[#0a0a0a]/80 px-2 py-1 text-[10px] text-stone-300 hover:border-[#eab308]/40 hover:text-[#fef9c3]"
+            >
+              <span className="shrink-0 text-[9px] text-[#eab308]/90">↗</span>
+              <span className="min-w-0 truncate font-medium">{l.title || host}</span>
+              <span className="ml-auto shrink-0 font-mono text-[8px] text-stone-500 group-hover:text-stone-400">{host}</span>
+            </a>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 function StoryLine({
   story,
   className = "",
@@ -944,6 +1003,7 @@ function MobileWorkstage({
         />
         <div className="min-w-0 flex-1">
           <StoryLine story={scene.story} className="text-[12px] font-medium leading-snug tracking-tight text-stone-100 line-clamp-2" />
+          <SourceLinkRow links={scene.links} />
           <div className="mt-0.5 flex items-center gap-1.5 font-mono text-[9px] text-stone-500">
             <span className={scene.live ? "text-[#eab308]" : "text-stone-500"}>
               {scene.live ? "Now" : scene.terminal === "failed" ? "Fail" : "Done"}

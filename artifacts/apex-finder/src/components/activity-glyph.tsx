@@ -11,6 +11,10 @@ import {
   Sparkles,
   Users,
   FileSearch,
+  Crown,
+  NotebookPen,
+  Landmark,
+  UserCog,
 } from "lucide-react";
 import { prefersReducedMotion, motionOrNone, REACTOR_SHIMMER_MS } from "../lib/reactor-motion";
 
@@ -21,7 +25,11 @@ export type ActivityKind =
   | "domain"
   | "footprint"
   | "serp"
-  | "bureau";
+  | "bureau"
+  | "boss"
+  | "case"
+  | "registry"
+  | "persona";
 
 type Props = {
   kind: ActivityKind;
@@ -76,6 +84,14 @@ function pickIcon(kind: ActivityKind) {
       return Globe2;
     case "domain":
       return FileSearch;
+    case "boss":
+      return Crown;
+    case "case":
+      return NotebookPen;
+    case "registry":
+      return Landmark;
+    case "persona":
+      return UserCog;
     case "prompt":
       return Sparkles;
     case "footprint":

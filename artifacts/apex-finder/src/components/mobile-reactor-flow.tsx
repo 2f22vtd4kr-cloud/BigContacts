@@ -63,6 +63,12 @@ interface AtlasLiveState {
     evidence?: number;
     contacts?: number;
     raw?: string;
+    story?: string;
+    actor?: string;
+    methodKind?: string;
+    sourceUrls?: string[];
+    links?: Array<{ title?: string; url: string }>;
+    caseUpdate?: string;
   }>;
   phaseJ?: {
     status?: string;

@@ -546,6 +546,18 @@ type AtlasTelemetry = {
   nextAction?: string;
   disposition?: "contact_route_found" | "needs_follow_up";
   personaNames?: string[];
+  /** Operator-facing one-liner (Now:/Done:) — preferred over UI heuristics */
+  story?: string;
+  /** Who is acting: boss (Gemini), investigator, registry, tool, system */
+  actor?: "boss" | "investigator" | "registry" | "tool" | "system";
+  /** Method family for method-aware chrome */
+  methodKind?: "search" | "fetch" | "extract" | "registry" | "domain" | "footprint" | "boss" | "case" | "persona" | "bureau";
+  /** Real source URLs visited or consulted this step */
+  sourceUrls?: string[];
+  /** Optional titled links for the live feed */
+  links?: Array<{ title?: string; url: string }>;
+  /** Case-file / briefing delta when Boss updates context */
+  caseUpdate?: string;
 };
 
 async function setAtlasTelemetry(
@@ -569,7 +581,13 @@ async function setAtlasTelemetry(
     sources: telemetry.sources,
     evidence: telemetry.evidence,
     contacts: telemetry.contacts,
-    personaNames: (telemetry as AtlasTelemetry & { personaNames?: string[] }).personaNames,
+    personaNames: telemetry.personaNames,
+    story: telemetry.story?.slice(0, 280),
+    actor: telemetry.actor,
+    methodKind: telemetry.methodKind,
+    sourceUrls: (telemetry.sourceUrls ?? []).slice(0, 8),
+    links: (telemetry.links ?? []).slice(0, 8),
+    caseUpdate: telemetry.caseUpdate?.slice(0, 400),
   })}`);
 }
 
@@ -637,7 +655,11 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
           targetType: entity.type,
           toolIds: ["edgar-proxy"],
           activeToolId: "edgar-proxy",
+          actor: "registry",
+          methodKind: "registry",
+          story: `Now: Pulling SEC DEF 14A / proxy for ${companyName}`,
           inputSummary: `Issuer ${companyName} — DEF 14A / proxy role + address + related officers`,
+          links: [{ title: "SEC EDGAR search", url: `https://efts.sec.gov/LATEST/search-index?q=${encodeURIComponent('"' + companyName.slice(0, 80) + '"')}&forms=DEF+14A` }],
         }, id);
         const { boostEdgarIdentity } = await import("./edgar-identity-boost");
         const boost = await boostEdgarIdentity({
@@ -706,11 +728,18 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
           targetType: entity.type,
           toolIds: ["edgar-proxy"],
           activeToolId: "edgar-proxy",
+          actor: "registry",
+          methodKind: "registry",
+          story: boost.roleHeadline
+            ? `Done: Proxy role recovered — ${boost.roleHeadline.slice(0, 100)}`
+            : `Done: Proxy pass · ${boost.relatedPeople.length} related name(s)`,
           resultSummary: boost.roleHeadline
             ? `Role: ${boost.roleHeadline.slice(0, 120)} · related ${boost.relatedPeople.length}`
             : `No role line · related ${boost.relatedPeople.length}`,
           sources: boost.sourceUrls.length,
           evidence: boost.relatedPeople.length + (boost.roleHeadline ? 1 : 0),
+          sourceUrls: boost.sourceUrls.slice(0, 6),
+          links: boost.sourceUrls.slice(0, 4).map((url, i) => ({ title: i === 0 ? "SEC document" : `Filing ${i + 1}`, url })),
         }, id);
       }
     } catch (boostErr: any) {
