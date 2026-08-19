@@ -18,6 +18,7 @@
  */
 
 import { db, entitiesTable, assetsTable } from "@workspace/db";
+import { sql } from "drizzle-orm";
 import type { InsertEntity, InsertAsset } from "@workspace/db";
 import { computeBayesianScore } from "./bayesian-scorer";
 import { isDuplicate, markSeen, updateJob, appendJobLog, clearDedup } from "./job-queue";
@@ -966,6 +967,33 @@ export async function runWesternHnwiIngestion(opts: IngestionOptions): Promise<I
         logger.info({ rejected }, "LLM name validator: rejected non-human names from batch");
       }
 
+      if (entityBatch.length === 0) return;
+      // DB-level + within-batch dedupe on normalized person name.
+      const before = entityBatch.length;
+      const seenBatch = new Set<string>();
+      const deduped: typeof entityBatch = [];
+      for (const e of entityBatch) {
+        const k = normalizeName(e.name ?? "");
+        if (!k || seenBatch.has(k)) continue;
+        seenBatch.add(k);
+        deduped.push(e);
+      }
+      entityBatch = deduped;
+      if (entityBatch.length) {
+        const existing = await db.execute(
+          sql`SELECT id, name FROM entities WHERE type IN ('HNWI','Gatekeeper') ORDER BY id DESC LIMIT 8000`,
+        );
+        const rows = (existing as any).rows ?? (existing as any) ?? [];
+        const existingKeys = new Set(
+          (Array.isArray(rows) ? rows : []).map((r: any) => normalizeName(String(r.name ?? ""))),
+        );
+        entityBatch = entityBatch.filter((e) => !existingKeys.has(normalizeName(e.name ?? "")));
+      }
+      const dropped = before - entityBatch.length;
+      if (dropped > 0) {
+        skipped += dropped;
+        logger.info({ dropped }, "DB/batch dedupe: skipped duplicate person names");
+      }
       if (entityBatch.length === 0) return;
       const insertedRows = await db
         .insert(entitiesTable)

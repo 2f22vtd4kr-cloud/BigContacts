@@ -140,3 +140,19 @@ Admitted **1/3** target budget; broad sources reported 0 cooked; six registry ba
 
 *File path: `docs/comparisons/BUG_REPORT_LIVE_RUN_2026-08-19.md`*  
 *Commit with discovery diversity fix follow-up as needed.*
+
+---
+
+## Fixes applied (post CT-001)
+
+Committed after this observation (see git history):
+
+| Bug | Fix |
+|-----|-----|
+| CT-001 / role+address miss | **`edgar-identity-boost.ts`** — early DEF 14A / proxy parse before AI web OSINT; writes `linkedinHeadline`, street `knownResidences`, related-person evidence |
+| BUG-LIVE-003 timeout | **`DEFAULT_TARGET_TIMEOUT_MS` 180s → 420s** so proxy + agentic can finish |
+| BUG-LIVE-002 duplicates | **DB + within-batch normalized-name dedupe** in Western HNWI insert |
+| BUG-LIVE-004 vector pollution | **`sanitizeValue`** rejects non-domain strings, HTML chrome, person names as domains |
+| BUG-LIVE-001 first-name bias | Already in `4753d6e` (shuffle terms/pages/sources); redeploy required |
+
+Redeploy Replit from tip, **clear ledger**, re-run bounded discovery-first, re-compare CT-001.

@@ -42,6 +42,20 @@ function sanitizeValue(vectorType: string, value: string): string | null {
   if (!trimmed) return null;
   if (vectorType === "email") return sanitizePublicEmail(trimmed);
   if (vectorType === "phone") return sanitizePublicPhone(trimmed);
+  if (vectorType === "domain" || vectorType === "website") {
+    // Reject page chrome / person names / marketing fragments mis-typed as domains.
+    const v = trimmed.replace(/^https?:\/\//i, "").replace(/^www\./i, "").split("/")[0] ?? "";
+    if (!v || v.length < 4 || v.length > 120) return null;
+    if (!/^[a-z0-9][a-z0-9.-]+\.[a-z]{2,}$/i.test(v)) return null;
+    if (/directory-cta|srcset|cdn-www|wixpress|example\.com|schema\.org/i.test(v)) return null;
+    if (/\s/.test(trimmed) && !trimmed.includes("://")) return null;
+    return v.toLowerCase().slice(0, 200);
+  }
+  if (vectorType === "other" && /directory-cta|srcset|cdn-www|Directory Search/i.test(trimmed)) {
+    return null;
+  }
+  // Person names must not be stored as free-text domain values.
+  if (vectorType === "domain" && /^[A-Z][a-z]+(?:\s+[A-Z][a-z.]+)+$/.test(trimmed)) return null;
   return trimmed.slice(0, 500);
 }
 

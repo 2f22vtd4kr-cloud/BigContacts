@@ -158,7 +158,7 @@ export interface AtlasOptions {
   runResearch?: boolean;
   /** Max MCTS sessions in Phase 10. Default: 10 */
   researchLimit?: number;
-  /** Maximum time allowed for one target's sequential enrichment journey. Default: 180s. */
+  /** Maximum time allowed for one target's sequential enrichment journey. Default: 420s. */
   targetTimeoutMs?: number;
   /**
    * Discovery-first mode: diverse web searches (hotels, golf clubs, funds, venues…)
@@ -194,7 +194,7 @@ export interface AtlasResult {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const DEFAULT_TARGET_TIMEOUT_MS = 180_000;
+const DEFAULT_TARGET_TIMEOUT_MS = 420_000; // 7m — EDGAR proxy + agentic must finish before timeout_review
 const timedOutTargets = new Map<string, Set<number>>();
 
 class AtlasTargetTimeoutError extends Error {
@@ -620,6 +620,101 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
         notes: sql`CASE WHEN notes IS NULL THEN 'Skipped placeholder entity name.' ELSE notes || E'\nSkipped placeholder entity name.' END`,
       }).where(eq(entitiesTable.id, id));
       return;
+    }
+
+    // ── Early EDGAR / proxy identity boost (before long AI web OSINT) ─────────
+    // Recovers President/Director role, street address, and related officers from
+    // DEF 14A so comparison targets are not lost when Phase J later times out.
+    try {
+      const earlyMeta = safeJson<Record<string, unknown>>(entity.metadata, {});
+      const companyName = typeof earlyMeta.companyName === "string" ? earlyMeta.companyName : null;
+      const sourceHint = JSON.stringify(earlyMeta).toLowerCase() + String(entity.sourceRegistries ?? "").toLowerCase();
+      if (companyName && (sourceHint.includes("sec-edgar") || sourceHint.includes("edgar"))) {
+        await setAtlasTelemetry(atlasJobId, {
+          stage: "EDGAR PROXY IDENTITY",
+          status: "active",
+          targetName: name,
+          targetType: entity.type,
+          toolIds: ["edgar-proxy"],
+          activeToolId: "edgar-proxy",
+          inputSummary: `Issuer ${companyName} — DEF 14A / proxy role + address + related officers`,
+        }, id);
+        const { boostEdgarIdentity } = await import("./edgar-identity-boost");
+        const boost = await boostEdgarIdentity({
+          personName: name,
+          companyName,
+          existingEdgarUrl: typeof earlyMeta.edgarUrl === "string" ? earlyMeta.edgarUrl : null,
+        });
+        const residenceParts = [
+          boost.streetAddress,
+          boost.cityState || entity.knownResidences,
+        ].filter(Boolean);
+        const newResidence = residenceParts.length ? residenceParts.join(", ") : entity.knownResidences;
+        const noteExtra = boost.notes.length ? boost.notes.join("\n") : "";
+        const headline = boost.roleHeadline
+          ? boost.roleHeadline.slice(0, 280)
+          : entity.linkedinHeadline;
+        if (boost.roleHeadline || boost.streetAddress || boost.relatedPeople.length) {
+          await db.update(entitiesTable).set({
+            linkedinHeadline: headline ?? entity.linkedinHeadline,
+            knownResidences: newResidence ?? entity.knownResidences,
+            notes: noteExtra
+              ? sql`CASE WHEN ${entitiesTable.notes} IS NULL OR ${entitiesTable.notes} = '' THEN ${noteExtra} ELSE ${entitiesTable.notes} || E'\n' || ${noteExtra} END`
+              : entity.notes,
+            contactMethod: boost.streetAddress
+              ? `Public company / proxy surface — ${boost.streetAddress}${boost.cityState ? ", " + boost.cityState : ""} (SEC DEF 14A / proxy). Validate before outreach.`
+              : entity.contactMethod,
+            metadata: sql`COALESCE(${entitiesTable.metadata}::jsonb, '{}'::jsonb) || ${JSON.stringify({
+              edgarIdentityBoost: {
+                roleHeadline: boost.roleHeadline,
+                streetAddress: boost.streetAddress,
+                cityState: boost.cityState,
+                relatedPeople: boost.relatedPeople.slice(0, 12),
+                sourceUrls: boost.sourceUrls.slice(0, 8),
+                at: new Date().toISOString(),
+              },
+            })}::jsonb`,
+            updatedAt: new Date(),
+          }).where(eq(entitiesTable.id, id));
+          // Persist related names as review-only evidence (not Personal contacts).
+          for (const rel of boost.relatedPeople.slice(0, 8)) {
+            try {
+              await db.insert(contactEvidenceTable).values({
+                entityId: id,
+                vectorType: "other",
+                value: `related-person:${rel}`,
+                source: "edgar-proxy-identity",
+                sourceUrl: boost.sourceUrls[0] ?? null,
+                metadata: JSON.stringify({
+                  scope: "candidate",
+                  mark: "related_person",
+                  label: "Proxy / DEF 14A related name",
+                  personName: rel,
+                  role: "proxy_table",
+                }),
+                validationStatus: "candidate",
+              } as any);
+            } catch {
+              // duplicate evidence row — ignore
+            }
+          }
+        }
+        await setAtlasTelemetry(atlasJobId, {
+          stage: "EDGAR PROXY IDENTITY",
+          status: "complete",
+          targetName: name,
+          targetType: entity.type,
+          toolIds: ["edgar-proxy"],
+          activeToolId: "edgar-proxy",
+          resultSummary: boost.roleHeadline
+            ? `Role: ${boost.roleHeadline.slice(0, 120)} · related ${boost.relatedPeople.length}`
+            : `No role line · related ${boost.relatedPeople.length}`,
+          sources: boost.sourceUrls.length,
+          evidence: boost.relatedPeople.length + (boost.roleHeadline ? 1 : 0),
+        }, id);
+      }
+    } catch (boostErr: any) {
+      logger.warn({ entityId: id, err: boostErr?.message }, "[Atlas] EDGAR identity boost failed (non-fatal)");
     }
 
     // Keep a strict pre-run boundary. New contacts/assets are not published
