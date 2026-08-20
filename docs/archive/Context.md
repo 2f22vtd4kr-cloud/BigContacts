@@ -1,3 +1,6 @@
+### Prompt philosophy (2026-08-20)
+Agentic loop is ReAct, not a playbook. Do not micro-manage trained models with GROK-PARITY checklists or force-hop done-gates. Place models + tools correctly; let them research. Deterministic extractors on visited HTML are tool output, not model training.
+
 ### Correction (2026-08-20)
 Comparing a stripped agentic-only script to full Grok Agent was invalid.
 Full Apex = multi-LLM ReAct + Boss/Gemini + Serper/Tavily/Exa + Scrapfly/ZenRows + Maigret/Sherlock/Holehe + EDGAR + registries.
