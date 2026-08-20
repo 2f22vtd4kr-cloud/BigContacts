@@ -382,7 +382,7 @@ function chooseGeminiModelCandidates(entries: GeminiModelCatalogEntry[]): string
   // Models Google has retired for new API users (404 on generateContent).
   // Keep denylist explicit so catalog drift cannot re-select a dead id.
   const RETIRED =
-    /^(gemini-1\.5-flash|gemini-1\.0-pro|gemini-2\.5-flash|gemini-2\.5-pro|gemini-pro|gemini-pro-vision)(?:-|$)/i;
+    /^(gemini-1\.5-flash|gemini-1\.0-pro|gemini-2\.5-flash|gemini-2\.5-pro|gemini-2\.5-flash-lite|gemini-2\.0-flash|gemini-pro|gemini-pro-vision)(?:-|$)/i;
 
   return entries
     .filter((entry) => entry.name && entry.supportedGenerationMethods?.includes("generateContent"))
