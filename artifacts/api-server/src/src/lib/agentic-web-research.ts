@@ -753,38 +753,54 @@ function parseAction(raw: string): AgentAction | null {
   return null;
 }
 
+/** Prefer strong chat models; fall through when a key's org does not host a given id. */
+const GROQ_CHAT_MODELS = [
+  process.env.GROQ_MODEL,
+  "llama-3.3-70b-versatile",
+  "llama-3.1-70b-versatile",
+  "llama-3.3-70b-specdec",
+  "openai/gpt-oss-120b",
+  "openai/gpt-oss-20b",
+  "llama-3.1-8b-instant",
+].filter((m): m is string => Boolean(m && m.trim()));
+
 async function callGroqJson(prompt: string): Promise<{ model: string; raw: string } | null> {
   const keys = ["GROQ_API_KEY", ...Array.from({ length: 5 }, (_, i) => `GROQ_API_KEY_${i + 1}`)]
     .map((n) => process.env[n] ?? "")
     .filter((k) => k.length > 0);
   if (!keys.length) return null;
   for (const key of keys) {
-    try {
-      const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "llama-3.3-70b-versatile",
-          temperature: 0.25,
-          max_tokens: 2048,
-          response_format: { type: "json_object" },
-          messages: [
-            {
-              role: "system",
-              content:
-                "You are an elite OSINT web research agent. You operate in a ReAct loop. Reply with ONE JSON object only.",
-            },
-            { role: "user", content: prompt },
-          ],
-        }),
-        signal: AbortSignal.timeout(40_000),
-      });
-      if (!resp.ok) continue;
-      const data = await resp.json() as { choices?: Array<{ message?: { content?: string } }> };
-      const raw = data.choices?.[0]?.message?.content?.trim() ?? "";
-      if (raw) return { model: "llama-3.3-70b-versatile", raw };
-    } catch {
-      continue;
+    for (const model of GROQ_CHAT_MODELS) {
+      try {
+        const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model,
+            temperature: 0.25,
+            max_tokens: 2048,
+            response_format: { type: "json_object" },
+            messages: [
+              {
+                role: "system",
+                content:
+                  "You are an elite OSINT web research agent. You operate in a ReAct loop. Reply with ONE JSON object only.",
+              },
+              { role: "user", content: prompt },
+            ],
+          }),
+          signal: AbortSignal.timeout(40_000),
+        });
+        if (!resp.ok) {
+          // model_not_found / access → try next model on same key
+          continue;
+        }
+        const data = await resp.json() as { choices?: Array<{ message?: { content?: string } }> };
+        const raw = data.choices?.[0]?.message?.content?.trim() ?? "";
+        if (raw) return { model, raw };
+      } catch {
+        continue;
+      }
     }
   }
   return null;
