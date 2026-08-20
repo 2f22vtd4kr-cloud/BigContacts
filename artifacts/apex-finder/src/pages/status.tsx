@@ -246,19 +246,31 @@ export default function SystemStatusPage() {
   const [lastFetch, setLastFetch] = useState<Date | null>(null);
 
 
-  const loadIntegrity = async () => {
+  const loadIntegrity = async (fromStatus?: any) => {
     try {
+      const lanes = fromStatus?.lanesHonesty;
+      if (lanes && (lanes.bureauIntegrity || fromStatus?.bureauIntegrity)) {
+        setIntegrity({
+          level: fromStatus.bureauIntegrity ?? lanes.bureauIntegrity ?? "ok",
+          reasons: fromStatus.bureauIntegrityReasons ?? lanes.bureauIntegrityReasons ?? [],
+          agenticSlots: lanes.agenticLlmSlots,
+          webSearch: lanes.webSearchActive,
+          lastOk: lanes.agenticLlmLastOk,
+          lastModel: lanes.agenticLlmLastModel,
+        });
+        return;
+      }
       const hr = await fetch(`${BASE}/api/healthz`);
       if (!hr.ok) return;
       const hj = await hr.json();
-      const lanes = hj.lanesHonesty ?? {};
+      const L = hj.lanesHonesty ?? {};
       setIntegrity({
-        level: lanes.bureauIntegrity ?? (hj.registryShallowRisk ? "critical" : "ok"),
-        reasons: lanes.bureauIntegrityReasons ?? [],
-        agenticSlots: lanes.agenticLlmSlots,
-        webSearch: lanes.webSearchActive,
-        lastOk: lanes.agenticLlmLastOk,
-        lastModel: lanes.agenticLlmLastModel,
+        level: L.bureauIntegrity ?? (hj.registryShallowRisk ? "critical" : "ok"),
+        reasons: L.bureauIntegrityReasons ?? [],
+        agenticSlots: L.agenticLlmSlots,
+        webSearch: L.webSearchActive,
+        lastOk: L.agenticLlmLastOk,
+        lastModel: L.agenticLlmLastModel,
       });
     } catch { /* non-fatal */ }
   };
@@ -278,12 +290,12 @@ export default function SystemStatusPage() {
       if (!res.ok) throw new Error(data?.error ?? `HTTP ${res.status}`);
       setStatus(data);
       setError(null);
+      await loadIntegrity(data);
     } catch (e: any) {
       setError(e.message ?? "Fetch error");
     } finally {
       setLoading(false);
       setLastFetch(new Date());
-      await loadIntegrity();
     }
   }, []);
 

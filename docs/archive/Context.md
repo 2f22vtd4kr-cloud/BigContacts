@@ -1,7 +1,8 @@
 # Context — living handoff
 
 ## Session 2026-08-20 (bureau integrity + multi-LLM failover)
-- **Deterministic recovery:** if all agentic LLMs fail mid-loop, SERP+visit+proxy extract still run (no silent empty bureau).
+- **- **Serper** counts toward webSearchActive (agentic SERP primary). `/api/system/status` includes `lanesHonesty` + `bureauIntegrity`.
+Deterministic recovery:** if all agentic LLMs fail mid-loop, SERP+visit+proxy extract still run (no silent empty bureau).
 - **System status** page shows the same integrity panel as the global banner.
 
 

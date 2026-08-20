@@ -21,6 +21,7 @@ export type LanesHonestySnapshot = {
   mistral: number;
   nvidiaNim: number;
   companiesHouse: number;
+  serper: number;
   webSearchActive: number;
   /** True when no Perplexity/Tavily/Exa slots are active — registry-only risk. */
   registryShallowRisk: boolean;
@@ -51,7 +52,9 @@ export function buildLanesHonestySnapshot(): LanesHonestySnapshot {
   const perplexity = activeCount(status.perplexity);
   const tavily = activeCount(status.tavily);
   const exa = activeCount(status.exa);
-  const webSearchActive = perplexity + tavily + exa;
+  const serper = process.env.SERPER_API_KEY?.trim() ? 1 : 0;
+  // Serper powers agentic ReAct SERP; Tavily/Exa/Perplexity power other lanes.
+  const webSearchActive = perplexity + tavily + exa + serper;
   const groqKeys = [
     process.env.GROQ_API_KEY,
     ...Array.from({ length: 10 }, (_, i) => process.env[`GROQ_API_KEY_${i + 1}`]),
@@ -68,7 +71,7 @@ export function buildLanesHonestySnapshot(): LanesHonestySnapshot {
 
   const reasons: string[] = [];
   if (webSearchActive === 0) {
-    reasons.push("No live web-search providers (Tavily/Exa/Perplexity) — registry-only research cannot beat general agents.");
+    reasons.push("No live web-search providers (Serper/Tavily/Exa/Perplexity) — registry-only research cannot beat general agents.");
   }
   if (agenticLlmSlots === 0) {
     reasons.push("No agentic control LLM configured (Groq/Gemini/Mistral/NVIDIA) — ReAct web loop cannot run.");
@@ -91,6 +94,7 @@ export function buildLanesHonestySnapshot(): LanesHonestySnapshot {
     perplexity,
     tavily,
     exa,
+    serper,
     gemini,
     groq,
     mistral: mistralN,

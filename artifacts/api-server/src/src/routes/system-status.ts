@@ -24,6 +24,7 @@ import {
 import { getMistralWebSearchStatus } from "../lib/mistral-web-search";
 import { getGeminiBossStatus } from "../lib/case-bureau";
 import { getNvidiaNimCaseReasoningStatus } from "../lib/nvidia-nim-case-reasoning";
+import { buildLanesHonestySnapshot } from "../lib/lanes-honesty";
 
 const router: IRouter = Router();
 
@@ -78,11 +79,15 @@ router.get("/system/status", async (_req, res) => {
     // ── Upstash slots ─────────────────────────────────────────────────────────
     const upstash = getPermanentClientStatuses();
 
+    const lanesHonesty = buildLanesHonestySnapshot();
     const payload = {
       ai,
       openResearch,
       geminiBoss,
       bureauReasoning,
+      lanesHonesty,
+      bureauIntegrity: lanesHonesty.bureauIntegrity,
+      bureauIntegrityReasons: lanesHonesty.bureauIntegrityReasons,
       databases: {
         postgres:   { status: pgStatus, latencyMs: pgLatencyMs },
         localRedis: { ...localInfo, latencyMs: localLatencyMs },
