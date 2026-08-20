@@ -69,9 +69,9 @@ function isOrgInbox(email?: string | null): boolean {
 }
 function ReachChip({ kind, label, href, title }: { kind: "personal" | "org" | "social"; label: string; href?: string; title?: string }) {
   const styles = kind === "personal"
-    ? "text-[#fdba74] border-[#e85d1a]/35 bg-[#e85d1a]/10"
+    ? "text-[#a7f3d0] border-[#00e68a]/35 bg-[#00e68a]/10"
     : kind === "org"
-      ? "text-[#fdba74] border-[#e85d1a]/35 bg-[#e85d1a]/10"
+      ? "text-[#a7f3d0] border-[#00e68a]/35 bg-[#00e68a]/10"
       : "text-stone-300 border-stone-500/35 bg-stone-500/10";
   const tag = kind === "personal" ? "Personal" : kind === "org" ? "Company" : "Social";
   const body = (
@@ -178,7 +178,7 @@ function RerunButton({ entityId }: { entityId: number }) {
     : <TargetIcon className="w-3.5 h-3.5" />;
   const label = state === "running" ? "Running" : state === "done" ? "Done" : state === "error" ? "Failed" : "Re-run";
   const cls = state === "done"
-    ? "bg-[#e85d1a]/10 border-[#e85d1a]/30 text-[#f97316]"
+    ? "bg-[#00e68a]/10 border-[#00e68a]/30 text-[#34f5a0]"
     : state === "error"
     ? "bg-red-500/10 border-red-500/30 text-red-400"
     : "bg-primary/10 border-primary/20 text-primary hover:bg-primary/20";
@@ -230,7 +230,7 @@ function MobileEntityCard({
             : "No public route";
 
   return (
-      <div className={cn("border-b border-[#e85d1a]/12 bg-card transition-colors hover:bg-card/80", selected && "bg-primary/5")}>
+      <div className={cn("border-b border-[#00e68a]/12 bg-card transition-colors hover:bg-card/80", selected && "bg-primary/5")}>
       <div
         onClick={onToggleExpand}
         className="flex items-start gap-3 px-3 py-3.5 cursor-pointer"
@@ -252,7 +252,7 @@ function MobileEntityCard({
             </div>
             <div className="flex shrink-0 items-center gap-1 pt-0.5">
               {entity.cookedAt && (
-                <CheckCircle2 className="w-3.5 h-3.5 text-[#e85d1a]" aria-label="Fully enriched" />
+                <CheckCircle2 className="w-3.5 h-3.5 text-[#00e68a]" aria-label="Fully enriched" />
               )}
               {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
             </div>
@@ -279,8 +279,8 @@ function MobileEntityCard({
                 className={cn(
                   "inline-flex items-center rounded-md border px-1.5 py-0.5 text-[9px] font-mono font-bold uppercase tracking-wide",
                   entity.contactOutcome === "organization_contact"
-                    ? "text-[#fdba74] border-[#e85d1a]/30 bg-[#e85d1a]/10"
-                    : "text-muted-foreground border-[#e85d1a]/12 bg-muted/30",
+                    ? "text-[#a7f3d0] border-[#00e68a]/30 bg-[#00e68a]/10"
+                    : "text-muted-foreground border-[#00e68a]/12 bg-muted/30",
                 )}
                 title={entity.contactOutcome === "organization_contact"
                   ? "Organization contact route — not a personal access route"
@@ -351,7 +351,7 @@ function MobileEntityCard({
               <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-1.5">Source Registries</div>
               <div className="flex flex-wrap gap-1">
                 {registries.map((r) => (
-                  <span key={r} className="text-[9px] font-mono px-1.5 py-0.5 bg-muted border border-[#e85d1a]/12 rounded text-muted-foreground">{r}</span>
+                  <span key={r} className="text-[9px] font-mono px-1.5 py-0.5 bg-muted border border-[#00e68a]/12 rounded text-muted-foreground">{r}</span>
                 ))}
               </div>
             </div>
@@ -360,14 +360,14 @@ function MobileEntityCard({
           <div className="grid grid-cols-4 gap-2">
             <Link
               href={`/profile/${entity.id}`}
-              className="flex flex-col items-center justify-center gap-1.5 py-2 bg-muted border border-[#e85d1a]/12 rounded text-muted-foreground hover:text-primary transition-colors"
+              className="flex flex-col items-center justify-center gap-1.5 py-2 bg-muted border border-[#00e68a]/12 rounded text-muted-foreground hover:text-primary transition-colors"
             >
               <IdCard className="w-3.5 h-3.5" />
               <span className="text-[9px] font-mono uppercase">Profile</span>
             </Link>
             <Link
               href={`/network?entity=${entity.id}`}
-              className="flex flex-col items-center justify-center gap-1.5 py-2 bg-muted border border-[#e85d1a]/12 rounded text-muted-foreground hover:text-primary transition-colors"
+              className="flex flex-col items-center justify-center gap-1.5 py-2 bg-muted border border-[#00e68a]/12 rounded text-muted-foreground hover:text-primary transition-colors"
             >
               <Network className="w-3.5 h-3.5" />
               <span className="text-[9px] font-mono uppercase">Network</span>
@@ -390,17 +390,17 @@ function MobileEntityCard({
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); onToggleStar(entity); }}
-              className="atlas-pressable flex flex-1 items-center justify-center gap-1.5 rounded border border-[#e85d1a]/15 py-2 font-mono text-[10px] uppercase tracking-wider text-stone-400 hover:text-[#fdba74]"
+              className="atlas-pressable flex flex-1 items-center justify-center gap-1.5 rounded border border-[#00e68a]/15 py-2 font-mono text-[10px] uppercase tracking-wider text-stone-400 hover:text-[#a7f3d0]"
             >
-              <Star className={cn("h-3.5 w-3.5", entity.isStarred && "fill-[#e85d1a] text-[#e85d1a]")} />
+              <Star className={cn("h-3.5 w-3.5", entity.isStarred && "fill-[#00e68a] text-[#00e68a]")} />
               {entity.isStarred ? "Unstar" : "Star"}
             </button>
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); onToggleHide(entity); }}
-              className="atlas-pressable flex flex-1 items-center justify-center gap-1.5 rounded border border-[#e85d1a]/15 py-2 font-mono text-[10px] uppercase tracking-wider text-stone-400 hover:text-stone-200"
+              className="atlas-pressable flex flex-1 items-center justify-center gap-1.5 rounded border border-[#00e68a]/15 py-2 font-mono text-[10px] uppercase tracking-wider text-stone-400 hover:text-stone-200"
             >
-              {entity.isHidden ? <Eye className="h-3.5 w-3.5 text-orange-400" /> : <EyeOff className="h-3.5 w-3.5" />}
+              {entity.isHidden ? <Eye className="h-3.5 w-3.5 text-emerald-400" /> : <EyeOff className="h-3.5 w-3.5" />}
               {entity.isHidden ? "Unhide" : "Hide"}
             </button>
           </div>
@@ -431,7 +431,7 @@ function MobileLedgerState({
   if (kind === "unavailable") {
     return (
       <div className="flex flex-col items-center justify-center gap-3 px-6 py-14 text-center text-muted-foreground">
-        <XCircle className="w-7 h-7 text-[#e85d1a]" aria-hidden="true" />
+        <XCircle className="w-7 h-7 text-[#00e68a]" aria-hidden="true" />
         <div>
           <p className="text-sm font-semibold text-foreground">Profiles are temporarily unavailable</p>
           <p className="text-xs leading-relaxed mt-1.5 text-muted-foreground">
@@ -448,8 +448,8 @@ function MobileLedgerState({
   const q = (searchTerm || "").trim();
   return (
     <div className="atlas-empty mx-auto flex max-w-md flex-col items-center justify-center gap-3 px-6 py-14 text-center" data-testid="profiles-empty">
-      <div className="grid h-12 w-12 place-items-center rounded-full border border-[#e85d1a]/25 bg-[#e85d1a]/10">
-        <Database className="h-5 w-5 text-[#e85d1a]" aria-hidden="true" />
+      <div className="grid h-12 w-12 place-items-center rounded-full border border-[#00e68a]/25 bg-[#00e68a]/10">
+        <Database className="h-5 w-5 text-[#00e68a]" aria-hidden="true" />
       </div>
       <div>
         <p className="text-sm font-semibold text-stone-100">
@@ -473,7 +473,7 @@ function MobileLedgerState({
         )}
         <Link
           href="/search"
-          className="atlas-pressable inline-flex min-h-[40px] items-center rounded-xl border border-[#e85d1a]/35 bg-[#e85d1a]/15 px-3 py-2.5 text-xs font-semibold text-[#fdba74] hover:bg-[#e85d1a]/20"
+          className="atlas-pressable inline-flex min-h-[40px] items-center rounded-xl border border-[#00e68a]/35 bg-[#00e68a]/15 px-3 py-2.5 text-xs font-semibold text-[#a7f3d0] hover:bg-[#00e68a]/20"
         >
           Open Discover
         </Link>
@@ -827,7 +827,7 @@ export default function EntityLedger() {
         {(hotOnly || anyContactFilter) && (
           <div className={cn(
             "flex items-center justify-between px-4 py-2 border-b text-xs font-mono flex-shrink-0",
-            hotOnly ? "bg-[#e85d1a]/10 border-[#e85d1a]/35 text-[#fdba74]" : "bg-white/[0.04] border-[#2a2a2a] text-muted-foreground"
+            hotOnly ? "bg-[#00e68a]/10 border-[#00e68a]/35 text-[#a7f3d0]" : "bg-white/[0.04] border-[#2a2a2a] text-muted-foreground"
           )}>
             <div className="flex items-center gap-2">
               <Filter className="w-3 h-3 shrink-0" />
@@ -852,7 +852,7 @@ export default function EntityLedger() {
           </div>
         )}
         {/* Header toolbar */}
-        <div className="flex flex-col gap-2 border-b border-[#e85d1a]/12 bg-card/30 px-4 py-3 flex-shrink-0">
+        <div className="flex flex-col gap-2 border-b border-[#00e68a]/12 bg-card/30 px-4 py-3 flex-shrink-0">
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
               <p className="text-[11px] text-muted-foreground">Search and filter attributable people and companies</p>
@@ -862,7 +862,7 @@ export default function EntityLedger() {
             </div>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
-          <div className="flex items-center gap-2 w-full sm:flex-1 min-h-[40px] px-3.5 py-1.5 rounded-xl bg-background/80 border border-[#e85d1a]/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] focus-within:border-orange-400/40 focus-within:ring-1 focus-within:ring-orange-400/20">
+          <div className="flex items-center gap-2 w-full sm:flex-1 min-h-[40px] px-3.5 py-1.5 rounded-xl bg-background/80 border border-[#00e68a]/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] focus-within:border-emerald-400/40 focus-within:ring-1 focus-within:ring-emerald-400/20">
             <Search className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" aria-hidden />
             <input
               type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
@@ -877,7 +877,7 @@ export default function EntityLedger() {
           <div className="atlas-h-scroll flex items-center gap-1.5 overflow-x-auto overscroll-x-contain touch-pan-x pb-0.5 pr-6">
             {[null, ...ENTITY_TYPES].map((typeKey) => {
               const meta = typeKey ? entityMeta(typeKey) : null;
-              const c = meta?.color ?? "#e85d1a";
+              const c = meta?.color ?? "#00e68a";
               const Icon = meta?.Icon;
               const active = typeFilter === typeKey;
               return (
@@ -887,9 +887,9 @@ export default function EntityLedger() {
                   aria-pressed={active}
                   className="inline-flex min-h-[32px] items-center gap-1.5 rounded-lg border px-3 py-1 text-[10px] font-mono font-bold uppercase tracking-[0.08em] transition-all"
                   style={{
-                    backgroundColor: active ? (typeKey ? c : "#e85d1a") : "#0c0c0c",
+                    backgroundColor: active ? (typeKey ? c : "#00e68a") : "#0c0c0c",
                     color: active ? "#0a0a0a" : "#a8a29e",
-                    borderColor: active ? (typeKey ? c : "#e85d1a") : "#2a2a2a",
+                    borderColor: active ? (typeKey ? c : "#00e68a") : "#2a2a2a",
                   }}
                 >
                   {Icon ? <Icon className="h-3 w-3 shrink-0" aria-hidden /> : null}
@@ -900,7 +900,7 @@ export default function EntityLedger() {
           </div>
 
           {/* View mode tabs */}
-          <div className="flex items-center gap-0.5 border border-[#e85d1a]/10 rounded-xl p-1 shrink-0 bg-card/40">
+          <div className="flex items-center gap-0.5 border border-[#00e68a]/10 rounded-xl p-1 shrink-0 bg-card/40">
             {([
               { mode: "all",     label: "All",     icon: <Users2 className="w-3 h-3" /> },
               { mode: "starred", label: "Starred",  icon: <Star className="w-3 h-3" /> },
@@ -911,8 +911,8 @@ export default function EntityLedger() {
                 onClick={() => setViewMode(mode)}
                 className="flex min-h-[32px] items-center gap-1.5 px-3 py-1 rounded-full font-mono text-[10px] uppercase tracking-wider transition-all"
                 style={{
-                  background: viewMode === mode ? "rgba(232,93,26,0.18)" : "rgba(12,12,12,0.9)",
-                  color: viewMode === mode ? "#e85d1a" : "#a8a29e",
+                  background: viewMode === mode ? "rgba(0,230,138,0.18)" : "rgba(12,12,12,0.9)",
+                  color: viewMode === mode ? "#00e68a" : "#a8a29e",
                   borderRadius: "9999px",
                 }}
               >
@@ -926,7 +926,7 @@ export default function EntityLedger() {
             onClick={() => setShowRegistry(!showRegistry)}
             className={cn(
               "flex min-h-[36px] items-center gap-1.5 px-3 py-1.5 rounded-lg border font-mono text-[10px] uppercase tracking-wider transition-all sm:ml-2",
-              showRegistry ? "bg-secondary/20 border-secondary text-secondary" : "border-[#e85d1a]/12 text-muted-foreground hover:text-foreground",
+              showRegistry ? "bg-secondary/20 border-secondary text-secondary" : "border-[#00e68a]/12 text-muted-foreground hover:text-foreground",
             )}
           >
             <Globe className="w-3 h-3" /> Live Intel
@@ -935,7 +935,7 @@ export default function EntityLedger() {
           {entities && entities.length > 0 && (
             <button
               onClick={() => exportToCsv(entities)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#e85d1a]/12 text-muted-foreground hover:text-foreground font-mono text-[10px] uppercase tracking-wider transition-all"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#00e68a]/12 text-muted-foreground hover:text-foreground font-mono text-[10px] uppercase tracking-wider transition-all"
             >
               <Download className="w-3 h-3" /> CSV
             </button>
@@ -952,14 +952,14 @@ export default function EntityLedger() {
 
           <button
             onClick={() => openAddModal()}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#e85d1a]/12 bg-transparent text-muted-foreground hover:bg-muted font-mono text-[10px] uppercase tracking-wider transition-colors ml-auto"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#00e68a]/12 bg-transparent text-muted-foreground hover:bg-muted font-mono text-[10px] uppercase tracking-wider transition-colors ml-auto"
           >
             <Plus className="w-3 h-3" /> Add
           </button>
         </div>
 
         {/* Contact richness + confidence + hot filter row */}
-        <div className="flex items-center gap-1.5 px-4 py-2 border-b border-[#e85d1a]/08 bg-card/10 flex-shrink-0 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+        <div className="flex items-center gap-1.5 px-4 py-2 border-b border-[#00e68a]/08 bg-card/10 flex-shrink-0 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
           <span className="text-[9px] font-mono text-muted-foreground uppercase tracking-widest shrink-0">Route</span>
           {/* "All" pill — resets richness filter */}
           <button
@@ -996,7 +996,7 @@ export default function EntityLedger() {
               className="shrink-0 h-7 px-2.5 rounded-md text-[10px] font-mono border transition-all whitespace-nowrap"
               style={{
                 background: minConfidence === step ? "rgba(245,158,11,0.2)" : "rgba(15,23,42,0.55)",
-                color: minConfidence === step ? "#e85d1a" : "hsl(var(--muted-foreground))",
+                color: minConfidence === step ? "#00e68a" : "hsl(var(--muted-foreground))",
                 borderColor: minConfidence === step ? "rgba(245,158,11,0.4)" : "hsl(var(--border))",
               }}
             >
@@ -1036,10 +1036,10 @@ export default function EntityLedger() {
 
         {/* Live Intel slide-over sidebar */}
         <div className={cn(
-          "fixed top-0 right-0 h-full w-[min(380px,100vw)] bg-card border-l border-[#e85d1a]/12 shadow-2xl z-40 flex flex-col transition-transform duration-300 ease-in-out",
+          "fixed top-0 right-0 h-full w-[min(380px,100vw)] bg-card border-l border-[#00e68a]/12 shadow-2xl z-40 flex flex-col transition-transform duration-300 ease-in-out",
           showRegistry ? "translate-x-0" : "translate-x-full"
         )}>
-          <div className="flex items-center justify-between px-4 py-3 border-b border-[#e85d1a]/12 bg-card/80 backdrop-blur-sm flex-shrink-0">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-[#00e68a]/12 bg-card/80 backdrop-blur-sm flex-shrink-0">
             <span className="text-xs font-mono text-secondary uppercase tracking-widest flex items-center gap-1.5">
               <Globe className="w-3.5 h-3.5" /> Live Registry Query
             </span>
@@ -1052,7 +1052,7 @@ export default function EntityLedger() {
               OpenCorporates · Companies House · SEC EDGAR · BRREG · ARES · BODACC
             </p>
             <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-2 px-3 py-2 rounded bg-background border border-[#e85d1a]/12 focus-within:border-secondary/60 transition-colors">
+              <div className="flex items-center gap-2 px-3 py-2 rounded bg-background border border-[#00e68a]/12 focus-within:border-secondary/60 transition-colors">
                 <Search className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
                 <input
                   type="text" value={registryQuery} onChange={(e) => setRegistryQuery(e.target.value)}
@@ -1064,7 +1064,7 @@ export default function EntityLedger() {
               <div className="flex gap-2">
                 <select
                   value={registrySource} onChange={(e) => setRegistrySource(e.target.value as any)}
-                  className="flex-1 bg-background border border-[#e85d1a]/12 rounded px-3 py-2 text-xs font-mono text-foreground focus:outline-none focus:border-secondary/60"
+                  className="flex-1 bg-background border border-[#00e68a]/12 rounded px-3 py-2 text-xs font-mono text-foreground focus:outline-none focus:border-secondary/60"
                 >
                   <option value="opencorporates">OpenCorporates</option>
                   <option value="companies-house">Companies House UK</option>
@@ -1087,9 +1087,9 @@ export default function EntityLedger() {
               <div className="text-xs font-mono text-destructive bg-destructive/10 border border-destructive/20 rounded px-3 py-2">{registryError}</div>
             )}
             {registryResults.length > 0 && (
-              <div className="border border-[#e85d1a]/12 rounded overflow-hidden">
+              <div className="border border-[#00e68a]/12 rounded overflow-hidden">
                 {registryResults.map((r, i) => (
-                  <div key={i} className="flex items-center justify-between px-3 py-2.5 border-b border-[#e85d1a]/12 last:border-b-0 hover:bg-muted/20">
+                  <div key={i} className="flex items-center justify-between px-3 py-2.5 border-b border-[#00e68a]/12 last:border-b-0 hover:bg-muted/20">
                     <div>
                       <div className="text-xs font-mono font-bold text-foreground">{r.name}</div>
                       <div className="text-[10px] font-mono text-muted-foreground">{r.nationality} · {r.type}</div>
@@ -1105,7 +1105,7 @@ export default function EntityLedger() {
               </div>
             )}
             {registryResults.length === 0 && !isSearching && !registryError && (
-              <div className="flex-1 border border-[#e85d1a]/10 border-dashed rounded-lg flex flex-col items-center justify-center p-8 text-center">
+              <div className="flex-1 border border-[#00e68a]/10 border-dashed rounded-lg flex flex-col items-center justify-center p-8 text-center">
                 <Globe className="w-8 h-8 text-muted-foreground/20 mb-3" />
                 <p className="text-xs font-mono text-muted-foreground/60 leading-relaxed">
                   Connect to global registries to instantly ingest entity data, directors, and proxy connections.
@@ -1120,20 +1120,20 @@ export default function EntityLedger() {
 
         {/* Bulk action bar */}
         {selectedIds.size > 0 && (
-          <div className="flex h-10 flex-shrink-0 items-center gap-2 border-b border-[#e85d1a]/25 bg-[#e85d1a]/5 px-4">
-            <span className="font-mono text-[10px] font-bold text-[#fdba74]">
+          <div className="flex h-10 flex-shrink-0 items-center gap-2 border-b border-[#00e68a]/25 bg-[#00e68a]/5 px-4">
+            <span className="font-mono text-[10px] font-bold text-[#a7f3d0]">
               {selectedIds.size} selected
             </span>
             <div className="flex-1" />
             <button
               onClick={handleBulkExportCsv}
-              className="atlas-pressable flex items-center gap-1 rounded border border-[#e85d1a]/20 px-2 py-1 font-mono text-[9px] uppercase tracking-wider text-stone-400 hover:text-stone-100"
+              className="atlas-pressable flex items-center gap-1 rounded border border-[#00e68a]/20 px-2 py-1 font-mono text-[9px] uppercase tracking-wider text-stone-400 hover:text-stone-100"
             >
               <Download className="h-2.5 w-2.5" /> CSV
             </button>
             <button
               onClick={handleBulkMcts}
-              className="atlas-pressable flex items-center gap-1 rounded border border-[#e85d1a]/40 bg-[#e85d1a]/10 px-2 py-1 font-mono text-[9px] uppercase tracking-wider text-[#fdba74] hover:bg-[#e85d1a]/20"
+              className="atlas-pressable flex items-center gap-1 rounded border border-[#00e68a]/40 bg-[#00e68a]/10 px-2 py-1 font-mono text-[9px] uppercase tracking-wider text-[#a7f3d0] hover:bg-[#00e68a]/20"
             >
               <TargetIcon className="h-2.5 w-2.5" /> Research
             </button>
@@ -1157,7 +1157,7 @@ export default function EntityLedger() {
         <div className="flex-1 overflow-auto" onScroll={handleDesktopScroll}>
           <table className="w-full border-collapse">
             <thead className="sticky top-0 z-10">
-              <tr className="bg-card/90 backdrop-blur-sm border-b border-[#e85d1a]/12">
+              <tr className="bg-card/90 backdrop-blur-sm border-b border-[#00e68a]/12">
                 <th className="px-3 py-3 w-8">
                   <button
                     onClick={() => toggleSelectAll(entities ?? [])}
@@ -1186,7 +1186,7 @@ export default function EntityLedger() {
                 return (
                   <tr key={entity.id} className={cn(
                     "group hover:bg-muted/20 transition-colors",
-                    entity.isHot && "bg-[#e85d1a]/5",
+                    entity.isHot && "bg-[#00e68a]/5",
                     isSelected && "bg-primary/5 hover:bg-primary/8",
                   )}>
                     <td className="px-3 py-3 w-8">
@@ -1201,10 +1201,10 @@ export default function EntityLedger() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        {entity.isHot && <ShieldAlert className="w-3.5 h-3.5 text-[#e85d1a] flex-shrink-0" />}
+                        {entity.isHot && <ShieldAlert className="w-3.5 h-3.5 text-[#00e68a] flex-shrink-0" />}
                         {entity.cookedAt && (
                           <span title={`Fully cooked — all enrichment phases complete (${new Date(entity.cookedAt).toLocaleDateString()})`}>
-                            <CheckCircle2 className="w-3.5 h-3.5 text-[#e85d1a] flex-shrink-0" />
+                            <CheckCircle2 className="w-3.5 h-3.5 text-[#00e68a] flex-shrink-0" />
                           </span>
                         )}
                          <div className="min-w-0">
@@ -1232,7 +1232,7 @@ export default function EntityLedger() {
                     <td className="px-4 py-3">
                       {entity.type === "Corporation" || entity.type === "Corp" || entity.type === "Trust" ? (
                         <span
-                          className="text-[9px] font-mono font-bold uppercase tracking-wide px-1.5 py-1 rounded border text-[#fdba74] border-[#e85d1a]/30 bg-[#e85d1a]/10 whitespace-nowrap"
+                          className="text-[9px] font-mono font-bold uppercase tracking-wide px-1.5 py-1 rounded border text-[#a7f3d0] border-[#00e68a]/30 bg-[#00e68a]/10 whitespace-nowrap"
                           title="Organization evidence — this is not a personal contact confidence score"
                         >
                           Org route
@@ -1296,16 +1296,16 @@ export default function EntityLedger() {
                           onClick={() => handleToggleStar(entity)}
                           className="p-1.5 transition-colors"
                           title={entity.isStarred ? "Unstar" : "Star"}
-                          style={{ color: entity.isStarred ? "#e85d1a" : undefined }}
+                          style={{ color: entity.isStarred ? "#00e68a" : undefined }}
                         >
-                          <Star className={cn("w-3.5 h-3.5", entity.isStarred ? "fill-[#e85d1a] text-[#e85d1a]" : "text-muted-foreground hover:text-[#fdba74]")} />
+                          <Star className={cn("w-3.5 h-3.5", entity.isStarred ? "fill-[#00e68a] text-[#00e68a]" : "text-muted-foreground hover:text-[#a7f3d0]")} />
                         </button>
                         <button
                           onClick={() => handleToggleHide(entity)}
-                          className="p-1.5 text-muted-foreground hover:text-orange-400 transition-colors"
+                          className="p-1.5 text-muted-foreground hover:text-emerald-400 transition-colors"
                           title={entity.isHidden ? "Unhide" : "Hide from ledger"}
                         >
-                          {entity.isHidden ? <Eye className="w-3.5 h-3.5 text-orange-400" /> : <EyeOff className="w-3.5 h-3.5" />}
+                          {entity.isHidden ? <Eye className="w-3.5 h-3.5 text-emerald-400" /> : <EyeOff className="w-3.5 h-3.5" />}
                         </button>
                         <button
                           onClick={() => handleDelete(entity.id)}
@@ -1337,7 +1337,7 @@ export default function EntityLedger() {
                           <button
                             type="button"
                             onClick={() => setSearchTerm("")}
-                            className="rounded-lg border border-[#e85d1a]/12 px-3 py-1.5 text-xs hover:border-primary/40"
+                            className="rounded-lg border border-[#00e68a]/12 px-3 py-1.5 text-xs hover:border-primary/40"
                           >
                             Clear search
                           </button>
@@ -1345,7 +1345,7 @@ export default function EntityLedger() {
                         <Link href="/search" className="rounded-lg border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs text-primary">
                           Open Search
                         </Link>
-                        <Link href="/reactor" className="rounded-lg border border-[#e85d1a]/12 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground">
+                        <Link href="/reactor" className="rounded-lg border border-[#00e68a]/12 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground">
                           Reactor
                         </Link>
                       </div>
@@ -1358,7 +1358,7 @@ export default function EntityLedger() {
         </div>
 
         {/* Footer: count + load indicator + export */}
-        <div className="border-t border-[#e85d1a]/12 px-4 py-2 flex items-center justify-between bg-card/30 flex-shrink-0">
+        <div className="border-t border-[#00e68a]/12 px-4 py-2 flex items-center justify-between bg-card/30 flex-shrink-0">
           <span className="text-[10px] font-mono text-muted-foreground">
             {displayEntities.length} shown
             {!isSpecialFilter && hasMore && " · scroll to load more"}
@@ -1384,7 +1384,7 @@ export default function EntityLedger() {
         {(hotOnly || anyContactFilter) && (
           <div className={cn(
             "flex items-center justify-between px-3 py-2 border-b text-xs font-mono flex-shrink-0",
-            hotOnly ? "bg-[#e85d1a]/10 border-[#e85d1a]/35 text-[#fdba74]" : "bg-white/[0.04] border-[#2a2a2a] text-muted-foreground"
+            hotOnly ? "bg-[#00e68a]/10 border-[#00e68a]/35 text-[#a7f3d0]" : "bg-white/[0.04] border-[#2a2a2a] text-muted-foreground"
           )}>
             <span className="font-bold uppercase tracking-wider truncate">
               {hotOnly ? "Hot Leads only"
@@ -1401,8 +1401,8 @@ export default function EntityLedger() {
             </button>
           </div>
         )}
-        <div className="px-3 py-2 border-b border-[#e85d1a]/12 bg-card/30 flex-shrink-0">
-          <div className="flex items-center gap-2 px-3 py-2.5 rounded bg-background border border-[#e85d1a]/12">
+        <div className="px-3 py-2 border-b border-[#00e68a]/12 bg-card/30 flex-shrink-0">
+          <div className="flex items-center gap-2 px-3 py-2.5 rounded bg-background border border-[#00e68a]/12">
             <Search className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
             <input
               type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
@@ -1413,12 +1413,12 @@ export default function EntityLedger() {
           </div>
         </div>
         {/* Mobile view mode + filter chips */}
-        <div className="flex md:hidden flex-col border-b border-[#e85d1a]/12 bg-card/30 shrink-0">
+        <div className="flex md:hidden flex-col border-b border-[#00e68a]/12 bg-card/30 shrink-0">
           {/* View mode row */}
-          <div className="atlas-h-scroll flex items-center gap-1.5 px-3 py-2 pr-10 border-b border-[#e85d1a]/10 overflow-x-auto overscroll-x-contain touch-pan-x" style={{ scrollbarWidth: "thin" }}>
+          <div className="atlas-h-scroll flex items-center gap-1.5 px-3 py-2 pr-10 border-b border-[#00e68a]/10 overflow-x-auto overscroll-x-contain touch-pan-x" style={{ scrollbarWidth: "thin" }}>
             {([
-              { mode: "all",     label: "All",     color: "#e85d1a" },
-              { mode: "starred", label: "★ Starred", color: "#e85d1a" },
+              { mode: "all",     label: "All",     color: "#00e68a" },
+              { mode: "starred", label: "★ Starred", color: "#00e68a" },
               { mode: "hidden",  label: "◌ Hidden",  color: "#9CA3AF" },
             ] as const).map(({ mode, label, color }) => (
               <button
@@ -1448,7 +1448,7 @@ export default function EntityLedger() {
                   "inline-flex shrink-0 h-8 items-center justify-center px-3 rounded-lg text-[11px] font-mono border transition-colors",
                   typeFilter === value
                     ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-[#0c0c0c]/80 text-muted-foreground border-[#e85d1a]/12"
+                    : "bg-[#0c0c0c]/80 text-muted-foreground border-[#00e68a]/12"
                 )}
               >
                 {label}
@@ -1458,7 +1458,7 @@ export default function EntityLedger() {
               onClick={() => setHotOnly(!hotOnly)}
               className={cn(
                 "inline-flex shrink-0 h-8 items-center justify-center gap-1 px-3 rounded-lg text-[11px] font-mono border transition-colors",
-                hotOnly ? "bg-[#e85d1a]/15 text-[#fdba74] border-[#e85d1a]/40" : "bg-card text-muted-foreground border-[#e85d1a]/12"
+                hotOnly ? "bg-[#00e68a]/15 text-[#a7f3d0] border-[#00e68a]/40" : "bg-card text-muted-foreground border-[#00e68a]/12"
               )}
               aria-pressed={hotOnly}
               title="Show priority leads only"
@@ -1494,7 +1494,7 @@ export default function EntityLedger() {
                 className="shrink-0 h-7 px-2.5 rounded text-[10px] font-mono border transition-colors"
                 style={{
                   background: minConfidence === step ? "rgba(245,158,11,0.22)" : "rgba(15,23,42,0.6)",
-                  color: minConfidence === step ? "#e85d1a" : "hsl(var(--muted-foreground))",
+                  color: minConfidence === step ? "#00e68a" : "hsl(var(--muted-foreground))",
                   borderColor: minConfidence === step ? "rgba(245,158,11,0.4)" : "hsl(var(--border))",
                 }}
               >
@@ -1506,14 +1506,14 @@ export default function EntityLedger() {
 
         {/* Mobile bulk action bar */}
         {selectedIds.size > 0 && (
-          <div className="flex flex-shrink-0 items-center gap-2 border-b border-[#e85d1a]/25 bg-[#e85d1a]/5 px-3 py-2">
-            <span className="flex-shrink-0 font-mono text-xs font-bold text-[#fdba74]">
+          <div className="flex flex-shrink-0 items-center gap-2 border-b border-[#00e68a]/25 bg-[#00e68a]/5 px-3 py-2">
+            <span className="flex-shrink-0 font-mono text-xs font-bold text-[#a7f3d0]">
               {selectedIds.size} selected
             </span>
             <div className="flex-1" />
             <button
               onClick={handleBulkExportCsv}
-              className="atlas-pressable flex items-center gap-1 rounded border border-[#e85d1a]/20 px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-wider text-stone-400"
+              className="atlas-pressable flex items-center gap-1 rounded border border-[#00e68a]/20 px-2.5 py-1.5 font-mono text-[10px] uppercase tracking-wider text-stone-400"
             >
               <Download className="h-3 w-3" /> CSV
             </button>
@@ -1564,7 +1564,7 @@ export default function EntityLedger() {
       <button
         onClick={() => openAddModal()}
         className="fixed bottom-6 right-5 w-12 h-12 rounded-full flex items-center justify-center shadow-lg z-40 md:hidden"
-        style={{ backgroundColor: "#e85d1a", boxShadow: "0 0 20px rgba(232,93,26,0.4)" }}
+        style={{ backgroundColor: "#00e68a", boxShadow: "0 0 20px rgba(0,230,138,0.4)" }}
       >
         <Plus className="w-5 h-5 text-black" />
       </button>
@@ -1573,13 +1573,13 @@ export default function EntityLedger() {
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex">
           <div className="flex-1 bg-black/60 backdrop-blur-sm" onClick={() => setShowAddModal(false)} />
-          <div className="w-full max-w-[480px] bg-card border-l border-[#e85d1a]/12 flex flex-col shadow-2xl animate-in slide-in-from-right-full duration-300">
-            <div className="p-5 border-b border-[#e85d1a]/12 flex items-center justify-between flex-shrink-0">
+          <div className="w-full max-w-[480px] bg-card border-l border-[#00e68a]/12 flex flex-col shadow-2xl animate-in slide-in-from-right-full duration-300">
+            <div className="p-5 border-b border-[#00e68a]/12 flex items-center justify-between flex-shrink-0">
               <div>
                 <h2 className="text-sm font-bold font-mono tracking-widest uppercase text-foreground">New Intelligence Target</h2>
                 <p className="text-xs text-muted-foreground font-mono mt-0.5">Register entity in classified registry</p>
               </div>
-              <button onClick={() => setShowAddModal(false)} className="p-1.5 text-muted-foreground hover:text-foreground rounded bg-muted border border-[#e85d1a]/12">
+              <button onClick={() => setShowAddModal(false)} className="p-1.5 text-muted-foreground hover:text-foreground rounded bg-muted border border-[#00e68a]/12">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -1593,14 +1593,14 @@ export default function EntityLedger() {
                   <input
                     type="text" value={(addForm as any)[field]} placeholder={placeholder}
                     onChange={(e) => setAddForm((f) => ({ ...f, [field]: e.target.value }))}
-                    className="w-full bg-background border border-[#e85d1a]/12 rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-primary"
+                    className="w-full bg-background border border-[#00e68a]/12 rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-primary"
                   />
                 </div>
               ))}
               <div>
                 <label className="block text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">Classification *</label>
                 <select value={addForm.type} onChange={(e) => setAddForm((f) => ({ ...f, type: e.target.value as EntityType }))}
-                  className="w-full bg-background border border-[#e85d1a]/12 rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-primary">
+                  className="w-full bg-background border border-[#00e68a]/12 rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-primary">
                   <option value="HNWI">HNWI — High Net Worth Individual</option>
                   <option value="Corporation">Corporation — Company / Shell</option>
                   <option value="Trust">Trust — Offshore / Fiduciary</option>
@@ -1616,7 +1616,7 @@ export default function EntityLedger() {
                     <label className="block text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">{label}</label>
                     <input type={field === "estimatedNetWorth" ? "number" : "text"} value={(addForm as any)[field]} placeholder={placeholder}
                       onChange={(e) => setAddForm((f) => ({ ...f, [field]: e.target.value }))}
-                      className="w-full bg-background border border-[#e85d1a]/12 rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-primary" />
+                      className="w-full bg-background border border-[#00e68a]/12 rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-primary" />
                   </div>
                 ))}
               </div>
@@ -1631,20 +1631,20 @@ export default function EntityLedger() {
                   <label className="block text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">{label}</label>
                   <input type="text" value={(addForm as any)[field]} placeholder={placeholder}
                     onChange={(e) => setAddForm((f) => ({ ...f, [field]: e.target.value }))}
-                    className="w-full bg-background border border-[#e85d1a]/12 rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-primary" />
+                    className="w-full bg-background border border-[#00e68a]/12 rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-primary" />
                 </div>
               ))}
               <div>
                 <label className="block text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5">Intelligence Notes</label>
                 <textarea value={addForm.notes} onChange={(e) => setAddForm((f) => ({ ...f, notes: e.target.value }))}
                   rows={4} placeholder="Background, approach angles, personal context, seasonal windows…"
-                  className="w-full bg-background border border-[#e85d1a]/12 rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-primary resize-none" />
+                  className="w-full bg-background border border-[#00e68a]/12 rounded px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:border-primary resize-none" />
               </div>
             </div>
 
-            <div className="p-5 border-t border-[#e85d1a]/12 flex items-center justify-between flex-shrink-0 bg-muted/20">
+            <div className="p-5 border-t border-[#00e68a]/12 flex items-center justify-between flex-shrink-0 bg-muted/20">
               <button onClick={() => setShowAddModal(false)}
-                className="px-4 py-2 bg-muted text-muted-foreground border border-[#e85d1a]/12 rounded font-mono text-sm hover:text-foreground transition-colors">
+                className="px-4 py-2 bg-muted text-muted-foreground border border-[#00e68a]/12 rounded font-mono text-sm hover:text-foreground transition-colors">
                 Cancel
               </button>
               <button onClick={handleAddEntity} disabled={!addForm.name.trim() || createEntity.isPending}
@@ -1681,7 +1681,7 @@ export default function EntityLedger() {
               value={purgePhrase}
               onChange={(e) => setPurgePhrase(e.target.value)}
               autoFocus
-              className="mt-2 w-full rounded-xl border border-[#e85d1a]/20 bg-[#050505] px-3 py-2.5 font-mono text-sm text-stone-100 outline-none focus:border-rose-400/50"
+              className="mt-2 w-full rounded-xl border border-[#00e68a]/20 bg-[#050505] px-3 py-2.5 font-mono text-sm text-stone-100 outline-none focus:border-rose-400/50"
               placeholder="DELETE ALL ENTITIES"
               aria-label="Confirmation phrase"
             />

@@ -54,9 +54,9 @@ export function ApiKeyHealth({ className }: { className?: string }) {
 
   const tone =
     state === "ok"
-      ? "text-[#fdba74] border-[#e85d1a]/30 bg-orange-500/10"
+      ? "text-[#a7f3d0] border-[#00e68a]/30 bg-emerald-500/10"
       : state === "degraded"
-        ? "text-[#fdba74] border-[#e85d1a]/30 bg-[#e85d1a]/10"
+        ? "text-[#a7f3d0] border-[#00e68a]/30 bg-[#00e68a]/10"
         : state === "loading"
           ? "text-muted-foreground border-border bg-card/40"
           : "text-rose-300 border-rose-400/30 bg-rose-500/10";

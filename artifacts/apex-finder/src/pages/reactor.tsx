@@ -126,8 +126,8 @@ type RodStatus = "idle" | "completed" | "active" | "queued" | "skipped" | "faile
 
 function rodStatusColor(status: RodStatus, fallback: string): string {
   switch (status) {
-    case "completed": return "#f97316";
-    case "active": return "#e85d1a";
+    case "completed": return "#34f5a0";
+    case "active": return "#00e68a";
     case "queued": return "#526b86";
     case "skipped": return "#f59e0b";
     case "failed": return "#fb7185";
@@ -229,16 +229,16 @@ const NODES: NodeDef[] = [
   { id:"deepweb", label:"DEEP WEB",        sub:"Multi-source OSINT",         cx:900,  cy:298, w:168, h:60,  type:"discovery",Icon:Eye,        color:"#fb923c" },
   { id:"opensky", label:"LIVE FLIGHT",     sub:"OpenSky Network",            cx:1270, cy:298, w:148, h:60,  type:"discovery",Icon:Radio,      color:"#fb923c" },
   { id:"maigret", label:"MAIGRET",         sub:"Holehe · 3,000+ Platforms",  cx:1460, cy:298, w:168, h:60,  type:"discovery",Icon:Users,      color:"#fb923c" },
-  { id:"perp0",   label:"PERPLEXITY",      sub:"Phase 0 · Live Research",    cx:140,  cy:420, w:160, h:62,  type:"ai-yellow",  Icon:Zap,        color:"#e85d1a" },
-  { id:"exa",     label:"EXA NEURAL",      sub:"Semantic People Search",     cx:345,  cy:420, w:148, h:62,  type:"ai-yellow",  Icon:Compass,    color:"#e85d1a" },
-  { id:"tavily",  label:"TAVILY AI",       sub:"AI-native Web Search",       cx:545,  cy:420, w:148, h:62,  type:"ai-yellow",  Icon:Rss,        color:"#e85d1a" },
-  { id:"groq",    label:"GROQ LLM",        sub:"Llama 3.3 · Extraction",     cx:800,  cy:420, w:160, h:62,  type:"ai-lime",  Icon:Brain,      color:"#f97316" },
-  { id:"gemini",  label:"GEMINI",          sub:"Google · Grounded Search",   cx:1040, cy:420, w:148, h:62,  type:"ai-yellow",  Icon:Sparkles,   color:"#e85d1a" },
-  { id:"perpfu",  label:"PERPLEXITY+",     sub:"Adaptive Follow-up",         cx:1250, cy:420, w:160, h:62,  type:"ai-yellow",  Icon:RefreshCw,  color:"#e85d1a" },
+  { id:"perp0",   label:"PERPLEXITY",      sub:"Phase 0 · Live Research",    cx:140,  cy:420, w:160, h:62,  type:"ai-yellow",  Icon:Zap,        color:"#00e68a" },
+  { id:"exa",     label:"EXA NEURAL",      sub:"Semantic People Search",     cx:345,  cy:420, w:148, h:62,  type:"ai-yellow",  Icon:Compass,    color:"#00e68a" },
+  { id:"tavily",  label:"TAVILY AI",       sub:"AI-native Web Search",       cx:545,  cy:420, w:148, h:62,  type:"ai-yellow",  Icon:Rss,        color:"#00e68a" },
+  { id:"groq",    label:"GROQ LLM",        sub:"Llama 3.3 · Extraction",     cx:800,  cy:420, w:160, h:62,  type:"ai-lime",  Icon:Brain,      color:"#34f5a0" },
+  { id:"gemini",  label:"GEMINI",          sub:"Google · Grounded Search",   cx:1040, cy:420, w:148, h:62,  type:"ai-yellow",  Icon:Sparkles,   color:"#00e68a" },
+  { id:"perpfu",  label:"PERPLEXITY+",     sub:"Adaptive Follow-up",         cx:1250, cy:420, w:160, h:62,  type:"ai-yellow",  Icon:RefreshCw,  color:"#00e68a" },
   { id:"semantic",label:"SEMANTIC ENGINE", sub:"MiniLM · Embeddings",        cx:460,  cy:540, w:192, h:62,  type:"analysis", Icon:GitMerge,   color:"#a78bfa" },
   { id:"bayesian",label:"BAYESIAN SCORE",  sub:"Dynamic Priority",           cx:1020, cy:540, w:192, h:62,  type:"analysis", Icon:Layers,     color:"#a78bfa" },
   { id:"graph",   label:"GRAPH ENGINE",    sub:"Relationship Synthesis",     cx:260,  cy:652, w:178, h:62,  type:"core",     Icon:Network,    color:"#a78bfa" },
-  { id:"mcts",    label:"PATH CORE",        sub:"Adaptive Pathfinding",       cx:800,  cy:657, w:228, h:78,  type:"reactor",  Icon:Cpu,        color:"#f97316" },
+  { id:"mcts",    label:"PATH CORE",        sub:"Adaptive Pathfinding",       cx:800,  cy:657, w:228, h:78,  type:"reactor",  Icon:Cpu,        color:"#34f5a0" },
   { id:"prac",    label:"PRAC ENGINE",     sub:"Planner · Analyst · Critic", cx:1340, cy:652, w:178, h:62,  type:"core",     Icon:Activity,   color:"#a78bfa" },
   { id:"evidence", label:"EVIDENCE REVIEW", sub:"Research Path Assessment", cx:800, cy:768, w:244, h:54, type:"output", Icon:Target, color:"#fbbf24" },
 ];
@@ -513,8 +513,8 @@ function QuickStats({ totalEntities, hotCount, totalAssets, sessionCount, compac
       flex:compact ? undefined : 1,
     }}>
       <QuickStat label="ENTITIES" value={totalEntities} color="#38bdf8" compact={compact} />
-      <QuickStat label="HOT LEADS" value={hotCount} color="#f97316" compact={compact} />
-      <QuickStat label="ASSETS" value={totalAssets} color="#e85d1a" compact={compact} />
+      <QuickStat label="HOT LEADS" value={hotCount} color="#34f5a0" compact={compact} />
+      <QuickStat label="ASSETS" value={totalAssets} color="#00e68a" compact={compact} />
       <QuickStat label="RESEARCH" value={sessionCount} color="#a78bfa" compact={compact} />
     </div>
   );
@@ -531,7 +531,7 @@ function LiveHeaderDetail({ isLive, atlasState, liveLabel, livePhaseDetail, comp
   const detail = atlasState?.detail || livePhaseDetail || liveLabel || "Processing live research";
   const failed = atlasState?.runStatus === "failed";
   const done = atlasState?.runStatus === "done";
-  const color = failed ? "#fb7185" : done ? "#f97316" : "#e85d1a";
+  const color = failed ? "#fb7185" : done ? "#34f5a0" : "#00e68a";
   return (
     <div style={{
       display:"flex", alignItems:"center", gap:6, minWidth:0,
@@ -646,7 +646,7 @@ function AtlasPhaseStrip({ state, compact = false }: { state?: AtlasLiveState | 
         <span style={{ fontSize:compact ? 7 : 8, letterSpacing:"0.16em", color:"#526b86" }}>
           {running ? `ENTITY JOURNEY · PHASE ${activePhase}/10` : "ENTITY JOURNEY · 11 CHECKPOINTS · 10 PHASES"}
         </span>
-        <span style={{ fontSize:compact ? 6.5 : 7, letterSpacing:"0.12em", color:running ? "#e85d1a" : "#3a5070" }}>
+        <span style={{ fontSize:compact ? 6.5 : 7, letterSpacing:"0.12em", color:running ? "#00e68a" : "#3a5070" }}>
           {running ? (state?.sourceStep != null ? `SOURCE ${state.sourceStep}/${state.sourceTotal}` : "PROCESSING") : "STANDBY"}
         </span>
       </div>
@@ -654,7 +654,7 @@ function AtlasPhaseStrip({ state, compact = false }: { state?: AtlasLiveState | 
         {ATLAS_PHASES.map((phase) => {
           const complete = running && phase.n < activePhase;
           const active = running && phase.n === activePhase;
-          const color = active ? "#e85d1a" : complete ? "#f97316" : "#263d59";
+          const color = active ? "#00e68a" : complete ? "#34f5a0" : "#263d59";
           return (
             <div key={phase.n} title={`${phase.n} · ${phase.label} — ${phase.detail}`} style={{
               flex:1, minWidth:compact ? 18 : 24,
@@ -662,9 +662,9 @@ function AtlasPhaseStrip({ state, compact = false }: { state?: AtlasLiveState | 
             }}>
               <div style={{
                 height:compact ? 4 : 5, borderRadius:3,
-                background:active ? `linear-gradient(90deg,#e85d1a,#f97316)` : color,
+                background:active ? `linear-gradient(90deg,#00e68a,#34f5a0)` : color,
                 opacity:active || complete ? 1 : 0.55,
-                boxShadow:active ? "0 0 8px #e85d1a88" : "none",
+                boxShadow:active ? "0 0 8px #00e68a88" : "none",
                 transition:"all .35s ease",
               }} />
               <span style={{
@@ -698,17 +698,17 @@ function EntityWorkbench({ state, liveNodes, compact = false }: {
     : null;
   return (
     <div style={{
-      border:"1px solid #e85d1a35", borderRadius:compact ? 5 : 7,
-      background:"#e85d1a08", padding:compact ? "6px 8px" : "9px 11px",
+      border:"1px solid #00e68a35", borderRadius:compact ? 5 : 7,
+      background:"#00e68a08", padding:compact ? "6px 8px" : "9px 11px",
       display:"flex", flexDirection:"column", gap:compact ? 5 : 7,
     }}>
       <div style={{ display:"flex", alignItems:"center", gap:7, minWidth:0 }}>
         <div style={{
           width:compact ? 5 : 6, height:compact ? 5 : 6, borderRadius:"50%",
-          flexShrink:0, background:"#e85d1a", boxShadow:"0 0 8px #e85d1a",
+          flexShrink:0, background:"#00e68a", boxShadow:"0 0 8px #00e68a",
           animation: motionOrNone("blink .8s ease-in-out infinite"),
         }} />
-        <span style={{ fontSize:compact ? 6.5 : 7.5, letterSpacing:"0.14em", color:"#e85d1a" }}>
+        <span style={{ fontSize:compact ? 6.5 : 7.5, letterSpacing:"0.14em", color:"#00e68a" }}>
           CURRENT ENTITY WORKBENCH
         </span>
         <span style={{ marginLeft:"auto", fontSize:compact ? 6 : 7, color:"#526b86", letterSpacing:"0.08em" }}>
@@ -723,7 +723,7 @@ function EntityWorkbench({ state, liveNodes, compact = false }: {
       </div>
       <div style={{ display:"flex", alignItems:"center", gap:8, minWidth:0 }}>
         <span style={{
-          fontSize:compact ? 6 : 7, color:"#f97316", letterSpacing:"0.09em",
+          fontSize:compact ? 6 : 7, color:"#34f5a0", letterSpacing:"0.09em",
           overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", flex:1,
         }}>
           {state.detail || "Collecting evidence and passing it to the next rod"}
@@ -778,14 +778,14 @@ function AtlasTelemetryInspector({ telemetry, eventLog = [] }: { telemetry?: any
   return (
     <div style={{
       position:"absolute", top:16, right:18, width:374, maxHeight:350, overflowY:"auto",
-      zIndex:30, padding:"11px 12px", border:"1px solid #e85d1a55", borderRadius:7,
+      zIndex:30, padding:"11px 12px", border:"1px solid #00e68a55", borderRadius:7,
       background:"rgba(7,15,29,0.96)", boxShadow:"0 0 24px #0008", backdropFilter:"blur(10px)",
       fontFamily:"'Space Mono','DM Mono','Courier New',monospace",
     }}>
       <div style={{ display:"flex", alignItems:"center", gap:7, marginBottom:8 }}>
-        <span style={{ width:6, height:6, borderRadius:"50%", background:telemetry?.status === "complete" ? "#f97316" : "#e85d1a", boxShadow:"0 0 8px #e85d1a", flexShrink:0 }} />
-        <span style={{ fontSize:7, letterSpacing:"0.17em", color:"#e85d1a" }}>LIVE TARGET INSPECTOR</span>
-        <span style={{ marginLeft:"auto", fontSize:6.5, letterSpacing:"0.12em", color:telemetry?.status === "complete" ? "#f97316" : "#fbbf24" }}>
+        <span style={{ width:6, height:6, borderRadius:"50%", background:telemetry?.status === "complete" ? "#34f5a0" : "#00e68a", boxShadow:"0 0 8px #00e68a", flexShrink:0 }} />
+        <span style={{ fontSize:7, letterSpacing:"0.17em", color:"#00e68a" }}>LIVE TARGET INSPECTOR</span>
+        <span style={{ marginLeft:"auto", fontSize:6.5, letterSpacing:"0.12em", color:telemetry?.status === "complete" ? "#34f5a0" : "#fbbf24" }}>
           {String(telemetry?.status ?? "history").toUpperCase()}
         </span>
       </div>
@@ -793,14 +793,14 @@ function AtlasTelemetryInspector({ telemetry, eventLog = [] }: { telemetry?: any
         <span style={{ color:"#526b86", letterSpacing:"0.1em" }}>TARGET</span>
         <span style={{ color:"#e8e0cc", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{telemetry?.targetName ?? "—"}</span>
         <span style={{ color:"#526b86", letterSpacing:"0.1em" }}>STAGE</span>
-        <span style={{ color:"#f97316" }}>{telemetry?.stage ?? "—"}</span>
+        <span style={{ color:"#34f5a0" }}>{telemetry?.stage ?? "—"}</span>
         <span style={{ color:"#526b86", letterSpacing:"0.1em" }}>ACTIVE LANE</span>
-        <span style={{ color:telemetry?.activeToolId === PERSONA_REVIEW_TOOL ? "#c4b5fd" : "#e85d1a" }}>{activeTool ?? "—"}</span>
+        <span style={{ color:telemetry?.activeToolId === PERSONA_REVIEW_TOOL ? "#c4b5fd" : "#00e68a" }}>{activeTool ?? "—"}</span>
       </div>
       {(researchTools.length > 0 || hasPersonaReview) && (
         <div style={{ marginTop:10, display:"flex", flexDirection:"column", gap:7 }}>
           {researchTools.length > 0 && (
-            <div style={{ padding:"7px 8px", border:"1px solid #e85d1a28", borderRadius:4, background:"#e85d1a06" }}>
+            <div style={{ padding:"7px 8px", border:"1px solid #00e68a28", borderRadius:4, background:"#00e68a06" }}>
               <div style={{ color:"#67e8f9", fontSize:6.5, letterSpacing:"0.13em", marginBottom:4 }}>
                 OSINT &amp; EVIDENCE TOOLS
               </div>
@@ -830,8 +830,8 @@ function AtlasTelemetryInspector({ telemetry, eventLog = [] }: { telemetry?: any
         </div>
       )}
       {telemetry?.prompt && (
-        <div style={{ marginTop:8, padding:"8px", border:"1px solid #f9731630", borderRadius:4, background:"#f9731608", color:"#cbd5a5", fontSize:6.7, lineHeight:1.5, whiteSpace:"pre-wrap", maxHeight:150, overflowY:"auto" }}>
-          <div style={{ color:"#f97316", fontSize:6.5, letterSpacing:"0.13em", marginBottom:5 }}>CURRENT PROMPT</div>
+        <div style={{ marginTop:8, padding:"8px", border:"1px solid #34f5a030", borderRadius:4, background:"#34f5a008", color:"#cbd5a5", fontSize:6.7, lineHeight:1.5, whiteSpace:"pre-wrap", maxHeight:150, overflowY:"auto" }}>
+          <div style={{ color:"#34f5a0", fontSize:6.5, letterSpacing:"0.13em", marginBottom:5 }}>CURRENT PROMPT</div>
           {telemetry.prompt}
         </div>
       )}
@@ -847,7 +847,7 @@ function AtlasTelemetryInspector({ telemetry, eventLog = [] }: { telemetry?: any
       )}
       {eventLog.length > 0 && (
         <div style={{ marginTop:10, paddingTop:8, borderTop:"1px solid #192840" }}>
-          <div style={{ color:"#e85d1a", fontSize:6.5, letterSpacing:"0.14em", marginBottom:6 }}>
+          <div style={{ color:"#00e68a", fontSize:6.5, letterSpacing:"0.14em", marginBottom:6 }}>
             RESEARCH EVENT LOG · {eventLog.length} RECENT EVENTS
           </div>
           <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
@@ -855,7 +855,7 @@ function AtlasTelemetryInspector({ telemetry, eventLog = [] }: { telemetry?: any
               <details key={`${event.timestamp ?? "event"}-${index}`} style={{
                 border:"1px solid #192840", borderRadius:4, padding:"5px 6px", background:"#0d1525",
               }}>
-                <summary style={{ cursor:"pointer", listStyle:"none", color:event.status === "complete" ? "#f97316" : event.status === "review" ? "#fbbf24" : "#8aa4c0", fontSize:6.7 }}>
+                <summary style={{ cursor:"pointer", listStyle:"none", color:event.status === "complete" ? "#34f5a0" : event.status === "review" ? "#fbbf24" : "#8aa4c0", fontSize:6.7 }}>
                   <span style={{ color:"#526b86" }}>{event.timestamp?.slice(11, 19) ?? "--:--:--"} </span>
                   {event.stage ?? "Research event"}
                   <span style={{ color:"#526b86" }}> · {event.activeToolId === PERSONA_REVIEW_TOOL ? "Post-research quality review" : event.activeToolId ? telemetryToolLabel(event.activeToolId) : "Atlas"}</span>
@@ -872,7 +872,7 @@ function AtlasTelemetryInspector({ telemetry, eventLog = [] }: { telemetry?: any
                     <div style={{ marginTop:4, display:"flex", flexDirection:"column", gap:3 }}>
                       <span style={{ color:"#526b86" }}>SOURCES</span>
                       {(event.links && event.links.length ? event.links : (event.sourceUrls ?? []).map((url: string) => ({ url }))).slice(0, 5).map((l: any, i: number) => (
-                        <a key={i} href={l.url} target="_blank" rel="noopener noreferrer" style={{ color:"#fdba74", textDecoration:"underline", wordBreak:"break-all" }}>
+                        <a key={i} href={l.url} target="_blank" rel="noopener noreferrer" style={{ color:"#a7f3d0", textDecoration:"underline", wordBreak:"break-all" }}>
                           {l.title || l.url}
                         </a>
                       ))}
@@ -951,8 +951,8 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
           {/* Nuclear icon */}
           <span style={{
             fontSize:32, lineHeight:1, flexShrink:0,
-            color: hasSessions ? "#f97316" : "#253850",
-            textShadow: hasSessions ? "0 0 12px #f9731644" : "none",
+            color: hasSessions ? "#34f5a0" : "#253850",
+            textShadow: hasSessions ? "0 0 12px #34f5a044" : "none",
             animation: hasSessions ? motionOrNone("breathe 3s ease-in-out infinite") : "none",
             transition:"all 0.4s",
           }}>☢</span>
@@ -974,11 +974,11 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
               <div style={{ display:"flex", alignItems:"center", gap:5 }}>
                 <div style={{
                   width:6, height:6, borderRadius:"50%",
-                   background: atlasFailed ? "#fb7185" : atlasDone ? "#f97316" : isLive ? "#e85d1a" : (hasSessions ? "#f97316" : "#253850"),
-                   boxShadow: atlasFailed ? "0 0 8px #fb7185" : atlasDone ? "0 0 6px #f97316" : isLive ? "0 0 8px #e85d1a" : (hasSessions ? "0 0 6px #f97316" : "none"),
+                   background: atlasFailed ? "#fb7185" : atlasDone ? "#34f5a0" : isLive ? "#00e68a" : (hasSessions ? "#34f5a0" : "#253850"),
+                   boxShadow: atlasFailed ? "0 0 8px #fb7185" : atlasDone ? "0 0 6px #34f5a0" : isLive ? "0 0 8px #00e68a" : (hasSessions ? "0 0 6px #34f5a0" : "none"),
                    animation: (!atlasFailed && !atlasDone && (isLive || hasSessions)) ? motionOrNone("blink 1.1s ease-in-out infinite") : "none",
                 }} />
-                 <span style={{ fontSize:8, letterSpacing:"0.14em", color: atlasFailed ? "#fb7185" : atlasDone ? "#f97316" : isLive ? "#e85d1a" : (hasSessions ? "#f97316" : "#3a5070") }}>
+                 <span style={{ fontSize:8, letterSpacing:"0.14em", color: atlasFailed ? "#fb7185" : atlasDone ? "#34f5a0" : isLive ? "#00e68a" : (hasSessions ? "#34f5a0" : "#3a5070") }}>
                    {atlasFailed ? "FAILED" : atlasDone ? "COMPLETE" : isLive ? "LIVE" : (hasSessions ? "OPERATIONAL" : "STANDBY")}
                 </span>
               </div>
@@ -993,7 +993,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                 width:22, height:22, borderRadius:4, border:"1px solid #253850",
                 background:"transparent", cursor:"pointer",
                 display:"flex", alignItems:"center", justifyContent:"center",
-                color: syncing ? "#f97316" : "#3a5070",
+                color: syncing ? "#34f5a0" : "#3a5070",
                 transition:"all 0.25s",
                 padding:0, flexShrink:0,
               }}
@@ -1038,7 +1038,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
           }}>
             <div style={{
               width:28, height:28, borderRadius:"50%",
-              border:"2px solid #192840", borderTopColor:"#f97316",
+              border:"2px solid #192840", borderTopColor:"#34f5a0",
               animation: motionOrNone("blink 0.7s linear infinite"),
             }} />
             <span style={{ fontSize:9, letterSpacing:"0.18em", color:"#3a5070" }}>
@@ -1063,10 +1063,10 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                 </div>
                 <div style={{ display:"flex", alignItems:"center", gap:7, fontSize:6.5, letterSpacing:"0.1em", color:"#3a5070" }}>
                   <span style={{ display:"inline-flex", alignItems:"center", gap:3 }}>
-                    <i style={{ width:6, height:2, background:"#f97316", display:"inline-block" }} /> FORWARD
+                    <i style={{ width:6, height:2, background:"#34f5a0", display:"inline-block" }} /> FORWARD
                   </span>
                   <span style={{ display:"inline-flex", alignItems:"center", gap:3 }}>
-                    <i style={{ width:6, height:2, background:"#e85d1a", display:"inline-block" }} /> FEEDBACK
+                    <i style={{ width:6, height:2, background:"#00e68a", display:"inline-block" }} /> FEEDBACK
                   </span>
                 </div>
               </div>
@@ -1086,10 +1086,10 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                 }}>
                   <defs>
                     <marker id="mobileLime" markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto">
-                      <path d="M0,0 L5,2.5 L0,5 z" fill="#f97316" />
+                      <path d="M0,0 L5,2.5 L0,5 z" fill="#34f5a0" />
                     </marker>
                     <marker id="mobileCyan" markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto">
-                      <path d="M0,0 L5,2.5 L0,5 z" fill="#e85d1a" />
+                      <path d="M0,0 L5,2.5 L0,5 z" fill="#00e68a" />
                     </marker>
                   </defs>
                   {EDGES.map(e => {
@@ -1102,7 +1102,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                     const failed = fromStatus === "failed" || toStatus === "failed";
                     const queued = fromStatus === "queued" || toStatus === "queued";
                     const on = active || completed;
-                    const col = failed ? "#fb7185" : queued ? "#526b86" : e.adaptive ? "#e85d1a" : "#f97316";
+                    const col = failed ? "#fb7185" : queued ? "#526b86" : e.adaptive ? "#00e68a" : "#34f5a0";
                     const d = `M ${a.x} ${a.y + 18} C ${a.x} ${(a.y + b.y) / 2} ${b.x} ${(a.y + b.y) / 2} ${b.x} ${b.y - 18}`;
                     return (
                       <path key={e.id} d={d} fill="none" stroke={on ? col : "#20344d"}
@@ -1114,7 +1114,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                     );
                   })}
                   {isLive && (
-                    <text x="350" y="622" fill="#e85d1a88" fontSize="6" textAnchor="end"
+                    <text x="350" y="622" fill="#00e68a88" fontSize="6" textAnchor="end"
                       fontFamily="'Space Mono',monospace" letterSpacing="0.12em"
                       transform="rotate(-90 350 622)">ADAPTIVE FEEDBACK</text>
                   )}
@@ -1145,7 +1145,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                   const y = [76, 210, 342, 476, 558, 658, 724][pi];
                   return <div key={`rail-${phase.label}`} style={{
                     position:"absolute", left:20, right:10, top:y, height:1,
-                    background:`linear-gradient(90deg,${phase.nodeIds.some(id => activeNodes.has(id)) ? "#f9731630" : "#192840"},transparent)`,
+                    background:`linear-gradient(90deg,${phase.nodeIds.some(id => activeNodes.has(id)) ? "#34f5a030" : "#192840"},transparent)`,
                     zIndex:1,
                   }} />;
                 })}
@@ -1160,10 +1160,10 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                    const completed = !active && phaseStatuses.some(status => status === "completed");
                    const skipped = !active && !completed && phaseStatuses.some(status => status === "skipped");
                   return <div key={`phase-note-${phase.label}`} style={{
-                     border:`1px solid ${active ? "#e85d1a55" : completed ? "#f9731645" : skipped ? "#f59e0b40" : "#192840"}`,
-                     borderRadius:5, padding:"6px 7px", background:active ? "#e85d1a0b" : completed ? "#f973160b" : "#0c1422",
+                     border:`1px solid ${active ? "#00e68a55" : completed ? "#34f5a045" : skipped ? "#f59e0b40" : "#192840"}`,
+                     borderRadius:5, padding:"6px 7px", background:active ? "#00e68a0b" : completed ? "#34f5a00b" : "#0c1422",
                   }}>
-                     <div style={{ fontSize:6.5, letterSpacing:"0.12em", color:active ? "#e85d1a" : completed ? "#f97316" : skipped ? "#f59e0b" : "#526b86" }}>
+                     <div style={{ fontSize:6.5, letterSpacing:"0.12em", color:active ? "#00e68a" : completed ? "#34f5a0" : skipped ? "#f59e0b" : "#526b86" }}>
                       {String(pi + 1).padStart(2,"0")} · {phase.label}
                     </div>
                     <div style={{ fontSize:6.5, lineHeight:1.35, color:"#3a5070", marginTop:3 }}>
@@ -1179,9 +1179,9 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
               <div style={{
                 margin:"0 12px 8px",
                 padding:"7px 10px",
-                border:"1px solid #e85d1a30",
+                border:"1px solid #00e68a30",
                 borderRadius:6,
-                background:"#e85d1a0a",
+                background:"#00e68a0a",
                 display:"flex", flexDirection:"column", gap:4,
                 flexShrink:0,
               }}>
@@ -1189,11 +1189,11 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                 <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                   <div style={{
                     width:5, height:5, borderRadius:"50%",
-                    background:"#e85d1a", boxShadow:"0 0 6px #e85d1a",
+                    background:"#00e68a", boxShadow:"0 0 6px #00e68a",
                     animation: motionOrNone("blink 0.6s ease-in-out infinite"), flexShrink:0,
                   }} />
                   <span style={{
-                    fontSize:8, letterSpacing:"0.12em", color:"#e85d1a",
+                    fontSize:8, letterSpacing:"0.12em", color:"#00e68a",
                     flex:1, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
                   }}>
                     {liveLabel || "JOB RUNNING"}
@@ -1201,7 +1201,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                 </div>
                 {/* Current pipeline step — real detail from the running job */}
                 <div style={{ display:"flex", alignItems:"center", gap:6, paddingLeft:13 }}>
-                  <span style={{ fontSize:7.5, letterSpacing:"0.14em", color:"#f9731699",
+                  <span style={{ fontSize:7.5, letterSpacing:"0.14em", color:"#34f5a099",
                     flex:1, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                     ▸ {livePhaseDetail || "processing…"}
                   </span>
@@ -1210,8 +1210,8 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                     {liveNodesArr.slice(0, 8).map((_, i) => (
                       <div key={i} style={{
                         width:3, height:3, borderRadius:"50%",
-                        background: i === (liveStep % Math.max(liveNodesArr.length, 1)) ? "#f97316" : "#192840",
-                        boxShadow: i === (liveStep % Math.max(liveNodesArr.length, 1)) ? "0 0 4px #f97316" : "none",
+                        background: i === (liveStep % Math.max(liveNodesArr.length, 1)) ? "#34f5a0" : "#192840",
+                        boxShadow: i === (liveStep % Math.max(liveNodesArr.length, 1)) ? "0 0 4px #34f5a0" : "none",
                         transition:"all 0.3s",
                       }} />
                     ))}
@@ -1306,8 +1306,8 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                       transition: "border-color 150ms ease, box-shadow 150ms ease",
                     }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = "#e85d1a55";
-                        e.currentTarget.style.boxShadow = "0 0 12px rgba(232,93,26,0.08)";
+                        e.currentTarget.style.borderColor = "#00e68a55";
+                        e.currentTarget.style.boxShadow = "0 0 12px rgba(0,230,138,0.08)";
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.borderColor = "#243044";
@@ -1340,7 +1340,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                         {s.pathScore != null && (
                           <div style={{ display:"flex", flexDirection:"column", gap:1 }}>
                             <span style={{ fontSize:7, letterSpacing:"0.14em", color:"#3a5070" }}>PATH SCORE</span>
-                            <span style={{ fontSize:12, fontWeight:700, color:"#f97316", lineHeight:1 }}>
+                            <span style={{ fontSize:12, fontWeight:700, color:"#34f5a0", lineHeight:1 }}>
                               {s.pathScore.toFixed(2)}
                             </span>
                           </div>
@@ -1403,7 +1403,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
   const atlasDone = atlasState?.runStatus === "done";
   const schedulerCountdown = formatSchedulerCountdown(schedulerWaitRemaining(scheduler, schedulerNow));
   const waitingForNextCycle = Boolean(!isLive && !atlasFailed && schedulerCountdown);
-  const atlasStatusColor = atlasFailed ? "#fb7185" : waitingForNextCycle ? "#fbbf24" : atlasDone ? "#f97316" : isLive ? "#e85d1a" : "#f97316";
+  const atlasStatusColor = atlasFailed ? "#fb7185" : waitingForNextCycle ? "#fbbf24" : atlasDone ? "#34f5a0" : isLive ? "#00e68a" : "#34f5a0";
   const [deskOn, setDeskOn] = useState(true);
   const deskEvents = atlasState?.eventLog ?? [];
   const contactFound = atlasState?.atlasTelemetry?.disposition === "contact_route_found"
@@ -1509,10 +1509,10 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
         <div style={{ display:"flex", alignItems:"center", gap:16, minWidth:0 }}>
           <div style={{
             width:34, height:34, borderRadius:"50%", flexShrink:0,
-            border:`2px solid ${adaptive ? "#e85d1a" : "#f97316"}`,
+            border:`2px solid ${adaptive ? "#00e68a" : "#34f5a0"}`,
             display:"flex", alignItems:"center", justifyContent:"center",
-            lineHeight:1, color: adaptive ? "#e85d1a" : "#f97316", fontSize:18,
-            boxShadow:`0 0 14px ${adaptive ? "#e85d1a55" : "#f9731655"}`,
+            lineHeight:1, color: adaptive ? "#00e68a" : "#34f5a0", fontSize:18,
+            boxShadow:`0 0 14px ${adaptive ? "#00e68a55" : "#34f5a055"}`,
             animation: adaptive ? motionOrNone("pulseGlow 0.7s ease-in-out infinite") : motionOrNone("breathe 3s ease-in-out infinite"),
           }}>
             <span style={{ lineHeight:1, display:"block", marginTop:1 }}>☢</span>
@@ -1554,7 +1554,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
               </div>
               <div style={{ textAlign:"right" }}>
               <div style={{ fontSize:7, letterSpacing:"0.16em", color:"#3a5070" }}>ENTITY FLOW</div>
-              <div style={{ fontSize:11, fontWeight:700, color:isLive ? "#e85d1a" : "#3a5070", lineHeight:1, marginTop:3, letterSpacing:"0.12em" }}>
+              <div style={{ fontSize:11, fontWeight:700, color:isLive ? "#00e68a" : "#3a5070", lineHeight:1, marginTop:3, letterSpacing:"0.12em" }}>
                 {atlasState ? `${atlasState.phase}/10` : "IDLE"}
               </div>
             </div>
@@ -1597,12 +1597,12 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
               border: atlasFailed
                 ? "1px solid #fb718566"
                 : atlasDone
-                  ? "1px solid rgba(232,93,26,0.4)"
-                  : isLive ? "1px solid #e85d1a88" : "1px solid #e85d1a40",
+                  ? "1px solid rgba(0,230,138,0.4)"
+                  : isLive ? "1px solid #00e68a88" : "1px solid #00e68a40",
               borderRadius:8,
               background:"rgba(7,15,29,0.97)",
               boxShadow: isLive
-                ? "0 0 32px rgba(232,93,26,0.14), 0 0 28px #000a"
+                ? "0 0 32px rgba(0,230,138,0.14), 0 0 28px #000a"
                 : atlasDone
                   ? "0 0 24px rgba(52,211,153,0.1), 0 0 28px #000a"
                   : atlasFailed
@@ -1668,7 +1668,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                       padding:"2px 7px",
                     }}
                   >
-                    <span style={{ width:6, height:6, borderRadius:"50%", background:"#e85d1a", boxShadow:"0 0 6px rgba(232,93,26,0.55)" }} />
+                    <span style={{ width:6, height:6, borderRadius:"50%", background:"#00e68a", boxShadow:"0 0 6px rgba(0,230,138,0.55)" }} />
                     ACTIVE
                   </span>
                 )}
@@ -1699,7 +1699,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                       fontWeight:600,
                       letterSpacing:"0.06em",
                       color: eventCountPulse ? "#67e8f9" : isLive ? "#94a3b8" : "#64748b",
-                      textShadow: eventCountPulse ? "0 0 10px rgba(232,93,26,0.55)" : undefined,
+                      textShadow: eventCountPulse ? "0 0 10px rgba(0,230,138,0.55)" : undefined,
                       transition: "color 200ms ease, text-shadow 200ms ease",
                     }}
                   >
@@ -1718,7 +1718,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                   background:"transparent", border:"1px solid #334155",
                   borderRadius:4, padding:"4px 10px", cursor:"pointer",
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#e85d1a88"; e.currentTarget.style.color = "#fafaf9"; }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#00e68a88"; e.currentTarget.style.color = "#fafaf9"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#334155"; e.currentTarget.style.color = "#94a3b8"; }}
               >HIDE</button>
             </div>
@@ -1804,7 +1804,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                     padding:"8px 10px", outline:"none",
                     fontFamily:"inherit",
                   }}
-                  onFocus={(e) => { e.currentTarget.style.borderColor = "#e85d1a88"; }}
+                  onFocus={(e) => { e.currentTarget.style.borderColor = "#00e68a88"; }}
                   onBlur={(e) => { e.currentTarget.style.borderColor = "#334155"; }}
                 />
                 {deskQuery.trim() && filteredDeskEvents.length === 0 && (
@@ -1831,10 +1831,10 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
             style={{
               position:"absolute", top:12, right:18, zIndex:28,
               fontSize:9, letterSpacing:"0.14em", fontWeight:700,
-              color:"#a5f3fc", background:"rgba(232,93,26,0.1)",
-              border:"1px solid #e85d1a88", borderRadius:6, padding:"8px 12px", cursor:"pointer",
+              color:"#a5f3fc", background:"rgba(0,230,138,0.1)",
+              border:"1px solid #00e68a88", borderRadius:6, padding:"8px 12px", cursor:"pointer",
               animation: motionOrNone(`armIn ${REACTOR_UI_MS}ms ease-out both`),
-              boxShadow:"0 0 16px rgba(232,93,26,0.12)",
+              boxShadow:"0 0 16px rgba(0,230,138,0.12)",
             }}
           >LIVE DESK ON</button>
         )}
@@ -1850,10 +1850,10 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
         >
           <defs>
             <marker id="mLime2" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
-              <path d="M0,0.5 L0,6.5 L7,3.5 z" fill="#f97316cc" />
+              <path d="M0,0.5 L0,6.5 L7,3.5 z" fill="#34f5a0cc" />
             </marker>
             <marker id="mCyan2" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
-              <path d="M0,0.5 L0,6.5 L7,3.5 z" fill="#e85d1acc" />
+              <path d="M0,0.5 L0,6.5 L7,3.5 z" fill="#00e68acc" />
             </marker>
             <marker id="mDim2" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
               <path d="M0,0.5 L0,6.5 L7,3.5 z" fill="#192840bb" />
@@ -1871,7 +1871,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
             const on = AE.has(e.id) || complete;
             const touchesFocus = focusedToolId != null && (e.from === focusedToolId || e.to === focusedToolId);
             const d   = e.adaptive ? adaptPath(A, B) : fwdPath(A, B);
-            const col = failed ? "#fb7185" : queued ? "#526b86" : e.adaptive ? "#e85d1a" : "#f97316";
+            const col = failed ? "#fb7185" : queued ? "#526b86" : e.adaptive ? "#00e68a" : "#34f5a0";
             const mk  = on || touchesFocus ? (e.adaptive ? "url(#mCyan2)" : "url(#mLime2)") : "url(#mDim2)";
             const edgeOpacity = focusedToolId
               ? (touchesFocus || active ? 0.95 : 0.12)
@@ -1891,7 +1891,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
             );
           })}
           {adaptive && (
-            <text x={1580} y={600} fill="#e85d1a88" fontSize={8.5}
+            <text x={1580} y={600} fill="#00e68a88" fontSize={8.5}
               fontFamily="'Space Mono',monospace" letterSpacing="0.15em"
               transform="rotate(90,1580,600)">
               ADAPTIVE FEEDBACK RAIL
@@ -1927,7 +1927,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
               left: n.cx - n.w / 2, top: n.cy - n.h / 2,
               width: n.w, height: n.h, zIndex: isFocus || kbFocus || reachCue ? 4 : 2,
               opacity: isSibling && !kbFocus && !reachCue ? 0.32 : 1,
-              outline: kbFocus ? `2px solid #e85d1a` : undefined,
+              outline: kbFocus ? `2px solid #00e68a` : undefined,
               outlineOffset: kbFocus ? 3 : undefined,
               transition: "opacity 0.35s, box-shadow 0.35s",
               border: reachCue
@@ -2269,7 +2269,7 @@ export default function IntelligenceReactorPage() {
       <div style={{ display:"flex", flexDirection:"column", height:"100%", minHeight:0, overflow:"hidden", width:"100%", background:"#050505" }}>
         {/* Design-system tokens + motion must load on mobile — not only desktop */}
         <style>{KEYFRAMES}</style>
-        <div className="flex-shrink-0 border-b border-[#e85d1a]/15 bg-[#050505]/95 px-3 py-2.5" data-testid="reactor-launch-bar-mobile"><LaunchAtlasButton variant="reactor" navigateToReactor={false} label="Launch Apex Atlas" />
+        <div className="flex-shrink-0 border-b border-[#00e68a]/15 bg-[#050505]/95 px-3 py-2.5" data-testid="reactor-launch-bar-mobile"><LaunchAtlasButton variant="reactor" navigateToReactor={false} label="Launch Apex Atlas" />
         </div>
         <MobileReactorFlow
           sessions={sessions}

@@ -97,7 +97,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           href="/"
           aria-label="Apex Atlas home"
           data-testid="link-sidebar-apex-atlas-mark"
-          className="grid h-8 w-8 place-items-center rounded-lg bg-[#e85d1a] text-black shadow-[0_0_18px_rgba(232,93,26,0.35)] focus-visible:ring-2 focus-visible:ring-orange-400/50"
+          className="grid h-8 w-8 place-items-center rounded-lg bg-[#00e68a] text-black shadow-[0_0_18px_rgba(0,230,138,0.35)] focus-visible:ring-2 focus-visible:ring-emerald-400/50"
         >
           <Crosshair className="h-[18px] w-[18px]" />
         </Link>
@@ -197,13 +197,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
       )}
       <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
         <div className="atlas-grid pointer-events-none absolute inset-0" />
-        <header className="relative z-20 flex h-14 shrink-0 items-center gap-2 border-b border-[#e85d1a]/08 bg-[#050505]/95 pl-[max(1.125rem,env(safe-area-inset-left))] pr-[max(0.875rem,env(safe-area-inset-right))] pt-[env(safe-area-inset-top)] backdrop-blur-lg sm:gap-2.5 sm:px-5 md:h-16 md:px-6">
+        <header className="relative z-20 flex h-14 shrink-0 items-center gap-2 border-b border-[#00e68a]/08 bg-[#050505]/95 pl-[max(1.125rem,env(safe-area-inset-left))] pr-[max(0.875rem,env(safe-area-inset-right))] pt-[env(safe-area-inset-top)] backdrop-blur-lg sm:gap-2.5 sm:px-5 md:h-16 md:px-6">
           <div className="mr-2 flex min-w-0 items-center md:mr-0">
             <Link
               href="/"
               aria-label="Apex Atlas home"
               data-testid="link-mobile-apex-atlas-home"
-              className="ml-1 grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#e85d1a] text-black shadow-[0_0_16px_rgba(232,93,26,0.32)] focus-visible:ring-2 focus-visible:ring-orange-400/50 md:hidden"
+              className="ml-1 grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#00e68a] text-black shadow-[0_0_16px_rgba(0,230,138,0.32)] focus-visible:ring-2 focus-visible:ring-emerald-400/50 md:hidden"
             >
               <Crosshair className="h-4 w-4" />
             </Link>
@@ -239,7 +239,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </header>
         {/* Reactor (and other immersive desks) own their chrome — skip duplicate page title on small screens */}
         {!hideDeskTitle && (
-        <div className="relative z-10 shrink-0 border-b border-[#e85d1a]/08 bg-background/70 px-4 py-3.5 backdrop-blur-sm md:px-6 md:py-4">
+        <div className="relative z-10 shrink-0 border-b border-[#00e68a]/08 bg-background/70 px-4 py-3.5 backdrop-blur-sm md:px-6 md:py-4">
           <div className="mx-auto w-full max-w-[1800px]">
             <h1 className="font-display text-xl font-bold tracking-[-0.03em] text-foreground md:text-2xl" data-testid="text-page-title">
               {pageTitle}

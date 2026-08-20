@@ -308,11 +308,11 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
   const statusClass = atlasState?.runStatus === "failed"
     ? "border-rose-400/30 bg-rose-400/10 text-rose-300"
     : waitingForNextCycle
-      ? "border-[#e85d1a]/35 bg-[#e85d1a]/10 text-[#fdba74]"
+      ? "border-[#00e68a]/35 bg-[#00e68a]/10 text-[#a7f3d0]"
       : atlasState?.runStatus === "done"
-        ? "border-[#e85d1a]/35 bg-[#e85d1a]/10 text-[#fdba74]"
+        ? "border-[#00e68a]/35 bg-[#00e68a]/10 text-[#a7f3d0]"
         : isLive
-        ? "border-[#e85d1a]/30 bg-[#e85d1a]/10 text-[#fdba74]"
+        ? "border-[#00e68a]/30 bg-[#00e68a]/10 text-[#a7f3d0]"
         : "border-lime-400/30 bg-lime-400/10 text-lime-300";
 
   let activePhaseIndex = -1;
@@ -345,7 +345,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
       </div>
       {/* Minimal chrome — target + live pulse only */}
       <header
-        className="sticky top-0 z-20 shrink-0 overflow-visible border-b border-[#e85d1a]/14 bg-[#050505]/95 px-3 py-2 backdrop-blur-md"
+        className="sticky top-0 z-20 shrink-0 overflow-visible border-b border-[#00e68a]/14 bg-[#050505]/95 px-3 py-2 backdrop-blur-md"
         style={{ paddingTop: "max(10px, env(safe-area-inset-top, 10px))" }}
         data-testid="live-desk-sticky-chrome"
       >
@@ -353,12 +353,12 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <span
-                className={`h-2 w-2 shrink-0 rounded-full ${isLive ? "bg-[#e85d1a] shadow-[0_0_8px_#e85d1a]" : atlasState?.runStatus === "failed" ? "bg-rose-400" : "bg-stone-600"}`}
+                className={`h-2 w-2 shrink-0 rounded-full ${isLive ? "bg-[#00e68a] shadow-[0_0_8px_#00e68a]" : atlasState?.runStatus === "failed" ? "bg-rose-400" : "bg-stone-600"}`}
                 style={isLive && !prefersReducedMotion() ? { animation: "pulse 2s cubic-bezier(0.4,0,0.6,1) infinite" } : undefined}
               />
               <button
                 type="button"
-                className={`text-[10px] font-bold uppercase tracking-[0.16em] ${isLive ? "text-[#fdba74]" : "text-stone-500"}`}
+                className={`text-[10px] font-bold uppercase tracking-[0.16em] ${isLive ? "text-[#a7f3d0]" : "text-stone-500"}`}
                 onClick={() => {
                   setShowHistory(false);
                   setJumpToLiveSignal((n) => n + 1);
@@ -400,7 +400,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
               }
             }}
             className={`reactor-pressable flex h-10 shrink-0 items-center gap-1 rounded-lg border px-2.5 text-[10px] font-bold uppercase tracking-wider ${
-              showHistory ? "border-[#e85d1a]/40 bg-[#e85d1a]/10 text-[#fdba74]" : "border-[#e85d1a]/14 bg-[#0c0c0c] text-stone-400 hover:border-[#e85d1a]/35"
+              showHistory ? "border-[#00e68a]/40 bg-[#00e68a]/10 text-[#a7f3d0]" : "border-[#00e68a]/14 bg-[#0c0c0c] text-stone-400 hover:border-[#00e68a]/35"
             }`}
             data-testid="button-history"
             aria-pressed={showHistory}
@@ -412,7 +412,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
             type="button"
             onClick={onRefresh}
             disabled={syncing}
-            className="reactor-pressable flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[#e85d1a]/14 bg-[#0c0c0c] text-stone-400 hover:border-[#e85d1a]/35 hover:text-[#fdba74] disabled:pointer-events-none disabled:opacity-50"
+            className="reactor-pressable flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[#00e68a]/14 bg-[#0c0c0c] text-stone-400 hover:border-[#00e68a]/35 hover:text-[#a7f3d0] disabled:pointer-events-none disabled:opacity-50"
             aria-label="Refresh Atlas status"
             data-testid="button-refresh-atlas"
           >
@@ -422,7 +422,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
         {(atlasState?.atlasTelemetry?.disposition === "contact_route_found"
           || (atlasState?.atlasTelemetry?.contacts != null && atlasState.atlasTelemetry.contacts > 0)) && (
           <div
-            className="reactor-reach mt-3 rounded-xl border px-3 py-2.5 shadow-[0_0_24px_rgba(232,93,26,0.2)]"
+            className="reactor-reach mt-3 rounded-xl border px-3 py-2.5 shadow-[0_0_24px_rgba(0,230,138,0.2)]"
             data-testid="card-reach-contact-found"
             data-settled={reachSettled ? "true" : "false"}
             role="status"
@@ -432,7 +432,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
             <div className="reactor-reach-label text-[10px] font-bold uppercase tracking-[0.16em]">
               {reachSettled ? "Contact route locked · REACH" : "Contact found · REACH"}
             </div>
-            <div className="mt-1 text-[13px] leading-snug text-orange-50">
+            <div className="mt-1 text-[13px] leading-snug text-emerald-50">
               {atlasState?.atlasTelemetry?.resultSummary
                 || `${atlasState?.atlasTelemetry?.contacts} attributable vector(s)`}
             </div>
@@ -448,7 +448,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                 <a
                   href={href}
                   data-testid="link-reach-open-profile"
-                  className="reactor-pressable mt-2 inline-flex items-center gap-1.5 rounded-lg border border-[#e85d1a]/35 bg-[#e85d1a]/10 px-2.5 py-1.5 text-[11px] font-semibold text-[#fef9c3] hover:border-[#f97316]/60 hover:bg-[#e85d1a]/15"
+                  className="reactor-pressable mt-2 inline-flex items-center gap-1.5 rounded-lg border border-[#00e68a]/35 bg-[#00e68a]/10 px-2.5 py-1.5 text-[11px] font-semibold text-[#fef9c3] hover:border-[#34f5a0]/60 hover:bg-[#00e68a]/15"
                 >
                   Open in Profiles
                   <span className="font-mono text-[9px] opacity-70" aria-hidden>→</span>
@@ -456,14 +456,14 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
               );
             })()}
             <div className="mt-2 flex flex-wrap items-center gap-1.5" data-testid="reach-provenance">
-              <span className="rounded-full border border-[#e85d1a]/25 bg-[#e85d1a]/10 px-1.5 py-0.5 text-[8px] font-mono font-bold uppercase tracking-wider text-[#fdba74]/90">
+              <span className="rounded-full border border-[#00e68a]/25 bg-[#00e68a]/10 px-1.5 py-0.5 text-[8px] font-mono font-bold uppercase tracking-wider text-[#a7f3d0]/90">
                 attributable
               </span>
-              <span className="rounded-full border border-[#e85d1a]/12 bg-white/[0.04] px-1.5 py-0.5 text-[8px] font-mono uppercase tracking-wider text-muted-foreground">
+              <span className="rounded-full border border-[#00e68a]/12 bg-white/[0.04] px-1.5 py-0.5 text-[8px] font-mono uppercase tracking-wider text-muted-foreground">
                 public surface
               </span>
               {atlasState?.atlasTelemetry?.sources != null && (
-                <span className="rounded-full border border-[#e85d1a]/12 bg-white/[0.04] px-1.5 py-0.5 text-[8px] font-mono tabular-nums text-muted-foreground">
+                <span className="rounded-full border border-[#00e68a]/12 bg-white/[0.04] px-1.5 py-0.5 text-[8px] font-mono tabular-nums text-muted-foreground">
                   {atlasState.atlasTelemetry.sources} source{atlasState.atlasTelemetry.sources === 1 ? "" : "s"}
                 </span>
               )}
@@ -495,14 +495,14 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                 key={chip.k}
                 className={`rounded-lg border px-2 py-1 ${
                   chip.hot
-                    ? "border-[#e85d1a]/30 bg-[#e85d1a]/10"
-                    : "border-[#e85d1a]/12 bg-white/[0.03]"
+                    ? "border-[#00e68a]/30 bg-[#00e68a]/10"
+                    : "border-[#00e68a]/12 bg-white/[0.03]"
                 }`}
               >
-                <div className={`text-[7px] font-mono uppercase tracking-wider ${chip.hot ? "text-[#fdba74]/80" : "text-stone-500"}`}>
+                <div className={`text-[7px] font-mono uppercase tracking-wider ${chip.hot ? "text-[#a7f3d0]/80" : "text-stone-500"}`}>
                   {chip.k}
                 </div>
-                <div className={`text-[11px] font-semibold tabular-nums capitalize ${chip.hot ? "text-orange-50" : "text-stone-200"}`}>
+                <div className={`text-[11px] font-semibold tabular-nums capitalize ${chip.hot ? "text-emerald-50" : "text-stone-200"}`}>
                   {chip.v}
                 </div>
               </div>
@@ -522,7 +522,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
           style={{ animation: motionOrNone(`terminalIn ${REACTOR_UI_MS}ms var(--reactor-ease, cubic-bezier(0.22,1,0.36,1)) both`) }}
         >
           <div className="reactor-done-label text-[10px] font-bold uppercase">Run complete</div>
-          <div className="mt-1 text-[12px] leading-snug text-orange-50/90">
+          <div className="mt-1 text-[12px] leading-snug text-emerald-50/90">
             {atlasState.detail || atlasState.phaseLabel || "Atlas finished this target. Review tools below or open History."}
           </div>
         </div>
@@ -557,10 +557,10 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
           ].filter((x) => x.v != null && x.v !== "").map((x) => (
             <div
               key={x.k}
-              className="min-w-[72px] flex-1 rounded-lg border border-[#e85d1a]/25 bg-[#e85d1a]/[0.06] px-2.5 py-1.5"
+              className="min-w-[72px] flex-1 rounded-lg border border-[#00e68a]/25 bg-[#00e68a]/[0.06] px-2.5 py-1.5"
             >
-              <div className="text-[8px] font-mono font-bold uppercase tracking-wider text-orange-400/80">{x.k}</div>
-              <div className="mt-0.5 text-[13px] font-semibold tabular-nums text-orange-50">{x.v}</div>
+              <div className="text-[8px] font-mono font-bold uppercase tracking-wider text-emerald-400/80">{x.k}</div>
+              <div className="mt-0.5 text-[13px] font-semibold tabular-nums text-emerald-50">{x.v}</div>
             </div>
           ))}
         </div>
@@ -570,7 +570,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
       {edgeHint && (
         <div
           role="status"
-          className="sticky top-[52px] z-10 shrink-0 px-4 py-1.5 text-center text-[9px] font-mono uppercase tracking-wider text-[#fdba74] bg-[#e85d1a]/15 border-b border-[#e85d1a]/20 backdrop-blur-sm"
+          className="sticky top-[52px] z-10 shrink-0 px-4 py-1.5 text-center text-[9px] font-mono uppercase tracking-wider text-[#a7f3d0] bg-[#00e68a]/15 border-b border-[#00e68a]/20 backdrop-blur-sm"
           style={{ animation: motionOrNone(`armIn ${REACTOR_UI_MS}ms ease-out both`) }}
         >
           {edgeHint}
@@ -585,7 +585,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
         <div className="mx-auto flex w-full max-w-lg flex-col gap-3 pb-8">
           {arming ? (
             <section
-              className="rounded-2xl border border-[#e85d1a]/35 bg-[#050505] p-3 shadow-[0_0_48px_rgba(232,93,26,0.12)]"
+              className="rounded-2xl border border-[#00e68a]/35 bg-[#050505] p-3 shadow-[0_0_48px_rgba(0,230,138,0.12)]"
               data-testid="panel-live-desk-arming"
               aria-busy="true"
               aria-label="Arming live desk"
@@ -594,14 +594,14 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
               <div className="mb-3 flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <span className="relative flex h-2 w-2">
-                    <span className="absolute inline-flex h-full w-full rounded-full bg-[#e85d1a] opacity-60" style={{ animation: motionOrNone(`reactorShimmer ${REACTOR_SHIMMER_MS}ms ease-in-out infinite`) }} />
-                    <span className="relative inline-flex h-2 w-2 rounded-full bg-orange-300" />
+                    <span className="absolute inline-flex h-full w-full rounded-full bg-[#00e68a] opacity-60" style={{ animation: motionOrNone(`reactorShimmer ${REACTOR_SHIMMER_MS}ms ease-in-out infinite`) }} />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-300" />
                   </span>
-                  <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#fdba74]/90">Arming desk…</div>
+                  <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#a7f3d0]/90">Arming desk…</div>
                 </div>
                 <div className="h-1.5 w-20 overflow-hidden rounded-full bg-stone-800">
                   <div
-                    className="h-full rounded-full bg-[#e85d1a]/70"
+                    className="h-full rounded-full bg-[#00e68a]/70"
                     style={{
                       width: "55%",
                       animation: motionOrNone(`reactorShimmer ${REACTOR_SHIMMER_MS}ms ease-in-out infinite`),
@@ -610,9 +610,9 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                 </div>
               </div>
               {/* Tool-shaped window — first frame of a live run */}
-              <div className="overflow-hidden rounded-xl border border-[#e85d1a]/15 bg-[#0a0a0a] shadow-[inset_0_1px_0_rgba(232,93,26,0.06)]">
-                <div className="flex items-center gap-2 border-b border-[#e85d1a]/10 px-3 py-2">
-                  <div className="grid h-6 w-6 shrink-0 place-items-center rounded-md border border-[#e85d1a]/30 bg-[#e85d1a]/15 font-mono text-[8px] font-bold text-[#fdba74]">
+              <div className="overflow-hidden rounded-xl border border-[#00e68a]/15 bg-[#0a0a0a] shadow-[inset_0_1px_0_rgba(0,230,138,0.06)]">
+                <div className="flex items-center gap-2 border-b border-[#00e68a]/10 px-3 py-2">
+                  <div className="grid h-6 w-6 shrink-0 place-items-center rounded-md border border-[#00e68a]/30 bg-[#00e68a]/15 font-mono text-[8px] font-bold text-[#a7f3d0]">
                     BX
                   </div>
                   <div className="min-w-0 flex-1">
@@ -623,24 +623,24 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                     <div
                       className="h-full w-full"
                       style={{
-                        background: "linear-gradient(90deg,transparent,rgba(232,93,26,.45),transparent)",
+                        background: "linear-gradient(90deg,transparent,rgba(0,230,138,.45),transparent)",
                         animation: motionOrNone(`reactorShimmer ${REACTOR_SHIMMER_MS}ms ease-in-out infinite`),
                       }}
                     />
                   </div>
                 </div>
-                <div className="border-b border-[#e85d1a]/08 px-3 py-1.5">
-                  <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-[#e85d1a]/80">Powering research lanes</div>
+                <div className="border-b border-[#00e68a]/08 px-3 py-1.5">
+                  <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-[#00e68a]/80">Powering research lanes</div>
                 </div>
                 {/* Prompt / search line placeholder */}
-                <div className="border-b border-[#e85d1a]/08 px-3 py-2.5">
+                <div className="border-b border-[#00e68a]/08 px-3 py-2.5">
                   <div className="flex items-center gap-2">
-                    <div className="h-2.5 w-2.5 shrink-0 rounded-full bg-[#e85d1a]/50" />
+                    <div className="h-2.5 w-2.5 shrink-0 rounded-full bg-[#00e68a]/50" />
                     <div className="relative h-2.5 flex-1 overflow-hidden rounded bg-stone-800/90">
                       <div
                         className="absolute inset-y-0 left-0 w-1/3"
                         style={{
-                          background: "linear-gradient(90deg,transparent,rgba(232,93,26,.25),transparent)",
+                          background: "linear-gradient(90deg,transparent,rgba(0,230,138,.25),transparent)",
                           animation: motionOrNone(`reactorShimmer ${REACTOR_SHIMMER_MS}ms ease-in-out infinite`),
                         }}
                       />
@@ -649,17 +649,17 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                 </div>
                 {/* Metric cards — decorative while arming */}
                 <div className="grid grid-cols-2 gap-2 p-3" aria-hidden="true">
-                  <div className="rounded-lg border border-[#e85d1a]/10 bg-[#0c0c0c]/90 p-2.5">
+                  <div className="rounded-lg border border-[#00e68a]/10 bg-[#0c0c0c]/90 p-2.5">
                     <div className="text-[8px] font-mono uppercase tracking-wider text-stone-500">Sources</div>
                     <div className="mt-1.5 h-3.5 w-10 rounded bg-stone-700/70" />
                   </div>
-                  <div className="rounded-lg border border-[#e85d1a]/10 bg-[#0c0c0c]/90 p-2.5">
+                  <div className="rounded-lg border border-[#00e68a]/10 bg-[#0c0c0c]/90 p-2.5">
                     <div className="text-[8px] font-mono uppercase tracking-wider text-stone-500">Findings</div>
                     <div className="mt-1.5 h-3.5 w-8 rounded bg-stone-700/50" />
                   </div>
                 </div>
                 {/* Result line ghosts — decorative */}
-                <div className="space-y-1.5 border-t border-[#e85d1a]/08 px-3 py-2.5" aria-hidden="true">
+                <div className="space-y-1.5 border-t border-[#00e68a]/08 px-3 py-2.5" aria-hidden="true">
                   <div className="h-2 w-full rounded bg-stone-800/80" />
                   <div className="h-2 w-4/5 rounded bg-stone-800/60" style={{ width: "80%" }} />
                   <div className="h-2 w-2/3 rounded bg-stone-800/40" style={{ width: "62%" }} />
@@ -672,7 +672,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
               className={`rounded-2xl border p-3 ${
                 showHistory
                   ? "reactor-archive-panel border-stone-500/35"
-                  : "border-[#e85d1a]/25 bg-[#050505] shadow-[0_0_48px_rgba(240,180,41,0.1)]"
+                  : "border-[#00e68a]/25 bg-[#050505] shadow-[0_0_48px_rgba(240,180,41,0.1)]"
               }`}
               data-testid="panel-live-desk-mobile"
               aria-label={showHistory ? "Target history archive" : "Live research window"}
@@ -683,7 +683,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <div className={`text-[10px] font-bold uppercase tracking-[0.2em] ${
-                      showHistory ? "text-stone-300" : "text-[#fdba74]/90"
+                      showHistory ? "text-stone-300" : "text-[#a7f3d0]/90"
                     }`}>
                       {showHistory ? "History" : "Live activity"}
                     </div>
@@ -693,17 +693,17 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                       </span>
                     )}
                     {!showHistory && isLive && (
-                      <span className="rounded-full border border-[#e85d1a]/30 bg-[#e85d1a]/10 px-1.5 py-0.5 text-[8px] font-mono font-bold uppercase tracking-wider text-[#fdba74]">
+                      <span className="rounded-full border border-[#00e68a]/30 bg-[#00e68a]/10 px-1.5 py-0.5 text-[8px] font-mono font-bold uppercase tracking-wider text-[#a7f3d0]">
                         live
                       </span>
                     )}
                   </div>
                   <div
                     className={`text-[10px] font-mono tabular-nums transition-colors ${
-                      eventCountPulse ? "text-[#fdba74]" : "text-stone-500"
+                      eventCountPulse ? "text-[#a7f3d0]" : "text-stone-500"
                     }`}
                     data-testid="mobile-step-count"
-                    style={eventCountPulse ? { textShadow: "0 0 10px rgba(232,93,26,0.45)" } : undefined}
+                    style={eventCountPulse ? { textShadow: "0 0 10px rgba(0,230,138,0.45)" } : undefined}
                   >
                     {liveEvents.length} step{liveEvents.length === 1 ? "" : "s"}
                     {eventCountPulse && isLive && !showHistory ? " · new" : ""}
@@ -716,7 +716,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                     data-testid="live-step-rail"
                   >
                     <div
-                      className="h-full rounded-full bg-[#e85d1a]/70 transition-[width] duration-300 ease-out"
+                      className="h-full rounded-full bg-[#00e68a]/70 transition-[width] duration-300 ease-out"
                       style={{ width: `${Math.min(100, Math.round((liveEvents.length / Math.max(liveEvents.length, 6)) * 100))}%` }}
                     />
                   </div>
@@ -732,7 +732,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                     value={historyQuery}
                     onChange={(e) => setHistoryQuery(e.target.value)}
                     placeholder="Search tools, results…"
-                    className="w-full rounded-lg border border-[#e85d1a]/12 bg-[#0a0a0a]/90 px-3 py-2 text-[12px] text-stone-200 outline-none placeholder:text-muted-foreground/60 focus-visible:border-[#e85d1a]/50 focus-visible:ring-1 focus-visible:ring-orange-400/40"
+                    className="w-full rounded-lg border border-[#00e68a]/12 bg-[#0a0a0a]/90 px-3 py-2 text-[12px] text-stone-200 outline-none placeholder:text-muted-foreground/60 focus-visible:border-[#00e68a]/50 focus-visible:ring-1 focus-visible:ring-emerald-400/40"
                     autoComplete="off"
                     spellCheck={false}
                   />
@@ -761,8 +761,8 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                         onClick={() => setHistoryFilter(id)}
                         className={`reactor-pressable min-h-[32px] rounded-full border px-2.5 py-1 text-[10px] font-mono font-bold uppercase tracking-wider transition-colors ${
                           selected
-                            ? "border-[#e85d1a]/50 bg-[#e85d1a]/15 text-[#fdba74]"
-                            : "border-[#e85d1a]/12 bg-white/[0.03] text-muted-foreground hover:border-white/20 hover:text-stone-300"
+                            ? "border-[#00e68a]/50 bg-[#00e68a]/15 text-[#a7f3d0]"
+                            : "border-[#00e68a]/12 bg-white/[0.03] text-muted-foreground hover:border-white/20 hover:text-stone-300"
                         }`}
                       >
                         {label}
@@ -772,7 +772,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                 </div>
               )}
               {showHistory && deskEvents.length > 0 && liveEvents.length === 0 && (
-                <div className="mb-3 rounded-lg border border-dashed border-[#e85d1a]/15 bg-[#0c0c0c]/50 px-3 py-3 text-center text-[11px] text-muted-foreground" data-testid="history-filter-empty">
+                <div className="mb-3 rounded-lg border border-dashed border-[#00e68a]/15 bg-[#0c0c0c]/50 px-3 py-3 text-center text-[11px] text-muted-foreground" data-testid="history-filter-empty">
                   {historyQuery.trim() ? `No steps match “${historyQuery.trim()}”.` : `No ${historyFilter} steps in this archive. Try All.`}
                 </div>
               )}
@@ -800,20 +800,20 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
             <div
               className={`flex min-h-[320px] flex-col items-center justify-center rounded-2xl border px-6 text-center transition-colors duration-300 ${
                 isLive
-                  ? "border-[#e85d1a]/30 bg-[#e85d1a]/[0.05]"
+                  ? "border-[#00e68a]/30 bg-[#00e68a]/[0.05]"
                   : showHistory
                     ? "reactor-archive-panel border-stone-500/30"
-                    : "border-dashed border-[#e85d1a]/12 bg-white/[0.02]"
+                    : "border-dashed border-[#00e68a]/12 bg-white/[0.02]"
               }`}
               data-testid="panel-live-desk-idle"
               aria-live="polite"
             >
               <div className="relative mb-3">
-                <Radio className={`h-8 w-8 ${isLive ? "text-orange-400/80" : "text-muted-foreground/60"}`} />
+                <Radio className={`h-8 w-8 ${isLive ? "text-emerald-400/80" : "text-muted-foreground/60"}`} />
                 {isLive && (
                   <span className="absolute -right-0.5 -top-0.5 flex h-2.5 w-2.5">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#e85d1a] opacity-50" />
-                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[#e85d1a]" />
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#00e68a] opacity-50" />
+                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[#00e68a]" />
                   </span>
                 )}
               </div>
@@ -839,12 +839,12 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
               </div>
               {(isLive || forceLiveEmpty) && (
                 <div
-                  className="mt-5 w-full max-w-[280px] overflow-hidden rounded-xl border border-[#e85d1a]/20 bg-[#0a0a0a]/90"
+                  className="mt-5 w-full max-w-[280px] overflow-hidden rounded-xl border border-[#00e68a]/20 bg-[#0a0a0a]/90"
                   data-testid="panel-live-empty-scaffold"
                   aria-hidden
                 >
-                  <div className="flex items-center gap-2 border-b border-[#e85d1a]/10 px-3 py-1.5">
-                    <div className="grid h-5 w-5 place-items-center rounded border border-[#e85d1a]/25 bg-[#e85d1a]/10 font-mono text-[7px] font-bold text-[#fdba74]">
+                  <div className="flex items-center gap-2 border-b border-[#00e68a]/10 px-3 py-1.5">
+                    <div className="grid h-5 w-5 place-items-center rounded border border-[#00e68a]/25 bg-[#00e68a]/10 font-mono text-[7px] font-bold text-[#a7f3d0]">
                       BX
                     </div>
                     <span className="truncate font-mono text-[8px] text-stone-400">Listening for bureau steps…</span>
@@ -854,17 +854,17 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                       <div
                         className="h-full w-1/2 rounded"
                         style={{
-                          background: "linear-gradient(90deg,transparent,rgba(232,93,26,.35),transparent)",
+                          background: "linear-gradient(90deg,transparent,rgba(0,230,138,.35),transparent)",
                           animation: motionOrNone(`reactorShimmer ${REACTOR_SHIMMER_MS}ms ease-in-out infinite`),
                         }}
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-2">
-                      <div className="rounded-lg border border-[#e85d1a]/08 bg-[#0c0c0c]/70 p-2">
+                      <div className="rounded-lg border border-[#00e68a]/08 bg-[#0c0c0c]/70 p-2">
                         <div className="text-[7px] font-mono uppercase tracking-wider text-muted-foreground/60">Sources</div>
                         <div className="mt-1 h-3 w-8 rounded bg-stone-700/50" />
                       </div>
-                      <div className="rounded-lg border border-[#e85d1a]/08 bg-[#0c0c0c]/70 p-2">
+                      <div className="rounded-lg border border-[#00e68a]/08 bg-[#0c0c0c]/70 p-2">
                         <div className="text-[7px] font-mono uppercase tracking-wider text-muted-foreground/60">Findings</div>
                         <div className="mt-1 h-3 w-6 rounded bg-stone-700/40" />
                       </div>
@@ -883,21 +883,21 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
 
 
       {exhaustedKeys.length > 0 && !rateLimitDismissed && (
-        <div className="shrink-0 border-t border-[#e85d1a]/30 bg-[#1a1508] px-4 py-2.5" role="alert" data-testid="alert-provider-rate-limit">
+        <div className="shrink-0 border-t border-[#00e68a]/30 bg-[#1a1508] px-4 py-2.5" role="alert" data-testid="alert-provider-rate-limit">
           <div className="flex items-start gap-2">
-            <Key className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#e85d1a]" aria-hidden />
+            <Key className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#00e68a]" aria-hidden />
             <div className="min-w-0 flex-1">
-              <div className="text-[9px] font-bold uppercase leading-4 tracking-wider text-[#fdba74]">
+              <div className="text-[9px] font-bold uppercase leading-4 tracking-wider text-[#a7f3d0]">
                 Provider rate limit
               </div>
               <div className="mt-0.5 text-[11px] leading-snug text-[#fef3c7]/90">
                 Atlas is rotating configured keys and will keep working. Fresh quota usually returns within the provider window.
-                <span className="text-[#fdba74]/80"> · {exhaustedKeys.slice(0, 4).join(", ")}{exhaustedKeys.length > 4 ? ` +${exhaustedKeys.length - 4}` : ""}</span>
+                <span className="text-[#a7f3d0]/80"> · {exhaustedKeys.slice(0, 4).join(", ")}{exhaustedKeys.length > 4 ? ` +${exhaustedKeys.length - 4}` : ""}</span>
               </div>
               <div className="mt-2 flex flex-wrap gap-2">
                 <button
                   type="button"
-                  className="reactor-pressable inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-[#e85d1a]/40 bg-[#e85d1a]/10 px-2.5 py-1.5 text-[11px] font-semibold text-[#fef3c7] hover:bg-[#e85d1a]/15"
+                  className="reactor-pressable inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-[#00e68a]/40 bg-[#00e68a]/10 px-2.5 py-1.5 text-[11px] font-semibold text-[#fef3c7] hover:bg-[#00e68a]/15"
                   onClick={() => onRefresh()}
                   disabled={syncing}
                   data-testid="button-rate-limit-refresh"
@@ -907,7 +907,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                 </button>
                 <button
                   type="button"
-                  className="reactor-pressable inline-flex min-h-[36px] items-center rounded-lg border border-[#e85d1a]/12 bg-white/[0.04] px-2.5 py-1.5 text-[11px] font-medium text-stone-300 hover:border-white/20"
+                  className="reactor-pressable inline-flex min-h-[36px] items-center rounded-lg border border-[#00e68a]/12 bg-white/[0.04] px-2.5 py-1.5 text-[11px] font-medium text-stone-300 hover:border-white/20"
                   onClick={() => setRateLimitDismissed(true)}
                   data-testid="button-rate-limit-dismiss"
                 >
