@@ -849,6 +849,7 @@ TOOLS (choose exactly one per turn):
 
 GROK-PARITY SEARCH ORDER (follow this, then improvise):
 1. Exact TARGET + company + city/state (or "contact" / "phone" / "address")
+1b. TARGET + company + ("DEF 14A" OR proxy OR President OR Director) site:sec.gov
 2. Company domain surface: "{company}" (contact OR "contact us" OR phone OR email) -zoominfo -rocketreach
 3. Org mailbox: "{company}" ("info@" OR "contact@" OR "sales@") OR site:facebook.com "{company}"
 4. Facebook / About: "{company}" site:facebook.com (about OR email OR info@ OR contact)
@@ -958,6 +959,108 @@ function isCompanyAlignedEmail(email: string, companyName?: string | null, pageU
 }
 
 /** Parse CONTACT FACTS block from a visited page into structured findings (fail-closed, org scope). */
+
+/** Deterministic role/address/related extraction from SEC proxy / DEF 14A-style HTML or text. */
+function findingsFromProxyPage(
+  page: string,
+  sourceUrl: string,
+  targetName: string,
+  companyName?: string | null,
+): AgenticFinding[] {
+  const out: AgenticFinding[] = [];
+  if (!page || page.length < 80) return out;
+  const isSec = /sec\.gov|edgar|proxy|def\s*14a|beneficial owner/i.test(sourceUrl + "\n" + page.slice(0, 500));
+  if (!isSec && !/has been .{0,40}President|Director since|Chief Executive/i.test(page)) {
+    return out;
+  }
+  const plain = page
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/\s+/g, " ");
+
+  const esc = targetName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+");
+  const bio = plain.match(new RegExp(`(${esc}[^.]{0,40}?)\\s+has been\\s+([^.]{10,220})\\.`, "i"));
+  if (bio?.[2]) {
+    const role = bio[2].replace(/\s+/g, " ").trim().slice(0, 120);
+    out.push({
+      vectorType: "other",
+      value: role,
+      personName: targetName,
+      role,
+      scope: "organization",
+      sourceUrls: [sourceUrl],
+      note: `Proxy/DEF 14A role line on ${sourceUrl}`,
+    });
+  } else {
+    const near = plain.toLowerCase().indexOf(targetName.toLowerCase().replace(/\s+/g, " ").slice(0, 24));
+    if (near >= 0) {
+      const window = plain.slice(Math.max(0, near - 20), near + 280);
+      const titleHit = window.match(
+        /\b(President|Co-Chief Executive Officer|Chief Executive Officer|Co-CEO|Director|Chairman|Executive Vice President)[^.]{0,80}/i,
+      );
+      if (titleHit?.[0]) {
+        const role = titleHit[0].replace(/\s+/g, " ").trim().slice(0, 120);
+        out.push({
+          vectorType: "other",
+          value: role,
+          personName: targetName,
+          role,
+          scope: "organization",
+          sourceUrls: [sourceUrl],
+          note: `Title near target on ${sourceUrl}`,
+        });
+      }
+    }
+  }
+
+  const street = plain.match(
+    /\b(\d{1,5}\s+(?:North|South|East|West|N\.?|S\.?|E\.?|W\.?)?\s*[A-Za-z0-9.'\-]+(?:\s+(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Drive|Dr|Lane|Ln|Way|Court|Ct)\.?))\b/i,
+  );
+  if (street?.[1]) {
+    out.push({
+      vectorType: "other",
+      value: street[1].trim().slice(0, 160),
+      personName: targetName,
+      role: companyName ? `address @ ${companyName}` : "address",
+      scope: "organization",
+      sourceUrls: [sourceUrl],
+      note: `Street address on ${sourceUrl}`,
+    });
+  }
+
+  // Related officer-looking names (exclude target)
+  const exclude = new Set(
+    targetName.toLowerCase().replace(/[^a-z\s]/g, " ").split(/\s+/).filter((x) => x.length >= 2),
+  );
+  const nameRe = /\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\b/g;
+  const seen = new Set<string>();
+  let m: RegExpExecArray | null;
+  while ((m = nameRe.exec(plain)) !== null && seen.size < 8) {
+    const cand = m[1]!.replace(/\s+/g, " ").trim();
+    if (cand.length < 5 || cand.length > 60) continue;
+    if (/\b(Inc|LLC|Ltd|Corp|Company|Trust|Fund|Manufacturing|Holdings)\b/i.test(cand)) continue;
+    const tokens = cand.toLowerCase().replace(/[^a-z\s]/g, " ").split(/\s+/).filter(Boolean);
+    if (tokens.filter((t) => exclude.has(t)).length >= 2) continue;
+    if (tokens.length < 2) continue;
+    const key = tokens.join(" ");
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({
+      vectorType: "other",
+      value: `related-person:${cand}`,
+      personName: cand,
+      role: "proxy_table",
+      scope: "candidate",
+      sourceUrls: [sourceUrl],
+      note: `Related name on proxy/filing ${sourceUrl}`,
+    });
+  }
+  return out;
+}
+
 function findingsFromContactFacts(
   pageText: string,
   sourceUrl: string,
@@ -1327,6 +1430,8 @@ export async function runAgenticWebResearch(input: {
     // Public social often carries org email for SMBs
     if (/facebook\.com|linkedin\.com\/company/i.test(lower) && coToken) return 4;
     if (/\/(about|team|people|leadership|company)/i.test(lower) && hostMatch) return 3;
+    // DEF 14A / proxy HTML beats generic EDGAR index pages for officer bios
+    if (/sec\.gov/i.test(lower) && /proxy|def14a|def\s*14a|hastproxy/i.test(lower)) return 1;
     if (/investor\.|\/ir\/|\/governance|sec\.gov|edgar/i.test(lower)) return 5;
     // Non-company hosts rank last when company is locked (avoid Team Financial pollution visits)
     if (coToken && !hostMatch && !/bbb\.org|sec\.gov/i.test(lower)) return 8;
@@ -1383,7 +1488,10 @@ export async function runAgenticWebResearch(input: {
     const page = await toolVisit(next);
     lastObservation = `PAGE ${next}\n\n${page.slice(0, MAX_OBS)}`;
     // Deterministic findings from CONTACT FACTS block so we never depend solely on LLM memory
-    const extracted = findingsFromContactFacts(page, next, name, input.companyName);
+    const extracted = mergeFindings(
+      findingsFromContactFacts(page, next, name, input.companyName),
+      findingsFromProxyPage(page, next, name, input.companyName),
+    );
     if (extracted.length) {
       findings = mergeFindings(findings, extracted);
       history.push(`${stepLabel}: auto_findings=${extracted.length}`);
@@ -1939,16 +2047,29 @@ export async function runAgenticWebResearch(input: {
           `\n\nNEXT: Prefer action=visit on the COMPANY domain contact/terms/about page — not chamber, ZoomInfo, or directory pages. ` +
           `Do not only search again.`;
       }
+      if (history.filter((h) => h.includes(`search ${action.query}`)).length >= 2) {
+        lastObservation +=
+          `\n\nDIVERSITY: Avoid repeating the same search. Try DEF 14A / proxy officers / President / related family, or visit a new URL.`;
+      }
       continue;
     }
 
     if (action.action === "visit") {
+      if (visitedUrls.has(action.url)) {
+        history.push(`step${i + 1}: skip_repeat_visit ${action.url}`);
+        lastObservation =
+          `Already visited ${action.url}. Choose a DIFFERENT company contact/about/leadership URL or web_search for DEF 14A / officers — do not repeat.`;
+        continue;
+      }
       visits++;
       visitedUrls.add(action.url);
       history.push(`step${i + 1}: visit ${action.url}`);
       const page = await toolVisit(action.url);
       lastObservation = `PAGE ${action.url}\n\n${page.slice(0, MAX_OBS)}`;
-      const extracted = findingsFromContactFacts(page, action.url, name, input.companyName);
+      const extracted = mergeFindings(
+        findingsFromContactFacts(page, action.url, name, input.companyName),
+        findingsFromProxyPage(page, action.url, name, input.companyName),
+      );
       if (extracted.length) {
         findings = mergeFindings(findings, extracted);
         history.push(`step${i + 1}: auto_findings=${extracted.length}`);
