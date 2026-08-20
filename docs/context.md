@@ -1,5 +1,11 @@
 # Context — living handoff
 
+
+### Local comparison 2026-08-20 (new Groq key)
+Standalone agentic lane (post model migration): Ian McDonald / Bright Minds and Eric Ashleman / IDEX.
+Apex ≥ plain; Ashleman Apex wins on company email provenance + address + SEC. See docs/comparisons/COMPARE_2026-08-20_NEW_TARGETS.md.
+Monorepo full boot still blocked by ephemeral sandbox (pnpm mid-install reset).
+
 ## Session 2026-08-20 (bureau integrity + multi-LLM failover)
 
 ### Groq model migration (2026-08-20)
