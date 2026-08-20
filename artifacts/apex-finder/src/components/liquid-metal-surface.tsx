@@ -1,95 +1,91 @@
 /**
- * Oil-slick / liquid-glass surface for Launch CTA.
- * WebGL iridescent fluid when available; animated canvas-2d fallback otherwise.
- * Tuned to be OBVIOUSLY colorful (gasoline spill), not dark chrome.
+ * Oil-on-chrome surface for Launch CTA.
+ * Organic blotchy film (not rainbow stripes) + specular, WebGL + canvas2d fallback.
  */
 import { useEffect, useRef } from "react";
 
-const VERT = `
-attribute vec2 a_pos;
-void main(){ gl_Position = vec4(a_pos, 0.0, 1.0); }
-`;
+const VERT = `attribute vec2 a_pos; void main(){ gl_Position = vec4(a_pos, 0.0, 1.0); }`;
 
-/** Bright oil-slick: flowing spectrum, strong warp, high contrast */
 const FRAG = `
 precision highp float;
 uniform vec2 u_res;
 uniform float u_time;
 
-float hash(vec2 p){
-  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
-}
+float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123); }
 float noise(vec2 p){
   vec2 i = floor(p); vec2 f = fract(p);
-  float a = hash(i);
-  float b = hash(i + vec2(1.0, 0.0));
-  float c = hash(i + vec2(0.0, 1.0));
-  float d = hash(i + vec2(1.0, 1.0));
-  vec2 u = f*f*(3.0-2.0*f);
-  return mix(a,b,u.x) + (c-a)*u.y*(1.0-u.x) + (d-b)*u.x*u.y;
+  float a = hash(i), b = hash(i+vec2(1.,0.)), c = hash(i+vec2(0.,1.)), d = hash(i+vec2(1.,1.));
+  vec2 u = f*f*(3.-2.*f);
+  return mix(a,b,u.x) + (c-a)*u.y*(1.-u.x) + (d-b)*u.x*u.y;
 }
 float fbm(vec2 p){
-  float v=0.0; float a=0.5;
-  for(int i=0;i<6;i++){ v+=a*noise(p); p=p*2.15+vec2(1.7,9.2); a*=0.5; }
+  float v=0., a=0.5;
+  for(int i=0;i<5;i++){ v+=a*noise(p); p=p*2.1+vec2(1.3,4.7); a*=0.5; }
   return v;
-}
-
-// HSV-ish spectrum for oil film
-vec3 oil(float t){
-  // cycle: magenta → purple → blue → cyan → lime → gold → magenta
-  vec3 c1 = vec3(0.95, 0.15, 0.55);
-  vec3 c2 = vec3(0.55, 0.2, 0.95);
-  vec3 c3 = vec3(0.15, 0.55, 1.0);
-  vec3 c4 = vec3(0.15, 0.95, 0.75);
-  vec3 c5 = vec3(0.65, 1.0, 0.2);
-  vec3 c6 = vec3(1.0, 0.75, 0.15);
-  float x = fract(t);
-  if(x < 0.166) return mix(c1, c2, x/0.166);
-  if(x < 0.333) return mix(c2, c3, (x-0.166)/0.167);
-  if(x < 0.5)   return mix(c3, c4, (x-0.333)/0.167);
-  if(x < 0.666) return mix(c4, c5, (x-0.5)/0.166);
-  if(x < 0.833) return mix(c5, c6, (x-0.666)/0.167);
-  return mix(c6, c1, (x-0.833)/0.167);
 }
 
 void main(){
   vec2 uv = gl_FragCoord.xy / u_res;
   vec2 p = (gl_FragCoord.xy - 0.5*u_res) / min(u_res.x, u_res.y);
-  float t = u_time * 0.45;
+  float t = u_time * 0.28;
 
-  // Strong liquid domain warp
-  vec2 q = p * 3.2;
-  q += vec2(
-    fbm(q + vec2(t, -t*0.7)),
-    fbm(q * 1.3 + vec2(-t*0.6, t*0.9))
-  ) * 0.85;
+  // Organic domain warp (slow liquid crawl)
+  vec2 q = p * 2.4;
+  q += 0.55 * vec2(
+    fbm(q + vec2(t*0.6, -t*0.4)),
+    fbm(q*1.15 + vec2(-t*0.5, t*0.7))
+  );
   float n  = fbm(q);
-  float n2 = fbm(q * 1.6 - t * 0.3);
-  float h  = n * 0.55 + n2 * 0.45;
+  float n2 = fbm(q*1.7 - t*0.2);
+  float h  = mix(n, n2, 0.4);
 
-  // Spectrum phase from height + flow
-  float phase = h * 1.8 + t * 0.35 + p.x * 0.4 + p.y * 0.25;
-  vec3 slick = oil(phase);
+  // Soft normals from height
+  float hx = fbm(q+vec2(0.025,0.)) - fbm(q-vec2(0.025,0.));
+  float hy = fbm(q+vec2(0.,0.025)) - fbm(q-vec2(0.,0.025));
+  vec3 N = normalize(vec3(-hx*6., -hy*6., 0.55));
+  vec3 L = normalize(vec3(0.35, 0.6, 0.85));
+  float diff = max(dot(N, L), 0.0);
+  float spec = pow(max(dot(N, normalize(L+vec3(0.,0.,1.))), 0.0), 40.0);
 
-  // Secondary thinner film interference
-  float film = sin(h * 18.0 + t * 2.0) * 0.5 + 0.5;
-  slick = mix(slick, oil(phase + 0.33), film * 0.45);
+  // Dark chrome base
+  vec3 dark = vec3(0.07, 0.08, 0.11);
+  vec3 mid  = vec3(0.22, 0.26, 0.32);
+  vec3 hi   = vec3(0.78, 0.82, 0.88);
+  vec3 col  = mix(dark, mid, diff * 0.85 + h * 0.25);
+  col = mix(col, hi, smoothstep(0.55, 0.95, h) * 0.35);
+  col += vec3(spec * 1.1);
 
-  // Specular white streaks (gasoline highlight)
-  float hx = fbm(q + vec2(0.03,0.0)) - fbm(q - vec2(0.03,0.0));
-  float hy = fbm(q + vec2(0.0,0.03)) - fbm(q - vec2(0.0,0.03));
-  vec3 N = normalize(vec3(-hx*5.0, -hy*5.0, 0.45));
-  float spec = pow(max(dot(N, normalize(vec3(0.3,0.5,0.9))), 0.0), 32.0);
-  slick += vec3(1.0) * spec * 0.85;
+  // Thin-film iridescence — soft, blotchy, not striped
+  // phase driven by height + slow time so colors pool organically
+  float phase = h * 3.2 + t * 0.15;
+  // muted oil film palette (not neon)
+  vec3 filmA = vec3(0.55, 0.25, 0.75); // purple
+  vec3 filmB = vec3(0.15, 0.55, 0.85); // blue-cyan
+  vec3 filmC = vec3(0.35, 0.75, 0.45); // green
+  vec3 filmD = vec3(0.75, 0.45, 0.2);  // amber
+  float f = fract(phase);
+  vec3 film;
+  if (f < 0.25) film = mix(filmA, filmB, f/0.25);
+  else if (f < 0.5) film = mix(filmB, filmC, (f-0.25)/0.25);
+  else if (f < 0.75) film = mix(filmC, filmD, (f-0.5)/0.25);
+  else film = mix(filmD, filmA, (f-0.75)/0.25);
 
-  // Keep it bright — darken only slightly toward edges
-  float edge = smoothstep(0.0, 0.12, uv.x) * smoothstep(1.0, 0.88, uv.x)
-             * smoothstep(0.0, 0.2, uv.y) * smoothstep(1.0, 0.8, uv.y);
-  slick *= 0.55 + 0.45 * edge;
+  // Only show film where the surface is mid-tone (oil pools), not everywhere
+  float filmMask = smoothstep(0.25, 0.55, h) * (1.0 - smoothstep(0.7, 0.95, h));
+  filmMask *= 0.55 + 0.45 * sin(h * 9.0 + t);
+  col = mix(col, col + film * 0.7, filmMask * 0.65);
 
-  // Lift floor so it never reads as flat black
-  slick = max(slick, vec3(0.08, 0.1, 0.14));
-  gl_FragColor = vec4(slick, 1.0);
+  // Fresnel edge glow (white/purple rim energy)
+  float fres = pow(1.0 - max(N.z, 0.0), 2.4);
+  col += vec3(0.7, 0.75, 0.95) * fres * 0.35;
+  col += film * fres * 0.2;
+
+  // Soft edge vignette
+  float edge = smoothstep(0.0, 0.1, uv.x) * smoothstep(1.0, 0.9, uv.x)
+             * smoothstep(0.0, 0.18, uv.y) * smoothstep(1.0, 0.82, uv.y);
+  col *= 0.7 + 0.3 * edge;
+
+  gl_FragColor = vec4(col, 1.0);
 }
 `;
 
@@ -104,40 +100,36 @@ function compile(gl: WebGLRenderingContext, type: number, src: string) {
   return s;
 }
 
-/** Canvas2D oil-slick fallback — always visible without WebGL */
 function paintFallback(ctx: CanvasRenderingContext2D, w: number, h: number, t: number) {
+  // organic blotches — dark chrome + soft purple/cyan pools
   const img = ctx.createImageData(w, h);
   const d = img.data;
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
-      const u = x / w;
-      const v = y / h;
-      // cheap flowing noise
-      const n =
-        Math.sin(u * 8 + t * 1.2 + Math.sin(v * 6 - t)) *
-          Math.cos(v * 7 - t * 0.9 + Math.sin(u * 5 + t * 0.7)) *
-          0.5 +
-        0.5;
-      const phase = n * 1.5 + t * 0.25 + u * 0.5;
-      const hue = (phase * 360) % 360;
-      // HSL → RGB (sat 0.85, light 0.45)
-      const s = 0.85;
-      const l = 0.42 + n * 0.18;
-      const c = (1 - Math.abs(2 * l - 1)) * s;
-      const hp = hue / 60;
-      const x2 = c * (1 - Math.abs((hp % 2) - 1));
-      let r = 0, g = 0, b = 0;
-      if (hp < 1) { r = c; g = x2; }
-      else if (hp < 2) { r = x2; g = c; }
-      else if (hp < 3) { g = c; b = x2; }
-      else if (hp < 4) { g = x2; b = c; }
-      else if (hp < 5) { r = x2; b = c; }
-      else { r = c; b = x2; }
-      const m = l - c / 2;
+      const u = x / w, v = y / h;
+      const n1 = Math.sin(u * 5.5 + t * 0.8 + Math.cos(v * 4 - t * 0.5));
+      const n2 = Math.cos(v * 6.2 - t * 0.6 + Math.sin(u * 3.5 + t * 0.4));
+      const n = (n1 * n2) * 0.5 + 0.5;
+      // base dark metal
+      let r = 18 + n * 40;
+      let g = 20 + n * 45;
+      let b = 28 + n * 55;
+      // soft film pools
+      if (n > 0.4 && n < 0.75) {
+        const k = (n - 0.4) / 0.35;
+        r += 90 * k * (0.6 + 0.4 * Math.sin(t + u * 4));
+        g += 40 * k;
+        b += 120 * k * (0.5 + 0.5 * Math.cos(t * 0.7 + v * 3));
+      }
+      // specular streak
+      const spec = Math.max(0, 1 - Math.abs(v - 0.35 - Math.sin(u * 2 + t) * 0.08) * 8);
+      r += spec * 140;
+      g += spec * 150;
+      b += spec * 160;
       const i = (y * w + x) * 4;
-      d[i] = Math.round((r + m) * 255);
-      d[i + 1] = Math.round((g + m) * 255);
-      d[i + 2] = Math.round((b + m) * 255);
+      d[i] = Math.min(255, r | 0);
+      d[i + 1] = Math.min(255, g | 0);
+      d[i + 2] = Math.min(255, b | 0);
       d[i + 3] = 255;
     }
   }
@@ -234,12 +226,10 @@ export function LiquidMetalSurface({ className }: { className?: string }) {
       };
     }
 
-    // 2D fallback — lower res for speed, still colorful
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     const resize2 = () => {
-      const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
-      // paint at reduced internal res for perf
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.25);
       const w = Math.max(2, Math.floor(canvas.clientWidth * Math.min(dpr, 1)));
       const h = Math.max(2, Math.floor(canvas.clientHeight * Math.min(dpr, 1)));
       canvas.width = w;
