@@ -12,6 +12,7 @@ import {
   updateJob, clearActiveJobIfOwned, getAutoPipelineScheduler,
 } from "../lib/job-queue";
 import { runAtlasPipeline, type AtlasOptions } from "../lib/atlas-orchestrator";
+import { CANONICAL_ATLAS_LAUNCH_BODY } from "../lib/atlas-launch-defaults";
 import { logger } from "../lib/logger";
 
 const router = Router();
@@ -29,22 +30,24 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
 
   const body = (req.body ?? {}) as Record<string, unknown>;
 
-  const discoveryFirst = Boolean(body.discoveryFirst);
+  // Empty/missing fields fall back to CANONICAL_ATLAS_LAUNCH_BODY so every
+  // "run bureau" path is the same procedure (UI, curl, Replit agent).
+  const C = CANONICAL_ATLAS_LAUNCH_BODY;
+  const discoveryFirst = body.discoveryFirst !== undefined ? Boolean(body.discoveryFirst) : C.discoveryFirst;
   const opts: AtlasOptions = {
-    targetCount:        Number(body.targetCount)       || (discoveryFirst ? 500 : 15_000),
+    targetCount:        Number(body.targetCount)       || C.targetCount,
     faaMaxRecords:      Number(body.faaMaxRecords)     || 60_000,
     includeLandRegistry: Boolean(body.includeLandRegistry),
-    batchSize:          Number(body.batchSize)         || 200,
-    phaseJBatchSize:    Number(body.phaseJBatchSize)   || 50,
+    batchSize:          Number(body.batchSize)         || C.batchSize,
+    phaseJBatchSize:    Number(body.phaseJBatchSize)   || C.phaseJBatchSize,
     skipIngestion:      Boolean(body.skipIngestion),
-    hotLeadsOnly:       Boolean(body.hotLeadsOnly),
+    hotLeadsOnly:       body.hotLeadsOnly !== undefined ? Boolean(body.hotLeadsOnly) : C.hotLeadsOnly,
     runResearch:        body.runResearch !== false,
-    researchLimit:      Number(body.researchLimit)     || 10,
-    targetTimeoutMs:    Math.min(Math.max(Number(body.targetTimeoutMs) || 180_000, 30_000), 600_000),
-    // ── Discovery-first diversified mode ──────────────────────────────────────
+    researchLimit:      Number(body.researchLimit)     || C.researchLimit,
+    targetTimeoutMs:    Math.min(Math.max(Number(body.targetTimeoutMs) || C.targetTimeoutMs, 30_000), 600_000),
     discoveryFirst,
-    skipFaa:            body.skipFaa !== undefined ? Boolean(body.skipFaa) : discoveryFirst,
-    broadCategories:    Number(body.broadCategories)   || (discoveryFirst ? 3 : 1),
+    skipFaa:            body.skipFaa !== undefined ? Boolean(body.skipFaa) : (discoveryFirst ? C.skipFaa : false),
+    broadCategories:    Number(body.broadCategories)   || C.broadCategories,
     singleTargetId:     body.singleTargetId !== undefined ? Number(body.singleTargetId) : undefined,
   };
 

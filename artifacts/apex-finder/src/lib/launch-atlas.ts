@@ -38,12 +38,18 @@ export async function launchAtlasPipeline(
     };
   }
 
+  // Must match api-server CANONICAL_ATLAS_LAUNCH_BODY (docs/RUN_BUREAU.md).
   const body = {
     discoveryFirst: opts.discoveryFirst ?? true,
     targetCount: opts.targetCount ?? 50,
     researchLimit: opts.researchLimit ?? 10,
     runResearch: opts.runResearch !== false,
     hotLeadsOnly: opts.hotLeadsOnly ?? false,
+    skipFaa: true,
+    broadCategories: 3,
+    batchSize: 50,
+    phaseJBatchSize: 10,
+    targetTimeoutMs: 420_000,
     ...(opts.singleTargetId != null ? { singleTargetId: opts.singleTargetId } : {}),
   };
 

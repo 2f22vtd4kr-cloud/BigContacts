@@ -1043,6 +1043,7 @@ const AUTO_PIPELINE_POLL_MS = 10 * 1_000;
 const AUTO_PIPELINE_MAX_CYCLE_MS = 90 * 60 * 1_000;
 let autoPipelineSchedulerStarted = false;
 
+/** Continuous scheduler uses canonical shape; tighter researchLimit for cost control. */
 const AUTO_ATLAS_OPTIONS: Record<string, unknown> = {
   discoveryFirst: true,
   targetCount: 15,
@@ -1052,7 +1053,7 @@ const AUTO_ATLAS_OPTIONS: Record<string, unknown> = {
   skipFaa: true,
   runResearch: true,
   researchLimit: 2,
-  targetTimeoutMs: 120_000,
+  targetTimeoutMs: 420_000,
 };
 
 async function triggerHttpDetailed(

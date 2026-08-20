@@ -1,3 +1,6 @@
+### Canonical bureau run
+See **docs/RUN_BUREAU.md**. "Run Apex Atlas / bureau" = POST `/api/ingest/atlas-run` with `CANONICAL_ATLAS_LAUNCH_BODY` (`atlas-launch-defaults.ts`). UI + `scripts/run-bureau.sh` match. ENABLE_AUTO_PIPELINE stays false unless explicitly requested.
+
 ### Prompt philosophy (2026-08-20)
 Agentic loop is ReAct, not a playbook. Do not micro-manage trained models with GROK-PARITY checklists or force-hop done-gates. Place models + tools correctly; let them research. Deterministic extractors on visited HTML are tool output, not model training.
 

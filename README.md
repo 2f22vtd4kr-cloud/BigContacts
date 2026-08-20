@@ -8,6 +8,10 @@ It is designed for operators who need more than a company name and a generic inb
 
 ---
 
+## Run the bureau (precise)
+
+Operators and Replit agents: follow **[docs/RUN_BUREAU.md](docs/RUN_BUREAU.md)** only. Canonical launch is `POST /api/ingest/atlas-run` with `CANONICAL_ATLAS_LAUNCH_BODY` — not ad-hoc startups.
+
 ## The problem it solves
 
 Most tools stop at the company.
