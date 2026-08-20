@@ -129,11 +129,12 @@ body {
   font-weight: 700;
   letter-spacing: 0.03em;
   text-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.95),
-    0 0 10px rgba(0, 0, 0, 0.55);
+    0 1px 2px rgba(0, 0, 0, 1),
+    0 0 8px rgba(0, 0, 0, 0.9),
+    0 0 16px rgba(0, 0, 0, 0.7);
   border: 1px solid rgba(255, 255, 255, 0.35);
   border-radius: 999px;
-  background: #0c0e12; /* under canvas while it boots */
+  background: #1a1028; /* deep purple underfill while canvas boots */
   box-shadow:
     0 0 0 1px rgba(160, 120, 255, 0.18),
     0 4px 22px rgba(0, 0, 0, 0.65),
