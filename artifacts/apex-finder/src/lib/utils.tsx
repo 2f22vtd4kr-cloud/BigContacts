@@ -55,7 +55,7 @@ export function AccessScoreBadge({ score }: { score: number | null | undefined }
     tip = "No public contact path found yet";
   } else if (pct < 30) {
     label = "Hard to reach";
-    colorClass = "text-[#d4ff8a] border-[#9CFF1A]/40 bg-[#9CFF1A]/10";
+    colorClass = "text-[#9CFF1A] border-[#9CFF1A]/45 bg-[#9CFF1A]/12";
     tip = `Reachability ${pct}/100 — thin public path`;
   } else if (pct < 60) {
     label = "Possible";
@@ -63,7 +63,7 @@ export function AccessScoreBadge({ score }: { score: number | null | undefined }
     tip = `Reachability ${pct}/100 — some public route exists`;
   } else if (pct < 85) {
     label = "Easy to reach";
-    colorClass = "text-lime-200 border-lime-400/30 bg-lime-400/10";
+    colorClass = "text-[#9CFF1A] border-[#9CFF1A]/45 bg-[#9CFF1A]/12";
     tip = `Reachability ${pct}/100 — solid public contact path`;
   } else {
     label = "Direct path";
@@ -99,7 +99,7 @@ export function ConfidenceBadge({ score }: { score: number | null | undefined })
     tip = "No contact evidence on file";
   } else if (pct < 30) {
     label = "Thin evidence";
-    colorClass = "text-[#d4ff8a] border-[#9CFF1A]/40 bg-[#9CFF1A]/10";
+    colorClass = "text-[#9CFF1A] border-[#9CFF1A]/45 bg-[#9CFF1A]/12";
     tip = `Contact quality ${pct}/100 — weak or sparse public evidence`;
   } else if (pct < 60) {
     label = "Partial evidence";
@@ -107,7 +107,7 @@ export function ConfidenceBadge({ score }: { score: number | null | undefined })
     tip = `Contact quality ${pct}/100 — some public contact data, not fully confirmed`;
   } else if (pct < 85) {
     label = "Solid evidence";
-    colorClass = "text-lime-200 border-lime-400/30 bg-lime-400/10";
+    colorClass = "text-[#9CFF1A] border-[#9CFF1A]/45 bg-[#9CFF1A]/12";
     tip = `Contact quality ${pct}/100 — strong public contact evidence`;
   } else {
     label = "Confirmed";

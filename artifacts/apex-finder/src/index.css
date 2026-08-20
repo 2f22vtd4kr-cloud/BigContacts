@@ -15,6 +15,7 @@
   --color-muted: #94a3b8;
   --color-muted-foreground: #64748b;
   --color-primary: #9CFF1A;
+  --color-primary-foreground: #111827;
   --color-secondary: #00B3B8;
   --color-accent: #b8ff4d;
   --color-destructive: #FF4D6D;
@@ -400,4 +401,14 @@ button:not(:disabled):active:not(.atlas-launch-glow):not(.atlas-outline-btn):not
     transform: none !important;
     filter: none !important;
   }
+}
+
+
+/* Text on solid lime fills — never light-on-lime */
+.atlas-on-primary,
+.bg-primary {
+  color: #111827;
+}
+.bg-primary {
+  background-color: #9CFF1A;
 }

@@ -1133,7 +1133,7 @@ export default function EntityLedger() {
             </button>
             <button
               onClick={handleBulkMcts}
-              className="atlas-pressable flex items-center gap-1 rounded border border-[#9CFF1A]/40 bg-[#9CFF1A]/10 px-2 py-1 font-mono text-[9px] uppercase tracking-wider text-[#d4ff8a] hover:bg-[#9CFF1A]/20"
+              className="atlas-pressable flex items-center gap-1 rounded border border-[#9CFF1A]/40 bg-[#9CFF1A]/15 px-2 py-1 font-mono text-[9px] uppercase tracking-wider text-[#9CFF1A] hover:bg-[#9CFF1A]/25"
             >
               <TargetIcon className="h-2.5 w-2.5" /> Research
             </button>
@@ -1426,9 +1426,10 @@ export default function EntityLedger() {
                 onClick={() => setViewMode(mode)}
                 className="shrink-0 h-7 px-3 rounded text-[11px] font-mono border transition-colors"
                 style={{
-                  background: viewMode === mode ? color + "18" : "transparent",
-                  color: viewMode === mode ? color : "hsl(var(--muted-foreground))",
-                  borderColor: viewMode === mode ? color + "50" : "hsl(var(--border))",
+                  background: viewMode === mode ? (mode === "all" ? "#9CFF1A" : color + "22") : "transparent",
+                  color: viewMode === mode ? (mode === "all" ? "#111827" : color) : "hsl(var(--muted-foreground))",
+                  borderColor: viewMode === mode ? (mode === "all" ? "#9CFF1A" : color + "50") : "hsl(var(--border))",
+                  fontWeight: viewMode === mode ? 600 : 400,
                 }}
               >
                 {label}
@@ -1447,7 +1448,7 @@ export default function EntityLedger() {
                 className={cn(
                   "inline-flex shrink-0 h-8 items-center justify-center px-3 rounded-lg text-[11px] font-mono border transition-colors",
                   typeFilter === value
-                    ? "bg-primary text-primary-foreground border-primary"
+                    ? "bg-[#9CFF1A] text-[#111827] border-[#9CFF1A] font-semibold"
                     : "bg-[#0d1219]/80 text-muted-foreground border-[#9CFF1A]/12"
                 )}
               >
