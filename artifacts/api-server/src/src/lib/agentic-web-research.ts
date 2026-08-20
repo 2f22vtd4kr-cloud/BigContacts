@@ -1167,6 +1167,109 @@ function findingsFromProxyPage(
   return out;
 }
 
+
+/** IR / press / SC13 contact blocks — parity with what Grok Agent reads on the same pages. */
+function findingsFromIrAndRelatedBlocks(
+  page: string,
+  sourceUrl: string,
+  targetName: string,
+  companyName?: string | null,
+): AgenticFinding[] {
+  const out: AgenticFinding[] = [];
+  if (!page || page.length < 40) return out;
+  const plain = page.replace(/\s+/g, " ");
+  // Contact blocks
+  const blockRe = /(?:Investor\s+Contact|Contact\s+Information|Media\s+Contact|For\s+further\s+information)[:\s]*([\s\S]{0,800}?)(?=Forward\s+Looking|About\s+\w+|SOURCE\s|$)/gi;
+  let bm: RegExpExecArray | null;
+  const blocks: string[] = [];
+  while ((bm = blockRe.exec(page)) !== null) blocks.push(bm[1] || "");
+  if (!blocks.length) blocks.push(page.slice(0, 4000)); // also scan head of page
+  const seen = new Set<string>();
+  for (const block of blocks) {
+    for (const em of block.matchAll(/[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}/gi)) {
+      const e = em[0].toLowerCase();
+      if (seen.has("e:" + e)) continue;
+      if (/example|sentry|wixpress|godaddy/.test(e)) continue;
+      seen.add("e:" + e);
+      out.push({
+        vectorType: "email",
+        value: e,
+        personName: null,
+        role: null,
+        scope: "organization",
+        sourceUrls: [sourceUrl],
+        note: `IR/contact block on ${sourceUrl}`,
+      });
+    }
+    for (const ph of block.matchAll(/\(?\d{3}\)?[\s.\-]\d{3}[\s.\-]\d{4}/g)) {
+      const v = ph[0].replace(/\s+/g, " ").trim();
+      if (seen.has("p:" + v)) continue;
+      seen.add("p:" + v);
+      out.push({
+        vectorType: "phone",
+        value: v,
+        personName: null,
+        role: null,
+        scope: "organization",
+        sourceUrls: [sourceUrl],
+        note: `Phone in contact block on ${sourceUrl}`,
+      });
+    }
+    for (const pm of block.matchAll(
+      /\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\s*[,\n]\s*((?:CEO|President|Chief(?:\s+\w+)?|Director|COO|CFO|Founder)[^\n,]{0,50})/g,
+    )) {
+      const pName = pm[1]!.replace(/\s+/g, " ").trim();
+      const role = pm[2]!.replace(/\s+/g, " ").trim().slice(0, 80);
+      if (pName.split(/\s+/).length < 2 || pName.length > 50) continue;
+      const key = "r:" + pName.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({
+        vectorType: "other",
+        value: `${pName} — ${role}`,
+        personName: pName,
+        role,
+        scope: "candidate",
+        sourceUrls: [sourceUrl],
+        note: `Related officer in contact/IR block on ${sourceUrl}`,
+      });
+    }
+    for (const pem of block.matchAll(
+      /\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)[^\n]{0,50}?(?:E|Email)\s*[:.]?\s*([a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,})/gi,
+    )) {
+      const pName = pem[1]!.replace(/\s+/g, " ").trim();
+      const email = pem[2]!.toLowerCase();
+      out.push({
+        vectorType: "email",
+        value: email,
+        personName: pName,
+        role: "contact",
+        scope: "candidate",
+        sourceUrls: [sourceUrl],
+        note: `Named email in contact block on ${sourceUrl}`,
+      });
+    }
+  }
+  // SC13-style residential
+  for (const m of plain.matchAll(
+    /(?:address\s+is|resides\s+at|The\s+Reporting\s+Person'?s\s+address\s+is)\s+([^.]{12,140})/gi,
+  )) {
+    const addr = m[1]!.replace(/\s+/g, " ").trim().slice(0, 160);
+    if (seen.has("a:" + addr)) continue;
+    seen.add("a:" + addr);
+    out.push({
+      vectorType: "other",
+      value: addr,
+      personName: targetName,
+      role: "residential_address",
+      scope: "organization",
+      sourceUrls: [sourceUrl],
+      note: `Residential/reporting address on ${sourceUrl}`,
+    });
+  }
+  return out;
+}
+
 function findingsFromContactFacts(
   pageText: string,
   sourceUrl: string,
@@ -1595,8 +1698,11 @@ export async function runAgenticWebResearch(input: {
     lastObservation = `PAGE ${next}\n\n${page.slice(0, MAX_OBS)}`;
     // Deterministic findings from CONTACT FACTS block so we never depend solely on LLM memory
     const extracted = mergeFindings(
-      findingsFromContactFacts(page, next, name, input.companyName),
-      findingsFromProxyPage(page, next, name, input.companyName),
+      mergeFindings(
+        findingsFromContactFacts(page, next, name, input.companyName),
+        findingsFromProxyPage(page, next, name, input.companyName),
+      ),
+      findingsFromIrAndRelatedBlocks(page, next, name, input.companyName),
     );
     if (extracted.length) {
       findings = mergeFindings(findings, extracted);
@@ -2213,8 +2319,11 @@ export async function runAgenticWebResearch(input: {
       const page = await toolVisit(action.url);
       lastObservation = `PAGE ${action.url}\n\n${page.slice(0, MAX_OBS)}`;
       const extracted = mergeFindings(
-        findingsFromContactFacts(page, action.url, name, input.companyName),
-        findingsFromProxyPage(page, action.url, name, input.companyName),
+        mergeFindings(
+          findingsFromContactFacts(page, action.url, name, input.companyName),
+          findingsFromProxyPage(page, action.url, name, input.companyName),
+        ),
+        findingsFromIrAndRelatedBlocks(page, action.url, name, input.companyName),
       );
       if (extracted.length) {
         findings = mergeFindings(findings, extracted);
@@ -2240,6 +2349,20 @@ export async function runAgenticWebResearch(input: {
       continue;
     }
 
+    // Reject done if we have org contact but zero related people — Grok would keep hopping
+    if (
+      action.action === "done"
+      && (hasOrgEmail() || findings.some((f) => f.vectorType === "phone"))
+      && !hasRelatedPerson()
+      && i < maxIter - 2
+      && input.companyName
+    ) {
+      history.push(`step${i + 1}: done_rejected (need related officers after org contact)`);
+      lastObservation =
+        `You have organization contact facts but no related people. Search and visit IR/press/leadership pages for COO/CFO/officers with emails before done.`;
+      relatedPeopleSearchDone = false;
+      continue;
+    }
     // done — reject empty early exits so we never finish with searches=0
     const minSearches = 2;
     if (searches < minSearches && action.findings.length === 0 && i < maxIter - 1) {
