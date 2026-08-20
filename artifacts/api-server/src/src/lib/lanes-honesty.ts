@@ -1,10 +1,16 @@
 /**
  * Provider / lane honesty snapshots for jobs and Bureau cases.
  * Counts only — never secret values. Fail-closed on missing web search.
+ *
+ * bureauIntegrity: operator-facing signal when Apex cannot out-perform a
+ * general agent because the control plane (agentic LLM) or web search is dead.
  */
 import { getAIKeyStatus } from "./ai-extractor";
 import { getMistralWebSearchStatus } from "./mistral-web-search";
 import { getNvidiaNimCaseReasoningStatus } from "./nvidia-nim-case-reasoning";
+import { getAgenticLlmHealth } from "./agentic-llm-health";
+
+export type BureauIntegrityLevel = "ok" | "degraded" | "critical";
 
 export type LanesHonestySnapshot = {
   perplexity: number;
@@ -20,6 +26,17 @@ export type LanesHonestySnapshot = {
   registryShallowRisk: boolean;
   /** True when Groq admission keys are missing — deterministic name gate only. */
   groqAdmissionFallback: boolean;
+  /**
+   * Configured chat/control LLMs that can drive agentic ReAct
+   * (Groq + Gemini + Mistral + NVIDIA). Not the same as webSearchActive.
+   */
+  agenticLlmSlots: number;
+  /** Last observed agentic step success (null = not yet exercised this process). */
+  agenticLlmLastOk: boolean | null;
+  agenticLlmLastModel: string | null;
+  /** ok | degraded | critical — drives UI announcement */
+  bureauIntegrity: BureauIntegrityLevel;
+  bureauIntegrityReasons: string[];
   assessedAt: string;
 };
 
@@ -40,18 +57,53 @@ export function buildLanesHonestySnapshot(): LanesHonestySnapshot {
     ...Array.from({ length: 10 }, (_, i) => process.env[`GROQ_API_KEY_${i + 1}`]),
   ].filter((k) => typeof k === "string" && k.trim().length > 0);
   const groq = groqKeys.length;
+  const gemini = activeCount(status.gemini);
+  const mistralN = mistral.configured ? 1 : 0;
+  const nvidiaN = nvidia.configured ? 1 : 0;
+  const agenticLlmSlots = (groq > 0 ? 1 : 0) + (gemini > 0 ? 1 : 0) + mistralN + nvidiaN;
+
+  const agenticHealth = getAgenticLlmHealth();
+  const agenticLlmLastOk = agenticHealth.ok;
+  const agenticLlmLastModel = agenticHealth.model;
+
+  const reasons: string[] = [];
+  if (webSearchActive === 0) {
+    reasons.push("No live web-search providers (Tavily/Exa/Perplexity) — registry-only research cannot beat general agents.");
+  }
+  if (agenticLlmSlots === 0) {
+    reasons.push("No agentic control LLM configured (Groq/Gemini/Mistral/NVIDIA) — ReAct web loop cannot run.");
+  }
+  if (agenticLlmLastOk === false) {
+    reasons.push("Last agentic LLM step failed across all configured providers — bureau is underperforming.");
+  }
+  if (groq === 0 && agenticLlmSlots > 0) {
+    reasons.push("Groq missing — admission/name gate and preferred ReAct lane run on fallbacks only.");
+  }
+
+  let bureauIntegrity: BureauIntegrityLevel = "ok";
+  if (webSearchActive === 0 || agenticLlmSlots === 0 || agenticLlmLastOk === false) {
+    bureauIntegrity = "critical";
+  } else if (reasons.length > 0) {
+    bureauIntegrity = "degraded";
+  }
+
   return {
     perplexity,
     tavily,
     exa,
-    gemini: activeCount(status.gemini),
+    gemini,
     groq,
-    mistral: mistral.configured ? 1 : 0,
-    nvidiaNim: nvidia.configured ? 1 : 0,
+    mistral: mistralN,
+    nvidiaNim: nvidiaN,
     companiesHouse: process.env.COMPANIES_HOUSE_API_KEY ? 1 : 0,
     webSearchActive,
     registryShallowRisk: webSearchActive === 0,
     groqAdmissionFallback: groq === 0,
+    agenticLlmSlots,
+    agenticLlmLastOk,
+    agenticLlmLastModel,
+    bureauIntegrity,
+    bureauIntegrityReasons: reasons,
     assessedAt: new Date().toISOString(),
   };
 }

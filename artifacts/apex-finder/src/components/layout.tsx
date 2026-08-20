@@ -22,6 +22,7 @@ import {
 import { ApiKeyHealth } from "@/components/api-key-health";
 import { WorkspaceStatus } from "@/components/workspace-status";
 import { LaunchAtlasButton } from "@/components/launch-atlas-button";
+import { BureauIntegrityBanner } from "@/components/bureau-integrity-banner";
 
 const mainNav = [
   { name: "Overview", href: "/", icon: Crosshair },

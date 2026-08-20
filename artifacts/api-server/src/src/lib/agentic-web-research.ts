@@ -20,6 +20,8 @@ import {
   objectiveLooksWalletFirst,
 } from "./wallet-seed";
 import { lookupDomainSurface, findingsFromDomainSurface } from "./domain-surface";
+import { setAgenticLlmHealth, getAgenticLlmHealth } from "./agentic-llm-health";
+export { getAgenticLlmHealth };
 
 export type AgenticFinding = {
   vectorType: "email" | "phone" | "linkedin" | "website" | "other" | "social";
@@ -819,10 +821,122 @@ async function callGeminiJson(prompt: string): Promise<{ model: string; raw: str
   return null;
 }
 
+async function callMistralJson(prompt: string): Promise<{ model: string; raw: string } | null> {
+  const key = process.env.MISTRAL_API_KEY?.trim();
+  if (!key) return null;
+  const models = [
+    process.env.MISTRAL_AGENTIC_MODEL,
+    "mistral-small-latest",
+    "mistral-large-latest",
+    "open-mistral-nemo",
+  ].filter((m): m is string => Boolean(m && m.trim()));
+  for (const model of models) {
+    try {
+      const resp = await fetch("https://api.mistral.ai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${key}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          temperature: 0.25,
+          max_tokens: 2048,
+          response_format: { type: "json_object" },
+          messages: [
+            {
+              role: "system",
+              content:
+                "You are an elite OSINT web research agent. You operate in a ReAct loop. Reply with ONE JSON object only.",
+            },
+            { role: "user", content: prompt },
+          ],
+        }),
+        signal: AbortSignal.timeout(45_000),
+      });
+      if (!resp.ok) continue;
+      const data = (await resp.json()) as { choices?: Array<{ message?: { content?: string } }> };
+      const raw = data.choices?.[0]?.message?.content?.trim() ?? "";
+      if (raw) return { model: `mistral:${model}`, raw };
+    } catch {
+      continue;
+    }
+  }
+  return null;
+}
+
+async function callNvidiaJson(prompt: string): Promise<{ model: string; raw: string } | null> {
+  const key =
+    process.env.NVIDIA_NIM_API_KEY?.trim() ||
+    process.env.NVIDIA_API_KEY?.trim() ||
+    "";
+  if (!key) return null;
+  const models = [
+    process.env.NVIDIA_AGENTIC_MODEL,
+    "meta/llama-3.1-70b-instruct",
+    "meta/llama-3.3-70b-instruct",
+    "mistralai/mistral-large-2-instruct",
+  ].filter((m): m is string => Boolean(m && m.trim()));
+  for (const model of models) {
+    try {
+      const resp = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${key}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          temperature: 0.25,
+          max_tokens: 2048,
+          response_format: { type: "json_object" },
+          messages: [
+            {
+              role: "system",
+              content:
+                "You are an elite OSINT web research agent. You operate in a ReAct loop. Reply with ONE JSON object only.",
+            },
+            { role: "user", content: prompt },
+          ],
+        }),
+        signal: AbortSignal.timeout(50_000),
+      });
+      if (!resp.ok) continue;
+      const data = (await resp.json()) as { choices?: Array<{ message?: { content?: string } }> };
+      const raw = data.choices?.[0]?.message?.content?.trim() ?? "";
+      if (raw) return { model: `nvidia:${model}`, raw };
+    } catch {
+      continue;
+    }
+  }
+  return null;
+}
+
 async function llmStep(prompt: string): Promise<{ model: string; raw: string } | null> {
-  // Prefer Groq for agentic ReAct (lower latency, avoids Gemini text-gen 429 capacity fights
-  // with Boss). Fall back to Gemini so the loop still runs when Groq is unavailable.
-  return (await callGroqJson(prompt)) ?? (await callGeminiJson(prompt));
+  // Multi-provider ReAct control plane. Groq first (latency), then Mistral, Gemini, NVIDIA.
+  // Never depend on a single vendor — a dead Groq model must not zero the bureau.
+  const chain: Array<[string, () => Promise<{ model: string; raw: string } | null>]> = [
+    ["groq", callGroqJson],
+    ["mistral", callMistralJson],
+    ["gemini", callGeminiJson],
+    ["nvidia", callNvidiaJson],
+  ];
+  const errors: string[] = [];
+  for (const [name, fn] of chain) {
+    try {
+      const out = await fn(prompt);
+      if (out?.raw) {
+        setAgenticLlmHealth(true, out.model, null);
+        return out;
+      }
+      errors.push(`${name}:empty`);
+    } catch (err: any) {
+      errors.push(`${name}:${err?.message ?? "fail"}`);
+    }
+  }
+  setAgenticLlmHealth(false, null, errors.join("; ").slice(0, 400));
+  logger.warn({ errors }, "[agentic] all LLM providers failed for step");
+  return null;
 }
 
 function buildStepPrompt(input: {
