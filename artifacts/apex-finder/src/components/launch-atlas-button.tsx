@@ -136,21 +136,32 @@ export function LaunchAtlasButton({
           className,
         )}
       >
-        {busy || run.active ? (
-          <Loader2 className="h-4 w-4 animate-spin shrink-0" aria-hidden />
-        ) : variant === "header" ? (
-          <Crosshair className="h-3.5 w-3.5 shrink-0" aria-hidden />
-        ) : (
-          <Radar className="h-4 w-4 shrink-0" aria-hidden />
+        {(variant === "primary" || variant === "reactor") && !running && (
+          <>
+            <span className="atlas-liquid-mesh" aria-hidden />
+            <span className="atlas-liquid-sheen" aria-hidden />
+            <span className="atlas-liquid-rim" aria-hidden />
+          </>
         )}
-        <span
-          className={cn(
-            "truncate max-w-[14rem] sm:max-w-none",
-            /* Header on phone: icon-only — label lives in aria-label */
-            variant === "header" && "hidden sm:inline",
+        <span className={cn(
+          (variant === "primary" || variant === "reactor") && !running && "atlas-liquid-label",
+          "inline-flex items-center gap-2",
+        )}>
+          {busy || run.active ? (
+            <Loader2 className="h-4 w-4 animate-spin shrink-0" aria-hidden />
+          ) : variant === "header" ? (
+            <Crosshair className="h-3.5 w-3.5 shrink-0" aria-hidden />
+          ) : (
+            <Radar className="h-4 w-4 animate-pulse shrink-0" aria-hidden />
           )}
-        >
-          {running ? runningLabel : idleLabel}
+          <span
+            className={cn(
+              "truncate max-w-[14rem] sm:max-w-none",
+              variant === "header" && "hidden sm:inline",
+            )}
+          >
+            {running ? runningLabel : idleLabel}
+          </span>
         </span>
       </button>
 

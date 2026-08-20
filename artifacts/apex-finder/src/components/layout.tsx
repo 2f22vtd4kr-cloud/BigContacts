@@ -185,11 +185,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
     <div className="atlas-noise flex min-h-[100dvh] min-h-[100svh] overflow-hidden bg-background text-foreground">
       <svg aria-hidden="true" width="0" height="0" style={{ position: "absolute", width: 0, height: 0, overflow: "hidden" }}>
         <defs>
-          <filter id="atlas-liquid-distort" x="-25%" y="-25%" width="150%" height="150%" colorInterpolationFilters="sRGB">
-            <feTurbulence type="fractalNoise" baseFrequency="0.02 0.03" numOctaves="3" seed="11" result="noise">
-              <animate attributeName="baseFrequency" dur="8s" values="0.02 0.03;0.03 0.02;0.015 0.035;0.02 0.03" repeatCount="indefinite" />
+          <filter id="atlas-liquid-distort" x="-40%" y="-40%" width="180%" height="180%" colorInterpolationFilters="sRGB">
+            <feTurbulence type="fractalNoise" baseFrequency="0.012 0.02" numOctaves="4" seed="3" result="noise">
+              <animate attributeName="baseFrequency" dur="6s" values="0.012 0.02;0.025 0.015;0.01 0.028;0.012 0.02" repeatCount="indefinite" />
             </feTurbulence>
-            <feDisplacementMap in="SourceGraphic" in2="noise" scale="12" xChannelSelector="R" yChannelSelector="G" />
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="36" xChannelSelector="R" yChannelSelector="G">
+              <animate attributeName="scale" dur="5s" values="28;42;32;36;28" repeatCount="indefinite" />
+            </feDisplacementMap>
           </filter>
         </defs>
       </svg>
